@@ -1,9 +1,14 @@
 use crate::ir::*;
-use crate::schema::{MaintainKind, RuleExpr, RuleTerm, Schema};
-use crate::value::digest;
+use crate::schema::{ColumnType, MaintainKind, RuleExpr, RuleTerm, Schema};
+use crate::value::{Value, canonical_json, digest};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use thiserror::Error;
+
+// Calibration only: these estimates are admission heuristics, not allocator/serializer proofs.
+const HEAP_BYTES_PER_STEP: u64 = 32;
+const CLOSURE_BYTES_PER_EXAMINED: u64 = 416;
+const DECLARED_OUTPUT_BYTES_SCALE: u64 = 4;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Ceilings {
@@ -166,15 +171,9 @@ impl<'a> Checker<'a> {
             .sum();
         let max_writes =
             summary.writes.iter().map(|site| site.max_rows).sum::<u64>() + maintained_amplification;
-        let max_heap_bytes = summary
-            .steps
-            .saturating_mul(32)
-            .min(self.ceilings.heap_bytes);
-        let max_output_bytes = self.ceilings.output_bytes;
-        let max_closure_bytes = summary
-            .examined
-            .saturating_mul(1024)
-            .min(self.ceilings.closure_bytes);
+        let max_heap_bytes = summary.steps.saturating_mul(HEAP_BYTES_PER_STEP);
+        let max_output_bytes = OutputEstimator::estimate(self.schema, program);
+        let max_closure_bytes = summary.examined.saturating_mul(CLOSURE_BYTES_PER_EXAMINED);
         let mut bound_errors = Vec::new();
         for (name, actual, ceiling) in [
             ("examined entries", summary.examined, self.ceilings.examined),
@@ -686,6 +685,289 @@ impl Summary {
             self.product = other.product;
         }
         self
+    }
+}
+
+struct OutputEstimator<'a> {
+    schema: &'a Schema,
+    max_result: u64,
+}
+
+#[derive(Clone, Copy)]
+struct OutputBound {
+    bytes: u64,
+    instances: u64,
+}
+
+impl<'a> OutputEstimator<'a> {
+    fn estimate(schema: &'a Schema, program: &Program) -> u64 {
+        let mut estimator = Self {
+            schema,
+            max_result: canonical_json(&Value::Null).len() as u64,
+        };
+        let mut variables = program
+            .args
+            .iter()
+            .map(|(name, argument)| {
+                (
+                    name.clone(),
+                    OutputBound {
+                        bytes: Self::argument(argument),
+                        instances: 1,
+                    },
+                )
+            })
+            .collect();
+        estimator.statements(&program.body, &mut variables, 1);
+        estimator.max_result
+    }
+
+    fn statements(
+        &mut self,
+        statements: &[Stmt],
+        variables: &mut BTreeMap<String, OutputBound>,
+        calls: u64,
+    ) {
+        for statement in statements {
+            match statement {
+                Stmt::Const { name, value }
+                | Stmt::Let { name, value }
+                | Stmt::Assign { name, value } => {
+                    let bytes = self.expression(value, variables);
+                    variables.insert(
+                        name.clone(),
+                        OutputBound {
+                            bytes,
+                            instances: calls,
+                        },
+                    );
+                }
+                Stmt::Push { target, value } => {
+                    let element = self.expression(value, variables).saturating_add(1);
+                    let current = variables.entry(target.clone()).or_insert(OutputBound {
+                        bytes: 2,
+                        instances: calls,
+                    });
+                    let repetitions = calls
+                        .saturating_add(current.instances.saturating_sub(1))
+                        .saturating_div(current.instances.max(1));
+                    current.bytes = current
+                        .bytes
+                        .saturating_add(repetitions.saturating_mul(element));
+                }
+                Stmt::If {
+                    then_body,
+                    else_body,
+                    ..
+                } => {
+                    let mut then_variables = variables.clone();
+                    let mut else_variables = variables.clone();
+                    self.statements(then_body, &mut then_variables, calls);
+                    self.statements(else_body, &mut else_variables, calls);
+                    Self::merge_variables(variables, then_variables);
+                    Self::merge_variables(variables, else_variables);
+                }
+                Stmt::For {
+                    binding,
+                    domain,
+                    body,
+                } => {
+                    let (bound, element) = self.domain(domain, variables);
+                    let mut nested = variables.clone();
+                    let nested_calls = calls.saturating_mul(bound);
+                    nested.insert(
+                        binding.clone(),
+                        OutputBound {
+                            bytes: element,
+                            instances: nested_calls,
+                        },
+                    );
+                    self.statements(body, &mut nested, nested_calls);
+                    nested.remove(binding);
+                    Self::merge_variables(variables, nested);
+                }
+                Stmt::Return(value) => {
+                    self.max_result = self.max_result.max(self.expression(value, variables));
+                }
+                Stmt::Require { .. }
+                | Stmt::Insert { .. }
+                | Stmt::Update { .. }
+                | Stmt::Upsert { .. }
+                | Stmt::Delete { .. }
+                | Stmt::Emit { .. }
+                | Stmt::Break
+                | Stmt::Continue => {}
+            }
+        }
+    }
+
+    fn merge_variables(
+        variables: &mut BTreeMap<String, OutputBound>,
+        branch: BTreeMap<String, OutputBound>,
+    ) {
+        for (name, bound) in branch {
+            variables
+                .entry(name)
+                .and_modify(|current| {
+                    current.bytes = current.bytes.max(bound.bytes);
+                    current.instances = current.instances.min(bound.instances);
+                })
+                .or_insert(bound);
+        }
+    }
+
+    fn domain(&self, domain: &LoopDomain, variables: &BTreeMap<String, OutputBound>) -> (u64, u64) {
+        match domain {
+            LoopDomain::Page(scan) => (scan.take.maximum(), self.row(&scan.table)),
+            LoopDomain::LiteralRange {
+                start,
+                end_exclusive,
+            } => (end_exclusive.saturating_sub(*start).max(0) as u64, 32),
+            LoopDomain::ArgList { name, max } => {
+                let element = variables
+                    .get(name)
+                    .map(|bound| bound.bytes)
+                    .unwrap_or(1024)
+                    .saturating_div(u64::from(*max).max(1));
+                (u64::from(*max), element)
+            }
+            LoopDomain::DerivedArray { value, max, .. } => (
+                u64::from(*max),
+                self.expression(value, variables)
+                    .saturating_div(u64::from(*max).max(1)),
+            ),
+            LoopDomain::Recurse(recurse) => {
+                let mut nodes = 0_u64;
+                let mut level = 1_u64;
+                for _ in 0..=recurse.depth {
+                    nodes = nodes.saturating_add(level);
+                    level = level.saturating_mul(u64::from(recurse.fanout));
+                }
+                (nodes, self.row(&recurse.table))
+            }
+        }
+    }
+
+    fn expression(&self, expression: &Expr, variables: &BTreeMap<String, OutputBound>) -> u64 {
+        match expression {
+            Expr::Literal(value) => canonical_json(value).len() as u64,
+            Expr::Variable(name) => variables.get(name).map(|bound| bound.bytes).unwrap_or(1024),
+            Expr::Input(Input::Viewer | Input::NewId) => 144,
+            Expr::Input(Input::Now | Input::ReadTime) => 32,
+            Expr::Field { base, .. } => self.expression(base, variables),
+            Expr::Array(values) => {
+                Self::collection(values.iter().map(|value| self.expression(value, variables)))
+            }
+            Expr::Object(values) => values.iter().fold(2_u64, |size, (name, value)| {
+                size.saturating_add(name.len() as u64)
+                    .saturating_add(4)
+                    .saturating_add(self.expression(value, variables))
+            }),
+            Expr::Binary { op, .. } => match op {
+                BinaryOp::Eq
+                | BinaryOp::Ne
+                | BinaryOp::Lt
+                | BinaryOp::Lte
+                | BinaryOp::Gt
+                | BinaryOp::Gte
+                | BinaryOp::And
+                | BinaryOp::Or => 16,
+                BinaryOp::Add | BinaryOp::Sub | BinaryOp::Mul => 32,
+            },
+            Expr::Unary { op, .. } => match op {
+                UnaryOp::Not => 16,
+                UnaryOp::Neg => 32,
+            },
+            Expr::Builtin { builtin, args } => match builtin {
+                Builtin::Slice | Builtin::Sort { .. } => args
+                    .first()
+                    .map(|value| self.expression(value, variables))
+                    .unwrap_or(0),
+                Builtin::Concat => args.iter().fold(0_u64, |size, value| {
+                    size.saturating_add(self.expression(value, variables))
+                }),
+                Builtin::Min | Builtin::Max => args
+                    .iter()
+                    .map(|value| self.expression(value, variables))
+                    .max()
+                    .unwrap_or(0),
+                Builtin::MentionTokens => args
+                    .first()
+                    .map(|value| self.expression(value, variables).saturating_mul(2))
+                    .unwrap_or(2),
+                Builtin::Divmod { .. } => 256,
+                Builtin::Len
+                | Builtin::DeterministicShare
+                | Builtin::Count
+                | Builtin::Sum
+                | Builtin::CountCapped => 32,
+            },
+            Expr::Get(read) => self.row(&read.table),
+            Expr::Exists(_) => 16,
+            Expr::Scan(scan) => Self::repeated(self.row(&scan.table), scan.take.maximum()),
+        }
+    }
+
+    fn collection(values: impl Iterator<Item = u64>) -> u64 {
+        values.fold(2_u64, |size, value| {
+            size.saturating_add(value).saturating_add(1)
+        })
+    }
+
+    fn repeated(element: u64, count: u64) -> u64 {
+        2_u64.saturating_add(count.saturating_mul(element.saturating_add(1)))
+    }
+
+    fn row(&self, table: &str) -> u64 {
+        self.schema.table(table).map_or(1024, |table| {
+            table.columns.iter().fold(10_u64, |size, (name, column)| {
+                size.saturating_add(name.len() as u64)
+                    .saturating_add(4)
+                    .saturating_add(Self::column(column))
+            })
+        })
+    }
+
+    fn argument(argument: &ArgType) -> u64 {
+        match argument {
+            ArgType::Id | ArgType::Ref { .. } => 144,
+            ArgType::Text { max } | ArgType::Json { max_bytes: max } => u64::from(*max)
+                .saturating_div(DECLARED_OUTPUT_BYTES_SCALE)
+                .saturating_add(16),
+            ArgType::Int | ArgType::Time | ArgType::Decimal { .. } | ArgType::Money { .. } => 32,
+            ArgType::Bool => 16,
+            ArgType::Optional(inner) => Self::argument(inner).max(8),
+            ArgType::Scalar => 1024,
+            ArgType::List { of, max } => {
+                Self::repeated(of.as_deref().map_or(1024, Self::argument), u64::from(*max))
+            }
+            ArgType::Enum { variants } => variants
+                .iter()
+                .map(|variant| variant.len() as u64 + 16)
+                .max()
+                .unwrap_or(16),
+        }
+    }
+
+    fn column(column: &ColumnType) -> u64 {
+        match column {
+            ColumnType::Id | ColumnType::Ref { .. } => 144,
+            ColumnType::Text { max } | ColumnType::Json { max_bytes: max } => u64::from(*max)
+                .saturating_div(DECLARED_OUTPUT_BYTES_SCALE)
+                .saturating_add(16),
+            ColumnType::Int
+            | ColumnType::Time
+            | ColumnType::Decimal { .. }
+            | ColumnType::Money { .. } => 32,
+            ColumnType::Bool => 16,
+            ColumnType::Optional(inner) => Self::column(inner).max(8),
+            ColumnType::List { of, max } => Self::repeated(Self::column(of), u64::from(*max)),
+            ColumnType::Enum { variants } => variants
+                .iter()
+                .map(|variant| variant.len() as u64 + 16)
+                .max()
+                .unwrap_or(16),
+        }
     }
 }
 

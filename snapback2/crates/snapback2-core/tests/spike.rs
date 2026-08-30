@@ -780,6 +780,49 @@ fn maintained_unread_256_member_fanout_records_p95() {
     assert!(p95 > Duration::ZERO);
 }
 
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CertificationCorpusCase {
+    name: String,
+    schema: Schema,
+    program: Program,
+    #[serde(default)]
+    prelude: Vec<CertificationPrelude>,
+}
+
+#[derive(serde::Deserialize)]
+struct CertificationPrelude {
+    program: Program,
+}
+
+#[test]
+fn every_frozen_corpus_program_remains_certified() {
+    let cases: Vec<CertificationCorpusCase> =
+        serde_json::from_str(include_str!("../../../corpus/manifest.json")).unwrap();
+    let mut refusals = Vec::new();
+    for case in &cases {
+        let checker = Checker::new(&case.schema, Ceilings::default());
+        if let Err(errors) = checker.check_all(&case.program) {
+            refusals.push(format!("{}: {errors:?}", case.name));
+        }
+        for (index, prelude) in case.prelude.iter().enumerate() {
+            if let Err(errors) = checker.check_all(&prelude.program) {
+                refusals.push(format!("{} prelude {index}: {errors:?}", case.name));
+            }
+        }
+    }
+    assert_eq!(
+        cases.len(),
+        76,
+        "the complete frozen corpus must be checked"
+    );
+    assert!(
+        refusals.is_empty(),
+        "corpus programs flipped from certified to refused:\n{}",
+        refusals.join("\n")
+    );
+}
+
 fn literal_row(value: Value) -> Expr {
     Expr::Literal(value)
 }

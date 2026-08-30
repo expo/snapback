@@ -44,6 +44,65 @@ fn project(programs: Vec<Program>, schema: Schema) -> ProjectJson {
     }
 }
 
+fn ceiling_schema() -> Schema {
+    Schema {
+        tables: BTreeMap::from([(
+            "items".to_owned(),
+            public_table(
+                BTreeMap::from([
+                    ("id".to_owned(), ColumnType::Id),
+                    ("body".to_owned(), ColumnType::Text { max: 256 }),
+                ]),
+                BTreeMap::from([(
+                    "byId".to_owned(),
+                    Index {
+                        columns: vec!["id".to_owned()],
+                        unique: true,
+                    },
+                )]),
+            ),
+        )]),
+        maintains: Vec::new(),
+        channels: BTreeMap::new(),
+        auth: Auth::default(),
+        effects: Vec::new(),
+    }
+}
+
+fn ceiling_scan(take: u32) -> Program {
+    Program {
+        name: "items.overCeiling".to_owned(),
+        kind: ProgramKind::Query,
+        args: BTreeMap::new(),
+        read_time_granularity_ms: None,
+        body: vec![Stmt::Return(Expr::Scan(Scan {
+            site: "items.overCeiling".to_owned(),
+            table: "items".to_owned(),
+            index: "byId".to_owned(),
+            prefix: Vec::new(),
+            order: Order::Asc,
+            take: Bound::Literal(take),
+            after: None,
+            before: None,
+            range: None,
+            provenance: KeyProvenance::Const,
+        }))],
+    }
+}
+
+fn assert_named_ceiling(schema: &Schema, program: &Program, ceilings: Ceilings, name: &str) {
+    let errors = Checker::new(schema, ceilings)
+        .check_all(program)
+        .unwrap_err();
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.message.starts_with(&format!("{name} "))
+                && error.message.contains("exceeds ceiling")),
+        "missing {name} refusal from {errors:?}"
+    );
+}
+
 #[test]
 fn emit_has_the_wire_shape_certificate_outbox_trace_and_id_consumption() {
     let statement = Stmt::Emit {
@@ -383,6 +442,65 @@ fn checker_and_generation_report_all_refusals_per_program() {
     assert!(errors[0].message.starts_with("examined entries 12"));
     assert!(errors[1].message.starts_with("index entries 12"));
     assert!(errors[2].message.starts_with("steps 61"));
+}
+
+#[test]
+fn checker_refuses_a_program_over_the_heap_ceiling() {
+    let work = (0..3)
+        .map(|number| Stmt::Let {
+            name: format!("temporary{number}"),
+            value: Expr::Literal(Value::Null),
+        })
+        .collect();
+    let program = Program {
+        name: "items.heap".to_owned(),
+        kind: ProgramKind::Query,
+        args: BTreeMap::new(),
+        read_time_granularity_ms: None,
+        body: vec![
+            Stmt::For {
+                binding: "number".to_owned(),
+                domain: LoopDomain::LiteralRange {
+                    start: 0,
+                    end_exclusive: 50_000,
+                },
+                body: work,
+            },
+            Stmt::Return(Expr::Literal(Value::Null)),
+        ],
+    };
+    assert_named_ceiling(
+        &ceiling_schema(),
+        &program,
+        Ceilings::default(),
+        "heap bytes",
+    );
+}
+
+#[test]
+fn checker_refuses_a_program_over_the_closure_ceiling() {
+    assert_named_ceiling(
+        &ceiling_schema(),
+        &ceiling_scan(10_082),
+        Ceilings {
+            output_bytes: u64::MAX,
+            ..Ceilings::default()
+        },
+        "closure bytes",
+    );
+}
+
+#[test]
+fn checker_refuses_a_program_over_the_output_ceiling() {
+    assert_named_ceiling(
+        &ceiling_schema(),
+        &ceiling_scan(5_000),
+        Ceilings {
+            closure_bytes: u64::MAX,
+            ..Ceilings::default()
+        },
+        "output bytes",
+    );
 }
 
 #[test]

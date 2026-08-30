@@ -1,6 +1,6 @@
 # snapback2-core: the heap, closure, and output ceiling checks in `check_all` cannot fire
 
-**Status:** Open
+**Status:** Closed
 **Systems:** snapback2, certificate
 **Severity:** P2
 **Author:** Claude Fable 5, directed by Charlie Cheever
@@ -12,3 +12,24 @@ Found by the report-only delta review of lane A (2026-08-30) after the lane had 
 Fix: compare the raw estimates (and make the output estimate a function of the program's result shape and `take`), add a test per ceiling that a program over each one is refused with the ceiling named, and re-measure the S1 corpus so no existing program flips. The estimates themselves stay coarse until a real allocator/serializer proof replaces them (LLP 1001 deferred list).
 
 Minor, same review: the live error digest covers only `error.code()`, so two different `E_OVERFLOW` messages on successive reruns are `changed: false`; include the message.
+
+## Resolution — 2026-08-30
+
+Resolved the whole ticket. `Checker::check_all` now compares raw heap and
+closure estimates with their ceilings, and output bytes are estimated from the
+program's return shape, schema column/argument shapes, accumulator pushes, and
+scan/loop bounds. The estimate remains deliberately coarse: calibration against
+the existing programs uses 416 bytes per examined closure entry and one quarter
+of declared Text/Json maxima. The default closure and output refusals remain
+reachable and are covered by focused tests.
+
+Added one named-refusal regression test for each of heap, closure, and output,
+plus a certification sweep over all 76 frozen corpus cases and their preludes.
+No corpus program flipped from certified to refused. Live runtime-error digests
+now include both code and rendered message; successive distinct `E_OVERFLOW`
+messages report `changed: true` in the new regression test.
+
+Verification from `snapback2/`:
+
+- `./scripts/test.sh` — passed (Rust workspace, 76/76 evaluator corpus, 42/42 compiler checks).
+- `node scripts/measure.mjs --check` — all green (core test 19.19 s, check-project 0.791 s, doctor samples 0.486/0.163 s).
