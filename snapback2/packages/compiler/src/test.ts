@@ -225,6 +225,29 @@ test("count and reduce retain O(1) closure through page bindings", () => {
     `count/reduce closure estimates diverged: ${JSON.stringify(checked)}`);
 });
 
+test("loop collection reassignment is refused unless freshness is proven", () => {
+  const source = `import { query, range, t } from "snapback2";
+    function append(result, value) { return [...result, value]; }
+    export const growing = query({ value: t.text(1000) }, ({ args }) => {
+      let result = [];
+      for (const item of range(0, 7000)) result = [...result, args.value];
+      return result;
+    });
+    export const growingThroughArguments = query({ value: t.text(1000) }, ({ args }) => {
+      let result = [];
+      for (const item of range(0, 7000)) result = append(result, args.value);
+      return result;
+    });`;
+  const lowered = lowerSource(source, "collection-growth.ts");
+  assert(lowered.ok, `collection growth fixture did not lower: ${lowered.ok ? "" : lowered.diagnostics.map((item) => item.message).join("; ")}`);
+  const checked = rustCheck(lowered.programs, "synthetic");
+  const refusals = checked.map((item) => item.error);
+  assert(refusals.every((refusal) => refusal?.code === "E_BOUND" && refusal.message.startsWith("output bytes 7133002 exceeds ceiling")),
+    `loop-invariant append was not refused at its 7.1 MB output bound: ${JSON.stringify(checked)}`);
+  assert(refusals.every((refusal) => refusal?.rewrite.includes("result.push(item)") && refusal.rewrite.includes("return page")),
+    `collection growth refusal did not paste the bounded rewrite: ${JSON.stringify(refusals)}`);
+});
+
 test("bound rewrite uses the refusing table's declared row width", () => {
   const tables = new Map<string, TableInfo>([["wideRows", {
     name: "wideRows",

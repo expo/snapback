@@ -108,6 +108,16 @@ fn program(name: &str, body: Vec<Stmt>) -> Program {
     }
 }
 
+fn program_with_args(name: &str, args: BTreeMap<String, ArgType>, body: Vec<Stmt>) -> Program {
+    Program {
+        name: name.to_owned(),
+        kind: ProgramKind::Query,
+        args,
+        read_time_granularity_ms: None,
+        body,
+    }
+}
+
 fn bound_page() -> Stmt {
     Stmt::Let {
         name: "page".to_owned(),
@@ -391,6 +401,182 @@ fn collection_reassignment_growth_tracks_loop_cardinality() {
     let fresh = permissive_checker(&schema).check(&fresh_array).unwrap();
     assert_eq!(fresh.max_closure_bytes, GROWTH_ROW_BYTES);
     assert_eq!(fresh.max_output_bytes, 799);
+
+    let fresh_temporary = program(
+        "items.freshTemporary",
+        vec![
+            Stmt::Let {
+                name: "result".to_owned(),
+                value: Expr::Array(Vec::new()),
+            },
+            Stmt::For {
+                binding: "item".to_owned(),
+                domain: LoopDomain::Page(growth_scan(GROWTH_TAKE)),
+                body: vec![
+                    Stmt::Let {
+                        name: "tmp".to_owned(),
+                        value: Expr::Array(vec![Expr::Variable("item".to_owned())]),
+                    },
+                    Stmt::Assign {
+                        name: "result".to_owned(),
+                        value: Expr::Variable("tmp".to_owned()),
+                    },
+                ],
+            },
+            Stmt::Return(Expr::Variable("result".to_owned())),
+        ],
+    );
+    let fresh = permissive_checker(&schema).check(&fresh_temporary).unwrap();
+    assert_eq!(fresh.max_closure_bytes, GROWTH_ROW_BYTES);
+    assert_eq!(fresh.max_output_bytes, 799);
+}
+
+#[test]
+fn collection_growth_defaults_to_growth_until_freshness_is_proven() {
+    let schema = growth_schema();
+    let empty_array = || Stmt::Let {
+        name: "result".to_owned(),
+        value: Expr::Array(Vec::new()),
+    };
+    let literal_loop = |body| Stmt::For {
+        binding: "item".to_owned(),
+        domain: LoopDomain::LiteralRange {
+            start: 0,
+            end_exclusive: i64::from(GROWTH_TAKE),
+        },
+        body,
+    };
+    let returned = || Stmt::Return(Expr::Variable("result".to_owned()));
+
+    // Escape 1: the appended value is loop-invariant. Absence of the old
+    // loop-varying pattern is not a freshness proof.
+    let argument_append = program_with_args(
+        "items.argumentAppend",
+        BTreeMap::from([("value".to_owned(), ArgType::Text { max: 1_000 })]),
+        vec![
+            empty_array(),
+            literal_loop(vec![spread_append(
+                "result",
+                Expr::Variable("value".to_owned()),
+            )]),
+            returned(),
+        ],
+    );
+
+    // Escape 2: the prior result reaches the assignment through a temporary.
+    let temporary_append = program(
+        "items.temporaryAppend",
+        vec![
+            empty_array(),
+            Stmt::For {
+                binding: "item".to_owned(),
+                domain: LoopDomain::Page(growth_scan(GROWTH_TAKE)),
+                body: vec![
+                    Stmt::Let {
+                        name: "tmp".to_owned(),
+                        value: Expr::Builtin {
+                            builtin: Builtin::Concat,
+                            args: vec![
+                                Expr::Variable("result".to_owned()),
+                                Expr::Array(vec![Expr::Variable("item".to_owned())]),
+                            ],
+                        },
+                    },
+                    Stmt::Assign {
+                        name: "result".to_owned(),
+                        value: Expr::Variable("tmp".to_owned()),
+                    },
+                ],
+            },
+            returned(),
+        ],
+    );
+
+    // Escape 3: two paths to the prior value produce exponential retention.
+    let duplicate_prior = program(
+        "items.duplicatePrior",
+        vec![
+            empty_array(),
+            Stmt::For {
+                binding: "item".to_owned(),
+                domain: LoopDomain::LiteralRange {
+                    start: 0,
+                    end_exclusive: 20,
+                },
+                body: vec![Stmt::Assign {
+                    name: "result".to_owned(),
+                    value: Expr::Builtin {
+                        builtin: Builtin::Concat,
+                        args: vec![
+                            Expr::Variable("result".to_owned()),
+                            Expr::Variable("result".to_owned()),
+                            Expr::Array(vec![Expr::Variable("item".to_owned())]),
+                        ],
+                    },
+                }],
+            },
+            returned(),
+        ],
+    );
+
+    // Escape 4: object nesting is collection growth too.
+    let object_chain = program(
+        "items.objectChain",
+        vec![
+            Stmt::Let {
+                name: "result".to_owned(),
+                value: Expr::Object(BTreeMap::new()),
+            },
+            Stmt::For {
+                binding: "item".to_owned(),
+                domain: LoopDomain::Page(growth_scan(GROWTH_TAKE)),
+                body: vec![Stmt::Assign {
+                    name: "result".to_owned(),
+                    value: Expr::Object(BTreeMap::from([
+                        ("previous".to_owned(), Expr::Variable("result".to_owned())),
+                        ("item".to_owned(), Expr::Variable("item".to_owned())),
+                    ])),
+                }],
+            },
+            returned(),
+        ],
+    );
+
+    let cases = [
+        (
+            "loop-invariant argument",
+            argument_append,
+            7_133_002,
+            7_112_000,
+        ),
+        ("temporary alias", temporary_append, 5_593_002, 5_572_796),
+        (
+            "duplicate prior value",
+            duplicate_prior,
+            38_797_312,
+            33_554_432,
+        ),
+        ("object chain", object_chain, 5_726_002, 5_572_000),
+    ];
+    for (shape, program, output, closure) in cases {
+        let certificate = permissive_checker(&schema).check(&program).unwrap();
+        assert_eq!(certificate.max_output_bytes, output, "{shape} output");
+        assert_eq!(certificate.max_closure_bytes, closure, "{shape} closure");
+        let errors = Checker::new(&schema, Ceilings::default())
+            .check_all(&program)
+            .unwrap_err();
+        for product in ["output bytes", "closure bytes"] {
+            let refusal = errors
+                .iter()
+                .find(|error| error.message.starts_with(product))
+                .unwrap_or_else(|| panic!("{shape} did not refuse {product}: {errors:?}"));
+            assert!(
+                refusal.rewrite.contains("result.push(item)")
+                    && refusal.rewrite.contains("return page"),
+                "{shape} {product} refusal did not paste the collection rewrite: {refusal:?}"
+            );
+        }
+    }
 }
 
 #[test]

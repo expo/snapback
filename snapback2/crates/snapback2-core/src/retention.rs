@@ -1,5 +1,9 @@
 use crate::certificate::declared_serialized_row_max;
-use crate::ir::{Builtin, Expr, LoopDomain, Program, Scan, Stmt};
+use crate::growth::{
+    CollectionBinding, assignment_growth, expression_from as collection_expression_from,
+    saturating_power, take_identity,
+};
+use crate::ir::{ArgType, Builtin, Expr, Input, LoopDomain, Program, Scan, Stmt};
 use crate::schema::Schema;
 use crate::value::Value;
 use std::collections::BTreeMap;
@@ -9,6 +13,8 @@ const CLOSURE_METADATA_BYTES: u64 = 64;
 #[derive(Clone, Default)]
 struct Flow {
     rows: BTreeMap<String, RowFlow>,
+    value_bytes: u64,
+    retained_value_bytes: u64,
     depends_on_scan: bool,
 }
 
@@ -22,7 +28,16 @@ impl Flow {
     fn row(site: &str, bytes: u64, count: u64) -> Self {
         Self {
             rows: BTreeMap::from([(site.to_owned(), RowFlow { count, bytes })]),
+            value_bytes: 0,
+            retained_value_bytes: 0,
             depends_on_scan: true,
+        }
+    }
+
+    fn value(bytes: u64) -> Self {
+        Self {
+            value_bytes: bytes,
+            ..Self::default()
         }
     }
 
@@ -33,6 +48,10 @@ impl Flow {
                 .and_modify(|current| current.count = current.count.saturating_add(incoming.count))
                 .or_insert(incoming);
         }
+        self.value_bytes = self.value_bytes.saturating_add(other.value_bytes);
+        self.retained_value_bytes = self
+            .retained_value_bytes
+            .saturating_add(other.retained_value_bytes);
         self.depends_on_scan |= other.depends_on_scan;
         self
     }
@@ -44,6 +63,8 @@ impl Flow {
                 .and_modify(|current| current.count = current.count.max(incoming.count))
                 .or_insert(incoming);
         }
+        self.value_bytes = self.value_bytes.max(other.value_bytes);
+        self.retained_value_bytes = self.retained_value_bytes.max(other.retained_value_bytes);
         self.depends_on_scan |= other.depends_on_scan;
         self
     }
@@ -52,17 +73,38 @@ impl Flow {
         for row in self.rows.values_mut() {
             row.count = row.count.saturating_mul(factor);
         }
+        self.value_bytes = self.value_bytes.saturating_mul(factor);
+        self.retained_value_bytes = self.retained_value_bytes.saturating_mul(factor);
         self
     }
 
-    fn growth_over(mut self, current: &Self) -> Self {
+    fn growth_over(mut self, current: &Self, occurrences: u64) -> Self {
         for (site, retained) in &current.rows {
             if let Some(incoming) = self.rows.get_mut(site) {
-                incoming.count = incoming.count.saturating_sub(retained.count);
+                incoming.count = incoming
+                    .count
+                    .saturating_sub(retained.count.saturating_mul(occurrences));
             }
         }
         self.rows.retain(|_, row| row.count > 0);
+        self.value_bytes = self
+            .value_bytes
+            .saturating_sub(current.value_bytes.saturating_mul(occurrences));
+        self.retained_value_bytes = self
+            .retained_value_bytes
+            .saturating_sub(current.retained_value_bytes.saturating_mul(occurrences));
         self
+    }
+
+    fn retain_value_width(mut self) -> Self {
+        self.retained_value_bytes = self.retained_value_bytes.max(self.value_bytes);
+        self
+    }
+
+    fn has_growth_width(&self) -> bool {
+        self.value_bytes > 0
+            || self.retained_value_bytes > 0
+            || self.rows.values().any(|row| row.count > 0)
     }
 
     fn take(mut self, count: u64, available: u64) -> Self {
@@ -82,20 +124,32 @@ impl Flow {
                 .saturating_add(count.saturating_sub(1))
                 .saturating_div(count.max(1));
         }
+        self.value_bytes = self
+            .value_bytes
+            .saturating_add(count.saturating_sub(1))
+            .saturating_div(count.max(1));
+        self.retained_value_bytes = self
+            .retained_value_bytes
+            .saturating_add(count.saturating_sub(1))
+            .saturating_div(count.max(1));
         self
     }
 
     fn fixed_width(self) -> Self {
         Self {
             rows: BTreeMap::new(),
+            value_bytes: self.value_bytes,
+            retained_value_bytes: self.retained_value_bytes,
             depends_on_scan: self.depends_on_scan,
         }
     }
 
     fn held_bytes(&self) -> u64 {
-        self.rows.values().fold(0, |total, row| {
-            total.saturating_add(row.count.saturating_mul(row.bytes))
-        })
+        self.rows
+            .values()
+            .fold(self.retained_value_bytes, |total, row| {
+                total.saturating_add(row.count.saturating_mul(row.bytes))
+            })
     }
 }
 
@@ -105,13 +159,14 @@ struct Binding {
     instances: u64,
     collection_len: Option<u64>,
     held_collection: bool,
-    loop_varying: bool,
+    collection: CollectionBinding,
 }
 
 pub(crate) struct RetentionEstimator<'a> {
     schema: &'a Schema,
     max_held_bytes: u64,
     has_fixed_width_result: bool,
+    next_identity: u64,
 }
 
 impl<'a> RetentionEstimator<'a> {
@@ -120,9 +175,33 @@ impl<'a> RetentionEstimator<'a> {
             schema,
             max_held_bytes: 0,
             has_fixed_width_result: false,
+            next_identity: 1,
         };
-        let mut variables = BTreeMap::new();
-        estimator.statements(&program.body, &mut variables, 1);
+        let mut variables = program
+            .args
+            .iter()
+            .map(|(name, argument)| {
+                let identity = take_identity(&mut estimator.next_identity);
+                let collection = matches!(argument, ArgType::List { .. });
+                (
+                    name.clone(),
+                    Binding {
+                        flow: Flow::value(argument_max(argument)),
+                        instances: 1,
+                        collection_len: match argument {
+                            ArgType::List { max, .. } => Some(u64::from(*max)),
+                            _ => None,
+                        },
+                        held_collection: false,
+                        collection: CollectionBinding::new(
+                            identity,
+                            crate::growth::CollectionExpression::argument(collection),
+                        ),
+                    },
+                )
+            })
+            .collect();
+        estimator.statements(&program.body, &mut variables, 1, 0);
         if estimator.max_held_bytes == 0 && estimator.has_fixed_width_result {
             CLOSURE_METADATA_BYTES
         } else {
@@ -140,12 +219,19 @@ impl<'a> RetentionEstimator<'a> {
         statements: &[Stmt],
         variables: &mut BTreeMap<String, Binding>,
         calls: u64,
+        iteration: u64,
     ) {
         for statement in statements {
             match statement {
                 Stmt::Const { name, value } | Stmt::Let { name, value } => {
                     let (flow, collection_len, held_collection) = self.expression(value, variables);
-                    let loop_varying = Self::expression_is_loop_varying(value, variables, None);
+                    let provenance = collection_expression_from(
+                        value,
+                        variables,
+                        |binding| &binding.collection,
+                        iteration,
+                    );
+                    let identity = take_identity(&mut self.next_identity);
                     variables.insert(
                         name.clone(),
                         Binding {
@@ -153,39 +239,72 @@ impl<'a> RetentionEstimator<'a> {
                             instances: calls,
                             collection_len,
                             held_collection,
-                            loop_varying,
+                            collection: CollectionBinding::new(identity, provenance),
                         },
                     );
                     self.record_held_collections(variables);
                 }
                 Stmt::Assign { name, value } => {
                     let (flow, collection_len, held_collection) = self.expression(value, variables);
-                    let loop_varying =
-                        Self::expression_is_loop_varying(value, variables, Some(name));
-                    let collection = collection_len.is_some() || held_collection;
-                    let growth = collection
-                        && variables.contains_key(name)
-                        && expression_references_matching(value, &mut |variable| variable == name)
-                        && loop_varying;
-                    if growth {
+                    let provenance = collection_expression_from(
+                        value,
+                        variables,
+                        |binding| &binding.collection,
+                        iteration,
+                    );
+                    let growth = variables.get(name).and_then(|current| {
+                        assignment_growth(
+                            &current.collection,
+                            &provenance,
+                            calls,
+                            current.instances,
+                            iteration,
+                        )
+                    });
+                    if let Some(growth) = growth {
                         let current = variables.get_mut(name).expect("growth target exists");
-                        let repetitions = calls
-                            .saturating_add(current.instances.saturating_sub(1))
-                            .saturating_div(current.instances.max(1));
-                        let added = flow.growth_over(&current.flow).scale(repetitions);
-                        current.flow = current.flow.clone().add(added);
+                        let mut added = flow.clone().growth_over(&current.flow, growth.occurrences);
+                        if !added.has_growth_width() {
+                            added = flow.clone();
+                        }
+                        current.flow = if growth.occurrences > 1 {
+                            let factor = saturating_power(growth.occurrences, growth.repetitions);
+                            current
+                                .flow
+                                .clone()
+                                .scale(factor)
+                                .add(added.retain_value_width().scale(factor))
+                        } else if growth.occurrences == 1 {
+                            current
+                                .flow
+                                .clone()
+                                .add(added.retain_value_width().scale(growth.repetitions))
+                        } else {
+                            current
+                                .flow
+                                .clone()
+                                .add(flow.clone().retain_value_width().scale(growth.repetitions))
+                        };
                         current.collection_len = current.collection_len.zip(collection_len).map(
                             |(current_len, assigned_len)| {
                                 current_len.saturating_add(
                                     assigned_len
                                         .saturating_sub(current_len)
-                                        .saturating_mul(repetitions),
+                                        .saturating_mul(growth.repetitions),
                                 )
                             },
                         );
                         current.held_collection = true;
-                        current.loop_varying |= loop_varying;
+                        current.collection = current.collection.assigned(provenance);
                     } else {
+                        let identity = variables
+                            .get(name)
+                            .map(|binding| binding.collection.identity)
+                            .unwrap_or_else(|| take_identity(&mut self.next_identity));
+                        let collection = variables
+                            .get(name)
+                            .map(|binding| binding.collection.assigned(provenance.clone()))
+                            .unwrap_or_else(|| CollectionBinding::new(identity, provenance));
                         variables.insert(
                             name.clone(),
                             Binding {
@@ -193,7 +312,7 @@ impl<'a> RetentionEstimator<'a> {
                                 instances: calls,
                                 collection_len,
                                 held_collection,
-                                loop_varying,
+                                collection,
                             },
                         );
                     }
@@ -201,14 +320,15 @@ impl<'a> RetentionEstimator<'a> {
                 }
                 Stmt::Push { target, value } => {
                     let (element, _, _) = self.expression(value, variables);
-                    let loop_varying =
-                        Self::expression_is_loop_varying(value, variables, Some(target));
                     let current = variables.entry(target.clone()).or_insert(Binding {
                         flow: Flow::default(),
                         instances: calls,
                         collection_len: Some(0),
                         held_collection: true,
-                        loop_varying: false,
+                        collection: CollectionBinding::new(
+                            take_identity(&mut self.next_identity),
+                            crate::growth::CollectionExpression::iteration(true, iteration),
+                        ),
                     });
                     let repetitions = calls
                         .saturating_add(current.instances.saturating_sub(1))
@@ -218,7 +338,6 @@ impl<'a> RetentionEstimator<'a> {
                         .collection_len
                         .map(|length| length.saturating_add(repetitions));
                     current.held_collection = true;
-                    current.loop_varying |= loop_varying;
                     self.record_held_collections(variables);
                 }
                 Stmt::If {
@@ -229,8 +348,8 @@ impl<'a> RetentionEstimator<'a> {
                     let _ = self.expression(condition, variables);
                     let mut then_variables = variables.clone();
                     let mut else_variables = variables.clone();
-                    self.statements(then_body, &mut then_variables, calls);
-                    self.statements(else_body, &mut else_variables, calls);
+                    self.statements(then_body, &mut then_variables, calls, iteration);
+                    self.statements(else_body, &mut else_variables, calls, iteration);
                     Self::merge_variables(variables, then_variables);
                     Self::merge_variables(variables, else_variables);
                 }
@@ -242,6 +361,7 @@ impl<'a> RetentionEstimator<'a> {
                     let (bound, element) = self.domain(domain, variables);
                     let mut nested = variables.clone();
                     let nested_calls = calls.saturating_mul(bound);
+                    let nested_iteration = take_identity(&mut self.next_identity);
                     nested.insert(
                         binding.clone(),
                         Binding {
@@ -249,10 +369,16 @@ impl<'a> RetentionEstimator<'a> {
                             instances: nested_calls,
                             collection_len: None,
                             held_collection: false,
-                            loop_varying: true,
+                            collection: CollectionBinding::new(
+                                take_identity(&mut self.next_identity),
+                                crate::growth::CollectionExpression::iteration(
+                                    matches!(domain, LoopDomain::Page(_) | LoopDomain::Recurse(_)),
+                                    nested_iteration,
+                                ),
+                            ),
                         },
                     );
-                    self.statements(body, &mut nested, nested_calls);
+                    self.statements(body, &mut nested, nested_calls, nested_iteration);
                     nested.remove(binding);
                     Self::merge_variables(variables, nested);
                 }
@@ -298,9 +424,15 @@ impl<'a> RetentionEstimator<'a> {
                 end_exclusive,
             } => (
                 end_exclusive.saturating_sub(*start).max(0) as u64,
-                Flow::default(),
+                Flow::value(32),
             ),
-            LoopDomain::ArgList { max, .. } => (u64::from(*max), Flow::default()),
+            LoopDomain::ArgList { name, max } => (
+                u64::from(*max),
+                variables
+                    .get(name)
+                    .map(|binding| binding.flow.clone().element(u64::from(*max)))
+                    .unwrap_or_else(|| Flow::value(1024)),
+            ),
             LoopDomain::DerivedArray { value, max, .. } => {
                 let (flow, collection_len, _) = self.expression(value, variables);
                 let bound = u64::from(*max);
@@ -439,7 +571,25 @@ impl<'a> RetentionEstimator<'a> {
                 let count = scan.take.maximum();
                 (self.scan(scan), Some(count), false)
             }
-            Expr::Literal(_) | Expr::Input(_) => (Flow::default(), None, false),
+            Expr::Literal(value) => {
+                let collection_len = match value {
+                    Value::Array(values) => Some(values.len() as u64),
+                    _ => None,
+                };
+                (
+                    Flow::value(crate::value::canonical_json(value).len() as u64),
+                    collection_len,
+                    false,
+                )
+            }
+            Expr::Input(input) => (
+                Flow::value(match input {
+                    Input::Viewer | Input::NewId => 144,
+                    Input::Now | Input::ReadTime => 32,
+                }),
+                None,
+                false,
+            ),
         }
     }
 
@@ -449,19 +599,6 @@ impl<'a> RetentionEstimator<'a> {
             declared_serialized_row_max(self.schema, &scan.table),
             scan.take.maximum(),
         )
-    }
-
-    fn expression_is_loop_varying(
-        expression: &Expr,
-        variables: &BTreeMap<String, Binding>,
-        excluded: Option<&String>,
-    ) -> bool {
-        expression_references_matching(expression, &mut |name| {
-            excluded.is_none_or(|excluded| name != excluded)
-                && variables
-                    .get(name)
-                    .is_some_and(|binding| binding.loop_varying)
-        })
     }
 
     fn merge_variables(
@@ -480,7 +617,7 @@ impl<'a> RetentionEstimator<'a> {
                         _ => None,
                     };
                     current.held_collection |= incoming.held_collection;
-                    current.loop_varying |= incoming.loop_varying;
+                    current.collection.merge(&incoming.collection);
                 })
                 .or_insert(incoming);
         }
@@ -497,63 +634,35 @@ impl<'a> RetentionEstimator<'a> {
     }
 }
 
+pub(crate) fn argument_max(argument: &ArgType) -> u64 {
+    match argument {
+        ArgType::Id | ArgType::Ref { .. } => 144,
+        ArgType::Text { max } | ArgType::Json { max_bytes: max } => u64::from(*max) + 16,
+        ArgType::Int | ArgType::Time | ArgType::Decimal { .. } | ArgType::Money { .. } => 32,
+        ArgType::Bool => 16,
+        ArgType::Optional(inner) => argument_max(inner).max(8),
+        ArgType::Scalar => 1024,
+        ArgType::List { of, max } => 2_u64.saturating_add(
+            u64::from(*max)
+                .saturating_mul(of.as_deref().map_or(1024, argument_max).saturating_add(1)),
+        ),
+        ArgType::Enum { variants } => variants
+            .iter()
+            .map(|variant| variant.len() as u64 + 16)
+            .max()
+            .unwrap_or(16),
+    }
+}
+
+pub(crate) fn collection_bytes(values: impl Iterator<Item = u64>) -> u64 {
+    values.fold(2_u64, |size, value| {
+        size.saturating_add(value).saturating_add(1)
+    })
+}
+
 fn literal_index(expression: Option<&Expr>) -> Option<u64> {
     match expression {
         Some(Expr::Literal(Value::Int(value))) => u64::try_from(*value).ok(),
         _ => None,
-    }
-}
-
-pub(crate) fn expression_references_matching(
-    expression: &Expr,
-    predicate: &mut impl FnMut(&str) -> bool,
-) -> bool {
-    match expression {
-        Expr::Variable(name) => predicate(name),
-        Expr::Field { base, .. } | Expr::Unary { value: base, .. } => {
-            expression_references_matching(base, predicate)
-        }
-        Expr::Array(values) => values
-            .iter()
-            .any(|value| expression_references_matching(value, predicate)),
-        Expr::Object(values) => values
-            .values()
-            .any(|value| expression_references_matching(value, predicate)),
-        Expr::Binary { left, right, .. } => {
-            expression_references_matching(left, predicate)
-                || expression_references_matching(right, predicate)
-        }
-        Expr::Builtin { args, .. } => args
-            .iter()
-            .any(|value| expression_references_matching(value, predicate)),
-        Expr::Get(read) | Expr::Exists(read) => read
-            .key
-            .iter()
-            .any(|value| expression_references_matching(value, predicate)),
-        Expr::Scan(scan) => {
-            scan.prefix
-                .iter()
-                .any(|value| expression_references_matching(value, predicate))
-                || scan
-                    .after
-                    .as_deref()
-                    .is_some_and(|value| expression_references_matching(value, predicate))
-                || scan
-                    .before
-                    .as_deref()
-                    .is_some_and(|value| expression_references_matching(value, predicate))
-                || scan.range.as_ref().is_some_and(|range| {
-                    [
-                        range.gt.as_deref(),
-                        range.gte.as_deref(),
-                        range.lt.as_deref(),
-                        range.lte.as_deref(),
-                    ]
-                    .into_iter()
-                    .flatten()
-                    .any(|value| expression_references_matching(value, predicate))
-                })
-        }
-        Expr::Literal(_) | Expr::Input(_) => false,
     }
 }

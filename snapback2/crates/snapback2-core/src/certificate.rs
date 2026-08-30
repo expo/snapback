@@ -1,13 +1,16 @@
+use crate::growth::{
+    CollectionBinding, assignment_growth, expression_from as collection_expression_from,
+    saturating_power, take_identity,
+};
 use crate::ir::*;
-use crate::retention::{RetentionEstimator, expression_references_matching};
+use crate::retention::{RetentionEstimator, argument_max, collection_bytes};
 use crate::schema::{ColumnType, MaintainKind, RuleExpr, RuleTerm, Schema};
 use crate::value::{Value, canonical_json, digest};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use thiserror::Error;
 
-// Heap is a calibrated work estimate; output and closure use conservative declared
-// serialized maxima. They are admission bounds, not allocator/serializer proofs.
+// Heap is calibrated; output/closure use declared maxima. These are admission bounds, not allocator/serializer proofs.
 const HEAP_BYTES_PER_STEP: u64 = 32;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -615,13 +618,21 @@ impl<'a> Checker<'a> {
         if actual <= ceiling {
             return Ok(());
         }
+        let code = if name == "steps" {
+            "E_STEPS"
+        } else {
+            "E_BOUND"
+        };
+        let product = summary.product.as_deref().unwrap_or("sequential sites");
+        let rewrite = if matches!(name, "output bytes" | "closure bytes") {
+            "hoist a fresh collection and use bounded push: `const result = []; for (const item of page) result.push(item); return result;` — or return the bounded page directly: `return page;`".to_owned()
+        } else {
+            "replace the nested population scan with maintain.count/sum (or reduce a declared bound)".to_owned()
+        };
         Err(CheckError {
-            code: if name == "steps" { "E_STEPS" } else { "E_BOUND" }.to_owned(),
-            message: format!(
-                "{name} {actual} exceeds ceiling {ceiling}; product: {}",
-                summary.product.clone().unwrap_or_else(|| "sequential sites".to_owned())
-            ),
-            rewrite: "replace the nested population scan with maintain.count/sum (or reduce a declared bound)".to_owned(),
+            code: code.to_owned(),
+            message: format!("{name} {actual} exceeds ceiling {ceiling}; product: {product}"),
+            rewrite,
         })
     }
 }
@@ -691,14 +702,14 @@ impl Summary {
 struct OutputEstimator<'a> {
     schema: &'a Schema,
     max_result: u64,
+    next_identity: u64,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 struct OutputBound {
     bytes: u64,
     instances: u64,
-    collection: bool,
-    loop_varying: bool,
+    provenance: CollectionBinding,
 }
 
 impl<'a> OutputEstimator<'a> {
@@ -706,23 +717,32 @@ impl<'a> OutputEstimator<'a> {
         let mut estimator = Self {
             schema,
             max_result: canonical_json(&Value::Null).len() as u64,
+            next_identity: program.args.len() as u64 + 1,
         };
+        let mut next_identity = 1_u64;
         let mut variables = program
             .args
             .iter()
             .map(|(name, argument)| {
+                let identity = next_identity;
+                next_identity = next_identity.saturating_add(1);
                 (
                     name.clone(),
                     OutputBound {
-                        bytes: Self::argument(argument),
+                        bytes: argument_max(argument),
                         instances: 1,
-                        collection: matches!(argument, ArgType::List { .. }),
-                        loop_varying: false,
+                        provenance: CollectionBinding::new(
+                            identity,
+                            crate::growth::CollectionExpression::argument(matches!(
+                                argument,
+                                ArgType::List { .. }
+                            )),
+                        ),
                     },
                 )
             })
             .collect();
-        estimator.statements(&program.body, &mut variables, 1);
+        estimator.statements(&program.body, &mut variables, 1, 0);
         estimator.max_result
     }
 
@@ -731,64 +751,95 @@ impl<'a> OutputEstimator<'a> {
         statements: &[Stmt],
         variables: &mut BTreeMap<String, OutputBound>,
         calls: u64,
+        iteration: u64,
     ) {
         for statement in statements {
             match statement {
                 Stmt::Const { name, value } | Stmt::Let { name, value } => {
                     let bytes = self.expression(value, variables);
-                    let collection = Self::expression_is_collection(value, variables);
-                    let loop_varying = Self::expression_is_loop_varying(value, variables, None);
+                    let provenance = collection_expression_from(
+                        value,
+                        variables,
+                        |bound| &bound.provenance,
+                        iteration,
+                    );
+                    let identity = take_identity(&mut self.next_identity);
                     variables.insert(
                         name.clone(),
                         OutputBound {
                             bytes,
                             instances: calls,
-                            collection,
-                            loop_varying,
+                            provenance: CollectionBinding::new(identity, provenance),
                         },
                     );
                 }
                 Stmt::Assign { name, value } => {
                     let bytes = self.expression(value, variables);
-                    let collection = Self::expression_is_collection(value, variables);
-                    let loop_varying =
-                        Self::expression_is_loop_varying(value, variables, Some(name));
-                    let growth = collection
-                        && variables.contains_key(name)
-                        && expression_references_matching(value, &mut |variable| variable == name)
-                        && loop_varying;
-                    if growth {
+                    let provenance = collection_expression_from(
+                        value,
+                        variables,
+                        |bound| &bound.provenance,
+                        iteration,
+                    );
+                    let growth = variables.get(name).and_then(|current| {
+                        assignment_growth(
+                            &current.provenance,
+                            &provenance,
+                            calls,
+                            current.instances,
+                            iteration,
+                        )
+                    });
+                    if let Some(growth) = growth {
                         let current = variables.get_mut(name).expect("growth target exists");
-                        let repetitions = calls
-                            .saturating_add(current.instances.saturating_sub(1))
-                            .saturating_div(current.instances.max(1));
-                        let added = bytes.saturating_sub(current.bytes);
-                        current.bytes = current
-                            .bytes
-                            .saturating_add(added.saturating_mul(repetitions));
-                        current.collection = true;
-                        current.loop_varying |= loop_varying;
+                        let mut added =
+                            bytes.saturating_sub(current.bytes.saturating_mul(growth.occurrences));
+                        if added == 0 {
+                            added = bytes;
+                        }
+                        current.bytes =
+                            if growth.occurrences > 1 {
+                                current.bytes.saturating_add(added).saturating_mul(
+                                    saturating_power(growth.occurrences, growth.repetitions),
+                                )
+                            } else if growth.occurrences == 1 {
+                                current
+                                    .bytes
+                                    .saturating_add(added.saturating_mul(growth.repetitions))
+                            } else {
+                                current
+                                    .bytes
+                                    .saturating_add(bytes.saturating_mul(growth.repetitions))
+                            };
+                        current.provenance = current.provenance.assigned(provenance);
                     } else {
+                        let identity = variables
+                            .get(name)
+                            .map(|bound| bound.provenance.identity)
+                            .unwrap_or_else(|| take_identity(&mut self.next_identity));
+                        let assigned = variables
+                            .get(name)
+                            .map(|bound| bound.provenance.assigned(provenance.clone()))
+                            .unwrap_or_else(|| CollectionBinding::new(identity, provenance));
                         variables.insert(
                             name.clone(),
                             OutputBound {
                                 bytes,
                                 instances: calls,
-                                collection,
-                                loop_varying,
+                                provenance: assigned,
                             },
                         );
                     }
                 }
                 Stmt::Push { target, value } => {
                     let element = self.expression(value, variables).saturating_add(1);
-                    let loop_varying =
-                        Self::expression_is_loop_varying(value, variables, Some(target));
                     let current = variables.entry(target.clone()).or_insert(OutputBound {
                         bytes: 2,
                         instances: calls,
-                        collection: true,
-                        loop_varying: false,
+                        provenance: CollectionBinding::new(
+                            take_identity(&mut self.next_identity),
+                            crate::growth::CollectionExpression::iteration(true, iteration),
+                        ),
                     });
                     let repetitions = calls
                         .saturating_add(current.instances.saturating_sub(1))
@@ -796,8 +847,6 @@ impl<'a> OutputEstimator<'a> {
                     current.bytes = current
                         .bytes
                         .saturating_add(repetitions.saturating_mul(element));
-                    current.collection = true;
-                    current.loop_varying |= loop_varying;
                 }
                 Stmt::If {
                     then_body,
@@ -806,8 +855,8 @@ impl<'a> OutputEstimator<'a> {
                 } => {
                     let mut then_variables = variables.clone();
                     let mut else_variables = variables.clone();
-                    self.statements(then_body, &mut then_variables, calls);
-                    self.statements(else_body, &mut else_variables, calls);
+                    self.statements(then_body, &mut then_variables, calls, iteration);
+                    self.statements(else_body, &mut else_variables, calls, iteration);
                     Self::merge_variables(variables, then_variables);
                     Self::merge_variables(variables, else_variables);
                 }
@@ -819,16 +868,22 @@ impl<'a> OutputEstimator<'a> {
                     let (bound, element) = self.domain(domain, variables);
                     let mut nested = variables.clone();
                     let nested_calls = calls.saturating_mul(bound);
+                    let nested_iteration = take_identity(&mut self.next_identity);
                     nested.insert(
                         binding.clone(),
                         OutputBound {
                             bytes: element,
                             instances: nested_calls,
-                            collection: false,
-                            loop_varying: true,
+                            provenance: CollectionBinding::new(
+                                take_identity(&mut self.next_identity),
+                                crate::growth::CollectionExpression::iteration(
+                                    matches!(domain, LoopDomain::Page(_) | LoopDomain::Recurse(_)),
+                                    nested_iteration,
+                                ),
+                            ),
                         },
                     );
-                    self.statements(body, &mut nested, nested_calls);
+                    self.statements(body, &mut nested, nested_calls, nested_iteration);
                     nested.remove(binding);
                     Self::merge_variables(variables, nested);
                 }
@@ -857,8 +912,7 @@ impl<'a> OutputEstimator<'a> {
                 .and_modify(|current| {
                     current.bytes = current.bytes.max(bound.bytes);
                     current.instances = current.instances.min(bound.instances);
-                    current.collection |= bound.collection;
-                    current.loop_varying |= bound.loop_varying;
+                    current.provenance.merge(&bound.provenance);
                 })
                 .or_insert(bound);
         }
@@ -904,7 +958,7 @@ impl<'a> OutputEstimator<'a> {
             Expr::Input(Input::Now | Input::ReadTime) => 32,
             Expr::Field { base, .. } => self.expression(base, variables),
             Expr::Array(values) => {
-                Self::collection(values.iter().map(|value| self.expression(value, variables)))
+                collection_bytes(values.iter().map(|value| self.expression(value, variables)))
             }
             Expr::Object(values) => values.iter().fold(2_u64, |size, (name, value)| {
                 size.saturating_add(name.len() as u64)
@@ -956,45 +1010,6 @@ impl<'a> OutputEstimator<'a> {
         }
     }
 
-    fn expression_is_collection(
-        expression: &Expr,
-        variables: &BTreeMap<String, OutputBound>,
-    ) -> bool {
-        match expression {
-            Expr::Variable(name) => variables.get(name).is_some_and(|bound| bound.collection),
-            Expr::Array(_) | Expr::Scan(_) => true,
-            Expr::Builtin { builtin, .. } => matches!(
-                builtin,
-                Builtin::Slice | Builtin::Sort { .. } | Builtin::Concat
-            ),
-            Expr::Literal(_)
-            | Expr::Input(_)
-            | Expr::Field { .. }
-            | Expr::Object(_)
-            | Expr::Binary { .. }
-            | Expr::Unary { .. }
-            | Expr::Get(_)
-            | Expr::Exists(_) => false,
-        }
-    }
-
-    fn expression_is_loop_varying(
-        expression: &Expr,
-        variables: &BTreeMap<String, OutputBound>,
-        excluded: Option<&String>,
-    ) -> bool {
-        expression_references_matching(expression, &mut |name| {
-            excluded.is_none_or(|excluded| name != excluded)
-                && variables.get(name).is_some_and(|bound| bound.loop_varying)
-        })
-    }
-
-    fn collection(values: impl Iterator<Item = u64>) -> u64 {
-        values.fold(2_u64, |size, value| {
-            size.saturating_add(value).saturating_add(1)
-        })
-    }
-
     fn repeated(element: u64, count: u64) -> u64 {
         2_u64.saturating_add(count.saturating_mul(element.saturating_add(1)))
     }
@@ -1002,31 +1017,9 @@ impl<'a> OutputEstimator<'a> {
     fn row(&self, table: &str) -> u64 {
         declared_serialized_row_max(self.schema, table)
     }
-
-    fn argument(argument: &ArgType) -> u64 {
-        match argument {
-            ArgType::Id | ArgType::Ref { .. } => 144,
-            ArgType::Text { max } | ArgType::Json { max_bytes: max } => {
-                u64::from(*max).saturating_add(16)
-            }
-            ArgType::Int | ArgType::Time | ArgType::Decimal { .. } | ArgType::Money { .. } => 32,
-            ArgType::Bool => 16,
-            ArgType::Optional(inner) => Self::argument(inner).max(8),
-            ArgType::Scalar => 1024,
-            ArgType::List { of, max } => {
-                Self::repeated(of.as_deref().map_or(1024, Self::argument), u64::from(*max))
-            }
-            ArgType::Enum { variants } => variants
-                .iter()
-                .map(|variant| variant.len() as u64 + 16)
-                .max()
-                .unwrap_or(16),
-        }
-    }
 }
 
-/// Conservative maximum for the canonical serialized representation of one row.
-/// The 1 KiB value applies only when a checker has no declaration for the table.
+/// Conservative serialized maximum for one row; 1 KiB applies only without a table declaration.
 pub fn declared_serialized_row_max(schema: &Schema, table: &str) -> u64 {
     schema.table(table).map_or(1024, |table| {
         table.columns.iter().fold(10_u64, |size, (name, column)| {

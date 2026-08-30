@@ -3,6 +3,7 @@
 pub mod certificate;
 pub mod client;
 pub mod engine;
+mod growth;
 pub mod identity;
 pub mod ir;
 pub mod live;
