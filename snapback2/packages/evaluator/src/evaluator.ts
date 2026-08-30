@@ -866,7 +866,7 @@ class Runner {
     row: Value,
   ): boolean {
     const rule = this.schema.tables[table].rules[effect];
-    return this.evaluateRule(rule, sha256(JSON.stringify(rule)), row);
+    return this.evaluateRule(rule, sha256(JSON.stringify(certificateRule(this.schema, rule))), row);
   }
 
   private evaluateRule(rule: any, ruleHash: string, row: Value): boolean {
@@ -887,20 +887,19 @@ class Runner {
         return data.some((child: any) => this.evaluateRule(child, ruleHash, row));
       case "Not":
         return !this.evaluateRule(data, ruleHash, row);
-      case "PrincipalKind":
-        return this.context.principal_kind === data;
       case "Exists": {
         const key = data.key.map((term: any) => this.ruleTerm(term, row));
         const pinnedDigest = sha256(JSON.stringify([data.table, data.index, key]));
         const memoKey = `${ruleHash}:${pinnedDigest}`;
         const memoized = this.ruleMemo.get(memoKey);
         if (memoized !== undefined) return memoized;
-        if (data.input_visibility === "Hidden") {
-          const verdict = this.store.verdict(ruleHash, pinnedDigest, this.context);
-          if (verdict !== null) {
-            this.ruleMemo.set(memoKey, verdict);
-            return verdict;
-          }
+        // Hidden probes arrive as scoped verdicts; readable probes arrive as
+        // rows or absences. The server derives that choice from the target
+        // table's read policy, so the client has no author-controlled flag.
+        const verdict = this.store.verdict(ruleHash, pinnedDigest, this.context);
+        if (verdict !== null) {
+          this.ruleMemo.set(memoKey, verdict);
+          return verdict;
         }
         const result = this.store.lookup(data.table, data.index, key) !== null;
         this.ruleMemo.set(memoKey, result);
@@ -1160,6 +1159,42 @@ function variant(value: any): [string, any] {
   const keys = Object.keys(value);
   if (keys.length !== 1) throw new EvalError("E_CORPUS", "invalid externally tagged variant");
   return [keys[0], value[keys[0]]];
+}
+
+function certificateRule(schema: any, rule: any): any {
+  const [kind, data] = variant(rule);
+  switch (kind) {
+    case "Public":
+      return { Public: { reason: data.reason } };
+    case "Allow":
+    case "Deny":
+      return kind;
+    case "Eq":
+    case "Ne":
+      return { [kind]: data };
+    case "And":
+    case "Or":
+      return { [kind]: data.map((child: any) => certificateRule(schema, child)) };
+    case "Not":
+      return { Not: certificateRule(schema, data) };
+    case "Exists": {
+      const targetRead = schema.tables[data.table]?.rules?.read;
+      const visibility = targetRead !== undefined && variant(targetRead)[0] === "Deny"
+        ? "Hidden"
+        : "Readable";
+      return {
+        Exists: {
+          table: data.table,
+          index: data.index,
+          key: data.key,
+          provenance: data.provenance,
+          input_visibility: visibility,
+        },
+      };
+    }
+    default:
+      throw new EvalError("E_OPAQUE", `unsupported rule ${kind}`);
+  }
 }
 
 function kindOf(value: Value): string {

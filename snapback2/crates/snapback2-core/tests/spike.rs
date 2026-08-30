@@ -270,7 +270,7 @@ fn ten_thousand_messages_stay_below_certificate_and_membership_hoists() {
         .unwrap();
     assert!(message_site.hoist);
 
-    let mut engine = Engine::memory(schema).unwrap();
+    let mut engine = Engine::memory(schema.clone()).unwrap();
     seed_identity(&mut engine);
     seed_messages(&mut engine, 10_000);
     let execution = engine
@@ -304,7 +304,7 @@ fn hidden_rule_input_becomes_only_a_scoped_verdict() {
     let schema = spike_schema();
     let program = hidden_rule_program();
     let certificate = checker(&schema).check(&program).unwrap();
-    let mut engine = Engine::memory(schema).unwrap();
+    let mut engine = Engine::memory(schema.clone()).unwrap();
     engine
         .seed("users", row([("id", id("u1")), ("handle", text("alice"))]))
         .unwrap();
@@ -339,7 +339,64 @@ fn hidden_rule_input_becomes_only_a_scoped_verdict() {
             .iter()
             .all(|range| range.table != "entitlements")
     );
-    assert!(execution.trace.rule_inputs.iter().any(|input| input.hidden));
+    let rule_hash = schema.rule_hash(&schema.tables["secretDocs"].rules.read);
+    assert!(
+        execution
+            .trace
+            .rule_inputs
+            .iter()
+            .any(|input| input.rule_hash == rule_hash && input.hidden)
+    );
+}
+
+#[test]
+fn readable_rule_input_is_derived_from_the_target_table_policy() {
+    let schema = spike_schema();
+    let program = thread_program(3);
+    let certificate = checker(&schema).check(&program).unwrap();
+    let mut engine = Engine::memory(schema.clone()).unwrap();
+    seed_identity(&mut engine);
+    seed_messages(&mut engine, 1);
+
+    let execution = engine
+        .execute(
+            &program,
+            &certificate,
+            query_context([("conversationId", id("c1"))]),
+        )
+        .unwrap();
+    let rule_hash = schema.rule_hash(&schema.tables["messages"].rules.read);
+    let input = execution
+        .trace
+        .rule_inputs
+        .iter()
+        .find(|input| input.rule_hash == rule_hash && !input.hidden)
+        .expect("message rule must probe memberships");
+    assert_eq!(input.table, "memberships");
+    assert!(
+        execution
+            .receipt
+            .rows
+            .iter()
+            .any(|row| { row.table == "memberships" && row.id == "m1" })
+    );
+}
+
+#[test]
+fn frozen_schema_and_rule_hashes_survive_visibility_derivation() {
+    let schema = spike_schema();
+    assert_eq!(
+        schema.hash(),
+        "2108e80bc2921b0656458031ceb32dc9574c2bf3f8f255fd68ceb32c248720da"
+    );
+    assert_eq!(
+        schema.rule_hash(&schema.tables["messages"].rules.read),
+        "670bfd290d6fb66cec52b85622c2393849c7d7cd3ed1c8dcec2c1fd94d82fd01"
+    );
+    assert_eq!(
+        schema.rule_hash(&schema.tables["secretDocs"].rules.read),
+        "b2d8ece04c046758c0f88582677dfeb62d6318798d1aace21d35c6c60d4ba7ea"
+    );
 }
 
 #[test]

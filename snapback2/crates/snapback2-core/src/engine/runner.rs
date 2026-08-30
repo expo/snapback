@@ -29,6 +29,7 @@ pub(super) struct Runner<'a> {
     pub(super) trace: AuthoritativeTrace,
     pub(super) receipt: ClosureReceipt,
     pub(super) rule_memo: BTreeMap<String, bool>,
+    pub(super) visibility_memo: BTreeMap<String, bool>,
     pub(super) verdicts: &'a [Verdict],
     pub(super) seq: u64,
 }
@@ -53,6 +54,7 @@ impl<'a> Runner<'a> {
             trace: AuthoritativeTrace::default(),
             receipt: ClosureReceipt::default(),
             rule_memo: BTreeMap::new(),
+            visibility_memo: BTreeMap::new(),
             verdicts,
             seq,
         }
@@ -76,6 +78,7 @@ impl<'a> Runner<'a> {
             trace: AuthoritativeTrace::default(),
             receipt: ClosureReceipt::default(),
             rule_memo: BTreeMap::new(),
+            visibility_memo: BTreeMap::new(),
             verdicts,
             seq,
         }

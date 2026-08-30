@@ -281,10 +281,13 @@ Password hashing is salted and iterated (argon2id preferred; PBKDF2-HMAC-SHA256
 with ≥ 100k iterations acceptable) through one small crate; the hash format is
 versioned in the string. Tokens are 32 random bytes, base64url. The principal
 id is the `viewer` every program sees; `principal_kind` is the row's kind
-(`user`, `guest`, `persona`, `system`), which rules test with
-`principal.kind`. The `system` principal exists from `Store::open` and has no
-session; `Context::system()` constructs its context for schedules, `then`
-mutations (LLP 1003), and seeds.
+(`user`, `guest`, `persona`, `system`) and remains identity metadata, not a
+rule term. The `system` principal exists from `Store::open` under the one
+core-owned reserved id and has no session; `Context::system()` constructs its
+context for schedules, `then` mutations (LLP 1003), and seeds. In authored
+rules, `rule.system()` lowers to `Eq(Viewer, Literal(Id(system)))`; there is no
+`PrincipalKind` rule expression (authorization amendment, 2026-08-30, LLP
+0331 ruling 0 as amended).
 
 ## 7. Channels (`schema.channels`)
 
@@ -303,6 +306,16 @@ M7) so the loop indexes each subscriber by the probe's keys and re-admits on
 the commit that touches them — a deleted membership drops the subscriber.
 No persistence, no receipt, no prediction (LLP 0329.014.000 §8). The fan-out
 itself is the loop's (LLP 1002 §4).
+
+**Authorization amendment (2026-08-30).** `RuleExpr::Exists` has no authored
+`input_visibility` field, and `rule.exists` has no `hidden` option.
+Certification binds the referenced table policy through the schema and rule
+hashes; evaluation derives disclosure for the running viewer: a found probe
+row is readable only when that viewer passes the referenced table's `read`
+rule, while a denied/private probe is represented by a scoped verdict. Public
+absences remain readable; private absences remain non-enumerating. Both
+outcomes are deterministic and covered by the core and client-twin tests (LLP
+0331 §"Failure and disclosure semantics").
 
 ## 8. `emit` and the outbox
 

@@ -1,5 +1,6 @@
 #![allow(unused_imports)]
 use crate::certificate::Certificate;
+use crate::identity::SYSTEM_PRINCIPAL_ID;
 use crate::ir::*;
 use crate::schema::*;
 use crate::store::{CommitRecord, Store, TouchedKey, unix_millis};
@@ -45,8 +46,8 @@ impl Context {
 
     pub fn system() -> Self {
         Self {
-            viewer: "system".to_owned(),
-            principal_kind: "system".to_owned(),
+            viewer: SYSTEM_PRINCIPAL_ID.to_owned(),
+            principal_kind: SYSTEM_PRINCIPAL_ID.to_owned(),
             auth_epoch: 1,
             args: BTreeMap::new(),
             now: Some(0),
@@ -548,7 +549,7 @@ impl Engine {
         };
         if program.kind == ProgramKind::Mutation {
             // @ref LLP 1001#2-what-a-commit-records — data, outbox, and commit record are atomic.
-            let kind = commit_kind.unwrap_or(if principal_kind == "system" {
+            let kind = commit_kind.unwrap_or(if principal_kind == SYSTEM_PRINCIPAL_ID {
                 "system"
             } else {
                 "mutation"
@@ -624,7 +625,7 @@ impl Engine {
             seq,
         };
         // @ref LLP 1001#2-what-a-commit-records — reset, seed rows, and the seed commit are atomic.
-        let kind = commit_kind.unwrap_or(if principal_kind == "system" {
+        let kind = commit_kind.unwrap_or(if principal_kind == SYSTEM_PRINCIPAL_ID {
             "system"
         } else {
             "mutation"
@@ -655,7 +656,7 @@ impl Engine {
         let seq = self.store.commit_seq()?;
         let transaction = self.store.conn.transaction()?;
         let mut runner = Runner::probe(&transaction, &self.schema, context, &self.verdicts, seq);
-        let result = runner.eval_rule(rule, &rule.hash(), row)?;
+        let result = runner.eval_rule(rule, &self.schema.rule_hash(rule), row)?;
         let trace = runner.trace;
         transaction.commit()?;
         Ok((result, trace))

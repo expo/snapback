@@ -227,7 +227,6 @@ fn exhausted_hidden_range_is_complete_and_membership_addition_redelivers_it() {
         index: "byGroupUser".to_owned(),
         key: vec![RuleTerm::Field("group".to_owned()), RuleTerm::Viewer],
         provenance: KeyProvenance::Shape,
-        input_visibility: RuleInputVisibility::Readable,
     };
     let schema = Schema {
         tables: BTreeMap::from([
@@ -362,7 +361,6 @@ fn hidden_rows_before_a_visible_row_still_produce_capped_from_trace() {
         index: "byDocUser".to_owned(),
         key: vec![RuleTerm::Field("id".to_owned()), RuleTerm::Viewer],
         provenance: KeyProvenance::Shape,
-        input_visibility: RuleInputVisibility::Readable,
     };
     let schema = Schema {
         tables: BTreeMap::from([("docs".to_owned(), docs), ("grants".to_owned(), grants)]),

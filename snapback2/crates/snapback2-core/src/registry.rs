@@ -6,6 +6,7 @@ use crate::engine::{
     AuthoritativeTrace, ClosureReceipt, Context, Engine, Execution, ExecutionState, PointTrace,
     RuleInputTrace, RuntimeError, validate_arg_value,
 };
+use crate::identity::SYSTEM_PRINCIPAL_ID;
 use crate::ir::{ArgType, Expr, Program, ProgramKind, Stmt};
 use crate::live::Subscriptions;
 use crate::schema::{Auth, RuleExpr, Schema};
@@ -329,7 +330,7 @@ impl Runtime {
         context: Context,
         outbox_id: &str,
     ) -> Result<Execution, RuntimeError> {
-        if context.viewer != "system" || context.principal_kind != "system" {
+        if context.viewer != SYSTEM_PRINCIPAL_ID || context.principal_kind != SYSTEM_PRINCIPAL_ID {
             return Err(RuntimeError::Input(
                 "effect then must execute as Context::system()".to_owned(),
             ));

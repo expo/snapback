@@ -9,6 +9,9 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 const SESSION_MILLIS: i64 = 30 * 24 * 60 * 60 * 1_000;
+// @ref LLP 0331#amendment-to-ruling-0-ruled-2026-08-30 — system is one
+// reserved ordinary principal value, not a principal-kind rule term.
+pub const SYSTEM_PRINCIPAL_ID: &str = "system";
 const DUMMY_PASSWORD_HASH: &str = concat!(
     "$argon2id$v=19$m=19456,t=2,p=1$c25hcGJhY2syLWR1bW15$",
     "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"

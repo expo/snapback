@@ -493,8 +493,9 @@ test("chat and todos lower schema, channels, effects, emit, API types, seed, and
   assert(chat.project.effects[0]?.name === "notifications.notify", "chat effect was not qualified");
   assert(chat.project.schema.effects[0] === "notifications.notify", "schema effect list differs");
   const notificationRules = (chat.project.schema.tables.notifications as any)?.rules;
-  assert(canonical(notificationRules?.insert) === canonical({ PrincipalKind: "system" })
-    && canonical(notificationRules?.update) === canonical({ PrincipalKind: "system" }),
+  const systemRule = { Eq: ["Viewer", { Literal: { Id: "system" } }] };
+  assert(canonical(notificationRules?.insert) === canonical(systemRule)
+    && canonical(notificationRules?.update) === canonical(systemRule),
   "chat effect bookkeeping must explicitly admit the system principal");
   assert("typing" in chat.project.schema.channels, "typing channel missing");
   assert(chat.apiDts.includes("type ProfilesRow = {") && chat.apiDts.includes("Page<MessagesRow>"), "API declaration omitted named table rows/Page scan results");
@@ -743,6 +744,28 @@ test("schema lowering refuses malformed constraints and every skipped authored s
     assert(codes.has(code as any), `strict schema diagnostics omitted ${code}`);
   }
   assert(lowered.diagnostics.every((item) => item.site.startsWith("snapback/schema.ts:") && item.rewrite.length > 0), "schema refusal envelope is incomplete");
+});
+
+test("system sugar is a viewer literal and rule-input visibility is not authored IR", () => {
+  const source = `import { schema, table, t, rule } from "snapback2";
+    export const memberships = table({ columns: { userId: t.id() }, indexes: { byUser: { columns: ["userId"], unique: true } },
+      rules: { read: rule.viewerIs("userId") } });
+    export const rows = table({ columns: { ownerId: t.id() }, rules: {
+      read: rule.exists(memberships, "byUser", [rule.viewer]),
+      insert: rule.system(),
+    } });
+    export default schema({ tables: { memberships, rows } });`;
+  const lowered = lowerSchema(source, "snapback/schema.ts");
+  assert(lowered.diagnostics.length === 0, `derived rule schema refused: ${lowered.diagnostics.map((item) => item.message).join("; ")}`);
+  const rules = (lowered.schema.tables.rows as any).rules;
+  assert(canonical(rules.insert) === canonical({ Eq: ["Viewer", { Literal: { Id: "system" } }] }), "rule.system did not lower to viewer === reserved system Id");
+  assert(!canonical(rules.read).includes("input_visibility"), "rule.exists retained authored visibility in IR");
+
+  const legacy = lowerSchema(source.replace(
+    `rule.exists(memberships, "byUser", [rule.viewer])`,
+    `rule.exists(memberships, "byUser", [rule.viewer], { hidden: true })`,
+  ), "snapback/schema.ts");
+  assert(legacy.diagnostics.some((item) => item.code === "E_RULE_INVALID"), "legacy hidden option was not refused");
 });
 
 test("implicit id and byId cannot be overwritten", () => {

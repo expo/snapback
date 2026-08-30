@@ -763,7 +763,6 @@ fn channel_admission_evaluates_one_args_row_under_the_selected_rule() {
             index: "byRoomUser".to_owned(),
             key: vec![RuleTerm::Field("room".to_owned()), RuleTerm::Viewer],
             provenance: KeyProvenance::Shape,
-            input_visibility: RuleInputVisibility::Readable,
         },
         ttl_ms: 10_000,
     };
@@ -1157,7 +1156,14 @@ fn then_generation(source: &str) -> Generation {
 }
 
 fn then_generation_with_rejection(source: &str, reject: bool) -> Generation {
-    then_generation_with_rule(source, reject, RuleExpr::PrincipalKind("system".to_owned()))
+    then_generation_with_rule(
+        source,
+        reject,
+        RuleExpr::Eq(
+            RuleTerm::Viewer,
+            RuleTerm::Literal(Value::Id(SYSTEM_PRINCIPAL_ID.to_owned())),
+        ),
+    )
 }
 
 fn then_generation_with_rule(source: &str, reject: bool, write_rule: RuleExpr) -> Generation {

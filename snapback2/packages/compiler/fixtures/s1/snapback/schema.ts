@@ -111,7 +111,7 @@ export const entitlements = table({
 export const secretDocs = table({
   columns: { title: t.text(64) },
   rules: {
-    read: rule.exists(entitlements, "byUser", [rule.viewer], { hidden: true }),
+    read: rule.exists(entitlements, "byUser", [rule.viewer]),
     insert: rule.allow(), update: rule.allow(), delete: rule.allow(),
   },
 });

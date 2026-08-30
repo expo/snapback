@@ -49,9 +49,8 @@ export const rule = Object.freeze({
   and: (...rules: unknown[]) => inert("and", rules),
   or: (...rules: unknown[]) => inert("or", rules),
   not: (value: unknown) => inert("not", value),
-  exists: (target: unknown, index: string, key: unknown[], options?: { hidden?: boolean }) =>
-    inert("exists", { target, index, key, options }),
-  principal: (kind: string) => inert("principal", { kind }),
+  exists: (target: unknown, index: string, key: unknown[]) => inert("exists", { target, index, key }),
+  system: () => inert("system"),
   viewerIs: (field: string) => inert("viewerIs", { field }),
   field: (name: string) => inert("field", { name }),
   viewer,

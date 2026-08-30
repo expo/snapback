@@ -96,8 +96,8 @@ declare module "snapback2" {
     and(...rules: Rule[]): Rule;
     or(...rules: Rule[]): Rule;
     not(value: Rule): Rule;
-    exists(table: Table<any>, index: string, key: RuleTerm[], options?: { hidden?: boolean }): Rule;
-    principal(kind: string): Rule;
+    exists(table: Table<any>, index: string, key: RuleTerm[]): Rule;
+    system(): Rule;
     viewerIs(field: string): Rule;
     field(name: string): RuleTerm;
     readonly viewer: RuleTerm;

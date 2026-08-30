@@ -233,9 +233,12 @@ impl<'a> Checker<'a> {
         let mut rule_hashes: BTreeMap<_, _> = read_sites
             .iter()
             .filter_map(|site| {
-                self.schema
-                    .table(&site.table)
-                    .map(|table| (format!("{}.read", site.table), table.rules.read.hash()))
+                self.schema.table(&site.table).map(|table| {
+                    (
+                        format!("{}.read", site.table),
+                        self.schema.rule_hash(&table.rules.read),
+                    )
+                })
             })
             .collect();
         for write in &summary.writes {
@@ -253,7 +256,10 @@ impl<'a> Checker<'a> {
                 WriteKind::Emit => Vec::new(),
             };
             for (effect, rule) in effects {
-                rule_hashes.insert(format!("{}.{effect}", write.table), rule.hash());
+                rule_hashes.insert(
+                    format!("{}.{effect}", write.table),
+                    self.schema.rule_hash(rule),
+                );
             }
         }
         let mut checked_tables: BTreeSet<String> = summary
