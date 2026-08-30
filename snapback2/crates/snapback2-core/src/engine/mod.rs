@@ -195,6 +195,12 @@ pub enum RuntimeError {
     Schema(String),
     #[error("E_SCHEMA_RESERVED: schema or program names reserved table {0}")]
     SchemaReserved(String),
+    #[error("E_SCHEMA_INDEX_COLUMN: index {table}.{index} cannot use list column {column}")]
+    SchemaIndexColumn {
+        table: String,
+        index: String,
+        column: String,
+    },
     #[error("E_SERIALIZATION: {0}")]
     Serialization(String),
     #[error("E_REQUIRE:{code}: program requirement failed")]
@@ -280,7 +286,36 @@ impl Engine {
         certificate: &Certificate,
         context: Context,
     ) -> Result<Execution, RuntimeError> {
-        self.execute_with_kind(program, certificate, context, None)
+        match self.execute_with_kind(program, certificate, context, None) {
+            Ok(execution) => Ok(execution),
+            Err(error) if program.kind == ProgramKind::Query => {
+                let rule = match &error {
+                    RuntimeError::Rule { table, effect } => format!("{table}.{effect:?}"),
+                    RuntimeError::Require { code } => code.clone(),
+                    _ => return Err(error),
+                };
+                Ok(self.empty_execution(ExecutionState::Denied { rule })?)
+            }
+            Err(error) if program.kind == ProgramKind::Mutation && is_sqlite_constraint(&error) => {
+                Ok(self.empty_execution(ExecutionState::Rejected {
+                    code: "E_CONSTRAINT".to_owned(),
+                    message: error.to_string(),
+                })?)
+            }
+            // Only SQLite constraint failures are program refusals. I/O,
+            // corruption, and other database failures remain RuntimeError::Sql.
+            Err(error) => Err(error),
+        }
+    }
+
+    fn empty_execution(&self, state: ExecutionState) -> Result<Execution, RuntimeError> {
+        Ok(Execution {
+            result: Value::Null,
+            trace: AuthoritativeTrace::default(),
+            receipt: ClosureReceipt::default(),
+            state,
+            seq: self.store.commit_seq()?,
+        })
     }
 
     pub(crate) fn execute_with_kind(
@@ -327,7 +362,7 @@ impl Engine {
         runner.assert_bounds()?;
         let state = match program.kind {
             ProgramKind::Mutation => ExecutionState::Committed { seq },
-            ProgramKind::Query => query_state(&runner.trace, certificate),
+            ProgramKind::Query => query_state(&runner.receipt, certificate),
         };
         let execution = Execution {
             result,
@@ -375,32 +410,13 @@ impl Engine {
     }
 }
 
-fn query_state(trace: &AuthoritativeTrace, certificate: &Certificate) -> ExecutionState {
-    let no_visible_rows = trace.points.iter().all(|point| !point.visible)
-        && trace
-            .ranges
-            .iter()
-            .all(|range| range.visible_ids.is_empty());
-    if no_visible_rows && trace.examined > 0 {
-        let denied_table = trace
-            .points
-            .iter()
-            .find(|point| point.examined && !point.visible)
-            .map(|point| point.table.as_str())
-            .or_else(|| {
-                trace
-                    .ranges
-                    .iter()
-                    .find(|range| !range.examined_ids.is_empty() && range.visible_ids.is_empty())
-                    .map(|range| range.table.as_str())
-            });
-        if let Some(rule) =
-            denied_table.and_then(|table| certificate.rule_hashes.get(&format!("{table}.read")))
-        {
-            return ExecutionState::Denied { rule: rule.clone() };
-        }
-    }
-    if let Some(range) = trace
+fn query_state(receipt: &ClosureReceipt, certificate: &Certificate) -> ExecutionState {
+    // @ref LLP 0329.014.004#5-policy — invisible rows never become a cardinality oracle.
+    // Exhausting a range of hidden rows is an honest complete empty page;
+    // Denied is reserved for an explicit Rule or query Require error. Capped
+    // likewise comes only from a disclosure-safe closure extent, never the
+    // authoritative hidden-row trace.
+    if let Some(range) = receipt
         .ranges
         .iter()
         .find(|range| range.stop == StopReason::Limit)
@@ -416,6 +432,14 @@ fn query_state(trace: &AuthoritativeTrace, certificate: &Certificate) -> Executi
         };
     }
     ExecutionState::Complete
+}
+
+pub(crate) fn is_sqlite_constraint(error: &RuntimeError) -> bool {
+    matches!(
+        error,
+        RuntimeError::Sql(rusqlite::Error::SqliteFailure(sqlite, _))
+            if sqlite.code == rusqlite::ErrorCode::ConstraintViolation
+    )
 }
 
 pub(crate) fn append_commit(
@@ -449,6 +473,23 @@ pub(crate) fn append_commit(
 pub(crate) fn validate_schema(schema: &Schema) -> Result<(), RuntimeError> {
     if let Some(name) = schema.tables.keys().find(|name| name.starts_with('_')) {
         return Err(RuntimeError::SchemaReserved(name.clone()));
+    }
+    for (table_name, table) in &schema.tables {
+        for (index_name, index) in &table.indexes {
+            for column in &index.columns {
+                if table
+                    .columns
+                    .get(column)
+                    .is_some_and(ColumnType::contains_list)
+                {
+                    return Err(RuntimeError::SchemaIndexColumn {
+                        table: table_name.clone(),
+                        index: index_name.clone(),
+                        column: column.clone(),
+                    });
+                }
+            }
+        }
     }
     Ok(())
 }

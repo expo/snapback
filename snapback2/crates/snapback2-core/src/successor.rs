@@ -5,7 +5,7 @@ use crate::engine::{RuntimeError, reindex_row, validate_row};
 use crate::schema::{ColumnType, Maintain, MaintainKind, Schema};
 use crate::store::Store;
 use crate::value::{I53_MAX, I53_MIN, Value, canonical_json};
-use rusqlite::{Transaction, params};
+use rusqlite::{Connection, Transaction, params};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use thiserror::Error;
@@ -39,12 +39,77 @@ pub struct MigrationPlan {
     pub drops: Vec<Drop>,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UniqueConflict {
+    pub table: String,
+    pub index: String,
+    pub key: Vec<Value>,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Error, Serialize, Deserialize)]
-#[error("{code}: destructive successor requires an explicit migration plan")]
+#[error("{code}: {message}; rewrite: {rewrite}")]
 #[serde(rename_all = "camelCase")]
 pub struct SuccessorRefusal {
     pub code: String,
+    pub message: String,
+    pub rewrite: String,
     pub plan: MigrationPlan,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub conflicts: Vec<UniqueConflict>,
+}
+
+impl SuccessorRefusal {
+    pub(crate) fn destructive(plan: MigrationPlan) -> Self {
+        Self {
+            code: "E_SUCCESSOR_DESTRUCTIVE".to_owned(),
+            message: "destructive successor requires an explicit migration plan".to_owned(),
+            rewrite: "apply exactly the returned migration plan".to_owned(),
+            plan,
+            conflicts: Vec::new(),
+        }
+    }
+
+    pub(crate) fn store(error: &RuntimeError) -> Self {
+        Self {
+            code: "E_SUCCESSOR_STORE".to_owned(),
+            message: error.to_string(),
+            rewrite: "repair the store error and retry the successor".to_owned(),
+            plan: MigrationPlan::default(),
+            conflicts: Vec::new(),
+        }
+    }
+
+    fn required_column(table: &str, column: &str) -> Self {
+        Self {
+            code: "E_SUCCESSOR_COLUMN_REQUIRED".to_owned(),
+            message: format!(
+                "successor adds required column {table}.{column} to a table that has rows"
+            ),
+            rewrite: format!(
+                "wrap {table}.{column} in t.optional(...) or add it to an empty table"
+            ),
+            plan: MigrationPlan::default(),
+            conflicts: Vec::new(),
+        }
+    }
+
+    fn unique(conflicts: Vec<UniqueConflict>) -> Self {
+        let indexes = conflicts
+            .iter()
+            .map(|conflict| format!("{}.{}", conflict.table, conflict.index))
+            .collect::<std::collections::BTreeSet<_>>()
+            .into_iter()
+            .collect::<Vec<_>>()
+            .join(", ");
+        Self {
+            code: "E_SUCCESSOR_UNIQUE".to_owned(),
+            message: format!("new unique index has conflicting keys in {indexes}"),
+            rewrite: "make the index non-unique or fix the rows".to_owned(),
+            plan: MigrationPlan::default(),
+            conflicts,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -108,8 +173,89 @@ pub(crate) fn plan(
     Ok(MigrationPlan { drops })
 }
 
+pub(crate) fn successor_refusal(
+    store: &Store,
+    current: &Schema,
+    next: &Schema,
+) -> Result<Option<SuccessorRefusal>, RuntimeError> {
+    let migration = plan(store, current, next)?;
+    if !migration.drops.is_empty() {
+        return Ok(Some(SuccessorRefusal::destructive(migration)));
+    }
+    additive_refusal(store, current, next)
+}
+
+pub(crate) fn additive_refusal(
+    store: &Store,
+    current: &Schema,
+    next: &Schema,
+) -> Result<Option<SuccessorRefusal>, RuntimeError> {
+    for (table_name, current_table) in &current.tables {
+        let Some(next_table) = next.tables.get(table_name) else {
+            continue;
+        };
+        let added_required = next_table.columns.iter().find(|(column, kind)| {
+            !current_table.columns.contains_key(*column) && !matches!(kind, ColumnType::Optional(_))
+        });
+        if let Some((column, _)) = added_required {
+            let rows: i64 = store.conn.query_row(
+                "SELECT COUNT(*) FROM rows WHERE table_name = ?1",
+                [table_name],
+                |row| row.get(0),
+            )?;
+            if rows > 0 {
+                return Ok(Some(SuccessorRefusal::required_column(table_name, column)));
+            }
+        }
+    }
+
+    let mut conflicts = Vec::new();
+    for (table_name, next_table) in &next.tables {
+        let Some(current_table) = current.tables.get(table_name) else {
+            continue;
+        };
+        let rows = fetch_rows(&store.conn, table_name)?;
+        for (index_name, index) in &next_table.indexes {
+            let newly_unique = index.unique
+                && !current_table
+                    .indexes
+                    .get(index_name)
+                    .is_some_and(|old| old.unique && old.columns == index.columns);
+            if !newly_unique {
+                continue;
+            }
+            let mut counts = BTreeMap::<String, (Vec<Value>, usize)>::new();
+            for row in &rows {
+                let key = index
+                    .columns
+                    .iter()
+                    .map(|column| row.field(column).cloned().unwrap_or(Value::Null))
+                    .collect::<Vec<_>>();
+                let encoded = canonical_json(&key);
+                counts
+                    .entry(encoded)
+                    .and_modify(|(_, count)| *count += 1)
+                    .or_insert((key, 1));
+            }
+            for (_, (key, count)) in counts {
+                if count > 1 {
+                    conflicts.push(UniqueConflict {
+                        table: table_name.clone(),
+                        index: index_name.clone(),
+                        key,
+                    });
+                    if conflicts.len() == 10 {
+                        return Ok(Some(SuccessorRefusal::unique(conflicts)));
+                    }
+                }
+            }
+        }
+    }
+    Ok((!conflicts.is_empty()).then(|| SuccessorRefusal::unique(conflicts)))
+}
+
 pub(crate) fn apply_additive(
-    store: &mut Store,
+    transaction: &Transaction<'_>,
     current: &Schema,
     next: &Schema,
     from: String,
@@ -155,7 +301,6 @@ pub(crate) fn apply_additive(
         .collect();
     report.backfilled_maintains = new_maintains.len() as u64;
 
-    let transaction = store.conn.transaction()?;
     for table_name in next.tables.keys() {
         let needs_reindex = current.tables.get(table_name).is_some_and(|table| {
             next.tables[table_name].indexes.iter().any(|(name, index)| {
@@ -166,33 +311,23 @@ pub(crate) fn apply_additive(
             })
         });
         if needs_reindex {
-            let rows = fetch_rows(&transaction, table_name)?;
+            let rows = fetch_rows(transaction, table_name)?;
             for row in rows {
-                reindex_row(&transaction, next, table_name, &row)?;
+                reindex_row(transaction, next, table_name, &row)?;
             }
         }
     }
     for maintain in &new_maintains {
-        backfill(&transaction, next, maintain)?;
+        backfill(transaction, next, maintain)?;
     }
-    transaction.commit()?;
     Ok(report)
 }
 
 pub(crate) fn apply_migration_drops(
-    store: &mut Store,
+    transaction: &Transaction<'_>,
     current: &mut Schema,
-    next: &Schema,
     migration: &MigrationPlan,
 ) -> Result<(), RuntimeError> {
-    let expected = plan(store, current, next)?;
-    if &expected != migration {
-        return Err(RuntimeError::MigrationPlan(format!(
-            "supplied plan does not match the current destructive delta: expected {:?}",
-            expected.drops
-        )));
-    }
-    let transaction = store.conn.transaction()?;
     for drop in &migration.drops {
         match drop {
             Drop::Table { name, .. } => {
@@ -205,7 +340,7 @@ pub(crate) fn apply_migration_drops(
                 column: name,
                 ..
             } => {
-                drop_column_values(&transaction, table, name)?;
+                drop_column_values(transaction, table, name)?;
                 transaction.execute("DELETE FROM index_entries WHERE table_name = ?1", [table])?;
             }
             Drop::Index { table, name } => {
@@ -216,8 +351,6 @@ pub(crate) fn apply_migration_drops(
             }
         }
     }
-    transaction.commit()?;
-
     for drop in &migration.drops {
         match drop {
             Drop::Table { name, .. } => {
@@ -247,8 +380,8 @@ pub(crate) fn apply_migration_drops(
     Ok(())
 }
 
-fn fetch_rows(transaction: &Transaction<'_>, table: &str) -> Result<Vec<Value>, RuntimeError> {
-    let mut statement = transaction.prepare("SELECT data FROM rows WHERE table_name = ?1")?;
+fn fetch_rows(connection: &Connection, table: &str) -> Result<Vec<Value>, RuntimeError> {
+    let mut statement = connection.prepare("SELECT data FROM rows WHERE table_name = ?1")?;
     let rows = statement.query_map([table], |row| row.get::<_, String>(0))?;
     rows.map(|row| {
         serde_json::from_str(&row?).map_err(|error| RuntimeError::Serialization(error.to_string()))

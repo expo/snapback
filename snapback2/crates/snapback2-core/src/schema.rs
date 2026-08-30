@@ -51,6 +51,18 @@ pub enum ColumnType {
     Time,
     Ref { table: String },
     Json { max_bytes: u32 },
+    Optional(Box<ColumnType>),
+    List { of: Box<ColumnType>, max: u32 },
+}
+
+impl ColumnType {
+    pub(crate) fn contains_list(&self) -> bool {
+        match self {
+            Self::List { .. } => true,
+            Self::Optional(inner) => inner.contains_list(),
+            _ => false,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

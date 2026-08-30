@@ -206,7 +206,7 @@ fn range_point_and_absence_invalidation_is_exact_and_reruns_coalesce() {
 }
 
 #[test]
-fn rule_input_membership_addition_redelivers_a_denied_read() {
+fn exhausted_hidden_range_is_complete_and_membership_addition_redelivers_it() {
     let memberships = public_table(
         BTreeMap::from([
             ("id".to_owned(), ColumnType::Id),
@@ -240,33 +240,79 @@ fn rule_input_membership_addition_redelivers_a_denied_read() {
         effects: Vec::new(),
     };
     let query = Program {
-        name: "docs.get".to_owned(),
+        name: "docs.byGroup".to_owned(),
         kind: ProgramKind::Query,
-        args: BTreeMap::from([("id".to_owned(), ArgType::Scalar)]),
+        args: BTreeMap::from([("group".to_owned(), ArgType::Scalar)]),
         read_time_granularity_ms: None,
-        body: vec![Stmt::Return(Expr::Get(Read {
-            site: "docs.get".to_owned(),
+        body: vec![Stmt::Return(Expr::Scan(Scan {
+            site: "docs.byGroup".to_owned(),
             table: "docs".to_owned(),
-            index: "byId".to_owned(),
-            key: vec![var("id")],
+            index: "byGroup".to_owned(),
+            prefix: vec![var("group")],
+            order: Order::Asc,
+            take: Bound::Literal(20),
+            after: None,
+            before: None,
+            range: None,
             provenance: KeyProvenance::Arg,
         }))],
     };
-    let mut runtime =
-        Runtime::open(Store::memory().unwrap(), generation(schema, vec![query])).unwrap();
+    let hidden_limit = Program {
+        name: "docs.first".to_owned(),
+        kind: ProgramKind::Query,
+        args: BTreeMap::from([("group".to_owned(), ArgType::Scalar)]),
+        read_time_granularity_ms: None,
+        body: vec![Stmt::Return(Expr::Scan(Scan {
+            site: "docs.first".to_owned(),
+            table: "docs".to_owned(),
+            index: "byGroup".to_owned(),
+            prefix: vec![var("group")],
+            order: Order::Asc,
+            take: Bound::Literal(1),
+            after: None,
+            before: None,
+            range: None,
+            provenance: KeyProvenance::Arg,
+        }))],
+    };
+    let mut runtime = Runtime::open(
+        Store::memory().unwrap(),
+        generation(schema, vec![query, hidden_limit]),
+    )
+    .unwrap();
     runtime
-        .seed(&[("docs".to_owned(), item("d1", "g1", "private"))])
+        .seed(&[
+            ("docs".to_owned(), item("d1", "g1", "private")),
+            ("docs".to_owned(), item("d2", "g1", "also private")),
+        ])
         .unwrap();
     let (subscription, initial) = runtime
         .subscribe(
-            "docs.get",
+            "docs.byGroup",
             Context::query(
                 "u1",
-                BTreeMap::from([("id".to_owned(), Value::Id("d1".to_owned()))]),
+                BTreeMap::from([("group".to_owned(), Value::Id("g1".to_owned()))]),
             ),
         )
         .unwrap();
-    assert!(matches!(initial.state, ExecutionState::Denied { .. }));
+    assert_eq!(initial.state, ExecutionState::Complete);
+    assert_eq!(initial.result, Value::Array(Vec::new()));
+    assert_eq!(initial.trace.ranges[0].stop, StopReason::Exhausted);
+    assert_eq!(initial.trace.ranges[0].examined_ids, vec!["d1", "d2"]);
+    assert!(initial.trace.ranges[0].visible_ids.is_empty());
+
+    let hidden_limit = runtime
+        .execute(
+            "docs.first",
+            Context::query(
+                "u1",
+                BTreeMap::from([("group".to_owned(), Value::Id("g1".to_owned()))]),
+            ),
+        )
+        .unwrap();
+    assert_eq!(hidden_limit.state, ExecutionState::Complete);
+    assert_eq!(hidden_limit.trace.ranges[0].stop, StopReason::Limit);
+    assert!(hidden_limit.receipt.ranges.is_empty());
 
     let seq = runtime
         .seed(&[(

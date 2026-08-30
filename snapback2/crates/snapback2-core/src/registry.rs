@@ -3,14 +3,16 @@
 
 use crate::certificate::{Ceilings, Certificate, CheckError, Checker};
 use crate::engine::{
-    AuthoritativeTrace, ClosureReceipt, Context, Engine, Execution, ExecutionState, RuntimeError,
+    AuthoritativeTrace, ClosureReceipt, Context, Engine, Execution, ExecutionState, PointTrace,
+    RuleInputTrace, RuntimeError, is_sqlite_constraint,
 };
 use crate::ir::{ArgType, Expr, Program, ProgramKind, Stmt};
 use crate::live::Subscriptions;
 use crate::schema::{Auth, RuleExpr, Schema};
-use crate::store::{Store, unix_millis};
+use crate::store::{CommitRecord, Store, unix_millis};
 use crate::successor::{
     MigrationPlan, SuccessorRefusal, SuccessorReport, apply_additive, apply_migration_drops, plan,
+    successor_refusal,
 };
 use crate::value::{Value, digest};
 use serde::{Deserialize, Serialize};
@@ -49,6 +51,14 @@ pub struct Generation {
 pub enum ChannelSide {
     Publish,
     Subscribe,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChannelVerdict {
+    pub admitted: bool,
+    pub rule_inputs: Vec<RuleInputTrace>,
+    pub points: Vec<PointTrace>,
 }
 
 impl Generation {
@@ -110,44 +120,25 @@ impl Generation {
             reserved_rule_reads.clear();
         }
 
-        let declared_effects: BTreeSet<_> = schema.effects.iter().cloned().collect();
-        let mut programs = BTreeMap::new();
-        let mut seen_programs = BTreeSet::new();
-        for program in &project.programs {
-            if !seen_programs.insert(program.name.clone()) {
-                errors.push((
-                    program.name.clone(),
-                    CheckError {
-                        code: "E_OP_DUPLICATE".to_owned(),
-                        message: format!("program {} is declared more than once", program.name),
-                        rewrite: "give every exported program one qualified name".to_owned(),
-                    },
-                ));
-                continue;
-            }
-            match Checker::new(&schema, ceilings.clone()).check(program) {
-                Ok(certificate) => {
-                    programs.insert(program.name.clone(), (program.clone(), certificate));
-                }
-                Err(error) => errors.push((program.name.clone(), error)),
-            }
-            let mut emitted = Vec::new();
-            collect_emits(&program.body, &mut emitted);
-            for effect in emitted {
-                if !declared_effects.contains(effect) {
-                    errors.push((
-                        program.name.clone(),
-                        CheckError {
-                            code: "E_EFFECT_UNKNOWN".to_owned(),
-                            message: format!(
-                                "program {} emits undeclared effect {effect}",
-                                program.name
-                            ),
-                            rewrite: format!(
-                                "declare {effect} in schema.effects and project effects"
-                            ),
-                        },
-                    ));
+        for (table_name, table) in &schema.tables {
+            for (index_name, index) in &table.indexes {
+                for column in &index.columns {
+                    if table
+                        .columns
+                        .get(column)
+                        .is_some_and(crate::schema::ColumnType::contains_list)
+                    {
+                        errors.push((
+                            format!("schema.{table_name}"),
+                            CheckError {
+                                code: "E_SCHEMA_INDEX_COLUMN".to_owned(),
+                                message: format!(
+                                    "index {table_name}.{index_name} cannot use list column {column}"
+                                ),
+                                rewrite: "index scalar columns instead of list values".to_owned(),
+                            },
+                        ));
+                    }
                 }
             }
         }
@@ -166,6 +157,62 @@ impl Generation {
                         rewrite: "keep one declaration for each effect name".to_owned(),
                     },
                 ));
+            }
+        }
+        for effect in &schema.effects {
+            if !effects.contains_key(effect) {
+                errors.push((
+                    "schema.effects".to_owned(),
+                    CheckError {
+                        code: "E_EFFECT_UNDECLARED".to_owned(),
+                        message: format!(
+                            "schema names effect {effect} without a project effect declaration"
+                        ),
+                        rewrite: format!(
+                            "declare {effect} in project effects or remove it from schema.effects"
+                        ),
+                    },
+                ));
+            }
+        }
+
+        let mut programs = BTreeMap::new();
+        let mut seen_programs = BTreeSet::new();
+        for program in &project.programs {
+            let first_declaration = seen_programs.insert(program.name.clone());
+            if !first_declaration {
+                errors.push((
+                    program.name.clone(),
+                    CheckError {
+                        code: "E_OP_DUPLICATE".to_owned(),
+                        message: format!("program {} is declared more than once", program.name),
+                        rewrite: "give every exported program one qualified name".to_owned(),
+                    },
+                ));
+            }
+            match Checker::new(&schema, ceilings.clone()).check(program) {
+                Ok(certificate) if first_declaration => {
+                    programs.insert(program.name.clone(), (program.clone(), certificate));
+                }
+                Ok(_) => {}
+                Err(error) => errors.push((program.name.clone(), error)),
+            }
+            let mut emitted = Vec::new();
+            collect_emits(&program.body, &mut emitted);
+            for effect in emitted {
+                if !effects.contains_key(effect) {
+                    errors.push((
+                        program.name.clone(),
+                        CheckError {
+                            code: "E_EFFECT_UNKNOWN".to_owned(),
+                            message: format!(
+                                "program {} emits undeclared effect {effect}",
+                                program.name
+                            ),
+                            rewrite: format!("declare {effect} in project effects"),
+                        },
+                    ));
+                }
             }
         }
 
@@ -190,6 +237,7 @@ pub struct Runtime {
 
 impl Runtime {
     pub fn open(mut store: Store, generation: Generation) -> Result<Self, SuccessorRefusal> {
+        crate::engine::validate_schema(&generation.schema).map_err(store_refusal)?;
         let installed = store.meta("generation").map_err(store_refusal)?;
         match installed {
             None => {
@@ -198,10 +246,7 @@ impl Runtime {
                     .query_row("SELECT COUNT(*) FROM rows", [], |row| row.get(0))
                     .map_err(|error| store_refusal(error.into()))?;
                 if row_count != 0 {
-                    return Err(SuccessorRefusal {
-                        code: "E_SUCCESSOR_DESTRUCTIVE".to_owned(),
-                        plan: MigrationPlan::default(),
-                    });
+                    return Err(SuccessorRefusal::destructive(MigrationPlan::default()));
                 }
                 persist_generation(&mut store, &generation).map_err(store_refusal)?;
             }
@@ -210,30 +255,31 @@ impl Runtime {
                 let current_json = store
                     .meta("schema_json")
                     .map_err(store_refusal)?
-                    .ok_or_else(|| SuccessorRefusal {
-                        code: "E_SUCCESSOR_DESTRUCTIVE".to_owned(),
-                        plan: MigrationPlan::default(),
-                    })?;
+                    .ok_or_else(|| SuccessorRefusal::destructive(MigrationPlan::default()))?;
                 let current: Schema = serde_json::from_str(&current_json).map_err(|error| {
                     store_refusal(RuntimeError::Serialization(error.to_string()))
                 })?;
-                let migration =
-                    plan(&store, &current, &generation.schema).map_err(store_refusal)?;
-                if !migration.drops.is_empty() {
-                    return Err(SuccessorRefusal {
-                        code: "E_SUCCESSOR_DESTRUCTIVE".to_owned(),
-                        plan: migration,
-                    });
+                if let Some(refusal) = successor_refusal(&store, &current, &generation.schema)
+                    .map_err(store_refusal)?
+                {
+                    return Err(refusal);
                 }
+                let transaction = store
+                    .conn
+                    .transaction()
+                    .map_err(|error| store_refusal(RuntimeError::Sql(error)))?;
                 apply_additive(
-                    &mut store,
+                    &transaction,
                     &current,
                     &generation.schema,
                     hash,
                     generation.hash.clone(),
                 )
                 .map_err(store_refusal)?;
-                persist_generation(&mut store, &generation).map_err(store_refusal)?;
+                persist_generation_transaction(&transaction, &generation).map_err(store_refusal)?;
+                transaction
+                    .commit()
+                    .map_err(|error| store_refusal(RuntimeError::Sql(error)))?;
             }
         }
         let engine = Engine::new(store, generation.schema.clone()).map_err(store_refusal)?;
@@ -269,6 +315,13 @@ impl Runtime {
                     Err(error)
                 }
             }
+            Err(RuntimeError::Require { code }) => Ok(Execution {
+                result: Value::Null,
+                trace: AuthoritativeTrace::default(),
+                receipt: ClosureReceipt::default(),
+                state: ExecutionState::Denied { rule: code },
+                seq: self.engine.store().commit_seq()?,
+            }),
             Err(RuntimeError::Rule { table, effect }) => Ok(Execution {
                 result: Value::Null,
                 trace: AuthoritativeTrace::default(),
@@ -324,23 +377,33 @@ impl Runtime {
         &mut self,
         next: Generation,
     ) -> Result<SuccessorReport, SuccessorRefusal> {
-        let migration = plan(self.engine.store(), &self.generation.schema, &next.schema)
-            .map_err(store_refusal)?;
-        if !migration.drops.is_empty() {
-            return Err(SuccessorRefusal {
-                code: "E_SUCCESSOR_DESTRUCTIVE".to_owned(),
-                plan: migration,
-            });
+        crate::engine::validate_schema(&next.schema).map_err(store_refusal)?;
+        if let Some(refusal) =
+            successor_refusal(self.engine.store(), &self.generation.schema, &next.schema)
+                .map_err(store_refusal)?
+        {
+            return Err(refusal);
         }
+        let current = self.generation.schema.clone();
+        let from = self.generation.hash.clone();
+        let transaction = self
+            .engine
+            .store_mut()
+            .conn
+            .transaction()
+            .map_err(|error| store_refusal(RuntimeError::Sql(error)))?;
         let report = apply_additive(
-            self.engine.store_mut(),
-            &self.generation.schema,
+            &transaction,
+            &current,
             &next.schema,
-            self.generation.hash.clone(),
+            from,
             next.hash.clone(),
         )
         .map_err(store_refusal)?;
-        persist_generation(self.engine.store_mut(), &next).map_err(store_refusal)?;
+        persist_generation_transaction(&transaction, &next).map_err(store_refusal)?;
+        transaction
+            .commit()
+            .map_err(|error| store_refusal(RuntimeError::Sql(error)))?;
         self.engine
             .set_schema(next.schema.clone())
             .map_err(store_refusal)?;
@@ -354,21 +417,27 @@ impl Runtime {
         next: Generation,
         migration: &MigrationPlan,
     ) -> Result<SuccessorReport, RuntimeError> {
+        crate::engine::validate_schema(&next.schema)?;
+        let expected = plan(self.engine.store(), &self.generation.schema, &next.schema)?;
+        if &expected != migration {
+            return Err(RuntimeError::MigrationPlan(format!(
+                "supplied plan does not match the current destructive delta: expected {:?}",
+                expected.drops
+            )));
+        }
         let mut reduced = self.generation.schema.clone();
-        apply_migration_drops(
-            self.engine.store_mut(),
-            &mut reduced,
-            &next.schema,
-            migration,
-        )?;
+        let from = self.generation.hash.clone();
+        let transaction = self.engine.store_mut().conn.transaction()?;
+        apply_migration_drops(&transaction, &mut reduced, migration)?;
         let report = apply_additive(
-            self.engine.store_mut(),
+            &transaction,
             &reduced,
             &next.schema,
-            self.generation.hash.clone(),
+            from,
             next.hash.clone(),
         )?;
-        persist_generation(self.engine.store_mut(), &next)?;
+        persist_generation_transaction(&transaction, &next)?;
+        transaction.commit()?;
         self.engine.set_schema(next.schema.clone())?;
         self.generation = next;
         self.rerun_all_subscriptions();
@@ -389,7 +458,7 @@ impl Runtime {
         side: ChannelSide,
         args: &BTreeMap<String, Value>,
         context: &Context,
-    ) -> Result<bool, RuntimeError> {
+    ) -> Result<ChannelVerdict, RuntimeError> {
         let channel = self
             .generation
             .schema
@@ -430,38 +499,71 @@ impl Runtime {
             ChannelSide::Subscribe => channel.subscribe,
         };
         let row = Value::Row(args.clone());
-        let (admitted, _trace) = self.engine.probe_rule(&rule, &row, context.clone())?;
-        Ok(admitted)
+        let (admitted, trace) = self.engine.probe_rule(&rule, &row, context.clone())?;
+        Ok(ChannelVerdict {
+            admitted,
+            rule_inputs: trace.rule_inputs,
+            points: trace.points,
+        })
+    }
+
+    pub fn channel_touched(commit: &CommitRecord, verdict: &ChannelVerdict) -> bool {
+        commit.touched.iter().any(|touched| {
+            verdict.rule_inputs.iter().any(|input| {
+                input.table == touched.table
+                    && input.index == touched.index
+                    && input.key == touched.key
+            }) || verdict.points.iter().any(|point| {
+                point.table == touched.table
+                    && point.index == touched.index
+                    && point.key == touched.key
+            })
+        })
     }
 }
 
 fn persist_generation(store: &mut Store, generation: &Generation) -> Result<(), RuntimeError> {
-    store.set_meta("schema_hash", &generation.schema.hash())?;
-    store.set_meta("generation", &generation.hash)?;
-    store.set_meta(
-        "schema_json",
-        &serde_json::to_string(&generation.schema)
-            .map_err(|error| RuntimeError::Serialization(error.to_string()))?,
-    )?;
+    let transaction = store.conn.transaction()?;
+    persist_generation_transaction(&transaction, generation)?;
+    transaction.commit()?;
     Ok(())
 }
 
-fn store_refusal(_error: RuntimeError) -> SuccessorRefusal {
-    SuccessorRefusal {
-        code: "E_SUCCESSOR_STORE".to_owned(),
-        plan: MigrationPlan::default(),
+fn persist_generation_transaction(
+    transaction: &rusqlite::Transaction<'_>,
+    generation: &Generation,
+) -> Result<(), RuntimeError> {
+    let schema_json = serde_json::to_string(&generation.schema)
+        .map_err(|error| RuntimeError::Serialization(error.to_string()))?;
+    for (key, value) in [
+        ("schema_hash", generation.schema.hash()),
+        ("generation", generation.hash.clone()),
+        ("schema_json", schema_json),
+    ] {
+        transaction.execute(
+            "INSERT INTO _meta(key, value) VALUES (?1, ?2)
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            rusqlite::params![key, value],
+        )?;
     }
+    Ok(())
+}
+
+fn store_refusal(error: RuntimeError) -> SuccessorRefusal {
+    SuccessorRefusal::store(&error)
 }
 
 fn rejection_code(error: &RuntimeError) -> Option<&str> {
     match error {
         RuntimeError::Require { code } => Some(code),
         RuntimeError::Rule { .. } => Some("rule"),
-        RuntimeError::Constraint(_) => Some("constraint"),
+        RuntimeError::Constraint(_) => Some("E_CONSTRAINT"),
+        error if is_sqlite_constraint(error) => Some("E_CONSTRAINT"),
         RuntimeError::Input(_) => Some("input"),
         RuntimeError::Steps(_) | RuntimeError::Fanout | RuntimeError::TraceSubset(_) => {
             Some("bound")
         }
+        // SQLite I/O/corruption and all non-program database failures remain Err.
         _ => None,
     }
 }

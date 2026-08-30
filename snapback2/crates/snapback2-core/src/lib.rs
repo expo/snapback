@@ -18,13 +18,16 @@ pub use certificate::{
     WriteSite,
 };
 pub use client::{ClientStore, LocalState};
-pub use engine::{Context, Engine, Execution, ExecutionState, RuntimeError, StopReason};
+pub use engine::{
+    AuthoritativeTrace, Context, Engine, Execution, ExecutionState, PointTrace, RuleInputTrace,
+    RuntimeError, StopReason,
+};
 pub use identity::{IdentityError, Principal, Session};
 pub use ir::*;
 pub use live::{Delivery, SubscriptionId, SubscriptionInfo, Subscriptions};
 pub use programs::*;
-pub use registry::{ChannelSide, EffectDecl, Generation, ProjectJson, Runtime};
+pub use registry::{ChannelSide, ChannelVerdict, EffectDecl, Generation, ProjectJson, Runtime};
 pub use schema::*;
 pub use store::{CommitRecord, Store, TouchedKey};
-pub use successor::{Drop, MigrationPlan, SuccessorRefusal, SuccessorReport};
+pub use successor::{Drop, MigrationPlan, SuccessorRefusal, SuccessorReport, UniqueConflict};
 pub use value::*;

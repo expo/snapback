@@ -259,28 +259,36 @@ pub(crate) fn validate_row(
         return Err(RuntimeError::Schema(format!("{table_name} row lacks id")));
     }
     for (name, kind) in &table.columns {
-        let value = object
-            .get(name)
-            .ok_or_else(|| RuntimeError::Schema(format!("{table_name}.{name} missing")))?;
-        let valid = match (kind, value) {
-            (ColumnType::Id | ColumnType::Ref { .. }, Value::Id(_)) => true,
-            (ColumnType::Text { max }, Value::String(text)) => {
-                text.chars().count() <= *max as usize
-            }
-            (ColumnType::Int | ColumnType::Time, Value::Int(value)) => {
-                (I53_MIN..=I53_MAX).contains(value)
-            }
-            (ColumnType::Bool, Value::Bool(_)) => true,
-            (ColumnType::Json { max_bytes }, value) => {
-                canonical_json(value).len() <= *max_bytes as usize
-            }
-            _ => false,
-        };
-        if !valid {
+        if !valid_column_value(kind, object.get(name)) {
             return Err(RuntimeError::Schema(format!(
                 "{table_name}.{name} violates {kind:?}"
             )));
         }
     }
     Ok(())
+}
+
+fn valid_column_value(kind: &ColumnType, value: Option<&Value>) -> bool {
+    match (kind, value) {
+        (ColumnType::Optional(_), None | Some(Value::Null)) => true,
+        (ColumnType::Optional(inner), Some(value)) => valid_column_value(inner, Some(value)),
+        (ColumnType::List { of, max }, Some(Value::Array(values))) => {
+            values.len() <= *max as usize
+                && values
+                    .iter()
+                    .all(|value| valid_column_value(of, Some(value)))
+        }
+        (ColumnType::Id | ColumnType::Ref { .. }, Some(Value::Id(_))) => true,
+        (ColumnType::Text { max }, Some(Value::String(text))) => {
+            text.chars().count() <= *max as usize
+        }
+        (ColumnType::Int | ColumnType::Time, Some(Value::Int(value))) => {
+            (I53_MIN..=I53_MAX).contains(value)
+        }
+        (ColumnType::Bool, Some(Value::Bool(_))) => true,
+        (ColumnType::Json { max_bytes }, Some(value)) => {
+            canonical_json(value).len() <= *max_bytes as usize
+        }
+        _ => false,
+    }
 }
