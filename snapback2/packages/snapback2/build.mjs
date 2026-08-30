@@ -9,6 +9,16 @@ const dist = resolve(here, "dist");
 await rm(dist, { recursive: true, force: true });
 await mkdir(dist, { recursive: true });
 
+const externalClient = {
+  name: "external-client",
+  setup(build) {
+    build.onResolve({ filter: /^\.\/client\.js$/ }, (args) =>
+      args.importer === resolve(here, "src/react.tsx")
+        ? { path: "snapback2/client", external: true }
+        : undefined);
+  },
+};
+
 await build({
   entryPoints: {
     index: resolve(here, "src/index.ts"),
@@ -22,7 +32,8 @@ await build({
   minify: true,
   platform: "neutral",
   target: "es2022",
-  external: ["react"],
+  external: ["react", "snapback2/client"],
+  plugins: [externalClient],
 });
 
 await build({

@@ -8,7 +8,7 @@ import React, {
   useState,
   type ReactNode,
 } from "react";
-import { createClient, SnapbackRefusal } from "./client.js";
+import { createClient, isSnapbackRefusal, type SnapbackRefusal } from "./client.js";
 import { referenceName, type Channel as ChannelRef, type Op } from "./api.js";
 import {
   initialQueryState,
@@ -124,12 +124,12 @@ export function useQuery<Args, Result>(
           return;
         } catch (error) {
           if (!active) return;
-          if (error instanceof SnapbackRefusal && error.retryable) {
+          if (isSnapbackRefusal(error) && error.retryable) {
             await new Promise<void>((resolve) => { timer = setTimeout(resolve, backoff); });
             backoff = Math.min(backoff * 2, 5_000);
             continue;
           }
-          const envelope = error instanceof SnapbackRefusal
+          const envelope = isSnapbackRefusal(error)
             ? error.envelope
             : { code: "E_CLIENT", family: "owner", message: String(error), guide: "owner/connect" };
           dispatch({ identity, event: { state: "refused", live: false, ...envelope } });
@@ -157,28 +157,32 @@ export interface UseMutationResult<Args, Result> {
   run(args: Args): Promise<MutationResult<Result>>;
   pending: boolean;
   last: MutationResult<Result> | undefined;
+  transport: SnapbackRefusal | undefined;
 }
 
 export function useMutation<Args, Result>(ref: Op<Args, Result>): UseMutationResult<Args, Result> {
   const { client } = provider();
   const [last, setLast] = useState<MutationResult<Result>>();
+  const [transport, setTransport] = useState<SnapbackRefusal>();
   const [pendingCount, setPendingCount] = useState(0);
   const run = useCallback(async (args: Args) => {
     setPendingCount((value) => value + 1);
     try {
       const result = await client.mutation(ref, args);
       setLast(result);
+      setTransport(undefined);
       return result;
     } catch (error) {
-      if (error instanceof SnapbackRefusal && error.retryable) {
-        setLast({ state: "rejected", ...error.envelope, retryable: true });
-      }
+      if (isSnapbackRefusal(error) && error.retryable) setTransport(error);
       throw error;
     } finally {
       setPendingCount((value) => value - 1);
     }
   }, [client, referenceName(ref)]);
-  return useMemo(() => ({ run, pending: pendingCount > 0, last }), [run, pendingCount, last]);
+  return useMemo(
+    () => ({ run, pending: pendingCount > 0, last, transport }),
+    [run, pendingCount, last, transport],
+  );
 }
 
 export type AuthHookState = "hydrating" | "authenticated" | "anonymous" | "refused";
@@ -207,10 +211,10 @@ export function useAuth(): UseAuthResult {
       setState({ state: "authenticated", ...value, token: client.snapshot.token });
       return value;
     } catch (error) {
-      if (error instanceof SnapbackRefusal && (error.code === "E_AUTH" || error.code === "E_AUTH_REQUIRED")) {
+      if (isSnapbackRefusal(error) && (error.code === "E_AUTH" || error.code === "E_AUTH_REQUIRED")) {
         setState({ state: "anonymous", refusal: error.envelope });
       } else {
-        const refusal = error instanceof SnapbackRefusal ? error.envelope : undefined;
+        const refusal = isSnapbackRefusal(error) ? error.envelope : undefined;
         setState({ state: "refused", refusal, token: client.snapshot.token });
       }
       throw error;

@@ -666,6 +666,33 @@ test("a valid refusal frame preserves code and family and is terminal", async ()
   value.close();
 });
 
+test("an in-band channel refusal records the complete lastRefusal", async () => {
+  const value = createClient({
+    url: "http://wire.test",
+    fetch: async () => fetchSse({
+      state: "refused",
+      code: "E_RULE_CHANNEL_SUBSCRIBE",
+      family: "rule",
+      message: "membership was revoked",
+      guide: "rule/channels",
+    }),
+  });
+  const sub = value.channel(api.typing, {}).subscribe(() => undefined);
+  await assert.rejects(
+    () => sub.until(() => false, 500),
+    (error: unknown) => error instanceof SnapbackRefusal
+      && error.code === "E_RULE_CHANNEL_SUBSCRIBE",
+  );
+  assert.deepEqual(value.snapshot.lastRefusal, {
+    code: "E_RULE_CHANNEL_SUBSCRIBE",
+    family: "rule",
+    message: "membership was revoked",
+    guide: "rule/channels",
+  });
+  sub.close();
+  value.close();
+});
+
 test("mutation returns committed and rejected without throwing rejected", async () => {
   const value = client(externalUrl ? { as: "alice" } : {});
   if (!externalUrl) await value.auth.guest();
@@ -940,11 +967,12 @@ test("lastRefusal clears only after state-specific validation succeeds", async (
   value.close();
 });
 
-test("query retries HTTP transport failures while mutation never retries", async () => {
-  for (const response of [
-    () => fetchJson({ message: "busy" }, 503),
-    () => new Response("not a refusal envelope", { status: 400 }),
-  ]) {
+test("query retries HTTP and network transport failures while mutation retries neither", async () => {
+  for (const [response, expectedCode] of [
+    [() => fetchJson({ message: "busy" }, 503), "E_TRANSPORT"],
+    [() => new Response("not a refusal envelope", { status: 400 }), "E_TRANSPORT"],
+    [() => { throw new Error("offline"); }, "E_NETWORK"],
+  ] as const) {
     let queryAttempts = 0;
     const querying = createClient({
       url: "http://wire.test",
@@ -956,7 +984,7 @@ test("query retries HTTP transport failures while mutation never retries", async
     await assert.rejects(
       () => querying.query(api.messages.thread, {}),
       (error: unknown) => error instanceof SnapbackRefusal
-        && error.code === "E_TRANSPORT"
+        && error.code === expectedCode
         && error.retryable,
     );
     assert.equal(queryAttempts, 3);
@@ -964,23 +992,28 @@ test("query retries HTTP transport failures while mutation never retries", async
     querying.close();
   }
 
-  let mutationAttempts = 0;
-  const mutating = createClient({
-    url: "http://wire.test",
-    fetch: async () => {
-      mutationAttempts += 1;
-      return fetchJson(refusal("E_OWNER_BUSY", "busy"), 503);
-    },
-  });
-  await assert.rejects(
-    () => mutating.mutation(api.messages.send, {}),
-    (error: unknown) => error instanceof SnapbackRefusal
-      && error.code === "E_TRANSPORT"
-      && error.retryable,
-  );
-  assert.equal(mutationAttempts, 1);
-  assert.equal(mutating.snapshot.connection, "reconnecting");
-  mutating.close();
+  for (const [response, expectedCode] of [
+    [() => fetchJson(refusal("E_OWNER_BUSY", "busy"), 503), "E_TRANSPORT"],
+    [() => { throw new Error("offline"); }, "E_NETWORK"],
+  ] as const) {
+    let mutationAttempts = 0;
+    const mutating = createClient({
+      url: "http://wire.test",
+      fetch: async () => {
+        mutationAttempts += 1;
+        return response();
+      },
+    });
+    await assert.rejects(
+      () => mutating.mutation(api.messages.send, {}),
+      (error: unknown) => error instanceof SnapbackRefusal
+        && error.code === expectedCode
+        && error.retryable,
+    );
+    assert.equal(mutationAttempts, 1);
+    assert.equal(mutating.snapshot.connection, "reconnecting");
+    mutating.close();
+  }
 });
 
 test("query and mutation throw every 4xx refusal while subscriptions deliver refused", async () => {
@@ -1106,7 +1139,7 @@ test("useMutation exposes pending for exactly the in-flight interval", async () 
   await act(async () => { renderer!.unmount(); });
 });
 
-test("useMutation records a rejected-shaped retryable transport failure without retrying", async () => {
+test("useMutation keeps the last server receipt separate from transport failure", async () => {
   let current: any;
   let mutationAttempts = 0;
   const fetch = async (input: string | URL | Request) => {
@@ -1115,7 +1148,17 @@ test("useMutation records a rejected-shaped retryable transport failure without 
       return fetchJson({ generation: "test", ops: {}, channels: {}, auth: {} });
     }
     mutationAttempts += 1;
-    return fetchJson({ message: "upstream failed" }, 503);
+    if (mutationAttempts === 1) {
+      return fetchJson({ state: "committed", seq: 1, data: { id: "message-1" } });
+    }
+    if (mutationAttempts === 2) return fetchJson({ message: "upstream failed" }, 503);
+    return fetchJson({
+      state: "rejected",
+      code: "RECIPIENT_UNKNOWN",
+      family: "input",
+      message: "recipient does not exist",
+      guide: "input/runtime",
+    });
   };
   function Harness() {
     current = useMutation(api.messages.send);
@@ -1129,19 +1172,31 @@ test("useMutation records a rejected-shaped retryable transport failure without 
       React.createElement(Harness),
     ));
   });
+  await act(async () => { await current.run({}); });
+  const committed = current.last;
+  assert.equal(committed.state, "committed");
+  assert.equal(current.transport, undefined);
+
+  let transport: unknown;
   await act(async () => {
-    await assert.rejects(() => current.run({}), (error: any) =>
-      error?.code === "E_TRANSPORT" && error?.retryable === true);
+    await assert.rejects(
+      () => current.run({}),
+      (error: any) => {
+        transport = error;
+        return error instanceof SnapbackRefusal
+          && error.code === "E_TRANSPORT"
+          && error.retryable === true;
+      },
+    );
   });
-  assert.equal(mutationAttempts, 1);
-  assert.deepEqual(current.last, {
-    state: "rejected",
-    code: "E_TRANSPORT",
-    family: "owner",
-    message: "/api/mutation returned HTTP 503",
-    guide: "owner/connect",
-    retryable: true,
-  });
+  assert.equal(mutationAttempts, 2);
+  assert.strictEqual(current.last, committed, "a post-commit 503 invented a rejected receipt");
+  assert.strictEqual(current.transport, transport);
+
+  await act(async () => { await current.run({}); });
+  assert.equal(current.last.state, "rejected");
+  assert.equal(current.last.code, "RECIPIENT_UNKNOWN");
+  assert.equal(current.transport, undefined, "a successful server run did not clear transport status");
   await act(async () => { renderer!.unmount(); });
 });
 
@@ -1248,4 +1303,51 @@ test("separately bundled client and React entry points share generated API refer
   });
   assert.equal(operation, "messages.thread");
   await act(async () => { renderer!.unmount(); });
+});
+
+test("React transport refusals use the client entry point class", async () => {
+  const bundledClient: any = await import("../dist/client.mjs");
+  const bundledReact: any = await import("../dist/react.mjs");
+  let hook: any;
+  const fetch = async (input: string | URL | Request) => {
+    const path = new URL(String(input)).pathname;
+    if (path === "/api/manifest") return fetchJson({ generation: "test", ops: {}, channels: {}, auth: {} });
+    return fetchJson({ message: "upstream failed" }, 503);
+  };
+  function Harness() {
+    hook = bundledReact.useMutation(bundledClient.api.messages.send);
+    return null;
+  }
+  let renderer: TestRenderer.ReactTestRenderer;
+  await act(async () => {
+    renderer = TestRenderer.create(React.createElement(
+      bundledReact.SnapbackProvider,
+      { url: "http://wire.test", fetch },
+      React.createElement(Harness),
+    ));
+  });
+  await act(async () => {
+    await assert.rejects(
+      () => hook.run({}),
+      (error: unknown) => error instanceof bundledClient.SnapbackRefusal,
+    );
+  });
+  await act(async () => { renderer!.unmount(); });
+});
+
+test("isSnapbackRefusal recognizes the name-plus-symbol brand across realms", async () => {
+  const bundledClient: any = await import("../dist/client.mjs");
+  assert.equal(typeof bundledClient.isSnapbackRefusal, "function");
+  const local = new bundledClient.SnapbackRefusal(refusal("E_OP_UNKNOWN", "unknown"));
+  const brand = Object.getOwnPropertySymbols(local)
+    .find((symbol) => (local as Record<symbol, unknown>)[symbol] === true);
+  assert.ok(brand, "SnapbackRefusal did not carry its symbol brand");
+  const { runInNewContext } = await import("node:vm");
+  const crossRealm = runInNewContext(
+    "({ name: 'SnapbackRefusal', [brand]: true })",
+    { brand },
+  );
+  assert.equal(bundledClient.isSnapbackRefusal(crossRealm), true);
+  assert.equal(bundledClient.isSnapbackRefusal({ name: "SnapbackRefusal" }), false);
+  assert.equal(bundledClient.isSnapbackRefusal({ [brand]: true }), false);
 });
