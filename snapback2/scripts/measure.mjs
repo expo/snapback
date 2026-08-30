@@ -67,11 +67,21 @@ function main() {
   const incrementalStep = recordStep(record, failedSteps, "incremental_build_s", incr, 2, (result) => `incremental build failed\n${result.stderr}`);
 
   const test = run("cargo", ["test", "-q", "-p", "snapback2-core"]);
-  const testStep = recordStep(record, failedSteps, "test_s", test, 2, (result) => `core tests failed\n${result.stdout}\n${result.stderr}`);
+  const testStep = recordStep(record, failedSteps, "core_test_s", test, 2, (result) => `core tests failed\n${result.stdout}\n${result.stderr}`);
 
   const bin = resolve(root, "target/debug/snapback2");
   const compiler = resolve(root, "packages/snapback2/dist/compiler.mjs");
-  const compilerEnv = { ...process.env, SNAPBACK2_COMPILER: compiler };
+  const packageBuild = run("node", ["build.mjs"], { cwd: resolve(root, "packages/snapback2") });
+  recordStep(record, failedSteps, "package_build_s", packageBuild, 3,
+    (result) => `package build failed\n${result.stdout}\n${result.stderr}`);
+  const packageDist = resolve(root, "packages/snapback2/dist");
+  const compilerEnv = {
+    ...process.env,
+    SNAPBACK2_COMPILER: compiler,
+    SNAPBACK2_GUIDE: resolve(packageDist, "guide"),
+    SNAPBACK2_TEMPLATES: resolve(packageDist, "templates"),
+    SNAPBACK2_TEST_RUNNER: resolve(packageDist, "test-runner.mjs"),
+  };
   // Take the better of two adjacent runs so post-test scheduler/pipe teardown
   // noise is not mistaken for the binary's boot-to-ready latency.
   const doctorRuns = [
@@ -113,6 +123,33 @@ function main() {
   recordStep(record, failedSteps, "dev_stop_s", stop, 3,
     (result) => `measured owner stop failed\n${result.stdout}\n${result.stderr}`);
   rmSync(devRoot, { recursive: true, force: true });
+
+  const initRoot = mkdtempSync(resolve(tmpdir(), "snapback2-init-measure-"));
+  const initStarted = performance.now();
+  const initialized = run(bin, ["init", initRoot, "--template", "chat", "--client", "none", "--json"], { env: compilerEnv });
+  const initializedDev = run(bin, ["dev", "--project", initRoot], { env: compilerEnv });
+  if (initializedDev.status === 0 && !initializedDev.stdout.includes("SNAPBACK_URL=")) initializedDev.status = 1;
+  const initLoop = {
+    seconds: (performance.now() - initStarted) / 1000,
+    status: initialized.status === 0 && initializedDev.status === 0 ? 0 : 1,
+    stdout: `${initialized.stdout}\n${initializedDev.stdout}`,
+    stderr: `${initialized.stderr}\n${initializedDev.stderr}`,
+  };
+  const initToDevStep = recordStep(record, failedSteps, "init_to_dev_s", initLoop, 3,
+    (result) => `init to dev failed\n${result.stdout}\n${result.stderr}`);
+  const initializedStop = run(bin, ["dev", "--project", initRoot, "--stop", "--json"]);
+  recordStep(record, failedSteps, "init_dev_stop_s", initializedStop, 3,
+    (result) => `initialized owner stop failed\n${result.stdout}\n${result.stderr}`);
+  rmSync(initRoot, { recursive: true, force: true });
+
+  const productTestRoot = mkdtempSync(resolve(tmpdir(), "snapback2-test-measure-"));
+  const testInit = run(bin, ["init", productTestRoot, "--template", "todos", "--client", "none", "--json"], { env: compilerEnv });
+  recordStep(record, failedSteps, "test_init_s", testInit, 3,
+    (result) => `todos init failed\n${result.stdout}\n${result.stderr}`);
+  const productTest = run(bin, ["test", "--project", productTestRoot, "--json"], { env: compilerEnv });
+  const productTestStep = recordStep(record, failedSteps, "test_s", productTest, 3,
+    (result) => `todos template test failed\n${result.stdout}\n${result.stderr}`);
+  rmSync(productTestRoot, { recursive: true, force: true });
   record.debug_binary_bytes = statSync(bin).size;
   try { record.production_binary_bytes = statSync(resolve(root, "target/production/snapback2")).size; } catch {}
 
@@ -133,6 +170,10 @@ function main() {
       ["`snapback2 check`", projectCheckStep],
       ["`snapback2 doctor`", doctorStep],
     ], budget);
+    scoreChecks([
+      ["init → dev", initToDevStep],
+      ["snapback2 test", productTestStep],
+    ], (label) => label === "init → dev" ? 10 : 30);
   }
 
   if (failedSteps.size > 0) console.error(`measure: ${failedSummary(failedSteps)}`);

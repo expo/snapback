@@ -9,12 +9,18 @@ mod control;
 mod doctor;
 #[cfg(feature = "effects")]
 mod effects;
+mod guide;
+mod init;
 mod owner;
 mod project;
 mod protocol;
+mod receipt;
 mod serve;
+mod test;
+mod trace;
 mod verbs;
 mod watch;
+mod why;
 mod writer;
 mod writer_util;
 mod writer_wire;
@@ -44,9 +50,14 @@ fn main() -> ExitCode {
 
         // Lane B2 owns these modules and adds only their match arms here:
         // init | test | why | trace | guide
+        Some("init") => init::run(&args),
+        Some("test") => test::run(&args),
+        Some("why") => why::run(&args),
+        Some("trace") => trace::run(&args),
+        Some("guide") => guide::run(&args),
         _ => {
             eprintln!(
-                "usage: snapback2 <version | doctor | check | dev | run | data | logs | persona | fork | reset> [options]"
+                "usage: snapback2 <version | doctor | check | dev | run | test | why | trace | data | logs | persona | fork | reset | guide | init> [options]"
             );
             ExitCode::from(2)
         }

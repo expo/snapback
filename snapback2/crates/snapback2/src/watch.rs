@@ -37,6 +37,10 @@ pub fn spawn(
                 match compiler.compile(&root) {
                     Ok(compiled) => {
                         let generation = compiled.generation.hash.clone();
+                        if let Err(errors) = compiler.journeys(&root) {
+                            refuse(&handle, &root, generation, errors);
+                            continue;
+                        }
                         let seed = match compiler.seed(&root) {
                             Ok(seed) => seed,
                             Err(errors) => {

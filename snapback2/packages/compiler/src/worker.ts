@@ -1,17 +1,32 @@
 #!/usr/bin/env node
 import { createInterface } from "node:readline";
 import { isAbsolute, resolve } from "node:path";
-import { lowerProject, lowerSeed, listJourneys } from "./project";
+import { compileJourneys, lowerProject, lowerSeed } from "./project";
 
 type Request = { id?: string | number; op: "compile" | "seed" | "journeys"; root: string };
+
+const apiDeclarations = new Map<string, string>();
 
 async function respond(request: Request): Promise<Record<string, unknown>> {
   if (!request || typeof request.root !== "string" || !isAbsolute(request.root)) {
     return refusal(request?.id, "E_OP_INVALID", "compiler request requires an absolute project root");
   }
-  if (request.op === "compile") return { id: request.id, ...await lowerProject(request.root) };
+  if (request.op === "compile") {
+    const result = await lowerProject(request.root);
+    if (result.ok) apiDeclarations.set(request.root, result.apiDts);
+    return { id: request.id, ...result };
+  }
   if (request.op === "seed") return { id: request.id, ...await lowerSeed(request.root) };
-  if (request.op === "journeys") return { id: request.id, ok: true, files: await listJourneys(request.root) };
+  if (request.op === "journeys") {
+    let apiDts = apiDeclarations.get(request.root);
+    if (apiDts === undefined) {
+      const compiled = await lowerProject(request.root);
+      if (!compiled.ok) return { id: request.id, ...compiled };
+      apiDts = compiled.apiDts;
+      apiDeclarations.set(request.root, apiDts);
+    }
+    return { id: request.id, ...await compileJourneys(request.root, apiDts) };
+  }
   return refusal(request.id, "E_OP_INVALID", `unknown compiler operation ${(request as { op?: unknown }).op ?? "<missing>"}`);
 }
 

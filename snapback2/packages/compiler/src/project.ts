@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
-import { readdir, readFile } from "node:fs/promises";
-import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
-import { fileURLToPath } from "node:url";
+import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import ts from "typescript";
 import { expandArgumentObject } from "./args";
 import { requiredType, type AuthoredType, type TableInfo } from "./authored-types";
@@ -192,6 +192,92 @@ export async function listJourneys(root: string): Promise<string[]> {
     .filter((entry) => entry.isFile() && entry.name.endsWith(".test.ts"))
     .map((entry) => relativeSite(projectRoot, join(tests, entry.name)))
     .sort();
+}
+
+export async function compileJourneys(
+  root: string,
+  apiDts: string,
+): Promise<
+  | { ok: true; files: string[] }
+  | { ok: false; diagnostics: FrontendDiagnostic[] }
+> {
+  const projectRoot = resolve(root);
+  const sourceFiles = (await listJourneys(projectRoot)).map((file) => join(projectRoot, file));
+  const buildRoot = join(projectRoot, ".snapback", "build");
+  const outputRoot = join(buildRoot, "tests");
+  await rm(outputRoot, { recursive: true, force: true });
+  await mkdir(outputRoot, { recursive: true });
+  if (sourceFiles.length === 0) return { ok: true, files: [] };
+
+  const packageDist = compilerPackageDist();
+  const clientDts = join(packageDist, "client.d.ts");
+  const testDts = join(packageDist, "test.d.ts");
+  const apiPath = join(buildRoot, "api.d.ts");
+  await writeFile(apiPath, apiDts);
+  const options: ts.CompilerOptions = {
+    baseUrl: projectRoot,
+    jsx: ts.JsxEmit.ReactJSX,
+    lib: ["lib.es2022.d.ts", "lib.dom.d.ts", "lib.dom.iterable.d.ts"],
+    module: ts.ModuleKind.ESNext,
+    moduleResolution: ts.ModuleResolutionKind.Bundler,
+    noEmit: true,
+    paths: {
+      "snapback2/client": [clientDts],
+      "snapback2/test": [testDts],
+    },
+    skipLibCheck: true,
+    strict: true,
+    target: ts.ScriptTarget.ES2022,
+    types: [],
+  };
+  const program = ts.createProgram({ rootNames: [...sourceFiles, apiPath], options });
+  const sourceSet = new Set(sourceFiles.map((file) => resolve(file)));
+  const diagnostics = ts.getPreEmitDiagnostics(program).flatMap((item) => {
+    if (!item.file || !sourceSet.has(resolve(item.file.fileName))) return [];
+    const position = item.start === undefined
+      ? { line: 0, character: 0 }
+      : item.file.getLineAndCharacterOfPosition(item.start);
+    return [typeDiagnostic(
+      "E_OP_INVALID",
+      "op",
+      relativeSite(projectRoot, item.file.fileName),
+      position.line + 1,
+      position.character + 1,
+      ts.flattenDiagnosticMessageText(item.messageText, "\n"),
+      "fix the journey TypeScript error and rerun snapback2 check",
+      "testing/journeys",
+    )];
+  });
+  if (diagnostics.length > 0) {
+    return { ok: false, diagnostics: boundedDiagnostics(diagnostics, 50, "journey refusals") };
+  }
+
+  const clientModule = pathToFileURL(join(packageDist, "client.mjs")).href;
+  const testModule = pathToFileURL(join(packageDist, "test.mjs")).href;
+  const files: string[] = [];
+  for (const sourcePath of sourceFiles) {
+    const source = await readFile(sourcePath, "utf8");
+    const transpiled = ts.transpileModule(source, {
+      fileName: sourcePath,
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+    }).outputText
+      .replace(/(["'])snapback2\/client\1/g, JSON.stringify(clientModule))
+      .replace(/(["'])snapback2\/test\1/g, JSON.stringify(testModule));
+    const sourceName = basename(sourcePath);
+    const outputName = `${sourceName.slice(0, -".test.ts".length)}.mjs`;
+    const outputPath = join(outputRoot, outputName);
+    await writeFile(outputPath, transpiled);
+    files.push(relativeSite(projectRoot, outputPath));
+  }
+  return { ok: true, files };
+}
+
+function compilerPackageDist(): string {
+  const here = dirname(fileURLToPath(import.meta.url));
+  return basename(here) === "dist" ? here : resolve(here, "../../snapback2/dist");
 }
 
 function createProjectProgram(

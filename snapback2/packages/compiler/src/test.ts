@@ -11,6 +11,7 @@ import { decimal } from "../../snapback2/src/index";
 import * as clientSurface from "../../snapback2/src/client";
 import * as reactSurface from "../../snapback2/src/react";
 import * as testSurface from "../../snapback2/src/test";
+import ts from "typescript";
 
 const frontend = decodeURIComponent(new URL("../", import.meta.url).pathname);
 const crate = decodeURIComponent(new URL("../../../", import.meta.url).pathname);
@@ -848,8 +849,50 @@ test("npm pack from a clean dist builds every exported module and declaration", 
   const files = new Set((report[0]?.files ?? []).map((item: { path: string }) => item.path));
   for (const path of [
     "dist/compiler.mjs", "dist/index.mjs", "dist/client.mjs", "dist/react.mjs", "dist/test.mjs",
-    "dist/index.d.ts", "dist/client.d.ts", "dist/placeholder.d.ts", "dist/compiler-lib.d.ts",
+    "dist/test-runner.mjs", "dist/index.d.ts", "dist/client.d.ts", "dist/react.d.ts", "dist/test.d.ts",
+    "dist/placeholder.d.ts", "dist/compiler-lib.d.ts",
   ]) assert(files.has(path), `npm pack omitted ${path}`);
+});
+
+test("the React template typechecks against the built snapback2/react package", () => {
+  const packageRoot = resolve(crate, "packages/snapback2");
+  const app = resolve(packageRoot, "templates/react/src/App.tsx");
+  const program = ts.createProgram({
+    rootNames: [app],
+    options: {
+      baseUrl: packageRoot,
+      jsx: ts.JsxEmit.ReactJSX,
+      lib: ["lib.es2022.d.ts", "lib.dom.d.ts"],
+      module: ts.ModuleKind.ESNext,
+      moduleResolution: ts.ModuleResolutionKind.Bundler,
+      noEmit: true,
+      paths: {
+        "snapback2/react": [resolve(packageRoot, "dist/react.d.ts")],
+      },
+      skipLibCheck: true,
+      strict: true,
+      target: ts.ScriptTarget.ES2022,
+      types: ["react"],
+    },
+  });
+  const diagnostics = ts.getPreEmitDiagnostics(program).filter((item) => item.file?.fileName === app);
+  assert(
+    diagnostics.length === 0,
+    `React template did not typecheck against dist/react.d.ts:\n${diagnostics.map((item) => ts.flattenDiagnosticMessageText(item.messageText, "\n")).join("\n")}`,
+  );
+});
+
+test("guide validation reports every failing page before it fails", () => {
+  const packageRoot = resolve(crate, "packages/snapback2");
+  const checked = Bun.spawnSync({
+    cmd: ["node", "build.mjs", "--self-test"],
+    cwd: packageRoot,
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  const output = `${new TextDecoder().decode(checked.stdout)}${new TextDecoder().decode(checked.stderr)}`;
+  assert(checked.exitCode === 0, `guide validation self-test failed: ${output}`);
+  assert(output.includes("guide/oversized.md") && output.includes("guide/stale.md"), `guide validator failed fast: ${output}`);
 });
 
 test("binary check certifies every compiler program and reads IR only from stdin or --ir", async () => {

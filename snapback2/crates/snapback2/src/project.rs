@@ -199,6 +199,21 @@ impl CompilerWorker {
         })
     }
 
+    pub fn journeys(&mut self, root: &Path) -> Result<Vec<PathBuf>, Vec<Refusal>> {
+        let response = self.request("journeys", root)?;
+        if !response.get("ok").and_then(Json::as_bool).unwrap_or(false) {
+            return Err(response_refusals(&response));
+        }
+        Ok(response
+            .get("files")
+            .and_then(Json::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(Json::as_str)
+            .map(|path| root.join(path))
+            .collect())
+    }
+
     fn request(&mut self, op: &str, root: &Path) -> Result<Json, Vec<Refusal>> {
         if !root.is_absolute() {
             return Err(vec![Refusal::owner(
@@ -338,6 +353,7 @@ pub fn write_build_cache(root: &Path, compiled: &CompiledProject) -> Result<(), 
 pub fn compile_once(root: &Path) -> Result<CompiledProject, Vec<Refusal>> {
     let mut worker = CompilerWorker::spawn().map_err(|error| vec![error])?;
     let compiled = worker.compile(root)?;
+    let _ = worker.journeys(root)?;
     write_build_cache(root, &compiled).map_err(|error| vec![error])?;
     Ok(compiled)
 }
