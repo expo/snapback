@@ -496,7 +496,6 @@ fn one_valid_program_reports_every_default_ceiling_refusal() {
         index: "byId".to_owned(),
         key: vec![RuleTerm::Field("id".to_owned())],
         provenance: KeyProvenance::Shape,
-        input_visibility: RuleInputVisibility::Readable,
     };
     let scan = match ceiling_scan(12_000).body.remove(0) {
         Stmt::Return(scan) => scan,

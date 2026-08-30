@@ -763,7 +763,10 @@ fn different_overflow_messages_are_changed_deliveries() {
         .seed(&[("counters".to_owned(), counter(0))])
         .unwrap();
     let (id, _) = runtime
-        .subscribe("counters.overflow", Context::query("u1", BTreeMap::new()))
+        .subscribe(
+            "counters.overflow",
+            Context::query(Actor::user("u1").unwrap(), BTreeMap::new()),
+        )
         .unwrap();
 
     runtime

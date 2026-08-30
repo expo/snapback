@@ -8,9 +8,9 @@ use crate::writer_util::{next_id, owner_gone, unix_millis};
 use crate::writer_wire::{execution_json, live_frame, refusal_frame};
 use serde_json::{Value as Json, json};
 use snapback2_core::{
-    ArgType, Bound, Ceilings, ChannelSide, ChannelVerdict, ColumnType, Context, Execution,
+    Actor, ArgType, Bound, Ceilings, ChannelSide, ChannelVerdict, ColumnType, Context, Execution,
     ExecutionState, Expr, Generation, KeyProvenance, MigrationPlan, Order, Principal, Program,
-    ProgramKind, Runtime, Scan, Stmt, Value, max_certified_page_rows, Actor,
+    ProgramKind, Runtime, Scan, Stmt, Value, max_certified_page_rows,
 };
 use std::collections::{BTreeMap, VecDeque};
 use std::path::PathBuf;
@@ -1061,7 +1061,7 @@ impl State {
                 )
             })?;
         let certified_limit = max_certified_page_rows(
-            &self.runtime().generation().schema,
+            self.runtime().generation().schema(),
             &table_name,
             &Ceilings::default(),
         )

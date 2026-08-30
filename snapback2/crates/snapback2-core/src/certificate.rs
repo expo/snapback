@@ -183,7 +183,9 @@ impl<'a> Checker<'a> {
             ("rule probes", max_rule_probes, self.ceilings.rule_probes),
             ("steps", max_steps, self.ceilings.steps),
         ] {
-            if let Err(error) = self.check_ceiling(name, actual, ceiling, &summary) {
+            // Rules have no collection-growth rewrite; Generation::certify attaches the
+            // responsible channel.<name>.<side> site to each returned refusal.
+            if let Err(error) = self.check_ceiling(name, actual, ceiling, &summary, None) {
                 errors.push(error);
             }
         }
