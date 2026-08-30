@@ -42,6 +42,10 @@ pub trait EffectHost {
     fn run(&mut self, decl: &EffectDecl, job: &EffectJob, budget: Duration) -> Outcome;
     fn describe(&self) -> &'static str;
 
+    /// Drop generation-scoped engine state before the next job. Hosts without
+    /// cached runtimes have nothing to do.
+    fn generation_changed(&mut self) {}
+
     /// Return console records produced by the most recent `run`.
     fn take_logs(&mut self) -> Vec<EffectLog> {
         Vec::new()

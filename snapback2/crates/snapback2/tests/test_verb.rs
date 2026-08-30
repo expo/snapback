@@ -4,7 +4,7 @@ use common::{Project, json_stdout};
 use std::fs;
 
 #[test]
-fn chat_template_is_blocked_without_an_effect_engine_and_lists_both_journeys() {
+fn chat_template_receipt_tracks_the_effect_engine_and_lists_both_journeys() {
     let project = Project::new();
     let initialized = project.init("chat", "none");
     assert!(
@@ -14,9 +14,7 @@ fn chat_template_is_blocked_without_an_effect_engine_and_lists_both_journeys() {
         String::from_utf8_lossy(&initialized.stderr)
     );
     let output = project.run(&["test", "--json"]);
-    assert_eq!(output.status.code(), Some(1));
     let receipt = json_stdout(&output);
-    assert_eq!(receipt["verdict"], "blocked");
     let checks = receipt["checks"].as_array().unwrap();
     assert!(
         checks
@@ -32,11 +30,28 @@ fn chat_template_is_blocked_without_an_effect_engine_and_lists_both_journeys() {
             .count(),
         2
     );
-    assert!(checks.iter().any(|check| {
-        check["name"] == "effects"
-            && check["verdict"] == "blocked"
-            && check["detail"]["reason"] == "no engine in this build"
-    }));
+    if cfg!(feature = "hermes") {
+        assert!(
+            output.status.success(),
+            "{}{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(receipt["verdict"], "pass");
+        assert!(checks.iter().any(|check| {
+            check["name"] == "effects"
+                && check["verdict"] == "pass"
+                && check["detail"]["engine"] == "ibex2 + vanilla hermes"
+        }));
+    } else {
+        assert_eq!(output.status.code(), Some(1));
+        assert_eq!(receipt["verdict"], "blocked");
+        assert!(checks.iter().any(|check| {
+            check["name"] == "effects"
+                && check["verdict"] == "blocked"
+                && check["detail"]["reason"] == "no engine in this build"
+        }));
+    }
 }
 
 #[test]

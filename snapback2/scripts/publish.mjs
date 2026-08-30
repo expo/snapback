@@ -33,7 +33,14 @@ if (withoutEngine) {
     console.error("publish: refusing an engine-less artifact; prepare vanilla Hermes or set SNAPBACK2_PUBLISH_WITHOUT_ENGINE=1 explicitly");
     process.exit(built.status ?? 1);
   }
-  const doctor = spawnSync(bin, ["doctor", "--json"], { cwd: root, encoding: "utf8" });
+  const doctor = spawnSync(bin, ["doctor", "--json"], {
+    cwd: root,
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      SNAPBACK2_COMPILER: resolve(root, "packages/snapback2/dist/compiler.mjs"),
+    },
+  });
   if (doctor.status !== 0 || !doctor.stdout.includes('"effects":"ibex2 + vanilla hermes"')) {
     console.error("publish: refusing artifact because its doctor output does not report the effects engine");
     process.exit(1);

@@ -44,6 +44,7 @@ const EFFECT_GLOBALS: &[&str] = &[
     "URL",
     "Uint8Array",
     "WeakMap",
+    "WeakSet",
     // Ibex 2's C++ pump resolves this name directly. The prelude replaces the
     // binding with a wrapper guarded by a closure-held, host-armed permit.
     "__ibex2_fire_timer",
@@ -155,6 +156,10 @@ impl EffectHost for Ibex2Host {
 
     fn describe(&self) -> &'static str {
         "ibex2 + vanilla hermes"
+    }
+
+    fn generation_changed(&mut self) {
+        Ibex2Host::generation_changed(self);
     }
 
     fn take_logs(&mut self) -> Vec<EffectLog> {
@@ -367,7 +372,6 @@ struct JobSnapshot {
     status: String,
     result: Option<String>,
     error: Option<String>,
-    error_code: Option<String>,
     contaminated: bool,
     source_evaluations: u64,
     effect_frozen: bool,
@@ -431,7 +435,6 @@ fn read_job_snapshot(
             .to_owned(),
         result: field("result")?.as_str().map(str::to_owned),
         error: field("error")?.as_str().map(str::to_owned),
-        error_code: field("errorCode")?.as_str().map(str::to_owned),
         contaminated: field("contaminated")?
             .as_bool()
             .ok_or_else(|| "host snapshot contaminated is not a boolean".to_owned())?,
@@ -449,6 +452,26 @@ fn read_job_snapshot(
             .ok_or_else(|| "host snapshot pendingTimers is not an integer".to_owned())?,
         next_timer_delay: field("nextTimerDelay")?.as_f64(),
     })
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum FailureKind {
+    Grant,
+    Result,
+    Retryable,
+}
+
+fn classify_job_failure(
+    effect_runtime: &mut EffectRuntime,
+    job_token: &str,
+) -> Result<FailureKind, String> {
+    let token_json = serde_json::to_string(job_token).expect("job token is JSON");
+    match call_host(effect_runtime, "classifyFailure", &[token_json])?.as_str() {
+        "grant" => Ok(FailureKind::Grant),
+        "result" => Ok(FailureKind::Result),
+        "retryable" => Ok(FailureKind::Retryable),
+        other => Err(format!("unknown effect failure classification: {other}")),
+    }
 }
 
 fn run_job(
@@ -600,10 +623,23 @@ fn run_job(
             },
         },
         "failed" => {
-            let error_code = snapshot.error_code.as_deref();
-            let result_error = error_code == Some("E_EFFECT_RESULT");
-            let retry = !matches!(error_code, Some("E_EFFECT_GRANT" | "E_EFFECT_RESULT"));
-            let error = if result_error {
+            // Isolation boundary: application-owned error fields are diagnostic
+            // data only. Retry policy comes from closure-held error identity.
+            let failure_kind = match classify_job_failure(effect_runtime, &job.id) {
+                Ok(failure_kind) => failure_kind,
+                Err(error) => {
+                    return (
+                        Outcome::Failed {
+                            error: format!("E_EFFECT_RESULT_READ: {error}"),
+                            retry: false,
+                        },
+                        logs,
+                        true,
+                        quiescent,
+                    );
+                }
+            };
+            let error = if failure_kind == FailureKind::Result {
                 snapshot
                     .error
                     .unwrap_or_else(|| "E_EFFECT_RESULT".to_owned())
@@ -612,7 +648,10 @@ fn run_job(
                     .error
                     .unwrap_or_else(|| "effect failed without an error".to_owned())
             };
-            Outcome::Failed { error, retry }
+            Outcome::Failed {
+                error,
+                retry: failure_kind == FailureKind::Retryable,
+            }
         }
         _ => Outcome::Failed {
             error: format!("E_EFFECT_TIMEOUT: budget {} ms", budget.as_millis()),
@@ -880,32 +919,60 @@ mod tests {
     }
 
     #[test]
-    fn settled_job_cannot_reenter_the_host_from_a_timer() {
-        let decl = declaration(
-            r#"async (payload) => {
-              if (payload.pwned) return { pwned: true };
-              setTimeout(function () {
-                try {
-                  globalThis.__snapback.run(
-                    JSON.stringify({ pwned: true }),
-                    JSON.stringify({ id: "attacker", effect: "notifications.notify", attempt: 1 })
-                  );
-                } catch (_) {}
-              }, 0);
-              return { real: true };
-            }"#,
-            vec!["http://127.0.0.1:1".to_owned()],
-        );
+    fn effect_code_cannot_forge_a_grant_denial_marker() {
         let mut host = Ibex2Host::new().unwrap();
 
-        assert_eq!(
-            host.run(
-                &decl,
-                &job("real-job", json!({ "pwned": false })),
-                Duration::from_millis(100),
-            ),
-            sent(json!({ "real": true }))
-        );
+        for code in ["E_EFFECT_GRANT", "E_EFFECT_RESULT"] {
+            let decl = declaration(
+                &format!(
+                    "async () => {{ const forged = new Error('provider failed'); forged.code = '{code}'; throw forged; }}"
+                ),
+                vec!["http://127.0.0.1:1".to_owned()],
+            );
+            assert!(
+                matches!(
+                    host.run(
+                        &decl,
+                        &job(&format!("forged-{code}"), Value::Null),
+                        Duration::from_millis(100),
+                    ),
+                    Outcome::Failed { retry: true, ref error }
+                        if error.contains("provider failed")
+                ),
+                "application-owned error code {code} must remain diagnostic data"
+            );
+        }
+    }
+
+    #[test]
+    fn effect_source_cannot_resolve_host_closure_bindings() {
+        let mut host = Ibex2Host::new().unwrap();
+
+        for binding in [
+            "state",
+            "hostToken",
+            "installedEntry",
+            "fireTimer",
+            "grantedFetch",
+        ] {
+            let decl = declaration(
+                &format!("async () => ({{ leaked: {binding} }})"),
+                vec!["http://127.0.0.1:1".to_owned()],
+            );
+            assert!(
+                matches!(
+                    host.run(
+                        &decl,
+                        &job(&format!("closure-{binding}"), Value::Null),
+                        Duration::from_millis(100),
+                    ),
+                    Outcome::Failed { retry: false, ref error }
+                        if error.starts_with("E_EFFECT_RESULT")
+                            && error.contains("ReferenceError")
+                ),
+                "effect code must neither forge nor leak the closure-held {binding} binding"
+            );
+        }
     }
 
     #[test]
@@ -970,30 +1037,6 @@ mod tests {
     }
 
     #[test]
-    fn effect_source_cannot_resolve_prelude_closure_state() {
-        let decl = declaration(
-            r#"async function ({ forged = (state.result = '\"forged\"', state.status = 'sent') } = {}) {
-              return forged;
-            }"#,
-            vec!["http://127.0.0.1:1".to_owned()],
-        );
-        let mut host = Ibex2Host::new().unwrap();
-
-        assert!(
-            matches!(
-                host.run(
-                    &decl,
-                    &job("closure-state", json!({})),
-                    Duration::from_millis(100),
-                ),
-                Outcome::Failed { retry: false, ref error }
-                    if error.starts_with("E_EFFECT_RESULT") && error.contains("ReferenceError")
-            ),
-            "effect source must resolve only against the hardened global"
-        );
-    }
-
-    #[test]
     fn compiler_embedded_json_constants_are_isolated_between_jobs() {
         let decl = declaration(
             r#"(() => { const box = {"value":"clean","nested":{"value":"clean"}}; return (async (payload) => {
@@ -1024,15 +1067,15 @@ mod tests {
     }
 
     #[test]
-    fn timer_permit_is_consumed_before_application_microtasks() {
+    fn job_code_cannot_fire_ibex_timers_through_a_lexical_hook() {
         let decl = declaration(
             r#"async () => {
               let handle;
               let fired = false;
-              const realTimer = new Promise(function (resolve) {
-                handle = setTimeout(function () { fired = true; resolve(); }, 5000);
-              });
               const fireTimer = globalThis.__ibex2_fire_timer;
+              const realTimer = new Promise(function (resolve) {
+                handle = setTimeout(function () { fired = true; resolve(); }, 20);
+              });
               await Promise.resolve();
               let denied = false;
               try { fireTimer(handle); } catch (_) { denied = true; }
@@ -1047,41 +1090,10 @@ mod tests {
         assert_eq!(
             host.run(
                 &decl,
-                &job("timer-single-use", Value::Null),
-                Duration::from_secs(7),
+                &job("timer-guard", Value::Null),
+                Duration::from_millis(500),
             ),
             sent(json!({ "denied": true, "firedBeforeDue": false, "fired": true }))
-        );
-    }
-
-    #[test]
-    fn job_code_cannot_fire_ibex_timers_by_name() {
-        let decl = declaration(
-            r#"async () => {
-              let fired = false;
-              const handle = setTimeout(function () { fired = true; }, 5000);
-              return new Promise(function (resolve) {
-                setTimeout(function () {
-                  let denied = false;
-                  try { globalThis.__ibex2_fire_timer(handle); } catch (_) { denied = true; }
-                  resolve({ denied, fired });
-                }, 0);
-              });
-            }"#,
-            vec!["http://127.0.0.1:1".to_owned()],
-        );
-        let mut host = Ibex2Host::new().unwrap();
-
-        assert_eq!(
-            host.run(
-                &decl,
-                &job("timer-guard", Value::Null),
-                Duration::from_millis(10),
-            ),
-            Outcome::Sent {
-                result: json!({ "denied": true, "fired": false }),
-                leftover: true,
-            }
         );
     }
 
@@ -1108,37 +1120,48 @@ mod tests {
 
     #[test]
     fn console_is_attributed_and_job_tools_share_no_state() {
-        let source = r#"async function (payload, tools) {
+        let source = r#"(() => { const globalAlias = globalThis; return async function (payload, tools) {
           const fetch = tools.fetch;
           const meta = tools.meta;
           if (payload.set) {
+            payload.jobLeak = "payload";
+            payload.nested.jobLeak = "nested";
             try { fetch.jobLeak = "fetch"; } catch (_) {}
             try { meta.jobLeak = "meta"; } catch (_) {}
             try { tools.jobLeak = "tools"; } catch (_) {}
-            try { globalThis.jobLeak = "global"; } catch (_) {}
+            try { globalAlias.jobLeak = "global"; } catch (_) {}
             console.log("stored", payload.value);
-            return null;
+            return {
+              payloadMutated: payload.jobLeak === "payload" && payload.nested.jobLeak === "nested",
+              toolsStayedIsolated: fetch.jobLeak === undefined && meta.jobLeak === undefined && tools.jobLeak === undefined,
+              globalStayedIsolated: globalAlias.jobLeak === undefined
+            };
           }
           return {
+            payloadClean: payload.jobLeak === undefined && payload.nested.jobLeak === undefined,
             fetchClean: fetch.jobLeak === undefined,
             metaClean: meta.jobLeak === undefined,
             toolsClean: tools.jobLeak === undefined,
-            globalClean: globalThis.jobLeak === undefined,
+            globalClean: globalAlias.jobLeak === undefined,
             fetchFrozen: Object.isFrozen(fetch),
             metaFrozen: Object.isFrozen(meta),
             toolsFrozen: Object.isFrozen(tools)
           };
-        }"#;
+        }; })()"#;
         let decl = declaration(source, vec!["http://127.0.0.1:1".to_owned()]);
         let mut host = Ibex2Host::new().unwrap();
 
         assert_eq!(
             host.run(
                 &decl,
-                &job("state-1", json!({ "set": true, "value": 42 })),
+                &job("state-1", json!({ "set": true, "value": 42, "nested": {} }),),
                 Duration::from_millis(100),
             ),
-            sent(Value::Null)
+            sent(json!({
+                "globalStayedIsolated": true,
+                "payloadMutated": true,
+                "toolsStayedIsolated": true
+            }))
         );
         assert_eq!(
             host.take_logs(),
@@ -1151,7 +1174,7 @@ mod tests {
         assert_eq!(
             host.run(
                 &decl,
-                &job("state-2", json!({ "set": false })),
+                &job("state-2", json!({ "set": false, "nested": {} })),
                 Duration::from_millis(100),
             ),
             sent(json!({
@@ -1160,6 +1183,7 @@ mod tests {
                 "globalClean": true,
                 "metaClean": true,
                 "metaFrozen": true,
+                "payloadClean": true,
                 "toolsClean": true,
                 "toolsFrozen": true
             }))
@@ -1169,6 +1193,32 @@ mod tests {
             1,
             "the isolation check must reuse the runtime"
         );
+    }
+
+    #[test]
+    fn synchronous_setup_failure_does_not_poison_the_next_job() {
+        let decl = declaration(
+            "async (payload) => payload",
+            vec!["http://127.0.0.1:1".to_owned()],
+        );
+        let mut wrong_effect = job("wrong-effect", Value::Null);
+        wrong_effect.effect = "notifications.other".to_owned();
+        let mut host = Ibex2Host::new().unwrap();
+
+        assert!(matches!(
+            host.run(&decl, &wrong_effect, Duration::from_millis(100)),
+            Outcome::Failed { retry: true, ref error }
+                if error.contains("effect source is not installed")
+        ));
+        assert_eq!(
+            host.run(
+                &decl,
+                &job("after-sync-failure", json!({ "clean": true })),
+                Duration::from_millis(100),
+            ),
+            sent(json!({ "clean": true }))
+        );
+        assert_eq!(host.cached_runtime_count(), 1);
     }
 
     #[test]

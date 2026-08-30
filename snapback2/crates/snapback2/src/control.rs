@@ -24,6 +24,21 @@ pub fn route(
     context: &Context,
 ) -> Option<Result<Json, (u16, Refusal)>> {
     let call = |action| context.handle.call(action).map_err(|error| (400, error));
+    if method == "POST"
+        && let Some(id) = path.strip_prefix("/control/outbox/")
+        && let Some(id) = id.strip_suffix("/requeue")
+    {
+        if id.is_empty() || id.contains('/') {
+            return Some(Err((
+                400,
+                Refusal::input(
+                    "outbox requeue requires one row id",
+                    "POST /control/outbox/<id>/requeue",
+                ),
+            )));
+        }
+        return Some(call(Action::OutboxRequeue { id: id.to_owned() }));
+    }
     let result = match (method, path) {
         ("GET", "/control/status") => call(Action::Status),
         ("POST", "/control/apply") => {
