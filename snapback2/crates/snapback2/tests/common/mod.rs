@@ -198,6 +198,9 @@ fn ensure_package() {
         fs::read_to_string(&marker).ok().as_deref() == Some(&fingerprint)
             && root.join("packages/snapback2/dist/compiler.mjs").is_file()
             && root
+                .join("packages/snapback2/dist/compiler-core.mjs")
+                .is_file()
+            && root
                 .join("packages/snapback2/dist/compiler-lib.d.ts")
                 .is_file()
             && root.join("packages/snapback2/dist/index.d.ts").is_file()

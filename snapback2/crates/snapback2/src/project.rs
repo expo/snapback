@@ -166,16 +166,29 @@ impl CompilerWorker {
     pub fn answers(&mut self, root: &Path) -> Result<(), Vec<Refusal>> {
         let response = self.request("probe", root)?;
         let expected_id = self.next_id;
-        if response.get("ok").and_then(Json::as_bool) == Some(true)
-            && response.get("id").and_then(Json::as_u64) == Some(expected_id)
+        let compatible = response.get("id").and_then(Json::as_u64) == Some(expected_id)
             && response.get("protocol").and_then(Json::as_str)
                 == Some("snapback2/compiler-worker/v1")
-        {
+            && response.get("operations") == Some(&json!(["compile", "seed", "journeys"]));
+        if compatible && response.get("ok").and_then(Json::as_bool) == Some(true) {
             Ok(())
+        } else if compatible
+            && response.get("ok").and_then(Json::as_bool) == Some(false)
+            && matches!(
+                response.get("dependency").and_then(Json::as_str),
+                Some("compiler-core.mjs" | "typescript")
+            )
+        {
+            let dependency = response.get("dependency").and_then(Json::as_str).unwrap();
+            Err(vec![Refusal::owner(
+                "E_OWNER_NO_COMPILER",
+                format!("compiler worker dependency {dependency} is unavailable"),
+                "reinstall snapback2 so compiler.mjs, compiler-core.mjs, and TypeScript come from one package",
+            )])
         } else {
             Err(vec![Refusal::owner(
                 "E_OWNER_COMPILER_PROTOCOL",
-                "compiler liveness probe returned an incompatible response",
+                "compiler liveness probe returned an incompatible id, protocol, or operation set",
                 "reinstall snapback2 so the binary and compiler bundle match",
             )])
         }

@@ -1387,12 +1387,16 @@ test("worker survives a refused compile and serves the next request under Node",
   assert(built.exitCode === 0, `package build failed: ${new TextDecoder().decode(built.stderr)}`);
   const bundle = `${crate}packages/snapback2/dist/compiler.mjs`;
   const shipped = await Bun.file(bundle).text();
+  const shippedCore = await Bun.file(`${crate}packages/snapback2/dist/compiler-core.mjs`).text();
   assert(!shipped.includes("Bun."), "shipped compiler contains Bun.*");
+  assert(!shippedCore.includes("Bun."), "shipped compiler core contains Bun.*");
   const worker = Bun.spawn({ cmd: ["node", bundle, "--worker"], stdin: "pipe", stdout: "pipe", stderr: "pipe" });
   worker.stdin.write(`${JSON.stringify({ id: 1, op: "probe", root: resolve(frontend, "fixtures/invalid") })}\n`);
   worker.stdin.write(`${JSON.stringify({ id: 2, op: "compile", root: resolve(frontend, "fixtures/invalid") })}\n`);
   worker.stdin.write(`${JSON.stringify({ id: 3, op: "compile", root: resolve(frontend, "fixtures/todos") })}\n`);
-  worker.stdin.write(`${JSON.stringify({ id: 4, op: "compile", root: "fixtures/todos" })}\n`);
+  worker.stdin.write(`${JSON.stringify({ id: 4, op: "seed", root: resolve(frontend, "fixtures/todos") })}\n`);
+  worker.stdin.write(`${JSON.stringify({ id: 5, op: "journeys", root: resolve(frontend, "fixtures/todos") })}\n`);
+  worker.stdin.write(`${JSON.stringify({ id: 6, op: "compile", root: "fixtures/todos" })}\n`);
   worker.stdin.end();
   const output = await new Response(worker.stdout).text();
   const stderr = await new Response(worker.stderr).text();
@@ -1400,11 +1404,15 @@ test("worker survives a refused compile and serves the next request under Node",
   assert(status === 0, `worker exited nonzero: ${stderr}`);
   const responses = output.trim().split("\n").map((line) => JSON.parse(line));
   assert(responses[0]?.id === 1 && responses[0]?.ok === true
-    && responses[0]?.protocol === "snapback2/compiler-worker/v1", "worker probe did not prove protocol custody");
+    && responses[0]?.protocol === "snapback2/compiler-worker/v1"
+    && JSON.stringify(responses[0]?.operations) === JSON.stringify(["compile", "seed", "journeys"]),
+  "worker probe did not prove protocol custody");
   assert(responses[1]?.id === 2 && responses[1]?.ok === false, "worker did not return the refused compile");
   assert(responses[2]?.id === 3 && responses[2]?.ok === true, "worker did not survive for the next compile");
-  assert(responses[3]?.id === 4 && responses[3]?.ok === false
-    && responses[3]?.diagnostics?.[0]?.code === "E_OP_INVALID", "worker admitted a relative project root");
+  assert(responses[3]?.id === 4 && responses[3]?.ok === true, "worker did not serve seed under Node");
+  assert(responses[4]?.id === 5 && responses[4]?.ok === true, "worker did not serve journeys under Node");
+  assert(responses[5]?.id === 6 && responses[5]?.ok === false
+    && responses[5]?.diagnostics?.[0]?.code === "E_OP_INVALID", "worker admitted a relative project root");
 });
 
 test("npm pack from a clean dist builds every exported module and declaration", async () => {

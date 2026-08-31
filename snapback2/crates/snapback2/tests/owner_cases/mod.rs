@@ -199,7 +199,7 @@ fn doctor_uses_the_lightweight_worker_probe_and_reports_its_latency() {
 for await (const line of createInterface({ input: process.stdin, crlfDelay: Infinity })) {
   const request = JSON.parse(line);
   await new Promise((resolve) => setTimeout(resolve, 550));
-  process.stdout.write(JSON.stringify({ id: request.id, ok: request.op === "probe", protocol: "snapback2/compiler-worker/v1" }) + "\n");
+  process.stdout.write(JSON.stringify({ id: request.id, ok: request.op === "probe", protocol: "snapback2/compiler-worker/v1", operations: ["compile", "seed", "journeys"] }) + "\n");
 }
 "#,
     );
@@ -222,30 +222,84 @@ for await (const line of createInterface({ input: process.stdin, crlfDelay: Infi
 
 #[test]
 fn doctor_refuses_an_incompatible_compiler_worker_protocol() {
-    let root = temp_root();
-    let worker = write_worker(
-        &root,
-        "wrong-protocol-compiler.mjs",
-        r#"import { createInterface } from "node:readline";
-for await (const line of createInterface({ input: process.stdin, crlfDelay: Infinity })) {
+    for (name, response) in [
+        (
+            "wrong-id",
+            r#"{ id: request.id + 1, ok: true, protocol: "snapback2/compiler-worker/v1", operations: ["compile", "seed", "journeys"] }"#,
+        ),
+        (
+            "wrong-protocol",
+            r#"{ id: request.id, ok: true, protocol: "snapback2/compiler-worker/v0", operations: ["compile", "seed", "journeys"] }"#,
+        ),
+        (
+            "missing-operations",
+            r#"{ id: request.id, ok: true, protocol: "snapback2/compiler-worker/v1" }"#,
+        ),
+        (
+            "wrong-operations",
+            r#"{ id: request.id, ok: true, protocol: "snapback2/compiler-worker/v1", operations: ["compile", "seed"] }"#,
+        ),
+    ] {
+        let root = temp_root();
+        let source = format!(
+            r#"import {{ createInterface }} from "node:readline";
+for await (const line of createInterface({{ input: process.stdin, crlfDelay: Infinity }})) {{
   const request = JSON.parse(line);
-  process.stdout.write(JSON.stringify({ id: request.id, ok: true, protocol: "snapback2/compiler-worker/v0" }) + "\n");
+  process.stdout.write(JSON.stringify({response}) + "\n");
+}}
+"#
+        );
+        let worker = write_worker(&root, &format!("{name}-compiler.mjs"), &source);
+        let output = Command::new(env!("CARGO_BIN_EXE_snapback2"))
+            .args(["doctor", "--json"])
+            .env("SNAPBACK2_COMPILER", worker)
+            .output()
+            .unwrap();
+        assert_eq!(output.status.code(), Some(1), "{name}");
+        let report: Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(report["compiler"]["answered"], false, "{name}");
+        assert!(
+            report["compiler"]["error"]
+                .as_str()
+                .unwrap()
+                .contains("E_OWNER_COMPILER_PROTOCOL"),
+            "{name}"
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
 }
-"#,
-    );
-    let output = Command::new(env!("CARGO_BIN_EXE_snapback2"))
-        .args(["doctor", "--json"])
-        .env("SNAPBACK2_COMPILER", worker)
-        .output()
-        .unwrap();
-    assert_eq!(output.status.code(), Some(1));
-    let report: Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(report["compiler"]["answered"], false);
-    assert!(
-        report["compiler"]["error"]
-            .as_str()
-            .unwrap()
-            .contains("E_OWNER_COMPILER_PROTOCOL")
-    );
-    fs::remove_dir_all(root).unwrap();
+
+#[test]
+fn doctor_refuses_missing_compiler_worker_dependencies() {
+    for dependency in ["compiler-core.mjs", "typescript"] {
+        let root = temp_root();
+        let worker = compiler(&root);
+        let missing = if dependency == "compiler-core.mjs" {
+            worker.with_file_name(dependency)
+        } else {
+            worker
+                .parent()
+                .unwrap()
+                .parent()
+                .unwrap()
+                .join("node_modules/typescript")
+        };
+        let metadata = fs::symlink_metadata(&missing).unwrap();
+        if metadata.file_type().is_symlink() || metadata.is_file() {
+            fs::remove_file(&missing).unwrap();
+        } else {
+            fs::remove_dir_all(&missing).unwrap();
+        }
+        let output = Command::new(env!("CARGO_BIN_EXE_snapback2"))
+            .args(["doctor", "--json"])
+            .env("SNAPBACK2_COMPILER", worker)
+            .output()
+            .unwrap();
+        assert_eq!(output.status.code(), Some(1), "{dependency}");
+        let report: Value = serde_json::from_slice(&output.stdout).unwrap();
+        let error = report["compiler"]["error"].as_str().unwrap();
+        assert!(error.contains("E_OWNER_NO_COMPILER"), "{error}");
+        assert!(error.contains(dependency), "{error}");
+        fs::remove_dir_all(root).unwrap();
+    }
 }

@@ -232,7 +232,8 @@ Protocol, JSON lines on stdin/stdout, one request in flight:
 
 ```
 → { "id": 0, "op": "probe", "root": "/abs/project" }
-← { "id": 0, "ok": true, "protocol": "snapback2/compiler-worker/v1" }
+← { "id": 0, "ok": true, "protocol": "snapback2/compiler-worker/v1", "operations": ["compile", "seed", "journeys"] }
+← { "id": 0, "ok": false, "protocol": "snapback2/compiler-worker/v1", "operations": ["compile", "seed", "journeys"], "dependency": "compiler-core.mjs" | "typescript" }
 → { "id": 1, "op": "compile", "root": "/abs/project" }
 ← { "id": 1, "ok": true, "project": <ProjectJson>, "sources": { "todos.list": { "file": "snapback/todos.ts", "line": 14, "col": 14 } }, "apiDts": "<text>", "ms": 212 }
 ← { "id": 1, "ok": false, "diagnostics": [ <Refusal> ] }        // ALL diagnostics, one per module at least
@@ -242,8 +243,11 @@ Protocol, JSON lines on stdin/stdout, one request in flight:
 
 `probe` is the lightweight `doctor` handshake. It verifies the fixed compiler
 chunk and the TypeScript dependency before returning the exact protocol token;
-the worker lazily loads that heavy compiler chunk for `compile`, `seed`, and
-`journeys`. The blocking compiler and package tests exercise both halves.
+the binary also requires the matching request id and exact lowering-operation
+set. The worker lazily loads that heavy compiler chunk for `compile`, `seed`,
+and `journeys`. A missing closure leaf becomes stable `E_OWNER_NO_COMPILER`
+guidance; it is not disguised as an operation refusal. The blocking compiler
+and isolated-package tests execute every advertised lowering operation.
 
 `ProjectJson` is LLP 1001 §4's serde shape, with `programs[].name` qualified
 (`todos.list`) and `schema.effects` listing the effect names. The compiler's

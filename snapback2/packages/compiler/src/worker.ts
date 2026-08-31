@@ -7,6 +7,8 @@ import { isAbsolute, resolve } from "node:path";
 type Request = { id?: string | number; op: "probe" | "compile" | "seed" | "journeys"; root: string };
 
 const protocol = "snapback2/compiler-worker/v1";
+const operations = ["compile", "seed", "journeys"] as const;
+// @ref LLP 1002#3-the-compiler-worker-and-the-project-json — doctor proves the fixed worker closure without eagerly parsing the heavy lowering graph.
 const compilerCore = new URL("./compiler-core.mjs", import.meta.url);
 let compilerPromise: Promise<typeof import("./project")> | undefined;
 const loadCompiler = () => compilerPromise ??= import("./project");
@@ -20,11 +22,15 @@ async function respond(request: Request): Promise<Record<string, unknown>> {
   if (request.op === "probe") {
     try {
       await access(compilerCore);
-      createRequire(import.meta.url).resolve("typescript");
-    } catch (error) {
-      return refusal(request.id, "E_OP_INVALID", `compiler dependency is unavailable: ${error instanceof Error ? error.message : String(error)}`);
+    } catch {
+      return dependencyRefusal(request.id, "compiler-core.mjs");
     }
-    return { id: request.id, ok: true, protocol };
+    try {
+      createRequire(import.meta.url).resolve("typescript");
+    } catch {
+      return dependencyRefusal(request.id, "typescript");
+    }
+    return { id: request.id, ok: true, protocol, operations };
   }
   const { compileJourneys, lowerProject, lowerSeed } = await loadCompiler();
   if (request.op === "compile") {
@@ -44,6 +50,10 @@ async function respond(request: Request): Promise<Record<string, unknown>> {
     return { id: request.id, ...await compileJourneys(request.root, apiDts) };
   }
   return refusal(request.id, "E_OP_INVALID", `unknown compiler operation ${(request as { op?: unknown }).op ?? "<missing>"}`);
+}
+
+function dependencyRefusal(id: unknown, dependency: string): Record<string, unknown> {
+  return { id, ok: false, protocol, operations, dependency };
 }
 
 function refusal(id: unknown, code: string, message: string): Record<string, unknown> {
