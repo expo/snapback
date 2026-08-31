@@ -20,7 +20,21 @@ the closed rules recorded in LLP 1002 §2 and refuses unknown or mutable key
 origins with `E_PROVENANCE_AMBIGUOUS` plus a compiling direct-origin rewrite.
 Read sites are `<module>.<export>.<ordinal>` using the export's read/write source
 order and are invariant under helper rename, extraction/inlining, and formatting.
-The 17 S1 programs retained every
-provenance value; the regenerated corpus changed only site identity and its
-derived certificate projections/hashes. The orchestrator retains custody of
+That initial round retained every S1 provenance value; its regenerated corpus
+changed only site identity and derived certificate projections/hashes. The
+review correction below intentionally changes one provenance under the closed
+rules. The orchestrator retains custody of
 moving this ticket to `issues/closed/` at landing.
+
+**Blind-review fix round 1 (2026-08-30):** Commit `a7568764e` closes provenance
+under immutable aliasing, derives property and `memberOf` provenance from their
+actual members while reserving `Shape` for proven row bindings, fixes pasted
+rewrite origin and nested-expression source order, reserves callback-write
+ordinals, refuses duplicate module basenames, and gives
+`E_PROVENANCE_AMBIGUOUS` an accurate discoverable guide page. The real C4 trio
+now reproducibly compiles as `Arg` / `Arg` / `Computed`; a second identical-body
+trio proves names are irrelevant. Corpus regeneration changed only
+`named-send-maintained-unread`: `programs.sendMaintainedUnread.2` and its
+certificate prefix changed `Shape` → `Arg` because the helper body is a
+transparent object-member identity wrapper; its plan hash changed derivatively,
+and every numeric estimate remained identical.
