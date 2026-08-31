@@ -22,6 +22,14 @@ pub static SYSTEM_PRINCIPAL_ID: LazyLock<String> = LazyLock::new(|| {
         .expect("snapback2-core IR contract must name systemPrincipalId")
         .to_owned()
 });
+pub static CURRENT_VALUE_MODEL_VERSION: LazyLock<String> = LazyLock::new(|| {
+    serde_json::from_str::<serde_json::Value>(IR_CONTRACT_JSON)
+        .expect("snapback2-core IR contract must be valid JSON")
+        .get("valueModelVersion")
+        .and_then(serde_json::Value::as_str)
+        .expect("snapback2-core IR contract must name valueModelVersion")
+        .to_owned()
+});
 const DUMMY_PASSWORD_HASH: &str = concat!(
     "$argon2id$v=19$m=19456,t=2,p=1$c25hcGJhY2syLWR1bW15$",
     "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"

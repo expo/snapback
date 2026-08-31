@@ -161,6 +161,20 @@
             }
           }
         }
+      },
+      {
+        "table": "blobs",
+        "id": "prefix",
+        "row": {
+          "Row": {
+            "id": {
+              "Id": "prefix"
+            },
+            "payload": {
+              "Bytes": "00"
+            }
+          }
+        }
       }
     ],
     "ranges": [],
@@ -172,6 +186,16 @@
   "expected": {
     "localResult": {
       "Array": [
+        {
+          "Row": {
+            "id": {
+              "Id": "prefix"
+            },
+            "payload": {
+              "Bytes": "00"
+            }
+          }
+        },
         {
           "Row": {
             "id": {
@@ -199,8 +223,8 @@
     "partialSites": [
       "bytesIndexOrder.blobs"
     ],
-    "canonicalResult": "{\"Array\":[{\"Row\":{\"id\":{\"Id\":\"low\"},\"payload\":{\"Bytes\":\"00ff\"}}},{\"Row\":{\"id\":{\"Id\":\"high\"},\"payload\":{\"Bytes\":\"ff00\"}}}]}",
-    "digest": "5baf7161ab1b493a373e6d6cb6cbaba2edaccdb742896b6d971ff47c451b56c6",
+    "canonicalResult": "{\"Array\":[{\"Row\":{\"id\":{\"Id\":\"prefix\"},\"payload\":{\"Bytes\":\"00\"}}},{\"Row\":{\"id\":{\"Id\":\"low\"},\"payload\":{\"Bytes\":\"00ff\"}}},{\"Row\":{\"id\":{\"Id\":\"high\"},\"payload\":{\"Bytes\":\"ff00\"}}}]}",
+    "digest": "3131f1c2467afc82defbad2e0eced4dcc541a5890605a0302710e8ef9fbd99fe",
     "rangeStops": {
       "bytesIndexOrder.blobs": [
         "exhausted"

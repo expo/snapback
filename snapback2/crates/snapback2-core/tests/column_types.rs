@@ -419,6 +419,10 @@ fn bytes_json_and_certificate_version_are_exact() {
     for invalid in ["0", "00FF", "0g"] {
         assert!(serde_json::from_value::<Value>(serde_json::json!({ "Bytes": invalid })).is_err());
     }
+    assert!(
+        serde_json::from_value::<Value>(serde_json::json!({ "Bytes": "00ff", "extra": 1 }))
+            .is_err()
+    );
     assert_eq!(
         serde_json::to_value(ColumnType::Bytes { max: 4 }).unwrap(),
         serde_json::json!({ "Bytes": { "max": 4 } })
@@ -426,7 +430,31 @@ fn bytes_json_and_certificate_version_are_exact() {
     let certificate = Checker::new(&bytes_schema(), Ceilings::default())
         .check(&bytes_programs().pop().unwrap())
         .unwrap();
-    assert_eq!(certificate.value_model_version, "i53-codepoint-bytes-v2");
+    assert_eq!(
+        certificate.value_model_version,
+        CURRENT_VALUE_MODEL_VERSION.as_str()
+    );
+}
+
+#[test]
+fn stale_value_model_certificate_is_refused() {
+    let program = bytes_programs().pop().unwrap();
+    let mut certificate = Checker::new(&bytes_schema(), Ceilings::default())
+        .check(&program)
+        .unwrap();
+    certificate.value_model_version = "i53-codepoint-v1".to_owned();
+    let error = Engine::memory(bytes_schema())
+        .unwrap()
+        .execute(
+            &program,
+            &certificate,
+            Context::query(Actor::user("u1").unwrap(), BTreeMap::new()),
+        )
+        .unwrap_err();
+    assert!(matches!(
+        error,
+        RuntimeError::TraceSubset(message) if message.contains("value model version")
+    ));
 }
 
 #[test]

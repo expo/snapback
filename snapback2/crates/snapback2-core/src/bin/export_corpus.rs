@@ -625,6 +625,11 @@ fn add_bytes_cases(cases: &mut Vec<CorpusCase>) {
                 id: "low".to_owned(),
                 row: row([("id", id("low")), ("payload", Value::Bytes(vec![0, 0xff]))]),
             },
+            RowRecord {
+                table: "blobs".to_owned(),
+                id: "prefix".to_owned(),
+                row: row([("id", id("prefix")), ("payload", Value::Bytes(vec![0]))]),
+            },
         ],
         ranges: Vec::new(),
         absences: Vec::new(),

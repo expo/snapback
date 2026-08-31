@@ -1,5 +1,5 @@
 import ts from "typescript";
-import { authoredTypeFromColumn } from "../authored-types";
+import { authoredTypeFromColumn, requiredType, type AuthoredType } from "../authored-types";
 import { diagnostic } from "../diagnostics";
 import { IR_CONTRACT, type FrontendDiagnostic, type SchemaJson, type Value } from "../ir";
 import type { TableInfo } from "../compiler";
@@ -146,6 +146,9 @@ function lowerTable(
     const lowered = lowerColumn(module, entry.value, tables, diagnostics);
     if (lowered !== undefined) columns[entry.name] = lowered;
   }
+  const authoredColumns = Object.fromEntries(
+    Object.entries(columns).map(([column, value]) => [column, authoredTypeFromColumn(value)]),
+  );
 
   const indexes: Record<string, unknown> = { byId: { columns: ["id"], unique: true } };
   const indexesObject = objectOf(property(config, "indexes"));
@@ -194,13 +197,13 @@ function lowerTable(
   const rules: Record<string, unknown> = {};
   for (const side of ["read", "insert", "update", "delete"]) {
     const node = rulesObject && property(rulesObject, side);
-    rules[side] = node ? lowerRule(module, node, tables, diagnostics) ?? "Deny" : "Deny";
+    rules[side] = node ? lowerRule(module, node, tables, diagnostics, authoredColumns) ?? "Deny" : "Deny";
   }
   const constraints = lowerConstraints(module, property(config, "constraints"), columns, indexes, diagnostics);
   return {
     value: { columns, indexes, rules, constraints },
     private: !isPublicRule(rules.read),
-    columns: Object.fromEntries(Object.entries(columns).map(([column, value]) => [column, authoredTypeFromColumn(value)])),
+    columns: authoredColumns,
   };
 }
 
@@ -281,6 +284,7 @@ function lowerRule(
   node: ts.Expression,
   tables: Map<string, TableInfo>,
   diagnostics: FrontendDiagnostic[],
+  columns?: Record<string, AuthoredType>,
 ): unknown | undefined {
   const call = unwrapCall(node);
   const name = call && callLeaf(call);
@@ -300,8 +304,10 @@ function lowerRule(
     return { Eq: [{ Field: stringValue(call.arguments[0])! }, "Viewer"] };
   }
   if ((name === "eq" || name === "ne") && call.arguments.length === 2) {
-    const left = call.arguments[0] && lowerTerm(module, call.arguments[0], diagnostics);
-    const right = call.arguments[1] && lowerTerm(module, call.arguments[1], diagnostics);
+    const leftExpected = call.arguments[1] && ruleFieldType(call.arguments[1], columns);
+    const rightExpected = call.arguments[0] && ruleFieldType(call.arguments[0], columns);
+    const left = call.arguments[0] && lowerTerm(module, call.arguments[0], diagnostics, leftExpected);
+    const right = call.arguments[1] && lowerTerm(module, call.arguments[1], diagnostics, rightExpected);
     if (left !== undefined && right !== undefined) return { [name === "eq" ? "Eq" : "Ne"]: [left, right] };
   }
   if (name === "and" || name === "or") {
@@ -309,11 +315,11 @@ function lowerRule(
       diagnostics.push(ruleDiagnostic(module, node, `rule.${name} requires at least one rule`));
       return undefined;
     }
-    const values = call.arguments.map((item) => lowerRule(module, item, tables, diagnostics)).filter((item) => item !== undefined);
+    const values = call.arguments.map((item) => lowerRule(module, item, tables, diagnostics, columns)).filter((item) => item !== undefined);
     return { [name === "and" ? "And" : "Or"]: values };
   }
   if (name === "not" && call.arguments.length === 1 && call.arguments[0]) {
-    const value = lowerRule(module, call.arguments[0], tables, diagnostics);
+    const value = lowerRule(module, call.arguments[0], tables, diagnostics, columns);
     return value === undefined ? undefined : { Not: value };
   }
   if (name === "exists" && call.arguments.length === 3) {
@@ -343,7 +349,12 @@ function lowerRule(
   return undefined;
 }
 
-function lowerTerm(module: SchemaModule, node: ts.Expression, diagnostics: FrontendDiagnostic[]): unknown | undefined {
+function lowerTerm(
+  module: SchemaModule,
+  node: ts.Expression,
+  diagnostics: FrontendDiagnostic[],
+  expected?: AuthoredType,
+): unknown | undefined {
   const value = unwrapExpression(node);
   if (ts.isPropertyAccessExpression(value) && value.expression.getText() === "rule" && value.name.text === "viewer") return "Viewer";
   const call = unwrapCall(value);
@@ -364,10 +375,29 @@ function lowerTerm(module: SchemaModule, node: ts.Expression, diagnostics: Front
       return undefined;
     }
     const literal = staticJson(call.arguments[0]);
-    if (literal !== undefined) return { Literal: encodeValue(literal) };
+    if (literal !== undefined) {
+      const encoded = encodeValue(literal, expected);
+      if (encoded !== undefined) return { Literal: encoded };
+      const target = expected && requiredType(expected);
+      diagnostics.push(ruleDiagnostic(
+        module,
+        call.arguments[0],
+        target?.kind === "bytes"
+          ? "Bytes rule literal must be exactly { Bytes: canonicalLowercaseBase16 }"
+          : "a { Bytes: ... } rule literal requires a Bytes schema position",
+      ));
+      return undefined;
+    }
   }
   diagnostics.push(ruleDiagnostic(module, node, "rule term must be field(), viewer, or literal()"));
   return undefined;
+}
+
+function ruleFieldType(node: ts.Expression, columns?: Record<string, AuthoredType>): AuthoredType | undefined {
+  const call = unwrapCall(node);
+  if (!call || callLeaf(call) !== "field" || call.arguments.length !== 1) return undefined;
+  const name = stringValue(call.arguments[0]);
+  return name ? columns?.[name] : undefined;
 }
 
 function findFractionalLiteral(node: ts.Node): ts.NumericLiteral | undefined {
@@ -652,18 +682,38 @@ function validateRootRefs(
   }
 }
 
-function encodeValue(value: unknown): Value {
+function encodeValue(value: unknown, expected?: AuthoredType): Value | undefined {
+  const target = expected && requiredType(expected);
+  if (target?.kind === "bytes") {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+    const entries = Object.entries(value as Record<string, unknown>);
+    return entries.length === 1 && entries[0][0] === "Bytes"
+      && typeof entries[0][1] === "string" && /^(?:[0-9a-f]{2})*$/.test(entries[0][1])
+      ? { Bytes: entries[0][1] }
+      : undefined;
+  }
   if (value === null) return "Null";
   if (typeof value === "boolean") return { Bool: value };
   if (typeof value === "number") return { Int: value };
   if (typeof value === "string") return { String: value };
-  if (Array.isArray(value)) return { Array: value.map(encodeValue) };
+  if (Array.isArray(value)) {
+    const itemExpected = target?.kind === "list" ? target.of : target?.kind === "json" ? target : undefined;
+    const items = value.map((item) => encodeValue(item, itemExpected));
+    return items.every((item): item is Value => item !== undefined) ? { Array: items } : undefined;
+  }
   if (value && typeof value === "object" && Object.keys(value).length === 1
     && typeof (value as Record<string, unknown>).Bytes === "string"
     && /^(?:[0-9a-f]{2})*$/.test((value as Record<string, string>).Bytes)) {
-    return { Bytes: (value as Record<string, string>).Bytes };
+    return target?.kind === "json" ? {
+      Map: { Bytes: { String: (value as Record<string, string>).Bytes } },
+    } : undefined;
   }
-  return { Row: Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([key, item]) => [key, encodeValue(item)])) };
+  const itemExpected = target?.kind === "json" ? target : undefined;
+  const entries = Object.entries(value as Record<string, unknown>)
+    .map(([key, item]) => [key, encodeValue(item, itemExpected)] as const);
+  return entries.every((entry): entry is readonly [string, Value] => entry[1] !== undefined)
+    ? { Map: Object.fromEntries(entries) }
+    : undefined;
 }
 
 function ruleProvenance(key: unknown[]): "Arg" | "Viewer" | "Const" | "Shape" | "Computed" {
@@ -760,7 +810,7 @@ function correctedScale(value: number | undefined): number {
 }
 
 function validPositiveInteger(value: number | undefined): value is number {
-  return value !== undefined && Number.isInteger(value) && value > 0;
+  return value !== undefined && Number.isInteger(value) && value > 0 && value <= 0xffff_ffff;
 }
 
 function validateRecordShape(

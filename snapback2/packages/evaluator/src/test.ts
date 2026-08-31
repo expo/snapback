@@ -1,7 +1,9 @@
 // @ts-ignore
 import manifest from "../../../corpus/manifest.json";
 import {
+  canonicalValue,
   compareExpected,
+  evaluateCase,
   hydrateCase,
   scopedRuleHash,
   sha256,
@@ -17,6 +19,21 @@ assert(
   "pure TypeScript SHA-256 does not match the standard vector",
 );
 
+for (const value of [
+  { Bytes: "00ff", extra: { Int: 1 } },
+  { Bytes: "00FF" },
+  { Bytes: "0" },
+  { Bytes: "0g" },
+] as unknown[]) {
+  let refused = false;
+  try {
+    canonicalValue(value as any);
+  } catch (error) {
+    refused = error instanceof Error && error.message.startsWith("E_INPUT:");
+  }
+  assert(refused, `twin accepted non-canonical Bytes ${JSON.stringify(value)}`);
+}
+
 const cases = manifest as unknown as CorpusCase[];
 for (const testCase of cases) {
   const hydration = hydrateCase(testCase);
@@ -27,6 +44,15 @@ for (const testCase of cases) {
 
 const original = cases.find((testCase) => testCase.name === "scenario-hydrate");
 assert(original !== undefined, "scenario-hydrate is absent from the corpus");
+const staleValueModel = JSON.parse(JSON.stringify(original)) as CorpusCase;
+staleValueModel.certificate.value_model_version = "i53-codepoint-v1";
+let staleValueModelRefused = false;
+try {
+  evaluateCase(staleValueModel);
+} catch (error) {
+  staleValueModelRefused = error instanceof Error && error.message.startsWith("E_TRACE_SUBSET:");
+}
+assert(staleValueModelRefused, "twin accepted a stale certificate value-model version");
 const corrupted = JSON.parse(JSON.stringify(original)) as CorpusCase;
 const message = corrupted.receipt.rows.find((row) => row.table === "messages");
 assert(message !== undefined && message.row !== "Null" && "Row" in message.row, "message receipt row missing");

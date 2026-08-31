@@ -1,3 +1,5 @@
+import coreIrContract from "../../../crates/snapback2-core/ir-contract.json" with { type: "json" };
+
 export type Value =
   | "Null"
   | { Bool: boolean }
@@ -131,6 +133,7 @@ type Flow =
 const NEXT: Flow = { kind: "next" };
 const I53_MAX = 9_007_199_254_740_991;
 const I53_MIN = -I53_MAX;
+export const CURRENT_VALUE_MODEL_VERSION = coreIrContract.valueModelVersion;
 
 class EvalError extends Error {
   constructor(readonly code: string, message: string) {
@@ -930,6 +933,12 @@ class Runner {
 }
 
 export function evaluateCase(testCase: CorpusCase): ActualResult {
+  if (testCase.certificate?.value_model_version !== CURRENT_VALUE_MODEL_VERSION) {
+    throw new EvalError(
+      "E_TRACE_SUBSET",
+      `value model version ${String(testCase.certificate?.value_model_version)} != current ${CURRENT_VALUE_MODEL_VERSION}`,
+    );
+  }
   const store = new ClientStore(testCase.schema, testCase.receipt);
   for (const step of testCase.prelude) {
     const prelude = store.applyMutation(step.program, step.context);
@@ -1179,7 +1188,10 @@ export function scopedRuleHash(schema: any, rule: any): string {
 }
 
 function kindOf(value: Value): string {
-  return value === "Null" ? "Null" : Object.keys(value)[0];
+  if (value === "Null") return "Null";
+  const keys = Object.keys(value);
+  if (keys.length !== 1) throw new EvalError("E_INPUT", "invalid externally tagged value");
+  return keys[0];
 }
 
 function isVariant<K extends Exclude<ReturnType<typeof kindOf>, "Null">>(

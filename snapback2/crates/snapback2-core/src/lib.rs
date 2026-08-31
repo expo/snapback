@@ -27,7 +27,8 @@ pub use engine::{
     RuntimeError, StopReason, validate_schema,
 };
 pub use identity::{
-    Actor, ActorError, IR_CONTRACT_JSON, IdentityError, Principal, SYSTEM_PRINCIPAL_ID, Session,
+    Actor, ActorError, CURRENT_VALUE_MODEL_VERSION, IR_CONTRACT_JSON, IdentityError, Principal,
+    SYSTEM_PRINCIPAL_ID, Session,
 };
 pub use ir::*;
 pub use live::{Delivery, SubscriptionId, SubscriptionInfo, Subscriptions};

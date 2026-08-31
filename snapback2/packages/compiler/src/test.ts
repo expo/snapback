@@ -836,6 +836,40 @@ test("Bytes descriptors lower for columns and args with the existing schema refu
   assert(refusals.every((item) => item.family === "schema" && item.rewrite.includes("t.bytes(100)")), "Bytes refusal did not reuse schema with a mechanical rewrite");
 });
 
+test("rule literals encode Bytes only at Bytes schema positions", () => {
+  const lowered = lowerSchema(`import { rule, schema, table, t } from "snapback2";
+    export const blobs = table({
+      columns: { payload: t.bytes(4), metadata: t.json(100) },
+      rules: { read: rule.and(
+        rule.eq(rule.field("metadata"), rule.literal({ Bytes: "00ff" })),
+        rule.eq(rule.field("payload"), rule.literal({ Bytes: "00ff" })),
+      ) },
+    });
+    export default schema({ tables: { blobs } });`, "snapback/schema.ts");
+  assert(lowered.diagnostics.length === 0, `typed Bytes rule literals refused: ${lowered.diagnostics.map((item) => item.message).join("; ")}`);
+  const terms = (lowered.schema.tables.blobs as any).rules.read.And;
+  assert(canonical(terms[0].Eq[1]) === canonical({ Literal: { Map: { Bytes: { String: "00ff" } } } }),
+    "Json-column {Bytes: ...} literal did not stay a map compatible with the owner JSON path");
+  assert(canonical(terms[1].Eq[1]) === canonical({ Literal: { Bytes: "00ff" } }),
+    "Bytes-column literal did not lower to Value::Bytes");
+
+  const ambiguous = lowerSchema(`import { rule, schema, table } from "snapback2";
+    export const rows = table({ columns: {}, rules: {
+      read: rule.eq(rule.literal({ Bytes: "00ff" }), rule.literal({ Bytes: "00ff" })),
+    } });
+    export default schema({ tables: { rows } });`, "snapback/schema.ts");
+  assert(ambiguous.diagnostics.some((item) => item.code === "E_RULE_INVALID" && item.message.includes("Bytes schema position")),
+    "untyped {Bytes: ...} rule literal was inferred instead of refused");
+});
+
+test("schema descriptor maxima stop at the Rust u32 representation", () => {
+  const invalid = lowerSchema(`import { schema, table, t } from "snapback2";
+    export const blobs = table({ columns: { payload: t.bytes(4294967296) } });
+    export default schema({ tables: { blobs } });`, "snapback/schema.ts");
+  assert(invalid.diagnostics.some((item) => item.code === "E_SCHEMA_COLUMN"),
+    "schema compiler admitted a max above u32::MAX");
+});
+
 test("invalid Decimal, Money, and Enum descriptors refuse with sited descriptor rewrites", () => {
   const cases = [
     { descriptor: "t.decimal(19)", rewrite: "t.decimal(12)" },
@@ -1152,6 +1186,22 @@ test("seed validation checks personas, tables, rows, and every schema value shap
       !reserved.diagnostics.some((item) => item.code === "E_SEED_PERSONA"),
       "the prefix-safe persona name system should remain valid",
     );
+  });
+});
+
+test("seed Bytes values require one exact externally tagged key", async () => {
+  await withProject({
+    "snapback/schema.ts": `import { schema, table, t } from "snapback2";
+      export const blobs = table({ columns: { payload: t.bytes(4) } });
+      export default schema({ tables: { blobs } });`,
+    "snapback/seed.ts": `import { seed } from "snapback2";
+      export default seed({ personas: [], rows: { blobs: [
+        { id: "blob-1", payload: { Bytes: "00ff", extra: 1 } },
+      ] } });`,
+  }, async (root) => {
+    const invalid = await lowerSeed(root);
+    assert(!invalid.ok && invalid.diagnostics.some((item) => item.code === "E_SEED_VALUE" && item.message.includes("canonical lowercase base16")),
+      "seed check admitted a Bytes value with an extra externally tagged key");
   });
 });
 

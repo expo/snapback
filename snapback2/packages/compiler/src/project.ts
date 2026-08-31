@@ -791,10 +791,12 @@ function seedValueMismatch(value: unknown, type: unknown, path: string): string 
     return typeof value === "string" && [...value].length <= descriptor.Text.max ? undefined : `${path} must be text of at most ${descriptor.Text.max} characters`;
   }
   if (descriptor.Bytes) {
-    const encoded = value && typeof value === "object" && !Array.isArray(value)
-      ? (value as Record<string, unknown>).Bytes
+    const encodedObject = value && typeof value === "object" && !Array.isArray(value)
+      ? value as Record<string, unknown>
       : undefined;
-    return typeof encoded === "string" && /^(?:[0-9a-f]{2})*$/.test(encoded)
+    const encoded = encodedObject?.Bytes;
+    return encodedObject && Object.keys(encodedObject).length === 1
+      && typeof encoded === "string" && /^(?:[0-9a-f]{2})*$/.test(encoded)
       && encoded.length / 2 <= descriptor.Bytes.max
       ? undefined
       : `${path} must be canonical lowercase base16 of at most ${descriptor.Bytes.max} bytes`;
