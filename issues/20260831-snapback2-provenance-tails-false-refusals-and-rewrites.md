@@ -1,6 +1,6 @@
 # snapback2 compiler: provenance-lane tails — false refusals on row projections/collections and two rewrite-honesty gaps
 
-**Status:** Open (claimed)
+**Status:** Resolved
 **Systems:** snapback2, compiler, certificate
 **Severity:** P2
 **Author:** Claude Fable 5, directed by Charlie Cheever
@@ -73,3 +73,44 @@ Every fix keeps the invariant the lane established: classify or refuse — the
 paste never names a field the author didn't select.
 
 **Claimed:** 2026-08-31 by session snapback-8a [f8c2a2] — lane `s2/t2-tails` (worktree `~/projects/snapback-s2v`) takes this ticket together with the push-elementorigins ticket (same files); other sessions should skip both.
+
+## Resolution (2026-08-31)
+
+Resolved in `54e9a7968` (`fix(snapback2): close provenance lowering tails`):
+
+1. `slice` and `sort` now lower their collection owner through the same
+   statement-producing path as `map`/`flatMap`; element origins and row proof
+   survive `slice`, `sort`, identity maps, transforming maps, and identity
+   `flatMap`. Both inline slice scenarios now compile with the second read
+   certified `Shape`.
+2. Collection-element discovery walks directly mapped spreads and classifies
+   each resulting alternative. Ordinary-plus-mapped `Arg` elements compile as
+   `Arg`; a genuine `Arg`/`Viewer` disagreement still refuses.
+3. Verify-only: the type-analysis lane's `operationArgumentList()` repair was
+   already present. The exact `({ args: packed })`, `keys: t.list(...,
+   { max: 3 })`, `for (const key of packed.keys)` scenario lowers to
+   `ArgList { name: "keys", max: 3 }` and certifies the read `Arg`; a regression
+   now pins it. No second implementation was added.
+4. Static bounds now recurse through alternative nested literal elements and
+   immutable object members in their captured environments. The two-deep
+   example lowers with maxima `2 × 2`; the three-deep probe lowers with
+   maxima `2 × 1 × 2`; `packed.keys` lowers with max `1`.
+5. Mutation analysis is binding-identity-aware, and assignment lowering
+   accumulates every authored origin on that binding (including assignments
+   inside loops and conditional branches). One distinct origin gets the direct
+   rewrite; multiple origins get the non-lowerable sentinel naming them all.
+6. Immutable origins retain a bind-time environment snapshot. Block-local,
+   same-scope/TDZ-shaped, and alias-of-alias shadows therefore classify from
+   the values actually emitted into IR, never from the use-time spelling.
+7. Mutation preanalysis resolves assignments to lexical declaration nodes, so
+   reassigned inner shadows no longer poison an outer stable binding; the
+   two-depth shadow probe compiles and certifies `Arg`.
+8. `db` recognition now follows the handler's lexical composite binding,
+   including renames and pure-helper substitution, and rejects a shadowing
+   ordinary local. The unrelated object-literal Decimal field-type remainder
+   moved to
+   `issues/20260831-snapback2-object-literal-decimal-field-types.md`.
+
+Focused compiler proof: 108/108. Required corpus regeneration wrote 81 cases
+with an empty diff. The complete lane verification and budget readings are
+recorded with the accompanying metrics/ticket closeout commit.

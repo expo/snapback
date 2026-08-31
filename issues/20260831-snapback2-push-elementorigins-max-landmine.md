@@ -1,6 +1,6 @@
 # snapback2: `array.push` updates IR contents but not cardinality or element origins — Fanout is the only thing preventing a provenance lie
 
-**Status:** Open (claimed)
+**Status:** Resolved
 **Systems:** snapback2, compiler, engine
 **Severity:** P2
 **Author:** Claude Fable 5, directed by Charlie Cheever
@@ -31,3 +31,21 @@ updates `max` — couple them in one function so they cannot drift, and add a
 test that pins today's Fanout behavior so any future bound change trips it.
 
 **Claimed:** 2026-08-31 by session snapback-8a [f8c2a2] — lane `s2/t2-tails` (worktree `~/projects/snapback-s2v`) takes this ticket together with the push-elementorigins ticket (same files); other sessions should skip both.
+
+## Resolution (2026-08-31)
+
+Resolved in `54e9a7968`. Every `array.push` element now goes through one
+`updateArrayBindingAfterPush` operation that appends its bind-time origin and,
+when the push count is statically countable, increments the same binding's
+maximum. Straight-line multi-argument push therefore lowers every authored
+element and produces `initial max + pushed element count`; a one-element array
+plus two pushed operation arguments lowers with max `3` and certifies `Arg`.
+Pushes inside a loop keep the conservative Fanout-bound lane (no newly claimed
+loop-multiplied maximum), but still update origins through that same operation.
+
+The regression pin iterates a spread of the pushed array. Same-origin pushes
+compile and certify; an `Arg` initial element followed by a `Viewer` push
+refuses with `E_PROVENANCE_AMBIGUOUS` and a non-lowerable rewrite naming both
+`args.key` and `ctx.viewer`. A future bound widening that omits origin updates
+will make this test fail instead of silently producing an `Arg` certificate.
+Corpus regeneration wrote 81 frozen cases with no byte changes.
