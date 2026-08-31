@@ -293,6 +293,7 @@ class Analyzer {
     const operator = node.operatorToken.kind;
     let left = this.expression(node.left, env, undefined, true);
     let right = this.expression(node.right, env, undefined, true);
+    if (this.analysisLimitReached) return unknownType;
     if (operator === ts.SyntaxKind.AsteriskToken) {
       if (left.kind === "decimal") right = this.expression(node.right, env);
       else if (right.kind === "decimal") left = this.expression(node.left, env);
@@ -308,6 +309,7 @@ class Analyzer {
       left = this.expression(node.left, env, expected);
       right = this.expression(node.right, env, expected);
     }
+    if (this.analysisLimitReached) return unknownType;
     if (operator === ts.SyntaxKind.QuestionQuestionToken) {
       if (left.kind === "enum") right = this.expression(node.right, env, left);
       if (right.kind === "enum") left = this.expression(node.left, env, right);

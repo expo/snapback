@@ -74,12 +74,34 @@ function collectDeclarations(
   }
   name.elements.forEach((element, index) => {
     if (!ts.isBindingElement(element)) return;
-    const member = ts.isObjectBindingPattern(name)
-      ? element.propertyName?.getText(sourceFile) ?? (ts.isIdentifier(element.name) ? element.name.text : undefined)
-      : String(index);
-    if (!member) return;
-    const selected = ts.isObjectBindingPattern(name) ? `${access}.${member}` : `${access}[${member}]`;
+    if (element.dotDotDotToken) {
+      for (const binding of bindingNames(element.name)) {
+        declarations.push(`${binding} = __snapback2_rewrite_rest_binding_explicitly__()`);
+      }
+      return;
+    }
+    const selected = ts.isObjectBindingPattern(name)
+      ? objectMemberAccess(access, element.propertyName, element.name, sourceFile)
+      : `${access}[${index}]`;
+    if (!selected) return;
     const value = element.initializer ? `(${selected} ?? ${element.initializer.getText(sourceFile)})` : selected;
     collectDeclarations(element.name, value, sourceFile, declarations);
   });
+}
+
+function objectMemberAccess(
+  base: string,
+  property: ts.PropertyName | undefined,
+  name: ts.BindingName,
+  sourceFile: ts.SourceFile,
+): string | undefined {
+  if (!property) return ts.isIdentifier(name) ? `${base}.${name.text}` : undefined;
+  if (ts.isIdentifier(property)) return `${base}.${property.text}`;
+  if (ts.isComputedPropertyName(property)) return `${base}[${property.expression.getText(sourceFile)}]`;
+  return `${base}[${property.getText(sourceFile)}]`;
+}
+
+function bindingNames(name: ts.BindingName): string[] {
+  if (ts.isIdentifier(name)) return [name.text];
+  return name.elements.flatMap((element) => ts.isBindingElement(element) ? bindingNames(element.name) : []);
 }
