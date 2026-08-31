@@ -618,6 +618,18 @@ impl<'a> Runner<'a> {
         let index = table.index(&scan.index).ok_or_else(|| {
             RuntimeError::Schema(format!("missing index {}.{}", scan.table, scan.index))
         })?;
+        let read_site = self
+            .certificate
+            .expect("ordinary scans have a certificate")
+            .read_sites
+            .iter()
+            .find(|site| site.site == scan.site)
+            .cloned()
+            .ok_or_else(|| {
+                RuntimeError::TraceSubset(format!("undeclared read site {}", scan.site))
+            })?;
+        let uniform = read_site.hoist;
+        let always_visible = matches!(table.rules.read, RuleExpr::Public { .. } | RuleExpr::Allow);
         let take = match &scan.take {
             Bound::Literal(value) => *value as usize,
             Bound::Arg { name, max } => {
@@ -633,6 +645,29 @@ impl<'a> Runner<'a> {
                 value as usize
             }
         };
+        let certificate = self.certificate.expect("ordinary scans have a certificate");
+        let remaining_examined = certificate.max_examined.saturating_sub(self.trace.examined);
+        let remaining_rule_probes = certificate
+            .max_rule_probes
+            .saturating_sub(self.trace.rule_probes);
+        let candidate_limit = if always_visible || read_site.rule_probes_per_candidate == 0 {
+            remaining_examined
+        } else if uniform {
+            if remaining_rule_probes < read_site.rule_probes_per_candidate {
+                0
+            } else {
+                remaining_examined
+            }
+        } else {
+            remaining_examined
+                .min(remaining_rule_probes.saturating_div(read_site.rule_probes_per_candidate))
+        };
+        let candidate_limit = usize::try_from(candidate_limit).unwrap_or(usize::MAX);
+        let fetch_limit = if always_visible {
+            candidate_limit.min(take.saturating_add(2))
+        } else {
+            candidate_limit
+        };
         let mut rows = scan_indexed(
             self.tx,
             &scan.table,
@@ -643,17 +678,61 @@ impl<'a> Runner<'a> {
             before.as_ref(),
             evaluated_range.as_ref(),
             scan.order,
-            take.saturating_add(2),
+            fetch_limit,
         )?;
         for row in &mut rows {
             materialize_optional_fields(row, table);
         }
-        let stop = if rows.len() > take {
-            StopReason::Limit
-        } else {
+        let fetched = rows.len();
+        let mut examined_rows = Vec::new();
+        let mut visible = Vec::new();
+        let mut uniform_result = None;
+        for row in rows {
+            let visible_target = if uniform {
+                take.saturating_add(2)
+            } else {
+                take
+            };
+            if visible.len() >= visible_target {
+                break;
+            }
+            let receipt_lengths = (
+                self.receipt.rows.len(),
+                self.receipt.ranges.len(),
+                self.receipt.absences.len(),
+                self.receipt.verdicts.len(),
+            );
+            let allowed = match uniform_result {
+                Some(allowed) => allowed,
+                None => {
+                    let allowed = self.check_rule(&scan.table, Effect::Read, &row)?;
+                    if uniform {
+                        uniform_result = Some(allowed);
+                    }
+                    allowed
+                }
+            };
+            if !allowed {
+                // A rule probe keyed by a hidden candidate is authoritative trace,
+                // never a receipt artifact: even a public absence would reveal the row.
+                self.receipt.rows.truncate(receipt_lengths.0);
+                self.receipt.ranges.truncate(receipt_lengths.1);
+                self.receipt.absences.truncate(receipt_lengths.2);
+                self.receipt.verdicts.truncate(receipt_lengths.3);
+            }
+            examined_rows.push(row.clone());
+            if allowed {
+                visible.push(row);
+            }
+        }
+        let source_exhausted = examined_rows.len() == fetched && fetched < fetch_limit;
+        let stop = if (uniform && visible.len() <= take && source_exhausted)
+            || (!uniform && visible.len() < take && source_exhausted)
+        {
             StopReason::Exhausted
+        } else {
+            StopReason::Limit
         };
-        let examined_rows = rows;
         self.trace.examined += examined_rows.len() as u64;
         let examined_ids = examined_rows
             .iter()
@@ -663,15 +742,9 @@ impl<'a> Runner<'a> {
                     .map(ToOwned::to_owned)
             })
             .collect::<Result<Vec<_>, _>>()?;
-        let mut visible = Vec::new();
-        for row in &examined_rows {
-            if self.check_rule(&scan.table, Effect::Read, row)? {
-                visible.push(row.clone());
-            }
-        }
         let returned: Vec<_> = visible.iter().take(take).cloned().collect();
-        let halo_row = visible.get(take).cloned();
-        let n2_row = visible.get(take + 1);
+        let halo_row = uniform.then(|| visible.get(take).cloned()).flatten();
+        let n2_row = uniform.then(|| visible.get(take + 1)).flatten();
         let n2_key = n2_row.map(|row| index_values(row, index));
         let visible_ids = visible
             .iter()
@@ -716,10 +789,9 @@ impl<'a> Runner<'a> {
             n2_key: n2_key.clone(),
         };
         self.trace.ranges.push(range);
-        // A closure extent is safe only when every examined index entry was
-        // readable. If a rule hid even one candidate, rows remain deliverable
-        // but stop/absence/halo facts would disclose hidden cardinality.
-        if visible.len() == examined_rows.len() {
+        // Only a certified-uniform range can carry an extent. A uniformly false,
+        // exhausted range carries the same visible absence as a physically empty one.
+        if uniform && (uniform_result != Some(false) || stop == StopReason::Exhausted) {
             self.receipt.ranges.push(ReceiptRange {
                 site: scan.site.clone(),
                 table: scan.table.clone(),

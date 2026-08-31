@@ -10,8 +10,8 @@ pub fn execution_json(execution: &Execution) -> Json {
         ExecutionState::Complete => {
             json!({ "state": "complete", "data": value_to_json(&execution.result), "seq": execution.seq })
         }
-        ExecutionState::Capped { site, take } => {
-            json!({ "state": "capped", "data": value_to_json(&execution.result), "seq": execution.seq, "site": site, "take": take })
+        ExecutionState::Capped => {
+            json!({ "state": "capped", "data": value_to_json(&execution.result), "seq": execution.seq })
         }
         ExecutionState::Partial { reason } => {
             json!({ "state": "partial", "data": value_to_json(&execution.result), "seq": execution.seq, "reason": reason })
@@ -40,7 +40,7 @@ pub fn live_frame(execution: Result<&Execution, Refusal>, refused_seq: u64) -> (
     match execution {
         Ok(execution) => match &execution.state {
             ExecutionState::Complete
-            | ExecutionState::Capped { .. }
+            | ExecutionState::Capped
             | ExecutionState::Partial { .. }
             | ExecutionState::Denied { .. } => (execution_json(execution), false),
             ExecutionState::Committed { .. } | ExecutionState::Rejected { .. } => refusal_frame(
@@ -87,10 +87,7 @@ mod tests {
     fn subscription_frames_preserve_query_states_and_terminal_refusals() {
         for state in [
             ExecutionState::Complete,
-            ExecutionState::Capped {
-                site: "items.page".to_owned(),
-                take: 10,
-            },
+            ExecutionState::Capped,
             ExecutionState::Partial {
                 reason: "coverage".to_owned(),
             },
@@ -103,6 +100,12 @@ mod tests {
             assert_eq!(frame, execution_json(&execution));
             assert!(!terminal);
             assert!(!matches!(frame["state"].as_str(), Some("live" | "stale")));
+            if frame["state"] == "capped" {
+                assert_eq!(frame.as_object().unwrap().len(), 3);
+                assert!(frame.get("site").is_none());
+                assert!(frame.get("take").is_none());
+                assert!(frame.get("reason").is_none());
+            }
         }
 
         let refusal = Refusal::new(

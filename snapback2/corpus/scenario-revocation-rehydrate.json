@@ -1394,27 +1394,33 @@
   ],
   "replacementReceipt": {
     "rows": [],
-    "ranges": [],
-    "absences": [],
-    "verdicts": [
+    "ranges": [
       {
-        "rule_hash": "dc561e10e601af93441d152d27d3a80d7dd2ebea25a2754780b38c0a4b233b6c",
-        "pinned_inputs_digest": "31bb485cf8429aaeb8999a48a9ba67890d1e6dbb9e59b41389ae94b28007609a",
-        "principal": "u1",
-        "auth_epoch": 1,
-        "result": false
+        "site": "thread.messages",
+        "table": "messages",
+        "index": "byConvTime",
+        "prefix": [
+          {
+            "Id": "c1"
+          }
+        ],
+        "row_ids": [],
+        "stop": "Exhausted",
+        "absence": true,
+        "halo": null,
+        "n2_key": null
       }
-    ]
+    ],
+    "absences": [],
+    "verdicts": []
   },
   "expected": {
     "localResult": {
       "Array": []
     },
     "errorCode": null,
-    "localState": "partial",
-    "partialSites": [
-      "thread.messages"
-    ],
+    "localState": "fresh",
+    "partialSites": [],
     "canonicalResult": "{\"Array\":[]}",
     "digest": "62db520212cc069676ef47ebdcb00c4ab646bb477ec4065963f0f9f9f8ee1c66",
     "rangeStops": {

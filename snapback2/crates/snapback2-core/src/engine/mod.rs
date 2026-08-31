@@ -194,7 +194,7 @@ pub struct Execution {
 #[serde(tag = "state", rename_all = "camelCase")]
 pub enum ExecutionState {
     Complete,
-    Capped { site: String, take: u64 },
+    Capped,
     Partial { reason: String },
     Denied { rule: String },
     Committed { seq: u64 },
@@ -835,22 +835,19 @@ pub(crate) fn value_contains_reserved_principal(value: &Value) -> bool {
 }
 
 fn query_state(trace: &AuthoritativeTrace, certificate: &Certificate) -> ExecutionState {
-    // @ref LLP 1001#3-read-and-write-states-no-silent-states — server state follows the
-    // authoritative trace. Hidden rows consume take, so Limit reveals no extra extent.
-    if let Some(range) = trace
-        .ranges
-        .iter()
-        .find(|range| range.stop == StopReason::Limit)
+    // @ref LLP 1001#3-read-and-write-states-no-silent-states — completeness is
+    // trace-derived, but only a certificate with uniform range rules may claim it.
+    if certificate.completeness == crate::certificate::Completeness::Capped
+        || trace.ranges.iter().any(|range| {
+            range.stop == StopReason::Limit
+                || certificate
+                    .read_sites
+                    .iter()
+                    .find(|site| site.site == range.site)
+                    .is_none_or(|site| !site.hoist)
+        })
     {
-        let take = certificate
-            .read_sites
-            .iter()
-            .find(|site| site.site == range.site)
-            .map_or(0, |site| site.take);
-        return ExecutionState::Capped {
-            site: range.site.clone(),
-            take,
-        };
+        return ExecutionState::Capped;
     }
     ExecutionState::Complete
 }

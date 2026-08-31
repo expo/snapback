@@ -194,7 +194,7 @@ class MockOwner {
 
   private queryResult(op: string): unknown {
     if (op === "states.capped") {
-      return { state: "capped", data: this.rows, seq: this.seq, take: 1, site: "messages.scan" };
+      return { state: "capped", data: this.rows, seq: this.seq };
     }
     if (op === "states.partial") {
       return { state: "partial", data: this.rows, seq: this.seq, reason: "coverage" };
@@ -440,13 +440,19 @@ test("query returns every typed read state and refuses 4xx/network as envelopes"
 test("every HTTP wire state validates its state-specific required fields", async () => {
   const queryCases = [
     [{ state: "complete", seq: 1 }, "data"],
-    [{ state: "capped", data: [], seq: 1, take: 1 }, "site"],
+    [{ state: "capped", seq: 1 }, "data"],
     [{ state: "partial", seq: 1 }, "reason"],
     [{ state: "denied", seq: 1 }, "rule"],
   ] as const;
   for (const [wire, missing] of queryCases) {
     const value = createClient({ url: "http://wire.test", fetch: async () => fetchJson(wire) });
     await assert.rejects(() => value.query(api.states.complete, {}), (error: unknown) => isWireShape(error, missing));
+    value.close();
+  }
+  for (const forbidden of ["site", "take", "reason"] as const) {
+    const wire = { state: "capped", data: [], seq: 1, [forbidden]: forbidden === "take" ? 20 : "hidden" };
+    const value = createClient({ url: "http://wire.test", fetch: async () => fetchJson(wire) });
+    await assert.rejects(() => value.query(api.states.complete, {}), (error: unknown) => isWireShape(error, forbidden));
     value.close();
   }
 
@@ -583,7 +589,7 @@ test("a successful subscription delivery clears lastRefusal", async () => {
 test("malformed subscription and channel frames deliver E_WIRE_SHAPE", async (context) => {
   const queryCases = [
     [{ state: "complete", seq: 1 }, "data"],
-    [{ state: "capped", data: [], seq: 1, take: 1 }, "site"],
+    [{ state: "capped", seq: 1 }, "data"],
     [{ state: "partial", seq: 2 }, "reason"],
     [{ state: "denied", seq: 3 }, "rule"],
     [{ state: "stale", seq: 4, since: 1 }, "state"],
@@ -744,7 +750,7 @@ test("live queries expose capped and denied receipt states with live true", asyn
     return context.skip("live capped/denied fixtures are added by the self-started real-owner harness");
   }
   for (const [state, expected] of [
-    ["capped", { take: 1, site: "messages.scan" }],
+    ["capped", {}],
     ["denied", { rule: externalUrl ? "MEMBERSHIP_REQUIRED" : "members only" }],
   ] as const) {
     const value = client(externalUrl ? { as: state === "denied" ? "charlie" : "alice" } : {});
@@ -755,8 +761,7 @@ test("live queries expose capped and denied receipt states with live true", asyn
     assert.equal(delivery.state, state);
     assert.equal(delivery.live, true);
     if (delivery.state === "capped") {
-      assert.equal(delivery.take, expected.take);
-      assert.ok(delivery.site.length > 0);
+      assert.deepEqual(Object.keys(delivery).sort(), ["data", "live", "seq", "state"]);
     } else if (delivery.state === "denied") {
       assert.equal(delivery.rule, expected.rule);
     }
@@ -1076,22 +1081,17 @@ test("React query reducer preserves every discriminant field and only reuses a d
   });
 
   const capped = reduceQueryState(stale, {
-    state: "capped", live: true, data, seq: 2, take: 1, site: "messages.scan",
+    state: "capped", live: true, data, seq: 2,
   });
   const cappedEquivalent = reduceQueryState(capped, {
-    state: "capped", live: true, data: [{ id: "one" }], seq: 2, take: 1, site: "messages.scan",
+    state: "capped", live: true, data: [{ id: "one" }], seq: 2,
   });
   assert.strictEqual(cappedEquivalent, capped);
-  const differentTake = reduceQueryState(capped, {
-    state: "capped", live: true, data, seq: 2, take: 2, site: "messages.scan",
+  const differentSeq = reduceQueryState(capped, {
+    state: "capped", live: true, data, seq: 3,
   });
-  const differentSite = reduceQueryState(capped, {
-    state: "capped", live: true, data, seq: 2, take: 1, site: "messages.other",
-  });
-  assert.notStrictEqual(differentTake, capped);
-  assert.notStrictEqual(differentSite, capped);
-  assert.equal(differentTake.take, 2);
-  assert.equal(differentSite.site, "messages.other");
+  assert.notStrictEqual(differentSeq, capped);
+  assert.equal(differentSeq.seq, 3);
 
   assert.deepEqual(reduceQueryState(stale, { state: "complete", data, seq: 2 }), {
     state: "complete", live: false, data, seq: 2,

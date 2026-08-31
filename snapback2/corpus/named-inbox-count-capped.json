@@ -1215,23 +1215,6 @@
     ],
     "ranges": [
       {
-        "site": "inbox.memberships",
-        "table": "memberships",
-        "index": "byUserActivity",
-        "prefix": [
-          {
-            "Id": "u1"
-          }
-        ],
-        "row_ids": [
-          "m1"
-        ],
-        "stop": "Exhausted",
-        "absence": false,
-        "halo": null,
-        "n2_key": null
-      },
-      {
         "site": "inbox.latest",
         "table": "messages",
         "index": "byConvTime",
@@ -1343,8 +1326,10 @@
       ]
     },
     "errorCode": null,
-    "localState": "fresh",
-    "partialSites": [],
+    "localState": "partial",
+    "partialSites": [
+      "inbox.memberships"
+    ],
     "canonicalResult": "{\"Array\":[{\"Row\":{\"latest\":{\"Array\":[{\"Row\":{\"at\":{\"Int\":5},\"authorId\":{\"Id\":\"u1\"},\"body\":{\"String\":\"message 4\"},\"conversationId\":{\"Id\":\"c1\"},\"id\":{\"Id\":\"message-00004\"}}}]},\"unread\":{\"Int\":5}}}]}",
     "digest": "aea7adfd9328a4f2c2505b21b1a109f258a9719d8e19c7e479ca6302713e576c",
     "rangeStops": {

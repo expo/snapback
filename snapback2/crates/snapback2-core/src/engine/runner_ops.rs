@@ -749,13 +749,20 @@ impl<'a> Runner<'a> {
                 .ok_or_else(|| {
                     RuntimeError::TraceSubset(format!("undeclared read site {}", range.site))
                 })?;
-            *calls.entry(&range.site).or_default() += 1;
-            if range.examined_ids.len() as u64 > site.take + 2 {
+            if site.table != range.table || site.index != range.index {
                 return Err(RuntimeError::TraceSubset(format!(
-                    "site {} examined {} > take+2 {}",
+                    "range site {} does not match its certificate",
+                    range.site
+                )));
+            }
+            *calls.entry(&range.site).or_default() += 1;
+            let maximum = certificate.max_examined;
+            if range.examined_ids.len() as u64 > maximum {
+                return Err(RuntimeError::TraceSubset(format!(
+                    "site {} examined {} > certificate {}",
                     range.site,
                     range.examined_ids.len(),
-                    site.take + 2
+                    maximum
                 )));
             }
         }

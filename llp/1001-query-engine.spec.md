@@ -9,7 +9,7 @@
 **Related:** LLP 1000, LLP 1002 (the loop that serves this), LLP 1003 (effects
 through the outbox this spec defines), LLP 0329.014.004 §7 (runtime), LLP
 0329.014.000 §6 (execution, trace, states), LLP 0329.016 §5.6 (no silent
-states), LLP 0331 (the authorization and account model this engine's §6/§7 realize — one rule locus, a reserved `system` principal named in table rules; its rulings on the kind term, rule-input visibility, and disclosure are the follow-up `issues/20260830-snapback2-align-rules-with-llp-0331.md`), `spikes/bounded-programs/REPORT.md` ("Known S1 limits")
+states), LLP 0331 (the authorization and account model this engine's §6/§7 realize — one rule locus, a reserved `system` principal named in table rules; its rulings on the kind term, rule-input visibility, and disclosure are the closed follow-up `issues/closed/20260830-snapback2-align-rules-with-llp-0331.md`), `spikes/bounded-programs/REPORT.md` ("Known S1 limits")
 
 ## Summary
 
@@ -120,10 +120,43 @@ Nothing in this crate ever constructs a receipt from anything but a trace.
 
 | state | when |
 |---|---|
-| `Complete` | every traced range stopped `Exhausted` and no site was cut by a ceiling — including a range whose examined rows were all hidden: hidden rows are invisible, never a signal (LLP 0329.014.004: results are never functions of invisible-row counts) |
-| `Capped { site, take }` | some *authoritative-trace* range stopped `Limit` (the certificate's `completeness: Page \| Capped`) — regardless of whether the examined rows were visible: hidden rows consume `take` (spike S1 ruling 2), so `Capped` discloses nothing the page size does not, and computing the state from the receipt (which omits the stop reason when hidden rows were examined) would silently drop a later visible row (review ruling 2026-08-30, round 2 M2) |
+| `Complete` | every traced range stopped `Exhausted`, no site was cut by a ceiling, and the certificate proves each scanned range's read rule uniform for the running viewer over its scanned prefix; only those certified-uniform ranges may carry complete range or absence claims in a receipt |
+| `Capped` | the certificate marks any site capped-only because its rule is not provably uniform over the scanned prefix, or an authoritative-trace range stopped `Limit`; this is one opaque label with no site, stop reason, or take echo |
 | `Partial { reason }` | reserved for the client twin (coverage miss); the server never returns it |
 | `Denied { rule }` | `RuntimeError::Rule` on a read site, or `RuntimeError::Require { code }` raised inside a query (`rule = code`) — the program refusing is the honest "denied" (review ruling 2026-08-30, M1) |
+
+**Amendment — Ruled by the author 2026-08-30.** `take` counts visible rows
+only. A denied candidate consumes the certified examined and rule-probe budgets,
+never `take`; the scan advances across hidden runs so a paged drain reaches the
+next visible row rather than repeatedly examining the same hidden prefix. A
+rule may be evaluated once for a range only when the existing hoist analysis
+proves every rule input pinned by that range's prefix. A non-uniform site is
+capped-only regardless of what its runtime candidates happen to show. The
+engine may internally distinguish take and ceiling stops, but the result label,
+wire, and receipt may not; both expose the same `Capped` shape and visible page.
+
+A query or mutation that returns or writes a count, an emptiness/has-more
+branch, or another absence-dependent result from a capped-only site is refused
+at certification with the existing `E_STRUCTURAL_COUNT` family. Its pasted
+rewrite is to denormalize the authorization scope into the index prefix so the
+rule becomes uniform, or to read a maintained aggregate. Hidden rows remain in
+the authoritative trace for invalidation and OCC and remain absent from the
+receipt. Completeness is still derived from the trace, never the receipt; the
+round-2 M2 correctness point survives because `Complete` is now available only
+where the certificate makes the trace and receipt agree on the visible range.
+
+> **Superseded history:** ~~`Complete` meant every traced range stopped
+> `Exhausted` and no site was cut by a ceiling — including a range whose
+> examined rows were all hidden: hidden rows are invisible, never a signal
+> (LLP 0329.014.004: results are never functions of invisible-row counts).~~
+>
+> ~~`Capped { site, take }` meant some *authoritative-trace* range stopped
+> `Limit` (the certificate's `completeness: Page | Capped`) — regardless of
+> whether the examined rows were visible: hidden rows consumed `take` (spike
+> S1 ruling 2), so `Capped` disclosed nothing the page size did not, and
+> computing the state from the receipt (which omitted the stop reason when
+> hidden rows were examined) would silently drop a later visible row (review
+> ruling 2026-08-30, round 2 M2).~~
 
 A query that hits a runtime *value* error (`E_DIV_ZERO`, `E_OVERFLOW`, `E_TYPE`,
 `E_FIELD`) is `Err(RuntimeError)`, not a state — the loop serves the refusal
@@ -425,13 +458,17 @@ the ruling).
 ## 10. What binds, and how it is checked
 
 - `cargo test -p snapback2-core` stays under the 30 s budget; new tests live
-  in `tests/{store,live,successor,identity,outbox}.rs`.
+  in `tests/{store,live,successor,identity,outbox,completeness}.rs`.
 - The 76-case corpus is regenerated by `export_corpus` whenever the current
   serialization changes; the Rust engine and TypeScript evaluator must agree
   on all 76 cases. The 2026-08-30 authorization regeneration removes the stale
-  authored `input_visibility` projection. The complete deterministic
-  `check --ir --json` response for the manifest's 76 programs is 71,497 bytes,
-  SHA-256 `3f211a85d3f887b9cb0bbe07b8724242ace1054af3d1306a386c31741ff57875`.
+  authored `input_visibility` projection. The capped-over-hidden amendment
+  explicitly removes the non-uniform `inbox.memberships` range extent from the
+  two inbox receipts (both twins now expect that site partial) and records a
+  certified-uniform empty `thread.messages` range after revocation. The complete
+  deterministic `check --ir --json` response for the manifest's 76 programs is
+  72,635 bytes, SHA-256
+  `a01bd83741ba7979d156447e3ab900233561081f3064caf6b3efdb7a8ff1d458`.
 - Durability: rows, commits, outbox, and sessions survive `Store::open` on the
   same path.
 - Invalidation: a commit that touches a traced range prefix, point, absence,
@@ -452,19 +489,32 @@ kinds; Postgres lowering; the broadcast subscription class; result diffs on
 the wire (full result per delivery today); retention and `maxOfflineAge`;
 per-principal encrypted client stores.
 
-## Open author decisions
+## Author decisions (item 1 remains open)
 
-0. **`Capped` over hidden rows discloses cardinality.** The round-2 ruling
-   computes the state from the authoritative trace, so a page cut at `take`
-   among rows the viewer cannot see is `Capped` — which tells the viewer that
-   ≥ `take` entries exist in the range. Both reviewers accepted it for this
-   lane (the page size already leaks the same bit under spike S1 ruling 2, and
-   the alternative — `Complete` over an omitted visible row — is a silent
-   state), but grok notes it is a disclosure LLP 0329.014.004 forbade in
-   principle. The author should confirm, or choose the third form: `Capped`
-   without `site`/`take`, or a hidden-row budget separate from `take`.
-   LLP 0331 §"Failure and disclosure semantics" ("production reads … reveal
-   no hidden row or relationship existence") is evidence for the third form.
+0. **Resolved — Ruled by the author 2026-08-30.** `take` counts visible rows;
+   hidden rows consume only certified examined/rule-probe budgets, and paging
+   advances across hidden runs. `Capped` is opaque. `Complete` and receipt
+   absence claims require certificate-proven prefix uniformity; non-uniform
+   sites are capped-only, and completeness-sensitive uses of them are refused
+   at check with the `E_STRUCTURAL_COUNT` denormalize-or-maintain rewrite.
+   Authoritative tracing, invalidation, and OCC are unchanged.
+
+   > **Superseded history:** ~~`Capped` over hidden rows disclosed cardinality.
+   > The round-2 ruling computed the state from the authoritative trace, so a
+   > page cut at `take` among rows the viewer could not see was `Capped` — which
+   > told the viewer that ≥ `take` entries existed in the range. Both reviewers
+   > accepted it for that lane (the page size already leaked the same bit under
+   > spike S1 ruling 2, and the alternative — `Complete` over an omitted visible
+   > row — was a silent state), but grok noted it was a disclosure LLP
+   > 0329.014.004 forbade in principle. The author was asked to confirm, or
+   > choose the third form: `Capped` without `site`/`take`, or a hidden-row
+   > budget separate from `take`. LLP 0331 §"Failure and disclosure semantics"
+   > was evidence for the third form.~~
 1. The `_commits` retention (10,000 rows) and whether `trace` needs the
    touched keys of older commits.
-2. Whether `Capped` should carry the site name on the wire or only the take.
+2. **Resolved — Ruled by the author 2026-08-30.** Neither site nor take is on
+   the wire. `Capped` is a single label without a stop reason; a visible-take
+   stop and an examined-ceiling stop are viewer-observably identical.
+
+   > **Superseded history:** ~~Whether `Capped` should carry the site name on
+   > the wire or only the take.~~

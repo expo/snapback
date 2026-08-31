@@ -68,7 +68,13 @@ export function lowerSchema(source: string, fileName: string): LoweredSchema {
     const lowered = lowerTable(module, name, call, tables, diagnostics);
     if (lowered) {
       tableJson[name] = lowered.value;
-      tables.set(name, { name, private: lowered.private, columns: lowered.columns });
+      tables.set(name, {
+        name,
+        private: lowered.private,
+        columns: lowered.columns,
+        indexes: lowered.indexes,
+        readRule: lowered.readRule,
+      });
     }
   }
 
@@ -124,7 +130,13 @@ function lowerTable(
   call: ts.CallExpression,
   tables: Map<string, TableInfo>,
   diagnostics: FrontendDiagnostic[],
-): { value: unknown; private: boolean; columns: Record<string, ReturnType<typeof authoredTypeFromColumn>> } | undefined {
+): {
+  value: unknown;
+  private: boolean;
+  columns: Record<string, ReturnType<typeof authoredTypeFromColumn>>;
+  indexes: Record<string, { columns: string[] }>;
+  readRule: unknown;
+} | undefined {
   const config = objectOf(call.arguments[0]);
   if (!config) {
     diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_INVALID", call, `table ${name} requires an object literal`));
@@ -201,6 +213,13 @@ function lowerTable(
     value: { columns, indexes, rules, constraints },
     private: !isPublicRule(rules.read),
     columns: Object.fromEntries(Object.entries(columns).map(([column, value]) => [column, authoredTypeFromColumn(value)])),
+    indexes: Object.fromEntries(
+      Object.entries(indexes).map(([index, value]) => [
+        index,
+        { columns: [...(value as { columns: string[] }).columns] },
+      ]),
+    ),
+    readRule: rules.read,
   };
 }
 

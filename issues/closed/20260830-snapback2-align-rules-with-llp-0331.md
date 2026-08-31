@@ -1,6 +1,6 @@
 # snapback2: align the rule surface with LLP 0331's author rulings (system principal term, derived rule-input visibility, revocation probes)
 
-**Status:** Open
+**Status:** Closed
 **Systems:** snapback2, schema, certificate, test
 **Severity:** P2
 **Author:** Claude Fable 5, directed by Charlie Cheever
@@ -32,4 +32,30 @@ The regenerated frozen 76-program corpus contains no `PrincipalKind`. Its
 complete deterministic `check --ir --json` certificate response is 71,497
 bytes with SHA-256
 `3f211a85d3f887b9cb0bbe07b8724242ace1054af3d1306a386c31741ff57875`.
-Item 4 is still the open author decision, so this ticket remains **Open**.
+
+## Resolution — item 4 (2026-08-30)
+
+Item 4 is resolved by the author's 2026-08-30 ruling on LLP 1001 decision 0.
+`take` now counts visible rows only; hidden candidates spend the certified
+examined/rule-probe budgets and remain solely in the authoritative trace.
+`Capped` is an opaque unit label on the Rust, HTTP/SSE, and TypeScript surfaces,
+with no site, stop reason, or take echo. Only certificate-proven prefix-uniform
+sites may produce `Complete` or receipt range/absence claims. Non-uniform sites
+are capped-only, and count, emptiness/has-more, write, and other
+absence-dependent uses reuse `E_STRUCTURAL_COUNT` with the paved
+denormalize-or-maintain rewrite.
+
+All 76 corpus cases were re-certified. The two inbox receipts explicitly drop
+the non-uniform `inbox.memberships` extent and become partial at that site; the
+revocation case explicitly gains the complete visible-empty
+`thread.messages` extent because its rule is hoisted uniformly false. The one
+server-label flip from `Complete` to capped-only is `named-inbox-maintained`,
+because `memberships.read` depends on `conversationId` while the
+`byUserActivity` prefix pins only `userId`. `named-inbox-count-capped` was
+already capped and is not a flip.
+
+The current deterministic `check --ir --json` response for all 76 programs is
+72,635 bytes with SHA-256
+`a01bd83741ba7979d156447e3ab900233561081f3064caf6b3efdb7a8ff1d458`.
+
+Because items 1–3 were already recorded resolved above, this ticket is closed.

@@ -253,6 +253,28 @@ test("count and reduce retain O(1) closure through page bindings", () => {
     `count/reduce closure estimates diverged: ${JSON.stringify(checked)}`);
 });
 
+test("structural policy admits prefix-uniform private scans and refuses non-uniform twins", () => {
+  const source = `import { query } from "snapback2";
+    export const count = query({ scope: scalar() }, ({ db, args }) =>
+      db.scan(docs.byScope, [args.scope], { take: 10 }).count());`;
+  const table = (firstColumn: string): TableInfo => ({
+    name: "docs",
+    private: true,
+    indexes: { byScope: { columns: [firstColumn, "order", "id"] } },
+    readRule: { Eq: [{ Field: "owner" }, "Viewer"] },
+  });
+  const uniform = lowerSource(source, "uniform-count.ts", undefined, {
+    tables: new Map([["docs", table("owner")]]),
+  });
+  assert(uniform.ok, `uniform private count was refused: ${uniform.ok ? "" : uniform.diagnostics[0]?.message}`);
+
+  const nonUniform = lowerSource(source, "non-uniform-count.ts", undefined, {
+    tables: new Map([["docs", table("group")]]),
+  });
+  assert(!nonUniform.ok && nonUniform.diagnostics.some((item) => item.code === "E_STRUCTURAL_COUNT"),
+    "non-uniform private count did not reuse E_STRUCTURAL_COUNT");
+});
+
 test("loop collection refusals paste per-family rewrites that lower and certify", () => {
   const tables = new Map<string, TableInfo>([["items", {
     name: "items",
