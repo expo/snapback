@@ -1,0 +1,29 @@
+const users = table("users");       // { id, name }
+const shows = table("shows");       // { id, title }
+const subs = table("subs");         // { id, userId, showId, lastListenedAt }
+                                    // index subs.byUser: (userId)
+const episodes = table("episodes"); // { id, showId, publishedAt, title }
+                                    // index episodes.byShowPublished: (showId, publishedAt)
+
+export const inboxBadges = query({}, ({ db, ctx }) => {
+  const userSubs = db.scan(subs.byUser, [ctx.viewer], { take: 50 });
+  
+  let result: any[] = [];
+  for (const sub of userSubs) {
+    const show = db.get(shows, sub.showId);
+    
+    // Count episodes published after lastListenedAt (take 100 to cap display)
+    const recentEpisodes = db.scan(
+      episodes.byShowPublished,
+      [sub.showId],
+      { after: sub.lastListenedAt, take: 100 }
+    );
+    
+    const count = recentEpisodes.count();
+    const badge = count > 99 ? "99+" : String(count);
+    
+    result.push({ showTitle: show.title, badge });
+  }
+  
+  return result;
+});
