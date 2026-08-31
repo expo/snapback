@@ -270,6 +270,67 @@ export const shadowed = query({ key: t.text(40) }, ({ db, args }) =>
       `callback parameter spelling captured operation args: ${readMap(lexical.programs[1]!)}`);
   });
 
+  test("block-local shadowing ends at the block boundary", () => {
+    const program = lowerOne(`import { query, t } from "snapback2";
+export const probe = query({ key: t.text(40) }, ({ db, args }) => {
+  const first = db.get(alpha.byKey, [args.key]);
+  { const args = { key: "literal" }; const second = db.get(beta.byKey, [args.key]); }
+  return db.get(items.byKey, [args.key]);
+});`, "block-scope-shadow.ts");
+    const readSites = certificateReadMap(certify(program));
+    assert(readSites === "block-scope-shadow.probe.0:alpha:Arg|block-scope-shadow.probe.1:beta:Const|block-scope-shadow.probe.2:items:Arg",
+      `block-local args changed post-block provenance: ${readSites}`);
+  });
+
+  test("block-local declarations are unavailable after the block", () => {
+    const source = (setup: string) => `import { query, t } from "snapback2";
+export const probe = query({ key: t.text(40) }, ({ db, args }) => {
+  ${setup}
+  return db.get(items.byKey, [localKey]);
+});`;
+    const leaked = lowerSource(source('{ const localKey = "literal"; }'), "block-scope-local.ts", undefined, { tables });
+    const undeclared = lowerSource(source(""), "undeclared-local.ts", undefined, { tables });
+    assert(!leaked.ok && !undeclared.ok, "block-local or undeclared key silently lowered");
+    const leakedDiagnostic = leaked.diagnostics.find((item) => item.code === "E_PROVENANCE_AMBIGUOUS");
+    const undeclaredDiagnostic = undeclared.diagnostics.find((item) => item.code === "E_PROVENANCE_AMBIGUOUS");
+    assert(leakedDiagnostic && undeclaredDiagnostic, "block-local key did not refuse like an undeclared name");
+    const envelope = (item: typeof leakedDiagnostic) => item && ({
+      code: item.code,
+      family: item.family,
+      message: item.message,
+      rule: item.rule,
+      guide: item.guide,
+    });
+    assert(canonical(envelope(leakedDiagnostic)) === canonical(envelope(undeclaredDiagnostic)),
+      `block-local refusal differs from undeclared-name behavior: ${JSON.stringify(leakedDiagnostic)}`);
+  });
+
+  test("reads inside a block use the block-local initializer", () => {
+    const program = lowerOne(`import { query, t } from "snapback2";
+export const probe = query({}, ({ db }) => {
+  { const local = { key: "literal" }; const found = db.get(beta.byKey, [local.key]); }
+  return null;
+});`, "block-scope-inside.ts");
+    const readSites = certificateReadMap(certify(program));
+    assert(readSites === "block-scope-inside.probe.0:beta:Const",
+      `block-local initializer did not classify the inside read: ${readSites}`);
+  });
+
+  test("if-branch shadowing ends at the branch boundary", () => {
+    const program = lowerOne(`import { query, t } from "snapback2";
+export const probe = query({ key: t.text(40) }, ({ db, args }) => {
+  const first = db.get(alpha.byKey, [args.key]);
+  if (args.key === "branch") {
+    const args = { key: "literal" };
+    const second = db.get(beta.byKey, [args.key]);
+  }
+  return db.get(items.byKey, [args.key]);
+});`, "if-scope-shadow.ts");
+    const readSites = certificateReadMap(certify(program));
+    assert(readSites === "if-scope-shadow.probe.0:alpha:Arg|if-scope-shadow.probe.1:beta:Const|if-scope-shadow.probe.2:items:Arg",
+      `if-local args changed post-branch provenance: ${readSites}`);
+  });
+
   test("orderedPair defaults refuse instead of disappearing from IR", () => {
     const refused = lowerSource(`import { query, t } from "snapback2";
 export const lookup = query({ key: t.optional(t.text(40)) }, ({ db, args, ctx }) => {

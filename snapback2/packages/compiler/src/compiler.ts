@@ -403,7 +403,8 @@ function lowerStatement(statement: ts.Statement, env: Environment): Stmt[] {
   }
   if (statement.kind === ts.SyntaxKind.BreakStatement) return ["Break"];
   if (statement.kind === ts.SyntaxKind.ContinueStatement) return ["Continue"];
-  if (ts.isBlock(statement)) return lowerStatements(statement.statements, env);
+  // @ref LLP 1002#2-the-authored-surface-the-snapback2-module — lexical bindings classify authored facts and cannot escape their block.
+  if (ts.isBlock(statement)) return lowerStatements(statement.statements, cloneEnvironment(env));
   if (ts.isEmptyStatement(statement)) return [];
   refuse(env, "E_OPAQUE", statement, `statement ${ts.SyntaxKind[statement.kind]} is outside the subset`);
 }

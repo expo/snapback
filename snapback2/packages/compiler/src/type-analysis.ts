@@ -87,7 +87,7 @@ class Analyzer {
       this.controlled(statement.statement, loop);
       return;
     }
-    if (ts.isBlock(statement)) this.statements(statement.statements, env);
+    if (ts.isBlock(statement)) this.statements(statement.statements, cloneEnv(env));
   }
 
   private controlled(statement: ts.Statement, env: TypeEnvironment): void {
