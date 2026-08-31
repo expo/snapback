@@ -47,3 +47,5 @@ Regression coverage includes the renamed `packed` handler, a Decimal<2> row
 callback shadowing Decimal<3> operation `args`, plain `args.price + 1`, a
 shadowed-then-unshadowed sequence (`100` then `1000`), and renamed `ctx` with a
 callback shadow. The compiler suite passes 93/93 after the combined lane.
+
+**Closed 2026-08-31** (session snapback-8a, lane `s2/t2-typeanalysis`): type facts now resolve `args`/`ctx` through the lexical binding environment everywhere — renamed handlers, shadowing callbacks, parenthesized/asserted access, loop domains (`lower/binding-bound.ts`), and API result inference; duplicate handler-property bindings refuse. Contextual literal scaling replaced the offset-keyed map (two-scale helper `[100,1000]` both orders). Dual-review verified (codex+grok xhigh, 3 rounds).

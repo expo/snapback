@@ -42,3 +42,5 @@ Regression coverage proves the rewrite itself compiles and preserves
 `Decimal<2>` scaling for both the explicit default and the following
 arithmetic. Nested defaults plus a rename were also rerun as an adversarial
 self-probe.
+
+**Closed 2026-08-31** (session snapback-8a, lane `s2/t2-typeanalysis`, orchestrator ruling): nested handler destructuring patterns (with or without defaults) now REFUSE with a sited envelope and a rewrite binding the composite once — consistent with body-level destructuring; no authored semantics can silently disappear.

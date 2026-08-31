@@ -48,3 +48,5 @@ allowance is now 500 ms. Tests also cover a 128-term Decimal/int chain whose
 helper DAG that must compile or refuse inside 500 ms. A depth-13 adversarial
 probe refused at the contextual-visit guard in 22.84 ms instead of expanding
 without bound.
+
+**Closed 2026-08-31** (session snapback-8a, lane `s2/t2-typeanalysis`): memoized single-walk analysis — 24-term chain 2,330ms → <1ms, 128-term ~1ms, 400-term ~2ms; helper-DAG blowup (depth 12 = 27.5s) now refuses in ~6ms via a contextual-visit totality guard with an honest non-lowerable rewrite sentinel; perf regression test pinned at 500ms.
