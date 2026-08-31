@@ -1,4 +1,7 @@
-import { lowerSource, type TableInfo } from "./compiler";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { lowerProject, lowerSource, type TableInfo } from "./compiler";
 import type { Program, Provenance } from "./ir";
 import { rustCheck } from "./rust-check";
 
@@ -10,6 +13,7 @@ const tables = new Map<string, TableInfo>([
   ["beta", table("beta")],
   ["cards", table("cards")],
   ["items", table("items")],
+  ["memberships", table("memberships")],
   ["owed", table("owed")],
   ["users", table("users")],
 ]);
@@ -30,13 +34,13 @@ const schema = {
   effects: [],
 };
 
-export function registerProvenanceSiteChecks(test: Test): void {
+export function registerProvenanceSiteChecks(test: Test, s1Fixture: string): void {
   test("ambiguous provenance refuses with a complete envelope and compiling direct-origin rewrite", () => {
     const source = `import { query, t } from "snapback2";
 function normalize(value: string) { return value + ""; }
 export const lookup = query({ handle: t.text(40), normalize: t.bool() }, ({ db, args }) => {
-  let key = args.handle;
-  if (args.normalize) key = normalize(args.handle);
+  let key = normalize(args.handle);
+  if (args.normalize) key = args.handle;
   return db.scan(users.byKey, [key], { take: 10 });
 });`;
     const refused = lowerSource(source, "ambiguity.ts", undefined, { tables });
@@ -44,27 +48,83 @@ export const lookup = query({ handle: t.text(40), normalize: t.bool() }, ({ db, 
     const diagnostic = refused.diagnostics.find((item) => item.code === "E_PROVENANCE_AMBIGUOUS");
     assert(diagnostic, `missing provenance refusal: ${refused.diagnostics.map((item) => item.code).join(", ")}`);
     assert(diagnostic.family === "opaque" && diagnostic.site.startsWith("ambiguity.ts:")
-      && diagnostic.rule === "read keys have one unambiguous origin" && diagnostic.guide.length > 0,
+      && diagnostic.rule === "read keys have one unambiguous origin" && diagnostic.guide === "opaque/provenance",
     `provenance refusal envelope is incomplete: ${JSON.stringify(diagnostic)}`);
     assert(diagnostic.rewrite.includes("[args.handle]"), "provenance rewrite did not pass the argument directly");
+    assert(!diagnostic.rewrite.includes("[args.normalize]"), "provenance rewrite walked the helper callee before its arguments");
     const fixed = lowerSource(diagnostic.rewrite, "ambiguity.ts", undefined, { tables });
     assert(fixed.ok, `pasted provenance rewrite did not compile: ${fixed.ok ? "" : JSON.stringify(fixed.diagnostics)}`);
     certify(fixed.programs[0]!);
   });
 
-  test("the LLP 0329.017 C4 direct-argument trio has one provenance outcome", () => {
+  test("the real LLP 0329.017 C4 trio is body-derived and reproducible", async () => {
+    const lowered = await lowerProject(s1Fixture);
+    assert(lowered.ok, `S1 C4 fixture refused: ${lowered.ok ? "" : JSON.stringify(lowered.diagnostics)}`);
+    const outcomes = ["helperWrappedScan", "ledger", "mentionScan"].map((name) => {
+      const program = lowered.project.programs.find((candidate) => candidate.name === `programs.${name}`);
+      assert(program, `S1 C4 fixture omitted ${name}`);
+      return reads(program)[0]?.provenance;
+    });
+    // The first two helpers pass their argument through; mentionScan's `${value}` helper body
+    // is an explicit transform. The helper names never participate in classification.
+    assert(canonical(outcomes) === canonical(["Arg", "Arg", "Computed"]),
+      `real C4 body-derived outcomes changed: ${outcomes.join(", ")}`);
+  });
+
+  test("identical helper bodies classify identically regardless of helper name", () => {
     const source = `import { query, t } from "snapback2";
-export const helperWrappedScan = query({ key: t.text(40) }, ({ db, args }) =>
-  db.scan(cards.byKey, [args.key], { take: 10 }));
-export const ledger = query({ key: t.text(40) }, ({ db, args }) =>
-  db.scan(owed.byKey, [args.key], { take: 10 }));
-export const mentionScan = query({ key: t.text(40) }, ({ db, args }) =>
-  db.scan(users.byKey, [args.key], { take: 10 }));`;
+function loadCards(db: any, value: string) { return db.scan(cards.byKey, [value], { take: 10 }); }
+function fetchCards(db: any, value: string) { return db.scan(cards.byKey, [value], { take: 10 }); }
+function readCards(db: any, value: string) { return db.scan(cards.byKey, [value], { take: 10 }); }
+export const first = query({ key: t.text(40) }, ({ db, args }) => loadCards(db, args.key));
+export const second = query({ key: t.text(40) }, ({ db, args }) => fetchCards(db, args.key));
+export const third = query({ key: t.text(40) }, ({ db, args }) => readCards(db, args.key));`;
     const lowered = lowerSource(source, "c4.ts", undefined, { tables });
-    assert(lowered.ok, `C4 trio refused: ${lowered.ok ? "" : JSON.stringify(lowered.diagnostics)}`);
+    assert(lowered.ok, `identical-body trio refused: ${lowered.ok ? "" : JSON.stringify(lowered.diagnostics)}`);
     const outcomes = lowered.programs.map((program) => reads(program)[0]?.provenance);
     assert(outcomes.length === 3 && outcomes.every((item) => item === "Arg"),
-      `identical direct-argument scans disagreed: ${outcomes.join(", ")}`);
+      `identical helper bodies disagreed: ${outcomes.join(", ")}`);
+  });
+
+  test("unknown origins stay ambiguous through immutable aliases and composite properties", () => {
+    for (const key of ["k", "packed.key"]) {
+      const setup = key === "k" ? "const k = mystery;" : "const packed = mystery;";
+      const refused = lowerSource(`import { query, t } from "snapback2";
+export const lookup = query({ key: t.text(40) }, ({ db, args }) => {
+  ${setup}
+  return db.scan(items.byKey, [${key}], { take: 10 });
+});`, `unknown-${key.replace(".", "-")}.ts`, undefined, { tables });
+      assert(!refused.ok && refused.diagnostics.some((item) => item.code === "E_PROVENANCE_AMBIGUOUS"),
+        `unknown origin laundered through ${key}: ${refused.ok ? "lowered" : JSON.stringify(refused.diagnostics)}`);
+    }
+  });
+
+  test("property provenance follows composite members while proven row fields stay Shape", () => {
+    const source = `import { query, t } from "snapback2";
+function conversationShape(value: string) { return ({ value }).value; }
+export const wrapped = query({ key: t.text(40) }, ({ db, args }) =>
+  db.scan(items.byKey, [conversationShape(args.key)], { take: 10 }));
+export const packed = query({ key: t.text(40) }, ({ db, args }) => {
+  const packed = { key: args.key };
+  return db.scan(items.byKey, [packed.key], { take: 10 });
+});
+export const rowField = query({ key: t.text(40) }, ({ db, args }) =>
+  db.scan(alpha.byKey, [args.key], { take: 10 }).map(row =>
+    db.get(beta.byKey, [row.key])));`;
+    const lowered = lowerSource(source, "properties.ts", undefined, { tables });
+    assert(lowered.ok, `property provenance fixture refused: ${lowered.ok ? "" : JSON.stringify(lowered.diagnostics)}`);
+    const maps = new Map(lowered.programs.map((program) => [program.name, readMap(program)]));
+    assert(maps.get("wrapped") === "properties.wrapped.0:items:Arg", `identity wrapper lost Arg: ${maps.get("wrapped")}`);
+    assert(maps.get("packed") === "properties.packed.0:items:Arg", `packed member lost Arg: ${maps.get("packed")}`);
+    assert(maps.get("rowField") === "properties.rowField.0:alpha:Arg|properties.rowField.1:beta:Shape",
+      `row field was not reserved to a proven row binding: ${maps.get("rowField")}`);
+  });
+
+  test("memberOf combines its actual members so explicit transforms dominate", () => {
+    const program = lowerOne(`import { query, t } from "snapback2";
+export const membership = query({ id: t.text(40) }, ({ args }) => memberOf(args.id + ""));`, "member-of.ts");
+    assert(readMap(program) === "member-of.membership.0:memberships:Computed",
+      `memberOf ignored its computed member: ${readMap(program)}`);
   });
 
   test("site and certificate identity survive helper rename, extraction, inline, and reformat", () => {
@@ -117,6 +177,14 @@ export const compare = query({ key: t.text(40) }, ({ db, args }) => {
       `beta-first certificate lost site provenance: ${canonical(secondCertificate)}`);
   });
 
+  test("nested nullish reads allocate ordinals left to right", () => {
+    const program = lowerOne(`import { query, t } from "snapback2";
+export const fallback = query({ key: t.text(40) }, ({ db, args }) =>
+  db.get(alpha.byKey, [args.key]) ?? db.get(beta.byKey, [args.key]));`, "nested.ts");
+    assert(readMap(program) === "nested.fallback.0:alpha:Arg|nested.fallback.1:beta:Arg",
+      `nullish reads did not retain source order: ${readMap(program)}`);
+  });
+
   test("site ordinals count writes in the export's source order", () => {
     const program = lowerOne(`import { mutation, t } from "snapback2";
 export const touch = mutation({ key: t.text(40) }, ({ db, ctx, args }) => {
@@ -126,7 +194,46 @@ export const touch = mutation({ key: t.text(40) }, ({ db, ctx, args }) => {
     assert(readMap(program) === "access.touch.1:items:Arg", `write did not reserve ordinal zero: ${readMap(program)}`);
     assert(certificateReadMap(certify(program)) === "access.touch.1:items:Arg",
       "certificate did not retain the read/write source ordinal");
+
+    for (const method of ["update", "upsert"] as const) {
+      const callback = lowerOne(`import { mutation, t } from "snapback2";
+export const touch = mutation({ key: t.text(40) }, ({ db, args }) => {
+  db.${method}(items, args.key, row => ({ id: args.key, key: row.key }));
+  return db.scan(items.byKey, [args.key], { take: 10 });
+});`, `callback-${method}.ts`);
+      assert(readMap(callback) === `callback-${method}.touch.0:items:Arg|callback-${method}.touch.2:items:Arg`,
+        `${method} callback write did not reserve ordinal one: ${readMap(callback)}`);
+    }
   });
+
+  test("project lowering refuses duplicate module basenames before site identities can collide", async () => {
+    await withProject({
+      "snapback/schema.ts": `import { schema } from "snapback2"; export default schema({ tables: {} });`,
+      "snapback/activity.ts": `import { query } from "snapback2"; export const first = query({}, () => null);`,
+      "snapback/nested/activity.ts": `import { query } from "snapback2"; export const second = query({}, () => null);`,
+    }, async (root) => {
+      const lowered = await lowerProject(root);
+      assert(!lowered.ok, "duplicate module basenames unexpectedly lowered");
+      const collisions = lowered.diagnostics.filter((item) => item.code === "E_OP_RESERVED"
+        && item.message.includes("module basename activity is duplicated"));
+      assert(collisions.length === 2 && collisions.every((item) => item.family === "op" && item.site.endsWith(":1:1")),
+        `duplicate basename refusal was not complete and sited: ${JSON.stringify(collisions)}`);
+    });
+  });
+}
+
+async function withProject(files: Record<string, string>, run: (root: string) => Promise<void>): Promise<void> {
+  const root = await mkdtemp(join(tmpdir(), "snapback2-provenance-"));
+  try {
+    for (const [path, source] of Object.entries(files)) {
+      const target = join(root, path);
+      await mkdir(dirname(target), { recursive: true });
+      await writeFile(target, source);
+    }
+    await run(root);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 }
 
 function table(name: string): TableInfo {
@@ -147,6 +254,8 @@ function reads(program: Program): ReadFact[] {
       const read = value[kind] as ReadFact | undefined;
       if (read?.site && read.table && read.provenance) found.push(read);
     }
+    const page = value.Page as ReadFact | undefined;
+    if (page?.site && page.table && page.provenance) found.push(page);
   });
   return found;
 }

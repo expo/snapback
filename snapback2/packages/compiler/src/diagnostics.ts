@@ -127,7 +127,7 @@ function diagnosticGuide(code: DiagnosticCode): string {
   if (code === "E_UNBOUND_COUNT" || code === "E_STRUCTURAL_COUNT") return "bound/count";
   if (code === "E_BOUND") return "bound/ceiling";
   if (code === "E_AMBIENT_TIME") return "opaque/time";
-  if (code === "E_PROVENANCE_AMBIGUOUS") return "opaque/subset";
+  if (code === "E_PROVENANCE_AMBIGUOUS") return "opaque/provenance";
   if (code.startsWith("E_SCHEMA_")) return "schema/project";
   if (code.startsWith("E_RULE_")) return "schema/rules";
   if (code.startsWith("E_SEED_")) return "schema/seed";

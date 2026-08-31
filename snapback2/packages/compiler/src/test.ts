@@ -906,7 +906,7 @@ test("ref operation arguments retain their schema table in the engine IR", async
 });
 
 registerColumnTypeChecks(test);
-registerProvenanceSiteChecks(test);
+registerProvenanceSiteChecks(test, `${frontend}fixtures/s1`);
 
 test("Decimal insert multiplication keeps literal and argument multipliers as Int", () => {
   const tables = new Map<string, TableInfo>([["products", {

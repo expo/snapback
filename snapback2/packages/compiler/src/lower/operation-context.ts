@@ -19,6 +19,13 @@ export function directArgument(node: ts.Expression, env: Environment): string | 
   if (ts.isPropertyAccessExpression(value) && ts.isIdentifier(value.expression)
     && value.expression.text === "args") return value.getText(env.sourceFile);
   if (ts.isIdentifier(value) && env.args[value.text]) return `args.${value.text}`;
+  if (ts.isCallExpression(value)) {
+    for (const argument of value.arguments) {
+      const direct = directArgument(argument, env);
+      if (direct) return direct;
+    }
+    return undefined;
+  }
   let direct: string | undefined;
   value.forEachChild((child) => {
     if (!direct && ts.isExpression(child)) direct = directArgument(child, env);

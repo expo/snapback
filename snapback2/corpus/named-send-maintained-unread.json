@@ -1024,7 +1024,7 @@
               "after": null,
               "before": null,
               "range": null,
-              "provenance": "Shape"
+              "provenance": "Arg"
             }
           },
           "body": [
@@ -1163,7 +1163,7 @@
   },
   "certificate": {
     "program": "sendMaintainedUnread",
-    "plan_hash": "d3c40e183adcd48055aeefb280aedd9938710d467dbd077e4f8d46f5bf0c2552",
+    "plan_hash": "86a0a5108f596bb7d4af38beb3dd4bb692563d9cae188578aaa098b06362b32f",
     "schema_hash": "314b4cce50b42b3b7d322bd3e6741a8d2764900283317efb14f9bab2ad2a56c8",
     "rule_hashes": {
       "memberships.read": "dc561e10e601af93441d152d27d3a80d7dd2ebea25a2754780b38c0a4b233b6c",
@@ -1189,7 +1189,7 @@
         "site": "programs.sendMaintainedUnread.2",
         "table": "memberships",
         "index": "byConversation",
-        "prefix_template": "Shape",
+        "prefix_template": "Arg",
         "take": 256,
         "max_calls": 1,
         "rule_probes_per_candidate": 2,

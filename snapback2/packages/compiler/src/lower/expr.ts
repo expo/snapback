@@ -143,10 +143,10 @@ export function lowerCoalesce(
   hint: string | undefined,
   lowerValue: (node: ts.Expression, env: Environment, hint?: string) => LoweredValue,
 ): LoweredValue {
-  const right = lowerValue(node.right, env, hint);
   const name = temporary(env, "coalesce");
   if (ts.isPropertyAccessExpression(node.left) && node.left.questionDotToken) {
     const base = lowerValue(node.left.expression, env, hint);
+    const right = lowerValue(node.right, env, hint);
     const baseName = temporary(env, "optional");
     return {
       statements: [
@@ -164,6 +164,7 @@ export function lowerCoalesce(
     };
   }
   const left = lowerValue(node.left, env, hint);
+  const right = lowerValue(node.right, env, hint);
   const leftName = temporary(env, "optional");
   return {
     statements: [
@@ -189,7 +190,7 @@ export function lowerPatch(node: ts.Expression, env: Environment): Expr {
     }
     if (ts.isBlock(node.body)) refuse(env, "E_OPAQUE", node.body, "write callback body must be an expression");
     const callbackEnv = cloneEnvironment(env);
-    callbackEnv.variables.set(node.parameters[0].name.text, { provenance: "Shape" });
+    callbackEnv.variables.set(node.parameters[0].name.text, { provenance: "Shape", rowBinding: true });
     return lowerExpr(node.body, callbackEnv);
   }
   return lowerExpr(node, env);
@@ -207,7 +208,7 @@ export function lowerDomain(
   if (call && callName(call).endsWith(".scan")) {
     return {
       domain: { Page: lowerScan(call, env, hint ?? `${env.programName}.${tableReference(call.arguments[0]!, env).table}`) },
-      bindingInfo: { provenance: "Shape", objectFields: rowFields(call.arguments[0], env) },
+      bindingInfo: { provenance: "Shape", objectFields: rowFields(call.arguments[0], env), rowBinding: true },
     };
   }
   if (call && ts.isIdentifier(call.expression) && call.expression.text === "range") {
@@ -247,7 +248,7 @@ export function lowerDomain(
           max: info.max,
           bound_source: info.boundSource ?? `${identifier} declared max`,
         } },
-        bindingInfo: { provenance: info.provenance },
+        bindingInfo: { provenance: info.provenance, ...(info.rowCollection ? { rowBinding: true } : {}) },
       };
     }
   }
@@ -293,7 +294,7 @@ function lowerRecurse(call: ts.CallExpression, env: Environment): { domain: Loop
       fanout,
       provenance: "Shape",
     } },
-    bindingInfo: { provenance: "Shape" },
+    bindingInfo: { provenance: "Shape", rowBinding: true },
   };
 }
 
@@ -466,7 +467,7 @@ function lowerCall(call: ts.CallExpression, env: Environment, hint?: string): Ex
         table: "memberships",
         index: "byConvUser",
         key: [lowerExpr(conversation, env), { Input: "Viewer" }],
-        provenance: "Shape",
+        provenance: combineProvenance([readProvenance(conversation, env), "Viewer"]),
       },
     };
   }
@@ -624,23 +625,14 @@ function inferProvenance(node: ts.Expression, env: Environment, strict: boolean)
   if (ts.isIdentifier(value)) {
     const info = env.variables.get(value.text);
     if (strict && (!info || info.provenanceAmbiguity)) {
-      const firstArg = Object.keys(env.args)[0];
-      const direct = info?.provenanceAmbiguity?.directRewrite
-        ?? (firstArg ? `args.${firstArg}` : "null");
-      refuse(
-        env,
-        "E_PROVENANCE_AMBIGUOUS",
-        value,
-        "read key provenance is ambiguous; each key must follow one direct origin rule",
-        replaceNode(env.source, value, direct),
-      );
+      refuseAmbiguous(value, env, info?.provenanceAmbiguity?.directRewrite);
     }
     return info?.provenance ?? "Computed";
   }
   if (ts.isPropertyAccessExpression(value)) {
     if (ts.isIdentifier(value.expression) && value.expression.text === "args") return "Arg";
     if (ts.isIdentifier(value.expression) && value.expression.text === "ctx" && value.name.text === "viewer") return "Viewer";
-    return "Shape";
+    return propertyProvenance(value, env, strict);
   }
   if (ts.isTemplateExpression(value) || ts.isBinaryExpression(value) || ts.isNewExpression(value)
     || ts.isPrefixUnaryExpression(value) || ts.isConditionalExpression(value)) return "Computed";
@@ -649,11 +641,135 @@ function inferProvenance(node: ts.Expression, env: Environment, strict: boolean)
     if (expanded) return inferProvenance(expanded.expression, expanded.environment, strict);
     return "Computed";
   }
+  if (ts.isObjectLiteralExpression(value)) {
+    const members: Provenance[] = [];
+    for (const property of value.properties) {
+      if (ts.isSpreadAssignment(property)) {
+        members.push(inferProvenance(property.expression, env, strict));
+      } else if (ts.isShorthandPropertyAssignment(property)) {
+        members.push(inferProvenance(property.name, env, strict));
+      } else if (ts.isPropertyAssignment(property)) {
+        members.push(inferProvenance(property.initializer, env, strict));
+      }
+    }
+    return combineProvenance(members);
+  }
   const children: Provenance[] = [];
   value.forEachChild((child) => {
     if (ts.isExpression(child)) children.push(inferProvenance(child, env, strict));
   });
   return combineProvenance(children);
+}
+
+function propertyProvenance(
+  node: ts.PropertyAccessExpression,
+  env: Environment,
+  strict: boolean,
+  refusalNode: ts.Expression = node,
+): Provenance {
+  const base = unwrapExpression(node.expression);
+  const substituted = ts.isIdentifier(base) ? env.substitutions.get(base.text) : undefined;
+  if (substituted) {
+    return propertyProvenance(
+      ts.factory.createPropertyAccessExpression(substituted, node.name.text),
+      env,
+      strict,
+      refusalNode,
+    );
+  }
+  if (isRowExpression(base, env)) return "Shape";
+
+  const selected = objectMember(base, node.name.text, env);
+  if (selected) return inferProvenance(selected.expression, selected.environment, strict);
+
+  if (ts.isIdentifier(base)) {
+    const info = env.variables.get(base.text);
+    if (strict && info?.provenanceAmbiguity) refuseAmbiguous(refusalNode, env, info.provenanceAmbiguity.directRewrite);
+    if (info?.immutableOrigin) {
+      return propertyProvenance(
+        ts.factory.createPropertyAccessExpression(info.immutableOrigin, node.name.text),
+        env,
+        strict,
+        refusalNode,
+      );
+    }
+  }
+
+  if (ts.isPropertyAccessExpression(base)) {
+    const origin = inferProvenance(base, env, strict);
+    if (origin === "Arg") return "Arg";
+  }
+
+  if (strict) refuseAmbiguous(refusalNode, env);
+  return "Computed";
+}
+
+function objectMember(
+  node: ts.Expression,
+  name: string,
+  env: Environment,
+): { expression: ts.Expression; environment: Environment } | undefined {
+  const value = unwrapExpression(node);
+  const substituted = ts.isIdentifier(value) ? env.substitutions.get(value.text) : undefined;
+  if (substituted) return objectMember(substituted, name, env);
+  if (ts.isIdentifier(value)) {
+    const info = env.variables.get(value.text);
+    return info?.immutableOrigin ? objectMember(info.immutableOrigin, name, env) : undefined;
+  }
+  if (ts.isCallExpression(value)) {
+    const expanded = expandHelper(value, env);
+    return expanded ? objectMember(expanded.expression, name, expanded.environment) : undefined;
+  }
+  if (!ts.isObjectLiteralExpression(value)) return undefined;
+  for (const property of [...value.properties].reverse()) {
+    if (ts.isSpreadAssignment(property)) {
+      const selected = objectMember(property.expression, name, env);
+      if (selected) return selected;
+      continue;
+    }
+    if (ts.isShorthandPropertyAssignment(property) && property.name.text === name) {
+      return { expression: property.name, environment: env };
+    }
+    if (ts.isPropertyAssignment(property) && propertyName(property.name) === name) {
+      return { expression: property.initializer, environment: env };
+    }
+  }
+  return undefined;
+}
+
+export function isRowExpression(node: ts.Expression, env: Environment): boolean {
+  const value = unwrapExpression(node);
+  const substituted = ts.isIdentifier(value) ? env.substitutions.get(value.text) : undefined;
+  if (substituted) return isRowExpression(substituted, env);
+  if (ts.isIdentifier(value)) return env.variables.get(value.text)?.rowBinding === true;
+  const call = unwrapCall(value);
+  if (!call) return false;
+  const expanded = expandHelper(call, env);
+  if (expanded) return isRowExpression(expanded.expression, expanded.environment);
+  return callName(call).endsWith(".get") && isDbMember(call.expression);
+}
+
+export function isRowCollectionExpression(node: ts.Expression, env: Environment): boolean {
+  const value = unwrapExpression(node);
+  const substituted = ts.isIdentifier(value) ? env.substitutions.get(value.text) : undefined;
+  if (substituted) return isRowCollectionExpression(substituted, env);
+  if (ts.isIdentifier(value)) return env.variables.get(value.text)?.rowCollection === true;
+  const call = unwrapCall(value);
+  if (!call) return false;
+  const expanded = expandHelper(call, env);
+  if (expanded) return isRowCollectionExpression(expanded.expression, expanded.environment);
+  return callName(call).endsWith(".scan") && isDbMember(call.expression);
+}
+
+function refuseAmbiguous(node: ts.Expression, env: Environment, directRewrite?: string): never {
+  const firstArg = Object.keys(env.args)[0];
+  refuse(
+    env,
+    "E_PROVENANCE_AMBIGUOUS",
+    node,
+    "read key provenance is ambiguous; each key must follow one direct origin rule",
+    replaceNode(env.source, node, directRewrite ?? (firstArg ? `args.${firstArg}` : "null")),
+  );
 }
 
 export function combineProvenance(values: Provenance[]): Provenance {

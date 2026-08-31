@@ -1,7 +1,7 @@
 import ts from "typescript";
 import type { TableInfo } from "../authored-types";
 import type { FunctionLike, LowerSourceOptions } from "../compiler";
-import { hasExport, snapbackCallName, stringArgument, unwrapCall } from "../syntax";
+import { snapbackCallName, stringArgument, unwrapCall } from "../syntax";
 
 export type ModuleInfo = {
   sourceFile: ts.SourceFile;
@@ -10,7 +10,6 @@ export type ModuleInfo = {
   tables: Map<string, TableInfo>;
   effects: Map<string, string>;
   helpers: Map<string, FunctionLike>;
-  exports: Set<string>;
 };
 
 export function inspectModule(
@@ -22,7 +21,6 @@ export function inspectModule(
   const tables = new Map(options.tables ?? []);
   const effects = new Map(options.effects ?? []);
   const helpers = new Map<string, FunctionLike>();
-  const exports = new Set<string>();
   for (const statement of sourceFile.statements) {
     if (ts.isFunctionDeclaration(statement) && statement.name) {
       helpers.set(statement.name.text, statement);
@@ -32,7 +30,6 @@ export function inspectModule(
     for (const declaration of statement.declarationList.declarations) {
       if (!ts.isIdentifier(declaration.name) || !declaration.initializer) continue;
       const name = declaration.name.text;
-      if (hasExport(statement)) exports.add(name);
       const call = unwrapCall(declaration.initializer);
       const imported = call && snapbackCallName(call, sourceFile);
       const localHelper = call && ts.isIdentifier(call.expression) && ["privateTable", "maintained"].includes(call.expression.text)
@@ -58,5 +55,5 @@ export function inspectModule(
       }
     }
   }
-  return { sourceFile, source, fileName, tables, effects, helpers, exports };
+  return { sourceFile, source, fileName, tables, effects, helpers };
 }

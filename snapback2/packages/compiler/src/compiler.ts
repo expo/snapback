@@ -8,6 +8,8 @@ import {
   collectionMutationCounts,
   combineProvenance,
   derivedBound,
+  isRowExpression,
+  isRowCollectionExpression,
   knownObjectFields,
   loopDomainMaximum,
   lowerCoalesce,
@@ -60,6 +62,9 @@ export type { TableInfo } from "./authored-types";
 export type VariableInfo = {
   provenance: Provenance;
   provenanceAmbiguity?: { directRewrite?: string };
+  immutableOrigin?: ts.Expression;
+  rowBinding?: boolean;
+  rowCollection?: boolean;
   max?: number;
   boundSource?: string;
   collection?: "Map" | "Set";
@@ -279,6 +284,9 @@ function lowerStatement(statement: ts.Statement, env: Environment): Stmt[] {
           ...derivedBound(declaration.initializer, env),
           ...(collection ? { collection } : {}),
           ...(objectFields ? { objectFields } : {}),
+          ...(isConst ? { immutableOrigin: declaration.initializer } : {}),
+          ...(isRowExpression(declaration.initializer, env) ? { rowBinding: true } : {}),
+          ...(isRowCollectionExpression(declaration.initializer, env) ? { rowCollection: true } : {}),
           ...(isNullableDbGet(declaration.initializer) ? { nullableRead: true } : {}),
         });
         out.push(...lowered.statements);
@@ -344,7 +352,7 @@ function lowerStatement(statement: ts.Statement, env: Environment): Stmt[] {
 
 function trackedProvenance(node: ts.Expression, env: Environment): Pick<VariableInfo, "provenance" | "provenanceAmbiguity"> {
   try {
-    return { provenance: provenance(node, env) };
+    return { provenance: readProvenance(node, env) };
   } catch (error) {
     if (!(error instanceof Refusal) || error.diagnostic.code !== "E_PROVENANCE_AMBIGUOUS") throw error;
     return { provenance: "Computed", provenanceAmbiguity: { directRewrite: directArgument(node, env) } };
@@ -531,13 +539,14 @@ function lowerCallbackWrite(
     refuse(env, "E_OPAQUE", target, "upsert callbacks require a table primary key");
   }
   const site = allocateReadSite(env);
+  reserveWriteSite(env);
   const current = temporary(env, `${singular(table)}Current`);
   const callbackEnv = cloneEnvironment(env);
   callbackEnv.substitutions.set(
     callback.parameters[0].name.text,
     syntheticIdentifier(env.sourceFile, current),
   );
-  callbackEnv.variables.set(current, { provenance: "Shape" });
+  callbackEnv.variables.set(current, { provenance: "Shape", rowBinding: true });
   const lowered = lowerValue(callback.body, callbackEnv, `${env.programName}.${singular(table)}Write`);
   const statements: Stmt[] = [{ Let: {
     name: current,

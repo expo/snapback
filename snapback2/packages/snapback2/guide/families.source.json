@@ -7,9 +7,9 @@
   },
   {
     "family": "opaque",
-    "code": "E_OPAQUE_CALL",
-    "wrong": "helper(db.scan(todos.byOwner, [ctx.viewer], { take: 50 }))",
-    "right": "db.scan(todos.byOwner, [ctx.viewer], { take: 50 })"
+    "code": "E_PROVENANCE_AMBIGUOUS",
+    "wrong": "let key = args.id; key = args.otherId; db.scan(items.byKey, [key], { take: 50 })",
+    "right": "db.scan(items.byKey, [args.id], { take: 50 })"
   },
   {
     "family": "schema",

@@ -326,7 +326,7 @@ pub fn send_program(with_unread: bool) -> Program {
                 after: None,
                 before: None,
                 range: None,
-                provenance: KeyProvenance::Shape,
+                provenance: KeyProvenance::Arg,
             }),
             body: vec![
                 Stmt::Let {
@@ -794,7 +794,7 @@ pub fn nested_expenses_program() -> Program {
         body: vec![Stmt::For {
             binding: "expense".to_owned(),
             domain: LoopDomain::Page(Scan {
-                site: "expenses".to_owned(),
+                site: "programs.expensesByShares.0".to_owned(),
                 table: "expenses".to_owned(),
                 index: "byGroup".to_owned(),
                 prefix: vec![var("groupId")],
@@ -808,7 +808,7 @@ pub fn nested_expenses_program() -> Program {
             body: vec![Stmt::Let {
                 name: "shares".to_owned(),
                 value: Expr::Scan(Scan {
-                    site: "shares".to_owned(),
+                    site: "programs.expensesByShares.1".to_owned(),
                     table: "shares".to_owned(),
                     index: "byExpense".to_owned(),
                     prefix: vec![field(var("expense"), "id")],
@@ -857,7 +857,7 @@ pub fn structural_waitlist_count_program() -> Program {
         body: vec![Stmt::Return(Expr::Builtin {
             builtin: Builtin::Count,
             args: vec![Expr::Scan(Scan {
-                site: "waitlist.depth".to_owned(),
+                site: "programs.waitlistDepth.0".to_owned(),
                 table: "waitlist".to_owned(),
                 index: "byResource".to_owned(),
                 prefix: vec![var("resourceId")],

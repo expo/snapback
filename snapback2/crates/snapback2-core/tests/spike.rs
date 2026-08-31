@@ -738,11 +738,9 @@ fn bound_products_helpers_and_structural_counts_are_checked() {
         .check(&nested_expenses_program())
         .unwrap_err();
     assert_eq!(error.code, "E_BOUND");
-    assert!(
-        error
-            .message
-            .contains("expenses take 500 × shares take 50 = 25000")
-    );
+    assert!(error.message.contains(
+        "programs.expensesByShares.0 take 500 × programs.expensesByShares.1 take 50 = 25000"
+    ));
     assert!(error.rewrite.contains("maintain.count/sum"));
 
     let helper_certificate = checker(&schema)

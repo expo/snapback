@@ -34,10 +34,9 @@ export async function lowerProject(root: string): Promise<ProjectResult> {
     };
   }
 
-  const entries = await readdir(authoredRoot, { withFileTypes: true });
-  const modulePaths = entries
-    .filter((entry) => entry.isFile() && entry.name.endsWith(".ts") && !["schema.ts", "seed.ts"].includes(entry.name))
-    .map((entry) => join(authoredRoot, entry.name))
+  const discoveredModulePaths = await discoverModulePaths(authoredRoot);
+  const modulePaths = discoveredModulePaths
+    .filter((path) => dirname(path) === authoredRoot)
     .sort();
   const moduleSources = await Promise.all(modulePaths.map(async (path) => [path, await readFile(path, "utf8")] as const));
   const modules: SourceModule[] = moduleSources.map(([path, source]) => ({
@@ -48,7 +47,7 @@ export async function lowerProject(root: string): Promise<ProjectResult> {
   }));
   const schemaFileName = relativeSite(projectRoot, schemaPath);
   const schema = lowerSchema(schemaSource, schemaFileName);
-  const diagnostics = [...schema.diagnostics];
+  const diagnostics = [...schema.diagnostics, ...duplicateModuleBasenameDiagnostics(discoveredModulePaths, projectRoot)];
   if (modules.length === 0) {
     diagnostics.push(typeDiagnostic(
       "E_OP_NONE",
@@ -111,6 +110,49 @@ export async function lowerProject(root: string): Promise<ProjectResult> {
     apiDts,
     ms: elapsed(started),
   };
+}
+
+async function discoverModulePaths(directory: string, root = directory): Promise<string[]> {
+  const paths: string[] = [];
+  for (const entry of await readdir(directory, { withFileTypes: true })) {
+    const path = join(directory, entry.name);
+    if (entry.isDirectory()) {
+      if (directory === root && entry.name === "tests") continue;
+      paths.push(...await discoverModulePaths(path, root));
+    } else if (entry.isFile() && entry.name.endsWith(".ts")
+      && !(directory === root && ["schema.ts", "seed.ts"].includes(entry.name))) {
+      paths.push(path);
+    }
+  }
+  return paths;
+}
+
+function duplicateModuleBasenameDiagnostics(paths: string[], projectRoot: string): FrontendDiagnostic[] {
+  const grouped = new Map<string, string[]>();
+  for (const path of paths) {
+    const name = moduleName(path);
+    const group = grouped.get(name) ?? [];
+    group.push(path);
+    grouped.set(name, group);
+  }
+  const diagnostics: FrontendDiagnostic[] = [];
+  for (const [name, group] of grouped) {
+    if (group.length < 2) continue;
+    for (const path of group.sort()) {
+      const site = relativeSite(projectRoot, path);
+      diagnostics.push(typeDiagnostic(
+        "E_OP_RESERVED",
+        "op",
+        site,
+        1,
+        1,
+        `module basename ${name} is duplicated; read-site identity requires one flat module per basename`,
+        `rename ${site} so every snapback module has a unique basename`,
+        "programs/operations",
+      ));
+    }
+  }
+  return diagnostics;
 }
 
 export async function lowerSeed(root: string): Promise<
