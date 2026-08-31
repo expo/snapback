@@ -172,13 +172,7 @@ fn range_point_and_absence_invalidation_is_exact_and_reruns_coalesce() {
             ),
         )
         .unwrap();
-    assert_eq!(
-        capped.state,
-        ExecutionState::Capped {
-            site: Some("items.first".to_owned()),
-            take: Some(1),
-        }
-    );
+    assert_eq!(capped.state, ExecutionState::Capped);
     let deliveries = runtime.rerun(&[range_id, range_id]);
     assert_eq!(deliveries.len(), 1);
     assert!(deliveries[0].changed);
@@ -206,7 +200,7 @@ fn range_point_and_absence_invalidation_is_exact_and_reruns_coalesce() {
 }
 
 #[test]
-fn exhausted_hidden_range_is_complete_and_membership_addition_redelivers_it() {
+fn hoisted_false_hidden_range_halts_once_and_membership_addition_redelivers_it() {
     let memberships = public_table(
         BTreeMap::from([
             ("id".to_owned(), ColumnType::Id),
@@ -297,7 +291,7 @@ fn exhausted_hidden_range_is_complete_and_membership_addition_redelivers_it() {
     assert_eq!(initial.state, ExecutionState::Complete);
     assert_eq!(initial.result, Value::Array(Vec::new()));
     assert_eq!(initial.trace.ranges[0].stop, StopReason::Exhausted);
-    assert_eq!(initial.trace.ranges[0].examined_ids, vec!["d1", "d2"]);
+    assert_eq!(initial.trace.ranges[0].examined_ids, vec!["d1"]);
     assert!(initial.trace.ranges[0].visible_ids.is_empty());
 
     let hidden_limit = runtime
@@ -310,8 +304,9 @@ fn exhausted_hidden_range_is_complete_and_membership_addition_redelivers_it() {
         )
         .unwrap();
     assert_eq!(hidden_limit.state, ExecutionState::Complete);
-    assert_eq!(hidden_limit.trace.ranges[0].stop, StopReason::Limit);
-    assert!(hidden_limit.receipt.ranges.is_empty());
+    assert_eq!(hidden_limit.trace.ranges[0].stop, StopReason::Exhausted);
+    assert_eq!(hidden_limit.receipt.ranges.len(), 1);
+    assert!(hidden_limit.receipt.ranges[0].absence);
 
     let seq = runtime
         .seed(&[(
@@ -406,20 +401,17 @@ fn hidden_rows_before_a_visible_row_still_produce_capped_from_trace() {
             Context::query(Actor::user("u1").unwrap(), BTreeMap::new()),
         )
         .unwrap();
-    assert_eq!(execution.result, Value::Array(Vec::new()));
+    assert_eq!(
+        execution.result,
+        Value::Array(vec![item("d4", "g1", "visible later")])
+    );
     assert_eq!(
         execution.trace.ranges[0].examined_ids,
-        vec!["d1", "d2", "d3"]
+        vec!["d1", "d2", "d3", "d4"]
     );
     assert_eq!(execution.trace.ranges[0].stop, StopReason::Limit);
     assert!(execution.receipt.ranges.is_empty());
-    assert_eq!(
-        execution.state,
-        ExecutionState::Capped {
-            site: None,
-            take: None,
-        }
-    );
+    assert_eq!(execution.state, ExecutionState::Capped);
 }
 
 #[test]

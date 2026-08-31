@@ -927,6 +927,34 @@
       }
     ]
   },
+  "certificate": {
+    "program": "edge-i53-min",
+    "plan_hash": "0437f4fc72ddbf1c8d565cbf40468b6c320d9bf9b6dfac50df151e4b1ee49485",
+    "schema_hash": "31792591fb75b5ab316e24a71206d3f7de6e02ed12f49a2f39782dbcab4b3566",
+    "rule_hashes": {},
+    "evaluator_version": "bounded-spike-rust-1",
+    "value_model_version": "i53-codepoint-bytes-v2",
+    "read_sites": [],
+    "write_sites": [],
+    "maintained_amplification": 0,
+    "constraint_checks": [],
+    "max_examined": 0,
+    "max_index_entries": 0,
+    "max_rule_probes": 0,
+    "max_steps": 2,
+    "max_heap_bytes": 64,
+    "max_output_bytes": 25,
+    "max_closure_bytes": 0,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [],
+    "disclosures": [
+      "E_DISCLOSURE: count waitlist summarized into waitCounts"
+    ],
+    "bound_product": null
+  },
   "context": {
     "viewer": "u1",
     "principal_kind": "user",

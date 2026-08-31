@@ -10,13 +10,8 @@ pub fn execution_json(execution: &Execution) -> Json {
         ExecutionState::Complete => {
             json!({ "state": "complete", "data": value_to_json(&execution.result), "seq": execution.seq })
         }
-        ExecutionState::Capped { site, take } => {
-            let mut value = json!({ "state": "capped", "data": value_to_json(&execution.result), "seq": execution.seq });
-            if let (Some(site), Some(take)) = (site, take) {
-                value["site"] = Json::String(site.clone());
-                value["take"] = Json::from(*take);
-            }
-            value
+        ExecutionState::Capped => {
+            json!({ "state": "capped", "data": value_to_json(&execution.result), "seq": execution.seq })
         }
         ExecutionState::Partial { reason } => {
             json!({ "state": "partial", "data": value_to_json(&execution.result), "seq": execution.seq, "reason": reason })
@@ -45,7 +40,7 @@ pub fn live_frame(execution: Result<&Execution, Refusal>, refused_seq: u64) -> (
     match execution {
         Ok(execution) => match &execution.state {
             ExecutionState::Complete
-            | ExecutionState::Capped { .. }
+            | ExecutionState::Capped
             | ExecutionState::Partial { .. }
             | ExecutionState::Denied { .. } => (execution_json(execution), false),
             ExecutionState::Committed { .. } | ExecutionState::Rejected { .. } => refusal_frame(
@@ -92,10 +87,7 @@ mod tests {
     fn subscription_frames_preserve_query_states_and_terminal_refusals() {
         for state in [
             ExecutionState::Complete,
-            ExecutionState::Capped {
-                site: Some("items.page".to_owned()),
-                take: Some(10),
-            },
+            ExecutionState::Capped,
             ExecutionState::Partial {
                 reason: "coverage".to_owned(),
             },
@@ -108,6 +100,12 @@ mod tests {
             assert_eq!(frame, execution_json(&execution));
             assert!(!terminal);
             assert!(!matches!(frame["state"].as_str(), Some("live" | "stale")));
+            if frame["state"] == "capped" {
+                assert_eq!(frame.as_object().unwrap().len(), 3);
+                assert!(frame.get("site").is_none());
+                assert!(frame.get("take").is_none());
+                assert!(frame.get("reason").is_none());
+            }
         }
 
         let refusal = Refusal::new(
@@ -168,31 +166,10 @@ mod tests {
     }
 
     #[test]
-    fn capped_page_metadata_is_disclosed_only_as_a_complete_pair() {
-        let detailed = execution_json(&execution(ExecutionState::Capped {
-            site: Some("items.page".to_owned()),
-            take: Some(10),
-        }));
-        assert_eq!(detailed["site"], "items.page");
-        assert_eq!(detailed["take"], 10);
-
-        for state in [
-            ExecutionState::Capped {
-                site: Some("items.page".to_owned()),
-                take: None,
-            },
-            ExecutionState::Capped {
-                site: None,
-                take: Some(10),
-            },
-            ExecutionState::Capped {
-                site: None,
-                take: None,
-            },
-        ] {
-            let opaque = execution_json(&execution(state));
-            assert!(opaque.get("site").is_none());
-            assert!(opaque.get("take").is_none());
-        }
+    fn capped_state_is_opaque() {
+        let opaque = execution_json(&execution(ExecutionState::Capped));
+        assert!(opaque.get("site").is_none());
+        assert!(opaque.get("take").is_none());
+        assert!(opaque.get("reason").is_none());
     }
 }

@@ -410,3 +410,216 @@ fn principal_schema_and_argument_types_keep_the_id_scalar_wire_encoding() {
         .unwrap_err();
     assert!(matches!(refusal, RuntimeError::Input(_)));
 }
+
+fn bytes_schema() -> Schema {
+    Schema {
+        tables: BTreeMap::from([(
+            "blobs".to_owned(),
+            public_table(
+                BTreeMap::from([
+                    ("id".to_owned(), ColumnType::Id),
+                    ("payload".to_owned(), ColumnType::Bytes { max: 4 }),
+                ]),
+                BTreeMap::from([
+                    (
+                        "byId".to_owned(),
+                        Index {
+                            columns: vec!["id".to_owned()],
+                            unique: true,
+                        },
+                    ),
+                    (
+                        "byPayload".to_owned(),
+                        Index {
+                            columns: vec!["payload".to_owned(), "id".to_owned()],
+                            unique: false,
+                        },
+                    ),
+                ]),
+            ),
+        )]),
+        maintains: Vec::new(),
+        channels: BTreeMap::new(),
+        auth: Auth::default(),
+        effects: Vec::new(),
+    }
+}
+
+fn bytes_programs() -> Vec<Program> {
+    vec![
+        Program {
+            name: "blobs.create".to_owned(),
+            kind: ProgramKind::Mutation,
+            args: BTreeMap::from([
+                ("id".to_owned(), ArgType::Id),
+                ("payload".to_owned(), ArgType::Bytes { max: 8 }),
+            ]),
+            read_time_granularity_ms: None,
+            body: vec![Stmt::Insert {
+                table: "blobs".to_owned(),
+                row: Expr::Object(BTreeMap::from([
+                    ("id".to_owned(), var("id")),
+                    ("payload".to_owned(), var("payload")),
+                ])),
+            }],
+        },
+        Program {
+            name: "blobs.update".to_owned(),
+            kind: ProgramKind::Mutation,
+            args: BTreeMap::from([
+                ("id".to_owned(), ArgType::Id),
+                ("payload".to_owned(), ArgType::Bytes { max: 8 }),
+            ]),
+            read_time_granularity_ms: None,
+            body: vec![Stmt::Update {
+                table: "blobs".to_owned(),
+                key: var("id"),
+                patch: Expr::Object(BTreeMap::from([("payload".to_owned(), var("payload"))])),
+            }],
+        },
+        Program {
+            name: "blobs.scan".to_owned(),
+            kind: ProgramKind::Query,
+            args: BTreeMap::new(),
+            read_time_granularity_ms: None,
+            body: vec![Stmt::Return(Expr::Scan(Scan {
+                site: "blobs.scan".to_owned(),
+                table: "blobs".to_owned(),
+                index: "byPayload".to_owned(),
+                prefix: Vec::new(),
+                order: Order::Asc,
+                take: Bound::Literal(10),
+                after: None,
+                before: None,
+                range: None,
+                provenance: KeyProvenance::Const,
+            }))],
+        },
+    ]
+}
+
+fn bytes_args(id: &str, payload: &[u8]) -> BTreeMap<String, Value> {
+    BTreeMap::from([
+        ("id".to_owned(), Value::Id(id.to_owned())),
+        ("payload".to_owned(), Value::Bytes(payload.to_vec())),
+    ])
+}
+
+#[test]
+fn bytes_json_and_certificate_version_are_exact() {
+    let value = Value::Bytes(vec![0x00, 0x7f, 0x80, 0xff]);
+    assert_eq!(
+        serde_json::to_value(&value).unwrap(),
+        serde_json::json!({ "Bytes": "007f80ff" })
+    );
+    assert_eq!(
+        serde_json::from_value::<Value>(serde_json::json!({ "Bytes": "007f80ff" })).unwrap(),
+        value
+    );
+    for invalid in ["0", "00FF", "0g"] {
+        assert!(serde_json::from_value::<Value>(serde_json::json!({ "Bytes": invalid })).is_err());
+    }
+    assert!(
+        serde_json::from_value::<Value>(serde_json::json!({ "Bytes": "00ff", "extra": 1 }))
+            .is_err()
+    );
+    assert_eq!(
+        serde_json::to_value(ColumnType::Bytes { max: 4 }).unwrap(),
+        serde_json::json!({ "Bytes": { "max": 4 } })
+    );
+    let certificate = Checker::new(&bytes_schema(), Ceilings::default())
+        .check(&bytes_programs().pop().unwrap())
+        .unwrap();
+    assert_eq!(
+        certificate.value_model_version,
+        CURRENT_VALUE_MODEL_VERSION.as_str()
+    );
+}
+
+#[test]
+fn stale_value_model_certificate_is_refused() {
+    let program = bytes_programs().pop().unwrap();
+    let mut certificate = Checker::new(&bytes_schema(), Ceilings::default())
+        .check(&program)
+        .unwrap();
+    certificate.value_model_version = "i53-codepoint-v1".to_owned();
+    let error = Engine::memory(bytes_schema())
+        .unwrap()
+        .execute(
+            &program,
+            &certificate,
+            Context::query(Actor::user("u1").unwrap(), BTreeMap::new()),
+        )
+        .unwrap_err();
+    assert!(matches!(
+        error,
+        RuntimeError::TraceSubset(message) if message.contains("value model version")
+    ));
+}
+
+#[test]
+fn bytes_insert_update_round_trip_bounds_and_unsigned_index_order() {
+    let project = ProjectJson {
+        version: 1,
+        schema: bytes_schema(),
+        programs: bytes_programs(),
+        effects: Vec::new(),
+        auth: Auth::default(),
+    };
+    let generation = Generation::certify(&project, Ceilings::default()).unwrap();
+    let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
+    for args in [
+        bytes_args("high", &[0xff, 0x00]),
+        bytes_args("low", &[0x00, 0xff]),
+        bytes_args("prefix", &[0x00]),
+    ] {
+        let execution = runtime
+            .execute(
+                "blobs.create",
+                Context::mutation(Actor::user("u1").unwrap(), args),
+            )
+            .unwrap();
+        assert!(matches!(execution.state, ExecutionState::Committed { .. }));
+    }
+
+    let ordered = runtime
+        .execute(
+            "blobs.scan",
+            Context::query(Actor::user("u1").unwrap(), BTreeMap::new()),
+        )
+        .unwrap();
+    assert_eq!(result_ids(&ordered), vec!["prefix", "low", "high"]);
+    assert_eq!(
+        ordered.result.as_array().unwrap()[1]
+            .field("payload")
+            .unwrap(),
+        &Value::Bytes(vec![0x00, 0xff])
+    );
+
+    let updated = runtime
+        .execute(
+            "blobs.update",
+            Context::mutation(
+                Actor::user("u1").unwrap(),
+                bytes_args("high", &[0x01, 0x02]),
+            ),
+        )
+        .unwrap();
+    assert!(matches!(updated.state, ExecutionState::Committed { .. }));
+
+    for op in ["blobs.create", "blobs.update"] {
+        let refused = runtime
+            .execute(
+                op,
+                Context::mutation(
+                    Actor::user("u1").unwrap(),
+                    bytes_args("high", &[0, 1, 2, 3, 4]),
+                ),
+            )
+            .unwrap();
+        assert!(matches!(
+            refused.state,
+            ExecutionState::Rejected { ref code, .. } if code == "E_INPUT"
+        ));
+    }
+}

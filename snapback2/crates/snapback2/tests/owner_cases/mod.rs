@@ -188,3 +188,34 @@ fn measure_regression_self_test_covers_failed_step_scoring_and_summary() {
     );
     assert!(String::from_utf8_lossy(&output.stdout).contains("measure self-test ok"));
 }
+
+#[test]
+fn doctor_uses_the_lightweight_worker_probe_and_reports_its_latency() {
+    let root = temp_root();
+    let worker = write_worker(
+        &root,
+        "slow-compiler.mjs",
+        r#"import { createInterface } from "node:readline";
+for await (const line of createInterface({ input: process.stdin, crlfDelay: Infinity })) {
+  const request = JSON.parse(line);
+  await new Promise((resolve) => setTimeout(resolve, 550));
+  process.stdout.write(JSON.stringify({ id: request.id, ok: request.op === "seed", seed: { personas: [], rows: {} } }) + "\n");
+}
+"#,
+    );
+    let output = Command::new(env!("CARGO_BIN_EXE_snapback2"))
+        .args(["doctor", "--json"])
+        .env("SNAPBACK2_COMPILER", worker)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{} {}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let report: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(report["compiler"]["answered"], true);
+    assert!(report["compiler"]["ms"].as_f64().unwrap() >= 500.0);
+    fs::remove_dir_all(root).unwrap();
+}

@@ -5,6 +5,7 @@ interface ErrorDecision<Event> { event?: Event; failure?: Error; retry: boolean 
 export interface ReconnectingSseOptions<Event> {
   open(lastEventId: string | undefined, signal: AbortSignal): Promise<Response>;
   decode(event: ParsedEvent): Event;
+  bufferedTerminal?(event: ParsedEvent): Error | undefined;
   onError(error: unknown, hadDelivery: boolean): Promise<ErrorDecision<Event>> | ErrorDecision<Event>;
   onLoss(last: Event | undefined): Event | undefined;
   terminal?(event: Event): Error | undefined;
@@ -77,7 +78,6 @@ async function* parseSse(
   try {
     while (true) {
       const chunk = await reader.read();
-      if (signal.aborted) throw abortError();
       buffer += decoder.decode(chunk.value, { stream: !chunk.done });
       let newline = buffer.indexOf("\n");
       while (newline >= 0) {
@@ -86,6 +86,10 @@ async function* parseSse(
         if (event) yield event;
         newline = buffer.indexOf("\n");
       }
+      // A fence may race with a read that already returned bytes. Let the
+      // transport inspect complete buffered frames for terminal authority
+      // evidence, but never finalize an incomplete frame after abort.
+      if (signal.aborted) throw abortError();
       if (chunk.done) {
         finished = true;
         break;
@@ -202,7 +206,23 @@ export class ReconnectingSse<Event> implements Subscription<Event> {
         const response = await this.options.open(this.lastEventId, attempt.signal);
         if (!response.ok) throw response;
         for await (const parsed of parseSse(response, attempt.signal, armIdle)) {
-          if (this.closed) return;
+          if (this.closed || attempt.signal.aborted) {
+            let terminal: Error | undefined;
+            try {
+              terminal = this.options.bufferedTerminal?.(parsed);
+            } catch {
+              // Malformed or stale nonterminal buffered frames stay suppressed.
+            }
+            if (terminal !== undefined) {
+              try {
+                await this.options.onError(terminal, hadDelivery);
+              } catch {
+                // A closed transport has no remaining observer to fail.
+              }
+              return;
+            }
+            continue;
+          }
           if (parsed.id !== undefined) this.lastEventId = parsed.id;
           const event = this.options.decode(parsed);
           this.deliver(event);
@@ -227,6 +247,7 @@ export class ReconnectingSse<Event> implements Subscription<Event> {
           ? new Error("SSE stream idle for 30000 ms")
           : error;
         const decision = await this.options.onError(failure, hadDelivery);
+        if (this.closed || this.controller.signal.aborted) return;
         if (decision.event !== undefined) this.deliver(decision.event, decision.failure === undefined);
         if (decision.failure !== undefined) this.fail(decision.failure);
         if (!decision.retry) return;

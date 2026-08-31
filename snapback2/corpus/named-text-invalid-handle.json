@@ -99,6 +99,45 @@
       }
     ]
   },
+  "certificate": {
+    "program": "named-text-invalid-handle",
+    "plan_hash": "ea44d183d9985eff164efcb660bc176f243655a94f364a36f35ccb06a271cd9e",
+    "schema_hash": "47e6fcbc106e2dc25b27ff419a8a492bfe773d82d2293a159ed44e8a563e902f",
+    "rule_hashes": {
+      "profiles.insert": "f12438c564eed26f33c5ac8954694878edf0cd6fe54bec9fa12544267d5a1760"
+    },
+    "evaluator_version": "bounded-spike-rust-1",
+    "value_model_version": "i53-codepoint-bytes-v2",
+    "read_sites": [],
+    "write_sites": [
+      {
+        "table": "profiles",
+        "kind": "Insert",
+        "max_rows": 1
+      }
+    ],
+    "maintained_amplification": 0,
+    "constraint_checks": [
+      "profiles:Text(displayName,min=1,format=None)",
+      "profiles:Text(handle,min=3,format=Some(Handle))",
+      "profiles:Text(link,min=0,format=Some(Url))",
+      "profiles:Unique(byId)"
+    ],
+    "max_examined": 0,
+    "max_index_entries": 0,
+    "max_rule_probes": 0,
+    "max_steps": 7,
+    "max_heap_bytes": 224,
+    "max_output_bytes": 6,
+    "max_closure_bytes": 0,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [],
+    "disclosures": [],
+    "bound_product": null
+  },
   "context": {
     "viewer": "u1",
     "principal_kind": "user",

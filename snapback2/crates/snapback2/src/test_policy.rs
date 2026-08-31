@@ -19,7 +19,7 @@ pub(super) fn check_rules(
             continue;
         }
         let rows = seed.rows.get(table_name).cloned().unwrap_or_default();
-        if rows.is_empty() {
+        if !rule_table_has_probe_rows(table_name, seed, &compiled.generation.schema().maintains) {
             blocked.push(json!({
                 "table": table_name,
                 "reason": format!("no seed rows for {table_name}"),
@@ -151,6 +151,23 @@ pub(super) fn check_rules(
     } else {
         CheckReceipt::pass("rules", "derived", elapsed_ms(started), detail)
     }
+}
+
+pub(super) fn rule_table_has_probe_rows(
+    table_name: &str,
+    seed: &SeedData,
+    maintains: &[snapback2_core::Maintain],
+) -> bool {
+    seed.rows
+        .get(table_name)
+        .is_some_and(|rows| !rows.is_empty())
+        || maintains.iter().any(|maintain| {
+            maintain.target == table_name
+                && seed
+                    .rows
+                    .get(&maintain.source)
+                    .is_some_and(|rows| !rows.is_empty())
+        })
 }
 
 pub(super) fn rule_id_sets_match(actual: &BTreeSet<String>, expected: &BTreeSet<String>) -> bool {

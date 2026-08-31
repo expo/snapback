@@ -761,6 +761,58 @@ fn mutation_refusal_is_a_typed_rejected_execution_without_a_commit() {
 }
 
 #[test]
+fn auth_refusal_namespace_is_reserved_at_the_raw_ir_certificate_boundary() {
+    let mut program = Program {
+        name: "ops.reject".to_owned(),
+        kind: ProgramKind::Mutation,
+        args: BTreeMap::new(),
+        read_time_granularity_ms: None,
+        body: vec![Stmt::If {
+            condition: Expr::Literal(Value::Bool(true)),
+            then_body: vec![Stmt::Require {
+                condition: Expr::Literal(Value::Bool(false)),
+                code: "E_AUTH_SESSION".to_owned(),
+            }],
+            else_body: Vec::new(),
+        }],
+    };
+    let schema = empty_schema();
+    let errors = Checker::new(&schema, Ceilings::default())
+        .check_all(&program)
+        .unwrap_err();
+    assert!(
+        errors.iter().any(|error| {
+            error.code == "E_OP_RESERVED"
+                && error.message
+                    == "application refusal code E_AUTH_SESSION uses the reserved E_AUTH_* namespace"
+                && error.rewrite
+                    == "use an application-owned refusal code without the E_AUTH_ prefix"
+        }),
+        "raw nested require bypassed the reserved auth namespace: {errors:?}"
+    );
+
+    let certification =
+        Generation::certify(&project(vec![program.clone()], schema), Ceilings::default())
+            .unwrap_err();
+    assert!(
+        certification
+            .iter()
+            .any(|(name, error)| { name == "ops.reject" && error.code == "E_OP_RESERVED" }),
+        "generation admission bypassed the reserved auth namespace: {certification:?}"
+    );
+
+    let Stmt::If { then_body, .. } = &mut program.body[0] else {
+        unreachable!()
+    };
+    let Stmt::Require { code, .. } = &mut then_body[0] else {
+        unreachable!()
+    };
+    *code = "ACCESS_DENIED".to_owned();
+    Generation::certify(&project(vec![program], empty_schema()), Ceilings::default())
+        .expect("application-owned refusal code should certify");
+}
+
+#[test]
 fn query_require_is_a_typed_denied_execution() {
     let program = Program {
         name: "ops.refuseQuery".to_owned(),

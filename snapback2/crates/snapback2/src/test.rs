@@ -763,6 +763,7 @@ fn generated_arg(
                     .unwrap_or_else(|| json!("derived test"))
             }
         },
+        ArgType::Bytes { .. } => json!({ "Bytes": "00" }),
         ArgType::Int | ArgType::Time => json!(1),
         ArgType::Bool => json!(false),
         ArgType::Optional(inner) => return generated_arg(op, name, inner, seed, sample),

@@ -216,6 +216,60 @@
       }
     ]
   },
+  "certificate": {
+    "program": "groups.deleteCreatorSeat",
+    "plan_hash": "60197c46afbf98385af520a4d1e032bbd20d57c1f58362069ad874b27e2a9af0",
+    "schema_hash": "e3be1428b57215ef9f1b8696117e30238f13b0ff56da6bb99f5fd37bcef9ea97",
+    "rule_hashes": {
+      "groups.insert": "556e8eb16b3bb0c45fb9523d83fce5df8bd43d534f8d825f8d2125cc3a944151",
+      "memberships.delete": "556e8eb16b3bb0c45fb9523d83fce5df8bd43d534f8d825f8d2125cc3a944151",
+      "memberships.insert": "3deebe9ecddc9447fadeebaa9938ec7123910975377edfe102bb88c9c8967185"
+    },
+    "evaluator_version": "bounded-spike-rust-1",
+    "value_model_version": "i53-codepoint-bytes-v2",
+    "read_sites": [],
+    "write_sites": [
+      {
+        "table": "groups",
+        "kind": "Insert",
+        "max_rows": 1
+      },
+      {
+        "table": "memberships",
+        "kind": "Insert",
+        "max_rows": 1
+      },
+      {
+        "table": "memberships",
+        "kind": "Delete",
+        "max_rows": 1
+      }
+    ],
+    "maintained_amplification": 0,
+    "constraint_checks": [
+      "groups:Unique(byId)",
+      "memberships:FinalExistsOnInsert(groups->memberships.byGroupPrincipalRole,[Field(\"id\"), Field(\"creator\"), Literal(String(\"admin\"))])",
+      "memberships:Unique(byGroupPrincipalRole)",
+      "memberships:Unique(byId)"
+    ],
+    "max_examined": 0,
+    "max_index_entries": 0,
+    "max_rule_probes": 2,
+    "max_steps": 21,
+    "max_heap_bytes": 672,
+    "max_output_bytes": 6,
+    "max_closure_bytes": 0,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [
+      "groups.byId",
+      "memberships.byGroupPrincipalRole"
+    ],
+    "disclosures": [],
+    "bound_product": null
+  },
   "context": {
     "viewer": "u1",
     "principal_kind": "user",

@@ -75,7 +75,7 @@ unknown-email and wrong-password paths retain one verification call. That
 ceremony paid for exact logout and expiry fencing instead of a best-effort
 "current user" check.
 
-The final exact review was worth the extra pass. The standalone TypeScript
+The RBAC-stage exact review was worth the extra pass. The standalone TypeScript
 evaluator had matched the older corpus while omitting the new old/next,
 created, final-exists, rollback, maintained-write, and memo-invalidation
 semantics. Adding 16 named cross-runtime cases turned those assumptions into
@@ -85,6 +85,14 @@ browser-preflightable in dev mode. Moving every platform to the OS CSPRNG,
 repairing private filesystem modes, and removing the control header from CORS
 closed a system-authority seam that application-level RBAC tests would never
 have exercised.
+
+The final integration then reconciled that RBAC stage with the concurrent
+Bytes and opaque capped-query work from `main`. Five additional frozen cases
+brought the authoritative corpus to 97, all passing in both Rust and the
+standalone TypeScript evaluator. The served chat acceptance proof also caught
+two useful gaps before landing: private conversation/count shells needed
+membership-scoped reads, and revocation needed to demonstrate both the direct
+message write and its maintained message-count write in the same scope.
 
 ## Comparison
 

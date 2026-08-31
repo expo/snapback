@@ -999,6 +999,61 @@
       }
     ]
   },
+  "certificate": {
+    "program": "boardView",
+    "plan_hash": "ac0f1c4b0fbb92f512d8e988c296100710abc2e14e8e63ba114edcab4376c7ab",
+    "schema_hash": "31792591fb75b5ab316e24a71206d3f7de6e02ed12f49a2f39782dbcab4b3566",
+    "rule_hashes": {
+      "cards.read": "66a1b2b0d1f21fd55f866a1e5d7135598e3234c1f55cb62bb8cd602d50bb42a6",
+      "columns.read": "66a1b2b0d1f21fd55f866a1e5d7135598e3234c1f55cb62bb8cd602d50bb42a6"
+    },
+    "evaluator_version": "bounded-spike-rust-1",
+    "value_model_version": "i53-codepoint-bytes-v2",
+    "read_sites": [
+      {
+        "site": "board.columns",
+        "table": "columns",
+        "index": "byParentOrder",
+        "prefix_template": "Arg",
+        "take": 20,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 0,
+        "hoist": true
+      },
+      {
+        "site": "boardView.cards",
+        "table": "cards",
+        "index": "byParentOrder",
+        "prefix_template": "Shape",
+        "take": 50,
+        "max_calls": 20,
+        "rule_probes_per_candidate": 0,
+        "hoist": true
+      }
+    ],
+    "write_sites": [],
+    "maintained_amplification": 0,
+    "constraint_checks": [],
+    "max_examined": 1062,
+    "max_index_entries": 1062,
+    "max_rule_probes": 0,
+    "max_steps": 5395,
+    "max_heap_bytes": 172640,
+    "max_output_bytes": 456382,
+    "max_closure_bytes": 454900,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [
+      "cards.byParentOrder",
+      "columns.byParentOrder"
+    ],
+    "disclosures": [
+      "E_DISCLOSURE: count waitlist summarized into waitCounts"
+    ],
+    "bound_product": "board.columns take 20 × boardView.cards take 50 = 1000"
+  },
   "context": {
     "viewer": "u1",
     "principal_kind": "user",

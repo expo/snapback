@@ -1,5 +1,5 @@
 import { emit, mutation, query, t } from "snapback2";
-import { conversations, memberships, messages, profiles } from "./schema";
+import { conversations, memberships, messageCounts, messages, profiles } from "./schema";
 import { notify } from "./notifications";
 
 export const thread = query({ conversationId: t.ref(conversations) }, ({ db, ctx, args }) => {
@@ -8,6 +8,17 @@ export const thread = query({ conversationId: t.ref(conversations) }, ({ db, ctx
     "MEMBERSHIP_REQUIRED",
   );
   return db.scan(messages.byConvTime, [args.conversationId], { order: "desc", take: 50 });
+});
+
+export const summary = query({ conversationId: t.ref(conversations) }, ({ db, ctx, args }) => {
+  db.require(
+    db.exists(memberships.byConversationPrincipal, [args.conversationId, ctx.viewer]),
+    "MEMBERSHIP_REQUIRED",
+  );
+  return {
+    conversation: db.get(conversations, args.conversationId),
+    messageCount: db.get(messageCounts.byConversation, [args.conversationId]),
+  };
 });
 
 export const send = mutation({

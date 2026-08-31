@@ -316,10 +316,12 @@ function createProjectProgram(
 }
 
 function projectTypeDiagnostics(program: ts.Program, projectRoot: string): FrontendDiagnostic[] {
+  const checker = program.getTypeChecker();
   return ts.getPreEmitDiagnostics(program).flatMap((item) => {
     if (!item.file || item.file.fileName.endsWith("__snapback2_lib.d.ts")) return [];
     if (!resolve(item.file.fileName).startsWith(`${resolve(projectRoot)}${sep}`)) return [];
     if (selfTableReference(item)) return [];
+    if (exportedStaticTableUsedBeforeAssigned(item, checker)) return [];
     const position = item.start === undefined ? { line: 0, character: 0 } : item.file.getLineAndCharacterOfPosition(item.start);
     const file = relativeSite(projectRoot, item.file.fileName);
     const message = ts.flattenDiagnosticMessageText(item.messageText, "\n");
@@ -508,7 +510,7 @@ function generateApiDts(
     return [catalog, ...aliases].join("\n");
   })();
   const members = [modulesText, channelsText].filter(Boolean).join("\n");
-  return `import type { Decimal, Json, Money, Page, Principal } from 'snapback2';\nimport type { Channel, Op } from 'snapback2/client';\n\n${rowTypes}\n\ndeclare module 'snapback2/client' {\n  interface Api {\n${members}\n  }\n}\n\nexport {};\n`;
+  return `import type { Bytes, Decimal, Json, Money, Page, Principal } from 'snapback2';\nimport type { Channel, Op } from 'snapback2/client';\n\n${rowTypes}\n\ndeclare module 'snapback2/client' {\n  interface Api {\n${members}\n  }\n}\n\nexport {};\n`;
 }
 
 function apiChannels(program: ts.Program, checker: ts.TypeChecker): Array<{ name: string; args: string }> {
@@ -572,6 +574,7 @@ function descriptorType(call: ts.CallExpression, checker: ts.TypeChecker): strin
   const name = callLeaf(call);
   if (name === "principal") return "Principal";
   if (name === "id" || name === "text" || name === "ref") return "string";
+  if (name === "bytes") return "Bytes";
   if (name === "int" || name === "time") return "number";
   if (name === "bool") return "boolean";
   if (name === "enum") {
@@ -711,6 +714,7 @@ function apiAuthoredType(value: AuthoredType): string {
   if (value.kind === "int") return "number";
   if (value.kind === "string") return "string";
   if (value.kind === "principal") return "Principal";
+  if (value.kind === "bytes") return "Bytes";
   if (value.kind === "bool") return "boolean";
   if (value.kind === "json") return "Json";
   if (value.kind === "decimal") {
@@ -790,6 +794,17 @@ function seedValueMismatch(value: unknown, type: unknown, path: string): string 
   if (descriptor.Text) {
     return typeof value === "string" && [...value].length <= descriptor.Text.max ? undefined : `${path} must be text of at most ${descriptor.Text.max} characters`;
   }
+  if (descriptor.Bytes) {
+    const encodedObject = value && typeof value === "object" && !Array.isArray(value)
+      ? value as Record<string, unknown>
+      : undefined;
+    const encoded = encodedObject?.Bytes;
+    return encodedObject && Object.keys(encodedObject).length === 1
+      && typeof encoded === "string" && /^(?:[0-9a-f]{2})*$/.test(encoded)
+      && encoded.length / 2 <= descriptor.Bytes.max
+      ? undefined
+      : `${path} must be canonical lowercase base16 of at most ${descriptor.Bytes.max} bytes`;
+  }
   if (descriptor.Json) {
     const mismatch = jsonWireMismatch(value, path);
     if (mismatch) return mismatch;
@@ -846,6 +861,18 @@ function selfTableReference(item: ts.Diagnostic): boolean {
   const declaration = ancestor(node, ts.isVariableDeclaration);
   const call = declaration?.initializer && unwrapCall(declaration.initializer);
   return !!call && callLeaf(call) === "table" && ts.isIdentifier(declaration!.name) && node.getText() === declaration!.name.text;
+}
+
+function exportedStaticTableUsedBeforeAssigned(item: ts.Diagnostic, checker: ts.TypeChecker): boolean {
+  if (item.code !== 2454 || !item.file || item.start === undefined) return false;
+  if (basename(item.file.fileName) !== "schema.ts" || basename(dirname(item.file.fileName)) !== "snapback") return false;
+  const node = findNarrowestNode(item.file, item.start);
+  if (!ts.isIdentifier(node)) return false;
+  const declaration = checker.getSymbolAtLocation(node)?.valueDeclaration;
+  if (!declaration || !ts.isVariableDeclaration(declaration) || declaration.getSourceFile() !== item.file) return false;
+  const statement = ancestor(declaration, ts.isVariableStatement);
+  const call = declaration.initializer && unwrapCall(declaration.initializer);
+  return !!statement && hasExport(statement) && !!call && callLeaf(call) === "table";
 }
 
 function ancestor<T extends ts.Node>(node: ts.Node, guard: (value: ts.Node) => value is T): T | undefined {

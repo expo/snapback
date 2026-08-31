@@ -188,6 +188,26 @@ journey("group creation bootstraps one creator admin atomically", async ({ as })
   }
 });
 
+journey("conversation metadata stays inside membership", async ({ as }) => {
+  const bob = as("bob");
+  const charlie = as("charlie");
+  try {
+    const member = await bob.query(api.messages.summary, { conversationId: "conversation-1" });
+    if (!("data" in member) || member.data?.conversation?.title !== "General") {
+      throw new Error("member could not read the conversation shell");
+    }
+    if (typeof member.data.messageCount?.value !== "number") {
+      throw new Error("member could not read the maintained message count");
+    }
+
+    const outsider = await charlie.query(api.messages.summary, { conversationId: "conversation-1" });
+    if (outsider.state !== "denied") throw new Error("conversation metadata query admitted an outsider");
+  } finally {
+    bob.close();
+    charlie.close();
+  }
+});
+
 journey("scoped roles reject non-admin and stale membership authority", async ({ as }) => {
   const alice = as("alice");
   const bob = as("bob");

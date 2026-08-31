@@ -1,6 +1,6 @@
 #![allow(unused_imports)]
 use crate::certificate::{Certificate, RuleCertificate};
-use crate::identity::{Actor, SYSTEM_PRINCIPAL_ID};
+use crate::identity::{Actor, CURRENT_VALUE_MODEL_VERSION, SYSTEM_PRINCIPAL_ID};
 use crate::ir::*;
 use crate::principal::PrincipalId;
 use crate::schema::*;
@@ -211,25 +211,11 @@ pub struct Execution {
 #[serde(tag = "state", rename_all = "camelCase")]
 pub enum ExecutionState {
     Complete,
-    Capped {
-        #[serde(skip_serializing_if = "Option::is_none")]
-        site: Option<String>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        take: Option<u64>,
-    },
-    Partial {
-        reason: String,
-    },
-    Denied {
-        rule: String,
-    },
-    Committed {
-        seq: u64,
-    },
-    Rejected {
-        code: String,
-        message: String,
-    },
+    Capped,
+    Partial { reason: String },
+    Denied { rule: String },
+    Committed { seq: u64 },
+    Rejected { code: String, message: String },
 }
 
 #[derive(Debug, Error)]
@@ -520,6 +506,13 @@ impl Engine {
         commit_kind: Option<&str>,
         then_outbox_id: Option<&str>,
     ) -> Result<Execution, RuntimeError> {
+        if certificate.value_model_version != CURRENT_VALUE_MODEL_VERSION.as_str() {
+            return Err(RuntimeError::TraceSubset(format!(
+                "value model version {} != current {}",
+                certificate.value_model_version,
+                CURRENT_VALUE_MODEL_VERSION.as_str()
+            )));
+        }
         if certificate.plan_hash != digest(program) {
             return Err(RuntimeError::TraceSubset("plan hash mismatch".to_owned()));
         }
@@ -621,7 +614,7 @@ impl Engine {
         }
         let state = match program.kind {
             ProgramKind::Mutation => ExecutionState::Committed { seq },
-            ProgramKind::Query => query_state(&runner.trace, certificate, &self.schema),
+            ProgramKind::Query => query_state(&runner.trace, certificate),
         };
         let execution = Execution {
             result,
@@ -664,6 +657,13 @@ impl Engine {
             return Err(RuntimeError::Input(
                 "reset seed must be a mutation".to_owned(),
             ));
+        }
+        if certificate.value_model_version != CURRENT_VALUE_MODEL_VERSION.as_str() {
+            return Err(RuntimeError::TraceSubset(format!(
+                "value model version {} != current {}",
+                certificate.value_model_version,
+                CURRENT_VALUE_MODEL_VERSION.as_str()
+            )));
         }
         if certificate.plan_hash != digest(program) {
             return Err(RuntimeError::TraceSubset("plan hash mismatch".to_owned()));
@@ -811,6 +811,13 @@ pub(crate) fn validate_arg_value(
             ))),
             _ => Err(RuntimeError::Input(format!("{label} must be text"))),
         },
+        ArgType::Bytes { max } => match value {
+            Value::Bytes(value) if value.len() <= *max as usize => Ok(()),
+            Value::Bytes(_) => Err(RuntimeError::Input(format!(
+                "{label} exceeds bytes max {max}"
+            ))),
+            _ => Err(RuntimeError::Input(format!("{label} must be bytes"))),
+        },
         ArgType::Int | ArgType::Time | ArgType::Decimal { .. } | ArgType::Money { .. } => {
             match value {
                 Value::Int(value) if (I53_MIN..=I53_MAX).contains(value) => Ok(()),
@@ -868,55 +875,22 @@ pub(crate) fn value_contains_reserved_principal(value: &Value) -> bool {
     }
 }
 
-fn query_state(
-    trace: &AuthoritativeTrace,
-    certificate: &Certificate,
-    schema: &Schema,
-) -> ExecutionState {
-    // @ref LLP 1001#3-read-and-write-states-no-silent-states — a production state must not
-    // reveal whether a protected range contains hidden rows. A non-uniform policy
-    // therefore yields an opaque cap regardless of the authoritative stop. A policy
-    // proven uniform for the pinned prefix may still expose ordinary page metadata;
-    // when that whole partition is hidden, empty/complete is deliberately identical
-    // to an empty partition.
-    let mut disclosed_cap = None;
-    for range in &trace.ranges {
-        let Some(site) = certificate
-            .read_sites
-            .iter()
-            .find(|site| site.site == range.site)
-        else {
-            return ExecutionState::Capped {
-                site: None,
-                take: None,
-            };
-        };
-        let uniform_partition =
-            schema.read_is_uniform_for_prefix(&range.table, &range.index, range.prefix.len());
-        if !uniform_partition {
-            return ExecutionState::Capped {
-                site: None,
-                take: None,
-            };
-        }
-        if !range.visible_ids.is_empty() {
-            if range.visible_ids.len() != range.examined_ids.len() {
-                return ExecutionState::Capped {
-                    site: None,
-                    take: None,
-                };
-            }
-        } else {
-            continue;
-        }
-        if range.stop == StopReason::Limit {
-            disclosed_cap.get_or_insert_with(|| ExecutionState::Capped {
-                site: Some(range.site.clone()),
-                take: Some(site.take),
-            });
-        }
+fn query_state(trace: &AuthoritativeTrace, certificate: &Certificate) -> ExecutionState {
+    // @ref LLP 1001#3-read-and-write-states-no-silent-states — completeness is
+    // trace-derived, but only a certificate with uniform range rules may claim it.
+    if certificate.completeness == crate::certificate::Completeness::Capped
+        || trace.ranges.iter().any(|range| {
+            range.stop == StopReason::Limit
+                || certificate
+                    .read_sites
+                    .iter()
+                    .find(|site| site.site == range.site)
+                    .is_none_or(|site| !site.hoist)
+        })
+    {
+        return ExecutionState::Capped;
     }
-    disclosed_cap.unwrap_or(ExecutionState::Complete)
+    ExecutionState::Complete
 }
 
 pub(crate) fn is_sqlite_constraint(error: &RuntimeError) -> bool {

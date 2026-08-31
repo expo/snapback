@@ -1081,6 +1081,73 @@
       }
     ]
   },
+  "certificate": {
+    "program": "thread",
+    "plan_hash": "cd42a4484e2449520c5dc557a12257b9e7bcfff27b46004b280f0ae87ec6cb8e",
+    "schema_hash": "31792591fb75b5ab316e24a71206d3f7de6e02ed12f49a2f39782dbcab4b3566",
+    "rule_hashes": {
+      "messages.read": "cf46e23f564ce282f3ac1c4b679811ab548391f815ee9ca929e654aa57318bf0",
+      "users.read": "66a1b2b0d1f21fd55f866a1e5d7135598e3234c1f55cb62bb8cd602d50bb42a6"
+    },
+    "evaluator_version": "bounded-spike-rust-1",
+    "value_model_version": "i53-codepoint-bytes-v2",
+    "read_sites": [
+      {
+        "site": "thread.author",
+        "table": "users",
+        "index": "byPrincipal",
+        "prefix_template": "Shape",
+        "take": 1,
+        "max_calls": 3,
+        "rule_probes_per_candidate": 0,
+        "hoist": false
+      },
+      {
+        "site": "thread.mentionUser",
+        "table": "users",
+        "index": "byHandle",
+        "prefix_template": "Computed",
+        "take": 1,
+        "max_calls": 255,
+        "rule_probes_per_candidate": 0,
+        "hoist": true
+      },
+      {
+        "site": "thread.messages",
+        "table": "messages",
+        "index": "byConvTime",
+        "prefix_template": "Arg",
+        "take": 3,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 2,
+        "hoist": true
+      }
+    ],
+    "write_sites": [],
+    "maintained_amplification": 0,
+    "constraint_checks": [],
+    "max_examined": 10240,
+    "max_index_entries": 10240,
+    "max_rule_probes": 2,
+    "max_steps": 51763,
+    "max_heap_bytes": 1656416,
+    "max_output_bytes": 101453,
+    "max_closure_bytes": 132138,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [
+      "memberships.byConvUser",
+      "messages.byConvTime",
+      "users.byHandle",
+      "users.byPrincipal"
+    ],
+    "disclosures": [
+      "E_DISCLOSURE: count waitlist summarized into waitCounts"
+    ],
+    "bound_product": "thread.messages take 3 × messages.body max 256 / min whitespace mention 3 85 × thread.mentionUser take 1 = 255"
+  },
   "context": {
     "viewer": "u1",
     "principal_kind": "user",

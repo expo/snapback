@@ -84,13 +84,15 @@ export const profiles = table({
 export const conversations = table({
   columns: { title: t.text(120), creatorId: t.principal() },
   indexes: { byIdCreator: { columns: ['id', 'creatorId'], unique: true } },
-  rules: { read: rule.public('conversation shells are public'),
+  rules: { read: rule.exists(memberships, 'byConversationPrincipal',
+             [rule.field('id'), rule.viewer]),
            insert: rule.viewerIs('creatorId'), update: rule.deny(), delete: rule.deny() },
   constraints: [{ finalExistsOnInsert: { table: 'memberships',
     index: 'byConversationPrincipalRole',
     key: [rule.field('id'), rule.field('creatorId'), rule.literal('admin')] } }],
 })
-export const memberships = table({
+// `var` permits this reciprocal static descriptor reference; authored modules are lowered, not executed.
+export var memberships = table({
   columns: { conversationId: t.ref(conversations), principal: t.principal(),
              role: t.enum(['member', 'admin']), joinedAt: t.time() },
   indexes: {
@@ -144,6 +146,12 @@ ordinary public product-selection relationship: `followingFeed` traces it,
 while `globalFeed` and the post table rule do not. `setFollow` derives the
 follower from `ctx.viewer`, so unfollow changes Following selection without
 granting or revoking post authority.
+
+Conversation shells, membership rows, messages, and the maintained
+`messageCounts` row are all readable only through the viewer's current
+membership in that conversation. The canonical outsider journey reads the
+conversation summary as a non-member and proves that neither its title nor its
+maintained activity count crosses that boundary.
 
 The implicit application `id` is insert/upsert data, not update data: `db.update`
 patches omit it from their authored type, while every `db.upsert` row supplies
@@ -272,21 +280,16 @@ required fields in the client's public types as well as in its validator. Authen
 | `POST /api/auth/guest` | `{}` → `{ token, viewer }` |
 | `POST /api/auth/logout` | → `{ ok }` |
 | `GET /api/auth/me` | → `{ viewer, kind }` |
-| `POST /api/query` | `{ op, args }` → `{ state: "complete" \| "capped" \| "partial" \| "denied", data, seq, take?, site?, rule?, reason? }` |
+| `POST /api/query` | `{ op, args }` → `{ state: "complete" \| "capped" \| "partial" \| "denied", data, seq, rule?, reason? }`; `Capped` is the unit shape `{ state: "capped", data, seq }` |
 | `POST /api/mutation` | `{ op, args }` → `{ state: "committed", seq, data }` \| `{ state: "rejected", code, family, message, rewrite? }` |
 | `GET /api/subscribe?op=&args=<urlencoded json>` | SSE; `id: <seq>`; each `data:` frame is **exactly a query response object** (`{ state: "complete" \| "capped" \| "partial" \| "denied", data, seq, … }`) or a refusal envelope (`{ state: "refused", code, family, message, … }`, terminal); the server never sends `live`/`stale` — those are client connection facts; a `: heartbeat` comment every 15 s (review ruling 2026-08-30) |
 | `POST /api/channel/<name>/publish` | `{ args, payload }` → `{ ok: true }` \| `{ state: "refused", code }` |
 | `GET /api/channel/<name>/subscribe?args=` | SSE; `data: { from, payload, at }`; the owner drops the stream when a commit touches the probe's key and re-admission fails |
 | `GET /api/manifest` | `{ generation, ops: { "todos.list": { kind, args } }, channels, auth }` |
 
-`capped` has two valid response shapes. An ordinary visible cap includes
-both `site` and `take`; an opaque cap includes neither. The pair is optional
-as a unit—the client rejects a frame carrying only one. LLP 1001 §3 defines
-the prefix-uniformity proof and opaque dominance. In particular, a
-non-uniform protected scan returns the opaque form whether its authoritative
-range exhausted or hit its limit, while an empty and an all-hidden
-prefix-uniform range are identically `complete`. The client does not infer
-hidden extent from the presence or absence of either optional field.
+**Wire amendment — 2026-08-30.** `Capped` carries no optional `take`, `site`,
+stop reason, or continuation field. An empty `Capped` array is the terminal
+drain state (LLP 1001 §3).
 
 Typed states are 200. Protocol errors are 4xx with the **refusal envelope**,
 which is the only error shape on every surface (HTTP, CLI `--json`, worker):
@@ -543,8 +546,9 @@ client.channel(api.typing, args).publish(payload) / .subscribe(cb)
 the `Api` augmentation in `.snapback/build/api.d.ts` (no index signature: a
 typo is a compile error; channels are members too). The view on `useQuery`
 is the discriminated union `hydrating | complete | capped | partial | denied
-| refused | stale`, each carrying its receipt fields (`take`/`site`, `reason`,
-`rule`, `since`, `seq`), plus two orthogonal facts: `live: boolean` (a
+| refused | stale`, each carrying its applicable receipt fields (`reason`,
+`rule`, `since`, `seq`; `capped` has no extra fields), plus two orthogonal
+facts: `live: boolean` (a
 subscription is connected and this view is its latest delivery — the RFC's
 "live" state is this flag, so a capped page on a live query is `capped` with
 `live: true`) and `connection`. A transport failure (network, HTTP 5xx, a
@@ -611,13 +615,13 @@ Three rulings folded 2026-08-30 from the client-tier arc (LLP 0329.018–.023):
   (`Cached | Stale | Failed`, LLP 0329.022) that this package does not
   provide and its types cannot be coerced into.
 - **Evaluator per arm** (LLP 0329.018 F1): web and Expo host a JS runtime
-  and are assigned the 24.6 KB raw / 8.9 KB gz TypeScript twin; the
-  Contract-native (Exact 2) arm hosts none and links `snapback2-core`'s
-  interpreter. The standalone TypeScript twin passes the regenerated 92-case
-  corpus. The current public web client remains server-backed and does not yet
-  carry the certified program/receipt custody needed to run that twin; wiring
-  it is tracked in `issues/20260830-snapback2-wire-evaluator-into-public-client.md`.
-  Two evaluator implementations, assigned by runtime, never a third.
+  and are assigned the standalone TypeScript twin; the Contract-native
+  (Exact 2) arm hosts none and links `snapback2-core`'s interpreter. Both run
+  the merged RBAC, Bytes, and capped-completeness corpus. The current public
+  web client remains server-backed and does not yet carry the certified
+  program/receipt custody needed to run that twin; wiring it is tracked in
+  `issues/20260830-snapback2-wire-evaluator-into-public-client.md`. Two
+  evaluator implementations, assigned by runtime, never a third.
 - **Coverage is client-issuable; absence and authorization are not**
   (LLP 0329.021 P5): the twin never manufactures an absence or a verdict; a
   read whose result depends on an absence the receipt does not carry is
@@ -635,7 +639,7 @@ pointer, three gotchas), adds `.snapback/` to `.gitignore`, adds
 `.snapback/build/api.d.ts` to `tsconfig.json` `include`, pins `snapback2` in
 `package.json`. Templates: `todos` (one table, two ops, a seed, one journey)
 and `chat` (profiles, posts, follows, conversations, memberships, messages,
-typing channel, a `notify` effect, seed, and six journeys) — the chat template
+typing channel, a `notify` effect, seed, and account/relationship/RBAC journeys) — the chat template
 carries the account-, relationship-, and scoped-role-relevant Clique M1–M3 shape.
 `--client react` adds a Vite React app under `src/` that reads
 `VITE_SNAPBACK_URL`. `init` then runs `check` and prints the next command.

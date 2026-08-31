@@ -58,7 +58,9 @@ struct SerializableError {
 
 impl SerializableError {
     fn from_check(error: CheckError, program: &str) -> Self {
-        let family = if error.code.starts_with("E_BOUND")
+        let family = if error.code == "E_OP_RESERVED" {
+            "op"
+        } else if error.code.starts_with("E_BOUND")
             || error.code.starts_with("E_UNBOUND")
             || error.code == "E_STRUCTURAL_COUNT"
         {
@@ -70,6 +72,7 @@ impl SerializableError {
             "E_UNBOUND_SCAN" => "bound/scan",
             "E_STRUCTURAL_COUNT" => "bound/count",
             "E_AMBIENT_TIME" => "opaque/time",
+            "E_OP_RESERVED" => "programs/operations",
             _ if family == "bound" => "bound/ceiling",
             _ => "opaque/subset",
         };
@@ -248,27 +251,30 @@ fn check_request(request: Request) -> Vec<ResultItem> {
     let checker = Checker::new(&schema, Ceilings::default());
     let results = programs
         .into_iter()
-        .map(|(name, program)| match program {
-            Ok(program) => match checker.check(&program) {
-                Ok(certificate) => ResultItem {
+        .flat_map(|(name, program)| match program {
+            Ok(program) => match checker.check_all(&program) {
+                Ok(certificate) => vec![ResultItem {
                     program: name,
                     certificate: Some(certificate),
                     error: None,
-                },
-                Err(error) => ResultItem {
-                    program: name.clone(),
-                    certificate: None,
-                    error: Some(SerializableError::from_check(error, &name)),
-                },
+                }],
+                Err(errors) => errors
+                    .into_iter()
+                    .map(|error| ResultItem {
+                        program: name.clone(),
+                        certificate: None,
+                        error: Some(SerializableError::from_check(error, &name)),
+                    })
+                    .collect(),
             },
-            Err(message) => ResultItem {
+            Err(message) => vec![ResultItem {
                 program: name.clone(),
                 certificate: None,
                 error: Some(SerializableError::unsupported(
                     &format!("<project>:{name}"),
                     format!("program JSON contains an unsupported IR variant: {message}"),
                 )),
-            },
+            }],
         })
         .collect();
     results
@@ -502,5 +508,24 @@ mod tests {
                 .message
                 .contains("program JSON")
         );
+    }
+
+    #[test]
+    fn reserved_application_auth_codes_keep_the_operation_error_envelope() {
+        let error = SerializableError::from_check(
+            CheckError {
+                code: "E_OP_RESERVED".to_owned(),
+                message:
+                    "application refusal code E_AUTH_SESSION uses the reserved E_AUTH_* namespace"
+                        .to_owned(),
+                rewrite: "use an application-owned refusal code without the E_AUTH_ prefix"
+                    .to_owned(),
+            },
+            "ops.reject",
+        );
+
+        assert_eq!(error.code, "E_OP_RESERVED");
+        assert_eq!(error.family, "op");
+        assert_eq!(error.guide, "programs/operations");
     }
 }

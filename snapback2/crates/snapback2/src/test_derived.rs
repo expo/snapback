@@ -44,6 +44,7 @@ fn generated_args_exercises_every_arg_type_variant() {
                 },
             ),
             ("text".to_owned(), ArgType::Text { max: 20 }),
+            ("bytes".to_owned(), ArgType::Bytes { max: 20 }),
             ("int".to_owned(), ArgType::Int),
             ("bool".to_owned(), ArgType::Bool),
             ("time".to_owned(), ArgType::Time),
@@ -87,7 +88,7 @@ fn generated_args_exercises_every_arg_type_variant() {
     };
     let args = generated_args(&program, &seed).unwrap();
 
-    assert_eq!(args.as_object().unwrap().len(), 13);
+    assert_eq!(args.as_object().unwrap().len(), 14);
     assert_eq!(args["todoRef"], "todo-1");
     assert_eq!(args["enum"], "first");
     assert_eq!(args["list"], json!([]));
@@ -162,6 +163,92 @@ fn rules_equality_rejects_extra_and_missing_visible_rows() {
         &expected,
     ));
     assert!(!rule_id_sets_match(&BTreeSet::new(), &expected));
+}
+
+#[test]
+fn maintained_rule_probe_requires_a_seeded_declared_source() {
+    let maintain = snapback2_core::Maintain {
+        kind: snapback2_core::MaintainKind::Count,
+        source: "messages".to_owned(),
+        by: vec!["conversationId".to_owned()],
+        target: "messageCounts".to_owned(),
+        readable: None,
+    };
+    let seeded = SeedData {
+        personas: Vec::new(),
+        rows: BTreeMap::from([(
+            "messages".to_owned(),
+            vec![json!({ "id": "message-1", "conversationId": "conversation-1" })],
+        )]),
+    };
+    assert!(test_policy::rule_table_has_probe_rows(
+        "messageCounts",
+        &seeded,
+        std::slice::from_ref(&maintain),
+    ));
+    assert!(!test_policy::rule_table_has_probe_rows(
+        "unmaintained",
+        &seeded,
+        std::slice::from_ref(&maintain),
+    ));
+    assert!(!test_policy::rule_table_has_probe_rows(
+        "messageCounts",
+        &SeedData::default(),
+        &[maintain],
+    ));
+}
+
+#[test]
+fn invalidation_probe_selects_a_recipient_from_the_selected_conversation() {
+    let program = Program {
+        name: "messages.send".to_owned(),
+        kind: ProgramKind::Mutation,
+        args: BTreeMap::from([
+            (
+                "conversationId".to_owned(),
+                ArgType::Ref {
+                    table: "conversations".to_owned(),
+                },
+            ),
+            (
+                "recipientId".to_owned(),
+                ArgType::Ref {
+                    table: "profiles".to_owned(),
+                },
+            ),
+        ]),
+        read_time_granularity_ms: None,
+        body: Vec::new(),
+    };
+    let seeded = SeedData {
+        personas: vec!["alice".to_owned(), "bob".to_owned()],
+        rows: BTreeMap::from([
+            (
+                "memberships".to_owned(),
+                vec![json!({ "conversationId": "conversation-2", "principal": "dev:alice" })],
+            ),
+            (
+                "profiles".to_owned(),
+                vec![
+                    json!({ "id": "profile-alice", "principal": "dev:alice" }),
+                    json!({ "id": "profile-bob", "principal": "dev:bob" }),
+                ],
+            ),
+        ]),
+    };
+    let mut related = json!({
+        "conversationId": "conversation-2",
+        "recipientId": "profile-bob",
+    });
+    specialize_probe_args(&program, &seeded, 0, "alice", &mut related).unwrap();
+    assert_eq!(related["recipientId"], "profile-alice");
+
+    let mut fallback = json!({
+        "conversationId": "conversation-unknown",
+        "recipientId": "profile-bob",
+    });
+    specialize_probe_args(&program, &seeded, 0, "alice", &mut fallback).unwrap();
+    assert_eq!(fallback["recipientId"], "profile-bob");
 }
 
 #[test]

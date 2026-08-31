@@ -306,6 +306,7 @@ function declaredColumnMax(column: AuthoredType): number {
   switch (column.kind) {
     case "string": return column.max === undefined ? 144 : column.max + 16;
     case "principal": return 144;
+    case "bytes": return column.max * 2 + 16;
     case "int":
     case "decimal": return 32;
     case "bool": return 16;
@@ -322,7 +323,34 @@ function scanIsPrivate(module: PolicyModule, scan: ts.CallExpression): boolean {
   const target = scan.arguments[0];
   if (!target) return false;
   const ref = tableReference(target, module.tables);
-  return [...module.tables.values()].some((info) => info.name === ref.table && info.private);
+  const info = [...module.tables.values()].find((candidate) => candidate.name === ref.table);
+  if (!info?.private) return false;
+  const prefix = scan.arguments[1] && unwrapExpression(scan.arguments[1]);
+  const columns = info.indexes?.[ref.index]?.columns;
+  if (!prefix || !ts.isArrayLiteralExpression(prefix) || !columns || info.readRule === undefined) {
+    return true;
+  }
+  const pinned = new Set(columns.slice(0, prefix.elements.length));
+  return [...ruleFields(info.readRule)].some((field) => !pinned.has(field));
+}
+
+function ruleFields(rule: unknown, fields = new Set<string>()): Set<string> {
+  if (!rule || typeof rule !== "object" || Array.isArray(rule)) return fields;
+  const record = rule as Record<string, any>;
+  const terms = record.Eq ?? record.Ne;
+  if (Array.isArray(terms)) terms.forEach((term) => ruleTermField(term, fields));
+  const exists = record.Exists;
+  if (exists && Array.isArray(exists.key)) exists.key.forEach((term: unknown) => ruleTermField(term, fields));
+  const children = record.And ?? record.Or;
+  if (Array.isArray(children)) children.forEach((child) => ruleFields(child, fields));
+  if (record.Not !== undefined) ruleFields(record.Not, fields);
+  return fields;
+}
+
+function ruleTermField(term: unknown, fields: Set<string>): void {
+  if (term && typeof term === "object" && !Array.isArray(term) && typeof (term as any).Field === "string") {
+    fields.add((term as any).Field);
+  }
 }
 
 function tableReference(node: ts.Expression, tables: Map<string, TableInfo>): { table: string; index: string } {

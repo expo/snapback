@@ -62,6 +62,14 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
     let revocation = check(&receipt, "live-revocation");
     assert_eq!(revocation["detail"]["as"], "bob", "{revocation}");
     assert_eq!(
+        revocation["detail"]["query"], "messages.thread",
+        "{revocation}"
+    );
+    assert_eq!(
+        revocation["detail"]["scope"], "conversation-1",
+        "{revocation}"
+    );
+    assert_eq!(
         revocation["detail"]["mutation"], "groups.memberLeave",
         "{revocation}"
     );
@@ -77,6 +85,7 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
         "{revocation}"
     );
     assert_eq!(revocation["detail"]["protectedWriteAs"], "alice");
+    assert_eq!(revocation["detail"]["protectedTable"], "messages");
     assert!(
         revocation["detail"]["protectedWriteSeq"]
             .as_u64()
@@ -85,6 +94,10 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
         "{revocation}"
     );
     assert_eq!(revocation["detail"]["protectedRowsWritten"], 1);
+    assert_eq!(
+        revocation["detail"]["maintainedRowsWritten"]["messageCounts"], 1,
+        "{revocation}"
+    );
     assert_eq!(revocation["detail"]["postWriteDelivery"], "none");
 
     let fence = check(&receipt, "successor-policy-fence");
@@ -206,10 +219,11 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
     }));
     let bounds = check(&receipt, "bounds");
     let executions = bounds["detail"]["executions"].as_array().unwrap();
-    assert_eq!(executions.len(), 15, "{bounds}");
+    assert_eq!(executions.len(), 18, "{bounds}");
     for operation in [
         "feeds.followingFeed",
         "feeds.globalFeed",
+        "messages.summary",
         "messages.thread",
         "profiles.byHandle",
         "profiles.mine",
@@ -230,7 +244,7 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
         let admitted = execution["as"] != "charlie";
         assert_eq!(
             execution["examined"],
-            serde_json::json!({ "actual": if admitted { 2 } else { 0 }, "ceiling": 53 })
+            serde_json::json!({ "actual": if admitted { 2 } else { 0 }, "ceiling": 10240 })
         );
         assert_eq!(
             execution["ruleProbes"],
@@ -238,7 +252,7 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
         );
         assert_eq!(
             execution["steps"],
-            serde_json::json!({ "actual": if admitted { 7 } else { 4 }, "ceiling": 268 })
+            serde_json::json!({ "actual": if admitted { 7 } else { 4 }, "ceiling": 51203 })
         );
         assert_eq!(execution["readSites"].as_array().unwrap().len(), 2);
         assert_eq!(
@@ -263,7 +277,7 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
             .iter()
             .filter(|check| check["kind"] == "journey")
             .count(),
-        6
+        7
     );
     for name in [
         "alice sends bob a message",
@@ -271,6 +285,7 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
         "profile ownership, uniqueness, and live public reads",
         "unfollow changes Following selection but not Global authorization",
         "group creation bootstraps one creator admin atomically",
+        "conversation metadata stays inside membership",
         "scoped roles reject non-admin and stale membership authority",
     ] {
         let journey = check(&receipt, name);

@@ -1,3 +1,4 @@
 {
-  "systemPrincipalId": "system"
+  "systemPrincipalId": "system",
+  "valueModelVersion": "i53-codepoint-bytes-v2"
 }

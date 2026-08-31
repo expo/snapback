@@ -97,6 +97,43 @@
       }
     ]
   },
+  "certificate": {
+    "program": "events.record",
+    "plan_hash": "369d675ad71f563da2e153169b3b2932692520dde6e1445b3ca5792d2956b8b9",
+    "schema_hash": "fc4aa2f24dc38ffdc201a879d054b0d2c503488adbe68f202692b2c63d454bfe",
+    "rule_hashes": {
+      "events.insert": "4911b89071673a79e9321f82c4acba8545ef5ff8b262154793d2871783e970f4"
+    },
+    "evaluator_version": "bounded-spike-rust-1",
+    "value_model_version": "i53-codepoint-bytes-v2",
+    "read_sites": [],
+    "write_sites": [
+      {
+        "table": "events",
+        "kind": "Insert",
+        "max_rows": 1
+      }
+    ],
+    "maintained_amplification": 1,
+    "constraint_checks": [
+      "counts:Unique(byId)",
+      "events:Unique(byId)"
+    ],
+    "max_examined": 0,
+    "max_index_entries": 0,
+    "max_rule_probes": 0,
+    "max_steps": 9,
+    "max_heap_bytes": 288,
+    "max_output_bytes": 13,
+    "max_closure_bytes": 0,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [],
+    "disclosures": [],
+    "bound_product": null
+  },
   "context": {
     "viewer": "u1",
     "principal_kind": "user",

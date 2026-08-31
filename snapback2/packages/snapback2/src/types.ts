@@ -18,10 +18,7 @@ export type QueryCapped<Result> = {
   state: "capped";
   data: Result;
   seq: number;
-} & (
-  | { take: number; site: string }
-  | { take?: never; site?: never }
-);
+};
 export type QueryPartial<Result> = {
   state: "partial";
   data?: Result;
@@ -204,19 +201,7 @@ export function reduceQueryState<Result>(
       next = { state: "complete", live, data: data as Result, seq: event.seq };
       break;
     case "capped":
-      next = event.take === undefined ? {
-        state: "capped",
-        live,
-        data: data as Result,
-        seq: event.seq,
-      } : {
-        state: "capped",
-        live,
-        data: data as Result,
-        seq: event.seq,
-        take: event.take,
-        site: event.site as string,
-      };
+      next = { state: "capped", live, data: data as Result, seq: event.seq };
       break;
     case "partial":
       next = data === undefined

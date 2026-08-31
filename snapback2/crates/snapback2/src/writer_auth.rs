@@ -64,10 +64,26 @@ impl State {
                 // lookup, deleting the session inside authenticate would lose
                 // the epoch needed to terminate retained streams.
                 self.sweep_expired_sessions_at(now)?;
-                self.runtime()
+                let authority = self
+                    .runtime()
                     .authenticate(&token, now)
-                    .map(ResolvedAuthority::from_session)
-                    .map_err(|error| Refusal::from_identity(&error))
+                    .map_err(|error| Refusal::from_identity(&error))?;
+                if authority.principal.kind == "persona"
+                    && let Err(refusal) = self.require_dev_personas()
+                {
+                    // @ref LLP 1002#1-decisions — personas never reach production, including through persisted bearer sessions.
+                    // A persisted development persona must never cross the
+                    // serve boundary through the otherwise-valid bearer lane.
+                    // Revoke the exact epoch as it is refused so the token
+                    // cannot be retried against this or a later owner.
+                    let revoked = self
+                        .runtime_mut()
+                        .logout(&token, now)
+                        .map_err(|error| Refusal::from_identity(&error))?;
+                    self.fence_session(&revoked);
+                    return Err(refusal);
+                }
+                Ok(ResolvedAuthority::from_session(authority))
             }
             Identity::Persona(name) => {
                 self.require_dev_personas()?;

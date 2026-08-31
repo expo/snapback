@@ -14,7 +14,7 @@ use crate::{
 use serde_json::{Value as Json, json};
 use snapback2_core::{
     ArgType, AuthoritativeTrace, Certificate, ColumnType, CommitRecord, Generation, Program,
-    ProgramKind, RuleExpr, Value,
+    ProgramKind, RuleExpr, Value, decode_bytes_hex,
 };
 use std::collections::BTreeSet;
 use std::time::{Duration, Instant};
@@ -78,6 +78,23 @@ pub(super) fn specialize_probe_args(
                     .find(|candidate| candidate != &viewer)
             })
     };
+    if program.args.get("recipientId").and_then(ref_table) == Some("profiles")
+        && scope.is_some()
+        && let Some(profile_id) = seed
+            .rows
+            .get("profiles")
+            .into_iter()
+            .flatten()
+            .find_map(|row| {
+                row.get("principal")
+                    .and_then(Json::as_str)
+                    .filter(|principal| occupied.contains(*principal))
+                    .and_then(|_| row.get("id"))
+                    .cloned()
+            })
+    {
+        object.insert("recipientId".to_owned(), profile_id);
+    }
     for (name, kind) in &program.args {
         match unwrap_optional(kind) {
             ArgType::Principal => {
@@ -1064,6 +1081,19 @@ pub(super) fn replay_arg_value(kind: &ArgType, value: &Json) -> Result<Value, Re
             .as_str()
             .map(|value| Value::String(value.to_owned()))
             .ok_or_else(|| Refusal::input("text arguments must be strings", "pass a string")),
+        ArgType::Bytes { .. } => value
+            .as_object()
+            .filter(|value| value.len() == 1)
+            .and_then(|value| value.get("Bytes"))
+            .and_then(Json::as_str)
+            .and_then(decode_bytes_hex)
+            .map(Value::Bytes)
+            .ok_or_else(|| {
+                Refusal::input(
+                    "bytes arguments must be canonical lowercase hex",
+                    "pass { Bytes: \"00\" } with an even number of lowercase hex digits",
+                )
+            }),
         ArgType::Bool => value.as_bool().map(Value::Bool).ok_or_else(|| {
             Refusal::input("boolean arguments must be true or false", "pass a boolean")
         }),

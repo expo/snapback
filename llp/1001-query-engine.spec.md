@@ -148,23 +148,61 @@ reads into a certificate that only one of them can execute.
 
 | state | when |
 |---|---|
-| `Complete` | no non-uniform range was scanned, no visible uniform range stopped `Limit`, and no supposedly uniform range mixed visible and hidden rows. For a prefix-uniform range, a physically empty range and an all-hidden range both produce the same empty `Complete` result. |
-| `Capped { site: None, take: None }` | **opaque cap:** any authoritative-trace range has a read policy that is not structurally uniform over its pinned index prefix, regardless of whether that range stopped `Exhausted` or `Limit` and regardless of how many rows were visible. A mixed visible/hidden result under a purported uniform proof also fails closed to this form. One opaque range dominates every otherwise disclosable cap in the query. |
-| `Capped { site: Some(site), take: Some(take) }` | **ordinary visible cap:** every traced range is prefix-uniform and a range containing visible rows stopped `Limit`. The first such site's certificate metadata may be disclosed. `site` and `take` appear together or neither appears. |
+| `Complete` | every traced range stopped `Exhausted`, no site was cut by a ceiling, and the certificate proves each scanned range's read rule uniform for the running viewer over its scanned prefix; only those certified-uniform ranges may carry complete range or absence claims in a receipt |
+| `Capped` | the certificate marks any site capped-only because its rule is not provably uniform over the scanned prefix, or an authoritative-trace range stopped `Limit`; this is one opaque label with no site, stop reason, or take echo |
 | `Partial { reason }` | reserved for the client twin (coverage miss); the server never returns it |
 | `Denied { rule }` | `RuntimeError::Rule` on a read site, or `RuntimeError::Require { code }` raised inside a query (`rule = code`) — the program refusing is the honest "denied" (review ruling 2026-08-30, M1) |
 
-Prefix uniformity is a structural proof over the active schema. The index
-prefix must pin every subject-row field consulted by the table's read rule,
-including fields used to form an indexed rule probe; `viewer` and literals
-are fixed for the execution. If the proof cannot establish that all rows in
-the prefix receive one verdict, it is non-uniform. The engine derives state
-from the authoritative trace and this proof, never from the closure receipt.
-The wire's opaque form still carries the ordinary query `data` and `seq`, but
-omits both `site` and `take`, so neither exhaustion nor the location/size of a
-protected scan becomes an existence oracle. This is the implemented
-Snapback2 decision; LLP 0331 supplied research evidence but does not govern
-it.
+**Amendment — Ruled by the author 2026-08-30.** `take` counts visible rows
+only. A denied candidate consumes the certified examined and rule-probe budgets,
+never `take`. A rule may be evaluated once for a range only when the existing
+hoist analysis proves every rule input pinned by that range's prefix. When that
+hoisted verdict is uniformly false for the viewer, the range halts after the
+single determination without fetching or charging the hidden population row by
+row, records `Exhausted`, and returns the same complete empty receipt as a
+physically empty range. Empty, two-hidden-row, and at-least-examined-ceiling
+ranges are therefore viewer-observably identical in that case.
+
+A non-uniform site is capped-only regardless of what its runtime candidates
+happen to show. It collects visible rows only until `take`, within the certified
+examined/rule-probe budget. If that budget cuts the page, the engine returns the
+visible rows found so far and the opaque `Capped` label; `after` remains derived
+only from the last visible row. An empty `Capped` page is the terminal drain
+state, whether the range was physically exhausted or a hidden run consumed the
+budget. Rows beyond a hidden run longer than that budget are unreachable in the
+drain; the paved escape is the existing denormalize-the-scope rewrite. There is
+no examined/storage-position continuation and no server-held scan state. The
+engine may internally distinguish take, ceiling, and exhaustion stops, but the
+result label, wire, and receipt may not.
+
+> ~~A drain always makes visible progress (no starvation).~~
+>
+> **Amended 2026-08-30 (orchestrator, pending author ratification):
+> no-starvation is scoped to the certified examined budget; an empty Capped
+> page is the terminal drain state.**
+
+A query or mutation that returns or writes a count, an emptiness/has-more
+branch, or another absence-dependent result from a capped-only site is refused
+at certification with the existing `E_STRUCTURAL_COUNT` family. Its pasted
+rewrite is to denormalize the authorization scope into the index prefix so the
+rule becomes uniform, or to read a maintained aggregate. Hidden rows remain in
+the authoritative trace for invalidation and OCC and remain absent from the
+receipt. Completeness is still derived from the trace, never the receipt; the
+round-2 M2 correctness point survives because `Complete` is now available only
+where the certificate makes the trace and receipt agree on the visible range.
+
+> **Superseded history:** ~~`Complete` meant every traced range stopped
+> `Exhausted` and no site was cut by a ceiling — including a range whose
+> examined rows were all hidden: hidden rows are invisible, never a signal
+> (LLP 0329.014.004: results are never functions of invisible-row counts).~~
+>
+> ~~`Capped { site, take }` meant some *authoritative-trace* range stopped
+> `Limit` (the certificate's `completeness: Page | Capped`) — regardless of
+> whether the examined rows were visible: hidden rows consumed `take` (spike
+> S1 ruling 2), so `Capped` disclosed nothing the page size did not, and
+> computing the state from the receipt (which omitted the stop reason when
+> hidden rows were examined) would silently drop a later visible row (review
+> ruling 2026-08-30, round 2 M2).~~
 
 A query that hits a runtime *value* error (`E_DIV_ZERO`, `E_OVERFLOW`, `E_TYPE`,
 `E_FIELD`) is `Err(RuntimeError)`, not a state — the loop serves the refusal
@@ -353,7 +391,7 @@ subscription's key entries from the fresh trace. Subscriptions live in memory
 with the owner; a restart re-subscribes from the clients (LLP 1002).
 
 A `Delivery` for a subscription whose read is now `Denied` (a revoked
-membership) is delivered with that state — the client sees `refused`, not a
+membership) is delivered with that state — the client sees `denied`, not a
 silent empty page.
 
 ## 6. Identity (`identity.rs`)
@@ -585,6 +623,17 @@ arithmetic, ordering, or the evaluator twin changes:
   1002 §2) to scale source literals and to refuse mixed-scale arithmetic.
   Indexable, orderable, exact. `Money { currency, scale }` is the same with a
   currency tag for the compiler to check; the engine treats it as `Decimal`.
+- Dated amendment, 2026-08-30: `Bytes { max }`
+  (`{"Bytes": {"max": 4}}`) is a `Value::Bytes(Vec<u8>)` whose required
+  `max` is measured in bytes and enforced at insert/update time with the
+  existing `E_INPUT` write-refusal family. Its canonical JSON value is the
+  tagged lowercase even-length base16 form `{"Bytes":"007f80ff"}`; the
+  Rust engine and TypeScript twin reject non-canonical spellings. Bytes are
+  indexable in unsigned lexicographic byte order using the existing tagged
+  scalar-key style (`5:<lowercase-base16>`); tuple components remain
+  unambiguous because each is stored in its own index column. This addition
+  bumps the certificate value model once, from `i53-codepoint-v1` to
+  `i53-codepoint-bytes-v2`.
 
 `Constraint::Text { field, min, format }` binds every writer after ordinary
 column validation. `min` counts Unicode scalar values, matching `t.text(max)`;
@@ -613,29 +662,29 @@ arity, and term types, includes the point probe in bounds/index custody, and
 records its authoritative constraint input. The canonical conversation table
 uses it to make a creator-admin membership mandatory at creation.
 
-Deferred, recorded so they are not re-derived: `Bytes { max }` (needs a value
-variant and a canonical encoding shared with the twin — a value-model version
-bump), `Interval { of }` (four archetypes need it, but it interacts with
-visibility, retention, and the deferred `exclusion` constraint), `Duration`,
-`Set { of, max }`. Floats stay out (the survey's "why no floats" section is
-the ruling).
+Still deferred, recorded so they are not re-derived: `Interval { of }` (four
+archetypes need it, but it interacts with visibility, retention, and the
+deferred `exclusion` constraint), `Duration`, `Set { of, max }`. Floats stay
+out (the survey's "why no floats" section is the ruling).
 
 ## 10. What binds, and how it is checked
 
 - `cargo test -p snapback2-core` stays under the 30 s budget; new tests live
   in `tests/{store,live,successor,identity,outbox,certificate_retention,
-  tier0_authorization}.rs`. The latter is the single integration-test entry
-  point for the independent modules under `tests/rbac_cases/`, avoiding three
-  redundant test-binary links without combining their fixtures or cases.
-- The 92-case corpus is regenerated whenever current serialization or
+  completeness,tier0_authorization}.rs`. `tier0_authorization.rs` is the
+  single integration-test entry point for the independent modules under
+  `tests/rbac_cases/`, avoiding redundant test-binary links without combining
+  their fixtures or cases.
+- The 97-case shared corpus is regenerated whenever serialization or
   certification changes; the Rust engine and TypeScript evaluator must agree
-  on every case. The integrated 2026-08-30 regeneration preserves the original
-  76 semantic cases while removing authored `input_visibility`, retaining
-  schema-scoped authority hashes and the current growth/retention certificate,
-  and adding 16 RBAC cases for old/next updates, `Created`, final-exists,
-  intrinsic row ids, maintained writes, text constraints, and rule-memo
-  invalidation. Case inventory and outcomes, not obsolete IR bytes, are the
-  frozen parity surface.
+  on every case.
+  It preserves the original semantic inventory while removing authored
+  `input_visibility`, and covers old/next updates, `Created`, final-exists,
+  intrinsic row ids, maintained writes, text constraints, rule-memo
+  invalidation, opaque-capping/completeness (including
+  `named-inbox-maintained-complete`), and canonical Bytes values under
+  `i53-codepoint-bytes-v2`. Case inventory and outcomes, not obsolete IR bytes,
+  are the frozen parity surface.
 - Durability: rows, commits, outbox, and sessions survive `Store::open` on the
   same path.
 - Invalidation: a commit that touches a traced range prefix, point, absence,
@@ -646,10 +695,10 @@ the ruling).
   the literal equality above and no `PrincipalKind`/authored input-visibility
   shape reaches the IR; engine/evaluator tests cover public, exact
   self-readable, and fail-closed protected probes.
-- Disclosure: tests distinguish prefix-uniform visible caps from opaque
-  non-uniform caps, prove that empty and all-hidden uniform prefixes are
-  wire-identical `Complete`, prove an opaque range dominates a visible cap in
-  a multi-range query, and validate that `site`/`take` appear as a pair.
+- Disclosure: tests prove that empty and all-hidden prefix-uniform ranges are
+  wire-identical `Complete`, that non-uniform ranges are capped-only, that an
+  opaque range dominates another cap in a multi-range query, and that the
+  unit `Capped` wire shape carries neither `site` nor `take`.
 - Security regressions: an authorized membership subscription becomes
   `Denied` at the revoking commit; a subscriber/request retained across a
   policy successor cannot execute the predecessor policy; and a stale grant
@@ -670,10 +719,39 @@ kinds; Postgres lowering; the broadcast subscription class; result diffs on
 the wire (full result per delivery today); retention and `maxOfflineAge`;
 per-principal encrypted client stores.
 
-## Open author decisions
+## Author decisions (item 1 remains open)
 
-0. The `_commits` retention (10,000 rows) and whether `trace` needs the
+0. **Resolved — Ruled by the author 2026-08-30.** `take` counts visible rows;
+   hidden rows consume only certified examined/rule-probe budgets, and paging
+   advances across hidden runs only within that budget. `Capped` is opaque;
+   an empty `Capped` page terminates the drain. `Complete` and receipt
+   absence claims require certificate-proven prefix uniformity; non-uniform
+   sites are capped-only, and completeness-sensitive uses of them are refused
+   at check with the `E_STRUCTURAL_COUNT` denormalize-or-maintain rewrite.
+   Authoritative tracing, invalidation, and OCC are unchanged.
+
+   **Amended 2026-08-30 (orchestrator, pending author ratification).** A hoisted
+   uniformly false range halts after one rule determination as `Exhausted`.
+   Non-uniform rows beyond the certified examined budget are unreachable; no
+   continuation may encode examined/storage position and the server holds no
+   scan state.
+
+   > **Superseded history:** ~~`Capped` over hidden rows disclosed cardinality.
+   > The round-2 ruling computed the state from the authoritative trace, so a
+   > page cut at `take` among rows the viewer could not see was `Capped` — which
+   > told the viewer that ≥ `take` entries existed in the range. Both reviewers
+   > accepted it for that lane (the page size already leaked the same bit under
+   > spike S1 ruling 2, and the alternative — `Complete` over an omitted visible
+   > row — was a silent state), but grok noted it was a disclosure LLP
+   > 0329.014.004 forbade in principle. The author was asked to confirm, or
+   > choose the third form: `Capped` without `site`/`take`, or a hidden-row
+   > budget separate from `take`. LLP 0331 §"Failure and disclosure semantics"
+   > was evidence for the third form.~~
+1. The `_commits` retention (10,000 rows) and whether `trace` needs the
    touched keys of older commits.
-1. Whether an ordinary visible `Capped` result should continue carrying both
-   site and take. Opaque caps carry neither; that disclosure decision is
-   settled above.
+2. **Resolved — Ruled by the author 2026-08-30.** Neither site nor take is on
+   the wire. `Capped` is a single label without a stop reason; a visible-take
+   stop and an examined-ceiling stop are viewer-observably identical.
+
+   > **Superseded history:** ~~Whether `Capped` should carry the site name on
+   > the wire or only the take.~~

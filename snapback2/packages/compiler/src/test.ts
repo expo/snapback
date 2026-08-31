@@ -2,11 +2,12 @@ import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promis
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { lowerSource, typecheckSource, type TableInfo } from "./compiler";
-import { assessGauntlet } from "./gauntlet";
-import { IR_CONTRACT, type Program, type ProjectJson } from "./ir";
+import { IR_CONTRACT, type Program } from "./ir";
 import { listJourneys, lowerProject, lowerSeed } from "./project";
 import { lowerSchema } from "./lower/schema";
 import { registerPrincipalChecks, registerRbacRuleChecks } from "./rbac-checks";
+import { registerColumnTypeChecks } from "./test-column-types";
+import { registerFinalGateChecks } from "./test-final-gates";
 import { rustCheck } from "./rust-check";
 import { registerRuleTransitionChecks } from "./rule-transitions-checks";
 import { decimal } from "../../snapback2/src/index";
@@ -20,7 +21,6 @@ import ts from "typescript";
 
 const frontend = decodeURIComponent(new URL("../", import.meta.url).pathname);
 const crate = decodeURIComponent(new URL("../../../", import.meta.url).pathname);
-const repo = decodeURIComponent(new URL("../../../../", import.meta.url).pathname);
 const libText = `${await Bun.file(`${frontend}subset-lib.d.ts`).text()}\n${await Bun.file(`${frontend}lib.d.ts`).text()}`;
 const legacyLib = `${libText}\n${await Bun.file(`${frontend}gauntlet.d.ts`).text()}`;
 
@@ -276,6 +276,132 @@ test("count and reduce retain O(1) closure through page bindings", () => {
     `count/reduce closure estimates diverged: ${JSON.stringify(checked)}`);
 });
 
+test("structural policy admits prefix-uniform private scans and refuses non-uniform twins", () => {
+  const source = `import { query } from "snapback2";
+    export const count = query({ scope: scalar() }, ({ db, args }) =>
+      db.scan(docs.byScope, [args.scope], { take: 10 }).count());`;
+  const table = (firstColumn: string): TableInfo => ({
+    name: "docs",
+    private: true,
+    indexes: {
+      byScope: {
+        columns: [firstColumn, "order", "id"],
+        types: [{ kind: "string" }, { kind: "int" }, { kind: "string" }],
+      },
+    },
+    readRule: { Eq: [{ Field: "owner" }, "Viewer"] },
+  });
+  const uniform = lowerSource(source, "uniform-count.ts", undefined, {
+    tables: new Map([["docs", table("owner")]]),
+  });
+  assert(uniform.ok, `uniform private count was refused: ${uniform.ok ? "" : uniform.diagnostics[0]?.message}`);
+
+  const nonUniform = lowerSource(source, "non-uniform-count.ts", undefined, {
+    tables: new Map([["docs", table("group")]]),
+  });
+  assert(!nonUniform.ok && nonUniform.diagnostics.some((item) => item.code === "E_STRUCTURAL_COUNT"),
+    "non-uniform private count did not reuse E_STRUCTURAL_COUNT");
+});
+
+test("actual collection lowerings preserve capped page provenance through structural sinks", () => {
+  const tables = new Map<string, TableInfo>([["docs", {
+    name: "docs",
+    private: false,
+    columns: { id: { kind: "string" }, group: { kind: "string" }, owner: { kind: "string" }, order: { kind: "int" }, amount: { kind: "int" } },
+    indexes: {
+      byScope: {
+        columns: ["group", "order", "id"],
+        types: [{ kind: "string" }, { kind: "int" }, { kind: "string" }],
+      },
+    },
+  }]]);
+  const schema = {
+    tables: { docs: {
+      columns: { id: "Id", group: "Id", owner: "Id", order: "Int", amount: "Int" },
+      indexes: { byId: { columns: ["id"], unique: true }, byScope: { columns: ["group", "order", "id"], unique: false } },
+      rules: { read: { Eq: [{ Field: "owner" }, "Viewer"] }, insert: "Allow", update: "Allow", delete: "Allow" },
+      constraints: [],
+    } },
+    maintains: [], channels: {}, auth: { password: false, guests: false }, effects: [],
+  };
+  const scan = "db.scan(docs.byScope, [args.scope], { take: 8 })";
+  const source = `import { query } from "snapback2";
+    export const mapRows = query({ scope: scalar() }, ({ db, args }) => ${scan}.map(item => ({ id: item.id })));
+    export const filterRows = query({ scope: scalar() }, ({ db, args }) => ${scan}.filter(item => item.amount > 0));
+    export const flatMapRows = query({ scope: scalar() }, ({ db, args }) => ${scan}.flatMap(item => [item]));
+    export const collectEmpty = query({ scope: scalar() }, ({ db, args }) => {
+      const collected = ${scan}.map(item => item); return collected.length === 0;
+    });
+    export const scanCount = query({ scope: scalar() }, ({ db, args }) => ${scan}.count());
+    export const scanLength = query({ scope: scalar() }, ({ db, args }) => ${scan}.length);
+    export const reduceRows = query({ scope: scalar() }, ({ db, args }) =>
+      ${scan}.reduce((sum, item) => sum + item.amount, 0));`;
+  const lowered = lowerSource(source, "capped-collections.ts", undefined, { tables });
+  assert(lowered.ok, `collection fixture did not lower: ${lowered.ok ? "" : lowered.diagnostics.map((item) => item.message).join("; ")}`);
+  const checked = rustCheck(lowered.programs, "synthetic", schema);
+  for (const name of ["mapRows", "filterRows", "flatMapRows"]) {
+    const outcomes = checked.filter((item) => item.program === name);
+    assert(outcomes.length === 1 && outcomes[0]?.error === null, `${name} did not remain a legal visible page: ${JSON.stringify(outcomes)}`);
+  }
+  for (const name of ["collectEmpty", "scanCount", "scanLength", "reduceRows"]) {
+    const refusals = checked.filter((item) => item.program === name && item.error !== null);
+    assert(refusals.some((item) => item.error?.code === "E_STRUCTURAL_COUNT"), `${name} lost capped provenance: ${JSON.stringify(refusals)}`);
+    assert(refusals.every((item) => item.error?.rewrite.includes("denormalize the authorization scope")
+      && item.error.rewrite.includes("maintained aggregate")), `${name} changed the paved rewrite`);
+  }
+});
+test("authored collected capped pages may return but cannot be inserted", () => {
+  const tables = new Map<string, TableInfo>([
+    ["docs", { name: "docs", private: false,
+      columns: { id: { kind: "string" }, group: { kind: "string" }, owner: { kind: "string" }, order: { kind: "int" }, amount: { kind: "int" } },
+      indexes: {
+        byScope: {
+          columns: ["group", "order", "id"],
+          types: [{ kind: "string" }, { kind: "int" }, { kind: "string" }],
+        },
+      } }],
+    ["snapshots", { name: "snapshots", private: false, columns: { id: { kind: "string" }, items: { kind: "json", max: 4_096 } } }],
+  ]);
+  const allowWrites = { insert: "Allow", update: "Allow", delete: "Allow" };
+  const schema = {
+    tables: {
+      docs: {
+        columns: { id: "Id", group: "Id", owner: "Id", order: "Int", amount: "Int" },
+        indexes: { byId: { columns: ["id"], unique: true }, byScope: { columns: ["group", "order", "id"], unique: false } },
+        rules: { read: { Eq: [{ Field: "owner" }, "Viewer"] }, insert: "Allow", update: "Allow", delete: "Allow" },
+        constraints: [] },
+      snapshots: {
+        columns: { id: "Id", items: { Json: { max_bytes: 4_096 } } },
+        indexes: { byId: { columns: ["id"], unique: true } },
+        rules: { read: "Allow", ...allowWrites }, constraints: [] },
+    },
+    maintains: [], channels: {}, auth: { password: false, guests: false }, effects: [],
+  };
+  const scan = "db.scan(docs.byScope, [args.scope], { take: 8 })";
+  const mapped = `${scan}.map(item => ({ id: item.id }))`;
+  const filtered = `${scan}.filter(item => item.amount > 0)`;
+  const source = `import { mutation, query } from "snapback2";
+    export const returnMapped = query({ scope: scalar() }, ({ db, args }) => { const items = ${mapped}; return items; });
+    export const insertMapped = mutation({ scope: scalar() }, ({ db, args }) => { const items = ${mapped}; db.insert(snapshots, { id: "mapped", items }); return null; });
+    export const returnFiltered = query({ scope: scalar() }, ({ db, args }) => { const items = ${filtered}; return items; });
+    export const insertFiltered = mutation({ scope: scalar() }, ({ db, args }) => { const items = ${filtered}; db.insert(snapshots, { id: "filtered", items }); return null; });`;
+  const lowered = lowerSource(source, "capped-collected-insert.ts", undefined, { tables });
+  assert(lowered.ok, `collected insert fixture did not lower: ${lowered.ok ? "" : JSON.stringify(lowered.diagnostics)}`);
+  const checked = rustCheck(lowered.programs, "synthetic", schema);
+  for (const name of ["returnMapped", "returnFiltered"]) {
+    const returned = checked.find((item) => item.program === name);
+    assert(returned?.error === null && returned.certificate?.completeness === "Capped",
+      `returning ${name} did not certify: ${JSON.stringify(returned)}`);
+  }
+  for (const name of ["insertMapped", "insertFiltered"]) {
+    const inserted = checked.find((item) => item.program === name);
+    assert(inserted?.error?.code === "E_STRUCTURAL_COUNT"
+      && inserted.error.message.startsWith("inserted value depends on capped-only site")
+      && inserted.error.rewrite.includes("denormalize the authorization scope")
+      && inserted.error.rewrite.includes("maintained aggregate"),
+    `inserting ${name} did not keep the paved refusal: ${JSON.stringify(inserted)}`);
+  }
+});
 test("loop collection refusals paste per-family rewrites that lower and certify", () => {
   const tables = new Map<string, TableInfo>([["items", {
     name: "items",
@@ -620,6 +746,31 @@ test("the thenable property name is reserved at every generated API path", async
   });
 });
 
+test("application require codes cannot impersonate platform auth refusals", () => {
+  const source = `import { mutation } from "snapback2";
+    export const reject = mutation({}, ({ db }) => {
+      db.require(false, "E_AUTH_SESSION");
+      return true;
+    });`;
+  const refused = lowerSource(source, "reserved-auth-code.ts");
+  assert(!refused.ok, "application-authored E_AUTH_* refusal unexpectedly compiled");
+  const diagnostic = refused.diagnostics[0];
+  assert(diagnostic?.code === "E_OP_RESERVED"
+    && diagnostic.family === "op"
+    && diagnostic.guide === "programs/operations"
+    && diagnostic.message === "application refusal code E_AUTH_SESSION uses the reserved E_AUTH_* namespace",
+  `reserved auth code used an unstable diagnostic envelope: ${JSON.stringify(diagnostic)}`);
+  assert(diagnostic.rewrite.includes('db.require(false, "ACCESS_DENIED")')
+    && !diagnostic.rewrite.includes("E_AUTH_SESSION"), "reserved auth code did not provide a compilable namespace rewrite");
+  const fixed = lowerSource(diagnostic.rewrite, "reserved-auth-code-fixed.ts");
+  assert(fixed.ok, `reserved auth code rewrite did not compile: ${fixed.ok ? "" : JSON.stringify(fixed.diagnostics)}`);
+
+  const applicationCode = lowerSource(source.replace("E_AUTH_SESSION", "ACCESS_DENIED"), "application-code.ts");
+  assert(applicationCode.ok
+    && canonical(applicationCode.programs[0]).includes('"code":"ACCESS_DENIED"'),
+  "application-owned require code was refused or changed");
+});
+
 test("schema and program namespace imports resolve table, index, emit, and then references", async () => {
   await withProject({
     "snapback/schema.ts": `import { schema as defineSchema, table, t } from "snapback2";
@@ -765,7 +916,7 @@ test("schema and effect refusals rewrite only the failing declaration", async ()
 test("chat and todos lower schema, channels, effects, emit, API types, seed, and journeys", async () => {
   const chat = await lowerProject(`${frontend}fixtures/chat`);
   assert(chat.ok, `chat refused: ${chat.ok ? "" : chat.diagnostics.map((item) => `${item.code} ${item.message}`).join("; ")}`);
-  assert(chat.project.programs.length === 16, "chat operation count differs");
+  assert(chat.project.programs.length === 17, "chat operation count differs");
   assert(chat.project.effects[0]?.name === "notifications.notify", "chat effect was not qualified");
   assert(chat.project.schema.effects[0] === "notifications.notify", "schema effect list differs");
   const notificationRules = (chat.project.schema.tables.notifications as any)?.rules;
@@ -843,7 +994,7 @@ test("chat and todos lower schema, channels, effects, emit, API types, seed, and
 
   const todos = await lowerProject(`${frontend}fixtures/todos`);
   assert(todos.ok, `todos refused: ${todos.ok ? "" : todos.diagnostics.map((item) => item.message).join("; ")}`);
-  assert(todos.apiDts.startsWith("import type { Decimal, Json, Money, Page, Principal } from 'snapback2'"), "API declaration is not a module augmentation");
+  assert(todos.apiDts.startsWith("import type { Bytes, Decimal, Json, Money, Page, Principal } from 'snapback2'"), "API declaration is not a module augmentation");
   assert(todos.apiDts.includes("note?: string") && todos.apiDts.includes("labels: string[]"), "optional/list API inference differs");
   assert(todos.apiDts.includes("type TodosRow = {") && todos.apiDts.includes("Page<TodosRow>"), "scan API did not use named row/Page types");
   assert(canonical(todos.project.schema.tables).includes('"Optional":{"List"'), "optional/list schema columns did not lower");
@@ -933,6 +1084,7 @@ test("invalid Principal, Decimal, Money, and Enum descriptors refuse with sited 
     assert(refusals.some((diagnostic) => diagnostic.rewrite === rewrite), `schema descriptor rewrite omitted ${rewrite}`);
   }
 });
+registerColumnTypeChecks(test);
 
 test("Decimal insert multiplication keeps literal and argument multipliers as Int", () => {
   const tables = new Map<string, TableInfo>([["products", {
@@ -1076,7 +1228,7 @@ test("project diagnostic cap ends with an explicit truncation refusal", async ()
   });
 });
 
-registerRbacRuleChecks(test, canonical, libText);
+registerRbacRuleChecks(test, canonical, libText, withProject);
 
 test("effect authoring reports grants, closure, imports, and then arguments together", async () => {
   const invalid = await lowerProject(`${frontend}fixtures/effects-invalid`);
@@ -1172,6 +1324,22 @@ test("seed validation checks personas, tables, rows, and every schema value shap
       !reserved.diagnostics.some((item) => item.code === "E_SEED_PERSONA"),
       "the prefix-safe persona name system should remain valid",
     );
+  });
+});
+
+test("seed Bytes values require one exact externally tagged key", async () => {
+  await withProject({
+    "snapback/schema.ts": `import { schema, table, t } from "snapback2";
+      export const blobs = table({ columns: { payload: t.bytes(4) } });
+      export default schema({ tables: { blobs } });`,
+    "snapback/seed.ts": `import { seed } from "snapback2";
+      export default seed({ personas: [], rows: { blobs: [
+        { id: "blob-1", payload: { Bytes: "00ff", extra: 1 } },
+      ] } });`,
+  }, async (root) => {
+    const invalid = await lowerSeed(root);
+    assert(!invalid.ok && invalid.diagnostics.some((item) => item.code === "E_SEED_VALUE" && item.message.includes("canonical lowercase base16")),
+      "seed check admitted a Bytes value with an extra externally tagged key");
   });
 });
 
@@ -1288,135 +1456,7 @@ test("client, React, and test imports typecheck against distinct real declaratio
   });
 });
 
-test("the React template typechecks against the built snapback2/react package", () => {
-  const packageRoot = resolve(crate, "packages/snapback2");
-  const app = resolve(packageRoot, "templates/react/src/App.tsx");
-  const program = ts.createProgram({
-    rootNames: [app],
-    options: {
-      baseUrl: packageRoot,
-      jsx: ts.JsxEmit.ReactJSX,
-      lib: ["lib.es2022.d.ts", "lib.dom.d.ts"],
-      module: ts.ModuleKind.ESNext,
-      moduleResolution: ts.ModuleResolutionKind.Bundler,
-      noEmit: true,
-      paths: {
-        "snapback2/react": [resolve(packageRoot, "dist/react.d.ts")],
-      },
-      skipLibCheck: true,
-      strict: true,
-      target: ts.ScriptTarget.ES2022,
-      types: ["react"],
-    },
-  });
-  const diagnostics = ts.getPreEmitDiagnostics(program).filter((item) => item.file?.fileName === app);
-  assert(
-    diagnostics.length === 0,
-    `React template did not typecheck against dist/react.d.ts:\n${diagnostics.map((item) => ts.flattenDiagnosticMessageText(item.messageText, "\n")).join("\n")}`,
-  );
-});
-
-test("guide validation reports every family and page failure before it fails", () => {
-  const packageRoot = resolve(crate, "packages/snapback2");
-  const checked = Bun.spawnSync({
-    cmd: ["node", "build.mjs", "--self-test"],
-    cwd: packageRoot,
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-  const output = `${new TextDecoder().decode(checked.stdout)}${new TextDecoder().decode(checked.stderr)}`;
-  assert(checked.exitCode === 0, `guide validation self-test failed: ${output}`);
-  assert(
-    output.includes("families.source.json[1]") && output.includes("duplicate family duplicate")
-      && output.includes("guide/oversized.md") && output.includes("guide/stale.md"),
-    `guide validator failed fast: ${output}`,
-  );
-});
-
-test("binary check certifies every compiler program and reads IR only from stdin or --ir", async () => {
-  const built = Bun.spawnSync({ cmd: ["cargo", "build", "-p", "snapback2"], cwd: crate, stdout: "pipe", stderr: "pipe" });
-  assert(built.exitCode === 0, `cargo build failed: ${new TextDecoder().decode(built.stderr)}`);
-  const chat = await lowerProject(`${frontend}fixtures/chat`);
-  assert(chat.ok, "chat did not compile for binary check");
-  const buildDir = `${frontend}fixtures/chat/.snapback/build`;
-  await mkdir(buildDir, { recursive: true });
-  const projectPath = `${buildDir}/project.json`;
-  await Bun.write(projectPath, JSON.stringify(chat.project));
-  const checked = runBinaryCheck(["--json", "--ir", projectPath]);
-  const checkedRefusals = checked.results.filter((item: any) => item.error);
-  assert(checked.exitCode === 0 && checkedRefusals.length === 0, `chat compiler output was refused: ${checked.stderr}`);
-  assert(checked.results.length === chat.project.programs.length, "project check omitted programs");
-  assert(checked.results.every((item: any) => (item.certificate === null) !== (item.error === null)), "project check omitted a certificate/refusal outcome");
-  assert(checkedRefusals.every((item: any) => fullCheckEnvelope(item.error)), "checker refusal envelope is incomplete");
-  for (const fixture of ["todos", "s1"]) {
-    const lowered = await lowerProject(`${frontend}fixtures/${fixture}`);
-    assert(lowered.ok, `${fixture} did not compile for binary compatibility`);
-    const result = runBinaryCheck(["--json", "--ir"], lowered.project);
-    const refusals = result.results.filter((item: any) => item.error);
-    assert(result.exitCode === 0 && refusals.length === 0, `${fixture} compiler output had ${refusals.length} binary refusals: ${result.stderr}`);
-    assert(result.results.length === lowered.project.programs.length, `${fixture} binary check omitted programs`);
-  }
-  const collided = runBinaryCheck(["--project", projectPath]);
-  assert(collided.exitCode === 2 && collided.stderr.includes("--ir"), "--project still selects the IR-file checker form");
-
-  const unsupportedProgram = runBinaryCheck(["--json", "--ir"], {
-    schemaMode: "synthetic",
-    programs: [{ name: "future", kind: "Query", args: {}, read_time_granularity_ms: null, body: [{ Future: {} }] }],
-  });
-  assert(unsupportedProgram.exitCode === 1 && unsupportedProgram.results[0]?.error?.code === "E_CHECK_IR_UNSUPPORTED", "unknown program IR was not a typed refusal with exit 1");
-  assert(unsupportedProgram.results[0]?.error?.message.includes("Future") && fullCheckEnvelope(unsupportedProgram.results[0]?.error), "unknown program refusal omitted its variant/envelope");
-
-  const explicit = runBinaryCheck(["--json", "--ir"], {
-    schema: {
-      tables: { rows: { columns: { id: "Id", values: { Optional: { List: { of: "Int", max: 2 } } } }, indexes: {}, rules: { read: "Allow", insert: "Allow", update: "Allow", delete: "Allow" }, constraints: [] } },
-      maintains: [],
-      channels: {},
-      auth: { password: false, guests: false },
-      effects: [],
-    },
-    programs: [],
-    effects: [],
-  } as ProjectJson);
-  assert([0, 1].includes(explicit.exitCode), `explicit-schema check panicked/exited as usage: ${explicit.exitCode}`);
-  if (explicit.exitCode === 1) {
-    assert(explicit.results[0]?.error?.code === "E_CHECK_IR_UNSUPPORTED" && fullCheckEnvelope(explicit.results[0]?.error), "unsupported Optional/List schema was not a typed refusal");
-    assert(/Optional|List/.test(explicit.results[0]?.error?.message ?? ""), "schema refusal did not name Optional/List");
-  }
-});
-
-test("the 30-shape gauntlet remains measured", async () => {
-  const codexReview = await Bun.file(`${repo}llp/reviews/0329.014-bounded-data-programs.codex.r3.md`).text();
-  const fableReview = await Bun.file(`${repo}llp/reviews/0329.014-bounded-data-programs.fable.r3.md`).text();
-  const gauntlet = [
-    ...assessGauntlet("codex", codexReview, legacyLib),
-    ...assessGauntlet("fable", fableReview, legacyLib),
-  ];
-  assert(gauntlet.length === 30, `expected 30 numbered gauntlet shapes, got ${gauntlet.length}`);
-  const coded = gauntlet.filter((item) => item.source.trim());
-  assert(coded.length === 27, `expected 27 shapes with code, got ${coded.length}`);
-});
-
-function fullCheckEnvelope(error: any): boolean {
-  return typeof error?.code === "string" && typeof error?.family === "string"
-    && typeof error?.message === "string" && typeof error?.site === "string"
-    && typeof error?.rewrite === "string" && typeof error?.guide === "string";
-}
-
-function runBinaryCheck(args: string[], input?: unknown): { exitCode: number; stderr: string; results: any[] } {
-  const process = Bun.spawnSync({
-    cmd: [`${crate}target/debug/snapback2`, "check", ...args],
-    cwd: crate,
-    stdin: input === undefined ? undefined : new TextEncoder().encode(JSON.stringify(input)),
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-  const stdout = new TextDecoder().decode(process.stdout);
-  return {
-    exitCode: process.exitCode,
-    stderr: new TextDecoder().decode(process.stderr),
-    results: stdout.trim() ? JSON.parse(stdout).results : [],
-  };
-}
+registerFinalGateChecks(test, legacyLib);
 
 const failures: Array<{ name: string; error: unknown }> = [];
 const passes: string[] = [];

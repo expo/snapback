@@ -21,6 +21,7 @@ struct CorpusCase {
     random_seed: Option<u64>,
     schema: Schema,
     program: Program,
+    certificate: Certificate,
     context: Context,
     receipt: ClosureReceipt,
     prelude: Vec<PreludeStep>,
@@ -97,6 +98,7 @@ fn main() {
     twin_cases::add_twin_cases(&mut cases);
     add_client_scenarios(&mut cases);
     add_value_edges(&mut cases);
+    add_bytes_cases(&mut cases);
     add_random_cases(&mut cases);
     assert!(cases.len() >= 60, "brief requires at least 60 corpus cases");
 
@@ -182,6 +184,7 @@ fn add_named_cases(cases: &mut Vec<CorpusCase>) {
     ] {
         cases.push(query_case(name, "named", program, context));
     }
+    cases.push(named_uniform_maintained_inbox_case());
 
     for (name, program, context) in [
         (
@@ -245,6 +248,81 @@ fn add_named_cases(cases: &mut Vec<CorpusCase>) {
         cases.push(mutation_case(name, "named", program, context));
     }
     cases.push(named_emit_case());
+}
+
+fn named_uniform_maintained_inbox_case() -> CorpusCase {
+    let mut schema = spike_schema();
+    schema
+        .tables
+        .get_mut("memberships")
+        .expect("memberships table")
+        .rules
+        .read = RuleExpr::Eq(RuleTerm::Field("userId".to_owned()), RuleTerm::Viewer);
+    let program = Program {
+        name: "inboxMaintainedComplete".to_owned(),
+        kind: ProgramKind::Query,
+        args: BTreeMap::new(),
+        read_time_granularity_ms: None,
+        body: vec![
+            Stmt::Let {
+                name: "result".to_owned(),
+                value: Expr::Array(Vec::new()),
+            },
+            Stmt::For {
+                binding: "membership".to_owned(),
+                domain: LoopDomain::Page(Scan {
+                    site: "inboxComplete.memberships".to_owned(),
+                    table: "memberships".to_owned(),
+                    index: "byUserActivity".to_owned(),
+                    prefix: vec![Expr::Input(Input::Viewer)],
+                    order: Order::Desc,
+                    take: Bound::Literal(50),
+                    after: None,
+                    before: None,
+                    range: None,
+                    provenance: KeyProvenance::Viewer,
+                }),
+                body: vec![Stmt::Push {
+                    target: "result".to_owned(),
+                    value: Expr::Get(Read {
+                        site: "inboxComplete.unreadMaintained".to_owned(),
+                        table: "unreads".to_owned(),
+                        index: "byConvUser".to_owned(),
+                        key: vec![
+                            field(var("membership"), "conversationId"),
+                            Expr::Input(Input::Viewer),
+                        ],
+                        provenance: KeyProvenance::Shape,
+                    }),
+                }],
+            },
+            Stmt::Return(var("result")),
+        ],
+    };
+    let context = query_context([]);
+    let certificate = Checker::new(&schema, Ceilings::default())
+        .check(&program)
+        .expect("uniform maintained inbox certificate");
+    assert_eq!(certificate.completeness, Completeness::Page);
+    let mut engine = Engine::memory(schema.clone()).expect("uniform inbox engine");
+    for (table, row) in fixture_rows() {
+        engine.seed(table, row).expect("uniform inbox fixture row");
+    }
+    let execution = engine
+        .execute(&program, &certificate, context.clone())
+        .expect("uniform maintained inbox execution");
+    assert_eq!(execution.state, ExecutionState::Complete);
+    case_from_parts(
+        "named-inbox-maintained-complete",
+        "named",
+        schema,
+        program,
+        context,
+        execution.receipt,
+        Vec::new(),
+        None,
+        None,
+    )
 }
 
 // @ref LLP 1001#8-emit-and-the-outbox — the frozen twin case pins the no-op/one-id replay contract after a durable insert.
@@ -570,6 +648,168 @@ fn add_value_edges(cases: &mut Vec<CorpusCase>) {
     ));
 }
 
+fn add_bytes_cases(cases: &mut Vec<CorpusCase>) {
+    let schema = bytes_schema();
+    let insert = bytes_insert_program();
+    let scan = bytes_scan_program("bytesRoundTrip");
+    let prelude = PreludeStep {
+        program: insert.clone(),
+        context: mutation_context(
+            [
+                ("id", id("round-trip")),
+                ("payload", Value::Bytes(vec![0, 127, 128, 255])),
+            ],
+            Vec::<String>::new(),
+        ),
+        expected_state: "predicted".to_owned(),
+    };
+    cases.push(case_from_parts(
+        "edge-bytes-round-trip",
+        "edge",
+        schema.clone(),
+        scan,
+        query_context([]),
+        ClosureReceipt::default(),
+        vec![prelude],
+        None,
+        None,
+    ));
+
+    cases.push(case_from_parts(
+        "edge-bytes-max-refusal",
+        "edge",
+        schema.clone(),
+        insert,
+        mutation_context(
+            [
+                ("id", id("too-large")),
+                ("payload", Value::Bytes(vec![0, 1, 2, 3, 4])),
+            ],
+            Vec::<String>::new(),
+        ),
+        ClosureReceipt::default(),
+        Vec::new(),
+        None,
+        None,
+    ));
+
+    let receipt = ClosureReceipt {
+        rows: vec![
+            RowRecord {
+                table: "blobs".to_owned(),
+                id: "high".to_owned(),
+                row: row([("id", id("high")), ("payload", Value::Bytes(vec![0xff, 0]))]),
+            },
+            RowRecord {
+                table: "blobs".to_owned(),
+                id: "low".to_owned(),
+                row: row([("id", id("low")), ("payload", Value::Bytes(vec![0, 0xff]))]),
+            },
+            RowRecord {
+                table: "blobs".to_owned(),
+                id: "prefix".to_owned(),
+                row: row([("id", id("prefix")), ("payload", Value::Bytes(vec![0]))]),
+            },
+        ],
+        ranges: Vec::new(),
+        absences: Vec::new(),
+        verdicts: Vec::new(),
+    };
+    cases.push(case_from_parts(
+        "edge-bytes-index-order",
+        "edge",
+        schema,
+        bytes_scan_program("bytesIndexOrder"),
+        query_context([]),
+        receipt,
+        Vec::new(),
+        None,
+        None,
+    ));
+
+    cases.push(pure_case(
+        "edge-bytes-canonical-serialization",
+        Expr::Literal(row([("payload", Value::Bytes(vec![0, 127, 128, 255]))])),
+    ));
+}
+
+fn bytes_schema() -> Schema {
+    Schema {
+        tables: BTreeMap::from([(
+            "blobs".to_owned(),
+            public_table(
+                BTreeMap::from([
+                    ("id".to_owned(), ColumnType::Id),
+                    ("payload".to_owned(), ColumnType::Bytes { max: 4 }),
+                ]),
+                BTreeMap::from([
+                    (
+                        "byId".to_owned(),
+                        Index {
+                            columns: vec!["id".to_owned()],
+                            unique: true,
+                        },
+                    ),
+                    (
+                        "byPayload".to_owned(),
+                        Index {
+                            columns: vec!["payload".to_owned(), "id".to_owned()],
+                            unique: false,
+                        },
+                    ),
+                ]),
+            ),
+        )]),
+        maintains: Vec::new(),
+        channels: BTreeMap::new(),
+        auth: Auth::default(),
+        effects: Vec::new(),
+    }
+}
+
+fn bytes_insert_program() -> Program {
+    Program {
+        name: "bytesInsert".to_owned(),
+        kind: ProgramKind::Mutation,
+        args: BTreeMap::from([
+            ("id".to_owned(), ArgType::Scalar),
+            ("payload".to_owned(), ArgType::Scalar),
+        ]),
+        read_time_granularity_ms: None,
+        body: vec![
+            Stmt::Insert {
+                table: "blobs".to_owned(),
+                row: Expr::Object(BTreeMap::from([
+                    ("id".to_owned(), var("id")),
+                    ("payload".to_owned(), var("payload")),
+                ])),
+            },
+            Stmt::Return(var("payload")),
+        ],
+    }
+}
+
+fn bytes_scan_program(name: &str) -> Program {
+    Program {
+        name: name.to_owned(),
+        kind: ProgramKind::Query,
+        args: BTreeMap::new(),
+        read_time_granularity_ms: None,
+        body: vec![Stmt::Return(Expr::Scan(Scan {
+            site: format!("{name}.blobs"),
+            table: "blobs".to_owned(),
+            index: "byPayload".to_owned(),
+            prefix: Vec::new(),
+            order: Order::Asc,
+            take: Bound::Literal(10),
+            after: None,
+            before: None,
+            range: None,
+            provenance: KeyProvenance::Const,
+        }))],
+    }
+}
+
 fn add_random_cases(cases: &mut Vec<CorpusCase>) {
     let mut random = XorShift64(RANDOM_SEED);
     for index in 0..40 {
@@ -772,9 +1012,13 @@ fn case_from_parts(
     replacement_receipt: Option<ClosureReceipt>,
     random_seed: Option<u64>,
 ) -> CorpusCase {
+    let certificate = Checker::new(&schema, Ceilings::default())
+        .check(&program)
+        .expect("case certificate");
     let expected = evaluate_local(
         &schema,
         &program,
+        &certificate,
         context.clone(),
         &receipt,
         &prelude,
@@ -787,6 +1031,7 @@ fn case_from_parts(
         random_seed,
         schema,
         program,
+        certificate,
         context,
         receipt,
         prelude,
@@ -798,6 +1043,7 @@ fn case_from_parts(
 fn evaluate_local(
     schema: &Schema,
     program: &Program,
+    certificate: &Certificate,
     context: Context,
     receipt: &ClosureReceipt,
     prelude: &[PreludeStep],
@@ -819,12 +1065,9 @@ fn evaluate_local(
             .rehydrate(replacement)
             .expect("replacement hydration")
     });
-    let certificate = Checker::new(schema, Ceilings::default())
-        .check(program)
-        .expect("case certificate");
     let outcome = match program.kind {
-        ProgramKind::Query => client.reexecute(program, &certificate, context),
-        ProgramKind::Mutation => client.apply_mutation(program, &certificate, context),
+        ProgramKind::Query => client.reexecute(program, certificate, context),
+        ProgramKind::Mutation => client.apply_mutation(program, certificate, context),
     };
     match outcome {
         Ok((state, execution)) => {

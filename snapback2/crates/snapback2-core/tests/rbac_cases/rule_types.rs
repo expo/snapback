@@ -256,6 +256,50 @@ fn raw_project_json_exists_terms_must_match_the_resolved_index_axis() {
 }
 
 #[test]
+fn raw_project_json_exists_accepts_only_the_outer_tables_intrinsic_id_as_its_ref() {
+    let exists = |table: &str, index: &str, field: &str| {
+        json!({
+            "Exists": {
+                "table": table,
+                "index": index,
+                "key": [{ "Field": field }],
+                "provenance": "Shape"
+            }
+        })
+    };
+
+    let mut accepted = valid_project_json();
+    accepted["schema"]["tables"]["grants"]["rules"]["read"] = json!("Allow");
+    accepted["schema"]["tables"]["profiles"]["rules"]["read"] = exists("grants", "byProfile", "id");
+    certify(accepted).expect("the outer profiles.id must inhabit Ref<profiles>");
+
+    let mut arbitrary_id = valid_project_json();
+    arbitrary_id["schema"]["tables"]["grants"]["rules"]["read"] = json!("Allow");
+    arbitrary_id["schema"]["tables"]["profiles"]["columns"]["alias"] = json!("Id");
+    arbitrary_id["schema"]["tables"]["profiles"]["rules"]["read"] =
+        exists("grants", "byProfile", "alias");
+    only_rule_error(
+        arbitrary_id,
+        "schema.tables.profiles.rules.read.exists.key[0]",
+        "is Id; expected Ref<profiles>",
+    );
+
+    let mut cross_table = valid_project_json();
+    cross_table["schema"]["tables"]["profiles"]["columns"]["self_ref"] =
+        json!({ "Ref": { "table": "profiles" } });
+    cross_table["schema"]["tables"]["profiles"]["indexes"]["bySelfRef"] =
+        json!({ "columns": ["self_ref"], "unique": false });
+    cross_table["schema"]["tables"]["profiles"]["rules"]["read"] = json!("Allow");
+    cross_table["schema"]["tables"]["grants"]["rules"]["read"] =
+        exists("profiles", "bySelfRef", "id");
+    only_rule_error(
+        cross_table,
+        "schema.tables.grants.rules.read.exists.key[0]",
+        "is Id; expected Ref<profiles>",
+    );
+}
+
+#[test]
 fn raw_project_json_fields_are_resolved_from_the_outer_table_or_channel() {
     let mut raw = valid_project_json();
     raw["schema"]["tables"]["grants"]["rules"]["read"] =

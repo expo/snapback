@@ -1,0 +1,236 @@
+{
+  "corpusVersion": 1,
+  "name": "edge-bytes-index-order",
+  "category": "edge",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "blobs": {
+        "columns": {
+          "id": "Id",
+          "payload": {
+            "Bytes": {
+              "max": 4
+            }
+          }
+        },
+        "indexes": {
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          },
+          "byPayload": {
+            "columns": [
+              "payload",
+              "id"
+            ],
+            "unique": false
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": []
+      }
+    },
+    "maintains": []
+  },
+  "program": {
+    "name": "bytesIndexOrder",
+    "kind": "Query",
+    "args": {},
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Return": {
+          "Scan": {
+            "site": "bytesIndexOrder.blobs",
+            "table": "blobs",
+            "index": "byPayload",
+            "prefix": [],
+            "order": "Asc",
+            "take": {
+              "Literal": 10
+            },
+            "after": null,
+            "before": null,
+            "range": null,
+            "provenance": "Const"
+          }
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "bytesIndexOrder",
+    "plan_hash": "f2dae18995be17a45412f2a25dfe2e01cf13f1f678c89facaa2dacd1b57db7d1",
+    "schema_hash": "aa3ab3dc991fa93b6e94897fbf6f338594e4b7beb58d876654645f9bb832de18",
+    "rule_hashes": {
+      "blobs.read": "e4b1bd5e6b4e5a53500b2fc0623371af6d2488bb32b96214d514e9eb79ede6e5"
+    },
+    "evaluator_version": "bounded-spike-rust-1",
+    "value_model_version": "i53-codepoint-bytes-v2",
+    "read_sites": [
+      {
+        "site": "bytesIndexOrder.blobs",
+        "table": "blobs",
+        "index": "byPayload",
+        "prefix_template": "Const",
+        "take": 10,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 0,
+        "hoist": true
+      }
+    ],
+    "write_sites": [],
+    "maintained_amplification": 0,
+    "constraint_checks": [],
+    "max_examined": 12,
+    "max_index_entries": 12,
+    "max_rule_probes": 0,
+    "max_steps": 62,
+    "max_heap_bytes": 1984,
+    "max_output_bytes": 1962,
+    "max_closure_bytes": 1950,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [
+      "blobs.byPayload"
+    ],
+    "disclosures": [],
+    "bound_product": "bytesIndexOrder.blobs take 10 = 10"
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {},
+    "now": null,
+    "new_ids": [],
+    "read_time": null,
+    "seed_write": false
+  },
+  "receipt": {
+    "rows": [
+      {
+        "table": "blobs",
+        "id": "high",
+        "row": {
+          "Row": {
+            "id": {
+              "Id": "high"
+            },
+            "payload": {
+              "Bytes": "ff00"
+            }
+          }
+        }
+      },
+      {
+        "table": "blobs",
+        "id": "low",
+        "row": {
+          "Row": {
+            "id": {
+              "Id": "low"
+            },
+            "payload": {
+              "Bytes": "00ff"
+            }
+          }
+        }
+      },
+      {
+        "table": "blobs",
+        "id": "prefix",
+        "row": {
+          "Row": {
+            "id": {
+              "Id": "prefix"
+            },
+            "payload": {
+              "Bytes": "00"
+            }
+          }
+        }
+      }
+    ],
+    "ranges": [],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": {
+      "Array": [
+        {
+          "Row": {
+            "id": {
+              "Id": "prefix"
+            },
+            "payload": {
+              "Bytes": "00"
+            }
+          }
+        },
+        {
+          "Row": {
+            "id": {
+              "Id": "low"
+            },
+            "payload": {
+              "Bytes": "00ff"
+            }
+          }
+        },
+        {
+          "Row": {
+            "id": {
+              "Id": "high"
+            },
+            "payload": {
+              "Bytes": "ff00"
+            }
+          }
+        }
+      ]
+    },
+    "errorCode": null,
+    "localState": "partial",
+    "partialSites": [
+      "bytesIndexOrder.blobs"
+    ],
+    "canonicalResult": "{\"Array\":[{\"Row\":{\"id\":{\"Id\":\"prefix\"},\"payload\":{\"Bytes\":\"00\"}}},{\"Row\":{\"id\":{\"Id\":\"low\"},\"payload\":{\"Bytes\":\"00ff\"}}},{\"Row\":{\"id\":{\"Id\":\"high\"},\"payload\":{\"Bytes\":\"ff00\"}}}]}",
+    "digest": "3131f1c2467afc82defbad2e0eced4dcc541a5890605a0302710e8ef9fbd99fe",
+    "rangeStops": {
+      "bytesIndexOrder.blobs": [
+        "exhausted"
+      ]
+    },
+    "evictedRows": null
+  }
+}

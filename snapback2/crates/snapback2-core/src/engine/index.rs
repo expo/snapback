@@ -209,6 +209,9 @@ pub(super) fn encode_index_value(value: &Value) -> Result<String, RuntimeError> 
         }
         Value::String(value) => format!("3:{}", hex(value.as_bytes())),
         Value::Id(value) => format!("4:{}", hex(value.as_bytes())),
+        // Each tuple component occupies its own SQLite column. The scalar tag
+        // plus order-preserving hex therefore needs no inter-component delimiter.
+        Value::Bytes(value) => format!("5:{}", hex(value)),
         other => {
             return Err(RuntimeError::Schema(format!(
                 "{} is not an indexable scalar",
@@ -330,6 +333,7 @@ fn valid_column_value(kind: &ColumnType, value: Option<&Value>) -> bool {
         (ColumnType::Text { max }, Some(Value::String(text))) => {
             text.chars().count() <= *max as usize
         }
+        (ColumnType::Bytes { max }, Some(Value::Bytes(bytes))) => bytes.len() <= *max as usize,
         (ColumnType::Enum { variants }, Some(Value::String(value))) => variants.contains(value),
         (
             ColumnType::Int

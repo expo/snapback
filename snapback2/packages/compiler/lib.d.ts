@@ -2,6 +2,8 @@ declare module "snapback2" {
   export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
   /** Server-minted authority subject; deliberately distinct from application row IDs. */
   export type Principal = string & { readonly __snapbackPrincipal: "Principal" };
+  export type Bytes = { readonly Bytes: string };
+  export type SeedValue = null | boolean | number | string | Bytes | SeedValue[] | { [key: string]: SeedValue };
   export type Decimal<S extends number> = number & {
     readonly __decimalScale: S;
     readonly __decimalBrand: unique symbol;
@@ -79,6 +81,7 @@ declare module "snapback2" {
     id(): Column<string>;
     principal(): Column<Principal>;
     text(max: number): Column<string>;
+    bytes(max: number): Column<Bytes>;
     int(): Column<number>;
     bool(): Column<boolean>;
     time(): Column<number>;
@@ -132,7 +135,7 @@ declare module "snapback2" {
     then?: Operation<{ outboxId: string; effect: string; result: Awaited<R> }, unknown, "mutation">;
   }): Effect<P, Awaited<R>>;
   export function emit<P extends Json>(target: Effect<P, any>, payload: P): void;
-  export function seed<const S extends { personas: string[]; rows: Record<string, Json[]> }>(value: S): S;
+  export function seed<const S extends { personas: string[]; rows: Record<string, SeedValue[]> }>(value: S): S;
 
   export function range(start: number, end: number): number[];
   /** `decimal(value, scale)` converts a value in whole units to the exact integer minor-unit wire value; for example, `decimal(2, 2)` is 200. */

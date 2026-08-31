@@ -1,6 +1,7 @@
 import ts from "typescript";
-import { boundedDiagnostics } from "./diagnostics";
+import { boundedDiagnostics, refuse, type DiagnosticModule } from "./diagnostics";
 import type { FrontendDiagnostic } from "./ir";
+import { replaceNode } from "./syntax";
 
 type Module = { sourceFile: ts.SourceFile };
 
@@ -40,4 +41,19 @@ export function localConstructorShadow(sourceFile: ts.SourceFile): { name: strin
     }
   }
   return undefined;
+}
+
+export function refuseReservedAuthCode(
+  module: DiagnosticModule,
+  node: ts.Expression | undefined,
+  code: string,
+): void {
+  if (!node || !code.startsWith("E_AUTH_")) return;
+  refuse(
+    module,
+    "E_OP_RESERVED",
+    node,
+    `application refusal code ${code} uses the reserved E_AUTH_* namespace`,
+    replaceNode(module.source, node, '"ACCESS_DENIED"'),
+  );
 }

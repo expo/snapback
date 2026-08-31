@@ -675,6 +675,7 @@ pub(crate) fn argument_max(argument: &ArgType) -> u64 {
     match argument {
         ArgType::Id | ArgType::Principal | ArgType::Ref { .. } => 144,
         ArgType::Text { max } | ArgType::Json { max_bytes: max } => u64::from(*max) + 16,
+        ArgType::Bytes { max } => u64::from(*max).saturating_mul(2).saturating_add(16),
         ArgType::Int | ArgType::Time | ArgType::Decimal { .. } | ArgType::Money { .. } => 32,
         ArgType::Bool => 16,
         ArgType::Optional(inner) => argument_max(inner).max(8),

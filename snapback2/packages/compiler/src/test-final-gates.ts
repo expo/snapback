@@ -1,0 +1,148 @@
+import { mkdir } from "node:fs/promises";
+import { resolve } from "node:path";
+import { assessGauntlet } from "./gauntlet";
+import type { ProjectJson } from "./ir";
+import { lowerProject } from "./project";
+import ts from "typescript";
+
+const frontend = decodeURIComponent(new URL("../", import.meta.url).pathname);
+const crate = decodeURIComponent(new URL("../../../", import.meta.url).pathname);
+const repo = decodeURIComponent(new URL("../../../../", import.meta.url).pathname);
+
+type RegisterTest = (name: string, run: () => void | Promise<void>) => void;
+
+function assert(condition: unknown, message: string): asserts condition {
+  if (!condition) throw new Error(message);
+}
+
+export function registerFinalGateChecks(test: RegisterTest, legacyLib: string): void {
+  test("the React template typechecks against the built snapback2/react package", () => {
+    const packageRoot = resolve(crate, "packages/snapback2");
+    const app = resolve(packageRoot, "templates/react/src/App.tsx");
+    const program = ts.createProgram({
+      rootNames: [app],
+      options: {
+        baseUrl: packageRoot,
+        jsx: ts.JsxEmit.ReactJSX,
+        lib: ["lib.es2022.d.ts", "lib.dom.d.ts"],
+        module: ts.ModuleKind.ESNext,
+        moduleResolution: ts.ModuleResolutionKind.Bundler,
+        noEmit: true,
+        paths: {
+          "snapback2/react": [resolve(packageRoot, "dist/react.d.ts")],
+        },
+        skipLibCheck: true,
+        strict: true,
+        target: ts.ScriptTarget.ES2022,
+        types: ["react"],
+      },
+    });
+    const diagnostics = ts.getPreEmitDiagnostics(program).filter((item) => item.file?.fileName === app);
+    assert(
+      diagnostics.length === 0,
+      `React template did not typecheck against dist/react.d.ts:\n${diagnostics.map((item) => ts.flattenDiagnosticMessageText(item.messageText, "\n")).join("\n")}`,
+    );
+  });
+
+  test("guide validation reports every family and page failure before it fails", () => {
+    const packageRoot = resolve(crate, "packages/snapback2");
+    const checked = Bun.spawnSync({
+      cmd: ["node", "build.mjs", "--self-test"],
+      cwd: packageRoot,
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    const output = `${new TextDecoder().decode(checked.stdout)}${new TextDecoder().decode(checked.stderr)}`;
+    assert(checked.exitCode === 0, `guide validation self-test failed: ${output}`);
+    assert(
+      output.includes("families.source.json[1]") && output.includes("duplicate family duplicate")
+        && output.includes("guide/oversized.md") && output.includes("guide/stale.md"),
+      `guide validator failed fast: ${output}`,
+    );
+  });
+
+  test("binary check certifies every compiler program and reads IR only from stdin or --ir", async () => {
+    const built = Bun.spawnSync({ cmd: ["cargo", "build", "-p", "snapback2"], cwd: crate, stdout: "pipe", stderr: "pipe" });
+    assert(built.exitCode === 0, `cargo build failed: ${new TextDecoder().decode(built.stderr)}`);
+    const chat = await lowerProject(`${frontend}fixtures/chat`);
+    assert(chat.ok, "chat did not compile for binary check");
+    const buildDir = `${frontend}fixtures/chat/.snapback/build`;
+    await mkdir(buildDir, { recursive: true });
+    const projectPath = `${buildDir}/project.json`;
+    await Bun.write(projectPath, JSON.stringify(chat.project));
+    const checked = runBinaryCheck(["--json", "--ir", projectPath]);
+    const checkedRefusals = checked.results.filter((item: any) => item.error);
+    assert(checked.exitCode === 0 && checkedRefusals.length === 0, `chat compiler output was refused: ${checked.stderr}`);
+    assert(checked.results.length === chat.project.programs.length, "project check omitted programs");
+    assert(checked.results.every((item: any) => (item.certificate === null) !== (item.error === null)), "project check omitted a certificate/refusal outcome");
+    assert(checkedRefusals.every((item: any) => fullCheckEnvelope(item.error)), "checker refusal envelope is incomplete");
+    for (const fixture of ["todos", "s1"]) {
+      const lowered = await lowerProject(`${frontend}fixtures/${fixture}`);
+      assert(lowered.ok, `${fixture} did not compile for binary compatibility`);
+      const result = runBinaryCheck(["--json", "--ir"], lowered.project);
+      const refusals = result.results.filter((item: any) => item.error);
+      assert(result.exitCode === 0 && refusals.length === 0, `${fixture} compiler output had ${refusals.length} binary refusals: ${result.stderr}`);
+      assert(result.results.length === lowered.project.programs.length, `${fixture} binary check omitted programs`);
+    }
+    const collided = runBinaryCheck(["--project", projectPath]);
+    assert(collided.exitCode === 2 && collided.stderr.includes("--ir"), "--project still selects the IR-file checker form");
+
+    const unsupportedProgram = runBinaryCheck(["--json", "--ir"], {
+      schemaMode: "synthetic",
+      programs: [{ name: "future", kind: "Query", args: {}, read_time_granularity_ms: null, body: [{ Future: {} }] }],
+    });
+    assert(unsupportedProgram.exitCode === 1 && unsupportedProgram.results[0]?.error?.code === "E_CHECK_IR_UNSUPPORTED", "unknown program IR was not a typed refusal with exit 1");
+    assert(unsupportedProgram.results[0]?.error?.message.includes("Future") && fullCheckEnvelope(unsupportedProgram.results[0]?.error), "unknown program refusal omitted its variant/envelope");
+
+    const explicit = runBinaryCheck(["--json", "--ir"], {
+      schema: {
+        tables: { rows: { columns: { id: "Id", values: { Optional: { List: { of: "Int", max: 2 } } } }, indexes: {}, rules: { read: "Allow", insert: "Allow", update: "Allow", delete: "Allow" }, constraints: [] } },
+        maintains: [],
+        channels: {},
+        auth: { password: false, guests: false },
+        effects: [],
+      },
+      programs: [],
+      effects: [],
+    } as ProjectJson);
+    assert([0, 1].includes(explicit.exitCode), `explicit-schema check panicked/exited as usage: ${explicit.exitCode}`);
+    if (explicit.exitCode === 1) {
+      assert(explicit.results[0]?.error?.code === "E_CHECK_IR_UNSUPPORTED" && fullCheckEnvelope(explicit.results[0]?.error), "unsupported Optional/List schema was not a typed refusal");
+      assert(/Optional|List/.test(explicit.results[0]?.error?.message ?? ""), "schema refusal did not name Optional/List");
+    }
+  });
+
+  test("the 30-shape gauntlet remains measured", async () => {
+    const codexReview = await Bun.file(`${repo}llp/reviews/0329.014-bounded-data-programs.codex.r3.md`).text();
+    const fableReview = await Bun.file(`${repo}llp/reviews/0329.014-bounded-data-programs.fable.r3.md`).text();
+    const gauntlet = [
+      ...assessGauntlet("codex", codexReview, legacyLib),
+      ...assessGauntlet("fable", fableReview, legacyLib),
+    ];
+    assert(gauntlet.length === 30, `expected 30 numbered gauntlet shapes, got ${gauntlet.length}`);
+    const coded = gauntlet.filter((item) => item.source.trim());
+    assert(coded.length === 27, `expected 27 shapes with code, got ${coded.length}`);
+  });
+}
+
+function fullCheckEnvelope(error: any): boolean {
+  return typeof error?.code === "string" && typeof error?.family === "string"
+    && typeof error?.message === "string" && typeof error?.site === "string"
+    && typeof error?.rewrite === "string" && typeof error?.guide === "string";
+}
+
+function runBinaryCheck(args: string[], input?: unknown): { exitCode: number; stderr: string; results: any[] } {
+  const process = Bun.spawnSync({
+    cmd: [`${crate}target/debug/snapback2`, "check", ...args],
+    cwd: crate,
+    stdin: input === undefined ? undefined : new TextEncoder().encode(JSON.stringify(input)),
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  const stdout = new TextDecoder().decode(process.stdout);
+  return {
+    exitCode: process.exitCode,
+    stderr: new TextDecoder().decode(process.stderr),
+    results: stdout.trim() ? JSON.parse(stdout).results : [],
+  };
+}

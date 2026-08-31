@@ -127,22 +127,24 @@ function copyRefusal(envelope: RefusalEnvelope): RefusalEnvelope {
   return refusal;
 }
 
+function isTerminalSession(envelope: Pick<RefusalEnvelope, "code" | "family">): boolean {
+  return envelope.code === "E_AUTH_SESSION" && envelope.family === "auth";
+}
+
 function wireQuery<Result>(value: unknown, surface = "query response"): QueryResult<Result> {
   const record = wireObject(value, surface);
   switch (stringField(record, "state", surface)) {
     case "complete":
       return { state: "complete", data: present(record, "data", surface) as Result, seq: numberField(record, "seq", surface) };
     case "capped": {
-      const take = optionalNumber(record, "take", surface);
-      const site = has(record, "site") ? stringField(record, "site", surface) : undefined;
-      const capped = {
+      for (const field of ["site", "take", "reason"]) {
+        if (has(record, field)) throw wireShape(`${surface}.capped must not carry ${field}`);
+      }
+      return {
         state: "capped",
         data: present(record, "data", surface) as Result,
         seq: numberField(record, "seq", surface),
-      } as const;
-      if (take === undefined && site === undefined) return capped;
-      if (take !== undefined && site !== undefined) return { ...capped, take, site };
-      throw wireShape(`${surface}.site and .take must appear together`);
+      };
     }
     case "partial": {
       const partial = {
@@ -212,9 +214,9 @@ function wireChannelPublish(value: unknown): ChannelPublishResult {
 function terminalSessionEnvelope(value: unknown): RefusalEnvelope | undefined {
   if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
   const record = value as Record<string, unknown>;
-  if (record.code !== "E_AUTH_SESSION"
-    || (record.state !== "rejected" && record.state !== "refused")) return undefined;
-  return wireRefusalEnvelope(record, "terminal session response");
+  if (record.state !== "rejected" && record.state !== "refused") return undefined;
+  const refusal = wireRefusalEnvelope(record, "terminal session response");
+  return isTerminalSession(refusal) ? refusal : undefined;
 }
 
 function wireAuthSession(value: unknown, surface: string): AuthSession {
@@ -302,6 +304,7 @@ export function browserTokenStore(
 
 interface Authority {
   authGeneration: number;
+  custodyGeneration: number;
   fence: number;
   token?: string;
 }
@@ -320,6 +323,7 @@ class Client implements SnapbackClient {
   private readonly persona?: string;
   private currentToken?: string;
   private authGeneration = 0;
+  private custodyGeneration = 0;
   private operationFence = 0;
   private transitionTail: Promise<void> = Promise.resolve();
   private custodyTail: Promise<void> = Promise.resolve();
@@ -368,6 +372,8 @@ class Client implements SnapbackClient {
           body: JSON.stringify({ op: referenceName(ref), args }),
         }, authority));
         this.validated(authority);
+        // Every typed receipt terminates this request. In particular, an
+        // empty Capped array is the terminal drain state, never a retry cue.
         return result;
       } catch (error) {
         if (!isSnapbackRefusal(error)
@@ -388,7 +394,7 @@ class Client implements SnapbackClient {
         method: "POST",
         body: JSON.stringify({ op: referenceName(ref), args }),
       }, authority));
-      if (result.state === "rejected" && result.code === "E_AUTH_SESSION") {
+      if (result.state === "rejected" && isTerminalSession(result)) {
         const wasCurrent = this.authorityCurrent(authority);
         const expiration = await this.expireSession(authority);
         if (!wasCurrent || !this.expirationCurrent(expiration)) throw this.supersededRefusal();
@@ -416,7 +422,7 @@ class Client implements SnapbackClient {
       },
       decode: ({ data }) => {
         const value = wireSubscription<Result>(data);
-        if (value.state === "refused" && value.code === "E_AUTH_SESSION") {
+        if (value.state === "refused" && isTerminalSession(value)) {
           throw new SnapbackRefusal(copyRefusal(value));
         }
         this.ensureAuthority(authority);
@@ -430,6 +436,12 @@ class Client implements SnapbackClient {
           lastRefusal: value.state === "refused" ? copyRefusal(value) : undefined,
         });
         return value;
+      },
+      bufferedTerminal: ({ data }) => {
+        const value = wireSubscription<Result>(data);
+        return value.state === "refused" && isTerminalSession(value)
+          ? new SnapbackRefusal(copyRefusal(value))
+          : undefined;
       },
       onError: async (error) => {
         const { retry, event, refusal } = await this.subscriptionError(error, authority, subscription);
@@ -467,7 +479,7 @@ class Client implements SnapbackClient {
             body: JSON.stringify({ args, payload }),
           }, authority));
           if ("state" in result) {
-            if (result.code === "E_AUTH_SESSION") {
+            if (isTerminalSession(result)) {
               const wasCurrent = this.authorityCurrent(authority);
               const expiration = await this.expireSession(authority);
               if (!wasCurrent || !this.expirationCurrent(expiration)) throw this.supersededRefusal();
@@ -490,7 +502,7 @@ class Client implements SnapbackClient {
           },
           decode: ({ data }) => {
             const value = wireChannelDelivery<Payload>(data);
-            if ("state" in value && value.state === "refused" && value.code === "E_AUTH_SESSION") {
+            if ("state" in value && value.state === "refused" && isTerminalSession(value)) {
               throw new SnapbackRefusal(copyRefusal(value));
             }
             this.ensureAuthority(authority);
@@ -501,6 +513,12 @@ class Client implements SnapbackClient {
                 : undefined,
             });
             return value;
+          },
+          bufferedTerminal: ({ data }) => {
+            const value = wireChannelDelivery<Payload>(data);
+            return "state" in value && value.state === "refused" && isTerminalSession(value)
+              ? new SnapbackRefusal(copyRefusal(value))
+              : undefined;
           },
           onError: async (error) => {
             const decision = await this.subscriptionError(error, authority, subscription);
@@ -669,14 +687,14 @@ class Client implements SnapbackClient {
         }
         const wasCurrent = !enforceAuthority || this.authorityCurrent(authority);
         let expiration: SessionExpiration | undefined;
-        if (clearTerminalSession && refusal.code === "E_AUTH_SESSION") {
+        if (clearTerminalSession && isTerminalSession(refusal.envelope)) {
           expiration = await this.expireSession(authority);
         }
         if (enforceAuthority && (!wasCurrent
           || (expiration !== undefined && !this.expirationCurrent(expiration)))) {
           throw this.supersededRefusal();
         }
-        if (enforceAuthority && !(clearTerminalSession && refusal.code === "E_AUTH_SESSION")) {
+        if (enforceAuthority && !(clearTerminalSession && isTerminalSession(refusal.envelope))) {
           this.ensureAuthority(authority);
         }
         else this.ensureOpen();
@@ -742,12 +760,12 @@ class Client implements SnapbackClient {
             // A non-envelope 4xx cannot be interpreted as a terminal owner refusal.
           }
           if (refusal !== undefined) {
-            if (refusal.code === "E_AUTH_SESSION"
+            if (isTerminalSession(refusal.envelope)
               && (signal.aborted || !this.authorityCurrent(authority))) {
               await this.expireSession(authority);
               throw this.supersededRefusal();
             }
-            if (refusal.code !== "E_AUTH_SESSION") this.ensureAuthority(authority);
+            if (!isTerminalSession(refusal.envelope)) this.ensureAuthority(authority);
             throw refusal;
           }
         }
@@ -762,7 +780,7 @@ class Client implements SnapbackClient {
       this.patchSnapshot({ connection: "connected" });
       return response;
     } catch (error) {
-      if (isSnapbackRefusal(error) && error.code === "E_AUTH_SESSION") throw error;
+      if (isSnapbackRefusal(error) && isTerminalSession(error.envelope)) throw error;
       // An aborted transport can still settle when a custom fetch ignores its
       // signal. Fence it before interpreting or publishing the late result.
       this.ensureAuthority(authority);
@@ -797,12 +815,15 @@ class Client implements SnapbackClient {
     if (refusal.code === "E_AUTH_SUPERSEDED") {
       return { retry: false, refusal };
     }
-    if (refusal.code === "E_AUTH_SESSION" && authority !== undefined) {
+    if (isTerminalSession(refusal.envelope) && authority !== undefined) {
       const wasCurrent = this.authorityCurrent(authority);
       let expiration: SessionExpiration;
       try {
         expiration = await this.expireSession(authority, origin);
       } catch (error) {
+        if (this.closed) {
+          return { retry: false, refusal: this.supersededRefusal() };
+        }
         const terminal = isSnapbackRefusal(error)
           ? error
           : new SnapbackRefusal({
@@ -818,9 +839,15 @@ class Client implements SnapbackClient {
           event: { state: "refused", ...terminal.envelope },
         };
       }
+      if (this.closed) {
+        return { retry: false, refusal: this.supersededRefusal() };
+      }
       if (!wasCurrent || !this.expirationCurrent(expiration)) {
         return { retry: false, refusal: this.supersededRefusal() };
       }
+    }
+    if (this.closed) {
+      return { retry: false, refusal: this.supersededRefusal() };
     }
     if (refusal.retryable) {
       this.patchSnapshot({ connection: this.transportFailureState(), lastRefusal: refusal.envelope });
@@ -850,6 +877,7 @@ class Client implements SnapbackClient {
     this.ensureOpen();
     return {
       authGeneration: this.authGeneration,
+      custodyGeneration: this.custodyGeneration,
       fence: this.operationFence,
       token: this.currentToken,
     };
@@ -868,6 +896,7 @@ class Client implements SnapbackClient {
       if (waitForWrites) await this.settleWrites();
       const authority: Authority = {
         authGeneration: this.authGeneration,
+        custodyGeneration: this.custodyGeneration,
         fence: this.operationFence,
         token: this.currentToken,
       };
@@ -885,7 +914,8 @@ class Client implements SnapbackClient {
   private async expireSession(authority: Authority, origin?: Subscription<unknown>): Promise<SessionExpiration> {
     if (authority.token === undefined) return { cleared: false };
     return this.custody(async () => {
-      if (this.currentToken !== authority.token) return { cleared: false };
+      if (this.currentToken !== authority.token
+        || this.custodyGeneration !== authority.custodyGeneration) return { cleared: false };
       this.operationFence += 1;
       const fence = this.operationFence;
       const authGeneration = this.authGeneration + 1;
@@ -912,6 +942,10 @@ class Client implements SnapbackClient {
     await this.custody(async () => {
       this.ensureOpen();
       await this.saveToken(token);
+      // Commit replacement custody only after durable persistence succeeds,
+      // but before close can prevent its in-memory installation. Predecessor
+      // evidence may clear a failed save; it cannot erase a completed one.
+      this.custodyGeneration += 1;
       // Persistence may have outlived close(). Retain the durable token for a
       // future client restore, but never resurrect this closed instance.
       this.ensureOpen();
@@ -996,6 +1030,7 @@ class Client implements SnapbackClient {
       && !this.closed
       && authority.fence === this.operationFence
       && authority.authGeneration === this.authGeneration
+      && authority.custodyGeneration === this.custodyGeneration
       && authority.token === this.currentToken;
   }
 

@@ -21,7 +21,10 @@ const EFFECT_REWRITE: &str =
 pub(crate) fn check(schema: &Schema) -> Vec<(String, CheckError)> {
     let mut errors = Vec::new();
     for (table_name, table) in &schema.tables {
-        let subject = Subject::Table(&table.columns);
+        let subject = Subject::Table {
+            name: table_name,
+            columns: &table.columns,
+        };
         for (side, effect, rule) in [
             ("read", Effect::Read, &table.rules.read),
             ("insert", Effect::Insert, &table.rules.insert),
@@ -82,7 +85,10 @@ pub(crate) fn check(schema: &Schema) -> Vec<(String, CheckError)> {
         };
         let subject = schema
             .table(&maintain.target)
-            .map(|table| Subject::Table(&table.columns))
+            .map(|table| Subject::Table {
+                name: maintain.target.as_str(),
+                columns: &table.columns,
+            })
             .unwrap_or(Subject::None);
         check_rule(
             schema,
@@ -98,7 +104,10 @@ pub(crate) fn check(schema: &Schema) -> Vec<(String, CheckError)> {
 
 #[derive(Clone, Copy)]
 enum Subject<'a> {
-    Table(&'a BTreeMap<String, ColumnType>),
+    Table {
+        name: &'a str,
+        columns: &'a BTreeMap<String, ColumnType>,
+    },
     Channel(&'a BTreeMap<String, ArgType>),
     None,
 }
@@ -119,12 +128,19 @@ impl RuleUse {
     }
 }
 
-impl Subject<'_> {
+impl<'a> Subject<'a> {
     fn field_type(self, field: &str) -> Option<RuleType> {
         match self {
-            Self::Table(columns) => columns.get(field).map(RuleType::from_column),
+            Self::Table { columns, .. } => columns.get(field).map(RuleType::from_column),
             Self::Channel(args) => args.get(field).map(RuleType::from_arg),
             Self::None => None,
+        }
+    }
+
+    fn table_name(self) -> Option<&'a str> {
+        match self {
+            Self::Table { name, .. } => Some(name),
+            Self::Channel(_) | Self::None => None,
         }
     }
 }
@@ -135,6 +151,7 @@ enum RuleType {
     Id,
     Ref(String),
     Text,
+    Bytes,
     Int,
     Bool,
     Time,
@@ -148,6 +165,7 @@ enum RuleType {
     NullLiteral,
     IdLiteral { system: bool },
     TextLiteral(String),
+    BytesLiteral,
     IntLiteral,
     BoolLiteral,
     ArrayLiteral(Vec<RuleType>),
@@ -161,6 +179,7 @@ impl RuleType {
             ColumnType::Id => Self::Id,
             ColumnType::Ref { table } => Self::Ref(table.clone()),
             ColumnType::Text { .. } => Self::Text,
+            ColumnType::Bytes { .. } => Self::Bytes,
             ColumnType::Int => Self::Int,
             ColumnType::Bool => Self::Bool,
             ColumnType::Time => Self::Time,
@@ -179,6 +198,7 @@ impl RuleType {
             ArgType::Id => Self::Id,
             ArgType::Ref { table } => Self::Ref(table.clone()),
             ArgType::Text { .. } => Self::Text,
+            ArgType::Bytes { .. } => Self::Bytes,
             ArgType::Int => Self::Int,
             ArgType::Bool => Self::Bool,
             ArgType::Time => Self::Time,
@@ -200,6 +220,7 @@ impl RuleType {
             Value::Bool(_) => Self::BoolLiteral,
             Value::Int(_) => Self::IntLiteral,
             Value::String(value) => Self::TextLiteral(value.clone()),
+            Value::Bytes(_) => Self::BytesLiteral,
             Value::Id(value) => Self::IdLiteral {
                 system: value == "system",
             },
@@ -216,6 +237,7 @@ impl RuleType {
             Self::Id => "Id".to_owned(),
             Self::Ref(table) => format!("Ref<{table}>"),
             Self::Text => "Text".to_owned(),
+            Self::Bytes => "Bytes".to_owned(),
             Self::Int => "Int".to_owned(),
             Self::Bool => "Bool".to_owned(),
             Self::Time => "Time".to_owned(),
@@ -230,6 +252,7 @@ impl RuleType {
             Self::IdLiteral { system: true } => "reserved system principal literal".to_owned(),
             Self::IdLiteral { system: false } => "id literal".to_owned(),
             Self::TextLiteral(value) => format!("text literal {value:?}"),
+            Self::BytesLiteral => "bytes literal".to_owned(),
             Self::IntLiteral => "integer literal".to_owned(),
             Self::BoolLiteral => "boolean literal".to_owned(),
             Self::ArrayLiteral(_) => "array literal".to_owned(),
@@ -366,6 +389,7 @@ fn check_exists(
         };
         if let Some(actual) = actual
             && !compatible_exists(&actual, &expected, table_name, column_name)
+            && !compatible_subject_id_ref(subject, rule_use, term, &actual, &expected)
         {
             errors.push(invalid(
                 &term_site,
@@ -377,6 +401,19 @@ fn check_exists(
             ));
         }
     }
+}
+
+fn compatible_subject_id_ref(
+    subject: Subject<'_>,
+    rule_use: RuleUse,
+    term: &RuleTerm,
+    actual: &RuleType,
+    expected: &RuleType,
+) -> bool {
+    matches!(rule_use, RuleUse::Table(_))
+        && matches!(term, RuleTerm::Field(field) if field == "id")
+        && actual == &RuleType::Id
+        && matches!(expected, RuleType::Ref(table) if Some(table.as_str()) == subject.table_name())
 }
 
 fn check_final_exists(
@@ -553,6 +590,9 @@ fn compatible(left: &RuleType, right: &RuleType) -> bool {
         (RuleType::Principal, RuleType::IdLiteral { system: true })
         | (RuleType::IdLiteral { system: true }, RuleType::Principal) => true,
         (RuleType::Text, RuleType::TextLiteral(_)) | (RuleType::TextLiteral(_), RuleType::Text) => {
+            true
+        }
+        (RuleType::Bytes, RuleType::BytesLiteral) | (RuleType::BytesLiteral, RuleType::Bytes) => {
             true
         }
         (RuleType::Enum(variants), RuleType::TextLiteral(value))

@@ -157,6 +157,8 @@ pub enum ColumnType {
     // @ref LLP 1001#6-identity-identityrs — Schema principals stay nominal while v1 encodes them as Value::Id.
     Principal,
     Text { max: u32 },
+    // @ref LLP 1001#9-schema-additions — bytes use the value model's canonical lowercase-base16 wrapper.
+    Bytes { max: u32 },
     Int,
     // @ref LLP 1001#9-schema-additions — enum and fixed-scale columns keep scalar storage keys.
     Enum { variants: Vec<String> },

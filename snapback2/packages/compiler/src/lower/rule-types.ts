@@ -5,7 +5,7 @@ import { unwrapCall, unwrapExpression } from "../syntax";
 import { callLeaf, objectOf, property, staticJson, stringValue } from "./static";
 
 type SchemaModule = { sourceFile: ts.SourceFile; source: string; fileName: string };
-type RuleSubject = { label: string; columns: Record<string, unknown> };
+type RuleSubject = { label: string; table?: string; columns: Record<string, unknown> };
 type RuleTableShape = RuleSubject & { indexes: Record<string, { columns?: string[] }> };
 // @ref LLP 1002#2-the-authored-surface-the-snapback2-module — row-image terms and created-row probes are scoped to the mutation effect that defines them.
 type RuleEffect = "read" | "insert" | "update" | "delete";
@@ -19,6 +19,7 @@ type RuleType =
   | { kind: "int" }
   | { kind: "bool" }
   | { kind: "time" }
+  | { kind: "bytes" }
   | { kind: "json" }
   | { kind: "enum"; variants: string[] }
   | { kind: "decimal"; scale: number }
@@ -99,7 +100,7 @@ function ruleTableCatalog(tableJson: Record<string, unknown>): Map<string, RuleT
     const indexes = record.indexes && typeof record.indexes === "object" && !Array.isArray(record.indexes)
       ? record.indexes as Record<string, { columns?: string[] }>
       : {};
-    catalog.set(name, { label: `table ${name}`, columns, indexes });
+    catalog.set(name, { label: `table ${name}`, table: name, columns, indexes });
   }
   return catalog;
 }
@@ -212,7 +213,14 @@ function validateRuleType(
       continue;
     }
     const actual = ruleTermType(module, term, subject, ruleUse, diagnostics);
-    if (!actual || compatibleExists(actual, expected, tableName, column)) continue;
+    if (!actual || compatibleExists(
+      actual,
+      expected,
+      tableName,
+      column,
+      ruleUse.kind === "table" ? subject?.table : undefined,
+      term,
+    )) continue;
     diagnostics.push(ruleTypeDiagnostic(
       module,
       term,
@@ -374,6 +382,7 @@ function ruleTypeFromDescriptor(value: unknown): RuleType | undefined {
   const descriptor = value as Record<string, any>;
   if (descriptor.Ref && typeof descriptor.Ref.table === "string") return { kind: "ref", table: descriptor.Ref.table };
   if (descriptor.Text) return { kind: "text" };
+  if (descriptor.Bytes) return { kind: "bytes" };
   if (descriptor.Json) return { kind: "json" };
   if (descriptor.Enum && Array.isArray(descriptor.Enum.variants)) {
     return { kind: "enum", variants: [...descriptor.Enum.variants] };
@@ -416,6 +425,9 @@ function compatible(left: RuleType, right: RuleType): boolean {
   if (["int", "time"].includes(right.kind) && left.kind === "int-literal") return true;
   if (left.kind === "bool" && right.kind === "bool-literal") return true;
   if (right.kind === "bool" && left.kind === "bool-literal") return true;
+  // The schema-position-aware lowerer validates the exact canonical tagged Bytes object.
+  if (left.kind === "bytes" && right.kind === "json-literal") return true;
+  if (right.kind === "bytes" && left.kind === "json-literal") return true;
   if (left.kind === "json" && jsonLiteral(right)) return true;
   if (right.kind === "json" && jsonLiteral(left)) return true;
   if (left.kind === "array-literal" && right.kind === "array-literal") {
@@ -442,10 +454,17 @@ function compatibleExists(
   expected: RuleType,
   targetTable: string,
   targetColumn: string,
+  subjectTable?: string,
+  term?: ts.Expression,
 ): boolean {
+  const termCall = term && unwrapCall(term);
   return compatible(actual, expected)
     || (actual.kind === "ref" && actual.table === targetTable
-      && expected.kind === "id" && targetColumn === "id");
+      && expected.kind === "id" && targetColumn === "id")
+    || (actual.kind === "id" && expected.kind === "ref"
+      && expected.table === subjectTable
+      && callLeaf(termCall) === "field"
+      && stringValue(termCall?.arguments[0]) === "id");
 }
 
 function compatibleFinalExists(
@@ -497,6 +516,7 @@ function ruleTypeLabel(value: RuleType): string {
     case "int": return "Int";
     case "bool": return "Bool";
     case "time": return "Time";
+    case "bytes": return "Bytes";
     case "json": return "Json";
     case "enum": return `Enum<${value.variants.join("|")}>`;
     case "decimal": return `Decimal<${value.scale}>`;

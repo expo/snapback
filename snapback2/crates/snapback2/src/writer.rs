@@ -674,7 +674,7 @@ impl State {
                 "E_AUTH_PERSONA_NOT_DEV",
                 "auth",
                 "personas are refused by a serve owner",
-                "use Authorization: Bearer <token> or start a dev owner",
+                "use a user/guest session for served requests, or start a dev owner for personas",
                 "auth/personas",
             ))
         }
@@ -1324,6 +1324,7 @@ fn json_as_arg(value: &Json, kind: &ArgType) -> Result<Value, Refusal> {
             .ok_or_else(|| {
                 Refusal::input("text and enum arguments must be strings", "pass a string")
             }),
+        ArgType::Bytes { .. } => json_as_bytes(value, "bytes arguments"),
         ArgType::Bool => value.as_bool().map(Value::Bool).ok_or_else(|| {
             Refusal::input("boolean arguments must be true or false", "pass a boolean")
         }),
@@ -1348,6 +1349,7 @@ fn json_as_kind(value: &Json, kind: &ColumnType) -> Result<Value, Refusal> {
             .as_str()
             .map(|value| Value::String(value.to_owned()))
             .ok_or_else(|| Refusal::input("text index values must be strings", "pass a string")),
+        ColumnType::Bytes { .. } => json_as_bytes(value, "bytes index values"),
         ColumnType::Int
         | ColumnType::Time
         | ColumnType::Decimal { .. }
@@ -1362,4 +1364,20 @@ fn json_as_kind(value: &Json, kind: &ColumnType) -> Result<Value, Refusal> {
         }),
         ColumnType::Json { .. } | ColumnType::List { .. } => json_to_value(value),
     }
+}
+
+fn json_as_bytes(value: &Json, label: &str) -> Result<Value, Refusal> {
+    let bytes = value
+        .as_object()
+        .filter(|object| object.len() == 1)
+        .and_then(|object| object.get("Bytes"))
+        .and_then(Json::as_str)
+        .and_then(snapback2_core::decode_bytes_hex)
+        .ok_or_else(|| {
+            Refusal::input(
+                format!("{label} must use {{\"Bytes\":\"lowercase-base16\"}}"),
+                "pass canonical lowercase even-length base16",
+            )
+        })?;
+    Ok(Value::Bytes(bytes))
 }

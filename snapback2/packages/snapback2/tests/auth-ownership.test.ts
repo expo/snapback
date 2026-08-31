@@ -82,6 +82,32 @@ function hangingSse(value?: unknown, onCancel?: () => void): Response {
   }), { status: 200, headers: { "Content-Type": "text/event-stream" } });
 }
 
+function bufferedSse(): {
+  response: Response;
+  readStarted: Promise<void>;
+  enqueue(...values: unknown[]): void;
+} {
+  const encoder = new TextEncoder();
+  const readStarted = deferred<void>();
+  let stream!: ReadableStreamDefaultController<Uint8Array>;
+  const response = new Response(new ReadableStream<Uint8Array>({
+    start(controller) {
+      stream = controller;
+    },
+    pull() {
+      readStarted.resolve();
+    },
+  }, { highWaterMark: 0 }), { status: 200, headers: { "Content-Type": "text/event-stream" } });
+  return {
+    response,
+    readStarted: readStarted.promise,
+    enqueue: (...values) => {
+      stream.enqueue(encoder.encode(values.map((value) =>
+        `data: ${JSON.stringify(value)}\n\n`).join("")));
+    },
+  };
+}
+
 function pathOf(input: string | URL | Request): string {
   return new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url).pathname;
 }
@@ -548,6 +574,157 @@ test("a delayed valid subscription expiry clears custody after a failed replacem
   value.close();
 });
 
+test("an already-read terminal subscription frame survives a replacement fence", async () => {
+  for (const replacement of ["failed", "successful"] as const) {
+    const stream = bufferedSse();
+    const deliveries: unknown[] = [];
+    let stored: string | null = "expired-token";
+    const value = createClient({
+      url: "http://auth.test",
+      tokenStore: {
+        load: () => stored,
+        save: (token) => { stored = token; },
+      },
+      fetch: async (input) => {
+        const requestPath = pathOf(input);
+        if (requestPath.endsWith("/subscribe")) return stream.response;
+        if (requestPath === "/api/auth/login") {
+          return replacement === "successful"
+            ? json({ token: "replacement-token", viewer: "principal-new" })
+            : json(refusal("E_AUTH_INVALID"), 401);
+        }
+        throw new Error(`unexpected path ${requestPath}`);
+      },
+    });
+    await value.ready;
+    const subscription = value.subscribe(api.messages.thread, {}, (delivery) => deliveries.push(delivery));
+    await stream.readStarted;
+
+    // Both frames have been returned by reader.read(), but the transition
+    // fences the stream before its continuation runs. The stale data must not
+    // escape; the terminal evidence must still be applied to the old bearer.
+    stream.enqueue(
+      { state: "complete", data: ["stale-private-row"], seq: 1 },
+      { state: "refused", ...refusal("E_AUTH_SESSION", "expired") },
+    );
+    const login = value.auth.login({ email: "new@example.com", password: "password" });
+    if (replacement === "successful") {
+      await login;
+      await flush();
+      await flush();
+      assert.equal(stored, "replacement-token");
+      assert.equal(value.snapshot.token, "replacement-token");
+    } else {
+      await assert.rejects(login, isCode("E_AUTH_INVALID"));
+      await waitFor(() => stored === null, "buffered terminal custody clear");
+      assert.equal(value.snapshot.token, undefined);
+    }
+    assert.deepEqual(deliveries, [], `${replacement}: stale buffered delivery escaped`);
+    subscription.close();
+    value.close();
+  }
+});
+
+test("an individually closed subscription still applies already-read terminal evidence", async () => {
+  const stream = bufferedSse();
+  const deliveries: unknown[] = [];
+  let stored: string | null = "expired-token";
+  const value = createClient({
+    url: "http://auth.test",
+    tokenStore: {
+      load: () => stored,
+      save: (token) => { stored = token; },
+    },
+    fetch: async () => stream.response,
+  });
+  await value.ready;
+  const subscription = value.subscribe(api.messages.thread, {}, (delivery) => deliveries.push(delivery));
+  await stream.readStarted;
+  stream.enqueue({ state: "refused", ...refusal("E_AUTH_SESSION", "expired") });
+  subscription.close();
+  await waitFor(() => stored === null, "closed subscription terminal custody clear");
+  assert.equal(value.snapshot.token, undefined);
+  assert.deepEqual(deliveries, []);
+  value.close();
+});
+
+test("whole-client close still applies already-read terminal evidence without delivery", async () => {
+  const stream = bufferedSse();
+  const deliveries: unknown[] = [];
+  let stored: string | null = "expired-token";
+  const value = createClient({
+    url: "http://auth.test",
+    tokenStore: {
+      load: () => stored,
+      save: (token) => { stored = token; },
+    },
+    fetch: async () => stream.response,
+  });
+  await value.ready;
+  value.subscribe(api.messages.thread, {}, (delivery) => deliveries.push(delivery));
+  await stream.readStarted;
+  stream.enqueue({ state: "refused", ...refusal("E_AUTH_SESSION", "expired") });
+  value.close();
+
+  await waitFor(() => stored === null, "closed client terminal custody clear");
+  assert.equal(value.snapshot.token, undefined);
+  assert.equal(value.snapshot.connection, "offline");
+  assert.equal(value.snapshot.lastRefusal, undefined);
+  assert.deepEqual(deliveries, []);
+});
+
+test("E_AUTH_SESSION clears custody only for the auth refusal family", async () => {
+  const impostor = {
+    code: "E_AUTH_SESSION",
+    family: "rule",
+    message: "application refusal reusing a reserved-looking code",
+    guide: "rule/runtime",
+  };
+  let stored: string | null = "current-token";
+  let clears = 0;
+  const value = createClient({
+    url: "http://auth.test",
+    tokenStore: {
+      load: () => stored,
+      save: (token) => {
+        if (token === null) clears += 1;
+        stored = token;
+      },
+    },
+    fetch: async (input) => {
+      const requestPath = pathOf(input);
+      if (requestPath === "/api/query") return json(impostor, 401);
+      if (requestPath === "/api/mutation") return json({ state: "rejected", ...impostor });
+      if (requestPath.endsWith("/publish")) return json({ state: "refused", ...impostor });
+      if (requestPath.endsWith("/subscribe")) {
+        return hangingSse({ state: "refused", ...impostor });
+      }
+      throw new Error(`unexpected path ${requestPath}`);
+    },
+  });
+  await value.ready;
+
+  await assert.rejects(value.query(api.messages.thread, {}), isCode("E_AUTH_SESSION"));
+  assert.equal((await value.mutation(api.messages.send, {})).state, "rejected");
+  assert.equal((await value.channel(api.typing, {}).publish({ typing: true })).state, "refused");
+
+  const querySubscription = value.subscribe(api.messages.thread, {}, () => undefined);
+  const queryDelivery = await querySubscription.until((delivery) => delivery.state === "refused");
+  assert.equal((queryDelivery as { family?: string }).family, "rule");
+  querySubscription.close();
+
+  const channelSubscription = value.channel(api.typing, {}).subscribe(() => undefined);
+  const channelDelivery = await channelSubscription.until((delivery) =>
+    "state" in delivery && delivery.state === "refused");
+  assert.equal((channelDelivery as { family?: string }).family, "rule");
+  channelSubscription.close();
+
+  assert.equal(clears, 0);
+  assert.equal(stored, "current-token");
+  assert.equal(value.snapshot.token, "current-token");
+  value.close();
+});
+
 test("auth transitions serialize and already-dispatched writes settle before replacement", async () => {
   const mutationResponse = deferred<Response>();
   const loginResponse = deferred<Response>();
@@ -768,6 +945,163 @@ test("close during token persistence never resurrects the client", async () => {
   assert.equal(logoutClient.snapshot.connection, "offline");
   assert.equal(logoutClient.snapshot.token, undefined);
   assert.equal(logoutStored, null);
+});
+
+test("predecessor expiry cannot erase a durably saved replacement after close", async () => {
+  const oldResponse = delayedJson(401);
+  const replacementSave = deferred<void>();
+  const replacementSaveStarted = deferred<void>();
+  let stored: string | null = "old-token";
+  let clears = 0;
+  const tokenStore: AuthTokenStore = {
+    load: () => stored,
+    save: async (token) => {
+      if (token === "new-token") {
+        stored = token;
+        replacementSaveStarted.resolve();
+        await replacementSave.promise;
+        return;
+      }
+      if (token === null) clears += 1;
+      stored = token;
+    },
+  };
+  const value = createClient({
+    url: "http://auth.test",
+    tokenStore,
+    fetch: async (input) => {
+      const requestPath = pathOf(input);
+      if (requestPath === "/api/query") return oldResponse.response;
+      if (requestPath === "/api/auth/login") {
+        return json({ token: "new-token", viewer: "principal-new" });
+      }
+      throw new Error(`unexpected path ${requestPath}`);
+    },
+  });
+  await value.ready;
+  const oldQuery = value.query(api.messages.thread, {});
+  await oldResponse.started;
+  const login = value.auth.login({ email: "new@example.com", password: "password" });
+  await replacementSaveStarted.promise;
+
+  oldResponse.resolve(refusal("E_AUTH_SESSION", "expired"));
+  await flush();
+  await flush();
+  value.close();
+  replacementSave.resolve();
+
+  await assert.rejects(login, isCode("E_CLIENT_CLOSED"));
+  await assert.rejects(oldQuery, isCode("E_AUTH_SUPERSEDED"));
+  assert.equal(clears, 0);
+  assert.equal(stored, "new-token");
+  assert.equal(value.snapshot.token, "old-token");
+  assert.equal(value.snapshot.connection, "offline");
+
+  const restored = createClient({
+    url: "http://auth.test",
+    tokenStore,
+    fetch: async () => json({ state: "complete", data: [], seq: 1 }),
+  });
+  await restored.ready;
+  assert.equal(restored.snapshot.token, "new-token");
+  restored.close();
+});
+
+async function exerciseFailedReplacementSave(closeDuringSave: boolean): Promise<void> {
+  const oldResponse = delayedJson(401);
+  const replacementSave = deferred<void>();
+  const replacementSaveStarted = deferred<void>();
+  let stored: string | null = "old-token";
+  let clears = 0;
+  const value = createClient({
+    url: "http://auth.test",
+    tokenStore: {
+      load: () => stored,
+      save: async (token) => {
+        if (token === "new-token") {
+          replacementSaveStarted.resolve();
+          await replacementSave.promise;
+          throw new Error("storage unavailable");
+        }
+        if (token === null) clears += 1;
+        stored = token;
+      },
+    },
+    fetch: async (input) => {
+      const requestPath = pathOf(input);
+      if (requestPath === "/api/query") return oldResponse.response;
+      if (requestPath === "/api/auth/login") {
+        return json({ token: "new-token", viewer: "principal-new" });
+      }
+      throw new Error(`unexpected path ${requestPath}`);
+    },
+  });
+  await value.ready;
+  const oldQuery = value.query(api.messages.thread, {});
+  await oldResponse.started;
+  const login = value.auth.login({ email: "new@example.com", password: "password" });
+  await replacementSaveStarted.promise;
+
+  oldResponse.resolve(refusal("E_AUTH_SESSION", "expired"));
+  await flush();
+  await flush();
+  if (closeDuringSave) value.close();
+  replacementSave.resolve();
+
+  await assert.rejects(login, isCode("E_AUTH_TOKEN_STORE"));
+  await assert.rejects(oldQuery, isCode("E_AUTH_SUPERSEDED"));
+  assert.equal(clears, 1);
+  assert.equal(stored, null);
+  assert.equal(value.snapshot.token, undefined);
+  assert.equal(value.snapshot.connection, closeDuringSave ? "offline" : "connected");
+  value.close();
+}
+
+test("predecessor expiry clears the old bearer after replacement persistence fails", async () => {
+  await exerciseFailedReplacementSave(false);
+});
+
+test("predecessor expiry clears the old bearer after replacement persistence fails across close", async () => {
+  await exerciseFailedReplacementSave(true);
+});
+
+test("close during terminal subscription cleanup stays offline and suppresses late delivery", async () => {
+  for (const outcome of ["saved", "failed"] as const) {
+    const clear = deferred<void>();
+    const clearStarted = deferred<void>();
+    const deliveries: unknown[] = [];
+    let stored: string | null = "expired-token";
+    const value = createClient({
+      url: "http://auth.test",
+      tokenStore: {
+        load: () => stored,
+        save: async (token) => {
+          if (token === null) {
+            clearStarted.resolve();
+            await clear.promise;
+            if (outcome === "failed") throw new Error("storage unavailable");
+          }
+          stored = token;
+        },
+      },
+      fetch: async () => hangingSse({
+        state: "refused",
+        ...refusal("E_AUTH_SESSION", "expired"),
+      }),
+    });
+    await value.ready;
+    value.subscribe(api.messages.thread, {}, (delivery) => deliveries.push(delivery));
+    await clearStarted.promise;
+    value.close();
+    clear.resolve();
+    await waitFor(() => value.snapshot.token === undefined, `${outcome} terminal cleanup`);
+    await flush();
+    await flush();
+
+    assert.equal(value.snapshot.connection, "offline", outcome);
+    assert.deepEqual(deliveries, [], `${outcome}: closed subscription delivered a late refusal`);
+    assert.equal(stored, outcome === "saved" ? null : "expired-token", outcome);
+  }
 });
 
 test("logout and terminal session expiry clear custody and stop old-bearer reconnect", async () => {

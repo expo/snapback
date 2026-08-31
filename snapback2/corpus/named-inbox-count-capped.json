@@ -1033,6 +1033,72 @@
       }
     ]
   },
+  "certificate": {
+    "program": "inboxCountCapped",
+    "plan_hash": "eb8c40d8aebbc536dc13c9e1bfee41c8ad65d4452c340dd37b03611d229a5334",
+    "schema_hash": "31792591fb75b5ab316e24a71206d3f7de6e02ed12f49a2f39782dbcab4b3566",
+    "rule_hashes": {
+      "memberships.read": "cf46e23f564ce282f3ac1c4b679811ab548391f815ee9ca929e654aa57318bf0",
+      "messages.read": "cf46e23f564ce282f3ac1c4b679811ab548391f815ee9ca929e654aa57318bf0"
+    },
+    "evaluator_version": "bounded-spike-rust-1",
+    "value_model_version": "i53-codepoint-bytes-v2",
+    "read_sites": [
+      {
+        "site": "inbox.latest",
+        "table": "messages",
+        "index": "byConvTime",
+        "prefix_template": "Shape",
+        "take": 1,
+        "max_calls": 50,
+        "rule_probes_per_candidate": 2,
+        "hoist": true
+      },
+      {
+        "site": "inbox.memberships",
+        "table": "memberships",
+        "index": "byUserActivity",
+        "prefix_template": "Viewer",
+        "take": 50,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 2,
+        "hoist": false
+      },
+      {
+        "site": "inbox.unreadMessages",
+        "table": "messages",
+        "index": "byConvTime",
+        "prefix_template": "Shape",
+        "take": 100,
+        "max_calls": 50,
+        "rule_probes_per_candidate": 2,
+        "hoist": true
+      }
+    ],
+    "write_sites": [],
+    "maintained_amplification": 0,
+    "constraint_checks": [],
+    "max_examined": 10240,
+    "max_index_entries": 10240,
+    "max_rule_probes": 10240,
+    "max_steps": 51455,
+    "max_heap_bytes": 1646560,
+    "max_output_bytes": 42702,
+    "max_closure_bytes": 39800,
+    "completeness": "Capped",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [
+      "memberships.byConvUser",
+      "memberships.byUserActivity",
+      "messages.byConvTime"
+    ],
+    "disclosures": [
+      "E_DISCLOSURE: count waitlist summarized into waitCounts"
+    ],
+    "bound_product": "inbox.memberships take 50 × inbox.unreadMessages take 100 = 5000"
+  },
   "context": {
     "viewer": "u1",
     "principal_kind": "user",
@@ -1186,23 +1252,6 @@
     ],
     "ranges": [
       {
-        "site": "inbox.memberships",
-        "table": "memberships",
-        "index": "byUserActivity",
-        "prefix": [
-          {
-            "Id": "u1"
-          }
-        ],
-        "row_ids": [
-          "m1"
-        ],
-        "stop": "Exhausted",
-        "absence": false,
-        "halo": null,
-        "n2_key": null
-      },
-      {
         "site": "inbox.latest",
         "table": "messages",
         "index": "byConvTime",
@@ -1314,8 +1363,10 @@
       ]
     },
     "errorCode": null,
-    "localState": "fresh",
-    "partialSites": [],
+    "localState": "partial",
+    "partialSites": [
+      "inbox.memberships"
+    ],
     "canonicalResult": "{\"Array\":[{\"Row\":{\"latest\":{\"Array\":[{\"Row\":{\"at\":{\"Int\":5},\"authorId\":{\"Id\":\"u1\"},\"body\":{\"String\":\"message 4\"},\"conversationId\":{\"Id\":\"c1\"},\"id\":{\"Id\":\"message-00004\"}}}]},\"unread\":{\"Int\":5}}}]}",
     "digest": "aea7adfd9328a4f2c2505b21b1a109f258a9719d8e19c7e479ca6302713e576c",
     "rangeStops": {

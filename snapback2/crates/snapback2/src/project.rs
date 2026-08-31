@@ -466,6 +466,19 @@ fn json_for_column(value: &Json, kind: &snapback2_core::ColumnType) -> Result<Va
                     "use a string value",
                 )
             }),
+        ColumnType::Bytes { .. } => value
+            .as_object()
+            .filter(|object| object.len() == 1)
+            .and_then(|object| object.get("Bytes"))
+            .and_then(serde_json::Value::as_str)
+            .and_then(snapback2_core::decode_bytes_hex)
+            .map(Value::Bytes)
+            .ok_or_else(|| {
+                Refusal::input(
+                    "bytes seed values must use {\"Bytes\":\"lowercase-base16\"}",
+                    "use canonical lowercase even-length base16",
+                )
+            }),
         ColumnType::Int
         | ColumnType::Time
         | ColumnType::Decimal { .. }

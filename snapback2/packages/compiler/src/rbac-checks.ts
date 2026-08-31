@@ -89,6 +89,7 @@ export function registerRbacRuleChecks(
   register: Register,
   canonical: Canonical,
   libText: string,
+  withProject: WithProject,
 ): void {
   register("schema lowering refuses malformed constraints and every skipped authored shape", () => {
     const source = `import { schema, table, t, rule } from 'snapback2';
@@ -119,6 +120,82 @@ export function registerRbacRuleChecks(
       item.code === "E_RULE_INVALID" && item.message.includes("visibility is derived"));
     assert(visibility, "authored rule-input visibility did not produce a sited refusal");
     assert(!canonical(lowered.schema).includes("input_visibility"), "authored rule-input visibility reached engine IR");
+  });
+
+  register("reciprocal table rules accept only the current row id as its nominal Ref", async () => {
+    await withProject({
+      "snapback/schema.ts": `import { rule, schema, table, t } from "snapback2";
+        export const conversations = table({
+          columns: { title: t.text(120) },
+          rules: {
+            read: rule.exists(memberships, "byConversationPrincipal", [rule.field("id"), rule.viewer]),
+            insert: rule.deny(), update: rule.deny(), delete: rule.deny(),
+          },
+        });
+        export var memberships = table({
+          columns: { conversationId: t.ref(conversations), principal: t.principal() },
+          indexes: { byConversationPrincipal: { columns: ["conversationId", "principal"], unique: true } },
+          rules: {
+            read: rule.exists(memberships, "byConversationPrincipal", [rule.field("conversationId"), rule.viewer]),
+            insert: rule.deny(), update: rule.deny(), delete: rule.deny(),
+          },
+        });
+        export default schema({ tables: { conversations, memberships } });`,
+      "snapback/conversations.ts": `import { query, t } from "snapback2";
+        import { conversations } from "./schema";
+        export const byId = query({ id: t.ref(conversations) }, ({ db, args }) => db.get(conversations, args.id));`,
+    }, async (root) => {
+      const accepted = await lowerProject(root);
+      assert(accepted.ok,
+        `reciprocal membership rule refused: ${accepted.ok ? "" : accepted.diagnostics.map((item) => `${item.code} ${item.message}`).join("; ")}`);
+      const read = (accepted.project.schema.tables.conversations as any).rules.read;
+      assert(canonical(read) === canonical({ Exists: {
+        table: "memberships",
+        index: "byConversationPrincipal",
+        key: [{ Field: "id" }, "Viewer"],
+        provenance: "Shape",
+      } }), `conversation membership rule lowered differently: ${canonical(read)}`);
+    });
+
+    const nominalControls = lowerSchema(`import { rule, schema, table, t } from "snapback2";
+      export const conversations = table({
+        columns: { aliasId: t.id() },
+        rules: {
+          read: rule.exists(memberships, "byConversationPrincipal", [rule.field("aliasId"), rule.viewer]),
+          insert: rule.deny(), update: rule.deny(), delete: rule.deny(),
+        },
+      });
+      export const profiles = table({
+        columns: { name: t.text(40) },
+        rules: {
+          read: rule.exists(memberships, "byConversationPrincipal", [rule.field("id"), rule.viewer]),
+          insert: rule.deny(), update: rule.deny(), delete: rule.deny(),
+        },
+      });
+      export const memberships = table({
+        columns: { conversationId: t.ref(conversations), principal: t.principal() },
+        indexes: { byConversationPrincipal: { columns: ["conversationId", "principal"], unique: true } },
+      });
+      export default schema({ tables: { conversations, profiles, memberships } });`, "snapback/schema.ts");
+    const nominalRefusals = nominalControls.diagnostics.filter((item) =>
+      item.code === "E_RULE_INVALID" && item.message.includes("is Id; expected Ref<conversations>"));
+    assert(nominalRefusals.length === 2,
+      `unrelated or non-intrinsic Ids crossed the Ref boundary: ${nominalControls.diagnostics.map((item) => item.message).join("; ")}`);
+
+    await withProject({
+      "snapback/schema.ts": `import { rule, schema, table, t } from "snapback2";
+        export const conversations = table({ columns: { title: t.text(120) }, rules: { read: futureRule } });
+        export var futureRule = rule.allow();
+        export default schema({ tables: { conversations } });`,
+      "snapback/conversations.ts": `import { query, t } from "snapback2";
+        import { conversations } from "./schema";
+        export const byId = query({ id: t.ref(conversations) }, ({ db, args }) => db.get(conversations, args.id));`,
+    }, async (root) => {
+      const refused = await lowerProject(root);
+      assert(!refused.ok && refused.diagnostics.some((item) =>
+        item.message.includes("futureRule") && item.message.includes("used before being assigned")),
+      `non-table used-before-assigned diagnostic was suppressed: ${refused.ok ? "accepted" : refused.diagnostics.map((item) => item.message).join("; ")}`);
+    });
   });
 
   register("rule terms and exists keys are checked against nominal schema types", () => {

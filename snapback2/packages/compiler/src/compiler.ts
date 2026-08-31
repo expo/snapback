@@ -26,7 +26,7 @@ import { analyzeOperationTypes, type TypePlan } from "./type-analysis";
 import { formatTypeDiagnostic, typecheckSource } from "./typecheck";
 import { typeDiagnosticSite } from "./type-diagnostic-site";
 import { invalidNativeDescriptorRefusal, lowerArgDescriptor, lowerLegacyArgDescriptor } from "./lower/schema";
-import { boundOperationDiagnostics, localConstructorShadow } from "./operation-diagnostics";
+import { boundOperationDiagnostics, localConstructorShadow, refuseReservedAuthCode } from "./operation-diagnostics";
 import {
   binaryOperator,
   collectionConstructor,
@@ -494,6 +494,9 @@ function lowerDbStatement(method: string, call: ts.CallExpression, env: Environm
   if (method === "require" || method === "assert") {
     const condition = call.arguments[0];
     if (!condition) refuse(env, "E_OPAQUE", call, `${method} requires a condition`);
+    const codeNode = call.arguments[1];
+    const code = stringArgument(codeNode) ?? (method === "assert" ? "ASSERTION_FAILED" : "REQUIRE_FAILED");
+    refuseReservedAuthCode(env, codeNode, code);
     const lowered = lowerValue(condition, env);
     const narrowed = nonNullIdentifier(condition);
     if (narrowed) {
@@ -502,7 +505,7 @@ function lowerDbStatement(method: string, call: ts.CallExpression, env: Environm
     }
     return [...lowered.statements, { Require: {
       condition: lowered.expression,
-      code: stringArgument(call.arguments[1]) ?? (method === "assert" ? "ASSERTION_FAILED" : "REQUIRE_FAILED"),
+      code,
     } }];
   }
   const target = call.arguments[0];

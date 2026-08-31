@@ -358,6 +358,71 @@ fn startup_and_persona_headers_do_not_issue_sessions() {
 
 #[cfg(not(feature = "hermes"))]
 #[test]
+fn serve_rejects_and_revokes_a_persisted_dev_persona_bearer_after_restart() {
+    let root = temp_root();
+    let auth_fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../packages/compiler/fixtures/todos/snapback");
+    copy_tree(&auth_fixture, &root.join("snapback"));
+    let binary = env!("CARGO_BIN_EXE_snapback2");
+    let compiler = compiler(&root);
+    let (mut owner, port, secret) = start_owner(binary, &compiler, &root);
+
+    let persona = request(
+        port,
+        "POST",
+        "/control/persona",
+        &[("X-Snapback-Control", secret.as_str())],
+        json!({ "name": "persisted" }),
+    );
+    assert_eq!(persona.status, 200, "{}", persona.body);
+    let persona_token = persona.body["token"].as_str().unwrap().to_owned();
+    let (user_token, _) = signup(port, "serve-restart@example.com");
+    let guest = request(port, "POST", "/api/auth/guest", &[], json!({}));
+    assert_eq!(guest.status, 200, "{}", guest.body);
+    let guest_token = guest.body["token"].as_str().unwrap().to_owned();
+    stop_owner(
+        port,
+        &secret,
+        &mut owner,
+        "persisted session setup complete",
+    );
+
+    let mut owner = ChildGuard::spawn_with(binary, &compiler, &root, true);
+    let port = owner
+        .ready_line()
+        .trim()
+        .strip_prefix("SNAPBACK_URL=http://127.0.0.1:")
+        .unwrap()
+        .parse()
+        .unwrap();
+    let owner_json: Value =
+        serde_json::from_slice(&fs::read(root.join(".snapback/owner.json")).unwrap()).unwrap();
+    let secret = owner_json["secret"].as_str().unwrap().to_owned();
+
+    for (token, kind) in [(&user_token, "user"), (&guest_token, "guest")] {
+        let me = bearer_request(port, "GET", "/api/auth/me", token, json!({}));
+        assert_eq!(me.status, 200, "{kind}: {}", me.body);
+        assert_eq!(me.body["kind"], kind, "{}", me.body);
+    }
+
+    let refused = bearer_request(port, "GET", "/api/auth/me", &persona_token, json!({}));
+    assert_eq!(refused.status, 403, "{}", refused.body);
+    assert_eq!(refused.body["code"], "E_AUTH_PERSONA_NOT_DEV");
+    assert_eq!(refused.body["family"], "auth");
+    assert_eq!(
+        refused.body["rewrite"],
+        "use a user/guest session for served requests, or start a dev owner for personas"
+    );
+
+    let revoked = bearer_request(port, "GET", "/api/auth/me", &persona_token, json!({}));
+    assert_auth_session(&revoked);
+
+    stop_owner(port, &secret, &mut owner, "serve bearer boundary verified");
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[cfg(not(feature = "hermes"))]
+#[test]
 fn generated_grant_incarnations_do_not_repeat_across_owner_restart() {
     let root = temp_root();
     copy_tree(&fixture().join("snapback"), &root.join("snapback"));

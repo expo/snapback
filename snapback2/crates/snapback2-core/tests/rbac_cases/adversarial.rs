@@ -162,6 +162,54 @@ fn point(site: &str, index: &str) -> Expr {
     })
 }
 
+fn owner_scan(site: &str, prefix: Vec<Expr>) -> Expr {
+    Expr::Scan(Scan {
+        site: site.to_owned(),
+        table: "documents".to_owned(),
+        index: "byOwner".to_owned(),
+        prefix,
+        order: Order::Asc,
+        take: Bound::Literal(2),
+        after: None,
+        before: None,
+        range: None,
+        provenance: KeyProvenance::Viewer,
+    })
+}
+
+fn owner_scan_program(
+    first_site: &str,
+    first_prefix: Vec<Expr>,
+    second_site: &str,
+    second_prefix: Vec<Expr>,
+) -> Program {
+    Program {
+        name: "documents.ownerCollision".to_owned(),
+        kind: ProgramKind::Query,
+        args: BTreeMap::new(),
+        read_time_granularity_ms: None,
+        body: vec![
+            Stmt::Let {
+                name: "narrow".to_owned(),
+                value: owner_scan(first_site, first_prefix),
+            },
+            Stmt::Return(owner_scan(second_site, second_prefix)),
+        ],
+    }
+}
+
+fn owner_scan_schema() -> Schema {
+    let mut table = documents(protected_read());
+    table.indexes.insert(
+        "byOwner".to_owned(),
+        Index {
+            columns: vec!["owner".to_owned(), "id".to_owned()],
+            unique: false,
+        },
+    );
+    schema(BTreeMap::from([("documents".to_owned(), table)]))
+}
+
 #[test]
 fn certificate_refuses_incompatible_duplicate_read_sites_but_aggregates_equal_shapes() {
     let schema = schema(BTreeMap::from([(
@@ -195,6 +243,117 @@ fn certificate_refuses_incompatible_duplicate_read_sites_but_aggregates_equal_sh
         .unwrap();
     assert_eq!(certificate.read_sites.len(), 1);
     assert_eq!(certificate.read_sites[0].max_calls, 2);
+}
+
+#[test]
+fn duplicate_scan_site_cannot_reuse_a_hoist_for_a_broader_prefix() {
+    // Raw IR used to give these scans the same partial identity because their
+    // table/index/take/provenance agree. Summary then retained the first
+    // scan's uniform-rule hoist for the empty-prefix scan, which could admit
+    // rows owned by another principal after probing one viewer-owned row.
+    let schema = owner_scan_schema();
+    let viewer_prefix = vec![Expr::Input(Input::Viewer)];
+    let collision = owner_scan_program(
+        "documents.byOwner",
+        viewer_prefix.clone(),
+        "documents.byOwner",
+        Vec::new(),
+    );
+    let project = ProjectJson {
+        version: 1,
+        schema: schema.clone(),
+        programs: vec![collision],
+        effects: Vec::new(),
+        auth: Auth::default(),
+    };
+    let errors = Generation::certify(&project, Ceilings::default()).unwrap_err();
+    assert!(
+        errors.iter().any(|(program, error)| {
+            program == "documents.ownerCollision"
+                && error.code == "E_TRACE_SUBSET"
+                && error.message.contains("documents.byOwner")
+        }),
+        "{errors:#?}"
+    );
+
+    // Equal prefix widths are not enough either: the full access expression
+    // is part of the site identity.
+    let same_width_collision = owner_scan_program(
+        "documents.byOwner",
+        viewer_prefix.clone(),
+        "documents.byOwner",
+        vec![Expr::Literal(Value::Id("a-viewer".to_owned()))],
+    );
+    let error = Checker::new(&schema, Ceilings::default())
+        .check(&same_width_collision)
+        .unwrap_err();
+    assert_eq!(error.code, "E_TRACE_SUBSET");
+
+    // Repeating one exact access remains valid and aggregates its call meter.
+    let identical = owner_scan_program(
+        "documents.byOwner",
+        viewer_prefix.clone(),
+        "documents.byOwner",
+        viewer_prefix.clone(),
+    );
+    let certificate = Checker::new(&schema, Ceilings::default())
+        .check(&identical)
+        .unwrap();
+    assert_eq!(certificate.read_sites.len(), 1);
+    assert_eq!(certificate.read_sites[0].max_calls, 2);
+    assert!(certificate.read_sites[0].hoist);
+
+    // Distinct labels preserve both shapes. The runtime therefore filters the
+    // broad scan per row even when its first indexed candidate is visible.
+    let distinct = owner_scan_program(
+        "documents.viewerOwner",
+        viewer_prefix,
+        "documents.allOwners",
+        Vec::new(),
+    );
+    let certificate = Checker::new(&schema, Ceilings::default())
+        .check(&distinct)
+        .unwrap();
+    assert!(
+        certificate
+            .read_sites
+            .iter()
+            .find(|site| site.site == "documents.viewerOwner")
+            .unwrap()
+            .hoist
+    );
+    assert!(
+        !certificate
+            .read_sites
+            .iter()
+            .find(|site| site.site == "documents.allOwners")
+            .unwrap()
+            .hoist
+    );
+    let mut runtime =
+        Runtime::open(Store::memory().unwrap(), generation(schema, vec![distinct])).unwrap();
+    let visible = document("visible", "group", "a-viewer");
+    runtime
+        .seed(&[
+            ("documents".to_owned(), visible.clone()),
+            (
+                "documents".to_owned(),
+                document("hidden", "group", "z-other"),
+            ),
+        ])
+        .unwrap();
+    let execution = runtime
+        .execute(
+            "documents.ownerCollision",
+            Context::query(actor("a-viewer"), BTreeMap::new()),
+        )
+        .unwrap();
+    assert_eq!(execution.result, Value::Array(vec![visible]));
+    assert_eq!(execution.trace.ranges.len(), 2);
+    assert_eq!(execution.trace.ranges[0].site, "documents.viewerOwner");
+    assert_eq!(execution.trace.ranges[1].site, "documents.allOwners");
+    assert_eq!(execution.trace.ranges[1].examined_ids.len(), 2);
+    assert_eq!(execution.trace.ranges[1].visible_ids, vec!["visible"]);
 }
 
 fn document(id: &str, group: &str, owner: &str) -> Value {
@@ -252,14 +411,11 @@ fn protected_nonuniform_scan_hides_empty_vs_hidden_occupancy_in_opaque_state() {
     assert_eq!(hidden.result, Value::Array(Vec::new()));
     assert_eq!(empty.trace.ranges[0].stop, StopReason::Exhausted);
     assert!(empty.trace.ranges[0].examined_ids.is_empty());
-    assert_eq!(hidden.trace.ranges[0].stop, StopReason::Limit);
+    assert_eq!(hidden.trace.ranges[0].stop, StopReason::Exhausted);
     assert!(!hidden.trace.ranges[0].examined_ids.is_empty());
     assert!(hidden.trace.ranges[0].visible_ids.is_empty());
 
-    let opaque = ExecutionState::Capped {
-        site: None,
-        take: None,
-    };
+    let opaque = ExecutionState::Capped;
     assert_eq!(empty.state, opaque);
     assert_eq!(hidden.state, opaque);
     let public_empty = serde_json::to_value(&empty.state).unwrap();
@@ -358,15 +514,9 @@ fn later_nonuniform_scan_makes_an_earlier_detailed_cap_opaque() {
     assert_eq!(execution.trace.ranges[0].stop, StopReason::Limit);
     assert!(!execution.trace.ranges[0].visible_ids.is_empty());
     assert_eq!(execution.trace.ranges[1].site, "documents.protectedLater");
-    assert_eq!(execution.trace.ranges[1].stop, StopReason::Limit);
+    assert_eq!(execution.trace.ranges[1].stop, StopReason::Exhausted);
     assert!(execution.trace.ranges[1].visible_ids.is_empty());
-    assert_eq!(
-        execution.state,
-        ExecutionState::Capped {
-            site: None,
-            take: None,
-        }
-    );
+    assert_eq!(execution.state, ExecutionState::Capped);
     assert_eq!(
         serde_json::to_value(&execution.state).unwrap(),
         serde_json::json!({ "state": "capped" })

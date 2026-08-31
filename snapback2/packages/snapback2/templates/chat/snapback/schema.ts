@@ -38,7 +38,10 @@ export const conversations = table({
     byIdCreator: { columns: ["id", "creatorId"], unique: true },
   },
   rules: {
-    read: rule.public("conversation shells are public"),
+    read: rule.exists(memberships, "byConversationPrincipal", [
+      rule.field("id"),
+      rule.viewer,
+    ]),
     insert: rule.viewerIs("creatorId"),
     update: rule.deny(),
     delete: rule.deny(),
@@ -52,7 +55,8 @@ export const conversations = table({
   }],
 });
 
-export const memberships = table({
+// The compiler statically lowers descriptors; `var` permits this reciprocal rule/ref declaration.
+export var memberships = table({
   columns: {
     conversationId: t.ref(conversations),
     principal: t.principal(),
@@ -178,7 +182,10 @@ export const messageCounts = table({
   columns: { conversationId: t.ref(conversations), value: t.int() },
   indexes: { byConversation: { columns: ["conversationId"], unique: true } },
   rules: {
-    read: rule.public("counts disclose no message content"),
+    read: rule.exists(memberships, "byConversationPrincipal", [
+      rule.field("conversationId"),
+      rule.viewer,
+    ]),
     insert: rule.deny(),
     update: rule.deny(),
     delete: rule.deny(),

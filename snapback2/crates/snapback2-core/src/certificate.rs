@@ -1,5 +1,6 @@
 pub use crate::bounds::{declared_serialized_row_max, max_certified_page_rows};
 use crate::collection_rewrite::OutputEstimator;
+use crate::identity::CURRENT_VALUE_MODEL_VERSION;
 use crate::ir::*;
 use crate::retention::RetentionEstimator;
 use crate::schema::{Constraint, MaintainKind, RuleExpr, Schema};
@@ -84,6 +85,8 @@ pub struct ReadSite {
     pub prefix_template: KeyProvenance,
     pub take: u64,
     pub max_calls: u64,
+    pub rule_probes_per_candidate: u64,
+    /// True only when the read rule is certified uniform over the scan prefix.
     pub hoist: bool,
 }
 
@@ -133,7 +136,7 @@ pub struct CheckError {
 }
 
 pub struct Checker<'a> {
-    schema: &'a Schema,
+    pub(crate) schema: &'a Schema,
     ceilings: Ceilings,
 }
 
@@ -216,7 +219,38 @@ impl<'a> Checker<'a> {
             .sum();
         let max_writes =
             summary.writes.iter().map(|site| site.max_rows).sum::<u64>() + maintained_amplification;
-        let max_heap_bytes = summary.steps.saturating_mul(HEAP_BYTES_PER_STEP);
+        // @ref LLP 1001#3-read-and-write-states-no-silent-states — visibility-filtered
+        // scans spend the certified examined/rule-probe ceilings, never `take`.
+        let max_examined =
+            if summary.visibility_filtered_range && summary.examined <= self.ceilings.examined {
+                self.ceilings.examined
+            } else {
+                summary.examined
+            };
+        let max_index_entries = if summary.visibility_filtered_range
+            && summary.index_entries <= self.ceilings.index_entries
+        {
+            self.ceilings.index_entries
+        } else {
+            summary.index_entries
+        };
+        let max_rule_probes =
+            if summary.nonuniform_range && summary.rule_probes <= self.ceilings.rule_probes {
+                self.ceilings.rule_probes
+            } else {
+                summary.rule_probes
+            };
+        let max_steps =
+            if summary.visibility_filtered_range && summary.examined <= self.ceilings.examined {
+                summary.steps.saturating_add(
+                    max_examined
+                        .saturating_sub(summary.examined)
+                        .saturating_mul(5),
+                )
+            } else {
+                summary.steps
+            };
+        let max_heap_bytes = max_steps.saturating_mul(HEAP_BYTES_PER_STEP);
         let output = OutputEstimator::estimate(self.schema, program);
         let max_output_bytes = output.bytes;
         let max_closure_bytes = RetentionEstimator::estimate(self.schema, program);
@@ -226,18 +260,14 @@ impl<'a> Checker<'a> {
             .map(|(bytes, rewrite)| (*bytes, rewrite.render()));
         let mut bound_errors = Vec::new();
         for (name, actual, ceiling) in [
-            ("examined entries", summary.examined, self.ceilings.examined),
+            ("examined entries", max_examined, self.ceilings.examined),
             (
                 "index entries",
-                summary.index_entries,
+                max_index_entries,
                 self.ceilings.index_entries,
             ),
-            (
-                "rule probes",
-                summary.rule_probes,
-                self.ceilings.rule_probes,
-            ),
-            ("steps", summary.steps, self.ceilings.steps),
+            ("rule probes", max_rule_probes, self.ceilings.rule_probes),
+            ("steps", max_steps, self.ceilings.steps),
             ("heap bytes", max_heap_bytes, self.ceilings.heap_bytes),
             ("output bytes", max_output_bytes, self.ceilings.output_bytes),
             (
@@ -424,15 +454,15 @@ impl<'a> Checker<'a> {
             schema_hash: self.schema.hash(),
             rule_hashes,
             evaluator_version: "bounded-spike-rust-1".to_owned(),
-            value_model_version: "i53-codepoint-v1".to_owned(),
+            value_model_version: CURRENT_VALUE_MODEL_VERSION.to_string(),
             read_sites,
             write_sites: summary.writes,
             maintained_amplification,
             constraint_checks,
-            max_examined: summary.examined,
-            max_index_entries: summary.index_entries,
-            max_rule_probes: summary.rule_probes,
-            max_steps: summary.steps,
+            max_examined,
+            max_index_entries,
+            max_rule_probes,
+            max_steps,
             max_heap_bytes,
             max_output_bytes,
             max_closure_bytes,
@@ -481,274 +511,6 @@ impl<'a> Checker<'a> {
         Ok(certificate)
     }
 
-    fn structural_errors(&self, program: &Program) -> Vec<CheckError> {
-        fn statement_errors(
-            checker: &Checker<'_>,
-            statements: &[Stmt],
-            kind: ProgramKind,
-            errors: &mut Vec<CheckError>,
-        ) {
-            for statement in statements {
-                match statement {
-                    Stmt::Insert { table, .. }
-                    | Stmt::Update { table, .. }
-                    | Stmt::Upsert { table, .. }
-                    | Stmt::Delete { table, .. }
-                        if table.starts_with('_') =>
-                    {
-                        errors.push(CheckError {
-                            code: "E_SCHEMA_RESERVED".to_owned(),
-                            message: format!("program names reserved table {table}"),
-                            rewrite: "use an application table name that does not begin with '_'"
-                                .to_owned(),
-                        });
-                    }
-                    Stmt::Insert { .. }
-                    | Stmt::Update { .. }
-                    | Stmt::Upsert { .. }
-                    | Stmt::Delete { .. }
-                        if kind == ProgramKind::Query =>
-                    {
-                        errors.push(CheckError {
-                            code: "E_WRITE_IN_QUERY".to_owned(),
-                            message: "a query cannot write durable data".to_owned(),
-                            rewrite: "move the write into a mutation".to_owned(),
-                        });
-                    }
-                    Stmt::Emit { .. } if kind == ProgramKind::Query => {
-                        errors.push(CheckError {
-                            code: "E_EMIT_IN_QUERY".to_owned(),
-                            message: "a query cannot emit an effect".to_owned(),
-                            rewrite: "move emit into a mutation".to_owned(),
-                        });
-                    }
-                    Stmt::If {
-                        then_body,
-                        else_body,
-                        ..
-                    } => {
-                        statement_errors(checker, then_body, kind, errors);
-                        statement_errors(checker, else_body, kind, errors);
-                    }
-                    Stmt::For { body, .. } => statement_errors(checker, body, kind, errors),
-                    _ => {}
-                }
-                let table = match statement {
-                    Stmt::Insert { table, .. }
-                    | Stmt::Update { table, .. }
-                    | Stmt::Upsert { table, .. }
-                    | Stmt::Delete { table, .. } => Some(table),
-                    _ => None,
-                };
-                if let Some(table) = table {
-                    if table.starts_with('_') && kind == ProgramKind::Query {
-                        errors.push(CheckError {
-                            code: "E_WRITE_IN_QUERY".to_owned(),
-                            message: "a query cannot write durable data".to_owned(),
-                            rewrite: "move the write into a mutation".to_owned(),
-                        });
-                    }
-                    if !table.starts_with('_') && checker.schema.table(table).is_none() {
-                        errors.push(CheckError {
-                            code: "E_UNBOUND_SCAN".to_owned(),
-                            message: format!("write requires missing table {table}"),
-                            rewrite: "declare the table in the schema".to_owned(),
-                        });
-                    }
-                }
-            }
-        }
-
-        fn read_error(checker: &Checker<'_>, table: &str, index: &str) -> Option<CheckError> {
-            if table.starts_with('_') {
-                return Some(CheckError {
-                    code: "E_SCHEMA_RESERVED".to_owned(),
-                    message: format!("program reads reserved table {table}"),
-                    rewrite: "use the dedicated runtime verb for engine-owned data".to_owned(),
-                });
-            }
-            if checker
-                .schema
-                .table(table)
-                .and_then(|table| table.index(index))
-                .is_none()
-            {
-                return Some(CheckError {
-                    code: "E_UNBOUND_SCAN".to_owned(),
-                    message: format!("read requires missing index {table}.{index}"),
-                    rewrite: "declare the composite index in the schema".to_owned(),
-                });
-            }
-            None
-        }
-
-        fn visit(
-            checker: &Checker<'_>,
-            program: &Program,
-            expr: &Expr,
-            errors: &mut Vec<CheckError>,
-            sites: &mut BTreeMap<String, String>,
-        ) {
-            fn register_site(
-                sites: &mut BTreeMap<String, String>,
-                errors: &mut Vec<CheckError>,
-                site: &str,
-                shape: String,
-            ) {
-                if let Some(existing) = sites.get(site) {
-                    if existing != &shape {
-                        errors.push(CheckError {
-                            code: "E_TRACE_SUBSET".to_owned(),
-                            message: format!(
-                                "read site {site} is reused for incompatible shapes {existing} and {shape}"
-                            ),
-                            rewrite: "give every distinct read a unique site label".to_owned(),
-                        });
-                    }
-                } else {
-                    sites.insert(site.to_owned(), shape);
-                }
-            }
-            match expr {
-                Expr::Input(input) => {
-                    let invalid = match input {
-                        Input::Viewer => false,
-                        Input::Now | Input::NewId => program.kind != ProgramKind::Mutation,
-                        Input::ReadTime => {
-                            program.kind != ProgramKind::Query
-                                || program.read_time_granularity_ms.is_none()
-                        }
-                    };
-                    if invalid {
-                        errors.push(CheckError {
-                            code: "E_AMBIENT_TIME".to_owned(),
-                            message: format!(
-                                "modeled input {input:?} is not declared for this program kind"
-                            ),
-                            rewrite: "bind now/newId in a mutation intent or declare query readTime granularity".to_owned(),
-                        });
-                    }
-                }
-                Expr::Field { base, .. } | Expr::Unary { value: base, .. } => {
-                    visit(checker, program, base, errors, sites)
-                }
-                Expr::Binary { left, right, .. } => {
-                    visit(checker, program, left, errors, sites);
-                    visit(checker, program, right, errors, sites);
-                }
-                Expr::Array(values) => {
-                    for value in values {
-                        visit(checker, program, value, errors, sites);
-                    }
-                }
-                Expr::Builtin { builtin, args } => {
-                    if matches!(
-                        builtin,
-                        Builtin::Count | Builtin::Sum | Builtin::CountCapped
-                    ) && let Some(Expr::Scan(scan)) = args.first()
-                        && checker
-                            .schema
-                            .table(&scan.table)
-                            .and_then(|table| table.index(&scan.index))
-                            .is_some()
-                        && !Analyzer::new(checker.schema).uniform_visibility(scan)
-                    {
-                        errors.push(CheckError {
-                            code: "E_STRUCTURAL_COUNT".to_owned(),
-                            message: format!(
-                                "{} counts rows whose read rule is not uniform over the scan prefix",
-                                scan.site
-                            ),
-                            rewrite: format!(
-                                "declare maintain.count({}, {{ by: [...], as: ..., readable: ... }})",
-                                scan.table
-                            ),
-                        });
-                    }
-                    for value in args {
-                        visit(checker, program, value, errors, sites);
-                    }
-                }
-                Expr::Object(values) => {
-                    for value in values.values() {
-                        visit(checker, program, value, errors, sites);
-                    }
-                }
-                Expr::Get(read) | Expr::Exists(read) => {
-                    register_site(
-                        sites,
-                        errors,
-                        &read.site,
-                        format!("point {}.{} {:?}", read.table, read.index, read.provenance),
-                    );
-                    if let Some(error) = read_error(checker, &read.table, &read.index) {
-                        errors.push(error);
-                    }
-                    for value in &read.key {
-                        visit(checker, program, value, errors, sites);
-                    }
-                }
-                Expr::Scan(scan) => {
-                    register_site(
-                        sites,
-                        errors,
-                        &scan.site,
-                        format!(
-                            "range {}.{} take={} {:?}",
-                            scan.table,
-                            scan.index,
-                            scan.take.maximum(),
-                            scan.provenance
-                        ),
-                    );
-                    if let Some(error) = read_error(checker, &scan.table, &scan.index) {
-                        errors.push(error);
-                    }
-                    if let Bound::Arg { name, .. } = &scan.take
-                        && !program.args.contains_key(name)
-                    {
-                        errors.push(CheckError {
-                            code: "E_UNBOUND_SCAN".to_owned(),
-                            message: format!("scan {} take arg {name} is not declared", scan.site),
-                            rewrite: "declare the bounded take argument on the program".to_owned(),
-                        });
-                    }
-                    for value in &scan.prefix {
-                        visit(checker, program, value, errors, sites);
-                    }
-                    for value in [scan.after.as_deref(), scan.before.as_deref()]
-                        .into_iter()
-                        .flatten()
-                    {
-                        visit(checker, program, value, errors, sites);
-                    }
-                    if let Some(range) = &scan.range {
-                        for value in [
-                            range.gt.as_deref(),
-                            range.gte.as_deref(),
-                            range.lt.as_deref(),
-                            range.lte.as_deref(),
-                        ]
-                        .into_iter()
-                        .flatten()
-                        {
-                            visit(checker, program, value, errors, sites);
-                        }
-                    }
-                }
-                Expr::Literal(_) | Expr::Variable(_) => {}
-            }
-        }
-
-        let mut errors = Vec::new();
-        let mut sites = BTreeMap::new();
-        statement_errors(self, &program.body, program.kind, &mut errors);
-        walk_statement_exprs(&program.body, &mut |expr| {
-            visit(self, program, expr, &mut errors, &mut sites)
-        });
-        errors
-    }
-
     fn check_ceiling(
         &self,
         name: &str,
@@ -792,6 +554,8 @@ struct Summary {
     steps: u64,
     product_value: u64,
     product: Option<String>,
+    visibility_filtered_range: bool,
+    nonuniform_range: bool,
 }
 
 impl Summary {
@@ -799,7 +563,18 @@ impl Summary {
         for (name, site) in other.reads {
             self.reads
                 .entry(name)
-                .and_modify(|existing| existing.max_calls += site.max_calls)
+                .and_modify(|existing| {
+                    existing.max_calls += site.max_calls;
+                    // Structural admission requires the full access shapes to
+                    // agree. Keep this merge fail-closed as defense in depth:
+                    // a future missed path must never let the first hoist or
+                    // smaller meter silently govern a later access.
+                    existing.take = existing.take.max(site.take);
+                    existing.rule_probes_per_candidate = existing
+                        .rule_probes_per_candidate
+                        .max(site.rule_probes_per_candidate);
+                    existing.hoist &= site.hoist;
+                })
                 .or_insert(site);
         }
         self.writes.extend(other.writes);
@@ -807,6 +582,8 @@ impl Summary {
         self.index_entries = self.index_entries.saturating_add(other.index_entries);
         self.rule_probes = self.rule_probes.saturating_add(other.rule_probes);
         self.steps = self.steps.saturating_add(other.steps);
+        self.visibility_filtered_range |= other.visibility_filtered_range;
+        self.nonuniform_range |= other.nonuniform_range;
         if other.product_value > self.product_value {
             self.product_value = other.product_value;
             self.product = other.product;
@@ -818,7 +595,14 @@ impl Summary {
         for (name, site) in other.reads {
             self.reads
                 .entry(name)
-                .and_modify(|existing| existing.max_calls = existing.max_calls.max(site.max_calls))
+                .and_modify(|existing| {
+                    existing.max_calls = existing.max_calls.max(site.max_calls);
+                    existing.take = existing.take.max(site.take);
+                    existing.rule_probes_per_candidate = existing
+                        .rule_probes_per_candidate
+                        .max(site.rule_probes_per_candidate);
+                    existing.hoist &= site.hoist;
+                })
                 .or_insert(site);
         }
         for write in other.writes {
@@ -836,6 +620,8 @@ impl Summary {
         self.index_entries = self.index_entries.max(other.index_entries);
         self.rule_probes = self.rule_probes.max(other.rule_probes);
         self.steps = self.steps.max(other.steps);
+        self.visibility_filtered_range |= other.visibility_filtered_range;
+        self.nonuniform_range |= other.nonuniform_range;
         if other.product_value > self.product_value {
             self.product_value = other.product_value;
             self.product = other.product;
@@ -1056,6 +842,7 @@ impl<'a> Analyzer<'a> {
                 prefix_template: read.provenance,
                 take: 1,
                 max_calls: calls,
+                rule_probes_per_candidate: self.table_read_rule_probe_bound(&read.table),
                 hoist: false,
             },
         );
@@ -1068,14 +855,14 @@ impl<'a> Analyzer<'a> {
     }
 
     fn scan(
-        &self,
+        &mut self,
         scan: &Scan,
         calls: u64,
         factors: &[(String, u64)],
     ) -> Result<Summary, CheckError> {
         let take = scan.take.maximum();
         let reserve = take.saturating_add(2);
-        let hoist = self.rule_hoists(scan);
+        let hoist = crate::certificate_policy::uniform_visibility(self.schema, scan);
         let probe_bound = self.table_read_rule_probe_bound(&scan.table);
         let rule_probes = if probe_bound > 0 {
             if hoist {
@@ -1096,6 +883,7 @@ impl<'a> Analyzer<'a> {
                 prefix_template: scan.provenance,
                 take,
                 max_calls: calls,
+                rule_probes_per_candidate: probe_bound,
                 hoist,
             },
         );
@@ -1103,6 +891,13 @@ impl<'a> Analyzer<'a> {
         summary.index_entries = summary.examined;
         summary.rule_probes = rule_probes;
         summary.steps = summary.examined.saturating_mul(5);
+        summary.visibility_filtered_range = self.schema.table(&scan.table).is_some_and(|table| {
+            !matches!(table.rules.read, RuleExpr::Public { .. } | RuleExpr::Allow)
+        });
+        summary.nonuniform_range = !hoist;
+        if !hoist {
+            self.completeness = Completeness::Capped;
+        }
         set_product(&mut summary, factors, (&scan.site, take));
         Ok(summary)
     }
@@ -1179,10 +974,6 @@ impl<'a> Analyzer<'a> {
             .unwrap_or(0)
     }
 
-    fn rule_has_probe(&self, table: &str) -> bool {
-        self.table_read_rule_probe_bound(table) > 0
-    }
-
     fn write_rule_probe_bound(&self, table: &str, kind: WriteKind) -> u64 {
         self.schema.table(table).map_or(0, |table| {
             let bound = |rule: &RuleExpr| self.rule_probe_bound(rule);
@@ -1238,15 +1029,6 @@ impl<'a> Analyzer<'a> {
             .saturating_add(maintained_final_probes.saturating_mul(maintain_applications));
         summary.rule_probes = calls.saturating_mul(probe_multiplier);
         summary
-    }
-
-    fn rule_hoists(&self, scan: &Scan) -> bool {
-        self.rule_has_probe(&scan.table) && self.uniform_visibility(scan)
-    }
-
-    fn uniform_visibility(&self, scan: &Scan) -> bool {
-        self.schema
-            .read_is_uniform_for_prefix(&scan.table, &scan.index, scan.prefix.len())
     }
 }
 
@@ -1315,53 +1097,4 @@ fn set_product(summary: &mut Summary, factors: &[(String, u64)], current: (&str,
     labels.push(format!("{} take {}", current.0, current.1));
     summary.product_value = value;
     summary.product = Some(format!("{} = {value}", labels.join(" × ")));
-}
-
-fn walk_statement_exprs(statements: &[Stmt], visit: &mut impl FnMut(&Expr)) {
-    for statement in statements {
-        match statement {
-            Stmt::Const { value, .. }
-            | Stmt::Let { value, .. }
-            | Stmt::Assign { value, .. }
-            | Stmt::Push { value, .. }
-            | Stmt::Return(value) => visit(value),
-            Stmt::If {
-                condition,
-                then_body,
-                else_body,
-            } => {
-                visit(condition);
-                walk_statement_exprs(then_body, visit);
-                walk_statement_exprs(else_body, visit);
-            }
-            Stmt::For { domain, body, .. } => {
-                match domain {
-                    LoopDomain::Page(scan) => visit(&Expr::Scan(scan.clone())),
-                    LoopDomain::DerivedArray { value, .. } => visit(value),
-                    LoopDomain::Recurse(recurse) => visit(&Expr::Get(Read {
-                        site: recurse.site.clone(),
-                        table: recurse.table.clone(),
-                        index: recurse.index.clone(),
-                        key: vec![*recurse.seed.clone()],
-                        provenance: recurse.provenance,
-                    })),
-                    _ => {}
-                }
-                walk_statement_exprs(body, visit);
-            }
-            Stmt::Require { condition, .. } => visit(condition),
-            Stmt::Insert { row, .. } => visit(row),
-            Stmt::Update { key, patch, .. } => {
-                visit(key);
-                visit(patch);
-            }
-            Stmt::Upsert { key, row, .. } => {
-                visit(key);
-                visit(row);
-            }
-            Stmt::Delete { key, .. } => visit(key),
-            Stmt::Emit { payload, .. } => visit(payload),
-            Stmt::Break | Stmt::Continue => {}
-        }
-    }
 }

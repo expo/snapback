@@ -390,6 +390,10 @@ function descriptorType(node: ts.Expression): AuthoredType {
     const maxNode = call.arguments[0] && unwrapExpression(call.arguments[0]);
     return { kind: "string", ...(maxNode && ts.isNumericLiteral(maxNode) ? { max: Number(maxNode.text) } : {}) };
   }
+  if (name === "bytes") {
+    const maxNode = call.arguments[0] && unwrapExpression(call.arguments[0]);
+    return { kind: "bytes", max: maxNode && ts.isNumericLiteral(maxNode) ? Number(maxNode.text) : 0 };
+  }
   if (name === "bool") return { kind: "bool" };
   if (name === "json") return { kind: "json" };
   if (name === "enum") {

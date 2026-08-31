@@ -2,6 +2,7 @@
 //! spike S1 (`spikes/bounded-programs/`, LLP 0329.014 §8). No JS engine lives here.
 mod bounds;
 pub mod certificate;
+mod certificate_policy;
 pub mod client;
 mod collection_rewrite;
 pub mod engine;
@@ -29,8 +30,8 @@ pub use engine::{
     RuntimeError, StopReason, validate_schema,
 };
 pub use identity::{
-    Actor, ActorError, IR_CONTRACT_JSON, IdentityError, Principal, SYSTEM_PRINCIPAL_ID, Session,
-    SessionAuthority,
+    Actor, ActorError, CURRENT_VALUE_MODEL_VERSION, IR_CONTRACT_JSON, IdentityError, Principal,
+    SYSTEM_PRINCIPAL_ID, Session, SessionAuthority,
 };
 pub use ir::*;
 pub use live::{Delivery, SubscriptionId, SubscriptionInfo, Subscriptions};

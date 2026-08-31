@@ -14,6 +14,7 @@ export type Value =
   | { Int: number }
   | { String: string }
   | { Id: string }
+  | { Bytes: string }
   | { Array: Value[] }
   | { Row: Record<string, Value> }
   | { Map: Record<string, Value> };
@@ -97,6 +98,7 @@ export type ArgType =
   | "Time"
   | "Scalar"
   | { Text: { max: number } }
+  | { Bytes: { max: number } }
   | { Json: { max_bytes: number } }
   | { Optional: ArgType }
   | { List: { of: ArgType; max: number } }

@@ -9,10 +9,10 @@ use crate::project::{CompiledProject, SeedData};
 use crate::receipt::CheckReceipt;
 use serde_json::{Value as Json, json};
 use snapback2_core::{
-    ArgType, Ceilings, ColumnType, Expr, Generation, Program, ProgramKind, ProjectJson, RuleExpr,
-    RuleTerm, Schema, Stmt, Value, WriteKind,
+    ArgType, Ceilings, ColumnType, Expr, Generation, Program, ProgramKind, ProjectJson, ReadSite,
+    RuleExpr, RuleTerm, Schema, Stmt, Value, WriteKind, WriteSite,
 };
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::time::{Duration, Instant};
 
 const LIVE_REVOCATION: &str = "live-revocation";
@@ -121,7 +121,14 @@ fn live_revocation(
         Ok(write) => write,
         Err(reason) => return blocked(LIVE_REVOCATION, started, recipe, reason),
     };
-    match live_revocation_attempt(owner, recipe, &plan, &revoke, &protected_write) {
+    match live_revocation_attempt(
+        owner,
+        compiled.generation.schema(),
+        recipe,
+        &plan,
+        &revoke,
+        &protected_write,
+    ) {
         Ok(detail) => CheckReceipt::pass(LIVE_REVOCATION, "derived", elapsed_ms(started), detail),
         Err(error) => CheckReceipt::fail(
             LIVE_REVOCATION,
@@ -142,6 +149,7 @@ fn live_revocation(
 
 fn live_revocation_attempt(
     owner: &OwnerInfo,
+    schema: &Schema,
     recipe: &Recipe,
     plan: &QueryPlan,
     revoke: &RevokePlan,
@@ -231,6 +239,23 @@ fn live_revocation_attempt(
                 protected_write.mutation, plan.protected_table, trace.body
             ));
         }
+        let maintained_rows_written = schema
+            .maintains
+            .iter()
+            .filter(|maintain| maintain.source == plan.protected_table)
+            .map(|maintain| {
+                let rows = trace.body["commit"]["writes"][maintain.target.as_str()]
+                    .as_u64()
+                    .unwrap_or(0);
+                (maintain.target.clone(), rows)
+            })
+            .collect::<BTreeMap<_, _>>();
+        if let Some((target, _)) = maintained_rows_written.iter().find(|(_, rows)| **rows == 0) {
+            return Err(format!(
+                "{} committed without an actual maintained {} row write: {}",
+                protected_write.mutation, target, trace.body
+            ));
+        }
         stream
             .prove_silence(Duration::from_millis(250))
             .map_err(|error| match error.delivery {
@@ -255,7 +280,9 @@ fn live_revocation_attempt(
             "protectedWriteAs": protected_write.persona,
             "protectedWritePrincipal": protected_write.principal,
             "protectedWriteSeq": protected_write_seq,
+            "protectedTable": plan.protected_table,
             "protectedRowsWritten": protected_rows_written,
+            "maintainedRowsWritten": maintained_rows_written,
             "postWriteDelivery": "none",
             "transport": "served SSE + mutation API",
         }))
@@ -989,6 +1016,27 @@ fn query_plan(
 ) -> Result<QueryPlan, PlanBlock> {
     let mut reasons = BTreeSet::new();
     for protected in &recipe.protected {
+        let has_scoped_write =
+            compiled
+                .generation
+                .programs()
+                .values()
+                .any(|(program, certificate)| {
+                    protected_write_eligible(
+                        program,
+                        &certificate.write_sites,
+                        compiled.generation.schema(),
+                        recipe,
+                        &protected.table,
+                    )
+                });
+        if !has_scoped_write {
+            reasons.insert(format!(
+                "{}: no mutation can write this protected scope",
+                protected.table
+            ));
+            continue;
+        }
         let queries =
             compiled
                 .generation
@@ -996,6 +1044,11 @@ fn query_plan(
                 .iter()
                 .filter(|(_, (program, certificate))| {
                     program.kind == ProgramKind::Query
+                        && query_isolates_protected_table(
+                            &certificate.read_sites,
+                            recipe,
+                            &protected.table,
+                        )
                         && certificate
                             .read_sites
                             .iter()
@@ -1038,6 +1091,51 @@ fn query_plan(
             recipe.membership_table, recipe.membership_index
         ),
         candidates: reasons.into_iter().collect(),
+    })
+}
+
+fn query_isolates_protected_table(
+    read_sites: &[ReadSite],
+    recipe: &Recipe,
+    protected_table: &str,
+) -> bool {
+    read_sites
+        .iter()
+        .all(|site| site.table == recipe.membership_table || site.table == protected_table)
+}
+
+fn protected_write_eligible(
+    program: &Program,
+    write_sites: &[WriteSite],
+    schema: &Schema,
+    recipe: &Recipe,
+    protected_table: &str,
+) -> bool {
+    if program.kind != ProgramKind::Mutation || !program_accepts_scope(program, recipe) {
+        return false;
+    }
+    let maintain_sources = schema
+        .maintains
+        .iter()
+        .filter(|maintain| maintain.target == protected_table)
+        .map(|maintain| maintain.source.as_str())
+        .collect::<BTreeSet<_>>();
+    write_sites.iter().any(|site| {
+        (site.table == protected_table || maintain_sources.contains(site.table.as_str()))
+            && matches!(
+                site.kind,
+                WriteKind::Insert | WriteKind::Update | WriteKind::Upsert
+            )
+    })
+}
+
+fn program_accepts_scope(program: &Program, recipe: &Recipe) -> bool {
+    program.args.iter().any(|(name, kind)| {
+        name == &recipe.scope_field
+            || recipe
+                .scope_table
+                .as_deref()
+                .is_some_and(|table| ref_table(kind) == Some(table))
     })
 }
 
@@ -1138,15 +1236,13 @@ fn protected_write_plan(
         ));
     }
     for (mutation, (program, certificate)) in compiled.generation.programs() {
-        if program.kind != ProgramKind::Mutation
-            || !certificate.write_sites.iter().any(|site| {
-                site.table == plan.protected_table
-                    && matches!(
-                        site.kind,
-                        WriteKind::Insert | WriteKind::Update | WriteKind::Upsert
-                    )
-            })
-        {
+        if !protected_write_eligible(
+            program,
+            &certificate.write_sites,
+            compiled.generation.schema(),
+            recipe,
+            &plan.protected_table,
+        ) {
             continue;
         }
         for (persona, principal, membership_id, scope) in &admitted {
@@ -1223,12 +1319,14 @@ fn require_visible_complete(delivery: &Json) -> Result<(), String> {
             "membership fixture did not begin complete: {delivery}"
         ));
     }
-    if !delivery["data"]
-        .as_array()
-        .is_some_and(|rows| !rows.is_empty())
-    {
+    let visible = match delivery.get("data") {
+        Some(Json::Array(rows)) => !rows.is_empty(),
+        Some(Json::Object(fields)) => !fields.is_empty(),
+        _ => false,
+    };
+    if !visible {
         return Err(format!(
-            "membership fixture did not begin with a visible protected row: {delivery}"
+            "membership fixture did not begin with visible protected data: {delivery}"
         ));
     }
     Ok(())
@@ -1341,143 +1439,5 @@ fn blocked(name: &str, started: Instant, recipe: &Recipe, reason: PlanBlock) -> 
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use snapback2_core::{Index, KeyProvenance, Rules, Table};
-    use std::collections::BTreeMap;
-
-    fn authority_schema(principal_column: ColumnType) -> Schema {
-        let membership_rule = RuleExpr::Exists {
-            table: "memberships".to_owned(),
-            index: "byScopePrincipal".to_owned(),
-            key: vec![RuleTerm::Field("scopeId".to_owned()), RuleTerm::Viewer],
-            provenance: KeyProvenance::Shape,
-        };
-        let viewer_is_principal =
-            RuleExpr::Eq(RuleTerm::Field("principal".to_owned()), RuleTerm::Viewer);
-        let memberships = Table {
-            columns: BTreeMap::from([
-                (
-                    "scopeId".to_owned(),
-                    ColumnType::Ref {
-                        table: "scopes".to_owned(),
-                    },
-                ),
-                ("principal".to_owned(), principal_column),
-            ]),
-            indexes: BTreeMap::from([(
-                "byScopePrincipal".to_owned(),
-                Index {
-                    columns: vec!["scopeId".to_owned(), "principal".to_owned()],
-                    unique: true,
-                },
-            )]),
-            rules: Rules {
-                read: membership_rule.clone(),
-                insert: RuleExpr::Allow,
-                update: viewer_is_principal.clone(),
-                delete: viewer_is_principal,
-            },
-            constraints: Vec::new(),
-        };
-        let protected = Table {
-            columns: BTreeMap::from([(
-                "scopeId".to_owned(),
-                ColumnType::Ref {
-                    table: "scopes".to_owned(),
-                },
-            )]),
-            indexes: BTreeMap::new(),
-            rules: Rules {
-                read: membership_rule,
-                insert: RuleExpr::Allow,
-                update: RuleExpr::Allow,
-                delete: RuleExpr::Allow,
-            },
-            constraints: Vec::new(),
-        };
-        Schema {
-            tables: BTreeMap::from([
-                ("memberships".to_owned(), memberships),
-                ("documents".to_owned(), protected),
-            ]),
-            ..Schema::default()
-        }
-    }
-
-    #[test]
-    fn authority_recipe_requires_a_nominal_principal_axis() {
-        let principal = authority_schema(ColumnType::Principal);
-        let recipe = membership_recipe(&principal).expect("Principal axis should be discovered");
-        assert_eq!(recipe.membership_table, "memberships");
-        assert_eq!(recipe.principal_field, "principal");
-
-        let pseudo_membership = authority_schema(ColumnType::Ref {
-            table: "profiles".to_owned(),
-        });
-        assert!(
-            membership_recipe(&pseudo_membership).is_none(),
-            "a Ref column must not synthesize canonical authority proofs"
-        );
-    }
-
-    #[test]
-    fn authority_recipe_accepts_self_delete_as_one_admin_policy_branch() {
-        let mut schema = authority_schema(ColumnType::Principal);
-        schema.tables.get_mut("memberships").unwrap().rules.delete = RuleExpr::Or(vec![
-            RuleExpr::Eq(RuleTerm::Field("principal".to_owned()), RuleTerm::Viewer),
-            RuleExpr::Exists {
-                table: "memberships".to_owned(),
-                index: "byScopePrincipal".to_owned(),
-                key: vec![RuleTerm::Field("scopeId".to_owned()), RuleTerm::Viewer],
-                provenance: KeyProvenance::Shape,
-            },
-        ]);
-        assert!(
-            membership_recipe(&schema).is_some(),
-            "an admin branch must not hide the exact self-delete authority path"
-        );
-    }
-
-    #[test]
-    fn membership_candidates_require_the_authenticated_principal() {
-        let schema = authority_schema(ColumnType::Principal);
-        let recipe = membership_recipe(&schema).expect("Principal axis should be discovered");
-        let seed = SeedData {
-            personas: vec!["alice".to_owned()],
-            rows: BTreeMap::from([(
-                "memberships".to_owned(),
-                vec![
-                    json!({ "id": "legacy", "scopeId": "scope-1", "principal": "alice" }),
-                    json!({ "id": "exact", "scopeId": "scope-1", "principal": "dev:alice" }),
-                ],
-            )]),
-        };
-
-        let candidates = membership_candidates(&seed, &recipe);
-        assert_eq!(candidates.len(), 1);
-        assert_eq!(candidates[0].1, "dev:alice");
-        assert_eq!(candidates[0].2, "exact");
-    }
-
-    #[test]
-    fn successor_denial_requires_the_unique_program_rule() {
-        let expected = "SNAPBACK2_TEST_SUCCESSOR_POLICY_FENCE:g";
-        for delivery in [
-            json!({ "state": "denied", "data": [] }),
-            json!({ "state": "denied", "rule": "generation-g-rule", "data": [] }),
-            json!({ "state": "complete", "rule": expected, "data": [] }),
-        ] {
-            assert!(
-                require_exact_denial(&delivery, expected, "probe").is_err(),
-                "a non-G+1 denial was accepted: {delivery}"
-            );
-        }
-        require_exact_denial(
-            &json!({ "state": "denied", "rule": expected, "data": [] }),
-            expected,
-            "probe",
-        )
-        .expect("the exact empty G+1 denial should pass");
-    }
-}
+#[path = "test_authority_tests.rs"]
+mod tests;
