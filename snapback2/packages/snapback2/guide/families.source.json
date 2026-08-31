@@ -64,5 +64,239 @@
     "code": "E_OWNER_NOT_RUNNING",
     "wrong": "snapback2 why todos.list --as alice",
     "right": "snapback2 dev && snapback2 why todos.list --as alice"
+  },
+  {
+    "family": "bound",
+    "code": "E_UNBOUND_SCAN",
+    "wrong": "db.scan(todos.byOwner, [ctx.viewer])",
+    "right": "db.scan(todos.byOwner, [ctx.viewer], { take: 50 })"
+  },
+  {
+    "family": "bound",
+    "code": "E_UNBOUND_LOOP",
+    "wrong": "for (const item of unboundedItems) visit(item)",
+    "right": "for (const item of args.items) visit(item) // args.items declares max"
+  },
+  {
+    "family": "bound",
+    "code": "E_UNBOUND_COUNT",
+    "wrong": "db.scan(todos.byOwner, [ctx.viewer], { take: 50 }).count()",
+    "right": "db.scan(todos.byOwner, [ctx.viewer], { take: 50 }).countCapped()"
+  },
+  {
+    "family": "bound",
+    "code": "E_STRUCTURAL_COUNT",
+    "wrong": "return hiddenRows.countCapped()",
+    "right": "return maintainedVisibleCount"
+  },
+  {
+    "family": "opaque",
+    "code": "E_AMBIENT_TIME",
+    "wrong": "const now = Date.now()",
+    "right": "const now = ctx.now()"
+  },
+  {
+    "family": "opaque",
+    "code": "E_OPAQUE",
+    "wrong": "return unknownLibraryCall(args.id)",
+    "right": "return db.get(todos, args.id)"
+  },
+  {
+    "family": "bound",
+    "code": "E_BOUND",
+    "wrong": "return a program whose certified work exceeds the ceiling",
+    "right": "reduce take/max values until the program fits the certified ceiling"
+  },
+  {
+    "family": "args",
+    "code": "E_ARGS_SPREAD",
+    "wrong": "query({ ...makeArgs() }, handler)",
+    "right": "query({ id: t.id() }, handler)"
+  },
+  {
+    "family": "args",
+    "code": "E_ARGS_DESCRIPTOR",
+    "wrong": "query({ id: String }, handler)",
+    "right": "query({ id: t.id() }, handler)"
+  },
+  {
+    "family": "op",
+    "code": "E_OP_INVALID",
+    "wrong": "export const broken = query({}, () => missingName)",
+    "right": "export const valid = query({}, () => null)"
+  },
+  {
+    "family": "op",
+    "code": "E_OP_NONE",
+    "wrong": "const helper = () => null",
+    "right": "export const operation = query({}, () => null)"
+  },
+  {
+    "family": "op",
+    "code": "E_OP_RESERVED",
+    "wrong": "export const then = query({}, () => null)",
+    "right": "export const next = query({}, () => null)"
+  },
+  {
+    "family": "op",
+    "code": "E_OP_MODULE_BASENAME",
+    "wrong": "snapback/activity.ts and snapback/admin/activity.ts",
+    "right": "snapback/activity.ts and snapback/admin-activity.ts"
+  },
+  {
+    "family": "opaque",
+    "code": "E_DIAG_TRUNCATED",
+    "wrong": "leave more refusals than one check can report",
+    "right": "fix the reported refusals and run snapback2 check again"
+  },
+  {
+    "family": "schema",
+    "code": "E_SCHEMA_RESERVED",
+    "wrong": "export const _meta = table({ columns: {} })",
+    "right": "export const metadata = table({ columns: {} })"
+  },
+  {
+    "family": "schema",
+    "code": "E_SCHEMA_ID_RESERVED",
+    "wrong": "table({ columns: { id: t.id() } })",
+    "right": "table({ columns: {} }) // id is implicit"
+  },
+  {
+    "family": "schema",
+    "code": "E_SCHEMA_UNKNOWN_TABLE",
+    "wrong": "schema({ tables: { missing } })",
+    "right": "schema({ tables: { todos } })"
+  },
+  {
+    "family": "schema",
+    "code": "E_SCHEMA_INDEX_COLUMN",
+    "wrong": "indexes: { byMissing: { columns: [\"missing\"] } }",
+    "right": "indexes: { byTitle: { columns: [\"title\"] } }"
+  },
+  {
+    "family": "schema",
+    "code": "E_SCHEMA_INDEX_OPTION",
+    "wrong": "indexes: { byTitle: { columns: [\"title\"], unknown: true } }",
+    "right": "indexes: { byTitle: { columns: [\"title\"], unique: true } }"
+  },
+  {
+    "family": "schema",
+    "code": "E_SCHEMA_CONSTRAINT",
+    "wrong": "constraints: [{ unique: \"missing\" }]",
+    "right": "constraints: [{ unique: \"byTitle\" }]"
+  },
+  {
+    "family": "schema",
+    "code": "E_SCHEMA_MAINTAIN",
+    "wrong": "maintains: [{ count: \"missing\", by: [\"ownerId\"], into: \"counts\" }]",
+    "right": "maintains: [{ count: \"todos\", by: [\"ownerId\"], into: \"counts\" }]"
+  },
+  {
+    "family": "schema",
+    "code": "E_SCHEMA_DEFAULT_EXPORT",
+    "wrong": "export const app = schema({ tables: {} })",
+    "right": "export default schema({ tables: {} })"
+  },
+  {
+    "family": "schema",
+    "code": "E_SCHEMA_COLUMN",
+    "wrong": "columns: { title: t.text() }",
+    "right": "columns: { title: t.text(100) }"
+  },
+  {
+    "family": "schema",
+    "code": "E_SCHEMA_INVALID",
+    "wrong": "export default schema(makeSchema())",
+    "right": "export default schema({ tables: { todos } })"
+  },
+  {
+    "family": "rule",
+    "code": "E_RULE_INVALID",
+    "wrong": "read: customRule()",
+    "right": "read: rule.viewerIs(\"ownerId\")"
+  },
+  {
+    "family": "args",
+    "code": "E_DECIMAL_SCALE",
+    "wrong": "const total = price * taxRate",
+    "right": "const total = price * quantity"
+  },
+  {
+    "family": "args",
+    "code": "E_ENUM_VARIANT",
+    "wrong": "status: \"unknown\"",
+    "right": "status: \"open\""
+  },
+  {
+    "family": "input",
+    "code": "E_SEED_INVALID",
+    "wrong": "export default makeSeed()",
+    "right": "export default seed({ personas: [], rows: {} })"
+  },
+  {
+    "family": "input",
+    "code": "E_SEED_PERSONA",
+    "wrong": "personas: [1]",
+    "right": "personas: [\"alice\"]"
+  },
+  {
+    "family": "input",
+    "code": "E_SEED_TABLE",
+    "wrong": "rows: { missing: [] }",
+    "right": "rows: { todos: [] }"
+  },
+  {
+    "family": "input",
+    "code": "E_SEED_ROW",
+    "wrong": "rows: { todos: [null] }",
+    "right": "rows: { todos: [{ id: \"todo-1\", title: \"Ship\" }] }"
+  },
+  {
+    "family": "input",
+    "code": "E_SEED_SHAPE",
+    "wrong": "rows: { todos: [{ id: \"todo-1\" }] }",
+    "right": "rows: { todos: [{ id: \"todo-1\", title: \"Ship\" }] }"
+  },
+  {
+    "family": "input",
+    "code": "E_SEED_VALUE",
+    "wrong": "rows: { todos: [{ id: \"todo-1\", title: 7 }] }",
+    "right": "rows: { todos: [{ id: \"todo-1\", title: \"Ship\" }] }"
+  },
+  {
+    "family": "effect",
+    "code": "E_EFFECT_CLOSURE",
+    "wrong": "const token = secret; effect({ run: () => token })",
+    "right": "effect({ run: (payload) => payload })"
+  },
+  {
+    "family": "effect",
+    "code": "E_EFFECT_TYPE",
+    "wrong": "effect({ grants: [], run: 1 })",
+    "right": "effect({ grants: [], run: async () => null })"
+  },
+  {
+    "family": "effect",
+    "code": "E_EFFECT_IMPORT",
+    "wrong": "import helper from \"unapproved-runtime\"",
+    "right": "use the payload and granted effect tools"
+  },
+  {
+    "family": "effect",
+    "code": "E_EFFECT_THEN_ARGS",
+    "wrong": "then: mutation({ id: t.id() }, handler)",
+    "right": "then: mutation({ outboxId: t.id(), effect: t.text(100), result: t.json(4096) }, handler)"
+  },
+  {
+    "family": "effect",
+    "code": "E_EFFECT_UNKNOWN",
+    "wrong": "emit(missingEffect, payload)",
+    "right": "emit(declaredEffect, payload)"
+  },
+  {
+    "family": "effect",
+    "code": "E_EMIT_IN_QUERY",
+    "wrong": "query({}, () => { emit(notify, null); return null })",
+    "right": "mutation({}, () => { emit(notify, null); return null })"
   }
 ]

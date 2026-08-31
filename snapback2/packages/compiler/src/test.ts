@@ -1367,10 +1367,22 @@ test("guide validation reports every family and page failure before it fails", (
   const output = `${new TextDecoder().decode(checked.stdout)}${new TextDecoder().decode(checked.stderr)}`;
   assert(checked.exitCode === 0, `guide validation self-test failed: ${output}`);
   assert(
-    output.includes("families.source.json[1]") && output.includes("duplicate family duplicate")
+    output.includes("families.source.json[1]") && output.includes("duplicate code E_ONE")
       && output.includes("guide/oversized.md") && output.includes("guide/stale.md"),
     `guide validator failed fast: ${output}`,
   );
+});
+
+test("every compiler diagnostic code is guide-reachable by its exact code", async () => {
+  const irSource = await readFile(`${frontend}src/ir.ts`, "utf8");
+  const union = irSource.match(/export type DiagnosticCode =([\s\S]*?);/)?.[1] ?? "";
+  const emittedCodes = [...union.matchAll(/"(E_[A-Z0-9_]+)"/g)].map((match) => match[1]!);
+  const familyRecords = JSON.parse(
+    await readFile(`${crate}packages/snapback2/guide/families.source.json`, "utf8"),
+  ) as Array<{ code?: string }>;
+  const reachable = new Set(familyRecords.map((item) => item.code));
+  const missing = emittedCodes.filter((code) => !reachable.has(code));
+  assert(emittedCodes.length > 0 && missing.length === 0, `compiler diagnostics missing guide pages: ${missing.join(", ")}`);
 });
 
 test("binary check certifies every compiler program and reads IR only from stdin or --ir", async () => {

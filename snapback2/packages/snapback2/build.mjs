@@ -145,8 +145,8 @@ if (guideErrors.length > 0) {
 if (process.argv.includes("--self-test")) {
   const failures = [
     ...familyFailures([
-      { family: "duplicate", code: "E_ONE", wrong: "wrong", right: "right" },
-      { family: "duplicate", code: "", wrong: "", right: "" },
+      { family: "first", code: "E_ONE", wrong: "wrong", right: "right" },
+      { family: "second", code: "E_ONE", wrong: "", right: "" },
     ]),
     ...guideFailures([
     { name: "oversized", markdown: "x".repeat(5), limit: 4 },
@@ -155,7 +155,7 @@ if (process.argv.includes("--self-test")) {
     ], "present()"),
   ];
   if (!failures.some((item) => item.includes("families.source.json[1]"))
-    || !failures.some((item) => item.includes("duplicate family"))
+    || !failures.some((item) => item.includes("duplicate code"))
     || !failures.some((item) => item.includes("oversized"))
     || !failures.some((item) => item.includes("stale"))) {
     throw new Error(`guide validation self-test lost failures: ${JSON.stringify(failures)}`);
@@ -188,7 +188,7 @@ function familyFailures(value) {
     return ["guide/families.source.json: expected an array of family records"];
   }
   const failures = [];
-  const familyCounts = new Map();
+  const codeCounts = new Map();
   for (const [index, entry] of value.entries()) {
     if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
       failures.push(`guide/families.source.json[${index}]: expected an object`);
@@ -199,12 +199,12 @@ function familyFailures(value) {
     if (missing.length > 0) {
       failures.push(`guide/families.source.json[${index}]: missing ${missing.join(", ")}`);
     }
-    if (typeof entry.family === "string" && entry.family.length > 0) {
-      familyCounts.set(entry.family, (familyCounts.get(entry.family) ?? 0) + 1);
+    if (typeof entry.code === "string" && entry.code.length > 0) {
+      codeCounts.set(entry.code, (codeCounts.get(entry.code) ?? 0) + 1);
     }
   }
-  for (const [family, count] of familyCounts) {
-    if (count > 1) failures.push(`guide/families.source.json: duplicate family ${family}`);
+  for (const [code, count] of codeCounts) {
+    if (count > 1) failures.push(`guide/families.source.json: duplicate code ${code}`);
   }
   return failures;
 }
