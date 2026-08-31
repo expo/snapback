@@ -117,7 +117,7 @@ recorded with the accompanying metrics/ticket closeout commit.
 
 ### Round-2 closure (2026-08-31)
 
-Commits `570fae871`, `4720b0339`, and `cba1fd7cd` close the four remaining
+Commits `570fae871`, `4720b0339`, `cba1fd7cd`, and `6b21d11c0` close the four remaining
 review blocks: loop and conditional-member origins now reach the candidate set
 without a name guess; nested push deltas multiply and the 3 × 4 + seed program
 certifies and executes at max 13; collection mutation requires a locally owned,
