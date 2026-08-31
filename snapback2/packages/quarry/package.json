@@ -13,5 +13,6 @@
   "devDependencies": {
     "@types/node": "^26.4.0",
     "typescript": "5.9.2"
-  }
+  },
+  "version": "0.0.1"
 }
