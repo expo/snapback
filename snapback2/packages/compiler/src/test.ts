@@ -1389,19 +1389,22 @@ test("worker survives a refused compile and serves the next request under Node",
   const shipped = await Bun.file(bundle).text();
   assert(!shipped.includes("Bun."), "shipped compiler contains Bun.*");
   const worker = Bun.spawn({ cmd: ["node", bundle, "--worker"], stdin: "pipe", stdout: "pipe", stderr: "pipe" });
-  worker.stdin.write(`${JSON.stringify({ id: 1, op: "compile", root: resolve(frontend, "fixtures/invalid") })}\n`);
-  worker.stdin.write(`${JSON.stringify({ id: 2, op: "compile", root: resolve(frontend, "fixtures/todos") })}\n`);
-  worker.stdin.write(`${JSON.stringify({ id: 3, op: "compile", root: "fixtures/todos" })}\n`);
+  worker.stdin.write(`${JSON.stringify({ id: 1, op: "probe", root: resolve(frontend, "fixtures/invalid") })}\n`);
+  worker.stdin.write(`${JSON.stringify({ id: 2, op: "compile", root: resolve(frontend, "fixtures/invalid") })}\n`);
+  worker.stdin.write(`${JSON.stringify({ id: 3, op: "compile", root: resolve(frontend, "fixtures/todos") })}\n`);
+  worker.stdin.write(`${JSON.stringify({ id: 4, op: "compile", root: "fixtures/todos" })}\n`);
   worker.stdin.end();
   const output = await new Response(worker.stdout).text();
   const stderr = await new Response(worker.stderr).text();
   const status = await worker.exited;
   assert(status === 0, `worker exited nonzero: ${stderr}`);
   const responses = output.trim().split("\n").map((line) => JSON.parse(line));
-  assert(responses[0]?.id === 1 && responses[0]?.ok === false, "worker did not return the refused compile");
-  assert(responses[1]?.id === 2 && responses[1]?.ok === true, "worker did not survive for the next compile");
-  assert(responses[2]?.id === 3 && responses[2]?.ok === false
-    && responses[2]?.diagnostics?.[0]?.code === "E_OP_INVALID", "worker admitted a relative project root");
+  assert(responses[0]?.id === 1 && responses[0]?.ok === true
+    && responses[0]?.protocol === "snapback2/compiler-worker/v1", "worker probe did not prove protocol custody");
+  assert(responses[1]?.id === 2 && responses[1]?.ok === false, "worker did not return the refused compile");
+  assert(responses[2]?.id === 3 && responses[2]?.ok === true, "worker did not survive for the next compile");
+  assert(responses[3]?.id === 4 && responses[3]?.ok === false
+    && responses[3]?.diagnostics?.[0]?.code === "E_OP_INVALID", "worker admitted a relative project root");
 });
 
 test("npm pack from a clean dist builds every exported module and declaration", async () => {
@@ -1411,7 +1414,7 @@ test("npm pack from a clean dist builds every exported module and declaration", 
   const report = JSON.parse(new TextDecoder().decode(packed.stdout));
   const files = new Set((report[0]?.files ?? []).map((item: { path: string }) => item.path));
   for (const path of [
-    "dist/compiler.mjs", "dist/index.mjs", "dist/client.mjs", "dist/react.mjs", "dist/test.mjs",
+    "dist/compiler.mjs", "dist/compiler-core.mjs", "dist/index.mjs", "dist/client.mjs", "dist/react.mjs", "dist/test.mjs",
     "dist/test-runner.mjs", "dist/index.d.ts", "dist/client.d.ts", "dist/react.d.ts", "dist/test.d.ts",
     "dist/compiler-lib.d.ts",
   ]) assert(files.has(path), `npm pack omitted ${path}`);

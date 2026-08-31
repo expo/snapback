@@ -231,12 +231,19 @@ imported from `./schema` and `emit(effectRef, payload)` is a statement (LLP
 Protocol, JSON lines on stdin/stdout, one request in flight:
 
 ```
+→ { "id": 0, "op": "probe", "root": "/abs/project" }
+← { "id": 0, "ok": true, "protocol": "snapback2/compiler-worker/v1" }
 → { "id": 1, "op": "compile", "root": "/abs/project" }
 ← { "id": 1, "ok": true, "project": <ProjectJson>, "sources": { "todos.list": { "file": "snapback/todos.ts", "line": 14, "col": 14 } }, "apiDts": "<text>", "ms": 212 }
 ← { "id": 1, "ok": false, "diagnostics": [ <Refusal> ] }        // ALL diagnostics, one per module at least
 → { "id": 2, "op": "seed", "root": "…" }  ← { "id": 2, "ok": true, "seed": { "personas": [...], "rows": {...} } }
 → { "id": 3, "op": "journeys", "root": "…" }  ← { "id": 3, "ok": true, "files": ["snapback/tests/todos.test.ts"] }
 ```
+
+`probe` is the lightweight `doctor` handshake. It verifies the fixed compiler
+chunk and the TypeScript dependency before returning the exact protocol token;
+the worker lazily loads that heavy compiler chunk for `compile`, `seed`, and
+`journeys`. The blocking compiler and package tests exercise both halves.
 
 `ProjectJson` is LLP 1001 §4's serde shape, with `programs[].name` qualified
 (`todos.list`) and `schema.effects` listing the effect names. The compiler's

@@ -199,7 +199,7 @@ fn doctor_uses_the_lightweight_worker_probe_and_reports_its_latency() {
 for await (const line of createInterface({ input: process.stdin, crlfDelay: Infinity })) {
   const request = JSON.parse(line);
   await new Promise((resolve) => setTimeout(resolve, 550));
-  process.stdout.write(JSON.stringify({ id: request.id, ok: request.op === "seed", seed: { personas: [], rows: {} } }) + "\n");
+  process.stdout.write(JSON.stringify({ id: request.id, ok: request.op === "probe", protocol: "snapback2/compiler-worker/v1" }) + "\n");
 }
 "#,
     );
@@ -217,5 +217,35 @@ for await (const line of createInterface({ input: process.stdin, crlfDelay: Infi
     let report: Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(report["compiler"]["answered"], true);
     assert!(report["compiler"]["ms"].as_f64().unwrap() >= 500.0);
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn doctor_refuses_an_incompatible_compiler_worker_protocol() {
+    let root = temp_root();
+    let worker = write_worker(
+        &root,
+        "wrong-protocol-compiler.mjs",
+        r#"import { createInterface } from "node:readline";
+for await (const line of createInterface({ input: process.stdin, crlfDelay: Infinity })) {
+  const request = JSON.parse(line);
+  process.stdout.write(JSON.stringify({ id: request.id, ok: true, protocol: "snapback2/compiler-worker/v0" }) + "\n");
+}
+"#,
+    );
+    let output = Command::new(env!("CARGO_BIN_EXE_snapback2"))
+        .args(["doctor", "--json"])
+        .env("SNAPBACK2_COMPILER", worker)
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(1));
+    let report: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(report["compiler"]["answered"], false);
+    assert!(
+        report["compiler"]["error"]
+            .as_str()
+            .unwrap()
+            .contains("E_OWNER_COMPILER_PROTOCOL")
+    );
     fs::remove_dir_all(root).unwrap();
 }

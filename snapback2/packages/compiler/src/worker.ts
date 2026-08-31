@@ -1,9 +1,15 @@
 #!/usr/bin/env node
 import { createInterface } from "node:readline";
+import { access } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { isAbsolute, resolve } from "node:path";
-import { compileJourneys, lowerProject, lowerSeed } from "./project";
 
-type Request = { id?: string | number; op: "compile" | "seed" | "journeys"; root: string };
+type Request = { id?: string | number; op: "probe" | "compile" | "seed" | "journeys"; root: string };
+
+const protocol = "snapback2/compiler-worker/v1";
+const compilerCore = new URL("./compiler-core.mjs", import.meta.url);
+let compilerPromise: Promise<typeof import("./project")> | undefined;
+const loadCompiler = () => compilerPromise ??= import("./project");
 
 const apiDeclarations = new Map<string, string>();
 
@@ -11,6 +17,16 @@ async function respond(request: Request): Promise<Record<string, unknown>> {
   if (!request || typeof request.root !== "string" || !isAbsolute(request.root)) {
     return refusal(request?.id, "E_OP_INVALID", "compiler request requires an absolute project root");
   }
+  if (request.op === "probe") {
+    try {
+      await access(compilerCore);
+      createRequire(import.meta.url).resolve("typescript");
+    } catch (error) {
+      return refusal(request.id, "E_OP_INVALID", `compiler dependency is unavailable: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    return { id: request.id, ok: true, protocol };
+  }
+  const { compileJourneys, lowerProject, lowerSeed } = await loadCompiler();
   if (request.op === "compile") {
     const result = await lowerProject(request.root);
     if (result.ok) apiDeclarations.set(request.root, result.apiDts);
@@ -39,7 +55,7 @@ function refusal(id: unknown, code: string, message: string): Record<string, unk
       family: "op",
       message,
       site: "<worker>:1:1",
-      rewrite: "send { id, op: 'compile' | 'seed' | 'journeys', root: '/absolute/project' }",
+      rewrite: "send { id, op: 'probe' | 'compile' | 'seed' | 'journeys', root: '/absolute/project' }",
       guide: "programs/operations",
     }],
   };

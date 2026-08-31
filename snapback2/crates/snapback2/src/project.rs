@@ -160,17 +160,22 @@ impl CompilerWorker {
         })
     }
 
-    /// Doctor's liveness probe uses the worker's seed request: a structured
-    /// acceptance or refusal proves protocol custody without requiring the
-    /// probe root itself to be a valid application.
+    /// Doctor's liveness probe checks the lightweight, versioned worker shell.
+    /// The shell also verifies custody of its compiler chunk and TypeScript;
+    /// full lowering remains lazy until a compile, seed, or journeys request.
     pub fn answers(&mut self, root: &Path) -> Result<(), Vec<Refusal>> {
-        let response = self.request("seed", root)?;
-        if response.get("ok").and_then(Json::as_bool).is_some() {
+        let response = self.request("probe", root)?;
+        let expected_id = self.next_id;
+        if response.get("ok").and_then(Json::as_bool) == Some(true)
+            && response.get("id").and_then(Json::as_u64) == Some(expected_id)
+            && response.get("protocol").and_then(Json::as_str)
+                == Some("snapback2/compiler-worker/v1")
+        {
             Ok(())
         } else {
             Err(vec![Refusal::owner(
                 "E_OWNER_COMPILER_PROTOCOL",
-                "compiler liveness probe was refused or omitted ok",
+                "compiler liveness probe returned an incompatible response",
                 "reinstall snapback2 so the binary and compiler bundle match",
             )])
         }

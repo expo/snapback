@@ -55,11 +55,16 @@ await build({
 });
 
 await build({
-  entryPoints: [resolve(here, "../compiler/src/worker.ts")],
-  outfile: resolve(dist, "compiler.mjs"),
+  entryPoints: { compiler: resolve(here, "../compiler/src/worker.ts") },
+  outdir: dist,
+  entryNames: "[name]",
+  chunkNames: "compiler-core",
+  outExtension: { ".js": ".mjs" },
   bundle: true,
   format: "esm",
+  minify: true,
   platform: "node",
+  splitting: true,
   target: "node20",
   external: ["typescript"],
 });
