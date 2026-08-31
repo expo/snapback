@@ -1,0 +1,17 @@
+{
+  "name": "snapback2-quarry",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "quarryc": "src/cli.ts"
+  },
+  "scripts": {
+    "check": "tsc -p tsconfig.json",
+    "test": "bun src/test.ts",
+    "test:e2e": "bun src/test.ts --e2e"
+  },
+  "devDependencies": {
+    "@types/node": "^26.4.0",
+    "typescript": "5.9.2"
+  }
+}
