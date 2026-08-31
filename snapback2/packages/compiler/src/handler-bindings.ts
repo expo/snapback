@@ -3,6 +3,72 @@ import type { DiagnosticModule } from "./diagnostics";
 import { propertyName, walk } from "./syntax";
 
 type FunctionLike = ts.FunctionDeclaration | ts.ArrowFunction | ts.FunctionExpression;
+type IdentifierBindingElement = ts.BindingElement & { name: ts.Identifier };
+type DuplicateHandlerBinding = {
+  property: "args" | "ctx";
+  elements: IdentifierBindingElement[];
+};
+
+// @ref LLP 1002#2-the-authored-surface-the-snapback2-module — operation composites have one lexical handler binding; aliases are ordinary locals.
+export function duplicateHandlerBinding(handler: FunctionLike): DuplicateHandlerBinding | undefined {
+  const pattern = handler.parameters[0]?.name;
+  if (!pattern || !ts.isObjectBindingPattern(pattern)) return undefined;
+  const bindings = new Map<"args" | "ctx", IdentifierBindingElement[]>();
+  for (const element of pattern.elements) {
+    if (!ts.isIdentifier(element.name)) continue;
+    const property = element.propertyName ? propertyName(element.propertyName) : element.name.text;
+    if (property !== "args" && property !== "ctx") continue;
+    const elements = bindings.get(property) ?? [];
+    elements.push(element as IdentifierBindingElement);
+    bindings.set(property, elements);
+  }
+  for (const [property, elements] of bindings) {
+    if (elements.length > 1) return { property, elements };
+  }
+  return undefined;
+}
+
+export function duplicateHandlerBindingRewrite(
+  module: DiagnosticModule,
+  handler: FunctionLike,
+  duplicate: DuplicateHandlerBinding,
+): string {
+  const parameter = handler.parameters[0];
+  const body = handler.body;
+  if (!parameter || !ts.isObjectBindingPattern(parameter.name) || !body) return module.source;
+  const winner = duplicate.elements.at(-1)!;
+  const winnerName = winner.name.text;
+  const duplicateSet = new Set<ts.BindingElement>(duplicate.elements);
+  const pattern = `{ ${parameter.name.elements
+    .filter((element) => !duplicateSet.has(element) || element === winner)
+    .map((element) => element.getText(module.sourceFile))
+    .join(", ")} }`;
+  const aliases = duplicate.elements.slice(0, -1)
+    .map((element) => element.name.text)
+    .filter((name) => name !== winnerName)
+    .map((name) => `const ${name} = ${winnerName};`)
+    .join(" ");
+  const edits: Array<{ start: number; end: number; text: string }> = [{
+    start: parameter.name.getStart(module.sourceFile),
+    end: parameter.name.getEnd(),
+    text: pattern,
+  }];
+  if (ts.isBlock(body)) {
+    const bodyStart = body.getStart(module.sourceFile) + 1;
+    edits.push({ start: bodyStart, end: bodyStart, text: ` ${aliases}` });
+  } else {
+    edits.push({
+      start: body.getStart(module.sourceFile),
+      end: body.getEnd(),
+      text: `{ ${aliases} return ${body.getText(module.sourceFile)}; }`,
+    });
+  }
+  let rewritten = module.source;
+  for (const edit of edits.sort((left, right) => right.start - left.start)) {
+    rewritten = `${rewritten.slice(0, edit.start)}${edit.text}${rewritten.slice(edit.end)}`;
+  }
+  return rewritten;
+}
 
 export function nestedHandlerBinding(handler: FunctionLike): ts.BindingElement | undefined {
   const pattern = handler.parameters[0]?.name;

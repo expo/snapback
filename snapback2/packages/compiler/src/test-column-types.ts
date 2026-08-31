@@ -154,6 +154,29 @@ export function registerColumnTypeChecks(test: RegisterTest): void {
       "nested handler rewrite did not preserve Decimal scaling for the default and addition");
   });
 
+  test("duplicate operation composite bindings refuse in both orders with a single-binding rewrite", () => {
+    for (const [label, bindings] of [
+      ["canonical-first", "args, args: packed"],
+      ["renamed-first", "args: packed, args"],
+    ] as const) {
+      const source = `import { query, t } from "snapback2";
+        export const price = query({ price: t.decimal(2) }, ({ ${bindings} }) => [
+          (args).price + 1,
+          (packed).price + 1,
+        ]);`;
+      const lowered = lowerSource(source, `duplicate-handler-${label}.ts`);
+      const refusal = lowered.ok ? undefined : lowered.diagnostics.find((item) =>
+        item.code === "E_OPAQUE" && item.message.includes("handler property args is destructured more than once"));
+      assert(refusal?.family === "opaque" && refusal.site.startsWith(`duplicate-handler-${label}.ts:`),
+        `${label} duplicate handler binding did not produce a sited refusal envelope`);
+      const rewritten = lowerSource(refusal.rewrite, `duplicate-handler-${label}-rewritten.ts`);
+      assert(rewritten.ok,
+        `${label} duplicate handler rewrite did not compile: ${rewritten.ok ? "" : rewritten.diagnostics.map((item) => item.message).join("; ")}`);
+      assert(canonical(integerLiterals(rewritten.programs[0])).includes("[100,100]"),
+        `${label} duplicate handler rewrite did not preserve the operation argument scale`);
+    }
+  });
+
   test("parenthesized and asserted operation composites preserve Decimal scales", () => {
     const lowered = lowerSource(`import { query, t } from "snapback2";
       export const price = query({ price: t.decimal(2) }, ({ args: packed }) => [
@@ -182,6 +205,24 @@ export function registerColumnTypeChecks(test: RegisterTest): void {
   });
 
   test("loop domains distinguish shadowed locals from the operation args composite", () => {
+    for (const [label, binding, domain] of [
+      ["canonical", "args", "args.items"],
+      ["renamed", "args: packed", "packed.items"],
+    ] as const) {
+      const explicit = lowerSource(`import { query, t } from "snapback2";
+        export const total = query({ items: t.list(t.int(), { max: 4 }) }, ({ ${binding} }) => {
+          const items = [10, 20];
+          let total = 0;
+          for (const item of ${domain}) total = total + item;
+          return total + items.length;
+        });`, `explicit-${label}-loop-args.ts`);
+      assert(explicit.ok,
+        `${label} explicit args loop refused: ${explicit.ok ? "" : explicit.diagnostics.map((item) => item.message).join("; ")}`);
+      const explicitIr = canonical(explicit.programs[0]);
+      assert(explicitIr.includes('"ArgList":{"max":4,"name":"items"}') && !explicitIr.includes('"DerivedArray"'),
+        `${label} explicit args loop resolved through the same-named local: ${explicitIr}`);
+    }
+
     const lowered = lowerSource(`import { query, t } from "snapback2";
       export const total = query({ items: t.list(t.int(), { max: 3 }) }, ({ args: packed }) => {
         const args = { items: [10, 20, 30] };

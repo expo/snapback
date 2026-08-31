@@ -31,7 +31,12 @@ import { analyzeOperationTypes, type TypePlan } from "./type-analysis";
 import { formatTypeDiagnostic, typecheckSource } from "./typecheck";
 import { typeDiagnosticSite } from "./type-diagnostic-site";
 import { invalidNativeDescriptorRefusal, lowerArgDescriptor, lowerLegacyArgDescriptor } from "./lower/schema";
-import { nestedHandlerBinding, nestedHandlerDestructuringRewrite } from "./handler-bindings";
+import {
+  duplicateHandlerBinding,
+  duplicateHandlerBindingRewrite,
+  nestedHandlerBinding,
+  nestedHandlerDestructuringRewrite,
+} from "./handler-bindings";
 import type { RecursionState } from "./lower/recursion";
 import { inspectModule, type ModuleInfo } from "./lower/module";
 import { assignedBindings, directArgument, moduleBasename, withDirectRewrite } from "./lower/operation-context";
@@ -151,6 +156,17 @@ export function lowerSource(
         : ts.isIdentifier(declaration.name) ? declaration.name.text : "operation";
       operationSpans.push({ name, call });
       const handler = call.arguments[1];
+      const duplicateBinding = handler && isFunctionLike(handler) ? duplicateHandlerBinding(handler) : undefined;
+      if (duplicateBinding && handler && isFunctionLike(handler)) {
+        diagnostics.push(diagnostic(
+          module,
+          "E_OPAQUE",
+          duplicateBinding.elements[1]!,
+          `handler property ${duplicateBinding.property} is destructured more than once; bind it once and alias locally`,
+          duplicateHandlerBindingRewrite(module, handler, duplicateBinding),
+        ));
+        continue;
+      }
       const nestedBinding = handler && isFunctionLike(handler) ? nestedHandlerBinding(handler) : undefined;
       if (nestedBinding && handler && isFunctionLike(handler)) {
         diagnostics.push(diagnostic(

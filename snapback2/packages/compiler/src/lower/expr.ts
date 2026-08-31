@@ -37,7 +37,7 @@ import {
 } from "../syntax";
 import { directArgument, withDirectRewrite } from "./operation-context";
 import { guardedWalk, MAX_RECURSION_DEPTH } from "./recursion";
-import { alternativeMemberBound } from "./binding-bound";
+import { alternativeMemberBound, operationArgumentList } from "./binding-bound";
 function concatExpressions(expressions: Expr[]): Expr {
   return expressions.slice(1).reduce<Expr>(
     (left, right) => ({ Builtin: { builtin: "Concat", args: [left, right] } }),
@@ -292,8 +292,9 @@ function lowerDomainInner(
   if (call && ts.isIdentifier(call.expression) && call.expression.text === "recurse") {
     return lowerRecurse(call, env);
   }
-  const identifier = identifierFromArgsOrLocal(expression,
-    (name) => env.variables.get(name)?.operationComposite === "args");
+  const operationList = operationArgumentList(expression, env);
+  if (operationList?.max !== undefined) return { domain: { ArgList: { name: operationList.name, max: operationList.max } }, bindingInfo: provenanceBinding(expression, env) };
+  const identifier = operationList ? undefined : identifierFromArgsOrLocal(expression, (name) => env.variables.get(name)?.operationComposite === "args");
   if (identifier) {
     const info = env.variables.get(identifier);
     if (info?.max !== undefined) {
@@ -753,11 +754,10 @@ export function staticBound(node: ts.Expression, env: Environment): number | und
 function staticBoundInner(node: ts.Expression, env: Environment): number | undefined {
   const value = unwrapExpression(node);
   if (ts.isIdentifier(value)) return env.variables.get(value.text)?.max;
+  const operationList = operationArgumentList(value, env);
+  if (operationList) return operationList.max;
   if (ts.isPropertyAccessExpression(value)) {
     const base = unwrapExpression(value.expression);
-    if (ts.isIdentifier(base) && env.variables.get(base.text)?.operationComposite === "args") {
-      return env.variables.get(value.name.text)?.max;
-    }
     if (ts.isIdentifier(base)) {
       const info = env.variables.get(base.text);
       const alternative = info && alternativeMemberBound(info, value.name.text, staticBound);
