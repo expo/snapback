@@ -343,6 +343,117 @@ export const lookup = query({ first: t.text(40), second: t.text(40), third: t.te
     certify(program);
   });
 
+  test("an inner loop sees the enclosing loop's proven end bound", () => {
+    const program = lowerOne(`import { query, t } from "snapback2";
+export const expand = query({ seed: t.text(40) }, ({ args }) => {
+  const keys = [args.seed];
+  const observed = [];
+  for (const outer of range(0, 3)) {
+    keys.push(args.seed);
+    for (const key of keys) observed.push(key);
+  }
+  return observed;
+});`, "mutate-then-iterate-in-loop.ts");
+    assert(lastDerivedArrayBound(program) === 4,
+      `inner loop retained a stale pre-loop bound: ${canonical(program)}`);
+    certify(program);
+    assert(runArrayLength(program, { seed: { String: "value" } }) === 9,
+      "2 + 3 + 4 inner iterations did not execute under the certified max 4");
+  });
+
+  test("a collection mutated in a loop keeps its end bound after the loop", () => {
+    const program = lowerOne(`import { query, t } from "snapback2";
+export const expand = query({ seed: t.text(40) }, ({ args }) => {
+  const keys = [args.seed];
+  for (const outer of range(0, 3)) keys.push(args.seed);
+  const observed = [];
+  for (const key of keys) observed.push(key);
+  return observed;
+});`, "mutate-then-iterate-after-loop.ts");
+    assert(lastDerivedArrayBound(program) === 4,
+      `post-loop domain lost the proven end bound: ${canonical(program)}`);
+    certify(program);
+    assert(runArrayLength(program, { seed: { String: "value" } }) === 4,
+      "post-loop iteration did not return all four values");
+  });
+
+  test("nested loops see body-local spread copies and literal batches", () => {
+    const copy = lowerOne(`import { query, t } from "snapback2";
+export const lookup = query({ source: t.list(t.text(40), { max: 2 }) }, ({ db, args }) => {
+  const found = [];
+  for (const outer of range(0, 3)) {
+    const copy = [...args.source];
+    for (const key of copy) found.push(db.get(items.byKey, [key]));
+  }
+  return found;
+});`, "nested-body-copy.ts");
+    assert(lastDerivedArrayBound(copy) === 2 && lastRead(copy)?.provenance === "Arg",
+      `body-local spread copy lost its bound or origin: ${canonical(copy)}`);
+    certify(copy);
+
+    const batch = lowerOne(`import { query, t } from "snapback2";
+export const lookup = query({ a: t.text(40), b: t.text(40) }, ({ db, args }) => {
+  const found = [];
+  for (const outer of range(0, 3)) {
+    const batch = [args.a, args.b];
+    for (const key of batch) found.push(db.get(items.byKey, [key]));
+  }
+  return found;
+});`, "nested-body-batch.ts");
+    assert(lastDerivedArrayBound(batch) === 2 && lastRead(batch)?.provenance === "Arg",
+      `body-local literal batch lost its bound or origin: ${canonical(batch)}`);
+    certify(batch);
+  });
+
+  test("two-deep mutation products reserve a later in-loop domain", () => {
+    const program = lowerOne(`import { query, t } from "snapback2";
+export const expand = query({ seed: t.text(40) }, ({ args }) => {
+  const keys = [args.seed];
+  const observed = [];
+  for (const outer of range(0, 2)) {
+    for (const inner of range(0, 3)) keys.push(args.seed);
+    for (const key of keys) observed.push(key);
+  }
+  return observed;
+});`, "two-deep-mutate-iterate.ts");
+    assert(lastDerivedArrayBound(program) === 7,
+      `two-deep mutation product did not reserve max 7: ${canonical(program)}`);
+    certify(program);
+    assert(runArrayLength(program, { seed: { String: "value" } }) === 11,
+      "4 + 7 inner iterations did not execute under the certified max 7");
+  });
+
+  test("branch mutation reserves the later in-loop domain", () => {
+    const program = lowerOne(`import { query, t } from "snapback2";
+export const expand = query({ seed: t.text(40), choose: t.bool() }, ({ args }) => {
+  const keys = [args.seed];
+  const observed = [];
+  for (const outer of range(0, 3)) {
+    if (args.choose) keys.push(args.seed);
+    for (const key of keys) observed.push(key);
+  }
+  return observed;
+});`, "branch-mutate-iterate.ts");
+    assert(lastDerivedArrayBound(program) === 4,
+      `branch mutation did not reserve max 4: ${canonical(program)}`);
+    certify(program);
+    assert(runArrayLength(program, { seed: { String: "value" }, choose: { Bool: true } }) === 9,
+      "branch-mutated collection did not execute its 2 + 3 + 4 iterations");
+  });
+
+  test("a collection mutated by its own growing iteration domain refuses", () => {
+    const refused = lowerSource(`import { query, t } from "snapback2";
+export const expand = query({ seed: t.text(40) }, ({ args }) => {
+  const keys = [args.seed];
+  for (const outer of range(0, 3)) {
+    for (const key of keys) keys.push(key);
+  }
+  return keys;
+});`, "self-growing-mutation-loop.ts", undefined, { tables });
+    assert(!refused.ok && refused.diagnostics.some((item) => item.code === "E_UNBOUND_LOOP"),
+      `self-growing loop certified instead of refusing: ${JSON.stringify(refused)}`);
+  });
+
   test("nested loop mutation deltas multiply and the certified program runs", () => {
     const program = lowerOne(`import { query, t } from "snapback2";
 export const expand = query({ seed: t.text(40) }, ({ args }) => {

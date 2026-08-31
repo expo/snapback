@@ -27,6 +27,7 @@ export type VariableInfo = {
 export type ProvenanceOrigin =
   | { expression: ts.Expression; environment: Environment }
   | { binding: VariableInfo; candidate?: string };
+export type CollectionMutationCounts = Map<object, { count: number; name: string }>;
 export type FunctionLike = ts.FunctionDeclaration | ts.ArrowFunction | ts.FunctionExpression;
 export type Substitution = { expression: ts.Expression; environment: Environment };
 export type LowerSourceOptions = { tables?: Map<string, TableInfo>; effects?: Map<string, string>; operationPrefix?: string };
@@ -40,6 +41,7 @@ export type Environment = ModuleInfo & {
   helperStack: string[];
   mutableBindings: Set<ts.Identifier>;
   deferredCollectionMutations: Set<object>;
+  collectionMutationCounts?: CollectionMutationCounts;
   collectionAliasSites: Map<ts.Identifier, ts.Expression[]>;
   accessOrdinal: { value: number };
   temp: { value: number };

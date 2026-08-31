@@ -1,9 +1,27 @@
 import ts from "typescript";
-import type { Environment, ProvenanceOrigin, VariableInfo } from "../compiler";
+import type { CollectionMutationCounts, Environment, ProvenanceOrigin, VariableInfo } from "../compiler";
 import { collectionElementOrigins, originDirectCandidates, snapshotEnvironment } from "./collection-origins";
 import { candidateAmbiguity } from "./operation-context";
 
 export type CollectionFacts = Pick<VariableInfo, "max" | "boundSource" | "elementOrigins">;
+
+export function collectionMutationIncrement(info: VariableInfo, name: string, env: Environment): number {
+  const identity = info.collectionIdentity;
+  if (!identity) return 1;
+  if (env.collectionMutationCounts) addCollectionMutationCount(env.collectionMutationCounts, identity, 1, name);
+  return env.deferredCollectionMutations.has(identity) ? 0 : 1;
+}
+
+export function addCollectionMutationCount(
+  target: CollectionMutationCounts,
+  identity: object,
+  count: number,
+  name: string,
+): void {
+  const prior = target.get(identity);
+  const total = (prior?.count ?? 0) + count;
+  target.set(identity, { count: total, name: prior?.name ?? name });
+}
 
 /**
  * The only writer for cardinality and per-element origin facts. Callers may
@@ -58,7 +76,9 @@ export function appendCollectionFacts(
   ];
   maintainCollectionFacts(info, {
     ...(info.max !== undefined ? { max: info.max + count } : {}),
-    ...(info.max !== undefined ? { boundSource: `${value.getText(env.sourceFile)} push count` } : {}),
+    ...(info.max !== undefined
+      ? { boundSource: count > 0 ? `${value.getText(env.sourceFile)} push count` : info.boundSource }
+      : {}),
     elementOrigins: origins,
   });
   const summary = summarize(origins, value);

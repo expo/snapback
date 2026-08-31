@@ -3,16 +3,17 @@ import type { TableInfo } from "./authored-types";
 import { argumentSpreadRewrite, expandArgumentObject } from "./args";
 import { boundedDiagnostics, diagnostic, refuse, Refusal } from "./diagnostics";
 import {
-  allocateReadSite, cloneEnvironment, collectionMutationCounts, containsRead, enterLexicalScope,
+  allocateReadSite, cloneEnvironment, containsRead, enterLexicalScope,
   loopDomainMaximum, lowerCoalesce, lowerArrayMethod, lowerCollectionDomain,
   lowerDomain, lowerExpr, lowerKey, lowerPatch, lowerSortExpression, reserveWriteSite, tableReference,
 } from "./lower/expr";
 import { knownObjectFields, nullableReadSpread, nullableSpreadRefusal, rowCollectionFields } from "./lower/object-shape";
 import { derivedBound, staticBound } from "./lower/binding-bound";
 import { collectionElementBinding, collectionOriginsBinding, combinedProvenanceBinding, isRowCollectionExpression, isRowExpression, provenanceBinding, readProvenance } from "./lower/provenance";
-import { appendCollectionFacts, collectionFactsFor, maintainCollectionFacts,
+import { appendCollectionFacts, collectionFactsFor, collectionMutationIncrement, maintainCollectionFacts,
   mergeAssignedCollectionFacts } from "./lower/collection-facts";
 import { forkBranchEnvironment, mergeBranchEnvironments } from "./lower/branch-bindings";
+import { lowerLoopBodyWithMutationPlan } from "./lower/loop-mutations";
 import { findPolicyRefusals, mechanicalBoundRewrite } from "./policy";
 import { analyzeOperationTypes, type TypePlan } from "./type-analysis";
 import { formatTypeDiagnostic, typecheckSource } from "./typecheck";
@@ -24,7 +25,7 @@ import { inspectModule, type ModuleInfo } from "./lower/module";
 import type {
   Environment, FunctionLike, LoweredValue, LowerSourceOptions, ProvenanceOrigin, Substitution, VariableInfo,
 } from "./lower/environment";
-import { assignedBindings, collectionAliasSites, hasForOfAncestor, isLocallyCreatedCollection,
+import { assignedBindings, collectionAliasSites, isLocallyCreatedCollection,
   isOperationCompositeBinding, moduleBasename, operationCompositeBindings, recordAssignmentOrigin,
   requireCollectionMutation, withDirectRewrite } from "./lower/operation-context";
 import { boundOperationDiagnostics, localConstructorShadow } from "./operation-diagnostics";
@@ -55,7 +56,7 @@ import {
 import type { Expr, FrontendDiagnostic, LowerResult, Program, Stmt } from "./ir";
 export type { TableInfo } from "./authored-types";
 export type {
-  Environment, FunctionLike, LoweredValue, LowerSourceOptions, ProvenanceOrigin, Substitution, VariableInfo,
+  CollectionMutationCounts, Environment, FunctionLike, LoweredValue, LowerSourceOptions, ProvenanceOrigin, Substitution, VariableInfo,
 } from "./lower/environment";
 export { typecheckSource } from "./typecheck";
 export { mechanicalBoundRewrite } from "./policy";
@@ -375,7 +376,7 @@ function lowerStatement(statement: ts.Statement, env: Environment): Stmt[] {
     const elseBody = statement.elseStatement
       ? lowerControlled(statement.elseStatement, elseBranch.environment)
       : [];
-    mergeBranchEnvironments(env, [thenBranch.outerBindings, elseBranch.outerBindings], statement);
+    mergeBranchEnvironments(env, [thenBranch, elseBranch], statement);
     return [...condition.statements, {
       If: {
         condition: condition.expression,
@@ -395,25 +396,8 @@ function lowerStatement(statement: ts.Statement, env: Environment): Stmt[] {
     const { statements, domain, bindingInfo } = lowerCollectionDomain(statement.expression, loopEnv, binding, lowerValue);
     loopEnv.variables.set(binding, bindingInfo);
     const iterations = loopDomainMaximum(domain);
-    // @ref LLP 1002#2-the-authored-surface-the-snapback2-module — nested loop mutation deltas compose by product; inherited collections are accounted once by the outer loop.
-    const mutationCounts = collectionMutationCounts(statement.statement, loopEnv);
-    const inheritedDeferred = env.deferredCollectionMutations;
-    loopEnv.deferredCollectionMutations = new Set(inheritedDeferred);
-    for (const name of mutationCounts.keys()) {
-      const identity = loopEnv.variables.get(name)?.collectionIdentity;
-      if (identity) loopEnv.deferredCollectionMutations.add(identity);
-    }
-    const body = lowerControlled(statement.statement, loopEnv);
-    for (const [name, count] of mutationCounts) {
-      const info = env.variables.get(name);
-      if (!info || info.collection === undefined && info.elementOrigins === undefined) continue;
-      if (info.collectionIdentity && inheritedDeferred.has(info.collectionIdentity)) continue;
-      maintainCollectionFacts(info, {
-        ...(info.max !== undefined ? { max: info.max + iterations * count } : {}),
-        ...(info.max !== undefined ? { boundSource: `${name} mutations × loop bound ${iterations}` } : {}),
-        ...(info.elementOrigins !== undefined ? { elementOrigins: info.elementOrigins } : {}),
-      });
-    }
+    // @ref LLP 1002#2-the-authored-surface-the-snapback2-module — lowering-order analysis reserves inherited collections to their proven end-of-loop facts before nested domains are emitted.
+    const body = lowerLoopBodyWithMutationPlan(statement, loopEnv, iterations, lowerControlled);
     return [...statements, { For: { binding, domain, body } }];
   }
   if (statement.kind === ts.SyntaxKind.BreakStatement) return ["Break"];
@@ -462,8 +446,9 @@ function lowerExpressionStatement(expression: ts.Expression, env: Environment): 
         if (expression.arguments.length === 0) refuse(env, "E_OPAQUE", expression, "push requires at least one value");
         requireCollectionMutation(owner, expression, env);
         return expression.arguments.flatMap((value) => {
-          appendCollectionFacts(env.variables.get(owner.text)!, value, env,
-            hasForOfAncestor(expression) ? 0 : 1, collectionOriginsBinding);
+          const info = env.variables.get(owner.text)!;
+          appendCollectionFacts(info, value, env,
+            collectionMutationIncrement(info, owner.text, env), collectionOriginsBinding);
           const lowered = lowerValue(value, env, `${env.programName}.${owner.text}`);
           return [...lowered.statements, { Push: { target: owner.text, value: lowered.expression } } satisfies Stmt];
         });
@@ -476,7 +461,7 @@ function lowerExpressionStatement(expression: ts.Expression, env: Environment): 
         const loweredKey = lowerValue(key, env);
         const loweredValue = lowerValue(value, env);
         const info = env.variables.get(owner.text)!;
-        appendCollectionFacts(info, value, env, hasForOfAncestor(expression) ? 0 : 1, collectionOriginsBinding);
+        appendCollectionFacts(info, value, env, collectionMutationIncrement(info, owner.text, env), collectionOriginsBinding);
         return [
           ...loweredKey.statements,
           ...loweredValue.statements,
@@ -493,7 +478,7 @@ function lowerExpressionStatement(expression: ts.Expression, env: Environment): 
         const loweredValue = lowerValue(value, env);
         const found = lowerCollectionLookup(owner, loweredValue.expression, env, "SetHas");
         const info = env.variables.get(owner.text)!;
-        appendCollectionFacts(info, value, env, hasForOfAncestor(expression) ? 0 : 1, collectionOriginsBinding);
+        appendCollectionFacts(info, value, env, collectionMutationIncrement(info, owner.text, env), collectionOriginsBinding);
         return [
           ...loweredValue.statements,
           ...found.statements,
@@ -539,7 +524,7 @@ function lowerExpressionStatement(expression: ts.Expression, env: Environment): 
     const elseBranch = forkBranchEnvironment(env);
     const thenBody = lowerExpressionStatement(expression.whenTrue, thenBranch.environment);
     const elseBody = lowerExpressionStatement(expression.whenFalse, elseBranch.environment);
-    mergeBranchEnvironments(env, [thenBranch.outerBindings, elseBranch.outerBindings], expression);
+    mergeBranchEnvironments(env, [thenBranch, elseBranch], expression);
     return [...condition.statements, { If: {
       condition: condition.expression,
       then_body: thenBody,

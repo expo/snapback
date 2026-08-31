@@ -137,14 +137,6 @@ function resolvesOperationComposite(
   return resolvesOperationComposite(value.text, composite, substitution.environment, seen);
 }
 
-export function hasForOfAncestor(node: ts.Node): boolean {
-  for (let current = node.parent; current; current = current.parent) {
-    if (ts.isForOfStatement(current)) return true;
-    if (ts.isFunctionLike(current)) return false;
-  }
-  return false;
-}
-
 function visitBindingMutations(node: ts.Node, scope: BindingScope, assigned: Set<ts.Identifier>): void {
   if (ts.isBlock(node)) {
     const block: BindingScope = { parent: scope, bindings: new Map() };
