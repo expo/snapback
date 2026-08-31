@@ -248,27 +248,30 @@ fn check_request(request: Request) -> Vec<ResultItem> {
     let checker = Checker::new(&schema, Ceilings::default());
     let results = programs
         .into_iter()
-        .map(|(name, program)| match program {
-            Ok(program) => match checker.check(&program) {
-                Ok(certificate) => ResultItem {
+        .flat_map(|(name, program)| match program {
+            Ok(program) => match checker.check_all(&program) {
+                Ok(certificate) => vec![ResultItem {
                     program: name,
                     certificate: Some(certificate),
                     error: None,
-                },
-                Err(error) => ResultItem {
-                    program: name.clone(),
-                    certificate: None,
-                    error: Some(SerializableError::from_check(error, &name)),
-                },
+                }],
+                Err(errors) => errors
+                    .into_iter()
+                    .map(|error| ResultItem {
+                        program: name.clone(),
+                        certificate: None,
+                        error: Some(SerializableError::from_check(error, &name)),
+                    })
+                    .collect(),
             },
-            Err(message) => ResultItem {
+            Err(message) => vec![ResultItem {
                 program: name.clone(),
                 certificate: None,
                 error: Some(SerializableError::unsupported(
                     &format!("<project>:{name}"),
                     format!("program JSON contains an unsupported IR variant: {message}"),
                 )),
-            },
+            }],
         })
         .collect();
     results

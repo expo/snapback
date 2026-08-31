@@ -1148,23 +1148,6 @@
     ],
     "ranges": [
       {
-        "site": "inbox.memberships",
-        "table": "memberships",
-        "index": "byUserActivity",
-        "prefix": [
-          {
-            "Id": "u1"
-          }
-        ],
-        "row_ids": [
-          "m1"
-        ],
-        "stop": "Exhausted",
-        "absence": false,
-        "halo": null,
-        "n2_key": null
-      },
-      {
         "site": "inbox.latest",
         "table": "messages",
         "index": "byConvTime",
@@ -1268,8 +1251,10 @@
       ]
     },
     "errorCode": null,
-    "localState": "fresh",
-    "partialSites": [],
+    "localState": "partial",
+    "partialSites": [
+      "inbox.memberships"
+    ],
     "canonicalResult": "{\"Array\":[{\"Row\":{\"latest\":{\"Array\":[{\"Row\":{\"at\":{\"Int\":5},\"authorId\":{\"Id\":\"u1\"},\"body\":{\"String\":\"message 4\"},\"conversationId\":{\"Id\":\"c1\"},\"id\":{\"Id\":\"message-00004\"}}}]},\"unread\":{\"Row\":{\"conversationId\":{\"Id\":\"c1\"},\"id\":{\"Id\":\"c1:u1\"},\"userId\":{\"Id\":\"u1\"},\"value\":{\"Int\":5}}}}}]}",
     "digest": "3b446c6d197891cf6d3bbe6c627e40cea795c0c339010626a2f48988c3a8dd77",
     "rangeStops": {

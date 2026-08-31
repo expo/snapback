@@ -253,6 +253,117 @@ test("count and reduce retain O(1) closure through page bindings", () => {
     `count/reduce closure estimates diverged: ${JSON.stringify(checked)}`);
 });
 
+test("structural policy admits prefix-uniform private scans and refuses non-uniform twins", () => {
+  const source = `import { query } from "snapback2";
+    export const count = query({ scope: scalar() }, ({ db, args }) =>
+      db.scan(docs.byScope, [args.scope], { take: 10 }).count());`;
+  const table = (firstColumn: string): TableInfo => ({
+    name: "docs",
+    private: true,
+    indexes: { byScope: { columns: [firstColumn, "order", "id"] } },
+    readRule: { Eq: [{ Field: "owner" }, "Viewer"] },
+  });
+  const uniform = lowerSource(source, "uniform-count.ts", undefined, {
+    tables: new Map([["docs", table("owner")]]),
+  });
+  assert(uniform.ok, `uniform private count was refused: ${uniform.ok ? "" : uniform.diagnostics[0]?.message}`);
+
+  const nonUniform = lowerSource(source, "non-uniform-count.ts", undefined, {
+    tables: new Map([["docs", table("group")]]),
+  });
+  assert(!nonUniform.ok && nonUniform.diagnostics.some((item) => item.code === "E_STRUCTURAL_COUNT"),
+    "non-uniform private count did not reuse E_STRUCTURAL_COUNT");
+});
+
+test("actual collection lowerings preserve capped page provenance through structural sinks", () => {
+  const tables = new Map<string, TableInfo>([["docs", {
+    name: "docs",
+    private: false,
+    columns: { id: { kind: "string" }, group: { kind: "string" }, owner: { kind: "string" }, order: { kind: "int" }, amount: { kind: "int" } },
+    indexes: { byScope: { columns: ["group", "order", "id"] } },
+  }]]);
+  const schema = {
+    tables: { docs: {
+      columns: { id: "Id", group: "Id", owner: "Id", order: "Int", amount: "Int" },
+      indexes: { byId: { columns: ["id"], unique: true }, byScope: { columns: ["group", "order", "id"], unique: false } },
+      rules: { read: { Eq: [{ Field: "owner" }, "Viewer"] }, insert: "Allow", update: "Allow", delete: "Allow" },
+      constraints: [],
+    } },
+    maintains: [], channels: {}, auth: { password: false, guests: false }, effects: [],
+  };
+  const scan = "db.scan(docs.byScope, [args.scope], { take: 8 })";
+  const source = `import { query } from "snapback2";
+    export const mapRows = query({ scope: scalar() }, ({ db, args }) => ${scan}.map(item => ({ id: item.id })));
+    export const filterRows = query({ scope: scalar() }, ({ db, args }) => ${scan}.filter(item => item.amount > 0));
+    export const flatMapRows = query({ scope: scalar() }, ({ db, args }) => ${scan}.flatMap(item => [item]));
+    export const collectEmpty = query({ scope: scalar() }, ({ db, args }) => {
+      const collected = ${scan}.map(item => item); return collected.length === 0;
+    });
+    export const scanCount = query({ scope: scalar() }, ({ db, args }) => ${scan}.count());
+    export const scanLength = query({ scope: scalar() }, ({ db, args }) => ${scan}.length);
+    export const reduceRows = query({ scope: scalar() }, ({ db, args }) =>
+      ${scan}.reduce((sum, item) => sum + item.amount, 0));`;
+  const lowered = lowerSource(source, "capped-collections.ts", undefined, { tables });
+  assert(lowered.ok, `collection fixture did not lower: ${lowered.ok ? "" : lowered.diagnostics.map((item) => item.message).join("; ")}`);
+  const checked = rustCheck(lowered.programs, "synthetic", schema);
+  for (const name of ["mapRows", "filterRows", "flatMapRows"]) {
+    const outcomes = checked.filter((item) => item.program === name);
+    assert(outcomes.length === 1 && outcomes[0]?.error === null, `${name} did not remain a legal visible page: ${JSON.stringify(outcomes)}`);
+  }
+  for (const name of ["collectEmpty", "scanCount", "scanLength", "reduceRows"]) {
+    const refusals = checked.filter((item) => item.program === name && item.error !== null);
+    assert(refusals.some((item) => item.error?.code === "E_STRUCTURAL_COUNT"), `${name} lost capped provenance: ${JSON.stringify(refusals)}`);
+    assert(refusals.every((item) => item.error?.rewrite.includes("denormalize the authorization scope")
+      && item.error.rewrite.includes("maintained aggregate")), `${name} changed the paved rewrite`);
+  }
+});
+test("authored collected capped pages may return but cannot be inserted", () => {
+  const tables = new Map<string, TableInfo>([
+    ["docs", { name: "docs", private: false,
+      columns: { id: { kind: "string" }, group: { kind: "string" }, owner: { kind: "string" }, order: { kind: "int" }, amount: { kind: "int" } },
+      indexes: { byScope: { columns: ["group", "order", "id"] } } }],
+    ["snapshots", { name: "snapshots", private: false, columns: { id: { kind: "string" }, items: { kind: "json", max: 4_096 } } }],
+  ]);
+  const allowWrites = { insert: "Allow", update: "Allow", delete: "Allow" };
+  const schema = {
+    tables: {
+      docs: {
+        columns: { id: "Id", group: "Id", owner: "Id", order: "Int", amount: "Int" },
+        indexes: { byId: { columns: ["id"], unique: true }, byScope: { columns: ["group", "order", "id"], unique: false } },
+        rules: { read: { Eq: [{ Field: "owner" }, "Viewer"] }, insert: "Allow", update: "Allow", delete: "Allow" },
+        constraints: [] },
+      snapshots: {
+        columns: { id: "Id", items: { Json: { max_bytes: 4_096 } } },
+        indexes: { byId: { columns: ["id"], unique: true } },
+        rules: { read: "Allow", ...allowWrites }, constraints: [] },
+    },
+    maintains: [], channels: {}, auth: { password: false, guests: false }, effects: [],
+  };
+  const scan = "db.scan(docs.byScope, [args.scope], { take: 8 })";
+  const mapped = `${scan}.map(item => ({ id: item.id }))`;
+  const filtered = `${scan}.filter(item => item.amount > 0)`;
+  const source = `import { mutation, query } from "snapback2";
+    export const returnMapped = query({ scope: scalar() }, ({ db, args }) => { const items = ${mapped}; return items; });
+    export const insertMapped = mutation({ scope: scalar() }, ({ db, args }) => { const items = ${mapped}; db.insert(snapshots, { id: "mapped", items }); return null; });
+    export const returnFiltered = query({ scope: scalar() }, ({ db, args }) => { const items = ${filtered}; return items; });
+    export const insertFiltered = mutation({ scope: scalar() }, ({ db, args }) => { const items = ${filtered}; db.insert(snapshots, { id: "filtered", items }); return null; });`;
+  const lowered = lowerSource(source, "capped-collected-insert.ts", undefined, { tables });
+  assert(lowered.ok, `collected insert fixture did not lower: ${lowered.ok ? "" : JSON.stringify(lowered.diagnostics)}`);
+  const checked = rustCheck(lowered.programs, "synthetic", schema);
+  for (const name of ["returnMapped", "returnFiltered"]) {
+    const returned = checked.find((item) => item.program === name);
+    assert(returned?.error === null && returned.certificate?.completeness === "Capped",
+      `returning ${name} did not certify: ${JSON.stringify(returned)}`);
+  }
+  for (const name of ["insertMapped", "insertFiltered"]) {
+    const inserted = checked.find((item) => item.program === name);
+    assert(inserted?.error?.code === "E_STRUCTURAL_COUNT"
+      && inserted.error.message.startsWith("inserted value depends on capped-only site")
+      && inserted.error.rewrite.includes("denormalize the authorization scope")
+      && inserted.error.rewrite.includes("maintained aggregate"),
+    `inserting ${name} did not keep the paved refusal: ${JSON.stringify(inserted)}`);
+  }
+});
 test("loop collection refusals paste per-family rewrites that lower and certify", () => {
   const tables = new Map<string, TableInfo>([["items", {
     name: "items",

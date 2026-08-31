@@ -15,6 +15,8 @@ export type TableInfo = {
   private: boolean;
   maintainedFrom?: string;
   columns?: Record<string, AuthoredType>;
+  indexes?: Record<string, { columns: string[] }>;
+  readRule?: unknown;
 };
 
 export const unknownType: AuthoredType = { kind: "unknown" };

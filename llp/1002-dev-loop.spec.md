@@ -159,12 +159,16 @@ required fields in the client's public types as well as in its validator. Authen
 | `POST /api/auth/guest` | `{}` → `{ token, viewer }` |
 | `POST /api/auth/logout` | → `{ ok }` |
 | `GET /api/auth/me` | → `{ viewer, kind }` |
-| `POST /api/query` | `{ op, args }` → `{ state: "complete" \| "capped" \| "partial" \| "denied", data, seq, take?, site?, rule?, reason? }` |
+| `POST /api/query` | `{ op, args }` → `{ state: "complete" \| "capped" \| "partial" \| "denied", data, seq, rule?, reason? }`; `Capped` is the unit shape `{ state: "capped", data, seq }` |
 | `POST /api/mutation` | `{ op, args }` → `{ state: "committed", seq, data }` \| `{ state: "rejected", code, family, message, rewrite? }` |
 | `GET /api/subscribe?op=&args=<urlencoded json>` | SSE; `id: <seq>`; each `data:` frame is **exactly a query response object** (`{ state: "complete" \| "capped" \| "partial" \| "denied", data, seq, … }`) or a refusal envelope (`{ state: "refused", code, family, message, … }`, terminal); the server never sends `live`/`stale` — those are client connection facts; a `: heartbeat` comment every 15 s (review ruling 2026-08-30) |
 | `POST /api/channel/<name>/publish` | `{ args, payload }` → `{ ok: true }` \| `{ state: "refused", code }` |
 | `GET /api/channel/<name>/subscribe?args=` | SSE; `data: { from, payload, at }`; the owner drops the stream when a commit touches the probe's key and re-admission fails |
 | `GET /api/manifest` | `{ generation, ops: { "todos.list": { kind, args } }, channels, auth }` |
+
+**Wire amendment — 2026-08-30.** `Capped` carries no optional `take`, `site`,
+stop reason, or continuation field. An empty `Capped` array is the terminal
+drain state (LLP 1001 §3).
 
 Typed states are 200. Protocol errors are 4xx with the **refusal envelope**,
 which is the only error shape on every surface (HTTP, CLI `--json`, worker):
@@ -343,8 +347,9 @@ client.channel(api.typing, args).publish(payload) / .subscribe(cb)
 the `Api` augmentation in `.snapback/build/api.d.ts` (no index signature: a
 typo is a compile error; channels are members too). The view on `useQuery`
 is the discriminated union `hydrating | complete | capped | partial | denied
-| refused | stale`, each carrying its receipt fields (`take`/`site`, `reason`,
-`rule`, `since`, `seq`), plus two orthogonal facts: `live: boolean` (a
+| refused | stale`, each carrying its applicable receipt fields (`reason`,
+`rule`, `since`, `seq`; `capped` has no extra fields), plus two orthogonal
+facts: `live: boolean` (a
 subscription is connected and this view is its latest delivery — the RFC's
 "live" state is this flag, so a capped page on a live query is `capped` with
 `live: true`) and `connection`. A transport failure (network, HTTP 5xx, a
@@ -375,7 +380,7 @@ Three rulings folded 2026-08-30 from the client-tier arc (LLP 0329.018–.023):
 - **Evaluator per arm** (LLP 0329.018 F1): web and Expo host a JS runtime
   and run the 7.8 KB TypeScript twin; the Contract-native (Exact 2) arm hosts
   none and links `snapback2-core`'s interpreter — the same `ClientStore` the
-  regenerated 76-case corpus proves conformant. Two implementations, assigned by
+  regenerated 77-case corpus proves conformant. Two implementations, assigned by
   runtime, never a third.
 - **Coverage is client-issuable; absence and authorization are not**
   (LLP 0329.021 P5): the twin never manufactures an absence or a verdict; a

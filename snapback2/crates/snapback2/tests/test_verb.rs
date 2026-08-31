@@ -78,7 +78,7 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_both_journeys() {
         assert_eq!(execution["op"], "messages.thread", "{execution}");
         assert_eq!(
             execution["examined"],
-            serde_json::json!({ "actual": 1, "ceiling": 52 })
+            serde_json::json!({ "actual": 1, "ceiling": 10240 })
         );
         assert_eq!(
             execution["ruleProbes"],
@@ -86,7 +86,7 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_both_journeys() {
         );
         assert_eq!(
             execution["steps"],
-            serde_json::json!({ "actual": 3, "ceiling": 262 })
+            serde_json::json!({ "actual": 3, "ceiling": 51202 })
         );
         assert_eq!(
             execution["readSites"][0]["calls"],

@@ -20,7 +20,9 @@ test("generated Api rejects typos, extra query args, and wrong channel args", as
       const isLive: boolean = view.live;
       void isLive;
       if (view.state === "capped") {
+        // @ts-expect-error capped carries no take echo
         const take: number = view.take;
+        // @ts-expect-error capped carries no site
         const site: string = view.site;
         void take; void site;
       }

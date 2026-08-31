@@ -2,6 +2,7 @@
 //! spike S1 (`spikes/bounded-programs/`, LLP 0329.014 §8). No JS engine lives here.
 mod bounds;
 pub mod certificate;
+mod certificate_policy;
 pub mod client;
 mod collection_rewrite;
 pub mod engine;

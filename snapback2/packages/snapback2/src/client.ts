@@ -130,14 +130,16 @@ function wireQuery<Result>(value: unknown, surface = "query response"): QueryRes
   switch (stringField(record, "state", surface)) {
     case "complete":
       return { state: "complete", data: present(record, "data", surface) as Result, seq: numberField(record, "seq", surface) };
-    case "capped":
+    case "capped": {
+      for (const field of ["site", "take", "reason"]) {
+        if (has(record, field)) throw wireShape(`${surface}.capped must not carry ${field}`);
+      }
       return {
         state: "capped",
         data: present(record, "data", surface) as Result,
         seq: numberField(record, "seq", surface),
-        take: numberField(record, "take", surface),
-        site: stringField(record, "site", surface),
       };
+    }
     case "partial": {
       const partial = {
         state: "partial" as const,
@@ -323,6 +325,8 @@ class Client implements SnapbackClient {
           body: JSON.stringify({ op: referenceName(ref), args }),
         }));
         this.validated();
+        // Every typed receipt terminates this request. In particular, an
+        // empty Capped array is the terminal drain state, never a retry cue.
         return result;
       } catch (error) {
         if (!isSnapbackRefusal(error)
