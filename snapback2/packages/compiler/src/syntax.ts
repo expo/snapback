@@ -174,30 +174,32 @@ export function collectionConstructor(node: ts.Expression): "Map" | "Set" | unde
   return value.expression.text === "Map" || value.expression.text === "Set" ? value.expression.text : undefined;
 }
 
-export function isDb(node: ts.Expression): boolean {
-  return ts.isIdentifier(node) && node.text === "db";
+type DbBinding = (name: string) => boolean;
+
+export function isDb(node: ts.Expression, binding: DbBinding): boolean {
+  return ts.isIdentifier(node) && binding(node.text);
 }
 
-export function isDbMember(node: ts.LeftHandSideExpression): boolean {
-  return ts.isPropertyAccessExpression(node) && isDb(node.expression);
+export function isDbMember(node: ts.LeftHandSideExpression, binding: DbBinding): boolean {
+  return ts.isPropertyAccessExpression(node) && isDb(node.expression, binding);
 }
 
-export function isDbWriteCall(node: ts.Expression): node is ts.CallExpression {
+export function isDbWriteCall(node: ts.Expression, binding: DbBinding): node is ts.CallExpression {
   const call = unwrapCall(node);
-  return !!call && ts.isPropertyAccessExpression(call.expression) && isDb(call.expression.expression)
+  return !!call && ts.isPropertyAccessExpression(call.expression) && isDb(call.expression.expression, binding)
     && ["insert", "update", "upsert", "delete", "require", "assert"].includes(call.expression.name.text);
 }
 
-export function isDbInsertCall(node: ts.Expression): boolean {
+export function isDbInsertCall(node: ts.Expression, binding: DbBinding): boolean {
   const call = unwrapCall(node);
-  return !!call && ts.isPropertyAccessExpression(call.expression) && isDb(call.expression.expression)
+  return !!call && ts.isPropertyAccessExpression(call.expression) && isDb(call.expression.expression, binding)
     && call.expression.name.text === "insert";
 }
 
-export function isNullableDbGet(node: ts.Expression): boolean {
+export function isNullableDbGet(node: ts.Expression, binding: DbBinding): boolean {
   const call = unwrapCall(node);
   return !!call && ts.isPropertyAccessExpression(call.expression)
-    && isDb(call.expression.expression) && call.expression.name.text === "get";
+    && isDb(call.expression.expression, binding) && call.expression.name.text === "get";
 }
 
 export function nonNullIdentifier(node: ts.Expression): string | undefined {

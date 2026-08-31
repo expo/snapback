@@ -13,12 +13,13 @@ import {
   unwrapCall,
   unwrapExpression,
 } from "../syntax";
+import { directOriginCandidates, isOperationCompositeBinding } from "./operation-context";
 
 type Presence = "required" | "optional";
 type Classification =
   | { kind: "known"; provenance: Provenance; presence: Presence }
   | { kind: "absent" }
-  | { kind: "ambiguous"; directRewrite?: string };
+  | { kind: "ambiguous"; directRewrite?: string; candidates?: string[] };
 type KnownClassification = Extract<Classification, { kind: "known" }>;
 
 export type ProvenanceBinding = Pick<VariableInfo, "provenance" | "provenanceAmbiguity">;
@@ -28,10 +29,17 @@ export function strictBinding(
   binding: VariableInfo,
   env: Environment,
   directRewrite?: string,
+  declaration?: ts.Identifier,
+  authoredOrigin?: string,
 ): VariableInfo {
-  return env.mutableBindings.has(name)
-    ? { ...binding, provenanceAmbiguity: { directRewrite: directRewrite ?? binding.provenanceAmbiguity?.directRewrite } }
-    : binding;
+  if (!declaration || !env.mutableBindings.has(declaration)) return binding;
+  const candidates = new Set([
+    ...(binding.provenanceAmbiguity?.candidates ?? []),
+    ...(binding.provenanceAmbiguity?.directRewrite ? [binding.provenanceAmbiguity.directRewrite] : []),
+    ...(directRewrite ? [directRewrite] : []),
+    ...(!directRewrite && authoredOrigin ? [authoredOrigin] : []),
+  ]);
+  return { ...binding, provenanceAmbiguity: rewriteAmbiguity([...candidates]) };
 }
 
 /**
@@ -48,7 +56,10 @@ export function provenance(node: ts.Expression, env: Environment): Provenance {
 
 export function readProvenance(node: ts.Expression, env: Environment): Provenance {
   const result = classify(node, env, [], node);
-  if (result.kind !== "known") refuseAmbiguous(node, env, result.kind === "ambiguous" ? result.directRewrite : undefined);
+  if (result.kind !== "known") {
+    refuseAmbiguous(node, env, result.kind === "ambiguous" ? result.directRewrite : undefined,
+      result.kind === "ambiguous" ? result.candidates : undefined);
+  }
   return result.provenance;
 }
 
@@ -58,8 +69,8 @@ export function provenanceBinding(node: ts.Expression, env: Environment): Proven
     ? { provenance: result.provenance }
     : {
         provenance: "Computed",
-        provenanceAmbiguity: result.kind === "ambiguous" && result.directRewrite
-          ? { directRewrite: result.directRewrite }
+        provenanceAmbiguity: result.kind === "ambiguous"
+          ? rewriteAmbiguity(result.candidates ?? (result.directRewrite ? [result.directRewrite] : []))
           : {},
       };
 }
@@ -84,9 +95,44 @@ export function collectionElementBinding(node: ts.Expression, env: Environment):
   return {
     ...(classified.kind === "known"
       ? { provenance: classified.provenance }
-      : { provenance: "Computed" as const, provenanceAmbiguity: {} }),
+      : {
+          provenance: "Computed" as const,
+          provenanceAmbiguity: rewriteAmbiguity(originDirectCandidates(origins)),
+        }),
     alternativeOrigins: origins,
   };
+}
+
+export function updateArrayBindingAfterPush(
+  info: VariableInfo,
+  value: ts.Expression,
+  env: Environment,
+  count = 1,
+): void {
+  const prior = info.elementOrigins ?? (info.max === 0 ? [] : undefined);
+  const origins = prior
+    ? [...prior, { expression: value, environment: snapshotEnvironment(env) } satisfies ProvenanceOrigin]
+    : undefined;
+  if (info.max !== undefined) {
+    info.max += count;
+    info.boundSource = `${value.getText(env.sourceFile)} push count`;
+  }
+  if (!origins) return;
+  info.elementOrigins = origins;
+  const classified = combineAlternatives(
+    origins.map((origin) => classifyOrigin(origin, [], value)),
+    "required",
+  );
+  if (classified.kind === "known") {
+    info.provenance = classified.provenance;
+    if (!info.provenanceAmbiguity) delete info.provenanceAmbiguity;
+    return;
+  }
+  info.provenance = "Computed";
+  info.provenanceAmbiguity = rewriteAmbiguity([
+    ...(info.provenanceAmbiguity?.candidates ?? []),
+    ...originDirectCandidates(origins),
+  ]);
 }
 
 function classify(
@@ -135,7 +181,7 @@ function classifyInner(
   if (ts.isCallExpression(value)) {
     const expanded = expandHelper(value, env);
     if (expanded) return classify(expanded.expression, expanded.environment, path, authoredNode);
-    if (isRowCall(value)) return classifyRow(value, env, path);
+    if (isRowCall(value, env)) return classifyRow(value, env, path);
     return path.length === 0 ? known("Computed") : ambiguous();
   }
 
@@ -181,9 +227,13 @@ function classifyIdentifier(
     if (path.length === 0) return known("Viewer");
     return path[0] === "viewer" ? known("Viewer") : absent();
   }
-  if (info.provenanceAmbiguity) return ambiguous(info.provenanceAmbiguity.directRewrite);
+  if (info.provenanceAmbiguity) {
+    return ambiguous(info.provenanceAmbiguity.directRewrite, info.provenanceAmbiguity.candidates);
+  }
   if (info.rowBinding) return classifyBoundRow(info, path);
-  if (info.immutableOrigin) return classify(info.immutableOrigin, env, path, authoredNode);
+  if (info.immutableOrigin) {
+    return classify(info.immutableOrigin.expression, info.immutableOrigin.environment, path, authoredNode);
+  }
   if (path.length === 0 || info.provenance === "Arg" || info.provenance === "Viewer" || info.provenance === "Const") {
     return known(info.provenance);
   }
@@ -211,7 +261,9 @@ function classifyBinding(
       "required",
     );
   }
-  if (info.provenanceAmbiguity) return ambiguous(info.provenanceAmbiguity.directRewrite);
+  if (info.provenanceAmbiguity) {
+    return ambiguous(info.provenanceAmbiguity.directRewrite, info.provenanceAmbiguity.candidates);
+  }
   if (info.rowBinding) return classifyBoundRow(info, path);
   if (path.length === 0) return known(info.provenance);
   return ambiguous();
@@ -228,12 +280,29 @@ function collectionElementOriginsInner(node: ts.Expression, env: Environment): P
     if (substituted) return collectionElementOrigins(substituted.expression, substituted.environment);
     const info = env.variables.get(value.text);
     if (info?.elementOrigins) return info.elementOrigins;
+    if (info?.alternativeOrigins) return flattenCollectionOrigins(info.alternativeOrigins);
     if (info?.rowCollection) {
       return [{ binding: {
         provenance: "Shape",
         rowBinding: true,
         objectFields: info.objectFields,
       } }];
+    }
+    return undefined;
+  }
+  if (ts.isPropertyAccessExpression(value)) {
+    const base = unwrapExpression(value.expression);
+    if (!ts.isIdentifier(base)) return undefined;
+    const info = env.variables.get(base.text);
+    if (info?.immutableOrigin) {
+      const selected = selectOriginMember(info.immutableOrigin, value.name.text);
+      return selected && collectionElementOrigins(selected.expression, selected.environment);
+    }
+    if (info?.alternativeOrigins) {
+      const members = info.alternativeOrigins.map((origin) => selectOriginMember(origin, value.name.text));
+      return members.every((member): member is Extract<ProvenanceOrigin, { expression: ts.Expression }> => !!member)
+        ? flattenCollectionOrigins(members)
+        : undefined;
     }
     return undefined;
   }
@@ -253,14 +322,100 @@ function collectionElementOriginsInner(node: ts.Expression, env: Environment): P
   const call = unwrapCall(value);
   const expanded = call && expandHelper(call, env);
   if (expanded) return collectionElementOrigins(expanded.expression, expanded.environment);
-  if (call && callName(call).endsWith(".scan") && isDbMember(call.expression)) {
+  if (call && callName(call).endsWith(".scan")
+    && isDbMember(call.expression, (binding) => isOperationCompositeBinding(binding, "db", env))) {
     return [{ binding: {
       provenance: "Shape",
       rowBinding: true,
       objectFields: rowFields(call.arguments[0], env),
     } }];
   }
+  if (call && ts.isPropertyAccessExpression(call.expression)) {
+    const method = call.expression.name.text;
+    const owner = call.expression.expression;
+    if (["filter", "sort", "slice"].includes(method)) return collectionElementOrigins(owner, env);
+    if (method === "map" || method === "flatMap") {
+      const callback = call.arguments[0];
+      if (!callback || !ts.isArrowFunction(callback) && !ts.isFunctionExpression(callback)
+        || callback.parameters.length === 0 || !ts.isIdentifier(callback.parameters[0]!.name)
+        || ts.isBlock(callback.body)) return undefined;
+      const callbackEnv = snapshotEnvironment(env);
+      callbackEnv.variables.set(callback.parameters[0].name.text, collectionElementBinding(owner, env));
+      return method === "map"
+        ? [{ expression: callback.body, environment: callbackEnv }]
+        : collectionElementOrigins(callback.body, callbackEnv);
+    }
+  }
   return undefined;
+}
+
+function flattenCollectionOrigins(origins: readonly ProvenanceOrigin[]): ProvenanceOrigin[] | undefined {
+  const elements: ProvenanceOrigin[] = [];
+  for (const origin of origins) {
+    if ("binding" in origin) {
+      const nested = origin.binding.elementOrigins
+        ?? (origin.binding.alternativeOrigins ? flattenCollectionOrigins(origin.binding.alternativeOrigins) : undefined);
+      if (!nested) return undefined;
+      elements.push(...nested);
+      continue;
+    }
+    const nested = collectionElementOrigins(origin.expression, origin.environment);
+    if (!nested) return undefined;
+    elements.push(...nested);
+  }
+  return elements;
+}
+
+function selectOriginMember(
+  origin: ProvenanceOrigin,
+  member: string,
+): Extract<ProvenanceOrigin, { expression: ts.Expression }> | undefined {
+  if ("binding" in origin) {
+    return origin.binding.immutableOrigin
+      ? selectOriginMember(origin.binding.immutableOrigin, member)
+      : undefined;
+  }
+  const value = unwrapExpression(origin.expression);
+  if (ts.isIdentifier(value)) {
+    const info = origin.environment.variables.get(value.text);
+    return info?.immutableOrigin ? selectOriginMember(info.immutableOrigin, member) : undefined;
+  }
+  if (!ts.isObjectLiteralExpression(value)) return undefined;
+  const selected = value.properties.find((property): property is ts.PropertyAssignment =>
+    ts.isPropertyAssignment(property) && propertyName(property.name) === member)?.initializer
+    ?? value.properties.find((property): property is ts.ShorthandPropertyAssignment =>
+      ts.isShorthandPropertyAssignment(property) && property.name.text === member)?.name;
+  return selected ? { expression: selected, environment: origin.environment } : undefined;
+}
+
+function originDirectCandidates(origins: readonly ProvenanceOrigin[]): string[] {
+  const candidates = new Set<string>();
+  for (const origin of origins) {
+    if ("expression" in origin) {
+      for (const candidate of directOriginCandidates(origin.expression, origin.environment)) candidates.add(candidate);
+      continue;
+    }
+    for (const candidate of origin.binding.provenanceAmbiguity?.candidates ?? []) candidates.add(candidate);
+    if (origin.binding.provenanceAmbiguity?.directRewrite) {
+      candidates.add(origin.binding.provenanceAmbiguity.directRewrite);
+    }
+    if (origin.binding.immutableOrigin) {
+      for (const candidate of directOriginCandidates(
+        origin.binding.immutableOrigin.expression,
+        origin.binding.immutableOrigin.environment,
+      )) candidates.add(candidate);
+    }
+  }
+  return [...candidates];
+}
+
+function snapshotEnvironment(env: Environment): Environment {
+  return {
+    ...env,
+    variables: new Map([...env.variables].map(([name, info]) => [name, { ...info }])),
+    substitutions: new Map(env.substitutions),
+    helperStack: [...env.helperStack],
+  };
 }
 
 function classifyObject(
@@ -349,12 +504,17 @@ function absent(): Classification {
   return { kind: "absent" };
 }
 
-function ambiguous(directRewrite?: string): Classification {
-  return directRewrite ? { kind: "ambiguous", directRewrite } : { kind: "ambiguous" };
+function ambiguous(directRewrite?: string, candidates?: string[]): Classification {
+  return {
+    kind: "ambiguous",
+    ...(directRewrite ? { directRewrite } : {}),
+    ...(candidates && candidates.length > 0 ? { candidates } : {}),
+  };
 }
 
-function isRowCall(call: ts.CallExpression): boolean {
-  return callName(call).endsWith(".get") && isDbMember(call.expression);
+function isRowCall(call: ts.CallExpression, env: Environment): boolean {
+  return callName(call).endsWith(".get")
+    && isDbMember(call.expression, (binding) => isOperationCompositeBinding(binding, "db", env));
 }
 
 function rowFields(target: ts.Expression | undefined, env: Environment): string[] | undefined {
@@ -365,11 +525,16 @@ function rowFields(target: ts.Expression | undefined, env: Environment): string[
   return columns ? [...new Set(["id", ...Object.keys(columns)])] : undefined;
 }
 
-function refuseAmbiguous(node: ts.Expression, env: Environment, directRewrite?: string): never {
+function refuseAmbiguous(
+  node: ts.Expression,
+  env: Environment,
+  directRewrite?: string,
+  directCandidates?: string[],
+): never {
   const value = unwrapExpression(node);
   const choices: string[] = [];
-  const replacementFor = (expression: ts.Expression, direct?: string): string => {
-    const choice = honestRewrite(expression, env, direct);
+  const replacementFor = (expression: ts.Expression, direct?: string, candidates?: string[]): string => {
+    const choice = honestRewrite(expression, env, direct, candidates);
     choices.push(...choice.candidates);
     return choice.replacement;
   };
@@ -381,9 +546,9 @@ function refuseAmbiguous(node: ts.Expression, env: Environment, directRewrite?: 
           ? element.getText(env.sourceFile)
           : classified.kind === "ambiguous" && classified.directRewrite
             ? replacementFor(expression, classified.directRewrite)
-            : replacementFor(expression);
+            : replacementFor(expression, undefined, classified.kind === "ambiguous" ? classified.candidates : undefined);
       }).join(", ")}]`
-    : replacementFor(value, directRewrite);
+    : replacementFor(value, directRewrite, directCandidates);
   const candidates = [...new Set(choices)];
   const candidateMessage = candidates.length > 0 ? `; candidate direct origins: ${candidates.join(", ")}` : "";
   refuse(
@@ -399,8 +564,14 @@ function honestRewrite(
   node: ts.Expression,
   env: Environment,
   directRewrite?: string,
+  directCandidates?: string[],
 ): { replacement: string; candidates: string[] } {
-  if (directRewrite) return { replacement: directRewrite, candidates: [directRewrite] };
+  const discovered = [...new Set([
+    ...(directCandidates ?? []),
+    ...(directRewrite ? [directRewrite] : []),
+  ])];
+  if (discovered.length === 1) return { replacement: discovered[0]!, candidates: discovered };
+  if (discovered.length > 1) return sentinelRewrite(discovered);
   const argsBinding = operationCompositeName(env, "args");
   const selected = selectedMemberName(node);
   if (argsBinding && selected && env.args[selected]) {
@@ -412,10 +583,22 @@ function honestRewrite(
     ...(operationCompositeName(env, "ctx") ? [`${operationCompositeName(env, "ctx")}.viewer`] : []),
   ];
   if (candidates.length === 1) return { replacement: candidates[0]!, candidates };
+  return sentinelRewrite(candidates);
+}
+
+function sentinelRewrite(candidates: string[]): { replacement: string; candidates: string[] } {
   const description = candidates.length > 0 ? candidates.join(" | ") : "no bound direct origins";
   return {
     replacement: `(() => { throw new Error(${JSON.stringify(`E_PROVENANCE_AMBIGUOUS: choose one direct origin: ${description}`)}); })()`,
     candidates,
+  };
+}
+
+function rewriteAmbiguity(candidates: string[]): NonNullable<VariableInfo["provenanceAmbiguity"]> {
+  const distinct = [...new Set(candidates)];
+  return {
+    ...(distinct.length === 1 ? { directRewrite: distinct[0] } : {}),
+    ...(distinct.length > 0 ? { candidates: distinct } : {}),
   };
 }
 
@@ -506,7 +689,7 @@ function isRowExpressionInner(node: ts.Expression, env: Environment): boolean {
   if (!call) return false;
   const expanded = expandHelper(call, env);
   if (expanded) return isRowExpression(expanded.expression, expanded.environment);
-  return isRowCall(call);
+  return isRowCall(call, env);
 }
 
 export function isRowCollectionExpression(node: ts.Expression, env: Environment): boolean {
@@ -522,10 +705,27 @@ function isRowCollectionExpressionInner(node: ts.Expression, env: Environment): 
   if (!call) return false;
   const expanded = expandHelper(call, env);
   if (expanded) return isRowCollectionExpression(expanded.expression, expanded.environment);
-  if (callName(call).endsWith(".scan") && isDbMember(call.expression)) return true;
+  if (callName(call).endsWith(".scan")
+    && isDbMember(call.expression, (binding) => isOperationCompositeBinding(binding, "db", env))) return true;
   if (!ts.isPropertyAccessExpression(call.expression)) return false;
   if (["filter", "sort", "slice"].includes(call.expression.name.text)) {
     return isRowCollectionExpression(call.expression.expression, env);
+  }
+  if (call.expression.name.text === "flatMap") {
+    if (!isRowCollectionExpression(call.expression.expression, env)) return false;
+    const callback = call.arguments[0];
+    if (!callback || !ts.isArrowFunction(callback) && !ts.isFunctionExpression(callback)
+      || callback.parameters.length === 0 || !ts.isIdentifier(callback.parameters[0]!.name)
+      || ts.isBlock(callback.body)) return false;
+    const body = unwrapExpression(callback.body);
+    if (!ts.isArrayLiteralExpression(body)) return false;
+    const callbackEnv = snapshotEnvironment(env);
+    callbackEnv.variables.set(callback.parameters[0].name.text, {
+      provenance: "Shape",
+      rowBinding: true,
+      objectFields: rowFields(call.expression.expression, env),
+    });
+    return body.elements.every((element) => !ts.isSpreadElement(element) && isRowExpression(element, callbackEnv));
   }
   if (call.expression.name.text !== "map") return false;
   const callback = call.arguments[0];

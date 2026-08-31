@@ -35,9 +35,9 @@ import {
   unwrapExpression,
   walk,
 } from "../syntax";
-import { directArgument, withDirectRewrite } from "./operation-context";
+import { directArgument, isOperationCompositeBinding, withDirectRewrite } from "./operation-context";
 import { guardedWalk, MAX_RECURSION_DEPTH } from "./recursion";
-import { alternativeMemberBound, operationArgumentList } from "./binding-bound";
+import { derivedBound, operationArgumentList, staticBound } from "./binding-bound";
 function concatExpressions(expressions: Expr[]): Expr {
   return expressions.slice(1).reduce<Expr>(
     (left, right) => ({ Builtin: { builtin: "Concat", args: [left, right] } }),
@@ -55,7 +55,9 @@ function knownObjectFieldsInner(node: ts.Expression, env: Environment): string[]
     const info = env.variables.get(value.text);
     if (info?.operationComposite === "args") return Object.keys(env.args);
     if (info?.operationComposite === "ctx") return ["viewer"];
-    return info?.objectFields ?? (info?.immutableOrigin ? knownObjectFields(info.immutableOrigin, env) : undefined);
+    return info?.objectFields ?? (info?.immutableOrigin
+      ? knownObjectFields(info.immutableOrigin.expression, info.immutableOrigin.environment)
+      : undefined);
   }
   if (ts.isObjectLiteralExpression(value)) {
     const fields: string[] = [];
@@ -80,7 +82,8 @@ function knownObjectFieldsInner(node: ts.Expression, env: Environment): string[]
   const call = unwrapCall(value);
   const expanded = call && expandHelper(call, env);
   if (expanded) return knownObjectFields(expanded.expression, expanded.environment);
-  if (call && callName(call).endsWith(".get") && isDbMember(call.expression)) {
+  if (call && callName(call).endsWith(".get")
+    && isDbMember(call.expression, (binding) => isOperationCompositeBinding(binding, "db", env))) {
     return rowFields(call.arguments[0], env);
   }
   if (call && ts.isPropertyAccessExpression(call.expression) && call.expression.name.text === "require") {
@@ -104,7 +107,10 @@ function rowCollectionFieldsInner(node: ts.Expression, env: Environment): string
   if (!call) return undefined;
   const expanded = expandHelper(call, env);
   if (expanded) return rowCollectionFields(expanded.expression, expanded.environment);
-  if (callName(call).endsWith(".scan") && isDbMember(call.expression)) return rowFields(call.arguments[0], env);
+  if (callName(call).endsWith(".scan")
+    && isDbMember(call.expression, (binding) => isOperationCompositeBinding(binding, "db", env))) {
+    return rowFields(call.arguments[0], env);
+  }
   if (ts.isPropertyAccessExpression(call.expression) && ["filter", "sort", "slice"].includes(call.expression.name.text)) {
     return rowCollectionFields(call.expression.expression, env);
   }
@@ -118,6 +124,10 @@ function rowCollectionFieldsInner(node: ts.Expression, env: Environment): string
       }
     }
   }
+  if (ts.isPropertyAccessExpression(call.expression) && call.expression.name.text === "flatMap"
+    && isRowCollectionExpression(call, env)) {
+    return rowCollectionFields(call.expression.expression, env);
+  }
   return undefined;
 }
 
@@ -125,7 +135,10 @@ export function nullableReadSpread(node: ts.Expression, env: Environment): strin
   const value = unwrapExpression(node);
   if (ts.isIdentifier(value) && env.variables.get(value.text)?.nullableRead) return value.text;
   const call = unwrapCall(value);
-  return call && callName(call).endsWith(".get") && isDbMember(call.expression) ? call.getText(env.sourceFile) : undefined;
+  return call && callName(call).endsWith(".get")
+    && isDbMember(call.expression, (binding) => isOperationCompositeBinding(binding, "db", env))
+    ? call.getText(env.sourceFile)
+    : undefined;
 }
 
 export function nullableSpreadRefusal(node: ts.SpreadAssignment, env: Environment, value: string): never {
@@ -242,7 +255,8 @@ export function lowerPatch(node: ts.Expression, env: Environment): Expr {
     if (ts.isBlock(node.body)) refuse(env, "E_OPAQUE", node.body, "write callback body must be an expression");
     const callbackEnv = cloneEnvironment(env);
     const name = node.parameters[0].name.text;
-    callbackEnv.variables.set(name, strictBinding(name, { provenance: "Shape", rowBinding: true }, callbackEnv));
+    callbackEnv.variables.set(name, strictBinding(name, { provenance: "Shape", rowBinding: true }, callbackEnv,
+      undefined, node.parameters[0].name));
     return lowerExpr(node.body, callbackEnv);
   }
   return lowerExpr(node, env);
@@ -535,9 +549,18 @@ function lowerCall(call: ts.CallExpression, env: Environment, hint?: string): Ex
   }
   if (compositeCall === "ctx" && compositeMember?.name.text === "commitTime") return { Input: "Now" };
   if (compositeCall === "ctx" && compositeMember?.name.text === "newId") return { Input: "NewId" };
-  if (name.endsWith(".get") && isDbMember(call.expression)) return { Get: lowerRead(call, env, hint) };
-  if (name.endsWith(".exists") && isDbMember(call.expression)) return { Exists: lowerRead(call, env, hint) };
-  if (name.endsWith(".scan") && isDbMember(call.expression)) return { Scan: lowerScan(call, env, hint) };
+  if (name.endsWith(".get")
+    && isDbMember(call.expression, (binding) => isOperationCompositeBinding(binding, "db", env))) {
+    return { Get: lowerRead(call, env, hint) };
+  }
+  if (name.endsWith(".exists")
+    && isDbMember(call.expression, (binding) => isOperationCompositeBinding(binding, "db", env))) {
+    return { Exists: lowerRead(call, env, hint) };
+  }
+  if (name.endsWith(".scan")
+    && isDbMember(call.expression, (binding) => isOperationCompositeBinding(binding, "db", env))) {
+    return { Scan: lowerScan(call, env, hint) };
+  }
   if (["normalizeWordPrefix", "normalizeHandle"].includes(name) && call.arguments[0]) {
     return lowerExpr(call.arguments[0], env, hint);
   }
@@ -585,8 +608,12 @@ function lowerCall(call: ts.CallExpression, env: Environment, hint?: string): Ex
 }
 
 function lowerSort(owner: ts.Expression, comparator: ts.Expression | undefined, env: Environment): Expr {
+  return lowerSortExpression(lowerExpr(owner, env), comparator, env);
+}
+
+export function lowerSortExpression(owner: Expr, comparator: ts.Expression | undefined, env: Environment): Expr {
   if (!comparator || !isFunctionLike(comparator) || comparator.parameters.length < 2 || ts.isBlock(comparator.body)) {
-    refuse(env, "E_OPAQUE", comparator ?? owner, "sort requires an inline field comparator");
+    refuse(env, "E_OPAQUE", comparator ?? env.sourceFile, "sort requires an inline field comparator");
   }
   const body = comparator.body;
   if (!ts.isBinaryExpression(body) || body.operatorToken.kind !== ts.SyntaxKind.MinusToken
@@ -598,7 +625,7 @@ function lowerSort(owner: ts.Expression, comparator: ts.Expression | undefined, 
   const order = leftParam === firstParam ? "Asc" : "Desc";
   return { Builtin: {
     builtin: { Sort: { keys: [{ field: body.left.name.text, order }] } },
-    args: [lowerExpr(owner, env)],
+    args: [owner],
   } };
 }
 
@@ -742,79 +769,6 @@ export function containsRead(value: unknown, seen = new Set<object>(), depth = 0
   return result;
 }
 
-export function derivedBound(node: ts.Expression, env: Environment): Partial<VariableInfo> {
-  const known = staticBound(node, env);
-  if (known !== undefined) return { max: known, boundSource: `${node.getText()} static bound` };
-  return {};
-}
-
-export function staticBound(node: ts.Expression, env: Environment): number | undefined {
-  return guardedWalk(env, node, "static bound", () => staticBoundInner(node, env));
-}
-function staticBoundInner(node: ts.Expression, env: Environment): number | undefined {
-  const value = unwrapExpression(node);
-  if (ts.isIdentifier(value)) return env.variables.get(value.text)?.max;
-  const operationList = operationArgumentList(value, env);
-  if (operationList) return operationList.max;
-  if (ts.isPropertyAccessExpression(value)) {
-    const base = unwrapExpression(value.expression);
-    if (ts.isIdentifier(base)) {
-      const info = env.variables.get(base.text);
-      const alternative = info && alternativeMemberBound(info, value.name.text, staticBound);
-      if (alternative !== undefined) return alternative;
-      const origin = info?.immutableOrigin;
-      const object = origin && unwrapExpression(origin);
-      if (object && ts.isObjectLiteralExpression(object)) {
-        const selected = expressionProperty(object, value.name.text)
-          ?? object.properties.find((property): property is ts.ShorthandPropertyAssignment =>
-            ts.isShorthandPropertyAssignment(property) && property.name.text === value.name.text)?.name;
-        if (selected) return staticBound(selected, env);
-      }
-    }
-  }
-  if (ts.isArrayLiteralExpression(value)) {
-    let total = 0;
-    for (const element of value.elements) {
-      if (ts.isSpreadElement(element)) {
-        const bound = staticBound(element.expression, env);
-        if (bound === undefined) return undefined;
-        total += bound;
-      } else total += 1;
-    }
-    return total;
-  }
-  if (ts.isNewExpression(value) && collectionConstructor(value)) {
-    const initializer = value.arguments?.[0];
-    return initializer ? staticBound(initializer, env) : 0;
-  }
-  const call = unwrapCall(node);
-  if (call && callName(call).endsWith(".scan")) {
-    const take = scanTake(call);
-    if (typeof take === "number") return take;
-  }
-  if (call && ts.isIdentifier(call.expression) && call.expression.text === "mentionTokens") {
-    return 85;
-  }
-  if (call && ts.isPropertyAccessExpression(call.expression)) {
-    const method = call.expression.name.text;
-    const owner = staticBound(call.expression.expression, env);
-    if (method === "map" || method === "filter" || method === "sort") return owner;
-    if (method === "slice") {
-      const start = numericLiteral(call.arguments[0]) ?? 0;
-      const end = numericLiteral(call.arguments[1]);
-      return end === undefined ? owner : Math.max(0, end - start);
-    }
-    if (method === "flatMap" && owner !== undefined) {
-      const callback = call.arguments[0];
-      if (callback && isFunctionLike(callback) && !ts.isBlock(callback.body)) {
-        const inner = staticBound(callback.body, env);
-        if (inner !== undefined) return owner * inner;
-      }
-    }
-  }
-  return undefined;
-}
-
 export function lowerArrayMethod(
   method: string,
   owner: ts.Expression,
@@ -838,7 +792,8 @@ export function lowerArrayMethod(
     lowerValue,
     hint,
   );
-  loopEnv.variables.set(binding, strictBinding(binding, bindingInfo, loopEnv, directArgument(owner, env)));
+  loopEnv.variables.set(binding, strictBinding(binding, bindingInfo, loopEnv,
+    directArgument(owner, env), callback.parameters[0].name));
   if (method === "map" || method === "filter") {
     const name = temporary(env, method);
     const lowered = lowerValue(callback.body, loopEnv, hint);
@@ -911,7 +866,8 @@ export function lowerArrayMethod(
     const accumulator = callback.parameters[0].name.text;
     const item = callback.parameters[1].name.text;
     const reduceEnv = cloneEnvironment(env);
-    reduceEnv.variables.set(item, strictBinding(item, bindingInfo, reduceEnv, directArgument(owner, env)));
+    reduceEnv.variables.set(item, strictBinding(item, bindingInfo, reduceEnv,
+      directArgument(owner, env), callback.parameters[1].name));
     const name = temporary(env, "reduce");
     reduceEnv.substitutions.set(accumulator, {
       expression: syntheticIdentifier(env.sourceFile, name),
@@ -978,6 +934,20 @@ export function lowerCollectionDomain(
         : collectionElementBinding(expression, env),
     };
   }
+  if (ts.isArrayLiteralExpression(value)) {
+    const maximum = staticBound(expression, env);
+    if (maximum === undefined) refuse(env, "E_UNBOUND_LOOP", expression, "loop domain has no static cardinality");
+    const lowered = lowerValue(expression, env, hint);
+    return {
+      statements: lowered.statements,
+      domain: { DerivedArray: {
+        value: lowered.expression,
+        max: maximum,
+        bound_source: `${expression.getText(env.sourceFile)} static bound`,
+      } },
+      bindingInfo: collectionElementBinding(expression, env),
+    };
+  }
   return { statements: [], ...lowerDomain(expression, env, binding, hint) };
 }
 
@@ -989,12 +959,4 @@ function bindingOrigins(binding: VariableInfo): ProvenanceOrigin[] {
 
 function optionalLower(node: ts.Expression | undefined, env: Environment): Expr | null {
   return node ? lowerExpr(node, env) : null;
-}
-
-function scanTake(call: ts.CallExpression): number | "arg" | undefined {
-  const options = call.arguments[2];
-  if (!options || !ts.isObjectLiteralExpression(options)) return undefined;
-  const take = expressionProperty(options, "take");
-  if (!take) return undefined;
-  return numericLiteral(take) ?? "arg";
 }

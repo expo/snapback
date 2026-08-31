@@ -3,29 +3,13 @@ import type { TableInfo } from "./authored-types";
 import { argumentSpreadRewrite, expandArgumentObject } from "./args";
 import { boundedDiagnostics, diagnostic, refuse, Refusal } from "./diagnostics";
 import {
-  allocateReadSite,
-  cloneEnvironment,
-  collectionMutationCounts,
-  containsRead,
-  derivedBound,
-  enterLexicalScope,
-  knownObjectFields,
-  loopDomainMaximum,
-  lowerCoalesce,
-  lowerArrayMethod,
-  lowerCollectionDomain,
-  lowerDomain,
-  lowerExpr,
-  lowerKey,
-  lowerPatch,
-  nullableReadSpread,
-  nullableSpreadRefusal,
-  rowCollectionFields,
-  reserveWriteSite,
-  staticBound,
-  tableReference,
+  allocateReadSite, cloneEnvironment, collectionMutationCounts, containsRead, enterLexicalScope,
+  knownObjectFields, loopDomainMaximum, lowerCoalesce, lowerArrayMethod, lowerCollectionDomain,
+  lowerDomain, lowerExpr, lowerKey, lowerPatch, lowerSortExpression, nullableReadSpread,
+  nullableSpreadRefusal, rowCollectionFields, reserveWriteSite, tableReference,
 } from "./lower/expr";
-import { collectionElementBinding, combinedProvenanceBinding, isRowCollectionExpression, isRowExpression, provenanceBinding, readProvenance, strictBinding } from "./lower/provenance";
+import { derivedBound, staticBound } from "./lower/binding-bound";
+import { collectionElementBinding, combinedProvenanceBinding, isRowCollectionExpression, isRowExpression, provenanceBinding, readProvenance, strictBinding, updateArrayBindingAfterPush } from "./lower/provenance";
 import { findPolicyRefusals, mechanicalBoundRewrite } from "./policy";
 import { analyzeOperationTypes, type TypePlan } from "./type-analysis";
 import { formatTypeDiagnostic, typecheckSource } from "./typecheck";
@@ -39,7 +23,7 @@ import {
 } from "./handler-bindings";
 import type { RecursionState } from "./lower/recursion";
 import { inspectModule, type ModuleInfo } from "./lower/module";
-import { assignedBindings, directArgument, moduleBasename, withDirectRewrite } from "./lower/operation-context";
+import { assignedBindings, directArgument, hasForOfAncestor, isOperationCompositeBinding, moduleBasename, operationCompositeBindings, recordAssignmentOrigin, withDirectRewrite } from "./lower/operation-context";
 import { boundOperationDiagnostics, localConstructorShadow } from "./operation-diagnostics";
 import {
   binaryOperator,
@@ -69,9 +53,9 @@ import type { Expr, FrontendDiagnostic, LowerResult, Program, Provenance, Stmt }
 export type { TableInfo } from "./authored-types";
 export type VariableInfo = {
   provenance: Provenance;
-  provenanceAmbiguity?: { directRewrite?: string };
-  immutableOrigin?: ts.Expression;
-  operationComposite?: "args" | "ctx";
+  provenanceAmbiguity?: { directRewrite?: string; candidates?: string[] };
+  immutableOrigin?: Extract<ProvenanceOrigin, { expression: ts.Expression }>;
+  operationComposite?: "args" | "ctx" | "db";
   operationArgument?: string;
   alternativeOrigins?: ProvenanceOrigin[];
   elementOrigins?: ProvenanceOrigin[];
@@ -97,7 +81,7 @@ export type Environment = ModuleInfo & {
   variables: Map<string, VariableInfo>;
   substitutions: Map<string, Substitution>;
   helperStack: string[];
-  mutableBindings: Set<string>;
+  mutableBindings: Set<ts.Identifier>;
   accessOrdinal: { value: number };
   temp: { value: number };
   literalValues: Map<string, number>;
@@ -268,6 +252,9 @@ function lowerOperation(
       objectFields: ["viewer"],
     });
   }
+  if (handlerBindings.db) {
+    variables.set(handlerBindings.db, { provenance: "Const", operationComposite: "db" });
+  }
   const environment: Environment = {
     ...module,
     programName: name,
@@ -277,7 +264,7 @@ function lowerOperation(
     variables,
     substitutions: new Map(),
     helperStack: [],
-    mutableBindings: assignedBindings(handler.body),
+    mutableBindings: assignedBindings(handler),
     accessOrdinal: { value: 0 },
     temp: { value: 0 },
     literalValues: typePlan?.literalValues ?? new Map(),
@@ -288,7 +275,7 @@ function lowerOperation(
   let body: Stmt[];
   if (ts.isBlock(handler.body)) {
     body = lowerStatements(handler.body.statements, environment);
-  } else if (isDbWriteCall(handler.body)) {
+  } else if (isDbWriteCall(handler.body, (binding) => isOperationCompositeBinding(binding, "db", environment))) {
     body = lowerExpressionStatement(handler.body, environment);
   } else {
     const lowered = lowerValue(handler.body, environment, `${name}.result`);
@@ -301,18 +288,6 @@ function lowerOperation(
     read_time_granularity_ms: environment.kind === "Query" && JSON.stringify(body).includes('"Input":"ReadTime"') ? 1 : null,
     body,
   };
-}
-
-function operationCompositeBindings(handler: FunctionLike): { args?: string; ctx?: string } {
-  const parameter = handler.parameters[0];
-  if (!parameter || !ts.isObjectBindingPattern(parameter.name)) return {};
-  const bindings: { args?: string; ctx?: string } = {};
-  for (const element of parameter.name.elements) {
-    if (!ts.isIdentifier(element.name)) continue;
-    const property = element.propertyName ? propertyName(element.propertyName) : element.name.text;
-    if (property === "args" || property === "ctx") bindings[property] = element.name.text;
-  }
-  return bindings;
 }
 
 function lowerStatements(nodes: ts.NodeArray<ts.Statement> | readonly ts.Statement[], env: Environment): Stmt[] {
@@ -349,17 +324,18 @@ function lowerStatement(statement: ts.Statement, env: Environment): Stmt[] {
               "orderedPair destructuring defaults have authored runtime semantics; normalize each input before orderedPair",
             );
           }
-          const names = declaration.name.elements.map((element) => ts.isBindingElement(element) && ts.isIdentifier(element.name)
-            ? element.name.text
+          const identifiers = declaration.name.elements.map((element) => ts.isBindingElement(element) && ts.isIdentifier(element.name)
+            ? element.name
             : undefined);
-          if (!names[0] || !names[1]) refuse(env, "E_OPAQUE", declaration.name, "orderedPair bindings must be identifiers");
+          if (!identifiers[0] || !identifiers[1]) refuse(env, "E_OPAQUE", declaration.name, "orderedPair bindings must be identifiers");
           const args = call.arguments.map((argument) => lowerExpr(argument, env));
-          out.push({ Let: { name: names[0], value: { Builtin: { builtin: "Min", args } } } });
-          out.push({ Let: { name: names[1], value: { Builtin: { builtin: "Max", args } } } });
+          out.push({ Let: { name: identifiers[0].text, value: { Builtin: { builtin: "Min", args } } } });
+          out.push({ Let: { name: identifiers[1].text, value: { Builtin: { builtin: "Max", args } } } });
           const origin = withDirectRewrite(combinedProvenanceBinding(call.arguments, env), declaration.initializer, env);
-          for (const name of names as [string, string]) {
-            const binding = strictBinding(name, { ...origin }, env, directArgument(declaration.initializer, env));
-            env.variables.set(name, { ...binding });
+          for (const identifier of identifiers as [ts.Identifier, ts.Identifier]) {
+            const binding = strictBinding(identifier.text, { ...origin }, env,
+              directArgument(declaration.initializer, env), identifier);
+            env.variables.set(identifier.text, { ...binding });
           }
           continue;
         }
@@ -368,7 +344,7 @@ function lowerStatement(statement: ts.Statement, env: Environment): Stmt[] {
         const lowered = lowerValue(declaration.initializer, env, `${env.programName}.${name}`);
         const collection = collectionConstructor(declaration.initializer);
         const isConst = (statement.declarationList.flags & ts.NodeFlags.Const) !== 0;
-        const stableBinding = !env.mutableBindings.has(name);
+        const stableBinding = !env.mutableBindings.has(declaration.name);
         const loweredBinding = "Variable" in lowered.expression ? env.variables.get(lowered.expression.Variable) : undefined;
         const rowCollection = loweredBinding?.rowCollection === true || isRowCollectionExpression(declaration.initializer, env);
         const objectFields = stableBinding
@@ -376,22 +352,23 @@ function lowerStatement(statement: ts.Statement, env: Environment): Stmt[] {
           : undefined;
         const classified = provenanceBinding(declaration.initializer, env);
         const origin = withDirectRewrite(classified, declaration.initializer, env);
-        const literalElements = ts.isArrayLiteralExpression(unwrapExpression(declaration.initializer))
-          ? collectionElementBinding(declaration.initializer, env).alternativeOrigins
-          : undefined;
+        const collectionElements = collectionElementBinding(declaration.initializer, env).alternativeOrigins;
+        const bindTime = cloneEnvironment(env);
         env.variables.set(name, strictBinding(name, {
           ...origin,
           ...derivedBound(declaration.initializer, env),
           ...(collection ? { collection } : {}),
           ...(objectFields ? { objectFields } : {}),
-          ...(stableBinding ? { immutableOrigin: declaration.initializer } : {}),
+          ...(stableBinding ? { immutableOrigin: { expression: declaration.initializer, environment: bindTime } } : {}),
           ...(isRowExpression(declaration.initializer, env) ? { rowBinding: true } : {}),
           ...(rowCollection ? { rowCollection: true } : {}),
-          ...(loweredBinding?.elementOrigins || literalElements
-            ? { elementOrigins: loweredBinding?.elementOrigins ?? literalElements }
+          ...(loweredBinding?.elementOrigins || collectionElements
+            ? { elementOrigins: loweredBinding?.elementOrigins ?? collectionElements }
             : {}),
-          ...(isNullableDbGet(declaration.initializer) ? { nullableRead: true } : {}),
-        }, env, directArgument(declaration.initializer, env)));
+          ...(isNullableDbGet(declaration.initializer,
+            (binding) => isOperationCompositeBinding(binding, "db", env)) ? { nullableRead: true } : {}),
+        }, env, directArgument(declaration.initializer, env), declaration.name,
+        declaration.initializer.getText(env.sourceFile)));
         out.push(...lowered.statements);
         out.push(isConst
           ? { Const: { name, value: lowered.expression } }
@@ -430,9 +407,10 @@ function lowerStatement(statement: ts.Statement, env: Environment): Stmt[] {
       refuse(env, "E_OPAQUE", statement.initializer, "for-of binding must be one identifier");
     }
     const binding = statement.initializer.declarations[0].name.text;
-    const loopEnv = cloneEnvironment(env);
+    const loopEnv = enterLexicalScope(env);
     const { statements, domain, bindingInfo } = lowerCollectionDomain(statement.expression, loopEnv, binding, lowerValue);
-    loopEnv.variables.set(binding, strictBinding(binding, bindingInfo, loopEnv, directArgument(statement.expression, env)));
+    loopEnv.variables.set(binding, strictBinding(binding, bindingInfo, loopEnv,
+      directArgument(statement.expression, env), statement.initializer.declarations[0].name));
     const iterations = loopDomainMaximum(domain);
     for (const [name, count] of collectionMutationCounts(statement.statement)) {
       const loopInfo = loopEnv.variables.get(name);
@@ -488,10 +466,13 @@ function lowerExpressionStatement(expression: ts.Expression, env: Environment): 
       const owner = expression.expression.expression;
       const method = expression.expression.name.text;
       if (ts.isIdentifier(owner) && env.variables.has(owner.text) && method === "push") {
-        const value = expression.arguments[0];
-        if (!value) refuse(env, "E_OPAQUE", expression, "push requires one value");
-        const lowered = lowerValue(value, env, `${env.programName}.${owner.text}`);
-        return [...lowered.statements, { Push: { target: owner.text, value: lowered.expression } }];
+        if (expression.arguments.length === 0) refuse(env, "E_OPAQUE", expression, "push requires at least one value");
+        return expression.arguments.flatMap((value) => {
+          updateArrayBindingAfterPush(env.variables.get(owner.text)!, value, env,
+            hasForOfAncestor(expression) ? 0 : 1);
+          const lowered = lowerValue(value, env, `${env.programName}.${owner.text}`);
+          return [...lowered.statements, { Push: { target: owner.text, value: lowered.expression } } satisfies Stmt];
+        });
       }
       if (ts.isIdentifier(owner) && env.variables.get(owner.text)?.collection === "Map" && method === "set") {
         const key = expression.arguments[0];
@@ -529,7 +510,9 @@ function lowerExpressionStatement(expression: ts.Expression, env: Environment): 
           } },
         ];
       }
-      if (isDb(owner)) return lowerDbStatement(method, expression, env);
+      if (isDb(owner, (binding) => isOperationCompositeBinding(binding, "db", env))) {
+        return lowerDbStatement(method, expression, env);
+      }
     }
   }
   if (ts.isPostfixUnaryExpression(expression) || ts.isPrefixUnaryExpression(expression)) {
@@ -550,13 +533,14 @@ function lowerExpressionStatement(expression: ts.Expression, env: Environment): 
   if (ts.isBinaryExpression(expression)
     && expression.operatorToken.kind === ts.SyntaxKind.EqualsToken
     && ts.isIdentifier(expression.left)) {
+    recordAssignmentOrigin(env.variables.get(expression.left.text), expression.right, env);
     return [{ Assign: { name: expression.left.text, value: lowerExpr(expression.right, env) } }];
   }
   if (ts.isConditionalExpression(expression)) {
     return [{ If: {
       condition: lowerExpr(expression.condition, env),
-      then_body: lowerExpressionStatement(expression.whenTrue, cloneEnvironment(env)),
-      else_body: lowerExpressionStatement(expression.whenFalse, cloneEnvironment(env)),
+      then_body: lowerExpressionStatement(expression.whenTrue, enterLexicalScope(env)),
+      else_body: lowerExpressionStatement(expression.whenFalse, enterLexicalScope(env)),
     } }];
   }
   refuse(env, "E_OPAQUE", expression, "expression statement does not lower to a data operation");
@@ -857,6 +841,24 @@ function lowerValue(node: ts.Expression, env: Environment, hint?: string): Lower
         return { statements: [...loweredKey.statements, ...found.statements], expression: found.expression };
       }
     }
+    if (method === "slice" && ts.isPropertyAccessExpression(value.expression)) {
+      const owner = lowerValue(value.expression.expression, env, hint);
+      const args = value.arguments.map((argument) => lowerValue(argument, env));
+      return {
+        statements: [...owner.statements, ...args.flatMap((argument) => argument.statements)],
+        expression: { Builtin: {
+          builtin: "Slice",
+          args: [owner.expression, ...args.map((argument) => argument.expression)],
+        } },
+      };
+    }
+    if (method === "sort" && ts.isPropertyAccessExpression(value.expression)) {
+      const owner = lowerValue(value.expression.expression, env, hint);
+      return {
+        statements: owner.statements,
+        expression: lowerSortExpression(owner.expression, value.arguments[0], env),
+      };
+    }
     if (method && ["map", "flatMap", "filter", "reduce", "some"].includes(method)
       && ts.isPropertyAccessExpression(value.expression)) {
       return lowerArrayMethod(method, value.expression.expression, value, env, lowerValue, hint);
@@ -876,7 +878,7 @@ function lowerValue(node: ts.Expression, env: Environment, hint?: string): Lower
         expression: { Variable: name },
       };
     }
-    if (isDbInsertCall(value)) {
+    if (isDbInsertCall(value, (binding) => isOperationCompositeBinding(binding, "db", env))) {
       const target = value.arguments[0];
       const row = value.arguments[1];
       if (!target || !row) refuse(env, "E_OPAQUE", value, "insert requires table and row");

@@ -449,6 +449,224 @@ export const lookup = query({ key: t.text(40) }, ({ db, args }) => {
       `mapped return element was not classified at its selected path: ${readMap(transformed)}`);
   });
 
+  test("slice, sort, and flatMap retain row and transformed-element origins", () => {
+    const lowered = lowerSource(`import { query, t } from "snapback2";
+export const projectedSlice = query({ key: t.text(40) }, ({ db, args }) => {
+  const found = [];
+  for (const item of db.scan(items.byKey, [args.key], { take: 10 })
+    .map(row => ({ inner: { key: row.key } })).slice(0, 5)) {
+    found.push(db.get(beta.byKey, [item.inner.key]));
+  }
+  return found;
+});
+export const sortedIdentitySlice = query({ key: t.text(40) }, ({ db, args }) => {
+  const found = [];
+  for (const row of db.scan(items.byKey, [args.key], { take: 10 })
+    .map(row => row).sort((left, right) => left.key - right.key).slice(0, 5)) {
+    found.push(db.get(beta.byKey, [row.key]));
+  }
+  return found;
+});
+export const flatMappedSlice = query({ key: t.text(40) }, ({ db, args }) => {
+  const found = [];
+  for (const row of db.scan(items.byKey, [args.key], { take: 10 })
+    .flatMap(row => [row]).slice(0, 5)) found.push(db.get(beta.byKey, [row.key]));
+  return found;
+});`, "collection-tails.ts", undefined, { tables });
+    assert(lowered.ok, `collection transform tail refused: ${lowered.ok ? "" : JSON.stringify(lowered.diagnostics)}`);
+    for (const program of lowered.programs) {
+      assert(readMap(program) === `collection-tails.${program.name}.0:items:Arg|collection-tails.${program.name}.1:beta:Shape`,
+        `${program.name} lost its row/element origin: ${readMap(program)}`);
+      certify(program);
+    }
+  });
+
+  test("ordinary elements and directly mapped spreads classify each alternative", () => {
+    const sameOrigin = lowerOne(`import { query, t } from "snapback2";
+export const lookup = query({ first: t.text(40), second: t.text(40) }, ({ db, args }) => {
+  const found = [];
+  for (const key of [args.first, ...[{ key: args.second }].map(item => item.key)]) {
+    found.push(db.get(items.byKey, [key]));
+  }
+  return found;
+});`, "mapped-spread.ts");
+    assert(readMap(sameOrigin) === "mapped-spread.lookup.0:items:Arg",
+      `mapped spread inherited its aggregate origin: ${readMap(sameOrigin)}`);
+    certify(sameOrigin);
+
+    const disagreement = lowerSource(`import { query, t } from "snapback2";
+export const lookup = query({ key: t.text(40) }, ({ db, args, ctx }) => {
+  const found = [];
+  for (const key of [args.key, ...[ctx.viewer].map(viewer => viewer)]) {
+    found.push(db.get(items.byKey, [key]));
+  }
+  return found;
+});`, "mapped-spread-mixed.ts", undefined, { tables });
+    assert(!disagreement.ok && disagreement.diagnostics.some((item) => item.code === "E_PROVENANCE_AMBIGUOUS"),
+      `genuinely mixed mapped spread did not refuse: ${disagreement.ok ? "lowered" : JSON.stringify(disagreement.diagnostics)}`);
+  });
+
+  test("renamed args list domains retain their declared ArgList bound", () => {
+    const program = lowerOne(`import { query, t } from "snapback2";
+export const lookup = query({ keys: t.list(t.text(40), { max: 3 }) }, ({ db, args: packed }) => {
+  const found = [];
+  for (const key of packed.keys) found.push(db.get(items.byKey, [key]));
+  return found;
+});`, "renamed-args-list.ts");
+    assert(canonical(program).includes('"ArgList":{"max":3,"name":"keys"}'),
+      `renamed operation list lost ArgList identity: ${canonical(program)}`);
+    assert(readMap(program) === "renamed-args-list.lookup.0:items:Arg",
+      `renamed operation list lost Arg provenance: ${readMap(program)}`);
+    certify(program);
+  });
+
+  test("nested literal and immutable object collection bounds compose", () => {
+    const nested = lowerOne(`import { query, t } from "snapback2";
+export const lookup = query({ a: t.text(40), b: t.text(40), c: t.text(40) }, ({ db, args }) => {
+  const found = [];
+  for (const group of [[args.a], [args.b, args.c]]) {
+    for (const key of group) found.push(db.get(items.byKey, [key]));
+  }
+  return found;
+});`, "nested-bounds.ts");
+    assert(canonical(derivedArrayMaxima(nested)) === canonical([2, 2]),
+      `nested bounds did not retain outer count and inner maximum: ${canonical(nested)}`);
+    assert(readMap(nested) === "nested-bounds.lookup.0:items:Arg", `nested alternatives lost Arg: ${readMap(nested)}`);
+
+    const packed = lowerOne(`import { query, t } from "snapback2";
+export const lookup = query({ key: t.text(40) }, ({ db, args }) => {
+  const packed = { keys: [args.key] };
+  const found = [];
+  for (const key of packed.keys) found.push(db.get(items.byKey, [key]));
+  return found;
+});`, "packed-bound.ts");
+    assert(derivedArrayMaxima(packed).includes(1), `immutable object member lost its array bound: ${canonical(packed)}`);
+    assert(readMap(packed) === "packed-bound.lookup.0:items:Arg", `packed member lost Arg: ${readMap(packed)}`);
+
+    const deep = lowerOne(`import { query, t } from "snapback2";
+export const lookup = query({ a: t.text(40), b: t.text(40), c: t.text(40) }, ({ db, args }) => {
+  const found = [];
+  for (const groups of [[[args.a]], [[args.b, args.c]]]) {
+    for (const group of groups) for (const key of group) found.push(db.get(items.byKey, [key]));
+  }
+  return found;
+});`, "three-deep-bounds.ts");
+    assert(canonical(derivedArrayMaxima(deep)) === canonical([2, 1, 2]),
+      `three-deep bounds did not compose: ${canonical(deep)}`);
+    certify(deep);
+  });
+
+  test("mutable rewrite candidates include every assigned direct origin", () => {
+    const source = (assignment: string) => `import { query, t } from "snapback2";
+export const lookup = query({ first: t.text(40), second: t.text(40), choose: t.bool() }, ({ db, args }) => {
+  let selected = args.first;
+  if (args.choose) selected = ${assignment};
+  return db.get(items.byKey, [selected]);
+});`;
+    const mixed = lowerSource(source("args.second"), "mutable-origins.ts", undefined, { tables });
+    assert(!mixed.ok, "multi-origin mutable binding unexpectedly lowered");
+    const diagnostic = mixed.diagnostics.find((item) => item.code === "E_PROVENANCE_AMBIGUOUS");
+    assert(diagnostic, `multi-origin mutable refusal missing: ${JSON.stringify(mixed.diagnostics)}`);
+    assert(diagnostic.rewrite.includes("args.first | args.second")
+      && diagnostic.message.includes("args.first") && diagnostic.message.includes("args.second")
+      && !diagnostic.rewrite.includes("[args.first]"),
+    `mutable rewrite omitted an assignment origin: ${JSON.stringify(diagnostic)}`);
+    assert(!lowerSource(diagnostic.rewrite, "mutable-origins.ts", undefined, { tables }).ok,
+      "multi-origin sentinel unexpectedly compiled");
+
+    const looped = lowerSource(`import { query, t } from "snapback2";
+export const lookup = query({ first: t.text(40), second: t.text(40) }, ({ db, args }) => {
+  let selected = args.first;
+  for (const ignored of [0]) selected = args.second;
+  return db.get(items.byKey, [selected]);
+});`, "mutable-loop-origin.ts", undefined, { tables });
+    assert(!looped.ok, "loop-assigned mutable binding unexpectedly lowered");
+    const loopDiagnostic = looped.diagnostics.find((item) => item.code === "E_PROVENANCE_AMBIGUOUS");
+    assert(loopDiagnostic?.message.includes("args.first") && loopDiagnostic.message.includes("args.second"),
+      `loop assignment origin did not reach the outer binding: ${JSON.stringify(loopDiagnostic)}`);
+
+    const same = lowerSource(source("args.first"), "mutable-one-origin.ts", undefined, { tables });
+    assert(!same.ok, "mutable binding with one origin unexpectedly lowered");
+    const sameDiagnostic = same.diagnostics.find((item) => item.code === "E_PROVENANCE_AMBIGUOUS");
+    assert(sameDiagnostic, `single-origin mutable refusal missing: ${JSON.stringify(same.diagnostics)}`);
+    assert(sameDiagnostic.rewrite.includes("[args.first]") && !sameDiagnostic.rewrite.includes("choose one direct origin"),
+      `single-origin mutable rewrite was not direct: ${JSON.stringify(sameDiagnostic)}`);
+    assert(lowerSource(sameDiagnostic.rewrite, "mutable-one-origin.ts", undefined, { tables }).ok,
+      "single-origin mutable rewrite did not compile");
+  });
+
+  test("immutable aliases classify in their bind-time lexical environment", () => {
+    const lowered = lowerSource(`import { query, t } from "snapback2";
+export const block = query({ key: t.text(40) }, ({ db, args }) => {
+  const packed = args;
+  { const args = { key: "literal" }; return db.get(beta.byKey, [packed.key]); }
+});
+export const sameScope = query({ key: t.text(40) }, ({ db, args }) => {
+  const packed = args;
+  const args = { key: "literal" };
+  return db.get(beta.byKey, [packed.key]);
+});
+export const aliasChain = query({ key: t.text(40) }, ({ db, args }) => {
+  const first = args;
+  const second = first;
+  { const args = { key: "literal" }; return db.get(beta.byKey, [second.key]); }
+});`, "bind-time-alias.ts", undefined, { tables });
+    assert(lowered.ok, `bind-time aliases refused: ${lowered.ok ? "" : JSON.stringify(lowered.diagnostics)}`);
+    assert(lowered.programs.every((program) => reads(program)[0]?.provenance === "Arg"),
+      `use-time shadow changed alias provenance: ${lowered.programs.map(readMap).join(" | ")}`);
+    lowered.programs.forEach(certify);
+  });
+
+  test("mutation and db recognition follow lexical binding identity", () => {
+    const shadowSafe = lowerOne(`import { query, t } from "snapback2";
+function load(database: any, key: string) { return database.get(items.byKey, [key]); }
+export const lookup = query({ key: t.text(40) }, ({ db: store, args }) => {
+  const key = args.key;
+  { let key = "first"; { let key = "second"; key = "third"; } key = "fourth"; }
+  { const db = { get: 1 }; }
+  return load(store, key);
+});`, "binding-identity.ts");
+    assert(readMap(shadowSafe) === "binding-identity.lookup.0:items:Arg",
+      `nested shadow mutation poisoned the outer key or renamed db: ${readMap(shadowSafe)}`);
+    certify(shadowSafe);
+
+    const shadowedDb = lowerSource(`import { query, t } from "snapback2";
+export const lookup = query({ key: t.text(40) }, ({ db: store, args }) => {
+  { const store = unknownStore; return store.get(items.byKey, [args.key]); }
+});`, "db-shadow.ts", undefined, { tables });
+    assert(!shadowedDb.ok && shadowedDb.diagnostics.some((item) => item.code === "E_OPAQUE"),
+      `shadowed local store was mistaken for the handler db: ${shadowedDb.ok ? "lowered" : JSON.stringify(shadowedDb.diagnostics)}`);
+  });
+
+  test("push couples static bounds and per-element provenance", () => {
+    const sameOrigin = lowerOne(`import { query, t } from "snapback2";
+export const lookup = query({ first: t.text(40), second: t.text(40), third: t.text(40) }, ({ db, args }) => {
+  const keys = [args.first];
+  keys.push(args.second, args.third);
+  const found = [];
+  for (const key of [...keys]) found.push(db.get(items.byKey, [key]));
+  return found;
+});`, "push-origin.ts");
+    assert(lastDerivedArrayBound(sameOrigin, "keys") === 3,
+      `push did not update the statically countable bound: ${canonical(sameOrigin)}`);
+    assert(readMap(sameOrigin) === "push-origin.lookup.0:items:Arg",
+      `same-origin push lost Arg: ${readMap(sameOrigin)}`);
+    certify(sameOrigin);
+
+    const mixed = lowerSource(`import { query, t } from "snapback2";
+export const lookup = query({ key: t.text(40) }, ({ db, args, ctx }) => {
+  const keys = [args.key];
+  keys.push(ctx.viewer);
+  const found = [];
+  for (const key of [...keys]) found.push(db.get(items.byKey, [key]));
+  return found;
+});`, "push-origin-mixed.ts", undefined, { tables });
+    assert(!mixed.ok, "mixed-origin push unexpectedly lowered");
+    const diagnostic = mixed.diagnostics.find((item) => item.code === "E_PROVENANCE_AMBIGUOUS");
+    assert(diagnostic?.message.includes("args.key") && diagnostic.message.includes("ctx.viewer"),
+      `mixed push did not retain both origins: ${JSON.stringify(diagnostic)}`);
+  });
+
   test("ambiguous rewrites match selected fields or remain deliberately non-lowerable", () => {
     const matching = lowerSource(`import { query, t } from "snapback2";
 export const lookup = query({ first: t.text(40), second: t.text(40) }, ({ db, args }) => {
@@ -738,6 +956,15 @@ function lastDerivedArrayBound(program: Program, variable: string): number | und
     if (domain?.value?.Variable === variable && typeof domain.max === "number") bounds.push(domain.max);
   });
   return bounds.at(-1);
+}
+
+function derivedArrayMaxima(program: Program): number[] {
+  const maxima: number[] = [];
+  visit(program.body, (value) => {
+    const domain = value.DerivedArray as { max?: number } | undefined;
+    if (typeof domain?.max === "number") maxima.push(domain.max);
+  });
+  return maxima;
 }
 
 function certify(program: Program): Record<string, unknown> {
