@@ -19,7 +19,7 @@
   },
   {
     "family": "rule",
-    "code": "E_RULE_DENIED",
+    "code": "E_RULE",
     "wrong": "insert: rule.deny()",
     "right": "insert: rule.viewerIs(\"ownerId\")"
   },

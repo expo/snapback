@@ -15,6 +15,8 @@ use std::thread;
 use std::time::Duration;
 use tiny_http::{Header, Method, Request, Response, Server, StatusCode};
 
+const DEV_CORS_ALLOWED_HEADERS: &str = "Authorization, Content-Type, X-Snapback-As";
+
 pub struct BoundServer {
     server: Arc<Server>,
     pub port: u16,
@@ -354,7 +356,7 @@ fn respond_json(request: Request, status: u16, value: Json, mode: &str) {
         response.add_header(header_value("Access-Control-Allow-Origin", "*"));
         response.add_header(header_value(
             "Access-Control-Allow-Headers",
-            "Authorization, Content-Type, X-Snapback-As, X-Snapback-Control",
+            DEV_CORS_ALLOWED_HEADERS,
         ));
         response.add_header(header_value(
             "Access-Control-Allow-Methods",
@@ -615,5 +617,10 @@ mod tests {
         assert_eq!(refusal.family, "owner");
         assert!(refusal.message.contains("accept loop"));
         assert!(refusal.message.contains("simulated accept failure"));
+    }
+
+    #[test]
+    fn browser_cors_never_admits_the_owner_control_capability() {
+        assert!(!DEV_CORS_ALLOWED_HEADERS.contains("X-Snapback-Control"));
     }
 }

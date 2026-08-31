@@ -75,6 +75,17 @@ unknown-email and wrong-password paths retain one verification call. That
 ceremony paid for exact logout and expiry fencing instead of a best-effort
 "current user" check.
 
+The final exact review was worth the extra pass. The standalone TypeScript
+evaluator had matched the older corpus while omitting the new old/next,
+created, final-exists, rollback, maintained-write, and memo-invalidation
+semantics. Adding 16 named cross-runtime cases turned those assumptions into
+92 executable parity checks. The same review found that the local owner
+control bearer was strong on Unix but guessable on a non-Unix fallback and
+browser-preflightable in dev mode. Moving every platform to the OS CSPRNG,
+repairing private filesystem modes, and removing the control header from CORS
+closed a system-authority seam that application-level RBAC tests would never
+have exercised.
+
 ## Comparison
 
 Compared with React plus Convex, this path asks for more up-front boundedness,

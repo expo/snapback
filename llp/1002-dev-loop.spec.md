@@ -257,7 +257,9 @@ declare module 'snapback2/client' { interface Api { todos: { list: Op<{ take?: n
 
 HTTP/1.1, JSON bodies, `Content-Type: application/json`; CORS `*` in `dev`
 mode with preflight methods `GET, POST, OPTIONS` (cross-origin SSE needs
-`GET`). Every refusal on every route — including a rejected mutation and a
+`GET`). The allowed request headers are `Authorization`, `Content-Type`, and
+`X-Snapback-As`; `X-Snapback-Control` is deliberately excluded, so a web page
+cannot preflight access to the local control capability. Every refusal on every route — including a rejected mutation and a
 channel refusal — carries the full envelope below; `guide` and `family` are
 required fields in the client's public types as well as in its validator. Authentication: `Authorization: Bearer <token>`; in `dev` mode
 `X-Snapback-As: <name>` selects a persona (created on first use; §1.6).
@@ -294,6 +296,10 @@ which is the only error shape on every surface (HTTP, CLI `--json`, worker):
   "rule": "every scan names take", "rewrite": "scan(todos.byOwner, [ctx.viewer], { take: 100 })", "guide": "bound/scan" }
 ```
 
+A mutation denied by a table rule is the stable envelope
+`{ state: "rejected", code: "E_RULE", family: "rule", guide: "rule/runtime", … }`;
+the wire never shortens that code to `rule` or misclassifies it as input.
+
 Families (this wave): `bound`, `opaque`, `schema`, `rule`, `auth`, `args`,
 `op`, `successor`, `effect`, `input`, `owner`. A code without a family, a
 site (where one exists), and a `guide` slug is a bug.
@@ -323,7 +329,10 @@ owner changes its offset, sweeps sessions, or reruns live state.
   under `--json`) → detach: the foreground process exits 0 after the owner
   is ready; the owner runs with stdin closed and stdout/stderr to
   `.snapback/log.jsonl`. `--foreground` keeps it attached (for `test` and
-  CI).
+  CI). Owner startup refuses a symlinked/non-directory `.snapback/`, otherwise
+  creates or repairs it to mode `0700` on Unix; `owner.json` is atomically
+  replaced from an unpredictable, create-new, mode-`0600` temporary file. Its
+  256-bit control secret always comes from the operating-system CSPRNG.
 - **Attach.** If `owner.json` names a live pid whose `/control/status`
   answers with the same project root, print the same line and exit 0. Keyed
   by project root, not port.
@@ -602,10 +611,13 @@ Three rulings folded 2026-08-30 from the client-tier arc (LLP 0329.018–.023):
   (`Cached | Stale | Failed`, LLP 0329.022) that this package does not
   provide and its types cannot be coerced into.
 - **Evaluator per arm** (LLP 0329.018 F1): web and Expo host a JS runtime
-  and run the 7.8 KB TypeScript twin; the Contract-native (Exact 2) arm hosts
-  none and links `snapback2-core`'s interpreter — the same `ClientStore` the
-  regenerated 76-case corpus proves conformant. Two implementations, assigned by
-  runtime, never a third.
+  and are assigned the 24.6 KB raw / 8.9 KB gz TypeScript twin; the
+  Contract-native (Exact 2) arm hosts none and links `snapback2-core`'s
+  interpreter. The standalone TypeScript twin passes the regenerated 92-case
+  corpus. The current public web client remains server-backed and does not yet
+  carry the certified program/receipt custody needed to run that twin; wiring
+  it is tracked in `issues/20260830-snapback2-wire-evaluator-into-public-client.md`.
+  Two evaluator implementations, assigned by runtime, never a third.
 - **Coverage is client-issuable; absence and authorization are not**
   (LLP 0329.021 P5): the twin never manufactures an absence or a verdict; a
   read whose result depends on an absence the receipt does not carry is

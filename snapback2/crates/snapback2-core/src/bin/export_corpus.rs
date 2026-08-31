@@ -6,6 +6,9 @@ use std::collections::{BTreeMap, VecDeque};
 use std::fs;
 use std::path::PathBuf;
 
+#[path = "export_corpus/twin_cases.rs"]
+mod twin_cases;
+
 const CORPUS_VERSION: u32 = 1;
 const RANDOM_SEED: u64 = 0x5eed_0329_0140_0003;
 
@@ -91,6 +94,7 @@ impl Fixture {
 fn main() {
     let mut cases = Vec::new();
     add_named_cases(&mut cases);
+    twin_cases::add_twin_cases(&mut cases);
     add_client_scenarios(&mut cases);
     add_value_edges(&mut cases);
     add_random_cases(&mut cases);

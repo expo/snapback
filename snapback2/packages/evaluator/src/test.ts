@@ -112,6 +112,21 @@ assert(
   derivedRuleInputResult({ Eq: [{ Field: "principal" }, { Literal: { Id: "someone-else" } }] }) === "Null",
   "protected near-miss rule input did not fail closed without a verdict",
 );
+assert(
+  JSON.stringify(derivedRuleInputResult({
+    Eq: [
+      { Literal: { Map: { a: { Int: 1 }, b: { Int: 2 } } } },
+      { Literal: { Map: { b: { Int: 2 }, a: { Int: 1 } } } },
+    ],
+  })) === JSON.stringify(readableDoc),
+  "structurally equal rule terms depended on JavaScript object insertion order",
+);
+for (const rowImage of ["OldField", "NextField"] as const) {
+  assert(
+    derivedRuleInputResult({ Eq: [{ [rowImage]: "principal" }, { [rowImage]: "principal" }] }) === "Null",
+    `${rowImage} in an uncertified read rule did not fail structural disclosure closed`,
+  );
+}
 
 const original = cases.find((testCase) => testCase.name === "scenario-hydrate");
 assert(original !== undefined, "scenario-hydrate is absent from the corpus");
@@ -149,6 +164,33 @@ assert(carriedVerdict.planState === "replay-mismatch", "successor accepted a pre
 assert(
   carriedVerdict.actual.localResult === "Null",
   "successor did not recompute after refusing the predecessor scoped verdict",
+);
+
+const bootstrap = cases.find(
+  (testCase) => testCase.name === "named-rbac-created-bootstrap",
+);
+assert(bootstrap !== undefined, "named-rbac-created-bootstrap is absent from the corpus");
+const atomicProgram = JSON.parse(JSON.stringify(bootstrap.program));
+atomicProgram.name = "groups.bootstrapThenRekey";
+atomicProgram.body.splice(-1, 0, {
+  Update: {
+    table: "memberships",
+    key: { Literal: { Id: "seat-new" } },
+    patch: { Object: { id: { Literal: { Id: "seat-stolen" } } } },
+  },
+});
+const atomicStore = new ClientStore(bootstrap.schema, bootstrap.receipt);
+let atomicError = "";
+try {
+  atomicStore.applyMutation(atomicProgram, bootstrap.context);
+} catch (error) {
+  atomicError = String(error);
+}
+assert(atomicError.startsWith("Error: E_INPUT:"), `unexpected rekey error: ${atomicError}`);
+assert(
+  atomicStore.rows("groups").length === 0 &&
+    atomicStore.rows("memberships").length === 0,
+  "a refused local mutation retained writes from before the refusal",
 );
 
 console.log(

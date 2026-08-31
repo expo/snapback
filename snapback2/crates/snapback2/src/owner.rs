@@ -137,7 +137,7 @@ pub fn read_owner(root: &Path) -> Option<OwnerInfo> {
 
 fn foreground(root: PathBuf, options: &DevOptions) -> Result<(), Refusal> {
     let owner_started_at = unix_millis();
-    fs::create_dir_all(root.join(".snapback")).map_err(|error| {
+    private_owner_directory(&root).map_err(|error| {
         Refusal::owner(
             "E_OWNER_STORE",
             error.to_string(),
@@ -252,14 +252,16 @@ fn foreground(root: PathBuf, options: &DevOptions) -> Result<(), Refusal> {
 }
 
 fn detach(root: PathBuf, options: DevOptions) -> ExitCode {
-    let snapback = root.join(".snapback");
-    if let Err(error) = fs::create_dir_all(&snapback) {
-        return print_refusal(
-            Refusal::owner("E_OWNER_LOG", error.to_string(), "make .snapback writable"),
-            options.json,
-            2,
-        );
-    }
+    let snapback = match private_owner_directory(&root) {
+        Ok(path) => path,
+        Err(error) => {
+            return print_refusal(
+                Refusal::owner("E_OWNER_LOG", error.to_string(), "make .snapback writable"),
+                options.json,
+                2,
+            );
+        }
+    };
     let log_path = snapback.join("log.jsonl");
     let log_start = fs::metadata(&log_path).map(|meta| meta.len()).unwrap_or(0);
     let log = match OpenOptions::new().create(true).append(true).open(&log_path) {
@@ -473,25 +475,93 @@ fn control_command(
 }
 
 pub(crate) fn write_owner(root: &Path, info: &OwnerInfo) -> Result<(), Refusal> {
+    let directory = private_owner_directory(root).map_err(|error| {
+        Refusal::owner(
+            "E_OWNER_STATE",
+            error.to_string(),
+            "make .snapback private and writable",
+        )
+    })?;
     let path = owner_path(root);
-    let temporary = root.join(".snapback/owner.json.tmp");
+    let temporary = directory.join(format!("owner.json.tmp.{}", random_hex::<16>()?));
     let bytes = serde_json::to_vec_pretty(info).map_err(|error| {
         Refusal::owner("E_OWNER_STATE", error.to_string(), "restart snapback2 dev")
     })?;
-    fs::write(&temporary, bytes).map_err(|error| {
+    let mut file = private_owner_file(&temporary).map_err(|error| {
         Refusal::owner(
             "E_OWNER_STATE",
             error.to_string(),
-            "make .snapback writable",
+            "make .snapback private and writable",
         )
     })?;
-    fs::rename(&temporary, &path).map_err(|error| {
-        Refusal::owner(
+    if let Err(error) = file.write_all(&bytes).and_then(|()| file.sync_all()) {
+        drop(file);
+        let _ = fs::remove_file(&temporary);
+        return Err(Refusal::owner(
             "E_OWNER_STATE",
             error.to_string(),
-            "make .snapback writable",
-        )
-    })
+            "make .snapback private and writable",
+        ));
+    }
+    drop(file);
+    if let Err(error) = fs::rename(&temporary, &path) {
+        let _ = fs::remove_file(&temporary);
+        return Err(Refusal::owner(
+            "E_OWNER_STATE",
+            error.to_string(),
+            "make .snapback private and writable",
+        ));
+    }
+    Ok(())
+}
+
+// @ref LLP 1002#5-the-owner — owner data and its control bearer are private
+// local capability state, not project-readable build output.
+fn private_owner_directory(root: &Path) -> std::io::Result<PathBuf> {
+    let directory = root.join(".snapback");
+    match fs::symlink_metadata(&directory) {
+        Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_dir() => {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                ".snapback must be a real directory, not a symlink or file",
+            ));
+        }
+        Ok(_) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            fs::create_dir_all(&directory)?;
+        }
+        Err(error) => return Err(error),
+    }
+    let metadata = fs::symlink_metadata(&directory)?;
+    if metadata.file_type().is_symlink() || !metadata.is_dir() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            ".snapback changed before its private mode could be established",
+        ));
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(&directory, fs::Permissions::from_mode(0o700))?;
+    }
+    Ok(directory)
+}
+
+fn private_owner_file(path: &Path) -> std::io::Result<fs::File> {
+    let mut options = OpenOptions::new();
+    options.create_new(true).write(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    let file = options.open(path)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        file.set_permissions(fs::Permissions::from_mode(0o600))?;
+    }
+    Ok(file)
 }
 
 pub(crate) fn write_owner_if_active(
@@ -701,32 +771,20 @@ fn pid_is_zombie(_pid: u32) -> bool {
     false
 }
 
-fn random_secret() -> Result<String, Refusal> {
-    let mut bytes = [0_u8; 32];
-    #[cfg(unix)]
-    {
-        let mut file = fs::File::open("/dev/urandom").map_err(|error| {
-            Refusal::owner(
-                "E_OWNER_SECRET",
-                error.to_string(),
-                "make the platform random source available",
-            )
-        })?;
-        file.read_exact(&mut bytes).map_err(|error| {
-            Refusal::owner(
-                "E_OWNER_SECRET",
-                error.to_string(),
-                "make the platform random source available",
-            )
-        })?;
-    }
-    #[cfg(not(unix))]
-    for (index, byte) in bytes.iter_mut().enumerate() {
-        *byte = (unix_millis() as u8)
-            .wrapping_add(index as u8)
-            .wrapping_add(std::process::id() as u8);
-    }
+fn random_hex<const N: usize>() -> Result<String, Refusal> {
+    let mut bytes = [0_u8; N];
+    getrandom::fill(&mut bytes).map_err(|error| {
+        Refusal::owner(
+            "E_OWNER_SECRET",
+            error.to_string(),
+            "make the platform random source available",
+        )
+    })?;
     Ok(bytes.iter().map(|byte| format!("{byte:02x}")).collect())
+}
+
+fn random_secret() -> Result<String, Refusal> {
+    random_hex::<32>()
 }
 
 fn unix_millis() -> i64 {
@@ -786,6 +844,89 @@ mod tests {
         info.generation = "two".to_owned();
         write_owner_if_active(&root, &info, true).unwrap();
         assert!(!owner_path(&root).exists());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn owner_secret_is_a_full_random_capability() {
+        let first = random_secret().unwrap();
+        let second = random_secret().unwrap();
+        assert_eq!(first.len(), 64);
+        assert!(first.bytes().all(|byte| byte.is_ascii_hexdigit()));
+        assert_ne!(first, second);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn owner_directory_and_record_are_private() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let root = root("permissions");
+        fs::set_permissions(root.join(".snapback"), fs::Permissions::from_mode(0o777)).unwrap();
+        let info = test_info(&root, 11, "owner");
+        write_owner(&root, &info).unwrap();
+        assert_eq!(
+            fs::metadata(root.join(".snapback"))
+                .unwrap()
+                .permissions()
+                .mode()
+                & 0o777,
+            0o700,
+        );
+        assert_eq!(
+            fs::metadata(owner_path(&root))
+                .unwrap()
+                .permissions()
+                .mode()
+                & 0o777,
+            0o600,
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn owner_state_refuses_symlinked_directory_and_temporary_file() {
+        use std::os::unix::fs::symlink;
+
+        let root = root("symlinks");
+        let directory = root.join(".snapback");
+        let target_directory = root.join("attacker-directory");
+        fs::create_dir(&target_directory).unwrap();
+        fs::remove_dir(&directory).unwrap();
+        symlink(&target_directory, &directory).unwrap();
+        assert_eq!(
+            private_owner_directory(&root).unwrap_err().kind(),
+            std::io::ErrorKind::InvalidInput,
+        );
+        assert!(!target_directory.join("owner.json").exists());
+        fs::remove_file(&directory).unwrap();
+        fs::create_dir(&directory).unwrap();
+
+        let victim = root.join("victim.txt");
+        fs::write(&victim, b"unchanged").unwrap();
+        let planted = directory.join("owner.json.tmp.planted");
+        symlink(&victim, &planted).unwrap();
+        assert_eq!(
+            private_owner_file(&planted).unwrap_err().kind(),
+            std::io::ErrorKind::AlreadyExists,
+        );
+        assert_eq!(fs::read(&victim).unwrap(), b"unchanged");
+
+        write_owner(&root, &test_info(&root, 11, "owner")).unwrap();
+        assert_eq!(fs::read(&victim).unwrap(), b"unchanged");
+        assert!(
+            fs::symlink_metadata(&planted)
+                .unwrap()
+                .file_type()
+                .is_symlink()
+        );
+        assert!(
+            !fs::symlink_metadata(owner_path(&root))
+                .unwrap()
+                .file_type()
+                .is_symlink()
+        );
         fs::remove_dir_all(root).unwrap();
     }
 

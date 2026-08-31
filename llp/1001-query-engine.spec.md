@@ -175,7 +175,8 @@ subscription stays indexed and re-admits when the denying key is touched.
 A mutation's outcome is `Committed { seq }` or `Rejected { code, message }`
 (`RuntimeError::Require`, `::Rule`, `::Constraint`, `::Input`, and every
 SQLite constraint failure — duplicate row id, duplicate outbox id, unique
-index — as `E_CONSTRAINT`; a program execution never surfaces a raw SQL
+index — as `E_CONSTRAINT`; table-rule denial is `E_RULE` with family `rule`;
+a program execution never surfaces a raw SQL
 error except for I/O or corruption); bound overruns (`Steps`, `Fanout`,
 `TraceSubset`) are `Rejected` with the family `bound`. The state is a field on `Execution`, and the JSON the loop serves is
 the serde form of that field (LLP 1002 §4).
@@ -286,7 +287,7 @@ be projected into an actor-bearing slot. Likewise:
 The target table's `insert`/`update`/`delete` rules bind only non-engine
 writers — templates set them to `deny` — and the engine's aggregate writes
 are exempt from those rules and never from constraints or unique indexes.
-A user mutation writing a maintained target is `Rejected` by its rule.
+A user mutation writing a maintained target is `Rejected(E_RULE)` by its rule.
 
 Three rulings from the 2026-08-30 review (M3, M4, M8):
 
@@ -626,13 +627,15 @@ the ruling).
   tier0_authorization}.rs`. The latter is the single integration-test entry
   point for the independent modules under `tests/rbac_cases/`, avoiding three
   redundant test-binary links without combining their fixtures or cases.
-- The 76-case corpus is regenerated whenever current serialization or
+- The 92-case corpus is regenerated whenever current serialization or
   certification changes; the Rust engine and TypeScript evaluator must agree
-  on every case. The integrated 2026-08-30 regeneration removes authored
-  `input_visibility`, retains schema-scoped authority hashes and the current
-  growth/retention certificate, and adds no semantic case or outcome change.
-  Case inventory and outcomes, not obsolete IR bytes, are the frozen parity
-  surface.
+  on every case. The integrated 2026-08-30 regeneration preserves the original
+  76 semantic cases while removing authored `input_visibility`, retaining
+  schema-scoped authority hashes and the current growth/retention certificate,
+  and adding 16 RBAC cases for old/next updates, `Created`, final-exists,
+  intrinsic row ids, maintained writes, text constraints, and rule-memo
+  invalidation. Case inventory and outcomes, not obsolete IR bytes, are the
+  frozen parity surface.
 - Durability: rows, commits, outbox, and sessions survive `Store::open` on the
   same path.
 - Invalidation: a commit that touches a traced range prefix, point, absence,

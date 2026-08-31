@@ -653,32 +653,36 @@ class Client implements SnapbackClient {
     }
     if (!response.ok) {
       if (response.status >= 400 && response.status < 500) {
+        let refusal: SnapbackRefusal;
         try {
-          const refusal = await responseRefusal(response);
-          const wasCurrent = !enforceAuthority || this.authorityCurrent(authority);
-          let expiration: SessionExpiration | undefined;
-          if (clearTerminalSession && refusal.code === "E_AUTH_SESSION") {
-            expiration = await this.expireSession(authority);
-          }
-          if (enforceAuthority && (!wasCurrent
-            || (expiration !== undefined && !this.expirationCurrent(expiration)))) {
-            throw this.supersededRefusal();
-          }
-          if (enforceAuthority && !(clearTerminalSession && refusal.code === "E_AUTH_SESSION")) {
-            this.ensureAuthority(authority);
-          }
-          else this.ensureOpen();
-          this.patchSnapshot({ connection: "connected" });
-          this.recordRefusal(refusal.envelope);
-          throw refusal;
+          refusal = await responseRefusal(response);
         } catch (error) {
           if (isSnapbackRefusal(error)) {
+            if (enforceAuthority) this.ensureAuthority(authority);
+            else this.ensureOpen();
             if (error.retryable) {
               this.patchSnapshot({ connection: this.transportFailureState(), lastRefusal: error.envelope });
             }
             throw error;
           }
+          throw error;
         }
+        const wasCurrent = !enforceAuthority || this.authorityCurrent(authority);
+        let expiration: SessionExpiration | undefined;
+        if (clearTerminalSession && refusal.code === "E_AUTH_SESSION") {
+          expiration = await this.expireSession(authority);
+        }
+        if (enforceAuthority && (!wasCurrent
+          || (expiration !== undefined && !this.expirationCurrent(expiration)))) {
+          throw this.supersededRefusal();
+        }
+        if (enforceAuthority && !(clearTerminalSession && refusal.code === "E_AUTH_SESSION")) {
+          this.ensureAuthority(authority);
+        }
+        else this.ensureOpen();
+        this.patchSnapshot({ connection: "connected" });
+        this.recordRefusal(refusal.envelope);
+        throw refusal;
       }
       if (enforceAuthority) this.ensureAuthority(authority);
       else this.ensureOpen();
@@ -693,6 +697,8 @@ class Client implements SnapbackClient {
     try {
       value = await response.json();
     } catch {
+      if (enforceAuthority) this.ensureAuthority(authority);
+      else this.ensureOpen();
       const refusal = wireShape(`${path} must contain valid JSON`);
       this.recordRefusal(refusal.envelope);
       throw refusal;

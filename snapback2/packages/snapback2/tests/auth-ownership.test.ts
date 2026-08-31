@@ -39,6 +39,31 @@ function json(value: unknown, status = 200): Response {
   });
 }
 
+interface DelayedJsonResponse {
+  response: Response;
+  started: Promise<void>;
+  resolve(value: unknown): void;
+  reject(error: unknown): void;
+}
+
+function delayedJson(status = 200): DelayedJsonResponse {
+  const body = deferred<unknown>();
+  const started = deferred<void>();
+  return {
+    response: {
+      ok: status >= 200 && status < 300,
+      status,
+      json: async () => {
+        started.resolve();
+        return body.promise;
+      },
+    } as Response,
+    started: started.promise,
+    resolve: body.resolve,
+    reject: body.reject,
+  };
+}
+
 function refusal(code: string, message = code): Record<string, string> {
   return { code, family: "auth", message, guide: "auth/session" };
 }
@@ -354,6 +379,69 @@ test("principal replacement fences streams, suppresses delayed old reads, and wa
   querySubscription.close();
   channelSubscription.close();
   value.close();
+});
+
+test("delayed malformed response bodies cannot overwrite newer auth custody", async () => {
+  const cases = [
+    { name: "malformed 2xx", status: 200, settle: (gate: DelayedJsonResponse) => gate.reject(new SyntaxError("bad json")) },
+    { name: "malformed 4xx", status: 401, settle: (gate: DelayedJsonResponse) => gate.reject(new SyntaxError("bad json")) },
+    { name: "non-envelope 4xx", status: 401, settle: (gate: DelayedJsonResponse) => gate.resolve({ nope: true }) },
+  ];
+  for (const transition of ["login", "logout"] as const) {
+    for (const scenario of cases) {
+      const gate = delayedJson(scenario.status);
+      const value = createClient({
+        url: "http://auth.test",
+        token: "old-token",
+        fetch: async (input) => {
+          const requestPath = pathOf(input);
+          if (requestPath === "/api/query") return gate.response;
+          if (requestPath === "/api/auth/login") {
+            return json({ token: "new-token", viewer: "principal-new" });
+          }
+          if (requestPath === "/api/auth/logout") return json({ ok: true });
+          throw new Error(`unexpected path ${requestPath}`);
+        },
+      });
+      await value.ready;
+      const query = value.query(api.messages.thread, {});
+      await gate.started;
+      if (transition === "login") {
+        await value.auth.login({ email: "new@example.com", password: "password" });
+      } else {
+        await value.auth.logout();
+      }
+      scenario.settle(gate);
+      await assert.rejects(query, isCode("E_AUTH_SUPERSEDED"), `${transition}: ${scenario.name}`);
+      assert.equal(value.snapshot.token, transition === "login" ? "new-token" : undefined, scenario.name);
+      assert.equal(value.snapshot.connection, "connected", scenario.name);
+      assert.equal(value.snapshot.lastRefusal, undefined, scenario.name);
+      value.close();
+    }
+  }
+});
+
+test("delayed malformed response bodies cannot mutate a closed client", async () => {
+  const cases = [
+    { name: "malformed 2xx", status: 200, settle: (gate: DelayedJsonResponse) => gate.reject(new SyntaxError("bad json")) },
+    { name: "malformed 4xx", status: 401, settle: (gate: DelayedJsonResponse) => gate.reject(new SyntaxError("bad json")) },
+    { name: "non-envelope 4xx", status: 401, settle: (gate: DelayedJsonResponse) => gate.resolve({ nope: true }) },
+  ];
+  for (const scenario of cases) {
+    const gate = delayedJson(scenario.status);
+    const value = createClient({
+      url: "http://auth.test",
+      fetch: async () => gate.response,
+    });
+    await value.ready;
+    const query = value.query(api.messages.thread, {});
+    await gate.started;
+    value.close();
+    scenario.settle(gate);
+    await assert.rejects(query, isCode("E_AUTH_SUPERSEDED"), scenario.name);
+    assert.equal(value.snapshot.connection, "offline", scenario.name);
+    assert.equal(value.snapshot.lastRefusal, undefined, scenario.name);
+  }
 });
 
 test("auth transitions serialize and already-dispatched writes settle before replacement", async () => {

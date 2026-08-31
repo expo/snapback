@@ -580,7 +580,7 @@ fn rule_denied_then_settles_sent_with_the_rejection_visible_in_trace() {
     assert!(
         trace.body["outbox"]["rows"][0]["lastError"]
             .as_str()
-            .is_some_and(|error| error.contains("rule")),
+            .is_some_and(|error| error.starts_with("E_RULE:")),
         "{}",
         trace.body
     );

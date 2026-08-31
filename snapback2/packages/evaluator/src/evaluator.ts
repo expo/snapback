@@ -1,3 +1,6 @@
+import { sha256 } from "./sha256";
+export { sha256 } from "./sha256";
+
 export type Value =
   | "Null"
   | { Bool: boolean }
@@ -151,7 +154,16 @@ export class ClientStore {
 
   applyMutation(program: any, context: Context): LocalExecution {
     const before = this.allIds();
-    const execution = new Runner(this, this.schema, context).execute(program);
+    const snapshot = this.snapshotTables();
+    let execution: Execution;
+    try {
+      execution = new Runner(this, this.schema, context).execute(program);
+    } catch (error) {
+      // @ref LLP 1001#3-read-and-write-states-no-silent-states — local prediction has the same
+      // all-or-nothing mutation boundary as the authoritative transaction.
+      this.tables = snapshot;
+      throw error;
+    }
     const after = this.allIds();
     for (const removed of before) {
       if (after.has(removed)) continue;
@@ -313,6 +325,15 @@ export class ClientStore {
     return ids;
   }
 
+  private snapshotTables(): Map<string, Map<string, Value>> {
+    return new Map(
+      Array.from(this.tables, ([table, rows]) => [
+        table,
+        new Map(Array.from(rows, ([id, row]) => [id, clone(row)])),
+      ]),
+    );
+  }
+
   private index(table: string, indexName: string): any {
     const index = this.schema.tables?.[table]?.indexes?.[indexName];
     if (index === undefined) throw new EvalError("E_SCHEMA", `missing index ${table}.${indexName}`);
@@ -326,6 +347,14 @@ class Runner {
   private readonly context: Context;
   private readonly trace: Trace = { ranges: [], absences: [] };
   private readonly ruleMemo = new Map<string, boolean>();
+  private readonly createdRows = new Set<string>();
+  private readonly insertedRows: Array<{ table: string; row: Value }> = [];
+  private createdPoints: Array<{
+    table: string;
+    index: string;
+    key: string;
+    rowId: string;
+  }> = [];
 
   constructor(
     private readonly store: ClientStore,
@@ -340,6 +369,7 @@ class Runner {
 
   execute(program: any): Execution {
     const flow = this.statements(program.body);
+    this.checkFinalConstraints();
     return {
       result: flow.kind === "return" ? flow.value : "Null",
       trace: this.trace,
@@ -399,6 +429,7 @@ class Runner {
         case "Upsert": {
           const key = this.expr(data.key);
           const row = this.expr(data.row);
+          this.validateAddressedRowId(data.table, key, row);
           if (this.store.byId(data.table, asString(key)) === null) this.insert(data.table, row);
           else this.replace(data.table, key, row);
           break;
@@ -705,7 +736,7 @@ class Runner {
       });
       return "Null";
     }
-    return this.checkRule(read.table, "read", found) ? clone(found) : "Null";
+    return this.checkRule(read.table, "read", null, found) ? clone(found) : "Null";
   }
 
   private scan(scan: any): Value {
@@ -731,7 +762,9 @@ class Runner {
       take + 2,
     );
     const stop = examined.length > take ? "limit" : "exhausted";
-    const visible = examined.filter((row) => this.checkRule(scan.table, "read", row));
+    const visible = examined.filter((row) =>
+      this.checkRule(scan.table, "read", null, row)
+    );
     this.trace.ranges.push({ site: scan.site, prefix, stop });
     return { Array: visible.slice(0, take).map(clone) };
   }
@@ -746,11 +779,15 @@ class Runner {
   }
 
   private insert(table: string, row: Value): void {
-    if (!this.checkRule(table, "insert", row)) throw new EvalError("E_RULE", `${table} insert`);
+    if (!this.checkRule(table, "insert", null, row))
+      throw new EvalError("E_RULE", `${table} insert`);
     this.checkConstraints(table, null, row, "insert");
     if (this.store.byId(table, asString(field(row, "id"))) !== null)
       throw new EvalError("E_CONSTRAINT", `duplicate id on ${table}`);
     this.store.put(table, row);
+    this.rememberCreatedRow(table, row);
+    this.insertedRows.push({ table, row: clone(row) });
+    this.ruleMemo.clear();
     this.maintain(table, null, row);
   }
 
@@ -764,19 +801,27 @@ class Runner {
   private replace(table: string, key: Value, row: Value): void {
     const old = this.store.byId(table, asString(key));
     if (old === null) throw new EvalError("E_INPUT", `missing ${table} row`);
-    if (!this.checkRule(table, "update", old) || !this.checkRule(table, "update", row))
+    this.validateAddressedRowId(table, key, row);
+    // @ref LLP 1001#9-schema-additions — update authority is one relation
+    // evaluated once over the old and next row images.
+    if (!this.checkRule(table, "update", old, row))
       throw new EvalError("E_RULE", `${table} update`);
     this.checkConstraints(table, old, row, "update");
     this.store.put(table, row);
+    this.refreshCreatedPoints(table, row);
+    this.ruleMemo.clear();
     this.maintain(table, old, row);
   }
 
   private delete(table: string, id: string): void {
     const old = this.store.byId(table, id);
     if (old === null) return;
-    if (!this.checkRule(table, "delete", old)) throw new EvalError("E_RULE", `${table} delete`);
+    if (!this.checkRule(table, "delete", null, old))
+      throw new EvalError("E_RULE", `${table} delete`);
     this.checkConstraints(table, old, old, "delete");
     this.store.remove(table, id);
+    this.forgetCreatedPoints(table, id);
+    this.ruleMemo.clear();
     this.maintain(table, old, null);
   }
 
@@ -805,10 +850,55 @@ class Runner {
     });
     const row = rowValue(object);
     const effect = existing === null ? "insert" : "update";
-    if (!this.checkRule(maintain.target, effect, row))
-      throw new EvalError("E_RULE", `${maintain.target} aggregate`);
+    // Maintained targets are engine-owned. They bypass authored write rules
+    // while retaining the same constraints and created-row provenance as Rust.
     this.checkConstraints(maintain.target, existing, row, effect);
     this.store.put(maintain.target, row);
+    if (existing === null) {
+      this.rememberCreatedRow(maintain.target, row);
+      this.insertedRows.push({ table: maintain.target, row: clone(row) });
+    } else this.refreshCreatedPoints(maintain.target, row);
+    this.ruleMemo.clear();
+  }
+
+  private validateAddressedRowId(table: string, key: Value, row: Value): void {
+    const addressed = asString(key);
+    const rowId = asString(field(row, "id"));
+    if (addressed !== rowId)
+      throw new EvalError(
+        "E_INPUT",
+        `${table} row id ${JSON.stringify(rowId)} does not match addressed key ${JSON.stringify(addressed)}`,
+      );
+  }
+
+  private rememberCreatedRow(table: string, row: Value): void {
+    const id = asString(field(row, "id"));
+    this.createdRows.add(`${table}\0${id}`);
+    this.refreshCreatedPoints(table, row);
+  }
+
+  private refreshCreatedPoints(table: string, row: Value): void {
+    const rowId = asString(field(row, "id"));
+    if (!this.createdRows.has(`${table}\0${rowId}`)) return;
+    this.forgetCreatedPoints(table, rowId);
+    for (const [index, definition] of Object.entries<any>(
+      this.schema.tables[table]?.indexes ?? {},
+    )) {
+      this.createdPoints.push({
+        table,
+        index,
+        key: canonicalValues(
+          definition.columns.map((column: string) => fieldOrNull(row, column)),
+        ),
+        rowId,
+      });
+    }
+  }
+
+  private forgetCreatedPoints(table: string, rowId: string): void {
+    this.createdPoints = this.createdPoints.filter(
+      (point) => point.table !== table || point.rowId !== rowId,
+    );
   }
 
   private checkConstraints(
@@ -843,9 +933,45 @@ class Runner {
         )
           throw new EvalError("E_CONSTRAINT", `${tableName} cap reached`);
       }
+      if (kind === "Text" && (effect === "insert" || effect === "update")) {
+        const value = asObject(row)[data.field];
+        if (value !== undefined && value !== "Null") {
+          const text = asString(value);
+          if (Array.from(text).length < (data.min ?? 0))
+            throw new EvalError(
+              "E_CONSTRAINT",
+              `${tableName}.${data.field} must contain at least ${data.min ?? 0} characters`,
+            );
+          const valid =
+            data.format === undefined ||
+            data.format === null ||
+            (data.format === "handle" && /^[a-z0-9_]*$/.test(text)) ||
+            (data.format === "url" && validHttpUrl(text));
+          if (!valid)
+            throw new EvalError(
+              "E_CONSTRAINT",
+              `${tableName}.${data.field} has invalid ${String(data.format)} format`,
+            );
+        }
+      }
     }
     for (const [indexName, index] of Object.entries<any>(table.indexes)) {
       if (index.unique) this.checkUnique(tableName, indexName, old, row);
+    }
+  }
+
+  private checkFinalConstraints(): void {
+    for (const { table: sourceTable, row } of this.insertedRows) {
+      for (const constraint of this.schema.tables[sourceTable]?.constraints ?? []) {
+        const [kind, data] = variant(constraint);
+        if (kind !== "FinalExistsOnInsert") continue;
+        const key = data.key.map((term: any) => this.ruleTerm(term, null, row));
+        if (this.store.lookup(data.table, data.index, key) === null)
+          throw new EvalError(
+            "E_CONSTRAINT",
+            `${sourceTable} insert requires final row at ${data.table}.${data.index}`,
+          );
+      }
     }
   }
 
@@ -863,13 +989,26 @@ class Runner {
   private checkRule(
     table: string,
     effect: "read" | "insert" | "update" | "delete",
-    row: Value,
+    old: Value | null,
+    next: Value,
   ): boolean {
     const rule = this.schema.tables[table].rules[effect];
-    return this.evaluateRule(rule, scopedRuleHash(this.schema, rule), row);
+    return this.evaluateRule(
+      rule,
+      scopedRuleHash(this.schema, rule),
+      old,
+      next,
+      effect === "insert",
+    );
   }
 
-  private evaluateRule(rule: any, ruleHash: string, row: Value): boolean {
+  private evaluateRule(
+    rule: any,
+    ruleHash: string,
+    old: Value | null,
+    next: Value,
+    createdAllowed: boolean,
+  ): boolean {
     const [kind, data] = variant(rule);
     switch (kind) {
       case "Public":
@@ -878,17 +1017,21 @@ class Runner {
       case "Deny":
         return false;
       case "Eq":
-        return canonicalValue(this.ruleTerm(data[0], row)) === canonicalValue(this.ruleTerm(data[1], row));
+        return canonicalValue(this.ruleTerm(data[0], old, next)) === canonicalValue(this.ruleTerm(data[1], old, next));
       case "Ne":
-        return canonicalValue(this.ruleTerm(data[0], row)) !== canonicalValue(this.ruleTerm(data[1], row));
+        return canonicalValue(this.ruleTerm(data[0], old, next)) !== canonicalValue(this.ruleTerm(data[1], old, next));
       case "And":
-        return data.every((child: any) => this.evaluateRule(child, ruleHash, row));
+        return data.every((child: any) =>
+          this.evaluateRule(child, ruleHash, old, next, createdAllowed)
+        );
       case "Or":
-        return data.some((child: any) => this.evaluateRule(child, ruleHash, row));
+        return data.some((child: any) =>
+          this.evaluateRule(child, ruleHash, old, next, createdAllowed)
+        );
       case "Not":
-        return !this.evaluateRule(data, ruleHash, row);
+        return !this.evaluateRule(data, ruleHash, old, next, createdAllowed);
       case "Exists": {
-        const key = data.key.map((term: any) => this.ruleTerm(term, row));
+        const key = data.key.map((term: any) => this.ruleTerm(term, old, next));
         const pinnedDigest = sha256(JSON.stringify([data.table, data.index, key]));
         const memoKey = `${ruleHash}:${pinnedDigest}`;
         const memoized = this.ruleMemo.get(memoKey);
@@ -906,6 +1049,21 @@ class Runner {
         this.ruleMemo.set(memoKey, result);
         return result;
       }
+      case "Created": {
+        if (!createdAllowed)
+          throw new EvalError(
+            "E_SCHEMA",
+            "created-row probe evaluated outside a table insert rule",
+          );
+        const key = data.key.map((term: any) => this.ruleTerm(term, old, next));
+        const encoded = canonicalValues(key);
+        return this.createdPoints.some(
+          (point) =>
+            point.table === data.table &&
+            point.index === data.index &&
+            point.key === encoded,
+        );
+      }
       default:
         throw new EvalError("E_OPAQUE", `unsupported rule ${kind}`);
     }
@@ -921,22 +1079,32 @@ class Runner {
       if (kind === "Eq") {
         const left = substituteRuleTerm(data[0], index.columns, probe.key);
         const right = substituteRuleTerm(data[1], index.columns, probe.key);
-        return left !== null && right !== null && JSON.stringify(left) === JSON.stringify(right);
+        return left !== null && right !== null && canonicalJson(left) === canonicalJson(right);
       }
       if (kind === "And") return data.length > 0 && data.every(prove);
       if (kind === "Or") return data.some(prove);
       if (kind === "Exists" && data.table === probe.table && data.index === probe.index) {
         const key = data.key.map((term: any) => substituteRuleTerm(term, index.columns, probe.key));
-        return key.every((term: any) => term !== null) && JSON.stringify(key) === JSON.stringify(probe.key);
+        return key.every((term: any) => term !== null) && canonicalJson(key) === canonicalJson(probe.key);
       }
       return false;
     };
     return prove(table.rules.read);
   }
 
-  private ruleTerm(term: any, row: Value): Value {
+  private ruleTerm(term: any, old: Value | null, next: Value): Value {
     const [kind, data] = variant(term);
-    if (kind === "Field") return clone(field(row, data));
+    if (kind === "Field") return clone(field(next, data));
+    if (kind === "NextField") {
+      if (old === null)
+        throw new EvalError("E_SCHEMA", "next-row rule term evaluated outside an update rule");
+      return clone(field(next, data));
+    }
+    if (kind === "OldField") {
+      if (old === null)
+        throw new EvalError("E_SCHEMA", "old-row rule term evaluated outside an update rule");
+      return clone(field(old, data));
+    }
     if (kind === "Viewer") return { Id: this.context.viewer };
     if (kind === "Literal") return clone(data);
     throw new EvalError("E_OPAQUE", `unsupported rule term ${kind}`);
@@ -951,6 +1119,7 @@ class Runner {
 
 function substituteRuleTerm(term: any, columns: string[], probeKey: any[]): any | null {
   const [kind, data] = variant(term);
+  if (kind === "OldField" || kind === "NextField") return null;
   if (kind !== "Field") return clone(term);
   const position = columns.indexOf(data);
   return position < 0 || position >= probeKey.length ? null : clone(probeKey[position]);
@@ -1215,6 +1384,26 @@ function startsWith<T>(values: T[], prefix: T[]): boolean {
   return prefix.every((value, index) => values[index] === value);
 }
 
+function validHttpUrl(value: string): boolean {
+  const rest = value.startsWith("https://")
+    ? value.slice("https://".length)
+    : value.startsWith("http://")
+      ? value.slice("http://".length)
+      : "";
+  return rest.length > 0 && !/[\p{White_Space}\p{Cc}]/u.test(rest);
+}
+
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  if (value !== null && typeof value === "object") {
+    return `{${Object.keys(value)
+      .sort(compareCodepoints)
+      .map((key) => `${JSON.stringify(key)}:${canonicalJson((value as any)[key])}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
 function clone<T>(value: T): T {
   if (value === null || value === undefined) return value;
   return JSON.parse(JSON.stringify(value));
@@ -1229,101 +1418,3 @@ function sortObject<T>(value: Record<string, T>): Record<string, T> {
 function isWordCharacter(character: string): boolean {
   return character === "_" || /[\p{L}\p{N}]/u.test(character);
 }
-
-export function sha256(text: string): string {
-  const bytes = utf8(text);
-  const bitLength = bytes.length * 8;
-  bytes.push(0x80);
-  while (bytes.length % 64 !== 56) bytes.push(0);
-  const high = Math.floor(bitLength / 0x1_0000_0000);
-  const low = bitLength >>> 0;
-  for (let shift = 24; shift >= 0; shift -= 8) bytes.push((high >>> shift) & 0xff);
-  for (let shift = 24; shift >= 0; shift -= 8) bytes.push((low >>> shift) & 0xff);
-
-  const state = [
-    0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c,
-    0x1f83d9ab, 0x5be0cd19,
-  ];
-  const words = new Array<number>(64);
-  for (let offset = 0; offset < bytes.length; offset += 64) {
-    for (let index = 0; index < 16; index += 1) {
-      const start = offset + index * 4;
-      words[index] =
-        ((bytes[start] << 24) |
-          (bytes[start + 1] << 16) |
-          (bytes[start + 2] << 8) |
-          bytes[start + 3]) >>>
-        0;
-    }
-    for (let index = 16; index < 64; index += 1) {
-      const a = words[index - 15];
-      const b = words[index - 2];
-      const s0 = rotate(a, 7) ^ rotate(a, 18) ^ (a >>> 3);
-      const s1 = rotate(b, 17) ^ rotate(b, 19) ^ (b >>> 10);
-      words[index] = (words[index - 16] + s0 + words[index - 7] + s1) >>> 0;
-    }
-    let [a, b, c, d, e, f, g, h] = state;
-    for (let index = 0; index < 64; index += 1) {
-      const s1 = rotate(e, 6) ^ rotate(e, 11) ^ rotate(e, 25);
-      const choice = (e & f) ^ (~e & g);
-      const temp1 = (h + s1 + choice + SHA256_K[index] + words[index]) >>> 0;
-      const s0 = rotate(a, 2) ^ rotate(a, 13) ^ rotate(a, 22);
-      const majority = (a & b) ^ (a & c) ^ (b & c);
-      const temp2 = (s0 + majority) >>> 0;
-      h = g;
-      g = f;
-      f = e;
-      e = (d + temp1) >>> 0;
-      d = c;
-      c = b;
-      b = a;
-      a = (temp1 + temp2) >>> 0;
-    }
-    state[0] = (state[0] + a) >>> 0;
-    state[1] = (state[1] + b) >>> 0;
-    state[2] = (state[2] + c) >>> 0;
-    state[3] = (state[3] + d) >>> 0;
-    state[4] = (state[4] + e) >>> 0;
-    state[5] = (state[5] + f) >>> 0;
-    state[6] = (state[6] + g) >>> 0;
-    state[7] = (state[7] + h) >>> 0;
-  }
-  return state.map((value) => value.toString(16).padStart(8, "0")).join("");
-}
-
-function rotate(value: number, bits: number): number {
-  return (value >>> bits) | (value << (32 - bits));
-}
-
-function utf8(text: string): number[] {
-  const bytes: number[] = [];
-  for (const character of text) {
-    const point = character.codePointAt(0)!;
-    if (point <= 0x7f) bytes.push(point);
-    else if (point <= 0x7ff) bytes.push(0xc0 | (point >> 6), 0x80 | (point & 0x3f));
-    else if (point <= 0xffff)
-      bytes.push(0xe0 | (point >> 12), 0x80 | ((point >> 6) & 0x3f), 0x80 | (point & 0x3f));
-    else
-      bytes.push(
-        0xf0 | (point >> 18),
-        0x80 | ((point >> 12) & 0x3f),
-        0x80 | ((point >> 6) & 0x3f),
-        0x80 | (point & 0x3f),
-      );
-  }
-  return bytes;
-}
-
-const SHA256_K = [
-  0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1,
-  0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
-  0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786,
-  0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
-  0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147,
-  0x06ca6351, 0x14292967, 0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13,
-  0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85, 0xa2bfe8a1, 0xa81a664b,
-  0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
-  0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a,
-  0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
-  0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
-];

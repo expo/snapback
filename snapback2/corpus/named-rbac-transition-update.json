@@ -1,0 +1,246 @@
+{
+  "corpusVersion": 1,
+  "name": "named-rbac-transition-update",
+  "category": "named",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "groups": {
+        "columns": {
+          "creator": "Principal",
+          "id": "Id"
+        },
+        "indexes": {
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "frozen RBAC twin fixture"
+            }
+          },
+          "insert": "Allow",
+          "update": "Deny",
+          "delete": "Deny"
+        },
+        "constraints": [
+          {
+            "FinalExistsOnInsert": {
+              "table": "memberships",
+              "index": "byGroupPrincipalRole",
+              "key": [
+                {
+                  "Field": "id"
+                },
+                {
+                  "Field": "creator"
+                },
+                {
+                  "Literal": {
+                    "String": "admin"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "memberships": {
+        "columns": {
+          "group": "Id",
+          "id": "Id",
+          "principal": "Principal",
+          "role": {
+            "Text": {
+              "max": 16
+            }
+          }
+        },
+        "indexes": {
+          "byGroupPrincipalRole": {
+            "columns": [
+              "group",
+              "principal",
+              "role"
+            ],
+            "unique": true
+          },
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "frozen RBAC twin fixture"
+            }
+          },
+          "insert": {
+            "Created": {
+              "table": "groups",
+              "index": "byId",
+              "key": [
+                {
+                  "Field": "group"
+                }
+              ],
+              "provenance": "Shape"
+            }
+          },
+          "update": {
+            "And": [
+              {
+                "Eq": [
+                  {
+                    "OldField": "role"
+                  },
+                  {
+                    "Literal": {
+                      "String": "member"
+                    }
+                  }
+                ]
+              },
+              {
+                "Eq": [
+                  {
+                    "NextField": "role"
+                  },
+                  {
+                    "Literal": {
+                      "String": "admin"
+                    }
+                  }
+                ]
+              },
+              {
+                "Eq": [
+                  {
+                    "OldField": "group"
+                  },
+                  {
+                    "NextField": "group"
+                  }
+                ]
+              },
+              {
+                "Eq": [
+                  {
+                    "OldField": "principal"
+                  },
+                  {
+                    "NextField": "principal"
+                  }
+                ]
+              },
+              {
+                "Eq": [
+                  {
+                    "OldField": "principal"
+                  },
+                  "Viewer"
+                ]
+              }
+            ]
+          },
+          "delete": "Allow"
+        },
+        "constraints": []
+      }
+    },
+    "maintains": []
+  },
+  "program": {
+    "name": "memberships.promote",
+    "kind": "Mutation",
+    "args": {},
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Update": {
+          "table": "memberships",
+          "key": {
+            "Literal": {
+              "Id": "seat-1"
+            }
+          },
+          "patch": {
+            "Object": {
+              "role": {
+                "Literal": {
+                  "String": "admin"
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "Return": {
+          "Literal": {
+            "Bool": true
+          }
+        }
+      }
+    ]
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {},
+    "now": 0,
+    "new_ids": [],
+    "read_time": null,
+    "seed_write": false
+  },
+  "receipt": {
+    "rows": [
+      {
+        "table": "memberships",
+        "id": "seat-1",
+        "row": {
+          "Row": {
+            "group": {
+              "Id": "group-1"
+            },
+            "id": {
+              "Id": "seat-1"
+            },
+            "principal": {
+              "Id": "u1"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      }
+    ],
+    "ranges": [],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": {
+      "Bool": true
+    },
+    "errorCode": null,
+    "localState": "predicted",
+    "partialSites": [],
+    "canonicalResult": "{\"Bool\":true}",
+    "digest": "8440db0feac5c4e635c562902bcab7b782934db1d6947f41a1d928b16b8153a0",
+    "rangeStops": {},
+    "evictedRows": null
+  }
+}

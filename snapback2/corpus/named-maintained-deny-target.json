@@ -1,0 +1,130 @@
+{
+  "corpusVersion": 1,
+  "name": "named-maintained-deny-target",
+  "category": "named",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "counts": {
+        "columns": {
+          "bucket": "Id",
+          "id": "Id",
+          "value": "Int"
+        },
+        "indexes": {
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": "Deny",
+          "insert": "Deny",
+          "update": "Deny",
+          "delete": "Deny"
+        },
+        "constraints": []
+      },
+      "events": {
+        "columns": {
+          "bucket": "Id",
+          "id": "Id"
+        },
+        "indexes": {
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "frozen evaluator constraint fixture"
+            }
+          },
+          "insert": "Allow",
+          "update": "Allow",
+          "delete": "Allow"
+        },
+        "constraints": []
+      }
+    },
+    "maintains": [
+      {
+        "kind": "Count",
+        "source": "events",
+        "by": [
+          "bucket"
+        ],
+        "target": "counts",
+        "readable": null
+      }
+    ]
+  },
+  "program": {
+    "name": "events.record",
+    "kind": "Mutation",
+    "args": {},
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Insert": {
+          "table": "events",
+          "row": {
+            "Literal": {
+              "Row": {
+                "bucket": {
+                  "Id": "bucket-1"
+                },
+                "id": {
+                  "Id": "event-1"
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "Return": {
+          "Literal": {
+            "Bool": true
+          }
+        }
+      }
+    ]
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {},
+    "now": 0,
+    "new_ids": [],
+    "read_time": null,
+    "seed_write": false
+  },
+  "receipt": {
+    "rows": [],
+    "ranges": [],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": {
+      "Bool": true
+    },
+    "errorCode": null,
+    "localState": "predicted",
+    "partialSites": [],
+    "canonicalResult": "{\"Bool\":true}",
+    "digest": "8440db0feac5c4e635c562902bcab7b782934db1d6947f41a1d928b16b8153a0",
+    "rangeStops": {},
+    "evictedRows": null
+  }
+}

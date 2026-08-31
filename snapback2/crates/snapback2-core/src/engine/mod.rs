@@ -930,7 +930,9 @@ pub(crate) fn is_sqlite_constraint(error: &RuntimeError) -> bool {
 pub(crate) fn mutation_rejection_code(error: &RuntimeError) -> Option<&str> {
     match error {
         RuntimeError::Require { code } => Some(code),
-        RuntimeError::Rule { .. } => Some("rule"),
+        // @ref LLP 1001#3-read-and-write-states-no-silent-states — a table-rule
+        // rejection keeps the same stable code in engine state and on the wire.
+        RuntimeError::Rule { .. } => Some("E_RULE"),
         RuntimeError::Constraint(_) => Some("E_CONSTRAINT"),
         error if is_sqlite_constraint(error) => Some("E_CONSTRAINT"),
         RuntimeError::Input(_) => Some("E_INPUT"),

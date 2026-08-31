@@ -130,10 +130,13 @@ mod tests {
     #[test]
     fn rejected_mutations_and_channel_refusals_carry_complete_envelopes() {
         let rejected = execution_json(&execution(ExecutionState::Rejected {
-            code: "E_REQUIRE:DENIED".to_owned(),
+            code: "E_RULE".to_owned(),
             message: "denied".to_owned(),
         }));
         assert_eq!(rejected["state"], "rejected");
+        assert_eq!(rejected["code"], "E_RULE");
+        assert_eq!(rejected["family"], "rule");
+        assert_eq!(rejected["guide"], "rule/runtime");
         for field in ["code", "family", "message", "guide"] {
             assert!(
                 rejected[field]

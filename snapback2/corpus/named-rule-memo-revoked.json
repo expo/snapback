@@ -1,0 +1,210 @@
+{
+  "corpusVersion": 1,
+  "name": "named-rule-memo-revoked",
+  "category": "named",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "actions": {
+        "columns": {
+          "id": "Id"
+        },
+        "indexes": {
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "frozen evaluator constraint fixture"
+            }
+          },
+          "insert": {
+            "Exists": {
+              "table": "grants",
+              "index": "byPrincipal",
+              "key": [
+                "Viewer"
+              ],
+              "provenance": "Viewer"
+            }
+          },
+          "update": "Deny",
+          "delete": "Deny"
+        },
+        "constraints": []
+      },
+      "docs": {
+        "columns": {
+          "id": "Id"
+        },
+        "indexes": {
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Exists": {
+              "table": "grants",
+              "index": "byPrincipal",
+              "key": [
+                "Viewer"
+              ],
+              "provenance": "Viewer"
+            }
+          },
+          "insert": "Deny",
+          "update": "Deny",
+          "delete": "Deny"
+        },
+        "constraints": []
+      },
+      "grants": {
+        "columns": {
+          "id": "Id",
+          "principal": "Principal"
+        },
+        "indexes": {
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          },
+          "byPrincipal": {
+            "columns": [
+              "principal"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "frozen evaluator constraint fixture"
+            }
+          },
+          "insert": "Allow",
+          "update": "Allow",
+          "delete": "Allow"
+        },
+        "constraints": []
+      }
+    },
+    "maintains": []
+  },
+  "program": {
+    "name": "actions.afterRevoke",
+    "kind": "Mutation",
+    "args": {},
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Let": {
+          "name": "probe",
+          "value": {
+            "Get": {
+              "site": "memo.doc",
+              "table": "docs",
+              "index": "byId",
+              "key": [
+                {
+                  "Literal": {
+                    "Id": "doc-1"
+                  }
+                }
+              ],
+              "provenance": "Const"
+            }
+          }
+        }
+      },
+      {
+        "Delete": {
+          "table": "grants",
+          "key": {
+            "Literal": {
+              "Id": "grant-1"
+            }
+          }
+        }
+      },
+      {
+        "Insert": {
+          "table": "actions",
+          "row": {
+            "Literal": {
+              "Row": {
+                "id": {
+                  "Id": "action-1"
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {},
+    "now": 0,
+    "new_ids": [],
+    "read_time": null,
+    "seed_write": false
+  },
+  "receipt": {
+    "rows": [
+      {
+        "table": "docs",
+        "id": "doc-1",
+        "row": {
+          "Row": {
+            "id": {
+              "Id": "doc-1"
+            }
+          }
+        }
+      },
+      {
+        "table": "grants",
+        "id": "grant-1",
+        "row": {
+          "Row": {
+            "id": {
+              "Id": "grant-1"
+            },
+            "principal": {
+              "Id": "u1"
+            }
+          }
+        }
+      }
+    ],
+    "ranges": [],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": null,
+    "errorCode": "E_RULE",
+    "localState": "refused",
+    "partialSites": [],
+    "canonicalResult": "{\"Error\":\"E_RULE\"}",
+    "digest": "019eaa556d3ef2f0587cf87e1dedfda30eb15ce4ff6e493b29b4abc41710e85c",
+    "rangeStops": {},
+    "evictedRows": null
+  }
+}

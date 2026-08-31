@@ -425,7 +425,7 @@ fn update_policy_relates_old_and_next_once_and_blocks_self_promotion_and_scope_m
             mutation("bob", [("id", id("bob-a"))]),
         )
         .unwrap();
-    assert_rejected(&self_promotion, "rule");
+    assert_rejected(&self_promotion, "E_RULE");
     assert_eq!(
         get(&mut runtime, "memberships.get", "alice", "bob-a")
             .field("role")
@@ -454,7 +454,7 @@ fn update_policy_relates_old_and_next_once_and_blocks_self_promotion_and_scope_m
             mutation("alice", [("id", id("bob-a"))]),
         )
         .unwrap();
-    assert_rejected(&repeated, "rule");
+    assert_rejected(&repeated, "E_RULE");
 
     add_member(&mut runtime, "alice", "carol-a", "group-a", "carol");
     let cross_scope = runtime
@@ -463,7 +463,7 @@ fn update_policy_relates_old_and_next_once_and_blocks_self_promotion_and_scope_m
             mutation("alice", [("id", id("carol-a")), ("group", id("group-b"))]),
         )
         .unwrap();
-    assert_rejected(&cross_scope, "rule");
+    assert_rejected(&cross_scope, "E_RULE");
     let carol = get(&mut runtime, "memberships.get", "alice", "carol-a");
     assert_eq!(carol.field("group").unwrap(), &id("group-a"));
     assert_eq!(
@@ -522,7 +522,7 @@ fn bootstrap_requires_created_scope_and_final_creator_seat_without_half_commits(
             ),
         )
         .unwrap();
-    assert_rejected(&old_scope, "rule");
+    assert_rejected(&old_scope, "E_RULE");
     assert_eq!(
         get(&mut runtime, "memberships.get", "alice", "outsider-seat",),
         Value::Null
@@ -544,7 +544,7 @@ fn bootstrap_requires_created_scope_and_final_creator_seat_without_half_commits(
             ),
         )
         .unwrap();
-    assert_rejected(&reseat, "rule");
+    assert_rejected(&reseat, "E_RULE");
     assert_eq!(
         get(&mut runtime, "memberships.get", "alice", "alice-reseat",),
         Value::Null

@@ -1221,7 +1221,7 @@ fn maintained_target_rules_reject_users_but_not_engine_aggregate_writes() {
             .unwrap();
         assert!(matches!(
             user_write.state,
-            ExecutionState::Rejected { ref code, .. } if code == "rule"
+            ExecutionState::Rejected { ref code, .. } if code == "E_RULE"
         ));
     }
     let aggregate = runtime

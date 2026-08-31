@@ -22,9 +22,10 @@ scoped-authority program.
    exactly that expression. `RuleExpr::PrincipalKind` and
    `rule.principal(kind)` do not exist. Protected identity may retain kind
    metadata, but it supplies no rule authority. The chat fixture/template
-   names `rule.system()` on each system-written table. The corpus keeps its 76
-   filenames, case names, and expected results; regenerated IR bytes change
-   deliberately to remove the legacy serialized `input_visibility` field.
+   names `rule.system()` on each system-written table. The original 76 corpus
+   filenames, case names, and expected results remain; regenerated IR bytes
+   change deliberately to remove the legacy serialized `input_visibility`
+   field, and 16 RBAC parity cases are added alongside them.
 2. **Rule-input visibility is structural and derived.**
    `rule.exists(table, index, key)` has no visibility/options argument and its
    IR has no `input_visibility`. Public/allow targets are readable. A protected
@@ -117,9 +118,9 @@ scoped-authority program.
   reused. Core raw-IR tests also reject addressed update/upsert attempts whose
   resulting `id` differs from the addressed key, before storage or index
   mutation.
-- [x] The corpus is regenerated without legacy `input_visibility`; all 76
-  filenames/case names and expected semantic results remain, and the Rust
-  engine/evaluator twin passes all 76.
+- [x] The corpus is regenerated without legacy `input_visibility`; the original
+  76 filenames/case names and expected semantic results remain, 16 RBAC parity
+  cases are added, and the Rust engine/evaluator twin passes all 92.
 
 ## Resolution
 
@@ -129,6 +130,6 @@ passed all named authority checks. Its invalidation qualification recorded 50
 probes, 70 persona-seed attempts, 13 concrete overlaps, 12 exact deliveries,
 37 disjoint silences, five explicit system-only effect exclusions, 75
 auditable outcomes, and zero blocked pairs. `cargo test -p snapback2`,
-`cargo test -p snapback2-core` (112 tests), the 60-check compiler suite, the 59-case
-package suite (58 passed, one intentional skip), and `./ref-check --verbose`
+`cargo test -p snapback2-core` (112 tests), the 60-check compiler suite, the 61-case
+package suite (60 passed, one intentional skip), and `./ref-check --verbose`
 also passed on the integrated tree.

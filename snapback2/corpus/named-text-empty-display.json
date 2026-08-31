@@ -1,0 +1,130 @@
+{
+  "corpusVersion": 1,
+  "name": "named-text-empty-display",
+  "category": "named",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "profiles": {
+        "columns": {
+          "displayName": {
+            "Text": {
+              "max": 64
+            }
+          },
+          "handle": {
+            "Text": {
+              "max": 32
+            }
+          },
+          "id": "Id",
+          "link": {
+            "Optional": {
+              "Text": {
+                "max": 256
+              }
+            }
+          }
+        },
+        "indexes": {
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "frozen evaluator constraint fixture"
+            }
+          },
+          "insert": "Allow",
+          "update": "Allow",
+          "delete": "Allow"
+        },
+        "constraints": [
+          {
+            "Text": {
+              "field": "displayName",
+              "min": 1
+            }
+          },
+          {
+            "Text": {
+              "field": "handle",
+              "min": 3,
+              "format": "handle"
+            }
+          },
+          {
+            "Text": {
+              "field": "link",
+              "min": 0,
+              "format": "url"
+            }
+          }
+        ]
+      }
+    },
+    "maintains": []
+  },
+  "program": {
+    "name": "named-text-empty-display",
+    "kind": "Mutation",
+    "args": {},
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Insert": {
+          "table": "profiles",
+          "row": {
+            "Literal": {
+              "Row": {
+                "displayName": {
+                  "String": ""
+                },
+                "handle": {
+                  "String": "alice"
+                },
+                "id": {
+                  "Id": "profile-1"
+                },
+                "link": "Null"
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {},
+    "now": 0,
+    "new_ids": [],
+    "read_time": null,
+    "seed_write": false
+  },
+  "receipt": {
+    "rows": [],
+    "ranges": [],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": null,
+    "errorCode": "E_CONSTRAINT",
+    "localState": "refused",
+    "partialSites": [],
+    "canonicalResult": "{\"Error\":\"E_CONSTRAINT\"}",
+    "digest": "e1e7bb43a4702c4812836a881ca6813abebafb1f5f07a5b3264ca6f85175b24d",
+    "rangeStops": {},
+    "evictedRows": null
+  }
+}

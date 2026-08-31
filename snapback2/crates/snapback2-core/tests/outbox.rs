@@ -1354,14 +1354,14 @@ fn rule_denied_then_is_rejected_and_settled_sent_in_the_same_transaction() {
 
     assert!(matches!(
         execution.state,
-        ExecutionState::Rejected { ref code, .. } if code == "rule"
+        ExecutionState::Rejected { ref code, .. } if code == "E_RULE"
     ));
     let row = runtime.store().outbox_get("outbox-1").unwrap().unwrap();
     assert_eq!(row.state, "sent");
     assert!(
         row.last_error
             .as_deref()
-            .is_some_and(|error| error.contains("rule")),
+            .is_some_and(|error| error.contains("E_RULE")),
         "the rejected then must remain visible on its outbox trace row"
     );
     let listed = runtime

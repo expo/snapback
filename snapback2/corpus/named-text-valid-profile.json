@@ -1,0 +1,132 @@
+{
+  "corpusVersion": 1,
+  "name": "named-text-valid-profile",
+  "category": "named",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "profiles": {
+        "columns": {
+          "displayName": {
+            "Text": {
+              "max": 64
+            }
+          },
+          "handle": {
+            "Text": {
+              "max": 32
+            }
+          },
+          "id": "Id",
+          "link": {
+            "Optional": {
+              "Text": {
+                "max": 256
+              }
+            }
+          }
+        },
+        "indexes": {
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "frozen evaluator constraint fixture"
+            }
+          },
+          "insert": "Allow",
+          "update": "Allow",
+          "delete": "Allow"
+        },
+        "constraints": [
+          {
+            "Text": {
+              "field": "displayName",
+              "min": 1
+            }
+          },
+          {
+            "Text": {
+              "field": "handle",
+              "min": 3,
+              "format": "handle"
+            }
+          },
+          {
+            "Text": {
+              "field": "link",
+              "min": 0,
+              "format": "url"
+            }
+          }
+        ]
+      }
+    },
+    "maintains": []
+  },
+  "program": {
+    "name": "named-text-valid-profile",
+    "kind": "Mutation",
+    "args": {},
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Insert": {
+          "table": "profiles",
+          "row": {
+            "Literal": {
+              "Row": {
+                "displayName": {
+                  "String": "Alice Example"
+                },
+                "handle": {
+                  "String": "alice_123"
+                },
+                "id": {
+                  "Id": "profile-1"
+                },
+                "link": {
+                  "String": "https://example.com/﻿profile"
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {},
+    "now": 0,
+    "new_ids": [],
+    "read_time": null,
+    "seed_write": false
+  },
+  "receipt": {
+    "rows": [],
+    "ranges": [],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": "Null",
+    "errorCode": null,
+    "localState": "predicted",
+    "partialSites": [],
+    "canonicalResult": "\"Null\"",
+    "digest": "6c7382d463fdb189bd1075f11b73b2335f49de592445abdd337b62ff8b9c5ece",
+    "rangeStops": {},
+    "evictedRows": null
+  }
+}
