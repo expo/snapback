@@ -1,6 +1,6 @@
 # snapback2: `array.push` updates IR contents but not cardinality or element origins — Fanout is the only thing preventing a provenance lie
 
-**Status:** Open
+**Status:** Open (claimed)
 **Systems:** snapback2, compiler, engine
 **Severity:** P2
 **Author:** Claude Fable 5, directed by Charlie Cheever
@@ -29,3 +29,5 @@ Fix: `push` must update `elementOrigins` (per-element classification, refusing
 mixed origins like the literal-array path does) in the same change that ever
 updates `max` — couple them in one function so they cannot drift, and add a
 test that pins today's Fanout behavior so any future bound change trips it.
+
+**Claimed:** 2026-08-31 by session snapback-8a [f8c2a2] — lane `s2/t2-tails` (worktree `~/projects/snapback-s2v`) takes this ticket together with the push-elementorigins ticket (same files); other sessions should skip both.

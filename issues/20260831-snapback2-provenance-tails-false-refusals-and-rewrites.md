@@ -1,6 +1,6 @@
 # snapback2 compiler: provenance-lane tails — false refusals on row projections/collections and two rewrite-honesty gaps
 
-**Status:** Open
+**Status:** Open (claimed)
 **Systems:** snapback2, compiler, certificate
 **Severity:** P2
 **Author:** Claude Fable 5, directed by Charlie Cheever
@@ -71,3 +71,5 @@ binding environment as provenance, thread assignment origins into
 make alias classification and mutation tracking scope-/bind-time-aware.
 Every fix keeps the invariant the lane established: classify or refuse — the
 paste never names a field the author didn't select.
+
+**Claimed:** 2026-08-31 by session snapback-8a [f8c2a2] — lane `s2/t2-tails` (worktree `~/projects/snapback-s2v`) takes this ticket together with the push-elementorigins ticket (same files); other sessions should skip both.
