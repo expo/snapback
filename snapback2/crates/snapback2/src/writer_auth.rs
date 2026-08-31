@@ -94,7 +94,7 @@ impl State {
         args: Json,
     ) -> Result<Context, Refusal> {
         let values = operation_args(self.runtime().generation(), op, &args)?;
-        Ok(self.execution_context(authority, values))
+        self.execution_context(authority, values)
     }
 
     pub(super) fn mutation_context(
@@ -115,14 +115,13 @@ impl State {
         &self,
         authority: &ResolvedAuthority,
         args: BTreeMap<String, Value>,
-    ) -> Context {
-        let mut context = Context::query(authority.principal.id.clone(), args);
-        context.principal_kind = authority.principal.kind.clone();
+    ) -> Result<Context, Refusal> {
+        let mut context = Context::query(actor(&authority.principal)?, args);
         context.auth_epoch = authority.auth_epoch();
         let now = self.now();
         context.now = Some(now);
         context.read_time = Some(now);
-        context
+        Ok(context)
     }
 
     pub(super) fn sweep_expired_sessions(&mut self) -> Result<(), Refusal> {
@@ -286,7 +285,7 @@ mod tests {
                     LiveClient {
                         runtime_id: 1,
                         op: "fixture.first".to_owned(),
-                        context: Context::query("fixture", BTreeMap::new()),
+                        context: Context::query(Actor::user("fixture").unwrap(), BTreeMap::new()),
                         session: Some(session(&first_authority)),
                         last_frame: json!({}),
                         events: first_live_tx,
@@ -297,7 +296,7 @@ mod tests {
                     LiveClient {
                         runtime_id: 2,
                         op: "fixture.sibling".to_owned(),
-                        context: Context::query("fixture", BTreeMap::new()),
+                        context: Context::query(Actor::user("fixture").unwrap(), BTreeMap::new()),
                         session: Some(session(&sibling_authority)),
                         last_frame: json!({}),
                         events: sibling_live_tx,
@@ -310,7 +309,7 @@ mod tests {
                     ChannelClient {
                         name: "fixture.first".to_owned(),
                         args: BTreeMap::new(),
-                        context: Context::query("fixture", BTreeMap::new()),
+                        context: Context::query(Actor::user("fixture").unwrap(), BTreeMap::new()),
                         session: Some(session(&first_authority)),
                         verdict: ChannelVerdict {
                             admitted: true,
@@ -325,7 +324,7 @@ mod tests {
                     ChannelClient {
                         name: "fixture.sibling".to_owned(),
                         args: BTreeMap::new(),
-                        context: Context::query("fixture", BTreeMap::new()),
+                        context: Context::query(Actor::user("fixture").unwrap(), BTreeMap::new()),
                         session: Some(session(&sibling_authority)),
                         verdict: ChannelVerdict {
                             admitted: true,

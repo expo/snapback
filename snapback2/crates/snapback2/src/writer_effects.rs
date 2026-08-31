@@ -20,8 +20,8 @@ impl State {
         effect: &str,
         generation: Option<&str>,
     ) -> Result<Json, Refusal> {
-        let current_generation = self.runtime().generation().hash.clone();
-        let current = self.runtime().generation().effects.get(effect).cloned();
+        let current_generation = self.runtime().generation().effects_hash();
+        let current = self.runtime().generation().effects().get(effect).cloned();
         let bound = generation
             .map(|generation| format!("effects_json:{generation}"))
             .map(|key| self.runtime().store().meta(&key))
@@ -68,17 +68,13 @@ impl State {
             }
         };
         let now = self.now();
-        let mut context = Context::system();
-        context.args = values;
-        context.now = Some(now);
-        context.read_time = Some(now);
-        context.new_ids = self
+        let new_ids = self
             .runtime_mut()
             .reserve_new_ids()
             .map_err(|error| Refusal::from_runtime(&error))?;
         let execution = self
             .runtime_mut()
-            .execute_then(op, context, outbox_id)
+            .execute_then(op, values, now, Some(now), new_ids, outbox_id)
             .map_err(|error| Refusal::from_runtime(&error))?;
         if matches!(execution.state, ExecutionState::Committed { .. }) {
             self.after_commit(execution.seq)?;

@@ -35,3 +35,9 @@ verb starts a fresh isolated owner, runs all six derived check families, runs
 every journey through the headless wire client, removes the test store, and
 writes `.snapback/receipts/<timestamp>.json`. Zero checks cannot pass. Use
 `snapback2 test --blocked "reason"` for an honest blocked receipt.
+
+Projects with scoped memberships also run the canonical `live-revocation`,
+`successor-policy-fence`, and `grant-incarnation-aba` authorization proofs.
+They bind revocation delivery, active-generation policy, and immutable grant
+incarnation to the served loop rather than treating lower-level unit coverage
+as the acceptance result.

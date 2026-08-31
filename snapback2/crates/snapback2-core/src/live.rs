@@ -121,7 +121,7 @@ impl Runtime {
     ) -> Result<(SubscriptionId, Execution), RuntimeError> {
         let program = self
             .generation
-            .programs
+            .programs()
             .get(op)
             .ok_or_else(|| RuntimeError::OpUnknown(op.to_owned()))?;
         if program.0.kind != ProgramKind::Query {
@@ -200,7 +200,7 @@ impl Runtime {
                     }
                     Err(error) => {
                         let seq = self.store().commit_seq().unwrap_or(subscription.last_seq);
-                        let fresh_digest = digest(&error.code());
+                        let fresh_digest = digest(&(error.code(), error.to_string()));
                         let changed = fresh_digest != subscription.last_result_digest;
                         if let Some(entry) = self.subs.entries.get_mut(&id) {
                             entry.last_result_digest = fresh_digest;
@@ -229,7 +229,7 @@ impl Runtime {
             .map(|(id, subscription)| SubscriptionInfo {
                 id: *id,
                 op: subscription.op.clone(),
-                principal: subscription.context.viewer.to_string(),
+                principal: subscription.context.viewer().to_owned(),
                 last_result_digest: subscription.last_result_digest.clone(),
                 last_seq: subscription.last_seq,
                 trace: subscription.trace.clone(),
@@ -246,6 +246,7 @@ impl Runtime {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::Actor;
     use crate::certificate::Ceilings;
     use crate::engine::ConstraintTrace;
     use crate::registry::{Generation, ProjectJson};
@@ -296,7 +297,7 @@ mod tests {
             1,
             Subscription {
                 op: "probe".to_owned(),
-                context: Context::query("u1", BTreeMap::new()),
+                context: Context::query(Actor::user("u1").unwrap(), BTreeMap::new()),
                 last_result_digest: String::new(),
                 last_seq: 0,
                 trace: AuthoritativeTrace {

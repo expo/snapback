@@ -8,9 +8,9 @@ use crate::writer_util::{owner_gone, unix_millis};
 use crate::writer_wire::{execution_json, live_frame, refusal_frame};
 use serde_json::{Value as Json, json};
 use snapback2_core::{
-    ArgType, Bound, ChannelSide, ChannelVerdict, ColumnType, Context, Execution, ExecutionState,
-    Expr, Generation, KeyProvenance, MigrationPlan, Order, Program, ProgramKind, Runtime, Scan,
-    Stmt, Value,
+    Actor, ArgType, Bound, Ceilings, ChannelSide, ChannelVerdict, ColumnType, Context, Execution,
+    ExecutionState, Expr, Generation, KeyProvenance, MigrationPlan, Order, Principal, Program,
+    ProgramKind, Runtime, Scan, Stmt, Value, max_certified_page_rows,
 };
 use std::collections::{BTreeMap, VecDeque};
 use std::fmt;
@@ -690,7 +690,7 @@ impl State {
         let kind = self
             .runtime()
             .generation()
-            .programs
+            .programs()
             .get(op)
             .map(|entry| entry.0.kind)
             .ok_or_else(|| {
@@ -779,7 +779,7 @@ impl State {
     ) -> Result<Json, Refusal> {
         let authority = self.resolve_authority(identity)?;
         let args = channel_args(self.runtime().generation(), &name, &args)?;
-        let context = self.execution_context(&authority, BTreeMap::new());
+        let context = self.execution_context(&authority, BTreeMap::new())?;
         let verdict = self
             .runtime_mut()
             .channel_admit(&name, ChannelSide::Subscribe, &args, &context)
@@ -818,7 +818,7 @@ impl State {
     ) -> Result<Json, Refusal> {
         let authority = self.resolve_authority(identity)?;
         let args = channel_args(self.runtime().generation(), &name, &args)?;
-        let context = self.execution_context(&authority, BTreeMap::new());
+        let context = self.execution_context(&authority, BTreeMap::new())?;
         let verdict = self
             .runtime_mut()
             .channel_admit(&name, ChannelSide::Publish, &args, &context)
@@ -1029,7 +1029,7 @@ impl State {
         if let Some(seed) = seed {
             self.seed = seed;
         }
-        self.owner.generation = self.compiled.generation.hash.clone();
+        self.owner.generation = self.compiled.generation.hash();
         self.sweep_expired_sessions()?;
         // @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — retained
         // channel handles must be re-admitted under the one active generation.
@@ -1084,7 +1084,7 @@ impl State {
         let table = self
             .runtime()
             .generation()
-            .schema
+            .schema()
             .tables
             .get(&table_name)
             .cloned()
@@ -1097,6 +1097,22 @@ impl State {
                     "schema/tables",
                 )
             })?;
+        let certified_limit = max_certified_page_rows(
+            self.runtime().generation().schema(),
+            &table_name,
+            &Ceilings::default(),
+        )
+        .min(500);
+        if certified_limit == 0 {
+            return Err(Refusal::new(
+                "E_BOUND",
+                "bound",
+                format!("declared rows from {table_name} exceed the data output ceiling"),
+                "lower the table's declared serialized row maximum",
+                "bound/output",
+            ));
+        }
+        let limit = limit.min(certified_limit);
         let index = table.indexes.get(&index_name).ok_or_else(|| {
             Refusal::new(
                 "E_SCHEMA_INDEX_UNKNOWN",
@@ -1142,7 +1158,7 @@ impl State {
             }))],
         };
         let authority = self.resolve_authority(identity)?;
-        let context = self.execution_context(&authority, BTreeMap::new());
+        let context = self.execution_context(&authority, BTreeMap::new())?;
         let execution = self
             .runtime_mut()
             .execute_adhoc(&program, context)
@@ -1156,7 +1172,7 @@ impl State {
 
     fn rule_verdicts(&mut self, table_name: String, identity: Identity) -> Result<Json, Refusal> {
         let authority = self.resolve_authority(identity)?;
-        let context = self.execution_context(&authority, BTreeMap::new());
+        let context = self.execution_context(&authority, BTreeMap::new())?;
         let rows = self
             .runtime_mut()
             .read_rule_verdicts(&table_name, context)
@@ -1169,6 +1185,18 @@ impl State {
     }
 }
 
+fn actor(principal: &Principal) -> Result<Actor, Refusal> {
+    Actor::try_from(principal).map_err(|error| {
+        Refusal::new(
+            "E_AUTH_RESERVED",
+            "auth",
+            error.to_string(),
+            "authenticate as a user, guest, or development persona",
+            "auth/identity",
+        )
+    })
+}
+
 #[cfg(test)]
 #[path = "writer_effects_tests.rs"]
 mod effects_tests;
@@ -1179,7 +1207,7 @@ fn operation_args(
     args: &Json,
 ) -> Result<BTreeMap<String, Value>, Refusal> {
     let program = &generation
-        .programs
+        .programs()
         .get(op)
         .ok_or_else(|| {
             Refusal::new(
@@ -1234,7 +1262,7 @@ fn channel_args(
     name: &str,
     args: &Json,
 ) -> Result<BTreeMap<String, Value>, Refusal> {
-    let channel = generation.schema.channels.get(name).ok_or_else(|| {
+    let channel = generation.schema().channels.get(name).ok_or_else(|| {
         Refusal::new(
             "E_OP_CHANNEL_UNKNOWN",
             "op",

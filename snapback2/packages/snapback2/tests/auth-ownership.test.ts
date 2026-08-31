@@ -1,3 +1,6 @@
+// @ref LLP 1002#9-the-client-snapback2client-snapback2react-snapback2test —
+// custody transitions serialize persistence, transports, delayed responses,
+// and React cache identity around one explicit authority owner.
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import React from "react";

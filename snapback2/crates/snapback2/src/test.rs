@@ -12,7 +12,7 @@ use crate::receipt::{CheckReceipt, TestReceipt};
 use crate::verbs;
 use serde_json::{Map, Value as Json, json};
 use snapback2_core::{
-    ArgType, Context, ExecutionState, Generation, Program, ProgramKind, Runtime, Store,
+    Actor, ArgType, Context, ExecutionState, Generation, Program, ProgramKind, Runtime, Store,
 };
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::fs;
@@ -28,10 +28,16 @@ mod test_authority;
 mod test_bounds;
 #[path = "test_invalidation.rs"]
 mod test_invalidation;
+#[path = "test_policy.rs"]
+mod test_policy;
 #[path = "test_seed_ids.rs"]
 mod test_seed_ids;
 #[path = "test_sse.rs"]
 mod test_sse;
+
+use self::test_policy::check_rules;
+#[cfg(test)]
+use self::test_policy::rule_id_sets_match;
 
 pub fn run(args: &[String]) -> ExitCode {
     if args.iter().enumerate().any(|(index, arg)| {
@@ -121,7 +127,7 @@ pub fn run(args: &[String]) -> ExitCode {
             "certify",
             "derived",
             elapsed_ms(compile_started),
-            json!({ "operations": compiled.generation.programs.len() }),
+            json!({ "operations": compiled.generation.programs().len() }),
         ));
     }
 
@@ -138,7 +144,7 @@ pub fn run(args: &[String]) -> ExitCode {
                 &root,
                 stamp,
                 TestReceipt::new(
-                    compiled.generation.hash,
+                    compiled.generation.hash(),
                     vec!["snapback2 dev --foreground".to_owned()],
                     checks,
                 ),
@@ -175,7 +181,7 @@ pub fn run(args: &[String]) -> ExitCode {
     finish(
         &root,
         stamp,
-        TestReceipt::new(compiled.generation.hash, commands, checks),
+        TestReceipt::new(compiled.generation.hash(), commands, checks),
         json_output,
     )
 }
@@ -356,147 +362,13 @@ impl Drop for IsolatedOwner {
     }
 }
 
-fn check_rules(owner: &OwnerInfo, compiled: &CompiledProject, seed: &SeedData) -> CheckReceipt {
-    let started = Instant::now();
-    let mut failures = Vec::new();
-    let mut blocked = Vec::new();
-    let mut probes = 0_u64;
-    let mut tables = Map::new();
-    for (table_name, table) in &compiled.generation.schema.tables {
-        if table.rules.read.is_public() {
-            continue;
-        }
-        let rows = seed.rows.get(table_name).cloned().unwrap_or_default();
-        if rows.is_empty() {
-            blocked.push(json!({
-                "table": table_name,
-                "reason": format!("no seed rows for {table_name}"),
-            }));
-            tables.insert(
-                table_name.clone(),
-                json!({ "seedRows": 0, "personas": 0, "probes": 0 }),
-            );
-            continue;
-        }
-        let mut personas = seed.personas.clone();
-        let unlisted = format!("__snapback2_unlisted_{table_name}");
-        personas.push(unlisted.clone());
-        let mut table_probes = 0_u64;
-        for persona in &personas {
-            let actual_response = client::control(
-                owner,
-                "POST",
-                "/control/data",
-                json!({
-                    "table": table_name,
-                    "index": "byId",
-                    "prefix": [],
-                    "limit": 500,
-                    "as": persona,
-                }),
-            );
-            let actual_body = match actual_response {
-                Ok(response) if response.status < 400 => response.body,
-                Ok(response) => {
-                    failures.push(json!({
-                        "table": table_name,
-                        "as": persona,
-                        "source": "data",
-                        "response": response.body,
-                    }));
-                    continue;
-                }
-                Err(error) => {
-                    failures.push(json!({ "table": table_name, "as": persona, "source": "data", "error": error }));
-                    continue;
-                }
-            };
-            let expected_response = client::control(
-                owner,
-                "POST",
-                "/control/verdicts",
-                json!({ "table": table_name, "as": persona }),
-            );
-            let expected_body = match expected_response {
-                Ok(response) if response.status < 400 => response.body,
-                Ok(response) => {
-                    failures.push(json!({
-                        "table": table_name,
-                        "as": persona,
-                        "source": "engine",
-                        "response": response.body,
-                    }));
-                    continue;
-                }
-                Err(error) => {
-                    failures.push(json!({ "table": table_name, "as": persona, "source": "engine", "error": error }));
-                    continue;
-                }
-            };
-            let actual = actual_body
-                .get("data")
-                .and_then(Json::as_array)
-                .into_iter()
-                .flatten()
-                .filter_map(|row| row.get("id").and_then(Json::as_str).map(ToOwned::to_owned))
-                .collect::<BTreeSet<_>>();
-            let verdicts = expected_body
-                .get("rows")
-                .and_then(Json::as_array)
-                .cloned()
-                .unwrap_or_default();
-            let expected = verdicts
-                .iter()
-                .filter(|row| row.get("admitted").and_then(Json::as_bool) == Some(true))
-                .filter_map(|row| row.get("id").and_then(Json::as_str).map(ToOwned::to_owned))
-                .collect::<BTreeSet<_>>();
-            table_probes += verdicts.len() as u64;
-            probes += verdicts.len() as u64;
-            if !rule_id_sets_match(&actual, &expected) {
-                failures.push(json!({ "table": table_name, "as": persona, "expected": expected, "actual": actual }));
-            }
-        }
-        tables.insert(
-            table_name.clone(),
-            json!({
-                "seedRows": rows.len(),
-                "personas": personas.len(),
-                "probes": table_probes,
-            }),
-        );
-    }
-    let detail = json!({
-        "probes": probes,
-        "tables": tables,
-        "expectedBy": "engine",
-        "actualBy": "data",
-        "blocked": blocked,
-    });
-    if !failures.is_empty() {
-        CheckReceipt::fail(
-            "rules",
-            "derived",
-            elapsed_ms(started),
-            json!({ "failures": failures, "summary": detail }),
-        )
-    } else if !blocked.is_empty() {
-        CheckReceipt::blocked("rules", "derived", elapsed_ms(started), detail)
-    } else {
-        CheckReceipt::pass("rules", "derived", elapsed_ms(started), detail)
-    }
-}
-
-fn rule_id_sets_match(actual: &BTreeSet<String>, expected: &BTreeSet<String>) -> bool {
-    actual == expected
-}
-
 fn check_bounds(owner: &OwnerInfo, compiled: &CompiledProject, seed: &SeedData) -> CheckReceipt {
     let started = Instant::now();
     let mut failures = Vec::new();
     let mut blocked = Vec::new();
     let mut executions = Vec::new();
     let mut probes = 0_u64;
-    for (name, (program, certificate)) in &compiled.generation.programs {
+    for (name, (program, certificate)) in compiled.generation.programs() {
         if program.kind != ProgramKind::Query {
             continue;
         }
@@ -603,8 +475,16 @@ fn check_replay(owner: &OwnerInfo, compiled: &CompiledProject, seed: &SeedData) 
     let mut probes = 0_u64;
     let mut attempts = 0_u64;
     let mut forks_count = 0_u64;
-    for (index, (name, (program, _))) in compiled.generation.programs.iter().enumerate() {
+    for (index, (name, (program, _))) in compiled.generation.programs().iter().enumerate() {
         if program.kind != ProgramKind::Mutation {
+            continue;
+        }
+        if compiled
+            .generation
+            .effects()
+            .values()
+            .any(|effect| effect.then.as_deref() == Some(name.as_str()))
+        {
             continue;
         }
         let candidates = match probe_candidates(program, seed) {
@@ -725,22 +605,7 @@ fn replay_fork(
         let value = replay_arg_value(kind, &value)?;
         args.insert(name.clone(), value);
     }
-    let is_effect_then = generation
-        .effects
-        .values()
-        .any(|effect| effect.then.as_deref() == Some(program.name.as_str()));
-    let mut context = if is_effect_then {
-        let mut context = Context::system();
-        context.args = args;
-        context
-    } else {
-        let mut context = Context::query(format!("dev:{persona}"), args);
-        context.principal_kind = "persona".to_owned();
-        // @ref LLP 1001#6-identity-identityrs — offline replay uses the same
-        // epoch-zero trusted dev alias as the served X-Snapback-As path.
-        context.auth_epoch = 0;
-        context
-    };
+    let mut context = Context::query(Actor::persona(persona).expect("derived persona"), args);
     context.now = Some(1_700_000_000_000_i64.saturating_add(index as i64));
     context.new_ids = (0..1024)
         .map(|ordinal| format!("replay-{index}-{ordinal}"))
@@ -771,21 +636,21 @@ fn check_effects(owner: &OwnerInfo, compiled: &CompiledProject) -> Option<CheckR
         .and_then(|effects| effects.get("engine"))
         .and_then(Json::as_str)
         .unwrap_or("none");
-    if compiled.generation.effects.is_empty() {
+    if compiled.generation.effects().is_empty() {
         None
     } else if engine == "none" {
         Some(CheckReceipt::blocked(
             "effects",
             "derived",
             elapsed_ms(started),
-            json!({ "reason": "no engine in this build", "declarations": compiled.generation.effects.keys().collect::<Vec<_>>() }),
+            json!({ "reason": "no engine in this build", "declarations": compiled.generation.effects().keys().collect::<Vec<_>>() }),
         ))
     } else {
         Some(CheckReceipt::pass(
             "effects",
             "derived",
             elapsed_ms(started),
-            json!({ "engine": engine, "declarations": compiled.generation.effects.keys().collect::<Vec<_>>() }),
+            json!({ "engine": engine, "declarations": compiled.generation.effects().keys().collect::<Vec<_>>() }),
         ))
     }
 }

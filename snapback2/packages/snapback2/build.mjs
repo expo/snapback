@@ -6,6 +6,11 @@ import ts from "typescript";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const dist = resolve(here, "dist");
+const packageBuildLock = resolve(here, "../../target/b2-package-build.lock");
+const packageBuildLockHeld = process.env.SNAPBACK2_PACKAGE_BUILD_LOCK_HELD === "1";
+// Test fixtures take this same lock while snapshotting dist as one package unit.
+if (!packageBuildLockHeld) await acquirePackageBuildLock();
+try {
 await rm(dist, { recursive: true, force: true });
 await mkdir(dist, { recursive: true });
 
@@ -62,7 +67,6 @@ await build({
 await cp(resolve(here, "../compiler/lib.d.ts"), resolve(dist, "index.d.ts"));
 await cp(resolve(here, "../compiler/subset-lib.d.ts"), resolve(dist, "compiler-lib.d.ts"));
 await cp(resolve(here, "types/test.d.ts"), resolve(dist, "test.d.ts"));
-await cp(resolve(here, "types/placeholder.d.ts"), resolve(dist, "placeholder.d.ts"));
 
 const declarationProgram = ts.createProgram({
   rootNames: [
@@ -157,6 +161,26 @@ if (process.argv.includes("--self-test")) {
     throw new Error(`guide validation self-test lost failures: ${JSON.stringify(failures)}`);
   }
   console.log(`guide validation self-test ok: ${failures.join(" | ")}`);
+}
+} finally {
+  if (!packageBuildLockHeld) await rm(packageBuildLock, { force: true });
+}
+
+async function acquirePackageBuildLock() {
+  await mkdir(dirname(packageBuildLock), { recursive: true });
+  const started = Date.now();
+  for (;;) {
+    try {
+      await writeFile(packageBuildLock, `${process.pid}\n`, { flag: "wx" });
+      return;
+    } catch (error) {
+      if (error?.code !== "EEXIST") throw error;
+      if (Date.now() - started >= 30_000) {
+        throw new Error(`timed out waiting for package build lock ${packageBuildLock}`);
+      }
+      await new Promise((resolvePromise) => setTimeout(resolvePromise, 25));
+    }
+  }
 }
 
 function familyFailures(value) {

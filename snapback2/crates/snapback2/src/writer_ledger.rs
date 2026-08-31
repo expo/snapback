@@ -31,7 +31,7 @@ impl State {
         let kind = self
             .runtime()
             .generation()
-            .programs
+            .programs()
             .get(&op)
             .map(|(program, _)| program.kind)
             .ok_or_else(|| {
@@ -49,7 +49,7 @@ impl State {
             self.context(&authority, &op, args)?
         };
         let requested_args = context.args.clone();
-        let requested_principal = context.viewer.clone();
+        let requested_principal = context.viewer().to_owned();
         let execution = self
             .runtime_mut()
             .execute(&op, context)
@@ -61,7 +61,7 @@ impl State {
             .filter(|(_, client)| {
                 client.op == op
                     && client.context.args == requested_args
-                    && client.context.viewer == requested_principal
+                    && client.context.viewer() == requested_principal
             })
             .filter_map(|(id, client)| {
                 runtime_subscriptions
@@ -167,7 +167,7 @@ impl State {
         Ok(json!({
             "project": self.root,
             "status": self.phase,
-            "generation": self.runtime().generation().hash,
+            "generation": self.runtime().generation().hash(),
             "seq": self.runtime().store().commit_seq().map_err(|error| Refusal::from_runtime(&error))?,
             "subscriptions": self.live.len(),
             "channelSubscriptions": self.channels.len(),
@@ -189,7 +189,7 @@ impl State {
         let ops = self
             .runtime()
             .generation()
-            .programs
+            .programs()
             .iter()
             .filter(|(name, _)| !name.starts_with("__owner."))
             .map(|(name, (program, _))| {
@@ -203,10 +203,10 @@ impl State {
             })
             .collect::<Map<_, _>>();
         json!({
-            "generation": self.runtime().generation().hash,
+            "generation": self.runtime().generation().hash(),
             "ops": ops,
-            "channels": self.runtime().generation().schema.channels,
-            "auth": self.runtime().generation().schema.auth,
+            "channels": self.runtime().generation().schema().channels,
+            "auth": self.runtime().generation().schema().auth,
         })
     }
 

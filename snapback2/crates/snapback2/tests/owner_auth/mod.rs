@@ -18,7 +18,7 @@ fn exact_logout_fences_only_one_epoch_and_successors_cannot_resurrect_it() {
     copy_tree(&fixture().join("snapback"), &root.join("snapback"));
     install_add_member_mutation(&root);
     let binary = env!("CARGO_BIN_EXE_snapback2");
-    let compiler = compiler();
+    let compiler = compiler(&root);
     let (mut owner, port, secret) = start_owner(binary, &compiler, &root);
 
     let (first_token, first_viewer) = signup(port, "session-owner@example.com");
@@ -128,10 +128,16 @@ fn exact_logout_fences_only_one_epoch_and_successors_cannot_resurrect_it() {
     let mut source = fs::read_to_string(&messages).unwrap();
     source.push_str("\nexport const authFenceSuccessor = query({}, () => true);\n");
     fs::write(&messages, source).unwrap();
-    wait_for(Duration::from_secs(6), || {
+    let applied = wait_for(Duration::from_secs(6), || {
         let current = status(port, &secret);
-        (current["generation"].as_str() != Some(generation.as_str())).then_some(current)
+        let manifest = request(port, "GET", "/api/manifest", &[], json!({}));
+        manifest.body["ops"]
+            .get("messages.authFenceSuccessor")
+            .is_some()
+            .then_some(current)
     });
+    assert_eq!(applied["status"], "ready");
+    assert_eq!(applied["generation"], generation);
     assert_eq!(second_query.event()["state"], "complete");
     assert_eq!(status(port, &secret)["subscriptions"], 1);
     assert_eq!(status(port, &secret)["channelSubscriptions"], 1);
@@ -182,7 +188,7 @@ fn idle_expiry_and_clock_boundary_terminally_fence_query_and_channel() {
     copy_tree(&fixture().join("snapback"), &root.join("snapback"));
     install_add_member_mutation(&root);
     let binary = env!("CARGO_BIN_EXE_snapback2");
-    let compiler = compiler();
+    let compiler = compiler(&root);
     let (mut owner, port, secret) = start_owner(binary, &compiler, &root);
 
     let (idle_token, idle_viewer) = signup(port, "expiring-owner@example.com");
@@ -243,7 +249,7 @@ fn negative_clock_advance_preserves_offset_session_and_live_state() {
     copy_tree(&fixture().join("snapback"), &root.join("snapback"));
     install_add_member_mutation(&root);
     let binary = env!("CARGO_BIN_EXE_snapback2");
-    let compiler = compiler();
+    let compiler = compiler(&root);
     let (mut owner, port, secret) = start_owner(binary, &compiler, &root);
 
     let (token, viewer) = signup(port, "clock-owner@example.com");
@@ -299,7 +305,7 @@ fn startup_and_persona_headers_do_not_issue_sessions() {
     let root = temp_root();
     copy_tree(&fixture().join("snapback"), &root.join("snapback"));
     let binary = env!("CARGO_BIN_EXE_snapback2");
-    let compiler = compiler();
+    let compiler = compiler(&root);
     let (mut owner, port, secret) = start_owner(binary, &compiler, &root);
 
     let persona_query = request(
@@ -356,7 +362,7 @@ fn generated_grant_incarnations_do_not_repeat_across_owner_restart() {
     let root = temp_root();
     copy_tree(&fixture().join("snapback"), &root.join("snapback"));
     let binary = env!("CARGO_BIN_EXE_snapback2");
-    let compiler = compiler();
+    let compiler = compiler(&root);
     let (mut owner, port, secret) = start_owner(binary, &compiler, &root);
 
     let mutate = |port: u16, op: &str, args: Value| {

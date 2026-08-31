@@ -28,7 +28,7 @@ for await (const line of createInterface({ input: process.stdin, crlfDelay: Infi
     assert!(output.contains("E_FIRST"), "{output}");
     assert!(output.contains("E_SECOND"), "{output}");
 
-    let compiler = compiler();
+    let compiler = compiler(&root);
     let mut owner = ChildGuard::spawn(env!("CARGO_BIN_EXE_snapback2"), &compiler, &root);
     let port = owner
         .ready_line()
@@ -115,7 +115,7 @@ fn successor_rebinds_channel_subscriber_before_g1_publish() {
     assert_ne!(source, allowing, "chat fixture channel rule changed");
     fs::write(schema, allowing).unwrap();
 
-    let compiler = compiler();
+    let compiler = compiler(&root);
     let mut owner = ChildGuard::spawn(env!("CARGO_BIN_EXE_snapback2"), &compiler, &root);
     let port = owner
         .ready_line()

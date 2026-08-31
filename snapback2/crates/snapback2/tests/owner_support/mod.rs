@@ -147,7 +147,10 @@ pub(super) fn seed_effect_row(
         generation,
     )
     .unwrap();
-    let mut context = CoreContext::mutation("dev:test", BTreeMap::new());
+    let mut context = CoreContext::mutation(
+        snapback2_core::Actor::persona("test").unwrap(),
+        BTreeMap::new(),
+    );
     context.now = Some(1);
     context.new_ids = VecDeque::from(["seeded-outbox".to_owned()]);
     let execution = runtime.execute("__test.emitEffect", context).unwrap();
@@ -182,8 +185,8 @@ pub(super) fn fixture() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../packages/compiler/fixtures/chat")
 }
 
-pub(super) fn compiler() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../packages/snapback2/dist/compiler.mjs")
+pub(super) fn compiler(root: &Path) -> PathBuf {
+    super::common::isolated_compiler(&root.join(".test-package"))
 }
 
 pub(super) fn write_worker(root: &Path, name: &str, source: &str) -> PathBuf {

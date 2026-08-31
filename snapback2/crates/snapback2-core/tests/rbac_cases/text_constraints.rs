@@ -67,7 +67,7 @@ fn execute(handle: &str, link: Value) -> Execution {
     .unwrap();
     let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
     let mut context = Context::mutation(
-        "user:one",
+        Actor::user("user:one").unwrap(),
         BTreeMap::from([
             ("handle".to_owned(), Value::String(handle.to_owned())),
             ("link".to_owned(), link),

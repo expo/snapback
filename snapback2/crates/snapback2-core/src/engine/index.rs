@@ -270,12 +270,46 @@ pub(crate) fn validate_row(
     if !object.contains_key("id") {
         return Err(RuntimeError::Schema(format!("{table_name} row lacks id")));
     }
+    if let Some(name) = object
+        .keys()
+        .find(|name| !table.columns.contains_key(*name))
+    {
+        return Err(RuntimeError::Input(format!(
+            "{table_name} row contains undeclared field {name}"
+        )));
+    }
+    if object
+        .get("id")
+        .is_some_and(value_contains_reserved_principal)
+    {
+        return Err(RuntimeError::Input(format!(
+            "{table_name}.id cannot carry the reserved system principal"
+        )));
+    }
     for (name, kind) in &table.columns {
-        if !valid_column_value(kind, object.get(name)) {
-            return Err(RuntimeError::Input(format!(
-                "{table_name}.{name} violates {kind:?}"
-            )));
-        }
+        validate_column_value(table_name, name, kind, object.get(name))?;
+    }
+    Ok(())
+}
+
+pub(crate) fn validate_column_value(
+    table_name: &str,
+    name: &str,
+    kind: &ColumnType,
+    value: Option<&Value>,
+) -> Result<(), RuntimeError> {
+    // @ref LLP 1001#6-identity-identityrs — authored data cannot forge
+    // the engine-private system actor through any nested value, including
+    // generic JSON that can later be projected into an actor-bearing slot.
+    if value.is_some_and(value_contains_reserved_principal) {
+        return Err(RuntimeError::Input(format!(
+            "{table_name}.{name} cannot carry the reserved system principal"
+        )));
+    }
+    if !valid_column_value(kind, value) {
+        return Err(RuntimeError::Input(format!(
+            "{table_name}.{name} violates {kind:?}"
+        )));
     }
     Ok(())
 }

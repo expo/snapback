@@ -38,8 +38,8 @@ fn password_guest_persona_and_session_contracts_are_persistent_and_typed() {
             .iter()
             .any(|principal| principal.id.as_str() == "system")
     );
-    assert_eq!(Context::system().principal_kind, "system");
-    assert_eq!(Context::system().auth_epoch, 0);
+    assert!(Actor::new("system", "user").is_err());
+    assert!(Actor::new("user:any", "system").is_err());
 
     assert!(matches!(
         runtime.signup("a@example.com", "short", 10),
@@ -49,6 +49,8 @@ fn password_guest_persona_and_session_contracts_are_persistent_and_typed() {
         .signup("Alice@Example.com", "long enough password", 20)
         .unwrap();
     assert!(signup.auth_epoch > 0);
+    assert_ne!(signup.principal.id.as_str(), SYSTEM_PRINCIPAL_ID.as_str());
+    assert!(Actor::try_from(&signup.principal).is_ok());
     assert_eq!(signup.token.len(), 43);
     assert!(
         signup
@@ -92,10 +94,19 @@ fn password_guest_persona_and_session_contracts_are_persistent_and_typed() {
     assert_ne!(second_persona.token, persona.token);
     assert!(second_persona.auth_epoch > persona.auth_epoch);
     assert!(persona.expires_at < i64::MAX);
+    let reserved_name = runtime.persona("system", 32).unwrap();
+    assert_eq!(reserved_name.principal.id.as_str(), "dev:system");
+    assert_ne!(
+        reserved_name.principal.id.as_str(),
+        SYSTEM_PRINCIPAL_ID.as_str()
+    );
+    assert!(Actor::try_from(&reserved_name.principal).is_ok());
 
     runtime.apply_successor(generation(true, true)).unwrap();
     let guest = runtime.guest(40).unwrap();
     assert_eq!(guest.principal.kind, "guest");
+    assert_ne!(guest.principal.id.as_str(), SYSTEM_PRINCIPAL_ID.as_str());
+    assert!(Actor::try_from(&guest.principal).is_ok());
     assert!(
         runtime
             .principals(Some("persona"))

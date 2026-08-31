@@ -1,7 +1,7 @@
 import ts from "typescript";
 import { authoredTypeFromColumn } from "../authored-types";
 import { diagnostic } from "../diagnostics";
-import type { FrontendDiagnostic, SchemaJson, Value } from "../ir";
+import { IR_CONTRACT, type FrontendDiagnostic, type SchemaJson, type Value } from "../ir";
 import type { TableInfo } from "../compiler";
 import { hasExport, propertyName, staticMemberPath, unwrapCall, unwrapExpression } from "../syntax";
 import {
@@ -295,7 +295,7 @@ function lowerRule(
   if (name === "allow" && call.arguments.length === 0) return "Allow";
   if (name === "deny" && call.arguments.length === 0) return "Deny";
   if (name === "system" && call.arguments.length === 0) {
-    return { Eq: ["Viewer", { Literal: { Id: "system" } }] };
+    return { Eq: ["Viewer", { Literal: { Id: IR_CONTRACT.systemPrincipalId } }] };
   }
   if (name === "viewerIs" && call.arguments.length === 1 && stringValue(call.arguments[0])) {
     return { Eq: [{ Field: stringValue(call.arguments[0])! }, "Viewer"] };
@@ -810,7 +810,7 @@ export function invalidDescriptorRefusal(node: ts.Expression): { node: ts.Expres
     };
   }
   const rewrites: Record<string, string> = {
-    id: `${callee}()`, int: `${callee}()`, bool: `${callee}()`, time: `${callee}()`,
+    id: `${callee}()`, principal: `${callee}()`, int: `${callee}()`, bool: `${callee}()`, time: `${callee}()`,
     text: `${callee}(100)`, json: `${callee}(1000)`, ref: `${callee}(table)`,
     optional: `${callee}(${sibling("text")}(100))`,
     list: `${callee}(${sibling("text")}(100), { max: 10 })`,
@@ -830,7 +830,7 @@ export function invalidNativeDescriptorRefusal(node: ts.Expression): ReturnType<
 
 function nativeDescriptorName(call: ts.CallExpression): string | undefined {
   const name = callLeaf(call);
-  if (!name || !["id", "text", "int", "bool", "time", "ref", "json", "optional", "list", "enum", "decimal", "money"].includes(name)
+  if (!name || !["id", "principal", "text", "int", "bool", "time", "ref", "json", "optional", "list", "enum", "decimal", "money"].includes(name)
     || !ts.isPropertyAccessExpression(call.expression)) return undefined;
   const owner = call.expression.expression.getText();
   if (owner === "t" || owner.endsWith(".t")) return name;

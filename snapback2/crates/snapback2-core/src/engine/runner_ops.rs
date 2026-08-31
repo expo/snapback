@@ -30,6 +30,7 @@ impl<'a> Runner<'a> {
         self.remember_created_row(table, &row)?;
         self.inserted_rows.push((table.to_owned(), row.clone()));
         self.rule_memo.clear();
+        self.visibility_memo.clear();
         self.touch_row(table, &row)?;
         self.bump_write(table);
         self.maintain(table, None, Some(&row))?;
@@ -97,6 +98,7 @@ impl<'a> Runner<'a> {
         reindex_row(self.tx, self.schema, table, &new)?;
         self.refresh_created_points(table, &new)?;
         self.rule_memo.clear();
+        self.visibility_memo.clear();
         self.touch_row(table, &new)?;
         self.bump_write(table);
         self.maintain(table, Some(&old), Some(&new))?;
@@ -122,6 +124,7 @@ impl<'a> Runner<'a> {
         delete_index_row(self.tx, table, id)?;
         self.forget_created_points(table, id);
         self.rule_memo.clear();
+        self.visibility_memo.clear();
         self.bump_write(table);
         self.maintain(table, Some(&old), None)?;
         Ok(())
@@ -234,6 +237,7 @@ impl<'a> Runner<'a> {
             self.refresh_created_points(target, &aggregate)?;
         }
         self.rule_memo.clear();
+        self.visibility_memo.clear();
         self.touch_row(target, &aggregate)?;
         self.bump_write(target);
         Ok(())
@@ -565,7 +569,7 @@ impl<'a> Runner<'a> {
         if let Some(old) = &mut old {
             materialize_optional_fields(old, table);
         }
-        let rule_hash = rule.hash();
+        let rule_hash = self.schema.rule_hash(&rule);
         self.eval_rule(
             &rule,
             &rule_hash,
@@ -583,6 +587,9 @@ impl<'a> Runner<'a> {
         next: &Value,
         created_allowed: bool,
     ) -> Result<bool, RuntimeError> {
+        if self.rule_certificate.is_some() {
+            self.step(1)?;
+        }
         match rule {
             RuleExpr::Public { .. } | RuleExpr::Allow => Ok(true),
             RuleExpr::Deny => Ok(false),
@@ -618,7 +625,7 @@ impl<'a> Runner<'a> {
                 // label authorization inputs readable. The schema proves whether
                 // the exact indexed row is readable; every other protected input
                 // is represented by an authority verdict.
-                let hidden = !self.schema.rule_input_is_readable(table, index, key);
+                let structurally_readable = self.schema.rule_input_is_readable(table, index, key);
                 let key = key
                     .iter()
                     .map(|term| self.rule_term(term, old, next))
@@ -628,19 +635,23 @@ impl<'a> Runner<'a> {
                 if let Some(result) = self.rule_memo.get(&memo_key) {
                     return Ok(*result);
                 }
-                if hidden
-                    && let Some(verdict) = self.verdicts.iter().find(|verdict| {
-                        verdict.rule_hash == rule_hash
-                            && verdict.pinned_inputs_digest == pinned_inputs_digest
-                            && verdict.principal == self.context.viewer.as_str()
-                            && verdict.auth_epoch == self.context.auth_epoch
-                    })
-                {
+                if let Some(verdict) = self.verdicts.iter().find(|verdict| {
+                    verdict.rule_hash == rule_hash
+                        && verdict.pinned_inputs_digest == pinned_inputs_digest
+                        && verdict.principal == self.context.viewer.as_str()
+                        && verdict.auth_epoch == self.context.auth_epoch
+                }) {
                     self.rule_memo.insert(memo_key, verdict.result);
                     return Ok(verdict.result);
                 }
                 let found = self.lookup_raw(table, index, &key)?;
                 let result = found.is_some();
+                // Always evaluate the target policy so its authoritative
+                // transitive probes stay metered and traced. Structural proof
+                // alone controls disclosure; the viewer-specific result is
+                // deliberately not an authority to reveal this input.
+                self.trace_rule_input_policy(table, found.as_ref())?;
+                let hidden = !structurally_readable;
                 self.trace.rule_probes += 1;
                 self.trace.rule_inputs.push(RuleInputTrace {
                     rule_hash: rule_hash.to_owned(),
@@ -705,6 +716,100 @@ impl<'a> Runner<'a> {
                 });
                 Ok(result)
             }
+        }
+    }
+
+    // @ref LLP 1001#9-schema-additions — dynamic policy evaluation preserves
+    // authoritative metering and nested traces, while structural exact-row
+    // proof alone determines whether the input is client-readable.
+    fn trace_rule_input_policy(
+        &mut self,
+        table: &str,
+        found: Option<&Value>,
+    ) -> Result<(), RuntimeError> {
+        let read = self
+            .schema
+            .table(table)
+            .ok_or_else(|| RuntimeError::Schema(format!("missing table {table}")))?
+            .rules
+            .read
+            .clone();
+        let Some(found) = found else {
+            return Ok(());
+        };
+        let hash = self.schema.rule_hash(&read);
+        self.eval_visibility_rule(&read, &hash, found)?;
+        Ok(())
+    }
+
+    fn eval_visibility_rule(
+        &mut self,
+        rule: &RuleExpr,
+        rule_hash: &str,
+        row: &Value,
+    ) -> Result<bool, RuntimeError> {
+        if self.rule_certificate.is_some() {
+            self.step(1)?;
+        }
+        match rule {
+            RuleExpr::Public { .. } | RuleExpr::Allow => Ok(true),
+            RuleExpr::Deny => Ok(false),
+            RuleExpr::Eq(left, right) => {
+                Ok(self.rule_term(left, None, row)? == self.rule_term(right, None, row)?)
+            }
+            RuleExpr::Ne(left, right) => {
+                Ok(self.rule_term(left, None, row)? != self.rule_term(right, None, row)?)
+            }
+            RuleExpr::And(rules) => {
+                for rule in rules {
+                    if !self.eval_visibility_rule(rule, rule_hash, row)? {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
+            }
+            RuleExpr::Or(rules) => {
+                for rule in rules {
+                    if self.eval_visibility_rule(rule, rule_hash, row)? {
+                        return Ok(true);
+                    }
+                }
+                Ok(false)
+            }
+            RuleExpr::Not(rule) => Ok(!self.eval_visibility_rule(rule, rule_hash, row)?),
+            RuleExpr::Exists {
+                table, index, key, ..
+            } => {
+                let key = key
+                    .iter()
+                    .map(|term| self.rule_term(term, None, row))
+                    .collect::<Result<Vec<_>, _>>()?;
+                let pinned_inputs_digest = digest(&(table, index, &key));
+                let memo_key = format!("{rule_hash}:{pinned_inputs_digest}");
+                if let Some(result) = self.visibility_memo.get(&memo_key) {
+                    return Ok(*result);
+                }
+                let result = self.lookup_raw(table, index, &key)?.is_some();
+                // Visibility derivation is authoritative work and uses the
+                // same certificate meter as an outer rule probe. It does not
+                // recursively classify this nested input for disclosure, so
+                // self-referential read rules terminate after this lookup.
+                self.trace.rule_probes = self.trace.rule_probes.saturating_add(1);
+                self.trace.rule_inputs.push(RuleInputTrace {
+                    rule_hash: rule_hash.to_owned(),
+                    table: table.clone(),
+                    index: index.clone(),
+                    key,
+                    result,
+                    hidden: true,
+                    pinned_inputs_digest,
+                });
+                self.visibility_memo.insert(memo_key, result);
+                Ok(result)
+            }
+            RuleExpr::Created { .. } => Err(RuntimeError::Schema(
+                "created-row probe evaluated while deriving read visibility".to_owned(),
+            )),
         }
     }
 
@@ -812,10 +917,36 @@ impl<'a> Runner<'a> {
 
     pub(super) fn step(&mut self, amount: u64) -> Result<(), RuntimeError> {
         self.trace.steps = self.trace.steps.saturating_add(amount);
-        if let Some(certificate) = self.certificate
-            && self.trace.steps > certificate.max_steps
+        let max_steps = self
+            .certificate
+            .map(|certificate| certificate.max_steps)
+            .or_else(|| {
+                self.rule_certificate
+                    .map(|certificate| certificate.max_steps)
+            });
+        if let Some(max_steps) = max_steps
+            && self.trace.steps > max_steps
         {
-            return Err(RuntimeError::Steps(certificate.max_steps));
+            return Err(RuntimeError::Steps(max_steps));
+        }
+        Ok(())
+    }
+
+    pub(super) fn assert_rule_bounds(&self) -> Result<(), RuntimeError> {
+        let certificate = self
+            .rule_certificate
+            .expect("certified rule execution has a certificate");
+        if self.trace.rule_probes > certificate.max_rule_probes {
+            return Err(RuntimeError::TraceSubset(format!(
+                "rule probes {} > certificate {}",
+                self.trace.rule_probes, certificate.max_rule_probes
+            )));
+        }
+        if self.trace.steps > certificate.max_steps {
+            return Err(RuntimeError::TraceSubset(format!(
+                "steps {} > certificate {}",
+                self.trace.steps, certificate.max_steps
+            )));
         }
         Ok(())
     }
@@ -1022,7 +1153,7 @@ mod tests {
             &transaction,
             &schema,
             &certificate,
-            Context::query("u1", BTreeMap::new()),
+            Context::query(Actor::user("u1").unwrap(), BTreeMap::new()),
             &verdicts,
             0,
         );

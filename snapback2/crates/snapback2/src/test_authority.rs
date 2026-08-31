@@ -9,8 +9,8 @@ use crate::project::{CompiledProject, SeedData};
 use crate::receipt::CheckReceipt;
 use serde_json::{Value as Json, json};
 use snapback2_core::{
-    ArgType, ColumnType, Expr, Program, ProgramKind, ProjectJson, RuleExpr, RuleTerm, Schema, Stmt,
-    Value, WriteKind,
+    ArgType, Ceilings, ColumnType, Expr, Generation, Program, ProgramKind, ProjectJson, RuleExpr,
+    RuleTerm, Schema, Stmt, Value, WriteKind,
 };
 use std::collections::BTreeSet;
 use std::time::{Duration, Instant};
@@ -90,7 +90,7 @@ pub(super) fn checks(
     compiled: &CompiledProject,
     seed: &SeedData,
 ) -> Vec<CheckReceipt> {
-    let Some(recipe) = membership_recipe(&compiled.generation.schema) else {
+    let Some(recipe) = membership_recipe(compiled.generation.schema()) else {
         return Vec::new();
     };
     let query_plan = query_plan(compiled, seed, &recipe);
@@ -296,7 +296,7 @@ fn successor_policy_fence(
                 "query": plan.query,
                 "as": plan.persona,
                 "protectedTable": plan.protected_table,
-                "generationG": compiled.generation.hash,
+                "generationG": compiled.generation.hash(),
                 "transport": "served control apply + retained SSE + fresh query API",
             }),
         ),
@@ -510,7 +510,7 @@ fn aba_program<'a>(
 ) -> Result<(String, &'a Program), String> {
     compiled
         .generation
-        .programs
+        .programs()
         .iter()
         .find(|(name, (program, certificate))| {
             name.ends_with(suffix)
@@ -687,7 +687,7 @@ fn successor_policy_attempt(
         .rules
         .read = RuleExpr::Deny;
     let mut program_successor = compiled.project.clone();
-    let program_denial = format!("{SUCCESSOR_DENIAL_PREFIX}{}", compiled.generation.hash);
+    let program_denial = format!("{SUCCESSOR_DENIAL_PREFIX}{}", compiled.generation.hash());
     program_successor
         .programs
         .iter_mut()
@@ -738,6 +738,25 @@ fn successor_attempt(
     program_successor: &ProjectJson,
     program_denial: &str,
 ) -> Result<Json, String> {
+    let plan_hash_g = compiled
+        .generation
+        .programs()
+        .get(&plan.query)
+        .map(|(_, certificate)| certificate.plan_hash.clone())
+        .ok_or_else(|| format!("generation G omitted query {}", plan.query))?;
+    let program_generation = Generation::certify(program_successor, Ceilings::default())
+        .map_err(|errors| format!("program successor did not certify: {errors:?}"))?;
+    let plan_hash_g2 = program_generation
+        .programs()
+        .get(&plan.query)
+        .map(|(_, certificate)| certificate.plan_hash.clone())
+        .ok_or_else(|| format!("program successor omitted query {}", plan.query))?;
+    if plan_hash_g2 == plan_hash_g {
+        return Err(format!(
+            "program successor retained predecessor plan hash {plan_hash_g}"
+        ));
+    }
+
     let mut retained =
         SseProbe::connect(owner, &plan.query, plan.query_args.clone(), &plan.persona)
             .map_err(|error| format!("generation G subscription was refused: {error:?}"))?;
@@ -750,10 +769,10 @@ fn successor_attempt(
     let generation_g1 = policy_applied["to"]
         .as_str()
         .ok_or_else(|| format!("policy successor report omitted generation: {policy_applied}"))?;
-    if generation_g1 == compiled.generation.hash {
+    if generation_g1 == compiled.generation.hash() {
         return Err(format!(
             "denying policy successor retained generation {}",
-            compiled.generation.hash
+            compiled.generation.hash()
         ));
     }
     let policy_retained = retained.event(Duration::from_secs(2)).map_err(|error| {
@@ -767,10 +786,10 @@ fn successor_attempt(
     let generation_g2 = program_applied["to"]
         .as_str()
         .ok_or_else(|| format!("program successor report omitted generation: {program_applied}"))?;
-    if generation_g2 == compiled.generation.hash || generation_g2 == generation_g1 {
+    if generation_g2 != compiled.generation.hash() || generation_g2 == generation_g1 {
         return Err(format!(
-            "program successor did not establish a distinct G+2 (G={}, G+1={generation_g1}, G+2={generation_g2})",
-            compiled.generation.hash,
+            "program successor did not restore the base schema identity for G+2 (G={}, G+1={generation_g1}, G+2={generation_g2})",
+            compiled.generation.hash(),
         ));
     }
     let program_retained = retained.event(Duration::from_secs(2)).map_err(|error| {
@@ -800,9 +819,12 @@ fn successor_attempt(
         "query": plan.query,
         "as": plan.persona,
         "protectedTable": plan.protected_table,
-        "generationG": compiled.generation.hash,
+        "generationG": compiled.generation.hash(),
         "generationG1": generation_g1,
         "generationG2": generation_g2,
+        "planHashG": plan_hash_g,
+        "planHashG2": plan_hash_g2,
+        "generationScope": "schema",
         "policyReplacement": "Deny",
         "policyRetainedHandleState": policy_retained["state"],
         "policyRetainedHandleRows": 0,
@@ -967,17 +989,18 @@ fn query_plan(
 ) -> Result<QueryPlan, PlanBlock> {
     let mut reasons = BTreeSet::new();
     for protected in &recipe.protected {
-        let queries = compiled
-            .generation
-            .programs
-            .iter()
-            .filter(|(_, (program, certificate))| {
-                program.kind == ProgramKind::Query
-                    && certificate
-                        .read_sites
-                        .iter()
-                        .any(|site| site.table == protected.table)
-            });
+        let queries =
+            compiled
+                .generation
+                .programs()
+                .iter()
+                .filter(|(_, (program, certificate))| {
+                    program.kind == ProgramKind::Query
+                        && certificate
+                            .read_sites
+                            .iter()
+                            .any(|site| site.table == protected.table)
+                });
         for (query, (program, _)) in queries {
             for (persona, principal, membership_id, scope) in membership_candidates(seed, recipe) {
                 if !seed.rows.get(&protected.table).is_some_and(|rows| {
@@ -1051,7 +1074,7 @@ fn revoke_plan(
     plan: &QueryPlan,
 ) -> Result<RevokePlan, PlanBlock> {
     let mut reasons = BTreeSet::new();
-    for (mutation, (program, certificate)) in &compiled.generation.programs {
+    for (mutation, (program, certificate)) in compiled.generation.programs() {
         if program.kind != ProgramKind::Mutation
             || !certificate
                 .write_sites
@@ -1114,7 +1137,7 @@ fn protected_write_plan(
             plan.scope, plan.principal
         ));
     }
-    for (mutation, (program, certificate)) in &compiled.generation.programs {
+    for (mutation, (program, certificate)) in compiled.generation.programs() {
         if program.kind != ProgramKind::Mutation
             || !certificate.write_sites.iter().any(|site| {
                 site.table == plan.protected_table
@@ -1274,19 +1297,11 @@ fn apply_project(owner: &OwnerInfo, project: &ProjectJson) -> Result<Json, Strin
 }
 
 fn restore_generation(owner: &OwnerInfo, compiled: &CompiledProject) -> Result<(), String> {
-    let status = client::control(owner, "GET", "/control/status", json!({}))
-        .map_err(|error| format!("cannot inspect active generation: {error:?}"))?;
-    if status.status != 200 {
-        return Err(format!(
-            "status returned HTTP {}: {}",
-            status.status, status.body
-        ));
-    }
-    if status.body["generation"].as_str() == Some(compiled.generation.hash.as_str()) {
-        return Ok(());
-    }
+    // Generation identity is schema-scoped, so a program-only successor can
+    // share this hash while still carrying different executable content.
+    // Always reapply the exact compiled project rather than trusting status.
     let restored = apply_project(owner, &compiled.project)?;
-    if restored["to"].as_str() != Some(compiled.generation.hash.as_str()) {
+    if restored["to"].as_str() != Some(compiled.generation.hash().as_str()) {
         return Err(format!(
             "restore applied an unexpected generation: {restored}"
         ));

@@ -341,7 +341,7 @@ pub fn write_build_cache(root: &Path, compiled: &CompiledProject) -> Result<(), 
     write_json(&build.join("project.json"), &compiled.project)?;
     let certificates: BTreeMap<_, _> = compiled
         .generation
-        .programs
+        .programs()
         .iter()
         .map(|(name, (_, certificate))| (name, certificate))
         .collect();
@@ -401,7 +401,7 @@ pub fn seed_rows(
     for (table_name, rows) in &seed.rows {
         let table = compiled
             .generation
-            .schema
+            .schema()
             .tables
             .get(table_name)
             .ok_or_else(|| {

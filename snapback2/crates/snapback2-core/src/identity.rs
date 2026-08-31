@@ -9,9 +9,23 @@ use rusqlite::{OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::fmt;
+use std::sync::LazyLock;
 use thiserror::Error;
 
 const SESSION_MILLIS: i64 = 30 * 24 * 60 * 60 * 1_000;
+// @ref LLP 1001#6-identity-identityrs — system is one
+// reserved principal value, not a principal-kind rule term. The adjacent
+// core-owned IR contract is also consumed directly by the TypeScript compiler.
+pub const IR_CONTRACT_JSON: &str = include_str!("../ir-contract.json");
+pub static SYSTEM_PRINCIPAL_ID: LazyLock<String> = LazyLock::new(|| {
+    serde_json::from_str::<serde_json::Value>(IR_CONTRACT_JSON)
+        .expect("snapback2-core IR contract must be valid JSON")
+        .get("systemPrincipalId")
+        .and_then(serde_json::Value::as_str)
+        .expect("snapback2-core IR contract must name systemPrincipalId")
+        .to_owned()
+});
+
 // @ref LLP 1001#6-identity-identityrs — bearer bytes leave identity only once;
 // persistence and lookup use a domain-separated digest plus a durable epoch.
 const SESSION_TOKEN_DOMAIN: &[u8] = b"snapback2-session-token-v1\0";
@@ -48,6 +62,61 @@ pub fn login_throttle_policy() -> (u32, u32, i64) {
         LOGIN_EMAIL_ATTEMPTS,
         LOGIN_THROTTLE_WINDOW_MILLIS,
     )
+}
+
+/// An authenticated application actor. Construction rejects the reserved
+/// system identity, so ordinary callers cannot acquire system authority by
+/// choosing a viewer string or principal kind.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Actor {
+    id: String,
+    kind: String,
+}
+
+impl Actor {
+    pub fn new(id: impl Into<String>, kind: impl Into<String>) -> Result<Self, ActorError> {
+        let id = id.into();
+        let kind = kind.into();
+        if id == SYSTEM_PRINCIPAL_ID.as_str() || kind == SYSTEM_PRINCIPAL_ID.as_str() {
+            return Err(ActorError::ReservedSystem);
+        }
+        if id.is_empty() {
+            return Err(ActorError::Empty);
+        }
+        Ok(Self { id, kind })
+    }
+
+    pub fn user(id: impl Into<String>) -> Result<Self, ActorError> {
+        Self::new(id, "user")
+    }
+
+    pub fn persona(name: impl AsRef<str>) -> Result<Self, ActorError> {
+        Self::new(format!("dev:{}", name.as_ref()), "persona")
+    }
+
+    pub fn id(&self) -> &str {
+        &self.id
+    }
+
+    pub fn kind(&self) -> &str {
+        &self.kind
+    }
+}
+
+impl TryFrom<&Principal> for Actor {
+    type Error = ActorError;
+
+    fn try_from(principal: &Principal) -> Result<Self, Self::Error> {
+        Self::new(principal.id.clone(), principal.kind.clone())
+    }
+}
+
+#[derive(Clone, Debug, Error, PartialEq, Eq)]
+pub enum ActorError {
+    #[error("E_AUTH_RESERVED: the system principal is internal and cannot be an application actor")]
+    ReservedSystem,
+    #[error("E_AUTH_INVALID: actor id must not be empty")]
+    Empty,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -115,7 +184,7 @@ impl Runtime {
         if password.chars().count() < 8 {
             return Err(IdentityError::PasswordWeak);
         }
-        if !self.generation.schema.auth.password {
+        if !self.generation.schema().auth.password {
             return Err(IdentityError::Invalid);
         }
         let email = normalize_email(email);
@@ -157,7 +226,7 @@ impl Runtime {
         password: &str,
         now: i64,
     ) -> Result<Session, IdentityError> {
-        if !self.generation.schema.auth.password {
+        if !self.generation.schema().auth.password {
             return Err(IdentityError::Invalid);
         }
         let email = normalize_email(email);
@@ -200,7 +269,7 @@ impl Runtime {
     }
 
     pub fn guest(&mut self, now: i64) -> Result<Session, IdentityError> {
-        if !self.generation.schema.auth.guests {
+        if !self.generation.schema().auth.guests {
             return Err(IdentityError::GuestsOff);
         }
         let principal = Principal {

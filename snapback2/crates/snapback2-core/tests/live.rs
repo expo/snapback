@@ -119,7 +119,7 @@ fn range_point_and_absence_invalidation_is_exact_and_reruns_coalesce() {
         .subscribe(
             "items.byGroup",
             Context::query(
-                "u1",
+                Actor::user("u1").unwrap(),
                 BTreeMap::from([("group".to_owned(), Value::Id("a".to_owned()))]),
             ),
         )
@@ -129,7 +129,7 @@ fn range_point_and_absence_invalidation_is_exact_and_reruns_coalesce() {
         .subscribe(
             "items.byId",
             Context::query(
-                "u1",
+                Actor::user("u1").unwrap(),
                 BTreeMap::from([("id".to_owned(), Value::Id("a1".to_owned()))]),
             ),
         )
@@ -138,7 +138,7 @@ fn range_point_and_absence_invalidation_is_exact_and_reruns_coalesce() {
         .subscribe(
             "items.byId",
             Context::query(
-                "u1",
+                Actor::user("u1").unwrap(),
                 BTreeMap::from([("id".to_owned(), Value::Id("missing".to_owned()))]),
             ),
         )
@@ -167,7 +167,7 @@ fn range_point_and_absence_invalidation_is_exact_and_reruns_coalesce() {
         .execute(
             "items.first",
             Context::query(
-                "u1",
+                Actor::user("u1").unwrap(),
                 BTreeMap::from([("group".to_owned(), Value::Id("a".to_owned()))]),
             ),
         )
@@ -289,7 +289,7 @@ fn exhausted_hidden_range_is_complete_and_membership_addition_redelivers_it() {
         .subscribe(
             "docs.byGroup",
             Context::query(
-                "u1",
+                Actor::user("u1").unwrap(),
                 BTreeMap::from([("group".to_owned(), Value::Id("g1".to_owned()))]),
             ),
         )
@@ -304,7 +304,7 @@ fn exhausted_hidden_range_is_complete_and_membership_addition_redelivers_it() {
         .execute(
             "docs.first",
             Context::query(
-                "u1",
+                Actor::user("u1").unwrap(),
                 BTreeMap::from([("group".to_owned(), Value::Id("g1".to_owned()))]),
             ),
         )
@@ -401,7 +401,10 @@ fn hidden_rows_before_a_visible_row_still_produce_capped_from_trace() {
         .unwrap();
 
     let execution = runtime
-        .execute("docs.firstVisible", Context::query("u1", BTreeMap::new()))
+        .execute(
+            "docs.firstVisible",
+            Context::query(Actor::user("u1").unwrap(), BTreeMap::new()),
+        )
         .unwrap();
     assert_eq!(execution.result, Value::Array(Vec::new()));
     assert_eq!(
@@ -464,7 +467,7 @@ fn denied_subscription_keeps_rule_trace_and_is_readmitted() {
     let mut runtime =
         Runtime::open(Store::memory().unwrap(), generation(schema, vec![query])).unwrap();
     let context = Context::query(
-        "u1",
+        Actor::user("u1").unwrap(),
         BTreeMap::from([("group".to_owned(), Value::Id("g1".to_owned()))]),
     );
     let (id, denied) = runtime
@@ -568,7 +571,7 @@ fn complete_to_denied_with_the_same_result_is_a_changed_delivery() {
         .subscribe(
             "groups.requireMembership",
             Context::query(
-                "u1",
+                Actor::user("u1").unwrap(),
                 BTreeMap::from([("group".to_owned(), Value::Id("g1".to_owned()))]),
             ),
         )
@@ -579,7 +582,7 @@ fn complete_to_denied_with_the_same_result_is_a_changed_delivery() {
     let execution = runtime
         .execute(
             "memberships.revoke",
-            Context::mutation("u1", BTreeMap::new()),
+            Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new()),
         )
         .unwrap();
     let seq = execution.seq;
@@ -658,7 +661,10 @@ fn rerun_runtime_value_error_is_delivered_as_error() {
         )])
         .unwrap();
     let (id, initial) = runtime
-        .subscribe("counters.divide", Context::query("u1", BTreeMap::new()))
+        .subscribe(
+            "counters.divide",
+            Context::query(Actor::user("u1").unwrap(), BTreeMap::new()),
+        )
         .unwrap();
     assert_eq!(initial.state, ExecutionState::Complete);
 
@@ -692,4 +698,88 @@ fn rerun_runtime_value_error_is_delivered_as_error() {
     let recovery = runtime.rerun(&[id]).remove(0);
     assert!(recovery.changed, "recovery from an error must be delivered");
     assert_eq!(recovery.execution.unwrap().result, initial.result);
+}
+
+#[test]
+fn different_overflow_messages_are_changed_deliveries() {
+    let counters = public_table(
+        BTreeMap::from([
+            ("id".to_owned(), ColumnType::Id),
+            ("amount".to_owned(), ColumnType::Int),
+        ]),
+        BTreeMap::from([(
+            "byId".to_owned(),
+            Index {
+                columns: vec!["id".to_owned()],
+                unique: true,
+            },
+        )]),
+    );
+    let schema = Schema {
+        tables: BTreeMap::from([("counters".to_owned(), counters)]),
+        maintains: Vec::new(),
+        channels: BTreeMap::new(),
+        auth: Auth::default(),
+        effects: Vec::new(),
+    };
+    let query = Program {
+        name: "counters.overflow".to_owned(),
+        kind: ProgramKind::Query,
+        args: BTreeMap::new(),
+        read_time_granularity_ms: None,
+        body: vec![
+            Stmt::Let {
+                name: "counter".to_owned(),
+                value: Expr::Get(Read {
+                    site: "counters.overflow".to_owned(),
+                    table: "counters".to_owned(),
+                    index: "byId".to_owned(),
+                    key: vec![Expr::Literal(Value::Id("only".to_owned()))],
+                    provenance: KeyProvenance::Const,
+                }),
+            },
+            Stmt::Return(Expr::Binary {
+                op: BinaryOp::Add,
+                left: Box::new(field(var("counter"), "amount")),
+                right: Box::new(Expr::Literal(Value::Int(I53_MAX))),
+            }),
+        ],
+    };
+    let mut runtime =
+        Runtime::open(Store::memory().unwrap(), generation(schema, vec![query])).unwrap();
+    let counter = |amount| {
+        object([
+            ("id", Value::Id("only".to_owned())),
+            ("amount", Value::Int(amount)),
+        ])
+    };
+    runtime
+        .seed(&[("counters".to_owned(), counter(0))])
+        .unwrap();
+    let (id, _) = runtime
+        .subscribe(
+            "counters.overflow",
+            Context::query(Actor::user("u1").unwrap(), BTreeMap::new()),
+        )
+        .unwrap();
+
+    runtime
+        .seed(&[("counters".to_owned(), counter(1))])
+        .unwrap();
+    let first = runtime.rerun(&[id]).remove(0);
+    assert!(first.changed);
+    let first_message = first.execution.unwrap_err().to_string();
+    assert!(first_message.contains("9007199254740992"));
+
+    runtime
+        .seed(&[("counters".to_owned(), counter(2))])
+        .unwrap();
+    let second = runtime.rerun(&[id]).remove(0);
+    assert!(
+        second.changed,
+        "the same error code with a different message must be delivered"
+    );
+    let second_error = second.execution.unwrap_err();
+    assert_eq!(second_error.code(), "E_OVERFLOW");
+    assert_ne!(second_error.to_string(), first_message);
 }

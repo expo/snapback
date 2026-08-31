@@ -113,8 +113,8 @@ fn only_rule_error(raw: Json, expected_site: &str, message: &str) {
 #[test]
 fn raw_project_json_accepts_nominal_principal_rules_and_the_reserved_system_literal() {
     let generation = certify(valid_project_json()).expect("valid nominal rule project");
-    assert_eq!(generation.schema.tables.len(), 2);
-    assert_eq!(generation.schema.channels.len(), 1);
+    assert_eq!(generation.schema().tables.len(), 2);
+    assert_eq!(generation.schema().channels.len(), 1);
 }
 
 #[test]

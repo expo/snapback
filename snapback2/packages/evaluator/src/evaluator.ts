@@ -866,7 +866,7 @@ class Runner {
     row: Value,
   ): boolean {
     const rule = this.schema.tables[table].rules[effect];
-    return this.evaluateRule(rule, sha256(JSON.stringify(rule)), row);
+    return this.evaluateRule(rule, scopedRuleHash(this.schema, rule), row);
   }
 
   private evaluateRule(rule: any, ruleHash: string, row: Value): boolean {
@@ -1190,6 +1190,10 @@ function variant(value: any): [string, any] {
   const keys = Object.keys(value);
   if (keys.length !== 1) throw new EvalError("E_CORPUS", "invalid externally tagged variant");
   return [keys[0], value[keys[0]]];
+}
+
+export function scopedRuleHash(schema: any, rule: any): string {
+  return sha256(JSON.stringify([sha256(JSON.stringify(schema)), rule]));
 }
 
 function kindOf(value: Value): string {

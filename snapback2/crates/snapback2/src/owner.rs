@@ -183,7 +183,7 @@ fn foreground(root: PathBuf, options: &DevOptions) -> Result<(), Refusal> {
         port: server.port,
         url: url.clone(),
         secret: secret.clone(),
-        generation: compiled.generation.hash.clone(),
+        generation: compiled.generation.hash(),
         started_at: owner_started_at,
         mode: mode.clone(),
         project: root.clone(),

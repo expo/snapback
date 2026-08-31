@@ -1,11 +1,12 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { lowerSource, typecheckSource, type TableInfo } from "./compiler";
 import { assessGauntlet } from "./gauntlet";
-import type { Program, ProjectJson } from "./ir";
+import { IR_CONTRACT, type Program, type ProjectJson } from "./ir";
 import { listJourneys, lowerProject, lowerSeed } from "./project";
 import { lowerSchema } from "./lower/schema";
+import { registerPrincipalChecks, registerRbacRuleChecks } from "./rbac-checks";
 import { rustCheck } from "./rust-check";
 import { registerRuleTransitionChecks } from "./rule-transitions-checks";
 import { decimal } from "../../snapback2/src/index";
@@ -161,6 +162,34 @@ test("one operation reports every lowering refusal and marks diagnostic truncati
   assert(truncated?.message.includes("…and 6 more"), `per-operation truncation was silent or miscounted: ${truncated?.message}`);
 });
 
+test("multi-declarations and unbraced control bodies report every lowering refusal", () => {
+  const declarations = lowerSource(`import { query } from "snapback2";
+    export const bad = query({}, ({ db }) => {
+      const first = db.scan("first", [], { take: 1 }), second = db.scan("second", [], { take: 1 });
+      return null;
+    });`, "multi-declaration.ts");
+  assert(!declarations.ok, "two invalid declarations unexpectedly lowered");
+  const declarationMessages = declarations.diagnostics
+    .filter((item) => item.message.includes("static table/index reference required"))
+    .map((item) => item.message);
+  assert(declarationMessages.some((message) => message.includes('"first"'))
+    && declarationMessages.some((message) => message.includes('"second"')),
+  `multi-declaration recovery omitted a refusal: ${declarationMessages.join("; ")}`);
+
+  const controlled = lowerSource(`import { mutation } from "snapback2";
+    export const bad = mutation({}, ({ db }) => {
+      if (true) db.insert("first", { id: "1" }); else db.insert("second", { id: "2" });
+      return null;
+    });`, "unbraced-if.ts");
+  assert(!controlled.ok, "two invalid unbraced branches unexpectedly lowered");
+  const controlledMessages = controlled.diagnostics
+    .filter((item) => item.message.includes("static table/index reference required"))
+    .map((item) => item.message);
+  assert(controlledMessages.some((message) => message.includes('"first"'))
+    && controlledMessages.some((message) => message.includes('"second"')),
+  `unbraced control recovery omitted a refusal: ${controlledMessages.join("; ")}`);
+});
+
 test("all first-attempt refusals carry complete envelopes and mechanical rewrites", async () => {
   const firstAttempts: Record<string, string> = {
     "unbound-scan.ts": "E_UNBOUND_SCAN",
@@ -204,6 +233,232 @@ test("bound and collection callback fixtures still certify", async () => {
   const callbackUpsert = subset.programs.find((program) => program.name === "callbackUpsert")!;
   assert(canonical(callbackUpsert).includes('"Upsert"'), "callback upsert bypassed the addressed-key Upsert invariant");
   assert(rustCheck(subset.programs, "synthetic").every((result) => result.error === null), "collection/write-callback surface did not certify");
+});
+
+test("count and reduce retain O(1) closure through page bindings", () => {
+  const tables = new Map<string, TableInfo>([["items", {
+    name: "items",
+    private: false,
+    columns: {
+      id: { kind: "string" },
+      amount: { kind: "int" },
+      body: { kind: "string", max: 220 },
+    },
+  }]]);
+  const source = `import { query } from "snapback2";
+    export const inlineCount = query({}, ({ db }) => db.scan(items.byId, [], { take: 9405 }).count());
+    export const boundCount = query({}, ({ db }) => {
+      const page = db.scan(items.byId, [], { take: 9405 }); return page.count();
+    });
+    export const reduceSum = query({}, ({ db }) => {
+      const page = db.scan(items.byId, [], { take: 9405 });
+      return page.reduce((sum, item) => sum + item.amount, 0);
+    });`;
+  const lowered = lowerSource(source, "retention.ts", undefined, { tables });
+  assert(lowered.ok, `retention programs did not lower: ${lowered.ok ? "" : lowered.diagnostics[0]?.message}`);
+  const schema = {
+    tables: { items: {
+      columns: { id: "Id", amount: "Int", body: { Text: { max: 220 } } },
+      indexes: { byId: { columns: ["id"], unique: true } },
+      rules: {
+        read: { Public: { reason: "retention fixture" } },
+        insert: { Public: { reason: "retention fixture" } },
+        update: { Public: { reason: "retention fixture" } },
+        delete: { Public: { reason: "retention fixture" } },
+      },
+      constraints: [],
+    } },
+    maintains: [], channels: {}, auth: { password: false, guests: false }, effects: [],
+  };
+  const checked = rustCheck(lowered.programs, "synthetic", schema);
+  assert(checked.every((result) => result.error === null), `retention programs refused: ${JSON.stringify(checked)}`);
+  assert(checked.every((result) => result.certificate?.max_closure_bytes === 64),
+    `count/reduce closure estimates diverged: ${JSON.stringify(checked)}`);
+});
+
+test("loop collection refusals paste per-family rewrites that lower and certify", () => {
+  const tables = new Map<string, TableInfo>([["items", {
+    name: "items",
+    private: false,
+    columns: { id: { kind: "string" }, amount: { kind: "int" }, body: { kind: "string", max: 512 } },
+  }]]);
+  const schema = {
+    tables: { items: {
+      columns: { id: "Id", amount: "Int", body: { Text: { max: 512 } } },
+      indexes: { byId: { columns: ["id"], unique: true } },
+      rules: {
+        read: { Public: { reason: "growth rewrite fixture" } },
+        insert: { Public: { reason: "growth rewrite fixture" } },
+        update: { Public: { reason: "growth rewrite fixture" } },
+        delete: { Public: { reason: "growth rewrite fixture" } },
+      },
+      constraints: [],
+    } },
+    maintains: [], channels: {}, auth: { password: false, guests: false }, effects: [],
+  };
+  const cases = [
+    {
+      name: "loop-invariant-argument",
+      args: "{ value: t.text(1000) }",
+      body: `let result = [];
+        for (const item of range(0, 7000)) result = [...result, args.value];
+        return result;`,
+      estimate: "output bytes 7133002 exceeds ceiling",
+      rewrite: "result = [args.value]",
+    },
+    {
+      name: "helper-argument",
+      args: "{ value: t.text(1000) }",
+      helpers: "function append(result, value) { return [...result, value]; }",
+      body: `let result = [];
+        for (const item of range(0, 7000)) result = append(result, args.value);
+        return result;`,
+      estimate: "output bytes 7133002 exceeds ceiling",
+      rewrite: "result = [args.value]",
+    },
+    {
+      name: "temporary-alias",
+      args: "{}",
+      body: `let result = [];
+        for (const item of db.scan(items.byId, [], { take: 7000 })) {
+          const temporary = [...result, item];
+          result = temporary;
+        }
+        return result;`,
+      estimate: "output bytes ",
+      rewrite: "result = [item]",
+    },
+    {
+      name: "page-binding-push",
+      args: "{}",
+      body: `const page = db.scan(items.byId, [], { take: 7000 });
+        let result = [];
+        for (const item of page) {
+          const projected = { id: item.id, body: item.body };
+          result.push(projected);
+        }
+        return result;`,
+      estimate: "output bytes ",
+      rewrite: "result = [{ body: item.body, id: item.id }]",
+    },
+    {
+      name: "duplicate-prior",
+      args: "{}",
+      body: `let result = [];
+        for (const item of range(0, 20)) result = [...result, ...result, item];
+        return result;`,
+      estimate: "output bytes ",
+      rewrite: "result = [item]",
+    },
+    {
+      name: "object-chain",
+      args: "{}",
+      body: `let result = {};
+        for (const item of db.scan(items.byId, [], { take: 7000 })) result = { previous: result, item };
+        return result;`,
+      estimate: "output bytes ",
+      rewrite: "result = { item: item }",
+    },
+    {
+      name: "reset-rebuild",
+      args: "{ value: t.text(1000) }",
+      body: `let result = [];
+        for (const item of range(0, 7000)) {
+          const prior = result;
+          result = [];
+          result = [...prior, args.value];
+        }
+        return result;`,
+      estimate: "output bytes 7133002 exceeds ceiling",
+      rewrite: "result = [args.value]",
+    },
+    {
+      name: "json-seeded-recursive-wrapper",
+      args: "{ value: t.json(1000) }",
+      body: `let result = args.value;
+        for (const item of range(0, 7000)) result = [result, args.value];
+        return result;`,
+      estimate: "output bytes 7141016 exceeds ceiling",
+      rewrite: "result = [args.value]",
+    },
+  ];
+
+  for (const item of cases) {
+    const source = `import { query, range, t } from "snapback2";
+      ${item.helpers ?? ""}
+      export const refused = query(${item.args}, ({ db, args }) => { ${item.body} });`;
+    const lowered = lowerSource(source, `${item.name}.ts`, undefined, { tables });
+    assert(lowered.ok, `${item.name} did not lower: ${lowered.ok ? "" : lowered.diagnostics.map((diagnostic) => diagnostic.message).join("; ")}`);
+    const refusal = rustCheck(lowered.programs, "synthetic", schema)[0]?.error;
+    assert(refusal?.code === "E_BOUND" && refusal.message.startsWith(item.estimate),
+      `${item.name} was not refused at honest output magnitude: ${JSON.stringify(refusal)}`);
+    assert(refusal.rewrite.includes(item.rewrite),
+      `${item.name} rewrite did not use the refusing site's bindings: ${refusal.rewrite}`);
+
+    const fixedSource = `import { query, range, t } from "snapback2";
+      export const fixed = query(${item.args}, ({ db, args }) => { ${refusal.rewrite} });`;
+    const fixed = lowerSource(fixedSource, `fixed-${item.name}.ts`, undefined, { tables });
+    assert(fixed.ok, `${item.name} pasted rewrite did not lower: ${fixed.ok ? "" : fixed.diagnostics.map((diagnostic) => `${diagnostic.code}: ${diagnostic.message}`).join("; ")}\n${refusal.rewrite}`);
+    const certified = rustCheck(fixed.programs, "synthetic", schema);
+    assert(certified.every((result) => result.error === null),
+      `${item.name} pasted rewrite did not certify: ${JSON.stringify(certified)}\n${refusal.rewrite}`);
+  }
+
+  const decoySource = `import { query, range, t } from "snapback2";
+    export const refused = query({ value: t.text(1000) }, ({ args }) => {
+      let decoy = [];
+      for (const bait of range(0, 2)) decoy = [...decoy, bait];
+      let result = [];
+      for (const item of range(0, 7000)) result = [...result, args.value];
+      return result;
+    });`;
+  const decoy = lowerSource(decoySource, "two-growth-sites.ts", undefined, { tables });
+  assert(decoy.ok, `two-site fixture did not lower: ${decoy.ok ? "" : decoy.diagnostics.map((diagnostic) => diagnostic.message).join("; ")}`);
+  const decoyRefusal = rustCheck(decoy.programs, "synthetic", schema)[0]?.error;
+  assert(decoyRefusal?.message.startsWith("output bytes 7133002 exceeds ceiling")
+    && decoyRefusal.rewrite.includes("let result = []")
+    && decoyRefusal.rewrite.includes("range(0, 7000)")
+    && !decoyRefusal.rewrite.includes("decoy"),
+    `two-site refusal did not name the 7,000-iteration result site: ${JSON.stringify(decoyRefusal)}`);
+});
+
+test("bound rewrite uses the refusing table's declared row width", () => {
+  const tables = new Map<string, TableInfo>([["wideRows", {
+    name: "wideRows",
+    private: false,
+    columns: {
+      id: { kind: "string" },
+      amount: { kind: "int" },
+      body: { kind: "string", max: 4000 },
+    },
+  }]]);
+  const source = `import { query } from "snapback2";
+    export const wide = query({}, ({ db }) => {
+      for (const row of db.scan(wideRows.byId, [], { take: 12000 })) { let observed = row.amount; }
+      return null;
+    });`;
+  const refused = lowerSource(source, "wide-bound.ts", undefined, { tables });
+  assert(!refused.ok && refused.diagnostics[0]?.code === "E_BOUND", "wide-row bound fixture did not refuse");
+  assert(refused.diagnostics[0].rewrite.includes("take: 49"),
+    `wide-row rewrite ignored the 4,226-byte declared row: ${refused.diagnostics[0].rewrite}`);
+  const fixed = lowerSource(refused.diagnostics[0].rewrite, "wide-bound-fixed.ts", undefined, { tables });
+  assert(fixed.ok, "wide-row bound rewrite did not lower");
+  const schema = {
+    tables: { wideRows: {
+      columns: { id: "Id", amount: "Int", body: { Text: { max: 4000 } } },
+      indexes: { byId: { columns: ["id"], unique: true } },
+      rules: {
+        read: { Public: { reason: "wide-row fixture" } },
+        insert: { Public: { reason: "wide-row fixture" } },
+        update: { Public: { reason: "wide-row fixture" } },
+        delete: { Public: { reason: "wide-row fixture" } },
+      },
+      constraints: [],
+    } },
+    maintains: [], channels: {}, auth: { password: false, guests: false }, effects: [],
+  };
+  assert(rustCheck(fixed.programs, "synthetic", schema).every((result) => result.error === null),
+    "wide-row mechanical rewrite did not certify against the declared schema");
 });
 
 test("object and array spreads lower only from static shapes and preserve override order", () => {
@@ -367,9 +622,10 @@ test("the thenable property name is reserved at every generated API path", async
 
 test("schema and program namespace imports resolve table, index, emit, and then references", async () => {
   await withProject({
-    "snapback/schema.ts": `import { schema, table, t } from "snapback2";
+    "snapback/schema.ts": `import { schema as defineSchema, table, t } from "snapback2";
+      export const schema = table({ columns: { label: t.text(100) } });
       export const todos = table({ columns: { value: t.text(100) } });
-      export default schema({ tables: { todos } });`,
+      export default defineSchema({ tables: { schema, todos } });`,
     "snapback/callbacks.ts": `import { mutation, t } from "snapback2";
       export const record = mutation({ outboxId: t.id(), effect: t.text(100), result: t.json<{ delivered: true }>(100) }, ({ args }) => args.result);`,
     "snapback/effects.ts": `import { effect } from "snapback2";
@@ -396,6 +652,7 @@ test("schema and program namespace imports resolve table, index, emit, and then 
     assert(encoded.includes('"effect":"effects.notify"'), "program namespace effect reference did not resolve");
     assert(project.project.effects[0]?.then === "callbacks.record", "program namespace then reference did not resolve");
     assert(project.apiDts.includes("list: Op<{}, Page<TodosRow>>"), "schema namespace scan lost its authored API row type");
+    assert(!project.apiDts.includes("list: Op<{}, Page<SchemaRow>>"), "API inference treated the namespace binding as the schema table");
   });
 });
 
@@ -465,14 +722,6 @@ test("single-file type diagnostics choose the same family from the authored site
   assert(has("E_EFFECT_TYPE", "effect"), "single-file effect type error did not use the effect family");
 });
 
-test("placeholder declarations export every not-built client, React, and journey symbol", async () => {
-  const declarations = await readFile(`${crate}packages/snapback2/types/placeholder.d.ts`, "utf8");
-  for (const name of ["createClient", "useQuery", "useMutation", "useAuth", "useChannel", "SnapbackProvider", "DevOverlay", "journey"]) {
-    assert(new RegExp(`export declare const ${name}\\b`).test(declarations), `placeholder declarations omit ${name}`);
-  }
-  assert((declarations.match(/=> never/g) ?? []).length === 8, "placeholder exports are not typed as never-returning callables");
-});
-
 test("client, React, and test modules expose their real callable surfaces", () => {
   for (const [surface, module, names] of [
     ["client", clientSurface, ["createClient", "SnapbackRefusal"]],
@@ -520,7 +769,7 @@ test("chat and todos lower schema, channels, effects, emit, API types, seed, and
   assert(chat.project.effects[0]?.name === "notifications.notify", "chat effect was not qualified");
   assert(chat.project.schema.effects[0] === "notifications.notify", "schema effect list differs");
   const notificationRules = (chat.project.schema.tables.notifications as any)?.rules;
-  const systemRule = { Eq: ["Viewer", { Literal: { Id: "system" } }] };
+  const systemRule = { Eq: ["Viewer", { Literal: { Id: IR_CONTRACT.systemPrincipalId } }] };
   assert(canonical(notificationRules?.insert) === canonical(systemRule)
     && canonical(notificationRules?.update) === canonical(systemRule),
   "chat effect bookkeeping must explicitly admit the system principal");
@@ -627,69 +876,7 @@ test("ref operation arguments retain their schema table in the engine IR", async
   });
 });
 
-test("Principal columns and arguments stay nominal across lowering and generated APIs", async () => {
-  await withProject({
-    "snapback/schema.ts": `import { schema, table, t } from "snapback2";
-      export const profiles = table({ columns: { name: t.text(100) } });
-      export const grants = table({ columns: { principal: t.principal(), profileId: t.ref(profiles) } });
-      export default schema({ tables: { profiles, grants } });`,
-    "snapback/grants.ts": `import { mutation, t } from "snapback2";
-      import { grants, profiles } from "./schema";
-      export const assign = mutation({ target: t.principal(), profileId: t.ref(profiles) }, ({ db, ctx, args }) => {
-        const id = ctx.newId();
-        db.insert(grants, { id, principal: ctx.viewer, profileId: args.profileId });
-        db.update(grants, id, { principal: args.target });
-        return { actor: ctx.viewer, target: args.target };
-      });`,
-    "snapback/seed.ts": `import { seed } from "snapback2";
-      export default seed({ personas: ["alice"], rows: {
-        profiles: [{ id: "p1", name: "Alice" }],
-        grants: [{ id: "g1", principal: "dev:alice", profileId: "p1" }],
-      } });`,
-  }, async (root) => {
-    const project = await lowerProject(root);
-    assert(project.ok, `Principal project refused: ${project.ok ? "" : project.diagnostics.map((item) => `${item.code} ${item.message}`).join("; ")}`);
-    const columns = (project.project.schema.tables.grants as any).columns;
-    const assign = project.project.programs.find((item) => item.name === "grants.assign")!;
-    assert(columns.principal === "Principal", `Principal column lowered as ${canonical(columns.principal)}`);
-    assert(assign.args.target === "Principal", `Principal argument lowered as ${canonical(assign.args.target)}`);
-    assert(canonical(assign.args.profileId) === canonical({ Ref: { table: "profiles" } }), "Ref argument lost its table beside Principal");
-    assert(project.apiDts.includes("principal: Principal") && project.apiDts.includes("target: Principal")
-      && project.apiDts.includes("profileId: string"), "generated declarations did not distinguish Principal from table IDs");
-    assert(canonical(assign).includes('"Viewer"') && canonical(assign).includes('"Variable":"target"'),
-      "ctx.viewer or the Principal argument did not reach the operation IR");
-    const seed = await lowerSeed(root);
-    assert(seed.ok && (seed.seed.rows.grants?.[0] as any)?.principal === "dev:alice",
-      "schema-directed persona seed did not preserve its Principal wire value");
-  });
-});
-
-test("ordinary strings and table refs cannot fill Principal insert, update, or argument values", async () => {
-  await withProject({
-    "snapback/schema.ts": `import { schema, table, t } from "snapback2";
-      export const profiles = table({ columns: { name: t.text(100) } });
-      export const grants = table({ columns: { principal: t.principal() } });
-      export default schema({ tables: { profiles, grants } });`,
-    "snapback/grants.ts": `import { mutation, t } from "snapback2";
-      import { grants, profiles } from "./schema";
-      export const insertRef = mutation({ profileId: t.ref(profiles) }, ({ db, ctx, args }) =>
-        db.insert(grants, { id: ctx.newId(), principal: args.profileId }));
-      export const insertString = mutation({}, ({ db, ctx }) =>
-        db.insert(grants, { id: ctx.newId(), principal: "forged" }));
-      export const updateRef = mutation({ grantId: t.ref(grants), profileId: t.ref(profiles) }, ({ db, args }) =>
-        db.update(grants, args.grantId, { principal: args.profileId }));
-      export const forgeArg = mutation({ target: t.principal() }, ({ args }) => {
-        const forged: typeof args.target = "forged";
-        return forged;
-      });`,
-  }, async (root) => {
-    const project = await lowerProject(root);
-    assert(!project.ok, "ordinary string/table Ref values unexpectedly inhabited Principal");
-    const nominal = project.diagnostics.filter((item) =>
-      item.message.includes("not assignable") && item.message.includes("Principal"));
-    assert(nominal.length >= 4, `Principal negative paths were not all rejected: ${project.diagnostics.map((item) => item.message).join("; ")}`);
-  });
-});
+registerPrincipalChecks(test, canonical, withProject);
 
 test("Decimal, Money, and Enum descriptors type APIs and lower fractional literals to integer wire values", async () => {
   const todos = await lowerProject(`${frontend}fixtures/todos`);
@@ -718,8 +905,9 @@ test("Decimal, Money, and Enum descriptors type APIs and lower fractional litera
   assert(canonical(todos.project.programs.find((item) => item.name === "todos.encoded")).includes('"Int":999'), "authoring decimal() helper did not lower to minor units");
 });
 
-test("invalid Decimal, Money, and Enum descriptors refuse with sited descriptor rewrites", () => {
+test("invalid Principal, Decimal, Money, and Enum descriptors refuse with sited descriptor rewrites", () => {
   const cases = [
+    { descriptor: "t.principal(1)", rewrite: "t.principal()" },
     { descriptor: "t.decimal(19)", rewrite: "t.decimal(12)" },
     { descriptor: 't.money("usd")', rewrite: 't.money("USD")' },
     { descriptor: 't.enum(["open", "open"])', rewrite: 't.enum(["open"])' },
@@ -735,13 +923,13 @@ test("invalid Decimal, Money, and Enum descriptors refuse with sited descriptor 
 
   const schema = lowerSchema(`import { schema, table, t } from "snapback2";
     export const rows = table({ columns: {
-      decimal: t.decimal(19), money: t.money("usd"), duplicate: t.enum(["open", "open"]), empty: t.enum([]), blank: t.enum([""])
+      principal: t.principal(1), decimal: t.decimal(19), money: t.money("usd"), duplicate: t.enum(["open", "open"]), empty: t.enum([]), blank: t.enum([""])
     } });
     export default schema({ tables: { rows } });`, "snapback/schema.ts");
   const refusals = schema.diagnostics.filter((diagnostic) => diagnostic.code === "E_SCHEMA_COLUMN");
-  assert(refusals.length === 5 && refusals.every((diagnostic) => diagnostic.family === "schema"
+  assert(refusals.length === 6 && refusals.every((diagnostic) => diagnostic.family === "schema"
     && diagnostic.site.startsWith("snapback/schema.ts:")), "invalid schema descriptors did not each produce a sited column refusal");
-  for (const rewrite of ['t.decimal(12)', 't.money("USD")', 't.enum(["open"])', 't.enum(["value"])']) {
+  for (const rewrite of ['t.principal()', 't.decimal(12)', 't.money("USD")', 't.enum(["open"])', 't.enum(["value"])']) {
     assert(refusals.some((diagnostic) => diagnostic.rewrite === rewrite), `schema descriptor rewrite omitted ${rewrite}`);
   }
 });
@@ -888,229 +1076,7 @@ test("project diagnostic cap ends with an explicit truncation refusal", async ()
   });
 });
 
-test("schema lowering refuses malformed constraints and every skipped authored shape", () => {
-  const source = `import { schema, table, t, rule } from 'snapback2';
-    export const source = table({ columns: { ownerId: t.id() },
-      indexes: { byOwner: { columns: ['ownerId'], mystery: true } },
-      rules: { read: rule.mystery() },
-      constraints: [{ cap: { by: ['ownerId'], max: '2' } }, { mystery: true }] });
-    export const target = table({ columns: { count: t.int() } });
-    export default schema({ tables: { source, target }, maintains: [{ mystery: 'source', by: ['ownerId'], into: 'target' }] });`;
-  const lowered = lowerSchema(source, "snapback/schema.ts");
-  const codes = new Set(lowered.diagnostics.map((item) => item.code));
-  for (const code of ["E_SCHEMA_CONSTRAINT", "E_SCHEMA_INDEX_OPTION", "E_RULE_INVALID", "E_SCHEMA_MAINTAIN"]) {
-    assert(codes.has(code as any), `strict schema diagnostics omitted ${code}`);
-  }
-  assert(lowered.diagnostics.every((item) => item.site.startsWith("snapback/schema.ts:") && item.rewrite.length > 0), "schema refusal envelope is incomplete");
-});
-
-test("rule input visibility is derived and cannot be authored into the IR", () => {
-  const source = `import { schema, table, t, rule } from 'snapback2';
-    export const grants = table({ columns: { principal: t.id() },
-      indexes: { byPrincipal: { columns: ['principal'], unique: true } },
-      rules: { read: rule.deny(), insert: rule.allow(), update: rule.allow(), delete: rule.allow() } });
-    export const docs = table({ columns: { title: t.text(20) },
-      rules: { read: rule.exists(grants, 'byPrincipal', [rule.viewer], { hidden: false }), insert: rule.allow(), update: rule.allow(), delete: rule.allow() } });
-    export default schema({ tables: { grants, docs } });`;
-  const lowered = lowerSchema(source, "snapback/schema.ts");
-  const visibility = lowered.diagnostics.find((item) =>
-    item.code === "E_RULE_INVALID" && item.message.includes("visibility is derived"));
-  assert(visibility, "authored rule-input visibility did not produce a sited refusal");
-  assert(!canonical(lowered.schema).includes("input_visibility"), "authored rule-input visibility reached engine IR");
-});
-
-test("rule terms and exists keys are checked against nominal schema types", () => {
-  const valid = `import { schema, table, t, rule } from "snapback2";
-    export const profiles = table({ columns: { name: t.text(40) } });
-    export const grants = table({ columns: { principal: t.principal() },
-      indexes: { byPrincipal: { columns: ["principal"], unique: true } },
-      rules: { read: rule.deny(), insert: rule.allow(), update: rule.allow(), delete: rule.allow() } });
-    export const docs = table({ columns: { owner: t.principal(), backup: t.principal(), profileId: t.ref(profiles) },
-      rules: {
-        read: rule.viewerIs("owner"),
-        insert: rule.eq(rule.field("owner"), rule.viewer),
-        update: rule.and(
-          rule.ne(rule.field("backup"), rule.viewer),
-          rule.exists(grants, "byPrincipal", [rule.viewer]),
-          rule.exists(profiles, "byId", [rule.field("profileId")]),
-        ),
-        delete: rule.system(),
-      } });
-    export default schema({ tables: { profiles, grants, docs } });`;
-  const accepted = lowerSchema(valid, "snapback/schema.ts");
-  assert(accepted.diagnostics.length === 0,
-    `valid Principal rules refused: ${accepted.diagnostics.map((item) => item.message).join("; ")}`);
-  assert(canonical((accepted.schema.tables.docs as any)?.rules?.delete)
-    === canonical({ Eq: ["Viewer", { Literal: { Id: "system" } }] }),
-  "rule.system lost its reserved Principal lowering");
-
-  const invalid = `import { schema, table, t, rule } from "snapback2";
-    export const profiles = table({ columns: { name: t.text(40) } });
-    export const legacy = table({
-      columns: { ownerRef: t.ref(profiles), ownerId: t.id(), principal: t.principal(), label: t.text(40) },
-      indexes: {
-        byOwnerRef: { columns: ["ownerRef"] }, byOwnerId: { columns: ["ownerId"] },
-        byPrincipal: { columns: ["principal"] }, byLabel: { columns: ["label"] },
-      },
-      rules: { read: rule.allow(), insert: rule.allow(), update: rule.allow(), delete: rule.allow() },
-    });
-    export const docs = table({
-      columns: { ownerRef: t.ref(profiles), ownerId: t.id(), principal: t.principal(), label: t.text(40) },
-      rules: {
-        read: rule.viewerIs("ownerRef"),
-        insert: rule.eq(rule.field("ownerId"), rule.viewer),
-        update: rule.ne(rule.viewer, rule.field("label")),
-        delete: rule.exists(legacy, "byOwnerRef", [rule.viewer]),
-      },
-    });
-    export const malformed = table({
-      columns: { ownerRef: t.ref(profiles), ownerId: t.id(), label: t.text(40) },
-      rules: {
-        read: rule.exists(legacy, "byPrincipal", [rule.field("ownerRef")]),
-        insert: rule.exists(legacy, "byPrincipal", []),
-        update: rule.exists(legacy, "missing", [rule.viewer]),
-        delete: rule.and(
-          rule.eq(rule.field("label"), rule.field("ownerId")),
-          rule.exists(legacy, "byOwnerId", [rule.field("ownerRef")]),
-        ),
-      },
-    });
-    export const unresolved = table({ columns: { principal: t.principal() },
-      rules: { read: rule.exists(missing, "byPrincipal", [rule.viewer]), insert: rule.allow(), update: rule.allow(), delete: rule.allow() } });
-    export default schema({ tables: { profiles, legacy, docs, malformed, unresolved } });`;
-  const refused = lowerSchema(invalid, "snapback/schema.ts");
-  const messages = refused.diagnostics.filter((item) => item.code === "E_RULE_INVALID");
-  for (const expected of [
-    "fields compared with rule.viewer must be Principal",
-    "rule.eq compares Id with Principal",
-    "rule.ne compares Principal with Text",
-    "is Principal; expected Ref<profiles>",
-    "is Ref<profiles>; expected Principal",
-    "has 0 terms; expected 1",
-    "unresolved index legacy.missing",
-    "rule.eq compares Text with Id",
-    "is Ref<profiles>; expected Id",
-    "unresolved table missing",
-  ]) {
-    assert(messages.some((item) => item.message.includes(expected)),
-      `typed rule refusals omitted ${expected}: ${messages.map((item) => item.message).join("; ")}`);
-  }
-  assert(messages.every((item) => item.site.startsWith("snapback/schema.ts:") && item.rewrite.length > 0),
-    "typed rule refusal lost its authored site or mechanical rewrite");
-});
-
-test("rule literals respect Enum, Decimal, Money, Json, Id, and Ref domains", () => {
-  const valid = `import { schema, table, t, rule } from "snapback2";
-    export const rows = table({
-      columns: { role: t.enum(["member", "admin"]), metadata: t.json(1024) },
-      rules: {
-        read: rule.and(
-          rule.eq(rule.field("role"), rule.literal("member")),
-          rule.ne(rule.field("metadata"), rule.literal(null)),
-          rule.ne(rule.field("metadata"), rule.literal(true)),
-          rule.ne(rule.field("metadata"), rule.literal(7)),
-          rule.ne(rule.field("metadata"), rule.literal("ok")),
-          rule.ne(rule.field("metadata"), rule.literal([null, "nested"])),
-          rule.ne(rule.field("metadata"), rule.literal({ nested: [true, 1] })),
-          rule.ne(rule.literal([1]), rule.literal([null, "nested"])),
-        ),
-        insert: rule.allow(), update: rule.allow(), delete: rule.allow(),
-      },
-    });
-    export default schema({ tables: { rows } });`;
-  const accepted = lowerSchema(valid, "snapback/schema.ts");
-  assert(accepted.diagnostics.length === 0,
-    `valid Enum/Json literals refused: ${accepted.diagnostics.map((item) => item.message).join("; ")}`);
-
-  const invalid = `import { schema, table, t, rule } from "snapback2";
-    export const profiles = table({ columns: { name: t.text(40) } });
-    export const rows = table({
-      columns: {
-        role: t.enum(["member", "admin"]), price: t.decimal(2),
-        budget: t.money("USD"), ownerId: t.id(), profileId: t.ref(profiles),
-      },
-      rules: {
-        read: rule.ne(rule.field("role"), rule.literal("admn")),
-        insert: rule.eq(rule.field("price"), rule.literal(2)),
-        update: rule.eq(rule.field("budget"), rule.literal(2)),
-        delete: rule.eq(rule.field("ownerId"), rule.literal("row-1")),
-      },
-    });
-    export const refRows = table({ columns: { profileId: t.ref(profiles) },
-      rules: { read: rule.eq(rule.field("profileId"), rule.literal("profile-1")),
-        insert: rule.allow(), update: rule.allow(), delete: rule.allow() } });
-    export default schema({ tables: { profiles, rows, refRows } });`;
-  const refused = lowerSchema(invalid, "snapback/schema.ts");
-  const messages = refused.diagnostics.filter((item) => item.code === "E_RULE_INVALID").map((item) => item.message);
-  for (const expected of [
-    'Enum<member|admin> with text literal "admn"',
-    "Decimal<2> with integer literal",
-    "Money<USD,2> with integer literal",
-    'Id with text literal "row-1"',
-    'Ref<profiles> with text literal "profile-1"',
-  ]) {
-    assert(messages.some((message) => message.includes(expected)),
-      `rule literal refusals omitted ${expected}: ${messages.join("; ")}`);
-  }
-});
-
-test("text constraints lower minimum, handle, and URL validation and reject invalid targets", () => {
-  const valid = lowerSchema(`import { schema, table, t } from "snapback2";
-    export const profiles = table({
-      columns: { handle: t.text(20), link: t.optional(t.text(200)) },
-      constraints: [
-        { text: { field: "handle", min: 3, format: "handle" } },
-        { text: { field: "link", format: "url" } },
-      ],
-    });
-    export default schema({ tables: { profiles } });`, "snapback/schema.ts");
-  assert(valid.diagnostics.length === 0, `valid text constraints refused: ${JSON.stringify(valid.diagnostics)}`);
-  const constraints = (valid.schema.tables.profiles as any).constraints;
-  assert(canonical(constraints) === canonical([
-    { Text: { field: "handle", min: 3, format: "handle" } },
-    { Text: { field: "link", min: 0, format: "url" } },
-  ]), `text constraints lowered unexpectedly: ${JSON.stringify(constraints)}`);
-
-  for (const [label, columns, constraint] of [
-    ["non-text", `{ count: t.int() }`, `{ text: { field: "count", min: 1 } }`],
-    ["too-large", `{ handle: t.text(2) }`, `{ text: { field: "handle", min: 3 } }`],
-    ["format", `{ handle: t.text(20) }`, `{ text: { field: "handle", format: "slug" } }`],
-    ["empty", `{ handle: t.text(20) }`, `{ text: { field: "handle" } }`],
-  ] as const) {
-    const invalid = lowerSchema(`import { schema, table, t } from "snapback2";
-      export const rows = table({ columns: ${columns}, constraints: [${constraint}] });
-      export default schema({ tables: { rows } });`, `snapback/${label}.ts`);
-    assert(invalid.diagnostics.some((item) => item.code === "E_SCHEMA_CONSTRAINT"),
-      `${label} text constraint did not produce E_SCHEMA_CONSTRAINT`);
-  }
-});
-
-test("implicit id and byId cannot be overwritten, including by update patches", () => {
-  const source = `import { schema, table, t } from 'snapback2';
-    export const rows = table({ columns: { id: t.int(), value: t.int() }, indexes: { byId: { columns: ['value'] } } });
-    export default schema({ tables: { rows } });`;
-  const lowered = lowerSchema(source, "snapback/schema.ts");
-  const reserved = lowered.diagnostics.filter((item) => item.code === "E_SCHEMA_ID_RESERVED");
-  assert(reserved.length === 2, `expected reserved id and byId refusals, got ${reserved.length}`);
-  assert((lowered.schema.tables.rows as any).columns.id === "Id", "authored id replaced the implicit Id column");
-  assert(canonical((lowered.schema.tables.rows as any).indexes.byId) === canonical({ columns: ["id"], unique: true }), "authored byId replaced the implicit index");
-
-  for (const patch of [
-    `{ id: "row-2" }`,
-    `(row: { id: string; value: number }) => ({ id: row.id })`,
-  ]) {
-    const authored = `import { mutation, table, t } from "snapback2";
-      const records = table({ columns: { value: t.int() } });
-      export const rewriteId = mutation({}, ({ db }) => db.update(records, "row-1", ${patch}));`;
-    const diagnostics = typecheckSource(authored, "update-id.ts", libText);
-    assert(diagnostics.length === 1, `update patch unexpectedly admitted id: ${patch}`);
-  }
-  const ordinaryPatch = typecheckSource(`import { mutation, table, t } from "snapback2";
-    const records = table({ columns: { value: t.int() } });
-    export const updateValue = mutation({}, ({ db }) => db.update(records, "row-1", { value: 2 }));`,
-  "update-value.ts", libText);
-  assert(ordinaryPatch.length === 0, "omitting id made an ordinary update patch ill-typed");
-});
+registerRbacRuleChecks(test, canonical, libText);
 
 test("effect authoring reports grants, closure, imports, and then arguments together", async () => {
   const invalid = await lowerProject(`${frontend}fixtures/effects-invalid`);
@@ -1143,6 +1109,36 @@ test("effect source expands JSON constant spreads and scopes every nested functi
   });
 });
 
+test("effect closure ignores non-computed destructuring property names", async () => {
+  await withProject({
+    "snapback/schema.ts": `import { schema } from "snapback2"; export default schema({ tables: {} });`,
+    "snapback/effects.ts": `import { effect } from "snapback2";
+      export const renamed = effect({ grants: ["https://api.example.com"], run: async (_p: null, { value: local }: any) => local });
+      export const renamedDefault = effect({ grants: ["https://api.example.com"], run: async (_p: null, { value: local = 1 }: any) => local });`,
+  }, async (root) => {
+    const project = await lowerProject(root);
+    assert(project.ok, `non-computed destructuring property names were refused: ${project.ok ? "" : project.diagnostics.map((item) => `${item.code} ${item.message}`).join("; ")}`);
+    assert(project.project.effects.length === 2, "renamed destructuring effects were omitted");
+  });
+});
+
+test("effect closure refusals include parameter, destructuring, and computed-name defaults", async () => {
+  await withProject({
+    "snapback/schema.ts": `import { schema } from "snapback2"; export default schema({ tables: {} });`,
+    "snapback/effects.ts": `import { effect } from "snapback2";
+      let someOuterName = { y: 0 };
+      export const parameterDefault = effect({ grants: ["https://api.example.com"], run: async (_payload: null = (someOuterName.y, null)) => null });
+      export const destructuringDefault = effect({ grants: ["https://api.example.com"], run: async ({ x = (someOuterName.y = 1) }: { x?: number }) => x });
+      export const computedName = effect({ grants: ["https://api.example.com"], run: async ({ [someOuterName.y]: x }: Record<number, unknown>) => x });`,
+  }, async (root) => {
+    const invalid = await lowerProject(root);
+    assert(!invalid.ok, "effects that close over parameter syntax unexpectedly compiled");
+    const closure = invalid.diagnostics.filter((item) => item.code === "E_EFFECT_CLOSURE" && item.message.includes("someOuterName"));
+    assert(closure.length === 3, `expected three parameter-syntax closure refusals, got ${closure.length}`);
+    assert(new Set(closure.map((item) => item.site)).size === 3, "parameter-syntax closure refusals did not retain distinct sites");
+  });
+});
+
 test("seed validation checks personas, tables, rows, and every schema value shape", async () => {
   const invalid = await lowerSeed(`${frontend}fixtures/seed-invalid`);
   assert(!invalid.ok, "invalid seed unexpectedly lowered");
@@ -1155,6 +1151,28 @@ test("seed validation checks personas, tables, rows, and every schema value shap
     assert(messages.includes(text), `seed value validation omitted ${text}`);
   }
   assert(invalid.diagnostics.every((item) => item.site.startsWith("snapback/seed.ts:")), "seed refusal site is not seed.ts");
+
+  await withProject({
+    "snapback/schema.ts": `import { schema, table, t } from "snapback2";
+      export const rows = table({ columns: { ownerId: t.ref(rows) } });
+      export default schema({ tables: { rows } });`,
+    "snapback/seed.ts": `import { seed } from "snapback2";
+      export default seed({ personas: ["system"], rows: { rows: [
+        { id: "system", ownerId: "row-1" },
+        { id: "row-1", ownerId: "system" },
+      ] } });`,
+  }, async (root) => {
+    const reserved = await lowerSeed(root);
+    assert(!reserved.ok, "seed minted or referenced the reserved system principal");
+    assert(
+      reserved.diagnostics.filter((item) => item.message.includes("reserved system principal")).length === 2,
+      "seed did not reject both reserved Id and Ref values",
+    );
+    assert(
+      !reserved.diagnostics.some((item) => item.code === "E_SEED_PERSONA"),
+      "the prefix-safe persona name system should remain valid",
+    );
+  });
 });
 
 test("seed object spreads preserve authored rows and text maxima count Unicode scalars", async () => {
@@ -1220,7 +1238,6 @@ test("worker survives a refused compile and serves the next request under Node",
 
 test("npm pack from a clean dist builds every exported module and declaration", async () => {
   const packageRoot = `${crate}packages/snapback2`;
-  await rm(`${packageRoot}/dist`, { recursive: true, force: true });
   const packed = Bun.spawnSync({ cmd: ["npm", "pack", "--dry-run", "--json"], cwd: packageRoot, stdout: "pipe", stderr: "pipe" });
   assert(packed.exitCode === 0, `npm pack --dry-run failed: ${new TextDecoder().decode(packed.stderr)}`);
   const report = JSON.parse(new TextDecoder().decode(packed.stdout));
@@ -1228,8 +1245,47 @@ test("npm pack from a clean dist builds every exported module and declaration", 
   for (const path of [
     "dist/compiler.mjs", "dist/index.mjs", "dist/client.mjs", "dist/react.mjs", "dist/test.mjs",
     "dist/test-runner.mjs", "dist/index.d.ts", "dist/client.d.ts", "dist/react.d.ts", "dist/test.d.ts",
-    "dist/placeholder.d.ts", "dist/compiler-lib.d.ts",
+    "dist/compiler-lib.d.ts",
   ]) assert(files.has(path), `npm pack omitted ${path}`);
+  assert(!files.has("dist/placeholder.d.ts"), "npm pack still contains the obsolete placeholder declarations");
+});
+
+test("client, React, and test imports typecheck against distinct real declarations", async () => {
+  const packageRoot = resolve(crate, "packages/snapback2");
+  await withProject({
+    "surfaces.ts": `import { api, createClient } from "snapback2/client";
+      import { DevOverlay, SnapbackProvider, useAuth, useChannel, useMutation, useQuery } from "snapback2/react";
+      import { journey } from "snapback2/test";
+      const client = createClient({ url: "http://127.0.0.1:3210" });
+      journey("real declarations", ({ as }) => { const same: typeof client = as("alice"); void same; });
+      void [api, DevOverlay, SnapbackProvider, useAuth, useChannel, useMutation, useQuery];`,
+    "wrong-surface.ts": `import { createClient } from "snapback2/react"; void createClient;`,
+  }, async (root) => {
+    await mkdir(resolve(root, "node_modules"));
+    await symlink(packageRoot, resolve(root, "node_modules/snapback2"), "dir");
+    const options: ts.CompilerOptions = {
+      baseUrl: root,
+      lib: ["lib.es2022.d.ts", "lib.dom.d.ts", "lib.dom.iterable.d.ts"],
+      module: ts.ModuleKind.ESNext,
+      moduleResolution: ts.ModuleResolutionKind.Bundler,
+      noEmit: true,
+      skipLibCheck: true,
+      strict: true,
+      target: ts.ScriptTarget.ES2022,
+      types: ["react"],
+    };
+    const sample = resolve(root, "surfaces.ts");
+    const diagnostics = ts.getPreEmitDiagnostics(ts.createProgram({ rootNames: [sample], options }))
+      .filter((item) => item.file?.fileName === sample);
+    assert(diagnostics.length === 0,
+      `real package declarations did not typecheck:\n${diagnostics.map((item) => ts.flattenDiagnosticMessageText(item.messageText, "\n")).join("\n")}`);
+
+    const wrong = resolve(root, "wrong-surface.ts");
+    const wrongDiagnostics = ts.getPreEmitDiagnostics(ts.createProgram({ rootNames: [wrong], options }))
+      .filter((item) => item.file?.fileName === wrong);
+    assert(wrongDiagnostics.some((item) => ts.flattenDiagnosticMessageText(item.messageText, "\n").includes("no exported member 'createClient'")),
+      "snapback2/react still aliases the client declaration surface");
+  });
 });
 
 test("the React template typechecks against the built snapback2/react package", () => {

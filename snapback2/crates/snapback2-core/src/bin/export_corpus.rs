@@ -693,7 +693,7 @@ fn add_random_cases(cases: &mut Vec<CorpusCase>) {
             .map(|(name, value)| (name.to_owned(), value))
             .collect();
         let program = pure_program(&format!("random{index:02}"), expression, &args);
-        let context = Context::query("u1", args);
+        let context = Context::query(Actor::user("u1").unwrap(), args);
         cases.push(case_from_parts(
             &format!("random-{index:02}"),
             "random",
@@ -886,7 +886,7 @@ fn pure_case(name: &str, expression: Expr) -> CorpusCase {
         "edge",
         spike_schema(),
         pure_program(name, expression, &args),
-        Context::query("u1", args),
+        Context::query(Actor::user("u1").unwrap(), args),
         ClosureReceipt::default(),
         Vec::new(),
         None,
@@ -1093,7 +1093,7 @@ fn var(name: &str) -> Expr {
 
 fn query_context<const N: usize>(entries: [(&str, Value); N]) -> Context {
     Context::query(
-        "u1",
+        Actor::user("u1").unwrap(),
         entries
             .into_iter()
             .map(|(name, value)| (name.to_owned(), value))
@@ -1107,7 +1107,7 @@ where
     S: Into<String>,
 {
     let mut context = Context::mutation(
-        "u1",
+        Actor::user("u1").unwrap(),
         entries
             .into_iter()
             .map(|(name, value)| (name.to_owned(), value))

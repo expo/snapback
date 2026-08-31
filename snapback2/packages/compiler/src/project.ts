@@ -7,7 +7,7 @@ import { expandArgumentObject } from "./args";
 import { requiredType, type AuthoredType, type TableInfo } from "./authored-types";
 import { lowerSource } from "./compiler";
 import { boundedDiagnostics, diagnostic, typeDiagnostic } from "./diagnostics";
-import type { FrontendDiagnostic, Program, ProjectResult, SourceSite } from "./ir";
+import { IR_CONTRACT, type FrontendDiagnostic, type Program, type ProjectResult, type SourceSite } from "./ir";
 import { effectBindings, collectEffectCatalog, lowerEffects, type OperationDecl, type SourceModule } from "./lower/effects";
 import { lowerSchema } from "./lower/schema";
 import { boundOperationDiagnostics } from "./operation-diagnostics";
@@ -74,8 +74,10 @@ export async function lowerProject(root: string): Promise<ProjectResult> {
 
   const programs: Program[] = [];
   const sources: Record<string, SourceSite> = {};
+  const bindingsByModule = new Map<string, Map<string, TableInfo>>();
   for (const module of modules) {
     const tables = tableBindings(module, schema.tables, diagnostics);
+    bindingsByModule.set(module.moduleName, tables);
     const effects = effectBindings(module, catalog);
     const lowered = lowerSource(module.source, module.fileName, undefined, {
       tables,
@@ -101,7 +103,7 @@ export async function lowerProject(root: string): Promise<ProjectResult> {
 
   schema.schema.effects = loweredEffects.effects.map((item) => item.name);
   programs.sort((left, right) => left.name.localeCompare(right.name));
-  const apiDts = generateApiDts(operations, checked.program, checked.checker, schema.tables);
+  const apiDts = generateApiDts(operations, checked.program, checked.checker, schema.tables, bindingsByModule);
   return {
     ok: true,
     project: { schema: schema.schema, programs, effects: loweredEffects.effects },
@@ -449,6 +451,7 @@ function generateApiDts(
   program: ts.Program,
   checker: ts.TypeChecker,
   tables: Map<string, TableInfo>,
+  bindingsByModule: Map<string, Map<string, TableInfo>>,
 ): string {
   const grouped = new Map<string, string[]>();
   for (const operation of [...operations.values()].sort((left, right) => left.name.localeCompare(right.name))) {
@@ -466,7 +469,7 @@ function generateApiDts(
           ts.TypeFormatFlags.NoTruncation | ts.TypeFormatFlags.InTypeAlias,
         );
       }
-      const authored = apiAuthoredResult(handler, args, tables, checker);
+      const authored = apiAuthoredResult(handler, args, bindingsByModule.get(operation.moduleName) ?? new Map(), checker);
       if (authored?.special) resultText = authored.text;
     }
     const items = grouped.get(operation.moduleName) ?? [];
@@ -722,7 +725,11 @@ function apiAuthoredType(value: AuthoredType): string {
 
 function apiTable(node: ts.Expression, tables: Map<string, TableInfo>): TableInfo | undefined {
   const path = staticMemberPath(node);
-  return path?.split(".").map((part) => tables.get(part)).find((table) => table !== undefined);
+  if (!path) return undefined;
+  const direct = tables.get(path);
+  if (direct) return direct;
+  const separator = path.lastIndexOf(".");
+  return separator > 0 ? tables.get(path.slice(0, separator)) : undefined;
 }
 
 function firstInvalidStaticSpread(node: ts.Node, constants: Map<string, unknown>): ts.SpreadAssignment | undefined {
@@ -771,6 +778,7 @@ function validateSeedRow(
 
 function seedValueMismatch(value: unknown, type: unknown, path: string): string | undefined {
   if (type === "Id" || type === "Principal" || (type && typeof type === "object" && "Ref" in type)) {
+    if (value === IR_CONTRACT.systemPrincipalId) return `${path} cannot carry the reserved system principal`;
     return typeof value === "string" && value.length > 0 ? undefined : `${path} must be a non-empty string`;
   }
   if (type === "Int" || type === "Time") {

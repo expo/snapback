@@ -1,6 +1,10 @@
 use snapback2_core::*;
 use std::collections::{BTreeMap, VecDeque};
 
+fn actor(value: &str) -> Actor {
+    Actor::user(value).unwrap()
+}
+
 fn schema(tables: BTreeMap<String, Table>) -> Schema {
     Schema {
         tables,
@@ -203,7 +207,7 @@ fn document(id: &str, group: &str, owner: &str) -> Value {
 
 fn group_context(group: &str) -> Context {
     Context::query(
-        "viewer",
+        actor("viewer"),
         BTreeMap::from([("group".to_owned(), Value::Id(group.to_owned()))]),
     )
 }
@@ -343,7 +347,10 @@ fn later_nonuniform_scan_makes_an_earlier_detailed_cap_opaque() {
         .unwrap();
 
     let execution = runtime
-        .execute("documents.mixed", Context::query("viewer", BTreeMap::new()))
+        .execute(
+            "documents.mixed",
+            Context::query(actor("viewer"), BTreeMap::new()),
+        )
         .unwrap();
 
     assert_eq!(execution.trace.ranges.len(), 2);
@@ -414,7 +421,7 @@ fn required_get_program(name: &str, table: &str) -> Program {
 
 fn id_context(id: &str) -> Context {
     Context::query(
-        "viewer",
+        actor("viewer"),
         BTreeMap::from([("id".to_owned(), Value::Id(id.to_owned()))]),
     )
 }
@@ -432,7 +439,7 @@ fn successor_rebinds_named_handle_and_rejects_predecessor_certificate() {
     )]));
     let base = generation(base_schema, vec![query.clone()]);
     let (stale_program, stale_certificate) = base
-        .programs
+        .programs()
         .get("documents.get")
         .expect("base query was certified")
         .clone();
@@ -573,7 +580,7 @@ fn grant_handle_args(id: &str) -> BTreeMap<String, Value> {
 }
 
 fn create_context(id: &str) -> Context {
-    let mut context = Context::mutation("admin", grant_args());
+    let mut context = Context::mutation(actor("admin"), grant_args());
     context.new_ids = VecDeque::from([id.to_owned()]);
     context
 }
@@ -625,7 +632,7 @@ fn stale_grant_row_handle_cannot_hit_remove_then_recreate_incarnation() {
     runtime
         .execute(
             "grants.remove",
-            Context::mutation("admin", grant_handle_args("grant-v1")),
+            Context::mutation(actor("admin"), grant_handle_args("grant-v1")),
         )
         .unwrap();
     let second = runtime
@@ -640,7 +647,7 @@ fn stale_grant_row_handle_cannot_hit_remove_then_recreate_incarnation() {
     let stale_promote = runtime
         .execute(
             "grants.promote",
-            Context::mutation("admin", grant_handle_args("grant-v1")),
+            Context::mutation(actor("admin"), grant_handle_args("grant-v1")),
         )
         .unwrap();
     assert!(matches!(
@@ -655,7 +662,7 @@ fn stale_grant_row_handle_cannot_hit_remove_then_recreate_incarnation() {
     let stale_remove = runtime
         .execute(
             "grants.remove",
-            Context::mutation("admin", grant_handle_args("grant-v1")),
+            Context::mutation(actor("admin"), grant_handle_args("grant-v1")),
         )
         .unwrap();
     assert!(matches!(
@@ -670,7 +677,7 @@ fn stale_grant_row_handle_cannot_hit_remove_then_recreate_incarnation() {
     let current_promote = runtime
         .execute(
             "grants.promote",
-            Context::mutation("admin", grant_handle_args("grant-v2")),
+            Context::mutation(actor("admin"), grant_handle_args("grant-v2")),
         )
         .unwrap();
     assert!(matches!(

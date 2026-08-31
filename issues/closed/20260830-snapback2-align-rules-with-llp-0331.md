@@ -67,11 +67,16 @@ scoped-authority program.
   not trust kind metadata.
 - [x] Authored input visibility is removed from the compiler, IR, Rust
   engine, and evaluator; the compiler has a negative fourth-argument test.
+  Server and client disclosure now both depend only on structural exact-row
+  proof; runtime policy evaluation remains authoritative work for tracing and
+  metering but cannot disclose an input whose structural proof fails.
 - [x] The engine, wire, and client represent opaque `Capped` without
   `site`/`take`, and the engine gives non-uniform ranges opaque precedence.
 - [x] Principal is nominal across schema, program args, generated/client
   types, rule checking, raw project certification, and the canonical fixtures;
   type-negative tests reject string/row-ref values and pseudo-memberships.
+- [x] Trusted system and development-alias contexts use reserved auth epoch
+  zero, while every persisted session uses a positive durable epoch.
 - [x] All three named served-loop authority proofs pass, and the structural
   visibility/Capped edge cases below have direct parity coverage. The
   canonical receipt records `live-revocation`, `successor-policy-fence`, and
@@ -98,6 +103,10 @@ scoped-authority program.
   predecessor certificate. The served-loop `successor-policy-fence` check now
   also retains a G subscription across control-plane application of G+1 and
   proves both that handle and a fresh request resolve under G+1's deny policy.
+  Its program-only successor is bound by distinct certified `plan_hash` values,
+  because generation identity is schema-scoped; restoration therefore reapplies
+  the exact original project even when the visible generation hash already
+  matches G.
 - [x] The intrinsic immutable membership row id is the grant incarnation.
   `grant-incarnation-aba` captures the old id, removes it, recreates the same
   `(scope, principal)` relation under a fresh id across an owner restart, and
@@ -120,6 +129,6 @@ passed all named authority checks. Its invalidation qualification recorded 50
 probes, 70 persona-seed attempts, 13 concrete overlaps, 12 exact deliveries,
 37 disjoint silences, five explicit system-only effect exclusions, 75
 auditable outcomes, and zero blocked pairs. `cargo test -p snapback2`,
-`cargo test -p snapback2-core`, the 54-check compiler suite, the 59-case
+`cargo test -p snapback2-core` (112 tests), the 60-check compiler suite, the 59-case
 package suite (58 passed, one intentional skip), and `./ref-check --verbose`
 also passed on the integrated tree.

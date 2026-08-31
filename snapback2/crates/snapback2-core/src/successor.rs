@@ -2,7 +2,8 @@
 // @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — destructive changes need a plan.
 
 use crate::engine::{
-    RuntimeError, materialize_optional_fields, reindex_row, write_aggregate_backfill,
+    RuntimeError, materialize_optional_fields, reindex_row, validate_column_value,
+    write_aggregate_backfill,
 };
 use crate::schema::{ColumnType, Maintain, MaintainKind, Schema};
 use crate::store::Store;
@@ -86,7 +87,7 @@ impl SuccessorRefusal {
         Self {
             code: "E_SUCCESSOR_COLUMN_REQUIRED".to_owned(),
             message: format!(
-                "successor adds required column {table}.{column} to a table that has rows"
+                "successor leaves required column {table}.{column} absent on stored rows"
             ),
             rewrite: format!(
                 "wrap {table}.{column} in t.optional(...) or add it to an empty table"
@@ -110,6 +111,16 @@ impl SuccessorRefusal {
             rewrite: "make the index non-unique or fix the rows".to_owned(),
             plan: MigrationPlan::default(),
             conflicts,
+        }
+    }
+
+    fn invalid_row(table: &str, row: &str, error: impl std::fmt::Display) -> Self {
+        Self {
+            code: "E_SUCCESSOR_ROW_INVALID".to_owned(),
+            message: format!("successor validation refused stored row {table}.{row}: {error}"),
+            rewrite: format!("repair or remove stored row {table}.{row}, then retry the successor"),
+            plan: MigrationPlan::default(),
+            conflicts: Vec::new(),
         }
     }
 }
@@ -196,10 +207,14 @@ pub(crate) fn additive_refusal(
         let Some(next_table) = next.tables.get(table_name) else {
             continue;
         };
-        let added_required = next_table.columns.iter().find(|(column, kind)| {
-            !current_table.columns.contains_key(*column) && !matches!(kind, ColumnType::Optional(_))
+        let absent_required = next_table.columns.iter().find(|(column, kind)| {
+            current_table
+                .columns
+                .get(*column)
+                .is_none_or(|current_kind| current_kind != *kind)
+                && !matches!(kind, ColumnType::Optional(_))
         });
-        if let Some((column, _)) = added_required {
+        if let Some((column, _)) = absent_required {
             let rows: i64 = connection.query_row(
                 "SELECT COUNT(*) FROM rows WHERE table_name = ?1",
                 [table_name],
@@ -209,6 +224,10 @@ pub(crate) fn additive_refusal(
                 return Ok(Some(SuccessorRefusal::required_column(table_name, column)));
             }
         }
+    }
+
+    if let Some(refusal) = validate_stored_rows(connection, current, next)? {
+        return Ok(Some(refusal));
     }
 
     let mut conflicts = Vec::new();
@@ -315,6 +334,73 @@ pub(crate) fn additive_refusal(
         }
     }
     Ok((!conflicts.is_empty()).then(|| SuccessorRefusal::unique(conflicts)))
+}
+
+pub(crate) fn validate_stored_rows(
+    connection: &Connection,
+    current: &Schema,
+    next: &Schema,
+) -> Result<Option<SuccessorRefusal>, RuntimeError> {
+    for (table_name, next_table) in &next.tables {
+        let current_table = current.tables.get(table_name);
+        let columns = next_table
+            .columns
+            .iter()
+            .filter(|(column, kind)| {
+                match current_table.and_then(|table| table.columns.get(*column)) {
+                    None => true,
+                    Some(current_kind) => current_kind != *kind && contains_id_or_ref(kind),
+                }
+            })
+            .collect::<Vec<_>>();
+        if columns.is_empty() {
+            continue;
+        }
+        let mut statement = connection
+            .prepare("SELECT row_id, data FROM rows WHERE table_name = ?1 ORDER BY row_id")?;
+        let rows = statement.query_map([table_name], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })?;
+        for row in rows {
+            let (row_id, data) = row?;
+            let value = match serde_json::from_str::<Value>(&data) {
+                Ok(value) => value,
+                Err(error) => {
+                    return Ok(Some(SuccessorRefusal::invalid_row(
+                        table_name, &row_id, error,
+                    )));
+                }
+            };
+            let object = match value.as_object() {
+                Ok(object) => object,
+                Err(error) => {
+                    return Ok(Some(SuccessorRefusal::invalid_row(
+                        table_name, &row_id, error,
+                    )));
+                }
+            };
+            for (column, kind) in &columns {
+                if let Err(error) =
+                    validate_column_value(table_name, column, kind, object.get(*column))
+                {
+                    return Ok(Some(SuccessorRefusal::invalid_row(
+                        table_name, &row_id, error,
+                    )));
+                }
+            }
+        }
+    }
+    Ok(None)
+}
+
+fn contains_id_or_ref(kind: &ColumnType) -> bool {
+    match kind {
+        ColumnType::Id | ColumnType::Ref { .. } => true,
+        ColumnType::Optional(inner) | ColumnType::List { of: inner, .. } => {
+            contains_id_or_ref(inner)
+        }
+        _ => false,
+    }
 }
 
 pub(crate) fn apply_additive(
@@ -430,11 +516,12 @@ pub(crate) fn apply_migration_drops(
                     table.indexes.remove(name);
                 }
             }
-            Drop::TypeChange {
-                table, column, to, ..
-            } => {
+            Drop::TypeChange { table, .. } => {
                 if let Some(table) = current.tables.get_mut(table) {
-                    table.columns.insert(column.clone(), to.clone());
+                    // Keep predecessor column types in the comparison schema.
+                    // The values were dropped above, so successor admission
+                    // must still see the retype and validate the resulting
+                    // absence against the successor type.
                     table.indexes.clear();
                 }
             }

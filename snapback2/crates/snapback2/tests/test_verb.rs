@@ -96,6 +96,15 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
         fence["detail"]["generationG1"], fence["detail"]["generationG2"],
         "{fence}"
     );
+    assert_eq!(
+        fence["detail"]["generationG"], fence["detail"]["generationG2"],
+        "{fence}"
+    );
+    assert_ne!(
+        fence["detail"]["planHashG"], fence["detail"]["planHashG2"],
+        "{fence}"
+    );
+    assert_eq!(fence["detail"]["generationScope"], "schema");
     assert_eq!(fence["detail"]["policyReplacement"], "Deny");
     assert_eq!(fence["detail"]["policyRetainedHandleState"], "complete");
     assert_eq!(fence["detail"]["policyRetainedHandleRows"], 0);
@@ -225,7 +234,7 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
         );
         assert_eq!(
             execution["ruleProbes"],
-            serde_json::json!({ "actual": if admitted { 1 } else { 0 }, "ceiling": 2 })
+            serde_json::json!({ "actual": if admitted { 2 } else { 0 }, "ceiling": 4 })
         );
         assert_eq!(
             execution["steps"],

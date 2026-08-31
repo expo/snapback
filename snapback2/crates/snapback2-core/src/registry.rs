@@ -1,7 +1,7 @@
 //! Certified project generations and the stateful query runtime.
 // @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — one certified project is live.
 
-use crate::certificate::{Ceilings, Certificate, CheckError, Checker};
+use crate::certificate::{Ceilings, Certificate, CheckError, Checker, RuleCertificate};
 use crate::engine::{
     AuthoritativeTrace, ClosureReceipt, Context, Engine, Execution, ExecutionState, PointTrace,
     RuleInputTrace, RuntimeError, validate_arg_value,
@@ -37,13 +37,20 @@ pub struct ProjectJson {
     pub auth: Auth,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Generation {
-    pub hash: String,
-    pub schema: Schema,
-    pub programs: BTreeMap<String, (Program, Certificate)>,
-    pub effects: BTreeMap<String, EffectDecl>,
+    schema: Schema,
+    programs: BTreeMap<String, (Program, Certificate)>,
+    channel_certificates: BTreeMap<String, ChannelCertificates>,
+    effects: BTreeMap<String, EffectDecl>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChannelCertificates {
+    pub publish: RuleCertificate,
+    pub subscribe: RuleCertificate,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -70,6 +77,31 @@ pub struct RowRuleVerdict {
 }
 
 impl Generation {
+    /// The generation identity is always derived from its certified schema.
+    pub fn hash(&self) -> String {
+        self.schema.hash()
+    }
+
+    pub fn schema(&self) -> &Schema {
+        &self.schema
+    }
+
+    pub fn programs(&self) -> &BTreeMap<String, (Program, Certificate)> {
+        &self.programs
+    }
+
+    pub fn channel_certificates(&self) -> &BTreeMap<String, ChannelCertificates> {
+        &self.channel_certificates
+    }
+
+    pub fn effects(&self) -> &BTreeMap<String, EffectDecl> {
+        &self.effects
+    }
+
+    pub fn effects_hash(&self) -> String {
+        digest(&self.effects)
+    }
+
     pub fn certify(
         project: &ProjectJson,
         ceilings: Ceilings,
@@ -113,7 +145,7 @@ impl Generation {
                     CheckError {
                         code: "E_SCHEMA_RESERVED".to_owned(),
                         message: format!("rule reads reserved table {reserved}"),
-                        rewrite: "compare viewer with the reserved system principal or use an application-owned relation in rules"
+                        rewrite: "use rule.system() or an application-owned relation in rules"
                             .to_owned(),
                     },
                 ));
@@ -138,8 +170,33 @@ impl Generation {
         }
 
         for (table_name, table) in &schema.tables {
+            if table.columns.get("id") != Some(&crate::schema::ColumnType::Id) {
+                errors.push((
+                    format!("schema.{table_name}"),
+                    CheckError {
+                        code: "E_SCHEMA_ID_RESERVED".to_owned(),
+                        message: format!(
+                            "table {table_name} must declare the implicit id column as Id"
+                        ),
+                        rewrite: "restore the compiler-emitted id: Id column".to_owned(),
+                    },
+                ));
+            }
             for (index_name, index) in &table.indexes {
                 for column in &index.columns {
+                    if !table.columns.contains_key(column) {
+                        errors.push((
+                            format!("schema.{table_name}"),
+                            CheckError {
+                                code: "E_SCHEMA_INDEX_COLUMN".to_owned(),
+                                message: format!(
+                                    "index {table_name}.{index_name} names undeclared column {column}"
+                                ),
+                                rewrite: "declare the column or remove it from the index"
+                                    .to_owned(),
+                            },
+                        ));
+                    }
                     if table
                         .columns
                         .get(column)
@@ -193,6 +250,35 @@ impl Generation {
                         },
                     )),
                     Some(_) => {}
+                }
+            }
+        }
+
+        let mut channel_certificates = BTreeMap::new();
+        for (name, channel) in &schema.channels {
+            let checker = Checker::new(&schema, ceilings.clone());
+            let publish = checker.check_rule(&channel.publish);
+            let subscribe = checker.check_rule(&channel.subscribe);
+            match (publish, subscribe) {
+                (Ok(publish), Ok(subscribe)) => {
+                    channel_certificates
+                        .insert(name.clone(), ChannelCertificates { publish, subscribe });
+                }
+                (publish, subscribe) => {
+                    if let Err(rule_errors) = publish {
+                        errors.extend(
+                            rule_errors
+                                .into_iter()
+                                .map(|error| (format!("channel.{name}.publish"), error)),
+                        );
+                    }
+                    if let Err(rule_errors) = subscribe {
+                        errors.extend(
+                            rule_errors
+                                .into_iter()
+                                .map(|error| (format!("channel.{name}.subscribe"), error)),
+                        );
+                    }
                 }
             }
         }
@@ -276,9 +362,9 @@ impl Generation {
 
         if errors.is_empty() {
             Ok(Self {
-                hash: digest(project),
                 schema,
                 programs,
+                channel_certificates,
                 effects,
             })
         } else {
@@ -297,7 +383,9 @@ pub struct Runtime {
 
 impl Runtime {
     pub fn open(mut store: Store, generation: Generation) -> Result<Self, SuccessorRefusal> {
-        crate::engine::validate_schema(&generation.schema).map_err(store_refusal)?;
+        crate::engine::validate_schema(&generation.schema)
+            .map_err(|errors| store_refusal(first_schema_error(errors)))?;
+        let generation_hash = generation.hash();
         let installed = store.meta("generation").map_err(store_refusal)?;
         match installed {
             None => {
@@ -310,7 +398,7 @@ impl Runtime {
                 }
                 persist_generation(&mut store, &generation).map_err(store_refusal)?;
             }
-            Some(hash) if hash == generation.hash => {
+            Some(hash) if hash == generation_hash => {
                 // Additive owner metadata can appear after the generation was
                 // first installed (for example the outbox declaration binding).
                 persist_generation(&mut store, &generation).map_err(store_refusal)?;
@@ -337,7 +425,7 @@ impl Runtime {
                     &current,
                     &generation.schema,
                     hash,
-                    generation.hash.clone(),
+                    generation_hash,
                 )
                 .map_err(store_refusal)?;
                 persist_generation_transaction(&transaction, &generation).map_err(store_refusal)?;
@@ -379,23 +467,28 @@ impl Runtime {
     pub fn execute_then(
         &mut self,
         op: &str,
-        context: Context,
+        args: BTreeMap<String, Value>,
+        now: i64,
+        read_time: Option<i64>,
+        new_ids: VecDeque<String>,
         outbox_id: &str,
     ) -> Result<Execution, RuntimeError> {
-        // @ref LLP 1001#9-schema-additions — system authority
-        // follows the reserved viewer identity, never kind metadata.
-        if !context.viewer.is_system() {
-            return Err(RuntimeError::Input(
-                "effect then must execute as Context::system()".to_owned(),
-            ));
-        }
         let Some((program, certificate)) = self.bound_then_target(op, outbox_id)? else {
             return Ok(self.then_rejection("E_EFFECT_THEN_CHANGED")?);
         };
 
-        let execution = self
-            .engine
-            .execute_then(&program, &certificate, context, outbox_id)?;
+        // The durable then binding is the capability: public callers can
+        // supply inputs, but only the engine's purpose-specific entry point
+        // can mint the system context, and only for this bound outbox row.
+        let execution = self.engine.execute_then(
+            &program,
+            &certificate,
+            args,
+            now,
+            read_time,
+            new_ids,
+            outbox_id,
+        )?;
         #[cfg(test)]
         if std::mem::take(&mut self.fail_after_then_commit) {
             return Err(RuntimeError::Input(
@@ -545,11 +638,8 @@ impl Runtime {
 
     pub fn seed(&mut self, rows: &[(String, Value)]) -> Result<u64, RuntimeError> {
         let (program, certificate) = seed_program(&self.generation.schema, rows)?;
-        let mut context = Context::system();
-        context.now = Some(unix_millis());
-        context.seed_write = true;
         self.engine
-            .execute_with_kind(&program, &certificate, context, Some("seed"))
+            .execute_seed(&program, &certificate, unix_millis())
             .map(|execution| execution.seq)
     }
 
@@ -558,12 +648,9 @@ impl Runtime {
     /// and any execution refusal rolls the whole transaction back.
     pub fn reset_and_seed(&mut self, rows: &[(String, Value)]) -> Result<u64, RuntimeError> {
         let (program, certificate) = seed_program(&self.generation.schema, rows)?;
-        let mut context = Context::system();
-        context.now = Some(unix_millis());
-        context.seed_write = true;
-        let execution =
-            self.engine
-                .reset_and_execute(&program, &certificate, context, Some("seed"))?;
+        let execution = self
+            .engine
+            .reset_and_seed(&program, &certificate, unix_millis())?;
         self.rerun_all_subscriptions();
         Ok(execution.seq)
     }
@@ -572,7 +659,8 @@ impl Runtime {
         &mut self,
         next: Generation,
     ) -> Result<SuccessorReport, SuccessorRefusal> {
-        crate::engine::validate_schema(&next.schema).map_err(store_refusal)?;
+        crate::engine::validate_schema(&next.schema)
+            .map_err(|errors| store_refusal(first_schema_error(errors)))?;
         if let Some(refusal) =
             successor_refusal(self.engine.store(), &self.generation.schema, &next.schema)
                 .map_err(store_refusal)?
@@ -580,21 +668,15 @@ impl Runtime {
             return Err(refusal);
         }
         let current = self.generation.schema.clone();
-        let from = self.generation.hash.clone();
+        let from = self.generation.hash();
         let transaction = self
             .engine
             .store_mut()
             .conn
             .transaction()
             .map_err(|error| store_refusal(RuntimeError::Sql(error)))?;
-        let report = apply_additive(
-            &transaction,
-            &current,
-            &next.schema,
-            from,
-            next.hash.clone(),
-        )
-        .map_err(store_refusal)?;
+        let report = apply_additive(&transaction, &current, &next.schema, from, next.hash())
+            .map_err(store_refusal)?;
         persist_generation_transaction(&transaction, &next).map_err(store_refusal)?;
         transaction
             .commit()
@@ -612,7 +694,7 @@ impl Runtime {
         next: Generation,
         migration: &MigrationPlan,
     ) -> Result<SuccessorReport, RuntimeError> {
-        crate::engine::validate_schema(&next.schema)?;
+        crate::engine::validate_schema(&next.schema).map_err(first_schema_error)?;
         let expected = plan(self.engine.store(), &self.generation.schema, &next.schema)?;
         if &expected != migration {
             return Err(RuntimeError::MigrationPlan(format!(
@@ -621,19 +703,13 @@ impl Runtime {
             )));
         }
         let mut reduced = self.generation.schema.clone();
-        let from = self.generation.hash.clone();
+        let from = self.generation.hash();
         let transaction = self.engine.store_mut().conn.transaction()?;
         apply_migration_drops(&transaction, &mut reduced, migration)?;
         if let Some(refusal) = additive_refusal(&transaction, &reduced, &next.schema)? {
             return Err(RuntimeError::Successor(Box::new(refusal)));
         }
-        let report = apply_additive(
-            &transaction,
-            &reduced,
-            &next.schema,
-            from,
-            next.hash.clone(),
-        )?;
+        let report = apply_additive(&transaction, &reduced, &next.schema, from, next.hash())?;
         persist_generation_transaction(&transaction, &next)?;
         transaction.commit()?;
         self.engine.set_schema(next.schema.clone())?;
@@ -668,7 +744,8 @@ impl Runtime {
         let rows = self.engine.rows(table)?;
         rows.into_iter()
             .map(|row| {
-                let (admitted, trace) = self.engine.probe_rule(&rule, &row, context.clone())?;
+                let (admitted, trace) =
+                    self.engine.probe_rule(&rule, &row, context.clone(), None)?;
                 Ok(RowRuleVerdict {
                     id: row.field("id")?.as_str()?.to_owned(),
                     admitted,
@@ -703,24 +780,30 @@ impl Runtime {
             let value = args
                 .get(arg)
                 .ok_or_else(|| RuntimeError::Input(format!("channel {name} missing arg {arg}")))?;
-            match kind {
-                ArgType::Scalar
-                    if matches!(value, Value::Array(_) | Value::Row(_) | Value::Map(_)) =>
-                {
-                    return Err(RuntimeError::Input(format!(
-                        "channel {name} arg {arg} must be scalar"
-                    )));
-                }
-                ArgType::Scalar => {}
-                kind => validate_arg_value(kind, value, &format!("channel {name} arg {arg}"))?,
+            validate_arg_value(kind, value, &format!("channel {name} arg {arg}"))?;
+            if matches!(kind, ArgType::Scalar)
+                && matches!(value, Value::Array(_) | Value::Row(_) | Value::Map(_))
+            {
+                return Err(RuntimeError::Input(format!(
+                    "channel {name} arg {arg} must be scalar"
+                )));
             }
         }
-        let rule = match side {
-            ChannelSide::Publish => channel.publish,
-            ChannelSide::Subscribe => channel.subscribe,
+        let certificates = self
+            .generation
+            .channel_certificates
+            .get(name)
+            .ok_or_else(|| {
+                RuntimeError::TraceSubset(format!("channel {name} lacks certificate"))
+            })?;
+        let (rule, certificate) = match side {
+            ChannelSide::Publish => (channel.publish, &certificates.publish),
+            ChannelSide::Subscribe => (channel.subscribe, &certificates.subscribe),
         };
         let row = Value::Row(args.clone());
-        let (admitted, trace) = self.engine.probe_rule(&rule, &row, context.clone())?;
+        let (admitted, trace) =
+            self.engine
+                .probe_rule(&rule, &row, context.clone(), Some(certificate))?;
         Ok(ChannelVerdict {
             admitted,
             rule_inputs: trace.rule_inputs,
@@ -795,11 +878,13 @@ fn persist_generation_transaction(
         .map_err(|error| RuntimeError::Serialization(error.to_string()))?;
     let effects_json = serde_json::to_string(&generation.effects)
         .map_err(|error| RuntimeError::Serialization(error.to_string()))?;
+    let effects_hash = generation.effects_hash();
     for (key, value) in [
         ("schema_hash", generation.schema.hash()),
-        ("generation", generation.hash.clone()),
+        ("generation", generation.hash()),
         ("schema_json", schema_json),
         ("effects_json", effects_json),
+        ("effects_generation", effects_hash.clone()),
     ] {
         transaction.execute(
             "INSERT INTO _meta(key, value) VALUES (?1, ?2)
@@ -811,7 +896,7 @@ fn persist_generation_transaction(
         "INSERT INTO _meta(key, value) VALUES (?1, ?2)
          ON CONFLICT(key) DO UPDATE SET value = excluded.value",
         rusqlite::params![
-            format!("effects_json:{}", generation.hash),
+            format!("effects_json:{effects_hash}"),
             serde_json::to_string(&generation.effects)
                 .map_err(|error| RuntimeError::Serialization(error.to_string()))?
         ],
@@ -821,6 +906,13 @@ fn persist_generation_transaction(
 
 fn store_refusal(error: RuntimeError) -> SuccessorRefusal {
     SuccessorRefusal::store(&error)
+}
+
+fn first_schema_error(errors: Vec<RuntimeError>) -> RuntimeError {
+    errors
+        .into_iter()
+        .next()
+        .expect("schema validation refusal contains at least one diagnostic")
 }
 
 fn rejection_code(error: &RuntimeError) -> Option<&str> {
@@ -849,18 +941,23 @@ fn collect_emits<'a>(statements: &'a [Stmt], effects: &mut Vec<&'a str>) {
 mod then_tests {
     use super::*;
     use crate::schema::Schema;
+    use crate::{Actor, SYSTEM_PRINCIPAL_ID};
     use std::collections::{BTreeMap, VecDeque};
     use std::path::PathBuf;
     use std::time::{SystemTime, UNIX_EPOCH};
 
     #[test]
-    fn execute_then_authorizes_the_reserved_viewer_not_kind_metadata() {
+    fn execute_then_uses_the_private_reserved_system_context() {
         let mut admitted = pending_then_runtime("outbox-admitted");
-        let mut system = Context::system();
-        system.principal_kind = "non_authoritative_metadata".to_owned();
-        system.now = Some(15);
         let execution = admitted
-            .execute_then("clock.then", system, "outbox-admitted")
+            .execute_then(
+                "clock.then",
+                BTreeMap::new(),
+                15,
+                None,
+                VecDeque::new(),
+                "outbox-admitted",
+            )
             .unwrap();
         assert!(matches!(execution.state, ExecutionState::Committed { .. }));
         assert_eq!(
@@ -872,28 +969,9 @@ mod then_tests {
                 .state,
             "sent"
         );
-
-        let mut refused = pending_then_runtime("outbox-refused");
-        let mut user = Context::mutation("user", BTreeMap::new());
-        user.principal_kind = "system".to_owned();
-        user.now = Some(15);
-        let error = refused
-            .execute_then("clock.then", user, "outbox-refused")
-            .unwrap_err();
-        assert!(
-            error
-                .to_string()
-                .contains("must execute as Context::system")
-        );
-        assert_eq!(
-            refused
-                .store()
-                .outbox_get("outbox-refused")
-                .unwrap()
-                .unwrap()
-                .state,
-            "then_pending"
-        );
+        let commit = admitted.store().commits_since(0, 2).unwrap().pop().unwrap();
+        assert_eq!(commit.principal, SYSTEM_PRINCIPAL_ID.as_str());
+        assert_eq!(commit.kind, "system");
     }
 
     #[test]
@@ -903,7 +981,7 @@ mod then_tests {
         {
             let mut runtime =
                 Runtime::open(Store::open(&path).unwrap(), generation.clone()).unwrap();
-            let mut emit = Context::mutation("user", BTreeMap::new());
+            let mut emit = Context::mutation(Actor::user("user").unwrap(), BTreeMap::new());
             emit.now = Some(1);
             emit.new_ids = VecDeque::from(["outbox-1".to_owned()]);
             runtime.execute("clock.emit", emit).unwrap();
@@ -923,11 +1001,16 @@ mod then_tests {
                 )
                 .unwrap();
 
-            let mut before_threshold = Context::system();
-            before_threshold.now = Some(5);
             runtime.fail_after_then_commit_once();
             let error = runtime
-                .execute_then("clock.then", before_threshold, "outbox-1")
+                .execute_then(
+                    "clock.then",
+                    BTreeMap::new(),
+                    5,
+                    None,
+                    VecDeque::new(),
+                    "outbox-1",
+                )
                 .unwrap_err();
             assert!(error.to_string().contains("simulated crash"));
         }
@@ -940,11 +1023,16 @@ mod then_tests {
                 .as_deref()
                 .is_some_and(|error| error.contains("TOO_EARLY"))
         );
-        let mut after_threshold = Context::system();
-        after_threshold.now = Some(15);
         assert!(
             restarted
-                .execute_then("clock.then", after_threshold, "outbox-1")
+                .execute_then(
+                    "clock.then",
+                    BTreeMap::new(),
+                    15,
+                    None,
+                    VecDeque::new(),
+                    "outbox-1",
+                )
                 .unwrap_err()
                 .to_string()
                 .contains("not then_pending"),
@@ -1006,7 +1094,7 @@ mod then_tests {
 
     fn pending_then_runtime(outbox_id: &str) -> Runtime {
         let mut runtime = Runtime::open(Store::memory().unwrap(), timed_then_generation()).unwrap();
-        let mut emit = Context::mutation("user", BTreeMap::new());
+        let mut emit = Context::mutation(Actor::user("user").unwrap(), BTreeMap::new());
         emit.now = Some(1);
         emit.new_ids = VecDeque::from([outbox_id.to_owned()]);
         runtime.execute("clock.emit", emit).unwrap();
@@ -1070,6 +1158,7 @@ fn collect_reserved_rule_reads(rule: &RuleExpr, reads: &mut BTreeSet<String>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::Actor;
     use crate::schema::{ColumnType, Index, RuleTerm, Rules, Table};
 
     #[test]
@@ -1096,14 +1185,17 @@ mod tests {
         };
 
         let execution = runtime
-            .execute_adhoc(&program, Context::query("dev:alice", BTreeMap::new()))
+            .execute_adhoc(
+                &program,
+                Context::query(Actor::persona("alice").unwrap(), BTreeMap::new()),
+            )
             .unwrap();
 
         assert_eq!(execution.result, Value::Int(42));
         assert_eq!(runtime.generation(), &before);
         assert_eq!(
             runtime.store().meta("generation").unwrap(),
-            Some(before.hash)
+            Some(before.hash())
         );
     }
 
@@ -1172,8 +1264,7 @@ mod tests {
                 ),
             ])
             .unwrap();
-        let mut context = Context::query("dev:alice", BTreeMap::new());
-        context.principal_kind = "persona".to_owned();
+        let context = Context::query(Actor::persona("alice").unwrap(), BTreeMap::new());
 
         let verdicts = runtime.read_rule_verdicts("todos", context).unwrap();
         let admitted = verdicts

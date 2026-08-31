@@ -47,8 +47,9 @@ Implementers and date: codex gpt-5.6-sol (xhigh), lanes B0/B1/B2/D,
    in `schema.ts`; a program is `export const list = query(…)` in `todos.ts`
    and is the op `todos.list`. There is no `name:` field anywhere.
 4. **Seed is data, not code.** `seed.ts` exports `{ personas: string[],
-   rows: Record<table, Row[]> }`; it is applied as one `seed` commit by the
-   system principal; `reset` re-applies it.
+   rows: Record<table, Row[]> }`; it is applied as one engine-owned `seed`
+   commit; `reset` re-applies it. Personas are prefix-minted, and no seed row
+   may carry the core-reserved system token in an `Id` or `Ref`.
 5. **`stop` lives inside `dev`** (`snapback2 dev --stop`) so the verb table
    stays at fifteen rows.
 6. **Personas never reach production.** The owner has a `mode` (`dev` |
@@ -230,7 +231,9 @@ Protocol, JSON lines on stdin/stdout, one request in flight:
 ```
 
 `ProjectJson` is LLP 1001 §4's serde shape, with `programs[].name` qualified
-(`todos.list`), `schema.effects` listing the effect names, and
+(`todos.list`) and `schema.effects` listing the effect names. The compiler's
+`rule.system()` lowering consumes the core-owned
+`snapback2-core/ir-contract.json` token rather than spelling a second copy.
 `effects[] = { name, grants, source, then }` (LLP 1003). `Refusal` is §4's
 envelope. Diagnostics are collected per operation and per project up to a
 bound (20 per operation, 50 per project); when a bound truncates, the last
@@ -420,8 +423,8 @@ read-only in the receipt, never editable):
    rejected, zero-write, or physical attempt and either selects an
    oracle-classified physical disposition or blocks. Effect `then` mutations
    are recorded as excluded system-only continuations here and remain covered
-   by replay under `Context::system`, not by inventing a privileged served
-   persona.
+   by replay through the engine's purpose-specific private system entry point,
+   not by inventing a privileged served persona.
 5. `replay` — every seed mutation, run twice against two forks of the seeded
    store with the same pinned `now`/`newId`s, yields byte-identical traces.
 6. `effects` — every effect declaration has a runner able to run it, or the
@@ -440,7 +443,12 @@ unit test may support one but does not replace the served-loop proof:
    generation G, apply G+1 with a denying replacement policy, and require the
    retained handle and a fresh invocation to resolve under G+1. A predecessor
    program/certificate is rejected or replanned; it never runs against the
-   current store through the served surface.
+   current store through the served surface. Generation identity is
+   schema-scoped, so a program-only replacement may carry G's generation hash;
+   the receipt also binds the predecessor and replacement certificate
+   `plan_hash` values and requires them to differ. Cleanup always reapplies the
+   exact original project instead of treating a matching schema hash as proof
+   that the original program is active.
 9. `grant-incarnation-aba` — capture an intent against one membership row,
    remove it, recreate the same `(scope, principal)` relation with a new
    immutable row identity/incarnation or version across an owner restart,
@@ -596,7 +604,7 @@ Three rulings folded 2026-08-30 from the client-tier arc (LLP 0329.018–.023):
 - **Evaluator per arm** (LLP 0329.018 F1): web and Expo host a JS runtime
   and run the 7.8 KB TypeScript twin; the Contract-native (Exact 2) arm hosts
   none and links `snapback2-core`'s interpreter — the same `ClientStore` the
-  corpus already proves byte-identical. Two implementations, assigned by
+  regenerated 76-case corpus proves conformant. Two implementations, assigned by
   runtime, never a third.
 - **Coverage is client-issuable; absence and authorization are not**
   (LLP 0329.021 P5): the twin never manufactures an absence or a verdict; a

@@ -972,7 +972,7 @@
     "absences": [],
     "verdicts": [
       {
-        "rule_hash": "94f904e404f05bf9542ebc587528fecb042f93fc280e27fb06cef2e07dac39dd",
+        "rule_hash": "d99f77ffee11031100cf20a65384a6c265b1cfb10ac0f6fdcd0ffffe848470d9",
         "pinned_inputs_digest": "072c09ccd2600a00568c6f7fb70f5b1830f0faceb9ebb6dbdcbdb378c5f9c5f8",
         "principal": "u1",
         "auth_epoch": 1,

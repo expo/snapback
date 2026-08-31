@@ -1,4 +1,7 @@
-//! Static table/index intersections used by the served invalidation probes.
+//! Physical trace-key × touched-key oracle for served invalidation proofs.
+// @ref LLP 1002#7-test-and-the-receipt — static intersections only prioritize
+// candidates; retained authoritative traces and physical commit keys decide
+// overlap, invalidation, delivery, or proven silence.
 
 use super::{elapsed_ms, generated_args_at, probe_candidates, test_sse::SseProbe};
 use crate::{
@@ -103,7 +106,7 @@ pub(super) fn affected_query_persona(
     generation: &Generation,
 ) -> Option<String> {
     for (table_name, _) in sites {
-        let table = generation.schema.tables.get(table_name)?;
+        let table = generation.schema().tables.get(table_name)?;
         let principal_field = table.columns.iter().find_map(|(name, kind)| {
             matches!(kind, ColumnType::Principal).then_some(name.as_str())
         })?;
@@ -617,7 +620,7 @@ pub(super) fn check(
     let mut exclusions = 0_u64;
     let system_then = compiled
         .generation
-        .effects
+        .effects()
         .values()
         .filter_map(|effect| effect.then.as_deref())
         .collect::<BTreeSet<_>>();
@@ -626,7 +629,7 @@ pub(super) fn check(
         .first()
         .cloned()
         .unwrap_or_else(|| "alice".to_owned());
-    for (query_name, (query, query_certificate)) in &compiled.generation.programs {
+    for (query_name, (query, query_certificate)) in compiled.generation.programs() {
         if query.kind != ProgramKind::Query {
             continue;
         }
@@ -638,7 +641,7 @@ pub(super) fn check(
             }
         };
         let mut query_has_silence = false;
-        for (mutation_name, (mutation, mutation_certificate)) in &compiled.generation.programs {
+        for (mutation_name, (mutation, mutation_certificate)) in compiled.generation.programs() {
             if mutation.kind != ProgramKind::Mutation {
                 continue;
             }
@@ -781,7 +784,7 @@ pub(super) fn check(
         if !query_has_silence {
             let disjoint_persona = format!("__snapback2_disjoint_{}", query_name.replace('.', "_"));
             'fallback: for (mutation_name, (mutation, mutation_certificate)) in
-                &compiled.generation.programs
+                compiled.generation.programs()
             {
                 if mutation.kind != ProgramKind::Mutation
                     || system_then.contains(mutation_name.as_str())
@@ -1094,7 +1097,7 @@ pub(super) fn certificate_site_intersection(
         .collect::<BTreeSet<_>>();
     let mut rule_reads = BTreeSet::new();
     for site in &query.read_sites {
-        if let Some(table) = generation.schema.tables.get(&site.table) {
+        if let Some(table) = generation.schema().tables.get(&site.table) {
             collect_rule_reads(&table.rules.read, &mut rule_reads);
         }
     }
@@ -1107,7 +1110,7 @@ pub(super) fn certificate_site_intersection(
         .iter()
         .flat_map(|site| {
             generation
-                .schema
+                .schema()
                 .tables
                 .get(&site.table)
                 .into_iter()

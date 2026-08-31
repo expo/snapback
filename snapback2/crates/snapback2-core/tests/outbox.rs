@@ -44,6 +44,65 @@ fn project(programs: Vec<Program>, schema: Schema) -> ProjectJson {
     }
 }
 
+fn ceiling_schema(body_max: u32) -> Schema {
+    Schema {
+        tables: BTreeMap::from([(
+            "items".to_owned(),
+            public_table(
+                BTreeMap::from([
+                    ("id".to_owned(), ColumnType::Id),
+                    ("body".to_owned(), ColumnType::Text { max: body_max }),
+                ]),
+                BTreeMap::from([(
+                    "byId".to_owned(),
+                    Index {
+                        columns: vec!["id".to_owned()],
+                        unique: true,
+                    },
+                )]),
+            ),
+        )]),
+        maintains: Vec::new(),
+        channels: BTreeMap::new(),
+        auth: Auth::default(),
+        effects: Vec::new(),
+    }
+}
+
+fn ceiling_scan(take: u32) -> Program {
+    Program {
+        name: "items.overCeiling".to_owned(),
+        kind: ProgramKind::Query,
+        args: BTreeMap::new(),
+        read_time_granularity_ms: None,
+        body: vec![Stmt::Return(Expr::Scan(Scan {
+            site: "items.overCeiling".to_owned(),
+            table: "items".to_owned(),
+            index: "byId".to_owned(),
+            prefix: Vec::new(),
+            order: Order::Asc,
+            take: Bound::Literal(take),
+            after: None,
+            before: None,
+            range: None,
+            provenance: KeyProvenance::Const,
+        }))],
+    }
+}
+
+fn assert_named_ceiling(schema: &Schema, program: &Program, ceilings: Ceilings, name: &str) {
+    let errors = Checker::new(schema, ceilings)
+        .check_all(program)
+        .unwrap_err();
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.message.starts_with(&format!("{name} "))
+                && error.message.contains("exceeds ceiling")),
+        "missing {name} refusal from {errors:?}"
+    );
+}
+
 #[test]
 fn emit_has_the_wire_shape_certificate_outbox_trace_and_id_consumption() {
     let statement = Stmt::Emit {
@@ -66,7 +125,7 @@ fn emit_has_the_wire_shape_certificate_outbox_trace_and_id_consumption() {
         Ceilings::default(),
     )
     .unwrap();
-    let certificate = &generation.programs[&program.name].1;
+    let certificate = &generation.programs()[&program.name].1;
     assert_eq!(
         certificate.write_sites,
         vec![WriteSite {
@@ -76,7 +135,7 @@ fn emit_has_the_wire_shape_certificate_outbox_trace_and_id_consumption() {
         }]
     );
     let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
-    let mut context = Context::mutation("u1", BTreeMap::new());
+    let mut context = Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new());
     context.now = Some(444);
     context.new_ids = VecDeque::from(["effect-id".to_owned(), "after-id".to_owned()]);
     let execution = runtime.execute(&program.name, context).unwrap();
@@ -120,7 +179,16 @@ fn emit_has_the_wire_shape_certificate_outbox_trace_and_id_consumption() {
 }
 
 #[test]
-fn reserved_system_principal_value_not_identity_kind_classifies_commits() {
+fn reserved_system_principal_cannot_be_forged_as_an_application_actor() {
+    assert_eq!(
+        Actor::new(SYSTEM_PRINCIPAL_ID.to_owned(), "user"),
+        Err(ActorError::ReservedSystem)
+    );
+    assert_eq!(
+        Actor::new("u1", SYSTEM_PRINCIPAL_ID.to_owned()),
+        Err(ActorError::ReservedSystem)
+    );
+
     let program = emit_program(ProgramKind::Mutation, "audit");
     let generation = Generation::certify(
         &project(vec![program.clone()], empty_schema()),
@@ -129,22 +197,14 @@ fn reserved_system_principal_value_not_identity_kind_classifies_commits() {
     .unwrap();
     let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
 
-    let mut spoofed_kind = Context::mutation("u1", BTreeMap::new());
-    spoofed_kind.principal_kind = "system".to_owned();
-    spoofed_kind.new_ids = VecDeque::from(["user-effect".to_owned(), "user-result".to_owned()]);
-    runtime.execute(&program.name, spoofed_kind).unwrap();
+    let actor = Actor::new("u1", "service").unwrap();
+    let mut context = Context::mutation(actor, BTreeMap::new());
+    context.new_ids = VecDeque::from(["user-effect".to_owned(), "user-result".to_owned()]);
+    runtime.execute(&program.name, context).unwrap();
 
-    let mut reserved_principal = Context::mutation("system", BTreeMap::new());
-    reserved_principal.principal_kind = "user".to_owned();
-    reserved_principal.new_ids =
-        VecDeque::from(["system-effect".to_owned(), "system-result".to_owned()]);
-    runtime.execute(&program.name, reserved_principal).unwrap();
-
-    let commits = runtime.store().commits_since(0, 2).unwrap();
+    let commits = runtime.store().commits_since(0, 1).unwrap();
     assert_eq!(commits[0].principal, "u1");
     assert_eq!(commits[0].kind, "mutation");
-    assert_eq!(commits[1].principal, "system");
-    assert_eq!(commits[1].kind, "system");
 }
 
 #[test]
@@ -210,8 +270,8 @@ fn project_effect_declarations_are_authoritative_and_compiler_json_shape_certifi
     });
     let project: ProjectJson = serde_json::from_value(fixture).unwrap();
     let generation = Generation::certify(&project, Ceilings::default()).unwrap();
-    assert!(generation.effects.contains_key("notifications.notify"));
-    assert!(generation.programs.contains_key("notifications.send"));
+    assert!(generation.effects().contains_key("notifications.notify"));
+    assert!(generation.programs().contains_key("notifications.send"));
 
     let mut declaration_only = project.clone();
     declaration_only.schema.effects.clear();
@@ -414,6 +474,119 @@ fn checker_and_generation_report_all_refusals_per_program() {
 }
 
 #[test]
+fn closure_and_output_estimates_follow_retained_shape_and_declared_maxima() {
+    let schema = ceiling_schema(1024);
+    let page = ceiling_scan(4095);
+    let page_certificate = Checker::new(
+        &schema,
+        Ceilings {
+            output_bytes: u64::MAX,
+            closure_bytes: u64::MAX,
+            ..Ceilings::default()
+        },
+    )
+    .check(&page)
+    .unwrap();
+    assert_eq!(page_certificate.max_closure_bytes, 4_946_760);
+    assert_named_ceiling(&schema, &page, Ceilings::default(), "closure bytes");
+
+    let inbox_schema = spike_schema();
+    let inbox = Checker::new(&inbox_schema, Ceilings::default())
+        .check(&inbox_program(false))
+        .expect("count-shaped inbox must retain only its bounded result rows");
+    assert_eq!(inbox.max_closure_bytes, 39_800);
+
+    let declared_max = 3 * 1024 * 1024;
+    let text_schema = ceiling_schema(declared_max);
+    let text = Checker::new(
+        &text_schema,
+        Ceilings {
+            output_bytes: u64::MAX,
+            ..Ceilings::default()
+        },
+    )
+    .check(&ceiling_scan(1))
+    .unwrap();
+    assert_eq!(text.max_output_bytes, 3_145_915);
+    assert!(text.max_output_bytes >= u64::from(declared_max));
+    assert_named_ceiling(
+        &text_schema,
+        &ceiling_scan(1),
+        Ceilings::default(),
+        "output bytes",
+    );
+}
+
+#[test]
+fn one_valid_program_reports_every_default_ceiling_refusal() {
+    let mut schema = ceiling_schema(1024);
+    schema.tables.get_mut("items").unwrap().rules.read = RuleExpr::Exists {
+        table: "items".to_owned(),
+        index: "byId".to_owned(),
+        key: vec![RuleTerm::Field("id".to_owned())],
+        provenance: KeyProvenance::Shape,
+    };
+    let scan = match ceiling_scan(12_000).body.remove(0) {
+        Stmt::Return(scan) => scan,
+        _ => unreachable!(),
+    };
+    let program = Program {
+        name: "items.everyCeiling".to_owned(),
+        kind: ProgramKind::Mutation,
+        args: BTreeMap::new(),
+        read_time_granularity_ms: None,
+        body: vec![
+            Stmt::Let {
+                name: "rows".to_owned(),
+                value: scan,
+            },
+            Stmt::For {
+                binding: "number".to_owned(),
+                domain: LoopDomain::LiteralRange {
+                    start: 0,
+                    end_exclusive: 200_000,
+                },
+                body: vec![Stmt::Insert {
+                    table: "items".to_owned(),
+                    row: Expr::Object(BTreeMap::from([
+                        ("id".to_owned(), Expr::Input(Input::NewId)),
+                        (
+                            "body".to_owned(),
+                            Expr::Literal(Value::String("x".to_owned())),
+                        ),
+                    ])),
+                }],
+            },
+            Stmt::Return(Expr::Variable("rows".to_owned())),
+        ],
+    };
+    let errors = Checker::new(&schema, Ceilings::default())
+        .check_all(&program)
+        .unwrap_err();
+    let expected = [
+        "examined entries",
+        "index entries",
+        "rule probes",
+        "steps",
+        "heap bytes",
+        "output bytes",
+        "closure bytes",
+        "write amplification",
+    ];
+    assert_eq!(
+        errors.len(),
+        expected.len(),
+        "unexpected refusals: {errors:?}"
+    );
+    for name in expected {
+        assert!(
+            errors.iter().any(|error| error.message.starts_with(name)),
+            "missing {name} from {errors:?}"
+        );
+    }
+}
+
+#[test]
 fn checker_reports_recurse_read_refusals_with_other_errors() {
     let items = public_table(
         BTreeMap::from([("id".to_owned(), ColumnType::Id)]),
@@ -535,7 +708,10 @@ fn mutation_value_errors_are_rejected_but_query_value_errors_remain_errors() {
         ("ops.field", "E_FIELD"),
     ] {
         let execution = runtime
-            .execute(operation, Context::mutation("u1", BTreeMap::new()))
+            .execute(
+                operation,
+                Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new()),
+            )
             .unwrap();
         assert!(matches!(
             execution.state,
@@ -543,7 +719,10 @@ fn mutation_value_errors_are_rejected_but_query_value_errors_remain_errors() {
         ));
     }
     assert!(matches!(
-        runtime.execute("ops.queryDivZero", Context::query("u1", BTreeMap::new())),
+        runtime.execute(
+            "ops.queryDivZero",
+            Context::query(Actor::user("u1").unwrap(), BTreeMap::new())
+        ),
         Err(RuntimeError::Value(ValueError::DivideByZero))
     ));
 }
@@ -564,7 +743,10 @@ fn mutation_refusal_is_a_typed_rejected_execution_without_a_commit() {
         Generation::certify(&project(vec![program], empty_schema()), Ceilings::default()).unwrap();
     let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
     let execution = runtime
-        .execute("ops.reject", Context::mutation("u1", BTreeMap::new()))
+        .execute(
+            "ops.reject",
+            Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new()),
+        )
         .unwrap();
     assert!(matches!(
         execution.state,
@@ -594,7 +776,10 @@ fn query_require_is_a_typed_denied_execution() {
         Generation::certify(&project(vec![program], empty_schema()), Ceilings::default()).unwrap();
     let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
     let execution = runtime
-        .execute("ops.refuseQuery", Context::query("u1", BTreeMap::new()))
+        .execute(
+            "ops.refuseQuery",
+            Context::query(Actor::user("u1").unwrap(), BTreeMap::new()),
+        )
         .unwrap();
     assert_eq!(
         execution.state,
@@ -645,13 +830,13 @@ fn sqlite_and_declared_unique_constraints_are_typed_mutation_rejections() {
         Ceilings::default(),
     )
     .unwrap();
-    let certificate = generation.programs[&duplicate_primary_key.name].1.clone();
+    let certificate = generation.programs()[&duplicate_primary_key.name].1.clone();
     let mut engine = Engine::memory(schema).unwrap();
     let direct = engine
         .execute(
             &duplicate_primary_key,
             &certificate,
-            Context::mutation("u1", BTreeMap::new()),
+            Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new()),
         )
         .unwrap();
     assert!(matches!(
@@ -664,7 +849,7 @@ fn sqlite_and_declared_unique_constraints_are_typed_mutation_rejections() {
     let through_runtime = runtime
         .execute(
             "users.duplicatePrimaryKey",
-            Context::mutation("u1", BTreeMap::new()),
+            Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new()),
         )
         .unwrap();
     assert!(matches!(
@@ -695,7 +880,7 @@ fn sqlite_and_declared_unique_constraints_are_typed_mutation_rejections() {
     )
     .unwrap();
     let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
-    let mut context = Context::mutation("u1", BTreeMap::new());
+    let mut context = Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new());
     context.new_ids = VecDeque::from(["same".to_owned(), "same".to_owned()]);
     let execution = runtime.execute("ops.duplicateOutbox", context).unwrap();
     assert!(matches!(
@@ -755,7 +940,7 @@ fn sqlite_and_declared_unique_constraints_are_typed_mutation_rejections() {
     let execution = runtime
         .execute(
             "users.duplicateEmail",
-            Context::mutation("u1", BTreeMap::new()),
+            Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new()),
         )
         .unwrap();
     assert!(matches!(
@@ -812,6 +997,9 @@ fn channel_admission_evaluates_one_args_row_under_the_selected_rule() {
         Ceilings::default(),
     )
     .unwrap();
+    let subscribe_certificate = &generation.channel_certificates()["typing"].subscribe;
+    assert_eq!(subscribe_certificate.max_rule_probes, 1);
+    assert_eq!(subscribe_certificate.max_steps, 2);
     let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
     runtime
         .seed(&[(
@@ -829,7 +1017,7 @@ fn channel_admission_evaluates_one_args_row_under_the_selected_rule() {
             "typing",
             ChannelSide::Subscribe,
             &args,
-            &Context::query("u1", BTreeMap::new()),
+            &Context::query(Actor::user("u1").unwrap(), BTreeMap::new()),
         )
         .unwrap();
     assert!(admitted.admitted);
@@ -839,11 +1027,21 @@ fn channel_admission_evaluates_one_args_row_under_the_selected_rule() {
             "typing",
             ChannelSide::Subscribe,
             &args,
-            &Context::query("u2", BTreeMap::new()),
+            &Context::query(Actor::user("u2").unwrap(), BTreeMap::new()),
         )
         .unwrap();
     assert!(!refused.admitted);
     assert_eq!(refused.rule_inputs.len(), 1);
+    let reserved_scalar = runtime.channel_admit(
+        "typing",
+        ChannelSide::Subscribe,
+        &BTreeMap::from([(
+            "room".to_owned(),
+            Value::Id(SYSTEM_PRINCIPAL_ID.to_string()),
+        )]),
+        &Context::query(Actor::user("u2").unwrap(), BTreeMap::new()),
+    );
+    assert!(matches!(reserved_scalar, Err(RuntimeError::Input(_))));
 
     let unrelated_seq = runtime
         .seed(&[(
@@ -881,6 +1079,69 @@ fn channel_admission_evaluates_one_args_row_under_the_selected_rule() {
 }
 
 #[test]
+fn channel_rules_are_refused_when_their_certified_probe_or_step_bound_exceeds_the_ceiling() {
+    let memberships = public_table(
+        BTreeMap::from([
+            ("id".to_owned(), ColumnType::Id),
+            ("room".to_owned(), ColumnType::Id),
+            ("user".to_owned(), ColumnType::Id),
+        ]),
+        BTreeMap::from([(
+            "byRoomUser".to_owned(),
+            Index {
+                columns: vec!["room".to_owned(), "user".to_owned()],
+                unique: true,
+            },
+        )]),
+    );
+    let probe = RuleExpr::Exists {
+        table: "memberships".to_owned(),
+        index: "byRoomUser".to_owned(),
+        key: vec![RuleTerm::Field("room".to_owned()), RuleTerm::Viewer],
+        provenance: KeyProvenance::Shape,
+    };
+    let schema = Schema {
+        tables: BTreeMap::from([("memberships".to_owned(), memberships)]),
+        channels: BTreeMap::from([(
+            "typing".to_owned(),
+            Channel {
+                args: BTreeMap::from([("room".to_owned(), ArgType::Scalar)]),
+                publish: RuleExpr::And(vec![probe.clone(), probe]),
+                subscribe: RuleExpr::Allow,
+                ttl_ms: 10_000,
+            },
+        )]),
+        ..Schema::default()
+    };
+    let errors = Generation::certify(
+        &ProjectJson {
+            version: 1,
+            schema,
+            programs: Vec::new(),
+            effects: Vec::new(),
+            auth: Auth::default(),
+        },
+        Ceilings {
+            rule_probes: 1,
+            steps: 1,
+            ..Ceilings::default()
+        },
+    )
+    .unwrap_err();
+
+    assert!(
+        errors
+            .iter()
+            .any(|(site, error)| { site == "channel.typing.publish" && error.code == "E_BOUND" })
+    );
+    assert!(
+        errors
+            .iter()
+            .any(|(site, error)| { site == "channel.typing.publish" && error.code == "E_STEPS" })
+    );
+}
+
+#[test]
 fn store_claim_settle_restart_and_requeue_accessors_are_durable() {
     let generation = Generation::certify(
         &project(
@@ -891,7 +1152,7 @@ fn store_claim_settle_restart_and_requeue_accessors_are_durable() {
     )
     .unwrap();
     let mut runtime = Runtime::open(Store::memory().unwrap(), generation.clone()).unwrap();
-    let mut context = Context::mutation("u1", BTreeMap::new());
+    let mut context = Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new());
     context.now = Some(100);
     context.new_ids = VecDeque::from(["outbox-1".to_owned(), "return-1".to_owned()]);
     runtime.execute("ops.audit", context).unwrap();
@@ -904,7 +1165,7 @@ fn store_claim_settle_restart_and_requeue_accessors_are_durable() {
     assert_eq!(claimed.state, "running");
     assert_eq!(claimed.attempts, 1);
     assert_eq!(claimed.payload, Value::String("payload".to_owned()));
-    assert_eq!(claimed.generation, Some(generation.hash));
+    assert_eq!(claimed.generation, Some(generation.effects_hash()));
     assert!(
         runtime
             .store()
@@ -976,9 +1237,7 @@ fn execute_then_commits_bookkeeping_and_sent_settlement_once() {
     {
         let mut runtime = Runtime::open(Store::open(&path).unwrap(), generation.clone()).unwrap();
         leave_then_pending(&mut runtime);
-        let execution = runtime
-            .execute_then("notifications.record", then_context(), "outbox-1")
-            .unwrap();
+        let execution = execute_then(&mut runtime).unwrap();
         assert!(matches!(execution.state, ExecutionState::Committed { .. }));
         assert_eq!(
             runtime
@@ -1007,18 +1266,23 @@ fn execute_then_commits_bookkeeping_and_sent_settlement_once() {
             .is_empty()
     );
     let listed = restarted
-        .execute("notifications.list", Context::query("u1", BTreeMap::new()))
+        .execute(
+            "notifications.list",
+            Context::query(Actor::user("u1").unwrap(), BTreeMap::new()),
+        )
         .unwrap();
     assert_eq!(listed.result.as_array().unwrap().len(), 1);
     assert!(
-        restarted
-            .execute_then("notifications.record", then_context(), "outbox-1")
+        execute_then(&mut restarted)
             .unwrap_err()
             .to_string()
             .contains("not then_pending")
     );
     let listed = restarted
-        .execute("notifications.list", Context::query("u1", BTreeMap::new()))
+        .execute(
+            "notifications.list",
+            Context::query(Actor::user("u1").unwrap(), BTreeMap::new()),
+        )
         .unwrap();
     assert_eq!(listed.result.as_array().unwrap().len(), 1);
     drop(restarted);
@@ -1036,9 +1300,7 @@ fn changed_effect_source_fails_pending_then_without_running_new_target() {
     runtime
         .apply_successor(then_generation("async () => ({ providerId: 'new' })"))
         .unwrap();
-    let execution = runtime
-        .execute_then("notifications.record", then_context(), "outbox-1")
-        .unwrap();
+    let execution = execute_then(&mut runtime).unwrap();
     assert!(matches!(
         execution.state,
         ExecutionState::Rejected { ref code, .. } if code == "E_EFFECT_THEN_CHANGED"
@@ -1047,7 +1309,10 @@ fn changed_effect_source_fails_pending_then_without_running_new_target() {
     assert_eq!(row.state, "failed");
     assert_eq!(row.last_error.as_deref(), Some("E_EFFECT_THEN_CHANGED"));
     let listed = runtime
-        .execute("notifications.list", Context::query("u1", BTreeMap::new()))
+        .execute(
+            "notifications.list",
+            Context::query(Actor::user("u1").unwrap(), BTreeMap::new()),
+        )
         .unwrap();
     assert!(listed.result.as_array().unwrap().is_empty());
 }
@@ -1061,9 +1326,7 @@ fn rejected_then_is_sent_with_error_across_an_unchanged_effect_declaration() {
         .apply_successor(then_generation_with_rejection(source, true))
         .unwrap();
 
-    let execution = runtime
-        .execute_then("notifications.record", then_context(), "outbox-1")
-        .unwrap();
+    let execution = execute_then(&mut runtime).unwrap();
     assert!(matches!(
         execution.state,
         ExecutionState::Rejected { ref code, .. } if code == "THEN_REFUSED"
@@ -1087,9 +1350,7 @@ fn rule_denied_then_is_rejected_and_settled_sent_in_the_same_transaction() {
     .unwrap();
     leave_then_pending(&mut runtime);
 
-    let execution = runtime
-        .execute_then("notifications.record", then_context(), "outbox-1")
-        .unwrap();
+    let execution = execute_then(&mut runtime).unwrap();
 
     assert!(matches!(
         execution.state,
@@ -1104,7 +1365,10 @@ fn rule_denied_then_is_rejected_and_settled_sent_in_the_same_transaction() {
         "the rejected then must remain visible on its outbox trace row"
     );
     let listed = runtime
-        .execute("notifications.list", Context::query("u1", BTreeMap::new()))
+        .execute(
+            "notifications.list",
+            Context::query(Actor::user("u1").unwrap(), BTreeMap::new()),
+        )
         .unwrap();
     assert!(listed.result.as_array().unwrap().is_empty());
 }
@@ -1120,7 +1384,7 @@ fn undeclared_effect_is_failed_without_ever_becoming_running() {
     )
     .unwrap();
     let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
-    let mut context = Context::mutation("u1", BTreeMap::new());
+    let mut context = Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new());
     context.now = Some(10);
     context.new_ids = VecDeque::from(["unknown-outbox".to_owned(), "return-id".to_owned()]);
     runtime.execute("ops.audit", context).unwrap();
@@ -1144,7 +1408,7 @@ fn undeclared_effect_is_failed_without_ever_becoming_running() {
     )
     .unwrap();
     runtime.apply_successor(successor).unwrap();
-    let mut context = Context::mutation("u1", BTreeMap::new());
+    let mut context = Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new());
     context.now = Some(11);
     context.new_ids = VecDeque::from(["kept-outbox".to_owned(), "kept-return".to_owned()]);
     runtime.execute("ops.kept", context).unwrap();
@@ -1186,7 +1450,7 @@ fn then_generation_with_rejection(source: &str, reject: bool) -> Generation {
         reject,
         RuleExpr::Eq(
             RuleTerm::Viewer,
-            RuleTerm::Literal(Value::Id("system".to_owned())),
+            RuleTerm::Literal(Value::Id(SYSTEM_PRINCIPAL_ID.to_owned())),
         ),
     )
 }
@@ -1291,7 +1555,7 @@ fn then_generation_with_rule(source: &str, reject: bool, write_rule: RuleExpr) -
 }
 
 fn leave_then_pending(runtime: &mut Runtime) {
-    let mut emit = Context::mutation("u1", BTreeMap::new());
+    let mut emit = Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new());
     emit.now = Some(10);
     emit.new_ids = VecDeque::from(["outbox-1".to_owned()]);
     runtime.execute("notifications.emit", emit).unwrap();
@@ -1312,22 +1576,25 @@ fn leave_then_pending(runtime: &mut Runtime) {
         .unwrap();
 }
 
-fn then_context() -> Context {
-    let mut context = Context::system();
-    context.args = BTreeMap::from([
-        ("outboxId".to_owned(), Value::Id("outbox-1".to_owned())),
-        (
-            "effect".to_owned(),
-            Value::String("notifications.notify".to_owned()),
-        ),
-        (
-            "result".to_owned(),
-            object([("providerId", Value::String("provider-1".to_owned()))]),
-        ),
-    ]);
-    context.now = Some(20);
-    context.new_ids = VecDeque::from(["notification-1".to_owned()]);
-    context
+fn execute_then(runtime: &mut Runtime) -> Result<Execution, RuntimeError> {
+    runtime.execute_then(
+        "notifications.record",
+        BTreeMap::from([
+            ("outboxId".to_owned(), Value::Id("outbox-1".to_owned())),
+            (
+                "effect".to_owned(),
+                Value::String("notifications.notify".to_owned()),
+            ),
+            (
+                "result".to_owned(),
+                object([("providerId", Value::String("provider-1".to_owned()))]),
+            ),
+        ]),
+        20,
+        None,
+        VecDeque::from(["notification-1".to_owned()]),
+        "outbox-1",
+    )
 }
 
 fn temp_path() -> PathBuf {

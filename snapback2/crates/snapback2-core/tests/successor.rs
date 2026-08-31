@@ -1,5 +1,7 @@
 use snapback2_core::*;
 use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 fn table(columns: &[(&str, ColumnType)], indexes: &[(&str, &[&str])]) -> Table {
     public_table(
@@ -60,6 +62,34 @@ fn get_program(name: &str, table: &str, index: &str, key: &str) -> Program {
             provenance: KeyProvenance::Arg,
         }))],
     }
+}
+
+fn text_owner_runtime() -> (Runtime, Table) {
+    let items = table(
+        &[
+            ("id", ColumnType::Id),
+            ("ownerId", ColumnType::Text { max: 64 }),
+        ],
+        &[("byId", &["id"])],
+    );
+    let base = generation(
+        schema(
+            BTreeMap::from([("items".to_owned(), items.clone())]),
+            Vec::new(),
+        ),
+        vec![get_program("items.get", "items", "byId", "id")],
+    );
+    let mut runtime = Runtime::open(Store::memory().unwrap(), base).unwrap();
+    runtime
+        .seed(&[(
+            "items".to_owned(),
+            object([
+                ("id", Value::Id("i1".to_owned())),
+                ("ownerId", Value::String("alice".to_owned())),
+            ]),
+        )])
+        .unwrap();
+    (runtime, items)
 }
 
 #[test]
@@ -134,7 +164,10 @@ fn additive_successor_adds_table_column_index_and_program_in_place() {
     assert!(report.added_indexes.contains(&"items.byName".to_owned()));
 
     let updated = runtime
-        .execute("items.addNote", Context::mutation("u1", BTreeMap::new()))
+        .execute(
+            "items.addNote",
+            Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new()),
+        )
         .unwrap();
     assert!(matches!(updated.state, ExecutionState::Committed { .. }));
 
@@ -142,7 +175,7 @@ fn additive_successor_adds_table_column_index_and_program_in_place() {
         .execute(
             "items.byName",
             Context::query(
-                "u1",
+                Actor::user("u1").unwrap(),
                 BTreeMap::from([("name".to_owned(), Value::String("one".to_owned()))]),
             ),
         )
@@ -218,7 +251,10 @@ fn successor_optional_column_is_null_in_expressions_rules_and_indexes() {
         .unwrap();
 
     let execution = runtime
-        .execute("items.note", Context::query("u1", BTreeMap::new()))
+        .execute(
+            "items.note",
+            Context::query(Actor::user("u1").unwrap(), BTreeMap::new()),
+        )
         .unwrap();
     assert_eq!(execution.result, Value::Null);
     assert!(execution.trace.points[0].visible);
@@ -276,7 +312,7 @@ fn new_maintained_aggregate_is_backfilled_from_existing_rows() {
         .execute(
             "counts.get",
             Context::query(
-                "u1",
+                Actor::user("u1").unwrap(),
                 BTreeMap::from([("group".to_owned(), Value::Id("g1".to_owned()))]),
             ),
         )
@@ -371,7 +407,10 @@ fn maintained_backfill_materializes_new_optional_group_as_null() {
     let aggregate = runtime
         .execute(
             "counts.get",
-            Context::query("u1", BTreeMap::from([("bucket".to_owned(), Value::Null)])),
+            Context::query(
+                Actor::user("u1").unwrap(),
+                BTreeMap::from([("bucket".to_owned(), Value::Null)]),
+            ),
         )
         .unwrap();
     assert_eq!(aggregate.result.field("bucket").unwrap(), &Value::Null);
@@ -422,13 +461,19 @@ fn live_maintained_count_materializes_omitted_optional_group_as_null() {
     let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
 
     let inserted = runtime
-        .execute("items.insert", Context::mutation("u1", BTreeMap::new()))
+        .execute(
+            "items.insert",
+            Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new()),
+        )
         .unwrap();
     assert!(matches!(inserted.state, ExecutionState::Committed { .. }));
     let aggregate = runtime
         .execute(
             "counts.get",
-            Context::query("u1", BTreeMap::from([("group".to_owned(), Value::Null)])),
+            Context::query(
+                Actor::user("u1").unwrap(),
+                BTreeMap::from([("group".to_owned(), Value::Null)]),
+            ),
         )
         .unwrap();
     assert_eq!(aggregate.result.field("group").unwrap(), &Value::Null);
@@ -469,7 +514,7 @@ fn destructive_successor_reports_all_drops_and_applies_only_that_plan() {
         }]
     );
     runtime.apply_migration(next, &refusal.plan).unwrap();
-    assert!(runtime.generation().schema.tables.is_empty());
+    assert!(runtime.generation().schema().tables.is_empty());
 }
 
 #[test]
@@ -508,6 +553,175 @@ fn required_column_on_populated_table_is_refused() {
 }
 
 #[test]
+fn successor_ignores_unrelated_legacy_fields_but_validates_the_field_when_declared() {
+    let path = temp_store_path("reserved-successor-row");
+    let items = table(&[("id", ColumnType::Id)], &[("byId", &["id"])]);
+    let base = generation(
+        schema(
+            BTreeMap::from([("items".to_owned(), items.clone())]),
+            Vec::new(),
+        ),
+        Vec::new(),
+    );
+    {
+        Runtime::open(Store::open(&path).unwrap(), base.clone()).unwrap();
+    }
+    {
+        let connection = rusqlite::Connection::open(&path).unwrap();
+        let vulnerable_row = object([
+            ("id", Value::Id("legacy-row".to_owned())),
+            ("ownerId", Value::Id(SYSTEM_PRINCIPAL_ID.to_string())),
+        ]);
+        connection
+            .execute(
+                "INSERT INTO rows(table_name, row_id, data) VALUES (?1, ?2, ?3)",
+                rusqlite::params!["items", "legacy-row", canonical_json(&vulnerable_row)],
+            )
+            .unwrap();
+    }
+
+    let mut runtime = Runtime::open(Store::open(&path).unwrap(), base).unwrap();
+    let mut clean_items = items.clone();
+    clean_items.columns.insert(
+        "note".to_owned(),
+        ColumnType::Optional(Box::new(ColumnType::Text { max: 64 })),
+    );
+    runtime
+        .apply_successor(generation(
+            schema(
+                BTreeMap::from([("items".to_owned(), clean_items.clone())]),
+                Vec::new(),
+            ),
+            Vec::new(),
+        ))
+        .expect("an unrelated undeclared legacy field must not block a clean successor");
+
+    clean_items.columns.insert(
+        "ownerId".to_owned(),
+        ColumnType::Optional(Box::new(ColumnType::Id)),
+    );
+    let next = generation(
+        schema(
+            BTreeMap::from([("items".to_owned(), clean_items)]),
+            Vec::new(),
+        ),
+        Vec::new(),
+    );
+    let refusal = runtime.apply_successor(next).unwrap_err();
+
+    assert_eq!(refusal.code, "E_SUCCESSOR_ROW_INVALID");
+    assert!(refusal.message.contains("items.legacy-row"));
+    assert!(refusal.message.contains("reserved system principal"));
+    cleanup_store(&path);
+}
+
+#[test]
+fn reopening_changed_schema_cannot_forge_hash_past_stored_row_validation() {
+    let path = temp_store_path("generation-hash-forge");
+    let items = table(&[("id", ColumnType::Id)], &[("byId", &["id"])]);
+    let base = generation(
+        schema(
+            BTreeMap::from([("items".to_owned(), items.clone())]),
+            Vec::new(),
+        ),
+        Vec::new(),
+    );
+    Runtime::open(Store::open(&path).unwrap(), base.clone()).unwrap();
+    let connection = rusqlite::Connection::open(&path).unwrap();
+    let row = object([
+        ("id", Value::Id("legacy".to_owned())),
+        ("ownerId", Value::Id(SYSTEM_PRINCIPAL_ID.to_owned())),
+    ]);
+    connection
+        .execute(
+            "INSERT INTO rows(table_name, row_id, data) VALUES (?1, ?2, ?3)",
+            rusqlite::params!["items", "legacy", canonical_json(&row)],
+        )
+        .unwrap();
+    drop(connection);
+
+    let mut next_items = items;
+    next_items.columns.insert(
+        "ownerId".to_owned(),
+        ColumnType::Optional(Box::new(ColumnType::Id)),
+    );
+    let next = generation(
+        schema(
+            BTreeMap::from([("items".to_owned(), next_items)]),
+            Vec::new(),
+        ),
+        Vec::new(),
+    );
+    assert_ne!(next.hash(), base.hash());
+    assert!(serde_json::to_value(&next).unwrap().get("hash").is_none());
+    let refusal = match Runtime::open(Store::open(&path).unwrap(), next) {
+        Ok(_) => panic!("changed schema must take the successor path"),
+        Err(refusal) => refusal,
+    };
+    assert_eq!(refusal.code, "E_SUCCESSOR_ROW_INVALID");
+    assert!(refusal.message.contains("reserved system principal"));
+    assert_eq!(
+        Store::open(&path).unwrap().meta("generation").unwrap(),
+        Some(base.hash())
+    );
+    cleanup_store(&path);
+}
+
+#[test]
+fn required_text_to_id_migration_refuses_without_installing_missing_value() {
+    let (mut runtime, mut items) = text_owner_runtime();
+    let original_hash = runtime.generation().hash();
+    items.columns.insert("ownerId".to_owned(), ColumnType::Id);
+    let next = generation(
+        schema(BTreeMap::from([("items".to_owned(), items)]), Vec::new()),
+        vec![get_program("items.get", "items", "byId", "id")],
+    );
+    let plan = runtime.apply_successor(next.clone()).unwrap_err().plan;
+    let error = runtime.apply_migration(next, &plan).unwrap_err();
+
+    assert_eq!(error.code(), "E_SUCCESSOR_COLUMN_REQUIRED");
+    assert_eq!(runtime.generation().hash(), original_hash);
+    let row = runtime
+        .execute(
+            "items.get",
+            Context::query(
+                Actor::user("u1").unwrap(),
+                BTreeMap::from([("id".to_owned(), Value::Id("i1".to_owned()))]),
+            ),
+        )
+        .unwrap();
+    assert_eq!(
+        row.result.field("ownerId").unwrap(),
+        &Value::String("alice".to_owned())
+    );
+}
+
+#[test]
+fn optional_text_to_id_migration_drops_the_old_value_and_installs_null() {
+    let (mut runtime, mut items) = text_owner_runtime();
+    items.columns.insert(
+        "ownerId".to_owned(),
+        ColumnType::Optional(Box::new(ColumnType::Id)),
+    );
+    let next = generation(
+        schema(BTreeMap::from([("items".to_owned(), items)]), Vec::new()),
+        vec![get_program("items.get", "items", "byId", "id")],
+    );
+    let plan = runtime.apply_successor(next.clone()).unwrap_err().plan;
+    runtime.apply_migration(next, &plan).unwrap();
+    let row = runtime
+        .execute(
+            "items.get",
+            Context::query(
+                Actor::user("u1").unwrap(),
+                BTreeMap::from([("id".to_owned(), Value::Id("i1".to_owned()))]),
+            ),
+        )
+        .unwrap();
+    assert_eq!(row.result.field("ownerId").unwrap(), &Value::Null);
+}
+
+#[test]
 fn new_unique_index_reports_conflicting_keys_without_changing_generation() {
     let items = table(
         &[
@@ -523,7 +737,7 @@ fn new_unique_index_reports_conflicting_keys_without_changing_generation() {
         ),
         Vec::new(),
     );
-    let original_hash = base.hash.clone();
+    let original_hash = base.hash();
     let mut runtime = Runtime::open(Store::memory().unwrap(), base).unwrap();
     runtime
         .seed(&[
@@ -570,7 +784,7 @@ fn new_unique_index_reports_conflicting_keys_without_changing_generation() {
         }]
     );
     assert!(refusal.rewrite.contains("non-unique"));
-    assert_eq!(runtime.generation().hash, original_hash);
+    assert_eq!(runtime.generation().hash(), original_hash);
 }
 
 #[test]
@@ -593,7 +807,7 @@ fn migration_rechecks_new_unique_indexes_and_rolls_back_its_drops() {
         ),
         vec![get_program("scratch.get", "scratch", "byId", "id")],
     );
-    let original_hash = base.hash.clone();
+    let original_hash = base.hash();
     let mut runtime = Runtime::open(Store::memory().unwrap(), base).unwrap();
     runtime
         .seed(&[
@@ -649,12 +863,12 @@ fn migration_rechecks_new_unique_indexes_and_rolls_back_its_drops() {
             key: vec![Value::String("same".to_owned())],
         }]
     );
-    assert_eq!(runtime.generation().hash, original_hash);
+    assert_eq!(runtime.generation().hash(), original_hash);
     let scratch = runtime
         .execute(
             "scratch.get",
             Context::query(
-                "u1",
+                Actor::user("u1").unwrap(),
                 BTreeMap::from([("id".to_owned(), Value::Id("keep".to_owned()))]),
             ),
         )
@@ -713,7 +927,7 @@ fn migration_rechecks_required_columns_and_rolls_back_its_drops() {
         .execute(
             "scratch.get",
             Context::query(
-                "u1",
+                Actor::user("u1").unwrap(),
                 BTreeMap::from([("id".to_owned(), Value::Id("keep".to_owned()))]),
             ),
         )
@@ -744,7 +958,7 @@ fn maintained_backfill_unique_conflict_refuses_successor_atomically() {
         schema(tables.clone(), Vec::new()),
         vec![get_program("counts.get", "counts", "byGroup", "group")],
     );
-    let original_hash = base.hash.clone();
+    let original_hash = base.hash();
     let mut runtime = Runtime::open(Store::memory().unwrap(), base).unwrap();
     runtime
         .seed(&[
@@ -788,12 +1002,12 @@ fn maintained_backfill_unique_conflict_refuses_successor_atomically() {
             key: vec![Value::Int(1)],
         }]
     );
-    assert_eq!(runtime.generation().hash, original_hash);
+    assert_eq!(runtime.generation().hash(), original_hash);
     let counts = runtime
         .execute(
             "counts.get",
             Context::query(
-                "u1",
+                Actor::user("u1").unwrap(),
                 BTreeMap::from([("group".to_owned(), Value::Id("g1".to_owned()))]),
             ),
         )
@@ -856,7 +1070,7 @@ fn maintained_backfill_bypasses_target_rules_but_enforces_constraints() {
             .execute(
                 "counts.get",
                 Context::query(
-                    "u1",
+                    Actor::user("u1").unwrap(),
                     BTreeMap::from([("group".to_owned(), Value::Id("g1".to_owned()))]),
                 ),
             )
@@ -882,7 +1096,7 @@ fn maintained_backfill_bypasses_target_rules_but_enforces_constraints() {
         .execute(
             "counts.get",
             Context::query(
-                "u1",
+                Actor::user("u1").unwrap(),
                 BTreeMap::from([("group".to_owned(), Value::Id("g1".to_owned()))]),
             ),
         )
@@ -902,13 +1116,13 @@ fn maintained_backfill_bypasses_target_rules_but_enforces_constraints() {
         max: 1,
     });
     let (mut capped, capped_tables) = setup(capped_counts);
-    let capped_hash = capped.generation().hash.clone();
+    let capped_hash = capped.generation().hash();
     let refusal = capped
         .apply_successor(successor(capped_tables))
         .unwrap_err();
     assert_eq!(refusal.code, "E_SUCCESSOR_STORE");
     assert!(refusal.message.contains("E_CONSTRAINT"));
-    assert_eq!(capped.generation().hash, capped_hash);
+    assert_eq!(capped.generation().hash(), capped_hash);
     assert_empty(&mut capped);
 }
 
@@ -989,7 +1203,10 @@ fn maintained_target_rules_reject_users_but_not_engine_aggregate_writes() {
     let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
 
     let engine_write = runtime
-        .execute("cards.add", Context::mutation("u1", BTreeMap::new()))
+        .execute(
+            "cards.add",
+            Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new()),
+        )
         .unwrap();
     assert!(matches!(
         engine_write.state,
@@ -997,7 +1214,10 @@ fn maintained_target_rules_reject_users_but_not_engine_aggregate_writes() {
     ));
     for operation in ["counts.insert", "counts.update"] {
         let user_write = runtime
-            .execute(operation, Context::mutation("u1", BTreeMap::new()))
+            .execute(
+                operation,
+                Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new()),
+            )
             .unwrap();
         assert!(matches!(
             user_write.state,
@@ -1008,7 +1228,7 @@ fn maintained_target_rules_reject_users_but_not_engine_aggregate_writes() {
         .execute(
             "counts.get",
             Context::query(
-                "u1",
+                Actor::user("u1").unwrap(),
                 BTreeMap::from([("group".to_owned(), Value::Id("g1".to_owned()))]),
             ),
         )
@@ -1046,7 +1266,7 @@ fn failed_migration_rolls_back_drops_backfill_and_generation_metadata() {
         ),
         vec![get_program("archive.get", "archive", "byId", "id")],
     );
-    let original_hash = base.hash.clone();
+    let original_hash = base.hash();
     let mut runtime = Runtime::open(Store::memory().unwrap(), base).unwrap();
     runtime
         .seed(&[
@@ -1094,7 +1314,7 @@ fn failed_migration_rolls_back_drops_backfill_and_generation_metadata() {
     assert_eq!(refusal.code, "E_SUCCESSOR_DESTRUCTIVE");
     let error = runtime.apply_migration(next, &refusal.plan).unwrap_err();
     assert!(matches!(error, RuntimeError::Constraint(message) if message.contains("overflow")));
-    assert_eq!(runtime.generation().hash, original_hash);
+    assert_eq!(runtime.generation().hash(), original_hash);
     assert_eq!(
         runtime.store().meta("generation").unwrap().as_deref(),
         Some(original_hash.as_str())
@@ -1103,7 +1323,7 @@ fn failed_migration_rolls_back_drops_backfill_and_generation_metadata() {
         .execute(
             "archive.get",
             Context::query(
-                "u1",
+                Actor::user("u1").unwrap(),
                 BTreeMap::from([("id".to_owned(), Value::Id("kept".to_owned()))]),
             ),
         )
@@ -1169,7 +1389,7 @@ fn optional_and_list_column_types_validate_and_list_indexes_are_refused() {
         .execute(
             &get_null,
             &certificate,
-            Context::query("u1", BTreeMap::new()),
+            Context::query(Actor::user("u1").unwrap(), BTreeMap::new()),
         )
         .unwrap();
     assert_ne!(null_indexed.result, Value::Null);
@@ -1249,4 +1469,25 @@ fn optional_and_list_column_types_validate_and_list_indexes_are_refused() {
         Engine::memory(invalid),
         Err(RuntimeError::SchemaIndexColumn { .. })
     ));
+}
+
+fn temp_store_path(label: &str) -> PathBuf {
+    std::env::temp_dir().join(format!(
+        "snapback2-{label}-{}-{}.sqlite",
+        std::process::id(),
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos()
+    ))
+}
+
+fn cleanup_store(path: &Path) {
+    for path in [
+        path.to_path_buf(),
+        PathBuf::from(format!("{}-wal", path.display())),
+        PathBuf::from(format!("{}-shm", path.display())),
+    ] {
+        let _ = std::fs::remove_file(path);
+    }
 }
