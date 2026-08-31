@@ -133,8 +133,8 @@ certificate names one origin); exotic mutators
 
 ### Round-3 final closure (2026-08-31)
 
-Commits `ab71e7441`, `3f3a0c9bc`, and `0aedec5a9` close the final structural
-gaps. Loop mutation analysis now settles against lowered body environments and
+Commits `ab71e7441`, `3f3a0c9bc`, `0aedec5a9`, and `da750b5f2` close the final
+structural gaps. Loop mutation analysis now settles against lowered body environments and
 installs end-of-loop facts before nested domain IR is emitted. The certified
 crash shape carries inner max 4 and executes 9 visits; the post-loop twin
 returns 4; body-local spread copies and literal batches compile; and the
@@ -158,5 +158,5 @@ stands unchanged.
 
 Focused compiler proof: 134/134. Required `scripts/test.sh`: Rust 19/19 +
 22/22, evaluator 81/81, compiler 134/134, exit 0. Measurement passed every
-budget (core test 23.96 s); corpus regeneration wrote 81 cases with an empty
+budget (core test 23.87 s); corpus regeneration wrote 81 cases with an empty
 corpus diff.
