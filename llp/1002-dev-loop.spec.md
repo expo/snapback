@@ -155,8 +155,20 @@ with a rewrite that makes an explicit local spread copy. Branch alternatives
 merge their collection mutation deltas by maximum. Nested loop deltas compose
 multiplicatively through every statically bounded level; a composition the
 compiler cannot prove refuses in the `E_UNBOUND` family instead of certifying
-an additive underestimate. Conditional-expression statements fork and merge
-the same environments as `if`/`else`.
+an additive underestimate. The mutation analysis follows lowering order: it
+sees body-local declarations and reserves every inherited collection to its
+proven end-of-loop facts before emitting a nested loop domain. Mutation counts
+whose controlling collection keeps growing instead of reaching the bounded
+analysis fixed point refuse `E_UNBOUND_LOOP`.
+
+Aliasing is closed over syntactic escapes, not only identifier assignments. A
+collection escapes when it appears as a call argument, an object/array member,
+a return value, or a ternary/logical arm. A mutation after such an escape
+refuses at the mutation with the same spread-copy rewrite; read-only escaped
+collections and an escape after the final mutation remain admitted. This is
+deliberately conservative: whether a helper retains or copies its argument is
+not part of the proof. Conditional-expression statements fork and merge the
+same environments as `if`/`else`.
 
 Read-site
 identity is independently pinned to `<module-basename>.<export>.<ordinal>`,

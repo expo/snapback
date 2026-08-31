@@ -130,3 +130,33 @@ conservative refusal; Arg/Arg branch reassignment refusal (correct-by-design: a
 certificate names one origin); exotic mutators
 (splice/unshift/concat/member-push) refusing safely; unequal-arm overcounts
 (safe direction).
+
+### Round-3 final closure (2026-08-31)
+
+Commits `ab71e7441`, `3f3a0c9bc`, and `0aedec5a9` close the final structural
+gaps. Loop mutation analysis now settles against lowered body environments and
+installs end-of-loop facts before nested domain IR is emitted. The certified
+crash shape carries inner max 4 and executes 9 visits; the post-loop twin
+returns 4; body-local spread copies and literal batches compile; and the
+two-deep mutation probe carries max 7 and executes 11 visits. A collection
+whose mutation count grows with its own domain refuses `E_UNBOUND_LOOP`.
+
+Collection sharing now closes over call arguments, object/array members,
+returns, and ternary/logical arms. Helper-return, object-wrapper, ternary,
+two-helper, and branch-arm pre-mutation escapes refuse with the sited envelope
+and spread-copy rewrite. Read-only escapes and mutation-before-final-return
+remain green. Branch ambiguity rewrites union candidates retained by merged
+element origins, so the `args.a` / `ctx.viewer` / `args.b` sentinel names all
+three real origins.
+
+Round-3 residual addition: escape detection deliberately false-refuses a
+post-escape mutation even when a helper would copy or decline to retain the
+collection; the explicit spread-copy rewrite is the admitted proof. No
+body-local nested-loop residual was observed for the requested no-mutation
+spread-copy or literal-batch forms. The round-2 residual list above otherwise
+stands unchanged.
+
+Focused compiler proof: 134/134. Required `scripts/test.sh`: Rust 19/19 +
+22/22, evaluator 81/81, compiler 134/134, exit 0. Measurement passed every
+budget (core test 23.96 s); corpus regeneration wrote 81 cases with an empty
+corpus diff.
