@@ -20,6 +20,8 @@ export type VariableInfo = {
   objectFields?: string[];
   nullableRead?: boolean;
   collectionIdentity?: object;
+  collectionDeclaration?: ts.Identifier;
+  locallyCreatedCollection?: boolean;
 };
 
 export type ProvenanceOrigin =
@@ -38,6 +40,7 @@ export type Environment = ModuleInfo & {
   helperStack: string[];
   mutableBindings: Set<ts.Identifier>;
   deferredCollectionMutations: Set<object>;
+  collectionAliasSites: Map<ts.Identifier, ts.Expression[]>;
   accessOrdinal: { value: number };
   temp: { value: number };
   literalValues: Map<string, number>;

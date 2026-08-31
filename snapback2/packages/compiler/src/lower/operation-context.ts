@@ -1,6 +1,7 @@
 import ts from "typescript";
 import type { Environment, ProvenanceOrigin, VariableInfo } from "../compiler";
-import { propertyName, unwrapExpression } from "../syntax";
+import { refuse } from "../diagnostics";
+import { collectionConstructor, propertyName, replaceNode, unwrapExpression } from "../syntax";
 import { guardedWalk } from "./recursion";
 
 type FunctionLike = ts.FunctionDeclaration | ts.ArrowFunction | ts.FunctionExpression;
@@ -14,6 +15,89 @@ export function assignedBindings(handler: FunctionLike): Set<ts.Identifier> {
   for (const parameter of handler.parameters) declareBinding(parameter.name, functionScope);
   if (handler.body) visitBindingMutations(handler.body, functionScope, assigned);
   return assigned;
+}
+
+export function collectionAliasSites(handler: FunctionLike): Map<ts.Identifier, ts.Expression[]> {
+  const edges: Array<{ left: ts.Identifier; right: ts.Identifier; site: ts.Expression }> = [];
+  const functionScope: BindingScope = { bindings: new Map() };
+  for (const parameter of handler.parameters) declareBinding(parameter.name, functionScope);
+  if (handler.body) visitCollectionAliases(handler.body, functionScope, edges);
+
+  const graph = new Map<ts.Identifier, Array<{ other: ts.Identifier; site: ts.Expression }>>();
+  for (const edge of edges) {
+    addAliasEdge(graph, edge.left, edge.right, edge.site);
+    addAliasEdge(graph, edge.right, edge.left, edge.site);
+  }
+  const result = new Map<ts.Identifier, ts.Expression[]>();
+  for (const binding of graph.keys()) {
+    const pending = [binding];
+    const seen = new Set<ts.Identifier>();
+    const sites = new Set<ts.Expression>();
+    while (pending.length > 0) {
+      const current = pending.pop()!;
+      if (seen.has(current)) continue;
+      seen.add(current);
+      for (const edge of graph.get(current) ?? []) {
+        sites.add(edge.site);
+        pending.push(edge.other);
+      }
+    }
+    result.set(binding, [...sites]);
+  }
+  return result;
+}
+
+export function isLocallyCreatedCollection(node: ts.Expression): boolean {
+  const value = unwrapExpression(node);
+  if (ts.isArrayLiteralExpression(value)) return true;
+  if (!ts.isNewExpression(value) || !collectionConstructor(value)) return false;
+  const initializer = value.arguments?.[0];
+  return initializer === undefined || ts.isArrayLiteralExpression(unwrapExpression(initializer));
+}
+
+export function collectionMutationRewrite(
+  info: VariableInfo,
+  mutation: ts.CallExpression,
+  owner: ts.Identifier,
+  env: Environment,
+): string {
+  const aliasSites = info.collectionDeclaration
+    ? env.collectionAliasSites.get(info.collectionDeclaration) ?? []
+    : [];
+  if (aliasSites.length > 0) return spreadCopyRewrite(env, aliasSites);
+  const declaration = info.collectionDeclaration?.parent;
+  if (declaration && ts.isVariableDeclaration(declaration) && declaration.initializer) {
+    return spreadCopyRewrite(env, [declaration.initializer]);
+  }
+  const copy = `${owner.text}Copy`;
+  const method = ts.isPropertyAccessExpression(mutation.expression)
+    ? mutation.expression.name.getText(env.sourceFile)
+    : "push";
+  return replaceNode(
+    env.source,
+    mutation,
+    `const ${copy} = [...${owner.text}]; ${copy}.${method}(${mutation.arguments.map((argument) => argument.getText(env.sourceFile)).join(", ")})`,
+  );
+}
+
+export function requireCollectionMutation(
+  owner: ts.Identifier,
+  mutation: ts.CallExpression,
+  env: Environment,
+): void {
+  // @ref LLP 1002#2-the-authored-surface-the-snapback2-module — mutable collections have one local, unaliased owner so IR copy semantics cannot diverge from TypeScript aliases.
+  const info = env.variables.get(owner.text)!;
+  const aliases = info.collectionDeclaration
+    ? env.collectionAliasSites.get(info.collectionDeclaration) ?? []
+    : [];
+  if (info.locallyCreatedCollection && aliases.length === 0) return;
+  refuse(
+    env,
+    "E_OPAQUE",
+    mutation,
+    `collection mutation requires an unaliased local collection created from a literal or spread copy; ${owner.text} is ${aliases.length > 0 ? "aliased under another binding" : "not locally created"}`,
+    collectionMutationRewrite(info, mutation, owner, env),
+  );
 }
 
 export function operationCompositeBindings(
@@ -107,6 +191,74 @@ function visitBindingMutations(node: ts.Node, scope: BindingScope, assigned: Set
     return;
   }
   ts.forEachChild(node, (child) => visitBindingMutations(child, scope, assigned));
+}
+
+function visitCollectionAliases(
+  node: ts.Node,
+  scope: BindingScope,
+  edges: Array<{ left: ts.Identifier; right: ts.Identifier; site: ts.Expression }>,
+): void {
+  if (ts.isBlock(node)) {
+    const block: BindingScope = { parent: scope, bindings: new Map() };
+    for (const statement of node.statements) {
+      if (!ts.isVariableStatement(statement)) continue;
+      for (const declaration of statement.declarationList.declarations) declareBinding(declaration.name, block);
+    }
+    for (const statement of node.statements) visitCollectionAliases(statement, block, edges);
+    return;
+  }
+  if (ts.isForOfStatement(node)) {
+    visitCollectionAliases(node.expression, scope, edges);
+    const loop: BindingScope = { parent: scope, bindings: new Map() };
+    if (ts.isVariableDeclarationList(node.initializer)) {
+      for (const declaration of node.initializer.declarations) declareBinding(declaration.name, loop);
+    }
+    visitCollectionAliases(node.statement, loop, edges);
+    return;
+  }
+  if (ts.isFunctionLike(node)) return;
+  if (ts.isVariableDeclaration(node)) {
+    if (ts.isIdentifier(node.name) && node.initializer) {
+      const source = unwrapExpression(node.initializer);
+      const target = resolveBinding(node.name.text, scope);
+      const origin = ts.isIdentifier(source) ? resolveBinding(source.text, scope) : undefined;
+      if (target && origin && target !== origin) edges.push({ left: target, right: origin, site: node.initializer });
+      visitCollectionAliases(node.initializer, scope, edges);
+    }
+    return;
+  }
+  if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.EqualsToken
+    && ts.isIdentifier(node.left)) {
+    const right = unwrapExpression(node.right);
+    const target = resolveBinding(node.left.text, scope);
+    const origin = ts.isIdentifier(right) ? resolveBinding(right.text, scope) : undefined;
+    if (target && origin && target !== origin) edges.push({ left: target, right: origin, site: node.right });
+    visitCollectionAliases(node.right, scope, edges);
+    return;
+  }
+  ts.forEachChild(node, (child) => visitCollectionAliases(child, scope, edges));
+}
+
+function addAliasEdge(
+  graph: Map<ts.Identifier, Array<{ other: ts.Identifier; site: ts.Expression }>>,
+  binding: ts.Identifier,
+  other: ts.Identifier,
+  site: ts.Expression,
+): void {
+  const adjacent = graph.get(binding) ?? [];
+  adjacent.push({ other, site });
+  graph.set(binding, adjacent);
+}
+
+function spreadCopyRewrite(env: Environment, sites: readonly ts.Expression[]): string {
+  const edits = [...new Set(sites)].map((site) => ({
+    start: site.getStart(env.sourceFile),
+    end: site.getEnd(),
+    text: `[...${site.getText(env.sourceFile)}]`,
+  })).sort((left, right) => right.start - left.start);
+  let rewritten = env.source;
+  for (const edit of edits) rewritten = rewritten.slice(0, edit.start) + edit.text + rewritten.slice(edit.end);
+  return rewritten;
 }
 
 function declareBinding(name: ts.BindingName, scope: BindingScope): void {

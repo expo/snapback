@@ -110,7 +110,7 @@ export const lookup = query({ keys: t.list(t.text(40), { max: 3 }) }, ({ db, arg
   return found;
 });`, `push-${fixture.name}.ts`, undefined, { tables });
       assert(!refused.ok, `${fixture.name} push widened a blind bound and compiled`);
-      assert(refused.diagnostics.some((item) => item.code === "E_PROVENANCE_AMBIGUOUS" || item.code === "E_UNBOUND_LOOP"),
+      assert(refused.diagnostics.some((item) => ["E_PROVENANCE_AMBIGUOUS", "E_UNBOUND_LOOP", "E_OPAQUE"].includes(item.code)),
         `${fixture.name} push refused for the wrong reason: ${JSON.stringify(refused.diagnostics)}`);
       const diagnostic = refused.diagnostics.find((item) => item.code === "E_PROVENANCE_AMBIGUOUS");
       if (diagnostic) {
@@ -119,6 +119,67 @@ export const lookup = query({ keys: t.list(t.text(40), { max: 3 }) }, ({ db, arg
           `${fixture.name} push omitted a real origin: ${JSON.stringify(diagnostic)}`);
       }
     }
+  });
+
+  test("collection mutation refuses both alias copy-semantics divergence directions", () => {
+    const aliasMutation = lowerSource(`import { query, t } from "snapback2";
+export const lookup = query({ key: t.text(40) }, ({ db, args, ctx }) => {
+  const box = { keys: [args.key] };
+  const alias = box.keys;
+  alias.push(ctx.viewer);
+  const found = [];
+  for (const key of box.keys) found.push(db.get(items.byKey, [key]));
+  return found;
+});`, "mutate-alias-read-original.ts", undefined, { tables });
+    const aliasDiagnostic = mutationDiagnostic(aliasMutation);
+    assert(aliasDiagnostic.site.startsWith("mutate-alias-read-original.ts:5:")
+      && aliasDiagnostic.rewrite.includes("const alias = [...box.keys]"),
+    `selected-owner mutation refusal was not sited with a copy rewrite: ${JSON.stringify(aliasDiagnostic)}`);
+    const aliasPaste = lowerSource(aliasDiagnostic.rewrite, "mutate-alias-read-original.ts", undefined, { tables });
+    assert(aliasPaste.ok, `selected-owner copy rewrite did not compile: ${JSON.stringify(aliasPaste)}`);
+
+    const ownerMutation = lowerSource(`import { query, t } from "snapback2";
+export const lookup = query({ first: t.text(40), second: t.text(40) }, ({ db, args }) => {
+  const keys = [args.first];
+  keys.push(args.second);
+  const alias = keys;
+  const found = [];
+  for (const key of alias) found.push(db.get(items.byKey, [key]));
+  return found;
+});`, "mutate-original-read-alias.ts", undefined, { tables });
+    const ownerDiagnostic = mutationDiagnostic(ownerMutation);
+    assert(ownerDiagnostic.site.startsWith("mutate-original-read-alias.ts:4:")
+      && ownerDiagnostic.rewrite.includes("const alias = [...keys]"),
+    `later-alias mutation refusal was not sited with a copy rewrite: ${JSON.stringify(ownerDiagnostic)}`);
+    const ownerPaste = lowerSource(ownerDiagnostic.rewrite, "mutate-original-read-alias.ts", undefined, { tables });
+    assert(ownerPaste.ok, `later-alias copy rewrite did not compile: ${JSON.stringify(ownerPaste)}`);
+  });
+
+  test("unaliased literal accumulators compile while alias-of-copy mutation refuses", () => {
+    const accumulator = lowerOne(`import { query, t } from "snapback2";
+export const lookup = query({ key: t.text(40) }, ({ db, args }) => {
+  const keys = [];
+  keys.push(args.key);
+  const found = [];
+  for (const key of keys) found.push(db.get(items.byKey, [key]));
+  return found;
+});`, "unaliased-accumulator.ts");
+    assert(lastDerivedArrayBound(accumulator) === 1 && lastRead(accumulator)?.provenance === "Arg",
+      `unaliased literal accumulator lost its bound or provenance: ${canonical(accumulator)}`);
+    certify(accumulator);
+
+    const aliasOfCopy = lowerSource(`import { query, t } from "snapback2";
+export const lookup = query({ keys: t.list(t.text(40), { max: 3 }), extra: t.text(40) }, ({ db, args }) => {
+  const copy = [...args.keys];
+  const alias = copy;
+  copy.push(args.extra);
+  const found = [];
+  for (const key of alias) found.push(db.get(items.byKey, [key]));
+  return found;
+});`, "alias-of-copy-mutation.ts", undefined, { tables });
+    const diagnostic = mutationDiagnostic(aliasOfCopy);
+    assert(diagnostic.rewrite.includes("const alias = [...copy]"),
+      `alias-of-copy refusal did not break the alias explicitly: ${JSON.stringify(diagnostic)}`);
   });
 
   test("push after an ordered spread override keeps both actual element origins", () => {
@@ -328,6 +389,15 @@ function provenanceDiagnostic(result: ReturnType<typeof lowerSource>): FrontendD
   assert(!result.ok, "mixed-origin fixture unexpectedly lowered");
   const diagnostic = result.diagnostics.find((item) => item.code === "E_PROVENANCE_AMBIGUOUS");
   assert(diagnostic, `missing provenance refusal: ${JSON.stringify(result.diagnostics)}`);
+  return diagnostic;
+}
+
+function mutationDiagnostic(result: ReturnType<typeof lowerSource>): FrontendDiagnostic {
+  assert(!result.ok, "aliased collection mutation unexpectedly lowered");
+  const diagnostic = result.diagnostics.find((item) => item.code === "E_OPAQUE"
+    && item.message.includes("collection mutation requires an unaliased local collection"));
+  assert(diagnostic?.family === "opaque" && diagnostic.rewrite,
+    `missing aliased collection mutation envelope: ${JSON.stringify(result.diagnostics)}`);
   return diagnostic;
 }
 

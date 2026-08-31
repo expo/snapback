@@ -10,29 +10,23 @@ import {
 import { knownObjectFields, nullableReadSpread, nullableSpreadRefusal, rowCollectionFields } from "./lower/object-shape";
 import { derivedBound, staticBound } from "./lower/binding-bound";
 import { collectionElementBinding, collectionOriginsBinding, combinedProvenanceBinding, isRowCollectionExpression, isRowExpression, provenanceBinding, readProvenance } from "./lower/provenance";
-import {
-  appendCollectionFacts,
-  collectionFactsFor,
-  maintainCollectionFacts,
-  mergeAssignedCollectionFacts,
-} from "./lower/collection-facts";
+import { appendCollectionFacts, collectionFactsFor, maintainCollectionFacts,
+  mergeAssignedCollectionFacts } from "./lower/collection-facts";
 import { forkBranchEnvironment, mergeBranchEnvironments } from "./lower/branch-bindings";
 import { findPolicyRefusals, mechanicalBoundRewrite } from "./policy";
 import { analyzeOperationTypes, type TypePlan } from "./type-analysis";
 import { formatTypeDiagnostic, typecheckSource } from "./typecheck";
 import { typeDiagnosticSite } from "./type-diagnostic-site";
 import { invalidNativeDescriptorRefusal, lowerArgDescriptor, lowerLegacyArgDescriptor } from "./lower/schema";
-import {
-  duplicateHandlerBinding,
-  duplicateHandlerBindingRewrite,
-  nestedHandlerBinding,
-  nestedHandlerDestructuringRewrite,
-} from "./handler-bindings";
+import { duplicateHandlerBinding, duplicateHandlerBindingRewrite,
+  nestedHandlerBinding, nestedHandlerDestructuringRewrite } from "./handler-bindings";
 import { inspectModule, type ModuleInfo } from "./lower/module";
 import type {
   Environment, FunctionLike, LoweredValue, LowerSourceOptions, ProvenanceOrigin, Substitution, VariableInfo,
 } from "./lower/environment";
-import { assignedBindings, hasForOfAncestor, isOperationCompositeBinding, moduleBasename, operationCompositeBindings, recordAssignmentOrigin, withDirectRewrite } from "./lower/operation-context";
+import { assignedBindings, collectionAliasSites, hasForOfAncestor, isLocallyCreatedCollection,
+  isOperationCompositeBinding, moduleBasename, operationCompositeBindings, recordAssignmentOrigin,
+  requireCollectionMutation, withDirectRewrite } from "./lower/operation-context";
 import { boundOperationDiagnostics, localConstructorShadow } from "./operation-diagnostics";
 import {
   binaryOperator,
@@ -246,6 +240,7 @@ function lowerOperation(
     helperStack: [],
     mutableBindings: assignedBindings(handler),
     deferredCollectionMutations: new Set(),
+    collectionAliasSites: collectionAliasSites(handler),
     accessOrdinal: { value: 0 },
     temp: { value: 0 },
     literalValues: typePlan?.literalValues ?? new Map(),
@@ -342,6 +337,8 @@ function lowerStatement(statement: ts.Statement, env: Environment): Stmt[] {
           ...(collection || facts.max !== undefined || facts.elementOrigins !== undefined
             ? { collectionIdentity: {} }
             : {}),
+          collectionDeclaration: declaration.name,
+          locallyCreatedCollection: isLocallyCreatedCollection(declaration.initializer),
           ...(collection ? { collection } : {}),
           ...(objectFields ? { objectFields } : {}),
           immutableOrigin: { expression: declaration.initializer, environment: bindTime },
@@ -398,6 +395,7 @@ function lowerStatement(statement: ts.Statement, env: Environment): Stmt[] {
     const { statements, domain, bindingInfo } = lowerCollectionDomain(statement.expression, loopEnv, binding, lowerValue);
     loopEnv.variables.set(binding, bindingInfo);
     const iterations = loopDomainMaximum(domain);
+    // @ref LLP 1002#2-the-authored-surface-the-snapback2-module — nested loop mutation deltas compose by product; inherited collections are accounted once by the outer loop.
     const mutationCounts = collectionMutationCounts(statement.statement, loopEnv);
     const inheritedDeferred = env.deferredCollectionMutations;
     loopEnv.deferredCollectionMutations = new Set(inheritedDeferred);
@@ -462,6 +460,7 @@ function lowerExpressionStatement(expression: ts.Expression, env: Environment): 
       const method = expression.expression.name.text;
       if (ts.isIdentifier(owner) && env.variables.has(owner.text) && method === "push") {
         if (expression.arguments.length === 0) refuse(env, "E_OPAQUE", expression, "push requires at least one value");
+        requireCollectionMutation(owner, expression, env);
         return expression.arguments.flatMap((value) => {
           appendCollectionFacts(env.variables.get(owner.text)!, value, env,
             hasForOfAncestor(expression) ? 0 : 1, collectionOriginsBinding);
@@ -470,6 +469,7 @@ function lowerExpressionStatement(expression: ts.Expression, env: Environment): 
         });
       }
       if (ts.isIdentifier(owner) && env.variables.get(owner.text)?.collection === "Map" && method === "set") {
+        requireCollectionMutation(owner, expression, env);
         const key = expression.arguments[0];
         const value = expression.arguments[1];
         if (!key || !value) refuse(env, "E_OPAQUE", expression, "Map.set requires key and value");
@@ -487,6 +487,7 @@ function lowerExpressionStatement(expression: ts.Expression, env: Environment): 
         ];
       }
       if (ts.isIdentifier(owner) && env.variables.get(owner.text)?.collection === "Set" && method === "add") {
+        requireCollectionMutation(owner, expression, env);
         const value = expression.arguments[0];
         if (!value) refuse(env, "E_OPAQUE", expression, "Set.add requires a value");
         const loweredValue = lowerValue(value, env);
