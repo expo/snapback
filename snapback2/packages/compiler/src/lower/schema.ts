@@ -1,5 +1,5 @@
 import ts from "typescript";
-import { authoredTypeFromColumn, requiredType, type AuthoredType } from "../authored-types";
+import { authoredTypeFromColumn, requiredType, unknownType, type AuthoredType } from "../authored-types";
 import { diagnostic } from "../diagnostics";
 import { IR_CONTRACT, type FrontendDiagnostic, type SchemaJson, type Value } from "../ir";
 import type { TableInfo } from "../compiler";
@@ -68,7 +68,7 @@ export function lowerSchema(source: string, fileName: string): LoweredSchema {
     const lowered = lowerTable(module, name, call, tables, diagnostics);
     if (lowered) {
       tableJson[name] = lowered.value;
-      tables.set(name, { name, private: lowered.private, columns: lowered.columns });
+      tables.set(name, { name, private: lowered.private, columns: lowered.columns, indexes: lowered.indexes });
     }
   }
 
@@ -124,7 +124,7 @@ function lowerTable(
   call: ts.CallExpression,
   tables: Map<string, TableInfo>,
   diagnostics: FrontendDiagnostic[],
-): { value: unknown; private: boolean; columns: Record<string, ReturnType<typeof authoredTypeFromColumn>> } | undefined {
+): { value: unknown; private: boolean; columns: Record<string, AuthoredType>; indexes: Record<string, AuthoredType[]> } | undefined {
   const config = objectOf(call.arguments[0]);
   if (!config) {
     diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_INVALID", call, `table ${name} requires an object literal`));
@@ -188,6 +188,15 @@ function lowerTable(
       indexes[entry.name] = { columns: names, unique: unique ?? false };
     }
   }
+  const authoredIndexes = Object.fromEntries(Object.entries(indexes).map(([index, descriptor]) => [
+    index,
+    (descriptor as { columns: string[] }).columns.map((column) => authoredColumns[column] ?? unknownType),
+  ]));
+  const tableInfo = tables.get(name);
+  if (tableInfo) {
+    tableInfo.columns = authoredColumns;
+    tableInfo.indexes = authoredIndexes;
+  }
 
   const rulesObject = objectOf(property(config, "rules"));
   if (property(config, "rules") && !rulesObject) {
@@ -204,6 +213,7 @@ function lowerTable(
     value: { columns, indexes, rules, constraints },
     private: !isPublicRule(rules.read),
     columns: authoredColumns,
+    indexes: authoredIndexes,
   };
 }
 
@@ -309,6 +319,7 @@ function lowerRule(
     const left = call.arguments[0] && lowerTerm(module, call.arguments[0], diagnostics, leftExpected);
     const right = call.arguments[1] && lowerTerm(module, call.arguments[1], diagnostics, rightExpected);
     if (left !== undefined && right !== undefined) return { [name === "eq" ? "Eq" : "Ne"]: [left, right] };
+    return undefined;
   }
   if (name === "and" || name === "or") {
     if (call.arguments.length === 0) {
@@ -335,7 +346,15 @@ function lowerRule(
       diagnostics.push(ruleDiagnostic(module, call, "rule.exists requires table, index, and a key array"));
       return undefined;
     }
-    const key = keyNode.elements.map((item) => lowerTerm(module, item, diagnostics)).filter((item) => item !== undefined);
+    const expected = tables.get(tableName)!.indexes?.[index];
+    const key: unknown[] = [];
+    let failed = false;
+    keyNode.elements.forEach((item, position) => {
+      const term = lowerTerm(module, item, diagnostics, expected?.[position]);
+      if (term === undefined) failed = true;
+      else key.push(term);
+    });
+    if (failed) return undefined;
     return {
       Exists: {
         table: tables.get(tableName)!.name,
@@ -545,12 +564,14 @@ function lowerChannel(
   validateKnownKeys(module, config, ["args", "publish", "subscribe", "ttlMs"], "channel", "E_SCHEMA_INVALID", diagnostics);
   validateRecordShape(module, argsObject, "channel args", "E_SCHEMA_INVALID", diagnostics);
   const args: Record<string, unknown> = {};
+  const authoredArgs: Record<string, AuthoredType> = {};
   for (const entry of propertyEntries(argsObject)) {
     const lowered = lowerArgDescriptor(entry.value, tables);
     if (lowered === undefined) {
       diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_INVALID", entry.node, `invalid channel argument descriptor ${entry.name}`));
     } else {
       args[entry.name] = lowered;
+      authoredArgs[entry.name] = authoredTypeFromColumn(lowered);
     }
   }
   const publishNode = property(config, "publish");
@@ -562,8 +583,8 @@ function lowerChannel(
   }
   return {
     args,
-    publish: lowerRule(module, publishNode, tables, diagnostics) ?? "Deny",
-    subscribe: lowerRule(module, subscribeNode, tables, diagnostics) ?? "Deny",
+    publish: lowerRule(module, publishNode, tables, diagnostics, authoredArgs) ?? "Deny",
+    subscribe: lowerRule(module, subscribeNode, tables, diagnostics, authoredArgs) ?? "Deny",
     ttl_ms: ttl,
   };
 }
@@ -683,6 +704,7 @@ function validateRootRefs(
 }
 
 function encodeValue(value: unknown, expected?: AuthoredType): Value | undefined {
+  if (expected?.kind === "optional" && value === null) return "Null";
   const target = expected && requiredType(expected);
   if (target?.kind === "bytes") {
     if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;

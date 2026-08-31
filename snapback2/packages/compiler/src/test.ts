@@ -837,21 +837,33 @@ test("Bytes descriptors lower for columns and args with the existing schema refu
 });
 
 test("rule literals encode Bytes only at Bytes schema positions", () => {
-  const lowered = lowerSchema(`import { rule, schema, table, t } from "snapback2";
+  const lowered = lowerSchema(`import { channel, rule, schema, table, t } from "snapback2";
     export const blobs = table({
-      columns: { payload: t.bytes(4), metadata: t.json(100) },
+      columns: { payload: t.bytes(4), optionalPayload: t.optional(t.bytes(4)), metadata: t.json(100) },
+      indexes: { byPayload: { columns: ["payload"] } },
       rules: { read: rule.and(
         rule.eq(rule.field("metadata"), rule.literal({ Bytes: "00ff" })),
         rule.eq(rule.field("payload"), rule.literal({ Bytes: "00ff" })),
-      ) },
+        rule.eq(rule.field("optionalPayload"), rule.literal(null)),
+        rule.eq(rule.field("optionalPayload"), rule.literal({ Bytes: "00ff" })),
+      ), insert: rule.exists(blobs, "byPayload", [rule.literal({ Bytes: "00ff" })]) },
     });
-    export default schema({ tables: { blobs } });`, "snapback/schema.ts");
+    export const bytes = channel({ args: { payload: t.bytes(4) },
+      publish: rule.eq(rule.field("payload"), rule.literal({ Bytes: "00ff" })), subscribe: rule.allow(), ttlMs: 1000 });
+    export default schema({ tables: { blobs }, channels: { bytes } });`, "snapback/schema.ts");
   assert(lowered.diagnostics.length === 0, `typed Bytes rule literals refused: ${lowered.diagnostics.map((item) => item.message).join("; ")}`);
   const terms = (lowered.schema.tables.blobs as any).rules.read.And;
   assert(canonical(terms[0].Eq[1]) === canonical({ Literal: { Map: { Bytes: { String: "00ff" } } } }),
     "Json-column {Bytes: ...} literal did not stay a map compatible with the owner JSON path");
   assert(canonical(terms[1].Eq[1]) === canonical({ Literal: { Bytes: "00ff" } }),
     "Bytes-column literal did not lower to Value::Bytes");
+  assert(canonical(terms[2].Eq[1]) === canonical({ Literal: "Null" }), "Optional Bytes null did not lower to Literal Null");
+  assert(canonical(terms[3].Eq[1]) === canonical({ Literal: { Bytes: "00ff" } }), "Optional Bytes literal lost its wrapper type");
+  assert(canonical((lowered.schema.tables.blobs as any).rules.insert.Exists.key[0]) === canonical({ Literal: { Bytes: "00ff" } }),
+    "Bytes exists key did not use its index-column type");
+  assert(canonical((lowered.schema.channels.bytes as any).publish.Eq[1]) === canonical({ Literal: { Bytes: "00ff" } }),
+    "Bytes channel rule literal did not use its argument type");
+  assert(runBinaryCheck(["--json", "--ir"], { schema: lowered.schema, programs: [], effects: [] }).exitCode === 0, "typed Bytes rules did not certify");
 
   const ambiguous = lowerSchema(`import { rule, schema, table } from "snapback2";
     export const rows = table({ columns: {}, rules: {
@@ -860,6 +872,17 @@ test("rule literals encode Bytes only at Bytes schema positions", () => {
     export default schema({ tables: { rows } });`, "snapback/schema.ts");
   assert(ambiguous.diagnostics.some((item) => item.code === "E_RULE_INVALID" && item.message.includes("Bytes schema position")),
     "untyped {Bytes: ...} rule literal was inferred instead of refused");
+
+  const invalidExists = lowerSchema(`import { rule, schema, table, t } from "snapback2";
+    export const rows = table({ columns: { payload: t.bytes(4) }, indexes: { byPayload: { columns: ["payload"] } },
+      rules: { read: rule.exists(rows, "byPayload", [rule.literal({ Bytes: "FF" })]) } });
+    export default schema({ tables: { rows } });`, "snapback/schema.ts");
+  assert((invalidExists.schema.tables.rows as any).rules.read === "Deny", "failed exists key emitted truncated Exists IR");
+  assert(invalidExists.diagnostics.length === 1 && !invalidExists.diagnostics[0]!.message.includes("unsupported"), "failed exists key emitted an imprecise duplicate refusal");
+  const invalidEq = lowerSchema(`import { rule, schema, table, t } from "snapback2";
+    export const rows = table({ columns: { payload: t.bytes(4) }, rules: { read: rule.eq(rule.field("payload"), rule.literal({ Bytes: "FF" })) } });
+    export default schema({ tables: { rows } });`, "snapback/schema.ts");
+  assert(invalidEq.diagnostics.length === 1 && !invalidEq.diagnostics[0]!.message.includes("unsupported"), "failed Bytes eq emitted a generic duplicate refusal");
 });
 
 test("schema descriptor maxima stop at the Rust u32 representation", () => {
