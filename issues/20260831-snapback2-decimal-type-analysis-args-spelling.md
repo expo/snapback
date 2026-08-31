@@ -1,6 +1,6 @@
 # snapback2 compiler: type analysis recognizes `args` by spelling, so renamed handlers and shadowing callbacks get wrong Decimal scaling
 
-**Status:** Open
+**Status:** Open (claimed)
 **Systems:** snapback2, compiler, type-analysis
 **Severity:** P1
 **Author:** Claude Fable 5, directed by Charlie Cheever
@@ -31,3 +31,5 @@ both scenarios above as tests, plus the renamed-`ctx` analogue.
 Triage evidence and rerun scripts: the provenance-lane landing report
 (session snapback-8a, 2026-08-31); probe harness pattern in
 `snapback2/packages/compiler/src/provenance-site-checks.ts`.
+
+**Claimed:** 2026-08-31 by session snapback-8a [f8c2a2] — one combined lane `s2/t2-typeanalysis` (worktree `~/projects/snapback-s2v`) fixes both P1 type-analysis tickets (same file); other sessions should skip both.
