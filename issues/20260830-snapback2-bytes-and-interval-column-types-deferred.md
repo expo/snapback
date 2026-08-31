@@ -13,3 +13,27 @@ The column-type survey ranked four types; `Enum` and `Decimal { scale }` (+ `Mon
 - `Interval { of }` (four archetypes needed membership-at-a-time, LLP 0329.015 K5) interacts with visibility (interval rules), retention, and the deferred `exclusion` constraint; it is semantics, not a type.
 
 Do `Bytes` first (mechanical, corpus-verified), then `Interval` with its own LLP. `Duration` and `Set { of, max }` ride along with whichever makes them cheap.
+
+## 2026-08-30 — Bytes half resolved
+
+`Bytes { max }` is implemented across the Rust value/schema/runtime surfaces,
+the TypeScript compiler, and the evaluator twin. Values use the canonical
+tagged lowercase even-length base16 JSON form `{"Bytes":"007f80ff"}`; `max`
+is a byte-length bound enforced on insert and update through the existing
+`E_INPUT` write-refusal family. Bytes indexes use the existing tagged scalar
+key style and preserve unsigned lexicographic byte order.
+
+The certificate value model moved once from `i53-codepoint-v1` to
+`i53-codepoint-bytes-v2`. All 76 prior corpus cases now persist a certificate
+snapshot at that version, and four cases were added for round-trip,
+write-bound refusal, byte-index order, and Rust/twin canonical serialization
+(80 total). A pre-/post-change binary comparison found no certificate change
+outside `value_model_version`; the prior case inputs, receipts, expected
+states, closures, labels, and magnitudes are otherwise byte-identical after
+the newly persisted certificate field is removed.
+
+`Duration` and `Set { of, max }` did not ride along: Duration needs a unit-aware
+compiler/type contract, while Set needs canonical uniqueness and ordering
+semantics; neither is a near-free extension of Bytes. This ticket remains
+**Open** for `Interval { of }` (which still requires its own LLP), Duration,
+and Set.

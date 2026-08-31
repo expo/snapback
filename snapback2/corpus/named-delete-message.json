@@ -959,6 +959,44 @@
       }
     ]
   },
+  "certificate": {
+    "program": "deleteMessage",
+    "plan_hash": "5edacacac896fd9d19e8abe5588a1d4a49aeabbe2a24c16c16451f59d4969630",
+    "schema_hash": "314b4cce50b42b3b7d322bd3e6741a8d2764900283317efb14f9bab2ad2a56c8",
+    "rule_hashes": {
+      "messages.delete": "ba0628af6877b9e78c5789f7ef641f70057dbb817acea81bc5e85c84a7661f2f"
+    },
+    "evaluator_version": "bounded-spike-rust-1",
+    "value_model_version": "i53-codepoint-bytes-v2",
+    "read_sites": [],
+    "write_sites": [
+      {
+        "table": "messages",
+        "kind": "Delete",
+        "max_rows": 1
+      }
+    ],
+    "maintained_amplification": 0,
+    "constraint_checks": [
+      "messages:Unique(byId)"
+    ],
+    "max_examined": 0,
+    "max_index_entries": 0,
+    "max_rule_probes": 0,
+    "max_steps": 7,
+    "max_heap_bytes": 224,
+    "max_output_bytes": 6,
+    "max_closure_bytes": 0,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [],
+    "disclosures": [
+      "E_DISCLOSURE: count waitlist summarized into waitCounts"
+    ],
+    "bound_product": null
+  },
   "context": {
     "viewer": "u1",
     "principal_kind": "user",

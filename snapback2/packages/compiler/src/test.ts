@@ -753,7 +753,7 @@ test("chat and todos lower schema, channels, effects, emit, API types, seed, and
 
   const todos = await lowerProject(`${frontend}fixtures/todos`);
   assert(todos.ok, `todos refused: ${todos.ok ? "" : todos.diagnostics.map((item) => item.message).join("; ")}`);
-  assert(todos.apiDts.startsWith("import type { Decimal, Json, Money, Page } from 'snapback2'"), "API declaration is not a module augmentation");
+  assert(todos.apiDts.startsWith("import type { Bytes, Decimal, Json, Money, Page } from 'snapback2'"), "API declaration is not a module augmentation");
   assert(todos.apiDts.includes("note?: string") && todos.apiDts.includes("labels: string[]"), "optional/list API inference differs");
   assert(todos.apiDts.includes("type TodosRow = {") && todos.apiDts.includes("Page<TodosRow>"), "scan API did not use named row/Page types");
   assert(canonical(todos.project.schema.tables).includes('"Optional":{"List"'), "optional/list schema columns did not lower");
@@ -806,6 +806,34 @@ test("Decimal, Money, and Enum descriptors type APIs and lower fractional litera
   assert(canonical(todos.project.programs.find((item) => item.name === "todos.reprice")).includes('"Int":125'), "update Decimal literal was not scaled");
   assert(canonical(todos.project.programs.find((item) => item.name === "todos.upsertLiteral")).includes('"Int":250'), "upsert Decimal literal was not scaled/padded");
   assert(canonical(todos.project.programs.find((item) => item.name === "todos.encoded")).includes('"Int":999'), "authoring decimal() helper did not lower to minor units");
+});
+
+test("Bytes descriptors lower for columns and args with the existing schema refusal family", async () => {
+  await withProject({
+    "snapback/schema.ts": `import { schema, table, t } from "snapback2";
+      export const blobs = table({
+        columns: { payload: t.bytes(4) },
+        indexes: { byPayload: { columns: ["payload", "id"] } },
+      });
+      export default schema({ tables: { blobs } });`,
+    "snapback/blobs.ts": `import { mutation, t } from "snapback2";
+      import { blobs } from "./schema";
+      export const add = mutation({ payload: t.bytes(4) }, ({ db, ctx, args }) =>
+        db.insert(blobs, { id: ctx.newId(), payload: args.payload }));`,
+  }, async (root) => {
+    const lowered = await lowerProject(root);
+    assert(lowered.ok, `Bytes project refused: ${lowered.ok ? "" : lowered.diagnostics.map((item) => item.message).join("; ")}`);
+    assert(canonical(lowered.project.schema).includes('"Bytes":{"max":4}'), "Bytes column did not lower");
+    assert(canonical(lowered.project.programs[0]?.args).includes('"Bytes":{"max":4}'), "Bytes arg did not lower");
+    assert(lowered.apiDts.includes("payload: Bytes"), "Bytes API type is missing");
+  });
+
+  const invalid = lowerSchema(`import { schema, table, t } from "snapback2";
+    export const blobs = table({ columns: { zero: t.bytes(0), fractional: t.bytes(1.5) } });
+    export default schema({ tables: { blobs } });`, "snapback/schema.ts");
+  const refusals = invalid.diagnostics.filter((item) => item.code === "E_SCHEMA_COLUMN");
+  assert(refusals.length === 2, `expected two Bytes schema refusals, got ${refusals.length}`);
+  assert(refusals.every((item) => item.family === "schema" && item.rewrite.includes("t.bytes(100)")), "Bytes refusal did not reuse schema with a mechanical rewrite");
 });
 
 test("invalid Decimal, Money, and Enum descriptors refuse with sited descriptor rewrites", () => {

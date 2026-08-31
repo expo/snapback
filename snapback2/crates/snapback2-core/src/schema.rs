@@ -55,6 +55,8 @@ impl Table {
 pub enum ColumnType {
     Id,
     Text { max: u32 },
+    // @ref LLP 1001#9-schema-additions — bytes use the value model's canonical lowercase-base16 wrapper.
+    Bytes { max: u32 },
     Int,
     // @ref LLP 1001#9-schema-additions — enum and fixed-scale columns keep scalar storage keys.
     Enum { variants: Vec<String> },

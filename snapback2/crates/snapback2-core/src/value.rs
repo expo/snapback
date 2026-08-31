@@ -14,6 +14,7 @@ pub enum Value {
     Int(i64),
     String(String),
     Id(String),
+    Bytes(#[serde(with = "bytes_hex")] Vec<u8>),
     Row(BTreeMap<String, Value>),
     Array(Vec<Value>),
     Map(BTreeMap<String, Value>),
@@ -49,6 +50,7 @@ impl Value {
             Self::Int(_) => "int",
             Self::String(_) => "string",
             Self::Id(_) => "id",
+            Self::Bytes(_) => "bytes",
             Self::Row(_) => "row",
             Self::Array(_) => "array",
             Self::Map(_) => "map",
@@ -118,9 +120,10 @@ impl Value {
             Value::Int(_) => 2,
             Value::String(_) => 3,
             Value::Id(_) => 4,
-            Value::Row(_) => 5,
-            Value::Array(_) => 6,
-            Value::Map(_) => 7,
+            Value::Bytes(_) => 5,
+            Value::Row(_) => 6,
+            Value::Array(_) => 7,
+            Value::Map(_) => 8,
         };
         match tag(self).cmp(&tag(other)) {
             Ordering::Equal => {}
@@ -131,6 +134,7 @@ impl Value {
             (Self::Bool(a), Self::Bool(b)) => a.cmp(b),
             (Self::Int(a), Self::Int(b)) => a.cmp(b),
             (Self::String(a), Self::String(b)) | (Self::Id(a), Self::Id(b)) => a.cmp(b),
+            (Self::Bytes(a), Self::Bytes(b)) => a.cmp(b),
             (Self::Array(a), Self::Array(b)) => cmp_slices(a, b),
             (Self::Row(a), Self::Row(b)) | (Self::Map(a), Self::Map(b)) => {
                 let left: Vec<_> = a.iter().collect();
@@ -146,6 +150,60 @@ impl Value {
                 })
             }
             _ => unreachable!("equal tags imply equal variants"),
+        }
+    }
+}
+
+mod bytes_hex {
+    use serde::{Deserialize, Deserializer, Serializer, de};
+
+    pub fn serialize<S>(bytes: &[u8], serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&encode(bytes))
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let encoded = String::deserialize(deserializer)?;
+        decode(&encoded).ok_or_else(|| {
+            de::Error::custom("Bytes must be canonical lowercase even-length base16")
+        })
+    }
+
+    pub(crate) fn encode(bytes: &[u8]) -> String {
+        const DIGITS: &[u8; 16] = b"0123456789abcdef";
+        let mut encoded = String::with_capacity(bytes.len() * 2);
+        for byte in bytes {
+            encoded.push(DIGITS[(byte >> 4) as usize] as char);
+            encoded.push(DIGITS[(byte & 0x0f) as usize] as char);
+        }
+        encoded
+    }
+
+    pub(crate) fn decode(encoded: &str) -> Option<Vec<u8>> {
+        if encoded.len() % 2 != 0
+            || !encoded
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+        {
+            return None;
+        }
+        encoded
+            .as_bytes()
+            .chunks_exact(2)
+            .map(|pair| Some((decode_nibble(pair[0])? << 4) | decode_nibble(pair[1])?))
+            .collect()
+    }
+
+    fn decode_nibble(byte: u8) -> Option<u8> {
+        match byte {
+            b'0'..=b'9' => Some(byte - b'0'),
+            b'a'..=b'f' => Some(byte - b'a' + 10),
+            _ => None,
         }
     }
 }
@@ -167,6 +225,14 @@ pub fn object(entries: impl IntoIterator<Item = (impl Into<String>, Value)>) -> 
             .map(|(key, value)| (key.into(), value))
             .collect(),
     )
+}
+
+pub fn encode_bytes_hex(bytes: &[u8]) -> String {
+    bytes_hex::encode(bytes)
+}
+
+pub fn decode_bytes_hex(encoded: &str) -> Option<Vec<u8>> {
+    bytes_hex::decode(encoded)
 }
 
 pub fn canonical_json<T: Serialize>(value: &T) -> String {

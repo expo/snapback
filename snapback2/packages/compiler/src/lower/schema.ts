@@ -242,6 +242,10 @@ function lowerColumn(
     const max = numberValue(call.arguments[0]);
     if (call.arguments.length === 1 && validPositiveInteger(max)) return { Text: { max } };
   }
+  if (name === "bytes") {
+    const max = numberValue(call.arguments[0]);
+    if (call.arguments.length === 1 && validPositiveInteger(max)) return { Bytes: { max } };
+  }
   if (name === "json") {
     const maxBytes = numberValue(call.arguments[0]);
     if (call.arguments.length === 1 && validPositiveInteger(maxBytes)) return { Json: { max_bytes: maxBytes } };
@@ -583,6 +587,7 @@ export function lowerArgDescriptor(
     case "bool": return "Bool";
     case "time": return "Time";
     case "text": return { Text: { max: numberValue(call.arguments[0]) } };
+    case "bytes": return { Bytes: { max: numberValue(call.arguments[0]) } };
     case "json": return { Json: { max_bytes: numberValue(call.arguments[0]) } };
     default: return undefined;
   }
@@ -601,7 +606,7 @@ function validArgDescriptor(node: ts.Expression): boolean {
   const name = call && callLeaf(call);
   if (!call || !name) return false;
   if (["id", "int", "bool", "time"].includes(name)) return call.arguments.length === 0;
-  if (name === "text" || name === "json") return call.arguments.length === 1 && validPositiveInteger(numberValue(call.arguments[0]));
+  if (name === "text" || name === "bytes" || name === "json") return call.arguments.length === 1 && validPositiveInteger(numberValue(call.arguments[0]));
   if (name === "ref") return call.arguments.length === 1;
   if (name === "optional") return call.arguments.length === 1 && !!call.arguments[0] && validArgDescriptor(call.arguments[0]);
   if (name === "enum") {
@@ -653,6 +658,11 @@ function encodeValue(value: unknown): Value {
   if (typeof value === "number") return { Int: value };
   if (typeof value === "string") return { String: value };
   if (Array.isArray(value)) return { Array: value.map(encodeValue) };
+  if (value && typeof value === "object" && Object.keys(value).length === 1
+    && typeof (value as Record<string, unknown>).Bytes === "string"
+    && /^(?:[0-9a-f]{2})*$/.test((value as Record<string, string>).Bytes)) {
+    return { Bytes: (value as Record<string, string>).Bytes };
+  }
   return { Row: Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([key, item]) => [key, encodeValue(item)])) };
 }
 
@@ -712,7 +722,7 @@ export function invalidDescriptorRefusal(node: ts.Expression): { node: ts.Expres
   }
   const rewrites: Record<string, string> = {
     id: `${callee}()`, int: `${callee}()`, bool: `${callee}()`, time: `${callee}()`,
-    text: `${callee}(100)`, json: `${callee}(1000)`, ref: `${callee}(table)`,
+    text: `${callee}(100)`, bytes: `${callee}(100)`, json: `${callee}(1000)`, ref: `${callee}(table)`,
     optional: `${callee}(${sibling("text")}(100))`,
     list: `${callee}(${sibling("text")}(100), { max: 10 })`,
   };
@@ -731,7 +741,7 @@ export function invalidNativeDescriptorRefusal(node: ts.Expression): ReturnType<
 
 function nativeDescriptorName(call: ts.CallExpression): string | undefined {
   const name = callLeaf(call);
-  if (!name || !["id", "text", "int", "bool", "time", "ref", "json", "optional", "list", "enum", "decimal", "money"].includes(name)
+  if (!name || !["id", "text", "bytes", "int", "bool", "time", "ref", "json", "optional", "list", "enum", "decimal", "money"].includes(name)
     || !ts.isPropertyAccessExpression(call.expression)) return undefined;
   const owner = call.expression.expression.getText();
   if (owner === "t" || owner.endsWith(".t")) return name;

@@ -2,7 +2,7 @@ use crate::bounds::declared_serialized_row_max;
 use crate::growth::{ProvenanceBinding, expression_from as provenance_expression_from};
 use crate::ir::*;
 use crate::schema::Schema;
-use crate::value::Value;
+use crate::value::{Value, canonical_json};
 use std::collections::{BTreeMap, BTreeSet};
 
 pub(crate) struct OutputEstimator<'a> {
@@ -702,6 +702,7 @@ fn render_value(value: &Value) -> String {
         Value::String(value) | Value::Id(value) => {
             serde_json::to_string(value).expect("string serializes")
         }
+        Value::Bytes(_) => canonical_json(value),
         Value::Array(values) => format!(
             "[{}]",
             values

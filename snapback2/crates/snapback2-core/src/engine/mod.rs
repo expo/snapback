@@ -777,6 +777,13 @@ pub(crate) fn validate_arg_value(
             ))),
             _ => Err(RuntimeError::Input(format!("{label} must be text"))),
         },
+        ArgType::Bytes { max } => match value {
+            Value::Bytes(value) if value.len() <= *max as usize => Ok(()),
+            Value::Bytes(_) => Err(RuntimeError::Input(format!(
+                "{label} exceeds bytes max {max}"
+            ))),
+            _ => Err(RuntimeError::Input(format!("{label} must be bytes"))),
+        },
         ArgType::Int | ArgType::Time | ArgType::Decimal { .. } | ArgType::Money { .. } => {
             match value {
                 Value::Int(value) if (I53_MIN..=I53_MAX).contains(value) => Ok(()),

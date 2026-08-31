@@ -1,4 +1,5 @@
 type Descriptor = Readonly<Record<string, unknown>>;
+export type Bytes = { readonly Bytes: string };
 export type Decimal<S extends number> = number & {
   readonly __decimalScale: S;
   readonly __decimalBrand: unique symbol;
@@ -25,6 +26,7 @@ export function table(value: Record<string, unknown>): Descriptor {
 export const t = Object.freeze({
   id: () => inert("id"),
   text: (max: number) => inert("text", { max }),
+  bytes: (max: number) => inert("bytes", { max }),
   int: () => inert("int"),
   bool: () => inert("bool"),
   time: () => inert("time"),

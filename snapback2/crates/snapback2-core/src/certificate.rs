@@ -382,7 +382,7 @@ impl<'a> Checker<'a> {
             schema_hash: self.schema.hash(),
             rule_hashes,
             evaluator_version: "bounded-spike-rust-1".to_owned(),
-            value_model_version: "i53-codepoint-v1".to_owned(),
+            value_model_version: "i53-codepoint-bytes-v2".to_owned(),
             read_sites,
             write_sites: summary.writes,
             maintained_amplification,

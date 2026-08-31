@@ -1044,6 +1044,70 @@
       }
     ]
   },
+  "certificate": {
+    "program": "inboxMaintained",
+    "plan_hash": "fa570b4bfe53b1c8ac4de66f1372c6e6ee8352e3cd95bdf3b624621755689ffb",
+    "schema_hash": "314b4cce50b42b3b7d322bd3e6741a8d2764900283317efb14f9bab2ad2a56c8",
+    "rule_hashes": {
+      "memberships.read": "dc561e10e601af93441d152d27d3a80d7dd2ebea25a2754780b38c0a4b233b6c",
+      "messages.read": "dc561e10e601af93441d152d27d3a80d7dd2ebea25a2754780b38c0a4b233b6c",
+      "unreads.read": "b9f00bed3cb793789892942e8d0b9e1f6507451133dea5e5ee2f3eba7d49e161"
+    },
+    "evaluator_version": "bounded-spike-rust-1",
+    "value_model_version": "i53-codepoint-bytes-v2",
+    "read_sites": [
+      {
+        "site": "inbox.latest",
+        "table": "messages",
+        "index": "byConvTime",
+        "prefix_template": "Shape",
+        "take": 1,
+        "max_calls": 50,
+        "hoist": true
+      },
+      {
+        "site": "inbox.memberships",
+        "table": "memberships",
+        "index": "byUserActivity",
+        "prefix_template": "Viewer",
+        "take": 50,
+        "max_calls": 1,
+        "hoist": false
+      },
+      {
+        "site": "inbox.unreadMaintained",
+        "table": "unreads",
+        "index": "byConvUser",
+        "prefix_template": "Shape",
+        "take": 1,
+        "max_calls": 50,
+        "hoist": false
+      }
+    ],
+    "write_sites": [],
+    "maintained_amplification": 0,
+    "constraint_checks": [],
+    "max_examined": 252,
+    "max_index_entries": 252,
+    "max_rule_probes": 204,
+    "max_steps": 1415,
+    "max_heap_bytes": 45280,
+    "max_output_bytes": 66952,
+    "max_closure_bytes": 65650,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [
+      "memberships.byUserActivity",
+      "messages.byConvTime",
+      "unreads.byConvUser"
+    ],
+    "disclosures": [
+      "E_DISCLOSURE: count waitlist summarized into waitCounts"
+    ],
+    "bound_product": "inbox.memberships take 50 = 50"
+  },
   "context": {
     "viewer": "u1",
     "principal_kind": "user",

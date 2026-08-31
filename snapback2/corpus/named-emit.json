@@ -128,6 +128,52 @@
       }
     ]
   },
+  "certificate": {
+    "program": "emitAfterInsert",
+    "plan_hash": "abb93e536653fa78c697cc285428921b18224a0618082965f39afcd03ecff06c",
+    "schema_hash": "fb4b3e58ab209a677cb4bb2807cf109d1d1ba954bb45d94cb6ae104e45e7e300",
+    "rule_hashes": {
+      "events.insert": "9d8367b0e8668f756a63ace456a7b831949de8ab04c01674f3856ca656f6fb96"
+    },
+    "evaluator_version": "bounded-spike-rust-1",
+    "value_model_version": "i53-codepoint-bytes-v2",
+    "read_sites": [],
+    "write_sites": [
+      {
+        "table": "events",
+        "kind": "Insert",
+        "max_rows": 1
+      },
+      {
+        "table": "_outbox",
+        "kind": "Emit",
+        "max_rows": 1
+      },
+      {
+        "table": "events",
+        "kind": "Insert",
+        "max_rows": 1
+      }
+    ],
+    "maintained_amplification": 0,
+    "constraint_checks": [
+      "events:Unique(byId)"
+    ],
+    "max_examined": 0,
+    "max_index_entries": 0,
+    "max_rule_probes": 0,
+    "max_steps": 33,
+    "max_heap_bytes": 1056,
+    "max_output_bytes": 292,
+    "max_closure_bytes": 0,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [],
+    "disclosures": [],
+    "bound_product": null
+  },
   "context": {
     "viewer": "u1",
     "principal_kind": "user",
