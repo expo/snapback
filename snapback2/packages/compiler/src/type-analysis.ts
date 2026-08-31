@@ -3,13 +3,15 @@ import { expandArgumentObject } from "./args";
 import { requiredType, sameDecimal, unknownType, type AuthoredType, type TableInfo } from "./authored-types";
 import { diagnostic, type DiagnosticModule } from "./diagnostics";
 import type { FrontendDiagnostic } from "./ir";
-import { callName, expandedNumericLiteral, isDb, isFunctionLike, propertyName, replaceNode, staticMemberPath, unwrapCall, unwrapExpression } from "./syntax";
+import { callName, expandedNumericLiteral, isFunctionLike, propertyName, replaceNode, staticMemberPath, unwrapCall, unwrapExpression } from "./syntax";
 
 // @ref LLP 1002#2-the-authored-surface-the-snapback2-module — Decimal target scales are compiler facts; the emitted value is integer minor units.
 
 type FunctionLike = ts.FunctionDeclaration | ts.ArrowFunction | ts.FunctionExpression;
 type TypeModule = DiagnosticModule & { tables: Map<string, TableInfo>; helpers?: Map<string, FunctionLike> };
-type TypeEnvironment = { variables: Map<string, AuthoredType>; constants: Map<string, ts.Expression>; args: Record<string, AuthoredType> };
+type OperationComposite = "args" | "ctx" | "db";
+type TypeBinding = { type: AuthoredType; operationComposite?: OperationComposite };
+type TypeEnvironment = { variables: Map<string, TypeBinding>; constants: Map<string, ts.Expression>; args: Record<string, AuthoredType> };
 
 export type TypePlan = {
   diagnostics: FrontendDiagnostic[];
@@ -28,6 +30,12 @@ export function analyzeOperationTypes(module: TypeModule, call: ts.CallExpressio
   const handler = call.arguments[1];
   if (handler && isFunctionLike(handler)) {
     const env: TypeEnvironment = { variables: new Map(), constants: new Map(), args };
+    for (const parameter of handler.parameters) {
+      for (const name of bindingNames(parameter.name)) setBinding(env, name, { type: unknownType });
+    }
+    for (const [composite, name] of Object.entries(operationCompositeBindings(handler))) {
+      if (name) setBinding(env, name, { type: unknownType, operationComposite: composite as OperationComposite });
+    }
     if (ts.isBlock(handler.body)) analyzer.statements(handler.body.statements, env);
     else analyzer.expression(handler.body, env);
   }
@@ -54,8 +62,15 @@ class Analyzer {
         if (!declaration.initializer) continue;
         const type = this.expression(declaration.initializer, env);
         for (const name of bindingNames(declaration.name)) {
-          env.variables.set(name, type);
-          if ((statement.declarationList.flags & ts.NodeFlags.Const) !== 0) env.constants.set(name, declaration.initializer);
+          const binding = ts.isIdentifier(declaration.name)
+            ? this.binding(declaration.initializer, env, type)
+            : { type };
+          setBinding(
+            env,
+            name,
+            binding,
+            (statement.declarationList.flags & ts.NodeFlags.Const) !== 0 ? declaration.initializer : undefined,
+          );
         }
       }
       return;
@@ -80,7 +95,7 @@ class Analyzer {
       if (ts.isVariableDeclarationList(statement.initializer)) {
         for (const declaration of statement.initializer.declarations) {
           for (const name of bindingNames(declaration.name)) {
-            loop.variables.set(name, domain.kind === "list" ? domain.of : unknownType);
+            setBinding(loop, name, { type: domain.kind === "list" ? domain.of : unknownType });
           }
         }
       }
@@ -115,14 +130,19 @@ class Analyzer {
     if (value.kind === ts.SyntaxKind.NullKeyword) return unknownType;
     if (ts.isIdentifier(value)) {
       const constant = target && env.constants.get(value.text);
-      return constant ? this.expression(constant, env, target) : env.variables.get(value.text) ?? unknownType;
+      return constant ? this.expression(constant, env, target) : env.variables.get(value.text)?.type ?? unknownType;
     }
     if (ts.isPrefixUnaryExpression(value)) {
       return this.expression(value.operand, env, target, quietFraction);
     }
     if (ts.isPropertyAccessExpression(value)) {
-      if (ts.isIdentifier(value.expression) && value.expression.text === "args") {
-        return requiredType(env.args[value.name.text]);
+      const composite = ts.isIdentifier(value.expression)
+        ? env.variables.get(value.expression.text)?.operationComposite
+        : undefined;
+      if (composite === "args") return requiredType(env.args[value.name.text]);
+      if (composite === "ctx") {
+        if (value.name.text === "viewer") return { kind: "string" };
+        if (["readTime", "commitTime"].includes(value.name.text)) return { kind: "int" };
       }
       const base = this.expression(value.expression, env, undefined, true);
       if (base.kind === "row") return requiredType(this.table(base.table)?.columns?.[value.name.text]);
@@ -163,7 +183,7 @@ class Analyzer {
     if (ts.isArrowFunction(value) || ts.isFunctionExpression(value)) {
       const nested = cloneEnv(env);
       for (const parameter of value.parameters) {
-        for (const name of bindingNames(parameter.name)) nested.variables.set(name, unknownType);
+        for (const name of bindingNames(parameter.name)) setBinding(nested, name, { type: unknownType });
       }
       if (ts.isBlock(value.body)) this.statements(value.body.statements, nested);
       else this.expression(value.body, nested, target);
@@ -255,7 +275,7 @@ class Analyzer {
   private call(call: ts.CallExpression, env: TypeEnvironment, expected?: AuthoredType): AuthoredType {
     const name = callName(call);
     if (ts.isIdentifier(call.expression)) {
-      const helper = this.module.helpers?.get(call.expression.text);
+      const helper = env.variables.has(call.expression.text) ? undefined : this.module.helpers?.get(call.expression.text);
       if (helper) {
         if (this.helperStack.includes(call.expression.text) || this.helperStack.length >= 128) return unknownType;
         this.helperStack.push(call.expression.text);
@@ -263,7 +283,10 @@ class Analyzer {
           const nested = cloneEnv(env);
           helper.parameters.forEach((parameter, index) => {
             const type = call.arguments[index] ? this.expression(call.arguments[index]!, env) : unknownType;
-            for (const binding of bindingNames(parameter.name)) nested.variables.set(binding, type);
+            const binding = call.arguments[index]
+              ? this.binding(call.arguments[index]!, env, type)
+              : { type: unknownType };
+            for (const parameterName of bindingNames(parameter.name)) setBinding(nested, parameterName, binding);
           });
           if (helper.body && ts.isBlock(helper.body)) {
             const returned = helper.body.statements.find(ts.isReturnStatement)?.expression;
@@ -275,7 +298,7 @@ class Analyzer {
         }
       }
     }
-    if (name === "decimal") {
+    if (name === "decimal" && !env.variables.has(name)) {
       const scaleNode = call.arguments[1] && unwrapExpression(call.arguments[1]);
       const scale = scaleNode && ts.isNumericLiteral(scaleNode) ? Number(scaleNode.text) : undefined;
       const input = call.arguments[0];
@@ -289,7 +312,8 @@ class Analyzer {
       }
       return type;
     }
-    if (ts.isPropertyAccessExpression(call.expression) && isDb(call.expression.expression)) {
+    if (ts.isPropertyAccessExpression(call.expression)
+      && this.operationComposite(call.expression.expression, env) === "db") {
       const method = call.expression.name.text;
       const target = call.arguments[0];
       const table = target && this.tableReference(target);
@@ -310,7 +334,7 @@ class Analyzer {
         return method === "scan" ? { kind: "list", of: row } : row;
       }
     }
-    if ((name === "min" || name === "max") && call.arguments.length > 0) {
+    if ((name === "min" || name === "max") && !env.variables.has(name) && call.arguments.length > 0) {
       let types = call.arguments.map((item) => this.expression(item, env, undefined, true));
       const decimal = types.find((item) => item.kind === "decimal");
       if (decimal?.kind === "decimal") types = call.arguments.map((item) => this.expression(item, env, decimal));
@@ -334,7 +358,7 @@ class Analyzer {
   private callback(node: ts.ArrowFunction | ts.FunctionExpression | ts.FunctionDeclaration, env: TypeEnvironment, parameter: AuthoredType, expected?: AuthoredType): AuthoredType {
     const nested = cloneEnv(env);
     for (const item of node.parameters) {
-      for (const name of bindingNames(item.name)) nested.variables.set(name, parameter);
+      for (const name of bindingNames(item.name)) setBinding(nested, name, { type: parameter });
     }
     if (!node.body) return unknownType;
     if (ts.isBlock(node.body)) {
@@ -342,6 +366,16 @@ class Analyzer {
       return unknownType;
     }
     return this.expression(node.body, nested, expected);
+  }
+
+  private binding(node: ts.Expression, env: TypeEnvironment, type: AuthoredType): TypeBinding {
+    const value = unwrapExpression(node);
+    return ts.isIdentifier(value) ? { ...env.variables.get(value.text), type } : { type };
+  }
+
+  private operationComposite(node: ts.Expression, env: TypeEnvironment): OperationComposite | undefined {
+    const value = unwrapExpression(node);
+    return ts.isIdentifier(value) ? env.variables.get(value.text)?.operationComposite : undefined;
   }
 
   private tableReference(node: ts.Expression): TableInfo | undefined {
@@ -429,8 +463,30 @@ function bindingNames(name: ts.BindingName): string[] {
   return name.elements.flatMap((item) => ts.isBindingElement(item) ? bindingNames(item.name) : []);
 }
 
+function operationCompositeBindings(handler: FunctionLike): Partial<Record<OperationComposite, string>> {
+  const parameter = handler.parameters[0];
+  if (!parameter || !ts.isObjectBindingPattern(parameter.name)) return {};
+  const bindings: Partial<Record<OperationComposite, string>> = {};
+  for (const element of parameter.name.elements) {
+    if (!ts.isIdentifier(element.name)) continue;
+    const property = element.propertyName ? propertyName(element.propertyName) : element.name.text;
+    if (property === "args" || property === "ctx" || property === "db") bindings[property] = element.name.text;
+  }
+  return bindings;
+}
+
+function setBinding(env: TypeEnvironment, name: string, binding: TypeBinding, constant?: ts.Expression): void {
+  env.variables.set(name, { ...binding });
+  if (constant) env.constants.set(name, constant);
+  else env.constants.delete(name);
+}
+
 function cloneEnv(env: TypeEnvironment): TypeEnvironment {
-  return { variables: new Map(env.variables), constants: new Map(env.constants), args: env.args };
+  return {
+    variables: new Map([...env.variables].map(([name, binding]) => [name, { ...binding }])),
+    constants: new Map(env.constants),
+    args: env.args,
+  };
 }
 
 function commonType(values: AuthoredType[]): AuthoredType {

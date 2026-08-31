@@ -23,6 +23,17 @@ function canonical(value: unknown): string {
   return JSON.stringify(normalize(value));
 }
 
+function integerLiterals(value: unknown): number[] {
+  if (Array.isArray(value)) return value.flatMap(integerLiterals);
+  if (!value || typeof value !== "object") return [];
+  const record = value as Record<string, unknown>;
+  const literal = record.Literal;
+  if (literal && typeof literal === "object" && "Int" in literal) {
+    return [Number((literal as { Int: unknown }).Int)];
+  }
+  return Object.values(record).flatMap(integerLiterals);
+}
+
 async function withProject<T>(files: Record<string, string>, run: (root: string) => Promise<T>): Promise<T> {
   const root = await mkdtemp(join(tmpdir(), "snapback2-compiler-"));
   try {
@@ -74,6 +85,55 @@ export function registerColumnTypeChecks(test: RegisterTest): void {
     assert(canonical(todos.project.programs.find((item) => item.name === "todos.reprice")).includes('"Int":125'), "update Decimal literal was not scaled");
     assert(canonical(todos.project.programs.find((item) => item.name === "todos.upsertLiteral")).includes('"Int":250'), "upsert Decimal literal was not scaled/padded");
     assert(canonical(todos.project.programs.find((item) => item.name === "todos.encoded")).includes('"Int":999'), "authoring decimal() helper did not lower to minor units");
+  });
+
+  test("Decimal type facts follow lexical args and ctx bindings instead of identifier spelling", () => {
+    const tables = new Map([["products", {
+      name: "products",
+      private: false,
+      columns: { price: { kind: "decimal" as const, scale: 2 } },
+    }]]);
+    const lower = (source: string, fileName: string) => lowerSource(
+      `import { mutation, query, t } from "snapback2"; ${source}`,
+      fileName,
+      undefined,
+      { tables },
+    );
+
+    const control = lower(
+      "export const price = query({ price: t.decimal(2) }, ({ args }) => args.price + 1);",
+      "plain-args.ts",
+    );
+    assert(control.ok, `plain args spelling refused: ${control.ok ? "" : control.diagnostics.map((item) => item.message).join("; ")}`);
+    assert(canonical(integerLiterals(control.programs[0])).includes("[100]"), "plain args.price + 1 did not scale 1 to 100");
+
+    const renamed = lower(
+      "export const price = query({ price: t.decimal(2) }, ({ args: packed }) => packed.price + 1);",
+      "renamed-args.ts",
+    );
+    assert(renamed.ok, `renamed args binding refused: ${renamed.ok ? "" : renamed.diagnostics.map((item) => item.message).join("; ")}`);
+    assert(canonical(integerLiterals(renamed.programs[0])).includes("[100]"), "renamed args binding did not scale 1 to 100");
+
+    const shadowed = lower(`export const price = mutation({ price: t.decimal(3) }, ({ db, args }) =>
+      db.update(products, "product", (args) => ({ price: args.price + 1 })));`, "shadowed-args.ts");
+    assert(shadowed.ok, `row callback args shadow refused: ${shadowed.ok ? "" : shadowed.diagnostics.map((item) => item.message).join("; ")}`);
+    assert(canonical(integerLiterals(shadowed.programs[0])).includes("[100]"), "row callback args shadow used the operation scale instead of scale 2");
+
+    const sequence = lower(`export const price = mutation({ price: t.decimal(3) }, ({ db, args }) => {
+      db.update(products, "product", (args) => ({ price: args.price + 1 }));
+      return args.price + 1;
+    });`, "scoped-args.ts");
+    assert(sequence.ok, `scoped args sequence refused: ${sequence.ok ? "" : sequence.diagnostics.map((item) => item.message).join("; ")}`);
+    assert(canonical(integerLiterals(sequence.programs[0])).includes("[100,1000]"),
+      `args shadow escaped its callback scope: ${canonical(integerLiterals(sequence.programs[0]))}`);
+
+    const renamedCtx = lower(`export const price = mutation({}, ({ db, ctx: context }) => {
+      db.update(products, "product", (ctx) => ({ price: ctx.price + 1 }));
+      return context.viewer;
+    });`, "renamed-ctx.ts");
+    assert(renamedCtx.ok, `renamed ctx binding refused: ${renamedCtx.ok ? "" : renamedCtx.diagnostics.map((item) => item.message).join("; ")}`);
+    assert(canonical(integerLiterals(renamedCtx.programs[0])).includes("[100]"), "row callback ctx shadow lost its scale 2 fact");
+    assert(canonical(renamedCtx.programs[0]).includes('"Input":"Viewer"'), "renamed ctx binding did not lower context.viewer");
   });
 
   test("Bytes descriptors lower for columns and args with the existing schema refusal family", async () => {
