@@ -170,25 +170,28 @@ impl CompletenessFlow<'_, '_> {
                     self.refuse_sink("require branch", &fact.structural, control, loop_pages);
                 }
                 Stmt::Insert { row, .. } => {
-                    let fact = self.expr(row);
+                    // @ref LLP 1001#3-read-and-write-states-no-silent-states — durable/effect sinks cannot erase capped-page provenance.
+                    let fact = self.expr(row).made_structural();
                     self.refuse_sink("inserted value", &fact.structural, control, loop_pages);
                 }
                 Stmt::Update { key, patch, .. } => {
                     let mut fact = self.expr(key);
                     fact.merge(self.expr(patch));
+                    let fact = fact.made_structural();
                     self.refuse_sink("updated value", &fact.structural, control, loop_pages);
                 }
                 Stmt::Upsert { key, row, .. } => {
                     let mut fact = self.expr(key);
                     fact.merge(self.expr(row));
+                    let fact = fact.made_structural();
                     self.refuse_sink("upserted value", &fact.structural, control, loop_pages);
                 }
                 Stmt::Delete { key, .. } => {
-                    let fact = self.expr(key);
+                    let fact = self.expr(key).made_structural();
                     self.refuse_sink("deleted key", &fact.structural, control, loop_pages);
                 }
                 Stmt::Emit { payload, .. } => {
-                    let fact = self.expr(payload);
+                    let fact = self.expr(payload).made_structural();
                     self.refuse_sink("emitted value", &fact.structural, control, loop_pages);
                 }
                 Stmt::Break | Stmt::Continue => {}

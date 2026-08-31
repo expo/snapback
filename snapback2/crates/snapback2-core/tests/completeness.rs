@@ -51,6 +51,22 @@ fn schema(index_scope: &str) -> Schema {
                     )]),
                 ),
             ),
+            (
+                "snapshots".to_owned(),
+                public_table(
+                    BTreeMap::from([
+                        ("id".to_owned(), ColumnType::Id),
+                        ("items".to_owned(), ColumnType::Json { max_bytes: 4_096 }),
+                    ]),
+                    BTreeMap::from([(
+                        "byId".to_owned(),
+                        Index {
+                            columns: vec!["id".to_owned()],
+                            unique: true,
+                        },
+                    )]),
+                ),
+            ),
         ]),
         maintains: Vec::new(),
         channels: BTreeMap::new(),
@@ -504,4 +520,91 @@ fn capped_only_counts_branches_and_writes_reuse_the_structural_fact_refusal() {
         })
         .unwrap();
     assert_eq!(uniform.completeness, Completeness::Page);
+}
+
+#[test]
+fn collected_capped_page_may_return_but_cannot_cross_a_durable_sink() {
+    let non_uniform_schema = schema("group");
+    let collect = || {
+        vec![
+            Stmt::Let {
+                name: "collected".to_owned(),
+                value: Expr::Array(Vec::new()),
+            },
+            Stmt::For {
+                binding: "item".to_owned(),
+                domain: LoopDomain::Page(page(None, 10)),
+                body: vec![Stmt::If {
+                    condition: Expr::Binary {
+                        op: BinaryOp::Gt,
+                        left: Box::new(Expr::Field {
+                            base: Box::new(var("item")),
+                            name: "order".to_owned(),
+                        }),
+                        right: Box::new(Expr::Literal(Value::Int(0))),
+                    },
+                    then_body: vec![Stmt::Push {
+                        target: "collected".to_owned(),
+                        value: Expr::Object(BTreeMap::from([(
+                            "id".to_owned(),
+                            Expr::Field {
+                                base: Box::new(var("item")),
+                                name: "id".to_owned(),
+                            },
+                        )])),
+                    }],
+                    else_body: Vec::new(),
+                }],
+            },
+        ]
+    };
+
+    let mut returning_body = collect();
+    returning_body.push(Stmt::Return(var("collected")));
+    let returning = Program {
+        name: "docs.returnCollected".to_owned(),
+        kind: ProgramKind::Query,
+        args: BTreeMap::from([("scope".to_owned(), ArgType::Scalar)]),
+        read_time_granularity_ms: None,
+        body: returning_body,
+    };
+    let certificate = Checker::new(&non_uniform_schema, Ceilings::default())
+        .check(&returning)
+        .expect("returning the visible collection stays legal");
+    assert_eq!(certificate.completeness, Completeness::Capped);
+
+    let mut inserting_body = collect();
+    inserting_body.push(Stmt::Insert {
+        table: "snapshots".to_owned(),
+        row: Expr::Object(BTreeMap::from([
+            (
+                "id".to_owned(),
+                Expr::Literal(Value::Id("snapshot".to_owned())),
+            ),
+            ("items".to_owned(), var("collected")),
+        ])),
+    });
+    let inserting = Program {
+        name: "docs.insertCollected".to_owned(),
+        kind: ProgramKind::Mutation,
+        args: BTreeMap::from([("scope".to_owned(), ArgType::Scalar)]),
+        read_time_granularity_ms: None,
+        body: inserting_body,
+    };
+    let errors = Checker::new(&non_uniform_schema, Ceilings::default())
+        .check_all(&inserting)
+        .expect_err("a durable sink must not erase capped-page provenance");
+    assert_eq!(errors.len(), 1, "unexpected checker refusals: {errors:?}");
+    assert_eq!(errors[0].code, "E_STRUCTURAL_COUNT");
+    assert!(
+        errors[0]
+            .message
+            .starts_with("inserted value depends on capped-only site docs.page")
+    );
+    assert!(
+        errors[0]
+            .rewrite
+            .contains("denormalize the authorization scope")
+    );
+    assert!(errors[0].rewrite.contains("maintained aggregate"));
 }

@@ -452,6 +452,39 @@ test("an empty capped page is the terminal drain state", async () => {
   value.close();
 });
 
+test("an exact-full non-uniform drain requests one terminal empty capped page then stops", async () => {
+  const pages = [
+    [{ id: "one" }, { id: "two" }],
+    [{ id: "three" }, { id: "four" }],
+    [],
+  ];
+  const afters: Array<string | undefined> = [];
+  const value = createClient({
+    url: "http://wire.test",
+    fetch: async (_input, init) => {
+      const request = JSON.parse(String(init?.body));
+      afters.push(request.args.after);
+      const data = pages[afters.length - 1];
+      assert.ok(data, "drain issued a request after the terminal empty page");
+      return fetchJson({ state: "capped", data, seq: 1 });
+    },
+  });
+
+  const drained: Array<{ id: string }> = [];
+  let after: string | undefined;
+  for (;;) {
+    const page = await value.query(api.states.capped, { after, take: 2 });
+    assert.equal(page.state, "capped");
+    if (page.data.length === 0) break;
+    drained.push(...page.data);
+    after = page.data.at(-1)!.id;
+  }
+
+  assert.deepEqual(drained.map((row) => row.id), ["one", "two", "three", "four"]);
+  assert.deepEqual(afters, [undefined, "two", "four"]);
+  value.close();
+});
+
 test("every HTTP wire state validates its state-specific required fields", async () => {
   const queryCases = [
     [{ state: "complete", seq: 1 }, "data"],

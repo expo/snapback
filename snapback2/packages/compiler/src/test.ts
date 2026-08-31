@@ -317,7 +317,53 @@ test("actual collection lowerings preserve capped page provenance through struct
       && item.error.rewrite.includes("maintained aggregate")), `${name} changed the paved rewrite`);
   }
 });
-
+test("authored collected capped pages may return but cannot be inserted", () => {
+  const tables = new Map<string, TableInfo>([
+    ["docs", { name: "docs", private: false,
+      columns: { id: { kind: "string" }, group: { kind: "string" }, owner: { kind: "string" }, order: { kind: "int" }, amount: { kind: "int" } },
+      indexes: { byScope: { columns: ["group", "order", "id"] } } }],
+    ["snapshots", { name: "snapshots", private: false, columns: { id: { kind: "string" }, items: { kind: "json", max: 4_096 } } }],
+  ]);
+  const allowWrites = { insert: "Allow", update: "Allow", delete: "Allow" };
+  const schema = {
+    tables: {
+      docs: {
+        columns: { id: "Id", group: "Id", owner: "Id", order: "Int", amount: "Int" },
+        indexes: { byId: { columns: ["id"], unique: true }, byScope: { columns: ["group", "order", "id"], unique: false } },
+        rules: { read: { Eq: [{ Field: "owner" }, "Viewer"] }, insert: "Allow", update: "Allow", delete: "Allow" },
+        constraints: [] },
+      snapshots: {
+        columns: { id: "Id", items: { Json: { max_bytes: 4_096 } } },
+        indexes: { byId: { columns: ["id"], unique: true } },
+        rules: { read: "Allow", ...allowWrites }, constraints: [] },
+    },
+    maintains: [], channels: {}, auth: { password: false, guests: false }, effects: [],
+  };
+  const scan = "db.scan(docs.byScope, [args.scope], { take: 8 })";
+  const mapped = `${scan}.map(item => ({ id: item.id }))`;
+  const filtered = `${scan}.filter(item => item.amount > 0)`;
+  const source = `import { mutation, query } from "snapback2";
+    export const returnMapped = query({ scope: scalar() }, ({ db, args }) => { const items = ${mapped}; return items; });
+    export const insertMapped = mutation({ scope: scalar() }, ({ db, args }) => { const items = ${mapped}; db.insert(snapshots, { id: "mapped", items }); return null; });
+    export const returnFiltered = query({ scope: scalar() }, ({ db, args }) => { const items = ${filtered}; return items; });
+    export const insertFiltered = mutation({ scope: scalar() }, ({ db, args }) => { const items = ${filtered}; db.insert(snapshots, { id: "filtered", items }); return null; });`;
+  const lowered = lowerSource(source, "capped-collected-insert.ts", undefined, { tables });
+  assert(lowered.ok, `collected insert fixture did not lower: ${lowered.ok ? "" : JSON.stringify(lowered.diagnostics)}`);
+  const checked = rustCheck(lowered.programs, "synthetic", schema);
+  for (const name of ["returnMapped", "returnFiltered"]) {
+    const returned = checked.find((item) => item.program === name);
+    assert(returned?.error === null && returned.certificate?.completeness === "Capped",
+      `returning ${name} did not certify: ${JSON.stringify(returned)}`);
+  }
+  for (const name of ["insertMapped", "insertFiltered"]) {
+    const inserted = checked.find((item) => item.program === name);
+    assert(inserted?.error?.code === "E_STRUCTURAL_COUNT"
+      && inserted.error.message.startsWith("inserted value depends on capped-only site")
+      && inserted.error.rewrite.includes("denormalize the authorization scope")
+      && inserted.error.rewrite.includes("maintained aggregate"),
+    `inserting ${name} did not keep the paved refusal: ${JSON.stringify(inserted)}`);
+  }
+});
 test("loop collection refusals paste per-family rewrites that lower and certify", () => {
   const tables = new Map<string, TableInfo>([["items", {
     name: "items",
