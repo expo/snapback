@@ -8,6 +8,7 @@ import {
   collectionMutationCounts,
   containsRead,
   derivedBound,
+  enterLexicalScope,
   knownObjectFields,
   loopDomainMaximum,
   lowerCoalesce,
@@ -365,7 +366,7 @@ function lowerStatement(statement: ts.Statement, env: Environment): Stmt[] {
   }
   if (ts.isIfStatement(statement)) {
     const condition = lowerValue(statement.expression, env);
-    const thenEnv = cloneEnvironment(env);
+    const thenEnv = enterLexicalScope(env);
     const narrowed = nonNullIdentifier(statement.expression);
     if (narrowed && thenEnv.variables.has(narrowed)) thenEnv.variables.get(narrowed)!.nullableRead = false;
     return [...condition.statements, {
@@ -373,7 +374,7 @@ function lowerStatement(statement: ts.Statement, env: Environment): Stmt[] {
         condition: condition.expression,
         then_body: lowerControlled(statement.thenStatement, thenEnv),
         else_body: statement.elseStatement
-          ? lowerControlled(statement.elseStatement, cloneEnvironment(env))
+          ? lowerControlled(statement.elseStatement, enterLexicalScope(env))
           : [],
       },
     }];
@@ -404,7 +405,7 @@ function lowerStatement(statement: ts.Statement, env: Environment): Stmt[] {
   if (statement.kind === ts.SyntaxKind.BreakStatement) return ["Break"];
   if (statement.kind === ts.SyntaxKind.ContinueStatement) return ["Continue"];
   // @ref LLP 1002#2-the-authored-surface-the-snapback2-module — lexical bindings classify authored facts and cannot escape their block.
-  if (ts.isBlock(statement)) return lowerStatements(statement.statements, cloneEnvironment(env));
+  if (ts.isBlock(statement)) return lowerStatements(statement.statements, enterLexicalScope(env));
   if (ts.isEmptyStatement(statement)) return [];
   refuse(env, "E_OPAQUE", statement, `statement ${ts.SyntaxKind[statement.kind]} is outside the subset`);
 }

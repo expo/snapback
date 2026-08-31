@@ -698,6 +698,17 @@ export function cloneEnvironment(env: Environment): Environment {
   };
 }
 
+export function enterLexicalScope(env: Environment): Environment {
+  return {
+    ...env,
+    // Declarations and shadows write only to this map. Existing bindings keep
+    // their VariableInfo identity so analysis updates survive the scope.
+    variables: new Map(env.variables),
+    substitutions: new Map(env.substitutions),
+    helperStack: [...env.helperStack],
+  };
+}
+
 /**
  * Certificate identities are pinned to module + exported operation + the lexical
  * read/write ordinal. The shared counter makes helper rename, extraction/inlining,

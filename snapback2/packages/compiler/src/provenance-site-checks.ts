@@ -331,6 +331,50 @@ export const probe = query({ key: t.text(40) }, ({ db, args }) => {
       `if-local args changed post-branch provenance: ${readSites}`);
   });
 
+  test("block updates preserve collection bounds on outer bindings", () => {
+    const program = lowerOne(`import { query } from "snapback2";
+export const probe = query({}, () => {
+  const values = new Set<string>();
+  { values.add("x"); }
+  return values.has("x");
+});`, "block-scope-set-update.ts");
+    assert(lastDerivedArrayBound(program, "values") === 1,
+      `block-local Set.add did not update the outer bound: ${canonical(program.body)}`);
+    certify(program);
+  });
+
+  test("block updates preserve db.require narrowing on outer bindings", () => {
+    const program = lowerOne(`import { query, t } from "snapback2";
+export const probe = query({ key: t.text(40) }, ({ db, args }) => {
+  const row = db.get(items.byKey, [args.key]);
+  { db.require(row !== null); }
+  return { ...row };
+});`, "block-scope-require-update.ts");
+    certify(program);
+  });
+
+  test("if-branch updates preserve conservative collection bounds on outer bindings", () => {
+    const program = lowerOne(`import { query, t } from "snapback2";
+export const probe = query({ add: t.bool() }, ({ args }) => {
+  const values = new Set<string>();
+  if (args.add) { values.add("x"); }
+  return values.has("x");
+});`, "if-scope-set-update.ts");
+    assert(lastDerivedArrayBound(program, "values") === 1,
+      `if-branch Set.add did not update the conservative outer bound: ${canonical(program.body)}`);
+    certify(program);
+  });
+
+  test("if-branch updates preserve db.require narrowing on outer bindings", () => {
+    const program = lowerOne(`import { query, t } from "snapback2";
+export const probe = query({ key: t.text(40), requireRow: t.bool() }, ({ db, args }) => {
+  const row = db.get(items.byKey, [args.key]);
+  if (args.requireRow) { db.require(row !== null); }
+  return { ...row };
+});`, "if-scope-require-update.ts");
+    certify(program);
+  });
+
   test("orderedPair defaults refuse instead of disappearing from IR", () => {
     const refused = lowerSource(`import { query, t } from "snapback2";
 export const lookup = query({ key: t.optional(t.text(40)) }, ({ db, args, ctx }) => {
@@ -685,6 +729,15 @@ function visit(value: unknown, callback: (value: Record<string, unknown>) => voi
 
 function readMap(program: Program): string {
   return reads(program).map((item) => `${item.site}:${item.table}:${item.provenance}`).join("|");
+}
+
+function lastDerivedArrayBound(program: Program, variable: string): number | undefined {
+  const bounds: number[] = [];
+  visit(program.body, (value) => {
+    const domain = value.DerivedArray as { value?: { Variable?: string }; max?: number } | undefined;
+    if (domain?.value?.Variable === variable && typeof domain.max === "number") bounds.push(domain.max);
+  });
+  return bounds.at(-1);
 }
 
 function certify(program: Program): Record<string, unknown> {
