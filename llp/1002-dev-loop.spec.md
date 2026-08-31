@@ -122,14 +122,27 @@ composite matches no rule.
 aliases, nested composites, and spreads all use the same recursive member
 selection. Object members resolve in authored override order; a required known
 spread can decide the selected leaf, while an optional or unknown override with
-different possible origins refuses. Row-preserving `filter` retains a proven
-row collection. Pure helper expansion applies the same rules to the helper body
-and never to the helper name. Every binding form, including loop bindings,
-`orderedPair` destructuring, and lowered collection specializations, preserves
-ambiguity. An unknown or mutable binding matches no single rule and refuses
-with `E_PROVENANCE_AMBIGUOUS`; the standard envelope carries family, source
-site, and a pasted rewrite scoped to the authored read key and using one direct
-origin. Read-site
+different possible origins refuses. Collection items are classified as
+alternatives at the selected remaining member path, never from the collection's
+aggregate origin; disagreement between possible elements refuses. Identity
+`map`, `filter`, ordering/slicing, aliases, and chains retain a proven row
+collection, while a transforming `map` classifies its returned elements by the
+same path-aware rule. Pure helper expansion applies the same rules to the helper
+body and never to the helper name, is lexically captured, and refuses cycles or
+expansion beyond 128 recursive levels. Lexical bindings take precedence over
+spelling: only the handler's actual `args`/`ctx` bindings are composites, including
+renamed destructuring bindings, and a stable `let` classifies exactly like a
+`const`. Every binding form, including loop bindings and lowered collection
+specializations, preserves ambiguity; an authored `orderedPair` destructuring
+default is refused until it can be lowered rather than discarded. A nested path
+under one declared operation argument (for example `args.payload.inner.key`)
+remains `Arg`: provenance records the input origin while the full field path
+remains in IR. An unknown or mutable binding matches no single rule and refuses
+with `E_PROVENANCE_AMBIGUOUS`; the standard envelope carries family and source
+site. Its pasted rewrite uses a discovered direct origin, else an argument whose
+declared name matches the selected member, else the sole bound direct origin; if
+none is unambiguous it names every candidate in an intentionally non-lowerable
+sentinel expression, never a compiling guess at another field. Read-site
 identity is independently pinned to `<module-basename>.<export>.<ordinal>`,
 where the zero-based ordinal follows read/write source order inside that export
 and is shared through helper expansion. Operands lower once in authored order;

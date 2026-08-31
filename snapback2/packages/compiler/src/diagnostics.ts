@@ -62,7 +62,7 @@ export function typeDiagnostic(
   rewrite: string,
   guide: string,
 ): FrontendDiagnostic {
-  return { code, family, message, site: `${file}:${line}:${col}`, rewrite, guide };
+  return { code, family, message, site: `${file}:${line}:${col}`, rule: diagnosticRule(code), rewrite, guide };
 }
 
 export function boundedDiagnostics(

@@ -1,6 +1,7 @@
 import ts from "typescript";
 import type { Environment, VariableInfo } from "../compiler";
 import { unwrapExpression, walk } from "../syntax";
+import { guardedWalk } from "./recursion";
 
 export function assignedBindings(node: ts.Node): Set<string> {
   const names = new Set<string>();
@@ -15,27 +16,30 @@ export function assignedBindings(node: ts.Node): Set<string> {
 }
 
 export function directArgument(node: ts.Expression, env: Environment): string | undefined {
+  const candidates = directArgumentCandidates(node, env);
+  return candidates.size === 1 ? [...candidates][0] : undefined;
+}
+
+function directArgumentCandidates(node: ts.Expression, env: Environment): Set<string> {
+  return guardedWalk(env, node, "direct argument", () => directArgumentCandidatesInner(node, env));
+}
+
+function directArgumentCandidatesInner(node: ts.Expression, env: Environment): Set<string> {
   const value = unwrapExpression(node);
   if (ts.isPropertyAccessExpression(value) && ts.isIdentifier(value.expression)
-    && value.expression.text === "args") return value.getText(env.sourceFile);
+    && env.variables.get(value.expression.text)?.operationComposite === "args") return new Set([value.getText(env.sourceFile)]);
   if (ts.isIdentifier(value)) {
-    if (env.args[value.text]) return `args.${value.text}`;
     const info = env.variables.get(value.text);
-    return info?.provenanceAmbiguity?.directRewrite
-      ?? (info?.immutableOrigin ? directArgument(info.immutableOrigin, env) : undefined);
+    if (info?.operationComposite === "args") return new Set([value.text]);
+    if (info?.provenanceAmbiguity?.directRewrite) return new Set([info.provenanceAmbiguity.directRewrite]);
+    return info?.immutableOrigin ? directArgumentCandidates(info.immutableOrigin, env) : new Set();
   }
   // Property names are labels, never value operands. Walking `value.key` through
   // forEachChild would otherwise discover an unrelated operation argument named
   // `key` and rewrite the helper declaration instead of the authored read key.
-  if (ts.isPropertyAccessExpression(value)) return directArgument(value.expression, env);
-  if (ts.isCallExpression(value)) {
-    for (const argument of value.arguments) {
-      const direct = directArgument(argument, env);
-      if (direct) return direct;
-    }
-    return undefined;
-  }
+  if (ts.isPropertyAccessExpression(value)) return directArgumentCandidates(value.expression, env);
   if (ts.isObjectLiteralExpression(value)) {
+    const candidates = new Set<string>();
     for (const property of value.properties) {
       const expression = ts.isSpreadAssignment(property)
         ? property.expression
@@ -45,16 +49,16 @@ export function directArgument(node: ts.Expression, env: Environment): string | 
             ? property.name
             : undefined;
       if (!expression) continue;
-      const direct = directArgument(expression, env);
-      if (direct) return direct;
+      for (const direct of directArgumentCandidates(expression, env)) candidates.add(direct);
     }
-    return undefined;
+    return candidates;
   }
-  let direct: string | undefined;
+  const candidates = new Set<string>();
   value.forEachChild((child) => {
-    if (!direct && ts.isExpression(child)) direct = directArgument(child, env);
+    if (!ts.isExpression(child)) return;
+    for (const direct of directArgumentCandidates(child, env)) candidates.add(direct);
   });
-  return direct;
+  return candidates;
 }
 
 export function withDirectRewrite(

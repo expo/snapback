@@ -1,8 +1,9 @@
 import ts from "typescript";
-import type { Environment, LoweredValue, VariableInfo } from "../compiler";
+import type { Environment, LoweredValue, ProvenanceOrigin, VariableInfo } from "../compiler";
 import { refuse, Refusal } from "../diagnostics";
 import type { Expr, LoopDomain, Scan } from "../ir";
 import {
+  collectionElementBinding,
   combineProvenance,
   expandHelper,
   isRowCollectionExpression,
@@ -33,6 +34,8 @@ import {
   unwrapExpression,
   walk,
 } from "../syntax";
+import { directArgument, withDirectRewrite } from "./operation-context";
+import { guardedWalk, MAX_RECURSION_DEPTH } from "./recursion";
 
 function concatExpressions(expressions: Expr[]): Expr {
   return expressions.slice(1).reduce<Expr>(
@@ -42,13 +45,17 @@ function concatExpressions(expressions: Expr[]): Expr {
 }
 
 export function knownObjectFields(node: ts.Expression, env: Environment): string[] | undefined {
+  return guardedWalk(env, node, "object fields", () => knownObjectFieldsInner(node, env));
+}
+
+function knownObjectFieldsInner(node: ts.Expression, env: Environment): string[] | undefined {
   const value = unwrapExpression(node);
   if (ts.isIdentifier(value)) {
-    if (value.text === "args") return Object.keys(env.args);
-    if (value.text === "ctx") return ["viewer"];
     const substituted = env.substitutions.get(value.text);
-    if (substituted) return knownObjectFields(substituted, env);
+    if (substituted) return knownObjectFields(substituted.expression, substituted.environment);
     const info = env.variables.get(value.text);
+    if (info?.operationComposite === "args") return Object.keys(env.args);
+    if (info?.operationComposite === "ctx") return ["viewer"];
     return info?.objectFields ?? (info?.immutableOrigin ? knownObjectFields(info.immutableOrigin, env) : undefined);
   }
   if (ts.isObjectLiteralExpression(value)) {
@@ -84,10 +91,14 @@ export function knownObjectFields(node: ts.Expression, env: Environment): string
 }
 
 export function rowCollectionFields(node: ts.Expression, env: Environment): string[] | undefined {
+  return guardedWalk(env, node, "row collection fields", () => rowCollectionFieldsInner(node, env));
+}
+
+function rowCollectionFieldsInner(node: ts.Expression, env: Environment): string[] | undefined {
   const value = unwrapExpression(node);
   if (ts.isIdentifier(value)) {
     const substituted = env.substitutions.get(value.text);
-    if (substituted) return rowCollectionFields(substituted, env);
+    if (substituted) return rowCollectionFields(substituted.expression, substituted.environment);
     const info = env.variables.get(value.text);
     return info?.rowCollection ? info.objectFields : undefined;
   }
@@ -96,8 +107,18 @@ export function rowCollectionFields(node: ts.Expression, env: Environment): stri
   const expanded = expandHelper(call, env);
   if (expanded) return rowCollectionFields(expanded.expression, expanded.environment);
   if (callName(call).endsWith(".scan") && isDbMember(call.expression)) return rowFields(call.arguments[0], env);
-  if (ts.isPropertyAccessExpression(call.expression) && call.expression.name.text === "filter") {
+  if (ts.isPropertyAccessExpression(call.expression) && ["filter", "sort", "slice"].includes(call.expression.name.text)) {
     return rowCollectionFields(call.expression.expression, env);
+  }
+  if (ts.isPropertyAccessExpression(call.expression) && call.expression.name.text === "map") {
+    const callback = call.arguments[0];
+    if (callback && isFunctionLike(callback) && callback.parameters.length > 0 && !ts.isBlock(callback.body)
+      && ts.isIdentifier(callback.parameters[0]!.name)) {
+      const body = unwrapExpression(callback.body);
+      if (ts.isIdentifier(body) && body.text === callback.parameters[0].name.text) {
+        return rowCollectionFields(call.expression.expression, env);
+      }
+    }
   }
   return undefined;
 }
@@ -237,6 +258,15 @@ export function lowerDomain(
   binding: string,
   hint?: string,
 ): { domain: LoopDomain; bindingInfo: VariableInfo } {
+  return guardedWalk(env, expression, "loop domain", () => lowerDomainInner(expression, env, binding, hint));
+}
+
+function lowerDomainInner(
+  expression: ts.Expression,
+  env: Environment,
+  binding: string,
+  hint?: string,
+): { domain: LoopDomain; bindingInfo: VariableInfo } {
   const expanded = expandHelper(expression, env);
   if (expanded) return lowerDomain(expanded.expression, expanded.environment, binding, hint);
   const call = unwrapCall(expression);
@@ -287,6 +317,7 @@ export function lowerDomain(
           provenance: info.provenance,
           ...(info.provenanceAmbiguity ? { provenanceAmbiguity: { ...info.provenanceAmbiguity } } : {}),
           ...(info.rowCollection ? { rowBinding: true, objectFields: info.objectFields } : {}),
+          ...(info.elementOrigins ? { alternativeOrigins: info.elementOrigins } : {}),
         },
       };
     }
@@ -298,7 +329,7 @@ export function lowerDomain(
         max: expression.elements.length,
         bound_source: `literal array length ${expression.elements.length}`,
       } },
-      bindingInfo: provenanceBinding(expression, env),
+      bindingInfo: collectionElementBinding(expression, env),
     };
   }
   refuse(env, "E_UNBOUND_LOOP", expression, "loop domain has no static cardinality");
@@ -338,8 +369,12 @@ function lowerRecurse(call: ts.CallExpression, env: Environment): { domain: Loop
 }
 
 export function lowerExpr(node: ts.Expression, env: Environment, hint?: string): Expr {
+  return guardedWalk(env, node, "expression", () => lowerExprInner(node, env, hint));
+}
+
+function lowerExprInner(node: ts.Expression, env: Environment, hint?: string): Expr {
   const substituted = ts.isIdentifier(node) ? env.substitutions.get(node.text) : undefined;
-  if (substituted) return lowerExpr(substituted, env, hint);
+  if (substituted) return lowerExpr(substituted.expression, substituted.environment, hint);
   const unwrapped = unwrapExpression(node);
   if (unwrapped !== node) return lowerExpr(unwrapped, env, hint);
 
@@ -364,10 +399,11 @@ export function lowerExpr(node: ts.Expression, env: Environment, hint?: string):
   }
   if (ts.isStringLiteralLike(node)) return literal(node.text);
   if (ts.isIdentifier(node)) {
-    if (node.text === "args") {
+    const info = env.variables.get(node.text);
+    if (info?.operationComposite === "args") {
       return { Object: Object.fromEntries(Object.keys(env.args).map((name) => [name, { Variable: name } satisfies Expr])) };
     }
-    if (node.text === "ctx") return { Object: { viewer: { Input: "Viewer" } } };
+    if (info?.operationComposite === "ctx") return { Object: { viewer: { Input: "Viewer" } } };
     return { Variable: node.text };
   }
   if (ts.isArrayLiteralExpression(node)) {
@@ -418,7 +454,8 @@ export function lowerExpr(node: ts.Expression, env: Environment, hint?: string):
               objectSpreadRewrite(env, property),
             );
           }
-          if (ts.isIdentifier(property.expression) && property.expression.text === "args") {
+          if (ts.isIdentifier(property.expression)
+            && env.variables.get(property.expression.text)?.operationComposite === "args") {
             for (const field of fields) object[field] = { Variable: field };
           } else {
             const base = lowerExpr(property.expression, env);
@@ -445,11 +482,14 @@ export function lowerExpr(node: ts.Expression, env: Environment, hint?: string):
     return { Object: object };
   }
   if (ts.isPropertyAccessExpression(node)) {
-    if (ts.isIdentifier(node.expression) && node.expression.text === "args") return { Variable: node.name.text };
-    if (ts.isIdentifier(node.expression) && node.expression.text === "ctx") {
-      if (node.name.text === "viewer") return { Input: "Viewer" };
-      if (node.name.text === "readTime") return { Input: "ReadTime" };
-      if (node.name.text === "commitTime") return { Input: "Now" };
+    if (ts.isIdentifier(node.expression)) {
+      const composite = env.variables.get(node.expression.text)?.operationComposite;
+      if (composite === "args") return { Variable: node.name.text };
+      if (composite === "ctx") {
+        if (node.name.text === "viewer") return { Input: "Viewer" };
+        if (node.name.text === "readTime") return { Input: "ReadTime" };
+        if (node.name.text === "commitTime") return { Input: "Now" };
+      }
     }
     if (node.name.text === "length") {
       return { Builtin: { builtin: "Len", args: [lowerExpr(node.expression, env)] } };
@@ -492,11 +532,15 @@ function lowerCall(call: ts.CallExpression, env: Environment, hint?: string): Ex
   if (expanded) return lowerExpr(expanded.expression, expanded.environment, hint);
   const name = callName(call);
   if (name === "decimal" && call.arguments[0]) return lowerExpr(call.arguments[0], env, hint);
-  if (name === "ctx.now") {
+  const compositeMember = ts.isPropertyAccessExpression(call.expression) ? call.expression : undefined;
+  const compositeCall = compositeMember && ts.isIdentifier(compositeMember.expression)
+    ? env.variables.get(compositeMember.expression.text)?.operationComposite
+    : undefined;
+  if (compositeCall === "ctx" && compositeMember?.name.text === "now") {
     return { Input: env.kind === "Query" ? "ReadTime" : "Now" };
   }
-  if (name === "ctx.commitTime") return { Input: "Now" };
-  if (name === "ctx.newId") return { Input: "NewId" };
+  if (compositeCall === "ctx" && compositeMember?.name.text === "commitTime") return { Input: "Now" };
+  if (compositeCall === "ctx" && compositeMember?.name.text === "newId") return { Input: "NewId" };
   if (name.endsWith(".get") && isDbMember(call.expression)) return { Get: lowerRead(call, env, hint) };
   if (name.endsWith(".exists") && isDbMember(call.expression)) return { Exists: lowerRead(call, env, hint) };
   if (name.endsWith(".scan") && isDbMember(call.expression)) return { Scan: lowerScan(call, env, hint) };
@@ -670,12 +714,23 @@ export function reserveWriteSite(env: Environment): void {
   env.accessOrdinal.value += 1;
 }
 
-export function containsRead(value: unknown): boolean {
-  if (Array.isArray(value)) return value.some(containsRead);
+export function containsRead(value: unknown, seen = new Set<object>(), depth = 0): boolean {
+  if (depth >= MAX_RECURSION_DEPTH) return true;
+  if (Array.isArray(value)) {
+    if (seen.has(value)) return true;
+    seen.add(value);
+    const result = value.some((item) => containsRead(item, seen, depth + 1));
+    seen.delete(value);
+    return result;
+  }
   if (!value || typeof value !== "object") return false;
   const object = value as Record<string, unknown>;
-  return ["Get", "Exists", "Scan"].some((kind) => kind in object)
-    || Object.values(object).some(containsRead);
+  if (seen.has(object)) return true;
+  seen.add(object);
+  const result = ["Get", "Exists", "Scan"].some((kind) => kind in object)
+    || Object.values(object).some((item) => containsRead(item, seen, depth + 1));
+  seen.delete(object);
+  return result;
 }
 
 export function derivedBound(node: ts.Expression, env: Environment): Partial<VariableInfo> {
@@ -685,10 +740,14 @@ export function derivedBound(node: ts.Expression, env: Environment): Partial<Var
 }
 
 export function staticBound(node: ts.Expression, env: Environment): number | undefined {
+  return guardedWalk(env, node, "static bound", () => staticBoundInner(node, env));
+}
+
+function staticBoundInner(node: ts.Expression, env: Environment): number | undefined {
   const value = unwrapExpression(node);
   if (ts.isIdentifier(value)) return env.variables.get(value.text)?.max;
   if (ts.isPropertyAccessExpression(value) && ts.isIdentifier(value.expression)
-    && value.expression.text === "args") return env.variables.get(value.name.text)?.max;
+    && env.variables.get(value.expression.text)?.operationComposite === "args") return env.variables.get(value.name.text)?.max;
   if (ts.isArrayLiteralExpression(value)) {
     let total = 0;
     for (const element of value.elements) {
@@ -730,6 +789,177 @@ export function staticBound(node: ts.Expression, env: Environment): number | und
     }
   }
   return undefined;
+}
+
+export function lowerArrayMethod(
+  method: string,
+  owner: ts.Expression,
+  call: ts.CallExpression,
+  env: Environment,
+  lowerValue: (node: ts.Expression, env: Environment, hint?: string) => LoweredValue,
+  hint?: string,
+): LoweredValue {
+  const callback = call.arguments[0];
+  if (!callback || !isFunctionLike(callback) || callback.parameters.length < 1
+    || !ts.isIdentifier(callback.parameters[0]!.name)) {
+    refuse(env, "E_OPAQUE", call, `${method} requires an inline callback with an identifier`);
+  }
+  if (ts.isBlock(callback.body)) refuse(env, "E_OPAQUE", callback.body, `${method} callback must be an expression`);
+  const binding = callback.parameters[0].name.text;
+  const loopEnv = cloneEnvironment(env);
+  const { statements: domainStatements, domain, bindingInfo } = lowerCollectionDomain(
+    owner,
+    loopEnv,
+    binding,
+    lowerValue,
+    hint,
+  );
+  loopEnv.variables.set(binding, strictBinding(binding, bindingInfo, loopEnv, directArgument(owner, env)));
+  if (method === "map" || method === "filter") {
+    const name = temporary(env, method);
+    const lowered = lowerValue(callback.body, loopEnv, hint);
+    const body = method === "map"
+      ? [...lowered.statements, { Push: { target: name, value: lowered.expression } } satisfies import("../ir").Stmt]
+      : [{ If: {
+          condition: lowered.expression,
+          then_body: [{ Push: { target: name, value: { Variable: binding } } }],
+          else_body: [],
+        } } satisfies import("../ir").Stmt];
+    const resultOrigin = method === "filter"
+      ? { provenance: bindingInfo.provenance, ...(bindingInfo.provenanceAmbiguity
+          ? { provenanceAmbiguity: { ...bindingInfo.provenanceAmbiguity } }
+          : {}) }
+      : withDirectRewrite(provenanceBinding(callback.body, loopEnv), callback.body, loopEnv);
+    const callbackValue = unwrapExpression(callback.body);
+    const identityMap = method === "map" && ts.isIdentifier(callbackValue) && callbackValue.text === binding;
+    const preservesRows = (method === "filter" || identityMap) && bindingInfo.rowBinding;
+    const elementOrigins = method === "filter"
+      ? bindingOrigins(bindingInfo)
+      : [{ expression: callback.body, environment: loopEnv } satisfies ProvenanceOrigin];
+    env.variables.set(name, {
+      ...resultOrigin,
+      ...derivedBound(owner, env),
+      elementOrigins,
+      ...(preservesRows ? { rowCollection: true, objectFields: bindingInfo.objectFields } : {}),
+    });
+    return {
+      statements: [...domainStatements, { Let: { name, value: { Array: [] } } }, { For: { binding, domain, body } }],
+      expression: { Variable: name },
+    };
+  }
+  if (method === "flatMap") {
+    const name = temporary(env, "flatMap");
+    const innerBinding = temporary(env, "flatItem");
+    const inner = lowerCollectionDomain(callback.body, loopEnv, innerBinding, lowerValue, hint);
+    const innerEnv = cloneEnvironment(loopEnv);
+    innerEnv.variables.set(innerBinding, strictBinding(innerBinding, inner.bindingInfo, innerEnv));
+    env.variables.set(name, {
+      ...inner.bindingInfo,
+      ...derivedBound(call, env),
+      elementOrigins: bindingOrigins(inner.bindingInfo),
+      ...(inner.bindingInfo.rowBinding
+        ? { rowCollection: true, objectFields: inner.bindingInfo.objectFields }
+        : {}),
+    });
+    return {
+      statements: [
+        ...domainStatements,
+        { Let: { name, value: { Array: [] } } },
+        { For: {
+          binding,
+          domain,
+          body: [...inner.statements, { For: {
+            binding: innerBinding,
+            domain: inner.domain,
+            body: [{ Push: { target: name, value: { Variable: innerBinding } } }],
+          } }],
+        } },
+      ],
+      expression: { Variable: name },
+    };
+  }
+  if (method === "reduce") {
+    const initial = call.arguments[1];
+    if (!initial || callback.parameters.length < 2 || !ts.isIdentifier(callback.parameters[1]!.name)) {
+      refuse(env, "E_OPAQUE", call, "reduce requires accumulator, item, and initial value");
+    }
+    const accumulator = callback.parameters[0].name.text;
+    const item = callback.parameters[1].name.text;
+    const reduceEnv = cloneEnvironment(env);
+    reduceEnv.variables.set(item, strictBinding(item, bindingInfo, reduceEnv, directArgument(owner, env)));
+    const name = temporary(env, "reduce");
+    reduceEnv.substitutions.set(accumulator, {
+      expression: syntheticIdentifier(env.sourceFile, name),
+      environment: reduceEnv,
+    });
+    const lowered = lowerValue(callback.body, reduceEnv, hint);
+    return {
+      statements: [
+        ...domainStatements,
+        { Let: { name, value: lowerExpr(initial, env) } },
+        { For: { binding: item, domain, body: [...lowered.statements, { Assign: { name, value: lowered.expression } }] } },
+      ],
+      expression: { Variable: name },
+    };
+  }
+  const name = temporary(env, "some");
+  const lowered = lowerValue(callback.body, loopEnv, hint);
+  return {
+    statements: [
+      ...domainStatements,
+      { Let: { name, value: literal(false) } },
+      { For: {
+        binding,
+        domain,
+        body: [...lowered.statements, { If: {
+          condition: lowered.expression,
+          then_body: [{ Assign: { name, value: literal(true) } }, "Break"],
+          else_body: [],
+        } }],
+      } },
+    ],
+    expression: { Variable: name },
+  };
+}
+
+export function lowerCollectionDomain(
+  expression: ts.Expression,
+  env: Environment,
+  binding: string,
+  lowerValue: (node: ts.Expression, env: Environment, hint?: string) => LoweredValue,
+  hint?: string,
+): ReturnType<typeof lowerDomain> & { statements: import("../ir").Stmt[] } {
+  const value = unwrapExpression(expression);
+  const call = unwrapCall(value);
+  const method = call && ts.isPropertyAccessExpression(call.expression) ? call.expression.name.text : undefined;
+  if (method && ["map", "flatMap", "filter", "sort", "slice"].includes(method)) {
+    const lowered = lowerValue(expression, env, hint);
+    if ("Variable" in lowered.expression) {
+      const loweredDomain = lowerDomain(syntheticIdentifier(env.sourceFile, lowered.expression.Variable), env, binding, hint);
+      return { statements: lowered.statements, ...loweredDomain };
+    }
+    const maximum = staticBound(expression, env);
+    if (maximum === undefined) refuse(env, "E_UNBOUND_LOOP", expression, "loop domain has no static cardinality");
+    const rowCollection = isRowCollectionExpression(expression, env);
+    return {
+      statements: lowered.statements,
+      domain: { DerivedArray: {
+        value: lowered.expression,
+        max: maximum,
+        bound_source: `${expression.getText(env.sourceFile)} static bound`,
+      } },
+      bindingInfo: rowCollection
+        ? { provenance: "Shape", rowBinding: true, objectFields: rowCollectionFields(expression, env) }
+        : collectionElementBinding(expression, env),
+    };
+  }
+  return { statements: [], ...lowerDomain(expression, env, binding, hint) };
+}
+
+function bindingOrigins(binding: VariableInfo): ProvenanceOrigin[] {
+  if (binding.alternativeOrigins) return binding.alternativeOrigins;
+  const { elementOrigins: _elements, ...valueBinding } = binding;
+  return [{ binding: valueBinding }];
 }
 
 function optionalLower(node: ts.Expression | undefined, env: Environment): Expr | null {

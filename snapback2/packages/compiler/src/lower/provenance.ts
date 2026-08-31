@@ -1,7 +1,8 @@
 import ts from "typescript";
-import type { Environment, FunctionLike, VariableInfo } from "../compiler";
+import type { Environment, FunctionLike, ProvenanceOrigin, Substitution, VariableInfo } from "../compiler";
 import { refuse } from "../diagnostics";
 import type { Provenance } from "../ir";
+import { guardedWalk, refuseRecursiveWalk } from "./recursion";
 import {
   callName,
   isDbMember,
@@ -70,7 +71,33 @@ export function combinedProvenanceBinding(nodes: readonly ts.Expression[], env: 
     : { provenance: combineProvenance(bindings.map((binding) => binding.provenance)) };
 }
 
+export function collectionElementBinding(node: ts.Expression, env: Environment): VariableInfo {
+  const origins = collectionElementOrigins(node, env);
+  if (!origins || origins.length === 0) {
+    return { ...provenanceBinding(node, env), provenanceAmbiguity: {} };
+  }
+  const classified = combineAlternatives(
+    origins.map((origin) => classifyOrigin(origin, [], node)),
+    "required",
+  );
+  return {
+    ...(classified.kind === "known"
+      ? { provenance: classified.provenance }
+      : { provenance: "Computed" as const, provenanceAmbiguity: {} }),
+    alternativeOrigins: origins,
+  };
+}
+
 function classify(
+  node: ts.Expression,
+  env: Environment,
+  path: readonly string[],
+  authoredNode: ts.Expression,
+): Classification {
+  return guardedWalk(env, node, "provenance", () => classifyInner(node, env, path, authoredNode));
+}
+
+function classifyInner(
   node: ts.Expression,
   env: Environment,
   path: readonly string[],
@@ -78,7 +105,7 @@ function classify(
 ): Classification {
   const value = unwrapExpression(node);
   const substituted = ts.isIdentifier(value) ? env.substitutions.get(value.text) : undefined;
-  if (substituted) return classify(substituted, env, path, authoredNode);
+  if (substituted) return classify(substituted.expression, substituted.environment, path, authoredNode);
 
   if (ts.isIdentifier(value)) return classifyIdentifier(value, env, path, authoredNode);
   if (ts.isPropertyAccessExpression(value)) {
@@ -130,7 +157,15 @@ function classifyIdentifier(
   path: readonly string[],
   authoredNode: ts.Expression,
 ): Classification {
-  if (node.text === "args") {
+  const info = env.variables.get(node.text);
+  if (!info) return ambiguous();
+  if (info.alternativeOrigins) {
+    return combineAlternatives(
+      info.alternativeOrigins.map((origin) => classifyOrigin(origin, path, authoredNode)),
+      "required",
+    );
+  }
+  if (info.operationComposite === "args") {
     if (path.length === 0) {
       return Object.keys(env.args).length === 0 ? known("Const") : known("Arg");
     }
@@ -141,13 +176,10 @@ function classifyIdentifier(
       presence: typeof descriptor !== "string" && "Optional" in descriptor ? "optional" : "required",
     };
   }
-  if (node.text === "ctx") {
+  if (info.operationComposite === "ctx") {
     if (path.length === 0) return known("Viewer");
     return path[0] === "viewer" ? known("Viewer") : absent();
   }
-
-  const info = env.variables.get(node.text);
-  if (!info) return ambiguous();
   if (info.provenanceAmbiguity) return ambiguous(info.provenanceAmbiguity.directRewrite);
   if (info.rowBinding) return classifyBoundRow(info, path);
   if (info.immutableOrigin) return classify(info.immutableOrigin, env, path, authoredNode);
@@ -155,6 +187,79 @@ function classifyIdentifier(
     return known(info.provenance);
   }
   return ambiguous();
+}
+
+function classifyOrigin(
+  origin: ProvenanceOrigin,
+  path: readonly string[],
+  authoredNode: ts.Expression,
+): Classification {
+  return "expression" in origin
+    ? classify(origin.expression, origin.environment, path, authoredNode)
+    : classifyBinding(origin.binding, path, authoredNode);
+}
+
+function classifyBinding(
+  info: VariableInfo,
+  path: readonly string[],
+  authoredNode: ts.Expression,
+): Classification {
+  if (info.alternativeOrigins) {
+    return combineAlternatives(
+      info.alternativeOrigins.map((origin) => classifyOrigin(origin, path, authoredNode)),
+      "required",
+    );
+  }
+  if (info.provenanceAmbiguity) return ambiguous(info.provenanceAmbiguity.directRewrite);
+  if (info.rowBinding) return classifyBoundRow(info, path);
+  if (path.length === 0) return known(info.provenance);
+  return ambiguous();
+}
+
+function collectionElementOrigins(node: ts.Expression, env: Environment): ProvenanceOrigin[] | undefined {
+  return guardedWalk(env, node, "collection elements", () => collectionElementOriginsInner(node, env));
+}
+
+function collectionElementOriginsInner(node: ts.Expression, env: Environment): ProvenanceOrigin[] | undefined {
+  const value = unwrapExpression(node);
+  if (ts.isIdentifier(value)) {
+    const substituted = env.substitutions.get(value.text);
+    if (substituted) return collectionElementOrigins(substituted.expression, substituted.environment);
+    const info = env.variables.get(value.text);
+    if (info?.elementOrigins) return info.elementOrigins;
+    if (info?.rowCollection) {
+      return [{ binding: {
+        provenance: "Shape",
+        rowBinding: true,
+        objectFields: info.objectFields,
+      } }];
+    }
+    return undefined;
+  }
+  if (ts.isArrayLiteralExpression(value)) {
+    const origins: ProvenanceOrigin[] = [];
+    for (const element of value.elements) {
+      if (ts.isSpreadElement(element)) {
+        const spread = collectionElementOrigins(element.expression, env);
+        if (!spread) return undefined;
+        origins.push(...spread);
+      } else {
+        origins.push({ expression: element, environment: env });
+      }
+    }
+    return origins;
+  }
+  const call = unwrapCall(value);
+  const expanded = call && expandHelper(call, env);
+  if (expanded) return collectionElementOrigins(expanded.expression, expanded.environment);
+  if (call && callName(call).endsWith(".scan") && isDbMember(call.expression)) {
+    return [{ binding: {
+      provenance: "Shape",
+      rowBinding: true,
+      objectFields: rowFields(call.arguments[0], env),
+    } }];
+  }
+  return undefined;
 }
 
 function classifyObject(
@@ -260,9 +365,13 @@ function rowFields(target: ts.Expression | undefined, env: Environment): string[
 }
 
 function refuseAmbiguous(node: ts.Expression, env: Environment, directRewrite?: string): never {
-  const firstArg = Object.keys(env.args)[0];
-  const fallback = directRewrite ?? (firstArg ? `args.${firstArg}` : "null");
   const value = unwrapExpression(node);
+  const choices: string[] = [];
+  const replacementFor = (expression: ts.Expression, direct?: string): string => {
+    const choice = honestRewrite(expression, env, direct);
+    choices.push(...choice.candidates);
+    return choice.replacement;
+  };
   const replacement = ts.isArrayLiteralExpression(value)
     ? `[${value.elements.map((element) => {
         const expression = ts.isSpreadElement(element) ? element.expression : element;
@@ -270,17 +379,52 @@ function refuseAmbiguous(node: ts.Expression, env: Environment, directRewrite?: 
         return classified.kind === "known"
           ? element.getText(env.sourceFile)
           : classified.kind === "ambiguous" && classified.directRewrite
-            ? classified.directRewrite
-            : fallback;
+            ? replacementFor(expression, classified.directRewrite)
+            : replacementFor(expression);
       }).join(", ")}]`
-    : fallback;
+    : replacementFor(value, directRewrite);
+  const candidates = [...new Set(choices)];
+  const candidateMessage = candidates.length > 0 ? `; candidate direct origins: ${candidates.join(", ")}` : "";
   refuse(
     env,
     "E_PROVENANCE_AMBIGUOUS",
     node,
-    "read key provenance is ambiguous; each key must follow one direct origin rule",
+    `read key provenance is ambiguous; each key must follow one direct origin rule${candidateMessage}`,
     replaceNode(env.source, node, replacement),
   );
+}
+
+function honestRewrite(
+  node: ts.Expression,
+  env: Environment,
+  directRewrite?: string,
+): { replacement: string; candidates: string[] } {
+  if (directRewrite) return { replacement: directRewrite, candidates: [directRewrite] };
+  const argsBinding = operationCompositeName(env, "args");
+  const selected = selectedMemberName(node);
+  if (argsBinding && selected && env.args[selected]) {
+    const direct = `${argsBinding}.${selected}`;
+    return { replacement: direct, candidates: [direct] };
+  }
+  const candidates = [
+    ...(argsBinding ? Object.keys(env.args).map((name) => `${argsBinding}.${name}`) : []),
+    ...(operationCompositeName(env, "ctx") ? [`${operationCompositeName(env, "ctx")}.viewer`] : []),
+  ];
+  if (candidates.length === 1) return { replacement: candidates[0]!, candidates };
+  const description = candidates.length > 0 ? candidates.join(" | ") : "no bound direct origins";
+  return {
+    replacement: `(() => { throw new Error(${JSON.stringify(`E_PROVENANCE_AMBIGUOUS: choose one direct origin: ${description}`)}); })()`,
+    candidates,
+  };
+}
+
+function operationCompositeName(env: Environment, composite: "args" | "ctx"): string | undefined {
+  return [...env.variables].find(([, info]) => info.operationComposite === composite)?.[0];
+}
+
+function selectedMemberName(node: ts.Expression): string | undefined {
+  const value = unwrapExpression(node);
+  return ts.isPropertyAccessExpression(value) ? value.name.text : undefined;
 }
 
 export function combineProvenance(values: Provenance[]): Provenance {
@@ -314,12 +458,30 @@ export function expandHelper(
     if (!ts.isIdentifier(parameter.name) || !call.arguments[index]) {
       refuse(env, "E_OPAQUE", parameter, "helper parameters must be positional identifiers");
     }
-    const argument = call.arguments[index]!;
-    if (!ts.isIdentifier(argument) || argument.text !== parameter.name.text) {
+    const argument = resolveSubstitution(call.arguments[index]!, env);
+    next.substitutions.delete(parameter.name.text);
+    if (!ts.isIdentifier(argument.expression) || argument.expression.text !== parameter.name.text
+      || argument.environment !== env) {
       next.substitutions.set(parameter.name.text, argument);
     }
   });
   return { expression: body, environment: next };
+}
+
+function resolveSubstitution(node: ts.Expression, env: Environment): Substitution {
+  let value = node;
+  let environment = env;
+  const seen = new Set<string>();
+  for (;;) {
+    const unwrapped = unwrapExpression(value);
+    if (!ts.isIdentifier(unwrapped)) return { expression: value, environment };
+    const substitution = environment.substitutions.get(unwrapped.text);
+    if (!substitution) return { expression: value, environment };
+    if (seen.has(unwrapped.text) || seen.size >= 128) return refuseRecursiveWalk(env, node);
+    seen.add(unwrapped.text);
+    value = substitution.expression;
+    environment = substitution.environment;
+  }
 }
 
 function helperBodyExpression(helper: FunctionLike): ts.Expression | undefined {
@@ -330,9 +492,13 @@ function helperBodyExpression(helper: FunctionLike): ts.Expression | undefined {
 }
 
 export function isRowExpression(node: ts.Expression, env: Environment): boolean {
+  return guardedWalk(env, node, "row expression", () => isRowExpressionInner(node, env));
+}
+
+function isRowExpressionInner(node: ts.Expression, env: Environment): boolean {
   const value = unwrapExpression(node);
   const substituted = ts.isIdentifier(value) ? env.substitutions.get(value.text) : undefined;
-  if (substituted) return isRowExpression(substituted, env);
+  if (substituted) return isRowExpression(substituted.expression, substituted.environment);
   if (ts.isIdentifier(value)) return env.variables.get(value.text)?.rowBinding === true;
   const call = unwrapCall(value);
   if (!call) return false;
@@ -342,15 +508,29 @@ export function isRowExpression(node: ts.Expression, env: Environment): boolean 
 }
 
 export function isRowCollectionExpression(node: ts.Expression, env: Environment): boolean {
+  return guardedWalk(env, node, "row collection", () => isRowCollectionExpressionInner(node, env));
+}
+
+function isRowCollectionExpressionInner(node: ts.Expression, env: Environment): boolean {
   const value = unwrapExpression(node);
   const substituted = ts.isIdentifier(value) ? env.substitutions.get(value.text) : undefined;
-  if (substituted) return isRowCollectionExpression(substituted, env);
+  if (substituted) return isRowCollectionExpression(substituted.expression, substituted.environment);
   if (ts.isIdentifier(value)) return env.variables.get(value.text)?.rowCollection === true;
   const call = unwrapCall(value);
   if (!call) return false;
   const expanded = expandHelper(call, env);
   if (expanded) return isRowCollectionExpression(expanded.expression, expanded.environment);
   if (callName(call).endsWith(".scan") && isDbMember(call.expression)) return true;
-  return ts.isPropertyAccessExpression(call.expression) && call.expression.name.text === "filter"
+  if (!ts.isPropertyAccessExpression(call.expression)) return false;
+  if (["filter", "sort", "slice"].includes(call.expression.name.text)) {
+    return isRowCollectionExpression(call.expression.expression, env);
+  }
+  if (call.expression.name.text !== "map") return false;
+  const callback = call.arguments[0];
+  if (!callback || !ts.isArrowFunction(callback) && !ts.isFunctionExpression(callback)
+    || callback.parameters.length === 0 || !ts.isIdentifier(callback.parameters[0]!.name)
+    || ts.isBlock(callback.body)) return false;
+  const body = unwrapExpression(callback.body);
+  return ts.isIdentifier(body) && body.text === callback.parameters[0].name.text
     && isRowCollectionExpression(call.expression.expression, env);
 }

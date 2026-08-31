@@ -38,6 +38,7 @@ class Analyzer {
   readonly diagnostics: FrontendDiagnostic[] = [];
   readonly literalValues = new Map<number, number>();
   private readonly seen = new Set<string>();
+  private readonly helperStack: string[] = [];
 
   constructor(private readonly module: TypeModule) {}
 
@@ -256,16 +257,22 @@ class Analyzer {
     if (ts.isIdentifier(call.expression)) {
       const helper = this.module.helpers?.get(call.expression.text);
       if (helper) {
-        const nested = cloneEnv(env);
-        helper.parameters.forEach((parameter, index) => {
-          const type = call.arguments[index] ? this.expression(call.arguments[index]!, env) : unknownType;
-          for (const binding of bindingNames(parameter.name)) nested.variables.set(binding, type);
-        });
-        if (helper.body && ts.isBlock(helper.body)) {
-          const returned = helper.body.statements.find(ts.isReturnStatement)?.expression;
-          return returned ? this.expression(returned, nested, expected) : unknownType;
+        if (this.helperStack.includes(call.expression.text) || this.helperStack.length >= 128) return unknownType;
+        this.helperStack.push(call.expression.text);
+        try {
+          const nested = cloneEnv(env);
+          helper.parameters.forEach((parameter, index) => {
+            const type = call.arguments[index] ? this.expression(call.arguments[index]!, env) : unknownType;
+            for (const binding of bindingNames(parameter.name)) nested.variables.set(binding, type);
+          });
+          if (helper.body && ts.isBlock(helper.body)) {
+            const returned = helper.body.statements.find(ts.isReturnStatement)?.expression;
+            return returned ? this.expression(returned, nested, expected) : unknownType;
+          }
+          if (helper.body) return this.expression(helper.body, nested, expected);
+        } finally {
+          this.helperStack.pop();
         }
-        if (helper.body) return this.expression(helper.body, nested, expected);
       }
     }
     if (name === "decimal") {

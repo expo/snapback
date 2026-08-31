@@ -213,6 +213,175 @@ export const viewer = query({ key: t.text(40) }, ({ db, args, ctx }) => {
     lowered.programs.forEach(certify);
   });
 
+  test("collection elements are classified as alternatives at the selected path", () => {
+    const cases = [
+      { name: "arg-literal", values: "args.key, \"literal\"" },
+      { name: "viewer-literal", values: "ctx.viewer, \"literal\"" },
+      { name: "arg-viewer", values: "args.key, ctx.viewer" },
+    ];
+    for (const item of cases) {
+      const refused = lowerSource(`import { query, t } from "snapback2";
+export const lookup = query({ key: t.text(40) }, ({ db, args, ctx }) => {
+  const found = [];
+  for (const key of [${item.values}]) found.push(db.get(items.byKey, [key]));
+  return found;
+});`, `elements-${item.name}.ts`, undefined, { tables });
+      assert(!refused.ok && refused.diagnostics.some((diagnostic) => diagnostic.code === "E_PROVENANCE_AMBIGUOUS"),
+        `${item.name} collection alternatives silently agreed: ${refused.ok ? "lowered" : JSON.stringify(refused.diagnostics)}`);
+    }
+
+    const literalLeaf = lowerOne(`import { query, t } from "snapback2";
+export const lookup = query({ key: t.text(40) }, ({ db, args }) => {
+  const found = [];
+  for (const item of [{ inner: { key: "literal" }, other: args.key }]) {
+    found.push(db.get(items.byKey, [item.inner.key]));
+  }
+  return found;
+});`, "element-path.ts");
+    assert(readMap(literalLeaf) === "element-path.lookup.0:items:Const",
+      `element member path inherited its composite provenance: ${readMap(literalLeaf)}`);
+    assert(canonical(literalLeaf).includes('"String":"literal"'), "element member IR did not read the selected literal");
+  });
+
+  test("stable let bindings, lexical shadowing, and renamed handler composites are spelling-independent", () => {
+    const templates = lowerSource(`import { query, t } from "snapback2";
+export const immutable = query({ key: t.text(40) }, ({ db, args }) => {
+  const normalized = \`${"${args.key}"}\`;
+  return db.get(items.byKey, [normalized]);
+});
+export const stableLet = query({ key: t.text(40) }, ({ db, args }) => {
+  let normalized = \`${"${args.key}"}\`;
+  return db.get(items.byKey, [normalized]);
+});`, "binding-form.ts", undefined, { tables });
+    assert(templates.ok, `stable binding forms refused: ${templates.ok ? "" : JSON.stringify(templates.diagnostics)}`);
+    assert(templates.programs.every((program) => reads(program)[0]?.provenance === "Computed"),
+      `let and const template bindings disagreed: ${templates.programs.map(readMap).join(" | ")}`);
+
+    const lexical = lowerSource(`import { query, t } from "snapback2";
+export const renamed = query({ key: t.text(40) }, ({ db, args: packed, ctx: identity }) =>
+  db.get(items.byKey, [packed.key, identity.viewer]));
+export const shadowed = query({ key: t.text(40) }, ({ db, args }) =>
+  db.scan(alpha.byKey, [args.key], { take: 10 }).map(args => db.get(beta.byKey, [args.key])));`,
+    "lexical-bindings.ts", undefined, { tables });
+    assert(lexical.ok, `lexical binding fixture refused: ${lexical.ok ? "" : JSON.stringify(lexical.diagnostics)}`);
+    assert(readMap(lexical.programs[0]!) === "lexical-bindings.renamed.0:items:Shape",
+      `renamed handler composites were not recognized: ${readMap(lexical.programs[0]!)}`);
+    assert(readMap(lexical.programs[1]!) === "lexical-bindings.shadowed.0:alpha:Arg|lexical-bindings.shadowed.1:beta:Shape",
+      `callback parameter spelling captured operation args: ${readMap(lexical.programs[1]!)}`);
+  });
+
+  test("orderedPair defaults refuse instead of disappearing from IR", () => {
+    const refused = lowerSource(`import { query, t } from "snapback2";
+export const lookup = query({ key: t.optional(t.text(40)) }, ({ db, args, ctx }) => {
+  const [first = ctx.viewer, second] = orderedPair(args.key, "literal");
+  return db.get(items.byKey, [first, second]);
+});`, "ordered-default.ts", undefined, { tables });
+    assert(!refused.ok && refused.diagnostics.some((item) => item.code === "E_OPAQUE"
+      && item.message.includes("defaults have authored runtime semantics")),
+    `orderedPair default was dropped or crashed: ${refused.ok ? "lowered" : JSON.stringify(refused.diagnostics)}`);
+  });
+
+  test("recursive provenance expansion refuses with an envelope and finite depth", () => {
+    const relay = lowerOne(`import { query, t } from "snapback2";
+function pick(value: any) { return ({ ...value }).key; }
+function relay(value: any) { return pick({ ...value }); }
+export const lookup = query({ key: t.text(40) }, ({ db, args }) => db.get(items.byKey, [relay(args)]));`,
+    "same-param-relay.ts");
+    assert(readMap(relay) === "same-param-relay.lookup.0:items:Arg", `same-name substitutions lost their caller: ${readMap(relay)}`);
+
+    const helpers = Array.from({ length: 140 }, (_, index) =>
+      `function h${index}(value: any): any { return ${index === 139 ? "value" : `h${index + 1}(value)`}; }`).join("\n");
+    const deep = lowerSource(`import { query, t } from "snapback2";
+${helpers}
+export const lookup = query({ key: t.text(40) }, ({ db, args }) => db.get(items.byKey, [h0(args.key)]));`,
+    "deep-expansion.ts", undefined, { tables });
+    assert(!deep.ok && deep.diagnostics.some((item) => item.code === "E_PROVENANCE_AMBIGUOUS"
+      && item.rule === "read keys have one unambiguous origin" && item.guide === "opaque/provenance"),
+    `deep expansion did not return a provenance envelope: ${deep.ok ? "lowered" : JSON.stringify(deep.diagnostics)}`);
+
+    const cycle = lowerSource(`import { query, t } from "snapback2";
+function first(value: any): any { return second({ ...value }); }
+function second(value: any): any { return third({ ...value }); }
+function third(value: any): any { return first({ ...value }); }
+export const lookup = query({ key: t.text(40) }, ({ db, args }) => db.get(items.byKey, [first(args)]));`,
+    "helper-cycle.ts", undefined, { tables });
+    assert(!cycle.ok && cycle.diagnostics.some((item) => item.code === "E_OPAQUE"
+      && item.family === "opaque" && item.guide === "opaque/subset"),
+    `helper cycle did not return a finite refusal envelope: ${cycle.ok ? "lowered" : JSON.stringify(cycle.diagnostics)}`);
+  });
+
+  test("identity maps and filters preserve rows while transformed maps classify their return elements", () => {
+    const preserved = lowerOne(`import { query, t } from "snapback2";
+export const lookup = query({ key: t.text(40) }, ({ db, args }) => {
+  const rows = db.scan(items.byKey, [args.key], { take: 10 }).map(row => row).filter(row => row.id !== "");
+  const aliased = rows;
+  const found = [];
+  for (const row of aliased) found.push(db.get(beta.byKey, [row.key]));
+  return found;
+});`, "mapped-filtered-rows.ts");
+    assert(readMap(preserved) === "mapped-filtered-rows.lookup.0:items:Arg|mapped-filtered-rows.lookup.1:beta:Shape",
+      `identity-map chain lost row proof: ${readMap(preserved)}`);
+
+    const inline = lowerOne(`import { query, t } from "snapback2";
+export const lookup = query({ key: t.text(40) }, ({ db, args }) => {
+  const found = [];
+  for (const row of db.scan(items.byKey, [args.key], { take: 10 }).map(row => row)) {
+    found.push(db.get(beta.byKey, [row.key]));
+  }
+  return found;
+});`, "inline-identity-map.ts");
+    assert(readMap(inline) === "inline-identity-map.lookup.0:items:Arg|inline-identity-map.lookup.1:beta:Shape",
+      `inline identity map was unbound or lost row proof: ${readMap(inline)}`);
+
+    const transformed = lowerOne(`import { query, t } from "snapback2";
+export const lookup = query({ key: t.text(40) }, ({ db, args }) => {
+  const projected = db.scan(items.byKey, [args.key], { take: 10 }).map(row => ({ inner: { key: row.key } }));
+  const found = [];
+  for (const item of projected) found.push(db.get(beta.byKey, [item.inner.key]));
+  return found;
+});`, "mapped-projection.ts");
+    assert(readMap(transformed) === "mapped-projection.lookup.0:items:Arg|mapped-projection.lookup.1:beta:Shape",
+      `mapped return element was not classified at its selected path: ${readMap(transformed)}`);
+  });
+
+  test("ambiguous rewrites match selected fields or remain deliberately non-lowerable", () => {
+    const matching = lowerSource(`import { query, t } from "snapback2";
+export const lookup = query({ first: t.text(40), second: t.text(40) }, ({ db, args }) => {
+  const mystery = unknownValue;
+  return db.get(items.byKey, [mystery.second]);
+});`, "honest-matching.ts", undefined, { tables });
+    assert(!matching.ok, "unknown selected member unexpectedly lowered");
+    const matched = matching.diagnostics.find((item) => item.code === "E_PROVENANCE_AMBIGUOUS");
+    assert(matched, `matching refusal omitted provenance envelope: ${JSON.stringify(matching.diagnostics)}`);
+    assert(matched.rewrite.includes("[args.second]") && !matched.rewrite.includes("[args.first]"),
+      `rewrite did not match the selected field: ${matched?.rewrite}`);
+    const fixed = lowerSource(matched.rewrite, "honest-matching.ts", undefined, { tables });
+    assert(fixed.ok && reads(fixed.programs[0]!)[0]?.provenance === "Arg", "matching rewrite did not lower as Arg");
+
+    const unmatched = lowerSource(`import { query, t } from "snapback2";
+export const lookup = query({ first: t.text(40), second: t.text(40) }, ({ db, args }) => {
+  const mystery = unknownValue;
+  return db.get(items.byKey, [mystery.external]);
+});`, "honest-unmatched.ts", undefined, { tables });
+    assert(!unmatched.ok, "unknown unmatched member unexpectedly lowered");
+    const unresolved = unmatched.diagnostics.find((item) => item.code === "E_PROVENANCE_AMBIGUOUS");
+    assert(unresolved, `unmatched refusal omitted provenance envelope: ${JSON.stringify(unmatched.diagnostics)}`);
+    assert(unresolved.rewrite.includes("E_PROVENANCE_AMBIGUOUS: choose one direct origin")
+      && unresolved.message.includes("args.first") && unresolved.message.includes("args.second"),
+    `unmatched rewrite did not expose candidate origins honestly: ${JSON.stringify(unresolved)}`);
+    const stillRefused = lowerSource(unresolved.rewrite, "honest-unmatched.ts", undefined, { tables });
+    assert(!stillRefused.ok, "unmatched sentinel rewrite silently compiled to a different field");
+  });
+
+  test("deep operation-argument paths deliberately retain Arg origin", () => {
+    const program = lowerOne(`import { query, t } from "snapback2";
+export const lookup = query({ payload: t.json<{ inner: { key: string } }>(100) }, ({ db, args }) =>
+  db.get(items.byKey, [args.payload.inner.key]));`, "deep-argument.ts");
+    assert(readMap(program) === "deep-argument.lookup.0:items:Arg", `deep argument path changed origin: ${readMap(program)}`);
+    assert(canonical(program).includes('"name":"inner"') && canonical(program).includes('"name":"key"'),
+      "deep argument path did not survive in IR");
+  });
+
   test("filter preserves row proof through aliases and a second filtering layer", () => {
     const program = lowerOne(`import { query, t } from "snapback2";
 export const lookup = query({ key: t.text(40) }, ({ db, args }) => {
@@ -397,6 +566,7 @@ export const touch = mutation({ key: t.text(40) }, ({ db, args }) => {
       const collisions = lowered.diagnostics.filter((item) => item.code === "E_OP_MODULE_BASENAME"
         && item.message.includes("module basename activity is duplicated"));
       assert(collisions.length === 2 && collisions.every((item) => item.family === "op"
+        && item.rule === "module basenames are unique"
         && item.guide === "programs/module-basename" && item.site.endsWith(":1:1")),
         `duplicate basename refusal was not complete and sited: ${JSON.stringify(collisions)}`);
     });
