@@ -74,7 +74,7 @@ numbered 1000 and up.
 | `packages/evaluator` | the 24.6 KB raw / 8.9 KB gz twin, + `Emit`; 92/92 corpus |
 | `packages/snapback2` | shim + authoring runtime + `client` (23.0 KB raw / 7.0 KB gz) + `react` (6.2 KB raw / 2.4 KB gz) + `test` runner + guide pages + templates (`todos`, `chat`, React) |
 | `corpus/` | 92 conformance cases, including old/next transitions, bootstrap/final-exists, maintained writes, memo invalidation, intrinsic ids, and text constraints |
-| `scripts/` | `test.sh` (~34 s on the integrated RBAC worktree), `measure.mjs --check` at `2706da480` (incremental 1.20 s, core tests 27.88 s, check --project 0.478 s, dev boot 0.400 s, doctor 0.499/0.239 s, init → dev 0.924 s, todos test 1.145 s, chat test 11.826 s blocked only on effects), `publish.mjs` (ships the engine: 5.06 MB; 2.18 MB without), `hermes` |
+| `scripts/` | `test.sh` (~34 s on the integrated RBAC worktree), `measure.mjs --check` at `733af7191` (incremental 1.19 s, core tests 28.67 s, check --project 0.513 s, dev boot 0.403 s, doctor 0.492/0.242 s, init → dev 0.987 s, todos test 1.147 s, chat test 11.817 s blocked only on effects), `publish.mjs` (ships the engine: 5.06 MB; 2.18 MB without), `hermes` |
 
 Not yet: `deploy`/`rollback`, `secret`, previews, MCP, `--changed`, the Expo and Exact 2 arms, receipt/IR-backed evaluator wiring in the public web client, a hosted target, the benchmark wiring, `Bytes`/`Interval` columns, provenance/site as authored facts, AOT effect bytecode, `snapback.query/run` from inside an effect. Post-cap tickets: `issues/20260830-snapback2-*.md`.
 
