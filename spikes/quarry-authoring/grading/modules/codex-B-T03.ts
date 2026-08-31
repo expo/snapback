@@ -1,0 +1,28 @@
+const users = table("users");              // { id, name }
+const postings = table("postings");        // { id, employerId, title, createdAt }
+                                           // index postings.byEmployerCreated: (employerId, createdAt)
+const applications = privateTable("applications");
+                                           // { id, postingId, applicantId, at }
+                                           // readable only to the posting's employer and the applicant
+                                           // index applications.byPostingAt: (postingId, at)
+
+const applicationCounts = maintained("applicationCounts", applications);
+                                           // keyed by postingId; row: { count }
+
+export const dashboard = query({}, ({ db, ctx }) => {
+  const result: any[] = [];
+
+  for (const posting of db.scan(
+    postings.byEmployerCreated,
+    [ctx.viewer],
+    { order: "desc", take: 20 },
+  )) {
+    const aggregate = db.get(applicationCounts, posting.id);
+    result.push({
+      posting,
+      applicationCount: aggregate === null ? 0 : aggregate.count,
+    });
+  }
+
+  return result;
+});
