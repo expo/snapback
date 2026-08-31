@@ -1,11 +1,10 @@
 import ts from "typescript";
-import type { Environment, FunctionLike, ProvenanceOrigin, Substitution, VariableInfo } from "../compiler";
+import type { Environment, ProvenanceOrigin, VariableInfo } from "../compiler";
 import { refuse } from "../diagnostics";
 import type { Provenance } from "../ir";
-import { guardedWalk, refuseRecursiveWalk } from "./recursion";
+import { guardedWalk } from "./recursion";
 import {
   callName,
-  expansionContext,
   isDbMember,
   propertyName,
   replaceNode,
@@ -13,7 +12,9 @@ import {
   unwrapCall,
   unwrapExpression,
 } from "../syntax";
-import { directOriginCandidates, isOperationCompositeBinding } from "./operation-context";
+import { collectionElementOrigins, originDirectCandidates, snapshotEnvironment } from "./collection-origins";
+import { expandHelper } from "./helper-expansion";
+import { isOperationCompositeBinding } from "./operation-context";
 
 type Presence = "required" | "optional";
 type Classification =
@@ -269,155 +270,6 @@ function classifyBinding(
   return ambiguous();
 }
 
-function collectionElementOrigins(node: ts.Expression, env: Environment): ProvenanceOrigin[] | undefined {
-  return guardedWalk(env, node, "collection elements", () => collectionElementOriginsInner(node, env));
-}
-
-function collectionElementOriginsInner(node: ts.Expression, env: Environment): ProvenanceOrigin[] | undefined {
-  const value = unwrapExpression(node);
-  if (ts.isIdentifier(value)) {
-    const substituted = env.substitutions.get(value.text);
-    if (substituted) return collectionElementOrigins(substituted.expression, substituted.environment);
-    const info = env.variables.get(value.text);
-    if (info?.elementOrigins) return info.elementOrigins;
-    if (info?.alternativeOrigins) return flattenCollectionOrigins(info.alternativeOrigins);
-    if (info?.rowCollection) {
-      return [{ binding: {
-        provenance: "Shape",
-        rowBinding: true,
-        objectFields: info.objectFields,
-      } }];
-    }
-    return undefined;
-  }
-  if (ts.isPropertyAccessExpression(value)) {
-    const base = unwrapExpression(value.expression);
-    if (!ts.isIdentifier(base)) return undefined;
-    const info = env.variables.get(base.text);
-    if (info?.immutableOrigin) {
-      const selected = selectOriginMember(info.immutableOrigin, value.name.text);
-      return selected && collectionElementOrigins(selected.expression, selected.environment);
-    }
-    if (info?.alternativeOrigins) {
-      const members = info.alternativeOrigins.map((origin) => selectOriginMember(origin, value.name.text));
-      return members.every((member): member is Extract<ProvenanceOrigin, { expression: ts.Expression }> => !!member)
-        ? flattenCollectionOrigins(members)
-        : undefined;
-    }
-    return undefined;
-  }
-  if (ts.isArrayLiteralExpression(value)) {
-    const origins: ProvenanceOrigin[] = [];
-    for (const element of value.elements) {
-      if (ts.isSpreadElement(element)) {
-        const spread = collectionElementOrigins(element.expression, env);
-        if (!spread) return undefined;
-        origins.push(...spread);
-      } else {
-        origins.push({ expression: element, environment: env });
-      }
-    }
-    return origins;
-  }
-  const call = unwrapCall(value);
-  const expanded = call && expandHelper(call, env);
-  if (expanded) return collectionElementOrigins(expanded.expression, expanded.environment);
-  if (call && callName(call).endsWith(".scan")
-    && isDbMember(call.expression, (binding) => isOperationCompositeBinding(binding, "db", env))) {
-    return [{ binding: {
-      provenance: "Shape",
-      rowBinding: true,
-      objectFields: rowFields(call.arguments[0], env),
-    } }];
-  }
-  if (call && ts.isPropertyAccessExpression(call.expression)) {
-    const method = call.expression.name.text;
-    const owner = call.expression.expression;
-    if (["filter", "sort", "slice"].includes(method)) return collectionElementOrigins(owner, env);
-    if (method === "map" || method === "flatMap") {
-      const callback = call.arguments[0];
-      if (!callback || !ts.isArrowFunction(callback) && !ts.isFunctionExpression(callback)
-        || callback.parameters.length === 0 || !ts.isIdentifier(callback.parameters[0]!.name)
-        || ts.isBlock(callback.body)) return undefined;
-      const callbackEnv = snapshotEnvironment(env);
-      callbackEnv.variables.set(callback.parameters[0].name.text, collectionElementBinding(owner, env));
-      return method === "map"
-        ? [{ expression: callback.body, environment: callbackEnv }]
-        : collectionElementOrigins(callback.body, callbackEnv);
-    }
-  }
-  return undefined;
-}
-
-function flattenCollectionOrigins(origins: readonly ProvenanceOrigin[]): ProvenanceOrigin[] | undefined {
-  const elements: ProvenanceOrigin[] = [];
-  for (const origin of origins) {
-    if ("binding" in origin) {
-      const nested = origin.binding.elementOrigins
-        ?? (origin.binding.alternativeOrigins ? flattenCollectionOrigins(origin.binding.alternativeOrigins) : undefined);
-      if (!nested) return undefined;
-      elements.push(...nested);
-      continue;
-    }
-    const nested = collectionElementOrigins(origin.expression, origin.environment);
-    if (!nested) return undefined;
-    elements.push(...nested);
-  }
-  return elements;
-}
-
-function selectOriginMember(
-  origin: ProvenanceOrigin,
-  member: string,
-): Extract<ProvenanceOrigin, { expression: ts.Expression }> | undefined {
-  if ("binding" in origin) {
-    return origin.binding.immutableOrigin
-      ? selectOriginMember(origin.binding.immutableOrigin, member)
-      : undefined;
-  }
-  const value = unwrapExpression(origin.expression);
-  if (ts.isIdentifier(value)) {
-    const info = origin.environment.variables.get(value.text);
-    return info?.immutableOrigin ? selectOriginMember(info.immutableOrigin, member) : undefined;
-  }
-  if (!ts.isObjectLiteralExpression(value)) return undefined;
-  const selected = value.properties.find((property): property is ts.PropertyAssignment =>
-    ts.isPropertyAssignment(property) && propertyName(property.name) === member)?.initializer
-    ?? value.properties.find((property): property is ts.ShorthandPropertyAssignment =>
-      ts.isShorthandPropertyAssignment(property) && property.name.text === member)?.name;
-  return selected ? { expression: selected, environment: origin.environment } : undefined;
-}
-
-function originDirectCandidates(origins: readonly ProvenanceOrigin[]): string[] {
-  const candidates = new Set<string>();
-  for (const origin of origins) {
-    if ("expression" in origin) {
-      for (const candidate of directOriginCandidates(origin.expression, origin.environment)) candidates.add(candidate);
-      continue;
-    }
-    for (const candidate of origin.binding.provenanceAmbiguity?.candidates ?? []) candidates.add(candidate);
-    if (origin.binding.provenanceAmbiguity?.directRewrite) {
-      candidates.add(origin.binding.provenanceAmbiguity.directRewrite);
-    }
-    if (origin.binding.immutableOrigin) {
-      for (const candidate of directOriginCandidates(
-        origin.binding.immutableOrigin.expression,
-        origin.binding.immutableOrigin.environment,
-      )) candidates.add(candidate);
-    }
-  }
-  return [...candidates];
-}
-
-function snapshotEnvironment(env: Environment): Environment {
-  return {
-    ...env,
-    variables: new Map([...env.variables].map(([name, info]) => [name, { ...info }])),
-    substitutions: new Map(env.substitutions),
-    helperStack: [...env.helperStack],
-  };
-}
-
 function classifyObject(
   node: ts.ObjectLiteralExpression,
   env: Environment,
@@ -619,62 +471,7 @@ export function combineProvenance(values: Provenance[]): Provenance {
   return "Shape";
 }
 
-export function expandHelper(
-  node: ts.Expression,
-  env: Environment,
-): { expression: ts.Expression; environment: Environment } | undefined {
-  const call = unwrapCall(node);
-  if (!call || !ts.isIdentifier(call.expression)) return undefined;
-  const helper = env.helpers.get(call.expression.text);
-  if (!helper) return undefined;
-  if (env.helperStack.includes(call.expression.text)) {
-    refuse(env, "E_OPAQUE", call, "recursive helper is not inlineable");
-  }
-  const body = helperBodyExpression(helper);
-  if (!body) refuse(env, "E_OPAQUE", helper, "helper must be a single pure return expression");
-  const next: Environment = {
-    ...env,
-    variables: new Map([...env.variables].map(([name, info]) => [name, { ...info }])),
-    substitutions: new Map(env.substitutions),
-    helperStack: [...env.helperStack, call.expression.text],
-    literalContext: expansionContext(env.literalContext, call, env.sourceFile),
-  };
-  helper.parameters.forEach((parameter, index) => {
-    if (!ts.isIdentifier(parameter.name) || !call.arguments[index]) {
-      refuse(env, "E_OPAQUE", parameter, "helper parameters must be positional identifiers");
-    }
-    const argument = resolveSubstitution(call.arguments[index]!, env);
-    next.substitutions.delete(parameter.name.text);
-    if (!ts.isIdentifier(argument.expression) || argument.expression.text !== parameter.name.text
-      || argument.environment !== env) {
-      next.substitutions.set(parameter.name.text, argument);
-    }
-  });
-  return { expression: body, environment: next };
-}
-
-function resolveSubstitution(node: ts.Expression, env: Environment): Substitution {
-  let value = node;
-  let environment = env;
-  const seen = new Set<string>();
-  for (;;) {
-    const unwrapped = unwrapExpression(value);
-    if (!ts.isIdentifier(unwrapped)) return { expression: value, environment };
-    const substitution = environment.substitutions.get(unwrapped.text);
-    if (!substitution) return { expression: value, environment };
-    if (seen.has(unwrapped.text) || seen.size >= 128) return refuseRecursiveWalk(env, node);
-    seen.add(unwrapped.text);
-    value = substitution.expression;
-    environment = substitution.environment;
-  }
-}
-
-function helperBodyExpression(helper: FunctionLike): ts.Expression | undefined {
-  if (!helper.body) return undefined;
-  if (!ts.isBlock(helper.body)) return helper.body;
-  if (helper.body.statements.length !== 1 || !ts.isReturnStatement(helper.body.statements[0])) return undefined;
-  return helper.body.statements[0].expression;
-}
+export { expandHelper } from "./helper-expansion";
 
 export function isRowExpression(node: ts.Expression, env: Environment): boolean {
   return guardedWalk(env, node, "row expression", () => isRowExpressionInner(node, env));

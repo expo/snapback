@@ -4,10 +4,10 @@ import { argumentSpreadRewrite, expandArgumentObject } from "./args";
 import { boundedDiagnostics, diagnostic, refuse, Refusal } from "./diagnostics";
 import {
   allocateReadSite, cloneEnvironment, collectionMutationCounts, containsRead, enterLexicalScope,
-  knownObjectFields, loopDomainMaximum, lowerCoalesce, lowerArrayMethod, lowerCollectionDomain,
-  lowerDomain, lowerExpr, lowerKey, lowerPatch, lowerSortExpression, nullableReadSpread,
-  nullableSpreadRefusal, rowCollectionFields, reserveWriteSite, tableReference,
+  loopDomainMaximum, lowerCoalesce, lowerArrayMethod, lowerCollectionDomain,
+  lowerDomain, lowerExpr, lowerKey, lowerPatch, lowerSortExpression, reserveWriteSite, tableReference,
 } from "./lower/expr";
+import { knownObjectFields, nullableReadSpread, nullableSpreadRefusal, rowCollectionFields } from "./lower/object-shape";
 import { derivedBound, staticBound } from "./lower/binding-bound";
 import { collectionElementBinding, combinedProvenanceBinding, isRowCollectionExpression, isRowExpression, provenanceBinding, readProvenance, strictBinding, updateArrayBindingAfterPush } from "./lower/provenance";
 import { findPolicyRefusals, mechanicalBoundRewrite } from "./policy";
