@@ -53,3 +53,23 @@ targets), evaluator 81/81, and compiler 75/75; all measured budgets passed. Root
 caps retained only the known 205/204 Snapback 1 oversize baseline red, and
 `ref-check --verbose` passed with 7,218 refs and zero errors or unchecked
 references.
+
+**Blind-review fix round 3 (2026-08-31):** Commits `d7e66cf90` and
+`de1e23c72` close all six remaining classes. Collection bindings retain
+path-aware alternative element origins; stable `let` bindings, lexical
+shadowing, renamed handler composites, and explicit refusal of `orderedPair`
+defaults remove binding-form and spelling effects. Recursive provenance,
+shape, bound, lowering, substitution, and type-analysis walks now terminate in
+an envelope. Identity maps and row-preserving chains retain row proof, while
+transformed maps classify their returned elements. Ambiguity rewrites match a
+selected argument field, use the sole direct origin, or emit a deliberately
+non-lowerable sentinel naming every candidate. Every compiler diagnostic code
+has an exact guide record; `E_OP_MODULE_BASENAME` carries its rule.
+
+Final verification passed Rust 19/19 + 22/22 (+ two empty targets), evaluator
+81/81, and compiler 83/83. All loop measurements passed; root caps retained
+only the inherited 205/204 Snapback 1 oversize red. Both requested diagnostic
+guide lookups exited 0. Regenerating all 81 corpus cases produced an empty
+diff. Ten final adversarial probes (two per class A–E) all produced their
+expected provenance or finite refusal, including a four-helper spread cycle
+and a spread of a mapped row projection.
