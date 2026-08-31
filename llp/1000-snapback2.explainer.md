@@ -74,7 +74,7 @@ numbered 1000 and up.
 | `packages/evaluator` | the 7.8 KB twin, + `Emit`; 76/76 corpus |
 | `packages/snapback2` | shim + authoring runtime + `client` (23.0 KB raw / 7.0 KB gz) + `react` (6.2 KB raw / 2.4 KB gz) + `test` runner + guide pages + templates (`todos`, `chat`, React) |
 | `corpus/` | 76 conformance cases |
-| `scripts/` | `test.sh` (~40 s incl. owner E2E), `measure.mjs --check` (incremental 1.6 s, check --project 0.26 s, dev boot 0.27 s, doctor 0.22 s, init → dev 0.58 s, test 1.8 s), `publish.mjs` (ships the engine: 5.06 MB; 2.18 MB without), `hermes` |
+| `scripts/` | `test.sh` (~70 s on the integrated RBAC worktree), `measure.mjs --check` at `c933a8c9d` (incremental 1.03 s, check --project 0.422 s, dev boot 0.328 s, doctor 0.458/0.169 s, init → dev 0.76 s, todos test 1.525 s, chat test 11.508 s blocked only on effects), `publish.mjs` (ships the engine: 5.06 MB; 2.18 MB without), `hermes` |
 
 Not yet: `deploy`/`rollback`, `secret`, previews, MCP, `--changed`, the Expo and Exact 2 arms, a hosted target, the benchmark wiring, `Bytes`/`Interval` columns, provenance/site as authored facts, AOT effect bytecode, `snapback.query/run` from inside an effect. Post-cap tickets: `issues/20260830-snapback2-*.md`.
 
