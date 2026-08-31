@@ -1009,7 +1009,7 @@
           "binding": "member",
           "domain": {
             "Page": {
-              "site": "programs.sendMaintainedUnread.1",
+              "site": "programs.sendMaintainedUnread.2",
               "table": "memberships",
               "index": "byConversation",
               "prefix": [
@@ -1033,7 +1033,7 @@
                 "name": "unread",
                 "value": {
                   "Get": {
-                    "site": "programs.sendMaintainedUnread.2",
+                    "site": "programs.sendMaintainedUnread.3",
                     "table": "unreads",
                     "index": "byConvUser",
                     "key": [
@@ -1163,7 +1163,7 @@
   },
   "certificate": {
     "program": "sendMaintainedUnread",
-    "plan_hash": "8fe412d1c06afc73c5e2c103dafdd85a46495e84b0646e2be67cf25657adea1e",
+    "plan_hash": "d3c40e183adcd48055aeefb280aedd9938710d467dbd077e4f8d46f5bf0c2552",
     "schema_hash": "314b4cce50b42b3b7d322bd3e6741a8d2764900283317efb14f9bab2ad2a56c8",
     "rule_hashes": {
       "memberships.read": "dc561e10e601af93441d152d27d3a80d7dd2ebea25a2754780b38c0a4b233b6c",
@@ -1186,7 +1186,7 @@
         "hoist": false
       },
       {
-        "site": "programs.sendMaintainedUnread.1",
+        "site": "programs.sendMaintainedUnread.2",
         "table": "memberships",
         "index": "byConversation",
         "prefix_template": "Shape",
@@ -1196,7 +1196,7 @@
         "hoist": true
       },
       {
-        "site": "programs.sendMaintainedUnread.2",
+        "site": "programs.sendMaintainedUnread.3",
         "table": "unreads",
         "index": "byConvUser",
         "prefix_template": "Shape",
@@ -1248,7 +1248,7 @@
     "disclosures": [
       "E_DISCLOSURE: count waitlist summarized into waitCounts"
     ],
-    "bound_product": "programs.sendMaintainedUnread.1 take 256 = 256"
+    "bound_product": "programs.sendMaintainedUnread.2 take 256 = 256"
   },
   "context": {
     "viewer": "u1",
@@ -1682,7 +1682,7 @@
     "canonicalResult": "{\"Id\":\"named-unread-message\"}",
     "digest": "3ddbe00e74e97dad4072fb520e022c9deb99496c1035731c6df921f42e11ac64",
     "rangeStops": {
-      "programs.sendMaintainedUnread.1": [
+      "programs.sendMaintainedUnread.2": [
         "exhausted"
       ]
     },

@@ -708,14 +708,19 @@ export function cloneEnvironment(env: Environment): Environment {
 }
 
 /**
- * Read identities are pinned to module + exported operation + lexical lowering order.
- * The counter object is deliberately shared by cloned/helper environments, so helper
- * rename, extraction/inlining, and whitespace cannot affect the resulting identity.
+ * Certificate identities are pinned to module + exported operation + the lexical
+ * read/write ordinal. The shared counter makes helper rename, extraction/inlining,
+ * and whitespace irrelevant; writes reserve ordinals even though today's WriteSite
+ * serde shape does not yet expose a site string.
  */
 export function allocateReadSite(env: Environment): string {
-  const site = `${env.siteBase}.${env.readOrdinal.value}`;
-  env.readOrdinal.value += 1;
+  const site = `${env.siteBase}.${env.accessOrdinal.value}`;
+  env.accessOrdinal.value += 1;
   return site;
+}
+
+export function reserveWriteSite(env: Environment): void {
+  env.accessOrdinal.value += 1;
 }
 
 export function derivedBound(node: ts.Expression, env: Environment): Partial<VariableInfo> {

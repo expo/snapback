@@ -49,6 +49,7 @@ export const lookup = query({ handle: t.text(40), normalize: t.bool() }, ({ db, 
     assert(diagnostic.rewrite.includes("[args.handle]"), "provenance rewrite did not pass the argument directly");
     const fixed = lowerSource(diagnostic.rewrite, "ambiguity.ts", undefined, { tables });
     assert(fixed.ok, `pasted provenance rewrite did not compile: ${fixed.ok ? "" : JSON.stringify(fixed.diagnostics)}`);
+    certify(fixed.programs[0]!);
   });
 
   test("the LLP 0329.017 C4 direct-argument trio has one provenance outcome", () => {
@@ -114,6 +115,17 @@ export const compare = query({ key: t.text(40) }, ({ db, args }) => {
       `alpha-first certificate lost site provenance: ${canonical(firstCertificate)}`);
     assert(certificateReadMap(secondCertificate) === "ordering.compare.0:beta:Computed|ordering.compare.1:alpha:Arg",
       `beta-first certificate lost site provenance: ${canonical(secondCertificate)}`);
+  });
+
+  test("site ordinals count writes in the export's source order", () => {
+    const program = lowerOne(`import { mutation, t } from "snapback2";
+export const touch = mutation({ key: t.text(40) }, ({ db, ctx, args }) => {
+  db.insert(items, { id: ctx.newId(), key: args.key });
+  return db.scan(items.byKey, [args.key], { take: 10 });
+});`, "access.ts");
+    assert(readMap(program) === "access.touch.1:items:Arg", `write did not reserve ordinal zero: ${readMap(program)}`);
+    assert(certificateReadMap(certify(program)) === "access.touch.1:items:Arg",
+      "certificate did not retain the read/write source ordinal");
   });
 }
 

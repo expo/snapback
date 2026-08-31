@@ -317,7 +317,7 @@ pub fn send_program(with_unread: bool) -> Program {
         body.push(Stmt::For {
             binding: "member".to_owned(),
             domain: LoopDomain::Page(Scan {
-                site: format!("programs.{name}.1"),
+                site: format!("programs.{name}.2"),
                 table: "memberships".to_owned(),
                 index: "byConversation".to_owned(),
                 prefix: vec![var("conversationId")],
@@ -332,7 +332,7 @@ pub fn send_program(with_unread: bool) -> Program {
                 Stmt::Let {
                     name: "unread".to_owned(),
                     value: Expr::Get(Read {
-                        site: format!("programs.{name}.2"),
+                        site: format!("programs.{name}.3"),
                         table: "unreads".to_owned(),
                         index: "byConvUser".to_owned(),
                         key: vec![var("conversationId"), field(var("member"), "userId")],

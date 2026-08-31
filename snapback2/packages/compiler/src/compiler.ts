@@ -19,6 +19,7 @@ import {
   nullableSpreadRefusal,
   provenance,
   readProvenance,
+  reserveWriteSite,
   staticBound,
   tableReference,
 } from "./lower/expr";
@@ -77,7 +78,7 @@ export type Environment = ModuleInfo & {
   substitutions: Map<string, ts.Expression>;
   helperStack: string[];
   mutableBindings: Set<string>;
-  readOrdinal: { value: number };
+  accessOrdinal: { value: number };
   temp: { value: number };
   literalValues: Map<number, number>;
   diagnostics: FrontendDiagnostic[];
@@ -205,7 +206,7 @@ function lowerOperation(
     substitutions: new Map(),
     helperStack: [],
     mutableBindings: assignedBindings(handler.body),
-    readOrdinal: { value: 0 },
+    accessOrdinal: { value: 0 },
     temp: { value: 0 },
     literalValues: typePlan?.literalValues ?? new Map(),
     diagnostics,
@@ -376,6 +377,7 @@ function lowerExpressionStatement(expression: ts.Expression, env: Environment): 
       if (!effect) {
         refuse(env, "E_EFFECT_UNKNOWN", effectNode, `effect ${effectNode.getText(env.sourceFile)} is not declared in this project`);
       }
+      reserveWriteSite(env);
       const payload = lowerValue(payloadNode, env, `${env.programName}.emit`);
       return [...payload.statements, { Emit: { effect, payload: payload.expression } }];
     }
@@ -478,12 +480,14 @@ function lowerDbStatement(method: string, call: ts.CallExpression, env: Environm
   if (method === "insert") {
     const row = call.arguments[1];
     if (!row) refuse(env, "E_OPAQUE", call, "insert requires a row");
+    reserveWriteSite(env);
     const lowered = lowerValue(row, env);
     return [...lowered.statements, { Insert: { table, row: lowered.expression } }];
   }
   if (method === "delete") {
     const key = call.arguments[1];
     if (!key) refuse(env, "E_OPAQUE", call, "delete requires a key");
+    reserveWriteSite(env);
     return [{ Delete: { table, key: lowerExpr(key, env) } }];
   }
   if (method === "update" || method === "upsert") {
@@ -499,6 +503,7 @@ function lowerDbStatement(method: string, call: ts.CallExpression, env: Environm
       );
     }
     if (isFunctionLike(row)) return lowerCallbackWrite(method, target!, table, key, row, env);
+    reserveWriteSite(env);
     const lowered = lowerPatch(row, env);
     return method === "update"
       ? [{ Update: { table, key: lowerExpr(key, env), patch: lowered } }]
@@ -525,6 +530,7 @@ function lowerCallbackWrite(
   if (method === "upsert" && ref.index !== "byId") {
     refuse(env, "E_OPAQUE", target, "upsert callbacks require a table primary key");
   }
+  const site = allocateReadSite(env);
   const current = temporary(env, `${singular(table)}Current`);
   const callbackEnv = cloneEnvironment(env);
   callbackEnv.substitutions.set(
@@ -536,7 +542,7 @@ function lowerCallbackWrite(
   const statements: Stmt[] = [{ Let: {
     name: current,
     value: { Get: {
-      site: allocateReadSite(env),
+      site,
       table: ref.table,
       index: ref.index,
       key: lowerKey(key, env),
@@ -758,6 +764,7 @@ function lowerValue(node: ts.Expression, env: Environment, hint?: string): Lower
       const target = value.arguments[0];
       const row = value.arguments[1];
       if (!target || !row) refuse(env, "E_OPAQUE", value, "insert requires table and row");
+      reserveWriteSite(env);
       const loweredRow = lowerValue(row, env, hint);
       return {
         statements: [...loweredRow.statements, { Insert: { table: tableReference(target, env).table, row: loweredRow.expression } }],
