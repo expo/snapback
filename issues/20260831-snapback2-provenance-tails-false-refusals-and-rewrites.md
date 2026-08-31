@@ -114,3 +114,19 @@ Resolved in `54e9a7968` (`fix(snapback2): close provenance lowering tails`):
 Focused compiler proof: 108/108. Required corpus regeneration wrote 81 cases
 with an empty diff. The complete lane verification and budget readings are
 recorded with the accompanying metrics/ticket closeout commit.
+
+### Round-2 closure (2026-08-31)
+
+Commits `570fae871`, `4720b0339`, and `cba1fd7cd` close the four remaining
+review blocks: loop and conditional-member origins now reach the candidate set
+without a name guess; nested push deltas multiply and the 3 × 4 + seed program
+certifies and executes at max 13; collection mutation requires a locally owned,
+unaliased collection; and ternary-statement arms use the ordinary branch
+fork/merge.
+
+Residuals (left unfixed, verbatim): Set/Map initializer element origins
+(compiles Computed, not a lie); unconditional-reassignment merge-vs-replace
+conservative refusal; Arg/Arg branch reassignment refusal (correct-by-design: a
+certificate names one origin); exotic mutators
+(splice/unshift/concat/member-push) refusing safely; unequal-arm overcounts
+(safe direction).

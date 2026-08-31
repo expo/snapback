@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2` (the binary: owner, server, verbs), `snapback2/packages/compiler` (project lowering, worker), `snapback2/packages/snapback2` (authoring runtime, client, React, test runner, shim), `snapback2/scripts/measure.mjs`
 **Author:** Claude Fable 5 (orchestrator) — implementers: codex gpt-5.6-sol, lanes B0 (compiler + authoring surface), B1 (owner + server + verbs), B2 (`init`, `test`, `why`, `trace`, `guide`), D (client + React + evaluator)
 **Date:** 2026-08-29
-**Revised:** 2026-08-30
+**Revised:** 2026-08-31
 **Related:** LLP 1000, LLP 1001 (the engine this serves), LLP 1003 (effects), LLP 0329.016 §5 (the design this implements verbatim where it can), LLP 0329.016 §5.11 (the verb table — no verb exists without its row), LLP 0329.016 §8 (gates)
 
 ## Summary
@@ -139,10 +139,26 @@ under one declared operation argument (for example `args.payload.inner.key`)
 remains `Arg`: provenance records the input origin while the full field path
 remains in IR. An unknown or mutable binding matches no single rule and refuses
 with `E_PROVENANCE_AMBIGUOUS`; the standard envelope carries family and source
-site. Its pasted rewrite uses a discovered direct origin, else an argument whose
-declared name matches the selected member, else the sole bound direct origin; if
-none is unambiguous it names every candidate in an intentionally non-lowerable
-sentinel expression, never a compiling guess at another field. Read-site
+site. Its pasted rewrite names only direct origins actually discovered through
+the binding and member-selection path. Incomplete discovery retains every known
+candidate plus an explicit `<unknown origin>` marker in an intentionally
+non-lowerable sentinel expression; member names never guess an argument. A
+multi-origin or unknown-origin refusal therefore never has a compiling paste.
+
+**Collection mutation ruling (2026-08-31, Charlie Cheever).** Mutation is
+admitted only on a collection locally allocated in the handler from a literal
+or spread copy, with one binding identity and no alias before or after the
+mutation; the admitted empty `Map`/`Set` constructors lower to the same local
+array ownership. A collection selected from another structure, an operation
+argument, or a binding connected to another name refuses at the mutation site
+with a rewrite that makes an explicit local spread copy. Branch alternatives
+merge their collection mutation deltas by maximum. Nested loop deltas compose
+multiplicatively through every statically bounded level; a composition the
+compiler cannot prove refuses in the `E_UNBOUND` family instead of certifying
+an additive underestimate. Conditional-expression statements fork and merge
+the same environments as `if`/`else`.
+
+Read-site
 identity is independently pinned to `<module-basename>.<export>.<ordinal>`,
 where the zero-based ordinal follows read/write source order inside that export
 and is shared through helper expansion. Operands lower once in authored order;
