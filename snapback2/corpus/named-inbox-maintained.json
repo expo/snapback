@@ -960,7 +960,7 @@
           "binding": "membership",
           "domain": {
             "Page": {
-              "site": "inbox.memberships",
+              "site": "programs.inboxMaintained.0",
               "table": "memberships",
               "index": "byUserActivity",
               "prefix": [
@@ -986,7 +986,7 @@
                   "Object": {
                     "latest": {
                       "Scan": {
-                        "site": "inbox.latest",
+                        "site": "programs.inboxMaintained.1",
                         "table": "messages",
                         "index": "byConvTime",
                         "prefix": [
@@ -1011,7 +1011,7 @@
                     },
                     "unread": {
                       "Get": {
-                        "site": "inbox.unreadMaintained",
+                        "site": "programs.inboxMaintained.2",
                         "table": "unreads",
                         "index": "byConvUser",
                         "key": [
@@ -1046,7 +1046,7 @@
   },
   "certificate": {
     "program": "inboxMaintained",
-    "plan_hash": "fa570b4bfe53b1c8ac4de66f1372c6e6ee8352e3cd95bdf3b624621755689ffb",
+    "plan_hash": "b5cb867ac0ea4ae81eee24c81500559b00a7cbd3ea0be1d56b69a00288246e9d",
     "schema_hash": "314b4cce50b42b3b7d322bd3e6741a8d2764900283317efb14f9bab2ad2a56c8",
     "rule_hashes": {
       "memberships.read": "dc561e10e601af93441d152d27d3a80d7dd2ebea25a2754780b38c0a4b233b6c",
@@ -1057,17 +1057,7 @@
     "value_model_version": "i53-codepoint-bytes-v2",
     "read_sites": [
       {
-        "site": "inbox.latest",
-        "table": "messages",
-        "index": "byConvTime",
-        "prefix_template": "Shape",
-        "take": 1,
-        "max_calls": 50,
-        "rule_probes_per_candidate": 2,
-        "hoist": true
-      },
-      {
-        "site": "inbox.memberships",
+        "site": "programs.inboxMaintained.0",
         "table": "memberships",
         "index": "byUserActivity",
         "prefix_template": "Viewer",
@@ -1077,7 +1067,17 @@
         "hoist": false
       },
       {
-        "site": "inbox.unreadMaintained",
+        "site": "programs.inboxMaintained.1",
+        "table": "messages",
+        "index": "byConvTime",
+        "prefix_template": "Shape",
+        "take": 1,
+        "max_calls": 50,
+        "rule_probes_per_candidate": 2,
+        "hoist": true
+      },
+      {
+        "site": "programs.inboxMaintained.2",
         "table": "unreads",
         "index": "byConvUser",
         "prefix_template": "Shape",
@@ -1109,7 +1109,7 @@
     "disclosures": [
       "E_DISCLOSURE: count waitlist summarized into waitCounts"
     ],
-    "bound_product": "inbox.memberships take 50 = 50"
+    "bound_product": "programs.inboxMaintained.0 take 50 = 50"
   },
   "context": {
     "viewer": "u1",
@@ -1215,7 +1215,7 @@
     ],
     "ranges": [
       {
-        "site": "inbox.latest",
+        "site": "programs.inboxMaintained.1",
         "table": "messages",
         "index": "byConvTime",
         "prefix": [
@@ -1320,16 +1320,16 @@
     "errorCode": null,
     "localState": "partial",
     "partialSites": [
-      "inbox.memberships"
+      "programs.inboxMaintained.0"
     ],
     "canonicalResult": "{\"Array\":[{\"Row\":{\"latest\":{\"Array\":[{\"Row\":{\"at\":{\"Int\":5},\"authorId\":{\"Id\":\"u1\"},\"body\":{\"String\":\"message 4\"},\"conversationId\":{\"Id\":\"c1\"},\"id\":{\"Id\":\"message-00004\"}}}]},\"unread\":{\"Row\":{\"conversationId\":{\"Id\":\"c1\"},\"id\":{\"Id\":\"c1:u1\"},\"userId\":{\"Id\":\"u1\"},\"value\":{\"Int\":5}}}}}]}",
     "digest": "3b446c6d197891cf6d3bbe6c627e40cea795c0c339010626a2f48988c3a8dd77",
     "rangeStops": {
-      "inbox.latest": [
-        "limit"
-      ],
-      "inbox.memberships": [
+      "programs.inboxMaintained.0": [
         "exhausted"
+      ],
+      "programs.inboxMaintained.1": [
+        "limit"
       ]
     },
     "evictedRows": null

@@ -6,6 +6,7 @@ import { assessGauntlet } from "./gauntlet";
 import { IR_CONTRACT, type Program, type ProjectJson } from "./ir";
 import { listJourneys, lowerProject, lowerSeed } from "./project";
 import { lowerSchema } from "./lower/schema";
+import { registerProvenanceSiteChecks } from "./provenance-site-checks";
 import { registerColumnTypeChecks } from "./test-column-types";
 import { rustCheck } from "./rust-check";
 import { decimal } from "../../snapback2/src/index";
@@ -37,12 +38,8 @@ function canonical(value: unknown): string {
   return JSON.stringify(normalize(value));
 }
 
-function dequalify(value: unknown): any {
-  if (Array.isArray(value)) return value.map(dequalify);
-  if (value && typeof value === "object") {
-    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, dequalify(item)]));
-  }
-  return typeof value === "string" && value.startsWith("programs.") ? value.slice("programs.".length) : value;
+function dequalify(program: Program): Program {
+  return { ...program, name: program.name.startsWith("programs.") ? program.name.slice("programs.".length) : program.name };
 }
 
 async function withProject<T>(files: Record<string, string>, run: (root: string) => Promise<T>): Promise<T> {
@@ -83,7 +80,7 @@ test("S1 project preserves all 17 bodies and certificate bounds with native argu
   const lowered = await lowerProject(`${frontend}fixtures/s1`);
   assert(lowered.ok, `S1 project refused: ${lowered.ok ? "" : lowered.diagnostics.map((item) => item.message).join("; ")}`);
   assert(lowered.project.programs.length === 17, `expected 17 S1 programs, got ${lowered.project.programs.length}`);
-  const candidatePrograms = lowered.project.programs.map((program) => dequalify(program) as Program);
+  const candidatePrograms = lowered.project.programs.map(dequalify);
 
   const referencePrograms: Program[] = [];
   for (const file of corpusFiles) {
@@ -909,6 +906,7 @@ test("ref operation arguments retain their schema table in the engine IR", async
 });
 
 registerColumnTypeChecks(test);
+registerProvenanceSiteChecks(test);
 
 test("Decimal insert multiplication keeps literal and argument multipliers as Int", () => {
   const tables = new Map<string, TableInfo>([["products", {

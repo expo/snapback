@@ -3,6 +3,7 @@ import type { TableInfo } from "./authored-types";
 import { argumentSpreadRewrite, expandArgumentObject } from "./args";
 import { boundedDiagnostics, diagnostic, refuse, Refusal } from "./diagnostics";
 import {
+  allocateReadSite,
   cloneEnvironment,
   collectionMutationCounts,
   combineProvenance,
@@ -17,6 +18,7 @@ import {
   nullableReadSpread,
   nullableSpreadRefusal,
   provenance,
+  readProvenance,
   staticBound,
   tableReference,
 } from "./lower/expr";
@@ -25,6 +27,8 @@ import { analyzeOperationTypes, type TypePlan } from "./type-analysis";
 import { formatTypeDiagnostic, typecheckSource } from "./typecheck";
 import { typeDiagnosticSite } from "./type-diagnostic-site";
 import { invalidNativeDescriptorRefusal, lowerArgDescriptor, lowerLegacyArgDescriptor } from "./lower/schema";
+import { inspectModule, type ModuleInfo } from "./lower/module";
+import { assignedBindings, directArgument, moduleBasename } from "./lower/operation-context";
 import { boundOperationDiagnostics, localConstructorShadow } from "./operation-diagnostics";
 import {
   binaryOperator,
@@ -54,6 +58,7 @@ import type { Expr, FrontendDiagnostic, LowerResult, Program, Provenance, Stmt }
 export type { TableInfo } from "./authored-types";
 export type VariableInfo = {
   provenance: Provenance;
+  provenanceAmbiguity?: { directRewrite?: string };
   max?: number;
   boundSource?: string;
   collection?: "Map" | "Set";
@@ -62,23 +67,17 @@ export type VariableInfo = {
 };
 export type FunctionLike = ts.FunctionDeclaration | ts.ArrowFunction | ts.FunctionExpression;
 
-type ModuleInfo = {
-  sourceFile: ts.SourceFile;
-  source: string;
-  fileName: string;
-  tables: Map<string, TableInfo>;
-  effects: Map<string, string>;
-  helpers: Map<string, FunctionLike>;
-  exports: Set<string>;
-};
 export type LowerSourceOptions = { tables?: Map<string, TableInfo>; effects?: Map<string, string>; operationPrefix?: string };
 export type Environment = ModuleInfo & {
   programName: string;
+  siteBase: string;
   kind: "Query" | "Mutation";
   args: Program["args"];
   variables: Map<string, VariableInfo>;
   substitutions: Map<string, ts.Expression>;
   helperStack: string[];
+  mutableBindings: Set<string>;
+  readOrdinal: { value: number };
   temp: { value: number };
   literalValues: Map<number, number>;
   diagnostics: FrontendDiagnostic[];
@@ -137,7 +136,7 @@ export function lowerSource(
       diagnostics.push(...plan.diagnostics);
       if (!ts.isIdentifier(declaration.name)) continue;
       try {
-        programs.push(lowerOperation(module, name, kind, call, plan, diagnostics));
+        programs.push(lowerOperation(module, name, declaration.name.text, kind, call, plan, diagnostics));
       } catch (error) {
         captureRefusal(diagnostics, error);
       }
@@ -158,56 +157,10 @@ export function lowerSource(
   const bounded = boundOperationDiagnostics(diagnostics, operationSpans, module);
   return bounded.length > 0 ? { ok: false, diagnostics: boundedDiagnostics(bounded, 50, "refusals in this module") } : { ok: true, programs };
 }
-function inspectModule(
-  sourceFile: ts.SourceFile,
-  source: string,
-  fileName: string,
-  options: LowerSourceOptions,
-): ModuleInfo {
-  const tables = new Map(options.tables ?? []);
-  const effects = new Map(options.effects ?? []);
-  const helpers = new Map<string, FunctionLike>();
-  const exports = new Set<string>();
-  for (const statement of sourceFile.statements) {
-    if (ts.isFunctionDeclaration(statement) && statement.name) {
-      helpers.set(statement.name.text, statement);
-      continue;
-    }
-    if (!ts.isVariableStatement(statement)) continue;
-    for (const declaration of statement.declarationList.declarations) {
-      if (!ts.isIdentifier(declaration.name) || !declaration.initializer) continue;
-      const name = declaration.name.text;
-      if (hasExport(statement)) exports.add(name);
-      const call = unwrapCall(declaration.initializer);
-      const imported = call && snapbackCallName(call, sourceFile);
-      const localHelper = call && ts.isIdentifier(call.expression) && ["privateTable", "maintained"].includes(call.expression.text)
-        ? call.expression.text
-        : undefined;
-      const callee = imported ?? localHelper;
-      if (!call || !callee) {
-        if (ts.isArrowFunction(declaration.initializer) || ts.isFunctionExpression(declaration.initializer)) {
-          helpers.set(name, declaration.initializer);
-        }
-        continue;
-      }
-      if (callee === "table" || callee === "privateTable" || callee === "maintained") {
-        const tableName = stringArgument(call.arguments[0]) ?? name;
-        const maintainedFrom = callee === "maintained" && ts.isIdentifier(call.arguments[1])
-          ? call.arguments[1].text
-          : undefined;
-        tables.set(name, { name: tableName, private: callee === "privateTable", maintainedFrom });
-      } else if (callee === "effect") {
-        if (!effects.has(name)) effects.set(name, name);
-      } else if (ts.isArrowFunction(declaration.initializer) || ts.isFunctionExpression(declaration.initializer)) {
-        helpers.set(name, declaration.initializer);
-      }
-    }
-  }
-  return { sourceFile, source, fileName, tables, effects, helpers, exports };
-}
 function lowerOperation(
   module: ModuleInfo,
   name: string,
+  exportName: string,
   kindName: "query" | "mutation",
   call: ts.CallExpression,
   typePlan?: TypePlan,
@@ -245,11 +198,14 @@ function lowerOperation(
   const environment: Environment = {
     ...module,
     programName: name,
+    siteBase: `${moduleBasename(module.fileName)}.${exportName}`,
     kind: kindName === "query" ? "Query" : "Mutation",
     args,
     variables,
     substitutions: new Map(),
     helperStack: [],
+    mutableBindings: assignedBindings(handler.body),
+    readOrdinal: { value: 0 },
     temp: { value: 0 },
     literalValues: typePlan?.literalValues ?? new Map(),
     diagnostics,
@@ -313,8 +269,12 @@ function lowerStatement(statement: ts.Statement, env: Environment): Stmt[] {
         const collection = collectionConstructor(declaration.initializer);
         const isConst = (statement.declarationList.flags & ts.NodeFlags.Const) !== 0;
         const objectFields = isConst ? knownObjectFields(declaration.initializer, env) : undefined;
+        const origin = trackedProvenance(declaration.initializer, env);
         env.variables.set(name, {
-          provenance: provenance(declaration.initializer, env),
+          ...origin,
+          ...(env.mutableBindings.has(name)
+            ? { provenanceAmbiguity: { directRewrite: directArgument(declaration.initializer, env) } }
+            : {}),
           ...derivedBound(declaration.initializer, env),
           ...(collection ? { collection } : {}),
           ...(objectFields ? { objectFields } : {}),
@@ -380,6 +340,16 @@ function lowerStatement(statement: ts.Statement, env: Environment): Stmt[] {
   if (ts.isEmptyStatement(statement)) return [];
   refuse(env, "E_OPAQUE", statement, `statement ${ts.SyntaxKind[statement.kind]} is outside the subset`);
 }
+
+function trackedProvenance(node: ts.Expression, env: Environment): Pick<VariableInfo, "provenance" | "provenanceAmbiguity"> {
+  try {
+    return { provenance: provenance(node, env) };
+  } catch (error) {
+    if (!(error instanceof Refusal) || error.diagnostic.code !== "E_PROVENANCE_AMBIGUOUS") throw error;
+    return { provenance: "Computed", provenanceAmbiguity: { directRewrite: directArgument(node, env) } };
+  }
+}
+
 function lowerControlled(statement: ts.Statement, env: Environment): Stmt[] {
   if (ts.isBlock(statement)) return lowerStatements(statement.statements, env);
   try {
@@ -566,11 +536,11 @@ function lowerCallbackWrite(
   const statements: Stmt[] = [{ Let: {
     name: current,
     value: { Get: {
-      site: `${env.programName}.${singular(table)}For${method === "update" ? "Update" : "Upsert"}`,
+      site: allocateReadSite(env),
       table: ref.table,
       index: ref.index,
       key: lowerKey(key, env),
-      provenance: provenance(key, env),
+      provenance: readProvenance(key, env),
     } },
   } }];
   if (method === "update") {

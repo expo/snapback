@@ -952,7 +952,7 @@
       {
         "Return": {
           "Scan": {
-            "site": "helper.cards",
+            "site": "programs.helperWrappedScan.0",
             "table": "cards",
             "index": "byParentOrder",
             "prefix": [
@@ -975,7 +975,7 @@
   },
   "certificate": {
     "program": "helperWrappedScan",
-    "plan_hash": "da8ff1826df8a46eeb77d2748954e961ec71afb5a09ee5d7f4285d3f02f19c47",
+    "plan_hash": "6e82a57fc56127362740529892cdedced54c72bbf265db75dfb8e8170fa48c70",
     "schema_hash": "314b4cce50b42b3b7d322bd3e6741a8d2764900283317efb14f9bab2ad2a56c8",
     "rule_hashes": {
       "cards.read": "b9f00bed3cb793789892942e8d0b9e1f6507451133dea5e5ee2f3eba7d49e161"
@@ -984,7 +984,7 @@
     "value_model_version": "i53-codepoint-bytes-v2",
     "read_sites": [
       {
-        "site": "helper.cards",
+        "site": "programs.helperWrappedScan.0",
         "table": "cards",
         "index": "byParentOrder",
         "prefix_template": "Arg",
@@ -1014,7 +1014,7 @@
     "disclosures": [
       "E_DISCLOSURE: count waitlist summarized into waitCounts"
     ],
-    "bound_product": "helper.cards take 37 = 37"
+    "bound_product": "programs.helperWrappedScan.0 take 37 = 37"
   },
   "context": {
     "viewer": "u1",
@@ -1055,7 +1055,7 @@
     ],
     "ranges": [
       {
-        "site": "helper.cards",
+        "site": "programs.helperWrappedScan.0",
         "table": "cards",
         "index": "byParentOrder",
         "prefix": [
@@ -1104,7 +1104,7 @@
     "canonicalResult": "{\"Array\":[{\"Row\":{\"columnId\":{\"Id\":\"col1\"},\"id\":{\"Id\":\"card1\"},\"order\":{\"Int\":1},\"title\":{\"String\":\"Ship\"}}}]}",
     "digest": "677c6b5a5677967e8840258779921b6a6f02610c89be4ec2db67086dc7b241ed",
     "rangeStops": {
-      "helper.cards": [
+      "programs.helperWrappedScan.0": [
         "exhausted"
       ]
     },

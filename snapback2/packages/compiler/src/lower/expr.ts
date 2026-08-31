@@ -12,12 +12,10 @@ import {
   isDbMember,
   isFunctionLike,
   literal,
-  lowerFirst,
   numberProperty,
   numericLiteral,
   propertyName,
   replaceNode,
-  singular,
   staticMemberPath,
   stringLiteral,
   syntheticIdentifier,
@@ -204,7 +202,7 @@ export function lowerDomain(
   hint?: string,
 ): { domain: LoopDomain; bindingInfo: VariableInfo } {
   const expanded = expandHelper(expression, env);
-  if (expanded) return lowerDomain(expanded.expression, expanded.environment, binding, expanded.siteHint ?? hint);
+  if (expanded) return lowerDomain(expanded.expression, expanded.environment, binding, hint);
   const call = unwrapCall(expression);
   if (call && callName(call).endsWith(".scan")) {
     return {
@@ -286,7 +284,7 @@ function lowerRecurse(call: ts.CallExpression, env: Environment): { domain: Loop
   if (!key || !ts.isPropertyAccessExpression(key)) refuse(env, "E_OPAQUE", get, "recurse step key must be a row field");
   return {
     domain: { Recurse: {
-      site: `${env.programName}.step`,
+      site: allocateReadSite(env),
       table: ref.table,
       index: ref.index,
       seed: lowerExpr(seed, env),
@@ -445,7 +443,7 @@ function captureRefusal(env: Environment, error: unknown): void {
 
 function lowerCall(call: ts.CallExpression, env: Environment, hint?: string): Expr {
   const expanded = expandHelper(call, env);
-  if (expanded) return lowerExpr(expanded.expression, expanded.environment, expanded.siteHint ?? hint);
+  if (expanded) return lowerExpr(expanded.expression, expanded.environment, hint);
   const name = callName(call);
   if (name === "decimal" && call.arguments[0]) return lowerExpr(call.arguments[0], env, hint);
   if (name === "ctx.now") {
@@ -464,7 +462,7 @@ function lowerCall(call: ts.CallExpression, env: Environment, hint?: string): Ex
     if (!conversation) refuse(env, "E_OPAQUE", call, "memberOf requires a conversation id");
     return {
       Exists: {
-        site: `${env.programName}.memberOf`,
+        site: allocateReadSite(env),
         table: "memberships",
         index: "byConvUser",
         key: [lowerExpr(conversation, env), { Input: "Viewer" }],
@@ -526,11 +524,11 @@ function lowerRead(call: ts.CallExpression, env: Environment, hint?: string) {
   if (!target || !key) refuse(env, "E_OPAQUE", call, "point read requires target and key");
   const ref = tableReference(target, env);
   return {
-    site: hint ?? `${env.programName}.${singular(ref.table)}`,
+    site: allocateReadSite(env),
     table: ref.table,
     index: ref.index,
     key: lowerKey(key, env),
-    provenance: provenance(key, env),
+    provenance: readProvenance(key, env),
   };
 }
 
@@ -558,7 +556,7 @@ function lowerScan(call: ts.CallExpression, env: Environment, hint?: string): Sc
   const orderNode = expressionProperty(options, "order");
   const rangeNode = expressionProperty(options, "range");
   return {
-    site: hint ?? `${env.programName}.${ref.table}`,
+    site: allocateReadSite(env),
     table: ref.table,
     index: ref.index,
     prefix: lowerKey(prefix, env),
@@ -574,7 +572,7 @@ function lowerScan(call: ts.CallExpression, env: Environment, hint?: string): Sc
           lte: optionalLower(expressionProperty(rangeNode, "lte"), env),
         }
       : null,
-    provenance: provenance(prefix, env),
+    provenance: readProvenance(prefix, env),
   };
 }
 
@@ -602,27 +600,58 @@ export function lowerKey(node: ts.Expression, env: Environment): Expr[] {
 }
 
 export function provenance(node: ts.Expression, env: Environment): Provenance {
+  return inferProvenance(node, env, false);
+}
+
+export function readProvenance(node: ts.Expression, env: Environment): Provenance {
+  return inferProvenance(node, env, true);
+}
+
+function inferProvenance(node: ts.Expression, env: Environment, strict: boolean): Provenance {
   const substituted = ts.isIdentifier(node) ? env.substitutions.get(node.text) : undefined;
-  if (substituted) return provenance(substituted, env);
+  if (substituted) return inferProvenance(substituted, env, strict);
   const value = unwrapExpression(node);
+
+  // @ref LLP 1002#2-the-authored-surface-the-snapback2-module — provenance inference is a closed rule set:
+  // (1) literals are Const; (2) direct args are Arg; (3) ctx.viewer is Viewer;
+  // (4) row fields are Shape; (5) explicit transforms are Computed; (6) a composite
+  // keeps its sole non-Const origin, uses Shape for mixed origins, and lets Computed
+  // dominate. A transparent immutable alias preserves that one result. Unknown or
+  // mutable aliases match no single rule and refuse instead of defaulting.
   if (ts.isStringLiteralLike(value) || ts.isNumericLiteral(value)
     || value.kind === ts.SyntaxKind.NullKeyword || value.kind === ts.SyntaxKind.TrueKeyword
     || value.kind === ts.SyntaxKind.FalseKeyword) return "Const";
-  if (ts.isIdentifier(value)) return env.variables.get(value.text)?.provenance ?? "Const";
+  if (ts.isIdentifier(value)) {
+    const info = env.variables.get(value.text);
+    if (strict && (!info || info.provenanceAmbiguity)) {
+      const firstArg = Object.keys(env.args)[0];
+      const direct = info?.provenanceAmbiguity?.directRewrite
+        ?? (firstArg ? `args.${firstArg}` : "null");
+      refuse(
+        env,
+        "E_PROVENANCE_AMBIGUOUS",
+        value,
+        "read key provenance is ambiguous; each key must follow one direct origin rule",
+        replaceNode(env.source, value, direct),
+      );
+    }
+    return info?.provenance ?? "Computed";
+  }
   if (ts.isPropertyAccessExpression(value)) {
     if (ts.isIdentifier(value.expression) && value.expression.text === "args") return "Arg";
     if (ts.isIdentifier(value.expression) && value.expression.text === "ctx" && value.name.text === "viewer") return "Viewer";
     return "Shape";
   }
-  if (ts.isTemplateExpression(value)) return "Computed";
+  if (ts.isTemplateExpression(value) || ts.isBinaryExpression(value) || ts.isNewExpression(value)
+    || ts.isPrefixUnaryExpression(value) || ts.isConditionalExpression(value)) return "Computed";
   if (ts.isCallExpression(value)) {
     const expanded = expandHelper(value, env);
-    if (expanded) return provenance(expanded.expression, expanded.environment);
+    if (expanded) return inferProvenance(expanded.expression, expanded.environment, strict);
     return "Computed";
   }
   const children: Provenance[] = [];
   value.forEachChild((child) => {
-    if (ts.isExpression(child)) children.push(provenance(child, env));
+    if (ts.isExpression(child)) children.push(inferProvenance(child, env, strict));
   });
   return combineProvenance(children);
 }
@@ -638,7 +667,7 @@ export function combineProvenance(values: Provenance[]): Provenance {
 function expandHelper(
   node: ts.Expression,
   env: Environment,
-): { expression: ts.Expression; environment: Environment; siteHint?: string } | undefined {
+): { expression: ts.Expression; environment: Environment } | undefined {
   const call = unwrapCall(node);
   if (!call || !ts.isIdentifier(call.expression)) return undefined;
   const helper = env.helpers.get(call.expression.text);
@@ -659,16 +688,7 @@ function expandHelper(
       next.substitutions.set(parameter.name.text, argument);
     }
   });
-  return { expression: body, environment: next, siteHint: helperSite(call.expression.text, env.exports) };
-}
-
-function helperSite(name: string, exports: Set<string>): string {
-  const prefix = [...exports]
-    .filter((candidate) => name.startsWith(candidate) && name.length > candidate.length)
-    .sort((a, b) => b.length - a.length)[0];
-  if (prefix) return `${prefix}.${lowerFirst(name.slice(prefix.length))}`;
-  const match = /^([a-z]+)([A-Z].*)$/.exec(name);
-  return match ? `${match[1]}.${lowerFirst(match[2]!)}` : name;
+  return { expression: body, environment: next };
 }
 
 function helperBodyExpression(helper: FunctionLike): ts.Expression | undefined {
@@ -685,6 +705,17 @@ export function cloneEnvironment(env: Environment): Environment {
     substitutions: new Map(env.substitutions),
     helperStack: [...env.helperStack],
   };
+}
+
+/**
+ * Read identities are pinned to module + exported operation + lexical lowering order.
+ * The counter object is deliberately shared by cloned/helper environments, so helper
+ * rename, extraction/inlining, and whitespace cannot affect the resulting identity.
+ */
+export function allocateReadSite(env: Environment): string {
+  const site = `${env.siteBase}.${env.readOrdinal.value}`;
+  env.readOrdinal.value += 1;
+  return site;
 }
 
 export function derivedBound(node: ts.Expression, env: Environment): Partial<VariableInfo> {

@@ -955,7 +955,7 @@
         "Require": {
           "condition": {
             "Exists": {
-              "site": "send.membership",
+              "site": "programs.sendMaintainedUnread.0",
               "table": "memberships",
               "index": "byConvUser",
               "key": [
@@ -1009,7 +1009,7 @@
           "binding": "member",
           "domain": {
             "Page": {
-              "site": "send.members",
+              "site": "programs.sendMaintainedUnread.1",
               "table": "memberships",
               "index": "byConversation",
               "prefix": [
@@ -1033,7 +1033,7 @@
                 "name": "unread",
                 "value": {
                   "Get": {
-                    "site": "send.unread",
+                    "site": "programs.sendMaintainedUnread.2",
                     "table": "unreads",
                     "index": "byConvUser",
                     "key": [
@@ -1163,7 +1163,7 @@
   },
   "certificate": {
     "program": "sendMaintainedUnread",
-    "plan_hash": "8038e329a35cf99c1d868a1f6175c9d83b63689873160f2e67de85b778e62c1b",
+    "plan_hash": "8fe412d1c06afc73c5e2c103dafdd85a46495e84b0646e2be67cf25657adea1e",
     "schema_hash": "314b4cce50b42b3b7d322bd3e6741a8d2764900283317efb14f9bab2ad2a56c8",
     "rule_hashes": {
       "memberships.read": "dc561e10e601af93441d152d27d3a80d7dd2ebea25a2754780b38c0a4b233b6c",
@@ -1176,17 +1176,7 @@
     "value_model_version": "i53-codepoint-bytes-v2",
     "read_sites": [
       {
-        "site": "send.members",
-        "table": "memberships",
-        "index": "byConversation",
-        "prefix_template": "Shape",
-        "take": 256,
-        "max_calls": 1,
-        "rule_probes_per_candidate": 2,
-        "hoist": true
-      },
-      {
-        "site": "send.membership",
+        "site": "programs.sendMaintainedUnread.0",
         "table": "memberships",
         "index": "byConvUser",
         "prefix_template": "Shape",
@@ -1196,7 +1186,17 @@
         "hoist": false
       },
       {
-        "site": "send.unread",
+        "site": "programs.sendMaintainedUnread.1",
+        "table": "memberships",
+        "index": "byConversation",
+        "prefix_template": "Shape",
+        "take": 256,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 2,
+        "hoist": true
+      },
+      {
+        "site": "programs.sendMaintainedUnread.2",
         "table": "unreads",
         "index": "byConvUser",
         "prefix_template": "Shape",
@@ -1248,7 +1248,7 @@
     "disclosures": [
       "E_DISCLOSURE: count waitlist summarized into waitCounts"
     ],
-    "bound_product": "send.members take 256 = 256"
+    "bound_product": "programs.sendMaintainedUnread.1 take 256 = 256"
   },
   "context": {
     "viewer": "u1",
@@ -1682,7 +1682,7 @@
     "canonicalResult": "{\"Id\":\"named-unread-message\"}",
     "digest": "3ddbe00e74e97dad4072fb520e022c9deb99496c1035731c6df921f42e11ac64",
     "rangeStops": {
-      "send.members": [
+      "programs.sendMaintainedUnread.1": [
         "exhausted"
       ]
     },

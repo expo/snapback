@@ -962,7 +962,7 @@
           "binding": "column",
           "domain": {
             "Page": {
-              "site": "board.columns",
+              "site": "programs.boardView.0",
               "table": "columns",
               "index": "byParentOrder",
               "prefix": [
@@ -988,7 +988,7 @@
                   "Object": {
                     "child": {
                       "Scan": {
-                        "site": "boardView.cards",
+                        "site": "programs.boardView.1",
                         "table": "cards",
                         "index": "byParentOrder",
                         "prefix": [
@@ -1030,7 +1030,7 @@
   },
   "certificate": {
     "program": "boardView",
-    "plan_hash": "ac0f1c4b0fbb92f512d8e988c296100710abc2e14e8e63ba114edcab4376c7ab",
+    "plan_hash": "6d6122b39d71cdaf21d6be6fc69a1f1b14d0bb21102db2258fa3e907bc7e8792",
     "schema_hash": "314b4cce50b42b3b7d322bd3e6741a8d2764900283317efb14f9bab2ad2a56c8",
     "rule_hashes": {
       "cards.read": "b9f00bed3cb793789892942e8d0b9e1f6507451133dea5e5ee2f3eba7d49e161",
@@ -1040,7 +1040,7 @@
     "value_model_version": "i53-codepoint-bytes-v2",
     "read_sites": [
       {
-        "site": "board.columns",
+        "site": "programs.boardView.0",
         "table": "columns",
         "index": "byParentOrder",
         "prefix_template": "Arg",
@@ -1050,7 +1050,7 @@
         "hoist": true
       },
       {
-        "site": "boardView.cards",
+        "site": "programs.boardView.1",
         "table": "cards",
         "index": "byParentOrder",
         "prefix_template": "Shape",
@@ -1081,7 +1081,7 @@
     "disclosures": [
       "E_DISCLOSURE: count waitlist summarized into waitCounts"
     ],
-    "bound_product": "board.columns take 20 × boardView.cards take 50 = 1000"
+    "bound_product": "programs.boardView.0 take 20 × programs.boardView.1 take 50 = 1000"
   },
   "context": {
     "viewer": "u1",
@@ -1142,7 +1142,7 @@
     ],
     "ranges": [
       {
-        "site": "board.columns",
+        "site": "programs.boardView.0",
         "table": "columns",
         "index": "byParentOrder",
         "prefix": [
@@ -1159,7 +1159,7 @@
         "n2_key": null
       },
       {
-        "site": "boardView.cards",
+        "site": "programs.boardView.1",
         "table": "cards",
         "index": "byParentOrder",
         "prefix": [
@@ -1232,10 +1232,10 @@
     "canonicalResult": "{\"Array\":[{\"Row\":{\"child\":{\"Array\":[{\"Row\":{\"columnId\":{\"Id\":\"col1\"},\"id\":{\"Id\":\"card1\"},\"order\":{\"Int\":1},\"title\":{\"String\":\"Ship\"}}}]},\"column\":{\"Row\":{\"boardId\":{\"Id\":\"board1\"},\"id\":{\"Id\":\"col1\"},\"order\":{\"Int\":1},\"title\":{\"String\":\"Todo\"}}}}}]}",
     "digest": "fedfc04771999d1f53b2eb51ac3091195682a7dc52f6e83305500a7091690b99",
     "rangeStops": {
-      "board.columns": [
+      "programs.boardView.0": [
         "exhausted"
       ],
-      "boardView.cards": [
+      "programs.boardView.1": [
         "exhausted"
       ]
     },

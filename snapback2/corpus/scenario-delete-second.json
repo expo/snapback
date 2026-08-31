@@ -962,7 +962,7 @@
           "binding": "message",
           "domain": {
             "Page": {
-              "site": "thread.messages",
+              "site": "programs.thread.0",
               "table": "messages",
               "index": "byConvTime",
               "prefix": [
@@ -986,7 +986,7 @@
                 "name": "author",
                 "value": {
                   "Get": {
-                    "site": "thread.author",
+                    "site": "programs.thread.1",
                     "table": "users",
                     "index": "byId",
                     "key": [
@@ -1042,7 +1042,7 @@
                       "target": "mentions",
                       "value": {
                         "Scan": {
-                          "site": "thread.mentionUser",
+                          "site": "programs.thread.2",
                           "table": "users",
                           "index": "byHandle",
                           "prefix": [
@@ -1095,7 +1095,7 @@
   },
   "certificate": {
     "program": "thread",
-    "plan_hash": "7294a0e20ff681b08a25641986f9cf085320f3380f5662e0b12c2c0e51bf0dfe",
+    "plan_hash": "896f59856aac611ea6ae021a6a8e589c2fdfe5758b942bba6d74bb8dfee3a8d0",
     "schema_hash": "314b4cce50b42b3b7d322bd3e6741a8d2764900283317efb14f9bab2ad2a56c8",
     "rule_hashes": {
       "messages.read": "dc561e10e601af93441d152d27d3a80d7dd2ebea25a2754780b38c0a4b233b6c",
@@ -1105,7 +1105,17 @@
     "value_model_version": "i53-codepoint-bytes-v2",
     "read_sites": [
       {
-        "site": "thread.author",
+        "site": "programs.thread.0",
+        "table": "messages",
+        "index": "byConvTime",
+        "prefix_template": "Arg",
+        "take": 3,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 2,
+        "hoist": true
+      },
+      {
+        "site": "programs.thread.1",
         "table": "users",
         "index": "byId",
         "prefix_template": "Shape",
@@ -1115,23 +1125,13 @@
         "hoist": false
       },
       {
-        "site": "thread.mentionUser",
+        "site": "programs.thread.2",
         "table": "users",
         "index": "byHandle",
         "prefix_template": "Computed",
         "take": 1,
         "max_calls": 255,
         "rule_probes_per_candidate": 0,
-        "hoist": true
-      },
-      {
-        "site": "thread.messages",
-        "table": "messages",
-        "index": "byConvTime",
-        "prefix_template": "Arg",
-        "take": 3,
-        "max_calls": 1,
-        "rule_probes_per_candidate": 2,
         "hoist": true
       }
     ],
@@ -1157,7 +1157,7 @@
     "disclosures": [
       "E_DISCLOSURE: count waitlist summarized into waitCounts"
     ],
-    "bound_product": "thread.messages take 3 × messages.body max 256 / min whitespace mention 3 85 × thread.mentionUser take 1 = 255"
+    "bound_product": "programs.thread.0 take 3 × messages.body max 256 / min whitespace mention 3 85 × programs.thread.2 take 1 = 255"
   },
   "context": {
     "viewer": "u1",
@@ -1307,7 +1307,7 @@
     ],
     "ranges": [
       {
-        "site": "thread.messages",
+        "site": "programs.thread.0",
         "table": "messages",
         "index": "byConvTime",
         "prefix": [
@@ -1377,7 +1377,7 @@
             "Require": {
               "condition": {
                 "Exists": {
-                  "site": "send.membership",
+                  "site": "programs.send.0",
                   "table": "memberships",
                   "index": "byConvUser",
                   "key": [
@@ -1645,12 +1645,12 @@
     "errorCode": null,
     "localState": "partial",
     "partialSites": [
-      "thread.messages"
+      "programs.thread.0"
     ],
     "canonicalResult": "{\"Array\":[{\"Row\":{\"author\":{\"Row\":{\"handle\":{\"String\":\"alice\"},\"id\":{\"Id\":\"u1\"}}},\"mentions\":{\"Array\":[]},\"message\":{\"Row\":{\"at\":{\"Int\":100},\"authorId\":{\"Id\":\"u1\"},\"body\":{\"String\":\"offline\"},\"conversationId\":{\"Id\":\"c1\"},\"id\":{\"Id\":\"local-send\"}}}}},{\"Row\":{\"author\":{\"Row\":{\"handle\":{\"String\":\"alice\"},\"id\":{\"Id\":\"u1\"}}},\"mentions\":{\"Array\":[]},\"message\":{\"Row\":{\"at\":{\"Int\":3},\"authorId\":{\"Id\":\"u1\"},\"body\":{\"String\":\"message 2\"},\"conversationId\":{\"Id\":\"c1\"},\"id\":{\"Id\":\"message-00002\"}}}}},{\"Row\":{\"author\":{\"Row\":{\"handle\":{\"String\":\"alice\"},\"id\":{\"Id\":\"u1\"}}},\"mentions\":{\"Array\":[]},\"message\":{\"Row\":{\"at\":{\"Int\":2},\"authorId\":{\"Id\":\"u1\"},\"body\":{\"String\":\"message 1\"},\"conversationId\":{\"Id\":\"c1\"},\"id\":{\"Id\":\"message-00001\"}}}}}]}",
     "digest": "9a8a286b7af3e3ed67f743e277ab6dd978d6943b181e202f303c4c3132fbccf2",
     "rangeStops": {
-      "thread.messages": [
+      "programs.thread.0": [
         "exhausted"
       ]
     },
