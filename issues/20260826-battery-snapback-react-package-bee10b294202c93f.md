@@ -10,11 +10,11 @@
 **Battery gate:** `snapback-react-package`
 **Failure signature:** `sha256:bee10b294202c93f40bb4ac52be39c239ce6e41e0cc10138d8a768f350f20f55`
 **First observed run:** `local.20260826T121823Z.f69e9b16cbe8`
-**Last observed run:** `local.20260831T005527Z.2ab5c5c6641e`
-**Last processed run:** `local.20260831T005527Z.2ab5c5c6641e`
+**Last observed run:** `local.20260831T093441Z.cdca4903938a`
+**Last processed run:** `local.20260831T093441Z.cdca4903938a`
 **Detected at revision:** `f69e9b16cbe835a3d99d598bc739acccb27365d1`
-**Last observed revision:** `2ab5c5c6641ebe33f1a8281f71ffe7d8b0b1e306`
-**Consecutive red runs:** `13`
+**Last observed revision:** `cdca4903938ac10c386839e9f3e02bf0285f6bc0`
+**Consecutive red runs:** `14`
 **Escalation:** `AUTHOR_ESCALATION_REQUIRED`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
