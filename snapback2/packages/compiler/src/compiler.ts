@@ -208,6 +208,7 @@ function lowerOperation(
       operationArgument: argName,
     };
     if (typeof type !== "string" && "List" in type) {
+      info.collectionIdentity = {};
       maintainCollectionFacts(info, {
         max: type.List.max,
         boundSource: `arg ${argName} max`,
@@ -244,6 +245,7 @@ function lowerOperation(
     substitutions: new Map(),
     helperStack: [],
     mutableBindings: assignedBindings(handler),
+    deferredCollectionMutations: new Set(),
     accessOrdinal: { value: 0 },
     temp: { value: 0 },
     literalValues: typePlan?.literalValues ?? new Map(),
@@ -337,6 +339,9 @@ function lowerStatement(statement: ts.Statement, env: Environment): Stmt[] {
         }
         const info = maintainCollectionFacts({
           ...origin,
+          ...(collection || facts.max !== undefined || facts.elementOrigins !== undefined
+            ? { collectionIdentity: {} }
+            : {}),
           ...(collection ? { collection } : {}),
           ...(objectFields ? { objectFields } : {}),
           immutableOrigin: { expression: declaration.initializer, environment: bindTime },
@@ -393,11 +398,18 @@ function lowerStatement(statement: ts.Statement, env: Environment): Stmt[] {
     const { statements, domain, bindingInfo } = lowerCollectionDomain(statement.expression, loopEnv, binding, lowerValue);
     loopEnv.variables.set(binding, bindingInfo);
     const iterations = loopDomainMaximum(domain);
-    const mutationCounts = collectionMutationCounts(statement.statement);
+    const mutationCounts = collectionMutationCounts(statement.statement, loopEnv);
+    const inheritedDeferred = env.deferredCollectionMutations;
+    loopEnv.deferredCollectionMutations = new Set(inheritedDeferred);
+    for (const name of mutationCounts.keys()) {
+      const identity = loopEnv.variables.get(name)?.collectionIdentity;
+      if (identity) loopEnv.deferredCollectionMutations.add(identity);
+    }
     const body = lowerControlled(statement.statement, loopEnv);
     for (const [name, count] of mutationCounts) {
       const info = env.variables.get(name);
       if (!info || info.collection === undefined && info.elementOrigins === undefined) continue;
+      if (info.collectionIdentity && inheritedDeferred.has(info.collectionIdentity)) continue;
       maintainCollectionFacts(info, {
         ...(info.max !== undefined ? { max: info.max + iterations * count } : {}),
         ...(info.max !== undefined ? { boundSource: `${name} mutations × loop bound ${iterations}` } : {}),
@@ -521,10 +533,16 @@ function lowerExpressionStatement(expression: ts.Expression, env: Environment): 
     return [{ Assign: { name: expression.left.text, value: lowerExpr(expression.right, env) } }];
   }
   if (ts.isConditionalExpression(expression)) {
-    return [{ If: {
-      condition: lowerExpr(expression.condition, env),
-      then_body: lowerExpressionStatement(expression.whenTrue, enterLexicalScope(env)),
-      else_body: lowerExpressionStatement(expression.whenFalse, enterLexicalScope(env)),
+    const condition = lowerValue(expression.condition, env);
+    const thenBranch = forkBranchEnvironment(env);
+    const elseBranch = forkBranchEnvironment(env);
+    const thenBody = lowerExpressionStatement(expression.whenTrue, thenBranch.environment);
+    const elseBody = lowerExpressionStatement(expression.whenFalse, elseBranch.environment);
+    mergeBranchEnvironments(env, [thenBranch.outerBindings, elseBranch.outerBindings], expression);
+    return [...condition.statements, { If: {
+      condition: condition.expression,
+      then_body: thenBody,
+      else_body: elseBody,
     } }];
   }
   refuse(env, "E_OPAQUE", expression, "expression statement does not lower to a data operation");

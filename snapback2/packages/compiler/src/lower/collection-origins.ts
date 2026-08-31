@@ -246,6 +246,7 @@ export function snapshotEnvironment(env: Environment): Environment {
     variables: new Map([...env.variables].map(([name, info]) => [name, { ...info }])),
     substitutions: new Map(env.substitutions),
     helperStack: [...env.helperStack],
+    deferredCollectionMutations: new Set(env.deferredCollectionMutations),
   };
 }
 

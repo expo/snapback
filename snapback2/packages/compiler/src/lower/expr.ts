@@ -83,18 +83,40 @@ export function loopDomainMaximum(domain: LoopDomain): number {
   return total;
 }
 
-export function collectionMutationCounts(node: ts.Node): Map<string, number> {
+export function collectionMutationCounts(node: ts.Node, env: Environment): Map<string, number> {
   if (ts.isIfStatement(node)) {
     return maxMutationCounts(
-      collectionMutationCounts(node.thenStatement),
-      node.elseStatement ? collectionMutationCounts(node.elseStatement) : new Map(),
+      collectionMutationCounts(node.thenStatement, env),
+      node.elseStatement ? collectionMutationCounts(node.elseStatement, env) : new Map(),
     );
   }
   if (ts.isConditionalExpression(node)) {
     return maxMutationCounts(
-      collectionMutationCounts(node.whenTrue),
-      collectionMutationCounts(node.whenFalse),
+      collectionMutationCounts(node.whenTrue, env),
+      collectionMutationCounts(node.whenFalse, env),
     );
+  }
+  if (ts.isForOfStatement(node)) {
+    if (!ts.isVariableDeclarationList(node.initializer)
+      || node.initializer.declarations.length !== 1
+      || !ts.isIdentifier(node.initializer.declarations[0]!.name)) {
+      refuse(env, "E_UNBOUND_LOOP", node.initializer, "nested collection mutation requires one statically bound loop identifier");
+    }
+    const maximum = mutationLoopMaximum(node.expression, env);
+    if (maximum === undefined) {
+      refuse(
+        env,
+        "E_UNBOUND_LOOP",
+        node.expression,
+        "nested collection mutation cannot compose an honest static loop delta",
+      );
+    }
+    const nested = cloneEnvironment(env);
+    nested.variables.set(
+      node.initializer.declarations[0].name.text,
+      collectionElementBinding(node.expression, env),
+    );
+    return scaleMutationCounts(collectionMutationCounts(node.statement, nested), maximum, node.expression, env);
   }
   if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)
     && ts.isIdentifier(node.expression.expression)
@@ -103,7 +125,34 @@ export function collectionMutationCounts(node: ts.Node): Map<string, number> {
       node.expression.name.text === "push" ? node.arguments.length : 1]]);
   }
   const result = new Map<string, number>();
-  node.forEachChild((child) => addMutationCounts(result, collectionMutationCounts(child)));
+  node.forEachChild((child) => addMutationCounts(result, collectionMutationCounts(child, env)));
+  return result;
+}
+
+function mutationLoopMaximum(expression: ts.Expression, env: Environment): number | undefined {
+  const call = unwrapCall(expression);
+  if (call && ts.isIdentifier(call.expression) && call.expression.text === "range") {
+    const start = numericLiteral(call.arguments[0]);
+    const end = numericLiteral(call.arguments[1]);
+    return start === undefined || end === undefined ? undefined : Math.max(0, end - start);
+  }
+  return staticBound(expression, env);
+}
+
+function scaleMutationCounts(
+  source: Map<string, number>,
+  factor: number,
+  site: ts.Expression,
+  env: Environment,
+): Map<string, number> {
+  const result = new Map<string, number>();
+  for (const [name, count] of source) {
+    const scaled = count * factor;
+    if (!Number.isSafeInteger(scaled)) {
+      refuse(env, "E_UNBOUND_LOOP", site, "nested collection mutation delta exceeds the static integer range");
+    }
+    result.set(name, scaled);
+  }
   return result;
 }
 
@@ -638,6 +687,7 @@ export function cloneEnvironment(env: Environment): Environment {
     variables: new Map([...env.variables].map(([name, info]) => [name, { ...info }])),
     substitutions: new Map(env.substitutions),
     helperStack: [...env.helperStack],
+    deferredCollectionMutations: new Set(env.deferredCollectionMutations),
   };
 }
 
@@ -649,6 +699,7 @@ export function enterLexicalScope(env: Environment): Environment {
     variables: new Map(env.variables),
     substitutions: new Map(env.substitutions),
     helperStack: [...env.helperStack],
+    deferredCollectionMutations: new Set(env.deferredCollectionMutations),
   };
 }
 

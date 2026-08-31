@@ -22,6 +22,7 @@ export function expandHelper(
     variables: new Map([...env.variables].map(([name, info]) => [name, { ...info }])),
     substitutions: new Map(env.substitutions),
     helperStack: [...env.helperStack, call.expression.text],
+    deferredCollectionMutations: new Set(env.deferredCollectionMutations),
     literalContext: expansionContext(env.literalContext, call, env.sourceFile),
   };
   helper.parameters.forEach((parameter, index) => {

@@ -19,6 +19,7 @@ export type VariableInfo = {
   collection?: "Map" | "Set";
   objectFields?: string[];
   nullableRead?: boolean;
+  collectionIdentity?: object;
 };
 
 export type ProvenanceOrigin =
@@ -36,6 +37,7 @@ export type Environment = ModuleInfo & {
   substitutions: Map<string, Substitution>;
   helperStack: string[];
   mutableBindings: Set<ts.Identifier>;
+  deferredCollectionMutations: Set<object>;
   accessOrdinal: { value: number };
   temp: { value: number };
   literalValues: Map<string, number>;

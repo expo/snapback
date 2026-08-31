@@ -1,6 +1,7 @@
 import { lowerSource, type TableInfo } from "./compiler";
 import type { FrontendDiagnostic, Program, Provenance } from "./ir";
 import { rustCheck } from "./rust-check";
+import { ClientStore } from "../../evaluator/src/evaluator";
 
 type Test = (name: string, run: () => void | Promise<void>) => void;
 type ReadFact = { site: string; table: string; provenance: Provenance };
@@ -246,6 +247,59 @@ export const lookup = query({ first: t.text(40), second: t.text(40), third: t.te
     certify(program);
   });
 
+  test("conditional-expression push arms merge like if branches", () => {
+    const program = lowerOne(`import { query, t } from "snapback2";
+export const lookup = query({ first: t.text(40), second: t.text(40), third: t.text(40), choose: t.bool() }, ({ db, args }) => {
+  const keys = [args.first];
+  args.choose ? keys.push(args.second) : keys.push(args.third);
+  const found = [];
+  for (const key of keys) found.push(db.get(items.byKey, [key]));
+  return found;
+});`, "conditional-push-max.ts");
+    assert(lastDerivedArrayBound(program) === 2,
+      `conditional push arms were applied sequentially: ${canonical(program)}`);
+    assert(lastRead(program)?.provenance === "Arg", "conditional push arms lost Arg provenance");
+    certify(program);
+  });
+
+  test("nested loop mutation deltas multiply and the certified program runs", () => {
+    const program = lowerOne(`import { query, t } from "snapback2";
+export const expand = query({ seed: t.text(40) }, ({ args }) => {
+  const keys = [args.seed];
+  for (const outer of range(0, 3)) {
+    for (const inner of range(0, 4)) keys.push(args.seed);
+  }
+  const observed = [];
+  for (const key of keys) observed.push(key);
+  return observed;
+});`, "nested-push-product.ts");
+    assert(lastDerivedArrayBound(program) === 13,
+      `3 × 4 pushes plus the seed did not certify max 13: ${canonical(program)}`);
+    certify(program);
+    assert(runArrayLength(program, { seed: { String: "value" } }) === 13,
+      "3 × 4 pushes plus the seed failed at execution or returned the wrong length");
+  });
+
+  test("three-deep nested loop mutation deltas remain multiplicative", () => {
+    const program = lowerOne(`import { query, t } from "snapback2";
+export const expand = query({ seed: t.text(40) }, ({ args }) => {
+  const keys = [args.seed];
+  for (const outer of range(0, 2)) {
+    for (const middle of range(0, 3)) {
+      for (const inner of range(0, 4)) keys.push(args.seed);
+    }
+  }
+  const observed = [];
+  for (const key of keys) observed.push(key);
+  return observed;
+});`, "three-deep-push-product.ts");
+    assert(lastDerivedArrayBound(program) === 25,
+      `2 × 3 × 4 pushes plus the seed did not certify max 25: ${canonical(program)}`);
+    certify(program);
+    assert(runArrayLength(program, { seed: { String: "value" } }) === 25,
+      "three-deep nested pushes failed at execution or returned the wrong length");
+  });
+
   test("an immutable scalar alias captures provenance before later reassignment", () => {
     const program = lowerOne(`import { query, t } from "snapback2";
 export const lookup = query({ a: t.text(40) }, ({ db, args, ctx }) => {
@@ -328,6 +382,21 @@ function certify(program: Program): Record<string, unknown> {
   const result = rustCheck([program], "synthetic", schema)[0];
   assert(result?.error === null && result.certificate, `program did not certify: ${JSON.stringify(result)}`);
   return result.certificate;
+}
+
+function runArrayLength(program: Program, args: Record<string, any>): number | undefined {
+  const store = new ClientStore(schema, { rows: [], ranges: [], absences: [], verdicts: [] });
+  const execution = store.reexecute(program, {
+    viewer: "viewer",
+    principal_kind: "user",
+    auth_epoch: 1,
+    args,
+    now: null,
+    new_ids: [],
+    read_time: null,
+  });
+  const result = execution.execution.result;
+  return typeof result === "object" && "Array" in result ? result.Array.length : undefined;
 }
 
 function canonical(value: unknown): string {
