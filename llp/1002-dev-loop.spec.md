@@ -107,6 +107,21 @@ lowers 1:1 to LLP 1001's `RuleExpr`/`RuleTerm`/`ColumnType`/`Constraint`/
 are imported from `./schema` and `emit(effectRef, payload)` is a statement
 (LLP 1001 §8). `effect({...})` is LLP 1003 §1.
 
+**Pinned certificate identity ruling (2026-08-30, Charlie Cheever via
+orchestrator).** The compiler keeps inference, but its provenance rules are
+closed: (1) literals are `Const`; (2) direct operation arguments are `Arg`;
+(3) `ctx.viewer` is `Viewer`; (4) fields selected from rows are `Shape`; (5)
+an explicit transform is `Computed`; and (6) a composite keeps its sole
+non-`Const` origin, becomes `Shape` when origins mix, and is `Computed` when
+any member is computed. A transparent immutable alias preserves that result.
+Pure helper expansion applies the same rules to the helper body and never to
+the helper name. An unknown or mutable alias matches no single rule and
+refuses with `E_PROVENANCE_AMBIGUOUS`; the standard envelope carries family,
+source site, and a pasted rewrite that uses one direct origin. Read-site
+identity is independently pinned to `<module-basename>.<export>.<ordinal>`,
+where the zero-based ordinal follows read source order inside that export and
+is shared through helper expansion. Local names and formatting are not inputs.
+
 ## 3. The compiler worker and the project JSON
 
 Protocol, JSON lines on stdin/stdout, one request in flight:
@@ -418,7 +433,7 @@ from LLP 0329.016 §8: `init` → `dev` ≤ 10 s, `test` on a template < 30 s.
 persona grants, the Expo and Exact 2 arms, result diffs on the wire, the
 schedule kind, retention.
 
-## Open author decisions
+## Author decisions and open questions
 
 0. **The surface, after LLP 0329.017.** A Contract-block (additive) front end
    lowers 17/17 S1 programs and refuses 8/8 first attempts *at parse*, where
@@ -426,11 +441,11 @@ schedule kind, retention.
    This spec keeps TypeScript for the React-web-first benchmark (the gauntlet
    measures naturally written TypeScript; a Contract surface scores 0 there
    by construction) and treats the Contract block as the Exact 2 arm's
-   authoring form over the same IR. Two facts from that spike bind the
-   compiler now: `provenance` and `site` are **authored facts, not derivable**
-   (0329.017 C4) — the compiler's inference of them is a silent-wrongness
-   surface and must become either an explicit annotation or a verified
-   inference with a refusal when it cannot decide (`E_PROVENANCE_AMBIGUOUS`).
+   authoring form over the same IR. **Resolved 2026-08-30:** keep inference
+   under §2's closed rules, refuse every unmatched provenance origin with
+   `E_PROVENANCE_AMBIGUOUS`, and pin site identity to module, export, and
+   ordinal. The LLP 0329.017 C4 direct-argument trio therefore agrees on
+   `Arg`; helper names cannot affect either fact.
 1. `tiny_http` versus a std-only server (size vs. correctness of chunked SSE).
 2. Whether `init --client react` should exist before the React arm has a
    benchmark run, or `init` should scaffold the backend only.
