@@ -67,7 +67,13 @@ impl ClientStore {
                 }
             }
         }
-        Ok((LocalState::Predicted, execution))
+        let state = match &execution.state {
+            crate::engine::ExecutionState::Partial { reason } => {
+                LocalState::Partial(vec![reason.clone()])
+            }
+            _ => LocalState::Predicted,
+        };
+        Ok((state, execution))
     }
 
     pub fn reexecute(
@@ -78,6 +84,9 @@ impl ClientStore {
     ) -> Result<(LocalState, Execution), RuntimeError> {
         let execution = self.engine.execute(program, certificate, context)?;
         let mut partial = BTreeSet::new();
+        if let crate::engine::ExecutionState::Partial { reason } = &execution.state {
+            partial.insert(reason.clone());
+        }
         for range in &execution.trace.ranges {
             let covered = self
                 .coverage

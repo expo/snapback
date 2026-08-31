@@ -8,6 +8,7 @@ import {
   hydrateCase,
   scopedRuleHash,
   sha256,
+  type ClosureReceipt,
   type CorpusCase,
 } from "./evaluator";
 
@@ -43,7 +44,22 @@ for (const testCase of cases) {
   assert(differences.length === 0, `${testCase.name}: ${differences.join("; ")}`);
 }
 
-function derivedRuleInputResult(targetRead: unknown): unknown {
+type AuthorityFixture = "none" | "matching" | "hash" | "digest" | "principal" | "epoch";
+
+function derivedRuleInput(
+  targetRead: unknown,
+  authority: AuthorityFixture = "none",
+  negated = false,
+) {
+  const hiddenExists = {
+    Exists: {
+      table: "grants",
+      index: "byPrincipal",
+      key: ["Viewer"],
+      provenance: "Viewer",
+    },
+  };
+  const docsRead = negated ? { Not: hiddenExists } : hiddenExists;
   const schema = {
     tables: {
       grants: {
@@ -59,14 +75,7 @@ function derivedRuleInputResult(targetRead: unknown): unknown {
         columns: { id: "Id" },
         indexes: { byId: { columns: ["id"], unique: true } },
         rules: {
-          read: {
-            Exists: {
-              table: "grants",
-              index: "byPrincipal",
-              key: ["Viewer"],
-              provenance: "Viewer",
-            },
-          },
+          read: docsRead,
           insert: "Deny",
           update: "Deny",
           delete: "Deny",
@@ -76,7 +85,7 @@ function derivedRuleInputResult(targetRead: unknown): unknown {
     },
     maintains: [],
   };
-  const receipt = {
+  const receipt: ClosureReceipt = {
     rows: [
       { table: "grants", id: "grant", row: { Row: { id: { Id: "grant" }, principal: { Id: "viewer" } } } },
       { table: "docs", id: "doc", row: { Row: { id: { Id: "doc" } } } },
@@ -111,7 +120,25 @@ function derivedRuleInputResult(targetRead: unknown): unknown {
       },
     }],
   };
-  return new ClientStore(schema, receipt).reexecute(program, context).execution.result;
+  if (authority !== "none") {
+    const verdict = {
+      rule_hash: scopedRuleHash(schema, docsRead),
+      pinned_inputs_digest: sha256(JSON.stringify(["grants", "byPrincipal", [{ Id: "viewer" }]])),
+      principal: "viewer",
+      auth_epoch: 1,
+      result: true,
+    };
+    if (authority === "hash") verdict.rule_hash = "stale-rule";
+    if (authority === "digest") verdict.pinned_inputs_digest = "stale-input";
+    if (authority === "principal") verdict.principal = "someone-else";
+    if (authority === "epoch") verdict.auth_epoch += 1;
+    receipt.verdicts.push(verdict);
+  }
+  return new ClientStore(schema, receipt).reexecute(program, context);
+}
+
+function derivedRuleInputResult(targetRead: unknown): unknown {
+  return derivedRuleInput(targetRead).execution.result;
 }
 
 const readableDoc = { Row: { id: { Id: "doc" } } };
@@ -125,9 +152,93 @@ assert(
   })) === JSON.stringify(readableDoc),
   "exact self-readable indexed rule input was not derived readable",
 );
+const protectedRead = { Eq: [{ Field: "principal" }, { Literal: { Id: "someone-else" } }] };
+const missingAuthority = derivedRuleInput(protectedRead);
+assert(missingAuthority.execution.result === "Null", "protected input used a held row without a verdict");
 assert(
-  derivedRuleInputResult({ Eq: [{ Field: "principal" }, { Literal: { Id: "someone-else" } }] }) === "Null",
-  "protected near-miss rule input did not fail closed without a verdict",
+  missingAuthority.state === "partial" &&
+    JSON.stringify(missingAuthority.partialSites) === JSON.stringify(["missing-authority"]),
+  "missing authority did not produce deterministic partial state",
+);
+const matchingAuthority = derivedRuleInput(protectedRead, "matching");
+assert(
+  JSON.stringify(matchingAuthority.execution.result) === JSON.stringify(readableDoc) &&
+    matchingAuthority.state === "fresh",
+  "exact authority verdict did not admit the held rule input",
+);
+for (const stale of ["hash", "digest", "principal", "epoch"] as const) {
+  const replay = derivedRuleInput(protectedRead, stale);
+  assert(
+    replay.execution.result === "Null" && replay.state === "partial" &&
+      JSON.stringify(replay.partialSites) === JSON.stringify(["missing-authority"]),
+    `stale ${stale} authority admitted a held rule input`,
+  );
+}
+const negatedMissingAuthority = derivedRuleInput(protectedRead, "none", true);
+assert(
+  negatedMissingAuthority.execution.result === "Null" && negatedMissingAuthority.state === "partial",
+  "negation turned missing authority into access",
+);
+const publicRule = { Public: { reason: "fixture" } };
+const mutationSchema = {
+  tables: {
+    grants: {
+      columns: { id: "Id", principal: "Id" },
+      indexes: {
+        byId: { columns: ["id"], unique: true },
+        byPrincipal: { columns: ["principal"], unique: true },
+      },
+      rules: { read: protectedRead, insert: publicRule, update: publicRule, delete: publicRule },
+      constraints: [],
+    },
+    staged: {
+      columns: { id: "Id" },
+      indexes: { byId: { columns: ["id"], unique: true } },
+      rules: { read: publicRule, insert: publicRule, update: publicRule, delete: publicRule },
+      constraints: [],
+    },
+    docs: {
+      columns: { id: "Id" },
+      indexes: { byId: { columns: ["id"], unique: true } },
+      rules: { read: publicRule, insert: {
+        Exists: { table: "grants", index: "byPrincipal", key: ["Viewer"], provenance: "Viewer" },
+      }, update: publicRule, delete: publicRule },
+      constraints: [],
+    },
+  },
+  maintains: [],
+};
+const mutationReceipt: ClosureReceipt = {
+  rows: [{
+    table: "grants",
+    id: "grant",
+    row: { Row: { id: { Id: "grant" }, principal: { Id: "viewer" } } },
+  }],
+  ranges: [], absences: [], verdicts: [],
+};
+const mutationStore = new ClientStore(mutationSchema, mutationReceipt);
+const mutationPartial = mutationStore.applyMutation({
+  name: "stageThenRequireAuthority",
+  kind: "Mutation",
+  args: {},
+  read_time_granularity_ms: null,
+  body: [
+    { Insert: { table: "staged", row: { Literal: { Row: { id: { Id: "staged" } } } } } },
+    { Insert: { table: "docs", row: { Literal: { Row: { id: { Id: "doc" } } } } } },
+    { Return: { Literal: { Bool: true } } },
+  ],
+}, {
+  viewer: "viewer", principal_kind: "non_authoritative_metadata", auth_epoch: 1,
+  args: {}, now: 1, new_ids: [], read_time: null,
+});
+assert(
+  mutationPartial.state === "partial" && mutationPartial.execution.result === "Null" &&
+    JSON.stringify(mutationPartial.partialSites) === JSON.stringify(["missing-authority"]),
+  "missing write authority did not return deterministic partial state",
+);
+assert(
+  mutationStore.byId("staged", "staged") === null && mutationStore.byId("docs", "doc") === null,
+  "missing write authority did not roll back the whole local mutation",
 );
 assert(
   JSON.stringify(derivedRuleInputResult({
@@ -175,21 +286,28 @@ predecessor.schema.tables.entitlements.rules.read = {
 };
 const outerRule = predecessor.schema.tables.secretDocs.rules.read;
 const predecessorHash = scopedRuleHash(predecessor.schema, outerRule);
-for (const verdict of predecessor.receipt.verdicts) verdict.rule_hash = predecessorHash;
+predecessor.receipt.verdicts = [{
+  rule_hash: predecessorHash,
+  pinned_inputs_digest: sha256(JSON.stringify(["entitlements", "byUser", [{ Id: "u1" }]])),
+  principal: "u1",
+  auth_epoch: 1,
+  result: true,
+}];
 const predecessorReplay = hydrateCase(predecessor);
 assert(predecessorReplay.planState === "ready", predecessorReplay.diagnostic ?? "predecessor replay");
 
 const successor = JSON.parse(JSON.stringify(predecessor)) as CorpusCase;
 successor.schema.tables.entitlements.rules.read = {
-  Eq: [{ Field: "userId" }, "Viewer"],
+  Eq: [{ Field: "userId" }, { Literal: { Id: "u3" } }],
 };
 const successorHash = scopedRuleHash(successor.schema, successor.schema.tables.secretDocs.rules.read);
 assert(successorHash !== predecessorHash, "referenced read-policy replacement did not change the enclosing rule hash");
 const carriedVerdict = hydrateCase(successor);
 assert(carriedVerdict.planState === "replay-mismatch", "successor accepted a predecessor scoped verdict");
 assert(
-  carriedVerdict.actual.localResult === "Null",
-  "successor did not recompute after refusing the predecessor scoped verdict",
+  carriedVerdict.actual.localResult === "Null" && carriedVerdict.actual.localState === "partial" &&
+    JSON.stringify(carriedVerdict.actual.partialSites) === JSON.stringify(["missing-authority"]),
+  "successor did not fail closed after refusing the predecessor scoped verdict",
 );
 
 const bootstrap = cases.find(

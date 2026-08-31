@@ -218,6 +218,15 @@ pub enum ExecutionState {
     Rejected { code: String, message: String },
 }
 
+pub(crate) const MISSING_AUTHORITY_LABEL: &str = "missing-authority";
+
+// @ref LLP 1001#2-what-a-commit-records — replay may consume authority verdicts, never infer them from held rows.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum RuleAuthority {
+    StoreAuthoritative,
+    ReceiptOnly,
+}
+
 #[derive(Debug, Error)]
 pub enum RuntimeError {
     #[error(transparent)]
@@ -234,6 +243,8 @@ pub enum RuntimeError {
         index: String,
         column: String,
     },
+    #[error("E_SCHEMA_MAINTAIN: {0}")]
+    SchemaMaintain(String),
     #[error("E_SERIALIZATION: {0}")]
     Serialization(String),
     #[error("E_REQUIRE:{code}: program requirement failed")]
@@ -276,6 +287,7 @@ impl RuntimeError {
             Self::Schema(_) => "E_SCHEMA",
             Self::SchemaReserved(_) => "E_SCHEMA_RESERVED",
             Self::SchemaIndexColumn { .. } => "E_SCHEMA_INDEX_COLUMN",
+            Self::SchemaMaintain(_) => "E_SCHEMA_MAINTAIN",
             Self::Serialization(_) => "E_SERIALIZATION",
             Self::Require { code } => code,
             Self::Rule { .. } => "E_RULE",
@@ -311,6 +323,7 @@ pub struct Engine {
     store: Store,
     schema: Schema,
     verdicts: Vec<Verdict>,
+    rule_authority: RuleAuthority,
 }
 
 impl Engine {
@@ -320,6 +333,7 @@ impl Engine {
             store,
             schema,
             verdicts: Vec::new(),
+            rule_authority: RuleAuthority::StoreAuthoritative,
         })
     }
 
@@ -329,6 +343,7 @@ impl Engine {
 
     pub(crate) fn install_verdicts(&mut self, verdicts: &[Verdict]) {
         self.verdicts = verdicts.to_vec();
+        self.rule_authority = RuleAuthority::ReceiptOnly;
     }
 
     pub fn schema(&self) -> &Schema {
@@ -543,6 +558,7 @@ impl Engine {
             certificate,
             context,
             &self.verdicts,
+            self.rule_authority,
             seq,
         );
         let mut attempted = runner.statements(&program.body);
@@ -558,6 +574,22 @@ impl Engine {
         {
             attempted = Err(error);
         }
+        if program.kind == ProgramKind::Mutation && runner.missing_authority {
+            runner.assert_bounds()?;
+            let trace = std::mem::take(&mut runner.trace);
+            let receipt = std::mem::take(&mut runner.receipt);
+            drop(runner);
+            transaction.rollback()?;
+            return Ok(Execution {
+                result: Value::Null,
+                trace,
+                receipt,
+                state: ExecutionState::Partial {
+                    reason: MISSING_AUTHORITY_LABEL.to_owned(),
+                },
+                seq: current_seq,
+            });
+        }
         let flow = match attempted {
             Ok(flow) => flow,
             Err(error) if program.kind == ProgramKind::Query => {
@@ -567,11 +599,18 @@ impl Engine {
                     error => return Err(error),
                 };
                 runner.assert_bounds()?;
+                let state = if runner.missing_authority {
+                    ExecutionState::Partial {
+                        reason: MISSING_AUTHORITY_LABEL.to_owned(),
+                    }
+                } else {
+                    ExecutionState::Denied { rule }
+                };
                 let execution = Execution {
                     result: Value::Null,
                     trace: runner.trace,
                     receipt: runner.receipt,
-                    state: ExecutionState::Denied { rule },
+                    state,
                     seq,
                 };
                 transaction.commit()?;
@@ -612,9 +651,12 @@ impl Engine {
         if program.kind == ProgramKind::Query {
             runner.assert_bounds()?;
         }
-        let state = match program.kind {
-            ProgramKind::Mutation => ExecutionState::Committed { seq },
-            ProgramKind::Query => query_state(&runner.trace, certificate),
+        let state = match (runner.missing_authority, &program.kind) {
+            (true, _) => ExecutionState::Partial {
+                reason: MISSING_AUTHORITY_LABEL.to_owned(),
+            },
+            (false, ProgramKind::Mutation) => ExecutionState::Committed { seq },
+            (false, ProgramKind::Query) => query_state(&runner.trace, certificate),
         };
         let execution = Execution {
             result,
@@ -688,6 +730,7 @@ impl Engine {
             certificate,
             context,
             &self.verdicts,
+            self.rule_authority,
             seq,
         );
         let flow = runner.statements(&program.body)?;
@@ -745,6 +788,7 @@ impl Engine {
             &self.schema,
             context,
             &self.verdicts,
+            self.rule_authority,
             seq,
             certificate,
         );
@@ -758,13 +802,24 @@ impl Engine {
     }
 }
 
-pub(crate) fn write_aggregate_backfill<'a>(
+// @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — a changed
+// maintain replaces its affected target from the next generation atomically.
+pub(crate) fn rebuild_aggregate_target<'a>(
     transaction: &'a Transaction<'a>,
     schema: &'a Schema,
     target: &str,
     rows: Vec<Value>,
 ) -> Result<(), RuntimeError> {
-    let mut runner = Runner::probe(transaction, schema, Context::system(), &[], 0, None);
+    let mut runner = Runner::probe(
+        transaction,
+        schema,
+        Context::system(),
+        &[],
+        RuleAuthority::StoreAuthoritative,
+        0,
+        None,
+    );
+    runner.clear_aggregate_target(target)?;
     for row in rows {
         runner.write_aggregate_row(target, row)?;
     }
@@ -983,6 +1038,16 @@ pub fn validate_schema(schema: &Schema) -> Result<(), Vec<RuntimeError>> {
             }
         }
     }
+    errors.extend(
+        crate::schema::maintain_issues(schema)
+            .into_iter()
+            .map(|issue| {
+                RuntimeError::SchemaMaintain(format!(
+                    "schema.maintains[{}]: {}",
+                    issue.position, issue.message
+                ))
+            }),
+    );
     if errors.is_empty() {
         Ok(())
     } else {

@@ -97,7 +97,7 @@ export function lowerSchema(source: string, fileName: string): LoweredSchema {
     validateRootRefs(module, root, "channels", channelCalls, diagnostics);
   }
 
-  const maintains = root ? lowerMaintains(module, property(root, "maintains"), tables, diagnostics) : [];
+  const maintains = root ? lowerMaintains(module, property(root, "maintains"), tables, tableJson, diagnostics) : [];
   if (root) validateMaintainRuleTypes(module, property(root, "maintains"), tableJson, diagnostics);
   for (const item of maintains) {
     const value = item as { source: string; target: string };
@@ -609,8 +609,11 @@ function lowerMaintains(
   module: SchemaModule,
   node: ts.Expression | undefined,
   tables: Map<string, TableInfo>,
+  tableJson: Record<string, unknown>,
   diagnostics: FrontendDiagnostic[],
 ): unknown[] {
+  // @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — authored
+  // maintains use the same closed, single-owner projection contract as raw IR.
   const value = node && unwrapExpression(node);
   if (!value) return [];
   if (!ts.isArrayLiteralExpression(value)) {
@@ -618,7 +621,9 @@ function lowerMaintains(
     return [];
   }
   const output: unknown[] = [];
-  for (const item of value.elements) {
+  const targetOwners = new Map<string, number>();
+  const dependencyEdges: Array<{ source: string; target: string; item: ts.Expression }> = [];
+  for (const [position, item] of value.elements.entries()) {
     const object = objectOf(item);
     if (!object) {
       diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_MAINTAIN", item, "maintain must be an object"));
@@ -641,12 +646,63 @@ function lowerMaintains(
       diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_UNKNOWN_TABLE", item, "maintain names an unknown source or target table"));
       continue;
     }
-    const sourceColumns = tables.get(source)?.columns ?? {};
-    for (const field of by) {
-      if (!(field in sourceColumns)) diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_MAINTAIN", item, `maintain names unknown source column ${field}`));
+    const firstOwner = targetOwners.get(target);
+    if (firstOwner !== undefined) {
+      diagnostics.push(schemaDiagnostic(
+        module,
+        "E_SCHEMA_MAINTAIN",
+        item,
+        `maintain target ${target} is owned by both maintains[${firstOwner}] and maintains[${position}]`,
+      ));
+    } else {
+      targetOwners.set(target, position);
     }
-    if (sumField && !(sumField in sourceColumns)) {
-      diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_MAINTAIN", item, `sum maintain names unknown source column ${sumField}`));
+    const sourceColumns = loweredTableColumns(tableJson[source]) ?? {};
+    const targetColumns = loweredTableColumns(tableJson[target]) ?? {};
+    const groupFields = new Set<string>();
+    for (const field of by) {
+      if (groupFields.has(field)) {
+        diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_MAINTAIN", item, `maintain.by repeats source column ${field}`));
+        continue;
+      }
+      groupFields.add(field);
+      if (field === "id" || field === "value") {
+        diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_MAINTAIN", item, `maintain.by cannot use reserved source column ${field}`));
+        continue;
+      }
+      if (!(field in sourceColumns)) {
+        diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_MAINTAIN", item, `maintain names unknown source column ${source}.${field}`));
+      }
+    }
+    if (sumField) {
+      if (!(sumField in sourceColumns)) {
+        diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_MAINTAIN", item, `sum maintain names unknown source column ${source}.${sumField}`));
+      } else if (sourceColumns[sumField] !== "Int") {
+        diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_MAINTAIN", item, `sum maintain source column ${source}.${sumField} must be Int`));
+      }
+    }
+    if (targetColumns.id !== "Id") {
+      diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_MAINTAIN", item, `maintain target ${target}.id must be the intrinsic Id column`));
+    }
+    if (targetColumns.value !== "Int") {
+      diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_MAINTAIN", item, `maintain target ${target}.value must be Int`));
+    }
+    const allowedTargetColumns = new Set(["id", "value"]);
+    for (const field of groupFields) {
+      if (field === "id" || field === "value") continue;
+      allowedTargetColumns.add(field);
+      if (field in sourceColumns && !sameColumnDescriptor(sourceColumns[field], targetColumns[field])) {
+        diagnostics.push(schemaDiagnostic(
+          module,
+          "E_SCHEMA_MAINTAIN",
+          item,
+          `maintain target ${target}.${field} must exactly match source ${source}.${field}`,
+        ));
+      }
+    }
+    const extra = Object.keys(targetColumns).filter((field) => !allowedTargetColumns.has(field));
+    if (extra.length > 0) {
+      diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_MAINTAIN", item, `maintain target ${target} has non-aggregate columns ${extra.join(", ")}`));
     }
     const readableNode = property(object, "readable");
     output.push({
@@ -656,8 +712,44 @@ function lowerMaintains(
       target,
       readable: readableNode ? lowerRule(module, readableNode, tables, diagnostics) ?? null : null,
     });
+    dependencyEdges.push({ source, target, item });
+  }
+  const maintainSources = new Set(dependencyEdges.map((edge) => edge.source));
+  for (const edge of dependencyEdges) {
+    if (maintainSources.has(edge.target)) {
+      diagnostics.push(schemaDiagnostic(
+        module,
+        "E_SCHEMA_MAINTAIN",
+        edge.item,
+        `maintain target ${edge.target} cannot also be a maintain source`,
+      ));
+    }
   }
   return output;
+}
+
+function loweredTableColumns(table: unknown): Record<string, unknown> | undefined {
+  if (!table || typeof table !== "object" || Array.isArray(table)) return undefined;
+  const columns = (table as Record<string, unknown>).columns;
+  return columns && typeof columns === "object" && !Array.isArray(columns)
+    ? columns as Record<string, unknown>
+    : undefined;
+}
+
+function sameColumnDescriptor(left: unknown, right: unknown): boolean {
+  if (left === right) return true;
+  if (!left || !right || typeof left !== "object" || typeof right !== "object"
+    || Array.isArray(left) !== Array.isArray(right)) return false;
+  if (Array.isArray(left) && Array.isArray(right)) {
+    return left.length === right.length && left.every((value, index) => sameColumnDescriptor(value, right[index]));
+  }
+  const leftRecord = left as Record<string, unknown>;
+  const rightRecord = right as Record<string, unknown>;
+  const leftKeys = Object.keys(leftRecord).sort();
+  const rightKeys = Object.keys(rightRecord).sort();
+  return leftKeys.length === rightKeys.length
+    && leftKeys.every((key, index) => key === rightKeys[index]
+      && sameColumnDescriptor(leftRecord[key], rightRecord[key]));
 }
 
 function lowerChannel(

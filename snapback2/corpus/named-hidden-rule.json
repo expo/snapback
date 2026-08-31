@@ -1,7 +1,7 @@
 {
   "corpusVersion": 1,
   "name": "named-hidden-rule",
-  "category": "named",
+  "category": "authority",
   "randomSeed": null,
   "schema": {
     "tables": {
@@ -997,6 +997,20 @@
   },
   "receipt": {
     "rows": [
+      {
+        "table": "entitlements",
+        "id": "ent1",
+        "row": {
+          "Row": {
+            "id": {
+              "Id": "ent1"
+            },
+            "userId": {
+              "Id": "u1"
+            }
+          }
+        }
+      },
       {
         "table": "secretDocs",
         "id": "doc1",

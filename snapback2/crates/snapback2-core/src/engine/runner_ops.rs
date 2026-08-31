@@ -243,6 +243,29 @@ impl<'a> Runner<'a> {
         Ok(())
     }
 
+    // @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — stale
+    // predecessor projections are cleared under next-generation constraints.
+    pub(super) fn clear_aggregate_target(&mut self, target: &str) -> Result<(), RuntimeError> {
+        let rows = fetch_table_connection(self.tx, target)?;
+        for row in rows {
+            let id = row.field("id")?.as_str()?.to_owned();
+            // Maintained targets are engine-owned, but their declared
+            // constraints still bind successor rebuild deletions.
+            self.check_constraints(target, Some(&row), &row, Effect::Delete)?;
+            self.touch_row(target, &row)?;
+            self.tx.execute(
+                "DELETE FROM rows WHERE table_name = ?1 AND row_id = ?2",
+                params![target, id],
+            )?;
+            delete_index_row(self.tx, target, &id)?;
+            self.forget_created_points(target, &id);
+            self.rule_memo.clear();
+            self.visibility_memo.clear();
+            self.bump_write(target);
+        }
+        Ok(())
+    }
+
     pub(super) fn emit(&mut self, effect: &str, payload: Value) -> Result<(), RuntimeError> {
         let id = self
             .context
@@ -570,13 +593,17 @@ impl<'a> Runner<'a> {
             materialize_optional_fields(old, table);
         }
         let rule_hash = self.schema.rule_hash(&rule);
-        self.eval_rule(
+        let authority_miss_serial = self.authority_miss_serial;
+        let allowed = self.eval_rule(
             &rule,
             &rule_hash,
             old.as_ref(),
             &next,
             effect == Effect::Insert,
-        )
+        )?;
+        // A missing authority fact is unknown, not false: negation and
+        // disjunction may not turn its fail-closed placeholder into access.
+        Ok(allowed && self.authority_miss_serial == authority_miss_serial)
     }
 
     pub(super) fn eval_rule(
@@ -643,6 +670,11 @@ impl<'a> Runner<'a> {
                 }) {
                     self.rule_memo.insert(memo_key, verdict.result);
                     return Ok(verdict.result);
+                }
+                if !structurally_readable && self.rule_authority == RuleAuthority::ReceiptOnly {
+                    self.missing_authority = true;
+                    self.authority_miss_serial = self.authority_miss_serial.saturating_add(1);
+                    return Ok(false);
                 }
                 let found = self.lookup_raw(table, index, &key)?;
                 let result = found.is_some();
@@ -1028,23 +1060,40 @@ impl<'a> Runner<'a> {
                 )));
             }
         }
-        for (table, writes) in &self.trace.writes {
-            let declared: u64 = self
-                .certificate
-                .expect("checked above")
-                .write_sites
+        // @ref LLP 1001#2-what-a-commit-records — direct and maintained
+        // physical writes are contained per target table, including both
+        // old/new aggregate applications for update and upsert.
+        let mut declared_by_table = BTreeMap::<&str, u64>::new();
+        let mut derived_maintained_amplification = 0_u64;
+        for site in &certificate.write_sites {
+            let direct = declared_by_table.entry(site.table.as_str()).or_default();
+            *direct = direct.saturating_add(site.max_rows);
+            for maintain in self
+                .schema
+                .maintains
                 .iter()
-                .filter(|site| &site.table == table)
-                .map(|site| site.max_rows)
-                .sum::<u64>()
-                + certificate.maintained_amplification;
-            if *writes > declared
-                && !self
-                    .schema
-                    .maintains
-                    .iter()
-                    .any(|maintain| &maintain.target == table)
+                .filter(|maintain| maintain.source == site.table)
             {
+                let applications = site
+                    .max_rows
+                    .saturating_mul(site.kind.maintained_applications());
+                let target = declared_by_table
+                    .entry(maintain.target.as_str())
+                    .or_default();
+                *target = target.saturating_add(applications);
+                derived_maintained_amplification =
+                    derived_maintained_amplification.saturating_add(applications);
+            }
+        }
+        if certificate.maintained_amplification != derived_maintained_amplification {
+            return Err(RuntimeError::TraceSubset(format!(
+                "maintained amplification {} != derived {}",
+                certificate.maintained_amplification, derived_maintained_amplification
+            )));
+        }
+        for (table, writes) in &self.trace.writes {
+            let declared = declared_by_table.get(table.as_str()).copied().unwrap_or(0);
+            if *writes > declared {
                 return Err(RuntimeError::TraceSubset(format!(
                     "writes to {table} {writes} > {declared}"
                 )));
@@ -1139,6 +1188,7 @@ fn validate_addressed_row_id(table: &str, key: &Value, row: &Value) -> Result<()
 mod tests {
     use super::*;
     use crate::certificate::{Ceilings, Checker};
+    use crate::programs::spike_schema;
 
     #[test]
     fn receipt_absence_missing_from_trace_is_rejected() {
@@ -1162,6 +1212,7 @@ mod tests {
             &certificate,
             Context::query(Actor::user("u1").unwrap(), BTreeMap::new()),
             &verdicts,
+            RuleAuthority::StoreAuthoritative,
             0,
         );
         runner.receipt.absences.push((
@@ -1174,6 +1225,89 @@ mod tests {
         assert!(error.to_string().starts_with("E_TRACE_SUBSET:"));
         assert!(
             matches!(error, RuntimeError::TraceSubset(message) if message.contains("receipt absence"))
+        );
+    }
+
+    fn maintained_update_program() -> Program {
+        Program {
+            name: "cards.move".to_owned(),
+            kind: ProgramKind::Mutation,
+            args: BTreeMap::new(),
+            read_time_granularity_ms: None,
+            body: vec![Stmt::Update {
+                table: "cards".to_owned(),
+                key: Expr::Literal(Value::Id("card-1".to_owned())),
+                patch: Expr::Object(BTreeMap::from([(
+                    "columnId".to_owned(),
+                    Expr::Literal(Value::Id("column-2".to_owned())),
+                )])),
+            }],
+        }
+    }
+
+    #[test]
+    fn maintained_amplification_must_match_the_derived_certificate_total() {
+        let mut connection = Connection::open_in_memory().unwrap();
+        let transaction = connection.transaction().unwrap();
+        let schema = spike_schema();
+        let program = maintained_update_program();
+        let mut certificate = Checker::new(&schema, Ceilings::default())
+            .check(&program)
+            .unwrap();
+        assert_eq!(certificate.maintained_amplification, 2);
+        certificate.maintained_amplification = 1;
+        let verdicts = Vec::new();
+        let runner = Runner::new(
+            &transaction,
+            &schema,
+            &certificate,
+            Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new()),
+            &verdicts,
+            RuleAuthority::StoreAuthoritative,
+            0,
+        );
+
+        let error = runner.assert_bounds().unwrap_err();
+        assert!(
+            matches!(error, RuntimeError::TraceSubset(message) if message.contains("maintained amplification 1 != derived 2"))
+        );
+    }
+
+    #[test]
+    fn maintained_write_bounds_are_owned_by_each_target_table() {
+        let mut schema = spike_schema();
+        schema.tables.insert(
+            "cardCountsMirror".to_owned(),
+            schema.tables["cardCounts"].clone(),
+        );
+        let mut mirror = schema.maintains[0].clone();
+        mirror.target = "cardCountsMirror".to_owned();
+        schema.maintains.push(mirror);
+        let program = maintained_update_program();
+        let certificate = Checker::new(&schema, Ceilings::default())
+            .check(&program)
+            .unwrap();
+        assert_eq!(certificate.maintained_amplification, 4);
+
+        let mut connection = Connection::open_in_memory().unwrap();
+        let transaction = connection.transaction().unwrap();
+        let verdicts = Vec::new();
+        let mut runner = Runner::new(
+            &transaction,
+            &schema,
+            &certificate,
+            Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new()),
+            &verdicts,
+            RuleAuthority::StoreAuthoritative,
+            0,
+        );
+        runner.trace.writes.insert("cards".to_owned(), 1);
+        runner.trace.writes.insert("cardCounts".to_owned(), 3);
+        runner.trace.writes.insert("cardCountsMirror".to_owned(), 1);
+
+        let error = runner.assert_bounds().unwrap_err();
+        assert!(
+            matches!(error, RuntimeError::TraceSubset(message) if message.contains("writes to cardCounts 3 > 2"))
         );
     }
 }

@@ -107,6 +107,84 @@ export function registerRbacRuleChecks(
     assert(lowered.diagnostics.every((item) => item.site.startsWith("snapback/schema.ts:") && item.rewrite.length > 0), "schema refusal envelope is incomplete");
   });
 
+  register("maintain lowering closes source, target, type, and ownership shapes", () => {
+    const valid = lowerSchema(`import { schema, table, t } from "snapback2";
+      export const events = table({ columns: { group: t.text(20), amount: t.int() } });
+      export const eventCounts = table({ columns: { group: t.text(20), value: t.int() } });
+      export const eventTotals = table({ columns: { group: t.text(20), value: t.int() } });
+      export default schema({
+        tables: { events, eventCounts, eventTotals },
+        maintains: [
+          { count: "events", by: ["group"], into: "eventCounts" },
+          { sum: { source: "events", of: "amount" }, by: ["group"], into: "eventTotals" },
+        ],
+      });`, "snapback/schema.ts");
+    assert(!valid.diagnostics.some((item) => item.code === "E_SCHEMA_MAINTAIN"),
+      `valid maintains were refused: ${JSON.stringify(valid.diagnostics)}`);
+
+    const malformed = lowerSchema(`import { schema, table, t } from "snapback2";
+      export const events = table({ columns: {
+        group: t.text(20), amount: t.int(), label: t.text(20), value: t.int(),
+      } });
+      export const duplicateGroup = table({ columns: { group: t.text(20), value: t.int() } });
+      export const reservedId = table({ columns: { value: t.int() } });
+      export const reservedValue = table({ columns: { value: t.int() } });
+      export const missingSource = table({ columns: { value: t.int() } });
+      export const missingSum = table({ columns: { group: t.text(20), value: t.int() } });
+      export const textSum = table({ columns: { group: t.text(20), value: t.int() } });
+      export const missingGroup = table({ columns: { value: t.int() } });
+      export const wrongGroup = table({ columns: { group: t.text(10), value: t.int() } });
+      export const wrongValue = table({ columns: { group: t.text(20), value: t.text(20) } });
+      export const extraTarget = table({ columns: { group: t.text(20), value: t.int(), extra: t.bool() } });
+      export const sharedTarget = table({ columns: { group: t.text(20), value: t.int() } });
+      export const derivedSource = table({ columns: { group: t.text(20), value: t.int() } });
+      export const derivedTarget = table({ columns: { group: t.text(20), value: t.int() } });
+      export default schema({
+        tables: {
+          events, duplicateGroup, reservedId, reservedValue, missingSource, missingSum,
+          textSum, missingGroup, wrongGroup, wrongValue, extraTarget, sharedTarget,
+          derivedSource, derivedTarget,
+        },
+        maintains: [
+          { count: "events", by: ["group", "group"], into: "duplicateGroup" },
+          { count: "events", by: ["id"], into: "reservedId" },
+          { count: "events", by: ["value"], into: "reservedValue" },
+          { count: "events", by: ["missing"], into: "missingSource" },
+          { sum: { source: "events", of: "missing" }, by: ["group"], into: "missingSum" },
+          { sum: { source: "events", of: "label" }, by: ["group"], into: "textSum" },
+          { count: "events", by: ["group"], into: "missingGroup" },
+          { count: "events", by: ["group"], into: "wrongGroup" },
+          { count: "events", by: ["group"], into: "wrongValue" },
+          { count: "events", by: ["group"], into: "extraTarget" },
+          { count: "events", by: ["group"], into: "sharedTarget" },
+          { sum: { source: "events", of: "amount" }, by: ["group"], into: "sharedTarget" },
+          { count: "events", by: ["group"], into: "derivedSource" },
+          { count: "derivedSource", by: ["group"], into: "derivedTarget" },
+        ],
+      });`, "snapback/schema.ts");
+    const refusals = malformed.diagnostics.filter((item) => item.code === "E_SCHEMA_MAINTAIN");
+    const detail = refusals.map((item) => item.message).join("\n");
+    for (const fragment of [
+      "maintain.by repeats source column group",
+      "maintain.by cannot use reserved source column id",
+      "maintain.by cannot use reserved source column value",
+      "unknown source column events.missing",
+      "sum maintain names unknown source column events.missing",
+      "sum maintain source column events.label must be Int",
+      "maintain target missingGroup.group must exactly match source events.group",
+      "maintain target wrongGroup.group must exactly match source events.group",
+      "maintain target wrongValue.value must be Int",
+      "maintain target extraTarget has non-aggregate columns extra",
+      "maintain target sharedTarget is owned by both",
+      "maintain target derivedSource cannot also be a maintain source",
+    ]) {
+      assert(detail.includes(fragment), `maintain shape refusal omitted ${fragment}: ${detail}`);
+    }
+    assert(refusals.every((item) => item.family === "schema"
+      && item.site.startsWith("snapback/schema.ts:") && item.rewrite.length > 0),
+    `maintain refusals lost their stable envelope: ${JSON.stringify(refusals)}`);
+  });
+
   register("rule input visibility is derived and cannot be authored into the IR", () => {
     const source = `import { schema, table, t, rule } from 'snapback2';
       export const grants = table({ columns: { principal: t.id() },

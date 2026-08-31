@@ -1,4 +1,5 @@
 use pretty_assertions::assert_eq;
+use snapback2_core::engine::RowRecord;
 use snapback2_core::*;
 use std::collections::{BTreeMap, VecDeque};
 use std::time::{Duration, Instant};
@@ -479,6 +480,135 @@ fn scoped_verdict_and_certificate_refuse_a_predecessor_policy() {
 }
 
 #[test]
+fn client_replay_requires_exact_authority_even_when_the_hidden_row_is_held() {
+    let schema = spike_schema();
+    let program = hidden_rule_program();
+    let certificate = checker(&schema).check(&program).unwrap();
+    let context = query_context([("id", id("doc1"))]);
+    let entitlement = row([("id", id("ent1")), ("userId", id("u1"))]);
+    let document = row([("id", id("doc1")), ("title", text("Private"))]);
+
+    let mut server = Engine::memory(schema.clone()).unwrap();
+    server.seed("entitlements", entitlement.clone()).unwrap();
+    server.seed("secretDocs", document.clone()).unwrap();
+    let served = server
+        .execute(&program, &certificate, context.clone())
+        .unwrap();
+    assert_eq!(served.result, document);
+    assert_eq!(served.receipt.verdicts.len(), 1);
+
+    let mut held = served.receipt.clone();
+    held.rows.push(RowRecord {
+        table: "entitlements".to_owned(),
+        id: "ent1".to_owned(),
+        row: entitlement,
+    });
+    let mut matching = ClientStore::hydrate(schema.clone(), &held).unwrap();
+    let (state, replayed) = matching
+        .reexecute(&program, &certificate, context.clone())
+        .unwrap();
+    assert_eq!(state, LocalState::Fresh);
+    assert_eq!(replayed.result, served.result);
+
+    let mut missing = held.clone();
+    missing.verdicts.clear();
+    let mut stale = Vec::new();
+    stale.push(("missing", missing.clone()));
+    for (name, mutate) in [
+        ("rule hash", 0_u8),
+        ("input digest", 1),
+        ("principal", 2),
+        ("auth epoch", 3),
+    ] {
+        let mut receipt = held.clone();
+        match mutate {
+            0 => receipt.verdicts[0].rule_hash = "stale-rule".to_owned(),
+            1 => receipt.verdicts[0].pinned_inputs_digest = "stale-input".to_owned(),
+            2 => receipt.verdicts[0].principal = "u2".to_owned(),
+            _ => receipt.verdicts[0].auth_epoch += 1,
+        }
+        stale.push((name, receipt));
+    }
+    for (name, receipt) in stale {
+        let mut client = ClientStore::hydrate(schema.clone(), &receipt).unwrap();
+        let (state, replayed) = client
+            .reexecute(&program, &certificate, context.clone())
+            .unwrap();
+        assert_eq!(replayed.result, Value::Null, "{name}");
+        assert_eq!(
+            state,
+            LocalState::Partial(vec!["missing-authority".to_owned()]),
+            "{name}"
+        );
+    }
+
+    let mut negated_schema = schema.clone();
+    let hidden = negated_schema.tables["secretDocs"].rules.read.clone();
+    negated_schema
+        .tables
+        .get_mut("secretDocs")
+        .unwrap()
+        .rules
+        .read = RuleExpr::Not(Box::new(hidden));
+    let negated_certificate = checker(&negated_schema).check(&program).unwrap();
+    let mut negated = ClientStore::hydrate(negated_schema, &missing).unwrap();
+    let (state, replayed) = negated
+        .reexecute(&program, &negated_certificate, context)
+        .unwrap();
+    assert_eq!(replayed.result, Value::Null);
+    assert_eq!(
+        state,
+        LocalState::Partial(vec!["missing-authority".to_owned()])
+    );
+
+    let mut mutation_schema = schema;
+    let mutation_rule = mutation_schema.tables["secretDocs"].rules.read.clone();
+    mutation_schema
+        .tables
+        .get_mut("secretDocs")
+        .unwrap()
+        .rules
+        .insert = mutation_rule;
+    let mutation = write_program(
+        "stageThenRequireAuthority",
+        vec![
+            Stmt::Insert {
+                table: "users".to_owned(),
+                row: literal_row(row([
+                    ("id", id("staged")),
+                    ("principal", id("staged")),
+                    ("handle", text("staged")),
+                ])),
+            },
+            Stmt::Insert {
+                table: "secretDocs".to_owned(),
+                row: literal_row(row([("id", id("doc2")), ("title", text("Blocked"))])),
+            },
+        ],
+    );
+    let mutation_certificate = checker(&mutation_schema).check(&mutation).unwrap();
+    let mut mutation_receipt = missing;
+    mutation_receipt
+        .rows
+        .retain(|row| row.table == "entitlements");
+    let mut mutation_client = ClientStore::hydrate(mutation_schema, &mutation_receipt).unwrap();
+    let (state, execution) = mutation_client
+        .apply_mutation(
+            &mutation,
+            &mutation_certificate,
+            mutation_context([], Vec::<String>::new()),
+        )
+        .unwrap();
+    assert_eq!(
+        state,
+        LocalState::Partial(vec!["missing-authority".to_owned()])
+    );
+    assert_eq!(execution.result, Value::Null);
+    assert!(mutation_client.rows("users").unwrap().is_empty());
+    assert!(mutation_client.rows("secretDocs").unwrap().is_empty());
+}
+
+#[test]
 fn visibility_probe_ceiling_covers_public_deny_system_subject_and_nested_rules() {
     let cases = [
         ("allow", RuleExpr::Allow, true, false, 1, 1),
@@ -877,7 +1007,17 @@ fn maintained_count_handles_insert_group_move_delete_and_constraints_bind_writes
             )])),
         }],
     );
-    execute_empty(&mut engine, &schema, &move_card).unwrap();
+    let move_certificate = checker(&schema).check(&move_card).unwrap();
+    assert_eq!(move_certificate.maintained_amplification, 2);
+    let move_execution = engine
+        .execute(
+            &move_card,
+            &move_certificate,
+            mutation_context([], Vec::<String>::new()),
+        )
+        .unwrap();
+    assert_eq!(move_execution.trace.writes.get("cards"), Some(&1));
+    assert_eq!(move_execution.trace.writes.get("cardCounts"), Some(&2));
     assert_aggregate(&engine, "cardCounts", "col1", 0);
     assert_aggregate(&engine, "cardCounts", "col2", 1);
 
@@ -945,6 +1085,74 @@ fn maintained_count_handles_insert_group_move_delete_and_constraints_bind_writes
         execute_empty(&mut engine, &schema, &mutate_share),
         Err(RuntimeError::Constraint(message)) if message.contains("immutable")
     ));
+}
+
+#[test]
+fn maintained_update_and_upsert_charge_both_target_applications() {
+    let schema = spike_schema();
+    let ceilings = Ceilings {
+        write_rows: 2,
+        ..Ceilings::default()
+    };
+    let update = write_program(
+        "moveCard",
+        vec![Stmt::Update {
+            table: "cards".to_owned(),
+            key: Expr::Literal(id("card1")),
+            patch: Expr::Object(BTreeMap::from([(
+                "columnId".to_owned(),
+                Expr::Literal(id("col2")),
+            )])),
+        }],
+    );
+    let upsert = write_program(
+        "upsertMovedCard",
+        vec![Stmt::Upsert {
+            table: "cards".to_owned(),
+            key: Expr::Literal(id("card1")),
+            row: literal_row(row([
+                ("id", id("card1")),
+                ("columnId", id("col2")),
+                ("order", Value::Int(1)),
+                ("title", text("A")),
+            ])),
+        }],
+    );
+
+    for program in [&update, &upsert] {
+        let error = Checker::new(&schema, ceilings.clone())
+            .check(program)
+            .unwrap_err();
+        assert_eq!(error.code, "E_BOUND");
+        assert!(
+            error
+                .message
+                .contains("write amplification 3 exceeds ceiling 2"),
+            "{}",
+            error.message
+        );
+    }
+
+    let bulk_update = write_program(
+        "moveManyCards",
+        vec![Stmt::For {
+            binding: "iteration".to_owned(),
+            domain: LoopDomain::LiteralRange {
+                start: 0,
+                end_exclusive: 1_024,
+            },
+            body: update.body.clone(),
+        }],
+    );
+    let error = checker(&schema).check(&bulk_update).unwrap_err();
+    assert_eq!(error.code, "E_BOUND");
+    assert!(
+        error
+            .message
+            .contains("write amplification 3072 exceeds ceiling 2048"),
+        "{}",
+        error.message
+    );
 }
 
 #[test]
@@ -1237,7 +1445,7 @@ fn every_frozen_corpus_program_remains_certified() {
     }
     assert_eq!(
         cases.len(),
-        97,
+        103,
         "the complete frozen corpus must be checked"
     );
     assert!(

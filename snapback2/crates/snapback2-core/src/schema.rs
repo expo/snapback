@@ -352,6 +352,148 @@ pub enum MaintainKind {
     Sum { of: String },
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct MaintainIssue {
+    pub position: usize,
+    pub message: String,
+}
+
+// @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — maintained
+// targets are closed, single-owner engine projections at every trust boundary.
+/// Validate the closed row shape that engine-owned aggregate writes materialize.
+/// Keeping this independent of the compiler makes raw project JSON and successor
+/// admission fail before an aggregate write or backfill can observe a bad shape.
+pub(crate) fn maintain_issues(schema: &Schema) -> Vec<MaintainIssue> {
+    let mut issues = Vec::new();
+    let mut target_owners = BTreeMap::<&str, usize>::new();
+    let maintain_sources = schema
+        .maintains
+        .iter()
+        .map(|maintain| maintain.source.as_str())
+        .collect::<BTreeSet<_>>();
+
+    for (position, maintain) in schema.maintains.iter().enumerate() {
+        let issue = |message| MaintainIssue { position, message };
+
+        if let Some(first) = target_owners.insert(maintain.target.as_str(), position) {
+            issues.push(issue(format!(
+                "maintain target {} is owned by both schema.maintains[{first}] and schema.maintains[{position}]",
+                maintain.target
+            )));
+        }
+        if maintain_sources.contains(maintain.target.as_str()) {
+            issues.push(issue(format!(
+                "maintain target {} cannot also be a maintain source",
+                maintain.target
+            )));
+        }
+        if maintain.by.is_empty() {
+            issues.push(issue(
+                "maintain.by must contain at least one source column".to_owned(),
+            ));
+        }
+
+        let source = schema.table(&maintain.source);
+        if source.is_none() {
+            issues.push(issue(format!(
+                "maintain names unknown source table {}",
+                maintain.source
+            )));
+        }
+        let target = schema.table(&maintain.target);
+        if target.is_none() {
+            issues.push(issue(format!(
+                "maintain names unknown target table {}",
+                maintain.target
+            )));
+        }
+
+        let mut group_fields = BTreeSet::new();
+        for field in &maintain.by {
+            if !group_fields.insert(field.as_str()) {
+                issues.push(issue(format!("maintain.by repeats source column {field}")));
+                continue;
+            }
+            if field == "id" || field == "value" {
+                issues.push(issue(format!(
+                    "maintain.by cannot use reserved source column {field}"
+                )));
+                continue;
+            }
+            if source.is_some_and(|table| !table.columns.contains_key(field)) {
+                issues.push(issue(format!(
+                    "maintain names unknown source column {}.{field}",
+                    maintain.source
+                )));
+            }
+        }
+
+        if let MaintainKind::Sum { of } = &maintain.kind
+            && let Some(source) = source
+        {
+            match source.columns.get(of) {
+                None => issues.push(issue(format!(
+                    "sum maintain names unknown source column {}.{of}",
+                    maintain.source
+                ))),
+                Some(ColumnType::Int) => {}
+                Some(_) => issues.push(issue(format!(
+                    "sum maintain source column {}.{of} must be Int",
+                    maintain.source
+                ))),
+            }
+        }
+
+        let (Some(source), Some(target)) = (source, target) else {
+            continue;
+        };
+        if target.columns.get("id") != Some(&ColumnType::Id) {
+            issues.push(issue(format!(
+                "maintain target {}.id must be the intrinsic Id column",
+                maintain.target
+            )));
+        }
+        if target.columns.get("value") != Some(&ColumnType::Int) {
+            issues.push(issue(format!(
+                "maintain target {}.value must be Int",
+                maintain.target
+            )));
+        }
+
+        let mut allowed = BTreeSet::from(["id", "value"]);
+        for field in group_fields {
+            if field == "id" || field == "value" {
+                continue;
+            }
+            allowed.insert(field);
+            let Some(source_type) = source.columns.get(field) else {
+                continue;
+            };
+            if target.columns.get(field) != Some(source_type) {
+                issues.push(issue(format!(
+                    "maintain target {}.{field} must exactly match source {}.{field}",
+                    maintain.target, maintain.source
+                )));
+            }
+        }
+        let extra: Vec<_> = target
+            .columns
+            .keys()
+            .filter(|field| !allowed.contains(field.as_str()))
+            .cloned()
+            .collect();
+        if !extra.is_empty() {
+            issues.push(issue(format!(
+                "maintain target {} has non-aggregate columns {}",
+                maintain.target,
+                extra.join(", ")
+            )));
+        }
+    }
+
+    issues
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Channel {
     pub args: BTreeMap<String, ArgType>,

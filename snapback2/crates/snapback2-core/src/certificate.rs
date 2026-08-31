@@ -106,6 +106,18 @@ pub enum WriteKind {
     Emit,
 }
 
+impl WriteKind {
+    /// Number of maintained-target applications caused by one source-row write.
+    /// An update/upsert can remove the old aggregate contribution and add the new one.
+    pub(crate) const fn maintained_applications(self) -> u64 {
+        match self {
+            Self::Insert | Self::Delete => 1,
+            Self::Update | Self::Upsert => 2,
+            Self::Emit => 0,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PredictionSite {
     pub transition: String,
@@ -205,20 +217,28 @@ impl<'a> Checker<'a> {
         let summary = analyzer
             .statements(&program.body, 1, &[])
             .map_err(|error| vec![error])?;
+        // @ref LLP 1001#2-what-a-commit-records — certification accounts for
+        // both old and new maintained-target applications of update/upsert.
         let maintained_amplification = summary
             .writes
             .iter()
             .map(|write| {
-                self.schema
+                (self
+                    .schema
                     .maintains
                     .iter()
                     .filter(|maintain| maintain.source == write.table)
-                    .count() as u64
-                    * write.max_rows
+                    .count() as u64)
+                    .saturating_mul(write.max_rows)
+                    .saturating_mul(write.kind.maintained_applications())
             })
-            .sum();
-        let max_writes =
-            summary.writes.iter().map(|site| site.max_rows).sum::<u64>() + maintained_amplification;
+            .fold(0_u64, u64::saturating_add);
+        let max_writes = summary
+            .writes
+            .iter()
+            .map(|site| site.max_rows)
+            .fold(0_u64, u64::saturating_add)
+            .saturating_add(maintained_amplification);
         // @ref LLP 1001#3-read-and-write-states-no-silent-states — visibility-filtered
         // scans spend the certified examined/rule-probe ceilings, never `take`.
         let max_examined =
@@ -1020,13 +1040,8 @@ impl<'a> Analyzer<'a> {
                 })
             })
             .sum::<u64>();
-        let maintain_applications = match kind {
-            WriteKind::Insert | WriteKind::Delete => 1,
-            WriteKind::Update | WriteKind::Upsert => 2,
-            WriteKind::Emit => 0,
-        };
         let probe_multiplier = probe_multiplier
-            .saturating_add(maintained_final_probes.saturating_mul(maintain_applications));
+            .saturating_add(maintained_final_probes.saturating_mul(kind.maintained_applications()));
         summary.rule_probes = calls.saturating_mul(probe_multiplier);
         summary
     }

@@ -2,15 +2,15 @@
 // @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — destructive changes need a plan.
 
 use crate::engine::{
-    RuntimeError, materialize_optional_fields, reindex_row, validate_column_value,
-    write_aggregate_backfill,
+    RuntimeError, materialize_optional_fields, rebuild_aggregate_target, reindex_row,
+    validate_column_value,
 };
 use crate::schema::{ColumnType, Maintain, MaintainKind, Schema};
 use crate::store::Store;
 use crate::value::{I53_MAX, I53_MIN, Value, canonical_json};
 use rusqlite::{Connection, Transaction, params};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use thiserror::Error;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -203,10 +203,14 @@ pub(crate) fn additive_refusal(
     current: &Schema,
     next: &Schema,
 ) -> Result<Option<SuccessorRefusal>, RuntimeError> {
+    let rebuilt_targets = maintained_targets_requiring_rebuild(current, next);
     for (table_name, current_table) in &current.tables {
         let Some(next_table) = next.tables.get(table_name) else {
             continue;
         };
+        if rebuilt_targets.contains(table_name) {
+            continue;
+        }
         let absent_required = next_table.columns.iter().find(|(column, kind)| {
             current_table
                 .columns
@@ -226,7 +230,7 @@ pub(crate) fn additive_refusal(
         }
     }
 
-    if let Some(refusal) = validate_stored_rows(connection, current, next)? {
+    if let Some(refusal) = validate_stored_rows(connection, current, next, &rebuilt_targets)? {
         return Ok(Some(refusal));
     }
 
@@ -235,6 +239,9 @@ pub(crate) fn additive_refusal(
         let Some(current_table) = current.tables.get(table_name) else {
             continue;
         };
+        if rebuilt_targets.contains(table_name) {
+            continue;
+        }
         let rows = fetch_rows(connection, table_name)?;
         for (index_name, index) in &next_table.indexes {
             let newly_unique = index.unique
@@ -272,37 +279,19 @@ pub(crate) fn additive_refusal(
             }
         }
     }
-    let new_maintains: Vec<_> = next
-        .maintains
-        .iter()
-        .filter(|maintain| !current.maintains.contains(maintain))
-        .collect();
     let mut future_targets = BTreeMap::<String, BTreeMap<String, Value>>::new();
-    for maintain in new_maintains {
-        let rows = if let Some(rows) = future_targets.get_mut(&maintain.target) {
-            rows
-        } else {
-            let existing = fetch_rows(connection, &maintain.target)?
-                .into_iter()
-                .map(|row| {
-                    let id = row.field("id")?.as_str()?.to_owned();
-                    Ok((id, row))
-                })
-                .collect::<Result<BTreeMap<_, _>, RuntimeError>>()?;
-            future_targets.insert(maintain.target.clone(), existing);
-            future_targets
-                .get_mut(&maintain.target)
-                .expect("target was just inserted")
-        };
-        for row in projected_backfill_rows(connection, next, maintain)? {
-            let id = row.field("id")?.as_str()?.to_owned();
-            rows.insert(id, row);
-        }
+    for target in rebuilt_targets {
+        future_targets.insert(
+            target.clone(),
+            projected_target_rows(connection, next, &target)?,
+        );
     }
     for (table_name, rows) in future_targets {
-        let table = next
-            .table(&table_name)
-            .ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
+        let Some(table) = next.table(&table_name) else {
+            // A destructive migration already removed an old maintained target
+            // whose declaration is absent from the successor.
+            continue;
+        };
         for (index_name, index) in table.indexes.iter().filter(|(_, index)| index.unique) {
             let mut counts = BTreeMap::<String, (Vec<Value>, usize)>::new();
             for row in rows.values() {
@@ -340,8 +329,12 @@ pub(crate) fn validate_stored_rows(
     connection: &Connection,
     current: &Schema,
     next: &Schema,
+    replaced_tables: &BTreeSet<String>,
 ) -> Result<Option<SuccessorRefusal>, RuntimeError> {
     for (table_name, next_table) in &next.tables {
+        if replaced_tables.contains(table_name) {
+            continue;
+        }
         let current_table = current.tables.get(table_name);
         let columns = next_table
             .columns
@@ -466,8 +459,15 @@ pub(crate) fn apply_additive(
             }
         }
     }
-    for maintain in &new_maintains {
-        backfill(transaction, next, maintain)?;
+    for target in maintained_targets_requiring_rebuild(current, next) {
+        if next.table(&target).is_none() {
+            // apply_migration_drops already removed this predecessor target.
+            continue;
+        }
+        let rows = projected_target_rows(transaction, next, &target)?
+            .into_values()
+            .collect();
+        rebuild_aggregate_target(transaction, next, &target, rows)?;
     }
     Ok(report)
 }
@@ -560,13 +560,77 @@ fn drop_column_values(
     Ok(())
 }
 
-fn backfill(
-    transaction: &Transaction<'_>,
+// @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — additions,
+// removals, and declaration changes rebuild every affected derived target.
+fn maintained_targets_requiring_rebuild(current: &Schema, next: &Schema) -> BTreeSet<String> {
+    let mut targets = current
+        .maintains
+        .iter()
+        .filter(|maintain| !next.maintains.contains(maintain))
+        .chain(
+            next.maintains
+                .iter()
+                .filter(|maintain| !current.maintains.contains(maintain)),
+        )
+        .map(|maintain| maintain.target.clone())
+        .collect::<BTreeSet<_>>();
+
+    for maintain in next
+        .maintains
+        .iter()
+        .filter(|maintain| current.maintains.contains(maintain))
+    {
+        let source_fields = maintain.by.iter().chain(match &maintain.kind {
+            MaintainKind::Count => None,
+            MaintainKind::Sum { of } => Some(of),
+        });
+        let source_changed = source_fields.into_iter().any(|field| {
+            current
+                .table(&maintain.source)
+                .and_then(|table| table.columns.get(field))
+                != next
+                    .table(&maintain.source)
+                    .and_then(|table| table.columns.get(field))
+        });
+        let target_changed = ["id", "value"]
+            .into_iter()
+            .chain(maintain.by.iter().map(String::as_str))
+            .any(|field| {
+                current
+                    .table(&maintain.target)
+                    .and_then(|table| table.columns.get(field))
+                    != next
+                        .table(&maintain.target)
+                        .and_then(|table| table.columns.get(field))
+            });
+        if source_changed || target_changed {
+            targets.insert(maintain.target.clone());
+        }
+    }
+    targets
+}
+
+fn projected_target_rows(
+    connection: &Connection,
     schema: &Schema,
-    maintain: &Maintain,
-) -> Result<(), RuntimeError> {
-    let rows = projected_backfill_rows(transaction, schema, maintain)?;
-    write_aggregate_backfill(transaction, schema, &maintain.target, rows)
+    target: &str,
+) -> Result<BTreeMap<String, Value>, RuntimeError> {
+    let mut rows = BTreeMap::new();
+    for maintain in schema
+        .maintains
+        .iter()
+        .filter(|maintain| maintain.target == target)
+    {
+        for row in projected_backfill_rows(connection, schema, maintain)? {
+            let id = row.field("id")?.as_str()?.to_owned();
+            if rows.insert(id.clone(), row).is_some() {
+                return Err(RuntimeError::Schema(format!(
+                    "multiple maintains produced {target}.{id}"
+                )));
+            }
+        }
+    }
+    Ok(rows)
 }
 
 fn projected_backfill_rows(

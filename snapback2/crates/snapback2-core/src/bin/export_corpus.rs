@@ -1,6 +1,6 @@
 use serde::Serialize;
 use serde_json::json;
-use snapback2_core::engine::{ClosureReceipt, RowRecord};
+use snapback2_core::engine::{ClosureReceipt, RowRecord, Verdict};
 use snapback2_core::*;
 use std::collections::{BTreeMap, VecDeque};
 use std::fs;
@@ -176,13 +176,34 @@ fn add_named_cases(cases: &mut Vec<CorpusCase>) {
             maintained_waitlist_count_program(),
             query_context([("resourceId", id("resource1"))]),
         ),
-        (
-            "named-hidden-rule",
-            hidden_rule_program(),
-            query_context([("id", id("doc1"))]),
-        ),
     ] {
         cases.push(query_case(name, "named", program, context));
+    }
+    for (name, authority) in [
+        ("named-hidden-rule", HiddenAuthority::Matching),
+        ("named-hidden-authority-missing", HiddenAuthority::Missing),
+        (
+            "named-hidden-authority-stale-hash",
+            HiddenAuthority::StaleHash,
+        ),
+        (
+            "named-hidden-authority-stale-digest",
+            HiddenAuthority::StaleDigest,
+        ),
+        (
+            "named-hidden-authority-stale-principal",
+            HiddenAuthority::StalePrincipal,
+        ),
+        (
+            "named-hidden-authority-stale-epoch",
+            HiddenAuthority::StaleEpoch,
+        ),
+        (
+            "named-hidden-authority-negated-missing",
+            HiddenAuthority::NegatedMissing,
+        ),
+    ] {
+        cases.push(hidden_authority_case(name, authority));
     }
     cases.push(named_uniform_maintained_inbox_case());
 
@@ -973,6 +994,84 @@ fn query_case(name: &str, category: &str, program: Program, context: Context) ->
     );
     assert_eq!(case.expected.local_result.as_ref(), Some(&execution.result));
     case
+}
+
+#[derive(Clone, Copy)]
+enum HiddenAuthority {
+    Matching,
+    Missing,
+    StaleHash,
+    StaleDigest,
+    StalePrincipal,
+    StaleEpoch,
+    NegatedMissing,
+}
+
+fn hidden_authority_case(name: &str, authority: HiddenAuthority) -> CorpusCase {
+    let mut schema = spike_schema();
+    if matches!(authority, HiddenAuthority::NegatedMissing) {
+        let read = schema.tables["secretDocs"].rules.read.clone();
+        schema
+            .tables
+            .get_mut("secretDocs")
+            .expect("secretDocs table")
+            .rules
+            .read = RuleExpr::Not(Box::new(read));
+    }
+    let outer_rule = schema.tables["secretDocs"].rules.read.clone();
+    let key = vec![id("u1")];
+    let mut verdict = Verdict {
+        rule_hash: schema.rule_hash(&outer_rule),
+        pinned_inputs_digest: digest(&("entitlements", "byUser", &key)),
+        principal: "u1".to_owned(),
+        auth_epoch: 1,
+        result: true,
+    };
+    match authority {
+        HiddenAuthority::StaleHash => verdict.rule_hash = "stale-rule-hash".to_owned(),
+        HiddenAuthority::StaleDigest => {
+            verdict.pinned_inputs_digest = "stale-pinned-inputs-digest".to_owned();
+        }
+        HiddenAuthority::StalePrincipal => verdict.principal = "u2".to_owned(),
+        HiddenAuthority::StaleEpoch => verdict.auth_epoch = 2,
+        HiddenAuthority::Matching | HiddenAuthority::Missing | HiddenAuthority::NegatedMissing => {}
+    }
+    let verdicts = if matches!(
+        authority,
+        HiddenAuthority::Missing | HiddenAuthority::NegatedMissing
+    ) {
+        Vec::new()
+    } else {
+        vec![verdict]
+    };
+    let receipt = ClosureReceipt {
+        rows: vec![
+            RowRecord {
+                table: "entitlements".to_owned(),
+                id: "ent1".to_owned(),
+                row: row([("id", id("ent1")), ("userId", id("u1"))]),
+            },
+            RowRecord {
+                table: "secretDocs".to_owned(),
+                id: "doc1".to_owned(),
+                row: row([("id", id("doc1")), ("title", text("Private"))]),
+            },
+        ],
+        ranges: Vec::new(),
+        absences: Vec::new(),
+        verdicts,
+    };
+    case_from_parts(
+        name,
+        "authority",
+        schema,
+        hidden_rule_program(),
+        query_context([("id", id("doc1"))]),
+        receipt,
+        Vec::new(),
+        None,
+        None,
+    )
 }
 
 fn mutation_case(name: &str, category: &str, program: Program, context: Context) -> CorpusCase {

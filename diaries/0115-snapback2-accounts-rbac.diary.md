@@ -94,6 +94,19 @@ two useful gaps before landing: private conversation/count shells needed
 membership-scoped reads, and revocation needed to demonstrate both the direct
 message write and its maintained message-count write in the same scope.
 
+The last authority-custody pass exposed why the cross-runtime proof mattered.
+A receipt-only replay could previously treat a held hidden relationship row as
+authorization when its authority verdict was absent; the repaired client now
+requires an exact rule/input/principal/epoch verdict and reports deterministic
+partial coverage without committing tentative writes. The same pass found
+that a source update can apply a maintained projection twice, that malformed
+`by` shapes could overwrite aggregate `id`/`value`, and that changing or
+removing a maintain left predecessor projection rows behind. Exact physical
+write accounting, closed single-owner projection validation at both trust
+boundaries, and transactional successor target rebuilds turned those implicit
+assumptions into executable containment rules. Six frozen authority-custody
+cases brought the final shared Rust/TypeScript corpus to 103.
+
 ## Comparison
 
 Compared with React plus Convex, this path asks for more up-front boundedness,

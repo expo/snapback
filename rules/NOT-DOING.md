@@ -34,7 +34,7 @@ most one Snapback-attributed correction loop, and `snapback2 test` proves it
 - **A guide.** `snapback2 guide` serves the compiler's facts, a one-screen grammar, and
   about twelve recipes with CI-executed snippets. No million-word corpus, no embedded
   20 MB guide in the binary, no calendar freshness dates.
-- **WASM anywhere.** The client evaluator is the 8.9 KB gzip TypeScript twin
+- **WASM anywhere.** The client evaluator is the 9.5 KB gzip TypeScript twin
   (the RBAC-complete successor to spike S3's 7.8 KB measurement).
 
 ## Process not doing

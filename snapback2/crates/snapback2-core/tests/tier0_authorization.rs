@@ -6,6 +6,8 @@
 mod adversarial;
 #[path = "rbac_cases/rule_types.rs"]
 mod rule_types;
+#[path = "rbac_cases/schema_maintains.rs"]
+mod schema_maintains;
 #[path = "rbac_cases/text_constraints.rs"]
 mod text_constraints;
 #[path = "rbac_cases/tier0_authorization.rs"]

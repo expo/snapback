@@ -113,6 +113,7 @@ interface TraceAbsence {
 interface Trace {
   ranges: TraceRange[];
   absences: TraceAbsence[];
+  missingAuthority: boolean;
 }
 
 interface Execution {
@@ -159,14 +160,21 @@ export class ClientStore {
   applyMutation(program: any, context: Context): LocalExecution {
     const before = this.allIds();
     const snapshot = this.snapshotTables();
+    const runner = new Runner(this, this.schema, context);
     let execution: Execution;
     try {
-      execution = new Runner(this, this.schema, context).execute(program);
+      execution = runner.execute(program);
     } catch (error) {
       // @ref LLP 1001#3-read-and-write-states-no-silent-states — local prediction has the same
       // all-or-nothing mutation boundary as the authoritative transaction.
       this.tables = snapshot;
+      if (runner.trace.missingAuthority)
+        return { state: "partial", partialSites: ["missing-authority"], execution: { result: "Null", trace: runner.trace } };
       throw error;
+    }
+    if (execution.trace.missingAuthority) {
+      this.tables = snapshot;
+      return { state: "partial", partialSites: ["missing-authority"], execution: { result: "Null", trace: execution.trace } };
     }
     const after = this.allIds();
     for (const removed of before) {
@@ -190,6 +198,7 @@ export class ClientStore {
   reexecute(program: any, context: Context): LocalExecution {
     const execution = new Runner(this, this.schema, context).execute(program);
     const partial = new Set<string>();
+    if (execution.trace.missingAuthority) partial.add("missing-authority");
     for (const range of execution.trace.ranges) {
       const covered = this.coverage.ranges.some(
         (coverage) =>
@@ -349,8 +358,9 @@ class Runner {
   private readonly env = new Map<string, Value>();
   private readonly consts = new Set<string>();
   private readonly context: Context;
-  private readonly trace: Trace = { ranges: [], absences: [] };
+  readonly trace: Trace = { ranges: [], absences: [], missingAuthority: false };
   private readonly ruleMemo = new Map<string, boolean>();
+  private authorityMissSerial = 0;
   private readonly createdRows = new Set<string>();
   private readonly insertedRows: Array<{ table: string; row: Value }> = [];
   private createdPoints: Array<{
@@ -999,13 +1009,15 @@ class Runner {
     next: Value,
   ): boolean {
     const rule = this.schema.tables[table].rules[effect];
-    return this.evaluateRule(
+    const authorityMissSerial = this.authorityMissSerial;
+    const allowed = this.evaluateRule(
       rule,
       scopedRuleHash(this.schema, rule),
       old,
       next,
       effect === "insert",
     );
+    return allowed && this.authorityMissSerial === authorityMissSerial;
   }
 
   private evaluateRule(
@@ -1043,12 +1055,14 @@ class Runner {
         const memoized = this.ruleMemo.get(memoKey);
         if (memoized !== undefined) return memoized;
         if (!this.ruleInputIsReadable(data)) {
+          // @ref LLP 1001#2-what-a-commit-records — held rows cannot replace authority-only verdicts.
           const verdict = this.store.verdict(ruleHash, pinnedDigest, this.context);
           if (verdict !== null) {
             this.ruleMemo.set(memoKey, verdict);
             return verdict;
           }
-          this.ruleMemo.set(memoKey, false);
+          this.trace.missingAuthority = true;
+          this.authorityMissSerial += 1;
           return false;
         }
         const result = this.store.lookup(data.table, data.index, key) !== null;

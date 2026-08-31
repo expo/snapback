@@ -10,7 +10,7 @@
 ## Problem
 
 The standalone TypeScript evaluator is conformant with the Rust engine across
-the 97-case frozen corpus, including the accounts/RBAC transition and
+the 103-case frozen corpus, including the accounts/RBAC transition and
 constraint cases. The published `snapback2/client` surface does not import or
 execute it, and the current wire does not yet deliver the certified program
 and receipt custody a local evaluation would require. LLP 1002 previously

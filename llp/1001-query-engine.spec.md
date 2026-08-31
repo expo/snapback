@@ -124,6 +124,14 @@ pub struct CommitRecord { pub seq: u64, pub at: i64, pub program: String, pub pr
 Queries record nothing. `seq` is the store's version: every result, receipt,
 and delivery carries the `seq` it was computed at.
 
+Certification and runtime containment count physical maintained-target writes,
+not merely source statements. An insert or delete applies each declared
+maintain once; an update or upsert may remove the old contribution and add the
+new contribution, so it reserves two target applications per maintain. The
+write ceiling covers direct plus maintained applications, and runtime compares
+each table's trace against only the direct and maintained sites that can write
+that table.
+
 **The receipt factors three ways** (LLP 0329.021 P4/P5, folded 2026-08-30),
 by who may issue each part: `rows` — "I hold these" — is client-issuable;
 `absences` and *complete* `ranges` — "no row exists there / this range is
@@ -133,6 +141,15 @@ The engine keeps the containment invariant `receipt ⊆ trace ⊆ certificate`
 `receipt.absences ⊆ trace.absences` beside rows, ranges, and verdicts, with a
 negative test (`issues/20260829-bounded-programs-receipt-absences-unvalidated.md`).
 Nothing in this crate ever constructs a receipt from anything but a trace.
+The receipt-only client may use a hidden `Exists` input only through an exact
+verdict match on rule hash, pinned-input digest, principal, and auth epoch. A
+held application row is never substitute authorization. A missing or stale
+verdict fails closed and makes the replay `Partial { reason:
+"missing-authority" }`; negation or disjunction cannot invert that unknown
+input into access. A receipt-only mutation that observes the miss rolls back
+its entire tentative local transaction before returning `Partial`/`Null`.
+Store-authoritative execution continues to resolve and mint the verdict from
+durable rows.
 
 Read-site names are certificate identities, not diagnostic labels. Compiler
 lowering preserves the first readable inferred name and deterministically
@@ -276,10 +293,17 @@ successor schema and requires `E_TRACE_SUBSET`.
 columns and their types, every existing index keeps its columns, and nothing
 is dropped; programs, rules, constraints, maintains, channels, effects, and
 new tables/columns/indexes may change freely. Additive successors apply in
-place: new indexes are populated from `rows` in the same transaction; new
-maintained aggregates are backfilled; rules and programs swap atomically;
-subscriptions are re-executed against the new generation (LLP 1002 rebinds
-them). Anything else is *destructive* and is **refused with a plan**:
+place: new indexes are populated from `rows` in the same transaction. Any
+added, removed, or changed maintain causes each affected engine-owned target
+to be transactionally replaced from all declarations in the next generation;
+removal therefore clears the predecessor projection, and group/kind/source
+changes cannot retain stale groups. A migration of any projection-relevant
+source or target column also rebuilds even when the declaration itself is
+unchanged; an exact migration that drops a removed target does not attempt to
+recreate it. Target constraints and unique indexes bind both the clear and
+rebuild. Rules and programs swap atomically; subscriptions
+are re-executed against the new generation (LLP 1002 rebinds them). Anything
+else is *destructive* and is **refused with a plan**:
 
 ```rust
 pub struct SuccessorRefusal { pub code: String /* E_SUCCESSOR_DESTRUCTIVE */, pub plan: MigrationPlan }
@@ -325,6 +349,14 @@ be projected into an actor-bearing slot. Likewise:
 The target table's `insert`/`update`/`delete` rules bind only non-engine
 writers — templates set them to `deny` — and the engine's aggregate writes
 are exempt from those rules and never from constraints or unique indexes.
+Both authored lowering and raw schema certification validate a maintain as one
+closed projection: `by` fields are unique and may not be the reserved `id` or
+`value`; `sum.of` is `Int`; the target has intrinsic `id`, exactly the
+type-compatible group columns, and `value: Int`; and one declaration owns a
+target. A maintained target may not itself be any maintain's source; transitive
+projection chains require recursive amplification/cascade semantics this slice
+does not claim. These checks prevent a group field from overwriting aggregate
+identity/value and make rebuild ownership unambiguous.
 A user mutation writing a maintained target is `Rejected(E_RULE)` by its rule.
 
 Three rulings from the 2026-08-30 review (M3, M4, M8):
@@ -475,9 +507,11 @@ target table and index, requires exact key arity, and checks every key term
 against the indexed column. `Viewer` is always `Principal`; only a Principal
 field or the reserved `system` principal literal may meet it. A `Ref<T>` may
 meet the implicit `T.id` position and no other `Id` or `Principal` axis.
-`Generation::certify` repeats the same structural checks over raw
-`ProjectJson`, so bypassing the authored compiler cannot erase the boundary;
-violations are sited `E_RULE_INVALID` refusals.
+For reciprocal bootstrap rules, the current rule subject's intrinsic
+`Id<T>.id` may also satisfy `Ref<T>` for that same table; no other `Id`/`Ref`
+coercion is admitted. `Generation::certify` repeats the same structural checks
+over raw `ProjectJson`, so bypassing the authored compiler cannot erase the
+boundary; violations are sited `E_RULE_INVALID` refusals.
 
 `PrincipalId::new`/string conversion are trusted host, persistence, and test
 representation constructors, not authentication evidence. Untrusted served
@@ -670,12 +704,14 @@ out (the survey's "why no floats" section is the ruling).
 ## 10. What binds, and how it is checked
 
 - `cargo test -p snapback2-core` stays under the 30 s budget; new tests live
-  in `tests/{store,live,successor,identity,outbox,certificate_retention,
-  completeness,tier0_authorization}.rs`. `tier0_authorization.rs` is the
+  in `tests/{store,live,successor,successor_maintains,identity,outbox,
+  certificate_retention,completeness,tier0_authorization}.rs`.
+  `tier0_authorization.rs` is the
   single integration-test entry point for the independent modules under
   `tests/rbac_cases/`, avoiding redundant test-binary links without combining
-  their fixtures or cases.
-- The 97-case shared corpus is regenerated whenever serialization or
+  their fixtures or cases; malformed maintain shapes live in that consolidated
+  lane.
+- The 103-case shared corpus is regenerated whenever serialization or
   certification changes; the Rust engine and TypeScript evaluator must agree
   on every case.
   It preserves the original semantic inventory while removing authored

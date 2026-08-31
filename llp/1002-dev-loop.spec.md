@@ -636,8 +636,13 @@ Three rulings folded 2026-08-30 from the client-tier arc (LLP 0329.018–.023):
 - **Coverage is client-issuable; absence and authorization are not**
   (LLP 0329.021 P5): the twin never manufactures an absence or a verdict; a
   read whose result depends on an absence the receipt does not carry is
-  `partial`, never `complete`. `SnapbackProvider({ url, as? })` and an
-optional `<DevOverlay/>` (persona, connection, generation, last refusal).
+  `partial`, never `complete`. A held hidden relationship row is not
+  authorization: replay requires an exact rule-hash/input-digest/principal/
+  epoch verdict, and a miss is `partial(missing-authority)`. Negation cannot
+  invert that unknown into access, and a local mutation that observes it rolls
+  back every tentative write before returning partial.
+`SnapbackProvider({ url, as? })` and an optional `<DevOverlay/>` (persona,
+connection, generation, last refusal).
 Reconnect with backoff; a lost SSE stream reports `stale(since)` until the
 first delivery after reconnect. The evaluator twin gains `Emit` as a
 no-op that consumes one id (LLP 1001 §8) and one corpus case proving it.

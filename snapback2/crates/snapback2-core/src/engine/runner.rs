@@ -42,6 +42,9 @@ pub(super) struct Runner<'a> {
     pub(super) inserted_rows: Vec<(String, Value)>,
     pub(super) visibility_memo: BTreeMap<String, bool>,
     pub(super) verdicts: &'a [Verdict],
+    pub(super) rule_authority: RuleAuthority,
+    pub(super) missing_authority: bool,
+    pub(super) authority_miss_serial: u64,
     pub(super) seq: u64,
 }
 
@@ -52,6 +55,7 @@ impl<'a> Runner<'a> {
         certificate: &'a Certificate,
         context: Context,
         verdicts: &'a [Verdict],
+        rule_authority: RuleAuthority,
         seq: u64,
     ) -> Self {
         let env = context.args.clone();
@@ -71,6 +75,9 @@ impl<'a> Runner<'a> {
             inserted_rows: Vec::new(),
             visibility_memo: BTreeMap::new(),
             verdicts,
+            rule_authority,
+            missing_authority: false,
+            authority_miss_serial: 0,
             seq,
         }
     }
@@ -80,6 +87,7 @@ impl<'a> Runner<'a> {
         schema: &'a Schema,
         context: Context,
         verdicts: &'a [Verdict],
+        rule_authority: RuleAuthority,
         seq: u64,
         rule_certificate: Option<&'a RuleCertificate>,
     ) -> Self {
@@ -100,6 +108,9 @@ impl<'a> Runner<'a> {
             inserted_rows: Vec::new(),
             visibility_memo: BTreeMap::new(),
             verdicts,
+            rule_authority,
+            missing_authority: false,
+            authority_miss_serial: 0,
             seq,
         }
     }

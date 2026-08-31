@@ -8,7 +8,7 @@ use crate::engine::{
 };
 use crate::ir::{ArgType, Expr, Program, ProgramKind, Stmt};
 use crate::live::Subscriptions;
-use crate::schema::{Auth, RuleExpr, Schema};
+use crate::schema::{Auth, RuleExpr, Schema, maintain_issues};
 use crate::store::{CommitRecord, Store, unix_millis};
 use crate::successor::{
     MigrationPlan, SuccessorRefusal, SuccessorReport, additive_refusal, apply_additive,
@@ -253,6 +253,19 @@ impl Generation {
                 }
             }
         }
+
+        errors.extend(maintain_issues(&schema).into_iter().map(|issue| {
+            (
+                format!("schema.maintains[{}]", issue.position),
+                CheckError {
+                    code: "E_SCHEMA_MAINTAIN".to_owned(),
+                    message: issue.message,
+                    rewrite:
+                        "make each maintain target one closed { id, ...by, value: Int } projection"
+                            .to_owned(),
+                },
+            )
+        }));
 
         let mut channel_certificates = BTreeMap::new();
         for (name, channel) in &schema.channels {
