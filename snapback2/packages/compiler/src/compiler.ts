@@ -31,6 +31,7 @@ import { analyzeOperationTypes, type TypePlan } from "./type-analysis";
 import { formatTypeDiagnostic, typecheckSource } from "./typecheck";
 import { typeDiagnosticSite } from "./type-diagnostic-site";
 import { invalidNativeDescriptorRefusal, lowerArgDescriptor, lowerLegacyArgDescriptor } from "./lower/schema";
+import { nestedHandlerBinding, nestedHandlerDestructuringRewrite } from "./handler-bindings";
 import type { RecursionState } from "./lower/recursion";
 import { inspectModule, type ModuleInfo } from "./lower/module";
 import { assignedBindings, directArgument, moduleBasename, withDirectRewrite } from "./lower/operation-context";
@@ -66,6 +67,7 @@ export type VariableInfo = {
   provenanceAmbiguity?: { directRewrite?: string };
   immutableOrigin?: ts.Expression;
   operationComposite?: "args" | "ctx";
+  operationArgument?: string;
   alternativeOrigins?: ProvenanceOrigin[];
   elementOrigins?: ProvenanceOrigin[];
   rowBinding?: boolean;
@@ -93,7 +95,8 @@ export type Environment = ModuleInfo & {
   mutableBindings: Set<string>;
   accessOrdinal: { value: number };
   temp: { value: number };
-  literalValues: Map<number, number>;
+  literalValues: Map<string, number>;
+  literalContext: string;
   diagnostics: FrontendDiagnostic[];
   recursion: RecursionState;
 };
@@ -147,8 +150,21 @@ export function lowerSource(
         ? `${options.operationPrefix}.${ts.isIdentifier(declaration.name) ? declaration.name.text : "operation"}`
         : ts.isIdentifier(declaration.name) ? declaration.name.text : "operation";
       operationSpans.push({ name, call });
+      const handler = call.arguments[1];
+      const nestedBinding = handler && isFunctionLike(handler) ? nestedHandlerBinding(handler) : undefined;
+      if (nestedBinding && handler && isFunctionLike(handler)) {
+        diagnostics.push(diagnostic(
+          module,
+          "E_OPAQUE",
+          nestedBinding,
+          "nested handler destructuring is not lowerable; bind each operation composite to an identifier and access its fields explicitly",
+          nestedHandlerDestructuringRewrite(module, handler),
+        ));
+        continue;
+      }
       const plan = analyzeOperationTypes(module, call);
       diagnostics.push(...plan.diagnostics);
+      if (plan.analysisLimitReached) continue;
       if (!ts.isIdentifier(declaration.name)) continue;
       try {
         programs.push(lowerOperation(module, name, declaration.name.text, kind, call, plan, diagnostics));
@@ -186,6 +202,16 @@ function lowerOperation(
   if (!argObject || !ts.isObjectLiteralExpression(argObject) || !handler || !isFunctionLike(handler)) {
     refuse(module, "E_OPAQUE", call, "query/mutation requires an argument object and inline handler");
   }
+  const offending = nestedHandlerBinding(handler);
+  if (offending) {
+    refuse(
+      module,
+      "E_OPAQUE",
+      offending,
+      "nested handler destructuring is not lowerable; bind each operation composite to an identifier and access its fields explicitly",
+      nestedHandlerDestructuringRewrite(module, handler),
+    );
+  }
   const args: Program["args"] = {};
   const expandedArgs = expandArgumentObject(argObject);
   if (expandedArgs.invalidSpread) {
@@ -206,6 +232,7 @@ function lowerOperation(
   for (const [argName, type] of Object.entries(args)) {
     variables.set(argName, {
       provenance: "Arg",
+      operationArgument: argName,
       max: typeof type !== "string" && "List" in type ? type.List.max : undefined,
       boundSource: typeof type !== "string" && "List" in type ? `arg ${argName} max` : undefined,
     });
@@ -238,6 +265,7 @@ function lowerOperation(
     accessOrdinal: { value: 0 },
     temp: { value: 0 },
     literalValues: typePlan?.literalValues ?? new Map(),
+    literalContext: "operation",
     diagnostics,
     recursion: { depth: 0, active: new Map() },
   };

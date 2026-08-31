@@ -136,6 +136,94 @@ export function registerColumnTypeChecks(test: RegisterTest): void {
     assert(canonical(renamedCtx.programs[0]).includes('"Input":"Viewer"'), "renamed ctx binding did not lower context.viewer");
   });
 
+  test("nested handler destructuring refuses with an explicit-access rewrite", () => {
+    const source = `import { query, t } from "snapback2";
+      export const price = query({ price: t.decimal(2) },
+        ({ args: { price: renamed = 1 } }) => renamed + 1);`;
+    const lowered = lowerSource(source, "nested-handler.ts");
+    const refusal = lowered.ok ? undefined : lowered.diagnostics.find((item) =>
+      item.code === "E_OPAQUE" && item.message.includes("nested handler destructuring"));
+    assert(refusal?.family === "opaque" && refusal.site.startsWith("nested-handler.ts:"),
+      "nested handler pattern did not produce a sited refusal envelope");
+    assert(refusal.rewrite.includes("args: packed")
+      && refusal.rewrite.includes("const renamed = (packed.price ?? 1);"),
+    `nested handler rewrite did not bind/access the composite explicitly: ${refusal.rewrite}`);
+    const rewritten = lowerSource(refusal.rewrite, "nested-handler-rewritten.ts");
+    assert(rewritten.ok, `nested handler rewrite did not compile: ${rewritten.ok ? "" : rewritten.diagnostics.map((item) => item.message).join("; ")}`);
+    assert(canonical(integerLiterals(rewritten.programs[0])).includes("[100,100]"),
+      "nested handler rewrite did not preserve Decimal scaling for the default and addition");
+  });
+
+  test("parenthesized and asserted operation composites preserve Decimal scales", () => {
+    const lowered = lowerSource(`import { query, t } from "snapback2";
+      export const price = query({ price: t.decimal(2) }, ({ args: packed }) => [
+        (packed).price + 1,
+        (packed as any).price + 1,
+      ]);`, "wrapped-composite.ts");
+    assert(lowered.ok, `wrapped composite refused: ${lowered.ok ? "" : lowered.diagnostics.map((item) => item.message).join("; ")}`);
+    assert(canonical(integerLiterals(lowered.programs[0])).includes("[100,100]"),
+      `wrapped composite literals were not both scale 2: ${canonical(integerLiterals(lowered.programs[0]))}`);
+  });
+
+  test("helper literals are scaled per expansion context in both call orders", () => {
+    const lowerCalls = (calls: string) => lowerSource(`import { query, t } from "snapback2";
+      const addOne = (value: number) => value + 1;
+      export const prices = query({ a: t.decimal(2), b: t.decimal(3) }, ({ args }) => [${calls}]);`,
+    `helper-${calls.startsWith("addOne(args.a)") ? "forward" : "reverse"}.ts`);
+    for (const [label, calls] of [
+      ["forward", "addOne(args.a), addOne(args.b)"],
+      ["reverse", "addOne(args.b), addOne(args.a)"],
+    ] as const) {
+      const lowered = lowerCalls(calls);
+      assert(lowered.ok, `${label} helper order refused: ${lowered.ok ? "" : lowered.diagnostics.map((item) => item.message).join("; ")}`);
+      const scales = integerLiterals(lowered.programs[0]).filter((value) => value === 100 || value === 1000).sort((a, b) => a - b);
+      assert(canonical(scales) === "[100,1000]", `${label} helper order used shared literal scale facts: ${canonical(scales)}`);
+    }
+  });
+
+  test("loop domains distinguish shadowed locals from the operation args composite", () => {
+    const lowered = lowerSource(`import { query, t } from "snapback2";
+      export const total = query({ items: t.list(t.int(), { max: 3 }) }, ({ args: packed }) => {
+        const args = { items: [10, 20, 30] };
+        let total = 0;
+        for (const item of args.items) total = total + item;
+        return total + packed.items.length;
+      });`, "shadowed-loop-args.ts");
+    assert(lowered.ok, `shadowed local loop refused: ${lowered.ok ? "" : lowered.diagnostics.map((item) => item.message).join("; ")}`);
+    const ir = canonical(lowered.programs[0]);
+    assert(ir.includes('"DerivedArray"') && !ir.includes('"ArgList"'),
+      `shadowed local loop lowered as an operation argument: ${ir}`);
+
+    const callback = lowerSource(`import { query, t } from "snapback2";
+      export const flatten = query({ items: t.list(t.int(), { max: 3 }) }, ({ args: packed }) =>
+        [{ items: [1, 2] }].flatMap((args) => args.items));`, "shadowed-loop-callback.ts");
+    assert(callback.ok, `shadowed callback loop refused: ${callback.ok ? "" : callback.diagnostics.map((item) => item.message).join("; ")}`);
+    const callbackIr = canonical(callback.programs[0]);
+    assert(callbackIr.includes('"max":2') && !callbackIr.includes('"ArgList"'),
+      `shadowed callback loop lost its local member bound: ${callbackIr}`);
+  });
+
+  test("API result inference honors lexical args shadowing", async () => {
+    await withProject({
+      "snapback/schema.ts": `import { schema, table, t } from "snapback2";
+        export const products = table({ columns: { price: t.decimal(2) } });
+        export default schema({ tables: { products } });`,
+      "snapback/prices.ts": `import { query, t } from "snapback2";
+        import { products } from "./schema";
+        export const localPrice = query({ price: t.decimal(3) }, ({ db, args: packed }) => {
+          const args = db.get(products, "product")!;
+          return args.price + 1;
+        });`,
+    }, async (root) => {
+      const lowered = await lowerProject(root);
+      assert(lowered.ok, `lexical API project refused: ${lowered.ok ? "" : lowered.diagnostics.map((item) => item.message).join("; ")}`);
+      assert(lowered.apiDts.includes("localPrice: Op<{ price: Decimal<3> }, Decimal<2>>"),
+        `API result inference used operation args by spelling: ${lowered.apiDts}`);
+      assert(canonical(integerLiterals(lowered.project.programs[0])).includes("[100]"),
+        "local Decimal<2> row did not lower its whole-unit literal at scale 2");
+    });
+  });
+
   test("long binary chains are linear-time, preserve Decimal scaling, and stop at the analysis guard", () => {
     const chain = (terms: number) => ["args.price", ...Array.from({ length: terms - 1 }, () => "1")].join(" + ");
     const lowerChain = (terms: number, descriptor: string) => lowerSource(
@@ -148,7 +236,7 @@ export function registerColumnTypeChecks(test: RegisterTest): void {
     const integers = lowerChain(128, "t.int()");
     const elapsedMs = performance.now() - started;
     assert(integers.ok, `128-term integer chain refused: ${integers.ok ? "" : integers.diagnostics.map((item) => item.message).join("; ")}`);
-    assert(elapsedMs < 2_000, `128-term integer chain took ${elapsedMs.toFixed(1)} ms (budget: 2000 ms)`);
+    assert(elapsedMs < 500, `128-term integer chain took ${elapsedMs.toFixed(1)} ms (budget: 500 ms)`);
     const integerIr = canonical(integers.programs[0]);
     assert((integerIr.match(/\"op\":\"Add\"/g) ?? []).length === 127, "128-term integer chain lost an addition");
     assert(integerLiterals(integers.programs[0]).filter((value) => value === 1).length === 127,
@@ -164,10 +252,30 @@ export function registerColumnTypeChecks(test: RegisterTest): void {
       item.code === "E_OPAQUE" && item.message.includes("type analysis is limited"));
     assert(refusal, "absurd expression did not fire the type-analysis totality guard");
     assert(refusal.family === "opaque" && refusal.site.startsWith("chain-600.ts:")
-      && refusal.rewrite.includes("split this expression") && refusal.guide === "opaque/subset",
+      && refusal.rewrite.includes("__snapback2_type_analysis_limit_512_depth_8192_visits_per_operation__")
+      && refusal.guide === "opaque/subset",
     "type-analysis guard refusal omitted its family, site, rewrite, or guide");
-    assert(refusal.message.includes("512 nested expressions") && refusal.message.includes("8192 distinct expressions"),
+    assert(refusal.message.includes("512 nested expressions") && refusal.message.includes("8192 contextual expression visits")
+      && refusal.message.includes("naming values inside the same operation does not reset"),
       "type-analysis guard refusal did not document both bounds");
+    assert(!lowerSource(refusal.rewrite, "chain-600-rewrite.ts").ok,
+      "type-analysis guard rewrite compiled instead of remaining an explicit non-lowerable sentinel");
+  });
+
+  test("helper DAG expansion is bounded by contextual visits", () => {
+    const helpers = ["const h0 = (value: number) => value + 1;"];
+    for (let depth = 1; depth <= 12; depth += 1) {
+      helpers.push(`const h${depth} = (value: number) => h${depth - 1}(value) + h${depth - 1}(value);`);
+    }
+    const started = performance.now();
+    const lowered = lowerSource(`import { query, t } from "snapback2";
+      ${helpers.join("\n")}
+      export const dag = query({ price: t.decimal(2) }, ({ args }) => h12(args.price));`, "helper-dag-12.ts");
+    const elapsedMs = performance.now() - started;
+    const guard = lowered.ok ? undefined : lowered.diagnostics.find((item) =>
+      item.code === "E_OPAQUE" && item.message.includes("contextual expression visits"));
+    assert(lowered.ok || guard, `depth-12 helper DAG failed without the totality envelope: ${lowered.ok ? "" : lowered.diagnostics.map((item) => item.message).join("; ")}`);
+    assert(elapsedMs < 500, `depth-12 helper DAG took ${elapsedMs.toFixed(1)} ms (budget: 500 ms)`);
   });
 
   test("Bytes descriptors lower for columns and args with the existing schema refusal family", async () => {

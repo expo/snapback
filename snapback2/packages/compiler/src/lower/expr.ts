@@ -16,6 +16,7 @@ import {
   binaryOperator,
   callName,
   collectionConstructor,
+  contextualNodeKey,
   expressionProperty,
   expandedNumericLiteral,
   identifierFromArgsOrLocal,
@@ -36,18 +37,16 @@ import {
 } from "../syntax";
 import { directArgument, withDirectRewrite } from "./operation-context";
 import { guardedWalk, MAX_RECURSION_DEPTH } from "./recursion";
-
+import { alternativeMemberBound } from "./binding-bound";
 function concatExpressions(expressions: Expr[]): Expr {
   return expressions.slice(1).reduce<Expr>(
     (left, right) => ({ Builtin: { builtin: "Concat", args: [left, right] } }),
     expressions[0]!,
   );
 }
-
 export function knownObjectFields(node: ts.Expression, env: Environment): string[] | undefined {
   return guardedWalk(env, node, "object fields", () => knownObjectFieldsInner(node, env));
 }
-
 function knownObjectFieldsInner(node: ts.Expression, env: Environment): string[] | undefined {
   const value = unwrapExpression(node);
   if (ts.isIdentifier(value)) {
@@ -93,7 +92,6 @@ function knownObjectFieldsInner(node: ts.Expression, env: Environment): string[]
 export function rowCollectionFields(node: ts.Expression, env: Environment): string[] | undefined {
   return guardedWalk(env, node, "row collection fields", () => rowCollectionFieldsInner(node, env));
 }
-
 function rowCollectionFieldsInner(node: ts.Expression, env: Environment): string[] | undefined {
   const value = unwrapExpression(node);
   if (ts.isIdentifier(value)) {
@@ -236,8 +234,6 @@ export function lowerCoalesce(
     expression: { Variable: name },
   };
 }
-
-
 export function lowerPatch(node: ts.Expression, env: Environment): Expr {
   if (ts.isArrowFunction(node) || ts.isFunctionExpression(node)) {
     if (node.parameters.length !== 1 || !ts.isIdentifier(node.parameters[0]!.name)) {
@@ -260,7 +256,6 @@ export function lowerDomain(
 ): { domain: LoopDomain; bindingInfo: VariableInfo } {
   return guardedWalk(env, expression, "loop domain", () => lowerDomainInner(expression, env, binding, hint));
 }
-
 function lowerDomainInner(
   expression: ts.Expression,
   env: Environment,
@@ -297,13 +292,15 @@ function lowerDomainInner(
   if (call && ts.isIdentifier(call.expression) && call.expression.text === "recurse") {
     return lowerRecurse(call, env);
   }
-  const identifier = identifierFromArgsOrLocal(expression);
+  const identifier = identifierFromArgsOrLocal(expression,
+    (name) => env.variables.get(name)?.operationComposite === "args");
   if (identifier) {
     const info = env.variables.get(identifier);
     if (info?.max !== undefined) {
-      if (env.args[identifier] && typeof env.args[identifier] !== "string") {
+      if (info.operationArgument && env.args[info.operationArgument]
+        && typeof env.args[info.operationArgument] !== "string") {
         return {
-          domain: { ArgList: { name: identifier, max: info.max } },
+          domain: { ArgList: { name: info.operationArgument, max: info.max } },
           bindingInfo: provenanceBinding(expression, env),
         };
       }
@@ -322,16 +319,12 @@ function lowerDomainInner(
       };
     }
   }
-  if (ts.isArrayLiteralExpression(expression)) {
-    return {
-      domain: { DerivedArray: {
-        value: lowerExpr(expression, env),
-        max: expression.elements.length,
-        bound_source: `literal array length ${expression.elements.length}`,
-      } },
-      bindingInfo: collectionElementBinding(expression, env),
-    };
-  }
+  const maximum = staticBound(expression, env);
+  if (maximum !== undefined) return {
+    domain: { DerivedArray: { value: lowerExpr(expression, env), max: maximum,
+      bound_source: `${expression.getText(env.sourceFile)} static bound` } },
+    bindingInfo: collectionElementBinding(expression, env),
+  };
   refuse(env, "E_UNBOUND_LOOP", expression, "loop domain has no static cardinality");
 }
 
@@ -382,7 +375,7 @@ function lowerExprInner(node: ts.Expression, env: Environment, hint?: string): E
   if (node.kind === ts.SyntaxKind.TrueKeyword) return literal(true);
   if (node.kind === ts.SyntaxKind.FalseKeyword) return literal(false);
   if (ts.isNumericLiteral(node)) {
-    const scaled = env.literalValues.get(node.getStart(env.sourceFile));
+    const scaled = env.literalValues.get(contextualNodeKey(env.literalContext, node, env.sourceFile));
     const expanded = expandedNumericLiteral(node.text);
     const fractional = !Number.isInteger(Number(node.text)) || (expanded?.fraction.length ?? 0) > 0;
     if (fractional && scaled === undefined) {
@@ -637,11 +630,15 @@ function lowerScan(call: ts.CallExpression, env: Environment, hint?: string): Sc
   if (literalTake !== undefined) {
     take = { Literal: literalTake };
   } else {
-    const name = identifierFromArgsOrLocal(takeNode);
-    const arg = name && env.args[name];
+    const name = identifierFromArgsOrLocal(
+      takeNode,
+      (binding) => env.variables.get(binding)?.operationComposite === "args",
+    );
+    const operationArgument = name && env.variables.get(name)?.operationArgument;
+    const arg = operationArgument && env.args[operationArgument];
     const max = name && arg && typeof arg !== "string" && "List" in arg ? arg.List.max : undefined;
-    if (!name || max === undefined) refuse(env, "E_UNBOUND_SCAN", takeNode, "take argument needs a declared max");
-    take = { Arg: { name, max } };
+    if (!operationArgument || max === undefined) refuse(env, "E_UNBOUND_SCAN", takeNode, "take argument needs a declared max");
+    take = { Arg: { name: operationArgument, max } };
   }
   const orderNode = expressionProperty(options, "order");
   const rangeNode = expressionProperty(options, "range");
@@ -753,12 +750,28 @@ export function derivedBound(node: ts.Expression, env: Environment): Partial<Var
 export function staticBound(node: ts.Expression, env: Environment): number | undefined {
   return guardedWalk(env, node, "static bound", () => staticBoundInner(node, env));
 }
-
 function staticBoundInner(node: ts.Expression, env: Environment): number | undefined {
   const value = unwrapExpression(node);
   if (ts.isIdentifier(value)) return env.variables.get(value.text)?.max;
-  if (ts.isPropertyAccessExpression(value) && ts.isIdentifier(value.expression)
-    && env.variables.get(value.expression.text)?.operationComposite === "args") return env.variables.get(value.name.text)?.max;
+  if (ts.isPropertyAccessExpression(value)) {
+    const base = unwrapExpression(value.expression);
+    if (ts.isIdentifier(base) && env.variables.get(base.text)?.operationComposite === "args") {
+      return env.variables.get(value.name.text)?.max;
+    }
+    if (ts.isIdentifier(base)) {
+      const info = env.variables.get(base.text);
+      const alternative = info && alternativeMemberBound(info, value.name.text, staticBound);
+      if (alternative !== undefined) return alternative;
+      const origin = info?.immutableOrigin;
+      const object = origin && unwrapExpression(origin);
+      if (object && ts.isObjectLiteralExpression(object)) {
+        const selected = expressionProperty(object, value.name.text)
+          ?? object.properties.find((property): property is ts.ShorthandPropertyAssignment =>
+            ts.isShorthandPropertyAssignment(property) && property.name.text === value.name.text)?.name;
+        if (selected) return staticBound(selected, env);
+      }
+    }
+  }
   if (ts.isArrayLiteralExpression(value)) {
     let total = 0;
     for (const element of value.elements) {
@@ -866,7 +879,8 @@ export function lowerArrayMethod(
     innerEnv.variables.set(innerBinding, strictBinding(innerBinding, inner.bindingInfo, innerEnv));
     env.variables.set(name, {
       ...inner.bindingInfo,
-      ...derivedBound(call, env),
+      max: loopDomainMaximum(domain) * loopDomainMaximum(inner.domain),
+      boundSource: `${call.getText(env.sourceFile)} flatMap bounds`,
       elementOrigins: bindingOrigins(inner.bindingInfo),
       ...(inner.bindingInfo.rowBinding
         ? { rowCollection: true, objectFields: inner.bindingInfo.objectFields }

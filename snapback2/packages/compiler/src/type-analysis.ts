@@ -3,7 +3,7 @@ import { expandArgumentObject } from "./args";
 import { requiredType, sameDecimal, unknownType, type AuthoredType, type TableInfo } from "./authored-types";
 import { diagnostic, type DiagnosticModule } from "./diagnostics";
 import type { FrontendDiagnostic } from "./ir";
-import { callName, expandedNumericLiteral, isFunctionLike, propertyName, replaceNode, staticMemberPath, unwrapCall, unwrapExpression } from "./syntax";
+import { callName, contextualNodeKey, expandedNumericLiteral, expansionContext, isFunctionLike, propertyName, replaceNode, staticMemberPath, unwrapCall, unwrapExpression } from "./syntax";
 
 // @ref LLP 1002#2-the-authored-surface-the-snapback2-module — Decimal target scales are compiler facts; the emitted value is integer minor units.
 
@@ -16,6 +16,7 @@ type TypeEnvironment = {
   constants: Map<string, ts.Expression>;
   args: Record<string, AuthoredType>;
   memo: Map<ts.Expression, Map<string, AuthoredType>>;
+  literalContext: string;
 };
 
 const MAX_TYPE_ANALYSIS_DEPTH = 512;
@@ -23,7 +24,8 @@ const MAX_TYPE_ANALYSIS_NODES = 8192;
 
 export type TypePlan = {
   diagnostics: FrontendDiagnostic[];
-  literalValues: Map<number, number>;
+  literalValues: Map<string, number>;
+  analysisLimitReached: boolean;
 };
 
 export function analyzeOperationTypes(module: TypeModule, call: ts.CallExpression): TypePlan {
@@ -37,7 +39,13 @@ export function analyzeOperationTypes(module: TypeModule, call: ts.CallExpressio
   }
   const handler = call.arguments[1];
   if (handler && isFunctionLike(handler)) {
-    const env: TypeEnvironment = { variables: new Map(), constants: new Map(), args, memo: new Map() };
+    const env: TypeEnvironment = {
+      variables: new Map(),
+      constants: new Map(),
+      args,
+      memo: new Map(),
+      literalContext: "operation",
+    };
     for (const parameter of handler.parameters) {
       for (const name of bindingNames(parameter.name)) setBinding(env, name, { type: unknownType });
     }
@@ -47,17 +55,21 @@ export function analyzeOperationTypes(module: TypeModule, call: ts.CallExpressio
     if (ts.isBlock(handler.body)) analyzer.statements(handler.body.statements, env);
     else analyzer.expression(handler.body, env);
   }
-  return { diagnostics: analyzer.diagnostics, literalValues: analyzer.literalValues };
+  return {
+    diagnostics: analyzer.diagnostics,
+    literalValues: analyzer.literalValues,
+    analysisLimitReached: analyzer.analysisLimitReached,
+  };
 }
 
 class Analyzer {
   readonly diagnostics: FrontendDiagnostic[] = [];
-  readonly literalValues = new Map<number, number>();
+  readonly literalValues = new Map<string, number>();
   private readonly seen = new Set<string>();
   private readonly helperStack: string[] = [];
-  private readonly analyzedNodes = new Set<ts.Expression>();
+  private analysisVisits = 0;
   private analysisDepth = 0;
-  private analysisLimitReached = false;
+  analysisLimitReached = false;
 
   constructor(private readonly module: TypeModule) {}
 
@@ -129,10 +141,8 @@ class Analyzer {
     if (cached) return cached;
     if (this.analysisLimitReached) return unknownType;
     if (this.analysisDepth >= MAX_TYPE_ANALYSIS_DEPTH) return this.analysisLimit(value);
-    if (!this.analyzedNodes.has(value)) {
-      if (this.analyzedNodes.size >= MAX_TYPE_ANALYSIS_NODES) return this.analysisLimit(value);
-      this.analyzedNodes.add(value);
-    }
+    if (this.analysisVisits >= MAX_TYPE_ANALYSIS_NODES) return this.analysisLimit(value);
+    this.analysisVisits += 1;
     this.analysisDepth += 1;
     let result: AuthoredType;
     try {
@@ -152,7 +162,7 @@ class Analyzer {
     target: AuthoredType | undefined,
     quietFraction: boolean,
   ): AuthoredType {
-    if (ts.isNumericLiteral(value)) return this.numeric(value, target, quietFraction);
+    if (ts.isNumericLiteral(value)) return this.numeric(value, env, target, quietFraction);
     if (ts.isStringLiteralLike(value)) {
       if (target?.kind === "enum" && !target.variants.includes(value.text)) this.enumVariant(value, target);
       if (target?.kind === "string" && target.max !== undefined && [...value.text].length > target.max) {
@@ -175,9 +185,7 @@ class Analyzer {
       return this.expression(value.operand, env, target, quietFraction);
     }
     if (ts.isPropertyAccessExpression(value)) {
-      const composite = ts.isIdentifier(value.expression)
-        ? env.variables.get(value.expression.text)?.operationComposite
-        : undefined;
+      const composite = this.operationComposite(value.expression, env);
       if (composite === "args") return requiredType(env.args[value.name.text]);
       if (composite === "ctx") {
         if (value.name.text === "viewer") return { kind: "string" };
@@ -236,14 +244,23 @@ class Analyzer {
       this.add(
         "E_OPAQUE",
         node,
-        `type analysis is limited to ${MAX_TYPE_ANALYSIS_DEPTH} nested expressions and ${MAX_TYPE_ANALYSIS_NODES} distinct expressions per operation; split this expression into smaller named values or operations`,
-        replaceNode(this.module.source, node, "0 /* split this expression before type analysis */"),
+        `type analysis is limited per operation to ${MAX_TYPE_ANALYSIS_DEPTH} nested expressions and ${MAX_TYPE_ANALYSIS_NODES} contextual expression visits; reduce this operation below those bounds or split it into multiple operations (naming values inside the same operation does not reset the bounds)`,
+        replaceNode(
+          this.module.source,
+          node,
+          `__snapback2_type_analysis_limit_${MAX_TYPE_ANALYSIS_DEPTH}_depth_${MAX_TYPE_ANALYSIS_NODES}_visits_per_operation__()`,
+        ),
       );
     }
     return unknownType;
   }
 
-  private numeric(node: ts.NumericLiteral, expected: AuthoredType | undefined, quiet: boolean): AuthoredType {
+  private numeric(
+    node: ts.NumericLiteral,
+    env: TypeEnvironment,
+    expected: AuthoredType | undefined,
+    quiet: boolean,
+  ): AuthoredType {
     const digits = fractionalDigits(node.text);
     if (expected?.kind === "decimal") {
       if (digits > expected.scale) {
@@ -260,7 +277,7 @@ class Analyzer {
         this.add("E_DECIMAL_SCALE", node, `${node.text} at scale ${expected.scale} is outside the safe integer wire range`,
           replaceNode(this.module.source, node, `decimal(${node.text}, ${expected.scale})`));
       } else {
-        this.literalValues.set(node.getStart(this.module.sourceFile), minor);
+        this.literalValues.set(contextualNodeKey(env.literalContext, node, this.module.sourceFile), minor);
       }
       return expected;
     }
@@ -333,6 +350,7 @@ class Analyzer {
         this.helperStack.push(call.expression.text);
         try {
           const nested = cloneEnv(env);
+          nested.literalContext = expansionContext(env.literalContext, call, this.module.sourceFile);
           helper.parameters.forEach((parameter, index) => {
             const type = call.arguments[index] ? this.expression(call.arguments[index]!, env) : unknownType;
             const binding = call.arguments[index]
@@ -539,6 +557,7 @@ function cloneEnv(env: TypeEnvironment): TypeEnvironment {
     constants: new Map(env.constants),
     args: env.args,
     memo: new Map(),
+    literalContext: env.literalContext,
   };
 }
 

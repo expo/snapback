@@ -641,6 +641,8 @@ function descriptorType(call: ts.CallExpression, checker: ts.TypeChecker): strin
 }
 
 type ApiType = { text: string; special: boolean };
+type ApiTypeBinding = { kind: "args" } | { kind: "local"; row?: TableInfo };
+type ApiTypeEnvironment = { bindings: Map<string, ApiTypeBinding> };
 
 function apiAuthoredResult(
   handler: ts.ArrowFunction | ts.FunctionExpression,
@@ -648,10 +650,37 @@ function apiAuthoredResult(
   tables: Map<string, TableInfo>,
   checker: ts.TypeChecker,
 ): ApiType | undefined {
-  const returned = ts.isBlock(handler.body)
-    ? handler.body.statements.find(ts.isReturnStatement)?.expression
-    : handler.body;
-  return returned ? apiExpressionType(returned, args, tables, checker) : undefined;
+  const environment: ApiTypeEnvironment = { bindings: new Map() };
+  for (const parameter of handler.parameters) {
+    for (const name of apiBindingNames(parameter.name)) environment.bindings.set(name, { kind: "local" });
+  }
+  const context = handler.parameters[0]?.name;
+  if (context && ts.isObjectBindingPattern(context)) {
+    for (const element of context.elements) {
+      if (!ts.isIdentifier(element.name)) continue;
+      const property = element.propertyName ? propertyName(element.propertyName) : element.name.text;
+      if (property === "args") environment.bindings.set(element.name.text, { kind: "args" });
+    }
+  }
+  if (!ts.isBlock(handler.body)) return apiExpressionType(handler.body, args, tables, checker, environment);
+  for (const statement of handler.body.statements) {
+    if (ts.isVariableStatement(statement)) {
+      for (const declaration of statement.declarationList.declarations) {
+        const initializer = declaration.initializer && unwrapExpression(declaration.initializer);
+        const call = initializer && unwrapCall(initializer);
+        const row = call && callLeaf(call) === "get" && call.arguments[0]
+          ? apiTable(call.arguments[0], tables)
+          : undefined;
+        for (const name of apiBindingNames(declaration.name)) {
+          environment.bindings.set(name, { kind: "local", ...(row ? { row } : {}) });
+        }
+      }
+    }
+    if (ts.isReturnStatement(statement) && statement.expression) {
+      return apiExpressionType(statement.expression, args, tables, checker, environment);
+    }
+  }
+  return undefined;
 }
 
 function apiExpressionType(
@@ -659,6 +688,7 @@ function apiExpressionType(
   args: ts.ObjectLiteralExpression | undefined,
   tables: Map<string, TableInfo>,
   checker: ts.TypeChecker,
+  environment: ApiTypeEnvironment,
   expected?: AuthoredType,
 ): ApiType {
   const value = unwrapExpression(node);
@@ -669,11 +699,24 @@ function apiExpressionType(
   if (ts.isStringLiteralLike(value) || ts.isTemplateExpression(value)) return { text: "string", special: false };
   if (value.kind === ts.SyntaxKind.TrueKeyword || value.kind === ts.SyntaxKind.FalseKeyword) return { text: "boolean", special: false };
   if (value.kind === ts.SyntaxKind.NullKeyword) return { text: "null", special: false };
-  if (ts.isPropertyAccessExpression(value) && ts.isIdentifier(value.expression) && value.expression.text === "args" && args) {
+  const propertyBase = ts.isPropertyAccessExpression(value) ? unwrapExpression(value.expression) : undefined;
+  const propertyBinding = propertyBase && ts.isIdentifier(propertyBase)
+    ? environment.bindings.get(propertyBase.text)
+    : undefined;
+  if (ts.isPropertyAccessExpression(value) && propertyBase && ts.isIdentifier(propertyBase)
+    && propertyBinding?.kind === "args" && args) {
     const descriptor = propertyEntries(args).find((item) => item.name === value.name.text)?.value;
     const call = descriptor && unwrapCall(descriptor);
     if (call) {
       const text = `${descriptorType(call, checker)}${callLeaf(call) === "optional" ? " | undefined" : ""}`;
+      return { text, special: /^(Decimal|Money)</.test(text) || text.includes(" | ") };
+    }
+  }
+  if (ts.isPropertyAccessExpression(value) && propertyBinding?.kind === "local" && propertyBinding.row) {
+    const authored = propertyBinding.row.columns?.[value.name.text];
+    if (authored) {
+      const optional = authored.kind === "optional";
+      const text = `${apiAuthoredType(optional ? authored.of : authored)}${optional ? " | undefined" : ""}`;
       return { text, special: /^(Decimal|Money)</.test(text) || text.includes(" | ") };
     }
   }
@@ -682,7 +725,7 @@ function apiExpressionType(
     const fields: string[] = [];
     for (const item of value.properties) {
       if (ts.isShorthandPropertyAssignment(item)) {
-        const type = apiExpressionType(item.name, args, tables, checker);
+        const type = apiExpressionType(item.name, args, tables, checker, environment);
         special ||= type.special;
         fields.push(`${quoteProperty(item.name.text)}: ${type.text}`);
         continue;
@@ -690,24 +733,24 @@ function apiExpressionType(
       if (!ts.isPropertyAssignment(item)) continue;
       const name = propertyName(item.name);
       if (!name) continue;
-      const type = apiExpressionType(item.initializer, args, tables, checker);
+      const type = apiExpressionType(item.initializer, args, tables, checker, environment);
       special ||= type.special;
       fields.push(`${quoteProperty(name)}: ${type.text}`);
     }
     return { text: `{ ${fields.join("; ")} }`, special };
   }
   if (ts.isArrayLiteralExpression(value)) {
-    const items = value.elements.map((item) => apiExpressionType(item, args, tables, checker));
+    const items = value.elements.map((item) => apiExpressionType(item, args, tables, checker, environment));
     return { text: `${items[0]?.text ?? "unknown"}[]`, special: items.some((item) => item.special) };
   }
   if (ts.isConditionalExpression(value)) {
-    const left = apiExpressionType(value.whenTrue, args, tables, checker, target);
-    const right = apiExpressionType(value.whenFalse, args, tables, checker, target);
+    const left = apiExpressionType(value.whenTrue, args, tables, checker, environment, target);
+    const right = apiExpressionType(value.whenFalse, args, tables, checker, environment, target);
     return { text: left.text === right.text ? left.text : `${left.text} | ${right.text}`, special: left.special || right.special };
   }
   if (ts.isBinaryExpression(value)) {
-    const left = apiExpressionType(value.left, args, tables, checker);
-    const right = apiExpressionType(value.right, args, tables, checker);
+    const left = apiExpressionType(value.left, args, tables, checker, environment);
+    const right = apiExpressionType(value.right, args, tables, checker, environment);
     if ([
       ts.SyntaxKind.LessThanToken, ts.SyntaxKind.LessThanEqualsToken, ts.SyntaxKind.GreaterThanToken,
       ts.SyntaxKind.GreaterThanEqualsToken, ts.SyntaxKind.EqualsEqualsToken, ts.SyntaxKind.EqualsEqualsEqualsToken,
@@ -736,7 +779,7 @@ function apiExpressionType(
       return { text: `Decimal<${numberValue(value.arguments[1]) ?? "number"}>`, special: true };
     }
     if (name === "min" || name === "max") {
-      const branded = value.arguments.map((item) => apiExpressionType(item, args, tables, checker))
+      const branded = value.arguments.map((item) => apiExpressionType(item, args, tables, checker, environment))
         .find((item) => /^(Decimal|Money)</.test(item.text));
       if (branded) return branded;
     }
@@ -747,6 +790,11 @@ function apiExpressionType(
     ts.TypeFormatFlags.NoTruncation | ts.TypeFormatFlags.InTypeAlias,
   ).replaceAll('import("snapback2").', "");
   return { text, special: /\b(?:Decimal|Money)</.test(text) };
+}
+
+function apiBindingNames(name: ts.BindingName): string[] {
+  if (ts.isIdentifier(name)) return [name.text];
+  return name.elements.flatMap((element) => ts.isBindingElement(element) ? apiBindingNames(element.name) : []);
 }
 
 function apiAuthoredType(value: AuthoredType): string {

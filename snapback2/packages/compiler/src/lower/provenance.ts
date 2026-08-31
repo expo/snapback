@@ -5,6 +5,7 @@ import type { Provenance } from "../ir";
 import { guardedWalk, refuseRecursiveWalk } from "./recursion";
 import {
   callName,
+  expansionContext,
   isDbMember,
   propertyName,
   replaceNode,
@@ -453,6 +454,7 @@ export function expandHelper(
     variables: new Map([...env.variables].map(([name, info]) => [name, { ...info }])),
     substitutions: new Map(env.substitutions),
     helperStack: [...env.helperStack, call.expression.text],
+    literalContext: expansionContext(env.literalContext, call, env.sourceFile),
   };
   helper.parameters.forEach((parameter, index) => {
     if (!ts.isIdentifier(parameter.name) || !call.arguments[index]) {

@@ -301,9 +301,23 @@ export function lowerFirst(value: string): string {
   return value ? value[0]!.toLowerCase() + value.slice(1) : value;
 }
 
-export function identifierFromArgsOrLocal(node: ts.Expression): string | undefined {
+export function identifierFromArgsOrLocal(
+  node: ts.Expression,
+  isOperationArgs: (name: string) => boolean,
+): string | undefined {
   const value = unwrapExpression(node);
   if (ts.isIdentifier(value)) return value.text;
-  if (ts.isPropertyAccessExpression(value) && ts.isIdentifier(value.expression) && value.expression.text === "args") return value.name.text;
+  if (ts.isPropertyAccessExpression(value)) {
+    const base = unwrapExpression(value.expression);
+    if (ts.isIdentifier(base) && isOperationArgs(base.text)) return value.name.text;
+  }
   return undefined;
+}
+
+export function expansionContext(parent: string, node: ts.Node, sourceFile: ts.SourceFile): string {
+  return `${parent}/${node.getStart(sourceFile)}`;
+}
+
+export function contextualNodeKey(context: string, node: ts.Node, sourceFile: ts.SourceFile): string {
+  return `${context}:${node.getStart(sourceFile)}`;
 }
