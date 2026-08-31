@@ -1,6 +1,6 @@
 #![allow(unused_imports)]
 use crate::certificate::{Certificate, RuleCertificate};
-use crate::identity::{Actor, SYSTEM_PRINCIPAL_ID};
+use crate::identity::{Actor, CURRENT_VALUE_MODEL_VERSION, SYSTEM_PRINCIPAL_ID};
 use crate::ir::*;
 use crate::schema::*;
 use crate::store::{CommitRecord, Store, TouchedKey, unix_millis};
@@ -486,6 +486,13 @@ impl Engine {
         commit_kind: Option<&str>,
         then_outbox_id: Option<&str>,
     ) -> Result<Execution, RuntimeError> {
+        if certificate.value_model_version != CURRENT_VALUE_MODEL_VERSION.as_str() {
+            return Err(RuntimeError::TraceSubset(format!(
+                "value model version {} != current {}",
+                certificate.value_model_version,
+                CURRENT_VALUE_MODEL_VERSION.as_str()
+            )));
+        }
         if certificate.plan_hash != digest(program) {
             return Err(RuntimeError::TraceSubset("plan hash mismatch".to_owned()));
         }
@@ -628,6 +635,13 @@ impl Engine {
             return Err(RuntimeError::Input(
                 "reset seed must be a mutation".to_owned(),
             ));
+        }
+        if certificate.value_model_version != CURRENT_VALUE_MODEL_VERSION.as_str() {
+            return Err(RuntimeError::TraceSubset(format!(
+                "value model version {} != current {}",
+                certificate.value_model_version,
+                CURRENT_VALUE_MODEL_VERSION.as_str()
+            )));
         }
         if certificate.plan_hash != digest(program) {
             return Err(RuntimeError::TraceSubset("plan hash mismatch".to_owned()));
@@ -776,6 +790,13 @@ pub(crate) fn validate_arg_value(
                 "{label} exceeds text max {max}"
             ))),
             _ => Err(RuntimeError::Input(format!("{label} must be text"))),
+        },
+        ArgType::Bytes { max } => match value {
+            Value::Bytes(value) if value.len() <= *max as usize => Ok(()),
+            Value::Bytes(_) => Err(RuntimeError::Input(format!(
+                "{label} exceeds bytes max {max}"
+            ))),
+            _ => Err(RuntimeError::Input(format!("{label} must be bytes"))),
         },
         ArgType::Int | ArgType::Time | ArgType::Decimal { .. } | ArgType::Money { .. } => {
             match value {

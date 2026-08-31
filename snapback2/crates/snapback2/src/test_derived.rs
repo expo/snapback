@@ -44,6 +44,7 @@ fn generated_args_exercises_every_arg_type_variant() {
                 },
             ),
             ("text".to_owned(), ArgType::Text { max: 20 }),
+            ("bytes".to_owned(), ArgType::Bytes { max: 20 }),
             ("int".to_owned(), ArgType::Int),
             ("bool".to_owned(), ArgType::Bool),
             ("time".to_owned(), ArgType::Time),
@@ -87,7 +88,7 @@ fn generated_args_exercises_every_arg_type_variant() {
     };
     let args = generated_args(&program, &seed).unwrap();
 
-    assert_eq!(args.as_object().unwrap().len(), 13);
+    assert_eq!(args.as_object().unwrap().len(), 14);
     assert_eq!(args["todoRef"], "todo-1");
     assert_eq!(args["enum"], "first");
     assert_eq!(args["list"], json!([]));

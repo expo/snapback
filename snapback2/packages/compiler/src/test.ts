@@ -260,7 +260,12 @@ test("structural policy admits prefix-uniform private scans and refuses non-unif
   const table = (firstColumn: string): TableInfo => ({
     name: "docs",
     private: true,
-    indexes: { byScope: { columns: [firstColumn, "order", "id"] } },
+    indexes: {
+      byScope: {
+        columns: [firstColumn, "order", "id"],
+        types: [{ kind: "string" }, { kind: "int" }, { kind: "string" }],
+      },
+    },
     readRule: { Eq: [{ Field: "owner" }, "Viewer"] },
   });
   const uniform = lowerSource(source, "uniform-count.ts", undefined, {
@@ -280,7 +285,12 @@ test("actual collection lowerings preserve capped page provenance through struct
     name: "docs",
     private: false,
     columns: { id: { kind: "string" }, group: { kind: "string" }, owner: { kind: "string" }, order: { kind: "int" }, amount: { kind: "int" } },
-    indexes: { byScope: { columns: ["group", "order", "id"] } },
+    indexes: {
+      byScope: {
+        columns: ["group", "order", "id"],
+        types: [{ kind: "string" }, { kind: "int" }, { kind: "string" }],
+      },
+    },
   }]]);
   const schema = {
     tables: { docs: {
@@ -321,7 +331,12 @@ test("authored collected capped pages may return but cannot be inserted", () => 
   const tables = new Map<string, TableInfo>([
     ["docs", { name: "docs", private: false,
       columns: { id: { kind: "string" }, group: { kind: "string" }, owner: { kind: "string" }, order: { kind: "int" }, amount: { kind: "int" } },
-      indexes: { byScope: { columns: ["group", "order", "id"] } } }],
+      indexes: {
+        byScope: {
+          columns: ["group", "order", "id"],
+          types: [{ kind: "string" }, { kind: "int" }, { kind: "string" }],
+        },
+      } }],
     ["snapshots", { name: "snapshots", private: false, columns: { id: { kind: "string" }, items: { kind: "json", max: 4_096 } } }],
   ]);
   const allowWrites = { insert: "Allow", update: "Allow", delete: "Allow" };
@@ -864,7 +879,7 @@ test("chat and todos lower schema, channels, effects, emit, API types, seed, and
 
   const todos = await lowerProject(`${frontend}fixtures/todos`);
   assert(todos.ok, `todos refused: ${todos.ok ? "" : todos.diagnostics.map((item) => item.message).join("; ")}`);
-  assert(todos.apiDts.startsWith("import type { Decimal, Json, Money, Page } from 'snapback2'"), "API declaration is not a module augmentation");
+  assert(todos.apiDts.startsWith("import type { Bytes, Decimal, Json, Money, Page } from 'snapback2'"), "API declaration is not a module augmentation");
   assert(todos.apiDts.includes("note?: string") && todos.apiDts.includes("labels: string[]"), "optional/list API inference differs");
   assert(todos.apiDts.includes("type TodosRow = {") && todos.apiDts.includes("Page<TodosRow>"), "scan API did not use named row/Page types");
   assert(canonical(todos.project.schema.tables).includes('"Optional":{"List"'), "optional/list schema columns did not lower");
@@ -917,6 +932,91 @@ test("Decimal, Money, and Enum descriptors type APIs and lower fractional litera
   assert(canonical(todos.project.programs.find((item) => item.name === "todos.reprice")).includes('"Int":125'), "update Decimal literal was not scaled");
   assert(canonical(todos.project.programs.find((item) => item.name === "todos.upsertLiteral")).includes('"Int":250'), "upsert Decimal literal was not scaled/padded");
   assert(canonical(todos.project.programs.find((item) => item.name === "todos.encoded")).includes('"Int":999'), "authoring decimal() helper did not lower to minor units");
+});
+
+test("Bytes descriptors lower for columns and args with the existing schema refusal family", async () => {
+  await withProject({
+    "snapback/schema.ts": `import { schema, table, t } from "snapback2";
+      export const blobs = table({
+        columns: { payload: t.bytes(4) },
+        indexes: { byPayload: { columns: ["payload", "id"] } },
+      });
+      export default schema({ tables: { blobs } });`,
+    "snapback/blobs.ts": `import { mutation, t } from "snapback2";
+      import { blobs } from "./schema";
+      export const add = mutation({ payload: t.bytes(4) }, ({ db, ctx, args }) =>
+        db.insert(blobs, { id: ctx.newId(), payload: args.payload }));`,
+  }, async (root) => {
+    const lowered = await lowerProject(root);
+    assert(lowered.ok, `Bytes project refused: ${lowered.ok ? "" : lowered.diagnostics.map((item) => item.message).join("; ")}`);
+    assert(canonical(lowered.project.schema).includes('"Bytes":{"max":4}'), "Bytes column did not lower");
+    assert(canonical(lowered.project.programs[0]?.args).includes('"Bytes":{"max":4}'), "Bytes arg did not lower");
+    assert(lowered.apiDts.includes("payload: Bytes"), "Bytes API type is missing");
+  });
+
+  const invalid = lowerSchema(`import { schema, table, t } from "snapback2";
+    export const blobs = table({ columns: { zero: t.bytes(0), fractional: t.bytes(1.5) } });
+    export default schema({ tables: { blobs } });`, "snapback/schema.ts");
+  const refusals = invalid.diagnostics.filter((item) => item.code === "E_SCHEMA_COLUMN");
+  assert(refusals.length === 2, `expected two Bytes schema refusals, got ${refusals.length}`);
+  assert(refusals.every((item) => item.family === "schema" && item.rewrite.includes("t.bytes(100)")), "Bytes refusal did not reuse schema with a mechanical rewrite");
+});
+
+test("rule literals encode Bytes only at Bytes schema positions", () => {
+  const lowered = lowerSchema(`import { channel, rule, schema, table, t } from "snapback2";
+    export const blobs = table({
+      columns: { payload: t.bytes(4), optionalPayload: t.optional(t.bytes(4)), metadata: t.json(100) },
+      indexes: { byPayload: { columns: ["payload"] } },
+      rules: { read: rule.and(
+        rule.eq(rule.field("metadata"), rule.literal({ Bytes: "00ff" })),
+        rule.eq(rule.field("payload"), rule.literal({ Bytes: "00ff" })),
+        rule.eq(rule.field("optionalPayload"), rule.literal(null)),
+        rule.eq(rule.field("optionalPayload"), rule.literal({ Bytes: "00ff" })),
+      ), insert: rule.exists(blobs, "byPayload", [rule.literal({ Bytes: "00ff" })]) },
+    });
+    export const bytes = channel({ args: { payload: t.bytes(4) },
+      publish: rule.eq(rule.field("payload"), rule.literal({ Bytes: "00ff" })), subscribe: rule.allow(), ttlMs: 1000 });
+    export default schema({ tables: { blobs }, channels: { bytes } });`, "snapback/schema.ts");
+  assert(lowered.diagnostics.length === 0, `typed Bytes rule literals refused: ${lowered.diagnostics.map((item) => item.message).join("; ")}`);
+  const terms = (lowered.schema.tables.blobs as any).rules.read.And;
+  assert(canonical(terms[0].Eq[1]) === canonical({ Literal: { Map: { Bytes: { String: "00ff" } } } }),
+    "Json-column {Bytes: ...} literal did not stay a map compatible with the owner JSON path");
+  assert(canonical(terms[1].Eq[1]) === canonical({ Literal: { Bytes: "00ff" } }),
+    "Bytes-column literal did not lower to Value::Bytes");
+  assert(canonical(terms[2].Eq[1]) === canonical({ Literal: "Null" }), "Optional Bytes null did not lower to Literal Null");
+  assert(canonical(terms[3].Eq[1]) === canonical({ Literal: { Bytes: "00ff" } }), "Optional Bytes literal lost its wrapper type");
+  assert(canonical((lowered.schema.tables.blobs as any).rules.insert.Exists.key[0]) === canonical({ Literal: { Bytes: "00ff" } }),
+    "Bytes exists key did not use its index-column type");
+  assert(canonical((lowered.schema.channels.bytes as any).publish.Eq[1]) === canonical({ Literal: { Bytes: "00ff" } }),
+    "Bytes channel rule literal did not use its argument type");
+  assert(runBinaryCheck(["--json", "--ir"], { schema: lowered.schema, programs: [], effects: [] }).exitCode === 0, "typed Bytes rules did not certify");
+
+  const ambiguous = lowerSchema(`import { rule, schema, table } from "snapback2";
+    export const rows = table({ columns: {}, rules: {
+      read: rule.eq(rule.literal({ Bytes: "00ff" }), rule.literal({ Bytes: "00ff" })),
+    } });
+    export default schema({ tables: { rows } });`, "snapback/schema.ts");
+  assert(ambiguous.diagnostics.some((item) => item.code === "E_RULE_INVALID" && item.message.includes("Bytes schema position")),
+    "untyped {Bytes: ...} rule literal was inferred instead of refused");
+
+  const invalidExists = lowerSchema(`import { rule, schema, table, t } from "snapback2";
+    export const rows = table({ columns: { payload: t.bytes(4) }, indexes: { byPayload: { columns: ["payload"] } },
+      rules: { read: rule.exists(rows, "byPayload", [rule.literal({ Bytes: "FF" })]) } });
+    export default schema({ tables: { rows } });`, "snapback/schema.ts");
+  assert((invalidExists.schema.tables.rows as any).rules.read === "Deny", "failed exists key emitted truncated Exists IR");
+  assert(invalidExists.diagnostics.length === 1 && !invalidExists.diagnostics[0]!.message.includes("unsupported"), "failed exists key emitted an imprecise duplicate refusal");
+  const invalidEq = lowerSchema(`import { rule, schema, table, t } from "snapback2";
+    export const rows = table({ columns: { payload: t.bytes(4) }, rules: { read: rule.eq(rule.field("payload"), rule.literal({ Bytes: "FF" })) } });
+    export default schema({ tables: { rows } });`, "snapback/schema.ts");
+  assert(invalidEq.diagnostics.length === 1 && !invalidEq.diagnostics[0]!.message.includes("unsupported"), "failed Bytes eq emitted a generic duplicate refusal");
+});
+
+test("schema descriptor maxima stop at the Rust u32 representation", () => {
+  const invalid = lowerSchema(`import { schema, table, t } from "snapback2";
+    export const blobs = table({ columns: { payload: t.bytes(4294967296) } });
+    export default schema({ tables: { blobs } });`, "snapback/schema.ts");
+  assert(invalid.diagnostics.some((item) => item.code === "E_SCHEMA_COLUMN"),
+    "schema compiler admitted a max above u32::MAX");
 });
 
 test("invalid Decimal, Money, and Enum descriptors refuse with sited descriptor rewrites", () => {
@@ -1235,6 +1335,22 @@ test("seed validation checks personas, tables, rows, and every schema value shap
       !reserved.diagnostics.some((item) => item.code === "E_SEED_PERSONA"),
       "the prefix-safe persona name system should remain valid",
     );
+  });
+});
+
+test("seed Bytes values require one exact externally tagged key", async () => {
+  await withProject({
+    "snapback/schema.ts": `import { schema, table, t } from "snapback2";
+      export const blobs = table({ columns: { payload: t.bytes(4) } });
+      export default schema({ tables: { blobs } });`,
+    "snapback/seed.ts": `import { seed } from "snapback2";
+      export default seed({ personas: [], rows: { blobs: [
+        { id: "blob-1", payload: { Bytes: "00ff", extra: 1 } },
+      ] } });`,
+  }, async (root) => {
+    const invalid = await lowerSeed(root);
+    assert(!invalid.ok && invalid.diagnostics.some((item) => item.code === "E_SEED_VALUE" && item.message.includes("canonical lowercase base16")),
+      "seed check admitted a Bytes value with an extra externally tagged key");
   });
 });
 

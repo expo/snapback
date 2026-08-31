@@ -1,9 +1,12 @@
+import coreIrContract from "../../../crates/snapback2-core/ir-contract.json" with { type: "json" };
+
 export type Value =
   | "Null"
   | { Bool: boolean }
   | { Int: number }
   | { String: string }
   | { Id: string }
+  | { Bytes: string }
   | { Row: Record<string, Value> }
   | { Array: Value[] }
   | { Map: Record<string, Value> };
@@ -75,6 +78,7 @@ export interface CorpusCase {
   randomSeed: number | null;
   schema: any;
   program: any;
+  certificate: any;
   context: Context;
   receipt: ClosureReceipt;
   prelude: PreludeStep[];
@@ -129,6 +133,7 @@ type Flow =
 const NEXT: Flow = { kind: "next" };
 const I53_MAX = 9_007_199_254_740_991;
 const I53_MIN = -I53_MAX;
+export const CURRENT_VALUE_MODEL_VERSION = coreIrContract.valueModelVersion;
 
 class EvalError extends Error {
   constructor(readonly code: string, message: string) {
@@ -746,6 +751,7 @@ class Runner {
   }
 
   private insert(table: string, row: Value): void {
+    validateWriteRow(this.schema, table, row);
     if (!this.checkRule(table, "insert", row)) throw new EvalError("E_RULE", `${table} insert`);
     this.checkConstraints(table, null, row, "insert");
     if (this.store.byId(table, asString(field(row, "id"))) !== null)
@@ -764,6 +770,7 @@ class Runner {
   private replace(table: string, key: Value, row: Value): void {
     const old = this.store.byId(table, asString(key));
     if (old === null) throw new EvalError("E_INPUT", `missing ${table} row`);
+    validateWriteRow(this.schema, table, row);
     if (!this.checkRule(table, "update", old) || !this.checkRule(table, "update", row))
       throw new EvalError("E_RULE", `${table} update`);
     this.checkConstraints(table, old, row, "update");
@@ -926,6 +933,12 @@ class Runner {
 }
 
 export function evaluateCase(testCase: CorpusCase): ActualResult {
+  if (testCase.certificate?.value_model_version !== CURRENT_VALUE_MODEL_VERSION) {
+    throw new EvalError(
+      "E_TRACE_SUBSET",
+      `value model version ${String(testCase.certificate?.value_model_version)} != current ${CURRENT_VALUE_MODEL_VERSION}`,
+    );
+  }
   const store = new ClientStore(testCase.schema, testCase.receipt);
   for (const step of testCase.prelude) {
     const prelude = store.applyMutation(step.program, step.context);
@@ -1016,6 +1029,10 @@ export function canonicalValue(value: Value): string {
   const data = (value as any)[kind];
   if (kind === "Bool" || kind === "Int") return `{"${kind}":${JSON.stringify(data)}}`;
   if (kind === "String" || kind === "Id") return `{"${kind}":${JSON.stringify(data)}}`;
+  if (kind === "Bytes") {
+    if (!canonicalBytes(data)) throw new EvalError("E_INPUT", "Bytes is not canonical lowercase base16");
+    return `{"Bytes":${JSON.stringify(data)}}`;
+  }
   if (kind === "Array") return `{"Array":${canonicalValues(data)}}`;
   const entries = Object.keys(data)
     .sort(compareCodepoints)
@@ -1094,7 +1111,7 @@ function safeNumber(value: number): number {
 }
 
 function totalCompare(left: Value, right: Value): number {
-  const order = ["Null", "Bool", "Int", "String", "Id", "Row", "Array", "Map"];
+  const order = ["Null", "Bool", "Int", "String", "Id", "Bytes", "Row", "Array", "Map"];
   const leftKind = kindOf(left);
   const rightKind = kindOf(right);
   const tag = order.indexOf(leftKind) - order.indexOf(rightKind);
@@ -1104,6 +1121,11 @@ function totalCompare(left: Value, right: Value): number {
   const rightData = (right as any)[rightKind];
   if (leftKind === "Bool" || leftKind === "Int") return comparePrimitive(leftData, rightData);
   if (leftKind === "String" || leftKind === "Id") return compareCodepoints(leftData, rightData);
+  if (leftKind === "Bytes") {
+    if (!canonicalBytes(leftData) || !canonicalBytes(rightData))
+      throw new EvalError("E_INPUT", "Bytes is not canonical lowercase base16");
+    return compareCodepoints(leftData, rightData);
+  }
   if (leftKind === "Array") return compareArrays(leftData, rightData);
   const leftEntries = Object.keys(leftData).sort(compareCodepoints);
   const rightEntries = Object.keys(rightData).sort(compareCodepoints);
@@ -1166,7 +1188,10 @@ export function scopedRuleHash(schema: any, rule: any): string {
 }
 
 function kindOf(value: Value): string {
-  return value === "Null" ? "Null" : Object.keys(value)[0];
+  if (value === "Null") return "Null";
+  const keys = Object.keys(value);
+  if (keys.length !== 1) throw new EvalError("E_INPUT", "invalid externally tagged value");
+  return keys[0];
 }
 
 function isVariant<K extends Exclude<ReturnType<typeof kindOf>, "Null">>(
@@ -1182,6 +1207,36 @@ function valuesEqual(left: Value[], right: Value[]): boolean {
 
 function startsWith<T>(values: T[], prefix: T[]): boolean {
   return prefix.every((value, index) => values[index] === value);
+}
+
+function validateWriteRow(schema: any, tableName: string, row: Value): void {
+  const columns = schema.tables?.[tableName]?.columns;
+  if (columns === undefined) throw new EvalError("E_SCHEMA", `missing table ${tableName}`);
+  const object = asObject(row);
+  for (const [name, descriptor] of Object.entries<any>(columns)) {
+    if (name in object) validateColumnValue(descriptor, object[name], `${tableName}.${name}`);
+  }
+}
+
+function validateColumnValue(descriptor: any, value: Value, label: string): void {
+  if (descriptor?.Bytes) {
+    if (!isVariant(value, "Bytes") || !canonicalBytes(value.Bytes))
+      throw new EvalError("E_INPUT", `${label} must be bytes`);
+    if (value.Bytes.length / 2 > descriptor.Bytes.max)
+      throw new EvalError("E_INPUT", `${label} exceeds bytes max ${descriptor.Bytes.max}`);
+    return;
+  }
+  if (descriptor?.Optional !== undefined) {
+    if (value !== "Null") validateColumnValue(descriptor.Optional, value, label);
+    return;
+  }
+  if (descriptor?.List && isVariant(value, "Array")) {
+    for (const item of value.Array) validateColumnValue(descriptor.List.of, item, label);
+  }
+}
+
+function canonicalBytes(value: unknown): value is string {
+  return typeof value === "string" && /^(?:[0-9a-f]{2})*$/.test(value);
 }
 
 function clone<T>(value: T): T {

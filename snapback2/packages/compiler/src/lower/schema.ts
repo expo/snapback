@@ -1,5 +1,5 @@
 import ts from "typescript";
-import { authoredTypeFromColumn } from "../authored-types";
+import { authoredTypeFromColumn, requiredType, unknownType, type AuthoredType } from "../authored-types";
 import { diagnostic } from "../diagnostics";
 import { IR_CONTRACT, type FrontendDiagnostic, type SchemaJson, type Value } from "../ir";
 import type { TableInfo } from "../compiler";
@@ -133,8 +133,8 @@ function lowerTable(
 ): {
   value: unknown;
   private: boolean;
-  columns: Record<string, ReturnType<typeof authoredTypeFromColumn>>;
-  indexes: Record<string, { columns: string[] }>;
+  columns: Record<string, AuthoredType>;
+  indexes: Record<string, { columns: string[]; types: AuthoredType[] }>;
   readRule: unknown;
 } | undefined {
   const config = objectOf(call.arguments[0]);
@@ -158,6 +158,9 @@ function lowerTable(
     const lowered = lowerColumn(module, entry.value, tables, diagnostics);
     if (lowered !== undefined) columns[entry.name] = lowered;
   }
+  const authoredColumns = Object.fromEntries(
+    Object.entries(columns).map(([column, value]) => [column, authoredTypeFromColumn(value)]),
+  );
 
   const indexes: Record<string, unknown> = { byId: { columns: ["id"], unique: true } };
   const indexesObject = objectOf(property(config, "indexes"));
@@ -197,6 +200,18 @@ function lowerTable(
       indexes[entry.name] = { columns: names, unique: unique ?? false };
     }
   }
+  const authoredIndexes = Object.fromEntries(Object.entries(indexes).map(([index, descriptor]) => {
+    const indexColumns = [...(descriptor as { columns: string[] }).columns];
+    return [index, {
+      columns: indexColumns,
+      types: indexColumns.map((column) => authoredColumns[column] ?? unknownType),
+    }];
+  }));
+  const tableInfo = tables.get(name);
+  if (tableInfo) {
+    tableInfo.columns = authoredColumns;
+    tableInfo.indexes = authoredIndexes;
+  }
 
   const rulesObject = objectOf(property(config, "rules"));
   if (property(config, "rules") && !rulesObject) {
@@ -206,19 +221,14 @@ function lowerTable(
   const rules: Record<string, unknown> = {};
   for (const side of ["read", "insert", "update", "delete"]) {
     const node = rulesObject && property(rulesObject, side);
-    rules[side] = node ? lowerRule(module, node, tables, diagnostics) ?? "Deny" : "Deny";
+    rules[side] = node ? lowerRule(module, node, tables, diagnostics, authoredColumns) ?? "Deny" : "Deny";
   }
   const constraints = lowerConstraints(module, property(config, "constraints"), columns, indexes, diagnostics);
   return {
     value: { columns, indexes, rules, constraints },
     private: !isPublicRule(rules.read),
-    columns: Object.fromEntries(Object.entries(columns).map(([column, value]) => [column, authoredTypeFromColumn(value)])),
-    indexes: Object.fromEntries(
-      Object.entries(indexes).map(([index, value]) => [
-        index,
-        { columns: [...(value as { columns: string[] }).columns] },
-      ]),
-    ),
+    columns: authoredColumns,
+    indexes: authoredIndexes,
     readRule: rules.read,
   };
 }
@@ -261,6 +271,10 @@ function lowerColumn(
     const max = numberValue(call.arguments[0]);
     if (call.arguments.length === 1 && validPositiveInteger(max)) return { Text: { max } };
   }
+  if (name === "bytes") {
+    const max = numberValue(call.arguments[0]);
+    if (call.arguments.length === 1 && validPositiveInteger(max)) return { Bytes: { max } };
+  }
   if (name === "json") {
     const maxBytes = numberValue(call.arguments[0]);
     if (call.arguments.length === 1 && validPositiveInteger(maxBytes)) return { Json: { max_bytes: maxBytes } };
@@ -296,6 +310,7 @@ function lowerRule(
   node: ts.Expression,
   tables: Map<string, TableInfo>,
   diagnostics: FrontendDiagnostic[],
+  columns?: Record<string, AuthoredType>,
 ): unknown | undefined {
   const call = unwrapCall(node);
   const name = call && callLeaf(call);
@@ -315,20 +330,23 @@ function lowerRule(
     return { Eq: [{ Field: stringValue(call.arguments[0])! }, "Viewer"] };
   }
   if ((name === "eq" || name === "ne") && call.arguments.length === 2) {
-    const left = call.arguments[0] && lowerTerm(module, call.arguments[0], diagnostics);
-    const right = call.arguments[1] && lowerTerm(module, call.arguments[1], diagnostics);
+    const leftExpected = call.arguments[1] && ruleFieldType(call.arguments[1], columns);
+    const rightExpected = call.arguments[0] && ruleFieldType(call.arguments[0], columns);
+    const left = call.arguments[0] && lowerTerm(module, call.arguments[0], diagnostics, leftExpected);
+    const right = call.arguments[1] && lowerTerm(module, call.arguments[1], diagnostics, rightExpected);
     if (left !== undefined && right !== undefined) return { [name === "eq" ? "Eq" : "Ne"]: [left, right] };
+    return undefined;
   }
   if (name === "and" || name === "or") {
     if (call.arguments.length === 0) {
       diagnostics.push(ruleDiagnostic(module, node, `rule.${name} requires at least one rule`));
       return undefined;
     }
-    const values = call.arguments.map((item) => lowerRule(module, item, tables, diagnostics)).filter((item) => item !== undefined);
+    const values = call.arguments.map((item) => lowerRule(module, item, tables, diagnostics, columns)).filter((item) => item !== undefined);
     return { [name === "and" ? "And" : "Or"]: values };
   }
   if (name === "not" && call.arguments.length === 1 && call.arguments[0]) {
-    const value = lowerRule(module, call.arguments[0], tables, diagnostics);
+    const value = lowerRule(module, call.arguments[0], tables, diagnostics, columns);
     return value === undefined ? undefined : { Not: value };
   }
   if (name === "exists" && call.arguments.length === 3) {
@@ -344,7 +362,15 @@ function lowerRule(
       diagnostics.push(ruleDiagnostic(module, call, "rule.exists requires table, index, and a key array"));
       return undefined;
     }
-    const key = keyNode.elements.map((item) => lowerTerm(module, item, diagnostics)).filter((item) => item !== undefined);
+    const expected = tables.get(tableName)!.indexes?.[index]?.types;
+    const key: unknown[] = [];
+    let failed = false;
+    keyNode.elements.forEach((item, position) => {
+      const term = lowerTerm(module, item, diagnostics, expected?.[position]);
+      if (term === undefined) failed = true;
+      else key.push(term);
+    });
+    if (failed) return undefined;
     return {
       Exists: {
         table: tables.get(tableName)!.name,
@@ -358,7 +384,12 @@ function lowerRule(
   return undefined;
 }
 
-function lowerTerm(module: SchemaModule, node: ts.Expression, diagnostics: FrontendDiagnostic[]): unknown | undefined {
+function lowerTerm(
+  module: SchemaModule,
+  node: ts.Expression,
+  diagnostics: FrontendDiagnostic[],
+  expected?: AuthoredType,
+): unknown | undefined {
   const value = unwrapExpression(node);
   if (ts.isPropertyAccessExpression(value) && value.expression.getText() === "rule" && value.name.text === "viewer") return "Viewer";
   const call = unwrapCall(value);
@@ -379,10 +410,29 @@ function lowerTerm(module: SchemaModule, node: ts.Expression, diagnostics: Front
       return undefined;
     }
     const literal = staticJson(call.arguments[0]);
-    if (literal !== undefined) return { Literal: encodeValue(literal) };
+    if (literal !== undefined) {
+      const encoded = encodeValue(literal, expected);
+      if (encoded !== undefined) return { Literal: encoded };
+      const target = expected && requiredType(expected);
+      diagnostics.push(ruleDiagnostic(
+        module,
+        call.arguments[0],
+        target?.kind === "bytes"
+          ? "Bytes rule literal must be exactly { Bytes: canonicalLowercaseBase16 }"
+          : "a { Bytes: ... } rule literal requires a Bytes schema position",
+      ));
+      return undefined;
+    }
   }
   diagnostics.push(ruleDiagnostic(module, node, "rule term must be field(), viewer, or literal()"));
   return undefined;
+}
+
+function ruleFieldType(node: ts.Expression, columns?: Record<string, AuthoredType>): AuthoredType | undefined {
+  const call = unwrapCall(node);
+  if (!call || callLeaf(call) !== "field" || call.arguments.length !== 1) return undefined;
+  const name = stringValue(call.arguments[0]);
+  return name ? columns?.[name] : undefined;
 }
 
 function findFractionalLiteral(node: ts.Node): ts.NumericLiteral | undefined {
@@ -530,12 +580,14 @@ function lowerChannel(
   validateKnownKeys(module, config, ["args", "publish", "subscribe", "ttlMs"], "channel", "E_SCHEMA_INVALID", diagnostics);
   validateRecordShape(module, argsObject, "channel args", "E_SCHEMA_INVALID", diagnostics);
   const args: Record<string, unknown> = {};
+  const authoredArgs: Record<string, AuthoredType> = {};
   for (const entry of propertyEntries(argsObject)) {
     const lowered = lowerArgDescriptor(entry.value, tables);
     if (lowered === undefined) {
       diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_INVALID", entry.node, `invalid channel argument descriptor ${entry.name}`));
     } else {
       args[entry.name] = lowered;
+      authoredArgs[entry.name] = authoredTypeFromColumn(lowered);
     }
   }
   const publishNode = property(config, "publish");
@@ -547,8 +599,8 @@ function lowerChannel(
   }
   return {
     args,
-    publish: lowerRule(module, publishNode, tables, diagnostics) ?? "Deny",
-    subscribe: lowerRule(module, subscribeNode, tables, diagnostics) ?? "Deny",
+    publish: lowerRule(module, publishNode, tables, diagnostics, authoredArgs) ?? "Deny",
+    subscribe: lowerRule(module, subscribeNode, tables, diagnostics, authoredArgs) ?? "Deny",
     ttl_ms: ttl,
   };
 }
@@ -602,6 +654,7 @@ export function lowerArgDescriptor(
     case "bool": return "Bool";
     case "time": return "Time";
     case "text": return { Text: { max: numberValue(call.arguments[0]) } };
+    case "bytes": return { Bytes: { max: numberValue(call.arguments[0]) } };
     case "json": return { Json: { max_bytes: numberValue(call.arguments[0]) } };
     default: return undefined;
   }
@@ -620,7 +673,7 @@ function validArgDescriptor(node: ts.Expression): boolean {
   const name = call && callLeaf(call);
   if (!call || !name) return false;
   if (["id", "int", "bool", "time"].includes(name)) return call.arguments.length === 0;
-  if (name === "text" || name === "json") return call.arguments.length === 1 && validPositiveInteger(numberValue(call.arguments[0]));
+  if (name === "text" || name === "bytes" || name === "json") return call.arguments.length === 1 && validPositiveInteger(numberValue(call.arguments[0]));
   if (name === "ref") return call.arguments.length === 1;
   if (name === "optional") return call.arguments.length === 1 && !!call.arguments[0] && validArgDescriptor(call.arguments[0]);
   if (name === "enum") {
@@ -666,13 +719,39 @@ function validateRootRefs(
   }
 }
 
-function encodeValue(value: unknown): Value {
+function encodeValue(value: unknown, expected?: AuthoredType): Value | undefined {
+  if (expected?.kind === "optional" && value === null) return "Null";
+  const target = expected && requiredType(expected);
+  if (target?.kind === "bytes") {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+    const entries = Object.entries(value as Record<string, unknown>);
+    return entries.length === 1 && entries[0][0] === "Bytes"
+      && typeof entries[0][1] === "string" && /^(?:[0-9a-f]{2})*$/.test(entries[0][1])
+      ? { Bytes: entries[0][1] }
+      : undefined;
+  }
   if (value === null) return "Null";
   if (typeof value === "boolean") return { Bool: value };
   if (typeof value === "number") return { Int: value };
   if (typeof value === "string") return { String: value };
-  if (Array.isArray(value)) return { Array: value.map(encodeValue) };
-  return { Row: Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([key, item]) => [key, encodeValue(item)])) };
+  if (Array.isArray(value)) {
+    const itemExpected = target?.kind === "list" ? target.of : target?.kind === "json" ? target : undefined;
+    const items = value.map((item) => encodeValue(item, itemExpected));
+    return items.every((item): item is Value => item !== undefined) ? { Array: items } : undefined;
+  }
+  if (value && typeof value === "object" && Object.keys(value).length === 1
+    && typeof (value as Record<string, unknown>).Bytes === "string"
+    && /^(?:[0-9a-f]{2})*$/.test((value as Record<string, string>).Bytes)) {
+    return target?.kind === "json" ? {
+      Map: { Bytes: { String: (value as Record<string, string>).Bytes } },
+    } : undefined;
+  }
+  const itemExpected = target?.kind === "json" ? target : undefined;
+  const entries = Object.entries(value as Record<string, unknown>)
+    .map(([key, item]) => [key, encodeValue(item, itemExpected)] as const);
+  return entries.every((entry): entry is readonly [string, Value] => entry[1] !== undefined)
+    ? { Map: Object.fromEntries(entries) }
+    : undefined;
 }
 
 function ruleProvenance(key: unknown[]): "Arg" | "Viewer" | "Const" | "Shape" | "Computed" {
@@ -731,7 +810,7 @@ export function invalidDescriptorRefusal(node: ts.Expression): { node: ts.Expres
   }
   const rewrites: Record<string, string> = {
     id: `${callee}()`, int: `${callee}()`, bool: `${callee}()`, time: `${callee}()`,
-    text: `${callee}(100)`, json: `${callee}(1000)`, ref: `${callee}(table)`,
+    text: `${callee}(100)`, bytes: `${callee}(100)`, json: `${callee}(1000)`, ref: `${callee}(table)`,
     optional: `${callee}(${sibling("text")}(100))`,
     list: `${callee}(${sibling("text")}(100), { max: 10 })`,
   };
@@ -750,7 +829,7 @@ export function invalidNativeDescriptorRefusal(node: ts.Expression): ReturnType<
 
 function nativeDescriptorName(call: ts.CallExpression): string | undefined {
   const name = callLeaf(call);
-  if (!name || !["id", "text", "int", "bool", "time", "ref", "json", "optional", "list", "enum", "decimal", "money"].includes(name)
+  if (!name || !["id", "text", "bytes", "int", "bool", "time", "ref", "json", "optional", "list", "enum", "decimal", "money"].includes(name)
     || !ts.isPropertyAccessExpression(call.expression)) return undefined;
   const owner = call.expression.expression.getText();
   if (owner === "t" || owner.endsWith(".t")) return name;
@@ -769,7 +848,7 @@ function correctedScale(value: number | undefined): number {
 }
 
 function validPositiveInteger(value: number | undefined): value is number {
-  return value !== undefined && Number.isInteger(value) && value > 0;
+  return value !== undefined && Number.isInteger(value) && value > 0 && value <= 0xffff_ffff;
 }
 
 function validateRecordShape(

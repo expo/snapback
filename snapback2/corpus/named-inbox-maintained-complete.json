@@ -1010,6 +1010,61 @@
       }
     ]
   },
+  "certificate": {
+    "program": "inboxMaintainedComplete",
+    "plan_hash": "ed1a7695b7fa026da94194e02c3228a0d1ba407ed5821e4d3b99dd2a8a9bd1bb",
+    "schema_hash": "c7a114473f568c5b71320eeb74b6a36b19cbdf487db3704b954d9ac5c01207d7",
+    "rule_hashes": {
+      "memberships.read": "87cbe4a2bbf3fe58e3d3ab0591ddf8dd2863d949b94486ff2352dd39d50af4fd",
+      "unreads.read": "50dd0c1bb208da93b9ce0e4f278f68c3d9b97b683c45332d9b18323a1dcc8a82"
+    },
+    "evaluator_version": "bounded-spike-rust-1",
+    "value_model_version": "i53-codepoint-bytes-v2",
+    "read_sites": [
+      {
+        "site": "inboxComplete.memberships",
+        "table": "memberships",
+        "index": "byUserActivity",
+        "prefix_template": "Viewer",
+        "take": 50,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 0,
+        "hoist": true
+      },
+      {
+        "site": "inboxComplete.unreadMaintained",
+        "table": "unreads",
+        "index": "byConvUser",
+        "prefix_template": "Shape",
+        "take": 1,
+        "max_calls": 50,
+        "rule_probes_per_candidate": 0,
+        "hoist": false
+      }
+    ],
+    "write_sites": [],
+    "maintained_amplification": 0,
+    "constraint_checks": [],
+    "max_examined": 10240,
+    "max_index_entries": 10240,
+    "max_rule_probes": 0,
+    "max_steps": 51255,
+    "max_heap_bytes": 1640160,
+    "max_output_bytes": 25902,
+    "max_closure_bytes": 25850,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [
+      "memberships.byUserActivity",
+      "unreads.byConvUser"
+    ],
+    "disclosures": [
+      "E_DISCLOSURE: count waitlist summarized into waitCounts"
+    ],
+    "bound_product": "inboxComplete.memberships take 50 = 50"
+  },
   "context": {
     "viewer": "u1",
     "principal_kind": "user",

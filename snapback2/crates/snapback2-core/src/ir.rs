@@ -27,6 +27,9 @@ pub enum ArgType {
     Text {
         max: u32,
     },
+    Bytes {
+        max: u32,
+    },
     Int,
     Bool,
     Time,

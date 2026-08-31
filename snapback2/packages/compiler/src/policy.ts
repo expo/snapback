@@ -305,6 +305,7 @@ function declaredRowMax(tables: Map<string, TableInfo>, tableName: string): numb
 function declaredColumnMax(column: AuthoredType): number {
   switch (column.kind) {
     case "string": return column.max === undefined ? 144 : column.max + 16;
+    case "bytes": return column.max * 2 + 16;
     case "int":
     case "decimal": return 32;
     case "bool": return 16;

@@ -26,6 +26,7 @@ fn declared_column_max(column: &ColumnType) -> u64 {
         ColumnType::Text { max } | ColumnType::Json { max_bytes: max } => {
             u64::from(*max).saturating_add(16)
         }
+        ColumnType::Bytes { max } => u64::from(*max).saturating_mul(2).saturating_add(16),
         ColumnType::Int
         | ColumnType::Time
         | ColumnType::Decimal { .. }

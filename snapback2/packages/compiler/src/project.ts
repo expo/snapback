@@ -508,7 +508,7 @@ function generateApiDts(
     return [catalog, ...aliases].join("\n");
   })();
   const members = [modulesText, channelsText].filter(Boolean).join("\n");
-  return `import type { Decimal, Json, Money, Page } from 'snapback2';\nimport type { Channel, Op } from 'snapback2/client';\n\n${rowTypes}\n\ndeclare module 'snapback2/client' {\n  interface Api {\n${members}\n  }\n}\n\nexport {};\n`;
+  return `import type { Bytes, Decimal, Json, Money, Page } from 'snapback2';\nimport type { Channel, Op } from 'snapback2/client';\n\n${rowTypes}\n\ndeclare module 'snapback2/client' {\n  interface Api {\n${members}\n  }\n}\n\nexport {};\n`;
 }
 
 function apiChannels(program: ts.Program, checker: ts.TypeChecker): Array<{ name: string; args: string }> {
@@ -571,6 +571,7 @@ function apiArgsType(object: ts.ObjectLiteralExpression, checker: ts.TypeChecker
 function descriptorType(call: ts.CallExpression, checker: ts.TypeChecker): string {
   const name = callLeaf(call);
   if (name === "id" || name === "text" || name === "ref") return "string";
+  if (name === "bytes") return "Bytes";
   if (name === "int" || name === "time") return "number";
   if (name === "bool") return "boolean";
   if (name === "enum") {
@@ -709,6 +710,7 @@ function apiExpressionType(
 function apiAuthoredType(value: AuthoredType): string {
   if (value.kind === "int") return "number";
   if (value.kind === "string") return "string";
+  if (value.kind === "bytes") return "Bytes";
   if (value.kind === "bool") return "boolean";
   if (value.kind === "json") return "Json";
   if (value.kind === "decimal") {
@@ -787,6 +789,17 @@ function seedValueMismatch(value: unknown, type: unknown, path: string): string 
   const descriptor = type as Record<string, any>;
   if (descriptor.Text) {
     return typeof value === "string" && [...value].length <= descriptor.Text.max ? undefined : `${path} must be text of at most ${descriptor.Text.max} characters`;
+  }
+  if (descriptor.Bytes) {
+    const encodedObject = value && typeof value === "object" && !Array.isArray(value)
+      ? value as Record<string, unknown>
+      : undefined;
+    const encoded = encodedObject?.Bytes;
+    return encodedObject && Object.keys(encodedObject).length === 1
+      && typeof encoded === "string" && /^(?:[0-9a-f]{2})*$/.test(encoded)
+      && encoded.length / 2 <= descriptor.Bytes.max
+      ? undefined
+      : `${path} must be canonical lowercase base16 of at most ${descriptor.Bytes.max} bytes`;
   }
   if (descriptor.Json) {
     const mismatch = jsonWireMismatch(value, path);

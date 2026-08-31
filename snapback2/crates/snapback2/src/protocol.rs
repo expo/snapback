@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Value as Json, json};
-use snapback2_core::{IdentityError, RuntimeError, SuccessorRefusal, Value};
+use snapback2_core::{IdentityError, RuntimeError, SuccessorRefusal, Value, encode_bytes_hex};
 use std::collections::BTreeMap;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -154,6 +154,7 @@ pub fn value_to_json(value: &Value) -> Json {
         Value::Bool(value) => Json::Bool(*value),
         Value::Int(value) => Json::Number((*value).into()),
         Value::String(value) | Value::Id(value) => Json::String(value.clone()),
+        Value::Bytes(value) => json!({ "Bytes": encode_bytes_hex(value) }),
         Value::Row(values) | Value::Map(values) => Json::Object(
             values
                 .iter()
