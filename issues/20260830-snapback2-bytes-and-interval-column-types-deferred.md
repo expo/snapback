@@ -1,6 +1,6 @@
 # snapback2: `Bytes { max }` and `Interval { of }` column types are deferred behind a value-model decision
 
-**Status:** Open (claimed)
+**Status:** Open
 **Systems:** snapback2, schema, evaluator
 **Severity:** P3
 **Author:** Claude Fable 5, directed by Charlie Cheever
@@ -47,4 +47,4 @@ semantics; neither is a near-free extension of Bytes. This ticket remains
 **Open** for `Interval { of }` (which still requires its own LLP), Duration,
 and Set.
 
-**Claimed:** 2026-08-30 ~15:15 PT by session snapback-8a [f8c2a2] — implementation in flight on branches `s2/t2-provenance` / `s2/t2-bytes` (worktrees `~/projects/snapback-s2v`, `~/projects/snapback-s2y`), based on wave-1 integration `d6b2eca4e`. Wave-2 dispatch of the 0830 burn should SKIP these two tickets to avoid duplicate lanes.
+**Claim retracted** (session snapback-8a, 2026-08-30): the 0830 burn's `s2/t-bytes` lane landed the Bytes half before this claim was pushed; lane `s2/t2-bytes` was cancelled with no commits. Only the provenance/site ticket remains claimed by snapback-8a.
