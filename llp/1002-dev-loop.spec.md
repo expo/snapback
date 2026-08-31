@@ -117,15 +117,24 @@ any member is computed. A transparent immutable alias preserves that result.
 Selecting a member from an object literal or immutable local composite follows
 that member's origin; a property base not proven as either a row or such a
 composite matches no rule.
-Pure helper expansion applies the same rules to the helper body and never to
-the helper name. An unknown or mutable alias matches no single rule and
-refuses with `E_PROVENANCE_AMBIGUOUS`; the standard envelope carries family,
-source site, and a pasted rewrite that uses one direct origin. Read-site
+`args` and `ctx` are composites in this domain (`args.<field>` is `Arg` and
+`ctx.viewer` is `Viewer`), so assertions, helper substitution, immutable
+aliases, nested composites, and spreads all use the same recursive member
+selection. Object members resolve in authored override order; a required known
+spread can decide the selected leaf, while an optional or unknown override with
+different possible origins refuses. Row-preserving `filter` retains a proven
+row collection. Pure helper expansion applies the same rules to the helper body
+and never to the helper name. Every binding form, including loop bindings,
+`orderedPair` destructuring, and lowered collection specializations, preserves
+ambiguity. An unknown or mutable binding matches no single rule and refuses
+with `E_PROVENANCE_AMBIGUOUS`; the standard envelope carries family, source
+site, and a pasted rewrite scoped to the authored read key and using one direct
+origin. Read-site
 identity is independently pinned to `<module-basename>.<export>.<ordinal>`,
 where the zero-based ordinal follows read/write source order inside that export
-and is shared through helper expansion. Writes reserve their ordinal even though
-the current `WriteSite` serde shape has no site string. Local names and formatting
-are not inputs.
+and is shared through helper expansion. Operands lower once in authored order;
+writes reserve their ordinal even though the current `WriteSite` serde shape has
+no site string. Local names and formatting are not inputs.
 
 ## 3. The compiler worker and the project JSON
 
@@ -449,11 +458,11 @@ schedule kind, retention.
    authoring form over the same IR. **Resolved 2026-08-30:** keep inference
    under §2's closed rules, refuse every unmatched provenance origin with
    `E_PROVENANCE_AMBIGUOUS`, and pin site identity to module, export, and
-ordinal. Classification is body-derived and name-independent: the LLP
-0329.017 C4 trio is reproducibly `Arg` / `Arg` / `Computed`, because two helper
-bodies pass their argument through while the third applies a template-string
-transform. That disagreement is principled rather than silent; helper names
-cannot affect either fact.
+   ordinal. Classification is body-derived and name-independent: the LLP
+   0329.017 C4 trio is reproducibly `Arg` / `Arg` / `Computed`, because two helper
+   bodies pass their argument through while the third applies a template-string
+   transform. That disagreement is principled rather than silent; helper names
+   cannot affect either fact.
 1. `tiny_http` versus a std-only server (size vs. correctness of chunked SSE).
 2. Whether `init --client react` should exist before the React arm has a
    benchmark run, or `init` should scaffold the backend only.

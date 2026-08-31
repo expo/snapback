@@ -127,6 +127,186 @@ export const membership = query({ id: t.text(40) }, ({ args }) => memberOf(args.
       `memberOf ignored its computed member: ${readMap(program)}`);
   });
 
+  test("loop and orderedPair bindings retain mutable-origin ambiguity", () => {
+    const loop = lowerSource(`import { query, t } from "snapback2";
+export const lookup = query({ key: t.text(40) }, ({ db, args, ctx }) => {
+  let mystery = args.key;
+  mystery = ctx.viewer;
+  const found = [];
+  for (const key of [mystery]) found.push(db.get(items.byKey, [key]));
+  return found;
+});`, "loop-binding.ts", undefined, { tables });
+    assert(!loop.ok && loop.diagnostics.some((item) => item.code === "E_PROVENANCE_AMBIGUOUS"),
+      `loop binding laundered a mutable origin: ${loop.ok ? "lowered" : JSON.stringify(loop.diagnostics)}`);
+
+    const pair = lowerSource(`import { query, t } from "snapback2";
+export const lookup = query({ key: t.text(40) }, ({ db, args, ctx }) => {
+  let mystery = args.key;
+  mystery = ctx.viewer;
+  const [first, second] = orderedPair(mystery, args.key);
+  return db.scan(items.byKey, [first], { take: 10 });
+});`, "pair-binding.ts", undefined, { tables });
+    assert(!pair.ok && pair.diagnostics.some((item) => item.code === "E_PROVENANCE_AMBIGUOUS"),
+      `orderedPair binding laundered a mutable origin: ${pair.ok ? "lowered" : JSON.stringify(pair.diagnostics)}`);
+  });
+
+  test("later object spreads resolve required args and refuse optional overrides", () => {
+    const required = lowerOne(`import { query, t } from "snapback2";
+export const lookup = query({ key: t.text(40) }, ({ db, args, ctx }) =>
+  db.scan(items.byKey, [({ key: ctx.viewer, ...args }).key], { take: 10 }));`, "spread-required.ts");
+    assert(readMap(required) === "spread-required.lookup.0:items:Arg",
+      `known required spread did not override the earlier member: ${readMap(required)}`);
+
+    const optional = lowerSource(`import { query, t } from "snapback2";
+export const lookup = query({ key: t.optional(t.text(40)) }, ({ db, args, ctx }) =>
+  db.scan(items.byKey, [({ key: ctx.viewer, ...args }).key], { take: 10 }));`, "spread-optional.ts", undefined, { tables });
+    assert(!optional.ok && optional.diagnostics.some((item) => item.code === "E_PROVENANCE_AMBIGUOUS"),
+      `optional spread silently chose one override origin: ${optional.ok ? "lowered" : JSON.stringify(optional.diagnostics)}`);
+
+    const nullableRow = lowerSource(`import { query, t } from "snapback2";
+export const lookup = query({ key: t.text(40) }, ({ db, args }) => {
+  const row = db.get(beta.byKey, [args.key]);
+  return db.scan(items.byKey, [({ key: args.key, ...row }).key], { take: 10 });
+});`, "spread-nullable-row.ts", undefined, { tables });
+    assert(!nullableRow.ok && nullableRow.diagnostics.some((item) => item.code === "E_OPAQUE"
+      && item.message.includes("nullable db.get result")),
+    `nullable row spread silently overrode an earlier member: ${nullableRow.ok ? "lowered" : JSON.stringify(nullableRow.diagnostics)}`);
+  });
+
+  test("args and ctx are composites through unwrap, helpers, aliases, and spreads", () => {
+    const source = `import { query, t } from "snapback2";
+function pick(value: any) { return value.key; }
+function identity(value: string) { return ({ value }).value; }
+export const direct = query({ key: t.text(40) }, ({ db, args }) => db.scan(items.byKey, [args.key], { take: 10 }));
+export const asserted = query({ key: t.text(40) }, ({ db, args }) => db.scan(items.byKey, [(args as any).key], { take: 10 }));
+export const helper = query({ key: t.text(40) }, ({ db, args }) => db.scan(items.byKey, [pick(args)], { take: 10 }));
+export const alias = query({ key: t.text(40) }, ({ db, args }) => { const packed = args; return db.scan(items.byKey, [packed.key], { take: 10 }); });
+export const spread = query({ key: t.text(40) }, ({ db, args }) => db.scan(items.byKey, [({ ...args }).key], { take: 10 }));
+export const context = query({ key: t.text(40) }, ({ db, ctx }) => { const c = ctx; return db.scan(items.byKey, [c.viewer], { take: 10 }); });
+export const wrapped = query({ key: t.text(40) }, ({ db, args }) => db.scan(items.byKey, [identity(args.key)], { take: 10 }));
+export const object = query({ key: t.text(40) }, ({ db, args }) => db.scan(items.byKey, [({ key: args.key }).key], { take: 10 }));
+export const helperObject = query({ key: t.text(40) }, ({ db, args }) => db.scan(items.byKey, [pick({ key: args.key })], { take: 10 }));`;
+    const lowered = lowerSource(source, "composites.ts", undefined, { tables });
+    assert(lowered.ok, `composite controls refused: ${lowered.ok ? "" : JSON.stringify(lowered.diagnostics)}`);
+    const outcomes = new Map(lowered.programs.map((program) => [program.name, readMap(program)]));
+    for (const name of ["direct", "asserted", "helper", "alias", "spread", "wrapped", "object", "helperObject"]) {
+      assert(outcomes.get(name) === `composites.${name}.0:items:Arg`, `${name} lost Arg: ${outcomes.get(name)}`);
+    }
+    assert(outcomes.get("context") === "composites.context.0:items:Viewer", `ctx alias lost Viewer: ${outcomes.get("context")}`);
+    for (const program of lowered.programs) certify(program);
+  });
+
+  test("nested immutable composites follow the selected leaf", () => {
+    const source = `import { query, t } from "snapback2";
+export const argument = query({ key: t.text(40) }, ({ db, args, ctx }) => {
+  const packed = { inner: { key: args.key, viewer: ctx.viewer } };
+  return db.scan(items.byKey, [packed.inner.key], { take: 10 });
+});
+export const viewer = query({ key: t.text(40) }, ({ db, args, ctx }) => {
+  const packed = { inner: { key: ctx.viewer } };
+  return db.scan(items.byKey, [packed.inner.key], { take: 10 });
+});`;
+    const lowered = lowerSource(source, "nested-composites.ts", undefined, { tables });
+    assert(lowered.ok, `nested composite refused: ${lowered.ok ? "" : JSON.stringify(lowered.diagnostics)}`);
+    assert(readMap(lowered.programs[0]!) === "nested-composites.argument.0:items:Arg", "nested Arg leaf was not selected");
+    assert(readMap(lowered.programs[1]!) === "nested-composites.viewer.0:items:Viewer", "nested Viewer leaf was not selected");
+    lowered.programs.forEach(certify);
+  });
+
+  test("filter preserves row proof through aliases and a second filtering layer", () => {
+    const program = lowerOne(`import { query, t } from "snapback2";
+export const lookup = query({ key: t.text(40) }, ({ db, args }) => {
+  const selected = db.scan(items.byKey, [args.key], { take: 10 }).filter(row => row.key === args.key);
+  const refined = selected.filter(row => row.id !== "");
+  const aliased = refined;
+  const found = [];
+  for (const row of aliased) found.push(db.get(beta.byKey, [row.key]));
+  return found;
+});`, "filtered-rows.ts");
+    assert(readMap(program) === "filtered-rows.lookup.0:items:Arg|filtered-rows.lookup.1:beta:Shape",
+      `row-preserving filter lost row proof: ${readMap(program)}`);
+    certify(program);
+  });
+
+  test("update operands allocate sites in source order and callback keys lower once", () => {
+    const direct = lowerOne(`import { mutation, t } from "snapback2";
+export const touch = mutation({ key: t.text(40) }, ({ db, args }) => {
+  db.update(items, db.get(alpha.byKey, [args.key])!.id, { key: db.get(beta.byKey, [args.key])!.key });
+  return null;
+});`, "update-operands.ts");
+    assert(readMap(direct) === "update-operands.touch.1:alpha:Arg|update-operands.touch.2:beta:Arg",
+      `update operands did not lower left-to-right: ${readMap(direct)}`);
+
+    const callback = lowerOne(`import { mutation, t } from "snapback2";
+export const touch = mutation({ key: t.text(40) }, ({ db, args }) => {
+  db.update(items, db.get(alpha.byKey, [args.key])!.id, row => ({ key: db.get(beta.byKey, [args.key])!.key }));
+  return null;
+});`, "update-callback.ts");
+    const facts = reads(callback);
+    const sites = facts.map((item) => item.site);
+    assert(new Set(sites).size === sites.length && facts.length === 3,
+      `callback key read was duplicated: ${readMap(callback)}`);
+    assert(sites.includes("update-callback.touch.0") && sites.includes("update-callback.touch.2")
+      && sites.includes("update-callback.touch.3") && !sites.includes("update-callback.touch.4"),
+    `callback operand ordinals are not source ordered: ${readMap(callback)}`);
+    certify(callback);
+  });
+
+  test("ambiguous helper rewrites are scoped to the authored scan key", () => {
+    const source = `import { query, t } from "snapback2";
+function pick(value: any) { return value.key; }
+export const broken = query({ key: t.text(40) }, ({ db, args }) => {
+  const mystery = unknownValue;
+  return db.scan(items.byKey, [pick(mystery)], { take: 10 });
+});
+export const intact = query({ key: t.text(40) }, ({ db, args }) =>
+  db.scan(items.byKey, [pick({ key: args.key })], { take: 10 }));`;
+    const refused = lowerSource(source, "rewrite-scope.ts", undefined, { tables });
+    assert(!refused.ok, "ambiguous helper unexpectedly lowered");
+    const diagnostic = refused.diagnostics.find((item) => item.code === "E_PROVENANCE_AMBIGUOUS");
+    assert(diagnostic, `missing helper provenance refusal: ${JSON.stringify(refused.diagnostics)}`);
+    assert(diagnostic.rewrite.includes("function pick(value: any) { return value.key; }")
+      && diagnostic.rewrite.includes("[args.key]")
+      && diagnostic.rewrite.includes("pick({ key: args.key })"),
+    `helper rewrite escaped the authored scan key: ${diagnostic.rewrite}`);
+    const fixed = lowerSource(diagnostic.rewrite, "rewrite-scope.ts", undefined, { tables });
+    assert(fixed.ok && fixed.programs.length === 2,
+      `scoped helper rewrite did not preserve both call sites: ${fixed.ok ? "" : JSON.stringify(fixed.diagnostics)}`);
+    fixed.programs.forEach(certify);
+  });
+
+  test("adversarial extra alias, helper, spread, and specialization layers stay uniform", () => {
+    const deep = lowerOne(`import { query, t } from "snapback2";
+function nest(value: any) { return { outer: { inner: { ...value } } }; }
+export const lookup = query({ key: t.text(40) }, ({ db, args }) => {
+  const first = args;
+  const second = first;
+  const packed = nest(second);
+  return db.scan(items.byKey, [packed.outer.inner.key], { take: 10 });
+});`, "deep-wrappers.ts");
+    assert(readMap(deep) === "deep-wrappers.lookup.0:items:Arg", `deep wrappers lost Arg: ${readMap(deep)}`);
+    certify(deep);
+
+    const sameOrigin = lowerOne(`import { query, t } from "snapback2";
+export const lookup = query({ key: t.optional(t.text(40)) }, ({ db, args }) =>
+  db.scan(items.byKey, [({ key: args.key, ...args }).key], { take: 10 }));`, "same-origin-spread.ts");
+    assert(readMap(sameOrigin) === "same-origin-spread.lookup.0:items:Arg",
+      `same-origin optional alternatives became ambiguous: ${readMap(sameOrigin)}`);
+
+    const specialized = lowerSource(`import { query, t } from "snapback2";
+export const lookup = query({ key: t.text(40) }, ({ db, args, ctx }) => {
+  let mystery = args.key;
+  mystery = ctx.viewer;
+  const packed = [mystery].map(value => ({ inner: { key: value } }));
+  const aliased = packed;
+  const found = [];
+  for (const item of aliased) found.push(db.get(items.byKey, [item.inner.key]));
+  return found;
+});`, "specialized-wrappers.ts", undefined, { tables });
+    assert(!specialized.ok && specialized.diagnostics.some((item) => item.code === "E_PROVENANCE_AMBIGUOUS"),
+      `map specialization laundered ambiguity: ${specialized.ok ? "lowered" : JSON.stringify(specialized.diagnostics)}`);
+  });
+
   test("site and certificate identity survive helper rename, extraction, inline, and reformat", () => {
     const inline = `import { query, t } from "snapback2";
 export const list = query({ key: t.text(40) }, ({ db, args }) => db.scan(items.byKey, [args.key], { take: 10 }));`;
@@ -214,9 +394,10 @@ export const touch = mutation({ key: t.text(40) }, ({ db, args }) => {
     }, async (root) => {
       const lowered = await lowerProject(root);
       assert(!lowered.ok, "duplicate module basenames unexpectedly lowered");
-      const collisions = lowered.diagnostics.filter((item) => item.code === "E_OP_RESERVED"
+      const collisions = lowered.diagnostics.filter((item) => item.code === "E_OP_MODULE_BASENAME"
         && item.message.includes("module basename activity is duplicated"));
-      assert(collisions.length === 2 && collisions.every((item) => item.family === "op" && item.site.endsWith(":1:1")),
+      assert(collisions.length === 2 && collisions.every((item) => item.family === "op"
+        && item.guide === "programs/module-basename" && item.site.endsWith(":1:1")),
         `duplicate basename refusal was not complete and sited: ${JSON.stringify(collisions)}`);
     });
   });

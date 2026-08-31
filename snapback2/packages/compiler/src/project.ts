@@ -141,14 +141,14 @@ function duplicateModuleBasenameDiagnostics(paths: string[], projectRoot: string
     for (const path of group.sort()) {
       const site = relativeSite(projectRoot, path);
       diagnostics.push(typeDiagnostic(
-        "E_OP_RESERVED",
+        "E_OP_MODULE_BASENAME",
         "op",
         site,
         1,
         1,
         `module basename ${name} is duplicated; read-site identity requires one flat module per basename`,
         `rename ${site} so every snapback module has a unique basename`,
-        "programs/operations",
+        "programs/module-basename",
       ));
     }
   }

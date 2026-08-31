@@ -128,6 +128,7 @@ function diagnosticGuide(code: DiagnosticCode): string {
   if (code === "E_BOUND") return "bound/ceiling";
   if (code === "E_AMBIENT_TIME") return "opaque/time";
   if (code === "E_PROVENANCE_AMBIGUOUS") return "opaque/provenance";
+  if (code === "E_OP_MODULE_BASENAME") return "programs/module-basename";
   if (code.startsWith("E_SCHEMA_")) return "schema/project";
   if (code.startsWith("E_RULE_")) return "schema/rules";
   if (code.startsWith("E_SEED_")) return "schema/seed";
@@ -145,6 +146,7 @@ function diagnosticRule(code: DiagnosticCode): string | undefined {
     E_STRUCTURAL_COUNT: "rules do not leak hidden population structure",
     E_AMBIENT_TIME: "programs use ctx.now()",
     E_PROVENANCE_AMBIGUOUS: "read keys have one unambiguous origin",
+    E_OP_MODULE_BASENAME: "module basenames are unique",
     E_BOUND: "the certified ceiling is finite",
     E_EMIT_IN_QUERY: "only mutations emit effects",
   };

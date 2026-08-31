@@ -1,7 +1,16 @@
 import ts from "typescript";
-import type { Environment, FunctionLike, LoweredValue, VariableInfo } from "../compiler";
+import type { Environment, LoweredValue, VariableInfo } from "../compiler";
 import { refuse, Refusal } from "../diagnostics";
-import type { Expr, LoopDomain, Provenance, Scan } from "../ir";
+import type { Expr, LoopDomain, Scan } from "../ir";
+import {
+  combineProvenance,
+  expandHelper,
+  isRowCollectionExpression,
+  isRowExpression,
+  provenanceBinding,
+  readProvenance,
+  strictBinding,
+} from "./provenance";
 import {
   binaryOperator,
   callName,
@@ -36,7 +45,11 @@ export function knownObjectFields(node: ts.Expression, env: Environment): string
   const value = unwrapExpression(node);
   if (ts.isIdentifier(value)) {
     if (value.text === "args") return Object.keys(env.args);
-    return env.variables.get(value.text)?.objectFields;
+    if (value.text === "ctx") return ["viewer"];
+    const substituted = env.substitutions.get(value.text);
+    if (substituted) return knownObjectFields(substituted, env);
+    const info = env.variables.get(value.text);
+    return info?.objectFields ?? (info?.immutableOrigin ? knownObjectFields(info.immutableOrigin, env) : undefined);
   }
   if (ts.isObjectLiteralExpression(value)) {
     const fields: string[] = [];
@@ -59,11 +72,32 @@ export function knownObjectFields(node: ts.Expression, env: Environment): string
     return fields;
   }
   const call = unwrapCall(value);
+  const expanded = call && expandHelper(call, env);
+  if (expanded) return knownObjectFields(expanded.expression, expanded.environment);
   if (call && callName(call).endsWith(".get") && isDbMember(call.expression)) {
     return rowFields(call.arguments[0], env);
   }
   if (call && ts.isPropertyAccessExpression(call.expression) && call.expression.name.text === "require") {
     return knownObjectFields(call.expression.expression, env);
+  }
+  return undefined;
+}
+
+export function rowCollectionFields(node: ts.Expression, env: Environment): string[] | undefined {
+  const value = unwrapExpression(node);
+  if (ts.isIdentifier(value)) {
+    const substituted = env.substitutions.get(value.text);
+    if (substituted) return rowCollectionFields(substituted, env);
+    const info = env.variables.get(value.text);
+    return info?.rowCollection ? info.objectFields : undefined;
+  }
+  const call = unwrapCall(value);
+  if (!call) return undefined;
+  const expanded = expandHelper(call, env);
+  if (expanded) return rowCollectionFields(expanded.expression, expanded.environment);
+  if (callName(call).endsWith(".scan") && isDbMember(call.expression)) return rowFields(call.arguments[0], env);
+  if (ts.isPropertyAccessExpression(call.expression) && call.expression.name.text === "filter") {
+    return rowCollectionFields(call.expression.expression, env);
   }
   return undefined;
 }
@@ -190,7 +224,8 @@ export function lowerPatch(node: ts.Expression, env: Environment): Expr {
     }
     if (ts.isBlock(node.body)) refuse(env, "E_OPAQUE", node.body, "write callback body must be an expression");
     const callbackEnv = cloneEnvironment(env);
-    callbackEnv.variables.set(node.parameters[0].name.text, { provenance: "Shape", rowBinding: true });
+    const name = node.parameters[0].name.text;
+    callbackEnv.variables.set(name, strictBinding(name, { provenance: "Shape", rowBinding: true }, callbackEnv));
     return lowerExpr(node.body, callbackEnv);
   }
   return lowerExpr(node, env);
@@ -239,7 +274,7 @@ export function lowerDomain(
       if (env.args[identifier] && typeof env.args[identifier] !== "string") {
         return {
           domain: { ArgList: { name: identifier, max: info.max } },
-          bindingInfo: { provenance: info.provenance },
+          bindingInfo: provenanceBinding(expression, env),
         };
       }
       return {
@@ -248,7 +283,11 @@ export function lowerDomain(
           max: info.max,
           bound_source: info.boundSource ?? `${identifier} declared max`,
         } },
-        bindingInfo: { provenance: info.provenance, ...(info.rowCollection ? { rowBinding: true } : {}) },
+        bindingInfo: {
+          provenance: info.provenance,
+          ...(info.provenanceAmbiguity ? { provenanceAmbiguity: { ...info.provenanceAmbiguity } } : {}),
+          ...(info.rowCollection ? { rowBinding: true, objectFields: info.objectFields } : {}),
+        },
       };
     }
   }
@@ -259,7 +298,7 @@ export function lowerDomain(
         max: expression.elements.length,
         bound_source: `literal array length ${expression.elements.length}`,
       } },
-      bindingInfo: { provenance: provenance(expression, env) },
+      bindingInfo: provenanceBinding(expression, env),
     };
   }
   refuse(env, "E_UNBOUND_LOOP", expression, "loop domain has no static cardinality");
@@ -324,7 +363,13 @@ export function lowerExpr(node: ts.Expression, env: Environment, hint?: string):
     return literal(scaled ?? Number(node.text));
   }
   if (ts.isStringLiteralLike(node)) return literal(node.text);
-  if (ts.isIdentifier(node)) return { Variable: node.text };
+  if (ts.isIdentifier(node)) {
+    if (node.text === "args") {
+      return { Object: Object.fromEntries(Object.keys(env.args).map((name) => [name, { Variable: name } satisfies Expr])) };
+    }
+    if (node.text === "ctx") return { Object: { viewer: { Input: "Viewer" } } };
+    return { Variable: node.text };
+  }
   if (ts.isArrayLiteralExpression(node)) {
     const segments: Expr[] = [];
     let plain: Expr[] = [];
@@ -600,220 +645,6 @@ export function lowerKey(node: ts.Expression, env: Environment): Expr[] {
     : [lowerExpr(value, env)];
 }
 
-export function provenance(node: ts.Expression, env: Environment): Provenance {
-  return inferProvenance(node, env, false);
-}
-
-export function readProvenance(node: ts.Expression, env: Environment): Provenance {
-  return inferProvenance(node, env, true);
-}
-
-function inferProvenance(node: ts.Expression, env: Environment, strict: boolean): Provenance {
-  const substituted = ts.isIdentifier(node) ? env.substitutions.get(node.text) : undefined;
-  if (substituted) return inferProvenance(substituted, env, strict);
-  const value = unwrapExpression(node);
-
-  // @ref LLP 1002#2-the-authored-surface-the-snapback2-module — provenance inference is a closed rule set:
-  // (1) literals are Const; (2) direct args are Arg; (3) ctx.viewer is Viewer;
-  // (4) row fields are Shape; (5) explicit transforms are Computed; (6) a composite
-  // keeps its sole non-Const origin, uses Shape for mixed origins, and lets Computed
-  // dominate. A transparent immutable alias preserves that one result. Unknown or
-  // mutable aliases match no single rule and refuse instead of defaulting.
-  if (ts.isStringLiteralLike(value) || ts.isNumericLiteral(value)
-    || value.kind === ts.SyntaxKind.NullKeyword || value.kind === ts.SyntaxKind.TrueKeyword
-    || value.kind === ts.SyntaxKind.FalseKeyword) return "Const";
-  if (ts.isIdentifier(value)) {
-    const info = env.variables.get(value.text);
-    if (strict && (!info || info.provenanceAmbiguity)) {
-      refuseAmbiguous(value, env, info?.provenanceAmbiguity?.directRewrite);
-    }
-    return info?.provenance ?? "Computed";
-  }
-  if (ts.isPropertyAccessExpression(value)) {
-    if (ts.isIdentifier(value.expression) && value.expression.text === "args") return "Arg";
-    if (ts.isIdentifier(value.expression) && value.expression.text === "ctx" && value.name.text === "viewer") return "Viewer";
-    return propertyProvenance(value, env, strict);
-  }
-  if (ts.isTemplateExpression(value) || ts.isBinaryExpression(value) || ts.isNewExpression(value)
-    || ts.isPrefixUnaryExpression(value) || ts.isConditionalExpression(value)) return "Computed";
-  if (ts.isCallExpression(value)) {
-    const expanded = expandHelper(value, env);
-    if (expanded) return inferProvenance(expanded.expression, expanded.environment, strict);
-    return "Computed";
-  }
-  if (ts.isObjectLiteralExpression(value)) {
-    const members: Provenance[] = [];
-    for (const property of value.properties) {
-      if (ts.isSpreadAssignment(property)) {
-        members.push(inferProvenance(property.expression, env, strict));
-      } else if (ts.isShorthandPropertyAssignment(property)) {
-        members.push(inferProvenance(property.name, env, strict));
-      } else if (ts.isPropertyAssignment(property)) {
-        members.push(inferProvenance(property.initializer, env, strict));
-      }
-    }
-    return combineProvenance(members);
-  }
-  const children: Provenance[] = [];
-  value.forEachChild((child) => {
-    if (ts.isExpression(child)) children.push(inferProvenance(child, env, strict));
-  });
-  return combineProvenance(children);
-}
-
-function propertyProvenance(
-  node: ts.PropertyAccessExpression,
-  env: Environment,
-  strict: boolean,
-  refusalNode: ts.Expression = node,
-): Provenance {
-  const base = unwrapExpression(node.expression);
-  const substituted = ts.isIdentifier(base) ? env.substitutions.get(base.text) : undefined;
-  if (substituted) {
-    return propertyProvenance(
-      ts.factory.createPropertyAccessExpression(substituted, node.name.text),
-      env,
-      strict,
-      refusalNode,
-    );
-  }
-  if (isRowExpression(base, env)) return "Shape";
-
-  const selected = objectMember(base, node.name.text, env);
-  if (selected) return inferProvenance(selected.expression, selected.environment, strict);
-
-  if (ts.isIdentifier(base)) {
-    const info = env.variables.get(base.text);
-    if (strict && info?.provenanceAmbiguity) refuseAmbiguous(refusalNode, env, info.provenanceAmbiguity.directRewrite);
-    if (info?.immutableOrigin) {
-      return propertyProvenance(
-        ts.factory.createPropertyAccessExpression(info.immutableOrigin, node.name.text),
-        env,
-        strict,
-        refusalNode,
-      );
-    }
-  }
-
-  if (ts.isPropertyAccessExpression(base)) {
-    const origin = inferProvenance(base, env, strict);
-    if (origin === "Arg") return "Arg";
-  }
-
-  if (strict) refuseAmbiguous(refusalNode, env);
-  return "Computed";
-}
-
-function objectMember(
-  node: ts.Expression,
-  name: string,
-  env: Environment,
-): { expression: ts.Expression; environment: Environment } | undefined {
-  const value = unwrapExpression(node);
-  const substituted = ts.isIdentifier(value) ? env.substitutions.get(value.text) : undefined;
-  if (substituted) return objectMember(substituted, name, env);
-  if (ts.isIdentifier(value)) {
-    const info = env.variables.get(value.text);
-    return info?.immutableOrigin ? objectMember(info.immutableOrigin, name, env) : undefined;
-  }
-  if (ts.isCallExpression(value)) {
-    const expanded = expandHelper(value, env);
-    return expanded ? objectMember(expanded.expression, name, expanded.environment) : undefined;
-  }
-  if (!ts.isObjectLiteralExpression(value)) return undefined;
-  for (const property of [...value.properties].reverse()) {
-    if (ts.isSpreadAssignment(property)) {
-      const selected = objectMember(property.expression, name, env);
-      if (selected) return selected;
-      continue;
-    }
-    if (ts.isShorthandPropertyAssignment(property) && property.name.text === name) {
-      return { expression: property.name, environment: env };
-    }
-    if (ts.isPropertyAssignment(property) && propertyName(property.name) === name) {
-      return { expression: property.initializer, environment: env };
-    }
-  }
-  return undefined;
-}
-
-export function isRowExpression(node: ts.Expression, env: Environment): boolean {
-  const value = unwrapExpression(node);
-  const substituted = ts.isIdentifier(value) ? env.substitutions.get(value.text) : undefined;
-  if (substituted) return isRowExpression(substituted, env);
-  if (ts.isIdentifier(value)) return env.variables.get(value.text)?.rowBinding === true;
-  const call = unwrapCall(value);
-  if (!call) return false;
-  const expanded = expandHelper(call, env);
-  if (expanded) return isRowExpression(expanded.expression, expanded.environment);
-  return callName(call).endsWith(".get") && isDbMember(call.expression);
-}
-
-export function isRowCollectionExpression(node: ts.Expression, env: Environment): boolean {
-  const value = unwrapExpression(node);
-  const substituted = ts.isIdentifier(value) ? env.substitutions.get(value.text) : undefined;
-  if (substituted) return isRowCollectionExpression(substituted, env);
-  if (ts.isIdentifier(value)) return env.variables.get(value.text)?.rowCollection === true;
-  const call = unwrapCall(value);
-  if (!call) return false;
-  const expanded = expandHelper(call, env);
-  if (expanded) return isRowCollectionExpression(expanded.expression, expanded.environment);
-  return callName(call).endsWith(".scan") && isDbMember(call.expression);
-}
-
-function refuseAmbiguous(node: ts.Expression, env: Environment, directRewrite?: string): never {
-  const firstArg = Object.keys(env.args)[0];
-  refuse(
-    env,
-    "E_PROVENANCE_AMBIGUOUS",
-    node,
-    "read key provenance is ambiguous; each key must follow one direct origin rule",
-    replaceNode(env.source, node, directRewrite ?? (firstArg ? `args.${firstArg}` : "null")),
-  );
-}
-
-export function combineProvenance(values: Provenance[]): Provenance {
-  if (values.includes("Computed")) return "Computed";
-  const meaningful = new Set(values.filter((value) => value !== "Const"));
-  if (meaningful.size === 0) return "Const";
-  if (meaningful.size === 1) return [...meaningful][0]!;
-  return "Shape";
-}
-
-function expandHelper(
-  node: ts.Expression,
-  env: Environment,
-): { expression: ts.Expression; environment: Environment } | undefined {
-  const call = unwrapCall(node);
-  if (!call || !ts.isIdentifier(call.expression)) return undefined;
-  const helper = env.helpers.get(call.expression.text);
-  if (!helper) return undefined;
-  if (env.helperStack.includes(call.expression.text)) {
-    refuse(env, "E_OPAQUE", call, "recursive helper is not inlineable");
-  }
-  const body = helperBodyExpression(helper);
-  if (!body) refuse(env, "E_OPAQUE", helper, "helper must be a single pure return expression");
-  const next = cloneEnvironment(env);
-  next.helperStack.push(call.expression.text);
-  helper.parameters.forEach((parameter, index) => {
-    if (!ts.isIdentifier(parameter.name) || !call.arguments[index]) {
-      refuse(env, "E_OPAQUE", parameter, "helper parameters must be positional identifiers");
-    }
-    const argument = call.arguments[index]!;
-    if (!ts.isIdentifier(argument) || argument.text !== parameter.name.text) {
-      next.substitutions.set(parameter.name.text, argument);
-    }
-  });
-  return { expression: body, environment: next };
-}
-
-function helperBodyExpression(helper: FunctionLike): ts.Expression | undefined {
-  if (!helper.body) return undefined;
-  if (!ts.isBlock(helper.body)) return helper.body;
-  if (helper.body.statements.length !== 1 || !ts.isReturnStatement(helper.body.statements[0])) return undefined;
-  return helper.body.statements[0].expression;
-}
-
 export function cloneEnvironment(env: Environment): Environment {
   return {
     ...env,
@@ -837,6 +668,14 @@ export function allocateReadSite(env: Environment): string {
 
 export function reserveWriteSite(env: Environment): void {
   env.accessOrdinal.value += 1;
+}
+
+export function containsRead(value: unknown): boolean {
+  if (Array.isArray(value)) return value.some(containsRead);
+  if (!value || typeof value !== "object") return false;
+  const object = value as Record<string, unknown>;
+  return ["Get", "Exists", "Scan"].some((kind) => kind in object)
+    || Object.values(object).some(containsRead);
 }
 
 export function derivedBound(node: ts.Expression, env: Environment): Partial<VariableInfo> {
