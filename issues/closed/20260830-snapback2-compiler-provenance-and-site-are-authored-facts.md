@@ -73,3 +73,17 @@ guide lookups exited 0. Regenerating all 81 corpus cases produced an empty
 diff. Ten final adversarial probes (two per class A–E) all produced their
 expected provenance or finite refusal, including a four-helper spread cycle
 and a spread of a mapped row projection.
+
+**Closed 2026-08-31** (session snapback-8a, lane `s2/t2-provenance`): the
+pinned-identity ruling is implemented and landed — inference kept under six
+closed provenance rules, `E_PROVENANCE_AMBIGUOUS` (family `opaque`, guide
+reachable) for every unmatched origin, `site` pinned to
+`<module>.<export>.<ordinal>`. Ruling recorded in LLP 1002 §2. One corpus
+certificate legitimately flipped (`named-send-maintained-unread` `Shape→Arg`,
+an identity-wrapper correction). Four blind review rounds (codex + grok,
+xhigh) plus an author-authorized surgical scoping round; base-vs-head triage
+separated one introduced defect (fixed: block lexical scoping, incl. the
+inherited if/else deep-copy) from inherited defects, filed as
+`issues/20260831-snapback2-*.md` (Decimal type-analysis spelling, nested
+destructuring defaults, binary-chain exponential analysis, provenance tails,
+push landmine).
