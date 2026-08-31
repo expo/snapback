@@ -1,6 +1,6 @@
 # snapback2 compiler: binary-chain type analysis is exponential — 24 int terms take 5 s, 64 terms never finish
 
-**Status:** Open (claimed)
+**Status:** Resolved in lane (awaiting landing)
 **Systems:** snapback2, compiler, type-analysis
 **Severity:** P1
 **Author:** Claude Fable 5, directed by Charlie Cheever
@@ -28,3 +28,18 @@ Probe scripts: scratchpad of session snapback-8a, `probes/run-perf.mjs` /
 report).
 
 **Claimed:** 2026-08-31 by session snapback-8a [f8c2a2] — one combined lane `s2/t2-typeanalysis` (worktree `~/projects/snapback-s2v`) fixes both P1 type-analysis tickets (same file); other sessions should skip both.
+
+## Resolution (2026-08-31)
+
+Commit `b8d993697` memoizes expression results by AST node and analysis context,
+covering binary operands, min/max arguments, constants, and every other path
+through the shared expression analyzer. It also refuses after 512 nested
+expressions or 8,192 distinct expressions per operation. The guard reuses the
+guide-reachable `E_OPAQUE` family and returns a sited rewrite that tells the
+author to split the expression; no new diagnostic code was added.
+
+On the same local probe, 24/64/128-term integer chains changed from
+2,330.7 ms / >10 s / >10 s to 7.4 ms / 9.7 ms / 12.3 ms. Tests cover a
+128-term integer chain under a 2 s CI allowance, a 128-term Decimal/int chain
+whose 127 literals all scale to 100, and the complete guard envelope. The
+compiler suite passes 93/93 after the combined lane.

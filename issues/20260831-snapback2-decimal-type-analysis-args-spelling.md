@@ -1,6 +1,6 @@
 # snapback2 compiler: type analysis recognizes `args` by spelling, so renamed handlers and shadowing callbacks get wrong Decimal scaling
 
-**Status:** Open (claimed)
+**Status:** Resolved in lane (awaiting landing)
 **Systems:** snapback2, compiler, type-analysis
 **Severity:** P1
 **Author:** Claude Fable 5, directed by Charlie Cheever
@@ -33,3 +33,17 @@ Triage evidence and rerun scripts: the provenance-lane landing report
 `snapback2/packages/compiler/src/provenance-site-checks.ts`.
 
 **Claimed:** 2026-08-31 by session snapback-8a [f8c2a2] — one combined lane `s2/t2-typeanalysis` (worktree `~/projects/snapback-s2v`) fixes both P1 type-analysis tickets (same file); other sessions should skip both.
+
+## Resolution (2026-08-31)
+
+Commit `62b1bb774` makes the type-analysis environment carry operation-composite
+identity on the handler's actual destructured bindings. Callback parameters,
+locals, loops, and nested function parameters replace that identity lexically;
+direct aliases and helper parameters preserve it. `ctx` and the handler's `db`
+binding use the same mechanism, and helper/builtin lookup now defers to lexical
+bindings.
+
+Regression coverage includes the renamed `packed` handler, a Decimal<2> row
+callback shadowing Decimal<3> operation `args`, plain `args.price + 1`, a
+shadowed-then-unshadowed sequence (`100` then `1000`), and renamed `ctx` with a
+callback shadow. The compiler suite passes 93/93 after the combined lane.
