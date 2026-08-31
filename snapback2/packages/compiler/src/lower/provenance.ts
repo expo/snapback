@@ -198,7 +198,13 @@ function classifyIdentifier(
   const info = env.variables.get(node.text);
   if (!info) return ambiguous();
   if (info.provenanceAmbiguity) {
-    return ambiguous(info.provenanceAmbiguity.directRewrite, info.provenanceAmbiguity.candidates);
+    const merged = candidateAmbiguity([
+      ...(info.provenanceAmbiguity.candidates ?? []),
+      ...(info.provenanceAmbiguity.directRewrite ? [info.provenanceAmbiguity.directRewrite] : []),
+      ...(info.elementOrigins ? originDirectCandidates(info.elementOrigins) : []),
+      ...(info.alternativeOrigins ? originDirectCandidates(info.alternativeOrigins) : []),
+    ]);
+    return ambiguous(merged.directRewrite, merged.candidates);
   }
   if (info.operationComposite === "args") {
     if (path.length === 0) {

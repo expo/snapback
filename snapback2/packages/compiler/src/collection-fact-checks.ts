@@ -422,6 +422,24 @@ export const lookup = query({ first: t.text(40), second: t.text(40), third: t.te
     certify(program);
   });
 
+  test("branch ambiguity names origins from both ambiguous and known arms", () => {
+    const refused = lowerSource(`import { query, t } from "snapback2";
+export const lookup = query({ a: t.text(40), b: t.text(40), choose: t.bool() }, ({ db, args, ctx }) => {
+  const keys = [args.a];
+  if (args.choose) keys.push(ctx.viewer); else keys.push(args.b);
+  const found = [];
+  for (const key of keys) found.push(db.get(items.byKey, [key]));
+  return found;
+});`, "branch-origin-completeness.ts", undefined, { tables });
+    const diagnostic = provenanceDiagnostic(refused);
+    for (const candidate of ["args.a", "ctx.viewer", "args.b"]) {
+      assert(diagnostic.message.includes(candidate) && diagnostic.rewrite.includes(candidate),
+        `branch ambiguity omitted ${candidate}: ${JSON.stringify(diagnostic)}`);
+    }
+    assert(!lowerSource(diagnostic.rewrite, "branch-origin-completeness.ts", undefined, { tables }).ok,
+      "complete branch-origin sentinel unexpectedly lowered");
+  });
+
   test("conditional-expression push arms merge like if branches", () => {
     const program = lowerOne(`import { query, t } from "snapback2";
 export const lookup = query({ first: t.text(40), second: t.text(40), third: t.text(40), choose: t.bool() }, ({ db, args }) => {
