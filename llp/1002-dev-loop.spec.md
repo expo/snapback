@@ -119,8 +119,10 @@ the helper name. An unknown or mutable alias matches no single rule and
 refuses with `E_PROVENANCE_AMBIGUOUS`; the standard envelope carries family,
 source site, and a pasted rewrite that uses one direct origin. Read-site
 identity is independently pinned to `<module-basename>.<export>.<ordinal>`,
-where the zero-based ordinal follows read source order inside that export and
-is shared through helper expansion. Local names and formatting are not inputs.
+where the zero-based ordinal follows read/write source order inside that export
+and is shared through helper expansion. Writes reserve their ordinal even though
+the current `WriteSite` serde shape has no site string. Local names and formatting
+are not inputs.
 
 ## 3. The compiler worker and the project JSON
 

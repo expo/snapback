@@ -13,12 +13,14 @@ Ruling to implement (LLP 1002 §Open decisions, item 0): either make both explic
 
 **Claimed:** 2026-08-30 ~15:15 PT by session snapback-8a [f8c2a2] — implementation in flight on branches `s2/t2-provenance` / `s2/t2-bytes` (worktrees `~/projects/snapback-s2v`, `~/projects/snapback-s2y`), based on wave-1 integration `d6b2eca4e`. Wave-2 dispatch of the 0830 burn should SKIP these two tickets to avoid duplicate lanes.
 
-**Resolution (2026-08-30):** Implemented the keep-inference ruling in commit
-`417e664f4` (`Fix compiler provenance and site identity`). Provenance now has
+**Resolution (2026-08-30):** Implemented the keep-inference ruling in commits
+`417e664f4` (`Fix compiler provenance and site identity`) and `a66dd0891`
+(`Count writes in compiler site ordinals`). Provenance now has
 the closed rules recorded in LLP 1002 §2 and refuses unknown or mutable key
 origins with `E_PROVENANCE_AMBIGUOUS` plus a compiling direct-origin rewrite.
-Read sites are `<module>.<export>.<ordinal>` and are invariant under helper
-rename, extraction/inlining, and formatting. The 17 S1 programs retained every
+Read sites are `<module>.<export>.<ordinal>` using the export's read/write source
+order and are invariant under helper rename, extraction/inlining, and formatting.
+The 17 S1 programs retained every
 provenance value; the regenerated corpus changed only site identity and its
 derived certificate projections/hashes. The orchestrator retains custody of
 moving this ticket to `issues/closed/` at landing.
