@@ -1,10 +1,12 @@
 import ts from "typescript";
-import type { Environment, VariableInfo } from "../compiler";
+import type { Environment, ProvenanceOrigin, VariableInfo } from "../compiler";
 import { propertyName, unwrapExpression } from "../syntax";
 import { guardedWalk } from "./recursion";
 
 type FunctionLike = ts.FunctionDeclaration | ts.ArrowFunction | ts.FunctionExpression;
 type BindingScope = { parent?: BindingScope; bindings: Map<string, ts.Identifier> };
+
+export const UNKNOWN_DIRECT_ORIGIN = "<unknown origin>";
 
 export function assignedBindings(handler: FunctionLike): Set<ts.Identifier> {
   const assigned = new Set<ts.Identifier>();
@@ -153,6 +155,7 @@ function directOriginCandidatesInner(node: ts.Expression, env: Environment): Set
         ...(info.provenanceAmbiguity.directRewrite ? [info.provenanceAmbiguity.directRewrite] : []),
       ]);
     }
+    if (info?.alternativeOrigins) return directCandidatesForOrigins(info.alternativeOrigins, new Set());
     return info?.immutableOrigin
       ? directOriginCandidates(info.immutableOrigin.expression, info.immutableOrigin.environment)
       : new Set();
@@ -183,6 +186,12 @@ function directOriginCandidatesInner(node: ts.Expression, env: Environment): Set
     }
     return candidates;
   }
+  if (ts.isConditionalExpression(value)) {
+    return new Set([
+      ...directOriginCandidates(value.whenTrue, env),
+      ...directOriginCandidates(value.whenFalse, env),
+    ]);
+  }
   const candidates = new Set<string>();
   value.forEachChild((child) => {
     if (!ts.isExpression(child)) return;
@@ -202,7 +211,7 @@ export function withDirectRewrite(
     ...(binding.provenanceAmbiguity.directRewrite ? [binding.provenanceAmbiguity.directRewrite] : []),
     ...directOriginCandidates(node, env),
   ]);
-  return { ...binding, provenanceAmbiguity: ambiguity([...candidates]) };
+  return { ...binding, provenanceAmbiguity: candidateAmbiguity([...candidates]) };
 }
 
 export function recordAssignmentOrigin(info: VariableInfo | undefined, node: ts.Expression, env: Environment): void {
@@ -215,17 +224,43 @@ export function recordAssignmentOrigin(info: VariableInfo | undefined, node: ts.
       info.immutableOrigin.expression,
       info.immutableOrigin.environment,
     ) : []),
-    ...(discovered.length > 0 ? discovered : [node.getText(env.sourceFile)]),
+    ...(discovered.length > 0 ? discovered : [UNKNOWN_DIRECT_ORIGIN]),
   ]);
-  info.provenanceAmbiguity = ambiguity([...candidates]);
+  info.provenanceAmbiguity = candidateAmbiguity([...candidates]);
 }
 
-function ambiguity(candidates: string[]): NonNullable<VariableInfo["provenanceAmbiguity"]> {
+export function candidateAmbiguity(candidates: string[]): NonNullable<VariableInfo["provenanceAmbiguity"]> {
   const distinct = [...new Set(candidates)];
   return {
-    ...(distinct.length === 1 ? { directRewrite: distinct[0] } : {}),
+    ...(distinct.length === 1 && distinct[0] !== UNKNOWN_DIRECT_ORIGIN ? { directRewrite: distinct[0] } : {}),
     ...(distinct.length > 0 ? { candidates: distinct } : {}),
   };
+}
+
+function directCandidatesForOrigins(origins: readonly ProvenanceOrigin[], seen: Set<VariableInfo>): Set<string> {
+  const candidates = new Set<string>();
+  for (const origin of origins) {
+    if ("expression" in origin) {
+      for (const candidate of directOriginCandidates(origin.expression, origin.environment)) candidates.add(candidate);
+      continue;
+    }
+    if (origin.candidate) candidates.add(origin.candidate);
+    const info = origin.binding;
+    if (seen.has(info)) continue;
+    seen.add(info);
+    for (const candidate of info.provenanceAmbiguity?.candidates ?? []) candidates.add(candidate);
+    if (info.provenanceAmbiguity?.directRewrite) candidates.add(info.provenanceAmbiguity.directRewrite);
+    if (info.alternativeOrigins) {
+      for (const candidate of directCandidatesForOrigins(info.alternativeOrigins, seen)) candidates.add(candidate);
+    }
+    if (info.immutableOrigin) {
+      for (const candidate of directOriginCandidates(
+        info.immutableOrigin.expression,
+        info.immutableOrigin.environment,
+      )) candidates.add(candidate);
+    }
+  }
+  return candidates;
 }
 
 export function moduleBasename(fileName: string): string {

@@ -667,7 +667,7 @@ export const lookup = query({ key: t.text(40) }, ({ db, args, ctx }) => {
       `mixed push did not retain both origins: ${JSON.stringify(diagnostic)}`);
   });
 
-  test("ambiguous rewrites match selected fields or remain deliberately non-lowerable", () => {
+  test("ambiguous rewrites never guess an argument from a selected member name", () => {
     const matching = lowerSource(`import { query, t } from "snapback2";
 export const lookup = query({ first: t.text(40), second: t.text(40) }, ({ db, args }) => {
   const mystery = unknownValue;
@@ -676,10 +676,11 @@ export const lookup = query({ first: t.text(40), second: t.text(40) }, ({ db, ar
     assert(!matching.ok, "unknown selected member unexpectedly lowered");
     const matched = matching.diagnostics.find((item) => item.code === "E_PROVENANCE_AMBIGUOUS");
     assert(matched, `matching refusal omitted provenance envelope: ${JSON.stringify(matching.diagnostics)}`);
-    assert(matched.rewrite.includes("[args.second]") && !matched.rewrite.includes("[args.first]"),
-      `rewrite did not match the selected field: ${matched?.rewrite}`);
-    const fixed = lowerSource(matched.rewrite, "honest-matching.ts", undefined, { tables });
-    assert(fixed.ok && reads(fixed.programs[0]!)[0]?.provenance === "Arg", "matching rewrite did not lower as Arg");
+    assert(matched.rewrite.includes("<unknown origin>") && !matched.rewrite.includes("[args.second]")
+      && !matched.rewrite.includes("[args.first]"),
+    `rewrite guessed an undiscovered argument: ${matched?.rewrite}`);
+    const matchingPaste = lowerSource(matched.rewrite, "honest-matching.ts", undefined, { tables });
+    assert(!matchingPaste.ok, "unknown selected-member refusal had paste.ok !== false");
 
     const unmatched = lowerSource(`import { query, t } from "snapback2";
 export const lookup = query({ first: t.text(40), second: t.text(40) }, ({ db, args }) => {
@@ -690,11 +691,11 @@ export const lookup = query({ first: t.text(40), second: t.text(40) }, ({ db, ar
     const unresolved = unmatched.diagnostics.find((item) => item.code === "E_PROVENANCE_AMBIGUOUS");
     assert(unresolved, `unmatched refusal omitted provenance envelope: ${JSON.stringify(unmatched.diagnostics)}`);
     assert(unresolved.rewrite.includes("E_PROVENANCE_AMBIGUOUS: choose one direct origin")
-      && unresolved.rewrite.includes("no bound direct origins")
-      && !unresolved.message.includes("candidate direct origins"),
+      && unresolved.rewrite.includes("<unknown origin>")
+      && unresolved.message.includes("candidate direct origins: <unknown origin>"),
     `unmatched rewrite guessed undiscovered origins: ${JSON.stringify(unresolved)}`);
     const stillRefused = lowerSource(unresolved.rewrite, "honest-unmatched.ts", undefined, { tables });
-    assert(!stillRefused.ok, "unmatched sentinel rewrite silently compiled to a different field");
+    assert(!stillRefused.ok, "unmatched sentinel refusal had paste.ok !== false");
   });
 
   test("deep operation-argument paths deliberately retain Arg origin", () => {
@@ -759,7 +760,7 @@ export const intact = query({ key: t.text(40) }, ({ db, args }) =>
     const diagnostic = refused.diagnostics.find((item) => item.code === "E_PROVENANCE_AMBIGUOUS");
     assert(diagnostic, `missing helper provenance refusal: ${JSON.stringify(refused.diagnostics)}`);
     assert(diagnostic.rewrite.includes("function pick(value: any) { return value.key; }")
-      && diagnostic.rewrite.includes("no bound direct origins")
+      && diagnostic.rewrite.includes("<unknown origin>")
       && diagnostic.rewrite.includes("pick({ key: args.key })"),
     `helper rewrite escaped the authored scan key: ${diagnostic.rewrite}`);
     const fixed = lowerSource(diagnostic.rewrite, "rewrite-scope.ts", undefined, { tables });

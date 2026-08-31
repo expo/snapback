@@ -165,6 +165,12 @@ export function selectExpressionMember(
       ? selectOriginMembers(info.immutableOrigin, member)
       : { kind: "unknown" };
   }
+  if (ts.isConditionalExpression(value)) {
+    return mergeMemberAlternatives([
+      selectExpressionMember(value.whenTrue, env, member),
+      selectExpressionMember(value.whenFalse, env, member),
+    ]);
+  }
   if (!ts.isObjectLiteralExpression(value)) return { kind: "unknown" };
   const laterOptional: ProvenanceOrigin[] = [];
   for (const property of [...value.properties].reverse()) {
@@ -215,8 +221,23 @@ export function originDirectCandidates(origins: readonly ProvenanceOrigin[]): st
         origin.binding.immutableOrigin.environment,
       )) candidates.add(candidate);
     }
+    if (origin.binding.alternativeOrigins) {
+      for (const candidate of originDirectCandidates(origin.binding.alternativeOrigins)) candidates.add(candidate);
+    }
   }
   return [...candidates];
+}
+
+function mergeMemberAlternatives(alternatives: readonly MemberSelection[]): MemberSelection {
+  if (alternatives.some((item) => item.kind === "unknown")) return { kind: "unknown" };
+  if (alternatives.every((item) => item.kind === "absent")) return { kind: "absent" };
+  if (alternatives.some((item) => item.kind === "absent")) return { kind: "unknown" };
+  const found = alternatives as Extract<MemberSelection, { kind: "found" }>[];
+  return {
+    kind: "found",
+    origins: found.flatMap((item) => item.origins),
+    presence: found.some((item) => item.presence === "optional") ? "optional" : "required",
+  };
 }
 
 export function snapshotEnvironment(env: Environment): Environment {

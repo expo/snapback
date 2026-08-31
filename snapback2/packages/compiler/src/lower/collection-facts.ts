@@ -1,6 +1,7 @@
 import ts from "typescript";
 import type { Environment, ProvenanceOrigin, VariableInfo } from "../compiler";
 import { collectionElementOrigins, originDirectCandidates, snapshotEnvironment } from "./collection-origins";
+import { candidateAmbiguity } from "./operation-context";
 
 export type CollectionFacts = Pick<VariableInfo, "max" | "boundSource" | "elementOrigins">;
 
@@ -47,7 +48,7 @@ export function appendCollectionFacts(
       ...originDirectCandidates([{ expression: value, environment: env }]),
     ]);
     info.provenance = "Computed";
-    info.provenanceAmbiguity = ambiguity([...candidates]);
+    info.provenanceAmbiguity = candidateAmbiguity([...candidates]);
     maintainCollectionFacts(info, {});
     return;
   }
@@ -115,14 +116,6 @@ export function mergeCollectionFactAlternatives(
 function directCandidatesForBinding(info: VariableInfo): string[] {
   if (info.immutableOrigin) return originDirectCandidates([info.immutableOrigin]);
   return [];
-}
-
-function ambiguity(candidates: string[]): NonNullable<VariableInfo["provenanceAmbiguity"]> {
-  const distinct = [...new Set(candidates)];
-  return {
-    ...(distinct.length === 1 ? { directRewrite: distinct[0] } : {}),
-    ...(distinct.length > 0 ? { candidates: distinct } : {}),
-  };
 }
 
 function setOrDelete<K extends "max" | "boundSource" | "elementOrigins">(

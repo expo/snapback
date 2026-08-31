@@ -27,6 +27,62 @@ const schema = {
       };
 
 export function registerCollectionFactChecks(test: Test): void {
+  test("loop-bound pushes retain every real candidate and paste a refusal", () => {
+    const refused = lowerSource(`import { query, t } from "snapback2";
+export const lookup = query({ keys: t.list(t.text(40), { max: 3 }) }, ({ db, args, ctx }) => {
+  const selected = [ctx.viewer];
+  for (const k of args.keys) selected.push(k);
+  const found = [];
+  for (const key of selected) found.push(db.get(items.byKey, [key]));
+  return found;
+});`, "loop-push-candidates.ts", undefined, { tables });
+    const diagnostic = provenanceDiagnostic(refused);
+    assert(diagnostic.message.includes("ctx.viewer") && diagnostic.message.includes("args.keys"),
+      `loop-bound push omitted a real origin: ${JSON.stringify(diagnostic)}`);
+    assert(diagnostic.rewrite.includes("ctx.viewer") && diagnostic.rewrite.includes("args.keys")
+      && diagnostic.rewrite.includes("choose one direct origin"),
+    `loop-bound push rewrite was incomplete or compiling: ${diagnostic.rewrite}`);
+    const paste = lowerSource(diagnostic.rewrite, "loop-push-candidates.ts", undefined, { tables });
+    assert(!paste.ok, "loop-bound multi-origin refusal had paste.ok !== false");
+  });
+
+  test("conditional members retain real candidates without an argument-name guess", () => {
+    const refused = lowerSource(`import { query, t } from "snapback2";
+export const lookup = query({ key: t.text(40), choose: t.bool() }, ({ db, args, ctx }) => {
+  const row = db.get(source.byKey, [args.key]);
+  db.require(row !== null, "ROW_REQUIRED");
+  const selected = args.choose ? { key: ctx.viewer } : { key: row.key };
+  return db.get(items.byKey, [selected.key]);
+});`, "conditional-member-candidates.ts", undefined, { tables });
+    const diagnostic = provenanceDiagnostic(refused);
+    assert(diagnostic.message.includes("ctx.viewer") && diagnostic.message.includes("row.key")
+      && !diagnostic.message.includes("candidate direct origins: args.key"),
+    `conditional member candidates were guessed or incomplete: ${JSON.stringify(diagnostic)}`);
+    assert(diagnostic.rewrite.includes("ctx.viewer") && diagnostic.rewrite.includes("row.key")
+      && !diagnostic.rewrite.includes("return db.get(items.byKey, [args.key])"),
+    `conditional member rewrite guessed an argument name: ${diagnostic.rewrite}`);
+    const paste = lowerSource(diagnostic.rewrite, "conditional-member-candidates.ts", undefined, { tables });
+    assert(!paste.ok, "conditional multi-origin refusal had paste.ok !== false");
+
+    const incomplete = lowerSource(`import { query, t } from "snapback2";
+export const lookup = query({ key: t.text(40), choose: t.bool() }, ({ db, args, ctx }) => {
+  const mystery = unknownValue;
+  const selected = args.choose ? { key: ctx.viewer } : { key: mystery.external };
+  return db.get(items.byKey, [selected.key]);
+});`, "conditional-member-unknown.ts", undefined, { tables });
+    const incompleteDiagnostic = provenanceDiagnostic(incomplete);
+    assert(incompleteDiagnostic.message.includes("ctx.viewer")
+      && incompleteDiagnostic.message.includes("<unknown origin>"),
+    `conditional incomplete discovery omitted knowns or the unknown marker: ${JSON.stringify(incompleteDiagnostic)}`);
+    const incompletePaste = lowerSource(
+      incompleteDiagnostic.rewrite,
+      "conditional-member-unknown.ts",
+      undefined,
+      { tables },
+    );
+    assert(!incompletePaste.ok, "conditional unknown-origin refusal had paste.ok !== false");
+  });
+
   test("push never widens a bounded argument collection without element origins", () => {
     for (const fixture of [
       {

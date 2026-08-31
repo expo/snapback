@@ -2,6 +2,7 @@ import ts from "typescript";
 import type { Environment, VariableInfo } from "../compiler";
 import { mergeCollectionFactAlternatives } from "./collection-facts";
 import { cloneEnvironment } from "./expr";
+import { candidateAmbiguity } from "./operation-context";
 
 export function forkBranchEnvironment(env: Environment): {
   environment: Environment;
@@ -25,17 +26,9 @@ export function mergeBranchEnvironments(
     ]));
     if (candidates.size > 0) {
       target.provenance = "Computed";
-      target.provenanceAmbiguity = rewriteAmbiguity([...candidates]);
+      target.provenanceAmbiguity = candidateAmbiguity([...candidates]);
     }
     mergeCollectionFactAlternatives(target, alternatives, `${site.getText(env.sourceFile)} branch maximum`);
     if (alternatives.some((info) => info.nullableRead === false)) target.nullableRead = false;
   }
-}
-
-function rewriteAmbiguity(candidates: string[]): NonNullable<VariableInfo["provenanceAmbiguity"]> {
-  const distinct = [...new Set(candidates)];
-  return {
-    ...(distinct.length === 1 ? { directRewrite: distinct[0] } : {}),
-    ...(distinct.length > 0 ? { candidates: distinct } : {}),
-  };
 }

@@ -14,7 +14,12 @@ import {
 } from "../syntax";
 import { collectionElementOrigins, originDirectCandidates, selectExpressionMember, snapshotEnvironment } from "./collection-origins";
 import { expandHelper } from "./helper-expansion";
-import { directOriginCandidates, isOperationCompositeBinding } from "./operation-context";
+import {
+  candidateAmbiguity,
+  directOriginCandidates,
+  isOperationCompositeBinding,
+  UNKNOWN_DIRECT_ORIGIN,
+} from "./operation-context";
 
 type Presence = "required" | "optional";
 type Classification =
@@ -53,7 +58,9 @@ export function provenanceBinding(node: ts.Expression, env: Environment): Proven
     : {
         provenance: "Computed",
         provenanceAmbiguity: result.kind === "ambiguous"
-          ? rewriteAmbiguity(result.candidates ?? (result.directRewrite ? [result.directRewrite] : []))
+          ? candidateAmbiguity(
+              result.candidates ?? (result.directRewrite ? [result.directRewrite] : [UNKNOWN_DIRECT_ORIGIN]),
+            )
           : {},
       };
 }
@@ -81,7 +88,11 @@ export function collectionElementBinding(node: ts.Expression, env: Environment):
       ? { provenance: classified.provenance }
       : {
           provenance: "Computed" as const,
-          provenanceAmbiguity: rewriteAmbiguity(originDirectCandidates(origins)),
+          provenanceAmbiguity: candidateAmbiguity(
+            classified.kind === "ambiguous"
+              ? classified.candidates ?? [UNKNOWN_DIRECT_ORIGIN]
+              : originDirectCandidates(origins),
+          ),
         }),
     alternativeOrigins: origins,
   };
@@ -100,7 +111,7 @@ export function collectionOriginsBinding(
     ? { provenance: classified.provenance }
     : {
         provenance: "Computed",
-        provenanceAmbiguity: rewriteAmbiguity(
+        provenanceAmbiguity: candidateAmbiguity(
           classified.kind === "ambiguous" ? classified.candidates ?? originDirectCandidates(origins) : originDirectCandidates(origins),
         ),
       };
@@ -156,8 +167,17 @@ function classifyInner(
     return path.length === 0 ? known("Computed") : ambiguous();
   }
 
+  if (ts.isConditionalExpression(value)) {
+    return path.length === 0
+      ? known("Computed")
+      : combineAlternatives([
+          classify(value.whenTrue, env, path, authoredNode),
+          classify(value.whenFalse, env, path, authoredNode),
+        ], "required");
+  }
+
   if (ts.isTemplateExpression(value) || ts.isBinaryExpression(value) || ts.isNewExpression(value)
-    || ts.isPrefixUnaryExpression(value) || ts.isConditionalExpression(value)) {
+    || ts.isPrefixUnaryExpression(value)) {
     return path.length === 0 ? known("Computed") : ambiguous();
   }
 
@@ -330,10 +350,17 @@ function combineAlternatives(
   const knownValues = values.filter((value): value is KnownClassification => value.kind === "known");
   const inherited = values.flatMap((value) => value.kind === "absent" ? [] : value.candidates ?? []);
   const allCandidates = [...new Set([...candidates, ...inherited])];
-  if (knownValues.length !== values.length) return ambiguous(undefined, allCandidates);
+  if (knownValues.length !== values.length) {
+    return ambiguous(undefined, [...new Set([...allCandidates, UNKNOWN_DIRECT_ORIGIN])]);
+  }
   const first = knownValues[0]?.provenance;
   if (!first || knownValues.some((value) => value.provenance !== first)) return ambiguous(undefined, allCandidates);
-  return { kind: "known", provenance: first, presence };
+  return {
+    kind: "known",
+    provenance: first,
+    presence,
+    ...(allCandidates.length > 0 ? { candidates: allCandidates } : {}),
+  };
 }
 
 function known(provenance: Provenance, candidates?: string[]): KnownClassification {
@@ -420,15 +447,11 @@ function honestRewrite(
     ...(directCandidates ?? []),
     ...(directRewrite ? [directRewrite] : []),
   ])];
-  if (discovered.length === 1) return { replacement: discovered[0]!, candidates: discovered };
-  if (discovered.length > 1) return sentinelRewrite(discovered);
-  const argsBinding = operationCompositeName(env, "args");
-  const selected = selectedMemberName(node);
-  if (argsBinding && selected && env.args[selected]) {
-    const direct = `${argsBinding}.${selected}`;
-    return { replacement: direct, candidates: [direct] };
+  if (discovered.length === 1 && discovered[0] !== UNKNOWN_DIRECT_ORIGIN) {
+    return { replacement: discovered[0]!, candidates: discovered };
   }
-  return sentinelRewrite([]);
+  if (discovered.length > 1) return sentinelRewrite(discovered);
+  return sentinelRewrite(discovered.length === 0 ? [UNKNOWN_DIRECT_ORIGIN] : discovered);
 }
 
 function sentinelRewrite(candidates: string[]): { replacement: string; candidates: string[] } {
@@ -437,23 +460,6 @@ function sentinelRewrite(candidates: string[]): { replacement: string; candidate
     replacement: `(() => { throw new Error(${JSON.stringify(`E_PROVENANCE_AMBIGUOUS: choose one direct origin: ${description}`)}); })()`,
     candidates,
   };
-}
-
-function rewriteAmbiguity(candidates: string[]): NonNullable<VariableInfo["provenanceAmbiguity"]> {
-  const distinct = [...new Set(candidates)];
-  return {
-    ...(distinct.length === 1 ? { directRewrite: distinct[0] } : {}),
-    ...(distinct.length > 0 ? { candidates: distinct } : {}),
-  };
-}
-
-function operationCompositeName(env: Environment, composite: "args" | "ctx"): string | undefined {
-  return [...env.variables].find(([, info]) => info.operationComposite === composite)?.[0];
-}
-
-function selectedMemberName(node: ts.Expression): string | undefined {
-  const value = unwrapExpression(node);
-  return ts.isPropertyAccessExpression(value) ? value.name.text : undefined;
 }
 
 export function combineProvenance(values: Provenance[]): Provenance {

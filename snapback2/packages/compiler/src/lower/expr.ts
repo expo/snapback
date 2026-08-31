@@ -220,7 +220,12 @@ function lowerDomainInner(
     return lowerRecurse(call, env);
   }
   const operationList = operationArgumentList(expression, env);
-  if (operationList?.max !== undefined) return { domain: { ArgList: { name: operationList.name, max: operationList.max } }, bindingInfo: provenanceBinding(expression, env) };
+  if (operationList?.max !== undefined) {
+    return {
+      domain: { ArgList: { name: operationList.name, max: operationList.max } },
+      bindingInfo: collectionElementBinding(expression, env),
+    };
+  }
   const identifier = operationList ? undefined : identifierFromArgsOrLocal(expression, (name) => env.variables.get(name)?.operationComposite === "args");
   if (identifier) {
     const info = env.variables.get(identifier);
@@ -229,7 +234,7 @@ function lowerDomainInner(
         && typeof env.args[info.operationArgument] !== "string") {
         return {
           domain: { ArgList: { name: info.operationArgument, max: info.max } },
-          bindingInfo: provenanceBinding(expression, env),
+          bindingInfo: collectionElementBinding(expression, env),
         };
       }
       return {
