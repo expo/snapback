@@ -149,7 +149,7 @@ result label, wire, and receipt may not.
 
 > ~~A drain always makes visible progress (no starvation).~~
 >
-> **Amended 2026-08-30 (orchestrator, pending author ratification):
+> **Amended 2026-08-30 (orchestrator; ratified by the author 2026-08-30):
 > no-starvation is scoped to the certified examined budget; an empty Capped
 > page is the terminal drain state.**
 
@@ -530,7 +530,7 @@ per-principal encrypted client stores.
    at check with the `E_STRUCTURAL_COUNT` denormalize-or-maintain rewrite.
    Authoritative tracing, invalidation, and OCC are unchanged.
 
-   **Amended 2026-08-30 (orchestrator, pending author ratification).** A hoisted
+   **Amended 2026-08-30 (orchestrator; ratified by the author 2026-08-30).** A hoisted
    uniformly false range halts after one rule determination as `Exhausted`.
    Non-uniform rows beyond the certified examined budget are unreachable; no
    continuation may encode examined/storage position and the server holds no
