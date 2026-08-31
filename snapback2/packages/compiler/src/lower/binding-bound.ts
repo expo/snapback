@@ -9,6 +9,8 @@ import {
   unwrapCall,
   unwrapExpression,
 } from "../syntax";
+import { selectExpressionMember } from "./collection-origins";
+import { expandHelper } from "./helper-expansion";
 import { guardedWalk } from "./recursion";
 
 export function operationArgumentList(
@@ -26,16 +28,6 @@ export function operationArgumentList(
   };
 }
 
-export function alternativeMemberBound(
-  info: VariableInfo,
-  member: string,
-  bound: (node: ts.Expression, env: Environment) => number | undefined,
-): number | undefined {
-  if (!info.alternativeOrigins || info.alternativeOrigins.length === 0) return undefined;
-  const values = info.alternativeOrigins.map((origin) => originMemberBound(origin, member, bound));
-  return values.every((value): value is number => value !== undefined) ? Math.max(...values) : undefined;
-}
-
 export function derivedBound(node: ts.Expression, env: Environment): Partial<VariableInfo> {
   const known = staticBound(node, env);
   return known === undefined ? {} : { max: known, boundSource: `${node.getText()} static bound` };
@@ -48,22 +40,18 @@ export function staticBound(node: ts.Expression, env: Environment): number | und
 function staticBoundInner(node: ts.Expression, env: Environment): number | undefined {
   const value = unwrapExpression(node);
   if (ts.isIdentifier(value)) {
+    const substituted = env.substitutions.get(value.text);
+    if (substituted) return staticBound(substituted.expression, substituted.environment);
     const info = env.variables.get(value.text);
     return info?.max ?? (info ? alternativeOriginBound(info, staticBound) : undefined);
   }
   const operationList = operationArgumentList(value, env);
   if (operationList) return operationList.max;
   if (ts.isPropertyAccessExpression(value)) {
-    const base = unwrapExpression(value.expression);
-    if (ts.isIdentifier(base)) {
-      const info = env.variables.get(base.text);
-      const alternative = info && alternativeMemberBound(info, value.name.text, staticBound);
-      if (alternative !== undefined) return alternative;
-      const origin = info?.immutableOrigin;
-      if (origin) {
-        const selected = immutableMember(origin, value.name.text);
-        if (selected) return staticBound(selected.expression, selected.environment);
-      }
+    const selected = selectExpressionMember(value.expression, env, value.name.text);
+    if (selected.kind === "found") {
+      const bounds = selected.origins.map((origin) => originBound(origin, staticBound));
+      if (bounds.every((bound): bound is number => bound !== undefined)) return Math.max(...bounds);
     }
   }
   if (ts.isArrayLiteralExpression(value)) {
@@ -82,6 +70,8 @@ function staticBoundInner(node: ts.Expression, env: Environment): number | undef
     return initializer ? staticBound(initializer, env) : 0;
   }
   const call = unwrapCall(node);
+  const expanded = call && expandHelper(call, env);
+  if (expanded) return staticBound(expanded.expression, expanded.environment);
   if (call && callName(call).endsWith(".scan")) {
     const take = scanTake(call);
     if (typeof take === "number") return take;
@@ -123,36 +113,6 @@ function originBound(
   return "binding" in origin
     ? origin.binding.max ?? alternativeOriginBound(origin.binding, bound)
     : bound(origin.expression, origin.environment);
-}
-
-function originMemberBound(
-  origin: ProvenanceOrigin,
-  member: string,
-  bound: (node: ts.Expression, env: Environment) => number | undefined,
-): number | undefined {
-  if ("binding" in origin) return alternativeMemberBound(origin.binding, member, bound);
-  const value = unwrapExpression(origin.expression);
-  if (!ts.isObjectLiteralExpression(value)) return undefined;
-  const selected = expressionProperty(value, member)
-    ?? value.properties.find((property): property is ts.ShorthandPropertyAssignment =>
-      ts.isShorthandPropertyAssignment(property) && property.name.text === member)?.name;
-  return selected ? bound(selected, origin.environment) : undefined;
-}
-
-function immutableMember(
-  origin: Extract<ProvenanceOrigin, { expression: ts.Expression }>,
-  member: string,
-): Extract<ProvenanceOrigin, { expression: ts.Expression }> | undefined {
-  const value = unwrapExpression(origin.expression);
-  if (ts.isIdentifier(value)) {
-    const nested = origin.environment.variables.get(value.text)?.immutableOrigin;
-    return nested ? immutableMember(nested, member) : undefined;
-  }
-  if (!ts.isObjectLiteralExpression(value)) return undefined;
-  const selected = expressionProperty(value, member)
-    ?? value.properties.find((property): property is ts.ShorthandPropertyAssignment =>
-      ts.isShorthandPropertyAssignment(property) && property.name.text === member)?.name;
-  return selected ? { expression: selected, environment: origin.environment } : undefined;
 }
 
 function scanTake(call: ts.CallExpression): number | "arg" | undefined {

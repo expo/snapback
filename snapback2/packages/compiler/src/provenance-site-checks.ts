@@ -690,8 +690,9 @@ export const lookup = query({ first: t.text(40), second: t.text(40) }, ({ db, ar
     const unresolved = unmatched.diagnostics.find((item) => item.code === "E_PROVENANCE_AMBIGUOUS");
     assert(unresolved, `unmatched refusal omitted provenance envelope: ${JSON.stringify(unmatched.diagnostics)}`);
     assert(unresolved.rewrite.includes("E_PROVENANCE_AMBIGUOUS: choose one direct origin")
-      && unresolved.message.includes("args.first") && unresolved.message.includes("args.second"),
-    `unmatched rewrite did not expose candidate origins honestly: ${JSON.stringify(unresolved)}`);
+      && unresolved.rewrite.includes("no bound direct origins")
+      && !unresolved.message.includes("candidate direct origins"),
+    `unmatched rewrite guessed undiscovered origins: ${JSON.stringify(unresolved)}`);
     const stillRefused = lowerSource(unresolved.rewrite, "honest-unmatched.ts", undefined, { tables });
     assert(!stillRefused.ok, "unmatched sentinel rewrite silently compiled to a different field");
   });
@@ -758,13 +759,11 @@ export const intact = query({ key: t.text(40) }, ({ db, args }) =>
     const diagnostic = refused.diagnostics.find((item) => item.code === "E_PROVENANCE_AMBIGUOUS");
     assert(diagnostic, `missing helper provenance refusal: ${JSON.stringify(refused.diagnostics)}`);
     assert(diagnostic.rewrite.includes("function pick(value: any) { return value.key; }")
-      && diagnostic.rewrite.includes("[args.key]")
+      && diagnostic.rewrite.includes("no bound direct origins")
       && diagnostic.rewrite.includes("pick({ key: args.key })"),
     `helper rewrite escaped the authored scan key: ${diagnostic.rewrite}`);
     const fixed = lowerSource(diagnostic.rewrite, "rewrite-scope.ts", undefined, { tables });
-    assert(fixed.ok && fixed.programs.length === 2,
-      `scoped helper rewrite did not preserve both call sites: ${fixed.ok ? "" : JSON.stringify(fixed.diagnostics)}`);
-    fixed.programs.forEach(certify);
+    assert(!fixed.ok, "origin-less helper sentinel unexpectedly compiled");
   });
 
   test("adversarial extra alias, helper, spread, and specialization layers stay uniform", () => {

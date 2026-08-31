@@ -5,6 +5,12 @@ import { expandHelper } from "./helper-expansion";
 import { directOriginCandidates, isOperationCompositeBinding } from "./operation-context";
 import { guardedWalk } from "./recursion";
 
+type Presence = "required" | "optional";
+type MemberSelection =
+  | { kind: "found"; origins: ProvenanceOrigin[]; presence: Presence }
+  | { kind: "absent" }
+  | { kind: "unknown" };
+
 export function collectionElementOrigins(node: ts.Expression, env: Environment): ProvenanceOrigin[] | undefined {
   return guardedWalk(env, node, "collection elements", () => collectionElementOriginsInner(node, env));
 }
@@ -24,33 +30,23 @@ function collectionElementOriginsInner(node: ts.Expression, env: Environment): P
         objectFields: info.objectFields,
       } }];
     }
+    if (info?.max !== undefined) return [elementOrigin(info, info.operationArgument)];
     return undefined;
   }
   if (ts.isPropertyAccessExpression(value)) {
-    const base = unwrapExpression(value.expression);
-    if (!ts.isIdentifier(base)) return undefined;
-    const info = env.variables.get(base.text);
-    if (info?.immutableOrigin) {
-      const selected = selectOriginMember(info.immutableOrigin, value.name.text);
-      return selected && collectionElementOrigins(selected.expression, selected.environment);
-    }
-    if (info?.alternativeOrigins) {
-      const members = info.alternativeOrigins.map((origin) => selectOriginMember(origin, value.name.text));
-      return members.every((member): member is Extract<ProvenanceOrigin, { expression: ts.Expression }> => !!member)
-        ? flattenCollectionOrigins(members)
-        : undefined;
-    }
-    return undefined;
+    const selected = selectExpressionMember(value.expression, env, value.name.text);
+    return selected.kind === "found" ? flattenCollectionOrigins(selected.origins) : undefined;
   }
   if (ts.isArrayLiteralExpression(value)) {
     const origins: ProvenanceOrigin[] = [];
+    const elementEnvironment = snapshotEnvironment(env);
     for (const element of value.elements) {
       if (ts.isSpreadElement(element)) {
         const spread = collectionElementOrigins(element.expression, env);
         if (!spread) return undefined;
         origins.push(...spread);
       } else {
-        origins.push({ expression: element, environment: env });
+        origins.push({ expression: element, environment: elementEnvironment });
       }
     }
     return origins;
@@ -66,6 +62,9 @@ function collectionElementOriginsInner(node: ts.Expression, env: Environment): P
       objectFields: rowFields(call.arguments[0], env),
     } }];
   }
+  if (call && ts.isIdentifier(call.expression) && call.expression.text === "mentionTokens") {
+    return [{ binding: { provenance: "Computed" } }];
+  }
   if (call && ts.isPropertyAccessExpression(call.expression)) {
     const method = call.expression.name.text;
     const owner = call.expression.expression;
@@ -78,7 +77,7 @@ function collectionElementOriginsInner(node: ts.Expression, env: Environment): P
       const callbackEnv = snapshotEnvironment(env);
       callbackEnv.variables.set(callback.parameters[0].name.text, collectionElementBinding(owner, env));
       return method === "map"
-        ? [{ expression: callback.body, environment: callbackEnv }]
+        ? [{ expression: callback.body, environment: snapshotEnvironment(callbackEnv) }]
         : collectionElementOrigins(callback.body, callbackEnv);
     }
   }
@@ -98,8 +97,10 @@ function flattenCollectionOrigins(origins: readonly ProvenanceOrigin[]): Provena
     if ("binding" in origin) {
       const nested = origin.binding.elementOrigins
         ?? (origin.binding.alternativeOrigins ? flattenCollectionOrigins(origin.binding.alternativeOrigins) : undefined);
-      if (!nested) return undefined;
-      elements.push(...nested);
+      if (nested) elements.push(...nested);
+      else if (origin.binding.max !== undefined || origin.binding.operationArgument || origin.binding.rowCollection) {
+        elements.push(elementOrigin(origin.binding, origin.candidate));
+      } else return undefined;
       continue;
     }
     const nested = collectionElementOrigins(origin.expression, origin.environment);
@@ -109,26 +110,91 @@ function flattenCollectionOrigins(origins: readonly ProvenanceOrigin[]): Provena
   return elements;
 }
 
-export function selectOriginMember(
-  origin: ProvenanceOrigin,
-  member: string,
-): Extract<ProvenanceOrigin, { expression: ts.Expression }> | undefined {
+export function selectOriginMembers(origin: ProvenanceOrigin, member: string): MemberSelection {
   if ("binding" in origin) {
     return origin.binding.immutableOrigin
-      ? selectOriginMember(origin.binding.immutableOrigin, member)
-      : undefined;
+      ? selectOriginMembers(origin.binding.immutableOrigin, member)
+      : { kind: "unknown" };
   }
-  const value = unwrapExpression(origin.expression);
+  return selectExpressionMember(origin.expression, origin.environment, member);
+}
+
+export function selectExpressionMember(
+  node: ts.Expression,
+  env: Environment,
+  member: string,
+): MemberSelection {
+  const value = unwrapExpression(node);
   if (ts.isIdentifier(value)) {
-    const info = origin.environment.variables.get(value.text);
-    return info?.immutableOrigin ? selectOriginMember(info.immutableOrigin, member) : undefined;
+    const substituted = env.substitutions.get(value.text);
+    if (substituted) return selectExpressionMember(substituted.expression, substituted.environment, member);
+    const info = env.variables.get(value.text);
+    if (info?.operationComposite === "args") {
+      const descriptor = env.args[member];
+      if (!descriptor) return { kind: "absent" };
+      const unwrapped = typeof descriptor !== "string" && "Optional" in descriptor ? descriptor.Optional : descriptor;
+      const max = typeof unwrapped !== "string" && "List" in unwrapped ? unwrapped.List.max : undefined;
+      return {
+        kind: "found",
+        origins: [{ binding: {
+          provenance: "Arg",
+          operationArgument: member,
+          ...(max !== undefined ? { max, boundSource: `arg ${member} max` } : {}),
+        }, candidate: `${value.text}.${member}` }],
+        presence: typeof descriptor !== "string" && "Optional" in descriptor ? "optional" : "required",
+      };
+    }
+    if (info?.operationComposite === "ctx") {
+      return member === "viewer"
+        ? { kind: "found", origins: [{ binding: { provenance: "Viewer" } }], presence: "required" }
+        : { kind: "absent" };
+    }
+    if (info?.provenanceAmbiguity) return { kind: "unknown" };
+    if (info?.alternativeOrigins) {
+      const selected = info.alternativeOrigins.map((origin) => selectOriginMembers(origin, member));
+      if (selected.some((item) => item.kind !== "found")) return { kind: "unknown" };
+      return {
+        kind: "found",
+        origins: selected.flatMap((item) => item.kind === "found" ? item.origins : []),
+        presence: selected.some((item) => item.kind === "found" && item.presence === "optional")
+          ? "optional"
+          : "required",
+      };
+    }
+    return info?.immutableOrigin
+      ? selectOriginMembers(info.immutableOrigin, member)
+      : { kind: "unknown" };
   }
-  if (!ts.isObjectLiteralExpression(value)) return undefined;
-  const selected = value.properties.find((property): property is ts.PropertyAssignment =>
-    ts.isPropertyAssignment(property) && propertyName(property.name) === member)?.initializer
-    ?? value.properties.find((property): property is ts.ShorthandPropertyAssignment =>
-      ts.isShorthandPropertyAssignment(property) && property.name.text === member)?.name;
-  return selected ? { expression: selected, environment: origin.environment } : undefined;
+  if (!ts.isObjectLiteralExpression(value)) return { kind: "unknown" };
+  const laterOptional: ProvenanceOrigin[] = [];
+  for (const property of [...value.properties].reverse()) {
+    let selected: MemberSelection | undefined;
+    if (ts.isSpreadAssignment(property)) {
+      selected = selectExpressionMember(property.expression, env, member);
+    } else if (ts.isShorthandPropertyAssignment(property) && property.name.text === member) {
+      selected = {
+        kind: "found",
+        origins: [{ expression: property.name, environment: snapshotEnvironment(env) }],
+        presence: "required",
+      };
+    } else if (ts.isPropertyAssignment(property) && propertyName(property.name) === member) {
+      selected = {
+        kind: "found",
+        origins: [{ expression: property.initializer, environment: snapshotEnvironment(env) }],
+        presence: "required",
+      };
+    }
+    if (!selected || selected.kind === "absent") continue;
+    if (selected.kind === "unknown") return selected;
+    if (selected.presence === "optional") {
+      laterOptional.push(...selected.origins);
+      continue;
+    }
+    return { kind: "found", origins: [...laterOptional, ...selected.origins], presence: "required" };
+  }
+  return laterOptional.length > 0
+    ? { kind: "found", origins: laterOptional, presence: "optional" }
+    : { kind: "absent" };
 }
 
 export function originDirectCandidates(origins: readonly ProvenanceOrigin[]): string[] {
@@ -138,6 +204,7 @@ export function originDirectCandidates(origins: readonly ProvenanceOrigin[]): st
       for (const candidate of directOriginCandidates(origin.expression, origin.environment)) candidates.add(candidate);
       continue;
     }
+    if (origin.candidate) candidates.add(origin.candidate);
     for (const candidate of origin.binding.provenanceAmbiguity?.candidates ?? []) candidates.add(candidate);
     if (origin.binding.provenanceAmbiguity?.directRewrite) {
       candidates.add(origin.binding.provenanceAmbiguity.directRewrite);
@@ -159,6 +226,17 @@ export function snapshotEnvironment(env: Environment): Environment {
     substitutions: new Map(env.substitutions),
     helperStack: [...env.helperStack],
   };
+}
+
+function elementOrigin(info: VariableInfo, candidate?: string): ProvenanceOrigin {
+  const {
+    max: _max,
+    boundSource: _boundSource,
+    elementOrigins: _elementOrigins,
+    alternativeOrigins: _alternativeOrigins,
+    ...binding
+  } = info;
+  return { binding, ...(candidate ? { candidate } : {}) };
 }
 
 function rowFields(target: ts.Expression | undefined, env: Environment): string[] | undefined {

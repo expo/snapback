@@ -9,7 +9,6 @@ import {
   isRowExpression,
   provenanceBinding,
   readProvenance,
-  strictBinding,
 } from "./provenance";
 import { expandHelper } from "./helper-expansion";
 import {
@@ -41,11 +40,11 @@ import {
   temporary,
   unwrapCall,
   unwrapExpression,
-  walk,
 } from "../syntax";
-import { directArgument, isOperationCompositeBinding, withDirectRewrite } from "./operation-context";
+import { isOperationCompositeBinding, withDirectRewrite } from "./operation-context";
 import { guardedWalk, MAX_RECURSION_DEPTH } from "./recursion";
 import { derivedBound, operationArgumentList, staticBound } from "./binding-bound";
+import { maintainCollectionFacts } from "./collection-facts";
 function concatExpressions(expressions: Expr[]): Expr {
   return expressions.slice(1).reduce<Expr>(
     (left, right) => ({ Builtin: { builtin: "Concat", args: [left, right] } }),
@@ -85,14 +84,36 @@ export function loopDomainMaximum(domain: LoopDomain): number {
 }
 
 export function collectionMutationCounts(node: ts.Node): Map<string, number> {
+  if (ts.isIfStatement(node)) {
+    return maxMutationCounts(
+      collectionMutationCounts(node.thenStatement),
+      node.elseStatement ? collectionMutationCounts(node.elseStatement) : new Map(),
+    );
+  }
+  if (ts.isConditionalExpression(node)) {
+    return maxMutationCounts(
+      collectionMutationCounts(node.whenTrue),
+      collectionMutationCounts(node.whenFalse),
+    );
+  }
+  if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)
+    && ts.isIdentifier(node.expression.expression)
+    && ["push", "set", "add"].includes(node.expression.name.text)) {
+    return new Map([[node.expression.expression.text,
+      node.expression.name.text === "push" ? node.arguments.length : 1]]);
+  }
   const result = new Map<string, number>();
-  walk(node, (child) => {
-    if (!ts.isCallExpression(child) || !ts.isPropertyAccessExpression(child.expression)
-      || !ts.isIdentifier(child.expression.expression)
-      || (child.expression.name.text !== "set" && child.expression.name.text !== "add")) return;
-    const name = child.expression.expression.text;
-    result.set(name, (result.get(name) ?? 0) + 1);
-  });
+  node.forEachChild((child) => addMutationCounts(result, collectionMutationCounts(child)));
+  return result;
+}
+
+function addMutationCounts(target: Map<string, number>, source: Map<string, number>): void {
+  for (const [name, count] of source) target.set(name, (target.get(name) ?? 0) + count);
+}
+
+function maxMutationCounts(left: Map<string, number>, right: Map<string, number>): Map<string, number> {
+  const result = new Map(left);
+  for (const [name, count] of right) result.set(name, Math.max(result.get(name) ?? 0, count));
   return result;
 }
 
@@ -148,8 +169,7 @@ export function lowerPatch(node: ts.Expression, env: Environment): Expr {
     if (ts.isBlock(node.body)) refuse(env, "E_OPAQUE", node.body, "write callback body must be an expression");
     const callbackEnv = cloneEnvironment(env);
     const name = node.parameters[0].name.text;
-    callbackEnv.variables.set(name, strictBinding(name, { provenance: "Shape", rowBinding: true }, callbackEnv,
-      undefined, node.parameters[0].name));
+    callbackEnv.variables.set(name, { provenance: "Shape", rowBinding: true });
     return lowerExpr(node.body, callbackEnv);
   }
   return lowerExpr(node, env);
@@ -685,8 +705,7 @@ export function lowerArrayMethod(
     lowerValue,
     hint,
   );
-  loopEnv.variables.set(binding, strictBinding(binding, bindingInfo, loopEnv,
-    directArgument(owner, env), callback.parameters[0].name));
+  loopEnv.variables.set(binding, bindingInfo);
   if (method === "map" || method === "filter") {
     const name = temporary(env, method);
     const lowered = lowerValue(callback.body, loopEnv, hint);
@@ -708,12 +727,11 @@ export function lowerArrayMethod(
     const elementOrigins = method === "filter"
       ? bindingOrigins(bindingInfo)
       : [{ expression: callback.body, environment: loopEnv } satisfies ProvenanceOrigin];
-    env.variables.set(name, {
+    const bound = derivedBound(owner, env);
+    env.variables.set(name, maintainCollectionFacts({
       ...resultOrigin,
-      ...derivedBound(owner, env),
-      elementOrigins,
       ...(preservesRows ? { rowCollection: true, objectFields: bindingInfo.objectFields } : {}),
-    });
+    }, { ...bound, elementOrigins }));
     return {
       statements: [...domainStatements, { Let: { name, value: { Array: [] } } }, { For: { binding, domain, body } }],
       expression: { Variable: name },
@@ -724,16 +742,17 @@ export function lowerArrayMethod(
     const innerBinding = temporary(env, "flatItem");
     const inner = lowerCollectionDomain(callback.body, loopEnv, innerBinding, lowerValue, hint);
     const innerEnv = cloneEnvironment(loopEnv);
-    innerEnv.variables.set(innerBinding, strictBinding(innerBinding, inner.bindingInfo, innerEnv));
-    env.variables.set(name, {
+    innerEnv.variables.set(innerBinding, inner.bindingInfo);
+    env.variables.set(name, maintainCollectionFacts({
       ...inner.bindingInfo,
-      max: loopDomainMaximum(domain) * loopDomainMaximum(inner.domain),
-      boundSource: `${call.getText(env.sourceFile)} flatMap bounds`,
-      elementOrigins: bindingOrigins(inner.bindingInfo),
       ...(inner.bindingInfo.rowBinding
         ? { rowCollection: true, objectFields: inner.bindingInfo.objectFields }
         : {}),
-    });
+    }, {
+      max: loopDomainMaximum(domain) * loopDomainMaximum(inner.domain),
+      boundSource: `${call.getText(env.sourceFile)} flatMap bounds`,
+      elementOrigins: bindingOrigins(inner.bindingInfo),
+    }));
     return {
       statements: [
         ...domainStatements,
@@ -759,8 +778,7 @@ export function lowerArrayMethod(
     const accumulator = callback.parameters[0].name.text;
     const item = callback.parameters[1].name.text;
     const reduceEnv = cloneEnvironment(env);
-    reduceEnv.variables.set(item, strictBinding(item, bindingInfo, reduceEnv,
-      directArgument(owner, env), callback.parameters[1].name));
+    reduceEnv.variables.set(item, bindingInfo);
     const name = temporary(env, "reduce");
     reduceEnv.substitutions.set(accumulator, {
       expression: syntheticIdentifier(env.sourceFile, name),

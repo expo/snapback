@@ -12,36 +12,18 @@ import {
   unwrapCall,
   unwrapExpression,
 } from "../syntax";
-import { collectionElementOrigins, originDirectCandidates, snapshotEnvironment } from "./collection-origins";
+import { collectionElementOrigins, originDirectCandidates, selectExpressionMember, snapshotEnvironment } from "./collection-origins";
 import { expandHelper } from "./helper-expansion";
-import { isOperationCompositeBinding } from "./operation-context";
+import { directOriginCandidates, isOperationCompositeBinding } from "./operation-context";
 
 type Presence = "required" | "optional";
 type Classification =
-  | { kind: "known"; provenance: Provenance; presence: Presence }
+  | { kind: "known"; provenance: Provenance; presence: Presence; candidates?: string[] }
   | { kind: "absent" }
   | { kind: "ambiguous"; directRewrite?: string; candidates?: string[] };
 type KnownClassification = Extract<Classification, { kind: "known" }>;
 
 export type ProvenanceBinding = Pick<VariableInfo, "provenance" | "provenanceAmbiguity">;
-
-export function strictBinding(
-  name: string,
-  binding: VariableInfo,
-  env: Environment,
-  directRewrite?: string,
-  declaration?: ts.Identifier,
-  authoredOrigin?: string,
-): VariableInfo {
-  if (!declaration || !env.mutableBindings.has(declaration)) return binding;
-  const candidates = new Set([
-    ...(binding.provenanceAmbiguity?.candidates ?? []),
-    ...(binding.provenanceAmbiguity?.directRewrite ? [binding.provenanceAmbiguity.directRewrite] : []),
-    ...(directRewrite ? [directRewrite] : []),
-    ...(!directRewrite && authoredOrigin ? [authoredOrigin] : []),
-  ]);
-  return { ...binding, provenanceAmbiguity: rewriteAmbiguity([...candidates]) };
-}
 
 /**
  * @ref LLP 1002#2-the-authored-surface-the-snapback2-module — this is the one
@@ -92,6 +74,7 @@ export function collectionElementBinding(node: ts.Expression, env: Environment):
   const classified = combineAlternatives(
     origins.map((origin) => classifyOrigin(origin, [], node)),
     "required",
+    originDirectCandidates(origins),
   );
   return {
     ...(classified.kind === "known"
@@ -104,36 +87,23 @@ export function collectionElementBinding(node: ts.Expression, env: Environment):
   };
 }
 
-export function updateArrayBindingAfterPush(
-  info: VariableInfo,
-  value: ts.Expression,
-  env: Environment,
-  count = 1,
-): void {
-  const prior = info.elementOrigins ?? (info.max === 0 ? [] : undefined);
-  const origins = prior
-    ? [...prior, { expression: value, environment: snapshotEnvironment(env) } satisfies ProvenanceOrigin]
-    : undefined;
-  if (info.max !== undefined) {
-    info.max += count;
-    info.boundSource = `${value.getText(env.sourceFile)} push count`;
-  }
-  if (!origins) return;
-  info.elementOrigins = origins;
+export function collectionOriginsBinding(
+  origins: readonly ProvenanceOrigin[],
+  authoredNode: ts.Expression,
+): ProvenanceBinding {
   const classified = combineAlternatives(
-    origins.map((origin) => classifyOrigin(origin, [], value)),
+    origins.map((origin) => classifyOrigin(origin, [], authoredNode)),
     "required",
+    originDirectCandidates(origins),
   );
-  if (classified.kind === "known") {
-    info.provenance = classified.provenance;
-    if (!info.provenanceAmbiguity) delete info.provenanceAmbiguity;
-    return;
-  }
-  info.provenance = "Computed";
-  info.provenanceAmbiguity = rewriteAmbiguity([
-    ...(info.provenanceAmbiguity?.candidates ?? []),
-    ...originDirectCandidates(origins),
-  ]);
+  return classified.kind === "known"
+    ? { provenance: classified.provenance }
+    : {
+        provenance: "Computed",
+        provenanceAmbiguity: rewriteAmbiguity(
+          classified.kind === "ambiguous" ? classified.candidates ?? originDirectCandidates(origins) : originDirectCandidates(origins),
+        ),
+      };
 }
 
 function classify(
@@ -207,11 +177,8 @@ function classifyIdentifier(
 ): Classification {
   const info = env.variables.get(node.text);
   if (!info) return ambiguous();
-  if (info.alternativeOrigins) {
-    return combineAlternatives(
-      info.alternativeOrigins.map((origin) => classifyOrigin(origin, path, authoredNode)),
-      "required",
-    );
+  if (info.provenanceAmbiguity) {
+    return ambiguous(info.provenanceAmbiguity.directRewrite, info.provenanceAmbiguity.candidates);
   }
   if (info.operationComposite === "args") {
     if (path.length === 0) {
@@ -228,8 +195,12 @@ function classifyIdentifier(
     if (path.length === 0) return known("Viewer");
     return path[0] === "viewer" ? known("Viewer") : absent();
   }
-  if (info.provenanceAmbiguity) {
-    return ambiguous(info.provenanceAmbiguity.directRewrite, info.provenanceAmbiguity.candidates);
+  if (info.alternativeOrigins) {
+    return combineAlternatives(
+      info.alternativeOrigins.map((origin) => classifyOrigin(origin, path, authoredNode)),
+      "required",
+      originDirectCandidates(info.alternativeOrigins),
+    );
   }
   if (info.rowBinding) return classifyBoundRow(info, path);
   if (info.immutableOrigin) {
@@ -256,14 +227,15 @@ function classifyBinding(
   path: readonly string[],
   authoredNode: ts.Expression,
 ): Classification {
+  if (info.provenanceAmbiguity) {
+    return ambiguous(info.provenanceAmbiguity.directRewrite, info.provenanceAmbiguity.candidates);
+  }
   if (info.alternativeOrigins) {
     return combineAlternatives(
       info.alternativeOrigins.map((origin) => classifyOrigin(origin, path, authoredNode)),
       "required",
+      originDirectCandidates(info.alternativeOrigins),
     );
-  }
-  if (info.provenanceAmbiguity) {
-    return ambiguous(info.provenanceAmbiguity.directRewrite, info.provenanceAmbiguity.candidates);
   }
   if (info.rowBinding) return classifyBoundRow(info, path);
   if (path.length === 0) return known(info.provenance);
@@ -302,10 +274,20 @@ function classifyObjectMember(
     let candidate: Classification | undefined;
     if (ts.isSpreadAssignment(property)) {
       candidate = classify(property.expression, env, path, authoredNode);
+      const selectedOrigins = selectExpressionMember(property.expression, env, selected!);
+      if (selectedOrigins.kind === "found") {
+        candidate = withCandidates(candidate, originDirectCandidates(selectedOrigins.origins));
+      }
     } else if (ts.isShorthandPropertyAssignment(property) && property.name.text === selected) {
-      candidate = classify(property.name, env, rest, authoredNode);
+      candidate = withCandidates(
+        classify(property.name, env, rest, authoredNode),
+        [...directOriginCandidates(property.name, env)],
+      );
     } else if (ts.isPropertyAssignment(property) && propertyName(property.name) === selected) {
-      candidate = classify(property.initializer, env, rest, authoredNode);
+      candidate = withCandidates(
+        classify(property.initializer, env, rest, authoredNode),
+        [...directOriginCandidates(property.initializer, env)],
+      );
     }
     if (!candidate || candidate.kind === "absent") continue;
     if (candidate.kind === "ambiguous") return candidate;
@@ -340,16 +322,27 @@ function combineClassifications(values: Classification[]): Classification {
   return known(combineProvenance(provenances));
 }
 
-function combineAlternatives(values: Classification[], presence: Presence): Classification {
+function combineAlternatives(
+  values: Classification[],
+  presence: Presence,
+  candidates: string[] = [],
+): Classification {
   const knownValues = values.filter((value): value is KnownClassification => value.kind === "known");
-  if (knownValues.length !== values.length) return ambiguous();
+  const inherited = values.flatMap((value) => value.kind === "absent" ? [] : value.candidates ?? []);
+  const allCandidates = [...new Set([...candidates, ...inherited])];
+  if (knownValues.length !== values.length) return ambiguous(undefined, allCandidates);
   const first = knownValues[0]?.provenance;
-  if (!first || knownValues.some((value) => value.provenance !== first)) return ambiguous();
+  if (!first || knownValues.some((value) => value.provenance !== first)) return ambiguous(undefined, allCandidates);
   return { kind: "known", provenance: first, presence };
 }
 
-function known(provenance: Provenance): KnownClassification {
-  return { kind: "known", provenance, presence: "required" };
+function known(provenance: Provenance, candidates?: string[]): KnownClassification {
+  return {
+    kind: "known",
+    provenance,
+    presence: "required",
+    ...(candidates && candidates.length > 0 ? { candidates } : {}),
+  };
 }
 
 function absent(): Classification {
@@ -362,6 +355,11 @@ function ambiguous(directRewrite?: string, candidates?: string[]): Classificatio
     ...(directRewrite ? { directRewrite } : {}),
     ...(candidates && candidates.length > 0 ? { candidates } : {}),
   };
+}
+
+function withCandidates(value: Classification, candidates: string[]): Classification {
+  if (value.kind === "absent" || candidates.length === 0) return value;
+  return { ...value, candidates: [...new Set([...(value.candidates ?? []), ...candidates])] };
 }
 
 function isRowCall(call: ts.CallExpression, env: Environment): boolean {
@@ -430,12 +428,7 @@ function honestRewrite(
     const direct = `${argsBinding}.${selected}`;
     return { replacement: direct, candidates: [direct] };
   }
-  const candidates = [
-    ...(argsBinding ? Object.keys(env.args).map((name) => `${argsBinding}.${name}`) : []),
-    ...(operationCompositeName(env, "ctx") ? [`${operationCompositeName(env, "ctx")}.viewer`] : []),
-  ];
-  if (candidates.length === 1) return { replacement: candidates[0]!, candidates };
-  return sentinelRewrite(candidates);
+  return sentinelRewrite([]);
 }
 
 function sentinelRewrite(candidates: string[]): { replacement: string; candidates: string[] } {

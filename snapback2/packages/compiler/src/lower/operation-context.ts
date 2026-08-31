@@ -125,11 +125,6 @@ function resolveBinding(name: string, scope: BindingScope | undefined): ts.Ident
   return undefined;
 }
 
-export function directArgument(node: ts.Expression, env: Environment): string | undefined {
-  const candidates = directOriginCandidates(node, env);
-  return candidates.size === 1 ? [...candidates][0] : undefined;
-}
-
 export function directOriginCandidates(node: ts.Expression, env: Environment): Set<string> {
   return guardedWalk(env, node, "direct origin", () => directOriginCandidatesInner(node, env));
 }
@@ -137,15 +132,21 @@ export function directOriginCandidates(node: ts.Expression, env: Environment): S
 function directOriginCandidatesInner(node: ts.Expression, env: Environment): Set<string> {
   const value = unwrapExpression(node);
   if (ts.isPropertyAccessExpression(value) && ts.isIdentifier(value.expression)) {
-    const composite = env.variables.get(value.expression.text)?.operationComposite;
+    const info = env.variables.get(value.expression.text);
+    const composite = info?.operationComposite;
     if (composite === "args" || composite === "ctx" && value.name.text === "viewer") {
       return new Set([value.getText(env.sourceFile)]);
     }
+    if (info?.rowBinding) return new Set([value.getText(env.sourceFile)]);
   }
   if (ts.isIdentifier(value)) {
     const info = env.variables.get(value.text);
     if (info?.operationComposite === "args") return new Set([value.text]);
     if (info?.operationComposite === "ctx") return new Set([`${value.text}.viewer`]);
+    if (info?.operationArgument) {
+      const args = [...env.variables].find(([, candidate]) => candidate.operationComposite === "args")?.[0];
+      return new Set([args ? `${args}.${info.operationArgument}` : info.operationArgument]);
+    }
     if (info?.provenanceAmbiguity) {
       return new Set([
         ...(info.provenanceAmbiguity.candidates ?? []),
@@ -175,6 +176,13 @@ function directOriginCandidatesInner(node: ts.Expression, env: Environment): Set
     }
     return candidates;
   }
+  if (ts.isCallExpression(value)) {
+    const candidates = new Set<string>();
+    for (const argument of value.arguments) {
+      for (const direct of directOriginCandidates(argument, env)) candidates.add(direct);
+    }
+    return candidates;
+  }
   const candidates = new Set<string>();
   value.forEachChild((child) => {
     if (!ts.isExpression(child)) return;
@@ -198,11 +206,15 @@ export function withDirectRewrite(
 }
 
 export function recordAssignmentOrigin(info: VariableInfo | undefined, node: ts.Expression, env: Environment): void {
-  if (!info?.provenanceAmbiguity) return;
+  if (!info) return;
   const discovered = [...directOriginCandidates(node, env)];
   const candidates = new Set([
-    ...(info.provenanceAmbiguity.candidates ?? []),
-    ...(info.provenanceAmbiguity.directRewrite ? [info.provenanceAmbiguity.directRewrite] : []),
+    ...(info.provenanceAmbiguity?.candidates ?? []),
+    ...(info.provenanceAmbiguity?.directRewrite ? [info.provenanceAmbiguity.directRewrite] : []),
+    ...(info.immutableOrigin ? directOriginCandidates(
+      info.immutableOrigin.expression,
+      info.immutableOrigin.environment,
+    ) : []),
     ...(discovered.length > 0 ? discovered : [node.getText(env.sourceFile)]),
   ]);
   info.provenanceAmbiguity = ambiguity([...candidates]);
