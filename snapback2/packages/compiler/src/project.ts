@@ -342,6 +342,21 @@ function createProjectProgram(
     types: [],
   };
   const host = ts.createCompilerHost(options, true);
+  // The injected __snapback2_lib.d.ts is the sole authority for the
+  // `snapback2` module surface. An installed copy of the shim in the
+  // project's node_modules carries the same `declare module "snapback2"`
+  // block, and letting Bundler resolution reach it puts two conflicting
+  // ambient modules in one program (duplicate-identifier refusals a
+  // packaged consumer hits on `init`). Bare snapback2 specifiers therefore
+  // never resolve to files; relative imports resolve normally.
+  host.resolveModuleNameLiterals = (literals, containingFile, redirectedReference, compilerOptions) =>
+    literals.map((literal) => {
+      const name = literal.text;
+      if (name === "snapback2" || name.startsWith("snapback2/")) {
+        return { resolvedModule: undefined };
+      }
+      return ts.resolveModuleName(name, containingFile, compilerOptions, host);
+    });
   const sourceFile = host.getSourceFile.bind(host);
   const read = host.readFile.bind(host);
   const exists = host.fileExists.bind(host);
@@ -360,6 +375,7 @@ function createProjectProgram(
 function projectTypeDiagnostics(program: ts.Program, projectRoot: string): FrontendDiagnostic[] {
   return ts.getPreEmitDiagnostics(program).flatMap((item) => {
     if (!item.file || item.file.fileName.endsWith("__snapback2_lib.d.ts")) return [];
+    if (item.file.fileName.includes(`${sep}node_modules${sep}`)) return [];
     if (!resolve(item.file.fileName).startsWith(`${resolve(projectRoot)}${sep}`)) return [];
     if (selfTableReference(item)) return [];
     const position = item.start === undefined ? { line: 0, character: 0 } : item.file.getLineAndCharacterOfPosition(item.start);
