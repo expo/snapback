@@ -13,11 +13,11 @@
 **Battery gate:** `cloudflare-local-suite`
 **Failure signature:** `sha256:289f079d4fc2cde2fe364ca93700b82b2e1d9a774bf1a798ac083f1d4ba6bf54`
 **First observed run:** `local.20260824T022619Z.88476b032428`
-**Last observed run:** `local.20260830T160622Z.0fdfadbe8e67`
-**Last processed run:** `local.20260830T160622Z.0fdfadbe8e67`
+**Last observed run:** `local.20260831T005527Z.2ab5c5c6641e`
+**Last processed run:** `local.20260831T005527Z.2ab5c5c6641e`
 **Detected at revision:** `88476b0324286a5c8bde4b0c1d877ae542cf96e7`
-**Last observed revision:** `0fdfadbe8e67a5c930d282e5efe91a633aa76e35`
-**Consecutive red runs:** `4`
+**Last observed revision:** `2ab5c5c6641ebe33f1a8281f71ffe7d8b0b1e306`
+**Consecutive red runs:** `5`
 **Escalation:** `AUTHOR_ESCALATION_REQUIRED`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 

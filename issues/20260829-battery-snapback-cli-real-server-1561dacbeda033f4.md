@@ -10,11 +10,11 @@
 **Battery gate:** `snapback-cli-real-server`
 **Failure signature:** `sha256:1561dacbeda033f49ef0cf0fa8e95d8bd95ed60da0f92147f8ace25d71101ee6`
 **First observed run:** `local.20260829T140951Z.cace7b53cf00`
-**Last observed run:** `local.20260830T160622Z.0fdfadbe8e67`
-**Last processed run:** `local.20260830T160622Z.0fdfadbe8e67`
+**Last observed run:** `local.20260831T005527Z.2ab5c5c6641e`
+**Last processed run:** `local.20260831T005527Z.2ab5c5c6641e`
 **Detected at revision:** `cace7b53cf008e7692e4cb633c14b4c2400fdd5c`
-**Last observed revision:** `0fdfadbe8e67a5c930d282e5efe91a633aa76e35`
-**Consecutive red runs:** `4`
+**Last observed revision:** `2ab5c5c6641ebe33f1a8281f71ffe7d8b0b1e306`
+**Consecutive red runs:** `5`
 **Escalation:** `AUTHOR_ESCALATION_REQUIRED`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
