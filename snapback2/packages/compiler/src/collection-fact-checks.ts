@@ -47,6 +47,26 @@ export const lookup = query({ keys: t.list(t.text(40), { max: 3 }) }, ({ db, arg
     assert(!paste.ok, "loop-bound multi-origin refusal had paste.ok !== false");
   });
 
+  test("ternary members over loop bindings retain complete candidate origins", () => {
+    const refused = lowerSource(`import { query, t } from "snapback2";
+export const lookup = query({ keys: t.list(t.text(40), { max: 3 }), choose: t.bool() }, ({ db, args, ctx }) => {
+  const selected = [ctx.viewer];
+  for (const k of args.keys) {
+    const choice = args.choose ? { key: k } : { key: ctx.viewer };
+    selected.push(choice.key);
+  }
+  const found = [];
+  for (const key of selected) found.push(db.get(items.byKey, [key]));
+  return found;
+});`, "ternary-loop-member-probe.ts", undefined, { tables });
+    const diagnostic = provenanceDiagnostic(refused);
+    assert(diagnostic.message.includes("ctx.viewer") && diagnostic.message.includes("args.keys")
+      && !diagnostic.message.includes("<unknown origin>"),
+    `ternary loop-member candidates were incomplete: ${JSON.stringify(diagnostic)}`);
+    const paste = lowerSource(diagnostic.rewrite, "ternary-loop-member-probe.ts", undefined, { tables });
+    assert(!paste.ok, "ternary loop-member multi-origin refusal had paste.ok !== false");
+  });
+
   test("conditional members retain real candidates without an argument-name guess", () => {
     const refused = lowerSource(`import { query, t } from "snapback2";
 export const lookup = query({ key: t.text(40), choose: t.bool() }, ({ db, args, ctx }) => {

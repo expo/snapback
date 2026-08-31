@@ -348,10 +348,16 @@ function combineAlternatives(
   candidates: string[] = [],
 ): Classification {
   const knownValues = values.filter((value): value is KnownClassification => value.kind === "known");
-  const inherited = values.flatMap((value) => value.kind === "absent" ? [] : value.candidates ?? []);
+  const inherited = values.flatMap((value) => value.kind === "absent"
+    ? []
+    : value.candidates ?? (value.kind === "ambiguous" && value.directRewrite ? [value.directRewrite] : []));
   const allCandidates = [...new Set([...candidates, ...inherited])];
   if (knownValues.length !== values.length) {
-    return ambiguous(undefined, [...new Set([...allCandidates, UNKNOWN_DIRECT_ORIGIN])]);
+    const incomplete = values.some((value) => value.kind === "absent"
+      || value.kind === "ambiguous" && !value.directRewrite && (value.candidates?.length ?? 0) === 0);
+    return ambiguous(undefined, incomplete
+      ? [...new Set([...allCandidates, UNKNOWN_DIRECT_ORIGIN])]
+      : allCandidates);
   }
   const first = knownValues[0]?.provenance;
   if (!first || knownValues.some((value) => value.provenance !== first)) return ambiguous(undefined, allCandidates);
