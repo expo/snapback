@@ -31,15 +31,20 @@ report).
 
 ## Resolution (2026-08-31)
 
-Commit `b8d993697` memoizes expression results by AST node and analysis context,
-covering binary operands, min/max arguments, constants, and every other path
-through the shared expression analyzer. It also refuses after 512 nested
-expressions or 8,192 distinct expressions per operation. The guard reuses the
-guide-reachable `E_OPAQUE` family and returns a sited rewrite that tells the
-author to split the expression; no new diagnostic code was added.
+Commit `b8d993697` memoized expression results by AST node and analysis context.
+The round-1 review fix completes the totality boundary: the 8,192 ceiling now
+counts contextual expression visits, not distinct authored nodes, and an
+operation that reaches it is never passed to lowering. The 512-depth ceiling
+remains. The guard reuses the guide-reachable `E_OPAQUE` family and its rewrite
+is now an intentionally non-lowerable sentinel naming both bounds. Its message
+states that both limits are per operation and that naming local values does not
+reset them; the author must reduce the operation or split it into multiple
+operations.
 
-On the same local probe, 24/64/128-term integer chains changed from
-2,330.7 ms / >10 s / >10 s to 7.4 ms / 9.7 ms / 12.3 ms. Tests cover a
-128-term integer chain under a 2 s CI allowance, a 128-term Decimal/int chain
-whose 127 literals all scale to 100, and the complete guard envelope. The
-compiler suite passes 93/93 after the combined lane.
+On the original local probe, 24/64/128-term integer chains changed from
+2,330.7 ms / >10 s / >10 s to 7.4 ms / 9.7 ms / 12.3 ms. The regression
+allowance is now 500 ms. Tests also cover a 128-term Decimal/int chain whose
+127 literals all scale to 100, the non-lowerable guard rewrite, and a depth-12
+helper DAG that must compile or refuse inside 500 ms. A depth-13 adversarial
+probe refused at the contextual-visit guard in 22.84 ms instead of expanding
+without bound.

@@ -28,8 +28,10 @@ refuses or was already wrong on main in a worse, silent way).
 3. Renamed-`args` loop domains: `({args: packed})` + `for (const key of
    packed.keys)` → `E_UNBOUND_LOOP` (`syntax.ts:304-308` still matches the
    spelling for loop cardinality; `staticBound` doesn't consult the composite
-   binding). Aliasing first compiles. Point-key provenance is fixed; loop
-   cardinality still spelling-dependent.
+   binding). Aliasing first compiles. **Resolved in the type-analysis round-1
+   fix:** loop cardinality now proves the operation composite through its
+   lexical binding; a shadowing local of the same spelling lowers as a derived
+   array instead of `ArgList`.
 4. Nested literal collections lose per-element bounds: iterating `[[a],[b,c]]`
    then each group → `E_UNBOUND_LOOP` though the inner max is statically 2
    (`expr.ts:300`). INHERITED (identical on main).
@@ -55,6 +57,12 @@ refuses or was already wrong on main in a worse, silent way).
    poisons an outer `const key`, false-refusing `E_PROVENANCE_AMBIGUOUS`.
    Safer than a leak, but scope-aware mutation tracking removes the false
    refusal.
+
+8. Remaining downstream spelling/shape matches are safe refusals, not wrong
+   lowerings: `syntax.ts:177` still recognizes `db` by spelling so a renamed
+   handler `db` binding refuses, and local object literals do not yet carry
+   Decimal field types through type analysis, so unsupported typed-object
+   forms refuse instead of borrowing the operation argument's scale.
 
 Fix direction: extend per-element/row-projection tracking through `slice`
 (and audit `sort`/`flatMap` parity), route loop cardinality through the same

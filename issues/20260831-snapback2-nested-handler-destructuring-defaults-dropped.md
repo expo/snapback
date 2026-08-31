@@ -1,6 +1,6 @@
 # snapback2 compiler: nested handler destructuring defaults compile and silently disappear from IR
 
-**Status:** Open
+**Status:** Resolved in lane (awaiting landing)
 **Systems:** snapback2, compiler
 **Severity:** P2
 **Author:** Claude Fable 5, directed by Charlie Cheever
@@ -28,3 +28,17 @@ rewrite (read the arg, apply the default in the body), the same way
 provenance lane's round 3). Alternatively lower defaults with their provenance
 — but pick refusal unless the value model wants defaults, and record the
 choice in LLP 1002 §2.
+
+## Resolution (2026-08-31)
+
+The type-analysis fix round refuses every non-identifier binding nested inside
+the handler parameter before analysis or lowering. The `E_OPAQUE` envelope is
+sited at the offending binding and its rewrite replaces the nested pattern
+with an identifier composite, then introduces explicit field reads in the
+body. Defaults and renames become ordinary declarations such as `const
+renamed = packed.price ?? fallback`, so they can no longer disappear from IR.
+
+Regression coverage proves the rewrite itself compiles and preserves
+`Decimal<2>` scaling for both the explicit default and the following
+arithmetic. Nested defaults plus a rename were also rerun as an adversarial
+self-probe.
