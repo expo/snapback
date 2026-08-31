@@ -38,3 +38,18 @@ trio proves names are irrelevant. Corpus regeneration changed only
 certificate prefix changed `Shape` → `Arg` because the helper body is a
 transparent object-member identity wrapper; its plan hash changed derivatively,
 and every numeric estimate remained identical.
+
+**Blind-review fix round 2 (2026-08-30):** Commit `6a747b1ef` replaces the
+remaining exact-AST special cases with one recursive member-path classifier.
+Operation composites, assertions, immutable aliases, helper substitutions,
+nested object members, ordered spreads, loop/destructuring/specialized bindings,
+and row-preserving filters now carry the same origin/ambiguity rules. Update
+operands lower once in source order, and ambiguity rewrites are scoped to the
+authored read key rather than helper declarations. `E_OP_MODULE_BASENAME` now
+distinguishes module-site collisions from reserved `then` paths. Regenerating
+all 81 corpus cases produced no diff: no sites, provenance, hashes, or numeric
+estimates changed. The blocking suite passed Rust 19/19 + 22/22 (+ two empty
+targets), evaluator 81/81, and compiler 75/75; all measured budgets passed. Root
+caps retained only the known 205/204 Snapback 1 oversize baseline red, and
+`ref-check --verbose` passed with 7,218 refs and zero errors or unchecked
+references.
