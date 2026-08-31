@@ -11,7 +11,15 @@ type FunctionLike = ts.FunctionDeclaration | ts.ArrowFunction | ts.FunctionExpre
 type TypeModule = DiagnosticModule & { tables: Map<string, TableInfo>; helpers?: Map<string, FunctionLike> };
 type OperationComposite = "args" | "ctx" | "db";
 type TypeBinding = { type: AuthoredType; operationComposite?: OperationComposite };
-type TypeEnvironment = { variables: Map<string, TypeBinding>; constants: Map<string, ts.Expression>; args: Record<string, AuthoredType> };
+type TypeEnvironment = {
+  variables: Map<string, TypeBinding>;
+  constants: Map<string, ts.Expression>;
+  args: Record<string, AuthoredType>;
+  memo: Map<ts.Expression, Map<string, AuthoredType>>;
+};
+
+const MAX_TYPE_ANALYSIS_DEPTH = 512;
+const MAX_TYPE_ANALYSIS_NODES = 8192;
 
 export type TypePlan = {
   diagnostics: FrontendDiagnostic[];
@@ -29,7 +37,7 @@ export function analyzeOperationTypes(module: TypeModule, call: ts.CallExpressio
   }
   const handler = call.arguments[1];
   if (handler && isFunctionLike(handler)) {
-    const env: TypeEnvironment = { variables: new Map(), constants: new Map(), args };
+    const env: TypeEnvironment = { variables: new Map(), constants: new Map(), args, memo: new Map() };
     for (const parameter of handler.parameters) {
       for (const name of bindingNames(parameter.name)) setBinding(env, name, { type: unknownType });
     }
@@ -47,6 +55,9 @@ class Analyzer {
   readonly literalValues = new Map<number, number>();
   private readonly seen = new Set<string>();
   private readonly helperStack: string[] = [];
+  private readonly analyzedNodes = new Set<ts.Expression>();
+  private analysisDepth = 0;
+  private analysisLimitReached = false;
 
   constructor(private readonly module: TypeModule) {}
 
@@ -113,6 +124,34 @@ class Analyzer {
   expression(node: ts.Expression, env: TypeEnvironment, expected?: AuthoredType, quietFraction = false): AuthoredType {
     const value = unwrapExpression(node);
     const target = expected && requiredType(expected);
+    const memoKey = `${quietFraction ? "quiet" : "loud"}:${JSON.stringify(target ?? null)}`;
+    const cached = env.memo.get(value)?.get(memoKey);
+    if (cached) return cached;
+    if (this.analysisLimitReached) return unknownType;
+    if (this.analysisDepth >= MAX_TYPE_ANALYSIS_DEPTH) return this.analysisLimit(value);
+    if (!this.analyzedNodes.has(value)) {
+      if (this.analyzedNodes.size >= MAX_TYPE_ANALYSIS_NODES) return this.analysisLimit(value);
+      this.analyzedNodes.add(value);
+    }
+    this.analysisDepth += 1;
+    let result: AuthoredType;
+    try {
+      result = this.expressionInner(value, env, target, quietFraction);
+    } finally {
+      this.analysisDepth -= 1;
+    }
+    const entries = env.memo.get(value) ?? new Map<string, AuthoredType>();
+    entries.set(memoKey, result);
+    env.memo.set(value, entries);
+    return result;
+  }
+
+  private expressionInner(
+    value: ts.Expression,
+    env: TypeEnvironment,
+    target: AuthoredType | undefined,
+    quietFraction: boolean,
+  ): AuthoredType {
     if (ts.isNumericLiteral(value)) return this.numeric(value, target, quietFraction);
     if (ts.isStringLiteralLike(value)) {
       if (target?.kind === "enum" && !target.variants.includes(value.text)) this.enumVariant(value, target);
@@ -189,6 +228,19 @@ class Analyzer {
       else this.expression(value.body, nested, target);
     }
     return target ?? unknownType;
+  }
+
+  private analysisLimit(node: ts.Expression): AuthoredType {
+    if (!this.analysisLimitReached) {
+      this.analysisLimitReached = true;
+      this.add(
+        "E_OPAQUE",
+        node,
+        `type analysis is limited to ${MAX_TYPE_ANALYSIS_DEPTH} nested expressions and ${MAX_TYPE_ANALYSIS_NODES} distinct expressions per operation; split this expression into smaller named values or operations`,
+        replaceNode(this.module.source, node, "0 /* split this expression before type analysis */"),
+      );
+    }
+    return unknownType;
   }
 
   private numeric(node: ts.NumericLiteral, expected: AuthoredType | undefined, quiet: boolean): AuthoredType {
@@ -410,7 +462,7 @@ class Analyzer {
     );
   }
 
-  private add(code: "E_DECIMAL_SCALE" | "E_ENUM_VARIANT" | "E_ARGS_TYPE", node: ts.Node, message: string, rewrite: string): void {
+  private add(code: "E_DECIMAL_SCALE" | "E_ENUM_VARIANT" | "E_ARGS_TYPE" | "E_OPAQUE", node: ts.Node, message: string, rewrite: string): void {
     const key = `${code}:${node.getStart(this.module.sourceFile)}:${message}`;
     if (this.seen.has(key)) return;
     this.seen.add(key);
@@ -486,6 +538,7 @@ function cloneEnv(env: TypeEnvironment): TypeEnvironment {
     variables: new Map([...env.variables].map(([name, binding]) => [name, { ...binding }])),
     constants: new Map(env.constants),
     args: env.args,
+    memo: new Map(),
   };
 }
 

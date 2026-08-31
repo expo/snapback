@@ -136,6 +136,40 @@ export function registerColumnTypeChecks(test: RegisterTest): void {
     assert(canonical(renamedCtx.programs[0]).includes('"Input":"Viewer"'), "renamed ctx binding did not lower context.viewer");
   });
 
+  test("long binary chains are linear-time, preserve Decimal scaling, and stop at the analysis guard", () => {
+    const chain = (terms: number) => ["args.price", ...Array.from({ length: terms - 1 }, () => "1")].join(" + ");
+    const lowerChain = (terms: number, descriptor: string) => lowerSource(
+      `import { query, t } from "snapback2";
+       export const chain = query({ price: ${descriptor} }, ({ args }) => ${chain(terms)});`,
+      `chain-${terms}.ts`,
+    );
+
+    const started = performance.now();
+    const integers = lowerChain(128, "t.int()");
+    const elapsedMs = performance.now() - started;
+    assert(integers.ok, `128-term integer chain refused: ${integers.ok ? "" : integers.diagnostics.map((item) => item.message).join("; ")}`);
+    assert(elapsedMs < 2_000, `128-term integer chain took ${elapsedMs.toFixed(1)} ms (budget: 2000 ms)`);
+    const integerIr = canonical(integers.programs[0]);
+    assert((integerIr.match(/\"op\":\"Add\"/g) ?? []).length === 127, "128-term integer chain lost an addition");
+    assert(integerLiterals(integers.programs[0]).filter((value) => value === 1).length === 127,
+      "128-term integer chain changed a literal");
+
+    const decimals = lowerChain(128, "t.decimal(2)");
+    assert(decimals.ok, `128-term Decimal chain refused: ${decimals.ok ? "" : decimals.diagnostics.map((item) => item.message).join("; ")}`);
+    assert(integerLiterals(decimals.programs[0]).filter((value) => value === 100).length === 127,
+      "mixed Decimal/int chain did not scale every whole-unit literal to 100");
+
+    const absurd = lowerChain(600, "t.int()");
+    const refusal = absurd.ok ? undefined : absurd.diagnostics.find((item) =>
+      item.code === "E_OPAQUE" && item.message.includes("type analysis is limited"));
+    assert(refusal, "absurd expression did not fire the type-analysis totality guard");
+    assert(refusal.family === "opaque" && refusal.site.startsWith("chain-600.ts:")
+      && refusal.rewrite.includes("split this expression") && refusal.guide === "opaque/subset",
+    "type-analysis guard refusal omitted its family, site, rewrite, or guide");
+    assert(refusal.message.includes("512 nested expressions") && refusal.message.includes("8192 distinct expressions"),
+      "type-analysis guard refusal did not document both bounds");
+  });
+
   test("Bytes descriptors lower for columns and args with the existing schema refusal family", async () => {
     await withProject({
       "snapback/schema.ts": `import { schema, table, t } from "snapback2";
