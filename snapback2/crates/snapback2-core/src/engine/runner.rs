@@ -668,25 +668,72 @@ impl<'a> Runner<'a> {
         } else {
             candidate_limit
         };
-        let mut rows = scan_indexed(
-            self.tx,
-            &scan.table,
-            &scan.index,
-            index,
-            &prefix,
-            after.as_ref(),
-            before.as_ref(),
-            evaluated_range.as_ref(),
-            scan.order,
-            fetch_limit,
-        )?;
+        // @ref LLP 1001#3-read-and-write-states-no-silent-states — uniformly false ranges halt after one determination.
+        // A hoisted rule has one verdict for the entire prefix. Probe one
+        // candidate first so a uniformly false range can terminate without
+        // fetching or charging the hidden population row by row.
+        let mut uniform_result = None;
+        let mut uniform_false_row = None;
+        let mut uniform_empty = false;
+        if uniform && !always_visible && fetch_limit > 0 {
+            let mut probe = scan_indexed(
+                self.tx,
+                &scan.table,
+                &scan.index,
+                index,
+                &prefix,
+                after.as_ref(),
+                before.as_ref(),
+                evaluated_range.as_ref(),
+                scan.order,
+                1,
+            )?;
+            if let Some(mut row) = probe.pop() {
+                materialize_optional_fields(&mut row, table);
+                let receipt_lengths = (
+                    self.receipt.rows.len(),
+                    self.receipt.ranges.len(),
+                    self.receipt.absences.len(),
+                    self.receipt.verdicts.len(),
+                );
+                let allowed = self.check_rule(&scan.table, Effect::Read, &row)?;
+                uniform_result = Some(allowed);
+                if !allowed {
+                    // The candidate and its rule inputs remain authoritative
+                    // trace only; the viewer gets the same absence as empty.
+                    self.receipt.rows.truncate(receipt_lengths.0);
+                    self.receipt.ranges.truncate(receipt_lengths.1);
+                    self.receipt.absences.truncate(receipt_lengths.2);
+                    self.receipt.verdicts.truncate(receipt_lengths.3);
+                    uniform_false_row = Some(row);
+                }
+            } else {
+                uniform_empty = true;
+            }
+        }
+        let mut rows = if uniform_false_row.is_some() || uniform_empty {
+            Vec::new()
+        } else {
+            scan_indexed(
+                self.tx,
+                &scan.table,
+                &scan.index,
+                index,
+                &prefix,
+                after.as_ref(),
+                before.as_ref(),
+                evaluated_range.as_ref(),
+                scan.order,
+                fetch_limit,
+            )?
+        };
         for row in &mut rows {
             materialize_optional_fields(row, table);
         }
         let fetched = rows.len();
-        let mut examined_rows = Vec::new();
+        let uniformly_false = uniform_false_row.is_some();
+        let mut examined_rows = uniform_false_row.into_iter().collect::<Vec<_>>();
         let mut visible = Vec::new();
-        let mut uniform_result = None;
         for row in rows {
             let visible_target = if uniform {
                 take.saturating_add(2)
@@ -725,7 +772,9 @@ impl<'a> Runner<'a> {
                 visible.push(row);
             }
         }
-        let source_exhausted = examined_rows.len() == fetched && fetched < fetch_limit;
+        let source_exhausted = uniformly_false
+            || uniform_empty
+            || (examined_rows.len() == fetched && fetched < fetch_limit);
         let stop = if (uniform && visible.len() <= take && source_exhausted)
             || (!uniform && visible.len() < take && source_exhausted)
         {

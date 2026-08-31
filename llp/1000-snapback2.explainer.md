@@ -71,9 +71,9 @@ numbered 1000 and up.
 | `crates/snapback2-effects` | LLP 1003: `EffectHost`/`NoEngine`/`Ibex2Host` over vanilla Hermes, vendored fetch factory bound to declared grants, source evaluated at global scope, per-job frozen tools, single-use timer permit, unforgeable denial markers, lifecycle runner over `OutboxAccess` with `then_pending`; 30 Hermes tests (`scripts/hermes test`) |
 | `crates/snapback2` | the owner (LLP 1002 §5: detach/attach by project, watch, hot successors, migration plans, typed exits), the wire (§4: HTTP JSON + SSE frames = query responses or terminal refusals, channels, control routes with secret), verbs `check --project`/`--ir`, `dev`, `run`, `data`, `logs`, `persona`, `fork`, `reset`, `init`, `test` (six derived checks + journeys + receipt), `why`, `trace`, `guide`, `doctor`; effects runner thread (`--features hermes`) |
 | `packages/compiler` | LLP 1002 §2–§3: the `snapback2` module surface, project lowering (schema/programs/effects/seed/journeys), Node worker + one-shot CLI, `api.d.ts` with named row types and channels, refusal envelopes with families, all-diagnostics + `E_DIAG_TRUNCATED`, Decimal/Money/Enum with exact whole-unit scaling; 38 checks |
-| `packages/evaluator` | the 7.8 KB twin, + `Emit`; 76/76 corpus |
+| `packages/evaluator` | the 7.8 KB twin, + `Emit`; 77/77 corpus |
 | `packages/snapback2` | shim + authoring runtime + `client` (5.0 KB gz) + `react` (6.1 KB gz) + `test` runner + guide pages + templates (`todos`, `chat`, React) |
-| `corpus/` | 76 conformance cases |
+| `corpus/` | 77 conformance cases |
 | `scripts/` | `test.sh` (~40 s incl. owner E2E), `measure.mjs --check` (incremental 1.6 s, check --project 0.26 s, dev boot 0.27 s, doctor 0.22 s, init → dev 0.58 s, test 1.8 s), `publish.mjs` (ships the engine: 5.06 MB; 2.18 MB without), `hermes` |
 
 Not yet: `deploy`/`rollback`, `secret`, previews, MCP, `--changed`, the Expo and Exact 2 arms, a hosted target, the benchmark wiring, `Bytes`/`Interval` columns, provenance/site as authored facts, AOT effect bytecode, `snapback.query/run` from inside an effect. Post-cap tickets: `issues/20260830-snapback2-*.md`.

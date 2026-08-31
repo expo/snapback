@@ -275,6 +275,49 @@ test("structural policy admits prefix-uniform private scans and refuses non-unif
     "non-uniform private count did not reuse E_STRUCTURAL_COUNT");
 });
 
+test("actual collection lowerings preserve capped page provenance through structural sinks", () => {
+  const tables = new Map<string, TableInfo>([["docs", {
+    name: "docs",
+    private: false,
+    columns: { id: { kind: "string" }, group: { kind: "string" }, owner: { kind: "string" }, order: { kind: "int" }, amount: { kind: "int" } },
+    indexes: { byScope: { columns: ["group", "order", "id"] } },
+  }]]);
+  const schema = {
+    tables: { docs: {
+      columns: { id: "Id", group: "Id", owner: "Id", order: "Int", amount: "Int" },
+      indexes: { byId: { columns: ["id"], unique: true }, byScope: { columns: ["group", "order", "id"], unique: false } },
+      rules: { read: { Eq: [{ Field: "owner" }, "Viewer"] }, insert: "Allow", update: "Allow", delete: "Allow" },
+      constraints: [],
+    } },
+    maintains: [], channels: {}, auth: { password: false, guests: false }, effects: [],
+  };
+  const scan = "db.scan(docs.byScope, [args.scope], { take: 8 })";
+  const source = `import { query } from "snapback2";
+    export const mapRows = query({ scope: scalar() }, ({ db, args }) => ${scan}.map(item => ({ id: item.id })));
+    export const filterRows = query({ scope: scalar() }, ({ db, args }) => ${scan}.filter(item => item.amount > 0));
+    export const flatMapRows = query({ scope: scalar() }, ({ db, args }) => ${scan}.flatMap(item => [item]));
+    export const collectEmpty = query({ scope: scalar() }, ({ db, args }) => {
+      const collected = ${scan}.map(item => item); return collected.length === 0;
+    });
+    export const scanCount = query({ scope: scalar() }, ({ db, args }) => ${scan}.count());
+    export const scanLength = query({ scope: scalar() }, ({ db, args }) => ${scan}.length);
+    export const reduceRows = query({ scope: scalar() }, ({ db, args }) =>
+      ${scan}.reduce((sum, item) => sum + item.amount, 0));`;
+  const lowered = lowerSource(source, "capped-collections.ts", undefined, { tables });
+  assert(lowered.ok, `collection fixture did not lower: ${lowered.ok ? "" : lowered.diagnostics.map((item) => item.message).join("; ")}`);
+  const checked = rustCheck(lowered.programs, "synthetic", schema);
+  for (const name of ["mapRows", "filterRows", "flatMapRows"]) {
+    const outcomes = checked.filter((item) => item.program === name);
+    assert(outcomes.length === 1 && outcomes[0]?.error === null, `${name} did not remain a legal visible page: ${JSON.stringify(outcomes)}`);
+  }
+  for (const name of ["collectEmpty", "scanCount", "scanLength", "reduceRows"]) {
+    const refusals = checked.filter((item) => item.program === name && item.error !== null);
+    assert(refusals.some((item) => item.error?.code === "E_STRUCTURAL_COUNT"), `${name} lost capped provenance: ${JSON.stringify(refusals)}`);
+    assert(refusals.every((item) => item.error?.rewrite.includes("denormalize the authorization scope")
+      && item.error.rewrite.includes("maintained aggregate")), `${name} changed the paved rewrite`);
+  }
+});
+
 test("loop collection refusals paste per-family rewrites that lower and certify", () => {
   const tables = new Map<string, TableInfo>([["items", {
     name: "items",

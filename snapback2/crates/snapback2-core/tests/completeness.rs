@@ -142,6 +142,31 @@ fn execute(index_scope: &str, rows: Vec<Value>, take: u32) -> Execution {
     runtime.execute("docs.page", context(scope, None)).unwrap()
 }
 
+fn execute_with_examined_ceiling(
+    index_scope: &str,
+    scope: &str,
+    rows: Vec<Value>,
+    take: u32,
+    examined: u64,
+) -> Execution {
+    let schema = schema(index_scope);
+    let program = page_program(take, false);
+    let ceilings = Ceilings {
+        examined,
+        index_entries: examined,
+        rule_probes: examined,
+        ..Ceilings::default()
+    };
+    let certificate = Checker::new(&schema, ceilings).check(&program).unwrap();
+    let mut engine = Engine::memory(schema).unwrap();
+    for row in rows {
+        engine.seed("docs", row).unwrap();
+    }
+    engine
+        .execute(&program, &certificate, context(scope, None))
+        .unwrap()
+}
+
 #[derive(Serialize, PartialEq, Debug)]
 struct ViewerObservable<'a> {
     result: &'a Value,
@@ -182,7 +207,7 @@ fn full_pages_do_not_oracle_hidden_rows_through_result_label_or_receipt() {
 }
 
 #[test]
-fn visible_only_take_drains_across_a_long_hidden_run_without_starvation() {
+fn visible_only_take_reaches_rows_within_the_certified_examined_budget() {
     let non_uniform_schema = schema("group");
     let program = page_program(2, true);
     let mut runtime = Runtime::open(
@@ -226,6 +251,61 @@ fn visible_only_take_drains_across_a_long_hidden_run_without_starvation() {
         }
     }
     assert_eq!(delivered, ["v129", "v130", "v131"]);
+}
+
+#[test]
+fn hidden_run_past_the_examined_ceiling_is_an_empty_capped_terminal_page() {
+    let exhausted = execute_with_examined_ceiling("group", "g1", Vec::new(), 2, 8);
+    let mut beyond_budget = (1..=20)
+        .map(|order| doc(&format!("h{order:02}"), "g1", "u2", order))
+        .collect::<Vec<_>>();
+    beyond_budget.extend([
+        doc("v21", "g1", "u1", 21),
+        doc("v22", "g1", "u1", 22),
+        doc("v23", "g1", "u1", 23),
+    ]);
+    let capped = execute_with_examined_ceiling("group", "g1", beyond_budget, 2, 8);
+
+    assert_eq!(exhausted.state, ExecutionState::Capped);
+    assert_eq!(capped.state, ExecutionState::Capped);
+    assert_eq!(exhausted.result, Value::Array(Vec::new()));
+    assert_eq!(capped.result, Value::Array(Vec::new()));
+    assert_eq!(observable(&exhausted), observable(&capped));
+    assert_eq!(exhausted.trace.ranges[0].stop, StopReason::Exhausted);
+    assert_eq!(capped.trace.ranges[0].stop, StopReason::Limit);
+    assert_eq!(capped.trace.ranges[0].examined_ids.len(), 8);
+}
+
+#[test]
+fn hoisted_uniform_false_is_identical_for_empty_small_and_over_ceiling_ranges() {
+    let empty = execute_with_examined_ceiling("owner", "u2", Vec::new(), 2, 8);
+    let two_hidden = execute_with_examined_ceiling(
+        "owner",
+        "u2",
+        vec![doc("h1", "g1", "u2", 1), doc("h2", "g1", "u2", 2)],
+        2,
+        8,
+    );
+    let many_hidden = execute_with_examined_ceiling(
+        "owner",
+        "u2",
+        (1..=20)
+            .map(|order| doc(&format!("h{order:02}"), "g1", "u2", order))
+            .collect(),
+        2,
+        8,
+    );
+
+    assert_eq!(observable(&empty), observable(&two_hidden));
+    assert_eq!(observable(&empty), observable(&many_hidden));
+    for execution in [&empty, &two_hidden, &many_hidden] {
+        assert_eq!(execution.state, ExecutionState::Complete);
+        assert_eq!(execution.trace.ranges[0].stop, StopReason::Exhausted);
+        assert!(execution.receipt.ranges[0].absence);
+    }
+    assert_eq!(empty.trace.ranges[0].examined_ids.len(), 0);
+    assert_eq!(two_hidden.trace.ranges[0].examined_ids.len(), 1);
+    assert_eq!(many_hidden.trace.ranges[0].examined_ids.len(), 1);
 }
 
 #[test]
@@ -367,14 +447,33 @@ fn capped_only_counts_branches_and_writes_reuse_the_structural_fact_refusal() {
                     "value".to_owned(),
                     Expr::Builtin {
                         builtin: Builtin::Count,
-                        args: vec![scan],
+                        args: vec![scan.clone()],
                     },
                 ),
             ])),
         }],
     };
+    let len_items = Program {
+        name: "docs.lenItems".to_owned(),
+        kind: ProgramKind::Query,
+        args: BTreeMap::from([("scope".to_owned(), ArgType::Scalar)]),
+        read_time_granularity_ms: None,
+        body: vec![Stmt::Return(Expr::Builtin {
+            builtin: Builtin::Len,
+            args: vec![Expr::Field {
+                base: Box::new(scan.clone()),
+                name: "items".to_owned(),
+            }],
+        })],
+    };
 
-    for (program, minimum) in [(count, 1), (branch, 2), (has_more, 2), (write, 1)] {
+    for (program, minimum) in [
+        (count, 1),
+        (branch, 2),
+        (has_more, 2),
+        (write, 1),
+        (len_items, 1),
+    ] {
         let errors = Checker::new(&non_uniform_schema, Ceilings::default())
             .check_all(&program)
             .unwrap_err();

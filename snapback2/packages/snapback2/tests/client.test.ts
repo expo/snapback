@@ -437,6 +437,21 @@ test("query returns every typed read state and refuses 4xx/network as envelopes"
   offline.close();
 });
 
+test("an empty capped page is the terminal drain state", async () => {
+  let requests = 0;
+  const value = createClient({
+    url: "http://wire.test",
+    fetch: async () => {
+      requests += 1;
+      return fetchJson({ state: "capped", data: [], seq: 1 });
+    },
+  });
+  const result = await value.query(api.states.capped, {});
+  assert.deepEqual(result, { state: "capped", data: [], seq: 1 });
+  assert.equal(requests, 1);
+  value.close();
+});
+
 test("every HTTP wire state validates its state-specific required fields", async () => {
   const queryCases = [
     [{ state: "complete", seq: 1 }, "data"],

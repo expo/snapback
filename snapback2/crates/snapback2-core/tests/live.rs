@@ -200,7 +200,7 @@ fn range_point_and_absence_invalidation_is_exact_and_reruns_coalesce() {
 }
 
 #[test]
-fn exhausted_hidden_range_is_complete_and_membership_addition_redelivers_it() {
+fn hoisted_false_hidden_range_halts_once_and_membership_addition_redelivers_it() {
     let memberships = public_table(
         BTreeMap::from([
             ("id".to_owned(), ColumnType::Id),
@@ -291,7 +291,7 @@ fn exhausted_hidden_range_is_complete_and_membership_addition_redelivers_it() {
     assert_eq!(initial.state, ExecutionState::Complete);
     assert_eq!(initial.result, Value::Array(Vec::new()));
     assert_eq!(initial.trace.ranges[0].stop, StopReason::Exhausted);
-    assert_eq!(initial.trace.ranges[0].examined_ids, vec!["d1", "d2"]);
+    assert_eq!(initial.trace.ranges[0].examined_ids, vec!["d1"]);
     assert!(initial.trace.ranges[0].visible_ids.is_empty());
 
     let hidden_limit = runtime

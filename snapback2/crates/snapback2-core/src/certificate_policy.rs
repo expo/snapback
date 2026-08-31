@@ -28,10 +28,6 @@ impl Fact {
         self.structural.append(&mut self.pages);
         self
     }
-
-    fn sensitive_sites(&self) -> BTreeSet<CappedSite> {
-        self.pages.union(&self.structural).cloned().collect()
-    }
 }
 
 pub(crate) fn uniform_visibility(schema: &Schema, scan: &Scan) -> bool {
@@ -85,7 +81,7 @@ impl Checker<'_> {
             env: BTreeMap::new(),
             errors: &mut errors,
         };
-        flow.statements(&program.body, &BTreeSet::new());
+        flow.statements(&program.body, &BTreeSet::new(), &BTreeSet::new());
         errors
     }
 }
@@ -97,7 +93,12 @@ struct CompletenessFlow<'a, 'b> {
 }
 
 impl CompletenessFlow<'_, '_> {
-    fn statements(&mut self, statements: &[Stmt], control: &BTreeSet<CappedSite>) {
+    fn statements(
+        &mut self,
+        statements: &[Stmt],
+        control: &BTreeSet<CappedSite>,
+        loop_pages: &BTreeSet<CappedSite>,
+    ) {
         for statement in statements {
             match statement {
                 Stmt::Const { name, value } | Stmt::Let { name, value } => {
@@ -107,10 +108,14 @@ impl CompletenessFlow<'_, '_> {
                 Stmt::Assign { name, value } => {
                     let mut fact = self.expr(value);
                     fact.structural.extend(control.iter().cloned());
+                    fact.structural.extend(loop_pages.iter().cloned());
                     self.env.insert(name.clone(), fact);
                 }
                 Stmt::Push { target, value } => {
-                    let fact = self.expr(value);
+                    // @ref LLP 1001#3-read-and-write-states-no-silent-states — collected visible pages stay returnable while structural uses refuse.
+                    let mut fact = self.expr(value);
+                    fact.pages.extend(loop_pages.iter().cloned());
+                    fact.structural.extend(control.iter().cloned());
                     self.env.entry(target.clone()).or_default().merge(fact);
                 }
                 Stmt::If {
@@ -125,10 +130,10 @@ impl CompletenessFlow<'_, '_> {
                     assigned_targets(then_body, &mut branch_targets);
                     assigned_targets(else_body, &mut branch_targets);
                     let before = self.env.clone();
-                    self.statements(then_body, &nested_control);
+                    self.statements(then_body, &nested_control, loop_pages);
                     let then_env = self.env.clone();
                     self.env = before;
-                    self.statements(else_body, &nested_control);
+                    self.statements(else_body, &nested_control, loop_pages);
                     merge_env(&mut self.env, then_env);
                     for target in branch_targets {
                         self.env
@@ -145,9 +150,11 @@ impl CompletenessFlow<'_, '_> {
                 } => {
                     let domain = self.domain(domain);
                     let mut nested_control = control.clone();
-                    nested_control.extend(domain.sensitive_sites());
+                    nested_control.extend(domain.structural.iter().cloned());
+                    let mut nested_loop_pages = loop_pages.clone();
+                    nested_loop_pages.extend(domain.pages.iter().cloned());
                     let previous = self.env.insert(binding.clone(), Fact::default());
-                    self.statements(body, &nested_control);
+                    self.statements(body, &nested_control, &nested_loop_pages);
                     if let Some(previous) = previous {
                         self.env.insert(binding.clone(), previous);
                     } else {
@@ -156,33 +163,33 @@ impl CompletenessFlow<'_, '_> {
                 }
                 Stmt::Return(value) => {
                     let fact = self.expr(value);
-                    self.refuse_sink("returned result", &fact.structural, control);
+                    self.refuse_sink("returned result", &fact.structural, control, loop_pages);
                 }
                 Stmt::Require { condition, .. } => {
                     let fact = self.expr(condition).made_structural();
-                    self.refuse_sink("require branch", &fact.structural, control);
+                    self.refuse_sink("require branch", &fact.structural, control, loop_pages);
                 }
                 Stmt::Insert { row, .. } => {
                     let fact = self.expr(row);
-                    self.refuse_sink("inserted value", &fact.structural, control);
+                    self.refuse_sink("inserted value", &fact.structural, control, loop_pages);
                 }
                 Stmt::Update { key, patch, .. } => {
                     let mut fact = self.expr(key);
                     fact.merge(self.expr(patch));
-                    self.refuse_sink("updated value", &fact.structural, control);
+                    self.refuse_sink("updated value", &fact.structural, control, loop_pages);
                 }
                 Stmt::Upsert { key, row, .. } => {
                     let mut fact = self.expr(key);
                     fact.merge(self.expr(row));
-                    self.refuse_sink("upserted value", &fact.structural, control);
+                    self.refuse_sink("upserted value", &fact.structural, control, loop_pages);
                 }
                 Stmt::Delete { key, .. } => {
                     let fact = self.expr(key);
-                    self.refuse_sink("deleted key", &fact.structural, control);
+                    self.refuse_sink("deleted key", &fact.structural, control, loop_pages);
                 }
                 Stmt::Emit { payload, .. } => {
                     let fact = self.expr(payload);
-                    self.refuse_sink("emitted value", &fact.structural, control);
+                    self.refuse_sink("emitted value", &fact.structural, control, loop_pages);
                 }
                 Stmt::Break | Stmt::Continue => {}
             }
@@ -206,10 +213,7 @@ impl CompletenessFlow<'_, '_> {
                 if name == "hasMore" {
                     fact.made_structural()
                 } else {
-                    Fact {
-                        structural: fact.structural,
-                        ..Fact::default()
-                    }
+                    fact
                 }
             }
             Expr::Binary { left, right, .. } => {
@@ -270,8 +274,13 @@ impl CompletenessFlow<'_, '_> {
         sink: &str,
         structural: &BTreeSet<CappedSite>,
         control: &BTreeSet<CappedSite>,
+        loop_pages: &BTreeSet<CappedSite>,
     ) {
-        let sites: BTreeSet<_> = structural.union(control).cloned().collect();
+        let sites: BTreeSet<_> = structural
+            .union(control)
+            .chain(loop_pages)
+            .cloned()
+            .collect();
         for site in sites {
             self.errors.push(CheckError {
                 code: "E_STRUCTURAL_COUNT".to_owned(),

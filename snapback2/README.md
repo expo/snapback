@@ -17,6 +17,6 @@ posture is [`rules/RULES.md`](../rules/RULES.md) and
 | `packages/compiler` | TypeScript subset → IR (spike S2) |
 | `packages/evaluator` | the IR evaluator twin for clients (spike S3, 7.8 KB gzip) |
 | `packages/snapback2` | the npm package: shim, authoring runtime (`snapback2`), `snapback2/client`, `snapback2/react`, `snapback2/test`, guide pages, templates |
-| `corpus/` | 76 shared conformance cases |
+| `corpus/` | 77 shared conformance cases |
 | `scripts/` | `test.sh`, `measure.mjs`, `publish.mjs`, `hermes` |
 | `metrics/loop.jsonl` | every measured run |

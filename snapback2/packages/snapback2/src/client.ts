@@ -325,6 +325,8 @@ class Client implements SnapbackClient {
           body: JSON.stringify({ op: referenceName(ref), args }),
         }));
         this.validated();
+        // Every typed receipt terminates this request. In particular, an
+        // empty Capped array is the terminal drain state, never a retry cue.
         return result;
       } catch (error) {
         if (!isSnapbackRefusal(error)

@@ -1007,6 +1007,64 @@ fn check_grammar_schema_aggregation_and_numeric_flags_are_strict() {
     assert_eq!(response["results"][1]["program"], "broken");
     assert_eq!(response["results"][2]["program"], "validButBlocked");
 
+    let scan = |site: &str| {
+        json!({ "Scan": {
+            "site": site, "table": "docs", "index": "byScope",
+            "prefix": [{ "Variable": "scope" }], "order": "Asc",
+            "take": { "Literal": 8 }, "after": null, "before": null,
+            "range": null, "provenance": "Arg"
+        }})
+    };
+    let sink = |site: &str, id: &str| {
+        json!({ "Insert": {
+            "table": "counts", "row": { "Object": {
+                "id": { "Literal": { "Id": id } },
+                "value": { "Builtin": { "builtin": "Len", "args": [scan(site)] } }
+            }}
+        }})
+    };
+    let two_sinks = json!({
+        "schema": { "tables": {
+            "docs": {
+                "columns": { "id": "Id", "group": "Id", "owner": "Id", "order": "Int" },
+                "indexes": { "byId": { "columns": ["id"], "unique": true }, "byScope": { "columns": ["group", "order", "id"], "unique": false } },
+                "rules": { "read": { "Eq": [{ "Field": "owner" }, "Viewer"] }, "insert": "Allow", "update": "Allow", "delete": "Allow" }, "constraints": []
+            },
+            "counts": {
+                "columns": { "id": "Id", "value": "Int" },
+                "indexes": { "byId": { "columns": ["id"], "unique": true } },
+                "rules": { "read": "Allow", "insert": "Allow", "update": "Allow", "delete": "Allow" }, "constraints": []
+            }
+        }, "maintains": [], "channels": {}, "auth": { "password": false, "guests": false }, "effects": [] },
+        "programs": [{
+            "name": "docs.twoSinks", "kind": "Mutation", "args": { "scope": "Scalar" },
+            "read_time_granularity_ms": null,
+            "body": [sink("docs.first", "first"), sink("docs.second", "second"), { "Return": { "Literal": "Null" } }]
+        }]
+    });
+    let two_sinks = run_with_stdin(binary, &["check", "--ir", "--json"], &two_sinks);
+    assert_eq!(two_sinks.status.code(), Some(1));
+    let two_sinks: Value = serde_json::from_slice(&two_sinks.stdout).unwrap();
+    let errors = two_sinks["results"].as_array().unwrap();
+    assert_eq!(errors.len(), 2, "{two_sinks}");
+    assert!(
+        errors
+            .iter()
+            .all(|item| item["error"]["code"] == "E_STRUCTURAL_COUNT")
+    );
+    assert!(errors.iter().any(|item| {
+        item["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("docs.first")
+    }));
+    assert!(errors.iter().any(|item| {
+        item["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("docs.second")
+    }));
+
     for args in [
         ["logs", "--since", "nope"].as_slice(),
         ["data", "items", "--as", "alice", "--limit", "nope"].as_slice(),
