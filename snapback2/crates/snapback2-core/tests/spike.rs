@@ -266,7 +266,7 @@ fn ten_thousand_messages_stay_below_certificate_and_membership_hoists() {
     let message_site = certificate
         .read_sites
         .iter()
-        .find(|site| site.site == "thread.messages")
+        .find(|site| site.site == "programs.thread.0")
         .unwrap();
     assert!(message_site.hoist);
 
@@ -294,7 +294,7 @@ fn ten_thousand_messages_stay_below_certificate_and_membership_hoists() {
         .trace
         .ranges
         .iter()
-        .find(|range| range.site == "thread.messages")
+        .find(|range| range.site == "programs.thread.0")
         .unwrap();
     assert_eq!(range.examined_ids.len(), 22, "take + halo + N+2 key probe");
     assert_eq!(range.stop, StopReason::Limit);
@@ -751,7 +751,7 @@ fn bound_products_helpers_and_structural_counts_are_checked() {
     let helper = helper_certificate
         .read_sites
         .iter()
-        .find(|site| site.site == "helper.cards")
+        .find(|site| site.site == "programs.helperWrappedScan.0")
         .unwrap();
     assert_eq!(helper.take, 37);
     assert_eq!(helper.max_calls, 1);
@@ -761,7 +761,7 @@ fn bound_products_helpers_and_structural_counts_are_checked() {
         recurse
             .read_sites
             .iter()
-            .find(|site| site.site == "ancestors.step")
+            .find(|site| site.site == "programs.ancestors.0")
             .unwrap()
             .max_calls,
         9,
@@ -941,14 +941,14 @@ fn receipt_only_client_replays_prediction_halo_computed_partial_and_revocation()
         .iter()
         .find(|site| site.mode == PredictionMode::Partial)
         .unwrap();
-    assert_eq!(partial_prediction.reads, vec!["thread.mentionUser"]);
+    assert_eq!(partial_prediction.reads, vec!["programs.thread.2"]);
     assert!(
         pair.prediction_sites
             .iter()
             .find(|site| site.mode == PredictionMode::Closed)
             .unwrap()
             .reads
-            .contains(&"thread.author".to_owned())
+            .contains(&"programs.thread.1".to_owned())
     );
 
     let mut server = Engine::memory(schema.clone()).unwrap();
@@ -965,7 +965,7 @@ fn receipt_only_client_replays_prediction_halo_computed_partial_and_revocation()
         .receipt
         .ranges
         .iter()
-        .find(|range| range.site == "thread.messages")
+        .find(|range| range.site == "programs.thread.0")
         .unwrap();
     assert!(thread_range.halo.is_some());
     assert!(thread_range.n2_key.is_some());
@@ -1034,7 +1034,7 @@ fn receipt_only_client_replays_prediction_halo_computed_partial_and_revocation()
         .unwrap();
     assert_eq!(
         state,
-        LocalState::Partial(vec!["thread.messages".to_owned()])
+        LocalState::Partial(vec!["programs.thread.0".to_owned()])
     );
 
     let mut mention_client = ClientStore::hydrate(schema.clone(), &hydration.receipt).unwrap();
@@ -1061,7 +1061,7 @@ fn receipt_only_client_replays_prediction_halo_computed_partial_and_revocation()
         .unwrap();
     assert_eq!(
         state,
-        LocalState::Partial(vec!["thread.mentionUser".to_owned()])
+        LocalState::Partial(vec!["programs.thread.2".to_owned()])
     );
 
     let delete_membership = write_program(
