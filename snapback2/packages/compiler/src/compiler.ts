@@ -23,9 +23,9 @@ import { duplicateHandlerBinding, duplicateHandlerBindingRewrite,
   nestedHandlerBinding, nestedHandlerDestructuringRewrite } from "./handler-bindings";
 import { inspectModule, type ModuleInfo } from "./lower/module";
 import type {
-  Environment, FunctionLike, LoweredValue, LowerSourceOptions, ProvenanceOrigin, Substitution, VariableInfo,
+  CollectionEscapeSite, Environment, FunctionLike, LoweredValue, LowerSourceOptions, ProvenanceOrigin, Substitution, VariableInfo,
 } from "./lower/environment";
-import { assignedBindings, collectionAliasSites, isLocallyCreatedCollection,
+import { assignedBindings, collectionSharingSites, isLocallyCreatedCollection,
   isOperationCompositeBinding, moduleBasename, operationCompositeBindings, recordAssignmentOrigin,
   requireCollectionMutation, withDirectRewrite } from "./lower/operation-context";
 import { boundOperationDiagnostics, localConstructorShadow } from "./operation-diagnostics";
@@ -56,7 +56,7 @@ import {
 import type { Expr, FrontendDiagnostic, LowerResult, Program, Stmt } from "./ir";
 export type { TableInfo } from "./authored-types";
 export type {
-  CollectionMutationCounts, Environment, FunctionLike, LoweredValue, LowerSourceOptions, ProvenanceOrigin, Substitution, VariableInfo,
+  CollectionEscapeSite, CollectionMutationCounts, Environment, FunctionLike, LoweredValue, LowerSourceOptions, ProvenanceOrigin, Substitution, VariableInfo,
 } from "./lower/environment";
 export { typecheckSource } from "./typecheck";
 export { mechanicalBoundRewrite } from "./policy";
@@ -213,6 +213,7 @@ function lowerOperation(
     variables.set(argName, info);
   }
   const handlerBindings = operationCompositeBindings(handler);
+  const collectionSharing = collectionSharingSites(handler);
   if (handlerBindings.args) {
     variables.set(handlerBindings.args, {
       provenance: Object.keys(args).length === 0 ? "Const" : "Arg",
@@ -241,7 +242,8 @@ function lowerOperation(
     helperStack: [],
     mutableBindings: assignedBindings(handler),
     deferredCollectionMutations: new Set(),
-    collectionAliasSites: collectionAliasSites(handler),
+    collectionAliasSites: collectionSharing.aliases,
+    collectionEscapeSites: collectionSharing.escapes,
     accessOrdinal: { value: 0 },
     temp: { value: 0 },
     literalValues: typePlan?.literalValues ?? new Map(),

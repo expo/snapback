@@ -51,6 +51,11 @@ function collectionElementOriginsInner(node: ts.Expression, env: Environment): P
     }
     return origins;
   }
+  if (ts.isConditionalExpression(value)) {
+    const whenTrue = collectionElementOrigins(value.whenTrue, env);
+    const whenFalse = collectionElementOrigins(value.whenFalse, env);
+    return whenTrue && whenFalse ? [...whenTrue, ...whenFalse] : undefined;
+  }
   const call = unwrapCall(value);
   const expanded = call && expandHelper(call, env);
   if (expanded) return collectionElementOrigins(expanded.expression, expanded.environment);

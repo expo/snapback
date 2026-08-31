@@ -202,6 +202,100 @@ export const lookup = query({ keys: t.list(t.text(40), { max: 3 }), extra: t.tex
       `alias-of-copy refusal did not break the alias explicitly: ${JSON.stringify(diagnostic)}`);
   });
 
+  test("helper-return, object-wrapper, and ternary escapes refuse later mutation", () => {
+    const fixtures = [
+      {
+        name: "helper-return",
+        setup: "const alias = wrap(keys);",
+        domain: "alias",
+        helper: "function wrap(xs) { return xs; }",
+      },
+      {
+        name: "object-wrapper",
+        setup: "const box = { keys };",
+        domain: "box.keys",
+        helper: "",
+      },
+      {
+        name: "ternary",
+        setup: "const other = [args.seed]; const alias = args.choose ? keys : other;",
+        domain: "alias",
+        helper: "",
+      },
+    ];
+    for (const fixture of fixtures) {
+      const refused = lowerSource(`import { query, t } from "snapback2";
+${fixture.helper}
+export const lookup = query({ seed: t.text(40), choose: t.bool() }, ({ db, args, ctx }) => {
+  const keys = [args.seed];
+  ${fixture.setup}
+  keys.push(ctx.viewer);
+  const found = [];
+  for (const key of ${fixture.domain}) found.push(db.get(items.byKey, [key]));
+  return found;
+});`, `escape-${fixture.name}.ts`, undefined, { tables });
+      const diagnostic = mutationDiagnostic(refused);
+      assert(diagnostic.message.includes("shared by an escape before this mutation")
+        && diagnostic.site.startsWith(`escape-${fixture.name}.ts:`),
+      `${fixture.name} escape did not refuse at the push: ${JSON.stringify(diagnostic)}`);
+      const pasted = lowerSource(diagnostic.rewrite, `escape-${fixture.name}.ts`, undefined, { tables });
+      assert(pasted.ok, `${fixture.name} spread-copy rewrite did not compile: ${JSON.stringify(pasted)}`);
+    }
+  });
+
+  test("mutation before a final helper escape and return stays green", () => {
+    const program = lowerOne(`import { query, t } from "snapback2";
+function wrap(xs) { return xs; }
+export const collect = query({ seed: t.text(40) }, ({ args }) => {
+  const out = [];
+  out.push(args.seed);
+  return wrap(out);
+});`, "post-mutation-escape.ts");
+    certify(program);
+    assert(runArrayLength(program, { seed: { String: "value" } }) === 1,
+      "post-mutation escape-and-return changed the accumulator result");
+  });
+
+  test("escape-only reads stay green while two-helper and branch escapes close mutation", () => {
+    const read = lowerOne(`import { query, t } from "snapback2";
+function wrap(xs) { return xs; }
+export const lookup = query({ seed: t.text(40) }, ({ db, args }) => {
+  const keys = [args.seed];
+  const alias = wrap(keys);
+  const found = [];
+  for (const key of alias) found.push(db.get(items.byKey, [key]));
+  return found;
+});`, "escape-read-only.ts");
+    assert(lastDerivedArrayBound(read) === 1 && lastRead(read)?.provenance === "Arg",
+      `escape-only read lost its static facts: ${canonical(read)}`);
+    certify(read);
+
+    for (const fixture of [
+      {
+        name: "two-helpers",
+        helpers: "function first(xs) { return xs; } function second(xs) { return xs; }",
+        escape: "const alias = second(first(keys));",
+      },
+      {
+        name: "branch-arm",
+        helpers: "function wrap(xs) { return xs; }",
+        escape: "if (args.choose) { const alias = wrap(keys); }",
+      },
+    ]) {
+      const refused = lowerSource(`import { query, t } from "snapback2";
+${fixture.helpers}
+export const collect = query({ seed: t.text(40), choose: t.bool() }, ({ args }) => {
+  const keys = [args.seed];
+  ${fixture.escape}
+  keys.push(args.seed);
+  return keys;
+});`, `escape-${fixture.name}.ts`, undefined, { tables });
+      const diagnostic = mutationDiagnostic(refused);
+      assert(diagnostic.message.includes("shared by an escape before this mutation"),
+        `${fixture.name} did not close the later mutation: ${JSON.stringify(diagnostic)}`);
+    }
+  });
+
   test("push after an ordered spread override keeps both actual element origins", () => {
     const refused = lowerSource(`import { query, t } from "snapback2";
 export const lookup = query({ key: t.text(40) }, ({ db, args, ctx }) => {

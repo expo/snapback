@@ -65,6 +65,11 @@ function staticBoundInner(node: ts.Expression, env: Environment): number | undef
     }
     return total;
   }
+  if (ts.isConditionalExpression(value)) {
+    const whenTrue = staticBound(value.whenTrue, env);
+    const whenFalse = staticBound(value.whenFalse, env);
+    return whenTrue === undefined || whenFalse === undefined ? undefined : Math.max(whenTrue, whenFalse);
+  }
   if (ts.isNewExpression(value) && collectionConstructor(value)) {
     const initializer = value.arguments?.[0];
     return initializer ? staticBound(initializer, env) : 0;

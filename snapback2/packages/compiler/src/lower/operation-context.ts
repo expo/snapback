@@ -1,5 +1,5 @@
 import ts from "typescript";
-import type { Environment, ProvenanceOrigin, VariableInfo } from "../compiler";
+import type { CollectionEscapeSite, Environment, ProvenanceOrigin, VariableInfo } from "../compiler";
 import { refuse } from "../diagnostics";
 import { collectionConstructor, propertyName, replaceNode, unwrapExpression } from "../syntax";
 import { guardedWalk } from "./recursion";
@@ -17,34 +17,45 @@ export function assignedBindings(handler: FunctionLike): Set<ts.Identifier> {
   return assigned;
 }
 
-export function collectionAliasSites(handler: FunctionLike): Map<ts.Identifier, ts.Expression[]> {
+export function collectionSharingSites(handler: FunctionLike): {
+  aliases: Map<ts.Identifier, ts.Expression[]>;
+  escapes: Map<ts.Identifier, CollectionEscapeSite[]>;
+} {
   const edges: Array<{ left: ts.Identifier; right: ts.Identifier; site: ts.Expression }> = [];
+  const directEscapes = new Map<ts.Identifier, CollectionEscapeSite[]>();
   const functionScope: BindingScope = { bindings: new Map() };
   for (const parameter of handler.parameters) declareBinding(parameter.name, functionScope);
-  if (handler.body) visitCollectionAliases(handler.body, functionScope, edges);
+  if (handler.body) visitCollectionSharing(handler.body, functionScope, edges, directEscapes);
 
   const graph = new Map<ts.Identifier, Array<{ other: ts.Identifier; site: ts.Expression }>>();
   for (const edge of edges) {
     addAliasEdge(graph, edge.left, edge.right, edge.site);
     addAliasEdge(graph, edge.right, edge.left, edge.site);
   }
-  const result = new Map<ts.Identifier, ts.Expression[]>();
-  for (const binding of graph.keys()) {
+  const aliases = new Map<ts.Identifier, ts.Expression[]>();
+  const escapes = new Map<ts.Identifier, CollectionEscapeSite[]>();
+  const bindings = new Set([...graph.keys(), ...directEscapes.keys()]);
+  for (const binding of bindings) {
     const pending = [binding];
     const seen = new Set<ts.Identifier>();
-    const sites = new Set<ts.Expression>();
+    const aliasSites = new Set<ts.Expression>();
+    const escapeSites = new Map<number, CollectionEscapeSite>();
     while (pending.length > 0) {
       const current = pending.pop()!;
       if (seen.has(current)) continue;
       seen.add(current);
+      for (const site of directEscapes.get(current) ?? []) {
+        escapeSites.set(site.expression.getStart(), site);
+      }
       for (const edge of graph.get(current) ?? []) {
-        sites.add(edge.site);
+        aliasSites.add(edge.site);
         pending.push(edge.other);
       }
     }
-    result.set(binding, [...sites]);
+    if (aliasSites.size > 0) aliases.set(binding, [...aliasSites]);
+    if (escapeSites.size > 0) escapes.set(binding, [...escapeSites.values()]);
   }
-  return result;
+  return { aliases, escapes };
 }
 
 export function isLocallyCreatedCollection(node: ts.Expression): boolean {
@@ -64,10 +75,15 @@ export function collectionMutationRewrite(
   const aliasSites = info.collectionDeclaration
     ? env.collectionAliasSites.get(info.collectionDeclaration) ?? []
     : [];
-  if (aliasSites.length > 0) return spreadCopyRewrite(env, aliasSites);
+  const escapeSites = priorCollectionEscapeSites(info, mutation, env);
+  const sharingSites = [
+    ...aliasSites.map(copySite),
+    ...escapeSites,
+  ];
+  if (sharingSites.length > 0) return spreadCopyRewrite(env, sharingSites);
   const declaration = info.collectionDeclaration?.parent;
   if (declaration && ts.isVariableDeclaration(declaration) && declaration.initializer) {
-    return spreadCopyRewrite(env, [declaration.initializer]);
+    return spreadCopyRewrite(env, [copySite(declaration.initializer)]);
   }
   const copy = `${owner.text}Copy`;
   const method = ts.isPropertyAccessExpression(mutation.expression)
@@ -85,17 +101,23 @@ export function requireCollectionMutation(
   mutation: ts.CallExpression,
   env: Environment,
 ): void {
-  // @ref LLP 1002#2-the-authored-surface-the-snapback2-module — mutable collections have one local, unaliased owner so IR copy semantics cannot diverge from TypeScript aliases.
+  // @ref LLP 1002#2-the-authored-surface-the-snapback2-module — mutable collections have one local owner and mutations after a sharing escape refuse so IR copy semantics cannot diverge from TypeScript aliases.
   const info = env.variables.get(owner.text)!;
   const aliases = info.collectionDeclaration
     ? env.collectionAliasSites.get(info.collectionDeclaration) ?? []
     : [];
-  if (info.locallyCreatedCollection && aliases.length === 0) return;
+  const escapes = priorCollectionEscapeSites(info, mutation, env);
+  if (info.locallyCreatedCollection && aliases.length === 0 && escapes.length === 0) return;
+  const reason = aliases.length > 0
+    ? "aliased under another binding"
+    : escapes.length > 0
+      ? "shared by an escape before this mutation"
+      : "not locally created";
   refuse(
     env,
     "E_OPAQUE",
     mutation,
-    `collection mutation requires an unaliased local collection created from a literal or spread copy; ${owner.text} is ${aliases.length > 0 ? "aliased under another binding" : "not locally created"}`,
+    `collection mutation requires an unaliased local collection created from a literal or spread copy; ${owner.text} is ${reason}`,
     collectionMutationRewrite(info, mutation, owner, env),
   );
 }
@@ -185,10 +207,11 @@ function visitBindingMutations(node: ts.Node, scope: BindingScope, assigned: Set
   ts.forEachChild(node, (child) => visitBindingMutations(child, scope, assigned));
 }
 
-function visitCollectionAliases(
+function visitCollectionSharing(
   node: ts.Node,
   scope: BindingScope,
   edges: Array<{ left: ts.Identifier; right: ts.Identifier; site: ts.Expression }>,
+  escapes: Map<ts.Identifier, CollectionEscapeSite[]>,
 ): void {
   if (ts.isBlock(node)) {
     const block: BindingScope = { parent: scope, bindings: new Map() };
@@ -196,16 +219,16 @@ function visitCollectionAliases(
       if (!ts.isVariableStatement(statement)) continue;
       for (const declaration of statement.declarationList.declarations) declareBinding(declaration.name, block);
     }
-    for (const statement of node.statements) visitCollectionAliases(statement, block, edges);
+    for (const statement of node.statements) visitCollectionSharing(statement, block, edges, escapes);
     return;
   }
   if (ts.isForOfStatement(node)) {
-    visitCollectionAliases(node.expression, scope, edges);
+    visitCollectionSharing(node.expression, scope, edges, escapes);
     const loop: BindingScope = { parent: scope, bindings: new Map() };
     if (ts.isVariableDeclarationList(node.initializer)) {
       for (const declaration of node.initializer.declarations) declareBinding(declaration.name, loop);
     }
-    visitCollectionAliases(node.statement, loop, edges);
+    visitCollectionSharing(node.statement, loop, edges, escapes);
     return;
   }
   if (ts.isFunctionLike(node)) return;
@@ -215,7 +238,7 @@ function visitCollectionAliases(
       const target = resolveBinding(node.name.text, scope);
       const origin = ts.isIdentifier(source) ? resolveBinding(source.text, scope) : undefined;
       if (target && origin && target !== origin) edges.push({ left: target, right: origin, site: node.initializer });
-      visitCollectionAliases(node.initializer, scope, edges);
+      visitCollectionSharing(node.initializer, scope, edges, escapes);
     }
     return;
   }
@@ -225,10 +248,11 @@ function visitCollectionAliases(
     const target = resolveBinding(node.left.text, scope);
     const origin = ts.isIdentifier(right) ? resolveBinding(right.text, scope) : undefined;
     if (target && origin && target !== origin) edges.push({ left: target, right: origin, site: node.right });
-    visitCollectionAliases(node.right, scope, edges);
+    visitCollectionSharing(node.right, scope, edges, escapes);
     return;
   }
-  ts.forEachChild(node, (child) => visitCollectionAliases(child, scope, edges));
+  recordEscapeContexts(node, scope, escapes);
+  ts.forEachChild(node, (child) => visitCollectionSharing(child, scope, edges, escapes));
 }
 
 function addAliasEdge(
@@ -242,15 +266,108 @@ function addAliasEdge(
   graph.set(binding, adjacent);
 }
 
-function spreadCopyRewrite(env: Environment, sites: readonly ts.Expression[]): string {
-  const edits = [...new Set(sites)].map((site) => ({
-    start: site.getStart(env.sourceFile),
-    end: site.getEnd(),
-    text: `[...${site.getText(env.sourceFile)}]`,
+function spreadCopyRewrite(env: Environment, sites: readonly CollectionEscapeSite[]): string {
+  const unique = new Map(sites.map((site) => [site.expression.getStart(env.sourceFile), site]));
+  const edits = [...unique.values()].map((site) => ({
+    start: site.expression.getStart(env.sourceFile),
+    end: site.expression.getEnd(),
+    text: site.replacement,
   })).sort((left, right) => right.start - left.start);
   let rewritten = env.source;
   for (const edit of edits) rewritten = rewritten.slice(0, edit.start) + edit.text + rewritten.slice(edit.end);
   return rewritten;
+}
+
+function priorCollectionEscapeSites(
+  info: VariableInfo,
+  mutation: ts.CallExpression,
+  env: Environment,
+): CollectionEscapeSite[] {
+  if (!info.collectionDeclaration) return [];
+  const mutationStart = mutation.getStart(env.sourceFile);
+  return (env.collectionEscapeSites.get(info.collectionDeclaration) ?? [])
+    .filter((site) => site.expression.getStart(env.sourceFile) < mutationStart);
+}
+
+function copySite(expression: ts.Expression): CollectionEscapeSite {
+  return { expression, replacement: `[...${expression.getText()}]` };
+}
+
+function recordEscapeContexts(
+  node: ts.Node,
+  scope: BindingScope,
+  escapes: Map<ts.Identifier, CollectionEscapeSite[]>,
+): void {
+  if (ts.isReturnStatement(node) && node.expression) recordEscapedExpression(node.expression, scope, escapes);
+  if (ts.isCallExpression(node)) {
+    for (const argument of node.arguments) {
+      if (!ts.isSpreadElement(argument)) recordEscapedExpression(argument, scope, escapes);
+    }
+  }
+  if (ts.isArrayLiteralExpression(node)) {
+    for (const element of node.elements) {
+      if (!ts.isSpreadElement(element)) recordEscapedExpression(element, scope, escapes);
+    }
+  }
+  if (ts.isObjectLiteralExpression(node)) {
+    for (const property of node.properties) {
+      if (ts.isShorthandPropertyAssignment(property)) {
+        recordEscapedIdentifier(property.name, scope, escapes, `${property.name.text}: [...${property.name.text}]`);
+      } else if (ts.isPropertyAssignment(property)) {
+        recordEscapedExpression(property.initializer, scope, escapes);
+      }
+    }
+  }
+  if (ts.isConditionalExpression(node)) {
+    recordEscapedExpression(node.whenTrue, scope, escapes);
+    recordEscapedExpression(node.whenFalse, scope, escapes);
+  }
+  if (ts.isBinaryExpression(node) && [
+    ts.SyntaxKind.AmpersandAmpersandToken,
+    ts.SyntaxKind.BarBarToken,
+    ts.SyntaxKind.QuestionQuestionToken,
+  ].includes(node.operatorToken.kind)) {
+    recordEscapedExpression(node.left, scope, escapes);
+    recordEscapedExpression(node.right, scope, escapes);
+  }
+}
+
+function recordEscapedExpression(
+  node: ts.Expression,
+  scope: BindingScope,
+  escapes: Map<ts.Identifier, CollectionEscapeSite[]>,
+): void {
+  if (ts.isFunctionLike(node) || ts.isSpreadElement(node)) return;
+  if (ts.isIdentifier(node)) {
+    recordEscapedIdentifier(node, scope, escapes);
+    return;
+  }
+  if (ts.isCallExpression(node)) {
+    for (const argument of node.arguments) {
+      if (!ts.isSpreadElement(argument)) recordEscapedExpression(argument, scope, escapes);
+    }
+    return;
+  }
+  if (ts.isPropertyAccessExpression(node)) {
+    recordEscapedExpression(node.expression, scope, escapes);
+    return;
+  }
+  node.forEachChild((child) => {
+    if (ts.isExpression(child)) recordEscapedExpression(child, scope, escapes);
+  });
+}
+
+function recordEscapedIdentifier(
+  node: ts.Identifier,
+  scope: BindingScope,
+  escapes: Map<ts.Identifier, CollectionEscapeSite[]>,
+  replacement = `[...${node.text}]`,
+): void {
+  const binding = resolveBinding(node.text, scope);
+  if (!binding) return;
+  const sites = escapes.get(binding) ?? [];
+  if (!sites.some((site) => site.expression === node)) sites.push({ expression: node, replacement });
+  escapes.set(binding, sites);
 }
 
 function declareBinding(name: ts.BindingName, scope: BindingScope): void {
