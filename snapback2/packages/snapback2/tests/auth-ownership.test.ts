@@ -384,6 +384,7 @@ test("principal replacement fences streams, suppresses delayed old reads, and wa
 test("delayed malformed response bodies cannot overwrite newer auth custody", async () => {
   const cases = [
     { name: "malformed 2xx", status: 200, settle: (gate: DelayedJsonResponse) => gate.reject(new SyntaxError("bad json")) },
+    { name: "malformed terminal 2xx", status: 200, settle: (gate: DelayedJsonResponse) => gate.resolve({ state: "rejected", code: "E_AUTH_SESSION" }) },
     { name: "malformed 4xx", status: 401, settle: (gate: DelayedJsonResponse) => gate.reject(new SyntaxError("bad json")) },
     { name: "non-envelope 4xx", status: 401, settle: (gate: DelayedJsonResponse) => gate.resolve({ nope: true }) },
   ];
@@ -424,6 +425,7 @@ test("delayed malformed response bodies cannot overwrite newer auth custody", as
 test("delayed malformed response bodies cannot mutate a closed client", async () => {
   const cases = [
     { name: "malformed 2xx", status: 200, settle: (gate: DelayedJsonResponse) => gate.reject(new SyntaxError("bad json")) },
+    { name: "malformed terminal 2xx", status: 200, settle: (gate: DelayedJsonResponse) => gate.resolve({ state: "refused", code: "E_AUTH_SESSION" }) },
     { name: "malformed 4xx", status: 401, settle: (gate: DelayedJsonResponse) => gate.reject(new SyntaxError("bad json")) },
     { name: "non-envelope 4xx", status: 401, settle: (gate: DelayedJsonResponse) => gate.resolve({ nope: true }) },
   ];
@@ -442,6 +444,108 @@ test("delayed malformed response bodies cannot mutate a closed client", async ()
     assert.equal(value.snapshot.connection, "offline", scenario.name);
     assert.equal(value.snapshot.lastRefusal, undefined, scenario.name);
   }
+});
+
+test("delayed subscription opens cannot mutate a closed client", async () => {
+  const response = deferred<Response>();
+  let started = false;
+  const value = createClient({
+    url: "http://auth.test",
+    fetch: async () => {
+      started = true;
+      return response.promise;
+    },
+  });
+  await value.ready;
+  const subscription = value.subscribe(api.messages.thread, {}, () => undefined);
+  await waitFor(() => started, "subscription open");
+  value.close();
+  response.resolve(hangingSse());
+  await flush();
+  await flush();
+  assert.equal(value.snapshot.connection, "offline");
+  assert.equal(value.snapshot.lastRefusal, undefined);
+  subscription.close();
+});
+
+test("delayed subscription opens cannot mutate an individually closed subscription", async () => {
+  const response = deferred<Response>();
+  let started = false;
+  const value = createClient({
+    url: "http://auth.test",
+    fetch: async () => {
+      started = true;
+      return response.promise;
+    },
+  });
+  await value.ready;
+  const subscription = value.subscribe(api.messages.thread, {}, () => undefined);
+  await waitFor(() => started, "subscription open");
+  subscription.close();
+  response.resolve(hangingSse());
+  await flush();
+  await flush();
+  assert.equal(value.snapshot.connection, "reconnecting");
+  assert.equal(value.snapshot.lastRefusal, undefined);
+  value.close();
+});
+
+test("delayed malformed subscription refusals cannot pollute a newer bearer", async () => {
+  const response = delayedJson(401);
+  const value = createClient({
+    url: "http://auth.test",
+    token: "old-token",
+    fetch: async (input) => {
+      const requestPath = pathOf(input);
+      if (requestPath.endsWith("/subscribe")) return response.response;
+      if (requestPath === "/api/auth/login") {
+        return json({ token: "new-token", viewer: "principal-new" });
+      }
+      throw new Error(`unexpected path ${requestPath}`);
+    },
+  });
+  await value.ready;
+  const subscription = value.subscribe(api.messages.thread, {}, () => undefined);
+  await response.started;
+  await value.auth.login({ email: "new@example.com", password: "password" });
+  response.resolve({ code: "E_AUTH_SESSION" });
+  await flush();
+  await flush();
+  assert.equal(value.snapshot.token, "new-token");
+  assert.equal(value.snapshot.connection, "connected");
+  assert.equal(value.snapshot.lastRefusal, undefined);
+  subscription.close();
+  value.close();
+});
+
+test("a delayed valid subscription expiry clears custody after a failed replacement", async () => {
+  const response = delayedJson(401);
+  let stored: string | null = "expired-token";
+  const value = createClient({
+    url: "http://auth.test",
+    tokenStore: {
+      load: () => stored,
+      save: (token) => { stored = token; },
+    },
+    fetch: async (input) => {
+      const requestPath = pathOf(input);
+      if (requestPath.endsWith("/subscribe")) return response.response;
+      if (requestPath === "/api/auth/login") return json(refusal("E_AUTH_INVALID"), 401);
+      throw new Error(`unexpected path ${requestPath}`);
+    },
+  });
+  await value.ready;
+  const subscription = value.subscribe(api.messages.thread, {}, () => undefined);
+  await response.started;
+  await assert.rejects(
+    value.auth.login({ email: "new@example.com", password: "wrong-password" }),
+    isCode("E_AUTH_INVALID"),
+  );
+  response.resolve({ state: "refused", ...refusal("E_AUTH_SESSION") });
+  await waitFor(() => stored === null, "expired subscription custody clear");
+  assert.equal(value.snapshot.token, undefined);
+  subscription.close();
+  value.close();
 });
 
 test("auth transitions serialize and already-dispatched writes settle before replacement", async () => {

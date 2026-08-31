@@ -703,7 +703,14 @@ class Client implements SnapbackClient {
       this.recordRefusal(refusal.envelope);
       throw refusal;
     }
-    const terminal = clearTerminalSession ? terminalSessionEnvelope(value) : undefined;
+    let terminal: RefusalEnvelope | undefined;
+    try {
+      terminal = clearTerminalSession ? terminalSessionEnvelope(value) : undefined;
+    } catch (error) {
+      if (enforceAuthority) this.ensureAuthority(authority);
+      else this.ensureOpen();
+      throw error;
+    }
     if (terminal !== undefined && enforceAuthority && !this.authorityCurrent(authority)) {
       await this.expireSession(authority);
       throw this.supersededRefusal();
@@ -735,6 +742,11 @@ class Client implements SnapbackClient {
             // A non-envelope 4xx cannot be interpreted as a terminal owner refusal.
           }
           if (refusal !== undefined) {
+            if (refusal.code === "E_AUTH_SESSION"
+              && (signal.aborted || !this.authorityCurrent(authority))) {
+              await this.expireSession(authority);
+              throw this.supersededRefusal();
+            }
             if (refusal.code !== "E_AUTH_SESSION") this.ensureAuthority(authority);
             throw refusal;
           }
@@ -746,11 +758,15 @@ class Client implements SnapbackClient {
         );
       }
       this.ensureAuthority(authority);
+      signal.throwIfAborted();
       this.patchSnapshot({ connection: "connected" });
       return response;
     } catch (error) {
       if (isSnapbackRefusal(error) && error.code === "E_AUTH_SESSION") throw error;
-      if (!signal.aborted) this.ensureAuthority(authority);
+      // An aborted transport can still settle when a custom fetch ignores its
+      // signal. Fence it before interpreting or publishing the late result.
+      this.ensureAuthority(authority);
+      if (signal.aborted) throw error;
       if (isSnapbackRefusal(error)) {
         this.patchSnapshot({
           connection: error.retryable ? this.transportFailureState() : "connected",
@@ -758,7 +774,6 @@ class Client implements SnapbackClient {
         });
         throw error;
       }
-      if (signal.aborted) throw error;
       const refusal = new SnapbackRefusal(
         fallbackRefusal("E_NETWORK", error instanceof Error ? error.message : String(error)),
         true,

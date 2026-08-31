@@ -5,8 +5,11 @@ Read this, then `rules/RULES.md` and `rules/NOT-DOING.md` at the repo root, then
 
 ```
 cargo build                          # data plane + binary; no JS engine, no bootstrap
-cargo test --workspace               # core + owner E2E (~25 s warm)
-scripts/test.sh                      # everything that blocks: cargo + evaluator + compiler (~40 s)
+NEXTEST_TEST_THREADS=8 cargo nextest run \
+  --config-file ../.config/nextest.toml --profile local-proof \
+  --workspace --no-fail-fast          # Rust executable tests (~27 s warm)
+cargo test --workspace --doc --no-fail-fast  # workspace doctests omitted by nextest
+scripts/test.sh                      # everything blocking: Rust + doctests + evaluator + compiler (~35 s warm)
 node scripts/measure.mjs --check     # loop numbers → metrics/loop.jsonl; fails on regression
 node scripts/publish.mjs --dry-run   # production build WITH the engine + npm pack; drop --dry-run to ship
 scripts/hermes test -p snapback2-effects   # the engine proof (Ibex 2 + vanilla Hermes); never blocking
