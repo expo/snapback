@@ -7,6 +7,7 @@ import { IR_CONTRACT, type Program, type ProjectJson } from "./ir";
 import { listJourneys, lowerProject, lowerSeed } from "./project";
 import { lowerSchema } from "./lower/schema";
 import { registerProvenanceSiteChecks } from "./provenance-site-checks";
+import { registerCollectionFactChecks } from "./collection-fact-checks";
 import { registerColumnTypeChecks } from "./test-column-types";
 import { rustCheck } from "./rust-check";
 import { decimal } from "../../snapback2/src/index";
@@ -907,6 +908,7 @@ test("ref operation arguments retain their schema table in the engine IR", async
 
 registerColumnTypeChecks(test);
 registerProvenanceSiteChecks(test, `${frontend}fixtures/s1`);
+registerCollectionFactChecks(test);
 
 test("Decimal insert multiplication keeps literal and argument multipliers as Int", () => {
   const tables = new Map<string, TableInfo>([["products", {
