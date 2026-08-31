@@ -60,14 +60,13 @@ function settleLoopMutationPlan(
 ): LoopMutationPlan {
   let priorCounts: CollectionMutationCounts = new Map();
   let priorFacts = new Map<object, VariableInfo>();
-  const growthStreaks = new Map<object, number>();
   for (let pass = 0; pass < LOOP_MUTATION_FIXPOINT_LIMIT; pass += 1) {
     const probe = isolatedAnalysisEnvironment(env);
     for (const [identity, collection] of inherited) {
       const info = variableByIdentity(probe, identity, collection.name);
       if (!info) continue;
       const prior = priorFacts.get(identity);
-      if (prior) copyCollectionState(info, prior);
+      if (prior) copyCollectionBounds(info, prior);
       const mutation = priorCounts.get(identity);
       if (mutation && !env.deferredCollectionMutations.has(identity)) {
         if (collection.info.max === undefined) {
@@ -97,19 +96,6 @@ function settleLoopMutationPlan(
       if (info) facts.set(identity, info);
     }
     if (sameMutationCounts(priorCounts, counts)) return { counts, facts, iterations };
-    for (const [identity, mutation] of counts) {
-      const prior = priorCounts.get(identity)?.count ?? 0;
-      const streak = mutation.count > prior && prior > 0 ? (growthStreaks.get(identity) ?? 0) + 1 : 0;
-      growthStreaks.set(identity, streak);
-      if (streak >= 2) {
-        refuse(
-          env,
-          "E_UNBOUND_LOOP",
-          statement.expression,
-          `collection ${mutation.name} grows the cardinality that controls its mutation count`,
-        );
-      }
-    }
     priorCounts = counts;
     priorFacts = facts;
   }
@@ -119,6 +105,14 @@ function settleLoopMutationPlan(
     statement.expression,
     "collection mutation bound depends on a growing loop domain and has no finite static fixed point",
   );
+}
+
+function copyCollectionBounds(target: VariableInfo, source: VariableInfo): void {
+  maintainCollectionFacts(target, {
+    ...(source.max !== undefined ? { max: source.max } : {}),
+    ...(source.boundSource !== undefined ? { boundSource: source.boundSource } : {}),
+    ...(target.elementOrigins !== undefined ? { elementOrigins: target.elementOrigins } : {}),
+  });
 }
 
 function isolatedAnalysisEnvironment(env: Environment): Environment {
