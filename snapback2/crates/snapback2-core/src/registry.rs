@@ -174,6 +174,18 @@ impl Generation {
                 ));
             }
             for (index_name, index) in &table.indexes {
+                if index.columns.is_empty() || index.columns.len() > 8 {
+                    errors.push((
+                        format!("schema.{table_name}"),
+                        CheckError {
+                            code: "E_SCHEMA_INDEX_COLUMN".to_owned(),
+                            message: format!(
+                                "index {table_name}.{index_name} must declare between 1 and 8 columns"
+                            ),
+                            rewrite: "declare an index with at most 8 scalar columns".to_owned(),
+                        },
+                    ));
+                }
                 for column in &index.columns {
                     if !table.columns.contains_key(column) {
                         errors.push((

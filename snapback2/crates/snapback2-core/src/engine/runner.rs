@@ -183,6 +183,13 @@ impl<'a> Runner<'a> {
                 Stmt::Upsert { table, key, row } => {
                     let key = self.expr(key)?;
                     let row = self.expr(row)?;
+                    let key_id = key.as_str()?;
+                    let row_id = row.field("id")?.as_str()?;
+                    if key_id != row_id {
+                        return Err(RuntimeError::Input(format!(
+                            "{table} upsert key {key_id} does not match row id {row_id}"
+                        )));
+                    }
                     if self.fetch_id(table, key.as_str()?)?.is_some() {
                         self.replace(table, &key, row)?;
                     } else {

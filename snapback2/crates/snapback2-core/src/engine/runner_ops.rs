@@ -39,6 +39,11 @@ impl<'a> Runner<'a> {
         key: &Value,
         patch: Value,
     ) -> Result<(), RuntimeError> {
+        if patch.as_object()?.contains_key("id") {
+            return Err(RuntimeError::Input(format!(
+                "{table} update patch cannot change id"
+            )));
+        }
         let old = self.fetch_id(table, key.as_str()?)?.ok_or_else(|| {
             RuntimeError::Input(format!(
                 "missing {table} row {}",
@@ -58,8 +63,15 @@ impl<'a> Runner<'a> {
         key: &Value,
         new: Value,
     ) -> Result<(), RuntimeError> {
+        let key_id = key.as_str()?;
+        let row_id = new.field("id")?.as_str()?;
+        if key_id != row_id {
+            return Err(RuntimeError::Input(format!(
+                "{table} replacement key {key_id} does not match row id {row_id}"
+            )));
+        }
         let old = self
-            .fetch_id(table, key.as_str()?)?
+            .fetch_id(table, key_id)?
             .ok_or_else(|| RuntimeError::Input(format!("missing {table} row")))?;
         validate_row(self.schema.table(table), table, &new)?;
         if !self.check_rule(table, Effect::Update, &old)?
@@ -74,7 +86,7 @@ impl<'a> Runner<'a> {
         self.touch_row(table, &old)?;
         self.tx.execute(
             "UPDATE rows SET data = ?3 WHERE table_name = ?1 AND row_id = ?2",
-            params![table, key.as_str()?, canonical_json(&new)],
+            params![table, key_id, canonical_json(&new)],
         )?;
         reindex_row(self.tx, self.schema, table, &new)?;
         self.touch_row(table, &new)?;
@@ -292,7 +304,26 @@ impl<'a> Runner<'a> {
                 Constraint::Unique { index } => {
                     self.check_unique(table_name, &table, index, old, new)?
                 }
-                Constraint::Cap { by, max } if effect == Effect::Insert => {
+                Constraint::Cap { by, max } => {
+                    let prefix = by
+                        .iter()
+                        .map(|field| new.field(field).cloned())
+                        .collect::<Result<Vec<_>, _>>()?;
+                    let increases_group = match effect {
+                        Effect::Insert => true,
+                        Effect::Update => {
+                            let old = old.expect("update has preimage");
+                            let old_prefix = by
+                                .iter()
+                                .map(|field| old.field(field).cloned())
+                                .collect::<Result<Vec<_>, _>>()?;
+                            old_prefix != prefix
+                        }
+                        Effect::Read | Effect::Delete => false,
+                    };
+                    if !increases_group {
+                        continue;
+                    }
                     let (index_name, index) = table
                         .indexes
                         .iter()
@@ -302,10 +333,6 @@ impl<'a> Runner<'a> {
                                 "cap on {table_name} requires an index beginning with {by:?}"
                             ))
                         })?;
-                    let prefix = by
-                        .iter()
-                        .map(|field| new.field(field).cloned())
-                        .collect::<Result<Vec<_>, _>>()?;
                     let rows = scan_indexed(
                         self.tx,
                         table_name,
@@ -790,14 +817,12 @@ impl<'a> Runner<'a> {
                 .filter(|site| &site.table == table)
                 .map(|site| site.max_rows)
                 .sum::<u64>()
-                + certificate.maintained_amplification;
-            if *writes > declared
-                && !self
-                    .schema
-                    .maintains
-                    .iter()
-                    .any(|maintain| &maintain.target == table)
-            {
+                + certificate
+                    .maintained_writes
+                    .get(table)
+                    .copied()
+                    .unwrap_or(0);
+            if *writes > declared {
                 return Err(RuntimeError::TraceSubset(format!(
                     "writes to {table} {writes} > {declared}"
                 )));

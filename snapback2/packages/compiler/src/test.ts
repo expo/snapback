@@ -9,6 +9,7 @@ import { lowerSchema } from "./lower/schema";
 import { registerProvenanceSiteChecks } from "./provenance-site-checks";
 import { registerCollectionFactChecks } from "./collection-fact-checks";
 import { registerColumnTypeChecks } from "./test-column-types";
+import { registerVerifiedRegressionTests } from "./verified-regression-tests";
 import { rustCheck } from "./rust-check";
 import { decimal } from "../../snapback2/src/index";
 import * as clientSurface from "../../snapback2/src/client";
@@ -29,6 +30,7 @@ const test = (name: string, run: Check["run"]) => checks.push({ name, run });
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }
+registerVerifiedRegressionTests(test, assert);
 
 function canonical(value: unknown): string {
   const normalize = (item: any): any => Array.isArray(item)

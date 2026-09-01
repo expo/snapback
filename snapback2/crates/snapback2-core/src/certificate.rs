@@ -4,7 +4,7 @@ use crate::collection_rewrite::{
 };
 use crate::growth::{
     ProvenanceBinding, assignment_growth, collection_price_from,
-    expression_from as provenance_expression_from, saturating_power, take_identity,
+    expression_from as provenance_expression_from, geometric_sum, saturating_power, take_identity,
 };
 use crate::identity::CURRENT_VALUE_MODEL_VERSION;
 use crate::ir::*;
@@ -56,6 +56,8 @@ pub struct Certificate {
     pub read_sites: Vec<ReadSite>,
     pub write_sites: Vec<WriteSite>,
     pub maintained_amplification: u64,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub maintained_writes: BTreeMap<String, u64>,
     pub constraint_checks: Vec<String>,
     pub max_examined: u64,
     pub max_index_entries: u64,
@@ -209,20 +211,35 @@ impl<'a> Checker<'a> {
         let summary = analyzer
             .statements(&program.body, 1, &[])
             .map_err(|error| vec![error])?;
-        let maintained_amplification = summary
+        let mut maintained_writes = BTreeMap::<String, u64>::new();
+        for write in &summary.writes {
+            let deltas = match write.kind {
+                WriteKind::Update | WriteKind::Upsert => 2,
+                WriteKind::Insert | WriteKind::Delete => 1,
+                WriteKind::Emit => 0,
+            };
+            for maintain in self
+                .schema
+                .maintains
+                .iter()
+                .filter(|maintain| maintain.source == write.table)
+            {
+                let writes = write.max_rows.saturating_mul(deltas);
+                let total = maintained_writes
+                    .entry(maintain.target.clone())
+                    .or_default();
+                *total = total.saturating_add(writes);
+            }
+        }
+        let maintained_amplification = maintained_writes
+            .values()
+            .copied()
+            .fold(0_u64, u64::saturating_add);
+        let max_writes = summary
             .writes
             .iter()
-            .map(|write| {
-                self.schema
-                    .maintains
-                    .iter()
-                    .filter(|maintain| maintain.source == write.table)
-                    .count() as u64
-                    * write.max_rows
-            })
-            .sum();
-        let max_writes =
-            summary.writes.iter().map(|site| site.max_rows).sum::<u64>() + maintained_amplification;
+            .map(|site| site.max_rows)
+            .fold(maintained_amplification, u64::saturating_add);
         // @ref LLP 1001#3-read-and-write-states-no-silent-states — visibility-filtered
         // scans spend the certified examined/rule-probe ceilings, never `take`.
         let max_examined =
@@ -416,6 +433,7 @@ impl<'a> Checker<'a> {
             read_sites,
             write_sites: summary.writes,
             maintained_amplification,
+            maintained_writes,
             constraint_checks,
             max_examined,
             max_index_entries,
@@ -837,12 +855,7 @@ impl<'a> OutputEstimator<'a> {
                     .saturating_div(u64::from(*max).max(1)),
             ),
             LoopDomain::Recurse(recurse) => {
-                let mut nodes = 0_u64;
-                let mut level = 1_u64;
-                for _ in 0..=recurse.depth {
-                    nodes = nodes.saturating_add(level);
-                    level = level.saturating_mul(u64::from(recurse.fanout));
-                }
+                let nodes = geometric_sum(u64::from(recurse.fanout), recurse.depth);
                 (nodes, self.row(&recurse.table))
             }
         }
@@ -1037,12 +1050,7 @@ impl<'a> Analyzer<'a> {
                 (bound_source.clone(), *max as u64),
             )),
             LoopDomain::Recurse(recurse) => {
-                let mut nodes = 0_u64;
-                let mut level = 1_u64;
-                for _ in 0..=recurse.depth {
-                    nodes = nodes.saturating_add(level);
-                    level = level.saturating_mul(recurse.fanout as u64);
-                }
+                let nodes = geometric_sum(u64::from(recurse.fanout), recurse.depth);
                 let read = Read {
                     site: recurse.site.clone(),
                     table: recurse.table.clone(),

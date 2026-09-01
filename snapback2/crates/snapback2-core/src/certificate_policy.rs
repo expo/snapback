@@ -344,6 +344,25 @@ fn validate_statements(
     errors: &mut Vec<CheckError>,
 ) {
     for statement in statements {
+        if let Stmt::Update { patch, .. } = statement
+            && expression_contains_field(patch, "id")
+        {
+            errors.push(CheckError {
+                code: "E_SCHEMA_ID_RESERVED".to_owned(),
+                message: "update patches cannot contain id".to_owned(),
+                rewrite: "remove id from the update patch".to_owned(),
+            });
+        }
+        if let Stmt::Upsert { key, row, .. } = statement
+            && let Some(id) = expression_field(row, "id")
+            && id != key
+        {
+            errors.push(CheckError {
+                code: "E_SCHEMA_ID_RESERVED".to_owned(),
+                message: "upsert key must equal row id".to_owned(),
+                rewrite: "use the same expression for the upsert key and row id".to_owned(),
+            });
+        }
         match statement {
             Stmt::Insert { table, .. }
             | Stmt::Update { table, .. }
@@ -387,12 +406,43 @@ fn validate_statements(
                 validate_statements(checker, program, then_body, errors);
                 validate_statements(checker, program, else_body, errors);
             }
-            Stmt::For { body, .. } => validate_statements(checker, program, body, errors),
+            Stmt::For { domain, body, .. } => {
+                if let LoopDomain::Recurse(recurse) = domain
+                    && recurse.depth > MAX_RECURSE_DEPTH
+                {
+                    errors.push(CheckError {
+                        code: "E_UNBOUND_LOOP".to_owned(),
+                        message: format!(
+                            "recurse depth {} exceeds maximum {}",
+                            recurse.depth, MAX_RECURSE_DEPTH
+                        ),
+                        rewrite: format!("reduce recurse depth to at most {MAX_RECURSE_DEPTH}"),
+                    });
+                }
+                validate_statements(checker, program, body, errors);
+            }
             _ => {}
         }
         visit_statement_exprs(statement, &mut |expression| {
             validate_expr(checker, program, expression, errors)
         });
+    }
+}
+
+fn expression_field<'a>(expression: &'a Expr, name: &str) -> Option<&'a Expr> {
+    match expression {
+        Expr::Object(fields) => fields.get(name),
+        _ => None,
+    }
+}
+
+fn expression_contains_field(expression: &Expr, name: &str) -> bool {
+    match expression {
+        Expr::Object(fields) => fields.contains_key(name),
+        Expr::Literal(crate::value::Value::Row(fields) | crate::value::Value::Map(fields)) => {
+            fields.contains_key(name)
+        }
+        _ => false,
     }
 }
 

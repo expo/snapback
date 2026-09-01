@@ -179,6 +179,9 @@ function lowerTable(
       if (names.length === 0 || new Set(names).size !== names.length) {
         diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_INDEX_COLUMN", entry.node, `index ${name}.${entry.name} columns must be non-empty and unique`));
       }
+      if (names.length > 8) {
+        diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_INDEX_COLUMN", entry.node, `index ${name}.${entry.name} has ${names.length} columns; indexes support at most 8`));
+      }
       const before = diagnostics.length;
       validateKnownKeys(module, value, ["columns", "unique"], `index ${name}.${entry.name}`, "E_SCHEMA_INDEX_OPTION", diagnostics);
       const uniqueNode = property(value, "unique");

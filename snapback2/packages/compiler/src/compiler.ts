@@ -583,6 +583,9 @@ function lowerDbStatement(method: string, call: ts.CallExpression, env: Environm
       );
     }
     if (isFunctionLike(row)) return lowerCallbackWrite(method, target!, table, key, row, env);
+    if (method === "update" && knownObjectFields(row, env)?.includes("id")) {
+      refuse(env, "E_SCHEMA_ID_RESERVED", row, "update patches cannot contain id", "remove id from the update patch");
+    }
     reserveWriteSite(env);
     // The write call itself owns the first ordinal; its operands then lower in
     // authored order (key before patch/row), including any nested reads.
@@ -608,6 +611,9 @@ function lowerCallbackWrite(
   }
   if (ts.isBlock(callback.body)) {
     refuse(env, "E_OPAQUE", callback.body, "write callback body must be an expression");
+  }
+  if (method === "update" && knownObjectFields(callback.body, env)?.includes("id")) {
+    refuse(env, "E_SCHEMA_ID_RESERVED", callback.body, "update patches cannot contain id", "remove id from the update patch");
   }
   const ref = tableReference(target, env);
   if (method === "upsert" && ref.index !== "byId") {
@@ -651,11 +657,7 @@ function lowerCallbackWrite(
   if (method === "update") {
     statements.push({ Update: { table, key: scalarKey, patch: lowered.expression } });
   } else {
-    statements.push({ If: {
-      condition: { Binary: { op: "Eq", left: { Variable: current }, right: literal(null) } },
-      then_body: [{ Insert: { table, row: lowered.expression } }],
-      else_body: [{ Update: { table, key: scalarKey, patch: lowered.expression } }],
-    } });
+    statements.push({ Upsert: { table, key: scalarKey, row: lowered.expression } });
   }
   return statements;
 }

@@ -1,6 +1,7 @@
 # snapback2: schemas can certify indexes wider than storage supports
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Rejected empty and wider-than-eight indexes during compiler and core schema admission, with zero, eight, and nine-column regression coverage.
 **Systems:** snapback2, core engine, schema, storage
 **Severity:** P2
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

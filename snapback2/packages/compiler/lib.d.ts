@@ -53,7 +53,7 @@ declare module "snapback2" {
     exists(target: Table<any> | TableIndex<any>, key: unknown): boolean;
     scan<R extends Record<string, any>>(target: Table<R> | TableIndex<R>, prefix: unknown, options?: Record<string, any>): Page<R>;
     insert<R extends Record<string, any>>(target: Table<R>, row: WriteRow<R>): R;
-    update<R extends Record<string, any>>(target: Table<R>, key: unknown, patch: Partial<WriteRow<R>> | ((row: R) => Partial<WriteRow<R>>)): void;
+    update<R extends Record<string, any>>(target: Table<R>, key: unknown, patch: Partial<Omit<WriteRow<R>, "id">> | ((row: R) => Partial<Omit<WriteRow<R>, "id">>)): void;
     upsert<R extends Record<string, any>>(target: Table<R>, key: unknown, row: WriteRow<R> | ((row: R | null) => WriteRow<R>)): void;
     delete(target: Table<any>, key: unknown): void;
     require(condition: unknown, code?: string): void;

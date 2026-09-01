@@ -1,6 +1,7 @@
 # snapback2: updating id corrupts physical and index row identity
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Enforced immutable row identity across compiler, certificate, and runtime write paths, with primary and secondary index integrity regression coverage.
 **Systems:** snapback2, core engine, storage
 **Severity:** P1
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

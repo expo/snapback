@@ -941,6 +941,11 @@ pub fn validate_schema(schema: &Schema) -> Result<(), Vec<RuntimeError>> {
             )));
         }
         for (index_name, index) in &table.indexes {
+            if index.columns.is_empty() || index.columns.len() > 8 {
+                errors.push(RuntimeError::Schema(format!(
+                    "index {table_name}.{index_name} must declare between 1 and 8 columns"
+                )));
+            }
             for column in &index.columns {
                 if !table.columns.contains_key(column) {
                     errors.push(RuntimeError::Schema(format!(

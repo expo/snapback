@@ -1,6 +1,7 @@
 # snapback2: certification undercounts maintained writes for updates
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Added per-target two-delta update maintenance bounds in certificate.rs and runner_ops.rs, with exact-ceiling runtime regression coverage.
 **Systems:** snapback2, core engine, certification, budgets
 **Severity:** P2
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

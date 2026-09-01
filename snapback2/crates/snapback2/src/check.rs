@@ -63,13 +63,17 @@ impl SerializableError {
             || error.code == "E_STRUCTURAL_COUNT"
         {
             "bound"
+        } else if error.code.starts_with("E_SCHEMA_") {
+            "schema"
         } else {
             "opaque"
         };
         let guide = match error.code.as_str() {
             "E_UNBOUND_SCAN" => "bound/scan",
+            "E_UNBOUND_LOOP" => "bound/loop",
             "E_STRUCTURAL_COUNT" => "bound/count",
             "E_AMBIENT_TIME" => "opaque/time",
+            _ if family == "schema" => "schema/project",
             _ if family == "bound" => "bound/ceiling",
             _ => "opaque/subset",
         };

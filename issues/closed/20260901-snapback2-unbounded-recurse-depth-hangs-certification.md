@@ -1,6 +1,7 @@
 # snapback2: unbounded Recurse depth hangs certification before budget checks
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Bounded recurse depth and replaced iterative estimators with saturating closed-form arithmetic, with a deadline regression test.
 **Systems:** snapback2, core engine, certification, performance
 **Severity:** P2
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

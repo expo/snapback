@@ -147,6 +147,8 @@ pub struct Recurse {
     pub provenance: KeyProvenance,
 }
 
+pub const MAX_RECURSE_DEPTH: u32 = 10_000;
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Expr {
     Literal(Value),

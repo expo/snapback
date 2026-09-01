@@ -74,13 +74,10 @@ export function loopDomainMaximum(domain: LoopDomain): number {
   if ("ArgList" in domain) return domain.ArgList.max;
   if ("DerivedArray" in domain) return domain.DerivedArray.max;
   const recurse = domain.Recurse;
-  let total = 1;
-  let width = 1;
-  for (let depth = 0; depth < recurse.depth; depth += 1) {
-    width *= recurse.fanout;
-    total += width;
-  }
-  return total;
+  if (recurse.fanout === 0) return 1;
+  if (recurse.fanout === 1) return recurse.depth + 1;
+  const total = (recurse.fanout ** (recurse.depth + 1) - 1) / (recurse.fanout - 1);
+  return Number.isSafeInteger(total) ? total : Number.MAX_SAFE_INTEGER;
 }
 
 export function lowerCoalesce(
@@ -237,6 +234,7 @@ function lowerRecurse(call: ts.CallExpression, env: Environment): { domain: Loop
   const depth = numberProperty(options, "depth");
   const fanout = numberProperty(options, "fanout");
   if (depth === undefined || fanout === undefined) refuse(env, "E_UNBOUND_LOOP", options, "recurse bounds must be literals");
+  if (depth > 10_000) refuse(env, "E_UNBOUND_LOOP", options, "recurse depth must be at most 10000");
   const body = ts.isBlock(step.body)
     ? step.body.statements.find(ts.isReturnStatement)?.expression
     : step.body;

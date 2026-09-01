@@ -10,7 +10,7 @@ use crate::store::Store;
 use crate::value::{I53_MAX, I53_MIN, Value, canonical_json};
 use rusqlite::{Connection, Transaction, params};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use thiserror::Error;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -203,6 +203,7 @@ pub(crate) fn additive_refusal(
     current: &Schema,
     next: &Schema,
 ) -> Result<Option<SuccessorRefusal>, RuntimeError> {
+    let affected_targets = affected_maintain_targets(current, next);
     for (table_name, current_table) in &current.tables {
         let Some(next_table) = next.tables.get(table_name) else {
             continue;
@@ -235,6 +236,9 @@ pub(crate) fn additive_refusal(
         let Some(current_table) = current.tables.get(table_name) else {
             continue;
         };
+        if affected_targets.contains(table_name) {
+            continue;
+        }
         let rows = fetch_rows(connection, table_name)?;
         for (index_name, index) in &next_table.indexes {
             let newly_unique = index.unique
@@ -272,32 +276,14 @@ pub(crate) fn additive_refusal(
             }
         }
     }
-    let new_maintains: Vec<_> = next
-        .maintains
-        .iter()
-        .filter(|maintain| !current.maintains.contains(maintain))
-        .collect();
     let mut future_targets = BTreeMap::<String, BTreeMap<String, Value>>::new();
-    for maintain in new_maintains {
-        let rows = if let Some(rows) = future_targets.get_mut(&maintain.target) {
-            rows
-        } else {
-            let existing = fetch_rows(connection, &maintain.target)?
-                .into_iter()
-                .map(|row| {
-                    let id = row.field("id")?.as_str()?.to_owned();
-                    Ok((id, row))
-                })
-                .collect::<Result<BTreeMap<_, _>, RuntimeError>>()?;
-            future_targets.insert(maintain.target.clone(), existing);
-            future_targets
-                .get_mut(&maintain.target)
-                .expect("target was just inserted")
-        };
-        for row in projected_backfill_rows(connection, next, maintain)? {
+    for target in &affected_targets {
+        let mut rows = BTreeMap::new();
+        for row in projected_target_rows(connection, next, target)? {
             let id = row.field("id")?.as_str()?.to_owned();
             rows.insert(id, row);
         }
+        future_targets.insert(target.clone(), rows);
     }
     for (table_name, rows) in future_targets {
         let table = next
@@ -442,13 +428,18 @@ pub(crate) fn apply_additive(
             }
         }
     }
-    let new_maintains: Vec<_> = next
+    let changed_maintains: Vec<_> = current
         .maintains
         .iter()
-        .filter(|maintain| !current.maintains.contains(maintain))
+        .filter(|maintain| !next.maintains.contains(maintain))
+        .chain(
+            next.maintains
+                .iter()
+                .filter(|maintain| !current.maintains.contains(maintain)),
+        )
         .cloned()
         .collect();
-    report.backfilled_maintains = new_maintains.len() as u64;
+    report.backfilled_maintains = changed_maintains.len() as u64;
 
     for table_name in next.tables.keys() {
         let needs_reindex = current.tables.get(table_name).is_some_and(|table| {
@@ -466,8 +457,8 @@ pub(crate) fn apply_additive(
             }
         }
     }
-    for maintain in &new_maintains {
-        backfill(transaction, next, maintain)?;
+    for target in affected_maintain_targets(current, next) {
+        rebuild_target(transaction, next, &target)?;
     }
     Ok(report)
 }
@@ -560,13 +551,72 @@ fn drop_column_values(
     Ok(())
 }
 
-fn backfill(
+fn affected_maintain_targets(current: &Schema, next: &Schema) -> BTreeSet<String> {
+    current
+        .maintains
+        .iter()
+        .filter(|maintain| !next.maintains.contains(maintain))
+        .chain(
+            next.maintains
+                .iter()
+                .filter(|maintain| !current.maintains.contains(maintain)),
+        )
+        .map(|maintain| maintain.target.clone())
+        // Migration drops have already removed predecessor-only targets from
+        // the reduced schema. Only targets retained by the successor need a
+        // rebuild; the dropped table and its rows are already gone.
+        .filter(|target| next.tables.contains_key(target))
+        .collect()
+}
+
+fn rebuild_target(
     transaction: &Transaction<'_>,
     schema: &Schema,
-    maintain: &Maintain,
+    target: &str,
 ) -> Result<(), RuntimeError> {
-    let rows = projected_backfill_rows(transaction, schema, maintain)?;
-    write_aggregate_backfill(transaction, schema, &maintain.target, rows)
+    let rows = projected_target_rows(transaction, schema, target)?;
+    transaction.execute("DELETE FROM index_entries WHERE table_name = ?1", [target])?;
+    transaction.execute("DELETE FROM rows WHERE table_name = ?1", [target])?;
+    write_aggregate_backfill(transaction, schema, target, rows)
+}
+
+fn projected_target_rows(
+    connection: &Connection,
+    schema: &Schema,
+    target: &str,
+) -> Result<Vec<Value>, RuntimeError> {
+    let mut combined = BTreeMap::<String, Value>::new();
+    for maintain in schema
+        .maintains
+        .iter()
+        .filter(|maintain| maintain.target == target)
+    {
+        for row in projected_backfill_rows(connection, schema, maintain)? {
+            let id = row.field("id")?.as_str()?.to_owned();
+            if let Some(existing) = combined.get_mut(&id) {
+                let total = existing.field("value")?.as_int()? as i128
+                    + row.field("value")?.as_int()? as i128;
+                if !(I53_MIN as i128..=I53_MAX as i128).contains(&total) {
+                    return Err(RuntimeError::Constraint(format!(
+                        "aggregate backfill overflow for {target}"
+                    )));
+                }
+                match existing {
+                    Value::Row(fields) | Value::Map(fields) => {
+                        fields.insert("value".to_owned(), Value::Int(total as i64));
+                    }
+                    _ => {
+                        return Err(RuntimeError::Schema(format!(
+                            "aggregate backfill for {target} produced a non-row"
+                        )));
+                    }
+                }
+            } else {
+                combined.insert(id, row);
+            }
+        }
+    }
+    Ok(combined.into_values().collect())
 }
 
 fn projected_backfill_rows(
