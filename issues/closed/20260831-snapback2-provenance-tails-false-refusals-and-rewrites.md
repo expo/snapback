@@ -160,3 +160,5 @@ Focused compiler proof: 134/134. Required `scripts/test.sh`: Rust 19/19 +
 22/22, evaluator 81/81, compiler 134/134, exit 0. Measurement passed every
 budget (core test 23.87 s); corpus regeneration wrote 81 cases with an empty
 corpus diff.
+
+**Closed 2026-08-31** (session snapback-8a, lane `s2/t2-tails`): all seven tail items closed — element/row proof through slice/sort/identity maps, per-element spread classification, static bounds for nested literals, all-origins honest rewrites (name-guess fallback deleted; paste.ok asserted false on every multi/unknown refusal), bind-time alias classification, declaration-identity mutation tracking, lexical `db`. Plus the structural collection-facts choke point, lowering-order mutation bounds (certified-crash class closed; 3x4+seed certifies 13 and runs), escape-closed aliasing (cyclic within loop bodies), and author-authorized surgical closure of top-level self-growth + cyclic escape ordering. Four blind review rounds (codex+grok xhigh) + confirmed surgical round. Accepted residuals recorded above stand as design (conservative refusals/overcounts, never silent lies).

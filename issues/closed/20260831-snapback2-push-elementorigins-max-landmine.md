@@ -49,3 +49,5 @@ refuses with `E_PROVENANCE_AMBIGUOUS` and a non-lowerable rewrite naming both
 `args.key` and `ctx.viewer`. A future bound widening that omits origin updates
 will make this test fail instead of silently producing an `Arg` certificate.
 Corpus regeneration wrote 81 frozen cases with no byte changes.
+
+**Closed 2026-08-31** (session snapback-8a, lane `s2/t2-tails`): push origin updates and bound growth are coupled in the collection-facts choke point; blind widening refuses; nested/branch mutation deltas compose multiplicatively or by arm-max; self-growing domains refuse E_UNBOUND_LOOP at every depth; escape-closed aliasing prevents the copy-semantics divergence this landmine guarded. The Fanout coincidence is replaced by proven bounds (reviewer-probed: no shape with runtime length > certified max).
