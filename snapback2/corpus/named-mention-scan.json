@@ -987,7 +987,7 @@
   },
   "certificate": {
     "program": "mentionScan",
-    "plan_hash": "aa42e5ef412b60cea87126ba8db50bf60682fd944761f2c1b1736525c7046cdd",
+    "plan_hash": "30c80fb8c807f9ecf6554b32ee354815389349d17c0e426ba6c8ae92bde855cb",
     "schema_hash": "314b4cce50b42b3b7d322bd3e6741a8d2764900283317efb14f9bab2ad2a56c8",
     "rule_hashes": {
       "users.read": "b9f00bed3cb793789892942e8d0b9e1f6507451133dea5e5ee2f3eba7d49e161"
@@ -1069,6 +1069,15 @@
             "String": "bob"
           }
         ],
+        "order": "Asc",
+        "take": 20,
+        "after": null,
+        "before": null,
+        "gt": null,
+        "gte": null,
+        "lt": null,
+        "lte": null,
+        "rule_hash": "b9f00bed3cb793789892942e8d0b9e1f6507451133dea5e5ee2f3eba7d49e161",
         "row_ids": [
           "u2"
         ],

@@ -1629,14 +1629,15 @@
   "prelude": [],
   "replacementReceipt": null,
   "expected": {
-    "localResult": {
-      "Id": "dm-conversation"
-    },
+    "localResult": "Null",
     "errorCode": null,
-    "localState": "predicted",
-    "partialSites": [],
-    "canonicalResult": "{\"Id\":\"dm-conversation\"}",
-    "digest": "6398cfb7206448eba9be8426cde377a5bfe200973dfe33ddaafa8c89ace5deed",
+    "localState": "partial",
+    "partialSites": [
+      "dmKeys.byPair",
+      "memberships.byConvUser"
+    ],
+    "canonicalResult": "\"Null\"",
+    "digest": "6c7382d463fdb189bd1075f11b73b2335f49de592445abdd337b62ff8b9c5ece",
     "rangeStops": {},
     "evictedRows": null
   }

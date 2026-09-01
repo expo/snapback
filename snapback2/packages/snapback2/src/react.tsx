@@ -5,6 +5,7 @@ import React, {
   useEffect,
   useMemo,
   useReducer,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -201,21 +202,32 @@ export interface UseAuthResult {
 
 export function useAuth(): UseAuthResult {
   const { client, snapshot } = provider();
+  const requestEpoch = useRef(0);
+  const activeClient = useRef(client);
+  if (activeClient.current !== client) {
+    activeClient.current = client;
+    requestEpoch.current += 1;
+  }
   const [state, setState] = useState<Omit<UseAuthResult, "signup" | "login" | "guest" | "logout" | "me">>({
     state: "hydrating",
     token: snapshot.token,
   });
   const me = useCallback(async () => {
+    const epoch = ++requestEpoch.current;
     try {
       const value = await client.auth.me();
-      setState({ state: "authenticated", ...value, token: client.snapshot.token });
+      if (epoch === requestEpoch.current && activeClient.current === client) {
+        setState({ state: "authenticated", ...value, token: client.snapshot.token });
+      }
       return value;
     } catch (error) {
-      if (isSnapbackRefusal(error) && (error.code === "E_AUTH" || error.code === "E_AUTH_REQUIRED")) {
-        setState({ state: "anonymous", refusal: error.envelope });
-      } else {
-        const refusal = isSnapbackRefusal(error) ? error.envelope : undefined;
-        setState({ state: "refused", refusal, token: client.snapshot.token });
+      if (epoch === requestEpoch.current && activeClient.current === client) {
+        if (isSnapbackRefusal(error) && (error.code === "E_AUTH" || error.code === "E_AUTH_REQUIRED")) {
+          setState({ state: "anonymous", refusal: error.envelope });
+        } else {
+          const refusal = isSnapbackRefusal(error) ? error.envelope : undefined;
+          setState({ state: "refused", refusal, token: client.snapshot.token });
+        }
       }
       throw error;
     }
@@ -223,6 +235,9 @@ export function useAuth(): UseAuthResult {
 
   useEffect(() => {
     void me().catch(() => undefined);
+    return () => {
+      requestEpoch.current += 1;
+    };
   }, [me, snapshot.token]);
 
   const establish = useCallback(async (action: () => Promise<AuthSession>) => {
@@ -238,8 +253,12 @@ export function useAuth(): UseAuthResult {
     login: (input) => establish(() => client.auth.login(input)),
     guest: () => establish(() => client.auth.guest()),
     logout: async () => {
+      requestEpoch.current += 1;
       const result = await client.auth.logout();
-      setState({ state: "anonymous" });
+      if (activeClient.current === client) {
+        requestEpoch.current += 1;
+        setState({ state: "anonymous" });
+      }
       return result;
     },
     me,

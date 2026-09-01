@@ -6,6 +6,9 @@ use std::collections::{BTreeMap, VecDeque};
 use std::fs;
 use std::path::PathBuf;
 
+#[path = "export_corpus/constraints.rs"]
+mod export_corpus_constraints;
+
 const CORPUS_VERSION: u32 = 1;
 const RANDOM_SEED: u64 = 0x5eed_0329_0140_0003;
 
@@ -439,6 +442,36 @@ fn add_client_scenarios(cases: &mut Vec<CorpusCase>) {
         None,
     ));
 
+    let changed_scan = Program {
+        name: "threadSuccessor".to_owned(),
+        kind: ProgramKind::Query,
+        args: BTreeMap::from([("conversationId".to_owned(), ArgType::Scalar)]),
+        read_time_granularity_ms: None,
+        body: vec![Stmt::Return(Expr::Scan(Scan {
+            site: "programs.thread.0".to_owned(),
+            table: "users".to_owned(),
+            index: "byId".to_owned(),
+            prefix: vec![var("conversationId")],
+            order: Order::Desc,
+            take: Bound::Literal(3),
+            after: None,
+            before: None,
+            range: None,
+            provenance: KeyProvenance::Arg,
+        }))],
+    };
+    cases.push(case_from_parts(
+        "scenario-range-scan-identity",
+        "scenario",
+        schema.clone(),
+        changed_scan,
+        thread_context.clone(),
+        hydration.receipt.clone(),
+        Vec::new(),
+        None,
+        None,
+    ));
+
     let send = PreludeStep {
         program: send_program(false),
         context: mutation_context(
@@ -496,6 +529,94 @@ fn add_client_scenarios(cases: &mut Vec<CorpusCase>) {
         None,
         None,
     ));
+
+    let move_message = Program {
+        name: "moveMessage".to_owned(),
+        kind: ProgramKind::Mutation,
+        args: BTreeMap::from([("id".to_owned(), ArgType::Scalar)]),
+        read_time_granularity_ms: None,
+        body: vec![Stmt::Update {
+            table: "messages".to_owned(),
+            key: var("id"),
+            patch: Expr::Object(BTreeMap::from([(
+                "conversationId".to_owned(),
+                Expr::Literal(id("c2")),
+            )])),
+        }],
+    };
+    let moved = ["message-00004", "message-00003"].map(|message_id| PreludeStep {
+        program: move_message.clone(),
+        context: mutation_context([("id", id(message_id))], Vec::<String>::new()),
+        expected_state: "predicted".to_owned(),
+    });
+    cases.push(case_from_parts(
+        "scenario-range-update-halo",
+        "scenario",
+        schema.clone(),
+        thread.clone(),
+        thread_context.clone(),
+        hydration.receipt.clone(),
+        moved.into_iter().collect(),
+        None,
+        None,
+    ));
+
+    let mut maintain_server = Engine::memory(schema.clone()).expect("maintain server");
+    maintain_server
+        .seed(
+            "waitlist",
+            row([
+                ("id", id("wait-1")),
+                ("resourceId", id("resource1")),
+                ("ownerId", id("u1")),
+            ]),
+        )
+        .expect("waitlist source");
+    maintain_server
+        .seed(
+            "waitCounts",
+            row([
+                ("id", id("[{\"Id\":\"resource1\"}]")),
+                ("resourceId", id("resource1")),
+                ("value", Value::Int(1)),
+            ]),
+        )
+        .expect("wait count");
+    let maintained = maintained_waitlist_count_program();
+    let maintained_context = query_context([("resourceId", id("resource1"))]);
+    let maintained_hydration = authoritative(
+        &mut maintain_server,
+        &schema,
+        &maintained,
+        maintained_context.clone(),
+    );
+    let delete_wait = Program {
+        name: "deleteWait".to_owned(),
+        kind: ProgramKind::Mutation,
+        args: BTreeMap::new(),
+        read_time_granularity_ms: None,
+        body: vec![Stmt::Delete {
+            table: "waitlist".to_owned(),
+            key: Expr::Literal(id("wait-1")),
+        }],
+    };
+    cases.push(case_from_parts(
+        "scenario-maintain-missing-delete",
+        "scenario",
+        schema.clone(),
+        maintained,
+        maintained_context,
+        maintained_hydration.receipt,
+        vec![PreludeStep {
+            program: delete_wait,
+            context: mutation_context([], Vec::<String>::new()),
+            expected_state: "predicted".to_owned(),
+        }],
+        None,
+        None,
+    ));
+
+    export_corpus_constraints::add_incomplete_constraint_cases(cases);
 
     let mention_send = PreludeStep {
         program: send_program(false),
@@ -992,7 +1113,9 @@ fn mutation_case(name: &str, category: &str, program: Program, context: Context)
         None,
         None,
     );
-    assert_eq!(case.expected.local_result.as_ref(), Some(&execution.result));
+    if case.expected.local_state != "partial" {
+        assert_eq!(case.expected.local_result.as_ref(), Some(&execution.result));
+    }
     case
 }
 

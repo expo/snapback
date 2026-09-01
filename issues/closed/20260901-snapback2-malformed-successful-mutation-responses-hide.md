@@ -1,6 +1,7 @@
 # snapback2: malformed successful mutation responses hide post-commit uncertainty
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Classified successful mutation decode/shape failures as retryable ambiguous transport in packages/snapback2/src/client.ts; added hook regressions for truncated and malformed bodies.
 **Systems:** snapback2, client, mutation wire
 **Severity:** P1
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

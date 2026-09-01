@@ -1,132 +1,35 @@
 import coreIrContract from "../../../crates/snapback2-core/ir-contract.json" with { type: "json" };
 import { sha256, utf8Length } from "./hash";
 import { splitMentionTokens } from "./text";
+import type {
+  ActualResult,
+  ClosureReceipt,
+  Context,
+  CorpusCase,
+  CorpusExpected,
+  Execution,
+  HydrationResult,
+  LocalExecution,
+  ReceiptRange,
+  Trace,
+  TraceRange,
+  Value,
+} from "./types";
 
 export { sha256 } from "./hash";
-
-export type Value =
-  | "Null"
-  | { Bool: boolean }
-  | { Int: number }
-  | { String: string }
-  | { Id: string }
-  | { Bytes: string }
-  | { Row: Record<string, Value> }
-  | { Array: Value[] }
-  | { Map: Record<string, Value> };
-
-export interface Context {
-  viewer: string;
-  principal_kind: string;
-  auth_epoch: number;
-  args: Record<string, Value>;
-  now: number | null;
-  new_ids: string[];
-  read_time: number | null;
-}
-
-export interface RowRecord {
-  table: string;
-  id: string;
-  row: Value;
-}
-
-export interface ReceiptRange {
-  site: string;
-  table: string;
-  index: string;
-  prefix: Value[];
-  row_ids: string[];
-  stop: "Limit" | "Exhausted";
-  absence: boolean;
-  halo: RowRecord | null;
-  n2_key: Value[] | null;
-}
-
-export interface Verdict {
-  rule_hash: string;
-  pinned_inputs_digest: string;
-  principal: string;
-  auth_epoch: number;
-  result: boolean;
-}
-
-export interface ClosureReceipt {
-  rows: RowRecord[];
-  ranges: ReceiptRange[];
-  absences: [string, string, Value[]][];
-  verdicts: Verdict[];
-}
-
-export interface PreludeStep {
-  program: any;
-  context: Context;
-  expectedState: string;
-}
-
-export interface CorpusExpected {
-  localResult: Value | null;
-  errorCode: string | null;
-  localState: string;
-  partialSites: string[];
-  canonicalResult: string;
-  digest: string;
-  rangeStops: Record<string, string[]>;
-  evictedRows: number | null;
-}
-
-export interface CorpusCase {
-  corpusVersion: number;
-  name: string;
-  category: string;
-  randomSeed: number | null;
-  schema: any;
-  program: any;
-  certificate: any;
-  context: Context;
-  receipt: ClosureReceipt;
-  prelude: PreludeStep[];
-  replacementReceipt: ClosureReceipt | null;
-  expected: CorpusExpected;
-}
-
-export interface ActualResult extends CorpusExpected {}
-
-export interface HydrationResult {
-  planState: "ready" | "replay-mismatch";
-  servedResult: Value | null;
-  actual: ActualResult;
-  diagnostic: string | null;
-}
-
-interface TraceRange {
-  site: string;
-  prefix: Value[];
-  stop: "limit" | "exhausted";
-}
-
-interface TraceAbsence {
-  site: string;
-  table: string;
-  index: string;
-  key: Value[];
-}
-
-interface Trace {
-  ranges: TraceRange[];
-  absences: TraceAbsence[];
-}
-
-interface Execution {
-  result: Value;
-  trace: Trace;
-}
-
-interface LocalExecution {
-  state: "fresh" | "predicted" | "partial";
-  partialSites: string[];
-  execution: Execution;
-}
+export type {
+  ActualResult,
+  ClosureReceipt,
+  Context,
+  CorpusCase,
+  CorpusExpected,
+  HydrationResult,
+  PreludeStep,
+  ReceiptRange,
+  RowRecord,
+  Value,
+  Verdict,
+} from "./types";
 
 type Flow =
   | { kind: "next" }
@@ -149,6 +52,7 @@ export class ClientStore {
   private tables = new Map<string, Map<string, Value>>();
   private coverage: ClosureReceipt;
   private rangeDeletions = new Map<string, number>();
+  private taintedTables = new Set<string>();
 
   constructor(
     private readonly schema: any,
@@ -162,32 +66,27 @@ export class ClientStore {
     validateInputs(program, context.args);
     // @ref LLP 1001#3-read-and-write-states-no-silent-states — local prediction adopts the write set only as one atomic mutation.
     const staged = this.fork();
-    const before = staged.allIds();
+    const before = staged.coveredIndexKeys();
     const runner = new Runner(staged, this.schema, context);
     const execution = runner.execute(program);
     const partialSites = runner.coverageMisses();
     if (partialSites.length > 0) {
       return { state: "partial", partialSites, execution };
     }
-    const after = staged.allIds();
-    for (const removed of before) {
-      if (after.has(removed)) continue;
-      for (const range of staged.coverage.ranges) {
-        const held =
-          range.row_ids.some((id) => `${range.table}:${id}` === removed) ||
-          (range.halo !== null &&
-            `${range.halo.table}:${range.halo.id}` === removed);
-        if (held) {
-          staged.rangeDeletions.set(
-            range.site,
-            (staged.rangeDeletions.get(range.site) ?? 0) + 1,
-          );
+    const after = staged.coveredIndexKeys();
+    for (let offset = 0; offset < before.length; offset += 1) {
+      for (const [id, key] of before[offset]) {
+        const next = after[offset].get(id);
+        if (next === undefined || !valuesEqual(key, next)) {
+          const site = staged.coverage.ranges[offset].site;
+          staged.rangeDeletions.set(site, (staged.rangeDeletions.get(site) ?? 0) + 1);
         }
       }
     }
     this.tables = staged.tables;
     this.coverage = staged.coverage;
     this.rangeDeletions = staged.rangeDeletions;
+    this.taintedTables = staged.taintedTables;
     return { state: "predicted", partialSites: [], execution };
   }
 
@@ -198,12 +97,14 @@ export class ClientStore {
     const partial = new Set(runner.coverageMisses());
     for (const range of execution.trace.ranges) {
       const covered = this.coverage.ranges.some(
-        (coverage) =>
-          coverage.site === range.site && valuesEqual(coverage.prefix, range.prefix),
+        (coverage) => rangeCovered(coverage, range),
       );
       if (!covered || (this.rangeDeletions.get(range.site) ?? 0) > 1) {
         partial.add(range.site);
       }
+    }
+    for (const point of execution.trace.points) {
+      if (this.taintedTables.has(point.table)) partial.add(point.site);
     }
     for (const absence of execution.trace.absences) {
       const held =
@@ -228,6 +129,7 @@ export class ClientStore {
     this.tables = new Map();
     this.coverage = clone(receipt);
     this.rangeDeletions = new Map();
+    this.taintedTables = new Set();
     this.seedReceipt(receipt);
     const after = this.allIds();
     let evicted = 0;
@@ -332,6 +234,33 @@ export class ClientStore {
     );
   }
 
+  hasCompleteRange(table: string, index: string, prefix: Value[]): boolean {
+    return this.coverage.ranges.some(
+      (range) =>
+        range.table === table &&
+        range.index === index &&
+        valuesEqual(range.prefix, prefix) &&
+        range.order === "Asc" &&
+        range.after === null &&
+        range.before === null &&
+        range.gt === null &&
+        range.gte === null &&
+        range.lt === null &&
+        range.lte === null &&
+        range.stop === "Exhausted",
+    );
+  }
+
+  taintMaintainedTargets(source: string): void {
+    for (const maintain of this.schema.maintains ?? []) {
+      if (maintain.source === source) this.taintedTables.add(maintain.target);
+    }
+  }
+
+  isTainted(table: string): boolean {
+    return this.taintedTables.has(table);
+  }
+
   private seedReceipt(receipt: ClosureReceipt): void {
     for (const row of receipt.rows) this.put(row.table, row.row);
   }
@@ -346,7 +275,24 @@ export class ClientStore {
     );
     fork.coverage = clone(this.coverage);
     fork.rangeDeletions = new Map(this.rangeDeletions);
+    fork.taintedTables = new Set(this.taintedTables);
     return fork;
+  }
+
+  private coveredIndexKeys(): Array<Map<string, Value[]>> {
+    return this.coverage.ranges.map((range) => {
+      const retained = new Set(range.row_ids);
+      if (range.halo !== null) retained.add(range.halo.id);
+      const index = this.index(range.table, range.index);
+      const keys = new Map<string, Value[]>();
+      for (const row of this.rows(range.table)) {
+        const id = asString(field(row, "id"));
+        if (retained.has(id)) {
+          keys.set(id, index.columns.map((column: string) => clone(fieldOrNull(row, column))));
+        }
+      }
+      return keys;
+    });
   }
 
   private allIds(): Set<string> {
@@ -364,11 +310,31 @@ export class ClientStore {
   }
 }
 
+function nullableValueEqual(left: Value | null, right: Value | null): boolean {
+  return left === null ? right === null : right !== null && valuesEqual([left], [right]);
+}
+
+function rangeCovered(coverage: ReceiptRange, range: TraceRange): boolean {
+  return coverage.site === range.site
+    && coverage.table === range.table
+    && coverage.index === range.index
+    && valuesEqual(coverage.prefix, range.prefix)
+    && coverage.order === range.order
+    && coverage.take === range.take
+    && nullableValueEqual(coverage.after, range.after)
+    && nullableValueEqual(coverage.before, range.before)
+    && nullableValueEqual(coverage.gt, range.gt)
+    && nullableValueEqual(coverage.gte, range.gte)
+    && nullableValueEqual(coverage.lt, range.lt)
+    && nullableValueEqual(coverage.lte, range.lte)
+    && coverage.rule_hash === range.rule_hash;
+}
+
 class Runner {
   private readonly env = new Map<string, Value>();
   private readonly consts = new Set<string>();
   private readonly context: Context;
-  private readonly trace: Trace = { ranges: [], absences: [] };
+  private readonly trace: Trace = { ranges: [], absences: [], points: [] };
   private readonly ruleMemo = new Map<string, boolean>();
   private readonly partial = new Set<string>();
 
@@ -756,6 +722,7 @@ class Runner {
   private get(read: any): Value {
     const key = read.key.map((value: any) => this.expr(value));
     const found = this.store.lookup(read.table, read.index, key);
+    this.trace.points.push({ site: read.site, table: read.table });
     if (found === null) {
       this.trace.absences.push({
         site: read.site,
@@ -792,7 +759,22 @@ class Runner {
     );
     const stop = examined.length > take ? "limit" : "exhausted";
     const visible = examined.filter((row) => this.checkRule(scan.table, "read", row));
-    this.trace.ranges.push({ site: scan.site, prefix, stop });
+    this.trace.ranges.push({
+      site: scan.site,
+      table: scan.table,
+      index: scan.index,
+      prefix,
+      order: scan.order,
+      take,
+      after,
+      before,
+      gt: evaluatedRange?.gt ?? null,
+      gte: evaluatedRange?.gte ?? null,
+      lt: evaluatedRange?.lt ?? null,
+      lte: evaluatedRange?.lte ?? null,
+      rule_hash: scopedRuleHash(this.schema, this.schema.tables[scan.table].rules.read),
+      stop,
+    });
     return { Array: visible.slice(0, take).map(clone) };
   }
 
@@ -837,7 +819,10 @@ class Runner {
 
   private delete(table: string, id: string): void {
     const old = this.store.byId(table, id);
-    if (old === null) return;
+    if (old === null) {
+      this.store.taintMaintainedTargets(table);
+      return;
+    }
     if (!this.checkRule(table, "delete", old)) throw new EvalError("E_RULE", `${table} delete`);
     this.checkConstraints(table, old, old, "delete");
     this.store.remove(table, id);
@@ -909,11 +894,21 @@ class Runner {
         );
         if (entry === undefined) throw new EvalError("E_SCHEMA", "cap index missing");
         const prefix = data.by.map((name: string) => field(row, name));
-        if (
-          this.store.scan(tableName, entry[0], prefix, null, null, null, "Asc", data.max)
-            .length >= data.max
-        )
+        const existing = this.store.scan(
+          tableName,
+          entry[0],
+          prefix,
+          null,
+          null,
+          null,
+          "Asc",
+          data.max,
+        );
+        if (existing.length >= data.max)
           throw new EvalError("E_CONSTRAINT", `${tableName} cap reached`);
+        if (!this.store.hasCompleteRange(tableName, entry[0], prefix)) {
+          this.partial.add(`${tableName}.${entry[0]}`);
+        }
       }
     }
     for (const [indexName, index] of Object.entries<any>(table.indexes)) {
@@ -930,6 +925,14 @@ class Runner {
       (old === null || asString(field(found, "id")) !== asString(field(old, "id")))
     )
       throw new EvalError("E_CONSTRAINT", `sealed unique conflict on ${table}.${indexName}`);
+    if (
+      indexName !== "byId" &&
+      found === null &&
+      !this.store.hasAbsence(table, indexName, key) &&
+      !this.store.hasCompleteRange(table, indexName, key)
+    ) {
+      this.partial.add(`${table}.${indexName}`);
+    }
   }
 
   private checkRule(

@@ -1,6 +1,7 @@
 # snapback2: local constraint checks treat incomplete stores as authoritative
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Required authoritative absence or exhausted range proof for local unique/cap success and staged Rust mutations atomically; added shared unique and cap corpus cases.
 **Systems:** snapback2, client prediction, constraints
 **Severity:** P2
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

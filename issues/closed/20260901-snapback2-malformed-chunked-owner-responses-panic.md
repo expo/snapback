@@ -1,6 +1,7 @@
 # snapback2: malformed chunked owner responses panic CLI verbs
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Replaced unchecked chunk cursor arithmetic with bounded CRLF/trailer validation in crates/snapback2/src/client.rs; added truncated, overflow, delimiter, and trailer tests.
 **Systems:** snapback2, CLI client, HTTP parsing
 **Severity:** P2
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

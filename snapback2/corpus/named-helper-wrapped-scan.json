@@ -1063,6 +1063,15 @@
             "Id": "col1"
           }
         ],
+        "order": "Asc",
+        "take": 37,
+        "after": null,
+        "before": null,
+        "gt": null,
+        "gte": null,
+        "lt": null,
+        "lte": null,
+        "rule_hash": "b9f00bed3cb793789892942e8d0b9e1f6507451133dea5e5ee2f3eba7d49e161",
         "row_ids": [
           "card1"
         ],

@@ -1,6 +1,7 @@
 # snapback2: range updates can consume the halo while clients still report Fresh
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Counted retained-range index-key changes against halo coverage in both client twins; added scenario-range-update-halo.
 **Systems:** snapback2, client prediction, ranges
 **Severity:** P1
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

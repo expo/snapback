@@ -1,6 +1,7 @@
 # snapback2: client range coverage ignores scan identity across successors
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Bound receipt ranges to full evaluated scan and read-rule identity in both client twins; added scenario-range-scan-identity corpus coverage.
 **Systems:** snapback2, client prediction, successors
 **Severity:** P1
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

@@ -1,6 +1,7 @@
 # snapback2: deleting an unseen maintain source leaves a Fresh stale aggregate
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Tracked missing delete preimages and tainted maintained targets until rehydration in both client twins; added scenario-maintain-missing-delete.
 **Systems:** snapback2, core client, maintained aggregates
 **Severity:** P1
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

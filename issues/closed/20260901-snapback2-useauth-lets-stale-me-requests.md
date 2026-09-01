@@ -1,6 +1,7 @@
 # snapback2: useAuth lets stale me requests overwrite logout or a new client
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Added auth request epochs and client identity guards in packages/snapback2/src/react.tsx; added deferred logout and provider replacement tests.
 **Systems:** snapback2, react client, auth
 **Severity:** P2
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

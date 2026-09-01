@@ -1131,6 +1131,15 @@
             "Id": "u1"
           }
         ],
+        "order": "Desc",
+        "take": 50,
+        "after": null,
+        "before": null,
+        "gt": null,
+        "gte": null,
+        "lt": null,
+        "lte": null,
+        "rule_hash": "87cbe4a2bbf3fe58e3d3ab0591ddf8dd2863d949b94486ff2352dd39d50af4fd",
         "row_ids": [
           "m1"
         ],

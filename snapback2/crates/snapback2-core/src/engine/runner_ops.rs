@@ -97,6 +97,9 @@ impl<'a> Runner<'a> {
 
     pub(super) fn delete(&mut self, table: &str, id: &str) -> Result<(), RuntimeError> {
         let Some(old) = self.fetch_id(table, id)? else {
+            self.trace
+                .missing_preimages
+                .push((table.to_owned(), id.to_owned()));
             return Ok(());
         };
         if !self.check_rule(table, Effect::Delete, &old)? {
@@ -348,6 +351,8 @@ impl<'a> Runner<'a> {
                     self.trace.constraint_inputs.push(ConstraintTrace {
                         table: table_name.to_owned(),
                         check: format!("Cap({by:?},{max})"),
+                        index: index_name.clone(),
+                        prefix,
                         examined_ids: row_ids(&rows)?,
                     });
                     if rows.len() >= *max as usize {
@@ -397,6 +402,8 @@ impl<'a> Runner<'a> {
         self.trace.constraint_inputs.push(ConstraintTrace {
             table: table_name.to_owned(),
             check: format!("Unique({index_name})"),
+            index: index_name.to_owned(),
+            prefix: wanted,
             examined_ids: row_ids(&examined)?,
         });
         let duplicate = examined.into_iter().any(|row| {

@@ -85,6 +85,15 @@ pub struct TraceRange {
     pub table: String,
     pub index: String,
     pub prefix: Vec<Value>,
+    pub order: Order,
+    pub take: u32,
+    pub after: Option<Value>,
+    pub before: Option<Value>,
+    pub gt: Option<Value>,
+    pub gte: Option<Value>,
+    pub lt: Option<Value>,
+    pub lte: Option<Value>,
+    pub rule_hash: String,
     pub examined_ids: Vec<String>,
     /// Every examined row admitted by the read rule, including page-cut rows.
     pub visible_ids: Vec<String>,
@@ -121,6 +130,8 @@ pub struct PointTrace {
 pub struct ConstraintTrace {
     pub table: String,
     pub check: String,
+    pub index: String,
+    pub prefix: Vec<Value>,
     pub examined_ids: Vec<String>,
 }
 
@@ -136,6 +147,8 @@ pub struct AuthoritativeTrace {
     pub rows: Vec<RowRecord>,
     pub points: Vec<PointTrace>,
     pub constraint_inputs: Vec<ConstraintTrace>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub missing_preimages: Vec<(String, String)>,
     pub ranges: Vec<TraceRange>,
     pub absences: Vec<(String, String, Vec<Value>)>,
     pub rule_inputs: Vec<RuleInputTrace>,
@@ -156,6 +169,15 @@ pub struct ReceiptRange {
     pub table: String,
     pub index: String,
     pub prefix: Vec<Value>,
+    pub order: Order,
+    pub take: u32,
+    pub after: Option<Value>,
+    pub before: Option<Value>,
+    pub gt: Option<Value>,
+    pub gte: Option<Value>,
+    pub lt: Option<Value>,
+    pub lte: Option<Value>,
+    pub rule_hash: String,
     pub row_ids: Vec<String>,
     pub stop: StopReason,
     pub absence: bool,
@@ -305,6 +327,14 @@ impl Engine {
 
     pub fn memory(schema: Schema) -> Result<Self, RuntimeError> {
         Self::new(Store::memory()?, schema)
+    }
+
+    pub(crate) fn memory_copy(&self) -> Result<Self, RuntimeError> {
+        Ok(Self {
+            store: self.store.memory_copy()?,
+            schema: self.schema.clone(),
+            verdicts: self.verdicts.clone(),
+        })
     }
 
     pub(crate) fn install_verdicts(&mut self, verdicts: &[Verdict]) {

@@ -1,6 +1,7 @@
 # snapback2: throwing status listeners remain registered and break later operations
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Removed initial-throw listeners and isolated later status callbacks in packages/snapback2/src/client.ts; added peer-delivery regression coverage.
 **Systems:** snapback2, client, lifecycle
 **Severity:** P2
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

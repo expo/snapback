@@ -115,6 +115,14 @@ impl Store {
         Ok(Self { conn: connection })
     }
 
+    pub(crate) fn memory_copy(&self) -> Result<Self, RuntimeError> {
+        let mut copy = Self::memory()?;
+        let backup = Backup::new(&self.conn, &mut copy.conn)?;
+        backup.run_to_completion(64, Duration::from_millis(5), None)?;
+        drop(backup);
+        Ok(copy)
+    }
+
     fn initialize_schema(connection: &Connection) -> rusqlite::Result<()> {
         connection.execute_batch(
             "CREATE TABLE IF NOT EXISTS rows (
