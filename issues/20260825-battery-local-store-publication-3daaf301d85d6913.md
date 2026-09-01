@@ -10,11 +10,11 @@
 **Battery gate:** `local-store-publication`
 **Failure signature:** `sha256:3daaf301d85d6913e43803ee7a20710d5ad4932924e9f3125bd6530baa7db90c`
 **First observed run:** `local.20260825T115521Z.64e70df1e088`
-**Last observed run:** `local.20260901T114752Z.293de46f68b1`
-**Last processed run:** `local.20260901T114752Z.293de46f68b1`
+**Last observed run:** `local.20260901T203053Z.2ad65fb5912c`
+**Last processed run:** `local.20260901T203053Z.2ad65fb5912c`
 **Detected at revision:** `64e70df1e088d492cde44c9693463a2d052bbd7a`
-**Last observed revision:** `293de46f68b17c798cb59287def8568b4baa5706`
-**Consecutive red runs:** `19`
+**Last observed revision:** `2ad65fb5912ca2567874030decdcc4c47733969d`
+**Consecutive red runs:** `20`
 **Escalation:** `AUTHOR_ESCALATION_REQUIRED`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
