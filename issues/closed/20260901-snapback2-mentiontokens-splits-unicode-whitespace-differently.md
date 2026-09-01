@@ -1,6 +1,7 @@
 # snapback2: MentionTokens splits Unicode whitespace differently across twins
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Defined the Unicode White_Space tokenizer explicitly in Rust and TypeScript; added U+0085, NBSP, separator, and ASCII regressions.
 **Systems:** snapback2, evaluator, core engine, corpus
 **Severity:** P2
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

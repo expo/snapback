@@ -1,6 +1,7 @@
 # snapback2: evaluator applies user write rules to engine-owned maintained rows
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Made evaluator maintained writes bypass authored target rules while retaining validation and constraints; added a deny-target regression in evaluator test.ts.
 **Systems:** snapback2, evaluator, maintained aggregates
 **Severity:** P1
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

@@ -1,4 +1,8 @@
 import coreIrContract from "../../../crates/snapback2-core/ir-contract.json" with { type: "json" };
+import { sha256, utf8Length } from "./hash";
+import { splitMentionTokens } from "./text";
+
+export { sha256 } from "./hash";
 
 export type Value =
   | "Null"
@@ -155,30 +159,43 @@ export class ClientStore {
   }
 
   applyMutation(program: any, context: Context): LocalExecution {
-    const before = this.allIds();
-    const execution = new Runner(this, this.schema, context).execute(program);
-    const after = this.allIds();
+    validateInputs(program, context.args);
+    // @ref LLP 1001#3-read-and-write-states-no-silent-states — local prediction adopts the write set only as one atomic mutation.
+    const staged = this.fork();
+    const before = staged.allIds();
+    const runner = new Runner(staged, this.schema, context);
+    const execution = runner.execute(program);
+    const partialSites = runner.coverageMisses();
+    if (partialSites.length > 0) {
+      return { state: "partial", partialSites, execution };
+    }
+    const after = staged.allIds();
     for (const removed of before) {
       if (after.has(removed)) continue;
-      for (const range of this.coverage.ranges) {
+      for (const range of staged.coverage.ranges) {
         const held =
           range.row_ids.some((id) => `${range.table}:${id}` === removed) ||
           (range.halo !== null &&
             `${range.halo.table}:${range.halo.id}` === removed);
         if (held) {
-          this.rangeDeletions.set(
+          staged.rangeDeletions.set(
             range.site,
-            (this.rangeDeletions.get(range.site) ?? 0) + 1,
+            (staged.rangeDeletions.get(range.site) ?? 0) + 1,
           );
         }
       }
     }
+    this.tables = staged.tables;
+    this.coverage = staged.coverage;
+    this.rangeDeletions = staged.rangeDeletions;
     return { state: "predicted", partialSites: [], execution };
   }
 
   reexecute(program: any, context: Context): LocalExecution {
-    const execution = new Runner(this, this.schema, context).execute(program);
-    const partial = new Set<string>();
+    validateInputs(program, context.args);
+    const runner = new Runner(this, this.schema, context);
+    const execution = runner.execute(program);
+    const partial = new Set(runner.coverageMisses());
     for (const range of execution.trace.ranges) {
       const covered = this.coverage.ranges.some(
         (coverage) =>
@@ -275,13 +292,15 @@ export class ClientStore {
   }
 
   put(table: string, row: Value): void {
-    const id = asString(field(row, "id"));
+    const normalized = materializeOptionalFields(this.schema, table, row);
+    validateWriteRow(this.schema, table, normalized);
+    const id = asString(field(normalized, "id"));
     let rows = this.tables.get(table);
     if (rows === undefined) {
       rows = new Map();
       this.tables.set(table, rows);
     }
-    rows.set(id, normalizeRow(row));
+    rows.set(id, normalized);
   }
 
   remove(table: string, id: string): Value | null {
@@ -306,8 +325,28 @@ export class ClientStore {
     return verdict?.result ?? null;
   }
 
+  hasAbsence(table: string, index: string, key: Value[]): boolean {
+    return this.coverage.absences.some(
+      ([heldTable, heldIndex, heldKey]) =>
+        heldTable === table && heldIndex === index && valuesEqual(heldKey, key),
+    );
+  }
+
   private seedReceipt(receipt: ClosureReceipt): void {
-    for (const row of receipt.rows) this.put(row.table, clone(row.row));
+    for (const row of receipt.rows) this.put(row.table, row.row);
+  }
+
+  private fork(): ClientStore {
+    const fork = new ClientStore(this.schema, { rows: [], ranges: [], absences: [], verdicts: [] });
+    fork.tables = new Map(
+      Array.from(this.tables, ([table, rows]) => [
+        table,
+        new Map(Array.from(rows, ([id, row]) => [id, clone(row)])),
+      ]),
+    );
+    fork.coverage = clone(this.coverage);
+    fork.rangeDeletions = new Map(this.rangeDeletions);
+    return fork;
   }
 
   private allIds(): Set<string> {
@@ -331,6 +370,7 @@ class Runner {
   private readonly context: Context;
   private readonly trace: Trace = { ranges: [], absences: [] };
   private readonly ruleMemo = new Map<string, boolean>();
+  private readonly partial = new Set<string>();
 
   constructor(
     private readonly store: ClientStore,
@@ -346,9 +386,13 @@ class Runner {
   execute(program: any): Execution {
     const flow = this.statements(program.body);
     return {
-      result: flow.kind === "return" ? flow.value : "Null",
+      result: this.partial.size === 0 && flow.kind === "return" ? flow.value : "Null",
       trace: this.trace,
     };
+  }
+
+  coverageMisses(): string[] {
+    return Array.from(this.partial).sort(compareCodepoints);
   }
 
   private statements(statements: any[]): Flow {
@@ -615,7 +659,7 @@ class Runner {
         if (isVariant(left, "String") || isVariant(right, "String"))
           return { String: valueText(left) + valueText(right) };
         if (isVariant(left, "Id") && isVariant(right, "Id"))
-          return { Id: `${left.Id}:${right.Id}` };
+          return { Id: canonicalValues([left, right]) };
         if (isVariant(left, "Array") && isVariant(right, "Array"))
           return { Array: left.Array.concat(right.Array) };
         throw new EvalError("E_TYPE", "concat operands differ");
@@ -647,6 +691,9 @@ class Runner {
       }
       case "Sort": {
         const values = asArray(args[0]).slice();
+        for (const value of values) {
+          for (const key of data.keys) field(value, key.field);
+        }
         return {
           Array: stableSort(values, (left, right) => {
             for (const key of data.keys) {
@@ -661,7 +708,7 @@ class Runner {
       case "MentionTokens": {
         const seen = new Set<string>();
         const mentions: Value[] = [];
-        for (const token of asString(args[0]).split(/\s+/)) {
+        for (const token of splitMentionTokens(asString(args[0]))) {
           if (!token.startsWith("@")) continue;
           const characters = Array.from(token.slice(1));
           while (characters.length > 0 && !isWordCharacter(characters[0])) characters.shift();
@@ -682,6 +729,8 @@ class Runner {
         const amount = asInt(args[0]);
         const recipients = stableSort(asArray(args[1]).slice(), totalCompare);
         if (recipients.length === 0) throw new EvalError("E_DIV_ZERO", "no recipients");
+        if (new Set(recipients.map(canonicalValue)).size !== recipients.length)
+          throw new EvalError("E_INPUT", "share recipients must be unique");
         const recipient = args[2];
         const position = recipients.findIndex(
           (candidate) => canonicalValue(candidate) === canonicalValue(recipient),
@@ -757,6 +806,7 @@ class Runner {
   }
 
   private insert(table: string, row: Value): void {
+    row = materializeOptionalFields(this.schema, table, row);
     validateWriteRow(this.schema, table, row);
     if (!this.checkRule(table, "insert", row)) throw new EvalError("E_RULE", `${table} insert`);
     this.checkConstraints(table, null, row, "insert");
@@ -776,6 +826,7 @@ class Runner {
   private replace(table: string, key: Value, row: Value): void {
     const old = this.store.byId(table, asString(key));
     if (old === null) throw new EvalError("E_INPUT", `missing ${table} row`);
+    row = materializeOptionalFields(this.schema, table, row);
     validateWriteRow(this.schema, table, row);
     if (!this.checkRule(table, "update", old) || !this.checkRule(table, "update", row))
       throw new EvalError("E_RULE", `${table} update`);
@@ -802,12 +853,21 @@ class Runner {
   }
 
   private applyAggregate(maintain: any, source: Value, direction: number): void {
+    // @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — maintained targets are engine-owned but still validated.
+    source = materializeOptionalFields(this.schema, maintain.source, source);
     const group = maintain.by.map((name: string) => clone(field(source, name)));
     const idValue = canonicalValues(group);
     const [kind, data] = variant(maintain.kind);
     const delta =
       kind === "Count" ? direction : safeNumber(direction * asInt(field(source, data.of)));
     const existing = this.store.byId(maintain.target, idValue);
+    if (
+      existing === null &&
+      !this.store.hasAbsence(maintain.target, "byId", [{ Id: idValue }])
+    ) {
+      this.partial.add(`${maintain.target}.byId`);
+      return;
+    }
     const oldValue = existing === null ? 0 : asInt(field(existing, "value"));
     const object: Record<string, Value> = Object.assign(Object.create(null), {
       id: { Id: idValue },
@@ -816,10 +876,9 @@ class Runner {
     maintain.by.forEach((name: string, index: number) => {
       object[name] = group[index];
     });
-    const row = rowValue(object);
+    const row = materializeOptionalFields(this.schema, maintain.target, rowValue(object));
     const effect = existing === null ? "insert" : "update";
-    if (!this.checkRule(maintain.target, effect, row))
-      throw new EvalError("E_RULE", `${maintain.target} aggregate`);
+    validateWriteRow(this.schema, maintain.target, row);
     this.checkConstraints(maintain.target, existing, row, effect);
     this.store.put(maintain.target, row);
   }
@@ -901,6 +960,7 @@ class Runner {
       case "Not":
         return !this.evaluateRule(data, ruleHash, row);
       case "Exists": {
+        // @ref LLP 1002#9-the-client-snapback2client-snapback2react-snapback2test — absence and authorization are authority-only.
         const key = data.key.map((term: any) => this.ruleTerm(term, row));
         const pinnedDigest = sha256(JSON.stringify([data.table, data.index, key]));
         const memoKey = `${ruleHash}:${pinnedDigest}`;
@@ -914,7 +974,13 @@ class Runner {
           this.ruleMemo.set(memoKey, verdict);
           return verdict;
         }
-        const result = this.store.lookup(data.table, data.index, key) !== null;
+        const found = this.store.lookup(data.table, data.index, key);
+        if (found === null && !this.store.hasAbsence(data.table, data.index, key)) {
+          this.partial.add(`${data.table}.${data.index}`);
+          this.ruleMemo.set(memoKey, false);
+          return false;
+        }
+        const result = found !== null;
         this.ruleMemo.set(memoKey, result);
         return result;
       }
@@ -945,6 +1011,12 @@ export function evaluateCase(testCase: CorpusCase): ActualResult {
       `value model version ${String(testCase.certificate?.value_model_version)} != current ${CURRENT_VALUE_MODEL_VERSION}`,
     );
   }
+  if (testCase.certificate?.plan_hash !== sha256(JSON.stringify(testCase.program))) {
+    throw new EvalError("E_TRACE_SUBSET", "plan hash mismatch");
+  }
+  if (testCase.certificate?.schema_hash !== sha256(JSON.stringify(testCase.schema))) {
+    throw new EvalError("E_TRACE_SUBSET", "schema hash mismatch");
+  }
   const store = new ClientStore(testCase.schema, testCase.receipt);
   for (const step of testCase.prelude) {
     const prelude = store.applyMutation(step.program, step.context);
@@ -970,11 +1042,32 @@ export function evaluateCase(testCase: CorpusCase): ActualResult {
       evictedRows,
     };
   } catch (error) {
-    const code = error instanceof EvalError ? error.code.split(":")[0] : "E_UNKNOWN";
+    const internalCode = error instanceof EvalError ? error.code : "E_UNKNOWN";
+    const [code, authoredCode] = internalCode.split(":", 2);
+    const typedState =
+      code === "E_REQUIRE"
+        ? testCase.program.kind === "Mutation"
+          ? "rejected"
+          : "denied"
+        : "refused";
+    const publicCode = authoredCode ?? code;
+    if (typedState !== "refused") {
+      const canonicalResult = canonicalValue("Null");
+      return {
+        localResult: "Null",
+        errorCode: publicCode,
+        localState: typedState,
+        partialSites: [],
+        canonicalResult,
+        digest: sha256(canonicalResult),
+        rangeStops: {},
+        evictedRows,
+      };
+    }
     const canonicalResult = JSON.stringify({ Error: code });
     return {
       localResult: null,
-      errorCode: code,
+      errorCode: publicCode,
       localState: "refused",
       partialSites: [],
       canonicalResult,
@@ -987,15 +1080,13 @@ export function evaluateCase(testCase: CorpusCase): ActualResult {
 
 export function hydrateCase(testCase: CorpusCase): HydrationResult {
   const actual = evaluateCase(testCase);
-  const mismatch =
-    actual.canonicalResult !== testCase.expected.canonicalResult ||
-    actual.digest !== testCase.expected.digest;
-  if (mismatch) {
+  const differences = compareExpected(actual, testCase.expected);
+  if (differences.length > 0) {
     return {
       planState: "replay-mismatch",
       servedResult: clone(testCase.expected.localResult),
       actual,
-      diagnostic: `hydration replay mismatch for ${testCase.name}: expected ${testCase.expected.digest}, got ${actual.digest}`,
+      diagnostic: `hydration replay mismatch for ${testCase.name}: ${differences.join("; ")}`,
     };
   }
   return {
@@ -1057,9 +1148,17 @@ function rangeStops(ranges: TraceRange[]): Record<string, string[]> {
   return sortObject(result);
 }
 
-function normalizeRow(value: Value): Value {
+function materializeOptionalFields(schema: any, tableName: string, value: Value): Value {
   if (!isVariant(value, "Row")) return clone(value);
-  return rowValue(value.Row);
+  const entries = { ...value.Row };
+  for (const [name, descriptor] of Object.entries<any>(
+    schema.tables?.[tableName]?.columns ?? {},
+  )) {
+    if (descriptor?.Optional !== undefined && !hasOwn(entries, name)) {
+      entries[name] = "Null";
+    }
+  }
+  return rowValue(entries);
 }
 
 function rowValue(entries: Record<string, Value>): Value {
@@ -1070,13 +1169,13 @@ function rowValue(entries: Record<string, Value>): Value {
 
 function field(value: Value, name: string): Value {
   const object = asObject(value);
-  if (!Object.hasOwn(object, name)) throw new EvalError("E_FIELD", `missing field ${name}`);
+  if (!hasOwn(object, name)) throw new EvalError("E_FIELD", `missing field ${name}`);
   return object[name];
 }
 
 function fieldOrNull(value: Value, name: string): Value {
   const object = asObject(value);
-  return Object.hasOwn(object, name) ? object[name] : "Null";
+  return hasOwn(object, name) ? object[name] : "Null";
 }
 
 function asObject(value: Value): Record<string, Value> {
@@ -1219,30 +1318,122 @@ function validateWriteRow(schema: any, tableName: string, row: Value): void {
   const columns = schema.tables?.[tableName]?.columns;
   if (columns === undefined) throw new EvalError("E_SCHEMA", `missing table ${tableName}`);
   const object = asObject(row);
+  if (!hasOwn(object, "id")) throw new EvalError("E_SCHEMA", `${tableName} row lacks id`);
+  const unknown = Object.keys(object).find((name) => !hasOwn(columns, name));
+  if (unknown !== undefined)
+    throw new EvalError("E_INPUT", `${tableName} row contains undeclared field ${unknown}`);
   for (const [name, descriptor] of Object.entries<any>(columns)) {
-    if (Object.hasOwn(object, name)) validateColumnValue(descriptor, object[name], `${tableName}.${name}`);
+    const value = hasOwn(object, name) ? object[name] : undefined;
+    if (value === undefined && descriptor?.Optional === undefined)
+      throw new EvalError("E_INPUT", `${tableName}.${name} is required`);
+    if (value !== undefined) validateTypedValue(descriptor, value, `${tableName}.${name}`, false);
   }
 }
 
-function validateColumnValue(descriptor: any, value: Value, label: string): void {
-  if (descriptor?.Bytes) {
+function validateInputs(program: any, inputs: Record<string, Value>): void {
+  for (const [name, descriptor] of Object.entries<any>(program.args ?? {})) {
+    const value = inputs[name];
+    if (value === undefined) throw new EvalError("E_INPUT", `missing arg ${name}`);
+    validateTypedValue(descriptor, value, `arg ${name}`, true);
+  }
+}
+
+function validateTypedValue(
+  descriptor: any,
+  value: Value,
+  label: string,
+  fanoutForLongList: boolean,
+): void {
+  assertValue(value, label);
+  if (valueContainsReservedPrincipal(value))
+    throw new EvalError("E_INPUT", `${label} cannot carry the reserved system principal`);
+  if (descriptor?.Optional !== undefined) {
+    if (value !== "Null") validateTypedValue(descriptor.Optional, value, label, fanoutForLongList);
+    return;
+  }
+  if (descriptor?.List !== undefined) {
+    if (!isVariant(value, "Array")) throw new EvalError("E_INPUT", `${label} must be a list`);
+    if (value.Array.length > descriptor.List.max)
+      throw new EvalError(fanoutForLongList ? "E_FANOUT" : "E_INPUT", `${label} exceeds list max ${descriptor.List.max}`);
+    if (descriptor.List.of !== null && descriptor.List.of !== undefined) {
+      for (const item of value.Array)
+        validateTypedValue(descriptor.List.of, item, label, fanoutForLongList);
+    }
+    return;
+  }
+  if (descriptor === "Scalar") return;
+  if (descriptor === "Id" || descriptor?.Ref !== undefined) {
+    if (!isVariant(value, "Id")) throw new EvalError("E_INPUT", `${label} must be an id`);
+    return;
+  }
+  if (descriptor?.Text !== undefined) {
+    if (!isVariant(value, "String")) throw new EvalError("E_INPUT", `${label} must be text`);
+    if (Array.from(value.String).length > descriptor.Text.max)
+      throw new EvalError("E_INPUT", `${label} exceeds text max ${descriptor.Text.max}`);
+    return;
+  }
+  if (descriptor?.Bytes !== undefined) {
     if (!isVariant(value, "Bytes") || !canonicalBytes(value.Bytes))
       throw new EvalError("E_INPUT", `${label} must be bytes`);
     if (value.Bytes.length / 2 > descriptor.Bytes.max)
       throw new EvalError("E_INPUT", `${label} exceeds bytes max ${descriptor.Bytes.max}`);
     return;
   }
-  if (descriptor?.Optional !== undefined) {
-    if (value !== "Null") validateColumnValue(descriptor.Optional, value, label);
+  if (["Int", "Time"].includes(descriptor) || descriptor?.Decimal !== undefined || descriptor?.Money !== undefined) {
+    if (!isVariant(value, "Int") || !Number.isSafeInteger(value.Int))
+      throw new EvalError("E_INPUT", `${label} must be an i53 integer`);
     return;
   }
-  if (descriptor?.List && isVariant(value, "Array")) {
-    for (const item of value.Array) validateColumnValue(descriptor.List.of, item, label);
+  if (descriptor === "Bool") {
+    if (!isVariant(value, "Bool")) throw new EvalError("E_INPUT", `${label} must be a boolean`);
+    return;
   }
+  if (descriptor?.Json !== undefined) {
+    if (utf8Length(canonicalValue(value)) > descriptor.Json.max_bytes)
+      throw new EvalError("E_INPUT", `${label} exceeds JSON max ${descriptor.Json.max_bytes} bytes`);
+    return;
+  }
+  if (descriptor?.Enum !== undefined) {
+    if (!isVariant(value, "String") || !descriptor.Enum.variants.includes(value.String))
+      throw new EvalError("E_INPUT", `${label} is not a declared enum value`);
+    return;
+  }
+  throw new EvalError("E_SCHEMA", `unsupported type for ${label}`);
+}
+
+function assertValue(value: Value, label: string): void {
+  if (value === "Null") return;
+  const kind = kindOf(value);
+  const data = (value as any)[kind];
+  if (kind === "Bool" && typeof data === "boolean") return;
+  if (kind === "Int" && Number.isSafeInteger(data)) return;
+  if ((kind === "String" || kind === "Id") && typeof data === "string") return;
+  if (kind === "Bytes" && canonicalBytes(data)) return;
+  if (kind === "Array" && Array.isArray(data)) {
+    for (const item of data) assertValue(item, label);
+    return;
+  }
+  if ((kind === "Row" || kind === "Map") && data !== null && typeof data === "object" && !Array.isArray(data)) {
+    for (const item of Object.values(data)) assertValue(item as Value, label);
+    return;
+  }
+  throw new EvalError("E_INPUT", `${label} is not a valid value`);
+}
+
+function valueContainsReservedPrincipal(value: Value): boolean {
+  if (isVariant(value, "Id")) return value.Id === coreIrContract.systemPrincipalId;
+  if (isVariant(value, "Array")) return value.Array.some(valueContainsReservedPrincipal);
+  if (isVariant(value, "Row")) return Object.values(value.Row).some(valueContainsReservedPrincipal);
+  if (isVariant(value, "Map")) return Object.values(value.Map).some(valueContainsReservedPrincipal);
+  return false;
 }
 
 function canonicalBytes(value: unknown): value is string {
   return typeof value === "string" && /^(?:[0-9a-f]{2})*$/.test(value);
+}
+
+function hasOwn(value: object, key: PropertyKey): boolean {
+  return Object.prototype.hasOwnProperty.call(value, key);
 }
 
 function clone<T>(value: T): T {
@@ -1279,101 +1470,3 @@ function valueText(value: Value): string {
 function isWordCharacter(character: string): boolean {
   return character === "_" || /[\p{L}\p{N}]/u.test(character);
 }
-
-export function sha256(text: string): string {
-  const bytes = utf8(text);
-  const bitLength = bytes.length * 8;
-  bytes.push(0x80);
-  while (bytes.length % 64 !== 56) bytes.push(0);
-  const high = Math.floor(bitLength / 0x1_0000_0000);
-  const low = bitLength >>> 0;
-  for (let shift = 24; shift >= 0; shift -= 8) bytes.push((high >>> shift) & 0xff);
-  for (let shift = 24; shift >= 0; shift -= 8) bytes.push((low >>> shift) & 0xff);
-
-  const state = [
-    0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c,
-    0x1f83d9ab, 0x5be0cd19,
-  ];
-  const words = new Array<number>(64);
-  for (let offset = 0; offset < bytes.length; offset += 64) {
-    for (let index = 0; index < 16; index += 1) {
-      const start = offset + index * 4;
-      words[index] =
-        ((bytes[start] << 24) |
-          (bytes[start + 1] << 16) |
-          (bytes[start + 2] << 8) |
-          bytes[start + 3]) >>>
-        0;
-    }
-    for (let index = 16; index < 64; index += 1) {
-      const a = words[index - 15];
-      const b = words[index - 2];
-      const s0 = rotate(a, 7) ^ rotate(a, 18) ^ (a >>> 3);
-      const s1 = rotate(b, 17) ^ rotate(b, 19) ^ (b >>> 10);
-      words[index] = (words[index - 16] + s0 + words[index - 7] + s1) >>> 0;
-    }
-    let [a, b, c, d, e, f, g, h] = state;
-    for (let index = 0; index < 64; index += 1) {
-      const s1 = rotate(e, 6) ^ rotate(e, 11) ^ rotate(e, 25);
-      const choice = (e & f) ^ (~e & g);
-      const temp1 = (h + s1 + choice + SHA256_K[index] + words[index]) >>> 0;
-      const s0 = rotate(a, 2) ^ rotate(a, 13) ^ rotate(a, 22);
-      const majority = (a & b) ^ (a & c) ^ (b & c);
-      const temp2 = (s0 + majority) >>> 0;
-      h = g;
-      g = f;
-      f = e;
-      e = (d + temp1) >>> 0;
-      d = c;
-      c = b;
-      b = a;
-      a = (temp1 + temp2) >>> 0;
-    }
-    state[0] = (state[0] + a) >>> 0;
-    state[1] = (state[1] + b) >>> 0;
-    state[2] = (state[2] + c) >>> 0;
-    state[3] = (state[3] + d) >>> 0;
-    state[4] = (state[4] + e) >>> 0;
-    state[5] = (state[5] + f) >>> 0;
-    state[6] = (state[6] + g) >>> 0;
-    state[7] = (state[7] + h) >>> 0;
-  }
-  return state.map((value) => value.toString(16).padStart(8, "0")).join("");
-}
-
-function rotate(value: number, bits: number): number {
-  return (value >>> bits) | (value << (32 - bits));
-}
-
-function utf8(text: string): number[] {
-  const bytes: number[] = [];
-  for (const character of text) {
-    const point = character.codePointAt(0)!;
-    if (point <= 0x7f) bytes.push(point);
-    else if (point <= 0x7ff) bytes.push(0xc0 | (point >> 6), 0x80 | (point & 0x3f));
-    else if (point <= 0xffff)
-      bytes.push(0xe0 | (point >> 12), 0x80 | ((point >> 6) & 0x3f), 0x80 | (point & 0x3f));
-    else
-      bytes.push(
-        0xf0 | (point >> 18),
-        0x80 | ((point >> 12) & 0x3f),
-        0x80 | ((point >> 6) & 0x3f),
-        0x80 | (point & 0x3f),
-      );
-  }
-  return bytes;
-}
-
-const SHA256_K = [
-  0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1,
-  0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
-  0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786,
-  0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
-  0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147,
-  0x06ca6351, 0x14292967, 0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13,
-  0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85, 0xa2bfe8a1, 0xa81a664b,
-  0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
-  0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a,
-  0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
-  0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
-];

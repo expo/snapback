@@ -1,6 +1,7 @@
 # snapback2: evaluator initializes an unheld maintained aggregate from zero
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Required a held maintained target or authoritative byId absence and return partial from staged prediction otherwise; added an unheld-target regression.
 **Systems:** snapback2, evaluator, maintained aggregates
 **Severity:** P1
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

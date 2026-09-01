@@ -468,7 +468,10 @@ impl<'a> Runner<'a> {
                     (left @ Value::String(_), right) | (left, right @ Value::String(_)) => Ok(
                         Value::String(format!("{}{}", concat_text(&left), concat_text(&right))),
                     ),
-                    (Value::Id(left), Value::Id(right)) => Ok(Value::Id(format!("{left}:{right}"))),
+                    (Value::Id(left), Value::Id(right)) => Ok(Value::Id(canonical_json(&[
+                        Value::Id(left),
+                        Value::Id(right),
+                    ]))),
                     (Value::Array(mut left), Value::Array(right)) => {
                         left.extend(right);
                         Ok(Value::Array(left))
@@ -504,13 +507,20 @@ impl<'a> Runner<'a> {
             }
             Builtin::Sort { keys } => {
                 let mut values = args.remove(0).as_array()?.to_vec();
+                for value in &values {
+                    for key in keys {
+                        value.field(&key.field)?;
+                    }
+                }
                 values.sort_by(|left, right| {
                     keys.iter()
                         .find_map(|key| {
                             let mut order = left
                                 .field(&key.field)
-                                .ok()?
-                                .total_cmp(right.field(&key.field).ok()?);
+                                .expect("sort keys were validated")
+                                .total_cmp(
+                                    right.field(&key.field).expect("sort keys were validated"),
+                                );
                             if key.order == Order::Desc {
                                 order = order.reverse();
                             }
@@ -524,7 +534,7 @@ impl<'a> Runner<'a> {
                 let text = args.remove(0).as_str()?.to_owned();
                 let mut seen = BTreeSet::new();
                 Ok(Value::Array(
-                    text.split_whitespace()
+                    text.split(is_mention_whitespace)
                         .filter_map(|word| word.strip_prefix('@'))
                         .map(|word| word.trim_matches(|c: char| !c.is_alphanumeric() && c != '_'))
                         .filter(|word| !word.is_empty())
@@ -540,6 +550,11 @@ impl<'a> Runner<'a> {
                 recipients.sort_by(Value::total_cmp);
                 if recipients.is_empty() {
                     return Err(ValueError::DivideByZero.into());
+                }
+                if recipients.windows(2).any(|pair| pair[0] == pair[1]) {
+                    return Err(RuntimeError::Input(
+                        "share recipients must be unique".to_owned(),
+                    ));
                 }
                 let position = recipients
                     .iter()
@@ -900,6 +915,23 @@ impl<'a> Runner<'a> {
                 .transpose()?,
         })
     }
+}
+
+fn is_mention_whitespace(character: char) -> bool {
+    matches!(
+        character,
+        '\u{0009}'..='\u{000d}'
+            | '\u{0020}'
+            | '\u{0085}'
+            | '\u{00a0}'
+            | '\u{1680}'
+            | '\u{2000}'..='\u{200a}'
+            | '\u{2028}'
+            | '\u{2029}'
+            | '\u{202f}'
+            | '\u{205f}'
+            | '\u{3000}'
+    )
 }
 
 fn concat_text(value: &Value) -> String {

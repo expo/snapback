@@ -201,7 +201,8 @@ export function registerVerifiedRegressionTests(
     });
 
     const receiptRow = JSON.parse('{"Row":{"id":{"Id":"one"},"__proto__":{"String":"held"},"constructor":{"String":"held"},"prototype":{"String":"held"}}}') as Value;
-    const store = new ClientStore({ tables: { rows: evaluatorTable() } }, {
+    const prototypeColumns = JSON.parse('{"__proto__":{"Text":{"max":20}},"constructor":{"Text":{"max":20}},"prototype":{"Text":{"max":20}}}');
+    const store = new ClientStore({ tables: { rows: evaluatorTable(prototypeColumns) } }, {
       ...emptyReceipt,
       rows: [{ table: "rows", id: "one", row: receiptRow }],
     });

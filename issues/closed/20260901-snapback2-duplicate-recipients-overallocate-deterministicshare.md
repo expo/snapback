@@ -1,6 +1,7 @@
 # snapback2: duplicate recipients overallocate DeterministicShare
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Rejected duplicate DeterministicShare recipients in both engine/runner.rs and evaluator.ts; added atomic rollback and amount-conservation regressions.
 **Systems:** snapback2, core engine, evaluator, builtins
 **Severity:** P1
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

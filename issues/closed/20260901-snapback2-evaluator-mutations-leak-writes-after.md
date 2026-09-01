@@ -1,6 +1,7 @@
 # snapback2: evaluator mutations leak writes after a rejected execution
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Ran evaluator mutations against a forked ClientStore and adopted state only after success; added a write-before-rejection rollback regression.
 **Systems:** snapback2, evaluator, client prediction
 **Severity:** P1
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

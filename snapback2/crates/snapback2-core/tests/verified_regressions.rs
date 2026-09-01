@@ -1,5 +1,5 @@
 use snapback2_core::*;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, VecDeque};
 use std::sync::mpsc;
 use std::time::Duration;
 
@@ -654,4 +654,136 @@ fn nested_out_of_i53_literals_are_refused_by_certification() {
         .unwrap_err();
     assert_eq!(error.code, "E_OPAQUE");
     assert!(error.message.contains("i53"));
+}
+
+fn execute_pure(expression: Expr) -> Result<Execution, RuntimeError> {
+    let schema = Schema::default();
+    let program = Program {
+        name: "regression.pure".to_owned(),
+        kind: ProgramKind::Query,
+        args: BTreeMap::new(),
+        read_time_granularity_ms: None,
+        body: vec![Stmt::Return(expression)],
+    };
+    let certificate = Checker::new(&schema, Ceilings::default())
+        .check(&program)
+        .unwrap();
+    Engine::memory(schema)?.execute(
+        &program,
+        &certificate,
+        Context::query(Actor::user("u1").unwrap(), BTreeMap::new()),
+    )
+}
+
+#[test]
+fn duplicate_deterministic_share_rejects_atomically_and_unique_shares_conserve_amount() {
+    let schema = spike_schema();
+    let program = add_expense_program();
+    let certificate = Checker::new(&schema, Ceilings::default())
+        .check(&program)
+        .unwrap();
+    let mut engine = Engine::memory(schema).unwrap();
+    let mut duplicate = user_mutation(BTreeMap::from([
+        ("groupId".to_owned(), id("g1")),
+        ("amount".to_owned(), Value::Int(1)),
+        (
+            "recipients".to_owned(),
+            Value::Array(vec![id("u1"), id("u1")]),
+        ),
+    ]));
+    duplicate.new_ids = VecDeque::from([
+        "expense-duplicate".to_owned(),
+        "share-duplicate-1".to_owned(),
+        "share-duplicate-2".to_owned(),
+    ]);
+    assert!(matches!(
+        engine.execute(&program, &certificate, duplicate),
+        Err(RuntimeError::Input(message)) if message.contains("unique")
+    ));
+    assert!(engine.rows("expenses").unwrap().is_empty());
+    assert!(engine.rows("shares").unwrap().is_empty());
+
+    let mut unique = user_mutation(BTreeMap::from([
+        ("groupId".to_owned(), id("g1")),
+        ("amount".to_owned(), Value::Int(1)),
+        (
+            "recipients".to_owned(),
+            Value::Array(vec![id("u1"), id("u2")]),
+        ),
+    ]));
+    unique.new_ids = VecDeque::from([
+        "expense-unique".to_owned(),
+        "share-unique-1".to_owned(),
+        "share-unique-2".to_owned(),
+    ]);
+    engine
+        .execute(&program, &certificate, unique)
+        .expect("unique recipients commit");
+    let allocated: i64 = engine
+        .rows("shares")
+        .unwrap()
+        .iter()
+        .map(|row| row.field("amount").unwrap().as_int().unwrap())
+        .sum();
+    assert_eq!(allocated, 1);
+}
+
+#[test]
+fn id_concat_uses_an_injective_tuple_encoding() {
+    let execution = execute_pure(Expr::Array(vec![
+        Expr::Builtin {
+            builtin: Builtin::Concat,
+            args: vec![Expr::Literal(id("a:b")), Expr::Literal(id("c"))],
+        },
+        Expr::Builtin {
+            builtin: Builtin::Concat,
+            args: vec![Expr::Literal(id("a")), Expr::Literal(id("b:c"))],
+        },
+    ]))
+    .unwrap();
+    let values = execution.result.as_array().unwrap();
+    assert_ne!(values[0], values[1]);
+    assert_eq!(values[0], id("[{\"Id\":\"a:b\"},{\"Id\":\"c\"}]"));
+    assert_eq!(values[1], id("[{\"Id\":\"a\"},{\"Id\":\"b:c\"}]"));
+}
+
+#[test]
+fn mention_tokens_uses_the_explicit_unicode_whitespace_set() {
+    let execution = execute_pure(Expr::Builtin {
+        builtin: Builtin::MentionTokens,
+        args: vec![Expr::Literal(Value::String(
+            "@a\u{0085}@b\u{00a0}@c\u{2028}@d\u{2029}@e\t@f".to_owned(),
+        ))],
+    })
+    .unwrap();
+    assert_eq!(
+        execution.result,
+        Value::Array(
+            ["a", "b", "c", "d", "e", "f"]
+                .into_iter()
+                .map(|value| Value::String(value.to_owned()))
+                .collect()
+        )
+    );
+}
+
+#[test]
+fn sort_refuses_a_missing_key_instead_of_treating_the_comparison_as_equal() {
+    let error = execute_pure(Expr::Builtin {
+        builtin: Builtin::Sort {
+            keys: vec![SortKey {
+                field: "key".to_owned(),
+                order: Order::Asc,
+            }],
+        },
+        args: vec![Expr::Literal(Value::Array(vec![
+            object([("other", Value::Int(1))]),
+            object([("key", Value::Int(0))]),
+        ]))],
+    })
+    .unwrap_err();
+    assert!(matches!(
+        error,
+        RuntimeError::Value(ValueError::MissingField(field)) if field == "key"
+    ));
 }

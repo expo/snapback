@@ -1,6 +1,7 @@
 # snapback2: evaluator manufactures authorization absence for rule Exists
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Made rule Exists require a held row, authority absence, or scoped verdict and suppress partial results; added missing/proved absence regressions.
 **Systems:** snapback2, evaluator, authorization
 **Severity:** P1
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

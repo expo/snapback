@@ -1,6 +1,7 @@
 # snapback2: evaluator accepts inputs and rows that violate declared types and bounds
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Added full evaluator argument and row type/bound/reserved-value validation in evaluator.ts with table-driven regressions in evaluator test.ts.
 **Systems:** snapback2, evaluator, validation
 **Severity:** P1
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

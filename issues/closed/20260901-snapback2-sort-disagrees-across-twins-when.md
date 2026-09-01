@@ -1,6 +1,7 @@
 # snapback2: Sort disagrees across twins when an input row lacks the key
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Prevalidated every Rust Sort key so missing fields return E_FIELD like the evaluator; added matching twin regressions.
 **Systems:** snapback2, evaluator, core engine, corpus
 **Severity:** P2
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

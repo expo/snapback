@@ -1,6 +1,7 @@
 # snapback2: Id concatenation has delimiter collisions
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Replaced colon-joined Id concat with canonical Value-tuple encoding in Rust and TypeScript; added collision-pair regressions in both twins.
 **Systems:** snapback2, core engine, evaluator, identifiers
 **Severity:** P1
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

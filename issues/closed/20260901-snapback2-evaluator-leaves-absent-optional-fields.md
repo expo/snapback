@@ -1,6 +1,7 @@
 # snapback2: evaluator leaves absent optional fields missing instead of Null
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Materialized absent Optional columns at ClientStore hydration/write boundaries in evaluator.ts; added hydration, insert, and point-read regressions.
 **Systems:** snapback2, evaluator, value model
 **Severity:** P1
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

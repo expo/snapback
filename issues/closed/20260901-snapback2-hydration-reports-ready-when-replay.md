@@ -1,6 +1,7 @@
 # snapback2: hydration reports ready when replay coverage is partial
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Made hydration readiness compare the complete expected replay tuple via compareExpected; added a missing-range partial replay regression.
 **Systems:** snapback2, evaluator, hydration
 **Severity:** P3
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever
