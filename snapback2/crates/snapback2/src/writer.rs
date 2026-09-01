@@ -152,6 +152,7 @@ pub enum Action {
         table: String,
         index: String,
         prefix: Json,
+        after: Option<Json>,
         limit: u32,
         identity: Identity,
     },
@@ -465,9 +466,10 @@ impl State {
                 table,
                 index,
                 prefix,
+                after,
                 limit,
                 identity,
-            } => self.data(table, index, prefix, limit, identity),
+            } => self.data(table, index, prefix, after, limit, identity),
             Action::RuleVerdicts(table, identity) => self.rule_verdicts(table, identity),
             Action::Why { op, args, identity } => self.why(op, args, identity),
             Action::Trace { seq } => self.trace(seq),
@@ -1062,6 +1064,7 @@ impl State {
         table_name: String,
         index_name: String,
         prefix: Json,
+        after: Option<Json>,
         limit: u32,
         identity: Identity,
     ) -> Result<Json, Refusal> {
@@ -1129,6 +1132,22 @@ impl State {
                 .expect("certified index column");
             converted.push(json_as_kind(value, column)?);
         }
+        let after = match after {
+            Some(value) => {
+                let Some(column_name) = index.columns.get(prefix_values.len()) else {
+                    return Err(Refusal::input(
+                        "data after requires an index column after the prefix",
+                        "shorten the prefix or omit after",
+                    ));
+                };
+                let column = table
+                    .columns
+                    .get(column_name)
+                    .expect("certified index column");
+                Some(json_as_kind(&value, column)?)
+            }
+            None => None,
+        };
         let program = Program {
             name: format!("__owner.data.{table_name}"),
             kind: ProgramKind::Query,
@@ -1141,7 +1160,7 @@ impl State {
                 prefix: converted.into_iter().map(Expr::Literal).collect(),
                 order: Order::Asc,
                 take: Bound::Literal(limit),
-                after: None,
+                after: after.map(|value| Box::new(Expr::Literal(value))),
                 before: None,
                 range: None,
                 provenance: KeyProvenance::Const,

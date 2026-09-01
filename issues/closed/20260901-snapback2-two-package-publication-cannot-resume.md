@@ -1,6 +1,7 @@
 # snapback2: two-package publication cannot resume after partial success
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Staged integrity-bound tarballs and made scripts/publish.mjs converge each registry artifact independently from a durable resume record, covered by partial-publish self-test.
 **Systems:** snapback2, publish, npm
 **Severity:** P2
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

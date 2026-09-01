@@ -1,6 +1,7 @@
 # snapback2: package shim suppresses binary spawn errors and signals
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Reported spawn errors with the binary path and re-raised child signals in packages/snapback2/bin/snapback2.mjs, with EACCES and SIGTERM coverage.
 **Systems:** snapback2, npm shim, CLI
 **Severity:** P3
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

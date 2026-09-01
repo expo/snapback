@@ -1,6 +1,7 @@
 # snapback2: killed package builds leave a permanent lock wedge
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Added dead-PID atomic lock reclamation and token-owned release in packages/snapback2/build.mjs, covered by a killed-child rebuild regression.
 **Systems:** snapback2, package build, lifecycle
 **Severity:** P2
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

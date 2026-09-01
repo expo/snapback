@@ -1,6 +1,7 @@
 # snapback2: derived rule checks fail falsely above 500 visible rows
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Paginated /control/data by the byId cursor in crates/snapback2/src/test_policy.rs, with 500/501-row coverage in crates/snapback2/tests/test_verb.rs.
 **Systems:** snapback2, test runner, authorization
 **Severity:** P2
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

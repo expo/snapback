@@ -137,6 +137,39 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_both_journeys() {
 }
 
 #[test]
+fn derived_rules_read_every_visible_row_at_and_beyond_one_control_page() {
+    for count in [500, 501] {
+        let project = Project::new();
+        assert!(project.init("todos", "none").status.success());
+        let rows = (0..count)
+            .map(|index| {
+                format!(
+                    r#"{{ id: "todo-{index:03}", title: "row {index}", done: false, ownerId: "dev:alice" }}"#
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(",\n");
+        fs::write(
+            project.path.join("snapback/seed.ts"),
+            format!(
+                "import {{ seed }} from \"snapback2\";\nexport default seed({{ personas: [\"alice\"], rows: {{ todos: [{rows}] }} }});\n"
+            ),
+        )
+        .unwrap();
+
+        let output = project.run(&["test", "--derived-only", "--json"]);
+        let receipt = json_stdout(&output);
+        let rules = check(&receipt, "rules");
+        assert_eq!(rules["verdict"], "pass", "{count} rows: {rules}");
+        assert_eq!(
+            rules["detail"]["tables"]["todos"]["probes"],
+            serde_json::json!(count * 2),
+            "{count} rows: {rules}"
+        );
+    }
+}
+
+#[test]
 fn unmatched_bare_id_blocks_with_the_operation_and_argument_name() {
     let project = Project::new();
     assert!(project.init("todos", "none").status.success());
@@ -270,6 +303,36 @@ fn test_runs_check_to_restore_a_missing_built_journey_before_owner_start() {
             .join(".snapback/build/tests/todos.mjs")
             .is_file()
     );
+}
+
+#[test]
+fn synchronous_loop_times_out_and_a_leaked_handle_cannot_hold_the_runner() {
+    let project = Project::new();
+    assert!(project.init("todos", "none").status.success());
+    fs::write(
+        project.path.join("snapback/tests/todos.test.ts"),
+        r#"import { journey } from "snapback2/test";
+journey("synchronous loop", () => { while (true) {} });
+journey("leaked handle", () => { setInterval(() => {}, 1000); });
+"#,
+    )
+    .unwrap();
+
+    let started = std::time::Instant::now();
+    let output = project.run(&["test", "--journeys-only", "--json"]);
+    assert!(started.elapsed() < std::time::Duration::from_secs(12));
+    assert_eq!(output.status.code(), Some(1));
+    let receipt = json_stdout(&output);
+    let timed_out = check(&receipt, "synchronous loop");
+    assert_eq!(timed_out["verdict"], "fail", "{timed_out}");
+    assert!(
+        timed_out["detail"]["error"]
+            .as_str()
+            .is_some_and(|message| message.contains("5000 ms host deadline")),
+        "{timed_out}"
+    );
+    let leaked = check(&receipt, "leaked handle");
+    assert_eq!(leaked["verdict"], "pass", "{leaked}");
 }
 
 #[test]

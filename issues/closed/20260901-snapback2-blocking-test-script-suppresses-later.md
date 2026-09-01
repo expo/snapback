@@ -1,6 +1,7 @@
 # snapback2: blocking test script suppresses later compiler failures
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Split compiler typecheck and test legs into independent status-accumulating commands in snapback2/scripts/test.sh with a fake-bun self-test.
 **Systems:** snapback2, test script, rules
 **Severity:** P3
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

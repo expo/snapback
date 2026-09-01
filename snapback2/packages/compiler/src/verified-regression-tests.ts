@@ -10,6 +10,7 @@ import { compileJourneys, lowerProject, lowerSeed } from "./project";
 
 type Register = (name: string, run: () => void | Promise<void>) => void;
 
+const frontend = decodeURIComponent(new URL("../", import.meta.url).pathname);
 const emptyReceipt: ClosureReceipt = { rows: [], ranges: [], absences: [], verdicts: [] };
 
 function context(args: Record<string, Value> = {}, newIds: string[] = []): Context {
@@ -363,5 +364,96 @@ export function registerVerifiedRegressionTests(
         export const list = query({}, ({ db }) => db.scan(items.byId, [], { order: "${order}", take: 10 }));`, "scan-order-valid.ts", undefined, { tables });
       assert(valid.ok, `${order} scan order was refused`);
     }
+  });
+
+  test("seed validation checks personas, tables, rows, and every schema value shape", async () => {
+    const invalid = await lowerSeed(`${frontend}fixtures/seed-invalid`);
+    assert(!invalid.ok, "invalid seed unexpectedly lowered");
+    const codes = new Set(invalid.diagnostics.map((item) => item.code));
+    for (const code of ["E_SEED_PERSONA", "E_SEED_TABLE", "E_SEED_ROW", "E_SEED_VALUE"]) {
+      assert(codes.has(code as any), `seed validation omitted ${code}`);
+    }
+    const messages = invalid.diagnostics.map((item) => item.message).join("\n");
+    for (const text of ["one of", "integer minor units", "list max", "unknown column", "JSON numbers must be integers"]) {
+      assert(messages.includes(text), `seed value validation omitted ${text}`);
+    }
+    assert(invalid.diagnostics.every((item) => item.site.startsWith("snapback/seed.ts:")), "seed refusal site is not seed.ts");
+
+    await withProject({
+      "snapback/schema.ts": `import { schema, table, t } from "snapback2";
+        export const rows = table({ columns: { ownerId: t.ref(rows) } });
+        export default schema({ tables: { rows } });`,
+      "snapback/seed.ts": `import { seed } from "snapback2";
+        export default seed({ personas: ["system"], rows: { rows: [
+          { id: "system", ownerId: "row-1" },
+          { id: "row-1", ownerId: "system" },
+        ] } });`,
+    }, async (root) => {
+      const reserved = await lowerSeed(root);
+      assert(!reserved.ok, "seed minted or referenced the reserved system principal");
+      assert(
+        reserved.diagnostics.filter((item) => item.message.includes("reserved system principal")).length === 2,
+        "seed did not reject both reserved Id and Ref values",
+      );
+      assert(
+        !reserved.diagnostics.some((item) => item.code === "E_SEED_PERSONA"),
+        "the prefix-safe persona name system should remain valid",
+      );
+    });
+  });
+
+  test("seed Bytes values require one exact externally tagged key", async () => {
+    await withProject({
+      "snapback/schema.ts": `import { schema, table, t } from "snapback2";
+        export const blobs = table({ columns: { payload: t.bytes(4) } });
+        export default schema({ tables: { blobs } });`,
+      "snapback/seed.ts": `import { seed } from "snapback2";
+        export default seed({ personas: [], rows: { blobs: [
+          { id: "blob-1", payload: { Bytes: "00ff", extra: 1 } },
+        ] } });`,
+    }, async (root) => {
+      const invalid = await lowerSeed(root);
+      assert(!invalid.ok && invalid.diagnostics.some((item) => item.code === "E_SEED_VALUE" && item.message.includes("canonical lowercase base16")),
+        "seed check admitted a Bytes value with an extra externally tagged key");
+    });
+  });
+
+  test("seed object spreads preserve authored rows and text maxima count Unicode scalars", async () => {
+    await withProject({
+      "snapback/schema.ts": `import { schema, table, t } from "snapback2";
+        export const rows = table({ columns: { label: t.text(1) } });
+        export default schema({ tables: { rows } });`,
+      "snapback/ops.ts": `import { mutation, query, t } from "snapback2"; import { rows } from "./schema";
+        export const add = mutation({}, ({ db, ctx }) => db.insert(rows, { id: ctx.newId(), label: "😀" }));
+        export const fallback = query({ label: t.optional(t.text(1)) }, ({ args }) => args.label ?? "😀");`,
+      "snapback/seed.ts": `import { seed } from "snapback2";
+        const base = { id: "row-1", label: "old" };
+        export default seed({ personas: [], rows: { rows: [{ ...base, label: "😀" }] } });`,
+    }, async (root) => {
+      const project = await lowerProject(root);
+      assert(project.ok, `single-scalar text literal refused: ${project.ok ? "" : project.diagnostics.map((item) => item.message).join("; ")}`);
+      const seed = await lowerSeed(root);
+      assert(seed.ok && (seed.seed.rows.rows?.[0] as any).id === "row-1" && (seed.seed.rows.rows?.[0] as any).label === "😀",
+        "seed spread was dropped or a single Unicode scalar exceeded text(1)");
+    });
+
+    await withProject({
+      "snapback/schema.ts": `import { schema, table, t } from "snapback2";
+        export const rows = table({ columns: { label: t.text(1) } }); export default schema({ tables: { rows } });`,
+      "snapback/seed.ts": `import { seed } from "snapback2"; const make = () => ({ id: "row-1", label: "x" });
+        export default seed({ personas: [], rows: { rows: [{ ...make }] } });`,
+    }, async (root) => {
+      const seed = await lowerSeed(root);
+      const refusal = seed.ok ? undefined : seed.diagnostics.find((item) => item.code === "E_SEED_SHAPE");
+      assert(refusal?.message.includes("spread make"), "non-static seed spread was silently dropped or generically refused");
+    });
+
+    const tables = new Map<string, TableInfo>([["rows", { name: "rows", private: false, columns: { label: { kind: "string", max: 1 } } }]]);
+    const tooLong = lowerSource(`import { mutation, query, t } from "snapback2";
+      export const add = mutation({}, ({ db, ctx }) => db.insert(rows, { id: ctx.newId(), label: "😀😀" }));
+      export const fallback = query({ label: t.optional(t.text(1)) }, ({ args }) => args.label ?? "😀😀");`,
+    "text-codepoints.ts", undefined, { tables });
+    assert(!tooLong.ok && tooLong.diagnostics.filter((item) => item.code === "E_ARGS_TYPE").length === 2,
+      "text maxima did not reject over-limit literals and arg defaults by Unicode scalar count");
   });
 }

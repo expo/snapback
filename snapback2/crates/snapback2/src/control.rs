@@ -174,6 +174,7 @@ pub fn route(
                         .unwrap_or("byId")
                         .to_owned(),
                     prefix: body.get("prefix").cloned().unwrap_or_else(|| json!([])),
+                    after: body.get("after").filter(|value| !value.is_null()).cloned(),
                     limit: limit as u32,
                     identity: Identity::Persona(
                         body.get("as")

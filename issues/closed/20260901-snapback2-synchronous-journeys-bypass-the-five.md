@@ -1,6 +1,7 @@
 # snapback2: synchronous journeys bypass the five-second timeout
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Supervised each journey process group with a five-second host deadline and bounded output in crates/snapback2/src/test.rs, with synchronous-loop and leaked-handle coverage.
 **Systems:** snapback2, test runner, lifecycle
 **Severity:** P2
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

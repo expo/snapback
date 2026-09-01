@@ -1,6 +1,7 @@
 # snapback2: measure check omits the warm-build budget
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Scored warm_build_s against the Full build, warm cache rule in scripts/measure.mjs and added an over-budget successful-step self-test.
 **Systems:** snapback2, measurement, rules
 **Severity:** P3
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

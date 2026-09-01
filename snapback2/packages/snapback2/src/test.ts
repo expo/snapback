@@ -73,6 +73,37 @@ async function runEntry(): Promise<void> {
     process.exitCode = 1;
     return;
   }
+  if (process.argv.includes("--list")) {
+    for (const file of files) {
+      try {
+        const journeys = await loadJourneyFile(file);
+        process.stdout.write(`${JSON.stringify({ runner: "list", file, journeys: journeys.map((check) => check.name) })}\n`);
+      } catch (error) {
+        process.stdout.write(`${JSON.stringify({ name: file, kind: "journey", verdict: "fail", ms: 0, detail: String(error) })}\n`);
+        process.exitCode = 1;
+      }
+    }
+    return;
+  }
+  const selected = argument("--journey-index");
+  if (selected !== undefined) {
+    const index = Number(selected);
+    if (files.length !== 1 || !Number.isSafeInteger(index) || index < 0) {
+      process.stdout.write(`${JSON.stringify({ name: "journey runner", kind: "journey", verdict: "fail", ms: 0, detail: "--journey-index requires one file and a non-negative integer" })}\n`);
+      process.exitCode = 1;
+      return;
+    }
+    try {
+      const journeys = await loadJourneyFile(files[0]!);
+      const check = journeys[index];
+      if (!check) throw new Error(`journey index ${index} is out of range`);
+      if (!await runCheck(check, files[0]!, url, secret)) process.exitCode = 1;
+    } catch (error) {
+      process.stdout.write(`${JSON.stringify({ name: files[0], kind: "journey", verdict: "fail", ms: 0, detail: String(error) })}\n`);
+      process.exitCode = 1;
+    }
+    return;
+  }
   let failed = false;
   for (const file of files) {
     let journeys: RegisteredJourney[];
@@ -84,21 +115,34 @@ async function runEntry(): Promise<void> {
       continue;
     }
     for (const check of journeys) {
-      const started = performance.now();
-      try {
-        await within(5_000, async () => check.body({
-          as: (name) => createClient({ url, as: name }),
-          tick: (ms) => control(url, secret, "/control/clock", { advanceMs: ms }),
-          url,
-        }));
-        process.stdout.write(`${JSON.stringify({ name: check.name, kind: "journey", verdict: "pass", ms: Math.round(performance.now() - started), detail: { file } })}\n`);
-      } catch (error) {
-        failed = true;
-        process.stdout.write(`${JSON.stringify({ name: check.name, kind: "journey", verdict: "fail", ms: Math.round(performance.now() - started), detail: error instanceof Error ? error.message : String(error) })}\n`);
-      }
+      if (!await runCheck(check, file, url, secret)) failed = true;
     }
   }
   if (failed) process.exitCode = 1;
+}
+
+async function runCheck(check: RegisteredJourney, file: string, url: string, secret: string): Promise<boolean> {
+  const started = performance.now();
+  const clients = new Set<SnapbackClient>();
+  process.stdout.write(`${JSON.stringify({ runner: "start", name: check.name })}\n`);
+  try {
+    await within(5_000, async () => check.body({
+      as: (name) => {
+        const client = createClient({ url, as: name });
+        clients.add(client);
+        return client;
+      },
+      tick: (ms) => control(url, secret, "/control/clock", { advanceMs: ms }),
+      url,
+    }));
+    process.stdout.write(`${JSON.stringify({ name: check.name, kind: "journey", verdict: "pass", ms: Math.round(performance.now() - started), detail: { file } })}\n`);
+    return true;
+  } catch (error) {
+    process.stdout.write(`${JSON.stringify({ name: check.name, kind: "journey", verdict: "fail", ms: Math.round(performance.now() - started), detail: error instanceof Error ? error.message : String(error) })}\n`);
+    return false;
+  } finally {
+    for (const client of clients) client.close();
+  }
 }
 
 if (

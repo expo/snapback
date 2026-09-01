@@ -19,4 +19,18 @@ const env = {
   SNAPBACK2_TEST_RUNNER: fileURLToPath(new URL("../dist/test-runner.mjs", import.meta.url)),
 };
 const result = spawnSync(bin, process.argv.slice(2), { stdio: "inherit", env });
-process.exit(result.status ?? 1);
+if (result.error) {
+  console.error(`snapback2: failed to spawn ${bin}: ${result.error.message}`);
+  process.exit(1);
+}
+if (result.signal) {
+  try {
+    process.kill(process.pid, result.signal);
+  } catch (error) {
+    console.error(`snapback2: ${bin} terminated by ${result.signal}: ${error instanceof Error ? error.message : String(error)}`);
+    process.exit(1);
+  }
+}
+if (typeof result.status === "number") process.exit(result.status);
+console.error(`snapback2: ${bin} exited without a status or signal`);
+process.exit(1);

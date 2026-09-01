@@ -1,6 +1,7 @@
 # snapback2: publishing fails from a fresh checkout before prepack builds dist
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Built and snapshotted packages/snapback2 before doctor in scripts/publish.mjs, then qualified and packed that immutable snapshot with clean-stage self-test coverage.
 **Systems:** snapback2, publish, package build
 **Severity:** P2
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

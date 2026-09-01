@@ -1,6 +1,7 @@
 # snapback2: pre-spawn test failures leak isolated owner scratch state
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Installed OwnerCleanup before the first scratch mutation in crates/snapback2/src/test.rs, with injected copy/link/executable/spawn failure coverage.
 **Systems:** snapback2, test runner, resource handling
 **Severity:** P3
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

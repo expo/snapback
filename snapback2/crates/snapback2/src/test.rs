@@ -20,6 +20,7 @@ use std::fs;
 use std::io::{BufRead, BufReader, Read};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, ExitCode, Stdio};
+use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
@@ -253,39 +254,57 @@ impl Drop for OwnerCleanup {
 
 impl IsolatedOwner {
     fn start(root: &Path, stamp: u128) -> Result<Self, Refusal> {
+        Self::start_with(
+            root,
+            stamp,
+            link_store,
+            || std::env::current_exe().map_err(test_io),
+            |executable, project| {
+                Command::new(executable)
+                    .args([
+                        "dev",
+                        "--project",
+                        project.to_str().unwrap_or_default(),
+                        "--foreground",
+                        "--owner-child",
+                        "--json",
+                    ])
+                    .stdin(Stdio::null())
+                    .stdout(Stdio::piped())
+                    .stderr(Stdio::piped())
+                    .spawn()
+                    .map_err(test_io)
+            },
+        )
+    }
+
+    fn start_with(
+        root: &Path,
+        stamp: u128,
+        link: impl FnOnce(&Path, &Path) -> Result<(), Refusal>,
+        executable: impl FnOnce() -> Result<PathBuf, Refusal>,
+        spawn: impl FnOnce(&Path, &Path) -> Result<Child, Refusal>,
+    ) -> Result<Self, Refusal> {
         let scratch = root.join(format!(".snapback/test-run-{stamp}"));
-        let project = scratch.join("project");
+        let store = root.join(format!(".snapback/test-{stamp}.sqlite"));
+        // Cleanup owns both paths before the first fallible mutation. The child
+        // is attached later, if spawn succeeds.
+        let mut cleanup = OwnerCleanup {
+            child: None,
+            scratch,
+            store,
+        };
+        let project = cleanup.scratch.join("project");
         copy_tree(&root.join("snapback"), &project.join("snapback"))?;
         fs::create_dir_all(project.join(".snapback")).map_err(test_io)?;
         let build = root.join(".snapback/build");
         if build.is_dir() {
             copy_tree(&build, &project.join(".snapback/build"))?;
         }
-        let store = root.join(format!(".snapback/test-{stamp}.sqlite"));
         let owner_store = project.join(".snapback/store.sqlite");
-        link_store(&store, &owner_store)?;
-        let executable = std::env::current_exe().map_err(test_io)?;
-        let child = Command::new(executable)
-            .args([
-                "dev",
-                "--project",
-                project.to_str().unwrap_or_default(),
-                "--foreground",
-                "--owner-child",
-                "--json",
-            ])
-            .stdin(Stdio::null())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .map_err(test_io)?;
-        // Cleanup owns the child and every scratch path from the instant spawn succeeds.
-        // Any `?` below therefore kills/reaps the child and removes `.snapback/test-*`.
-        let mut cleanup = OwnerCleanup {
-            child: Some(child),
-            scratch,
-            store,
-        };
+        link(&cleanup.store, &owner_store)?;
+        let executable = executable()?;
+        cleanup.child = Some(spawn(&executable, &project)?);
         let stdout = cleanup
             .child
             .as_mut()
@@ -681,46 +700,262 @@ fn run_journeys(root: &Path, owner: &OwnerInfo) -> Vec<CheckReceipt> {
             )];
         }
     };
+    let mut checks = Vec::new();
+    for file in files {
+        let mut list = journey_command(&runner, owner);
+        list.arg("--list").arg("--").arg(&file);
+        let listed = match supervise_journey_runner(list) {
+            Ok(output) => output,
+            Err(error) => {
+                checks.push(CheckReceipt::fail(
+                    "journey runner",
+                    "journey",
+                    0,
+                    json!({ "error": error.to_string() }),
+                ));
+                continue;
+            }
+        };
+        if let Some(name) = listed.timeout_name.as_deref() {
+            checks.push(journey_host_failure(
+                name,
+                &listed,
+                "host deadline exceeded while loading journeys",
+            ));
+            continue;
+        }
+        let names = listed
+            .lines
+            .iter()
+            .filter_map(|line| serde_json::from_str::<Json>(line).ok())
+            .find(|value| value.get("runner").and_then(Json::as_str) == Some("list"))
+            .and_then(|value| value.get("journeys").and_then(Json::as_array).cloned())
+            .unwrap_or_default()
+            .into_iter()
+            .filter_map(|name| name.as_str().map(ToOwned::to_owned))
+            .collect::<Vec<_>>();
+        if listed.capped || names.is_empty() {
+            let parsed = journey_receipts(&listed);
+            if parsed.is_empty() {
+                checks.push(journey_host_failure(
+                    "journey runner",
+                    &listed,
+                    if listed.capped {
+                        "runner output exceeded its cap"
+                    } else {
+                        "runner listed zero journeys"
+                    },
+                ));
+            } else {
+                checks.extend(parsed);
+            }
+            continue;
+        }
+        for (index, name) in names.into_iter().enumerate() {
+            let mut command = journey_command(&runner, owner);
+            command
+                .arg("--journey-index")
+                .arg(index.to_string())
+                .arg("--")
+                .arg(&file);
+            let output = match supervise_journey_runner(command) {
+                Ok(output) => output,
+                Err(error) => {
+                    checks.push(CheckReceipt::fail(
+                        &name,
+                        "journey",
+                        0,
+                        json!({ "error": error.to_string() }),
+                    ));
+                    continue;
+                }
+            };
+            if output.timeout_name.is_some() {
+                checks.push(journey_host_failure(
+                    &name,
+                    &output,
+                    "journey exceeded the 5000 ms host deadline",
+                ));
+                continue;
+            }
+            let parsed = journey_receipts(&output);
+            if output.capped || parsed.is_empty() {
+                checks.push(journey_host_failure(
+                    &name,
+                    &output,
+                    if output.capped {
+                        "runner output exceeded its cap"
+                    } else {
+                        "runner produced no journey receipt"
+                    },
+                ));
+            } else {
+                checks.extend(parsed);
+            }
+        }
+    }
+    checks
+}
+
+const JOURNEY_DEADLINE: Duration = Duration::from_secs(5);
+const JOURNEY_EXIT_GRACE: Duration = Duration::from_millis(250);
+const JOURNEY_OUTPUT_LIMIT: usize = 256 * 1024;
+
+struct JourneyRunnerOutput {
+    status: Option<i32>,
+    lines: Vec<String>,
+    stderr: String,
+    timeout_name: Option<String>,
+    capped: bool,
+}
+
+fn journey_command(runner: &Path, owner: &OwnerInfo) -> Command {
     let mut command = Command::new("node");
     command
         .arg(runner)
         .arg("--url")
         .arg(&owner.url)
         .arg("--secret")
-        .arg(&owner.secret)
-        .arg("--");
-    command.args(&files);
-    let output = match command.output() {
-        Ok(output) => output,
-        Err(error) => {
-            return vec![CheckReceipt::fail(
-                "journeys",
-                "journey",
-                0,
-                json!({ "error": error.to_string() }),
-            )];
+        .arg(&owner.secret);
+    command
+}
+
+fn supervise_journey_runner(mut command: Command) -> Result<JourneyRunnerOutput, std::io::Error> {
+    command.stdout(Stdio::piped()).stderr(Stdio::piped());
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+        command.process_group(0);
+    }
+    let mut child = command.spawn()?;
+    let stdout = child.stdout.take().expect("piped journey stdout");
+    let stderr = child.stderr.take().expect("piped journey stderr");
+    let (send, receive) = mpsc::channel();
+    let stdout_thread = thread::spawn(move || {
+        let mut reader = BufReader::new(stdout.take((JOURNEY_OUTPUT_LIMIT + 1) as u64));
+        let mut total = 0_usize;
+        loop {
+            let mut line = String::new();
+            match reader.read_line(&mut line) {
+                Ok(0) => break,
+                Ok(bytes) => {
+                    total = total.saturating_add(bytes);
+                    if total > JOURNEY_OUTPUT_LIMIT {
+                        let _ = send.send(None);
+                        break;
+                    }
+                    let _ = send.send(Some(line));
+                }
+                Err(_) => break,
+            }
+        }
+    });
+    let stderr_thread = thread::spawn(move || {
+        let mut bytes = Vec::new();
+        let _ = stderr
+            .take((JOURNEY_OUTPUT_LIMIT + 1) as u64)
+            .read_to_end(&mut bytes);
+        String::from_utf8_lossy(&bytes[..bytes.len().min(JOURNEY_OUTPUT_LIMIT)]).into_owned()
+    });
+
+    let mut deadline = Instant::now() + JOURNEY_DEADLINE;
+    let mut current = None;
+    let mut completed = false;
+    let mut lines = Vec::new();
+    let mut capped = false;
+    let mut timeout_name = None;
+    let status = loop {
+        if let Some(exit) = child.try_wait()? {
+            while let Ok(event) = receive.try_recv() {
+                match event {
+                    Some(line) => lines.push(line),
+                    None => capped = true,
+                }
+            }
+            break exit.code();
+        }
+        let now = Instant::now();
+        if now >= deadline {
+            terminate_journey_runner(&mut child);
+            if !completed {
+                timeout_name = Some(current.unwrap_or_else(|| "journey runner".to_owned()));
+            }
+            break child.wait().ok().and_then(|exit| exit.code());
+        }
+        let wait = deadline
+            .saturating_duration_since(now)
+            .min(Duration::from_millis(25));
+        match receive.recv_timeout(wait) {
+            Ok(Some(line)) => {
+                if let Ok(event) = serde_json::from_str::<Json>(&line) {
+                    if event.get("runner").and_then(Json::as_str) == Some("start") {
+                        current = event
+                            .get("name")
+                            .and_then(Json::as_str)
+                            .map(ToOwned::to_owned);
+                        deadline = Instant::now() + JOURNEY_DEADLINE;
+                    } else if event.get("verdict").and_then(Json::as_str).is_some() {
+                        completed = true;
+                        deadline = Instant::now() + JOURNEY_EXIT_GRACE;
+                    }
+                }
+                lines.push(line);
+            }
+            Ok(None) => {
+                capped = true;
+                terminate_journey_runner(&mut child);
+                break child.wait().ok().and_then(|exit| exit.code());
+            }
+            Err(mpsc::RecvTimeoutError::Timeout) => {}
+            Err(mpsc::RecvTimeoutError::Disconnected) => {}
         }
     };
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let mut checks = stdout
-        .lines()
-        .filter_map(|line| serde_json::from_str::<CheckReceipt>(line).ok())
-        .collect::<Vec<_>>();
-    if checks.is_empty()
-        || (!output.status.success() && !checks.iter().any(|check| check.verdict == "fail"))
-    {
-        checks.push(CheckReceipt::fail(
-            "journey runner",
-            "journey",
-            0,
-            json!({
-                "status": output.status.code(),
-                "stdout": stdout,
-                "stderr": String::from_utf8_lossy(&output.stderr),
-            }),
-        ));
+    let _ = stdout_thread.join();
+    let stderr = stderr_thread.join().unwrap_or_default();
+    while let Ok(event) = receive.try_recv() {
+        match event {
+            Some(line) => lines.push(line),
+            None => capped = true,
+        }
     }
-    checks
+    Ok(JourneyRunnerOutput {
+        status,
+        lines,
+        stderr,
+        timeout_name,
+        capped,
+    })
+}
+
+fn terminate_journey_runner(child: &mut Child) {
+    #[cfg(unix)]
+    if unsafe { libc::kill(-(child.id() as i32), libc::SIGKILL) } != 0 {
+        let _ = child.kill();
+    }
+    #[cfg(not(unix))]
+    let _ = child.kill();
+}
+
+fn journey_receipts(output: &JourneyRunnerOutput) -> Vec<CheckReceipt> {
+    output
+        .lines
+        .iter()
+        .filter_map(|line| serde_json::from_str::<CheckReceipt>(line).ok())
+        .collect()
+}
+
+fn journey_host_failure(name: &str, output: &JourneyRunnerOutput, message: &str) -> CheckReceipt {
+    CheckReceipt::fail(
+        name,
+        "journey",
+        0,
+        json!({
+            "error": message,
+            "status": output.status,
+            "stdout": output.lines.join(""),
+            "stderr": output.stderr,
+        }),
+    )
 }
 
 fn generated_args(program: &Program, seed: &SeedData) -> Result<Json, String> {
