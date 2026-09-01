@@ -1,6 +1,7 @@
 # snapback2: malformed compiler success responses silently erase seed and journeys
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Compiler success responses are now strictly deserialized per operation with required fields and matching request IDs in snapback2/crates/snapback2/src/project.rs; unit regressions cover malformed seed/journeys, wrong IDs, and wrong-operation shapes.
 **Systems:** snapback2, compiler worker, protocol, data loss
 **Severity:** P1
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

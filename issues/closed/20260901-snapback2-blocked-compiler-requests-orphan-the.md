@@ -1,6 +1,7 @@
 # snapback2: blocked compiler requests orphan the worker process
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Compiler responses now run through a cancellable 30-second supervisor that kills/reaps blocked workers, watcher shutdown joins, and detached startup tears down the owner process group in snapback2/crates/snapback2/src/{project,owner,watch}.rs; a blocked-worker PID regression was added.
 **Systems:** snapback2, owner, compiler worker, lifecycle
 **Severity:** P2
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

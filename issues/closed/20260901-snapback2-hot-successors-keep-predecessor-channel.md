@@ -1,6 +1,7 @@
 # snapback2: hot successors keep predecessor channel authorization
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Hot apply now re-admits every retained channel subscriber under the installed generation in snapback2/crates/snapback2/src/writer.rs; an owner integration test proves policy-only revocation without an intervening commit.
 **Systems:** snapback2, owner, channels, successors
 **Severity:** P1
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

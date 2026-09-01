@@ -1,6 +1,7 @@
 # snapback2: init follows project symlinks and writes outside the root
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Init now rejects symlinked managed paths and exclusively creates template files in snapback2/crates/snapback2/src/init.rs; crates/snapback2/tests/init.rs proves external files and directories remain unchanged.
 **Systems:** snapback2, init, filesystem security
 **Severity:** P1
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

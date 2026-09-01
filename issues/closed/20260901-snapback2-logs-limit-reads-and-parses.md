@@ -1,6 +1,7 @@
 # snapback2: logs limit reads and parses the entire unbounded log
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** The logs control route now reverse-tails at most 4 MiB, parses only the requested trailing records, and reports I/O/malformed/truncated tails in snapback2/crates/snapback2/src/control.rs; sparse-large-file and malformed-tail regressions were added.
 **Systems:** snapback2, owner, logs, performance
 **Severity:** P2
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

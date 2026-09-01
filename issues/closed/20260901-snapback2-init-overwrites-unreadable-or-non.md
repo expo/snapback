@@ -1,6 +1,7 @@
 # snapback2: init overwrites unreadable or non-UTF8 project files
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Init now propagates unreadable and non-UTF-8 managed-file failures from snapback2/crates/snapback2/src/init.rs; crates/snapback2/tests/init.rs proves byte-for-byte preservation.
 **Systems:** snapback2, init, data loss
 **Severity:** P1
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

@@ -3,17 +3,19 @@
 
 use crate::control;
 use crate::protocol::{Refusal, refusal_json};
-use crate::writer::{Action, Identity, OwnerHandle, SseEvent};
+use crate::writer::{Action, Identity, OwnerHandle, SseEvent, SseReceiver, sse_queue};
 use serde_json::{Value as Json, json};
 use std::collections::BTreeMap;
 use std::io::{Read, Write};
 use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::mpsc::{self, Receiver, RecvTimeoutError};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::mpsc::RecvTimeoutError;
 use std::thread;
 use std::time::Duration;
 use tiny_http::{Header, Method, Request, Response, Server, StatusCode};
+
+const MAX_HTTP_WORKERS: usize = 64;
 
 pub struct BoundServer {
     server: Arc<Server>,
@@ -75,13 +77,30 @@ impl BoundServer {
     }
 
     pub fn run(self, context: Context) -> Result<(), Refusal> {
+        let active_workers = Arc::new(AtomicUsize::new(0));
         while !context.stop.load(Ordering::SeqCst) {
             match self.server.recv_timeout(Duration::from_millis(100)) {
                 Ok(Some(request)) => {
+                    let Some(worker) = HttpWorker::acquire(active_workers.clone()) else {
+                        respond_refusal(
+                            request,
+                            503,
+                            Refusal::owner(
+                                "E_OWNER_BUSY",
+                                "the owner has reached its bounded HTTP worker limit",
+                                "close slow clients and retry",
+                            ),
+                            &context.mode,
+                        );
+                        continue;
+                    };
                     let connection_context = context.clone();
                     if let Err(error) = thread::Builder::new()
                         .name("snapback2-http".to_owned())
-                        .spawn(move || handle(request, connection_context))
+                        .spawn(move || {
+                            let _worker = worker;
+                            handle(request, connection_context);
+                        })
                     {
                         let refusal = fatal_server("connection thread", error);
                         crate::watch::log(
@@ -108,6 +127,30 @@ impl BoundServer {
     }
 }
 
+struct HttpWorker(Arc<AtomicUsize>);
+
+impl HttpWorker {
+    fn acquire(active: Arc<AtomicUsize>) -> Option<Self> {
+        let mut current = active.load(Ordering::SeqCst);
+        loop {
+            if current >= MAX_HTTP_WORKERS {
+                return None;
+            }
+            match active.compare_exchange(current, current + 1, Ordering::SeqCst, Ordering::SeqCst)
+            {
+                Ok(_) => return Some(Self(active)),
+                Err(next) => current = next,
+            }
+        }
+    }
+}
+
+impl Drop for HttpWorker {
+    fn drop(&mut self) {
+        self.0.fetch_sub(1, Ordering::SeqCst);
+    }
+}
+
 fn handle(mut request: Request, context: Context) {
     let method = method_name(request.method());
     let raw_url = request.url().to_owned();
@@ -131,14 +174,6 @@ fn handle(mut request: Request, context: Context) {
         respond_json(request, 204, json!({}), &context.mode);
         return;
     }
-    let body = match read_body(&mut request) {
-        Ok(body) => body,
-        Err(error) => {
-            respond_refusal(request, 400, error, &context.mode);
-            return;
-        }
-    };
-
     if path.starts_with("/control/") {
         if !is_loopback(request.remote_addr().map(SocketAddr::ip)) {
             respond_refusal(
@@ -166,6 +201,13 @@ fn handle(mut request: Request, context: Context) {
             );
             return;
         }
+        let body = match read_body(&mut request) {
+            Ok(body) => body,
+            Err(error) => {
+                respond_refusal(request, 400, error, &context.mode);
+                return;
+            }
+        };
         let control_context = control::Context {
             handle: context.handle.clone(),
             root: context.root.clone(),
@@ -177,6 +219,14 @@ fn handle(mut request: Request, context: Context) {
         }
         return;
     }
+
+    let body = match read_body(&mut request) {
+        Ok(body) => body,
+        Err(error) => {
+            respond_refusal(request, 400, error, &context.mode);
+            return;
+        }
+    };
 
     let identity = request_identity(&request);
     let bearer_token = bearer(&request).unwrap_or_default();
@@ -256,7 +306,7 @@ fn handle(mut request: Request, context: Context) {
                     return;
                 }
             };
-            let (tx, rx) = mpsc::channel();
+            let (tx, rx) = sse_queue();
             match context.handle.subscribe(op, args, identity, tx) {
                 Ok(meta) => {
                     let id = meta.get("id").and_then(Json::as_u64).unwrap_or(0);
@@ -296,7 +346,7 @@ fn handle(mut request: Request, context: Context) {
                     return;
                 }
             };
-            let (tx, rx) = mpsc::channel();
+            let (tx, rx) = sse_queue();
             match context.handle.call(Action::ChannelSubscribe {
                 name,
                 args,
@@ -357,7 +407,7 @@ fn respond_refusal(request: Request, status: u16, mut refusal: Refusal, mode: &s
 
 fn respond_sse(
     request: Request,
-    receiver: Receiver<SseEvent>,
+    receiver: SseReceiver,
     handle: OwnerHandle,
     drop_action: DropAction,
     mode: &str,
@@ -599,5 +649,16 @@ mod tests {
         assert_eq!(refusal.family, "owner");
         assert!(refusal.message.contains("accept loop"));
         assert!(refusal.message.contains("simulated accept failure"));
+    }
+
+    #[test]
+    fn http_worker_count_is_bounded() {
+        let active = Arc::new(AtomicUsize::new(0));
+        let workers = (0..MAX_HTTP_WORKERS)
+            .map(|_| HttpWorker::acquire(active.clone()).unwrap())
+            .collect::<Vec<_>>();
+        assert!(HttpWorker::acquire(active.clone()).is_none());
+        drop(workers);
+        assert_eq!(active.load(Ordering::SeqCst), 0);
     }
 }

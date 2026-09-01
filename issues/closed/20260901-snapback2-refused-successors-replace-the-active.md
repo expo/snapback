@@ -1,6 +1,7 @@
 # snapback2: refused successors replace the active build cache
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** The watcher now publishes project.json, certificates.json, and api.d.ts only after runtime successor admission in snapback2/crates/snapback2/src/watch.rs; a destructive source-watch refusal test proves the active cache remains byte-identical.
 **Systems:** snapback2, owner, watcher, successors
 **Severity:** P2
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

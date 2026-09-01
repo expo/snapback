@@ -1,6 +1,7 @@
 # snapback2: owner temp symlink can clobber an arbitrary file
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Owner state publication now uses a randomized create_new/O_NOFOLLOW 0600 temporary and atomic rename in snapback2/crates/snapback2/src/owner.rs; a fixed-temp symlink clobber regression preserves external bytes.
 **Systems:** snapback2, owner, filesystem security
 **Severity:** P1
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

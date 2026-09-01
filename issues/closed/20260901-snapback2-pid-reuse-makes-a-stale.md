@@ -1,6 +1,7 @@
 # snapback2: PID reuse makes a stale owner record look successfully attached
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Dev now attaches only after authenticated status identifies the same project; unverified live-PID records are reclaimed only by a child that acquires the store lock in snapback2/crates/snapback2/src/owner.rs, with the stale-PID test replaced by recovery behavior in owner_cases.
 **Systems:** snapback2, owner, lifecycle
 **Severity:** P2
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

@@ -1,6 +1,7 @@
 # snapback2: unauthenticated bodies can hold unlimited HTTP threads
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Control loopback/secret authentication now precedes body reads and HTTP workers are capped at 64 in snapback2/crates/snapback2/src/serve.rs; a 32-client slow-body integration test proves prompt 403 responses without bodies plus a worker-ceiling unit test.
 **Systems:** snapback2, HTTP, control security, resource handling
 **Severity:** P2
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

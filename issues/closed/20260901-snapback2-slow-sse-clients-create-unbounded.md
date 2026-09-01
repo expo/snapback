@@ -1,6 +1,7 @@
 # snapback2: slow SSE clients create unbounded event queues
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** SSE delivery now uses a one-event bounded queue: live frames coalesce to latest and channel subscribers are removed on overflow in snapback2/crates/snapback2/src/{writer,writer_sse,serve}.rs; non-reading near-1MiB queue and coalescing regressions were added.
 **Systems:** snapback2, HTTP, SSE, resource handling
 **Severity:** P2
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

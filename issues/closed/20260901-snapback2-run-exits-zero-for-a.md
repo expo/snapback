@@ -1,6 +1,7 @@
 # snapback2: run exits zero for a rejected mutation
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** The run verb now exits 1 when a mutation's typed state is rejected while preserving its JSON and query typed-state success in snapback2/crates/snapback2/src/verbs.rs; a process-level test covers committed, rejected, denied-query, and unavailable-owner exits.
 **Systems:** snapback2, CLI, mutation wire
 **Severity:** P2
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

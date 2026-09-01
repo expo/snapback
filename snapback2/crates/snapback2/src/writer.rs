@@ -23,8 +23,11 @@ use std::thread;
 mod writer_effects;
 #[path = "writer_ledger.rs"]
 mod writer_ledger;
+#[path = "writer_sse.rs"]
+mod writer_sse;
 
 use writer_ledger::{CommitLedger, LedgerDelivery};
+pub use writer_sse::{SseReceiver, SseSender, queue as sse_queue};
 
 #[derive(Clone, Debug)]
 pub enum Identity {
@@ -59,7 +62,7 @@ impl OwnerHandle {
         op: String,
         args: Json,
         identity: Identity,
-        events: Sender<SseEvent>,
+        events: SseSender,
     ) -> Result<Json, Refusal> {
         self.call(Action::Subscribe {
             op,
@@ -89,7 +92,7 @@ pub enum Action {
         op: String,
         args: Json,
         identity: Identity,
-        events: Sender<SseEvent>,
+        events: SseSender,
     },
     Unsubscribe {
         id: u64,
@@ -98,7 +101,7 @@ pub enum Action {
         name: String,
         args: Json,
         identity: Identity,
-        events: Sender<SseEvent>,
+        events: SseSender,
     },
     ChannelUnsubscribe {
         id: u64,
@@ -221,7 +224,7 @@ struct LiveClient {
     op: String,
     context: Context,
     last_frame: Json,
-    events: Sender<SseEvent>,
+    events: SseSender,
 }
 
 #[derive(Clone)]
@@ -230,7 +233,7 @@ struct ChannelClient {
     args: BTreeMap<String, Value>,
     context: Context,
     verdict: ChannelVerdict,
-    events: Sender<SseEvent>,
+    events: SseSender,
 }
 
 struct State {
@@ -719,7 +722,7 @@ impl State {
         op: String,
         args: Json,
         identity: Identity,
-        events: Sender<SseEvent>,
+        events: SseSender,
     ) -> Result<Json, Refusal> {
         let principal = self.principal(identity)?;
         let context = self.context(principal, &op, args)?;
@@ -729,7 +732,7 @@ impl State {
             .map_err(|error| Refusal::from_runtime(&error))?;
         let (data, terminal) = live_frame(Ok(&execution), execution.seq);
         events
-            .send(SseEvent {
+            .send_latest(SseEvent {
                 seq: Some(execution.seq),
                 data: data.clone(),
                 terminal,
@@ -753,7 +756,7 @@ impl State {
         name: String,
         args: Json,
         identity: Identity,
-        events: Sender<SseEvent>,
+        events: SseSender,
     ) -> Result<Json, Refusal> {
         let principal = self.principal(identity)?;
         let args = channel_args(self.runtime().generation(), &name, &args)?;
@@ -833,7 +836,7 @@ impl State {
         };
         self.channels.retain(|_, subscriber| {
             if subscriber.name == name && subscriber.args == args {
-                subscriber.events.send(event.clone()).is_ok()
+                subscriber.events.try_send(event.clone()).is_ok()
             } else {
                 true
             }
@@ -898,7 +901,7 @@ impl State {
                     client.runtime_id = runtime_id;
                     client.last_frame = frame.clone();
                     if force || changed {
-                        let _ = client.events.send(SseEvent {
+                        let _ = client.events.send_latest(SseEvent {
                             seq: Some(execution.seq),
                             data: frame,
                             terminal,
@@ -913,7 +916,7 @@ impl State {
                 Err(error) => {
                     let seq = self.runtime().store().commit_seq().unwrap_or_default();
                     let (frame, terminal) = live_frame(Err(Refusal::from_runtime(&error)), seq);
-                    let _ = client.events.send(SseEvent {
+                    let _ = client.events.send_latest(SseEvent {
                         seq: Some(seq),
                         data: frame,
                         terminal,
@@ -934,7 +937,11 @@ impl State {
                 Runtime::channel_touched(commit, &client.verdict).then_some(*id)
             })
             .collect();
-        for id in touched {
+        self.readmit_channel_ids(touched, commit.seq);
+    }
+
+    fn readmit_channel_ids(&mut self, ids: Vec<u64>, seq: u64) {
+        for id in ids {
             let Some(client) = self.channels.get(&id).cloned() else {
                 continue;
             };
@@ -965,9 +972,9 @@ impl State {
                                 "rule/channels",
                             )
                         });
-                    let (data, terminal) = refusal_frame(refusal, commit.seq);
-                    let _ = client.events.send(SseEvent {
-                        seq: Some(commit.seq),
+                    let (data, terminal) = refusal_frame(refusal, seq);
+                    let _ = client.events.send_latest(SseEvent {
+                        seq: Some(seq),
                         data,
                         terminal,
                     });
@@ -983,6 +990,11 @@ impl State {
         migration: Option<MigrationPlan>,
         seed: Option<SeedData>,
     ) -> Result<Json, Refusal> {
+        let seq = self
+            .runtime()
+            .store()
+            .commit_seq()
+            .map_err(|error| Refusal::from_runtime(&error))?;
         let report = if let Some(plan) = migration {
             self.runtime_mut()
                 .apply_migration(compiled.generation.clone(), &plan)
@@ -996,12 +1008,19 @@ impl State {
         if let Some(seed) = seed {
             self.seed = seed;
         }
+        let channels = self.channels.keys().copied().collect();
+        self.readmit_channel_ids(channels, seq);
         self.owner.generation = self.compiled.generation.hash();
-        self.publish_owner()?;
         self.phase = Json::String("ready".to_owned());
         let clients = self.live.keys().copied().collect::<Vec<_>>();
         let _ = self.rerun_live(&clients, true);
         self.wake_effects();
+        if let Err(error) = self.publish_owner() {
+            self.stop.store(true, AtomicOrdering::SeqCst);
+            return Err(error
+                .with_detail("applied", json!(true))
+                .with_detail("activeGeneration", json!(self.owner.generation)));
+        }
         Ok(serde_json::to_value(report).unwrap_or(Json::Null))
     }
 
@@ -1023,6 +1042,14 @@ impl State {
             .runtime_mut()
             .reset_and_seed(&rows)
             .map_err(|error| Refusal::from_runtime(&error))?;
+        let runtime_ids = self
+            .live
+            .values()
+            .map(|client| client.runtime_id)
+            .collect::<Vec<_>>();
+        for id in runtime_ids {
+            self.runtime_mut().unsubscribe(id);
+        }
         self.live.clear();
         self.channels.clear();
         self.ledger.clear();

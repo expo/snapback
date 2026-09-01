@@ -1256,9 +1256,10 @@ fn stop_during_generation_update_is_bounded_and_cannot_recreate_owner_state() {
         &root,
         "slow-watch-compiler.mjs",
         &format!(
-            r#"import {{ readFileSync }} from "node:fs";
+            r#"import {{ readFileSync, writeFileSync }} from "node:fs";
 import {{ createInterface }} from "node:readline";
 const project = JSON.parse(readFileSync({}, "utf8"));
+writeFileSync({}, String(process.pid));
 let compiles = 0;
 for await (const line of createInterface({{ input: process.stdin, crlfDelay: Infinity }})) {{
   const request = JSON.parse(line);
@@ -1269,7 +1270,8 @@ for await (const line of createInterface({{ input: process.stdin, crlfDelay: Inf
   process.stdout.write(JSON.stringify(response) + "\n");
 }}
 "#,
-            serde_json::to_string(&project).unwrap()
+            serde_json::to_string(&project).unwrap(),
+            serde_json::to_string(&root.join("compiler.pid")).unwrap()
         ),
     );
     let mut owner = ChildGuard::spawn(binary, &slow_worker, &root);
@@ -1279,6 +1281,10 @@ for await (const line of createInterface({{ input: process.stdin, crlfDelay: Inf
     let pid = owner_json["pid"].as_u64().unwrap() as u32;
     let port = owner_json["port"].as_u64().unwrap() as u16;
     let secret = owner_json["secret"].as_str().unwrap().to_owned();
+    let compiler_pid = fs::read_to_string(root.join("compiler.pid"))
+        .unwrap()
+        .parse::<u32>()
+        .unwrap();
     // Let the watcher establish its initial fingerprint before changing the source.
     thread::sleep(Duration::from_millis(300));
     let messages = root.join("snapback/messages.ts");
@@ -1306,14 +1312,13 @@ for await (const line of createInterface({{ input: process.stdin, crlfDelay: Inf
     assert!(started.elapsed() < Duration::from_secs(2));
     owner.wait();
     assert!(!process_alive(pid));
+    wait_for(Duration::from_secs(2), || {
+        (!process_alive(compiler_pid)).then_some(())
+    });
     assert!(!root.join(".snapback/owner.json").exists());
-    thread::sleep(Duration::from_millis(3100));
-    assert!(!root.join(".snapback/owner.json").exists());
-    assert!(
-        fs::read_to_string(root.join(".snapback/log.jsonl"))
-            .unwrap()
-            .contains("source watcher stop timeout")
-    );
+    let log = fs::read_to_string(root.join(".snapback/log.jsonl")).unwrap();
+    assert!(log.contains("cancelled during owner shutdown"), "{log}");
+    assert!(!log.contains("source watcher stop timeout"), "{log}");
     fs::remove_dir_all(root).unwrap();
 }
 
@@ -1391,61 +1396,6 @@ fn stop_refuses_when_the_recorded_pid_survives_the_deadline() {
     );
     assert!(owner_path.exists());
     server.join().unwrap();
-    fs::remove_dir_all(root).unwrap();
-}
-
-#[cfg(unix)]
-#[test]
-fn status_never_removes_another_process_owner_file() {
-    let root = temp_root();
-    copy_tree(&fixture().join("snapback"), &root.join("snapback"));
-    fs::create_dir_all(root.join(".snapback")).unwrap();
-    let binary = env!("CARGO_BIN_EXE_snapback2");
-    let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
-    let unreachable_port = listener.local_addr().unwrap().port();
-    drop(listener);
-
-    for (pid, port, expected_code) in [
-        (2_000_000_000_u32, 9_u16, "E_OWNER_NOT_RUNNING"),
-        (std::process::id(), unreachable_port, "E_OWNER_RUNNING"),
-    ] {
-        let bytes = serde_json::to_vec(&json!({
-            "pid": pid,
-            "port": port,
-            "url": format!("http://127.0.0.1:{port}"),
-            "secret": "winner-secret",
-            "generation": "winner-generation",
-            "startedAt": 0,
-            "mode": "dev",
-            "project": root.canonicalize().unwrap(),
-        }))
-        .unwrap();
-        fs::write(root.join(".snapback/owner.json"), &bytes).unwrap();
-        let output = Command::new(binary)
-            .args(["dev", "--project"])
-            .arg(&root)
-            .args(["--status", "--json"])
-            .output()
-            .unwrap();
-        assert_eq!(output.status.code(), Some(1));
-        let refusal: Value = serde_json::from_slice(&output.stdout).unwrap();
-        assert_eq!(refusal["code"], expected_code);
-        assert_eq!(fs::read(root.join(".snapback/owner.json")).unwrap(), bytes);
-
-        if pid == std::process::id() {
-            let attach = Command::new(binary)
-                .args(["dev", "--project"])
-                .arg(&root)
-                .arg("--json")
-                .output()
-                .unwrap();
-            assert!(attach.status.success());
-            let attached: Value = serde_json::from_slice(&attach.stdout).unwrap();
-            assert_eq!(attached["code"], "E_OWNER_RUNNING");
-            assert_eq!(attached["url"], format!("http://127.0.0.1:{port}"));
-            assert_eq!(fs::read(root.join(".snapback/owner.json")).unwrap(), bytes);
-        }
-    }
     fs::remove_dir_all(root).unwrap();
 }
 

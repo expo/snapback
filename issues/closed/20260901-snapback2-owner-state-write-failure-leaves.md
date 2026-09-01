@@ -1,6 +1,7 @@
 # snapback2: owner-state write failure leaves a half-applied successor
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Successor apply now performs channel/live rebind and effect wake before owner-state publication, reports applied+activeGeneration on publication failure, and fatally stops instead of serving half-applied in snapback2/crates/snapback2/src/{writer,watch}.rs; an injected owner-path failure integration test was added.
 **Systems:** snapback2, owner, successors, lifecycle
 **Severity:** P2
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

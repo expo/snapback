@@ -1,6 +1,7 @@
 # snapback2: reset leaks core live subscriptions
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Reset now unsubscribes every retained runtime subscription before clearing writer clients in snapback2/crates/snapback2/src/writer.rs; an owner integration test proves /control/subscriptions returns zero after reset.
 **Systems:** snapback2, owner, live queries, resource handling
 **Severity:** P2
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

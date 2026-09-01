@@ -1,6 +1,7 @@
 # snapback2: owner control secret is created world-readable
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Owner startup now repairs owned .snapback directories to 0700 and publishes owner.json as a verified current-user 0600 file in snapback2/crates/snapback2/src/owner.rs; a mode regression test was added.
 **Systems:** snapback2, owner, control security
 **Severity:** P1
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever
