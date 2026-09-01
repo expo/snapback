@@ -110,13 +110,78 @@ because nothing binds it to the code.
 
 None of that separation exists in Snapback 2. There is one store, one owner
 writing it, one authorization model on the table block, and one bounded language
-that all reads go through. "How many people sent a message this week" is a
-`query` program. It is subject to the same rules, gets the same typed states,
-appears in the same certificate with the same examined bound, and breaks at
-`check` time — not silently, months later — if the table it reads is renamed.
+that all reads go through. "How many people sent a message this week" is
+answered by the program the author already writes, under the same rules, with
+the same typed states, and it breaks at `check` time — not silently, months
+later — if the table it reads is renamed.
 
 That is failure 2 from LLP 1008 §5 solved by construction rather than by
 feature, and it is solved *today*, with nothing built.
+
+### 3.1 Why co-location is safe here, and exactly when it stops being
+
+Putting analytics in the application's database is normally a bad idea, and the
+usual objection — a single writer, contended — understates the problem in
+Snapback 2 rather than overstating it.
+
+`store.rs:79–108` opens the store `WAL` **and `locking_mode = EXCLUSIVE`**, and
+turns the resulting lock failure into `RuntimeError::StoreOwned`. That is how
+single-instance enforcement works. The consequence for this RFC is that a second
+connection cannot read the store *at all*. There is no reader/writer contention
+to reason about, because there is no concurrency: every read and every write in
+the entire application is serialized through one connection in one process. A
+long aggregate scan would not compete with user traffic. It would be
+head-of-line blocking on all of it, for its full duration.
+
+Co-location is therefore safe for exactly one reason: **the certificate refuses
+the query shape that would make it dangerous.** Bounded reads are not an
+ergonomic nicety under an exclusive lock; they are what keeps an aggregate from
+becoming an availability incident. The compiler already steers authors
+accordingly — `certificate_policy.rs:295` tells an author whose read cannot be
+bounded to "declare `maintain.count(...)` and read the maintained aggregate."
+
+So the accurate statement of §3 is narrower and stronger than "write a query":
+
+> An app's analytics is a **maintained aggregate** — computed incrementally
+> inside the same transaction as the write that changes it, never by scanning at
+> read time. Its write-side cost is not a runtime surprise: `certificate.rs:58`
+> carries `maintained_amplification`, and `certificate.rs:225` folds it into the
+> program's total write bound at `check` time.
+
+That is the whole analytics story, it costs no new surface, and the cost it does
+impose is priced statically before the program runs. The trade is real and worth
+naming: maintained aggregates move work onto the write path. The reason to
+accept it is that write-path work is bounded and visible, and read-path scanning
+under an exclusive lock is neither.
+
+**When co-location stops being safe** is sharp and worth writing down now, so a
+later reader does not split the difference badly. It is the moment anything
+begins appending a row per event. At that point the store gains unbounded growth
+in a file held under an exclusive lock by the process serving user traffic, with
+a retention lifetime that differs from the application's and a durability
+requirement that differs too — nobody minds losing an hour of analytics, and
+everybody minds losing an hour of messages. **If Snapback 2 ever ingests events,
+they belong in a different file from the application's rows, and that should be
+decided then rather than discovered.**
+
+Which is a third independent argument for §4.1: the co-location this section
+relies on is safe precisely as long as we do not build the thing §4.1 refuses.
+
+### 3.2 Observability is already not in the store
+
+Worth stating plainly, because it removes half the question. The `trace` ledger
+is not a table. It is `ledger: VecDeque<CommitLedger>` on the writer
+(`writer.rs:245`), trimmed to the last 1,000 entries at `writer.rs:871`, and it
+dies with the owner — which is why LLP 1002 §8 specifies the
+`ledger: unavailable (owner restarted at <ts>)` response rather than an empty
+array.
+
+So Snapback 2's causal-explanation data is a bounded in-memory ring that touches
+neither SQLite nor the disk. That is the correct shape, it sharpens §7(d) — the
+1,000 bound is a *memory* decision, and any proposal to raise it is a proposal
+to make the owner's footprint grow with traffic — and it is one more reason
+`trace` cannot drift into being a storage product without someone explicitly
+deciding that it should.
 
 The correct analytics deliverable is therefore prose, not code: **one recipe in
 the packaged guide** showing an author writing an aggregate `query` over their
@@ -291,7 +356,17 @@ cap, so this is a real trade, not a freebie.
 **(d) Should the ledger stay at 1,000 commits and one owner lifetime?** §4.4
 argues yes, emphatically — the bound is what stops this becoming a storage
 product. Worth an explicit ruling rather than an inherited default, because
-every future observability request will arrive as a proposal to raise it.
+every future observability request will arrive as a proposal to raise it. §3.2
+sharpens what is being ruled on: the ledger is in-memory
+(`writer.rs:245`, `:871`), so the bound governs the owner's resident footprint,
+and raising it means the owner grows with traffic.
+
+**(e) Ratify §3.1's boundary before it is needed.** The store is opened
+`locking_mode = EXCLUSIVE` (`store.rs:86`), so co-locating analytics is safe
+only while the certificate refuses unbounded reads. The ruling worth having now
+is the conditional: *if Snapback 2 ever ingests per-event rows, they go in a
+different file from the application's rows.* Cheap to decide today, expensive to
+decide after someone has shipped an events table into the owner's store.
 
 ## 8. How we would know this was right
 
