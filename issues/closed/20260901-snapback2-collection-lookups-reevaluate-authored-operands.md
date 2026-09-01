@@ -1,6 +1,7 @@
 # snapback2: collection lookups reevaluate authored operands
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Bound lookup operands once before iteration in compiler.ts/lower/collections.ts; regression covers modeled-input consumption.
 **Systems:** snapback2, compiler
 **Severity:** P1
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

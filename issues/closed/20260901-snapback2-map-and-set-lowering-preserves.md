@@ -1,6 +1,7 @@
 # snapback2: Map and Set lowering preserves duplicate entries
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Added uniqueness-preserving Map/Set construction and mutation lowering in lower/collections.ts; regression covers duplicates and replacement order.
 **Systems:** snapback2, compiler
 **Severity:** P1
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

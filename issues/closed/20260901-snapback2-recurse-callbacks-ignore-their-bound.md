@@ -1,6 +1,7 @@
 # snapback2: recurse callbacks ignore their bound row expression
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Restricted recurse callbacks to one bound-row db.get form in lower/expr.ts; added adversarial and canonical regressions.
 **Systems:** snapback2, compiler
 **Severity:** P1
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

@@ -223,6 +223,21 @@ pub enum Builtin {
     CountCapped,
 }
 
+impl Builtin {
+    pub fn arity(&self) -> usize {
+        match self {
+            Self::Len
+            | Self::Sort { .. }
+            | Self::MentionTokens
+            | Self::Count
+            | Self::Sum
+            | Self::CountCapped => 1,
+            Self::Concat | Self::Min | Self::Max | Self::Divmod { .. } => 2,
+            Self::Slice | Self::DeterministicShare => 3,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SortKey {
     pub field: String,

@@ -1,6 +1,7 @@
 # snapback2: single-interpolation templates return non-strings
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Coerced singleton interpolations through string Concat in compiler/evaluator/Rust runtime and updated the S1 corpus; added value regression.
 **Systems:** snapback2, compiler
 **Severity:** P1
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

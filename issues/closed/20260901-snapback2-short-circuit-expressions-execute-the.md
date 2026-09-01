@@ -1,6 +1,7 @@
 # snapback2: short-circuit expressions execute the skipped operand
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Moved logical/nullish RHS setup into guarded IR branches in compiler.ts; added write/input-consumption regression.
 **Systems:** snapback2, compiler
 **Severity:** P1
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

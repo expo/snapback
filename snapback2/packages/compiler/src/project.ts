@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
-import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { lstat, mkdir, mkdtemp, readdir, readFile, realpath, rename, rm, writeFile } from "node:fs/promises";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import ts from "typescript";
@@ -47,7 +47,12 @@ export async function lowerProject(root: string): Promise<ProjectResult> {
   }));
   const schemaFileName = relativeSite(projectRoot, schemaPath);
   const schema = lowerSchema(schemaSource, schemaFileName);
-  const diagnostics = [...schema.diagnostics, ...duplicateModuleBasenameDiagnostics(discoveredModulePaths, projectRoot)];
+  const diagnostics = [
+    ...schema.diagnostics,
+    ...nestedModuleDiagnostics(discoveredModulePaths, authoredRoot, projectRoot),
+    ...duplicateModuleBasenameDiagnostics(discoveredModulePaths, projectRoot),
+    ...rowAliasDiagnostics(schema.tables, schemaFileName),
+  ];
   if (modules.length === 0) {
     diagnostics.push(typeDiagnostic(
       "E_OP_NONE",
@@ -72,7 +77,7 @@ export async function lowerProject(root: string): Promise<ProjectResult> {
   diagnostics.push(...loweredEffects.diagnostics);
 
   const programs: Program[] = [];
-  const sources: Record<string, SourceSite> = {};
+  const sources: Record<string, SourceSite> = Object.create(null);
   const bindingsByModule = new Map<string, Map<string, TableInfo>>();
   for (const module of modules) {
     const tables = tableBindings(module, schema.tables, diagnostics);
@@ -155,6 +160,40 @@ function duplicateModuleBasenameDiagnostics(paths: string[], projectRoot: string
   return diagnostics;
 }
 
+function nestedModuleDiagnostics(paths: string[], authoredRoot: string, projectRoot: string): FrontendDiagnostic[] {
+  return paths.filter((path) => dirname(path) !== authoredRoot).sort().map((path) => {
+    const site = relativeSite(projectRoot, path);
+    return typeDiagnostic(
+      "E_OP_INVALID",
+      "op",
+      site,
+      1,
+      1,
+      `nested operation module ${site} is unsupported; operation modules must be direct children of snapback`,
+      `move ${site} directly under snapback/`,
+      "programs/operations",
+    );
+  });
+}
+
+function rowAliasDiagnostics(tables: Map<string, TableInfo>, schemaFileName: string): FrontendDiagnostic[] {
+  const names = new Map<string, string[]>();
+  for (const table of tables.values()) {
+    const alias = apiRowName(table.name);
+    names.set(alias, [...(names.get(alias) ?? []), table.name]);
+  }
+  return [...names].filter(([, tables]) => tables.length > 1).map(([alias, tables]) => typeDiagnostic(
+    "E_SCHEMA_INVALID",
+    "schema",
+    schemaFileName,
+    1,
+    1,
+    `tables ${tables.join(" and ")} generate the same row alias ${alias}`,
+    "rename one table so generated row type names are unique",
+    "schema/project",
+  ));
+}
+
 export async function lowerSeed(root: string): Promise<
   | { ok: true; seed: { personas: string[]; rows: Record<string, unknown[]> } }
   | { ok: false; diagnostics: FrontendDiagnostic[] }
@@ -209,7 +248,7 @@ export async function lowerSeed(root: string): Promise<
   const tables = loweredSchema.schema.tables as Record<string, { columns?: Record<string, unknown> }>;
   const rows = record.rows as Record<string, unknown>;
   for (const [table, seeded] of Object.entries(rows)) {
-    if (!(table in tables)) {
+    if (!Object.hasOwn(tables, table)) {
       diagnostics.push(diagnostic(module, "E_SEED_TABLE", expression ?? sourceFile, `seed rows name unknown table ${table}`, source));
       continue;
     }
@@ -249,15 +288,22 @@ export async function compileJourneys(
   const sourceFiles = (await listJourneys(projectRoot)).map((file) => join(projectRoot, file));
   const buildRoot = join(projectRoot, ".snapback", "build");
   const outputRoot = join(buildRoot, "tests");
-  await rm(outputRoot, { recursive: true, force: true });
-  await mkdir(outputRoot, { recursive: true });
-  if (sourceFiles.length === 0) return { ok: true, files: [] };
+  const unsafeOutput = await journeyOutputDiagnostic(projectRoot, [join(projectRoot, ".snapback"), buildRoot, outputRoot]);
+  if (unsafeOutput) return { ok: false, diagnostics: [unsafeOutput] };
+  await mkdir(buildRoot, { recursive: true });
+  const stagedOutput = await mkdtemp(join(buildRoot, ".tests-"));
+  if (sourceFiles.length === 0) {
+    await replaceDirectoryAtomically(outputRoot, stagedOutput);
+    return { ok: true, files: [] };
+  }
 
   const packageDist = compilerPackageDist();
   const clientDts = join(packageDist, "client.d.ts");
   const testDts = join(packageDist, "test.d.ts");
   const apiPath = join(buildRoot, "api.d.ts");
-  await writeFile(apiPath, apiDts);
+  const stagedApi = join(buildRoot, `.api-${process.pid}-${Date.now()}.d.ts`);
+  await writeFile(stagedApi, apiDts);
+  await rename(stagedApi, apiPath);
   const options: ts.CompilerOptions = {
     baseUrl: projectRoot,
     jsx: ts.JsxEmit.ReactJSX,
@@ -293,6 +339,7 @@ export async function compileJourneys(
     )];
   });
   if (diagnostics.length > 0) {
+    await rm(stagedOutput, { recursive: true, force: true });
     return { ok: false, diagnostics: boundedDiagnostics(diagnostics, 50, "journey refusals") };
   }
 
@@ -307,16 +354,90 @@ export async function compileJourneys(
         module: ts.ModuleKind.ESNext,
         target: ts.ScriptTarget.ES2022,
       },
-    }).outputText
-      .replace(/(["'])snapback2\/client\1/g, JSON.stringify(clientModule))
-      .replace(/(["'])snapback2\/test\1/g, JSON.stringify(testModule));
+    }).outputText;
+    const rewritten = rewriteModuleSpecifiers(transpiled, new Map([
+      ["snapback2/client", clientModule],
+      ["snapback2/test", testModule],
+    ]));
     const sourceName = basename(sourcePath);
     const outputName = `${sourceName.slice(0, -".test.ts".length)}.mjs`;
-    const outputPath = join(outputRoot, outputName);
-    await writeFile(outputPath, transpiled);
+    const outputPath = join(stagedOutput, outputName);
+    await writeFile(outputPath, rewritten);
     files.push(relativeSite(projectRoot, outputPath));
   }
+  const racedOutput = await journeyOutputDiagnostic(projectRoot, [join(projectRoot, ".snapback"), buildRoot, outputRoot]);
+  if (racedOutput) {
+    await rm(stagedOutput, { recursive: true, force: true });
+    return { ok: false, diagnostics: [racedOutput] };
+  }
+  await replaceDirectoryAtomically(outputRoot, stagedOutput);
+  for (let index = 0; index < files.length; index += 1) {
+    files[index] = relativeSite(projectRoot, join(outputRoot, basename(files[index]!)));
+  }
   return { ok: true, files };
+}
+
+async function replaceDirectoryAtomically(target: string, staged: string): Promise<void> {
+  const backup = `${target}.replaced-${process.pid}-${Date.now()}`;
+  try {
+    await rename(target, backup);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+  }
+  try {
+    await rename(staged, target);
+  } catch (error) {
+    try {
+      await rename(backup, target);
+    } catch {
+      // Preserve the original replacement failure; the staged directory remains inspectable.
+    }
+    throw error;
+  }
+  await rm(backup, { recursive: true, force: true });
+}
+
+async function journeyOutputDiagnostic(
+  projectRoot: string,
+  components: string[],
+): Promise<FrontendDiagnostic | undefined> {
+  const canonicalRoot = await realpath(projectRoot);
+  for (const component of components) {
+    try {
+      const status = await lstat(component);
+      if (status.isSymbolicLink()) {
+        return typeDiagnostic("E_OP_INVALID", "op", relativeSite(projectRoot, component), 1, 1,
+          `journey output component ${relativeSite(projectRoot, component)} is a symlink`,
+          "replace the symlink with a project-owned directory", "testing/journeys");
+      }
+      const canonical = await realpath(component);
+      const fromRoot = relative(canonicalRoot, canonical);
+      if (fromRoot === ".." || fromRoot.startsWith(`..${sep}`) || isAbsolute(fromRoot)) {
+        return typeDiagnostic("E_OP_INVALID", "op", relativeSite(projectRoot, component), 1, 1,
+          `journey output component ${relativeSite(projectRoot, component)} escapes the project`,
+          "use a project-owned output directory", "testing/journeys");
+      }
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    }
+  }
+  return undefined;
+}
+
+function rewriteModuleSpecifiers(source: string, replacements: Map<string, string>): string {
+  const file = ts.createSourceFile("journey.mjs", source, ts.ScriptTarget.ES2022, true, ts.ScriptKind.JS);
+  const edits: Array<{ start: number; end: number; value: string }> = [];
+  const add = (node: ts.Expression | undefined) => {
+    if (!node || !ts.isStringLiteralLike(node)) return;
+    const replacement = replacements.get(node.text);
+    if (replacement) edits.push({ start: node.getStart(file), end: node.getEnd(), value: JSON.stringify(replacement) });
+  };
+  walk(file, (node) => {
+    if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) add(node.moduleSpecifier);
+    if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) add(node.arguments[0]);
+  });
+  return edits.sort((left, right) => right.start - left.start)
+    .reduce((text, edit) => `${text.slice(0, edit.start)}${edit.value}${text.slice(edit.end)}`, source);
 }
 
 function compilerPackageDist(): string {
@@ -866,12 +987,12 @@ function validateSeedRow(
     diagnostics.push(diagnostic(module, "E_SEED_ROW", node, `seed ${table}[${index}].id must be a non-empty string`, module.source));
   }
   for (const field of Object.keys(row)) {
-    if (!(field in columns)) {
+    if (!Object.hasOwn(columns, field)) {
       diagnostics.push(diagnostic(module, "E_SEED_VALUE", node, `seed ${table}[${index}] has unknown column ${field}`, module.source));
     }
   }
   for (const [field, type] of Object.entries(columns)) {
-    if (!(field in row)) {
+    if (!Object.hasOwn(row, field)) {
       if (!isOptionalColumn(type)) {
         diagnostics.push(diagnostic(module, "E_SEED_VALUE", node, `seed ${table}[${index}] is missing required column ${field}`, module.source));
       }

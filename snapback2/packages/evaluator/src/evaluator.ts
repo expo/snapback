@@ -505,7 +505,7 @@ class Runner {
       case "Array":
         return { Array: data.map((value: any) => this.expr(value)) };
       case "Object": {
-        const row: Record<string, Value> = {};
+        const row: Record<string, Value> = Object.create(null);
         for (const key of Object.keys(data).sort(compareCodepoints)) row[key] = this.expr(data[key]);
         return { Row: row };
       }
@@ -517,8 +517,14 @@ class Runner {
         if (data.op === "Neg") return int(-asInt(value));
         throw new EvalError("E_OPAQUE", `unsupported unary ${data.op}`);
       }
-      case "Builtin":
+      case "Builtin": {
+        const builtinKind = variant(data.builtin)[0];
+        const expected = builtinArity(builtinKind);
+        if (data.args.length !== expected) {
+          throw new EvalError("E_INPUT", `${builtinKind} requires ${expected} arguments, received ${data.args.length}`);
+        }
         return this.builtin(data.builtin, data.args.map((value: any) => this.expr(value)));
+      }
       case "Get":
         return this.get(data);
       case "Exists":
@@ -606,8 +612,8 @@ class Runner {
       }
       case "Concat": {
         const [left, right] = args;
-        if (isVariant(left, "String") && isVariant(right, "String"))
-          return { String: left.String + right.String };
+        if (isVariant(left, "String") || isVariant(right, "String"))
+          return { String: valueText(left) + valueText(right) };
         if (isVariant(left, "Id") && isVariant(right, "Id"))
           return { Id: `${left.Id}:${right.Id}` };
         if (isVariant(left, "Array") && isVariant(right, "Array"))
@@ -803,10 +809,10 @@ class Runner {
       kind === "Count" ? direction : safeNumber(direction * asInt(field(source, data.of)));
     const existing = this.store.byId(maintain.target, idValue);
     const oldValue = existing === null ? 0 : asInt(field(existing, "value"));
-    const object: Record<string, Value> = {
+    const object: Record<string, Value> = Object.assign(Object.create(null), {
       id: { Id: idValue },
       value: int(oldValue + delta),
-    };
+    });
     maintain.by.forEach((name: string, index: number) => {
       object[name] = group[index];
     });
@@ -1046,7 +1052,7 @@ function canonicalValues(values: Value[]): string {
 }
 
 function rangeStops(ranges: TraceRange[]): Record<string, string[]> {
-  const result: Record<string, string[]> = {};
+  const result: Record<string, string[]> = Object.create(null);
   for (const range of ranges) (result[range.site] ??= []).push(range.stop);
   return sortObject(result);
 }
@@ -1057,20 +1063,20 @@ function normalizeRow(value: Value): Value {
 }
 
 function rowValue(entries: Record<string, Value>): Value {
-  const sorted: Record<string, Value> = {};
+  const sorted: Record<string, Value> = Object.create(null);
   for (const key of Object.keys(entries).sort(compareCodepoints)) sorted[key] = clone(entries[key]);
   return { Row: sorted };
 }
 
 function field(value: Value, name: string): Value {
   const object = asObject(value);
-  if (!(name in object)) throw new EvalError("E_FIELD", `missing field ${name}`);
+  if (!Object.hasOwn(object, name)) throw new EvalError("E_FIELD", `missing field ${name}`);
   return object[name];
 }
 
 function fieldOrNull(value: Value, name: string): Value {
   const object = asObject(value);
-  return object[name] ?? "Null";
+  return Object.hasOwn(object, name) ? object[name] : "Null";
 }
 
 function asObject(value: Value): Record<string, Value> {
@@ -1214,7 +1220,7 @@ function validateWriteRow(schema: any, tableName: string, row: Value): void {
   if (columns === undefined) throw new EvalError("E_SCHEMA", `missing table ${tableName}`);
   const object = asObject(row);
   for (const [name, descriptor] of Object.entries<any>(columns)) {
-    if (name in object) validateColumnValue(descriptor, object[name], `${tableName}.${name}`);
+    if (Object.hasOwn(object, name)) validateColumnValue(descriptor, object[name], `${tableName}.${name}`);
   }
 }
 
@@ -1245,9 +1251,29 @@ function clone<T>(value: T): T {
 }
 
 function sortObject<T>(value: Record<string, T>): Record<string, T> {
-  const sorted: Record<string, T> = {};
+  const sorted: Record<string, T> = Object.create(null);
   for (const key of Object.keys(value).sort(compareCodepoints)) sorted[key] = value[key];
   return sorted;
+}
+
+function builtinArity(kind: string): number {
+  switch (kind) {
+    case "Len": case "Sort": case "MentionTokens": case "Count": case "CountCapped": case "Sum": return 1;
+    case "Concat": case "Min": case "Max": case "Divmod": return 2;
+    case "Slice": case "DeterministicShare": return 3;
+    default: throw new EvalError("E_OPAQUE", `unsupported builtin ${kind}`);
+  }
+}
+
+function valueText(value: Value): string {
+  if (value === "Null") return "null";
+  if (isVariant(value, "Bool")) return String(value.Bool);
+  if (isVariant(value, "Int")) return String(value.Int);
+  if (isVariant(value, "String")) return value.String;
+  if (isVariant(value, "Id")) return value.Id;
+  if (isVariant(value, "Bytes")) return value.Bytes;
+  if (isVariant(value, "Array")) return value.Array.map(valueText).join(",");
+  return "[object Object]";
 }
 
 function isWordCharacter(character: string): boolean {

@@ -957,7 +957,19 @@
             "index": "byHandle",
             "prefix": [
               {
-                "Variable": "handle"
+                "Builtin": {
+                  "builtin": "Concat",
+                  "args": [
+                    {
+                      "Literal": {
+                        "String": ""
+                      }
+                    },
+                    {
+                      "Variable": "handle"
+                    }
+                  ]
+                }
               }
             ],
             "order": "Asc",

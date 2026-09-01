@@ -1,6 +1,7 @@
 # snapback2: __proto__ names are lost by plain-object lowering
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Made authored-key accumulators and evaluator row normalization prototype-safe across schema, expressions, seed, and receipts; added boundary regression.
 **Systems:** snapback2, compiler, evaluator, value model
 **Severity:** P1
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

@@ -1,6 +1,7 @@
 # snapback2: decimal rule literals are compared without schema scaling
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Scaled Decimal/Money rule numeric tokens exactly in lower/schema.ts and reject excess precision; added rule regression.
 **Systems:** snapback2, compiler
 **Severity:** P1
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

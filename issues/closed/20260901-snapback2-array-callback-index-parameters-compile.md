@@ -1,6 +1,7 @@
 # snapback2: array callback index parameters compile as undefined variables
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Restricted supported array callbacks to their modeled parameters in lower/expr.ts and declarations; added map/filter index regressions.
 **Systems:** snapback2, compiler
 **Severity:** P2
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

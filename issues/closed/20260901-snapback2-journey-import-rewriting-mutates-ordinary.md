@@ -1,6 +1,7 @@
 # snapback2: journey import rewriting mutates ordinary source text
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Replaced textual journey rewriting with syntax-targeted module-specifier edits in project.ts; added ordinary-string regression.
 **Systems:** snapback2, compiler
 **Severity:** P2
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

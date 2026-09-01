@@ -6,12 +6,12 @@ interface Iterable<T> { [Symbol.iterator](): Iterator<T>; }
 interface Array<T> extends Iterable<T> {
   readonly length: number;
   [index: number]: T;
-  map<U>(callback: (value: T, index: number) => U): U[];
-  flatMap<U>(callback: (value: T, index: number) => U[]): U[];
-  filter(callback: (value: T, index: number) => boolean): T[];
+  map<U>(callback: (value: T) => U): U[];
+  flatMap<U>(callback: (value: T) => U[]): U[];
+  filter(callback: (value: T) => boolean): T[];
   reduce<U>(callback: (value: U, item: T) => U, initial: U): U;
-  some(callback: (value: T, index: number) => boolean): boolean;
-  slice(start?: number, end?: number): T[];
+  some(callback: (value: T) => boolean): boolean;
+  slice(start: number, end: number): T[];
   sort(comparator: (a: T, b: T) => number): T[];
   push(value: T): number;
   count(): number;
@@ -44,8 +44,8 @@ declare class Set<T> {
   has(value: T): boolean;
 }
 declare const Math: {
-  min(...values: number[]): number;
-  max(...values: number[]): number;
+  min(first: number, second: number, ...values: number[]): number;
+  max(first: number, second: number, ...values: number[]): number;
   abs(value: number): number;
   random(): number;
 };

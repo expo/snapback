@@ -1,6 +1,7 @@
 # snapback2: journey cleanup follows the project output symlink
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Refused symlinked/escaping journey output components and atomically replaced staged output in project.ts; added external-sentinel regression.
 **Systems:** snapback2, compiler, security
 **Severity:** P1
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

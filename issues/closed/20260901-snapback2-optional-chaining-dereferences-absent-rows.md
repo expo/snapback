@@ -1,6 +1,7 @@
 # snapback2: optional chaining dereferences absent rows
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Lowered optional property access through a guarded temporary in compiler.ts; added absent-row evaluator regression.
 **Systems:** snapback2, compiler
 **Severity:** P1
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

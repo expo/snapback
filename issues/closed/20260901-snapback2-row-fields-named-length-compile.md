@@ -1,6 +1,7 @@
 # snapback2: row fields named length compile as collection length
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Made length lowering type-aware for known rows/objects in compiler.ts and lower/expr.ts; added row-field execution regression.
 **Systems:** snapback2, compiler
 **Severity:** P1
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

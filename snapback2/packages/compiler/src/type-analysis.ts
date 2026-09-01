@@ -31,7 +31,7 @@ export type TypePlan = {
 export function analyzeOperationTypes(module: TypeModule, call: ts.CallExpression): TypePlan {
   const analyzer = new Analyzer(module);
   const argsObject = call.arguments[0] && unwrapExpression(call.arguments[0]);
-  const args: Record<string, AuthoredType> = {};
+  const args: Record<string, AuthoredType> = Object.create(null);
   if (argsObject && ts.isObjectLiteralExpression(argsObject)) {
     for (const property of expandArgumentObject(argsObject).entries) {
       args[property.name] = descriptorType(property.value);

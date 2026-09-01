@@ -1,6 +1,7 @@
 # snapback2: sort lowering accepts unrelated comparator expressions
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Validated exact opposite comparator parameters and identical fields in lower/expr.ts; added invalid/valid comparator regression.
 **Systems:** snapback2, compiler
 **Severity:** P1
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

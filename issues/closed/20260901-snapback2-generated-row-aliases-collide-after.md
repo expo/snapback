@@ -1,6 +1,7 @@
 # snapback2: generated row aliases collide after name normalization
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Diagnosed normalized row-alias collisions before API generation in project.ts; added colliding-table project regression.
 **Systems:** snapback2, compiler
 **Severity:** P2
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

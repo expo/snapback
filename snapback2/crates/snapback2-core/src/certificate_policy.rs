@@ -3,6 +3,7 @@
 use crate::certificate::{CheckError, Checker};
 use crate::ir::*;
 use crate::schema::{RuleExpr, RuleTerm, Schema};
+use crate::value::{I53_MAX, I53_MIN, Value};
 use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -488,7 +489,34 @@ fn validate_expr(
                 });
             }
         }
+        Expr::Builtin { builtin, args } if args.len() != builtin.arity() => {
+            errors.push(CheckError {
+                code: "E_OPAQUE".to_owned(),
+                message: format!(
+                    "builtin {builtin:?} requires {} arguments, received {}",
+                    builtin.arity(),
+                    args.len()
+                ),
+                rewrite: "use the builtin's declared argument count".to_owned(),
+            });
+        }
+        Expr::Literal(value) if !literal_is_i53(value) => {
+            errors.push(CheckError {
+                code: "E_OPAQUE".to_owned(),
+                message: "literal contains an integer outside the i53 value model".to_owned(),
+                rewrite: "use integers from -9007199254740991 through 9007199254740991".to_owned(),
+            });
+        }
         _ => {}
+    }
+}
+
+fn literal_is_i53(value: &Value) -> bool {
+    match value {
+        Value::Int(value) => (I53_MIN..=I53_MAX).contains(value),
+        Value::Array(values) => values.iter().all(literal_is_i53),
+        Value::Row(values) | Value::Map(values) => values.values().all(literal_is_i53),
+        Value::Null | Value::Bool(_) | Value::String(_) | Value::Id(_) | Value::Bytes(_) => true,
     }
 }
 

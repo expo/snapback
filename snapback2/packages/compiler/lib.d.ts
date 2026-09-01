@@ -51,7 +51,13 @@ declare module "snapback2" {
   export type Db = {
     get<R extends Record<string, any>>(target: Table<R> | TableIndex<R>, key: unknown): R | null;
     exists(target: Table<any> | TableIndex<any>, key: unknown): boolean;
-    scan<R extends Record<string, any>>(target: Table<R> | TableIndex<R>, prefix: unknown, options?: Record<string, any>): Page<R>;
+    scan<R extends Record<string, any>>(target: Table<R> | TableIndex<R>, prefix: unknown, options?: {
+      order?: "asc" | "desc";
+      take?: number;
+      after?: unknown;
+      before?: unknown;
+      range?: { gt?: unknown; gte?: unknown; lt?: unknown; lte?: unknown };
+    }): Page<R>;
     insert<R extends Record<string, any>>(target: Table<R>, row: WriteRow<R>): R;
     update<R extends Record<string, any>>(target: Table<R>, key: unknown, patch: Partial<Omit<WriteRow<R>, "id">> | ((row: R) => Partial<Omit<WriteRow<R>, "id">>)): void;
     upsert<R extends Record<string, any>>(target: Table<R>, key: unknown, row: WriteRow<R> | ((row: R | null) => WriteRow<R>)): void;
@@ -133,11 +139,11 @@ declare module "snapback2" {
   export function decimal<const S extends number>(value: number, scale: S): Decimal<S>;
   export function mentionTokens(value: string): string[];
   export function deterministicShare(amount: number, recipients: unknown[], recipient: unknown): number;
-  export function concat(...values: unknown[]): string;
-  export function max<const S extends number>(...values: Decimal<S>[]): Decimal<S>;
-  export function max(...values: number[]): number;
-  export function min<const S extends number>(...values: Decimal<S>[]): Decimal<S>;
-  export function min(...values: number[]): number;
+  export function concat(first: unknown, second: unknown, ...values: unknown[]): string;
+  export function max<const S extends number>(first: Decimal<S>, second: Decimal<S>, ...values: Decimal<S>[]): Decimal<S>;
+  export function max(first: number, second: number, ...values: number[]): number;
+  export function min<const S extends number>(first: Decimal<S>, second: Decimal<S>, ...values: Decimal<S>[]): Decimal<S>;
+  export function min(first: number, second: number, ...values: number[]): number;
   export function divmod(value: number, divisor: number): { quotient: number; remainder: number };
   export function recurse<T>(seed: unknown, step: (value: any) => T | null, options: { depth: number; fanout: number }): T[];
 }

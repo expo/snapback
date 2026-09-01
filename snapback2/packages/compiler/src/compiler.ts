@@ -4,7 +4,7 @@ import { argumentSpreadRewrite, expandArgumentObject } from "./args";
 import { boundedDiagnostics, diagnostic, refuse, Refusal } from "./diagnostics";
 import {
   allocateReadSite, cloneEnvironment, containsRead, enterLexicalScope,
-  loopDomainMaximum, lowerCoalesce, lowerArrayMethod, lowerCollectionDomain,
+  loopDomainMaximum, lowerArrayMethod, lowerCollectionDomain,
   lowerDomain, lowerExpr, lowerKey, lowerPatch, lowerSortExpression, reserveWriteSite, tableReference,
 } from "./lower/expr";
 import { knownObjectFields, nullableReadSpread, nullableSpreadRefusal, rowCollectionFields } from "./lower/object-shape";
@@ -14,6 +14,7 @@ import { appendCollectionFacts, collectionFactsFor, collectionMutationIncrement,
   mergeAssignedCollectionFacts } from "./lower/collection-facts";
 import { forkBranchEnvironment, mergeBranchEnvironments } from "./lower/branch-bindings";
 import { lowerLoopBodyWithMutationPlan } from "./lower/loop-mutations";
+import { lowerCollectionConstructor, lowerCollectionLookup, lowerMapAssignment } from "./lower/collections";
 import { findPolicyRefusals, mechanicalBoundRewrite } from "./policy";
 import { analyzeOperationTypes, type TypePlan } from "./type-analysis";
 import { formatTypeDiagnostic, typecheckSource } from "./typecheck";
@@ -180,7 +181,7 @@ function lowerOperation(
       nestedHandlerDestructuringRewrite(module, handler),
     );
   }
-  const args: Program["args"] = {};
+  const args: Program["args"] = Object.create(null);
   const expandedArgs = expandArgumentObject(argObject);
   if (expandedArgs.invalidSpread) {
     refuse(module, "E_ARGS_SPREAD", expandedArgs.invalidSpread, "argument object spread is not a module-level constant object; spell out every argument field",
@@ -307,9 +308,15 @@ function lowerStatement(statement: ts.Statement, env: Environment): Stmt[] {
             ? element.name
             : undefined);
           if (!identifiers[0] || !identifiers[1]) refuse(env, "E_OPAQUE", declaration.name, "orderedPair bindings must be identifiers");
-          const args = call.arguments.map((argument) => lowerExpr(argument, env));
-          out.push({ Let: { name: identifiers[0].text, value: { Builtin: { builtin: "Min", args } } } });
-          out.push({ Let: { name: identifiers[1].text, value: { Builtin: { builtin: "Max", args } } } });
+          const args = call.arguments.map((argument) => lowerValue(argument, env));
+          out.push(...args.flatMap((argument) => argument.statements));
+          const values = args.map((argument, index) => {
+            const name = temporary(env, `ordered${index}`);
+            out.push({ Let: { name, value: argument.expression } });
+            return { Variable: name } satisfies Expr;
+          });
+          out.push({ Let: { name: identifiers[0].text, value: { Builtin: { builtin: "Min", args: values } } } });
+          out.push({ Let: { name: identifiers[1].text, value: { Builtin: { builtin: "Max", args: values } } } });
           const origin = withDirectRewrite(combinedProvenanceBinding(call.arguments, env), declaration.initializer, env);
           for (const identifier of identifiers as [ts.Identifier, ts.Identifier]) {
             env.variables.set(identifier.text, { ...origin });
@@ -352,7 +359,7 @@ function lowerStatement(statement: ts.Statement, env: Environment): Stmt[] {
         }, facts);
         env.variables.set(name, info);
         out.push(...lowered.statements);
-        out.push(isConst
+        out.push(isConst && !collection
           ? { Const: { name, value: lowered.expression } }
           : { Let: { name, value: lowered.expression } });
       } catch (error) {
@@ -466,14 +473,17 @@ function lowerExpressionStatement(expression: ts.Expression, env: Environment): 
         const loweredKey = lowerValue(key, env);
         const loweredValue = lowerValue(value, env);
         const info = env.variables.get(owner.text)!;
-        appendCollectionFacts(info, value, env, collectionMutationIncrement(info, owner.text, env), collectionOriginsBinding);
+        const priorMax = info.max;
+        const increment = collectionMutationIncrement(info, owner.text, env);
+        appendCollectionFacts(info, value, env, increment, collectionOriginsBinding);
+        if (info.max === undefined && priorMax !== undefined) {
+          info.max = priorMax + increment;
+          info.boundSource = `${value.getText(env.sourceFile)} Map.set bound`;
+        }
         return [
           ...loweredKey.statements,
           ...loweredValue.statements,
-          { Push: {
-            target: owner.text,
-            value: { Object: { key: loweredKey.expression, value: loweredValue.expression } },
-          } },
+          ...lowerMapAssignment(owner.text, loweredKey.expression, loweredValue.expression, info.max ?? 0, info.boundSource, env),
         ];
       }
       if (ts.isIdentifier(owner) && env.variables.get(owner.text)?.collection === "Set" && method === "add") {
@@ -481,15 +491,23 @@ function lowerExpressionStatement(expression: ts.Expression, env: Environment): 
         const value = expression.arguments[0];
         if (!value) refuse(env, "E_OPAQUE", expression, "Set.add requires a value");
         const loweredValue = lowerValue(value, env);
-        const found = lowerCollectionLookup(owner, loweredValue.expression, env, "SetHas");
+        const valueName = temporary(env, "setValue");
+        const found = lowerCollectionLookup(owner, { Variable: valueName }, env, "SetHas");
         const info = env.variables.get(owner.text)!;
-        appendCollectionFacts(info, value, env, collectionMutationIncrement(info, owner.text, env), collectionOriginsBinding);
+        const priorMax = info.max;
+        const increment = collectionMutationIncrement(info, owner.text, env);
+        appendCollectionFacts(info, value, env, increment, collectionOriginsBinding);
+        if (info.max === undefined && priorMax !== undefined) {
+          info.max = priorMax + increment;
+          info.boundSource = `${value.getText(env.sourceFile)} Set.add bound`;
+        }
         return [
           ...loweredValue.statements,
+          { Let: { name: valueName, value: loweredValue.expression } },
           ...found.statements,
           { If: {
             condition: { Unary: { op: "Not", value: found.expression } },
-            then_body: [{ Push: { target: owner.text, value: loweredValue.expression } }],
+            then_body: [{ Push: { target: owner.text, value: { Variable: valueName } } }],
             else_body: [],
           } },
         ];
@@ -682,17 +700,37 @@ function lowerValue(node: ts.Expression, env: Environment, hint?: string): Lower
       expression: { Variable: name },
     };
   }
-  if (ts.isBinaryExpression(value) && value.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken) {
-    return lowerCoalesce(value, env, hint, lowerValue);
-  }
   if (ts.isBinaryExpression(value)) {
     const op = binaryOperator(value.operatorToken.kind);
-    if (!op) return { statements: [], expression: lowerExpr(value, env, hint) };
+    const nullish = value.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken;
+    if (!op && !nullish) return { statements: [], expression: lowerExpr(value, env, hint) };
     const left = lowerValue(value.left, env, hint);
     const right = lowerValue(value.right, env, hint);
+    if (op === "And" || op === "Or" || nullish) {
+      const leftName = temporary(env, "logicalLeft");
+      const result = temporary(env, "logicalResult");
+      const condition = nullish
+        ? { Binary: { op: "Eq" as const, left: { Variable: leftName } satisfies Expr, right: literal(null) } }
+        : op === "And"
+          ? { Variable: leftName }
+          : { Unary: { op: "Not" as const, value: { Variable: leftName } } };
+      return {
+        statements: [
+          ...left.statements,
+          { Let: { name: leftName, value: left.expression } },
+          { Let: { name: result, value: { Variable: leftName } } },
+          { If: {
+            condition,
+            then_body: [...right.statements, { Assign: { name: result, value: right.expression } }],
+            else_body: [],
+          } },
+        ],
+        expression: { Variable: result },
+      };
+    }
     return {
       statements: [...left.statements, ...right.statements],
-      expression: { Binary: { op, left: left.expression, right: right.expression } },
+      expression: { Binary: { op: op!, left: left.expression, right: right.expression } },
     };
   }
   if (ts.isPrefixUnaryExpression(value)
@@ -714,10 +752,28 @@ function lowerValue(node: ts.Expression, env: Environment, hint?: string): Lower
       return { statements: [], expression: lowerExpr(value, env, hint) };
     }
     const base = lowerValue(value.expression, env, hint);
+    if (value.questionDotToken) {
+      const baseName = temporary(env, "optionalBase");
+      const result = temporary(env, "optionalValue");
+      return {
+        statements: [
+          ...base.statements,
+          { Let: { name: baseName, value: base.expression } },
+          { Let: { name: result, value: literal(null) } },
+          { If: {
+            condition: { Binary: { op: "Ne", left: { Variable: baseName }, right: literal(null) } },
+            then_body: [{ Assign: { name: result, value: { Field: { base: { Variable: baseName }, name: value.name.text } } } }],
+            else_body: [],
+          } },
+        ],
+        expression: { Variable: result },
+      };
+    }
     const collection = ts.isIdentifier(value.expression)
       ? env.variables.get(value.expression.text)?.collection
       : undefined;
-    if (value.name.text === "length" || (value.name.text === "size" && collection)) {
+    if ((value.name.text === "length" && !isKnownRowOrObject(value.expression, env))
+      || (value.name.text === "size" && collection)) {
       return {
         statements: base.statements,
         expression: { Builtin: { builtin: "Len", args: [base.expression] } },
@@ -730,7 +786,7 @@ function lowerValue(node: ts.Expression, env: Environment, hint?: string): Lower
   }
   if (ts.isObjectLiteralExpression(value)) {
     const statements: Stmt[] = [];
-    const object: Record<string, Expr> = {};
+    const object: Record<string, Expr> = Object.create(null);
     for (const property of value.properties) {
       try {
         if (ts.isSpreadAssignment(property)) {
@@ -817,7 +873,7 @@ function lowerValue(node: ts.Expression, env: Environment, hint?: string): Lower
           : concatExpressions(segments),
     };
   }
-  if (ts.isNewExpression(value)) return lowerCollectionConstructor(value, env, hint);
+  if (ts.isNewExpression(value)) return lowerCollectionConstructor(value, env, lowerValue, hint);
   if (ts.isCallExpression(value)) {
     const method = memberName(value.expression);
     if (method && ts.isPropertyAccessExpression(value.expression)
@@ -837,6 +893,7 @@ function lowerValue(node: ts.Expression, env: Environment, hint?: string): Lower
       }
     }
     if (method === "slice" && ts.isPropertyAccessExpression(value.expression)) {
+      if (value.arguments.length !== 2) refuse(env, "E_OPAQUE", value, "slice requires start and end arguments");
       const owner = lowerValue(value.expression.expression, env, hint);
       const args = value.arguments.map((argument) => lowerValue(argument, env));
       return {
@@ -891,75 +948,12 @@ function lowerValue(node: ts.Expression, env: Environment, hint?: string): Lower
   return { statements: [], expression: lowerExpr(value, env, hint) };
 }
 
-function lowerCollectionConstructor(
-  expression: ts.NewExpression,
-  env: Environment,
-  hint?: string,
-): LoweredValue {
-  const kind = collectionConstructor(expression);
-  if (!kind) refuse(env, "E_OPAQUE", expression, "only Map and Set constructors are admitted");
-  const initializer = expression.arguments?.[0];
-  if (!initializer) return { statements: [], expression: { Array: [] } };
-  if ((expression.arguments?.length ?? 0) !== 1) {
-    refuse(env, "E_OPAQUE", expression, `${kind} constructor accepts at most one bounded initializer`);
-  }
-  if (kind === "Set") return lowerValue(initializer, env, hint);
-  const entries = unwrapExpression(initializer);
-  if (!ts.isArrayLiteralExpression(entries)) {
-    refuse(env, "E_OPAQUE", initializer, "Map initializer must be a bounded array literal of [key, value] pairs");
-  }
-  const statements: Stmt[] = [];
-  const values: Expr[] = [];
-  for (const entry of entries.elements) {
-    const pair = unwrapExpression(entry);
-    if (!ts.isArrayLiteralExpression(pair) || pair.elements.length !== 2) {
-      refuse(env, "E_OPAQUE", entry, "Map initializer entries must be [key, value] pairs");
-    }
-    const key = lowerValue(pair.elements[0]!, env, hint);
-    const value = lowerValue(pair.elements[1]!, env, hint);
-    statements.push(...key.statements, ...value.statements);
-    values.push({ Object: { key: key.expression, value: value.expression } });
-  }
-  return { statements, expression: { Array: values } };
-}
-
-function lowerCollectionLookup(
-  owner: ts.Identifier,
-  needle: Expr,
-  env: Environment,
-  mode: "MapGet" | "MapHas" | "SetHas",
-): LoweredValue {
-  const info = env.variables.get(owner.text);
-  if (info?.max === undefined) {
-    refuse(env, "E_UNBOUND_LOOP", owner, `${owner.text}.${mode === "MapGet" ? "get" : "has"} needs a statically bounded collection`);
-  }
-  const binding = temporary(env, mode === "SetHas" ? "setItem" : "mapEntry");
-  const result = temporary(env, mode === "MapGet" ? "mapValue" : "collectionHas");
-  const candidate = mode === "SetHas"
-    ? { Variable: binding } satisfies Expr
-    : { Field: { base: { Variable: binding }, name: "key" } } satisfies Expr;
-  const assignment = mode === "MapGet"
-    ? { Field: { base: { Variable: binding }, name: "value" } } satisfies Expr
-    : literal(true);
-  return {
-    statements: [
-      { Let: { name: result, value: mode === "MapGet" ? literal(null) : literal(false) } },
-      { For: {
-        binding,
-        domain: { DerivedArray: {
-          value: { Variable: owner.text },
-          max: info.max,
-          bound_source: info.boundSource ?? `${owner.text} static bound`,
-        } },
-        body: [{ If: {
-          condition: { Binary: { op: "Eq", left: candidate, right: needle } },
-          then_body: [{ Assign: { name: result, value: assignment } }],
-          else_body: [],
-        } }],
-      } },
-    ],
-    expression: { Variable: result },
-  };
+function isKnownRowOrObject(expression: ts.Expression, env: Environment): boolean {
+  const value = unwrapExpression(expression);
+  if (ts.isObjectLiteralExpression(value) || isRowExpression(value, env)) return true;
+  if (!ts.isIdentifier(value)) return false;
+  const info = env.variables.get(value.text);
+  return info?.rowBinding === true || info?.objectFields !== undefined;
 }
 
 function concatExpressions(expressions: Expr[]): Expr {

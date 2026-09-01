@@ -1,6 +1,7 @@
 # snapback2: nested operation modules pass checks but disappear from the API
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Diagnosed every recursively discovered nested operation module in project.ts; added omitted-module project regression.
 **Systems:** snapback2, compiler
 **Severity:** P2
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

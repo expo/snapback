@@ -1,6 +1,7 @@
 # snapback2: compiler admits builtin arities that truncate results or panic Rust
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Enforced builtin arities in compiler declarations, Rust certification/runtime, and evaluator; added TypeScript and Rust regressions.
 **Systems:** snapback2, compiler, core engine, evaluator
 **Severity:** P1
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

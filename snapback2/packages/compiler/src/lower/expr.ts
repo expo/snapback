@@ -64,6 +64,14 @@ function rowFields(target: ts.Expression | undefined, env: Environment): string[
   return [...new Set(["id", ...Object.keys(columns)])];
 }
 
+function isKnownRowOrObject(expression: ts.Expression, env: Environment): boolean {
+  const value = unwrapExpression(expression);
+  if (ts.isObjectLiteralExpression(value) || isRowExpression(value, env)) return true;
+  if (!ts.isIdentifier(value)) return false;
+  const info = env.variables.get(value.text);
+  return info?.rowBinding === true || info?.objectFields !== undefined;
+}
+
 export function loopDomainMaximum(domain: LoopDomain): number {
   if ("Page" in domain) {
     return "Literal" in domain.Page.take ? domain.Page.take.Literal : domain.Page.take.Arg.max;
@@ -235,14 +243,26 @@ function lowerRecurse(call: ts.CallExpression, env: Environment): { domain: Loop
   const fanout = numberProperty(options, "fanout");
   if (depth === undefined || fanout === undefined) refuse(env, "E_UNBOUND_LOOP", options, "recurse bounds must be literals");
   if (depth > 10_000) refuse(env, "E_UNBOUND_LOOP", options, "recurse depth must be at most 10000");
+  if (step.parameters.length !== 1 || !ts.isIdentifier(step.parameters[0]!.name)) {
+    refuse(env, "E_OPAQUE", step, "recurse step requires exactly one row parameter");
+  }
+  const row = step.parameters[0].name.text;
   const body = ts.isBlock(step.body)
-    ? step.body.statements.find(ts.isReturnStatement)?.expression
-    : step.body;
+    && step.body.statements.length === 1
+    && ts.isReturnStatement(step.body.statements[0])
+    ? step.body.statements[0].expression
+    : ts.isBlock(step.body) ? undefined : step.body;
   const get = body && unwrapCall(body);
-  if (!get || !callName(get).endsWith(".get")) refuse(env, "E_OPAQUE", step, "recurse step must be one db.get");
+  if (!get || !callName(get).endsWith(".get")
+    || !isDbMember(get.expression, (binding) => isOperationCompositeBinding(binding, "db", env))) {
+    refuse(env, "E_OPAQUE", step, "recurse step must be exactly one get through the operation db binding");
+  }
   const ref = tableReference(get.arguments[0]!, env);
   const key = get.arguments[1];
-  if (!key || !ts.isPropertyAccessExpression(key)) refuse(env, "E_OPAQUE", get, "recurse step key must be a row field");
+  if (!key || !ts.isPropertyAccessExpression(key)
+    || !ts.isIdentifier(key.expression) || key.expression.text !== row) {
+    refuse(env, "E_OPAQUE", get, "recurse step key must be a field of its bound row parameter");
+  }
   return {
     domain: { Recurse: {
       site: allocateReadSite(env),
@@ -283,6 +303,16 @@ function lowerExprInner(node: ts.Expression, env: Environment, hint?: string): E
         node,
         `fractional literal ${node.text} has no known Decimal scale`,
         replaceNode(env.source, node, `decimal(${node.text}, ${scale})`),
+      );
+    }
+    if (!fractional && scaled === undefined && expanded
+      && BigInt(expanded.whole) > 9_007_199_254_740_991n) {
+      refuse(
+        env,
+        "E_OPAQUE",
+        node,
+        `integer literal ${node.text} is outside the safe integer range`,
+        replaceNode(env.source, node, "9007199254740991"),
       );
     }
     return literal(scaled ?? Number(node.text));
@@ -328,7 +358,7 @@ function lowerExprInner(node: ts.Expression, env: Environment, hint?: string): E
     return segments.length === 0 ? { Array: [] } : segments.length === 1 ? segments[0]! : concatExpressions(segments);
   }
   if (ts.isObjectLiteralExpression(node)) {
-    const object: Record<string, Expr> = {};
+    const object: Record<string, Expr> = Object.create(null);
     for (const property of node.properties) {
       try {
         if (ts.isSpreadAssignment(property)) {
@@ -372,6 +402,9 @@ function lowerExprInner(node: ts.Expression, env: Environment, hint?: string): E
     return { Object: object };
   }
   if (ts.isPropertyAccessExpression(node)) {
+    if (node.questionDotToken) {
+      refuse(env, "E_OPAQUE", node, "optional property access must be lowered in a statement-aware expression position");
+    }
     if (ts.isIdentifier(node.expression)) {
       const composite = env.variables.get(node.expression.text)?.operationComposite;
       if (composite === "args") return { Variable: node.name.text };
@@ -381,7 +414,7 @@ function lowerExprInner(node: ts.Expression, env: Environment, hint?: string): E
         if (node.name.text === "commitTime") return { Input: "Now" };
       }
     }
-    if (node.name.text === "length") {
+    if (node.name.text === "length" && !isKnownRowOrObject(node.expression, env)) {
       return { Builtin: { builtin: "Len", args: [lowerExpr(node.expression, env)] } };
     }
     const base = lowerExpr(node.expression, env);
@@ -405,7 +438,7 @@ function lowerExprInner(node: ts.Expression, env: Environment, hint?: string): E
       parts.push(lowerExpr(span.expression, env));
       if (span.literal.text) parts.push(literal(span.literal.text));
     }
-    if (parts.length === 1) return parts[0]!;
+    if (parts.length === 1) return concatExpressions([literal(""), parts[0]!]);
     return concatExpressions(parts);
   }
   if (ts.isCallExpression(node)) return lowerCall(node, env, hint);
@@ -469,7 +502,17 @@ function lowerCall(call: ts.CallExpression, env: Environment, hint?: string): Ex
       mentionTokens: "MentionTokens",
     } as Record<string, string | Record<string, unknown>>)[name]!;
     const args = call.arguments.map((arg) => lowerExpr(arg, env));
+    const required = name === "deterministicShare" ? 3 : name === "mentionTokens" ? 1 : 2;
+    if (args.length < required || (name !== "concat" && name !== "max" && name !== "min" && args.length !== required)) {
+      refuse(env, "E_OPAQUE", call, `${name} requires ${required === 1 ? "one argument" : required === 2 ? "at least two arguments" : "three arguments"}`);
+    }
     if (name === "concat" && args.length > 2) return concatExpressions(args);
+    if ((name === "max" || name === "min") && args.length > 2) {
+      return args.slice(1).reduce<Expr>(
+        (left, right) => ({ Builtin: { builtin, args: [left, right] } }),
+        args[0]!,
+      );
+    }
     return { Builtin: { builtin, args } };
   }
   if (ts.isPropertyAccessExpression(call.expression)) {
@@ -482,6 +525,7 @@ function lowerCall(call: ts.CallExpression, env: Environment, hint?: string): Ex
       } };
     }
     if (method === "slice") {
+      if (call.arguments.length !== 2) refuse(env, "E_OPAQUE", call, "slice requires start and end arguments");
       return { Builtin: { builtin: "Slice", args: [lowerExpr(owner, env), ...call.arguments.map((arg) => lowerExpr(arg, env))] } };
     }
     if (method === "sort") return lowerSort(owner, call.arguments[0], env);
@@ -494,7 +538,9 @@ function lowerSort(owner: ts.Expression, comparator: ts.Expression | undefined, 
 }
 
 export function lowerSortExpression(owner: Expr, comparator: ts.Expression | undefined, env: Environment): Expr {
-  if (!comparator || !isFunctionLike(comparator) || comparator.parameters.length < 2 || ts.isBlock(comparator.body)) {
+  if (!comparator || !isFunctionLike(comparator) || comparator.parameters.length !== 2
+    || !ts.isIdentifier(comparator.parameters[0]!.name) || !ts.isIdentifier(comparator.parameters[1]!.name)
+    || ts.isBlock(comparator.body)) {
     refuse(env, "E_OPAQUE", comparator ?? env.sourceFile, "sort requires an inline field comparator");
   }
   const body = comparator.body;
@@ -503,7 +549,14 @@ export function lowerSortExpression(owner: Expr, comparator: ts.Expression | und
     refuse(env, "E_OPAQUE", body, "sort comparator must subtract the same scalar field");
   }
   const leftParam = ts.isIdentifier(body.left.expression) ? body.left.expression.text : "";
-  const firstParam = ts.isIdentifier(comparator.parameters[0]!.name) ? comparator.parameters[0].name.text : "";
+  const rightParam = ts.isIdentifier(body.right.expression) ? body.right.expression.text : "";
+  const firstParam = comparator.parameters[0].name.text;
+  const secondParam = comparator.parameters[1].name.text;
+  if (body.left.name.text !== body.right.name.text
+    || !((leftParam === firstParam && rightParam === secondParam)
+      || (leftParam === secondParam && rightParam === firstParam))) {
+    refuse(env, "E_OPAQUE", body, "sort comparator must subtract the same field from its two opposite parameters");
+  }
   const order = leftParam === firstParam ? "Asc" : "Desc";
   return { Builtin: {
     builtin: { Sort: { keys: [{ field: body.left.name.text, order }] } },
@@ -551,13 +604,17 @@ function lowerScan(call: ts.CallExpression, env: Environment, hint?: string): Sc
     take = { Arg: { name: operationArgument, max } };
   }
   const orderNode = expressionProperty(options, "order");
+  const authoredOrder = stringLiteral(orderNode);
+  if (orderNode && authoredOrder !== "asc" && authoredOrder !== "desc") {
+    refuse(env, "E_OPAQUE", orderNode, 'scan order must be "asc" or "desc"');
+  }
   const rangeNode = expressionProperty(options, "range");
   return {
     site: allocateReadSite(env),
     table: ref.table,
     index: ref.index,
     prefix: lowerKey(prefix, env),
-    order: stringLiteral(orderNode) === "desc" ? "Desc" : "Asc",
+    order: authoredOrder === "desc" ? "Desc" : "Asc",
     take,
     after: optionalLower(expressionProperty(options, "after"), env),
     before: optionalLower(expressionProperty(options, "before"), env),
@@ -667,6 +724,13 @@ export function lowerArrayMethod(
     refuse(env, "E_OPAQUE", call, `${method} requires an inline callback with an identifier`);
   }
   if (ts.isBlock(callback.body)) refuse(env, "E_OPAQUE", callback.body, `${method} callback must be an expression`);
+  const expectedParameters = method === "reduce" ? 2 : 1;
+  if (callback.parameters.length !== expectedParameters
+    || callback.parameters.some((parameter) => !ts.isIdentifier(parameter.name))) {
+    refuse(env, "E_OPAQUE", callback, method === "reduce"
+      ? "reduce callback requires exactly accumulator and item parameters"
+      : `${method} callback requires exactly one parameter`);
+  }
   const binding = callback.parameters[0].name.text;
   const loopEnv = cloneEnvironment(env);
   const { statements: domainStatements, domain, bindingInfo } = lowerCollectionDomain(
@@ -682,7 +746,7 @@ export function lowerArrayMethod(
     const lowered = lowerValue(callback.body, loopEnv, hint);
     const body = method === "map"
       ? [...lowered.statements, { Push: { target: name, value: lowered.expression } } satisfies import("../ir").Stmt]
-      : [{ If: {
+      : [...lowered.statements, { If: {
           condition: lowered.expression,
           then_body: [{ Push: { target: name, value: { Variable: binding } } }],
           else_body: [],

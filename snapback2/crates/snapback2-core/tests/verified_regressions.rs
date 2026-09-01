@@ -606,3 +606,52 @@ fn huge_recurse_depth_is_refused_within_a_short_deadline() {
         .expect("huge recurse depth hung certification");
     assert_eq!(result.unwrap_err().code, "E_UNBOUND_LOOP");
 }
+
+#[test]
+fn malformed_builtin_arities_are_refused_before_execution() {
+    for (builtin, args) in [
+        (
+            Builtin::Slice,
+            vec![Expr::Literal(Value::Array(Vec::new()))],
+        ),
+        (
+            Builtin::Max,
+            vec![
+                Expr::Literal(Value::Int(1)),
+                Expr::Literal(Value::Int(2)),
+                Expr::Input(Input::NewId),
+            ],
+        ),
+    ] {
+        let program = Program {
+            name: "invalid.arity".to_owned(),
+            kind: ProgramKind::Mutation,
+            args: BTreeMap::new(),
+            read_time_granularity_ms: None,
+            body: vec![Stmt::Return(Expr::Builtin { builtin, args })],
+        };
+        let error = Checker::new(&Schema::default(), Ceilings::default())
+            .check(&program)
+            .unwrap_err();
+        assert_eq!(error.code, "E_OPAQUE");
+        assert!(error.message.contains("requires"));
+    }
+}
+
+#[test]
+fn nested_out_of_i53_literals_are_refused_by_certification() {
+    let program = Program {
+        name: "invalid.literal".to_owned(),
+        kind: ProgramKind::Query,
+        args: BTreeMap::new(),
+        read_time_granularity_ms: None,
+        body: vec![Stmt::Return(Expr::Literal(Value::Array(vec![Value::Row(
+            BTreeMap::from([("unsafe".to_owned(), Value::Int(I53_MAX + 1))]),
+        )])))],
+    };
+    let error = Checker::new(&Schema::default(), Ceilings::default())
+        .check(&program)
+        .unwrap_err();
+    assert_eq!(error.code, "E_OPAQUE");
+    assert!(error.message.contains("i53"));
+}

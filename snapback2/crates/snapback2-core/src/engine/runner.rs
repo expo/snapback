@@ -335,6 +335,13 @@ impl<'a> Runner<'a> {
                 }
             }
             Expr::Builtin { builtin, args } => {
+                if args.len() != builtin.arity() {
+                    return Err(RuntimeError::Input(format!(
+                        "builtin {builtin:?} requires {} arguments, received {}",
+                        builtin.arity(),
+                        args.len()
+                    )));
+                }
                 let args = args
                     .iter()
                     .map(|value| self.expr(value))
@@ -402,6 +409,13 @@ impl<'a> Runner<'a> {
         builtin: &Builtin,
         mut args: Vec<Value>,
     ) -> Result<Value, RuntimeError> {
+        if args.len() != builtin.arity() {
+            return Err(RuntimeError::Input(format!(
+                "builtin {builtin:?} requires {} arguments, received {}",
+                builtin.arity(),
+                args.len()
+            )));
+        }
         match builtin {
             Builtin::Len => {
                 let value = args
@@ -451,10 +465,9 @@ impl<'a> Runner<'a> {
                 let left = args.remove(0);
                 let right = args.remove(0);
                 match (left, right) {
-                    (Value::String(mut left), Value::String(right)) => {
-                        left.push_str(&right);
-                        Ok(Value::String(left))
-                    }
+                    (left @ Value::String(_), right) | (left, right @ Value::String(_)) => Ok(
+                        Value::String(format!("{}{}", concat_text(&left), concat_text(&right))),
+                    ),
                     (Value::Id(left), Value::Id(right)) => Ok(Value::Id(format!("{left}:{right}"))),
                     (Value::Array(mut left), Value::Array(right)) => {
                         left.extend(right);
@@ -886,5 +899,17 @@ impl<'a> Runner<'a> {
                 .map(|value| self.expr(value))
                 .transpose()?,
         })
+    }
+}
+
+fn concat_text(value: &Value) -> String {
+    match value {
+        Value::Null => "null".to_owned(),
+        Value::Bool(value) => value.to_string(),
+        Value::Int(value) => value.to_string(),
+        Value::String(value) | Value::Id(value) => value.clone(),
+        Value::Bytes(value) => crate::value::encode_bytes_hex(value),
+        Value::Array(values) => values.iter().map(concat_text).collect::<Vec<_>>().join(","),
+        Value::Row(_) | Value::Map(_) => "[object Object]".to_owned(),
     }
 }

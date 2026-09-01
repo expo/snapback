@@ -1,6 +1,7 @@
 # snapback2: unsafe integer literals are silently rounded during compilation
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Rejected out-of-i53 authored tokens and recursively invalid IR literals in compiler/Rust certification; added TypeScript and Rust regressions.
 **Systems:** snapback2, compiler
 **Severity:** P1
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

@@ -1,6 +1,7 @@
 # snapback2: filter callbacks discard lowered predicate statements
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Kept predicate setup statements inside each filter iteration in lower/expr.ts; added conditional-predicate execution regression.
 **Systems:** snapback2, compiler
 **Severity:** P2
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

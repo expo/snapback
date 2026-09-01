@@ -1,6 +1,7 @@
 # snapback2: unknown scan-order strings silently become ascending
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Restricted scan order to asc/desc in lowering and declarations; added invalid and valid order regressions.
 **Systems:** snapback2, compiler
 **Severity:** P2
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever
