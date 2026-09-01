@@ -8,7 +8,15 @@ the finalize worker), `packages/compiler` (the column type),
 `packages/quarry` (the notation), `packages/snapback2` (client + React)
 **Author:** Claude Opus 5 (design), commissioned by Charlie Cheever 2026-08-31
 **Date:** 2026-08-31
-**Revised:** 2026-09-01 (d — the author's rulings, in session: **affine**
+**Revised:** 2026-09-01 (e — codecs behind cargo features, mirroring
+`--features hermes`: the `image` **type** is unconditional in every build
+because the engine and the twin must agree on the schema vocabulary, while the
+**codecs** are optional and a codec-less binary refuses finalize loudly (§14a).
+A runtime plugin API and an external image service are recorded as rejected
+(§12). OQ1 is reframed from "is the binary too big" to "in-process or
+subprocess," because decoding hostile bytes in the engine's address space is a
+blast-radius question, not a size question — and it is settled by two
+measurements rather than an argument.); 2026-09-01 (d — the author's rulings, in session: **affine**
 settles OQ1 (§2, §9); **any requested width is accepted and snapped** up to an
 internal rung, so there is no closed ladder to memorize and no width refusal
 (§8); **the full-resolution stripped original is kept** by default with an
@@ -598,6 +606,22 @@ made full-resolution download and deep zoom impossible, and — because deriving
 new width needs a source — would have locked rendering into being eager forever.
 The optional `max` covers the apps that genuinely do not want full resolution.
 
+**A runtime plugin API for media processors.** A loadable extension point —
+third-party thumbnailers, transcoders, new media kinds. Rejected on three
+grounds: it is an ABI to version forever in a codebase whose rule is "delete;
+don't deprecate"; `rules/RULES.md` says agents remove apparatus and add none,
+and an extension point with no users is pure apparatus; and it would put a
+plugin boundary through trusted admission, which is the single place this
+design's privacy property is enforced. Codecs being *optional at compile time*
+(§14a) delivers the buildability benefit a plugin was reaching for, with none of
+the surface.
+
+**Delegating image processing to an external service** (imgproxy, Cloudinary, a
+sidecar). Rejected: it breaks the high-fidelity local target, which LLP 1005 §7
+records as one of only two credible offline development stories in the entire
+bakeoff, and it routes private bytes through a third party, which undercuts the
+unconditional stripping guarantee of §4.
+
 **A destination column named at upload** (`api.assets.<table>.<column>`).
 Codex argued for it: an 8 MB image should fail before it is normalized and
 thumbnailed for a 5 MB avatar column. Grok's counter carries: a per-column
@@ -652,15 +676,61 @@ destination back, and it deletes the generation-wide admission ceiling.
 - **No new blocking check.** `rules/RULES.md` allows five; assets add none.
 - **No certificate version bump and no new `Value` variant** (§1).
 - **`check` stays under 1 s.** One schema node kind and one validation arm.
-- **Binary size.** An image decoder, a HEIC decoder, and a resizer are real
-  dependencies on a binary whose published size is a measured number (2.18 MB
-  without the engine, 5.06 MB with). The largest honest cost, and the one remaining open question (OQ1).
+- **Binary size and decode isolation** — the largest honest costs, and the one
+  remaining open question. See §14a.
 - **A dropped upload retries in full** (§5) until video brings resume.
 - **An empty first paint** until bytes arrive (§7).
 - **Staging disk**: a per-principal cap (e.g. 256 MB or 20 objects) bounds what
   an authenticated principal can stage before reclamation. Both panelists asked
   for this number; it is internal, not authored.
 - **Denormalized dimensions**, a few dozen immutable bytes per reference.
+
+### 14a. Codecs are a build feature; the type is not
+
+Image decode and resize are heavy dependencies, and HEIC in particular is where
+C libraries appear (libheif → libde265), which is what makes cross-compiling
+the published platform packages awkward. `snapback2` already has the pattern for
+this — the JS engine is optional at compile time and the published binary turns
+it on:
+
+```toml
+[features]
+default = []
+effects = []
+hermes  = ["effects", "snapback2-effects/hermes"]
+images  = [...]              # JPEG/PNG/WebP decode + resize, pure Rust
+heic    = ["images", ...]    # the C decoder, separable because it is the costly one
+```
+
+**The `image` column type is unconditional in every build.** Only the codecs are
+optional. This is not a preference: the Rust engine and the TypeScript twin must
+agree on every corpus case, so a schema vocabulary that varies with a build flag
+breaks the agreement — the same class of defect the panel caught in revision
+(c)'s stamp. A codec-less binary therefore still parses, certifies, and
+type-checks a schema containing `image` columns; what it cannot do is finalize
+an upload, and it refuses loudly at boot, exactly as the engine-less build
+already does for effects.
+
+What the flag actually buys is **the development loop, not the user's bytes.**
+The published binary carries the codecs, so users always pay that size; what the
+flag prevents is every snapback2 developer who is not touching media rebuilding
+image libraries against `rules/RULES.md`'s 15 s incremental and 5 min full-build
+budgets. `publish.mjs` should report the with/without delta the way it already
+reports the engine's.
+
+**Decoding is the one place this design parses hostile bytes.** An upload is
+attacker-controlled input handed to a decoder, which is a well-known remote
+attack surface (libwebp's CVE-2023-4863 was a zero-click RCE). Under §9 finalize
+runs on a worker *thread*, so it shares an address space with the engine and the
+store: a decoder bug is compromise of the application and its data, not just its
+images. That is a blast-radius argument for running decode in a subprocess, and
+it is stronger than the binary-size argument that OQ1 originally rested on.
+
+The honest counterweight, so this is not read as alarm: Snapback 1 ran decoders
+in-process for a year, and every backend in the LLP 0139 bakeoff does the same.
+In-process is the field's norm, not a novel risk, and the mitigation that
+matters most in practice is keeping the dependencies current. The decision
+belongs to measurement (OQ1), not to argument.
 
 ## 15. Implementation shape
 
@@ -670,7 +740,7 @@ the author's scheduling:
 | lane | scope |
 |---|---|
 | A | `_assets` ledger + lifecycle, the `image` column type, the `valid_column_value` arm, write-time validation (§6), reclamation (§9) — `snapback2-core` |
-| B | upload + delivery routes, streaming staging, the finalize worker, both renditions — `snapback2` |
+| B | upload + delivery routes, streaming staging, the finalize worker, width snapping, the `images`/`heic` cargo features and the codec-less boot refusal (§14a) — `snapback2` |
 | C | `t.image()` in the compiler, `image` in Quarry, `api.d.ts` types incl. `File \| ImageAsset` client args |
 | D | `run()` file substitution, `client.upload`, `AssetImage`, React; one template |
 
@@ -740,12 +810,16 @@ Recorded here so a reader knows these are decided, not merely proposed:
 
 ## Open questions (author)
 
-1. **Is an image/HEIC decoder acceptable in the published binary?** (§14.) The
-   alternatives are an out-of-process renderer — more machinery, slower — or
-   serving originals only, which makes a feed download full-resolution images.
-   This is a number, not an argument: the honest next step is to build with the
-   decoders and measure the delta against today's 2.18 MB / 5.06 MB before
-   deciding. Not blocking; nothing else in the design depends on the answer.
+1. **In-process or subprocess decode?** (§14a.) Not "is the binary too big" —
+   that framing under-weighted the real issue. Decoding is where this design
+   parses attacker-controlled bytes, and a worker thread shares an address space
+   with the engine and the store. Settle it with two measurements rather than an
+   argument: **(a)** the published binary's size delta with `images` and `heic`
+   on, against today's 2.18 MB / 5.06 MB; **(b)** finalize latency in-process
+   versus in a subprocess. If (b) is small, isolation is nearly free and worth
+   taking; if it is large, in-process is the field's norm (§14a) and the answer
+   is to keep the codec dependencies current. Not blocking — nothing else in the
+   design depends on it, and the feature flags land either way.
 2. **When does video land?** §13 makes slice 2 required work rather than an
    optional tail — Clique's brief is not complete without it — and the authoring
    API gains exactly one word (`video`) when it does. The question is ordering
