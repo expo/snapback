@@ -1,6 +1,7 @@
 # snapback2: Quarry focal patches hoist field preludes out of callbacks
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** packages/quarry/src/program.ts now evaluates focal patch fields in authored order inside the old-row callback, with generated block-callback lowering in packages/compiler/src/compiler.ts; the nested-reference regression is in packages/quarry/src/test.ts.
 **Systems:** snapback2, quarry
 **Severity:** P2
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

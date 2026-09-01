@@ -1,6 +1,7 @@
 # snapback2: Quarry leaves deleted generated modules callable
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Quarry now journals the exact generated basename set in snapback/.quarry-generated.json and removes only prior headered outputs absent from the next successful build in packages/quarry/src/compiler.ts; the rename regression is in packages/quarry/src/test.ts.
 **Systems:** snapback2, quarry
 **Severity:** P1
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

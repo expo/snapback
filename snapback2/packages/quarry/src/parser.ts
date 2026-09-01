@@ -19,6 +19,12 @@ import { refuse } from "./diagnostics";
 import { lex, type Token, type TokenKind } from "./lexer";
 
 const COMPARISONS = new Set(["=", "!=", "<", "<=", ">", ">="]);
+const RESERVED_BINDINGS = new Set([
+  "arguments", "await", "break", "case", "catch", "class", "const", "continue", "debugger", "default", "delete", "do",
+  "else", "enum", "eval", "export", "extends", "false", "finally", "for", "function", "if", "implements", "import",
+  "in", "instanceof", "interface", "let", "new", "null", "package", "private", "protected", "public", "return", "static",
+  "super", "switch", "this", "throw", "true", "try", "typeof", "var", "void", "while", "with", "yield",
+]);
 const PRECEDENCE = new Map<string, number>([
   ["??", 1], ["or", 2], ["and", 3],
   ["=", 4], ["!=", 4], ["<", 4], ["<=", 4], [">", 4], [">=", 4],
@@ -174,7 +180,9 @@ class Parser {
   private parseProgram(): ProgramDecl {
     const kindToken = this.word();
     const kind = kindToken.value as ProgramDecl["kind"];
-    const name = this.word().value;
+    const nameToken = this.word();
+    if (RESERVED_BINDINGS.has(nameToken.value)) refuse(nameToken, `operation name ${nameToken.value} is reserved and cannot become a generated TypeScript binding`);
+    const name = nameToken.value;
     const args = this.parseArgs();
     let result: ScalarType | undefined;
     if (this.maybe("->")) result = this.parseType();

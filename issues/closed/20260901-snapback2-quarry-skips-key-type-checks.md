@@ -1,6 +1,7 @@
 # snapback2: Quarry skips key type checks for named indexes
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** packages/quarry/src/catalog.ts now validates every known key component against the selected index column for inferred, named, and explicit point/range selection; compound point/range regressions are in packages/quarry/src/test.ts.
 **Systems:** snapback2, quarry
 **Severity:** P1
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

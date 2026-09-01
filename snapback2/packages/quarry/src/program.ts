@@ -17,10 +17,11 @@ type ValueType =
   | ScalarType
   | { kind: "row"; table: string; nullable: boolean }
   | { kind: "page"; table: string }
+  | { kind: "collection"; item: ValueType; max: number }
   | { kind: "object" }
   | { kind: "unknown" };
 type Binding = { code: string; type: ValueType };
-type Completion = { kind: "return" } | { kind: "assign"; name: string };
+type Completion = { kind: "return" } | { kind: "assign"; name: string } | { kind: "discard" };
 type Emitted = Binding & { effectOnly?: boolean };
 
 class Writer {
@@ -115,7 +116,10 @@ function emitStatement(statement: Stmt, env: Environment, writer: Writer, comple
     if (completion) {
       const code = value.effectOnly ? "null" : value.code;
       if (completion.kind === "return") writer.statement(`return ${code};`, statement.site);
-      else if (statement.value.kind === "write" && statement.value.op === "insert") {
+      else if (completion.kind === "discard") {
+        if (!value.effectOnly && statement.value.kind === "write" && statement.value.op === "insert") writer.statement(`${code};`, statement.site);
+        else if (!value.effectOnly) writer.statement(`const ${temporary("discard", statement.site)} = ${code};`, statement.site);
+      } else if (statement.value.kind === "write" && statement.value.op === "insert") {
         const inserted = temporary("inserted", statement.site);
         writer.statement(`const ${inserted} = ${code};`, statement.site);
         writer.statement(`${completion.name} = ${inserted};`, statement.site);
@@ -135,7 +139,7 @@ function emitStatement(statement: Stmt, env: Environment, writer: Writer, comple
     if (statement.elseBody.length > 0) {
       writer.raw("} else {");
       writer.nested(() => emitBody(statement.elseBody, env.clone(), writer, completion));
-    } else if (completion) {
+    } else if (completion && completion.kind !== "discard") {
       writer.raw("} else {");
       writer.nested(() => finishNull(completion, writer, statement.site));
     }
@@ -146,8 +150,8 @@ function emitStatement(statement: Stmt, env: Environment, writer: Writer, comple
     const domain = emitExpr(statement.domain, env, writer);
     const itemType = domain.type.kind === "page"
       ? { kind: "row", table: domain.type.table, nullable: false } satisfies ValueType
-      : domain.type.kind === "list" ? domain.type.item : { kind: "unknown" } satisfies ValueType;
-    if (domain.type.kind !== "page" && domain.type.kind !== "list" && domain.type.kind !== "unknown") {
+      : domain.type.kind === "collection" || domain.type.kind === "list" ? domain.type.item : { kind: "unknown" } satisfies ValueType;
+    if (domain.type.kind !== "page" && domain.type.kind !== "collection" && domain.type.kind !== "list" && domain.type.kind !== "unknown") {
       refuse(statement.domain.site, "for domains must be a page, capped list argument, range, tokens result, or literal list");
     }
     writer.raw(`for (const ${statement.name} of ${domain.code}) {`);
@@ -167,7 +171,7 @@ function emitMatch(statement: Extract<Stmt, { kind: "match" }>, env: Environment
   const found = emitRead(statement.read, env, writer);
   const local = temporary("match", statement.site);
   writer.statement(`const ${local} = ${found.code};`, statement.site);
-  let branchCompletion = completion;
+  let branchCompletion = completion ?? { kind: "discard" } satisfies Completion;
   let result: string | undefined;
   if (completion?.kind === "return") {
     result = temporary("matchResult", statement.site);
@@ -190,7 +194,7 @@ function emitMatch(statement: Extract<Stmt, { kind: "match" }>, env: Environment
 function finishNull(completion: Completion | undefined, writer: Writer, site: Site): void {
   if (!completion) return;
   if (completion.kind === "return") writer.statement("return null;", site);
-  else writer.statement(`${completion.name} = null;`, site);
+  else if (completion.kind === "assign") writer.statement(`${completion.name} = null;`, site);
 }
 
 function emitExpr(expr: Expr, env: Environment, writer: Writer): Emitted {
@@ -239,7 +243,7 @@ function emitExpr(expr: Expr, env: Environment, writer: Writer): Emitted {
     writer.statement("}", expr.site);
     return {
       code: walked,
-      type: { kind: "list", item: { kind: "ref", table: expr.table, optional: false }, max: expr.depth + 1, optional: false },
+      type: { kind: "collection", item: { kind: "row", table: expr.table, nullable: false }, max: expr.depth + 1 },
     };
   }
   return emitWrite(expr, env, writer);
@@ -391,7 +395,7 @@ function emitPageShape(base: Binding, fields: ShapeField[], site: Site, env: Env
     writer.statement(`${result}.push(${shaped});`, site);
   });
   writer.statement("}", site);
-  return { code: result, type: { kind: "list", item: { kind: "ref", table: (base.type as { table: string }).table, optional: false }, max: 1000, optional: false } };
+  return { code: result, type: { kind: "collection", item: { kind: "object" }, max: 1000 } };
 }
 
 function shapeObject(fields: ShapeField[], focal: Binding, env: Environment, writer: Writer): string {
@@ -427,19 +431,27 @@ function emitWrite(expr: Extract<Expr, { kind: "write" }>, env: Environment, wri
     writer.statement(`db.delete(${expr.table}, ${key.code});`, expr.site);
     return { code: "null", type: { kind: "unknown" }, effectOnly: true };
   }
+  const usesFocal = expr.fields.some((field) => field.value && mentionsFocal(field.value));
+  if (!usesFocal && expr.op !== "upsert") {
+    const fields = emitFields(expr.fields, env, writer, info.columns);
+    writer.statement(`db.${expr.op}(${expr.table}, ${key.code}, { ${fields.join(", ")} });`, expr.site);
+    return { code: "null", type: { kind: "unknown" }, effectOnly: true };
+  }
+
   const prior = env.focal;
   const rowName = temporary("old", expr.site);
   env.focal = { code: rowName, type: { kind: "row", table: expr.table, nullable: expr.op === "upsert" } };
-  let fields: string[];
   try {
-    fields = emitFields(expr.fields, env, writer, info.columns);
+    writer.raw(`db.${expr.op}(${expr.table}, ${key.code}, (${rowName}) => {`);
+    writer.nested(() => {
+      const fields = emitEvaluatedFields(expr.fields, env, writer, info.columns);
+      if (expr.op === "upsert" && !expr.fields.some((field) => field.name === "id")) fields.unshift(`id: ${key.code}`);
+      writer.statement(`return { ${fields.join(", ")} };`, expr.site);
+    });
+    writer.statement("});", expr.site);
   } finally {
     env.focal = prior;
   }
-  if (expr.op === "upsert" && !expr.fields.some((field) => field.name === "id")) fields.unshift(`id: ${key.code}`);
-  const usesFocal = expr.fields.some((field) => field.value && mentionsFocal(field.value));
-  const patch = usesFocal || expr.op === "upsert" ? `(${rowName}) => ({ ${fields.join(", ")} })` : `{ ${fields.join(", ")} }`;
-  writer.statement(`db.${expr.op}(${expr.table}, ${key.code}, ${patch});`, expr.site);
   return { code: "null", type: { kind: "unknown" }, effectOnly: true };
 }
 
@@ -449,6 +461,17 @@ function emitFields(fields: ObjectField[], env: Environment, writer: Writer, col
     const expected = field.name === "id" ? { kind: "id", optional: false } satisfies ScalarType : columns.get(field.name);
     const code = expected && (expected.kind === "ref" || expected.kind === "id") ? keyBinding(value).code : value.code;
     return `${property(field.name)}: ${code}`;
+  });
+}
+
+function emitEvaluatedFields(fields: ObjectField[], env: Environment, writer: Writer, columns: Map<string, ScalarType>): string[] {
+  return fields.map((field) => {
+    const value = emitExpr(field.value ?? { kind: "name", name: field.name, site: field.site }, env, writer);
+    const expected = field.name === "id" ? { kind: "id", optional: false } satisfies ScalarType : columns.get(field.name);
+    const code = expected && (expected.kind === "ref" || expected.kind === "id") ? keyBinding(value).code : value.code;
+    const local = temporary("patch", field.site);
+    writer.statement(`const ${local} = ${code};`, field.site);
+    return `${property(field.name)}: ${local}`;
   });
 }
 

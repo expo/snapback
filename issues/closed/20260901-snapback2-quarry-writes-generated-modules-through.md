@@ -1,6 +1,7 @@
 # snapback2: Quarry writes generated modules through output symlinks
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** packages/quarry/src/compiler.ts now rejects symlinked output roots/targets, verifies canonical parents, stages with O_NOFOLLOW|O_EXCL, and publishes by atomic rename; directory and target escape regressions are in packages/quarry/src/test.ts.
 **Systems:** snapback2, quarry, security
 **Severity:** P1
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

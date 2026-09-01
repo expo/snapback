@@ -1,6 +1,7 @@
 # snapback2: Quarry emits reserved operation names as invalid TypeScript
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** packages/quarry/src/parser.ts now refuses ECMAScript reserved operation binding names at their declaration site; the delete-name regression is in packages/quarry/src/test.ts.
 **Systems:** snapback2, quarry
 **Severity:** P2
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

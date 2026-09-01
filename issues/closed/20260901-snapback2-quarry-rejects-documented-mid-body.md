@@ -1,6 +1,7 @@
 # snapback2: Quarry rejects documented mid-body match statements
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** packages/quarry/src/program.ts now gives non-final match arms a discard completion that evaluates and binds their values without returning them; the documented mid-body regression is in packages/quarry/src/test.ts.
 **Systems:** snapback2, quarry
 **Severity:** P2
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

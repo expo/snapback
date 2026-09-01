@@ -1,6 +1,7 @@
 # snapback2: Quarry types walked and paged rows as references
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** packages/quarry/src/program.ts now models walk yields as rows and shaped-page yields as objects instead of references; walk and page field-access regressions are in packages/quarry/src/test.ts.
 **Systems:** snapback2, quarry
 **Severity:** P2
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever
