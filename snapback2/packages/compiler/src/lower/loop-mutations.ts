@@ -18,11 +18,12 @@ export function lowerLoopBodyWithMutationPlan(
   statement: ts.ForOfStatement,
   env: Environment,
   iterations: number,
+  domainIdentity: object | undefined,
   lowerBody: (statement: ts.Statement, env: Environment) => Stmt[],
 ): Stmt[] {
   const ancestorDeferred = new Set(env.deferredCollectionMutations);
   const inherited = inheritedCollections(env);
-  const plan = settleLoopMutationPlan(statement, env, inherited, iterations, lowerBody);
+  const plan = settleLoopMutationPlan(statement, env, inherited, iterations, domainIdentity, lowerBody);
   applyLoopMutationPlan(env, inherited, plan, ancestorDeferred);
   env.deferredCollectionMutations = new Set([...ancestorDeferred, ...inherited.keys()]);
   const parentMutationCounts = env.collectionMutationCounts;
@@ -56,6 +57,7 @@ function settleLoopMutationPlan(
   env: Environment,
   inherited: Map<object, InheritedCollection>,
   iterations: number,
+  domainIdentity: object | undefined,
   lowerBody: (statement: ts.Statement, env: Environment) => Stmt[],
 ): LoopMutationPlan {
   let priorCounts: CollectionMutationCounts = new Map();
@@ -90,6 +92,14 @@ function settleLoopMutationPlan(
     if (unbound) throw new Refusal(unbound);
     const counts = new Map([...probe.collectionMutationCounts]
       .filter(([identity]) => inherited.has(identity)));
+    if (domainIdentity && counts.has(domainIdentity)) {
+      refuse(
+        env,
+        "E_UNBOUND_LOOP",
+        statement.expression,
+        "collection mutation bound depends on its own growing loop domain and has no finite static fixed point",
+      );
+    }
     const facts = new Map<object, VariableInfo>();
     for (const [identity, collection] of inherited) {
       const info = variableByIdentity(probe, identity, collection.name);

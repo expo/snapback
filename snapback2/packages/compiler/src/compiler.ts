@@ -398,8 +398,11 @@ function lowerStatement(statement: ts.Statement, env: Environment): Stmt[] {
     const { statements, domain, bindingInfo } = lowerCollectionDomain(statement.expression, loopEnv, binding, lowerValue);
     loopEnv.variables.set(binding, bindingInfo);
     const iterations = loopDomainMaximum(domain);
+    const domainIdentity = "DerivedArray" in domain && "Variable" in domain.DerivedArray.value
+      ? loopEnv.variables.get(domain.DerivedArray.value.Variable)?.collectionIdentity
+      : undefined;
     // @ref LLP 1002#2-the-authored-surface-the-snapback2-module — lowering-order analysis reserves inherited collections to their proven end-of-loop facts before nested domains are emitted.
-    const body = lowerLoopBodyWithMutationPlan(statement, loopEnv, iterations, lowerControlled);
+    const body = lowerLoopBodyWithMutationPlan(statement, loopEnv, iterations, domainIdentity, lowerControlled);
     return [...statements, { For: { binding, domain, body } }];
   }
   if (statement.kind === ts.SyntaxKind.BreakStatement) return ["Break"];

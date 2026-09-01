@@ -256,6 +256,68 @@ export const collect = query({ seed: t.text(40) }, ({ args }) => {
       "post-mutation escape-and-return changed the accumulator result");
   });
 
+  test("later escapes in a loop body poison earlier mutations in the same cyclic body", () => {
+    for (const fixture of [
+      {
+        name: "object",
+        helper: "",
+        setup: "const snapshots = [];",
+        escape: "snapshots.push({ keys });",
+        rewrite: "snapshots.push({ keys: [...keys] });",
+        result: "snapshots",
+      },
+      {
+        name: "helper",
+        helper: "function wrap(xs) { return xs; }",
+        setup: "",
+        escape: "const alias = wrap(keys);",
+        rewrite: "const alias = wrap([...keys]);",
+        result: "keys",
+      },
+    ]) {
+      const refused = lowerSource(`import { query, t } from "snapback2";
+${fixture.helper}
+export const collect = query({ seed: t.text(40) }, ({ args }) => {
+  const keys = [];
+  ${fixture.setup}
+  for (const item of range(0, 2)) {
+    keys.push(args.seed);
+    ${fixture.escape}
+  }
+  return ${fixture.result};
+});`, `loop-later-escape-${fixture.name}.ts`, undefined, { tables });
+      const diagnostic = mutationDiagnostic(refused);
+      assert(diagnostic.message.includes("shared by an escape in the same cyclic loop body")
+        && diagnostic.rewrite.includes(fixture.rewrite),
+        `${fixture.name} loop escape did not receive a spread-copy rewrite: ${JSON.stringify(diagnostic)}`);
+      const pasted = lowerSource(diagnostic.rewrite, `loop-later-escape-${fixture.name}.ts`, undefined, { tables });
+      assert(pasted.ok, `${fixture.name} loop escape rewrite did not compile: ${JSON.stringify(pasted)}`);
+    }
+  });
+
+  test("escape-only loops and accumulators returned after a loop stay green", () => {
+    const escapeOnly = lowerOne(`import { query, t } from "snapback2";
+export const collect = query({ seed: t.text(40) }, ({ args }) => {
+  const keys = [args.seed];
+  const snapshots = [];
+  for (const item of range(0, 2)) snapshots.push({ keys });
+  return snapshots;
+});`, "loop-escape-only.ts");
+    certify(escapeOnly);
+    assert(runArrayLength(escapeOnly, { seed: { String: "value" } }) === 2,
+      "escape-only loop changed its result length");
+
+    const accumulator = lowerOne(`import { query, t } from "snapback2";
+export const collect = query({ seed: t.text(40) }, ({ args }) => {
+  const values = [];
+  for (const item of range(0, 2)) values.push(args.seed);
+  return values;
+});`, "loop-accumulator-return.ts");
+    certify(accumulator);
+    assert(runArrayLength(accumulator, { seed: { String: "value" } }) === 2,
+      "loop accumulator returned after the loop changed its result length");
+  });
+
   test("escape-only reads stay green while two-helper and branch escapes close mutation", () => {
     const read = lowerOne(`import { query, t } from "snapback2";
 function wrap(xs) { return xs; }
@@ -564,6 +626,30 @@ export const expand = query({ seed: t.text(40) }, ({ args }) => {
 });`, "self-growing-mutation-loop.ts", undefined, { tables });
     assert(!refused.ok && refused.diagnostics.some((item) => item.code === "E_UNBOUND_LOOP"),
       `self-growing loop certified instead of refusing: ${JSON.stringify(refused)}`);
+  });
+
+  test("a top-level self-growing domain refuses while a different accumulator stays bounded", () => {
+    const refused = lowerSource(`import { query, t } from "snapback2";
+export const expand = query({ seed: t.text(40) }, ({ args }) => {
+  const keys = [args.seed];
+  for (const key of keys) keys.push(key);
+  return keys;
+});`, "top-level-self-growing-loop.ts", undefined, { tables });
+    assert(!refused.ok && refused.diagnostics.some((item) => item.code === "E_UNBOUND_LOOP"),
+      `top-level self-growing loop certified instead of refusing: ${JSON.stringify(refused)}`);
+
+    const different = lowerOne(`import { query, t } from "snapback2";
+export const collect = query({ seed: t.text(40) }, ({ args }) => {
+  const keys = [args.seed];
+  const observed = [];
+  for (const key of keys) observed.push(key);
+  return observed;
+});`, "different-collection-mutation-loop.ts");
+    assert(lastDerivedArrayBound(different) === 1,
+      `different-collection mutation changed the loop domain bound: ${canonical(different)}`);
+    certify(different);
+    assert(runArrayLength(different, { seed: { String: "value" } }) === 1,
+      "different-collection loop changed its result length");
   });
 
   test("nested loop mutation deltas multiply and the certified program runs", () => {

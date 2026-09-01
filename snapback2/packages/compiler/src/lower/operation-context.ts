@@ -75,7 +75,7 @@ export function collectionMutationRewrite(
   const aliasSites = info.collectionDeclaration
     ? env.collectionAliasSites.get(info.collectionDeclaration) ?? []
     : [];
-  const escapeSites = priorCollectionEscapeSites(info, mutation, env);
+  const escapeSites = conflictingCollectionEscapeSites(info, mutation, env);
   const sharingSites = [
     ...aliasSites.map(copySite),
     ...escapeSites,
@@ -101,17 +101,19 @@ export function requireCollectionMutation(
   mutation: ts.CallExpression,
   env: Environment,
 ): void {
-  // @ref LLP 1002#2-the-authored-surface-the-snapback2-module — mutable collections have one local owner and mutations after a sharing escape refuse so IR copy semantics cannot diverge from TypeScript aliases.
+  // @ref LLP 1002#2-the-authored-surface-the-snapback2-module — mutable collections have one local owner; mutations after an escape or cyclic with one in a loop body refuse so IR copy semantics cannot diverge from TypeScript aliases.
   const info = env.variables.get(owner.text)!;
   const aliases = info.collectionDeclaration
     ? env.collectionAliasSites.get(info.collectionDeclaration) ?? []
     : [];
-  const escapes = priorCollectionEscapeSites(info, mutation, env);
+  const escapes = conflictingCollectionEscapeSites(info, mutation, env);
   if (info.locallyCreatedCollection && aliases.length === 0 && escapes.length === 0) return;
   const reason = aliases.length > 0
     ? "aliased under another binding"
     : escapes.length > 0
-      ? "shared by an escape before this mutation"
+      ? escapes.some((site) => site.expression.getStart(env.sourceFile) < mutation.getStart(env.sourceFile))
+        ? "shared by an escape before this mutation"
+        : "shared by an escape in the same cyclic loop body"
       : "not locally created";
   refuse(
     env,
@@ -278,15 +280,39 @@ function spreadCopyRewrite(env: Environment, sites: readonly CollectionEscapeSit
   return rewritten;
 }
 
-function priorCollectionEscapeSites(
+function conflictingCollectionEscapeSites(
   info: VariableInfo,
   mutation: ts.CallExpression,
   env: Environment,
 ): CollectionEscapeSite[] {
-  if (!info.collectionDeclaration) return [];
+  const declaration = info.collectionDeclaration;
+  if (!declaration) return [];
   const mutationStart = mutation.getStart(env.sourceFile);
-  return (env.collectionEscapeSites.get(info.collectionDeclaration) ?? [])
-    .filter((site) => site.expression.getStart(env.sourceFile) < mutationStart);
+  return (env.collectionEscapeSites.get(declaration) ?? [])
+    .filter((site) => site.expression.getStart(env.sourceFile) < mutationStart
+      || sharesEnclosingLoopBody(site.expression, mutation, declaration));
+}
+
+function sharesEnclosingLoopBody(left: ts.Node, right: ts.Node, declaration: ts.Node): boolean {
+  const leftBodies = new Set(enclosingLoopBodies(left));
+  return enclosingLoopBodies(right).some((body) => leftBodies.has(body) && !isWithin(declaration, body));
+}
+
+function enclosingLoopBodies(node: ts.Node): ts.Statement[] {
+  const bodies: ts.Statement[] = [];
+  for (let current: ts.Node | undefined = node; current?.parent; current = current.parent) {
+    if (ts.isForOfStatement(current.parent) && current.parent.statement === current) {
+      bodies.push(current as ts.Statement);
+    }
+  }
+  return bodies;
+}
+
+function isWithin(node: ts.Node, ancestor: ts.Node): boolean {
+  for (let current: ts.Node | undefined = node; current; current = current.parent) {
+    if (current === ancestor) return true;
+  }
+  return false;
 }
 
 function copySite(expression: ts.Expression): CollectionEscapeSite {
