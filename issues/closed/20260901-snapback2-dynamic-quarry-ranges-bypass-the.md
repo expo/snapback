@@ -1,6 +1,7 @@
 # snapback2: dynamic Quarry ranges bypass the compiler loop bound
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Refuted on verification: Quarry emits the dynamic expression as generated TypeScript, and the packaged compiler refuses it with E_UNBOUND_LOOP before certification. The bound never reaches the certificate or IR, so the bounded runtime cannot be bypassed.
 **Systems:** snapback2, quarry
 **Severity:** P2
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

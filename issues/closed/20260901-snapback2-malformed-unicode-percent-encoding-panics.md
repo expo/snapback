@@ -1,6 +1,7 @@
 # snapback2: malformed Unicode percent encoding panics HTTP handlers
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Refuted on verification: tiny_http read_next_line returns AsciiString::from_ascii and errors with 'Header is not in ASCII' before the handler runs (tiny_http-0.12.0 client.rs:80-101), so every request target reaching percent_decode is ASCII and its byte offsets are valid char boundaries. Both call sites (serve.rs:487,490) take request-line data only.
 **Systems:** snapback2, HTTP, input handling
 **Severity:** P1
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

@@ -2,7 +2,7 @@
 
 **Status:** Open
 **Systems:** snapback2, evaluator, hydration
-**Severity:** P2
+**Severity:** P3
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever
 **Date:** 2026-09-01
 

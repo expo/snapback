@@ -1,6 +1,7 @@
 # snapback2: durable effect then binding omits the target mutation body
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Refuted on verification: the durable token is specified to bind the effect declaration digest, retained effect source, and then-operation name — not a digest of the target program body. Requiring body-version pinning would add an invariant absent from LLP 1001-1003 and rules/.
 **Systems:** snapback2, effects, successors, durability
 **Severity:** P1
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

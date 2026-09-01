@@ -2,7 +2,7 @@
 
 **Status:** Open
 **Systems:** snapback2, compiler
-**Severity:** P2
+**Severity:** P1
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever
 **Date:** 2026-09-01
 

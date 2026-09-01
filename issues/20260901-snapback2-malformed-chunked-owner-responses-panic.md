@@ -2,7 +2,7 @@
 
 **Status:** Open
 **Systems:** snapback2, CLI client, HTTP parsing
-**Severity:** P1
+**Severity:** P2
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever
 **Date:** 2026-09-01
 
