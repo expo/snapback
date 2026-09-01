@@ -8,7 +8,15 @@ the finalize worker), `packages/compiler` (the column type),
 `packages/quarry` (the notation), `packages/snapback2` (client + React)
 **Author:** Claude Opus 5 (design), commissioned by Charlie Cheever 2026-08-31
 **Date:** 2026-08-31
-**Revised:** 2026-09-01 (c — the two-model panel pass. **One correctness
+**Revised:** 2026-09-01 (d — the author's rulings, in session: **affine**
+settles OQ1 (§2, §9); **any requested width is accepted and snapped** up to an
+internal rung, so there is no closed ladder to memorize and no width refusal
+(§8); **the full-resolution stripped original is kept** by default with an
+optional `max` pixel ceiling, which removes the invented 2048 primary and keeps
+lazy rendering available (§4, §8); **share links are deferred** with their
+additivity recorded so the deferral is checkable rather than hopeful (§13).
+Two open questions remain, neither blocking: the decoder's binary cost and
+video's schedule.); 2026-09-01 (c — the two-model panel pass. **One correctness
 defect fixed:** the write-time *stamp* broke the client twin, and is replaced
 by write-time *validation* (§1, §6). **One cache defect fixed:** the slot
 delivery URL was mutable; the asset id now appears in the path (§2). Resumable
@@ -56,9 +64,10 @@ spec needs an implementer and a date. §15 proposes both; nothing here binds
 until code runs it. It was commissioned in-session, which is the explicit
 approval the agent rule requires for adding a design document.
 
-**One decision is open and is the author's** (§2a / OQ1): whether an asset may
-live in more than one row. Everything else in this document is settled and
-does not vary with that answer.
+The author's rulings of 2026-09-01 are folded in: an asset has one home
+(§2), any width may be requested (§8), and the stripped original is kept
+(§4). What remains open is the decoder's cost to the binary and when video
+is scheduled — neither blocks the design.
 
 ## 1. The move
 
@@ -150,64 +159,50 @@ You cannot hand someone a link to bytes independent of a row they may read.
 That is the recipient-grant/signed-link feature, and it is a non-goal (§13). An
 app that wants a public image makes the row public.
 
-### 2a. Open decision: may an asset live in more than one row?
+### 2a. One asset, one home (author ruling, 2026-09-01)
 
-This is the one fork the panel did not close, and it is genuinely hard: on
-cross-read, **each panelist adopted the other's original position.** Both
-shapes fix the slot bug; they differ in what an asset *is*.
-
-**Option A — affine.** An asset belongs to exactly one `(table, row, column)`
-cell, recorded as a nullable locator on `_assets` and claimed in the writing
-transaction. Delivery follows the locator:
+An asset belongs to exactly one `(table, row, column)` cell, recorded as a
+nullable **locator** on `_assets` and claimed in the writing transaction that
+references it. Delivery follows the locator:
 
 ```
-GET /api/asset/<assetId>
-GET /api/asset/<assetId>/thumb
+GET /api/asset/<assetId>            the stored original (§8)
+GET /api/asset/<assetId>?w=<width>  a derived width
 ```
 
 ```tsx
-<AssetImage asset={photo} thumb />
+<AssetImage asset={photo} />
 ```
 
-- The value is **self-sufficient**: a component can render a photo without
-  knowing which row it came from.
-- **Reordering a list changes nothing** — identity is the asset, not a slot.
-- Reclamation is `locator IS NULL` over `_assets`; it never scans application
-  tables.
-- Cost: reuse is a runtime refusal (`E_ASSET_IN_USE`). The same image in an
-  avatar and a post is two uploads. TypeScript cannot express the linearity,
-  which is codex's objection: an ordinary-looking value is secretly affine.
-- Claim and release become part of transactional correctness across
-  replacement, list edits, deletion, `reset`, and `fork`.
+This was the panel's one unresolved fork, and it is worth recording why it was
+hard: on cross-read **each panelist adopted the other's original position**.
+The ruling takes affine for the reason that decides it under this document's
+ranking — *the display call is what an app author writes fifty times, and reuse
+is what the five named apps write zero times.* What affine buys:
 
-**Option B — reference site.** An asset may be referenced anywhere; the URL
-carries the position *and* the id:
+- **The value is self-sufficient.** A component renders a photo without knowing
+  which row it came from, so a photo can be passed around like any other value.
+- **Reordering a list changes no URL.** Identity is the asset, not a position.
+  The rejected alternative put the index in the path, so rearranging four photos
+  404'd all four.
+- **Reclamation never scans application tables** — it is `locator IS NULL` over
+  `_assets` (§9).
 
-```
-GET /api/asset/<table>/<rowId>/<column>[/<index>]/<assetId>
-GET /api/asset/<table>/<rowId>/<column>[/<index>]/<assetId>/thumb
-```
+What it costs, stated plainly:
 
-```tsx
-<AssetImage of={post} field={api.assets.posts.photos} index={2} thumb />
-```
+- **Reuse is a runtime refusal** (`E_ASSET_IN_USE`). The same uploaded file in
+  an avatar and a post is two uploads and two copies of the bytes. Forwarding a
+  DM image re-uploads it.
+- **TypeScript cannot express the linearity.** An ordinary-looking value is
+  secretly affine, so the editor will not warn; the refusal arrives at write
+  time, typed and immediate rather than silent.
+- **Claim and release are transactional correctness** across replacement, list
+  edits, deletion, `reset`, and `fork` — not a background concern.
 
-- No hidden rule; reuse just works; `_assets` gains no column.
-- Reclamation is mark-and-sweep over application rows — **deliberately outside
-  authority**, which is codex's strongest point: it may lag or crash without
-  leaking a byte, because an unreferenced asset is already undeliverable.
-- Cost: every render site names the row, the column, and the index. And
-  **reordering a list changes every photo's URL**, 404-ing photos whose bytes
-  never moved — grok's point, which went unrebutted.
-
-The trade is ergonomics against failure modes. Option A gives the better
-authoring surface and the cheaper reclamation; option B has no rule an agent
-can hold wrong and keeps liveness outside correctness. **OQ1 is the author's
-call.** If A is chosen and an app later needs multi-home, adding it deletes the
-locator and puts the row back in the URL — a clean reversal, not a migration
-trap.
-
-Everything else in this document is identical under either option.
+If an app later needs one asset in several rows, the change is mechanical and
+reversible: delete the locator, put the row coordinates back in the URL, and
+move reclamation to a sweep. It is not a migration trap. §12 keeps the rejected
+shape and its arguments so the choice is not re-litigated from scratch.
 
 ## 3. Authoring surface
 
@@ -230,7 +225,7 @@ table posts:
   space: spaces
   author: id
   body: text <=500
-  photos: [image <=12000000] <=4
+  photos: [image <=12000000 max 2048] <=4
   at: time
   by bySpaceAt: space, at
   read r <- exists members[space, viewer]
@@ -252,10 +247,16 @@ export const profiles = table({
   // …
 })
 export const posts = table({
-  columns: { photos: t.list(t.image(12_000_000), { max: 4 }), /* … */ },
+  columns: {
+    photos: t.list(t.image(12_000_000, { max: 2048 }), { max: 4 }),
+    /* … */
+  },
   // …
 })
 ```
+
+`avatar` keeps its full resolution; `photos` stores nothing over 2048 px
+(§4). Both are one type and a bound, read the same way as `text <=40`.
 
 That is the entire authoring surface. `image` reads exactly like `text`,
 because it is exactly as complicated: a type with a bound. Widen `profiles`
@@ -302,8 +303,18 @@ the decision rather than mandating it.
   pickers hand back HEIC even in compatible mode (LLP 1005 §6); Snapback 1 still
   cannot decode it (`issues/20260819-heic-image-normalization.md`, open).
   Accepting HEIC and storing an unservable original would reproduce the bug.
-- **A bounded primary (max edge 2048) and one 256 px thumb** are produced at
-  admission; the original is discarded.
+- **The full-resolution image is kept, stripped** (author ruling, 2026-09-01).
+  "The original" always means the full-size image *after* metadata removal —
+  never the bytes as uploaded. Keeping the literal upload would keep the GPS
+  this section promises to remove, and the one property Snapback 1 measurably
+  beat the field on would be false the moment anyone fetched full size.
+  Derived widths (§8) come from that stripped source.
+- **An optional `max` caps stored resolution.** `image <=12000000 max 2048`
+  stores nothing larger than 2048 px on the long edge. Omitted, the full
+  resolution is kept. The default is the *reversible* choice — a smaller image
+  can always be derived from a larger one, never the reverse — so a chat app
+  storing thousands of 12 MP images opts into the ceiling, and a photo app does
+  not. This is the column's only optional field.
 - **The bound is bytes**, enforced at admission and re-checked at write; over is
   `E_ASSET_TOO_LARGE`. Both refusals ride the existing `input` family.
 
@@ -406,18 +417,50 @@ vanish." They are spelled in full, never `w`/`h`.
 The cost, accepted: a feed paints empty until bytes arrive. That is the
 cheapest field to add back later, and it is above the floor today.
 
-## 8. Renditions: two, both at admission
+## 8. Sizes: ask for any width
 
-A bounded primary and one 256 px thumb, produced at admission and immutable
-thereafter; `…/thumb` selects the thumb. No `?w=`, no ladder, no request-time
-rendering, no render cache.
+```
+GET /api/asset/as_123           the stored original
+GET /api/asset/as_123?w=847     a derived width
+```
 
-Snapback 1 pre-declared renditions in the intent, and the bakeoff ranked it
-ahead of the field on media-pipeline *capability* while ranking PocketBase
-ahead on *DX* for the same axis (LLP 1005 §7). It also produced a recurring
-bug: a helper composing a rendition name the intent did not declare yields a URL
-for bytes that do not exist (Diary 0086). The finding is about *author-declared*
-variants; a platform-fixed pair cannot be named wrongly.
+**Any width is a valid request.** The server snaps it up to the next internal
+rung and serves that, so the delivered image is always at least as large as
+asked and looks right. The rungs are an implementation detail: there is no
+closed list to memorize, and **no width refusal exists** — revision (c)'s
+`E_ASSET_WIDTH` is deleted along with the ladder that needed it.
+
+The client does not usually name a width at all. `<AssetImage>` measures its
+own layout box, multiplies by device pixel ratio, and asks for that:
+
+```tsx
+<AssetImage asset={photo} />
+```
+
+**Why snapping rather than literally arbitrary rendering.** A public image URL
+with a free `?w=` is an unauthenticated compute endpoint: `?w=1 … ?w=4000` is
+thousands of decode/resize/encode jobs per asset from a URL anyone can loop on,
+and every distinct width is a distinct cache entry, so hit rates collapse as
+devices vary. The fixes for that are all machinery this document has already
+refused — signed URLs with the width in the signature (LLP 0220's territory),
+per-asset variant caps, rate limiters. Snapping bounds the work at the rung
+count per asset and lands every device on the same few cache keys, at no cost
+to the caller, who never learns the rungs exist.
+
+This is what Snapback 1 lost the DX half of the media axis on: PocketBase's
+`?thumb=100x100` beat pre-declared variants outright (LLP 1005 §7), and its
+author-declared-variant bug — a helper composing a rendition name the intent
+never declared, yielding a URL for bytes that do not exist (Diary 0086) — is
+unreachable when every width is valid.
+
+**Eager or lazy is invisible.** Because widths snap, an attacker can force at
+most one render per rung per asset, which makes lazy rendering safe rather than
+a liability. Slice 1 renders the common rungs at admission — no cache, no
+eviction, no cold first request, which suits a system whose posture is cheapest
+at idle. If bytes or CPU later measure badly, switching to render-on-first-
+request is **a server change with no API change**: same URLs, same client code.
+Naming sizes (`/thumb`) instead of measuring them would have foreclosed that,
+which is why revision (c)'s spelling is gone.
 
 ## 9. Lifecycle: finalize off the writer, and reclamation
 
@@ -438,9 +481,11 @@ ledger already has the states, and borrowing the effect runner drags in
 want. The outbox stays for effects. Video's long finalize is the reason to
 revisit it.
 
-**Reclamation depends on OQ1**: `locator IS NULL` over `_assets` under option
-A; mark-and-sweep over application rows under option B. Under either,
-**liveness buys space and never authority** — an unreferenced asset is already
+**Reclamation is `locator IS NULL` over `_assets`** (§2a) — it never scans
+application tables. An asset whose row was deleted, whose column was patched,
+or that was never referenced has a null locator and is collected after a grace
+period, along with its derived widths. **Liveness buys space and never
+authority** — an unreferenced asset is already
 undeliverable (§2), so a reclamation pass that lags or crashes is a disk cost,
 not a disclosure. Snapback 1's equivalent bug is open today: a partial reset
 wipe leaves orphans that are never reclaimed *and* undetectable
@@ -479,10 +524,10 @@ atomicity objection is answered by the failure shape: `run()` throws, no row is
 written, and the siblings are reclaimed — the same shape as any rejected
 mutation.
 
-Rendering is `<AssetImage asset={photo} thumb />` under option A, or
-`<AssetImage of={post} field={…} index={2} thumb />` under option B (§2a). A
-private image is fetched with the session and painted from a blob URL; there
-are no signed query tokens.
+Rendering is `<AssetImage asset={photo} />` (§2a), which measures its own box
+and requests a matching width (§8) — the author names no size. A private image
+is fetched with the session and painted from a blob URL; there are no signed
+query tokens.
 
 ## 11. What this deletes
 
@@ -530,6 +575,29 @@ and the effect runner's semantics do not fit (§9).
 **`kind`, `hash`, `digest` on the value.** Rejected as above the floor (§7);
 `digest` specifically as competitor-envy.
 
+**Reference-site delivery** (`/api/asset/<table>/<row>/<column>/<index>/<id>`).
+The panel's unresolved fork, ruled against on 2026-09-01 (§2a). Its real
+advantages, kept on the record: no hidden linearity, one asset reusable in many
+rows, and reclamation that is *deliberately* outside authority — a sweep may lag
+or crash without leaking a byte. It loses on the call an author writes fifty
+times: every render site must name the row, the column, and the index, and
+reordering a list changes every URL beneath it, 404-ing photos whose bytes never
+moved. Revisit it if `E_ASSET_IN_USE` starts feeling like an obstacle rather
+than a rule.
+
+**A closed width ladder that refuses off-ladder widths** (revision (a), and
+revision (c)'s two fixed renditions). Rejected in favor of accepting any width
+and snapping (§8): the closed list forced the author to learn the rungs and
+needed an `E_ASSET_WIDTH` refusal, and the fixed pair left the most common case
+— a full-width photo on a phone — served by an oversized original. Snapping
+deletes both the list and the diagnostic.
+
+**Discarding the original after deriving a capped primary.** Revision (c)'s
+model. Rejected (§4): it required inventing and defending a 2048 px "primary,"
+made full-resolution download and deep zoom impossible, and — because deriving a
+new width needs a source — would have locked rendering into being eager forever.
+The optional `max` covers the apps that genuinely do not want full resolution.
+
 **A destination column named at upload** (`api.assets.<table>.<column>`).
 Codex argued for it: an 8 MB image should fail before it is normalized and
 thumbnailed for a 5 MB avatar column. Grok's counter carries: a per-column
@@ -555,8 +623,22 @@ destination back, and it deletes the generation-wide admission ceiling.
 - **Codec and duration admission facts.** Only useful once video ships;
   Snapback 1 could not express them either
   (`issues/20260817-upload-intent-codec-duration-admission-facts.md`).
-- **Recipient grants and signed share links.** `rules/NOT-DOING.md`; LLP 1005
-  §8. The consequence is stated in §2, not hidden.
+- **Recipient grants and signed share links** — deferred, and **verified
+  additive** (author ruling, 2026-09-01). There is no link to a photo on its own:
+  bytes are fetchable only by someone who may read the row holding them, so
+  "copy image address" for a logged-out recipient works exactly when the row is
+  public. Adding row-independent links later touches **one route or query
+  parameter, a token-minting operation, and a decision about what a deleted row
+  does to a live link** — and touches *none* of the column type, the value, the
+  schema, the twin, the certificate, the storage layout, or any existing URL's
+  meaning. `GET /api/asset/<assetId>` already names the asset, so a token would
+  be an alternative authorization for the same request, not a second addressing
+  scheme; affine makes "share this asset" unambiguous about what is shared and
+  what revoking it means. The reason to defer is not cost but gravity: TTL,
+  then revocation, then per-recipient grants, then view-once is LLP 0220's 342
+  lines, which LLP 1005 §8 says not to rebuild. **The risk of deferring is
+  behavioral, not technical** — an app that needs sharing may make a row public
+  that should not be, and that is hard to walk back.
 - **Ordered-collection operations** (insert-at, reorder-preserving item ids). A
   list column replaces the collection, not its operations.
 - **Per-item residue and multi-upload ambiguity semantics** (LLP 0180). §3
@@ -572,7 +654,7 @@ destination back, and it deletes the generation-wide admission ceiling.
 - **`check` stays under 1 s.** One schema node kind and one validation arm.
 - **Binary size.** An image decoder, a HEIC decoder, and a resizer are real
   dependencies on a binary whose published size is a measured number (2.18 MB
-  without the engine, 5.06 MB with). The largest honest cost; OQ2.
+  without the engine, 5.06 MB with). The largest honest cost, and the one remaining open question (OQ1).
 - **A dropped upload retries in full** (§5) until video brings resume.
 - **An empty first paint** until bytes arrive (§7).
 - **Staging disk**: a per-principal cap (e.g. 256 MB or 20 objects) bounds what
@@ -583,7 +665,7 @@ destination back, and it deletes the generation-wide admission ceiling.
 ## 15. Implementation shape
 
 `rules/RULES.md`: a spec needs an implementer and a date. Proposed, subject to
-the author's scheduling and to OQ1:
+the author's scheduling:
 
 | lane | scope |
 |---|---|
@@ -633,20 +715,48 @@ a judgment that photo uploads differ from video uploads in kind.
 decided on v1 evidence; codex's false-atomicity objection is real and answered
 rather than dismissed.
 
-**0.5** on OQ1 — not because it is unclear, but because two strong readers
-swapped sides on it.
+**0.7** on §2a (affine). Ruled by the author, and the right call under this
+document's ranking — but the confidence stays moderate because two strong
+readers swapped sides on it, and because the linearity is the one rule in this
+design that an ordinary-looking TypeScript value hides. If a real app trips
+`E_ASSET_IN_USE` in a way that feels wrong rather than instructive, that is the
+signal to revisit §12's rejected shape.
+
+**0.8** on §8 (snap any width). Snapping is what makes both the ergonomics and
+the bounded work possible at once; the residual risk is only in where the rungs
+sit, which is a tuning number rather than a design decision.
+
+## Rulings settled (author, 2026-09-01)
+
+Recorded here so a reader knows these are decided, not merely proposed:
+
+1. **Affine** — one asset, one home (§2a).
+2. **Any width may be requested**, snapped internally; no closed ladder and no
+   width refusal (§8).
+3. **The full-resolution stripped original is kept**, with an optional `max`
+   pixel ceiling per column (§4).
+4. **Share links are deferred**, with their additivity verified and recorded
+   (§13).
 
 ## Open questions (author)
 
-1. **Affine or reference-site?** (§2a.) The one open design fork. Affine gives
-   the better rendering API, cheaper reclamation, and reorder-stable URLs, at
-   the cost of a linear-ownership rule TypeScript cannot express.
-   Reference-site has no hidden rule and keeps liveness outside correctness, at
-   the cost of verbose render sites and URLs that change on reorder.
-2. **Is an image/HEIC decoder acceptable in the published binary?** (§14.) The
-   alternatives are an out-of-process renderer (more machinery, slower) or
-   originals only (no thumb, which the feed needs).
-3. **Does anything need a row-independent link before promotion?** (§2.) The
-   trade must be revisited before the design lands, not after.
-4. **Video in slice 2 — when?** §13 makes it required work rather than an
-   optional tail. Clique's brief is not complete without it.
+1. **Is an image/HEIC decoder acceptable in the published binary?** (§14.) The
+   alternatives are an out-of-process renderer — more machinery, slower — or
+   serving originals only, which makes a feed download full-resolution images.
+   This is a number, not an argument: the honest next step is to build with the
+   decoders and measure the delta against today's 2.18 MB / 5.06 MB before
+   deciding. Not blocking; nothing else in the design depends on the answer.
+2. **When does video land?** §13 makes slice 2 required work rather than an
+   optional tail — Clique's brief is not complete without it — and the authoring
+   API gains exactly one word (`video`) when it does. The question is ordering
+   against everything else in `snapback2/`, not design.
+
+## What promotion to a Spec requires
+
+`rules/RULES.md`: *"A spec needs an implementer and a date, or it isn't
+written,"* and *"only implemented specs bind."* This document is complete enough
+to implement — §15's four lanes are disjoint and the design questions that
+gated them are ruled — but it stays an RFC until the author assigns an
+implementer and a date. The standing arrangement routes implementation to codex
+gpt-5.6-sol; the date is the author's scheduling call, not a number this
+document may invent.
