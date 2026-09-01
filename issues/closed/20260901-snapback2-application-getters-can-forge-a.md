@@ -1,6 +1,7 @@
 # snapback2: application getters can forge a non-retryable effect grant denial
 
-**Status:** Open
+**Status:** Closed
+**Resolution:** Restricted grant-denial identity minting to raw Ibex fetch rejections in the effects preludes and added redirect/method/body getter regression coverage.
 **Systems:** snapback2, effects, error handling
 **Severity:** P2
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

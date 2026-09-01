@@ -100,22 +100,26 @@
     return status === 301 || status === 302 || status === 303 || status === 307 || status === 308;
   }
 
-  function invokeRaw(raw, url, init, redirectMode) {
+  function invokeRaw(raw, url, init, redirectMode, tagRawError) {
     var method = init && init.method !== undefined ? String(init.method) : "";
     var body = init && init.body !== undefined ? init.body : undefined;
     if (typeof body === "string") body = new TextEncoder().encode(body);
-    return raw(String(url), method, body, redirectMode);
+    var target = String(url);
+    return raw(target, method, body, redirectMode).then(
+      undefined,
+      function (error) { throw tagRawError(error, target); }
+    );
   }
 
   // The factory. `raw` is the engine's async binding for one grant set; it
   // resolves to a handle, and this is the only place a handle becomes an
   // object. Default redirect following is kept on this side of the binding so
   // each denied hop remains attributable without widening Ibex's capability.
-  return function makeFetch(raw) {
+  return function makeFetch(raw, tagRawError) {
     return function fetch(input, init) {
       var redirectMode = init && init.redirect !== undefined ? String(init.redirect) : "follow";
       if (redirectMode !== "follow") {
-        return invokeRaw(raw, input, init, redirectMode)
+        return invokeRaw(raw, input, init, redirectMode, tagRawError)
           .then(function (handle) { return response(handle); });
       }
 
@@ -125,14 +129,7 @@
       var redirects = 0;
 
       function next() {
-        var attemptedUrl = currentUrl;
-        return invokeRaw(raw, currentUrl, currentInit, "manual").catch(function (error) {
-          var message = error && error.message ? String(error.message) : String(error);
-          if (message.indexOf("denied: net.fetch") !== -1) {
-            try { error.__snapbackDeniedOrigin = new URL(attemptedUrl).origin; } catch (_) {}
-          }
-          throw error;
-        }).then(function (handle) {
+        return invokeRaw(raw, currentUrl, currentInit, "manual", tagRawError).then(function (handle) {
           var value = response(handle, redirects > 0);
           if (!isRedirect(value.status)) return value;
           var location = value.headers.get("location");
