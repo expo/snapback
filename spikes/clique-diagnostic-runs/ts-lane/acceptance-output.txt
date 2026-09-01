@@ -1,0 +1,26 @@
+acceptance against http://127.0.0.1:20510 at 2026-08-31T22:28:04.265Z
+PASS [M1] 1. sign up a new user; lands authenticated (23ms)
+PASS [M1] 2a. duplicate handle rejected with a visible error (19ms)
+PASS [M1] 2b. duplicate email rejected (2ms)
+PASS [M1] 3. reload keeps the session (token reuse) (21ms)
+PASS [M1] 4. logout revokes the session server-side (21ms)
+PASS [M1] 5. profile edits appear live on another client (9ms)
+PASS [M2] 1. new post renders live in another client's Global feed with author name (7ms)
+PASS [M2] 2. follow/unfollow: following feed and follower count live; old posts drop on unfollow (21ms)
+PASS [M2] 3. unfollowed user's post: Global yes, Following no (8ms)
+PASS [M2] 4. like from client B updates count live on client A; unlike works (9ms)
+PASS [M2] 5. repost attribution, toggle-off, and surfacing in a follower's feed (58ms)
+PASS [M2] 6. reply: live count, ordered thread, absent from feeds (13ms)
+PASS [M2] 7. pagination: 20 per page, no duplicates, no gaps, both tabs (11ms)
+PASS [M3] 1. DM: live messages with sender names; reopening reuses the channel (20ms)
+PASS [M3] 2. two groups with identical membership sets coexist (13ms)
+PASS [M3] 3. typing indicator arrives within 2 s and expires (1507ms)
+PASS [M3] 4. receipts sent -> delivered -> read; group waits for the slowest member (46ms)
+PASS [M3] 5. quoted reply renders the excerpt referencing the original (20ms)
+PASS [M3] 6. removal: no new messages, history kept; non-admins cannot remove (27ms)
+PASS [M3] 7. seed is idempotent (second run: no duplicates) (188ms)
+
+acceptance: 20 passed, 0 failed
+  M1: 6/6
+  M2: 7/7
+  M3: 7/7

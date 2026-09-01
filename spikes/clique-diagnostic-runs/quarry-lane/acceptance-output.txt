@@ -1,0 +1,31 @@
+Clique acceptance — 2026-08-31T23:39:51.691Z
+$ quarryc .
+quarryc ok 6 files
+$ snapback2 check
+ok e5bd7f4d 67 ops
+$ snapback2 dev --port 20600
+SNAPBACK_URL=http://127.0.0.1:20600
+SNAPBACK_URL=http://127.0.0.1:20600
+$ npm run seed
+{"accounts":0,"profiles":0,"posts":0,"follows":0}
+[M1] PASS 1 sign up lands authenticated — viewer user:aM-GhyC4iZxcylMrByid5w
+[M1] PASS 2 duplicate handle and duplicate email rejected — handle: E_CONSTRAINT (E_CONSTRAINT: sealed unique conflict on users.byHandle); email: E_AUTH_EMAIL_TAKEN
+[M1] PASS 3 session persists across reload — same token accepted on a fresh client
+[M1] PASS 4 logout revokes the session server-side — old token refused: E_AUTH_SESSION
+[M1] PASS 5 [two-client] profile edits propagate live — bob saw "Alice Live mthvrwkk" without refetch
+[M2] PASS 1 [two-client] new post appears live in Global with author name — bob's Global subscription delivered alice's post with display name
+[M2] PASS 2 [two-client] follow/unfollow shapes Following; counts live; no self-edge — live follower count 1 -> 2 -> restored
+[M2] PASS 3 unfollowed user's post: Global yes, Following no — verified in both tabs
+[M2] PASS 4 [two-client] like toggles and counts update live — count 0 -> 1 -> 0, live on client A
+[M2] PASS 5 [two-client] repost toggles, attribution, surfaces in Following — repost appeared attributed, surfaced original author in Following, toggle removed it
+[M2] PASS 6 [two-client] replies: count live, thread ordered, absent from feeds — reply count 0 -> 1 live; thread ordered
+[M2] PASS 7 pagination: page 2 in both tabs, no dups, no gaps — Global 40 items over 2 pages; Following 37 merged
+[M3] PASS 1 [two-client] DM live both ways, sender names, channel reuse — channel id-1788217768925-148480 reused from both sides
+[M3] PASS 2 group + identical-membership twin coexist — two groups with identical member sets: id-1788219593344-858112, id-1788219593346-859136
+[M3] PASS 3 [two-client] typing indicator within 2s, expires — delivered in 3ms; silent for 5.2s after last keystroke (ttl 5s; UI clears at 5s)
+[M3] PASS 4 [two-client] receipts sent->delivered->read; group waits for slowest — DM ticks advanced live on alice's client; group aggregate waited for carol
+[M3] PASS 5 quoted reply carries pointer + excerpt — excerpt "DM hello mthuot59..." rendered from pointer
+[M3] PASS 6 [two-client] removal: history kept, no new messages, non-admin blocked — carol kept 1 pre-removal messages client-side; server refuses her new reads (complete); non-admin removal rejected NOT_ADMIN
+[M3] PASS 7 seed idempotent (second run: no duplicates) — second seed run created nothing
+
+19/19 items passed {"m1":120,"m2":272,"m3":9325}
