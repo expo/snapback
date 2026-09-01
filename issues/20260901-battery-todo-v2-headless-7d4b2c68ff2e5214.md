@@ -1,4 +1,4 @@
-# complete battery red: regression-handshake-loss
+# complete battery red: todo-v2-headless
 
 **Status:** Open
 **Impact:** 5
@@ -7,20 +7,20 @@
 **Confidence:** 5
 **Systems:** Testing, CI
 **Date:** 2026-09-01
-**Battery gate:** `regression-handshake-loss`
-**Failure signature:** `sha256:3149282bfde9434e72f74b2ea681daa778b905d500300318b50b5910d93f65ad`
-**First observed run:** `local.20260901T030411Z.6435dc48103e`
-**Last observed run:** `local.20260901T030411Z.6435dc48103e`
-**Last processed run:** `local.20260901T030411Z.6435dc48103e`
-**Detected at revision:** `6435dc48103e90d6732b7e0de709701fda3ba512`
-**Last observed revision:** `6435dc48103e90d6732b7e0de709701fda3ba512`
+**Battery gate:** `todo-v2-headless`
+**Failure signature:** `sha256:7d4b2c68ff2e5214760bbdd588b5e47992b0c954e77625fef2f4cf07140abd76`
+**First observed run:** `local.20260901T114752Z.293de46f68b1`
+**Last observed run:** `local.20260901T114752Z.293de46f68b1`
+**Last processed run:** `local.20260901T114752Z.293de46f68b1`
+**Detected at revision:** `293de46f68b17c798cb59287def8568b4baa5706`
+**Last observed revision:** `293de46f68b17c798cb59287def8568b4baa5706`
 **Consecutive red runs:** `1`
 **Escalation:** `pending (1/4)`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
 ## Summary
 
-The scheduled complete canonical battery reported `regression-handshake-loss` as a root
+The scheduled complete canonical battery reported `todo-v2-headless` as a root
 failure (exit 1). This ticket is keyed by gate plus the normalized
 root-failure signature and remains idempotent while open. Dependent `BLOCKED`
 results do not create tickets.
@@ -30,12 +30,12 @@ results do not create tickets.
 - `single_table_v1` — `crates/snapback-engine/src/local-persistent-store-publication.anchor.v1.json`
 
 These are the standing published claims whose recorded LLP 0189 D-4 scope
-derives `regression-handshake-loss` as claim-relevant for this battery revision.
+derives `todo-v2-headless` as claim-relevant for this battery revision.
 
 ## Reproduce and repair
 
 ```sh
-node demos/_kit/tests/regression-handshake-loss.mjs
+node demos/todo-v2/tests/acceptance/headless.mjs
 ```
 
 Fix forward, rerun the complete battery, and let the next determinate pass close

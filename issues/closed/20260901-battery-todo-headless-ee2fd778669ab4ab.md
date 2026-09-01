@@ -1,6 +1,8 @@
 # complete battery red: todo-headless
 
-**Status:** Open
+**Status:** Closed
+**Closure:** `signature absent from determinate FAIL`
+**Closed at revision:** `293de46f68b17c798cb59287def8568b4baa5706`
 **Impact:** 5
 **Urgency:** 5
 **Ease:** 4
@@ -11,7 +13,7 @@
 **Failure signature:** `sha256:ee2fd778669ab4abea6be206421b06ccb5a0d5bf905f91126348bccd2015d451`
 **First observed run:** `local.20260901T030411Z.6435dc48103e`
 **Last observed run:** `local.20260901T030411Z.6435dc48103e`
-**Last processed run:** `local.20260901T030411Z.6435dc48103e`
+**Last processed run:** `local.20260901T114752Z.293de46f68b1`
 **Detected at revision:** `6435dc48103e90d6732b7e0de709701fda3ba512`
 **Last observed revision:** `6435dc48103e90d6732b7e0de709701fda3ba512`
 **Consecutive red runs:** `1`

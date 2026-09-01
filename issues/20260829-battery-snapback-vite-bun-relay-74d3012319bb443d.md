@@ -1,6 +1,7 @@
 # complete battery red: snapback-vite-bun-relay
 
-**Status:** Closed
+**Status:** Open
+**Reopened by battery run:** `local.20260901T114752Z.293de46f68b1`
 **Closure:** `signature absent from determinate FAIL`
 **Closed at revision:** `81cc759a07a706300e471f106fe41dc761c39474`
 **Impact:** 5
@@ -12,10 +13,10 @@
 **Battery gate:** `snapback-vite-bun-relay`
 **Failure signature:** `sha256:74d3012319bb443d375c64852e178bc6b2cf3985233798ec9e91ebbe04548faa`
 **First observed run:** `local.20260829T140951Z.cace7b53cf00`
-**Last observed run:** `local.20260829T140951Z.cace7b53cf00`
-**Last processed run:** `local.20260829T223616Z.81cc759a07a7`
+**Last observed run:** `local.20260901T114752Z.293de46f68b1`
+**Last processed run:** `local.20260901T114752Z.293de46f68b1`
 **Detected at revision:** `cace7b53cf008e7692e4cb633c14b4c2400fdd5c`
-**Last observed revision:** `cace7b53cf008e7692e4cb633c14b4c2400fdd5c`
+**Last observed revision:** `293de46f68b17c798cb59287def8568b4baa5706`
 **Consecutive red runs:** `1`
 **Escalation:** `pending (1/4)`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3

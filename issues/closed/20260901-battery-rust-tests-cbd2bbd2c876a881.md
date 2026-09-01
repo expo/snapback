@@ -1,17 +1,19 @@
-# complete battery red: drift-prone-gate-fixtures
+# complete battery red: rust-tests
 
-**Status:** Open
+**Status:** Closed
+**Closure:** `signature absent from determinate FAIL`
+**Closed at revision:** `293de46f68b17c798cb59287def8568b4baa5706`
 **Impact:** 5
 **Urgency:** 5
 **Ease:** 4
 **Confidence:** 5
 **Systems:** Testing, CI
 **Date:** 2026-09-01
-**Battery gate:** `drift-prone-gate-fixtures`
-**Failure signature:** `sha256:40d0286a9386e7e34fb7f30fbe999d3c665e0d7280d78ae0ed5f7b2078bac774`
+**Battery gate:** `rust-tests`
+**Failure signature:** `sha256:cbd2bbd2c876a8813212eee75b604355b9f6256fa1b006c9486bd588c7288e77`
 **First observed run:** `local.20260901T030411Z.6435dc48103e`
 **Last observed run:** `local.20260901T030411Z.6435dc48103e`
-**Last processed run:** `local.20260901T030411Z.6435dc48103e`
+**Last processed run:** `local.20260901T114752Z.293de46f68b1`
 **Detected at revision:** `6435dc48103e90d6732b7e0de709701fda3ba512`
 **Last observed revision:** `6435dc48103e90d6732b7e0de709701fda3ba512`
 **Consecutive red runs:** `1`
@@ -20,8 +22,8 @@
 
 ## Summary
 
-The scheduled complete canonical battery reported `drift-prone-gate-fixtures` as a root
-failure (exit 1). This ticket is keyed by gate plus the normalized
+The scheduled complete canonical battery reported `rust-tests` as a root
+failure (exit 101). This ticket is keyed by gate plus the normalized
 root-failure signature and remains idempotent while open. Dependent `BLOCKED`
 results do not create tickets.
 
@@ -30,12 +32,12 @@ results do not create tickets.
 - None.
 
 These are the standing published claims whose recorded LLP 0189 D-4 scope
-derives `drift-prone-gate-fixtures` as claim-relevant for this battery revision.
+derives `rust-tests` as claim-relevant for this battery revision.
 
 ## Reproduce and repair
 
 ```sh
-node --test tests/drift_prone_gates_v0.mjs
+env SNAPBACK_EXPECT_WORKERD=1 NEXTEST_TEST_THREADS=4 scripts/run-cargo-nextest --profile local-proof --workspace --no-fail-fast
 ```
 
 Fix forward, rerun the complete battery, and let the next determinate pass close

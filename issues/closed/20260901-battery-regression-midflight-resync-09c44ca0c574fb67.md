@@ -1,17 +1,19 @@
-# complete battery red: admin-acceptance
+# complete battery red: regression-midflight-resync
 
-**Status:** Open
+**Status:** Closed
+**Closure:** `signature absent from determinate FAIL`
+**Closed at revision:** `293de46f68b17c798cb59287def8568b4baa5706`
 **Impact:** 5
 **Urgency:** 5
 **Ease:** 4
 **Confidence:** 5
 **Systems:** Testing, CI
 **Date:** 2026-09-01
-**Battery gate:** `admin-acceptance`
-**Failure signature:** `sha256:943841500f60f9ddb56c27c9f67c0eee47fa9941751e97658e83c325f87bbdc8`
+**Battery gate:** `regression-midflight-resync`
+**Failure signature:** `sha256:09c44ca0c574fb67df693eb59923fac0ccef8fbed8996cdea0302d59ad00491e`
 **First observed run:** `local.20260901T030411Z.6435dc48103e`
 **Last observed run:** `local.20260901T030411Z.6435dc48103e`
-**Last processed run:** `local.20260901T030411Z.6435dc48103e`
+**Last processed run:** `local.20260901T114752Z.293de46f68b1`
 **Detected at revision:** `6435dc48103e90d6732b7e0de709701fda3ba512`
 **Last observed revision:** `6435dc48103e90d6732b7e0de709701fda3ba512`
 **Consecutive red runs:** `1`
@@ -20,22 +22,22 @@
 
 ## Summary
 
-The scheduled complete canonical battery reported `admin-acceptance` as a root
+The scheduled complete canonical battery reported `regression-midflight-resync` as a root
 failure (exit 1). This ticket is keyed by gate plus the normalized
 root-failure signature and remains idempotent while open. Dependent `BLOCKED`
 results do not create tickets.
 
 ## Standing claim cross-references
 
-- None.
+- `single_table_v1` — `crates/snapback-engine/src/local-persistent-store-publication.anchor.v1.json`
 
 These are the standing published claims whose recorded LLP 0189 D-4 scope
-derives `admin-acceptance` as claim-relevant for this battery revision.
+derives `regression-midflight-resync` as claim-relevant for this battery revision.
 
 ## Reproduce and repair
 
 ```sh
-bash -lc cd\ admin-ui\ \&\&\ ./build.sh\ \&\&\ bun\ run\ test\ \&\&\ bun\ run\ test:browser-security\ \&\&\ bun\ run\ audit:production
+node demos/_kit/tests/regression-midflight-resync.mjs
 ```
 
 Fix forward, rerun the complete battery, and let the next determinate pass close

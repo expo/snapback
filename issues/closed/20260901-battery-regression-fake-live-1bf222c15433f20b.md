@@ -1,29 +1,28 @@
-# complete battery red: exact-all-aboard-live
+# complete battery red: regression-fake-live
 
-**Status:** Open
-**Reopened by battery run:** `local.20260831T182234Z.850c161f649c`
+**Status:** Closed
 **Closure:** `signature absent from determinate FAIL`
-**Closed at revision:** `cdca4903938ac10c386839e9f3e02bf0285f6bc0`
+**Closed at revision:** `293de46f68b17c798cb59287def8568b4baa5706`
 **Impact:** 5
 **Urgency:** 5
 **Ease:** 4
 **Confidence:** 5
 **Systems:** Testing, CI
-**Date:** 2026-08-27
-**Battery gate:** `exact-all-aboard-live`
-**Failure signature:** `sha256:bdd0265e42bdbac7bb7ef5fe9ebdddac04c6e4e45727fa4c656d23ae95da2ce1`
-**First observed run:** `local.20260827T191659Z.cf68cae13934`
+**Date:** 2026-09-01
+**Battery gate:** `regression-fake-live`
+**Failure signature:** `sha256:1bf222c15433f20bcb35de3c461ede632e9a439b9c40091ead10fab2b6fdc2c3`
+**First observed run:** `local.20260901T030411Z.6435dc48103e`
 **Last observed run:** `local.20260901T030411Z.6435dc48103e`
-**Last processed run:** `local.20260901T030411Z.6435dc48103e`
-**Detected at revision:** `cf68cae139349e56a221efac827ac435fc09be73`
+**Last processed run:** `local.20260901T114752Z.293de46f68b1`
+**Detected at revision:** `6435dc48103e90d6732b7e0de709701fda3ba512`
 **Last observed revision:** `6435dc48103e90d6732b7e0de709701fda3ba512`
-**Consecutive red runs:** `2`
-**Escalation:** `pending (2/4)`
+**Consecutive red runs:** `1`
+**Escalation:** `pending (1/4)`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
 ## Summary
 
-The scheduled complete canonical battery reported `exact-all-aboard-live` as a root
+The scheduled complete canonical battery reported `regression-fake-live` as a root
 failure (exit 1). This ticket is keyed by gate plus the normalized
 root-failure signature and remains idempotent while open. Dependent `BLOCKED`
 results do not create tickets.
@@ -33,12 +32,12 @@ results do not create tickets.
 - `single_table_v1` — `crates/snapback-engine/src/local-persistent-store-publication.anchor.v1.json`
 
 These are the standing published claims whose recorded LLP 0189 D-4 scope
-derives `exact-all-aboard-live` as claim-relevant for this battery revision.
+derives `regression-fake-live` as claim-relevant for this battery revision.
 
 ## Reproduce and repair
 
 ```sh
-bun demos/all-aboard/tests/acceptance/contract-live.mjs
+node demos/_kit/tests/regression-fake-live.mjs
 ```
 
 Fix forward, rerun the complete battery, and let the next determinate pass close

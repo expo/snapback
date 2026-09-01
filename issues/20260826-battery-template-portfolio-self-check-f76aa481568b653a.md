@@ -13,11 +13,11 @@
 **Battery gate:** `template-portfolio-self-check`
 **Failure signature:** `sha256:f76aa481568b653aeb8d1409df7be24ea2cca73e2c44421b6beac13c84cd811e`
 **First observed run:** `local.20260826T121823Z.f69e9b16cbe8`
-**Last observed run:** `local.20260901T030411Z.6435dc48103e`
-**Last processed run:** `local.20260901T030411Z.6435dc48103e`
+**Last observed run:** `local.20260901T114752Z.293de46f68b1`
+**Last processed run:** `local.20260901T114752Z.293de46f68b1`
 **Detected at revision:** `f69e9b16cbe835a3d99d598bc739acccb27365d1`
-**Last observed revision:** `6435dc48103e90d6732b7e0de709701fda3ba512`
-**Consecutive red runs:** `11`
+**Last observed revision:** `293de46f68b17c798cb59287def8568b4baa5706`
+**Consecutive red runs:** `12`
 **Escalation:** `AUTHOR_ESCALATION_REQUIRED`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 

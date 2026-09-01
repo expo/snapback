@@ -1,6 +1,8 @@
 # complete battery red: snapback-vite-bun-relay
 
-**Status:** Open
+**Status:** Closed
+**Closure:** `signature absent from determinate FAIL`
+**Closed at revision:** `293de46f68b17c798cb59287def8568b4baa5706`
 **Impact:** 5
 **Urgency:** 5
 **Ease:** 4
@@ -11,7 +13,7 @@
 **Failure signature:** `sha256:13e1c6c43c3a5f18df7ac30e159829c334bdc8c05488684d05ea5e760bd20169`
 **First observed run:** `local.20260829T223616Z.81cc759a07a7`
 **Last observed run:** `local.20260901T030411Z.6435dc48103e`
-**Last processed run:** `local.20260901T030411Z.6435dc48103e`
+**Last processed run:** `local.20260901T114752Z.293de46f68b1`
 **Detected at revision:** `81cc759a07a706300e471f106fe41dc761c39474`
 **Last observed revision:** `6435dc48103e90d6732b7e0de709701fda3ba512`
 **Consecutive red runs:** `7`

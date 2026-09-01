@@ -1,4 +1,4 @@
-# complete battery red: snapback-client-package
+# complete battery red: regression-handshake-loss
 
 **Status:** Open
 **Impact:** 5
@@ -7,20 +7,20 @@
 **Confidence:** 5
 **Systems:** Testing, CI
 **Date:** 2026-09-01
-**Battery gate:** `snapback-client-package`
-**Failure signature:** `sha256:be3aea3a2b7a4a4536b9388160994f0d0bfe1b780bffc708b08173c0f3553232`
-**First observed run:** `local.20260901T030411Z.6435dc48103e`
-**Last observed run:** `local.20260901T030411Z.6435dc48103e`
-**Last processed run:** `local.20260901T030411Z.6435dc48103e`
-**Detected at revision:** `6435dc48103e90d6732b7e0de709701fda3ba512`
-**Last observed revision:** `6435dc48103e90d6732b7e0de709701fda3ba512`
+**Battery gate:** `regression-handshake-loss`
+**Failure signature:** `sha256:e54c286b8717ce55e13bcf1b6d9e37da9e0dc1ec1d895b28e7fbfc2ec4c68082`
+**First observed run:** `local.20260901T114752Z.293de46f68b1`
+**Last observed run:** `local.20260901T114752Z.293de46f68b1`
+**Last processed run:** `local.20260901T114752Z.293de46f68b1`
+**Detected at revision:** `293de46f68b17c798cb59287def8568b4baa5706`
+**Last observed revision:** `293de46f68b17c798cb59287def8568b4baa5706`
 **Consecutive red runs:** `1`
 **Escalation:** `pending (1/4)`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
 ## Summary
 
-The scheduled complete canonical battery reported `snapback-client-package` as a root
+The scheduled complete canonical battery reported `regression-handshake-loss` as a root
 failure (exit 1). This ticket is keyed by gate plus the normalized
 root-failure signature and remains idempotent while open. Dependent `BLOCKED`
 results do not create tickets.
@@ -30,12 +30,12 @@ results do not create tickets.
 - `single_table_v1` — `crates/snapback-engine/src/local-persistent-store-publication.anchor.v1.json`
 
 These are the standing published claims whose recorded LLP 0189 D-4 scope
-derives `snapback-client-package` as claim-relevant for this battery revision.
+derives `regression-handshake-loss` as claim-relevant for this battery revision.
 
 ## Reproduce and repair
 
 ```sh
-bun run --cwd packages/snapback-client test
+node demos/_kit/tests/regression-handshake-loss.mjs
 ```
 
 Fix forward, rerun the complete battery, and let the next determinate pass close

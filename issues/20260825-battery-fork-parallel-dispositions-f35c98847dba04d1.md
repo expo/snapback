@@ -1,24 +1,24 @@
 # complete battery red: fork-parallel-dispositions
 
 **Status:** Open
-**Reopened by battery run:** `local.20260831T093441Z.cdca4903938a`
+**Reopened by battery run:** `local.20260901T114752Z.293de46f68b1`
 **Closure:** `signature absent from determinate FAIL`
-**Closed at revision:** `2ab5c5c6641ebe33f1a8281f71ffe7d8b0b1e306`
+**Closed at revision:** `81cc759a07a706300e471f106fe41dc761c39474`
 **Impact:** 5
 **Urgency:** 5
 **Ease:** 4
 **Confidence:** 5
 **Systems:** Testing, CI
-**Date:** 2026-08-26
+**Date:** 2026-08-25
 **Battery gate:** `fork-parallel-dispositions`
-**Failure signature:** `sha256:f750918cf0acc2ddcbed199f44dc251a8edb0648c8bbc9c1abfe1c91cec43eca`
-**First observed run:** `local.20260826T010040Z.278837ddbcaf`
-**Last observed run:** `local.20260901T030411Z.6435dc48103e`
-**Last processed run:** `local.20260901T030411Z.6435dc48103e`
-**Detected at revision:** `278837ddbcaf54f9041dec1ef4acb904752e8b6e`
-**Last observed revision:** `6435dc48103e90d6732b7e0de709701fda3ba512`
-**Consecutive red runs:** `3`
-**Escalation:** `pending (3/4)`
+**Failure signature:** `sha256:f35c98847dba04d15442b755e347e8d1b2db337dad021f64bf10f0e93391655b`
+**First observed run:** `local.20260825T115521Z.64e70df1e088`
+**Last observed run:** `local.20260901T114752Z.293de46f68b1`
+**Last processed run:** `local.20260901T114752Z.293de46f68b1`
+**Detected at revision:** `64e70df1e088d492cde44c9693463a2d052bbd7a`
+**Last observed revision:** `293de46f68b17c798cb59287def8568b4baa5706`
+**Consecutive red runs:** `1`
+**Escalation:** `pending (1/4)`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
 ## Summary
