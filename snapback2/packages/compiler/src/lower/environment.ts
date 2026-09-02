@@ -8,6 +8,7 @@ export type VariableInfo = {
   provenance: Provenance;
   provenanceAmbiguity?: { directRewrite?: string; candidates?: string[] };
   immutableOrigin?: Extract<ProvenanceOrigin, { expression: ts.Expression }>;
+  identityExpression?: Expr;
   operationComposite?: "args" | "ctx" | "db";
   operationArgument?: string;
   alternativeOrigins?: ProvenanceOrigin[];

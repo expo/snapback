@@ -76,7 +76,13 @@ fn rule_fields(rule: &RuleExpr, out: &mut BTreeSet<String>) {
 impl Checker<'_> {
     pub(crate) fn structural_errors(&self, program: &Program) -> Vec<CheckError> {
         let mut errors = Vec::new();
-        validate_statements(self, program, &program.body, &mut errors);
+        validate_statements(
+            self,
+            program,
+            &program.body,
+            &mut errors,
+            &mut BTreeMap::new(),
+        );
         let mut flow = CompletenessFlow {
             schema: self.schema,
             env: BTreeMap::new(),
@@ -343,6 +349,7 @@ fn validate_statements(
     program: &Program,
     statements: &[Stmt],
     errors: &mut Vec<CheckError>,
+    bindings: &mut BTreeMap<String, Expr>,
 ) {
     for statement in statements {
         if let Stmt::Update { patch, .. } = statement
@@ -355,13 +362,14 @@ fn validate_statements(
             });
         }
         if let Stmt::Upsert { key, row, .. } = statement
-            && let Some(id) = expression_field(row, "id")
-            && id != key
+            && upsert_identity_matches(key, row, bindings) == Some(false)
         {
             errors.push(CheckError {
                 code: "E_SCHEMA_ID_RESERVED".to_owned(),
-                message: "upsert key must equal row id".to_owned(),
-                rewrite: "use the same expression for the upsert key and row id".to_owned(),
+                message: "upsert key and row id must be one identity".to_owned(),
+                rewrite:
+                    "bind the identity once and use that binding for both the upsert key and row id"
+                        .to_owned(),
             });
         }
         match statement {
@@ -404,10 +412,18 @@ fn validate_statements(
                 else_body,
                 ..
             } => {
-                validate_statements(checker, program, then_body, errors);
-                validate_statements(checker, program, else_body, errors);
+                validate_statements(checker, program, then_body, errors, &mut bindings.clone());
+                validate_statements(checker, program, else_body, errors, &mut bindings.clone());
+                let mut assigned = BTreeSet::new();
+                assigned_targets(then_body, &mut assigned);
+                assigned_targets(else_body, &mut assigned);
+                bindings.retain(|name, _| !assigned.contains(name));
             }
-            Stmt::For { domain, body, .. } => {
+            Stmt::For {
+                binding,
+                domain,
+                body,
+            } => {
                 if let LoopDomain::Recurse(recurse) = domain
                     && recurse.depth > MAX_RECURSE_DEPTH
                 {
@@ -420,21 +436,71 @@ fn validate_statements(
                         rewrite: format!("reduce recurse depth to at most {MAX_RECURSE_DEPTH}"),
                     });
                 }
-                validate_statements(checker, program, body, errors);
+                let mut body_bindings = bindings.clone();
+                body_bindings.remove(binding);
+                validate_statements(checker, program, body, errors, &mut body_bindings);
+                let mut assigned = BTreeSet::new();
+                assigned_targets(body, &mut assigned);
+                bindings.retain(|name, _| !assigned.contains(name));
             }
             _ => {}
         }
         visit_statement_exprs(statement, &mut |expression| {
             validate_expr(checker, program, expression, errors)
         });
+        match statement {
+            Stmt::Const { name, value }
+            | Stmt::Let { name, value }
+            | Stmt::Assign { name, value } => {
+                bindings.insert(name.clone(), value.clone());
+            }
+            Stmt::Push { target, .. } => {
+                bindings.remove(target);
+            }
+            _ => {}
+        }
     }
 }
 
-fn expression_field<'a>(expression: &'a Expr, name: &str) -> Option<&'a Expr> {
-    match expression {
-        Expr::Object(fields) => fields.get(name),
+fn upsert_identity_matches(
+    key: &Expr,
+    row: &Expr,
+    bindings: &BTreeMap<String, Expr>,
+) -> Option<bool> {
+    let mut seen = BTreeSet::new();
+    match resolve_row_container(row, bindings, &mut seen) {
+        Expr::Object(fields) => fields
+            .get("id")
+            .map(|id| id == key && !expression_consumes_new_id(id)),
+        Expr::Literal(crate::value::Value::Row(fields) | crate::value::Value::Map(fields)) => {
+            fields
+                .get("id")
+                .map(|id| matches!(key, Expr::Literal(key) if key == id))
+        }
         _ => None,
     }
+}
+
+fn resolve_row_container<'a>(
+    expression: &'a Expr,
+    bindings: &'a BTreeMap<String, Expr>,
+    seen: &mut BTreeSet<String>,
+) -> &'a Expr {
+    if let Expr::Variable(name) = expression
+        && seen.insert(name.clone())
+        && let Some(value) = bindings.get(name)
+    {
+        return resolve_row_container(value, bindings, seen);
+    }
+    expression
+}
+
+fn expression_consumes_new_id(expression: &Expr) -> bool {
+    let mut consumes = false;
+    walk_expr(expression, &mut |nested| {
+        consumes |= matches!(nested, Expr::Input(Input::NewId));
+    });
+    consumes
 }
 
 fn expression_contains_field(expression: &Expr, name: &str) -> bool {

@@ -16,6 +16,7 @@ import { appendCollectionFacts, collectionFactsFor, collectionMutationIncrement,
 import { forkBranchEnvironment, mergeBranchEnvironments } from "./lower/branch-bindings";
 import { lowerLoopBodyWithMutationPlan } from "./lower/loop-mutations";
 import { lowerCollectionConstructor, lowerCollectionLookup, lowerMapAssignment, requirePrimitiveCollectionIdentity } from "./lower/collections";
+import { upsertIdentityMatches } from "./lower/write-identity";
 import { findPolicyRefusals, mechanicalBoundRewrite } from "./policy";
 import { analyzeOperationTypes, type TypePlan } from "./type-analysis";
 import { formatTypeDiagnostic, typecheckSource } from "./typecheck";
@@ -353,6 +354,7 @@ function lowerStatement(statement: ts.Statement, env: Environment): Stmt[] {
           locallyCreatedCollection: isLocallyCreatedCollection(declaration.initializer),
           ...(collection ? { collection } : {}),
           ...(objectFields ? { objectFields } : {}),
+          ...(stableBinding ? { identityExpression: lowered.expression } : {}),
           immutableOrigin: { expression: declaration.initializer, environment: bindTime },
           ...(isRowExpression(declaration.initializer, env) ? { rowBinding: true } : {}),
           ...(rowCollection ? { rowCollection: true } : {}),
@@ -611,6 +613,19 @@ function lowerDbStatement(method: string, call: ts.CallExpression, env: Environm
     // authored order (key before patch/row), including any nested reads.
     const loweredKey = lowerExpr(key, env);
     const lowered = lowerPatch(row, env);
+    if (method === "upsert" && upsertIdentityMatches(
+      loweredKey,
+      lowered,
+      (name) => env.variables.get(name)?.identityExpression,
+    ) === false) {
+      refuse(
+        env,
+        "E_SCHEMA_ID_RESERVED",
+        row,
+        "upsert key and row id must be one identity",
+        "const rowId = ctx.newId(); db.upsert(table, rowId, { ...row, id: rowId })",
+      );
+    }
     return method === "update"
       ? [{ Update: { table, key: loweredKey, patch: lowered } }]
       : [{ Upsert: { table, key: loweredKey, row: lowered } }];
@@ -659,6 +674,19 @@ function lowerCallbackWrite(
   const lowered = ts.isBlock(callback.body)
     ? lowerBlockCallback(callback.body, callbackEnv, `${env.programName}.${singular(table)}Write`)
     : lowerValue(callback.body, callbackEnv, `${env.programName}.${singular(table)}Write`);
+  if (method === "upsert" && upsertIdentityMatches(
+    scalarKey,
+    lowered.expression,
+    (name) => env.variables.get(name)?.identityExpression,
+  ) === false) {
+    refuse(
+      env,
+      "E_SCHEMA_ID_RESERVED",
+      callbackResult,
+      "upsert key and row id must be one identity",
+      "bind the identity once and use that binding for both the upsert key and row id",
+    );
+  }
   const statements: Stmt[] = keyTemporary ? [{ Let: { name: keyTemporary, value: authoredKey } }] : [];
   statements.push({ Let: {
     name: current,

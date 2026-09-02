@@ -21,6 +21,7 @@ import { lowerSource } from "./compiler";
 import type { Program } from "./ir";
 import { lowerSchema } from "./lower/schema";
 import { compileJourneys, lowerProject, lowerSeed } from "./project";
+import { rustCheck } from "./rust-check";
 
 type Register = (name: string, run: () => void | Promise<void>) => void;
 
@@ -421,6 +422,67 @@ export function registerVerifiedRegressionTests(
     const lowered = lowerSource(source, "identity.ts", undefined, { tables });
     assert(!lowered.ok && lowered.diagnostics.some((item) => item.code === "E_SCHEMA_ID_RESERVED"),
       "compiler admitted an id-changing update patch");
+  });
+
+  test("F14 upsert certification distinguishes separately consuming identities", () => {
+    const tables = new Map<string, TableInfo>([["items", {
+      name: "items",
+      private: false,
+      columns: { id: { kind: "string" }, label: { kind: "string", max: 32 } },
+      indexes: { byId: { columns: ["id"], types: [{ kind: "string" }] } },
+    }]]);
+    const refused = lowerSource(`import { mutation } from "snapback2";
+      export const bad = mutation({}, ({ db, ctx }) =>
+        db.upsert(items, ctx.newId(), { id: ctx.newId(), label: "x" }));`,
+    "upsert-identity.ts", undefined, { tables });
+    assert(!refused.ok && refused.diagnostics.some((item) =>
+      item.code === "E_SCHEMA_ID_RESERVED" && item.rewrite.includes("const rowId = ctx.newId()")),
+    `separately consuming upsert identities compiled: ${JSON.stringify(refused)}`);
+
+    const aliased = lowerSource(`import { mutation } from "snapback2";
+      export const bad = mutation({}, ({ db, ctx }) => {
+        const keyId = ctx.newId();
+        const row = { id: ctx.newId(), label: "x" };
+        db.upsert(items, keyId, row);
+      });`, "upsert-identity-alias.ts", undefined, { tables });
+    assert(!aliased.ok && aliased.diagnostics.some((item) => item.code === "E_SCHEMA_ID_RESERVED"),
+      `an aliased separately consuming upsert identity compiled: ${JSON.stringify(aliased)}`);
+
+    const lowered = lowerSource(`import { mutation } from "snapback2";
+      export const good = mutation({}, ({ db, ctx }) => {
+        const itemId = ctx.newId();
+        const row = { id: itemId, label: "x" };
+        db.upsert(items, itemId, row);
+      });`, "upsert-identity.ts", undefined, { tables });
+    assert(lowered.ok, `upsert identity fixture did not lower: ${lowered.ok ? "" : JSON.stringify(lowered.diagnostics)}`);
+    const schema = {
+      tables: { items: evaluatorTable({ label: { Text: { max: 32 } } }) },
+      maintains: [], channels: {}, auth: { password: false, guests: false }, effects: [],
+    };
+    const checked = rustCheck(lowered.programs, "synthetic", schema);
+    const good = checked.find((item) => item.program === "good");
+    assert(good?.error === null && good.certificate,
+      `an identity bound once did not certify: ${JSON.stringify(good)}`);
+  });
+
+  test("F14 evaluator rejects upsert identity divergence atomically", () => {
+    const schema = { tables: { items: evaluatorTable({ label: { Text: { max: 32 } } }) }, maintains: [] };
+    const store = new ClientStore(schema, emptyReceipt);
+    const program = evaluatorProgram("Mutation", [{ Upsert: {
+      table: "items",
+      key: { Input: "NewId" },
+      row: { Object: { id: { Input: "NewId" }, label: literal({ String: "x" }) } },
+    } }]);
+    let refusal = "";
+    try {
+      store.applyMutation(program, context({}, ["key-id", "row-id"]));
+    } catch (error) {
+      refusal = error instanceof Error ? error.message : String(error);
+    }
+    assert(refusal.includes("E_INPUT") && refusal.includes("does not match row id"),
+      `evaluator predicted an insert for divergent upsert identities: ${refusal || canonicalValue(store.byId("items", "row-id")!)}`);
+    assert(store.byId("items", "key-id") === null && store.byId("items", "row-id") === null,
+      "a rejected upsert changed the client store");
   });
 
   test("collection operands lower once and Map/Set preserve JavaScript uniqueness", () => {

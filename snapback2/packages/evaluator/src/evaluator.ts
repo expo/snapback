@@ -1,5 +1,6 @@
 import coreIrContract from "../../../crates/snapback2-core/ir-contract.json" with { type: "json" };
 import { canonicalProgramJson, canonicalSchemaJson } from "./certificate-identity";
+import { EvalError, requireRowIdentity } from "./errors";
 import { sha256, utf8Length } from "./hash";
 import { splitMentionTokens } from "./text";
 import type {
@@ -42,12 +43,6 @@ const NEXT: Flow = { kind: "next" };
 const I53_MAX = 9_007_199_254_740_991;
 const I53_MIN = -I53_MAX;
 export const CURRENT_VALUE_MODEL_VERSION = coreIrContract.valueModelVersion;
-
-class EvalError extends Error {
-  constructor(readonly code: string, message: string, readonly authoredCode: string | null = null) {
-    super(`${code}: ${message}`);
-  }
-}
 
 export class ClientStore {
   private tables = new Map<string, Map<string, Value>>();
@@ -414,6 +409,7 @@ class Runner {
         case "Upsert": {
           const key = this.expr(data.key);
           const row = this.expr(data.row);
+          requireRowIdentity(data.table, "upsert", asString(key), asString(field(row, "id")));
           if (this.store.byId(data.table, asString(key)) === null) this.insert(data.table, row);
           else this.replace(data.table, key, row);
           break;
@@ -810,6 +806,7 @@ class Runner {
   private replace(table: string, key: Value, row: Value): void {
     const old = this.store.byId(table, asString(key));
     if (old === null) throw new EvalError("E_INPUT", `missing ${table} row`);
+    requireRowIdentity(table, "replacement", asString(key), asString(field(row, "id")));
     row = materializeOptionalFields(this.schema, table, row);
     validateWriteRow(this.schema, table, row);
     if (!this.checkRule(table, "update", old) || !this.checkRule(table, "update", row))

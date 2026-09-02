@@ -315,6 +315,138 @@ fn write_identity_is_certified_and_runtime_rejections_leave_primary_and_secondar
     );
 }
 
+#[test]
+fn upsert_identity_certification_distinguishes_consuming_inputs_and_literal_rows() {
+    let items = public_table_with(
+        &[
+            ("id", ColumnType::Id),
+            ("label", ColumnType::Text { max: 32 }),
+        ],
+        &[("byId", &["id"])],
+    );
+    let schema = schema([("items", items)]);
+    let consuming = mutation(
+        "items.consumingIdentity",
+        BTreeMap::new(),
+        vec![Stmt::Upsert {
+            table: "items".to_owned(),
+            key: Expr::Input(Input::NewId),
+            row: Expr::Object(BTreeMap::from([
+                ("id".to_owned(), Expr::Input(Input::NewId)),
+                (
+                    "label".to_owned(),
+                    Expr::Literal(Value::String("x".to_owned())),
+                ),
+            ])),
+        }],
+    );
+    let error = match Checker::new(&schema, Ceilings::default()).check(&consuming) {
+        Err(error) => error,
+        Ok(certificate) => {
+            let mut context = user_mutation(BTreeMap::new());
+            context.new_ids = VecDeque::from(["key-id".to_owned(), "row-id".to_owned()]);
+            let runtime_error = Engine::memory(schema.clone())
+                .unwrap()
+                .execute(&consuming, &certificate, context)
+                .unwrap_err();
+            panic!("checker certified an upsert that runtime rejected: {runtime_error}");
+        }
+    };
+    assert_eq!(error.code, "E_SCHEMA_ID_RESERVED");
+    assert!(error.rewrite.contains("bind"));
+
+    let aliased_consuming = mutation(
+        "items.aliasedConsumingIdentity",
+        BTreeMap::new(),
+        vec![
+            Stmt::Const {
+                name: "keyId".to_owned(),
+                value: Expr::Input(Input::NewId),
+            },
+            Stmt::Const {
+                name: "row".to_owned(),
+                value: Expr::Object(BTreeMap::from([
+                    ("id".to_owned(), Expr::Input(Input::NewId)),
+                    (
+                        "label".to_owned(),
+                        Expr::Literal(Value::String("x".to_owned())),
+                    ),
+                ])),
+            },
+            Stmt::Upsert {
+                table: "items".to_owned(),
+                key: var("keyId"),
+                row: var("row"),
+            },
+        ],
+    );
+    let error = Checker::new(&schema, Ceilings::default())
+        .check(&aliased_consuming)
+        .unwrap_err();
+    assert_eq!(error.code, "E_SCHEMA_ID_RESERVED");
+
+    for literal_row in [
+        object([
+            ("id", id("row-id")),
+            ("label", Value::String("x".to_owned())),
+        ]),
+        Value::Map(BTreeMap::from([
+            ("id".to_owned(), id("row-id")),
+            ("label".to_owned(), Value::String("x".to_owned())),
+        ])),
+    ] {
+        let mismatch = mutation(
+            "items.literalMismatch",
+            BTreeMap::new(),
+            vec![Stmt::Upsert {
+                table: "items".to_owned(),
+                key: Expr::Literal(id("key-id")),
+                row: Expr::Literal(literal_row),
+            }],
+        );
+        let error = Checker::new(&schema, Ceilings::default())
+            .check(&mismatch)
+            .unwrap_err();
+        assert_eq!(error.code, "E_SCHEMA_ID_RESERVED");
+    }
+
+    let shared = mutation(
+        "items.sharedIdentity",
+        BTreeMap::new(),
+        vec![
+            Stmt::Let {
+                name: "itemId".to_owned(),
+                value: Expr::Input(Input::NewId),
+            },
+            Stmt::Const {
+                name: "row".to_owned(),
+                value: Expr::Object(BTreeMap::from([
+                    ("id".to_owned(), var("itemId")),
+                    (
+                        "label".to_owned(),
+                        Expr::Literal(Value::String("x".to_owned())),
+                    ),
+                ])),
+            },
+            Stmt::Upsert {
+                table: "items".to_owned(),
+                key: var("itemId"),
+                row: var("row"),
+            },
+        ],
+    );
+    let certificate = Checker::new(&schema, Ceilings::default())
+        .check(&shared)
+        .unwrap();
+    let mut context = user_mutation(BTreeMap::new());
+    context.new_ids = VecDeque::from(["shared-id".to_owned()]);
+    let mut engine = Engine::memory(schema).unwrap();
+    engine
+        .execute(&shared, &certificate, context)
+        .expect("a consuming identity bound once remains legal");
+    assert_eq!(engine.rows("items").unwrap().len(), 1);
+}
+
 fn aggregate_fixture() -> (Schema, Maintain) {
     let cards = public_table_with(
         &[("id", ColumnType::Id), ("group", ColumnType::Id)],
