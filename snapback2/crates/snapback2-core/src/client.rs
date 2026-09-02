@@ -62,24 +62,11 @@ impl ClientStore {
             tainted_tables: self.tainted_tables.clone(),
         };
         let before = staged.covered_index_keys()?;
-        let held_maintained_targets = staged.maintained_target_ids()?;
         let mut execution = staged.engine.execute(program, certificate, context)?;
         let mut partial = BTreeSet::new();
         for constraint in &execution.trace.constraint_inputs {
             if !staged.constraint_covered(constraint) {
                 partial.insert(format!("{}.{}", constraint.table, constraint.index));
-            }
-        }
-        for (table, held_ids) in held_maintained_targets {
-            for row in staged.engine.rows(&table)? {
-                let id = row.field("id")?.as_str()?;
-                if !held_ids.contains(id) {
-                    // @ref LLP 1001#2-what-a-commit-records — point absences
-                    // are not schema-bound, so a successor cannot use one to
-                    // initialize an unheld maintained target from zero.
-                    partial.insert(format!("{table}.byId"));
-                    break;
-                }
             }
         }
         if let crate::engine::ExecutionState::Partial { reason } = &execution.state {
@@ -190,22 +177,6 @@ impl ClientStore {
             }
         }
         Ok(ids)
-    }
-
-    fn maintained_target_ids(&self) -> Result<BTreeMap<String, BTreeSet<String>>, RuntimeError> {
-        self.schema
-            .maintains
-            .iter()
-            .map(|maintain| {
-                let ids = self
-                    .engine
-                    .rows(&maintain.target)?
-                    .into_iter()
-                    .map(|row| Ok(row.field("id")?.as_str()?.to_owned()))
-                    .collect::<Result<BTreeSet<_>, RuntimeError>>()?;
-                Ok((maintain.target.clone(), ids))
-            })
-            .collect()
     }
 
     fn covered_index_keys(&self) -> Result<Vec<BTreeMap<String, Vec<Value>>>, RuntimeError> {
