@@ -1,7 +1,7 @@
 //! 200 ms authored-source polling and hot successor application.
 // @ref LLP 1002#5-the-owner — refused successors keep the last generation serving.
 
-use crate::project::{CompilerWorker, write_build_cache};
+use crate::project::{CompilerWorker, stage_build_cache};
 use crate::protocol::Refusal;
 use crate::writer::{Action, OwnerHandle};
 use serde_json::{Value as Json, json};
@@ -50,27 +50,20 @@ pub fn spawn(
                             }
                         };
                         let project = compiled.project.clone();
+                        let cache = match stage_build_cache(&root, &compiled) {
+                            Ok(cache) => cache,
+                            Err(error) => {
+                                refuse(&handle, &root, generation, vec![error]);
+                                continue;
+                            }
+                        };
                         match handle.call(Action::Apply {
                             compiled: compiled.clone(),
                             migration: None,
                             seed: Some(seed),
+                            cache: Some(cache),
                         }) {
                             Ok(report) => {
-                                if let Err(error) = write_build_cache(&root, &compiled) {
-                                    log(
-                                        &root,
-                                        json!({
-                                            "successor": "applied",
-                                            "generation": generation,
-                                            "buildCacheError": error,
-                                        }),
-                                    );
-                                    let _ = handle.call(Action::Stop {
-                                        cause: "active successor build cache publication failed"
-                                            .to_owned(),
-                                    });
-                                    continue;
-                                }
                                 log(
                                     &root,
                                     json!({

@@ -300,10 +300,8 @@ export async function compileJourneys(
   const packageDist = compilerPackageDist();
   const clientDts = join(packageDist, "client.d.ts");
   const testDts = join(packageDist, "test.d.ts");
-  const apiPath = join(buildRoot, "api.d.ts");
   const stagedApi = join(buildRoot, `.api-${process.pid}-${Date.now()}.d.ts`);
   await writeFile(stagedApi, apiDts);
-  await rename(stagedApi, apiPath);
   const options: ts.CompilerOptions = {
     baseUrl: projectRoot,
     jsx: ts.JsxEmit.ReactJSX,
@@ -320,7 +318,7 @@ export async function compileJourneys(
     target: ts.ScriptTarget.ES2022,
     types: [],
   };
-  const program = ts.createProgram({ rootNames: [...sourceFiles, apiPath], options });
+  const program = ts.createProgram({ rootNames: [...sourceFiles, stagedApi], options });
   const sourceSet = new Set(sourceFiles.map((file) => resolve(file)));
   const diagnostics = ts.getPreEmitDiagnostics(program).flatMap((item) => {
     if (!item.file || !sourceSet.has(resolve(item.file.fileName))) return [];
@@ -338,6 +336,7 @@ export async function compileJourneys(
       "testing/journeys",
     )];
   });
+  await rm(stagedApi, { force: true });
   if (diagnostics.length > 0) {
     await rm(stagedOutput, { recursive: true, force: true });
     return { ok: false, diagnostics: boundedDiagnostics(diagnostics, 50, "journey refusals") };

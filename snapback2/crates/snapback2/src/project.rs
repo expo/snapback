@@ -10,12 +10,13 @@ use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError};
 use std::thread;
 use std::time::{Duration, Instant};
 
 const COMPILER_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
+static NEXT_CACHE_STAGE: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Clone)]
 pub struct CompiledProject {
@@ -23,6 +24,33 @@ pub struct CompiledProject {
     pub generation: Generation,
     pub api_dts: String,
     pub compiler_ms: f64,
+}
+
+pub struct StagedBuildCache {
+    files: Vec<(Option<PathBuf>, PathBuf)>,
+}
+
+impl StagedBuildCache {
+    pub fn publish(mut self) -> Result<(), Refusal> {
+        for (staged, target) in &mut self.files {
+            let path = staged.take().expect("unpublished staged cache file");
+            if let Err(error) = fs::rename(&path, &*target) {
+                *staged = Some(path);
+                return Err(cache_error(target, error));
+            }
+        }
+        Ok(())
+    }
+}
+
+impl Drop for StagedBuildCache {
+    fn drop(&mut self) {
+        for (staged, _) in &self.files {
+            if let Some(path) = staged {
+                let _ = fs::remove_file(path);
+            }
+        }
+    }
 }
 
 #[derive(Clone, Debug, serde::Deserialize)]
@@ -478,19 +506,45 @@ pub fn compiler_path() -> Result<PathBuf, Refusal> {
 }
 
 pub fn write_build_cache(root: &Path, compiled: &CompiledProject) -> Result<(), Refusal> {
+    stage_build_cache(root, compiled)?.publish()
+}
+
+// @ref LLP 1002#5-the-owner — a watched successor stages artifacts before runtime admission.
+pub fn stage_build_cache(
+    root: &Path,
+    compiled: &CompiledProject,
+) -> Result<StagedBuildCache, Refusal> {
     let build = root.join(".snapback/build");
     fs::create_dir_all(&build).map_err(|error| cache_error(&build, error))?;
-    write_json(&build.join("project.json"), &compiled.project)?;
+    let stage = format!(
+        ".cache-{}-{}",
+        std::process::id(),
+        NEXT_CACHE_STAGE.fetch_add(1, Ordering::Relaxed)
+    );
+    let project = build.join(format!("{stage}-project.json"));
+    let certificates_path = build.join(format!("{stage}-certificates.json"));
+    let api = build.join(format!("{stage}-api.d.ts"));
+    let mut staged = StagedBuildCache { files: Vec::new() };
+    staged
+        .files
+        .push((Some(project.clone()), build.join("project.json")));
+    write_json(&project, &compiled.project)?;
     let certificates: BTreeMap<_, _> = compiled
         .generation
         .programs()
         .iter()
         .map(|(name, (_, certificate))| (name, certificate))
         .collect();
-    write_json(&build.join("certificates.json"), &certificates)?;
-    fs::write(build.join("api.d.ts"), &compiled.api_dts)
-        .map_err(|error| cache_error(&build, error))?;
-    Ok(())
+    staged.files.push((
+        Some(certificates_path.clone()),
+        build.join("certificates.json"),
+    ));
+    write_json(&certificates_path, &certificates)?;
+    staged
+        .files
+        .push((Some(api.clone()), build.join("api.d.ts")));
+    fs::write(&api, &compiled.api_dts).map_err(|error| cache_error(&build, error))?;
+    Ok(staged)
 }
 
 pub fn compile_once(root: &Path) -> Result<CompiledProject, Vec<Refusal>> {

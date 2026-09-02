@@ -63,6 +63,7 @@ pub fn route(
                     compiled,
                     migration: None,
                     seed: None,
+                    cache: None,
                 }),
                 Err(errors) => Err((400, first(errors))),
             }
@@ -76,6 +77,7 @@ pub fn route(
                     compiled,
                     migration: Some(plan),
                     seed: None,
+                    cache: None,
                 }),
                 (Err(errors), _) => Err((400, first(errors))),
                 (_, Err(error)) => Err((
@@ -249,6 +251,18 @@ fn log_lines(path: &Path, limit: usize) -> Result<Vec<Json>, Refusal> {
     let text = std::str::from_utf8(&bytes)
         .map_err(|error| log_error(path, format!("log tail is not UTF-8: {error}")))?;
     let candidates = text.lines().rev().take(limit).collect::<Vec<_>>();
+    if start > 0 && candidates.len() < limit {
+        return Err(Refusal::owner(
+            "E_OWNER_LOG_TRUNCATED",
+            format!(
+                "the requested {limit} log records do not fit in the {MAX_LOG_TAIL_BYTES}-byte read bound"
+            ),
+            format!(
+                "retry snapback2 logs --limit {} or rotate .snapback/log.jsonl",
+                candidates.len()
+            ),
+        ));
+    }
     let mut lines = Vec::with_capacity(candidates.len());
     for line in candidates.into_iter().rev() {
         lines.push(
@@ -313,6 +327,28 @@ mod tests {
         ));
         fs::write(&path, b"not json\n").unwrap();
         assert_eq!(log_lines(&path, 1).unwrap_err().code, "E_OWNER_LOG");
+        fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn log_limit_refuses_when_the_bounded_tail_cannot_supply_every_requested_record() {
+        let path = std::env::temp_dir().join(format!(
+            "snapback2-bounded-log-{}-{}.jsonl",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos()
+        ));
+        let mut file = fs::File::create(&path).unwrap();
+        let payload = "x".repeat(10_000);
+        for index in 0..501 {
+            writeln!(file, "{}", json!({ "index": index, "payload": payload })).unwrap();
+        }
+
+        let refusal = log_lines(&path, 500).unwrap_err();
+        assert_eq!(refusal.code, "E_OWNER_LOG_TRUNCATED");
+
         fs::remove_file(path).unwrap();
     }
 }

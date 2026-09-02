@@ -157,9 +157,7 @@ fn decode_chunked(input: &[u8]) -> Result<Vec<u8>, Refusal> {
                 return Err(chunk_protocol_refusal());
             }
             let fields = &trailer[..trailer.len() - 4];
-            if fields.split(|byte| *byte == b'\n').any(|line| {
-                line.is_empty() || !line.strip_suffix(b"\r").unwrap_or(line).contains(&b':')
-            }) {
+            if !valid_trailer_fields(fields) {
                 return Err(chunk_protocol_refusal());
             }
             return Ok(output);
@@ -181,6 +179,26 @@ fn decode_chunked(input: &[u8]) -> Result<Vec<u8>, Refusal> {
                 .ok_or_else(chunk_protocol_refusal)?,
         );
         cursor = next;
+    }
+}
+
+fn valid_trailer_fields(mut fields: &[u8]) -> bool {
+    loop {
+        let (line, rest) = match fields.windows(2).position(|bytes| bytes == b"\r\n") {
+            Some(end) => (&fields[..end], Some(&fields[end + 2..])),
+            None => (fields, None),
+        };
+        if line.is_empty()
+            || line.contains(&b'\r')
+            || line.contains(&b'\n')
+            || !line.contains(&b':')
+        {
+            return false;
+        }
+        let Some(rest) = rest else {
+            return true;
+        };
+        fields = rest;
     }
 }
 
@@ -225,6 +243,7 @@ mod tests {
             b"ffffffffffffffffffffffffffffffff\r\n".as_slice(),
             b"1\r\na0\r\n\r\n".as_slice(),
             b"0\r\nnot-a-trailer\r\n\r\n".as_slice(),
+            b"7\r\n{\"x\":1}\r\n0\r\nA: b\nB: c\r\n\r\n".as_slice(),
         ] {
             let refusal = parse_response(&response(body)).unwrap_err();
             assert_eq!(refusal.code, "E_OWNER_PROTOCOL");

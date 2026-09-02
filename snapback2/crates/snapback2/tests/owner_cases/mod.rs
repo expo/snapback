@@ -480,3 +480,150 @@ fn unauthenticated_control_requests_are_refused_without_reading_slow_bodies() {
     stop_owner(port, secret, &mut owner, "slow unauthenticated body test");
     fs::remove_dir_all(root).unwrap();
 }
+
+#[cfg(not(feature = "hermes"))]
+#[test]
+fn slow_sse_writers_do_not_consume_json_or_control_worker_capacity() {
+    let root = temp_root();
+    copy_tree(&fixture().join("snapback"), &root.join("snapback"));
+    let binary = env!("CARGO_BIN_EXE_snapback2");
+    let compiler = compiler(&root);
+    let mut owner = ChildGuard::spawn(binary, &compiler, &root);
+    let port = owner
+        .ready_line()
+        .trim()
+        .strip_prefix("SNAPBACK_URL=http://127.0.0.1:")
+        .unwrap()
+        .parse()
+        .unwrap();
+    let owner_json: Value =
+        serde_json::from_slice(&fs::read(root.join(".snapback/owner.json")).unwrap()).unwrap();
+    let secret = owner_json["secret"].as_str().unwrap();
+    let path =
+        "/api/channel/typing/subscribe?args=%7B%22conversationId%22%3A%22conversation-1%22%7D";
+    let mut clients = Vec::new();
+    for _ in 0..63 {
+        let mut stream = std::net::TcpStream::connect(("127.0.0.1", port)).unwrap();
+        write!(
+            stream,
+            "GET {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nX-Snapback-As: alice\r\nConnection: close\r\n\r\n"
+        )
+        .unwrap();
+        stream.flush().unwrap();
+        clients.push(stream);
+    }
+    thread::sleep(Duration::from_millis(300));
+    let publish = request(
+        port,
+        "POST",
+        "/api/channel/typing/publish",
+        &[("X-Snapback-As", "alice")],
+        json!({
+            "args": { "conversationId": "conversation-1" },
+            "payload": { "body": "x".repeat(900_000) },
+        }),
+    );
+    assert_eq!(publish.status, 200, "{}", publish.body);
+    let mut last = std::net::TcpStream::connect(("127.0.0.1", port)).unwrap();
+    write!(
+        last,
+        "GET {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nX-Snapback-As: alice\r\nConnection: close\r\n\r\n"
+    )
+    .unwrap();
+    last.flush().unwrap();
+    clients.push(last);
+    thread::sleep(Duration::from_millis(300));
+
+    let query = request(
+        port,
+        "POST",
+        "/api/query",
+        &[("X-Snapback-As", "alice")],
+        json!({ "op": "messages.thread", "args": { "conversationId": "conversation-1" } }),
+    );
+    assert_eq!(query.status, 200, "{}", query.body);
+    assert_eq!(status(port, secret)["status"], "ready");
+    drop(clients);
+    stop_owner(port, secret, &mut owner, "slow SSE writer capacity test");
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[cfg(unix)]
+#[test]
+fn successful_hot_apply_never_pairs_successor_trace_with_predecessor_certificate() {
+    let root = temp_root();
+    copy_tree(&fixture().join("snapback"), &root.join("snapback"));
+    let binary = env!("CARGO_BIN_EXE_snapback2");
+    let compiler = compiler(&root);
+    let mut owner = ChildGuard::spawn(binary, &compiler, &root);
+    let port = owner
+        .ready_line()
+        .trim()
+        .strip_prefix("SNAPBACK_URL=http://127.0.0.1:")
+        .unwrap()
+        .parse()
+        .unwrap();
+    let owner_json: Value =
+        serde_json::from_slice(&fs::read(root.join(".snapback/owner.json")).unwrap()).unwrap();
+    let secret = owner_json["secret"].as_str().unwrap();
+    let project_cache = root.join(".snapback/build/project.json");
+    fs::remove_file(&project_cache).unwrap();
+    assert!(
+        Command::new("mkfifo")
+            .arg(&project_cache)
+            .status()
+            .unwrap()
+            .success()
+    );
+    thread::sleep(Duration::from_millis(300));
+
+    let messages = root.join("snapback/messages.ts");
+    let successor = fs::read_to_string(&messages)
+        .unwrap()
+        .replace("order: \"desc\", take: 50", "order: \"desc\", take: 49");
+    fs::write(messages, successor).unwrap();
+    wait_for(Duration::from_secs(6), || {
+        let response = request(
+            port,
+            "POST",
+            "/control/why",
+            &[("X-Snapback-Control", secret)],
+            json!({
+                "op": "messages.thread",
+                "args": { "conversationId": "conversation-1" },
+                "as": "alice",
+            }),
+        );
+        (response.status == 200 && response.body["trace"]["ranges"][0]["take"] == 49).then_some(())
+    });
+
+    let why = Command::new(binary)
+        .args([
+            "why",
+            "messages.thread",
+            r#"{"conversationId":"conversation-1"}"#,
+            "--as",
+            "alice",
+            "--json",
+            "--project",
+        ])
+        .arg(&root)
+        .output()
+        .unwrap();
+    assert!(
+        why.status.success(),
+        "{}",
+        String::from_utf8_lossy(&why.stdout)
+    );
+    let explanation: Value = serde_json::from_slice(&why.stdout).unwrap();
+    assert_eq!(
+        explanation["readSites"][0]["take"], explanation["authoritativeTrace"]["ranges"][0]["take"],
+        "why combined a predecessor certificate with a successor trace: {explanation}"
+    );
+
+    let mut reader = fs::File::open(&project_cache).unwrap();
+    let mut bytes = Vec::new();
+    reader.read_to_end(&mut bytes).unwrap();
+    stop_owner(port, secret, &mut owner, "successful cache promotion test");
+    fs::remove_dir_all(root).unwrap();
+}

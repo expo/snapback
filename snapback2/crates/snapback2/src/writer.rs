@@ -2,7 +2,7 @@
 // @ref LLP 1002#5-the-owner — HTTP threads send work here; no second store opener exists.
 
 use crate::owner::OwnerInfo;
-use crate::project::{CompiledProject, SeedData, seed_rows};
+use crate::project::{CompiledProject, SeedData, StagedBuildCache, seed_rows};
 use crate::protocol::{Refusal, json_to_value};
 use crate::writer_util::{next_id, owner_gone, unix_millis};
 use crate::writer_wire::{execution_json, live_frame, refusal_frame};
@@ -135,6 +135,7 @@ pub enum Action {
         compiled: CompiledProject,
         migration: Option<MigrationPlan>,
         seed: Option<SeedData>,
+        cache: Option<StagedBuildCache>,
     },
     PublishOwner,
     Applying {
@@ -443,7 +444,8 @@ impl State {
                 compiled,
                 migration,
                 seed,
-            } => self.apply(compiled, migration, seed),
+                cache,
+            } => self.apply(compiled, migration, seed, cache),
             Action::PublishOwner => self.publish_owner(),
             Action::Fork { path } => {
                 if let Some(parent) = path.parent() {
@@ -991,6 +993,7 @@ impl State {
         compiled: CompiledProject,
         migration: Option<MigrationPlan>,
         seed: Option<SeedData>,
+        cache: Option<StagedBuildCache>,
     ) -> Result<Json, Refusal> {
         let seq = self
             .runtime()
@@ -1006,6 +1009,14 @@ impl State {
                 .apply_successor(compiled.generation.clone())
                 .map_err(|error| Refusal::from_successor(&error))?
         };
+        if let Some(cache) = cache
+            && let Err(error) = cache.publish()
+        {
+            self.stop.store(true, AtomicOrdering::SeqCst);
+            return Err(error
+                .with_detail("applied", json!(true))
+                .with_detail("activeGeneration", json!(compiled.generation.hash())));
+        }
         self.compiled = compiled;
         if let Some(seed) = seed {
             self.seed = seed;

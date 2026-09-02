@@ -690,6 +690,19 @@ export function registerVerifiedRegressionTests(
     });
   });
 
+  test("F18 journey checking does not publish a successor API before owner admission", async () => {
+    await withProject({
+      ".snapback/build/api.d.ts": "// predecessor API\n",
+      "snapback/tests/cache.test.ts": `import { journey } from "snapback2/test";
+        journey("cache", () => {});`,
+    }, async (root) => {
+      const result = await compileJourneys(root, "// successor API\n");
+      assert(result.ok, `journey compile refused: ${result.ok ? "" : result.diagnostics.map((item) => item.message).join("; ")}`);
+      const active = await readFile(join(root, ".snapback/build/api.d.ts"), "utf8");
+      assert(active === "// predecessor API\n", `journey checking prematurely published ${JSON.stringify(active)}`);
+    });
+  });
+
   test("nested operation modules are diagnosed instead of omitted", async () => {
     await withProject({
       "snapback/schema.ts": `import { schema } from "snapback2"; export default schema({ tables: {} });`,
