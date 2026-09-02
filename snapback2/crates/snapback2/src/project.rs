@@ -93,6 +93,8 @@ struct CompileSuccess {
     project: Json,
     sources: BTreeMap<String, SourceSite>,
     api_dts: String,
+    /// Absent for TypeScript-only projects and for workers that predate Quarry.
+    #[serde(default)]
     quarry: Vec<QuarryGenerated>,
     ms: f64,
 }

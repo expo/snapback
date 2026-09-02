@@ -117,7 +117,9 @@ where the code departs from the letter of the ruling:
 7. **Blocking coverage.** The Quarry tests run in the compiler leg of
    `snapback2/scripts/test.sh`; the check count stays five (LLP 1007 §5 item 8).
    Both templates ship in both renderings (`todos`, `chat`, `todos-ts`,
-   `chat-ts`), and the same journeys pass against each.
+   `chat-ts`), and the same journeys pass against each; with the
+   Hermes-featured binary (`scripts/hermes build -p snapback2`) the `chat`
+   receipt is a full pass in both renderings, the `effects` check included.
 
 Workstream status: P0-A (insert re-evaluation, LLP 1007 §5 item 1) and P0-B
 (branch-arm write accounting, item 2, plus init/check/dev/guide integration,
