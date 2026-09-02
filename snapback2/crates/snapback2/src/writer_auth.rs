@@ -214,10 +214,12 @@ impl State {
     }
 }
 
-fn send_session_terminal(events: &Sender<SseEvent>, seq: u64) {
+fn send_session_terminal(events: &SseSender, seq: u64) {
     let refusal = Refusal::from_identity(&IdentityError::Session);
     let (data, terminal) = refusal_frame(refusal, seq);
-    let _ = events.send(SseEvent {
+    // A session fence is terminal authority state, so it replaces any queued
+    // live frame instead of being dropped when the bounded slot is occupied.
+    let _ = events.send_latest(SseEvent {
         seq: Some(seq),
         data,
         terminal,
@@ -269,10 +271,10 @@ mod tests {
                 issued_at + 60_000,
             )
             .unwrap();
-        let (first_live_tx, first_live_rx) = mpsc::channel();
-        let (first_channel_tx, first_channel_rx) = mpsc::channel();
-        let (sibling_live_tx, _sibling_live_rx) = mpsc::channel();
-        let (sibling_channel_tx, _sibling_channel_rx) = mpsc::channel();
+        let (first_live_tx, first_live_rx) = sse_queue();
+        let (first_channel_tx, first_channel_rx) = sse_queue();
+        let (sibling_live_tx, _sibling_live_rx) = sse_queue();
+        let (sibling_channel_tx, _sibling_channel_rx) = sse_queue();
         let session = |authority: &SessionAuthority| SessionFence {
             principal: authority.principal.id.to_string(),
             auth_epoch: authority.auth_epoch,
@@ -369,6 +371,21 @@ mod tests {
             exited: false,
             effects_wake: None,
         };
+
+        for events in [
+            &state.live.get(&1).unwrap().events,
+            &state.channels.get(&1).unwrap().events,
+        ] {
+            assert!(
+                events
+                    .send_latest(SseEvent {
+                        seq: Some(0),
+                        data: json!({ "state": "complete" }),
+                        terminal: false,
+                    })
+                    .is_ok()
+            );
+        }
 
         state
             .sweep_expired_sessions_at(first.expires_at - 1)

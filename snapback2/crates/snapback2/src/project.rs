@@ -2,7 +2,7 @@
 // @ref LLP 1002#1-decisions — the binary owns compilation through one worker.
 
 use crate::protocol::{Refusal, certification_family_guide};
-use serde_json::{Map, Value as Json, json};
+use serde_json::{Value as Json, json};
 use snapback2_core::{Auth, Ceilings, Generation, ProjectJson, Value};
 use std::collections::BTreeMap;
 use std::fs;
