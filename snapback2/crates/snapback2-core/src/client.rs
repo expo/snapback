@@ -1,6 +1,9 @@
 use crate::certificate::Certificate;
-use crate::engine::{ClosureReceipt, Context, Engine, Execution, RuntimeError};
-use crate::ir::Program;
+use crate::engine::{
+    ClosureReceipt, ConstraintTrace, Context, Engine, Execution, ReceiptRange, RuntimeError,
+    StopReason, TraceRange,
+};
+use crate::ir::{Order, Program};
 use crate::schema::Schema;
 use crate::value::Value;
 use std::collections::{BTreeMap, BTreeSet};
@@ -17,6 +20,7 @@ pub struct ClientStore {
     engine: Engine,
     coverage: ClosureReceipt,
     range_deletions: BTreeMap<String, u32>,
+    tainted_tables: BTreeSet<String>,
 }
 
 impl ClientStore {
@@ -31,6 +35,7 @@ impl ClientStore {
             engine,
             coverage: receipt.clone(),
             range_deletions: BTreeMap::new(),
+            tainted_tables: BTreeSet::new(),
         })
     }
 
@@ -49,31 +54,65 @@ impl ClientStore {
         certificate: &Certificate,
         context: Context,
     ) -> Result<(LocalState, Execution), RuntimeError> {
-        let before = self.all_ids()?;
-        let execution = self.engine.execute(program, certificate, context)?;
-        let after = self.all_ids()?;
-        for removed in before.difference(&after) {
-            for range in &self.coverage.ranges {
-                let held = range
-                    .row_ids
-                    .iter()
-                    .any(|id| format!("{}:{id}", range.table) == *removed)
-                    || range
-                        .halo
-                        .as_ref()
-                        .is_some_and(|halo| format!("{}:{}", halo.table, halo.id) == *removed);
-                if held {
-                    *self.range_deletions.entry(range.site.clone()).or_default() += 1;
+        let mut staged = Self {
+            schema: self.schema.clone(),
+            engine: self.engine.memory_copy()?,
+            coverage: self.coverage.clone(),
+            range_deletions: self.range_deletions.clone(),
+            tainted_tables: self.tainted_tables.clone(),
+        };
+        let before = staged.covered_index_keys()?;
+        let held_maintained_targets = staged.maintained_target_ids()?;
+        let mut execution = staged.engine.execute(program, certificate, context)?;
+        let mut partial = BTreeSet::new();
+        for constraint in &execution.trace.constraint_inputs {
+            if !staged.constraint_covered(constraint) {
+                partial.insert(format!("{}.{}", constraint.table, constraint.index));
+            }
+        }
+        for (table, held_ids) in held_maintained_targets {
+            for row in staged.engine.rows(&table)? {
+                let id = row.field("id")?.as_str()?;
+                if !held_ids.contains(id) {
+                    // @ref LLP 1001#2-what-a-commit-records — point absences
+                    // are not schema-bound, so a successor cannot use one to
+                    // initialize an unheld maintained target from zero.
+                    partial.insert(format!("{table}.byId"));
+                    break;
                 }
             }
         }
-        let state = match &execution.state {
-            crate::engine::ExecutionState::Partial { reason } => {
-                LocalState::Partial(vec![reason.clone()])
+        if let crate::engine::ExecutionState::Partial { reason } = &execution.state {
+            partial.insert(reason.clone());
+        }
+        if !partial.is_empty() {
+            execution.result = Value::Null;
+            return Ok((
+                LocalState::Partial(partial.into_iter().collect()),
+                execution,
+            ));
+        }
+        for (source, _) in &execution.trace.missing_preimages {
+            for maintain in staged
+                .schema
+                .maintains
+                .iter()
+                .filter(|maintain| maintain.source == *source)
+            {
+                staged.tainted_tables.insert(maintain.target.clone());
             }
-            _ => LocalState::Predicted,
-        };
-        Ok((state, execution))
+        }
+        let after = staged.covered_index_keys()?;
+        for (offset, (before_range, after_range)) in before.iter().zip(&after).enumerate() {
+            for (id, before_key) in before_range {
+                if after_range.get(id) != Some(before_key) {
+                    let site = staged.coverage.ranges[offset].site.clone();
+                    *staged.range_deletions.entry(site).or_default() += 1;
+                }
+            }
+        }
+        *self = staged;
+        Ok((LocalState::Predicted, execution))
     }
 
     pub fn reexecute(
@@ -92,12 +131,20 @@ impl ClientStore {
                 .coverage
                 .ranges
                 .iter()
-                .any(|coverage| coverage.site == range.site && coverage.prefix == range.prefix);
+                .any(|coverage| range_covered(coverage, range));
             if !covered {
+                partial.insert(range.site.clone());
+            }
+            if self.tainted_tables.contains(&range.table) {
                 partial.insert(range.site.clone());
             }
             if self.range_deletions.get(&range.site).copied().unwrap_or(0) > 1 {
                 partial.insert(range.site.clone());
+            }
+        }
+        for point in &execution.trace.points {
+            if self.tainted_tables.contains(&point.table) {
+                partial.insert(point.site.clone());
             }
         }
         for absence in &execution.trace.absences {
@@ -144,4 +191,120 @@ impl ClientStore {
         }
         Ok(ids)
     }
+
+    fn maintained_target_ids(&self) -> Result<BTreeMap<String, BTreeSet<String>>, RuntimeError> {
+        self.schema
+            .maintains
+            .iter()
+            .map(|maintain| {
+                let ids = self
+                    .engine
+                    .rows(&maintain.target)?
+                    .into_iter()
+                    .map(|row| Ok(row.field("id")?.as_str()?.to_owned()))
+                    .collect::<Result<BTreeSet<_>, RuntimeError>>()?;
+                Ok((maintain.target.clone(), ids))
+            })
+            .collect()
+    }
+
+    fn covered_index_keys(&self) -> Result<Vec<BTreeMap<String, Vec<Value>>>, RuntimeError> {
+        self.coverage
+            .ranges
+            .iter()
+            .map(|range| {
+                let index = self
+                    .schema
+                    .table(&range.table)
+                    .and_then(|table| table.index(&range.index))
+                    .ok_or_else(|| {
+                        RuntimeError::Schema(format!(
+                            "missing covered index {}.{}",
+                            range.table, range.index
+                        ))
+                    })?;
+                let retained: BTreeSet<_> = range
+                    .row_ids
+                    .iter()
+                    .cloned()
+                    .chain(range.halo.iter().map(|row| row.id.clone()))
+                    .collect();
+                let mut keys = BTreeMap::new();
+                for row in self.engine.rows(&range.table)? {
+                    let id = row.field("id")?.as_str()?;
+                    if retained.contains(id) {
+                        keys.insert(
+                            id.to_owned(),
+                            index
+                                .columns
+                                .iter()
+                                .map(|column| row.field(column).cloned())
+                                .collect::<Result<_, _>>()?,
+                        );
+                    }
+                }
+                Ok(keys)
+            })
+            .collect()
+    }
+
+    fn constraint_covered(&self, constraint: &ConstraintTrace) -> bool {
+        if constraint.check.starts_with("FinalExistsOnInsert(")
+            && !constraint.examined_ids.is_empty()
+            && constraint.examined_ids.iter().all(|id| {
+                self.coverage.absences.iter().any(|(table, index, key)| {
+                    table == &constraint.table
+                        && index == "byId"
+                        && matches!(key.as_slice(), [Value::Id(value)] if value == id)
+                })
+            })
+        {
+            // The final-state lookup found a row that authority proved absent
+            // before replay, so this transaction created the witness itself.
+            return true;
+        }
+        if constraint.index == "byId"
+            || (constraint.check.starts_with("Unique(") && !constraint.examined_ids.is_empty())
+        {
+            return true;
+        }
+        if constraint.check.starts_with("Unique(")
+            && self.coverage.absences.iter().any(|(table, index, key)| {
+                table == &constraint.table
+                    && index == &constraint.index
+                    && key == &constraint.prefix
+            })
+        {
+            return true;
+        }
+        self.coverage.ranges.iter().any(|range| {
+            range.table == constraint.table
+                && range.index == constraint.index
+                && range.prefix == constraint.prefix
+                && range.order == Order::Asc
+                && range.after.is_none()
+                && range.before.is_none()
+                && range.gt.is_none()
+                && range.gte.is_none()
+                && range.lt.is_none()
+                && range.lte.is_none()
+                && range.stop == StopReason::Exhausted
+        })
+    }
+}
+
+fn range_covered(coverage: &ReceiptRange, range: &TraceRange) -> bool {
+    coverage.site == range.site
+        && coverage.table == range.table
+        && coverage.index == range.index
+        && coverage.prefix == range.prefix
+        && coverage.order == range.order
+        && coverage.take == range.take
+        && coverage.after == range.after
+        && coverage.before == range.before
+        && coverage.gt == range.gt
+        && coverage.gte == range.gte
+        && coverage.lt == range.lt
+        && coverage.lte == range.lte
+        && coverage.rule_hash == range.rule_hash
 }

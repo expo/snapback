@@ -356,6 +356,13 @@ impl<'a> Runner<'a> {
                 }
             }
             Expr::Builtin { builtin, args } => {
+                if args.len() != builtin.arity() {
+                    return Err(RuntimeError::Input(format!(
+                        "builtin {builtin:?} requires {} arguments, received {}",
+                        builtin.arity(),
+                        args.len()
+                    )));
+                }
                 let args = args
                     .iter()
                     .map(|value| self.expr(value))
@@ -400,6 +407,7 @@ impl<'a> Runner<'a> {
         match op {
             BinaryOp::Eq => Ok(Value::Bool(left == right)),
             BinaryOp::Ne => Ok(Value::Bool(left != right)),
+            BinaryOp::SameValueZero => Ok(Value::Bool(same_value_zero(&left, &right)?)),
             BinaryOp::Lt => Ok(Value::Bool(ordering() == Ordering::Less)),
             BinaryOp::Lte => Ok(Value::Bool(ordering() != Ordering::Greater)),
             BinaryOp::Gt => Ok(Value::Bool(ordering() == Ordering::Greater)),
@@ -423,6 +431,13 @@ impl<'a> Runner<'a> {
         builtin: &Builtin,
         mut args: Vec<Value>,
     ) -> Result<Value, RuntimeError> {
+        if args.len() != builtin.arity() {
+            return Err(RuntimeError::Input(format!(
+                "builtin {builtin:?} requires {} arguments, received {}",
+                builtin.arity(),
+                args.len()
+            )));
+        }
         match builtin {
             Builtin::Len => {
                 let value = args
@@ -472,11 +487,13 @@ impl<'a> Runner<'a> {
                 let left = args.remove(0);
                 let right = args.remove(0);
                 match (left, right) {
-                    (Value::String(mut left), Value::String(right)) => {
-                        left.push_str(&right);
-                        Ok(Value::String(left))
-                    }
-                    (Value::Id(left), Value::Id(right)) => Ok(Value::Id(format!("{left}:{right}"))),
+                    (left @ Value::String(_), right) | (left, right @ Value::String(_)) => Ok(
+                        Value::String(format!("{}{}", concat_text(&left), concat_text(&right))),
+                    ),
+                    (Value::Id(left), Value::Id(right)) => Ok(Value::Id(canonical_json(&[
+                        Value::Id(left),
+                        Value::Id(right),
+                    ]))),
                     (Value::Array(mut left), Value::Array(right)) => {
                         left.extend(right);
                         Ok(Value::Array(left))
@@ -512,13 +529,20 @@ impl<'a> Runner<'a> {
             }
             Builtin::Sort { keys } => {
                 let mut values = args.remove(0).as_array()?.to_vec();
+                for value in &values {
+                    for key in keys {
+                        value.field(&key.field)?;
+                    }
+                }
                 values.sort_by(|left, right| {
                     keys.iter()
                         .find_map(|key| {
                             let mut order = left
                                 .field(&key.field)
-                                .ok()?
-                                .total_cmp(right.field(&key.field).ok()?);
+                                .expect("sort keys were validated")
+                                .total_cmp(
+                                    right.field(&key.field).expect("sort keys were validated"),
+                                );
                             if key.order == Order::Desc {
                                 order = order.reverse();
                             }
@@ -532,7 +556,7 @@ impl<'a> Runner<'a> {
                 let text = args.remove(0).as_str()?.to_owned();
                 let mut seen = BTreeSet::new();
                 Ok(Value::Array(
-                    text.split_whitespace()
+                    text.split(is_mention_whitespace)
                         .filter_map(|word| word.strip_prefix('@'))
                         .map(|word| word.trim_matches(|c: char| !c.is_alphanumeric() && c != '_'))
                         .filter(|word| !word.is_empty())
@@ -548,6 +572,11 @@ impl<'a> Runner<'a> {
                 recipients.sort_by(Value::total_cmp);
                 if recipients.is_empty() {
                     return Err(ValueError::DivideByZero.into());
+                }
+                if recipients.windows(2).any(|pair| pair[0] == pair[1]) {
+                    return Err(RuntimeError::Input(
+                        "share recipients must be unique".to_owned(),
+                    ));
                 }
                 let position = recipients
                     .iter()
@@ -852,11 +881,22 @@ impl<'a> Runner<'a> {
                 .to_owned(),
             row,
         });
+        let rule_hash = self.schema.rule_hash(&table.rules.read);
+        let evaluated_take = u32::try_from(take).map_err(|_| RuntimeError::Fanout)?;
         let range = TraceRange {
             site: scan.site.clone(),
             table: scan.table.clone(),
             index: scan.index.clone(),
             prefix: prefix.clone(),
+            order: scan.order,
+            take: evaluated_take,
+            after: after.clone(),
+            before: before.clone(),
+            gt: evaluated_range.as_ref().and_then(|range| range.gt.clone()),
+            gte: evaluated_range.as_ref().and_then(|range| range.gte.clone()),
+            lt: evaluated_range.as_ref().and_then(|range| range.lt.clone()),
+            lte: evaluated_range.as_ref().and_then(|range| range.lte.clone()),
+            rule_hash: rule_hash.clone(),
             examined_ids,
             visible_ids,
             returned_ids: returned_ids.clone(),
@@ -874,6 +914,15 @@ impl<'a> Runner<'a> {
                 table: scan.table.clone(),
                 index: scan.index.clone(),
                 prefix,
+                order: scan.order,
+                take: evaluated_take,
+                after,
+                before,
+                gt: evaluated_range.as_ref().and_then(|range| range.gt.clone()),
+                gte: evaluated_range.as_ref().and_then(|range| range.gte.clone()),
+                lt: evaluated_range.as_ref().and_then(|range| range.lt.clone()),
+                lte: evaluated_range.and_then(|range| range.lte),
+                rule_hash,
                 row_ids: returned_ids,
                 stop,
                 absence: returned.is_empty(),
@@ -907,5 +956,59 @@ impl<'a> Runner<'a> {
                 .map(|value| self.expr(value))
                 .transpose()?,
         })
+    }
+}
+
+fn same_value_zero(left: &Value, right: &Value) -> Result<bool, ValueError> {
+    // @ref LLP 1002#2-the-authored-surface-the-snapback2-module — Id/String are one authored JS string domain; composites have no IR identity.
+    match (left, right) {
+        (Value::Null, Value::Null) => Ok(true),
+        (Value::Bool(left), Value::Bool(right)) => Ok(left == right),
+        (Value::Int(left), Value::Int(right)) => Ok(left == right),
+        (Value::String(left) | Value::Id(left), Value::String(right) | Value::Id(right)) => {
+            Ok(left == right)
+        }
+        (Value::Bytes(_) | Value::Row(_) | Value::Array(_) | Value::Map(_), _) => {
+            Err(ValueError::Type {
+                expected: "primitive SameValueZero operand",
+                actual: left.kind(),
+            })
+        }
+        (_, Value::Bytes(_) | Value::Row(_) | Value::Array(_) | Value::Map(_)) => {
+            Err(ValueError::Type {
+                expected: "primitive SameValueZero operand",
+                actual: right.kind(),
+            })
+        }
+        _ => Ok(false),
+    }
+}
+
+fn is_mention_whitespace(character: char) -> bool {
+    matches!(
+        character,
+        '\u{0009}'..='\u{000d}'
+            | '\u{0020}'
+            | '\u{0085}'
+            | '\u{00a0}'
+            | '\u{1680}'
+            | '\u{2000}'..='\u{200a}'
+            | '\u{2028}'
+            | '\u{2029}'
+            | '\u{202f}'
+            | '\u{205f}'
+            | '\u{3000}'
+    )
+}
+
+fn concat_text(value: &Value) -> String {
+    match value {
+        Value::Null => "null".to_owned(),
+        Value::Bool(value) => value.to_string(),
+        Value::Int(value) => value.to_string(),
+        Value::String(value) | Value::Id(value) => value.clone(),
+        Value::Bytes(value) => crate::value::encode_bytes_hex(value),
+        Value::Array(values) => values.iter().map(concat_text).collect::<Vec<_>>().join(","),
+        Value::Row(_) | Value::Map(_) => "[object Object]".to_owned(),
     }
 }

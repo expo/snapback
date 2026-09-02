@@ -8,7 +8,10 @@ use crate::writer::{Action, Identity, OwnerHandle};
 use serde_json::{Value as Json, json};
 use snapback2_core::MigrationPlan;
 use std::fs;
+use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
+
+const MAX_LOG_TAIL_BYTES: u64 = 4 * 1024 * 1024;
 
 #[derive(Clone)]
 pub struct Context {
@@ -60,6 +63,7 @@ pub fn route(
                     compiled,
                     migration: None,
                     seed: None,
+                    cache: None,
                 }),
                 Err(errors) => Err((400, first(errors))),
             }
@@ -73,6 +77,7 @@ pub fn route(
                     compiled,
                     migration: Some(plan),
                     seed: None,
+                    cache: None,
                 }),
                 (Err(errors), _) => Err((400, first(errors))),
                 (_, Err(error)) => Err((
@@ -107,12 +112,13 @@ pub fn route(
         ("GET", "/control/logs") => {
             let since = query.u64("since").unwrap_or(0);
             let limit = query.usize("limit").unwrap_or(100).min(500);
-            match call(Action::Commits { since, limit }) {
-                Ok(commits) => Ok(json!({
-                    "lines": log_lines(&context.root.join(".snapback/log.jsonl"), limit),
-                    "commits": commits,
-                })),
-                Err(error) => Err(error),
+            match (
+                call(Action::Commits { since, limit }),
+                log_lines(&context.root.join(".snapback/log.jsonl"), limit),
+            ) {
+                (Ok(commits), Ok(lines)) => Ok(json!({ "lines": lines, "commits": commits })),
+                (Err(error), _) => Err(error),
+                (_, Err(error)) => Err((500, error)),
             }
         }
         ("GET", "/control/personas") => call(Action::Personas),
@@ -170,6 +176,7 @@ pub fn route(
                         .unwrap_or("byId")
                         .to_owned(),
                     prefix: body.get("prefix").cloned().unwrap_or_else(|| json!([])),
+                    after: body.get("after").filter(|value| !value.is_null()).cloned(),
                     limit: limit as u32,
                     identity: Identity::Persona(
                         body.get("as")
@@ -213,16 +220,65 @@ fn valid_name(name: &str) -> bool {
             .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
 }
 
-fn log_lines(path: &Path, limit: usize) -> Vec<Json> {
-    let text = fs::read_to_string(path).unwrap_or_default();
-    let mut lines: Vec<_> = text
-        .lines()
-        .filter_map(|line| serde_json::from_str(line).ok())
-        .collect();
-    if lines.len() > limit {
-        lines.drain(..lines.len() - limit);
+fn log_lines(path: &Path, limit: usize) -> Result<Vec<Json>, Refusal> {
+    if limit == 0 {
+        return Ok(Vec::new());
     }
-    lines
+    let mut file = match fs::File::open(path) {
+        Ok(file) => file,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(error) => return Err(log_error(path, error.to_string())),
+    };
+    let length = file
+        .metadata()
+        .map_err(|error| log_error(path, error.to_string()))?
+        .len();
+    let start = length.saturating_sub(MAX_LOG_TAIL_BYTES);
+    file.seek(SeekFrom::Start(start))
+        .map_err(|error| log_error(path, error.to_string()))?;
+    let mut bytes = Vec::with_capacity((length - start) as usize);
+    file.read_to_end(&mut bytes)
+        .map_err(|error| log_error(path, error.to_string()))?;
+    if start > 0 {
+        let Some(boundary) = bytes.iter().position(|byte| *byte == b'\n') else {
+            return Err(log_error(
+                path,
+                format!("the trailing log record exceeds the {MAX_LOG_TAIL_BYTES}-byte read bound"),
+            ));
+        };
+        bytes.drain(..=boundary);
+    }
+    let text = std::str::from_utf8(&bytes)
+        .map_err(|error| log_error(path, format!("log tail is not UTF-8: {error}")))?;
+    let candidates = text.lines().rev().take(limit).collect::<Vec<_>>();
+    if start > 0 && candidates.len() < limit {
+        return Err(Refusal::owner(
+            "E_OWNER_LOG_TRUNCATED",
+            format!(
+                "the requested {limit} log records do not fit in the {MAX_LOG_TAIL_BYTES}-byte read bound"
+            ),
+            format!(
+                "retry snapback2 logs --limit {} or rotate .snapback/log.jsonl",
+                candidates.len()
+            ),
+        ));
+    }
+    let mut lines = Vec::with_capacity(candidates.len());
+    for line in candidates.into_iter().rev() {
+        lines.push(
+            serde_json::from_str(line)
+                .map_err(|error| log_error(path, format!("malformed JSON log record: {error}")))?,
+        );
+    }
+    Ok(lines)
+}
+
+fn log_error(path: &Path, message: String) -> Refusal {
+    Refusal::owner(
+        "E_OWNER_LOG",
+        format!("cannot read {}: {message}", path.display()),
+        "repair or rotate .snapback/log.jsonl and retry snapback2 logs",
+    )
 }
 
 fn first(errors: Vec<Refusal>) -> Refusal {
@@ -234,4 +290,65 @@ fn first(errors: Vec<Refusal>) -> Refusal {
             "rerun snapback2 check",
         ),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+
+    #[test]
+    fn log_limit_tails_a_sparse_large_file_without_reading_the_hole() {
+        let path = std::env::temp_dir().join(format!(
+            "snapback2-sparse-log-{}-{}.jsonl",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos()
+        ));
+        let mut file = fs::File::create(&path).unwrap();
+        file.set_len(MAX_LOG_TAIL_BYTES * 2).unwrap();
+        file.seek(SeekFrom::End(-32)).unwrap();
+        file.write_all(b"\n{\"last\":true}\n").unwrap();
+        let end = file.stream_position().unwrap();
+        file.set_len(end).unwrap();
+
+        assert_eq!(log_lines(&path, 1).unwrap(), vec![json!({ "last": true })]);
+
+        fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn malformed_log_tail_is_reported() {
+        let path = std::env::temp_dir().join(format!(
+            "snapback2-malformed-log-{}.jsonl",
+            std::process::id()
+        ));
+        fs::write(&path, b"not json\n").unwrap();
+        assert_eq!(log_lines(&path, 1).unwrap_err().code, "E_OWNER_LOG");
+        fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn log_limit_refuses_when_the_bounded_tail_cannot_supply_every_requested_record() {
+        let path = std::env::temp_dir().join(format!(
+            "snapback2-bounded-log-{}-{}.jsonl",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos()
+        ));
+        let mut file = fs::File::create(&path).unwrap();
+        let payload = "x".repeat(10_000);
+        for index in 0..501 {
+            writeln!(file, "{}", json!({ "index": index, "payload": payload })).unwrap();
+        }
+
+        let refusal = log_lines(&path, 500).unwrap_err();
+        assert_eq!(refusal.code, "E_OWNER_LOG_TRUNCATED");
+
+        fs::remove_file(path).unwrap();
+    }
 }

@@ -34,6 +34,76 @@ fn startup_cleanup_guard_reaps_the_child_and_removes_every_test_path() {
 }
 
 #[test]
+fn isolated_owner_cleans_scratch_and_store_after_every_pre_spawn_failure() {
+    let base = std::env::temp_dir().join(format!(
+        "snapback2-pre-spawn-cleanup-{}-{}",
+        std::process::id(),
+        timestamp()
+    ));
+    fs::create_dir_all(&base).unwrap();
+    let failure = || test_io(std::io::Error::other("injected startup failure"));
+
+    let copy_stamp = 101;
+    assert!(
+        IsolatedOwner::start_with(
+            &base,
+            copy_stamp,
+            |_target, _link| panic!("link ran after copy failure"),
+            || panic!("executable lookup ran after copy failure"),
+            |_executable, _project| panic!("spawn ran after copy failure"),
+        )
+        .is_err()
+    );
+    assert_test_start_paths_removed(&base, copy_stamp);
+
+    fs::create_dir_all(base.join("snapback")).unwrap();
+    let link_stamp = 102;
+    assert!(
+        IsolatedOwner::start_with(
+            &base,
+            link_stamp,
+            |_target, _link| Err(failure()),
+            || panic!("executable lookup ran after link failure"),
+            |_executable, _project| panic!("spawn ran after link failure"),
+        )
+        .is_err()
+    );
+    assert_test_start_paths_removed(&base, link_stamp);
+
+    let executable_stamp = 103;
+    assert!(
+        IsolatedOwner::start_with(
+            &base,
+            executable_stamp,
+            link_store,
+            || Err(failure()),
+            |_executable, _project| panic!("spawn ran after executable failure"),
+        )
+        .is_err()
+    );
+    assert_test_start_paths_removed(&base, executable_stamp);
+
+    let spawn_stamp = 104;
+    assert!(
+        IsolatedOwner::start_with(
+            &base,
+            spawn_stamp,
+            link_store,
+            || std::env::current_exe().map_err(test_io),
+            |_executable, _project| Err(failure()),
+        )
+        .is_err()
+    );
+    assert_test_start_paths_removed(&base, spawn_stamp);
+    let _ = fs::remove_dir_all(base);
+}
+
+fn assert_test_start_paths_removed(root: &Path, stamp: u128) {
+    assert!(!root.join(format!(".snapback/test-run-{stamp}")).exists());
+    assert!(!root.join(format!(".snapback/test-{stamp}.sqlite")).exists());
+}
+
+#[test]
 fn generated_args_exercises_every_arg_type_variant() {
     let program = Program {
         name: "all.args".to_owned(),

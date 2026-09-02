@@ -1,0 +1,158 @@
+{
+  "corpusVersion": 1,
+  "name": "scenario-incomplete-cap",
+  "category": "scenario",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "members": {
+        "columns": {
+          "group": "Id",
+          "id": "Id"
+        },
+        "indexes": {
+          "byGroup": {
+            "columns": [
+              "group",
+              "id"
+            ],
+            "unique": false
+          },
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "constraint coverage fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "constraint coverage fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "constraint coverage fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "constraint coverage fixture"
+            }
+          }
+        },
+        "constraints": [
+          {
+            "Cap": {
+              "by": [
+                "group"
+              ],
+              "max": 1
+            }
+          }
+        ]
+      }
+    },
+    "maintains": []
+  },
+  "program": {
+    "name": "members.insert",
+    "kind": "Mutation",
+    "args": {},
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Insert": {
+          "table": "members",
+          "row": {
+            "Object": {
+              "group": {
+                "Literal": {
+                  "Id": "g1"
+                }
+              },
+              "id": {
+                "Input": "NewId"
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "members.insert",
+    "plan_hash": "324b741bc6301a149ab78665b515553b83def906c3001418b64a63a4c7a0fa33",
+    "schema_hash": "257b62fa442d186eea6c2c51e9fd255d6cdf8fbd2db541ca7ab68d0a407374ff",
+    "rule_hashes": {
+      "members.insert": "ff1ffe64c83da5d41634ec8584c1d3a3ec8eb9d391120198523bb2f1db4c5cdb"
+    },
+    "evaluator_version": "bounded-spike-rust-1",
+    "value_model_version": "i53-codepoint-bytes-v2",
+    "read_sites": [],
+    "write_sites": [
+      {
+        "table": "members",
+        "kind": "Insert",
+        "max_rows": 1
+      }
+    ],
+    "maintained_amplification": 0,
+    "constraint_checks": [
+      "members:Cap([\"group\"],1)",
+      "members:Unique(byId)"
+    ],
+    "max_examined": 0,
+    "max_index_entries": 0,
+    "max_rule_probes": 0,
+    "max_steps": 9,
+    "max_heap_bytes": 288,
+    "max_output_bytes": 6,
+    "max_closure_bytes": 0,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [],
+    "disclosures": [],
+    "bound_product": null
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {},
+    "now": 0,
+    "new_ids": [
+      "local-member"
+    ],
+    "read_time": null,
+    "seed_write": false
+  },
+  "receipt": {
+    "rows": [],
+    "ranges": [],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": "Null",
+    "errorCode": null,
+    "localState": "partial",
+    "partialSites": [
+      "members.byGroup"
+    ],
+    "canonicalResult": "\"Null\"",
+    "digest": "6c7382d463fdb189bd1075f11b73b2335f49de592445abdd337b62ff8b9c5ece",
+    "rangeStops": {},
+    "evictedRows": null
+  }
+}

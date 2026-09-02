@@ -148,7 +148,7 @@ export function selectIndex(
   if (explicit) {
     const selected = info.indexes.find((index) => index.name === explicit);
     if (!selected) refuse(site, `table ${table} has no index ${explicit}`);
-    validateIndexKeys(info.declaration, selected, keys, mode, site);
+    validateIndexKeys(info.declaration, selected, keys, mode, infer, site);
     return selected;
   }
   const named = keys.some((key) => key.column !== undefined);
@@ -170,14 +170,29 @@ export function selectIndex(
     refuse(site, `no ${mode === "range" ? "ordering" : "unique index"} on ${table} matches [${spelling}]; name the columns/index or add one`);
   }
   if (candidates.length > 1) refuse(site, `index selection for ${table}[...] is ambiguous (${candidates.map((item) => item.name).join(", ")}); name it with by <name>`);
-  return candidates[0]!;
+  const selected = candidates[0]!;
+  validateIndexKeys(info.declaration, selected, keys, mode, infer, site);
+  return selected;
 }
 
-function validateIndexKeys(table: TableDecl, index: IndexDecl, keys: KeyPart[], mode: "point" | "range", site: Site): void {
+function validateIndexKeys(
+  table: TableDecl,
+  index: IndexDecl,
+  keys: KeyPart[],
+  mode: "point" | "range",
+  infer: (expr: Expr) => ScalarType | undefined,
+  site: Site,
+): void {
   if (mode === "point" && (!index.unique || index.columns.length !== keys.length)) refuse(site, `${table.name}.${index.name} is not a complete unique key`);
   if (mode === "range" && index.columns.length < keys.length) refuse(site, `${table.name}.${index.name} has no ${keys.length}-column prefix`);
   for (const [offset, key] of keys.entries()) {
-    if (key.column && index.columns[offset] !== key.column) refuse(key.site, `${table.name}.${index.name} expects ${index.columns[offset]} at key position ${offset + 1}`);
+    const column = index.columns[offset]!;
+    if (key.column && column !== key.column) refuse(key.site, `${table.name}.${index.name} expects ${column} at key position ${offset + 1}`);
+    const actual = infer(key.value);
+    const expected = columnType(table, column);
+    if (actual && !compatible(actual, expected)) {
+      refuse(key.value.site, `${table.name}.${index.name} expects ${typeName(expected)} for ${column}, got ${typeName(actual)}`);
+    }
   }
 }
 
@@ -188,7 +203,16 @@ function columnType(table: TableDecl, name: string): ScalarType {
 
 function compatible(actual: ScalarType | undefined, expected: ScalarType): boolean {
   if (!actual) return true;
-  if (expected.kind === "ref") return actual.kind === "ref" || actual.kind === "id";
+  if (expected.kind === "ref") {
+    if (actual.kind === "id") return true;
+    return actual.kind === "ref" && (actual.table === "" || actual.table === expected.table);
+  }
   if (expected.kind === "id") return actual.kind === "ref" || actual.kind === "id";
   return actual.kind === expected.kind;
+}
+
+function typeName(type: ScalarType): string {
+  if (type.kind === "ref") return `reference to ${type.table}`;
+  if (type.kind === "list") return "list";
+  return type.kind;
 }

@@ -304,6 +304,8 @@ mod tests {
                     constraint_inputs: vec![ConstraintTrace {
                         table: "probes".to_owned(),
                         check: "Cap([],1)".to_owned(),
+                        index: String::new(),
+                        prefix: Vec::new(),
                         examined_ids: Vec::new(),
                     }],
                     ..AuthoritativeTrace::default()

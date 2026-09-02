@@ -606,6 +606,7 @@ fn render_expr(value: &Expr, args: &BTreeSet<String>) -> String {
             match op {
                 BinaryOp::Eq => "===",
                 BinaryOp::Ne => "!==",
+                BinaryOp::SameValueZero => "===",
                 BinaryOp::Lt => "<",
                 BinaryOp::Lte => "<=",
                 BinaryOp::Gt => ">",

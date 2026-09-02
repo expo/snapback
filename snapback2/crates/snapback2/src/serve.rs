@@ -3,19 +3,24 @@
 
 use crate::control;
 use crate::protocol::{Refusal, refusal_json};
-use crate::writer::{Action, Identity, OwnerHandle, SseEvent};
+use crate::writer::{Action, Identity, OwnerHandle, SseEvent, SseReceiver, sse_queue};
 use serde_json::{Value as Json, json};
 use std::collections::BTreeMap;
 use std::io::{Read, Write};
 use std::net::{IpAddr, SocketAddr};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::mpsc::{self, Receiver, RecvTimeoutError};
+use std::sync::mpsc::RecvTimeoutError;
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 use tiny_http::{Header, Method, Request, Response, Server, StatusCode};
 
 const DEV_CORS_ALLOWED_HEADERS: &str = "Authorization, Content-Type, X-Snapback-As";
+const MAX_HTTP_WORKERS: usize = 64;
+const RESERVED_CONTROL_WORKERS: usize = 4;
+const RESERVED_JSON_WORKERS: usize = 8;
+const MAX_NON_CONTROL_WORKERS: usize = MAX_HTTP_WORKERS - RESERVED_CONTROL_WORKERS;
+const MAX_SSE_WORKERS: usize = MAX_NON_CONTROL_WORKERS - RESERVED_JSON_WORKERS;
 
 pub struct BoundServer {
     server: Arc<Server>,
@@ -77,13 +82,34 @@ impl BoundServer {
     }
 
     pub fn run(self, context: Context) -> Result<(), Refusal> {
+        let workers = WorkerPools::default();
         while !context.stop.load(Ordering::SeqCst) {
             match self.server.recv_timeout(Duration::from_millis(100)) {
                 Ok(Some(request)) => {
+                    let class = WorkerClass::for_url(request.url());
+                    let Some(worker) = workers.acquire(class) else {
+                        respond_refusal(
+                            request,
+                            503,
+                            Refusal::owner(
+                                "E_OWNER_BUSY",
+                                format!(
+                                    "the owner has reached its bounded {} worker limit",
+                                    class.label()
+                                ),
+                                "close slow clients and retry",
+                            ),
+                            &context.mode,
+                        );
+                        continue;
+                    };
                     let connection_context = context.clone();
                     if let Err(error) = thread::Builder::new()
                         .name("snapback2-http".to_owned())
-                        .spawn(move || handle(request, connection_context))
+                        .spawn(move || {
+                            let _worker = worker;
+                            handle(request, connection_context);
+                        })
                     {
                         let refusal = fatal_server("connection thread", error);
                         crate::watch::log(
@@ -107,6 +133,89 @@ impl BoundServer {
             }
         }
         Ok(())
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum WorkerClass {
+    Json,
+    Sse,
+    Control,
+}
+
+impl WorkerClass {
+    fn for_url(url: &str) -> Self {
+        let raw_path = url.split_once('?').map_or(url, |(path, _)| path);
+        let path = percent_decode(raw_path);
+        if path.starts_with("/control/") {
+            Self::Control
+        } else if path == "/api/subscribe"
+            || (path.starts_with("/api/channel/") && path.ends_with("/subscribe"))
+        {
+            Self::Sse
+        } else {
+            Self::Json
+        }
+    }
+
+    fn label(self) -> &'static str {
+        match self {
+            Self::Json => "JSON HTTP",
+            Self::Sse => "SSE",
+            Self::Control => "control HTTP",
+        }
+    }
+}
+
+#[derive(Default)]
+struct WorkerCounts {
+    total: usize,
+    json: usize,
+    sse: usize,
+    control: usize,
+}
+
+#[derive(Clone, Default)]
+struct WorkerPools(Arc<Mutex<WorkerCounts>>);
+
+impl WorkerPools {
+    fn acquire(&self, class: WorkerClass) -> Option<HttpWorker> {
+        let mut counts = self.0.lock().expect("HTTP worker count lock");
+        let non_control = counts.json + counts.sse;
+        if counts.total >= MAX_HTTP_WORKERS
+            || (class != WorkerClass::Control && non_control >= MAX_NON_CONTROL_WORKERS)
+            || (class == WorkerClass::Sse && counts.sse >= MAX_SSE_WORKERS)
+        {
+            return None;
+        }
+        counts.total += 1;
+        match class {
+            WorkerClass::Json => counts.json += 1,
+            WorkerClass::Sse => counts.sse += 1,
+            WorkerClass::Control => counts.control += 1,
+        }
+        drop(counts);
+        Some(HttpWorker {
+            pools: self.clone(),
+            class,
+        })
+    }
+}
+
+struct HttpWorker {
+    pools: WorkerPools,
+    class: WorkerClass,
+}
+
+impl Drop for HttpWorker {
+    fn drop(&mut self) {
+        let mut counts = self.pools.0.lock().expect("HTTP worker count lock");
+        counts.total -= 1;
+        match self.class {
+            WorkerClass::Json => counts.json -= 1,
+            WorkerClass::Sse => counts.sse -= 1,
+            WorkerClass::Control => counts.control -= 1,
+        }
     }
 }
 
@@ -149,14 +258,6 @@ fn handle(mut request: Request, context: Context) {
         respond_json(request, 204, json!({}), &context.mode);
         return;
     }
-    let body = match read_body(&mut request) {
-        Ok(body) => body,
-        Err(error) => {
-            respond_refusal(request, 400, error, &context.mode);
-            return;
-        }
-    };
-
     if path.starts_with("/control/") {
         if !is_loopback(request.remote_addr().map(SocketAddr::ip)) {
             respond_refusal(
@@ -184,6 +285,13 @@ fn handle(mut request: Request, context: Context) {
             );
             return;
         }
+        let body = match read_body(&mut request) {
+            Ok(body) => body,
+            Err(error) => {
+                respond_refusal(request, 400, error, &context.mode);
+                return;
+            }
+        };
         let control_context = control::Context {
             handle: context.handle.clone(),
             root: context.root.clone(),
@@ -195,6 +303,14 @@ fn handle(mut request: Request, context: Context) {
         }
         return;
     }
+
+    let body = match read_body(&mut request) {
+        Ok(body) => body,
+        Err(error) => {
+            respond_refusal(request, 400, error, &context.mode);
+            return;
+        }
+    };
 
     let identity = request_identity(&request);
     let bearer_token = bearer(&request).unwrap_or_default();
@@ -274,7 +390,7 @@ fn handle(mut request: Request, context: Context) {
                     return;
                 }
             };
-            let (tx, rx) = mpsc::channel();
+            let (tx, rx) = sse_queue();
             match context.handle.subscribe(op, args, identity, tx) {
                 Ok(meta) => {
                     let id = meta.get("id").and_then(Json::as_u64).unwrap_or(0);
@@ -314,7 +430,7 @@ fn handle(mut request: Request, context: Context) {
                     return;
                 }
             };
-            let (tx, rx) = mpsc::channel();
+            let (tx, rx) = sse_queue();
             match context.handle.call(Action::ChannelSubscribe {
                 name,
                 args,
@@ -375,7 +491,7 @@ fn respond_refusal(request: Request, status: u16, mut refusal: Refusal, mode: &s
 
 fn respond_sse(
     request: Request,
-    receiver: Receiver<SseEvent>,
+    receiver: SseReceiver,
     handle: OwnerHandle,
     drop_action: DropAction,
     mode: &str,
@@ -622,5 +738,50 @@ mod tests {
     #[test]
     fn browser_cors_never_admits_the_owner_control_capability() {
         assert!(!DEV_CORS_ALLOWED_HEADERS.contains("X-Snapback-Control"));
+    }
+
+    #[test]
+    fn worker_budget_reserves_json_and_control_capacity_from_sse() {
+        let pools = WorkerPools::default();
+        let sse = (0..MAX_SSE_WORKERS)
+            .map(|_| pools.acquire(WorkerClass::Sse).unwrap())
+            .collect::<Vec<_>>();
+        assert!(pools.acquire(WorkerClass::Sse).is_none());
+        let json = (0..RESERVED_JSON_WORKERS)
+            .map(|_| pools.acquire(WorkerClass::Json).unwrap())
+            .collect::<Vec<_>>();
+        assert!(pools.acquire(WorkerClass::Json).is_none());
+        let control = (0..RESERVED_CONTROL_WORKERS)
+            .map(|_| pools.acquire(WorkerClass::Control).unwrap())
+            .collect::<Vec<_>>();
+        assert!(pools.acquire(WorkerClass::Control).is_none());
+        drop((sse, json, control));
+        let counts = pools.0.lock().unwrap();
+        assert_eq!(counts.total, 0);
+        assert_eq!(counts.json, 0);
+        assert_eq!(counts.sse, 0);
+        assert_eq!(counts.control, 0);
+        drop(counts);
+        assert_eq!(
+            WorkerClass::for_url("/control/status"),
+            WorkerClass::Control
+        );
+        assert_eq!(
+            WorkerClass::for_url("/api/subscribe?op=todos.list"),
+            WorkerClass::Sse
+        );
+        assert_eq!(
+            WorkerClass::for_url("/api/channel/typing/subscribe?args=%7B%7D"),
+            WorkerClass::Sse
+        );
+        assert_eq!(
+            WorkerClass::for_url("%2Fapi%2Fsubscribe?op=todos.list"),
+            WorkerClass::Sse
+        );
+        assert_eq!(
+            WorkerClass::for_url("%2Fcontrol%2Fstatus"),
+            WorkerClass::Control
+        );
+        assert_eq!(WorkerClass::for_url("/api/query"), WorkerClass::Json);
     }
 }

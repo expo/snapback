@@ -1,132 +1,72 @@
-import { sha256 } from "./sha256";
-export { sha256 } from "./sha256";
 import { exactByIdAbsence, exactVerdict } from "./authority";
 import coreIrContract from "../../../crates/snapback2-core/ir-contract.json" with { type: "json" };
+import { canonicalProgramJson, canonicalSchemaJson } from "./certificate-identity";
+import { EvalError, requireRowIdentity } from "./errors";
+import { sha256 } from "./hash";
+import { splitMentionTokens } from "./text";
+import {
+  asArray,
+  asBool,
+  asInt,
+  asObject,
+  asString,
+  builtinArity,
+  canonicalJson,
+  canonicalValue,
+  canonicalValues,
+  clone,
+  compareCodepoints,
+  field,
+  fieldOrNull,
+  int,
+  isVariant,
+  isWordCharacter,
+  materializeOptionalFields,
+  rangeStops,
+  rowValue,
+  safeNumber,
+  sameValueZero,
+  scopedRuleHash,
+  stableSort,
+  startsWith,
+  totalCompare,
+  validHttpUrl,
+  validateInputs,
+  validateWriteRow,
+  valueText,
+  valuesEqual,
+  variant,
+} from "./value-runtime";
+import type {
+  ActualResult,
+  ClosureReceipt,
+  Context,
+  CorpusCase,
+  CorpusExpected,
+  Execution,
+  HydrationResult,
+  LocalExecution,
+  ReceiptRange,
+  Trace,
+  TraceRange,
+  Value,
+} from "./types";
 
-export type Value =
-  | "Null"
-  | { Bool: boolean }
-  | { Int: number }
-  | { String: string }
-  | { Id: string }
-  | { Bytes: string }
-  | { Row: Record<string, Value> }
-  | { Array: Value[] }
-  | { Map: Record<string, Value> };
-
-export interface Context {
-  viewer: string;
-  principal_kind: string;
-  auth_epoch: number;
-  args: Record<string, Value>;
-  now: number | null;
-  new_ids: string[];
-  read_time: number | null;
-}
-
-export interface RowRecord {
-  table: string;
-  id: string;
-  row: Value;
-}
-
-export interface ReceiptRange {
-  site: string;
-  table: string;
-  index: string;
-  prefix: Value[];
-  row_ids: string[];
-  stop: "Limit" | "Exhausted";
-  absence: boolean;
-  halo: RowRecord | null;
-  n2_key: Value[] | null;
-}
-
-export interface Verdict {
-  rule_hash: string;
-  pinned_inputs_digest: string;
-  principal: string;
-  auth_epoch: number;
-  result: boolean;
-}
-
-export interface ClosureReceipt {
-  rows: RowRecord[];
-  ranges: ReceiptRange[];
-  absences: [string, string, Value[]][];
-  verdicts: Verdict[];
-}
-
-export interface PreludeStep {
-  program: any;
-  context: Context;
-  expectedState: string;
-}
-
-export interface CorpusExpected {
-  localResult: Value | null;
-  errorCode: string | null;
-  localState: string;
-  partialSites: string[];
-  canonicalResult: string;
-  digest: string;
-  rangeStops: Record<string, string[]>;
-  evictedRows: number | null;
-}
-
-export interface CorpusCase {
-  corpusVersion: number;
-  name: string;
-  category: string;
-  randomSeed: number | null;
-  schema: any;
-  program: any;
-  certificate: any;
-  context: Context;
-  receipt: ClosureReceipt;
-  prelude: PreludeStep[];
-  replacementReceipt: ClosureReceipt | null;
-  expected: CorpusExpected;
-}
-
-export interface ActualResult extends CorpusExpected {}
-
-export interface HydrationResult {
-  planState: "ready" | "replay-mismatch";
-  servedResult: Value | null;
-  actual: ActualResult;
-  diagnostic: string | null;
-}
-
-interface TraceRange {
-  site: string;
-  prefix: Value[];
-  stop: "limit" | "exhausted";
-}
-
-interface TraceAbsence {
-  site: string;
-  table: string;
-  index: string;
-  key: Value[];
-}
-
-interface Trace {
-  ranges: TraceRange[];
-  absences: TraceAbsence[];
-  missingAuthority: boolean;
-}
-
-interface Execution {
-  result: Value;
-  trace: Trace;
-}
-
-interface LocalExecution {
-  state: "fresh" | "predicted" | "partial";
-  partialSites: string[];
-  execution: Execution;
-}
+export { sha256 } from "./hash";
+export { canonicalValue, scopedRuleHash } from "./value-runtime";
+export type {
+  ActualResult,
+  ClosureReceipt,
+  Context,
+  CorpusCase,
+  CorpusExpected,
+  HydrationResult,
+  PreludeStep,
+  ReceiptRange,
+  RowRecord,
+  Value,
+  Verdict,
+} from "./types";
 
 type Flow =
   | { kind: "next" }
@@ -135,20 +75,13 @@ type Flow =
   | { kind: "return"; value: Value };
 
 const NEXT: Flow = { kind: "next" };
-const I53_MAX = 9_007_199_254_740_991;
-const I53_MIN = -I53_MAX;
 export const CURRENT_VALUE_MODEL_VERSION = coreIrContract.valueModelVersion;
-
-class EvalError extends Error {
-  constructor(readonly code: string, message: string) {
-    super(`${code}: ${message}`);
-  }
-}
 
 export class ClientStore {
   private tables = new Map<string, Map<string, Value>>();
   private coverage: ClosureReceipt;
   private rangeDeletions = new Map<string, number>();
+  private taintedTables = new Set<string>();
 
   constructor(
     private readonly schema: any,
@@ -159,55 +92,55 @@ export class ClientStore {
   }
 
   applyMutation(program: any, context: Context): LocalExecution {
-    const before = this.allIds();
-    const snapshot = this.snapshotTables();
-    const runner = new Runner(this, this.schema, context);
+    validateInputs(program, context.args);
+    // @ref LLP 1001#3-read-and-write-states-no-silent-states — local prediction adopts the write set only as one atomic mutation.
+    const staged = this.fork();
+    const before = staged.coveredIndexKeys();
+    const runner = new Runner(staged, this.schema, context);
     let execution: Execution;
     try {
       execution = runner.execute(program);
     } catch (error) {
-      // @ref LLP 1001#3-read-and-write-states-no-silent-states — local prediction has the same
-      // all-or-nothing mutation boundary as the authoritative transaction.
-      this.tables = snapshot;
-      if (runner.trace.missingAuthority)
+      if (runner.coverageMisses().includes("missing-authority")) {
         return { state: "partial", partialSites: ["missing-authority"], execution: { result: "Null", trace: runner.trace } };
+      }
       throw error;
     }
-    if (execution.trace.missingAuthority) {
-      this.tables = snapshot;
-      return { state: "partial", partialSites: ["missing-authority"], execution: { result: "Null", trace: execution.trace } };
+    const partialSites = runner.coverageMisses();
+    if (partialSites.length > 0) {
+      return { state: "partial", partialSites, execution };
     }
-    const after = this.allIds();
-    for (const removed of before) {
-      if (after.has(removed)) continue;
-      for (const range of this.coverage.ranges) {
-        const held =
-          range.row_ids.some((id) => `${range.table}:${id}` === removed) ||
-          (range.halo !== null &&
-            `${range.halo.table}:${range.halo.id}` === removed);
-        if (held) {
-          this.rangeDeletions.set(
-            range.site,
-            (this.rangeDeletions.get(range.site) ?? 0) + 1,
-          );
+    const after = staged.coveredIndexKeys();
+    for (let offset = 0; offset < before.length; offset += 1) {
+      for (const [id, key] of before[offset]) {
+        const next = after[offset].get(id);
+        if (next === undefined || !valuesEqual(key, next)) {
+          const site = staged.coverage.ranges[offset].site;
+          staged.rangeDeletions.set(site, (staged.rangeDeletions.get(site) ?? 0) + 1);
         }
       }
     }
+    this.tables = staged.tables;
+    this.coverage = staged.coverage;
+    this.rangeDeletions = staged.rangeDeletions;
+    this.taintedTables = staged.taintedTables;
     return { state: "predicted", partialSites: [], execution };
   }
 
   reexecute(program: any, context: Context): LocalExecution {
-    const execution = new Runner(this, this.schema, context).execute(program);
-    const partial = new Set<string>();
-    if (execution.trace.missingAuthority) partial.add("missing-authority");
+    validateInputs(program, context.args);
+    const runner = new Runner(this, this.schema, context);
+    const execution = runner.execute(program);
+    const partial = new Set(runner.coverageMisses());
     for (const range of execution.trace.ranges) {
       const covered = this.coverage.ranges.some(
-        (coverage) =>
-          coverage.site === range.site && valuesEqual(coverage.prefix, range.prefix),
+        (coverage) => rangeCovered(coverage, range),
       );
-      if (!covered || (this.rangeDeletions.get(range.site) ?? 0) > 1) {
+      if (!covered || (this.rangeDeletions.get(range.site) ?? 0) > 1 || this.taintedTables.has(range.table))
         partial.add(range.site);
-      }
+    }
+    for (const point of execution.trace.points) {
+      if (this.taintedTables.has(point.table)) partial.add(point.site);
     }
     for (const absence of execution.trace.absences) {
       const held =
@@ -232,6 +165,7 @@ export class ClientStore {
     this.tables = new Map();
     this.coverage = clone(receipt);
     this.rangeDeletions = new Map();
+    this.taintedTables = new Set();
     this.seedReceipt(receipt);
     const after = this.allIds();
     let evicted = 0;
@@ -296,14 +230,15 @@ export class ClientStore {
   }
 
   put(table: string, row: Value): void {
-    row = materializeOptionalFields(this.schema, table, row);
-    const id = asString(field(row, "id"));
+    const normalized = materializeOptionalFields(this.schema, table, row);
+    validateWriteRow(this.schema, table, normalized);
+    const id = asString(field(normalized, "id"));
     let rows = this.tables.get(table);
     if (rows === undefined) {
       rows = new Map();
       this.tables.set(table, rows);
     }
-    rows.set(id, normalizeRow(row));
+    rows.set(id, normalized);
   }
 
   remove(table: string, id: string): Value | null {
@@ -323,8 +258,72 @@ export class ClientStore {
 
   authorityAbsence(table: string, id: string): boolean { return exactByIdAbsence(this.coverage.absences, table, id, valuesEqual); }
 
+  hasAbsence(table: string, index: string, key: Value[]): boolean {
+    return this.coverage.absences.some(
+      ([heldTable, heldIndex, heldKey]) =>
+        heldTable === table && heldIndex === index && valuesEqual(heldKey, key),
+    );
+  }
+
+  hasCompleteRange(table: string, index: string, prefix: Value[]): boolean {
+    return this.coverage.ranges.some(
+      (range) =>
+        range.table === table &&
+        range.index === index &&
+        valuesEqual(range.prefix, prefix) &&
+        range.order === "Asc" &&
+        range.after === null &&
+        range.before === null &&
+        range.gt === null &&
+        range.gte === null &&
+        range.lt === null &&
+        range.lte === null &&
+        range.stop === "Exhausted",
+    );
+  }
+
+  taintMaintainedTargets(source: string): void {
+    for (const maintain of this.schema.maintains ?? []) {
+      if (maintain.source === source) this.taintedTables.add(maintain.target);
+    }
+  }
+
+  isTainted(table: string): boolean {
+    return this.taintedTables.has(table);
+  }
+
   private seedReceipt(receipt: ClosureReceipt): void {
-    for (const row of receipt.rows) this.put(row.table, clone(row.row));
+    for (const row of receipt.rows) this.put(row.table, row.row);
+  }
+
+  private fork(): ClientStore {
+    const fork = new ClientStore(this.schema, { rows: [], ranges: [], absences: [], verdicts: [] });
+    fork.tables = new Map(
+      Array.from(this.tables, ([table, rows]) => [
+        table,
+        new Map(Array.from(rows, ([id, row]) => [id, clone(row)])),
+      ]),
+    );
+    fork.coverage = clone(this.coverage);
+    fork.rangeDeletions = new Map(this.rangeDeletions);
+    fork.taintedTables = new Set(this.taintedTables);
+    return fork;
+  }
+
+  private coveredIndexKeys(): Array<Map<string, Value[]>> {
+    return this.coverage.ranges.map((range) => {
+      const retained = new Set(range.row_ids);
+      if (range.halo !== null) retained.add(range.halo.id);
+      const index = this.index(range.table, range.index);
+      const keys = new Map<string, Value[]>();
+      for (const row of this.rows(range.table)) {
+        const id = asString(field(row, "id"));
+        if (retained.has(id)) {
+          keys.set(id, index.columns.map((column: string) => clone(fieldOrNull(row, column))));
+        }
+      }
+      return keys;
+    });
   }
 
   private allIds(): Set<string> {
@@ -335,15 +334,6 @@ export class ClientStore {
     return ids;
   }
 
-  private snapshotTables(): Map<string, Map<string, Value>> {
-    return new Map(
-      Array.from(this.tables, ([table, rows]) => [
-        table,
-        new Map(Array.from(rows, ([id, row]) => [id, clone(row)])),
-      ]),
-    );
-  }
-
   private index(table: string, indexName: string): any {
     const index = this.schema.tables?.[table]?.indexes?.[indexName];
     if (index === undefined) throw new EvalError("E_SCHEMA", `missing index ${table}.${indexName}`);
@@ -351,12 +341,33 @@ export class ClientStore {
   }
 }
 
+function nullableValueEqual(left: Value | null, right: Value | null): boolean {
+  return left === null ? right === null : right !== null && valuesEqual([left], [right]);
+}
+
+function rangeCovered(coverage: ReceiptRange, range: TraceRange): boolean {
+  return coverage.site === range.site
+    && coverage.table === range.table
+    && coverage.index === range.index
+    && valuesEqual(coverage.prefix, range.prefix)
+    && coverage.order === range.order
+    && coverage.take === range.take
+    && nullableValueEqual(coverage.after, range.after)
+    && nullableValueEqual(coverage.before, range.before)
+    && nullableValueEqual(coverage.gt, range.gt)
+    && nullableValueEqual(coverage.gte, range.gte)
+    && nullableValueEqual(coverage.lt, range.lt)
+    && nullableValueEqual(coverage.lte, range.lte)
+    && coverage.rule_hash === range.rule_hash;
+}
+
 class Runner {
   private readonly env = new Map<string, Value>();
   private readonly consts = new Set<string>();
   private readonly context: Context;
-  readonly trace: Trace = { ranges: [], absences: [], missingAuthority: false };
+  readonly trace: Trace = { ranges: [], absences: [], points: [] };
   private readonly ruleMemo = new Map<string, boolean>();
+  private readonly partial = new Set<string>();
   private authorityMissSerial = 0;
   private readonly createdRows = new Set<string>();
   private readonly insertedRows: Array<{ table: string; row: Value }> = [];
@@ -382,9 +393,13 @@ class Runner {
     const flow = this.statements(program.body);
     this.checkFinalConstraints();
     return {
-      result: flow.kind === "return" ? flow.value : "Null",
+      result: this.partial.size === 0 && flow.kind === "return" ? flow.value : "Null",
       trace: this.trace,
     };
+  }
+
+  coverageMisses(): string[] {
+    return Array.from(this.partial).sort(compareCodepoints);
   }
 
   private statements(statements: any[]): Flow {
@@ -429,7 +444,7 @@ class Runner {
         }
         case "Require":
           if (!asBool(this.expr(data.condition)))
-            throw new EvalError(`E_REQUIRE:${data.code}`, "program requirement failed");
+            throw new EvalError("E_REQUIRE", "program requirement failed", data.code);
           break;
         case "Insert":
           this.insert(data.table, this.expr(data.row));
@@ -554,8 +569,14 @@ class Runner {
         if (data.op === "Neg") return int(-asInt(value));
         throw new EvalError("E_OPAQUE", `unsupported unary ${data.op}`);
       }
-      case "Builtin":
+      case "Builtin": {
+        const builtinKind = variant(data.builtin)[0];
+        const expected = builtinArity(builtinKind);
+        if (data.args.length !== expected) {
+          throw new EvalError("E_INPUT", `${builtinKind} requires ${expected} arguments, received ${data.args.length}`);
+        }
         return this.builtin(data.builtin, data.args.map((value: any) => this.expr(value)));
+      }
       case "Get":
         return this.get(data);
       case "Exists":
@@ -598,6 +619,8 @@ class Runner {
         return { Bool: canonicalValue(left) === canonicalValue(right) };
       case "Ne":
         return { Bool: canonicalValue(left) !== canonicalValue(right) };
+      case "SameValueZero":
+        return { Bool: sameValueZero(left, right) };
       case "Lt":
         return { Bool: totalCompare(left, right) < 0 };
       case "Lte":
@@ -643,10 +666,10 @@ class Runner {
       }
       case "Concat": {
         const [left, right] = args;
-        if (isVariant(left, "String") && isVariant(right, "String"))
-          return { String: left.String + right.String };
+        if (isVariant(left, "String") || isVariant(right, "String"))
+          return { String: valueText(left) + valueText(right) };
         if (isVariant(left, "Id") && isVariant(right, "Id"))
-          return { Id: `${left.Id}:${right.Id}` };
+          return { Id: canonicalValues([left, right]) };
         if (isVariant(left, "Array") && isVariant(right, "Array"))
           return { Array: left.Array.concat(right.Array) };
         throw new EvalError("E_TYPE", "concat operands differ");
@@ -678,6 +701,9 @@ class Runner {
       }
       case "Sort": {
         const values = asArray(args[0]).slice();
+        for (const value of values) {
+          for (const key of data.keys) field(value, key.field);
+        }
         return {
           Array: stableSort(values, (left, right) => {
             for (const key of data.keys) {
@@ -692,7 +718,7 @@ class Runner {
       case "MentionTokens": {
         const seen = new Set<string>();
         const mentions: Value[] = [];
-        for (const token of asString(args[0]).split(/\s+/)) {
+        for (const token of splitMentionTokens(asString(args[0]))) {
           if (!token.startsWith("@")) continue;
           const characters = Array.from(token.slice(1));
           while (characters.length > 0 && !isWordCharacter(characters[0])) characters.shift();
@@ -713,6 +739,8 @@ class Runner {
         const amount = asInt(args[0]);
         const recipients = stableSort(asArray(args[1]).slice(), totalCompare);
         if (recipients.length === 0) throw new EvalError("E_DIV_ZERO", "no recipients");
+        if (new Set(recipients.map(canonicalValue)).size !== recipients.length)
+          throw new EvalError("E_INPUT", "share recipients must be unique");
         const recipient = args[2];
         const position = recipients.findIndex(
           (candidate) => canonicalValue(candidate) === canonicalValue(recipient),
@@ -738,6 +766,7 @@ class Runner {
   private get(read: any): Value {
     const key = read.key.map((value: any) => this.expr(value));
     const found = this.store.lookup(read.table, read.index, key);
+    this.trace.points.push({ site: read.site, table: read.table });
     if (found === null) {
       this.trace.absences.push({
         site: read.site,
@@ -776,7 +805,22 @@ class Runner {
     const visible = examined.filter((row) =>
       this.checkRule(scan.table, "read", null, row)
     );
-    this.trace.ranges.push({ site: scan.site, prefix, stop });
+    this.trace.ranges.push({
+      site: scan.site,
+      table: scan.table,
+      index: scan.index,
+      prefix,
+      order: scan.order,
+      take,
+      after,
+      before,
+      gt: evaluatedRange?.gt ?? null,
+      gte: evaluatedRange?.gte ?? null,
+      lt: evaluatedRange?.lt ?? null,
+      lte: evaluatedRange?.lte ?? null,
+      rule_hash: scopedRuleHash(this.schema, this.schema.tables[scan.table].rules.read),
+      stop,
+    });
     return { Array: visible.slice(0, take).map(clone) };
   }
 
@@ -830,7 +874,10 @@ class Runner {
 
   private delete(table: string, id: string): void {
     const old = this.store.byId(table, id);
-    if (old === null) return;
+    if (old === null) {
+      this.store.taintMaintainedTargets(table);
+      return;
+    }
     if (!this.checkRule(table, "delete", null, old))
       throw new EvalError("E_RULE", `${table} delete`);
     this.checkConstraints(table, old, old, "delete");
@@ -849,6 +896,8 @@ class Runner {
   }
 
   private applyAggregate(maintain: any, source: Value, direction: number): void {
+    // @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — maintained targets are engine-owned but still validated.
+    source = materializeOptionalFields(this.schema, maintain.source, source);
     const group = maintain.by.map((name: string) => clone(field(source, name)));
     const idValue = canonicalValues(group);
     const [kind, data] = variant(maintain.kind);
@@ -856,7 +905,7 @@ class Runner {
       kind === "Count" ? direction : safeNumber(direction * asInt(field(source, data.of)));
     const existing = this.store.byId(maintain.target, idValue);
     if (existing === null && !this.store.authorityAbsence(maintain.target, idValue)) {
-      this.trace.missingAuthority = true;
+      this.partial.add("missing-authority");
       this.authorityMissSerial += 1;
       return;
     }
@@ -868,10 +917,11 @@ class Runner {
     maintain.by.forEach((name: string, index: number) => {
       object[name] = group[index];
     });
-    const row = rowValue(object);
+    const row = materializeOptionalFields(this.schema, maintain.target, rowValue(object));
     const effect = existing === null ? "insert" : "update";
     // Maintained targets are engine-owned. They bypass authored write rules
     // while retaining the same constraints and created-row provenance as Rust.
+    validateWriteRow(this.schema, maintain.target, row);
     this.checkConstraints(maintain.target, existing, row, effect);
     this.store.put(maintain.target, row);
     if (existing === null) {
@@ -882,13 +932,7 @@ class Runner {
   }
 
   private validateAddressedRowId(table: string, key: Value, row: Value): void {
-    const addressed = asString(key);
-    const rowId = asString(field(row, "id"));
-    if (addressed !== rowId)
-      throw new EvalError(
-        "E_INPUT",
-        `${table} row id ${JSON.stringify(rowId)} does not match addressed key ${JSON.stringify(addressed)}`,
-      );
+    requireRowIdentity(table, "addressed write", asString(key), asString(field(row, "id")));
   }
 
   private rememberCreatedRow(table: string, row: Value): void {
@@ -941,17 +985,32 @@ class Runner {
       )
         throw new EvalError("E_CONSTRAINT", `${tableName} immutable fields changed`);
       if (kind === "Unique") this.checkUnique(tableName, data.index, old, row);
-      if (kind === "Cap" && effect === "insert") {
+      if (kind === "Cap") {
+        const entersGroup =
+          effect === "insert" ||
+          (effect === "update" && data.by.some((name: string) =>
+            canonicalValue(field(old!, name)) !== canonicalValue(field(row, name))));
+        if (!entersGroup) continue;
         const entry = Object.entries<any>(table.indexes).find(([, index]) =>
           startsWith(index.columns, data.by),
         );
         if (entry === undefined) throw new EvalError("E_SCHEMA", "cap index missing");
         const prefix = data.by.map((name: string) => field(row, name));
-        if (
-          this.store.scan(tableName, entry[0], prefix, null, null, null, "Asc", data.max)
-            .length >= data.max
-        )
+        const existing = this.store.scan(
+          tableName,
+          entry[0],
+          prefix,
+          null,
+          null,
+          null,
+          "Asc",
+          data.max,
+        );
+        if (existing.length >= data.max)
           throw new EvalError("E_CONSTRAINT", `${tableName} cap reached`);
+        if (!this.store.hasCompleteRange(tableName, entry[0], prefix)) {
+          this.partial.add(`${tableName}.${entry[0]}`);
+        }
       }
       if (kind === "Text" && (effect === "insert" || effect === "update")) {
         const value = asObject(row)[data.field];
@@ -1004,6 +1063,14 @@ class Runner {
       (old === null || asString(field(found, "id")) !== asString(field(old, "id")))
     )
       throw new EvalError("E_CONSTRAINT", `sealed unique conflict on ${table}.${indexName}`);
+    if (
+      indexName !== "byId" &&
+      found === null &&
+      !this.store.hasAbsence(table, indexName, key) &&
+      !this.store.hasCompleteRange(table, indexName, key)
+    ) {
+      this.partial.add(`${table}.${indexName}`);
+    }
   }
 
   private checkRule(
@@ -1053,6 +1120,7 @@ class Runner {
       case "Not":
         return !this.evaluateRule(data, ruleHash, old, next, createdAllowed);
       case "Exists": {
+        // @ref LLP 1002#9-the-client-snapback2client-snapback2react-snapback2test — absence and authorization are authority-only.
         const key = data.key.map((term: any) => this.ruleTerm(term, old, next));
         const pinnedDigest = sha256(JSON.stringify([data.table, data.index, key]));
         const memoKey = `${ruleHash}:${pinnedDigest}`;
@@ -1065,11 +1133,17 @@ class Runner {
             this.ruleMemo.set(memoKey, verdict);
             return verdict;
           }
-          this.trace.missingAuthority = true;
+          this.partial.add("missing-authority");
           this.authorityMissSerial += 1;
           return false;
         }
-        const result = this.store.lookup(data.table, data.index, key) !== null;
+        const found = this.store.lookup(data.table, data.index, key);
+        if (found === null && !this.store.hasAbsence(data.table, data.index, key)) {
+          this.partial.add(`${data.table}.${data.index}`);
+          this.ruleMemo.set(memoKey, false);
+          return false;
+        }
+        const result = found !== null;
         this.ruleMemo.set(memoKey, result);
         return result;
       }
@@ -1156,6 +1230,12 @@ export function evaluateCase(testCase: CorpusCase): ActualResult {
       `value model version ${String(testCase.certificate?.value_model_version)} != current ${CURRENT_VALUE_MODEL_VERSION}`,
     );
   }
+  if (testCase.certificate?.plan_hash !== sha256(canonicalProgramJson(testCase.program))) {
+    throw new EvalError("E_TRACE_SUBSET", "plan hash mismatch");
+  }
+  if (testCase.certificate?.schema_hash !== sha256(canonicalSchemaJson(testCase.schema))) {
+    throw new EvalError("E_TRACE_SUBSET", "schema hash mismatch");
+  }
   const store = new ClientStore(testCase.schema, testCase.receipt);
   for (const step of testCase.prelude) {
     const prelude = store.applyMutation(step.program, step.context);
@@ -1181,11 +1261,33 @@ export function evaluateCase(testCase: CorpusCase): ActualResult {
       evictedRows,
     };
   } catch (error) {
-    const code = error instanceof EvalError ? error.code.split(":")[0] : "E_UNKNOWN";
+    const internalCode = error instanceof EvalError ? error.code : "E_UNKNOWN";
+    const code = internalCode;
+    const authoredCode = error instanceof EvalError ? error.authoredCode : null;
+    const typedState =
+      code === "E_REQUIRE"
+        ? testCase.program.kind === "Mutation"
+          ? "rejected"
+          : "denied"
+        : "refused";
+    const publicCode = authoredCode ?? code;
+    if (typedState !== "refused") {
+      const canonicalResult = canonicalValue("Null");
+      return {
+        localResult: "Null",
+        errorCode: publicCode,
+        localState: typedState,
+        partialSites: [],
+        canonicalResult,
+        digest: sha256(canonicalResult),
+        rangeStops: {},
+        evictedRows,
+      };
+    }
     const canonicalResult = JSON.stringify({ Error: code });
     return {
       localResult: null,
-      errorCode: code,
+      errorCode: publicCode,
       localState: "refused",
       partialSites: [],
       canonicalResult,
@@ -1198,15 +1300,13 @@ export function evaluateCase(testCase: CorpusCase): ActualResult {
 
 export function hydrateCase(testCase: CorpusCase): HydrationResult {
   const actual = evaluateCase(testCase);
-  const mismatch =
-    actual.canonicalResult !== testCase.expected.canonicalResult ||
-    actual.digest !== testCase.expected.digest;
-  if (mismatch) {
+  const differences = compareExpected(actual, testCase.expected);
+  if (differences.length > 0) {
     return {
       planState: "replay-mismatch",
       servedResult: clone(testCase.expected.localResult),
       actual,
-      diagnostic: `hydration replay mismatch for ${testCase.name}: expected ${testCase.expected.digest}, got ${actual.digest}`,
+      diagnostic: `hydration replay mismatch for ${testCase.name}: ${differences.join("; ")}`,
     };
   }
   return {
@@ -1238,263 +1338,4 @@ export function compareExpected(actual: ActualResult, expected: CorpusExpected):
       `rangeStops: ${JSON.stringify(actual.rangeStops)} != ${JSON.stringify(expected.rangeStops)}`,
     );
   return differences;
-}
-
-export function canonicalValue(value: Value): string {
-  if (value === "Null") return '"Null"';
-  const kind = kindOf(value);
-  const data = (value as any)[kind];
-  if (kind === "Bool" || kind === "Int") return `{"${kind}":${JSON.stringify(data)}}`;
-  if (kind === "String" || kind === "Id") return `{"${kind}":${JSON.stringify(data)}}`;
-  if (kind === "Bytes") {
-    if (!canonicalBytes(data)) throw new EvalError("E_INPUT", "Bytes is not canonical lowercase base16");
-    return `{"Bytes":${JSON.stringify(data)}}`;
-  }
-  if (kind === "Array") return `{"Array":${canonicalValues(data)}}`;
-  const entries = Object.keys(data)
-    .sort(compareCodepoints)
-    .map((key) => `${JSON.stringify(key)}:${canonicalValue(data[key])}`)
-    .join(",");
-  return `{"${kind}":{${entries}}}`;
-}
-
-function canonicalValues(values: Value[]): string {
-  return `[${values.map(canonicalValue).join(",")}]`;
-}
-
-function rangeStops(ranges: TraceRange[]): Record<string, string[]> {
-  const result: Record<string, string[]> = Object.create(null);
-  for (const range of ranges) (result[range.site] ??= []).push(range.stop);
-  return sortObject(result);
-}
-
-function normalizeRow(value: Value): Value {
-  if (!isVariant(value, "Row")) return clone(value);
-  return rowValue(value.Row);
-}
-// @ref LLP 1001#2-what-a-commit-records — omitted Optional fields are Null before rules and maintains.
-function materializeOptionalFields(schema: any, table: string, value: Value): Value {
-  const normalized = normalizeRow(value);
-  if (!isVariant(normalized, "Row")) return normalized;
-  for (const [name, descriptor] of Object.entries<any>(schema.tables?.[table]?.columns ?? {}))
-    if (descriptor?.Optional !== undefined && !Object.prototype.hasOwnProperty.call(normalized.Row, name)) normalized.Row[name] = "Null";
-  return normalizeRow(normalized);
-}
-
-function rowValue(entries: Record<string, Value>): Value {
-  const sorted: Record<string, Value> = Object.create(null);
-  for (const key of Object.keys(entries).sort(compareCodepoints)) sorted[key] = clone(entries[key]);
-  return { Row: sorted };
-}
-
-function field(value: Value, name: string): Value {
-  const object = asObject(value);
-  if (!Object.prototype.hasOwnProperty.call(object, name)) throw new EvalError("E_FIELD", `missing field ${name}`);
-  return object[name];
-}
-
-function fieldOrNull(value: Value, name: string): Value {
-  const object = asObject(value);
-  return Object.prototype.hasOwnProperty.call(object, name) ? object[name] : "Null";
-}
-
-function asObject(value: Value): Record<string, Value> {
-  if (isVariant(value, "Row")) return value.Row;
-  if (isVariant(value, "Map")) return value.Map;
-  throw new EvalError("E_TYPE", "expected row or map");
-}
-
-function asArray(value: Value): Value[] {
-  if (!isVariant(value, "Array")) throw new EvalError("E_TYPE", "expected array");
-  return value.Array;
-}
-
-function asString(value: Value): string {
-  if (isVariant(value, "String")) return value.String;
-  if (isVariant(value, "Id")) return value.Id;
-  throw new EvalError("E_TYPE", "expected string or id");
-}
-
-function asInt(value: Value): number {
-  if (!isVariant(value, "Int")) throw new EvalError("E_TYPE", "expected int");
-  return value.Int;
-}
-
-function asBool(value: Value): boolean {
-  if (!isVariant(value, "Bool")) throw new EvalError("E_TYPE", "expected bool");
-  return value.Bool;
-}
-
-function int(value: number): Value {
-  return { Int: safeNumber(value) };
-}
-
-function safeNumber(value: number): number {
-  if (!Number.isSafeInteger(value) || value < I53_MIN || value > I53_MAX)
-    throw new EvalError("E_OVERFLOW", `${value} is outside the i53 value model`);
-  return value;
-}
-
-function totalCompare(left: Value, right: Value): number {
-  const order = ["Null", "Bool", "Int", "String", "Id", "Bytes", "Row", "Array", "Map"];
-  const leftKind = kindOf(left);
-  const rightKind = kindOf(right);
-  const tag = order.indexOf(leftKind) - order.indexOf(rightKind);
-  if (tag !== 0) return Math.sign(tag);
-  if (leftKind === "Null") return 0;
-  const leftData = (left as any)[leftKind];
-  const rightData = (right as any)[rightKind];
-  if (leftKind === "Bool" || leftKind === "Int") return comparePrimitive(leftData, rightData);
-  if (leftKind === "String" || leftKind === "Id") return compareCodepoints(leftData, rightData);
-  if (leftKind === "Bytes") {
-    if (!canonicalBytes(leftData) || !canonicalBytes(rightData))
-      throw new EvalError("E_INPUT", "Bytes is not canonical lowercase base16");
-    return compareCodepoints(leftData, rightData);
-  }
-  if (leftKind === "Array") return compareArrays(leftData, rightData);
-  const leftEntries = Object.keys(leftData).sort(compareCodepoints);
-  const rightEntries = Object.keys(rightData).sort(compareCodepoints);
-  const length = comparePrimitive(leftEntries.length, rightEntries.length);
-  if (length !== 0) return length;
-  for (let index = 0; index < leftEntries.length; index += 1) {
-    const key = compareCodepoints(leftEntries[index], rightEntries[index]);
-    if (key !== 0) return key;
-    const value = totalCompare(leftData[leftEntries[index]], rightData[rightEntries[index]]);
-    if (value !== 0) return value;
-  }
-  return 0;
-}
-
-function compareArrays(left: Value[], right: Value[]): number {
-  const length = Math.min(left.length, right.length);
-  for (let index = 0; index < length; index += 1) {
-    const compared = totalCompare(left[index], right[index]);
-    if (compared !== 0) return compared;
-  }
-  return comparePrimitive(left.length, right.length);
-}
-
-function compareCodepoints(left: string, right: string): number {
-  const leftPoints = Array.from(left, (character) => character.codePointAt(0)!);
-  const rightPoints = Array.from(right, (character) => character.codePointAt(0)!);
-  const length = Math.min(leftPoints.length, rightPoints.length);
-  for (let index = 0; index < length; index += 1) {
-    const compared = comparePrimitive(leftPoints[index], rightPoints[index]);
-    if (compared !== 0) return compared;
-  }
-  return comparePrimitive(leftPoints.length, rightPoints.length);
-}
-
-function comparePrimitive(left: number | boolean, right: number | boolean): number {
-  return left < right ? -1 : left > right ? 1 : 0;
-}
-
-function stableSort<T>(values: T[], compare: (left: T, right: T) => number): T[] {
-  if (values.length <= 1) return values;
-  const middle = Math.floor(values.length / 2);
-  const left = stableSort(values.slice(0, middle), compare);
-  const right = stableSort(values.slice(middle), compare);
-  const result: T[] = [];
-  while (left.length > 0 && right.length > 0) {
-    result.push(compare(left[0], right[0]) <= 0 ? left.shift()! : right.shift()!);
-  }
-  return result.concat(left, right);
-}
-
-function variant(value: any): [string, any] {
-  if (typeof value === "string") return [value, null];
-  const keys = Object.keys(value);
-  if (keys.length !== 1) throw new EvalError("E_CORPUS", "invalid externally tagged variant");
-  return [keys[0], value[keys[0]]];
-}
-
-export function scopedRuleHash(schema: any, rule: any): string {
-  return sha256(JSON.stringify([sha256(JSON.stringify(schema)), rule]));
-}
-
-function kindOf(value: Value): string {
-  if (value === "Null") return "Null";
-  const keys = Object.keys(value);
-  if (keys.length !== 1) throw new EvalError("E_INPUT", "invalid externally tagged value");
-  return keys[0];
-}
-
-function isVariant<K extends Exclude<ReturnType<typeof kindOf>, "Null">>(
-  value: Value,
-  kind: K,
-): value is Extract<Value, Record<K, unknown>> {
-  return value !== "Null" && kindOf(value) === kind;
-}
-
-function valuesEqual(left: Value[], right: Value[]): boolean {
-  return canonicalValues(left) === canonicalValues(right);
-}
-
-function startsWith<T>(values: T[], prefix: T[]): boolean {
-  return prefix.every((value, index) => values[index] === value);
-}
-
-function validHttpUrl(value: string): boolean {
-  const rest = value.startsWith("https://")
-    ? value.slice("https://".length)
-    : value.startsWith("http://")
-      ? value.slice("http://".length)
-      : "";
-  return rest.length > 0 && !/[\p{White_Space}\p{Cc}]/u.test(rest);
-}
-
-function canonicalJson(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
-  if (value !== null && typeof value === "object") {
-    return `{${Object.keys(value)
-      .sort(compareCodepoints)
-      .map((key) => `${JSON.stringify(key)}:${canonicalJson((value as any)[key])}`)
-      .join(",")}}`;
-  }
-  return JSON.stringify(value);
-}
-
-function validateWriteRow(schema: any, tableName: string, row: Value): void {
-  const columns = schema.tables?.[tableName]?.columns;
-  if (columns === undefined) throw new EvalError("E_SCHEMA", `missing table ${tableName}`);
-  const object = asObject(row);
-  for (const [name, descriptor] of Object.entries<any>(columns)) {
-    if (Object.prototype.hasOwnProperty.call(object, name)) validateColumnValue(descriptor, object[name], `${tableName}.${name}`);
-  }
-}
-
-function validateColumnValue(descriptor: any, value: Value, label: string): void {
-  if (descriptor?.Bytes) {
-    if (!isVariant(value, "Bytes") || !canonicalBytes(value.Bytes))
-      throw new EvalError("E_INPUT", `${label} must be bytes`);
-    if (value.Bytes.length / 2 > descriptor.Bytes.max)
-      throw new EvalError("E_INPUT", `${label} exceeds bytes max ${descriptor.Bytes.max}`);
-    return;
-  }
-  if (descriptor?.Optional !== undefined) {
-    if (value !== "Null") validateColumnValue(descriptor.Optional, value, label);
-    return;
-  }
-  if (descriptor?.List && isVariant(value, "Array")) {
-    for (const item of value.Array) validateColumnValue(descriptor.List.of, item, label);
-  }
-}
-
-function canonicalBytes(value: unknown): value is string {
-  return typeof value === "string" && /^(?:[0-9a-f]{2})*$/.test(value);
-}
-
-function clone<T>(value: T): T {
-  if (value === null || value === undefined) return value;
-  return JSON.parse(JSON.stringify(value));
-}
-
-function sortObject<T>(value: Record<string, T>): Record<string, T> {
-  const sorted: Record<string, T> = Object.create(null);
-  for (const key of Object.keys(value).sort(compareCodepoints)) sorted[key] = value[key];
-  return sorted;
-}
-
-function isWordCharacter(character: string): boolean {
-  return character === "_" || /[\p{L}\p{N}]/u.test(character);
 }

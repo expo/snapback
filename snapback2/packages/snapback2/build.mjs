@@ -1,6 +1,7 @@
-import { cp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { cp, link, mkdir, open, readFile, readdir, rm, stat, unlink, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
-import { dirname, resolve } from "node:path";
+import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { build } from "esbuild";
 import ts from "typescript";
 
@@ -9,7 +10,7 @@ const dist = resolve(here, "dist");
 const packageBuildLock = resolve(here, "../../target/b2-package-build.lock");
 const packageBuildLockHeld = process.env.SNAPBACK2_PACKAGE_BUILD_LOCK_HELD === "1";
 // Test fixtures take this same lock while snapshotting dist as one package unit.
-if (!packageBuildLockHeld) await acquirePackageBuildLock();
+const packageBuildToken = packageBuildLockHeld ? undefined : await acquirePackageBuildLock();
 try {
 await rm(dist, { recursive: true, force: true });
 await mkdir(dist, { recursive: true });
@@ -147,6 +148,24 @@ if (guideErrors.length > 0) {
   throw new Error(`guide validation failed:\n${guideErrors.join("\n")}`);
 }
 
+const snapshot = process.env.SNAPBACK2_PACKAGE_BUILD_SNAPSHOT;
+if (snapshot) {
+  const workspace = resolve(here, "../..");
+  const snapshotPath = resolve(snapshot);
+  const workspaceRelative = relative(workspace, snapshotPath);
+  if (!workspaceRelative
+    || workspaceRelative === ".."
+    || workspaceRelative.startsWith(`..${sep}`)
+    || isAbsolute(workspaceRelative)) {
+    throw new Error("SNAPBACK2_PACKAGE_BUILD_SNAPSHOT must stay inside the snapback2 workspace");
+  }
+  await rm(snapshotPath, { recursive: true, force: true });
+  await mkdir(snapshotPath, { recursive: true });
+  await cp(resolve(here, "package.json"), resolve(snapshotPath, "package.json"));
+  await cp(resolve(here, "bin"), resolve(snapshotPath, "bin"), { recursive: true });
+  await cp(dist, resolve(snapshotPath, "dist"), { recursive: true });
+}
+
 if (process.argv.includes("--self-test")) {
   const failures = [
     ...familyFailures([
@@ -168,23 +187,90 @@ if (process.argv.includes("--self-test")) {
   console.log(`guide validation self-test ok: ${failures.join(" | ")}`);
 }
 } finally {
-  if (!packageBuildLockHeld) await rm(packageBuildLock, { force: true });
+  if (packageBuildToken) await releasePackageBuildLock(packageBuildToken);
 }
 
 async function acquirePackageBuildLock() {
   await mkdir(dirname(packageBuildLock), { recursive: true });
   const started = Date.now();
+  const token = randomUUID();
   for (;;) {
     try {
-      await writeFile(packageBuildLock, `${process.pid}\n`, { flag: "wx" });
-      return;
+      await writeFile(packageBuildLock, `${JSON.stringify({ pid: process.pid, token })}\n`, { flag: "wx" });
+      return token;
     } catch (error) {
       if (error?.code !== "EEXIST") throw error;
+      if (await reclaimStalePackageBuildLock()) continue;
       if (Date.now() - started >= 30_000) {
         throw new Error(`timed out waiting for package build lock ${packageBuildLock}`);
       }
       await new Promise((resolvePromise) => setTimeout(resolvePromise, 25));
     }
+  }
+}
+
+async function reclaimStalePackageBuildLock() {
+  let handle;
+  try {
+    handle = await open(packageBuildLock, "r");
+    const [text, held] = await Promise.all([handle.readFile("utf8"), handle.stat()]);
+    const owner = parsePackageBuildOwner(text);
+    if (!owner || processAlive(owner.pid)) return false;
+    const claim = `${packageBuildLock}.stale-${process.pid}-${randomUUID()}`;
+    try {
+      await link(packageBuildLock, claim);
+      const claimed = await stat(claim);
+      if (claimed.dev !== held.dev || claimed.ino !== held.ino) return false;
+      const current = await stat(packageBuildLock);
+      if (current.dev !== held.dev || current.ino !== held.ino) return false;
+      try {
+        await unlink(packageBuildLock);
+      } catch (error) {
+        if (error?.code !== "ENOENT") throw error;
+      }
+      return true;
+    } catch (error) {
+      if (error?.code === "ENOENT") return true;
+      if (error?.code === "EEXIST") return false;
+      throw error;
+    } finally {
+      await rm(claim, { force: true });
+    }
+  } catch (error) {
+    if (error?.code === "ENOENT") return true;
+    throw error;
+  } finally {
+    await handle?.close();
+  }
+}
+
+function parsePackageBuildOwner(text) {
+  try {
+    const value = JSON.parse(text);
+    return Number.isSafeInteger(value?.pid) && value.pid > 0
+      ? { pid: value.pid, token: typeof value.token === "string" ? value.token : undefined }
+      : undefined;
+  } catch {
+    const pid = Number(text.trim());
+    return Number.isSafeInteger(pid) && pid > 0 ? { pid } : undefined;
+  }
+}
+
+function processAlive(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error?.code !== "ESRCH";
+  }
+}
+
+async function releasePackageBuildLock(token) {
+  try {
+    const owner = parsePackageBuildOwner(await readFile(packageBuildLock, "utf8"));
+    if (owner?.pid === process.pid && owner.token === token) await unlink(packageBuildLock);
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
   }
 }
 

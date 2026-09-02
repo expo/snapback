@@ -251,7 +251,17 @@
       }
     ],
     "ranges": [],
-    "absences": [],
+    "absences": [
+      [
+        "grants",
+        "byPrincipal",
+        [
+          {
+            "Id": "u1"
+          }
+        ]
+      ]
+    ],
     "verdicts": []
   },
   "prelude": [],

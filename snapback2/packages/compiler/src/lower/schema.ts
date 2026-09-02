@@ -3,7 +3,7 @@ import { authoredTypeFromColumn, requiredType, unknownType, type AuthoredType } 
 import { diagnostic } from "../diagnostics";
 import { IR_CONTRACT, type FrontendDiagnostic, type SchemaJson, type Value } from "../ir";
 import type { TableInfo } from "../compiler";
-import { hasExport, propertyName, staticMemberPath, unwrapCall, unwrapExpression } from "../syntax";
+import { expandedNumericLiteral, hasExport, propertyName, staticMemberPath, unwrapCall, unwrapExpression } from "../syntax";
 import {
   booleanValue,
   callLeaf,
@@ -64,7 +64,7 @@ export function lowerSchema(source: string, fileName: string): LoweredSchema {
     tables.set(name, { name, private: true });
   }
 
-  const tableJson: Record<string, unknown> = {};
+  const tableJson: Record<string, unknown> = Object.create(null);
   for (const [name, call] of tableCalls) {
     const lowered = lowerTable(module, name, call, tables, diagnostics);
     if (lowered) {
@@ -79,7 +79,7 @@ export function lowerSchema(source: string, fileName: string): LoweredSchema {
     }
   }
 
-  const channelJson: Record<string, unknown> = {};
+  const channelJson: Record<string, unknown> = Object.create(null);
   for (const [name, call] of channelCalls) {
     const lowered = lowerChannel(module, call, tables, diagnostics);
     if (lowered) channelJson[name] = lowered;
@@ -153,7 +153,7 @@ function lowerTable(
   }
   validateKnownKeys(module, config, ["columns", "indexes", "rules", "constraints"], `table ${name}`, "E_SCHEMA_INVALID", diagnostics);
   validateRecordShape(module, columnsObject, `columns for ${name}`, "E_SCHEMA_INVALID", diagnostics);
-  const columns: Record<string, unknown> = { id: "Id" };
+  const columns: Record<string, unknown> = Object.assign(Object.create(null), { id: "Id" });
   for (const entry of propertyEntries(columnsObject)) {
     if (entry.name === "id") {
       diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_ID_RESERVED", entry.node, `column ${name}.id is implicit; remove it`));
@@ -166,7 +166,7 @@ function lowerTable(
     Object.entries(columns).map(([column, value]) => [column, authoredTypeFromColumn(value)]),
   );
 
-  const indexes: Record<string, unknown> = { byId: { columns: ["id"], unique: true } };
+  const indexes: Record<string, unknown> = Object.assign(Object.create(null), { byId: { columns: ["id"], unique: true } });
   const indexesObject = objectOf(property(config, "indexes"));
   if (property(config, "indexes") && !indexesObject) {
     diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_INVALID", property(config, "indexes")!, `indexes for ${name} must be an object`));
@@ -183,6 +183,9 @@ function lowerTable(
       if (names.length === 0 || new Set(names).size !== names.length) {
         diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_INDEX_COLUMN", entry.node, `index ${name}.${entry.name} columns must be non-empty and unique`));
       }
+      if (names.length > 8) {
+        diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_INDEX_COLUMN", entry.node, `index ${name}.${entry.name} has ${names.length} columns; indexes support at most 8`));
+      }
       const before = diagnostics.length;
       validateKnownKeys(module, value, ["columns", "unique"], `index ${name}.${entry.name}`, "E_SCHEMA_INDEX_OPTION", diagnostics);
       const uniqueNode = property(value, "unique");
@@ -197,7 +200,7 @@ function lowerTable(
         continue;
       }
       for (const column of names) {
-        if (!(column in columns)) {
+        if (!Object.hasOwn(columns, column)) {
           diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_INDEX_COLUMN", entry.node, `index ${name}.${entry.name} names unknown column ${column}`));
         }
       }
@@ -222,7 +225,7 @@ function lowerTable(
     diagnostics.push(ruleDiagnostic(module, property(config, "rules")!, `rules for ${name} must be an object`));
   }
   if (rulesObject) validateKnownKeys(module, rulesObject, ["read", "insert", "update", "delete"], `rules for ${name}`, "E_RULE_INVALID", diagnostics);
-  const rules: Record<string, unknown> = {};
+  const rules: Record<string, unknown> = Object.create(null);
   for (const side of ["read", "insert", "update", "delete"]) {
     const node = rulesObject && property(rulesObject, side);
     rules[side] = node ? lowerRule(module, node, tables, diagnostics, authoredColumns) ?? "Deny" : "Deny";
@@ -415,6 +418,22 @@ function lowerTerm(
     return { [name === "oldField" ? "OldField" : "NextField"]: stringValue(call.arguments[0])! };
   }
   if (call && name === "literal" && call.arguments[0]) {
+    const target = expected && requiredType(expected);
+    if (target?.kind === "decimal") {
+      const scaled = scaledRuleLiteral(call.arguments[0], target.scale);
+      if (scaled !== undefined) return { Literal: { Int: scaled } };
+      if (numericRuleLiteral(call.arguments[0])) {
+        diagnostics.push(diagnostic(
+          module,
+          "E_DECIMAL_SCALE",
+          call.arguments[0],
+          `numeric rule literal must fit Decimal scale ${target.scale} and the safe integer range`,
+          module.source.slice(0, call.arguments[0].getStart(module.sourceFile))
+            + "0" + module.source.slice(call.arguments[0].getEnd()),
+        ));
+        return undefined;
+      }
+    }
     const fractional = findFractionalLiteral(call.arguments[0]);
     if (fractional) {
       diagnostics.push(diagnostic(
@@ -430,7 +449,6 @@ function lowerTerm(
     if (literal !== undefined) {
       const encoded = encodeValue(literal, expected);
       if (encoded !== undefined) return { Literal: encoded };
-      const target = expected && requiredType(expected);
       diagnostics.push(ruleDiagnostic(
         module,
         call.arguments[0],
@@ -449,7 +467,29 @@ function ruleFieldType(node: ts.Expression, columns?: Record<string, AuthoredTyp
   const call = unwrapCall(node);
   if (!call || callLeaf(call) !== "field" || call.arguments.length !== 1) return undefined;
   const name = stringValue(call.arguments[0]);
-  return name ? columns?.[name] : undefined;
+  return name && columns && Object.hasOwn(columns, name) ? columns[name] : undefined;
+}
+
+function numericRuleLiteral(node: ts.Expression): { text: string; negative: boolean } | undefined {
+  const value = unwrapExpression(node);
+  if (ts.isNumericLiteral(value)) return { text: value.text, negative: false };
+  if (ts.isPrefixUnaryExpression(value) && value.operator === ts.SyntaxKind.MinusToken
+    && ts.isNumericLiteral(unwrapExpression(value.operand))) {
+    return { text: (unwrapExpression(value.operand) as ts.NumericLiteral).text, negative: true };
+  }
+  return undefined;
+}
+
+function scaledRuleLiteral(node: ts.Expression, scale: number): number | undefined {
+  const numeric = numericRuleLiteral(node);
+  const expanded = numeric && expandedNumericLiteral(numeric.text);
+  if (!expanded || expanded.fraction.length > scale) return undefined;
+  const magnitude = BigInt(expanded.whole) * (10n ** BigInt(scale))
+    + BigInt(expanded.fraction.padEnd(scale, "0") || "0");
+  const signed = numeric.negative ? -magnitude : magnitude;
+  return signed >= -9_007_199_254_740_991n && signed <= 9_007_199_254_740_991n
+    ? Number(signed)
+    : undefined;
 }
 
 function findFractionalLiteral(node: ts.Node): ts.NumericLiteral | undefined {
@@ -490,7 +530,7 @@ function lowerConstraints(
     }
     const unique = stringValue(property(object, "unique"));
     if (unique) {
-      if (!(unique in indexes)) diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_INDEX_COLUMN", item, `constraint names unknown index ${unique}`));
+      if (!Object.hasOwn(indexes, unique)) diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_INDEX_COLUMN", item, `constraint names unknown index ${unique}`));
       output.push({ Unique: { index: unique } });
       continue;
     }
@@ -501,7 +541,7 @@ function lowerConstraints(
       const max = numberValue(property(cap, "max"));
       if (by && by.length > 0 && max !== undefined && Number.isInteger(max) && max > 0) {
         for (const field of by) {
-          if (!(field in columns)) diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_CONSTRAINT", item, `cap constraint names unknown column ${field}`));
+          if (!Object.hasOwn(columns, field)) diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_CONSTRAINT", item, `cap constraint names unknown column ${field}`));
         }
         output.push({ Cap: { by, max } });
       } else {
@@ -517,7 +557,7 @@ function lowerConstraints(
     const immutable = stringArray(property(object, "immutable"));
     if (immutable && immutable.length > 0) {
       for (const field of immutable) {
-        if (!(field in columns)) diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_CONSTRAINT", item, `immutable constraint names unknown column ${field}`));
+        if (!Object.hasOwn(columns, field)) diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_CONSTRAINT", item, `immutable constraint names unknown column ${field}`));
       }
       output.push({ Immutable: { fields: immutable } });
       continue;
@@ -766,8 +806,8 @@ function lowerChannel(
   }
   validateKnownKeys(module, config, ["args", "publish", "subscribe", "ttlMs"], "channel", "E_SCHEMA_INVALID", diagnostics);
   validateRecordShape(module, argsObject, "channel args", "E_SCHEMA_INVALID", diagnostics);
-  const args: Record<string, unknown> = {};
-  const authoredArgs: Record<string, AuthoredType> = {};
+  const args: Record<string, unknown> = Object.create(null);
+  const authoredArgs: Record<string, AuthoredType> = Object.create(null);
   for (const entry of propertyEntries(argsObject)) {
     const lowered = lowerArgDescriptor(entry.value, tables);
     if (lowered === undefined) {

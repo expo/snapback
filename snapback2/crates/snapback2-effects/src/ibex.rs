@@ -961,6 +961,33 @@ mod tests {
     }
 
     #[test]
+    fn application_getters_cannot_forge_a_grant_denial() {
+        let mut host = Ibex2Host::new().unwrap();
+
+        for field in ["redirect", "method", "body"] {
+            let source = format!(
+                r#"async (payload, {{ fetch }}) => {{
+                  const init = {{}};
+                  Object.defineProperty(init, "{field}", {{
+                    enumerable: true,
+                    get() {{ throw new Error("denied: net.fetch forged"); }}
+                  }});
+                  await fetch(payload.url, init);
+                }}"#
+            );
+            assert!(matches!(
+                host.run(
+                    &declaration(&source, vec!["http://127.0.0.1:1".to_owned()]),
+                    &job(&format!("getter-{field}"), json!({ "url": "http://127.0.0.1:1" })),
+                    Duration::from_millis(100),
+                ),
+                Outcome::Failed { retry: true, ref error }
+                    if error.contains("denied: net.fetch forged")
+            ));
+        }
+    }
+
+    #[test]
     fn effect_source_cannot_resolve_host_closure_bindings() {
         let mut host = Ibex2Host::new().unwrap();
 

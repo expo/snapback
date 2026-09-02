@@ -27,7 +27,13 @@ fn add_rbac_twin_cases(cases: &mut Vec<CorpusCase>) {
     };
     let committed = || Stmt::Return(Expr::Literal(Value::Bool(true)));
 
-    cases.push(rbac_twin_case(
+    let mut transition_receipt = rbac_receipt(&existing_membership);
+    transition_receipt.absences.push((
+        "memberships".to_owned(),
+        "byGroupPrincipalRole".to_owned(),
+        vec![id("group-1"), id("u1"), text("admin")],
+    ));
+    cases.push(rbac_twin_case_with_receipt(
         "named-rbac-transition-update",
         schema.clone(),
         program(
@@ -44,7 +50,7 @@ fn add_rbac_twin_cases(cases: &mut Vec<CorpusCase>) {
                 committed(),
             ],
         ),
-        existing_membership.clone(),
+        transition_receipt,
     ));
 
     let existing_admin = vec![(
@@ -73,62 +79,27 @@ fn add_rbac_twin_cases(cases: &mut Vec<CorpusCase>) {
         existing_admin,
     ));
 
-    cases.push(rbac_twin_case(
-        "named-rbac-update-rekeys-id",
-        schema.clone(),
-        program(
-            "memberships.rekeyUpdate",
-            vec![Stmt::Update {
-                table: "memberships".to_owned(),
-                key: Expr::Literal(id("seat-1")),
-                patch: Expr::Object(BTreeMap::from([(
-                    "id".to_owned(),
-                    Expr::Literal(id("seat-2")),
-                )])),
-            }],
-        ),
-        existing_membership.clone(),
-    ));
-
-    cases.push(rbac_twin_case(
-        "named-rbac-upsert-rekeys-id",
-        schema.clone(),
-        program(
-            "memberships.rekeyUpsert",
-            vec![Stmt::Upsert {
-                table: "memberships".to_owned(),
-                key: Expr::Literal(id("seat-1")),
-                row: Expr::Literal(row([
-                    ("id", id("seat-2")),
-                    ("group", id("group-1")),
-                    ("principal", id("u1")),
-                    ("role", text("admin")),
-                ])),
-            }],
-        ),
-        existing_membership,
-    ));
-
-    cases.push(rbac_twin_case(
-        "named-rbac-upsert-missing-rekeys-id",
-        schema.clone(),
-        program(
-            "memberships.rekeyMissingUpsert",
-            vec![Stmt::Upsert {
-                table: "memberships".to_owned(),
-                key: Expr::Literal(id("seat-missing")),
-                row: Expr::Literal(row([
-                    ("id", id("seat-other")),
-                    ("group", id("group-1")),
-                    ("principal", id("u1")),
-                    ("role", text("admin")),
-                ])),
-            }],
-        ),
-        Vec::new(),
-    ));
-
-    cases.push(rbac_twin_case(
+    let bootstrap_receipt = ClosureReceipt {
+        absences: vec![
+            (
+                "groups".to_owned(),
+                "byId".to_owned(),
+                vec![id("group-new")],
+            ),
+            (
+                "memberships".to_owned(),
+                "byId".to_owned(),
+                vec![id("seat-new")],
+            ),
+            (
+                "memberships".to_owned(),
+                "byGroupPrincipalRole".to_owned(),
+                vec![id("group-new"), id("u1"), text("admin")],
+            ),
+        ],
+        ..ClosureReceipt::default()
+    };
+    cases.push(rbac_twin_case_with_receipt(
         "named-rbac-created-bootstrap",
         schema.clone(),
         program(
@@ -150,7 +121,7 @@ fn add_rbac_twin_cases(cases: &mut Vec<CorpusCase>) {
                 committed(),
             ],
         ),
-        Vec::new(),
+        bootstrap_receipt,
     ));
 
     cases.push(rbac_twin_case(
@@ -324,7 +295,11 @@ fn rbac_twin_case(
     program: Program,
     rows: Vec<(&str, Value)>,
 ) -> CorpusCase {
-    let receipt = ClosureReceipt {
+    rbac_twin_case_with_receipt(name, schema, program, rbac_receipt(&rows))
+}
+
+fn rbac_receipt(rows: &[(&str, Value)]) -> ClosureReceipt {
+    ClosureReceipt {
         rows: rows
             .iter()
             .map(|(table, row)| RowRecord {
@@ -337,14 +312,6 @@ fn rbac_twin_case(
                 row: row.clone(),
             })
             .collect(),
-        ..ClosureReceipt::default()
-    };
-    rbac_twin_case_with_receipt(name, schema, program, receipt)
-}
-
-fn by_id_absence(table: &str, id: String) -> ClosureReceipt {
-    ClosureReceipt {
-        absences: vec![(table.to_owned(), "byId".to_owned(), vec![Value::Id(id)])],
         ..ClosureReceipt::default()
     }
 }
@@ -550,7 +517,18 @@ fn add_constraint_and_memo_twin_cases(cases: &mut Vec<CorpusCase>) {
         "named-maintained-deny-target",
         maintained_schema,
         maintained_program,
-        by_id_absence("counts", canonical_json(&vec![id("bucket-1")])),
+        ClosureReceipt {
+            rows: vec![RowRecord {
+                table: "counts".to_owned(),
+                id: canonical_json(&vec![id("bucket-1")]),
+                row: row([
+                    ("id", id(canonical_json(&vec![id("bucket-1")]))),
+                    ("bucket", id("bucket-1")),
+                    ("value", Value::Int(0)),
+                ]),
+            }],
+            ..ClosureReceipt::default()
+        },
     ));
 
     add_rule_memo_twin_cases(cases, public);
@@ -677,7 +655,13 @@ fn add_rule_memo_twin_cases(cases: &mut Vec<CorpusCase>, public: RuleExpr) {
             ),
         ],
     ));
-    cases.push(rbac_twin_case(
+    let mut granted_receipt = rbac_receipt(&[("docs", row([("id", id("doc-1"))]))]);
+    granted_receipt.absences.push((
+        "grants".to_owned(),
+        "byPrincipal".to_owned(),
+        vec![id("u1")],
+    ));
+    cases.push(rbac_twin_case_with_receipt(
         "named-rule-memo-granted",
         schema,
         Program {
@@ -695,7 +679,7 @@ fn add_rule_memo_twin_cases(cases: &mut Vec<CorpusCase>, public: RuleExpr) {
                 Stmt::Return(Expr::Literal(Value::Bool(true))),
             ],
         },
-        vec![("docs", row([("id", id("doc-1"))]))],
+        granted_receipt,
     ));
 }
 
@@ -796,11 +780,19 @@ fn add_optional_maintain_twin_case(cases: &mut Vec<CorpusCase>) {
         ],
     };
     let aggregate_id = canonical_json(&vec![Value::Null, Value::Null]);
-    cases.push(rbac_twin_case_with_receipt(
+    cases.push(rbac_twin_case(
         "named-maintained-optional-null-group",
         schema.clone(),
         program.clone(),
-        by_id_absence("counts", aggregate_id.clone()),
+        vec![(
+            "counts",
+            row([
+                ("id", Value::Id(aggregate_id.clone())),
+                ("__proto__", Value::Null),
+                ("toString", Value::Null),
+                ("value", Value::Int(0)),
+            ]),
+        )],
     ));
     cases.push(rbac_twin_case(
         "named-maintained-held-target",

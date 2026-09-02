@@ -169,6 +169,9 @@
       }
     ],
     "maintained_amplification": 1,
+    "maintained_writes": {
+      "counts": 1
+    },
     "constraint_checks": [
       "counts:Unique(byGroup)",
       "counts:Unique(byId)",

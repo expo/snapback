@@ -2,7 +2,7 @@
 // @ref LLP 1002#5-the-owner — HTTP threads send work here; no second store opener exists.
 
 use crate::owner::OwnerInfo;
-use crate::project::{CompiledProject, SeedData, seed_rows};
+use crate::project::{CompiledProject, SeedData, StagedBuildCache, seed_rows};
 use crate::protocol::{Refusal, json_to_value};
 use crate::writer_util::{owner_gone, unix_millis};
 use crate::writer_wire::{execution_json, live_frame, refusal_frame};
@@ -26,9 +26,12 @@ mod writer_auth;
 mod writer_effects;
 #[path = "writer_ledger.rs"]
 mod writer_ledger;
+#[path = "writer_sse.rs"]
+mod writer_sse;
 
 use writer_auth::SessionFence;
 use writer_ledger::{CommitLedger, LedgerDelivery};
+pub use writer_sse::{SseReceiver, SseSender, queue as sse_queue};
 
 #[derive(Clone)]
 pub enum Identity {
@@ -73,7 +76,7 @@ impl OwnerHandle {
         op: String,
         args: Json,
         identity: Identity,
-        events: Sender<SseEvent>,
+        events: SseSender,
     ) -> Result<Json, Refusal> {
         self.call(Action::Subscribe {
             op,
@@ -103,7 +106,7 @@ pub enum Action {
         op: String,
         args: Json,
         identity: Identity,
-        events: Sender<SseEvent>,
+        events: SseSender,
     },
     Unsubscribe {
         id: u64,
@@ -112,7 +115,7 @@ pub enum Action {
         name: String,
         args: Json,
         identity: Identity,
-        events: Sender<SseEvent>,
+        events: SseSender,
     },
     ChannelUnsubscribe {
         id: u64,
@@ -146,6 +149,7 @@ pub enum Action {
         compiled: CompiledProject,
         migration: Option<MigrationPlan>,
         seed: Option<SeedData>,
+        cache: Option<StagedBuildCache>,
     },
     PublishOwner,
     Applying {
@@ -163,6 +167,7 @@ pub enum Action {
         table: String,
         index: String,
         prefix: Json,
+        after: Option<Json>,
         limit: u32,
         identity: Identity,
     },
@@ -236,7 +241,7 @@ struct LiveClient {
     context: Context,
     session: Option<SessionFence>,
     last_frame: Json,
-    events: Sender<SseEvent>,
+    events: SseSender,
 }
 
 #[derive(Clone)]
@@ -246,7 +251,7 @@ struct ChannelClient {
     context: Context,
     session: Option<SessionFence>,
     verdict: ChannelVerdict,
-    events: Sender<SseEvent>,
+    events: SseSender,
 }
 
 struct State {
@@ -486,7 +491,8 @@ impl State {
                 compiled,
                 migration,
                 seed,
-            } => self.apply(compiled, migration, seed),
+                cache,
+            } => self.apply(compiled, migration, seed, cache),
             Action::PublishOwner => self.publish_owner(),
             Action::Fork { path } => {
                 if let Some(parent) = path.parent() {
@@ -509,9 +515,10 @@ impl State {
                 table,
                 index,
                 prefix,
+                after,
                 limit,
                 identity,
-            } => self.data(table, index, prefix, limit, identity),
+            } => self.data(table, index, prefix, after, limit, identity),
             Action::RuleVerdicts(table, identity) => self.rule_verdicts(table, identity),
             Action::Why { op, args, identity } => self.why(op, args, identity),
             Action::Trace { seq } => self.trace(seq),
@@ -740,7 +747,7 @@ impl State {
         op: String,
         args: Json,
         identity: Identity,
-        events: Sender<SseEvent>,
+        events: SseSender,
     ) -> Result<Json, Refusal> {
         let authority = self.resolve_authority(identity)?;
         let context = self.context(&authority, &op, args)?;
@@ -750,7 +757,7 @@ impl State {
             .map_err(|error| Refusal::from_runtime(&error))?;
         let (data, terminal) = live_frame(Ok(&execution), execution.seq);
         events
-            .send(SseEvent {
+            .send_latest(SseEvent {
                 seq: Some(execution.seq),
                 data: data.clone(),
                 terminal,
@@ -775,7 +782,7 @@ impl State {
         name: String,
         args: Json,
         identity: Identity,
-        events: Sender<SseEvent>,
+        events: SseSender,
     ) -> Result<Json, Refusal> {
         let authority = self.resolve_authority(identity)?;
         let args = channel_args(self.runtime().generation(), &name, &args)?;
@@ -855,7 +862,7 @@ impl State {
         self.sweep_expired_sessions()?;
         self.channels.retain(|_, subscriber| {
             if subscriber.name == name && subscriber.args == args {
-                subscriber.events.send(event.clone()).is_ok()
+                subscriber.events.try_send(event.clone()).is_ok()
             } else {
                 true
             }
@@ -921,7 +928,7 @@ impl State {
                     client.runtime_id = runtime_id;
                     client.last_frame = frame.clone();
                     if force || changed {
-                        let _ = client.events.send(SseEvent {
+                        let _ = client.events.send_latest(SseEvent {
                             seq: Some(execution.seq),
                             data: frame,
                             terminal,
@@ -936,7 +943,7 @@ impl State {
                 Err(error) => {
                     let seq = self.runtime().store().commit_seq().unwrap_or_default();
                     let (frame, terminal) = live_frame(Err(Refusal::from_runtime(&error)), seq);
-                    let _ = client.events.send(SseEvent {
+                    let _ = client.events.send_latest(SseEvent {
                         seq: Some(seq),
                         data: frame,
                         terminal,
@@ -999,7 +1006,7 @@ impl State {
                             )
                         });
                     let (data, terminal) = refusal_frame(refusal, seq);
-                    let _ = client.events.send(SseEvent {
+                    let _ = client.events.send_latest(SseEvent {
                         seq: Some(seq),
                         data,
                         terminal,
@@ -1015,6 +1022,7 @@ impl State {
         compiled: CompiledProject,
         migration: Option<MigrationPlan>,
         seed: Option<SeedData>,
+        cache: Option<StagedBuildCache>,
     ) -> Result<Json, Refusal> {
         let report = if let Some(plan) = migration {
             self.runtime_mut()
@@ -1025,6 +1033,14 @@ impl State {
                 .apply_successor(compiled.generation.clone())
                 .map_err(|error| Refusal::from_successor(&error))?
         };
+        if let Some(cache) = cache
+            && let Err(error) = cache.publish()
+        {
+            self.stop.store(true, AtomicOrdering::SeqCst);
+            return Err(error
+                .with_detail("applied", json!(true))
+                .with_detail("activeGeneration", json!(compiled.generation.hash())));
+        }
         self.compiled = compiled;
         if let Some(seed) = seed {
             self.seed = seed;
@@ -1034,11 +1050,16 @@ impl State {
         // @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — retained
         // channel handles must be re-admitted under the one active generation.
         self.readmit_all_channels();
-        self.publish_owner()?;
         self.phase = Json::String("ready".to_owned());
         let clients = self.live.keys().copied().collect::<Vec<_>>();
         let _ = self.rerun_live(&clients, true);
         self.wake_effects();
+        if let Err(error) = self.publish_owner() {
+            self.stop.store(true, AtomicOrdering::SeqCst);
+            return Err(error
+                .with_detail("applied", json!(true))
+                .with_detail("activeGeneration", json!(self.owner.generation)));
+        }
         Ok(serde_json::to_value(report).unwrap_or(Json::Null))
     }
 
@@ -1060,6 +1081,14 @@ impl State {
             .runtime_mut()
             .reset_and_seed(&rows)
             .map_err(|error| Refusal::from_runtime(&error))?;
+        let runtime_ids = self
+            .live
+            .values()
+            .map(|client| client.runtime_id)
+            .collect::<Vec<_>>();
+        for id in runtime_ids {
+            self.runtime_mut().unsubscribe(id);
+        }
         self.live.clear();
         self.channels.clear();
         self.ledger.clear();
@@ -1072,6 +1101,7 @@ impl State {
         table_name: String,
         index_name: String,
         prefix: Json,
+        after: Option<Json>,
         limit: u32,
         identity: Identity,
     ) -> Result<Json, Refusal> {
@@ -1139,6 +1169,22 @@ impl State {
                 .expect("certified index column");
             converted.push(json_as_kind(value, column)?);
         }
+        let after = match after {
+            Some(value) => {
+                let Some(column_name) = index.columns.get(prefix_values.len()) else {
+                    return Err(Refusal::input(
+                        "data after requires an index column after the prefix",
+                        "shorten the prefix or omit after",
+                    ));
+                };
+                let column = table
+                    .columns
+                    .get(column_name)
+                    .expect("certified index column");
+                Some(json_as_kind(&value, column)?)
+            }
+            None => None,
+        };
         let program = Program {
             name: format!("__owner.data.{table_name}"),
             kind: ProgramKind::Query,
@@ -1151,7 +1197,7 @@ impl State {
                 prefix: converted.into_iter().map(Expr::Literal).collect(),
                 order: Order::Asc,
                 take: Bound::Literal(limit),
-                after: None,
+                after: after.map(|value| Box::new(Expr::Literal(value))),
                 before: None,
                 range: None,
                 provenance: KeyProvenance::Const,

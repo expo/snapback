@@ -274,7 +274,41 @@
   "receipt": {
     "rows": [],
     "ranges": [],
-    "absences": [],
+    "absences": [
+      [
+        "groups",
+        "byId",
+        [
+          {
+            "Id": "group-new"
+          }
+        ]
+      ],
+      [
+        "memberships",
+        "byId",
+        [
+          {
+            "Id": "seat-new"
+          }
+        ]
+      ],
+      [
+        "memberships",
+        "byGroupPrincipalRole",
+        [
+          {
+            "Id": "group-new"
+          },
+          {
+            "Id": "u1"
+          },
+          {
+            "String": "admin"
+          }
+        ]
+      ]
+    ],
     "verdicts": []
   },
   "prelude": [],

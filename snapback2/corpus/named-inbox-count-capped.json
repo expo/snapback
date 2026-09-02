@@ -1260,6 +1260,15 @@
             "Id": "c1"
           }
         ],
+        "order": "Desc",
+        "take": 1,
+        "after": null,
+        "before": null,
+        "gt": null,
+        "gte": null,
+        "lt": null,
+        "lte": null,
+        "rule_hash": "cf46e23f564ce282f3ac1c4b679811ab548391f815ee9ca929e654aa57318bf0",
         "row_ids": [
           "message-00004"
         ],
@@ -1309,6 +1318,17 @@
             "Id": "c1"
           }
         ],
+        "order": "Asc",
+        "take": 100,
+        "after": {
+          "Int": 0
+        },
+        "before": null,
+        "gt": null,
+        "gte": null,
+        "lt": null,
+        "lte": null,
+        "rule_hash": "cf46e23f564ce282f3ac1c4b679811ab548391f815ee9ca929e654aa57318bf0",
         "row_ids": [
           "message-00000",
           "message-00001",

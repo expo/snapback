@@ -115,6 +115,9 @@
       }
     ],
     "maintained_amplification": 1,
+    "maintained_writes": {
+      "counts": 1
+    },
     "constraint_checks": [
       "counts:Unique(byId)",
       "events:Unique(byId)"
@@ -145,19 +148,27 @@
     "seed_write": false
   },
   "receipt": {
-    "rows": [],
-    "ranges": [],
-    "absences": [
-      [
-        "counts",
-        "byId",
-        [
-          {
-            "Id": "[{\"Id\":\"bucket-1\"}]"
+    "rows": [
+      {
+        "table": "counts",
+        "id": "[{\"Id\":\"bucket-1\"}]",
+        "row": {
+          "Row": {
+            "bucket": {
+              "Id": "bucket-1"
+            },
+            "id": {
+              "Id": "[{\"Id\":\"bucket-1\"}]"
+            },
+            "value": {
+              "Int": 0
+            }
           }
-        ]
-      ]
+        }
+      }
     ],
+    "ranges": [],
+    "absences": [],
     "verdicts": []
   },
   "prelude": [],

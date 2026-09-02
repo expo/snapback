@@ -3,6 +3,7 @@
 use crate::certificate::{CheckError, Checker};
 use crate::ir::*;
 use crate::schema::{RuleExpr, RuleTerm, Schema};
+use crate::value::{I53_MAX, I53_MIN, Value};
 use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -106,7 +107,15 @@ impl Checker<'_> {
     pub(crate) fn structural_errors(&self, program: &Program) -> Vec<CheckError> {
         let mut errors = Vec::new();
         let mut sites = BTreeMap::new();
-        validate_statements(self, program, &program.body, &mut errors, &mut sites);
+        let mut bindings = BTreeMap::new();
+        validate_statements(
+            self,
+            program,
+            &program.body,
+            &mut errors,
+            &mut sites,
+            &mut bindings,
+        );
         let mut flow = CompletenessFlow {
             schema: self.schema,
             env: BTreeMap::new(),
@@ -374,8 +383,29 @@ fn validate_statements(
     statements: &[Stmt],
     errors: &mut Vec<CheckError>,
     sites: &mut BTreeMap<String, ReadSiteShape>,
+    bindings: &mut BTreeMap<String, Expr>,
 ) {
     for statement in statements {
+        if let Stmt::Update { patch, .. } = statement
+            && expression_contains_field(patch, "id")
+        {
+            errors.push(CheckError {
+                code: "E_SCHEMA_ID_RESERVED".to_owned(),
+                message: "update patches cannot contain id".to_owned(),
+                rewrite: "remove id from the update patch".to_owned(),
+            });
+        }
+        if let Stmt::Upsert { key, row, .. } = statement
+            && upsert_identity_matches(key, row, bindings) == Some(false)
+        {
+            errors.push(CheckError {
+                code: "E_SCHEMA_ID_RESERVED".to_owned(),
+                message: "upsert key and row id must be one identity".to_owned(),
+                rewrite:
+                    "bind the identity once and use that binding for both the upsert key and row id"
+                        .to_owned(),
+            });
+        }
         match statement {
             Stmt::Require { code, .. } if code.starts_with("E_AUTH_") => {
                 errors.push(CheckError {
@@ -426,10 +456,32 @@ fn validate_statements(
                 else_body,
                 ..
             } => {
-                validate_statements(checker, program, then_body, errors, sites);
-                validate_statements(checker, program, else_body, errors, sites);
+                validate_statements(
+                    checker,
+                    program,
+                    then_body,
+                    errors,
+                    sites,
+                    &mut bindings.clone(),
+                );
+                validate_statements(
+                    checker,
+                    program,
+                    else_body,
+                    errors,
+                    sites,
+                    &mut bindings.clone(),
+                );
+                let mut assigned = BTreeSet::new();
+                assigned_targets(then_body, &mut assigned);
+                assigned_targets(else_body, &mut assigned);
+                bindings.retain(|name, _| !assigned.contains(name));
             }
-            Stmt::For { domain, body, .. } => {
+            Stmt::For {
+                binding,
+                domain,
+                body,
+            } => {
                 if let LoopDomain::Recurse(recurse) = domain {
                     register_site(
                         sites,
@@ -438,14 +490,91 @@ fn validate_statements(
                         ReadSiteShape::recurse(recurse),
                     );
                     validate_read(checker, &recurse.table, &recurse.index, errors);
+                    if recurse.depth > MAX_RECURSE_DEPTH {
+                        errors.push(CheckError {
+                            code: "E_UNBOUND_LOOP".to_owned(),
+                            message: format!(
+                                "recurse depth {} exceeds maximum {}",
+                                recurse.depth, MAX_RECURSE_DEPTH
+                            ),
+                            rewrite: format!("reduce recurse depth to at most {MAX_RECURSE_DEPTH}"),
+                        });
+                    }
                 }
-                validate_statements(checker, program, body, errors, sites);
+                let mut body_bindings = bindings.clone();
+                body_bindings.remove(binding);
+                validate_statements(checker, program, body, errors, sites, &mut body_bindings);
+                let mut assigned = BTreeSet::new();
+                assigned_targets(body, &mut assigned);
+                bindings.retain(|name, _| !assigned.contains(name));
             }
             _ => {}
         }
         visit_statement_exprs(statement, &mut |expression| {
             validate_expr(checker, program, expression, errors, sites)
         });
+        match statement {
+            Stmt::Const { name, value }
+            | Stmt::Let { name, value }
+            | Stmt::Assign { name, value } => {
+                bindings.insert(name.clone(), value.clone());
+            }
+            Stmt::Push { target, .. } => {
+                bindings.remove(target);
+            }
+            _ => {}
+        }
+    }
+}
+
+fn upsert_identity_matches(
+    key: &Expr,
+    row: &Expr,
+    bindings: &BTreeMap<String, Expr>,
+) -> Option<bool> {
+    let mut seen = BTreeSet::new();
+    match resolve_row_container(row, bindings, &mut seen) {
+        Expr::Object(fields) => fields
+            .get("id")
+            .map(|id| id == key && !expression_consumes_new_id(id)),
+        Expr::Literal(crate::value::Value::Row(fields) | crate::value::Value::Map(fields)) => {
+            fields
+                .get("id")
+                .map(|id| matches!(key, Expr::Literal(key) if key == id))
+        }
+        _ => None,
+    }
+}
+
+fn resolve_row_container<'a>(
+    expression: &'a Expr,
+    bindings: &'a BTreeMap<String, Expr>,
+    seen: &mut BTreeSet<String>,
+) -> &'a Expr {
+    if let Expr::Variable(name) = expression
+        && seen.insert(name.clone())
+        && let Some(value) = bindings.get(name)
+    {
+        return resolve_row_container(value, bindings, seen);
+    }
+    expression
+}
+
+fn expression_consumes_new_id(expression: &Expr) -> bool {
+    let mut consumes = false;
+    walk_expr(expression, &mut |nested| {
+        consumes |= matches!(nested, Expr::Input(Input::NewId));
+    });
+    consumes
+}
+
+fn expression_contains_field(expression: &Expr, name: &str) -> bool {
+    match expression {
+        Expr::Object(fields) => fields.contains_key(name),
+        Expr::Literal(crate::value::Value::Row(fields) | crate::value::Value::Map(fields)) => {
+            fields.contains_key(name)
+        }
+        _ => false,
     }
 }
 
@@ -494,6 +623,24 @@ fn validate_expr(
                 });
             }
         }
+        Expr::Builtin { builtin, args } if args.len() != builtin.arity() => {
+            errors.push(CheckError {
+                code: "E_OPAQUE".to_owned(),
+                message: format!(
+                    "builtin {builtin:?} requires {} arguments, received {}",
+                    builtin.arity(),
+                    args.len()
+                ),
+                rewrite: "use the builtin's declared argument count".to_owned(),
+            });
+        }
+        Expr::Literal(value) if !literal_is_i53(value) => {
+            errors.push(CheckError {
+                code: "E_OPAQUE".to_owned(),
+                message: "literal contains an integer outside the i53 value model".to_owned(),
+                rewrite: "use integers from -9007199254740991 through 9007199254740991".to_owned(),
+            });
+        }
         _ => {}
     }
 }
@@ -516,6 +663,15 @@ fn register_site(
         }
     } else {
         sites.insert(site.to_owned(), shape);
+    }
+}
+
+fn literal_is_i53(value: &Value) -> bool {
+    match value {
+        Value::Int(value) => (I53_MIN..=I53_MAX).contains(value),
+        Value::Array(values) => values.iter().all(literal_is_i53),
+        Value::Row(values) | Value::Map(values) => values.values().all(literal_is_i53),
+        Value::Null | Value::Bool(_) | Value::String(_) | Value::Id(_) | Value::Bytes(_) => true,
     }
 }
 

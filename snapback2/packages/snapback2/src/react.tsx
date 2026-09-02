@@ -5,6 +5,7 @@ import React, {
   useEffect,
   useMemo,
   useReducer,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -231,6 +232,12 @@ export interface UseAuthResult {
 
 export function useAuth(): UseAuthResult {
   const { client, snapshot } = provider();
+  const requestEpoch = useRef(0);
+  const activeClient = useRef(client);
+  if (activeClient.current !== client) {
+    activeClient.current = client;
+    requestEpoch.current += 1;
+  }
   type AuthState = Omit<UseAuthResult, "signup" | "login" | "guest" | "logout" | "me">;
   const [machine, setMachine] = useState<{ generation: number; value: AuthState }>({
     generation: snapshot.authGeneration,
@@ -241,14 +248,19 @@ export function useAuth(): UseAuthResult {
     : { state: "hydrating" as const, token: snapshot.token };
   const me = useCallback(async () => {
     const generation = snapshot.authGeneration;
+    const epoch = ++requestEpoch.current;
     try {
       const value = await client.auth.me();
-      if (client.snapshot.authGeneration === generation) {
+      if (epoch === requestEpoch.current
+        && activeClient.current === client
+        && client.snapshot.authGeneration === generation) {
         setMachine({ generation, value: { state: "authenticated", ...value, token: client.snapshot.token } });
       }
       return value;
     } catch (error) {
-      if (client.snapshot.authGeneration === generation) {
+      if (epoch === requestEpoch.current
+        && activeClient.current === client
+        && client.snapshot.authGeneration === generation) {
         if (isSnapbackRefusal(error)
           && (error.code === "E_AUTH" || error.code === "E_AUTH_REQUIRED" || error.code === "E_AUTH_SESSION")) {
           setMachine({ generation, value: { state: "anonymous", refusal: error.envelope } });
@@ -263,6 +275,9 @@ export function useAuth(): UseAuthResult {
 
   useEffect(() => {
     void me().catch(() => undefined);
+    return () => {
+      requestEpoch.current += 1;
+    };
   }, [me]);
 
   const establish = useCallback(async (action: () => Promise<AuthSession>) => {
@@ -276,9 +291,13 @@ export function useAuth(): UseAuthResult {
     login: (input) => establish(() => client.auth.login(input)),
     guest: () => establish(() => client.auth.guest()),
     logout: async () => {
+      requestEpoch.current += 1;
       const result = await client.auth.logout();
-      const generation = client.snapshot.authGeneration;
-      setMachine({ generation, value: { state: "anonymous" } });
+      if (activeClient.current === client) {
+        requestEpoch.current += 1;
+        const generation = client.snapshot.authGeneration;
+        setMachine({ generation, value: { state: "anonymous" } });
+      }
       return result;
     },
     me,

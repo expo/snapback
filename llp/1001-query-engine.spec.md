@@ -369,6 +369,9 @@ uniqueness before mutation, then clears stale rows with delete-applicable
 constraints only; uniqueness is not rechecked on a removal that cannot create
 a duplicate. The rebuilt inserts bind every next constraint and unique index.
 A user mutation writing a maintained target is `Rejected(E_RULE)` by its rule.
+Successor rebuilds own exactly the union of target row IDs projected by the
+predecessor and successor maintain declarations: they replace or remove those
+IDs and preserve every other target row and index entry.
 
 Three rulings from the 2026-08-30 review (M3, M4, M8):
 

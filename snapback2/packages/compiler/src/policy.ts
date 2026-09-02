@@ -314,6 +314,8 @@ function declaredColumnMax(column: AuthoredType): number {
     case "enum": return Math.max(16, ...column.variants.map((variant) => variant.length + 16));
     case "optional": return Math.max(8, declaredColumnMax(column.of));
     case "list": return 2 + (column.max ?? 1) * (declaredColumnMax(column.of) + 1);
+    case "null": return 8;
+    case "object":
     case "row":
     case "unknown": return 1024;
   }

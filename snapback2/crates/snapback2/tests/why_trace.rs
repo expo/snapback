@@ -171,6 +171,11 @@ fn why_refuses_missing_corrupt_and_incomplete_certificates_as_stale() {
         None,
         Some(b"{not json".to_vec()),
         Some(serde_json::to_vec(&serde_json::json!({})).unwrap()),
+        Some({
+            let mut stale: serde_json::Value = serde_json::from_slice(&valid).unwrap();
+            stale["todos.list"]["plan_hash"] = serde_json::json!("predecessor-plan");
+            serde_json::to_vec(&stale).unwrap()
+        }),
     ];
     for bytes in corruptions {
         match bytes {

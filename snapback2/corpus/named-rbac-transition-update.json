@@ -263,7 +263,23 @@
       }
     ],
     "ranges": [],
-    "absences": [],
+    "absences": [
+      [
+        "memberships",
+        "byGroupPrincipalRole",
+        [
+          {
+            "Id": "group-1"
+          },
+          {
+            "Id": "u1"
+          },
+          {
+            "String": "admin"
+          }
+        ]
+      ]
+    ],
     "verdicts": []
   },
   "prelude": [],

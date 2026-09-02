@@ -35,29 +35,8 @@ pub(super) fn check_rules(
         personas.push(unlisted.clone());
         let mut table_probes = 0_u64;
         for persona in &personas {
-            let actual_response = client::control(
-                owner,
-                "POST",
-                "/control/data",
-                json!({
-                    "table": table_name,
-                    "index": "byId",
-                    "prefix": [],
-                    "limit": 500,
-                    "as": persona,
-                }),
-            );
-            let actual_body = match actual_response {
-                Ok(response) if response.status < 400 => response.body,
-                Ok(response) => {
-                    failures.push(json!({
-                        "table": table_name,
-                        "as": persona,
-                        "source": "data",
-                        "response": response.body,
-                    }));
-                    continue;
-                }
+            let actual = match visible_rule_ids(owner, table_name, persona) {
+                Ok(actual) => actual,
                 Err(error) => {
                     failures.push(json!({
                         "table": table_name,
@@ -95,13 +74,6 @@ pub(super) fn check_rules(
                     continue;
                 }
             };
-            let actual = actual_body
-                .get("data")
-                .and_then(Json::as_array)
-                .into_iter()
-                .flatten()
-                .filter_map(|row| row.get("id").and_then(Json::as_str).map(ToOwned::to_owned))
-                .collect::<BTreeSet<_>>();
             let verdicts = expected_body
                 .get("rows")
                 .and_then(Json::as_array)
@@ -168,6 +140,56 @@ pub(super) fn rule_table_has_probe_rows(
                     .get(&maintain.source)
                     .is_some_and(|rows| !rows.is_empty())
         })
+}
+
+fn visible_rule_ids(
+    owner: &OwnerInfo,
+    table: &str,
+    persona: &str,
+) -> Result<BTreeSet<String>, Json> {
+    let mut ids = BTreeSet::new();
+    let mut after = None;
+    loop {
+        let response = client::control(
+            owner,
+            "POST",
+            "/control/data",
+            json!({
+                "table": table,
+                "index": "byId",
+                "prefix": [],
+                "after": after,
+                "limit": 500,
+                "as": persona,
+            }),
+        )
+        .map_err(|error| json!({ "error": error }))?;
+        if response.status >= 400 {
+            return Err(json!({ "response": response.body }));
+        }
+        let page = response
+            .body
+            .get("data")
+            .and_then(Json::as_array)
+            .cloned()
+            .unwrap_or_default();
+        let next = page
+            .last()
+            .and_then(|row| row.get("id"))
+            .and_then(Json::as_str)
+            .map(ToOwned::to_owned);
+        ids.extend(
+            page.iter()
+                .filter_map(|row| row.get("id").and_then(Json::as_str).map(ToOwned::to_owned)),
+        );
+        if response.body.get("state").and_then(Json::as_str) != Some("capped")
+            || next.is_none()
+            || next == after
+        {
+            return Ok(ids);
+        }
+        after = next;
+    }
 }
 
 pub(super) fn rule_id_sets_match(actual: &BTreeSet<String>, expected: &BTreeSet<String>) -> bool {

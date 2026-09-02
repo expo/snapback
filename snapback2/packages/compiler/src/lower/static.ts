@@ -90,7 +90,7 @@ export function staticJson(node: ts.Expression, constants: Map<string, unknown> 
     return output;
   }
   if (ts.isObjectLiteralExpression(value)) {
-    const output: Record<string, unknown> = {};
+    const output: Record<string, unknown> = Object.create(null);
     for (const item of value.properties) {
       if (ts.isSpreadAssignment(item)) {
         const spread = staticJson(item.expression, constants);
