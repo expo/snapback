@@ -577,6 +577,8 @@ class Runner {
         return { Bool: canonicalValue(left) === canonicalValue(right) };
       case "Ne":
         return { Bool: canonicalValue(left) !== canonicalValue(right) };
+      case "SameValueZero":
+        return { Bool: sameValueZero(left, right) };
       case "Lt":
         return { Bool: totalCompare(left, right) < 0 };
       case "Lte":
@@ -1311,6 +1313,24 @@ function isVariant<K extends Exclude<ReturnType<typeof kindOf>, "Null">>(
 
 function valuesEqual(left: Value[], right: Value[]): boolean {
   return canonicalValues(left) === canonicalValues(right);
+}
+
+function sameValueZero(left: Value, right: Value): boolean {
+  // @ref LLP 1002#2-the-authored-surface-the-snapback2-module — Keep the client twin on the compiler's primitive collection identity contract.
+  const leftKind = kindOf(left);
+  const rightKind = kindOf(right);
+  if (["Bytes", "Row", "Array", "Map"].includes(leftKind)) {
+    throw new EvalError("E_TYPE", `SameValueZero expects primitive operands, got ${leftKind}`);
+  }
+  if (["Bytes", "Row", "Array", "Map"].includes(rightKind)) {
+    throw new EvalError("E_TYPE", `SameValueZero expects primitive operands, got ${rightKind}`);
+  }
+  if ((leftKind === "String" || leftKind === "Id") && (rightKind === "String" || rightKind === "Id")) {
+    const leftText = isVariant(left, "String") ? left.String : (left as { Id: string }).Id;
+    const rightText = isVariant(right, "String") ? right.String : (right as { Id: string }).Id;
+    return leftText === rightText;
+  }
+  return canonicalValue(left) === canonicalValue(right);
 }
 
 function startsWith<T>(values: T[], prefix: T[]): boolean {

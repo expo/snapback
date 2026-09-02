@@ -190,6 +190,7 @@ pub enum Input {
 pub enum BinaryOp {
     Eq,
     Ne,
+    SameValueZero,
     Lt,
     Lte,
     Gt,

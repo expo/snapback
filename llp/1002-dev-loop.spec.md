@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2` (the binary: owner, server, verbs), `snapback2/packages/compiler` (project lowering, worker), `snapback2/packages/snapback2` (authoring runtime, client, React, test runner, shim), `snapback2/scripts/measure.mjs`
 **Author:** Claude Fable 5 (orchestrator) — implementers: codex gpt-5.6-sol, lanes B0 (compiler + authoring surface), B1 (owner + server + verbs), B2 (`init`, `test`, `why`, `trace`, `guide`), D (client + React + evaluator)
 **Date:** 2026-08-29
-**Revised:** 2026-08-31
+**Revised:** 2026-09-01
 **Related:** LLP 1000, LLP 1001 (the engine this serves), LLP 1003 (effects), LLP 0329.016 §5 (the design this implements verbatim where it can), LLP 0329.016 §5.11 (the verb table — no verb exists without its row), LLP 0329.016 §8 (gates)
 
 ## Summary
@@ -176,6 +176,16 @@ where the zero-based ordinal follows read/write source order inside that export
 and is shared through helper expansion. Operands lower once in authored order;
 writes reserve their ordinal even though the current `WriteSite` serde shape has
 no site string. Local names and formatting are not inputs.
+
+**Collection identity amendment (implemented 2026-09-01).** Map keys and Set
+values are restricted to authored primitive strings, numbers, booleans, or
+null. Their array-backed lowering compares with JavaScript `SameValueZero`,
+including treating the IR's `Id` and `String` tags as the same authored string;
+unlike ordinary IR `Eq`, it never substitutes structural equality. Composite
+Map keys and Set values refuse at compile time because bounded data IR carries
+values, not JavaScript object identities. Map values remain unrestricted. Map
+construction and `set` materialize each key before any later value setup so
+modeled inputs retain authored operand order.
 
 ## 3. The compiler worker and the project JSON
 

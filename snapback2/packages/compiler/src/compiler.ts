@@ -5,7 +5,8 @@ import { boundedDiagnostics, diagnostic, refuse, Refusal } from "./diagnostics";
 import {
   allocateReadSite, cloneEnvironment, containsRead, enterLexicalScope,
   loopDomainMaximum, lowerArrayMethod, lowerCollectionDomain,
-  lowerDomain, lowerExpr, lowerKey, lowerPatch, lowerSortExpression, reserveWriteSite, tableReference,
+  lowerDomain, lowerExpr, lowerKey, lowerOptionalPropertyChain, lowerPatch, lowerPropertyValue,
+  lowerSortExpression, reserveWriteSite, tableReference,
 } from "./lower/expr";
 import { knownObjectFields, nullableReadSpread, nullableSpreadRefusal, rowCollectionFields } from "./lower/object-shape";
 import { derivedBound, staticBound } from "./lower/binding-bound";
@@ -14,7 +15,7 @@ import { appendCollectionFacts, collectionFactsFor, collectionMutationIncrement,
   mergeAssignedCollectionFacts } from "./lower/collection-facts";
 import { forkBranchEnvironment, mergeBranchEnvironments } from "./lower/branch-bindings";
 import { lowerLoopBodyWithMutationPlan } from "./lower/loop-mutations";
-import { lowerCollectionConstructor, lowerCollectionLookup, lowerMapAssignment } from "./lower/collections";
+import { lowerCollectionConstructor, lowerCollectionLookup, lowerMapAssignment, requirePrimitiveCollectionIdentity } from "./lower/collections";
 import { findPolicyRefusals, mechanicalBoundRewrite } from "./policy";
 import { analyzeOperationTypes, type TypePlan } from "./type-analysis";
 import { formatTypeDiagnostic, typecheckSource } from "./typecheck";
@@ -248,6 +249,7 @@ function lowerOperation(
     accessOrdinal: { value: 0 },
     temp: { value: 0 },
     literalValues: typePlan?.literalValues ?? new Map(),
+    expressionTypes: typePlan?.expressionTypes ?? new Map(),
     literalContext: "operation",
     diagnostics,
     recursion: { depth: 0, active: new Map() },
@@ -470,6 +472,7 @@ function lowerExpressionStatement(expression: ts.Expression, env: Environment): 
         const key = expression.arguments[0];
         const value = expression.arguments[1];
         if (!key || !value) refuse(env, "E_OPAQUE", expression, "Map.set requires key and value");
+        requirePrimitiveCollectionIdentity(key, env, "Map keys");
         const loweredKey = lowerValue(key, env);
         const loweredValue = lowerValue(value, env);
         const info = env.variables.get(owner.text)!;
@@ -481,15 +484,14 @@ function lowerExpressionStatement(expression: ts.Expression, env: Environment): 
           info.boundSource = `${value.getText(env.sourceFile)} Map.set bound`;
         }
         return [
-          ...loweredKey.statements,
-          ...loweredValue.statements,
-          ...lowerMapAssignment(owner.text, loweredKey.expression, loweredValue.expression, info.max ?? 0, info.boundSource, env),
+          ...lowerMapAssignment(owner.text, loweredKey, loweredValue, info.max ?? 0, info.boundSource, env),
         ];
       }
       if (ts.isIdentifier(owner) && env.variables.get(owner.text)?.collection === "Set" && method === "add") {
         requireCollectionMutation(owner, expression, env);
         const value = expression.arguments[0];
         if (!value) refuse(env, "E_OPAQUE", expression, "Set.add requires a value");
+        requirePrimitiveCollectionIdentity(value, env, "Set values");
         const loweredValue = lowerValue(value, env);
         const valueName = temporary(env, "setValue");
         const found = lowerCollectionLookup(owner, { Variable: valueName }, env, "SetHas");
@@ -768,37 +770,11 @@ function lowerValue(node: ts.Expression, env: Environment, hint?: string): Lower
       && env.variables.get(value.expression.text)?.operationComposite) {
       return { statements: [], expression: lowerExpr(value, env, hint) };
     }
+    if (ts.isPropertyAccessChain(value)) return lowerOptionalPropertyChain(value, env, lowerValue, hint);
     const base = lowerValue(value.expression, env, hint);
-    if (value.questionDotToken) {
-      const baseName = temporary(env, "optionalBase");
-      const result = temporary(env, "optionalValue");
-      return {
-        statements: [
-          ...base.statements,
-          { Let: { name: baseName, value: base.expression } },
-          { Let: { name: result, value: literal(null) } },
-          { If: {
-            condition: { Binary: { op: "Ne", left: { Variable: baseName }, right: literal(null) } },
-            then_body: [{ Assign: { name: result, value: { Field: { base: { Variable: baseName }, name: value.name.text } } } }],
-            else_body: [],
-          } },
-        ],
-        expression: { Variable: result },
-      };
-    }
-    const collection = ts.isIdentifier(value.expression)
-      ? env.variables.get(value.expression.text)?.collection
-      : undefined;
-    if ((value.name.text === "length" && !isKnownRowOrObject(value.expression, env))
-      || (value.name.text === "size" && collection)) {
-      return {
-        statements: base.statements,
-        expression: { Builtin: { builtin: "Len", args: [base.expression] } },
-      };
-    }
     return {
       statements: base.statements,
-      expression: { Field: { base: base.expression, name: value.name.text } },
+      expression: lowerPropertyValue(value, base.expression, env),
     };
   }
   if (ts.isObjectLiteralExpression(value)) {
@@ -899,11 +875,13 @@ function lowerValue(node: ts.Expression, env: Environment, hint?: string): Lower
       const info = env.variables.get(owner.text);
       const key = value.arguments[0];
       if (info?.collection === "Map" && (method === "get" || method === "has") && key) {
+        requirePrimitiveCollectionIdentity(key, env, "Map keys");
         const loweredKey = lowerValue(key, env, hint);
         const found = lowerCollectionLookup(owner, loweredKey.expression, env, method === "get" ? "MapGet" : "MapHas");
         return { statements: [...loweredKey.statements, ...found.statements], expression: found.expression };
       }
       if (info?.collection === "Set" && method === "has" && key) {
+        requirePrimitiveCollectionIdentity(key, env, "Set values");
         const loweredKey = lowerValue(key, env, hint);
         const found = lowerCollectionLookup(owner, loweredKey.expression, env, "SetHas");
         return { statements: [...loweredKey.statements, ...found.statements], expression: found.expression };
@@ -963,14 +941,6 @@ function lowerValue(node: ts.Expression, env: Environment, hint?: string): Lower
     }
   }
   return { statements: [], expression: lowerExpr(value, env, hint) };
-}
-
-function isKnownRowOrObject(expression: ts.Expression, env: Environment): boolean {
-  const value = unwrapExpression(expression);
-  if (ts.isObjectLiteralExpression(value) || isRowExpression(value, env)) return true;
-  if (!ts.isIdentifier(value)) return false;
-  const info = env.variables.get(value.text);
-  return info?.rowBinding === true || info?.objectFields !== undefined;
 }
 
 function concatExpressions(expressions: Expr[]): Expr {

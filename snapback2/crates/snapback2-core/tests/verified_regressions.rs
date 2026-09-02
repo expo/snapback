@@ -864,6 +864,39 @@ fn id_concat_uses_an_injective_tuple_encoding() {
 }
 
 #[test]
+fn collection_same_value_zero_matches_authored_primitive_values_and_refuses_composites() {
+    let execution = execute_pure(Expr::Array(vec![
+        Expr::Binary {
+            op: BinaryOp::SameValueZero,
+            left: Box::new(Expr::Literal(Value::String("same".to_owned()))),
+            right: Box::new(Expr::Literal(id("same"))),
+        },
+        Expr::Binary {
+            op: BinaryOp::SameValueZero,
+            left: Box::new(Expr::Literal(Value::Int(1))),
+            right: Box::new(Expr::Literal(Value::String("1".to_owned()))),
+        },
+    ]))
+    .unwrap();
+    assert_eq!(
+        execution.result,
+        Value::Array(vec![Value::Bool(true), Value::Bool(false)])
+    );
+
+    let error = execute_pure(Expr::Binary {
+        op: BinaryOp::SameValueZero,
+        left: Box::new(Expr::Literal(object([("value", Value::Int(1))]))),
+        right: Box::new(Expr::Literal(object([("value", Value::Int(1))]))),
+    })
+    .unwrap_err();
+    assert!(matches!(
+        error,
+        RuntimeError::Value(ValueError::Type { expected, .. })
+            if expected == "primitive SameValueZero operand"
+    ));
+}
+
+#[test]
 fn mention_tokens_uses_the_explicit_unicode_whitespace_set() {
     let execution = execute_pure(Expr::Builtin {
         builtin: Builtin::MentionTokens,

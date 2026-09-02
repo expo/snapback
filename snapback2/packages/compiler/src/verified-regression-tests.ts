@@ -114,6 +114,60 @@ export function registerVerifiedRegressionTests(
     ] }), `collection semantics or operand evaluation diverged: ${canonicalValue(result)}`);
   });
 
+  test("Map.set evaluates key before setup-bearing value", () => {
+    const lowered = lowerSource(`import { mutation } from "snapback2";
+      export const ordered = mutation({}, ({ ctx }) => {
+        const map = new Map();
+        map.set(ctx.newId(), true ? ctx.newId() : "x");
+        return [map.get(ctx.newId()), ctx.newId()];
+      });
+      export const constructed = mutation({}, ({ ctx }) => {
+        const map = new Map([[ctx.newId(), true ? ctx.newId() : "x"]]);
+        return [map.get(ctx.newId()), ctx.newId()];
+      });`, "map-set-order.ts");
+    assert(lowered.ok, `Map.set order fixture refused: ${lowered.ok ? "" : lowered.diagnostics.map((item) => item.message).join("; ")}`);
+    for (const program of lowered.programs) {
+      const result = runProgram(program, {}, ["first", "second", "second", "after"]).result;
+      assert(canonicalValue(result) === canonicalValue({ Array: ["Null", { Id: "after" }] }),
+        `${program.name} reversed authored operand evaluation: ${canonicalValue(result)}`);
+    }
+  });
+
+  test("Map and Set use JavaScript SameValueZero for primitive authored values", () => {
+    const lowered = lowerSource(`import { mutation } from "snapback2";
+      export const unique = mutation({}, ({ ctx }) => {
+        const set = new Set(["same"]);
+        set.add(ctx.newId());
+        const map = new Map([["same", 1]]);
+        map.set(ctx.newId(), 2);
+        const values = new Map([["object", { value: 3 }]]);
+        return [set.size, map.size, map.get("same"), values.get("object").value];
+      });`, "collection-same-value-zero.ts");
+    assert(lowered.ok, `primitive collection fixture refused: ${lowered.ok ? "" : lowered.diagnostics.map((item) => item.message).join("; ")}`);
+    const result = runProgram(lowered.programs[0]!, {}, ["same", "same"]).result;
+    assert(canonicalValue(result) === canonicalValue({ Array: [{ Int: 1 }, { Int: 1 }, { Int: 2 }, { Int: 3 }] }),
+      `primitive collection uniqueness diverged: ${canonicalValue(result)}`);
+  });
+
+  test("composite Map keys and Set values refuse before identity is lost", () => {
+    const lowered = lowerSource(`import { query } from "snapback2";
+      export const constructors = query({}, () => {
+        const first = { value: 1 };
+        const second = { value: 1 };
+        const set = new Set([first, second]);
+        const map = new Map([[first, 1], [second, 2]]);
+        return [set.size, map.size];
+      });
+      export const setAdd = query({}, () => { const set = new Set(); set.add({ value: 1 }); return set.size; });
+      export const setHas = query({}, () => { const set = new Set(); return set.has({ value: 1 }); });
+      export const mapSet = query({}, () => { const map = new Map(); map.set({ value: 1 }, 1); return map.size; });
+      export const mapGet = query({}, () => { const map = new Map(); return map.get({ value: 1 }); });
+      export const mapHas = query({}, () => { const map = new Map(); return map.has({ value: 1 }); });`, "collection-identity.ts");
+    assert(!lowered.ok && lowered.diagnostics.length >= 6
+      && lowered.diagnostics.every((item) => item.code === "E_OPAQUE" && item.message.includes("primitive")),
+      "composite collection identity was represented structurally");
+  });
+
   test("builtin arities are enforced and variadic min/max lower without truncation", () => {
     const invalid = lowerSource(`import { concat, max, query } from "snapback2";
       export const emptyMax = query({}, () => max());
@@ -171,6 +225,33 @@ export function registerVerifiedRegressionTests(
     assert(lowered.ok, `optional access refused: ${lowered.ok ? "" : lowered.diagnostics.map((item) => item.message).join("; ")}`);
     const result = runProgram(lowered.programs[0]!, { id: { Id: "missing" } }, [], { tables: { items: evaluatorTable({ parent: "Id" }) } }).result;
     assert(result === "Null", `optional access returned ${canonicalValue(result)}`);
+  });
+
+  test("optional row access guards the remainder of its property chain", () => {
+    const tables = tableInfo("items", { parent: { kind: "optional", of: { kind: "string" } } });
+    const lowered = lowerSource(`import { query, t } from "snapback2";
+      export const parentLength = query({ id: t.id() }, ({ db, args }) => db.get(items, args.id)?.parent.length);
+      export const optionalParentLength = query({ id: t.id() }, ({ db, args }) => db.get(items, args.id)?.parent?.length);
+      export const parenthesized = query({ id: t.id() }, ({ db, args }) => (db.get(items, args.id)?.parent).length);`,
+    "optional-chain.ts", undefined, { tables });
+    assert(lowered.ok, `optional chain refused: ${lowered.ok ? "" : lowered.diagnostics.map((item) => item.message).join("; ")}`);
+    const schema = { tables: { items: evaluatorTable({ parent: { Optional: "Id" } }) } };
+    const result = runProgram(lowered.programs[0]!, { id: { Id: "missing" } }, [], schema).result;
+    assert(result === "Null", `optional chain returned ${canonicalValue(result)}`);
+    const receipt: ClosureReceipt = { ...emptyReceipt, rows: [{ table: "items", id: "one", row: { Row: {
+      id: { Id: "one" }, parent: "Null",
+    } } }] };
+    const optional = runProgram(lowered.programs[1]!, { id: { Id: "one" } }, [], schema, receipt).result;
+    assert(optional === "Null", `second optional guard returned ${canonicalValue(optional)}`);
+    for (const program of [lowered.programs[0]!, lowered.programs[2]!]) {
+      let refused = false;
+      try {
+        runProgram(program, { id: { Id: "one" } }, [], schema, receipt);
+      } catch (error) {
+        refused = error instanceof Error && error.message.includes("E_TYPE");
+      }
+      assert(refused, `${program.name} hid a null reached after the optional guard`);
+    }
   });
 
   test("authored __proto__, constructor, and prototype keys survive every lowering boundary", async () => {
@@ -249,6 +330,20 @@ export function registerVerifiedRegressionTests(
       tables: { items: evaluatorTable({ length: "Int", value: { Text: { max: 20 } } }) },
     }, receipt).result;
     assert(canonicalValue(result) === canonicalValue({ Int: 99 }), `row.length became collection length: ${canonicalValue(result)}`);
+  });
+
+  test("nested known object fields named length lower as fields", () => {
+    const lowered = lowerSource(`import { query } from "snapback2";
+      export const nestedLength = query({}, () => {
+        const wrapper = { value: { length: 99, other: 1 } };
+        const nested = wrapper.value;
+        const spread = { ...wrapper };
+        return [wrapper.value.length, nested.length, spread.value.length];
+      });`, "nested-object-length.ts");
+    assert(lowered.ok, `nested object length refused: ${lowered.ok ? "" : lowered.diagnostics.map((item) => item.message).join("; ")}`);
+    const result = runProgram(lowered.programs[0]!).result;
+    assert(canonicalValue(result) === canonicalValue({ Array: [{ Int: 99 }, { Int: 99 }, { Int: 99 }] }),
+      `nested object length became collection length: ${canonicalValue(result)}`);
   });
 
   test("logical and nullish expressions guard all right-hand work", () => {

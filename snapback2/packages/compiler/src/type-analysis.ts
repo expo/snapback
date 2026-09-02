@@ -25,6 +25,7 @@ const MAX_TYPE_ANALYSIS_NODES = 8192;
 export type TypePlan = {
   diagnostics: FrontendDiagnostic[];
   literalValues: Map<string, number>;
+  expressionTypes: Map<string, AuthoredType>;
   analysisLimitReached: boolean;
 };
 
@@ -58,6 +59,7 @@ export function analyzeOperationTypes(module: TypeModule, call: ts.CallExpressio
   return {
     diagnostics: analyzer.diagnostics,
     literalValues: analyzer.literalValues,
+    expressionTypes: analyzer.expressionTypes,
     analysisLimitReached: analyzer.analysisLimitReached,
   };
 }
@@ -65,6 +67,7 @@ export function analyzeOperationTypes(module: TypeModule, call: ts.CallExpressio
 class Analyzer {
   readonly diagnostics: FrontendDiagnostic[] = [];
   readonly literalValues = new Map<string, number>();
+  readonly expressionTypes = new Map<string, AuthoredType>();
   private readonly seen = new Set<string>();
   private readonly helperStack: string[] = [];
   private analysisVisits = 0;
@@ -138,7 +141,11 @@ class Analyzer {
     const target = expected && requiredType(expected);
     const memoKey = `${quietFraction ? "quiet" : "loud"}:${JSON.stringify(target ?? null)}`;
     const cached = env.memo.get(value)?.get(memoKey);
-    if (cached) return cached;
+    const expressionKey = contextualNodeKey(env.literalContext, value, this.module.sourceFile);
+    if (cached) {
+      this.expressionTypes.set(expressionKey, cached);
+      return cached;
+    }
     if (this.analysisLimitReached) return unknownType;
     if (this.analysisDepth >= MAX_TYPE_ANALYSIS_DEPTH) return this.analysisLimit(value);
     if (this.analysisVisits >= MAX_TYPE_ANALYSIS_NODES) return this.analysisLimit(value);
@@ -153,6 +160,7 @@ class Analyzer {
     const entries = env.memo.get(value) ?? new Map<string, AuthoredType>();
     entries.set(memoKey, result);
     env.memo.set(value, entries);
+    this.expressionTypes.set(expressionKey, result);
     return result;
   }
 
@@ -176,7 +184,7 @@ class Analyzer {
       return target?.kind === "enum" || target?.kind === "string" ? target : { kind: "string" };
     }
     if (value.kind === ts.SyntaxKind.TrueKeyword || value.kind === ts.SyntaxKind.FalseKeyword) return { kind: "bool" };
-    if (value.kind === ts.SyntaxKind.NullKeyword) return unknownType;
+    if (value.kind === ts.SyntaxKind.NullKeyword) return { kind: "null" };
     if (ts.isIdentifier(value)) {
       const constant = target && env.constants.get(value.text);
       return constant ? this.expression(constant, env, target) : env.variables.get(value.text)?.type ?? unknownType;
@@ -195,6 +203,11 @@ class Analyzer {
       if (base.kind === "row") return requiredType(this.table(base.table)?.columns?.[value.name.text]);
       if ((base.kind === "list" || base.kind === "string") && value.name.text === "length") return { kind: "int" };
       return unknownType;
+    }
+    if (ts.isNoSubstitutionTemplateLiteral(value)) return { kind: "string" };
+    if (ts.isTemplateExpression(value)) {
+      for (const span of value.templateSpans) this.expression(span.expression, env);
+      return { kind: "string" };
     }
     if (ts.isArrayLiteralExpression(value)) {
       const elementTarget = target?.kind === "list" ? target.of : undefined;
@@ -217,7 +230,7 @@ class Analyzer {
         const field = name ? row?.columns?.[name] : undefined;
         this.expression(property.initializer, env, field);
       }
-      return target ?? unknownType;
+      return target ?? { kind: "object" };
     }
     if (ts.isConditionalExpression(value)) {
       this.expression(value.condition, env);
@@ -227,6 +240,10 @@ class Analyzer {
     }
     if (ts.isBinaryExpression(value)) return this.binary(value, env, target);
     if (ts.isCallExpression(value)) return this.call(value, env, target);
+    if (ts.isNewExpression(value)) {
+      for (const argument of value.arguments ?? []) this.expression(argument, env);
+      return { kind: "object" };
+    }
     if (ts.isArrowFunction(value) || ts.isFunctionExpression(value)) {
       const nested = cloneEnv(env);
       for (const parameter of value.parameters) {
@@ -345,6 +362,11 @@ class Analyzer {
 
   private call(call: ts.CallExpression, env: TypeEnvironment, expected?: AuthoredType): AuthoredType {
     const name = callName(call);
+    if (ts.isPropertyAccessExpression(call.expression)
+      && this.operationComposite(call.expression.expression, env) === "ctx") {
+      if (call.expression.name.text === "newId") return { kind: "string" };
+      if (call.expression.name.text === "now") return { kind: "int" };
+    }
     if (ts.isIdentifier(call.expression)) {
       const helper = env.variables.has(call.expression.text) ? undefined : this.module.helpers?.get(call.expression.text);
       if (helper) {

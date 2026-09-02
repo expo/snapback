@@ -386,6 +386,7 @@ impl<'a> Runner<'a> {
         match op {
             BinaryOp::Eq => Ok(Value::Bool(left == right)),
             BinaryOp::Ne => Ok(Value::Bool(left != right)),
+            BinaryOp::SameValueZero => Ok(Value::Bool(same_value_zero(&left, &right)?)),
             BinaryOp::Lt => Ok(Value::Bool(ordering() == Ordering::Less)),
             BinaryOp::Lte => Ok(Value::Bool(ordering() != Ordering::Greater)),
             BinaryOp::Gt => Ok(Value::Bool(ordering() == Ordering::Greater)),
@@ -934,6 +935,31 @@ impl<'a> Runner<'a> {
                 .map(|value| self.expr(value))
                 .transpose()?,
         })
+    }
+}
+
+fn same_value_zero(left: &Value, right: &Value) -> Result<bool, ValueError> {
+    // @ref LLP 1002#2-the-authored-surface-the-snapback2-module — Id/String are one authored JS string domain; composites have no IR identity.
+    match (left, right) {
+        (Value::Null, Value::Null) => Ok(true),
+        (Value::Bool(left), Value::Bool(right)) => Ok(left == right),
+        (Value::Int(left), Value::Int(right)) => Ok(left == right),
+        (Value::String(left) | Value::Id(left), Value::String(right) | Value::Id(right)) => {
+            Ok(left == right)
+        }
+        (Value::Bytes(_) | Value::Row(_) | Value::Array(_) | Value::Map(_), _) => {
+            Err(ValueError::Type {
+                expected: "primitive SameValueZero operand",
+                actual: left.kind(),
+            })
+        }
+        (_, Value::Bytes(_) | Value::Row(_) | Value::Array(_) | Value::Map(_)) => {
+            Err(ValueError::Type {
+                expected: "primitive SameValueZero operand",
+                actual: right.kind(),
+            })
+        }
+        _ => Ok(false),
     }
 }
 

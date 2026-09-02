@@ -1,7 +1,7 @@
 import ts from "typescript";
 import type { Environment, LoweredValue, ProvenanceOrigin, VariableInfo } from "../compiler";
 import { refuse, Refusal } from "../diagnostics";
-import type { Expr, LoopDomain, Scan } from "../ir";
+import type { Expr, LoopDomain, Scan, Stmt } from "../ir";
 import {
   collectionElementBinding,
   combineProvenance,
@@ -65,11 +65,64 @@ function rowFields(target: ts.Expression | undefined, env: Environment): string[
 }
 
 function isKnownRowOrObject(expression: ts.Expression, env: Environment): boolean {
-  const value = unwrapExpression(expression);
-  if (ts.isObjectLiteralExpression(value) || isRowExpression(value, env)) return true;
-  if (!ts.isIdentifier(value)) return false;
-  const info = env.variables.get(value.text);
-  return info?.rowBinding === true || info?.objectFields !== undefined;
+  return knownObjectFields(expression, env) !== undefined || isRowExpression(expression, env);
+}
+
+export function lowerPropertyValue(value: ts.PropertyAccessExpression, base: Expr, env: Environment): Expr {
+  const collection = ts.isIdentifier(value.expression)
+    ? env.variables.get(value.expression.text)?.collection
+    : undefined;
+  if ((value.name.text === "length" && !isKnownRowOrObject(value.expression, env))
+    || (value.name.text === "size" && collection)) {
+    return { Builtin: { builtin: "Len", args: [base] } };
+  }
+  return { Field: { base, name: value.name.text } };
+}
+
+export function lowerOptionalPropertyChain(
+  value: ts.PropertyAccessChain,
+  env: Environment,
+  lowerValue: (node: ts.Expression, env: Environment, hint?: string) => LoweredValue,
+  hint?: string,
+): LoweredValue {
+  const segments: ts.PropertyAccessExpression[] = [];
+  let baseNode: ts.Expression = value;
+  while (ts.isPropertyAccessChain(baseNode)) {
+    segments.unshift(baseNode);
+    baseNode = baseNode.expression;
+  }
+  const base = lowerValue(baseNode, env, hint);
+  const baseName = temporary(env, "optionalBase");
+  const result = temporary(env, "optionalValue");
+  const lowerSegments = (index: number, current: Expr): Stmt[] => {
+    const segment = segments[index]!;
+    const accessed = lowerPropertyValue(segment, current, env);
+    const body = index === segments.length - 1
+      ? [{ Assign: { name: result, value: accessed } } satisfies Stmt]
+      : (() => {
+          const next = temporary(env, "optionalStep");
+          return [
+            { Let: { name: next, value: accessed } } satisfies Stmt,
+            ...lowerSegments(index + 1, { Variable: next }),
+          ];
+        })();
+    return segment.questionDotToken
+      ? [{ If: {
+          condition: { Binary: { op: "Ne", left: current, right: literal(null) } },
+          then_body: body,
+          else_body: [],
+        } }]
+      : body;
+  };
+  return {
+    statements: [
+      ...base.statements,
+      { Let: { name: baseName, value: base.expression } },
+      { Let: { name: result, value: literal(null) } },
+      ...lowerSegments(0, { Variable: baseName }),
+    ],
+    expression: { Variable: result },
+  };
 }
 
 export function loopDomainMaximum(domain: LoopDomain): number {
