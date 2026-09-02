@@ -65,6 +65,48 @@ fn schema() -> Schema {
     }
 }
 
+fn reidentify_program() -> Program {
+    Program {
+        name: "items.reidentify".to_owned(),
+        kind: ProgramKind::Mutation,
+        args: BTreeMap::from([
+            ("key".to_owned(), ArgType::Scalar),
+            ("rowId".to_owned(), ArgType::Scalar),
+            ("name".to_owned(), ArgType::Scalar),
+        ]),
+        read_time_granularity_ms: None,
+        body: vec![Stmt::Update {
+            table: "items".to_owned(),
+            key: var("key"),
+            patch: Expr::Object(BTreeMap::from([
+                ("id".to_owned(), var("rowId")),
+                ("name".to_owned(), var("name")),
+            ])),
+        }],
+    }
+}
+
+fn upsert_at_program() -> Program {
+    Program {
+        name: "items.upsertAt".to_owned(),
+        kind: ProgramKind::Mutation,
+        args: BTreeMap::from([
+            ("key".to_owned(), ArgType::Scalar),
+            ("rowId".to_owned(), ArgType::Scalar),
+            ("name".to_owned(), ArgType::Scalar),
+        ]),
+        read_time_granularity_ms: None,
+        body: vec![Stmt::Upsert {
+            table: "items".to_owned(),
+            key: var("key"),
+            row: Expr::Object(BTreeMap::from([
+                ("id".to_owned(), var("rowId")),
+                ("name".to_owned(), var("name")),
+            ])),
+        }],
+    }
+}
+
 fn generation() -> Generation {
     let insert = Program {
         name: "items.create".to_owned(),
@@ -119,42 +161,6 @@ fn generation() -> Generation {
             table: "items".to_owned(),
             key: var("id"),
             patch: Expr::Object(BTreeMap::from([("name".to_owned(), var("name"))])),
-        }],
-    };
-    let reidentify = Program {
-        name: "items.reidentify".to_owned(),
-        kind: ProgramKind::Mutation,
-        args: BTreeMap::from([
-            ("key".to_owned(), ArgType::Scalar),
-            ("rowId".to_owned(), ArgType::Scalar),
-            ("name".to_owned(), ArgType::Scalar),
-        ]),
-        read_time_granularity_ms: None,
-        body: vec![Stmt::Update {
-            table: "items".to_owned(),
-            key: var("key"),
-            patch: Expr::Object(BTreeMap::from([
-                ("id".to_owned(), var("rowId")),
-                ("name".to_owned(), var("name")),
-            ])),
-        }],
-    };
-    let upsert_at = Program {
-        name: "items.upsertAt".to_owned(),
-        kind: ProgramKind::Mutation,
-        args: BTreeMap::from([
-            ("key".to_owned(), ArgType::Scalar),
-            ("rowId".to_owned(), ArgType::Scalar),
-            ("name".to_owned(), ArgType::Scalar),
-        ]),
-        read_time_granularity_ms: None,
-        body: vec![Stmt::Upsert {
-            table: "items".to_owned(),
-            key: var("key"),
-            row: Expr::Object(BTreeMap::from([
-                ("id".to_owned(), var("rowId")),
-                ("name".to_owned(), var("name")),
-            ])),
         }],
     };
     let create_generated = Program {
@@ -222,8 +228,6 @@ fn generation() -> Generation {
                 insert,
                 list,
                 rename,
-                reidentify,
-                upsert_at,
                 create_generated,
                 create_then_reject,
                 delete,
@@ -343,34 +347,11 @@ fn addressed_writes_reject_row_id_changes_without_leaving_stale_indexes() {
         )])
         .unwrap();
 
-    for (op, key, row_id) in [
-        ("items.reidentify", "item-1", "item-2"),
-        ("items.upsertAt", "item-1", "item-2"),
-        ("items.upsertAt", "missing-key", "item-2"),
-    ] {
-        let execution = runtime
-            .execute(
-                op,
-                Context::mutation(
-                    test_actor(),
-                    BTreeMap::from([
-                        ("key".to_owned(), Value::Id(key.to_owned())),
-                        ("rowId".to_owned(), Value::Id(row_id.to_owned())),
-                        ("name".to_owned(), Value::String("corrupt".to_owned())),
-                    ]),
-                ),
-            )
-            .unwrap();
-        assert!(
-            matches!(
-                execution.state,
-                ExecutionState::Rejected { ref code, ref message }
-                    if code == "E_INPUT"
-                        && message.contains("does not match addressed key")
-            ),
-            "{op} at {key} returned {:?}",
-            execution.state
-        );
+    for program in [reidentify_program(), upsert_at_program()] {
+        let error = Checker::new(&schema(), Ceilings::default())
+            .check(&program)
+            .expect_err("addressed write with a distinct row identity must not certify");
+        assert_eq!(error.code, "E_SCHEMA_ID_RESERVED", "{}", program.name);
         assert_eq!(runtime.store().commit_seq().unwrap(), 1);
     }
 

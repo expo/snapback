@@ -477,7 +477,12 @@ fn refused_destructive_successor_keeps_the_active_build_cache() {
     let schema = root.join("snapback/schema.ts");
     let source = fs::read_to_string(&schema)
         .unwrap()
-        .replace("name: t.text(80)", "name: t.text(81)");
+        .replace("title: t.text(120)", "title: t.text(121)");
+    assert_ne!(
+        source,
+        fs::read_to_string(&schema).unwrap(),
+        "chat fixture no longer contains the destructive successor probe"
+    );
     fs::write(schema, source).unwrap();
 
     wait_for(Duration::from_secs(6), || {
@@ -575,7 +580,7 @@ export const denied = query({}, ({ db }) => {
             .unwrap()
     };
     let mutation_args =
-        r#"{"conversationId":"conversation-1","recipientId":"dev:bob","body":"hello"}"#;
+        r#"{"conversationId":"conversation-1","recipientId":"profile-bob","body":"hello"}"#;
     let committed = run("messages.send", mutation_args, "alice");
     assert!(
         committed.status.success(),
@@ -802,8 +807,16 @@ fn successful_hot_apply_never_pairs_successor_trace_with_predecessor_certificate
         String::from_utf8_lossy(&why.stdout)
     );
     let explanation: Value = serde_json::from_slice(&why.stdout).unwrap();
+    let trace_range = &explanation["authoritativeTrace"]["ranges"][0];
+    let trace_site = trace_range["site"].as_str().unwrap();
+    let certificate_site = explanation["readSites"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|site| site["site"] == trace_site)
+        .unwrap();
     assert_eq!(
-        explanation["readSites"][0]["take"], explanation["authoritativeTrace"]["ranges"][0]["take"],
+        certificate_site["take"], trace_range["take"],
         "why combined a predecessor certificate with a successor trace: {explanation}"
     );
 

@@ -1367,6 +1367,8 @@ for await (const line of createInterface({{ input: process.stdin, crlfDelay: Inf
 #[cfg(unix)]
 #[test]
 fn stop_refuses_when_the_recorded_pid_survives_the_deadline() {
+    use std::os::unix::fs::PermissionsExt;
+
     let root = temp_root();
     copy_tree(&fixture().join("snapback"), &root.join("snapback"));
     fs::create_dir_all(root.join(".snapback")).unwrap();
@@ -1410,6 +1412,7 @@ fn stop_refuses_when_the_recorded_pid_survives_the_deadline() {
         .unwrap(),
     )
     .unwrap();
+    fs::set_permissions(&owner_path, fs::Permissions::from_mode(0o600)).unwrap();
 
     let started = Instant::now();
     let stopped = Command::new(env!("CARGO_BIN_EXE_snapback2"))

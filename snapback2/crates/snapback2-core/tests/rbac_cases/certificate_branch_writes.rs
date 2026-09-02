@@ -205,12 +205,14 @@ fn receipt_authority_gates_the_local_aggregate_predecessor() {
         )],
         ..ClosureReceipt::default()
     };
-    let mut starts_at_zero = ClientStore::hydrate(schema.clone(), &absent).unwrap();
-    let (state, execution) = starts_at_zero
+    let mut absence_only = ClientStore::hydrate(schema.clone(), &absent).unwrap();
+    let (state, execution) = absence_only
         .apply_mutation(&program, &certificate, context())
         .unwrap();
-    assert_eq!(state, LocalState::Predicted);
-    assert_eq!(execution.result.field("value"), Ok(&Value::Int(1)));
+    assert_eq!(state, LocalState::Partial(vec!["counts.byId".to_owned()]));
+    assert_eq!(execution.result, Value::Null);
+    assert!(absence_only.rows("events").unwrap().is_empty());
+    assert!(absence_only.rows("counts").unwrap().is_empty());
 
     let held = ClosureReceipt {
         rows: vec![RowRecord {

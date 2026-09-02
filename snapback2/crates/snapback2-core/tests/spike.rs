@@ -591,6 +591,18 @@ fn client_replay_requires_exact_authority_even_when_the_hidden_row_is_held() {
     mutation_receipt
         .rows
         .retain(|row| row.table == "entitlements");
+    mutation_receipt.absences.extend([
+        (
+            "users".to_owned(),
+            "byHandle".to_owned(),
+            vec![text("staged")],
+        ),
+        (
+            "users".to_owned(),
+            "byPrincipal".to_owned(),
+            vec![id("staged")],
+        ),
+    ]);
     let mut mutation_client = ClientStore::hydrate(mutation_schema, &mutation_receipt).unwrap();
     let (state, execution) = mutation_client
         .apply_mutation(
