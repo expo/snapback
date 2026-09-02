@@ -1,9 +1,9 @@
 # complete battery red: auth-handshake
 
 **Status:** Open
-**Reopened by battery run:** `local.20260830T160622Z.0fdfadbe8e67`
+**Reopened by battery run:** `local.20260831T182234Z.850c161f649c`
 **Closure:** `signature absent from determinate FAIL`
-**Closed at revision:** `94397bad48fae267548eb0547316a8267dcd1f66`
+**Closed at revision:** `cdca4903938ac10c386839e9f3e02bf0285f6bc0`
 **Impact:** 5
 **Urgency:** 5
 **Ease:** 4
@@ -13,12 +13,12 @@
 **Battery gate:** `auth-handshake`
 **Failure signature:** `sha256:d29dc9ef44eabd772ded8af6a7b3c1d54c47ad4d1e9a283540d2679fb83181f0`
 **First observed run:** `local.20260824T075727Z.59ae1a00e1c4`
-**Last observed run:** `local.20260831T005527Z.2ab5c5c6641e`
-**Last processed run:** `local.20260831T005527Z.2ab5c5c6641e`
+**Last observed run:** `local.20260902T051222Z.69c95613ab97`
+**Last processed run:** `local.20260902T051222Z.69c95613ab97`
 **Detected at revision:** `59ae1a00e1c4cd2323b959586fcadb8395814686`
-**Last observed revision:** `2ab5c5c6641ebe33f1a8281f71ffe7d8b0b1e306`
-**Consecutive red runs:** `2`
-**Escalation:** `pending (2/4)`
+**Last observed revision:** `69c95613ab978630f3a6af58e35a449374161f36`
+**Consecutive red runs:** `5`
+**Escalation:** `AUTHOR_ESCALATION_REQUIRED`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
 ## Summary
@@ -43,3 +43,8 @@ node demos/_kit/tests/auth-handshake.mjs
 
 Fix forward, rerun the complete battery, and let the next determinate pass close
 this signature. Four consecutive red observations require author escalation.
+
+## Author escalation
+
+This root-failure signature remained red for 4 consecutive scheduled
+battery runs. Escalate to the author (Charlie Cheever) before the next run.

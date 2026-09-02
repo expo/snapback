@@ -211,7 +211,7 @@ pub fn spike_schema() -> Schema {
 
 pub fn thread_program(take: u32) -> Program {
     let messages = Scan {
-        site: "thread.messages".to_owned(),
+        site: "programs.thread.0".to_owned(),
         table: "messages".to_owned(),
         index: "byConvTime".to_owned(),
         prefix: vec![var("conversationId")],
@@ -223,7 +223,7 @@ pub fn thread_program(take: u32) -> Program {
         provenance: KeyProvenance::Arg,
     };
     let mention_scan = Scan {
-        site: "thread.mentionUser".to_owned(),
+        site: "programs.thread.2".to_owned(),
         table: "users".to_owned(),
         index: "byHandle".to_owned(),
         prefix: vec![var("handle")],
@@ -251,7 +251,7 @@ pub fn thread_program(take: u32) -> Program {
                     Stmt::Let {
                         name: "author".to_owned(),
                         value: Expr::Get(Read {
-                            site: "thread.author".to_owned(),
+                            site: "programs.thread.1".to_owned(),
                             table: "users".to_owned(),
                             index: "byPrincipal".to_owned(),
                             key: vec![field(var("message"), "authorId")],
@@ -300,10 +300,15 @@ pub fn thread_program(take: u32) -> Program {
 }
 
 pub fn send_program(with_unread: bool) -> Program {
+    let name = if with_unread {
+        "sendMaintainedUnread"
+    } else {
+        "send"
+    };
     let mut body = vec![
         Stmt::Require {
             condition: Expr::Exists(Read {
-                site: "send.membership".to_owned(),
+                site: format!("programs.{name}.0"),
                 table: "memberships".to_owned(),
                 index: "byConvUser".to_owned(),
                 key: vec![var("conversationId"), Expr::Input(Input::Viewer)],
@@ -330,7 +335,7 @@ pub fn send_program(with_unread: bool) -> Program {
         body.push(Stmt::For {
             binding: "member".to_owned(),
             domain: LoopDomain::Page(Scan {
-                site: "send.members".to_owned(),
+                site: format!("programs.{name}.2"),
                 table: "memberships".to_owned(),
                 index: "byConversation".to_owned(),
                 prefix: vec![var("conversationId")],
@@ -339,13 +344,13 @@ pub fn send_program(with_unread: bool) -> Program {
                 after: None,
                 before: None,
                 range: None,
-                provenance: KeyProvenance::Shape,
+                provenance: KeyProvenance::Arg,
             }),
             body: vec![
                 Stmt::Let {
                     name: "unread".to_owned(),
                     value: Expr::Get(Read {
-                        site: "send.unread".to_owned(),
+                        site: format!("programs.{name}.3"),
                         table: "unreads".to_owned(),
                         index: "byConvUser".to_owned(),
                         key: vec![var("conversationId"), field(var("member"), "userId")],
@@ -394,12 +399,7 @@ pub fn send_program(with_unread: bool) -> Program {
     }
     body.push(Stmt::Return(var("messageId")));
     Program {
-        name: if with_unread {
-            "sendMaintainedUnread"
-        } else {
-            "send"
-        }
-        .to_owned(),
+        name: name.to_owned(),
         kind: ProgramKind::Mutation,
         args: BTreeMap::from([
             ("conversationId".to_owned(), ArgType::Scalar),
@@ -432,8 +432,13 @@ pub fn mark_read_program() -> Program {
 }
 
 pub fn inbox_program(maintained: bool) -> Program {
+    let name = if maintained {
+        "inboxMaintained"
+    } else {
+        "inboxCountCapped"
+    };
     let memberships = Scan {
-        site: "inbox.memberships".to_owned(),
+        site: format!("programs.{name}.0"),
         table: "memberships".to_owned(),
         index: "byUserActivity".to_owned(),
         prefix: vec![Expr::Input(Input::Viewer)],
@@ -446,7 +451,7 @@ pub fn inbox_program(maintained: bool) -> Program {
     };
     let unread = if maintained {
         Expr::Get(Read {
-            site: "inbox.unreadMaintained".to_owned(),
+            site: format!("programs.{name}.2"),
             table: "unreads".to_owned(),
             index: "byConvUser".to_owned(),
             key: vec![
@@ -459,7 +464,7 @@ pub fn inbox_program(maintained: bool) -> Program {
         Expr::Builtin {
             builtin: Builtin::CountCapped,
             args: vec![Expr::Scan(Scan {
-                site: "inbox.unreadMessages".to_owned(),
+                site: format!("programs.{name}.2"),
                 table: "messages".to_owned(),
                 index: "byConvTime".to_owned(),
                 prefix: vec![field(var("membership"), "conversationId")],
@@ -473,12 +478,7 @@ pub fn inbox_program(maintained: bool) -> Program {
         }
     };
     Program {
-        name: if maintained {
-            "inboxMaintained"
-        } else {
-            "inboxCountCapped"
-        }
-        .to_owned(),
+        name: name.to_owned(),
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
@@ -496,7 +496,7 @@ pub fn inbox_program(maintained: bool) -> Program {
                         (
                             "latest",
                             Expr::Scan(Scan {
-                                site: "inbox.latest".to_owned(),
+                                site: format!("programs.{name}.1"),
                                 table: "messages".to_owned(),
                                 index: "byConvTime".to_owned(),
                                 prefix: vec![field(var("membership"), "conversationId")],
@@ -530,7 +530,7 @@ pub fn start_dm_program() -> Program {
             Stmt::Let {
                 name: "existing".to_owned(),
                 value: Expr::Get(Read {
-                    site: "startDm.unique".to_owned(),
+                    site: "programs.startDm.0".to_owned(),
                     table: "dmKeys".to_owned(),
                     index: "byPair".to_owned(),
                     key: vec![var("lo"), var("hi")],
@@ -613,9 +613,10 @@ pub fn board_summary_program() -> Program {
 }
 
 fn nested_board_program(summary: bool) -> Program {
+    let name = if summary { "boardSummary" } else { "boardView" };
     let child = if summary {
         Expr::Get(Read {
-            site: "boardSummary.count".to_owned(),
+            site: format!("programs.{name}.1"),
             table: "cardCounts".to_owned(),
             index: "byGroup".to_owned(),
             key: vec![field(var("column"), "id")],
@@ -623,7 +624,7 @@ fn nested_board_program(summary: bool) -> Program {
         })
     } else {
         Expr::Scan(Scan {
-            site: "boardView.cards".to_owned(),
+            site: format!("programs.{name}.1"),
             table: "cards".to_owned(),
             index: "byParentOrder".to_owned(),
             prefix: vec![field(var("column"), "id")],
@@ -636,7 +637,7 @@ fn nested_board_program(summary: bool) -> Program {
         })
     };
     Program {
-        name: if summary { "boardSummary" } else { "boardView" }.to_owned(),
+        name: name.to_owned(),
         kind: ProgramKind::Query,
         args: BTreeMap::from([("boardId".to_owned(), ArgType::Scalar)]),
         read_time_granularity_ms: None,
@@ -648,7 +649,7 @@ fn nested_board_program(summary: bool) -> Program {
             Stmt::For {
                 binding: "column".to_owned(),
                 domain: LoopDomain::Page(Scan {
-                    site: "board.columns".to_owned(),
+                    site: format!("programs.{name}.0"),
                     table: "columns".to_owned(),
                     index: "byParentOrder".to_owned(),
                     prefix: vec![var("boardId")],
@@ -676,7 +677,7 @@ pub fn ledger_program() -> Program {
         args: BTreeMap::from([("groupId".to_owned(), ArgType::Scalar)]),
         read_time_granularity_ms: None,
         body: vec![Stmt::Return(Expr::Scan(Scan {
-            site: "ledger.owed".to_owned(),
+            site: "programs.ledger.0".to_owned(),
             table: "owed".to_owned(),
             index: "byGroup".to_owned(),
             prefix: vec![var("groupId")],
@@ -762,7 +763,7 @@ pub fn ancestors_program() -> Program {
             Stmt::For {
                 binding: "account".to_owned(),
                 domain: LoopDomain::Recurse(Recurse {
-                    site: "ancestors.step".to_owned(),
+                    site: "programs.ancestors.0".to_owned(),
                     table: "accounts".to_owned(),
                     index: "byId".to_owned(),
                     seed: Box::new(var("accountId")),
@@ -795,7 +796,7 @@ pub fn mention_scan_program() -> Program {
             Stmt::For {
                 binding: "profile".to_owned(),
                 domain: LoopDomain::Page(Scan {
-                    site: "mentionScan.users".to_owned(),
+                    site: "programs.mentionScan.0".to_owned(),
                     table: "users".to_owned(),
                     index: "byHandle".to_owned(),
                     prefix: vec![var("handle")],
@@ -828,7 +829,7 @@ pub fn nested_expenses_program() -> Program {
         body: vec![Stmt::For {
             binding: "expense".to_owned(),
             domain: LoopDomain::Page(Scan {
-                site: "expenses".to_owned(),
+                site: "programs.expensesByShares.0".to_owned(),
                 table: "expenses".to_owned(),
                 index: "byGroup".to_owned(),
                 prefix: vec![var("groupId")],
@@ -842,7 +843,7 @@ pub fn nested_expenses_program() -> Program {
             body: vec![Stmt::Let {
                 name: "shares".to_owned(),
                 value: Expr::Scan(Scan {
-                    site: "shares".to_owned(),
+                    site: "programs.expensesByShares.1".to_owned(),
                     table: "shares".to_owned(),
                     index: "byExpense".to_owned(),
                     prefix: vec![field(var("expense"), "id")],
@@ -861,7 +862,7 @@ pub fn nested_expenses_program() -> Program {
 pub fn helper_wrapped_scan_program() -> Program {
     fn helper() -> Scan {
         Scan {
-            site: "helper.cards".to_owned(),
+            site: "programs.helperWrappedScan.0".to_owned(),
             table: "cards".to_owned(),
             index: "byParentOrder".to_owned(),
             prefix: vec![var("columnId")],
@@ -891,7 +892,7 @@ pub fn structural_waitlist_count_program() -> Program {
         body: vec![Stmt::Return(Expr::Builtin {
             builtin: Builtin::Count,
             args: vec![Expr::Scan(Scan {
-                site: "waitlist.depth".to_owned(),
+                site: "programs.waitlistDepth.0".to_owned(),
                 table: "waitlist".to_owned(),
                 index: "byResource".to_owned(),
                 prefix: vec![var("resourceId")],
@@ -913,7 +914,7 @@ pub fn maintained_waitlist_count_program() -> Program {
         args: BTreeMap::from([("resourceId".to_owned(), ArgType::Scalar)]),
         read_time_granularity_ms: None,
         body: vec![Stmt::Return(Expr::Get(Read {
-            site: "waitlist.maintainedDepth".to_owned(),
+            site: "programs.maintainedWaitlistDepth.0".to_owned(),
             table: "waitCounts".to_owned(),
             index: "byGroup".to_owned(),
             key: vec![var("resourceId")],
@@ -929,7 +930,7 @@ pub fn hidden_rule_program() -> Program {
         args: BTreeMap::from([("id".to_owned(), ArgType::Scalar)]),
         read_time_granularity_ms: None,
         body: vec![Stmt::Return(Expr::Get(Read {
-            site: "secret.document".to_owned(),
+            site: "programs.hiddenRuleDocument.0".to_owned(),
             table: "secretDocs".to_owned(),
             index: "byId".to_owned(),
             key: vec![var("id")],

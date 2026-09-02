@@ -925,7 +925,7 @@
       {
         "Return": {
           "Get": {
-            "site": "secret.document",
+            "site": "programs.hiddenRuleDocument.0",
             "table": "secretDocs",
             "index": "byId",
             "key": [
@@ -941,7 +941,7 @@
   },
   "certificate": {
     "program": "hiddenRuleDocument",
-    "plan_hash": "a40917df5986cd030016eb34c6aacfd57e2d1da049794564dbe85244fe0c6e68",
+    "plan_hash": "dbe16017ab622ab13249595d3517a0018b41b33e7263f43f10d60b98b5782dfa",
     "schema_hash": "470cb398d680f8e07ea91eaac7c2f1c95c68f57eebf1a4f0d0eb8b6ab17d7978",
     "rule_hashes": {
       "secretDocs.read": "8d647768796c31b2755852c5663c700736a6572244b8939f485ad739bb774e96"
@@ -950,7 +950,7 @@
     "value_model_version": "i53-codepoint-bytes-v2",
     "read_sites": [
       {
-        "site": "secret.document",
+        "site": "programs.hiddenRuleDocument.0",
         "table": "secretDocs",
         "index": "byId",
         "prefix_template": "Arg",
@@ -981,7 +981,7 @@
     "disclosures": [
       "E_DISCLOSURE: count waitlist summarized into waitCounts"
     ],
-    "bound_product": "secret.document take 1 = 1"
+    "bound_product": "programs.hiddenRuleDocument.0 take 1 = 1"
   },
   "context": {
     "viewer": "u1",

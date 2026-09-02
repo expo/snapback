@@ -1,0 +1,34 @@
+{
+  "milestones": {
+    "M1": {
+      "status": "green",
+      "wallSeconds": 360,
+      "itemsPassed": 5,
+      "itemsTotal": 5,
+      "notes": "Backend in Quarry (use identity, users table, unique handle); all auth/session/profile items passed on the first acceptance run. Handle charset/min-length is client-side only (no regex/length in the Quarry subset)."
+    },
+    "M2": {
+      "status": "green",
+      "wallSeconds": 420,
+      "itemsPassed": 7,
+      "itemsTotal": 7,
+      "notes": "feedItems materialization (maintain/merge/# refused); Following feed is a client-side bounded k-way merge over per-lane queries. Two silent platform bugs fixed here: insert-result id re-mint (pre-mint with `new` + re-read) and broken descending cursor pagination (negated-time ord column, ascending scans)."
+    },
+    "M3": {
+      "status": "green",
+      "wallSeconds": 210,
+      "itemsPassed": 7,
+      "itemsTotal": 7,
+      "notes": "sorted-pair unique DM dedup, roster+inbox split for rule uniformity, watermark receipts with client-derived aggregate ticks, 5s-ttl typing channel. inbox made public (ids-only) because viewer-scoped read rules bind inside admin mutations and composite-key deletes are refused."
+    }
+  },
+  "phases": {
+    "M0_setup_probing_seconds": 1080,
+    "ui_pass_seconds": 780,
+    "wrapup_seconds": 840
+  },
+  "ui": { "browserSmokeStepsPassed": 8, "browserSmokeStepsTotal": 8 },
+  "twoClientItems": ["M1-5", "M2-1", "M2-2", "M2-4", "M2-5", "M2-6", "M3-1", "M3-3", "M3-4", "M3-6"],
+  "ports": [20600, 20700],
+  "totalWallSeconds": 3660
+}

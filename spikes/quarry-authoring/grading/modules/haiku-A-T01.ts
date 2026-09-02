@@ -1,0 +1,21 @@
+const users = table("users");
+const studios = table("studios");
+const classes = table("classes");
+const bookings = table("bookings");
+
+export const classDetail = query({ classId: scalar() }, ({ db, args }) => {
+  const cls = db.get(classes, args.classId);
+  const instructor = db.get(users, cls.instructorId);
+  
+  const bookingList = db.scan(bookings.byClassAt, [args.classId], { order: "asc", take: 20 });
+  const bookingsWithBookers = bookingList.map(booking => {
+    const booker = db.get(users, booking.userId);
+    return { booking, booker };
+  });
+  
+  return {
+    class: { title: cls.title, startsAt: cls.startsAt },
+    instructor,
+    bookings: bookingsWithBookers
+  };
+});

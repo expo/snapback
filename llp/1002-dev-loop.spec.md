@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2` (the binary: owner, server, verbs), `snapback2/packages/compiler` (project lowering, worker), `snapback2/packages/snapback2` (authoring runtime, client, React, test runner, shim), `snapback2/scripts/measure.mjs`
 **Author:** Claude Fable 5 (orchestrator) — implementers: codex gpt-5.6-sol, lanes B0 (compiler + authoring surface), B1 (owner + server + verbs), B2 (`init`, `test`, `why`, `trace`, `guide`), D (client + React + evaluator)
 **Date:** 2026-08-29
-**Revised:** 2026-08-30
+**Revised:** 2026-08-31
 **Related:** LLP 1000, LLP 1001 (the engine this serves), LLP 1003 (effects),
 LLP 0329.016 §5 (the design this implements verbatim where it can), LLP
 0329.016 §5.11 (the verb table — no verb exists without its row), LLP
@@ -225,6 +225,76 @@ to LLP 1001's `RuleExpr`/`RuleTerm`/`ColumnType`/`Constraint`/`Maintain`/
 `Channel`. Programs are unchanged from spike S2 except that tables are
 imported from `./schema` and `emit(effectRef, payload)` is a statement (LLP
 1001 §8). `effect({...})` is LLP 1003 §1.
+
+**Pinned certificate identity ruling (2026-08-30, Charlie Cheever via
+orchestrator).** The compiler keeps inference, but its provenance rules are
+closed: (1) literals are `Const`; (2) direct operation arguments are `Arg`;
+(3) `ctx.viewer` is `Viewer`; (4) fields selected from proven row bindings are
+`Shape`; (5) an explicit transform is `Computed`; and (6) a composite keeps its sole
+non-`Const` origin, becomes `Shape` when origins mix, and is `Computed` when
+any member is computed. A transparent immutable alias preserves that result.
+Selecting a member from an object literal or immutable local composite follows
+that member's origin; a property base not proven as either a row or such a
+composite matches no rule.
+`args` and `ctx` are composites in this domain (`args.<field>` is `Arg` and
+`ctx.viewer` is `Viewer`), so assertions, helper substitution, immutable
+aliases, nested composites, and spreads all use the same recursive member
+selection. Object members resolve in authored override order; a required known
+spread can decide the selected leaf, while an optional or unknown override with
+different possible origins refuses. Collection items are classified as
+alternatives at the selected remaining member path, never from the collection's
+aggregate origin; disagreement between possible elements refuses. Identity
+`map`, `filter`, ordering/slicing, aliases, and chains retain a proven row
+collection, while a transforming `map` classifies its returned elements by the
+same path-aware rule. Pure helper expansion applies the same rules to the helper
+body and never to the helper name, is lexically captured, and refuses cycles or
+expansion beyond 128 recursive levels. Lexical bindings take precedence over
+spelling: only the handler's actual `args`/`ctx` bindings are composites, including
+renamed destructuring bindings, and a stable `let` classifies exactly like a
+`const`. Every binding form, including loop bindings and lowered collection
+specializations, preserves ambiguity; an authored `orderedPair` destructuring
+default is refused until it can be lowered rather than discarded. A nested path
+under one declared operation argument (for example `args.payload.inner.key`)
+remains `Arg`: provenance records the input origin while the full field path
+remains in IR. An unknown or mutable binding matches no single rule and refuses
+with `E_PROVENANCE_AMBIGUOUS`; the standard envelope carries family and source
+site. Its pasted rewrite names only direct origins actually discovered through
+the binding and member-selection path. Incomplete discovery retains every known
+candidate plus an explicit `<unknown origin>` marker in an intentionally
+non-lowerable sentinel expression; member names never guess an argument. A
+multi-origin or unknown-origin refusal therefore never has a compiling paste.
+
+**Collection mutation ruling (2026-08-31, Charlie Cheever).** Mutation is
+admitted only on a collection locally allocated in the handler from a literal
+or spread copy, with one binding identity and no alias before or after the
+mutation; the admitted empty `Map`/`Set` constructors lower to the same local
+array ownership. A collection selected from another structure, an operation
+argument, or a binding connected to another name refuses at the mutation site
+with a rewrite that makes an explicit local spread copy. Branch alternatives
+merge their collection mutation deltas by maximum. Nested loop deltas compose
+multiplicatively through every statically bounded level; a composition the
+compiler cannot prove refuses in the `E_UNBOUND` family instead of certifying
+an additive underestimate. The mutation analysis follows lowering order: it
+sees body-local declarations and reserves every inherited collection to its
+proven end-of-loop facts before emitting a nested loop domain. Mutation counts
+whose controlling collection keeps growing instead of reaching the bounded
+analysis fixed point refuse `E_UNBOUND_LOOP`.
+
+Aliasing is closed over syntactic escapes, not only identifier assignments. A
+collection escapes when it appears as a call argument, an object/array member,
+a return value, or a ternary/logical arm. A mutation after such an escape
+refuses at the mutation with the same spread-copy rewrite; read-only escaped
+collections and an escape after the final mutation remain admitted. This is
+deliberately conservative: whether a helper retains or copies its argument is
+not part of the proof. Conditional-expression statements fork and merge the
+same environments as `if`/`else`.
+
+Read-site
+identity is independently pinned to `<module-basename>.<export>.<ordinal>`,
+where the zero-based ordinal follows read/write source order inside that export
+and is shared through helper expansion. Operands lower once in authored order;
+writes reserve their ordinal even though the current `WriteSite` serde shape has
+no site string. Local names and formatting are not inputs.
 
 ## 3. The compiler worker and the project JSON
 
@@ -678,7 +748,7 @@ from LLP 0329.016 §8: `init` → `dev` ≤ 10 s, `test` on a template < 30 s.
 persona grants, the Expo and Exact 2 arms, result diffs on the wire, the
 schedule kind, retention.
 
-## Open author decisions
+## Author decisions and open questions
 
 0. **The surface, after LLP 0329.017.** A Contract-block (additive) front end
    lowers 17/17 S1 programs and refuses 8/8 first attempts *at parse*, where
@@ -686,11 +756,14 @@ schedule kind, retention.
    This spec keeps TypeScript for the React-web-first benchmark (the gauntlet
    measures naturally written TypeScript; a Contract surface scores 0 there
    by construction) and treats the Contract block as the Exact 2 arm's
-   authoring form over the same IR. Two facts from that spike bind the
-   compiler now: `provenance` and `site` are **authored facts, not derivable**
-   (0329.017 C4) — the compiler's inference of them is a silent-wrongness
-   surface and must become either an explicit annotation or a verified
-   inference with a refusal when it cannot decide (`E_PROVENANCE_AMBIGUOUS`).
+   authoring form over the same IR. **Resolved 2026-08-30:** keep inference
+   under §2's closed rules, refuse every unmatched provenance origin with
+   `E_PROVENANCE_AMBIGUOUS`, and pin site identity to module, export, and
+   ordinal. Classification is body-derived and name-independent: the LLP
+   0329.017 C4 trio is reproducibly `Arg` / `Arg` / `Computed`, because two helper
+   bodies pass their argument through while the third applies a template-string
+   transform. That disagreement is principled rather than silent; helper names
+   cannot affect either fact.
 1. `tiny_http` versus a std-only server (size vs. correctness of chunked SSE).
 2. Whether `init --client react` should exist before the React arm has a
    benchmark run, or `init` should scaffold the backend only.

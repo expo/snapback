@@ -63,6 +63,13 @@ numbered 1000 and up.
    protocol in `benchmarks/protocol.md`) runs against published Snapback 2 as
    soon as `init` and `dev` exist. Promotion is the author's call.
 
+10. **Quarry is the default authoring surface (author, 2026-08-31).**
+    Backends are authored in the Quarry notation and compiled to the TS
+    surface by `quarryc` (`packages/quarry`); the TS surface remains the
+    fully supported compatibility surface and escape hatch. Ruling,
+    evidence, and the flip workstreams: [LLP 1004](./1004-quarry-default-surface.decision.md),
+    on the executed head-to-head of LLP 0329.014.011.
+
 ## What exists today (2026-08-30)
 
 | Piece | State |

@@ -926,7 +926,7 @@
         "Require": {
           "condition": {
             "Exists": {
-              "site": "send.membership",
+              "site": "programs.send.0",
               "table": "memberships",
               "index": "byConvUser",
               "key": [
@@ -984,7 +984,7 @@
   },
   "certificate": {
     "program": "send",
-    "plan_hash": "316d906213405c2e03bda6b8df55bf661476363cbc7a7c5ac9aed0a106a60cc2",
+    "plan_hash": "dcadcb407a8574d6f5c8b2fd6f850302fea64ced588c9828c1d6677291337673",
     "schema_hash": "31792591fb75b5ab316e24a71206d3f7de6e02ed12f49a2f39782dbcab4b3566",
     "rule_hashes": {
       "memberships.read": "cf46e23f564ce282f3ac1c4b679811ab548391f815ee9ca929e654aa57318bf0",
@@ -994,7 +994,7 @@
     "value_model_version": "i53-codepoint-bytes-v2",
     "read_sites": [
       {
-        "site": "send.membership",
+        "site": "programs.send.0",
         "table": "memberships",
         "index": "byConvUser",
         "prefix_template": "Shape",
@@ -1032,7 +1032,7 @@
     "disclosures": [
       "E_DISCLOSURE: count waitlist summarized into waitCounts"
     ],
-    "bound_product": "send.membership take 1 = 1"
+    "bound_product": "programs.send.0 take 1 = 1"
   },
   "context": {
     "viewer": "u1",

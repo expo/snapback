@@ -923,7 +923,7 @@
       {
         "Return": {
           "Scan": {
-            "site": "ledger.owed",
+            "site": "programs.ledger.0",
             "table": "owed",
             "index": "byGroup",
             "prefix": [
@@ -946,7 +946,7 @@
   },
   "certificate": {
     "program": "ledger",
-    "plan_hash": "4a41b2c55b698faf4706ff47b4cf3c981d889e4fe91b6bfb00d7ea406af29000",
+    "plan_hash": "638236f647d49108e309c23db48b079e6d1e1f893e351402d96a5ee351466190",
     "schema_hash": "31792591fb75b5ab316e24a71206d3f7de6e02ed12f49a2f39782dbcab4b3566",
     "rule_hashes": {
       "owed.read": "66a1b2b0d1f21fd55f866a1e5d7135598e3234c1f55cb62bb8cd602d50bb42a6"
@@ -955,7 +955,7 @@
     "value_model_version": "i53-codepoint-bytes-v2",
     "read_sites": [
       {
-        "site": "ledger.owed",
+        "site": "programs.ledger.0",
         "table": "owed",
         "index": "byGroup",
         "prefix_template": "Arg",
@@ -985,7 +985,7 @@
     "disclosures": [
       "E_DISCLOSURE: count waitlist summarized into waitCounts"
     ],
-    "bound_product": "ledger.owed take 50 = 50"
+    "bound_product": "programs.ledger.0 take 50 = 50"
   },
   "context": {
     "viewer": "u1",
@@ -1046,7 +1046,7 @@
     ],
     "ranges": [
       {
-        "site": "ledger.owed",
+        "site": "programs.ledger.0",
         "table": "owed",
         "index": "byGroup",
         "prefix": [
@@ -1112,7 +1112,7 @@
     "canonicalResult": "{\"Array\":[{\"Row\":{\"groupId\":{\"Id\":\"g1\"},\"id\":{\"Id\":\"[{\\\"Id\\\":\\\"g1\\\"},{\\\"Id\\\":\\\"u1\\\"}]\"},\"userId\":{\"Id\":\"u1\"},\"value\":{\"Int\":3}}},{\"Row\":{\"groupId\":{\"Id\":\"g1\"},\"id\":{\"Id\":\"[{\\\"Id\\\":\\\"g1\\\"},{\\\"Id\\\":\\\"u2\\\"}]\"},\"userId\":{\"Id\":\"u2\"},\"value\":{\"Int\":2}}}]}",
     "digest": "b039f41503bc4ef5cb01ab6d0be7c3d480e8e78f7a49e57e658f381244b35230",
     "rangeStops": {
-      "ledger.owed": [
+      "programs.ledger.0": [
         "exhausted"
       ]
     },

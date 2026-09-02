@@ -1,0 +1,1 @@
+../1004-quarry-default-surface.decision.md

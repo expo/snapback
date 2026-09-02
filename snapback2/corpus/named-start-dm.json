@@ -926,7 +926,7 @@
           "name": "existing",
           "value": {
             "Get": {
-              "site": "startDm.unique",
+              "site": "programs.startDm.0",
               "table": "dmKeys",
               "index": "byPair",
               "key": [
@@ -1106,7 +1106,7 @@
   },
   "certificate": {
     "program": "startDm",
-    "plan_hash": "7c5cf03dbed2374dad129e3517a45a4f2b524207405e1ad0683870551e0c18ac",
+    "plan_hash": "962bea0e3476fc39830c16a2a575903ab5f64c0ab37a9ebf88983fb9cb3d163c",
     "schema_hash": "31792591fb75b5ab316e24a71206d3f7de6e02ed12f49a2f39782dbcab4b3566",
     "rule_hashes": {
       "conversations.insert": "66a1b2b0d1f21fd55f866a1e5d7135598e3234c1f55cb62bb8cd602d50bb42a6",
@@ -1118,7 +1118,7 @@
     "value_model_version": "i53-codepoint-bytes-v2",
     "read_sites": [
       {
-        "site": "startDm.unique",
+        "site": "programs.startDm.0",
         "table": "dmKeys",
         "index": "byPair",
         "prefix_template": "Arg",
@@ -1170,7 +1170,7 @@
     "disclosures": [
       "E_DISCLOSURE: count waitlist summarized into waitCounts"
     ],
-    "bound_product": "startDm.unique take 1 = 1"
+    "bound_product": "programs.startDm.0 take 1 = 1"
   },
   "context": {
     "viewer": "u1",

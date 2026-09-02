@@ -136,6 +136,8 @@ export type DiagnosticCode =
   | "E_OP_INVALID"
   | "E_OP_NONE"
   | "E_OP_RESERVED"
+  | "E_OP_MODULE_BASENAME"
+  | "E_PROVENANCE_AMBIGUOUS"
   | "E_DIAG_TRUNCATED"
   | "E_SCHEMA_RESERVED"
   | "E_SCHEMA_ID_RESERVED"

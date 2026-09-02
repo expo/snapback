@@ -6,6 +6,8 @@ import { IR_CONTRACT, type Program } from "./ir";
 import { listJourneys, lowerProject, lowerSeed } from "./project";
 import { lowerSchema } from "./lower/schema";
 import { registerPrincipalChecks, registerRbacRuleChecks } from "./rbac-checks";
+import { registerProvenanceSiteChecks } from "./provenance-site-checks";
+import { registerCollectionFactChecks } from "./collection-fact-checks";
 import { registerColumnTypeChecks } from "./test-column-types";
 import { registerFinalGateChecks } from "./test-final-gates";
 import { rustCheck } from "./rust-check";
@@ -57,12 +59,8 @@ async function proveAuthenticatedViewerFitsGeneratedPrincipalArg(
   await client.mutation(assign, { target: profileRef, profileId: profileRef });
 }
 
-function dequalify(value: unknown): any {
-  if (Array.isArray(value)) return value.map(dequalify);
-  if (value && typeof value === "object") {
-    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, dequalify(item)]));
-  }
-  return typeof value === "string" && value.startsWith("programs.") ? value.slice("programs.".length) : value;
+function dequalify(program: Program): Program {
+  return { ...program, name: program.name.startsWith("programs.") ? program.name.slice("programs.".length) : program.name };
 }
 
 async function withProject<T>(files: Record<string, string>, run: (root: string) => Promise<T>): Promise<T> {
@@ -103,7 +101,7 @@ test("S1 project preserves all 17 bodies and certificate bounds with native argu
   const lowered = await lowerProject(`${frontend}fixtures/s1`);
   assert(lowered.ok, `S1 project refused: ${lowered.ok ? "" : lowered.diagnostics.map((item) => item.message).join("; ")}`);
   assert(lowered.project.programs.length === 17, `expected 17 S1 programs, got ${lowered.project.programs.length}`);
-  const candidatePrograms = lowered.project.programs.map((program) => dequalify(program) as Program);
+  const candidatePrograms = lowered.project.programs.map(dequalify);
 
   const referencePrograms: Program[] = [];
   for (const file of corpusFiles) {
@@ -972,8 +970,8 @@ test("chat and todos lower schema, channels, effects, emit, API types, seed, and
     && canonical(promote).includes('"role":{"Literal":{"String":"admin"}}'),
   "chat group operations omitted atomic bootstrap or promotion intent");
   assert(new Set(promoteSites).size === promoteSites.length
-    && promoteSites.includes("groups.memberPromote.membership")
-    && promoteSites.includes("groups.memberPromote.membership.2"),
+    && promoteSites.includes("groups.memberPromote.0")
+    && promoteSites.includes("groups.memberPromote.1"),
   `distinct promotion reads reused a certificate site: ${promoteSites.join(", ")}`);
   assert(chat.apiDts.includes("messages") && chat.apiDts.includes("Op<{ conversationId: string"), "chat API declaration missing inferred types");
   const createProfile = chat.project.programs.find((program) => program.name === "profiles.createMyProfile")!;
@@ -1085,6 +1083,8 @@ test("invalid Principal, Decimal, Money, and Enum descriptors refuse with sited 
   }
 });
 registerColumnTypeChecks(test);
+registerProvenanceSiteChecks(test, `${frontend}fixtures/s1`);
+registerCollectionFactChecks(test);
 
 test("Decimal insert multiplication keeps literal and argument multipliers as Int", () => {
   const tables = new Map<string, TableInfo>([["products", {

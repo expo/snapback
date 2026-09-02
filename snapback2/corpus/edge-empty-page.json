@@ -933,7 +933,7 @@
           "binding": "profile",
           "domain": {
             "Page": {
-              "site": "mentionScan.users",
+              "site": "programs.mentionScan.0",
               "table": "users",
               "index": "byHandle",
               "prefix": [
@@ -989,7 +989,7 @@
   },
   "certificate": {
     "program": "mentionScan",
-    "plan_hash": "700ccbbb62149711ca35bb6eb0d6430560226af7844aac4e52d1b58c66cb4160",
+    "plan_hash": "d446546e1062e7bad908c9b96048e71d887670cc5be955c68e1aca2eeffc79e3",
     "schema_hash": "31792591fb75b5ab316e24a71206d3f7de6e02ed12f49a2f39782dbcab4b3566",
     "rule_hashes": {
       "users.read": "66a1b2b0d1f21fd55f866a1e5d7135598e3234c1f55cb62bb8cd602d50bb42a6"
@@ -998,7 +998,7 @@
     "value_model_version": "i53-codepoint-bytes-v2",
     "read_sites": [
       {
-        "site": "mentionScan.users",
+        "site": "programs.mentionScan.0",
         "table": "users",
         "index": "byHandle",
         "prefix_template": "Computed",
@@ -1028,7 +1028,7 @@
     "disclosures": [
       "E_DISCLOSURE: count waitlist summarized into waitCounts"
     ],
-    "bound_product": "mentionScan.users take 20 = 20"
+    "bound_product": "programs.mentionScan.0 take 20 = 20"
   },
   "context": {
     "viewer": "u1",
@@ -1048,7 +1048,7 @@
     "rows": [],
     "ranges": [
       {
-        "site": "mentionScan.users",
+        "site": "programs.mentionScan.0",
         "table": "users",
         "index": "byHandle",
         "prefix": [
@@ -1078,7 +1078,7 @@
     "canonicalResult": "{\"Array\":[]}",
     "digest": "62db520212cc069676ef47ebdcb00c4ab646bb477ec4065963f0f9f9f8ee1c66",
     "rangeStops": {
-      "mentionScan.users": [
+      "programs.mentionScan.0": [
         "exhausted"
       ]
     },

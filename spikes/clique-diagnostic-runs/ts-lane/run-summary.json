@@ -1,0 +1,47 @@
+{
+  "milestones": {
+    "M1": {
+      "status": "green",
+      "wallSeconds": 867,
+      "itemsPassed": 6,
+      "itemsTotal": 6,
+      "notes": "Accounts+profiles. Split item 2 into 2a (handle) and 2b (email). Handle charset client-side only (no per-char string ops in certified handlers); uniqueness+length server-side."
+    },
+    "M2": {
+      "status": "green",
+      "wallSeconds": 1215,
+      "itemsPassed": 7,
+      "itemsTotal": 7,
+      "notes": "Posts/follows/likes/reposts/replies/feeds. Two-stage feed (entries+hydrate) forced by provenance rule; global seq cursor pagination; maintained count tables; Following merge capped at viewer+12 recent follows by the 1MiB certified output ceiling."
+    },
+    "M3": {
+      "status": "green",
+      "wallSeconds": 905,
+      "itemsPassed": 7,
+      "itemsTotal": 7,
+      "notes": "DMs/groups/typing/receipts/quotes/removal. Receipts = per-member seq watermarks; inbox/roster table split forced by rule-uniformity certifier constraint; DM uniqueness via dmPairs both-order check. Post-pass: static seed fixture + t.ref arg typing turned the derived battery certify/rules/bounds green; invalidation failures are isolated-test-owner artifacts (live owner verified delivering)."
+    }
+  },
+  "ports": [
+    20510,
+    20520
+  ],
+  "totalWallSeconds": 3900,
+  "suite": {
+    "passed": 20,
+    "failed": 0,
+    "command": "npm run acceptance"
+  },
+  "twoClientItemsViaApiClients": [
+    "M1.5",
+    "M2.1",
+    "M2.2",
+    "M2.4",
+    "M2.5",
+    "M2.6",
+    "M3.1",
+    "M3.3",
+    "M3.4",
+    "M3.6"
+  ]
+}

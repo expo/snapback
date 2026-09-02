@@ -1,0 +1,1217 @@
+[
+  {
+    "model": "codex",
+    "arm": "A",
+    "task": "T01",
+    "outputBytes": 1225,
+    "blockBytes": 1215,
+    "extracted": true,
+    "machine": {
+      "ok": false,
+      "families": [
+        "E_OPAQUE"
+      ],
+      "detail": "map callback must be an expression"
+    },
+    "progBytes": 779
+  },
+  {
+    "model": "grok",
+    "arm": "A",
+    "task": "T01",
+    "outputBytes": 1233,
+    "blockBytes": 977,
+    "extracted": true,
+    "machine": {
+      "ok": true,
+      "families": [],
+      "detail": "",
+      "programs": 1
+    },
+    "progBytes": 543
+  },
+  {
+    "model": "haiku",
+    "arm": "A",
+    "task": "T01",
+    "outputBytes": 920,
+    "blockBytes": 685,
+    "extracted": true,
+    "machine": {
+      "ok": false,
+      "families": [
+        "E_OPAQUE"
+      ],
+      "detail": "map callback must be an expression"
+    },
+    "progBytes": 543
+  },
+  {
+    "model": "codex",
+    "arm": "B",
+    "task": "T01",
+    "outputBytes": 1336,
+    "blockBytes": 1326,
+    "extracted": true,
+    "machine": {
+      "ok": true,
+      "families": [],
+      "detail": "",
+      "programs": 1
+    },
+    "progBytes": 889
+  },
+  {
+    "model": "grok",
+    "arm": "B",
+    "task": "T01",
+    "outputBytes": 1354,
+    "blockBytes": 1185,
+    "extracted": true,
+    "machine": {
+      "ok": true,
+      "families": [],
+      "detail": "",
+      "programs": 1
+    },
+    "progBytes": 751
+  },
+  {
+    "model": "haiku",
+    "arm": "B",
+    "task": "T01",
+    "outputBytes": 1246,
+    "blockBytes": 1036,
+    "extracted": true,
+    "machine": {
+      "ok": true,
+      "families": [],
+      "detail": "",
+      "programs": 1
+    },
+    "progBytes": 593
+  },
+  {
+    "model": "codex",
+    "arm": "C",
+    "task": "T01",
+    "outputBytes": 544,
+    "blockBytes": 530,
+    "extracted": true,
+    "machine": null,
+    "progBytes": 275
+  },
+  {
+    "model": "grok",
+    "arm": "C",
+    "task": "T01",
+    "outputBytes": 665,
+    "blockBytes": 496,
+    "extracted": true,
+    "machine": null,
+    "progBytes": 241
+  },
+  {
+    "model": "haiku",
+    "arm": "C",
+    "task": "T01",
+    "outputBytes": 716,
+    "blockBytes": 469,
+    "extracted": true,
+    "machine": null,
+    "progBytes": 214
+  },
+  {
+    "model": "codex",
+    "arm": "A",
+    "task": "T02",
+    "outputBytes": 378,
+    "blockBytes": 368,
+    "extracted": true,
+    "machine": {
+      "ok": true,
+      "families": [],
+      "detail": "",
+      "programs": 1
+    },
+    "progBytes": 154
+  },
+  {
+    "model": "grok",
+    "arm": "A",
+    "task": "T02",
+    "outputBytes": 552,
+    "blockBytes": 421,
+    "extracted": true,
+    "machine": {
+      "ok": true,
+      "families": [],
+      "detail": "",
+      "programs": 1
+    },
+    "progBytes": 207
+  },
+  {
+    "model": "haiku",
+    "arm": "A",
+    "task": "T02",
+    "outputBytes": 603,
+    "blockBytes": 346,
+    "extracted": true,
+    "machine": {
+      "ok": false,
+      "families": [
+        "E_UNBOUND_SCAN"
+      ],
+      "detail": "scan requires a literal take or an argument with a declared maximum"
+    },
+    "progBytes": 132
+  },
+  {
+    "model": "codex",
+    "arm": "B",
+    "task": "T02",
+    "outputBytes": 378,
+    "blockBytes": 368,
+    "extracted": true,
+    "machine": {
+      "ok": true,
+      "families": [],
+      "detail": "",
+      "programs": 1
+    },
+    "progBytes": 154
+  },
+  {
+    "model": "grok",
+    "arm": "B",
+    "task": "T02",
+    "outputBytes": 550,
+    "blockBytes": 356,
+    "extracted": true,
+    "machine": {
+      "ok": true,
+      "families": [],
+      "detail": "",
+      "programs": 1
+    },
+    "progBytes": 142
+  },
+  {
+    "model": "haiku",
+    "arm": "B",
+    "task": "T02",
+    "outputBytes": 612,
+    "blockBytes": 368,
+    "extracted": true,
+    "machine": {
+      "ok": true,
+      "families": [],
+      "detail": "",
+      "programs": 1
+    },
+    "progBytes": 154
+  },
+  {
+    "model": "codex",
+    "arm": "C",
+    "task": "T02",
+    "outputBytes": 183,
+    "blockBytes": 169,
+    "extracted": true,
+    "machine": null,
+    "progBytes": 45
+  },
+  {
+    "model": "grok",
+    "arm": "C",
+    "task": "T02",
+    "outputBytes": 336,
+    "blockBytes": 168,
+    "extracted": true,
+    "machine": null,
+    "progBytes": 44
+  },
+  {
+    "model": "haiku",
+    "arm": "C",
+    "task": "T02",
+    "outputBytes": 467,
+    "blockBytes": 169,
+    "extracted": true,
+    "machine": null,
+    "progBytes": 45
+  },
+  {
+    "model": "codex",
+    "arm": "A",
+    "task": "T03",
+    "outputBytes": 1140,
+    "blockBytes": 1130,
+    "extracted": true,
+    "machine": {
+      "ok": true,
+      "families": [],
+      "detail": "",
+      "programs": 1
+    },
+    "progBytes": 400
+  },
+  {
+    "model": "grok",
+    "arm": "A",
+    "task": "T03",
+    "outputBytes": 1326,
+    "blockBytes": 1092,
+    "extracted": true,
+    "machine": {
+      "ok": true,
+      "families": [],
+      "detail": "",
+      "programs": 1
+    },
+    "progBytes": 418
+  },
+  {
+    "model": "haiku",
+    "arm": "A",
+    "task": "T03",
+    "outputBytes": 763,
+    "blockBytes": 514,
+    "extracted": true,
+    "machine": {
+      "ok": false,
+      "families": [
+        "E_STRUCTURAL_COUNT"
+      ],
+      "detail": "loop tally would expose a structural count through caller visibility"
+    },
+    "progBytes": 395
+  },
+  {
+    "model": "codex",
+    "arm": "B",
+    "task": "T03",
+    "outputBytes": 1142,
+    "blockBytes": 1132,
+    "extracted": true,
+    "machine": {
+      "ok": true,
+      "families": [],
+      "detail": "",
+      "programs": 1
+    },
+    "progBytes": 397
+  },
+  {
+    "model": "grok",
+    "arm": "B",
+    "task": "T03",
+    "outputBytes": 1306,
+    "blockBytes": 1043,
+    "extracted": true,
+    "machine": {
+      "ok": true,
+      "families": [],
+      "detail": "",
+      "programs": 1
+    },
+    "progBytes": 369
+  },
+  {
+    "model": "haiku",
+    "arm": "B",
+    "task": "T03",
+    "outputBytes": 1319,
+    "blockBytes": 725,
+    "extracted": true,
+    "machine": {
+      "ok": true,
+      "families": [],
+      "detail": "",
+      "programs": 1
+    },
+    "progBytes": 353
+  },
+  {
+    "model": "codex",
+    "arm": "C",
+    "task": "T03",
+    "outputBytes": 497,
+    "blockBytes": 483,
+    "extracted": true,
+    "machine": null,
+    "progBytes": 189
+  },
+  {
+    "model": "grok",
+    "arm": "C",
+    "task": "T03",
+    "outputBytes": 647,
+    "blockBytes": 408,
+    "extracted": true,
+    "machine": null,
+    "progBytes": 114
+  },
+  {
+    "model": "haiku",
+    "arm": "C",
+    "task": "T03",
+    "outputBytes": 1104,
+    "blockBytes": 448,
+    "extracted": true,
+    "machine": null,
+    "progBytes": 154
+  },
+  {
+    "model": "codex",
+    "arm": "A",
+    "task": "T04",
+    "outputBytes": 833,
+    "blockBytes": 823,
+    "extracted": true,
+    "machine": {
+      "ok": true,
+      "families": [],
+      "detail": "",
+      "programs": 1
+    },
+    "progBytes": 214
+  },
+  {
+    "model": "grok",
+    "arm": "A",
+    "task": "T04",
+    "outputBytes": 996,
+    "blockBytes": 730,
+    "extracted": true,
+    "machine": {
+      "ok": true,
+      "families": [],
+      "detail": "",
+      "programs": 1
+    },
+    "progBytes": 169
+  },
+  {
+    "model": "haiku",
+    "arm": "A",
+    "task": "T04",
+    "outputBytes": 911,
+    "blockBytes": 608,
+    "extracted": true,
+    "machine": {
+      "ok": true,
+      "families": [],
+      "detail": "",
+      "programs": 1
+    },
+    "progBytes": 173
+  },
+  {
+    "model": "codex",
+    "arm": "B",
+    "task": "T04",
+    "outputBytes": 916,
+    "blockBytes": 906,
+    "extracted": true,
+    "machine": {
+      "ok": true,
+      "families": [],
+      "detail": "",
+      "programs": 1
+    },
+    "progBytes": 214
+  },
+  {
+    "model": "grok",
+    "arm": "B",
+    "task": "T04",
+    "outputBytes": 940,
+    "blockBytes": 681,
+    "extracted": true,
+    "machine": {
+      "ok": true,
+      "families": [],
+      "detail": "",
+      "programs": 1
+    },
+    "progBytes": 126
+  },
+  {
+    "model": "haiku",
+    "arm": "B",
+    "task": "T04",
+    "outputBytes": 1169,
+    "blockBytes": 594,
+    "extracted": true,
+    "machine": {
+      "ok": true,
+      "families": [],
+      "detail": "",
+      "programs": 1
+    },
+    "progBytes": 156
+  },
+  {
+    "model": "codex",
+    "arm": "C",
+    "task": "T04",
+    "outputBytes": 412,
+    "blockBytes": 398,
+    "extracted": true,
+    "machine": null,
+    "progBytes": 130
+  },
+  {
+    "model": "grok",
+    "arm": "C",
+    "task": "T04",
+    "outputBytes": 611,
+    "blockBytes": 388,
+    "extracted": true,
+    "machine": null,
+    "progBytes": 120
+  },
+  {
+    "model": "haiku",
+    "arm": "C",
+    "task": "T04",
+    "outputBytes": 823,
+    "blockBytes": 347,
+    "extracted": true,
+    "machine": null,
+    "progBytes": 137
+  },
+  {
+    "model": "codex",
+    "arm": "A",
+    "task": "T05",
+    "outputBytes": 986,
+    "blockBytes": 976,
+    "extracted": true,
+    "machine": {
+      "ok": true,
+      "families": [],
+      "detail": "",
+      "programs": 1
+    },
+    "progBytes": 582
+  },
+  {
+    "model": "grok",
+    "arm": "A",
+    "task": "T05",
+    "outputBytes": 1032,
+    "blockBytes": 950,
+    "extracted": true,
+    "machine": {
+      "ok": true,
+      "families": [],
+      "detail": "",
+      "programs": 1
+    },
+    "progBytes": 557
+  },
+  {
+    "model": "haiku",
+    "arm": "A",
+    "task": "T05",
+    "outputBytes": 1320,
+    "blockBytes": 996,
+    "extracted": true,
+    "machine": {
+      "ok": true,
+      "families": [],
+      "detail": "",
+      "programs": 1
+    },
+    "progBytes": 588
+  },
+  {
+    "model": "codex",
+    "arm": "B",
+    "task": "T05",
+    "outputBytes": 981,
+    "blockBytes": 971,
+    "extracted": true,
+    "machine": {
+      "ok": true,
+      "families": [],
+      "detail": "",
+      "programs": 1
+    },
+    "progBytes": 577
+  },
+  {
+    "model": "grok",
+    "arm": "B",
+    "task": "T05",
+    "outputBytes": 1094,
+    "blockBytes": 918,
+    "extracted": true,
+    "machine": {
+      "ok": true,
+      "families": [],
+      "detail": "",
+      "programs": 1
+    },
+    "progBytes": 525
+  },
+  {
+    "model": "haiku",
+    "arm": "B",
+    "task": "T05",
+    "outputBytes": 1006,
+    "blockBytes": 722,
+    "extracted": true,
+    "machine": {
+      "ok": true,
+      "families": [],
+      "detail": "",
+      "programs": 1
+    },
+    "progBytes": 596
+  },
+  {
+    "model": "codex",
+    "arm": "C",
+    "task": "T05",
+    "outputBytes": 479,
+    "blockBytes": 465,
+    "extracted": true,
+    "machine": null,
+    "progBytes": 269
+  },
+  {
+    "model": "grok",
+    "arm": "C",
+    "task": "T05",
+    "outputBytes": 560,
+    "blockBytes": 459,
+    "extracted": true,
+    "machine": null,
+    "progBytes": 263
+  },
+  {
+    "model": "haiku",
+    "arm": "C",
+    "task": "T05",
+    "outputBytes": 853,
+    "blockBytes": 464,
+    "extracted": true,
+    "machine": null,
+    "progBytes": 268
+  },
+  {
+    "model": "codex",
+    "arm": "A",
+    "task": "T06",
+    "outputBytes": 569,
+    "blockBytes": 559,
+    "extracted": true,
+    "machine": {
+      "ok": false,
+      "families": [
+        "E_OPAQUE"
+      ],
+      "detail": "helper recurse is not defined in this module or the pure builtin set"
+    },
+    "progBytes": 453
+  },
+  {
+    "model": "grok",
+    "arm": "A",
+    "task": "T06",
+    "outputBytes": 701,
+    "blockBytes": 517,
+    "extracted": true,
+    "machine": {
+      "ok": false,
+      "families": [
+        "E_OPAQUE"
+      ],
+      "detail": "helper recurse is not defined in this module or the pure builtin set"
+    },
+    "progBytes": 412
+  },
+  {
+    "model": "haiku",
+    "arm": "A",
+    "task": "T06",
+    "outputBytes": 642,
+    "blockBytes": 361,
+    "extracted": true,
+    "machine": {
+      "ok": false,
+      "families": [
+        "E_OPAQUE"
+      ],
+      "detail": "Argument of type '{ depth: number; }' is not assignable to parameter of type '{ depth: number; fanout: number; }'.\n  Property 'fanout' is missing in type '{ depth: number; }' but required in type '{ depth: number; fanout: number; }'."
+    },
+    "progBytes": 284
+  },
+  {
+    "model": "codex",
+    "arm": "B",
+    "task": "T06",
+    "outputBytes": 569,
+    "blockBytes": 559,
+    "extracted": true,
+    "machine": {
+      "ok": false,
+      "families": [
+        "E_OPAQUE"
+      ],
+      "detail": "helper recurse is not defined in this module or the pure builtin set"
+    },
+    "progBytes": 453
+  },
+  {
+    "model": "grok",
+    "arm": "B",
+    "task": "T06",
+    "outputBytes": 678,
+    "blockBytes": 520,
+    "extracted": true,
+    "machine": {
+      "ok": false,
+      "families": [
+        "E_OPAQUE"
+      ],
+      "detail": "helper recurse is not defined in this module or the pure builtin set"
+    },
+    "progBytes": 415
+  },
+  {
+    "model": "haiku",
+    "arm": "B",
+    "task": "T06",
+    "outputBytes": 628,
+    "blockBytes": 387,
+    "extracted": true,
+    "machine": {
+      "ok": false,
+      "families": [
+        "E_OPAQUE"
+      ],
+      "detail": "Argument of type '{ depth: number; }' is not assignable to parameter of type '{ depth: number; fanout: number; }'.\n  Property 'fanout' is missing in type '{ depth: number; }' but required in type '{ depth: number; fanout: number; }'."
+    },
+    "progBytes": 312
+  },
+  {
+    "model": "codex",
+    "arm": "C",
+    "task": "T06",
+    "outputBytes": 207,
+    "blockBytes": 193,
+    "extracted": true,
+    "machine": null,
+    "progBytes": 85
+  },
+  {
+    "model": "grok",
+    "arm": "C",
+    "task": "T06",
+    "outputBytes": 287,
+    "blockBytes": 193,
+    "extracted": true,
+    "machine": null,
+    "progBytes": 85
+  },
+  {
+    "model": "haiku",
+    "arm": "C",
+    "task": "T06",
+    "outputBytes": 683,
+    "blockBytes": 164,
+    "extracted": true,
+    "machine": null,
+    "progBytes": 56
+  },
+  {
+    "model": "codex",
+    "arm": "A",
+    "task": "T07",
+    "outputBytes": 1656,
+    "blockBytes": 1646,
+    "extracted": true,
+    "machine": {
+      "ok": true,
+      "families": [],
+      "detail": "",
+      "programs": 1
+    },
+    "progBytes": 991
+  },
+  {
+    "model": "grok",
+    "arm": "A",
+    "task": "T07",
+    "outputBytes": 1708,
+    "blockBytes": 1554,
+    "extracted": true,
+    "machine": {
+      "ok": true,
+      "families": [],
+      "detail": "",
+      "programs": 1
+    },
+    "progBytes": 900
+  },
+  {
+    "model": "haiku",
+    "arm": "A",
+    "task": "T07",
+    "outputBytes": 1760,
+    "blockBytes": 1505,
+    "extracted": true,
+    "machine": {
+      "ok": false,
+      "families": [
+        "E_UNBOUND_SCAN"
+      ],
+      "detail": "scan requires a literal take or an argument with a declared maximum"
+    },
+    "progBytes": 840
+  },
+  {
+    "model": "codex",
+    "arm": "B",
+    "task": "T07",
+    "outputBytes": 1573,
+    "blockBytes": 1563,
+    "extracted": true,
+    "machine": {
+      "ok": true,
+      "families": [],
+      "detail": "",
+      "programs": 1
+    },
+    "progBytes": 909
+  },
+  {
+    "model": "grok",
+    "arm": "B",
+    "task": "T07",
+    "outputBytes": 1790,
+    "blockBytes": 1579,
+    "extracted": true,
+    "machine": {
+      "ok": true,
+      "families": [],
+      "detail": "",
+      "programs": 1
+    },
+    "progBytes": 925
+  },
+  {
+    "model": "haiku",
+    "arm": "B",
+    "task": "T07",
+    "outputBytes": 1762,
+    "blockBytes": 1540,
+    "extracted": true,
+    "machine": {
+      "ok": true,
+      "families": [],
+      "detail": "",
+      "programs": 1
+    },
+    "progBytes": 875
+  },
+  {
+    "model": "codex",
+    "arm": "C",
+    "task": "T07",
+    "outputBytes": 657,
+    "blockBytes": 643,
+    "extracted": true,
+    "machine": null,
+    "progBytes": 315
+  },
+  {
+    "model": "grok",
+    "arm": "C",
+    "task": "T07",
+    "outputBytes": 753,
+    "blockBytes": 591,
+    "extracted": true,
+    "machine": null,
+    "progBytes": 263
+  },
+  {
+    "model": "haiku",
+    "arm": "C",
+    "task": "T07",
+    "outputBytes": 858,
+    "blockBytes": 609,
+    "extracted": true,
+    "machine": null,
+    "progBytes": 281
+  },
+  {
+    "model": "codex",
+    "arm": "A",
+    "task": "T08",
+    "outputBytes": 1159,
+    "blockBytes": 1149,
+    "extracted": true,
+    "machine": {
+      "ok": true,
+      "families": [],
+      "detail": "",
+      "programs": 1
+    },
+    "progBytes": 588
+  },
+  {
+    "model": "grok",
+    "arm": "A",
+    "task": "T08",
+    "outputBytes": 1257,
+    "blockBytes": 1118,
+    "extracted": true,
+    "machine": {
+      "ok": true,
+      "families": [],
+      "detail": "",
+      "programs": 1
+    },
+    "progBytes": 560
+  },
+  {
+    "model": "haiku",
+    "arm": "A",
+    "task": "T08",
+    "outputBytes": 986,
+    "blockBytes": 733,
+    "extracted": true,
+    "machine": {
+      "ok": true,
+      "families": [],
+      "detail": "",
+      "programs": 1
+    },
+    "progBytes": 570
+  },
+  {
+    "model": "codex",
+    "arm": "B",
+    "task": "T08",
+    "outputBytes": 1154,
+    "blockBytes": 1144,
+    "extracted": true,
+    "machine": {
+      "ok": true,
+      "families": [],
+      "detail": "",
+      "programs": 1
+    },
+    "progBytes": 583
+  },
+  {
+    "model": "grok",
+    "arm": "B",
+    "task": "T08",
+    "outputBytes": 1296,
+    "blockBytes": 1137,
+    "extracted": true,
+    "machine": {
+      "ok": true,
+      "families": [],
+      "detail": "",
+      "programs": 1
+    },
+    "progBytes": 579
+  },
+  {
+    "model": "haiku",
+    "arm": "B",
+    "task": "T08",
+    "outputBytes": 1019,
+    "blockBytes": 716,
+    "extracted": true,
+    "machine": {
+      "ok": true,
+      "families": [],
+      "detail": "",
+      "programs": 1
+    },
+    "progBytes": 570
+  },
+  {
+    "model": "codex",
+    "arm": "C",
+    "task": "T08",
+    "outputBytes": 623,
+    "blockBytes": 609,
+    "extracted": true,
+    "machine": null,
+    "progBytes": 320
+  },
+  {
+    "model": "grok",
+    "arm": "C",
+    "task": "T08",
+    "outputBytes": 711,
+    "blockBytes": 597,
+    "extracted": true,
+    "machine": null,
+    "progBytes": 308
+  },
+  {
+    "model": "haiku",
+    "arm": "C",
+    "task": "T08",
+    "outputBytes": 862,
+    "blockBytes": 561,
+    "extracted": true,
+    "machine": null,
+    "progBytes": 272
+  },
+  {
+    "model": "codex",
+    "arm": "A",
+    "task": "T09",
+    "outputBytes": 933,
+    "blockBytes": 923,
+    "extracted": true,
+    "machine": {
+      "ok": true,
+      "families": [],
+      "detail": "",
+      "programs": 1
+    },
+    "progBytes": 501
+  },
+  {
+    "model": "grok",
+    "arm": "A",
+    "task": "T09",
+    "outputBytes": 1115,
+    "blockBytes": 940,
+    "extracted": true,
+    "machine": {
+      "ok": false,
+      "families": [
+        "E_OPAQUE"
+      ],
+      "detail": "binding pattern is unsupported"
+    },
+    "progBytes": 521
+  },
+  {
+    "model": "haiku",
+    "arm": "A",
+    "task": "T09",
+    "outputBytes": 1294,
+    "blockBytes": 1059,
+    "extracted": true,
+    "machine": {
+      "ok": false,
+      "families": [
+        "E_OPAQUE"
+      ],
+      "detail": "'String' only refers to a type, but is being used as a value here."
+    },
+    "progBytes": 540
+  },
+  {
+    "model": "codex",
+    "arm": "B",
+    "task": "T09",
+    "outputBytes": 1086,
+    "blockBytes": 1076,
+    "extracted": true,
+    "machine": {
+      "ok": true,
+      "families": [],
+      "detail": "",
+      "programs": 1
+    },
+    "progBytes": 654
+  },
+  {
+    "model": "grok",
+    "arm": "B",
+    "task": "T09",
+    "outputBytes": 1124,
+    "blockBytes": 958,
+    "extracted": true,
+    "machine": {
+      "ok": false,
+      "families": [
+        "E_OPAQUE"
+      ],
+      "detail": "binding pattern is unsupported"
+    },
+    "progBytes": 539
+  },
+  {
+    "model": "haiku",
+    "arm": "B",
+    "task": "T09",
+    "outputBytes": 1532,
+    "blockBytes": 905,
+    "extracted": true,
+    "machine": {
+      "ok": false,
+      "families": [
+        "E_OPAQUE"
+      ],
+      "detail": "'String' only refers to a type, but is being used as a value here."
+    },
+    "progBytes": 755
+  },
+  {
+    "model": "codex",
+    "arm": "C",
+    "task": "T09",
+    "outputBytes": 413,
+    "blockBytes": 399,
+    "extracted": true,
+    "machine": null,
+    "progBytes": 148
+  },
+  {
+    "model": "grok",
+    "arm": "C",
+    "task": "T09",
+    "outputBytes": 524,
+    "blockBytes": 391,
+    "extracted": true,
+    "machine": null,
+    "progBytes": 140
+  },
+  {
+    "model": "haiku",
+    "arm": "C",
+    "task": "T09",
+    "outputBytes": 1083,
+    "blockBytes": 403,
+    "extracted": true,
+    "machine": null,
+    "progBytes": 152
+  },
+  {
+    "model": "codex",
+    "arm": "A",
+    "task": "T10",
+    "outputBytes": 1206,
+    "blockBytes": 1196,
+    "extracted": true,
+    "machine": {
+      "ok": true,
+      "families": [],
+      "detail": "",
+      "programs": 1
+    },
+    "progBytes": 721
+  },
+  {
+    "model": "grok",
+    "arm": "A",
+    "task": "T10",
+    "outputBytes": 1347,
+    "blockBytes": 1145,
+    "extracted": true,
+    "machine": {
+      "ok": true,
+      "families": [],
+      "detail": "",
+      "programs": 1
+    },
+    "progBytes": 653
+  },
+  {
+    "model": "haiku",
+    "arm": "A",
+    "task": "T10",
+    "outputBytes": 2019,
+    "blockBytes": 1394,
+    "extracted": true,
+    "machine": {
+      "ok": true,
+      "families": [],
+      "detail": "",
+      "programs": 1
+    },
+    "progBytes": 685
+  },
+  {
+    "model": "codex",
+    "arm": "B",
+    "task": "T10",
+    "outputBytes": 1165,
+    "blockBytes": 1155,
+    "extracted": true,
+    "machine": {
+      "ok": true,
+      "families": [],
+      "detail": "",
+      "programs": 1
+    },
+    "progBytes": 699
+  },
+  {
+    "model": "grok",
+    "arm": "B",
+    "task": "T10",
+    "outputBytes": 1413,
+    "blockBytes": 1167,
+    "extracted": true,
+    "machine": {
+      "ok": true,
+      "families": [],
+      "detail": "",
+      "programs": 1
+    },
+    "progBytes": 681
+  },
+  {
+    "model": "haiku",
+    "arm": "B",
+    "task": "T10",
+    "outputBytes": 1587,
+    "blockBytes": 1117,
+    "extracted": true,
+    "machine": {
+      "ok": true,
+      "families": [],
+      "detail": "",
+      "programs": 1
+    },
+    "progBytes": 676
+  },
+  {
+    "model": "codex",
+    "arm": "C",
+    "task": "T10",
+    "outputBytes": 536,
+    "blockBytes": 522,
+    "extracted": true,
+    "machine": null,
+    "progBytes": 335
+  },
+  {
+    "model": "grok",
+    "arm": "C",
+    "task": "T10",
+    "outputBytes": 761,
+    "blockBytes": 502,
+    "extracted": true,
+    "machine": null,
+    "progBytes": 315
+  },
+  {
+    "model": "haiku",
+    "arm": "C",
+    "task": "T10",
+    "outputBytes": 869,
+    "blockBytes": 535,
+    "extracted": true,
+    "machine": null,
+    "progBytes": 348
+  }
+]

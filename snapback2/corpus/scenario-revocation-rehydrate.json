@@ -933,7 +933,7 @@
           "binding": "message",
           "domain": {
             "Page": {
-              "site": "thread.messages",
+              "site": "programs.thread.0",
               "table": "messages",
               "index": "byConvTime",
               "prefix": [
@@ -957,7 +957,7 @@
                 "name": "author",
                 "value": {
                   "Get": {
-                    "site": "thread.author",
+                    "site": "programs.thread.1",
                     "table": "users",
                     "index": "byPrincipal",
                     "key": [
@@ -1013,7 +1013,7 @@
                       "target": "mentions",
                       "value": {
                         "Scan": {
-                          "site": "thread.mentionUser",
+                          "site": "programs.thread.2",
                           "table": "users",
                           "index": "byHandle",
                           "prefix": [
@@ -1083,7 +1083,7 @@
   },
   "certificate": {
     "program": "thread",
-    "plan_hash": "cd42a4484e2449520c5dc557a12257b9e7bcfff27b46004b280f0ae87ec6cb8e",
+    "plan_hash": "970291ad3480364a071436fb9958460c86eb4896d01032de189e8d45b1048f34",
     "schema_hash": "31792591fb75b5ab316e24a71206d3f7de6e02ed12f49a2f39782dbcab4b3566",
     "rule_hashes": {
       "messages.read": "cf46e23f564ce282f3ac1c4b679811ab548391f815ee9ca929e654aa57318bf0",
@@ -1093,7 +1093,17 @@
     "value_model_version": "i53-codepoint-bytes-v2",
     "read_sites": [
       {
-        "site": "thread.author",
+        "site": "programs.thread.0",
+        "table": "messages",
+        "index": "byConvTime",
+        "prefix_template": "Arg",
+        "take": 3,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 2,
+        "hoist": true
+      },
+      {
+        "site": "programs.thread.1",
         "table": "users",
         "index": "byPrincipal",
         "prefix_template": "Shape",
@@ -1103,23 +1113,13 @@
         "hoist": false
       },
       {
-        "site": "thread.mentionUser",
+        "site": "programs.thread.2",
         "table": "users",
         "index": "byHandle",
         "prefix_template": "Computed",
         "take": 1,
         "max_calls": 255,
         "rule_probes_per_candidate": 0,
-        "hoist": true
-      },
-      {
-        "site": "thread.messages",
-        "table": "messages",
-        "index": "byConvTime",
-        "prefix_template": "Arg",
-        "take": 3,
-        "max_calls": 1,
-        "rule_probes_per_candidate": 2,
         "hoist": true
       }
     ],
@@ -1146,7 +1146,7 @@
     "disclosures": [
       "E_DISCLOSURE: count waitlist summarized into waitCounts"
     ],
-    "bound_product": "thread.messages take 3 × messages.body max 256 / min whitespace mention 3 85 × thread.mentionUser take 1 = 255"
+    "bound_product": "programs.thread.0 take 3 × messages.body max 256 / min whitespace mention 3 85 × programs.thread.2 take 1 = 255"
   },
   "context": {
     "viewer": "u1",
@@ -1299,7 +1299,7 @@
     ],
     "ranges": [
       {
-        "site": "thread.messages",
+        "site": "programs.thread.0",
         "table": "messages",
         "index": "byConvTime",
         "prefix": [
@@ -1369,7 +1369,7 @@
             "Require": {
               "condition": {
                 "Exists": {
-                  "site": "send.membership",
+                  "site": "programs.send.0",
                   "table": "memberships",
                   "index": "byConvUser",
                   "key": [
@@ -1454,7 +1454,7 @@
     "rows": [],
     "ranges": [
       {
-        "site": "thread.messages",
+        "site": "programs.thread.0",
         "table": "messages",
         "index": "byConvTime",
         "prefix": [
@@ -1482,7 +1482,7 @@
     "canonicalResult": "{\"Array\":[]}",
     "digest": "62db520212cc069676ef47ebdcb00c4ab646bb477ec4065963f0f9f9f8ee1c66",
     "rangeStops": {
-      "thread.messages": [
+      "programs.thread.0": [
         "exhausted"
       ]
     },

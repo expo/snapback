@@ -1,9 +1,9 @@
 # complete battery red: regression-ephemeral-wiring
 
 **Status:** Closed
-**Reopened by battery run:** `local.20260829T051119Z.45ebcadce605`
+**Reopened by battery run:** `local.20260901T203053Z.2ad65fb5912c`
 **Closure:** `signature absent from determinate FAIL`
-**Closed at revision:** `cace7b53cf008e7692e4cb633c14b4c2400fdd5c`
+**Closed at revision:** `69c95613ab978630f3a6af58e35a449374161f36`
 **Impact:** 5
 **Urgency:** 5
 **Ease:** 4
@@ -13,10 +13,10 @@
 **Battery gate:** `regression-ephemeral-wiring`
 **Failure signature:** `sha256:5671960eca24a89a65583119c11837d91a70c62323bd33bd4a1a3c7bd153a244`
 **First observed run:** `local.20260827T104322Z.04da2f52bd6f`
-**Last observed run:** `local.20260829T051119Z.45ebcadce605`
-**Last processed run:** `local.20260829T140951Z.cace7b53cf00`
+**Last observed run:** `local.20260901T203053Z.2ad65fb5912c`
+**Last processed run:** `local.20260902T051222Z.69c95613ab97`
 **Detected at revision:** `04da2f52bd6f08bfb8a6767fbb4ce25a610701b3`
-**Last observed revision:** `45ebcadce6052132fd6c69a0487b3c1258bda1f3`
+**Last observed revision:** `2ad65fb5912ca2567874030decdcc4c47733969d`
 **Consecutive red runs:** `1`
 **Escalation:** `pending (1/4)`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3

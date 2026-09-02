@@ -931,7 +931,7 @@
           "binding": "membership",
           "domain": {
             "Page": {
-              "site": "inbox.memberships",
+              "site": "programs.inboxCountCapped.0",
               "table": "memberships",
               "index": "byUserActivity",
               "prefix": [
@@ -957,7 +957,7 @@
                   "Object": {
                     "latest": {
                       "Scan": {
-                        "site": "inbox.latest",
+                        "site": "programs.inboxCountCapped.1",
                         "table": "messages",
                         "index": "byConvTime",
                         "prefix": [
@@ -986,7 +986,7 @@
                         "args": [
                           {
                             "Scan": {
-                              "site": "inbox.unreadMessages",
+                              "site": "programs.inboxCountCapped.2",
                               "table": "messages",
                               "index": "byConvTime",
                               "prefix": [
@@ -1035,7 +1035,7 @@
   },
   "certificate": {
     "program": "inboxCountCapped",
-    "plan_hash": "eb8c40d8aebbc536dc13c9e1bfee41c8ad65d4452c340dd37b03611d229a5334",
+    "plan_hash": "a326a0fa8d947a1753e72e18941193f7e2328e6644bec9290560a807969b7282",
     "schema_hash": "31792591fb75b5ab316e24a71206d3f7de6e02ed12f49a2f39782dbcab4b3566",
     "rule_hashes": {
       "memberships.read": "cf46e23f564ce282f3ac1c4b679811ab548391f815ee9ca929e654aa57318bf0",
@@ -1045,17 +1045,7 @@
     "value_model_version": "i53-codepoint-bytes-v2",
     "read_sites": [
       {
-        "site": "inbox.latest",
-        "table": "messages",
-        "index": "byConvTime",
-        "prefix_template": "Shape",
-        "take": 1,
-        "max_calls": 50,
-        "rule_probes_per_candidate": 2,
-        "hoist": true
-      },
-      {
-        "site": "inbox.memberships",
+        "site": "programs.inboxCountCapped.0",
         "table": "memberships",
         "index": "byUserActivity",
         "prefix_template": "Viewer",
@@ -1065,7 +1055,17 @@
         "hoist": false
       },
       {
-        "site": "inbox.unreadMessages",
+        "site": "programs.inboxCountCapped.1",
+        "table": "messages",
+        "index": "byConvTime",
+        "prefix_template": "Shape",
+        "take": 1,
+        "max_calls": 50,
+        "rule_probes_per_candidate": 2,
+        "hoist": true
+      },
+      {
+        "site": "programs.inboxCountCapped.2",
         "table": "messages",
         "index": "byConvTime",
         "prefix_template": "Shape",
@@ -1097,7 +1097,7 @@
     "disclosures": [
       "E_DISCLOSURE: count waitlist summarized into waitCounts"
     ],
-    "bound_product": "inbox.memberships take 50 × inbox.unreadMessages take 100 = 5000"
+    "bound_product": "programs.inboxCountCapped.0 take 50 × programs.inboxCountCapped.2 take 100 = 5000"
   },
   "context": {
     "viewer": "u1",
@@ -1252,7 +1252,7 @@
     ],
     "ranges": [
       {
-        "site": "inbox.latest",
+        "site": "programs.inboxCountCapped.1",
         "table": "messages",
         "index": "byConvTime",
         "prefix": [
@@ -1301,7 +1301,7 @@
         ]
       },
       {
-        "site": "inbox.unreadMessages",
+        "site": "programs.inboxCountCapped.2",
         "table": "messages",
         "index": "byConvTime",
         "prefix": [
@@ -1365,18 +1365,18 @@
     "errorCode": null,
     "localState": "partial",
     "partialSites": [
-      "inbox.memberships"
+      "programs.inboxCountCapped.0"
     ],
     "canonicalResult": "{\"Array\":[{\"Row\":{\"latest\":{\"Array\":[{\"Row\":{\"at\":{\"Int\":5},\"authorId\":{\"Id\":\"u1\"},\"body\":{\"String\":\"message 4\"},\"conversationId\":{\"Id\":\"c1\"},\"id\":{\"Id\":\"message-00004\"}}}]},\"unread\":{\"Int\":5}}}]}",
     "digest": "aea7adfd9328a4f2c2505b21b1a109f258a9719d8e19c7e479ca6302713e576c",
     "rangeStops": {
-      "inbox.latest": [
-        "limit"
-      ],
-      "inbox.memberships": [
+      "programs.inboxCountCapped.0": [
         "exhausted"
       ],
-      "inbox.unreadMessages": [
+      "programs.inboxCountCapped.1": [
+        "limit"
+      ],
+      "programs.inboxCountCapped.2": [
         "exhausted"
       ]
     },

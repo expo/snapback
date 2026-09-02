@@ -1,9 +1,9 @@
 # complete battery red: regression-multilive-scoped
 
 **Status:** Closed
-**Reopened by battery run:** `local.20260829T223616Z.81cc759a07a7`
+**Reopened by battery run:** `local.20260831T093441Z.cdca4903938a`
 **Closure:** `signature absent from determinate FAIL`
-**Closed at revision:** `94397bad48fae267548eb0547316a8267dcd1f66`
+**Closed at revision:** `850c161f649c35283d9ecfef1b5a97baf4e98167`
 **Impact:** 5
 **Urgency:** 5
 **Ease:** 4
@@ -13,10 +13,10 @@
 **Battery gate:** `regression-multilive-scoped`
 **Failure signature:** `sha256:5de253e8eba4829ddc240bc847d3c1bde5887936180376d2e545b9ba2b3cb358`
 **First observed run:** `local.20260826T121823Z.f69e9b16cbe8`
-**Last observed run:** `local.20260829T223616Z.81cc759a07a7`
-**Last processed run:** `local.20260830T072833Z.94397bad48fa`
+**Last observed run:** `local.20260831T093441Z.cdca4903938a`
+**Last processed run:** `local.20260831T182234Z.850c161f649c`
 **Detected at revision:** `f69e9b16cbe835a3d99d598bc739acccb27365d1`
-**Last observed revision:** `81cc759a07a706300e471f106fe41dc761c39474`
+**Last observed revision:** `cdca4903938ac10c386839e9f3e02bf0285f6bc0`
 **Consecutive red runs:** `1`
 **Escalation:** `pending (1/4)`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3

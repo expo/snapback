@@ -46,3 +46,5 @@ compiler/type contract, while Set needs canonical uniqueness and ordering
 semantics; neither is a near-free extension of Bytes. This ticket remains
 **Open** for `Interval { of }` (which still requires its own LLP), Duration,
 and Set.
+
+**Claim retracted** (session snapback-8a, 2026-08-30): the 0830 burn's `s2/t-bytes` lane landed the Bytes half before this claim was pushed; lane `s2/t2-bytes` was cancelled with no commits. Only the provenance/site ticket remains claimed by snapback-8a.

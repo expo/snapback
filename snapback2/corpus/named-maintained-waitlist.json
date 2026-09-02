@@ -923,7 +923,7 @@
       {
         "Return": {
           "Get": {
-            "site": "waitlist.maintainedDepth",
+            "site": "programs.maintainedWaitlistDepth.0",
             "table": "waitCounts",
             "index": "byGroup",
             "key": [
@@ -939,7 +939,7 @@
   },
   "certificate": {
     "program": "maintainedWaitlistDepth",
-    "plan_hash": "d894b8653e037e0ca2f0a7fb79825c22c12558102fea1f4a9599491b46a56dfb",
+    "plan_hash": "092072191c017b49514c21c3167fe9f30a1aa3122285d62820551d176c6f6a0f",
     "schema_hash": "31792591fb75b5ab316e24a71206d3f7de6e02ed12f49a2f39782dbcab4b3566",
     "rule_hashes": {
       "waitCounts.read": "66a1b2b0d1f21fd55f866a1e5d7135598e3234c1f55cb62bb8cd602d50bb42a6"
@@ -948,7 +948,7 @@
     "value_model_version": "i53-codepoint-bytes-v2",
     "read_sites": [
       {
-        "site": "waitlist.maintainedDepth",
+        "site": "programs.maintainedWaitlistDepth.0",
         "table": "waitCounts",
         "index": "byGroup",
         "prefix_template": "Arg",
@@ -978,7 +978,7 @@
     "disclosures": [
       "E_DISCLOSURE: count waitlist summarized into waitCounts"
     ],
-    "bound_product": "waitlist.maintainedDepth take 1 = 1"
+    "bound_product": "programs.maintainedWaitlistDepth.0 take 1 = 1"
   },
   "context": {
     "viewer": "u1",

@@ -933,7 +933,7 @@
           "binding": "column",
           "domain": {
             "Page": {
-              "site": "board.columns",
+              "site": "programs.boardSummary.0",
               "table": "columns",
               "index": "byParentOrder",
               "prefix": [
@@ -959,7 +959,7 @@
                   "Object": {
                     "child": {
                       "Get": {
-                        "site": "boardSummary.count",
+                        "site": "programs.boardSummary.1",
                         "table": "cardCounts",
                         "index": "byGroup",
                         "key": [
@@ -994,7 +994,7 @@
   },
   "certificate": {
     "program": "boardSummary",
-    "plan_hash": "3f2192e85047f0758385822a8dc65d2e841fd8033fa5048e358aed04d01c2247",
+    "plan_hash": "761b0fd6d03bb5cb829bc22c6b967ee9fe0f2f6b04ec10e8433dc831e7f98869",
     "schema_hash": "31792591fb75b5ab316e24a71206d3f7de6e02ed12f49a2f39782dbcab4b3566",
     "rule_hashes": {
       "cardCounts.read": "66a1b2b0d1f21fd55f866a1e5d7135598e3234c1f55cb62bb8cd602d50bb42a6",
@@ -1004,7 +1004,7 @@
     "value_model_version": "i53-codepoint-bytes-v2",
     "read_sites": [
       {
-        "site": "board.columns",
+        "site": "programs.boardSummary.0",
         "table": "columns",
         "index": "byParentOrder",
         "prefix_template": "Arg",
@@ -1014,7 +1014,7 @@
         "hoist": true
       },
       {
-        "site": "boardSummary.count",
+        "site": "programs.boardSummary.1",
         "table": "cardCounts",
         "index": "byGroup",
         "prefix_template": "Shape",
@@ -1045,7 +1045,7 @@
     "disclosures": [
       "E_DISCLOSURE: count waitlist summarized into waitCounts"
     ],
-    "bound_product": "board.columns take 20 = 20"
+    "bound_product": "programs.boardSummary.0 take 20 = 20"
   },
   "context": {
     "viewer": "u1",
@@ -1103,7 +1103,7 @@
     ],
     "ranges": [
       {
-        "site": "board.columns",
+        "site": "programs.boardSummary.0",
         "table": "columns",
         "index": "byParentOrder",
         "prefix": [
@@ -1169,7 +1169,7 @@
     "canonicalResult": "{\"Array\":[{\"Row\":{\"child\":{\"Row\":{\"columnId\":{\"Id\":\"col1\"},\"id\":{\"Id\":\"[{\\\"Id\\\":\\\"col1\\\"}]\"},\"value\":{\"Int\":1}}},\"column\":{\"Row\":{\"boardId\":{\"Id\":\"board1\"},\"id\":{\"Id\":\"col1\"},\"order\":{\"Int\":1},\"title\":{\"String\":\"Todo\"}}}}}]}",
     "digest": "0eb94267b8c184dd18fd2a01829657e48c8b0b6027a4d7338401b77c956f369b",
     "rangeStops": {
-      "board.columns": [
+      "programs.boardSummary.0": [
         "exhausted"
       ]
     },

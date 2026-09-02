@@ -933,7 +933,7 @@
           "binding": "account",
           "domain": {
             "Recurse": {
-              "site": "ancestors.step",
+              "site": "programs.ancestors.0",
               "table": "accounts",
               "index": "byId",
               "seed": {
@@ -966,7 +966,7 @@
   },
   "certificate": {
     "program": "ancestors",
-    "plan_hash": "2a70f1c889e7c25d819472bdc05e01eb215f062420ea854c4385a1a6aff33d9b",
+    "plan_hash": "1449b0047498c167e340d010065d11ea799311afc2bd5ad0a39ca1f20476d9a7",
     "schema_hash": "31792591fb75b5ab316e24a71206d3f7de6e02ed12f49a2f39782dbcab4b3566",
     "rule_hashes": {
       "accounts.read": "66a1b2b0d1f21fd55f866a1e5d7135598e3234c1f55cb62bb8cd602d50bb42a6"
@@ -975,7 +975,7 @@
     "value_model_version": "i53-codepoint-bytes-v2",
     "read_sites": [
       {
-        "site": "ancestors.step",
+        "site": "programs.ancestors.0",
         "table": "accounts",
         "index": "byId",
         "prefix_template": "Shape",
@@ -1005,7 +1005,7 @@
     "disclosures": [
       "E_DISCLOSURE: count waitlist summarized into waitCounts"
     ],
-    "bound_product": "ancestors.step take 1 = 1"
+    "bound_product": "programs.ancestors.0 take 1 = 1"
   },
   "context": {
     "viewer": "u1",

@@ -55,7 +55,7 @@ export function registerFinalGateChecks(test: RegisterTest, legacyLib: string): 
     const output = `${new TextDecoder().decode(checked.stdout)}${new TextDecoder().decode(checked.stderr)}`;
     assert(checked.exitCode === 0, `guide validation self-test failed: ${output}`);
     assert(
-      output.includes("families.source.json[1]") && output.includes("duplicate family duplicate")
+      output.includes("families.source.json[1]") && output.includes("duplicate code E_ONE")
         && output.includes("guide/oversized.md") && output.includes("guide/stale.md"),
       `guide validator failed fast: ${output}`,
     );

@@ -1,0 +1,33 @@
+const users = table("users");           // { id, name }
+const rides = table("rides");           // { id, driverId, seats, departsAt }
+const passengers = table("passengers"); // { id, rideId, userId, at }
+                                        // unique index passengers.byRideUser: (rideId, userId)
+                                        // index passengers.byRideAt: (rideId, at)
+const passengerCounts = maintained("passengerCounts", passengers); // aggregate: count per rideId
+
+export const joinRide = mutation(
+  { rideId: scalar() },
+  ({ db, ctx, args }) => {
+    // Check idempotency: if already joined, return existing state
+    const existing = db.get(passengers.byRideUser, [args.rideId, ctx.viewer]);
+    if (existing) {
+      return existing;
+    }
+
+    // Check capacity via maintained aggregate (engine-kept exact at commit)
+    const ride = db.get(rides, args.rideId);
+    const countRow = db.get(passengerCounts, args.rideId);
+    const currentCount = countRow?.count ?? 0;
+    db.require(currentCount < ride.seats, "RIDE_FULL");
+
+    // Insert passenger; engine ensures maintained aggregate accuracy at commit
+    const passengerId = ctx.newId();
+    db.insert(passengers, {
+      id: passengerId,
+      rideId: args.rideId,
+      userId: ctx.viewer,
+      at: ctx.now(),
+    });
+    return { id: passengerId, rideId: args.rideId, userId: ctx.viewer, at: ctx.now() };
+  },
+);

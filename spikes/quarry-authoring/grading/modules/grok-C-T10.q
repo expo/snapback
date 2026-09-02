@@ -1,0 +1,25 @@
+table users:
+  name: text <=80
+
+table rides:
+  driver: users
+  seats: int
+  departsAt: time
+
+table passengers:
+  ride: rides
+  user: users
+  at: time
+  by ride, at
+  unique ride, user
+
+maintain seatCount = count passengers by ride
+
+mutation joinRide(rideId: rides) -> passengers:
+  ride = rides[rideId]! else NO_RIDE
+  match passengers[rideId, viewer]:
+    some p:
+      p
+    none:
+      require ride.seats > #seatCount[rideId] else RIDE_FULL
+      +passengers { ride: rideId, user: viewer, at: now }
