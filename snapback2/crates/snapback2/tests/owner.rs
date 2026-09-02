@@ -1068,7 +1068,7 @@ fn check_grammar_schema_aggregation_and_numeric_flags_are_strict() {
     let two_sinks = json!({
         "schema": { "tables": {
             "docs": {
-                "columns": { "id": "Id", "group": "Id", "owner": "Id", "order": "Int" },
+                "columns": { "id": "Id", "group": "Id", "owner": "Principal", "order": "Int" },
                 "indexes": { "byId": { "columns": ["id"], "unique": true }, "byScope": { "columns": ["group", "order", "id"], "unique": false } },
                 "rules": { "read": { "Eq": [{ "Field": "owner" }, "Viewer"] }, "insert": "Allow", "update": "Allow", "delete": "Allow" }, "constraints": []
             },

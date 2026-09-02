@@ -10,7 +10,7 @@
 ## Problem
 
 The standalone TypeScript evaluator is conformant with the Rust engine across
-the 103-case frozen corpus, including the accounts/RBAC transition and
+the 106-case frozen corpus, including the accounts/RBAC transition and
 constraint cases. The published `snapback2/client` surface does not import or
 execute it, and the current wire does not yet deliver the certified program
 and receipt custody a local evaluation would require. LLP 1002 previously
@@ -29,6 +29,8 @@ client prediction/coverage capability and must not be represented as shipped.
   `snapback2-core`, and no third evaluator locus is introduced.
 - Successor, authentication-generation, receipt replacement, and reconnect
   fences prevent predecessor evaluation from publishing into current state.
+- Public receipt/rule hashing canonicalizes object keys exactly as Rust's
+  ordered-map serialization rather than trusting JavaScript insertion order.
 - Package and acceptance tests demonstrate complete, partial, capped, denied,
   and corruption outcomes against the authoritative server.
 - LLP 1002 §9 and the public guide describe the implemented custody path and

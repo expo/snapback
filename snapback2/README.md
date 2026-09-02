@@ -17,6 +17,6 @@ posture is [`rules/RULES.md`](../rules/RULES.md) and
 | `packages/compiler` | TypeScript subset → IR (spike S2) |
 | `packages/evaluator` | the RBAC- and Bytes-complete IR evaluator twin for clients; public client custody remains deferred in LLP 1002 §9 |
 | `packages/snapback2` | the npm package: shim, authoring runtime (`snapback2`), `snapback2/client`, `snapback2/react`, `snapback2/test`, guide pages, templates |
-| `corpus/` | 103 shared Rust/TypeScript conformance cases for RBAC, Bytes, and opaque capped completeness |
+| `corpus/` | 106 shared Rust/TypeScript conformance cases for RBAC, Bytes, authority-gated maintained prediction, Optional groups, and opaque capped completeness |
 | `scripts/` | `test.sh`, `measure.mjs`, `publish.mjs`, `hermes` |
 | `metrics/loop.jsonl` | every measured run |

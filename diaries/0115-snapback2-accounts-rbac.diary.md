@@ -105,7 +105,17 @@ removing a maintain left predecessor projection rows behind. Exact physical
 write accounting, closed single-owner projection validation at both trust
 boundaries, and transactional successor target rebuilds turned those implicit
 assumptions into executable containment rules. Six frozen authority-custody
-cases brought the final shared Rust/TypeScript corpus to 103.
+cases, plus the exact-review repair for omitted Optional maintained groups,
+brought the final shared Rust/TypeScript corpus to 106 after adding held,
+authority-absent, and authority-missing aggregate-target coverage.
+Fresh exact-commit review then paid for itself again: branch analysis had to
+sum sequential writes inside each arm before taking the arm maximum; raw
+`check --ir` had to reuse whole-generation certification so nominal
+`Principal` rules could not drift from serve; and successor clearing had to
+avoid applying a newly added uniqueness rule to stale rows being removed.
+The Optional parity case also exposed JavaScript prototype-key hazards, so the
+twin now uses own-property checks and null-prototype row construction for
+schema names such as `__proto__` and `toString`.
 
 ## Comparison
 

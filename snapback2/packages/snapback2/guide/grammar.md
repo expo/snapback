@@ -3,7 +3,7 @@
 Layout: `snapback/schema.ts`, named programs in `snapback/*.ts`, optional
 `seed.ts`, and journeys in `snapback/tests/*.test.ts`.
 
-Schema: `schema`, `table`, `channel`; types `t.id/principal/text/int/bool/time/
+Schema: `schema`, `table`, `channel`; types `t.id/principal/text/bytes/int/bool/time/
 ref/json/optional/list/enum/decimal/money`; rules `public/allow/deny/eq/ne/and/
 or/not/exists/created/system/viewerIs`; terms `field/oldField/nextField/viewer/
 literal`. `oldField` and `nextField` are update-only; ordinary `field` is the

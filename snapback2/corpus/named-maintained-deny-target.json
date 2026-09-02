@@ -147,7 +147,17 @@
   "receipt": {
     "rows": [],
     "ranges": [],
-    "absences": [],
+    "absences": [
+      [
+        "counts",
+        "byId",
+        [
+          {
+            "Id": "[{\"Id\":\"bucket-1\"}]"
+          }
+        ]
+      ]
+    ],
     "verdicts": []
   },
   "prelude": [],

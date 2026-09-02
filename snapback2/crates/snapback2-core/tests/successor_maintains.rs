@@ -364,3 +364,91 @@ fn migration_accepts_dropping_a_removed_maintained_target_table() {
     runtime.apply_migration(next, &plan).unwrap();
     assert!(runtime.generation().schema().table("totals").is_none());
 }
+
+#[test]
+fn rebuilt_target_clears_stale_rows_before_a_new_unique_index_binds() {
+    let expenses = table(
+        &[
+            ("id", ColumnType::Id),
+            ("group", ColumnType::Id),
+            ("amount", ColumnType::Int),
+        ],
+        &[("byId", &["id"])],
+    );
+    let totals = table(
+        &[
+            ("id", ColumnType::Id),
+            ("group", ColumnType::Id),
+            ("value", ColumnType::Int),
+        ],
+        &[("byId", &["id"])],
+    );
+    let count = Maintain {
+        kind: MaintainKind::Count,
+        source: "expenses".to_owned(),
+        by: vec!["group".to_owned()],
+        target: "totals".to_owned(),
+        readable: None,
+    };
+    let base_tables = BTreeMap::from([
+        ("expenses".to_owned(), expenses.clone()),
+        ("totals".to_owned(), totals.clone()),
+    ]);
+    let mut runtime = Runtime::open(
+        Store::memory().unwrap(),
+        generation(base_tables, vec![count]),
+    )
+    .unwrap();
+    runtime
+        .seed(&[
+            (
+                "expenses".to_owned(),
+                object([
+                    ("id", Value::Id("expense-a".to_owned())),
+                    ("group", Value::Id("group-a".to_owned())),
+                    ("amount", Value::Int(5)),
+                ]),
+            ),
+            (
+                "expenses".to_owned(),
+                object([
+                    ("id", Value::Id("expense-b".to_owned())),
+                    ("group", Value::Id("group-b".to_owned())),
+                    ("amount", Value::Int(7)),
+                ]),
+            ),
+        ])
+        .unwrap();
+
+    let mut next_totals = totals;
+    next_totals.indexes.insert(
+        "byValue".to_owned(),
+        Index {
+            columns: vec!["value".to_owned()],
+            unique: true,
+        },
+    );
+    let sum = Maintain {
+        kind: MaintainKind::Sum {
+            of: "amount".to_owned(),
+        },
+        source: "expenses".to_owned(),
+        by: vec!["group".to_owned()],
+        target: "totals".to_owned(),
+        readable: None,
+    };
+    runtime
+        .apply_successor(generation(
+            BTreeMap::from([
+                ("expenses".to_owned(), expenses),
+                ("totals".to_owned(), next_totals),
+            ]),
+            vec![sum],
+        ))
+        .unwrap();
+
+    for (group, value) in [("group-a", 5), ("group-b", 7)] {
+        let id = canonical_json(&vec![Value::Id(group.to_owned())]);
+        assert_eq!(get(&mut runtime, id).field("value"), Ok(&Value::Int(value)));
+    }
+}

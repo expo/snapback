@@ -1142,12 +1142,7 @@
       {
         "table": "memberships",
         "kind": "Insert",
-        "max_rows": 1
-      },
-      {
-        "table": "memberships",
-        "kind": "Insert",
-        "max_rows": 1
+        "max_rows": 2
       }
     ],
     "maintained_amplification": 0,

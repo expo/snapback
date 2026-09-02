@@ -3,6 +3,7 @@ use super::*;
 pub(super) fn add_twin_cases(cases: &mut Vec<CorpusCase>) {
     add_rbac_twin_cases(cases);
     add_constraint_and_memo_twin_cases(cases);
+    add_optional_maintain_twin_case(cases);
 }
 // @ref LLP 1001#9-schema-additions — the frozen client twin exercises the
 // relational update, created-row, and intrinsic addressed-id rules directly.
@@ -338,10 +339,28 @@ fn rbac_twin_case(
             .collect(),
         ..ClosureReceipt::default()
     };
+    rbac_twin_case_with_receipt(name, schema, program, receipt)
+}
+
+fn by_id_absence(table: &str, id: String) -> ClosureReceipt {
+    ClosureReceipt {
+        absences: vec![(table.to_owned(), "byId".to_owned(), vec![Value::Id(id)])],
+        ..ClosureReceipt::default()
+    }
+}
+
+fn rbac_twin_case_with_receipt(
+    name: &str,
+    schema: Schema,
+    program: Program,
+    receipt: ClosureReceipt,
+) -> CorpusCase {
     let context = mutation_context([], Vec::<String>::new());
     let mut server = Engine::memory(schema.clone()).expect("RBAC twin engine");
-    for (table, row) in &rows {
-        server.seed(table, row.clone()).expect("RBAC twin seed");
+    for record in &receipt.rows {
+        server
+            .seed(&record.table, record.row.clone())
+            .expect("RBAC twin seed");
     }
     let certificate = Checker::new(&schema, Ceilings::default())
         .check(&program)
@@ -514,23 +533,24 @@ fn add_constraint_and_memo_twin_cases(cases: &mut Vec<CorpusCase>) {
         auth: Auth::default(),
         effects: Vec::new(),
     };
-    cases.push(rbac_twin_case(
+    let maintained_program = Program {
+        name: "events.record".to_owned(),
+        kind: ProgramKind::Mutation,
+        args: BTreeMap::new(),
+        read_time_granularity_ms: None,
+        body: vec![
+            Stmt::Insert {
+                table: "events".to_owned(),
+                row: Expr::Literal(row([("id", id("event-1")), ("bucket", id("bucket-1"))])),
+            },
+            Stmt::Return(Expr::Literal(Value::Bool(true))),
+        ],
+    };
+    cases.push(rbac_twin_case_with_receipt(
         "named-maintained-deny-target",
         maintained_schema,
-        Program {
-            name: "events.record".to_owned(),
-            kind: ProgramKind::Mutation,
-            args: BTreeMap::new(),
-            read_time_granularity_ms: None,
-            body: vec![
-                Stmt::Insert {
-                    table: "events".to_owned(),
-                    row: Expr::Literal(row([("id", id("event-1")), ("bucket", id("bucket-1"))])),
-                },
-                Stmt::Return(Expr::Literal(Value::Bool(true))),
-            ],
-        },
-        Vec::new(),
+        maintained_program,
+        by_id_absence("counts", canonical_json(&vec![id("bucket-1")])),
     ));
 
     add_rule_memo_twin_cases(cases, public);
@@ -676,5 +696,135 @@ fn add_rule_memo_twin_cases(cases: &mut Vec<CorpusCase>, public: RuleExpr) {
             ],
         },
         vec![("docs", row([("id", id("doc-1"))]))],
+    ));
+}
+
+// @ref LLP 1001#2-what-a-commit-records — omitted Optional source fields
+// materialize as Null before both authoritative and local maintained grouping.
+fn add_optional_maintain_twin_case(cases: &mut Vec<CorpusCase>) {
+    let public = RuleExpr::Public {
+        reason: "frozen optional maintain fixture".to_owned(),
+    };
+    let by_id = || {
+        BTreeMap::from([(
+            "byId".to_owned(),
+            Index {
+                columns: vec!["id".to_owned()],
+                unique: true,
+            },
+        )])
+    };
+    let optional_bucket = ColumnType::Optional(Box::new(ColumnType::Id));
+    let events = Table {
+        columns: BTreeMap::from([
+            ("id".to_owned(), ColumnType::Id),
+            ("__proto__".to_owned(), optional_bucket.clone()),
+            ("toString".to_owned(), optional_bucket.clone()),
+        ]),
+        indexes: by_id(),
+        rules: Rules {
+            read: public.clone(),
+            insert: public.clone(),
+            update: public.clone(),
+            delete: public,
+        },
+        constraints: Vec::new(),
+    };
+    let counts = Table {
+        columns: BTreeMap::from([
+            ("id".to_owned(), ColumnType::Id),
+            ("__proto__".to_owned(), optional_bucket.clone()),
+            ("toString".to_owned(), optional_bucket),
+            ("value".to_owned(), ColumnType::Int),
+        ]),
+        indexes: BTreeMap::from([
+            (
+                "byGroup".to_owned(),
+                Index {
+                    columns: vec!["__proto__".to_owned(), "toString".to_owned()],
+                    unique: true,
+                },
+            ),
+            (
+                "byId".to_owned(),
+                Index {
+                    columns: vec!["id".to_owned()],
+                    unique: true,
+                },
+            ),
+        ]),
+        rules: Rules {
+            read: RuleExpr::Public {
+                reason: "assert the materialized Null group".to_owned(),
+            },
+            insert: RuleExpr::Deny,
+            update: RuleExpr::Deny,
+            delete: RuleExpr::Deny,
+        },
+        constraints: Vec::new(),
+    };
+    let schema = Schema {
+        tables: BTreeMap::from([("counts".to_owned(), counts), ("events".to_owned(), events)]),
+        maintains: vec![Maintain {
+            kind: MaintainKind::Count,
+            source: "events".to_owned(),
+            by: vec!["__proto__".to_owned(), "toString".to_owned()],
+            target: "counts".to_owned(),
+            readable: None,
+        }],
+        channels: BTreeMap::new(),
+        auth: Auth::default(),
+        effects: Vec::new(),
+    };
+    let program = Program {
+        name: "events.recordWithoutBucket".to_owned(),
+        kind: ProgramKind::Mutation,
+        args: BTreeMap::new(),
+        read_time_granularity_ms: None,
+        body: vec![
+            Stmt::Insert {
+                table: "events".to_owned(),
+                row: Expr::Literal(row([("id", id("event-optional"))])),
+            },
+            Stmt::Return(Expr::Get(Read {
+                site: "optionalMaintain.count".to_owned(),
+                table: "counts".to_owned(),
+                index: "byGroup".to_owned(),
+                key: vec![Expr::Literal(Value::Null), Expr::Literal(Value::Null)],
+                provenance: KeyProvenance::Const,
+            })),
+        ],
+    };
+    let aggregate_id = canonical_json(&vec![Value::Null, Value::Null]);
+    cases.push(rbac_twin_case_with_receipt(
+        "named-maintained-optional-null-group",
+        schema.clone(),
+        program.clone(),
+        by_id_absence("counts", aggregate_id.clone()),
+    ));
+    cases.push(rbac_twin_case(
+        "named-maintained-held-target",
+        schema.clone(),
+        program.clone(),
+        vec![(
+            "counts",
+            row([
+                ("id", Value::Id(aggregate_id)),
+                ("__proto__", Value::Null),
+                ("toString", Value::Null),
+                ("value", Value::Int(5)),
+            ]),
+        )],
+    ));
+    cases.push(case_from_parts(
+        "named-maintained-authority-missing",
+        "authority",
+        schema,
+        program,
+        mutation_context([], Vec::<String>::new()),
+        ClosureReceipt::default(),
+        Vec::new(),
+        None,
+        None,
     ));
 }

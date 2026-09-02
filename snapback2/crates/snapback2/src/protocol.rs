@@ -5,6 +5,27 @@ use serde_json::{Value as Json, json};
 use snapback2_core::{IdentityError, RuntimeError, SuccessorRefusal, Value, encode_bytes_hex};
 use std::collections::BTreeMap;
 
+pub(crate) fn certification_family_guide(code: &str) -> (&'static str, &'static str) {
+    match code {
+        "E_UNBOUND_SCAN" => ("bound", "bound/scan"),
+        "E_UNBOUND_LOOP" => ("bound", "bound/loop"),
+        "E_UNBOUND_COUNT" | "E_STRUCTURAL_COUNT" => ("bound", "bound/count"),
+        "E_AMBIENT_TIME" => ("opaque", "opaque/time"),
+        code if code.starts_with("E_BOUND") || code.starts_with("E_UNBOUND") => {
+            ("bound", "bound/ceiling")
+        }
+        code if code.starts_with("E_SCHEMA") => ("schema", "schema/project"),
+        code if code.starts_with("E_RULE") => ("rule", "schema/rules"),
+        code if code.starts_with("E_SEED") => ("input", "schema/seed"),
+        "E_EMIT_IN_QUERY" => ("effect", "effects/authoring"),
+        code if code.starts_with("E_EFFECT") => ("effect", "effects/authoring"),
+        "E_DECIMAL_SCALE" | "E_ENUM_VARIANT" => ("args", "programs/types"),
+        code if code.starts_with("E_ARGS") => ("args", "programs/types"),
+        code if code.starts_with("E_OP") => ("op", "programs/operations"),
+        _ => ("opaque", "opaque/subset"),
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Refusal {

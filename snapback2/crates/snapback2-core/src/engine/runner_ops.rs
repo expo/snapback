@@ -181,6 +181,19 @@ impl<'a> Runner<'a> {
                 })?,
         };
         let existing = self.fetch_id(&maintain.target, &id)?;
+        // @ref LLP 1001#2-what-a-commit-records — a local aggregate may start
+        // from zero only when authority proved the deterministic target absent.
+        if existing.is_none()
+            && self.rule_authority == RuleAuthority::ReceiptOnly
+            && !self.authority_absences.iter().any(|(table, index, key)| {
+                table == &maintain.target
+                    && index == "byId"
+                    && matches!(key.as_slice(), [Value::Id(value)] if value == &id)
+            })
+        {
+            self.mark_missing_authority();
+            return Ok(());
+        }
         let old_value = existing
             .as_ref()
             .and_then(|row| row.field("value").ok())
@@ -380,7 +393,7 @@ impl<'a> Runner<'a> {
                         )));
                     }
                 }
-                Constraint::Unique { index } => {
+                Constraint::Unique { index } if effect != Effect::Delete => {
                     self.check_unique(table_name, &table, index, old, new)?
                 }
                 Constraint::Cap { by, max } if effect == Effect::Insert => {
@@ -468,7 +481,7 @@ impl<'a> Runner<'a> {
             }
         }
         for (name, index) in &table.indexes {
-            if index.unique {
+            if index.unique && effect != Effect::Delete {
                 self.check_unique(table_name, &table, name, old, new)?;
             }
         }
@@ -672,8 +685,7 @@ impl<'a> Runner<'a> {
                     return Ok(verdict.result);
                 }
                 if !structurally_readable && self.rule_authority == RuleAuthority::ReceiptOnly {
-                    self.missing_authority = true;
-                    self.authority_miss_serial = self.authority_miss_serial.saturating_add(1);
+                    self.mark_missing_authority();
                     return Ok(false);
                 }
                 let found = self.lookup_raw(table, index, &key)?;
@@ -964,6 +976,11 @@ impl<'a> Runner<'a> {
         Ok(())
     }
 
+    fn mark_missing_authority(&mut self) {
+        self.missing_authority = true;
+        self.authority_miss_serial = self.authority_miss_serial.saturating_add(1);
+    }
+
     pub(super) fn assert_rule_bounds(&self) -> Result<(), RuntimeError> {
         let certificate = self
             .rule_certificate
@@ -1212,6 +1229,7 @@ mod tests {
             &certificate,
             Context::query(Actor::user("u1").unwrap(), BTreeMap::new()),
             &verdicts,
+            &[],
             RuleAuthority::StoreAuthoritative,
             0,
         );
@@ -1263,6 +1281,7 @@ mod tests {
             &certificate,
             Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new()),
             &verdicts,
+            &[],
             RuleAuthority::StoreAuthoritative,
             0,
         );
@@ -1298,6 +1317,7 @@ mod tests {
             &certificate,
             Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new()),
             &verdicts,
+            &[],
             RuleAuthority::StoreAuthoritative,
             0,
         );

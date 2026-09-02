@@ -625,7 +625,10 @@ impl Summary {
                 })
                 .or_insert(site);
         }
-        for write in other.writes {
+        // @ref LLP 1001#2-what-a-commit-records — sequential writes add
+        // within one arm; only the completed arm totals are branch-maxed.
+        self.writes = sum_write_sites(std::mem::take(&mut self.writes));
+        for write in sum_write_sites(other.writes) {
             if let Some(existing) = self
                 .writes
                 .iter_mut()
@@ -648,6 +651,21 @@ impl Summary {
         }
         self
     }
+}
+
+fn sum_write_sites(writes: Vec<WriteSite>) -> Vec<WriteSite> {
+    let mut totals = Vec::<WriteSite>::new();
+    for write in writes {
+        if let Some(existing) = totals
+            .iter_mut()
+            .find(|existing| existing.table == write.table && existing.kind == write.kind)
+        {
+            existing.max_rows = existing.max_rows.saturating_add(write.max_rows);
+        } else {
+            totals.push(write);
+        }
+    }
+    totals
 }
 
 struct Analyzer<'a> {

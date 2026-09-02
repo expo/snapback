@@ -1,5 +1,6 @@
 import { sha256 } from "./sha256";
 export { sha256 } from "./sha256";
+import { exactByIdAbsence, exactVerdict } from "./authority";
 import coreIrContract from "../../../crates/snapback2-core/ir-contract.json" with { type: "json" };
 
 export type Value =
@@ -295,6 +296,7 @@ export class ClientStore {
   }
 
   put(table: string, row: Value): void {
+    row = materializeOptionalFields(this.schema, table, row);
     const id = asString(field(row, "id"));
     let rows = this.tables.get(table);
     if (rows === undefined) {
@@ -316,15 +318,10 @@ export class ClientStore {
   }
 
   verdict(ruleHash: string, pinnedDigest: string, context: Context): boolean | null {
-    const verdict = this.coverage.verdicts.find(
-      (candidate) =>
-        candidate.rule_hash === ruleHash &&
-        candidate.pinned_inputs_digest === pinnedDigest &&
-        candidate.principal === context.viewer &&
-        candidate.auth_epoch === context.auth_epoch,
-    );
-    return verdict?.result ?? null;
+    return exactVerdict(this.coverage.verdicts, ruleHash, pinnedDigest, context.viewer, context.auth_epoch);
   }
+
+  authorityAbsence(table: string, id: string): boolean { return exactByIdAbsence(this.coverage.absences, table, id, valuesEqual); }
 
   private seedReceipt(receipt: ClosureReceipt): void {
     for (const row of receipt.rows) this.put(row.table, clone(row.row));
@@ -545,7 +542,7 @@ class Runner {
       case "Array":
         return { Array: data.map((value: any) => this.expr(value)) };
       case "Object": {
-        const row: Record<string, Value> = {};
+        const row: Record<string, Value> = Object.create(null);
         for (const key of Object.keys(data).sort(compareCodepoints)) row[key] = this.expr(data[key]);
         return { Row: row };
       }
@@ -793,6 +790,7 @@ class Runner {
   }
 
   private insert(table: string, row: Value): void {
+    row = materializeOptionalFields(this.schema, table, row);
     validateWriteRow(this.schema, table, row);
     if (!this.checkRule(table, "insert", null, row))
       throw new EvalError("E_RULE", `${table} insert`);
@@ -816,6 +814,7 @@ class Runner {
   private replace(table: string, key: Value, row: Value): void {
     const old = this.store.byId(table, asString(key));
     if (old === null) throw new EvalError("E_INPUT", `missing ${table} row`);
+    row = materializeOptionalFields(this.schema, table, row);
     validateWriteRow(this.schema, table, row);
     this.validateAddressedRowId(table, key, row);
     // @ref LLP 1001#9-schema-additions — update authority is one relation
@@ -856,11 +855,16 @@ class Runner {
     const delta =
       kind === "Count" ? direction : safeNumber(direction * asInt(field(source, data.of)));
     const existing = this.store.byId(maintain.target, idValue);
+    if (existing === null && !this.store.authorityAbsence(maintain.target, idValue)) {
+      this.trace.missingAuthority = true;
+      this.authorityMissSerial += 1;
+      return;
+    }
     const oldValue = existing === null ? 0 : asInt(field(existing, "value"));
-    const object: Record<string, Value> = {
+    const object: Record<string, Value> = Object.assign(Object.create(null), {
       id: { Id: idValue },
       value: int(oldValue + delta),
-    };
+    });
     maintain.by.forEach((name: string, index: number) => {
       object[name] = group[index];
     });
@@ -1259,7 +1263,7 @@ function canonicalValues(values: Value[]): string {
 }
 
 function rangeStops(ranges: TraceRange[]): Record<string, string[]> {
-  const result: Record<string, string[]> = {};
+  const result: Record<string, string[]> = Object.create(null);
   for (const range of ranges) (result[range.site] ??= []).push(range.stop);
   return sortObject(result);
 }
@@ -1268,22 +1272,30 @@ function normalizeRow(value: Value): Value {
   if (!isVariant(value, "Row")) return clone(value);
   return rowValue(value.Row);
 }
+// @ref LLP 1001#2-what-a-commit-records — omitted Optional fields are Null before rules and maintains.
+function materializeOptionalFields(schema: any, table: string, value: Value): Value {
+  const normalized = normalizeRow(value);
+  if (!isVariant(normalized, "Row")) return normalized;
+  for (const [name, descriptor] of Object.entries<any>(schema.tables?.[table]?.columns ?? {}))
+    if (descriptor?.Optional !== undefined && !Object.prototype.hasOwnProperty.call(normalized.Row, name)) normalized.Row[name] = "Null";
+  return normalizeRow(normalized);
+}
 
 function rowValue(entries: Record<string, Value>): Value {
-  const sorted: Record<string, Value> = {};
+  const sorted: Record<string, Value> = Object.create(null);
   for (const key of Object.keys(entries).sort(compareCodepoints)) sorted[key] = clone(entries[key]);
   return { Row: sorted };
 }
 
 function field(value: Value, name: string): Value {
   const object = asObject(value);
-  if (!(name in object)) throw new EvalError("E_FIELD", `missing field ${name}`);
+  if (!Object.prototype.hasOwnProperty.call(object, name)) throw new EvalError("E_FIELD", `missing field ${name}`);
   return object[name];
 }
 
 function fieldOrNull(value: Value, name: string): Value {
   const object = asObject(value);
-  return object[name] ?? "Null";
+  return Object.prototype.hasOwnProperty.call(object, name) ? object[name] : "Null";
 }
 
 function asObject(value: Value): Record<string, Value> {
@@ -1447,7 +1459,7 @@ function validateWriteRow(schema: any, tableName: string, row: Value): void {
   if (columns === undefined) throw new EvalError("E_SCHEMA", `missing table ${tableName}`);
   const object = asObject(row);
   for (const [name, descriptor] of Object.entries<any>(columns)) {
-    if (name in object) validateColumnValue(descriptor, object[name], `${tableName}.${name}`);
+    if (Object.prototype.hasOwnProperty.call(object, name)) validateColumnValue(descriptor, object[name], `${tableName}.${name}`);
   }
 }
 
@@ -1478,7 +1490,7 @@ function clone<T>(value: T): T {
 }
 
 function sortObject<T>(value: Record<string, T>): Record<string, T> {
-  const sorted: Record<string, T> = {};
+  const sorted: Record<string, T> = Object.create(null);
   for (const key of Object.keys(value).sort(compareCodepoints)) sorted[key] = value[key];
   return sorted;
 }

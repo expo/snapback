@@ -4,6 +4,8 @@
 
 #[path = "rbac_cases/adversarial.rs"]
 mod adversarial;
+#[path = "rbac_cases/certificate_branch_writes.rs"]
+mod certificate_branch_writes;
 #[path = "rbac_cases/rule_types.rs"]
 mod rule_types;
 #[path = "rbac_cases/schema_maintains.rs"]

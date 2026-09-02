@@ -1,0 +1,250 @@
+{
+  "corpusVersion": 1,
+  "name": "named-maintained-held-target",
+  "category": "named",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "counts": {
+        "columns": {
+          "__proto__": {
+            "Optional": "Id"
+          },
+          "id": "Id",
+          "toString": {
+            "Optional": "Id"
+          },
+          "value": "Int"
+        },
+        "indexes": {
+          "byGroup": {
+            "columns": [
+              "__proto__",
+              "toString"
+            ],
+            "unique": true
+          },
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "assert the materialized Null group"
+            }
+          },
+          "insert": "Deny",
+          "update": "Deny",
+          "delete": "Deny"
+        },
+        "constraints": []
+      },
+      "events": {
+        "columns": {
+          "__proto__": {
+            "Optional": "Id"
+          },
+          "id": "Id",
+          "toString": {
+            "Optional": "Id"
+          }
+        },
+        "indexes": {
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "frozen optional maintain fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "frozen optional maintain fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "frozen optional maintain fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "frozen optional maintain fixture"
+            }
+          }
+        },
+        "constraints": []
+      }
+    },
+    "maintains": [
+      {
+        "kind": "Count",
+        "source": "events",
+        "by": [
+          "__proto__",
+          "toString"
+        ],
+        "target": "counts",
+        "readable": null
+      }
+    ]
+  },
+  "program": {
+    "name": "events.recordWithoutBucket",
+    "kind": "Mutation",
+    "args": {},
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Insert": {
+          "table": "events",
+          "row": {
+            "Literal": {
+              "Row": {
+                "id": {
+                  "Id": "event-optional"
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "Return": {
+          "Get": {
+            "site": "optionalMaintain.count",
+            "table": "counts",
+            "index": "byGroup",
+            "key": [
+              {
+                "Literal": "Null"
+              },
+              {
+                "Literal": "Null"
+              }
+            ],
+            "provenance": "Const"
+          }
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "events.recordWithoutBucket",
+    "plan_hash": "20090599d1c163847e4d72f65e98dc230631531ece43b9aca8eef47622eaf14f",
+    "schema_hash": "46f6dfb79b76f6f6104cc23a9602d14bf15fc99fc34dcd9f7624b4c88f8a9edf",
+    "rule_hashes": {
+      "counts.read": "7ef2caa2a083cfd2517425aa65c42b76a4c45c60e830dfa312fd8f36c2d1548d",
+      "events.insert": "f482d5cca236443b5b1206282b72bed60f2d3d604965ae5bf31cd412121c210f"
+    },
+    "evaluator_version": "bounded-spike-rust-1",
+    "value_model_version": "i53-codepoint-bytes-v2",
+    "read_sites": [
+      {
+        "site": "optionalMaintain.count",
+        "table": "counts",
+        "index": "byGroup",
+        "prefix_template": "Const",
+        "take": 1,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 0,
+        "hoist": false
+      }
+    ],
+    "write_sites": [
+      {
+        "table": "events",
+        "kind": "Insert",
+        "max_rows": 1
+      }
+    ],
+    "maintained_amplification": 1,
+    "constraint_checks": [
+      "counts:Unique(byGroup)",
+      "counts:Unique(byId)",
+      "events:Unique(byId)"
+    ],
+    "max_examined": 1,
+    "max_index_entries": 1,
+    "max_rule_probes": 0,
+    "max_steps": 13,
+    "max_heap_bytes": 416,
+    "max_output_bytes": 514,
+    "max_closure_bytes": 514,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [
+      "counts.byGroup"
+    ],
+    "disclosures": [],
+    "bound_product": "optionalMaintain.count take 1 = 1"
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {},
+    "now": 0,
+    "new_ids": [],
+    "read_time": null,
+    "seed_write": false
+  },
+  "receipt": {
+    "rows": [
+      {
+        "table": "counts",
+        "id": "[\"Null\",\"Null\"]",
+        "row": {
+          "Row": {
+            "__proto__": "Null",
+            "id": {
+              "Id": "[\"Null\",\"Null\"]"
+            },
+            "toString": "Null",
+            "value": {
+              "Int": 5
+            }
+          }
+        }
+      }
+    ],
+    "ranges": [],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": {
+      "Row": {
+        "__proto__": "Null",
+        "id": {
+          "Id": "[\"Null\",\"Null\"]"
+        },
+        "toString": "Null",
+        "value": {
+          "Int": 6
+        }
+      }
+    },
+    "errorCode": null,
+    "localState": "predicted",
+    "partialSites": [],
+    "canonicalResult": "{\"Row\":{\"__proto__\":\"Null\",\"id\":{\"Id\":\"[\\\"Null\\\",\\\"Null\\\"]\"},\"toString\":\"Null\",\"value\":{\"Int\":6}}}",
+    "digest": "994caa7cb7243e1dc7773246adb86f0aa1d78f30ffc57e39865a8793edcbd0ca",
+    "rangeStops": {},
+    "evictedRows": null
+  }
+}

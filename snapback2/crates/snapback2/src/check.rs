@@ -2,8 +2,8 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use snapback2_core::{
-    Ceilings, Certificate, CheckError, Checker, Index, Program, RuleExpr, Rules, Schema, Table,
-    spike_schema, validate_schema,
+    Auth, Ceilings, Certificate, CheckError, EffectDecl, Generation, Index, Program, ProjectJson,
+    RuleExpr, Rules, Schema, Table, spike_schema, validate_schema,
 };
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::{self, Read};
@@ -11,6 +11,7 @@ use std::path::Path;
 use std::process::ExitCode;
 
 use crate::project;
+use crate::protocol::certification_family_guide;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -20,6 +21,12 @@ struct Request {
     schema: Option<Value>,
     #[serde(default)]
     schema_mode: SchemaMode,
+    #[serde(default)]
+    effects: Vec<EffectDecl>,
+    #[serde(default)]
+    auth: Option<Auth>,
+    #[serde(default)]
+    version: Option<u32>,
 }
 
 #[derive(Clone, Copy, Debug, Default, Deserialize)]
@@ -57,30 +64,13 @@ struct SerializableError {
 }
 
 impl SerializableError {
-    fn from_check(error: CheckError, program: &str) -> Self {
-        let family = if error.code == "E_OP_RESERVED" {
-            "op"
-        } else if error.code.starts_with("E_BOUND")
-            || error.code.starts_with("E_UNBOUND")
-            || error.code == "E_STRUCTURAL_COUNT"
-        {
-            "bound"
-        } else {
-            "opaque"
-        };
-        let guide = match error.code.as_str() {
-            "E_UNBOUND_SCAN" => "bound/scan",
-            "E_STRUCTURAL_COUNT" => "bound/count",
-            "E_AMBIENT_TIME" => "opaque/time",
-            "E_OP_RESERVED" => "programs/operations",
-            _ if family == "bound" => "bound/ceiling",
-            _ => "opaque/subset",
-        };
+    fn from_certify(error: CheckError, site: impl Into<String>) -> Self {
+        let (family, guide) = certification_family_guide(&error.code);
         Self {
             code: error.code,
             family: family.to_owned(),
             message: error.message,
-            site: format!("<project>:{program}"),
+            site: site.into(),
             rule: None,
             rewrite: error.rewrite,
             guide: guide.to_owned(),
@@ -248,36 +238,135 @@ fn check_request(request: Request) -> Vec<ResultItem> {
         ));
         return results;
     }
-    let checker = Checker::new(&schema, Ceilings::default());
-    let results = programs
-        .into_iter()
-        .flat_map(|(name, program)| match program {
-            Ok(program) => match checker.check_all(&program) {
-                Ok(certificate) => vec![ResultItem {
-                    program: name,
-                    certificate: Some(certificate),
-                    error: None,
-                }],
-                Err(errors) => errors
-                    .into_iter()
-                    .map(|error| ResultItem {
-                        program: name.clone(),
-                        certificate: None,
-                        error: Some(SerializableError::from_check(error, &name)),
-                    })
-                    .collect(),
-            },
-            Err(message) => vec![ResultItem {
-                program: name.clone(),
-                certificate: None,
-                error: Some(SerializableError::unsupported(
-                    &format!("<project>:{name}"),
-                    format!("program JSON contains an unsupported IR variant: {message}"),
-                )),
-            }],
-        })
+    let project = ProjectJson {
+        version: request.version.unwrap_or(1),
+        auth: request.auth.unwrap_or_else(|| schema.auth.clone()),
+        schema,
+        programs: parsed_programs,
+        effects: request.effects,
+    };
+    let program_names: BTreeSet<_> = project
+        .programs
+        .iter()
+        .map(|program| program.name.clone())
         .collect();
-    results
+    let generation =
+        match Generation::certify(&project, Ceilings::default()) {
+            Ok(generation) => Some(generation),
+            Err(errors)
+                if errors.iter().all(|(site, error)| {
+                    program_names.contains(site) && error.code != "E_OP_DUPLICATE"
+                }) =>
+            {
+                // Preserve the check command's per-program outcomes. A failed
+                // generation exposes no partial certificates, so retry each
+                // operation through the same complete trust boundary.
+                None
+            }
+            Err(errors) => {
+                let refused_programs: BTreeSet<_> = errors
+                    .iter()
+                    .filter_map(|(site, _)| program_names.contains(site).then_some(site.clone()))
+                    .collect();
+                let mut results = errors
+                    .into_iter()
+                    .map(|(site, error)| {
+                        let program = if program_names.contains(&site) {
+                            site.clone()
+                        } else {
+                            "<schema>".to_owned()
+                        };
+                        refused_item(&program, SerializableError::from_certify(error, site))
+                    })
+                    .collect::<Vec<_>>();
+                results.extend(programs.into_iter().filter_map(|(name, program)| {
+                match program {
+                    Err(message) => Some(refused_item(
+                        &name,
+                        SerializableError::unsupported(
+                            &format!("<project>:{name}"),
+                            format!("program JSON contains an unsupported IR variant: {message}"),
+                        ),
+                    )),
+                    Ok(_) if !refused_programs.contains(&name) => Some(refused_item(
+                        &name,
+                        SerializableError::unsupported(
+                            &format!("<project>:{name}"),
+                            "program cannot be certified because project certification failed",
+                        ),
+                    )),
+                    Ok(_) => None,
+                }
+            }));
+                return results;
+            }
+        };
+    match generation {
+        Some(generation) => programs
+            .into_iter()
+            .map(|(name, program)| match program {
+                Ok(_) => {
+                    let certificate = generation
+                        .programs()
+                        .get(&name)
+                        .map(|(_, certificate)| certificate.clone())
+                        .expect("certified generation contains every parsed program");
+                    ResultItem {
+                        program: name,
+                        certificate: Some(certificate),
+                        error: None,
+                    }
+                }
+                Err(message) => refused_item(
+                    &name,
+                    SerializableError::unsupported(
+                        &format!("<project>:{name}"),
+                        format!("program JSON contains an unsupported IR variant: {message}"),
+                    ),
+                ),
+            })
+            .collect(),
+        None => programs
+            .into_iter()
+            .flat_map(|(name, program)| match program {
+                Err(message) => vec![refused_item(
+                    &name,
+                    SerializableError::unsupported(
+                        &format!("<project>:{name}"),
+                        format!("program JSON contains an unsupported IR variant: {message}"),
+                    ),
+                )],
+                Ok(program) => {
+                    let mut single = project.clone();
+                    single.programs = vec![program];
+                    match Generation::certify(&single, Ceilings::default()) {
+                        Ok(generation) => vec![ResultItem {
+                            program: name.clone(),
+                            certificate: Some(
+                                generation
+                                    .programs()
+                                    .get(&name)
+                                    .map(|(_, certificate)| certificate.clone())
+                                    .expect("certified generation contains its parsed program"),
+                            ),
+                            error: None,
+                        }],
+                        Err(errors) => errors
+                            .into_iter()
+                            .map(|(site, error)| {
+                                let site = if site == name {
+                                    format!("<project>:{site}")
+                                } else {
+                                    site
+                                };
+                                refused_item(&name, SerializableError::from_certify(error, site))
+                            })
+                            .collect(),
+                    }
+                }
+            })
+            .collect(),
+    }
 }
 
 fn uncertified_program_results(
@@ -472,6 +561,9 @@ mod tests {
             })],
             schema: Some(schema),
             schema_mode: SchemaMode::Spike,
+            effects: Vec::new(),
+            auth: None,
+            version: None,
         });
 
         assert_eq!(results.len(), 3);
@@ -512,7 +604,7 @@ mod tests {
 
     #[test]
     fn reserved_application_auth_codes_keep_the_operation_error_envelope() {
-        let error = SerializableError::from_check(
+        let error = SerializableError::from_certify(
             CheckError {
                 code: "E_OP_RESERVED".to_owned(),
                 message:
@@ -521,7 +613,7 @@ mod tests {
                 rewrite: "use an application-owned refusal code without the E_AUTH_ prefix"
                     .to_owned(),
             },
-            "ops.reject",
+            "<project>:ops.reject",
         );
 
         assert_eq!(error.code, "E_OP_RESERVED");

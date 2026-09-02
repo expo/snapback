@@ -76,6 +76,15 @@ export function registerFinalGateChecks(test: RegisterTest, legacyLib: string): 
     assert(checked.results.length === chat.project.programs.length, "project check omitted programs");
     assert(checked.results.every((item: any) => (item.certificate === null) !== (item.error === null)), "project check omitted a certificate/refusal outcome");
     assert(checkedRefusals.every((item: any) => fullCheckEnvelope(item.error)), "checker refusal envelope is incomplete");
+    const wrongPrincipalAxis = structuredClone(chat.project) as any;
+    wrongPrincipalAxis.schema.tables.memberships.columns.principal = "Id";
+    const wrongPrincipalCheck = runBinaryCheck(["--json", "--ir"], wrongPrincipalAxis);
+    const nominalRefusal = wrongPrincipalCheck.results.find((item: any) =>
+      item.error?.code === "E_RULE_INVALID" && item.error.site.includes("schema.tables.memberships"))?.error;
+    assert(wrongPrincipalCheck.exitCode === 1, "raw ProjectJson erased the nominal Principal boundary");
+    assert(wrongPrincipalCheck.results.every((item: any) => item.certificate === null), "invalid raw ProjectJson still received a certificate");
+    assert(nominalRefusal?.family === "rule" && nominalRefusal?.guide === "schema/rules", "raw nominal refusal used the wrong diagnostic family");
+    assert(nominalRefusal?.site.includes("schema.tables.memberships"), "raw nominal refusal omitted its precise schema site");
     for (const fixture of ["todos", "s1"]) {
       const lowered = await lowerProject(`${frontend}fixtures/${fixture}`);
       assert(lowered.ok, `${fixture} did not compile for binary compatibility`);

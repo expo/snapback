@@ -73,7 +73,7 @@ numbered 1000 and up.
 | `packages/compiler` | LLP 1002 §2–§3: the `snapback2` module surface, project lowering (schema/programs/effects/seed/journeys), Node worker + one-shot CLI, `api.d.ts` with named row types, branded `Principal`, `Bytes`, and channels, refusal envelopes with families, all-diagnostics + `E_DIAG_TRUNCATED`, Decimal/Money/Enum with exact whole-unit scaling, `rule.system()`, nominal rule-term checking, closed maintain validation, and derived `rule.exists` visibility |
 | `packages/evaluator` | the RBAC- and Bytes-complete TypeScript IR evaluator twin, including exact authority-only replay, atomic partial mutations, `Emit`, and opaque capped/completeness parity |
 | `packages/snapback2` | shim + authoring runtime + `client` + `react` + `test` runner + guide pages + templates (`todos`, `chat`, React) |
-| `corpus/` | 103 shared Rust/TypeScript conformance cases for RBAC transitions and invalidation, bootstrap/final-exists, maintained writes, intrinsic ids, text constraints, Bytes, and opaque capped completeness |
+| `corpus/` | 106 shared Rust/TypeScript conformance cases for RBAC transitions and invalidation, bootstrap/final-exists, authority-gated maintained writes including omitted Optional groups, intrinsic ids, text constraints, Bytes, and opaque capped completeness |
 | `scripts/` | `test.sh`, `measure.mjs --check`, `publish.mjs`, `hermes` |
 
 Not yet: `deploy`/`rollback`, `secret`, previews, MCP, `--changed`, the Expo and Exact 2 arms, receipt/IR-backed evaluator wiring in the public web client, a hosted target, the benchmark wiring, `Interval` columns, provenance/site as authored facts, AOT effect bytecode, `snapback.query/run` from inside an effect. Post-cap tickets: `issues/20260830-snapback2-*.md`.

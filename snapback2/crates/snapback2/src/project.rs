@@ -1,7 +1,7 @@
 //! Project discovery, compiler-worker custody, certification, and the build cache.
 // @ref LLP 1002#1-decisions — the binary owns compilation through one worker.
 
-use crate::protocol::Refusal;
+use crate::protocol::{Refusal, certification_family_guide};
 use serde_json::{Map, Value as Json, json};
 use snapback2_core::{Auth, Ceilings, Generation, ProjectJson, Value};
 use std::collections::BTreeMap;
@@ -116,25 +116,9 @@ impl CompilerWorker {
             errors
                 .into_iter()
                 .map(|(program, error)| {
-                    let family = if error.code.starts_with("E_BOUND")
-                        || error.code.starts_with("E_UNBOUND")
-                        || error.code == "E_STRUCTURAL_COUNT"
-                    {
-                        "bound"
-                    } else if error.code.starts_with("E_SCHEMA") {
-                        "schema"
-                    } else if error.code.starts_with("E_EFFECT") {
-                        "effect"
-                    } else {
-                        "op"
-                    };
-                    let mut refusal = Refusal::new(
-                        error.code,
-                        family,
-                        error.message,
-                        error.rewrite,
-                        format!("{family}/certify"),
-                    );
+                    let (family, guide) = certification_family_guide(&error.code);
+                    let mut refusal =
+                        Refusal::new(error.code, family, error.message, error.rewrite, guide);
                     refusal.site = Some(
                         sources
                             .get(&program)

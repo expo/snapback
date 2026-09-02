@@ -640,7 +640,10 @@ Three rulings folded 2026-08-30 from the client-tier arc (LLP 0329.018–.023):
   authorization: replay requires an exact rule-hash/input-digest/principal/
   epoch verdict, and a miss is `partial(missing-authority)`. Negation cannot
   invert that unknown into access, and a local mutation that observes it rolls
-  back every tentative write before returning partial.
+  back every tentative write before returning partial. The same authority
+  rule binds maintained targets: prediction starts an aggregate at zero only
+  from an exact authority-issued `byId` absence, or updates a held target row;
+  an unheld target with no absence rolls the mutation back as partial.
 `SnapbackProvider({ url, as? })` and an optional `<DevOverlay/>` (persona,
 connection, generation, last refusal).
 Reconnect with backoff; a lost SSE stream reports `stale(since)` until the

@@ -136,6 +136,10 @@ that table.
 by who may issue each part: `rows` — "I hold these" — is client-issuable;
 `absences` and *complete* `ranges` — "no row exists there / this range is
 whole" — and `verdicts` — "this principal may see this" — are authority-only.
+Receipt-only maintained prediction may apply a delta only when the exact target
+row is held or an authority-issued `byId` absence proves its deterministic id
+starts at zero; otherwise the whole local mutation rolls back as
+`Partial(["missing-authority"])`.
 The engine keeps the containment invariant `receipt ⊆ trace ⊆ certificate`
 *asserted*, not merely true by construction: `assert_bounds` checks
 `receipt.absences ⊆ trace.absences` beside rows, ranges, and verdicts, with a
@@ -357,6 +361,13 @@ target. A maintained target may not itself be any maintain's source; transitive
 projection chains require recursive amplification/cascade semantics this slice
 does not claim. These checks prevent a group field from overwriting aggregate
 identity/value and make rebuild ownership unambiguous.
+Both runtimes materialize an omitted `Optional` source field as `Null` before
+rule evaluation, storage, and maintained grouping, so the same valid authored
+row produces the same aggregate key during prediction and authority execution.
+A successor rebuild validates the complete projected target against next
+uniqueness before mutation, then clears stale rows with delete-applicable
+constraints only; uniqueness is not rechecked on a removal that cannot create
+a duplicate. The rebuilt inserts bind every next constraint and unique index.
 A user mutation writing a maintained target is `Rejected(E_RULE)` by its rule.
 
 Three rulings from the 2026-08-30 review (M3, M4, M8):
@@ -711,7 +722,7 @@ out (the survey's "why no floats" section is the ruling).
   `tests/rbac_cases/`, avoiding redundant test-binary links without combining
   their fixtures or cases; malformed maintain shapes live in that consolidated
   lane.
-- The 103-case shared corpus is regenerated whenever serialization or
+- The 106-case shared corpus is regenerated whenever serialization or
   certification changes; the Rust engine and TypeScript evaluator must agree
   on every case.
   It preserves the original semantic inventory while removing authored

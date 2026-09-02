@@ -323,6 +323,7 @@ pub struct Engine {
     store: Store,
     schema: Schema,
     verdicts: Vec<Verdict>,
+    authority_absences: Vec<(String, String, Vec<Value>)>,
     rule_authority: RuleAuthority,
 }
 
@@ -333,6 +334,7 @@ impl Engine {
             store,
             schema,
             verdicts: Vec::new(),
+            authority_absences: Vec::new(),
             rule_authority: RuleAuthority::StoreAuthoritative,
         })
     }
@@ -341,8 +343,9 @@ impl Engine {
         Self::new(Store::memory()?, schema)
     }
 
-    pub(crate) fn install_verdicts(&mut self, verdicts: &[Verdict]) {
-        self.verdicts = verdicts.to_vec();
+    pub(crate) fn install_receipt_authority(&mut self, receipt: &ClosureReceipt) {
+        self.verdicts = receipt.verdicts.clone();
+        self.authority_absences = receipt.absences.clone();
         self.rule_authority = RuleAuthority::ReceiptOnly;
     }
 
@@ -558,6 +561,7 @@ impl Engine {
             certificate,
             context,
             &self.verdicts,
+            &self.authority_absences,
             self.rule_authority,
             seq,
         );
@@ -730,6 +734,7 @@ impl Engine {
             certificate,
             context,
             &self.verdicts,
+            &self.authority_absences,
             self.rule_authority,
             seq,
         );
@@ -788,6 +793,7 @@ impl Engine {
             &self.schema,
             context,
             &self.verdicts,
+            &self.authority_absences,
             self.rule_authority,
             seq,
             certificate,
@@ -814,6 +820,7 @@ pub(crate) fn rebuild_aggregate_target<'a>(
         transaction,
         schema,
         Context::system(),
+        &[],
         &[],
         RuleAuthority::StoreAuthoritative,
         0,
