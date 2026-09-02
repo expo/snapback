@@ -283,6 +283,9 @@ The target table's `insert`/`update`/`delete` rules bind only non-engine
 writers — templates set them to `deny` — and the engine's aggregate writes
 are exempt from those rules and never from constraints or unique indexes.
 A user mutation writing a maintained target is `Rejected` by its rule.
+Successor rebuilds own exactly the union of target row IDs projected by the
+predecessor and successor maintain declarations: they replace or remove those
+IDs and preserve every other target row and index entry.
 
 Three rulings from the 2026-08-30 review (M3, M4, M8):
 

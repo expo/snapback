@@ -395,6 +395,7 @@ pub(crate) fn apply_additive(
     next: &Schema,
     from: String,
     to: String,
+    predecessor_maintain_ids: Option<BTreeMap<String, BTreeSet<String>>>,
 ) -> Result<SuccessorReport, RuntimeError> {
     let mut report = SuccessorReport {
         from,
@@ -428,17 +429,7 @@ pub(crate) fn apply_additive(
             }
         }
     }
-    let changed_maintains: Vec<_> = current
-        .maintains
-        .iter()
-        .filter(|maintain| !next.maintains.contains(maintain))
-        .chain(
-            next.maintains
-                .iter()
-                .filter(|maintain| !current.maintains.contains(maintain)),
-        )
-        .cloned()
-        .collect();
+    let changed_maintains = changed_maintains(current, next);
     report.backfilled_maintains = changed_maintains.len() as u64;
 
     for table_name in next.tables.keys() {
@@ -457,8 +448,16 @@ pub(crate) fn apply_additive(
             }
         }
     }
+    let mut predecessor_maintain_ids = predecessor_maintain_ids
+        .map(Ok)
+        .unwrap_or_else(|| projected_predecessor_ids(transaction, current, next))?;
     for target in affected_maintain_targets(current, next) {
-        rebuild_target(transaction, next, &target)?;
+        rebuild_target(
+            transaction,
+            next,
+            &target,
+            predecessor_maintain_ids.remove(&target).unwrap_or_default(),
+        )?;
     }
     Ok(report)
 }
@@ -551,16 +550,26 @@ fn drop_column_values(
     Ok(())
 }
 
+fn changed_maintains<'a>(current: &'a Schema, next: &'a Schema) -> Vec<&'a Maintain> {
+    let mut unmatched_next = next.maintains.iter().collect::<Vec<_>>();
+    let mut changed = Vec::new();
+    for maintain in &current.maintains {
+        if let Some(offset) = unmatched_next
+            .iter()
+            .position(|candidate| *candidate == maintain)
+        {
+            unmatched_next.remove(offset);
+        } else {
+            changed.push(maintain);
+        }
+    }
+    changed.extend(unmatched_next);
+    changed
+}
+
 fn affected_maintain_targets(current: &Schema, next: &Schema) -> BTreeSet<String> {
-    current
-        .maintains
-        .iter()
-        .filter(|maintain| !next.maintains.contains(maintain))
-        .chain(
-            next.maintains
-                .iter()
-                .filter(|maintain| !current.maintains.contains(maintain)),
-        )
+    changed_maintains(current, next)
+        .into_iter()
         .map(|maintain| maintain.target.clone())
         // Migration drops have already removed predecessor-only targets from
         // the reduced schema. Only targets retained by the successor need a
@@ -569,14 +578,43 @@ fn affected_maintain_targets(current: &Schema, next: &Schema) -> BTreeSet<String
         .collect()
 }
 
+pub(crate) fn projected_predecessor_ids(
+    connection: &Connection,
+    current: &Schema,
+    next: &Schema,
+) -> Result<BTreeMap<String, BTreeSet<String>>, RuntimeError> {
+    affected_maintain_targets(current, next)
+        .into_iter()
+        .map(|target| {
+            let ids = projected_target_rows(connection, current, &target)?
+                .into_iter()
+                .map(|row| Ok(row.field("id")?.as_str()?.to_owned()))
+                .collect::<Result<_, RuntimeError>>()?;
+            Ok((target, ids))
+        })
+        .collect()
+}
+
 fn rebuild_target(
     transaction: &Transaction<'_>,
     schema: &Schema,
     target: &str,
+    mut owned_ids: BTreeSet<String>,
 ) -> Result<(), RuntimeError> {
     let rows = projected_target_rows(transaction, schema, target)?;
-    transaction.execute("DELETE FROM index_entries WHERE table_name = ?1", [target])?;
-    transaction.execute("DELETE FROM rows WHERE table_name = ?1", [target])?;
+    for row in &rows {
+        owned_ids.insert(row.field("id")?.as_str()?.to_owned());
+    }
+    for id in owned_ids {
+        transaction.execute(
+            "DELETE FROM index_entries WHERE table_name = ?1 AND row_id = ?2",
+            params![target, id],
+        )?;
+        transaction.execute(
+            "DELETE FROM rows WHERE table_name = ?1 AND row_id = ?2",
+            params![target, id],
+        )?;
+    }
     write_aggregate_backfill(transaction, schema, target, rows)
 }
 

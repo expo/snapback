@@ -430,6 +430,122 @@ fn successor_removes_stale_maintains_and_combines_shared_target_sources() {
 }
 
 #[test]
+fn successor_maintain_rebuild_preserves_rows_outside_projected_ids() {
+    let (mut base_schema, cards_maintain) = aggregate_fixture();
+    base_schema.maintains = vec![cards_maintain.clone()];
+    base_schema
+        .tables
+        .get_mut("counts")
+        .unwrap()
+        .indexes
+        .insert(
+            "byId".to_owned(),
+            Index {
+                columns: vec!["id".to_owned()],
+                unique: false,
+            },
+        );
+    let get_by_group = query_get("counts.get", "counts", "byGroup", "group");
+    let get_by_id = query_get("counts.byId", "counts", "byId", "id");
+    let mut runtime = Runtime::open(
+        Store::memory().unwrap(),
+        generation(
+            base_schema.clone(),
+            vec![get_by_group.clone(), get_by_id.clone()],
+            Ceilings::default(),
+        ),
+    )
+    .unwrap();
+    runtime
+        .seed(&[
+            (
+                "cards".to_owned(),
+                object([("id", id("card-1")), ("group", id("g"))]),
+            ),
+            (
+                "comments".to_owned(),
+                object([("id", id("comment-1")), ("group", id("g"))]),
+            ),
+            (
+                "counts".to_owned(),
+                object([
+                    ("id", id("baseline")),
+                    ("group", id("baseline")),
+                    ("value", Value::Int(99)),
+                ]),
+            ),
+        ])
+        .unwrap();
+
+    let mut next_schema = base_schema;
+    next_schema.maintains.push(Maintain {
+        source: "comments".to_owned(),
+        ..cards_maintain
+    });
+    runtime
+        .apply_successor(generation(
+            next_schema,
+            vec![get_by_group, get_by_id],
+            Ceilings::default(),
+        ))
+        .unwrap();
+
+    let baseline = runtime
+        .execute("counts.byId", user_query("id", id("baseline")))
+        .unwrap()
+        .result;
+    assert_eq!(baseline.field("value"), Ok(&Value::Int(99)));
+    assert_eq!(
+        aggregate_value(&mut runtime, "g").field("value"),
+        Ok(&Value::Int(2))
+    );
+}
+
+#[test]
+fn successor_maintain_diff_respects_duplicate_multiplicity() {
+    let (mut base_schema, cards_maintain) = aggregate_fixture();
+    base_schema.maintains = vec![cards_maintain.clone(), cards_maintain.clone()];
+    let get = query_get("counts.get", "counts", "byGroup", "group");
+    let mut runtime = Runtime::open(
+        Store::memory().unwrap(),
+        generation(base_schema.clone(), vec![get.clone()], Ceilings::default()),
+    )
+    .unwrap();
+    runtime
+        .seed(&[(
+            "cards".to_owned(),
+            object([("id", id("card-1")), ("group", id("g"))]),
+        )])
+        .unwrap();
+    assert_eq!(
+        aggregate_value(&mut runtime, "g").field("value"),
+        Ok(&Value::Int(2))
+    );
+
+    let mut next_schema = base_schema;
+    next_schema.maintains = vec![cards_maintain];
+    let report = runtime
+        .apply_successor(generation(next_schema, vec![get], Ceilings::default()))
+        .unwrap();
+    assert_eq!(report.backfilled_maintains, 1);
+    assert_eq!(
+        aggregate_value(&mut runtime, "g").field("value"),
+        Ok(&Value::Int(1))
+    );
+
+    runtime
+        .seed(&[(
+            "cards".to_owned(),
+            object([("id", id("card-2")), ("group", id("g"))]),
+        )])
+        .unwrap();
+    assert_eq!(
+        aggregate_value(&mut runtime, "g").field("value"),
+        Ok(&Value::Int(2))
+    );
+}
+
+#[test]
 fn maintained_update_writes_are_charged_twice_and_exact_ceiling_matches_runtime() {
     let source = public_table_with(
         &[
