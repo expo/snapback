@@ -9,7 +9,7 @@ green — quarryc's emitted write accounting undercounts branch arms.
 Certify-time and runtime must agree (loud-refusal law). Add a fixture with
 per-branch writes to the quarry package tests.
 
-**Resolved 2026-09-02 (`<SHA>`, LLP 1007 §5 item 2 / LLP 1004 P0-B).** The
+**Resolved 2026-09-02 (`b2bebb49a`, LLP 1007 §5 item 2 / LLP 1004 P0-B).** The
 lane that folded the Quarry front end into `packages/compiler` found the
 certifier already branch-maxes mutually exclusive arm totals on `main`
 (`Summary::branch` in `snapback2-core`'s certificate policy, landed after this

@@ -76,7 +76,7 @@ preconditions. The replication remains scheduled work, not a blocker.
 LLP 1007 §2 found, on 2026-09-01, that none of the five bindings above existed
 in code, that the default language could not express the shipped `chat`
 template, and that the bridge was a compatibility shim `rules/RULES.md` bans.
-The flip was built and landed on 2026-09-02 (`<SHA>`). What binds now, and
+The flip was built and landed on 2026-09-02 (`b2bebb49a`). What binds now, and
 where the code departs from the letter of the ruling:
 
 1. **Layout.** One directory, not two: a Quarry backend is `snapback/schema.q`
