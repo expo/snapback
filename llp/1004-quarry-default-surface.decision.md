@@ -6,9 +6,10 @@
 templates, guide, diagnostics
 **Author:** Charlie Cheever (ruling); Claude Fable 5 (orchestrator, record)
 **Date:** 2026-08-31
-**Revised:** 2026-08-31
-**Related:** LLP 1000 (decision 10), LLP 1002, LLP 0329.014.004, .009,
-.010, .011, `spikes/clique-diagnostic-runs/`, `snapback2/packages/quarry`
+**Revised:** 2026-09-02
+**Related:** LLP 1000 (decision 10), LLP 1002, LLP 1007 (§2, §5), LLP 0329.014.004,
+.009, .010, .011, `spikes/clique-diagnostic-runs/`,
+`snapback2/packages/compiler/src/quarry/`, `snapback2/packages/snapback2/guide/quarry.md`
 
 ## The ruling (author, 2026-08-31)
 
@@ -69,6 +70,61 @@ preconditions. The replication remains scheduled work, not a blocker.
 - **P2 — parity instrument**: keep a standing two-surface fixture lane
   (same app, both front ends) as a platform test, per .011 open
   question 3.
+
+## Implementation record (2026-09-02)
+
+LLP 1007 §2 found, on 2026-09-01, that none of the five bindings above existed
+in code, that the default language could not express the shipped `chat`
+template, and that the bridge was a compatibility shim `rules/RULES.md` bans.
+The flip was built and landed on 2026-09-02 (`<SHA>`). What binds now, and
+where the code departs from the letter of the ruling:
+
+1. **Layout.** One directory, not two: a Quarry backend is `snapback/schema.q`
+   plus `snapback/<module>.q`, beside the unchanged `seed.ts`, `tests/`, and
+   any TypeScript effect module. There is no `snapback-quarry/` and there are
+   no generated `snapback/*.q.ts` files. The reason the ruling named a second
+   directory — the unchanged worker could not read Quarry — is gone.
+2. **The front end lives inside the compiler.** `quarryc` is no longer a
+   program or a package; `packages/quarry` is deleted. The Quarry front end is
+   `packages/compiler/src/quarry/`, and the worker's `lowerProject` compiles
+   `.q` sources to the TypeScript authoring text **in memory** and lowers it as
+   virtual modules. Nothing is written under `snapback/`; the generated text is
+   available under `.snapback/build/quarry/` for inspection only. The dual
+   `.ts`/`.q.ts` emit and the `__quarrySource` sentinel are deleted.
+3. **Sites.** Diagnostics on Quarry sources report `snapback/<file>.q:line:col`
+   (the emitted `// q:file:line:col` markers are consumed by the compiler, not
+   by the reader), including certification refusals from the binary; rewrites
+   for Quarry-origin refusals are Quarry text. Quarry's own refusals are one
+   family, `quarry`, with codes `E_QUARRY_*`, each with a `guide` page.
+4. **The guide.** `snapback2 guide quarry` serves `guide/quarry.md`, which is
+   the Quarry v0.3 reference and states only what the platform does (item 5
+   above); `guide grammar` is the Quarry one-screen grammar and `guide
+   typescript` is the TypeScript surface.
+5. **`init`.** `snapback2 init [--template todos|chat]` scaffolds Quarry;
+   `--ts` scaffolds the TypeScript rendering of the same template
+   (`--template ts` is accepted as the literal spelling of this ruling).
+6. **The language grew to the platform** (spec truth cuts both ways): v0.2's
+   `maintain` was refused because the platform lacked it on 2026-08-31; the
+   platform has had `maintains` since `c6c3123a4`, so Quarry now spells
+   `maintain t = count|sum … by …:` with the target's read rule and an optional
+   `readable` disclosure, `#t[key]` reads the int, `effect … from <module>` +
+   `emit` reach the effects subsystem, and `principal`, `json`, `bytes`, text
+   ranges/formats, `immutable`, `after insert` (final-exists), `created`,
+   `system`, `(old, next)` update rules, `return`, object literals, `count`,
+   and `where` on range reads are all spelled. `asset`, `schedule`, `merge`,
+   `decimal`/`money`, `while`, and user functions remain refused as
+   not-platform.
+7. **Blocking coverage.** The Quarry tests run in the compiler leg of
+   `snapback2/scripts/test.sh`; the check count stays five (LLP 1007 §5 item 8).
+   Both templates ship in both renderings (`todos`, `chat`, `todos-ts`,
+   `chat-ts`), and the same journeys pass against each.
+
+Workstream status: P0-A (insert re-evaluation, LLP 1007 §5 item 1) and P0-B
+(branch-arm write accounting, item 2, plus init/check/dev/guide integration,
+item 9) landed in the same change; P1 spec v0.3 is `guide/quarry.md`; P1
+replication and P2 the parity instrument remain scheduled, not started. The
+packaged-consumer smoke rung (`issues/20260831-packaged-consumer-smoke-rung.md`)
+is LLP 1007 §5 item 7 and is still open.
 
 ## Non-claims
 

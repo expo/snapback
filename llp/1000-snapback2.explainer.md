@@ -6,7 +6,7 @@
 **Systems:** Everything under `snapback2/`; the rules under `rules/`
 **Author:** Charlie Cheever / Claude Fable 5
 **Date:** 2026-08-29
-**Revised:** 2026-08-30
+**Revised:** 2026-09-02
 **Related:** LLP 0000, LLP 0329, LLP 0329.014, LLP 0329.014.004, LLP 0329.016,
 LLP 0316, LLP 0330, `rules/RULES.md`, `rules/NOT-DOING.md`,
 `spikes/bounded-programs/`, expo/ibex LLP 0057, LLP 0058, LLP 0068
@@ -64,11 +64,14 @@ numbered 1000 and up.
    soon as `init` and `dev` exist. Promotion is the author's call.
 
 10. **Quarry is the default authoring surface (author, 2026-08-31).**
-    Backends are authored in the Quarry notation and compiled to the TS
-    surface by `quarryc` (`packages/quarry`); the TS surface remains the
-    fully supported compatibility surface and escape hatch. Ruling,
-    evidence, and the flip workstreams: [LLP 1004](./1004-quarry-default-surface.decision.md),
-    on the executed head-to-head of LLP 0329.014.011.
+    Backends are `snapback/*.q`, compiled by the Quarry front end inside
+    the compiler (`packages/compiler/src/quarry/`, in memory, no generated
+    files); the TS surface remains the fully supported compatibility
+    surface and escape hatch (`init --ts`), and effect bodies stay
+    TypeScript. Ruling and evidence: [LLP 1004](./1004-quarry-default-surface.decision.md),
+    on the executed head-to-head of LLP 0329.014.011; the ruling was
+    found unimplemented by LLP 1007 §2 on 2026-09-01 and built on
+    2026-09-02 (LLP 1004 §"Implementation record").
 
 ## What exists today (2026-08-30)
 
@@ -77,9 +80,9 @@ numbered 1000 and up.
 | `crates/snapback2-core` | LLP 1001 implemented: durable `Store` (WAL, exclusive owner + `E_STORE_OWNED`, `_meta/_commits/_outbox/_principals/_credentials/_sessions`), touched keys on the trace, typed states (`complete | capped | partial | denied | committed | rejected`) with opaque non-uniform caps, `Generation`/`Runtime` with `check_all` (every refusal), additive successors in place + destructive plans + `E_SUCCESSOR_UNIQUE`/`COLUMN_REQUIRED`, transactional maintained-target rebuilds, live `Subscriptions` (trace-indexed, coalesced, state-aware digests), identity (nominal `Principal`, argon2id, personas, constant-time login), one reserved system-principal value, structurally derived rule-input visibility, exact receipt-only authority verdicts, channels with traced verdicts, engine-owned seed/closed maintained writes, `Stmt::Emit` → outbox, `Optional/List/Enum/Decimal/Money/Principal/Bytes` columns, `execute_adhoc`, `receipt.absences ⊆ trace.absences` asserted |
 | `crates/snapback2-effects` | LLP 1003: `EffectHost`/`NoEngine`/`Ibex2Host` over vanilla Hermes, vendored fetch factory bound to declared grants, source evaluated at global scope, per-job frozen tools, single-use timer permit, unforgeable denial markers, lifecycle runner over `OutboxAccess` with `then_pending`; 30 Hermes tests (`scripts/hermes test`) |
 | `crates/snapback2` | the owner (LLP 1002 §5: detach/attach by project, watch, hot successors, migration plans, typed exits), the wire (§4: HTTP JSON + SSE frames = query responses or terminal refusals, channels, control routes with secret), verbs `check --project`/`--ir`, `dev`, `run`, `data`, `logs`, `persona`, `fork`, `reset`, `init`, `test` (six derived checks, named `live-revocation`/`successor-policy-fence`/`grant-incarnation-aba` authorization proofs, journeys, and receipt), `why`, `trace`, `guide`, `doctor`; effects runner thread (`--features hermes`) |
-| `packages/compiler` | LLP 1002 §2–§3: the `snapback2` module surface, project lowering (schema/programs/effects/seed/journeys), Node worker + one-shot CLI, `api.d.ts` with named row types, branded `Principal`, `Bytes`, and channels, refusal envelopes with families, all-diagnostics + `E_DIAG_TRUNCATED`, Decimal/Money/Enum with exact whole-unit scaling, `rule.system()`, nominal rule-term checking, closed maintain validation, and derived `rule.exists` visibility |
+| `packages/compiler` | LLP 1002 §2–§3 plus the Quarry front end (`src/quarry/`: `.q` → in-memory TS modules, `.q` sites, family `quarry`, LLP 1004): the `snapback2` module surface, project lowering (schema/programs/effects/seed/journeys), Node worker + one-shot CLI, `api.d.ts` with named row types, branded `Principal`, `Bytes`, and channels, refusal envelopes with families, all-diagnostics + `E_DIAG_TRUNCATED`, Decimal/Money/Enum with exact whole-unit scaling, `rule.system()`, nominal rule-term checking, closed maintain validation, and derived `rule.exists` visibility |
 | `packages/evaluator` | the RBAC- and Bytes-complete TypeScript IR evaluator twin, including exact authority-only replay, atomic partial mutations, `Emit`, and opaque capped/completeness parity |
-| `packages/snapback2` | shim + authoring runtime + `client` + `react` + `test` runner + guide pages + templates (`todos`, `chat`, React) |
+| `packages/snapback2` | shim + authoring runtime + `client` + `react` + `test` runner + guide pages (`quarry`, `grammar`, `typescript`, recipes) + templates (`todos`, `chat` in Quarry; `todos-ts`, `chat-ts`; React) |
 | `corpus/` | 106 shared Rust/TypeScript conformance cases for RBAC transitions and invalidation, bootstrap/final-exists, authority-gated maintained writes including omitted Optional groups, intrinsic ids, text constraints, Bytes, and opaque capped completeness |
 | `scripts/` | `test.sh`, `measure.mjs --check`, `publish.mjs`, `hermes` |
 

@@ -26,3 +26,10 @@ nonexistent post; no refusal anywhere — the lane diffed `snapback2 data`
 dumps). Fix: evaluate the row expression once and return the stored row;
 or refuse impure builtins in insert literals at certify time. A packaged-
 consumer regression test should pin returned-id == stored-id.
+
+**Resolved 2026-09-02 (`<SHA>`, LLP 1007 §5 item 1 / LLP 1004 P0-A).** The
+compiler's `db.insert` lowering binds the lowered row expression to one `Let`
+temporary; the `Insert` statement and the call's value both read that
+variable, so inline `ctx.newId()`/`ctx.now()` evaluate once and the returned
+row is the stored row. Pinned by a compiler test on the IR shape and an
+executed returned-id == stored-id check.

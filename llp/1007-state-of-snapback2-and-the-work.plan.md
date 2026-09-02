@@ -10,7 +10,7 @@ corpus exporter), `snapback2/crates/snapback2-effects`, `snapback2/scripts`,
 **Author:** Claude Opus 5 (orchestrator), commissioned by Charlie Cheever
 2026-09-01 in session
 **Date:** 2026-09-01
-**Revised:** 2026-09-01
+**Revised:** 2026-09-02
 **Related:** LLP 1000 (the root), LLP 1001, LLP 1002, LLP 1003, **LLP 1004**
 (the ruling this plan finds unimplemented), LLP 1005, LLP 1006, LLP 0005 (the
 review loop the panel ran), LLP 0329.014.004, LLP 0329.014.011,
@@ -102,6 +102,16 @@ happened. The corpus nonetheless reads as though it has, and the next session
 orienting from LLP 1000 will teach Quarry-first while `init` writes TypeScript.
 An Accepted ruling the binary contradicts is how Snapback 1 grew a guide
 describing a product nobody was running.
+
+**Resolved 2026-09-02 (`<SHA>`).** The three findings above are now false in
+code: the Quarry front end lives in `packages/compiler/src/quarry/` and the
+worker compiles `snapback/*.q` in memory (no `.q.ts`, no `__quarrySource`,
+`packages/quarry` deleted); the `chat` template ships in Quarry (`maintain`,
+`emit`, constraints, transition rules, and the channel all spelled) and its
+journeys pass unchanged; the Quarry tests run in the compiler leg of
+`scripts/test.sh`. The implementation record, including where the code departs
+from LLP 1004's letter (one directory, no generated files, no `quarryc`
+program), is LLP 1004 §"Implementation record".
 
 ## 3. Finding: where `check` is green and the runtime is red
 
@@ -195,16 +205,16 @@ item that slips its date returns here rather than sitting silently.
 
 | # | Item | Lane | Date |
 |---|---|---|---|
-| 1 | Insert evaluates its row expression once; returned row equals stored row. Regression pins it. Inline `ctx.now()` is the same class. | `s2/p1-insert` | 2026-09-02 |
-| 2 | quarryc branch-arm write accounting matches runtime; fixture with per-branch writes. | `s2/p1-branchwrite` | 2026-09-02 |
+| 1 | Insert evaluates its row expression once; returned row equals stored row. Regression pins it. Inline `ctx.now()` is the same class. | `s2/quarry-default` | landed 2026-09-02 (`<SHA>`) |
+| 2 | quarryc branch-arm write accounting matches runtime; fixture with per-branch writes. | `s2/quarry-default` | landed 2026-09-02 (`<SHA>`) |
 | 3 | Drop `Page.hasMore` from `lib.d.ts`; refuse composite cursors and invalid `Id` scalars at certify time with a rewrite. | `s2/p1-typelies` | 2026-09-03 |
 | 4 | Direction-aware descending `after`, or `before` documented as the only newest-first page and the other refused. | `s2/cursors` | 2026-09-04 |
 | 5 | Bound `test`'s rule and invalidation probes so a Clique-sized seed finishes. | `s2/test-bounds` | 2026-09-04 |
 | 6 | Mutation-read authority: a `guide/` recipe and a diagnostic now. A `reads:` declaration only if §4b lands Quarry-only, and only then. | `s2/mutation-reads` | 2026-09-05 |
 | 7 | Packaged-consumer smoke rung: pack, install, `init`, `check`, `test` from tarballs. **Replaces** `measure --check`'s duplicate core-test step; the check count stays five. | `s2/consumer-smoke` | 2026-09-05 |
-| 8 | Fold `packages/quarry/src/test.ts` into the existing compiler leg of `test.sh`, so the default surface is covered without a sixth check. | `s2/quarry-in-gate` | 2026-09-03 |
-| 9 | Execute LLP 1004's five bindings: `init` scaffolds `.q`, `check`/`dev` run `quarryc`, diagnostics report `.q` sites, `guide quarry` exists, README becomes v0.3 platform truth. Delete the dual `.ts`/`.q.ts` emit and `__quarrySource` by teaching the worker about generated modules. | `s2/quarry-default` | 2026-09-08 |
-| 10 | Give Quarry a `return`; make `match` an expression in every position. The one language change both panelists asked for unprompted — position-dependent semantics is what an agent gets wrong silently. | `s2/quarry-return` | 2026-09-09 |
+| 8 | Fold `packages/quarry/src/test.ts` into the existing compiler leg of `test.sh`, so the default surface is covered without a sixth check. | `s2/quarry-default` | landed 2026-09-02 (`<SHA>`) |
+| 9 | Execute LLP 1004's five bindings: `init` scaffolds `.q`, `check`/`dev` run `quarryc`, diagnostics report `.q` sites, `guide quarry` exists, README becomes v0.3 platform truth. Delete the dual `.ts`/`.q.ts` emit and `__quarrySource` by teaching the worker about generated modules. | `s2/quarry-default` | landed 2026-09-02 (`<SHA>`); see LLP 1004 §"Implementation record" for the two layout departures |
+| 10 | Give Quarry a `return`; make `match` an expression in every position. The one language change both panelists asked for unprompted — position-dependent semantics is what an agent gets wrong silently. | `s2/quarry-default` | landed 2026-09-02 (`<SHA>`): `return` in every position; `match` stays a statement |
 | 11 | Scoped by §4a: either the media and Expo slice, or the two-bar rewrite of `rules/NOT-DOING.md`. | — | on the ruling |
 
 ## 6. Finding: the 60-second budget is enforced by nothing
