@@ -15,6 +15,7 @@ import {
   type CorpusCase,
   type Value,
 } from "../../evaluator/src/evaluator";
+import { compileApp as compileQuarryApp } from "../../quarry/src/compiler";
 import type { TableInfo } from "./compiler";
 import { lowerSource } from "./compiler";
 import type { Program } from "./ir";
@@ -118,6 +119,82 @@ export function registerVerifiedRegressionTests(
   test: Register,
   assert: (condition: unknown, message: string) => asserts condition,
 ): void {
+  test("F11 Quarry refuses reserved table and channel bindings", async () => {
+    const schemas = [
+      `table delete:\n  value: int\n  public\n`,
+      `table rows:\n  value: int\n  public\n\nchannel delete():\n  publish <- public\n  subscribe <- public\n  ttl 1s\n`,
+    ];
+    for (const schema of schemas) {
+      await withProject({ "snapback-quarry/schema.q": schema }, async (root) => {
+        const result = await compileQuarryApp(root);
+        assert(!result.ok && result.diagnostics[0]?.message.includes("reserved"),
+          `reserved schema binding compiled: ${JSON.stringify(result)}`);
+        assert(result.diagnostics[0]?.line === 1 || result.diagnostics[0]?.line === 5,
+          `reserved schema binding refusal lost its declaration site: ${JSON.stringify(result)}`);
+      });
+    }
+  });
+
+  test("F12 Quarry finds focal values nested inside point reads", async () => {
+    await withProject({
+      "snapback-quarry/schema.q": `table users:\n  name: text <=50\n  public\n\ntable posts:\n  author: users\n  authorName: text <=50\n  public\n`,
+      "snapback-quarry/ops.q": `mutation refresh(id: posts):\n  ~posts[id] { authorName: users[.author].name }\n`,
+    }, async (root) => {
+      const result = await compileQuarryApp(root);
+      assert(result.ok, `nested focal read was refused: ${result.ok ? "" : JSON.stringify(result.diagnostics)}`);
+      const generated = await readFile(join(root, "snapback", "ops.ts"), "utf8");
+      const callback = generated.indexOf("(__q_old_");
+      const dereference = generated.indexOf("db.get(users");
+      assert(callback >= 0 && dereference > callback, `nested focal read escaped its callback:\n${generated}`);
+    });
+  });
+
+  test("F13 Quarry keeps shaped page field types through later dereferences", async () => {
+    await withProject({
+      "snapback-quarry/schema.q": `table authors:\n  name: text <=50\n  public\n\ntable posts:\n  author: authors\n  public\n  by author\n\ntable copies:\n  name: text <=50\n  public\n`,
+      "snapback-quarry/ops.q": `mutation copy():\n  for post in posts[] first 5 by byAuthor { * }:\n    +copies { name: post.author.name }\n  null\n`,
+    }, async (root) => {
+      const result = await compileQuarryApp(root);
+      assert(result.ok, `shaped page fixture was refused: ${result.ok ? "" : JSON.stringify(result.diagnostics)}`);
+      const generated = await readFile(join(root, "snapback", "ops.ts"), "utf8");
+      assert(generated.includes("db.get(authors"), `shaped reference field was not dereferenced:\n${generated}`);
+      const unsafe = await lowerProject(root);
+      assert(!unsafe.ok && unsafe.diagnostics.some((item) => item.message.includes("undefined") && item.message.includes("string")),
+        `possibly absent shaped dereference was not refused before runtime: ${JSON.stringify(unsafe)}`);
+
+      await writeFile(join(root, "snapback-quarry", "ops.q"), `mutation copy():\n  for post in posts[] first 5 by byAuthor { * }:\n    +copies { name: post.author.name! else AUTHOR_MISSING }\n  null\n`);
+      const asserted = await compileQuarryApp(root);
+      assert(asserted.ok, `asserted shaped dereference was refused: ${asserted.ok ? "" : JSON.stringify(asserted.diagnostics)}`);
+      const lowered = await lowerProject(root);
+      assert(lowered.ok, `asserted shaped reference fixture did not certify: ${lowered.ok ? "" : lowered.diagnostics.map((item) => item.message).join("; ")}`);
+      assert(JSON.stringify(lowered.project.programs).includes('"table":"authors"'),
+        "certified shaped-page operation has no authors read site");
+    });
+  });
+
+  test("F1 Quarry refuses cross-table reference index keys", async () => {
+    const schema = `table users:\n  public\n\ntable posts:\n  public\n\ntable todos:\n  owner: users\n  public\n  unique owner\n`;
+    const operations = [
+      `query named(post: posts):\n  todos[owner = post]\n`,
+      `query inferred(post: posts):\n  todos[post]\n`,
+      `query explicit(post: posts):\n  todos[post] first 5 by byOwner\n`,
+    ];
+    for (const operation of operations) {
+      await withProject({
+        "snapback-quarry/schema.q": schema,
+        "snapback-quarry/ops.q": operation,
+      }, async (root) => {
+        const result = await compileQuarryApp(root);
+        assert(!result.ok && (result.diagnostics[0]?.message.includes("expects reference to users")
+          || result.diagnostics[0]?.message.includes("no unique index")),
+        `cross-table reference key compiled: ${JSON.stringify(result)}`);
+        assert(result.diagnostics[0]?.message.includes("reference to posts")
+          || result.diagnostics[0]?.message.includes("no unique index"),
+        `cross-table reference refusal lost its actual type: ${JSON.stringify(result)}`);
+      });
+    }
+  });
+
   test("F21 evaluator preserves colons in authored require codes", () => {
     const schema = { tables: {}, maintains: [] };
     const lowered = lowerSource(`import { query } from "snapback2";

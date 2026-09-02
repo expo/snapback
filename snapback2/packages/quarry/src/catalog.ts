@@ -203,7 +203,10 @@ function columnType(table: TableDecl, name: string): ScalarType {
 
 function compatible(actual: ScalarType | undefined, expected: ScalarType): boolean {
   if (!actual) return true;
-  if (expected.kind === "ref") return actual.kind === "ref" || actual.kind === "id";
+  if (expected.kind === "ref") {
+    if (actual.kind === "id") return true;
+    return actual.kind === "ref" && (actual.table === "" || actual.table === expected.table);
+  }
   if (expected.kind === "id") return actual.kind === "ref" || actual.kind === "id";
   return actual.kind === expected.kind;
 }

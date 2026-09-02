@@ -75,7 +75,7 @@ class Parser {
 
   private parseTable(): TableDecl {
     const site = this.take("table");
-    const name = this.word().value;
+    const name = this.generatedBinding("table");
     this.take(":");
     this.newline();
     this.takeKind("indent");
@@ -144,7 +144,7 @@ class Parser {
 
   private parseChannel(): ChannelDecl {
     const site = this.take("channel");
-    const name = this.word().value;
+    const name = this.generatedBinding("channel");
     const args = this.parseArgs();
     this.take(":");
     this.newline();
@@ -180,9 +180,7 @@ class Parser {
   private parseProgram(): ProgramDecl {
     const kindToken = this.word();
     const kind = kindToken.value as ProgramDecl["kind"];
-    const nameToken = this.word();
-    if (RESERVED_BINDINGS.has(nameToken.value)) refuse(nameToken, `operation name ${nameToken.value} is reserved and cannot become a generated TypeScript binding`);
-    const name = nameToken.value;
+    const name = this.generatedBinding("operation");
     const args = this.parseArgs();
     let result: ScalarType | undefined;
     if (this.maybe("->")) result = this.parseType();
@@ -191,6 +189,14 @@ class Parser {
     const body = this.parseBlock();
     if (body.length === 0) refuse(kindToken, `${kind} ${name} has an empty body`);
     return { kind, name, args, result, body, site: kindToken };
+  }
+
+  private generatedBinding(kind: "table" | "channel" | "operation"): string {
+    const token = this.word();
+    if (RESERVED_BINDINGS.has(token.value)) {
+      refuse(token, `${kind} name ${token.value} is reserved and cannot become a generated TypeScript binding`);
+    }
+    return token.value;
   }
 
   private parseArgs(): ArgDecl[] {
