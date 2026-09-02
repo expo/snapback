@@ -64,6 +64,31 @@ fn refusal_code_guide_prints_the_wrong_and_right_pair() {
 }
 
 #[test]
+fn quarry_grammar_typescript_and_refusal_guides_ship_without_double_fences() {
+    let project = Project::new();
+    let quarry = project.run(&["guide", "quarry"]);
+    assert!(quarry.status.success());
+    assert!(
+        String::from_utf8_lossy(&quarry.stdout)
+            .contains("Quarry is the default Snapback 2 authoring language")
+    );
+    for page in ["grammar", "typescript"] {
+        assert!(project.run(&["guide", page]).status.success(), "{page}");
+    }
+    let refusal = project.run(&["guide", "E_QUARRY_TYPE"]);
+    let content = String::from_utf8_lossy(&refusal.stdout);
+    assert!(refusal.status.success(), "{content}");
+    assert_eq!(content.matches("```q").count(), 2, "{content}");
+    assert!(!content.contains("```ts\n```q"), "{content}");
+
+    let unknown = project.run(&["guide", "does-not-exist", "--json"]);
+    assert_eq!(unknown.status.code(), Some(1));
+    let refusal = json_stdout(&unknown);
+    let message = refusal["message"].as_str().unwrap_or_default();
+    assert!(message.contains("available:") && message.contains("quarry"));
+}
+
+#[test]
 fn app_guide_refuses_missing_certificates_and_failed_seed_facts_as_stale() {
     let project = Project::new();
     let initialized = project.init("todos", "none");

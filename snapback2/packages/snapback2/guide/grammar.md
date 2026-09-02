@@ -31,10 +31,11 @@ query list():
 ```
 
 Program declarations are `effect name from module`, `query name(args)`, and
-`mutation name(args)`, with optional `-> type`. Statements are bindings,
+`mutation name(args)`; result types are inferred. Statements are bindings,
 `return`, `require … else CODE`, `if/else`, bounded `for`, `match … some/none`,
-`emit`, and expressions. Expressions include literals, objects, arrays, reads
-and shapes, `exists`, `#maintain[key]`, `+ ~ +~ -` writes, `! [else CODE]`,
-`??`, `where`, and `sorted/tokens/range/min/max/count`.
+`emit`, and expressions; a body's last expression returns implicitly.
+Expressions include literals, objects, arrays, reads and shapes, `exists`,
+`#maintain[key]`, `+ ~ +~ -` writes, `! [else CODE]`, `??`, `where`, and
+`sorted/tokens/range/min/max/count`.
 
 See `quarry` for the complete normative surface and refusal list.

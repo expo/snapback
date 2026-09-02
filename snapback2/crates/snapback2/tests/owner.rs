@@ -1307,7 +1307,7 @@ for await (const line of createInterface({{ input: process.stdin, crlfDelay: Inf
   const request = JSON.parse(line);
   if (request.op === "compile" && compiles++ > 0) await new Promise((resolve) => setTimeout(resolve, 3000));
   const response = request.op === "compile"
-    ? {{ id: request.id, ok: true, project, sources: {{}}, apiDts: "", ms: 0 }}
+    ? {{ id: request.id, ok: true, project, sources: {{}}, apiDts: "", quarry: [], ms: 0 }}
     : {{ id: request.id, ok: true, seed: {{ personas: [], rows: {{}} }} }};
   process.stdout.write(JSON.stringify(response) + "\n");
 }}

@@ -2,6 +2,57 @@ use super::owner_support::*;
 use super::*;
 
 #[test]
+fn quarry_source_watch_applies_a_successor() {
+    let root = temp_root();
+    let quarry_fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../packages/compiler/fixtures/quarry-todos/snapback");
+    copy_tree(&quarry_fixture, &root.join("snapback"));
+    let compiler = compiler(&root);
+    let mut owner = ChildGuard::spawn(env!("CARGO_BIN_EXE_snapback2"), &compiler, &root);
+    let port = owner
+        .ready_line()
+        .trim()
+        .strip_prefix("SNAPBACK_URL=http://127.0.0.1:")
+        .unwrap()
+        .parse()
+        .unwrap();
+    let owner_json: Value =
+        serde_json::from_slice(&fs::read(root.join(".snapback/owner.json")).unwrap()).unwrap();
+    let secret = owner_json["secret"].as_str().unwrap();
+
+    // The ready line can race the watch thread's first source fingerprint.
+    thread::sleep(Duration::from_millis(300));
+    let log_path = root.join(".snapback/log.jsonl");
+    let log_start = fs::metadata(&log_path).unwrap().len();
+    let todos = root.join("snapback/todos.q");
+    let successor = fs::read_to_string(&todos).unwrap() + "\nquery watched():\n  return null\n";
+    fs::write(todos, successor).unwrap();
+
+    wait_for(Duration::from_secs(6), || {
+        let mut file = fs::File::open(&log_path).ok()?;
+        use std::io::{Seek, SeekFrom};
+        file.seek(SeekFrom::Start(log_start)).ok()?;
+        let mut tail = String::new();
+        file.read_to_string(&mut tail).ok()?;
+        tail.contains("\"successor\":\"applied\"").then_some(())
+    });
+    let project: Value =
+        serde_json::from_slice(&fs::read(root.join(".snapback/build/project.json")).unwrap())
+            .unwrap();
+    assert!(
+        project["programs"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|program| program["name"] == "todos.watched"),
+        "applied Quarry successor did not contain todos.watched: {project}"
+    );
+
+    stop_owner(port, secret, &mut owner, "Quarry source watch complete");
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
 fn dev_start_and_control_apply_preserve_every_refusal() {
     let root = temp_root();
     copy_tree(&fixture().join("snapback"), &root.join("snapback"));

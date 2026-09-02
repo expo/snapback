@@ -79,7 +79,7 @@ export type MaintainDecl = {
 };
 export type EffectDecl = { name: string; module: string; site: Site };
 export type ArgDecl = { name: string; type: ScalarType; site: Site };
-export type ProgramDecl = { kind: "query" | "mutation"; name: string; args: ArgDecl[]; result?: ScalarType; body: Stmt[]; site: Site };
+export type ProgramDecl = { kind: "query" | "mutation"; name: string; args: ArgDecl[]; body: Stmt[]; site: Site };
 
 export type Document = {
   file: string;
@@ -91,7 +91,7 @@ export type Document = {
   programs: ProgramDecl[];
 };
 
-export type QuarryCode = "E_QUARRY_SYNTAX" | "E_QUARRY_UNKNOWN" | "E_QUARRY_AMBIGUOUS" | "E_QUARRY_UNSUPPORTED" | "E_QUARRY_PLACEMENT";
+export type QuarryCode = "E_QUARRY_SYNTAX" | "E_QUARRY_UNKNOWN" | "E_QUARRY_AMBIGUOUS" | "E_QUARRY_UNSUPPORTED" | "E_QUARRY_PLACEMENT" | "E_QUARRY_TYPE";
 export type QuarryDiagnostic = Site & { code: QuarryCode; message: string; rewrite: string; guide: string };
 
 export type TableCatalog = Map<string, {

@@ -1,6 +1,6 @@
 mod common;
 
-use common::{Project, json_stdout, shared_package_dist, snapshot};
+use common::{OwnerGuard, Project, json_stdout, shared_package_dist, snapshot};
 use serde_json::Value as Json;
 use std::path::Path;
 
@@ -41,6 +41,18 @@ fn assert_rendering(template: &str, typescript: bool, chat: bool) {
         "init failed: {}{}",
         String::from_utf8_lossy(&initialized.stdout),
         String::from_utf8_lossy(&initialized.stderr)
+    );
+    let authored = project.path.join("snapback");
+    assert_eq!(authored.join("schema.ts").is_file(), typescript);
+    assert_eq!(authored.join("schema.q").is_file(), !typescript);
+    let agents = std::fs::read_to_string(project.path.join("AGENTS.md")).unwrap();
+    assert!(
+        agents.contains(if typescript {
+            "snapback/*.ts"
+        } else {
+            "snapback/*.q"
+        }),
+        "{agents}"
     );
     let stale_inspection = project.path.join(".snapback/build/quarry/stale.ts");
     if !typescript && template == "todos" {
@@ -123,6 +135,136 @@ fn typescript_todos_init_check_and_test_end_to_end() {
 #[test]
 fn typescript_chat_init_check_and_test_end_to_end() {
     assert_rendering("chat", true, true);
+}
+
+#[test]
+fn template_ts_alias_scaffolds_only_the_typescript_todos_schema() {
+    let project = Project::new();
+    let initialized = project.init_ts_alias("none");
+    assert!(
+        initialized.status.success(),
+        "{}{}",
+        String::from_utf8_lossy(&initialized.stdout),
+        String::from_utf8_lossy(&initialized.stderr)
+    );
+    assert!(project.path.join("snapback/schema.ts").is_file());
+    assert!(!project.path.join("snapback/schema.q").exists());
+    let agents = std::fs::read_to_string(project.path.join("AGENTS.md")).unwrap();
+    assert!(agents.contains("snapback/*.ts"), "{agents}");
+}
+
+#[test]
+fn quarry_certification_refusal_rewrite_starts_with_the_authored_line() {
+    let project = Project::new();
+    assert!(project.init("todos", "none").status.success());
+    let path = project.path.join("snapback/todos.q");
+    let mut source = std::fs::read_to_string(&path).unwrap();
+    source.push_str("\nquery unsafeCount():\n  return count(todos[] first 50 by byOwnerId)\n");
+    std::fs::write(path, source).unwrap();
+
+    let checked = project.run(&["check", "--json"]);
+    assert_eq!(checked.status.code(), Some(1));
+    let line = String::from_utf8_lossy(&checked.stdout)
+        .lines()
+        .next()
+        .unwrap()
+        .to_owned();
+    let refusal: Json = serde_json::from_str(&line).unwrap();
+    assert!(
+        refusal["site"]
+            .as_str()
+            .unwrap_or_default()
+            .starts_with("snapback/todos.q:"),
+        "{refusal}"
+    );
+    let rewrite = refusal["rewrite"].as_str().unwrap_or_default();
+    assert!(
+        rewrite.starts_with("query unsafeCount():\n-- "),
+        "{rewrite}"
+    );
+}
+
+#[test]
+fn quarry_optional_reads_presence_where_and_branch_writes_execute() {
+    let project = Project::new();
+    assert!(project.init("todos", "none").status.success());
+    std::fs::remove_file(project.path.join("snapback/todos.q")).unwrap();
+    std::fs::remove_dir_all(project.path.join("snapback/tests")).unwrap();
+    std::fs::write(
+        project.path.join("snapback/schema.q"),
+        "use identity\n\ntable nodes:\n  name: text <=50\n  parent: nodes ?\n  public\n\ntable authors:\n  name: text <=50\n  public\n\ntable posts:\n  author: authors\n  public\n  by author\n\ntable counters:\n  value: int\n  public\n  insert r <- allow\n",
+    ).unwrap();
+    std::fs::write(
+        project.path.join("snapback/runtime.q"),
+        "query parentName(id: nodes):\n  node = nodes[id]! else NODE_MISSING\n  return node.parent.name\n\nquery present(cursor: time ?):\n  if cursor != null:\n    return true\n  return false\n\nquery alicePosts(author: authors):\n  return posts[author] first 5 where .author.name = 'Alice'\n\nmutation branchWrite(useFirst: bool):\n  if useFirst:\n    +counters { value: 1 }\n  else:\n    +counters { value: 2 }\n  return null\n",
+    ).unwrap();
+    std::fs::write(
+        project.path.join("snapback/seed.ts"),
+        "import { seed } from 'snapback2';\nexport default seed({ personas: ['alice'], rows: { nodes: [{ id: 'root', name: 'Root', parent: null }], authors: [{ id: 'author-alice', name: 'Alice' }, { id: 'author-bob', name: 'Bob' }], posts: [{ id: 'post-alice', author: 'author-alice' }, { id: 'post-bob', author: 'author-bob' }], counters: [] } });\n",
+    ).unwrap();
+    let checked = project.run(&["check", "--json"]);
+    assert!(
+        checked.status.success(),
+        "{}{}",
+        String::from_utf8_lossy(&checked.stdout),
+        String::from_utf8_lossy(&checked.stderr)
+    );
+    let _owner = OwnerGuard::start(&project);
+    let run = |op: &str, args: &str| {
+        json_stdout(&project.run(&["run", op, args, "--as", "alice", "--json"]))
+    };
+
+    let parent = run("runtime.parentName", r#"{"id":"root"}"#);
+    assert_eq!(parent["state"], "complete", "{parent}");
+    assert!(parent["data"].is_null(), "{parent}");
+    assert_eq!(run("runtime.present", r#"{"cursor":null}"#)["data"], false);
+    assert_eq!(run("runtime.present", r#"{"cursor":123}"#)["data"], true);
+    let posts = run("runtime.alicePosts", r#"{"author":"author-alice"}"#);
+    assert_eq!(posts["state"], "complete", "{posts}");
+    assert_eq!(posts["data"].as_array().map(Vec::len), Some(1), "{posts}");
+    assert_eq!(posts["data"][0]["id"], "post-alice", "{posts}");
+    for value in [true, false] {
+        let written = run("runtime.branchWrite", &format!(r#"{{"useFirst":{value}}}"#));
+        assert_eq!(written["state"], "committed", "{written}");
+    }
+}
+
+#[test]
+fn quarry_surface_branch_write_executes_both_arms() {
+    let project = Project::new();
+    assert!(project.init("todos", "none").status.success());
+    std::fs::remove_file(project.path.join("snapback/todos.q")).unwrap();
+    std::fs::remove_dir_all(project.path.join("snapback/tests")).unwrap();
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../packages/compiler/fixtures/quarry-surface/snapback");
+    for file in ["schema.q", "surface.q"] {
+        std::fs::copy(fixture.join(file), project.path.join("snapback").join(file)).unwrap();
+    }
+    std::fs::write(
+        project.path.join("snapback/seed.ts"),
+        "import { seed } from 'snapback2';\nexport default seed({ personas: ['alice'], rows: { counters: [] } });\n",
+    )
+    .unwrap();
+    let checked = project.run(&["check", "--json"]);
+    assert!(
+        checked.status.success(),
+        "{}{}",
+        String::from_utf8_lossy(&checked.stdout),
+        String::from_utf8_lossy(&checked.stderr)
+    );
+    let _owner = OwnerGuard::start(&project);
+    for value in [true, false] {
+        let run = project.run(&[
+            "run",
+            "surface.branchWrite",
+            &format!(r#"{{"useFirst":{value}}}"#),
+            "--as",
+            "alice",
+            "--json",
+        ]);
+        let result = json_stdout(&run);
+        assert_eq!(result["state"], "committed", "{result}");
+    }
 }
 
 #[test]

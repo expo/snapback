@@ -7,7 +7,7 @@ use snapback2_core::{Auth, Ceilings, Generation, ProjectJson, Value};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::io::{BufRead, BufReader, BufWriter, Write};
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -73,8 +73,7 @@ pub struct SourceSite {
 #[derive(Clone, Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct QuarryGenerated {
-    #[serde(rename = "file")]
-    pub _file: String,
+    pub file: String,
     pub generated: String,
     pub source: String,
 }
@@ -93,8 +92,6 @@ struct CompileSuccess {
     project: Json,
     sources: BTreeMap<String, SourceSite>,
     api_dts: String,
-    /// Absent for TypeScript-only projects and for workers that predate Quarry.
-    #[serde(default)]
     quarry: Vec<QuarryGenerated>,
     ms: f64,
 }
@@ -215,6 +212,7 @@ impl CompilerWorker {
         let success: CompileSuccess = success_response(response, "compile")?;
         debug_assert!(success.ok);
         debug_assert_eq!(success.id, self.next_id);
+        validate_quarry_outputs(&success.quarry).map_err(|error| vec![error])?;
         let mut project_value = success.project;
         normalize_project_json(&mut project_value);
         let project: ProjectJson = serde_json::from_value(project_value).map_err(|error| {
@@ -232,11 +230,15 @@ impl CompilerWorker {
                 .into_iter()
                 .map(|(program, error)| {
                     let (family, guide) = certification_family_guide(&error.code);
+                    let source = sources.get(&program);
+                    let rewrite = source
+                        .filter(|site| site.file.ends_with(".q"))
+                        .map(|site| quarry_certification_rewrite(root, site, &error.message))
+                        .unwrap_or(error.rewrite);
                     let mut refusal =
-                        Refusal::new(error.code, family, error.message, error.rewrite, guide);
+                        Refusal::new(error.code, family, error.message, rewrite, guide);
                     refusal.site = Some(
-                        sources
-                            .get(&program)
+                        source
                             .map(|site| format!("{}:{}:{}", site.file, site.line, site.col))
                             .unwrap_or_else(|| format!("<project>:{program}")),
                     );
@@ -577,6 +579,7 @@ pub fn stage_build_cache(
     fs::create_dir_all(&quarry).map_err(|error| cache_error(&quarry, error))?;
     let mut generated_targets = BTreeSet::new();
     for (offset, generated) in compiled.quarry.iter().enumerate() {
+        validate_quarry_generated(generated)?;
         let target = quarry.join(&generated.generated);
         generated_targets.insert(target.clone());
         let source = build.join(format!("{stage}-quarry-{offset}"));
@@ -590,6 +593,53 @@ pub fn stage_build_cache(
         }
     }
     Ok(staged)
+}
+
+fn quarry_certification_rewrite(root: &Path, site: &SourceSite, message: &str) -> String {
+    let first_message_line = message.lines().next().unwrap_or(message);
+    let path = Path::new(&site.file);
+    if path
+        .components()
+        .all(|component| matches!(component, Component::Normal(_)))
+        && site.line > 0
+        && let Ok(authored) = fs::read_to_string(root.join(path))
+        && let Some(line) = authored.lines().nth(site.line as usize - 1)
+    {
+        return format!("{line}\n-- {first_message_line}");
+    }
+    format!("-- {first_message_line}")
+}
+
+fn validate_quarry_outputs(outputs: &[QuarryGenerated]) -> Result<(), Refusal> {
+    for output in outputs {
+        validate_quarry_generated(output)?;
+    }
+    Ok(())
+}
+
+fn validate_quarry_generated(output: &QuarryGenerated) -> Result<(), Refusal> {
+    let generated = Path::new(&output.generated);
+    let bare = generated
+        .file_name()
+        .is_some_and(|name| name == output.generated.as_str())
+        && generated
+            .extension()
+            .is_some_and(|extension| extension == "ts")
+        && generated.file_stem().is_some_and(|stem| !stem.is_empty())
+        && !output.generated.contains('/')
+        && !output.generated.contains('\\')
+        && !output.generated.contains("..");
+    if bare {
+        return Ok(());
+    }
+    Err(Refusal::owner(
+        "E_OWNER_COMPILER_PROTOCOL",
+        format!(
+            "compiler Quarry artifact {} named unsafe inspection file {:?}; expected a bare *.ts file name",
+            output.file, output.generated
+        ),
+        "reinstall snapback2 so the binary and compiler worker use the same protocol",
+    ))
 }
 
 pub fn compile_once(root: &Path) -> Result<CompiledProject, Vec<Refusal>> {
@@ -856,6 +906,41 @@ for await (const line of createInterface({{ input: process.stdin }})) {{
             };
             let errors = result.expect_err(case);
             assert_eq!(errors[0].code, "E_OWNER_COMPILER_PROTOCOL", "{case}");
+            drop(worker);
+            fs::remove_file(path).unwrap();
+        }
+    }
+
+    #[test]
+    fn compiler_quarry_protocol_is_strict_and_rejects_unsafe_generated_names() {
+        let root = std::env::current_dir().unwrap().canonicalize().unwrap();
+        let project = "project: { schema: { tables: {}, maintains: [], channels: {}, auth: { password: false, guests: false }, effects: [] }, programs: [], effects: [] }, sources: {}, apiDts: '', ms: 0";
+        let cases = [
+            (
+                "unsafe-name",
+                format!(
+                    "({{ id: request.id, ok: true, {project}, quarry: [{{ file: 'snapback/schema.q', generated: '../escape.ts', source: '' }}] }})"
+                ),
+                "snapback/schema.q",
+            ),
+            (
+                "malformed-field",
+                format!("({{ id: request.id, ok: true, {project}, quarry: {{}} }})"),
+                "wrong shape",
+            ),
+        ];
+        for (case, response, detail) in cases {
+            let (mut worker, path) = worker(&response);
+            let errors = match worker.compile(&root) {
+                Ok(_) => panic!("{case} unexpectedly compiled"),
+                Err(errors) => errors,
+            };
+            assert_eq!(errors[0].code, "E_OWNER_COMPILER_PROTOCOL", "{case}");
+            assert!(
+                errors[0].message.contains(detail),
+                "{case}: {}",
+                errors[0].message
+            );
             drop(worker);
             fs::remove_file(path).unwrap();
         }

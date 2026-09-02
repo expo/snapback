@@ -160,7 +160,7 @@ class Parser {
   private parseIndex(unique: boolean): IndexDecl {
     const site = this.take(unique ? "unique" : "by");
     let explicit: string | undefined;
-    if (!unique && this.atKind("word") && this.peek(1).value === ":") {
+    if (this.atKind("word") && this.peek(1).value === ":") {
       explicit = this.word().value;
       this.take(":");
     }
@@ -236,6 +236,13 @@ class Parser {
     } else {
       bindings.push(this.word().value);
     }
+    const valid = effect === "update"
+      ? bindings.length === 1 || bindings.length === 2
+      : bindings.length === 1;
+    if (!valid) {
+      const expected = effect === "update" ? "one candidate binding or (old, next)" : "exactly one row binding";
+      syntax(effectToken, `${effect} rules require ${expected}`, `rewrite the ${effect} rule with ${expected}`);
+    }
     this.take("<-");
     const value = this.expression(0, new Set(["<newline>"]));
     this.newline();
@@ -255,20 +262,25 @@ class Parser {
     while (!this.atKind("dedent") && !this.atKind("eof")) {
       this.skipNewlines();
       if (this.atKind("dedent")) break;
-      const key = this.word();
-      if (key.value === "publish" || key.value === "subscribe") {
-        this.take("<-");
-        const value = this.expression(0, new Set(["<newline>"]));
-        if (key.value === "publish") publish = value;
-        else subscribe = value;
-      } else if (key.value === "ttl") {
-        const amount = this.number();
-        if (this.at("s")) this.take("s");
-        ttlSeconds = amount;
-      } else {
-        syntax(key, `unknown channel property ${key.value}`);
+      try {
+        const key = this.word();
+        if (key.value === "publish" || key.value === "subscribe") {
+          this.take("<-");
+          const value = this.expression(0, new Set(["<newline>"]));
+          if (key.value === "publish") publish = value;
+          else subscribe = value;
+        } else if (key.value === "ttl") {
+          const amount = this.number();
+          if (this.at("s")) this.take("s");
+          ttlSeconds = amount;
+        } else {
+          syntax(key, `unknown channel property ${key.value}`);
+        }
+        this.newline();
+      } catch (error) {
+        this.capture(error);
+        this.recoverLine();
       }
-      this.newline();
     }
     this.takeKind("dedent");
     if (!publish) syntax(site, `channel ${name} requires publish <- ...`);
@@ -282,13 +294,12 @@ class Parser {
     const kind = kindToken.value as ProgramDecl["kind"];
     const name = this.generatedBinding("operation");
     const args = this.parseArgs();
-    let result: ScalarType | undefined;
-    if (this.maybe("->")) result = this.parseType();
+    if (this.at("->")) unsupported(this.peek(), "result annotations", "results are inferred; remove the annotation");
     this.take(":");
     this.newline();
     const body = this.parseBlock();
     if (body.length === 0) syntax(kindToken, `${kind} ${name} has an empty body`);
-    return { kind, name, args, result, body, site: kindToken };
+    return { kind, name, args, body, site: kindToken };
   }
 
   private generatedBinding(kind: "table" | "channel" | "effect" | "operation"): string {

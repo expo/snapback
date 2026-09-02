@@ -11,7 +11,7 @@ import type {
   TableCatalog,
 } from "./ast";
 import { selectIndex } from "./catalog";
-import { refuse, unsupported } from "./diagnostics";
+import { refuse, typeError, unsupported } from "./diagnostics";
 import { header, siteMark, typeCode } from "./schema";
 
 type ObjectType = { kind: "object"; fields: Map<string, ValueType>; nullable: boolean };
@@ -119,6 +119,7 @@ function emitStatement(statement: Stmt, env: Environment, writer: Writer, comple
   }
   if (statement.kind === "require") {
     const condition = emitExpr(statement.condition, env, writer);
+    requireBoolean(statement.condition, condition.type, "require");
     writer.statement(`db.require(${condition.code}, ${JSON.stringify(statement.code)});`, statement.site);
     finishNull(completion, writer, statement.site);
     return;
@@ -158,6 +159,7 @@ function emitStatement(statement: Stmt, env: Environment, writer: Writer, comple
   }
   if (statement.kind === "if") {
     const condition = emitExpr(statement.condition, env, writer);
+    requireBoolean(statement.condition, condition.type, "if");
     writer.raw(`if (${condition.code}) {`, statement.site);
     writer.nested(() => emitBody(statement.thenBody, env.clone(), writer, completion));
     if (statement.elseBody.length > 0) {
@@ -245,6 +247,7 @@ function emitExpr(expr: Expr, env: Environment, writer: Writer): Emitted {
   }
   if (expr.kind === "unary") {
     const value = emitExpr(expr.value, env, writer);
+    if (expr.op === "not") requireBoolean(expr.value, value.type, "not");
     return { code: `${expr.op === "not" ? "!" : "-"}(${value.code})`, type: expr.op === "not" ? boolType() : value.type };
   }
   if (expr.kind === "binary") return emitBinary(expr, env, writer);
@@ -301,15 +304,19 @@ function emitName(name: string, site: Site, env: Environment): Emitted {
 function emitBinary(expr: Extract<Expr, { kind: "binary" }>, env: Environment, writer: Writer): Emitted {
   const left = emitExpr(expr.left, env, writer);
   const right = emitExpr(expr.right, env, writer);
-  if (expr.op === "and" || expr.op === "or") return { code: `(${left.code} ${expr.op === "and" ? "&&" : "||"} ${right.code})`, type: boolType() };
+  if (expr.op === "and" || expr.op === "or") {
+    requireBoolean(expr.left, left.type, expr.op);
+    requireBoolean(expr.right, right.type, expr.op);
+    return { code: `(${left.code} ${expr.op === "and" ? "&&" : "||"} ${right.code})`, type: boolType() };
+  }
   if (expr.op === "??") return { code: `(${left.code} ?? ${right.code})`, type: nonNullable(left.type) };
   const operator = expr.op === "=" ? "===" : expr.op;
   if (["=", "!=", "<", "<=", ">", ">="].includes(expr.op)) {
+    if ((expr.op === "=" || expr.op === "!=") && expr.right.kind === "literal" && expr.right.value === null) {
+      return { code: `(${left.code} ${expr.op === "=" ? "===" : "!=="} null)`, type: boolType() };
+    }
     if (isScalar(left.type) && isScalar(right.type) && !compatible(left.type, right.type)) {
       refuse(expr.site, `cannot compare nominal ${left.type.kind} with ${right.type.kind}; use a principal value only with viewer`);
-    }
-    if ((expr.op === "=" || expr.op === "!=") && expr.left.kind === "name" && expr.right.kind === "literal" && expr.right.value === null) {
-      return { code: `(${left.code} ${expr.op === "=" ? "===" : "!=="} null)`, type: boolType() };
     }
     if (env.inlineComparisons) {
       const comparison = expr.op === "!=" ? `${left.code} !== ${right.code}` : `${left.code} ${operator} ${right.code}`;
@@ -403,18 +410,24 @@ function emitRead(expr: Extract<Expr, { kind: "read" }>, env: Environment, write
     const result = temporary("whereRows", expr.site);
     const row = temporary("whereRow", expr.site);
     writer.statement(`const ${page} = ${scan};`, expr.site);
+    writer.statement(`const ${result}: any[] = [];`, expr.site);
     const priorFocal = env.focal;
     const priorInline = env.inlineComparisons;
     env.focal = { code: row, type: { kind: "row", table: expr.table, nullable: false } };
     env.inlineComparisons = true;
     try {
-      const predicate = emitExpr(expr.range.where, env, writer);
-      writer.statement(`const ${result} = ${page}.filter((${row}) => ${predicate.code});`, expr.range.where.site);
+      writer.raw(`for (const ${row} of ${page}) {`, expr.range.where.site);
+      writer.nested(() => {
+        const predicate = emitExpr(expr.range!.where!, env, writer);
+        requireBoolean(expr.range!.where!, predicate.type, "where");
+        writer.statement(`if (${predicate.code}) ${result}.push(${row});`, expr.range!.where!.site);
+      });
+      writer.statement("}", expr.range.where.site);
     } finally {
       env.focal = priorFocal;
       env.inlineComparisons = priorInline;
     }
-    return { code: result, type: { kind: "sequence", item: { kind: "row", table: expr.table, nullable: false }, max: expr.range.take } };
+    return { code: `[...${result}]`, type: { kind: "sequence", item: { kind: "row", table: expr.table, nullable: false }, max: expr.range.take } };
   }
   const key = index.name === "byId" && keys.length === 1 ? keys[0]!.code : `[${keys.map((item) => item.code).join(", ")}]`;
   return exists
@@ -628,6 +641,23 @@ function nullableValue(type: ValueType): ValueType {
   if (type.kind === "row" || type.kind === "object") return { ...type, nullable: true };
   if (isScalar(type)) return { ...type, optional: true } as ScalarType;
   return { kind: "unknown" };
+}
+function requireBoolean(expr: Expr, type: ValueType, construct: string): void {
+  if (type.kind === "bool" && !type.optional) return;
+  const nullable = (isScalar(type) && type.optional)
+    || ((type.kind === "row" || type.kind === "object") && type.nullable);
+  const spelling = expr.kind === "name" ? expr.name : expr.kind === "member" ? `${simpleExpr(expr.base)}.${expr.name}` : "x";
+  typeError(
+    expr.site,
+    `${construct} requires a Boolean operand; got ${type.kind}${nullable ? "?" : ""}`,
+    nullable ? `${spelling} != null` : `compare ${spelling} to a value so ${construct} receives a Boolean`,
+  );
+}
+function simpleExpr(expr: Expr): string {
+  if (expr.kind === "name") return expr.name;
+  if (expr.kind === "focal") return "";
+  if (expr.kind === "member") return `${simpleExpr(expr.base)}.${expr.name}`;
+  return "x";
 }
 function boolType(): ScalarType { return { kind: "bool", optional: false }; }
 function keyBinding(value: Emitted): Emitted {

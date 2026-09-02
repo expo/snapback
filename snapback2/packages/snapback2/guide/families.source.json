@@ -328,5 +328,11 @@
     "code": "E_QUARRY_PLACEMENT",
     "wrong": "```q\n-- snapback/items.q\ntable items:\n  name: text <=100\n```",
     "right": "```q\n-- snapback/schema.q\ntable items:\n  name: text <=100\n  public\n```"
+  },
+  {
+    "family": "quarry",
+    "code": "E_QUARRY_TYPE",
+    "wrong": "```q\nquery present(x: time ?):\n  if x:\n    return true\n  return false\n```",
+    "right": "```q\nquery present(x: time ?):\n  return x != null\n```"
   }
 ]

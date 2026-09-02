@@ -169,7 +169,8 @@ export type DiagnosticCode =
   | "E_QUARRY_UNKNOWN"
   | "E_QUARRY_AMBIGUOUS"
   | "E_QUARRY_UNSUPPORTED"
-  | "E_QUARRY_PLACEMENT";
+  | "E_QUARRY_PLACEMENT"
+  | "E_QUARRY_TYPE";
 
 export type RefusalFamily = "bound" | "opaque" | "schema" | "rule" | "effect" | "args" | "op" | "input" | "quarry";
 

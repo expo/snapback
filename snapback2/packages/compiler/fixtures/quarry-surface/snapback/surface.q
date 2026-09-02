@@ -12,7 +12,7 @@ query hasMembership(group: groups, principal: principal):
   return exists memberships[group, principal]
 
 query postsAfter(author: principal, cursor: time ?):
-  if cursor:
+  if cursor != null:
     return posts[author] after cursor first 3 {
       *,
       author: users[.author] { name, role },
@@ -61,14 +61,14 @@ query firstPositive(values: [int] <=5):
       return value
   return 0
 
-mutation ensureUser(name: text <=40, nickname: text <=40 ?, role: enum('member', 'admin')) -> users:
+mutation ensureUser(name: text <=40, nickname: text <=40 ?, role: enum('member', 'admin')):
   match users[name = name]:
     some found:
       return found { * }
     none:
       return +users { principal: viewer, name, nickname, score: 0, active: true, role, joinedAt: now, metadata: {}, externalId: new }
 
-mutation createPost(group: groups, body: text <=500, at: time, visible: bool, peers: [principal] <=5) -> posts:
+mutation createPost(group: groups, body: text <=500, at: time, visible: bool, peers: [principal] <=5):
   require commit >= at else FUTURE_POST
   post = +posts { id: new, author: viewer, group, body, at: now, visible, mood: 'plain' }
   for principal in peers:
@@ -76,15 +76,15 @@ mutation createPost(group: groups, body: text <=500, at: time, visible: bool, pe
   ~posts[post] { body, editedAt: now }
   return post { id, body }
 
-mutation bump(counter: counters, owner: principal, note: text <=40 ?) -> counters:
+mutation bump(counter: counters, owner: principal, note: text <=40 ?):
   +~counters[counter] { owner, value: (.value ?? 0) + 1, note }
   return counters[counter]
 
-mutation addPair(a: principal, b: principal) -> pairs:
+mutation addPair(a: principal, b: principal):
   (lo, hi) = sorted(a, b)
   return +pairs { lo, hi }
 
-mutation boundedBuiltins(owner: principal, a: int, b: int, body: text <=500) -> counters:
+mutation boundedBuiltins(owner: principal, a: int, b: int, body: text <=500):
   words = tokens(body)
   for word in words:
     require word != '' else EMPTY_TOKEN

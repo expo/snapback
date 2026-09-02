@@ -31,10 +31,11 @@ constraints; maximums remain part of the column type.
 nor `id`, even though all three have ID-shaped wire values. A column compared
 with `viewer`, or assigned `viewer`, must be `principal`.
 
-Tables get `id` and `byId` implicitly. `by name: a, b` declares an ordering.
-`unique a, b` declares the unique ordering `byAB` and its uniqueness
-constraint; `id` may appear in an index. `immutable a, b` forbids changes to
-those columns. `public` accepts an optional reason string. An insert
+Tables get `id` and `byId` implicitly. `by name: a, b` declares a named
+ordering; `by a, b` infers `byAB`. `unique name: a, b` declares a named unique
+ordering and its uniqueness constraint; `unique a, b` infers `byAB`. `id` may
+appear in an index. `immutable a, b` forbids changes to those columns. `public`
+accepts an optional reason string. An insert
 postcondition is exactly `after insert r <- exists table[...] [by index]`.
 
 Rules are `allow`, `deny`, `public`, `system`, `exists`, `created`, `and`,
@@ -63,7 +64,9 @@ choice as `E_DISCLOSURE`. It does not replace the target table's ordinary
 `read` rule.
 
 `total[key]` reads the target row through the unique grouping index.
-`#total[key]` reads its integer value and yields zero when the group is absent.
+`#total[key]` reads its integer value and yields zero whenever the row read is
+absent, including when the viewer cannot read that target row; denied reads are
+absent.
 
 ```q
 maintain messageCounts = count messages by conversationId:
@@ -78,28 +81,39 @@ Point reads select a complete unique key. Range reads use `first N` or
 resolve ambiguity. Shapes use `{ * }`, bare row fields, or `name: expression`.
 Nested reads and shapes are bounded by the same compiler policy.
 
+`before c last N` lowers to `{ order: "desc", after: c }`; the engine's `after`
+means “continue past the cursor in scan order.”
+
 `where predicate` follows a bounded range read. The compiler fetches at most
 its `take N` page and evaluates the predicate once per fetched row with `.` as
 the row. Nested reads and `exists` are allowed. Filtering does not backfill,
-so the result may contain fewer than N rows.
+so the result is a bounded list that may contain fewer than N rows; `hasMore`
+and cursors do not survive filtering.
 
 Statements are expression bindings, tuple bindings from `sorted`, `return`,
 `require condition else CODE`, `if/else`, bounded `for`, and
 `match read: some name: … none: …`. `return` is valid at top level and inside
-all arms. Match is a statement, not a binding expression.
+all arms. The last expression of any body is an implicit return. Match is a
+statement, not a binding expression.
 
 Object literals work anywhere expressions do; `{ id: conversationId,
 creatorMembershipId }` uses shorthand for the second field. `count(x)` is
 `x.length` for bounded lists and pages. Other built-ins are `tokens`, `range`,
 `min`, `max`, and `sorted`. `walk table[seed] up .parent depth N` is bounded.
 `!` or `! else CODE` requires a present value; `??` supplies an absence
-fallback. Comparisons are absence-guarded. `now`, `commit`, and `new` expose
-the operation clock, commit clock, and new ID source.
+fallback. Comparisons are absence-guarded except comparison with `null`, which
+is the presence test: `x != null` is true exactly when `x` is present. `if`,
+`require`, `and`, `or`, and `not` require Boolean operands.
+
+`now` is the read clock in queries and the commit clock in mutations; `commit`
+is the commit clock. In a mutation they are the same instant. `now` is pinned
+once per request rather than redrawn; `new` allocates a fresh ID on each
+evaluation.
 
 Writes are `+table { fields }`, `~table[id] { fields }`,
 `+~table[id] { fields }`, and `-table[id]`. Insert yields the inserted row;
 update, upsert, and delete yield no value. Each inserted row expression is
-evaluated once, including inline `new` and `now`.
+evaluated once, including inline `new`.
 
 ## Effects
 
@@ -110,6 +124,8 @@ an object payload from a mutation:
 effect notify from notifications
 
 query thread(conversationId: conversations):
+  require exists memberships[conversationId, viewer] else MEMBERSHIP_REQUIRED
+  return messages[conversationId] last 50
 ```
 
 The effect `notify` must be exported by `snapback/notifications.ts`.
@@ -130,14 +146,13 @@ same certificate, trace, and runtime budgets as TypeScript programs.
 
 ## Refused platform gaps
 
-The following are not part of the Snapback 2 platform and are refused with
-`E_QUARRY_UNSUPPORTED`: `asset`/`use assets`, `schedule`, `merge`, `device`,
-`oblivious`, `while`, user functions or recursion, `decimal`, and `money`.
+The following are refused with `E_QUARRY_UNSUPPORTED`: `asset`/`use assets`,
+`schedule`, `merge`, `device`, `oblivious`, `while`, user functions or
+recursion, `decimal`, and `money`.
 Use bounded URL text instead of assets; a caller-invoked mutation instead of a
 schedule; one named bounded scan or a maintained feed table instead of merge;
 explicit bounded arguments instead of device/oblivious state; bounded
-`for`/`walk` instead of while/recursion; and integer minor units instead of
-decimal/money.
+`for`/`walk` instead of while/recursion. Decimal and money are not in Quarry;
+use integer minor units or the TypeScript surface.
 
-The refusal says “not part of the Snapback 2 platform” because Quarry states
-platform truth; there is no hidden larger Quarry subset to opt into.
+There is no hidden larger Quarry subset to opt into.

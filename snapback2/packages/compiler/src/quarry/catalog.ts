@@ -46,7 +46,6 @@ export function buildCatalog(documents: Document[]): TableCatalog {
       if (programNames.has(program.name)) refuse(program.site, `duplicate operation ${program.name}`);
       programNames.add(program.name);
       validateArgs(program.args, catalog);
-      if (program.result) validateType(program.result, catalog, program.site);
     }
   }
   return catalog;

@@ -81,7 +81,7 @@ function emitConstraints(declaration: TableDecl, catalog: TableCatalog): string[
   }
   for (const finalExists of declaration.finalExists) {
     const read = finalExists.value.read;
-    const context: RuleContext = { names: new Set([finalExists.binding]), effect: "insert" };
+    const context: RuleContext = { names: new Set([finalExists.binding]), effect: "insert", table: declaration };
     const index = selectIndex(catalog, read.table, read.keys, "exists", read.index, (value) => ruleTermType(value, context), read.site);
     const key = read.keys.map((item) => ruleTerm(item.value, context).code).join(", ");
     lines.push(withSite(
@@ -112,7 +112,7 @@ function maintainCode(declaration: MaintainDecl, catalog: TableCatalog): string 
     ? `count: ${JSON.stringify(declaration.source)}`
     : `sum: { source: ${JSON.stringify(declaration.source)}, of: ${JSON.stringify(declaration.column)} }`;
   const readable = declaration.readable
-    ? `, readable: ${emitRule(declaration.readable, catalog, catalog.get(declaration.source)?.declaration)}`
+    ? `, readable: ${emitRule(declaration.readable, catalog, catalog.get(declaration.name)?.declaration)}`
     : "";
   return `{ ${kind}, by: [${declaration.by.map((column) => JSON.stringify(column)).join(", ")}], into: ${JSON.stringify(declaration.name)}${readable} }`;
 }
@@ -161,6 +161,9 @@ function ruleTerm(expr: Expr, context: RuleContext): { code: string; kind: "fiel
   if (expr.kind === "name" && expr.name === "viewer") return { code: "rule.viewer", kind: "other" };
   if (expr.kind === "literal") return { code: `rule.literal(${JSON.stringify(expr.value)})`, kind: "other" };
   if (expr.kind === "member" && expr.base.kind === "name" && context.names.has(expr.base.name)) {
+    if (context.table && expr.name !== "id" && !context.table.columns.some((column) => column.name === expr.name)) {
+      refuse(expr.site, `table ${context.table.name} has no rule field ${expr.name}`);
+    }
     const method = expr.base.name === context.old ? "oldField" : expr.base.name === context.next ? "nextField" : "field";
     return { code: `rule.${method}(${JSON.stringify(expr.name)})`, kind: "field", field: expr.name, method };
   }

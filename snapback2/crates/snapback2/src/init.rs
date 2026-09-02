@@ -14,7 +14,10 @@ use std::os::unix::fs::OpenOptionsExt;
 
 const BLOCK_START: &str = "<!-- snapback2:start -->";
 const BLOCK_END: &str = "<!-- snapback2:end -->";
-const AGENT_BLOCK: &str = r#"<!-- snapback2:start -->
+fn agent_block(typescript: bool) -> String {
+    let extension = if typescript { "ts" } else { "q" };
+    format!(
+        r#"<!-- snapback2:start -->
 ## Snapback 2
 
 - `snapback2 check` compiles, certifies, and refreshes `.snapback/build/api.d.ts`.
@@ -22,13 +25,15 @@ const AGENT_BLOCK: &str = r#"<!-- snapback2:start -->
 - `snapback2 test` proves derived checks and authored journeys with a receipt.
 - `snapback2 why <query> --as <persona>` explains rows, rules, and bounds.
 - `snapback2 trace latest` follows commit → invalidation → delivery.
-- Backends are `snapback/*.q`; `snapback2 guide quarry` is the language reference.
+- Backends are `snapback/*.{extension}`; `snapback2 guide quarry` is the default language reference.
 - Effects, seeds, and journeys are TypeScript.
 
 Gotchas: authentication is always on; use `--as <persona>` only in development.
 Every scan names `take`; empty, capped, denied, and stale are distinct states.
 Generated files stay under `.snapback/` and are never committed.
-<!-- snapback2:end -->"#;
+<!-- snapback2:end -->"#
+    )
+}
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Client {
@@ -71,7 +76,7 @@ pub fn run(args: &[String]) -> ExitCode {
         Ok(root) => root,
         Err(error) => return owner::print_refusal(error, json_output, 2),
     };
-    if let Err(error) = scaffold(&root, &rendering, client) {
+    if let Err(error) = scaffold(&root, &rendering, client, typescript) {
         return owner::print_refusal(error, json_output, 1);
     }
     let checked = check::run_project(&root, json_output);
@@ -99,7 +104,7 @@ fn target_root(value: Option<&str>) -> Result<PathBuf, Refusal> {
         .map_err(|error| conflict(error.to_string()))
 }
 
-fn scaffold(root: &Path, template: &str, client: Client) -> Result<(), Refusal> {
+fn scaffold(root: &Path, template: &str, client: Client, typescript: bool) -> Result<(), Refusal> {
     ensure_directory_or_absent(&root.join("snapback"))?;
     ensure_file_or_absent(&root.join("AGENTS.md"))?;
     ensure_file_or_absent(&root.join(".gitignore"))?;
@@ -119,7 +124,7 @@ fn scaffold(root: &Path, template: &str, client: Client) -> Result<(), Refusal> 
     if client == Client::React {
         copy_absent(&templates.join("react"), root)?;
     }
-    update_agents(&root.join("AGENTS.md"))?;
+    update_agents(&root.join("AGENTS.md"), typescript)?;
     update_gitignore(&root.join(".gitignore"))?;
     update_tsconfig(&root.join("tsconfig.json"))?;
     update_package(&root.join("package.json"), client)?;
@@ -201,15 +206,16 @@ fn copy_absent(source: &Path, target: &Path) -> Result<(), Refusal> {
     Ok(())
 }
 
-fn update_agents(path: &Path) -> Result<(), Refusal> {
+fn update_agents(path: &Path, typescript: bool) -> Result<(), Refusal> {
     let current = read_managed_text(path)?;
+    let block = agent_block(typescript);
     let next = match (current.find(BLOCK_START), current.find(BLOCK_END)) {
         (Some(start), Some(end)) if start <= end => {
             let after = end + BLOCK_END.len();
-            format!("{}{}{}", &current[..start], AGENT_BLOCK, &current[after..])
+            format!("{}{}{}", &current[..start], block, &current[after..])
         }
-        (None, None) if current.trim().is_empty() => format!("{AGENT_BLOCK}\n"),
-        (None, None) => format!("{}\n\n{AGENT_BLOCK}\n", current.trim_end()),
+        (None, None) if current.trim().is_empty() => format!("{block}\n"),
+        (None, None) => format!("{}\n\n{block}\n", current.trim_end()),
         _ => {
             return Err(conflict(format!(
                 "{} has an incomplete Snapback 2 managed block",
@@ -452,7 +458,7 @@ fn conflict(message: impl Into<String>) -> Refusal {
 
 fn usage() -> ExitCode {
     eprintln!(
-        "usage: snapback2 init [dir] [--template todos|chat|ts] [--ts] [--client react|none] [--json]"
+        "usage: snapback2 init [dir] [--template todos|chat] [--ts] [--client react|none] [--json]\n  --ts  scaffold the TypeScript rendering (`--template ts` is accepted as an alias)"
     );
     ExitCode::from(2)
 }

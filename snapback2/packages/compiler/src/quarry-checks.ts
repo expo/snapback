@@ -47,8 +47,13 @@ export function registerQuarryChecks(test: Test, frontend: string): void {
     assert(typescript.ok, `TypeScript chat refused: ${typescript.ok ? "" : diagnosticsText(typescript.diagnostics)}`);
     assert(quarry.project.programs.length === typescript.project.programs.length,
       `chat program counts differ: Quarry ${quarry.project.programs.length}, TS ${typescript.project.programs.length}`);
-    assert(canonical(normalizeSchema(quarry.project)) === canonical(normalizeSchema(typescript.project)),
+    assert(canonical(quarry.project.schema) === canonical(typescript.project.schema),
       "Quarry chat tables/rules/constraints/maintains/channels/effects differ from the TypeScript rendering");
+    assert(canonical(quarry.project.effects) === canonical(typescript.project.effects),
+      "Quarry chat effect grants/source/then differ from the TypeScript rendering");
+    assert(canonical(quarry.project.programs.map((program) => program.name).sort())
+      === canonical(typescript.project.programs.map((program) => program.name).sort()),
+    "Quarry chat operation names differ from the TypeScript rendering");
     assert(fullProjectErrors(quarry.project).length === 0, `Quarry chat full project did not certify: ${JSON.stringify(fullProjectErrors(quarry.project))}`);
     assert(fullProjectErrors(typescript.project).length === 0, `TypeScript chat full project did not certify: ${JSON.stringify(fullProjectErrors(typescript.project))}`);
     assert(!quarry.apiDts.includes(".q") && /messages:\s*\{/.test(quarry.apiDts), "api.d.ts leaked a .q namespace or lost messages");
@@ -125,6 +130,92 @@ export function registerQuarryChecks(test: Test, frontend: string): void {
       if (code === "E_QUARRY_UNSUPPORTED") assert(item.message.includes("not part of the Snapback 2 platform"), "unsupported wording drifted back to subset language");
       if (code === "E_QUARRY_AMBIGUOUS") assert(item.rewrite.includes(" by "), `ambiguous rewrite lost its explicit-index repair: ${item.rewrite}`);
     }
+  });
+
+  test("Quarry conditions require Boolean operands and null is an explicit presence test", async () => {
+    const schema = "table rows:\n  value: int\n  seenAt: time ?\n  public\n";
+    for (const condition of ["value", "seenAt"]) {
+      const refused = compileInline([
+        { fileName: "snapback/schema.q", source: schema },
+        { fileName: "snapback/ops.q", source: `query bad(${condition}: ${condition === "value" ? "int" : "time ?"}):\n  if ${condition}:\n    return true\n  return false\n` },
+      ]);
+      assert(!refused.ok && refused.diagnostics.some((item) => item.code === "E_QUARRY_TYPE"),
+        `non-Boolean if condition compiled: ${JSON.stringify(refused)}`);
+      if (condition === "seenAt") assert(refused.diagnostics.some((item) => item.rewrite.includes("seenAt != null")),
+        `optional condition lost its presence-test rewrite: ${JSON.stringify(refused)}`);
+    }
+    const accepted = await withProject({
+      "snapback/schema.q": schema,
+      "snapback/ops.q": "query present(seenAt: time ?):\n  if seenAt != null:\n    return true\n  return false\n\nquery field(rowId: rows):\n  row = rows[rowId]! else MISSING\n  return row.seenAt != null\n",
+    }, (root) => lowerProject(root));
+    assert(accepted.ok, `presence tests refused: ${accepted.ok ? "" : diagnosticsText(accepted.diagnostics)}`);
+  });
+
+  test("Quarry where preludes stay inside the per-row loop and certify", async () => {
+    const schema = "table authors:\n  name: text <=50\n  public\n\ntable posts:\n  author: authors\n  public\n  by author\n";
+    const module = "query byAuthor(author: authors):\n  return posts[author] first 5 where .author.name = 'Alice'\n";
+    const compiled = compileInline([
+      { fileName: "snapback/schema.q", source: schema },
+      { fileName: "snapback/posts.q", source: module },
+    ]);
+    assert(compiled.ok, `nested where refused: ${compiled.ok ? "" : diagnosticsText(compiled.diagnostics)}`);
+    const source = compiled.modules[0]!.source;
+    const loop = source.indexOf("for (const __q_whereRow_");
+    assert(loop >= 0 && source.indexOf("db.get(authors", loop) > loop && source.indexOf(".push(__q_whereRow_", loop) > loop,
+      `where prelude escaped its row loop:\n${source}`);
+    await withProject({ "snapback/schema.q": schema, "snapback/posts.q": module }, async (root) => {
+      const lowered = await lowerProject(root);
+      assert(lowered.ok, `nested where project refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
+      assert(rustCheck(lowered.project.programs, "synthetic", lowered.project.schema).every((item) => !item.error),
+        "nested where project did not certify");
+    });
+  });
+
+  test("Quarry rule binding arity is exact and two-binding updates retain row images", async () => {
+    for (const rule of ["read (r, extra) <- allow", "insert (r, extra) <- allow", "delete (r, extra) <- allow", "update (old, next, extra) <- allow"]) {
+      const result = compileInline([{ fileName: "snapback/schema.q", source: `table rows:\n  value: int\n  ${rule}\n` }]);
+      assert(!result.ok && result.diagnostics.some((item) => item.code === "E_QUARRY_SYNTAX" && item.rewrite.includes("binding")),
+        `invalid rule arity compiled: ${rule}: ${JSON.stringify(result)}`);
+    }
+    const oneBinding = compileInline([{
+      fileName: "snapback/schema.q",
+      source: "table rows:\n  value: int\n  update next <- next.value = 1\n",
+    }]);
+    assert(oneBinding.ok, `one-binding update refused: ${oneBinding.ok ? "" : diagnosticsText(oneBinding.diagnostics)}`);
+    await withProject({
+      "snapback/schema.q": "table rows:\n  value: int\n  read r <- allow\n  update (old, next) <- old.value != next.value\n",
+      "snapback/rows.q": "query one(id: rows):\n  return rows[id]\n",
+    }, async (root) => {
+      const lowered = await lowerProject(root);
+      assert(lowered.ok, `two-binding update refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
+      const rule = JSON.stringify((lowered.project.schema.tables.rows as any).rules.update);
+      assert(rule.includes("OldField") && rule.includes("NextField"), `update row images were not retained: ${rule}`);
+    });
+  });
+
+  test("Quarry maintain readable rules are typed against the materialized target", () => {
+    const accepted = compileInline([{ fileName: "snapback/schema.q", source: "table source:\n  group: text <=20\n  body: text <=50\n  public\n\nmaintain totals = count source by group:\n  read r <- allow\n  readable r <- r.value = 0\n" }]);
+    assert(accepted.ok, `target value readable rule refused: ${accepted.ok ? "" : diagnosticsText(accepted.diagnostics)}`);
+    const refused = compileInline([{ fileName: "snapback/schema.q", source: "table source:\n  group: text <=20\n  body: text <=50\n  public\n\nmaintain totals = count source by group:\n  read r <- allow\n  readable r <- r.body = ''\n" }]);
+    assert(!refused.ok && refused.diagnostics.some((item) => item.message.includes("body")),
+      `source-only readable field compiled: ${JSON.stringify(refused)}`);
+  });
+
+  test("Quarry result annotations are refused because results are inferred", () => {
+    const result = compileInline([
+      { fileName: "snapback/schema.q", source: "table rows:\n  value: int\n  public\n" },
+      { fileName: "snapback/ops.q", source: "query wrong() -> int:\n  return 'x'\n" },
+    ]);
+    assert(!result.ok && result.diagnostics.some((item) => item.code === "E_QUARRY_UNSUPPORTED"
+      && item.rewrite.includes("results are inferred; remove the annotation")),
+    `result annotation compiled or lost its rewrite: ${JSON.stringify(result)}`);
+  });
+
+  test("Quarry channel properties recover per line", () => {
+    const result = compileInline([{ fileName: "snapback/schema.q", source: "table rows:\n  value: int\n  public\n\nchannel updates():\n  broken one\n  alsoBroken two\n  publish <- public\n  subscribe <- public\n  ttl 1s\n" }]);
+    assert(!result.ok && result.diagnostics.filter((item) => item.code === "E_QUARRY_SYNTAX"
+      && item.message.includes("unknown channel property")).length === 2,
+    `channel parsing stopped before both defects: ${JSON.stringify(result)}`);
   });
 
   test("Quarry index inference prefers an exact-length probe over a longer prefix", async () => {
@@ -318,7 +409,7 @@ export function registerQuarryChecks(test: Test, frontend: string): void {
   test("every Quarry diagnostic family rewrite is fenced parseable Quarry", () => {
     const families = JSON.parse(readFileSync(resolve(packageRoot, "guide/families.source.json"), "utf8")) as Array<Record<string, string>>;
     const quarry = families.filter((item) => item.family === "quarry");
-    const expected = new Set(["E_QUARRY_SYNTAX", "E_QUARRY_UNKNOWN", "E_QUARRY_AMBIGUOUS", "E_QUARRY_UNSUPPORTED", "E_QUARRY_PLACEMENT"]);
+    const expected = new Set(["E_QUARRY_SYNTAX", "E_QUARRY_UNKNOWN", "E_QUARRY_AMBIGUOUS", "E_QUARRY_UNSUPPORTED", "E_QUARRY_PLACEMENT", "E_QUARRY_TYPE"]);
     assert(quarry.length === expected.size, `Quarry family entry count changed: ${quarry.length}`);
     for (const item of quarry) {
       assert(expected.delete(item.code), `unexpected/duplicate Quarry family code ${item.code}`);
@@ -439,46 +530,6 @@ function fullProjectErrors(project: ProjectJson): unknown[] {
   return (output.results ?? []).filter((item) => item.error);
 }
 
-function normalizeSchema(project: ProjectJson): unknown {
-  const schema = project.schema as any;
-  const tables = schema.tables as Record<string, any>;
-  const signature = (table: string, index: string) => {
-    const descriptor = tables[table]?.indexes?.[index];
-    return descriptor ? JSON.stringify({ columns: descriptor.columns, unique: descriptor.unique }) : index;
-  };
-  const rewriteIndexes = (value: any): any => {
-    if (Array.isArray(value)) return value.map(rewriteIndexes);
-    if (!value || typeof value !== "object") return value;
-    if (value.Exists || value.Created) {
-      const key = value.Exists ? "Exists" : "Created";
-      const item = value[key];
-      return { [key]: { ...rewriteIndexes(item), index: signature(item.table, item.index) } };
-    }
-    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, rewriteIndexes(item)]));
-  };
-  const normalizedTables = Object.fromEntries(Object.entries(tables).map(([name, table]) => {
-    const indexes = Object.values(table.indexes).map((index: any) => ({ columns: index.columns, unique: index.unique })).sort(byJson);
-    const constraints = table.constraints.map((constraint: any) => {
-      if (constraint.Unique) return { Unique: { index: signature(name, constraint.Unique.index) } };
-      if (constraint.FinalExistsOnInsert) {
-        const item = constraint.FinalExistsOnInsert;
-        return { FinalExistsOnInsert: { ...item, index: signature(item.table, item.index) } };
-      }
-      return constraint;
-    }).map(rewriteIndexes).sort(byJson);
-    return [name, { columns: table.columns, indexes, rules: rewriteIndexes(table.rules), constraints }];
-  }));
-  return {
-    auth: schema.auth,
-    tables: normalizedTables,
-    maintains: rewriteIndexes(schema.maintains),
-    channels: rewriteIndexes(schema.channels),
-    effects: [...schema.effects].sort(),
-    projectEffects: project.effects.map((effect) => effect.name).sort(),
-  };
-}
-
-function byJson(left: unknown, right: unknown): number { return JSON.stringify(left).localeCompare(JSON.stringify(right)); }
 function canonical(value: unknown): string {
   const normalize = (item: any): any => Array.isArray(item)
     ? item.map(normalize)

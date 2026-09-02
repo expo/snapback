@@ -102,7 +102,7 @@ where the code departs from the letter of the ruling:
    typescript` is the TypeScript surface.
 5. **`init`.** `snapback2 init [--template todos|chat]` scaffolds Quarry;
    `--ts` scaffolds the TypeScript rendering of the same template
-   (`--template ts` is accepted as the literal spelling of this ruling).
+   (`--template ts` is accepted and is equivalent to `--template todos --ts`).
 6. **The language grew to the platform** (spec truth cuts both ways): v0.2's
    `maintain` was refused because the platform lacked it on 2026-08-31; the
    platform has had `maintains` since `c6c3123a4`, so Quarry now spells
@@ -111,7 +111,7 @@ where the code departs from the letter of the ruling:
    `emit` reach the effects subsystem, and `principal`, `json`, `bytes`, text
    ranges/formats, `immutable`, `after insert` (final-exists), `created`,
    `system`, `(old, next)` update rules, `return`, object literals, `count`,
-   and `where` on range reads are all spelled. `asset`, `schedule`, `merge`,
+   `where` on range reads, and inline `new` are all spelled. `asset`, `schedule`, `merge`,
    `decimal`/`money`, `while`, and user functions remain refused as
    not-platform.
 7. **Blocking coverage.** The Quarry tests run in the compiler leg of

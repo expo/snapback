@@ -139,7 +139,7 @@ function materializeMaintains(documents: Document[]): void {
       if (!summed || summed.type.kind !== "int") throw new QuarryError(declaration.site, `sum maintain ${declaration.name} requires an int source column`);
     }
     columns.push({ name: "value", type: { kind: "int", optional: false }, site: declaration.site });
-    const indexName = `by${declaration.by.map(title).join("")}`;
+    const indexName = `by${declaration.by.map((column) => title(column.endsWith("Id") && column.length > 2 ? column.slice(0, -2) : column)).join("")}`;
     const deny = (effect: RuleDecl["effect"]): RuleDecl => ({
       effect,
       bindings: ["r"],

@@ -244,21 +244,37 @@ fn refusal_page(root: &Path, code: &str) -> Result<String, Refusal> {
     else {
         return Err(unknown(code));
     };
-    Ok(format!(
-        "# {code}\n\nFamily: `{}`\n\nWrong:\n```ts\n{}\n```\n\nRight:\n```ts\n{}\n```\n",
-        entry
-            .get("family")
-            .and_then(Json::as_str)
-            .unwrap_or("unknown"),
+    let family = entry
+        .get("family")
+        .and_then(Json::as_str)
+        .unwrap_or("unknown");
+    let language = if family == "quarry" { "q" } else { "ts" };
+    let wrong = refusal_example(
         entry
             .get("wrong")
             .and_then(Json::as_str)
             .unwrap_or_default(),
+        language,
+    );
+    let right = refusal_example(
         entry
             .get("right")
             .and_then(Json::as_str)
             .unwrap_or_default(),
+        language,
+    );
+    Ok(format!(
+        "# {code}\n\nFamily: `{family}`\n\nWrong:\n{wrong}\n\nRight:\n{right}\n"
     ))
+}
+
+fn refusal_example(value: &str, language: &str) -> String {
+    let value = value.trim();
+    if value.starts_with("```") {
+        value.to_owned()
+    } else {
+        format!("```{language}\n{value}\n```")
+    }
 }
 
 fn symbol_page(root: &Path, symbol: &str) -> Result<String, Refusal> {

@@ -142,6 +142,18 @@ test("the authored module requires imports and keeps the deterministic subset", 
   }
 });
 
+test("optional property access lowers to a null-guarded conditional", () => {
+  const tables = new Map<string, TableInfo>([["items", {
+    name: "items", private: false, columns: { id: { kind: "string" }, name: { kind: "string", max: 50 } },
+  }]]);
+  const lowered = lowerSource(`import { query } from "snapback2";
+    export const name = query({}, ({ db }) => db.get(items, "missing")?.name);`, "optional-chain.ts", undefined, { tables });
+  assert(lowered.ok, `optional chain refused: ${lowered.ok ? "" : lowered.diagnostics[0]?.message}`);
+  const body = JSON.stringify(lowered.programs[0]?.body);
+  assert(body.includes('"If"') && body.includes('"op":"Ne"') && body.includes('"Field"'),
+    `optional chain lost its null guard: ${body}`);
+});
+
 test("one module reports every policy refusal instead of failing fast", () => {
   const source = `import { query } from 'snapback2';
     export const bad = query({}, () => { let i = 0; while (i < 2) i++; return Date.now(); });`;

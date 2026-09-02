@@ -46,6 +46,10 @@ impl Project {
         self.init_rendering(template, client, true)
     }
 
+    pub fn init_ts_alias(&self, client: &str) -> Output {
+        self.init_rendering("ts", client, false)
+    }
+
     fn init_rendering(&self, template: &str, client: &str, typescript: bool) -> Output {
         let mut command = self.command();
         command.args([
@@ -218,6 +222,9 @@ fn ensure_package() {
             && root.join("packages/snapback2/dist/test.d.ts").is_file()
             && root
                 .join("packages/snapback2/dist/guide/grammar.md")
+                .is_file()
+            && root
+                .join("packages/snapback2/dist/guide/quarry.md")
                 .is_file()
             && root
                 .join("packages/snapback2/dist/test-runner.mjs")

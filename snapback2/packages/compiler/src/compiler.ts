@@ -80,7 +80,6 @@ export function lowerSource(
   const module = inspectModule(sourceFile, source, fileName, options);
   const diagnostics = findPolicyRefusals(module, Number.MAX_SAFE_INTEGER);
   const operationSpans: Array<{ name: string; call: ts.CallExpression }> = [];
-
   if (libText !== undefined) {
     const typed = typecheckSource(source, fileName, libText);
     for (const item of typed) {

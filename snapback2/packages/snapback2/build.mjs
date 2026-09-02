@@ -1,4 +1,5 @@
 import { cp, link, mkdir, open, readFile, readdir, rm, stat, unlink, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
@@ -133,15 +134,19 @@ await cp(resolve(here, "templates/react"), resolve(templateDist, "react"), { rec
 
 const fixturePaths = await fixtureFiles(fixtures);
 const tsFixtureText = (await Promise.all(fixturePaths.filter((path) => path.endsWith(".ts")).map((path) => readFile(path, "utf8")))).join("\n");
-const quarryFixtureText = (await Promise.all(fixturePaths.filter((path) => path.endsWith(".q")).map((path) => readFile(path, "utf8")))).join("\n");
+const templateQuarryPaths = await quarryTemplateFiles(resolve(here, "templates"));
+const quarryFixtureText = (await Promise.all([...fixturePaths, ...templateQuarryPaths]
+  .filter((path) => path.endsWith(".q")).map((path) => readFile(path, "utf8")))).join("\n");
+const parseDocument = await loadQuarryParser();
 const guidePages = await Promise.all(
   ["grammar", "quarry", "typescript", "auth", "live-query", "effects", "personas", "testing"].map(async (name) => ({
     name,
     markdown: await readFile(resolve(guideSource, `${name}.md`), "utf8"),
+    // Quarry is the language reference, so its deliberate budget is 12 KiB.
     limit: name === "grammar" ? 2048 : name === "quarry" ? 12288 : 4096,
   })),
 );
-const guideErrors = [...familyErrors, ...guideFailures(guidePages, tsFixtureText, quarryFixtureText)];
+const guideErrors = [...familyErrors, ...guideFailures(guidePages, tsFixtureText, quarryFixtureText, parseDocument)];
 if (guideErrors.length > 0) {
   throw new Error(`guide validation failed:\n${guideErrors.join("\n")}`);
 }
@@ -174,12 +179,15 @@ if (process.argv.includes("--self-test")) {
     { name: "oversized", markdown: "x".repeat(5), limit: 4 },
     { name: "stale", markdown: "```ts\nmissing()\n```", limit: 100 },
     { name: "valid", markdown: "```ts\npresent()\n```", limit: 100 },
-    ], "present()"),
+    { name: "valid-quarry", markdown: "```q\nquery okay():\n  return null\n```", limit: 100 },
+    { name: "invalid-quarry", markdown: "```q\nquery broken():\n```", limit: 100 },
+    ], "present()", "query okay():\n  return null\nquery broken():", parseDocument),
   ];
   if (!failures.some((item) => item.includes("families.source.json[1]"))
     || !failures.some((item) => item.includes("duplicate code"))
     || !failures.some((item) => item.includes("oversized"))
-    || !failures.some((item) => item.includes("stale"))) {
+    || !failures.some((item) => item.includes("stale"))
+    || !failures.some((item) => item.includes("invalid-quarry") && item.includes("do not parse"))) {
     throw new Error(`guide validation self-test lost failures: ${JSON.stringify(failures)}`);
   }
   console.log(`guide validation self-test ok: ${failures.join(" | ")}`);
@@ -298,20 +306,38 @@ function familyFailures(value) {
   return failures;
 }
 
-function guideFailures(pages, tsFixturesText, quarryFixturesText = "") {
+function guideFailures(pages, tsFixturesText, quarryFixturesText, parseDocument) {
   const failures = [];
   for (const { name, markdown, limit } of pages) {
     const reasons = [];
     if (Buffer.byteLength(markdown) > limit) reasons.push(`exceeds ${limit} bytes`);
     const staleSnippets = [...markdown.matchAll(/```ts\n([\s\S]*?)\n```/g)]
       .filter((match) => !tsFixturesText.includes(match[1])).length;
-    const staleQuarrySnippets = [...markdown.matchAll(/```q\n([\s\S]*?)\n```/g)]
+    const quarrySnippets = [...markdown.matchAll(/```q\n([\s\S]*?)\n```/g)];
+    const staleQuarrySnippets = quarrySnippets
       .filter((match) => !quarryFixturesText.includes(match[1])).length;
+    const invalidQuarryModules = quarrySnippets
+      .filter((match) => /^(?:table|maintain|channel|query|mutation|effect|use)\b/.test(match[1].trimStart()))
+      .filter((match) => parseDocument(`guide/${name}.q`, match[1]).diagnostics.length > 0).length;
     if (staleSnippets > 0) reasons.push(`${staleSnippets} TypeScript snippet(s) not present in the compiler fixtures`);
-    if (staleQuarrySnippets > 0) reasons.push(`${staleQuarrySnippets} Quarry snippet(s) not present in the compiler fixtures/templates`);
+    if (staleQuarrySnippets > 0) reasons.push(`${staleQuarrySnippets} Quarry snippet(s) not present in the compiler fixtures or templates`);
+    if (invalidQuarryModules > 0) reasons.push(`${invalidQuarryModules} top-level Quarry module snippet(s) do not parse`);
     if (reasons.length > 0) failures.push(`guide/${name}.md: ${reasons.join("; ")}`);
   }
   return failures;
+}
+
+async function loadQuarryParser() {
+  const bundled = await build({
+    entryPoints: [resolve(here, "../compiler/src/quarry/parser.ts")],
+    bundle: true,
+    write: false,
+    format: "esm",
+    platform: "node",
+    target: "node20",
+  });
+  const source = bundled.outputFiles[0].text;
+  return (await import(`data:text/javascript;base64,${Buffer.from(source).toString("base64")}`)).parseDocument;
 }
 
 async function fixtureFiles(root) {
@@ -320,6 +346,19 @@ async function fixtureFiles(root) {
     const directory = resolve(root, name, "snapback");
     for (const entry of await readdir(directory, { withFileTypes: true })) {
       if (entry.isFile() && (entry.name.endsWith(".ts") || entry.name.endsWith(".q"))) output.push(resolve(directory, entry.name));
+    }
+  }
+  return output;
+}
+
+async function quarryTemplateFiles(root) {
+  const output = [];
+  for (const template of await readdir(root, { withFileTypes: true })) {
+    if (!template.isDirectory()) continue;
+    const directory = resolve(root, template.name, "snapback");
+    if (!existsSync(directory)) continue;
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      if (entry.isFile() && entry.name.endsWith(".q")) output.push(resolve(directory, entry.name));
     }
   }
   return output;

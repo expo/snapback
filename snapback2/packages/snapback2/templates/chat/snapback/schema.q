@@ -8,8 +8,8 @@ table profiles:
   bio: text <=200
   location: text <=50
   link: text <=2048 format url ?
-  unique principal
-  unique handle
+  unique byPrincipal: principal
+  unique byHandle: handle
   immutable principal
   public 'profiles are public'
   insert r <- r.principal = viewer
@@ -19,8 +19,8 @@ table profiles:
 table conversations:
   title: text <=120
   creatorId: principal
-  by creatorId
-  unique id, creatorId
+  by byCreator: creatorId
+  unique byIdCreator: id, creatorId
   read r <- exists memberships[r.id, viewer]
   insert r <- r.creatorId = viewer
   update r <- deny
@@ -32,7 +32,7 @@ table memberships:
   principal: principal
   role: enum('member', 'admin')
   joinedAt: time
-  unique conversationId, principal
+  unique byConversationPrincipal: conversationId, principal
   by byConversationPrincipalRole: conversationId, principal, role
   by byPrincipalConversation: principal, conversationId
   immutable conversationId, principal, joinedAt
@@ -87,7 +87,7 @@ table follows:
   follower: principal
   followed: principal
   at: time
-  unique follower, followed
+  unique byFollowerFollowed: follower, followed
   by byFollower: follower, followed
   by byFollowed: followed, follower
   immutable follower, followed, at
@@ -100,7 +100,7 @@ table notifications:
   outboxId: id
   effect: text <=100
   providerId: text <=200
-  unique outboxId
+  unique byOutbox: outboxId
   read r <- deny
   insert r <- system
   update r <- system
