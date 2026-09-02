@@ -1,3 +1,4 @@
+use snapback2_core::engine::ClosureReceipt;
 use snapback2_core::*;
 use std::collections::{BTreeMap, VecDeque};
 use std::sync::mpsc;
@@ -337,6 +338,57 @@ fn aggregate_fixture() -> (Schema, Maintain) {
         readable: None,
     };
     (schema, maintain)
+}
+
+#[test]
+fn client_does_not_initialize_a_successor_maintain_from_a_predecessor_absence() {
+    let source = public_table_with(
+        &[("id", ColumnType::Id), ("group", ColumnType::Id)],
+        &[("byId", &["id"])],
+    );
+    let counts = public_table_with(
+        &[
+            ("id", ColumnType::Id),
+            ("group", ColumnType::Id),
+            ("value", ColumnType::Int),
+        ],
+        &[("byId", &["id"])],
+    );
+    let predecessor = schema([("counts", counts), ("source", source)]);
+    let mut successor = predecessor.clone();
+    successor.maintains.push(Maintain {
+        kind: MaintainKind::Count,
+        source: "source".to_owned(),
+        by: vec!["group".to_owned()],
+        target: "counts".to_owned(),
+        readable: None,
+    });
+    assert_ne!(predecessor.hash(), successor.hash());
+
+    let insert = mutation(
+        "source.insert",
+        BTreeMap::new(),
+        vec![Stmt::Insert {
+            table: "source".to_owned(),
+            row: Expr::Literal(object([("id", id("s2")), ("group", id("g"))])),
+        }],
+    );
+    let certificate = Checker::new(&successor, Ceilings::default())
+        .check(&insert)
+        .unwrap();
+    let count_id = canonical_json(&vec![id("g")]);
+    let receipt = ClosureReceipt {
+        absences: vec![("counts".to_owned(), "byId".to_owned(), vec![id(&count_id)])],
+        ..ClosureReceipt::default()
+    };
+    let mut client = ClientStore::hydrate(successor, &receipt).unwrap();
+    let (state, _) = client
+        .apply_mutation(&insert, &certificate, user_mutation(BTreeMap::new()))
+        .unwrap();
+
+    assert_eq!(state, LocalState::Partial(vec!["counts.byId".to_owned()]));
+    assert!(client.rows("source").unwrap().is_empty());
+    assert!(client.rows("counts").unwrap().is_empty());
 }
 
 fn aggregate_value(runtime: &mut Runtime, group: &str) -> Value {

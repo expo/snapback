@@ -1,4 +1,5 @@
 import coreIrContract from "../../../crates/snapback2-core/ir-contract.json" with { type: "json" };
+import { canonicalProgramJson, canonicalSchemaJson } from "./certificate-identity";
 import { sha256, utf8Length } from "./hash";
 import { splitMentionTokens } from "./text";
 import type {
@@ -43,7 +44,7 @@ const I53_MIN = -I53_MAX;
 export const CURRENT_VALUE_MODEL_VERSION = coreIrContract.valueModelVersion;
 
 class EvalError extends Error {
-  constructor(readonly code: string, message: string) {
+  constructor(readonly code: string, message: string, readonly authoredCode: string | null = null) {
     super(`${code}: ${message}`);
   }
 }
@@ -99,9 +100,8 @@ export class ClientStore {
       const covered = this.coverage.ranges.some(
         (coverage) => rangeCovered(coverage, range),
       );
-      if (!covered || (this.rangeDeletions.get(range.site) ?? 0) > 1) {
+      if (!covered || (this.rangeDeletions.get(range.site) ?? 0) > 1 || this.taintedTables.has(range.table))
         partial.add(range.site);
-      }
     }
     for (const point of execution.trace.points) {
       if (this.taintedTables.has(point.table)) partial.add(point.site);
@@ -403,7 +403,7 @@ class Runner {
         }
         case "Require":
           if (!asBool(this.expr(data.condition)))
-            throw new EvalError(`E_REQUIRE:${data.code}`, "program requirement failed");
+            throw new EvalError("E_REQUIRE", "program requirement failed", data.code);
           break;
         case "Insert":
           this.insert(data.table, this.expr(data.row));
@@ -848,10 +848,7 @@ class Runner {
     const delta =
       kind === "Count" ? direction : safeNumber(direction * asInt(field(source, data.of)));
     const existing = this.store.byId(maintain.target, idValue);
-    if (
-      existing === null &&
-      !this.store.hasAbsence(maintain.target, "byId", [{ Id: idValue }])
-    ) {
+    if (existing === null) {
       this.partial.add(`${maintain.target}.byId`);
       return;
     }
@@ -890,7 +887,12 @@ class Runner {
       )
         throw new EvalError("E_CONSTRAINT", `${tableName} immutable fields changed`);
       if (kind === "Unique") this.checkUnique(tableName, data.index, old, row);
-      if (kind === "Cap" && effect === "insert") {
+      if (kind === "Cap") {
+        const entersGroup =
+          effect === "insert" ||
+          (effect === "update" && data.by.some((name: string) =>
+            canonicalValue(field(old!, name)) !== canonicalValue(field(row, name))));
+        if (!entersGroup) continue;
         const entry = Object.entries<any>(table.indexes).find(([, index]) =>
           startsWith(index.columns, data.by),
         );
@@ -1016,10 +1018,10 @@ export function evaluateCase(testCase: CorpusCase): ActualResult {
       `value model version ${String(testCase.certificate?.value_model_version)} != current ${CURRENT_VALUE_MODEL_VERSION}`,
     );
   }
-  if (testCase.certificate?.plan_hash !== sha256(JSON.stringify(testCase.program))) {
+  if (testCase.certificate?.plan_hash !== sha256(canonicalProgramJson(testCase.program))) {
     throw new EvalError("E_TRACE_SUBSET", "plan hash mismatch");
   }
-  if (testCase.certificate?.schema_hash !== sha256(JSON.stringify(testCase.schema))) {
+  if (testCase.certificate?.schema_hash !== sha256(canonicalSchemaJson(testCase.schema))) {
     throw new EvalError("E_TRACE_SUBSET", "schema hash mismatch");
   }
   const store = new ClientStore(testCase.schema, testCase.receipt);
@@ -1048,7 +1050,8 @@ export function evaluateCase(testCase: CorpusCase): ActualResult {
     };
   } catch (error) {
     const internalCode = error instanceof EvalError ? error.code : "E_UNKNOWN";
-    const [code, authoredCode] = internalCode.split(":", 2);
+    const code = internalCode;
+    const authoredCode = error instanceof EvalError ? error.authoredCode : null;
     const typedState =
       code === "E_REQUIRE"
         ? testCase.program.kind === "Mutation"
@@ -1294,7 +1297,7 @@ function variant(value: any): [string, any] {
 }
 
 export function scopedRuleHash(schema: any, rule: any): string {
-  return sha256(JSON.stringify([sha256(JSON.stringify(schema)), rule]));
+  return sha256(JSON.stringify([sha256(canonicalSchemaJson(schema)), rule]));
 }
 
 function kindOf(value: Value): string {

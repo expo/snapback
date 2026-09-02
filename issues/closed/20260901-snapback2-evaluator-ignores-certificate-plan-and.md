@@ -1,7 +1,7 @@
 # snapback2: evaluator ignores certificate plan and schema hashes
 
 **Status:** Closed
-**Resolution:** Verified evaluator certificate plan and schema hashes before hydration/execution; added independent tampering regressions.
+**Resolution:** Verified evaluator certificate plan and schema hashes before hydration/execution using Rust-compatible BTreeMap ordering; added independent tampering and property-order regressions.
 **Systems:** snapback2, evaluator, certificates
 **Severity:** P2
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever

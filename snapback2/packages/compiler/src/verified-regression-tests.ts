@@ -1,7 +1,20 @@
 import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { ClientStore, canonicalValue, type ClosureReceipt, type Context, type Value } from "../../evaluator/src/evaluator";
+// @ts-ignore generated corpus JSON has no declaration file
+import scenarioHydrate from "../../../corpus/scenario-hydrate.json";
+import {
+  CURRENT_VALUE_MODEL_VERSION,
+  ClientStore,
+  canonicalValue,
+  evaluateCase,
+  scopedRuleHash,
+  sha256,
+  type ClosureReceipt,
+  type Context,
+  type CorpusCase,
+  type Value,
+} from "../../evaluator/src/evaluator";
 import type { TableInfo } from "./compiler";
 import { lowerSource } from "./compiler";
 import type { Program } from "./ir";
@@ -63,10 +76,250 @@ function evaluatorTable(columns: Record<string, unknown> = {}): any {
   };
 }
 
+function evaluatorProgram(kind: "Query" | "Mutation", body: any[], args: Record<string, unknown> = {}): any {
+  return { name: "verified.program", kind, args, read_time_granularity_ms: null, body };
+}
+
+function literal(value: Value): any {
+  return { Literal: value };
+}
+
+function evaluatorCase(schema: any, program: any): CorpusCase {
+  return {
+    corpusVersion: 1,
+    name: "verified-case",
+    category: "verified-regression",
+    randomSeed: null,
+    schema,
+    program,
+    certificate: {
+      value_model_version: CURRENT_VALUE_MODEL_VERSION,
+      plan_hash: sha256(JSON.stringify(program)),
+      schema_hash: sha256(JSON.stringify(schema)),
+    },
+    context: context(),
+    receipt: emptyReceipt,
+    prelude: [],
+    replacementReceipt: null,
+    expected: {
+      localResult: "Null",
+      errorCode: null,
+      localState: "fresh",
+      partialSites: [],
+      canonicalResult: '"Null"',
+      digest: sha256('"Null"'),
+      rangeStops: {},
+      evictedRows: null,
+    },
+  };
+}
+
 export function registerVerifiedRegressionTests(
   test: Register,
   assert: (condition: unknown, message: string) => asserts condition,
 ): void {
+  test("F21 evaluator preserves colons in authored require codes", () => {
+    const schema = { tables: {}, maintains: [] };
+    const lowered = lowerSource(`import { query } from "snapback2";
+      export const denied = query({}, ({ db }) => {
+        db.require(false, "AUTH:DENIED");
+        return null;
+      });`, "require-colon.ts");
+    assert(lowered.ok, `colon Require fixture refused: ${lowered.ok ? "" : lowered.diagnostics[0]?.message}`);
+    const program = lowered.programs[0]!;
+    const outcome = evaluateCase(evaluatorCase(schema, program));
+    assert(outcome.localState === "denied", `Require query used ${outcome.localState}`);
+    assert(outcome.errorCode === "AUTH:DENIED", `Require code became ${outcome.errorCode}`);
+  });
+
+  test("F7 maintained-target taint makes range reads partial", () => {
+    const rules = { read: "Allow", insert: "Allow", update: "Allow", delete: "Allow" };
+    const source = evaluatorTable({ group: "Id" });
+    const counts = {
+      ...evaluatorTable({ group: "Id", value: "Int" }),
+      rules,
+    };
+    const schema = {
+      tables: { counts, source },
+      maintains: [{ kind: "Count", source: "source", by: ["group"], target: "counts", readable: null }],
+    };
+    const countId = '[{"Id":"g"}]';
+    const countRow: Value = { Row: { id: { Id: countId }, group: { Id: "g" }, value: { Int: 1 } } };
+    const receipt: ClosureReceipt = {
+      rows: [{ table: "counts", id: countId, row: countRow }],
+      ranges: [{
+        site: "counts.scan",
+        table: "counts",
+        index: "byId",
+        prefix: [],
+        order: "Asc",
+        take: 10,
+        after: null,
+        before: null,
+        gt: null,
+        gte: null,
+        lt: null,
+        lte: null,
+        rule_hash: scopedRuleHash(schema, counts.rules.read),
+        row_ids: [countId],
+        stop: "Exhausted",
+        absence: false,
+        halo: null,
+        n2_key: null,
+      }],
+      absences: [],
+      verdicts: [],
+    };
+    const store = new ClientStore(schema, receipt);
+    const deleted = store.applyMutation(
+      evaluatorProgram("Mutation", [{ Delete: { table: "source", key: literal({ Id: "s1" }) } }]),
+      context(),
+    );
+    assert(deleted.state === "predicted", `missing source delete used ${deleted.state}`);
+
+    const scan = evaluatorProgram("Query", [{ Return: { Scan: {
+      site: "counts.scan",
+      table: "counts",
+      index: "byId",
+      prefix: [],
+      order: "Asc",
+      take: { Literal: 10 },
+      after: null,
+      before: null,
+      range: null,
+      provenance: "Const",
+    } } }]);
+    const replay = store.reexecute(scan, context());
+    assert(replay.state === "partial", `tainted range replay used ${replay.state}`);
+    assert(replay.partialSites.includes("counts.scan"), "tainted range site was not named partial");
+  });
+
+  test("F8 predecessor absence cannot initialize a successor maintained target", () => {
+    const predecessor = { tables: {
+      counts: evaluatorTable({ group: "Id", value: "Int" }),
+      source: evaluatorTable({ group: "Id" }),
+    }, maintains: [] };
+    const successor = {
+      ...predecessor,
+      maintains: [{ kind: "Count", source: "source", by: ["group"], target: "counts", readable: null }],
+    };
+    const countId = '[{"Id":"g"}]';
+    const predecessorReceipt: ClosureReceipt = {
+      rows: [],
+      ranges: [],
+      absences: [["counts", "byId", [{ Id: countId }]]],
+      verdicts: [],
+    };
+    const store = new ClientStore(successor, predecessorReceipt);
+    const predicted = store.applyMutation(evaluatorProgram("Mutation", [{ Insert: {
+      table: "source",
+      row: literal({ Row: { id: { Id: "s2" }, group: { Id: "g" } } }),
+    } }]), context());
+    assert(predicted.state === "partial", `successor trusted predecessor absence as ${predicted.state}`);
+    assert(store.byId("source", "s2") === null, "partial successor prediction leaked its source insert");
+    assert(store.byId("counts", countId) === null, "predecessor absence manufactured a successor aggregate");
+  });
+
+  test("F6 Cap checks updates entering full single- and multi-field groups", () => {
+    const cards = {
+      ...evaluatorTable({ boardId: "Id", laneId: "Id", title: { Text: { max: 20 } } }),
+      indexes: {
+        byId: { columns: ["id"], unique: true },
+        byBoard: { columns: ["boardId", "id"], unique: false },
+        byBoardLane: { columns: ["boardId", "laneId", "id"], unique: false },
+      },
+      constraints: [{ Cap: { by: ["boardId"], max: 2 } }],
+    };
+    const schema = { tables: { cards }, maintains: [] };
+    const rows: Array<[string, string, string]> = [
+      ["a1", "A", "1"],
+      ["b1", "B", "1"],
+      ["b2", "B", "1"],
+    ];
+    const receipt: ClosureReceipt = {
+      rows: rows.map(([id, boardId, laneId]) => ({ table: "cards", id, row: {
+        Row: { id: { Id: id }, boardId: { Id: boardId }, laneId: { Id: laneId }, title: { String: id } },
+      } })),
+      ranges: [{
+        site: "cap.coverage",
+        table: "cards",
+        index: "byBoard",
+        prefix: [{ Id: "B" }],
+        order: "Asc",
+        take: 2,
+        after: null,
+        before: null,
+        gt: null,
+        gte: null,
+        lt: null,
+        lte: null,
+        rule_hash: scopedRuleHash(schema, cards.rules.read),
+        row_ids: ["b1", "b2"],
+        stop: "Exhausted",
+        absence: false,
+        halo: null,
+        n2_key: null,
+      }],
+      absences: [],
+      verdicts: [],
+    };
+    const store = new ClientStore(schema, receipt);
+    let code = "";
+    try {
+      store.applyMutation(evaluatorProgram("Mutation", [{ Update: {
+        table: "cards",
+        key: literal({ Id: "a1" }),
+        patch: literal({ Row: { boardId: { Id: "B" } } }),
+      } }]), context());
+    } catch (error) {
+      code = error instanceof Error ? error.message : String(error);
+    }
+    assert(code.startsWith("E_CONSTRAINT:"), `update into full Cap group produced ${code || "predicted"}`);
+    assert(canonicalValue(store.byId("cards", "a1")!) === canonicalValue(receipt.rows[0]!.row), "refused Cap move changed the row");
+
+    const sameGroup = store.applyMutation(evaluatorProgram("Mutation", [{ Update: {
+      table: "cards",
+      key: literal({ Id: "a1" }),
+      patch: literal({ Row: { title: { String: "renamed" } } }),
+    } }]), context());
+    assert(sameGroup.state === "predicted", "same-prefix Cap update was refused");
+
+    const multiCards = { ...cards, constraints: [{ Cap: { by: ["boardId", "laneId"], max: 2 } }] };
+    const multiSchema = { tables: { cards: multiCards }, maintains: [] };
+    const multiReceipt: ClosureReceipt = {
+      ...receipt,
+      ranges: [{ ...receipt.ranges[0]!, index: "byBoardLane", prefix: [{ Id: "B" }, { Id: "1" }] }],
+    };
+    const multiStore = new ClientStore(multiSchema, multiReceipt);
+    let multiCode = "";
+    try {
+      multiStore.applyMutation(evaluatorProgram("Mutation", [{ Update: {
+        table: "cards",
+        key: literal({ Id: "a1" }),
+        patch: literal({ Row: { boardId: { Id: "B" } } }),
+      } }]), context());
+    } catch (error) {
+      multiCode = error instanceof Error ? error.message : String(error);
+    }
+    assert(multiCode.startsWith("E_CONSTRAINT:"), `multi-field Cap move produced ${multiCode || "predicted"}`);
+  });
+
+  test("F15 certificate identity canonicalizes Rust BTreeMap fields", () => {
+    const schemaCase = JSON.parse(JSON.stringify(scenarioHydrate)) as CorpusCase;
+    schemaCase.schema.tables = Object.fromEntries(Object.entries(schemaCase.schema.tables).reverse());
+    assert(evaluateCase(schemaCase).localState === "fresh", "scenario-hydrate table order changed certificate identity");
+
+    const a = evaluatorTable({ value: "Int" });
+    const z = evaluatorTable({ value: "Int" });
+    const canonicalSchema = { tables: { a, z }, maintains: [] };
+    const canonicalProgram = evaluatorProgram("Query", [{ Return: literal("Null") }], { a: "Int", z: "Int" });
+    const reorderedProgram = { ...canonicalProgram, args: { z: "Int", a: "Int" } };
+    const programCase = evaluatorCase(canonicalSchema, reorderedProgram);
+    programCase.certificate.plan_hash = sha256(JSON.stringify(canonicalProgram));
+    programCase.context = context({ a: { Int: 1 }, z: { Int: 2 } });
+    assert(evaluateCase(programCase).localState === "fresh", "program arg order changed certificate identity");
+  });
+
   test("schema index width is refused before storage", () => {
     const columns = Array.from({ length: 9 }, (_, index) => `c${index}: t.int()`).join(", ");
     const names = (count: number) => Array.from({ length: count }, (_, index) => `'c${index}'`).join(", ");

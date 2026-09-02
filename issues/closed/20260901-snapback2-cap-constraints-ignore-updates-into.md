@@ -1,8 +1,8 @@
 # snapback2: Cap constraints ignore updates into a full group
 
 **Status:** Closed
-**Resolution:** Updated snapback2-core engine cap checks to enforce destination-prefix changes on updates, with full, multi-column, and same-prefix regression coverage.
-**Systems:** snapback2, core engine, constraints
+**Resolution:** Updated the snapback2-core engine and TypeScript evaluator Cap checks to enforce destination-prefix changes on updates, with full, multi-column, and same-prefix regression coverage.
+**Systems:** snapback2, core engine, evaluator, constraints
 **Severity:** P1
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever
 **Date:** 2026-09-01

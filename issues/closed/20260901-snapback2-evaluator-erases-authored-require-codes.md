@@ -1,7 +1,7 @@
 # snapback2: evaluator erases authored Require codes and typed outcomes
 
 **Status:** Closed
-**Resolution:** Preserved authored Require codes and mapped query/mutation outcomes to denied/rejected in evaluator.ts; added both outcome regressions.
+**Resolution:** Preserved authored Require codes as separate error data (including embedded colons) and mapped query/mutation outcomes to denied/rejected in evaluator.ts; added outcome regressions.
 **Systems:** snapback2, evaluator, execution states
 **Severity:** P3
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever
