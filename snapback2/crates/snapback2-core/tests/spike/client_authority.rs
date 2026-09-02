@@ -126,6 +126,7 @@ fn client_replay_requires_exact_authority_even_when_the_hidden_row_is_held() {
             vec![id("staged")],
         ),
     ]);
+    mutation_receipt.schema_hash = Some(mutation_schema.hash());
     let mut mutation_client = ClientStore::hydrate(mutation_schema, &mutation_receipt).unwrap();
     let (state, execution) = mutation_client
         .apply_mutation(
