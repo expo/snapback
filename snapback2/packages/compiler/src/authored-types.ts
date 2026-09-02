@@ -5,7 +5,7 @@ export type AuthoredType =
   | { kind: "int" }
   | { kind: "decimal"; scale: number; currency?: string }
   | { kind: "enum"; variants: string[] }
-  | { kind: "string"; max?: number }
+  | { kind: "string"; max?: number; id?: true }
   | { kind: "principal" }
   | { kind: "bytes"; max: number }
   | { kind: "bool" }
@@ -19,23 +19,28 @@ export type TableInfo = {
   private: boolean;
   maintainedFrom?: string;
   columns?: Record<string, AuthoredType>;
-  indexes?: Record<string, { columns: string[]; types: AuthoredType[] }>;
+  indexes?: Record<string, { columns: string[]; types: AuthoredType[]; unique?: boolean }>;
   readRule?: unknown;
 };
 
 export const unknownType: AuthoredType = { kind: "unknown" };
 export const intType: AuthoredType = { kind: "int" };
+export const idType: AuthoredType = { kind: "string", id: true };
+
+export function isIdType(value: AuthoredType | undefined): boolean {
+  return value?.kind === "string" && value.id === true;
+}
 
 export function authoredTypeFromColumn(value: unknown): AuthoredType {
   if (value === "Int" || value === "Time") return intType;
   if (value === "Bool") return { kind: "bool" };
-  if (value === "Id") return { kind: "string" };
+  if (value === "Id") return idType;
   if (value === "Principal") return { kind: "principal" };
   if (!value || typeof value !== "object" || Array.isArray(value)) return unknownType;
   const descriptor = value as Record<string, any>;
   if (descriptor.Text) return { kind: "string", max: descriptor.Text.max };
   if (descriptor.Bytes) return { kind: "bytes", max: descriptor.Bytes.max };
-  if (descriptor.Ref) return { kind: "string" };
+  if (descriptor.Ref) return idType;
   if (descriptor.Json) return { kind: "json", max: descriptor.Json.max_bytes };
   if (descriptor.Enum) return { kind: "enum", variants: [...descriptor.Enum.variants] };
   if (descriptor.Decimal) return { kind: "decimal", scale: descriptor.Decimal.scale };
@@ -50,7 +55,7 @@ export function authoredTypeFromColumn(value: unknown): AuthoredType {
 }
 
 export function requiredType(value: AuthoredType | undefined): AuthoredType {
-  return value?.kind === "optional" ? value.of : value ?? unknownType;
+  return value?.kind === "optional" ? requiredType(value.of) : value ?? unknownType;
 }
 
 export function sameDecimal(left: AuthoredType, right: AuthoredType): boolean {

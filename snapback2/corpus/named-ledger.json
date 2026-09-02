@@ -381,6 +381,9 @@
           },
           "id": "Id",
           "lastReadAt": "Time",
+          "lastReadId": {
+            "Optional": "Id"
+          },
           "userId": "Principal"
         },
         "indexes": {
@@ -947,9 +950,9 @@
   "certificate": {
     "program": "ledger",
     "plan_hash": "638236f647d49108e309c23db48b079e6d1e1f893e351402d96a5ee351466190",
-    "schema_hash": "31792591fb75b5ab316e24a71206d3f7de6e02ed12f49a2f39782dbcab4b3566",
+    "schema_hash": "df0a1b25740fd361ededb5bf93df3428a133ea6dd44f27a74c45a76e1ce8fb3c",
     "rule_hashes": {
-      "owed.read": "66a1b2b0d1f21fd55f866a1e5d7135598e3234c1f55cb62bb8cd602d50bb42a6"
+      "owed.read": "86fc97a3ff8c6f52c56c0ad10e0e41d5a9c4474356ed8b7e523b28a0f78b6b72"
     },
     "evaluator_version": "bounded-spike-rust-1",
     "value_model_version": "i53-codepoint-bytes-v2",
@@ -1002,7 +1005,7 @@
     "seed_write": false
   },
   "receipt": {
-    "schema_hash": "31792591fb75b5ab316e24a71206d3f7de6e02ed12f49a2f39782dbcab4b3566",
+    "schema_hash": "df0a1b25740fd361ededb5bf93df3428a133ea6dd44f27a74c45a76e1ce8fb3c",
     "rows": [
       {
         "table": "owed",
@@ -1063,7 +1066,7 @@
         "gte": null,
         "lt": null,
         "lte": null,
-        "rule_hash": "66a1b2b0d1f21fd55f866a1e5d7135598e3234c1f55cb62bb8cd602d50bb42a6",
+        "rule_hash": "86fc97a3ff8c6f52c56c0ad10e0e41d5a9c4474356ed8b7e523b28a0f78b6b72",
         "row_ids": [
           "[{\"Id\":\"g1\"},{\"Id\":\"u1\"}]",
           "[{\"Id\":\"g1\"},{\"Id\":\"u2\"}]"

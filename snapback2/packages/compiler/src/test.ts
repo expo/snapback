@@ -15,6 +15,7 @@ import { registerPackageRegressionChecks } from "./package-regression-checks";
 import { rustCheck } from "./rust-check";
 import { registerRuleTransitionChecks } from "./rule-transitions-checks";
 import { registerQuarryChecks } from "./quarry-checks";
+import { registerRuntimeRedChecks } from "./runtime-red-checks";
 import { decimal } from "../../snapback2/src/index";
 import type { Principal } from "../../snapback2/src/index";
 import type { Op } from "../../snapback2/src/api";
@@ -40,6 +41,7 @@ function assert(condition: unknown, message: string): asserts condition {
 }
 registerVerifiedRegressionTests(test, assert);
 registerPackageRegressionChecks(test, assert, crate);
+registerRuntimeRedChecks(test, assert, libText);
 
 function canonical(value: unknown): string {
   const normalize = (item: any): any => Array.isArray(item)
@@ -376,7 +378,7 @@ test("authored collected capped pages may return but cannot be inserted", () => 
           types: [{ kind: "string" }, { kind: "int" }, { kind: "string" }],
         },
       } }],
-    ["snapshots", { name: "snapshots", private: false, columns: { id: { kind: "string" }, items: { kind: "json", max: 4_096 } } }],
+    ["snapshots", { name: "snapshots", private: false, columns: { id: { kind: "string", id: true }, items: { kind: "json", max: 4_096 } } }],
   ]);
   const allowWrites = { insert: "Allow", update: "Allow", delete: "Allow" };
   const schema = {
@@ -1415,6 +1417,6 @@ for (const check of checks) {
 
 console.log(JSON.stringify({ checks: checks.length, passed: passes.length, failed: failures.length, names: passes }));
 for (const failure of failures) {
-  console.error(`FAIL ${failure.name}: ${failure.error instanceof Error ? failure.error.stack ?? failure.error.message : String(failure.error)}`);
+  console.error(`FAIL ${failure.name}: ${failure.error instanceof Error ? `${failure.error.message}\n${failure.error.stack ?? ""}` : String(failure.error)}`);
 }
 if (failures.length > 0) process.exitCode = 1;

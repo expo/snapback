@@ -212,6 +212,7 @@ function lowerTable(
     return [index, {
       columns: indexColumns,
       types: indexColumns.map((column) => authoredColumns[column] ?? unknownType),
+      unique: (descriptor as { unique?: boolean }).unique ?? false,
     }];
   }));
   const tableInfo = tables.get(name);

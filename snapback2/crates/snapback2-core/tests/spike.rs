@@ -205,7 +205,11 @@ fn ir_json_round_trip_and_named_programs_certify_and_execute() {
         (
             mark_read_program(),
             mutation_context(
-                [("membershipId", id("m1")), ("at", Value::Int(20))],
+                [
+                    ("membershipId", id("m1")),
+                    ("at", Value::Int(20)),
+                    ("messageId", id("message-00002")),
+                ],
                 Vec::<String>::new(),
             ),
         ),
@@ -1253,6 +1257,10 @@ fn maintained_unread_256_member_fanout_records_p95() {
 
     let mut samples = Vec::new();
     for iteration in 0..9 {
+        let mut new_ids = vec![format!("fanout-message-{iteration}")];
+        if iteration == 0 {
+            new_ids.extend((0..256).map(|number| format!("fanout-unread-{number:03}")));
+        }
         let started = Instant::now();
         engine
             .execute(
@@ -1264,7 +1272,7 @@ fn maintained_unread_256_member_fanout_records_p95() {
                         ("body", text("fanout")),
                         ("at", Value::Int(iteration)),
                     ],
-                    [format!("fanout-message-{iteration}")],
+                    new_ids,
                 ),
             )
             .unwrap();
@@ -1316,7 +1324,7 @@ fn every_frozen_corpus_program_remains_certified() {
     }
     assert_eq!(
         cases.len(),
-        108,
+        112,
         "the complete frozen corpus must be checked"
     );
     assert!(

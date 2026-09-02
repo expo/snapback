@@ -1,0 +1,3330 @@
+[
+ {
+  "name": "surface.addPair",
+  "kind": "Mutation",
+  "args": {
+   "a": "Principal",
+   "b": "Principal"
+  },
+  "read_time_granularity_ms": null,
+  "body": [
+   {
+    "Let": {
+     "name": "__ordered00",
+     "value": {
+      "Variable": "a"
+     }
+    }
+   },
+   {
+    "Let": {
+     "name": "__ordered11",
+     "value": {
+      "Variable": "b"
+     }
+    }
+   },
+   {
+    "Let": {
+     "name": "lo",
+     "value": {
+      "Builtin": {
+       "builtin": "Min",
+       "args": [
+        {
+         "Variable": "__ordered00"
+        },
+        {
+         "Variable": "__ordered11"
+        }
+       ]
+      }
+     }
+    }
+   },
+   {
+    "Let": {
+     "name": "hi",
+     "value": {
+      "Builtin": {
+       "builtin": "Max",
+       "args": [
+        {
+         "Variable": "__ordered00"
+        },
+        {
+         "Variable": "__ordered11"
+        }
+       ]
+      }
+     }
+    }
+   },
+   {
+    "Let": {
+     "name": "__insertRow2",
+     "value": {
+      "Object": {
+       "hi": {
+        "Variable": "hi"
+       },
+       "id": {
+        "Input": "NewId"
+       },
+       "lo": {
+        "Variable": "lo"
+       }
+      }
+     }
+    }
+   },
+   {
+    "Insert": {
+     "table": "pairs",
+     "row": {
+      "Variable": "__insertRow2"
+     }
+    }
+   },
+   {
+    "Return": {
+     "Variable": "__insertRow2"
+    }
+   }
+  ]
+ },
+ {
+  "name": "surface.ancestors",
+  "kind": "Query",
+  "args": {
+   "seed": {
+    "Ref": {
+     "table": "nodes"
+    }
+   }
+  },
+  "read_time_granularity_ms": null,
+  "body": [
+   {
+    "Const": {
+     "name": "__q_walk_39_10",
+     "value": {
+      "Array": []
+     }
+    }
+   },
+   {
+    "For": {
+     "binding": "__q_ancestor_39_10",
+     "domain": {
+      "Recurse": {
+       "site": "surface.ancestors.0",
+       "table": "nodes",
+       "index": "byId",
+       "seed": {
+        "Variable": "seed"
+       },
+       "next_field": "parent",
+       "depth": 4,
+       "fanout": 1,
+       "provenance": "Shape"
+      }
+     },
+     "body": [
+      {
+       "Push": {
+        "target": "__q_walk_39_10",
+        "value": {
+         "Variable": "__q_ancestor_39_10"
+        }
+       }
+      }
+     ]
+    }
+   },
+   {
+    "Return": {
+     "Variable": "__q_walk_39_10"
+    }
+   }
+  ]
+ },
+ {
+  "name": "surface.boundedBuiltins",
+  "kind": "Mutation",
+  "args": {
+   "a": "Int",
+   "b": "Int",
+   "body": {
+    "Text": {
+     "max": 500
+    }
+   },
+   "owner": "Principal"
+  },
+  "read_time_granularity_ms": null,
+  "body": [
+   {
+    "Const": {
+     "name": "words",
+     "value": {
+      "Builtin": {
+       "builtin": "MentionTokens",
+       "args": [
+        {
+         "Variable": "body"
+        }
+       ]
+      }
+     }
+    }
+   },
+   {
+    "For": {
+     "binding": "word",
+     "domain": {
+      "DerivedArray": {
+       "value": {
+        "Variable": "words"
+       },
+       "max": 85,
+       "bound_source": "mentionTokens(args.body) static bound"
+      }
+     },
+     "body": [
+      {
+       "Const": {
+        "name": "__q_left_90_18",
+        "value": {
+         "Variable": "word"
+        }
+       }
+      },
+      {
+       "Const": {
+        "name": "__q_right_90_18",
+        "value": {
+         "Literal": {
+          "String": ""
+         }
+        }
+       }
+      },
+      {
+       "Let": {
+        "name": "__logicalLeft0",
+        "value": {
+         "Binary": {
+          "op": "Ne",
+          "left": {
+           "Variable": "__q_left_90_18"
+          },
+          "right": {
+           "Literal": "Null"
+          }
+         }
+        }
+       }
+      },
+      {
+       "Let": {
+        "name": "__logicalResult1",
+        "value": {
+         "Variable": "__logicalLeft0"
+        }
+       }
+      },
+      {
+       "If": {
+        "condition": {
+         "Variable": "__logicalLeft0"
+        },
+        "then_body": [
+         {
+          "Assign": {
+           "name": "__logicalResult1",
+           "value": {
+            "Binary": {
+             "op": "Ne",
+             "left": {
+              "Variable": "__q_right_90_18"
+             },
+             "right": {
+              "Literal": "Null"
+             }
+            }
+           }
+          }
+         }
+        ],
+        "else_body": []
+       }
+      },
+      {
+       "Let": {
+        "name": "__logicalLeft2",
+        "value": {
+         "Variable": "__logicalResult1"
+        }
+       }
+      },
+      {
+       "Let": {
+        "name": "__logicalResult3",
+        "value": {
+         "Variable": "__logicalLeft2"
+        }
+       }
+      },
+      {
+       "If": {
+        "condition": {
+         "Variable": "__logicalLeft2"
+        },
+        "then_body": [
+         {
+          "Assign": {
+           "name": "__logicalResult3",
+           "value": {
+            "Binary": {
+             "op": "Ne",
+             "left": {
+              "Variable": "__q_left_90_18"
+             },
+             "right": {
+              "Variable": "__q_right_90_18"
+             }
+            }
+           }
+          }
+         }
+        ],
+        "else_body": []
+       }
+      },
+      {
+       "Require": {
+        "condition": {
+         "Variable": "__logicalResult3"
+        },
+        "code": "EMPTY_TOKEN"
+       }
+      }
+     ]
+    }
+   },
+   {
+    "For": {
+     "binding": "i",
+     "domain": {
+      "LiteralRange": {
+       "start": 0,
+       "end_exclusive": 2
+      }
+     },
+     "body": [
+      {
+       "Const": {
+        "name": "__q_left_92_15",
+        "value": {
+         "Variable": "i"
+        }
+       }
+      },
+      {
+       "Const": {
+        "name": "__q_right_92_15",
+        "value": {
+         "Literal": {
+          "Int": 0
+         }
+        }
+       }
+      },
+      {
+       "Let": {
+        "name": "__logicalLeft4",
+        "value": {
+         "Binary": {
+          "op": "Ne",
+          "left": {
+           "Variable": "__q_left_92_15"
+          },
+          "right": {
+           "Literal": "Null"
+          }
+         }
+        }
+       }
+      },
+      {
+       "Let": {
+        "name": "__logicalResult5",
+        "value": {
+         "Variable": "__logicalLeft4"
+        }
+       }
+      },
+      {
+       "If": {
+        "condition": {
+         "Variable": "__logicalLeft4"
+        },
+        "then_body": [
+         {
+          "Assign": {
+           "name": "__logicalResult5",
+           "value": {
+            "Binary": {
+             "op": "Ne",
+             "left": {
+              "Variable": "__q_right_92_15"
+             },
+             "right": {
+              "Literal": "Null"
+             }
+            }
+           }
+          }
+         }
+        ],
+        "else_body": []
+       }
+      },
+      {
+       "Let": {
+        "name": "__logicalLeft6",
+        "value": {
+         "Variable": "__logicalResult5"
+        }
+       }
+      },
+      {
+       "Let": {
+        "name": "__logicalResult7",
+        "value": {
+         "Variable": "__logicalLeft6"
+        }
+       }
+      },
+      {
+       "If": {
+        "condition": {
+         "Variable": "__logicalLeft6"
+        },
+        "then_body": [
+         {
+          "Assign": {
+           "name": "__logicalResult7",
+           "value": {
+            "Binary": {
+             "op": "Gte",
+             "left": {
+              "Variable": "__q_left_92_15"
+             },
+             "right": {
+              "Variable": "__q_right_92_15"
+             }
+            }
+           }
+          }
+         }
+        ],
+        "else_body": []
+       }
+      },
+      {
+       "Require": {
+        "condition": {
+         "Variable": "__logicalResult7"
+        },
+        "code": "BAD_RANGE"
+       }
+      }
+     ]
+    }
+   },
+   {
+    "Let": {
+     "name": "__insertRow8",
+     "value": {
+      "Object": {
+       "id": {
+        "Input": "NewId"
+       },
+       "owner": {
+        "Variable": "owner"
+       },
+       "value": {
+        "Builtin": {
+         "builtin": "Min",
+         "args": [
+          {
+           "Variable": "a"
+          },
+          {
+           "Builtin": {
+            "builtin": "Max",
+            "args": [
+             {
+              "Variable": "b"
+             },
+             {
+              "Literal": {
+               "Int": 0
+              }
+             }
+            ]
+           }
+          }
+         ]
+        }
+       }
+      }
+     }
+    }
+   },
+   {
+    "Insert": {
+     "table": "counters",
+     "row": {
+      "Variable": "__insertRow8"
+     }
+    }
+   },
+   {
+    "Return": {
+     "Variable": "__insertRow8"
+    }
+   }
+  ]
+ },
+ {
+  "name": "surface.branchWrite",
+  "kind": "Mutation",
+  "args": {
+   "useFirst": "Bool"
+  },
+  "read_time_granularity_ms": null,
+  "body": [
+   {
+    "If": {
+     "condition": {
+      "Variable": "useFirst"
+     },
+     "then_body": [
+      {
+       "Insert": {
+        "table": "counters",
+        "row": {
+         "Object": {
+          "id": {
+           "Input": "NewId"
+          },
+          "owner": {
+           "Input": "Viewer"
+          },
+          "value": {
+           "Literal": {
+            "Int": 1
+           }
+          }
+         }
+        }
+       }
+      }
+     ],
+     "else_body": [
+      {
+       "Insert": {
+        "table": "counters",
+        "row": {
+         "Object": {
+          "id": {
+           "Input": "NewId"
+          },
+          "owner": {
+           "Input": "Viewer"
+          },
+          "value": {
+           "Literal": {
+            "Int": 2
+           }
+          }
+         }
+        }
+       }
+      }
+     ]
+    }
+   },
+   {
+    "Return": {
+     "Literal": "Null"
+    }
+   }
+  ]
+ },
+ {
+  "name": "surface.bump",
+  "kind": "Mutation",
+  "args": {
+   "counter": {
+    "Ref": {
+     "table": "counters"
+    }
+   },
+   "note": {
+    "Optional": {
+     "Text": {
+      "max": 40
+     }
+    }
+   },
+   "owner": "Principal"
+  },
+  "read_time_granularity_ms": null,
+  "body": [
+   {
+    "Let": {
+     "name": "__counterCurrent0",
+     "value": {
+      "Get": {
+       "site": "surface.bump.0",
+       "table": "counters",
+       "index": "byId",
+       "key": [
+        {
+         "Variable": "counter"
+        }
+       ],
+       "provenance": "Arg"
+      }
+     }
+    }
+   },
+   {
+    "Const": {
+     "name": "__q_patch_80_25",
+     "value": {
+      "Variable": "owner"
+     }
+    }
+   },
+   {
+    "Let": {
+     "name": "__optionalBase1",
+     "value": {
+      "Variable": "__counterCurrent0"
+     }
+    }
+   },
+   {
+    "Let": {
+     "name": "__optionalValue2",
+     "value": {
+      "Literal": "Null"
+     }
+    }
+   },
+   {
+    "If": {
+     "condition": {
+      "Binary": {
+       "op": "Ne",
+       "left": {
+        "Variable": "__optionalBase1"
+       },
+       "right": {
+        "Literal": "Null"
+       }
+      }
+     },
+     "then_body": [
+      {
+       "Assign": {
+        "name": "__optionalValue2",
+        "value": {
+         "Field": {
+          "base": {
+           "Variable": "__optionalBase1"
+          },
+          "name": "value"
+         }
+        }
+       }
+      }
+     ],
+     "else_body": []
+    }
+   },
+   {
+    "Let": {
+     "name": "__logicalLeft3",
+     "value": {
+      "Variable": "__optionalValue2"
+     }
+    }
+   },
+   {
+    "Let": {
+     "name": "__logicalResult4",
+     "value": {
+      "Variable": "__logicalLeft3"
+     }
+    }
+   },
+   {
+    "If": {
+     "condition": {
+      "Binary": {
+       "op": "Eq",
+       "left": {
+        "Variable": "__logicalLeft3"
+       },
+       "right": {
+        "Literal": "Null"
+       }
+      }
+     },
+     "then_body": [
+      {
+       "Assign": {
+        "name": "__logicalResult4",
+        "value": {
+         "Literal": {
+          "Int": 0
+         }
+        }
+       }
+      }
+     ],
+     "else_body": []
+    }
+   },
+   {
+    "Const": {
+     "name": "__q_patch_80_32",
+     "value": {
+      "Binary": {
+       "op": "Add",
+       "left": {
+        "Variable": "__logicalResult4"
+       },
+       "right": {
+        "Literal": {
+         "Int": 1
+        }
+       }
+      }
+     }
+    }
+   },
+   {
+    "Const": {
+     "name": "__q_patch_80_58",
+     "value": {
+      "Variable": "note"
+     }
+    }
+   },
+   {
+    "Upsert": {
+     "table": "counters",
+     "key": {
+      "Variable": "counter"
+     },
+     "row": {
+      "Object": {
+       "id": {
+        "Variable": "counter"
+       },
+       "note": {
+        "Variable": "__q_patch_80_58"
+       },
+       "owner": {
+        "Variable": "__q_patch_80_25"
+       },
+       "value": {
+        "Variable": "__q_patch_80_32"
+       }
+      }
+     }
+    }
+   },
+   {
+    "Return": {
+     "Get": {
+      "site": "surface.bump.2",
+      "table": "counters",
+      "index": "byId",
+      "key": [
+       {
+        "Variable": "counter"
+       }
+      ],
+      "provenance": "Arg"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "surface.children",
+  "kind": "Query",
+  "args": {
+   "parent": {
+    "Ref": {
+     "table": "nodes"
+    }
+   }
+  },
+  "read_time_granularity_ms": null,
+  "body": [
+   {
+    "Const": {
+     "name": "__q_page_49_32",
+     "value": {
+      "Scan": {
+       "site": "surface.children.0",
+       "table": "nodes",
+       "index": "byParentName",
+       "prefix": [
+        {
+         "Variable": "parent"
+        }
+       ],
+       "order": "Asc",
+       "take": {
+        "Literal": 5
+       },
+       "after": null,
+       "before": null,
+       "range": null,
+       "provenance": "Arg"
+      }
+     }
+    }
+   },
+   {
+    "Const": {
+     "name": "__q_rows_49_32",
+     "value": {
+      "Array": []
+     }
+    }
+   },
+   {
+    "For": {
+     "binding": "__q_row_49_32",
+     "domain": {
+      "DerivedArray": {
+       "value": {
+        "Variable": "__q_page_49_32"
+       },
+       "max": 5,
+       "bound_source": "db.scan(nodes.byParentName, [args.parent], { order: \"asc\", take: 5 }) static bound"
+      }
+     },
+     "body": [
+      {
+       "Push": {
+        "target": "__q_rows_49_32",
+        "value": {
+         "Object": {
+          "name": {
+           "Field": {
+            "base": {
+             "Variable": "__q_row_49_32"
+            },
+            "name": "name"
+           }
+          }
+         }
+        }
+       }
+      }
+     ]
+    }
+   },
+   {
+    "Return": {
+     "Variable": "__q_rows_49_32"
+    }
+   }
+  ]
+ },
+ {
+  "name": "surface.counterTotal",
+  "kind": "Query",
+  "args": {
+   "owner": "Principal"
+  },
+  "read_time_granularity_ms": null,
+  "body": [
+   {
+    "Let": {
+     "name": "__optionalBase0",
+     "value": {
+      "Get": {
+       "site": "surface.counterTotal.0",
+       "table": "counterTotals",
+       "index": "byOwner",
+       "key": [
+        {
+         "Variable": "owner"
+        }
+       ],
+       "provenance": "Arg"
+      }
+     }
+    }
+   },
+   {
+    "Let": {
+     "name": "__optionalValue1",
+     "value": {
+      "Literal": "Null"
+     }
+    }
+   },
+   {
+    "If": {
+     "condition": {
+      "Binary": {
+       "op": "Ne",
+       "left": {
+        "Variable": "__optionalBase0"
+       },
+       "right": {
+        "Literal": "Null"
+       }
+      }
+     },
+     "then_body": [
+      {
+       "Assign": {
+        "name": "__optionalValue1",
+        "value": {
+         "Field": {
+          "base": {
+           "Variable": "__optionalBase0"
+          },
+          "name": "value"
+         }
+        }
+       }
+      }
+     ],
+     "else_body": []
+    }
+   },
+   {
+    "Let": {
+     "name": "__logicalLeft2",
+     "value": {
+      "Variable": "__optionalValue1"
+     }
+    }
+   },
+   {
+    "Let": {
+     "name": "__logicalResult3",
+     "value": {
+      "Variable": "__logicalLeft2"
+     }
+    }
+   },
+   {
+    "If": {
+     "condition": {
+      "Binary": {
+       "op": "Eq",
+       "left": {
+        "Variable": "__logicalLeft2"
+       },
+       "right": {
+        "Literal": "Null"
+       }
+      }
+     },
+     "then_body": [
+      {
+       "Assign": {
+        "name": "__logicalResult3",
+        "value": {
+         "Literal": {
+          "Int": 0
+         }
+        }
+       }
+      }
+     ],
+     "else_body": []
+    }
+   },
+   {
+    "Return": {
+     "Variable": "__logicalResult3"
+    }
+   }
+  ]
+ },
+ {
+  "name": "surface.createPost",
+  "kind": "Mutation",
+  "args": {
+   "at": "Time",
+   "body": {
+    "Text": {
+     "max": 500
+    }
+   },
+   "group": {
+    "Ref": {
+     "table": "groups"
+    }
+   },
+   "peers": {
+    "List": {
+     "of": "Principal",
+     "max": 5
+    }
+   },
+   "visible": "Bool"
+  },
+  "read_time_granularity_ms": null,
+  "body": [
+   {
+    "Const": {
+     "name": "__q_left_72_18",
+     "value": {
+      "Input": "Now"
+     }
+    }
+   },
+   {
+    "Const": {
+     "name": "__q_right_72_18",
+     "value": {
+      "Variable": "at"
+     }
+    }
+   },
+   {
+    "Let": {
+     "name": "__logicalLeft0",
+     "value": {
+      "Binary": {
+       "op": "Ne",
+       "left": {
+        "Variable": "__q_left_72_18"
+       },
+       "right": {
+        "Literal": "Null"
+       }
+      }
+     }
+    }
+   },
+   {
+    "Let": {
+     "name": "__logicalResult1",
+     "value": {
+      "Variable": "__logicalLeft0"
+     }
+    }
+   },
+   {
+    "If": {
+     "condition": {
+      "Variable": "__logicalLeft0"
+     },
+     "then_body": [
+      {
+       "Assign": {
+        "name": "__logicalResult1",
+        "value": {
+         "Binary": {
+          "op": "Ne",
+          "left": {
+           "Variable": "__q_right_72_18"
+          },
+          "right": {
+           "Literal": "Null"
+          }
+         }
+        }
+       }
+      }
+     ],
+     "else_body": []
+    }
+   },
+   {
+    "Let": {
+     "name": "__logicalLeft2",
+     "value": {
+      "Variable": "__logicalResult1"
+     }
+    }
+   },
+   {
+    "Let": {
+     "name": "__logicalResult3",
+     "value": {
+      "Variable": "__logicalLeft2"
+     }
+    }
+   },
+   {
+    "If": {
+     "condition": {
+      "Variable": "__logicalLeft2"
+     },
+     "then_body": [
+      {
+       "Assign": {
+        "name": "__logicalResult3",
+        "value": {
+         "Binary": {
+          "op": "Gte",
+          "left": {
+           "Variable": "__q_left_72_18"
+          },
+          "right": {
+           "Variable": "__q_right_72_18"
+          }
+         }
+        }
+       }
+      }
+     ],
+     "else_body": []
+    }
+   },
+   {
+    "Require": {
+     "condition": {
+      "Variable": "__logicalResult3"
+     },
+     "code": "FUTURE_POST"
+    }
+   },
+   {
+    "Let": {
+     "name": "__insertRow4",
+     "value": {
+      "Object": {
+       "at": {
+        "Input": "Now"
+       },
+       "author": {
+        "Input": "Viewer"
+       },
+       "body": {
+        "Variable": "body"
+       },
+       "group": {
+        "Variable": "group"
+       },
+       "id": {
+        "Input": "NewId"
+       },
+       "mood": {
+        "Literal": {
+         "String": "plain"
+        }
+       },
+       "visible": {
+        "Variable": "visible"
+       }
+      }
+     }
+    }
+   },
+   {
+    "Insert": {
+     "table": "posts",
+     "row": {
+      "Variable": "__insertRow4"
+     }
+    }
+   },
+   {
+    "Const": {
+     "name": "post",
+     "value": {
+      "Variable": "__insertRow4"
+     }
+    }
+   },
+   {
+    "For": {
+     "binding": "principal",
+     "domain": {
+      "ArgList": {
+       "name": "peers",
+       "max": 5
+      }
+     },
+     "body": [
+      {
+       "Insert": {
+        "table": "memberships",
+        "row": {
+         "Object": {
+          "active": {
+           "Literal": {
+            "Bool": true
+           }
+          },
+          "group": {
+           "Variable": "group"
+          },
+          "id": {
+           "Input": "NewId"
+          },
+          "principal": {
+           "Variable": "principal"
+          }
+         }
+        }
+       }
+      }
+     ]
+    }
+   },
+   {
+    "Update": {
+     "table": "posts",
+     "key": {
+      "Field": {
+       "base": {
+        "Variable": "post"
+       },
+       "name": "id"
+      }
+     },
+     "patch": {
+      "Object": {
+       "body": {
+        "Variable": "body"
+       },
+       "editedAt": {
+        "Input": "Now"
+       }
+      }
+     }
+    }
+   },
+   {
+    "Const": {
+     "name": "__q_row_77_15",
+     "value": {
+      "Variable": "post"
+     }
+    }
+   },
+   {
+    "Const": {
+     "name": "__q_shape_77_15",
+     "value": {
+      "Object": {
+       "body": {
+        "Field": {
+         "base": {
+          "Variable": "__q_row_77_15"
+         },
+         "name": "body"
+        }
+       },
+       "id": {
+        "Field": {
+         "base": {
+          "Variable": "__q_row_77_15"
+         },
+         "name": "id"
+        }
+       }
+      }
+     }
+    }
+   },
+   {
+    "Return": {
+     "Variable": "__q_shape_77_15"
+    }
+   }
+  ]
+ },
+ {
+  "name": "surface.ensureUser",
+  "kind": "Mutation",
+  "args": {
+   "name": {
+    "Text": {
+     "max": 40
+    }
+   },
+   "nickname": {
+    "Optional": {
+     "Text": {
+      "max": 40
+     }
+    }
+   },
+   "role": {
+    "Enum": {
+     "variants": [
+      "member",
+      "admin"
+     ]
+    }
+   }
+  },
+  "read_time_granularity_ms": null,
+  "body": [
+   {
+    "Const": {
+     "name": "__q_match_65_3",
+     "value": {
+      "Get": {
+       "site": "surface.ensureUser.0",
+       "table": "users",
+       "index": "byName",
+       "key": [
+        {
+         "Variable": "name"
+        }
+       ],
+       "provenance": "Arg"
+      }
+     }
+    }
+   },
+   {
+    "Let": {
+     "name": "__q_matchResult_65_3",
+     "value": {
+      "Literal": "Null"
+     }
+    }
+   },
+   {
+    "If": {
+     "condition": {
+      "Binary": {
+       "op": "Ne",
+       "left": {
+        "Variable": "__q_match_65_3"
+       },
+       "right": {
+        "Literal": "Null"
+       }
+      }
+     },
+     "then_body": [
+      {
+       "Const": {
+        "name": "found",
+        "value": {
+         "Variable": "__q_match_65_3"
+        }
+       }
+      },
+      {
+       "Const": {
+        "name": "__q_row_67_20",
+        "value": {
+         "Variable": "found"
+        }
+       }
+      },
+      {
+       "Const": {
+        "name": "__q_shape_67_20",
+        "value": {
+         "Object": {
+          "active": {
+           "Field": {
+            "base": {
+             "Variable": "__q_row_67_20"
+            },
+            "name": "active"
+           }
+          },
+          "avatar": {
+           "Field": {
+            "base": {
+             "Variable": "__q_row_67_20"
+            },
+            "name": "avatar"
+           }
+          },
+          "externalId": {
+           "Field": {
+            "base": {
+             "Variable": "__q_row_67_20"
+            },
+            "name": "externalId"
+           }
+          },
+          "id": {
+           "Field": {
+            "base": {
+             "Variable": "__q_row_67_20"
+            },
+            "name": "id"
+           }
+          },
+          "joinedAt": {
+           "Field": {
+            "base": {
+             "Variable": "__q_row_67_20"
+            },
+            "name": "joinedAt"
+           }
+          },
+          "metadata": {
+           "Field": {
+            "base": {
+             "Variable": "__q_row_67_20"
+            },
+            "name": "metadata"
+           }
+          },
+          "name": {
+           "Field": {
+            "base": {
+             "Variable": "__q_row_67_20"
+            },
+            "name": "name"
+           }
+          },
+          "nickname": {
+           "Field": {
+            "base": {
+             "Variable": "__q_row_67_20"
+            },
+            "name": "nickname"
+           }
+          },
+          "principal": {
+           "Field": {
+            "base": {
+             "Variable": "__q_row_67_20"
+            },
+            "name": "principal"
+           }
+          },
+          "role": {
+           "Field": {
+            "base": {
+             "Variable": "__q_row_67_20"
+            },
+            "name": "role"
+           }
+          },
+          "score": {
+           "Field": {
+            "base": {
+             "Variable": "__q_row_67_20"
+            },
+            "name": "score"
+           }
+          }
+         }
+        }
+       }
+      },
+      {
+       "Return": {
+        "Variable": "__q_shape_67_20"
+       }
+      }
+     ],
+     "else_body": [
+      {
+       "Let": {
+        "name": "__insertRow0",
+        "value": {
+         "Object": {
+          "active": {
+           "Literal": {
+            "Bool": true
+           }
+          },
+          "externalId": {
+           "Input": "NewId"
+          },
+          "id": {
+           "Input": "NewId"
+          },
+          "joinedAt": {
+           "Input": "Now"
+          },
+          "metadata": {
+           "Object": {}
+          },
+          "name": {
+           "Variable": "name"
+          },
+          "nickname": {
+           "Variable": "nickname"
+          },
+          "principal": {
+           "Input": "Viewer"
+          },
+          "role": {
+           "Variable": "role"
+          },
+          "score": {
+           "Literal": {
+            "Int": 0
+           }
+          }
+         }
+        }
+       }
+      },
+      {
+       "Insert": {
+        "table": "users",
+        "row": {
+         "Variable": "__insertRow0"
+        }
+       }
+      },
+      {
+       "Return": {
+        "Variable": "__insertRow0"
+       }
+      }
+     ]
+    }
+   },
+   {
+    "Return": {
+     "Variable": "__q_matchResult_65_3"
+    }
+   }
+  ]
+ },
+ {
+  "name": "surface.firstPositive",
+  "kind": "Query",
+  "args": {
+   "values": {
+    "List": {
+     "of": "Int",
+     "max": 5
+    }
+   }
+  },
+  "read_time_granularity_ms": null,
+  "body": [
+   {
+    "For": {
+     "binding": "value",
+     "domain": {
+      "ArgList": {
+       "name": "values",
+       "max": 5
+      }
+     },
+     "body": [
+      {
+       "Const": {
+        "name": "__q_left_60_14",
+        "value": {
+         "Variable": "value"
+        }
+       }
+      },
+      {
+       "Const": {
+        "name": "__q_right_60_14",
+        "value": {
+         "Literal": {
+          "Int": 0
+         }
+        }
+       }
+      },
+      {
+       "Let": {
+        "name": "__logicalLeft0",
+        "value": {
+         "Binary": {
+          "op": "Ne",
+          "left": {
+           "Variable": "__q_left_60_14"
+          },
+          "right": {
+           "Literal": "Null"
+          }
+         }
+        }
+       }
+      },
+      {
+       "Let": {
+        "name": "__logicalResult1",
+        "value": {
+         "Variable": "__logicalLeft0"
+        }
+       }
+      },
+      {
+       "If": {
+        "condition": {
+         "Variable": "__logicalLeft0"
+        },
+        "then_body": [
+         {
+          "Assign": {
+           "name": "__logicalResult1",
+           "value": {
+            "Binary": {
+             "op": "Ne",
+             "left": {
+              "Variable": "__q_right_60_14"
+             },
+             "right": {
+              "Literal": "Null"
+             }
+            }
+           }
+          }
+         }
+        ],
+        "else_body": []
+       }
+      },
+      {
+       "Let": {
+        "name": "__logicalLeft2",
+        "value": {
+         "Variable": "__logicalResult1"
+        }
+       }
+      },
+      {
+       "Let": {
+        "name": "__logicalResult3",
+        "value": {
+         "Variable": "__logicalLeft2"
+        }
+       }
+      },
+      {
+       "If": {
+        "condition": {
+         "Variable": "__logicalLeft2"
+        },
+        "then_body": [
+         {
+          "Assign": {
+           "name": "__logicalResult3",
+           "value": {
+            "Binary": {
+             "op": "Gt",
+             "left": {
+              "Variable": "__q_left_60_14"
+             },
+             "right": {
+              "Variable": "__q_right_60_14"
+             }
+            }
+           }
+          }
+         }
+        ],
+        "else_body": []
+       }
+      },
+      {
+       "If": {
+        "condition": {
+         "Variable": "__logicalResult3"
+        },
+        "then_body": [
+         {
+          "Return": {
+           "Variable": "value"
+          }
+         }
+        ],
+        "else_body": []
+       }
+      }
+     ]
+    }
+   },
+   {
+    "Return": {
+     "Literal": {
+      "Int": 0
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "surface.hasMembership",
+  "kind": "Query",
+  "args": {
+   "group": {
+    "Ref": {
+     "table": "groups"
+    }
+   },
+   "principal": "Principal"
+  },
+  "read_time_granularity_ms": null,
+  "body": [
+   {
+    "Return": {
+     "Exists": {
+      "site": "surface.hasMembership.0",
+      "table": "memberships",
+      "index": "byGroupPrincipal",
+      "key": [
+       {
+        "Variable": "group"
+       },
+       {
+        "Variable": "principal"
+       }
+      ],
+      "provenance": "Arg"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "surface.noteIsSet",
+  "kind": "Query",
+  "args": {
+   "counter": {
+    "Ref": {
+     "table": "counters"
+    }
+   }
+  },
+  "read_time_granularity_ms": null,
+  "body": [
+   {
+    "Const": {
+     "name": "__q_required_52_26",
+     "value": {
+      "Get": {
+       "site": "surface.noteIsSet.0",
+       "table": "counters",
+       "index": "byId",
+       "key": [
+        {
+         "Variable": "counter"
+        }
+       ],
+       "provenance": "Arg"
+      }
+     }
+    }
+   },
+   {
+    "Require": {
+     "condition": {
+      "Binary": {
+       "op": "Ne",
+       "left": {
+        "Variable": "__q_required_52_26"
+       },
+       "right": {
+        "Literal": "Null"
+       }
+      }
+     },
+     "code": "COUNTER_NOT_FOUND"
+    }
+   },
+   {
+    "Const": {
+     "name": "row",
+     "value": {
+      "Variable": "__q_required_52_26"
+     }
+    }
+   },
+   {
+    "Const": {
+     "name": "__q_left_53_19",
+     "value": {
+      "Field": {
+       "base": {
+        "Variable": "row"
+       },
+       "name": "note"
+      }
+     }
+    }
+   },
+   {
+    "Const": {
+     "name": "__q_right_53_19",
+     "value": {
+      "Literal": {
+       "String": "set"
+      }
+     }
+    }
+   },
+   {
+    "Let": {
+     "name": "__logicalLeft0",
+     "value": {
+      "Binary": {
+       "op": "Ne",
+       "left": {
+        "Variable": "__q_left_53_19"
+       },
+       "right": {
+        "Literal": "Null"
+       }
+      }
+     }
+    }
+   },
+   {
+    "Let": {
+     "name": "__logicalResult1",
+     "value": {
+      "Variable": "__logicalLeft0"
+     }
+    }
+   },
+   {
+    "If": {
+     "condition": {
+      "Variable": "__logicalLeft0"
+     },
+     "then_body": [
+      {
+       "Assign": {
+        "name": "__logicalResult1",
+        "value": {
+         "Binary": {
+          "op": "Ne",
+          "left": {
+           "Variable": "__q_right_53_19"
+          },
+          "right": {
+           "Literal": "Null"
+          }
+         }
+        }
+       }
+      }
+     ],
+     "else_body": []
+    }
+   },
+   {
+    "Let": {
+     "name": "__logicalLeft2",
+     "value": {
+      "Variable": "__logicalResult1"
+     }
+    }
+   },
+   {
+    "Let": {
+     "name": "__logicalResult3",
+     "value": {
+      "Variable": "__logicalLeft2"
+     }
+    }
+   },
+   {
+    "If": {
+     "condition": {
+      "Variable": "__logicalLeft2"
+     },
+     "then_body": [
+      {
+       "Assign": {
+        "name": "__logicalResult3",
+        "value": {
+         "Binary": {
+          "op": "Eq",
+          "left": {
+           "Variable": "__q_left_53_19"
+          },
+          "right": {
+           "Variable": "__q_right_53_19"
+          }
+         }
+        }
+       }
+      }
+     ],
+     "else_body": []
+    }
+   },
+   {
+    "Return": {
+     "Variable": "__logicalResult3"
+    }
+   }
+  ]
+ },
+ {
+  "name": "surface.parentName",
+  "kind": "Query",
+  "args": {
+   "seed": {
+    "Ref": {
+     "table": "nodes"
+    }
+   }
+  },
+  "read_time_granularity_ms": null,
+  "body": [
+   {
+    "Const": {
+     "name": "__q_required_42_21",
+     "value": {
+      "Get": {
+       "site": "surface.parentName.0",
+       "table": "nodes",
+       "index": "byId",
+       "key": [
+        {
+         "Variable": "seed"
+        }
+       ],
+       "provenance": "Arg"
+      }
+     }
+    }
+   },
+   {
+    "Require": {
+     "condition": {
+      "Binary": {
+       "op": "Ne",
+       "left": {
+        "Variable": "__q_required_42_21"
+       },
+       "right": {
+        "Literal": "Null"
+       }
+      }
+     },
+     "code": "NODE_NOT_FOUND"
+    }
+   },
+   {
+    "Const": {
+     "name": "node",
+     "value": {
+      "Variable": "__q_required_42_21"
+     }
+    }
+   },
+   {
+    "Let": {
+     "name": "__logicalLeft0",
+     "value": {
+      "Field": {
+       "base": {
+        "Variable": "node"
+       },
+       "name": "parent"
+      }
+     }
+    }
+   },
+   {
+    "Let": {
+     "name": "__logicalResult1",
+     "value": {
+      "Variable": "__logicalLeft0"
+     }
+    }
+   },
+   {
+    "If": {
+     "condition": {
+      "Binary": {
+       "op": "Eq",
+       "left": {
+        "Variable": "__logicalLeft0"
+       },
+       "right": {
+        "Literal": "Null"
+       }
+      }
+     },
+     "then_body": [
+      {
+       "Assign": {
+        "name": "__logicalResult1",
+        "value": {
+         "Literal": "Null"
+        }
+       }
+      }
+     ],
+     "else_body": []
+    }
+   },
+   {
+    "Const": {
+     "name": "__q_derefKey_43_21",
+     "value": {
+      "Variable": "__logicalResult1"
+     }
+    }
+   },
+   {
+    "Let": {
+     "name": "__q_deref_43_21",
+     "value": {
+      "Literal": "Null"
+     }
+    }
+   },
+   {
+    "If": {
+     "condition": {
+      "Binary": {
+       "op": "Ne",
+       "left": {
+        "Variable": "__q_derefKey_43_21"
+       },
+       "right": {
+        "Literal": "Null"
+       }
+      }
+     },
+     "then_body": [
+      {
+       "Assign": {
+        "name": "__q_deref_43_21",
+        "value": {
+         "Get": {
+          "site": "surface.parentName.1",
+          "table": "nodes",
+          "index": "byId",
+          "key": [
+           {
+            "Variable": "__q_derefKey_43_21"
+           }
+          ],
+          "provenance": "Computed"
+         }
+        }
+       }
+      }
+     ],
+     "else_body": []
+    }
+   },
+   {
+    "Let": {
+     "name": "__optionalBase2",
+     "value": {
+      "Variable": "__q_deref_43_21"
+     }
+    }
+   },
+   {
+    "Let": {
+     "name": "__optionalValue3",
+     "value": {
+      "Literal": "Null"
+     }
+    }
+   },
+   {
+    "If": {
+     "condition": {
+      "Binary": {
+       "op": "Ne",
+       "left": {
+        "Variable": "__optionalBase2"
+       },
+       "right": {
+        "Literal": "Null"
+       }
+      }
+     },
+     "then_body": [
+      {
+       "Assign": {
+        "name": "__optionalValue3",
+        "value": {
+         "Field": {
+          "base": {
+           "Variable": "__optionalBase2"
+          },
+          "name": "name"
+         }
+        }
+       }
+      }
+     ],
+     "else_body": []
+    }
+   },
+   {
+    "Return": {
+     "Variable": "__optionalValue3"
+    }
+   }
+  ]
+ },
+ {
+  "name": "surface.postsAfter",
+  "kind": "Query",
+  "args": {
+   "author": "Principal",
+   "cursorAt": {
+    "Optional": "Time"
+   },
+   "cursorId": {
+    "Optional": {
+     "Ref": {
+      "table": "posts"
+     }
+    }
+   }
+  },
+  "read_time_granularity_ms": null,
+  "body": [
+   {
+    "If": {
+     "condition": {
+      "Binary": {
+       "op": "Ne",
+       "left": {
+        "Variable": "cursorAt"
+       },
+       "right": {
+        "Literal": "Null"
+       }
+      }
+     },
+     "then_body": [
+      {
+       "Const": {
+        "name": "__q_page_16_61",
+        "value": {
+         "Scan": {
+          "site": "surface.postsAfter.0",
+          "table": "posts",
+          "index": "byAuthorAt",
+          "prefix": [
+           {
+            "Variable": "author"
+           }
+          ],
+          "order": "Asc",
+          "take": {
+           "Literal": 3
+          },
+          "after": {
+           "Array": [
+            {
+             "Variable": "cursorAt"
+            },
+            {
+             "Variable": "cursorId"
+            }
+           ]
+          },
+          "before": null,
+          "range": null,
+          "provenance": "Arg"
+         }
+        }
+       }
+      },
+      {
+       "Const": {
+        "name": "__q_rows_16_61",
+        "value": {
+         "Array": []
+        }
+       }
+      },
+      {
+       "For": {
+        "binding": "__q_row_16_61",
+        "domain": {
+         "DerivedArray": {
+          "value": {
+           "Variable": "__q_page_16_61"
+          },
+          "max": 3,
+          "bound_source": "db.scan(posts.byAuthorAt, [args.author], { order: \"asc\", take: 3, after: [args.cursorAt, args.cursorId] }) static bound"
+         }
+        },
+        "body": [
+         {
+          "Const": {
+           "name": "__q_row_18_30",
+           "value": {
+            "Get": {
+             "site": "surface.postsAfter.1",
+             "table": "users",
+             "index": "byPrincipal",
+             "key": [
+              {
+               "Field": {
+                "base": {
+                 "Variable": "__q_row_16_61"
+                },
+                "name": "author"
+               }
+              }
+             ],
+             "provenance": "Shape"
+            }
+           }
+          }
+         },
+         {
+          "Let": {
+           "name": "__q_shape_18_30",
+           "value": {
+            "Literal": "Null"
+           }
+          }
+         },
+         {
+          "If": {
+           "condition": {
+            "Binary": {
+             "op": "Ne",
+             "left": {
+              "Variable": "__q_row_18_30"
+             },
+             "right": {
+              "Literal": "Null"
+             }
+            }
+           },
+           "then_body": [
+            {
+             "Assign": {
+              "name": "__q_shape_18_30",
+              "value": {
+               "Object": {
+                "name": {
+                 "Field": {
+                  "base": {
+                   "Variable": "__q_row_18_30"
+                  },
+                  "name": "name"
+                 }
+                },
+                "role": {
+                 "Field": {
+                  "base": {
+                   "Variable": "__q_row_18_30"
+                  },
+                  "name": "role"
+                 }
+                }
+               }
+              }
+             }
+            }
+           ],
+           "else_body": []
+          }
+         },
+         {
+          "Let": {
+           "name": "__logicalLeft0",
+           "value": {
+            "Field": {
+             "base": {
+              "Variable": "__q_row_16_61"
+             },
+             "name": "editedAt"
+            }
+           }
+          }
+         },
+         {
+          "Let": {
+           "name": "__logicalResult1",
+           "value": {
+            "Variable": "__logicalLeft0"
+           }
+          }
+         },
+         {
+          "If": {
+           "condition": {
+            "Binary": {
+             "op": "Eq",
+             "left": {
+              "Variable": "__logicalLeft0"
+             },
+             "right": {
+              "Literal": "Null"
+             }
+            }
+           },
+           "then_body": [
+            {
+             "Assign": {
+              "name": "__logicalResult1",
+              "value": {
+               "Field": {
+                "base": {
+                 "Variable": "__q_row_16_61"
+                },
+                "name": "at"
+               }
+              }
+             }
+            }
+           ],
+           "else_body": []
+          }
+         },
+         {
+          "Push": {
+           "target": "__q_rows_16_61",
+           "value": {
+            "Object": {
+             "at": {
+              "Field": {
+               "base": {
+                "Variable": "__q_row_16_61"
+               },
+               "name": "at"
+              }
+             },
+             "author": {
+              "Variable": "__q_shape_18_30"
+             },
+             "body": {
+              "Field": {
+               "base": {
+                "Variable": "__q_row_16_61"
+               },
+               "name": "body"
+              }
+             },
+             "edited": {
+              "Variable": "__logicalResult1"
+             },
+             "editedAt": {
+              "Field": {
+               "base": {
+                "Variable": "__q_row_16_61"
+               },
+               "name": "editedAt"
+              }
+             },
+             "group": {
+              "Field": {
+               "base": {
+                "Variable": "__q_row_16_61"
+               },
+               "name": "group"
+              }
+             },
+             "id": {
+              "Field": {
+               "base": {
+                "Variable": "__q_row_16_61"
+               },
+               "name": "id"
+              }
+             },
+             "mood": {
+              "Field": {
+               "base": {
+                "Variable": "__q_row_16_61"
+               },
+               "name": "mood"
+              }
+             },
+             "visible": {
+              "Field": {
+               "base": {
+                "Variable": "__q_row_16_61"
+               },
+               "name": "visible"
+              }
+             }
+            }
+           }
+          }
+         }
+        ]
+       }
+      },
+      {
+       "Return": {
+        "Variable": "__q_rows_16_61"
+       }
+      }
+     ],
+     "else_body": [
+      {
+       "Const": {
+        "name": "__q_page_22_34",
+        "value": {
+         "Scan": {
+          "site": "surface.postsAfter.2",
+          "table": "posts",
+          "index": "byAuthorAt",
+          "prefix": [
+           {
+            "Variable": "author"
+           }
+          ],
+          "order": "Asc",
+          "take": {
+           "Literal": 3
+          },
+          "after": null,
+          "before": null,
+          "range": null,
+          "provenance": "Arg"
+         }
+        }
+       }
+      },
+      {
+       "Const": {
+        "name": "__q_rows_22_34",
+        "value": {
+         "Array": []
+        }
+       }
+      },
+      {
+       "For": {
+        "binding": "__q_row_22_34",
+        "domain": {
+         "DerivedArray": {
+          "value": {
+           "Variable": "__q_page_22_34"
+          },
+          "max": 3,
+          "bound_source": "db.scan(posts.byAuthorAt, [args.author], { order: \"asc\", take: 3 }) static bound"
+         }
+        },
+        "body": [
+         {
+          "Const": {
+           "name": "__q_row_24_30",
+           "value": {
+            "Get": {
+             "site": "surface.postsAfter.3",
+             "table": "users",
+             "index": "byPrincipal",
+             "key": [
+              {
+               "Field": {
+                "base": {
+                 "Variable": "__q_row_22_34"
+                },
+                "name": "author"
+               }
+              }
+             ],
+             "provenance": "Shape"
+            }
+           }
+          }
+         },
+         {
+          "Let": {
+           "name": "__q_shape_24_30",
+           "value": {
+            "Literal": "Null"
+           }
+          }
+         },
+         {
+          "If": {
+           "condition": {
+            "Binary": {
+             "op": "Ne",
+             "left": {
+              "Variable": "__q_row_24_30"
+             },
+             "right": {
+              "Literal": "Null"
+             }
+            }
+           },
+           "then_body": [
+            {
+             "Assign": {
+              "name": "__q_shape_24_30",
+              "value": {
+               "Object": {
+                "name": {
+                 "Field": {
+                  "base": {
+                   "Variable": "__q_row_24_30"
+                  },
+                  "name": "name"
+                 }
+                },
+                "role": {
+                 "Field": {
+                  "base": {
+                   "Variable": "__q_row_24_30"
+                  },
+                  "name": "role"
+                 }
+                }
+               }
+              }
+             }
+            }
+           ],
+           "else_body": []
+          }
+         },
+         {
+          "Let": {
+           "name": "__logicalLeft2",
+           "value": {
+            "Field": {
+             "base": {
+              "Variable": "__q_row_22_34"
+             },
+             "name": "editedAt"
+            }
+           }
+          }
+         },
+         {
+          "Let": {
+           "name": "__logicalResult3",
+           "value": {
+            "Variable": "__logicalLeft2"
+           }
+          }
+         },
+         {
+          "If": {
+           "condition": {
+            "Binary": {
+             "op": "Eq",
+             "left": {
+              "Variable": "__logicalLeft2"
+             },
+             "right": {
+              "Literal": "Null"
+             }
+            }
+           },
+           "then_body": [
+            {
+             "Assign": {
+              "name": "__logicalResult3",
+              "value": {
+               "Field": {
+                "base": {
+                 "Variable": "__q_row_22_34"
+                },
+                "name": "at"
+               }
+              }
+             }
+            }
+           ],
+           "else_body": []
+          }
+         },
+         {
+          "Push": {
+           "target": "__q_rows_22_34",
+           "value": {
+            "Object": {
+             "at": {
+              "Field": {
+               "base": {
+                "Variable": "__q_row_22_34"
+               },
+               "name": "at"
+              }
+             },
+             "author": {
+              "Variable": "__q_shape_24_30"
+             },
+             "body": {
+              "Field": {
+               "base": {
+                "Variable": "__q_row_22_34"
+               },
+               "name": "body"
+              }
+             },
+             "edited": {
+              "Variable": "__logicalResult3"
+             },
+             "editedAt": {
+              "Field": {
+               "base": {
+                "Variable": "__q_row_22_34"
+               },
+               "name": "editedAt"
+              }
+             },
+             "group": {
+              "Field": {
+               "base": {
+                "Variable": "__q_row_22_34"
+               },
+               "name": "group"
+              }
+             },
+             "id": {
+              "Field": {
+               "base": {
+                "Variable": "__q_row_22_34"
+               },
+               "name": "id"
+              }
+             },
+             "mood": {
+              "Field": {
+               "base": {
+                "Variable": "__q_row_22_34"
+               },
+               "name": "mood"
+              }
+             },
+             "visible": {
+              "Field": {
+               "base": {
+                "Variable": "__q_row_22_34"
+               },
+               "name": "visible"
+              }
+             }
+            }
+           }
+          }
+         }
+        ]
+       }
+      },
+      {
+       "Return": {
+        "Variable": "__q_rows_22_34"
+       }
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "surface.postsBefore",
+  "kind": "Query",
+  "args": {
+   "author": "Principal",
+   "cursorAt": "Time",
+   "cursorId": {
+    "Ref": {
+     "table": "posts"
+    }
+   }
+  },
+  "read_time_granularity_ms": null,
+  "body": [
+   {
+    "Const": {
+     "name": "__q_page_29_59",
+     "value": {
+      "Scan": {
+       "site": "surface.postsBefore.0",
+       "table": "posts",
+       "index": "byAuthorAt",
+       "prefix": [
+        {
+         "Variable": "author"
+        }
+       ],
+       "order": "Desc",
+       "take": {
+        "Literal": 3
+       },
+       "after": {
+        "Array": [
+         {
+          "Variable": "cursorAt"
+         },
+         {
+          "Variable": "cursorId"
+         }
+        ]
+       },
+       "before": null,
+       "range": null,
+       "provenance": "Arg"
+      }
+     }
+    }
+   },
+   {
+    "Const": {
+     "name": "__q_rows_29_59",
+     "value": {
+      "Array": []
+     }
+    }
+   },
+   {
+    "For": {
+     "binding": "__q_row_29_59",
+     "domain": {
+      "DerivedArray": {
+       "value": {
+        "Variable": "__q_page_29_59"
+       },
+       "max": 3,
+       "bound_source": "db.scan(posts.byAuthorAt, [args.author], { order: \"desc\", take: 3, after: [args.cursorAt, args.cursorId] }) static bound"
+      }
+     },
+     "body": [
+      {
+       "Const": {
+        "name": "__q_row_31_28",
+        "value": {
+         "Get": {
+          "site": "surface.postsBefore.1",
+          "table": "users",
+          "index": "byPrincipal",
+          "key": [
+           {
+            "Field": {
+             "base": {
+              "Variable": "__q_row_29_59"
+             },
+             "name": "author"
+            }
+           }
+          ],
+          "provenance": "Shape"
+         }
+        }
+       }
+      },
+      {
+       "Let": {
+        "name": "__q_shape_31_28",
+        "value": {
+         "Literal": "Null"
+        }
+       }
+      },
+      {
+       "If": {
+        "condition": {
+         "Binary": {
+          "op": "Ne",
+          "left": {
+           "Variable": "__q_row_31_28"
+          },
+          "right": {
+           "Literal": "Null"
+          }
+         }
+        },
+        "then_body": [
+         {
+          "Assign": {
+           "name": "__q_shape_31_28",
+           "value": {
+            "Object": {
+             "name": {
+              "Field": {
+               "base": {
+                "Variable": "__q_row_31_28"
+               },
+               "name": "name"
+              }
+             }
+            }
+           }
+          }
+         }
+        ],
+        "else_body": []
+       }
+      },
+      {
+       "Push": {
+        "target": "__q_rows_29_59",
+        "value": {
+         "Object": {
+          "author": {
+           "Variable": "__q_shape_31_28"
+          },
+          "body": {
+           "Field": {
+            "base": {
+             "Variable": "__q_row_29_59"
+            },
+            "name": "body"
+           }
+          }
+         }
+        }
+       }
+      }
+     ]
+    }
+   },
+   {
+    "Return": {
+     "Variable": "__q_rows_29_59"
+    }
+   }
+  ]
+ },
+ {
+  "name": "surface.removePost",
+  "kind": "Mutation",
+  "args": {
+   "post": {
+    "Ref": {
+     "table": "posts"
+    }
+   }
+  },
+  "read_time_granularity_ms": null,
+  "body": [
+   {
+    "Delete": {
+     "table": "posts",
+     "key": {
+      "Variable": "post"
+     }
+    }
+   },
+   {
+    "Return": {
+     "Literal": "Null"
+    }
+   }
+  ]
+ },
+ {
+  "name": "surface.requiredUser",
+  "kind": "Query",
+  "args": {
+   "u": {
+    "Ref": {
+     "table": "users"
+    }
+   }
+  },
+  "read_time_granularity_ms": null,
+  "body": [
+   {
+    "Const": {
+     "name": "__q_required_8_18",
+     "value": {
+      "Get": {
+       "site": "surface.requiredUser.0",
+       "table": "users",
+       "index": "byId",
+       "key": [
+        {
+         "Variable": "u"
+        }
+       ],
+       "provenance": "Arg"
+      }
+     }
+    }
+   },
+   {
+    "Require": {
+     "condition": {
+      "Binary": {
+       "op": "Ne",
+       "left": {
+        "Variable": "__q_required_8_18"
+       },
+       "right": {
+        "Literal": "Null"
+       }
+      }
+     },
+     "code": "USER_NOT_FOUND"
+    }
+   },
+   {
+    "Const": {
+     "name": "user",
+     "value": {
+      "Variable": "__q_required_8_18"
+     }
+    }
+   },
+   {
+    "Const": {
+     "name": "__q_row_9_15",
+     "value": {
+      "Variable": "user"
+     }
+    }
+   },
+   {
+    "Const": {
+     "name": "__q_shape_9_15",
+     "value": {
+      "Object": {
+       "name": {
+        "Field": {
+         "base": {
+          "Variable": "__q_row_9_15"
+         },
+         "name": "name"
+        }
+       },
+       "role": {
+        "Field": {
+         "base": {
+          "Variable": "__q_row_9_15"
+         },
+         "name": "role"
+        }
+       }
+      }
+     }
+    }
+   },
+   {
+    "Return": {
+     "Variable": "__q_shape_9_15"
+    }
+   }
+  ]
+ },
+ {
+  "name": "surface.userByName",
+  "kind": "Query",
+  "args": {
+   "name": {
+    "Text": {
+     "max": 40
+    }
+   }
+  },
+  "read_time_granularity_ms": null,
+  "body": [
+   {
+    "Const": {
+     "name": "__q_row_2_29",
+     "value": {
+      "Get": {
+       "site": "surface.userByName.0",
+       "table": "users",
+       "index": "byName",
+       "key": [
+        {
+         "Variable": "name"
+        }
+       ],
+       "provenance": "Arg"
+      }
+     }
+    }
+   },
+   {
+    "Let": {
+     "name": "__q_shape_2_29",
+     "value": {
+      "Literal": "Null"
+     }
+    }
+   },
+   {
+    "If": {
+     "condition": {
+      "Binary": {
+       "op": "Ne",
+       "left": {
+        "Variable": "__q_row_2_29"
+       },
+       "right": {
+        "Literal": "Null"
+       }
+      }
+     },
+     "then_body": [
+      {
+       "Assign": {
+        "name": "__q_shape_2_29",
+        "value": {
+         "Object": {
+          "active": {
+           "Field": {
+            "base": {
+             "Variable": "__q_row_2_29"
+            },
+            "name": "active"
+           }
+          },
+          "avatar": {
+           "Field": {
+            "base": {
+             "Variable": "__q_row_2_29"
+            },
+            "name": "avatar"
+           }
+          },
+          "externalId": {
+           "Field": {
+            "base": {
+             "Variable": "__q_row_2_29"
+            },
+            "name": "externalId"
+           }
+          },
+          "id": {
+           "Field": {
+            "base": {
+             "Variable": "__q_row_2_29"
+            },
+            "name": "id"
+           }
+          },
+          "joinedAt": {
+           "Field": {
+            "base": {
+             "Variable": "__q_row_2_29"
+            },
+            "name": "joinedAt"
+           }
+          },
+          "label": {
+           "Field": {
+            "base": {
+             "Variable": "__q_row_2_29"
+            },
+            "name": "name"
+           }
+          },
+          "metadata": {
+           "Field": {
+            "base": {
+             "Variable": "__q_row_2_29"
+            },
+            "name": "metadata"
+           }
+          },
+          "name": {
+           "Field": {
+            "base": {
+             "Variable": "__q_row_2_29"
+            },
+            "name": "name"
+           }
+          },
+          "nickname": {
+           "Field": {
+            "base": {
+             "Variable": "__q_row_2_29"
+            },
+            "name": "nickname"
+           }
+          },
+          "principal": {
+           "Field": {
+            "base": {
+             "Variable": "__q_row_2_29"
+            },
+            "name": "principal"
+           }
+          },
+          "role": {
+           "Field": {
+            "base": {
+             "Variable": "__q_row_2_29"
+            },
+            "name": "role"
+           }
+          },
+          "score": {
+           "Field": {
+            "base": {
+             "Variable": "__q_row_2_29"
+            },
+            "name": "score"
+           }
+          }
+         }
+        }
+       }
+      }
+     ],
+     "else_body": []
+    }
+   },
+   {
+    "Return": {
+     "Variable": "__q_shape_2_29"
+    }
+   }
+  ]
+ },
+ {
+  "name": "surface.visiblePosts",
+  "kind": "Query",
+  "args": {
+   "author": "Principal"
+  },
+  "read_time_granularity_ms": null,
+  "body": [
+   {
+    "Const": {
+     "name": "__q_wherePage_35_10",
+     "value": {
+      "Scan": {
+       "site": "surface.visiblePosts.0",
+       "table": "posts",
+       "index": "byAuthorAt",
+       "prefix": [
+        {
+         "Variable": "author"
+        }
+       ],
+       "order": "Asc",
+       "take": {
+        "Literal": 5
+       },
+       "after": null,
+       "before": null,
+       "range": null,
+       "provenance": "Arg"
+      }
+     }
+    }
+   },
+   {
+    "Const": {
+     "name": "__q_whereRows_35_10",
+     "value": {
+      "Array": []
+     }
+    }
+   },
+   {
+    "For": {
+     "binding": "__q_whereRow_35_10",
+     "domain": {
+      "DerivedArray": {
+       "value": {
+        "Variable": "__q_wherePage_35_10"
+       },
+       "max": 5,
+       "bound_source": "db.scan(posts.byAuthorAt, [args.author], { order: \"asc\", take: 5 }) static bound"
+      }
+     },
+     "body": [
+      {
+       "Let": {
+        "name": "__logicalLeft0",
+        "value": {
+         "Binary": {
+          "op": "Ne",
+          "left": {
+           "Field": {
+            "base": {
+             "Variable": "__q_whereRow_35_10"
+            },
+            "name": "visible"
+           }
+          },
+          "right": {
+           "Literal": "Null"
+          }
+         }
+        }
+       }
+      },
+      {
+       "Let": {
+        "name": "__logicalResult1",
+        "value": {
+         "Variable": "__logicalLeft0"
+        }
+       }
+      },
+      {
+       "If": {
+        "condition": {
+         "Variable": "__logicalLeft0"
+        },
+        "then_body": [
+         {
+          "Assign": {
+           "name": "__logicalResult1",
+           "value": {
+            "Binary": {
+             "op": "Ne",
+             "left": {
+              "Literal": {
+               "Bool": true
+              }
+             },
+             "right": {
+              "Literal": "Null"
+             }
+            }
+           }
+          }
+         }
+        ],
+        "else_body": []
+       }
+      },
+      {
+       "Let": {
+        "name": "__logicalLeft2",
+        "value": {
+         "Variable": "__logicalResult1"
+        }
+       }
+      },
+      {
+       "Let": {
+        "name": "__logicalResult3",
+        "value": {
+         "Variable": "__logicalLeft2"
+        }
+       }
+      },
+      {
+       "If": {
+        "condition": {
+         "Variable": "__logicalLeft2"
+        },
+        "then_body": [
+         {
+          "Assign": {
+           "name": "__logicalResult3",
+           "value": {
+            "Binary": {
+             "op": "Eq",
+             "left": {
+              "Field": {
+               "base": {
+                "Variable": "__q_whereRow_35_10"
+               },
+               "name": "visible"
+              }
+             },
+             "right": {
+              "Literal": {
+               "Bool": true
+              }
+             }
+            }
+           }
+          }
+         }
+        ],
+        "else_body": []
+       }
+      },
+      {
+       "If": {
+        "condition": {
+         "Variable": "__logicalResult3"
+        },
+        "then_body": [
+         {
+          "Push": {
+           "target": "__q_whereRows_35_10",
+           "value": {
+            "Variable": "__q_whereRow_35_10"
+           }
+          }
+         }
+        ],
+        "else_body": []
+       }
+      }
+     ]
+    }
+   },
+   {
+    "Const": {
+     "name": "page",
+     "value": {
+      "Variable": "__q_whereRows_35_10"
+     }
+    }
+   },
+   {
+    "Return": {
+     "Object": {
+      "count": {
+       "Builtin": {
+        "builtin": "Len",
+        "args": [
+         {
+          "Variable": "page"
+         }
+        ]
+       }
+      },
+      "rows": {
+       "Variable": "page"
+      }
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "surface.wordTokens",
+  "kind": "Query",
+  "args": {
+   "body": {
+    "Text": {
+     "max": 500
+    }
+   }
+  },
+  "read_time_granularity_ms": null,
+  "body": [
+   {
+    "Return": {
+     "Builtin": {
+      "builtin": "MentionTokens",
+      "args": [
+       {
+        "Variable": "body"
+       }
+      ]
+     }
+    }
+   }
+  ]
+ }
+]

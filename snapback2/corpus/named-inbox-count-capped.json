@@ -381,6 +381,9 @@
           },
           "id": "Id",
           "lastReadAt": "Time",
+          "lastReadId": {
+            "Optional": "Id"
+          },
           "userId": "Principal"
         },
         "indexes": {
@@ -1004,12 +1007,24 @@
                                 "Literal": 100
                               },
                               "after": {
-                                "Field": {
-                                  "base": {
-                                    "Variable": "membership"
+                                "Array": [
+                                  {
+                                    "Field": {
+                                      "base": {
+                                        "Variable": "membership"
+                                      },
+                                      "name": "lastReadAt"
+                                    }
                                   },
-                                  "name": "lastReadAt"
-                                }
+                                  {
+                                    "Field": {
+                                      "base": {
+                                        "Variable": "membership"
+                                      },
+                                      "name": "lastReadId"
+                                    }
+                                  }
+                                ]
                               },
                               "before": null,
                               "range": null,
@@ -1035,11 +1050,11 @@
   },
   "certificate": {
     "program": "inboxCountCapped",
-    "plan_hash": "a326a0fa8d947a1753e72e18941193f7e2328e6644bec9290560a807969b7282",
-    "schema_hash": "31792591fb75b5ab316e24a71206d3f7de6e02ed12f49a2f39782dbcab4b3566",
+    "plan_hash": "57d26ddd22061b31bf61074e943c91b88e973f124728d47c7fb0b4fb72e60168",
+    "schema_hash": "df0a1b25740fd361ededb5bf93df3428a133ea6dd44f27a74c45a76e1ce8fb3c",
     "rule_hashes": {
-      "memberships.read": "cf46e23f564ce282f3ac1c4b679811ab548391f815ee9ca929e654aa57318bf0",
-      "messages.read": "cf46e23f564ce282f3ac1c4b679811ab548391f815ee9ca929e654aa57318bf0"
+      "memberships.read": "a4500d80558e462bf40291836ee785e6a05a708f84bb1d5d919adc2da67c150b",
+      "messages.read": "a4500d80558e462bf40291836ee785e6a05a708f84bb1d5d919adc2da67c150b"
     },
     "evaluator_version": "bounded-spike-rust-1",
     "value_model_version": "i53-codepoint-bytes-v2",
@@ -1110,7 +1125,7 @@
     "seed_write": false
   },
   "receipt": {
-    "schema_hash": "31792591fb75b5ab316e24a71206d3f7de6e02ed12f49a2f39782dbcab4b3566",
+    "schema_hash": "df0a1b25740fd361ededb5bf93df3428a133ea6dd44f27a74c45a76e1ce8fb3c",
     "rows": [
       {
         "table": "memberships",
@@ -1129,6 +1144,7 @@
             "lastReadAt": {
               "Int": 0
             },
+            "lastReadId": "Null",
             "userId": {
               "Id": "u1"
             }
@@ -1269,7 +1285,7 @@
         "gte": null,
         "lt": null,
         "lte": null,
-        "rule_hash": "cf46e23f564ce282f3ac1c4b679811ab548391f815ee9ca929e654aa57318bf0",
+        "rule_hash": "a4500d80558e462bf40291836ee785e6a05a708f84bb1d5d919adc2da67c150b",
         "row_ids": [
           "message-00004"
         ],
@@ -1322,14 +1338,19 @@
         "order": "Asc",
         "take": 100,
         "after": {
-          "Int": 0
+          "Array": [
+            {
+              "Int": 0
+            },
+            "Null"
+          ]
         },
         "before": null,
         "gt": null,
         "gte": null,
         "lt": null,
         "lte": null,
-        "rule_hash": "cf46e23f564ce282f3ac1c4b679811ab548391f815ee9ca929e654aa57318bf0",
+        "rule_hash": "a4500d80558e462bf40291836ee785e6a05a708f84bb1d5d919adc2da67c150b",
         "row_ids": [
           "message-00000",
           "message-00001",

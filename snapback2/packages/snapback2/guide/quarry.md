@@ -81,14 +81,18 @@ Point reads select a complete unique key. Range reads use `first N` or
 resolve ambiguity. Shapes use `{ * }`, bare row fields, or `name: expression`.
 Nested reads and shapes are bounded by the same compiler policy.
 
-`before c last N` lowers to `{ order: "desc", after: c }`; the engine's `after`
-means “continue past the cursor in scan order.”
+A cursor is the row's ordering position after the selected index prefix,
+written as a tuple of the remaining index columns. A cursored index must be a
+total order: it ends in `id`, or it is unique; any other index is refused for
+cursors because tied keys would be skipped between pages. Scalar cursor sugar is legal only
+when one column remains. `after` continues past the cursor in scan order.
+`before c last N` lowers to `{ order: "desc", after: c }`.
 
 `where predicate` follows a bounded range read. The compiler fetches at most
 its `take N` page and evaluates the predicate once per fetched row with `.` as
 the row. Nested reads and `exists` are allowed. Filtering does not backfill,
-so the result is a bounded list that may contain fewer than N rows; `hasMore`
-and cursors do not survive filtering.
+so the result is a bounded list that may contain fewer than N rows; cursors do
+not survive filtering.
 
 Statements are expression bindings, tuple bindings from `sorted`, `return`,
 `require condition else CODE`, `if/else`, bounded `for`, and

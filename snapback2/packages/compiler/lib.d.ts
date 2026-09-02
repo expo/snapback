@@ -47,7 +47,7 @@ declare module "snapback2" {
   export type ArgsOf<A extends Record<string, Arg<any, any>>> =
     { [K in keyof A as A[K] extends Arg<any, true> ? never : K]: A[K] extends Arg<infer T, any> ? T : never }
     & { [K in keyof A as A[K] extends Arg<any, true> ? K : never]?: A[K] extends Arg<infer T, any> ? T : never };
-  export type Page<T> = Array<T> & { hasMore: boolean };
+  export type Page<T> = Array<T>;
   export type WriteValue<T> = T extends Principal ? Principal : T extends Decimal<any> ? number : T extends string ? string : T extends Array<infer U> ? WriteValue<U>[] : T;
   export type WriteRow<R extends Record<string, any>> = { [K in keyof R]: WriteValue<R[K]> };
   // @ref LLP 1001#1-store-storers — an update patch cannot rewrite the implicit storage identity.
@@ -59,8 +59,10 @@ declare module "snapback2" {
     scan<R extends Record<string, any>>(target: Table<R> | TableIndex<R>, prefix: unknown, options?: {
       order?: "asc" | "desc";
       take?: number;
-      after?: unknown;
-      before?: unknown;
+      /** Full ordering tuple after the prefix; scalar sugar is valid only when one index column remains, and cursored indexes end in id. */
+      after?: unknown[] | unknown;
+      /** Full ordering tuple after the prefix; scalar sugar is valid only when one index column remains, and cursored indexes end in id. */
+      before?: unknown[] | unknown;
       range?: { gt?: unknown; gte?: unknown; lt?: unknown; lte?: unknown };
     }): Page<R>;
     insert<R extends Record<string, any>>(target: Table<R>, row: WriteRow<R>): R;

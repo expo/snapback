@@ -381,6 +381,9 @@
           },
           "id": "Id",
           "lastReadAt": "Time",
+          "lastReadId": {
+            "Optional": "Id"
+          },
           "userId": "Principal"
         },
         "indexes": {
@@ -945,7 +948,7 @@
   "certificate": {
     "program": "random28",
     "plan_hash": "2bdad3d02d0a7402a7cd2f95d5b689ce3fd438921ee874f12d3dfac0ab45b7dc",
-    "schema_hash": "31792591fb75b5ab316e24a71206d3f7de6e02ed12f49a2f39782dbcab4b3566",
+    "schema_hash": "df0a1b25740fd361ededb5bf93df3428a133ea6dd44f27a74c45a76e1ce8fb3c",
     "rule_hashes": {},
     "evaluator_version": "bounded-spike-rust-1",
     "value_model_version": "i53-codepoint-bytes-v2",
@@ -1001,7 +1004,7 @@
     "seed_write": false
   },
   "receipt": {
-    "schema_hash": "31792591fb75b5ab316e24a71206d3f7de6e02ed12f49a2f39782dbcab4b3566",
+    "schema_hash": "df0a1b25740fd361ededb5bf93df3428a133ea6dd44f27a74c45a76e1ce8fb3c",
     "rows": [],
     "ranges": [],
     "absences": [],

@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2-core` (`store`, `registry`, `live`, `identity`, `successor`, the engine, the IR)
 **Author:** Claude Fable 5 (orchestrator) — implementer: codex gpt-5.6-sol, lane A
 **Date:** 2026-08-29
-**Revised:** 2026-08-30
+**Revised:** 2026-09-02
 **Related:** LLP 1000, LLP 1002 (the loop that serves this), LLP 1003 (effects
 through the outbox this spec defines), LLP 0329.014.004 §7 (runtime), LLP
 0329.014.000 §6 (execution, trace, states), LLP 0329.016 §5.6 (no silent
@@ -197,6 +197,18 @@ drain; the paved escape is the existing denormalize-the-scope rewrite. There is
 no examined/storage-position continuation and no server-held scan state. The
 engine may internally distinguish take, ceiling, and exhaustion stops, but the
 result label, wire, and receipt may not.
+
+Scan cursors are relative to the requested scan order: `after: c` selects rows
+that follow `c` (`>` in ascending order, `<` in descending order), while
+`before: c` selects rows that precede `c` (`<` ascending, `>` descending).
+A cursor is the full lexicographically compared post-prefix index tuple, the
+index must be a total order (it ends in `id`, or it is unique; certification
+refuses cursors on any other index because tied keys would be skipped between
+pages), and scalar sugar is accepted only for a one-column
+tuple; a nullable stored boundary component may carry `Null` as the
+pre-first-value sentinel because `Null` already participates in the engine's
+total scalar order. Explicit `range.gt/gte/lt/lte` bounds remain key-order
+comparisons.
 
 > ~~A drain always makes visible progress (no starvation).~~
 >

@@ -347,13 +347,41 @@ fn addressed_writes_reject_row_id_changes_without_leaving_stale_indexes() {
         )])
         .unwrap();
 
-    for program in [reidentify_program(), upsert_at_program()] {
-        let error = Checker::new(&schema(), Ceilings::default())
-            .check(&program)
-            .expect_err("addressed write with a distinct row identity must not certify");
-        assert_eq!(error.code, "E_SCHEMA_ID_RESERVED", "{}", program.name);
-        assert_eq!(runtime.store().commit_seq().unwrap(), 1);
-    }
+    let reidentify = reidentify_program();
+    let error = Checker::new(&schema(), Ceilings::default())
+        .check(&reidentify)
+        .expect_err("an update patch carrying id must not certify");
+    assert_eq!(error.code, "E_SCHEMA_ID_RESERVED");
+
+    let upsert = upsert_at_program();
+    let upsert_schema = schema();
+    let certificate = Checker::new(&upsert_schema, Ceilings::default())
+        .check(&upsert)
+        .expect("argument-dependent upsert identity equality belongs to runtime validation");
+    let args = |key: &str, row_id: &str| {
+        BTreeMap::from([
+            ("key".to_owned(), Value::Id(key.to_owned())),
+            ("rowId".to_owned(), Value::Id(row_id.to_owned())),
+            ("name".to_owned(), Value::String("candidate".to_owned())),
+        ])
+    };
+    let mut engine = Engine::memory(upsert_schema).unwrap();
+    let refusal = engine
+        .execute(
+            &upsert,
+            &certificate,
+            Context::mutation(test_actor(), args("item-1", "item-2")),
+        )
+        .expect_err("distinct runtime upsert identities must be rejected");
+    assert!(matches!(&refusal, RuntimeError::Input(_)), "{refusal}");
+    engine
+        .execute(
+            &upsert,
+            &certificate,
+            Context::mutation(test_actor(), args("item-2", "item-2")),
+        )
+        .expect("equal runtime upsert identities must commit");
+    assert_eq!(runtime.store().commit_seq().unwrap(), 1);
 
     let listed = runtime
         .execute("items.list", Context::query(test_actor(), BTreeMap::new()))

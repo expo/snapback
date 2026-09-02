@@ -568,7 +568,16 @@ class Parser {
       value = { kind: "object", fields: this.parseObjectFields(), site: token };
     } else if (token.value === "(") {
       this.position += 1;
-      value = this.expression(0, new Set([")"]));
+      const first = this.expression(0, new Set([",", ")"]));
+      if (this.maybe(",")) {
+        const items = [first];
+        do {
+          items.push(this.expression(0, new Set([",", ")"])));
+        } while (this.maybe(","));
+        value = { kind: "array", items, site: token };
+      } else {
+        value = first;
+      }
       this.take(")");
     } else if (token.kind === "word") {
       this.position += 1;

@@ -17,11 +17,21 @@ inserted source row.
 
 Programs: `query(args, ({ db, ctx, args }) => value)` and
 `mutation(args, (...) => value)`. Reads are `get`, `exists`, and bounded
-`scan(index, prefix, { take, order? })`. Writes are `insert`, `update`,
-`upsert`, `delete`; guards are `require`; effects enter only through `emit`.
+`scan(index, prefix, { take, order?, after?, before?, range? })`; a cursor is
+the full post-prefix tuple in scan order (`after: [row.at, row.id]`). A cursored
+index must be a total order: it ends in `id`, or it is unique; anything else is
+refused at certify time because tied keys would be skipped between pages. Static
+analysis refuses only a known wrong tuple arity—unknown helper, branch, loop,
+destructured, or raw scalar facts are checked at runtime. `range` bounds stay
+key-order. Writes are
+`insert`, `update`, `upsert`, `delete`; guards are `require`; effects enter only
+through `emit`.
 
 `ctx.viewer`, `ctx.now()`, and `ctx.newId()` are the authority, clock, and id
-inputs. Authentication is always on; development identities are personas.
+inputs. `ctx.viewer` remains the authenticated authority when used directly or
+through an alias; because its runtime value is an Id, it may also fill Id/Ref
+read and write positions without becoming a caller argument. Authentication is
+always on; development identities are personas.
 `ctx.newId()` is mutation-only and draws from a durable per-store range:
 rejected work may leave gaps, but reset and owner restart never repeat an
 exposed id.

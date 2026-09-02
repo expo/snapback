@@ -45,6 +45,8 @@ import { isOperationCompositeBinding, withDirectRewrite } from "./operation-cont
 import { guardedWalk, MAX_RECURSION_DEPTH } from "./recursion";
 import { derivedBound, operationArgumentList, staticBound } from "./binding-bound";
 import { maintainCollectionFacts } from "./collection-facts";
+import { checkTupleCursor } from "./cursor";
+import { isIdType } from "../authored-types";
 function concatExpressions(expressions: Expr[]): Expr {
   return expressions.slice(1).reduce<Expr>(
     (left, right) => ({ Builtin: { builtin: "Concat", args: [left, right] } }),
@@ -219,9 +221,10 @@ function lowerDomainInner(
   if (expanded) return lowerDomain(expanded.expression, expanded.environment, binding, hint);
   const call = unwrapCall(expression);
   if (call && callName(call).endsWith(".scan")) {
+    const reference = tableReference(call.arguments[0]!, env);
     return {
-      domain: { Page: lowerScan(call, env, hint ?? `${env.programName}.${tableReference(call.arguments[0]!, env).table}`) },
-      bindingInfo: { provenance: "Shape", objectFields: rowFields(call.arguments[0], env), rowBinding: true },
+      domain: { Page: lowerScan(call, env, hint ?? `${env.programName}.${reference.table}`) },
+      bindingInfo: { provenance: "Shape", objectFields: rowFields(call.arguments[0], env), rowBinding: true, rowTable: reference.table },
     };
   }
   if (call && ts.isIdentifier(call.expression) && call.expression.text === "range") {
@@ -329,7 +332,7 @@ function lowerRecurse(call: ts.CallExpression, env: Environment): { domain: Loop
       fanout,
       provenance: "Shape",
     } },
-    bindingInfo: { provenance: "Shape", rowBinding: true },
+    bindingInfo: { provenance: "Shape", rowBinding: true, rowTable: ref.table },
   };
 }
 
@@ -372,9 +375,23 @@ function lowerExprInner(node: ts.Expression, env: Environment, hint?: string): E
     }
     return literal(scaled ?? Number(node.text));
   }
-  if (ts.isStringLiteralLike(node)) return literal(node.text);
+  if (ts.isStringLiteralLike(node)) {
+    const authored = env.expressionTypes.get(contextualNodeKey(env.literalContext, node, env.sourceFile));
+    return isIdType(authored) && !ts.isVariableDeclaration(node.parent)
+      ? { Literal: { Id: node.text } }
+      : literal(node.text);
+  }
   if (ts.isIdentifier(node)) {
     const info = env.variables.get(node.text);
+    const authored = env.expressionTypes.get(contextualNodeKey(env.literalContext, node, env.sourceFile));
+    if (isIdType(authored)
+      && info?.identityExpression
+      && "Literal" in info.identityExpression
+      && typeof info.identityExpression.Literal === "object"
+      && info.identityExpression.Literal !== null
+      && "String" in info.identityExpression.Literal) {
+      return { Literal: { Id: info.identityExpression.Literal.String } };
+    }
     if (info?.operationComposite === "args") {
       return { Object: Object.fromEntries(Object.keys(env.args).map((name) => [name, { Variable: name } satisfies Expr])) };
     }
@@ -664,15 +681,20 @@ function lowerScan(call: ts.CallExpression, env: Environment, hint?: string): Sc
     refuse(env, "E_OPAQUE", orderNode, 'scan order must be "asc" or "desc"');
   }
   const rangeNode = expressionProperty(options, "range");
+  const loweredPrefix = lowerKey(prefix, env);
+  const afterNode = expressionProperty(options, "after");
+  const beforeNode = expressionProperty(options, "before");
+  checkTupleCursor(afterNode, env, ref.table, ref.index, loweredPrefix.length);
+  checkTupleCursor(beforeNode, env, ref.table, ref.index, loweredPrefix.length);
   return {
     site: allocateReadSite(env),
     table: ref.table,
     index: ref.index,
-    prefix: lowerKey(prefix, env),
+    prefix: loweredPrefix,
     order: authoredOrder === "desc" ? "Desc" : "Asc",
     take,
-    after: optionalLower(expressionProperty(options, "after"), env),
-    before: optionalLower(expressionProperty(options, "before"), env),
+    after: optionalLower(afterNode, env),
+    before: optionalLower(beforeNode, env),
     range: rangeNode && ts.isObjectLiteralExpression(rangeNode)
       ? {
           gt: optionalLower(expressionProperty(rangeNode, "gt"), env),
@@ -703,9 +725,12 @@ export function tableReference(node: ts.Expression, env: Environment): { table: 
 
 export function lowerKey(node: ts.Expression, env: Environment): Expr[] {
   const value = unwrapExpression(node);
-  return ts.isArrayLiteralExpression(value)
-    ? value.elements.map((element) => lowerExpr(element, env))
-    : [lowerExpr(value, env)];
+  if (ts.isArrayLiteralExpression(value)) return value.elements.map((element) => lowerExpr(element, env));
+  if (ts.isIdentifier(value)) {
+    const identity = env.variables.get(value.text)?.identityExpression;
+    if (identity && "Array" in identity) return identity.Array;
+  }
+  return [lowerExpr(value, env)];
 }
 
 export function cloneEnvironment(env: Environment): Environment {

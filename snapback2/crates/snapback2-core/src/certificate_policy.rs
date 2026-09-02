@@ -2,7 +2,7 @@
 
 use crate::certificate::{CheckError, Checker};
 use crate::ir::*;
-use crate::schema::{RuleExpr, RuleTerm, Schema};
+use crate::schema::{ColumnType, RuleExpr, RuleTerm, Schema};
 use crate::value::{I53_MAX, I53_MIN, Value};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -383,9 +383,18 @@ fn validate_statements(
     statements: &[Stmt],
     errors: &mut Vec<CheckError>,
     sites: &mut BTreeMap<String, ReadSiteShape>,
-    bindings: &mut BTreeMap<String, Expr>,
+    bindings: &mut BTreeMap<String, StaticBinding>,
 ) {
     for statement in statements {
+        match statement {
+            Stmt::Insert { table, row } | Stmt::Upsert { table, row, .. } => {
+                validate_write_expression(checker, program, table, row, false, bindings, errors);
+            }
+            Stmt::Update { table, patch, .. } => {
+                validate_write_expression(checker, program, table, patch, true, bindings, errors);
+            }
+            _ => {}
+        }
         if let Stmt::Update { patch, .. } = statement
             && expression_contains_field(patch, "id")
         {
@@ -502,7 +511,19 @@ fn validate_statements(
                     }
                 }
                 let mut body_bindings = bindings.clone();
-                body_bindings.remove(binding);
+                match domain {
+                    LoopDomain::Page(scan) => {
+                        body_bindings
+                            .insert(binding.clone(), StaticBinding::Row(scan.table.clone()));
+                    }
+                    LoopDomain::Recurse(recurse) => {
+                        body_bindings
+                            .insert(binding.clone(), StaticBinding::Row(recurse.table.clone()));
+                    }
+                    _ => {
+                        body_bindings.remove(binding);
+                    }
+                }
                 validate_statements(checker, program, body, errors, sites, &mut body_bindings);
                 let mut assigned = BTreeSet::new();
                 assigned_targets(body, &mut assigned);
@@ -511,13 +532,13 @@ fn validate_statements(
             _ => {}
         }
         visit_statement_exprs(statement, &mut |expression| {
-            validate_expr(checker, program, expression, errors, sites)
+            validate_expr(checker, program, expression, errors, sites, bindings)
         });
         match statement {
             Stmt::Const { name, value }
             | Stmt::Let { name, value }
             | Stmt::Assign { name, value } => {
-                bindings.insert(name.clone(), value.clone());
+                bindings.insert(name.clone(), StaticBinding::Expr(value.clone()));
             }
             Stmt::Push { target, .. } => {
                 bindings.remove(target);
@@ -527,16 +548,30 @@ fn validate_statements(
     }
 }
 
+#[derive(Clone, Debug)]
+enum StaticBinding {
+    Expr(Expr),
+    Row(String),
+}
+
 fn upsert_identity_matches(
     key: &Expr,
     row: &Expr,
-    bindings: &BTreeMap<String, Expr>,
+    bindings: &BTreeMap<String, StaticBinding>,
 ) -> Option<bool> {
     let mut seen = BTreeSet::new();
     match resolve_row_container(row, bindings, &mut seen) {
-        Expr::Object(fields) => fields
-            .get("id")
-            .map(|id| id == key && !expression_consumes_new_id(id)),
+        Expr::Object(fields) => fields.get("id").and_then(|id| {
+            if expression_consumes_new_id(id) {
+                Some(false)
+            } else if id == key {
+                Some(true)
+            } else if let (Expr::Literal(id), Expr::Literal(key)) = (id, key) {
+                Some(id == key)
+            } else {
+                None
+            }
+        }),
         Expr::Literal(crate::value::Value::Row(fields) | crate::value::Value::Map(fields)) => {
             fields
                 .get("id")
@@ -548,12 +583,12 @@ fn upsert_identity_matches(
 
 fn resolve_row_container<'a>(
     expression: &'a Expr,
-    bindings: &'a BTreeMap<String, Expr>,
+    bindings: &'a BTreeMap<String, StaticBinding>,
     seen: &mut BTreeSet<String>,
 ) -> &'a Expr {
     if let Expr::Variable(name) = expression
         && seen.insert(name.clone())
-        && let Some(value) = bindings.get(name)
+        && let Some(StaticBinding::Expr(value)) = bindings.get(name)
     {
         return resolve_row_container(value, bindings, seen);
     }
@@ -584,6 +619,7 @@ fn validate_expr(
     expression: &Expr,
     errors: &mut Vec<CheckError>,
     sites: &mut BTreeMap<String, ReadSiteShape>,
+    bindings: &BTreeMap<String, StaticBinding>,
 ) {
     match expression {
         Expr::Input(input) => {
@@ -613,6 +649,7 @@ fn validate_expr(
         Expr::Scan(scan) => {
             register_site(sites, errors, &scan.site, ReadSiteShape::range(scan));
             validate_read(checker, &scan.table, &scan.index, errors);
+            validate_scan_cursors(checker, program, scan, bindings, errors);
             if let Bound::Arg { name, .. } = &scan.take
                 && !program.args.contains_key(name)
             {
@@ -643,6 +680,547 @@ fn validate_expr(
         }
         _ => {}
     }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum StaticType {
+    Unknown,
+    Null,
+    WireId,
+    Id,
+    Principal,
+    Ref(String),
+    Text,
+    Bytes,
+    Int,
+    Bool,
+    Json,
+    Enum,
+    Decimal,
+    Row(String),
+    Object,
+    List {
+        of: Box<StaticType>,
+        len: Option<usize>,
+    },
+    Optional(Box<StaticType>),
+}
+
+#[derive(Clone, Debug)]
+struct StaticFact {
+    kind: StaticType,
+    invalid_id_arithmetic: bool,
+}
+
+impl StaticFact {
+    fn plain(kind: StaticType) -> Self {
+        Self {
+            kind,
+            invalid_id_arithmetic: false,
+        }
+    }
+}
+
+fn validate_scan_cursors(
+    checker: &Checker<'_>,
+    program: &Program,
+    scan: &Scan,
+    bindings: &BTreeMap<String, StaticBinding>,
+    errors: &mut Vec<CheckError>,
+) {
+    if scan.after.is_none() && scan.before.is_none() {
+        return;
+    }
+    let Some(table) = checker.schema.table(&scan.table) else {
+        return;
+    };
+    let Some(index) = table.index(&scan.index) else {
+        return;
+    };
+    // @ref LLP 1001#scans — a cursored index must be a total order (ends in `id`, or is
+    // unique); the runtime accepts the lossy shape, so this is a policy refusal.
+    if index.columns.last().map(String::as_str) != Some("id") && !index.unique {
+        let columns = index
+            .columns
+            .iter()
+            .filter(|column| column.as_str() != "id")
+            .cloned()
+            .chain(std::iter::once("id".to_owned()))
+            .collect::<Vec<_>>()
+            .join(", ");
+        errors.push(CheckError {
+            code: "E_ARGS_CURSOR_INDEX".to_owned(),
+            message: format!(
+                "scan {} uses a cursor on {}.{}, whose index is not a total order (it neither ends in id nor is unique)",
+                scan.site, scan.table, scan.index
+            ),
+            rewrite: format!(
+                "change {}.{} columns to [{columns}] so every cursor position is a total order",
+                scan.table, scan.index
+            ),
+        });
+        return;
+    }
+    let remaining_columns = index.columns.get(scan.prefix.len()..).unwrap_or_default();
+    for (bound, expression) in [
+        ("after", scan.after.as_deref()),
+        ("before", scan.before.as_deref()),
+    ] {
+        let Some(expression) = expression else {
+            continue;
+        };
+        let mut seen = BTreeSet::new();
+        let fact = static_expression_fact(checker.schema, program, expression, bindings, &mut seen);
+        let expected = remaining_columns.len();
+        let shape_matches = match unwrap_static_type(&fact.kind) {
+            StaticType::List {
+                len: Some(actual), ..
+            } => Some(*actual == expected),
+            StaticType::List { len: None, .. } | StaticType::Unknown | StaticType::Json => None,
+            StaticType::Row(_) | StaticType::Object => (expected != 1).then_some(false),
+            _ => Some(expected == 1),
+        };
+        if shape_matches == Some(false) {
+            errors.push(CheckError {
+                code: "E_ARGS_CURSOR_SHAPE".to_owned(),
+                message: format!(
+                    "scan {} {bound} cursor must contain exactly {expected} value(s), one for each remaining {}.{} index column",
+                    scan.site, scan.table, scan.index
+                ),
+                rewrite: cursor_tuple_rewrite(scan, bound, remaining_columns),
+            });
+            continue;
+        }
+    }
+}
+
+fn cursor_tuple_rewrite(scan: &Scan, bound: &str, columns: &[String]) -> String {
+    let tuple = columns
+        .iter()
+        .map(|column| format!("lastRow.{column}"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!(
+        "carry the last returned row and set {bound}: [{tuple}] when scanning {}.{}",
+        scan.table, scan.index
+    )
+}
+
+fn validate_write_expression(
+    checker: &Checker<'_>,
+    program: &Program,
+    table_name: &str,
+    expression: &Expr,
+    patch: bool,
+    bindings: &BTreeMap<String, StaticBinding>,
+    errors: &mut Vec<CheckError>,
+) {
+    let Some(table) = checker.schema.table(table_name) else {
+        return;
+    };
+    let mut seen = BTreeSet::new();
+    let expression = resolve_static_expression(expression, bindings, &mut seen);
+    match expression {
+        Expr::Object(fields) => {
+            for (field, value) in fields {
+                let Some(expected) = table.columns.get(field) else {
+                    continue;
+                };
+                validate_write_value(
+                    checker.schema,
+                    program,
+                    table_name,
+                    field,
+                    expected,
+                    value,
+                    bindings,
+                    errors,
+                );
+            }
+        }
+        Expr::Literal(Value::Row(fields) | Value::Map(fields)) => {
+            for (field, value) in fields {
+                let Some(expected) = table.columns.get(field) else {
+                    continue;
+                };
+                if !literal_matches_column(value, expected) {
+                    errors.push(write_type_error(table_name, field, expected));
+                }
+            }
+        }
+        _ if !patch => {
+            let fact = static_expression_fact(
+                checker.schema,
+                program,
+                expression,
+                bindings,
+                &mut BTreeSet::new(),
+            );
+            if !matches!(
+                fact.kind,
+                StaticType::Unknown | StaticType::Json | StaticType::Row(_) | StaticType::Object
+            ) {
+                errors.push(CheckError {
+                    code: "E_ARGS_TYPE".to_owned(),
+                    message: format!("write to {table_name} requires a row object"),
+                    rewrite: format!("write an object whose fields match {table_name}"),
+                });
+            }
+        }
+        _ => {}
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn validate_write_value(
+    schema: &Schema,
+    program: &Program,
+    table: &str,
+    field: &str,
+    expected: &ColumnType,
+    expression: &Expr,
+    bindings: &BTreeMap<String, StaticBinding>,
+    errors: &mut Vec<CheckError>,
+) {
+    let fact = static_expression_fact(schema, program, expression, bindings, &mut BTreeSet::new());
+    if fact.invalid_id_arithmetic {
+        errors.push(CheckError {
+            code: "E_ARGS_ID_TEXT".to_owned(),
+            message: format!("{table}.{field} applies numeric addition to an Id scalar"),
+            rewrite: "keep each Id in a separate Id/Ref field instead of adding it".to_owned(),
+        });
+    } else if matches_static_column(&fact.kind, expected) == Some(false) {
+        errors.push(write_type_error(table, field, expected));
+    }
+}
+
+fn write_type_error(table: &str, field: &str, expected: &ColumnType) -> CheckError {
+    let id_position = matches!(
+        unwrap_column_type(expected),
+        ColumnType::Id | ColumnType::Principal | ColumnType::Ref { .. }
+    );
+    CheckError {
+        code: if id_position {
+            "E_ARGS_ID_SCALAR"
+        } else {
+            "E_ARGS_TYPE"
+        }
+        .to_owned(),
+        message: format!("write value for {table}.{field} does not match {expected:?}"),
+        rewrite: if id_position {
+            format!(
+                "replace {table}.{field} with Input::NewId in a mutation or an Id/Ref argument or field"
+            )
+        } else {
+            format!("write a {expected:?} value to {table}.{field}")
+        },
+    }
+}
+
+fn static_expression_fact(
+    schema: &Schema,
+    program: &Program,
+    expression: &Expr,
+    bindings: &BTreeMap<String, StaticBinding>,
+    seen: &mut BTreeSet<String>,
+) -> StaticFact {
+    let expression = resolve_static_expression(expression, bindings, seen);
+    match expression {
+        Expr::Literal(value) => StaticFact::plain(static_literal_type(value)),
+        Expr::Variable(name) => StaticFact::plain(match bindings.get(name) {
+            Some(StaticBinding::Row(table)) => StaticType::Row(table.clone()),
+            _ => program
+                .args
+                .get(name)
+                .map(static_arg_type)
+                .unwrap_or(StaticType::Unknown),
+        }),
+        Expr::Input(Input::Viewer) => StaticFact::plain(StaticType::Principal),
+        Expr::Input(Input::Now | Input::ReadTime) => StaticFact::plain(StaticType::Int),
+        Expr::Input(Input::NewId) => StaticFact::plain(StaticType::Id),
+        Expr::Field { base, name } => {
+            let base = resolve_static_expression(base, bindings, &mut seen.clone());
+            match base {
+                Expr::Get(read) => StaticFact::plain(
+                    schema
+                        .table(&read.table)
+                        .and_then(|table| table.columns.get(name))
+                        .map(static_column_type)
+                        .unwrap_or(StaticType::Unknown),
+                ),
+                Expr::Object(fields) => fields.get(name).map_or_else(
+                    || StaticFact::plain(StaticType::Unknown),
+                    |value| {
+                        static_expression_fact(schema, program, value, bindings, &mut seen.clone())
+                    },
+                ),
+                Expr::Literal(Value::Row(fields) | Value::Map(fields)) => fields
+                    .get(name)
+                    .map(|value| StaticFact::plain(static_literal_type(value)))
+                    .unwrap_or_else(|| StaticFact::plain(StaticType::Unknown)),
+                _ => {
+                    let base =
+                        static_expression_fact(schema, program, base, bindings, &mut seen.clone());
+                    match unwrap_static_type(&base.kind) {
+                        StaticType::Row(table_name) => StaticFact::plain(
+                            schema
+                                .table(table_name)
+                                .and_then(|table| table.columns.get(name))
+                                .map(static_column_type)
+                                .unwrap_or(StaticType::Unknown),
+                        ),
+                        _ => StaticFact::plain(StaticType::Unknown),
+                    }
+                }
+            }
+        }
+        Expr::Array(values) => StaticFact::plain(StaticType::List {
+            of: Box::new(common_static_type(values.iter().map(|value| {
+                static_expression_fact(schema, program, value, bindings, &mut seen.clone()).kind
+            }))),
+            len: Some(values.len()),
+        }),
+        Expr::Object(_) => StaticFact::plain(StaticType::Object),
+        Expr::Binary { op, left, right } => {
+            let left = static_expression_fact(schema, program, left, bindings, &mut seen.clone());
+            let right = static_expression_fact(schema, program, right, bindings, &mut seen.clone());
+            let kind = match op {
+                BinaryOp::Eq
+                | BinaryOp::Ne
+                | BinaryOp::SameValueZero
+                | BinaryOp::Lt
+                | BinaryOp::Lte
+                | BinaryOp::Gt
+                | BinaryOp::Gte
+                | BinaryOp::And
+                | BinaryOp::Or => StaticType::Bool,
+                BinaryOp::Add | BinaryOp::Sub | BinaryOp::Mul => {
+                    common_static_type([left.kind.clone(), right.kind.clone()])
+                }
+            };
+            StaticFact {
+                kind,
+                invalid_id_arithmetic: left.invalid_id_arithmetic
+                    || right.invalid_id_arithmetic
+                    || (matches!(op, BinaryOp::Add)
+                        && (is_static_id(&left.kind) || is_static_id(&right.kind))),
+            }
+        }
+        Expr::Unary { value, .. } => static_expression_fact(schema, program, value, bindings, seen),
+        Expr::Builtin { builtin, args } => {
+            let facts = args
+                .iter()
+                .map(|value| {
+                    static_expression_fact(schema, program, value, bindings, &mut seen.clone())
+                })
+                .collect::<Vec<_>>();
+            let invalid_id_arithmetic = facts.iter().any(|fact| fact.invalid_id_arithmetic);
+            let kind = match builtin {
+                Builtin::Len
+                | Builtin::DeterministicShare
+                | Builtin::Count
+                | Builtin::Sum
+                | Builtin::CountCapped => StaticType::Int,
+                Builtin::MentionTokens => StaticType::List {
+                    of: Box::new(StaticType::Text),
+                    len: None,
+                },
+                Builtin::Divmod { .. } => StaticType::Object,
+                Builtin::Slice => StaticType::List {
+                    of: Box::new(StaticType::Unknown),
+                    len: None,
+                },
+                Builtin::Sort { .. } => facts
+                    .first()
+                    .map(|fact| fact.kind.clone())
+                    .unwrap_or(StaticType::Unknown),
+                Builtin::Min | Builtin::Max => {
+                    common_static_type(facts.iter().map(|fact| fact.kind.clone()))
+                }
+                Builtin::Concat => {
+                    if facts.iter().all(|fact| {
+                        matches!(unwrap_static_type(&fact.kind), StaticType::List { .. })
+                    }) {
+                        StaticType::List {
+                            of: Box::new(StaticType::Unknown),
+                            len: None,
+                        }
+                    } else if facts
+                        .iter()
+                        .any(|fact| matches!(unwrap_static_type(&fact.kind), StaticType::Text))
+                    {
+                        StaticType::Text
+                    } else {
+                        common_static_type(facts.iter().map(|fact| fact.kind.clone()))
+                    }
+                }
+            };
+            StaticFact {
+                kind,
+                invalid_id_arithmetic,
+            }
+        }
+        Expr::Get(read) => StaticFact::plain(StaticType::Row(read.table.clone())),
+        Expr::Scan(scan) => StaticFact::plain(StaticType::List {
+            of: Box::new(StaticType::Row(scan.table.clone())),
+            len: None,
+        }),
+        Expr::Exists(_) => StaticFact::plain(StaticType::Bool),
+    }
+}
+
+fn resolve_static_expression<'a>(
+    expression: &'a Expr,
+    bindings: &'a BTreeMap<String, StaticBinding>,
+    seen: &mut BTreeSet<String>,
+) -> &'a Expr {
+    if let Expr::Variable(name) = expression
+        && seen.insert(name.clone())
+        && let Some(StaticBinding::Expr(value)) = bindings.get(name)
+    {
+        return resolve_static_expression(value, bindings, seen);
+    }
+    expression
+}
+
+fn static_literal_type(value: &Value) -> StaticType {
+    match value {
+        Value::Null => StaticType::Null,
+        Value::Bool(_) => StaticType::Bool,
+        Value::Int(_) => StaticType::Int,
+        Value::String(_) => StaticType::Text,
+        Value::Id(_) => StaticType::WireId,
+        Value::Bytes(_) => StaticType::Bytes,
+        Value::Row(_) | Value::Map(_) => StaticType::Object,
+        Value::Array(values) => StaticType::List {
+            of: Box::new(common_static_type(values.iter().map(static_literal_type))),
+            len: Some(values.len()),
+        },
+    }
+}
+
+fn static_column_type(value: &ColumnType) -> StaticType {
+    match value {
+        ColumnType::Id => StaticType::Id,
+        ColumnType::Principal => StaticType::Principal,
+        ColumnType::Ref { table } => StaticType::Ref(table.clone()),
+        ColumnType::Text { .. } => StaticType::Text,
+        ColumnType::Bytes { .. } => StaticType::Bytes,
+        ColumnType::Int | ColumnType::Time => StaticType::Int,
+        ColumnType::Enum { .. } => StaticType::Enum,
+        ColumnType::Decimal { .. } | ColumnType::Money { .. } => StaticType::Decimal,
+        ColumnType::Bool => StaticType::Bool,
+        ColumnType::Json { .. } => StaticType::Json,
+        ColumnType::Optional(inner) => StaticType::Optional(Box::new(static_column_type(inner))),
+        ColumnType::List { of, .. } => StaticType::List {
+            of: Box::new(static_column_type(of)),
+            len: None,
+        },
+    }
+}
+
+fn static_arg_type(value: &ArgType) -> StaticType {
+    match value {
+        ArgType::Id => StaticType::Id,
+        ArgType::Principal => StaticType::Principal,
+        ArgType::Ref { table } => StaticType::Ref(table.clone()),
+        ArgType::Text { .. } => StaticType::Text,
+        ArgType::Bytes { .. } => StaticType::Bytes,
+        ArgType::Int | ArgType::Time => StaticType::Int,
+        ArgType::Enum { .. } => StaticType::Enum,
+        ArgType::Decimal { .. } | ArgType::Money { .. } => StaticType::Decimal,
+        ArgType::Bool => StaticType::Bool,
+        ArgType::Json { .. } => StaticType::Json,
+        ArgType::Optional(inner) => StaticType::Optional(Box::new(static_arg_type(inner))),
+        ArgType::List { of, .. } => StaticType::List {
+            of: Box::new(
+                of.as_deref()
+                    .map(static_arg_type)
+                    .unwrap_or(StaticType::Unknown),
+            ),
+            len: None,
+        },
+        ArgType::Scalar => StaticType::Unknown,
+    }
+}
+
+fn unwrap_static_type(value: &StaticType) -> &StaticType {
+    match value {
+        StaticType::Optional(inner) => unwrap_static_type(inner),
+        value => value,
+    }
+}
+
+fn unwrap_column_type(value: &ColumnType) -> &ColumnType {
+    match value {
+        ColumnType::Optional(inner) => unwrap_column_type(inner),
+        value => value,
+    }
+}
+
+fn common_static_type(values: impl IntoIterator<Item = StaticType>) -> StaticType {
+    let mut values = values.into_iter();
+    let Some(first) = values.next() else {
+        return StaticType::Unknown;
+    };
+    values
+        .all(|value| value == first)
+        .then_some(first)
+        .unwrap_or(StaticType::Unknown)
+}
+
+fn is_static_id(value: &StaticType) -> bool {
+    matches!(
+        unwrap_static_type(value),
+        StaticType::WireId | StaticType::Id | StaticType::Principal | StaticType::Ref(_)
+    )
+}
+
+fn matches_static_column(actual: &StaticType, expected: &ColumnType) -> Option<bool> {
+    if matches!(
+        unwrap_static_type(actual),
+        StaticType::Unknown | StaticType::Json
+    ) {
+        return None;
+    }
+    match expected {
+        ColumnType::Optional(inner) => {
+            if matches!(actual, StaticType::Null) {
+                Some(true)
+            } else {
+                matches_static_column(unwrap_static_type(actual), inner)
+            }
+        }
+        ColumnType::List { of, .. } => match unwrap_static_type(actual) {
+            StaticType::List { of: actual, .. } => matches_static_column(actual, of),
+            _ => Some(false),
+        },
+        ColumnType::Json { .. } => Some(true),
+        ColumnType::Id | ColumnType::Principal | ColumnType::Ref { .. } => {
+            Some(is_static_id(actual))
+        }
+        ColumnType::Text { .. } => Some(matches!(
+            unwrap_static_type(actual),
+            StaticType::Text | StaticType::Enum
+        )),
+        ColumnType::Bytes { .. } => Some(matches!(unwrap_static_type(actual), StaticType::Bytes)),
+        ColumnType::Int | ColumnType::Time => {
+            Some(matches!(unwrap_static_type(actual), StaticType::Int))
+        }
+        ColumnType::Enum { .. } => Some(matches!(
+            unwrap_static_type(actual),
+            StaticType::Text | StaticType::Enum
+        )),
+        ColumnType::Decimal { .. } | ColumnType::Money { .. } => Some(matches!(
+            unwrap_static_type(actual),
+            StaticType::Int | StaticType::Decimal
+        )),
+        ColumnType::Bool => Some(matches!(unwrap_static_type(actual), StaticType::Bool)),
+    }
+}
+
+fn literal_matches_column(value: &Value, expected: &ColumnType) -> bool {
+    matches_static_column(&static_literal_type(value), expected).unwrap_or(true)
 }
 
 fn register_site(

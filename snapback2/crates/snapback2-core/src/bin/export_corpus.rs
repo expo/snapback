@@ -100,6 +100,7 @@ impl Fixture {
 fn main() {
     let mut cases = Vec::new();
     add_named_cases(&mut cases);
+    add_cursor_cases(&mut cases);
     twin_cases::add_twin_cases(&mut cases);
     client_scenarios::add_client_scenarios(&mut cases);
     add_value_edges(&mut cases);
@@ -127,6 +128,114 @@ fn main() {
     fs::write(output.join("manifest.json"), format!("{manifest}\n"))
         .expect("write corpus manifest");
     println!("wrote {} frozen corpus cases", cases.len());
+}
+
+// @ref LLP 1001#3-read-and-write-states-no-silent-states — cursors carry the
+// full post-prefix ordering tuple, including the trailing id tie-breaker.
+fn add_cursor_cases(cases: &mut Vec<CorpusCase>) {
+    let cursor = |row_id: &str| {
+        Box::new(Expr::Array(vec![
+            Expr::Literal(Value::Int(5)),
+            Expr::Literal(id(row_id)),
+        ]))
+    };
+    let scan = |site: &str, order: Order, after: Option<&str>, before: Option<&str>| {
+        Expr::Scan(Scan {
+            site: site.to_owned(),
+            table: "messages".to_owned(),
+            index: "byConvTime".to_owned(),
+            prefix: vec![Expr::Literal(id("c1"))],
+            order,
+            take: Bound::Literal(1),
+            after: after.map(cursor),
+            before: before.map(cursor),
+            range: Some(Range {
+                gt: None,
+                gte: Some(Box::new(Expr::Literal(Value::Int(5)))),
+                lt: None,
+                lte: Some(Box::new(Expr::Literal(Value::Int(5)))),
+            }),
+            provenance: KeyProvenance::Const,
+        })
+    };
+    let low = "message-00004";
+    let high = "message-00005";
+    #[rustfmt::skip]
+    let specs = [
+        ("cursor-asc-after-duplicate-tie", Order::Asc, None, None, Some(low), None, [low, high]),
+        ("cursor-desc-after-two-pages", Order::Desc, None, None, Some(high), None, [high, low]),
+        ("cursor-desc-before-two-pages", Order::Desc, Some(high), None, None, Some(low), [low, high]),
+        ("cursor-asc-before-two-pages", Order::Asc, Some(low), None, None, Some(high), [high, low]),
+    ];
+    for (name, order, first_after, first_before, second_after, second_before, expected_ids) in specs
+    {
+        let pages = [
+            scan(&format!("{name}.first"), order, first_after, first_before),
+            scan(
+                &format!("{name}.second"),
+                order,
+                second_after,
+                second_before,
+            ),
+        ];
+        let program = Program {
+            name: name.to_owned(),
+            kind: ProgramKind::Query,
+            args: BTreeMap::new(),
+            read_time_granularity_ms: None,
+            body: vec![Stmt::Return(Expr::Array(pages.into()))],
+        };
+        let mut fixture = Fixture::new();
+        fixture
+            .engine
+            .seed(
+                "messages",
+                row([
+                    ("id", id("message-00005")),
+                    ("conversationId", id("c1")),
+                    ("authorId", id("u1")),
+                    ("body", text("message 5, tied")),
+                    ("at", Value::Int(5)),
+                ]),
+            )
+            .expect("duplicate cursor row");
+        let context = query_context([]);
+        let execution = authoritative(
+            &mut fixture.engine,
+            &fixture.schema,
+            &program,
+            context.clone(),
+        );
+        let case = case_from_parts(
+            name,
+            "cursor",
+            fixture.schema,
+            program,
+            context,
+            execution.receipt,
+            Vec::new(),
+            None,
+            None,
+        );
+        assert_eq!(case.expected.local_result.as_ref(), Some(&execution.result));
+        let ids = match case.expected.local_result.as_ref() {
+            Some(Value::Array(pages)) => pages
+                .iter()
+                .flat_map(|page| match page {
+                    Value::Array(rows) => rows.as_slice(),
+                    _ => &[],
+                })
+                .map(|row| {
+                    row.field("id")
+                        .and_then(Value::as_str)
+                        .expect("cursor row id")
+                })
+                .collect::<Vec<_>>(),
+            other => panic!("{name} did not return two pages: {other:?}"),
+        };
+        assert_eq!(ids, expected_ids, "{name} has a cursor overlap or gap");
+        cases.push(case);
+    }
 }
 
 fn add_named_cases(cases: &mut Vec<CorpusCase>) {
@@ -234,14 +343,18 @@ fn add_named_cases(cases: &mut Vec<CorpusCase>) {
                     ("body", text("hello all")),
                     ("at", Value::Int(21)),
                 ],
-                ["named-unread-message"],
+                ["named-unread-message", "named-unread-row"],
             ),
         ),
         (
             "named-mark-read",
             mark_read_program(),
             mutation_context(
-                [("membershipId", id("m1")), ("at", Value::Int(20))],
+                [
+                    ("membershipId", id("m1")),
+                    ("at", Value::Int(20)),
+                    ("messageId", id("message-00002")),
+                ],
                 Vec::<String>::new(),
             ),
         ),

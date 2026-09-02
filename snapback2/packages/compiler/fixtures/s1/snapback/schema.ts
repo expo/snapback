@@ -15,7 +15,7 @@ export const conversations = table({
 });
 
 export const memberships = table({
-  columns: { conversationId: t.ref(conversations), userId: t.principal(), lastReadAt: t.time(), activity: t.time() },
+  columns: { conversationId: t.ref(conversations), userId: t.principal(), lastReadAt: t.time(), lastReadId: t.optional(t.id()), activity: t.time() },
   indexes: {
     byConvUser: { columns: ["conversationId", "userId"], unique: true },
     byUserActivity: { columns: ["userId", "activity"] },

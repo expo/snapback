@@ -1,5 +1,5 @@
 type Table = any;
-type Page<T = any> = Array<T> & { hasMore: boolean };
+type Page<T = any> = Array<T>;
 type Db = {
   [name: string]: any;
   get(target: any, key: any): any;
