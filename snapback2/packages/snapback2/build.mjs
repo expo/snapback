@@ -125,24 +125,22 @@ await rm(resolve(guide, "families.source.json"));
 
 const fixtures = resolve(here, "../compiler/fixtures");
 const templateDist = resolve(dist, "templates");
-const chatTarget = resolve(templateDist, "chat", "snapback");
-await cp(resolve(here, "templates/chat/snapback"), chatTarget, { recursive: true });
-await cp(
-  resolve(here, "templates/todos/snapback"),
-  resolve(templateDist, "todos", "snapback"),
-  { recursive: true },
-);
+for (const name of ["todos", "chat", "todos-ts", "chat-ts"]) {
+  await cp(resolve(here, `templates/${name}/snapback`), resolve(templateDist, name, "snapback"), { recursive: true });
+}
 await cp(resolve(here, "templates/react"), resolve(templateDist, "react"), { recursive: true });
 
-const fixtureText = (await Promise.all((await fixtureFiles(fixtures)).map((path) => readFile(path, "utf8")))).join("\n");
+const fixturePaths = await fixtureFiles(fixtures);
+const tsFixtureText = (await Promise.all(fixturePaths.filter((path) => path.endsWith(".ts")).map((path) => readFile(path, "utf8")))).join("\n");
+const quarryFixtureText = (await Promise.all(fixturePaths.filter((path) => path.endsWith(".q")).map((path) => readFile(path, "utf8")))).join("\n");
 const guidePages = await Promise.all(
-  ["grammar", "auth", "live-query", "effects", "personas", "testing"].map(async (name) => ({
+  ["grammar", "quarry", "typescript", "auth", "live-query", "effects", "personas", "testing"].map(async (name) => ({
     name,
     markdown: await readFile(resolve(guideSource, `${name}.md`), "utf8"),
-    limit: name === "grammar" ? 2048 : 4096,
+    limit: name === "grammar" ? 2048 : name === "quarry" ? 12288 : 4096,
   })),
 );
-const guideErrors = [...familyErrors, ...guideFailures(guidePages, fixtureText)];
+const guideErrors = [...familyErrors, ...guideFailures(guidePages, tsFixtureText, quarryFixtureText)];
 if (guideErrors.length > 0) {
   throw new Error(`guide validation failed:\n${guideErrors.join("\n")}`);
 }
@@ -214,14 +212,17 @@ function familyFailures(value) {
   return failures;
 }
 
-function guideFailures(pages, fixturesText) {
+function guideFailures(pages, tsFixturesText, quarryFixturesText = "") {
   const failures = [];
   for (const { name, markdown, limit } of pages) {
     const reasons = [];
     if (Buffer.byteLength(markdown) > limit) reasons.push(`exceeds ${limit} bytes`);
     const staleSnippets = [...markdown.matchAll(/```ts\n([\s\S]*?)\n```/g)]
-      .filter((match) => !fixturesText.includes(match[1])).length;
-    if (staleSnippets > 0) reasons.push(`${staleSnippets} snippet(s) not present in the compiler fixtures`);
+      .filter((match) => !tsFixturesText.includes(match[1])).length;
+    const staleQuarrySnippets = [...markdown.matchAll(/```q\n([\s\S]*?)\n```/g)]
+      .filter((match) => !quarryFixturesText.includes(match[1])).length;
+    if (staleSnippets > 0) reasons.push(`${staleSnippets} TypeScript snippet(s) not present in the compiler fixtures`);
+    if (staleQuarrySnippets > 0) reasons.push(`${staleQuarrySnippets} Quarry snippet(s) not present in the compiler fixtures/templates`);
     if (reasons.length > 0) failures.push(`guide/${name}.md: ${reasons.join("; ")}`);
   }
   return failures;
@@ -229,10 +230,10 @@ function guideFailures(pages, fixturesText) {
 
 async function fixtureFiles(root) {
   const output = [];
-  for (const name of ["todos", "chat"]) {
+  for (const name of ["todos", "chat", "quarry-todos", "quarry-chat", "quarry-surface"]) {
     const directory = resolve(root, name, "snapback");
     for (const entry of await readdir(directory, { withFileTypes: true })) {
-      if (entry.isFile() && entry.name.endsWith(".ts")) output.push(resolve(directory, entry.name));
+      if (entry.isFile() && (entry.name.endsWith(".ts") || entry.name.endsWith(".q"))) output.push(resolve(directory, entry.name));
     }
   }
   return output;

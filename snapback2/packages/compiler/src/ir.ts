@@ -164,9 +164,14 @@ export type DiagnosticCode =
   | "E_EFFECT_GRANT"
   | "E_EFFECT_THEN_ARGS"
   | "E_EFFECT_UNKNOWN"
-  | "E_EMIT_IN_QUERY";
+  | "E_EMIT_IN_QUERY"
+  | "E_QUARRY_SYNTAX"
+  | "E_QUARRY_UNKNOWN"
+  | "E_QUARRY_AMBIGUOUS"
+  | "E_QUARRY_UNSUPPORTED"
+  | "E_QUARRY_PLACEMENT";
 
-export type RefusalFamily = "bound" | "opaque" | "schema" | "rule" | "effect" | "args" | "op" | "input";
+export type RefusalFamily = "bound" | "opaque" | "schema" | "rule" | "effect" | "args" | "op" | "input" | "quarry";
 
 export type FrontendDiagnostic = {
   code: DiagnosticCode;

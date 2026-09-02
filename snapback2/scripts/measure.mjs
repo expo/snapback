@@ -181,7 +181,7 @@ function main() {
   const req = JSON.stringify({ programs: [], schemaMode: "spike" });
   recordStep(record, failedSteps, "check_s", () => run(bin, ["check", "--ir"], { input: req }), 3,
     (result) => `check failed\n${result.stdout ?? ""}\n${result.stderr ?? ""}`);
-  const chat = resolve(root, "packages/compiler/fixtures/chat");
+  const chat = resolve(root, "packages/compiler/fixtures/quarry-chat");
   const projectCheck = recordStep(record, failedSteps, "check_project_s",
     () => run(bin, ["check", "--project", chat], { env: compilerEnv }), 3,
     (result) => `project check failed\n${result.stdout ?? ""}\n${result.stderr ?? ""}`);

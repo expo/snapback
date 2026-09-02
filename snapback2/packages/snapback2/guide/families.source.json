@@ -298,5 +298,35 @@
     "code": "E_EMIT_IN_QUERY",
     "wrong": "query({}, () => { emit(notify, null); return null })",
     "right": "mutation({}, () => { emit(notify, null); return null })"
+  },
+  {
+    "family": "quarry",
+    "code": "E_QUARRY_SYNTAX",
+    "wrong": "```q\ntable items\n  name text <=100\n```",
+    "right": "```q\ntable items:\n  name: text <=100\n  public\n```"
+  },
+  {
+    "family": "quarry",
+    "code": "E_QUARRY_UNKNOWN",
+    "wrong": "```q\nquery one(id: items):\n  return missing[id]\n```",
+    "right": "```q\nquery one(id: items):\n  return items[id]\n```"
+  },
+  {
+    "family": "quarry",
+    "code": "E_QUARRY_AMBIGUOUS",
+    "wrong": "```q\nquery recent(owner: principal):\n  return posts[owner] first 20\n```",
+    "right": "```q\nquery recent(owner: principal):\n  return posts[owner] first 20 by byAuthorTime\n```"
+  },
+  {
+    "family": "quarry",
+    "code": "E_QUARRY_UNSUPPORTED",
+    "wrong": "```q\nquery spin():\n  while true:\n    return 1\n```",
+    "right": "```q\nquery bounded():\n  for i in range(0, 10):\n    return i\n  return 0\n```"
+  },
+  {
+    "family": "quarry",
+    "code": "E_QUARRY_PLACEMENT",
+    "wrong": "```q\n-- snapback/items.q\ntable items:\n  name: text <=100\n```",
+    "right": "```q\n-- snapback/schema.q\ntable items:\n  name: text <=100\n  public\n```"
   }
 ]

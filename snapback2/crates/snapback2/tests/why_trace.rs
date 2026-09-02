@@ -7,6 +7,7 @@ use std::fs;
 fn why_has_per_row_verdicts_and_trace_has_the_emitted_outbox_row() {
     let project = Project::new();
     assert!(project.init("chat", "none").status.success());
+    project.replace_backend_with_built_template("chat-ts");
     let messages = project.path.join("snapback/messages.ts");
     let source = fs::read_to_string(&messages).unwrap()
         + r#"
@@ -77,6 +78,7 @@ export const maybeNotify = mutation({ notify: t.bool() }, ({ args }) => {
 fn why_keeps_rule_admission_separate_from_the_page_cut() {
     let project = Project::new();
     assert!(project.init("todos", "none").status.success());
+    project.replace_backend_with_built_template("todos-ts");
     fs::write(
         project.path.join("snapback/schema.ts"),
         r#"import { rule, schema, table, t } from "snapback2";

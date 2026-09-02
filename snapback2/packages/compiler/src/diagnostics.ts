@@ -109,6 +109,7 @@ function span(module: Pick<DiagnosticModule, "sourceFile" | "fileName">, node: t
 }
 
 function diagnosticFamily(code: DiagnosticCode): FrontendDiagnostic["family"] {
+  if (code.startsWith("E_QUARRY_")) return "quarry";
   if (code.startsWith("E_SCHEMA_")) return "schema";
   if (code.startsWith("E_RULE_")) return "rule";
   if (code.startsWith("E_SEED_")) return "input";
@@ -122,6 +123,11 @@ function diagnosticFamily(code: DiagnosticCode): FrontendDiagnostic["family"] {
 }
 
 function diagnosticGuide(code: DiagnosticCode): string {
+  if (code === "E_QUARRY_SYNTAX") return "quarry/grammar";
+  if (code === "E_QUARRY_AMBIGUOUS") return "quarry/indexes";
+  if (code === "E_QUARRY_UNSUPPORTED") return "quarry/refusals";
+  if (code === "E_QUARRY_PLACEMENT") return "quarry/projects";
+  if (code === "E_QUARRY_UNKNOWN") return "quarry/names";
   if (code === "E_UNBOUND_SCAN") return "bound/scan";
   if (code === "E_UNBOUND_LOOP") return "bound/loop";
   if (code === "E_UNBOUND_COUNT" || code === "E_STRUCTURAL_COUNT") return "bound/count";

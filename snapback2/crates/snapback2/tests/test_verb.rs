@@ -323,6 +323,7 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
 fn unmatched_bare_id_blocks_with_the_operation_and_argument_name() {
     let project = Project::new();
     assert!(project.init("todos", "none").status.success());
+    project.replace_backend_with_built_template("todos-ts");
     fs::write(
         project.path.join("snapback/todos.ts"),
         r#"import { query, t } from "snapback2";
@@ -380,6 +381,7 @@ fn todos_template_passes_without_an_effects_check() {
 fn canonical_membership_without_a_probeable_named_delete_blocks_live_revocation() {
     let project = Project::new();
     assert!(project.init("chat", "none").status.success());
+    project.replace_backend_with_built_template("chat-ts");
     let groups = project.path.join("snapback/groups.ts");
     let source = fs::read_to_string(&groups).unwrap();
     let without_admin_remove = without_export(&source, "memberRemove");
@@ -450,6 +452,7 @@ export const aabUnprobeableLeave = mutation({
 fn ref_based_pseudo_membership_is_refused_before_authority_proofs() {
     let project = Project::new();
     assert!(project.init("chat", "none").status.success());
+    project.replace_backend_with_built_template("chat-ts");
     let schema = project.path.join("snapback/schema.ts");
     let source = fs::read_to_string(&schema).unwrap();
     let ref_based = source.replace("principal: t.principal(),", "principal: t.ref(profiles),");
@@ -480,6 +483,7 @@ fn ref_based_pseudo_membership_is_refused_before_authority_proofs() {
 fn authority_proofs_skip_earlier_unprobeable_candidates() {
     let project = Project::new();
     assert!(project.init("chat", "none").status.success());
+    project.replace_backend_with_built_template("chat-ts");
     let messages = project.path.join("snapback/messages.ts");
     let mut source = fs::read_to_string(&messages).unwrap();
     source.push_str(
@@ -619,6 +623,7 @@ fn test_runs_check_to_restore_a_missing_built_journey_before_owner_start() {
 fn invalidation_blocks_when_every_intersecting_probe_is_rejected() {
     let project = Project::new();
     assert!(project.init("todos", "none").status.success());
+    project.replace_backend_with_built_template("todos-ts");
     fs::remove_file(project.path.join("snapback/tests/todos.test.ts")).unwrap();
     fs::write(
         project.path.join("snapback/todos.ts"),
@@ -669,6 +674,7 @@ export const add = mutation({}, ({ db, ctx }) => {
 fn invalidation_blocks_when_a_query_has_no_disjoint_committing_probe() {
     let project = Project::new();
     assert!(project.init("todos", "none").status.success());
+    project.replace_backend_with_built_template("todos-ts");
     fs::write(
         project.path.join("snapback/schema.ts"),
         r#"import { rule, schema, table, t } from "snapback2";
@@ -735,6 +741,7 @@ export default seed({ personas: ["alice"], rows: { items: [{ id: "item-1", label
 fn rules_use_the_engine_verdict_when_one_synthetic_principal_is_admitted() {
     let project = Project::new();
     assert!(project.init("todos", "none").status.success());
+    project.replace_backend_with_built_template("todos-ts");
     fs::write(
         project.path.join("snapback/schema.ts"),
         r#"import { rule, schema, table, t } from "snapback2";

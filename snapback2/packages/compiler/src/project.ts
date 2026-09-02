@@ -14,6 +14,8 @@ import { boundOperationDiagnostics } from "./operation-diagnostics";
 import { callLeaf, moduleJsonConstants, numberValue, objectOf, property, propertyEntries, staticJson, stringArray, stringValue } from "./lower/static";
 import { findNarrowestNode, hasExport, propertyName, staticMemberPath, unwrapCall, unwrapExpression, walk } from "./syntax";
 import { typeDiagnosticSite } from "./type-diagnostic-site";
+import { compileQuarry, remapVirtualDiagnostic, remapVirtualSource, type QuarryInput, type QuarryVirtualModule } from "./quarry/index";
+import { createProjectProgram, projectTypeDiagnostics } from "./project-program";
 
 // @ref LLP 1002#3-the-compiler-worker-and-the-project-json — one lowering pass owns the ProjectJson, sources, API types, and aggregate refusals.
 
@@ -21,24 +23,63 @@ export async function lowerProject(root: string): Promise<ProjectResult> {
   const started = performance.now();
   const projectRoot = resolve(root);
   const authoredRoot = join(projectRoot, "snapback");
-  const schemaPath = join(authoredRoot, "schema.ts");
-  let schemaSource: string;
-  try {
-    schemaSource = await readFile(schemaPath, "utf8");
-  } catch {
-    const site = relativeSite(projectRoot, schemaPath);
+  const tsSchemaPath = join(authoredRoot, "schema.ts");
+  const qSchemaPath = join(authoredRoot, "schema.q");
+  const hasTsSchema = existsSync(tsSchemaPath);
+  const hasQuarrySchema = existsSync(qSchemaPath);
+  if (hasTsSchema && hasQuarrySchema) {
     return {
       ok: false,
-      diagnostics: [typeDiagnostic("E_SCHEMA_DEFAULT_EXPORT", "schema", site, 1, 1, "missing snapback/schema.ts", "create snapback/schema.ts with a default schema({...}) export", "schema/project")],
+      diagnostics: [typeDiagnostic("E_QUARRY_PLACEMENT", "quarry", "snapback/schema.q", 1, 1,
+        "snapback/schema.q and snapback/schema.ts cannot coexist; exactly one schema is allowed",
+        "-- remove snapback/schema.ts or snapback/schema.q", "quarry/projects")],
+      ms: elapsed(started),
+    };
+  }
+  if (!hasTsSchema && !hasQuarrySchema) {
+    return {
+      ok: false,
+      diagnostics: [typeDiagnostic("E_SCHEMA_DEFAULT_EXPORT", "schema", "snapback/schema.ts", 1, 1,
+        "missing snapback/schema.q or snapback/schema.ts", "create snapback/schema.q with table declarations", "schema/project")],
       ms: elapsed(started),
     };
   }
 
   const discoveredModulePaths = await discoverModulePaths(authoredRoot);
-  const modulePaths = discoveredModulePaths
-    .filter((path) => dirname(path) === authoredRoot)
+  const quarryPaths = discoveredModulePaths.filter((path) => path.endsWith(".q")).sort();
+  if (!hasQuarrySchema && quarryPaths.length > 0) {
+    const path = quarryPaths[0]!;
+    return {
+      ok: false,
+      diagnostics: [typeDiagnostic("E_QUARRY_PLACEMENT", "quarry", relativeSite(projectRoot, path), 1, 1,
+        `Quarry module ${relativeSite(projectRoot, path)} requires snapback/schema.q; this project has snapback/schema.ts`,
+        "-- move the schema to snapback/schema.q or rewrite this module as TypeScript", "quarry/projects")],
+      ms: elapsed(started),
+    };
+  }
+
+  let schemaPath = tsSchemaPath;
+  let schemaSource = hasTsSchema ? await readFile(tsSchemaPath, "utf8") : "";
+  let virtualModules: QuarryVirtualModule[] = [];
+  if (hasQuarrySchema) {
+    const inputs: QuarryInput[] = await Promise.all(quarryPaths.map(async (path) => ({
+      path,
+      fileName: relativeSite(projectRoot, path),
+      source: await readFile(path, "utf8"),
+    })));
+    const compiled = compileQuarry(inputs);
+    if (!compiled.ok) return { ok: false, diagnostics: boundedDiagnostics(compiled.diagnostics, 50, "Quarry refusals"), ms: elapsed(started) };
+    schemaPath = compiled.schema.path;
+    schemaSource = compiled.schema.source;
+    virtualModules = [compiled.schema, ...compiled.modules];
+  }
+  const virtualByFile = new Map(virtualModules.map((module) => [relativeSite(projectRoot, module.path), module]));
+  const tsModulePaths = discoveredModulePaths
+    .filter((path) => path.endsWith(".ts"))
     .sort();
-  const moduleSources = await Promise.all(modulePaths.map(async (path) => [path, await readFile(path, "utf8")] as const));
+  const diskModuleSources = await Promise.all(tsModulePaths.map(async (path) => [path, await readFile(path, "utf8")] as const));
+  const virtualModuleSources = virtualModules.filter((module) => module !== virtualModules[0]).map((module) => [module.path, module.source] as const);
+  const moduleSources = [...diskModuleSources, ...virtualModuleSources].sort(([left], [right]) => left.localeCompare(right));
   const modules: SourceModule[] = moduleSources.map(([path, source]) => ({
     moduleName: moduleName(path),
     fileName: relativeSite(projectRoot, path),
@@ -47,7 +88,8 @@ export async function lowerProject(root: string): Promise<ProjectResult> {
   }));
   const schemaFileName = relativeSite(projectRoot, schemaPath);
   const schema = lowerSchema(schemaSource, schemaFileName);
-  const diagnostics = [...schema.diagnostics, ...duplicateModuleBasenameDiagnostics(discoveredModulePaths, projectRoot)];
+  const programPaths = [...tsModulePaths, ...quarryPaths.filter((path) => basename(path) !== "schema.q")];
+  const diagnostics = [...schema.diagnostics, ...duplicateModuleBasenameDiagnostics(programPaths, projectRoot)];
   if (modules.length === 0) {
     diagnostics.push(typeDiagnostic(
       "E_OP_NONE",
@@ -63,7 +105,7 @@ export async function lowerProject(root: string): Promise<ProjectResult> {
 
   const libText = loadCompilerLib();
   const checked = createProjectProgram(schemaPath, schemaSource, moduleSources, libText);
-  diagnostics.push(...projectTypeDiagnostics(checked.program, projectRoot));
+  diagnostics.push(...projectTypeDiagnostics(checked.program, projectRoot).map((item) => remapDiagnostic(item, virtualByFile, true)));
 
   const operations = collectOperations(modules);
   diagnostics.push(...reservedApiPathDiagnostics(operations, schemaSource, schemaFileName));
@@ -95,7 +137,8 @@ export async function lowerProject(root: string): Promise<ProjectResult> {
     }
   }
 
-  const operationBounded = boundProjectOperationDiagnostics(diagnostics, modules, operations);
+  const operationBounded = boundProjectOperationDiagnostics(diagnostics, modules, operations)
+    .map((item) => remapDiagnostic(item, virtualByFile, false));
   if (operationBounded.length > 0) {
     return { ok: false, diagnostics: boundedDiagnostics(operationBounded, 50, "project refusals"), ms: elapsed(started) };
   }
@@ -106,7 +149,10 @@ export async function lowerProject(root: string): Promise<ProjectResult> {
   return {
     ok: true,
     project: { schema: schema.schema, programs, effects: loweredEffects.effects },
-    sources: Object.fromEntries(Object.entries(sources).sort(([left], [right]) => left.localeCompare(right))),
+    sources: Object.fromEntries(Object.entries(sources).map(([name, site]) => {
+      const virtual = virtualByFile.get(site.file);
+      return [name, virtual ? remapVirtualSource(site, virtual) : site] as [string, SourceSite];
+    }).sort(([left], [right]) => left.localeCompare(right))),
     apiDts,
     ms: elapsed(started),
   };
@@ -119,7 +165,7 @@ async function discoverModulePaths(directory: string, root = directory): Promise
     if (entry.isDirectory()) {
       if (directory === root && entry.name === "tests") continue;
       paths.push(...await discoverModulePaths(path, root));
-    } else if (entry.isFile() && entry.name.endsWith(".ts")
+    } else if (entry.isFile() && (entry.name.endsWith(".ts") || entry.name.endsWith(".q"))
       && !(directory === root && ["schema.ts", "seed.ts"].includes(entry.name))) {
       paths.push(path);
     }
@@ -201,8 +247,16 @@ export async function lowerSeed(root: string): Promise<
   try {
     schemaSource = await readFile(join(projectRoot, "snapback", "schema.ts"), "utf8");
   } catch {
-    diagnostics.push(diagnostic(module, "E_SEED_TABLE", expression ?? sourceFile, "seed validation requires snapback/schema.ts", source));
-    return { ok: false, diagnostics };
+    const authoredRoot = join(projectRoot, "snapback");
+    const paths = (await discoverModulePaths(authoredRoot)).filter((item) => item.endsWith(".q"));
+    const inputs: QuarryInput[] = await Promise.all(paths.map(async (item) => ({
+      path: item,
+      fileName: relativeSite(projectRoot, item),
+      source: await readFile(item, "utf8"),
+    })));
+    const compiled = compileQuarry(inputs);
+    if (!compiled.ok) return { ok: false, diagnostics: compiled.diagnostics };
+    schemaSource = compiled.schema.source;
   }
   const loweredSchema = lowerSchema(schemaSource, "snapback/schema.ts");
   if (loweredSchema.diagnostics.length > 0) return { ok: false, diagnostics: loweredSchema.diagnostics };
@@ -322,80 +376,6 @@ export async function compileJourneys(
 function compilerPackageDist(): string {
   const here = dirname(fileURLToPath(import.meta.url));
   return basename(here) === "dist" ? here : resolve(here, "../../snapback2/dist");
-}
-
-function createProjectProgram(
-  schemaPath: string,
-  schemaSource: string,
-  moduleSources: ReadonlyArray<readonly [string, string]>,
-  libText: string,
-): { program: ts.Program; checker: ts.TypeChecker } {
-  const libPath = resolve(dirname(schemaPath), "__snapback2_lib.d.ts");
-  const files = new Map<string, string>([[schemaPath, schemaSource], [libPath, libText], ...moduleSources]);
-  const options: ts.CompilerOptions = {
-    module: ts.ModuleKind.ESNext,
-    moduleResolution: ts.ModuleResolutionKind.Bundler,
-    noEmit: true,
-    noLib: true,
-    strict: true,
-    target: ts.ScriptTarget.ES2022,
-    types: [],
-  };
-  const host = ts.createCompilerHost(options, true);
-  // The injected __snapback2_lib.d.ts is the sole authority for the
-  // `snapback2` module surface. An installed copy of the shim in the
-  // project's node_modules carries the same `declare module "snapback2"`
-  // block, and letting Bundler resolution reach it puts two conflicting
-  // ambient modules in one program (duplicate-identifier refusals a
-  // packaged consumer hits on `init`). Bare snapback2 specifiers therefore
-  // never resolve to files; relative imports resolve normally.
-  host.resolveModuleNameLiterals = (literals, containingFile, redirectedReference, compilerOptions) =>
-    literals.map((literal) => {
-      const name = literal.text;
-      if (name === "snapback2" || name.startsWith("snapback2/")) {
-        return { resolvedModule: undefined };
-      }
-      return ts.resolveModuleName(name, containingFile, compilerOptions, host);
-    });
-  const sourceFile = host.getSourceFile.bind(host);
-  const read = host.readFile.bind(host);
-  const exists = host.fileExists.bind(host);
-  host.fileExists = (name) => files.has(name) || exists(name);
-  host.readFile = (name) => files.get(name) ?? read(name);
-  host.getSourceFile = (name, languageVersion, onError, shouldCreateNewSourceFile) => {
-    const text = files.get(name);
-    return text === undefined
-      ? sourceFile(name, languageVersion, onError, shouldCreateNewSourceFile)
-      : ts.createSourceFile(name, text, languageVersion, true);
-  };
-  const program = ts.createProgram([...files.keys()], options, host);
-  return { program, checker: program.getTypeChecker() };
-}
-
-function projectTypeDiagnostics(program: ts.Program, projectRoot: string): FrontendDiagnostic[] {
-  const checker = program.getTypeChecker();
-  return ts.getPreEmitDiagnostics(program).flatMap((item) => {
-    if (!item.file || item.file.fileName.endsWith("__snapback2_lib.d.ts")) return [];
-    if (item.file.fileName.includes(`${sep}node_modules${sep}`)) return [];
-    if (!resolve(item.file.fileName).startsWith(`${resolve(projectRoot)}${sep}`)) return [];
-    if (selfTableReference(item)) return [];
-    if (exportedStaticTableUsedBeforeAssigned(item, checker)) return [];
-    const position = item.start === undefined ? { line: 0, character: 0 } : item.file.getLineAndCharacterOfPosition(item.start);
-    const file = relativeSite(projectRoot, item.file.fileName);
-    const message = ts.flattenDiagnosticMessageText(item.messageText, "\n");
-    const node = item.start === undefined ? item.file : findNarrowestNode(item.file, item.start);
-    const siteKind = typeDiagnosticSite(node, file);
-    return [typeDiagnostic(
-      siteKind.code,
-      siteKind.family,
-      file,
-      position.line + 1,
-      position.character + 1,
-      message,
-      typeDiagnosticRewrite(item.file, node, message),
-      siteKind.guide,
-    )];
-  });
 }
 
 function collectOperations(modules: SourceModule[]): Map<string, OperationDecl & { module: SourceModule }> {
@@ -961,35 +941,6 @@ function jsonWireMismatch(value: unknown, path: string): string | undefined {
   return undefined;
 }
 
-function selfTableReference(item: ts.Diagnostic): boolean {
-  if (!item.file || item.start === undefined) return false;
-  const node = findNarrowestNode(item.file, item.start);
-  const declaration = ancestor(node, ts.isVariableDeclaration);
-  const call = declaration?.initializer && unwrapCall(declaration.initializer);
-  return !!call && callLeaf(call) === "table" && ts.isIdentifier(declaration!.name) && node.getText() === declaration!.name.text;
-}
-
-function exportedStaticTableUsedBeforeAssigned(item: ts.Diagnostic, checker: ts.TypeChecker): boolean {
-  if (item.code !== 2454 || !item.file || item.start === undefined) return false;
-  if (basename(item.file.fileName) !== "schema.ts" || basename(dirname(item.file.fileName)) !== "snapback") return false;
-  const node = findNarrowestNode(item.file, item.start);
-  if (!ts.isIdentifier(node)) return false;
-  const declaration = checker.getSymbolAtLocation(node)?.valueDeclaration;
-  if (!declaration || !ts.isVariableDeclaration(declaration) || declaration.getSourceFile() !== item.file) return false;
-  const statement = ancestor(declaration, ts.isVariableStatement);
-  const call = declaration.initializer && unwrapCall(declaration.initializer);
-  return !!statement && hasExport(statement) && !!call && callLeaf(call) === "table";
-}
-
-function ancestor<T extends ts.Node>(node: ts.Node, guard: (value: ts.Node) => value is T): T | undefined {
-  let current: ts.Node | undefined = node;
-  while (current) {
-    if (guard(current)) return current;
-    current = current.parent;
-  }
-  return undefined;
-}
-
 function loadCompilerLib(): string {
   const moduleCandidates = [
     fileURLToPath(new URL("../lib.d.ts", import.meta.url)),
@@ -1005,19 +956,18 @@ function loadCompilerLib(): string {
   return `${readFileSync(subsetPath, "utf8")}\n${readFileSync(modulePath, "utf8")}`;
 }
 
-function typeDiagnosticRewrite(sourceFile: ts.SourceFile, node: ts.Node, message: string): string {
-  const statement = ancestor(node, ts.isStatement);
-  if (statement) return `${statement.getText(sourceFile)}\n// Fix the TypeScript error above: ${message.split("\n")[0]}`;
-  const position = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
-  const lineStarts = sourceFile.getLineStarts();
-  const start = lineStarts[position.line] ?? 0;
-  const next = lineStarts[position.line + 1] ?? sourceFile.text.length;
-  const line = sourceFile.text.slice(start, next).trimEnd();
-  return `${line}\n// Fix the TypeScript error above: ${message.split("\n")[0]}`;
+function moduleName(path: string): string {
+  return path.split(sep).at(-1)!.replace(/\.(?:q|ts)$/, "");
 }
 
-function moduleName(path: string): string {
-  return path.split(sep).at(-1)!.replace(/\.ts$/, "");
+function remapDiagnostic(
+  diagnostic: FrontendDiagnostic,
+  virtualByFile: Map<string, QuarryVirtualModule>,
+  generatedTypeError: boolean,
+): FrontendDiagnostic {
+  const file = diagnostic.site.replace(/:\d+:\d+$/, "");
+  const virtual = virtualByFile.get(file);
+  return virtual ? remapVirtualDiagnostic(diagnostic, virtual, generatedTypeError) : diagnostic;
 }
 
 function relativeSite(root: string, path: string): string {

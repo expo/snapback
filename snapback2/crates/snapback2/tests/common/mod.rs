@@ -53,6 +53,19 @@ impl Project {
             .expect("run init")
     }
 
+    pub fn replace_backend_with_built_template(&self, template: &str) {
+        let backend = self.path.join("snapback");
+        fs::remove_dir_all(&backend).expect("remove initialized backend");
+        copy_tree(
+            &self
+                .package
+                .join("dist/templates")
+                .join(template)
+                .join("snapback"),
+            &backend,
+        );
+    }
+
     pub fn run(&self, args: &[&str]) -> Output {
         let mut command = self.command();
         command.args(args).arg("--project").arg(&self.path);
@@ -213,7 +226,7 @@ fn ensure_package() {
                 .join("packages/snapback2/dist/test-runner.mjs")
                 .is_file()
             && root
-                .join("packages/snapback2/dist/templates/chat/snapback/schema.ts")
+                .join("packages/snapback2/dist/templates/chat/snapback/schema.q")
                 .is_file()
     };
     if ready() {

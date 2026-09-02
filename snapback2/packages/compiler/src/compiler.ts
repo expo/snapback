@@ -877,9 +877,16 @@ function lowerValue(node: ts.Expression, env: Environment, hint?: string): Lower
       if (!target || !row) refuse(env, "E_OPAQUE", value, "insert requires table and row");
       reserveWriteSite(env);
       const loweredRow = lowerValue(row, env, hint);
+      const rowName = temporary(env, "insertRow");
       return {
-        statements: [...loweredRow.statements, { Insert: { table: tableReference(target, env).table, row: loweredRow.expression } }],
-        expression: loweredRow.expression,
+        // @ref LLP 1007#3-finding-where-check-is-green-and-the-runtime-is-red —
+        // impure row members (newId/now) are evaluated once for storage and return.
+        statements: [
+          ...loweredRow.statements,
+          { Let: { name: rowName, value: loweredRow.expression } },
+          { Insert: { table: tableReference(target, env).table, row: { Variable: rowName } } },
+        ],
+        expression: { Variable: rowName },
       };
     }
     if (ts.isIdentifier(value.expression) && ["top", "mergeByTime", "intersectById"].includes(value.expression.text)) {

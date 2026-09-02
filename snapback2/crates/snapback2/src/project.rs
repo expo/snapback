@@ -286,7 +286,9 @@ pub fn locate_root(explicit: Option<&Path>) -> Result<PathBuf, Refusal> {
         current.pop();
     }
     loop {
-        if current.join("snapback/schema.ts").is_file() {
+        if current.join("snapback/schema.ts").is_file()
+            || current.join("snapback/schema.q").is_file()
+        {
             return Ok(current);
         }
         if !current.pop() {

@@ -91,7 +91,7 @@ fn scaffold(root: &Path, template: &str, client: Client) -> Result<(), Refusal> 
 
     let templates = template_root()?;
     let backend = templates.join(template).join("snapback");
-    if !backend.join("schema.ts").is_file() {
+    if !backend.join("schema.ts").is_file() && !backend.join("schema.q").is_file() {
         return Err(Refusal::owner(
             "E_OWNER_TEMPLATE",
             format!("template {template} is incomplete at {}", backend.display()),
@@ -123,7 +123,10 @@ fn template_root() -> Result<PathBuf, Refusal> {
     candidates
         .into_iter()
         .flatten()
-        .find(|path| path.join("todos/snapback/schema.ts").is_file())
+        .find(|path| {
+            path.join("todos/snapback/schema.ts").is_file()
+                || path.join("todos/snapback/schema.q").is_file()
+        })
         .ok_or_else(|| {
             Refusal::owner(
                 "E_OWNER_TEMPLATE",

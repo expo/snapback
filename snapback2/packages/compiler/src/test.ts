@@ -12,6 +12,7 @@ import { registerColumnTypeChecks } from "./test-column-types";
 import { registerFinalGateChecks } from "./test-final-gates";
 import { rustCheck } from "./rust-check";
 import { registerRuleTransitionChecks } from "./rule-transitions-checks";
+import { registerQuarryChecks } from "./quarry-checks";
 import { decimal } from "../../snapback2/src/index";
 import type { Principal } from "../../snapback2/src/index";
 import type { Op } from "../../snapback2/src/api";
@@ -30,6 +31,7 @@ type Check = { name: string; run: () => void | Promise<void> };
 const checks: Check[] = [];
 const test = (name: string, run: Check["run"]) => checks.push({ name, run });
 registerRuleTransitionChecks(test, libText);
+registerQuarryChecks(test, frontend);
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -1417,7 +1419,10 @@ test("worker survives a refused compile and serves the next request under Node",
 
 test("npm pack from a clean dist builds every exported module and declaration", async () => {
   const packageRoot = `${crate}packages/snapback2`;
-  const packed = Bun.spawnSync({ cmd: ["npm", "pack", "--dry-run", "--json"], cwd: packageRoot, stdout: "pipe", stderr: "pipe" });
+  const packed = Bun.spawnSync({
+    cmd: ["npm", "pack", "--dry-run", "--json"], cwd: packageRoot, stdout: "pipe", stderr: "pipe",
+    env: { ...process.env, npm_config_cache: resolve(tmpdir(), "snapback2-npm-cache") },
+  });
   assert(packed.exitCode === 0, `npm pack --dry-run failed: ${new TextDecoder().decode(packed.stderr)}`);
   const report = JSON.parse(new TextDecoder().decode(packed.stdout));
   const files = new Set((report[0]?.files ?? []).map((item: { path: string }) => item.path));

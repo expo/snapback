@@ -1208,6 +1208,97 @@ mod tests {
     use crate::programs::spike_schema;
 
     #[test]
+    fn insert_row_expression_is_shared_by_storage_and_return() {
+        let schema = spike_schema();
+        let row = Expr::Object(BTreeMap::from([
+            ("id".to_owned(), Expr::Input(Input::NewId)),
+            ("ownerId".to_owned(), Expr::Input(Input::Viewer)),
+            (
+                "resourceId".to_owned(),
+                Expr::Literal(Value::Id("resource-1".to_owned())),
+            ),
+        ]));
+        let program = Program {
+            name: "waitlist.insertAndReturn".to_owned(),
+            kind: ProgramKind::Mutation,
+            args: BTreeMap::new(),
+            read_time_granularity_ms: None,
+            body: vec![
+                Stmt::Let {
+                    name: "row".to_owned(),
+                    value: row,
+                },
+                Stmt::Insert {
+                    table: "waitlist".to_owned(),
+                    row: Expr::Variable("row".to_owned()),
+                },
+                Stmt::Return(Expr::Variable("row".to_owned())),
+            ],
+        };
+        let certificate = Checker::new(&schema, Ceilings::default())
+            .check(&program)
+            .unwrap();
+        let mut context = Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new());
+        context.new_ids = VecDeque::from(["generated-once".to_owned()]);
+        let mut engine = Engine::memory(schema).unwrap();
+        let execution = engine.execute(&program, &certificate, context).unwrap();
+        let stored = engine.rows("waitlist").unwrap();
+
+        assert_eq!(
+            execution.result.field("id").unwrap().as_str().unwrap(),
+            "generated-once"
+        );
+        assert_eq!(
+            stored[0].field("id").unwrap().as_str().unwrap(),
+            "generated-once"
+        );
+    }
+
+    #[test]
+    fn mutually_exclusive_branch_writes_certify_and_execute_at_the_same_bound() {
+        let schema = spike_schema();
+        let insert = |suffix: &str| Stmt::Insert {
+            table: "waitlist".to_owned(),
+            row: Expr::Object(BTreeMap::from([
+                ("id".to_owned(), Expr::Input(Input::NewId)),
+                ("ownerId".to_owned(), Expr::Input(Input::Viewer)),
+                (
+                    "resourceId".to_owned(),
+                    Expr::Literal(Value::Id(format!("resource-{suffix}"))),
+                ),
+            ])),
+        };
+        let program = Program {
+            name: "waitlist.branchInsert".to_owned(),
+            kind: ProgramKind::Mutation,
+            args: BTreeMap::from([("chooseFirst".to_owned(), ArgType::Bool)]),
+            read_time_granularity_ms: None,
+            body: vec![
+                Stmt::If {
+                    condition: Expr::Variable("chooseFirst".to_owned()),
+                    then_body: vec![insert("first")],
+                    else_body: vec![insert("second")],
+                },
+                Stmt::Return(Expr::Literal(Value::Null)),
+            ],
+        };
+        let certificate = Checker::new(&schema, Ceilings::default())
+            .check(&program)
+            .unwrap();
+        assert_eq!(certificate.write_sites[0].max_rows, 1);
+
+        for choose_first in [true, false] {
+            let args = BTreeMap::from([("chooseFirst".to_owned(), Value::Bool(choose_first))]);
+            let mut context = Context::mutation(Actor::user("u1").unwrap(), args);
+            context.new_ids = VecDeque::from([format!("branch-{choose_first}")]);
+            let mut engine = Engine::memory(schema.clone()).unwrap();
+            let execution = engine.execute(&program, &certificate, context).unwrap();
+            assert!(matches!(execution.state, ExecutionState::Committed { .. }));
+            assert_eq!(engine.rows("waitlist").unwrap().len(), 1);
+        }
+    }
+
+    #[test]
     fn receipt_absence_missing_from_trace_is_rejected() {
         let mut connection = Connection::open_in_memory().unwrap();
         let transaction = connection.transaction().unwrap();

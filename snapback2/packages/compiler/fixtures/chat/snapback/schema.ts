@@ -46,13 +46,14 @@ export const conversations = table({
     update: rule.deny(),
     delete: rule.deny(),
   },
-  constraints: [{
-    finalExistsOnInsert: {
+  constraints: [
+    { unique: "byIdCreator" },
+    { finalExistsOnInsert: {
       table: "memberships",
       index: "byConversationPrincipalRole",
       key: [rule.field("id"), rule.field("creatorId"), rule.literal("admin")],
-    },
-  }],
+    } },
+  ],
 });
 
 // The compiler statically lowers descriptors; `var` permits this reciprocal rule/ref declaration.
@@ -190,6 +191,7 @@ export const messageCounts = table({
     update: rule.deny(),
     delete: rule.deny(),
   },
+  constraints: [{ unique: "byConversation" }],
 });
 
 export const notifications = table({
@@ -202,6 +204,7 @@ export const notifications = table({
     update: rule.system(),
     delete: rule.deny(),
   },
+  constraints: [{ unique: "byOutbox" }],
 });
 
 export const typing = channel({
