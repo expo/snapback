@@ -146,7 +146,7 @@ fn write_migration(
 
 fn fingerprint(root: &Path) -> BTreeMap<PathBuf, (u128, u64)> {
     let mut files = Vec::new();
-    collect_ts(root, &mut files);
+    collect_authored_sources(root, &mut files);
     files
         .into_iter()
         .filter_map(|path| {
@@ -162,15 +162,18 @@ fn fingerprint(root: &Path) -> BTreeMap<PathBuf, (u128, u64)> {
         .collect()
 }
 
-fn collect_ts(root: &Path, output: &mut Vec<PathBuf>) {
+fn collect_authored_sources(root: &Path, output: &mut Vec<PathBuf>) {
     let Ok(entries) = fs::read_dir(root) else {
         return;
     };
     for entry in entries.flatten() {
         let path = entry.path();
         if path.is_dir() {
-            collect_ts(&path, output);
-        } else if path.extension().is_some_and(|extension| extension == "ts") {
+            collect_authored_sources(&path, output);
+        } else if path
+            .extension()
+            .is_some_and(|extension| extension == "ts" || extension == "q")
+        {
             output.push(path);
         }
     }

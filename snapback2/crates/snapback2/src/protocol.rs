@@ -148,7 +148,7 @@ impl Refusal {
         };
         let rewrite = match error {
             IdentityError::PasswordWeak => "use a password containing at least 8 characters",
-            IdentityError::GuestsOff => "sign up or enable guests in snapback/schema.ts",
+            IdentityError::GuestsOff => "sign up or enable guests in the project's snapback/schema",
             IdentityError::Session => "log in again and send Authorization: Bearer <token>",
             _ => "correct the authentication request and retry",
         };

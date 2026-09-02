@@ -13,26 +13,26 @@ query hasMembership(group: groups, principal: principal):
 
 query postsAfter(author: principal, cursor: time ?):
   if cursor:
-    return posts[author] after cursor first 3 by byAuthorAt {
+    return posts[author] after cursor first 3 {
       *,
-      author: users[.author] by byPrincipal { name, role },
+      author: users[.author] { name, role },
       edited: .editedAt ?? .at,
     }
   else:
-    return posts[author] first 3 by byAuthorAt {
+    return posts[author] first 3 {
       *,
-      author: users[.author] by byPrincipal { name, role },
+      author: users[.author] { name, role },
       edited: .editedAt ?? .at,
     }
 
 query postsBefore(author: principal, cursor: time):
-  return posts[author] before cursor last 3 by byAuthorAt {
+  return posts[author] before cursor last 3 {
     body,
-    author: users[.author] by byPrincipal { name },
+    author: users[.author] { name },
   }
 
 query visiblePosts(author: principal):
-  page = posts[author] first 5 by byAuthorAt where .visible = true
+  page = posts[author] first 5 where .visible = true
   return { rows: page, count: count(page) }
 
 query ancestors(seed: nodes):
@@ -46,7 +46,7 @@ query wordTokens(body: text <=500):
   return tokens(body)
 
 query children(parent: nodes):
-  return nodes[parent] first 5 by byParentName { name }
+  return nodes[parent] first 5 { name }
 
 query noteIsSet(counter: counters):
   row = counters[counter]! else COUNTER_NOT_FOUND

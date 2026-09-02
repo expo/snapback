@@ -14,9 +14,8 @@ import { boundOperationDiagnostics } from "./operation-diagnostics";
 import { callLeaf, moduleJsonConstants, numberValue, objectOf, property, propertyEntries, staticJson, stringArray, stringValue } from "./lower/static";
 import { findNarrowestNode, hasExport, propertyName, staticMemberPath, unwrapCall, unwrapExpression, walk } from "./syntax";
 import { typeDiagnosticSite } from "./type-diagnostic-site";
-import { compileQuarry, remapVirtualDiagnostic, remapVirtualSource, type QuarryInput, type QuarryVirtualModule } from "./quarry/index";
+import { compileQuarry, quarryInspection, remapVirtualDiagnostic, remapVirtualSource, type QuarryInput, type QuarryVirtualModule } from "./quarry/index";
 import { createProjectProgram, projectTypeDiagnostics } from "./project-program";
-
 // @ref LLP 1002#3-the-compiler-worker-and-the-project-json — one lowering pass owns the ProjectJson, sources, API types, and aggregate refusals.
 
 export async function lowerProject(root: string): Promise<ProjectResult> {
@@ -154,6 +153,7 @@ export async function lowerProject(root: string): Promise<ProjectResult> {
       return [name, virtual ? remapVirtualSource(site, virtual) : site] as [string, SourceSite];
     }).sort(([left], [right]) => left.localeCompare(right))),
     apiDts,
+    quarry: quarryInspection(virtualModules),
     ms: elapsed(started),
   };
 }

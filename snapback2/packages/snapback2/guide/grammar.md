@@ -27,7 +27,7 @@ Types are `principal`, `id`, table references, `int`, `time`, `bool`,
 
 ```q
 query list():
-  return todos[viewer] first 50 by byOwnerId
+  return todos[viewer] first 50
 ```
 
 Program declarations are `effect name from module`, `query name(args)`, and

@@ -80,6 +80,6 @@ maintain counterTotals = sum counters of value by owner:
   readable <- allow
 
 channel typing(group: groups):
-  publish <- exists memberships[group, viewer] by byGroupPrincipal
-  subscribe <- exists memberships[group, viewer] by byGroupPrincipal
+  publish <- exists memberships[group, viewer]
+  subscribe <- exists memberships[group, viewer]
   ttl 5s

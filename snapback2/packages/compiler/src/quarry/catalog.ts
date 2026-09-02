@@ -158,6 +158,10 @@ export function selectIndex(
     if (type?.kind === "ref" && (type.table === table || type.table === "")) candidates = candidates.filter((index) => index.name === "byId");
     else if (candidates.some((index) => index.name !== "byId")) candidates = candidates.filter((index) => index.name !== "byId");
   }
+  if (mode !== "range") {
+    const exact = candidates.filter((index) => index.columns.length === keys.length);
+    if (exact.length > 0) candidates = exact;
+  }
   if (candidates.length === 0) {
     const spelling = keys.map((key) => key.column ?? "?").join(", ");
     refuse(site, `no ${mode === "point" ? "unique index" : "ordering"} on ${table} matches [${spelling}]; name the columns/index or add one`);
@@ -185,8 +189,13 @@ function columnType(table: TableDecl, name: string): ScalarType {
 
 function compatible(actual: ScalarType | undefined, expected: ScalarType): boolean {
   if (!actual) return true;
-  if (expected.kind === "ref") return actual.kind === "ref" || actual.kind === "id";
+  if (expected.kind === "ref") {
+    if (actual.kind === "id") return true;
+    return actual.kind === "ref"
+      && (!actual.table || !expected.table || actual.table === expected.table);
+  }
   if (expected.kind === "id") return actual.kind === "ref" || actual.kind === "id";
   if (expected.kind === "principal") return actual.kind === "principal";
+  if (expected.kind === "enum" && actual.kind === "text") return true;
   return actual.kind === expected.kind;
 }

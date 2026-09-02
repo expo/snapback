@@ -3,8 +3,8 @@
 Quarry is the default Snapback 2 authoring language. It is a small, bounded
 front end to the same compiler, checker, evaluator, and server used by the
 TypeScript escape hatch. `snapback2 check` compiles `.q` text in memory; it
-does not place generated files in `snapback/`. Inspection output, when
-requested, belongs only under `.snapback/build/quarry/`.
+does not place generated files in `snapback/`. `snapback2 check` writes an
+inspection copy under `.snapback/build/quarry/`.
 
 ## Project
 
@@ -67,7 +67,7 @@ choice as `E_DISCLOSURE`. It does not replace the target table's ordinary
 
 ```q
 maintain messageCounts = count messages by conversationId:
-  read r <- exists memberships[r.conversationId, viewer] by byConversationIdPrincipal
+  read r <- exists memberships[r.conversationId, viewer]
 ```
 
 ## Programs

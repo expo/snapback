@@ -21,11 +21,11 @@ table conversations:
   creatorId: principal
   by creatorId
   unique id, creatorId
-  read r <- exists memberships[r.id, viewer] by byConversationIdPrincipal
+  read r <- exists memberships[r.id, viewer]
   insert r <- r.creatorId = viewer
   update r <- deny
   delete r <- deny
-  after insert r <- exists memberships[r.id, r.creatorId, 'admin'] by byConversationPrincipalRole
+  after insert r <- exists memberships[r.id, r.creatorId, 'admin']
 
 table memberships:
   conversationId: conversations
@@ -36,17 +36,17 @@ table memberships:
   by byConversationPrincipalRole: conversationId, principal, role
   by byPrincipalConversation: principal, conversationId
   immutable conversationId, principal, joinedAt
-  read r <- exists memberships[r.conversationId, viewer] by byConversationIdPrincipal
+  read r <- exists memberships[r.conversationId, viewer]
   insert r <- (
-    exists memberships[r.conversationId, viewer, 'admin'] by byConversationPrincipalRole
+    exists memberships[r.conversationId, viewer, 'admin']
     or (
       r.principal = viewer
       and r.role = 'admin'
-      and created conversations[r.conversationId, viewer] by byIdCreatorId
+      and created conversations[r.conversationId, viewer]
     )
   )
   update (old, next) <- (
-    exists memberships[old.conversationId, viewer, 'admin'] by byConversationPrincipalRole
+    exists memberships[old.conversationId, viewer, 'admin']
     and old.conversationId = next.conversationId
     and old.principal = next.principal
     and old.role = 'member'
@@ -54,7 +54,7 @@ table memberships:
   )
   delete r <- (
     r.principal = viewer
-    or exists memberships[r.conversationId, viewer, 'admin'] by byConversationPrincipalRole
+    or exists memberships[r.conversationId, viewer, 'admin']
   )
 
 table messages:
@@ -63,10 +63,10 @@ table messages:
   body: text <=4000
   at: time
   by byConvTime: conversationId, at, id
-  read r <- exists memberships[r.conversationId, viewer] by byConversationIdPrincipal
+  read r <- exists memberships[r.conversationId, viewer]
   insert r <- (
     r.authorId = viewer
-    and exists memberships[r.conversationId, viewer] by byConversationIdPrincipal
+    and exists memberships[r.conversationId, viewer]
   )
   update r <- r.authorId = viewer
   delete r <- r.authorId = viewer
@@ -107,9 +107,9 @@ table notifications:
   delete r <- deny
 
 maintain messageCounts = count messages by conversationId:
-  read r <- exists memberships[r.conversationId, viewer] by byConversationIdPrincipal
+  read r <- exists memberships[r.conversationId, viewer]
 
 channel typing(conversationId: conversations):
-  publish <- exists memberships[conversationId, viewer] by byConversationIdPrincipal
-  subscribe <- exists memberships[conversationId, viewer] by byConversationIdPrincipal
+  publish <- exists memberships[conversationId, viewer]
+  subscribe <- exists memberships[conversationId, viewer]
   ttl 4s

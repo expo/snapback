@@ -18,7 +18,8 @@ const AGENT_BLOCK: &str = r#"<!-- snapback2:start -->
 - `snapback2 test` proves derived checks and authored journeys with a receipt.
 - `snapback2 why <query> --as <persona>` explains rows, rules, and bounds.
 - `snapback2 trace latest` follows commit → invalidation → delivery.
-- `snapback2 guide grammar` is the one-screen language reference.
+- Backends are `snapback/*.q`; `snapback2 guide quarry` is the language reference.
+- Effects, seeds, and journeys are TypeScript.
 
 Gotchas: authentication is always on; use `--as <persona>` only in development.
 Every scan names `take`; empty, capped, denied, and stale are distinct states.
@@ -32,7 +33,8 @@ enum Client {
 }
 
 pub fn run(args: &[String]) -> ExitCode {
-    let options = match verbs::parse_options(args, &["--template", "--client"], &["--json"]) {
+    let options = match verbs::parse_options(args, &["--template", "--client"], &["--json", "--ts"])
+    {
         Ok(options) => options,
         Err(code) => return code,
     };
@@ -41,10 +43,21 @@ pub fn run(args: &[String]) -> ExitCode {
     if positional.len() > 2 {
         return usage();
     }
-    let template = options.value("--template").unwrap_or("todos");
-    if !matches!(template, "todos" | "chat") {
+    let requested_template = options.value("--template").unwrap_or("todos");
+    if !matches!(requested_template, "todos" | "chat" | "ts") {
         return usage();
     }
+    let template = if requested_template == "ts" {
+        "todos"
+    } else {
+        requested_template
+    };
+    let typescript = options.has("--ts") || requested_template == "ts";
+    let rendering = if typescript {
+        format!("{template}-ts")
+    } else {
+        template.to_owned()
+    };
     let client = match options.value("--client").unwrap_or("react") {
         "react" => Client::React,
         "none" => Client::None,
@@ -54,7 +67,7 @@ pub fn run(args: &[String]) -> ExitCode {
         Ok(root) => root,
         Err(error) => return owner::print_refusal(error, json_output, 2),
     };
-    if let Err(error) = scaffold(&root, template, client) {
+    if let Err(error) = scaffold(&root, &rendering, client) {
         return owner::print_refusal(error, json_output, 1);
     }
     let checked = check::run_project(&root, json_output);
@@ -340,6 +353,8 @@ fn conflict(message: impl Into<String>) -> Refusal {
 }
 
 fn usage() -> ExitCode {
-    eprintln!("usage: snapback2 init [dir] [--template todos|chat] [--client react|none] [--json]");
+    eprintln!(
+        "usage: snapback2 init [dir] [--template todos|chat|ts] [--ts] [--client react|none] [--json]"
+    );
     ExitCode::from(2)
 }

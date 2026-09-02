@@ -1,8 +1,126 @@
 mod common;
 
-use common::{Project, snapshot};
+use common::{Project, json_stdout, shared_package_dist, snapshot};
 use serde_json::Value as Json;
 use std::path::Path;
+
+fn built_template_precondition(rendering: &str, schema: &str) {
+    let path = shared_package_dist()
+        .join("templates")
+        .join(rendering)
+        .join("snapback")
+        .join(schema);
+    assert!(
+        path.is_file(),
+        "precondition: built template is missing at {}; run (cd packages/snapback2 && node build.mjs)",
+        path.display()
+    );
+}
+
+fn assert_rendering(template: &str, typescript: bool, chat: bool) {
+    let rendering = if typescript {
+        format!("{template}-ts")
+    } else {
+        template.to_owned()
+    };
+    built_template_precondition(
+        &rendering,
+        if typescript { "schema.ts" } else { "schema.q" },
+    );
+    let project = Project::new();
+    let initialized = if typescript {
+        project.init_ts(template, "none")
+    } else {
+        project.init(template, "none")
+    };
+    assert!(
+        initialized.status.success(),
+        "init failed: {}{}",
+        String::from_utf8_lossy(&initialized.stdout),
+        String::from_utf8_lossy(&initialized.stderr)
+    );
+    let stale_inspection = project.path.join(".snapback/build/quarry/stale.ts");
+    if !typescript && template == "todos" {
+        std::fs::write(&stale_inspection, "stale").expect("write stale inspection fixture");
+    }
+    let checked = project.run(&["check", "--json"]);
+    assert!(
+        checked.status.success(),
+        "check failed: {}{}",
+        String::from_utf8_lossy(&checked.stdout),
+        String::from_utf8_lossy(&checked.stderr)
+    );
+
+    if !typescript && template == "todos" {
+        assert!(
+            !stale_inspection.exists(),
+            "check retained a stale Quarry inspection entry"
+        );
+        for generated in ["schema.ts", "todos.ts"] {
+            let source = std::fs::read_to_string(
+                project.path.join(".snapback/build/quarry").join(generated),
+            )
+            .unwrap_or_else(|error| panic!("missing Quarry inspection copy {generated}: {error}"));
+            assert!(source.starts_with("// GENERATED"), "{generated}: {source}");
+        }
+    }
+
+    let tested = project.run(&["test", "--json"]);
+    let receipt = json_stdout(&tested);
+    if chat {
+        assert_eq!(tested.status.code(), Some(1), "{receipt}");
+        assert_eq!(receipt["verdict"], "blocked", "{receipt}");
+        let checks = receipt["checks"].as_array().unwrap();
+        for check in checks.iter().filter(|check| check["kind"] == "derived") {
+            if check["name"] == "effects" {
+                assert_eq!(check["verdict"], "blocked", "{check}");
+                assert_eq!(
+                    check["detail"]["reason"], "no engine in this build",
+                    "{check}"
+                );
+            } else {
+                assert_eq!(check["verdict"], "pass", "{check}");
+            }
+        }
+        let journeys = checks
+            .iter()
+            .filter(|check| check["kind"] == "journey")
+            .collect::<Vec<_>>();
+        assert_eq!(journeys.len(), 7, "{receipt}");
+        assert!(
+            journeys.iter().all(|check| check["verdict"] == "pass"),
+            "{receipt}"
+        );
+    } else {
+        assert!(
+            tested.status.success(),
+            "test failed: {}{}",
+            String::from_utf8_lossy(&tested.stdout),
+            String::from_utf8_lossy(&tested.stderr)
+        );
+        assert_eq!(receipt["verdict"], "pass", "{receipt}");
+    }
+}
+
+#[test]
+fn quarry_todos_init_check_and_test_end_to_end() {
+    assert_rendering("todos", false, false);
+}
+
+#[test]
+fn quarry_chat_init_check_and_test_end_to_end() {
+    assert_rendering("chat", false, true);
+}
+
+#[test]
+fn typescript_todos_init_check_and_test_end_to_end() {
+    assert_rendering("todos", true, false);
+}
+
+#[test]
+fn typescript_chat_init_check_and_test_end_to_end() {
+    assert_rendering("chat", true, true);
+}
 
 #[test]
 fn init_is_idempotent_and_second_run_is_a_content_noop() {

@@ -290,6 +290,7 @@ mod tests {
                 generation,
                 api_dts: String::new(),
                 compiler_ms: 0.0,
+                quarry: Vec::new(),
             },
             seed: SeedData::default(),
             root: PathBuf::new(),

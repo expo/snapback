@@ -39,31 +39,28 @@ impl Project {
     }
 
     pub fn init(&self, template: &str, client: &str) -> Output {
-        self.command()
-            .args([
-                "init",
-                self.path.to_str().unwrap(),
-                "--template",
-                template,
-                "--client",
-                client,
-                "--json",
-            ])
-            .output()
-            .expect("run init")
+        self.init_rendering(template, client, false)
     }
 
-    pub fn replace_backend_with_built_template(&self, template: &str) {
-        let backend = self.path.join("snapback");
-        fs::remove_dir_all(&backend).expect("remove initialized backend");
-        copy_tree(
-            &self
-                .package
-                .join("dist/templates")
-                .join(template)
-                .join("snapback"),
-            &backend,
-        );
+    pub fn init_ts(&self, template: &str, client: &str) -> Output {
+        self.init_rendering(template, client, true)
+    }
+
+    fn init_rendering(&self, template: &str, client: &str, typescript: bool) -> Output {
+        let mut command = self.command();
+        command.args([
+            "init",
+            self.path.to_str().unwrap(),
+            "--template",
+            template,
+            "--client",
+            client,
+            "--json",
+        ]);
+        if typescript {
+            command.arg("--ts");
+        }
+        command.output().expect("run init")
     }
 
     pub fn run(&self, args: &[&str]) -> Output {

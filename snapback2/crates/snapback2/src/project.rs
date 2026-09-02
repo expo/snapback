@@ -16,6 +16,7 @@ pub struct CompiledProject {
     pub generation: Generation,
     pub api_dts: String,
     pub compiler_ms: f64,
+    pub quarry: Vec<QuarryGenerated>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize)]
@@ -24,6 +25,15 @@ pub struct SourceSite {
     pub file: String,
     pub line: u32,
     pub col: u32,
+}
+
+#[derive(Clone, Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct QuarryGenerated {
+    #[serde(rename = "file")]
+    pub _file: String,
+    pub generated: String,
+    pub source: String,
 }
 
 #[derive(Clone, Default)]
@@ -141,6 +151,13 @@ impl CompilerWorker {
                 .get("ms")
                 .and_then(Json::as_f64)
                 .unwrap_or_default(),
+            quarry: serde_json::from_value(
+                response
+                    .get("quarry")
+                    .cloned()
+                    .unwrap_or_else(|| Json::Array(Vec::new())),
+            )
+            .unwrap_or_default(),
         })
     }
 
@@ -298,10 +315,10 @@ pub fn locate_root(explicit: Option<&Path>) -> Result<PathBuf, Refusal> {
     Err(Refusal::owner(
         "E_OWNER_PROJECT_ROOT",
         format!(
-            "no snapback/schema.ts found from {} upward",
+            "no snapback/schema.q or snapback/schema.ts found from {} upward",
             start.display()
         ),
-        "run snapback2 init or pass --project <dir> containing snapback/schema.ts",
+        "run snapback2 init or pass --project <dir> containing snapback/schema.q or snapback/schema.ts",
     ))
 }
 
@@ -352,6 +369,17 @@ pub fn write_build_cache(root: &Path, compiled: &CompiledProject) -> Result<(), 
     write_json(&build.join("certificates.json"), &certificates)?;
     fs::write(build.join("api.d.ts"), &compiled.api_dts)
         .map_err(|error| cache_error(&build, error))?;
+    let quarry = build.join("quarry");
+    if quarry.exists() {
+        fs::remove_dir_all(&quarry).map_err(|error| cache_error(&quarry, error))?;
+    }
+    if !compiled.quarry.is_empty() {
+        fs::create_dir_all(&quarry).map_err(|error| cache_error(&quarry, error))?;
+        for generated in &compiled.quarry {
+            let path = quarry.join(&generated.generated);
+            fs::write(&path, &generated.source).map_err(|error| cache_error(&path, error))?;
+        }
+    }
     Ok(())
 }
 
@@ -394,6 +422,7 @@ pub fn certify_project_value(mut value: Json) -> Result<CompiledProject, Vec<Ref
         generation,
         api_dts: String::new(),
         compiler_ms: 0.0,
+        quarry: Vec::new(),
     })
 }
 
@@ -426,7 +455,7 @@ pub fn seed_rows(
                 let kind = table.columns.get(field).ok_or_else(|| {
                     Refusal::input(
                         format!("seed row for {table_name} has unknown field {field}"),
-                        "remove the field or declare it in snapback/schema.ts",
+                        "remove the field or declare it in the project's snapback/schema",
                     )
                 })?;
                 converted.insert(field.clone(), json_for_column(value, kind)?);

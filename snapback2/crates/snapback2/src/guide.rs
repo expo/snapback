@@ -12,7 +12,15 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-const RECIPES: &[&str] = &["auth", "live-query", "effects", "personas", "testing"];
+const RECIPES: &[&str] = &[
+    "auth",
+    "live-query",
+    "effects",
+    "personas",
+    "quarry",
+    "testing",
+    "typescript",
+];
 
 pub fn run(args: &[String]) -> ExitCode {
     let options = match verbs::parse_options(args, &["--project"], &["--json"]) {
@@ -389,12 +397,14 @@ fn unknown(page: &str) -> Refusal {
         "E_GUIDE_UNKNOWN",
         "input",
         format!("unknown guide page {page}"),
-        "run snapback2 guide grammar, app, a symbol, an E_CODE, or a listed recipe",
+        "run snapback2 guide grammar, quarry, typescript, app, a symbol, an E_CODE, or a listed recipe",
         "input/guide",
     )
 }
 
 fn usage() -> ExitCode {
-    eprintln!("usage: snapback2 guide [grammar|app|<symbol>|<E_CODE>|<recipe>] [--json]");
+    eprintln!(
+        "usage: snapback2 guide [grammar|quarry|typescript|app|<symbol>|<E_CODE>|<recipe>] [--json]"
+    );
     ExitCode::from(2)
 }

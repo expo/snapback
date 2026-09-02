@@ -5,7 +5,7 @@ import { QuarryError } from "./diagnostics";
 import { parseDocument } from "./parser";
 import { emitPrograms } from "./program";
 import { emitSchema } from "./schema";
-import type { FrontendDiagnostic, SourceSite } from "../ir";
+import type { FrontendDiagnostic, QuarryGenerated, SourceSite } from "../ir";
 
 export type QuarryInput = { path: string; fileName: string; source: string };
 export type QuarryVirtualModule = {
@@ -92,6 +92,10 @@ export function remapVirtualDiagnostic(
 
 export function remapVirtualSource(site: SourceSite, virtual: QuarryVirtualModule): SourceSite {
   return mapGeneratedLine(virtual, site.line) ?? site;
+}
+
+export function quarryInspection(modules: QuarryVirtualModule[]): QuarryGenerated[] {
+  return modules.map((module) => ({ file: module.authored, generated: basename(module.path), source: module.source }));
 }
 
 function placementDiagnostics(documents: Document[]): QuarryDiagnostic[] {

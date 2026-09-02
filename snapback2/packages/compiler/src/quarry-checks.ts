@@ -23,6 +23,8 @@ export function registerQuarryChecks(test: Test, frontend: string): void {
       assert(failures.length === 0, `${name} did not certify: ${JSON.stringify(failures)}`);
       assert(!existsSync(resolve(fixtures, name, "snapback/schema.ts")), `${name} wrote generated schema.ts into the authored tree`);
       assert(!existsSync(resolve(fixtures, name, "snapback/surface.q.ts")), `${name} wrote generated .q.ts into the authored tree`);
+      assert(lowered.quarry.every((item) => item.file.endsWith(".q") && item.generated.endsWith(".ts")
+        && item.source.startsWith("// GENERATED")), `${name} lost its Quarry inspection response`);
     }
 
     const compiled = compileFixture(fixtures, "quarry-surface", ["schema", "surface"]);
@@ -116,11 +118,33 @@ export function registerQuarryChecks(test: Test, frontend: string): void {
       const matching = result.diagnostics.filter((diagnostic) => diagnostic.code === code);
       const item = matching[0];
       assert(item, `${file} did not report ${code}: ${diagnosticsText(result.diagnostics)}`);
-      assert(matching.length >= 2, `${file} stopped at its first ${code}: ${diagnosticsText(result.diagnostics)}`);
+      const minimum = code === "E_QUARRY_AMBIGUOUS" ? 1 : 2;
+      assert(matching.length >= minimum, `${file} stopped before ${minimum} ${code} refusals: ${diagnosticsText(result.diagnostics)}`);
       assert(item.family === "quarry" && item.site.includes(`/${file}.q:`), `${code} lost Quarry family/site`);
       assert(item.rewrite.startsWith("-- ") && item.guide.startsWith("quarry/"), `${code} lost Quarry rewrite/guide`);
       if (code === "E_QUARRY_UNSUPPORTED") assert(item.message.includes("not part of the Snapback 2 platform"), "unsupported wording drifted back to subset language");
+      if (code === "E_QUARRY_AMBIGUOUS") assert(item.rewrite.includes(" by "), `ambiguous rewrite lost its explicit-index repair: ${item.rewrite}`);
     }
+  });
+
+  test("Quarry index inference prefers an exact-length probe over a longer prefix", async () => {
+    await withProject({
+      "snapback/schema.q": `table owners:\n  name: text <=20\n  public\n\ntable items:\n  owner: owners\n  label: text <=20\n  by owner\n  by byOwnerLabel: owner, label\n  public\n`,
+      "snapback/items.q": `query exact(owner: owners):\n  return exists items[owner]\n`,
+    }, async (root) => {
+      const lowered = await lowerProject(root);
+      assert(lowered.ok, `exact-length inference refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
+    });
+  });
+
+  test("Quarry index inference matches known reference tables", async () => {
+    await withProject({
+      "snapback/schema.q": `table owners:\n  name: text <=20\n  public\n\ntable otherOwners:\n  name: text <=20\n  public\n\ntable lookups:\n  owner: owners\n  otherOwner: otherOwners\n  unique owner\n  unique otherOwner\n  public\n`,
+      "snapback/lookups.q": `query byOwner(owner: owners):\n  return lookups[owner]\n`,
+    }, async (root) => {
+      const lowered = await lowerProject(root);
+      assert(lowered.ok, `ref-table inference refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
+    });
   });
 
   test("every Quarry diagnostic family rewrite is fenced parseable Quarry", () => {

@@ -205,9 +205,10 @@ export type ProjectJson = {
 };
 
 export type SourceSite = { file: string; line: number; col: number };
+export type QuarryGenerated = { file: string; generated: string; source: string };
 
 export type ProjectResult =
-  | { ok: true; project: ProjectJson; sources: Record<string, SourceSite>; apiDts: string; ms: number }
+  | { ok: true; project: ProjectJson; sources: Record<string, SourceSite>; apiDts: string; quarry: QuarryGenerated[]; ms: number }
   | { ok: false; diagnostics: FrontendDiagnostic[]; ms: number };
 
 export type LowerResult =
