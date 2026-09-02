@@ -7,6 +7,7 @@ use std::io::{Read, Write};
 use std::net::{Shutdown, TcpStream};
 use std::time::Duration;
 
+#[derive(Debug)]
 pub struct HttpResponse {
     pub status: u16,
     pub body: Json,
@@ -134,41 +135,87 @@ fn decode_chunked(input: &[u8]) -> Result<Vec<u8>, Refusal> {
     let mut output = Vec::new();
     let mut cursor = 0;
     loop {
-        let line_end = input[cursor..]
+        let remaining = input.get(cursor..).ok_or_else(chunk_protocol_refusal)?;
+        let line_end = remaining
             .windows(2)
             .position(|window| window == b"\r\n")
-            .map(|position| cursor + position)
-            .ok_or_else(|| {
-                Refusal::owner(
-                    "E_OWNER_PROTOCOL",
-                    "invalid chunked response",
-                    "restart snapback2 dev",
-                )
-            })?;
-        let size =
-            usize::from_str_radix(String::from_utf8_lossy(&input[cursor..line_end]).trim(), 16)
-                .map_err(|_| {
-                    Refusal::owner(
-                        "E_OWNER_PROTOCOL",
-                        "invalid chunk length",
-                        "restart snapback2 dev",
-                    )
-                })?;
-        cursor = line_end + 2;
+            .and_then(|position| cursor.checked_add(position))
+            .ok_or_else(chunk_protocol_refusal)?;
+        let length = input[cursor..line_end]
+            .split(|byte| *byte == b';')
+            .next()
+            .unwrap_or_default();
+        let length = std::str::from_utf8(length).map_err(|_| chunk_length_refusal())?;
+        let size = usize::from_str_radix(length.trim(), 16).map_err(|_| chunk_length_refusal())?;
+        cursor = line_end.checked_add(2).ok_or_else(chunk_protocol_refusal)?;
         if size == 0 {
-            break;
+            let trailer = input.get(cursor..).ok_or_else(chunk_protocol_refusal)?;
+            if trailer == b"\r\n" {
+                return Ok(output);
+            }
+            if trailer.len() < 4 || !trailer.ends_with(b"\r\n\r\n") {
+                return Err(chunk_protocol_refusal());
+            }
+            let fields = &trailer[..trailer.len() - 4];
+            if !valid_trailer_fields(fields) {
+                return Err(chunk_protocol_refusal());
+            }
+            return Ok(output);
         }
-        if cursor + size > input.len() {
+        let data_end = cursor
+            .checked_add(size)
+            .ok_or_else(chunk_protocol_refusal)?;
+        let next = data_end.checked_add(2).ok_or_else(chunk_protocol_refusal)?;
+        if input.get(data_end..next) != Some(b"\r\n") {
             return Err(Refusal::owner(
                 "E_OWNER_PROTOCOL",
                 "truncated chunked response",
                 "restart snapback2 dev",
             ));
         }
-        output.extend_from_slice(&input[cursor..cursor + size]);
-        cursor += size + 2;
+        output.extend_from_slice(
+            input
+                .get(cursor..data_end)
+                .ok_or_else(chunk_protocol_refusal)?,
+        );
+        cursor = next;
     }
-    Ok(output)
+}
+
+fn valid_trailer_fields(mut fields: &[u8]) -> bool {
+    loop {
+        let (line, rest) = match fields.windows(2).position(|bytes| bytes == b"\r\n") {
+            Some(end) => (&fields[..end], Some(&fields[end + 2..])),
+            None => (fields, None),
+        };
+        if line.is_empty()
+            || line.contains(&b'\r')
+            || line.contains(&b'\n')
+            || !line.contains(&b':')
+        {
+            return false;
+        }
+        let Some(rest) = rest else {
+            return true;
+        };
+        fields = rest;
+    }
+}
+
+fn chunk_protocol_refusal() -> Refusal {
+    Refusal::owner(
+        "E_OWNER_PROTOCOL",
+        "invalid chunked response",
+        "restart snapback2 dev",
+    )
+}
+
+fn chunk_length_refusal() -> Refusal {
+    Refusal::owner(
+        "E_OWNER_PROTOCOL",
+        "invalid chunk length",
+        "restart snapback2 dev",
+    )
 }
 
 fn io_refusal(error: std::io::Error) -> Refusal {
@@ -177,4 +224,38 @@ fn io_refusal(error: std::io::Error) -> Refusal {
         format!("owner connection failed: {error}"),
         "run snapback2 dev",
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn response(body: &[u8]) -> Vec<u8> {
+        let mut response = b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n".to_vec();
+        response.extend_from_slice(body);
+        response
+    }
+
+    #[test]
+    fn malformed_chunked_responses_are_typed_protocol_refusals() {
+        for body in [
+            b"1\r\na".as_slice(),
+            b"ffffffffffffffffffffffffffffffff\r\n".as_slice(),
+            b"1\r\na0\r\n\r\n".as_slice(),
+            b"0\r\nnot-a-trailer\r\n\r\n".as_slice(),
+            b"7\r\n{\"x\":1}\r\n0\r\nA: b\nB: c\r\n\r\n".as_slice(),
+        ] {
+            let refusal = parse_response(&response(body)).unwrap_err();
+            assert_eq!(refusal.code, "E_OWNER_PROTOCOL");
+        }
+    }
+
+    #[test]
+    fn chunked_response_accepts_data_extensions_and_trailers() {
+        let parsed = parse_response(&response(
+            b"7;example=yes\r\n{\"x\":1}\r\n0\r\nDigest: okay\r\n\r\n",
+        ))
+        .unwrap();
+        assert_eq!(parsed.body, json!({ "x": 1 }));
+    }
 }

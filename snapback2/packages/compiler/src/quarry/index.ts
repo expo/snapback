@@ -86,7 +86,9 @@ export function remapVirtualDiagnostic(
     ...diagnostic,
     site: `${authored.file}:${authored.line}:${authored.col}`,
     message: generatedTypeError ? `in code generated from ${authored.file}: ${diagnostic.message}` : diagnostic.message,
-    rewrite: virtual.authoredSource,
+    rewrite: generatedTypeError && diagnostic.message.includes("undefined")
+      ? "add ! else CODE to assert the possibly absent Quarry value before using it here"
+      : virtual.authoredSource,
   };
 }
 

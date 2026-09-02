@@ -169,6 +169,9 @@
       }
     ],
     "maintained_amplification": 1,
+    "maintained_writes": {
+      "counts": 1
+    },
     "constraint_checks": [
       "counts:Unique(byGroup)",
       "counts:Unique(byId)",
@@ -202,19 +205,27 @@
     "seed_write": false
   },
   "receipt": {
-    "rows": [],
-    "ranges": [],
-    "absences": [
-      [
-        "counts",
-        "byId",
-        [
-          {
-            "Id": "[\"Null\",\"Null\"]"
+    "schema_hash": "46f6dfb79b76f6f6104cc23a9602d14bf15fc99fc34dcd9f7624b4c88f8a9edf",
+    "rows": [
+      {
+        "table": "counts",
+        "id": "[\"Null\",\"Null\"]",
+        "row": {
+          "Row": {
+            "__proto__": "Null",
+            "id": {
+              "Id": "[\"Null\",\"Null\"]"
+            },
+            "toString": "Null",
+            "value": {
+              "Int": 0
+            }
           }
-        ]
-      ]
+        }
+      }
     ],
+    "ranges": [],
+    "absences": [],
     "verdicts": []
   },
   "prelude": [],

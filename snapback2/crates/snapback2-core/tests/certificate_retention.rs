@@ -508,8 +508,13 @@ fn collection_growth_defaults_to_growth_until_freshness_is_proven() {
                     value: Expr::Builtin {
                         builtin: Builtin::Concat,
                         args: vec![
-                            Expr::Variable("result".to_owned()),
-                            Expr::Variable("result".to_owned()),
+                            Expr::Builtin {
+                                builtin: Builtin::Concat,
+                                args: vec![
+                                    Expr::Variable("result".to_owned()),
+                                    Expr::Variable("result".to_owned()),
+                                ],
+                            },
                             Expr::Array(vec![Expr::Variable("item".to_owned())]),
                         ],
                     },

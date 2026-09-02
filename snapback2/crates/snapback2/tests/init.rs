@@ -4,6 +4,9 @@ use common::{Project, json_stdout, shared_package_dist, snapshot};
 use serde_json::Value as Json;
 use std::path::Path;
 
+#[cfg(unix)]
+use std::os::unix::fs::{PermissionsExt, symlink};
+
 fn built_template_precondition(rendering: &str, schema: &str) {
     let path = shared_package_dist()
         .join("templates")
@@ -220,4 +223,59 @@ fn chat_template_ships_exactly_its_complete_owned_tree() {
             "tests/chat.test.ts",
         ]
     );
+}
+
+#[cfg(unix)]
+#[test]
+fn init_refuses_managed_symlinks_without_writing_through_them() {
+    let project = Project::new();
+    let outside_file = project.path.parent().unwrap().join("outside-agents");
+    let original = b"leave me alone\n";
+    std::fs::write(&outside_file, original).unwrap();
+    symlink(&outside_file, project.path.join("AGENTS.md")).unwrap();
+
+    let file_result = project.init("todos", "none");
+    assert!(!file_result.status.success());
+    assert_eq!(std::fs::read(&outside_file).unwrap(), original);
+
+    std::fs::remove_file(project.path.join("AGENTS.md")).unwrap();
+    let outside_directory = project.path.parent().unwrap().join("outside-snapback");
+    std::fs::create_dir(&outside_directory).unwrap();
+    symlink(&outside_directory, project.path.join("snapback")).unwrap();
+
+    let directory_result = project.init("todos", "none");
+    assert!(!directory_result.status.success());
+    assert_eq!(std::fs::read_dir(outside_directory).unwrap().count(), 0);
+}
+
+#[test]
+fn init_refuses_non_utf8_managed_text_without_changing_bytes() {
+    for name in ["AGENTS.md", ".gitignore"] {
+        let project = Project::new();
+        let path = project.path.join(name);
+        let original = b"preserve\xffbytes\n";
+        std::fs::write(&path, original).unwrap();
+
+        let output = project.init("todos", "none");
+        assert!(
+            !output.status.success(),
+            "init unexpectedly accepted {name}"
+        );
+        assert_eq!(std::fs::read(path).unwrap(), original, "changed {name}");
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn init_refuses_unreadable_managed_text_without_changing_bytes() {
+    let project = Project::new();
+    let path = project.path.join("AGENTS.md");
+    let original = b"write-only but existing\n";
+    std::fs::write(&path, original).unwrap();
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o200)).unwrap();
+
+    let output = project.init("todos", "none");
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap();
+    assert!(!output.status.success());
+    assert_eq!(std::fs::read(path).unwrap(), original);
 }

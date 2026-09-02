@@ -868,9 +868,10 @@ export const touch = mutation({ key: t.text(40) }, ({ db, ctx, args }) => {
       "certificate did not retain the read/write source ordinal");
 
     for (const method of ["update", "upsert"] as const) {
+      const identity = method === "upsert" ? "id: args.key, " : "";
       const callback = lowerOne(`import { mutation, t } from "snapback2";
 export const touch = mutation({ key: t.text(40) }, ({ db, args }) => {
-  db.${method}(items, args.key, row => ({ id: args.key, key: row.key }));
+  db.${method}(items, args.key, row => ({ ${identity}key: row.key }));
   return db.scan(items.byKey, [args.key], { take: 10 });
 });`, `callback-${method}.ts`);
       assert(readMap(callback) === `callback-${method}.touch.0:items:Arg|callback-${method}.touch.2:items:Arg`,

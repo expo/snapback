@@ -43,6 +43,11 @@ impl<'a> Runner<'a> {
         key: &Value,
         patch: Value,
     ) -> Result<(), RuntimeError> {
+        if patch.as_object()?.contains_key("id") {
+            return Err(RuntimeError::Input(format!(
+                "{table} update patch cannot change id"
+            )));
+        }
         let old = self.fetch_id(table, key.as_str()?)?.ok_or_else(|| {
             RuntimeError::Input(format!(
                 "missing {table} row {}",
@@ -77,8 +82,15 @@ impl<'a> Runner<'a> {
         key: &Value,
         new: Value,
     ) -> Result<(), RuntimeError> {
+        let key_id = key.as_str()?;
+        let row_id = new.field("id")?.as_str()?;
+        if key_id != row_id {
+            return Err(RuntimeError::Input(format!(
+                "{table} replacement key {key_id} does not match row id {row_id}"
+            )));
+        }
         let old = self
-            .fetch_id(table, key.as_str()?)?
+            .fetch_id(table, key_id)?
             .ok_or_else(|| RuntimeError::Input(format!("missing {table} row")))?;
         validate_row(self.schema.table(table), table, &new)?;
         validate_addressed_row_id(table, key, &new)?;
@@ -93,7 +105,7 @@ impl<'a> Runner<'a> {
         self.touch_row(table, &old)?;
         self.tx.execute(
             "UPDATE rows SET data = ?3 WHERE table_name = ?1 AND row_id = ?2",
-            params![table, key.as_str()?, canonical_json(&new)],
+            params![table, key_id, canonical_json(&new)],
         )?;
         reindex_row(self.tx, self.schema, table, &new)?;
         self.refresh_created_points(table, &new)?;
@@ -107,6 +119,9 @@ impl<'a> Runner<'a> {
 
     pub(super) fn delete(&mut self, table: &str, id: &str) -> Result<(), RuntimeError> {
         let Some(old) = self.fetch_id(table, id)? else {
+            self.trace
+                .missing_preimages
+                .push((table.to_owned(), id.to_owned()));
             return Ok(());
         };
         if !self.check_rule(table, Effect::Delete, None, &old)? {
@@ -257,11 +272,18 @@ impl<'a> Runner<'a> {
     }
 
     // @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — stale
-    // predecessor projections are cleared under next-generation constraints.
-    pub(super) fn clear_aggregate_target(&mut self, target: &str) -> Result<(), RuntimeError> {
+    // predecessor projection ids are cleared under next-generation constraints.
+    pub(super) fn clear_aggregate_ids(
+        &mut self,
+        target: &str,
+        ids: &BTreeSet<String>,
+    ) -> Result<(), RuntimeError> {
         let rows = fetch_table_connection(self.tx, target)?;
         for row in rows {
             let id = row.field("id")?.as_str()?.to_owned();
+            if !ids.contains(&id) {
+                continue;
+            }
             // Maintained targets are engine-owned, but their declared
             // constraints still bind successor rebuild deletions.
             self.check_constraints(target, Some(&row), &row, Effect::Delete)?;
@@ -396,7 +418,26 @@ impl<'a> Runner<'a> {
                 Constraint::Unique { index } if effect != Effect::Delete => {
                     self.check_unique(table_name, &table, index, old, new)?
                 }
-                Constraint::Cap { by, max } if effect == Effect::Insert => {
+                Constraint::Cap { by, max } => {
+                    let prefix = by
+                        .iter()
+                        .map(|field| new.field(field).cloned())
+                        .collect::<Result<Vec<_>, _>>()?;
+                    let increases_group = match effect {
+                        Effect::Insert => true,
+                        Effect::Update => {
+                            let old = old.expect("update has preimage");
+                            let old_prefix = by
+                                .iter()
+                                .map(|field| old.field(field).cloned())
+                                .collect::<Result<Vec<_>, _>>()?;
+                            old_prefix != prefix
+                        }
+                        Effect::Read | Effect::Delete => false,
+                    };
+                    if !increases_group {
+                        continue;
+                    }
                     let (index_name, index) = table
                         .indexes
                         .iter()
@@ -406,10 +447,6 @@ impl<'a> Runner<'a> {
                                 "cap on {table_name} requires an index beginning with {by:?}"
                             ))
                         })?;
-                    let prefix = by
-                        .iter()
-                        .map(|field| new.field(field).cloned())
-                        .collect::<Result<Vec<_>, _>>()?;
                     let rows = scan_indexed(
                         self.tx,
                         table_name,
@@ -425,6 +462,8 @@ impl<'a> Runner<'a> {
                     self.trace.constraint_inputs.push(ConstraintTrace {
                         table: table_name.to_owned(),
                         check: format!("Cap({by:?},{max})"),
+                        index: index_name.clone(),
+                        prefix,
                         examined_ids: row_ids(&rows)?,
                     });
                     if rows.len() >= *max as usize {
@@ -521,6 +560,8 @@ impl<'a> Runner<'a> {
                     check: format!(
                         "FinalExistsOnInsert({source_table}->{table}.{index},{terms:?})"
                     ),
+                    index: index.clone(),
+                    prefix: key.clone(),
                     examined_ids: found
                         .as_ref()
                         .and_then(|row| row.field("id").ok())
@@ -568,6 +609,8 @@ impl<'a> Runner<'a> {
         self.trace.constraint_inputs.push(ConstraintTrace {
             table: table_name.to_owned(),
             check: format!("Unique({index_name})"),
+            index: index_name.to_owned(),
+            prefix: wanted,
             examined_ids: row_ids(&examined)?,
         });
         let duplicate = examined.into_iter().any(|row| {
@@ -1081,6 +1124,7 @@ impl<'a> Runner<'a> {
         // physical writes are contained per target table, including both
         // old/new aggregate applications for update and upsert.
         let mut declared_by_table = BTreeMap::<&str, u64>::new();
+        let mut derived_maintained_writes = BTreeMap::<String, u64>::new();
         let mut derived_maintained_amplification = 0_u64;
         for site in &certificate.write_sites {
             let direct = declared_by_table.entry(site.table.as_str()).or_default();
@@ -1098,9 +1142,19 @@ impl<'a> Runner<'a> {
                     .entry(maintain.target.as_str())
                     .or_default();
                 *target = target.saturating_add(applications);
+                let certified_target = derived_maintained_writes
+                    .entry(maintain.target.clone())
+                    .or_default();
+                *certified_target = certified_target.saturating_add(applications);
                 derived_maintained_amplification =
                     derived_maintained_amplification.saturating_add(applications);
             }
+        }
+        if certificate.maintained_writes != derived_maintained_writes {
+            return Err(RuntimeError::TraceSubset(format!(
+                "maintained writes {:?} != derived {:?}",
+                certificate.maintained_writes, derived_maintained_writes
+            )));
         }
         if certificate.maintained_amplification != derived_maintained_amplification {
             return Err(RuntimeError::TraceSubset(format!(

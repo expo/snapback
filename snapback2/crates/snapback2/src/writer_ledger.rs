@@ -54,6 +54,21 @@ impl State {
             .runtime_mut()
             .execute(&op, context)
             .map_err(|error| Refusal::from_runtime(&error))?;
+        let plan_hash = self
+            .runtime()
+            .generation()
+            .programs()
+            .get(&op)
+            .map(|(_, certificate)| certificate.plan_hash.clone())
+            .ok_or_else(|| {
+                Refusal::new(
+                    "E_OP_UNKNOWN",
+                    "op",
+                    format!("unknown operation {op}"),
+                    "use an operation listed by /api/manifest",
+                    "op/unknown",
+                )
+            })?;
         let runtime_subscriptions = self.runtime().subscriptions();
         let subscriptions = self
             .live
@@ -82,6 +97,7 @@ impl State {
             .collect::<Vec<_>>();
         Ok(json!({
             "op": op,
+            "certificatePlanHash": plan_hash,
             "result": execution_json(&execution),
             "trace": execution.trace,
             "subscriptions": subscriptions,

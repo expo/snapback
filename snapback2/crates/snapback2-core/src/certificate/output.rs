@@ -3,7 +3,7 @@ use crate::collection_rewrite::{
 };
 use crate::growth::{
     ProvenanceBinding, assignment_growth, collection_price_from,
-    expression_from as provenance_expression_from, saturating_power, take_identity,
+    expression_from as provenance_expression_from, geometric_sum, saturating_power, take_identity,
 };
 use crate::ir::*;
 use crate::retention::{argument_max, collection_bytes};
@@ -277,12 +277,7 @@ impl<'a> OutputEstimator<'a> {
                     .saturating_div(u64::from(*max).max(1)),
             ),
             LoopDomain::Recurse(recurse) => {
-                let mut nodes = 0_u64;
-                let mut level = 1_u64;
-                for _ in 0..=recurse.depth {
-                    nodes = nodes.saturating_add(level);
-                    level = level.saturating_mul(u64::from(recurse.fanout));
-                }
+                let nodes = geometric_sum(u64::from(recurse.fanout), recurse.depth);
                 (nodes, self.row(&recurse.table))
             }
         }
@@ -310,6 +305,7 @@ impl<'a> OutputEstimator<'a> {
             Expr::Binary { op, .. } => match op {
                 BinaryOp::Eq
                 | BinaryOp::Ne
+                | BinaryOp::SameValueZero
                 | BinaryOp::Lt
                 | BinaryOp::Lte
                 | BinaryOp::Gt

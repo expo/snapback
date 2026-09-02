@@ -136,8 +136,10 @@ that table.
 by who may issue each part: `rows` — "I hold these" — is client-issuable;
 `absences` and *complete* `ranges` — "no row exists there / this range is
 whole" — and `verdicts` — "this principal may see this" — are authority-only.
-Receipt-only maintained prediction may apply a delta only when the exact target
-row is held or an authority-issued `byId` absence proves its deterministic id
+An absence is also bound to the schema hash under which authority observed it;
+a predecessor absence is not authority after a successor. Receipt-only
+maintained prediction may apply a delta only when the exact target row is held
+or a same-schema authority-issued `byId` absence proves its deterministic id
 starts at zero; otherwise the whole local mutation rolls back as
 `Partial(["missing-authority"])`.
 The engine keeps the containment invariant `receipt ⊆ trace ⊆ certificate`
@@ -369,6 +371,9 @@ uniqueness before mutation, then clears stale rows with delete-applicable
 constraints only; uniqueness is not rechecked on a removal that cannot create
 a duplicate. The rebuilt inserts bind every next constraint and unique index.
 A user mutation writing a maintained target is `Rejected(E_RULE)` by its rule.
+Successor rebuilds own exactly the union of target row IDs projected by the
+predecessor and successor maintain declarations: they replace or remove those
+IDs and preserve every other target row and index entry.
 
 Three rulings from the 2026-08-30 review (M3, M4, M8):
 

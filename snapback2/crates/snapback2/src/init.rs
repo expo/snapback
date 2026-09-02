@@ -4,9 +4,13 @@
 use crate::protocol::Refusal;
 use crate::{check, owner, verbs};
 use serde_json::{Map, Value as Json, json};
-use std::fs;
+use std::fs::{self, OpenOptions};
+use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+
+#[cfg(unix)]
+use std::os::unix::fs::OpenOptionsExt;
 
 const BLOCK_START: &str = "<!-- snapback2:start -->";
 const BLOCK_END: &str = "<!-- snapback2:end -->";
@@ -151,13 +155,19 @@ fn template_root() -> Result<PathBuf, Refusal> {
 
 fn copy_absent(source: &Path, target: &Path) -> Result<(), Refusal> {
     if source.is_dir() {
-        if target.exists() && !target.is_dir() {
-            return Err(conflict(format!(
-                "{} must be a directory",
-                target.display()
-            )));
+        match fs::symlink_metadata(target) {
+            Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_dir() => {
+                return Err(conflict(format!(
+                    "{} must be a directory and not a symlink",
+                    target.display()
+                )));
+            }
+            Ok(_) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                fs::create_dir(target).map_err(|error| conflict(error.to_string()))?;
+            }
+            Err(error) => return Err(conflict(error.to_string())),
         }
-        fs::create_dir_all(target).map_err(|error| conflict(error.to_string()))?;
         let mut entries = fs::read_dir(source)
             .map_err(|error| conflict(error.to_string()))?
             .collect::<Result<Vec<_>, _>>()
@@ -166,19 +176,33 @@ fn copy_absent(source: &Path, target: &Path) -> Result<(), Refusal> {
         for entry in entries {
             copy_absent(&entry.path(), &target.join(entry.file_name()))?;
         }
-    } else if !target.exists() {
-        if let Some(parent) = target.parent() {
-            fs::create_dir_all(parent).map_err(|error| conflict(error.to_string()))?;
+    } else {
+        match fs::symlink_metadata(target) {
+            Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_file() => {
+                return Err(conflict(format!(
+                    "{} must be a file and not a symlink",
+                    target.display()
+                )));
+            }
+            Ok(_) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                let mut input = fs::File::open(source).map_err(|error| {
+                    conflict(format!("cannot read {}: {error}", source.display()))
+                })?;
+                let mut output = create_managed_file(target)?;
+                if let Err(error) = std::io::copy(&mut input, &mut output) {
+                    let _ = fs::remove_file(target);
+                    return Err(conflict(error.to_string()));
+                }
+            }
+            Err(error) => return Err(conflict(error.to_string())),
         }
-        fs::copy(source, target).map_err(|error| conflict(error.to_string()))?;
-    } else if !target.is_file() {
-        return Err(conflict(format!("{} must be a file", target.display())));
     }
     Ok(())
 }
 
 fn update_agents(path: &Path) -> Result<(), Refusal> {
-    let current = fs::read_to_string(path).unwrap_or_default();
+    let current = read_managed_text(path)?;
     let next = match (current.find(BLOCK_START), current.find(BLOCK_END)) {
         (Some(start), Some(end)) if start <= end => {
             let after = end + BLOCK_END.len();
@@ -194,13 +218,13 @@ fn update_agents(path: &Path) -> Result<(), Refusal> {
         }
     };
     if next != current {
-        fs::write(path, next).map_err(|error| conflict(error.to_string()))?;
+        write_managed(path, next.as_bytes())?;
     }
     Ok(())
 }
 
 fn update_gitignore(path: &Path) -> Result<(), Refusal> {
-    let current = fs::read_to_string(path).unwrap_or_default();
+    let current = read_managed_text(path)?;
     if current.lines().any(|line| line.trim() == ".snapback/") {
         return Ok(());
     }
@@ -209,15 +233,13 @@ fn update_gitignore(path: &Path) -> Result<(), Refusal> {
     } else {
         format!("{current}\n")
     };
-    fs::write(path, format!("{prefix}.snapback/\n")).map_err(|error| conflict(error.to_string()))
+    write_managed(path, format!("{prefix}.snapback/\n").as_bytes())
 }
 
 fn update_tsconfig(path: &Path) -> Result<(), Refusal> {
-    let mut value = if path.is_file() {
-        serde_json::from_slice::<Json>(
-            &fs::read(path).map_err(|error| conflict(error.to_string()))?,
-        )
-        .map_err(|error| {
+    let current = read_managed(path)?;
+    let mut value = if let Some(bytes) = current.as_deref() {
+        serde_json::from_slice::<Json>(bytes).map_err(|error| {
             conflict(format!(
                 "{} is not JSON: {error}; remove comments before init",
                 path.display()
@@ -251,11 +273,10 @@ fn update_tsconfig(path: &Path) -> Result<(), Refusal> {
 }
 
 fn update_package(path: &Path, client: Client) -> Result<(), Refusal> {
-    let mut value = if path.is_file() {
-        serde_json::from_slice::<Json>(
-            &fs::read(path).map_err(|error| conflict(error.to_string()))?,
-        )
-        .map_err(|error| conflict(format!("{} is not JSON: {error}", path.display())))?
+    let current = read_managed(path)?;
+    let mut value = if let Some(bytes) = current.as_deref() {
+        serde_json::from_slice::<Json>(bytes)
+            .map_err(|error| conflict(format!("{} is not JSON: {error}", path.display())))?
     } else {
         json!({ "name": project_name(path), "private": true, "type": "module" })
     };
@@ -320,26 +341,103 @@ fn write_json_if_changed(path: &Path, value: &Json) -> Result<(), Refusal> {
     let mut next = serde_json::to_string_pretty(value)
         .map_err(|error| conflict(format!("cannot serialize {}: {error}", path.display())))?;
     next.push('\n');
-    if fs::read_to_string(path).ok().as_deref() != Some(&next) {
-        fs::write(path, next).map_err(|error| conflict(error.to_string()))?;
+    if read_managed(path)?.as_deref() != Some(next.as_bytes()) {
+        write_managed(path, next.as_bytes())?;
     }
     Ok(())
 }
 
 fn ensure_directory_or_absent(path: &Path) -> Result<(), Refusal> {
-    if path.exists() && !path.is_dir() {
-        Err(conflict(format!("{} must be a directory", path.display())))
-    } else {
-        Ok(())
+    match fs::symlink_metadata(path) {
+        Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_dir() => Err(conflict(
+            format!("{} must be a directory and not a symlink", path.display()),
+        )),
+        Ok(_) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(conflict(error.to_string())),
     }
 }
 
 fn ensure_file_or_absent(path: &Path) -> Result<(), Refusal> {
-    if path.exists() && !path.is_file() {
-        Err(conflict(format!("{} must be a file", path.display())))
-    } else {
-        Ok(())
+    match fs::symlink_metadata(path) {
+        Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_file() => Err(conflict(
+            format!("{} must be a file and not a symlink", path.display()),
+        )),
+        Ok(_) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(conflict(error.to_string())),
     }
+}
+
+fn read_managed_text(path: &Path) -> Result<String, Refusal> {
+    match read_managed(path)? {
+        Some(bytes) => String::from_utf8(bytes)
+            .map_err(|error| conflict(format!("{} is not UTF-8: {error}", path.display()))),
+        None => Ok(String::new()),
+    }
+}
+
+fn read_managed(path: &Path) -> Result<Option<Vec<u8>>, Refusal> {
+    let mut options = OpenOptions::new();
+    options.read(true);
+    #[cfg(unix)]
+    options.custom_flags(libc::O_NOFOLLOW);
+    let mut file = match options.open(path) {
+        Ok(file) => file,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => {
+            return Err(conflict(format!("cannot read {}: {error}", path.display())));
+        }
+    };
+    if !file
+        .metadata()
+        .map_err(|error| conflict(error.to_string()))?
+        .is_file()
+    {
+        return Err(conflict(format!("{} must be a file", path.display())));
+    }
+    let mut bytes = Vec::new();
+    file.read_to_end(&mut bytes)
+        .map_err(|error| conflict(format!("cannot read {}: {error}", path.display())))?;
+    Ok(Some(bytes))
+}
+
+fn write_managed(path: &Path, contents: &[u8]) -> Result<(), Refusal> {
+    let mut options = OpenOptions::new();
+    options.read(true).write(true);
+    #[cfg(unix)]
+    options.custom_flags(libc::O_NOFOLLOW);
+    let mut file = match options.open(path) {
+        Ok(file) => file,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => create_managed_file(path)?,
+        Err(error) => {
+            return Err(conflict(format!(
+                "cannot write {}: {error}",
+                path.display()
+            )));
+        }
+    };
+    if !file
+        .metadata()
+        .map_err(|error| conflict(error.to_string()))?
+        .is_file()
+    {
+        return Err(conflict(format!("{} must be a file", path.display())));
+    }
+    file.seek(SeekFrom::Start(0))
+        .and_then(|_| file.write_all(contents))
+        .and_then(|_| file.set_len(contents.len() as u64))
+        .map_err(|error| conflict(format!("cannot write {}: {error}", path.display())))
+}
+
+fn create_managed_file(path: &Path) -> Result<fs::File, Refusal> {
+    let mut options = OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    options.mode(0o644).custom_flags(libc::O_NOFOLLOW);
+    options
+        .open(path)
+        .map_err(|error| conflict(format!("cannot create {}: {error}", path.display())))
 }
 
 fn conflict(message: impl Into<String>) -> Refusal {

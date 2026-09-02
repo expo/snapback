@@ -147,6 +147,174 @@ export function registerQuarryChecks(test: Test, frontend: string): void {
     });
   });
 
+  test("Quarry refuses every reserved generated binding with a sited rename rewrite", () => {
+    const cases = [
+      {
+        name: "table",
+        inputs: [{ fileName: "snapback/schema.q", source: "table delete:\n  value: int\n  public\n" }],
+        site: "snapback/schema.q:1:7",
+      },
+      {
+        name: "channel",
+        inputs: [{ fileName: "snapback/schema.q", source: "table rows:\n  value: int\n  public\n\nchannel delete():\n  publish <- public\n  subscribe <- public\n  ttl 1s\n" }],
+        site: "snapback/schema.q:5:9",
+      },
+      {
+        name: "effect",
+        inputs: [
+          { fileName: "snapback/schema.q", source: "table rows:\n  value: int\n  public\n" },
+          { fileName: "snapback/ops.q", source: "effect delete from notifications\n\nquery okay():\n  null\n" },
+        ],
+        site: "snapback/ops.q:1:8",
+      },
+      {
+        name: "operation",
+        inputs: [
+          { fileName: "snapback/schema.q", source: "table rows:\n  value: int\n  public\n" },
+          { fileName: "snapback/ops.q", source: "query delete():\n  null\n" },
+        ],
+        site: "snapback/ops.q:1:7",
+      },
+    ];
+    for (const item of cases) {
+      const result = compileInline(item.inputs);
+      assert(!result.ok, `reserved ${item.name} binding compiled`);
+      const refusal = result.diagnostics.find((diagnostic) => diagnostic.message.includes("reserved"));
+      assert(refusal?.site === item.site, `reserved ${item.name} refusal site changed: ${JSON.stringify(result)}`);
+      assert(refusal.rewrite.includes("rename") && refusal.rewrite.includes("delete"),
+        `reserved ${item.name} refusal lost its rename rewrite: ${refusal.rewrite}`);
+    }
+  });
+
+  test("Quarry validates compound and range keys against the selected index types", () => {
+    const schema = "table items:\n  done: bool\n  rank: int\n  public\n  unique done, rank\n  by ranked: done, rank\n";
+    const modules = [
+      "query wrongCompound():\n  items[true, 'high'] by byDoneRank\n",
+      "query wrongRange():\n  items[true, 'high'] first 5 by ranked\n",
+    ];
+    for (const module of modules) {
+      const result = compileInline([
+        { fileName: "snapback/schema.q", source: schema },
+        { fileName: "snapback/ops.q", source: module },
+      ]);
+      assert(!result.ok && result.diagnostics.some((item) => item.message.includes("expects int for rank, got text")),
+        `selected-index key mismatch compiled: ${JSON.stringify(result)}`);
+    }
+  });
+
+  test("Quarry reference-table identity rejects named, inferred, and ranged cross-table keys", () => {
+    const schema = "table users:\n  public\n\ntable posts:\n  public\n\ntable todos:\n  owner: users\n  public\n  unique owner\n";
+    const operations = [
+      "query named(post: posts):\n  todos[owner = post]\n",
+      "query inferred(post: posts):\n  todos[post]\n",
+      "query ranged(post: posts):\n  todos[post] first 5 by byOwner\n",
+    ];
+    for (const operation of operations) {
+      const result = compileInline([
+        { fileName: "snapback/schema.q", source: schema },
+        { fileName: "snapback/ops.q", source: operation },
+      ]);
+      assert(!result.ok, `cross-table reference key compiled: ${operation}`);
+      assert(result.diagnostics.some((item) => item.message.includes("reference to posts") || item.message.includes("no unique index")),
+        `cross-table refusal lost its actual type: ${JSON.stringify(result)}`);
+    }
+  });
+
+  test("Quarry focal detection covers every expression container used by patches", () => {
+    const schema = "table users:\n  name: text <=50\n  public\n  by name\n\ntable nodes:\n  parent: nodes?\n  public\n\ntable posts:\n  author: users\n  node: nodes\n  authorName: text <=50\n  payload: json <=2048\n  related: logs?\n  flag: bool\n  public\n\ntable logs:\n  post: posts\n  public\n";
+    const cases: Array<[string, string, string]> = [
+      ["read", "authorName: users[.author].name", "db.get(users"],
+      ["cursor", "payload: users[] first 1 after .author by byName", "db.scan(users.byName"],
+      ["array", "payload: [.author]", ".author"],
+      ["exists", "flag: exists users[.author]", "db.exists(users"],
+      ["walk", "payload: walk nodes[.node] up .parent depth 2", "recurse("],
+      ["nested write", "related: +logs { post: .id }", "db.insert(logs"],
+      ["object literal", "payload: { author: .author }", "author:"],
+    ];
+    for (const [name, field, emitted] of cases) {
+      const result = compileInline([
+        { fileName: "snapback/schema.q", source: schema },
+        { fileName: "snapback/ops.q", source: `mutation refresh(id: posts):\n  ~posts[id] { ${field} }\n` },
+      ]);
+      assert(result.ok, `${name} focal container was refused: ${result.ok ? "" : diagnosticsText(result.diagnostics)}`);
+      const source = result.modules[0]!.source;
+      const callback = source.indexOf("(__q_old_");
+      assert(callback >= 0 && source.indexOf(emitted, callback) > callback,
+        `${name} focal container did not take the row callback path:\n${source}`);
+    }
+  });
+
+  test("Quarry focal patch preludes remain callback-local and preserve field order", () => {
+    const result = compileInline([
+      { fileName: "snapback/schema.q", source: "table users:\n  name: text <=50\n  public\n\ntable posts:\n  author: users\n  authorName: text <=50\n  payload: json <=2048\n  public\n" },
+      { fileName: "snapback/ops.q", source: "mutation refresh(id: posts):\n  ~posts[id] { authorName: users[.author].name, payload: { author: .author } }\n" },
+    ]);
+    assert(result.ok, `focal patch refused: ${result.ok ? "" : diagnosticsText(result.diagnostics)}`);
+    const source = result.modules[0]!.source;
+    const callback = source.indexOf("(__q_old_");
+    const dereference = source.indexOf("db.get(users", callback);
+    const firstField = source.indexOf("const __q_patch_", callback);
+    const secondField = source.indexOf("const __q_patch_", firstField + 1);
+    const returned = source.indexOf("return {", callback);
+    assert(callback >= 0 && firstField > callback && dereference > firstField
+      && secondField > firstField && returned > secondField,
+    `focal patch evaluation escaped or reordered its callback:\n${source}`);
+  });
+
+  test("Quarry shaped pages retain spread/override field types and reference identity", async () => {
+    const schema = "table authors:\n  name: text <=50\n  public\n\ntable posts:\n  author: authors\n  public\n  by author\n\ntable copies:\n  name: text <=50\n  public\n";
+    const unsafe = "mutation copy():\n  for post in posts[] first 5 by byAuthor { *, author: .author }:\n    +copies { name: post.author.name }\n  null\n";
+    await withProject({ "snapback/schema.q": schema, "snapback/ops.q": unsafe }, async (root) => {
+      const compiled = compileInline([
+        { fileName: "snapback/schema.q", source: schema },
+        { fileName: "snapback/ops.q", source: unsafe },
+      ]);
+      assert(compiled.ok && compiled.modules[0]!.source.includes("db.get(authors"),
+        `shaped reference field was not auto-dereferenced: ${compiled.ok ? compiled.modules[0]!.source : diagnosticsText(compiled.diagnostics)}`);
+      const refused = await lowerProject(root);
+      assert(!refused.ok && refused.diagnostics.some((item) => item.message.includes("undefined")
+        && item.rewrite.includes("! else CODE")),
+      `possibly absent shaped read was not refused with a Quarry assertion rewrite: ${JSON.stringify(refused)}`);
+
+      await writeFile(join(root, "snapback/ops.q"), unsafe.replace("post.author.name", "post.author.name! else AUTHOR_MISSING"));
+      const asserted = await lowerProject(root);
+      assert(asserted.ok, `asserted shaped read refused: ${asserted.ok ? "" : diagnosticsText(asserted.diagnostics)}`);
+      assert(JSON.stringify(asserted.project.programs).includes('"table":"authors"'),
+        "asserted shaped-page operation lost its authors read site");
+    });
+  });
+
+  test("Quarry walked rows and shaped page rows stay row/object values", async () => {
+    const schema = "table nodes:\n  parent: nodes?\n  name: text <=50\n  public\n  by name\n\ntable copies:\n  name: text <=50\n  public\n";
+    const module = "mutation copyWalk(seed: nodes):\n  for ancestor in walk nodes[seed] up .parent depth 3:\n    name = ancestor.name\n  null\n\nmutation copyPage():\n  for node in nodes[] first 3 by byName { * }:\n    name = node.name\n  null\n";
+    const compiled = compileInline([
+      { fileName: "snapback/schema.q", source: schema },
+      { fileName: "snapback/ops.q", source: module },
+    ]);
+    assert(compiled.ok, `walk/page front end refused: ${compiled.ok ? "" : diagnosticsText(compiled.diagnostics)}`);
+    const source = compiled.modules[0]!.source;
+    assert(!source.includes("db.get(nodes, ancestor)") && !source.includes("db.get(nodes, node)"),
+      `walked or shaped row was treated as a reference:\n${source}`);
+    assert(source.includes("ancestor.name") && source.includes("node.name"), `row fields were not selected directly:\n${source}`);
+    await withProject({ "snapback/schema.q": schema, "snapback/ops.q": module }, async (root) => {
+      const lowered = await lowerProject(root);
+      assert(lowered.ok, `walk/page project refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
+      assert(rustCheck(lowered.project.programs, "synthetic", lowered.project.schema).every((item) => !item.error),
+        "walk/page project did not certify");
+    });
+  });
+
+  test("Quarry mid-body matches discard arm values and accept write-only arms", async () => {
+    const schema = "table todos:\n  title: text <=50\n  public\n";
+    const module = "mutation touch(id: todos):\n  match todos[id]:\n    some todo:\n      todo.title\n    none:\n      'missing'\n  ~todos[id] { title: 'touched' }\n\nmutation ensure(id: todos):\n  match todos[id]:\n    some todo:\n      ~todos[id] { title: 'found' }\n    none:\n      +todos { title: 'made' }\n  return null\n";
+    await withProject({ "snapback/schema.q": schema, "snapback/ops.q": module }, async (root) => {
+      const lowered = await lowerProject(root);
+      assert(lowered.ok, `mid-body match refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
+      assert(rustCheck(lowered.project.programs, "synthetic", lowered.project.schema).every((item) => !item.error),
+        "mid-body match project did not certify");
+    });
+  });
+
   test("every Quarry diagnostic family rewrite is fenced parseable Quarry", () => {
     const families = JSON.parse(readFileSync(resolve(packageRoot, "guide/families.source.json"), "utf8")) as Array<Record<string, string>>;
     const quarry = families.filter((item) => item.family === "quarry");
@@ -234,6 +402,13 @@ function compileFixture(fixtures: string, name: string, stems: string[]) {
     return { path, fileName: `snapback/${stem}.q`, source: readFileSync(path, "utf8") };
   });
   return compileQuarry(inputs);
+}
+
+function compileInline(inputs: Array<{ fileName: string; source: string }>) {
+  return compileQuarry(inputs.map((input) => ({
+    ...input,
+    path: resolve("/virtual", input.fileName),
+  })));
 }
 
 async function withProject<T>(files: Record<string, string>, run: (root: string) => Promise<T>): Promise<T> {

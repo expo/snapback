@@ -148,6 +148,8 @@ pub struct Recurse {
     pub provenance: KeyProvenance,
 }
 
+pub const MAX_RECURSE_DEPTH: u32 = 10_000;
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Expr {
     Literal(Value),
@@ -189,6 +191,7 @@ pub enum Input {
 pub enum BinaryOp {
     Eq,
     Ne,
+    SameValueZero,
     Lt,
     Lte,
     Gt,
@@ -220,6 +223,21 @@ pub enum Builtin {
     Count,
     Sum,
     CountCapped,
+}
+
+impl Builtin {
+    pub fn arity(&self) -> usize {
+        match self {
+            Self::Len
+            | Self::Sort { .. }
+            | Self::MentionTokens
+            | Self::Count
+            | Self::Sum
+            | Self::CountCapped => 1,
+            Self::Concat | Self::Min | Self::Max | Self::Divmod { .. } => 2,
+            Self::Slice | Self::DeterministicShare => 3,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

@@ -359,10 +359,15 @@ export function registerRbacRuleChecks(
   register("rule literals respect Enum, Decimal, Money, Json, Id, and Ref domains", () => {
     const valid = `import { schema, table, t, rule } from "snapback2";
       export const rows = table({
-        columns: { role: t.enum(["member", "admin"]), metadata: t.json(1024) },
+        columns: {
+          role: t.enum(["member", "admin"]), metadata: t.json(1024),
+          price: t.decimal(2), budget: t.money("USD"),
+        },
         rules: {
           read: rule.and(
             rule.eq(rule.field("role"), rule.literal("member")),
+            rule.eq(rule.field("price"), rule.literal(2)),
+            rule.eq(rule.literal(2.50), rule.field("budget")),
             rule.ne(rule.field("metadata"), rule.literal(null)),
             rule.ne(rule.field("metadata"), rule.literal(true)),
             rule.ne(rule.field("metadata"), rule.literal(7)),
@@ -388,8 +393,8 @@ export function registerRbacRuleChecks(
         },
         rules: {
           read: rule.ne(rule.field("role"), rule.literal("admn")),
-          insert: rule.eq(rule.field("price"), rule.literal(2)),
-          update: rule.eq(rule.field("budget"), rule.literal(2)),
+          insert: rule.allow(),
+          update: rule.allow(),
           delete: rule.eq(rule.field("ownerId"), rule.literal("row-1")),
         },
       });
@@ -401,8 +406,6 @@ export function registerRbacRuleChecks(
     const messages = refused.diagnostics.filter((item) => item.code === "E_RULE_INVALID").map((item) => item.message);
     for (const expected of [
       'Enum<member|admin> with text literal "admn"',
-      "Decimal<2> with integer literal",
-      "Money<USD,2> with integer literal",
       'Id with text literal "row-1"',
       'Ref<profiles> with text literal "profile-1"',
     ]) {

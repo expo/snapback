@@ -2,7 +2,7 @@
 // @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — destructive changes need a plan.
 
 use crate::engine::{
-    RuntimeError, materialize_optional_fields, rebuild_aggregate_target, reindex_row,
+    RuntimeError, materialize_optional_fields, rebuild_owned_aggregate_target, reindex_row,
     validate_column_value,
 };
 use crate::schema::{ColumnType, Maintain, MaintainKind, Schema};
@@ -402,6 +402,7 @@ pub(crate) fn apply_additive(
     next: &Schema,
     from: String,
     to: String,
+    predecessor_maintain_ids: Option<BTreeMap<String, BTreeSet<String>>>,
 ) -> Result<SuccessorReport, RuntimeError> {
     let mut report = SuccessorReport {
         from,
@@ -435,13 +436,8 @@ pub(crate) fn apply_additive(
             }
         }
     }
-    let new_maintains: Vec<_> = next
-        .maintains
-        .iter()
-        .filter(|maintain| !current.maintains.contains(maintain))
-        .cloned()
-        .collect();
-    report.backfilled_maintains = new_maintains.len() as u64;
+    let changed_maintains = changed_maintains(current, next);
+    report.backfilled_maintains = changed_maintains.len() as u64;
 
     for table_name in next.tables.keys() {
         let needs_reindex = current.tables.get(table_name).is_some_and(|table| {
@@ -459,15 +455,16 @@ pub(crate) fn apply_additive(
             }
         }
     }
+    let mut predecessor_maintain_ids = predecessor_maintain_ids
+        .map(Ok)
+        .unwrap_or_else(|| projected_predecessor_ids(transaction, current, next))?;
     for target in maintained_targets_requiring_rebuild(current, next) {
-        if next.table(&target).is_none() {
-            // apply_migration_drops already removed this predecessor target.
-            continue;
-        }
-        let rows = projected_target_rows(transaction, next, &target)?
-            .into_values()
-            .collect();
-        rebuild_aggregate_target(transaction, next, &target, rows)?;
+        rebuild_target(
+            transaction,
+            next,
+            &target,
+            predecessor_maintain_ids.remove(&target).unwrap_or_default(),
+        )?;
     }
     Ok(report)
 }
@@ -560,18 +557,29 @@ fn drop_column_values(
     Ok(())
 }
 
+fn changed_maintains<'a>(current: &'a Schema, next: &'a Schema) -> Vec<&'a Maintain> {
+    let mut unmatched_next = next.maintains.iter().collect::<Vec<_>>();
+    let mut changed = Vec::new();
+    for maintain in &current.maintains {
+        if let Some(offset) = unmatched_next
+            .iter()
+            .position(|candidate| *candidate == maintain)
+        {
+            unmatched_next.remove(offset);
+        } else {
+            changed.push(maintain);
+        }
+    }
+    changed.extend(unmatched_next);
+    changed
+}
+
 // @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — additions,
-// removals, and declaration changes rebuild every affected derived target.
+// removals, declaration multiplicity, and projection-relevant type changes
+// rebuild every affected derived target retained by the successor.
 fn maintained_targets_requiring_rebuild(current: &Schema, next: &Schema) -> BTreeSet<String> {
-    let mut targets = current
-        .maintains
-        .iter()
-        .filter(|maintain| !next.maintains.contains(maintain))
-        .chain(
-            next.maintains
-                .iter()
-                .filter(|maintain| !current.maintains.contains(maintain)),
-        )
+    let mut targets = changed_maintains(current, next)
+        .into_iter()
         .map(|maintain| maintain.target.clone())
         .collect::<BTreeSet<_>>();
 
@@ -607,7 +615,42 @@ fn maintained_targets_requiring_rebuild(current: &Schema, next: &Schema) -> BTre
             targets.insert(maintain.target.clone());
         }
     }
+
+    targets.retain(|target| next.tables.contains_key(target));
     targets
+}
+
+pub(crate) fn projected_predecessor_ids(
+    connection: &Connection,
+    current: &Schema,
+    next: &Schema,
+) -> Result<BTreeMap<String, BTreeSet<String>>, RuntimeError> {
+    maintained_targets_requiring_rebuild(current, next)
+        .into_iter()
+        .map(|target| {
+            let ids = projected_target_rows(connection, current, &target)?
+                .into_keys()
+                .collect();
+            Ok((target, ids))
+        })
+        .collect()
+}
+
+fn rebuild_target(
+    transaction: &Transaction<'_>,
+    schema: &Schema,
+    target: &str,
+    mut owned_ids: BTreeSet<String>,
+) -> Result<(), RuntimeError> {
+    let rows = projected_target_rows(transaction, schema, target)?;
+    owned_ids.extend(rows.keys().cloned());
+    rebuild_owned_aggregate_target(
+        transaction,
+        schema,
+        target,
+        &owned_ids,
+        rows.into_values().collect(),
+    )
 }
 
 fn projected_target_rows(
@@ -615,7 +658,7 @@ fn projected_target_rows(
     schema: &Schema,
     target: &str,
 ) -> Result<BTreeMap<String, Value>, RuntimeError> {
-    let mut rows = BTreeMap::new();
+    let mut combined = BTreeMap::<String, Value>::new();
     for maintain in schema
         .maintains
         .iter()
@@ -623,14 +666,30 @@ fn projected_target_rows(
     {
         for row in projected_backfill_rows(connection, schema, maintain)? {
             let id = row.field("id")?.as_str()?.to_owned();
-            if rows.insert(id.clone(), row).is_some() {
-                return Err(RuntimeError::Schema(format!(
-                    "multiple maintains produced {target}.{id}"
-                )));
+            if let Some(existing) = combined.get_mut(&id) {
+                let total = existing.field("value")?.as_int()? as i128
+                    + row.field("value")?.as_int()? as i128;
+                if !(I53_MIN as i128..=I53_MAX as i128).contains(&total) {
+                    return Err(RuntimeError::Constraint(format!(
+                        "aggregate backfill overflow for {target}"
+                    )));
+                }
+                match existing {
+                    Value::Row(fields) | Value::Map(fields) => {
+                        fields.insert("value".to_owned(), Value::Int(total as i64));
+                    }
+                    _ => {
+                        return Err(RuntimeError::Schema(format!(
+                            "aggregate backfill for {target} produced a non-row"
+                        )));
+                    }
+                }
+            } else {
+                combined.insert(id, row);
             }
         }
     }
-    Ok(rows)
+    Ok(combined)
 }
 
 fn projected_backfill_rows(

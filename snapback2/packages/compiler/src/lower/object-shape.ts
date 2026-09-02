@@ -31,6 +31,10 @@ function knownObjectFieldsInner(node: ts.Expression, env: Environment): string[]
       ? knownObjectFields(info.immutableOrigin.expression, info.immutableOrigin.environment)
       : undefined);
   }
+  if (ts.isPropertyAccessExpression(value)) {
+    const selected = selectedObjectMember(value.expression, value.name.text, env);
+    return selected && knownObjectFields(selected.expression, selected.environment);
+  }
   if (ts.isObjectLiteralExpression(value)) {
     const fields: string[] = [];
     for (const property of value.properties) {
@@ -62,6 +66,44 @@ function knownObjectFieldsInner(node: ts.Expression, env: Environment): string[]
     return knownObjectFields(call.expression.expression, env);
   }
   return undefined;
+}
+
+function selectedObjectMember(
+  node: ts.Expression,
+  member: string,
+  env: Environment,
+): { expression: ts.Expression; environment: Environment } | undefined {
+  const value = unwrapExpression(node);
+  if (ts.isIdentifier(value)) {
+    const substituted = env.substitutions.get(value.text);
+    if (substituted) return selectedObjectMember(substituted.expression, member, substituted.environment);
+    const origin = env.variables.get(value.text)?.immutableOrigin;
+    return origin && selectedObjectMember(origin.expression, member, origin.environment);
+  }
+  if (ts.isPropertyAccessExpression(value)) {
+    const selected = selectedObjectMember(value.expression, value.name.text, env);
+    return selected && selectedObjectMember(selected.expression, member, selected.environment);
+  }
+  if (ts.isObjectLiteralExpression(value)) {
+    for (const property of [...value.properties].reverse()) {
+      if (ts.isSpreadAssignment(property)) {
+        const fields = knownObjectFields(property.expression, env);
+        if (!fields) return undefined;
+        if (fields.includes(member)) return selectedObjectMember(property.expression, member, env);
+        continue;
+      }
+      if (ts.isShorthandPropertyAssignment(property) && property.name.text === member) {
+        return { expression: property.name, environment: env };
+      }
+      if (ts.isPropertyAssignment(property) && propertyName(property.name) === member) {
+        return { expression: property.initializer, environment: env };
+      }
+    }
+    return undefined;
+  }
+  const call = unwrapCall(value);
+  const expanded = call && expandHelper(call, env);
+  return expanded && selectedObjectMember(expanded.expression, member, expanded.environment);
 }
 
 export function rowCollectionFields(node: ts.Expression, env: Environment): string[] | undefined {

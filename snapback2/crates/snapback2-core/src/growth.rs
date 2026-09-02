@@ -129,6 +129,21 @@ pub(crate) fn saturating_power(mut base: u64, mut exponent: u64) -> u64 {
     value
 }
 
+pub(crate) fn geometric_sum(fanout: u64, depth: u32) -> u64 {
+    match fanout {
+        0 => 1,
+        1 => u64::from(depth).saturating_add(1),
+        _ => {
+            let power = saturating_power(fanout, u64::from(depth).saturating_add(1));
+            if power == u64::MAX {
+                u64::MAX
+            } else {
+                power.saturating_sub(1) / fanout.saturating_sub(1)
+            }
+        }
+    }
+}
+
 pub(crate) fn expression_from<T>(
     value: &Expr,
     variables: &BTreeMap<String, T>,

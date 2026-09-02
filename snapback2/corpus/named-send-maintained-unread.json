@@ -1244,6 +1244,7 @@
     "seed_write": false
   },
   "receipt": {
+    "schema_hash": "31792591fb75b5ab316e24a71206d3f7de6e02ed12f49a2f39782dbcab4b3566",
     "rows": [
       {
         "table": "accounts",
@@ -1650,14 +1651,14 @@
   "prelude": [],
   "replacementReceipt": null,
   "expected": {
-    "localResult": {
-      "Id": "named-unread-message"
-    },
+    "localResult": "Null",
     "errorCode": null,
-    "localState": "predicted",
-    "partialSites": [],
-    "canonicalResult": "{\"Id\":\"named-unread-message\"}",
-    "digest": "3ddbe00e74e97dad4072fb520e022c9deb99496c1035731c6df921f42e11ac64",
+    "localState": "partial",
+    "partialSites": [
+      "unreads.byConvUser"
+    ],
+    "canonicalResult": "\"Null\"",
+    "digest": "6c7382d463fdb189bd1075f11b73b2335f49de592445abdd337b62ff8b9c5ece",
     "rangeStops": {
       "programs.sendMaintainedUnread.2": [
         "exhausted"

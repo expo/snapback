@@ -127,7 +127,12 @@ pub fn run(args: &[String]) -> ExitCode {
         &[("X-Snapback-As", persona)],
         json!({ "op": op, "args": args_json }),
     ) {
-        Ok(response) => print_response(response.status, response.body, options.has("--json")),
+        Ok(response) => {
+            let rejected = path == "/api/mutation"
+                && response.body.get("state").and_then(Json::as_str) == Some("rejected");
+            let code = print_response(response.status, response.body, options.has("--json"));
+            if rejected { ExitCode::from(1) } else { code }
+        }
         Err(error) => refused(error, options.has("--json"), 1),
     }
 }

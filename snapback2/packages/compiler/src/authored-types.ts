@@ -1,5 +1,7 @@
 export type AuthoredType =
   | { kind: "unknown" }
+  | { kind: "null" }
+  | { kind: "object" }
   | { kind: "int" }
   | { kind: "decimal"; scale: number; currency?: string }
   | { kind: "enum"; variants: string[] }

@@ -21,7 +21,7 @@
 
   // The factory captures the restored accessors and deletes them itself.
   const makeFetch = __SNAPBACK_FETCH_FACTORY__;
-  const grantedFetch = makeFetch(globalThis.__ibex2_fetch);
+  const grantedFetch = makeFetch(globalThis.__ibex2_fetch, tagRawGrantError);
   delete globalThis.__ibex2_fetch;
   delete globalThis.__sb_saved;
   // Effects never load ESM, so its lowering-only helpers have no job here.
@@ -91,12 +91,10 @@
     configurable: false,
   });
 
-  function tagGrantError(error, input) {
+  function tagRawGrantError(error, attemptedUrl) {
     const message = error && error.message ? String(error.message) : String(error);
-    if (message.indexOf("denied: net.fetch") === -1) return error;
-    let origin = error && error.__snapbackDeniedOrigin
-      ? String(error.__snapbackDeniedOrigin)
-      : String(input);
+    if (message !== "denied: net.fetch") return error;
+    let origin = String(attemptedUrl);
     try { origin = new URL(origin).origin; } catch (_) {}
     const tagged = new Error("denied: net.fetch " + origin + "; declare " + origin);
     tagged.code = "E_EFFECT_GRANT";
@@ -117,7 +115,7 @@
         pending = boundFetch.apply(undefined, arguments);
       } catch (error) {
         state.pendingFetches--;
-        return Promise.reject(tagGrantError(error, input));
+        return Promise.reject(error);
       }
       return pending.then(
         function (value) {
@@ -126,7 +124,7 @@
         },
         function (error) {
           state.pendingFetches--;
-          throw tagGrantError(error, input);
+          throw error;
         }
       );
     };

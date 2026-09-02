@@ -20,6 +20,12 @@ import type { QuarryDiagnostic } from "./ast";
 import { QuarryError, refuse, syntax, unsupported } from "./diagnostics";
 import { lex, type Token, type TokenKind } from "./lexer";
 
+const RESERVED_BINDINGS = new Set([
+  "arguments", "await", "break", "case", "catch", "class", "const", "continue", "debugger", "default", "delete", "do",
+  "else", "enum", "eval", "export", "extends", "false", "finally", "for", "function", "if", "implements", "import",
+  "in", "instanceof", "interface", "let", "new", "null", "package", "private", "protected", "public", "return", "static",
+  "super", "switch", "this", "throw", "true", "try", "typeof", "var", "void", "while", "with", "yield",
+]);
 const PRECEDENCE = new Map<string, number>([
   ["??", 1], ["or", 2], ["and", 3],
   ["=", 4], ["!=", 4], ["<", 4], ["<=", 4], [">", 4], [">=", 4],
@@ -90,7 +96,7 @@ class Parser {
 
   private parseTable(): TableDecl {
     const site = this.take("table");
-    const name = this.word().value;
+    const name = this.generatedBinding("table");
     this.take(":");
     this.newline();
     this.takeKind("indent");
@@ -212,7 +218,7 @@ class Parser {
 
   private parseEffect(): { name: string; module: string; site: Site } {
     const site = this.take("effect");
-    const name = this.word().value;
+    const name = this.generatedBinding("effect");
     this.take("from");
     const module = this.word().value;
     this.newline();
@@ -238,7 +244,7 @@ class Parser {
 
   private parseChannel(): ChannelDecl {
     const site = this.take("channel");
-    const name = this.word().value;
+    const name = this.generatedBinding("channel");
     const args = this.parseArgs();
     this.take(":");
     this.newline();
@@ -274,7 +280,7 @@ class Parser {
   private parseProgram(): ProgramDecl {
     const kindToken = this.word();
     const kind = kindToken.value as ProgramDecl["kind"];
-    const name = this.word().value;
+    const name = this.generatedBinding("operation");
     const args = this.parseArgs();
     let result: ScalarType | undefined;
     if (this.maybe("->")) result = this.parseType();
@@ -283,6 +289,18 @@ class Parser {
     const body = this.parseBlock();
     if (body.length === 0) syntax(kindToken, `${kind} ${name} has an empty body`);
     return { kind, name, args, result, body, site: kindToken };
+  }
+
+  private generatedBinding(kind: "table" | "channel" | "effect" | "operation"): string {
+    const token = this.word();
+    if (RESERVED_BINDINGS.has(token.value)) {
+      refuse(
+        token,
+        `${kind} name ${token.value} is reserved and cannot become a generated TypeScript binding`,
+        `rename the ${kind} ${token.value} to an identifier that is not reserved by JavaScript`,
+      );
+    }
+    return token.value;
   }
 
   private parseArgs(): ArgDecl[] {

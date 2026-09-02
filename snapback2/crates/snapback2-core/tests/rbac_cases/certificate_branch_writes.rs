@@ -198,6 +198,7 @@ fn receipt_authority_gates_the_local_aggregate_predecessor() {
     assert!(missing.rows("counts").unwrap().is_empty());
 
     let absent = ClosureReceipt {
+        schema_hash: Some(schema.hash()),
         absences: vec![(
             "counts".to_owned(),
             "byId".to_owned(),

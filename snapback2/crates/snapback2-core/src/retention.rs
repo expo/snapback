@@ -1,7 +1,7 @@
 use crate::certificate::declared_serialized_row_max;
 use crate::growth::{
     ProvenanceBinding, assignment_growth, collection_price_from,
-    expression_from as provenance_expression_from, saturating_power, take_identity,
+    expression_from as provenance_expression_from, geometric_sum, saturating_power, take_identity,
 };
 use crate::ir::{ArgType, Builtin, Expr, Input, LoopDomain, Program, Scan, Stmt};
 use crate::schema::Schema;
@@ -475,12 +475,7 @@ impl<'a> RetentionEstimator<'a> {
                 (bound, flow.element(collection_len.unwrap_or(bound)))
             }
             LoopDomain::Recurse(recurse) => {
-                let mut nodes = 0_u64;
-                let mut level = 1_u64;
-                for _ in 0..=recurse.depth {
-                    nodes = nodes.saturating_add(level);
-                    level = level.saturating_mul(u64::from(recurse.fanout));
-                }
+                let nodes = geometric_sum(u64::from(recurse.fanout), recurse.depth);
                 (
                     nodes,
                     Flow::row(

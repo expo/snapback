@@ -314,8 +314,13 @@ fn hoisted_uniform_false_is_identical_for_empty_small_and_over_ceiling_ranges() 
 
     assert_eq!(observable(&empty), observable(&two_hidden));
     assert_eq!(observable(&empty), observable(&many_hidden));
+    let expected_schema_hash = schema("owner").hash();
     for execution in [&empty, &two_hidden, &many_hidden] {
         assert_eq!(execution.state, ExecutionState::Complete);
+        assert_eq!(
+            execution.receipt.schema_hash.as_deref(),
+            Some(expected_schema_hash.as_str())
+        );
         assert_eq!(execution.trace.ranges[0].stop, StopReason::Exhausted);
         assert!(execution.receipt.ranges[0].absence);
     }

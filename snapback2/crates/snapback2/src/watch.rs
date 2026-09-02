@@ -1,7 +1,7 @@
 //! 200 ms authored-source polling and hot successor application.
 // @ref LLP 1002#5-the-owner — refused successors keep the last generation serving.
 
-use crate::project::{CompilerWorker, write_build_cache};
+use crate::project::{CompilerWorker, stage_build_cache};
 use crate::protocol::Refusal;
 use crate::writer::{Action, OwnerHandle};
 use serde_json::{Value as Json, json};
@@ -20,6 +20,7 @@ pub fn spawn(
     handle: OwnerHandle,
     stop: Arc<AtomicBool>,
 ) -> thread::JoinHandle<()> {
+    compiler.cancel_on(stop.clone());
     thread::Builder::new()
         .name("snapback2-watch".to_owned())
         .spawn(move || {
@@ -48,15 +49,19 @@ pub fn spawn(
                                 continue;
                             }
                         };
-                        if let Err(error) = write_build_cache(&root, &compiled) {
-                            refuse(&handle, &root, generation, vec![error]);
-                            continue;
-                        }
                         let project = compiled.project.clone();
+                        let cache = match stage_build_cache(&root, &compiled) {
+                            Ok(cache) => cache,
+                            Err(error) => {
+                                refuse(&handle, &root, generation, vec![error]);
+                                continue;
+                            }
+                        };
                         match handle.call(Action::Apply {
-                            compiled,
+                            compiled: compiled.clone(),
                             migration: None,
                             seed: Some(seed),
+                            cache: Some(cache),
                         }) {
                             Ok(report) => {
                                 log(
@@ -69,6 +74,19 @@ pub fn spawn(
                                 );
                             }
                             Err(error) => {
+                                if error.code == "E_OWNER_STATE"
+                                    && error.detail.get("applied") == Some(&Json::Bool(true))
+                                {
+                                    log(
+                                        &root,
+                                        json!({
+                                            "successor": "applied",
+                                            "generation": generation,
+                                            "ownerStateError": error,
+                                        }),
+                                    );
+                                    continue;
+                                }
                                 if error.code == "E_SUCCESSOR_DESTRUCTIVE" {
                                     write_migration(&root, &generation, &project, &error);
                                 }

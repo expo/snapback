@@ -102,6 +102,15 @@ pub struct TraceRange {
     pub table: String,
     pub index: String,
     pub prefix: Vec<Value>,
+    pub order: Order,
+    pub take: u32,
+    pub after: Option<Value>,
+    pub before: Option<Value>,
+    pub gt: Option<Value>,
+    pub gte: Option<Value>,
+    pub lt: Option<Value>,
+    pub lte: Option<Value>,
+    pub rule_hash: String,
     pub examined_ids: Vec<String>,
     /// Every examined row admitted by the read rule, including page-cut rows.
     pub visible_ids: Vec<String>,
@@ -138,6 +147,8 @@ pub struct PointTrace {
 pub struct ConstraintTrace {
     pub table: String,
     pub check: String,
+    pub index: String,
+    pub prefix: Vec<Value>,
     pub examined_ids: Vec<String>,
 }
 
@@ -153,6 +164,8 @@ pub struct AuthoritativeTrace {
     pub rows: Vec<RowRecord>,
     pub points: Vec<PointTrace>,
     pub constraint_inputs: Vec<ConstraintTrace>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub missing_preimages: Vec<(String, String)>,
     pub ranges: Vec<TraceRange>,
     pub absences: Vec<(String, String, Vec<Value>)>,
     pub rule_inputs: Vec<RuleInputTrace>,
@@ -173,6 +186,15 @@ pub struct ReceiptRange {
     pub table: String,
     pub index: String,
     pub prefix: Vec<Value>,
+    pub order: Order,
+    pub take: u32,
+    pub after: Option<Value>,
+    pub before: Option<Value>,
+    pub gt: Option<Value>,
+    pub gte: Option<Value>,
+    pub lt: Option<Value>,
+    pub lte: Option<Value>,
+    pub rule_hash: String,
     pub row_ids: Vec<String>,
     pub stop: StopReason,
     pub absence: bool,
@@ -191,6 +213,10 @@ pub struct Verdict {
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ClosureReceipt {
+    /// Binds authority-issued absence facts to the schema that observed them.
+    /// Rows remain client-issuable and do not depend on this field.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub schema_hash: Option<String>,
     pub rows: Vec<RowRecord>,
     pub ranges: Vec<ReceiptRange>,
     pub absences: Vec<(String, String, Vec<Value>)>,
@@ -341,6 +367,16 @@ impl Engine {
 
     pub fn memory(schema: Schema) -> Result<Self, RuntimeError> {
         Self::new(Store::memory()?, schema)
+    }
+
+    pub(crate) fn memory_copy(&self) -> Result<Self, RuntimeError> {
+        Ok(Self {
+            store: self.store.memory_copy()?,
+            schema: self.schema.clone(),
+            verdicts: self.verdicts.clone(),
+            authority_absences: self.authority_absences.clone(),
+            rule_authority: self.rule_authority,
+        })
     }
 
     pub(crate) fn install_receipt_authority(&mut self, receipt: &ClosureReceipt) {
@@ -808,12 +844,14 @@ impl Engine {
     }
 }
 
-// @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — a changed
-// maintain replaces its affected target from the next generation atomically.
-pub(crate) fn rebuild_aggregate_target<'a>(
+// @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — successor
+// rebuilds clear only predecessor/successor projection-owned ids, preserve
+// other target rows, and bind every delete/write constraint atomically.
+pub(crate) fn rebuild_owned_aggregate_target<'a>(
     transaction: &'a Transaction<'a>,
     schema: &'a Schema,
     target: &str,
+    owned_ids: &BTreeSet<String>,
     rows: Vec<Value>,
 ) -> Result<(), RuntimeError> {
     let mut runner = Runner::probe(
@@ -826,7 +864,7 @@ pub(crate) fn rebuild_aggregate_target<'a>(
         0,
         None,
     );
-    runner.clear_aggregate_target(target)?;
+    runner.clear_aggregate_ids(target, owned_ids)?;
     for row in rows {
         runner.write_aggregate_row(target, row)?;
     }
@@ -1025,6 +1063,11 @@ pub fn validate_schema(schema: &Schema) -> Result<(), Vec<RuntimeError>> {
             )));
         }
         for (index_name, index) in &table.indexes {
+            if index.columns.is_empty() || index.columns.len() > 8 {
+                errors.push(RuntimeError::Schema(format!(
+                    "index {table_name}.{index_name} must declare between 1 and 8 columns"
+                )));
+            }
             for column in &index.columns {
                 if !table.columns.contains_key(column) {
                     errors.push(RuntimeError::Schema(format!(

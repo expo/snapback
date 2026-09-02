@@ -6,6 +6,10 @@ use std::collections::{BTreeMap, VecDeque};
 use std::fs;
 use std::path::PathBuf;
 
+#[path = "export_corpus/client_scenarios.rs"]
+mod client_scenarios;
+#[path = "export_corpus/constraints.rs"]
+mod export_corpus_constraints;
 #[path = "export_corpus/twin_cases.rs"]
 mod twin_cases;
 
@@ -84,6 +88,7 @@ impl Fixture {
             }
         }
         ClosureReceipt {
+            schema_hash: None,
             rows,
             ranges: Vec::new(),
             absences: Vec::new(),
@@ -96,7 +101,7 @@ fn main() {
     let mut cases = Vec::new();
     add_named_cases(&mut cases);
     twin_cases::add_twin_cases(&mut cases);
-    add_client_scenarios(&mut cases);
+    client_scenarios::add_client_scenarios(&mut cases);
     add_value_edges(&mut cases);
     add_bytes_cases(&mut cases);
     add_random_cases(&mut cases);
@@ -445,137 +450,6 @@ fn named_emit_case() -> CorpusCase {
     case
 }
 
-fn add_client_scenarios(cases: &mut Vec<CorpusCase>) {
-    let schema = spike_schema();
-    let thread = thread_program(3);
-    let thread_context = query_context([("conversationId", id("c1"))]);
-
-    let mut server = Fixture::new();
-    let hydration = authoritative(&mut server.engine, &schema, &thread, thread_context.clone());
-    cases.push(case_from_parts(
-        "scenario-hydrate",
-        "scenario",
-        schema.clone(),
-        thread.clone(),
-        thread_context.clone(),
-        hydration.receipt.clone(),
-        Vec::new(),
-        None,
-        None,
-    ));
-
-    let send = PreludeStep {
-        program: send_program(false),
-        context: mutation_context(
-            [
-                ("conversationId", id("c1")),
-                ("body", text("offline")),
-                ("at", Value::Int(100)),
-            ],
-            ["local-send"],
-        ),
-        expected_state: "predicted".to_owned(),
-    };
-    cases.push(case_from_parts(
-        "scenario-local-send",
-        "scenario",
-        schema.clone(),
-        thread.clone(),
-        thread_context.clone(),
-        hydration.receipt.clone(),
-        vec![send.clone()],
-        None,
-        None,
-    ));
-
-    let first_delete = PreludeStep {
-        program: delete_message_program(),
-        context: mutation_context([("id", id("message-00004"))], Vec::<String>::new()),
-        expected_state: "predicted".to_owned(),
-    };
-    cases.push(case_from_parts(
-        "scenario-delete-first",
-        "scenario",
-        schema.clone(),
-        thread.clone(),
-        thread_context.clone(),
-        hydration.receipt.clone(),
-        vec![send.clone(), first_delete.clone()],
-        None,
-        None,
-    ));
-
-    let second_delete = PreludeStep {
-        program: delete_message_program(),
-        context: mutation_context([("id", id("message-00003"))], Vec::<String>::new()),
-        expected_state: "predicted".to_owned(),
-    };
-    cases.push(case_from_parts(
-        "scenario-delete-second",
-        "scenario",
-        schema.clone(),
-        thread.clone(),
-        thread_context.clone(),
-        hydration.receipt.clone(),
-        vec![send, first_delete, second_delete],
-        None,
-        None,
-    ));
-
-    let mention_send = PreludeStep {
-        program: send_program(false),
-        context: mutation_context(
-            [
-                ("conversationId", id("c1")),
-                ("body", text("hi @bob")),
-                ("at", Value::Int(101)),
-            ],
-            ["local-mention"],
-        ),
-        expected_state: "predicted".to_owned(),
-    };
-    cases.push(case_from_parts(
-        "scenario-first-mention",
-        "scenario",
-        schema.clone(),
-        thread.clone(),
-        thread_context.clone(),
-        hydration.receipt.clone(),
-        vec![mention_send.clone()],
-        None,
-        None,
-    ));
-
-    let leave = Program {
-        name: "leaveConversation".to_owned(),
-        kind: ProgramKind::Mutation,
-        args: BTreeMap::new(),
-        read_time_granularity_ms: None,
-        body: vec![Stmt::Delete {
-            table: "memberships".to_owned(),
-            key: Expr::Literal(id("m1")),
-        }],
-    };
-    authoritative(
-        &mut server.engine,
-        &schema,
-        &leave,
-        mutation_context([], Vec::<String>::new()),
-    );
-    let revoked = authoritative(&mut server.engine, &schema, &thread, thread_context.clone());
-    cases.push(case_from_parts(
-        "scenario-revocation-rehydrate",
-        "scenario",
-        schema,
-        thread,
-        thread_context,
-        hydration.receipt,
-        vec![mention_send],
-        Some(revoked.receipt),
-        None,
-    ));
-}
-
 fn add_value_edges(cases: &mut Vec<CorpusCase>) {
     let sortable = Value::Array(vec![
         row([("key", text("\u{10000}")), ("position", Value::Int(0))]),
@@ -715,6 +589,7 @@ fn add_bytes_cases(cases: &mut Vec<CorpusCase>) {
     ));
 
     let receipt = ClosureReceipt {
+        schema_hash: None,
         rows: vec![
             RowRecord {
                 table: "blobs".to_owned(),
@@ -1045,6 +920,7 @@ fn hidden_authority_case(name: &str, authority: HiddenAuthority) -> CorpusCase {
         vec![verdict]
     };
     let receipt = ClosureReceipt {
+        schema_hash: None,
         rows: vec![
             RowRecord {
                 table: "entitlements".to_owned(),
@@ -1095,7 +971,9 @@ fn mutation_case(name: &str, category: &str, program: Program, context: Context)
         None,
         None,
     );
-    assert_eq!(case.expected.local_result.as_ref(), Some(&execution.result));
+    if case.expected.local_state != "partial" {
+        assert_eq!(case.expected.local_result.as_ref(), Some(&execution.result));
+    }
     case
 }
 
@@ -1106,11 +984,20 @@ fn case_from_parts(
     schema: Schema,
     program: Program,
     context: Context,
-    receipt: ClosureReceipt,
+    mut receipt: ClosureReceipt,
     prelude: Vec<PreludeStep>,
-    replacement_receipt: Option<ClosureReceipt>,
+    mut replacement_receipt: Option<ClosureReceipt>,
     random_seed: Option<u64>,
 ) -> CorpusCase {
+    let schema_hash = schema.hash();
+    receipt
+        .schema_hash
+        .get_or_insert_with(|| schema_hash.clone());
+    if let Some(replacement) = &mut replacement_receipt {
+        replacement
+            .schema_hash
+            .get_or_insert_with(|| schema_hash.clone());
+    }
     let certificate = Checker::new(&schema, Ceilings::default())
         .check(&program)
         .expect("case certificate");

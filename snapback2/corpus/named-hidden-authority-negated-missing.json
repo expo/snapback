@@ -998,6 +998,7 @@
     "seed_write": false
   },
   "receipt": {
+    "schema_hash": "470cb398d680f8e07ea91eaac7c2f1c95c68f57eebf1a4f0d0eb8b6ab17d7978",
     "rows": [
       {
         "table": "entitlements",

@@ -281,6 +281,7 @@
     "seed_write": false
   },
   "receipt": {
+    "schema_hash": "e3be1428b57215ef9f1b8696117e30238f13b0ff56da6bb99f5fd37bcef9ea97",
     "rows": [],
     "ranges": [],
     "absences": [],

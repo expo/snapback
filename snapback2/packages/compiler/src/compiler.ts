@@ -4,8 +4,9 @@ import { argumentSpreadRewrite, expandArgumentObject } from "./args";
 import { boundedDiagnostics, diagnostic, refuse, Refusal } from "./diagnostics";
 import {
   allocateReadSite, cloneEnvironment, containsRead, enterLexicalScope,
-  loopDomainMaximum, lowerCoalesce, lowerArrayMethod, lowerCollectionDomain,
-  lowerDomain, lowerExpr, lowerKey, lowerPatch, lowerSortExpression, reserveWriteSite, tableReference,
+  loopDomainMaximum, lowerArrayMethod, lowerCollectionDomain,
+  lowerDomain, lowerExpr, lowerKey, lowerOptionalPropertyChain, lowerPatch, lowerPropertyValue,
+  lowerSortExpression, reserveWriteSite, tableReference,
 } from "./lower/expr";
 import { knownObjectFields, nullableReadSpread, nullableSpreadRefusal, rowCollectionFields } from "./lower/object-shape";
 import { derivedBound, staticBound } from "./lower/binding-bound";
@@ -14,6 +15,8 @@ import { appendCollectionFacts, collectionFactsFor, collectionMutationIncrement,
   mergeAssignedCollectionFacts } from "./lower/collection-facts";
 import { forkBranchEnvironment, mergeBranchEnvironments } from "./lower/branch-bindings";
 import { lowerLoopBodyWithMutationPlan } from "./lower/loop-mutations";
+import { lowerCollectionConstructor, lowerCollectionLookup, lowerMapAssignment, requirePrimitiveCollectionIdentity } from "./lower/collections";
+import { upsertIdentityMatches } from "./lower/write-identity";
 import { findPolicyRefusals, mechanicalBoundRewrite } from "./policy";
 import { analyzeOperationTypes, type TypePlan } from "./type-analysis";
 import { formatTypeDiagnostic, typecheckSource } from "./typecheck";
@@ -180,7 +183,7 @@ function lowerOperation(
       nestedHandlerDestructuringRewrite(module, handler),
     );
   }
-  const args: Program["args"] = {};
+  const args: Program["args"] = Object.create(null);
   const expandedArgs = expandArgumentObject(argObject);
   if (expandedArgs.invalidSpread) {
     refuse(module, "E_ARGS_SPREAD", expandedArgs.invalidSpread, "argument object spread is not a module-level constant object; spell out every argument field",
@@ -247,6 +250,7 @@ function lowerOperation(
     accessOrdinal: { value: 0 },
     temp: { value: 0 },
     literalValues: typePlan?.literalValues ?? new Map(),
+    expressionTypes: typePlan?.expressionTypes ?? new Map(),
     literalContext: "operation",
     diagnostics,
     recursion: { depth: 0, active: new Map() },
@@ -307,9 +311,15 @@ function lowerStatement(statement: ts.Statement, env: Environment): Stmt[] {
             ? element.name
             : undefined);
           if (!identifiers[0] || !identifiers[1]) refuse(env, "E_OPAQUE", declaration.name, "orderedPair bindings must be identifiers");
-          const args = call.arguments.map((argument) => lowerExpr(argument, env));
-          out.push({ Let: { name: identifiers[0].text, value: { Builtin: { builtin: "Min", args } } } });
-          out.push({ Let: { name: identifiers[1].text, value: { Builtin: { builtin: "Max", args } } } });
+          const args = call.arguments.map((argument) => lowerValue(argument, env));
+          out.push(...args.flatMap((argument) => argument.statements));
+          const values = args.map((argument, index) => {
+            const name = temporary(env, `ordered${index}`);
+            out.push({ Let: { name, value: argument.expression } });
+            return { Variable: name } satisfies Expr;
+          });
+          out.push({ Let: { name: identifiers[0].text, value: { Builtin: { builtin: "Min", args: values } } } });
+          out.push({ Let: { name: identifiers[1].text, value: { Builtin: { builtin: "Max", args: values } } } });
           const origin = withDirectRewrite(combinedProvenanceBinding(call.arguments, env), declaration.initializer, env);
           for (const identifier of identifiers as [ts.Identifier, ts.Identifier]) {
             env.variables.set(identifier.text, { ...origin });
@@ -344,6 +354,7 @@ function lowerStatement(statement: ts.Statement, env: Environment): Stmt[] {
           locallyCreatedCollection: isLocallyCreatedCollection(declaration.initializer),
           ...(collection ? { collection } : {}),
           ...(objectFields ? { objectFields } : {}),
+          ...(stableBinding ? { identityExpression: lowered.expression } : {}),
           immutableOrigin: { expression: declaration.initializer, environment: bindTime },
           ...(isRowExpression(declaration.initializer, env) ? { rowBinding: true } : {}),
           ...(rowCollection ? { rowCollection: true } : {}),
@@ -352,7 +363,7 @@ function lowerStatement(statement: ts.Statement, env: Environment): Stmt[] {
         }, facts);
         env.variables.set(name, info);
         out.push(...lowered.statements);
-        out.push(isConst
+        out.push(isConst && !collection
           ? { Const: { name, value: lowered.expression } }
           : { Let: { name, value: lowered.expression } });
       } catch (error) {
@@ -463,33 +474,44 @@ function lowerExpressionStatement(expression: ts.Expression, env: Environment): 
         const key = expression.arguments[0];
         const value = expression.arguments[1];
         if (!key || !value) refuse(env, "E_OPAQUE", expression, "Map.set requires key and value");
+        requirePrimitiveCollectionIdentity(key, env, "Map keys");
         const loweredKey = lowerValue(key, env);
         const loweredValue = lowerValue(value, env);
         const info = env.variables.get(owner.text)!;
-        appendCollectionFacts(info, value, env, collectionMutationIncrement(info, owner.text, env), collectionOriginsBinding);
+        const priorMax = info.max;
+        const increment = collectionMutationIncrement(info, owner.text, env);
+        appendCollectionFacts(info, value, env, increment, collectionOriginsBinding);
+        if (info.max === undefined && priorMax !== undefined) {
+          info.max = priorMax + increment;
+          info.boundSource = `${value.getText(env.sourceFile)} Map.set bound`;
+        }
         return [
-          ...loweredKey.statements,
-          ...loweredValue.statements,
-          { Push: {
-            target: owner.text,
-            value: { Object: { key: loweredKey.expression, value: loweredValue.expression } },
-          } },
+          ...lowerMapAssignment(owner.text, loweredKey, loweredValue, info.max ?? 0, info.boundSource, env),
         ];
       }
       if (ts.isIdentifier(owner) && env.variables.get(owner.text)?.collection === "Set" && method === "add") {
         requireCollectionMutation(owner, expression, env);
         const value = expression.arguments[0];
         if (!value) refuse(env, "E_OPAQUE", expression, "Set.add requires a value");
+        requirePrimitiveCollectionIdentity(value, env, "Set values");
         const loweredValue = lowerValue(value, env);
-        const found = lowerCollectionLookup(owner, loweredValue.expression, env, "SetHas");
+        const valueName = temporary(env, "setValue");
+        const found = lowerCollectionLookup(owner, { Variable: valueName }, env, "SetHas");
         const info = env.variables.get(owner.text)!;
-        appendCollectionFacts(info, value, env, collectionMutationIncrement(info, owner.text, env), collectionOriginsBinding);
+        const priorMax = info.max;
+        const increment = collectionMutationIncrement(info, owner.text, env);
+        appendCollectionFacts(info, value, env, increment, collectionOriginsBinding);
+        if (info.max === undefined && priorMax !== undefined) {
+          info.max = priorMax + increment;
+          info.boundSource = `${value.getText(env.sourceFile)} Set.add bound`;
+        }
         return [
           ...loweredValue.statements,
+          { Let: { name: valueName, value: loweredValue.expression } },
           ...found.statements,
           { If: {
             condition: { Unary: { op: "Not", value: found.expression } },
-            then_body: [{ Push: { target: owner.text, value: loweredValue.expression } }],
+            then_body: [{ Push: { target: owner.text, value: { Variable: valueName } } }],
             else_body: [],
           } },
         ];
@@ -586,11 +608,27 @@ function lowerDbStatement(method: string, call: ts.CallExpression, env: Environm
       );
     }
     if (isFunctionLike(row)) return lowerCallbackWrite(method, target!, table, key, row, env);
+    if (method === "update" && knownObjectFields(row, env)?.includes("id")) {
+      refuse(env, "E_SCHEMA_ID_RESERVED", row, "update patches cannot contain id", "remove id from the update patch");
+    }
     reserveWriteSite(env);
     // The write call itself owns the first ordinal; its operands then lower in
     // authored order (key before patch/row), including any nested reads.
     const loweredKey = lowerExpr(key, env);
     const lowered = lowerPatch(row, env);
+    if (method === "upsert" && upsertIdentityMatches(
+      loweredKey,
+      lowered,
+      (name) => env.variables.get(name)?.identityExpression,
+    ) === false) {
+      refuse(
+        env,
+        "E_SCHEMA_ID_RESERVED",
+        row,
+        "upsert key and row id must be one identity",
+        "const rowId = ctx.newId(); db.upsert(table, rowId, { ...row, id: rowId })",
+      );
+    }
     return method === "update"
       ? [{ Update: { table, key: loweredKey, patch: lowered } }]
       : [{ Upsert: { table, key: loweredKey, row: lowered } }];
@@ -609,8 +647,12 @@ function lowerCallbackWrite(
   if (callback.parameters.length !== 1 || !ts.isIdentifier(callback.parameters[0]!.name)) {
     refuse(env, "E_OPAQUE", callback, "write callback must have one identifier parameter");
   }
-  if (ts.isBlock(callback.body)) {
+  if (ts.isBlock(callback.body) && !env.source.startsWith("// GENERATED by the Snapback 2 Quarry front end from ")) {
     refuse(env, "E_OPAQUE", callback.body, "write callback body must be an expression");
+  }
+  const callbackResult = ts.isBlock(callback.body) ? finalCallbackReturn(callback.body, env) : callback.body;
+  if (method === "update" && knownObjectFields(callbackResult, env)?.includes("id")) {
+    refuse(env, "E_SCHEMA_ID_RESERVED", callbackResult, "update patches cannot contain id", "remove id from the update patch");
   }
   const ref = tableReference(target, env);
   if (method === "upsert" && ref.index !== "byId") {
@@ -632,7 +674,22 @@ function lowerCallbackWrite(
     { expression: syntheticIdentifier(env.sourceFile, current), environment: callbackEnv },
   );
   callbackEnv.variables.set(current, { provenance: "Shape", rowBinding: true });
-  const lowered = lowerValue(callback.body, callbackEnv, `${env.programName}.${singular(table)}Write`);
+  const lowered = ts.isBlock(callback.body)
+    ? lowerBlockCallback(callback.body, callbackEnv, `${env.programName}.${singular(table)}Write`)
+    : lowerValue(callback.body, callbackEnv, `${env.programName}.${singular(table)}Write`);
+  if (method === "upsert" && upsertIdentityMatches(
+    scalarKey,
+    lowered.expression,
+    (name) => env.variables.get(name)?.identityExpression,
+  ) === false) {
+    refuse(
+      env,
+      "E_SCHEMA_ID_RESERVED",
+      callbackResult,
+      "upsert key and row id must be one identity",
+      "bind the identity once and use that binding for both the upsert key and row id",
+    );
+  }
   const statements: Stmt[] = keyTemporary ? [{ Let: { name: keyTemporary, value: authoredKey } }] : [];
   statements.push({ Let: {
     name: current,
@@ -659,7 +716,19 @@ function lowerCallbackWrite(
   }
   return statements;
 }
-
+function finalCallbackReturn(body: ts.Block, env: Environment): ts.Expression {
+  const final = body.statements.at(-1);
+  if (!final || !ts.isReturnStatement(final) || !final.expression) {
+    refuse(env, "E_OPAQUE", body, "write callback block must end with a returned patch expression");
+  }
+  return final.expression;
+}
+function lowerBlockCallback(body: ts.Block, env: Environment, hint: string): LoweredValue {
+  const expression = finalCallbackReturn(body, env);
+  const statements = lowerStatements(body.statements.slice(0, -1), env);
+  const returned = lowerValue(expression, env, hint);
+  return { statements: [...statements, ...returned.statements], expression: returned.expression };
+}
 function lowerValue(node: ts.Expression, env: Environment, hint?: string): LoweredValue {
   const value = unwrapExpression(node);
   if (ts.isConditionalExpression(value)) {
@@ -680,17 +749,37 @@ function lowerValue(node: ts.Expression, env: Environment, hint?: string): Lower
       expression: { Variable: name },
     };
   }
-  if (ts.isBinaryExpression(value) && value.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken) {
-    return lowerCoalesce(value, env, hint, lowerValue);
-  }
   if (ts.isBinaryExpression(value)) {
     const op = binaryOperator(value.operatorToken.kind);
-    if (!op) return { statements: [], expression: lowerExpr(value, env, hint) };
+    const nullish = value.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken;
+    if (!op && !nullish) return { statements: [], expression: lowerExpr(value, env, hint) };
     const left = lowerValue(value.left, env, hint);
     const right = lowerValue(value.right, env, hint);
+    if (op === "And" || op === "Or" || nullish) {
+      const leftName = temporary(env, "logicalLeft");
+      const result = temporary(env, "logicalResult");
+      const condition = nullish
+        ? { Binary: { op: "Eq" as const, left: { Variable: leftName } satisfies Expr, right: literal(null) } }
+        : op === "And"
+          ? { Variable: leftName }
+          : { Unary: { op: "Not" as const, value: { Variable: leftName } } };
+      return {
+        statements: [
+          ...left.statements,
+          { Let: { name: leftName, value: left.expression } },
+          { Let: { name: result, value: { Variable: leftName } } },
+          { If: {
+            condition,
+            then_body: [...right.statements, { Assign: { name: result, value: right.expression } }],
+            else_body: [],
+          } },
+        ],
+        expression: { Variable: result },
+      };
+    }
     return {
       statements: [...left.statements, ...right.statements],
-      expression: { Binary: { op, left: left.expression, right: right.expression } },
+      expression: { Binary: { op: op!, left: left.expression, right: right.expression } },
     };
   }
   if (ts.isPrefixUnaryExpression(value)
@@ -711,24 +800,16 @@ function lowerValue(node: ts.Expression, env: Environment, hint?: string): Lower
       && env.variables.get(value.expression.text)?.operationComposite) {
       return { statements: [], expression: lowerExpr(value, env, hint) };
     }
+    if (ts.isPropertyAccessChain(value)) return lowerOptionalPropertyChain(value, env, lowerValue, hint);
     const base = lowerValue(value.expression, env, hint);
-    const collection = ts.isIdentifier(value.expression)
-      ? env.variables.get(value.expression.text)?.collection
-      : undefined;
-    if (value.name.text === "length" || (value.name.text === "size" && collection)) {
-      return {
-        statements: base.statements,
-        expression: { Builtin: { builtin: "Len", args: [base.expression] } },
-      };
-    }
     return {
       statements: base.statements,
-      expression: { Field: { base: base.expression, name: value.name.text } },
+      expression: lowerPropertyValue(value, base.expression, env),
     };
   }
   if (ts.isObjectLiteralExpression(value)) {
     const statements: Stmt[] = [];
-    const object: Record<string, Expr> = {};
+    const object: Record<string, Expr> = Object.create(null);
     for (const property of value.properties) {
       try {
         if (ts.isSpreadAssignment(property)) {
@@ -815,7 +896,7 @@ function lowerValue(node: ts.Expression, env: Environment, hint?: string): Lower
           : concatExpressions(segments),
     };
   }
-  if (ts.isNewExpression(value)) return lowerCollectionConstructor(value, env, hint);
+  if (ts.isNewExpression(value)) return lowerCollectionConstructor(value, env, lowerValue, hint);
   if (ts.isCallExpression(value)) {
     const method = memberName(value.expression);
     if (method && ts.isPropertyAccessExpression(value.expression)
@@ -824,17 +905,20 @@ function lowerValue(node: ts.Expression, env: Environment, hint?: string): Lower
       const info = env.variables.get(owner.text);
       const key = value.arguments[0];
       if (info?.collection === "Map" && (method === "get" || method === "has") && key) {
+        requirePrimitiveCollectionIdentity(key, env, "Map keys");
         const loweredKey = lowerValue(key, env, hint);
         const found = lowerCollectionLookup(owner, loweredKey.expression, env, method === "get" ? "MapGet" : "MapHas");
         return { statements: [...loweredKey.statements, ...found.statements], expression: found.expression };
       }
       if (info?.collection === "Set" && method === "has" && key) {
+        requirePrimitiveCollectionIdentity(key, env, "Set values");
         const loweredKey = lowerValue(key, env, hint);
         const found = lowerCollectionLookup(owner, loweredKey.expression, env, "SetHas");
         return { statements: [...loweredKey.statements, ...found.statements], expression: found.expression };
       }
     }
     if (method === "slice" && ts.isPropertyAccessExpression(value.expression)) {
+      if (value.arguments.length !== 2) refuse(env, "E_OPAQUE", value, "slice requires start and end arguments");
       const owner = lowerValue(value.expression.expression, env, hint);
       const args = value.arguments.map((argument) => lowerValue(argument, env));
       return {
@@ -877,17 +961,11 @@ function lowerValue(node: ts.Expression, env: Environment, hint?: string): Lower
       if (!target || !row) refuse(env, "E_OPAQUE", value, "insert requires table and row");
       reserveWriteSite(env);
       const loweredRow = lowerValue(row, env, hint);
-      const rowName = temporary(env, "insertRow");
-      return {
-        // @ref LLP 1007#3-finding-where-check-is-green-and-the-runtime-is-red —
-        // impure row members (newId/now) are evaluated once for storage and return.
-        statements: [
-          ...loweredRow.statements,
-          { Let: { name: rowName, value: loweredRow.expression } },
-          { Insert: { table: tableReference(target, env).table, row: { Variable: rowName } } },
-        ],
-        expression: { Variable: rowName },
-      };
+      const rowName = temporary(env, "insertRow"); // @ref LLP 1007#3-finding-where-check-is-green-and-the-runtime-is-red — evaluate impure row members once for storage and return.
+      return { statements: [
+        ...loweredRow.statements, { Let: { name: rowName, value: loweredRow.expression } },
+        { Insert: { table: tableReference(target, env).table, row: { Variable: rowName } } },
+      ], expression: { Variable: rowName } };
     }
     if (ts.isIdentifier(value.expression) && ["top", "mergeByTime", "intersectById"].includes(value.expression.text)) {
       return lowerCollectionBuiltin(value.expression.text, value, env, hint);
@@ -895,78 +973,6 @@ function lowerValue(node: ts.Expression, env: Environment, hint?: string): Lower
   }
   return { statements: [], expression: lowerExpr(value, env, hint) };
 }
-
-function lowerCollectionConstructor(
-  expression: ts.NewExpression,
-  env: Environment,
-  hint?: string,
-): LoweredValue {
-  const kind = collectionConstructor(expression);
-  if (!kind) refuse(env, "E_OPAQUE", expression, "only Map and Set constructors are admitted");
-  const initializer = expression.arguments?.[0];
-  if (!initializer) return { statements: [], expression: { Array: [] } };
-  if ((expression.arguments?.length ?? 0) !== 1) {
-    refuse(env, "E_OPAQUE", expression, `${kind} constructor accepts at most one bounded initializer`);
-  }
-  if (kind === "Set") return lowerValue(initializer, env, hint);
-  const entries = unwrapExpression(initializer);
-  if (!ts.isArrayLiteralExpression(entries)) {
-    refuse(env, "E_OPAQUE", initializer, "Map initializer must be a bounded array literal of [key, value] pairs");
-  }
-  const statements: Stmt[] = [];
-  const values: Expr[] = [];
-  for (const entry of entries.elements) {
-    const pair = unwrapExpression(entry);
-    if (!ts.isArrayLiteralExpression(pair) || pair.elements.length !== 2) {
-      refuse(env, "E_OPAQUE", entry, "Map initializer entries must be [key, value] pairs");
-    }
-    const key = lowerValue(pair.elements[0]!, env, hint);
-    const value = lowerValue(pair.elements[1]!, env, hint);
-    statements.push(...key.statements, ...value.statements);
-    values.push({ Object: { key: key.expression, value: value.expression } });
-  }
-  return { statements, expression: { Array: values } };
-}
-
-function lowerCollectionLookup(
-  owner: ts.Identifier,
-  needle: Expr,
-  env: Environment,
-  mode: "MapGet" | "MapHas" | "SetHas",
-): LoweredValue {
-  const info = env.variables.get(owner.text);
-  if (info?.max === undefined) {
-    refuse(env, "E_UNBOUND_LOOP", owner, `${owner.text}.${mode === "MapGet" ? "get" : "has"} needs a statically bounded collection`);
-  }
-  const binding = temporary(env, mode === "SetHas" ? "setItem" : "mapEntry");
-  const result = temporary(env, mode === "MapGet" ? "mapValue" : "collectionHas");
-  const candidate = mode === "SetHas"
-    ? { Variable: binding } satisfies Expr
-    : { Field: { base: { Variable: binding }, name: "key" } } satisfies Expr;
-  const assignment = mode === "MapGet"
-    ? { Field: { base: { Variable: binding }, name: "value" } } satisfies Expr
-    : literal(true);
-  return {
-    statements: [
-      { Let: { name: result, value: mode === "MapGet" ? literal(null) : literal(false) } },
-      { For: {
-        binding,
-        domain: { DerivedArray: {
-          value: { Variable: owner.text },
-          max: info.max,
-          bound_source: info.boundSource ?? `${owner.text} static bound`,
-        } },
-        body: [{ If: {
-          condition: { Binary: { op: "Eq", left: candidate, right: needle } },
-          then_body: [{ Assign: { name: result, value: assignment } }],
-          else_body: [],
-        } }],
-      } },
-    ],
-    expression: { Variable: result },
-  };
-}
-
 function concatExpressions(expressions: Expr[]): Expr {
   return expressions.slice(1).reduce<Expr>(
     (left, right) => ({ Builtin: { builtin: "Concat", args: [left, right] } }),

@@ -423,6 +423,10 @@ function compatible(left: RuleType, right: RuleType): boolean {
   if (right.kind === "enum" && left.kind === "text-literal") return right.variants.includes(left.value);
   if (["int", "time"].includes(left.kind) && right.kind === "int-literal") return true;
   if (["int", "time"].includes(right.kind) && left.kind === "int-literal") return true;
+  // Numeric rule literals at Decimal/Money schema positions are scaled and
+  // range-checked by lowerTerm before IR is emitted.
+  if (["decimal", "money"].includes(left.kind) && right.kind === "int-literal") return true;
+  if (["decimal", "money"].includes(right.kind) && left.kind === "int-literal") return true;
   if (left.kind === "bool" && right.kind === "bool-literal") return true;
   if (right.kind === "bool" && left.kind === "bool-literal") return true;
   // The schema-position-aware lowerer validates the exact canonical tagged Bytes object.

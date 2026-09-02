@@ -1,5 +1,5 @@
 import type ts from "typescript";
-import type { TableInfo } from "../authored-types";
+import type { AuthoredType, TableInfo } from "../authored-types";
 import type { Expr, FrontendDiagnostic, Program, Provenance, Stmt } from "../ir";
 import type { ModuleInfo } from "./module";
 import type { RecursionState } from "./recursion";
@@ -8,6 +8,7 @@ export type VariableInfo = {
   provenance: Provenance;
   provenanceAmbiguity?: { directRewrite?: string; candidates?: string[] };
   immutableOrigin?: Extract<ProvenanceOrigin, { expression: ts.Expression }>;
+  identityExpression?: Expr;
   operationComposite?: "args" | "ctx" | "db";
   operationArgument?: string;
   alternativeOrigins?: ProvenanceOrigin[];
@@ -48,6 +49,7 @@ export type Environment = ModuleInfo & {
   accessOrdinal: { value: number };
   temp: { value: number };
   literalValues: Map<string, number>;
+  expressionTypes: Map<string, AuthoredType>;
   literalContext: string;
   diagnostics: FrontendDiagnostic[];
   recursion: RecursionState;

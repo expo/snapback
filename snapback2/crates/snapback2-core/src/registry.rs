@@ -12,7 +12,7 @@ use crate::schema::{Auth, RuleExpr, Schema, maintain_issues};
 use crate::store::{CommitRecord, Store, unix_millis};
 use crate::successor::{
     MigrationPlan, SuccessorRefusal, SuccessorReport, additive_refusal, apply_additive,
-    apply_migration_drops, plan, successor_refusal,
+    apply_migration_drops, plan, projected_predecessor_ids, successor_refusal,
 };
 use crate::value::{Value, digest};
 use serde::{Deserialize, Serialize};
@@ -183,6 +183,18 @@ impl Generation {
                 ));
             }
             for (index_name, index) in &table.indexes {
+                if index.columns.is_empty() || index.columns.len() > 8 {
+                    errors.push((
+                        format!("schema.{table_name}"),
+                        CheckError {
+                            code: "E_SCHEMA_INDEX_COLUMN".to_owned(),
+                            message: format!(
+                                "index {table_name}.{index_name} must declare between 1 and 8 columns"
+                            ),
+                            rewrite: "declare an index with at most 8 scalar columns".to_owned(),
+                        },
+                    ));
+                }
                 for column in &index.columns {
                     if !table.columns.contains_key(column) {
                         errors.push((
@@ -439,6 +451,7 @@ impl Runtime {
                     &generation.schema,
                     hash,
                     generation_hash,
+                    None,
                 )
                 .map_err(store_refusal)?;
                 persist_generation_transaction(&transaction, &generation).map_err(store_refusal)?;
@@ -688,8 +701,15 @@ impl Runtime {
             .conn
             .transaction()
             .map_err(|error| store_refusal(RuntimeError::Sql(error)))?;
-        let report = apply_additive(&transaction, &current, &next.schema, from, next.hash())
-            .map_err(store_refusal)?;
+        let report = apply_additive(
+            &transaction,
+            &current,
+            &next.schema,
+            from,
+            next.hash(),
+            None,
+        )
+        .map_err(store_refusal)?;
         persist_generation_transaction(&transaction, &next).map_err(store_refusal)?;
         transaction
             .commit()
@@ -718,11 +738,20 @@ impl Runtime {
         let mut reduced = self.generation.schema.clone();
         let from = self.generation.hash();
         let transaction = self.engine.store_mut().conn.transaction()?;
+        let predecessor_maintain_ids =
+            projected_predecessor_ids(&transaction, &reduced, &next.schema)?;
         apply_migration_drops(&transaction, &mut reduced, migration)?;
         if let Some(refusal) = additive_refusal(&transaction, &reduced, &next.schema)? {
             return Err(RuntimeError::Successor(Box::new(refusal)));
         }
-        let report = apply_additive(&transaction, &reduced, &next.schema, from, next.hash())?;
+        let report = apply_additive(
+            &transaction,
+            &reduced,
+            &next.schema,
+            from,
+            next.hash(),
+            Some(predecessor_maintain_ids),
+        )?;
         persist_generation_transaction(&transaction, &next)?;
         transaction.commit()?;
         self.engine.set_schema(next.schema.clone())?;

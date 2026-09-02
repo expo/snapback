@@ -390,19 +390,31 @@ class Client implements SnapbackClient {
   async mutation<Args, Result>(ref: Op<Args, Result>, args: Args): Promise<MutationResult<Result>> {
     const authority = await this.operationAuthority();
     return this.trackWrite(async () => {
-      const result = wireMutation<Result>(await this.json("/api/mutation", {
-        method: "POST",
-        body: JSON.stringify({ op: referenceName(ref), args }),
-      }, authority));
-      if (result.state === "rejected" && isTerminalSession(result)) {
-        const wasCurrent = this.authorityCurrent(authority);
-        const expiration = await this.expireSession(authority);
-        if (!wasCurrent || !this.expirationCurrent(expiration)) throw this.supersededRefusal();
-        this.recordRefusal(result);
+      try {
+        const result = wireMutation<Result>(await this.json("/api/mutation", {
+          method: "POST",
+          body: JSON.stringify({ op: referenceName(ref), args }),
+        }, authority));
+        if (result.state === "rejected" && isTerminalSession(result)) {
+          const wasCurrent = this.authorityCurrent(authority);
+          const expiration = await this.expireSession(authority);
+          if (!wasCurrent || !this.expirationCurrent(expiration)) throw this.supersededRefusal();
+          this.recordRefusal(result);
+          return result;
+        }
+        this.validated(authority);
         return result;
+      } catch (error) {
+        if (isSnapbackRefusal(error) && error.code === "E_WIRE_SHAPE") {
+          const ambiguous = new SnapbackRefusal(copyRefusal(error.envelope), true);
+          this.patchSnapshot({
+            connection: this.transportFailureState(),
+            lastRefusal: ambiguous.envelope,
+          });
+          throw ambiguous;
+        }
+        throw error;
       }
-      this.validated(authority);
-      return result;
     });
   }
 
@@ -549,7 +561,12 @@ class Client implements SnapbackClient {
 
   subscribeStatus(callback: (snapshot: ClientSnapshot) => void): () => void {
     this.statusListeners.add(callback);
-    callback(this.currentSnapshot);
+    try {
+      callback(this.currentSnapshot);
+    } catch (error) {
+      this.statusListeners.delete(callback);
+      throw error;
+    }
     return () => this.statusListeners.delete(callback);
   }
 
@@ -1074,7 +1091,13 @@ class Client implements SnapbackClient {
     if (patch.lastRefusal === undefined && "lastRefusal" in patch) delete next.lastRefusal;
     if (JSON.stringify(next) === JSON.stringify(this.currentSnapshot)) return this.currentSnapshot;
     this.currentSnapshot = next;
-    for (const listener of this.statusListeners) listener(next);
+    for (const listener of this.statusListeners) {
+      try {
+        listener(next);
+      } catch {
+        // Application observers cannot turn a validated client operation into a refusal.
+      }
+    }
     return next;
   }
 }

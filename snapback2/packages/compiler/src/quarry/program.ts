@@ -14,11 +14,14 @@ import { selectIndex } from "./catalog";
 import { refuse, unsupported } from "./diagnostics";
 import { header, siteMark, typeCode } from "./schema";
 
+type ObjectType = { kind: "object"; fields: Map<string, ValueType>; nullable: boolean };
+type SequenceType = { kind: "sequence"; item: ValueType; max: number };
 type ValueType =
   | ScalarType
   | { kind: "row"; table: string; nullable: boolean }
   | { kind: "page"; table: string }
-  | { kind: "object" }
+  | SequenceType
+  | ObjectType
   | { kind: "unknown" };
 type Binding = { code: string; type: ValueType };
 type Completion = { kind: "return" } | { kind: "assign"; name: string };
@@ -81,7 +84,7 @@ function emitProgram(program: ProgramDecl, catalog: TableCatalog, writer: Writer
   writer.statement(`});`, program.site);
 }
 
-function emitBody(body: Stmt[], env: Environment, writer: Writer, completion?: Completion): void {
+function emitBody(body: Stmt[], env: Environment, writer: Writer, completion?: Completion, discardLast = false): void {
   if (body.length === 0) {
     if (completion?.kind === "return") writer.statement("return null;", env.program.site);
     else if (completion?.kind === "assign") writer.statement(`${completion.name} = null;`, env.program.site);
@@ -89,11 +92,11 @@ function emitBody(body: Stmt[], env: Environment, writer: Writer, completion?: C
   }
   for (const [index, statement] of body.entries()) {
     const isLast = index === body.length - 1;
-    emitStatement(statement, env, writer, isLast ? completion : undefined);
+    emitStatement(statement, env, writer, isLast ? completion : undefined, isLast && discardLast);
   }
 }
 
-function emitStatement(statement: Stmt, env: Environment, writer: Writer, completion?: Completion): void {
+function emitStatement(statement: Stmt, env: Environment, writer: Writer, completion?: Completion, discard = false): void {
   if (statement.kind === "bind") {
     if (statement.names.length > 1) {
       if (statement.names.length !== 2 || statement.value.kind !== "call" || statement.value.name !== "sorted" || statement.value.args.length !== 2) {
@@ -142,6 +145,9 @@ function emitStatement(statement: Stmt, env: Environment, writer: Writer, comple
         writer.statement(`const ${inserted} = ${code};`, statement.site);
         writer.statement(`${completion.name} = ${inserted};`, statement.site);
       } else writer.statement(`${completion.name} = ${code};`, statement.site);
+    } else if (discard && !value.effectOnly) {
+      if (statement.value.kind === "write" && statement.value.op === "insert") writer.statement(`${value.code};`, statement.site);
+      else writer.statement(`const ${temporary("discard", statement.site)} = ${value.code};`, statement.site);
     } else if (!value.effectOnly) {
       if (statement.value.kind !== "write" || statement.value.op !== "insert") {
         refuse(statement.site, "a non-final expression must be a write; bind it if its value is needed");
@@ -168,8 +174,8 @@ function emitStatement(statement: Stmt, env: Environment, writer: Writer, comple
     const domain = emitExpr(statement.domain, env, writer);
     const itemType = domain.type.kind === "page"
       ? { kind: "row", table: domain.type.table, nullable: false } satisfies ValueType
-      : domain.type.kind === "list" ? domain.type.item : { kind: "unknown" } satisfies ValueType;
-    if (domain.type.kind !== "page" && domain.type.kind !== "list" && domain.type.kind !== "unknown") {
+      : domain.type.kind === "sequence" || domain.type.kind === "list" ? domain.type.item : { kind: "unknown" } satisfies ValueType;
+    if (domain.type.kind !== "page" && domain.type.kind !== "sequence" && domain.type.kind !== "list" && domain.type.kind !== "unknown") {
       refuse(statement.domain.site, "for domains must be a page, capped list argument, range, tokens result, or literal list");
     }
     writer.raw(`for (const ${statement.name} of ${domain.code}) {`, statement.site);
@@ -189,6 +195,7 @@ function emitMatch(statement: Extract<Stmt, { kind: "match" }>, env: Environment
   const found = emitRead(statement.read, env, writer);
   const local = temporary("match", statement.site);
   writer.statement(`const ${local} = ${found.code};`, statement.site);
+  const discardBranchValues = completion === undefined;
   let branchCompletion = completion;
   let result: string | undefined;
   if (completion?.kind === "return") {
@@ -201,10 +208,10 @@ function emitMatch(statement: Extract<Stmt, { kind: "match" }>, env: Environment
     const nested = env.clone();
     nested.bindings.set(statement.someName, { code: statement.someName, type: { kind: "row", table: statement.read.table, nullable: false } });
     writer.statement(`const ${statement.someName} = ${local};`, statement.site);
-    emitBody(statement.someBody, nested, writer, branchCompletion);
+    emitBody(statement.someBody, nested, writer, branchCompletion, discardBranchValues);
   });
   writer.raw("} else {", statement.site);
-  writer.nested(() => emitBody(statement.noneBody, env.clone(), writer, branchCompletion));
+  writer.nested(() => emitBody(statement.noneBody, env.clone(), writer, branchCompletion, discardBranchValues));
   writer.statement("}", statement.site);
   if (result) writer.statement(`return ${result};`, statement.site);
 }
@@ -228,11 +235,13 @@ function emitExpr(expr: Expr, env: Environment, writer: Writer): Emitted {
     return { code: `[${items.map((value) => value.code).join(", ")}]`, type: { kind: "list", item: scalarOrUnknown(item), max: items.length, optional: false } };
   }
   if (expr.kind === "object") {
+    const types = new Map<string, ValueType>();
     const fields = expr.fields.map((field) => {
       const value = emitExpr(field.value ?? { kind: "name", name: field.name, site: field.site }, env, writer);
+      types.set(field.name, value.type);
       return `${property(field.name)}: ${value.code}`;
     });
-    return { code: `{ ${fields.join(", ")} }`, type: { kind: "object" } };
+    return { code: `{ ${fields.join(", ")} }`, type: { kind: "object", fields: types, nullable: false } };
   }
   if (expr.kind === "unary") {
     const value = emitExpr(expr.value, env, writer);
@@ -273,7 +282,7 @@ function emitExpr(expr: Expr, env: Environment, writer: Writer): Emitted {
     writer.statement("}", expr.site);
     return {
       code: walked,
-      type: { kind: "list", item: { kind: "ref", table: expr.table, optional: false }, max: expr.depth + 1, optional: false },
+      type: { kind: "sequence", item: { kind: "row", table: expr.table, nullable: false }, max: expr.depth + 1 },
     };
   }
   return emitWrite(expr, env, writer);
@@ -342,7 +351,15 @@ function emitMember(expr: Extract<Expr, { kind: "member" }>, env: Environment, w
     if (!column) refuse(expr.site, `table ${base.type.table} has no column ${expr.name}`);
     return { code: `${base.code}${base.type.nullable ? "?." : "."}${expr.name}`, type: { ...column, optional: column.optional || base.type.nullable } };
   }
-  if (base.type.kind === "object" || base.type.kind === "unknown") return { code: `${base.code}?.${expr.name}`, type: { kind: "unknown" } };
+  if (base.type.kind === "object") {
+    const field = base.type.fields.get(expr.name);
+    if (!field) refuse(expr.site, `shaped object has no field ${expr.name}`);
+    return {
+      code: `${base.code}${base.type.nullable ? "?." : "."}${expr.name}`,
+      type: base.type.nullable ? nullableValue(field) : field,
+    };
+  }
+  if (base.type.kind === "unknown") return { code: `${base.code}?.${expr.name}`, type: { kind: "unknown" } };
   refuse(expr.site, `cannot select .${expr.name} from ${base.type.kind}`);
 }
 
@@ -356,7 +373,7 @@ function emitCall(expr: Extract<Expr, { kind: "call" }>, env: Environment, write
   }
   const args = expr.args.map((arg) => emitExpr(arg, env, writer));
   if (expr.name === "count") {
-    if (args.length !== 1 || !["list", "page"].includes(args[0]!.type.kind)) refuse(expr.site, "count(x) requires one bounded list or page");
+    if (args.length !== 1 || !["list", "page", "sequence"].includes(args[0]!.type.kind)) refuse(expr.site, "count(x) requires one bounded list or page");
     return { code: `${args[0]!.code}.length`, type: { kind: "int", optional: false } };
   }
   if (expr.name === "tokens") return { code: `${target}(${args.map((arg) => arg.code).join(", ")})`, type: { kind: "list", item: { kind: "text", max: 4096, optional: false }, max: 64, optional: false } };
@@ -397,7 +414,7 @@ function emitRead(expr: Extract<Expr, { kind: "read" }>, env: Environment, write
       env.focal = priorFocal;
       env.inlineComparisons = priorInline;
     }
-    return { code: result, type: { kind: "list", item: { kind: "ref", table: expr.table, optional: false }, max: expr.range.take, optional: false } };
+    return { code: result, type: { kind: "sequence", item: { kind: "row", table: expr.table, nullable: false }, max: expr.range.take } };
   }
   const key = index.name === "byId" && keys.length === 1 ? keys[0]!.code : `[${keys.map((item) => item.code).join(", ")}]`;
   return exists
@@ -424,7 +441,7 @@ function emitShape(expr: Extract<Expr, { kind: "shape" }>, env: Environment, wri
     base = { code: deref, type: { kind: "row", table: refType.table, nullable: true } };
   }
   if (base.type.kind === "page") return emitPageShape(base, expr.fields, expr.site, env, writer, base.type.table);
-  if (base.type.kind === "list" && base.type.item.kind === "ref" && base.type.item.table) {
+  if (base.type.kind === "sequence" && base.type.item.kind === "row") {
     return emitPageShape(base, expr.fields, expr.site, env, writer, base.type.item.table);
   }
   if (base.type.kind !== "row") refuse(expr.site, "shapes may focus only a row, reference, or page");
@@ -432,47 +449,64 @@ function emitShape(expr: Extract<Expr, { kind: "shape" }>, env: Environment, wri
   const focalName = temporary("row", expr.site);
   writer.statement(`const ${focalName} = ${base.code};`, expr.site);
   const result = temporary("shape", expr.site);
+  let resultType: ObjectType = { kind: "object", fields: new Map(), nullable: false };
   if (rowType.nullable) {
     writer.statement(`let ${result}: any = null;`, expr.site);
     writer.raw(`if (${focalName} !== null) {`);
     writer.nested(() => {
-      const shaped = shapeObject(expr.fields, { code: focalName, type: { ...rowType, nullable: false } }, env, writer);
-      writer.statement(`${result} = ${shaped};`, expr.site);
+      const [shapeCode, shapeType] = shapeObject(expr.fields, { code: focalName, type: { ...rowType, nullable: false } }, env, writer);
+      resultType = shapeType;
+      writer.statement(`${result} = ${shapeCode};`, expr.site);
     });
     writer.statement("}", expr.site);
   } else {
-    const shaped = shapeObject(expr.fields, { code: focalName, type: rowType }, env, writer);
-    writer.statement(`const ${result} = ${shaped};`, expr.site);
+    const [shapeCode, shapeType] = shapeObject(expr.fields, { code: focalName, type: rowType }, env, writer);
+    resultType = shapeType;
+    writer.statement(`const ${result} = ${shapeCode};`, expr.site);
   }
-  return { code: result, type: { kind: "object" } };
+  return { code: result, type: { ...resultType, nullable: rowType.nullable } };
 }
 
 function emitPageShape(base: Binding, fields: ShapeField[], site: Site, env: Environment, writer: Writer, table: string): Emitted {
   const page = temporary("page", site);
   const result = temporary("rows", site);
   const row = temporary("row", site);
+  let itemType: ObjectType = { kind: "object", fields: new Map(), nullable: false };
   writer.statement(`const ${page} = ${base.code};`, site);
   writer.statement(`const ${result}: any[] = [];`, site);
   writer.raw(`for (const ${row} of ${page}) {`);
   writer.nested(() => {
-    const shaped = shapeObject(fields, { code: row, type: { kind: "row", table, nullable: false } }, env, writer);
-    writer.statement(`${result}.push(${shaped});`, site);
+    const [shapeCode, shapeType] = shapeObject(fields, { code: row, type: { kind: "row", table, nullable: false } }, env, writer);
+    itemType = shapeType;
+    writer.statement(`${result}.push(${shapeCode});`, site);
   });
   writer.statement("}", site);
-  return { code: result, type: { kind: "list", item: { kind: "ref", table, optional: false }, max: 1000, optional: false } };
+  return { code: result, type: { kind: "sequence", item: itemType, max: 1000 } };
 }
 
-function shapeObject(fields: ShapeField[], focal: Binding, env: Environment, writer: Writer): string {
+function shapeObject(fields: ShapeField[], focal: Binding, env: Environment, writer: Writer): [string, ObjectType] {
   const prior = env.focal;
   env.focal = focal;
   try {
     const properties: string[] = [];
+    const types = new Map<string, ValueType>();
     for (const field of fields) {
-      if (field.kind === "spread") properties.push(`...${focal.code}`);
-      else if (field.kind === "bare") properties.push(`${property(field.name)}: ${emitMember({ kind: "member", base: { kind: "focal", site: field.site }, name: field.name, site: field.site }, env, writer).code}`);
-      else properties.push(`${property(field.name)}: ${emitExpr(field.value, env, writer).code}`);
+      if (field.kind === "spread") {
+        properties.push(`...${focal.code}`);
+        if (focal.type.kind !== "row") refuse(field.site, "shape spread requires a row");
+        types.set("id", { kind: "ref", table: focal.type.table, optional: false });
+        for (const [name, type] of env.catalog.get(focal.type.table)?.columns ?? []) types.set(name, type);
+      } else if (field.kind === "bare") {
+        const value = emitMember({ kind: "member", base: { kind: "focal", site: field.site }, name: field.name, site: field.site }, env, writer);
+        properties.push(`${property(field.name)}: ${value.code}`);
+        types.set(field.name, value.type);
+      } else {
+        const value = emitExpr(field.value, env, writer);
+        properties.push(`${property(field.name)}: ${value.code}`);
+        types.set(field.name, value.type);
+      }
     }
-    return `{ ${properties.join(", ")} }`;
+    return [`{ ${properties.join(", ")} }`, { kind: "object", fields: types, nullable: false }];
   } finally {
     env.focal = prior;
   }
@@ -495,19 +529,27 @@ function emitWrite(expr: Extract<Expr, { kind: "write" }>, env: Environment, wri
     writer.statement(`db.delete(${expr.table}, ${key.code});`, expr.site);
     return { code: "null", type: { kind: "unknown" }, effectOnly: true };
   }
+  const usesFocal = expr.fields.some((field) => field.value && mentionsFocal(field.value));
+  if (!usesFocal && expr.op !== "upsert") {
+    const fields = emitFields(expr.fields, env, writer, info.columns);
+    writer.statement(`db.${expr.op}(${expr.table}, ${key.code}, { ${fields.join(", ")} });`, expr.site);
+    return { code: "null", type: { kind: "unknown" }, effectOnly: true };
+  }
+
   const prior = env.focal;
   const rowName = temporary("old", expr.site);
   env.focal = { code: rowName, type: { kind: "row", table: expr.table, nullable: expr.op === "upsert" } };
-  let fields: string[];
   try {
-    fields = emitFields(expr.fields, env, writer, info.columns);
+    writer.raw(`db.${expr.op}(${expr.table}, ${key.code}, (${rowName}) => {`);
+    writer.nested(() => {
+      const fields = emitEvaluatedFields(expr.fields, env, writer, info.columns);
+      if (expr.op === "upsert" && !expr.fields.some((field) => field.name === "id")) fields.unshift(`id: ${key.code}`);
+      writer.statement(`return { ${fields.join(", ")} };`, expr.site);
+    });
+    writer.statement("});", expr.site);
   } finally {
     env.focal = prior;
   }
-  if (expr.op === "upsert" && !expr.fields.some((field) => field.name === "id")) fields.unshift(`id: ${key.code}`);
-  const usesFocal = expr.fields.some((field) => field.value && mentionsFocal(field.value));
-  const patch = usesFocal || expr.op === "upsert" ? `(${rowName}) => ({ ${fields.join(", ")} })` : `{ ${fields.join(", ")} }`;
-  writer.statement(`db.${expr.op}(${expr.table}, ${key.code}, ${patch});`, expr.site);
   return { code: "null", type: { kind: "unknown" }, effectOnly: true };
 }
 
@@ -515,15 +557,31 @@ function emitFields(fields: ObjectField[], env: Environment, writer: Writer, col
   return fields.map((field) => {
     const value = emitExpr(field.value ?? { kind: "name", name: field.name, site: field.site }, env, writer);
     const expected = field.name === "id" ? { kind: "id", optional: false } satisfies ScalarType : columns.get(field.name);
-    if (expected?.kind === "principal" && value.type.kind !== "principal") {
-      refuse(field.site, `${field.name} is principal; ${value.type.kind} is nominally different (a ref/id is not a principal)`);
-    }
-    if ((expected?.kind === "ref" || expected?.kind === "id") && value.type.kind === "principal") {
-      refuse(field.site, `${field.name} is ${expected.kind}; principal is nominally different`);
-    }
+    validateFieldType(field, value.type, expected);
     const code = expected && (expected.kind === "ref" || expected.kind === "id") ? keyBinding(value).code : value.code;
     return `${property(field.name)}: ${code}`;
   });
+}
+
+function emitEvaluatedFields(fields: ObjectField[], env: Environment, writer: Writer, columns: Map<string, ScalarType>): string[] {
+  return fields.map((field) => {
+    const value = emitExpr(field.value ?? { kind: "name", name: field.name, site: field.site }, env, writer);
+    const expected = field.name === "id" ? { kind: "id", optional: false } satisfies ScalarType : columns.get(field.name);
+    validateFieldType(field, value.type, expected);
+    const code = expected && (expected.kind === "ref" || expected.kind === "id") ? keyBinding(value).code : value.code;
+    const local = temporary("patch", field.site);
+    writer.statement(`const ${local} = ${code};`, field.site);
+    return `${property(field.name)}: ${local}`;
+  });
+}
+
+function validateFieldType(field: ObjectField, actual: ValueType, expected: ScalarType | undefined): void {
+  if (expected?.kind === "principal" && actual.kind !== "principal") {
+    refuse(field.site, `${field.name} is principal; ${actual.kind} is nominally different (a ref/id is not a principal)`);
+  }
+  if ((expected?.kind === "ref" || expected?.kind === "id") && actual.kind === "principal") {
+    refuse(field.site, `${field.name} is ${expected.kind}; principal is nominally different`);
+  }
 }
 
 function inferExpr(expr: Expr, env: Environment): ScalarType | undefined {
@@ -562,8 +620,14 @@ function isScalar(type: ValueType): type is ScalarType {
 function isRef(type: ValueType): type is Extract<ScalarType, { kind: "ref" }> { return type.kind === "ref"; }
 function nonNullable(type: ValueType): ValueType {
   if (type.kind === "row") return { ...type, nullable: false };
+  if (type.kind === "object") return { ...type, nullable: false };
   if (isScalar(type)) return { ...type, optional: false } as ScalarType;
   return type;
+}
+function nullableValue(type: ValueType): ValueType {
+  if (type.kind === "row" || type.kind === "object") return { ...type, nullable: true };
+  if (isScalar(type)) return { ...type, optional: true } as ScalarType;
+  return { kind: "unknown" };
 }
 function boolType(): ScalarType { return { kind: "bool", optional: false }; }
 function keyBinding(value: Emitted): Emitted {
@@ -586,6 +650,20 @@ function mentionsFocal(expr: Expr): boolean {
   if (expr.kind === "binary") return mentionsFocal(expr.left) || mentionsFocal(expr.right);
   if (expr.kind === "unary" || expr.kind === "assert") return mentionsFocal(expr.value);
   if (expr.kind === "call") return expr.args.some(mentionsFocal);
+  if (expr.kind === "array") return expr.items.some(mentionsFocal);
+  if (expr.kind === "read") {
+    return expr.keys.some((key) => mentionsFocal(key.value))
+      || (expr.range?.cursor !== undefined && mentionsFocal(expr.range.cursor))
+      || (expr.range?.where !== undefined && mentionsFocal(expr.range.where));
+  }
+  if (expr.kind === "exists" || expr.kind === "created") return mentionsFocal(expr.read);
+  if (expr.kind === "aggregate") return expr.keys.some((key) => mentionsFocal(key.value));
   if (expr.kind === "shape") return mentionsFocal(expr.base) || expr.fields.some((field) => field.kind === "field" && mentionsFocal(field.value));
+  if (expr.kind === "walk") return mentionsFocal(expr.seed);
+  if (expr.kind === "object") return expr.fields.some((field) => field.value !== undefined && mentionsFocal(field.value));
+  if (expr.kind === "write") {
+    return expr.keys.some((key) => mentionsFocal(key.value))
+      || expr.fields.some((field) => field.value !== undefined && mentionsFocal(field.value));
+  }
   return false;
 }

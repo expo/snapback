@@ -47,12 +47,12 @@ pub fn run(args: &[String]) -> ExitCode {
         Ok(root) => root,
         Err(error) => return owner::print_refusal(error, json_output, 2),
     };
-    let certificate = match read_certificate(&root, &positional[1]) {
-        Ok(certificate) => certificate,
-        Err(error) => return owner::print_refusal(error, json_output, 1),
-    };
     let attached = match owner::require_owner(&root) {
         Ok(owner) => owner,
+        Err(error) => return owner::print_refusal(error, json_output, 1),
+    };
+    let mut certificate = match read_certificate(&root, &positional[1]) {
+        Ok(certificate) => certificate,
         Err(error) => return owner::print_refusal(error, json_output, 1),
     };
     let response = match client::control(
@@ -68,6 +68,29 @@ pub fn run(args: &[String]) -> ExitCode {
         }
         Err(error) => return owner::print_refusal(error, json_output, 1),
     };
+    let Some(active_plan_hash) = response.get("certificatePlanHash").and_then(Json::as_str) else {
+        return owner::print_refusal(
+            why_stale("the owner did not identify the active operation certificate"),
+            json_output,
+            1,
+        );
+    };
+    if certificate.plan_hash != active_plan_hash {
+        certificate = match read_certificate(&root, &positional[1]) {
+            Ok(certificate) => certificate,
+            Err(error) => return owner::print_refusal(error, json_output, 1),
+        };
+        if certificate.plan_hash != active_plan_hash {
+            return owner::print_refusal(
+                why_stale(format!(
+                    "the cached certificate for {} does not match the active owner operation",
+                    positional[1]
+                )),
+                json_output,
+                1,
+            );
+        }
+    }
     let latest = client::control(&attached, "GET", "/control/trace", json!({}))
         .ok()
         .map(|response| response.body)

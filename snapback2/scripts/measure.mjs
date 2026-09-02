@@ -284,6 +284,7 @@ function main() {
       const n = Number(m[1]); return m[2] === "ms" ? n / 1000 : m[2] === "min" ? n * 60 : n;
     };
     scoreChecks([
+      ["Full build, warm cache", record.steps.warm_build_s],
       ["Incremental rebuild", incremental.step],
       ["Test what you just changed", coreTest.step],
       ["`snapback2 check`", projectCheck.step],
@@ -324,9 +325,10 @@ function selfTest() {
   failures.add("dev_boot_s");
   const lines = [];
   scoreChecks([
+    ["Full build, warm cache", { seconds: 301, ok: true }],
     ["`snapback2 check`", failed.step],
     ["`snapback2 doctor`", sampled.step],
-  ], (label) => label.includes("doctor") ? 0.5 : 1, failures,
+  ], (label) => label === "Full build, warm cache" ? 300 : label.includes("doctor") ? 0.5 : 1, failures,
     (line) => lines.push(line), (message) => lines.push(`refused ${message}`));
   assert.deepEqual(record.steps.check_project_s, {
     seconds: 0.125,
@@ -342,6 +344,8 @@ function selfTest() {
   ]);
   assert(lines.some((line) => line.startsWith("not ok `snapback2 check`")));
   assert(!lines.some((line) => line.startsWith("ok `snapback2 check`")));
+  assert(lines.some((line) => line.includes("Full build, warm cache: 301s over budget 300s")));
+  assert(failures.has("Full build, warm cache"));
   assert(lines.some((line) => line.includes("`snapback2 doctor` sample 2: 0.6s over budget 0.5s")));
   const summary = failedSummary(failures);
   assert(summary.includes("check_project_s"));

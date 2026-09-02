@@ -799,7 +799,10 @@ pub fn mention_scan_program() -> Program {
                     site: "programs.mentionScan.0".to_owned(),
                     table: "users".to_owned(),
                     index: "byHandle".to_owned(),
-                    prefix: vec![var("handle")],
+                    prefix: vec![Expr::Builtin {
+                        builtin: Builtin::Concat,
+                        args: vec![Expr::Literal(Value::String(String::new())), var("handle")],
+                    }],
                     order: Order::Asc,
                     take: Bound::Literal(20),
                     after: None,
