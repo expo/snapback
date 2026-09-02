@@ -1,6 +1,6 @@
-import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 // @ts-ignore generated corpus JSON has no declaration file
 import scenarioHydrate from "../../../corpus/scenario-hydrate.json";
 import {
@@ -25,6 +25,7 @@ import { compileJourneys, lowerProject, lowerSeed } from "./project";
 type Register = (name: string, run: () => void | Promise<void>) => void;
 
 const frontend = decodeURIComponent(new URL("../", import.meta.url).pathname);
+const snapback2Root = resolve(frontend, "../..");
 const emptyReceipt: ClosureReceipt = { rows: [], ranges: [], absences: [], verdicts: [] };
 
 function context(args: Record<string, Value> = {}, newIds: string[] = []): Context {
@@ -893,5 +894,149 @@ export function registerVerifiedRegressionTests(
     "text-codepoints.ts", undefined, { tables });
     assert(!tooLong.ok && tooLong.diagnostics.filter((item) => item.code === "E_ARGS_TYPE").length === 2,
       "text maxima did not reject over-limit literals and arg defaults by Unicode scalar count");
+  });
+
+  test("F9 Rust package fixtures reclaim a dead package-build owner", async () => {
+    const lock = join(snapback2Root, "target/b2-package-build.lock");
+    const marker = join(snapback2Root, "target/b2-package-build.marker");
+    await rm(lock, { force: true });
+    await rm(marker, { force: true });
+    await writeFile(lock, `${JSON.stringify({ pid: 2_147_483_647, token: "verified-f9-dead-owner" })}\n`);
+    try {
+      const started = performance.now();
+      const result = Bun.spawnSync({
+        cmd: [
+          "cargo", "test", "-p", "snapback2", "--test", "guide",
+          "package_consumers_and_isolated_compiler_use_complete_private_snapshots",
+          "--", "--exact",
+        ],
+        cwd: snapback2Root,
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      const elapsed = performance.now() - started;
+      assert(result.exitCode === 0,
+        `Rust package fixture did not reclaim the dead owner: ${new TextDecoder().decode(result.stdout)}${new TextDecoder().decode(result.stderr)}`);
+      assert(elapsed < 10_000, `Rust package fixture spent ${Math.round(elapsed)}ms waiting on a dead owner`);
+    } finally {
+      await rm(lock, { force: true });
+    }
+  });
+
+  test("F10 concurrent stale reclaimers cannot remove the winner's live lock", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "snapback2-f10-"));
+    const lock = join(snapback2Root, "target/b2-package-build.lock");
+    const preload = join(directory, "barrier.mjs");
+    const waitSource = `
+      import fs from "node:fs/promises";
+      import { syncBuiltinESMExports } from "node:module";
+      const role = process.env.F10_ROLE;
+      const lock = process.env.F10_LOCK;
+      const barrier = process.env.F10_BARRIER;
+      const original = {
+        link: fs.link.bind(fs), stat: fs.stat.bind(fs), unlink: fs.unlink.bind(fs),
+        writeFile: fs.writeFile.bind(fs), readFile: fs.readFile.bind(fs),
+      };
+      const pause = () => new Promise((resolve) => setTimeout(resolve, 5));
+      async function exists(path) { try { await original.stat(path); return true; } catch (error) { if (error?.code === "ENOENT") return false; throw error; } }
+      async function waitFor(path, timeout = 5_000) {
+        const deadline = Date.now() + timeout;
+        while (!(await exists(path))) { if (Date.now() >= deadline) throw new Error("F10 barrier timeout: " + path); await pause(); }
+      }
+      fs.link = async (from, to) => {
+        const result = await original.link(from, to);
+        if (from === lock && String(to).includes(".stale-")) {
+          await original.writeFile(barrier + "/" + role + "-claimed", "ready");
+          await waitFor(barrier + "/A-claimed");
+          await waitFor(barrier + "/B-claimed");
+        }
+        return result;
+      };
+      fs.stat = async (path, ...args) => {
+        if (path === lock && role === "B") await waitFor(barrier + "/A-live");
+        return original.stat(path, ...args);
+      };
+      fs.unlink = async (path) => {
+        if (path === lock && role === "B") await waitFor(barrier + "/A-live");
+        const result = await original.unlink(path);
+        if (path === lock && role === "B") await original.writeFile(barrier + "/B-unlinked", "lost");
+        return result;
+      };
+      fs.writeFile = async (path, data, options) => {
+        const result = await original.writeFile(path, data, options);
+        if (path === lock && role === "A" && options?.flag === "wx") {
+          await original.writeFile(barrier + "/A-live", "ready");
+          const deadline = Date.now() + 500;
+          while (!(await exists(barrier + "/B-unlinked")) && Date.now() < deadline) await pause();
+          if (await exists(barrier + "/B-unlinked")) {
+            let current = "<missing>";
+            try { current = await original.readFile(lock, "utf8"); } catch {}
+            if (current !== data) throw new Error("F10_LIVE_LOCK_REMOVED");
+          }
+        }
+        return result;
+      };
+      syncBuiltinESMExports();
+    `;
+    try {
+      await writeFile(preload, waitSource);
+      await rm(lock, { force: true });
+      await writeFile(lock, `${JSON.stringify({ pid: 2_147_483_647, token: "verified-f10-dead-owner" })}\n`);
+      const spawn = (role: "A" | "B") => Bun.spawn({
+        cmd: ["node", "--import", preload, "build.mjs"],
+        cwd: join(snapback2Root, "packages/snapback2"),
+        env: { ...process.env, F10_ROLE: role, F10_LOCK: lock, F10_BARRIER: directory },
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      const contenders = [spawn("A"), spawn("B")];
+      const exits = await Promise.all(contenders.map((child) => child.exited));
+      const diagnostics = await Promise.all(contenders.map(async (child) =>
+        `${await new Response(child.stdout).text()}${await new Response(child.stderr).text()}`));
+      assert(exits.every((code) => code === 0),
+        `stale reclaimers lost mutual exclusion: exits=${JSON.stringify(exits)} ${diagnostics.join("\n")}`);
+    } finally {
+      await rm(lock, { force: true });
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  test("F19 blocking self-test uses a GNU-portable nonempty mktemp fixture", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "snapback2-f19-"));
+    const fakeMktemp = join(directory, "mktemp");
+    try {
+      await writeFile(fakeMktemp, `#!/bin/sh
+template=""
+for argument in "$@"; do template="$argument"; done
+case "$template" in
+  *XXX*) exec /usr/bin/mktemp -d "\${TMPDIR:-/tmp}/$template" ;;
+  *) printf '%s\n' "mktemp: too few X's in template '$template'" >&2; exit 1 ;;
+esac
+`);
+      await chmod(fakeMktemp, 0o755);
+      const result = Bun.spawnSync({
+        cmd: ["bash", "scripts/test.sh", "--self-test"],
+        cwd: snapback2Root,
+        env: { ...process.env, PATH: `${directory}:${process.env.PATH ?? ""}` },
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      assert(result.exitCode === 0,
+        `GNU mktemp mode broke the blocking self-test: ${new TextDecoder().decode(result.stdout)}${new TextDecoder().decode(result.stderr)}`);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  test("F20 publish self-test preserves a durable resume across dry-run staging", () => {
+    const checked = Bun.spawnSync({
+      cmd: ["node", "scripts/publish.mjs", "--self-test"],
+      cwd: snapback2Root,
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    const output = `${new TextDecoder().decode(checked.stdout)}${new TextDecoder().decode(checked.stderr)}`;
+    assert(checked.exitCode === 0 && output.includes("durable dry-run resume preserved"),
+      `publish self-test did not cover durable dry-run resume preservation: ${output}`);
   });
 }

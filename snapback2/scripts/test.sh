@@ -10,7 +10,10 @@ run_compiler_checks() {
 }
 
 if [ "${1:-}" = "--self-test" ]; then
-  fixture="$(mktemp -d -t snapback2-test-script)"
+  fixture="$(mktemp -d -t snapback2-test-script.XXXXXX)" || {
+    echo "test script self-test: cannot create fixture" >&2
+    exit 1
+  }
   trap 'rm -rf "$fixture"' EXIT
   mkdir -p "$fixture/bin" "$fixture/compiler"
   command_log="$fixture/commands"
@@ -31,8 +34,13 @@ status=0
 echo "== blocking script self-test"; "$0" --self-test || status=1
 echo "== bundle the compiler worker + client (the owner tests load dist/)"; (cd packages/snapback2 && node build.mjs >/dev/null) || status=1
 # Not a pipe: a test-spawned child that inherits stdout would hold `tail` open forever.
-cargo_log="$(mktemp -t snapback2-cargo-test)"
-echo "== cargo test --workspace"; cargo test --workspace --quiet > "$cargo_log" 2>&1 || status=1; tail -20 "$cargo_log"; rm -f "$cargo_log"
+cargo_log="$(mktemp -t snapback2-cargo-test.XXXXXX)" || cargo_log=""
+if [ -n "$cargo_log" ]; then
+  echo "== cargo test --workspace"; cargo test --workspace --quiet > "$cargo_log" 2>&1 || status=1; tail -20 "$cargo_log"; rm -f "$cargo_log"
+else
+  echo "== cargo test --workspace: cannot create output log" >&2
+  status=1
+fi
 echo "== evaluator (IR twin vs corpus)"; (cd packages/evaluator && bun src/test.ts) || status=1
 run_compiler_checks packages/compiler
 exit $status

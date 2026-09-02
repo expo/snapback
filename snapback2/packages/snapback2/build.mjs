@@ -216,6 +216,8 @@ async function reclaimStalePackageBuildLock() {
       await link(packageBuildLock, claim);
       const claimed = await stat(claim);
       if (claimed.dev !== held.dev || claimed.ino !== held.ino) return false;
+      const current = await stat(packageBuildLock);
+      if (current.dev !== held.dev || current.ino !== held.ino) return false;
       try {
         await unlink(packageBuildLock);
       } catch (error) {

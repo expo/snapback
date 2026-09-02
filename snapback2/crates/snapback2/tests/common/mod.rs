@@ -4,7 +4,7 @@ use serde_json::Value as Json;
 use std::collections::hash_map::DefaultHasher;
 use std::fs::{self, OpenOptions};
 use std::hash::{Hash, Hasher};
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -293,19 +293,33 @@ fn copy_tree(source: &Path, target: &Path) {
 
 struct PackageLock {
     path: PathBuf,
+    token: String,
 }
 
 impl PackageLock {
     fn acquire(root: &Path) -> Self {
         let path = root.join("target/b2-package-build.lock");
         let started = Instant::now();
+        let token = format!(
+            "rust-{}-{}-{:?}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos(),
+            thread::current().id(),
+        );
         loop {
             match OpenOptions::new().write(true).create_new(true).open(&path) {
                 Ok(mut file) => {
-                    let _ = writeln!(file, "{}", std::process::id());
-                    return Self { path };
+                    let owner = serde_json::json!({ "pid": std::process::id(), "token": token });
+                    writeln!(file, "{owner}").expect("write package build lock owner");
+                    return Self { path, token };
                 }
                 Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
+                    if reclaim_stale_package_lock(&path) {
+                        continue;
+                    }
                     assert!(
                         started.elapsed() < Duration::from_secs(30),
                         "timed out waiting for package build lock"
@@ -320,8 +334,99 @@ impl PackageLock {
 
 impl Drop for PackageLock {
     fn drop(&mut self) {
-        fs::remove_file(&self.path).expect("remove package build lock");
+        let owned = fs::read_to_string(&self.path)
+            .ok()
+            .and_then(|text| package_lock_owner(&text))
+            .is_some_and(|(pid, token)| {
+                pid == std::process::id() && token.as_deref() == Some(&self.token)
+            });
+        if owned {
+            fs::remove_file(&self.path).expect("remove owned package build lock");
+        }
     }
+}
+
+fn package_lock_owner(text: &str) -> Option<(u32, Option<String>)> {
+    if let Ok(value) = serde_json::from_str::<Json>(text) {
+        let pid = u32::try_from(value.get("pid")?.as_u64()?).ok()?;
+        let token = value.get("token").and_then(Json::as_str).map(str::to_owned);
+        return Some((pid, token));
+    }
+    text.trim().parse().ok().map(|pid| (pid, None))
+}
+
+fn package_lock_process_alive(pid: u32) -> bool {
+    let Ok(pid) = i32::try_from(pid) else {
+        return false;
+    };
+    let result = unsafe { libc::kill(pid, 0) };
+    result == 0 || std::io::Error::last_os_error().raw_os_error() == Some(libc::EPERM)
+}
+
+fn same_package_lock_file(left: &fs::Metadata, right: &fs::Metadata) -> bool {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        left.dev() == right.dev() && left.ino() == right.ino()
+    }
+    #[cfg(not(unix))]
+    {
+        left.len() == right.len() && left.modified().ok() == right.modified().ok()
+    }
+}
+
+fn reclaim_stale_package_lock(path: &Path) -> bool {
+    let mut held = match OpenOptions::new().read(true).open(path) {
+        Ok(file) => file,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return true,
+        Err(error) => panic!("cannot inspect package build lock: {error}"),
+    };
+    let held_metadata = held.metadata().expect("stat package build lock");
+    let mut text = String::new();
+    held.read_to_string(&mut text)
+        .expect("read package build lock");
+    let Some((pid, _)) = package_lock_owner(&text) else {
+        return false;
+    };
+    if package_lock_process_alive(pid) {
+        return false;
+    }
+
+    let claim = path.with_file_name(format!(
+        "b2-package-build.lock.stale-{}-{}",
+        std::process::id(),
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos(),
+    ));
+    match fs::hard_link(path, &claim) {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return true,
+        Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => return false,
+        Err(error) => panic!("cannot claim stale package build lock: {error}"),
+    }
+    let reclaimed = (|| {
+        let claimed = fs::metadata(&claim).expect("stat stale package build lock claim");
+        if !same_package_lock_file(&held_metadata, &claimed) {
+            return false;
+        }
+        let current = match fs::metadata(path) {
+            Ok(metadata) => metadata,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return true,
+            Err(error) => panic!("cannot restat package build lock: {error}"),
+        };
+        if !same_package_lock_file(&held_metadata, &current) {
+            return false;
+        }
+        match fs::remove_file(path) {
+            Ok(()) => true,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => true,
+            Err(error) => panic!("cannot reclaim package build lock: {error}"),
+        }
+    })();
+    let _ = fs::remove_file(claim);
+    reclaimed
 }
 
 fn package_fingerprint(root: &Path) -> String {

@@ -180,6 +180,37 @@ function prepare(version, name, stateDirectory, resumePath) {
   return resume;
 }
 
+function stagePublication(version, name, stateDirectory, resumePath, options = {}) {
+  const dryRun = options.dryRun ?? dry;
+  const prepareArtifacts = options.prepareArtifacts ?? prepare;
+  if (!dryRun) {
+    return {
+      staged: loadResume(resumePath, name, version)
+        ?? prepareArtifacts(version, name, stateDirectory, resumePath),
+      cleanup() {},
+    };
+  }
+
+  mkdirSync(dirname(stateDirectory), { recursive: true });
+  const dryStateDirectory = mkdtempSync(`${stateDirectory}.dry-`);
+  try {
+    return {
+      staged: prepareArtifacts(
+        version,
+        name,
+        dryStateDirectory,
+        resolve(dryStateDirectory, "resume.json"),
+      ),
+      cleanup() {
+        rmSync(dryStateDirectory, { recursive: true, force: true });
+      },
+    };
+  } catch (error) {
+    rmSync(dryStateDirectory, { recursive: true, force: true });
+    throw error;
+  }
+}
+
 function runSelfTest() {
   const directory = mkdtempSync(resolve(tmpdir(), "snapback2-publish-self-test-"));
   try {
@@ -219,7 +250,44 @@ function runSelfTest() {
       () => "sha512-platform",
       () => assert.fail("conflicting registry artifact was republished"),
     ), /already exists with integrity/);
-    console.log("publish self-test ok");
+
+    const durable = resolve(directory, "durable");
+    mkdirSync(durable, { recursive: true });
+    const oldPlatform = resolve(durable, "old-platform.tgz");
+    const oldShim = resolve(durable, "old-shim.tgz");
+    writeFileSync(oldPlatform, "published platform bytes");
+    writeFileSync(oldShim, "missing shim bytes");
+    const durableResume = resolve(durable, "resume.json");
+    writeFileSync(durableResume, `${JSON.stringify({
+      name: "snapback2-test-platform",
+      version: "0.0.1",
+      artifacts: [
+        { ...artifacts[0], tarball: oldPlatform, integrity: sri(oldPlatform) },
+        { ...artifacts[1], tarball: oldShim, integrity: sri(oldShim) },
+      ],
+    })}\n`);
+    const dryStage = stagePublication(
+      "0.0.1",
+      "snapback2-test-platform",
+      durable,
+      durableResume,
+      {
+        dryRun: true,
+        prepareArtifacts(_version, _name, dryDirectory) {
+          rmSync(dryDirectory, { recursive: true, force: true });
+          mkdirSync(dryDirectory, { recursive: true });
+          const rebuilt = resolve(dryDirectory, "rebuilt.tgz");
+          writeFileSync(rebuilt, "different rebuilt bytes");
+          return { artifacts: [{ ...artifacts[0], tarball: rebuilt, integrity: sri(rebuilt) }] };
+        },
+      },
+    );
+    assert.notEqual(dryStage.staged.artifacts[0].integrity, sri(oldPlatform));
+    assert.equal(loadResume(durableResume, "snapback2-test-platform", "0.0.1")?.artifacts[0].integrity, sri(oldPlatform));
+    dryStage.cleanup();
+    assert.equal(existsSync(oldPlatform), true);
+    assert.equal(existsSync(oldShim), true);
+    console.log("publish self-test ok; durable dry-run resume preserved");
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
@@ -232,41 +300,45 @@ function main() {
   const name = `snapback2-${platform}`;
   const stateDirectory = resolve(root, "dist/npm", `publish-${name}-${version}`);
   const resumePath = resolve(stateDirectory, "resume.json");
-  const resumed = dry ? undefined : loadResume(resumePath, name, version);
-  const staged = resumed ?? prepare(version, name, stateDirectory, resumePath);
+  const publication = stagePublication(version, name, stateDirectory, resumePath);
+  const staged = publication.staged;
 
-  if (dry) {
-    for (const artifact of staged.artifacts) {
-      command(npm, ["publish", artifact.tarball, "--access", "public", "--dry-run", "--ignore-scripts"], {
-        stdio: "inherit",
-      });
+  try {
+    if (dry) {
+      for (const artifact of staged.artifacts) {
+        command(npm, ["publish", artifact.tarball, "--access", "public", "--dry-run", "--ignore-scripts"], {
+          stdio: "inherit",
+        });
+      }
+    } else {
+      convergeArtifacts(
+        staged.artifacts,
+        registryIntegrity,
+        (artifact) => command(npm, ["publish", artifact.tarball, "--access", "public", "--ignore-scripts"], {
+          stdio: "inherit",
+        }),
+      );
     }
-  } else {
-    convergeArtifacts(
-      staged.artifacts,
-      registryIntegrity,
-      (artifact) => command(npm, ["publish", artifact.tarball, "--access", "public", "--ignore-scripts"], {
-        stdio: "inherit",
-      }),
-    );
-  }
 
-  const seconds = +((performance.now() - started) / 1000).toFixed(1);
-  const bytes = staged.withoutEngine ? staged.withoutEngineBytes : staged.withEngineBytes;
-  console.log(
-    `published ${name}@${version} (${(bytes / 1e6).toFixed(1)} MB; no-engine ${(staged.withoutEngineBytes / 1e6).toFixed(1)} MB) + snapback2@${version} in ${seconds}s${dry ? " (dry run)" : ""}`,
-  );
-  const metric = {
-    at: new Date().toISOString(),
-    publish_s: seconds,
-    production_binary_bytes: bytes,
-    production_binary_without_engine_bytes: staged.withoutEngineBytes,
-    production_binary_with_engine_bytes: staged.withEngineBytes,
-    engine: staged.withoutEngine ? "none (explicit override)" : "ibex2 + vanilla hermes",
-    dry,
-  };
-  writeFileSync(resolve(root, "metrics/loop.jsonl"), `${JSON.stringify(metric)}\n`, { flag: "a" });
-  console.log(`metric ${JSON.stringify(metric)}`);
+    const seconds = +((performance.now() - started) / 1000).toFixed(1);
+    const bytes = staged.withoutEngine ? staged.withoutEngineBytes : staged.withEngineBytes;
+    console.log(
+      `published ${name}@${version} (${(bytes / 1e6).toFixed(1)} MB; no-engine ${(staged.withoutEngineBytes / 1e6).toFixed(1)} MB) + snapback2@${version} in ${seconds}s${dry ? " (dry run)" : ""}`,
+    );
+    const metric = {
+      at: new Date().toISOString(),
+      publish_s: seconds,
+      production_binary_bytes: bytes,
+      production_binary_without_engine_bytes: staged.withoutEngineBytes,
+      production_binary_with_engine_bytes: staged.withEngineBytes,
+      engine: staged.withoutEngine ? "none (explicit override)" : "ibex2 + vanilla hermes",
+      dry,
+    };
+    writeFileSync(resolve(root, "metrics/loop.jsonl"), `${JSON.stringify(metric)}\n`, { flag: "a" });
+    console.log(`metric ${JSON.stringify(metric)}`);
+  } finally {
+    publication.cleanup();
+  }
 }
 
 try {
