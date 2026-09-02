@@ -136,8 +136,10 @@ that table.
 by who may issue each part: `rows` — "I hold these" — is client-issuable;
 `absences` and *complete* `ranges` — "no row exists there / this range is
 whole" — and `verdicts` — "this principal may see this" — are authority-only.
-Receipt-only maintained prediction may apply a delta only when the exact target
-row is held or an authority-issued `byId` absence proves its deterministic id
+An absence is also bound to the schema hash under which authority observed it;
+a predecessor absence is not authority after a successor. Receipt-only
+maintained prediction may apply a delta only when the exact target row is held
+or a same-schema authority-issued `byId` absence proves its deterministic id
 starts at zero; otherwise the whole local mutation rolls back as
 `Partial(["missing-authority"])`.
 The engine keeps the containment invariant `receipt ⊆ trace ⊆ certificate`

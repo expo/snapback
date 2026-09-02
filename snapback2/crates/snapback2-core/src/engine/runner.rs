@@ -70,7 +70,10 @@ impl<'a> Runner<'a> {
             env,
             consts: BTreeSet::new(),
             trace: AuthoritativeTrace::default(),
-            receipt: ClosureReceipt::default(),
+            receipt: ClosureReceipt {
+                schema_hash: Some(schema.hash()),
+                ..ClosureReceipt::default()
+            },
             rule_memo: BTreeMap::new(),
             created_rows: BTreeSet::new(),
             created_points: BTreeSet::new(),
@@ -105,7 +108,10 @@ impl<'a> Runner<'a> {
             env,
             consts: BTreeSet::new(),
             trace: AuthoritativeTrace::default(),
-            receipt: ClosureReceipt::default(),
+            receipt: ClosureReceipt {
+                schema_hash: Some(schema.hash()),
+                ..ClosureReceipt::default()
+            },
             rule_memo: BTreeMap::new(),
             created_rows: BTreeSet::new(),
             created_points: BTreeSet::new(),

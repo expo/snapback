@@ -55,6 +55,7 @@ export interface Verdict {
 }
 
 export interface ClosureReceipt {
+  schema_hash?: string | null;
   rows: RowRecord[];
   ranges: ReceiptRange[];
   absences: [string, string, Value[]][];

@@ -26,14 +26,15 @@ pub struct ClientStore {
 impl ClientStore {
     pub fn hydrate(schema: Schema, receipt: &ClosureReceipt) -> Result<Self, RuntimeError> {
         let mut engine = Engine::memory(schema.clone())?;
-        for row in &receipt.rows {
+        let coverage = Self::receipt_for_schema(&schema, receipt);
+        for row in &coverage.rows {
             engine.seed(&row.table, row.row.clone())?;
         }
-        engine.install_receipt_authority(receipt);
+        engine.install_receipt_authority(&coverage);
         Ok(Self {
             schema,
             engine,
-            coverage: receipt.clone(),
+            coverage,
             range_deletions: BTreeMap::new(),
             tainted_tables: BTreeSet::new(),
         })
@@ -177,6 +178,17 @@ impl ClientStore {
             }
         }
         Ok(ids)
+    }
+
+    fn receipt_for_schema(schema: &Schema, receipt: &ClosureReceipt) -> ClosureReceipt {
+        let mut coverage = receipt.clone();
+        let schema_hash = schema.hash();
+        if coverage.schema_hash.as_deref() != Some(schema_hash.as_str()) {
+            // @ref LLP 1001#2-what-a-commit-records — authority-only absence
+            // facts cannot cross a predecessor/successor schema boundary.
+            coverage.absences.clear();
+        }
+        coverage
     }
 
     fn covered_index_keys(&self) -> Result<Vec<BTreeMap<String, Vec<Value>>>, RuntimeError> {

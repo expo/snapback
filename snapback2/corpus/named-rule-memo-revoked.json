@@ -223,6 +223,7 @@
     "seed_write": false
   },
   "receipt": {
+    "schema_hash": "a7e6629ce2b28f103a54f185054be3955dc4ba05c27dcfa2f70a6e78a6b6494f",
     "rows": [
       {
         "table": "docs",

@@ -213,6 +213,10 @@ pub struct Verdict {
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ClosureReceipt {
+    /// Binds authority-issued absence facts to the schema that observed them.
+    /// Rows remain client-issuable and do not depend on this field.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub schema_hash: Option<String>,
     pub rows: Vec<RowRecord>,
     pub ranges: Vec<ReceiptRange>,
     pub absences: Vec<(String, String, Vec<Value>)>,

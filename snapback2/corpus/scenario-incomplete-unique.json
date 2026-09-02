@@ -134,6 +134,7 @@
     "seed_write": false
   },
   "receipt": {
+    "schema_hash": "a5501a689a80079165347f687c825c961c6409d18873cbb7b7f78b86f4094251",
     "rows": [],
     "ranges": [],
     "absences": [],

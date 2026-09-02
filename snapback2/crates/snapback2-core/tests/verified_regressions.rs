@@ -510,6 +510,7 @@ fn client_does_not_initialize_a_successor_maintain_from_a_predecessor_absence() 
         .unwrap();
     let count_id = canonical_json(&vec![id("g")]);
     let receipt = ClosureReceipt {
+        schema_hash: Some(predecessor.hash()),
         absences: vec![("counts".to_owned(), "byId".to_owned(), vec![id(&count_id)])],
         ..ClosureReceipt::default()
     };
@@ -518,7 +519,10 @@ fn client_does_not_initialize_a_successor_maintain_from_a_predecessor_absence() 
         .apply_mutation(&insert, &certificate, user_mutation(BTreeMap::new()))
         .unwrap();
 
-    assert_eq!(state, LocalState::Partial(vec!["counts.byId".to_owned()]));
+    assert_eq!(
+        state,
+        LocalState::Partial(vec!["missing-authority".to_owned()])
+    );
     assert!(client.rows("source").unwrap().is_empty());
     assert!(client.rows("counts").unwrap().is_empty());
 }

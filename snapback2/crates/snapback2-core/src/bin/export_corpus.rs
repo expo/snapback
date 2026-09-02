@@ -88,6 +88,7 @@ impl Fixture {
             }
         }
         ClosureReceipt {
+            schema_hash: None,
             rows,
             ranges: Vec::new(),
             absences: Vec::new(),
@@ -588,6 +589,7 @@ fn add_bytes_cases(cases: &mut Vec<CorpusCase>) {
     ));
 
     let receipt = ClosureReceipt {
+        schema_hash: None,
         rows: vec![
             RowRecord {
                 table: "blobs".to_owned(),
@@ -918,6 +920,7 @@ fn hidden_authority_case(name: &str, authority: HiddenAuthority) -> CorpusCase {
         vec![verdict]
     };
     let receipt = ClosureReceipt {
+        schema_hash: None,
         rows: vec![
             RowRecord {
                 table: "entitlements".to_owned(),
@@ -981,11 +984,20 @@ fn case_from_parts(
     schema: Schema,
     program: Program,
     context: Context,
-    receipt: ClosureReceipt,
+    mut receipt: ClosureReceipt,
     prelude: Vec<PreludeStep>,
-    replacement_receipt: Option<ClosureReceipt>,
+    mut replacement_receipt: Option<ClosureReceipt>,
     random_seed: Option<u64>,
 ) -> CorpusCase {
+    let schema_hash = schema.hash();
+    receipt
+        .schema_hash
+        .get_or_insert_with(|| schema_hash.clone());
+    if let Some(replacement) = &mut replacement_receipt {
+        replacement
+            .schema_hash
+            .get_or_insert_with(|| schema_hash.clone());
+    }
     let certificate = Checker::new(&schema, Ceilings::default())
         .check(&program)
         .expect("case certificate");

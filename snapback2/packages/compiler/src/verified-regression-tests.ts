@@ -15,6 +15,7 @@ import {
   type CorpusCase,
   type Value,
 } from "../../evaluator/src/evaluator";
+import { canonicalSchemaJson } from "../../evaluator/src/certificate-identity";
 import { compileApp as compileQuarryApp } from "../../quarry/src/compiler";
 import type { TableInfo } from "./compiler";
 import { lowerSource } from "./compiler";
@@ -282,6 +283,7 @@ export function registerVerifiedRegressionTests(
     };
     const countId = '[{"Id":"g"}]';
     const inexactReceipt: ClosureReceipt = {
+      schema_hash: sha256(canonicalSchemaJson(schema)),
       rows: [],
       ranges: [],
       absences: [["counts", "byId", [{ Id: "some-other-group" }]]],
@@ -296,6 +298,7 @@ export function registerVerifiedRegressionTests(
     assert(inexactStore.byId("source", "s1") === null, "partial prediction leaked its source insert");
 
     const exactReceipt: ClosureReceipt = {
+      schema_hash: sha256(canonicalSchemaJson(schema)),
       rows: [],
       ranges: [],
       absences: [["counts", "byId", [{ Id: countId }]]],
@@ -314,6 +317,22 @@ export function registerVerifiedRegressionTests(
       }),
       "exact maintained-target absence did not initialize the aggregate",
     );
+
+    const predecessorReceipt: ClosureReceipt = {
+      ...exactReceipt,
+      schema_hash: sha256(canonicalSchemaJson({ ...schema, maintains: [] })),
+    };
+    const successorStore = new ClientStore(schema, predecessorReceipt);
+    const successor = successorStore.applyMutation(evaluatorProgram("Mutation", [{ Insert: {
+      table: "source",
+      row: literal({ Row: { id: { Id: "s3" }, group: { Id: "g" } } }),
+    } }]), context());
+    assert(successor.state === "partial", `predecessor absence used ${successor.state}`);
+    assert(
+      JSON.stringify(successor.partialSites) === JSON.stringify(["missing-authority"]),
+      `predecessor absence named ${JSON.stringify(successor.partialSites)}`,
+    );
+    assert(successorStore.byId("source", "s3") === null, "successor prediction leaked its source insert");
   });
 
   test("F6 Cap checks updates entering full single- and multi-field groups", () => {

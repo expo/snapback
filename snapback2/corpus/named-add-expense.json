@@ -1102,6 +1102,7 @@
     "seed_write": false
   },
   "receipt": {
+    "schema_hash": "31792591fb75b5ab316e24a71206d3f7de6e02ed12f49a2f39782dbcab4b3566",
     "rows": [
       {
         "table": "accounts",

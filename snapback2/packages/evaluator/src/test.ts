@@ -13,6 +13,7 @@ import {
   type CorpusCase,
   type Value,
 } from "./evaluator";
+import { canonicalSchemaJson } from "./certificate-identity";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -543,6 +544,7 @@ const expectCode = (run: () => unknown, code: string, label: string) => {
   assert(missingProof.state === "partial", "missing rule Exists proof was treated as authority");
   assert(missingProof.execution.result === "Null", "partial authorization probe exposed the held secret row");
   receipt.absences.push(["blocks", "byPair", [{ Id: "viewer" }, { Id: "author" }]]);
+  receipt.schema_hash = sha256(canonicalSchemaJson(schema));
   const provedAbsent = new ClientStore(schema, receipt).reexecute(readPost, context());
   assert(provedAbsent.state === "fresh", "authority-issued rule absence did not close coverage");
   assert(provedAbsent.execution.result !== "Null", "proved rule absence did not admit the post");

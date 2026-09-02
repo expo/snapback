@@ -148,6 +148,7 @@
     "seed_write": false
   },
   "receipt": {
+    "schema_hash": "fc4aa2f24dc38ffdc201a879d054b0d2c503488adbe68f202692b2c63d454bfe",
     "rows": [
       {
         "table": "counts",

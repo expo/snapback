@@ -1047,6 +1047,7 @@
     "seed_write": false
   },
   "receipt": {
+    "schema_hash": "9115d65fcfb8dde1a1c7171c7674718c5252c1971788622221234205acbf3496",
     "rows": [
       {
         "table": "memberships",

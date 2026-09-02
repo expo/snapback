@@ -87,7 +87,7 @@ export class ClientStore {
     private readonly schema: any,
     receipt: ClosureReceipt,
   ) {
-    this.coverage = clone(receipt);
+    this.coverage = this.receiptForSchema(receipt);
     this.seedReceipt(receipt);
   }
 
@@ -163,7 +163,7 @@ export class ClientStore {
   rehydrate(receipt: ClosureReceipt): number {
     const before = this.allIds();
     this.tables = new Map();
-    this.coverage = clone(receipt);
+    this.coverage = this.receiptForSchema(receipt);
     this.rangeDeletions = new Map();
     this.taintedTables = new Set();
     this.seedReceipt(receipt);
@@ -294,6 +294,16 @@ export class ClientStore {
 
   private seedReceipt(receipt: ClosureReceipt): void {
     for (const row of receipt.rows) this.put(row.table, row.row);
+  }
+
+  private receiptForSchema(receipt: ClosureReceipt): ClosureReceipt {
+    const coverage = clone(receipt);
+    if (coverage.schema_hash !== sha256(canonicalSchemaJson(this.schema))) {
+      // @ref LLP 1001#2-what-a-commit-records — authority-only absence
+      // facts cannot cross a predecessor/successor schema boundary.
+      coverage.absences = [];
+    }
+    return coverage;
   }
 
   private fork(): ClientStore {

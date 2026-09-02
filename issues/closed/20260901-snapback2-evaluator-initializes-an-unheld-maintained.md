@@ -1,7 +1,7 @@
 # snapback2: evaluator initializes an unheld maintained aggregate from zero
 
 **Status:** Closed
-**Resolution:** Required a held maintained target or an exact authority-issued `byId` absence in both receipt-only clients and returned partial from staged prediction otherwise. Added TypeScript and Rust regressions for both the missing-authority and proved-absence paths.
+**Resolution:** Required a held maintained target or an exact, same-schema authority-issued `byId` absence in both receipt-only clients and returned partial from staged prediction otherwise. Receipt absences now carry their authority schema hash, so a predecessor proof fails closed after a successor. Added TypeScript and Rust regressions for the missing-authority, proved-absence, and successor paths.
 **Systems:** snapback2, core client, evaluator, maintained aggregates
 **Severity:** P1
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever
