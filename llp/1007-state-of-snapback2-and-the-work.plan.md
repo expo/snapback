@@ -207,8 +207,8 @@ item that slips its date returns here rather than sitting silently.
 |---|---|---|---|
 | 1 | Insert evaluates its row expression once; returned row equals stored row. Regression pins it. Inline `ctx.now()` is the same class. | `s2/quarry-default` | landed 2026-09-02 (`b2bebb49a`) |
 | 2 | quarryc branch-arm write accounting matches runtime; fixture with per-branch writes. | `s2/quarry-default` | landed 2026-09-02 (`b2bebb49a`) |
-| 3 | Drop `Page.hasMore` from `lib.d.ts`; refuse composite cursors and invalid `Id` scalars at certify time with a rewrite. | `s2/p1-typelies` | 2026-09-03 |
-| 4 | Direction-aware descending `after`, or `before` documented as the only newest-first page and the other refused. | `s2/cursors` | 2026-09-04 |
+| 3 | Drop `Page.hasMore` from `lib.d.ts`; refuse composite cursors and invalid `Id` scalars at certify time with a rewrite. Landed as: `hasMore` gone; cursors are full ordering tuples with shape refusals; invalid Id scalars and Id-to-text in Id positions refuse with pasteable rewrites; static analysis stays silent where the runtime accepts. | `s2/q-platform` | landed 2026-09-02 (`e410e8042`) |
+| 4 | Direction-aware descending `after`, or `before` documented as the only newest-first page and the other refused. Landed as: `after`/`before` are scan-order relative and are the full post-prefix tuple; a cursored index must be a total order (ends in `id`, or unique); Quarry pages with `after (a, b)`. Also fixed on the way: the compiler-worker shutdown hang behind a `node` shim. | `s2/q-platform` | landed 2026-09-02 (`e410e8042`) |
 | 5 | Bound `test`'s rule and invalidation probes so a Clique-sized seed finishes. | `s2/test-bounds` | 2026-09-04 |
 | 6 | Mutation-read authority: a `guide/` recipe and a diagnostic now. A `reads:` declaration only if §4b lands Quarry-only, and only then. | `s2/mutation-reads` | 2026-09-05 |
 | 7 | Packaged-consumer smoke rung: pack, install, `init`, `check`, `test` from tarballs. **Replaces** `measure --check`'s duplicate core-test step; the check count stays five. | `s2/consumer-smoke` | 2026-09-05 |
