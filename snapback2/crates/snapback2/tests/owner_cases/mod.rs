@@ -157,11 +157,11 @@ export const second = query({}, () => unknownTwo);
 fn successor_rebinds_channel_subscriber_before_g1_publish() {
     let root = temp_root();
     copy_tree(&fixture().join("snapback"), &root.join("snapback"));
-    let schema = root.join("snapback/schema.ts");
+    let schema = root.join("snapback/schema.q");
     let source = fs::read_to_string(&schema).unwrap();
     let allowing = source.replace(
-        "subscribe: rule.exists(memberships, \"byConversationPrincipal\", [rule.field(\"conversationId\"), rule.viewer]),",
-        "subscribe: rule.allow(),",
+        "subscribe <- exists memberships[conversationId, viewer]",
+        "subscribe <- allow",
     );
     assert_ne!(source, allowing, "chat fixture channel rule changed");
     fs::write(schema, allowing).unwrap();
@@ -525,10 +525,10 @@ fn refused_destructive_successor_keeps_the_active_build_cache() {
     let before = ["project.json", "certificates.json", "api.d.ts"]
         .map(|name| fs::read(build.join(name)).unwrap());
     thread::sleep(Duration::from_millis(300));
-    let schema = root.join("snapback/schema.ts");
+    let schema = root.join("snapback/schema.q");
     let source = fs::read_to_string(&schema)
         .unwrap()
-        .replace("title: t.text(120)", "title: t.text(121)");
+        .replace("title: text <=120", "title: text <=121");
     assert_ne!(
         source,
         fs::read_to_string(&schema).unwrap(),
@@ -608,14 +608,13 @@ fn reset_removes_writer_and_core_live_subscriptions() {
 fn run_exit_codes_distinguish_rejected_mutations_from_typed_queries() {
     let root = temp_root();
     copy_tree(&fixture().join("snapback"), &root.join("snapback"));
-    let messages = root.join("snapback/messages.ts");
+    let messages = root.join("snapback/messages.q");
     let mut source = fs::read_to_string(&messages).unwrap();
     source.push_str(
         r#"
-export const denied = query({}, ({ db }) => {
-  db.require(false, "DENIED_QUERY");
-  return null;
-});
+query denied():
+  require false else DENIED_QUERY
+  return null
 "#,
     );
     fs::write(messages, source).unwrap();
@@ -819,10 +818,10 @@ fn successful_hot_apply_never_pairs_successor_trace_with_predecessor_certificate
     );
     thread::sleep(Duration::from_millis(300));
 
-    let messages = root.join("snapback/messages.ts");
+    let messages = root.join("snapback/messages.q");
     let successor = fs::read_to_string(&messages)
         .unwrap()
-        .replace("order: \"desc\", take: 50", "order: \"desc\", take: 49");
+        .replace("last 50", "last 49");
     fs::write(messages, successor).unwrap();
     wait_for(Duration::from_secs(6), || {
         let response = request(

@@ -31,28 +31,24 @@ use owner_wire::{request, status};
 fn chat_owner_wire_sse_channels_and_successors() {
     let root = temp_root();
     copy_tree(&fixture().join("snapback"), &root.join("snapback"));
-    let messages = root.join("snapback/messages.ts");
-    let source = fs::read_to_string(&messages).unwrap().replace(
-        "import { conversations, memberships, messages, profiles } from \"./schema\";",
-        "import { conversations, memberships, messageCounts, messages, profiles } from \"./schema\";",
-    ) + r#"
+    let messages = root.join("snapback/messages.q");
+    let source = fs::read_to_string(&messages).unwrap()
+        + r#"
 
-export const forceCount = mutation({ conversationId: t.id() }, ({ db, ctx, args }) => {
-  db.insert(messageCounts, { id: ctx.newId(), conversationId: args.conversationId, value: 999 });
-  return null;
-});
+mutation forceCount(conversationId: id):
+  +messageCounts { conversationId, value: 999 }
+  return null
 
-export const counts = query({ conversationId: t.id() }, ({ db, args }) =>
-  db.scan(messageCounts.byConversation, [args.conversationId], { take: 10 }),
-);
+query counts(conversationId: id):
+  return messageCounts[conversationId] first 10 by byConversation
 
-export const viewerMatches = query({ userId: t.id() }, ({ args, ctx }) =>
-  args.userId === ctx.viewer,
-);
+query viewerMatches(userId: principal):
+  return userId = viewer
 
-export const before = query({ boundary: t.time() }, ({ args, ctx }) =>
-  ctx.now() < args.boundary ? ["before"] : [],
-);
+query before(boundary: time):
+  if now < boundary:
+    return ['before']
+  return []
 "#;
     fs::write(&messages, source).unwrap();
     let binary = env!("CARGO_BIN_EXE_snapback2");
@@ -213,7 +209,7 @@ export const before = query({ boundary: t.time() }, ({ args, ctx }) =>
     assert_eq!(equality.body["state"], "complete", "{}", equality.body);
     assert_eq!(
         equality.body["data"], true,
-        "ID args must compare equal to ctx.viewer"
+        "principal args must compare equal to viewer"
     );
 
     let boundary = SystemTime::now()
@@ -390,7 +386,7 @@ export const before = query({ boundary: t.time() }, ({ args, ctx }) =>
     let before = status(port, &secret);
     let old_generation = before["generation"].as_str().unwrap().to_owned();
     let mut source = fs::read_to_string(&messages).unwrap();
-    source.push_str("\nexport const hotAdded = query({}, () => ({ hot: true }));\n");
+    source.push_str("\nquery hotAdded():\n  return { hot: true }\n");
     fs::write(&messages, source).unwrap();
     let applied = wait_for(Duration::from_secs(6), || {
         let value = status(port, &secret);
@@ -405,40 +401,33 @@ export const before = query({ boundary: t.time() }, ({ args, ctx }) =>
 
     let source = fs::read_to_string(&messages).unwrap();
     let mut source = source
-        .split("\nexport const forceCount")
+        .split("\nmutation forceCount")
         .next()
         .unwrap()
         .to_owned();
-    let summary_start = source.find("export const summary").unwrap();
-    let send_start = source.find("export const send").unwrap();
-    source.replace_range(summary_start..send_start, "");
-    let source = source.replace(
-        "import { conversations, memberships, messageCounts, messages, profiles } from \"./schema\";",
-        "import { conversations, memberships, messages, profiles } from \"./schema\";",
+    source = source.replace(
+        "messageCount: messageCounts[conversationId]",
+        "messageCount: { value: 0 }",
     );
     fs::write(&messages, source).unwrap();
-    let schema_path = root.join("snapback/schema.ts");
+    let schema_path = root.join("snapback/schema.q");
     let seed_path = root.join("snapback/seed.ts");
     let seed = fs::read_to_string(&seed_path)
         .unwrap()
         .replace("    messageCounts: [],\n", "");
     fs::write(&seed_path, seed).unwrap();
     let mut schema = fs::read_to_string(&schema_path).unwrap();
-    let removed_start = schema.find("export const messageCounts").unwrap();
-    let removed_end = schema.find("export const notifications").unwrap();
+    let removed_start = schema.find("maintain messageCounts").unwrap();
+    let removed_end = schema.find("channel typing").unwrap();
     schema.replace_range(removed_start..removed_end, "");
-    let schema = schema.replace("messageCounts, ", "").replace(
-        "maintains: [{ count: \"messages\", by: [\"conversationId\"], into: \"messageCounts\" }],",
-        "maintains: [],",
-    );
     fs::write(&schema_path, schema).unwrap();
     let refused = wait_for(Duration::from_secs(6), || {
         let value = status(port, &secret);
         (value["status"]["state"] == "refused").then_some(value)
     });
     assert_eq!(
-        refused["status"]["refused"][0]["code"],
-        "E_SUCCESSOR_DESTRUCTIVE"
+        refused["status"]["refused"][0]["code"], "E_SUCCESSOR_DESTRUCTIVE",
+        "{refused}"
     );
     let migration = fs::read_dir(root.join(".snapback"))
         .unwrap()
@@ -473,7 +462,8 @@ export const before = query({ boundary: t.time() }, ({ args, ctx }) =>
         .unwrap();
     assert!(
         stop.status.success(),
-        "{}",
+        "{} {}",
+        String::from_utf8_lossy(&stop.stdout),
         String::from_utf8_lossy(&stop.stderr)
     );
     assert!(
@@ -543,10 +533,10 @@ fn default_owner_replays_then_pending_without_an_engine() {
 fn rule_denied_then_settles_sent_with_the_rejection_visible_in_trace() {
     let root = temp_root();
     copy_tree(&fixture().join("snapback"), &root.join("snapback"));
-    let schema = root.join("snapback/schema.ts");
+    let schema = root.join("snapback/schema.q");
     let source = fs::read_to_string(&schema)
         .unwrap()
-        .replace("rule.system()", "rule.deny()");
+        .replace("insert r <- system", "insert r <- deny");
     fs::write(schema, source).unwrap();
     let binary = env!("CARGO_BIN_EXE_snapback2");
     let compiler = compiler(&root);
@@ -1329,7 +1319,7 @@ for await (const line of createInterface({{ input: process.stdin, crlfDelay: Inf
         .unwrap();
     // Let the watcher establish its initial fingerprint before changing the source.
     thread::sleep(Duration::from_millis(300));
-    let messages = root.join("snapback/messages.ts");
+    let messages = root.join("snapback/messages.q");
     let mut source = fs::read_to_string(&messages).unwrap();
     source.push_str("\n");
     fs::write(messages, source).unwrap();

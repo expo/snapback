@@ -124,9 +124,9 @@ fn exact_logout_fences_only_one_epoch_and_successors_cannot_resurrect_it() {
         .as_str()
         .unwrap()
         .to_owned();
-    let messages = root.join("snapback/messages.ts");
+    let messages = root.join("snapback/messages.q");
     let mut source = fs::read_to_string(&messages).unwrap();
-    source.push_str("\nexport const authFenceSuccessor = query({}, () => true);\n");
+    source.push_str("\nquery authFenceSuccessor():\n  return true\n");
     fs::write(&messages, source).unwrap();
     let applied = wait_for(Duration::from_secs(6), || {
         let current = status(port, &secret);
@@ -361,7 +361,7 @@ fn startup_and_persona_headers_do_not_issue_sessions() {
 fn serve_rejects_and_revokes_a_persisted_dev_persona_bearer_after_restart() {
     let root = temp_root();
     let auth_fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../packages/compiler/fixtures/todos/snapback");
+        .join("../../packages/compiler/fixtures/quarry-todos/snapback");
     copy_tree(&auth_fixture, &root.join("snapback"));
     let binary = env!("CARGO_BIN_EXE_snapback2");
     let compiler = compiler(&root);
@@ -521,23 +521,13 @@ fn start_owner(binary: &str, compiler: &Path, root: &Path) -> (ChildGuard, u16, 
 
 #[cfg(not(feature = "hermes"))]
 fn install_add_member_mutation(root: &Path) {
-    let messages = root.join("snapback/messages.ts");
+    let messages = root.join("snapback/messages.q");
     let mut source = fs::read_to_string(&messages).unwrap();
     source.push_str(
         r#"
-export const addMemberForSessionTest = mutation({
-  conversationId: t.ref(conversations),
-  principal: t.principal(),
-}, ({ db, ctx, args }) => {
-  db.insert(memberships, {
-    id: ctx.newId(),
-    conversationId: args.conversationId,
-    principal: args.principal,
-    role: "member",
-    joinedAt: ctx.now(),
-  });
-  return null;
-});
+mutation addMemberForSessionTest(conversationId: conversations, principal: principal):
+  +memberships { conversationId, principal, role: 'member', joinedAt: now }
+  return null
 "#,
     );
     fs::write(messages, source).unwrap();

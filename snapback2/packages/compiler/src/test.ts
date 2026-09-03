@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { lowerSource, typecheckSource, type TableInfo } from "./compiler";
 import { IR_CONTRACT, type Program } from "./ir";
-import { listJourneys, lowerProject, lowerSeed } from "./project";
+import { listJourneys, lowerProject as lowerAuthoredProject, lowerSeed } from "./project";
 import { lowerSchema } from "./lower/schema";
 import { registerPrincipalChecks, registerRbacRuleChecks } from "./rbac-checks";
 import { registerProvenanceSiteChecks } from "./provenance-site-checks";
@@ -28,6 +28,7 @@ const frontend = decodeURIComponent(new URL("../", import.meta.url).pathname);
 const crate = decodeURIComponent(new URL("../../../", import.meta.url).pathname);
 const libText = `${await Bun.file(`${frontend}subset-lib.d.ts`).text()}\n${await Bun.file(`${frontend}lib.d.ts`).text()}`;
 const legacyLib = `${libText}\n${await Bun.file(`${frontend}gauntlet.d.ts`).text()}`;
+const lowerProject = (root: string) => lowerAuthoredProject(root, { authoring: "any" });
 
 type Check = { name: string; run: () => void | Promise<void> };
 const checks: Check[] = [];
@@ -1309,7 +1310,7 @@ test("effect closure refusals include parameter, destructuring, and computed-nam
   });
 });
 
-test("worker survives a refused compile and serves the next request under Node", async () => {
+test("worker refuses every TypeScript-authored export and serves the next Quarry request", async () => {
   const built = Bun.spawnSync({ cmd: ["node", "build.mjs"], cwd: `${crate}packages/snapback2`, stdout: "pipe", stderr: "pipe" });
   assert(built.exitCode === 0, `package build failed: ${new TextDecoder().decode(built.stderr)}`);
   const bundle = `${crate}packages/snapback2/dist/compiler.mjs`;
@@ -1317,29 +1318,57 @@ test("worker survives a refused compile and serves the next request under Node",
   const shippedCore = await Bun.file(`${crate}packages/snapback2/dist/compiler-core.mjs`).text();
   assert(!shipped.includes("Bun."), "shipped compiler contains Bun.*");
   assert(!shippedCore.includes("Bun."), "shipped compiler core contains Bun.*");
-  const worker = Bun.spawn({ cmd: ["node", bundle, "--worker"], stdin: "pipe", stdout: "pipe", stderr: "pipe" });
-  worker.stdin.write(`${JSON.stringify({ id: 1, op: "probe", root: resolve(frontend, "fixtures/invalid") })}\n`);
-  worker.stdin.write(`${JSON.stringify({ id: 2, op: "compile", root: resolve(frontend, "fixtures/invalid") })}\n`);
-  worker.stdin.write(`${JSON.stringify({ id: 3, op: "compile", root: resolve(frontend, "fixtures/todos") })}\n`);
-  worker.stdin.write(`${JSON.stringify({ id: 4, op: "seed", root: resolve(frontend, "fixtures/todos") })}\n`);
-  worker.stdin.write(`${JSON.stringify({ id: 5, op: "journeys", root: resolve(frontend, "fixtures/todos") })}\n`);
-  worker.stdin.write(`${JSON.stringify({ id: 6, op: "compile", root: "fixtures/todos" })}\n`);
-  worker.stdin.end();
-  const output = await new Response(worker.stdout).text();
-  const stderr = await new Response(worker.stderr).text();
-  const status = await worker.exited;
-  assert(status === 0, `worker exited nonzero: ${stderr}`);
-  const responses = output.trim().split("\n").map((line) => JSON.parse(line));
-  assert(responses[0]?.id === 1 && responses[0]?.ok === true
-    && responses[0]?.protocol === "snapback2/compiler-worker/v1"
-    && JSON.stringify(responses[0]?.operations) === JSON.stringify(["compile", "seed", "journeys"]),
-  "worker probe did not prove protocol custody");
-  assert(responses[1]?.id === 2 && responses[1]?.ok === false, "worker did not return the refused compile");
-  assert(responses[2]?.id === 3 && responses[2]?.ok === true, "worker did not survive for the next compile");
-  assert(responses[3]?.id === 4 && responses[3]?.ok === true, "worker did not serve seed under Node");
-  assert(responses[4]?.id === 5 && responses[4]?.ok === true, "worker did not serve journeys under Node");
-  assert(responses[5]?.id === 6 && responses[5]?.ok === false
-    && responses[5]?.diagnostics?.[0]?.code === "E_OP_INVALID", "worker admitted a relative project root");
+  const quarryFixture = resolve(frontend, "fixtures/quarry-todos/snapback");
+  await withProject({
+    "legacy/snapback/schema.ts": `import { schema } from "snapback2"; export default schema({ tables: {} });`,
+    "legacy/snapback/legacy.ts": `import { effect, mutation, query, t } from "snapback2";
+      export const recordNotified = mutation({ outboxId: t.id(), effect: t.text(100), result: t.json(1000) }, () => null);
+      export const allowedEffect = effect({ grants: ["https://api.example.com"], run: async () => null });
+      export const lookup = query({}, () => null);
+      const removeLegacy = mutation({ id: t.id() }, () => null);
+      export { removeLegacy };`,
+    "quarry/snapback/schema.q": await readFile(resolve(quarryFixture, "schema.q"), "utf8"),
+    "quarry/snapback/todos.q": await readFile(resolve(quarryFixture, "todos.q"), "utf8"),
+    "quarry/snapback/seed.ts": await readFile(resolve(quarryFixture, "seed.ts"), "utf8"),
+    "quarry/snapback/tests/todos.test.ts": await readFile(resolve(quarryFixture, "tests/todos.test.ts"), "utf8"),
+  }, async (root) => {
+    const legacyRoot = resolve(root, "legacy");
+    const quarryRoot = resolve(root, "quarry");
+    const worker = Bun.spawn({ cmd: ["node", bundle, "--worker"], stdin: "pipe", stdout: "pipe", stderr: "pipe" });
+    worker.stdin.write(`${JSON.stringify({ id: 1, op: "probe", root: legacyRoot })}\n`);
+    worker.stdin.write(`${JSON.stringify({ id: 2, op: "compile", root: legacyRoot })}\n`);
+    worker.stdin.write(`${JSON.stringify({ id: 3, op: "compile", root: quarryRoot })}\n`);
+    worker.stdin.write(`${JSON.stringify({ id: 4, op: "seed", root: quarryRoot })}\n`);
+    worker.stdin.write(`${JSON.stringify({ id: 5, op: "journeys", root: quarryRoot })}\n`);
+    worker.stdin.write(`${JSON.stringify({ id: 6, op: "compile", root: "fixtures/quarry-todos" })}\n`);
+    worker.stdin.end();
+    const output = await new Response(worker.stdout).text();
+    const stderr = await new Response(worker.stderr).text();
+    const status = await worker.exited;
+    assert(status === 0, `worker exited nonzero: ${stderr}`);
+    const responses = output.trim().split("\n").map((line) => JSON.parse(line));
+    assert(responses[0]?.id === 1 && responses[0]?.ok === true
+      && responses[0]?.protocol === "snapback2/compiler-worker/v1"
+      && JSON.stringify(responses[0]?.operations) === JSON.stringify(["compile", "seed", "journeys"]),
+    "worker probe did not prove protocol custody");
+    const authored = responses[1]?.diagnostics ?? [];
+    assert(responses[1]?.id === 2 && responses[1]?.ok === false && authored.length === 4
+      && authored.every((item: any) => item.code === "E_QUARRY_ONLY"),
+    `worker did not report the schema and every authored export: ${JSON.stringify(authored)}`);
+    assert(authored.some((item: any) => item.site === "snapback/schema.ts:1:1"
+      && item.message === "backends are authored in Quarry; the schema is snapback/schema.q"),
+    "worker lost the schema.ts Quarry-only refusal");
+    assert(authored.some((item: any) => item.rewrite === "mutation recordNotified(outboxId: id, effect: text <=100, result: json <=1000):")
+      && authored.some((item: any) => item.rewrite === "query lookup():")
+      && authored.some((item: any) => item.rewrite === "mutation removeLegacy(id: id):")
+      && !authored.some((item: any) => item.message.includes("allowedEffect")),
+    `worker did not list exactly the non-effect exports: ${JSON.stringify(authored)}`);
+    assert(responses[2]?.id === 3 && responses[2]?.ok === true, "worker did not survive for the next compile");
+    assert(responses[3]?.id === 4 && responses[3]?.ok === true, "worker did not serve seed under Node");
+    assert(responses[4]?.id === 5 && responses[4]?.ok === true, "worker did not serve journeys under Node");
+    assert(responses[5]?.id === 6 && responses[5]?.ok === false
+      && responses[5]?.diagnostics?.[0]?.code === "E_OP_INVALID", "worker admitted a relative project root");
+  });
 });
 
 test("npm pack from a clean dist builds every exported module and declaration", async () => {

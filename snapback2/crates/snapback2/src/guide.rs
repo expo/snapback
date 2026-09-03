@@ -19,7 +19,6 @@ const RECIPES: &[&str] = &[
     "personas",
     "quarry",
     "testing",
-    "typescript",
 ];
 
 pub fn run(args: &[String]) -> ExitCode {
@@ -413,7 +412,7 @@ fn unknown(page: &str) -> Refusal {
         "E_GUIDE_UNKNOWN",
         "input",
         format!("unknown guide page {page}"),
-        "run snapback2 guide grammar, quarry, typescript, app, a symbol, an E_CODE, or a listed recipe",
+        "run snapback2 guide grammar, quarry, app, a symbol, an E_CODE, or a listed recipe",
         "input/guide",
     )
 }

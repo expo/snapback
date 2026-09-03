@@ -64,7 +64,7 @@ export type {
 export { typecheckSource } from "./typecheck";
 export { mechanicalBoundRewrite } from "./policy";
 export async function lowerProject(root: string) {
-  return (await import("./project")).lowerProject(root);
+  return (await import("./project")).lowerProject(root, { authoring: "any" });
 }
 function captureRefusal(diagnostics: FrontendDiagnostic[], error: unknown): void {
   if (error instanceof Refusal) diagnostics.push(error.diagnostic);

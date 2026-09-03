@@ -1,8 +1,9 @@
 # Quarry grammar
 
-One directory: declarations in `snapback/schema.q`, operations in
-`snapback/<module>.q`, and optional effect implementations, seed data, and
-journeys in TypeScript. A project has exactly one of `schema.q` or `schema.ts`.
+Backends have one `snapback/schema.q`; operations live in
+`snapback/<module>.q`. TypeScript under `snapback/` is limited to `seed.ts`,
+`tests/*.test.ts`, and effect modules that export effects only. An effect's
+optional `then` mutation is declared in Quarry.
 
 ```q
 use identity

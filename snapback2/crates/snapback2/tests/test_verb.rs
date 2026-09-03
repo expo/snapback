@@ -12,13 +12,16 @@ fn check<'a>(receipt: &'a serde_json::Value, name: &str) -> &'a serde_json::Valu
         .unwrap_or_else(|| panic!("missing {name} check in {receipt}"))
 }
 
-fn without_export(source: &str, name: &str) -> String {
-    let marker = format!("export const {name} =");
+fn without_operation(source: &str, name: &str) -> String {
+    let marker = format!("mutation {name}(");
     let start = source
         .find(&marker)
         .unwrap_or_else(|| panic!("fixture had no {name} export"));
-    let end = source[start + marker.len()..]
-        .find("\nexport const ")
+    let tail = &source[start + marker.len()..];
+    let end = [tail.find("\nquery "), tail.find("\nmutation ")]
+        .into_iter()
+        .flatten()
+        .min()
         .map(|offset| start + marker.len() + offset + 1)
         .unwrap_or(source.len());
     let mut output = source.to_owned();
@@ -355,12 +358,10 @@ fn derived_rules_read_every_visible_row_at_and_beyond_one_control_page() {
 #[test]
 fn unmatched_bare_id_blocks_with_the_operation_and_argument_name() {
     let project = Project::new();
-    assert!(project.init_ts("todos", "none").status.success());
+    assert!(project.init("todos", "none").status.success());
     fs::write(
-        project.path.join("snapback/todos.ts"),
-        r#"import { query, t } from "snapback2";
-export const byOwner = query({ ownerId: t.id() }, ({ args }) => args.ownerId);
-"#,
+        project.path.join("snapback/todos.q"),
+        "query byOwner(ownerId: id):\n  return ownerId\n",
     )
     .unwrap();
     fs::remove_dir_all(project.path.join("snapback/tests")).unwrap();
@@ -412,11 +413,11 @@ fn todos_template_passes_without_an_effects_check() {
 #[test]
 fn canonical_membership_without_a_probeable_named_delete_blocks_live_revocation() {
     let project = Project::new();
-    assert!(project.init_ts("chat", "none").status.success());
-    let groups = project.path.join("snapback/groups.ts");
+    assert!(project.init("chat", "none").status.success());
+    let groups = project.path.join("snapback/groups.q");
     let source = fs::read_to_string(&groups).unwrap();
-    let without_admin_remove = without_export(&source, "memberRemove");
-    let mut without_leave = without_export(&without_admin_remove, "memberLeave");
+    let without_admin_remove = without_operation(&source, "memberRemove");
+    let mut without_leave = without_operation(&without_admin_remove, "memberLeave");
     assert_ne!(
         source, without_admin_remove,
         "chat fixture had no admin-remove surface"
@@ -427,21 +428,13 @@ fn canonical_membership_without_a_probeable_named_delete_blocks_live_revocation(
     );
     without_leave.push_str(
         r#"
-export const aaaUnprobeableLeave = mutation({
-  orphanId: t.id(),
-  membershipId: t.ref(memberships),
-}, ({ db, args }) => {
-  db.delete(memberships, args.membershipId);
-  return null;
-});
+mutation aaaUnprobeableLeave(orphanId: id, membershipId: memberships):
+  -memberships[membershipId]
+  return null
 
-export const aabUnprobeableLeave = mutation({
-  missingId: t.id(),
-  membershipId: t.ref(memberships),
-}, ({ db, args }) => {
-  db.delete(memberships, args.membershipId);
-  return null;
-});
+mutation aabUnprobeableLeave(missingId: id, membershipId: memberships):
+  -memberships[membershipId]
+  return null
 "#,
     );
     fs::write(groups, without_leave).unwrap();
@@ -482,10 +475,13 @@ export const aabUnprobeableLeave = mutation({
 #[test]
 fn ref_based_pseudo_membership_is_refused_before_authority_proofs() {
     let project = Project::new();
-    assert!(project.init_ts("chat", "none").status.success());
-    let schema = project.path.join("snapback/schema.ts");
+    assert!(project.init("chat", "none").status.success());
+    let schema = project.path.join("snapback/schema.q");
     let source = fs::read_to_string(&schema).unwrap();
-    let ref_based = source.replace("principal: t.principal(),", "principal: t.ref(profiles),");
+    let ref_based = source.replace(
+        "table memberships:\n  conversationId: conversations\n  principal: principal",
+        "table memberships:\n  conversationId: conversations\n  principal: profiles",
+    );
     assert_ne!(
         source, ref_based,
         "chat fixture did not declare a nominal Principal membership"
@@ -501,9 +497,8 @@ fn ref_based_pseudo_membership_is_refused_before_authority_proofs() {
     );
     let output = String::from_utf8_lossy(&checked.stdout);
     assert!(
-        output.contains("\"code\":\"E_RULE_INVALID\"")
-            && output.contains("table memberships.principal is Ref<profiles>")
-            && output.contains("must be Principal")
+        output.contains("\"code\":\"E_QUARRY_UNKNOWN\"")
+            && output.contains("principal is ref; principal is nominally different")
             && output.contains("\"rewrite\":"),
         "ref-based pseudo-membership was not refused with the nominal-axis diagnostic: {output}"
     );
@@ -512,25 +507,17 @@ fn ref_based_pseudo_membership_is_refused_before_authority_proofs() {
 #[test]
 fn authority_proofs_skip_earlier_unprobeable_candidates() {
     let project = Project::new();
-    assert!(project.init_ts("chat", "none").status.success());
-    let messages = project.path.join("snapback/messages.ts");
+    assert!(project.init("chat", "none").status.success());
+    let messages = project.path.join("snapback/messages.q");
     let mut source = fs::read_to_string(&messages).unwrap();
     source.push_str(
         r#"
-export const aaaUnprobeable = query({
-  orphanId: t.id(),
-  conversationId: t.ref(conversations),
-}, ({ db, args }) =>
-  db.scan(messages.byConvTime, [args.conversationId], { order: "desc", take: 50 }),
-);
+query aaaUnprobeable(orphanId: id, conversationId: conversations):
+  return messages[conversationId] last 50
 
-export const aaaUnprobeableLeave = mutation({
-  orphanId: t.id(),
-  membershipId: t.ref(memberships),
-}, ({ db, args }) => {
-  db.delete(memberships, args.membershipId);
-  return null;
-});
+mutation aaaUnprobeableLeave(orphanId: id, membershipId: memberships):
+  -memberships[membershipId]
+  return null
 "#,
     );
     fs::write(messages, source).unwrap();
@@ -681,19 +668,11 @@ journey("leaked handle", () => { setInterval(() => {}, 1000); });
 #[test]
 fn invalidation_blocks_when_every_intersecting_probe_is_rejected() {
     let project = Project::new();
-    assert!(project.init_ts("todos", "none").status.success());
+    assert!(project.init("todos", "none").status.success());
     fs::remove_file(project.path.join("snapback/tests/todos.test.ts")).unwrap();
     fs::write(
-        project.path.join("snapback/todos.ts"),
-        r#"import { mutation, query } from "snapback2";
-import { todos } from "./schema";
-export const list = query({}, ({ db, ctx }) => db.scan(todos.byOwner, [ctx.viewer], { take: 50 }));
-export const add = mutation({}, ({ db, ctx }) => {
-  db.require(false, "ALWAYS_REJECT");
-  db.insert(todos, { id: ctx.newId(), title: "never", done: false, ownerId: ctx.viewer });
-  return null;
-});
-"#,
+        project.path.join("snapback/todos.q"),
+        "query list():\n  return todos[viewer] first 50\n\nmutation add():\n  require false else ALWAYS_REJECT\n  +todos { title: 'never', done: false, ownerId: viewer }\n  return null\n",
     )
     .unwrap();
     assert!(project.run(&["check", "--json"]).status.success());
@@ -731,28 +710,15 @@ export const add = mutation({}, ({ db, ctx }) => {
 #[test]
 fn invalidation_blocks_when_a_query_has_no_disjoint_committing_probe() {
     let project = Project::new();
-    assert!(project.init_ts("todos", "none").status.success());
+    assert!(project.init("todos", "none").status.success());
     fs::write(
-        project.path.join("snapback/schema.ts"),
-        r#"import { rule, schema, table, t } from "snapback2";
-export const items = table({
-  columns: { label: t.text(20) },
-  rules: { read: rule.public("public"), insert: rule.allow(), update: rule.allow(), delete: rule.allow() },
-});
-export default schema({ auth: { password: true, guests: true }, tables: { items } });
-"#,
+        project.path.join("snapback/schema.q"),
+        "use identity\n\ntable items:\n  label: text <=20\n  public 'public'\n  insert r <- allow\n  update r <- allow\n  delete r <- allow\n",
     )
     .unwrap();
     fs::write(
-        project.path.join("snapback/todos.ts"),
-        r#"import { mutation, query, t } from "snapback2";
-import { items } from "./schema";
-export const list = query({}, ({ db }) => db.scan(items.byId, [], { take: 50 }));
-export const add = mutation({ label: t.text(20) }, ({ db, ctx, args }) => {
-  db.insert(items, { id: ctx.newId(), label: args.label });
-  return null;
-});
-"#,
+        project.path.join("snapback/todos.q"),
+        "query list():\n  return items[] first 50 by byId\n\nmutation add(label: text <=20):\n  +items { label }\n  return null\n",
     )
     .unwrap();
     fs::write(
@@ -797,24 +763,15 @@ export default seed({ personas: ["alice"], rows: { items: [{ id: "item-1", label
 #[test]
 fn rules_use_the_engine_verdict_when_one_synthetic_principal_is_admitted() {
     let project = Project::new();
-    assert!(project.init_ts("todos", "none").status.success());
+    assert!(project.init("todos", "none").status.success());
     fs::write(
-        project.path.join("snapback/schema.ts"),
-        r#"import { rule, schema, table, t } from "snapback2";
-export const items = table({
-  columns: { ownerId: t.principal(), label: t.text(20) },
-  rules: { read: rule.viewerIs("ownerId"), insert: rule.allow(), update: rule.allow(), delete: rule.allow() },
-});
-export default schema({ auth: { password: true, guests: true }, tables: { items } });
-"#,
+        project.path.join("snapback/schema.q"),
+        "use identity\n\ntable items:\n  ownerId: principal\n  label: text <=20\n  read r <- r.ownerId = viewer\n  insert r <- allow\n  update r <- allow\n  delete r <- allow\n",
     )
     .unwrap();
     fs::write(
-        project.path.join("snapback/todos.ts"),
-        r#"import { query } from "snapback2";
-import { items } from "./schema";
-export const list = query({}, ({ db }) => db.scan(items.byId, [], { take: 50 }));
-"#,
+        project.path.join("snapback/todos.q"),
+        "query list():\n  return items[] first 50 by byId\n",
     )
     .unwrap();
     fs::write(

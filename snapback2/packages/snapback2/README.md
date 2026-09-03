@@ -1,7 +1,7 @@
 # snapback2
 
-Snapback 2's TypeScript package contains the authoring descriptors, headless client,
-React web arm, and CLI shim. It requires Node 20 or newer for Node clients.
+Snapback 2's package contains the Quarry compiler, TypeScript lowering descriptors,
+headless client, React web arm, and CLI shim. It requires Node 20 or newer for Node clients.
 
 ```sh
 npm install snapback2 react

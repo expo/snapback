@@ -2,7 +2,7 @@ import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { assessGauntlet } from "./gauntlet";
 import type { ProjectJson } from "./ir";
-import { lowerProject } from "./project";
+import { lowerProject as lowerAuthoredProject } from "./project";
 import ts from "typescript";
 
 const frontend = decodeURIComponent(new URL("../", import.meta.url).pathname);
@@ -10,6 +10,7 @@ const crate = decodeURIComponent(new URL("../../../", import.meta.url).pathname)
 const repo = decodeURIComponent(new URL("../../../../", import.meta.url).pathname);
 
 type RegisterTest = (name: string, run: () => void | Promise<void>) => void;
+const lowerProject = (root: string) => lowerAuthoredProject(root, { authoring: "any" });
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);

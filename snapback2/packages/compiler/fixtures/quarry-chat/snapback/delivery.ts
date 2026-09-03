@@ -1,4 +1,5 @@
-import { effect, mutation, t } from "snapback2";
+import { effect } from "snapback2";
+import { recordNotified } from "./notifications";
 import { notifications } from "./schema";
 
 const baseHeaders = { accept: "application/json" };
@@ -6,20 +7,6 @@ const requestDefaults = {
   method: "POST",
   headers: { ...baseHeaders, "content-type": "application/json" },
 };
-
-export const recordNotified = mutation({
-  outboxId: t.id(),
-  effect: t.text(100),
-  result: t.json<{ providerId: string }>(1000),
-}, ({ db, ctx, args }) => {
-  db.insert(notifications, {
-    id: ctx.newId(),
-    outboxId: args.outboxId,
-    effect: args.effect,
-    providerId: args.result.providerId,
-  });
-  return true;
-});
 
 export const notify = effect({
   grants: ["https://api.example.com"],

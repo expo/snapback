@@ -2,8 +2,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import type { FrontendDiagnostic, Program, ProjectJson } from "./ir";
-import { lowerProject, lowerSeed } from "./project";
+import type { FrontendDiagnostic, Program } from "./ir";
+import { lowerProject } from "./project";
 import { rustCheck } from "./rust-check";
 import { compileQuarry, type QuarryInput } from "./quarry/index";
 import { parseDocument } from "./quarry/parser";
@@ -40,34 +40,13 @@ export function registerQuarryChecks(test: Test, frontend: string): void {
     }
   });
 
-  test("Quarry chat matches the TypeScript schema and full-project certification", async () => {
-    const quarry = await lowerProject(resolve(fixtures, "quarry-chat"));
-    const typescript = await lowerProject(resolve(fixtures, "chat"));
-    assert(quarry.ok, `Quarry chat refused: ${quarry.ok ? "" : diagnosticsText(quarry.diagnostics)}`);
-    assert(typescript.ok, `TypeScript chat refused: ${typescript.ok ? "" : diagnosticsText(typescript.diagnostics)}`);
-    assert(quarry.project.programs.length === typescript.project.programs.length,
-      `chat program counts differ: Quarry ${quarry.project.programs.length}, TS ${typescript.project.programs.length}`);
-    assert(canonical(quarry.project.schema) === canonical(typescript.project.schema),
-      "Quarry chat tables/rules/constraints/maintains/channels/effects differ from the TypeScript rendering");
-    assert(canonical(quarry.project.effects) === canonical(typescript.project.effects),
-      "Quarry chat effect grants/source/then differ from the TypeScript rendering");
-    assert(canonical(quarry.project.programs.map((program) => program.name).sort())
-      === canonical(typescript.project.programs.map((program) => program.name).sort()),
-    "Quarry chat operation names differ from the TypeScript rendering");
-    assert(fullProjectErrors(quarry.project).length === 0, `Quarry chat full project did not certify: ${JSON.stringify(fullProjectErrors(quarry.project))}`);
-    assert(fullProjectErrors(typescript.project).length === 0, `TypeScript chat full project did not certify: ${JSON.stringify(fullProjectErrors(typescript.project))}`);
-    assert(!quarry.apiDts.includes(".q") && /messages:\s*\{/.test(quarry.apiDts), "api.d.ts leaked a .q namespace or lost messages");
-
-    const seeded = await lowerSeed(resolve(packageRoot, "templates/chat"));
-    assert(seeded.ok && seeded.seed.rows.messages?.length === 2, `Quarry chat seed did not lower: ${seeded.ok ? "wrong rows" : diagnosticsText(seeded.diagnostics)}`);
-  });
-
   test("Quarry effects, maintains, aggregate sugar, where, returns, objects, and count reach IR", async () => {
     const chat = await lowerProject(resolve(fixtures, "quarry-chat"));
     const surface = await lowerProject(resolve(fixtures, "quarry-surface"));
     assert(chat.ok && surface.ok, "Quarry feature fixtures refused");
     const send = operation(chat.project.programs, "messages.send");
-    assert(deepKey(send.body, "Emit") && JSON.stringify(send.body).includes('"effect":"notifications.notify"'), "effect/emit did not lower with its qualified effect");
+    assert(deepKey(send.body, "Emit") && JSON.stringify(send.body).includes('"effect":"delivery.notify"'), "effect/emit did not lower with its qualified effect");
+    assert(chat.project.effects[0]?.then === "notifications.recordNotified", "effect then did not resolve the virtual Quarry mutation");
     const countMaintain = chat.project.schema.maintains[0] as any;
     assert(countMaintain.kind === "Count" && countMaintain.source === "messages" && countMaintain.target === "messageCounts", "count maintain changed");
     const sumMaintain = surface.project.schema.maintains[0] as any;
@@ -85,11 +64,11 @@ export function registerQuarryChecks(test: Test, frontend: string): void {
 
   test("Quarry maps platform refusals and operation source sites back to .q", async () => {
     const qSchema = readFileSync(resolve(fixtures, "quarry-chat/snapback/schema.q"), "utf8");
-    const effect = readFileSync(resolve(fixtures, "quarry-chat/snapback/notifications.ts"), "utf8");
-    const bad = `effect notify from notifications\n\nquery bad():\n  emit notify { to: 'somebody', body: 'hello' }\n  return null\n`;
+    const effect = readFileSync(resolve(fixtures, "quarry-chat/snapback/delivery.ts"), "utf8");
+    const bad = `effect notify from delivery\n\nquery bad():\n  emit notify { to: 'somebody', body: 'hello' }\n  return null\n`;
     await withProject({
       "snapback/schema.q": qSchema,
-      "snapback/notifications.ts": effect,
+      "snapback/delivery.ts": effect,
       "snapback/bad.q": bad,
     }, async (root) => {
       const lowered = await lowerProject(root);
@@ -409,7 +388,7 @@ export function registerQuarryChecks(test: Test, frontend: string): void {
   test("every Quarry diagnostic family rewrite is fenced parseable Quarry", () => {
     const families = JSON.parse(readFileSync(resolve(packageRoot, "guide/families.source.json"), "utf8")) as Array<Record<string, string>>;
     const quarry = families.filter((item) => item.family === "quarry");
-    const expected = new Set(["E_QUARRY_SYNTAX", "E_QUARRY_UNKNOWN", "E_QUARRY_AMBIGUOUS", "E_QUARRY_UNSUPPORTED", "E_QUARRY_PLACEMENT", "E_QUARRY_TYPE"]);
+    const expected = new Set(["E_QUARRY_SYNTAX", "E_QUARRY_UNKNOWN", "E_QUARRY_AMBIGUOUS", "E_QUARRY_UNSUPPORTED", "E_QUARRY_PLACEMENT", "E_QUARRY_TYPE", "E_QUARRY_ONLY"]);
     assert(quarry.length === expected.size, `Quarry family entry count changed: ${quarry.length}`);
     for (const item of quarry) {
       assert(expected.delete(item.code), `unexpected/duplicate Quarry family code ${item.code}`);
@@ -436,7 +415,7 @@ export function registerQuarryChecks(test: Test, frontend: string): void {
       "snapback/schema.ts": `import { rule, schema, table, t } from "snapback2";\nexport const items = table({ columns: { owner: t.principal() }, rules: { read: rule.allow(), insert: rule.allow() } });\nexport default schema({ auth: { password: true, guests: true }, tables: { items } });\n`,
       "snapback/items.ts": `import { mutation } from "snapback2";\nimport { items } from "./schema";\nexport const add = mutation({}, ({ db, ctx }) => {\n  return db.insert(items, { id: ctx.newId(), owner: ctx.viewer });\n});\n`,
     }, async (root) => {
-      const lowered = await lowerProject(root);
+      const lowered = await lowerProject(root, { authoring: "any" });
       assert(lowered.ok, `inline insert fixture refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
       const body = operation(lowered.project.programs, "items.add").body as any[];
       const letStmt = body.find((item) => item.Let?.name?.startsWith("__insertRow"));
@@ -458,30 +437,30 @@ export function registerQuarryChecks(test: Test, frontend: string): void {
     assert(sites?.some((site) => site.table === "counters" && site.max_rows === 1), `branch write bound is not one: ${JSON.stringify(sites)}`);
   });
 
-  test("Quarry and TypeScript project placement is exact", async () => {
+  test("Quarry-only authoring and module placement are exact", async () => {
     await withProject({
       "snapback/schema.q": "table items:\n  value: int\n  public\n",
       "snapback/schema.ts": "export default {};\n",
       "snapback/items.q": "query list():\n  return null\n",
     }, async (root) => {
       const result = await lowerProject(root);
-      assert(!result.ok && result.diagnostics[0]?.code === "E_QUARRY_PLACEMENT" && result.diagnostics[0].site === "snapback/schema.q:1:1",
-        "dual schema placement did not point at schema.q");
+      assert(!result.ok && result.diagnostics[0]?.code === "E_QUARRY_ONLY" && result.diagnostics[0].site === "snapback/schema.ts:1:1",
+        "TypeScript schema did not receive the Quarry-only refusal");
     });
     await withProject({
       "snapback/schema.ts": "export default {};\n",
       "snapback/items.q": "query list():\n  return null\n",
     }, async (root) => {
       const result = await lowerProject(root);
-      assert(!result.ok && result.diagnostics[0]?.code === "E_QUARRY_PLACEMENT", ".q beside schema.ts was not refused");
+      assert(!result.ok && result.diagnostics[0]?.code === "E_QUARRY_ONLY", "TypeScript schema was not refused");
     });
     await withProject({
       "snapback/schema.q": "table items:\n  value: int\n  public\n",
       "snapback/items.q": "query fromQuarry():\n  return null\n",
-      "snapback/items.ts": "import { query } from 'snapback2'; export const fromTs = query({}, () => null);\n",
+      "snapback/items.ts": "import { effect } from 'snapback2'; export const notify = effect({ grants: ['https://api.example.com'], run: async () => null });\n",
     }, async (root) => {
       const result = await lowerProject(root);
-      assert(!result.ok && result.diagnostics.some((item) => item.code === "E_OP_MODULE_BASENAME"), "same-stem .q/.ts modules were not refused");
+      assert(!result.ok && result.diagnostics.some((item) => item.code === "E_OP_MODULE_BASENAME"), "same-stem Quarry/effect modules were not refused");
     });
   });
 }
@@ -516,28 +495,6 @@ async function withProject<T>(files: Record<string, string>, run: (root: string)
   }
 }
 
-function fullProjectErrors(project: ProjectJson): unknown[] {
-  const crate = resolve(decodeURIComponent(new URL("../../../", import.meta.url).pathname));
-  const process = Bun.spawnSync({
-    cmd: [resolve(crate, "target/debug/snapback2"), "check", "--ir", "--json"],
-    cwd: crate,
-    stdin: new TextEncoder().encode(JSON.stringify(project)),
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-  if (process.exitCode !== 0 && process.exitCode !== 1) throw new Error(new TextDecoder().decode(process.stderr));
-  const output = JSON.parse(new TextDecoder().decode(process.stdout)) as { results?: Array<{ error?: unknown }> };
-  return (output.results ?? []).filter((item) => item.error);
-}
-
-function canonical(value: unknown): string {
-  const normalize = (item: any): any => Array.isArray(item)
-    ? item.map(normalize)
-    : item && typeof item === "object"
-      ? Object.fromEntries(Object.keys(item).sort().map((key) => [key, normalize(item[key])]))
-      : item;
-  return JSON.stringify(normalize(value));
-}
 function operation(programs: Program[], name: string): Program {
   const program = programs.find((item) => item.name === name);
   assert(program, `missing operation ${name}`);

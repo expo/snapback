@@ -1,7 +1,7 @@
 import { typecheckSource } from "./compiler";
 import { IR_CONTRACT } from "./ir";
 import { lowerSchema } from "./lower/schema";
-import { lowerProject, lowerSeed } from "./project";
+import { lowerProject as lowerAuthoredProject, lowerSeed } from "./project";
 
 type Check = { name: string; run: () => void | Promise<void> };
 type Register = (name: string, run: Check["run"]) => void;
@@ -10,6 +10,7 @@ type WithProject = <T>(
   files: Record<string, string>,
   run: (root: string) => Promise<T>,
 ) => Promise<T>;
+const lowerProject = (root: string) => lowerAuthoredProject(root, { authoring: "any" });
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);

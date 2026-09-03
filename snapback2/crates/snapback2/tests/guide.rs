@@ -64,17 +64,20 @@ fn refusal_code_guide_prints_the_wrong_and_right_pair() {
 }
 
 #[test]
-fn quarry_grammar_typescript_and_refusal_guides_ship_without_double_fences() {
+fn quarry_grammar_and_refusal_guides_ship_without_double_fences() {
     let project = Project::new();
     let quarry = project.run(&["guide", "quarry"]);
     assert!(quarry.status.success());
     assert!(
         String::from_utf8_lossy(&quarry.stdout)
-            .contains("Quarry is the default Snapback 2 authoring language")
+            .contains("Quarry is Snapback 2's only backend authoring language")
     );
-    for page in ["grammar", "typescript"] {
+    for page in ["grammar"] {
         assert!(project.run(&["guide", page]).status.success(), "{page}");
     }
+    let removed = project.run(&["guide", "typescript", "--json"]);
+    assert_eq!(removed.status.code(), Some(1));
+    assert_eq!(json_stdout(&removed)["code"], "E_GUIDE_UNKNOWN");
     let refusal = project.run(&["guide", "E_QUARRY_TYPE"]);
     let content = String::from_utf8_lossy(&refusal.stdout);
     assert!(refusal.status.success(), "{content}");

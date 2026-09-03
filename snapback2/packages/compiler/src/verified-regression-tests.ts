@@ -20,7 +20,7 @@ import type { TableInfo } from "./compiler";
 import { lowerSource } from "./compiler";
 import type { Program } from "./ir";
 import { lowerSchema } from "./lower/schema";
-import { compileJourneys, lowerProject, lowerSeed } from "./project";
+import { compileJourneys, lowerProject as lowerAuthoredProject, lowerSeed } from "./project";
 import { rustCheck } from "./rust-check";
 
 type Register = (name: string, run: () => void | Promise<void>) => void;
@@ -28,6 +28,7 @@ type Register = (name: string, run: () => void | Promise<void>) => void;
 const frontend = decodeURIComponent(new URL("../", import.meta.url).pathname);
 const snapback2Root = resolve(frontend, "../..");
 const emptyReceipt: ClosureReceipt = { rows: [], ranges: [], absences: [], verdicts: [] };
+const lowerProject = (root: string) => lowerAuthoredProject(root, { authoring: "any" });
 
 function context(args: Record<string, Value> = {}, newIds: string[] = []): Context {
   return { viewer: "viewer", principal_kind: "user", auth_epoch: 1, args, now: 1, new_ids: newIds, read_time: 1 };

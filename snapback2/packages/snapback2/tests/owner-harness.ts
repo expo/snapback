@@ -10,7 +10,7 @@ const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const workspaceRoot = resolve(packageRoot, "../..");
 const binary = resolve(workspaceRoot, "target/debug/snapback2");
 const compiler = resolve(packageRoot, "dist/compiler.mjs");
-const fixture = resolve(workspaceRoot, "packages/compiler/fixtures/chat");
+const fixture = resolve(workspaceRoot, "packages/compiler/fixtures/quarry-chat");
 
 function command(args: string[], options: { env?: NodeJS.ProcessEnv; timeout?: number } = {}) {
   return spawnSync(args[0], args.slice(1), {
@@ -22,19 +22,12 @@ function command(args: string[], options: { env?: NodeJS.ProcessEnv; timeout?: n
 }
 
 async function addIntegrationOperations(root: string): Promise<void> {
-  await writeFile(join(root, "snapback/integration.ts"), `
-import { query, t } from "snapback2";
-import { memberships, profiles } from "./schema";
+  await writeFile(join(root, "snapback/integration.q"), `query capped():
+  return profiles[] first 1 by byId
 
-export const capped = query({}, ({ db }) =>
-  db.scan(profiles.byId, [], { take: 1 }),
-);
-
-export const denied = query({ conversationId: t.id() }, ({ db, ctx, args }) => {
-  db.require(db.exists(memberships.byConversationPrincipal, [args.conversationId, ctx.viewer]), "MEMBERSHIP_REQUIRED");
-  return true;
-});
-
+query denied(conversationId: id):
+  require exists memberships[conversationId, viewer] else MEMBERSHIP_REQUIRED
+  return true
 `);
 }
 

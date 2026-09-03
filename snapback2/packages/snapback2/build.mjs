@@ -127,7 +127,7 @@ await rm(resolve(guide, "families.source.json"));
 
 const fixtures = resolve(here, "../compiler/fixtures");
 const templateDist = resolve(dist, "templates");
-for (const name of ["todos", "chat", "todos-ts", "chat-ts"]) {
+for (const name of ["todos", "chat"]) {
   await cp(resolve(here, `templates/${name}/snapback`), resolve(templateDist, name, "snapback"), { recursive: true });
 }
 await cp(resolve(here, "templates/react"), resolve(templateDist, "react"), { recursive: true });
@@ -139,7 +139,7 @@ const quarryFixtureText = (await Promise.all([...fixturePaths, ...templateQuarry
   .filter((path) => path.endsWith(".q")).map((path) => readFile(path, "utf8")))).join("\n");
 const parseDocument = await loadQuarryParser();
 const guidePages = await Promise.all(
-  ["grammar", "quarry", "typescript", "auth", "live-query", "effects", "personas", "testing"].map(async (name) => ({
+  ["grammar", "quarry", "auth", "live-query", "effects", "personas", "testing"].map(async (name) => ({
     name,
     markdown: await readFile(resolve(guideSource, `${name}.md`), "utf8"),
     // Quarry is the language reference, so its deliberate budget is 12 KiB.

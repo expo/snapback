@@ -6,15 +6,15 @@ use std::fs;
 #[test]
 fn why_has_per_row_verdicts_and_trace_has_the_emitted_outbox_row() {
     let project = Project::new();
-    assert!(project.init_ts("chat", "none").status.success());
-    let messages = project.path.join("snapback/messages.ts");
+    assert!(project.init("chat", "none").status.success());
+    let messages = project.path.join("snapback/messages.q");
     let source = fs::read_to_string(&messages).unwrap()
         + r#"
 
-export const maybeNotify = mutation({ notify: t.bool() }, ({ args }) => {
-  if (args.notify) emit(notify, { to: "nobody@example.com", body: "conditional" });
-  return null;
-});
+mutation maybeNotify(shouldNotify: bool):
+  if shouldNotify:
+    emit notify { to: 'nobody@example.com', body: 'conditional' }
+  return null
 "#;
     fs::write(&messages, source).unwrap();
     assert!(project.run(&["check", "--json"]).status.success());
@@ -22,7 +22,7 @@ export const maybeNotify = mutation({ notify: t.bool() }, ({ args }) => {
     let skipped = project.run(&[
         "run",
         "messages.maybeNotify",
-        r#"{"notify":false}"#,
+        r#"{"shouldNotify":false}"#,
         "--as",
         "alice",
         "--json",
@@ -69,31 +69,22 @@ export const maybeNotify = mutation({ notify: t.bool() }, ({ args }) => {
     assert!(trace.status.success());
     let trace = json_stdout(&trace);
     assert_eq!(trace["commit"]["program"], "messages.send");
-    assert_eq!(trace["outboxRows"][0]["effect"], "notifications.notify");
+    assert_eq!(trace["outboxRows"][0]["effect"], "delivery.notify");
     assert_eq!(trace["outboxRows"][0]["state"], "queued");
 }
 
 #[test]
 fn why_keeps_rule_admission_separate_from_the_page_cut() {
     let project = Project::new();
-    assert!(project.init_ts("todos", "none").status.success());
+    assert!(project.init("todos", "none").status.success());
     fs::write(
-        project.path.join("snapback/schema.ts"),
-        r#"import { rule, schema, table, t } from "snapback2";
-export const items = table({
-  columns: { label: t.text(20) },
-  rules: { read: rule.public("public"), insert: rule.allow(), update: rule.allow(), delete: rule.allow() },
-});
-export default schema({ auth: { password: true, guests: true }, tables: { items } });
-"#,
+        project.path.join("snapback/schema.q"),
+        "use identity\n\ntable items:\n  label: text <=20\n  public 'public'\n  insert r <- allow\n  update r <- allow\n  delete r <- allow\n",
     )
     .unwrap();
     fs::write(
-        project.path.join("snapback/todos.ts"),
-        r#"import { query } from "snapback2";
-import { items } from "./schema";
-export const list = query({}, ({ db }) => db.scan(items.byId, [], { take: 1 }));
-"#,
+        project.path.join("snapback/todos.q"),
+        "query list():\n  return items[] first 1 by byId\n",
     )
     .unwrap();
     fs::write(

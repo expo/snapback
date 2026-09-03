@@ -39,18 +39,6 @@ impl Project {
     }
 
     pub fn init(&self, template: &str, client: &str) -> Output {
-        self.init_rendering(template, client, false)
-    }
-
-    pub fn init_ts(&self, template: &str, client: &str) -> Output {
-        self.init_rendering(template, client, true)
-    }
-
-    pub fn init_ts_alias(&self, client: &str) -> Output {
-        self.init_rendering("ts", client, false)
-    }
-
-    fn init_rendering(&self, template: &str, client: &str, typescript: bool) -> Output {
         let mut command = self.command();
         command.args([
             "init",
@@ -61,9 +49,6 @@ impl Project {
             client,
             "--json",
         ]);
-        if typescript {
-            command.arg("--ts");
-        }
         command.output().expect("run init")
     }
 

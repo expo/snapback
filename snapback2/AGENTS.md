@@ -17,8 +17,8 @@ scripts/hermes test -p snapback2-effects   # the engine proof (Ibex 2 + vanilla 
 ./target/debug/snapback2 doctor      # boot-to-ready proof: certifies programs, finds the compiler worker
 ```
 
-Using the product from a project (the shim sets `SNAPBACK2_COMPILER`): `snapback2 init --template chat`
-(Quarry `snapback/*.q`; add `--ts` for TypeScript),
+Using the product from a project (the shim sets `SNAPBACK2_COMPILER`):
+`snapback2 init [dir] [--template todos|chat] [--client react|none] [--json]` (Quarry `snapback/*.q`),
 `snapback2 dev` (prints `SNAPBACK_URL=…`, detaches, attaches if running, `--stop`/`--status`),
 `snapback2 check`, `run <op> [args] --as alice`, `test`, `why`, `trace latest`, `data`, `logs`,
 `persona`, `fork`/`reset`, `guide`.
@@ -31,7 +31,7 @@ Gotchas you cannot derive from the code:
   regenerate with `cargo run -p snapback2-core --bin export_corpus`.
 - `effects` is off by default; `hermes` needs `IBEX2_VANILLA_HERMES_DIR` + `IBEX2_HERMESC` (see
   `scripts/hermes`). The blocking checks never depend on it; the published binary carries it.
-- Backends use `snapback/schema.q` or `snapback/schema.ts`, never both; generated facts stay in `.snapback/build/`.
+- Backends use `snapback/schema.q`; TypeScript under `snapback/` is reserved for effects, seeds, and journeys.
 - The binary needs the bundled compiler worker (`packages/snapback2/dist/compiler.mjs`) for any verb
   that compiles; run `node build.mjs` in `packages/snapback2` after touching the compiler.
 - `metrics/loop.jsonl` is append-only and conflicts on every merge; resolve by union.

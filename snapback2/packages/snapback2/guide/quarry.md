@@ -1,23 +1,22 @@
 # Quarry v0.3
 
-Quarry is the default Snapback 2 authoring language. It is a small, bounded
-front end to the same compiler, checker, evaluator, and server used by the
-TypeScript escape hatch. `snapback2 check` compiles `.q` text in memory; it
+Quarry is Snapback 2's only backend authoring language. It is a small, bounded
+front end to the compiler, checker, evaluator, and server. `snapback2 check`
+compiles `.q` text in memory; it
 does not place generated files in `snapback/`. `snapback2 check` writes an
 inspection copy under `.snapback/build/quarry/`.
 
 ## Project
 
-A project has exactly one schema, `snapback/schema.q` or
-`snapback/schema.ts`, never both. Quarry program modules require `schema.q`.
-Declarations (`use identity`, tables, maintains, channels) belong only in
-`schema.q`; every other `.q` file contains at least one query or mutation and
-its stem is the API namespace. Thus `snapback/messages.q` exports
-`api.messages.thread`. TypeScript program modules may coexist for effects, but
-the same stem cannot occur as both `.q` and `.ts`.
+A project has one schema, `snapback/schema.q`. Declarations (`use identity`,
+tables, maintains, channels) belong only there; every other `.q` file contains
+at least one query or mutation and its stem is the API namespace. Thus
+`snapback/messages.q` exports `api.messages.thread`.
 
-`seed.ts` and `tests/*.test.ts` remain TypeScript data and journey harnesses.
-Effect bodies also remain TypeScript because they perform JavaScript I/O.
+TypeScript under `snapback/` is limited to `seed.ts`, `tests/*.test.ts`, and
+effect modules that export effects only. Effect bodies remain JavaScript I/O;
+tables, rules, channels, maintains, queries, and mutations are Quarry. An
+effect module's stem must differ from every `.q` stem.
 
 ## Types and tables
 
@@ -117,21 +116,86 @@ evaluated once, including inline `new`.
 
 ## Effects
 
-A Quarry module imports a named effect from a TypeScript sibling, then emits
-an object payload from a mutation:
+A TypeScript module exports the effect body and imports its `then` mutation
+from the virtual module emitted for a Quarry file. The chat template splits
+the two declarations this way.
+
+`snapback/notifications.q`:
 
 ```q
-effect notify from notifications
+mutation recordNotified(outboxId: id, effect: text <=100, result: json <=1000):
+  +notifications {
+    outboxId,
+    effect,
+    providerId: result.providerId,
+  }
+  return true
+```
+
+`snapback/delivery.ts`:
+
+```ts
+import { effect } from "snapback2";
+import { recordNotified } from "./notifications";
+import { notifications } from "./schema";
+
+const baseHeaders = { accept: "application/json" };
+const requestDefaults = {
+  method: "POST",
+  headers: { ...baseHeaders, "content-type": "application/json" },
+};
+
+export const notify = effect({
+  grants: ["https://api.example.com"],
+  run: async (payload: { to: string; body: string }, { fetch, meta }) => {
+    function identity(value: string) { return value; }
+    const formatter = { format(value: string) { return identity(value); } };
+    const body = [payload.body].map(function keep(value) { return formatter.format(value); })[0];
+    try {
+      const response = await fetch("https://api.example.com/send", {
+        method: requestDefaults.method,
+        headers: { ...requestDefaults.headers, "idempotency-key": meta.id },
+        body: JSON.stringify({ ...payload, body }),
+      });
+      if (!response.ok) throw new Error(`provider ${response.status}`);
+      return { providerId: (await response.json()).id as string };
+    } catch (error) {
+      throw error;
+    }
+  },
+  then: recordNotified,
+});
+```
+
+`snapback/messages.q`:
+
+```q
+effect notify from delivery
 
 query thread(conversationId: conversations):
   require exists memberships[conversationId, viewer] else MEMBERSHIP_REQUIRED
   return messages[conversationId] last 50
+
+query summary(conversationId: conversations):
+  require exists memberships[conversationId, viewer] else MEMBERSHIP_REQUIRED
+  return {
+    conversation: conversations[conversationId],
+    messageCount: messageCounts[conversationId],
+  }
+
+mutation send(conversationId: conversations, recipientId: profiles, body: text <=4000):
+  require exists memberships[conversationId, viewer] else NOT_MEMBER
+  recipient = profiles[recipientId] ! else RECIPIENT_UNKNOWN
+  require exists memberships[conversationId, recipient.principal] else RECIPIENT_NOT_MEMBER
+  row = +messages { conversationId, authorId: viewer, body, at: now }
+  emit notify { to: recipient.principal, body }
+  return { id: row.id }
 ```
 
-The effect `notify` must be exported by `snapback/notifications.ts`.
-`emit notify { to: recipient.principal, body }` enters the normal durable
-outbox. Emitting in a query is refused by the platform as `E_EMIT_IN_QUERY`.
-The generated code site and rewrite are mapped back to the `.q` statement.
+`then: recordNotified` resolves to `notifications.recordNotified` in the
+project operation map. `emit notify { … }` enters the normal durable outbox.
+Emitting in a query is refused as `E_EMIT_IN_QUERY`; the generated code site
+and rewrite map back to the `.q` statement.
 
 ## Absence and bounds
 
@@ -141,8 +205,8 @@ named refusal, and `??` handles it explicitly. A missing maintained group is
 zero only through `#`; the ordinary target-table read remains absent.
 
 Every scan, list, text, JSON, and bytes value is bounded. `for` iterates only
-a bounded list/page/range/tokens result. Queries and mutations retain the
-same certificate, trace, and runtime budgets as TypeScript programs.
+a bounded list/page/range/tokens result. Lowered queries and mutations retain
+the same certificate, trace, and runtime budgets.
 
 ## Refused platform gaps
 
@@ -152,7 +216,7 @@ recursion, `decimal`, and `money`.
 Use bounded URL text instead of assets; a caller-invoked mutation instead of a
 schedule; one named bounded scan or a maintained feed table instead of merge;
 explicit bounded arguments instead of device/oblivious state; bounded
-`for`/`walk` instead of while/recursion. Decimal and money are not in Quarry;
-use integer minor units or the TypeScript surface.
+`for`/`walk` instead of while/recursion. `decimal`/`money` are not authorable;
+the engine's Decimal/Money columns are unreachable until Quarry spells them.
 
 There is no hidden larger Quarry subset to opt into.

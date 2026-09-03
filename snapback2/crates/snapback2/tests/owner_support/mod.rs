@@ -137,7 +137,7 @@ pub(super) fn seed_effect_row(
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
         body: vec![Stmt::Emit {
-            effect: "notifications.notify".to_owned(),
+            effect: "delivery.notify".to_owned(),
             payload: Expr::Literal(snapback2_core::Value::Null),
         }],
     });
@@ -157,7 +157,7 @@ pub(super) fn seed_effect_row(
     if let Some(result) = result {
         runtime
             .store()
-            .outbox_claim_next(1, &["notifications.notify".to_owned()])
+            .outbox_claim_next(1, &["delivery.notify".to_owned()])
             .unwrap()
             .expect("seeded outbox claim");
         runtime
@@ -182,7 +182,7 @@ pub(super) fn stop_owner(port: u16, secret: &str, owner: &mut ChildGuard, cause:
 }
 
 pub(super) fn fixture() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../packages/compiler/fixtures/chat")
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../packages/compiler/fixtures/quarry-chat")
 }
 
 pub(super) fn compiler(root: &Path) -> PathBuf {

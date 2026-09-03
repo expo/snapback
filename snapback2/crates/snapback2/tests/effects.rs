@@ -150,32 +150,21 @@ fn owner_runs_effect_then_delivery_and_honest_restart_requeue() {
 }
 
 fn prepare_effect_fixture(root: &Path, origin: &str) {
-    let notifications = root.join("snapback/notifications.ts");
-    let source = fs::read_to_string(&notifications)
+    let delivery = root.join("snapback/delivery.ts");
+    let source = fs::read_to_string(&delivery)
         .unwrap()
-        .replace(
-            "import { effect, mutation, t } from \"snapback2\";",
-            "import { effect, mutation, query, t } from \"snapback2\";",
-        )
         .replace("https://api.example.com", origin);
-    fs::write(
-        &notifications,
-        source
-            + r#"
-
-export const list = query({}, ({ db }) =>
-  db.scan(notifications.byOutbox, [], { take: 50 }),
-);
-"#,
-    )
-    .unwrap();
-    let schema = root.join("snapback/schema.ts");
+    fs::write(&delivery, source).unwrap();
+    let notifications = root.join("snapback/notifications.q");
+    let mut source = fs::read_to_string(&notifications).unwrap();
+    source.push_str("\nquery list():\n  return notifications[] first 50 by byOutbox\n");
+    fs::write(notifications, source).unwrap();
+    let schema = root.join("snapback/schema.q");
     // Match only the read rule line: an intervening comment must not silently
     // turn this rewrite into a no-op (it did once; the test then failed far away).
-    let source = fs::read_to_string(&schema).unwrap().replace(
-        "read: rule.deny(),",
-        "read: rule.public(\"test observes effect completion\"),",
-    );
+    let source = fs::read_to_string(&schema)
+        .unwrap()
+        .replace("read r <- deny", "public 'test observes effect completion'");
     assert!(
         source.contains("test observes effect completion"),
         "prepare_effect_fixture: the schema rewrite matched nothing"
@@ -446,7 +435,7 @@ fn wait_for<T>(timeout: Duration, mut check: impl FnMut() -> Option<T>) -> T {
 }
 
 fn fixture() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../packages/compiler/fixtures/chat")
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../packages/compiler/fixtures/quarry-chat")
 }
 
 fn compiler(root: &Path) -> PathBuf {

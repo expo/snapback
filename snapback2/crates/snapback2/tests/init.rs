@@ -20,22 +20,10 @@ fn built_template_precondition(rendering: &str, schema: &str) {
     );
 }
 
-fn assert_rendering(template: &str, typescript: bool, chat: bool) {
-    let rendering = if typescript {
-        format!("{template}-ts")
-    } else {
-        template.to_owned()
-    };
-    built_template_precondition(
-        &rendering,
-        if typescript { "schema.ts" } else { "schema.q" },
-    );
+fn assert_rendering(template: &str, chat: bool) {
+    built_template_precondition(template, "schema.q");
     let project = Project::new();
-    let initialized = if typescript {
-        project.init_ts(template, "none")
-    } else {
-        project.init(template, "none")
-    };
+    let initialized = project.init(template, "none");
     assert!(
         initialized.status.success(),
         "init failed: {}{}",
@@ -43,19 +31,12 @@ fn assert_rendering(template: &str, typescript: bool, chat: bool) {
         String::from_utf8_lossy(&initialized.stderr)
     );
     let authored = project.path.join("snapback");
-    assert_eq!(authored.join("schema.ts").is_file(), typescript);
-    assert_eq!(authored.join("schema.q").is_file(), !typescript);
+    assert!(authored.join("schema.q").is_file());
+    assert!(!authored.join("schema.ts").exists());
     let agents = std::fs::read_to_string(project.path.join("AGENTS.md")).unwrap();
-    assert!(
-        agents.contains(if typescript {
-            "snapback/*.ts"
-        } else {
-            "snapback/*.q"
-        }),
-        "{agents}"
-    );
+    assert!(agents.contains("snapback/*.q"), "{agents}");
     let stale_inspection = project.path.join(".snapback/build/quarry/stale.ts");
-    if !typescript && template == "todos" {
+    if template == "todos" {
         std::fs::write(&stale_inspection, "stale").expect("write stale inspection fixture");
     }
     let checked = project.run(&["check", "--json"]);
@@ -66,7 +47,7 @@ fn assert_rendering(template: &str, typescript: bool, chat: bool) {
         String::from_utf8_lossy(&checked.stderr)
     );
 
-    if !typescript && template == "todos" {
+    if template == "todos" {
         assert!(
             !stale_inspection.exists(),
             "check retained a stale Quarry inspection entry"
@@ -119,38 +100,24 @@ fn assert_rendering(template: &str, typescript: bool, chat: bool) {
 
 #[test]
 fn quarry_todos_init_check_and_test_end_to_end() {
-    assert_rendering("todos", false, false);
+    assert_rendering("todos", false);
 }
 
 #[test]
 fn quarry_chat_init_check_and_test_end_to_end() {
-    assert_rendering("chat", false, true);
+    assert_rendering("chat", true);
 }
 
 #[test]
-fn typescript_todos_init_check_and_test_end_to_end() {
-    assert_rendering("todos", true, false);
-}
-
-#[test]
-fn typescript_chat_init_check_and_test_end_to_end() {
-    assert_rendering("chat", true, true);
-}
-
-#[test]
-fn template_ts_alias_scaffolds_only_the_typescript_todos_schema() {
+fn template_ts_alias_is_a_usage_error() {
     let project = Project::new();
-    let initialized = project.init_ts_alias("none");
-    assert!(
-        initialized.status.success(),
-        "{}{}",
-        String::from_utf8_lossy(&initialized.stdout),
-        String::from_utf8_lossy(&initialized.stderr)
+    let initialized = project.init("ts", "none");
+    assert_eq!(initialized.status.code(), Some(2));
+    assert_eq!(
+        String::from_utf8_lossy(&initialized.stderr),
+        "usage: snapback2 init [dir] [--template todos|chat] [--client react|none] [--json]\n"
     );
-    assert!(project.path.join("snapback/schema.ts").is_file());
-    assert!(!project.path.join("snapback/schema.q").exists());
-    let agents = std::fs::read_to_string(project.path.join("AGENTS.md")).unwrap();
-    assert!(agents.contains("snapback/*.ts"), "{agents}");
+    assert!(project.path.read_dir().unwrap().next().is_none());
 }
 
 #[test]
@@ -353,11 +320,12 @@ fn chat_template_ships_exactly_its_complete_owned_tree() {
     assert_eq!(
         shipped,
         [
+            "delivery.ts",
             "feeds.q",
             "follows.q",
             "groups.q",
             "messages.q",
-            "notifications.ts",
+            "notifications.q",
             "posts.q",
             "profiles.q",
             "schema.q",

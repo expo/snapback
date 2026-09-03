@@ -109,7 +109,7 @@ function emitStatement(statement: Stmt, env: Environment, writer: Writer, comple
       env.bindings.set(statement.names[1]!, { code: statement.names[1]!, type: right.type });
     } else {
       const value = emitExpr(statement.value, env, writer);
-      if (value.effectOnly) refuse(statement.site, "update/upsert/delete do not yield a value on the packaged TypeScript surface; bind a following point read instead");
+      if (value.effectOnly) refuse(statement.site, "update/upsert/delete do not yield a value; bind a following point read instead");
       const name = statement.names[0]!;
       writer.statement(`const ${name} = ${value.code};`, statement.site);
       env.bindings.set(name, { code: name, type: value.type });
@@ -366,6 +366,7 @@ function emitMember(expr: Extract<Expr, { kind: "member" }>, env: Environment, w
       type: base.type.nullable ? nullableValue(field) : field,
     };
   }
+  if (base.type.kind === "json") return { code: `(${base.code} as any)?.${expr.name}`, type: { kind: "unknown" } };
   if (base.type.kind === "unknown") return { code: `${base.code}?.${expr.name}`, type: { kind: "unknown" } };
   refuse(expr.site, `cannot select .${expr.name} from ${base.type.kind}`);
 }

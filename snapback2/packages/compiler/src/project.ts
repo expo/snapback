@@ -18,9 +18,10 @@ import { compileQuarry, quarryInspection, remapVirtualDiagnostic, remapVirtualSo
 import { createProjectProgram, projectTypeDiagnostics } from "./project-program";
 import { validateSeedRow } from "./project-seed";
 import { sortSerdeMaps } from "./project-sort";
+import { quarryOnlyDiagnostics, type LowerProjectOptions } from "./project-authoring";
 // @ref LLP 1002#3-the-compiler-worker-and-the-project-json — one lowering pass owns the ProjectJson, sources, API types, and aggregate refusals.
 
-export async function lowerProject(root: string): Promise<ProjectResult> {
+export async function lowerProject(root: string, options: LowerProjectOptions = {}): Promise<ProjectResult> {
   const started = performance.now();
   const projectRoot = resolve(root);
   const authoredRoot = join(projectRoot, "snapback");
@@ -28,6 +29,20 @@ export async function lowerProject(root: string): Promise<ProjectResult> {
   const qSchemaPath = join(authoredRoot, "schema.q");
   const hasTsSchema = existsSync(tsSchemaPath);
   const hasQuarrySchema = existsSync(qSchemaPath);
+  if (!hasTsSchema && !hasQuarrySchema) {
+    return {
+      ok: false,
+      diagnostics: [typeDiagnostic("E_SCHEMA_DEFAULT_EXPORT", "schema", "snapback/schema.q", 1, 1,
+        "missing snapback/schema.q", "create snapback/schema.q with table declarations", "schema/project")],
+      ms: elapsed(started),
+    };
+  }
+  const discoveredModulePaths = await discoverModulePaths(authoredRoot);
+  const tsModulePaths = discoveredModulePaths.filter((path) => path.endsWith(".ts")).sort();
+  if (options.authoring !== "any") {
+    const authored = await quarryOnlyDiagnostics(projectRoot, hasTsSchema, tsModulePaths);
+    if (authored.length > 0) return { ok: false, diagnostics: authored, ms: elapsed(started) };
+  }
   if (hasTsSchema && hasQuarrySchema) {
     return {
       ok: false,
@@ -37,16 +52,7 @@ export async function lowerProject(root: string): Promise<ProjectResult> {
       ms: elapsed(started),
     };
   }
-  if (!hasTsSchema && !hasQuarrySchema) {
-    return {
-      ok: false,
-      diagnostics: [typeDiagnostic("E_SCHEMA_DEFAULT_EXPORT", "schema", "snapback/schema.ts", 1, 1,
-        "missing snapback/schema.q or snapback/schema.ts", "create snapback/schema.q with table declarations", "schema/project")],
-      ms: elapsed(started),
-    };
-  }
 
-  const discoveredModulePaths = await discoverModulePaths(authoredRoot);
   const quarryPaths = discoveredModulePaths.filter((path) => path.endsWith(".q")).sort();
   if (!hasQuarrySchema && quarryPaths.length > 0) {
     const path = quarryPaths[0]!;
@@ -54,7 +60,7 @@ export async function lowerProject(root: string): Promise<ProjectResult> {
       ok: false,
       diagnostics: [typeDiagnostic("E_QUARRY_PLACEMENT", "quarry", relativeSite(projectRoot, path), 1, 1,
         `Quarry module ${relativeSite(projectRoot, path)} requires snapback/schema.q; this project has snapback/schema.ts`,
-        "-- move the schema to snapback/schema.q or rewrite this module as TypeScript", "quarry/projects")],
+        "-- move the schema to snapback/schema.q", "quarry/projects")],
       ms: elapsed(started),
     };
   }
@@ -75,9 +81,6 @@ export async function lowerProject(root: string): Promise<ProjectResult> {
     virtualModules = [compiled.schema, ...compiled.modules];
   }
   const virtualByFile = new Map(virtualModules.map((module) => [relativeSite(projectRoot, module.path), module]));
-  const tsModulePaths = discoveredModulePaths
-    .filter((path) => path.endsWith(".ts"))
-    .sort();
   const diskModuleSources = await Promise.all(tsModulePaths.map(async (path) => [path, await readFile(path, "utf8")] as const));
   const virtualModuleSources = virtualModules.filter((module) => module !== virtualModules[0]).map((module) => [module.path, module.source] as const);
   const moduleSources = [...diskModuleSources, ...virtualModuleSources].sort(([left], [right]) => left.localeCompare(right));
@@ -104,7 +107,7 @@ export async function lowerProject(root: string): Promise<ProjectResult> {
       1,
       1,
       "module exports no query/mutation/effect",
-      "export const operation = query({}, ({ args }) => args);",
+      "query operation():\n  return null",
       "programs/operations",
     ));
   }

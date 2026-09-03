@@ -3,12 +3,13 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { lowerSource } from "./compiler";
 import { lowerSchema } from "./lower/schema";
-import { lowerProject } from "./project";
+import { lowerProject as lowerAuthoredProject } from "./project";
 
 const frontend = decodeURIComponent(new URL("../", import.meta.url).pathname);
 const crate = decodeURIComponent(new URL("../../../", import.meta.url).pathname);
 
 type RegisterTest = (name: string, run: () => void | Promise<void>) => void;
+const lowerProject = (root: string) => lowerAuthoredProject(root, { authoring: "any" });
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
