@@ -25,8 +25,8 @@ ceilings; fix the estimate.
 
 ## Resolution — 2026-09-03
 
-Resolved by the `s2/row-width` lane; the landing commit is assigned by the
-orchestrator. Known row projections now use declared column widths in
+Resolved by the `s2/row-width` lane, landed as `fc450e4cc` (merged with the
+LLP 1010 amendments on the way to main). Known row projections now use declared column widths in
 both output and closure estimates, while `Get` and `*` retain the whole-row
 bound and unknown bases keep the conservative fallback. The real Clique
 compiler/certifier pin certifies the focused 20 × 50 shape at 822,692 output
