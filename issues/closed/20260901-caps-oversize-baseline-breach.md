@@ -36,3 +36,9 @@ vendored skip list; the 45,167-line engine file it prints was already over the
 cap at baseline and is listed only because the excess is reported largest-first.
 Fix: skip `benchmarks/runs/**` in `scripts/caps.mjs` (run records are evidence,
 not source), or move that cell's backend out of the counted tree.
+
+**Resolved 2026-09-03 (`279af5d19`).** `caps` now skips `benchmarks/runs/**` (run
+records are evidence, not source; RULES.md says so in the line-cap budget) and
+names the smallest oversize files as the overflow, so the next breach points at
+the newcomer rather than the engine. The count is back to 204 of 204; the
+baseline was not raised.
