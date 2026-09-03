@@ -42,7 +42,7 @@ export function registerApiShapeChecks(test: Test, frontend: string): void {
     const lowered = await lowerProject(resolve(fixtures, "quarry-surface"));
     assert(lowered.ok, `Quarry surface fixture refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
     const expected: Record<string, string> = {
-      "surface.visiblePosts": `{ rows: PostsRow[]; count: number }`,
+      "surface.visiblePosts": `{ rows: Page<PostsRow>; count: number }`,
       "surface.postsAfter": `(Omit<PostsRow, "author"> & { author: { name: string; role: "member" | "admin" } | null; edited: number })[]`,
       "surface.ancestors": `NodesRow[]`,
       "surface.requiredUser": `{ name: string; role: "member" | "admin" }`,
