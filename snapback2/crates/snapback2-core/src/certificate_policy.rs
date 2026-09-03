@@ -679,6 +679,21 @@ fn validate_expr(
                         "iterate the page (`for (const row of page)`) or take an element before reading `.{name}`"
                     ),
                 });
+            } else if let StaticType::Asset(kind) = unwrap_static_type(&fact.kind)
+                && asset_member_type(*kind, name).is_none()
+            {
+                // @ref LLP 1006#3-authoring-surface — asset values are closed objects at static and runtime boundaries.
+                errors.push(CheckError {
+                    code: "E_ARGS_TYPE".to_owned(),
+                    message: format!(".{name} is not a field on {kind} assets"),
+                    rewrite: format!(
+                        "read one of {}",
+                        match kind {
+                            crate::assets::AssetKind::Image => "id, width, or height",
+                            crate::assets::AssetKind::Video => "id, width, height, or duration",
+                        }
+                    ),
+                });
             }
         }
         Expr::Builtin { builtin, args } if args.len() != builtin.arity() => {
@@ -713,6 +728,7 @@ enum StaticType {
     Ref(String),
     Text,
     Bytes,
+    Asset(crate::assets::AssetKind),
     Int,
     Bool,
     Json,
@@ -905,6 +921,9 @@ fn static_expression_fact(
                                 .map(static_column_type)
                                 .unwrap_or(StaticType::Unknown),
                         ),
+                        StaticType::Asset(kind) => StaticFact::plain(
+                            asset_member_type(*kind, name).unwrap_or(StaticType::Unknown),
+                        ),
                         _ => StaticFact::plain(StaticType::Unknown),
                     }
                 }
@@ -1042,6 +1061,8 @@ fn static_column_type(value: &ColumnType) -> StaticType {
         ColumnType::Ref { table } => StaticType::Ref(table.clone()),
         ColumnType::Text { .. } => StaticType::Text,
         ColumnType::Bytes { .. } => StaticType::Bytes,
+        ColumnType::Image { .. } => StaticType::Asset(crate::assets::AssetKind::Image),
+        ColumnType::Video { .. } => StaticType::Asset(crate::assets::AssetKind::Video),
         ColumnType::Int | ColumnType::Time => StaticType::Int,
         ColumnType::Enum { .. } => StaticType::Enum,
         ColumnType::Decimal { .. } | ColumnType::Money { .. } => StaticType::Decimal,
@@ -1062,6 +1083,8 @@ fn static_arg_type(value: &ArgType) -> StaticType {
         ArgType::Ref { table } => StaticType::Ref(table.clone()),
         ArgType::Text { .. } => StaticType::Text,
         ArgType::Bytes { .. } => StaticType::Bytes,
+        ArgType::Image { .. } => StaticType::Asset(crate::assets::AssetKind::Image),
+        ArgType::Video { .. } => StaticType::Asset(crate::assets::AssetKind::Video),
         ArgType::Int | ArgType::Time => StaticType::Int,
         ArgType::Enum { .. } => StaticType::Enum,
         ArgType::Decimal { .. } | ArgType::Money { .. } => StaticType::Decimal,
@@ -1091,6 +1114,17 @@ fn unwrap_column_type(value: &ColumnType) -> &ColumnType {
     match value {
         ColumnType::Optional(inner) => unwrap_column_type(inner),
         value => value,
+    }
+}
+
+fn asset_member_type(kind: crate::assets::AssetKind, name: &str) -> Option<StaticType> {
+    match (kind, name) {
+        // @ref LLP 1006#1-the-move — the closed asset record and wire expose id as a string, not a nominal row Id.
+        (_, "id") => Some(StaticType::Text),
+        (_, "width" | "height") | (crate::assets::AssetKind::Video, "duration") => {
+            Some(StaticType::Int)
+        }
+        _ => None,
     }
 }
 
@@ -1140,6 +1174,14 @@ fn matches_static_column(actual: &StaticType, expected: &ColumnType) -> Option<b
             StaticType::Text | StaticType::Enum
         )),
         ColumnType::Bytes { .. } => Some(matches!(unwrap_static_type(actual), StaticType::Bytes)),
+        ColumnType::Image { .. } => Some(matches!(
+            unwrap_static_type(actual),
+            StaticType::Asset(crate::assets::AssetKind::Image)
+        )),
+        ColumnType::Video { .. } => Some(matches!(
+            unwrap_static_type(actual),
+            StaticType::Asset(crate::assets::AssetKind::Video)
+        )),
         ColumnType::Int | ColumnType::Time => {
             Some(matches!(unwrap_static_type(actual), StaticType::Int))
         }

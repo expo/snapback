@@ -56,6 +56,10 @@ pub(crate) fn declared_column_max(column: &ColumnType) -> u64 {
         ColumnType::Text { max } => u64::from(*max).saturating_mul(4).saturating_add(16),
         ColumnType::Json { max_bytes } => u64::from(*max_bytes).saturating_add(16),
         ColumnType::Bytes { max } => u64::from(*max).saturating_mul(2).saturating_add(16),
+        // @ref LLP 1006#1-the-move — the asset max constrains blob bytes;
+        // row width prices only the closed id-and-dimensions record.
+        ColumnType::Image { .. } => declared_asset_record_max(false),
+        ColumnType::Video { .. } => declared_asset_record_max(true),
         ColumnType::Int
         | ColumnType::Time
         | ColumnType::Decimal { .. }
@@ -70,5 +74,37 @@ pub(crate) fn declared_column_max(column: &ColumnType) -> u64 {
             .map(|variant| variant.len() as u64 + 16)
             .max()
             .unwrap_or(16),
+    }
+}
+
+pub(crate) fn declared_asset_record_max(has_duration: bool) -> u64 {
+    let field =
+        |name: &str, value: u64| (name.len() as u64).saturating_add(4).saturating_add(value);
+    let image = CANONICAL_ROW_BASE_BYTES
+        .saturating_add(field("id", declared_column_max(&ColumnType::Id)))
+        .saturating_add(field("height", declared_column_max(&ColumnType::Int)))
+        .saturating_add(field("width", declared_column_max(&ColumnType::Int)));
+    if has_duration {
+        image.saturating_add(field("duration", declared_column_max(&ColumnType::Int)))
+    } else {
+        image
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{declared_asset_record_max, declared_column_max};
+    use crate::schema::ColumnType;
+
+    #[test]
+    fn asset_width_is_the_closed_record_not_the_blob_ceiling() {
+        assert_eq!(declared_asset_record_max(false), 243);
+        assert_eq!(declared_asset_record_max(true), 287);
+        assert_eq!(declared_column_max(&ColumnType::Image { max: 1 }), 243);
+        assert_eq!(
+            declared_column_max(&ColumnType::Image { max: u32::MAX }),
+            243
+        );
+        assert_eq!(declared_column_max(&ColumnType::Video { max: 1 }), 287);
     }
 }

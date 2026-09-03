@@ -1,5 +1,6 @@
 use crate::bounds::{
-    CANONICAL_ARRAY_BASE_BYTES, declared_serialized_column_max, declared_serialized_row_max,
+    CANONICAL_ARRAY_BASE_BYTES, declared_asset_record_max, declared_serialized_column_max,
+    declared_serialized_row_max,
 };
 use crate::growth::{
     ProvenanceBinding, assignment_growth, collection_price_from,
@@ -874,6 +875,10 @@ pub(crate) fn argument_max(argument: &ArgType) -> u64 {
         ArgType::Text { max } => u64::from(*max).saturating_mul(4).saturating_add(16),
         ArgType::Json { max_bytes } => u64::from(*max_bytes).saturating_add(16),
         ArgType::Bytes { max } => u64::from(*max).saturating_mul(2).saturating_add(16),
+        // @ref LLP 1006#1-the-move — retention holds the same closed record
+        // priced by the row-width estimator, never the blob bytes bounded by max.
+        ArgType::Image { .. } => declared_asset_record_max(false),
+        ArgType::Video { .. } => declared_asset_record_max(true),
         ArgType::Int | ArgType::Time | ArgType::Decimal { .. } | ArgType::Money { .. } => 32,
         ArgType::Bool => 16,
         ArgType::Optional(inner) => argument_max(inner).max(8),

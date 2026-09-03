@@ -328,7 +328,7 @@ else is *destructive* and is **refused with a plan**:
 ```rust
 pub struct SuccessorRefusal { pub code: String /* E_SUCCESSOR_DESTRUCTIVE */, pub plan: MigrationPlan }
 pub struct MigrationPlan { pub drops: Vec<Drop> /* Table{name,rows} | Column{table,name} | Index{table,name} | TypeChange{table,column,from,to} */ }
-impl Runtime { pub fn apply_migration(&mut self, next: Generation, plan: &MigrationPlan) -> Result<SuccessorReport, RuntimeError>; }
+impl Runtime { pub fn apply_migration(&mut self, next: Generation, plan: &MigrationPlan, released_at: i64) -> Result<SuccessorReport, RuntimeError>; }
 ```
 
 `apply_migration` performs exactly the listed drops (type changes drop the
@@ -341,6 +341,9 @@ against the successor type, including the reserved-principal walk. A required
 retyped column therefore refuses rather than installing an absent value; an
 optional retyped column may install as `Null`. Never a prompt,
 never a silent drop, never a fresh database (LLP 0329.016 §5.4).
+The owner passes one sample of its logical mutation clock as `released_at`, so
+asset releases caused by every drop age on the same clock as writes and
+reclamation (LLP 1006 §9).
 
 **Generation fencing.** The served runtime accepts an operation name and
 resolves its program, certificate, and table rules from the one active

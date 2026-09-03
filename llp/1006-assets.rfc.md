@@ -12,7 +12,9 @@ decode helper executable, §14a), `packages/compiler` (the column types),
 revisions (f)–(j) by Claude Fable 5.1 at the author's rulings, in session,
 2026-09-03
 **Date:** 2026-08-31
-**Revised:** 2026-09-03 (k — lane B3 publication source-builds and statically
+**Revised:** 2026-09-03 (l — engine-core review correction: an affine asset's
+reclamation grace begins when its locator is released, while a never-referenced
+upload still ages from creation (§9)); 2026-09-03 (k — lane B3 publication source-builds and statically
 links a pinned decoder-only libheif → libde265 closure at the helper's derived
 platform floor; the package carries no codec dylibs, and Darwin/Linux
 dependency qualification is symmetric (§14a); `tmap` primaries refuse until
@@ -222,8 +224,8 @@ Three consequences worth stating up front:
 `_assets` remains an engine-owned table (LLP 1001 §1 — `E_SCHEMA_RESERVED`
 already forbids declaring it): `id`, `state` (`receiving | ready | failed`),
 `kind` (`image | video`), `type` (the detected essence), `bytes`, `width`,
-`height`, `duration`, `created_by`, `created_at`, and the `locator` of §2a; a
-field a kind does not have is null. The blob key is the id (§9a), so there is
+`height`, `duration`, `created_by`, `created_at`, nullable `released_at`, and
+the `locator` of §2a; a field a kind does not have is null. The blob key is the id (§9a), so there is
 no key column. It is a staging and ownership ledger. After validation it is
 not the source of truth for anything a program reads.
 
@@ -856,7 +858,11 @@ reason to revisit it; the walker is not one.
 **Reclamation is `locator IS NULL` over `_assets`** (§2a) — it never scans
 application tables. An asset whose row was deleted, whose column was patched,
 or that was never referenced has a null locator and is collected after a grace
-period, along with its derived widths. **Liveness buys space and never
+period, along with its derived widths. The reconciler sets nullable
+`released_at` when it clears a locator and clears it on a later claim; grace is
+measured from `max(created_at, released_at)`, with `created_at` alone governing
+uploads that were never referenced. An asset held for a year therefore still
+gets the full grace after replacement. **Liveness buys space and never
 authority** — an unreferenced asset is already
 undeliverable (§2), so a reclamation pass that lags or crashes is a disk cost,
 not a disclosure. Snapback 1's equivalent bug is open today: a partial reset

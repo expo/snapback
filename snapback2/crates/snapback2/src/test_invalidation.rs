@@ -1094,6 +1094,7 @@ pub(super) fn replay_arg_value(kind: &ArgType, value: &Json) -> Result<Value, Re
                     "pass { Bytes: \"00\" } with an even number of lowercase hex digits",
                 )
             }),
+        ArgType::Image { .. } | ArgType::Video { .. } => json_to_value(value),
         ArgType::Bool => value.as_bool().map(Value::Bool).ok_or_else(|| {
             Refusal::input("boolean arguments must be true or false", "pass a boolean")
         }),

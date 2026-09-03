@@ -42,6 +42,8 @@ pub struct ProjectJson {
 pub struct Generation {
     schema: Schema,
     programs: BTreeMap<String, (Program, Certificate)>,
+    #[serde(skip_serializing)]
+    table_read_certificates: BTreeMap<String, RuleCertificate>,
     channel_certificates: BTreeMap<String, ChannelCertificates>,
     effects: BTreeMap<String, EffectDecl>,
 }
@@ -74,6 +76,13 @@ pub struct RowRuleVerdict {
     pub id: String,
     pub admitted: bool,
     pub trace: AuthoritativeTrace,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResetResult {
+    pub seq: u64,
+    pub asset_ids: Vec<String>,
 }
 
 impl Generation {
@@ -212,16 +221,16 @@ impl Generation {
                     if table
                         .columns
                         .get(column)
-                        .is_some_and(crate::schema::ColumnType::contains_list)
+                        .is_some_and(|kind| !kind.is_indexable())
                     {
                         errors.push((
                             format!("schema.{table_name}"),
                             CheckError {
                                 code: "E_SCHEMA_INDEX_COLUMN".to_owned(),
                                 message: format!(
-                                    "index {table_name}.{index_name} cannot use list column {column}"
+                                    "index {table_name}.{index_name} cannot use non-indexable column {column}"
                                 ),
-                                rewrite: "index scalar columns instead of list values".to_owned(),
+                                rewrite: "index a non-asset scalar column instead".to_owned(),
                             },
                         ));
                     }
@@ -278,6 +287,20 @@ impl Generation {
                 },
             )
         }));
+
+        let mut table_read_certificates = BTreeMap::new();
+        for (name, table) in &schema.tables {
+            match Checker::new(&schema, ceilings.clone()).check_rule(&table.rules.read) {
+                Ok(certificate) => {
+                    table_read_certificates.insert(name.clone(), certificate);
+                }
+                Err(rule_errors) => errors.extend(
+                    rule_errors
+                        .into_iter()
+                        .map(|error| (format!("schema.{name}.rules.read"), error)),
+                ),
+            }
+        }
 
         let mut channel_certificates = BTreeMap::new();
         for (name, channel) in &schema.channels {
@@ -389,6 +412,7 @@ impl Generation {
             Ok(Self {
                 schema,
                 programs,
+                table_read_certificates,
                 channel_certificates,
                 effects,
             })
@@ -485,6 +509,47 @@ impl Runtime {
     // @ref LLP 1001#1-store-storers — Runtime exposes allocation without exposing mutable storage.
     pub fn reserve_new_ids(&mut self) -> Result<VecDeque<String>, RuntimeError> {
         self.engine.store_mut().reserve_new_ids()
+    }
+
+    /// Allocate an ordinary engine id and open its receiving ledger row.
+    pub fn begin_asset(
+        &mut self,
+        kind: crate::AssetKind,
+        actor: &crate::Actor,
+        created_at: i64,
+    ) -> Result<String, RuntimeError> {
+        self.engine
+            .store_mut()
+            .begin_asset(kind, actor.id(), created_at)
+    }
+
+    pub fn mark_asset_ready(
+        &mut self,
+        id: &str,
+        facts: &crate::AssetReadyFacts,
+    ) -> Result<(), RuntimeError> {
+        self.engine.store_mut().asset_mark_ready(id, facts)
+    }
+
+    pub fn mark_asset_failed(&mut self, id: &str) -> Result<(), RuntimeError> {
+        self.engine.store_mut().asset_mark_failed(id)
+    }
+
+    /// Resolve one asset through its authoritative locator and the located
+    /// row's certified read rule. Every ordinary authority miss is the same
+    /// not-found-shaped refusal.
+    // @ref LLP 1006#2-authority-delivery-is-by-the-row-that-holds-it — delivery follows one ledger locator and one certified point read.
+    pub fn asset_delivery(
+        &mut self,
+        id: &str,
+        context: Context,
+    ) -> Result<crate::assets_ledger::AssetDelivery, RuntimeError> {
+        self.engine
+            .asset_delivery(id, context, &self.generation.table_read_certificates)
+    }
+
+    pub fn reclaim_assets(&mut self, now: i64) -> Result<Vec<String>, RuntimeError> {
+        self.engine.store_mut().reclaim(now)
     }
 
     /// Execute an effect's `then` mutation and settle its durable outbox row
@@ -672,13 +737,19 @@ impl Runtime {
     /// Reset application data and apply the seed in one SQLite transaction.
     /// Program construction and certification precede the destructive statement,
     /// and any execution refusal rolls the whole transaction back.
-    pub fn reset_and_seed(&mut self, rows: &[(String, Value)]) -> Result<u64, RuntimeError> {
+    pub fn reset_and_seed(
+        &mut self,
+        rows: &[(String, Value)],
+    ) -> Result<ResetResult, RuntimeError> {
         let (program, certificate) = seed_program(&self.generation.schema, rows)?;
-        let execution = self
-            .engine
-            .reset_and_seed(&program, &certificate, unix_millis())?;
+        let (execution, asset_ids) =
+            self.engine
+                .reset_and_seed(&program, &certificate, unix_millis())?;
         self.rerun_all_subscriptions();
-        Ok(execution.seq)
+        Ok(ResetResult {
+            seq: execution.seq,
+            asset_ids,
+        })
     }
 
     pub fn apply_successor(
@@ -726,6 +797,7 @@ impl Runtime {
         &mut self,
         next: Generation,
         migration: &MigrationPlan,
+        released_at: i64,
     ) -> Result<SuccessorReport, RuntimeError> {
         crate::engine::validate_schema(&next.schema).map_err(first_schema_error)?;
         let expected = plan(self.engine.store(), &self.generation.schema, &next.schema)?;
@@ -740,7 +812,7 @@ impl Runtime {
         let transaction = self.engine.store_mut().conn.transaction()?;
         let predecessor_maintain_ids =
             projected_predecessor_ids(&transaction, &reduced, &next.schema)?;
-        apply_migration_drops(&transaction, &mut reduced, migration)?;
+        apply_migration_drops(&transaction, &mut reduced, migration, released_at)?;
         if let Some(refusal) = additive_refusal(&transaction, &reduced, &next.schema)? {
             return Err(RuntimeError::Successor(Box::new(refusal)));
         }
@@ -872,6 +944,9 @@ fn seed_program(
     schema: &Schema,
     rows: &[(String, Value)],
 ) -> Result<(Program, Certificate), RuntimeError> {
+    for (table_name, row) in rows {
+        crate::assets::refuse_seed_assets(schema, table_name, row)?;
+    }
     let program = Program {
         name: "seed".to_owned(),
         kind: ProgramKind::Mutation,

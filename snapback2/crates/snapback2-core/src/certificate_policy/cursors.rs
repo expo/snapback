@@ -225,6 +225,7 @@ fn static_cursor_kind(value: &StaticType) -> &'static str {
         StaticType::Int | StaticType::Decimal => "Int",
         StaticType::Bool => "Bool",
         StaticType::Bytes => "Bytes",
+        StaticType::Asset(_) => "asset",
         StaticType::Null => "Null",
         StaticType::Row(_) | StaticType::Object => "object",
         StaticType::List { .. } => "array",
@@ -243,6 +244,7 @@ fn cursor_column_kind(value: &ColumnType) -> &'static str {
         | ColumnType::Money { .. } => "Int",
         ColumnType::Bool => "Bool",
         ColumnType::Bytes { .. } => "Bytes",
+        ColumnType::Image { .. } | ColumnType::Video { .. } => "a non-indexable asset",
         ColumnType::Json { .. } | ColumnType::List { .. } => "an indexable scalar",
         ColumnType::Optional(_) => unreachable!("cursor column types are unwrapped"),
     }

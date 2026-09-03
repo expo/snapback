@@ -6,6 +6,8 @@ use std::collections::{BTreeMap, VecDeque};
 use std::fs;
 use std::path::PathBuf;
 
+#[path = "export_corpus/assets.rs"]
+mod asset_cases;
 #[path = "export_corpus/client_scenarios.rs"]
 mod client_scenarios;
 #[path = "export_corpus/constraints.rs"]
@@ -27,7 +29,7 @@ struct CorpusCase {
     random_seed: Option<u64>,
     schema: Schema,
     program: Program,
-    certificate: Certificate,
+    certificate: Option<Certificate>,
     context: Context,
     receipt: ClosureReceipt,
     prelude: Vec<PreludeStep>,
@@ -108,6 +110,7 @@ fn main() {
     client_scenarios::add_client_scenarios(&mut cases);
     add_value_edges(&mut cases);
     add_bytes_cases(&mut cases);
+    asset_cases::add_asset_cases(&mut cases);
     add_random_cases(&mut cases);
     assert!(cases.len() >= 60, "brief requires at least 60 corpus cases");
 
@@ -1139,7 +1142,7 @@ fn case_from_parts(
         random_seed,
         schema,
         program,
-        certificate,
+        certificate: Some(certificate),
         context,
         receipt,
         prelude,

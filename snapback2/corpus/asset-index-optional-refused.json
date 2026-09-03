@@ -1,0 +1,102 @@
+{
+  "corpusVersion": 1,
+  "name": "asset-index-optional-refused",
+  "category": "asset-certification-refusal",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "media": {
+        "columns": {
+          "id": "Id",
+          "photo": {
+            "Optional": {
+              "Image": {
+                "max": 5000000
+              }
+            }
+          }
+        },
+        "indexes": {
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          },
+          "byPhoto": {
+            "columns": [
+              "photo"
+            ],
+            "unique": false
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": []
+      }
+    },
+    "maintains": []
+  },
+  "program": {
+    "name": "asset-index-optional-refused",
+    "kind": "Query",
+    "args": {},
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Return": {
+          "Literal": "Null"
+        }
+      }
+    ]
+  },
+  "certificate": null,
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {},
+    "now": null,
+    "new_ids": [],
+    "read_time": null,
+    "seed_write": false
+  },
+  "receipt": {
+    "rows": [],
+    "ranges": [],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": null,
+    "errorCode": "E_SCHEMA_INDEX_COLUMN",
+    "localState": "certification-refused",
+    "partialSites": [],
+    "canonicalResult": "{\"Error\":\"E_SCHEMA_INDEX_COLUMN\"}",
+    "digest": "52eba16742d20810b77ada3bd8eed82f26c9ff9564d58149d626949a9d45737e",
+    "rangeStops": {},
+    "evictedRows": null
+  }
+}

@@ -312,6 +312,7 @@ fn cursor_value_matches_column(value: &Value, column: &ColumnType) -> bool {
         | ColumnType::Money { .. } => matches!(value, Value::Int(_)),
         ColumnType::Bool => matches!(value, Value::Bool(_)),
         ColumnType::Bytes { .. } => matches!(value, Value::Bytes(_)),
+        ColumnType::Image { .. } | ColumnType::Video { .. } => false,
         ColumnType::Json { .. } => matches!(
             value,
             Value::Bool(_) | Value::Int(_) | Value::String(_) | Value::Id(_) | Value::Bytes(_)
@@ -331,6 +332,7 @@ fn cursor_column_kind(column: &ColumnType) -> &'static str {
         | ColumnType::Money { .. } => "Int",
         ColumnType::Bool => "Bool",
         ColumnType::Bytes { .. } => "Bytes",
+        ColumnType::Image { .. } | ColumnType::Video { .. } => "a non-asset scalar",
         ColumnType::Json { .. } | ColumnType::List { .. } => "an indexable scalar",
     }
 }
@@ -450,6 +452,10 @@ pub(crate) fn validate_column_value(
             "{table_name}.{name} contains disallowed control character U+{code_point:04X}"
         )));
     }
+    if kind.contains_asset() {
+        crate::assets::column_asset_uses(kind, value, &format!("{table_name}.{name}"))?;
+        return Ok(());
+    }
     if !valid_column_value(kind, value) {
         return Err(RuntimeError::Input(format!(
             "{table_name}.{name} violates {kind:?}"
@@ -493,6 +499,9 @@ fn valid_column_value(kind: &ColumnType, value: Option<&Value>) -> bool {
             text.chars().count() <= *max as usize
         }
         (ColumnType::Bytes { max }, Some(Value::Bytes(bytes))) => bytes.len() <= *max as usize,
+        // Asset-bearing descriptors are handled above so their typed refusal
+        // is not collapsed into the generic E_INPUT family code.
+        (ColumnType::Image { .. } | ColumnType::Video { .. }, _) => false,
         (ColumnType::Enum { variants }, Some(Value::String(value))) => variants.contains(value),
         (
             ColumnType::Int

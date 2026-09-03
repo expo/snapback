@@ -307,7 +307,7 @@ fn migration_rebuilds_an_unchanged_maintain_when_group_types_change() {
         vec![maintain],
     );
     let plan = runtime.apply_successor(next.clone()).unwrap_err().plan;
-    runtime.apply_migration(next, &plan).unwrap();
+    runtime.apply_migration(next, &plan, 0).unwrap();
 
     assert_eq!(get(&mut runtime, old_id), Value::Null);
     let null_id = canonical_json(&vec![Value::Null]);
@@ -361,7 +361,7 @@ fn migration_accepts_dropping_a_removed_maintained_target_table() {
 
     let next = generation(BTreeMap::from([("events".to_owned(), events)]), Vec::new());
     let plan = runtime.apply_successor(next.clone()).unwrap_err().plan;
-    runtime.apply_migration(next, &plan).unwrap();
+    runtime.apply_migration(next, &plan, 0).unwrap();
     assert!(runtime.generation().schema().table("totals").is_none());
 }
 

@@ -473,10 +473,13 @@ pub(crate) fn apply_migration_drops(
     transaction: &Transaction<'_>,
     current: &mut Schema,
     migration: &MigrationPlan,
+    released_at: i64,
 ) -> Result<(), RuntimeError> {
     for drop in &migration.drops {
         match drop {
             Drop::Table { name, .. } => {
+                // @ref LLP 1006#2a-one-asset-one-home-author-ruling-2026-09-01 — destructive successors release every affine cell they remove.
+                crate::assets_ledger::release_table_assets(transaction, name, released_at)?;
                 transaction.execute("DELETE FROM index_entries WHERE table_name = ?1", [name])?;
                 transaction.execute("DELETE FROM rows WHERE table_name = ?1", [name])?;
             }
@@ -486,6 +489,7 @@ pub(crate) fn apply_migration_drops(
                 column: name,
                 ..
             } => {
+                crate::assets_ledger::release_column_assets(transaction, table, name, released_at)?;
                 drop_column_values(transaction, table, name)?;
                 transaction.execute("DELETE FROM index_entries WHERE table_name = ?1", [table])?;
             }

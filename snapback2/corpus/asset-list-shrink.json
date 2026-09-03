@@ -1,0 +1,253 @@
+{
+  "corpusVersion": 1,
+  "name": "asset-list-shrink",
+  "category": "asset",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "media": {
+        "columns": {
+          "clips": {
+            "List": {
+              "of": {
+                "Video": {
+                  "max": 25000000
+                }
+              },
+              "max": 4
+            }
+          },
+          "id": "Id"
+        },
+        "indexes": {
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": []
+      }
+    },
+    "maintains": []
+  },
+  "program": {
+    "name": "media.shrinkVideos",
+    "kind": "Mutation",
+    "args": {
+      "asset": {
+        "List": {
+          "of": {
+            "Video": {
+              "max": 25000000
+            }
+          },
+          "max": 4
+        }
+      },
+      "rowId": "Id"
+    },
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Update": {
+          "table": "media",
+          "key": {
+            "Variable": "rowId"
+          },
+          "patch": {
+            "Object": {
+              "clips": {
+                "Variable": "asset"
+              }
+            }
+          }
+        }
+      },
+      {
+        "Return": {
+          "Variable": "asset"
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "media.shrinkVideos",
+    "plan_hash": "5eca9726cce2ff898ca2bdcbae781191fa846ddfcab407fc600b1725189cf7ca",
+    "schema_hash": "c4a774858f241324db4e9716c2ad89c7723c14b74a3d1825f6136cb082541e4a",
+    "rule_hashes": {
+      "media.update": "d870408984e2da94fdf68d56fa5cb7b9bce37b8b957f6f58d1d43d4156b98a6e"
+    },
+    "evaluator_version": "bounded-spike-rust-1",
+    "value_model_version": "i53-codepoint-bytes-v2",
+    "read_sites": [],
+    "write_sites": [
+      {
+        "table": "media",
+        "kind": "Update",
+        "max_rows": 1
+      }
+    ],
+    "maintained_amplification": 0,
+    "constraint_checks": [
+      "media:Unique(byId)"
+    ],
+    "max_examined": 0,
+    "max_index_entries": 0,
+    "max_rule_probes": 0,
+    "max_steps": 11,
+    "max_heap_bytes": 352,
+    "max_output_bytes": 1164,
+    "max_closure_bytes": 0,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [],
+    "disclosures": [],
+    "bound_product": null
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {
+      "asset": {
+        "Array": [
+          {
+            "Map": {
+              "duration": {
+                "Int": 1000
+              },
+              "height": {
+                "Int": 240
+              },
+              "id": {
+                "String": "s2id-00000000000000000000000000000006-0000000000000003"
+              },
+              "width": {
+                "Int": 320
+              }
+            }
+          }
+        ]
+      },
+      "rowId": {
+        "Id": "media-1"
+      }
+    },
+    "now": 0,
+    "new_ids": [],
+    "read_time": null,
+    "seed_write": false
+  },
+  "receipt": {
+    "schema_hash": "c4a774858f241324db4e9716c2ad89c7723c14b74a3d1825f6136cb082541e4a",
+    "rows": [
+      {
+        "table": "media",
+        "id": "media-1",
+        "row": {
+          "Row": {
+            "clips": {
+              "Array": [
+                {
+                  "Map": {
+                    "duration": {
+                      "Int": 9000
+                    },
+                    "height": {
+                      "Int": 1080
+                    },
+                    "id": {
+                      "String": "s2id-00000000000000000000000000000006-0000000000000002"
+                    },
+                    "width": {
+                      "Int": 1920
+                    }
+                  }
+                },
+                {
+                  "Map": {
+                    "duration": {
+                      "Int": 1000
+                    },
+                    "height": {
+                      "Int": 240
+                    },
+                    "id": {
+                      "String": "s2id-00000000000000000000000000000006-0000000000000003"
+                    },
+                    "width": {
+                      "Int": 320
+                    }
+                  }
+                }
+              ]
+            },
+            "id": {
+              "Id": "media-1"
+            }
+          }
+        }
+      }
+    ],
+    "ranges": [],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": {
+      "Array": [
+        {
+          "Map": {
+            "duration": {
+              "Int": 1000
+            },
+            "height": {
+              "Int": 240
+            },
+            "id": {
+              "String": "s2id-00000000000000000000000000000006-0000000000000003"
+            },
+            "width": {
+              "Int": 320
+            }
+          }
+        }
+      ]
+    },
+    "errorCode": null,
+    "localState": "predicted",
+    "partialSites": [],
+    "canonicalResult": "{\"Array\":[{\"Map\":{\"duration\":{\"Int\":1000},\"height\":{\"Int\":240},\"id\":{\"String\":\"s2id-00000000000000000000000000000006-0000000000000003\"},\"width\":{\"Int\":320}}}]}",
+    "digest": "b9aa34541e160169858811c66a8da1e4976a3fc15e165fed87bdeb023ad21b54",
+    "rangeStops": {},
+    "evictedRows": null
+  }
+}

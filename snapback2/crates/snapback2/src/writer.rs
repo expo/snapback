@@ -2,7 +2,7 @@
 // @ref LLP 1002#5-the-owner — HTTP threads send work here; no second store opener exists.
 
 use crate::owner::OwnerInfo;
-use crate::project::{CompiledProject, SeedData, StagedBuildCache, seed_rows};
+use crate::project::{CompiledProject, SeedData, StagedBuildCache};
 use crate::protocol::{Refusal, json_to_value};
 use crate::writer_util::{owner_gone, unix_millis};
 use crate::writer_wire::{execution_json, live_frame, refusal_frame};
@@ -20,6 +20,8 @@ use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender, SyncSender};
 use std::thread;
 
+#[path = "writer_assets.rs"]
+mod writer_assets;
 #[path = "writer_auth.rs"]
 mod writer_auth;
 #[path = "writer_effects.rs"]
@@ -163,6 +165,13 @@ pub enum Action {
         path: PathBuf,
     },
     Reset,
+    #[allow(dead_code)] // Constructed by Lane B's reclamation sweep when that lane is integrated.
+    ReclaimAssets,
+    #[allow(dead_code)] // Constructed by Lane B's asset route when that lane is integrated.
+    AssetDelivery {
+        id: String,
+        identity: Identity,
+    },
     Data {
         table: String,
         index: String,
@@ -511,6 +520,8 @@ impl State {
                 Ok(json!({ "ok": true, "path": path }))
             }
             Action::Reset => self.reset(),
+            Action::ReclaimAssets => self.reclaim_assets(),
+            Action::AssetDelivery { id, identity } => self.asset_delivery(&id, identity),
             Action::Data {
                 table,
                 index,
@@ -1025,8 +1036,9 @@ impl State {
         cache: Option<StagedBuildCache>,
     ) -> Result<Json, Refusal> {
         let report = if let Some(plan) = migration {
+            let released_at = self.now();
             self.runtime_mut()
-                .apply_migration(compiled.generation.clone(), &plan)
+                .apply_migration(compiled.generation.clone(), &plan, released_at)
                 .map_err(|error| Refusal::from_runtime(&error))?
         } else {
             self.runtime_mut()
@@ -1066,34 +1078,6 @@ impl State {
     fn publish_owner(&self) -> Result<Json, Refusal> {
         crate::owner::write_owner_if_active(&self.root, &self.owner, self.exited)?;
         Ok(json!({ "ok": true, "exited": self.exited }))
-    }
-
-    fn reset(&mut self) -> Result<Json, Refusal> {
-        let seed = self.seed.clone();
-        let rows = seed_rows(&seed, &self.compiled)?;
-        let now = self.now();
-        for persona in &seed.personas {
-            self.runtime_mut()
-                .ensure_persona(persona, now)
-                .map_err(|error| Refusal::from_identity(&error))?;
-        }
-        let seq = self
-            .runtime_mut()
-            .reset_and_seed(&rows)
-            .map_err(|error| Refusal::from_runtime(&error))?;
-        let runtime_ids = self
-            .live
-            .values()
-            .map(|client| client.runtime_id)
-            .collect::<Vec<_>>();
-        for id in runtime_ids {
-            self.runtime_mut().unsubscribe(id);
-        }
-        self.live.clear();
-        self.channels.clear();
-        self.ledger.clear();
-        self.wake_effects();
-        Ok(json!({ "ok": true, "seq": seq }))
     }
 
     fn data(
@@ -1373,6 +1357,7 @@ fn json_as_arg(value: &Json, kind: &ArgType) -> Result<Value, Refusal> {
                 Refusal::input("text and enum arguments must be strings", "pass a string")
             }),
         ArgType::Bytes { .. } => json_as_bytes(value, "bytes arguments"),
+        ArgType::Image { .. } | ArgType::Video { .. } => json_to_value(value),
         ArgType::Bool => value.as_bool().map(Value::Bool).ok_or_else(|| {
             Refusal::input("boolean arguments must be true or false", "pass a boolean")
         }),
@@ -1398,6 +1383,7 @@ fn json_as_kind(value: &Json, kind: &ColumnType) -> Result<Value, Refusal> {
             .map(|value| Value::String(value.to_owned()))
             .ok_or_else(|| Refusal::input("text index values must be strings", "pass a string")),
         ColumnType::Bytes { .. } => json_as_bytes(value, "bytes index values"),
+        ColumnType::Image { .. } | ColumnType::Video { .. } => json_to_value(value),
         ColumnType::Int
         | ColumnType::Time
         | ColumnType::Decimal { .. }

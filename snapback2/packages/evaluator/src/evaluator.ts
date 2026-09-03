@@ -1351,7 +1351,43 @@ function substituteRuleTerm(term: any, columns: string[], probeKey: any[]): any 
   return position < 0 || position >= probeKey.length ? null : clone(probeKey[position]);
 }
 
+function indexableColumn(descriptor: any): boolean {
+  if (descriptor?.Optional !== undefined) return indexableColumn(descriptor.Optional);
+  return descriptor?.Image === undefined
+    && descriptor?.Video === undefined
+    && descriptor?.List === undefined;
+}
+
+function schemaCertificationError(schema: any): string | null {
+  for (const table of Object.values(schema.tables ?? {}) as any[]) {
+    for (const index of Object.values(table.indexes ?? {}) as any[]) {
+      const columns = index.columns ?? [];
+      if (columns.length < 1 || columns.length > 8) return "E_SCHEMA_INDEX_COLUMN";
+      for (const column of columns) {
+        if (table.columns?.[column] === undefined || !indexableColumn(table.columns[column])) {
+          return "E_SCHEMA_INDEX_COLUMN";
+        }
+      }
+    }
+  }
+  return null;
+}
+
 export function evaluateCase(testCase: CorpusCase): ActualResult {
+  if (testCase.certificate === null) {
+    const errorCode = schemaCertificationError(testCase.schema) ?? "E_CORPUS";
+    const canonicalResult = JSON.stringify({ Error: errorCode });
+    return {
+      localResult: null,
+      errorCode,
+      localState: "certification-refused",
+      partialSites: [],
+      canonicalResult,
+      digest: sha256(canonicalResult),
+      rangeStops: {},
+      evictedRows: null,
+    };
+  }
   if (testCase.certificate?.value_model_version !== CURRENT_VALUE_MODEL_VERSION) {
     throw new EvalError(
       "E_TRACE_SUBSET",
