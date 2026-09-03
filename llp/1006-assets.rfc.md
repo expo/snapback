@@ -15,7 +15,8 @@ revisions (f)–(j) by Claude Fable 5.1 at the author's rulings, in session,
 **Revised:** 2026-09-03 (k — lane B3 publication source-builds and statically
 links a pinned decoder-only libheif → libde265 closure at the helper's derived
 platform floor; the package carries no codec dylibs, and Darwin/Linux
-dependency qualification is symmetric (§14a).); 2026-09-03 (j — the second panel folded (§16): fourteen unanimous
+dependency qualification is symmetric (§14a); `tmap` primaries refuse until
+libheif supports them upstream (§4).); 2026-09-03 (j — the second panel folded (§16): fourteen unanimous
 findings and the author's six decisions on the splits. **Correctness:**
 asset-typed arguments are ledger-validated at mutation entry, inside the
 transaction, so `require clip.duration` reads a fact (§6); the certified
@@ -586,7 +587,8 @@ the decision rather than mandating it.
   dragged from Photos, or picked in Safari — and only the server covers every
   path. The decoder ships in the one published helper (§14a). WebP is stored
   as WebP — its bitstream kept, its metadata chunks dropped — and decoded, in
-  pure Rust, only for derived widths.
+  pure Rust, only for derived widths. `tmap` primaries refuse until libheif
+  supports them upstream.
 - **The full-resolution image is kept, stripped** (author ruling, 2026-09-01).
   "The original" always means the full-size image *after* metadata removal —
   never the bytes as uploaded. Keeping the literal upload would keep the GPS

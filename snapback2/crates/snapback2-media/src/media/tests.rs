@@ -506,6 +506,28 @@ fn overlay_primary_with_hevc_inputs_is_recognized_and_decodes() {
 
 #[cfg(feature = "heic")]
 #[test]
+fn pitm_to_tmap_primary_refuses_with_typed_pinned_libheif_detail() {
+    let mut bytes = fs::read(fixture("grid-hvc1.heic")).unwrap();
+    assert!(bytes.windows(4).any(|candidate| candidate == b"pitm"));
+    let primary_type = bytes
+        .windows(4)
+        .position(|candidate| candidate == b"grid")
+        .expect("fixture has a derived primary item");
+    bytes[primary_type..primary_type + 4].copy_from_slice(b"tmap");
+    let temp = TempDir::new().unwrap();
+    let source = temp.path().join("tmap-primary.heic");
+    fs::write(&source, bytes).unwrap();
+
+    let refusal = detect_format(&source, CEILINGS).unwrap_err();
+    assert_eq!(refusal.code, E_ASSET_TYPE);
+    assert_eq!(
+        refusal.detail,
+        "HEIF primary item unreadable by the pinned libheif (gain-map/tmap primaries unsupported)"
+    );
+}
+
+#[cfg(feature = "heic")]
+#[test]
 fn grid_primary_with_any_av1_tiles_is_refused() {
     let bytes = fs::read(fixture("grid-hvc1.heic")).unwrap();
     let item_types = bytes

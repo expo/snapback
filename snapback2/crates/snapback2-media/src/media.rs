@@ -7,6 +7,8 @@
 //! `.snapback2-media-*.tmp` prefix before an atomic rename. The parent owns a
 //! sweep of that prefix after every child outcome because SIGKILL and
 //! `panic=abort` cannot run this process's `Drop` cleanup.
+//! Gain-map (`tmap`) HEIF primaries are refused until the pinned libheif can
+//! read them upstream.
 
 #![cfg_attr(not(feature = "images"), allow(dead_code))]
 
@@ -1122,7 +1124,10 @@ fn heif_primary_item_is_hevc_bytes(bytes: &[u8]) -> Result<bool, Refusal> {
 fn heif_primary_item_has_only_hevc_leaves(
     read: impl FnOnce(*mut libheif_sys::heif_context) -> libheif_sys::heif_error,
 ) -> Result<bool, Refusal> {
-    let context = read_raw_heif_context(read, "cannot read HEIF primary item")?;
+    let context = read_raw_heif_context(
+        read,
+        "HEIF primary item unreadable by the pinned libheif (gain-map/tmap primaries unsupported)",
+    )?;
     let mut item_id = 0;
     raw_heic_ok(
         unsafe { libheif_sys::heif_context_get_primary_image_ID(context.0, &mut item_id) },
@@ -1153,7 +1158,7 @@ fn heif_item_has_only_hevc_leaves(
     let item_type = unsafe { libheif_sys::heif_item_get_item_type(context, item_id) }.to_be_bytes();
     let result = if item_type == *b"hvc1" || item_type == *b"hev1" {
         true
-    } else if [*b"grid", *b"iovl", *b"iden", *b"tmap"].contains(&item_type) {
+    } else if [*b"grid", *b"iovl", *b"iden"].contains(&item_type) {
         heif_item_dimg_references(context, item_id).is_some_and(|references| {
             !references.is_empty()
                 && references.into_iter().all(|reference| {
