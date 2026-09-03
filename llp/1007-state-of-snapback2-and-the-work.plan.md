@@ -155,7 +155,9 @@ other read the brief and concluded the opposite. Both are careful readers. The
 document called the most valuable file in the repository understates its own
 acceptance bar, and then lists media as not-being-built while LLP 1006 sits in
 Draft with video deferred and its schedule an open question (LLP 1006 rev (d),
-OQ2).
+OQ2). (2026-09-03: LLP 1006 rev (f) moved video and non-media files into its
+first slice at the author's ruling; the deferral this paragraph describes no
+longer holds, and the capability-bar trim is correspondingly smaller.)
 
 The two positions, both argued in the panel record:
 
