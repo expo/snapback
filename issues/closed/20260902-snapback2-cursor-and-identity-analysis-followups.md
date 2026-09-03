@@ -17,3 +17,48 @@
 
 10. An alternate-key update patch naming `id` is refused by the platform (`E_SCHEMA_ID_RESERVED`, whole-file rewrite, plus a leaked `E_OPAQUE`) rather than by the Quarry front end with a sited drop-field rewrite; add `id` to the guarded set in `validateAddressedKeyFields` for updates.
 11. A row the viewer cannot read is `NOT_FOUND` through an alternate key but `E_RULE` through its id; the guide's absence paragraph says "missing" and should say "missing or unreadable".
+
+## Resolution
+
+**Closed:** 2026-09-03 · **Landed:** `cfbd52280` on `main` (lane `s2/q-followups`,
+codex gpt-5.6-sol xhigh, two blind reviews folded).
+
+All eleven items landed together, under the rule the landing review stated:
+static analysis never refuses what the runtime accepts, except the total-order
+index rule, and every runtime refusal exists in both runtimes.
+
+1. The twin refuses non-scalar cursor components (`E_TYPE`); the engine's
+   `E_SCHEMA` is pinned by `corpus_cursors.rs`; the raw-IR pin asserts red in both.
+2. `tests/corpus_cursors.rs` executes the four `cursor-*` corpus programs
+   (including a `Desc` scan and a `before` cursor) through `Engine::memory` and
+   compares with `expected.localResult`; it runs in `scripts/test.sh`.
+3. A cursor whose prefix names every index column is refused at runtime in both
+   runtimes and at certification with a drop-the-bound rewrite (TS: the option
+   is removed; Quarry: the clause is removed); an overlong prefix is refused
+   separately, and the twin now refuses it as the engine does.
+4. Quarry refuses a cursor on a non-total index in the front end with the `.q`
+   rewrite `by <index>: …, id` sited at the index declaration; the tuple
+   rewrite also fires for unique indexes; `E_ARGS_CURSOR_INDEX` no longer
+   reaches `.q` authors.
+5. `prefixArity` resolves a stable identifier's array initializer (and helper
+   arrays), so the cursor literal types against the right column.
+6. The `hasMore` fact branch is gone; `Field` on a statically known list is
+   `E_ARGS_TYPE` at certification (both runtimes were already red).
+7. Cursor components are kind-checked against index columns at runtime in both
+   runtimes (`Null` is the universal pre-first sentinel); the static layers
+   refuse definitely mismatched tuples with a column-order rewrite (`.q`:
+   `after (p.at, p.id)`), structurally (Decimal/Money ↔ Int/Time match).
+8. Equality operands propagate an Id-typed side as the contextual target of the
+   other, so `row.owner === "user-1"` compares Ids; `contextualNodeKey` is now
+   unambiguous per node.
+9. Documented: a text literal in an Id position (key, cursor, equality, `??`
+   fallback) is an Id value on the wire; `lib.d.ts` types `after`/`before` as
+   tuple or indexable scalar.
+10. An update patch naming `id` is refused by the Quarry front end with a
+    sited drop-field rewrite; no platform `E_SCHEMA_ID_RESERVED`/`E_OPAQUE` leak.
+11. The guide's absence paragraph says "missing or unreadable" and states the
+    `NOT_FOUND`-through-alternate-key versus `E_RULE`-through-id asymmetry,
+    now pinned by a paired test.
+
+LLP 1001's cursor paragraph records the runtime semantics (full-prefix refusal,
+kind validation, universal `Null` sentinel, non-scalar refusal).
