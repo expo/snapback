@@ -17,7 +17,7 @@ export function checkTupleCursor(
   const tableInfo = [...env.tables.values()].find((candidate) => candidate.name === table);
   const indexInfo = tableInfo?.indexes?.[index];
   if (!indexInfo) return;
-  // @ref LLP 1001#scans — a cursored index must be a total order (ends in `id`, or is
+  // @ref LLP 1001#3-read-and-write-states-no-silent-states — a cursored index must be a total order (ends in `id`, or is
   // unique); otherwise tied keys are skipped between pages. The runtime accepts the
   // lossy shape, so this is a policy refusal like an unbounded scan, not a type check.
   if (indexInfo.columns.at(-1) !== "id" && indexInfo.unique !== true) {

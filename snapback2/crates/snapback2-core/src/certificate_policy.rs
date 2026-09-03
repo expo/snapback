@@ -737,7 +737,7 @@ fn validate_scan_cursors(
     let Some(index) = table.index(&scan.index) else {
         return;
     };
-    // @ref LLP 1001#scans — a cursored index must be a total order (ends in `id`, or is
+    // @ref LLP 1001#3-read-and-write-states-no-silent-states — a cursored index must be a total order (ends in `id`, or is
     // unique); the runtime accepts the lossy shape, so this is a policy refusal.
     if index.columns.last().map(String::as_str) != Some("id") && !index.unique {
         let columns = index
