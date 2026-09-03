@@ -49,6 +49,7 @@ const codecSources = [
 
 const de265CmakeOptions = [
   "-DCMAKE_BUILD_TYPE=Release",
+  "-DCMAKE_POSITION_INDEPENDENT_CODE=ON",
   "-DCMAKE_INSTALL_LIBDIR=lib",
   "-DBUILD_SHARED_LIBS=OFF",
   "-DENABLE_SDL=OFF",
@@ -625,6 +626,7 @@ function stagePublication(version, name, stateDirectory, resumePath, options = {
 function runSelfTest() {
   const directory = mkdtempSync(resolve(tmpdir(), "snapback2-publish-self-test-"));
   try {
+    assert.ok(de265CmakeOptions.includes("-DCMAKE_POSITION_INDEPENDENT_CODE=ON"));
     const snapshot = resolve(directory, "shim");
     let qualified = false;
     buildAndQualifyPackage(snapshot, (target) => {

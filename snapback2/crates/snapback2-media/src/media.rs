@@ -1100,14 +1100,14 @@ fn heif_primary_item_is_hevc_file(path: &Path) -> Result<bool, Refusal> {
 
     let path = CString::new(path.to_string_lossy().as_bytes())
         .map_err(|_| Refusal::asset_type("HEIF path contains a NUL byte"))?;
-    heif_primary_item_is_hevc(|context| unsafe {
+    heif_primary_item_has_only_hevc_leaves(|context| unsafe {
         libheif_sys::heif_context_read_from_file(context, path.as_ptr(), std::ptr::null())
     })
 }
 
 #[cfg(feature = "heic")]
 fn heif_primary_item_is_hevc_bytes(bytes: &[u8]) -> Result<bool, Refusal> {
-    heif_primary_item_is_hevc(|context| unsafe {
+    heif_primary_item_has_only_hevc_leaves(|context| unsafe {
         libheif_sys::heif_context_read_from_memory_without_copy(
             context,
             bytes.as_ptr().cast(),
@@ -1118,7 +1118,8 @@ fn heif_primary_item_is_hevc_bytes(bytes: &[u8]) -> Result<bool, Refusal> {
 }
 
 #[cfg(feature = "heic")]
-fn heif_primary_item_is_hevc(
+// @ref LLP 1006#4-admission — derived HEIF primaries are images only when every coded dimg leaf is HEVC.
+fn heif_primary_item_has_only_hevc_leaves(
     read: impl FnOnce(*mut libheif_sys::heif_context) -> libheif_sys::heif_error,
 ) -> Result<bool, Refusal> {
     let context = read_raw_heif_context(read, "cannot read HEIF primary item")?;
@@ -1127,9 +1128,89 @@ fn heif_primary_item_is_hevc(
         unsafe { libheif_sys::heif_context_get_primary_image_ID(context.0, &mut item_id) },
         "HEIF has no primary image",
     )?;
-    let item_type = unsafe { libheif_sys::heif_item_get_item_type(context.0, item_id) };
-    let item_type = item_type.to_be_bytes();
-    Ok(item_type == *b"hvc1" || item_type == *b"hev1")
+    Ok(heif_item_has_only_hevc_leaves(
+        context.0,
+        item_id,
+        &mut std::collections::HashSet::new(),
+        &mut std::collections::HashMap::new(),
+    ))
+}
+
+#[cfg(feature = "heic")]
+fn heif_item_has_only_hevc_leaves(
+    context: *const libheif_sys::heif_context,
+    item_id: libheif_sys::heif_item_id,
+    visiting: &mut std::collections::HashSet<libheif_sys::heif_item_id>,
+    memo: &mut std::collections::HashMap<libheif_sys::heif_item_id, bool>,
+) -> bool {
+    if let Some(result) = memo.get(&item_id) {
+        return *result;
+    }
+    if !visiting.insert(item_id) {
+        return false;
+    }
+
+    let item_type = unsafe { libheif_sys::heif_item_get_item_type(context, item_id) }.to_be_bytes();
+    let result = if item_type == *b"hvc1" || item_type == *b"hev1" {
+        true
+    } else if [*b"grid", *b"iovl", *b"iden", *b"tmap"].contains(&item_type) {
+        heif_item_dimg_references(context, item_id).is_some_and(|references| {
+            !references.is_empty()
+                && references.into_iter().all(|reference| {
+                    heif_item_has_only_hevc_leaves(context, reference, visiting, memo)
+                })
+        })
+    } else {
+        false
+    };
+
+    visiting.remove(&item_id);
+    memo.insert(item_id, result);
+    result
+}
+
+#[cfg(feature = "heic")]
+fn heif_item_dimg_references(
+    context: *const libheif_sys::heif_context,
+    item_id: libheif_sys::heif_item_id,
+) -> Option<Vec<libheif_sys::heif_item_id>> {
+    let item_count = unsafe { libheif_sys::heif_context_get_number_of_items(context) };
+    let item_count = usize::try_from(item_count).ok()?;
+    let max_reference_groups = item_count.saturating_add(1);
+    let mut result = Vec::new();
+
+    for index in 0..max_reference_groups {
+        let mut reference_type = 0;
+        let mut references = std::ptr::null_mut();
+        let count = unsafe {
+            libheif_sys::heif_context_get_item_references(
+                context,
+                item_id,
+                i32::try_from(index).ok()?,
+                &mut reference_type,
+                &mut references,
+            )
+        };
+        if count == 0 {
+            if !references.is_null() {
+                unsafe { libheif_sys::heif_release_item_references(context, &mut references) };
+            }
+            return Some(result);
+        }
+        if references.is_null() {
+            return None;
+        }
+        if count > item_count {
+            unsafe { libheif_sys::heif_release_item_references(context, &mut references) };
+            return None;
+        }
+        if reference_type.to_be_bytes() == *b"dimg" {
+            result.extend_from_slice(unsafe { std::slice::from_raw_parts(references, count) });
+        }
+        unsafe { libheif_sys::heif_release_item_references(context, &mut references) };
+    }
+
+    None
 }
 
 #[cfg(feature = "heic")]

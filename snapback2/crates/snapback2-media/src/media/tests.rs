@@ -1,4 +1,6 @@
 use super::*;
+#[cfg(feature = "heic")]
+use image::GenericImageView;
 use image::{ImageEncoder, Rgba, RgbaImage};
 use std::fs;
 use tempfile::TempDir;
@@ -452,6 +454,79 @@ fn mif1_only_hevc_primary_is_recognized_as_heic() {
     assert_eq!(detect_format(&mif1, CEILINGS).unwrap(), MediaFormat::Heic);
 }
 
+#[cfg(feature = "heic")]
+#[test]
+fn grid_primary_with_hevc_tiles_is_recognized_and_decodes() {
+    let source = fixture("grid-hvc1.heic");
+    let bytes = fs::read(&source).unwrap();
+    assert!(bytes.windows(4).any(|candidate| candidate == b"grid"));
+    assert_eq!(
+        bytes
+            .windows(4)
+            .filter(|candidate| *candidate == b"hvc1")
+            .count(),
+        2
+    );
+    assert_eq!(detect_format(&source, CEILINGS).unwrap(), MediaFormat::Heic);
+    let probed = probe(&source).unwrap();
+    assert_eq!(
+        (probed.width, probed.height, probed.orientation),
+        (16, 8, 1)
+    );
+    assert_eq!(
+        decode_heic(&source, CEILINGS).unwrap().dimensions(),
+        (16, 8)
+    );
+}
+
+#[cfg(feature = "heic")]
+#[test]
+fn overlay_primary_with_hevc_inputs_is_recognized_and_decodes() {
+    let source = fixture("iovl-hvc1.heic");
+    let bytes = fs::read(&source).unwrap();
+    assert!(bytes.windows(4).any(|candidate| candidate == b"iovl"));
+    assert_eq!(
+        bytes
+            .windows(4)
+            .filter(|candidate| *candidate == b"hvc1")
+            .count(),
+        2
+    );
+    assert_eq!(detect_format(&source, CEILINGS).unwrap(), MediaFormat::Heic);
+    let probed = probe(&source).unwrap();
+    assert_eq!(
+        (probed.width, probed.height, probed.orientation),
+        (16, 8, 1)
+    );
+    assert_eq!(
+        decode_heic(&source, CEILINGS).unwrap().dimensions(),
+        (16, 8)
+    );
+}
+
+#[cfg(feature = "heic")]
+#[test]
+fn grid_primary_with_any_av1_tiles_is_refused() {
+    let bytes = fs::read(fixture("grid-hvc1.heic")).unwrap();
+    let item_types = bytes
+        .windows(4)
+        .enumerate()
+        .filter_map(|(offset, candidate)| (candidate == b"hvc1").then_some(offset))
+        .collect::<Vec<_>>();
+    assert_eq!(item_types.len(), 2);
+    let temp = TempDir::new().unwrap();
+    for av1_tiles in 1..=item_types.len() {
+        let mut candidate = bytes.clone();
+        for offset in item_types.iter().take(av1_tiles) {
+            candidate[*offset..*offset + 4].copy_from_slice(b"av01");
+        }
+        let source = temp.path().join(format!("grid-{av1_tiles}-av01.heic"));
+        fs::write(&source, candidate).unwrap();
+        let refusal = detect_format(&source, CEILINGS).unwrap_err();
+        assert_eq!(refusal.code, E_ASSET_TYPE, "{av1_tiles} AV1 tiles");
+    }
+}
+
 #[cfg(not(feature = "heic"))]
 fn assert_explicit_hevc_brand_is_recognized(brand: &[u8; 4]) {
     let mut bytes = fs::read(fixture("minimal.heic")).unwrap();
@@ -493,7 +568,7 @@ fn avif_brands_are_refused_even_with_mif1_compatibility() {
 
 #[cfg(feature = "heic")]
 #[test]
-fn non_hevc_primary_item_is_refused_despite_heic_brand() {
+fn non_hevc_coded_primary_item_is_refused_despite_heic_brand() {
     let mut bytes = fs::read(fixture("minimal.heic")).unwrap();
     let item_type = bytes
         .windows(4)
