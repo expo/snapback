@@ -1028,37 +1028,15 @@ for await (const line of createInterface({{ input: process.stdin }})) {{
         ));
         let snapback = root.join("snapback");
         fs::create_dir_all(&snapback).unwrap();
+        // Authored in Quarry: the worker refuses TypeScript-authored backends (E_QUARRY_ONLY).
         fs::write(
-            snapback.join("schema.ts"),
-            r#"import { rule, schema, table, t } from "snapback2";
-export const items = table({
-  columns: { at: t.time(), label: t.text(40) },
-  indexes: { byAt: { columns: ["at", "id"] } },
-  rules: {
-    read: rule.public("compiled execution regression"),
-    insert: rule.public("compiled execution regression"),
-    update: rule.public("compiled execution regression"),
-    delete: rule.public("compiled execution regression"),
-  },
-});
-export default schema({ tables: { items } });
-"#,
+            snapback.join("schema.q"),
+            "table items:\n  at: time\n  label: text <=40\n  by byAt: at, id\n  public\n  insert r <- public\n  update r <- public\n  delete r <- public\n",
         )
         .unwrap();
         fs::write(
-            snapback.join("programs.ts"),
-            r#"import { mutation, query, t } from "snapback2";
-import { items } from "./schema";
-export const page = query({ previousId: t.id() }, ({ db, args }) => {
-  const previous = db.get(items, args.previousId)!;
-  return db.scan(items.byAt, [], { take: 1, after: [previous.at, previous.id] });
-});
-export const count = query({}, ({ db }) => db.scan(items.byAt, [], { take: 2 }).countCapped());
-export const put = mutation({ id: t.id() }, ({ db, args }) => {
-  db.insert(items, { id: args.id, at: 2, label: "inserted" });
-  return args.id;
-});
-"#,
+            snapback.join("programs.q"),
+            "query page(previousId: items):\n  previous = items[previousId]! else NOT_FOUND\n  return items[] after (previous.at, previous.id) first 1 by byAt\n\nquery count():\n  return count(items[] first 2 by byAt)\n\nmutation put(id: id):\n  +items { id, at: 2, label: 'inserted' }\n  return id\n",
         )
         .unwrap();
 
