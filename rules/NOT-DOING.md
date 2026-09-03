@@ -17,8 +17,12 @@ the author delegated this ruling to the orchestrator on 2026-09-02):
 - **The capability bar.** `benchmarks/briefs/social-messenger.md` M1–M3 as
   written: Expo on iOS, Android, and web; an avatar; one to four images and one
   video; no external I/O. It starts only after the loop bar is met on a
-  published package, and when it starts LLP 1006 is trimmed to the brief's
-  formats. Until then the media and Expo slice stays on this list.
+  published package. When it starts, LLP 1006's first slice is the brief's
+  formats **plus HEIC and QuickTime MOV** (author ruling 2026-09-03, held over
+  a 2–1 panel recommendation): iPhone cameras produce both, and the brief's
+  own real-phone acceptance cannot pass without them. The offsetting item is
+  non-media `file` columns, which LLP 1006 §13a designs and defers to a later
+  slice. Until then the media and Expo slice stays on this list.
 
 ## Not building
 
