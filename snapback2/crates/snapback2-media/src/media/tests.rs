@@ -436,16 +436,49 @@ fn heic_ispe_limit_refuses_before_pixel_decode() {
     assert!(refusal.detail.contains("longest-edge"));
 }
 
+#[cfg(feature = "heic")]
 #[test]
-fn mif1_compatible_brand_is_recognized_as_heic() {
+fn mif1_only_hevc_primary_is_recognized_as_heic() {
     let source = fixture("minimal.heic");
     let mut bytes = fs::read(&source).unwrap();
     assert!(bytes.windows(4).any(|brand| brand == b"mif1"));
     bytes[8..12].copy_from_slice(b"mif1");
+    bytes[16..20].copy_from_slice(b"mif1");
+    bytes[20..24].copy_from_slice(b"mif1");
+    bytes[24..28].copy_from_slice(b"miaf");
     let temp = TempDir::new().unwrap();
     let mif1 = temp.path().join("mif1.heic");
     fs::write(&mif1, bytes).unwrap();
     assert_eq!(detect_format(&mif1, CEILINGS).unwrap(), MediaFormat::Heic);
+}
+
+#[test]
+fn avif_brands_are_refused_even_with_mif1_compatibility() {
+    for brand in [b"avif", b"avis", b"av01"] {
+        let mut bytes = fs::read(fixture("minimal.heic")).unwrap();
+        bytes[8..12].copy_from_slice(brand);
+        let temp = TempDir::new().unwrap();
+        let path = temp.path().join("avif.bin");
+        fs::write(&path, bytes).unwrap();
+        let refusal = detect_format(&path, CEILINGS).unwrap_err();
+        assert_eq!(refusal.code, E_ASSET_TYPE, "{brand:?}");
+    }
+}
+
+#[cfg(feature = "heic")]
+#[test]
+fn non_hevc_primary_item_is_refused_despite_heic_brand() {
+    let mut bytes = fs::read(fixture("minimal.heic")).unwrap();
+    let item_type = bytes
+        .windows(4)
+        .position(|candidate| candidate == b"hvc1")
+        .expect("fixture has an HEVC primary item");
+    bytes[item_type..item_type + 4].copy_from_slice(b"av01");
+    let temp = TempDir::new().unwrap();
+    let path = temp.path().join("non-hevc.heic");
+    fs::write(&path, bytes).unwrap();
+    let refusal = detect_format(&path, CEILINGS).unwrap_err();
+    assert_eq!(refusal.code, E_ASSET_TYPE);
 }
 
 #[test]

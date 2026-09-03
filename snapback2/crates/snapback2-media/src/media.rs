@@ -388,13 +388,13 @@ fn detect_format(path: &Path, ceilings: Ceilings) -> Result<MediaFormat, Refusal
     if prefix.len() >= 12 && &prefix[..4] == b"RIFF" && &prefix[8..12] == b"WEBP" {
         return Ok(MediaFormat::Webp);
     }
-    if heic_brand(&mut file, ceilings)? {
+    if heic_brand(path, &mut file, ceilings)? {
         return Ok(MediaFormat::Heic);
     }
     Err(Refusal::asset_type("input is not JPEG, PNG, WebP, or HEIC"))
 }
 
-fn heic_brand(file: &mut File, ceilings: Ceilings) -> Result<bool, Refusal> {
+fn heic_brand(path: &Path, file: &mut File, ceilings: Ceilings) -> Result<bool, Refusal> {
     file.seek(SeekFrom::Start(0))
         .map_err(|error| Refusal::asset_type(format!("cannot seek HEIC header: {error}")))?;
     let mut header = [0_u8; 8];
@@ -421,13 +421,35 @@ fn heic_brand(file: &mut File, ceilings: Ceilings) -> Result<bool, Refusal> {
     })?;
     let brands = payload[..4]
         .chunks_exact(4)
-        .chain(payload.get(8..).unwrap_or_default().chunks_exact(4));
-    Ok(brands.into_iter().any(|brand| {
-        matches!(
-            brand,
-            b"heic" | b"heix" | b"heim" | b"heis" | b"hevc" | b"hevx" | b"mif1"
-        )
-    }))
+        .chain(payload.get(8..).unwrap_or_default().chunks_exact(4))
+        .collect::<Vec<_>>();
+    if brands
+        .iter()
+        .any(|brand| [b"avif".as_slice(), b"avis", b"av01"].contains(brand))
+    {
+        return Ok(false);
+    }
+    let declares_hevc = brands
+        .iter()
+        .any(|brand| [b"heic".as_slice(), b"heix", b"hevc", b"hevx"].contains(brand));
+    let generic_heif = brands
+        .iter()
+        .any(|brand| [b"mif1".as_slice(), b"msf1"].contains(brand));
+    if !declares_hevc && !generic_heif {
+        return Ok(false);
+    }
+
+    #[cfg(feature = "heic")]
+    {
+        heif_primary_item_is_hevc_file(path)
+    }
+    #[cfg(not(feature = "heic"))]
+    {
+        let _ = path;
+        // A generic HEIF brand says nothing about the primary codec. Without
+        // libheif, only an explicit HEVC brand can select the HEIC path.
+        Ok(declares_hevc)
+    }
 }
 
 fn inspect_raster(path: &Path, ceilings: Ceilings) -> Result<RasterHeader, Refusal> {
@@ -1042,21 +1064,71 @@ fn heic_has_item_transform_bytes(bytes: &[u8]) -> Result<bool, Refusal> {
 }
 
 #[cfg(feature = "heic")]
+struct RawHeifContext(*mut libheif_sys::heif_context);
+
+#[cfg(feature = "heic")]
+impl Drop for RawHeifContext {
+    fn drop(&mut self) {
+        unsafe { libheif_sys::heif_context_free(self.0) };
+    }
+}
+
+#[cfg(feature = "heic")]
+fn read_raw_heif_context(
+    read: impl FnOnce(*mut libheif_sys::heif_context) -> libheif_sys::heif_error,
+    action: &str,
+) -> Result<RawHeifContext, Refusal> {
+    let context = RawHeifContext(unsafe { libheif_sys::heif_context_alloc() });
+    if context.0.is_null() {
+        return Err(Refusal::asset_type("cannot allocate HEIF context"));
+    }
+    raw_heic_ok(read(context.0), action)?;
+    Ok(context)
+}
+
+#[cfg(feature = "heic")]
+fn heif_primary_item_is_hevc_file(path: &Path) -> Result<bool, Refusal> {
+    use std::ffi::CString;
+
+    let path = CString::new(path.to_string_lossy().as_bytes())
+        .map_err(|_| Refusal::asset_type("HEIF path contains a NUL byte"))?;
+    heif_primary_item_is_hevc(|context| unsafe {
+        libheif_sys::heif_context_read_from_file(context, path.as_ptr(), std::ptr::null())
+    })
+}
+
+#[cfg(feature = "heic")]
+fn heif_primary_item_is_hevc_bytes(bytes: &[u8]) -> Result<bool, Refusal> {
+    heif_primary_item_is_hevc(|context| unsafe {
+        libheif_sys::heif_context_read_from_memory_without_copy(
+            context,
+            bytes.as_ptr().cast(),
+            bytes.len(),
+            std::ptr::null(),
+        )
+    })
+}
+
+#[cfg(feature = "heic")]
+fn heif_primary_item_is_hevc(
+    read: impl FnOnce(*mut libheif_sys::heif_context) -> libheif_sys::heif_error,
+) -> Result<bool, Refusal> {
+    let context = read_raw_heif_context(read, "cannot read HEIF primary item")?;
+    let mut item_id = 0;
+    raw_heic_ok(
+        unsafe { libheif_sys::heif_context_get_primary_image_ID(context.0, &mut item_id) },
+        "HEIF has no primary image",
+    )?;
+    let item_type = unsafe { libheif_sys::heif_item_get_item_type(context.0, item_id) };
+    let item_type = item_type.to_be_bytes();
+    Ok(item_type == *b"hvc1" || item_type == *b"hev1")
+}
+
+#[cfg(feature = "heic")]
 fn raw_heic_has_item_transform(
     read: impl FnOnce(*mut libheif_sys::heif_context) -> libheif_sys::heif_error,
 ) -> Result<bool, Refusal> {
-    struct RawContext(*mut libheif_sys::heif_context);
-    impl Drop for RawContext {
-        fn drop(&mut self) {
-            unsafe { libheif_sys::heif_context_free(self.0) };
-        }
-    }
-
-    let context = RawContext(unsafe { libheif_sys::heif_context_alloc() });
-    if context.0.is_null() {
-        return Err(Refusal::asset_type("cannot allocate HEIC context"));
-    }
-    raw_heic_ok(read(context.0), "cannot read HEIC transforms")?;
+    let context = read_raw_heif_context(read, "cannot read HEIC transforms")?;
     let mut item_id = 0;
     raw_heic_ok(
         unsafe { libheif_sys::heif_context_get_primary_image_ID(context.0, &mut item_id) },
@@ -1139,6 +1211,9 @@ fn decode_heic(path: &Path, ceilings: Ceilings) -> Result<image::DynamicImage, R
 fn decode_heic_bytes(bytes: &[u8], ceilings: Ceilings) -> Result<image::DynamicImage, Refusal> {
     use libheif_rs::HeifContext;
 
+    if !heif_primary_item_is_hevc_bytes(bytes)? {
+        return Err(Refusal::asset_type("HEIF primary image is not HEVC"));
+    }
     let context = HeifContext::read_from_bytes(bytes)
         .map_err(|error| Refusal::asset_type(format!("cannot read HEIC container: {error}")))?;
     let has_item_transform = heic_has_item_transform_bytes(bytes)?;

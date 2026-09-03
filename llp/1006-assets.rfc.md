@@ -12,7 +12,10 @@ decode helper executable, §14a), `packages/compiler` (the column types),
 revisions (f)–(j) by Claude Fable 5.1 at the author's rulings, in session,
 2026-09-03
 **Date:** 2026-08-31
-**Revised:** 2026-09-03 (j — the second panel folded (§16): fourteen unanimous
+**Revised:** 2026-09-03 (k — lane B3 publication source-builds and statically
+links a pinned decoder-only libheif → libde265 closure at the helper's derived
+platform floor; the package carries no codec dylibs, and Darwin/Linux
+dependency qualification is symmetric (§14a).); 2026-09-03 (j — the second panel folded (§16): fourteen unanimous
 findings and the author's six decisions on the splits. **Correctness:**
 asset-typed arguments are ledger-validated at mutation entry, inside the
 transaction, so `require clip.duration` reads a fact (§6); the certified
@@ -1383,6 +1386,18 @@ schema admits is the v1 HEIC bug in a new coat. The build flag stays for the
 development loop. `publish.mjs` reports the helper's size beside the
 engine's, and that number is the trigger for a slim package if it ever
 measures badly.
+
+**Publication source-builds one decoder-only static closure.** The publish
+path builds pinned, checksummed libde265 and libheif sources under `target/`,
+with libde265's encoder disabled and libheif's libde265 decoder enabled while
+every encoder and other decoder is disabled. It derives the macOS deployment
+target from a codec-free production build of the helper and uses that same
+target for both C libraries and the final Rust link; Linux uses the same
+source/static path. The shipped helper has no codec-library load commands.
+Publish refuses non-system Mach-O/ELF dependencies, refuses any shipped Mach-O
+whose minimum OS exceeds the helper's, and caches the source build by versions,
+hashes, platform, architecture, flags, and deployment target. There is no
+dylib-bundling fallback.
 
 **A missing codec refuses loudly; nothing degrades.** An installation with no
 helper at all whose schema declares an `image` column refuses at boot, exactly
