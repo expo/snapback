@@ -3,3 +3,4 @@ dist/
 .hermes/
 node_modules/
 packages/*/dist/
+.snapback/
