@@ -1,7 +1,7 @@
 # snapback2: shaped page results are `any[]` in the generated `api.d.ts`
 
 **Opened:** 2026-09-03 (Clique Pay lane, blind review finding)
-**Resolved:** 2026-09-03 (`<SHA>`)
+**Resolved:** 2026-09-03 (`2d3a1d0dc`)
 **Area:** `snapback2/packages/compiler/src/project.ts` (API result inference)
 
 A query that returns a shaped page (`table[...] first N { *, nested: ... }`)
