@@ -12,6 +12,8 @@ use std::fs::{File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::ops::Range;
 use std::path::Path;
+#[cfg(test)]
+use std::time::Duration;
 use std::time::Instant;
 
 /// Bounds enforced during one video-container walk.
@@ -58,7 +60,7 @@ const XMP_UUID: [u8; 16] = [
 ];
 
 #[derive(Debug)]
-enum WalkRefusal {
+enum WalkRefusalKind {
     AssetType(String),
     Io {
         action: &'static str,
@@ -66,35 +68,60 @@ enum WalkRefusal {
     },
 }
 
+#[derive(Debug)]
+struct WalkRefusal {
+    kind: WalkRefusalKind,
+    mutated: bool,
+}
+
 type WalkResult<T> = Result<T, WalkRefusal>;
 
 impl From<WalkRefusal> for Refusal {
     fn from(refusal: WalkRefusal) -> Self {
-        match refusal {
-            WalkRefusal::AssetType(message) => Refusal::new(
-                "E_ASSET_TYPE",
-                "input",
-                message,
-                "upload an MP4 or QuickTime MOV whose metadata and video facts can be verified",
-                "assets/video",
-            ),
-            WalkRefusal::Io { action, error } => Refusal::new(
+        let rewrite = if refusal.mutated {
+            "discard this staging file and retry the upload"
+        } else {
+            "upload an MP4 or QuickTime MOV whose metadata and video facts can be verified"
+        };
+        let converted = match refusal.kind {
+            WalkRefusalKind::AssetType(message) => {
+                Refusal::new("E_ASSET_TYPE", "input", message, rewrite, "assets/video")
+            }
+            WalkRefusalKind::Io { action, error } => Refusal::new(
                 "E_OWNER_ASSET_IO",
                 "owner",
                 format!("could not {action} the video staging file: {error}"),
                 "discard this staging file and retry the upload",
                 "assets/video",
             ),
+        };
+        if refusal.mutated {
+            converted.with_detail("mutated", serde_json::Value::Bool(true))
+        } else {
+            converted
         }
     }
 }
 
+impl WalkRefusal {
+    fn after_mutation(mut self) -> Self {
+        self.mutated = true;
+        self
+    }
+}
+
 fn asset_type_refusal(message: impl Into<String>) -> WalkRefusal {
-    WalkRefusal::AssetType(message.into())
+    WalkRefusal {
+        kind: WalkRefusalKind::AssetType(message.into()),
+        mutated: false,
+    }
 }
 
 fn io_refusal(action: &'static str, error: std::io::Error) -> WalkRefusal {
-    WalkRefusal::Io { action, error }
+    WalkRefusal {
+        kind: WalkRefusalKind::Io { action, error },
+        mutated: false,
+    }
 }
 
 fn check_deadline(started: Instant, ceilings: &Ceilings) -> WalkResult<()> {
@@ -114,15 +141,17 @@ fn escaped_box_kind(kind: &[u8; 4]) -> String {
         .collect()
 }
 
-fn is_xmp_uuid_or_torn_zero(extended_type: &[u8; 16]) -> bool {
-    let zeroed_prefix = extended_type.iter().take_while(|byte| **byte == 0).count();
-    extended_type[zeroed_prefix..] == XMP_UUID[zeroed_prefix..]
-}
-
 #[derive(Debug)]
-struct BlankAction {
-    type_at: u64,
-    payload: Range<u64>,
+enum BlankAction {
+    Whole {
+        type_at: u64,
+        payload: Range<u64>,
+    },
+    Xmp {
+        type_at: u64,
+        extended_type: Range<u64>,
+        payload: Range<u64>,
+    },
 }
 
 #[derive(Debug)]
@@ -131,6 +160,19 @@ struct BoxHeader {
     type_at: u64,
     payload_start: u64,
     end: u64,
+}
+
+#[derive(Debug)]
+struct TrackHeader {
+    a: i32,
+    b: i32,
+    u: i32,
+    c: i32,
+    d: i32,
+    v: i32,
+    w: i32,
+    width: u32,
+    height: u32,
 }
 
 struct Walk<'a> {
@@ -275,7 +317,7 @@ impl<'a> Walk<'a> {
         }
         let mut at = start;
         while at < end {
-            if depth == 0 && self.region_is_all_zero(at, end)? {
+            if depth == 0 && self.top_level_is_zero_padding(at, end)? {
                 break;
             }
             let header = self.header(at, end, depth == 0)?;
@@ -285,7 +327,7 @@ impl<'a> Walk<'a> {
         Ok(())
     }
 
-    fn region_is_all_zero(&mut self, start: u64, end: u64) -> WalkResult<bool> {
+    fn top_level_is_zero_padding(&mut self, start: u64, end: u64) -> WalkResult<bool> {
         let mut buffer = [0u8; 8192];
         let remaining = end - start;
         let length = usize::try_from(remaining.min(buffer.len() as u64)).unwrap();
@@ -350,9 +392,13 @@ impl<'a> Walk<'a> {
                     ));
                 }
                 let extended_type = self.read_exact_at::<16>(header.payload_start)?;
-                if is_xmp_uuid_or_torn_zero(&extended_type) {
+                if extended_type == XMP_UUID {
                     self.metadata_check(payload_len)?;
-                    self.record_blank(header);
+                    self.blanks.push(BlankAction::Xmp {
+                        type_at: header.type_at,
+                        extended_type: header.payload_start..header.payload_start + 16,
+                        payload: header.payload_start + 16..header.end,
+                    });
                     Ok(())
                 } else {
                     Err(asset_type_refusal(
@@ -361,7 +407,7 @@ impl<'a> Walk<'a> {
                 }
             }
             b"free" => {
-                self.record_blank(header);
+                self.record_free_if_nonzero(header)?;
                 Ok(())
             }
             [0xA9, b'x', b'y', b'z'] | b"loci" if parent == b"udta" => {
@@ -379,15 +425,15 @@ impl<'a> Walk<'a> {
                 self.ceilings.max_box_depth
             )));
         }
-        let mut extent = None;
+        let mut track_header = None;
         let mut handler_type = None;
         let mut at = header.payload_start;
         while at < header.end {
             let child = self.header(at, header.end, false)?;
             match &child.kind {
                 b"tkhd" => {
-                    if extent.is_none() {
-                        extent = self.extent_from_tkhd(&child)?;
+                    if track_header.is_none() {
+                        track_header = Some(self.parse_tkhd(&child)?);
                     }
                 }
                 b"mdia" => {
@@ -401,11 +447,15 @@ impl<'a> Walk<'a> {
             at = child.end;
         }
         if handler_type == Some(*b"vide")
-            && let Some((width, height)) = extent
-            && self.width.is_none()
+            && let Some(track_header) = track_header
         {
-            self.width = Some(width);
-            self.height = Some(height);
+            let extent = track_header.display_extent()?;
+            if let Some((width, height)) = extent
+                && self.width.is_none()
+            {
+                self.width = Some(width);
+                self.height = Some(height);
+            }
         }
         Ok(())
     }
@@ -446,10 +496,37 @@ impl<'a> Walk<'a> {
     }
 
     fn record_blank(&mut self, header: &BoxHeader) {
-        self.blanks.push(BlankAction {
+        self.blanks.push(BlankAction::Whole {
             type_at: header.type_at,
             payload: header.payload_start..header.end,
         });
+    }
+
+    fn record_free_if_nonzero(&mut self, header: &BoxHeader) -> WalkResult<()> {
+        if !self.region_is_all_zero(header.payload_start, header.end)? {
+            self.record_blank(header);
+        }
+        Ok(())
+    }
+
+    fn region_is_all_zero(&mut self, start: u64, end: u64) -> WalkResult<bool> {
+        let mut at = start;
+        let mut buffer = [0u8; 8192];
+        self.file
+            .seek(SeekFrom::Start(start))
+            .map_err(|error| io_refusal("seek in", error))?;
+        while at < end {
+            let length = usize::try_from((end - at).min(buffer.len() as u64)).unwrap();
+            self.file
+                .read_exact(&mut buffer[..length])
+                .map_err(|error| io_refusal("read", error))?;
+            if buffer[..length].iter().any(|byte| *byte != 0) {
+                return Ok(false);
+            }
+            at += length as u64;
+            self.check_time()?;
+        }
+        Ok(true)
     }
 
     fn visit_meta(&mut self, start: u64, end: u64, depth: u32) -> WalkResult<()> {
@@ -470,7 +547,7 @@ impl<'a> Walk<'a> {
                         self.location_key_indices(header.payload_start, header.end)?;
                 }
                 b"ilst" => ilst = Some((header.payload_start, header.end)),
-                b"free" => self.record_blank(&header),
+                b"free" => self.record_free_if_nonzero(&header)?,
                 _ => {}
             }
             at = header.end;
@@ -482,7 +559,9 @@ impl<'a> Walk<'a> {
                 let index = u32::from_be_bytes(header.kind);
                 let named_location = location_key_indices.contains(&index);
                 let direct_location = matches!(&header.kind, [0xA9, b'x', b'y', b'z'] | b"loci");
-                if named_location || direct_location || header.kind == *b"free" {
+                if header.kind == *b"free" {
+                    self.record_free_if_nonzero(&header)?;
+                } else if named_location || direct_location {
                     self.record_blank(&header);
                 }
                 at = header.end;
@@ -596,7 +675,7 @@ impl<'a> Walk<'a> {
         Ok(())
     }
 
-    fn extent_from_tkhd(&mut self, header: &BoxHeader) -> WalkResult<Option<(u32, u32)>> {
+    fn parse_tkhd(&mut self, header: &BoxHeader) -> WalkResult<TrackHeader> {
         let p = header.payload_start;
         if p.checked_add(4).is_none_or(|needed| needed > header.end) {
             return Err(asset_type_refusal("tkhd smaller than its fullbox header"));
@@ -622,54 +701,106 @@ impl<'a> Walk<'a> {
         let w = i32::from_be_bytes(fields[32..36].try_into().unwrap());
         let width = u32::from_be_bytes(fields[36..40].try_into().unwrap());
         let height = u32::from_be_bytes(fields[40..44].try_into().unwrap());
-        if u != 0 || v != 0 || w != 0x4000_0000 {
+        Ok(TrackHeader {
+            a,
+            b,
+            u,
+            c,
+            d,
+            v,
+            w,
+            width,
+            height,
+        })
+    }
+
+    fn apply_blanks(&mut self) -> WalkResult<()> {
+        if self.blanks.is_empty() {
+            return Ok(());
+        }
+        let mut mutation_started = false;
+        let result = self.apply_blanks_inner(&mut mutation_started);
+        if mutation_started {
+            result.map_err(WalkRefusal::after_mutation)
+        } else {
+            result
+        }
+    }
+
+    fn apply_blanks_inner(&mut self, mutation_started: &mut bool) -> WalkResult<()> {
+        const ZEROS: [u8; 8192] = [0; 8192];
+        for index in 0..self.blanks.len() {
+            let (type_at, first_payload, final_payload) = match &self.blanks[index] {
+                BlankAction::Whole { type_at, payload } => (*type_at, payload.clone(), None),
+                BlankAction::Xmp {
+                    type_at,
+                    extended_type,
+                    payload,
+                } => (*type_at, payload.clone(), Some(extended_type.clone())),
+            };
+            self.zero_range(first_payload, &ZEROS, mutation_started)?;
+            self.file
+                .seek(SeekFrom::Start(type_at))
+                .map_err(|error| io_refusal("seek in", error))?;
+            *mutation_started = true;
+            self.file
+                .write_all(b"free")
+                .map_err(|error| io_refusal("write", error))?;
+            if let Some(final_payload) = final_payload {
+                self.zero_range(final_payload, &ZEROS, mutation_started)?;
+            }
+        }
+        self.file
+            .sync_data()
+            .map_err(|error| io_refusal("sync", error))
+    }
+
+    fn zero_range(
+        &mut self,
+        payload: Range<u64>,
+        zeros: &[u8; 8192],
+        mutation_started: &mut bool,
+    ) -> WalkResult<()> {
+        if payload.is_empty() {
+            return Ok(());
+        }
+        self.file
+            .seek(SeekFrom::Start(payload.start))
+            .map_err(|error| io_refusal("seek in", error))?;
+        let mut remaining = payload.end - payload.start;
+        while remaining > 0 {
+            let length = usize::try_from(remaining.min(zeros.len() as u64)).unwrap();
+            *mutation_started = true;
+            self.file
+                .write_all(&zeros[..length])
+                .map_err(|error| io_refusal("write", error))?;
+            remaining -= length as u64;
+            self.check_time()?;
+        }
+        Ok(())
+    }
+}
+
+impl TrackHeader {
+    fn display_extent(&self) -> WalkResult<Option<(u32, u32)>> {
+        if self.u != 0 || self.v != 0 || self.w != 0x4000_0000 {
             return Err(asset_type_refusal(
                 "tkhd transform is projective rather than affine",
             ));
         }
-        if i128::from(a) * i128::from(d) - i128::from(b) * i128::from(c) == 0 {
+        if i128::from(self.a) * i128::from(self.d) - i128::from(self.b) * i128::from(self.c) == 0 {
             return Err(asset_type_refusal("tkhd transform matrix is singular"));
         }
-        if width == 0 || height == 0 {
+        if self.width == 0 || self.height == 0 {
             return Ok(None);
         }
-        let display_width = transformed_extent(a, c, width, height)?;
-        let display_height = transformed_extent(b, d, width, height)?;
+        let display_width = transformed_extent(self.a, self.c, self.width, self.height)?;
+        let display_height = transformed_extent(self.b, self.d, self.width, self.height)?;
         if display_width > 0 && display_height > 0 {
             Ok(Some((display_width, display_height)))
         } else {
             Ok(None)
         }
-    }
-
-    fn apply_blanks(&mut self) -> WalkResult<()> {
-        const ZEROS: [u8; 8192] = [0; 8192];
-        for index in 0..self.blanks.len() {
-            let type_at = self.blanks[index].type_at;
-            let payload = self.blanks[index].payload.clone();
-            self.file
-                .seek(SeekFrom::Start(payload.start))
-                .map_err(|error| io_refusal("seek in", error))?;
-            let mut remaining = payload.end - payload.start;
-            while remaining > 0 {
-                self.check_time()?;
-                let length = usize::try_from(remaining.min(ZEROS.len() as u64)).unwrap();
-                self.file
-                    .write_all(&ZEROS[..length])
-                    .map_err(|error| io_refusal("write", error))?;
-                remaining -= length as u64;
-                self.check_time()?;
-            }
-            self.file
-                .seek(SeekFrom::Start(type_at))
-                .map_err(|error| io_refusal("seek in", error))?;
-            self.file
-                .write_all(b"free")
-                .map_err(|error| io_refusal("write", error))?;
-        }
-        self.file
-            .sync_data()
-            .map_err(|error| io_refusal("sync", error))
     }
 }
 
@@ -759,16 +890,25 @@ fn check_brand(
 ///
 /// The complete read-only walk succeeds before the first byte is changed. Location-bearing
 /// box types become `free` and their payloads become zeroes; box sizes and media offsets do
-/// not move. Payload zeroing precedes each type rewrite, so a torn zero still leaves the
-/// location-bearing type and an accidental retry re-blanks it. The caller contract is stricter:
-/// a returned error after mutation has begun means the staging file must be discarded, never
-/// retried. Success is synced to the staging file before return. Missing or zero closed-record
+/// not move. XMP blanking first zeroes only the payload after its exact UUID, then rewrites the
+/// type, then zeroes the UUID; either side of the type rewrite is therefore recognizable on retry.
+/// Every returned refusal after a write may have begun carries a top-level `mutated: true` detail
+/// and the discard rewrite. Callers must discard, not retry, any staging file whose refusal carries
+/// that marker. Success is synced to the staging file before return. Missing or zero closed-record
 /// facts refuse rather than returning partial facts.
 pub fn walk_and_strip(path: &Path, ceilings: &Ceilings) -> Result<VideoFacts, Refusal> {
     walk_and_strip_inner(path, ceilings).map_err(Refusal::from)
 }
 
 fn walk_and_strip_inner(path: &Path, ceilings: &Ceilings) -> WalkResult<VideoFacts> {
+    walk_and_strip_inner_with_before_apply(path, ceilings, |_| {})
+}
+
+fn walk_and_strip_inner_with_before_apply(
+    path: &Path,
+    ceilings: &Ceilings,
+    before_apply: impl FnOnce(&mut Walk<'_>),
+) -> WalkResult<VideoFacts> {
     let started = Instant::now();
     let mut file = OpenOptions::new()
         .read(true)
@@ -803,6 +943,7 @@ fn walk_and_strip_inner(path: &Path, ceilings: &Ceilings) -> WalkResult<VideoFac
             ));
         }
     };
+    before_apply(&mut walk);
     walk.apply_blanks()?;
     Ok(VideoFacts {
         detected_type,
@@ -810,4 +951,16 @@ fn walk_and_strip_inner(path: &Path, ceilings: &Ceilings) -> WalkResult<VideoFac
         width,
         height,
     })
+}
+
+#[cfg(test)]
+pub(crate) fn walk_and_strip_with_expired_apply_deadline(
+    path: &Path,
+    ceilings: &Ceilings,
+) -> Result<VideoFacts, Refusal> {
+    walk_and_strip_inner_with_before_apply(path, ceilings, |walk| {
+        walk.started =
+            Instant::now() - Duration::from_millis(ceilings.step_time_budget_ms.saturating_add(1));
+    })
+    .map_err(Refusal::from)
 }

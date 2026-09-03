@@ -1,4 +1,7 @@
-use crate::video_walk::{Ceilings, DEFAULT_CEILINGS, VideoFacts, walk_and_strip};
+use crate::video_walk::{
+    Ceilings, DEFAULT_CEILINGS, VideoFacts, walk_and_strip,
+    walk_and_strip_with_expired_apply_deadline,
+};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -313,11 +316,11 @@ fn retry_blanks_a_free_box_with_a_nonzero_location_payload() {
 }
 
 #[test]
-fn retry_recognizes_a_torn_xmp_uuid_zero() {
-    let mut torn_xmp_type = XMP_UUID;
-    torn_xmp_type[..7].fill(0);
-    let mut payload = torn_xmp_type.to_vec();
-    payload.extend_from_slice(b"<x:xmpmeta>location remains</x:xmpmeta>");
+fn retry_reblanks_genuine_xmp_with_an_exact_uuid_and_partially_zeroed_payload() {
+    let mut torn_xmp_payload = b"<x:xmpmeta>location remains</x:xmpmeta>".to_vec();
+    torn_xmp_payload[..9].fill(0);
+    let mut payload = XMP_UUID.to_vec();
+    payload.extend_from_slice(&torn_xmp_payload);
     let source = [
         mp4_ftyp(),
         video_moov(640, 480, IDENTITY),
@@ -331,6 +334,52 @@ fn retry_recognizes_a_torn_xmp_uuid_zero() {
     assert_facts(facts, "video/mp4", 640, 480);
     assert!(!contains(&canonical, b"location remains"));
     assert!(!contains(&canonical, b"uuid"));
+}
+
+#[test]
+fn all_zero_extended_uuid_with_vendor_payload_refuses_without_modification() {
+    let mut payload = vec![0u8; 16];
+    payload.extend_from_slice(b"vendor metadata");
+    let source = [
+        mp4_ftyp(),
+        video_moov(640, 480, IDENTITY),
+        boxed(b"uuid", &payload),
+    ]
+    .concat();
+    let staging = StagingFile::new(&source);
+
+    assert_type_refusal(
+        walk_and_strip(staging.path(), &DEFAULT_CEILINGS),
+        "unclassified uuid metadata box",
+    );
+    assert_eq!(staging.bytes(), source);
+}
+
+#[test]
+fn post_mutation_deadline_refusal_marks_the_staging_file_for_discard() {
+    let mut payload = XMP_UUID.to_vec();
+    payload.extend_from_slice(b"location remains after a torn blank");
+    let source = [
+        mp4_ftyp(),
+        video_moov(640, 480, IDENTITY),
+        boxed(b"uuid", &payload),
+    ]
+    .concat();
+    let staging = StagingFile::new(&source);
+
+    let refusal =
+        walk_and_strip_with_expired_apply_deadline(staging.path(), &DEFAULT_CEILINGS).unwrap_err();
+    assert_eq!(refusal.code, "E_ASSET_TYPE");
+    assert_eq!(refusal.detail.get("mutated"), Some(&true.into()));
+    assert_eq!(
+        refusal.rewrite.as_deref(),
+        Some("discard this staging file and retry the upload")
+    );
+
+    let torn = staging.bytes();
+    assert!(contains(&torn, b"uuid"));
+    assert!(contains(&torn, &XMP_UUID));
+    assert!(!contains(&torn, b"location remains"));
 }
 
 #[test]
@@ -620,6 +669,41 @@ fn audio_track_before_video_track_uses_the_video_dimensions() {
         1280,
         720,
     );
+}
+
+#[test]
+fn projective_audio_track_does_not_refuse_a_valid_video_track() {
+    let audio = track(
+        b"soun",
+        tkhd_with_terms(0, 0, IDENTITY, 1, 0, 0x4000_0000, 0),
+        &[],
+    );
+    let video = video_track(1280, 720, IDENTITY);
+    let moov = boxed(b"moov", &[mvhd(1000, 2000), audio, video].concat());
+    let staging = StagingFile::new(&[mp4_ftyp(), moov].concat());
+
+    assert_facts(
+        walk_and_strip(staging.path(), &DEFAULT_CEILINGS).unwrap(),
+        "video/mp4",
+        1280,
+        720,
+    );
+}
+
+#[test]
+fn large_all_zero_free_after_mdat_is_untouched_and_spends_no_apply_deadline() {
+    let mdat = boxed(b"mdat", b"media bytes");
+    let reserved = boxed(b"free", &[0u8; 64 * 1024]);
+    let source = [mp4_ftyp(), video_moov(640, 480, IDENTITY), mdat, reserved].concat();
+    let staging = StagingFile::new(&source);
+
+    assert_facts(
+        walk_and_strip_with_expired_apply_deadline(staging.path(), &DEFAULT_CEILINGS).unwrap(),
+        "video/mp4",
+        640,
+        480,
+    );
+    assert_eq!(staging.bytes(), source);
 }
 
 #[test]
