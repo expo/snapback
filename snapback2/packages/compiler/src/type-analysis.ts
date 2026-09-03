@@ -232,6 +232,19 @@ class Analyzer {
       const base = this.expression(value.expression, env, undefined, true);
       if (base.kind === "row") return this.table(base.table)?.columns?.[value.name.text] ?? unknownType;
       if (base.kind === "object") return base.fields?.[value.name.text] ?? unknownType;
+      if (base.kind === "asset") {
+        const field = assetFieldType(base.asset, value.name.text);
+        if (field) return field;
+        const available = base.asset === "image" ? "id, width, height" : "id, width, height, duration";
+        const replacement = `${value.expression.getText(this.module.sourceFile)}.${base.asset === "video" ? "duration" : "width"}`;
+        this.add(
+          "E_ARGS_TYPE",
+          value,
+          `${base.asset} asset has no field ${value.name.text}; available fields are ${available}`,
+          replaceNode(this.module.source, value, replacement),
+        );
+        return unknownType;
+      }
       if ((base.kind === "list" || base.kind === "string") && value.name.text === "length") return { kind: "int" };
       return unknownType;
     }
@@ -1014,6 +1027,10 @@ function descriptorType(node: ts.Expression): AuthoredType {
     const maxNode = call.arguments[0] && unwrapExpression(call.arguments[0]);
     return { kind: "bytes", max: maxNode && ts.isNumericLiteral(maxNode) ? Number(maxNode.text) : 0 };
   }
+  if (name === "image" || name === "video") {
+    const maxNode = call.arguments[0] && unwrapExpression(call.arguments[0]);
+    return { kind: "asset", asset: name, max: maxNode && ts.isNumericLiteral(maxNode) ? Number(maxNode.text) : 0 };
+  }
   if (name === "bool") return { kind: "bool" };
   if (name === "json") return { kind: "json" };
   if (name === "enum") {
@@ -1095,10 +1112,18 @@ function commonType(values: AuthoredType[]): AuthoredType {
   return values.every((item) => JSON.stringify(item) === first) ? values[0]! : unknownType;
 }
 
+function assetFieldType(asset: "image" | "video", field: string): AuthoredType | undefined {
+  // @ref LLP 1006#3-authoring-surface — admission facts are a closed object type before ordinary Field lowering.
+  if (field === "id") return idType;
+  if (field === "width" || field === "height" || asset === "video" && field === "duration") return { kind: "int" };
+  return undefined;
+}
+
 function authoredTypeName(value: AuthoredType): string {
   if (isIdType(value)) return "Id";
   if (value.kind === "list") return "an array";
   if (value.kind === "object" || value.kind === "json") return "an object";
+  if (value.kind === "asset") return `${value.asset} asset`;
   return value.kind;
 }
 

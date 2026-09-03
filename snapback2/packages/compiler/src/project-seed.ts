@@ -32,29 +32,39 @@ export function validateSeedRow(
       continue;
     }
     const mismatch = seedValueMismatch(row[field], type, `${table}[${index}].${field}`);
-    if (mismatch) diagnostics.push(diagnostic(module, "E_SEED_VALUE", node, mismatch, module.source));
+    if (mismatch) diagnostics.push(diagnostic(module, mismatch.code, node, mismatch.message, mismatch.rewrite ?? module.source));
   }
 }
 
-function seedValueMismatch(value: unknown, type: unknown, path: string): string | undefined {
+type SeedMismatch = {
+  code: "E_SEED_VALUE" | "E_SCHEMA_ASSET_SEED";
+  message: string;
+  rewrite?: string;
+};
+
+function seedMismatch(message: string): SeedMismatch {
+  return { code: "E_SEED_VALUE", message };
+}
+
+function seedValueMismatch(value: unknown, type: unknown, path: string): SeedMismatch | undefined {
   if (type === "Id" || type === "Principal" || (type && typeof type === "object" && "Ref" in type)) {
-    if (value === IR_CONTRACT.systemPrincipalId) return `${path} cannot carry the reserved system principal`;
-    return typeof value === "string" && value.length > 0 ? undefined : `${path} must be a non-empty string`;
+    if (value === IR_CONTRACT.systemPrincipalId) return seedMismatch(`${path} cannot carry the reserved system principal`);
+    return typeof value === "string" && value.length > 0 ? undefined : seedMismatch(`${path} must be a non-empty string`);
   }
   if (type === "Int" || type === "Time") {
-    return typeof value === "number" && Number.isSafeInteger(value) ? undefined : `${path} must be an integer`;
+    return typeof value === "number" && Number.isSafeInteger(value) ? undefined : seedMismatch(`${path} must be an integer`);
   }
-  if (type === "Bool") return typeof value === "boolean" ? undefined : `${path} must be boolean`;
-  if (!type || typeof type !== "object" || Array.isArray(type)) return `${path} has an unsupported schema type`;
+  if (type === "Bool") return typeof value === "boolean" ? undefined : seedMismatch(`${path} must be boolean`);
+  if (!type || typeof type !== "object" || Array.isArray(type)) return seedMismatch(`${path} has an unsupported schema type`);
   const descriptor = type as Record<string, any>;
   if (descriptor.Text) {
     if (typeof value !== "string" || [...value].length > descriptor.Text.max) {
-      return `${path} must be text of at most ${descriptor.Text.max} characters`;
+      return seedMismatch(`${path} must be text of at most ${descriptor.Text.max} characters`);
     }
     const codePoint = disallowedTextControlCodePoint(value);
     return codePoint === undefined
       ? undefined
-      : `${path} contains disallowed control character U+${codePoint.toString(16).toUpperCase().padStart(4, "0")}`;
+      : seedMismatch(`${path} contains disallowed control character U+${codePoint.toString(16).toUpperCase().padStart(4, "0")}`);
   }
   if (descriptor.Bytes) {
     const encodedObject = value && typeof value === "object" && !Array.isArray(value)
@@ -65,36 +75,46 @@ function seedValueMismatch(value: unknown, type: unknown, path: string): string 
       && typeof encoded === "string" && /^(?:[0-9a-f]{2})*$/.test(encoded)
       && encoded.length / 2 <= descriptor.Bytes.max
       ? undefined
-      : `${path} must be canonical lowercase base16 of at most ${descriptor.Bytes.max} bytes`;
+      : seedMismatch(`${path} must be canonical lowercase base16 of at most ${descriptor.Bytes.max} bytes`);
   }
   if (descriptor.Json) {
     const mismatch = jsonWireMismatch(value, path);
     if (mismatch) return mismatch;
     const bytes = new TextEncoder().encode(JSON.stringify(value)).length;
-    return bytes <= descriptor.Json.max_bytes ? undefined : `${path} JSON exceeds ${descriptor.Json.max_bytes} bytes`;
+    return bytes <= descriptor.Json.max_bytes ? undefined : seedMismatch(`${path} JSON exceeds ${descriptor.Json.max_bytes} bytes`);
   }
   if (descriptor.Enum) {
     const variants = descriptor.Enum.variants as unknown[];
     return typeof value === "string" && variants.includes(value)
       ? undefined
-      : `${path} must be one of ${variants.map(String).join(", ")}`;
+      : seedMismatch(`${path} must be one of ${variants.map(String).join(", ")}`);
   }
   if (descriptor.Decimal || descriptor.Money) {
-    return typeof value === "number" && Number.isSafeInteger(value) ? undefined : `${path} must be integer minor units`;
+    return typeof value === "number" && Number.isSafeInteger(value) ? undefined : seedMismatch(`${path} must be integer minor units`);
+  }
+  if (descriptor.Image || descriptor.Video) {
+    const kind = descriptor.Image ? "image" : "video";
+    // @ref LLP 1006#2a-one-asset-one-home-author-ruling-2026-09-01 — seeds
+    // cannot fabricate the engine-owned ledger row required by an asset value.
+    return {
+      code: "E_SCHEMA_ASSET_SEED",
+      message: `${path} cannot seed a ${kind} asset because seeds cannot mint ledger rows`,
+      rewrite: "upload through the app; seeds cannot mint ledger rows",
+    };
   }
   if ("Optional" in descriptor) {
     return value === null ? undefined : seedValueMismatch(value, descriptor.Optional, path);
   }
   if (descriptor.List) {
-    if (!Array.isArray(value)) return `${path} must be a list`;
-    if (value.length > descriptor.List.max) return `${path} exceeds list max ${descriptor.List.max}`;
+    if (!Array.isArray(value)) return seedMismatch(`${path} must be a list`);
+    if (value.length > descriptor.List.max) return seedMismatch(`${path} exceeds list max ${descriptor.List.max}`);
     for (let index = 0; index < value.length; index += 1) {
       const mismatch = seedValueMismatch(value[index], descriptor.List.of, `${path}[${index}]`);
       if (mismatch) return mismatch;
     }
     return undefined;
   }
-  return `${path} has an unsupported schema type`;
+  return seedMismatch(`${path} has an unsupported schema type`);
 }
 
 function disallowedTextControlCodePoint(text: string): number | undefined {
@@ -109,8 +129,8 @@ function isOptionalColumn(type: unknown): boolean {
   return !!type && typeof type === "object" && !Array.isArray(type) && "Optional" in type;
 }
 
-function jsonWireMismatch(value: unknown, path: string): string | undefined {
-  if (typeof value === "number") return Number.isSafeInteger(value) ? undefined : `${path} JSON numbers must be integers`;
+function jsonWireMismatch(value: unknown, path: string): SeedMismatch | undefined {
+  if (typeof value === "number") return Number.isSafeInteger(value) ? undefined : seedMismatch(`${path} JSON numbers must be integers`);
   if (Array.isArray(value)) {
     for (let index = 0; index < value.length; index += 1) {
       const mismatch = jsonWireMismatch(value[index], `${path}[${index}]`);

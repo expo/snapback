@@ -193,6 +193,18 @@
   },
   {
     "family": "schema",
+    "code": "E_SCHEMA_ASSET_MAINTAIN",
+    "wrong": "maintains: [{ count: \"posts\", by: [\"photo\"], into: \"counts\" }]",
+    "right": "maintains: [{ count: \"posts\", by: [\"ownerId\"], into: \"counts\" }]"
+  },
+  {
+    "family": "schema",
+    "code": "E_SCHEMA_ASSET_SEED",
+    "wrong": "rows: { profiles: [{ id: \"profile-alice\", avatar: { id: \"asset-1\", width: 100, height: 100 } }] }",
+    "right": "rows: { profiles: [{ id: \"profile-alice\", avatar: null }] }"
+  },
+  {
+    "family": "schema",
     "code": "E_SCHEMA_DEFAULT_EXPORT",
     "wrong": "export const app = schema({ tables: {} })",
     "right": "export default schema({ tables: {} })"

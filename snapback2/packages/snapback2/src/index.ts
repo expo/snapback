@@ -2,6 +2,9 @@ type Descriptor = Readonly<Record<string, unknown>>;
 /** Server-minted authority subject; deliberately distinct from application row IDs. */
 export type Principal = string & { readonly __snapbackPrincipal: "Principal" };
 export type Bytes = { readonly Bytes: string };
+// @ref LLP 1006#1-the-move — the phantom kind keeps the two closed asset records nominal without adding JSON bytes.
+export type ImageAsset = { readonly __asset: "image"; readonly id: string; readonly width: number; readonly height: number };
+export type VideoAsset = { readonly __asset: "video"; readonly id: string; readonly width: number; readonly height: number; readonly duration: number };
 export type Decimal<S extends number> = number & {
   readonly __decimalScale: S;
   readonly __decimalBrand: unique symbol;
@@ -30,6 +33,9 @@ export const t = Object.freeze({
   principal: () => inert("principal"),
   text: (max: number) => inert("text", { max }),
   bytes: (max: number) => inert("bytes", { max }),
+  // @ref LLP 1006#3-authoring-surface — image/video are unconditional lowering descriptors, independent of installed codecs.
+  image: (max: number) => inert("image", { max }),
+  video: (max: number) => inert("video", { max }),
   int: () => inert("int"),
   bool: () => inert("bool"),
   time: () => inert("time"),

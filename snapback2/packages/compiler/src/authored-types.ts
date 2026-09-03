@@ -8,6 +8,7 @@ export type AuthoredType =
   | { kind: "string"; max?: number; id?: true }
   | { kind: "principal" }
   | { kind: "bytes"; max: number }
+  | { kind: "asset"; asset: "image" | "video"; max: number }
   | { kind: "bool" }
   | { kind: "json"; max?: number }
   | { kind: "row"; table: string }
@@ -40,6 +41,8 @@ export function authoredTypeFromColumn(value: unknown): AuthoredType {
   const descriptor = value as Record<string, any>;
   if (descriptor.Text) return { kind: "string", max: descriptor.Text.max };
   if (descriptor.Bytes) return { kind: "bytes", max: descriptor.Bytes.max };
+  if (descriptor.Image) return { kind: "asset", asset: "image", max: descriptor.Image.max };
+  if (descriptor.Video) return { kind: "asset", asset: "video", max: descriptor.Video.max };
   if (descriptor.Ref) return idType;
   if (descriptor.Json) return { kind: "json", max: descriptor.Json.max_bytes };
   if (descriptor.Enum) return { kind: "enum", variants: [...descriptor.Enum.variants] };

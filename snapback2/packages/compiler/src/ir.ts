@@ -101,6 +101,8 @@ export type ArgType =
   | "Scalar"
   | { Text: { max: number } }
   | { Bytes: { max: number } }
+  | { Image: { max: number } }
+  | { Video: { max: number } }
   | { Json: { max_bytes: number } }
   | { Optional: ArgType }
   | { List: { of: ArgType; max: number } }
@@ -149,6 +151,8 @@ export type DiagnosticCode =
   | "E_SCHEMA_ID_RESERVED"
   | "E_SCHEMA_UNKNOWN_TABLE"
   | "E_SCHEMA_INDEX_COLUMN"
+  | "E_SCHEMA_ASSET_MAINTAIN"
+  | "E_SCHEMA_ASSET_SEED"
   | "E_SCHEMA_INDEX_OPTION"
   | "E_SCHEMA_CONSTRAINT"
   | "E_SCHEMA_MAINTAIN"

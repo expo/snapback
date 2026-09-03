@@ -23,7 +23,7 @@ Channels declare `publish`, `subscribe`, and `ttl Ns`.
 
 Types are `principal`, `id`, table references, `int`, `time`, `bool`,
 `decimal <scale>`, `money <CUR> [scale]`, `text <=N`, `text M..N`, `json <=N`,
-`bytes <=N`, `enum('a', 'b')`, and `[type] <=N`; text may add
+`bytes <=N`, `image <=N`, `video <=N`, `enum('a', 'b')`, and `[type] <=N`; text may add
 `format handle|url`, and any type may add `?`.
 
 ```q

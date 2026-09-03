@@ -4,10 +4,12 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { ClientStore, type ClosureReceipt, type Context } from "../../evaluator/src/evaluator";
 import type { FrontendDiagnostic, Program } from "./ir";
+import { lowerSource } from "./compiler";
 import { lowerProject } from "./project";
 import { rustCheck } from "./rust-check";
 import { compileQuarry, type QuarryInput } from "./quarry/index";
 import { parseDocument } from "./quarry/parser";
+import ts from "typescript";
 
 type Test = (name: string, run: () => void | Promise<void>) => void;
 
@@ -56,6 +58,357 @@ export function registerQuarryChecks(test: Test, frontend: string): void {
       assert(["insert", "update", "upsert", "delete"].every((word) => refusal.message.includes(word)),
         `write-sigil refusal did not name all four words: ${refusal.message}`);
       assert(!/[~+-].*items/.test(refusal.rewrite), `write-sigil refusal pasted a compatibility rewrite: ${refusal.rewrite}`);
+    }
+  });
+
+  test("Quarry image/video spellings lower as closed records through IR, manifest descriptors, and API types", async () => {
+    const projectRoot = resolve(fixtures, "quarry-assets");
+    const compiled = compileFixture(fixtures, "quarry-assets", ["schema", "assets"]);
+    assert(compiled.ok, `asset spellings did not parse: ${compiled.ok ? "" : diagnosticsText(compiled.diagnostics)}`);
+    const generated = `${compiled.schema.source}\n${compiled.modules[0]!.source}`;
+    for (const spelling of [
+      "t.image(5000000)", "t.optional(t.image(5000000))", "t.video(50000000)", "t.optional(t.video(50000000))",
+      "t.list(t.image(12000000), { max: 4 })", "t.list(t.video(50000000), { max: 2 })",
+      "args.clip.duration", "args.photo.width",
+    ]) assert(generated.includes(spelling), `asset Quarry lowering lost ${spelling}:\n${generated}`);
+
+    const lowered = await lowerProject(projectRoot);
+      assert(lowered.ok, `asset project refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
+      const columns = (lowered.project.schema.tables.media as any).columns;
+      assert(JSON.stringify(columns.photo) === JSON.stringify({ Image: { max: 5_000_000 } })
+        && JSON.stringify(columns.avatar) === JSON.stringify({ Optional: { Image: { max: 5_000_000 } } })
+        && JSON.stringify(columns.clip) === JSON.stringify({ Video: { max: 50_000_000 } })
+        && JSON.stringify(columns.trailer) === JSON.stringify({ Optional: { Video: { max: 50_000_000 } } })
+        && JSON.stringify(columns.gallery) === JSON.stringify({ List: { of: { Image: { max: 12_000_000 } }, max: 4 } })
+        && JSON.stringify(columns.albums) === JSON.stringify({ Optional: { List: { of: { Image: { max: 12_000_000 } }, max: 4 } } })
+        && JSON.stringify(columns.reels) === JSON.stringify({ List: { of: { Video: { max: 50_000_000 } }, max: 2 } }),
+      `asset columns did not use the exact externally tagged JSON: ${JSON.stringify(columns)}`);
+      const inspect = operation(lowered.project.programs, "assets.inspect");
+      const args = inspect.args as any;
+      assert(JSON.stringify(args.photo) === JSON.stringify({ Image: { max: 5_000_000 } })
+        && JSON.stringify(args.clip) === JSON.stringify({ Video: { max: 50_000_000 } }),
+      `asset operation/manifest descriptors changed: ${JSON.stringify(inspect.args)}`);
+      const allArgs = operation(lowered.project.programs, "assets.acceptAll").args as any;
+      assert(JSON.stringify(allArgs.avatar) === JSON.stringify({ Optional: { Image: { max: 5_000_000 } } })
+        && JSON.stringify(allArgs.trailer) === JSON.stringify({ Optional: { Video: { max: 50_000_000 } } })
+        && JSON.stringify(allArgs.gallery) === JSON.stringify({ List: { of: { Image: { max: 12_000_000 } }, max: 4 } })
+        && JSON.stringify(allArgs.albums) === JSON.stringify({ Optional: { List: { of: { Image: { max: 12_000_000 } }, max: 4 } } })
+        && JSON.stringify(allArgs.reels) === JSON.stringify({ List: { of: { Video: { max: 50_000_000 } }, max: 2 } }),
+      `nested asset operation/manifest descriptors changed: ${JSON.stringify(allArgs)}`);
+      const body = JSON.stringify(inspect.body);
+      assert(body.includes('"Field":{"base":{"Variable":"clip"},"name":"duration"}')
+        && body.includes('"Field":{"base":{"Variable":"photo"},"name":"width"}'),
+      `asset member selection did not lower to ordinary Field IR: ${body}`);
+      assert(lowered.apiDts.includes("photo: File | ImageAsset")
+        && lowered.apiDts.includes("avatar?: File | ImageAsset | null")
+        && lowered.apiDts.includes("clip: File | VideoAsset")
+        && lowered.apiDts.includes("trailer?: File | VideoAsset | null")
+        && lowered.apiDts.includes("gallery: (File | ImageAsset)[]")
+        && lowered.apiDts.includes("albums?: (File | ImageAsset)[] | null")
+        && lowered.apiDts.includes("reels: (File | VideoAsset)[]"),
+      `mutation API args lost recursive File unions:\n${lowered.apiDts}`);
+      const query = lowered.apiDts.match(/readonly echo: Op<([^\n]+)>;/)?.[1] ?? "";
+      assert(query.includes("photo: ImageAsset") && query.includes("clip: VideoAsset") && !query.includes("File"),
+        `query args/results admitted File or lost asset records: ${query}`);
+      const mutation = lowered.apiDts.match(/readonly inspect: Op<([^\n]+)>;/)?.[1] ?? "";
+      const resultStart = mutation.indexOf("}, {");
+      const result = mutation.slice(resultStart);
+      assert(resultStart > 0 && !result.includes("File")
+        && result.includes("photo: ImageAsset") && result.includes("clip: VideoAsset"),
+      `mutation result did not remain asset-record-only: ${mutation}`);
+
+      const nested = lowered.apiDts.match(/readonly echoNested: Op<([^\n]+)>;/)?.[1] ?? "";
+      assert(nested.includes("albums?: ImageAsset[] | null")
+        && nested.includes("{ albums: ImageAsset[] | undefined }"),
+      `optional(list(asset)) did not survive query args/results: ${nested}`);
+
+      await withProject({
+        "snapback2.d.ts": readFileSync(resolve(frontend, "lib.d.ts"), "utf8"),
+        "client.d.ts": `declare module "snapback2/client" {
+          export interface Op<Args, Result> { readonly __args?: (args: Args) => void; readonly __result?: Result }
+          export interface Channel<Args, Payload = unknown> { readonly __args?: Args; readonly __payload?: Payload }
+          export interface Api {}
+        }`,
+        "api.d.ts": lowered.apiDts,
+        "asset-declarations.ts": `import type { ImageAsset, VideoAsset } from "snapback2";
+          import type { Api, Op } from "snapback2/client";
+          type ResultOf<T> = T extends Op<any, infer Result> ? Result : never;
+          type Echo = ResultOf<Api["assets"]["echo"]>;
+          declare const echo: Echo;
+          declare const image: ImageAsset;
+          declare const anotherImage: ImageAsset;
+          declare const video: VideoAsset;
+          const sameKind: ImageAsset = anotherImage;
+          const fromQueryResult: ImageAsset = echo.photo;
+          const runtimeJsonShape: { id: string; width: number; height: number } = echo.photo;
+          // @ts-expect-error VideoAsset is nominally distinct from ImageAsset despite its superset shape.
+          const videoAsImage: ImageAsset = video;
+          // @ts-expect-error ImageAsset is nominally distinct from VideoAsset.
+          const imageAsVideo: VideoAsset = image;
+          // @ts-expect-error A literal object cannot forge the phantom image brand.
+          const forged: ImageAsset = { id: "asset-1", width: 1, height: 1 };
+          void [sameKind, fromQueryResult, runtimeJsonShape, videoAsImage, imageAsVideo, forged];`,
+      }, async (root) => {
+        const sample = resolve(root, "asset-declarations.ts");
+        const program = ts.createProgram({
+          rootNames: [
+            resolve(root, "snapback2.d.ts"),
+            resolve(root, "client.d.ts"),
+            resolve(root, "api.d.ts"),
+            sample,
+          ],
+          options: {
+            lib: ["lib.es2022.d.ts", "lib.dom.d.ts"],
+            module: ts.ModuleKind.ESNext,
+            moduleResolution: ts.ModuleResolutionKind.Bundler,
+            noEmit: true,
+            strict: true,
+            target: ts.ScriptTarget.ES2022,
+          },
+        });
+        const diagnostics = ts.getPreEmitDiagnostics(program)
+          .filter((item) => item.file?.fileName === sample || item.file?.fileName === resolve(root, "api.d.ts"));
+        assert(diagnostics.length === 0,
+          `asset nominal declaration proof failed:\n${diagnostics.map((item) => ts.flattenDiagnosticMessageText(item.messageText, "\n")).join("\n")}`);
+      });
+  });
+
+  test("asset IR rustCheck round trip — SKIP while lane A rejects Image", async () => {
+    const lowered = await lowerProject(resolve(fixtures, "quarry-assets"));
+    assert(lowered.ok, `asset project refused before rustCheck: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
+    const failures = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema)
+      .filter((item) => item.error);
+    const laneABlocked = failures.some((item) => item.error?.code === "E_CHECK_IR_UNSUPPORTED"
+      && item.error.message.includes("unknown variant `Image`"));
+    if (laneABlocked) {
+      assert(failures.every((item) => item.error?.code === "E_CHECK_IR_UNSUPPORTED"
+        && /unknown variant `(Image|Video)`/.test(item.error.message)),
+      `asset IR rustCheck skip encountered a non-lane-A failure: ${JSON.stringify(failures)}`);
+      return;
+    }
+    assert(failures.length === 0, `asset IR did not round-trip through rustCheck: ${JSON.stringify(failures)}`);
+  });
+
+  test("asset index and maintain.by matrices refuse scalar, video, optional, and list forms", async () => {
+    await withProject({
+      "snapback/schema.q": `table media:
+  photo: image <=5000000
+  avatar: image <=5000000 ?
+  gallery: [image <=5000000] <=4
+  clip: video <=50000000
+  unique photo
+  by avatar
+  by gallery
+  by clip
+  public
+`,
+      "snapback/media.q": "query one():\n  return null\n",
+    }, async (root) => {
+      const result = await lowerProject(root);
+      const refusals = result.ok ? [] : result.diagnostics.filter((item) => item.code === "E_SCHEMA_INDEX_COLUMN");
+      assert(refusals.length === 4 && refusals.every((item) => item.family === "schema")
+        && ["photo", "avatar", "gallery", "clip"].every((field) => refusals.some((item) => item.message.includes(`column ${field}`))),
+      `asset index matrix did not return four E_SCHEMA_INDEX_COLUMN refusals: ${JSON.stringify(result)}`);
+    });
+
+    await withProject({
+      "snapback/schema.q": `table events:
+  photo: image <=5000000
+  public
+
+maintain totals = count events by photo:
+  read <- public
+`,
+      "snapback/events.q": "query one():\n  return null\n",
+    }, async (root) => {
+      const result = await lowerProject(root);
+      const refusal = result.ok ? undefined : result.diagnostics.find((item) => item.code === "E_SCHEMA_ASSET_MAINTAIN");
+      assert(!result.ok && result.diagnostics.length === 1 && refusal?.family === "schema"
+        && refusal.message.includes("events.photo") && refusal.site.startsWith("snapback/schema.q:"),
+      `asset maintain.by did not return one source-sited E_SCHEMA_ASSET_MAINTAIN: ${JSON.stringify(result)}`);
+    });
+
+    await withProject({
+      "snapback/schema.q": `table events:
+  avatar: image <=5000000 ?
+  gallery: [image <=5000000] <=4
+  clip: video <=50000000
+  public
+
+maintain avatarTotals = count events by avatar:
+  read <- public
+
+maintain galleryTotals = count events by gallery:
+  read <- public
+
+maintain clipTotals = count events by clip:
+  read <- public
+`,
+      "snapback/events.q": "query one():\n  return null\n",
+    }, async (root) => {
+      const result = await lowerProject(root);
+      const refusals = result.ok ? [] : result.diagnostics.filter((item) => item.code === "E_SCHEMA_ASSET_MAINTAIN");
+      assert(!result.ok && result.diagnostics.length === 3 && refusals.length === 3
+        && ["events.avatar", "events.gallery", "events.clip"].every((field) => refusals.some((item) => item.message.includes(field))),
+      `asset maintain.by nested/video matrix did not return only dedicated refusals: ${JSON.stringify(result)}`);
+    });
+  });
+
+  test("Quarry recursively rejects image/video assignment mismatches and literal record forges", () => {
+    const schema = `table media:
+  images: [image <=5000000] <=4
+  videos: [video <=50000000] <=4
+  optionalImages: [image <=5000000] <=4 ?
+  nestedImages: [[image <=5000000] <=4] <=3
+  photo: image <=5000000
+  optionalPhoto: image <=5000000 ?
+  public
+`;
+    const cases = [
+      ["scalar-video-to-image", "clip: video <=50000000", "photo: clip", "photo", "image asset", "video asset"],
+      ["list-video-to-image", "videos: [video <=50000000] <=4", "images: videos", "images", "image asset", "video asset"],
+      ["list-image-to-video", "images: [image <=5000000] <=4", "videos: images", "videos", "video asset", "image asset"],
+      ["optional-list", "videos: [video <=50000000] <=4 ?", "optionalImages: videos", "optionalImages", "image asset", "video asset"],
+      ["nested-list", "videos: [[video <=50000000] <=4] <=3", "nestedImages: videos", "nestedImages", "image asset", "video asset"],
+      ["list-to-scalar", "photos: [image <=5000000] <=4", "photo: photos", "photo", "image asset", "[image asset]"],
+      ["scalar-to-list", "photo: image <=5000000", "images: photo", "images", "[image asset]", "image asset"],
+      ["shallow-to-nested", "photos: [image <=5000000] <=4", "nestedImages: photos", "nestedImages", "[[image asset]]", "[image asset]"],
+      ["nested-to-shallow", "photos: [[image <=5000000] <=4] <=3", "images: photos", "images", "[image asset]", "[[image asset]]"],
+      ["optional-to-required", "photo: image <=5000000 ?", "photo: photo", "photo", "image asset", "image asset or null"],
+      ["optional-list-to-required", "photos: [image <=5000000] <=4 ?", "images: photos", "images", "[image asset]", "[image asset] or null"],
+    ] as const;
+    for (const [name, argument, assignment, field, expected, actual] of cases) {
+      const result = compileInline([
+        { fileName: "snapback/schema.q", source: schema },
+        { fileName: "snapback/ops.q", source: `mutation ${name.replaceAll("-", "_")}(${argument}):\n  return insert media { ${assignment} }\n` },
+      ]);
+      const refusal = result.ok ? undefined : result.diagnostics.find((item) => item.code === "E_QUARRY_TYPE");
+      assert(refusal?.family === "quarry" && refusal.site.startsWith("snapback/ops.q:2:")
+        && refusal.message.includes(field) && refusal.message.includes(expected) && refusal.message.includes(actual)
+        && refusal.rewrite.includes(`use a ${expected} value for ${field}`),
+      `${name} lost its recursive kind refusal/rewrite: ${JSON.stringify(result)}`);
+    }
+
+    const accepted = compileInline([
+      { fileName: "snapback/schema.q", source: schema },
+      { fileName: "snapback/ops.q", source: `mutation accepted(photo: image <=5000000, photos: [image <=5000000] <=4):
+  return insert media { images: [], optionalImages: photos, optionalPhoto: photo }
+
+mutation nested_empty():
+  return insert media { nestedImages: [[]] }
+
+mutation empty_first(photos: [image <=5000000] <=4):
+  return insert media { nestedImages: [[], photos] }
+
+mutation empty_last(photos: [image <=5000000] <=4):
+  return insert media { nestedImages: [photos, []] }
+` },
+    ]);
+    assert(accepted.ok, `nested empty asset list or required-to-optional asset assignment refused: ${accepted.ok ? "" : JSON.stringify(accepted.diagnostics)}`);
+
+    const scalarEmpty = compileInline([
+      { fileName: "snapback/schema.q", source: schema },
+      { fileName: "snapback/ops.q", source: "mutation scalar_empty():\n  return insert media { photo: [] }\n" },
+    ]);
+    assert(!scalarEmpty.ok && scalarEmpty.diagnostics.some((item) => item.code === "E_QUARRY_TYPE"
+      && item.message.includes("photo requires image asset")),
+    `empty list literal was accepted for scalar asset column: ${JSON.stringify(scalarEmpty)}`);
+
+    const forge = compileInline([
+      { fileName: "snapback/schema.q", source: schema },
+      { fileName: "snapback/ops.q", source: "mutation forge():\n  return insert media { photo: { id: 'asset-1', width: 1, height: 1 } }\n" },
+    ]);
+    assert(!forge.ok && forge.diagnostics.some((item) => item.code === "E_QUARRY_TYPE"
+      && item.message.includes("photo requires image asset")),
+    `literal asset record forge did not remain E_QUARRY_TYPE: ${JSON.stringify(forge)}`);
+  });
+
+  test("the TypeScript lowering twin diagnoses missing asset fields and preserves descriptor/API shapes", async () => {
+    const fixture = resolve(fixtures, "assets");
+    const lowered = await lowerProject(fixture, { authoring: "any" });
+    assert(lowered.ok, `TS-authored asset fixture refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
+    const columns = (lowered.project.schema.tables.media as any).columns;
+    assert(JSON.stringify(columns.photo) === JSON.stringify({ Image: { max: 5_000_000 } })
+      && JSON.stringify(columns.albums) === JSON.stringify({ Optional: { List: { of: { Image: { max: 12_000_000 } }, max: 4 } } }),
+    `TS-authored asset descriptors changed: ${JSON.stringify(columns)}`);
+    assert(lowered.apiDts.includes("photo: File | ImageAsset")
+      && lowered.apiDts.includes("albums?: (File | ImageAsset)[] | null")
+      && lowered.apiDts.includes("readonly echo: Op<{ photo: ImageAsset }, ImageAsset>")
+      && lowered.apiDts.includes("{ photo: ImageAsset; width: number; clip: VideoAsset")
+      && lowered.apiDts.includes("duration: number"),
+    `TS-authored asset fixture lost File unions or result types:\n${lowered.apiDts}`);
+
+    const invalidSource = readFileSync(resolve(fixture, "snapback/photo-duration.invalid.ts.fixture"), "utf8");
+    const invalid = lowerSource(invalidSource, "snapback/photo-duration.ts");
+    const refusal = invalid.ok ? undefined : invalid.diagnostics.find((item) => item.code === "E_ARGS_TYPE");
+    assert(refusal?.message.includes("image asset has no field duration")
+      && refusal.site.startsWith("snapback/photo-duration.ts:")
+      && refusal.rewrite.includes("args.photo.width"),
+    `TS twin returned unknown instead of a sited missing-field refusal: ${JSON.stringify(invalid)}`);
+  });
+
+  test("seed assets use E_SCHEMA_ASSET_SEED recursively while optional null remains allowed", async () => {
+    await withProject({
+      "snapback/schema.q": `table media:
+  photo: image <=5000000
+  clip: video <=50000000
+  gallery: [image <=5000000] <=4
+  reels: [video <=50000000] <=4 ?
+  avatar: image <=5000000 ?
+  public
+`,
+      "snapback/seed.ts": `import { seed } from "snapback2";
+        export default seed({ personas: [], rows: { media: [{
+          id: "media-1",
+          photo: { id: "image-1", width: 10, height: 10 },
+          clip: { id: "video-1", width: 10, height: 10, duration: 1000 },
+          gallery: [{ id: "image-2", width: 10, height: 10 }],
+          reels: [{ id: "video-2", width: 10, height: 10, duration: 1000 }],
+          avatar: null,
+        }] } });`,
+    }, async (root) => {
+      const result = await (await import("./project")).lowerSeed(root);
+      const refusals = result.ok ? [] : result.diagnostics.filter((item) => item.code === "E_SCHEMA_ASSET_SEED");
+      assert(!result.ok && result.diagnostics.length === 4 && refusals.length === 4
+        && refusals.every((item) => item.family === "schema"
+          && item.site.startsWith("snapback/seed.ts:")
+          && item.message.includes("seeds cannot mint ledger rows")
+          && item.rewrite === "upload through the app; seeds cannot mint ledger rows"),
+      `seed assets did not use the dedicated recursive refusal/null exception: ${JSON.stringify(result)}`);
+    });
+  });
+
+  test("asset records reject unknown fields with a typed Quarry rewrite and have no legacy URL compatibility", () => {
+    const nullable = compileInline([
+      { fileName: "snapback/schema.q", source: "table media:\n  photo: image <=5000000 ?\n  public\n" },
+      { fileName: "snapback/media.q", source: "mutation clear():\n  return insert media { photo: null }\n" },
+    ]);
+    assert(nullable.ok, `optional asset column refused null: ${nullable.ok ? "" : diagnosticsText(nullable.diagnostics)}`);
+    const unknown = compileInline([
+      { fileName: "snapback/schema.q", source: "table media:\n  photo: image <=5000000\n  public\n" },
+      { fileName: "snapback/media.q", source: "query bad(photo: image <=5000000):\n  return photo.duration\n" },
+    ]);
+    const refusal = unknown.ok ? undefined : unknown.diagnostics.find((item) => item.code === "E_QUARRY_TYPE");
+    assert(refusal?.message.includes("image asset has no field duration") && refusal.rewrite?.includes("photo.width"),
+      `unknown asset field lost its typed rewrite: ${JSON.stringify(unknown)}`);
+
+    const useAssets = parseDocument("snapback/schema.q", "use assets\n");
+    assert(useAssets.diagnostics.length === 1 && useAssets.diagnostics[0]?.code === "E_QUARRY_UNSUPPORTED"
+      && !/url/i.test(`${useAssets.diagnostics[0]?.message} ${useAssets.diagnostics[0]?.rewrite}`),
+    `use assets did not stay on the generic non-URL refusal path: ${JSON.stringify(useAssets.diagnostics)}`);
+    for (const source of ["use assets\n", "table media:\n  photo: asset <=5000000\n  public\n"]) {
+      const legacy = parseDocument("snapback/schema.q", source);
+      assert(legacy.diagnostics.length > 0 && legacy.diagnostics.every((item) => !/url/i.test(`${item.message} ${item.rewrite}`)),
+        `legacy asset spelling retained URL compatibility advice: ${JSON.stringify(legacy.diagnostics)}`);
+    }
+    for (const source of [
+      "table media:\n  photo: image <=1.5\n  public\n",
+      "table media:\n  clip: video <=0\n  public\n",
+      "table media:\n  photo: image <=4294967296\n  public\n",
+    ]) {
+      const invalid = compileInline([{ fileName: "snapback/schema.q", source }]);
+      assert(!invalid.ok && invalid.diagnostics.some((item) => /integer literal|positive integers/.test(item.message)),
+        `non-integer/non-positive asset bound compiled: ${JSON.stringify(invalid)}`);
     }
   });
 

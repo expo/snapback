@@ -424,6 +424,23 @@ function emitMember(expr: Extract<Expr, { kind: "member" }>, env: Environment, w
     }
     base = { code: local, type: { kind: "row", table: refType.table, nullable: true } };
   }
+  if (base.type.kind === "image" || base.type.kind === "video") {
+    // @ref LLP 1006#3-authoring-surface — assets are closed records, so admission facts use ordinary field selection.
+    const fields = base.type.kind === "image"
+      ? ["id", "width", "height"]
+      : ["id", "width", "height", "duration"];
+    if (!fields.includes(expr.name)) {
+      typeError(
+        expr.site,
+        `${base.type.kind} asset has no field ${expr.name}; available fields are ${fields.join(", ")}`,
+        `${simpleExpr(expr.base)}.${base.type.kind === "video" ? "duration" : "width"}`,
+      );
+    }
+    const field: ScalarType = expr.name === "id"
+      ? { kind: "id", optional: base.type.optional }
+      : { kind: "int", optional: base.type.optional };
+    return { code: `${base.code}${base.type.optional ? "?." : "."}${expr.name}`, type: field };
+  }
   if (base.type.kind === "row") {
     const info = env.catalog.get(base.type.table);
     const column = expr.name === "id"
@@ -922,7 +939,7 @@ function emitFields(
   return fields.map((field) => {
     const value = emitExpr(field.value ?? { kind: "name", name: field.name, site: field.site }, env, writer);
     const expected = field.name === "id" ? { kind: "id", optional: false } satisfies ScalarType : columns.get(field.name);
-    validateFieldType(field, value.type, expected);
+    validateFieldType(field, value.type, expected, env);
     const code = expected && (expected.kind === "ref" || expected.kind === "id") ? keyBinding(value).code : value.code;
     return `${property(field.name)}: ${code}`;
   });
@@ -952,7 +969,7 @@ function emitEvaluatedFieldEntries(
     if (replacement) return { name: field.name, value: replacement };
     const value = emitExpr(field.value ?? { kind: "name", name: field.name, site: field.site }, env, writer);
     const expected = field.name === "id" ? { kind: "id", optional: false } satisfies ScalarType : columns.get(field.name);
-    validateFieldType(field, value.type, expected);
+    validateFieldType(field, value.type, expected, env);
     const code = expected && (expected.kind === "ref" || expected.kind === "id") ? keyBinding(value).code : value.code;
     const local = temporary("patch", field.site);
     writer.statement(`const ${local} = ${code};`, field.site);
@@ -1084,8 +1101,14 @@ function cursorKindMatches(expr: Expr, actual: ScalarType, expected: ScalarType)
   return actual.kind === expected.kind;
 }
 
-function validateFieldType(field: ObjectField, actual: ValueType, expected: ScalarType | undefined): void {
+function validateFieldType(
+  field: ObjectField,
+  actual: ValueType,
+  expected: ScalarType | undefined,
+  env: Environment,
+): void {
   const expression = field.value ?? { kind: "name", name: field.name, site: field.site } satisfies Expr;
+  if (expected?.optional && expression.kind === "literal" && expression.value === null) return;
   if (expected?.kind === "int" && fractionalNumericLiteral(expression)) {
     typeError(field.site, "int positions take integer literals", `replace ${literalExpressionText(expression)} with an integer literal`);
   }
@@ -1103,6 +1126,78 @@ function validateFieldType(field: ObjectField, actual: ValueType, expected: Scal
   if ((expected?.kind === "ref" || expected?.kind === "id") && actual.kind === "principal") {
     refuse(field.site, `${field.name} is ${expected.kind}; principal is nominally different`);
   }
+  const expectedAsset = nestedAssetShape(expected);
+  const actualAsset = nestedAssetShape(actual);
+  const acceptsAsset = expectedAsset
+    ? assetExpressionAcceptsExpected(expression, actual, expected!, env)
+    : !actualAsset;
+  if ((expectedAsset || actualAsset) && !acceptsAsset) {
+    const wrapperMismatch = expectedAsset && actualAsset && expectedAsset.kind === actualAsset.kind;
+    const wanted = expectedAsset
+      ? wrapperMismatch ? assetShapeName(expectedAsset) : `${expectedAsset.kind} asset`
+      : "non-asset";
+    const received = actualAsset
+      ? wrapperMismatch ? assetShapeName(actualAsset) : `${actualAsset.kind} asset`
+      : valueTypeName(actual);
+    typeError(field.site, `${field.name} requires ${wanted} values at every nested asset position; received ${received}`, `use a ${wanted} value for ${field.name}`);
+  }
+}
+
+function assetExpressionAcceptsExpected(
+  expression: Expr,
+  actual: ValueType,
+  expected: ScalarType,
+  env: Environment,
+): boolean {
+  if (expected.kind === "list" && expression.kind === "array") {
+    const inferredItem = actual.kind === "list" || actual.kind === "sequence"
+      ? actual.item
+      : { kind: "unknown" } satisfies ValueType;
+    return expression.items.every((item) => assetExpressionAcceptsExpected(
+      item,
+      inferExpr(item, env) ?? inferredItem,
+      expected.item,
+      env,
+    ));
+  }
+  return assetShapeAccepts(nestedAssetShape(expected), nestedAssetShape(actual));
+}
+
+// @ref LLP 1006#3-authoring-surface — list/optional wrappers do not erase the
+// nominal image/video kind of the closed record stored beneath them.
+type AssetShape = {
+  kind: "image" | "video";
+  wrappers: Array<{ optional: boolean }>;
+  leafOptional: boolean;
+};
+
+function nestedAssetShape(type: ValueType | undefined): AssetShape | undefined {
+  if (!type) return undefined;
+  if (type.kind === "image" || type.kind === "video") {
+    return { kind: type.kind, wrappers: [], leafOptional: type.optional };
+  }
+  if (type.kind === "list" || type.kind === "sequence") {
+    const nested = nestedAssetShape(type.item);
+    if (nested) {
+      return {
+        ...nested,
+        wrappers: [{ optional: type.kind === "list" && type.optional }, ...nested.wrappers],
+      };
+    }
+  }
+  return undefined;
+}
+
+function assetShapeAccepts(expected: AssetShape | undefined, actual: AssetShape | undefined): boolean {
+  if (!expected || !actual || expected.kind !== actual.kind || expected.wrappers.length !== actual.wrappers.length) return false;
+  if (actual.leafOptional && !expected.leafOptional) return false;
+  return actual.wrappers.every((wrapper, index) => !wrapper.optional || expected.wrappers[index]!.optional);
+}
+
+function assetShapeName(shape: AssetShape): string {
+  let name = `${shape.kind} asset${shape.leafOptional ? " or null" : ""}`;
+  for (const wrapper of [...shape.wrappers].reverse()) name = `[${name}]${wrapper.optional ? " or null" : ""}`;
+  return name;
 }
 
 function inferExpr(expr: Expr, env: Environment): ScalarType | undefined {
@@ -1144,7 +1239,7 @@ function scalarOrUnknown(type: ValueType): ScalarType {
 }
 
 function isScalar(type: ValueType): type is ScalarType {
-  return ["text", "id", "principal", "int", "decimal", "money", "time", "bool", "json", "bytes", "enum", "ref", "list"].includes(type.kind);
+  return ["text", "id", "principal", "int", "decimal", "money", "time", "bool", "json", "bytes", "image", "video", "enum", "ref", "list"].includes(type.kind);
 }
 
 function isRef(type: ValueType): type is Extract<ScalarType, { kind: "ref" }> { return type.kind === "ref"; }

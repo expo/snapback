@@ -154,10 +154,14 @@ function materializeMaintains(documents: Document[]): void {
       value: { kind: "name", name: "deny", site: declaration.site },
       site: declaration.site,
     });
+    const assetGrouped = columns.some((column) => containsAsset(column.type));
     const target: TableDecl = {
       name: declaration.name,
       columns,
-      indexes: [{ name: indexName, columns: [...declaration.by], unique: true, site: declaration.site }],
+      // @ref LLP 1006#2a-one-asset-one-home-author-ruling-2026-09-01 — the
+      // authored maintain refusal owns this error; do not also diagnose the
+      // synthetic target index materialized only by the Quarry lowering.
+      indexes: assetGrouped ? [] : [{ name: indexName, columns: [...declaration.by], unique: true, site: declaration.site }],
       rules: [declaration.read, deny("insert"), deny("update"), deny("delete")],
       immutable: [],
       finalExists: [],
@@ -165,6 +169,11 @@ function materializeMaintains(documents: Document[]): void {
     };
     schema.tables.push(target);
   }
+}
+
+function containsAsset(type: ScalarType): boolean {
+  if (type.kind === "image" || type.kind === "video") return true;
+  return type.kind === "list" && containsAsset(type.item);
 }
 
 function virtualModule(path: string, authored: string, source: string, authoredSource: string): QuarryVirtualModule {

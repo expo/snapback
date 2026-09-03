@@ -104,7 +104,9 @@ function quarryType(node: ts.Expression): string {
   const kind = snapbackCallName(call) ?? staticMemberPath(call.expression)?.split(".").at(-1);
   if (kind === "optional" && call.arguments[0]) return `${quarryType(call.arguments[0])} ?`;
   if (kind === "id" || kind === "principal" || kind === "int" || kind === "time" || kind === "bool") return kind;
-  if (kind === "text" || kind === "json" || kind === "bytes") return `${kind} <=${numberValue(call.arguments[0]) ?? 1000}`;
+  if (["text", "json", "bytes", "image", "video"].includes(kind ?? "")) {
+    return `${kind} <=${numberValue(call.arguments[0]) ?? 1000}`;
+  }
   if (kind === "ref") return staticMemberPath(call.arguments[0]) ?? "id";
   if (kind === "list" && call.arguments[0]) {
     const options = objectOf(call.arguments[1]);

@@ -30,6 +30,17 @@ become enforced text constraints; maximums remain part of the column type.
 Text values may not contain C0 control characters other than tab, newline,
 and carriage return.
 
+`image <=N` is a byte-bounded closed record `{ id, width, height }`; `video <=N`
+adds integer-millisecond `duration`. Both compose with `?` and bounded lists,
+and their fields work in expressions. Asset columns cannot be indexed or used
+in `maintain.by`.
+
+```q
+mutation inspect(photo: image <=5000000, clip: video <=50000000):
+  require clip.duration <= 60000 else TOO_LONG
+  return { photo, width: photo.width, clip }
+```
+
 Decimal/money literals are whole units (`2.50` → `250`); excess precision
 refuses. Matching nominal brands admit `+ - < <= > >= = != min max`; unary
 `-`/`* int` preserve them. Money × decimal → money either order; decimal ×
@@ -273,10 +284,10 @@ the same certificate, trace, and runtime budgets.
 
 ## Refused platform gaps
 
-The following are refused with `E_QUARRY_UNSUPPORTED`: `asset`/`use assets`,
-`schedule`, `where`, `device`, `oblivious`, `while`, user functions or recursion.
-Use bounded URL text instead of assets; a caller-invoked mutation instead of a
-schedule; explicit bounded arguments instead of device/oblivious state; bounded
+The following are refused with `E_QUARRY_UNSUPPORTED`: `schedule`, `where`,
+`device`, `oblivious`, `while`, user functions or recursion. Use a caller-invoked
+mutation instead of a schedule; explicit bounded arguments instead of
+device/oblivious state; bounded
 `for`/`walk` instead of while/recursion. Replace `where` with an index whose
 prefix pins the predicate, a table invariant such as `after insert <- exists …`,
 or `merge` for a fan-in feed.

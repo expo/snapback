@@ -202,7 +202,7 @@ function expressionType(node: ts.Expression, env: Environment): AuthoredType | u
 }
 
 function knownRuntimeScalar(type: AuthoredType | undefined): boolean | undefined {
-  if (type?.kind === "optional" || type?.kind === "row") return undefined;
+  if (type?.kind === "optional" || type?.kind === "row" || type?.kind === "asset") return undefined;
   const value = requiredType(type);
   if (value.kind === "unknown" || value.kind === "json" || value.kind === "list") return undefined;
   if (value.kind === "object") return false;
@@ -358,6 +358,7 @@ function descriptor(type: AuthoredType | undefined): string {
     case "principal": return "t.principal()";
     case "string": return `t.text(${type.max ?? 4096})`;
     case "bytes": return `t.bytes(${type.max})`;
+    case "asset": return `t.${type.asset}(${type.max})`;
     case "bool": return "t.bool()";
     case "enum": return `t.enum(${JSON.stringify(type.variants)})`;
     case "decimal": return type.currency ? `t.money(${JSON.stringify(type.currency)}, ${type.scale})` : `t.decimal(${type.scale})`;

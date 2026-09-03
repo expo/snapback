@@ -26,7 +26,9 @@ authored journeys:
 
 Here `profile-alice` is an application row id while `dev:alice` is the persona
 Principal used by creator, membership, and author columns. Identity email and
-password hashes are deliberately absent from application seed rows. The chat
+password hashes are deliberately absent from application seed rows. These
+`avatarUrl` strings are external URLs, not uploads; asset values are deliberately
+absent because seeds cannot mint asset ledger rows (LLP 1006 §2a). The chat
 fixture also keeps `charlie` as an account/persona without a profile so the
 idempotent post-auth profile-creation path has a real absent-row proof.
 

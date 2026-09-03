@@ -64,6 +64,10 @@ function validateType(type: ScalarType, catalog: TableCatalog, site: Site): void
   if (type.kind === "text" && type.max < 1) refuse(site, "text bounds must be positive");
   if (type.kind === "text" && type.min !== undefined && (type.min < 0 || type.min > type.max)) refuse(site, "text minimum must be between zero and its maximum");
   if ((type.kind === "json" || type.kind === "bytes") && type.max < 1) refuse(site, `${type.kind} bounds must be positive`);
+  if ((type.kind === "image" || type.kind === "video")
+    && (!Number.isInteger(type.max) || type.max < 1 || type.max > 0xffff_ffff)) {
+    refuse(site, `${type.kind} byte bounds must be positive integers no larger than 4294967295`);
+  }
   if (type.kind === "enum" && (type.variants.length === 0 || new Set(type.variants).size !== type.variants.length)) refuse(site, "enum variants must be non-empty and unique");
   if (type.kind === "ref" && !catalog.has(type.table)) refuse(site, `reference names unknown table ${type.table}`);
   if (type.kind === "list") {
