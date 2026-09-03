@@ -66,9 +66,9 @@ numbered 1000 and up.
 10. **Quarry is the default authoring surface (author, 2026-08-31).**
     Backends are `snapback/*.q`, compiled by the Quarry front end inside
     the compiler (`packages/compiler/src/quarry/`, in memory, no generated
-    files); the TS surface remains the fully supported compatibility
-    surface and escape hatch (`init --ts`), and effect bodies stay
-    TypeScript. Ruling and evidence: [LLP 1004](./1004-quarry-default-surface.decision.md),
+    files). The TypeScript authoring surface was deleted on 2026-09-02
+    (LLP 1007 §4b, LLP 1004 amendment): TypeScript is the lowering target
+    and the harness language for seeds, journeys, and effect bodies only. Ruling and evidence: [LLP 1004](./1004-quarry-default-surface.decision.md),
     on the executed head-to-head of LLP 0329.014.011; the ruling was
     found unimplemented by LLP 1007 §2 on 2026-09-01 and built on
     2026-09-02 (LLP 1004 §"Implementation record").
@@ -82,7 +82,7 @@ numbered 1000 and up.
 | `crates/snapback2` | the owner (LLP 1002 §5: detach/attach by project, watch, hot successors, migration plans, typed exits), the wire (§4: HTTP JSON + SSE frames = query responses or terminal refusals, channels, control routes with secret), verbs `check --project`/`--ir`, `dev`, `run`, `data`, `logs`, `persona`, `fork`, `reset`, `init`, `test` (six derived checks, named `live-revocation`/`successor-policy-fence`/`grant-incarnation-aba` authorization proofs, journeys, and receipt), `why`, `trace`, `guide`, `doctor`; effects runner thread (`--features hermes`) |
 | `packages/compiler` | LLP 1002 §2–§3 plus the Quarry front end (`src/quarry/`: `.q` → in-memory TS modules, `.q` sites, family `quarry`, LLP 1004): the `snapback2` module surface, project lowering (schema/programs/effects/seed/journeys), Node worker + one-shot CLI, `api.d.ts` with named row types, branded `Principal`, `Bytes`, and channels, refusal envelopes with families, all-diagnostics + `E_DIAG_TRUNCATED`, Decimal/Money/Enum with exact whole-unit scaling, `rule.system()`, nominal rule-term checking, closed maintain validation, and derived `rule.exists` visibility |
 | `packages/evaluator` | the RBAC- and Bytes-complete TypeScript IR evaluator twin, including exact authority-only replay, atomic partial mutations, `Emit`, and opaque capped/completeness parity |
-| `packages/snapback2` | shim + authoring runtime + `client` + `react` + `test` runner + guide pages (`quarry`, `grammar`, `typescript`, recipes) + templates (`todos`, `chat` in Quarry; `todos-ts`, `chat-ts`; React) |
+| `packages/snapback2` | shim + authoring runtime + `client` + `react` + `test` runner + guide pages (`quarry`, `grammar`, `typescript`, recipes) + templates (`todos`, `chat` in Quarry; React) |
 | `corpus/` | 106 shared Rust/TypeScript conformance cases for RBAC transitions and invalidation, bootstrap/final-exists, authority-gated maintained writes including omitted Optional groups, intrinsic ids, text constraints, Bytes, and opaque capped completeness |
 | `scripts/` | `test.sh`, `measure.mjs --check`, `publish.mjs`, `hermes` |
 

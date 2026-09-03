@@ -4,18 +4,29 @@ This is the most valuable file in the repository. It is longer than the doing-li
 purpose. Moving something off it means writing one line naming what it unblocks and
 taking something off the doing-list in the same change.
 
-## The bar that makes this list derivable
+## The bars that make this list derivable
 
-A fresh agent, with only the installed package and the task, builds Clique M1–M3
-(accounts, feed, realtime chat) on the **published** snapback2 in under 1,200 s with at
-most one Snapback-attributed correction loop, and `snapback2 test` proves it
-(LLP 0329.016 §8). Everything not required by that does not exist yet.
+Two bars, named separately so one name never covers two objects (LLP 1007 §4a;
+the author delegated this ruling to the orchestrator on 2026-09-02):
+
+- **The loop bar.** A fresh agent, with only the installed package and the task,
+  builds the reduced Clique M1–M3 (accounts, feed, realtime chat; React web; no
+  media) on the **published** snapback2 in under 1,200 s with at most one
+  Snapback-attributed correction loop, and `snapback2 test` proves it
+  (LLP 0329.016 §8). Everything not required by this bar does not exist yet.
+- **The capability bar.** `benchmarks/briefs/social-messenger.md` M1–M3 as
+  written: Expo on iOS, Android, and web; an avatar; one to four images and one
+  video; no external I/O. It starts only after the loop bar is met on a
+  published package, and when it starts LLP 1006 is trimmed to the brief's
+  formats. Until then the media and Expo slice stays on this list.
 
 ## Not building
 
 - **A second authoring profile, a plan algebra, or a JS handler lane.** One language —
-  bounded data programs (LLP 0329.014.004) — one spelling. Familiar vs Explicit cost
-  every v1 doc twice (LLP 0317 bundle 6).
+  Quarry (LLP 1004; the TypeScript authoring surface was deleted on 2026-09-02, LLP
+  1007 §4b) — one spelling. TypeScript is the lowering target and the harness language
+  (seeds, journeys, effect bodies), never a way to author tables, rules, queries, or
+  mutations. Familiar vs Explicit cost every v1 doc twice (LLP 0317 bundle 6).
 - **JavaScript in the data plane.** Queries and mutations run in the Rust IR
   interpreter inside the SQLite transaction. Ibex 2 is linked only by
   `snapback2-effects`, only with `--features hermes`, only for effects.

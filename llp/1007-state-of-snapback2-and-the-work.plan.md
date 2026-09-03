@@ -181,6 +181,13 @@ corrupts ids is that failure mode wearing a deadline.
 **Until this is ruled, §5's items 1–8 proceed unchanged** (they are correctness
 and coherence, required under either answer); items 9–11 are scoped by it.
 
+**Ruled 2026-09-02.** The author delegated this decision to the orchestrator,
+who took the split: `rules/NOT-DOING.md` now names a loop bar (the 1,200 s
+one-correction clock on the reduced Clique M1–M3, React web, no media, on a
+published package) and a capability bar (the brief as written, Expo and media
+included) that starts only after the loop bar is met, at which point LLP 1006
+is trimmed to the brief's formats (`8c6a82483`, item 11).
+
 ### 4b. Does the TypeScript authoring surface stay?
 
 LLP 1004 keeps TypeScript as a "fully supported compatibility surface and
@@ -195,6 +202,11 @@ decision and not acted on. The alternative is coherent too: keep both, and
 accept the standing cost of a second front end, a site-mapping hop, and a
 parity fixture lane. What is *not* coherent is the present state, where the
 ruling names a default the binary does not implement.
+
+**Ruled 2026-09-02 (author): keep only Quarry.** The TypeScript authoring
+surface is deleted in `8c6a82483`; LLP 1004 carries the amendment. TypeScript
+stays as the lowering target and the harness language (seeds, journeys,
+effect bodies).
 
 ## 5. The work
 
@@ -215,7 +227,7 @@ item that slips its date returns here rather than sitting silently.
 | 8 | Fold `packages/quarry/src/test.ts` into the existing compiler leg of `test.sh`, so the default surface is covered without a sixth check. | `s2/quarry-default` | landed 2026-09-02 (`b2bebb49a`) |
 | 9 | Execute LLP 1004's five bindings: `init` scaffolds `.q`, `check`/`dev` run `quarryc`, diagnostics report `.q` sites, `guide quarry` exists, README becomes v0.3 platform truth. Delete the dual `.ts`/`.q.ts` emit and `__quarrySource` by teaching the worker about generated modules. | `s2/quarry-default` | landed 2026-09-02 (`b2bebb49a`); see LLP 1004 §"Implementation record" for the two layout departures |
 | 10 | Give Quarry a `return`; make `match` an expression in every position. The one language change both panelists asked for unprompted — position-dependent semantics is what an agent gets wrong silently. | `s2/quarry-default` | landed 2026-09-02 (`b2bebb49a`): `return` in every position; `match` stays a statement |
-| 11 | Scoped by §4a: either the media and Expo slice, or the two-bar rewrite of `rules/NOT-DOING.md`. | — | on the ruling |
+| 11 | Scoped by §4a: either the media and Expo slice, or the two-bar rewrite of `rules/NOT-DOING.md`. | `s2/quarry-default-merge` | landed 2026-09-02 (`8c6a82483`): the two-bar rewrite; the media and Expo slice waits for the loop bar |
 
 ## 6. Finding: the 60-second budget is enforced by nothing
 
@@ -279,7 +291,8 @@ three and agreed on all of them by round 2.
 - **The public `fork` verb.** Keep the owner's snapshot primitive, which
   `test`'s replay needs; drop the thin CLI adapter.
 - **The TypeScript authoring surface** — templates, docs, escape hatch,
-  `.q.ts` duplicates, `__quarrySource`. Conditional on §4b.
+  `.q.ts` duplicates, `__quarrySource`. Conditional on §4b — ruled and deleted
+  2026-09-02 (`8c6a82483`).
 
 Explicitly **not** deleted, in both rounds: the certificate, the authoritative
 trace, `why`, `_commits` (live invalidation consumes it today), and the

@@ -128,6 +128,23 @@ replication and P2 the parity instrument remain scheduled, not started. The
 packaged-consumer smoke rung (`issues/20260831-packaged-consumer-smoke-rung.md`)
 is LLP 1007 §5 item 7 and is still open.
 
+## Amendment (author, 2026-09-02): Quarry only
+
+The compatibility clause above is withdrawn. Both panelists of LLP 1007 §4b
+called it Snapback 1's two-profile mistake, and the author ruled on
+2026-09-02: **keep only Quarry.** The TypeScript authoring surface for tables,
+rules, channels, maintains, queries, and mutations is deleted (`8c6a82483`):
+`init --ts` and the `todos-ts`/`chat-ts` renderings, `guide typescript`, and
+the two-surface parity test are gone, and the worker refuses a project with
+`snapback/schema.ts` or a `.ts` module exporting a query, mutation, table,
+channel, or schema (`E_QUARRY_ONLY`). TypeScript remains the lowering target
+the front end emits into and the language of three harness files: `seed.ts`,
+`tests/*.test.ts`, and effect modules, which export effects only and name
+their `then` mutation from a Quarry module. Workstream P2 (the standing
+two-surface parity instrument) is withdrawn with the second front end; P1
+replication stands. `rules/NOT-DOING.md`'s "one language, one spelling" line
+is now true in code.
+
 ## Non-claims
 
 This does not publish anything (the first-publish ceremony remains the
