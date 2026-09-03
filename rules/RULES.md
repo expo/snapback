@@ -18,7 +18,8 @@ Each rule is **[check]** (enforced by `caps`) or **[review]** (enforced by a hum
 - **12 documents in the foundation** (`llp/foundation/`). **[check]**
 - **This file: 700 words.** If it grows, something becomes a check or stops being a rule. **[check]**
 - **1,500 lines per source file, baseline 204.** Generated files exempt — and generated
-  files are built, not committed. The baseline is Snapback 1's oversize count on the day
+  files are built, not committed; so are benchmark run records under `benchmarks/runs/`,
+  which are evidence, not source. The baseline is Snapback 1's oversize count on the day
   the rule landed; it may not grow, and `snapback2/` contributes zero to it. **[check]**
 
 ## Blocking checks

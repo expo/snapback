@@ -100,6 +100,12 @@ const cases = [
     null],
   ['vendored source is not held to the line cap',
     { 'rules/RULES.md': GOOD_RULES, 'vendor/brotli/enc.c': 'x\n'.repeat(9000), 'src/ok.js': 'const a = 1;\n' }, null],
+  ['benchmark run records are evidence, not source, and are not held to the line cap',
+    { 'rules/RULES.md': GOOD_RULES, 'benchmarks/runs/2026-08-29-cell/clique/snapback/functions.mjs': 'x\n'.repeat(2000),
+      'src/ok.js': 'const a = 1;\n' }, null],
+  ['the overflow names the file that broke the baseline, not the largest one',
+    { 'rules/RULES.md': GOOD_RULES.replace('**1,500 lines per source file.**', '**1,500 lines per source file**, baseline 2.'),
+      'src/a.js': 'x\n'.repeat(9000), 'src/b.js': 'x\n'.repeat(5000), 'src/c.js': 'x\n'.repeat(1600) }, 'src/c.js is 1601 lines'],
   ['a clean repository passes', { 'rules/RULES.md': GOOD_RULES, 'src/ok.js': 'const a = 1;\n' }, null],
 ];
 
