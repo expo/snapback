@@ -48,7 +48,13 @@ function seedValueMismatch(value: unknown, type: unknown, path: string): string 
   if (!type || typeof type !== "object" || Array.isArray(type)) return `${path} has an unsupported schema type`;
   const descriptor = type as Record<string, any>;
   if (descriptor.Text) {
-    return typeof value === "string" && [...value].length <= descriptor.Text.max ? undefined : `${path} must be text of at most ${descriptor.Text.max} characters`;
+    if (typeof value !== "string" || [...value].length > descriptor.Text.max) {
+      return `${path} must be text of at most ${descriptor.Text.max} characters`;
+    }
+    const codePoint = disallowedTextControlCodePoint(value);
+    return codePoint === undefined
+      ? undefined
+      : `${path} contains disallowed control character U+${codePoint.toString(16).toUpperCase().padStart(4, "0")}`;
   }
   if (descriptor.Bytes) {
     const encodedObject = value && typeof value === "object" && !Array.isArray(value)
@@ -89,6 +95,14 @@ function seedValueMismatch(value: unknown, type: unknown, path: string): string 
     return undefined;
   }
   return `${path} has an unsupported schema type`;
+}
+
+function disallowedTextControlCodePoint(text: string): number | undefined {
+  for (const character of text) {
+    const codePoint = character.codePointAt(0)!;
+    if (codePoint < 0x20 && ![0x09, 0x0a, 0x0d].includes(codePoint)) return codePoint;
+  }
+  return undefined;
 }
 
 function isOptionalColumn(type: unknown): boolean {

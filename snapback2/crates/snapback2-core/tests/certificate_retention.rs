@@ -2,9 +2,9 @@ use snapback2_core::*;
 use std::collections::BTreeMap;
 
 const TAKE: u32 = 9_405;
-const ROW_BYTES: u64 = 446;
+const ROW_BYTES: u64 = 1_106;
 const GROWTH_TAKE: u32 = 7_000;
-const GROWTH_ROW_BYTES: u64 = 796;
+const GROWTH_ROW_BYTES: u64 = 2_506;
 
 fn schema() -> Schema {
     Schema {
@@ -259,7 +259,7 @@ fn closure_retention_follows_page_data_flow() {
     assert!(
         errors.iter().any(|error| error
             .message
-            .starts_with("closure bytes 4194630 exceeds ceiling")),
+            .starts_with("closure bytes 10401930 exceeds ceiling")),
         "pushing every page row no longer preserves the full-page refusal: {errors:?}"
     );
 }
@@ -273,7 +273,7 @@ fn collection_reassignment_growth_tracks_loop_cardinality() {
     );
 
     // Exact lowering of `result = [...result, item]` over 7,000 declared
-    // 796-byte rows.
+    // 2,506-byte rows.
     let spread_loop = program(
         "items.spreadLoop",
         vec![
@@ -290,21 +290,21 @@ fn collection_reassignment_growth_tracks_loop_cardinality() {
         ],
     );
     let spread = permissive_checker(&schema).check(&spread_loop).unwrap();
-    assert_eq!(spread.max_closure_bytes, 5_572_000);
-    assert_eq!(spread.max_output_bytes, 5_593_002);
+    assert_eq!(spread.max_closure_bytes, 17_542_000);
+    assert_eq!(spread.max_output_bytes, 17_633_012);
     let spread_errors = Checker::new(&schema, Ceilings::default())
         .check_all(&spread_loop)
         .unwrap_err();
     assert!(
         spread_errors.iter().any(|error| error
             .message
-            .starts_with("output bytes 5593002 exceeds ceiling")),
+            .starts_with("output bytes 17633012 exceeds ceiling")),
         "spread append did not cross the output ceiling: {spread_errors:?}"
     );
     assert!(
         spread_errors.iter().any(|error| error
             .message
-            .starts_with("closure bytes 5572000 exceeds ceiling")),
+            .starts_with("closure bytes 17542000 exceeds ceiling")),
         "spread append did not cross the closure ceiling: {spread_errors:?}"
     );
 
@@ -331,21 +331,21 @@ fn collection_reassignment_growth_tracks_loop_cardinality() {
         ],
     );
     let nested = permissive_checker(&schema).check(&nested_loop).unwrap();
-    assert_eq!(nested.max_closure_bytes, 6_368_000);
-    assert_eq!(nested.max_output_bytes, 6_392_002);
+    assert_eq!(nested.max_closure_bytes, 20_048_000);
+    assert_eq!(nested.max_output_bytes, 20_152_012);
     let nested_errors = Checker::new(&schema, Ceilings::default())
         .check_all(&nested_loop)
         .unwrap_err();
     assert!(
         nested_errors.iter().any(|error| error
             .message
-            .starts_with("output bytes 6392002 exceeds ceiling")),
+            .starts_with("output bytes 20152012 exceeds ceiling")),
         "nested append did not multiply the output width: {nested_errors:?}"
     );
     assert!(
         nested_errors.iter().any(|error| error
             .message
-            .starts_with("closure bytes 6368000 exceeds ceiling")),
+            .starts_with("closure bytes 20048000 exceeds ceiling")),
         "nested append did not multiply the retained width: {nested_errors:?}"
     );
 
@@ -400,7 +400,7 @@ fn collection_reassignment_growth_tracks_loop_cardinality() {
     );
     let fresh = permissive_checker(&schema).check(&fresh_array).unwrap();
     assert_eq!(fresh.max_closure_bytes, GROWTH_ROW_BYTES);
-    assert_eq!(fresh.max_output_bytes, 799);
+    assert_eq!(fresh.max_output_bytes, 2_519);
 
     let fresh_temporary = program(
         "items.freshTemporary",
@@ -428,7 +428,7 @@ fn collection_reassignment_growth_tracks_loop_cardinality() {
     );
     let fresh = permissive_checker(&schema).check(&fresh_temporary).unwrap();
     assert_eq!(fresh.max_closure_bytes, GROWTH_ROW_BYTES);
-    assert_eq!(fresh.max_output_bytes, 799);
+    assert_eq!(fresh.max_output_bytes, 2_519);
 }
 
 #[test]
@@ -595,36 +595,36 @@ fn collection_growth_defaults_to_growth_until_freshness_is_proven() {
         (
             "loop-invariant argument",
             argument_append,
-            7_133_002,
-            7_112_000,
+            28_203_012,
+            28_112_000,
             "result = [args.value]",
         ),
         (
             "temporary alias",
             temporary_append,
-            5_593_002,
-            5_572_796,
+            17_633_012,
+            17_544_506,
             "result = [item]",
         ),
         (
             "duplicate prior value",
             duplicate_prior,
-            38_797_312,
+            59_768_832,
             33_554_432,
             "result = [item]",
         ),
         (
             "object chain",
             object_chain,
-            5_726_002,
-            5_572_000,
+            17_752_010,
+            17_542_000,
             "result = { item: item }",
         ),
         (
             "reset then rebuild",
             reset_rebuild,
-            7_133_002,
-            7_112_000,
+            28_203_012,
+            28_112_000,
             "result = [args.value]",
         ),
     ];
@@ -659,7 +659,7 @@ fn collection_growth_defaults_to_growth_until_freshness_is_proven() {
     }
 
     let wrapper = permissive_checker(&schema).check(&json_wrapper).unwrap();
-    assert_eq!(wrapper.max_output_bytes, 7_141_016);
+    assert_eq!(wrapper.max_output_bytes, 7_211_016);
     let wrapper_errors = Checker::new(&schema, Ceilings::default())
         .check_all(&json_wrapper)
         .unwrap_err();
@@ -670,7 +670,7 @@ fn collection_growth_defaults_to_growth_until_freshness_is_proven() {
     assert!(
         wrapper_refusal
             .message
-            .starts_with("output bytes 7141016 exceeds ceiling")
+            .starts_with("output bytes 7211016 exceeds ceiling")
             && wrapper_refusal.rewrite.contains("result = [args.value]"),
         "JSON wrapper was not refused at its honest recurrence: {wrapper_refusal:?}"
     );

@@ -294,6 +294,9 @@ export function validateTypedValue(
   }
   if (descriptor?.Text !== undefined) {
     if (!isVariant(value, "String")) throw new EvalError("E_INPUT", `${label} must be text`);
+    const codePoint = disallowedTextControlCodePoint(value.String);
+    if (codePoint !== undefined)
+      throw new EvalError("E_INPUT", `${label} contains disallowed control character U+${codePoint.toString(16).toUpperCase().padStart(4, "0")}`);
     if (Array.from(value.String).length > descriptor.Text.max)
       throw new EvalError("E_INPUT", `${label} exceeds text max ${descriptor.Text.max}`);
     return;
@@ -325,6 +328,14 @@ export function validateTypedValue(
     return;
   }
   throw new EvalError("E_SCHEMA", `unsupported type for ${label}`);
+}
+
+function disallowedTextControlCodePoint(text: string): number | undefined {
+  for (const character of text) {
+    const codePoint = character.codePointAt(0)!;
+    if (codePoint < 0x20 && ![0x09, 0x0a, 0x0d].includes(codePoint)) return codePoint;
+  }
+  return undefined;
 }
 
 export function assertValue(value: Value, label: string): void {

@@ -77,6 +77,25 @@ export function registerFinalGateChecks(test: RegisterTest, legacyLib: string): 
     assert(checked.results.length === chat.project.programs.length, "project check omitted programs");
     assert(checked.results.every((item: any) => (item.certificate === null) !== (item.error === null)), "project check omitted a certificate/refusal outcome");
     assert(checkedRefusals.every((item: any) => fullCheckEnvelope(item.error)), "checker refusal envelope is incomplete");
+    const quarryChat = await lowerProject(`${frontend}fixtures/quarry-chat`);
+    assert(quarryChat.ok, "Quarry chat did not compile for binary check");
+    for (const page of ["feeds.q", "messages.q"]) {
+      const fixture = await Bun.file(`${frontend}fixtures/quarry-chat/snapback/${page}`).text();
+      const template = await Bun.file(`${crate}packages/snapback2/templates/chat/snapback/${page}`).text();
+      assert(fixture === template, `Quarry chat ${page} diverged from the shipped template`);
+    }
+    const quarryChecked = runBinaryCheck(["--json", "--ir"], quarryChat.project);
+    const pagePins: Record<string, [number, number]> = {
+      "feeds.followingFeed": [1_027_462, 1_382_300],
+      "feeds.globalFeed": [1_027_462, 1_382_300],
+      "messages.thread": [827_062, 827_000],
+    };
+    for (const [name, [output, closure]] of Object.entries(pagePins)) {
+      const result = quarryChecked.results.find((item: any) => item.program === name);
+      assert(result?.error === null && result.certificate?.max_output_bytes === output
+        && result.certificate.max_closure_bytes === closure,
+      `${name} last 50 did not certify at its pinned default bounds: ${JSON.stringify(result)}`);
+    }
     const wrongPrincipalAxis = structuredClone(chat.project) as any;
     wrongPrincipalAxis.schema.tables.memberships.columns.principal = "Id";
     const wrongPrincipalCheck = runBinaryCheck(["--json", "--ir"], wrongPrincipalAxis);

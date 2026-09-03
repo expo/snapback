@@ -128,3 +128,89 @@ fn raw_schema_certification_rejects_non_text_and_impossible_minimums() {
         );
     }
 }
+
+#[test]
+fn text_values_reject_disallowed_c0_controls_and_accept_the_priced_set() {
+    let schema = Schema {
+        tables: BTreeMap::from([(
+            "notes".to_owned(),
+            public_table(
+                BTreeMap::from([
+                    ("id".to_owned(), ColumnType::Id),
+                    ("body".to_owned(), ColumnType::Text { max: 1 }),
+                ]),
+                BTreeMap::new(),
+            ),
+        )]),
+        ..Schema::default()
+    };
+    let program = Program {
+        name: "notes.echo".to_owned(),
+        kind: ProgramKind::Query,
+        args: BTreeMap::from([("body".to_owned(), ArgType::Text { max: 1 })]),
+        read_time_granularity_ms: None,
+        body: vec![Stmt::Return(var("body"))],
+    };
+    let certificate = Checker::new(&schema, Ceilings::default())
+        .check(&program)
+        .unwrap();
+    let mut engine = Engine::memory(schema).unwrap();
+
+    for (index, character) in ['\t', '\n', '\r', '"', '\\', '\u{10ffff}']
+        .into_iter()
+        .enumerate()
+    {
+        let value = Value::String(character.to_string());
+        engine
+            .seed(
+                "notes",
+                object([
+                    ("id", Value::Id(format!("note-{index}"))),
+                    ("body", value.clone()),
+                ]),
+            )
+            .unwrap();
+        let execution = engine
+            .execute(
+                &program,
+                &certificate,
+                Context::query(
+                    Actor::user("reader").unwrap(),
+                    BTreeMap::from([("body".to_owned(), value.clone())]),
+                ),
+            )
+            .unwrap();
+        assert_eq!(execution.result, value);
+    }
+
+    let invalid = Value::String("\u{0001}".to_owned());
+    let column_error = engine
+        .seed(
+            "notes",
+            object([
+                ("id", Value::Id("bad".to_owned())),
+                ("body", invalid.clone()),
+            ]),
+        )
+        .unwrap_err();
+    assert!(matches!(
+        column_error,
+        RuntimeError::Input(ref message)
+            if message == "notes.body contains disallowed control character U+0001"
+    ));
+    let argument_error = engine
+        .execute(
+            &program,
+            &certificate,
+            Context::query(
+                Actor::user("reader").unwrap(),
+                BTreeMap::from([("body".to_owned(), invalid)]),
+            ),
+        )
+        .unwrap_err();
+    assert!(matches!(
+        argument_error,
+        RuntimeError::Input(ref message)
+            if message == "arg body contains disallowed control character U+0001"
+    ));
+}

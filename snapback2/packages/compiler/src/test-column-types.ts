@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { lowerSource } from "./compiler";
 import { lowerSchema } from "./lower/schema";
-import { lowerProject as lowerAuthoredProject } from "./project";
+import { lowerProject as lowerAuthoredProject, lowerSeed } from "./project";
 
 const frontend = decodeURIComponent(new URL("../", import.meta.url).pathname);
 const crate = decodeURIComponent(new URL("../../../", import.meta.url).pathname);
@@ -61,6 +61,30 @@ function runBinaryCheck(args: string[], input?: unknown): { exitCode: number } {
 }
 
 export function registerColumnTypeChecks(test: RegisterTest): void {
+  test("seed text values reject disallowed C0 controls and accept the priced set", async () => {
+    const schema = `import { schema, table, t } from "snapback2";
+      export const rows = table({ columns: { label: t.text(6) } });
+      export default schema({ tables: { rows } });`;
+    const seedSource = (label: string) => `import { seed } from "snapback2";
+      export default seed({ personas: [], rows: { rows: [{ id: "row-1", label: ${JSON.stringify(label)} }] } });`;
+    await withProject({
+      "snapback/schema.ts": schema,
+      "snapback/seed.ts": seedSource("\t\n\r\"\\\u{10ffff}"),
+    }, async (root) => {
+      const accepted = await lowerSeed(root);
+      assert(accepted.ok, `seed refused allowed text controls/scalars: ${accepted.ok ? "" : accepted.diagnostics.map((item) => item.message).join("; ")}`);
+    });
+    await withProject({
+      "snapback/schema.ts": schema,
+      "snapback/seed.ts": seedSource("\u0001"),
+    }, async (root) => {
+      const refused = await lowerSeed(root);
+      const diagnostic = refused.ok ? undefined : refused.diagnostics.find((item) => item.code === "E_SEED_VALUE");
+      assert(diagnostic?.message === "rows[0].label contains disallowed control character U+0001",
+        `seed control refusal changed: ${diagnostic?.message ?? "success"}`);
+    });
+  });
+
   test("Decimal, Money, and Enum descriptors type APIs and lower fractional literals to integer wire values", async () => {
     const todos = await lowerProject(`${frontend}fixtures/todos`);
     assert(todos.ok, `typed todos refused: ${todos.ok ? "" : todos.diagnostics.map((item) => item.message).join("; ")}`);

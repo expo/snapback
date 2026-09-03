@@ -905,10 +905,20 @@ pub(crate) fn validate_arg_value(
             _ => Err(RuntimeError::Input(format!("{label} must be an id"))),
         },
         ArgType::Text { max } => match value {
-            Value::String(value) if value.chars().count() <= *max as usize => Ok(()),
-            Value::String(_) => Err(RuntimeError::Input(format!(
-                "{label} exceeds text max {max}"
-            ))),
+            Value::String(value) => {
+                if let Some(code_point) = disallowed_text_control_code_point(value) {
+                    return Err(RuntimeError::Input(format!(
+                        "{label} contains disallowed control character U+{code_point:04X}"
+                    )));
+                }
+                if value.chars().count() <= *max as usize {
+                    Ok(())
+                } else {
+                    Err(RuntimeError::Input(format!(
+                        "{label} exceeds text max {max}"
+                    )))
+                }
+            }
             _ => Err(RuntimeError::Input(format!("{label} must be text"))),
         },
         ArgType::Bytes { max } => match value {
@@ -962,6 +972,12 @@ pub(crate) fn validate_arg_value(
         },
         ArgType::Scalar => Ok(()),
     }
+}
+
+pub(super) fn disallowed_text_control_code_point(text: &str) -> Option<u32> {
+    text.chars()
+        .find(|character| *character <= '\u{001f}' && !matches!(*character, '\t' | '\n' | '\r'))
+        .map(u32::from)
 }
 
 pub(crate) fn value_contains_reserved_principal(value: &Value) -> bool {

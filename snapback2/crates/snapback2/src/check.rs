@@ -27,6 +27,8 @@ struct Request {
     auth: Option<Auth>,
     #[serde(default)]
     version: Option<u32>,
+    #[serde(default)]
+    ceilings: Option<Ceilings>,
 }
 
 #[derive(Clone, Copy, Debug, Default, Deserialize)]
@@ -187,6 +189,7 @@ pub fn run_input(input: String, json: bool) -> ExitCode {
 }
 
 fn check_request(request: Request) -> Vec<ResultItem> {
+    let ceilings = request.ceilings.unwrap_or_default();
     let programs: Vec<(String, Result<Program, String>)> = request
         .programs
         .into_iter()
@@ -251,7 +254,7 @@ fn check_request(request: Request) -> Vec<ResultItem> {
         .map(|program| program.name.clone())
         .collect();
     let generation =
-        match Generation::certify(&project, Ceilings::default()) {
+        match Generation::certify(&project, ceilings.clone()) {
             Ok(generation) => Some(generation),
             Err(errors)
                 if errors.iter().all(|(site, error)| {
@@ -339,7 +342,7 @@ fn check_request(request: Request) -> Vec<ResultItem> {
                 Ok(program) => {
                     let mut single = project.clone();
                     single.programs = vec![program];
-                    match Generation::certify(&single, Ceilings::default()) {
+                    match Generation::certify(&single, ceilings.clone()) {
                         Ok(generation) => vec![ResultItem {
                             program: name.clone(),
                             certificate: Some(
@@ -564,6 +567,7 @@ mod tests {
             effects: Vec::new(),
             auth: None,
             version: None,
+            ceilings: None,
         });
 
         assert_eq!(results.len(), 3);

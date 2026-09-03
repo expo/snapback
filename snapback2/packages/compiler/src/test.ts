@@ -452,7 +452,7 @@ test("loop collection refusals paste per-family rewrites that lower and certify"
       body: `let result = [];
         for (const item of range(0, 7000)) result = [...result, args.value];
         return result;`,
-      estimate: "output bytes 7133002 exceeds ceiling",
+      estimate: "output bytes 28203012 exceeds ceiling",
       rewrite: "result = [args.value]",
     },
     {
@@ -462,7 +462,7 @@ test("loop collection refusals paste per-family rewrites that lower and certify"
       body: `let result = [];
         for (const item of range(0, 7000)) result = append(result, args.value);
         return result;`,
-      estimate: "output bytes 7133002 exceeds ceiling",
+      estimate: "output bytes 28203012 exceeds ceiling",
       rewrite: "result = [args.value]",
     },
     {
@@ -518,7 +518,7 @@ test("loop collection refusals paste per-family rewrites that lower and certify"
           result = [...prior, args.value];
         }
         return result;`,
-      estimate: "output bytes 7133002 exceeds ceiling",
+      estimate: "output bytes 28203012 exceeds ceiling",
       rewrite: "result = [args.value]",
     },
     {
@@ -527,7 +527,7 @@ test("loop collection refusals paste per-family rewrites that lower and certify"
       body: `let result = args.value;
         for (const item of range(0, 7000)) result = [result, args.value];
         return result;`,
-      estimate: "output bytes 7141016 exceeds ceiling",
+      estimate: "output bytes 7211016 exceeds ceiling",
       rewrite: "result = [args.value]",
     },
   ];
@@ -564,7 +564,7 @@ test("loop collection refusals paste per-family rewrites that lower and certify"
   const decoy = lowerSource(decoySource, "two-growth-sites.ts", undefined, { tables });
   assert(decoy.ok, `two-site fixture did not lower: ${decoy.ok ? "" : decoy.diagnostics.map((diagnostic) => diagnostic.message).join("; ")}`);
   const decoyRefusal = rustCheck(decoy.programs, "synthetic", schema)[0]?.error;
-  assert(decoyRefusal?.message.startsWith("output bytes 7133002 exceeds ceiling")
+  assert(decoyRefusal?.message.startsWith("output bytes 28203012 exceeds ceiling")
     && decoyRefusal.rewrite.includes("let result = []")
     && decoyRefusal.rewrite.includes("range(0, 7000)")
     && !decoyRefusal.rewrite.includes("decoy"),

@@ -27,6 +27,7 @@ and money scales are integers from 0 through 12; money defaults to scale 2 and
 its currency is exactly three uppercase letters. Add `?` for optional. Text
 can add `format handle` or `format url` after its bound. A minimum and a format
 become enforced text constraints; maximums remain part of the column type.
+Text bars C0 except tab, newline, or carriage return.
 
 Decimal/money literals are whole units (`2.50` → `250`); excess precision
 refuses. Matching nominal brands admit `+ - < <= > >= = != min max`; unary
@@ -93,8 +94,8 @@ maintain messageCounts = count messages by conversationId:
 Point reads select a complete unique key. Range reads use `first N` or
 `last N`, optional `after`/`before` cursor, and optional `by index`. An
 `exists table[keys]` probe accepts any prefix-matching index. Name an index to
-resolve ambiguity. Shapes use `{ * }`, bare row fields, or `name: expression`.
-Nested reads and shapes are bounded by the same compiler policy.
+resolve ambiguity. Canonical JSON: text costs `4*max+16`; shapes price fields,
+`*` all.
 
 A cursor is the post-prefix ordering tuple; the prefix must leave a column.
 Components are indexable scalars matching their column kinds, with `Null` as

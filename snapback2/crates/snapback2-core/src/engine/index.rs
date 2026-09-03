@@ -445,12 +445,35 @@ pub(crate) fn validate_column_value(
             "{table_name}.{name} cannot carry the reserved system principal"
         )));
     }
+    if let Some(code_point) = disallowed_column_text_control_code_point(kind, value) {
+        return Err(RuntimeError::Input(format!(
+            "{table_name}.{name} contains disallowed control character U+{code_point:04X}"
+        )));
+    }
     if !valid_column_value(kind, value) {
         return Err(RuntimeError::Input(format!(
             "{table_name}.{name} violates {kind:?}"
         )));
     }
     Ok(())
+}
+
+fn disallowed_column_text_control_code_point(
+    kind: &ColumnType,
+    value: Option<&Value>,
+) -> Option<u32> {
+    match (kind, value) {
+        (ColumnType::Optional(inner), Some(value)) => {
+            disallowed_column_text_control_code_point(inner, Some(value))
+        }
+        (ColumnType::List { of, .. }, Some(Value::Array(values))) => values
+            .iter()
+            .find_map(|value| disallowed_column_text_control_code_point(of, Some(value))),
+        (ColumnType::Text { .. }, Some(Value::String(text))) => {
+            disallowed_text_control_code_point(text)
+        }
+        _ => None,
+    }
 }
 
 fn valid_column_value(kind: &ColumnType, value: Option<&Value>) -> bool {

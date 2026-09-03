@@ -430,6 +430,21 @@ const expectCode = (run: () => unknown, code: string, label: string) => {
       label,
     );
   }
+  for (const character of ["\t", "\n", "\r", '"', "\\", "\u{10ffff}"]) {
+    const value = { String: character } as Value;
+    store.reexecute(query(literal("Null"), { body: { Text: { max: 1 } } }), context({ body: value }));
+  }
+  let controlMessage = "";
+  try {
+    store.reexecute(
+      query(literal("Null"), { body: { Text: { max: 1 } } }),
+      context({ body: { String: "\u0001" } }),
+    );
+  } catch (error) {
+    controlMessage = error instanceof Error ? error.message : String(error);
+  }
+  assert(controlMessage === "E_INPUT: arg body contains disallowed control character U+0001",
+    `text argument control refusal changed: ${controlMessage}`);
 }
 
 {
@@ -452,6 +467,25 @@ const expectCode = (run: () => unknown, code: string, label: string) => {
       label,
     );
   }
+  for (const [index, character] of ["\t", "\n", "\r", '"', "\\", "\u{10ffff}"].entries()) {
+    const row = { Row: { id: { Id: `accepted-${index}` }, values: { Array: [] }, note: { String: character } } } as Value;
+    new ClientStore(schema, emptyReceipt()).applyMutation(
+      mutation([{ Insert: { table: "items", row: literal(row) } }]),
+      context(),
+    );
+  }
+  let controlMessage = "";
+  try {
+    const row = { Row: { id: { Id: "control" }, values: { Array: [] }, note: { String: "\u0001" } } } as Value;
+    new ClientStore(schema, emptyReceipt()).applyMutation(
+      mutation([{ Insert: { table: "items", row: literal(row) } }]),
+      context(),
+    );
+  } catch (error) {
+    controlMessage = error instanceof Error ? error.message : String(error);
+  }
+  assert(controlMessage === "E_INPUT: items.note contains disallowed control character U+0001",
+    `text column control refusal changed: ${controlMessage}`);
 }
 
 {

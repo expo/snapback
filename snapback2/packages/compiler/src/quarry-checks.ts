@@ -260,6 +260,49 @@ mutation updateMismatch(owner: principal, label: text <=40, value: int):
     assert(failures.length === 0, `Quarry Clique did not certify: ${JSON.stringify(failures)}`);
   });
 
+  test("Quarry Clique nested row shapes use selected column widths", async () => {
+    const schema = readFileSync(resolve(fixtures, "quarry-clique/snapback/schema.q"), "utf8");
+    const operations = `query focused(c: conversations):
+  require exists members[c, viewer] else NOT_MEMBER
+  return expenses[c] last 20 by byConv { *, payerProfile: users[principal = .payer] { displayName, handle }, shares: shares[c, .id] first 50 by byConvExpense { id, debtor, amount, settled, settledAt, debtorProfile: users[principal = .debtor] { displayName, handle } } }
+
+query spread(c: conversations):
+  require exists members[c, viewer] else NOT_MEMBER
+  return expenses[c] last 20 by byConv { *, payerProfile: users[principal = .payer] { displayName, handle }, shares: shares[c, .id] first 50 by byConvExpense { *, debtorProfile: users[principal = .debtor] { displayName, handle } } }
+`;
+    await withProject({ "snapback/schema.q": schema, "snapback/row-width.q": operations }, async (root) => {
+      const lowered = await lowerProject(root);
+      assert(lowered.ok, `Clique row-width scratch project refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
+      const checked = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema);
+      const focused = checked.find((item) => item.program === "row-width.focused")!;
+      assert(focused.error === null && focused.certificate?.max_output_bytes === 822_692
+        && focused.certificate.max_closure_bytes === 821_450,
+      `focused Clique shape did not certify at its pinned bounds: ${JSON.stringify(focused)}`);
+
+      const spread = checked.find((item) => item.program === "row-width.spread")!;
+      assert(spread.certificate === null && spread.error?.code === "E_BOUND"
+        && spread.error.message.startsWith("output bytes 1820692 exceeds ceiling 1048576")
+        && spread.error.rewrite.includes("shares: []"),
+      `Clique spread did not retain its pinned output refusal: ${JSON.stringify(spread)}`);
+
+      const raised = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema, {
+        examined: 10_240,
+        index_entries: 10_240,
+        rule_probes: 10_240,
+        steps: 1_000_000,
+        heap_bytes: 8 * 1024 * 1024,
+        output_bytes: 32 * 1024 * 1024,
+        closure_bytes: 4 * 1024 * 1024,
+        write_rows: 2_048,
+      }).find((item) => item.program === "row-width.spread")!;
+      assert(raised.error === null && raised.certificate?.max_output_bytes === 1_820_692
+        && raised.certificate.max_closure_bytes === 1_879_850,
+      `raised-ceiling Clique spread changed: ${JSON.stringify(raised)}`);
+      // Four-byte text pricing makes the complete expense/share rows 1,098/1,426;
+      // both 20 × 50 figures are direct pins from the real certifier.
+    });
+  });
+
   test("Quarry effects, maintains, aggregate sugar, where, returns, objects, and count reach IR", async () => {
     const chat = await lowerProject(resolve(fixtures, "quarry-chat"));
     const surface = await lowerProject(resolve(fixtures, "quarry-surface"));

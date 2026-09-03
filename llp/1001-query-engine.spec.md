@@ -710,6 +710,10 @@ non-empty remainder and no whitespace/control characters. Optional text may
 be absent/`Null`; when present it is checked identically. Certification
 requires a text or optional-text field and refuses `min > max`.
 
+Text columns and `ArgType::Text` refuse C0 control characters other than tab,
+newline, and carriage return as `E_INPUT`, naming the code point and the
+column or argument. Text maximums continue to count Unicode scalar values.
+
 The implicit `id` column is intrinsic row identity and is immutable without an
 authored constraint. Every addressed update or upsert requires the resulting
 row's `id` to equal the addressed key before rule evaluation, index mutation,
@@ -736,6 +740,13 @@ out (the survey's "why no floats" section is the ruling).
 
 ## 10. What binds, and how it is checked
 
+- Certificate output and closure bounds price a known row projection from the
+  declared serialized maxima of its selected columns. `Get` and `*` retain the
+  table's whole-row maximum; an unresolved field base retains the conservative
+  whole-base price. `max_output_bytes` and `max_closure_bytes` bound canonical
+  JSON for the result and retained rows, respectively. Text costs
+  `4 * max + 16` bytes; JSON costs `max_bytes + 16`; Bytes costs
+  `2 * max + 16`.
 - `cargo test -p snapback2-core` stays under the 30 s budget; new tests live
   in `tests/{store,live,successor,successor_maintains,identity,outbox,
   certificate_retention,completeness,tier0_authorization}.rs`.

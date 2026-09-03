@@ -22,3 +22,15 @@ bounded texts likewise) instead of the flat 32-bytes-times-something the
 current estimate seems to apply, and pin the fixture's nested shape (or a
 synthetic 20 × 50 one) certifying under the 1 MiB ceiling. Keep the
 ceilings; fix the estimate.
+
+## Resolution — 2026-09-03
+
+Resolved by the `s2/row-width` lane; the landing commit is assigned by the
+orchestrator. Known row projections now use declared column widths in
+both output and closure estimates, while `Get` and `*` retain the whole-row
+bound and unknown bases keep the conservative fallback. The real Clique
+compiler/certifier pin certifies the focused 20 × 50 shape at 822,692 output
+bytes and 821,450 closure bytes; the shares `{ * }` twin remains an `E_BOUND`
+refusal at 1,820,692 output bytes (1,879,850 closure bytes with raised
+ceilings). `estimate_row_width.rs` executes maximum-width rows spanning every
+column type and checks the canonical result against the new and old bounds.
