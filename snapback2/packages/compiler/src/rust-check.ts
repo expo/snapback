@@ -12,6 +12,7 @@ export function rustCheck(
   schemaMode: "spike" | "synthetic" = "spike",
   schema?: Record<string, unknown>,
   ceilings?: Record<string, number>,
+  effects?: Array<Record<string, unknown>>,
 ): RustCheckResult[] {
   const crate = decodeURIComponent(new URL("../../../", import.meta.url).pathname);
   // Prefer the prebuilt debug binary: `cargo run` per check costs seconds of lock/probe
@@ -23,7 +24,7 @@ export function rustCheck(
   const process = Bun.spawnSync({
     cmd,
     cwd: crate,
-    stdin: new TextEncoder().encode(JSON.stringify({ programs, schemaMode, schema, ceilings })),
+    stdin: new TextEncoder().encode(JSON.stringify({ programs, schemaMode, schema, ceilings, effects })),
     stdout: "pipe",
     stderr: "pipe",
   });

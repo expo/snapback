@@ -95,6 +95,13 @@ function collectExprDependencies(expr: Expr, into: Set<string>): void {
     into.add(expr.table);
     for (const key of expr.keys) collectExprDependencies(key.value, into);
     if (expr.range?.cursor) collectExprDependencies(expr.range.cursor, into);
+  } else if (expr.kind === "merge") {
+    into.add(expr.table);
+    if (expr.cursor) collectExprDependencies(expr.cursor, into);
+    for (const lane of expr.lanes) {
+      for (const value of lane.prefix) collectExprDependencies(value, into);
+      if (lane.loop) collectExprDependencies(lane.loop.domain, into);
+    }
   } else if (expr.kind === "exists" || expr.kind === "created") {
     collectExprDependencies(expr.read, into);
   } else if (expr.kind === "aggregate") {

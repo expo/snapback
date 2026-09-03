@@ -169,6 +169,8 @@ pub struct AuthoritativeTrace {
     pub ranges: Vec<TraceRange>,
     pub absences: Vec<(String, String, Vec<Value>)>,
     pub rule_inputs: Vec<RuleInputTrace>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub merges: Vec<MergeTrace>,
     pub examined: u64,
     pub rule_probes: u64,
     pub steps: u64,
@@ -178,6 +180,12 @@ pub struct AuthoritativeTrace {
     pub touched: Vec<TouchedKey>,
     #[serde(default)]
     pub emits: Vec<EmitRecord>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MergeTrace {
+    pub site: String,
+    pub deduplicated_union_len: u64,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -882,6 +890,125 @@ fn validate_inputs(
             .ok_or_else(|| RuntimeError::Input(format!("missing arg {name}")))?;
         validate_arg_value(kind, value, &format!("arg {name}"))?;
     }
+    validate_optional_cursor_groups(&program.body, inputs)
+}
+
+fn validate_optional_cursor_groups(
+    statements: &[Stmt],
+    inputs: &BTreeMap<String, Value>,
+) -> Result<(), RuntimeError> {
+    fn scan(scan: &Scan, inputs: &BTreeMap<String, Value>) -> Result<(), RuntimeError> {
+        if !scan.optional_cursor_args.is_empty() {
+            let present = scan
+                .optional_cursor_args
+                .iter()
+                .filter(|name| inputs.get(*name).is_some_and(|value| *value != Value::Null))
+                .count();
+            if present != 0 && present != scan.optional_cursor_args.len() {
+                return Err(RuntimeError::Input(format!(
+                    "optional cursor group ({}) must be all absent or all present",
+                    scan.optional_cursor_args.join(", ")
+                )));
+            }
+        }
+        for value in &scan.prefix {
+            expr(value, inputs)?;
+        }
+        for value in [scan.after.as_deref(), scan.before.as_deref()]
+            .into_iter()
+            .flatten()
+        {
+            expr(value, inputs)?;
+        }
+        if let Some(range) = &scan.range {
+            for value in [
+                range.gt.as_deref(),
+                range.gte.as_deref(),
+                range.lt.as_deref(),
+                range.lte.as_deref(),
+            ]
+            .into_iter()
+            .flatten()
+            {
+                expr(value, inputs)?;
+            }
+        }
+        Ok(())
+    }
+    fn expr(value: &Expr, inputs: &BTreeMap<String, Value>) -> Result<(), RuntimeError> {
+        match value {
+            Expr::Field { base, .. } | Expr::Unary { value: base, .. } => expr(base, inputs),
+            Expr::Binary { left, right, .. } => {
+                expr(left, inputs)?;
+                expr(right, inputs)
+            }
+            Expr::Array(values) | Expr::Builtin { args: values, .. } => {
+                for value in values {
+                    expr(value, inputs)?;
+                }
+                Ok(())
+            }
+            Expr::Object(values) => {
+                for value in values.values() {
+                    expr(value, inputs)?;
+                }
+                Ok(())
+            }
+            Expr::Scan(value) => scan(value, inputs),
+            Expr::Literal(_)
+            | Expr::Variable(_)
+            | Expr::Input(_)
+            | Expr::Get(_)
+            | Expr::Exists(_) => Ok(()),
+        }
+    }
+    fn domain(value: &LoopDomain, inputs: &BTreeMap<String, Value>) -> Result<(), RuntimeError> {
+        match value {
+            LoopDomain::Page(value) => scan(value, inputs),
+            LoopDomain::DerivedArray { value, .. } => expr(value, inputs),
+            LoopDomain::Recurse(value) => expr(&value.seed, inputs),
+            LoopDomain::LiteralRange { .. } | LoopDomain::ArgList { .. } => Ok(()),
+        }
+    }
+    for statement in statements {
+        match statement {
+            Stmt::Const { value, .. }
+            | Stmt::Let { value, .. }
+            | Stmt::Assign { value, .. }
+            | Stmt::Push { value, .. }
+            | Stmt::Return(value) => expr(value, inputs)?,
+            Stmt::If {
+                condition,
+                then_body,
+                else_body,
+            } => {
+                expr(condition, inputs)?;
+                validate_optional_cursor_groups(then_body, inputs)?;
+                validate_optional_cursor_groups(else_body, inputs)?;
+            }
+            Stmt::For {
+                domain: loop_domain,
+                body,
+                ..
+            } => {
+                domain(loop_domain, inputs)?;
+                validate_optional_cursor_groups(body, inputs)?;
+            }
+            Stmt::Require { condition, .. } => expr(condition, inputs)?,
+            Stmt::Insert { row, .. } => expr(row, inputs)?,
+            Stmt::Update { key, patch, .. } => {
+                expr(key, inputs)?;
+                expr(patch, inputs)?;
+            }
+            Stmt::Upsert { key, row, .. } => {
+                expr(key, inputs)?;
+                expr(row, inputs)?;
+            }
+            Stmt::Delete { key, .. } => expr(key, inputs)?,
+            Stmt::Emit { payload, .. } => expr(payload, inputs)?,
+            Stmt::Break | Stmt::Continue => {}
+        }
+    }
     Ok(())
 }
 
@@ -1002,6 +1129,17 @@ fn query_state(trace: &AuthoritativeTrace, certificate: &Certificate) -> Executi
                     .iter()
                     .find(|site| site.site == range.site)
                     .is_none_or(|site| !site.hoist)
+        })
+        || certificate.merge_sites.iter().any(|site| {
+            let union_too_large = trace
+                .merges
+                .iter()
+                .find(|entry| entry.site == site.site)
+                .is_none_or(|entry| entry.deduplicated_union_len > site.take);
+            let lane_limited = trace.ranges.iter().any(|range| {
+                site.lane_sites.contains(&range.site) && range.stop != StopReason::Exhausted
+            });
+            union_too_large || lane_limited
         })
     {
         return ExecutionState::Capped;

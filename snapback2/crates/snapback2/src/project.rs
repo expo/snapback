@@ -1031,12 +1031,12 @@ for await (const line of createInterface({{ input: process.stdin }})) {{
         // Authored in Quarry: the worker refuses TypeScript-authored backends (E_QUARRY_ONLY).
         fs::write(
             snapback.join("schema.q"),
-            "table items:\n  at: time\n  label: text <=40\n  by byAt: at, id\n  public\n  insert r <- public\n  update r <- public\n  delete r <- public\n\ntable prices:\n  amount: money USD\n  public\n  insert r <- public\n",
+            "table items:\n  at: time\n  label: text <=40\n  by byAt: at, id\n  public\n  insert <- public\n  update <- public\n  delete <- public\n\ntable prices:\n  amount: money USD\n  public\n  insert <- public\n",
         )
         .unwrap();
         fs::write(
             snapback.join("programs.q"),
-            "query page(previousId: items):\n  previous = items[previousId]! else NOT_FOUND\n  return items[] after (previous.at, previous.id) first 1 by byAt\n\nquery count():\n  return count(items[] first 2 by byAt)\n\nmutation put(id: id):\n  +items { id, at: 2, label: 'inserted' }\n  return id\n\nmutation putPrice():\n  return +prices { amount: 2.50 }\n\nquery getPrice(id: prices):\n  return prices[id]\n",
+            "query page(previousId: items):\n  previous = items[previousId]! else NOT_FOUND\n  return items[] after (previous.at, previous.id) first 1 by byAt\n\nquery count():\n  return count(items[] first 2 by byAt)\n\nmutation put(id: id):\n  insert items { id, at: 2, label: 'inserted' }\n  return id\n\nmutation putPrice():\n  return insert prices { amount: 2.50 }\n\nquery getPrice(id: prices):\n  return prices[id]\n",
         )
         .unwrap();
 

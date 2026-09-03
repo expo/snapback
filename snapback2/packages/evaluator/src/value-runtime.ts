@@ -262,6 +262,26 @@ export function validateInputs(program: any, inputs: Record<string, Value>): voi
     if (value === undefined) throw new EvalError("E_INPUT", `missing arg ${name}`);
     validateTypedValue(descriptor, value, `arg ${name}`, true);
   }
+  validateOptionalCursorGroups(program.body, inputs);
+}
+
+function validateOptionalCursorGroups(value: any, inputs: Record<string, Value>): void {
+  if (Array.isArray(value)) {
+    for (const item of value) validateOptionalCursorGroups(item, inputs);
+    return;
+  }
+  if (value === null || typeof value !== "object") return;
+  const scan = value.Scan;
+  if (scan && Array.isArray(scan.optional_cursor_args) && scan.optional_cursor_args.length > 0) {
+    const present = scan.optional_cursor_args.filter((name: string) => inputs[name] !== "Null").length;
+    if (present !== 0 && present !== scan.optional_cursor_args.length) {
+      throw new EvalError(
+        "E_INPUT",
+        `optional cursor group (${scan.optional_cursor_args.join(", ")}) must be all absent or all present`,
+      );
+    }
+  }
+  for (const child of Object.values(value)) validateOptionalCursorGroups(child, inputs);
 }
 
 export function validateTypedValue(
@@ -386,7 +406,7 @@ export function sortObject<T>(value: Record<string, T>): Record<string, T> {
 
 export function builtinArity(kind: string): number {
   switch (kind) {
-    case "Len": case "Sort": case "MentionTokens": case "Count": case "CountCapped": case "Sum": return 1;
+    case "Len": case "Sort": case "DedupeById": case "MentionTokens": case "Count": case "CountCapped": case "Sum": return 1;
     case "Concat": case "Min": case "Max": case "Divmod": return 2;
     case "Slice": case "DeterministicShare": return 3;
     default: throw new EvalError("E_OPAQUE", `unsupported builtin ${kind}`);

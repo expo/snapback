@@ -94,7 +94,7 @@ impl OutputEstimator<'_> {
             Expr::Array(values) => largest(values.iter().collect()),
             Expr::Object(values) => largest(values.values().collect()),
             Expr::Builtin { builtin, args } => match builtin {
-                Builtin::Slice | Builtin::Sort { .. } => args
+                Builtin::Slice | Builtin::Sort { .. } | Builtin::DedupeById { .. } => args
                     .first()
                     .and_then(|value| self.expression_rewrite(value, variables)),
                 Builtin::Concat => largest(args.iter().collect()),
@@ -523,6 +523,8 @@ fn inline_scan(
                 .as_deref()
                 .map(|value| Box::new(inline_expr(value, variables, available, visiting))),
         }),
+        optional_cursor_args: scan.optional_cursor_args.clone(),
+        merge_site: scan.merge_site.clone(),
         provenance: scan.provenance,
     }
 }
@@ -676,7 +678,7 @@ fn render_expr(value: &Expr, args: &BTreeSet<String>) -> String {
                 Builtin::Min => format!("min({})", rendered.join(", ")),
                 Builtin::Max => format!("max({})", rendered.join(", ")),
                 Builtin::Divmod { .. } => format!("divmod({})", rendered.join(", ")),
-                Builtin::Sort { .. } => {
+                Builtin::Sort { .. } | Builtin::DedupeById { .. } => {
                     rendered.first().cloned().unwrap_or_else(|| "[]".to_owned())
                 }
                 Builtin::DeterministicShare => {

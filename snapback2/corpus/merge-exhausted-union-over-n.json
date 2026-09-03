@@ -1,0 +1,475 @@
+{
+  "corpusVersion": 1,
+  "name": "merge-exhausted-union-over-n",
+  "category": "merge",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "follows": {
+        "columns": {
+          "at": "Int",
+          "followed": "Principal",
+          "follower": "Principal",
+          "id": "Id"
+        },
+        "indexes": {
+          "byFollower": {
+            "columns": [
+              "follower",
+              "at",
+              "id"
+            ],
+            "unique": false
+          },
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "merge corpus fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "merge corpus fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "merge corpus fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "merge corpus fixture"
+            }
+          }
+        },
+        "constraints": []
+      },
+      "posts": {
+        "columns": {
+          "at": "Int",
+          "author": "Principal",
+          "id": "Id"
+        },
+        "indexes": {
+          "byAt": {
+            "columns": [
+              "at",
+              "id"
+            ],
+            "unique": false
+          },
+          "byAuthorAt": {
+            "columns": [
+              "author",
+              "at",
+              "id"
+            ],
+            "unique": false
+          },
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "merge corpus fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "merge corpus fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "merge corpus fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "merge corpus fixture"
+            }
+          }
+        },
+        "constraints": []
+      }
+    },
+    "maintains": []
+  },
+  "program": {
+    "name": "merge.over",
+    "kind": "Query",
+    "args": {},
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Return": {
+          "Builtin": {
+            "builtin": "Slice",
+            "args": [
+              {
+                "Builtin": {
+                  "builtin": {
+                    "DedupeById": {
+                      "site": "merge.over",
+                      "table": "posts"
+                    }
+                  },
+                  "args": [
+                    {
+                      "Builtin": {
+                        "builtin": {
+                          "Sort": {
+                            "keys": [
+                              {
+                                "field": "at",
+                                "order": "Asc"
+                              },
+                              {
+                                "field": "id",
+                                "order": "Asc"
+                              }
+                            ]
+                          }
+                        },
+                        "args": [
+                          {
+                            "Builtin": {
+                              "builtin": "Concat",
+                              "args": [
+                                {
+                                  "Scan": {
+                                    "site": "merge.over.self",
+                                    "table": "posts",
+                                    "index": "byAuthorAt",
+                                    "prefix": [
+                                      {
+                                        "Literal": {
+                                          "Id": "u1"
+                                        }
+                                      }
+                                    ],
+                                    "order": "Asc",
+                                    "take": {
+                                      "Literal": 2
+                                    },
+                                    "after": null,
+                                    "before": null,
+                                    "range": null,
+                                    "optional_cursor_args": [],
+                                    "merge_site": "merge.over",
+                                    "provenance": "Const"
+                                  }
+                                },
+                                {
+                                  "Scan": {
+                                    "site": "merge.over.peer",
+                                    "table": "posts",
+                                    "index": "byAuthorAt",
+                                    "prefix": [
+                                      {
+                                        "Literal": {
+                                          "Id": "u2"
+                                        }
+                                      }
+                                    ],
+                                    "order": "Asc",
+                                    "take": {
+                                      "Literal": 2
+                                    },
+                                    "after": null,
+                                    "before": null,
+                                    "range": null,
+                                    "optional_cursor_args": [],
+                                    "merge_site": "merge.over",
+                                    "provenance": "Const"
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "Literal": {
+                  "Int": 0
+                }
+              },
+              {
+                "Literal": {
+                  "Int": 2
+                }
+              }
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "merge.over",
+    "plan_hash": "5850483a19c0908ad6820844b20c7c5b98066d5e56e5080fc8e1f6726b7ce25d",
+    "schema_hash": "f0678e830e1d82c9944be8c03fd432099f7c739ea93d4cd40939d8700359c528",
+    "rule_hashes": {
+      "posts.read": "0201f66714518c59ab12959e7a0541e23ec540e46fe516506e0985e20b514616"
+    },
+    "evaluator_version": "bounded-spike-rust-1",
+    "value_model_version": "i53-codepoint-bytes-v2",
+    "read_sites": [
+      {
+        "site": "merge.over.peer",
+        "table": "posts",
+        "index": "byAuthorAt",
+        "prefix_template": "Const",
+        "take": 2,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 0,
+        "hoist": true
+      },
+      {
+        "site": "merge.over.self",
+        "table": "posts",
+        "index": "byAuthorAt",
+        "prefix_template": "Const",
+        "take": 2,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 0,
+        "hoist": true
+      }
+    ],
+    "merge_sites": [
+      {
+        "site": "merge.over",
+        "lane_sites": [
+          "merge.over.peer",
+          "merge.over.self"
+        ],
+        "take": 2
+      }
+    ],
+    "write_sites": [],
+    "maintained_amplification": 0,
+    "constraint_checks": [],
+    "max_examined": 8,
+    "max_index_entries": 8,
+    "max_rule_probes": 0,
+    "max_steps": 49,
+    "max_heap_bytes": 1568,
+    "max_output_bytes": 718,
+    "max_closure_bytes": 1408,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [
+      "posts.byAuthorAt"
+    ],
+    "disclosures": [],
+    "bound_product": "merge.over.self take 2 = 2"
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {},
+    "now": null,
+    "new_ids": [],
+    "read_time": null,
+    "seed_write": false
+  },
+  "receipt": {
+    "schema_hash": "f0678e830e1d82c9944be8c03fd432099f7c739ea93d4cd40939d8700359c528",
+    "rows": [
+      {
+        "table": "posts",
+        "id": "a1",
+        "row": {
+          "Row": {
+            "at": {
+              "Int": 1
+            },
+            "author": {
+              "Id": "u1"
+            },
+            "id": {
+              "Id": "a1"
+            }
+          }
+        }
+      },
+      {
+        "table": "posts",
+        "id": "a3",
+        "row": {
+          "Row": {
+            "at": {
+              "Int": 3
+            },
+            "author": {
+              "Id": "u1"
+            },
+            "id": {
+              "Id": "a3"
+            }
+          }
+        }
+      },
+      {
+        "table": "posts",
+        "id": "b2",
+        "row": {
+          "Row": {
+            "at": {
+              "Int": 2
+            },
+            "author": {
+              "Id": "u2"
+            },
+            "id": {
+              "Id": "b2"
+            }
+          }
+        }
+      },
+      {
+        "table": "posts",
+        "id": "b4",
+        "row": {
+          "Row": {
+            "at": {
+              "Int": 4
+            },
+            "author": {
+              "Id": "u2"
+            },
+            "id": {
+              "Id": "b4"
+            }
+          }
+        }
+      }
+    ],
+    "ranges": [
+      {
+        "site": "merge.over.self",
+        "table": "posts",
+        "index": "byAuthorAt",
+        "prefix": [
+          {
+            "Id": "u1"
+          }
+        ],
+        "order": "Asc",
+        "take": 2,
+        "after": null,
+        "before": null,
+        "gt": null,
+        "gte": null,
+        "lt": null,
+        "lte": null,
+        "rule_hash": "0201f66714518c59ab12959e7a0541e23ec540e46fe516506e0985e20b514616",
+        "row_ids": [
+          "a1",
+          "a3"
+        ],
+        "stop": "Exhausted",
+        "absence": false,
+        "halo": null,
+        "n2_key": null
+      },
+      {
+        "site": "merge.over.peer",
+        "table": "posts",
+        "index": "byAuthorAt",
+        "prefix": [
+          {
+            "Id": "u2"
+          }
+        ],
+        "order": "Asc",
+        "take": 2,
+        "after": null,
+        "before": null,
+        "gt": null,
+        "gte": null,
+        "lt": null,
+        "lte": null,
+        "rule_hash": "0201f66714518c59ab12959e7a0541e23ec540e46fe516506e0985e20b514616",
+        "row_ids": [
+          "b2",
+          "b4"
+        ],
+        "stop": "Exhausted",
+        "absence": false,
+        "halo": null,
+        "n2_key": null
+      }
+    ],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": {
+      "Array": [
+        {
+          "Row": {
+            "at": {
+              "Int": 1
+            },
+            "author": {
+              "Id": "u1"
+            },
+            "id": {
+              "Id": "a1"
+            }
+          }
+        },
+        {
+          "Row": {
+            "at": {
+              "Int": 2
+            },
+            "author": {
+              "Id": "u2"
+            },
+            "id": {
+              "Id": "b2"
+            }
+          }
+        }
+      ]
+    },
+    "errorCode": null,
+    "localState": "fresh",
+    "partialSites": [],
+    "canonicalResult": "{\"Array\":[{\"Row\":{\"at\":{\"Int\":1},\"author\":{\"Id\":\"u1\"},\"id\":{\"Id\":\"a1\"}}},{\"Row\":{\"at\":{\"Int\":2},\"author\":{\"Id\":\"u2\"},\"id\":{\"Id\":\"b2\"}}}]}",
+    "digest": "825576cf53daac31ac3b88e9cdc4028c4404e16f44bd4756553070384ab15827",
+    "rangeStops": {
+      "merge.over.peer": [
+        "exhausted"
+      ],
+      "merge.over.self": [
+        "exhausted"
+      ]
+    },
+    "evictedRows": null
+  }
+}

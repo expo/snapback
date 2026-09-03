@@ -15,6 +15,7 @@ import { appendCollectionFacts, collectionFactsFor, collectionMutationIncrement,
   mergeAssignedCollectionFacts } from "./lower/collection-facts";
 import { forkBranchEnvironment, mergeBranchEnvironments } from "./lower/branch-bindings";
 import { lowerLoopBodyWithMutationPlan } from "./lower/loop-mutations";
+import { lowerMergeByIndex } from "./lower/merge";
 import { lowerCollectionConstructor, lowerCollectionLookup, lowerMapAssignment, requirePrimitiveCollectionIdentity } from "./lower/collections";
 import { upsertIdentityMatches } from "./lower/write-identity";
 import { findPolicyRefusals, mechanicalBoundRewrite } from "./policy";
@@ -63,12 +64,9 @@ export type {
 } from "./lower/environment";
 export { typecheckSource } from "./typecheck";
 export { mechanicalBoundRewrite } from "./policy";
-export async function lowerProject(root: string) {
-  return (await import("./project")).lowerProject(root, { authoring: "any" });
-}
+export async function lowerProject(root: string) { return (await import("./project")).lowerProject(root, { authoring: "any" }); }
 function captureRefusal(diagnostics: FrontendDiagnostic[], error: unknown): void {
-  if (error instanceof Refusal) diagnostics.push(error.diagnostic);
-  else throw error;
+  if (error instanceof Refusal) diagnostics.push(error.diagnostic); else throw error;
 }
 export function lowerSource(
   source: string,
@@ -965,6 +963,9 @@ function lowerValue(node: ts.Expression, env: Environment, hint?: string): Lower
         ...loweredRow.statements, { Let: { name: rowName, value: loweredRow.expression } },
         { Insert: { table: tableReference(target, env).table, row: { Variable: rowName } } },
       ], expression: { Variable: rowName } };
+    }
+    if (ts.isIdentifier(value.expression) && value.expression.text === "mergeByIndex") {
+      return lowerMergeByIndex(value, env, hint, lowerValue, lowerExpr);
     }
     if (ts.isIdentifier(value.expression) && ["top", "mergeByTime", "intersectById"].includes(value.expression.text)) {
       return lowerCollectionBuiltin(value.expression.text, value, env, hint);

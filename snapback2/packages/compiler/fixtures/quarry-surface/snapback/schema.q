@@ -15,17 +15,17 @@ table users:
   unique name
   immutable principal, joinedAt
   public 'directory profiles are public'
-  insert r <- r.principal = viewer
+  insert <- .principal = viewer
   update (old, next) <- old.principal = viewer and next.principal = viewer
-  delete r <- deny
+  delete <- deny
 
 table groups:
   owner: principal
   label: text <=80
   public
-  insert r <- r.owner = viewer
-  update r <- r.owner = viewer
-  delete r <- r.owner = viewer
+  insert <- .owner = viewer
+  update <- .owner = viewer
+  delete <- .owner = viewer
 
 table memberships:
   group: groups
@@ -33,10 +33,10 @@ table memberships:
   active: bool
   unique group, principal
   by byPrincipalActive: principal, active
-  read r <- r.principal = viewer or r.active = true
-  insert r <- r.principal = viewer and not (r.active = false)
-  update r <- r.principal = viewer
-  delete r <- r.principal = viewer
+  read <- .principal = viewer or .active = true
+  insert <- .principal = viewer and not (.active = false)
+  update <- .principal = viewer
+  delete <- .principal = viewer
 
 table posts:
   author: principal
@@ -47,37 +47,38 @@ table posts:
   visible: bool
   mood: enum('plain', 'bright')
   by byAuthorAt: author, at, id
+  by byAuthorVisibleAt: author, visible, at, id
   by byGroupAt: group, at, id
   public
-  insert r <- r.author = viewer
-  update r <- r.author = viewer
-  delete r <- r.author = viewer
+  insert <- .author = viewer
+  update <- .author = viewer
+  delete <- .author = viewer
 
 table counters:
   owner: principal
   value: int
   note: text <=40 ?
-  read r <- r.owner = viewer
-  insert r <- r.owner = viewer
-  update r <- r.owner = viewer
-  delete r <- r.owner = viewer
+  read <- .owner = viewer
+  insert <- .owner = viewer
+  update <- .owner = viewer
+  delete <- .owner = viewer
 
 table pairs:
   lo: principal
   hi: principal
   unique lo, hi
-  read r <- r.lo = viewer or r.hi = viewer
-  insert r <- r.lo = viewer or r.hi = viewer
+  read <- .lo = viewer or .hi = viewer
+  insert <- .lo = viewer or .hi = viewer
 
 table keyedRows:
   owner: principal
   label: text <=40
   value: int
   unique owner, label
-  read r <- allow
-  insert r <- allow
-  update r <- allow
-  delete r <- allow
+  read <- allow
+  insert <- allow
+  update <- allow
+  delete <- allow
 
 table nodes:
   name: text <=80
@@ -86,7 +87,7 @@ table nodes:
   public
 
 maintain counterTotals = sum counters of value by owner:
-  read r <- r.owner = viewer
+  read <- .owner = viewer
   readable <- allow
 
 channel typing(group: groups):

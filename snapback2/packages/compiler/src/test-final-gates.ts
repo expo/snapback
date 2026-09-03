@@ -86,15 +86,15 @@ export function registerFinalGateChecks(test: RegisterTest, legacyLib: string): 
     }
     const quarryChecked = runBinaryCheck(["--json", "--ir"], quarryChat.project);
     const pagePins: Record<string, [number, number]> = {
-      "feeds.followingFeed": [1_027_462, 1_382_300],
-      "feeds.globalFeed": [1_027_462, 1_382_300],
+      "feeds.followingFeed": [410_972, 3_071_480],
+      "feeds.globalFeed": [410_972, 410_360],
       "messages.thread": [827_062, 827_000],
     };
     for (const [name, [output, closure]] of Object.entries(pagePins)) {
       const result = quarryChecked.results.find((item: any) => item.program === name);
       assert(result?.error === null && result.certificate?.max_output_bytes === output
         && result.certificate.max_closure_bytes === closure,
-      `${name} last 50 did not certify at its pinned default bounds: ${JSON.stringify(result)}`);
+      `${name} shipped page did not certify at its pinned default bounds: ${JSON.stringify(result)}`);
     }
     const wrongPrincipalAxis = structuredClone(chat.project) as any;
     wrongPrincipalAxis.schema.tables.memberships.columns.principal = "Id";

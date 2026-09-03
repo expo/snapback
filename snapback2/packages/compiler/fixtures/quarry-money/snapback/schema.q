@@ -5,4 +5,4 @@ table prices:
   rate: decimal 3
   yen: money JPY 0 ?
   public
-  insert r <- public
+  insert <- public

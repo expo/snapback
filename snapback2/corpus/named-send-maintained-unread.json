@@ -998,6 +998,8 @@
               "after": null,
               "before": null,
               "range": null,
+              "optional_cursor_args": [],
+              "merge_site": null,
               "provenance": "Arg"
             }
           },
@@ -1137,7 +1139,7 @@
   },
   "certificate": {
     "program": "sendMaintainedUnread",
-    "plan_hash": "86a0a5108f596bb7d4af38beb3dd4bb692563d9cae188578aaa098b06362b32f",
+    "plan_hash": "74e5391d3051684638444550bec5d85d0d505ed1a34145c3a63710e58429195f",
     "schema_hash": "df0a1b25740fd361ededb5bf93df3428a133ea6dd44f27a74c45a76e1ce8fb3c",
     "rule_hashes": {
       "memberships.read": "a4500d80558e462bf40291836ee785e6a05a708f84bb1d5d919adc2da67c150b",

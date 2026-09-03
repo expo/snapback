@@ -7,6 +7,8 @@ import type {
   IndexDecl,
   KeyPart,
   MaintainDecl,
+  MergeExpr,
+  MergeLane,
   ObjectField,
   ProgramDecl,
   RuleDecl,
@@ -19,12 +21,13 @@ import type {
 import type { QuarryDiagnostic } from "./ast";
 import { QuarryError, refuse, syntax, unsupported } from "./diagnostics";
 import { lex, type Token, type TokenKind } from "./lexer";
+import { quarryExpression } from "./program";
 
 const RESERVED_BINDINGS = new Set([
   "arguments", "await", "break", "case", "catch", "class", "const", "continue", "debugger", "default", "delete", "do",
   "else", "enum", "eval", "export", "extends", "false", "finally", "for", "function", "if", "implements", "import",
-  "in", "instanceof", "interface", "let", "new", "null", "package", "private", "protected", "public", "return", "static",
-  "super", "switch", "this", "throw", "true", "try", "typeof", "var", "void", "while", "with", "yield",
+  "in", "insert", "instanceof", "interface", "let", "merge", "new", "null", "package", "private", "protected", "public", "return", "static",
+  "super", "switch", "this", "throw", "true", "try", "typeof", "update", "upsert", "var", "void", "while", "with", "yield",
 ]);
 const PRECEDENCE = new Map<string, number>([
   ["??", 1], ["or", 2], ["and", 3],
@@ -141,12 +144,10 @@ class Parser {
   private parseFinalExists(): TableDecl["finalExists"][number] {
     const site = this.take("after");
     this.take("insert");
-    const binding = this.word().value;
-    this.take("<-");
-    const value = this.expression(0, new Set(["<newline>"]));
+    const value = this.parseFocalRuleValue("after insert", site);
     if (value.kind !== "exists") syntax(value.site, "after insert requires exactly one exists predicate");
     this.newline();
-    return { binding, value, site };
+    return { value, site };
   }
 
   private parseColumn(): ColumnDecl {
@@ -199,11 +200,9 @@ class Parser {
       try {
         const effect = this.word();
         if (effect.value !== "read" && effect.value !== "readable") syntax(effect, `unknown maintain property ${effect.value}`);
-        const binding = effect.value === "readable" && this.at("<-") ? "r" : this.word().value;
-        this.take("<-");
-        const value = this.expression(0, new Set(["<newline>"]));
+        const value = this.parseFocalRuleValue(effect.value, effect);
         this.newline();
-        const declaration: RuleDecl = { effect: "read", bindings: [binding], value, site: effect };
+        const declaration: RuleDecl = { effect: "read", bindings: [], value, site: effect };
         if (effect.value === "read") read = declaration;
         else readable = declaration;
       } catch (error) {
@@ -212,7 +211,7 @@ class Parser {
       }
     }
     this.takeKind("dedent");
-    if (!read) syntax(site, `maintain ${name} requires read row <- rule`);
+    if (!read) syntax(site, `maintain ${name} requires read <- rule`);
     return { name, aggregate: aggregateToken.value as "count" | "sum", source, ...(column ? { column } : {}), by, read, ...(readable ? { readable } : {}), site };
   }
 
@@ -228,25 +227,35 @@ class Parser {
   private parseRule(): RuleDecl {
     const effectToken = this.word();
     const effect = effectToken.value as RuleDecl["effect"];
-    const bindings: string[] = [];
-    if (this.maybe("(")) {
-      bindings.push(this.word().value);
+    let bindings: string[] = [];
+    let value: Expr;
+    if (this.at("(")) {
+      this.take("(");
+      bindings = [this.word().value];
       while (this.maybe(",")) bindings.push(this.word().value);
       this.take(")");
+      if (effect !== "update" || bindings.length !== 2) {
+        syntax(effectToken, `${effect} rules use <- for one row; only update (old, next) has named bindings`, `rewrite the ${effect} rule with <- and direct .field terms`);
+      }
+      this.take("<-");
+      value = this.expression(0, new Set(["<newline>"]));
     } else {
-      bindings.push(this.word().value);
+      value = this.parseFocalRuleValue(effect, effectToken);
     }
-    const valid = effect === "update"
-      ? bindings.length === 1 || bindings.length === 2
-      : bindings.length === 1;
-    if (!valid) {
-      const expected = effect === "update" ? "one candidate binding or (old, next)" : "exactly one row binding";
-      syntax(effectToken, `${effect} rules require ${expected}`, `rewrite the ${effect} rule with ${expected}`);
-    }
-    this.take("<-");
-    const value = this.expression(0, new Set(["<newline>"]));
     this.newline();
     return { effect, bindings, value, site: effectToken };
+  }
+
+  private parseFocalRuleValue(label: string, site: Site): Expr {
+    if (this.maybe("<-")) return this.expression(0, new Set(["<newline>"]));
+    const binding = this.word().value;
+    this.take("<-");
+    const value = this.expression(0, new Set(["<newline>"]));
+    syntax(
+      site,
+      `${label} rules use the focal row . and do not take a named single-row binding`,
+      `${label} <- ${quarryExpression(focalizeRuleBinding(value, binding))}`,
+    );
   }
 
   private parseChannel(): ChannelDecl {
@@ -302,7 +311,7 @@ class Parser {
     return { kind, name, args, body, site: kindToken };
   }
 
-  private generatedBinding(kind: "table" | "channel" | "effect" | "operation"): string {
+  private generatedBinding(kind: "table" | "channel" | "effect" | "operation" | "merge lane"): string {
     const token = this.word();
     if (RESERVED_BINDINGS.has(token.value)) {
       refuse(
@@ -419,7 +428,7 @@ class Parser {
     if (this.at("return")) {
       const site = this.take("return");
       const value = this.expression(0, new Set(["<newline>"]));
-      this.newline();
+      if (value.kind !== "merge") this.newline();
       return { kind: "return", value, site };
     }
     if (this.at("emit")) {
@@ -435,7 +444,7 @@ class Parser {
       const name = this.word();
       this.take("=");
       const value = this.expression(0, new Set(["<newline>"]));
-      this.newline();
+      if (value.kind !== "merge") this.newline();
       return { kind: "bind", names: [name.value], value, site: name };
     }
     if (this.at("(") && this.tupleBindingAhead()) {
@@ -449,7 +458,7 @@ class Parser {
       return { kind: "bind", names, value, site };
     }
     const value = this.expression(0, new Set(["<newline>"]));
-    this.newline();
+    if (value.kind !== "merge") this.newline();
     return { kind: "expr", value, site: value.site };
   }
 
@@ -545,14 +554,21 @@ class Parser {
       return { kind: "created", read: value, site: token };
     }
     if (token.value === "walk") return this.parseWalk();
-    if (["+", "+~", "~"].includes(token.value) || (token.value === "-" && this.peek(1).kind === "word")) return this.parseWrite();
+    // @ref LLP 1010#a1-words-for-writes — the four writes have one word form;
+    // sigils are syntax errors rather than a compatibility lane.
+    if (["insert", "update", "upsert", "delete"].includes(token.value)) return this.parseWrite();
+    if ((token.value === "+" && (this.peek(1).kind === "word" || this.peek(1).value === "~"))
+      || token.value === "~"
+      || (token.value === "-" && this.peek(1).kind === "word" && this.peek(2).value === "[")) {
+      syntax(token, "write sigils are invalid; use insert, update, upsert, or delete", "use insert, update, upsert, or delete");
+    }
     if (token.value === "#") {
       this.position += 1;
       const table = this.word();
       const read = this.parseRead(table.value, table);
       return { kind: "aggregate", table: table.value, keys: read.keys, site: token };
     }
-    if (token.value === "merge") unsupported(token, "merge", "name one bounded index scan or maintain a feed table");
+    if (token.value === "merge") return this.parseMerge();
     if (token.value === "device" || token.value === "oblivious") unsupported(token, token.value, "pass an explicit bounded argument to the operation");
 
     let value: Expr;
@@ -620,10 +636,13 @@ class Parser {
         value = { kind: "call", name: value.name, args, site };
       } else if (this.at("[") && value.kind === "name") {
         value = this.parseRead(value.name, value.site);
-      } else if (value.kind === "read" && this.at("by")) {
-        this.take("by");
-        value = { ...value, index: this.word().value };
-      } else if (value.kind === "read" && ["after", "before", "first", "last", "where"].includes(this.peek().value)) {
+      } else if (value.kind === "read" && this.at("where")) {
+        unsupported(
+          this.peek(),
+          "where",
+          "use an index whose prefix pins the predicate, a table invariant (after insert <- exists ...), or merge for a fan-in feed",
+        );
+      } else if (value.kind === "read" && ["after", "before", "first", "last", "by"].includes(this.peek().value)) {
         value = this.parseRange(value);
       } else if (this.maybe("!")) {
         const assertion = this.tokens[this.position - 1]!;
@@ -658,32 +677,111 @@ class Parser {
   }
 
   private parseRange(read: Extract<Expr, { kind: "read" }>): Extract<Expr, { kind: "read" }> {
+    // @ref LLP 1010#a7-one-modifier-order — retain the first value for each
+    // modifier while parsing the whole read so a refusal can paste one canonical form.
     let order: "asc" | "desc" | undefined;
     let take: number | undefined;
     let cursor: Expr | undefined;
     let cursorKind: "after" | "before" | undefined;
     const site = this.peek();
-    let where: Expr | undefined;
     let index = read.index;
-    while (["after", "before", "first", "last", "by", "where"].includes(this.peek().value)) {
+    let highestRank = -1;
+    const seen = new Set<number>();
+    let violation: Token | undefined;
+    while (["after", "before", "first", "last", "by"].includes(this.peek().value)) {
       const key = this.word();
+      const rank = key.value === "after" || key.value === "before" ? 0
+        : key.value === "first" || key.value === "last" ? 1
+          : 2;
+      if (!violation && (seen.has(rank) || rank < highestRank)) violation = key;
+      seen.add(rank);
+      highestRank = Math.max(highestRank, rank);
       if (key.value === "after" || key.value === "before") {
-        if (cursor) syntax(key, "a range read may name only one after/before cursor");
-        cursorKind = key.value;
-        cursor = this.expression(0, new Set(["first", "last", "by", "where", "<newline>", ":", "{", ",", "}"]));
+        const candidate = this.expression(0, new Set(["after", "before", "first", "last", "by", "where", "<newline>", ":", "{", ",", "}"]));
+        if (!cursor) {
+          cursorKind = key.value;
+          cursor = candidate;
+        }
       } else if (key.value === "first" || key.value === "last") {
-        if (take !== undefined) syntax(key, "a range read may name only one first/last bound");
-        order = key.value === "first" ? "asc" : "desc";
-        take = this.number();
+        const candidate = this.number();
+        if (take === undefined) {
+          order = key.value === "first" ? "asc" : "desc";
+          take = candidate;
+        }
       } else if (key.value === "by") {
-        index = this.word().value;
-      } else {
-        if (where) syntax(key, "a range read may name only one where predicate");
-        where = this.expression(0, new Set(["<newline>", ":", "{", ",", "}"]));
+        const candidate = this.word().value;
+        if (!index) index = candidate;
       }
     }
+    if (take === undefined && !cursor) {
+      const point = { ...read, index };
+      if (violation) syntax(violation, "read modifiers may appear once and only in canonical order", quarryExpression(point));
+      return point;
+    }
     if (take === undefined || !order) syntax(site, "range reads require first N or last N");
-    return { ...read, index, range: { order, take, cursor, cursorKind, where, site } };
+    const range = { ...read, index, range: { order, take, cursor, cursorKind, site } };
+    if (violation) syntax(violation, "read modifiers may appear once and only in canonical order", quarryExpression(range));
+    return range;
+  }
+
+  private parseMerge(): MergeExpr {
+    const site = this.take("merge");
+    const table = this.word().value;
+    let cursor: Expr | undefined;
+    let cursorKind: "after" | "before" | undefined;
+    if (this.at("after") || this.at("before")) {
+      cursorKind = this.word().value as "after" | "before";
+      cursor = this.expression(0, new Set(["first", "last", "by", ":"]));
+    }
+    const bound = this.peek();
+    if (!this.at("first") && !this.at("last")) {
+      syntax(bound, "merge modifiers use [after|before cursor] first|last N by index", `merge ${table} first 20 by index:`);
+    }
+    const order = this.word().value === "first" ? "asc" : "desc";
+    const take = this.number();
+    if (!this.at("by")) {
+      const cursorText = cursor ? ` ${cursorKind} ${this.renderExpr(cursor)}` : "";
+      syntax(this.peek(), "merge requires by <index> in its header", `merge ${table}${cursorText} ${order === "asc" ? "first" : "last"} ${take} by index:`);
+    }
+    this.take("by");
+    const index = this.word().value;
+    this.take(":");
+    this.newline();
+    if (!this.atKind("indent")) {
+      syntax(this.peek(), "merge requires an indented block with at least one [prefix] lane", `[viewer]`);
+    }
+    this.takeKind("indent");
+    const lanes: MergeLane[] = [];
+    while (!this.atKind("dedent") && !this.atKind("eof")) {
+      this.skipNewlines();
+      if (this.atKind("dedent")) break;
+      const laneSite = this.take("[");
+      const prefix: Expr[] = [];
+      while (!this.at("]")) {
+        prefix.push(this.expression(0, new Set([",", "]"])));
+        if (!this.maybe(",")) break;
+      }
+      this.take("]");
+      let loop: MergeLane["loop"];
+      if (this.maybe("for")) {
+        const name = this.generatedBinding("merge lane");
+        this.take("in");
+        const domain = this.expression(0, new Set(["<newline>"]));
+        if (domain.kind !== "read" || !domain.range) {
+          syntax(domain.site, "a merge for lane requires a bounded range read", "for row in table[prefix] first 50 by index");
+        }
+        loop = { name, domain };
+      }
+      this.newline();
+      lanes.push({ prefix, ...(loop ? { loop } : {}), site: laneSite });
+    }
+    this.takeKind("dedent");
+    if (lanes.length === 0) syntax(site, "merge requires at least one lane", `[viewer]`);
+    return { kind: "merge", table, index, order, take, cursor, cursorKind, lanes, site };
+  }
+
+  private renderExpr(expr: Expr): string {
+    return quarryExpression(expr);
   }
 
   private parseShape(base: Expr): Expr {
@@ -704,10 +802,9 @@ class Parser {
   }
 
   private parseWrite(): Expr {
-    const opToken = this.peek();
-    this.position += 1;
+    const opToken = this.word();
     const table = this.word().value;
-    const op = opToken.value === "+" ? "insert" : opToken.value === "+~" ? "upsert" : opToken.value === "~" ? "update" : "delete";
+    const op = opToken.value as "insert" | "update" | "upsert" | "delete";
     const keys = op === "insert" ? [] : this.parseRead(table, opToken).keys;
     const fields = op === "delete" ? [] : this.parseObjectFields();
     return { kind: "write", op, table, keys, fields, site: opToken };
@@ -822,6 +919,39 @@ class Parser {
       this.position += 1;
     }
   }
+}
+
+function focalizeRuleBinding(expr: Expr, binding: string): Expr {
+  if (expr.kind === "name") return expr.name === binding ? { kind: "focal", site: expr.site } : expr;
+  if (expr.kind === "unary") return { ...expr, value: focalizeRuleBinding(expr.value, binding) };
+  if (expr.kind === "binary") return { ...expr, left: focalizeRuleBinding(expr.left, binding), right: focalizeRuleBinding(expr.right, binding) };
+  if (expr.kind === "member") return { ...expr, base: focalizeRuleBinding(expr.base, binding) };
+  if (expr.kind === "call") return { ...expr, args: expr.args.map((item) => focalizeRuleBinding(item, binding)) };
+  if (expr.kind === "array") return { ...expr, items: expr.items.map((item) => focalizeRuleBinding(item, binding)) };
+  if (expr.kind === "object") return { ...expr, fields: expr.fields.map((field) => ({ ...field, value: field.value && focalizeRuleBinding(field.value, binding) })) };
+  if (expr.kind === "read") return {
+    ...expr,
+    keys: expr.keys.map((part) => ({ ...part, value: focalizeRuleBinding(part.value, binding) })),
+    range: expr.range && {
+      ...expr.range,
+      cursor: expr.range.cursor && focalizeRuleBinding(expr.range.cursor, binding),
+    },
+  };
+  if (expr.kind === "exists" || expr.kind === "created") return { ...expr, read: focalizeRuleBinding(expr.read, binding) as Extract<Expr, { kind: "read" }> };
+  if (expr.kind === "aggregate") return { ...expr, keys: expr.keys.map((part) => ({ ...part, value: focalizeRuleBinding(part.value, binding) })) };
+  if (expr.kind === "assert") return { ...expr, value: focalizeRuleBinding(expr.value, binding) };
+  if (expr.kind === "shape") return {
+    ...expr,
+    base: focalizeRuleBinding(expr.base, binding),
+    fields: expr.fields.map((field) => field.kind === "field" ? { ...field, value: focalizeRuleBinding(field.value, binding) } : field),
+  };
+  if (expr.kind === "walk") return { ...expr, seed: focalizeRuleBinding(expr.seed, binding) };
+  if (expr.kind === "write") return {
+    ...expr,
+    keys: expr.keys.map((part) => ({ ...part, value: focalizeRuleBinding(part.value, binding) })),
+    fields: expr.fields.map((field) => ({ ...field, value: field.value && focalizeRuleBinding(field.value, binding) })),
+  };
+  return expr;
 }
 
 function title(value: string): string {

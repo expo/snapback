@@ -199,6 +199,8 @@ fn scan(table: &str, site: &str, take: u32) -> Scan {
         after: None,
         before: None,
         range: None,
+        optional_cursor_args: Vec::new(),
+        merge_site: None,
         provenance: KeyProvenance::Const,
     }
 }

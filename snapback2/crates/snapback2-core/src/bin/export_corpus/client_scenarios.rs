@@ -34,6 +34,8 @@ pub(super) fn add_client_scenarios(cases: &mut Vec<CorpusCase>) {
             after: None,
             before: None,
             range: None,
+            optional_cursor_args: Vec::new(),
+            merge_site: None,
             provenance: KeyProvenance::Arg,
         }))],
     };

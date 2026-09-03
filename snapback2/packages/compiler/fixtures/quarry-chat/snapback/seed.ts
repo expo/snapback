@@ -24,7 +24,6 @@ export default seed({
     posts: [
       { id: "post-alice", author: "dev:alice", body: "Hello from Alice", at: 1 },
       { id: "post-bob", author: "dev:bob", body: "Hello from Bob", at: 2 },
-      { id: "post-charlie", author: "dev:charlie", body: "Profile setup pending", at: 3 },
     ],
     follows: [
       { id: "follow-bob-alice", follower: "dev:bob", followed: "dev:alice", at: 1 },

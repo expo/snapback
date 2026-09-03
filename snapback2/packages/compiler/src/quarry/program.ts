@@ -3,6 +3,7 @@ import type {
   EffectDecl,
   IndexDecl,
   KeyPart,
+  MergeExpr,
   ObjectField,
   ProgramDecl,
   ScalarType,
@@ -66,7 +67,7 @@ export function emitPrograms(programs: ProgramDecl[], catalog: TableCatalog, sou
   const rootSite = programs[0]?.site ?? effects[0]?.site ?? { file: sourceFile, line: 1, col: 1 };
   const writer = new Writer(rootSite);
   writer.raw(header(sourceFile), rootSite);
-  writer.statement(`import { deterministicShare, divmod, emit, max, mentionTokens, min, mutation, query, range, recurse, t } from "snapback2";`, { file: sourceFile, line: 1, col: 1 });
+  writer.statement(`import { deterministicShare, divmod, emit, max, mergeByIndex, mentionTokens, min, mutation, query, range, recurse, t } from "snapback2";`, { file: sourceFile, line: 1, col: 1 });
   if (catalog.size > 0) writer.statement(`import { ${[...catalog.keys()].join(", ")} } from "./schema";`, { file: sourceFile, line: 1, col: 1 });
   for (const effect of effects) writer.statement(`import { ${effect.name} } from "./${effect.module}";`, effect.site);
   writer.raw();
@@ -262,6 +263,7 @@ function emitExpr(expr: Expr, env: Environment, writer: Writer): Emitted {
   if (expr.kind === "member") return emitMember(expr, env, writer);
   if (expr.kind === "call") return emitCall(expr, env, writer);
   if (expr.kind === "read") return emitRead(expr, env, writer);
+  if (expr.kind === "merge") return emitMerge(expr, env, writer);
   if (expr.kind === "exists") {
     const read = emitRead(expr.read, env, writer, true);
     return { code: read.code, type: boolType() };
@@ -323,7 +325,9 @@ function emitBinary(expr: Extract<Expr, { kind: "binary" }>, env: Environment, w
     return { code: `(${left.code} ${expr.op === "and" ? "&&" : "||"} ${right.code})`, type: boolType() };
   }
   if (expr.op === "??") return { code: `(${left.code} ?? ${right.code})`, type: nonNullable(left.type) };
-  const operator = expr.op === "=" ? "===" : expr.op;
+  const operator = expr.op === "=" ? "===" : expr.op === "!=" ? "!==" : expr.op;
+  // @ref LLP 1010#a2-total-equality--program-only — program equality is total;
+  // only ordered comparison requires present operands.
   if (["=", "!=", "<", "<=", ">", ">="].includes(expr.op)) {
     if ((expr.op === "=" || expr.op === "!=") && expr.right.kind === "literal" && expr.right.value === null) {
       return { code: `(${left.code} ${expr.op === "=" ? "===" : "!=="} null)`, type: boolType() };
@@ -342,20 +346,16 @@ function emitBinary(expr: Extract<Expr, { kind: "binary" }>, env: Environment, w
     if (!branded && isScalar(left.type) && isScalar(right.type) && !compatible(left.type, right.type)) {
       refuse(expr.site, `cannot compare nominal ${left.type.kind} with ${right.type.kind}; use a principal value only with viewer`);
     }
-    if (!isNullableValue(left.type) && !isNullableValue(right.type)) {
-      const comparison = expr.op === "!=" ? `${left.code} !== ${right.code}` : `${left.code} ${operator} ${right.code}`;
-      return { code: `(${comparison})`, type: boolType() };
+    if (["<", "<=", ">", ">="].includes(expr.op) && (isNullableValue(left.type) || isNullableValue(right.type))) {
+      const leftText = optionalComparisonOperand(expr.left, left.type);
+      const rightText = optionalComparisonOperand(expr.right, right.type);
+      typeError(
+        expr.site,
+        `ordered comparison ${expr.op} requires present operands`,
+        `${leftText} ${expr.op} ${rightText}`,
+      );
     }
-    if (env.inlineComparisons) {
-      const comparison = expr.op === "!=" ? `${left.code} !== ${right.code}` : `${left.code} ${operator} ${right.code}`;
-      return { code: `(${left.code} !== null && ${right.code} !== null && ${comparison})`, type: boolType() };
-    }
-    const leftName = temporary("left", expr.site);
-    const rightName = temporary("right", expr.site);
-    writer.statement(`const ${leftName} = ${left.code};`, expr.left.site);
-    writer.statement(`const ${rightName} = ${right.code};`, expr.right.site);
-    const comparison = expr.op === "!=" ? `${leftName} !== ${rightName}` : `${leftName} ${operator} ${rightName}`;
-    return { code: `(${leftName} !== null && ${rightName} !== null && ${comparison})`, type: boolType() };
+    return { code: `(${left.code} ${operator} ${right.code})`, type: boolType() };
   }
   refuseFractionalInt(expr, left.type, right.type);
   const branded = brandedType(left.type) ?? brandedType(right.type);
@@ -593,35 +593,103 @@ function emitRead(expr: Extract<Expr, { kind: "read" }>, env: Environment, write
     }
     const options = [`order: ${JSON.stringify(expr.range.order)}`, `take: ${expr.range.take}`];
     if (expr.range.cursor) options.push(`after: ${emitExpr(expr.range.cursor, env, writer).code}`);
+    if (expr.range.mergeSite) options.push(`mergeSite: ${JSON.stringify(expr.range.mergeSite)}`);
     const scan = `db.scan(${target}, [${keys.map((key) => key.code).join(", ")}], { ${options.join(", ")} })`;
-    if (!expr.range.where) return { code: scan, type: { kind: "page", table: expr.table } };
-    const page = temporary("wherePage", expr.site);
-    const result = temporary("whereRows", expr.site);
-    const row = temporary("whereRow", expr.site);
-    writer.statement(`const ${page} = ${scan};`, expr.site);
-    writer.statement(`const ${result}: any[] = [];`, expr.site);
-    const priorFocal = env.focal;
-    const priorInline = env.inlineComparisons;
-    env.focal = { code: row, type: { kind: "row", table: expr.table, nullable: false } };
-    env.inlineComparisons = true;
-    try {
-      writer.raw(`for (const ${row} of ${page}) {`, expr.range.where.site);
-      writer.nested(() => {
-        const predicate = emitExpr(expr.range!.where!, env, writer);
-        requireBoolean(expr.range!.where!, predicate.type, "where");
-        writer.statement(`if (${predicate.code}) ${result}.push(${row});`, expr.range!.where!.site);
-      });
-      writer.statement("}", expr.range.where.site);
-    } finally {
-      env.focal = priorFocal;
-      env.inlineComparisons = priorInline;
-    }
-    return { code: `[...${result}]`, type: { kind: "sequence", item: { kind: "row", table: expr.table, nullable: false }, max: expr.range.take } };
+    return { code: scan, type: { kind: "page", table: expr.table } };
   }
   const key = index.name === "byId" && keys.length === 1 ? keys[0]!.code : `[${keys.map((item) => item.code).join(", ")}]`;
   return exists
     ? { code: `db.exists(${target}, ${key})`, type: boolType() }
     : { code: `db.get(${target}, ${key})`, type: { kind: "row", table: expr.table, nullable: true } };
+}
+
+function emitMerge(expr: MergeExpr, env: Environment, writer: Writer): Emitted {
+  const info = env.catalog.get(expr.table);
+  if (!info) refuse(expr.site, `unknown table ${expr.table}`);
+  const index = info.indexes.find((candidate) => candidate.name === expr.index);
+  if (!index) refuse(expr.site, `table ${expr.table} has no index ${expr.index}`);
+  if (expr.cursorKind === "before" && expr.order !== "desc") {
+    refuse(expr.site, "before is supported only with last N; use after with first N for ascending pagination");
+  }
+  const widths = new Set(expr.lanes.map((lane) => lane.prefix.length));
+  if (widths.size !== 1) {
+    const lane = expr.lanes.find((candidate) => candidate.prefix.length !== expr.lanes[0]!.prefix.length) ?? expr.lanes[0]!;
+    typeError(lane.site, "merge lanes must have equal-width index prefixes", `use ${expr.lanes[0]!.prefix.length} prefix key(s) in this lane`);
+  }
+  const width = expr.lanes[0]!.prefix.length;
+  if (width >= index.columns.length) {
+    typeError(expr.lanes[0]!.site, `merge lane prefixes must leave at least one ${expr.table}.${index.name} suffix column`, "drop the last prefix key from every lane");
+  }
+  const seen = new Map<string, number>();
+  expr.lanes.forEach((lane, offset) => {
+    const key = lane.prefix.map(quarryExpression).join("\u0000");
+    if (seen.has(key)) typeError(lane.site, "merge lanes have structurally identical prefixes", "drop this duplicate lane");
+    seen.set(key, offset);
+    const nested = env.clone();
+    if (lane.loop) nested.bindings.set(lane.loop.name, { code: lane.loop.name, type: { kind: "row", table: lane.loop.domain.table, nullable: false } });
+    lane.prefix.forEach((value, position) => {
+      const actual = inferExpr(value, nested);
+      const column = index.columns[position]!;
+      const expected = column === "id"
+        ? { kind: "ref", table: expr.table, optional: false } satisfies ScalarType
+        : info.columns.get(column);
+      if (actual && expected && !compatible(actual, expected)) {
+        typeError(lane.site, `merge lane key ${position + 1} is ${valueTypeName(actual)}; ${expr.table}.${index.name}.${column} is ${valueTypeName(expected)}`, `use a ${valueTypeName(expected)} expression in this lane position`);
+      }
+    });
+    selectIndex(
+      env.catalog,
+      expr.table,
+      lane.prefix.map((value) => ({ value, site: value.site })),
+      "range",
+      expr.index,
+      (value) => inferExpr(value, nested),
+      lane.site,
+    );
+  });
+  const mergeSite = `${expr.site.file}:${expr.site.line}:${expr.site.col}`;
+  const union = temporary("mergeUnion", expr.site);
+  writer.statement(`const ${union}: Array<(typeof ${expr.table})["__row"]> = [];`, expr.site);
+  for (const lane of expr.lanes) {
+    const emitLane = (nested: Environment): void => {
+      const scan = emitRead({
+        kind: "read",
+        table: expr.table,
+        keys: lane.prefix.map((value) => ({ value, site: value.site })),
+        index: expr.index,
+        range: {
+          order: expr.order,
+          take: expr.take,
+          cursor: expr.cursor,
+          cursorKind: expr.cursorKind,
+          mergeSite,
+          site: lane.site,
+        },
+        site: lane.site,
+      }, nested, writer);
+      const row = temporary("mergeRow", lane.site);
+      writer.raw(`for (const ${row} of ${scan.code}) {`, lane.site);
+      writer.nested(() => writer.statement(`${union}.push(${row});`, lane.site));
+      writer.statement("}", lane.site);
+    };
+    if (!lane.loop) {
+      emitLane(env);
+      continue;
+    }
+    const domain = emitRead(lane.loop.domain, env, writer);
+    writer.raw(`for (const ${lane.loop.name} of ${domain.code}) {`, lane.site);
+    writer.nested(() => {
+      const nested = env.clone();
+      nested.bindings.set(lane.loop!.name, { code: lane.loop!.name, type: { kind: "row", table: lane.loop!.domain.table, nullable: false } });
+      emitLane(nested);
+    });
+    writer.statement("}", lane.site);
+  }
+  const suffix = index.columns.slice(width);
+  return {
+    code: `mergeByIndex(${union}, ${JSON.stringify(suffix)}, ${JSON.stringify(expr.order)}, ${expr.take}, ${JSON.stringify(mergeSite)}, ${JSON.stringify(expr.table)})`,
+    type: { kind: "page", table: expr.table },
+  };
 }
 
 function emitShape(expr: Extract<Expr, { kind: "shape" }>, env: Environment, writer: Writer): Emitted {
@@ -920,10 +988,9 @@ function validateAddressedKeyFields(expr: Extract<Expr, { kind: "write" }>, inde
 }
 
 function quarryWriteWithoutField(expr: Extract<Expr, { kind: "write" }>, removed: ObjectField): string {
-  const operator = expr.op === "upsert" ? "+~" : expr.op === "update" ? "~" : expr.op === "delete" ? "-" : "+";
   const key = expr.op === "insert" ? "" : `[${expr.keys.map(quarryKeyPart).join(", ")}]`;
   const fields = expr.op === "delete" ? "" : ` { ${expr.fields.filter((field) => field !== removed).map(quarryObjectField).join(", ")} }`;
-  return `${operator}${expr.table}${key}${fields}`;
+  return `${expr.op} ${expr.table}${key}${fields}`;
 }
 
 function quarryKeyPart(part: KeyPart): string {
@@ -934,7 +1001,7 @@ function quarryObjectField(field: ObjectField): string {
   return field.value ? `${field.name}: ${quarryExpression(field.value)}` : field.name;
 }
 
-function quarryExpression(expr: Expr): string {
+export function quarryExpression(expr: Expr): string {
   if (expr.kind === "name") return expr.name;
   if (expr.kind === "focal") return ".";
   if (expr.kind === "literal") return JSON.stringify(expr.value);
@@ -953,8 +1020,12 @@ function quarryExpression(expr: Expr): string {
     if (expr.range?.cursor) rendered += ` ${expr.range.cursorKind ?? "after"} ${quarryExpression(expr.range.cursor)}`;
     if (expr.range) rendered += ` ${expr.range.order === "asc" ? "first" : "last"} ${expr.range.take}`;
     if (expr.index) rendered += ` by ${expr.index}`;
-    if (expr.range?.where) rendered += ` where ${quarryExpression(expr.range.where)}`;
     return rendered;
+  }
+  if (expr.kind === "merge") {
+    const cursor = expr.cursor ? ` ${expr.cursorKind ?? "after"} ${quarryExpression(expr.cursor)}` : "";
+    const lanes = expr.lanes.map((lane) => `  [${lane.prefix.map(quarryExpression).join(", ")}]${lane.loop ? ` for ${lane.loop.name} in ${quarryExpression(lane.loop.domain)}` : ""}`).join("\n");
+    return `merge ${expr.table}${cursor} ${expr.order === "asc" ? "first" : "last"} ${expr.take} by ${expr.index}:\n${lanes}`;
   }
   if (expr.kind === "exists" || expr.kind === "created") return `${expr.kind} ${quarryExpression(expr.read)}`;
   if (expr.kind === "aggregate") return `#${expr.table}[${expr.keys.map(quarryKeyPart).join(", ")}]`;
@@ -1110,6 +1181,11 @@ function simpleExpr(expr: Expr): string {
   if (expr.kind === "member") return `${simpleExpr(expr.base)}.${expr.name}`;
   return "x";
 }
+function optionalComparisonOperand(expr: Expr, type: ValueType): string {
+  const rendered = simpleExpr(expr);
+  const value = rendered === "x" ? `(${quarryExpression(expr)})` : rendered;
+  return isNullableValue(type) ? `${value}!` : value;
+}
 function boolType(): ScalarType { return { kind: "bool", optional: false }; }
 function keyBinding(value: Emitted): Emitted {
   return value.type.kind === "row" ? { ...value, code: `${value.code}.id`, type: { kind: "ref", table: value.type.table, optional: value.type.nullable } } : value;
@@ -1201,9 +1277,9 @@ function mentionsFocal(expr: Expr): boolean {
   if (expr.kind === "array") return expr.items.some(mentionsFocal);
   if (expr.kind === "read") {
     return expr.keys.some((key) => mentionsFocal(key.value))
-      || (expr.range?.cursor !== undefined && mentionsFocal(expr.range.cursor))
-      || (expr.range?.where !== undefined && mentionsFocal(expr.range.where));
+      || (expr.range?.cursor !== undefined && mentionsFocal(expr.range.cursor));
   }
+  if (expr.kind === "merge") return expr.lanes.some((lane) => lane.prefix.some(mentionsFocal));
   if (expr.kind === "exists" || expr.kind === "created") return mentionsFocal(expr.read);
   if (expr.kind === "aggregate") return expr.keys.some((key) => mentionsFocal(key.value));
   if (expr.kind === "shape") return mentionsFocal(expr.base) || expr.fields.some((field) => field.kind === "field" && mentionsFocal(field.value));

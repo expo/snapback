@@ -1,18 +1,42 @@
 # LLP 1006: Assets — a column type
 
 **Type:** RFC
-**Status:** Draft
-**Systems:** `snapback2-core` (the `_assets` ledger, the three asset columns,
-the write-time validation, reclamation), `snapback2` (upload, delivery, and
-session-carrier routes, the finalize worker, the container walker),
-`snapback2-media` (the decode helper executable, §14a), `packages/compiler`
-(the column types), `packages/quarry` (the notation), `packages/snapback2`
-(client + React)
+**Status:** Accepted (author, 2026-09-03 — implementer and date assigned, §15)
+**Systems:** `snapback2-core` (the `_assets` ledger, the asset columns, entry
+and write-time validation, the lifecycle reconciler, the certified delivery
+primitive, reclamation), `snapback2` (upload, delivery, and session-carrier
+routes, the finalize worker, the container walker), `snapback2-media` (the
+decode helper executable, §14a), `packages/compiler` (the column types),
+`packages/quarry` (the notation), `packages/snapback2` (client + React)
 **Author:** Claude Opus 5 (design), commissioned by Charlie Cheever 2026-08-31;
-revisions (f), (g), and (h) by Claude Fable 5.1 at the author's rulings, in
-session, 2026-09-03
+revisions (f)–(j) by Claude Fable 5.1 at the author's rulings, in session,
+2026-09-03
 **Date:** 2026-08-31
-**Revised:** 2026-09-03 (i — recorded at the author's delegation, no ruling
+**Revised:** 2026-09-03 (j — the second panel folded (§16): fourteen unanimous
+findings and the author's six decisions on the splits. **Correctness:**
+asset-typed arguments are ledger-validated at mutation entry, inside the
+transaction, so `require clip.duration` reads a fact (§6); the certified
+delivery point-read is named as the new core primitive it is, and the hosted
+presigned redirect is deleted (§2, §9a); `reset` no longer wipes blobs a fork
+shares (§9a); orientation survives strip as a synthesized orientation-only
+tag, gated by an acceptance matrix with re-encode as the fallback (§4); the
+walker port blanks the staging file in place, applies the `tkhd` matrix, and
+refuses missing facts (§9); one old-row/new-row lifecycle reconciler with
+same-cell carry-forward, and asset types refused in `maintain.by` and seeds
+(§2a, §6); the session carrier is minted for a persona or a bearer,
+epoch-bound, and used only where a header is impossible, while images fetch
+by header with `private, no-cache` and an `ETag` (§2b, §2); upload branches
+before the JSON body reader into its own worker class, exact `Range`
+statuses, a global staging cap (§5, §14); the helper is resource isolation,
+not a security boundary, and LLP 1002 decision 1 is amended (§14a); a fixed
+internal decode-safety ceiling (§4); rungs are lazy (§8); the `system`
+uploader escape is deleted (§6); residue scrubbed. **Scope:** `file` is
+designed and deferred to a named slice 2 (§13a; ruling 5 narrowed); HEIC
+stays (ruling 7 held over the panel's 2–1); one published helper (ruling 10
+narrowed); blobs are keyed by asset id with namespace rotation on any
+writable fork (ruling 8 narrowed); `rules/NOT-DOING.md` amended in the same
+landing. Panel record: `llp/reviews/1006-assets.panel.synthesis.md`.);
+2026-09-03 (i — recorded at the author's delegation, no ruling
 changed: the "upload this, then do X" question is answered in §12 — the
 mutation is the "then", and a dedicated construct would be `defineMediaCommand`
 returning — and the one real gap it exposed, assets minted by effects, is named
@@ -87,7 +111,9 @@ LLP 0329.014.004, LLP 0305 (retired for Snapback 2 by §3), LLP 1007 §4a
 `benchmarks/briefs/social-messenger.md` (the formats the capability bar
 needs), `crates/snapback-services/src/assets_video.rs` (the walker §9
 ports), `llp/reviews/1006-assets.panel.codex.md`,
-`llp/reviews/1006-assets.panel.grok.md`
+`llp/reviews/1006-assets.panel.grok.md`,
+`llp/reviews/1006-assets.panel.claude.md`,
+`llp/reviews/1006-assets.panel.synthesis.md` (the second panel, on (f)–(i))
 
 ## Summary
 
@@ -106,11 +132,13 @@ Byte authority is the row's read rule, so there is no sharing declaration and
 no delivery profile. The value is the same going in and coming out, so there
 is no attach call, no read-time projection, and the client twin stays pure.
 Four photos is `[image <=12000000] <=4`, so there is no collection. A clip is
-`video <=50000000` and an attachment is `file <=25000000` — the same shape with
-a different record (§1) — so there is no second pipeline. Uploads settle before
-the write, so there is no media command.
+`video <=50000000` — the same shape with a different record (§1) — so there
+is no second pipeline. Uploads settle before the write, so there is no media
+command.
 
-The whole feature is three column kinds, three HTTP routes, and reclamation.
+The whole feature is two column kinds, three HTTP routes, one new engine
+primitive, and reclamation. A third kind, `file`, is designed and deferred
+(§13a).
 
 **This is a proposal.** `rules/RULES.md`: only implemented specs bind, and a
 spec needs an implementer and a date. §15 proposes both; nothing here binds
@@ -119,12 +147,13 @@ approval the agent rule requires for adding a design document.
 
 The author's rulings of 2026-09-01 are folded in: an asset has one home
 (§2), any width may be requested (§8), and the stripped original is kept
-(§4). The rulings of 2026-09-03 are folded in: video and non-media files are
-slice-1 work, not a later slice (§1, §13); there is no resolution ceiling
-(§4); WebP and HEIC are both admitted (§4); and bytes live beside the store
-locally and in an S3-compatible bucket when hosted, behind one trait (§9a).
-Decode runs in a subprocess and the codecs are chosen at build and install
-time (§14a). No open question remains.
+(§4). The rulings of 2026-09-03 are folded in: video is slice-1 work (§1,
+§13) and non-media files are designed and deferred (§13a); there is no
+resolution ceiling (§4); WebP and HEIC are both admitted (§4); bytes live
+beside the store locally and in an S3-compatible bucket when hosted, behind
+one trait (§9a); decode runs in a subprocess and the codecs are chosen at
+build time (§14a). The second panel's findings are folded (§16). No open
+question remains.
 
 ## 1. The move
 
@@ -136,20 +165,19 @@ know it, and LLP 0244 spent 809 lines building the projection seam that finally
 reconciled them.
 
 Snapback 2 makes the asset a **column type whose value is one closed record**.
-There are three column kinds, and each has its own record:
+Slice 1 has two column kinds, each with its own record; a third, `file`, is
+designed in §13a and deferred:
 
 ```ts
 type ImageAsset = Readonly<{ id: string; width: number; height: number }>
 type VideoAsset = Readonly<{ id: string; width: number; height: number; duration: number }>
-type FileAsset  = Readonly<{ id: string; size: number; type: string; name: string }>
 ```
 
-`width` and `height` are display pixels; `duration` is integer milliseconds;
-`size` is stored bytes; `type` is the *detected* media type essence
-(`application/pdf`, or `application/octet-stream` when detection cannot name
-it); `name` is the uploader's filename, sanitized (§5). Every field is a fact
-the ledger holds, so every field is validated at write (§6). Each record is
-closed: no optional field, and no field that varies by build or by target.
+`width` and `height` are display pixels — after orientation, never sensor
+pixels (§4); `duration` is integer milliseconds. Every field is a fact the
+ledger holds, so every field is validated against the ledger — at mutation
+entry for arguments and at write for columns (§6). Each record is closed: no
+optional field, and no field that varies by build or by target.
 
 That record is what `upload()` returns, what a mutation takes, what the engine
 stores, what the twin predicts, and what a query returns. **The same bytes at
@@ -171,10 +199,14 @@ refusal, the same shape as a unique-index collision.
 
 Three consequences worth stating up front:
 
-- **The certificate value model does not move.** The stored value is a
-  `Value::Row`, which exists; the column is a new `ColumnType` variant with one
-  arm in `valid_column_value` (`engine/index.rs:320`), beside `Json`, which
-  already accepts an arbitrary `Value` under a byte bound. Adding `Bytes`
+- **The certificate value model does not move.** The record is a closed map
+  of scalars, which the value model already has; the column is a new
+  `ColumnType` variant with an arm in `valid_column_value` (`engine/index.rs`),
+  beside `Json`, which already accepts an arbitrary `Value` under a byte
+  bound. One detail the twin and the server must share: the wire maps a JSON
+  object to `Value::Map` (`protocol.rs`, `json_to_value`), so the closed-shape
+  check accepts the record as the wire delivers it, at the same point on both
+  twins. Adding `Bytes`
   bumped the model from `i53-codepoint-v1` to `i53-codepoint-bytes-v2`
   (LLP 1001 §9); assets bump nothing, because they add no value kind.
 - **There is no read path at all.** Reading an asset column costs what reading
@@ -185,11 +217,11 @@ Three consequences worth stating up front:
 
 `_assets` remains an engine-owned table (LLP 1001 §1 — `E_SCHEMA_RESERVED`
 already forbids declaring it): `id`, `state` (`receiving | ready | failed`),
-`kind` (`image | video | file`), `type` (the detected essence), `bytes`,
-`width`, `height`, `duration`, `name`, `created_by`, `created_at`, and the
-`locator` of §2a; a field a kind does not have is null. It is a staging and
-ownership ledger. After validation it is not the source of truth
-for anything a program reads.
+`kind` (`image | video`), `type` (the detected essence), `bytes`, `width`,
+`height`, `duration`, `created_by`, `created_at`, and the `locator` of §2a; a
+field a kind does not have is null. The blob key is the id (§9a), so there is
+no key column. It is a staging and ownership ledger. After validation it is
+not the source of truth for anything a program reads.
 
 ## 2. Authority: delivery is by the row that holds it
 
@@ -205,16 +237,37 @@ rule, and verifies the cell still contains that asset id.** Nothing is
 declared, and the two cannot disagree, because there is one rule evaluation and
 it is the table's.
 
-Consequences, none needing new machinery:
+**That point read is one new core primitive, and this document says so.**
+The second panel found that the engine has no such operation today: the
+runtime's reusable rule probe scans every row of a table, and indexed read
+plus certified rule evaluation exists only inside the program runner.
+Revisions (a)–(i) called this "no new machinery"; it is machinery, and it is
+named here so nobody ships delivery on the table scan. The primitive: in one
+read transaction, resolve `_assets`, follow the locator to a point read of
+the row, verify the cell (or list) still contains the exact id, and evaluate
+the table's read rule under its stored certificate — exposed through the
+owner's action channel, the same sole-writer path every read takes.
 
-- **Revocation is exact and immediate.** A rule that stops admitting the viewer
-  stops admitting the bytes on the next request.
+Consequences:
+
+- **Revocation is exact and immediate for every request that reaches
+  Snapback.** A rule that stops admitting the viewer stops admitting the bytes
+  on the next request. Bytes a shared cache already holds for a `public` row,
+  or a download already in flight, are outside that sentence, and this
+  document says so rather than implying more.
 - **Replacement and deletion are exact.** Patch the column or delete the row and
   the old path fails on its next request. Authority never waits on reclamation.
 - **Pasteability is derived, not declared.** A `rule.public` table's asset paths
-  need no credential; anything else is authorized per request and `no-store`.
-  LLP 1005 §5c is the most repeated friction in the v1 corpus — four builds
-  burned choosing a delivery profile — and there is no profile here to choose.
+  need no credential and are `Cache-Control: public, immutable` — the id is in
+  the path and the bytes never change. Anything else is authorized per request
+  and answered `Cache-Control: private, no-cache` with an `ETag`: the viewer's
+  own browser keeps a copy but must ask before showing it, and the server
+  evaluates the rule before answering `304`, so a revoked viewer's cache goes
+  dark on the next render at the cost of one bodiless round trip. (Revisions
+  (c)–(i) said `no-store`, which re-downloaded a private feed on every scroll;
+  `private, immutable` was considered and rejected, §12.) LLP 1005 §5c is the
+  most repeated friction in the v1 corpus — four builds burned choosing a
+  delivery profile — and there is no profile here to choose.
 - **It is bounded.** One point read and one rule evaluation.
 
 **The asset id is always in the URL.** Revision (b)'s path was a *slot*
@@ -236,22 +289,20 @@ references it. Delivery follows the locator:
 
 ```
 GET /api/asset/<assetId>            the stored bytes (for an image, the stripped original — §8)
-GET /api/asset/<assetId>?w=<width>  a derived width — image only; ignored for video and file
+GET /api/asset/<assetId>?w=<width>  a derived width — image only; ignored for video
 ```
 
-Every delivery honors `Range` and answers `206` with `Content-Range` and
-`Accept-Ranges: bytes` — native players will not start without it, and PDF
-viewers use it. Every delivery carries `X-Content-Type-Options: nosniff` and
-the *detected* `Content-Type`. A `file` is always
-`Content-Disposition: attachment; filename="<name>"`: user bytes served from
-the app's own origin must never be invited to render inline, which is the
-same-origin script lane Snapback 1's `forces_attachment_disposition` closed
-for SVG, HTML, XML, and JavaScript. Image and video render inline.
+Every delivery advertises `Accept-Ranges: bytes`: a plain request is `200`,
+one satisfiable `Range` is `206` with `Content-Range`, and anything else is
+`416` — native players will not start without it, and v1's closed range
+parser is reused rather than rewritten. Every delivery carries
+`X-Content-Type-Options: nosniff` and the *detected* `Content-Type`. Image and
+video render inline; SVG, HTML, XML, and JavaScript are not images and never
+reach delivery (§4). Attachment disposition arrives with `file` (§13a).
 
 ```tsx
 <AssetImage asset={photo} />
 <AssetVideo asset={clip} />
-<AssetFile asset={doc} />
 ```
 
 This was the panel's one unresolved fork, and it is worth recording why it was
@@ -277,7 +328,20 @@ What it costs, stated plainly:
   secretly affine, so the editor will not warn; the refusal arrives at write
   time, typed and immediate rather than silent.
 - **Claim and release are transactional correctness** across replacement, list
-  edits, deletion, `reset`, and `fork` — not a background concern.
+  edits, deletion, schema successors, `reset`, and `fork` — not a background
+  concern. Revisions (c)–(i) stated the claim rule as "unclaimed, else
+  `E_ASSET_IN_USE`", which refuses every list append and reorder, because the
+  photos already in the list are claimed by the same cell. The second panel's
+  fix: **one old-row/new-row reconciler** runs on insert, replace, delete, and
+  every destructive schema successor — an asset in the new value and not the
+  old is claimed (unclaimed, or already claimed *by this cell*); an asset in
+  the old value and not the new is released; dropping a table or column
+  releases what it held. Two schema refusals keep the invariant honest:
+  asset types are refused in `maintain.by`, because a maintained projection
+  copies a grouping value into another row, which would give an asset two
+  homes silently; and asset values are refused in seeds, because no seed path
+  mints a ledger row. Both are `E_SCHEMA_*` refusals at `check`, not runtime
+  surprises.
 
 If an app later needs one asset in several rows, the change is mechanical and
 reversible: delete the locator, put the row coordinates back in the URL, and
@@ -287,40 +351,62 @@ shape and its arguments so the choice is not re-litigated from scratch.
 ### 2b. The session carrier (author ruling, 2026-09-03)
 
 Revision (c) said "there are no signed query tokens": a private image is
-fetched with the session's bearer header and painted from a blob URL. That
-holds for an image and fails for what video and files bring in. A `<video>`
-element, a native player, and a PDF viewer cannot send a header, and a blob
-URL for a 50 MB clip means downloading all of it before the first frame. The
-client keeps its session as a bearer token in a token store, not a cookie,
-and a cookie would not survive the ordinary development topology — the app on
-one origin, `SNAPBACK_URL` on another (§12).
+fetched with the session's credential in a header and painted from a blob
+URL. That holds for an image and fails for a `<video>` element, a native
+player, or a download, none of which can send a header; a blob URL for a
+50 MB clip means downloading all of it before the first frame. The client
+keeps its session as a bearer token in a token store, not a cookie, and a
+cookie would not survive the ordinary development topology — the app on one
+origin, `SNAPBACK_URL` on another (§12). The loop's *ordinary* identity is not
+a bearer at all: it is a persona (`--as`, `snapback2 test`), carried in an
+`X-Snapback-As` header, which is exactly as unsendable from a `<video>` tag.
 
 So the asset route accepts one additional credential, **a session carrier in
-the query string**:
+the query string**, minted for whichever identity the client holds:
 
 ```
 POST /api/auth/asset-session            → { "token": "…", "expiresAt": … }
 GET  /api/asset/<assetId>?s=<token>
 ```
 
-The carrier is minted from an authenticated session, bound to it, expires
-within minutes, and dies with it — logout revokes it. It authenticates **the
-same viewer, for the asset route only**; the row's read rule is still
-evaluated on every request, exactly as with the bearer header. It is a
-*credential*, not a *grant*: it names no asset, carries no authority of its
-own, cannot be handed to another person for longer than its expiry, and does
-not reopen §13's share-link deferral. A missing, expired, or invalid carrier
-is the same as no credential, so a copied URL on a `public` row still serves
-after the token dies — pasteability is unchanged.
+The carrier is minted from the request's `Identity` — a bearer session or a
+development persona — and bound to it exactly: to the session's epoch for a
+bearer, so logout kills it; to the owner incarnation plus persona for a
+persona, so it dies when the persona header would have. It authenticates
+**the same viewer, for the asset route only**; the row's read rule is still
+evaluated on every request, exactly as with the header. It is a *credential*,
+not a *grant*: it names no asset, carries no authority of its own, and does
+not reopen §13's share-link deferral. It is transferable for its lifetime,
+which is the honest cost of any bearer credential in a URL, and it is why the
+scope below is narrow. A carrier combined with a bearer or persona header on
+the same request is refused. A missing, expired, or invalid carrier is the
+same as no credential, so a copied URL on a `public` row still serves after
+the token dies — pasteability is unchanged.
 
-The SDK does this invisibly: `<AssetImage>`, `<AssetVideo>`, `<AssetFile>`,
-and `useAssetUrl(asset)` attach a live carrier whenever the client is
-authenticated and refresh it before it expires (§10). Two rules for the
-server: the carrier is never written to the request log, and a response to a
-request that carried one is never `Cache-Control: public` — the token makes
-the URL per-viewer, and a shared cache must never key on it. The token's
-mechanism (opaque and stored, or keyed and stateless) is the implementer's;
-the contract is the four properties above.
+**Scope: only where a header is impossible.** `<AssetVideo>`, native players,
+and downloads use the carrier. `<AssetImage>` does not: it fetches with the
+header (the bearer or the persona) and relies on `private, no-cache` plus the
+`ETag` (§2) for repeats, so no image URL ever carries a token, and a signed-in
+user's public avatars keep one cache key. The second panel found that
+revision (f)'s "attach the carrier whenever the client is authenticated" made
+every public image per-viewer and minutes-lived, which defeated the
+`public, immutable` path §9a sells; that sentence is withdrawn. A carrier URL
+that lands on a `public` row is answered with a redirect to the canonical,
+tokenless URL, so shared caches key on one address.
+
+**Lifetime and rotation.** The carrier lives long enough to cover a paused clip
+— tens of minutes at least, and never past the session — and the SDK
+refreshes it before expiry for *new* URLs only. It never rewrites a mounted
+player's `src`, because that restarts playback; a mounted element keeps the
+token it was given until unmount.
+
+Three rules for the server: the carrier is never written to the request log
+(`serve.rs` copies the full URL, query included, into its handler — scrub
+there, and test it); a response to a request that carried one is
+`Cache-Control: no-store` and never `public`; every asset response carries
+`Referrer-Policy: no-referrer`. The token's mechanism (opaque and stored, or
+keyed and stateless) is the implementer's; the contract is the properties
+above.
 
 ## 3. Authoring surface
 
@@ -356,7 +442,6 @@ table messages:
   body: text <=500 ?
   photo: image <=10000000 ?
   clip: video <=50000000 ?
-  doc: file <=25000000 ?
   at: time
   by byPairAt: sender, recipient, at
   read r <- r.sender = viewer or r.recipient = viewer
@@ -373,9 +458,6 @@ mutation publish(space: spaces, body: text <=500, photos: [image <=12000000] <=4
 mutation sendClip(recipient: id, clip: video <=50000000):
   require clip.duration <= 60000 else TOO_LONG
   +messages { sender: viewer, recipient, clip, at: now }
-
-mutation sendDoc(recipient: id, doc: file <=25000000):
-  +messages { sender: viewer, recipient, doc, at: now }
 ```
 
 ```ts
@@ -394,33 +476,38 @@ export const messages = table({
   columns: {
     photo: t.optional(t.image(10_000_000)),
     clip: t.optional(t.video(50_000_000)),
-    doc: t.optional(t.file(25_000_000)),
     /* … */
   },
   // …
 })
 ```
 
-`avatar` and `photos` both keep their full resolution (§4). `clip` and `doc`
-are the same shape with a different word. All are one type and a bound, read
-the same way as `text <=40`.
+`avatar` and `photos` both keep their full resolution (§4). `clip` is the same
+shape with a different word. All are one type and a bound, read the same way
+as `text <=40`.
 
-That is the entire authoring surface. `image`, `video`, and `file` read
-exactly like `text`, because they are exactly as complicated: a type with a
-bound. Widen `profiles` read to `public` and the same bytes become pasteable —
-privacy is the table's read rule, and that is the whole privacy API. A DM
-image is `photo: image <=10000000 ?` under
-`read r <- r.sender = viewer or r.recipient = viewer`, and a DM attachment is
-`doc: file <=25000000 ?` under the same rule.
+That is the entire authoring surface. `image` and `video` read exactly like
+`text`, because they are exactly as complicated: a type with a bound. Widen
+`profiles` read to `public` and the same bytes become pasteable — privacy is
+the table's read rule, and that is the whole privacy API. A DM image is
+`photo: image <=10000000 ?` under
+`read r <- r.sender = viewer or r.recipient = viewer`. A DM attachment is
+`doc: file <=25000000 ?` under the same rule when `file` lands (§13a).
 
 **Policy beyond bytes is rule code, not grammar.** The record carries
-`duration` and `size` as validated facts (§6), so a rule the schema cannot
-spell is one line in the mutation: `require clip.duration <= 60000 else
-TOO_LONG`. Snapback 1 could not express Coterie's sixty-second rule at all
+`duration` as a validated fact, so a rule the schema cannot spell is one line
+in the mutation: `require clip.duration <= 60000 else TOO_LONG`. It is a fact
+and not a claim because every asset-typed argument is checked against the
+ledger at mutation entry, before the body runs (§6) — the second panel found
+that revisions (f)–(i) checked only at column write, which let a mutation act
+on a forged duration without ever storing the clip. Snapback 1 could not
+express Coterie's sixty-second rule at all
 (`issues/20260817-upload-intent-codec-duration-admission-facts.md`) and
 LLP 0305 proposed a declared-admission grammar for it; both are retired for
 Snapback 2 by putting the fact in the value. Lane C must let a `require` read a
-field off an asset-typed argument — the parser already has member access.
+field off an asset-typed argument — the parser already has member access, and
+`image` and `video` lower as closed object types so field selection is
+ordinary.
 
 Three things Snapback 1 needed that are absent, each because the engine already
 has the mechanism:
@@ -453,35 +540,40 @@ the decision rather than mandating it.
 - **Location metadata is always stripped.** There is no `strip` field. The v1
   diaries celebrate the mandatory-decision refusal, but they celebrate it
   because the outcome was stripping; making it unconditional produces the same
-  outcome with no declaration, no escape hatch, and no diagnostic. Strip is a
-  walk over segments or chunks, not a decode: it removes the metadata
-  containers — EXIF, XMP, IPTC, PNG text chunks, WebP's `EXIF` and `XMP `
-  chunks — and leaves the pixel data and the color profile in place, so the
-  stored original is the uploader's pixels exactly. Decode happens only for
-  derived widths (§8) and for HEIC.
+  outcome with no declaration, no escape hatch, and no diagnostic.
+- **Strip keeps exactly one thing: orientation** (author decision, 2026-09-03,
+  on the second panel's finding). Nearly every phone JPEG stores its pixels
+  sideways and carries an EXIF orientation tag that says how to turn them.
+  Revision (g)'s strip dropped every tag, which would have rendered every M1
+  avatar rotated and recorded sensor pixels as `width` and `height`. So strip
+  is a walk over segments or chunks that removes every metadata container —
+  EXIF, XMP, IPTC, PNG text chunks, WebP's `EXIF` and `XMP ` chunks — and
+  then **synthesizes a fresh, minimal orientation-only tag** from the value it
+  read; nothing from the original container survives. The record's `width`
+  and `height` are computed *after* orientation; derived widths (§8) bake the
+  transform when they decode. The pixel data and color profile are untouched,
+  so the stored original is the uploader's image, oriented, and admission
+  stays a walk rather than a decode — the upload clock the paved call blocks
+  on never waits for a 12 MP re-encode. **Gated by an acceptance matrix:**
+  orientations 2 through 8 must render correctly on web, iOS, and Android in
+  §15's acceptance. If any platform fails it, the fallback is the path
+  Snapback 1 took — decode, orient, re-encode in the helper for every image —
+  and the record's dimensions do not change meaning. The panel split on this
+  and the author decided for speed on the paved path; the trigger is written
+  down.
 - **The type is the accept list.** `image` admits JPEG, PNG, WebP, and HEIC
   (author ruling, 2026-09-03: WebP and HEIC are both handled, not one or the
-  other — the brief names WebP, and phones hand back HEIC). `video`
-  admits MP4 and QuickTime MOV — what phones hand back — and inspects the
-  container only: no decode, no transcode, no codec refusal (§13). `file`
-  admits anything. The *detected* type governs, never the declared one and
-  never the filename; bytes that are not admissible as the requested kind (§5)
-  are `E_ASSET_TYPE`. SVG, HTML, XML, and JavaScript are not images and are
-  refused under `image`; under `file` they are stored and always delivered as
-  an attachment (§2).
-- **Strip is by detected type, not by column** (author ruling, 2026-09-03).
-  JPEG and PNG are stripped by the image path and MP4 and MOV by the container
-  walker (§9) wherever they land — including a photo dropped into a `file`
-  column, which is exactly where an "attachments" field would otherwise become
-  the escape hatch the previous bullets promise does not exist. What the
-  walker cannot prove location-free it refuses under `video` (`E_ASSET_TYPE`,
-  as v1 did) and stores byte for byte under `file`. HEIC is decoded only under
-  `image`; under `file` it is stored as uploaded and is the one strippable
-  format that escapes — recorded here rather than hidden. **Everything else in
-  a `file` column carries no privacy claim**: a PDF keeps its author field, a
-  DOCX its revision history. The guarantee Snapback 1 measured is scoped to
-  the formats Snapback can walk, and this document says so rather than
-  implying more.
+  other — the brief names WebP, and phones hand back HEIC; ruling 7 was held
+  over the second panel's 2–1 recommendation to defer HEIC, and the trigger
+  that would have reopened it — the first real-phone acceptance that produces
+  HEIC — is the reason it stays). `video` admits MP4 and QuickTime MOV — what
+  phones hand back — and inspects the container only: no decode, no
+  transcode, no codec refusal (§13). The *detected* type governs, never the
+  declared one and never the filename; anything else is `E_ASSET_TYPE`. The
+  kind is whichever accept list the bytes match, so the upload names nothing
+  (§5). SVG, HTML, XML, and JavaScript are not images and are refused. What
+  the container walker cannot prove location-free it refuses (`E_ASSET_TYPE`,
+  as v1 did).
 - **HEIC normalizes to JPEG at admission.** iOS libraries are HEIC-first and
   pickers hand back HEIC even in compatible mode (LLP 1005 §6); Snapback 1 still
   cannot decode it (`issues/20260819-heic-image-normalization.md`, open).
@@ -489,11 +581,9 @@ the decision rather than mandating it.
   This is a **server-side** decode, ruled so on 2026-09-03: the Expo SDK may
   transcode on the device as a courtesy, but a browser hands over HEIC too —
   dragged from Photos, or picked in Safari — and only the server covers every
-  path. The HEIC decoder therefore ships in the default published variant of
-  the media helper, and a slim variant that omits it refuses a HEIC upload
-  loudly (§14a). WebP is stored as WebP — its
-  bitstream kept, its metadata chunks dropped — and decoded, in pure Rust, only
-  for derived widths.
+  path. The decoder ships in the one published helper (§14a). WebP is stored
+  as WebP — its bitstream kept, its metadata chunks dropped — and decoded, in
+  pure Rust, only for derived widths.
 - **The full-resolution image is kept, stripped** (author ruling, 2026-09-01).
   "The original" always means the full-size image *after* metadata removal —
   never the bytes as uploaded. Keeping the literal upload would keep the GPS
@@ -510,52 +600,52 @@ the decision rather than mandating it.
   the served bytes. An app that wants smaller originals downscales on the
   device, which the brief permits. `image` has no optional field at all, and
   reads exactly as "a type and a bound."
+- **There is one fixed internal decode-safety ceiling, and it is not `max`.**
+  The helper's memory cap is already a ceiling; without a stated one it fails
+  by out-of-memory at a size nobody chose. So the helper probes v1's bounds
+  before allocating — pixels, longest edge, decompression ratio, output bytes
+  — and refuses over them as `E_ASSET_TOO_LARGE`. No admitted image is ever
+  downscaled; an author sees nothing of this. It narrows ruling 6 by exactly
+  the width of a decompression bomb.
 - **The bound is bytes**, enforced at admission and re-checked at write; over is
-  `E_ASSET_TOO_LARGE`. Both refusals ride the existing `input` family.
+  `E_ASSET_TOO_LARGE`. All refusals ride the existing `input` family.
 
 **Upload authority is "an authenticated principal," with no knob.** An asset
 nobody references is undeliverable and reclaimed, so an upload on its own grants
 nothing; the authorization that matters is the `insert`/`update` rule on the
 mutation that references it. The residual exposure is disk, bounded by a
-per-principal staging cap (§14) — a number, not a rule.
+per-principal staging cap *and* a global one (§14) — numbers, not rules. The
+global cap exists because `/api/auth/guest` mints principals for free, so a
+per-principal cap alone bounds nothing on a public development URL.
 
 ## 5. Upload: one POST
 
 ```
-POST /api/upload?as=image|video|file[&name=<filename>]
-Authorization: Bearer …
+POST /api/upload
+Authorization: Bearer …            (or X-Snapback-As: <persona> in development)
 Content-Length: …
 <body = bytes>
-→ 200 ImageAsset | VideoAsset | FileAsset      (the record for `as`)
+→ 200 ImageAsset | VideoAsset          (by the accept list the bytes match — §4)
   | 422 { "code": "E_ASSET_TYPE" | "E_ASSET_TOO_LARGE", "family": "input", … }
 ```
 
-**The upload names its kind, not its column** (author ruling, 2026-09-03).
-`as` is one of three words — the same three the schema uses — and it is what
-finalize needs to know: strip and derive widths, walk a container, or store
-bytes. It is not the destination-column handle the panel rejected (§12): it
-selects no policy beyond the kind's accept list, records no destination, and is
-enforced by nothing at write except the ordinary rule that a `video` column
-takes a `VideoAsset`. It exists because a JPEG is a legitimate `file` — an
-attachments column takes photos and PDFs alike — and detection alone cannot
-tell which record the caller wants back. The SDK always knows: the generated
-argument types say which kind a column is, so the paved call passes `as`
-without the author seeing it, and the two-phase `client.upload(file, { as })`
-makes it a required option rather than a remembered one (§10). A missing or
-unknown `as` is `E_ASSET_TYPE`.
-
-`name` is read only for `as=file`. It is the uploader's filename and the one
-client-supplied fact in any record: sanitized to a single path segment,
-control characters removed, bounded at 255 bytes, defaulted to `file` when
-empty, and stored on the ledger, where §6 validates it like a dimension.
-`Content-Length` is required; a body over the generation's largest bound for
-that kind is refused before it is read.
+**The upload names nothing.** Detection decides the kind: JPEG, PNG, WebP, or
+HEIC is an image; MP4 or MOV is a video; anything else is `E_ASSET_TYPE`.
+Revisions (f)–(i) carried an `as=` parameter because a JPEG could legitimately
+be a `file`; with `file` deferred (§13a) the parameter goes with it and comes
+back with it. `Content-Length` is required; a body over the generation's
+largest bound for that kind is refused before it is read. The route branches
+**before** the server's JSON body reader — which today takes 1 MiB of UTF-8 —
+and runs in its own bounded worker class, so four parallel photo uploads
+waiting through finalize never sit in the pool that serves queries (§14).
 
 The response arrives **after finalize**, so there is no author-visible
 `receiving` state and no readiness race. `E_ASSET_NOT_READY` survives only as a
-forged-id refusal, never a happy-path state. Image and file finalize answer
-within the request. Video finalize is a linear pass over box headers with no
-decode (§9) and is expected to answer within the request too; if the phone
+forged-id refusal, never a happy-path state. Image finalize answers within the
+request: strip is a walk (§4), HEIC decode is the only pixel work on the
+upload clock, and rungs are lazy (§8). Video finalize is a linear pass over
+box headers with no decode (§9) and is expected to answer within the request
+too; if the phone
 matrix says otherwise, §9's off-writer worker is where it moves, and the
 response shape does not change.
 
@@ -586,9 +676,9 @@ Two requirements survive from revision (b) because Snapback 1 paid for them:
 2. **CORS is ordinary and correct from the first commit.** Snapback 1 shipped
    without the TUS headers, so browser upload worked only behind the dev relay
    and a cold agent hand-wrote an 80-line proxy to finish a brief (Diary 0065).
-   Snapback 2 has no supervised bundler and no relay to hide behind. `as` and
-   `name` ride the query string precisely so the upload adds no header to the
-   allow-list.
+   Snapback 2 has no supervised bundler and no relay to hide behind. The
+   upload adds no header to the allow-list: bytes in the body, the credential
+   in the header the client already sends.
 
 ## 6. The write: validated, not stamped
 
@@ -598,21 +688,31 @@ refusal is correct — a forged string must not become an authorized reference �
 and LLP 1005 §5b records that essentially every author discovered it by hitting
 it rather than by reading.
 
-Here there is no call. Validation splits cleanly across the two twins:
+Here there is no call. Validation happens at two points, and the second panel
+moved the important one earlier:
 
 - **The twin** (pure, and the server repeats it): closed-shape check for the
-  column's kind — an `id` of valid syntax; positive bounded integer `width`
-  and `height` (image, video), `duration` (video), `size` (file); bounded
-  strings `type` and `name` (file); no missing or extra fields; unique ids
-  within a list. It stores the value unchanged.
-- **The server, additionally**, in the writing transaction: the ledger row
-  exists, is `ready`, and is of the column's kind; `created_by` is the writer
-  (or `system`, so an effect's `then` mutation can place an asset the service
-  principal produced — §13 records how such an asset would be minted, and
-  nothing mints one yet); **every field of the record equals the ledger** —
-  `width` and `height` for an image, plus `duration` for a video, and `size`,
-  `type`, and `name` for a file; bytes are within this column's bound. Under option A it also requires the asset unclaimed and claims it
-  (`E_ASSET_IN_USE` otherwise).
+  argument's or column's kind — an `id` of valid syntax; positive bounded
+  integer `width` and `height`, plus `duration` for a video; no missing or
+  extra fields; unique ids within a list — accepting the record as the wire
+  delivers it (§1). It stores the value unchanged.
+- **The server, at mutation entry**, after the authoritative transaction opens
+  and before the body runs: every asset-typed argument, recursively through
+  optionals and lists, is checked against the ledger — the row exists, is
+  `ready`, and is of the argument's kind; `created_by` is the caller; **every
+  field of the record equals the ledger**; bytes are within the argument's
+  bound. This is what makes `require clip.duration` a fact (§3). Revisions
+  (f)–(i) ran this check only when a column was written, so a mutation could
+  read a forged fact, act on it, and never store the asset.
+- **The server, at the write**: the column's byte bound, and the claim through
+  the lifecycle reconciler of §2a — unclaimed or already claimed by this cell,
+  else `E_ASSET_IN_USE`; released when it leaves the cell.
+
+`created_by` is the writer, full stop. Revisions (c)–(i) allowed `system` so
+an effect's `then` mutation could place an asset the service principal
+produced; nothing mints such a row, and a grant whose issuer does not exist is
+a hole, not a placeholder. It returns with the effect-side `put` that §13
+records.
 
 Then it stores the argument unchanged. A forged id, an altered dimension, or
 someone else's upload is refused in the `input` family; the optimistic frame
@@ -626,7 +726,6 @@ forged-string property is preserved.
 ```json
 { "id": "as_…", "width": 1290, "height": 1720 }
 { "id": "as_…", "width": 1920, "height": 1080, "duration": 12400 }
-{ "id": "as_…", "size": 184211, "type": "application/pdf", "name": "lease.pdf" }
 ```
 
 That is the whole value, one line per kind. Revision (b) also carried `kind`,
@@ -641,12 +740,10 @@ cut independently by both panelists:
 - **`hash` and `digest` together** are a pair authors will swap. If a
   placeholder is ever added it must be spelled `thumbhash`.
 - **`kind`** is redundant on an image or a video: the column already says
-  which, and delivery supplies the real type in `Content-Type`. A `file`
-  carries `type` for the opposite reason — the column says nothing, and a
-  message list needs an icon and a label before anyone fetches the bytes;
-  `size` and `name` are there for the same reader. `duration` is on a video
-  because a badge, a scrubber, and a `require` (§3) all need it before
-  playback.
+  which, and delivery supplies the real type in `Content-Type`. `duration` is
+  on a video because a badge, a scrubber, and a `require` (§3) all need it
+  before playback. (`file`'s record carries `size`, `type`, and `name` for the
+  opposite reason — §13a.)
 
 `width` and `height` stay because Diary 0087 measured what happens without
 them — RN/Yoga collapses image tiles to zero height and uploads "work then
@@ -662,16 +759,19 @@ GET /api/asset/as_123           the stored original
 GET /api/asset/as_123?w=847     a derived width
 ```
 
-**Widths are an image concern.** `?w=` on a video or a file is ignored — the
-stored bytes are served — and neither has a poster frame or a thumbnail (§13).
-A derived width is encoded as JPEG, or PNG when the source has alpha; the
-stored original keeps its own format (§4).
+**Widths are an image concern.** `?w=` on a video is ignored — the stored
+bytes are served — and video has no poster frame or thumbnail (§13). A
+derived width is encoded as JPEG, or PNG when the source has alpha, with the
+orientation baked in (§4); the stored original keeps its own format.
 
 **Any width is a valid request.** The server snaps it up to the next internal
-rung and serves that, so the delivered image is always at least as large as
-asked and looks right. The rungs are an implementation detail: there is no
-closed list to memorize, and **no width refusal exists** — revision (c)'s
-`E_ASSET_WIDTH` is deleted along with the ladder that needed it.
+rung and serves that, so the delivered image is as large as asked and looks
+right. The effective width is `min(requested, source width)`: nothing is ever
+upscaled, and a request wider than the source gets the original — "always at
+least as large as asked" was impossible above the source and is withdrawn.
+The rungs are an implementation detail: there is no closed list to memorize,
+and **no width refusal exists** — revision (c)'s `E_ASSET_WIDTH` is deleted
+along with the ladder that needed it.
 
 The client does not usually name a width at all. `<AssetImage>` measures its
 own layout box, multiplies by device pixel ratio, and asks for that:
@@ -696,14 +796,16 @@ author-declared-variant bug — a helper composing a rendition name the intent
 never declared, yielding a URL for bytes that do not exist (Diary 0086) — is
 unreachable when every width is valid.
 
-**Eager or lazy is invisible.** Because widths snap, an attacker can force at
-most one render per rung per asset, which makes lazy rendering safe rather than
-a liability. Slice 1 renders the common rungs at admission — no cache, no
-eviction, no cold first request, which suits a system whose posture is cheapest
-at idle. If bytes or CPU later measure badly, switching to render-on-first-
-request is **a server change with no API change**: same URLs, same client code.
-Naming sizes (`/thumb`) instead of measuring them would have foreclosed that,
-which is why revision (c)'s spelling is gone.
+**Eager or lazy is invisible, and slice 1 is lazy.** Because widths snap, an
+attacker can force at most one render per rung per asset, which makes lazy
+rendering safe rather than a liability. Slice 1 renders a rung on its first
+request and keeps it; revisions (c)–(i) rendered the common rungs at
+admission, which put resize work on the upload clock that `run({ photos })`
+blocks on, for renders nobody may ask for. If the first-request latency later
+measures badly, rendering at admission is **a server change with no API
+change**: same URLs, same client code. Naming sizes (`/thumb`) instead of
+measuring them would have foreclosed that, which is why revision (c)'s
+spelling is gone.
 
 ## 9. Lifecycle: finalize off the writer, and reclamation
 
@@ -718,20 +820,26 @@ and that thread hands anything that produces pixels to the media helper
 subprocess (§14a); success is one small write flipping
 `_assets.state` to `ready` and answering the POST.
 
-**Three finalizers, one lifecycle.** Image finalize is strip, in-process, then
-HEIC decode and the common rungs (§8) in the helper subprocess (§14a). **Video
-finalize is the v1 container walker, ported,
-not rebuilt** (author ruling, 2026-09-03):
-`crates/snapback-services/src/assets_video.rs` is 894 lines with its tests. It
-blanks every location-bearing box in place by renaming it to `free` and
+**Two finalizers, one lifecycle.** Image finalize is strip with the
+synthesized orientation tag, in-process (§4), then HEIC decode in the helper
+subprocess when the bytes are HEIC (§14a); rungs are lazy (§8). **Video
+finalize is the v1 container walker, ported, not rebuilt** (author ruling,
+2026-09-03): `crates/snapback-services/src/assets_video.rs` is 894 lines with
+its tests. It blanks every location-bearing box by renaming it to `free` and
 zeroing its payload, so no `stco`/`co64` chunk offset moves; bounds metadata
 payload and box depth against bombs; handles the QuickTime
-`meta`-is-not-a-fullbox case LLP 1005 §6 records; and reads display `width`,
-`height`, and `duration` from `tkhd` and `mvhd` on the way past. It is pure
-Rust and needs no cargo feature. What it cannot prove location-free it
-refuses. File finalize is detection, size, the sanitized name, and — for JPEG,
-PNG, MP4, and MOV — the same strip (§4). All three stream to staging and run
-off the writer; none decodes video, and none makes a poster frame.
+`meta`-is-not-a-fullbox case LLP 1005 §6 records; and reads `width`, `height`,
+and `duration` from `tkhd` and `mvhd` on the way past. It is pure Rust and
+needs no cargo feature. What it cannot prove location-free it refuses. Three
+things the port changes, all found by the second panel: the v1 function takes
+a slice and returns a `Vec` — LLP 1005 §9's `read → Vec → put`, verbatim — so
+the port **blanks in place on the staging file** instead; the v1 facts are
+`Option` while `VideoAsset` is closed, so finalize **refuses when duration or
+display size is missing** (`E_ASSET_TYPE`, like an unclassifiable box); and
+the v1 `tkhd` handling ignores the transform matrix, so the port **applies
+it**, or every portrait phone clip would report landscape dimensions and size
+its tile wrong. Both finalizers stream to staging and run off the writer;
+neither decodes video, and neither makes a poster frame.
 
 **`_assets` owns its own lifecycle.** Revision (b) proposed hanging finalize on
 LLP 1003's `_outbox`; both panelists rejected it, and they are right — the
@@ -759,65 +867,84 @@ range as a stream, delete a key — and no whole-object buffer anywhere in its
 signature, so v1's `read → Vec → put` debt (LLP 1005 §9) cannot be written
 against it.
 
-- **Keys are content addresses**: the SHA-256 of the *stored* bytes, after
-  strip. A blob is immutable once written. A ledger row holds its key; a
-  derived width is keyed by source key and rung. Two uploads of the same photo
-  are two ledger rows and one blob — affine (§2a) is a property of rows, not
-  of bytes — so the "two copies" cost §2a records is paid once.
+- **Keys are asset ids** (author decision, 2026-09-03, on the second panel's
+  split). The ledger row is written first, in `receiving`, then the blob is
+  put under the asset's id, then the row flips to `ready` — so every key is
+  known to the ledger before the blob exists, and a crash can never orphan a
+  key the sweep cannot see. A derived width is keyed by id and rung. Blobs
+  are immutable. Revision (g) chose content addresses for deduplication and
+  cheap forks; the panel showed that immutable ids give the same fork sharing,
+  that a content address cannot be known until the stored bytes are hashed
+  (so orphans need a directory listing the trait does not offer), and that
+  the derived reference count was machinery. What is lost is silent sharing
+  between two identical uploads, which affine already charged twice. **One
+  invariant travels with this choice:** ids are `s2id-<namespace>-<sequence>`
+  with a per-store namespace held in the database, so any operation that
+  opens a fork as a *writable* store rotates the namespace first — otherwise
+  a restored fork re-mints ids that already name blobs. No such operation
+  exists today; the rule is recorded so the first one honors it. (Content
+  addressing with the digest written to the `receiving` row before publish is
+  the recorded alternative if a shared-namespace restore is ever wanted.)
 - **Local** — development, and any single machine: `.snapback/blobs/` and
   `.snapback/staging/` beside `.snapback/store.sqlite`, inside the owner-only
   directory the owner already enforces. Staging is always local disk: the
-  request streams into it and finalize reads from it. The per-principal
-  staging cap (§14) is enforced there.
+  request streams into it and finalize reads from it. The staging caps (§14)
+  are enforced there.
 - **Hosted**: an S3-compatible bucket — S3, R2, Tigris — with the same keys,
   landing with the hosted target (LLP 1002), which does not exist yet. Slice 1
   ships the filesystem implementation only; the trait is what makes the
   second an addition rather than a change.
-- **Delivery is always `GET /api/asset/<id>`** (§2). The server evaluates the
-  row rule on every request, wherever the bytes are. Locally it streams the
-  file. Hosted, after authorization, it may stream through or answer `302` to
-  a presigned object URL whose expiry is measured in seconds: the bytes then
-  leave the single owner's process, `Range` is native to the bucket, and a
-  copied presigned URL outlives a downloaded copy by nothing that matters — §2
-  already concedes that downloaded bytes cannot be recalled. A CDN is a
+- **Delivery is always `GET /api/asset/<id>`** (§2), and the bytes always pass
+  through Snapback. Locally the server streams the file; hosted, it streams
+  from the bucket. Revision (g) allowed a seconds-lived presigned redirect
+  after authorization; the second panel deleted it, because a bucket answers
+  every later `Range` request without the row rule, which makes "every
+  request evaluates the rule" false for the token's lifetime. A CDN is a
   deployment choice in front of the public path — `public, immutable`
   responses are already shaped for one — and never a place authority lives.
 - **Reclamation** keeps its trigger — `locator IS NULL` over `_assets` (§9) —
-  and adds one step: a blob is deleted when no ledger row references its key.
-  The count is derived at sweep time, not maintained.
-- **`reset`** clears `_assets` and empties `.snapback/blobs/` and
-  `.snapback/staging/` (or the bucket prefix) in the same operation that
-  clears the rows. v1's orphan-after-reset bug becomes a leak the sweep can
-  see: a key in the directory and in no ledger is garbage by definition.
+  and deletes a blob when the ledger row that names it is deleted, provided
+  no fork ledger names it too (below).
+- **`reset`** clears the live `_assets` and empties `.snapback/staging/` in
+  the same operation that clears the rows, then runs the ordinary sweep. It
+  does **not** empty `.snapback/blobs/`: revision (g) said it did, and the
+  second panel found that this deleted every blob a fork still referenced.
+  v1's orphan-after-reset bug is still a leak the sweep can see — a key in the
+  directory and in no ledger is garbage by definition — without breaking a
+  fork.
 - **`fork`** is a snapshot of the store into `.snapback/forks/<name>.sqlite`,
-  not a copy of the blobs. Blobs are immutable and content-addressed, so a
-  fork shares them; the sweep treats every ledger under `.snapback/` — live or
-  fork — as a referrer, so restoring a fork never restores a row whose bytes
-  are gone.
+  not a copy of the blobs. Blobs are immutable, so a fork shares them; the
+  sweep treats every ledger under `.snapback/` — live or fork — as a referrer,
+  so restoring a fork never restores a row whose bytes are gone.
 
 ## 10. Clients
 
 React web first, Expo second (LLP 1000 decision 5); Exact 2 follows.
 
-The paved call assigns a `File` directly, and the SDK uploads it — passing
-the column's kind as `as` (§5) — and substitutes the record before the
-mutation is sent:
+The paved call assigns a `File` directly, and the SDK uploads it and
+substitutes the record before the mutation is sent:
 
 ```tsx
 setAvatar.run({ avatar: file })
 publish.run({ space, body, photos: files })   // 1–4 Files
 sendClip.run({ recipient, clip: file })
-sendDoc.run({ recipient, doc: file })
 ```
 
 Generated client argument types accept `File | ImageAsset` (or `VideoAsset`,
-`FileAsset`, by column); handlers, the engine, and the twin only ever see the
-record (§6), so this is a client convenience and not an engine concept. The
-two-phase form remains available for progress UIs and for carriers that are
-not the browser's `File`, and there `as` is a required option:
+by column); handlers, the engine, and the twin only ever see the record (§6),
+so this is a client convenience and not an engine concept. **The SDK learns
+which arguments are asset-typed from the manifest, not from `.d.ts`:** the
+second panel found that runtime operation objects carry only their name —
+type parameters are erased — while `/api/manifest` already carries the
+descriptors. Substitution is therefore manifest-driven and
+generation-fenced, recursive through optionals and lists, and it preflights
+every source's length against the bound before any upload starts. A source is
+a browser `File` or an Expo native URI — the brief's picker hands over a URI,
+not a `File` — streamed, never buffered. The two-phase form remains available
+for progress UIs:
 
 ```ts
-const avatar = await client.upload(file, { as: "image", onProgress })
+const avatar = await client.upload(file, { onProgress })
 await setAvatar.run({ avatar })
 ```
 
@@ -828,23 +955,25 @@ the upload implies a false atomicity. Grok's counter is the one that decides
 it: *"requiring `upload()` then `mutate()` is `attach()` renamed"* — and
 LLP 1005 §5b is a whole section on what a mandatory second call cost Snapback 1.
 An agent that must call two functions will eventually call one. Codex's
-atomicity objection is answered by the failure shape: `run()` throws, no row is
-written, and the siblings are reclaimed — the same shape as any rejected
-mutation.
+atomicity objection is answered by the failure shape: an upload or transport
+failure throws before anything is sent; a server refusal resolves to the
+ordinary `MutationRejected` result — mutations do not throw in this client —
+and either way no row is written and the siblings are reclaimed, the same
+shape as any rejected mutation.
 
 Rendering is one component per kind (§2a). `<AssetImage asset={photo} />`
 measures its own box and requests a matching width (§8) — the author names no
-size. `<AssetVideo asset={clip} />` is the platform's native player with
-`controls`, sized from the record's `width` and `height` so a tile never
-collapses (Diary 0087), streaming by `Range`. `<AssetFile asset={doc} />` is a
-download link showing `name` and a formatted `size`. All three take their URL
-from `useAssetUrl(asset, { width? })`, which is exported for anything custom,
-and all three carry the session carrier of §2b whenever the client is
-authenticated — so a private clip plays in a plain `<video>` element, and a
-private image no longer needs the fetch-to-blob path revision (c) specified,
-though the SDK may keep it where a header is cheaper than a token. Expo's
-native players take the same URL; that arm lands with the Expo package
-(LLP 1000 decision 5).
+size — and fetches with the session's header (bearer or persona), painting
+from a blob URL on the web and passing headers to the native image on Expo;
+`private, no-cache` plus the `ETag` (§2) keeps repeats cheap. `<AssetVideo
+asset={clip} />` is the platform's native player with `controls`, sized from
+the record's `width` and `height` so a tile never collapses (Diary 0087),
+streaming by `Range`, and it is the component that carries the session
+carrier of §2b — so a private clip plays in a plain `<video>` element and in
+Expo's native player alike. Both take their URLs from `useAssetUrl`, which
+resolves a scalar or a list and is exported for anything custom; the carrier
+is attached only when the caller asks for a URL an element will load
+directly. Expo's arm lands with the Expo package (LLP 1000 decision 5).
 
 ## 11. What this deletes
 
@@ -859,12 +988,13 @@ native players take the same URL; that arm lands with the Expo package
 | `assetCollection` (LLP 0239, experimental) | `t.list(t.image(…), { max })` | the engine has bounded lists (§3) |
 | `defineMediaCommand` (LLP 0180, experimental) | the mutation | uploads settle before the write (§3) |
 | Recipient grants (LLP 0220) | — | non-goal (§13) |
-| `private-signed` delivery profile, per-asset signed URLs, signing-key rotation | the session carrier (§2b) | a credential for the same viewer, not a grant on an asset |
+| `private-signed` delivery profile, per-asset signed URLs, signing-key rotation | the session carrier (§2b), for video and downloads only | a credential for the same viewer, not a grant on an asset |
 | Pre-declared renditions | any width, snapped (§8) | nothing to name wrongly, no ladder to learn |
 | TUS in the first slice | one POST (§5), with the return trigger written down | the measurement was 120 MB on a killed process |
 | `accept.video` sibling block + LLP 0305 declared codec/duration admission | `video <=N`; `duration` in the record; policy is a `require` (§3) | the fact is in the value, so the rule language already covers it |
 | Video transcoding, poster frames, thumbnails | — | the brief says played as uploaded (§13) |
-| `forces_attachment_disposition` | kept, for `file` (§2) | a steal, not a deletion — the same-origin script lane stays closed |
+| `forces_attachment_disposition` | kept, for `file` when it lands (§13a) | a steal, not a deletion — the same-origin script lane stays closed |
+| Decode → orient → re-encode at admission (v1's image strip) | a synthesized orientation tag over a chunk walk (§4), with re-encode as the gated fallback | admission stays a walk; the upload clock never waits for a 12 MP re-encode |
 | 199 `SNAPBACK_ASSET*`/`MEDIA*`/`COMMAND*` codes | ~5 `E_ASSET_*` | most described machinery that no longer exists |
 
 ## 12. Considered and rejected
@@ -917,7 +1047,8 @@ deletes both the list and the diagnostic.
 model. Rejected (§4): it required inventing and defending a 2048 px "primary,"
 made full-resolution download and deep zoom impossible, and — because deriving a
 new width needs a source — would have locked rendering into being eager forever.
-The optional `max` covers the apps that genuinely do not want full resolution.
+(Revision (d)'s optional `max` covered the apps that wanted less; it was
+withdrawn in (g).)
 
 **A runtime plugin API for media processors.** A loadable extension point —
 third-party thumbnailers, transcoders, new media kinds. Rejected on three
@@ -954,9 +1085,9 @@ Upload is column-less; the bound is re-checked at write, like `text <=40`. The
 wasted work is one image resize on a refusal path. **If a per-column accept list
 ever lands** (PNG-only avatars, H.264-only video), that is the add that puts the
 destination back, and it deletes the generation-wide admission ceiling. Naming
-the *kind* at upload (§5) is not this: it is one of three schema words, it
-selects no column policy, and it exists only because a JPEG can legitimately
-be a `file`.
+the *kind* at upload was revision (f)'s `as=` parameter, which existed only
+because a JPEG can legitimately be a `file`; it left with `file` (§13a) and
+returns with it.
 
 **An "upload this, then do X" construct.** Raised on 2026-09-03 — "upload this
 file, then set it as the profile photo." That is the paved call:
@@ -976,7 +1107,7 @@ naming a kind at upload. Rejected: it makes the twin's closed-shape check a
 union, makes "what does delivery do with an image record in a file column" a
 question, and breaks the one-record-per-column promise that keeps §6 simple.
 Three words, three records, and `as` on the upload build the same app with
-none of that.
+none of that — when `file` lands (§13a).
 
 **A cookie session for the asset route.** The obvious way to let `<video>` and
 `<img>` authenticate. Rejected: in the ordinary development topology the app
@@ -1010,8 +1141,30 @@ still transcode as a courtesy; the server is the authority (§4).
 pattern most of LLP 1005 §2's field uses. Rejected for the reason that field
 lost the revocation test: bytes under a different authority than rows disagree
 exactly when it matters. Upload goes to the server so admission and strip are
-trusted; delivery is authorized by the server on every request; the presigned
-redirect of §9a is issued only after that authorization and lives for seconds.
+trusted; delivery is authorized by the server on every request, and revision
+(j) deleted even the seconds-lived presigned redirect revision (g) allowed,
+because a bucket answers later `Range` requests without the rule (§9a).
+
+**Content-addressed blob keys** (revision (g)). Replaced in (j) by asset-id
+keys with namespace rotation on any writable fork (§9a): the ledger row can
+name the key before the blob exists, which makes crash safety a consequence
+of write order, and the dedupe it bought was for a case no app has. Recorded
+as the alternative if a shared-namespace restore is ever wanted.
+
+**`private, immutable` for private bytes.** Considered in the second panel as
+the fix for `no-store` re-downloading a feed on every scroll. Rejected: a
+revoked viewer's own browser would keep serving the image from its cache,
+which makes "revocation is exact" false on that device. `private, no-cache`
+with an `ETag` and authorization before `304` keeps the promise for one
+bodiless round trip (§2).
+
+**Eager rung rendering at admission** (revisions (c)–(i)). Moved to the
+recorded server-only switch (§8): it put resize work on the upload clock the
+paved call blocks on, for renders nobody may request.
+
+**A security-boundary claim for the helper** (revision (h)). Withdrawn (§14a):
+a same-UID child can open the store by its well-known path, so "no store
+handle" is a convention, not confinement, until an OS sandbox enforces it.
 
 ## 13. Non-goals, with reasons
 
@@ -1032,8 +1185,9 @@ redirect of §9a is issued only after that authorization and lives for seconds.
   is ever wanted it is one more validated field, not a declaration.
 - **Assets minted by effects.** An effect that fetches an image from a
   provider or renders a document has no way to produce an asset record for its
-  `then` mutation to place; §6's `system` uploader escape exists for that case,
-  and nothing fills it yet. Neither named app needs it, so it waits for one
+  `then` mutation to place; revisions (c)–(i) kept a `created_by = system`
+  escape in §6 for that case, nothing filled it, and (j) deleted it until this
+  lands. Neither named app needs it, so it waits for one
   that does. **Verified additive:** the shape is one call on the effect context
   — put a byte stream with a kind, get back the same closed record an upload
   returns — through the same finalize (§9) and the same helper (§14a), with
@@ -1041,13 +1195,11 @@ redirect of §9a is issued only after that authorization and lives for seconds.
   twin, no route, and no rule. It is not a media command: the effect's `then`
   is Quarry's existing "do this after that" (LLP 1003), and the record it
   places is validated exactly as a client's would be (§6).
-- **Per-column accept lists for `file`** (PDF-only, no executables). A `file`
-  column admits anything; the first such list is the add that puts a
-  destination back on the upload (§12), and no named app asks for one.
-- **Inline preview of a `file`.** Always an attachment (§2). An in-app viewer
-  fetches the bytes itself.
-- **Metadata stripping for formats the walker does not know** (PDF, Office
-  documents). §4 scopes the claim.
+- **Non-media files, in slice 1.** Designed and deferred — §13a.
+- **An OS sandbox for the helper.** The helper is crash, hang, and memory
+  isolation (§14a); making it a security boundary means seatbelt on macOS and
+  seccomp plus namespaces on Linux, which is the follow-up, not a slice-1
+  claim.
 - **Recipient grants and signed share links** — deferred, and **verified
   additive** (author ruling, 2026-09-01). There is no link to a photo on its own:
   bytes are fetchable only by someone who may read the row holding them, so
@@ -1074,39 +1226,100 @@ redirect of §9a is issued only after that authorization and lives for seconds.
   deduplication, byte export/import.
 - **A second authorization system for bytes.** The whole point.
 
+### 13a. `file`: designed, deferred (author decision, 2026-09-03)
+
+Revision (f) put non-media files in slice 1 at the author's ruling. The
+second panel, unanimously after cross-read, recommended deferring them: no
+app on the capability bar has an attachment, and `file` was the sole reason
+for an `as=` parameter on upload, a filename, a third record, attachment
+delivery, strip-by-type inside a column, and a partial privacy contract. The
+author deferred it. The design is recorded here in full so the addition is
+mechanical, and **verified additive**: one kind word, one record, one
+query-parameter pair on the upload, one delivery header, one component — and
+nothing in slice 1 changes meaning when it lands.
+
+- **The word and the record.** `doc: file <=25000000 ?`, and
+  `type FileAsset = Readonly<{ id: string; size: number; type: string; name: string }>`:
+  `size` is stored bytes, `type` the detected media type essence
+  (`application/octet-stream` when detection cannot name it), `name` the
+  uploader's filename. The record carries `type` for the opposite reason
+  `kind` was cut from an image: the column says nothing, and a message list
+  needs an icon and a label before anyone fetches the bytes.
+- **The upload names its kind.** `POST /api/upload?as=image|video|file[&name=]`.
+  `as` exists because a JPEG is a legitimate attachment and detection alone
+  cannot tell which record the caller wants back; the SDK passes it from the
+  manifest, and it is one of three schema words, not a destination column.
+  `name` is the one client-supplied fact in any record: sanitized to a single
+  path segment, control characters removed, bounded at 255 bytes, defaulted to
+  `file` when empty, stored on the ledger and validated like a dimension. Both
+  ride the query string so the upload adds no CORS header.
+- **Delivery is always an attachment.** `Content-Disposition: attachment;
+  filename="<name>"` on every `file`, with `nosniff`: user bytes served from
+  the app's own origin must never be invited to render inline, which is the
+  same-origin script lane Snapback 1's `forces_attachment_disposition` closed.
+  `<AssetFile asset={doc} />` is a download link showing `name` and a
+  formatted `size`, and it carries the session carrier (§2b), because a
+  download cannot send a header.
+- **Strip or refuse, by detected type, in every column.** A format Snapback
+  claims to strip — JPEG, PNG, WebP, MP4, MOV — is stripped or refused
+  wherever it lands, including inside a `file` column, so an attachments
+  field is never the escape hatch §4 promises does not exist. HEIC in a
+  `file` column is refused with a hint naming `image`, where it is decoded,
+  until an in-process HEIF `Exif`-item blank exists (a chunk walk, not a
+  decode). Everything else is stored byte for byte and **carries no privacy
+  claim**: a PDF keeps its author field, a DOCX its revision history. The
+  guarantee Snapback 1 measured is scoped to the formats Snapback can walk,
+  and the document says so rather than implying more.
+- **Not in it, ever, without a new trade:** per-column accept lists
+  (PDF-only, no executables) — the first such list is the add that puts a
+  destination column back on the upload (§12); inline preview — an in-app
+  viewer fetches the bytes itself; metadata stripping for formats the walker
+  does not know.
+- **Trigger:** the first app that needs an attachment column. The cost of the
+  deferral is that it waits one slice; the cost of keeping it would have been
+  roughly a fifth of lanes B, C, and D before the capability bar.
+
 ## 14. What it costs
 
 - **No new blocking check.** `rules/RULES.md` allows five; assets add none.
 - **No certificate version bump and no new `Value` variant** (§1).
-- **`check` stays under 1 s.** Three schema node kinds and three validation
-  arms.
+- **`check` stays under 1 s.** Two schema node kinds in slice 1, and the
+  inventory is honest: `ColumnType` and argument types, static typing, the
+  retention bound, JSON conversion, the index refusal, the compiler's
+  lowering, and the twin all gain an arm — "three validation arms" understated
+  lanes A and C, and §15 now says so.
+- **One new engine primitive** — the certified delivery point-read (§2) — and
+  one lifecycle reconciler (§2a). Both are named machinery, not "none".
 - **Two executables.** The engine and the media helper ship together; the
-  helper is where image size lives and is chosen at install (§14a). Video and
-  file need no helper: the walker decodes nothing.
-- **A spawn per finalize** — milliseconds, against a decode of hundreds
-  (§14a).
+  helper is where image size lives (§14a). Video needs no helper: the walker
+  decodes nothing.
+- **A spawn per HEIC upload and per first rung** — milliseconds, against a
+  decode of hundreds (§14a).
+- **One bodiless round trip per private image render** (§2): the price of
+  keeping revocation exact on the viewer's own device.
 - **Fifty-megabyte bodies through the HTTP layer.** `snapback2` reads request
-  bodies into a 1 MiB JSON buffer today; uploads need a streaming body path to
-  staging and a bound on concurrent uploads, so lane B is larger than "two
-  routes" suggests.
-- **About 900 lines of walker**, ported with its tests, and a real iPhone MOV
-  in the corpus (§9).
+  bodies into a 1 MiB JSON buffer today; uploads branch before it into their
+  own worker class with a streaming body path to staging (§5), so lane B is
+  larger than "two routes" suggests.
+- **About 900 lines of walker**, ported with its tests and three corrections
+  (§9), and a real iPhone MOV — portrait — in the corpus.
 - **One credential in a URL.** The session carrier (§2b) is the only secret
-  this design puts in a query string; it is short-lived, session-bound, and
-  kept out of logs.
-- **A scoped privacy claim.** A `file` column strips what the walker knows and
-  nothing else (§4).
-- **Full-resolution originals, always** (§4). An app that wants smaller
-  originals downscales on the device.
-- **The C decoders in the default helper variant** (§14a), for HEIC; the slim
-  variant omits them and refuses HEIC loudly.
-- **Two blob-store implementations over time, one now** (§9a).
+  this design puts in a query string; it is scoped to video and downloads,
+  bound to an identity epoch, and kept out of logs.
+- **An orientation acceptance matrix** (§4) before the strip mechanism is
+  trusted, and a re-encode fallback if it fails.
+- **Full-resolution originals, always** (§4), under one fixed internal
+  safety ceiling. An app that wants smaller originals downscales on the
+  device.
+- **The C decoders in the one published helper** (§14a), for HEIC.
+- **Two blob-store implementations over time, one now** (§9a), and one
+  namespace-rotation invariant the first writable fork must honor.
 - **A dropped upload retries in full** (§5), now including a 50 MB clip; the
   return trigger for resume is recorded there.
 - **An empty first paint** until bytes arrive (§7).
-- **Staging disk**: a per-principal cap (e.g. 256 MB or 20 objects) bounds what
-  an authenticated principal can stage before reclamation. Both panelists asked
-  for this number; it is internal, not authored.
+- **Staging disk**: a per-principal cap (e.g. 256 MB or 20 objects) and a
+  global cap bound what can be staged before reclamation. Both panels asked
+  for these numbers; they are internal, not authored.
 - **Denormalized dimensions**, a few dozen immutable bytes per reference.
 
 ### 14a. Codecs live in a separate executable; the type does not
@@ -1123,15 +1336,28 @@ costs with one shape.
 boxes or chunks runs in-process.** Decode, resize, and re-encode — the derived
 widths of §8 and the HEIC normalization of §4 — run in a separate executable,
 `snapback2-media`, spawned by the finalize worker per job with the staging
-file as its only input, no store handle, no network, a wall-clock timeout, and
-a memory ceiling. A crash, a hang, or a decompression bomb kills the child and
-refuses the upload in the `input` family; the engine and the store are
-untouched. The parsers — JPEG/PNG/WebP chunk strip (§4), the video container
-walker (§9), type detection — are bounded walks in safe Rust and stay
-in-process, as the walker already does. Spawn is milliseconds against a decode
-of hundreds, which is why this was ruled rather than measured; the measurement
-OQ1 asked for becomes a post-landing check on the helper's spawn cost, not a
-gate.
+file as its only input, a cleared environment, a wall-clock timeout, a memory
+ceiling, bounded output, and process-group termination. A crash, a hang, or a
+decompression bomb kills the child and refuses the upload in the `input`
+family; the engine and the store are untouched by the *crash*. The parsers —
+the image chunk strip with its synthesized orientation tag (§4), the video
+container walker (§9), type detection — are bounded walks in safe Rust and
+stay in-process. Spawn is milliseconds against a decode of hundreds, which is
+why this was ruled rather than measured; the measurement OQ1 asked for
+becomes a post-landing check on the helper's spawn cost, not a gate.
+
+**What the helper is, honestly: resource isolation, not a security boundary.**
+Revision (h) said "no store handle, no network" as if that were confinement.
+The second panel pointed out that a same-UID child can open
+`.snapback/store.sqlite` by its well-known path; the API convention keeps an
+honest helper away from the store, and it keeps a compromised one away from
+nothing. What the subprocess *does* buy is real and enough for slice 1: a
+decoder crash, hang, or memory blow-up cannot take the engine with it, and the
+C decoders never link into the engine binary. Turning it into a boundary means
+an OS sandbox — seatbelt on macOS, seccomp plus namespaces on Linux — and that
+is the named follow-up (§13), not a claim this revision makes. LLP 1002
+decision 1 says "Nothing else is ever spawned"; it is amended in the same
+landing to name this child.
 
 **The engine binary carries no codec.** `snapback2` is unchanged in size by
 media, and a snapback2 developer who is not touching media never rebuilds an
@@ -1147,53 +1373,60 @@ images  = [...]              # JPEG/PNG/WebP decode + resize + encode, pure Rust
 heic    = ["images", ...]    # libheif → libde265, separable because it is the costly one
 ```
 
-**The codecs are chosen at build and install time, never at runtime.** The
-published package ships the helper in a **default variant** with every codec
-§4 admits, and publish refuses to ship the default without them — a default
-that cannot finalize what the schema admits is the v1 HEIC bug in a new coat. A
-**slim variant** without `heic` is published under that name for installations
-that will never see an iPhone photo and want the size back. Choosing it is an
-install-time decision; nothing in a schema, a value, or a request depends on
-which variant is present. `publish.mjs` reports each variant's size beside the
-engine's.
+**The codecs are chosen at build time; there is one published helper.**
+Revision (h) published a default and a slim variant. The second panel,
+unanimously, called the second artifact a packaging matrix and a support
+question with no named user, and the author narrowed ruling 10: the published
+package ships **one** helper carrying every codec §4 admits, and publish
+refuses to ship it without them — a helper that cannot finalize what the
+schema admits is the v1 HEIC bug in a new coat. The build flag stays for the
+development loop. `publish.mjs` reports the helper's size beside the
+engine's, and that number is the trigger for a slim package if it ever
+measures badly.
 
 **A missing codec refuses loudly; nothing degrades.** An installation with no
 helper at all whose schema declares an `image` column refuses at boot, exactly
-as the engine-less build does for effects; `video` and `file` columns need no
-helper and boot without one. An installation whose helper lacks HEIC refuses a
-HEIC upload with `E_ASSET_TYPE` and a hint naming the default variant. There is
-no serve-the-original-only mode and no silent fallback — LLP 1005 §6's lesson
-is that a capability the binary cannot honor must fail where the author can
-see it.
+as the engine-less build does for effects; `video` columns need no helper and
+boot without one. A developer's build without the `heic` feature refuses a
+HEIC upload with `E_ASSET_TYPE` and a hint naming the feature. There is no
+serve-the-original-only mode and no silent fallback — LLP 1005 §6's lesson is
+that a capability the binary cannot honor must fail where the author can see
+it.
 
-**The `image`, `video`, and `file` column types are unconditional in every
-build.** The Rust engine and the TypeScript twin must agree on every corpus
-case, so a schema vocabulary that varies with a build flag or an installed
-variant breaks the agreement — the same class of defect the panel caught in
-revision (c)'s stamp. A codec-less installation still parses, certifies, and
-type-checks a schema containing `image` columns; it just cannot finalize one.
+**The `image` and `video` column types are unconditional in every build.**
+The Rust engine and the TypeScript twin must agree on every corpus case, so a
+schema vocabulary that varies with a build flag breaks the agreement — the
+same class of defect the panel caught in revision (c)'s stamp. A codec-less
+installation still parses, certifies, and type-checks a schema containing
+`image` columns; it just cannot finalize one.
 
 ## 15. Implementation shape
 
-`rules/RULES.md`: a spec needs an implementer and a date. Proposed, subject to
-the author's scheduling:
+`rules/RULES.md`: a spec needs an implementer and a date. **Assigned by the
+author on 2026-09-03, in session:** implementer codex gpt-5.6-sol under the
+`sbs-orchestrate` roster (Claude orchestrates, reviews with codex and grok,
+and lands); commissioned 2026-09-03, revision (j), starting immediately.
 
 | lane | scope |
 |---|---|
-| A | `_assets` ledger + lifecycle, the `image`/`video`/`file` column types, the three `valid_column_value` arms, write-time validation (§6), reclamation with the derived key count and fork-aware referrers (§9, §9a), `reset` clearing the ledger — `snapback2-core` |
-| B | the blob-store trait with its filesystem implementation and content-addressed keys (§9a), upload + delivery routes with streaming staging and `Range`/`206` (§2), the `as`/`name` parameters (§5), the finalize worker, chunk-level strip for JPEG/PNG/WebP, width snapping, the session-carrier mint and check (§2b), attachment/nosniff delivery, the helper spawn protocol (timeout, memory ceiling, no store handle), the no-helper boot refusal and the per-format refusal (§14a) — `snapback2` |
-| B3 | the `snapback2-media` helper crate: decode, resize, encode, and HEIC normalization behind the `images`/`heic` features; the default and slim published variants and the publish-time refusal (§14a) |
-| B2 | the container walker port from `crates/snapback-services/src/assets_video.rs` with its tests and a real iPhone MOV fixture, plus display-dimension and duration extraction (§9) — `snapback2` |
-| C | `image`/`video`/`file` in Quarry (replacing the `asset` refusal at `packages/compiler/src/quarry/parser.ts:340`), the builders in the lowering target, member access on asset-typed arguments in `require` (§3), `api.d.ts` types incl. `File \| ImageAsset` client args by kind |
-| D | `run()` file substitution with `as` by column, `client.upload`, `useAssetUrl`, `AssetImage`/`AssetVideo`/`AssetFile`, carrier refresh, React; one template with a photo, a clip, and an attachment |
+| A | `_assets` ledger + lifecycle; the `image`/`video` column and argument types through `ColumnType`, `ArgType`, static typing, retention, JSON conversion, and the index refusal; entry-time ledger validation of asset-typed arguments (§6); the old-row/new-row lifecycle reconciler on insert/replace/delete/successor with same-cell carry-forward, and the `maintain.by`/seed refusals (§2a); the certified delivery point-read primitive on the owner's action channel (§2); reclamation with fork-aware referrers; `reset` = clear ledger + staging + sweep (§9a) — `snapback2-core` |
+| B | the blob-store trait with its filesystem implementation, asset-id keys, and the namespace-rotation invariant (§9a); the upload route branching before the JSON reader into its own worker class, streaming staging, per-principal and global caps (§5, §14); delivery with `200`/`206`/`416`, `nosniff`, `public, immutable` / `private, no-cache` + `ETag` (§2); the image chunk strip with the synthesized orientation tag (§4); lazy width snapping with `min(requested, source)` (§8); the session-carrier mint for persona or bearer, epoch-bound, the public-row redirect, log scrubbing (§2b); the helper spawn protocol and the no-helper boot refusal (§14a) — `snapback2` |
+| B2 | the container walker port from `crates/snapback-services/src/assets_video.rs` with its tests, blanking in place on the staging file, applying the `tkhd` matrix, refusing missing facts, and a real portrait iPhone MOV fixture (§9) — `snapback2` |
+| B3 | the `snapback2-media` helper crate: decode, resize, encode, HEIC normalization behind the `images`/`heic` features, the fixed decode-safety ceiling (§4), one published artifact and the publish-time refusal (§14a) |
+| C | `image`/`video` in Quarry (replacing both the `asset` refusal at `parser.ts:340` and the `use assets` refusal at `parser.ts:87`), lowered as closed object types; the builders in the lowering target; member access on asset-typed arguments in `require` (§3); `api.d.ts` types incl. `File \| ImageAsset` client args by kind; manifest descriptors for asset-typed arguments (§10) |
+| D | manifest-driven, generation-fenced `run()` substitution with preflight, for browser `File` and Expo native URI sources (§10); `client.upload`; `useAssetUrl` for scalars and lists; `AssetImage` on the header path, `AssetVideo` on the carrier, carrier refresh without `src` rotation; `MutationRejected` semantics; React; one template with a photo and a clip |
+| E | the amendments this revision requires in the same landing: LLP 1002 decision 1 (the helper child) and `rules/NOT-DOING.md` (HEIC and MOV named, `file` deferred) — landed with (j) |
 
 Fix loops get three rounds. The acceptance that matters is not a unit suite:
-per LLP 1005 §6, this slice is not done until a real multi-megabyte photo, a
-real iPhone MOV of at least 50 MB that seeks in a real browser and plays on a
-phone, a PDF through a real picker that downloads under its own name, a real
-browser bundle with no relay in front of it, and a real phone have each been
-through it — the original three found every serious asset bug in Snapback 1,
-and none was reachable from a harness.
+per LLP 1005 §6, this slice is not done until a real multi-megabyte photo in
+every EXIF orientation from 2 to 8 renders upright on web, iOS, and Android
+(§4's matrix); a real *portrait* iPhone MOV of at least 50 MB reports its
+display dimensions, seeks in a real browser, and plays on a phone; a private
+clip plays in a persona journey under `snapback2 test` and in a bearer
+session, is paused past the carrier's lifetime, and resumes and seeks without
+a reload; a real browser bundle with no relay in front of it works; and a real
+phone has been through all of it — the original three found every serious
+asset bug in Snapback 1, and none was reachable from a harness.
 
 ## 16. The panel record
 
@@ -1211,15 +1444,21 @@ effect on this document was **six deletions, two defect fixes, and one
 correction**, against **one addition** (the asset id in the URL, which pays for
 itself by deleting the stale-cache bug).
 
-**Revisions (f), (g), and (h) were not panel-reviewed.** They fold the
-author's rulings of 2026-09-03 — video and files in slice 1, and the answers to
-the questions that raised — and the consequences the orchestrator derived from
-them: chiefly the session carrier (§2b), the `as` parameter (§5),
-strip-by-detected-type (§4), the storage trait (§9a), and the helper executable
-(§14a). The Confidence section names the first three as the places a review
-round should look first, and the standing arrangement — codex and grok,
-mutually blind, then cross-read — is the right shape for it before lane B
-starts.
+**Revisions (f)–(i) were reviewed by a second panel on 2026-09-03**, the same
+two families at the same effort, two rounds, with the orchestrating Claude
+session (which authored (f)–(i)) as a disclosed author-side third voice
+rather than a silent chair. Records: `llp/reviews/1006-assets.panel.codex.md`
+and `.grok.md` (dated Panel 2 sections), `1006-assets.panel.claude.md`, and
+the synthesis `1006-assets.panel.synthesis.md`. Its verdict was unanimous:
+not ready as written, ready after the changes — fourteen findings all three
+accepted, and six splits the author decided. Revision (j) folds them. Two of
+the splits swapped sides between rounds, and both are recorded with the fact
+that decided them rather than the vote: blob keys (§9a, decided by the id
+allocator's namespace) and the orientation mechanism (§4, decided by the
+paved path's upload clock and gated by an acceptance matrix). The author held
+one ruling against a 2–1 recommendation — HEIC in slice 1 — and the trigger
+that would have reopened it is recorded in §4. No further panel round is
+needed unless the author reverses a unanimous finding.
 
 ## Confidence
 
@@ -1256,30 +1495,35 @@ walker exists and is tested; the record is the same mechanism as the image's;
 the brief's "played as uploaded" is exactly what a walk-and-serve pipeline
 does.
 
-**0.75** on the session carrier (§2b). It is the one credential this design
-puts in a URL, and it retracts a line the panel endorsed; it is also the
-smallest thing that makes a `<video>` element play a private clip, and every
-alternative examined is larger (§12).
+**0.8** on the session carrier (§2b), up from 0.75 after the second panel
+narrowed it to video and downloads, bound it to an identity epoch, and made
+it mintable for personas. It is still the one credential this design puts in
+a URL; the matrix row in §15 that pauses a clip past its lifetime is the test
+that earns the last tenth.
 
-**0.7** on `as` at upload (§5) and on strip-by-detected-type under `file`
-(§4). Both answer questions that video and files raised on 2026-09-03 and the
-panel never saw; a review round on revisions (f)–(h) is the right next step
-before lane B starts.
+**0.7** on the orientation-tag strip (§4). The author chose it for speed on
+the paved path over the panel's 2–1 for re-encode; it depends on every viewer
+honoring the tag, which modern browsers, iOS, and Android do, and the
+acceptance matrix plus the recorded fallback bound the downside.
 
-**0.8** on §9a. The trait is the shape every blob store ends up with, and
-content addressing is what makes affine cheap and `fork` free; the presigned
-redirect is the one piece that changes client-visible behavior, and only on a
-hosted target that does not exist yet.
+**0.8** on §9a. The trait is the shape every blob store ends up with; asset-id
+keys make crash safety a consequence of write order; the namespace-rotation
+invariant is one line the first writable fork must honor.
 
-**0.85** on the helper subprocess (§14a). It is the standard containment for
-decoders, its cost is predictable, and it closes the last open question; the
-variant packaging is the one part that touches `publish.mjs`, and that script
-already knows how to report a feature's size.
+**0.85** on entry-time validation and the delivery primitive (§2, §6). Both
+are corrections of claims the code contradicted, found by one family and
+verified against the tree by the orchestrator.
+
+**0.85** on the helper subprocess (§14a), now described as what it is. Its
+cost is predictable and it closes the last open question; one published
+helper is one artifact for `publish.mjs` to size.
 
 ## Rulings settled (author)
 
 Recorded here so a reader knows these are decided, not merely proposed. Items
-1–4 are the rulings of 2026-09-01; items 5–10 are 2026-09-03:
+1–4 are the rulings of 2026-09-01; items 5–10 are 2026-09-03, as narrowed by
+the author's decisions on the second panel the same day; item 11 records those
+decisions:
 
 1. **Affine** — one asset, one home (§2a).
 2. **Any width may be requested**, snapped internally; no closed ladder and no
@@ -1288,26 +1532,34 @@ Recorded here so a reader knows these are decided, not merely proposed. Items
    paired this with an optional `max` ceiling per column; ruling 6 removed it.
 4. **Share links are deferred**, with their additivity verified and recorded
    (§13).
-5. **Video and non-media files ship in slice 1**: three column kinds and three
-   records (§1), the walker ported (§9), `Range` and the session carrier in
-   the first delivery route (§2, §2b), strip by detected type with the claim
-   scoped (§4), resume still deferred with its trigger recorded (§5).
+5. **Video ships in slice 1; non-media files are designed and deferred**
+   (narrowed on the panel's unanimous recommendation): two column kinds and
+   two records (§1), the walker ported (§9), `Range` and the session carrier
+   in the first delivery route (§2, §2b), resume still deferred with its
+   trigger recorded (§5); `file` in full in §13a.
 6. **No resolution ceiling.** Full resolution always; the device downscales if
    the app wants less (§4, §12).
 7. **WebP and HEIC are both handled.** WebP joins the accept list with
-   chunk-level strip and pure-Rust decode; HEIC stays a server-side decode, and
-   the default published variant carries the decoder (§4, §14a; narrowed by
-   ruling 10).
+   chunk-level strip and pure-Rust decode; HEIC stays a server-side decode,
+   and the one published helper carries the decoder (§4, §14a). Held over the
+   panel's 2–1 recommendation to defer HEIC; the reopening trigger is in §4.
 8. **Bytes live beside the store locally and in an S3-compatible bucket when
-   hosted**, behind one streaming-first, content-addressed trait, delivered
-   through the server in both cases (§9a).
+   hosted**, behind one streaming-first trait keyed by asset id, delivered
+   through the server in both cases with no presigned redirect (§9a; narrowed
+   on the panel's findings).
 9. **Decode runs in a subprocess.** Anything that produces pixels runs in the
    `snapback2-media` helper with no store handle, a timeout, and a memory
    ceiling; walkers stay in-process (§9, §14a).
-10. **Codecs are chosen at build and install time.** The engine carries none;
-    the helper is built with `images`/`heic` features and published as a
-    default full variant and a slim one; a missing codec refuses loudly
-    (§14a).
+10. **Codecs are chosen at build time; one helper is published.** The engine
+    carries none; the helper is built with `images`/`heic` features and
+    published once with every codec §4 admits; a missing codec refuses loudly
+    (§14a; narrowed on the panel's unanimous recommendation).
+11. **The second panel's splits, decided:** `file` deferred (§13a); HEIC kept;
+    blobs keyed by asset id with namespace rotation on any writable fork
+    (§9a); private image responses `private, no-cache` with an `ETag` (§2);
+    orientation preserved by a synthesized tag over a chunk walk, gated by an
+    acceptance matrix with re-encode as the fallback (§4);
+    `rules/NOT-DOING.md` amended to name HEIC and MOV and to defer `file`.
 
 ## Open questions (author)
 
@@ -1318,8 +1570,8 @@ brief's formats, and where bytes live — are rulings 6–8.
 ## What promotion to a Spec requires
 
 `rules/RULES.md`: *"A spec needs an implementer and a date, or it isn't
-written,"* and *"only implemented specs bind."* This document is complete enough
-to implement — §15's six lanes are disjoint and no question is open — but it
-stays an RFC until the author assigns an implementer and a date. The standing arrangement routes implementation to codex
-gpt-5.6-sol; the date is the author's scheduling call, not a number this
-document may invent.
+written,"* and *"only implemented specs bind."* On 2026-09-03 the author
+assigned both (§15): implementer codex gpt-5.6-sol under the standing
+arrangement, date 2026-09-03. The document is **Accepted**; it binds lane by
+lane as each lane's code lands, and the file keeps its RFC type and number,
+which never change.

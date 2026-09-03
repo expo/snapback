@@ -85,6 +85,8 @@ fn ceiling_scan(take: u32) -> Program {
             after: None,
             before: None,
             range: None,
+            optional_cursor_args: Vec::new(),
+            merge_site: None,
             provenance: KeyProvenance::Const,
         }))],
     }
@@ -445,6 +447,8 @@ fn checker_and_generation_report_all_refusals_per_program() {
                 after: None,
                 before: None,
                 range: None,
+                optional_cursor_args: Vec::new(),
+                merge_site: None,
                 provenance: KeyProvenance::Const,
             }),
             body: Vec::new(),

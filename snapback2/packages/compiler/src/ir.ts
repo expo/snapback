@@ -51,6 +51,8 @@ export type Scan = {
   after: Expr | null;
   before: Expr | null;
   range: { gt: Expr | null; gte: Expr | null; lt: Expr | null; lte: Expr | null } | null;
+  optional_cursor_args?: string[];
+  merge_site?: string | null;
   provenance: Provenance;
 };
 

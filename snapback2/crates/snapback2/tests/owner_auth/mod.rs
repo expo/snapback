@@ -526,7 +526,7 @@ fn install_add_member_mutation(root: &Path) {
     source.push_str(
         r#"
 mutation addMemberForSessionTest(conversationId: conversations, principal: principal):
-  +memberships { conversationId, principal, role: 'member', joinedAt: now }
+  insert memberships { conversationId, principal, role: 'member', joinedAt: now }
   return null
 "#,
     );

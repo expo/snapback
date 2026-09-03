@@ -429,11 +429,11 @@ fn canonical_membership_without_a_probeable_named_delete_blocks_live_revocation(
     without_leave.push_str(
         r#"
 mutation aaaUnprobeableLeave(orphanId: id, membershipId: memberships):
-  -memberships[membershipId]
+  delete memberships[membershipId]
   return null
 
 mutation aabUnprobeableLeave(missingId: id, membershipId: memberships):
-  -memberships[membershipId]
+  delete memberships[membershipId]
   return null
 "#,
     );
@@ -516,7 +516,7 @@ query aaaUnprobeable(orphanId: id, conversationId: conversations):
   return messages[conversationId] last 50
 
 mutation aaaUnprobeableLeave(orphanId: id, membershipId: memberships):
-  -memberships[membershipId]
+  delete memberships[membershipId]
   return null
 "#,
     );
@@ -672,7 +672,7 @@ fn invalidation_blocks_when_every_intersecting_probe_is_rejected() {
     fs::remove_file(project.path.join("snapback/tests/todos.test.ts")).unwrap();
     fs::write(
         project.path.join("snapback/todos.q"),
-        "query list():\n  return todos[viewer] first 50\n\nmutation add():\n  require false else ALWAYS_REJECT\n  +todos { title: 'never', done: false, ownerId: viewer }\n  return null\n",
+        "query list():\n  return todos[viewer] first 50\n\nmutation add():\n  require false else ALWAYS_REJECT\n  insert todos { title: 'never', done: false, ownerId: viewer }\n  return null\n",
     )
     .unwrap();
     assert!(project.run(&["check", "--json"]).status.success());
@@ -713,12 +713,12 @@ fn invalidation_blocks_when_a_query_has_no_disjoint_committing_probe() {
     assert!(project.init("todos", "none").status.success());
     fs::write(
         project.path.join("snapback/schema.q"),
-        "use identity\n\ntable items:\n  label: text <=20\n  public 'public'\n  insert r <- allow\n  update r <- allow\n  delete r <- allow\n",
+        "use identity\n\ntable items:\n  label: text <=20\n  public 'public'\n  insert <- allow\n  update <- allow\n  delete <- allow\n",
     )
     .unwrap();
     fs::write(
         project.path.join("snapback/todos.q"),
-        "query list():\n  return items[] first 50 by byId\n\nmutation add(label: text <=20):\n  +items { label }\n  return null\n",
+        "query list():\n  return items[] first 50 by byId\n\nmutation add(label: text <=20):\n  insert items { label }\n  return null\n",
     )
     .unwrap();
     fs::write(
@@ -766,7 +766,7 @@ fn rules_use_the_engine_verdict_when_one_synthetic_principal_is_admitted() {
     assert!(project.init("todos", "none").status.success());
     fs::write(
         project.path.join("snapback/schema.q"),
-        "use identity\n\ntable items:\n  ownerId: principal\n  label: text <=20\n  read r <- r.ownerId = viewer\n  insert r <- allow\n  update r <- allow\n  delete r <- allow\n",
+        "use identity\n\ntable items:\n  ownerId: principal\n  label: text <=20\n  read <- .ownerId = viewer\n  insert <- allow\n  update <- allow\n  delete <- allow\n",
     )
     .unwrap();
     fs::write(

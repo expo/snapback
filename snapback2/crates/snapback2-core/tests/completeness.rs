@@ -86,6 +86,8 @@ fn page(after: Option<Expr>, take: u32) -> Scan {
         after: after.map(Box::new),
         before: None,
         range: None,
+        optional_cursor_args: Vec::new(),
+        merge_site: None,
         provenance: KeyProvenance::Arg,
     }
 }

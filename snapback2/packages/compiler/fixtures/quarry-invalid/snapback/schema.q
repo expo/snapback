@@ -5,8 +5,8 @@ table items:
   label: text <=100
   by owner
   by byOwnerLabel: owner, label
-  read r <- r.owner = viewer
-  insert r <- r.owner = viewer
+  read <- .owner = viewer
+  insert <- .owner = viewer
 
 table other:
   owner: principal

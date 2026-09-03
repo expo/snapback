@@ -129,6 +129,8 @@ fn scan_program(name: &str, index: &str, arg: &str, kind: ArgType) -> Program {
                 lt: None,
                 lte: None,
             }),
+            optional_cursor_args: Vec::new(),
+            merge_site: None,
             provenance: KeyProvenance::Arg,
         }))],
     }
@@ -492,6 +494,8 @@ fn bytes_programs() -> Vec<Program> {
                 after: None,
                 before: None,
                 range: None,
+                optional_cursor_args: Vec::new(),
+                merge_site: None,
                 provenance: KeyProvenance::Const,
             }))],
         },
