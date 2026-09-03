@@ -2,6 +2,7 @@ use crate::ir::{ArgType, KeyProvenance};
 use crate::value::{Value, digest};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Schema {
@@ -178,6 +179,29 @@ impl ColumnType {
             Self::List { .. } => true,
             Self::Optional(inner) => inner.contains_list(),
             _ => false,
+        }
+    }
+}
+
+impl fmt::Display for ColumnType {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Id => formatter.write_str("Id"),
+            Self::Principal => formatter.write_str("Principal"),
+            Self::Text { max } => write!(formatter, "Text(max={max})"),
+            Self::Bytes { max } => write!(formatter, "Bytes(max={max})"),
+            Self::Int => formatter.write_str("Int"),
+            Self::Enum { variants } => write!(formatter, "Enum({})", variants.join("|")),
+            Self::Decimal { scale } => write!(formatter, "Decimal(scale={scale})"),
+            Self::Money { currency, scale } => {
+                write!(formatter, "Money({currency}, scale={scale})")
+            }
+            Self::Bool => formatter.write_str("Bool"),
+            Self::Time => formatter.write_str("Time"),
+            Self::Ref { table } => write!(formatter, "Ref({table})"),
+            Self::Json { max_bytes } => write!(formatter, "Json(maxBytes={max_bytes})"),
+            Self::Optional(inner) => write!(formatter, "Optional({inner})"),
+            Self::List { of, max } => write!(formatter, "List({of}, max={max})"),
         }
     }
 }
@@ -436,9 +460,9 @@ pub(crate) fn maintain_issues(schema: &Schema) -> Vec<MaintainIssue> {
                     "sum maintain names unknown source column {}.{of}",
                     maintain.source
                 ))),
-                Some(ColumnType::Int) => {}
+                Some(ColumnType::Int | ColumnType::Decimal { .. } | ColumnType::Money { .. }) => {}
                 Some(_) => issues.push(issue(format!(
-                    "sum maintain source column {}.{of} must be Int",
+                    "sum maintain source column {}.{of} must be Int, Decimal, or Money",
                     maintain.source
                 ))),
             }
@@ -453,10 +477,26 @@ pub(crate) fn maintain_issues(schema: &Schema) -> Vec<MaintainIssue> {
                 maintain.target
             )));
         }
-        if target.columns.get("value") != Some(&ColumnType::Int) {
+        let expected_value = match &maintain.kind {
+            MaintainKind::Count => Some(&ColumnType::Int),
+            MaintainKind::Sum { of } => source.columns.get(of),
+        };
+        if let Some(expected_value) = expected_value
+            && target.columns.get("value") != Some(expected_value)
+        {
             issues.push(issue(format!(
-                "maintain target {}.value must be Int",
-                maintain.target
+                "maintain target {}.value type {} must equal source {} type {}",
+                maintain.target,
+                target
+                    .columns
+                    .get("value")
+                    .map(ToString::to_string)
+                    .unwrap_or_else(|| "missing".to_owned()),
+                match &maintain.kind {
+                    MaintainKind::Count => "count".to_owned(),
+                    MaintainKind::Sum { of } => format!("{}.{of}", maintain.source),
+                },
+                expected_value,
             )));
         }
 

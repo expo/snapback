@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2-core` (`store`, `registry`, `live`, `identity`, `successor`, the engine, the IR)
 **Author:** Claude Fable 5 (orchestrator) — implementer: codex gpt-5.6-sol, lane A
 **Date:** 2026-08-29
-**Revised:** 2026-09-02
+**Revised:** 2026-09-03
 **Related:** LLP 1000, LLP 1002 (the loop that serves this), LLP 1003 (effects
 through the outbox this spec defines), LLP 0329.014.004 §7 (runtime), LLP
 0329.014.000 §6 (execution, trace, states), LLP 0329.016 §5.6 (no silent
@@ -371,9 +371,10 @@ writers — templates set them to `deny` — and the engine's aggregate writes
 are exempt from those rules and never from constraints or unique indexes.
 Both authored lowering and raw schema certification validate a maintain as one
 closed projection: `by` fields are unique and may not be the reserved `id` or
-`value`; `sum.of` is `Int`; the target has intrinsic `id`, exactly the
-type-compatible group columns, and `value: Int`; and one declaration owns a
-target. A maintained target may not itself be any maintain's source; transitive
+`value`; `sum.of` is `Int`, `Decimal`, or `Money`; the target has intrinsic
+`id`, exactly the type-compatible group columns, and an aggregate `value` that
+is `Int` for count or exactly matches the sum source column's type; and one
+declaration owns a target. A maintained target may not itself be any maintain's source; transitive
 projection chains require recursive amplification/cascade semantics this slice
 does not claim. These checks prevent a group field from overwriting aggregate
 identity/value and make rebuild ownership unambiguous.
@@ -687,6 +688,8 @@ arithmetic, ordering, or the evaluator twin changes:
   1002 §2) to scale source literals and to refuse mixed-scale arithmetic.
   Indexable, orderable, exact. `Money { currency, scale }` is the same with a
   currency tag for the compiler to check; the engine treats it as `Decimal`.
+  Sum maintains may source Decimal or Money, and the target `value` carries
+  the same descriptor; the engine's arithmetic is unchanged.
 - Dated amendment, 2026-08-30: `Bytes { max }`
   (`{"Bytes": {"max": 4}}`) is a `Value::Bytes(Vec<u8>)` whose required
   `max` is measured in bytes and enforced at insert/update time with the

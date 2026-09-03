@@ -259,7 +259,7 @@ export function registerColumnTypeChecks(test: RegisterTest): void {
     }, async (root) => {
       const lowered = await lowerProject(root);
       assert(lowered.ok, `lexical API project refused: ${lowered.ok ? "" : lowered.diagnostics.map((item) => item.message).join("; ")}`);
-      assert(lowered.apiDts.includes("localPrice: Op<{ price: Decimal<3> }, Decimal<2>>"),
+      assert(lowered.apiDts.includes("localPrice: Op<{ /** decimal 3 — minor units */ price: number }, Decimal<2>>"),
         `API result inference used operation args by spelling: ${lowered.apiDts}`);
       assert(canonical(integerLiterals(lowered.project.programs[0])).includes("[100]"),
         "local Decimal<2> row did not lower its whole-unit literal at scale 2");

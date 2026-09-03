@@ -727,10 +727,37 @@ function apiArgsType(object: ts.ObjectLiteralExpression, checker: ts.TypeChecker
   const fields = expandArgumentObject(object).entries.map((entry) => {
     const call = unwrapCall(entry.value);
     const optional = call && callLeaf(call) === "optional";
-    const type = call ? descriptorType(call, checker) : "unknown";
-    return `${quoteProperty(entry.name)}${optional ? "?" : ""}: ${type}`;
+    const type = call ? argumentDescriptorType(call, checker) : "unknown";
+    const brand = call && argumentBrand(call);
+    const comment = brand ? `/** ${brand} — minor units */ ` : "";
+    return `${comment}${quoteProperty(entry.name)}${optional ? "?" : ""}: ${type}`;
   });
   return fields.length === 0 ? "{}" : `{ ${fields.join("; ")} }`;
+}
+
+// @ref LLP 1004#money-and-decimal-worked-out-2026-09-03 — callers write integer minor units while results retain nominal brands.
+function argumentDescriptorType(call: ts.CallExpression, checker: ts.TypeChecker): string {
+  const name = callLeaf(call);
+  if ((name === "decimal" || name === "money")) return "number";
+  if ((name === "optional" || name === "list") && call.arguments[0]) {
+    const inner = unwrapCall(call.arguments[0]);
+    const value = inner ? argumentDescriptorType(inner, checker) : "unknown";
+    return name === "list" ? `${value}[]` : `${value} | null`;
+  }
+  return descriptorType(call, checker);
+}
+
+function argumentBrand(call: ts.CallExpression): string | undefined {
+  const name = callLeaf(call);
+  if (name === "optional" && call.arguments[0]) {
+    const inner = unwrapCall(call.arguments[0]);
+    return inner && argumentBrand(inner);
+  }
+  if (name === "decimal") return `decimal ${numberValue(call.arguments[0]) ?? "?"}`;
+  if (name === "money") {
+    return `money ${stringValue(call.arguments[0]) ?? "?"} ${numberValue(call.arguments[1]) ?? 2}`;
+  }
+  return undefined;
 }
 
 function descriptorType(call: ts.CallExpression, checker: ts.TypeChecker): string {
@@ -764,8 +791,8 @@ function descriptorType(call: ts.CallExpression, checker: ts.TypeChecker): strin
   return "unknown";
 }
 
-type ApiType = { text: string; special: boolean };
-type ApiTypeBinding = { kind: "args" } | { kind: "local"; row?: TableInfo };
+type ApiType = { text: string; special: boolean; fields?: Record<string, ApiType> };
+type ApiTypeBinding = { kind: "args" } | { kind: "local"; row?: TableInfo; type?: ApiType };
 type ApiTypeEnvironment = { bindings: Map<string, ApiTypeBinding> };
 
 function apiAuthoredResult(
@@ -795,8 +822,11 @@ function apiAuthoredResult(
         const row = call && callLeaf(call) === "get" && call.arguments[0]
           ? apiTable(call.arguments[0], tables)
           : undefined;
+        const type = initializer && ts.isIdentifier(declaration.name)
+          ? apiExpressionType(initializer, args, tables, checker, environment)
+          : undefined;
         for (const name of apiBindingNames(declaration.name)) {
-          environment.bindings.set(name, { kind: "local", ...(row ? { row } : {}) });
+          environment.bindings.set(name, { kind: "local", ...(row ? { row } : {}), ...(type ? { type } : {}) });
         }
       }
     }
@@ -823,6 +853,13 @@ function apiExpressionType(
   if (ts.isStringLiteralLike(value) || ts.isTemplateExpression(value)) return { text: "string", special: false };
   if (value.kind === ts.SyntaxKind.TrueKeyword || value.kind === ts.SyntaxKind.FalseKeyword) return { text: "boolean", special: false };
   if (value.kind === ts.SyntaxKind.NullKeyword) return { text: "null", special: false };
+  if (ts.isIdentifier(value)) {
+    const binding = environment.bindings.get(value.text);
+    if (binding?.kind === "local" && binding.type) return binding.type;
+  }
+  if (ts.isPrefixUnaryExpression(value) && value.operator === ts.SyntaxKind.MinusToken) {
+    return apiExpressionType(value.operand, args, tables, checker, environment);
+  }
   const propertyBase = ts.isPropertyAccessExpression(value) ? unwrapExpression(value.expression) : undefined;
   const propertyBinding = propertyBase && ts.isIdentifier(propertyBase)
     ? environment.bindings.get(propertyBase.text)
@@ -844,14 +881,21 @@ function apiExpressionType(
       return { text, special: /^(Decimal|Money)</.test(text) || text.includes(" | ") };
     }
   }
+  if (ts.isPropertyAccessExpression(value) && propertyBase) {
+    const base = apiExpressionType(propertyBase, args, tables, checker, environment);
+    const field = base.fields?.[value.name.text];
+    if (field) return field;
+  }
   if (ts.isObjectLiteralExpression(value)) {
     let special = false;
     const fields: string[] = [];
+    const fieldTypes: Record<string, ApiType> = {};
     for (const item of value.properties) {
       if (ts.isShorthandPropertyAssignment(item)) {
         const type = apiExpressionType(item.name, args, tables, checker, environment);
         special ||= type.special;
         fields.push(`${quoteProperty(item.name.text)}: ${type.text}`);
+        fieldTypes[item.name.text] = type;
         continue;
       }
       if (!ts.isPropertyAssignment(item)) continue;
@@ -860,8 +904,9 @@ function apiExpressionType(
       const type = apiExpressionType(item.initializer, args, tables, checker, environment);
       special ||= type.special;
       fields.push(`${quoteProperty(name)}: ${type.text}`);
+      fieldTypes[name] = type;
     }
-    return { text: `{ ${fields.join("; ")} }`, special };
+    return { text: `{ ${fields.join("; ")} }`, special, fields: fieldTypes };
   }
   if (ts.isArrayLiteralExpression(value)) {
     const items = value.elements.map((item) => apiExpressionType(item, args, tables, checker, environment));
@@ -883,10 +928,12 @@ function apiExpressionType(
     if (value.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken && (left.special || right.special)) {
       return { text: (left.special ? left.text : right.text).replace(/ \| undefined\b/g, ""), special: true };
     }
-    const branded = [left, right].find((item) => /^(Decimal|Money)</.test(item.text));
-    if (branded && [
-      ts.SyntaxKind.PlusToken, ts.SyntaxKind.MinusToken, ts.SyntaxKind.AsteriskToken,
-    ].includes(value.operatorToken.kind)) return branded;
+    const branded = [left, right].filter((item) => /^(Decimal|Money)</.test(item.text));
+    if (value.operatorToken.kind === ts.SyntaxKind.AsteriskToken && branded.length > 0) {
+      return branded.find((item) => item.text.startsWith("Money<")) ?? branded[0]!;
+    }
+    if (branded.length > 0 && [ts.SyntaxKind.PlusToken, ts.SyntaxKind.MinusToken]
+      .includes(value.operatorToken.kind)) return branded[0]!;
   }
   if (ts.isCallExpression(value)) {
     const name = callLeaf(value);
@@ -901,6 +948,17 @@ function apiExpressionType(
     }
     if (name === "decimal") {
       return { text: `Decimal<${numberValue(value.arguments[1]) ?? "number"}>`, special: true };
+    }
+    if (name === "divmod" && value.arguments[0]) {
+      const carried = apiExpressionType(value.arguments[0], args, tables, checker, environment);
+      return {
+        text: `{ quotient: ${carried.text}; remainder: ${carried.text} }`,
+        special: carried.special,
+        fields: { quotient: carried, remainder: carried },
+      };
+    }
+    if (name === "deterministicShare" && value.arguments[0]) {
+      return apiExpressionType(value.arguments[0], args, tables, checker, environment);
     }
     if (name === "min" || name === "max") {
       const branded = value.arguments.map((item) => apiExpressionType(item, args, tables, checker, environment))

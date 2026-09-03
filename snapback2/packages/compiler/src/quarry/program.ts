@@ -66,7 +66,7 @@ export function emitPrograms(programs: ProgramDecl[], catalog: TableCatalog, sou
   const rootSite = programs[0]?.site ?? effects[0]?.site ?? { file: sourceFile, line: 1, col: 1 };
   const writer = new Writer(rootSite);
   writer.raw(header(sourceFile), rootSite);
-  writer.statement(`import { emit, max, mentionTokens, min, mutation, query, range, recurse, t } from "snapback2";`, { file: sourceFile, line: 1, col: 1 });
+  writer.statement(`import { deterministicShare, divmod, emit, max, mentionTokens, min, mutation, query, range, recurse, t } from "snapback2";`, { file: sourceFile, line: 1, col: 1 });
   if (catalog.size > 0) writer.statement(`import { ${[...catalog.keys()].join(", ")} } from "./schema";`, { file: sourceFile, line: 1, col: 1 });
   for (const effect of effects) writer.statement(`import { ${effect.name} } from "./${effect.module}";`, effect.site);
   writer.raw();
@@ -251,6 +251,11 @@ function emitExpr(expr: Expr, env: Environment, writer: Writer): Emitted {
   if (expr.kind === "unary") {
     const value = emitExpr(expr.value, env, writer);
     if (expr.op === "not") requireBoolean(expr.value, value.type, "not");
+    if (expr.op === "-" && !numericAmountType(value.type)) {
+      const optionalNumeric = ["int", "decimal", "money"].includes(value.type.kind) && "optional" in value.type && value.type.optional;
+      if (optionalNumeric) typeError(expr.site, "negation requires a present int, decimal, or money value", "require presence first: -(value!) or -(value ?? 0)");
+      else typeError(expr.site, "negation requires an int, decimal, or money value", "negate an int, decimal, or money value");
+    }
     return { code: `${expr.op === "not" ? "!" : "-"}(${value.code})`, type: expr.op === "not" ? boolType() : value.type };
   }
   if (expr.kind === "binary") return emitBinary(expr, env, writer);
@@ -264,7 +269,12 @@ function emitExpr(expr: Expr, env: Environment, writer: Writer): Emitted {
   if (expr.kind === "created") refuse(expr.site, "created is valid only in an insert table rule");
   if (expr.kind === "aggregate") {
     const read = emitRead({ kind: "read", table: expr.table, keys: expr.keys, site: expr.site }, env, writer);
-    return { code: `(${read.code}?.value ?? 0)`, type: { kind: "int", optional: false } };
+    const value = env.catalog.get(expr.table)?.columns.get("value");
+    if (!value) refuse(expr.site, `#${expr.table}[...] requires a maintained target with a value column`);
+    // @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — aggregate absence becomes typed zero once, before the value enters ordinary IR expressions.
+    const local = temporary("agg", expr.site);
+    writer.statement(`const ${local} = ${read.code}?.value ?? 0;`, expr.site);
+    return { code: local, type: { ...value, optional: false } };
   }
   if (expr.kind === "assert") {
     const value = emitExpr(expr.value, env, writer);
@@ -349,8 +359,10 @@ function emitBinary(expr: Extract<Expr, { kind: "binary" }>, env: Environment, w
   }
   refuseFractionalInt(expr, left.type, right.type);
   const branded = brandedType(left.type) ?? brandedType(right.type);
+  // @ref LLP 1004#money-and-decimal-worked-out-2026-09-03 — branded loss of scale is explicit Euclidean divmod, never host-number rounding.
   if (branded && (expr.op === "/" || expr.op === "%")) {
-    typeError(expr.site, `${brandedName(branded)} does not admit ${expr.op}`, "use +, -, comparison, min/max, or multiply by an int");
+    const member = expr.op === "/" ? "quotient" : "remainder";
+    typeError(expr.site, `${brandedName(branded)} does not admit ${expr.op}`, `use divmod(${simpleExpr(expr.left)}, ${simpleExpr(expr.right)}).${member}`);
   }
   if (branded && (expr.op === "+" || expr.op === "-")) {
     const other = branded === left.type ? right : left;
@@ -361,10 +373,33 @@ function emitBinary(expr: Extract<Expr, { kind: "binary" }>, env: Environment, w
     return { code: `(${left.code} ${expr.op} ${right.code})`, type: branded };
   }
   if (branded && expr.op === "*") {
+    const leftBrand = brandedType(left.type);
+    const rightBrand = brandedType(right.type);
+    if (leftBrand && rightBrand) {
+      if (leftBrand.kind === "money" && rightBrand.kind === "money") {
+        typeError(
+          expr.site,
+          "money multiplied by money has no currency-squared value in Quarry",
+          "multiply the money value by a decimal rate or an int",
+        );
+      }
+      const dropped = leftBrand.kind === "money" ? rightBrand
+        : rightBrand.kind === "money" ? leftBrand
+          : rightBrand;
+      const result = leftBrand.kind === "money" ? leftBrand
+        : rightBrand.kind === "money" ? rightBrand
+          : leftBrand;
+      const divisor = 10 ** dropped.scale;
+      return { code: `divmod((${left.code} * ${right.code}), ${divisor}).quotient`, type: result };
+    }
     const other = branded === left.type ? right : left;
     const otherExpr = branded === left.type ? expr.right : expr.left;
     if (!brandedType(other.type) && (other.type.kind !== "int" || fractionalNumericLiteral(otherExpr))) {
-      typeError(expr.site, `${brandedName(branded)} multiplication requires one int operand`, "multiply the money/decimal value by an int");
+      typeError(
+        expr.site,
+        `${brandedName(branded)} multiplication requires an int operand or a decimal-typed rate; a bare fractional literal has no scale`,
+        "use an int operand or declare the rate as a decimal S argument or column",
+      );
     }
     return { code: `(${left.code} * ${right.code})`, type: branded };
   }
@@ -415,10 +450,48 @@ function emitCall(expr: Extract<Expr, { kind: "call" }>, env: Environment, write
     refuse(expr.site, "sorted(a, b) must be consumed by a two-name binding: (lo, hi) = sorted(a, b)");
   }
   const target = expr.name === "tokens" ? "mentionTokens" : expr.name;
-  if (!["tokens", "range", "min", "max", "count"].includes(expr.name)) {
+  if (!["tokens", "range", "min", "max", "count", "divmod", "share"].includes(expr.name)) {
     unsupported(expr.site, `user function or recursion (${expr.name})`, "use a Quarry builtin or inline one bounded expression");
   }
   const args = expr.args.map((arg) => emitExpr(arg, env, writer));
+  // @ref LLP 1004#money-and-decimal-worked-out-2026-09-03 — Quarry exposes only the engine's exact split primitives and preserves nominal result types.
+  if (expr.name === "divmod") {
+    if (args.length !== 2) typeError(expr.site, `divmod(a, b) requires exactly 2 arguments; received ${args.length}`, "use divmod(amount, integerDivisor)");
+    const numerator = args[0]!;
+    const divisor = args[1]!;
+    if (!numericAmountType(numerator.type)) {
+      typeError(expr.args[0]!.site, `divmod's first argument must be int, decimal, or money; received ${valueTypeName(numerator.type)}`, "use an int, decimal, or money numerator");
+    }
+    if (divisor.type.kind !== "int" || fractionalNumericLiteral(expr.args[1]!)) {
+      typeError(expr.args[1]!.site, "divmod's divisor must be an int", "use an integer expression or integer literal as the divisor");
+    }
+    const resultType = numerator.type as ScalarType;
+    return {
+      code: `divmod(${numerator.code}, ${divisor.code})`,
+      type: { kind: "object", fields: new Map([["quotient", resultType], ["remainder", resultType]]), nullable: false },
+    };
+  }
+  if (expr.name === "share") {
+    if (args.length !== 3) typeError(expr.site, `share(amount, recipients, recipient) requires exactly 3 arguments; received ${args.length}`, "use share(amount, recipients, recipient)");
+    const amount = args[0]!;
+    const recipients = args[1]!;
+    const recipient = args[2]!;
+    if (!numericAmountType(amount.type)) {
+      typeError(expr.args[0]!.site, `share's amount must be int, decimal, or money; received ${valueTypeName(amount.type)}`, "use an int, decimal, or money amount");
+    }
+    const item = boundedItemType(recipients.type);
+    if (!item) {
+      typeError(expr.args[1]!.site, `share recipients must be a bounded list or page; received ${valueTypeName(recipients.type)}`, "use a bounded [T] <=N argument or bounded page-derived list");
+    }
+    if (!sameRecipientType(item, recipient.type)) {
+      typeError(
+        expr.args[2]!.site,
+        `share recipient type ${valueTypeName(recipient.type)} does not match recipient-list item type ${valueTypeName(item)}`,
+        "use a recipient with the same nominal type as the recipients list items",
+      );
+    }
+    return { code: `deterministicShare(${amount.code}, ${recipients.code}, ${recipient.code})`, type: amount.type as ScalarType };
+  }
   if (expr.name === "count") {
     if (args.length !== 1 || !["list", "page", "sequence"].includes(args[0]!.type.kind)) refuse(expr.site, "count(x) requires one bounded list or page");
     return { code: `${args[0]!.code}.length`, type: { kind: "int", optional: false } };
@@ -1061,8 +1134,30 @@ function brandedType(type: ValueType): Extract<ScalarType, { kind: "decimal" | "
 function brandedName(type: Extract<ScalarType, { kind: "decimal" | "money" }>): string {
   return type.kind === "decimal" ? `decimal ${type.scale}` : `money ${type.currency} ${type.scale}`;
 }
+function numericAmountType(type: ValueType): type is Extract<ScalarType, { kind: "int" | "decimal" | "money" }> {
+  return (type.kind === "int" || type.kind === "decimal" || type.kind === "money") && !type.optional;
+}
+function boundedItemType(type: ValueType): ValueType | undefined {
+  if (type.kind === "list" || type.kind === "sequence") return type.item;
+  if (type.kind === "page") return { kind: "row", table: type.table, nullable: false };
+  return undefined;
+}
+function sameRecipientType(left: ValueType, right: ValueType): boolean {
+  if (left.kind === "row" || right.kind === "row") {
+    return left.kind === "row" && right.kind === "row" && left.table === right.table && !left.nullable && !right.nullable;
+  }
+  if (!isScalar(left) || !isScalar(right) || left.optional || right.optional) return false;
+  if (left.kind !== right.kind) return false;
+  if (left.kind === "ref" && right.kind === "ref") return left.table === right.table;
+  if (left.kind === "decimal" && right.kind === "decimal") return left.scale === right.scale;
+  if (left.kind === "money" && right.kind === "money") return left.currency === right.currency && left.scale === right.scale;
+  return true;
+}
 function valueTypeName(type: ValueType): string {
-  return type.kind === "numeric-literal" ? "decimal literal" : type.kind;
+  if (type.kind === "numeric-literal") return "decimal literal";
+  if (type.kind === "ref") return `ref ${type.table}`;
+  if (type.kind === "row") return `row ${type.table}`;
+  return type.kind;
 }
 function numericLiteral(expr: Expr): boolean {
   return expr.kind === "literal" && typeof expr.value === "number"

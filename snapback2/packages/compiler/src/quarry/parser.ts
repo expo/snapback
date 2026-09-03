@@ -356,7 +356,7 @@ class Parser {
         }
         type = { kind: "text", ...(min === undefined ? {} : { min }), max, ...(format ? { format } : {}), optional: false };
       } else if (name.value === "decimal") {
-        type = { kind: "decimal", scale: this.scale(), optional: false };
+        type = { kind: "decimal", scale: this.scale("decimal 12"), optional: false };
       } else if (name.value === "money") {
         const currency = this.word();
         if (!/^[A-Z]{3}$/.test(currency.value)) {
@@ -366,7 +366,7 @@ class Parser {
         type = {
           kind: "money",
           currency: currency.value,
-          scale: explicitScale ? this.scale() : 2,
+          scale: explicitScale ? this.scale(`money ${currency.value} 12`) : 2,
           ...(explicitScale ? { explicitScale: true } : {}),
           optional: false,
         };
@@ -767,10 +767,12 @@ class Parser {
     if (!/^\d+$/.test(token.value)) syntax(token, "this position takes an integer literal");
     return Number(token.value);
   }
-  private scale(): number {
+  private scale(rewrite: string): number {
     const token = this.peek();
     const scale = this.number();
-    if (scale < 0 || scale > 18) syntax(token, "decimal and money scales must be integers from 0 through 18");
+    if (scale < 0 || scale > 12) {
+      syntax(token, "decimal and money scales must be integers from 0 through 12", `use ${rewrite}`);
+    }
     return scale;
   }
   private word(): Token { return this.takeKind("word"); }

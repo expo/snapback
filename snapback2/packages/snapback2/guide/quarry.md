@@ -23,19 +23,25 @@ effect module's stem must differ from every `.q` stem.
 Columns and arguments use `principal`, `id`, table references, `int`, `time`,
 `bool`, `decimal <scale>`, `money <CUR> [scale]`, `text <=N`, `text M..N`,
 `json <=N`, `bytes <=N`, `enum(...)`, and bounded lists `[type] <=N`. Decimal
-and money scales are integers from 0 through 18; money defaults to scale 2 and
+and money scales are integers from 0 through 12; money defaults to scale 2 and
 its currency is exactly three uppercase letters. Add `?` for optional. Text
 can add `format handle` or `format url` after its bound. A minimum and a format
 become enforced text constraints; maximums remain part of the column type.
 
-Decimal and money literals are written in whole units: `2.50` in a
-`money USD` position certifies to the exact minor-unit integer `250`, and `10`
-certifies to `1000`. A literal with more fractional digits than the declared
-scale refuses. Decimal scales and money currency/scale pairs are nominal;
-matching values admit `+`, `-`, comparisons, and `min`/`max`, while `*` admits
-one integer operand and `/`/`%` refuse. The engine and client wire carry minor-unit
-integers. `maintain … sum` still requires an `int` source column, not decimal or
-money. Seeds remain TypeScript and must provide minor-unit integers directly.
+Decimal/money literals are whole units (`2.50` → `250`); excess precision
+refuses. Matching nominal brands admit `+ - < <= > >= = != min max`; unary
+`-`/`* int` preserve them. Money × decimal → money either order; decimal ×
+decimal → left brand; money × money refuses.
+`/` and `%` rewrite to `divmod(a, b).quotient` and `.remainder`.
+
+`divmod(a,int)` returns `a`-branded fields and is Euclidean: remainder is
+nonnegative; quotient equals floor for positive divisors. `share` keeps the
+amount brand, requires matching bounded recipients, and assigns remainder units
+by ascending value. Share/branded multiplication floor because divisors are
+positive; i53 products can overflow. Arguments/seeds use
+integer minor units; fractional JSON refuses.
+Column reads, maintained reads, and computed scalars stay branded; shaped pages
+are untyped today.
 
 `principal` is the nominal type of `viewer`. It is neither a table reference
 nor `id`, even though all three have ID-shaped wire values. A column compared
@@ -63,11 +69,9 @@ Reciprocal references and rule dependencies are supported.
 
 ## Maintains
 
-`maintain total = count source by a, b:` and
-`maintain total = sum source of intColumn by a, b:` create an ordinary target
-table. Its grouping columns exactly copy the source descriptors, `value` is
-`int`, its grouping index is unique, its block supplies the read rule, and
-writes are denied. The schema also declares the matching maintain projection.
+Count/sum maintains copy group types into a target: count value is int; sum
+value matches its int/decimal/money source. The group
+index is unique; the block gives its read rule; user writes are denied.
 
 The optional `readable <- rule` is a deliberate aggregate disclosure. It
 allows certification to rely on reading a maintained summary when scanning
@@ -76,9 +80,8 @@ choice as `E_DISCLOSURE`. It does not replace the target table's ordinary
 `read` rule.
 
 `total[key]` reads the target row through the unique grouping index.
-`#total[key]` reads its integer value and yields zero whenever the row read is
-absent, including when the viewer cannot read that target row; denied reads are
-absent.
+`#total[key]` yields its typed value or typed zero when absent/unreadable. A
+later `#` read in a mutation reflects its earlier writes.
 
 ```q
 maintain messageCounts = count messages by conversationId:
@@ -117,7 +120,8 @@ statement, not a binding expression.
 Object literals work anywhere expressions do; `{ id: conversationId,
 creatorMembershipId }` uses shorthand for the second field. `count(x)` is
 `x.length` for bounded lists and pages. Other built-ins are `tokens`, `range`,
-`min`, `max`, and `sorted`. `walk table[seed] up .parent depth N` is bounded.
+`min`, `max`, `divmod`, `share`, and `sorted`. `walk table[seed] up .parent
+depth N` is bounded.
 `!` or `! else CODE` requires a present value; `??` supplies an absence
 fallback. Comparisons are absence-guarded except comparison with `null`, which
 is the presence test: `x != null` is true exactly when `x` is present. `if`,

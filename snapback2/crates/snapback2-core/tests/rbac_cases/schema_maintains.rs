@@ -165,7 +165,7 @@ fn malformed_raw_maintains_refuse_at_certification_and_engine_admission() {
         .unwrap()
         .columns
         .insert("value".to_owned(), ColumnType::Text { max: 20 });
-    cases.push(("non-int target value", schema, "totals.value must be Int"));
+    cases.push(("non-int target value", schema, "totals.value type"));
 
     let mut schema = valid_schema();
     schema
@@ -219,6 +219,18 @@ fn malformed_raw_maintains_refuse_at_certification_and_engine_admission() {
     for (name, schema, expected) in cases {
         let errors =
             Generation::certify(&project(schema.clone()), Ceilings::default()).expect_err(name);
+        if name == "missing sum" {
+            assert_eq!(
+                errors
+                    .iter()
+                    .filter(|(site, error)| {
+                        site.starts_with("schema.maintains[") && error.code == "E_SCHEMA_MAINTAIN"
+                    })
+                    .count(),
+                1,
+                "unknown sum source produced a secondary mismatch: {errors:?}"
+            );
+        }
         assert!(
             errors
                 .iter()

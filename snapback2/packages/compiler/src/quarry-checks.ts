@@ -56,7 +56,8 @@ export function registerQuarryChecks(test: Test, frontend: string): void {
     assert(lowered.apiDts.includes('price: Money<"USD", 2>')
       && lowered.apiDts.includes("rate: Decimal<3>")
       && lowered.apiDts.includes('yen?: Money<"JPY", 0>')
-      && lowered.apiDts.includes('amount: Money<"USD", 2>'),
+      && lowered.apiDts.includes('/** money USD 2 — minor units */ amount: number')
+      && lowered.apiDts.includes('/** decimal 3 — minor units */ rate: number'),
     `Quarry branded API types are missing:\n${lowered.apiDts}`);
     const failures = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema).filter((item) => item.error);
     assert(failures.length === 0, `quarry-money did not certify: ${JSON.stringify(failures)}`);
@@ -236,16 +237,18 @@ mutation updateMismatch(owner: principal, label: text <=40, value: int):
     });
   });
 
-  test("Quarry Clique M1-M3 regression fixture lowers and certifies all 33 operations", async () => {
+  test("Quarry Clique M1-M3 plus Pay regression fixture lowers and certifies all 41 operations", async () => {
     const lowered = await lowerProject(resolve(fixtures, "quarry-clique"));
     assert(lowered.ok, `Quarry Clique refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
-    assert(lowered.project.programs.length === 33,
+    assert(lowered.project.programs.length === 41,
       `Quarry Clique program count changed to ${lowered.project.programs.length}`);
     assert(JSON.stringify(lowered.project.programs.map((program) => program.name).sort()) === JSON.stringify([
       "chat.addMember", "chat.chatThread", "chat.chatThreadBefore", "chat.convMembers",
       "chat.conversation", "chat.createGroup", "chat.leaveGroup", "chat.markDelivered",
       "chat.markRead", "chat.myConversations", "chat.promoteAdmin", "chat.removeMember",
       "chat.send", "chat.startDm", "social.createPost", "social.createProfile",
+      "pay.addExpense", "pay.convExpenses", "pay.expenseShares", "pay.myBalance", "pay.myLedger",
+      "pay.myOpenShares", "pay.sendMoney", "pay.settleShare",
       "social.createReply", "social.globalFeed", "social.globalFeedBefore", "social.laneFeed",
       "social.laneFeedBefore", "social.listUsers", "social.me", "social.myFeedMarks",
       "social.myFollowing", "social.myLikes", "social.profile", "social.profileByHandle",

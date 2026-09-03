@@ -50,10 +50,12 @@ declare module "snapback2" {
   export type Page<T> = Array<T>;
   export type IndexableScalar = string | number | boolean | null | Bytes | Json;
   export type WriteValue<T> = T extends Principal ? Principal : T extends Decimal<any> ? number : T extends string ? string : T extends Array<infer U> ? WriteValue<U>[] : T;
-  export type WriteRow<R extends Record<string, any>> = { [K in keyof R]: WriteValue<R[K]> };
+  export type WriteRow<R extends Record<string, any>> = {
+    [K in keyof R]: WriteValue<R[K]> | (undefined extends R[K] ? null : never)
+  };
   // @ref LLP 1001#1-store-storers — an update patch cannot rewrite the implicit storage identity.
   export type WritePatch<R extends Record<string, any>> =
-    { [K in Exclude<keyof R, "id">]?: WriteValue<R[K]> } & { readonly id?: never };
+    { [K in Exclude<keyof R, "id">]?: WriteValue<R[K]> | (undefined extends R[K] ? null : never) } & { readonly id?: never };
   export type Db = {
     get<R extends Record<string, any>>(target: Table<R> | TableIndex<R>, key: unknown): R | null;
     exists(target: Table<any> | TableIndex<any>, key: unknown): boolean;
@@ -150,12 +152,14 @@ declare module "snapback2" {
   /** `decimal(value, scale)` converts a value in whole units to the exact integer minor-unit wire value; for example, `decimal(2, 2)` is 200. */
   export function decimal<const S extends number>(value: number, scale: S): Decimal<S>;
   export function mentionTokens(value: string): string[];
-  export function deterministicShare(amount: number, recipients: unknown[], recipient: unknown): number;
+  /** Euclidean deterministic share: recipients are ordered by the runtime value order; empty, duplicate, or missing recipients refuse. */
+  export function deterministicShare<A extends number>(amount: A, recipients: unknown[], recipient: unknown): A extends Decimal<any> ? A : number;
   export function concat(first: unknown, second: unknown, ...values: unknown[]): string;
   export function max<const S extends number>(first: Decimal<S>, second: Decimal<S>, ...values: Decimal<S>[]): Decimal<S>;
   export function max(first: number, second: number, ...values: number[]): number;
   export function min<const S extends number>(first: Decimal<S>, second: Decimal<S>, ...values: Decimal<S>[]): Decimal<S>;
   export function min(first: number, second: number, ...values: number[]): number;
-  export function divmod(value: number, divisor: number): { quotient: number; remainder: number };
+  /** Euclidean quotient and remainder; a zero divisor refuses with `E_DIV_ZERO`. */
+  export function divmod<A extends number>(value: A, divisor: number): { quotient: A extends Decimal<any> ? A : number; remainder: A extends Decimal<any> ? A : number };
   export function recurse<T>(seed: unknown, step: (value: any) => T | null, options: { depth: number; fanout: number }): T[];
 }

@@ -98,8 +98,8 @@ export function range(start: number, end: number): number[] {
 /** `decimal(value, scale)` converts a value in whole units to the exact integer minor-unit wire value; for example, `decimal(2, 2)` is 200. */
 // @ref LLP 1002#2-the-authored-surface-the-snapback2-module — client decimals cross the wire as exactly string-scaled integer minor units.
 export function decimal<const S extends number>(value: number, scale: S): Decimal<S> {
-  if (!Number.isFinite(value) || !Number.isInteger(scale) || scale < 0 || scale > 18) {
-    throw new RangeError("decimal(value, scale) requires a finite number and an integer scale from 0 through 18");
+  if (!Number.isFinite(value) || !Number.isInteger(scale) || scale < 0 || scale > 12) {
+    throw new RangeError("decimal(value, scale) requires a finite number and an integer scale from 0 through 12");
   }
   const match = /^([+-]?)(\d+)(?:\.(\d+))?(?:e([+-]?\d+))?$/i.exec(String(value));
   if (!match) throw new RangeError(`decimal cannot encode ${String(value)}`);

@@ -19,7 +19,8 @@ table todos:
 Schema declarations are `use identity [password|guests]`, `table`, `maintain`,
 and `channel`. Table lines are columns, `by`, `unique`, `immutable`, `public`,
 rules, and `after insert … <- exists`. Maintains are `count table by fields` or
-`sum table of intField by fields`, followed by `read` and optional `readable`.
+`sum table of intOrDecimalOrMoneyField by fields`, followed by `read` and
+optional `readable`.
 Channels declare `publish`, `subscribe`, and `ttl Ns`.
 
 Types are `principal`, `id`, table references, `int`, `time`, `bool`,
@@ -38,6 +39,6 @@ Program declarations are `effect name from module`, `query name(args)`, and
 `emit`, and expressions; a body's last expression returns implicitly.
 Expressions include literals, objects, arrays, reads and shapes, `exists`,
 `#maintain[key]`, `+ ~ +~ -` writes, `! [else CODE]`, `??`, `where`, and
-`sorted/tokens/range/min/max/count`.
+`sorted/tokens/range/min/max/count/divmod/share`.
 
 See `quarry` for the complete normative surface and refusal list.

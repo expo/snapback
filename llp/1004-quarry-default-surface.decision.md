@@ -6,7 +6,7 @@
 templates, guide, diagnostics
 **Author:** Charlie Cheever (ruling); Claude Fable 5 (orchestrator, record)
 **Date:** 2026-08-31
-**Revised:** 2026-09-02
+**Revised:** 2026-09-03
 **Related:** LLP 1000 (decision 10), LLP 1002, LLP 1007 (§2, §5), LLP 0329.014.004,
 .009, .010, .011, `spikes/clique-diagnostic-runs/`,
 `snapback2/packages/compiler/src/quarry/`, `snapback2/packages/snapback2/guide/quarry.md`
@@ -127,6 +127,25 @@ item 9) landed in the same change; P1 spec v0.3 is `guide/quarry.md`; P1
 replication and P2 the parity instrument remain scheduled, not started. The
 packaged-consumer smoke rung (`issues/20260831-packaged-consumer-smoke-rung.md`)
 is LLP 1007 §5 item 7 and is still open.
+
+## Money and decimal worked out (2026-09-03)
+
+Clique Pay (`benchmarks/briefs/clique-pay.md`, `<SHA>`) makes the kept exact
+value model app-shaped. Quarry now reaches the engine's existing Euclidean
+`divmod` and deterministic share builtins; types both fields and share results
+as the input's exact int, decimal, or money descriptor; preserves branded unary
+minus; and admits money-times-decimal and decimal-times-decimal by lowering the
+integer product through `divmod` at the dropped operand's scale. Decimal times
+decimal preserves the left descriptor. Money times money, and branded `/` or
+`%`, remain sited type refusals with mechanical rewrites.
+
+Sum maintains accept int, decimal, and money and give the maintained target's
+`value` the source column's exact descriptor. Operation arguments use integer
+minor units while results retain generated nominal brands. These additions are
+only the surface Clique Pay exercises; engine arithmetic did not change.
+`divmod` remains Euclidean, while share and branded multiplication floor
+because their divisors are positive. The evaluator corpus adds the
+same-mutation maintained-read parity case.
 
 ## Amendment (author, 2026-09-02): Quarry only
 

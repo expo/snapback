@@ -1,4 +1,5 @@
--- Clique M1-M3 regression fixture, ported from the executed Quarry v0.2 lane.
+-- Clique M1-M3 regression fixture plus the Clique Pay extension from
+-- benchmarks/briefs/clique-pay.md, ported from the executed Quarry v0.2 lane.
 -- Feed fan-out, hand-kept counters, and client-supplied ord keys are retained
 -- deliberately: this pins the app that exercised the old front end.
 -- Deliberate port drift: lane feeds refuse USER_NOT_FOUND instead of returning
@@ -133,6 +134,55 @@ table messages:
   by byConvOrd: conv, ord, id
   read r <- exists members[r.conv, viewer]
   insert r <- r.author = viewer and exists members[r.conv, viewer]
+
+table ledger:
+  owner: principal
+  counterparty: principal
+  amount: money USD
+  kind: enum('deposit', 'send', 'receive', 'settle', 'collect')
+  note: text <=140 ?
+  expense: expenses ?
+  at: time
+  by byOwnerAt: owner, at, id
+  read r <- r.owner = viewer
+  insert r <- r.owner = viewer or r.counterparty = viewer
+
+maintain balances = sum ledger of amount by owner:
+  read r <- r.owner = viewer
+
+table expenses:
+  conv: conversations
+  payer: principal
+  description: text <=100
+  total: money USD
+  tipRate: decimal 4
+  tip: money USD
+  grand: money USD
+  at: time
+  by byConv: conv, at, id
+  read r <- exists members[r.conv, viewer]
+  insert r <- r.payer = viewer and exists members[r.conv, viewer]
+
+table shares:
+  expense: expenses
+  conv: conversations
+  debtor: principal
+  amount: money USD
+  expenseDescription: text <=100
+  expensePayer: principal
+  expenseGrand: money USD
+  expenseAt: time
+  settled: bool
+  settledAt: time ?
+  unique expense, debtor
+  by byConvExpense: conv, expense, debtor
+  by byDebtorOpen: debtor, settled, id
+  read r <- exists members[r.conv, viewer]
+  insert r <- exists members[r.conv, viewer]
+  update r <- r.debtor = viewer
+
+maintain convSpend = sum expenses of grand by conv:
+  read r <- exists members[r.conv, viewer]
 
 channel typing(conv: conversations):
   publish <- exists members[conv, viewer]

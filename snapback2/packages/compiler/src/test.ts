@@ -15,6 +15,7 @@ import { registerPackageRegressionChecks } from "./package-regression-checks";
 import { rustCheck } from "./rust-check";
 import { registerRuleTransitionChecks } from "./rule-transitions-checks";
 import { registerQuarryChecks } from "./quarry-checks";
+import { registerQuarryMoneyChecks } from "./quarry-money-checks";
 import { registerRuntimeRedChecks } from "./runtime-red-checks";
 import { registerCursorIdentityChecks } from "./cursor-identity-checks";
 import { decimal } from "../../snapback2/src/index";
@@ -37,6 +38,7 @@ const checks: Check[] = [];
 const test = (name: string, run: Check["run"]) => checks.push({ name, run });
 registerRuleTransitionChecks(test, libText);
 registerQuarryChecks(test, frontend);
+registerQuarryMoneyChecks(test, frontend);
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -1109,7 +1111,7 @@ registerColumnTypeChecks(test);
 registerProvenanceSiteChecks(test, `${frontend}fixtures/s1`);
 registerCollectionFactChecks(test);
 
-test("Decimal insert multiplication keeps literal and argument multipliers as Int", () => {
+test("Decimal multiplication keeps int multipliers and refuses bare branded products", () => {
   const tables = new Map<string, TableInfo>([["products", {
     name: "products", private: false, columns: { price: { kind: "decimal", scale: 2 } },
   }]]);
@@ -1135,7 +1137,27 @@ test("Decimal insert multiplication keeps literal and argument multipliers as In
   const invalid = lowerSource(`import { query, t } from "snapback2";
     export const bad = query({ left: t.decimal(2), right: t.decimal(2) }, ({ args }) => args.left * args.right);`, "decimal-by-decimal.ts");
   const refusal = invalid.ok ? undefined : invalid.diagnostics.find((item) => item.code === "E_DECIMAL_SCALE");
-  assert(refusal?.message.includes("Decimal<2> and Decimal<2>"), "Decimal × Decimal no longer refuses with both scales");
+  assert(refusal?.message.includes("Decimal<2> and Decimal<2>"), "bare Decimal × Decimal no longer refuses with both scales");
+
+  const wrapped = lowerSource(`import { divmod, query, t } from "snapback2";
+    export const product = query({ left: t.decimal(2), right: t.decimal(3) }, ({ args }) =>
+      divmod(args.left * args.right, 1000).quotient);`, "decimal-product-divmod.ts");
+  assert(wrapped.ok && canonical(wrapped.programs[0]).includes('"op":"Mul"'),
+    `divmod-wrapped Decimal product refused: ${wrapped.ok ? "" : wrapped.diagnostics.map((item) => item.message).join("; ")}`);
+
+  const wrongDivisor = lowerSource(`import { divmod, query, t } from "snapback2";
+    export const bad = query({ left: t.decimal(2), right: t.decimal(3) }, ({ args }) =>
+      divmod(args.left * args.right, 100).quotient);`, "decimal-product-wrong-divisor.ts");
+  assert(!wrongDivisor.ok && wrongDivisor.diagnostics.some((item) =>
+    item.code === "E_DECIMAL_SCALE" && item.message.includes("10^3 (1000)")),
+  "divmod-wrapped Decimal product admitted the wrong dropped-scale divisor");
+
+  const moneySquared = lowerSource(`import { divmod, query, t } from "snapback2";
+    export const bad = query({ left: t.money("USD"), right: t.money("USD") }, ({ args }) =>
+      divmod(args.left * args.right, 100).quotient);`, "money-product-divmod.ts");
+  assert(!moneySquared.ok && moneySquared.diagnostics.some((item) =>
+    item.code === "E_DECIMAL_SCALE" && item.message.includes("currency-squared")),
+  "divmod wrapper admitted money multiplied by money");
 });
 
 test("Decimal scaling requires a verified target and exponential literals classify by numeric value", () => {

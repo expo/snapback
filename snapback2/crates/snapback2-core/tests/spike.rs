@@ -1324,7 +1324,7 @@ fn every_frozen_corpus_program_remains_certified() {
     }
     assert_eq!(
         cases.len(),
-        112,
+        113,
         "the complete frozen corpus must be checked"
     );
     assert!(

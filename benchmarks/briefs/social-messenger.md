@@ -292,6 +292,10 @@ driven by the choreography script.
 
 ## Milestones
 
+An extension milestone, **P1 — Clique Pay** (wallets and bill splitting,
+`clique-pay.md`, 2026-09-03), exercises the exact value model; it belongs to
+neither run and enters neither completeness denominator.
+
 Reduced run = M1–M3. Full run = M1–M8. Each milestone lists its spec
 and its acceptance checklist — observable behaviors the grader
 executes independently. Numbering is identity, not execution order:

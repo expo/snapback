@@ -127,6 +127,7 @@ function placementDiagnostics(documents: Document[]): QuarryDiagnostic[] {
 
 function materializeMaintains(documents: Document[]): void {
   const schema = documents.find((document) => basename(document.file) === "schema.q")!;
+  // @ref LLP 1004#money-and-decimal-worked-out-2026-09-03 — a sum target inherits the source's exact numeric descriptor.
   for (const declaration of schema.maintains) {
     if (schema.tables.some((table) => table.name === declaration.name)) throw new QuarryError(declaration.site, `maintain target ${declaration.name} duplicates a table`);
     const source = schema.tables.find((table) => table.name === declaration.source);
@@ -138,9 +139,14 @@ function materializeMaintains(documents: Document[]): void {
     });
     if (declaration.aggregate === "sum") {
       const summed = source.columns.find((column) => column.name === declaration.column);
-      if (!summed || summed.type.kind !== "int") throw new QuarryError(declaration.site, `sum maintain ${declaration.name} requires an int source column`);
+      if (!summed || !["int", "decimal", "money"].includes(summed.type.kind)) {
+        throw new QuarryError(declaration.site, `sum maintain ${declaration.name} requires an int, decimal, or money source column`);
+      }
     }
-    columns.push({ name: "value", type: { kind: "int", optional: false }, site: declaration.site });
+    const summed = declaration.aggregate === "sum"
+      ? source.columns.find((column) => column.name === declaration.column)!.type
+      : { kind: "int", optional: false } satisfies ScalarType;
+    columns.push({ name: "value", type: structuredClone(summed), site: declaration.site });
     const indexName = `by${declaration.by.map((column) => title(column.endsWith("Id") && column.length > 2 ? column.slice(0, -2) : column)).join("")}`;
     const deny = (effect: RuleDecl["effect"]): RuleDecl => ({
       effect,

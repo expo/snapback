@@ -4,6 +4,165 @@ pub(super) fn add_twin_cases(cases: &mut Vec<CorpusCase>) {
     add_rbac_twin_cases(cases);
     add_constraint_and_memo_twin_cases(cases);
     add_optional_maintain_twin_case(cases);
+    add_same_mutation_sum_read_twin_case(cases);
+}
+
+// @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — both runtimes expose an engine-maintained sum to later statements in the writing mutation.
+fn add_same_mutation_sum_read_twin_case(cases: &mut Vec<CorpusCase>) {
+    let public = RuleExpr::Public {
+        reason: "frozen same-mutation maintain fixture".to_owned(),
+    };
+    let table = |columns: BTreeMap<String, ColumnType>,
+                 indexes: BTreeMap<String, Index>,
+                 writes: RuleExpr| Table {
+        columns,
+        indexes,
+        rules: Rules {
+            read: public.clone(),
+            insert: writes.clone(),
+            update: writes.clone(),
+            delete: writes,
+        },
+        constraints: Vec::new(),
+    };
+    let schema = Schema {
+        tables: BTreeMap::from([
+            (
+                "ledger".to_owned(),
+                table(
+                    BTreeMap::from([
+                        ("id".to_owned(), ColumnType::Id),
+                        ("owner".to_owned(), ColumnType::Principal),
+                        ("amount".to_owned(), ColumnType::Int),
+                    ]),
+                    BTreeMap::from([(
+                        "byId".to_owned(),
+                        Index {
+                            columns: vec!["id".to_owned()],
+                            unique: true,
+                        },
+                    )]),
+                    RuleExpr::Allow,
+                ),
+            ),
+            (
+                "balances".to_owned(),
+                table(
+                    BTreeMap::from([
+                        ("id".to_owned(), ColumnType::Id),
+                        ("owner".to_owned(), ColumnType::Principal),
+                        ("value".to_owned(), ColumnType::Int),
+                    ]),
+                    BTreeMap::from([
+                        (
+                            "byId".to_owned(),
+                            Index {
+                                columns: vec!["id".to_owned()],
+                                unique: true,
+                            },
+                        ),
+                        (
+                            "byOwner".to_owned(),
+                            Index {
+                                columns: vec!["owner".to_owned()],
+                                unique: true,
+                            },
+                        ),
+                    ]),
+                    RuleExpr::Deny,
+                ),
+            ),
+        ]),
+        maintains: vec![Maintain {
+            kind: MaintainKind::Sum {
+                of: "amount".to_owned(),
+            },
+            source: "ledger".to_owned(),
+            by: vec!["owner".to_owned()],
+            target: "balances".to_owned(),
+            readable: None,
+        }],
+        ..Schema::default()
+    };
+    let program = Program {
+        name: "ledger.insertAndReadBalance".to_owned(),
+        kind: ProgramKind::Mutation,
+        args: BTreeMap::new(),
+        read_time_granularity_ms: None,
+        body: vec![
+            Stmt::Insert {
+                table: "ledger".to_owned(),
+                row: Expr::Literal(row([
+                    ("id", id("entry-1")),
+                    ("owner", id("dev:alice")),
+                    ("amount", Value::Int(500)),
+                ])),
+            },
+            Stmt::Let {
+                name: "balance".to_owned(),
+                value: Expr::Get(Read {
+                    site: "balances.afterInsert".to_owned(),
+                    table: "balances".to_owned(),
+                    index: "byOwner".to_owned(),
+                    key: vec![Expr::Literal(id("dev:alice"))],
+                    provenance: KeyProvenance::Const,
+                }),
+            },
+            Stmt::Return(Expr::Field {
+                base: Box::new(var("balance")),
+                name: "value".to_owned(),
+            }),
+        ],
+    };
+    let context = mutation_context([], Vec::<String>::new());
+    let mut engine = Engine::memory(schema.clone()).expect("same-mutation maintain engine");
+    engine
+        .seed(
+            "ledger",
+            row([
+                ("id", id("entry-0")),
+                ("owner", id("dev:alice")),
+                ("amount", Value::Int(-250)),
+            ]),
+        )
+        .expect("same-mutation maintain prelude");
+    engine
+        .seed(
+            "balances",
+            row([
+                ("id", id(canonical_json(&vec![id("dev:alice")]))),
+                ("owner", id("dev:alice")),
+                ("value", Value::Int(-250)),
+            ]),
+        )
+        .expect("same-mutation maintained target prelude");
+    let execution = authoritative(&mut engine, &schema, &program, context.clone());
+    assert_eq!(execution.result, Value::Int(250));
+    let case = case_from_parts(
+        "named-maintained-sum-read-after-insert",
+        "maintain",
+        schema,
+        program,
+        context,
+        ClosureReceipt {
+            rows: vec![RowRecord {
+                table: "balances".to_owned(),
+                id: canonical_json(&vec![id("dev:alice")]),
+                row: row([
+                    ("id", id(canonical_json(&vec![id("dev:alice")]))),
+                    ("owner", id("dev:alice")),
+                    ("value", Value::Int(-250)),
+                ]),
+            }],
+            absences: vec![("ledger".to_owned(), "byId".to_owned(), vec![id("entry-1")])],
+            ..ClosureReceipt::default()
+        },
+        Vec::new(),
+        None,
+        None,
+    );
+    assert_eq!(case.expected.local_result, Some(Value::Int(250)));
+    cases.push(case);
 }
 // @ref LLP 1001#9-schema-additions — the frozen client twin exercises the
 // relational update, created-row, and intrinsic addressed-id rules directly.

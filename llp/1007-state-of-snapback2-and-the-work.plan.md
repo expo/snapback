@@ -10,7 +10,7 @@ corpus exporter), `snapback2/crates/snapback2-effects`, `snapback2/scripts`,
 **Author:** Claude Opus 5 (orchestrator), commissioned by Charlie Cheever
 2026-09-01 in session
 **Date:** 2026-09-01
-**Revised:** 2026-09-02
+**Revised:** 2026-09-03
 **Related:** LLP 1000 (the root), LLP 1001, LLP 1002, LLP 1003, **LLP 1004**
 (the ruling this plan finds unimplemented), LLP 1005, LLP 1006, LLP 0005 (the
 review loop the panel ran), LLP 0329.014.004, LLP 0329.014.011,
@@ -292,6 +292,9 @@ three and agreed on all of them by round 2.
   the paper archetype apps; once the TypeScript surface was gone nothing could
   reach them, and the author chose to spell them in Quarry (`decimal <scale>`,
   `money <CUR> [scale]`, decimal literals; `929a45268`) rather than delete them.
+  Clique Pay (`benchmarks/briefs/clique-pay.md`, `<SHA>`) subsequently worked
+  out their arithmetic, Euclidean split builtins, exact sum maintains, and
+  integer argument wire form through a complete app fixture.
 - **The public `fork` verb.** Keep the owner's snapshot primitive, which
   `test`'s replay needs; drop the thin CLI adapter.
 - **The TypeScript authoring surface** — templates, docs, escape hatch,

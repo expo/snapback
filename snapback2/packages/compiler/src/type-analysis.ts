@@ -471,11 +471,11 @@ class Analyzer {
       const scaleNode = call.arguments[1] && unwrapExpression(call.arguments[1]);
       const scale = scaleNode && ts.isNumericLiteral(scaleNode) ? Number(scaleNode.text) : undefined;
       const input = call.arguments[0];
-      const type: AuthoredType = Number.isInteger(scale) && scale! >= 0 && scale! <= 18
+      const type: AuthoredType = Number.isInteger(scale) && scale! >= 0 && scale! <= 12
         ? { kind: "decimal", scale: scale! }
         : unknownType;
       if (!input || type.kind !== "decimal" || !numericExpression(input)) {
-        this.add("E_DECIMAL_SCALE", call, "decimal(value, scale) requires a numeric literal and an integer scale from 0 through 18", "use decimal(9.99, 2)");
+        this.add("E_DECIMAL_SCALE", call, "decimal(value, scale) requires a numeric literal and an integer scale from 0 through 12", "use decimal(9.99, 2)");
       } else {
         this.expression(input, env, type);
       }
@@ -519,6 +519,52 @@ class Analyzer {
       const valid = types.every((item, index) => sameDecimal(decimal ?? unknownType, item) || isIntegerZero(call.arguments[index]!));
       if (decimal?.kind === "decimal" && !valid) this.decimalMismatch(call, types[0] ?? unknownType, types[1] ?? unknownType, name);
       return decimal ?? commonType(types);
+    }
+    if (name === "divmod" && !env.variables.has(name) && call.arguments.length === 2) {
+      const numeratorNode = unwrapExpression(call.arguments[0]!);
+      if (ts.isBinaryExpression(numeratorNode)
+        && numeratorNode.operatorToken.kind === ts.SyntaxKind.AsteriskToken) {
+        const left = this.expression(numeratorNode.left, env, undefined, true);
+        const right = this.expression(numeratorNode.right, env, undefined, true);
+        if (left.kind === "decimal" && right.kind === "decimal") {
+          // @ref LLP 1004#money-and-decimal-worked-out-2026-09-03 — the only branded × branded lowering is an exact product divided by the dropped scale.
+          const divisorNode = call.arguments[1]!;
+          this.expression(divisorNode, env, { kind: "int" });
+          if (left.currency && right.currency) {
+            this.add(
+              "E_DECIMAL_SCALE",
+              numeratorNode,
+              "money multiplied by money has no currency-squared value",
+              "multiply the money value by a decimal rate or an int",
+            );
+          }
+          const dropped = left.currency ? right : right.currency ? left : right;
+          const surviving = left.currency ? left : right.currency ? right : left;
+          const expectedDivisor = 10 ** dropped.scale;
+          if (integerLiteralValue(divisorNode) !== expectedDivisor) {
+            this.add(
+              "E_DECIMAL_SCALE",
+              divisorNode,
+              `branded multiplication must divide by 10^${dropped.scale} (${expectedDivisor}) to drop ${decimalName(dropped)}`,
+              replaceNode(this.module.source, divisorNode, String(expectedDivisor)),
+            );
+          }
+          return { kind: "object", fields: { quotient: surviving, remainder: surviving } };
+        }
+      }
+      const numerator = this.expression(call.arguments[0]!, env, undefined, true);
+      this.expression(call.arguments[1]!, env, { kind: "int" });
+      const carried = requiredType(numerator);
+      if (carried.kind === "int" || carried.kind === "decimal") {
+        return { kind: "object", fields: { quotient: carried, remainder: carried } };
+      }
+      return unknownType;
+    }
+    if (name === "deterministicShare" && !env.variables.has(name) && call.arguments.length === 3) {
+      const amount = this.expression(call.arguments[0]!, env, undefined, true);
+      this.expression(call.arguments[1]!, env);
+      this.expression(call.arguments[2]!, env);
+      return amount;
     }
     if (name === "concat" && !env.variables.has(name)) {
       const types = call.arguments.map((argument) => this.expression(argument, env, undefined, true));
@@ -1077,6 +1123,11 @@ function isIntegerZero(node: ts.Expression): boolean {
   const value = unwrapExpression(node);
   const expanded = ts.isNumericLiteral(value) && expandedNumericLiteral(value.text);
   return !!expanded && expanded.whole === "0" && expanded.fraction === "";
+}
+
+function integerLiteralValue(node: ts.Expression): number | undefined {
+  const value = unwrapExpression(node);
+  return ts.isNumericLiteral(value) ? scaledInteger(value.text, 0) : undefined;
 }
 
 function numericExpression(node: ts.Expression): boolean {

@@ -655,6 +655,7 @@ function lowerMaintains(
 ): unknown[] {
   // @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — authored
   // maintains use the same closed, single-owner projection contract as raw IR.
+  // @ref LLP 1004#money-and-decimal-worked-out-2026-09-03 — sum values preserve the source's exact int/decimal/money descriptor.
   const value = node && unwrapExpression(node);
   if (!value) return [];
   if (!ts.isArrayLiteralExpression(value)) {
@@ -718,15 +719,21 @@ function lowerMaintains(
     if (sumField) {
       if (!(sumField in sourceColumns)) {
         diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_MAINTAIN", item, `sum maintain names unknown source column ${source}.${sumField}`));
-      } else if (sourceColumns[sumField] !== "Int") {
-        diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_MAINTAIN", item, `sum maintain source column ${source}.${sumField} must be Int`));
+      } else if (!numericMaintainDescriptor(sourceColumns[sumField])) {
+        diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_MAINTAIN", item, `sum maintain source column ${source}.${sumField} must be Int, Decimal, or Money`));
       }
     }
     if (targetColumns.id !== "Id") {
       diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_MAINTAIN", item, `maintain target ${target}.id must be the intrinsic Id column`));
     }
-    if (targetColumns.value !== "Int") {
-      diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_MAINTAIN", item, `maintain target ${target}.value must be Int`));
+    const expectedValue = sumField ? sourceColumns[sumField] : "Int";
+    if (expectedValue !== undefined && !sameColumnDescriptor(targetColumns.value, expectedValue)) {
+      diagnostics.push(schemaDiagnostic(
+        module,
+        "E_SCHEMA_MAINTAIN",
+        item,
+        `maintain target ${target}.value type ${columnDescriptorName(targetColumns.value)} must equal source ${source}.${sumField ?? "count"} type ${columnDescriptorName(expectedValue)}`,
+      ));
     }
     const allowedTargetColumns = new Set(["id", "value"]);
     for (const field of groupFields) {
@@ -775,6 +782,19 @@ function loweredTableColumns(table: unknown): Record<string, unknown> | undefine
   return columns && typeof columns === "object" && !Array.isArray(columns)
     ? columns as Record<string, unknown>
     : undefined;
+}
+
+function numericMaintainDescriptor(value: unknown): boolean {
+  return value === "Int"
+    || !!value && typeof value === "object" && !Array.isArray(value)
+      && ("Decimal" in value || "Money" in value);
+}
+
+function columnDescriptorName(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (!value || typeof value !== "object" || Array.isArray(value)) return "missing";
+  const [name, detail] = Object.entries(value as Record<string, unknown>)[0] ?? ["unknown", undefined];
+  return detail === undefined ? name : `${name} ${JSON.stringify(detail)}`;
 }
 
 function sameColumnDescriptor(left: unknown, right: unknown): boolean {
