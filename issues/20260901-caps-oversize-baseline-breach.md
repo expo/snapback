@@ -25,3 +25,14 @@ saying why, per the rule's own trade.
 
 Found while landing LLP 1007 (`llp/1007-state-of-snapback2-and-the-work.plan.md`),
 which proceeded under LLP 0232 as a baseline-proven inherited red.
+
+**Identified 2026-09-03.** Diffing the oversize set against the baseline commit
+(`5b457bc60`), the only source file that crossed 1,500 lines since the rule
+landed is a benchmark run record, not product source:
+`benchmarks/runs/2026-08-29-0317-wave5-matched/cells/grok-explicit-0129-036-admitted2/clique/snapback/functions.mjs`
+(1,651 lines, a Grok-authored Clique backend from a wave-5 bakeoff cell). `caps`
+counts it because `benchmarks/runs/` is in neither its generated nor its
+vendored skip list; the 45,167-line engine file it prints was already over the
+cap at baseline and is listed only because the excess is reported largest-first.
+Fix: skip `benchmarks/runs/**` in `scripts/caps.mjs` (run records are evidence,
+not source), or move that cell's backend out of the counted tree.
