@@ -24,6 +24,7 @@ pub(super) fn add_client_scenarios(cases: &mut Vec<CorpusCase>) {
         kind: ProgramKind::Query,
         args: BTreeMap::from([("conversationId".to_owned(), ArgType::Scalar)]),
         read_time_granularity_ms: None,
+        result_page_site: None,
         body: vec![Stmt::Return(Expr::Scan(Scan {
             site: "programs.thread.0".to_owned(),
             table: "users".to_owned(),
@@ -34,7 +35,7 @@ pub(super) fn add_client_scenarios(cases: &mut Vec<CorpusCase>) {
             after: None,
             before: None,
             range: None,
-            optional_cursor_args: Vec::new(),
+            opaque_cursor: false,
             merge_site: None,
             provenance: KeyProvenance::Arg,
         }))],
@@ -114,6 +115,7 @@ pub(super) fn add_client_scenarios(cases: &mut Vec<CorpusCase>) {
         kind: ProgramKind::Mutation,
         args: BTreeMap::from([("id".to_owned(), ArgType::Scalar)]),
         read_time_granularity_ms: None,
+        result_page_site: None,
         body: vec![Stmt::Update {
             table: "messages".to_owned(),
             key: var("id"),
@@ -171,6 +173,7 @@ pub(super) fn add_client_scenarios(cases: &mut Vec<CorpusCase>) {
         kind: ProgramKind::Mutation,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
+        result_page_site: None,
         body: vec![Stmt::Delete {
             table: "memberships".to_owned(),
             key: Expr::Literal(id("m1")),

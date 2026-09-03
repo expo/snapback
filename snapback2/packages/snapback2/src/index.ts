@@ -1,6 +1,7 @@
 type Descriptor = Readonly<Record<string, unknown>>;
 /** Server-minted authority subject; deliberately distinct from application row IDs. */
 export type Principal = string & { readonly __snapbackPrincipal: "Principal" };
+export type Cursor = string & { readonly __snapbackCursor: "Cursor" };
 export type Bytes = { readonly Bytes: string };
 export type Decimal<S extends number> = number & {
   readonly __decimalScale: S;
@@ -26,6 +27,7 @@ export function table(value: Record<string, unknown>): Descriptor {
 }
 
 export const t = Object.freeze({
+  cursor: () => inert("cursor"),
   id: () => inert("id"),
   principal: () => inert("principal"),
   text: (max: number) => inert("text", { max }),

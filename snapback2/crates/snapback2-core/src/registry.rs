@@ -620,6 +620,7 @@ impl Runtime {
                 message: code.to_owned(),
             },
             seq: self.engine.store().commit_seq()?,
+            next: None,
         })
     }
 
@@ -653,6 +654,7 @@ impl Runtime {
                             message: error.to_string(),
                         },
                         seq: self.engine.store().commit_seq()?,
+                        next: None,
                     })
                 } else {
                     Err(error)
@@ -877,6 +879,7 @@ fn seed_program(
         kind: ProgramKind::Mutation,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
+        result_page_site: None,
         body: rows
             .iter()
             .map(|(table, row)| {
@@ -1108,6 +1111,7 @@ mod then_tests {
                         kind: ProgramKind::Mutation,
                         args: BTreeMap::new(),
                         read_time_granularity_ms: None,
+                        result_page_site: None,
                         body: vec![Stmt::Emit {
                             effect: "clock.effect".to_owned(),
                             payload: Expr::Literal(Value::Null),
@@ -1118,6 +1122,7 @@ mod then_tests {
                         kind: ProgramKind::Mutation,
                         args: BTreeMap::new(),
                         read_time_granularity_ms: None,
+                        result_page_site: None,
                         body: vec![Stmt::Require {
                             condition: Expr::Binary {
                                 op: crate::ir::BinaryOp::Gte,
@@ -1230,6 +1235,7 @@ mod tests {
             kind: ProgramKind::Query,
             args: BTreeMap::new(),
             read_time_granularity_ms: None,
+            result_page_site: None,
             body: vec![Stmt::Return(Expr::Literal(Value::Int(42)))],
         };
 

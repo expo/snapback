@@ -1,7 +1,7 @@
 {
   "corpusVersion": 1,
-  "name": "optional-cursor-present-pages",
-  "category": "merge",
+  "name": "opaque-cursor-capped-next-token",
+  "category": "cursor",
   "randomSeed": null,
   "schema": {
     "tables": {
@@ -109,26 +109,20 @@
     "maintains": []
   },
   "program": {
-    "name": "optional-cursor-present-pages",
+    "name": "opaque-cursor-capped-next-token",
     "kind": "Query",
     "args": {
-      "cursorAt": {
-        "Optional": "Int"
-      },
-      "cursorId": {
-        "Optional": {
-          "Ref": {
-            "table": "posts"
-          }
-        }
+      "c": {
+        "Optional": "Cursor"
       }
     },
     "read_time_granularity_ms": null,
+    "result_page_site": "opaque-cursor-capped-next-token",
     "body": [
       {
         "Return": {
           "Scan": {
-            "site": "optional-cursor-present-pages",
+            "site": "opaque-cursor-capped-next-token",
             "table": "posts",
             "index": "byAt",
             "prefix": [],
@@ -137,21 +131,11 @@
               "Literal": 2
             },
             "after": {
-              "Array": [
-                {
-                  "Variable": "cursorAt"
-                },
-                {
-                  "Variable": "cursorId"
-                }
-              ]
+              "Variable": "c"
             },
             "before": null,
             "range": null,
-            "optional_cursor_args": [
-              "cursorAt",
-              "cursorId"
-            ],
+            "opaque_cursor": true,
             "merge_site": null,
             "provenance": "Arg"
           }
@@ -160,8 +144,8 @@
     ]
   },
   "certificate": {
-    "program": "optional-cursor-present-pages",
-    "plan_hash": "3cb6747eca755cbcececfe6a7f7e855417f8e33e2da716bcef078f6226ca69ac",
+    "program": "opaque-cursor-capped-next-token",
+    "plan_hash": "d18a80c9e4be34935ffb6fb83d547f0188894d792676ef196e8d187a1322514a",
     "schema_hash": "f0678e830e1d82c9944be8c03fd432099f7c739ea93d4cd40939d8700359c528",
     "rule_hashes": {
       "posts.read": "0201f66714518c59ab12959e7a0541e23ec540e46fe516506e0985e20b514616"
@@ -170,7 +154,7 @@
     "value_model_version": "i53-codepoint-bytes-v2",
     "read_sites": [
       {
-        "site": "optional-cursor-present-pages",
+        "site": "opaque-cursor-capped-next-token",
         "table": "posts",
         "index": "byAt",
         "prefix_template": "Arg",
@@ -180,6 +164,23 @@
         "hoist": true
       }
     ],
+    "result_page_site": {
+      "site": "opaque-cursor-capped-next-token",
+      "table": "posts",
+      "index": "byAt",
+      "order": "Asc",
+      "suffix": [
+        {
+          "name": "at",
+          "kind": "Int"
+        },
+        {
+          "name": "id",
+          "kind": "Id"
+        }
+      ],
+      "merge": false
+    },
     "write_sites": [],
     "maintained_amplification": 0,
     "constraint_checks": [],
@@ -198,19 +199,14 @@
       "posts.byAt"
     ],
     "disclosures": [],
-    "bound_product": "optional-cursor-present-pages take 2 = 2"
+    "bound_product": "opaque-cursor-capped-next-token take 2 = 2"
   },
   "context": {
     "viewer": "u1",
     "principal_kind": "user",
     "auth_epoch": 1,
     "args": {
-      "cursorAt": {
-        "Int": 1
-      },
-      "cursorId": {
-        "Id": "a1"
-      }
+      "c": "Null"
     },
     "now": null,
     "new_ids": [],
@@ -220,6 +216,23 @@
   "receipt": {
     "schema_hash": "f0678e830e1d82c9944be8c03fd432099f7c739ea93d4cd40939d8700359c528",
     "rows": [
+      {
+        "table": "posts",
+        "id": "a1",
+        "row": {
+          "Row": {
+            "at": {
+              "Int": 1
+            },
+            "author": {
+              "Id": "u1"
+            },
+            "id": {
+              "Id": "a1"
+            }
+          }
+        }
+      },
       {
         "table": "posts",
         "id": "a2",
@@ -257,22 +270,13 @@
     ],
     "ranges": [
       {
-        "site": "optional-cursor-present-pages",
+        "site": "opaque-cursor-capped-next-token",
         "table": "posts",
         "index": "byAt",
         "prefix": [],
         "order": "Asc",
         "take": 2,
-        "after": {
-          "Array": [
-            {
-              "Int": 1
-            },
-            {
-              "Id": "a1"
-            }
-          ]
-        },
+        "after": null,
         "before": null,
         "gt": null,
         "gte": null,
@@ -280,12 +284,28 @@
         "lte": null,
         "rule_hash": "0201f66714518c59ab12959e7a0541e23ec540e46fe516506e0985e20b514616",
         "row_ids": [
-          "a2",
-          "a3"
+          "a1",
+          "a2"
         ],
-        "stop": "Exhausted",
+        "stop": "Limit",
         "absence": false,
-        "halo": null,
+        "halo": {
+          "table": "posts",
+          "id": "a3",
+          "row": {
+            "Row": {
+              "at": {
+                "Int": 3
+              },
+              "author": {
+                "Id": "u1"
+              },
+              "id": {
+                "Id": "a3"
+              }
+            }
+          }
+        },
         "n2_key": null
       }
     ],
@@ -300,6 +320,19 @@
         {
           "Row": {
             "at": {
+              "Int": 1
+            },
+            "author": {
+              "Id": "u1"
+            },
+            "id": {
+              "Id": "a1"
+            }
+          }
+        },
+        {
+          "Row": {
+            "at": {
               "Int": 2
             },
             "author": {
@@ -309,32 +342,20 @@
               "Id": "a2"
             }
           }
-        },
-        {
-          "Row": {
-            "at": {
-              "Int": 3
-            },
-            "author": {
-              "Id": "u1"
-            },
-            "id": {
-              "Id": "a3"
-            }
-          }
         }
       ]
     },
     "errorCode": null,
     "localState": "fresh",
     "partialSites": [],
-    "canonicalResult": "{\"Array\":[{\"Row\":{\"at\":{\"Int\":2},\"author\":{\"Id\":\"u1\"},\"id\":{\"Id\":\"a2\"}}},{\"Row\":{\"at\":{\"Int\":3},\"author\":{\"Id\":\"u1\"},\"id\":{\"Id\":\"a3\"}}}]}",
-    "digest": "1b170d308ad272a1c4fe901027409c8657d15c52dc76f27ef87e8f0d21a845a5",
+    "canonicalResult": "{\"Array\":[{\"Row\":{\"at\":{\"Int\":1},\"author\":{\"Id\":\"u1\"},\"id\":{\"Id\":\"a1\"}}},{\"Row\":{\"at\":{\"Int\":2},\"author\":{\"Id\":\"u1\"},\"id\":{\"Id\":\"a2\"}}}]}",
+    "digest": "06776276c3db10eb4c7e551c436cfddd622dc9df286875ffa10ff87f86468306",
     "rangeStops": {
-      "optional-cursor-present-pages": [
-        "exhausted"
+      "opaque-cursor-capped-next-token": [
+        "limit"
       ]
     },
-    "evictedRows": null
+    "evictedRows": null,
+    "next": "WzEsInBvc3RzIiwiYnlBdCIsIkFzYyIsW3sibmFtZSI6ImF0Iiwia2luZCI6IkludCJ9LHsibmFtZSI6ImlkIiwia2luZCI6IklkIn1dLFt7IkludCI6Mn0seyJJZCI6ImEyIn1dXQ"
   }
 }

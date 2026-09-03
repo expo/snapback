@@ -194,6 +194,7 @@ impl RuleType {
 
     fn from_arg(kind: &ArgType) -> Self {
         match kind {
+            ArgType::Cursor => Self::Scalar,
             ArgType::Principal => Self::Principal,
             ArgType::Id => Self::Id,
             ArgType::Ref { table } => Self::Ref(table.clone()),

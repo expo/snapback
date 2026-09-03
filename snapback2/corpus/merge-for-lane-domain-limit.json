@@ -144,7 +144,6 @@
               "after": null,
               "before": null,
               "range": null,
-              "optional_cursor_args": [],
               "merge_site": null,
               "provenance": "Const"
             }
@@ -175,7 +174,6 @@
                     "after": null,
                     "before": null,
                     "range": null,
-                    "optional_cursor_args": [],
                     "merge_site": "merge.for-limit",
                     "provenance": "Shape"
                   }
@@ -253,7 +251,7 @@
   },
   "certificate": {
     "program": "merge.for-limit",
-    "plan_hash": "586da1c250ce2e0ed359a42b36add767ef9b9840b07a755b7e0d72f914091eeb",
+    "plan_hash": "5a344daeb7afee33d3bd54332576f1feffdc39cc054e531388cfe39735c227d0",
     "schema_hash": "f0678e830e1d82c9944be8c03fd432099f7c739ea93d4cd40939d8700359c528",
     "rule_hashes": {
       "follows.read": "0201f66714518c59ab12959e7a0541e23ec540e46fe516506e0985e20b514616",
@@ -493,6 +491,7 @@
         "exhausted"
       ]
     },
-    "evictedRows": null
+    "evictedRows": null,
+    "next": null
   }
 }

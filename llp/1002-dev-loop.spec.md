@@ -375,16 +375,17 @@ required fields in the client's public types as well as in its validator. Authen
 | `POST /api/auth/guest` | `{}` → `{ token, viewer }` |
 | `POST /api/auth/logout` | → `{ ok }` |
 | `GET /api/auth/me` | → `{ viewer, kind }` |
-| `POST /api/query` | `{ op, args }` → `{ state: "complete" \| "capped" \| "partial" \| "denied", data, seq, rule?, reason? }`; `Capped` is the unit shape `{ state: "capped", data, seq }` |
+| `POST /api/query` | `{ op, args }` → complete/capped `{ state, data, seq, next: cursor \| null }`, partial `{ state, data?, seq, reason }`, or denied `{ state, seq, rule }` |
 | `POST /api/mutation` | `{ op, args }` → `{ state: "committed", seq, data }` \| `{ state: "rejected", code, family, message, rewrite? }` |
 | `GET /api/subscribe?op=&args=<urlencoded json>` | SSE; `id: <seq>`; each `data:` frame is **exactly a query response object** (`{ state: "complete" \| "capped" \| "partial" \| "denied", data, seq, … }`) or a refusal envelope (`{ state: "refused", code, family, message, … }`, terminal); the server never sends `live`/`stale` — those are client connection facts; a `: heartbeat` comment every 15 s (review ruling 2026-08-30) |
 | `POST /api/channel/<name>/publish` | `{ args, payload }` → `{ ok: true }` \| `{ state: "refused", code }` |
 | `GET /api/channel/<name>/subscribe?args=` | SSE; `data: { from, payload, at }`; the owner drops the stream when a commit touches the probe's key and re-admission fails |
 | `GET /api/manifest` | `{ generation, ops: { "todos.list": { kind, args } }, channels, auth }` |
 
-**Wire amendment — 2026-08-30.** `Capped` carries no optional `take`, `site`,
-stop reason, or continuation field. An empty `Capped` array is the terminal
-drain state (LLP 1001 §3).
+**Wire amendments — 2026-08-30/2026-09-03.** `Capped` carries no `take`, site,
+or stop reason. Complete/capped alone carry `next`; complete and empty capped
+use `null`, while nonempty capped uses the last returned result-page row
+(LLP 1001 §3). Partial, denied, mutations, and refusals omit it.
 
 Typed states are 200. Protocol errors are 4xx with the **refusal envelope**,
 which is the only error shape on every surface (HTTP, CLI `--json`, worker):
@@ -486,7 +487,7 @@ ok / 1 refused (typed) / 2 usage or environment.
 | `test` | `snapback2 test [--blocked reason] [--journeys-only] [--derived-only]` | §7 |
 | `why` | `snapback2 why <query> [args-json] --as <persona>` | §8 |
 | `trace` | `snapback2 trace <seq \| latest>` | §8 |
-| `data` | `snapback2 data <table> [--index name --prefix json] [--limit 50] --as <persona>` | a bounded, rule-checked read as the persona (limit ≤ 500) |
+| `data` | `snapback2 data <table> [--index name --prefix json] [--after token] [--limit 50] --as <persona>` | bounded rule-checked paging as the persona; prints `next` (limit ≤ 500) |
 | `logs` | `snapback2 logs [--since seq] [--limit 100]` | structured log lines from `log.jsonl` + `_commits` |
 | `persona` | `snapback2 persona list \| create <name>` | dev personas (grants: deferred) |
 | `fork` / `reset` | `snapback2 fork <name>`, `snapback2 reset` | `Store::snapshot_to(.snapback/forks/<name>.sqlite)`; `reset_data` + seed |
@@ -642,7 +643,7 @@ the `Api` augmentation in `.snapback/build/api.d.ts` (no index signature: a
 typo is a compile error; channels are members too). The view on `useQuery`
 is the discriminated union `hydrating | complete | capped | partial | denied
 | refused | stale`, each carrying its applicable receipt fields (`reason`,
-`rule`, `since`, `seq`; `capped` has no extra fields), plus two orthogonal
+`rule`, `since`, `seq`; complete/capped carry `next: Cursor | null`), plus two orthogonal
 facts: `live: boolean` (a
 subscription is connected and this view is its latest delivery — the RFC's
 "live" state is this flag, so a capped page on a live query is `capped` with

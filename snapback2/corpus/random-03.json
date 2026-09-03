@@ -1008,6 +1008,7 @@
     "canonicalResult": "{\"String\":\"𐀀f7\"}",
     "digest": "a9f233d00eea5f4835075f70038afc97bd8f2d3a1aa9f0a3b214c15fd92e06f9",
     "rangeStops": {},
-    "evictedRows": null
+    "evictedRows": null,
+    "next": null
   }
 }

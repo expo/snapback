@@ -1005,6 +1005,7 @@
     "canonicalResult": "{\"String\":\"-5\"}",
     "digest": "cf93095ab8f0d8abb477ec9a0c7b24b4da8b6af485d30db63240fd6b900fc469",
     "rangeStops": {},
-    "evictedRows": null
+    "evictedRows": null,
+    "next": null
   }
 }

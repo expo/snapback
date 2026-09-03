@@ -707,6 +707,7 @@ fn validate_expr(
 enum StaticType {
     Unknown,
     Null,
+    Cursor,
     WireId,
     Id,
     Principal,
@@ -1057,6 +1058,7 @@ fn static_column_type(value: &ColumnType) -> StaticType {
 
 fn static_arg_type(value: &ArgType) -> StaticType {
     match value {
+        ArgType::Cursor => StaticType::Cursor,
         ArgType::Id => StaticType::Id,
         ArgType::Principal => StaticType::Principal,
         ArgType::Ref { table } => StaticType::Ref(table.clone()),

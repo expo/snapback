@@ -2,6 +2,7 @@ import { exactByIdAbsence, exactVerdict } from "./authority";
 import coreIrContract from "../../../crates/snapback2-core/ir-contract.json" with { type: "json" };
 import { canonicalProgramJson, canonicalSchemaJson } from "./certificate-identity";
 import { EvalError, requireRowIdentity } from "./errors";
+import { cursorSuffix, decodeCursorFor, encodeCursor } from "./cursor";
 import { sha256 } from "./hash";
 import { splitMentionTokens } from "./text";
 import {
@@ -93,17 +94,17 @@ export class ClientStore {
   }
 
   applyMutation(program: any, context: Context): LocalExecution {
-    validateInputs(program, context.args);
+    validateInputs(this.schema, program, context.args);
     // @ref LLP 1001#3-read-and-write-states-no-silent-states — local prediction adopts the write set only as one atomic mutation.
     const staged = this.fork();
     const before = staged.coveredIndexKeys();
-    const runner = new Runner(staged, this.schema, context);
+    const runner = new Runner(staged, this.schema, context, null);
     let execution: Execution;
     try {
       execution = runner.execute(program);
     } catch (error) {
       if (runner.coverageMisses().includes("missing-authority")) {
-        return { state: "partial", partialSites: ["missing-authority"], execution: { result: "Null", trace: runner.trace } };
+        return { state: "partial", partialSites: ["missing-authority"], execution: { result: "Null", trace: runner.trace, next: null } };
       }
       throw error;
     }
@@ -127,9 +128,9 @@ export class ClientStore {
     return { state: "predicted", partialSites: [], execution };
   }
 
-  reexecute(program: any, context: Context): LocalExecution {
-    validateInputs(program, context.args);
-    const runner = new Runner(this, this.schema, context);
+  reexecute(program: any, context: Context, certificate: any = null): LocalExecution {
+    validateInputs(this.schema, program, context.args);
+    const runner = new Runner(this, this.schema, context, certificate);
     const execution = runner.execute(program);
     const partial = new Set(runner.coverageMisses());
     for (const range of execution.trace.ranges) {
@@ -150,6 +151,7 @@ export class ClientStore {
       if (!held) partial.add(absence.site);
     }
     const partialSites = Array.from(partial).sort(compareCodepoints);
+    if (partialSites.length > 0) execution.next = null;
     return {
       state: partialSites.length === 0 ? "fresh" : "partial",
       partialSites,
@@ -437,6 +439,7 @@ class Runner {
     private readonly store: ClientStore,
     private readonly schema: any,
     context: Context,
+    private readonly certificate: any,
   ) {
     this.context = clone(context);
     for (const [name, value] of Object.entries(context.args)) {
@@ -450,6 +453,7 @@ class Runner {
     return {
       result: this.partial.size === 0 && flow.kind === "return" ? flow.value : "Null",
       trace: this.trace,
+      next: mintNext(this.schema, this.certificate, this.trace),
     };
   }
 
@@ -780,7 +784,15 @@ class Runner {
             values.push(value);
           }
         }
-        this.trace.merges.push({ site: data.site, deduplicated_union_len: values.length });
+        const page = this.certificate?.result_page_site;
+        const take = this.certificate?.merge_sites?.find((entry: any) => entry.site === data.site)?.take;
+        const row = page?.merge && page.site === data.site && Number.isInteger(take)
+          ? values.slice(0, take).at(-1) : undefined;
+        this.trace.merges.push({
+          site: data.site,
+          deduplicated_union_len: values.length,
+          last_returned_suffix: row === undefined ? null : page.suffix.map((column: any) => clone(field(row, column.name))),
+        });
         return { Array: values };
       }
       case "MentionTokens": {
@@ -849,11 +861,15 @@ class Runner {
 
   private scan(scan: any): Value {
     const prefix = scan.prefix.map((value: any) => this.expr(value));
-    const omitOptionalCursor = Array.isArray(scan.optional_cursor_args)
-      && scan.optional_cursor_args.length > 0
-      && scan.optional_cursor_args.every((name: string) => this.context.args[name] === "Null");
-    const after = omitOptionalCursor || scan.after === null ? null : this.expr(scan.after);
-    const before = omitOptionalCursor || scan.before === null ? null : this.expr(scan.before);
+    let after = scan.after === null ? null : this.expr(scan.after);
+    const before = scan.before === null ? null : this.expr(scan.before);
+    if (scan.opaque_cursor && after === "Null") after = null;
+    else if (scan.opaque_cursor && after !== null) {
+      if (!isVariant(after, "String")) throw new EvalError("E_INPUT", "opaque cursor must be a string");
+      after = decodeCursorFor(after.String, {
+        table: scan.table, index: scan.index, order: scan.order, suffix: cursorSuffix(this.schema, scan),
+      });
+    }
     const evaluatedRange = scan.range === null ? null : this.evaluateRange(scan.range);
     const [boundKind, boundData] = variant(scan.take);
     const take =
@@ -876,6 +892,8 @@ class Runner {
     const visible = examined.filter((row) =>
       this.checkRule(scan.table, "read", null, row)
     );
+    const returned = visible.slice(0, take);
+    const suffix = cursorSuffix(this.schema, scan);
     this.trace.ranges.push({
       site: scan.site,
       table: scan.table,
@@ -891,8 +909,10 @@ class Runner {
       lte: evaluatedRange?.lte ?? null,
       rule_hash: scopedRuleHash(this.schema, this.schema.tables[scan.table].rules.read),
       stop,
+      lastReturnedSuffix: returned.length === 0 ? null
+        : suffix.map((column) => clone(field(returned[returned.length - 1]!, column.name))),
     });
-    return { Array: visible.slice(0, take).map(clone) };
+    return { Array: returned.map(clone) };
   }
 
   private evaluateRange(range: any): any {
@@ -1348,6 +1368,34 @@ function substituteRuleTerm(term: any, columns: string[], probeKey: any[]): any 
   return position < 0 || position >= probeKey.length ? null : clone(probeKey[position]);
 }
 
+function mintNext(schema: any, certificate: any, trace: Trace): string | null {
+  const page = certificate?.result_page_site;
+  if (!page || !queryCapped(certificate, trace)) return null;
+  const values = page.merge
+    ? trace.merges.slice().reverse().find((entry) => entry.site === page.site)?.last_returned_suffix
+    : trace.ranges.slice().reverse().find((entry) => entry.site === page.site)?.lastReturnedSuffix;
+  if (values === null || values === undefined) return null;
+  return encodeCursor({
+    table: page.table,
+    index: page.index,
+    order: page.order,
+    suffix: page.suffix,
+    values,
+  });
+}
+
+function queryCapped(certificate: any, trace: Trace): boolean {
+  if (certificate.completeness === "Capped") return true;
+  if (trace.ranges.some((range) => range.stop === "limit"
+      || !certificate.read_sites?.find((site: any) => site.site === range.site)?.hoist)) return true;
+  return (certificate.merge_sites ?? []).some((site: any) => {
+    const merge = trace.merges.find((entry) => entry.site === site.site);
+    const unionTooLarge = merge === undefined || merge.deduplicated_union_len > site.take;
+    const laneLimited = trace.ranges.some((range) => site.lane_sites.includes(range.site) && range.stop !== "exhausted");
+    return unionTooLarge || laneLimited;
+  });
+}
+
 export function evaluateCase(testCase: CorpusCase): ActualResult {
   if (testCase.certificate?.value_model_version !== CURRENT_VALUE_MODEL_VERSION) {
     throw new EvalError(
@@ -1373,7 +1421,7 @@ export function evaluateCase(testCase: CorpusCase): ActualResult {
     const local =
       testCase.program.kind === "Mutation"
         ? store.applyMutation(testCase.program, testCase.context)
-        : store.reexecute(testCase.program, testCase.context);
+        : store.reexecute(testCase.program, testCase.context, testCase.certificate);
     const canonicalResult = canonicalValue(local.execution.result);
     return {
       localResult: local.execution.result,
@@ -1384,6 +1432,7 @@ export function evaluateCase(testCase: CorpusCase): ActualResult {
       digest: sha256(canonicalResult),
       rangeStops: rangeStops(local.execution.trace.ranges),
       evictedRows,
+      next: local.execution.next,
     };
   } catch (error) {
     const internalCode = error instanceof EvalError ? error.code : "E_UNKNOWN";
@@ -1407,6 +1456,7 @@ export function evaluateCase(testCase: CorpusCase): ActualResult {
         digest: sha256(canonicalResult),
         rangeStops: {},
         evictedRows,
+        next: null,
       };
     }
     const canonicalResult = JSON.stringify({ Error: code });
@@ -1419,6 +1469,7 @@ export function evaluateCase(testCase: CorpusCase): ActualResult {
       digest: sha256(canonicalResult),
       rangeStops: {},
       evictedRows,
+      next: null,
     };
   }
 }
@@ -1454,6 +1505,8 @@ export function compareExpected(actual: ActualResult, expected: CorpusExpected):
     if (actual[key] !== expected[key])
       differences.push(`${key}: ${String(actual[key])} != ${String(expected[key])}`);
   }
+  if (Object.prototype.hasOwnProperty.call(expected, "next") && actual.next !== expected.next)
+    differences.push(`next: ${String(actual.next)} != ${String(expected.next)}`);
   if (JSON.stringify(actual.partialSites) !== JSON.stringify(expected.partialSites))
     differences.push(
       `partialSites: ${JSON.stringify(actual.partialSites)} != ${JSON.stringify(expected.partialSites)}`,

@@ -949,7 +949,6 @@
               "after": null,
               "before": null,
               "range": null,
-              "optional_cursor_args": [],
               "merge_site": null,
               "provenance": "Viewer"
             }
@@ -982,7 +981,6 @@
                         "after": null,
                         "before": null,
                         "range": null,
-                        "optional_cursor_args": [],
                         "merge_site": null,
                         "provenance": "Shape"
                       }
@@ -1024,7 +1022,7 @@
   },
   "certificate": {
     "program": "inboxMaintained",
-    "plan_hash": "8d2f8c44df70cf5b6b68b4168713974a8d86ccd355b1972df02faf58aac708ae",
+    "plan_hash": "0b9c7dccfec3911d1c93f38d0fcd179d266cf9f8a88b677f33d3d8ff0b3a7b05",
     "schema_hash": "df0a1b25740fd361ededb5bf93df3428a133ea6dd44f27a74c45a76e1ce8fb3c",
     "rule_hashes": {
       "memberships.read": "a4500d80558e462bf40291836ee785e6a05a708f84bb1d5d919adc2da67c150b",
@@ -1322,6 +1320,7 @@
         "limit"
       ]
     },
-    "evictedRows": null
+    "evictedRows": null,
+    "next": null
   }
 }

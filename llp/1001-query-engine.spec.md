@@ -189,8 +189,11 @@ ranges are therefore viewer-observably identical in that case.
 A non-uniform site is capped-only regardless of what its runtime candidates
 happen to show. It collects visible rows only until `take`, within the certified
 examined/rule-probe budget. If that budget cuts the page, the engine returns the
-visible rows found so far and the opaque `Capped` label; `after` remains derived
-only from the last visible row. An empty `Capped` page is the terminal drain
+visible rows found so far and the opaque `Capped` label. A nonempty capped
+result page carries `next`, an opaque receipt-time position derived only from
+its last returned row, never an examined or hidden position. A `Complete`
+result page carries `next: null`. An empty `Capped` page carries `next: null`
+and is the terminal drain
 state, whether the range was physically exhausted or a hidden run consumed the
 budget. Rows beyond a hidden run longer than that budget are unreachable in the
 drain; the paved escape is the existing denormalize-the-scope rewrite. There is
@@ -198,19 +201,16 @@ no examined/storage-position continuation and no server-held scan state. The
 engine may internally distinguish take, ceiling, and exhaustion stops, but the
 result label, wire, and receipt may not.
 
-Scan cursors are relative to the requested scan order: `after: c` selects rows
-that follow `c` (`>` in ascending order, `<` in descending order), while
-`before: c` selects rows that precede `c` (`<` ascending, `>` descending).
-A cursor is the full lexicographically compared post-prefix index tuple, the
-index must be a total order (it ends in `id`, or it is unique; certification
-refuses cursors on any other index because tied keys would be skipped between
-pages), and scalar sugar is accepted only for a one-column tuple. A cursor
-whose prefix already names every index column is refused (`E_SCHEMA` at
-runtime, `E_ARGS_CURSOR_SHAPE` at certification), because it has no position
-left to compare. Every component is an indexable scalar whose kind matches its
-column; `Null` is the universal pre-first-value sentinel because it already
-participates in the engine's total scalar order, while non-scalar components
-are refused. Explicit `range.gt/gte/lt/lte` bounds remain key-order comparisons.
+An opaque cursor is canonical base64url of the tagged, versioned encoding
+`[version, table, index, order, suffix descriptor, suffix values]`. Values keep
+their index-column types, including nominal `Id` versus `String`; decode is
+size-bounded and must canonically re-encode. Version, table, index, order, and
+the exact post-prefix descriptor must match before any scan or the request is
+`E_INPUT`. Tokens are not site-bound. `after: c` selects rows following the
+position in requested order (`>` ascending, `<` descending). The index is a
+total order (ending in `id`, or unique); pageable merge indexes end in intrinsic
+`id`. Raw IR retains tuple `after`/`before` as lowering targets. Explicit
+`range.gt/gte/lt/lte` bounds remain key-order comparisons.
 
 > ~~A drain always makes visible progress (no starvation).~~
 >

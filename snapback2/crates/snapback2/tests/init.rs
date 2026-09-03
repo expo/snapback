@@ -256,23 +256,10 @@ export default seed({
     let run = |op: &str, args: &str| {
         json_stdout(&project.run(&["run", op, args, "--as", "alice", "--json"]))
     };
-    let after = run(
-        "surface.postsAfter",
-        r#"{"author":"dev:alice","cursorAt":10,"cursorId":"post-1"}"#,
-    );
+    let after = run("surface.postsAfter", r#"{"author":"dev:alice","c":null}"#);
     assert_eq!(after["state"], "complete", "{after}");
-    assert_eq!(after["data"].as_array().map(Vec::len), Some(2), "{after}");
-    assert_eq!(after["data"][0]["id"], "post-2", "{after}");
-    assert_eq!(after["data"][1]["id"], "post-3", "{after}");
-
-    let before = run(
-        "surface.postsBefore",
-        r#"{"author":"dev:alice","cursorAt":30,"cursorId":"post-3"}"#,
-    );
-    assert_eq!(before["state"], "complete", "{before}");
-    assert_eq!(before["data"].as_array().map(Vec::len), Some(2), "{before}");
-    assert_eq!(before["data"][0]["body"], "second", "{before}");
-    assert_eq!(before["data"][1]["body"], "first", "{before}");
+    assert_eq!(after["data"].as_array().map(Vec::len), Some(3), "{after}");
+    assert_eq!(after["next"], serde_json::Value::Null, "{after}");
 
     for value in [true, false] {
         let result = run("surface.branchWrite", &format!(r#"{{"useFirst":{value}}}"#));
@@ -417,7 +404,7 @@ export default seed({
 }
 
 #[test]
-fn quarry_clique_sends_a_dm_and_pages_feed_with_a_tuple_cursor() {
+fn quarry_clique_sends_a_dm_and_pages_feed_with_an_opaque_cursor() {
     let project = Project::new();
     assert!(project.init("todos", "none").status.success());
     std::fs::remove_file(project.path.join("snapback/todos.q")).unwrap();
@@ -534,22 +521,23 @@ fn quarry_clique_sends_a_dm_and_pages_feed_with_a_tuple_cursor() {
     let sent = run("chat.send", &send_args);
     assert_eq!(sent["state"], "committed", "{sent}");
     assert!(sent["data"]["id"].as_str().is_some(), "{sent}");
-    let thread_args = serde_json::json!({ "c": conversation }).to_string();
+    let thread_args = serde_json::json!({ "c": conversation, "pageCursor": null }).to_string();
     let thread = run("chat.chatThread", &thread_args);
     assert_eq!(thread["state"], "complete", "{thread}");
     assert_eq!(thread["data"].as_array().map(Vec::len), Some(1), "{thread}");
     assert_eq!(thread["data"][0]["body"], "hello Bob", "{thread}");
+    assert_eq!(thread["next"], serde_json::Value::Null, "{thread}");
 
-    let first = run("social.globalFeed", "{}");
+    let first = run("social.globalFeed", r#"{"c":null}"#);
     assert_eq!(first["state"], "capped", "{first}");
     let first_rows = first["data"].as_array().expect("first feed page");
     assert_eq!(first_rows.len(), 20, "{first}");
-    let cursor = first_rows.last().expect("first page cursor row");
-    let second_args = serde_json::json!({
-        "cursorOrd": cursor["ord"],
-        "cursorId": cursor["id"],
-    })
-    .to_string();
+    let cursor = first["next"].as_str().expect("first page opaque cursor");
+    let mismatched_args =
+        serde_json::json!({ "c": conversation, "pageCursor": cursor }).to_string();
+    let mismatched = run("chat.chatThread", &mismatched_args);
+    assert_eq!(mismatched["code"], "E_INPUT", "{mismatched}");
+    let second_args = serde_json::json!({ "c": cursor }).to_string();
     let second = run("social.globalFeed", &second_args);
     assert_eq!(second["state"], "complete", "{second}");
     let second_rows = second["data"].as_array().expect("second feed page");
@@ -562,7 +550,7 @@ fn quarry_clique_sends_a_dm_and_pages_feed_with_a_tuple_cursor() {
         second_rows
             .iter()
             .all(|row| !first_ids.contains(row["id"].as_str().unwrap())),
-        "tuple cursor pages overlap: first={first} second={second}"
+        "opaque cursor pages overlap: first={first} second={second}"
     );
 }
 

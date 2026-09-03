@@ -56,6 +56,7 @@ struct Expected {
     digest: String,
     range_stops: BTreeMap<String, Vec<String>>,
     evicted_rows: Option<usize>,
+    next: Option<String>,
 }
 
 struct Fixture {
@@ -105,7 +106,7 @@ fn main() {
     let mut cases = Vec::new();
     add_named_cases(&mut cases);
     add_cursor_cases(&mut cases);
-    merge_cases::add_merge_and_optional_cursor_cases(&mut cases);
+    merge_cases::add_merge_and_opaque_cursor_cases(&mut cases);
     twin_cases::add_twin_cases(&mut cases);
     write_cases::add_write_cases(&mut cases);
     client_scenarios::add_client_scenarios(&mut cases);
@@ -161,7 +162,7 @@ fn add_cursor_cases(cases: &mut Vec<CorpusCase>) {
                 lt: None,
                 lte: Some(Box::new(Expr::Literal(Value::Int(5)))),
             }),
-            optional_cursor_args: Vec::new(),
+            opaque_cursor: false,
             merge_site: None,
             provenance: KeyProvenance::Const,
         })
@@ -191,6 +192,7 @@ fn add_cursor_cases(cases: &mut Vec<CorpusCase>) {
             kind: ProgramKind::Query,
             args: BTreeMap::new(),
             read_time_granularity_ms: None,
+            result_page_site: None,
             body: vec![Stmt::Return(Expr::Array(pages.into()))],
         };
         let mut fixture = Fixture::new();
@@ -410,6 +412,7 @@ fn named_uniform_maintained_inbox_case() -> CorpusCase {
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
+        result_page_site: None,
         body: vec![
             Stmt::Let {
                 name: "result".to_owned(),
@@ -427,7 +430,7 @@ fn named_uniform_maintained_inbox_case() -> CorpusCase {
                     after: None,
                     before: None,
                     range: None, // no scalar range bounds
-                    optional_cursor_args: Vec::new(),
+                    opaque_cursor: false,
                     merge_site: None,
                     provenance: KeyProvenance::Viewer,
                 }),
@@ -519,6 +522,7 @@ fn named_emit_case() -> CorpusCase {
         kind: ProgramKind::Mutation,
         args: BTreeMap::from([("body".to_owned(), ArgType::Scalar)]),
         read_time_granularity_ms: None,
+        result_page_site: None,
         body: vec![
             Stmt::Const {
                 name: "firstId".to_owned(),
@@ -795,6 +799,7 @@ fn bytes_insert_program() -> Program {
             ("payload".to_owned(), ArgType::Scalar),
         ]),
         read_time_granularity_ms: None,
+        result_page_site: None,
         body: vec![
             Stmt::Insert {
                 table: "blobs".to_owned(),
@@ -814,6 +819,7 @@ fn bytes_scan_program(name: &str) -> Program {
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
+        result_page_site: None,
         body: vec![Stmt::Return(Expr::Scan(Scan {
             site: format!("{name}.blobs"),
             table: "blobs".to_owned(),
@@ -824,7 +830,7 @@ fn bytes_scan_program(name: &str) -> Program {
             after: None,
             before: None,
             range: None, // no scalar range bounds
-            optional_cursor_args: Vec::new(),
+            opaque_cursor: false,
             merge_site: None,
             provenance: KeyProvenance::Const,
         }))],
@@ -1203,6 +1209,7 @@ fn evaluate_local(
                 digest: digest(&execution.result),
                 range_stops,
                 evicted_rows,
+                next: execution.next.clone(),
             }
         }
         Err(RuntimeError::Require { code }) => {
@@ -1220,6 +1227,7 @@ fn evaluate_local(
                 digest: digest(&Value::Null),
                 range_stops: BTreeMap::new(),
                 evicted_rows,
+                next: None,
             }
         }
         Err(error) => {
@@ -1235,6 +1243,7 @@ fn evaluate_local(
                 digest: digest(&envelope),
                 range_stops: BTreeMap::new(),
                 evicted_rows,
+                next: None,
             }
         }
     }
@@ -1278,6 +1287,7 @@ fn pure_program(name: &str, expression: Expr, args: &BTreeMap<String, Value>) ->
             .map(|name| (name.clone(), ArgType::Scalar))
             .collect(),
         read_time_granularity_ms: None,
+        result_page_site: None,
         body: vec![Stmt::Return(expression)],
     }
 }

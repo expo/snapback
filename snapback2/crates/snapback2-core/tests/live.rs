@@ -63,6 +63,7 @@ fn range_point_and_absence_invalidation_is_exact_and_reruns_coalesce() {
         kind: ProgramKind::Query,
         args: BTreeMap::from([("group".to_owned(), ArgType::Scalar)]),
         read_time_granularity_ms: None,
+        result_page_site: None,
         body: vec![Stmt::Return(Expr::Scan(Scan {
             site: "items.byGroup".to_owned(),
             table: "items".to_owned(),
@@ -73,7 +74,7 @@ fn range_point_and_absence_invalidation_is_exact_and_reruns_coalesce() {
             after: None,
             before: None,
             range: None,
-            optional_cursor_args: Vec::new(),
+            opaque_cursor: false,
             merge_site: None,
             provenance: KeyProvenance::Arg,
         }))],
@@ -83,6 +84,7 @@ fn range_point_and_absence_invalidation_is_exact_and_reruns_coalesce() {
         kind: ProgramKind::Query,
         args: BTreeMap::from([("id".to_owned(), ArgType::Scalar)]),
         read_time_granularity_ms: None,
+        result_page_site: None,
         body: vec![Stmt::Return(Expr::Get(Read {
             site: "items.byId".to_owned(),
             table: "items".to_owned(),
@@ -96,6 +98,7 @@ fn range_point_and_absence_invalidation_is_exact_and_reruns_coalesce() {
         kind: ProgramKind::Query,
         args: BTreeMap::from([("group".to_owned(), ArgType::Scalar)]),
         read_time_granularity_ms: None,
+        result_page_site: None,
         body: vec![Stmt::Return(Expr::Scan(Scan {
             site: "items.first".to_owned(),
             table: "items".to_owned(),
@@ -106,7 +109,7 @@ fn range_point_and_absence_invalidation_is_exact_and_reruns_coalesce() {
             after: None,
             before: None,
             range: None,
-            optional_cursor_args: Vec::new(),
+            opaque_cursor: false,
             merge_site: None,
             provenance: KeyProvenance::Arg,
         }))],
@@ -241,6 +244,7 @@ fn hoisted_false_hidden_range_halts_once_and_membership_addition_redelivers_it()
         kind: ProgramKind::Query,
         args: BTreeMap::from([("group".to_owned(), ArgType::Scalar)]),
         read_time_granularity_ms: None,
+        result_page_site: None,
         body: vec![Stmt::Return(Expr::Scan(Scan {
             site: "docs.byGroup".to_owned(),
             table: "docs".to_owned(),
@@ -251,7 +255,7 @@ fn hoisted_false_hidden_range_halts_once_and_membership_addition_redelivers_it()
             after: None,
             before: None,
             range: None,
-            optional_cursor_args: Vec::new(),
+            opaque_cursor: false,
             merge_site: None,
             provenance: KeyProvenance::Arg,
         }))],
@@ -261,6 +265,7 @@ fn hoisted_false_hidden_range_halts_once_and_membership_addition_redelivers_it()
         kind: ProgramKind::Query,
         args: BTreeMap::from([("group".to_owned(), ArgType::Scalar)]),
         read_time_granularity_ms: None,
+        result_page_site: None,
         body: vec![Stmt::Return(Expr::Scan(Scan {
             site: "docs.first".to_owned(),
             table: "docs".to_owned(),
@@ -271,7 +276,7 @@ fn hoisted_false_hidden_range_halts_once_and_membership_addition_redelivers_it()
             after: None,
             before: None,
             range: None,
-            optional_cursor_args: Vec::new(),
+            opaque_cursor: false,
             merge_site: None,
             provenance: KeyProvenance::Arg,
         }))],
@@ -371,6 +376,7 @@ fn hidden_rows_before_a_visible_row_still_produce_capped_from_trace() {
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
+        result_page_site: None,
         body: vec![Stmt::Return(Expr::Scan(Scan {
             site: "docs.firstVisible".to_owned(),
             table: "docs".to_owned(),
@@ -381,7 +387,7 @@ fn hidden_rows_before_a_visible_row_still_produce_capped_from_trace() {
             after: None,
             before: None,
             range: None,
-            optional_cursor_args: Vec::new(),
+            opaque_cursor: false,
             merge_site: None,
             provenance: KeyProvenance::Const,
         }))],
@@ -452,6 +458,7 @@ fn denied_subscription_keeps_rule_trace_and_is_readmitted() {
         kind: ProgramKind::Query,
         args: BTreeMap::from([("group".to_owned(), ArgType::Scalar)]),
         read_time_granularity_ms: None,
+        result_page_site: None,
         body: vec![
             Stmt::Require {
                 condition: Expr::Exists(Read {
@@ -530,6 +537,7 @@ fn complete_to_denied_with_the_same_result_is_a_changed_delivery() {
         kind: ProgramKind::Query,
         args: BTreeMap::from([("group".to_owned(), ArgType::Scalar)]),
         read_time_granularity_ms: None,
+        result_page_site: None,
         body: vec![
             Stmt::Require {
                 condition: Expr::Exists(Read {
@@ -549,6 +557,7 @@ fn complete_to_denied_with_the_same_result_is_a_changed_delivery() {
         kind: ProgramKind::Mutation,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
+        result_page_site: None,
         body: vec![Stmt::Delete {
             table: "memberships".to_owned(),
             key: Expr::Literal(Value::Id("m1".to_owned())),
@@ -629,6 +638,7 @@ fn rerun_runtime_value_error_is_delivered_as_error() {
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
+        result_page_site: None,
         body: vec![
             Stmt::Let {
                 name: "counter".to_owned(),
@@ -729,6 +739,7 @@ fn different_overflow_messages_are_changed_deliveries() {
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
+        result_page_site: None,
         body: vec![
             Stmt::Let {
                 name: "counter".to_owned(),

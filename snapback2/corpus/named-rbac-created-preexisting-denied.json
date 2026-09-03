@@ -270,6 +270,7 @@
     "canonicalResult": "{\"Error\":\"E_RULE\"}",
     "digest": "019eaa556d3ef2f0587cf87e1dedfda30eb15ce4ff6e493b29b4abc41710e85c",
     "rangeStops": {},
-    "evictedRows": null
+    "evictedRows": null,
+    "next": null
   }
 }

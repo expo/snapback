@@ -1061,6 +1061,7 @@
     "canonicalResult": "{\"Row\":{\"id\":{\"Id\":\"doc1\"},\"title\":{\"String\":\"Private\"}}}",
     "digest": "76a2f5503992c4d0a2db1464759be9d78256f680b45554f5d71216dde21687de",
     "rangeStops": {},
-    "evictedRows": null
+    "evictedRows": null,
+    "next": null
   }
 }

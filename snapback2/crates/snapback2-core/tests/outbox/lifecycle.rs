@@ -342,6 +342,7 @@ fn then_generation_with_rule(source: &str, reject: bool, write_rule: RuleExpr) -
         kind: ProgramKind::Mutation,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
+        result_page_site: None,
         body: vec![Stmt::Emit {
             effect: "notifications.notify".to_owned(),
             payload: Expr::Literal(Value::Null),
@@ -356,6 +357,7 @@ fn then_generation_with_rule(source: &str, reject: bool, write_rule: RuleExpr) -
             ("result".to_owned(), ArgType::Json { max_bytes: 1_000 }),
         ]),
         read_time_granularity_ms: None,
+        result_page_site: None,
         body: if reject {
             vec![Stmt::Require {
                 condition: Expr::Literal(Value::Bool(false)),
@@ -376,6 +378,7 @@ fn then_generation_with_rule(source: &str, reject: bool, write_rule: RuleExpr) -
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
+        result_page_site: None,
         body: vec![Stmt::Return(Expr::Scan(Scan {
             site: "notifications.list".to_owned(),
             table: "notifications".to_owned(),
@@ -386,7 +389,7 @@ fn then_generation_with_rule(source: &str, reject: bool, write_rule: RuleExpr) -
             after: None,
             before: None,
             range: None,
-            optional_cursor_args: Vec::new(),
+            opaque_cursor: false,
             merge_site: None,
             provenance: KeyProvenance::Const,
         }))],

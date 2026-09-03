@@ -83,7 +83,7 @@ test("real owner stop and restart yields stale then a full first re-delivery", a
   if (!owner.owned) return context.skip("external SNAPBACK_URL does not grant process control");
   const value = createClient({ url: owner.url, as: "alice" });
   const deliveries: any[] = [];
-  const sub = value.subscribe(api.messages.thread, { conversationId: "conversation-1" }, (delivery) => deliveries.push(delivery));
+  const sub = value.subscribe(api.messages.thread, { conversationId: "conversation-1", c: null }, (delivery) => deliveries.push(delivery));
   const initial = await sub.until((delivery) => delivery.state === "complete", 2_000);
   assert.equal(initial.live, true);
   const stalePromise = sub.until((delivery) => delivery.state === "stale", 3_000);
@@ -114,7 +114,7 @@ test("React-free hook driver reduces eight real-owner transitions including live
   };
   const reader = createClient({ url: owner.url, as: "alice" });
   const writer = createClient({ url: owner.url, as: "bob" });
-  const live = reader.subscribe(api.messages.thread, { conversationId: "conversation-1" }, drive);
+  const live = reader.subscribe(api.messages.thread, { conversationId: "conversation-1", c: null }, drive);
   const first = await live.until((delivery) => delivery.state === "complete", 2_000);
   const committed = await writer.mutation(api.messages.send, {
     conversationId: "conversation-1",

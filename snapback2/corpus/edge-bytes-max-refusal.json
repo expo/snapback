@@ -157,6 +157,7 @@
     "canonicalResult": "{\"Error\":\"E_INPUT\"}",
     "digest": "5ee5e4d7b111ebf8faeecb0490fe79766aeb97067ec8f13fafa649c346209d78",
     "rangeStops": {},
-    "evictedRows": null
+    "evictedRows": null,
+    "next": null
   }
 }

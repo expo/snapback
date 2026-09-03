@@ -140,7 +140,14 @@ pub fn run(args: &[String]) -> ExitCode {
 pub fn data(args: &[String]) -> ExitCode {
     let options = match parse_options(
         args,
-        &["--project", "--as", "--index", "--prefix", "--limit"],
+        &[
+            "--project",
+            "--as",
+            "--index",
+            "--prefix",
+            "--after",
+            "--limit",
+        ],
         &["--json"],
     ) {
         Ok(options) => options,
@@ -149,7 +156,7 @@ pub fn data(args: &[String]) -> ExitCode {
     let positional = options.positionals();
     if positional.len() != 2 {
         return usage(
-            "usage: snapback2 data <table> [--index name --prefix json] [--limit 50] --as <persona> [--json]",
+            "usage: snapback2 data <table> [--index name --prefix json] [--after token] [--limit 50] --as <persona> [--json]",
         );
     }
     let persona = match options.value("--as") {
@@ -181,6 +188,7 @@ pub fn data(args: &[String]) -> ExitCode {
             "table": positional[1],
             "index": options.value("--index").unwrap_or("byId"),
             "prefix": prefix,
+            "after": options.value("--after"),
             "limit": limit,
             "as": persona,
         }),

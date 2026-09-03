@@ -28,6 +28,7 @@ fn probe_mutation(scoped: bool) -> Program {
             BTreeMap::new()
         },
         read_time_granularity_ms: None,
+        result_page_site: None,
         body: Vec::new(),
     }
 }

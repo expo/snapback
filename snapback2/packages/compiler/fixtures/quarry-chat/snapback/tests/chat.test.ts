@@ -3,17 +3,17 @@ import { journey } from "snapback2/test";
 
 journey("alice sends bob a message", async ({ as }) => {
   const alice = as("alice");
-  const before = await alice.query(api.messages.thread, { conversationId: "conversation-1" });
-  if (!("data" in before) || !Array.isArray(before.data)) throw new Error("thread did not return rows");
+  const before = await alice.query(api.messages.thread, { conversationId: "conversation-1", c: null });
+  if ((before.state !== "complete" && before.state !== "capped") || !Array.isArray(before.data)) throw new Error("thread did not return rows");
   const sent = await alice.mutation(api.messages.send, {
     conversationId: "conversation-1",
     recipientId: "profile-bob",
     body: "hello bob",
   });
   if (sent.state !== "committed") throw new Error(`send was ${sent.state}`);
-  const after = await alice.query(api.messages.thread, { conversationId: "conversation-1" });
+  const after = await alice.query(api.messages.thread, { conversationId: "conversation-1", c: before.next });
   if (!("data" in after) || !after.data?.some((row: { body?: string }) => row.body === "hello bob")) throw new Error("sent message was not readable");
-  const sideBefore = await alice.query(api.messages.thread, { conversationId: "conversation-2" });
+  const sideBefore = await alice.query(api.messages.thread, { conversationId: "conversation-2", c: null });
   if (sideBefore.state !== "complete") throw new Error(`side thread was ${sideBefore.state}`);
   const rejected = await alice.mutation(api.messages.send, {
     conversationId: "conversation-2",
@@ -21,7 +21,7 @@ journey("alice sends bob a message", async ({ as }) => {
     body: "must not cross the conversation boundary",
   });
   if (rejected.state !== "rejected") throw new Error("outsider recipient received a private send");
-  const sideAfter = await alice.query(api.messages.thread, { conversationId: "conversation-2" });
+  const sideAfter = await alice.query(api.messages.thread, { conversationId: "conversation-2", c: null });
   if (sideAfter.state !== "complete") throw new Error(`side thread became ${sideAfter.state}`);
   if (sideAfter.seq !== sideBefore.seq) throw new Error("rejected private send committed message or outbox work");
   if (sideAfter.data.some((row: { body?: string }) => row.body === "must not cross the conversation boundary")) {
@@ -34,7 +34,7 @@ journey("bob replies and alice's live thread updates", async ({ as }) => {
   const bob = as("bob");
   const thread = alice.subscribe(
     api.messages.thread,
-    { conversationId: "conversation-1" },
+    { conversationId: "conversation-1", c: null },
     () => {},
   );
   try {
@@ -99,7 +99,7 @@ journey("unfollow changes Following selection but not Global authorization", asy
   const alice = as("alice");
   const bob = as("bob");
   const alicePrincipal = (await alice.auth.me()).viewer;
-  const following = bob.subscribe(api.feeds.followingFeed, {}, () => {});
+  const following = bob.subscribe(api.feeds.followingFeed, { c: null }, () => {});
   try {
     const before = await following.until((delivery) =>
       delivery.state === "complete"
@@ -119,7 +119,7 @@ journey("unfollow changes Following selection but not Global authorization", asy
       && "data" in delivery
       && !delivery.data.some((item: { post?: { id?: string } }) => item.post?.id === "post-alice")
     );
-    const global = await bob.query(api.feeds.globalFeed, {});
+    const global = await bob.query(api.feeds.globalFeed, { c: null });
     if ((global.state !== "complete" && global.state !== "capped")
       || !global.data.some((item: { post?: { id?: string } }) => item.post?.id === "post-alice")) {
       throw new Error("unfollow incorrectly revoked a globally readable post");
@@ -240,7 +240,7 @@ journey("scoped roles reject non-admin and stale membership authority", async ({
       principal: bobPrincipal,
     });
     if (charlieEscalated.state !== "rejected") throw new Error("cross-scope promote changed the target role");
-    const sideThread = await charlie.query(api.messages.thread, { conversationId: "conversation-2" });
+    const sideThread = await charlie.query(api.messages.thread, { conversationId: "conversation-2", c: null });
     if (sideThread.state !== "complete") throw new Error("cross-scope remove deleted the target seat");
     const selfRemove = await alice.mutation(api.groups.memberRemove, {
       conversationId: "conversation-1",
@@ -262,7 +262,7 @@ journey("scoped roles reject non-admin and stale membership authority", async ({
       membershipId: "membership-2",
     });
     if (removed.state !== "committed") throw new Error(`admin removal was ${removed.state}`);
-    const deniedThread = await bob.query(api.messages.thread, { conversationId: "conversation-1" });
+    const deniedThread = await bob.query(api.messages.thread, { conversationId: "conversation-1", c: null });
     if (deniedThread.state !== "denied") throw new Error("removed member retained thread access");
     const replacement = await alice.mutation(api.groups.memberAdd, {
       conversationId: "conversation-1",

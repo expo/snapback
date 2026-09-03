@@ -18,7 +18,7 @@ export function registerQuarryChecks(test: Test, frontend: string): void {
   const packageRoot = resolve(frontend, "../snapback2");
 
   test("Quarry todos and full surface lower in memory and certify", async () => {
-    for (const [name, count] of [["quarry-todos", 2], ["quarry-surface", 27]] as const) {
+    for (const [name, count] of [["quarry-todos", 2], ["quarry-surface", 26]] as const) {
       const lowered = await lowerProject(resolve(fixtures, name));
       assert(lowered.ok, `${name} refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
       assert(lowered.project.programs.length === count, `${name} program count changed to ${lowered.project.programs.length}`);
@@ -36,7 +36,7 @@ export function registerQuarryChecks(test: Test, frontend: string): void {
     for (const spelling of [
       "rule.and(", "rule.or(", "rule.not(", "rule.exists(", "channel({", "t.optional(", "t.enum(",
       "t.principal()", "t.id()", "t.json(2048)", "t.bytes(1024)", "db.upsert(", "orderedPair(",
-      "mentionTokens(", "recurse(", 'order: "desc"', "after:", "__q_matchResult", "db.get(users",
+      "mentionTokens(", "recurse(", "after:", "__q_matchResult", "db.get(users",
     ]) assert(text.includes(spelling), `Quarry full-surface lowering lost ${spelling}`);
     for (const line of text.split("\n").filter((line) => line.trim())) {
       assert(/\/\/ q:.+:\d+:\d+$/.test(line), `generated Quarry line lacks file:line:column provenance: ${line}`);
@@ -403,39 +403,37 @@ mutation updateMismatch(owner: principal, label: text <=40, value: int):
     }
   });
 
-  test("Quarry tuple cursors lower, group, bind, and certify with Ref ids", async () => {
+  test("Quarry cursor arguments lower as opaque values and certify a result-page site", async () => {
     const schema = "table posts:\n  author: principal\n  at: time\n  by byAuthorAt: author, at, id\n  public\n";
-    const module = `query page(author: principal, cursorAt: time ?, cursorId: posts ?):
-  if cursorAt != null:
-    return posts[author] after (cursorAt, cursorId) first 3
-  return posts[author] first 3
+    const module = `query page(author: principal, c: cursor ?):
+  return posts[author] after c first 3 by byAuthorAt
 
-query grouped(value: int):
-  return (value)
-
-query scalar(author: principal, at: time, cursorId: posts):
-  return posts[author, at] after cursorId first 3 by byAuthorAt
-
-query ordered(a: int, b: int):
-  (lo, hi) = sorted(a, b)
-  return [lo, hi]
+query aliased(author: principal, c: cursor ?):
+  position = c
+  return posts[author] after position first 3 by byAuthorAt
 `;
     const compiled = compileInline([
       { fileName: "snapback/schema.q", source: schema },
       { fileName: "snapback/ops.q", source: module },
     ]);
-    assert(compiled.ok, `tuple cursor front end refused: ${compiled.ok ? "" : diagnosticsText(compiled.diagnostics)}`);
+    assert(compiled.ok, `opaque cursor front end refused: ${compiled.ok ? "" : diagnosticsText(compiled.diagnostics)}`);
     const source = compiled.modules[0]!.source;
-    assert(source.includes("after: [args.cursorAt, args.cursorId]"), `tuple cursor did not emit an array literal:\n${source}`);
-    assert(source.includes("after: args.cursorId"), `one-column scalar cursor sugar stopped lowering:\n${source}`);
-    assert(source.includes("return args.value;") && !source.includes("return [args.value];"), `single parentheses stopped grouping:\n${source}`);
-    assert(source.includes("orderedPair(args.a, args.b)"), `tuple binding changed:\n${source}`);
+    assert(source.includes("c: t.optional(t.cursor())") && source.includes("after: args.c")
+      && source.includes("opaqueCursor: true"), `cursor did not preserve its opaque lowering:\n${source}`);
 
     await withProject({ "snapback/schema.q": schema, "snapback/ops.q": module }, async (root) => {
       const lowered = await lowerProject(root);
-      assert(lowered.ok, `tuple cursor project refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
-      const failures = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema).filter((item) => item.error);
-      assert(failures.length === 0, `tuple cursor project did not certify: ${JSON.stringify(failures)}`);
+      assert(lowered.ok, `opaque cursor project refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
+      const program = operation(lowered.project.programs, "ops.page");
+      const aliased = operation(lowered.project.programs, "ops.aliased");
+      assert(JSON.stringify(program.args.c) === JSON.stringify({ Optional: "Cursor" })
+        && program.result_page_site === "ops.page.0", `cursor IR/certificate provenance changed: ${JSON.stringify(program)}`);
+      const checked = rustCheck([program, aliased], "synthetic", lowered.project.schema);
+      assert(checked.every((item) => !item.error)
+        && (checked[0]!.certificate as any).result_page_site?.site === "ops.page.0",
+      `opaque pages did not certify: ${JSON.stringify(checked)}`);
+      assert(JSON.stringify(aliased.body).includes('"Variable":"position"'),
+        `cursor expression alias was not preserved for preflight: ${JSON.stringify(aliased)}`);
     });
   });
 
@@ -444,7 +442,7 @@ query ordered(a: int, b: int):
     const cases = [
       {
         name: "permutation",
-        source: "query page(at: time, c: posts):\n  return posts[at] by byAt after c first 3\n",
+        source: "query page(at: time, c: cursor):\n  return posts[at] by byAt after c first 3\n",
         rewrite: "-- posts[at] after c first 3 by byAt",
       },
       {
@@ -470,56 +468,59 @@ query ordered(a: int, b: int):
     }
   });
 
-  test("Quarry refuses a scalar composite cursor with a pasteable tuple rewrite", async () => {
+  test("Quarry refuses before with a forward after rewrite", () => {
     const schema = "table posts:\n  author: principal\n  at: time\n  by byAuthorAt: author, at, id\n  public\n";
-    const scalar = "query page(author: principal, c: time, cId: posts):\n  return posts[author] after c first 3\n";
+    const scalar = "query page(author: principal, c: cursor ?):\n  return posts[author] before c last 3 by byAuthorAt\n";
     const refused = compileInline([
       { fileName: "snapback/schema.q", source: schema },
       { fileName: "snapback/ops.q", source: scalar },
     ]);
-    assert(!refused.ok, "scalar cursor over two remaining columns compiled");
-    const diagnostic = refused.diagnostics.find((item) => item.code === "E_QUARRY_TYPE");
-    assert(diagnostic?.family === "quarry" && diagnostic.site === "snapback/ops.q:2:30",
-      `scalar cursor refusal lost code/family/site: ${JSON.stringify(refused)}`);
-    assert(diagnostic.rewrite === "-- after (c, cId)" && diagnostic.guide === "quarry/types",
-      `scalar cursor refusal lost tuple rewrite/guide: ${JSON.stringify(diagnostic)}`);
-
-    const repaired = scalar.replace("after c", diagnostic.rewrite.slice(3));
-    await withProject({ "snapback/schema.q": schema, "snapback/ops.q": repaired }, async (root) => {
-      const lowered = await lowerProject(root);
-      assert(lowered.ok, `tuple rewrite did not parse/lower: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
-      const failures = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema).filter((item) => item.error);
-      assert(failures.length === 0, `tuple rewrite did not certify: ${JSON.stringify(failures)}`);
-    });
+    assert(!refused.ok, "before remained in the Quarry grammar");
+    const diagnostic = refused.diagnostics.find((item) => item.code === "E_QUARRY_UNSUPPORTED");
+    assert(diagnostic?.family === "quarry" && diagnostic.site.startsWith("snapback/ops.q:2:")
+      && diagnostic.rewrite.includes("use after c"), `before refusal lost site/rewrite: ${JSON.stringify(refused)}`);
   });
 
-  test("Quarry optional cursor groups omit when absent and reject mixed presence before scans", async () => {
-    const schema = "table posts:\n  at: time\n  by byAt: at, id\n  public\n";
-    const operations = `query firstPage(cursorAt: time ?, cursorId: posts ?):
-  return posts[] after (cursorAt, cursorId) first 3 by byAt
+  test("Quarry result-page provenance covers bindings, shapes, merges, nesting, branches, and consumers", async () => {
+    const schema = "table posts:\n  author: principal\n  at: time\n  by byAt: at, id\n  by byAuthorAt: author, at, id\n  public\n";
+    const operations = `query direct(c: cursor ?):
+  page = posts[] after c first 3 by byAt
+  return page
 
-query lastPage(cursorAt: time ?, cursorId: posts ?):
-  return posts[] before (cursorAt, cursorId) last 3 by byAt
+query shaped(c: cursor ?):
+  return posts[] after c first 3 by byAt { id, at }
+
+query merged(c: cursor ?, other: principal):
+  return merge posts after c first 3 by byAuthorAt:
+    [viewer]
+    [other]
+
+query nested(c: cursor ?):
+  page = posts[] after c first 3 by byAt
+  return { rows: page }
+
+query branched(which: bool, c: cursor ?):
+  if which:
+    return posts[] after c first 3 by byAt
+  return posts[] after c first 3 by byAt
+
+query consumed(c: cursor ?):
+  page = posts[] after c first 3 by byAt
+  for post in page:
+    require post.id = post.id else NEVER
+  return []
 `;
     await withProject({ "snapback/schema.q": schema, "snapback/ops.q": operations }, async (root) => {
       const lowered = await lowerProject(root);
-      assert(lowered.ok, `optional Quarry cursor was refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
+      assert(lowered.ok, `page provenance fixture was refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
       const failures = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema).filter((item) => item.error);
-      assert(failures.length === 0, `optional Quarry cursor failed raw certification: ${JSON.stringify(failures)}`);
-      for (const name of ["ops.firstPage", "ops.lastPage"]) {
-        const json = JSON.stringify(operation(lowered.project.programs, name));
-        assert(json.includes('"optional_cursor_args":["cursorAt","cursorId"]'), `${name} lost its optional cursor group: ${json}`);
-      }
-      let mixed = "green";
-      try {
-        new ClientStore(lowered.project.schema, { rows: [], ranges: [], absences: [], verdicts: [] }).reexecute(
-          operation(lowered.project.programs, "ops.firstPage"),
-          { viewer: "viewer-1", principal_kind: "user", auth_epoch: 1, args: { cursorAt: { Int: 1 }, cursorId: "Null" }, now: 1, new_ids: [], read_time: 1 },
-        );
-      } catch (error) {
-        mixed = error instanceof Error ? error.message : String(error);
-      }
-      assert(mixed.startsWith("E_INPUT:"), `mixed optional cursor group produced ${mixed}`);
+      assert(failures.length === 0, `page provenance failed certification: ${JSON.stringify(failures)}`);
+      for (const name of ["ops.direct", "ops.shaped", "ops.merged"])
+        assert(operation(lowered.project.programs, name).result_page_site, `${name} lost result-page provenance`);
+      for (const name of ["ops.nested", "ops.branched", "ops.consumed"])
+        assert(!operation(lowered.project.programs, name).result_page_site, `${name} incorrectly gained result-page provenance`);
+      const merged = rustCheck([operation(lowered.project.programs, "ops.merged")], "synthetic", lowered.project.schema)[0]!;
+      assert((merged.certificate as any)?.result_page_site?.merge === true, `merge provenance did not name its merge: ${JSON.stringify(merged)}`);
     });
   });
 
@@ -557,9 +558,9 @@ query lastPage(cursorAt: time ?, cursorId: posts ?):
     }
   });
 
-  test("Quarry cursor refusals stay sited and rewrite Quarry source", () => {
+  test("Quarry cursors require a total index and pageable merges end in id", () => {
     const nonTotalSchema = "table posts:\n  author: principal\n  at: time\n  by byAuthorAt: author, at\n  public\n";
-    const nonTotalOps = "query page(c: principal, cAt: time, cId: posts):\n  return posts[] after c first 3 by byAuthorAt\n";
+    const nonTotalOps = "query page(c: cursor ?):\n  return posts[] after c first 3 by byAuthorAt\n";
     const nonTotal = compileInline([
       { fileName: "snapback/schema.q", source: nonTotalSchema },
       { fileName: "snapback/ops.q", source: nonTotalOps },
@@ -577,77 +578,15 @@ query lastPage(cursorAt: time ?, cursorId: posts ?):
       { fileName: "snapback/schema.q", source: totalSchemaRepair },
       { fileName: "snapback/ops.q", source: nonTotalOps },
     ]);
-    assert(!afterIndexRepair.ok, "index-only cursor repair unexpectedly skipped tuple widening");
-    const widened = afterIndexRepair.diagnostics.find((item) => item.code === "E_QUARRY_TYPE");
-    assert(widened?.rewrite === "-- after (c, cAt, cId)",
-      `index repair did not lead to the tuple rewrite: ${JSON.stringify(afterIndexRepair)}`);
-    const afterBothRepairs = compileInline([
-      { fileName: "snapback/schema.q", source: totalSchemaRepair },
-      { fileName: "snapback/ops.q", source: nonTotalOps.replace("after c", widened!.rewrite.slice(3)) },
+    assert(afterIndexRepair.ok, `total-index cursor repair did not compile: ${JSON.stringify(afterIndexRepair)}`);
+    const mergeSchema = "table posts:\n  author: principal\n  kind: text <=20\n  unique byActorKind: author, kind\n  public\n";
+    const merge = compileInline([
+      { fileName: "snapback/schema.q", source: mergeSchema },
+      { fileName: "snapback/ops.q", source: "query feed(c: cursor ?):\n  return merge posts after c first 3 by byActorKind:\n    [viewer]\n" },
     ]);
-    assert(afterBothRepairs.ok, `index + tuple cursor rewrites did not compile green: ${JSON.stringify(afterBothRepairs)}`);
-
-    const uniqueSchema = "table posts:\n  author: principal\n  at: time\n  unique byAuthorAt: author, at\n  public\n";
-    const unique = compileInline([
-      { fileName: "snapback/schema.q", source: uniqueSchema },
-      { fileName: "snapback/ops.q", source: "query page(c: principal, cAt: time):\n  return posts[] after c first 3 by byAuthorAt\n" },
-    ]);
-    assert(!unique.ok, "scalar cursor on a composite unique index compiled");
-    const tuple = unique.diagnostics.find((item) => item.code === "E_QUARRY_TYPE");
-    assert(tuple?.rewrite === "-- after (c, cAt)",
-      `unique index did not receive the tuple rewrite: ${JSON.stringify(unique)}`);
-
-    const totalSchema = "table posts:\n  author: principal\n  at: time\n  by byAuthorAt: author, at, id\n  public\n";
-    const fullPrefix = compileInline([
-      { fileName: "snapback/schema.q", source: totalSchema },
-      { fileName: "snapback/ops.q", source: "query page(author: principal, at: time, id: posts):\n  return posts[author, at, id] after id first 3 by byAuthorAt\n" },
-    ]);
-    assert(!fullPrefix.ok, "full-prefix Quarry cursor compiled");
-    const full = fullPrefix.diagnostics.find((item) => item.code === "E_QUARRY_TYPE");
-    assert(full?.site.startsWith("snapback/ops.q:")
-      && full.rewrite === "-- posts[author, at, id] first 3 by byAuthorAt",
-    `full-prefix cursor lost its drop-clause rewrite: ${JSON.stringify(fullPrefix)}`);
-
-    const wrongDomain = compileInline([
-      { fileName: "snapback/schema.q", source: totalSchema },
-      { fileName: "snapback/ops.q", source: `query page(previous: posts):
-  p = posts[previous]! else MISSING
-  return posts[p.author] after (p.id, p.at) first 3 by byAuthorAt
-` },
-    ]);
-    assert(!wrongDomain.ok, "wrong-domain Quarry cursor compiled");
-    const domain = wrongDomain.diagnostics.find((item) => item.code === "E_QUARRY_TYPE");
-    assert(domain?.site.startsWith("snapback/ops.q:") && domain.rewrite === "-- after (p.at, p.id)",
-      `wrong-domain cursor lost its Quarry tuple reorder: ${JSON.stringify(wrongDomain)}`);
-
-    const unrelatedMembers = compileInline([
-      { fileName: "snapback/schema.q", source: "table posts:\n  at: time\n  by byAt: at, id\n  public\n" },
-      { fileName: "snapback/ops.q", source: "query page(a: posts, b: time):\n  return posts[] after (a, b) first 3 by byAt\n" },
-    ]);
-    assert(!unrelatedMembers.ok, "wrong-domain tuple without a shared member base compiled");
-    const unrelated = unrelatedMembers.diagnostics.find((item) => item.code === "E_QUARRY_TYPE");
-    assert(unrelated?.message.includes("cursor component 1") && unrelated.rewrite === "-- after (b, a)",
-      `unrelated tuple members lost their unique permutation repair: ${JSON.stringify(unrelatedMembers)}`);
-    const permuted = compileInline([
-      { fileName: "snapback/schema.q", source: "table posts:\n  at: time\n  by byAt: at, id\n  public\n" },
-      { fileName: "snapback/ops.q", source: "query page(a: posts, b: time):\n  return posts[] after (a, b) first 3 by byAt\n".replace("after (a, b)", unrelated!.rewrite.slice(3)) },
-    ]);
-    assert(permuted.ok, `unique permutation cursor rewrite did not compile green: ${JSON.stringify(permuted)}`);
-
-    const noPermutationSource = "query page(a: posts, b: posts):\n  return posts[] after (a, b) first 3 by byAt\n";
-    const noPermutation = compileInline([
-      { fileName: "snapback/schema.q", source: "table posts:\n  at: time\n  by byAt: at, id\n  public\n" },
-      { fileName: "snapback/ops.q", source: noPermutationSource },
-    ]);
-    assert(!noPermutation.ok, "tuple with no valid permutation compiled");
-    const dropped = noPermutation.diagnostics.find((item) => item.code === "E_QUARRY_TYPE");
-    assert(dropped?.rewrite === "-- posts[] first 3 by byAt",
-      `tuple without one permutation did not drop its cursor: ${JSON.stringify(noPermutation)}`);
-    const cursorDropped = compileInline([
-      { fileName: "snapback/schema.q", source: "table posts:\n  at: time\n  by byAt: at, id\n  public\n" },
-      { fileName: "snapback/ops.q", source: noPermutationSource.replace("posts[] after (a, b) first 3 by byAt", dropped!.rewrite.slice(3)) },
-    ]);
-    assert(cursorDropped.ok, `drop-cursor rewrite did not compile green: ${JSON.stringify(cursorDropped)}`);
+    const mergeRefusal = merge.ok ? undefined : merge.diagnostics.find((item) => item.code === "E_QUARRY_TYPE");
+    assert(mergeRefusal !== undefined && mergeRefusal.site.startsWith("snapback/schema.q:")
+      && mergeRefusal.rewrite.includes("author, kind, id"), `merge id refusal lost site/rewrite: ${JSON.stringify(merge)}`);
   });
 
   test("Quarry alternate-key unreadable updates are NOT_FOUND while direct-id updates are E_RULE", async () => {
@@ -1118,7 +1057,6 @@ query direct(value: time ?, upTo: time):
     const schema = "table users:\n  name: text <=50\n  public\n  by byName: name, id\n\ntable nodes:\n  parent: nodes?\n  public\n\ntable posts:\n  author: users\n  node: nodes\n  authorName: text <=50\n  payload: json <=2048\n  related: logs?\n  flag: bool\n  public\n\ntable logs:\n  post: posts\n  public\n";
     const cases: Array<[string, string, string]> = [
       ["read", "authorName: users[.author].name", "db.get(users"],
-      ["cursor", "payload: users['seed'] after .author first 1 by byName", "db.scan(users.byName"],
       ["array", "payload: [.author]", ".author"],
       ["exists", "flag: exists users[.author]", "db.exists(users"],
       ["walk", "payload: walk nodes[.node] up .parent depth 2", "recurse("],

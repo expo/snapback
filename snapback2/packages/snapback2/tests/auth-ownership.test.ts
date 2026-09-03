@@ -145,7 +145,7 @@ test("browser token custody is explicit and no storage is selected by default", 
   try {
     const value = createClient({
       url: "http://auth.test",
-      fetch: async () => json({ state: "complete", data: [], seq: 1 }),
+      fetch: async () => json({ state: "complete", data: [], seq: 1, next: null }),
     });
     await value.ready;
     assert.equal(implicitReads, 0);
@@ -270,12 +270,12 @@ test("ready blocks every data transport until explicit token restore settles", a
     fetch: async (input, init) => {
       const path = pathOf(input);
       requests.push({ path, bearer: bearer(init) });
-      if (path === "/api/query") return json({ state: "complete", data: ["query"], seq: 1 });
+      if (path === "/api/query") return json({ state: "complete", data: ["query"], seq: 1, next: null });
       if (path === "/api/mutation") return json({ state: "committed", data: "mutation", seq: 2 });
       if (path === "/api/auth/me") return json({ viewer: "principal-a", kind: "account" });
       if (path.endsWith("/publish")) return json({ ok: true });
       if (path === "/api/subscribe") {
-        return hangingSse({ state: "complete", data: ["live"], seq: 3 });
+        return hangingSse({ state: "complete", data: ["live"], seq: 3, next: null });
       }
       if (path.endsWith("/subscribe")) {
         return hangingSse({ from: "principal-a", payload: { typing: true }, at: 4 });
@@ -332,7 +332,7 @@ test("a relaunched client restores the explicitly stored bearer", async () => {
     tokenStore: store,
     fetch: async (_input, init) => {
       restoredBearer = bearer(init);
-      return json({ state: "complete", data: ["restored"], seq: 1 });
+      return json({ state: "complete", data: ["restored"], seq: 1, next: null });
     },
   });
   const result = await second.query(api.messages.thread, {});
@@ -364,7 +364,7 @@ test("principal replacement fences streams, suppresses delayed old reads, and wa
         queryCount += 1;
         return queryCount === 1
           ? oldResponse.promise
-          : json({ state: "complete", data: ["new"], seq: 2 });
+          : json({ state: "complete", data: ["new"], seq: 2, next: null });
       }
       if (path === "/api/auth/login") {
         return json({ token: "new-token", viewer: "principal-new" });
@@ -395,7 +395,7 @@ test("principal replacement fences streams, suppresses delayed old reads, and wa
   assert.equal(value.snapshot.token, "new-token");
   assert.equal(value.snapshot.authGeneration, oldGeneration + 1);
   assert.equal((await queuedQuery).state, "complete");
-  oldResponse.resolve(json({ state: "complete", data: ["old"], seq: 1 }));
+  oldResponse.resolve(json({ state: "complete", data: ["old"], seq: 1, next: null }));
   await assert.rejects(oldQuery, isCode("E_AUTH_SUPERSEDED"));
 
   const queryBearers = requests
@@ -604,7 +604,7 @@ test("an already-read terminal subscription frame survives a replacement fence",
     // fences the stream before its continuation runs. The stale data must not
     // escape; the terminal evidence must still be applied to the old bearer.
     stream.enqueue(
-      { state: "complete", data: ["stale-private-row"], seq: 1 },
+      { state: "complete", data: ["stale-private-row"], seq: 1, next: null },
       { state: "refused", ...refusal("E_AUTH_SESSION", "expired") },
     );
     const login = value.auth.login({ email: "new@example.com", password: "password" });
@@ -1000,7 +1000,7 @@ test("predecessor expiry cannot erase a durably saved replacement after close", 
   const restored = createClient({
     url: "http://auth.test",
     tokenStore,
-    fetch: async () => json({ state: "complete", data: [], seq: 1 }),
+    fetch: async () => json({ state: "complete", data: [], seq: 1, next: null }),
   });
   await restored.ready;
   assert.equal(restored.snapshot.token, "new-token");
@@ -1267,7 +1267,7 @@ test("React query identity moves to a hydrating auth-generation partition", asyn
         newQueryStarted = true;
         return nextQuery.promise;
       }
-      return json({ state: "complete", data: "old-private", seq: 1 });
+      return json({ state: "complete", data: "old-private", seq: 1, next: null });
     }
     throw new Error(`unexpected path ${path}`);
   };
@@ -1309,7 +1309,7 @@ test("React query identity moves to a hydrating auth-generation partition", asyn
   assert.equal(successorViews[0]?.query, "hydrating");
   assert.equal(successorViews.some((view) => view.data === "old-private"), false);
 
-  nextQuery.resolve(json({ state: "complete", data: "new-private", seq: 2 }));
+  nextQuery.resolve(json({ state: "complete", data: "new-private", seq: 2, next: null }));
   await act(async () => {
     await flush();
     await flush();

@@ -951,7 +951,6 @@
               "after": null,
               "before": null,
               "range": null,
-              "optional_cursor_args": [],
               "merge_site": null,
               "provenance": "Arg"
             }
@@ -999,7 +998,7 @@
   },
   "certificate": {
     "program": "boardSummary",
-    "plan_hash": "3caaae4c42d7bd190b83f527998c22666ca2b89e101932c209ed1587b9132047",
+    "plan_hash": "f910d51b45797c7973c4503666a77cce16ef162be9ed5527dc7688b09bb9eecb",
     "schema_hash": "df0a1b25740fd361ededb5bf93df3428a133ea6dd44f27a74c45a76e1ce8fb3c",
     "rule_hashes": {
       "cardCounts.read": "86fc97a3ff8c6f52c56c0ad10e0e41d5a9c4474356ed8b7e523b28a0f78b6b72",
@@ -1188,6 +1187,7 @@
         "exhausted"
       ]
     },
-    "evictedRows": null
+    "evictedRows": null,
+    "next": null
   }
 }

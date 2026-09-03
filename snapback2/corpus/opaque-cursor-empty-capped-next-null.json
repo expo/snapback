@@ -1,0 +1,251 @@
+{
+  "corpusVersion": 1,
+  "name": "opaque-cursor-empty-capped-next-null",
+  "category": "cursor",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "follows": {
+        "columns": {
+          "at": "Int",
+          "followed": "Principal",
+          "follower": "Principal",
+          "id": "Id"
+        },
+        "indexes": {
+          "byFollower": {
+            "columns": [
+              "follower",
+              "at",
+              "id"
+            ],
+            "unique": false
+          },
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "merge corpus fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "merge corpus fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "merge corpus fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "merge corpus fixture"
+            }
+          }
+        },
+        "constraints": []
+      },
+      "posts": {
+        "columns": {
+          "at": "Int",
+          "author": "Principal",
+          "id": "Id"
+        },
+        "indexes": {
+          "byAt": {
+            "columns": [
+              "at",
+              "id"
+            ],
+            "unique": false
+          },
+          "byAuthorAt": {
+            "columns": [
+              "author",
+              "at",
+              "id"
+            ],
+            "unique": false
+          },
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Eq": [
+              {
+                "Field": "author"
+              },
+              {
+                "Literal": {
+                  "Id": "u9"
+                }
+              }
+            ]
+          },
+          "insert": {
+            "Public": {
+              "reason": "merge corpus fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "merge corpus fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "merge corpus fixture"
+            }
+          }
+        },
+        "constraints": []
+      }
+    },
+    "maintains": []
+  },
+  "program": {
+    "name": "opaque-cursor-empty-capped-next-null",
+    "kind": "Query",
+    "args": {
+      "c": {
+        "Optional": "Cursor"
+      }
+    },
+    "read_time_granularity_ms": null,
+    "result_page_site": "opaque-cursor-empty-capped-next-null",
+    "body": [
+      {
+        "Return": {
+          "Scan": {
+            "site": "opaque-cursor-empty-capped-next-null",
+            "table": "posts",
+            "index": "byAt",
+            "prefix": [],
+            "order": "Asc",
+            "take": {
+              "Literal": 2
+            },
+            "after": {
+              "Variable": "c"
+            },
+            "before": null,
+            "range": null,
+            "opaque_cursor": true,
+            "merge_site": null,
+            "provenance": "Arg"
+          }
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "opaque-cursor-empty-capped-next-null",
+    "plan_hash": "b64f80c2e20eee6e03fd94d54413a48703a812c3537d758845bb63f403a33cab",
+    "schema_hash": "7e7d63b584e75b435de67691261409a6b3c636e66487f1a0a966376188b9a9ca",
+    "rule_hashes": {
+      "posts.read": "8e8312516deb089e129bc6a1416575d3fdabf67cf332b356eb5b4906e9123680"
+    },
+    "evaluator_version": "bounded-spike-rust-1",
+    "value_model_version": "i53-codepoint-bytes-v2",
+    "read_sites": [
+      {
+        "site": "opaque-cursor-empty-capped-next-null",
+        "table": "posts",
+        "index": "byAt",
+        "prefix_template": "Arg",
+        "take": 2,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 0,
+        "hoist": false
+      }
+    ],
+    "result_page_site": {
+      "site": "opaque-cursor-empty-capped-next-null",
+      "table": "posts",
+      "index": "byAt",
+      "order": "Asc",
+      "suffix": [
+        {
+          "name": "at",
+          "kind": "Int"
+        },
+        {
+          "name": "id",
+          "kind": "Id"
+        }
+      ],
+      "merge": false
+    },
+    "write_sites": [],
+    "maintained_amplification": 0,
+    "constraint_checks": [],
+    "max_examined": 10240,
+    "max_index_entries": 10240,
+    "max_rule_probes": 10240,
+    "max_steps": 51202,
+    "max_heap_bytes": 1638464,
+    "max_output_bytes": 708,
+    "max_closure_bytes": 704,
+    "completeness": "Capped",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [
+      "posts.byAt"
+    ],
+    "disclosures": [],
+    "bound_product": "opaque-cursor-empty-capped-next-null take 2 = 2"
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {
+      "c": "Null"
+    },
+    "now": null,
+    "new_ids": [],
+    "read_time": null,
+    "seed_write": false
+  },
+  "receipt": {
+    "schema_hash": "7e7d63b584e75b435de67691261409a6b3c636e66487f1a0a966376188b9a9ca",
+    "rows": [],
+    "ranges": [],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": {
+      "Array": []
+    },
+    "errorCode": null,
+    "localState": "partial",
+    "partialSites": [
+      "opaque-cursor-empty-capped-next-null"
+    ],
+    "canonicalResult": "{\"Array\":[]}",
+    "digest": "62db520212cc069676ef47ebdcb00c4ab646bb477ec4065963f0f9f9f8ee1c66",
+    "rangeStops": {
+      "opaque-cursor-empty-capped-next-null": [
+        "exhausted"
+      ]
+    },
+    "evictedRows": null,
+    "next": null
+  }
+}

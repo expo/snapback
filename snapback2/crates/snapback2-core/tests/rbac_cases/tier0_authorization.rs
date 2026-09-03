@@ -144,6 +144,7 @@ fn program(name: &str, args: BTreeMap<String, ArgType>, body: Vec<Stmt>) -> Prog
         kind: ProgramKind::Mutation,
         args,
         read_time_granularity_ms: None,
+        result_page_site: None,
         body,
     }
 }
@@ -300,6 +301,7 @@ fn get_program(name: &str, table: &str) -> Program {
         kind: ProgramKind::Query,
         args: BTreeMap::from([("id".to_owned(), ArgType::Id)]),
         read_time_granularity_ms: None,
+        result_page_site: None,
         body: vec![Stmt::Return(Expr::Get(Read {
             site: name.to_owned(),
             table: table.to_owned(),

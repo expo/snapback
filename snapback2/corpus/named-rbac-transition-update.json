@@ -295,6 +295,7 @@
     "canonicalResult": "{\"Bool\":true}",
     "digest": "8440db0feac5c4e635c562902bcab7b782934db1d6947f41a1d928b16b8153a0",
     "rangeStops": {},
-    "evictedRows": null
+    "evictedRows": null,
+    "next": null
   }
 }

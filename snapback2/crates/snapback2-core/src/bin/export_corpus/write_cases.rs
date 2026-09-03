@@ -120,6 +120,7 @@ fn update_program(name: &str, row_id: &str) -> Program {
         kind: ProgramKind::Mutation,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
+        result_page_site: None,
         body: vec![Stmt::Update {
             table: "items".to_owned(),
             key: Expr::Literal(id(row_id)),
@@ -137,6 +138,7 @@ fn delete_program(name: &str, row_id: &str) -> Program {
         kind: ProgramKind::Mutation,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
+        result_page_site: None,
         body: vec![Stmt::Delete {
             table: "items".to_owned(),
             key: Expr::Literal(id(row_id)),
@@ -150,6 +152,7 @@ fn alternate_missing_program() -> Program {
         kind: ProgramKind::Mutation,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
+        result_page_site: None,
         body: vec![
             Stmt::Let {
                 name: "current".to_owned(),
@@ -179,6 +182,7 @@ fn upsert_program() -> Program {
         kind: ProgramKind::Mutation,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
+        result_page_site: None,
         body: vec![Stmt::Upsert {
             table: "items".to_owned(),
             key: Expr::Literal(id("upserted")),

@@ -979,6 +979,7 @@ fn generated_arg(
     sample: usize,
 ) -> Result<Json, String> {
     let value = match kind {
+        ArgType::Cursor => Json::Null,
         ArgType::Id => seed_id_arg(op, name, named_id_table(name, seed), seed, sample)?,
         ArgType::Principal => json!(format!(
             "dev:{}",

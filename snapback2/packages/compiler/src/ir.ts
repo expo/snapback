@@ -51,7 +51,7 @@ export type Scan = {
   after: Expr | null;
   before: Expr | null;
   range: { gt: Expr | null; gte: Expr | null; lt: Expr | null; lte: Expr | null } | null;
-  optional_cursor_args?: string[];
+  opaque_cursor?: boolean;
   merge_site?: string | null;
   provenance: Provenance;
 };
@@ -92,6 +92,7 @@ export type Stmt =
   | "Continue";
 
 export type ArgType =
+  | "Cursor"
   | "Id"
   | "Principal"
   | { Ref: { table: string } }
@@ -113,6 +114,7 @@ export type Program = {
   kind: ProgramKind;
   args: Record<string, ArgType>;
   read_time_granularity_ms: number | null;
+  result_page_site?: string | null;
   body: Stmt[];
 };
 

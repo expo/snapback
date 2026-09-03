@@ -891,6 +891,7 @@ export function lowerArgDescriptor(
   }
   if (!call || !validArgDescriptor(node)) return undefined;
   switch (callLeaf(call)) {
+    case "cursor": return "Cursor";
     case "id": return "Id";
     case "principal": return "Principal";
     case "ref": {
@@ -921,7 +922,7 @@ function validArgDescriptor(node: ts.Expression): boolean {
   const call = unwrapCall(node);
   const name = call && callLeaf(call);
   if (!call || !name) return false;
-  if (["id", "principal", "int", "bool", "time"].includes(name)) return call.arguments.length === 0;
+  if (["cursor", "id", "principal", "int", "bool", "time"].includes(name)) return call.arguments.length === 0;
   if (name === "text" || name === "bytes" || name === "json") return call.arguments.length === 1 && validPositiveInteger(numberValue(call.arguments[0]));
   if (name === "ref") return call.arguments.length === 1;
   if (name === "optional") return call.arguments.length === 1 && !!call.arguments[0] && validArgDescriptor(call.arguments[0]);

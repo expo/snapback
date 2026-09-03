@@ -1523,6 +1523,7 @@
     "canonicalResult": "{\"Id\":\"expense-new\"}",
     "digest": "d162939987621284456f05aa07f5b57a83d258f19c3d4d5d1618000d810fe8e5",
     "rangeStops": {},
-    "evictedRows": null
+    "evictedRows": null,
+    "next": null
   }
 }

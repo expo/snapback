@@ -9,6 +9,7 @@ import type {
   ChannelPublishResult,
   ClientSnapshot,
   CreateClientOptions,
+  Cursor,
   Manifest,
   LiveQueryDelivery,
   MutationResult,
@@ -99,6 +100,12 @@ function optionalNumber(record: Record<string, unknown>, field: string, surface:
   return value;
 }
 
+function nullableString(record: Record<string, unknown>, field: string, surface: string): string | null {
+  const value = present(record, field, surface);
+  if (value !== null && typeof value !== "string") throw wireShape(`${surface}.${field} must be a string or null`);
+  return value;
+}
+
 function wireRefusalEnvelope(value: unknown, surface: string): RefusalEnvelope {
   const record = wireObject(value, surface);
   const envelope: RefusalEnvelope = {
@@ -135,7 +142,10 @@ function wireQuery<Result>(value: unknown, surface = "query response"): QueryRes
   const record = wireObject(value, surface);
   switch (stringField(record, "state", surface)) {
     case "complete":
-      return { state: "complete", data: present(record, "data", surface) as Result, seq: numberField(record, "seq", surface) };
+      return {
+        state: "complete", data: present(record, "data", surface) as Result,
+        seq: numberField(record, "seq", surface), next: nullableString(record, "next", surface) as Cursor | null,
+      };
     case "capped": {
       for (const field of ["site", "take", "reason"]) {
         if (has(record, field)) throw wireShape(`${surface}.capped must not carry ${field}`);
@@ -144,9 +154,11 @@ function wireQuery<Result>(value: unknown, surface = "query response"): QueryRes
         state: "capped",
         data: present(record, "data", surface) as Result,
         seq: numberField(record, "seq", surface),
+        next: nullableString(record, "next", surface) as Cursor | null,
       };
     }
     case "partial": {
+      if (has(record, "next")) throw wireShape(`${surface}.partial must not carry next`);
       const partial = {
         state: "partial" as const,
         seq: numberField(record, "seq", surface),
@@ -155,6 +167,7 @@ function wireQuery<Result>(value: unknown, surface = "query response"): QueryRes
       return has(record, "data") ? { ...partial, data: record.data as Result } : partial;
     }
     case "denied":
+      if (has(record, "next")) throw wireShape(`${surface}.denied must not carry next`);
       return { state: "denied", seq: numberField(record, "seq", surface), rule: stringField(record, "rule", surface) };
     default:
       throw wireShape(`${surface}.state must be complete, capped, partial, or denied`);
@@ -164,6 +177,7 @@ function wireQuery<Result>(value: unknown, surface = "query response"): QueryRes
 function wireMutation<Result>(value: unknown): MutationResult<Result> {
   const surface = "mutation response";
   const record = wireObject(value, surface);
+  if (has(record, "next")) throw wireShape(`${surface} must not carry next`);
   switch (stringField(record, "state", surface)) {
     case "committed":
       return { state: "committed", data: present(record, "data", surface) as Result, seq: numberField(record, "seq", surface) };
@@ -178,6 +192,7 @@ function wireSubscription<Result>(data: string): LiveQueryDelivery<Result> | Que
   const surface = "subscription delivery";
   const record = sseObject(data, surface);
   if (stringField(record, "state", surface) === "refused") {
+    if (has(record, "next")) throw wireShape(`${surface}.refused must not carry next`);
     const refusal = wireRefusalEnvelope(record, `${surface} refusal`);
     const seq = optionalNumber(record, "seq", surface);
     return {

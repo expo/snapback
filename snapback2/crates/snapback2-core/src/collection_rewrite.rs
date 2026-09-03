@@ -506,7 +506,7 @@ fn inline_scan(
                 .as_deref()
                 .map(|value| Box::new(inline_expr(value, variables, available, visiting))),
         }),
-        optional_cursor_args: scan.optional_cursor_args.clone(),
+        opaque_cursor: scan.opaque_cursor,
         merge_site: scan.merge_site.clone(),
         provenance: scan.provenance,
     }

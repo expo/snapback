@@ -124,8 +124,8 @@ query convMembers(c: conversations):
     profile: users[principal = .user] authorCard,
   }
 
-query chatThread(c: conversations, cursorOrd: int ?, cursorId: messages ?):
-  return messages[c] after (cursorOrd, cursorId) first 30 by byConvOrd {
+query chatThread(c: conversations, pageCursor: cursor ?):
+  return messages[c] after pageCursor first 30 by byConvOrd {
     *,
     authorProfile: users[principal = .author] authorCard,
     quotedMsg: .quoted { id, body, author },

@@ -218,6 +218,7 @@
     "canonicalResult": "{\"Array\":[{\"Id\":\"named-emit-message\"},{\"Id\":\"named-emit-followup\"}]}",
     "digest": "1996346372f129d467d9984275d51582c8bc86fca5ce566a6f3e47b4b2962ec7",
     "rangeStops": {},
-    "evictedRows": null
+    "evictedRows": null,
+    "next": null
   }
 }

@@ -8,10 +8,10 @@ use snapback2_core::{Execution, ExecutionState};
 pub fn execution_json(execution: &Execution) -> Json {
     match &execution.state {
         ExecutionState::Complete => {
-            json!({ "state": "complete", "data": value_to_json(&execution.result), "seq": execution.seq })
+            json!({ "state": "complete", "data": value_to_json(&execution.result), "seq": execution.seq, "next": execution.next })
         }
         ExecutionState::Capped => {
-            json!({ "state": "capped", "data": value_to_json(&execution.result), "seq": execution.seq })
+            json!({ "state": "capped", "data": value_to_json(&execution.result), "seq": execution.seq, "next": execution.next })
         }
         ExecutionState::Partial { reason } => {
             json!({ "state": "partial", "data": value_to_json(&execution.result), "seq": execution.seq, "reason": reason })
@@ -80,6 +80,7 @@ mod tests {
             receipt: ClosureReceipt::default(),
             state,
             seq: 41,
+            next: None,
         }
     }
 
@@ -101,7 +102,7 @@ mod tests {
             assert!(!terminal);
             assert!(!matches!(frame["state"].as_str(), Some("live" | "stale")));
             if frame["state"] == "capped" {
-                assert_eq!(frame.as_object().unwrap().len(), 3);
+                assert_eq!(frame.as_object().unwrap().len(), 4);
                 assert!(frame.get("site").is_none());
                 assert!(frame.get("take").is_none());
                 assert!(frame.get("reason").is_none());

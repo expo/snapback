@@ -949,7 +949,6 @@
               "after": null,
               "before": null,
               "range": null,
-              "optional_cursor_args": [],
               "merge_site": null,
               "provenance": "Viewer"
             }
@@ -982,7 +981,6 @@
                         "after": null,
                         "before": null,
                         "range": null,
-                        "optional_cursor_args": [],
                         "merge_site": null,
                         "provenance": "Shape"
                       }
@@ -1032,7 +1030,6 @@
                               },
                               "before": null,
                               "range": null,
-                              "optional_cursor_args": [],
                               "merge_site": null,
                               "provenance": "Shape"
                             }
@@ -1056,7 +1053,7 @@
   },
   "certificate": {
     "program": "inboxCountCapped",
-    "plan_hash": "55a313e3785d510011a13bef87417721d10cb99be49eb0568aaff49ee0304f17",
+    "plan_hash": "abade6d8ac3de4648a32d7e94f9a6e26be2a9a428206a52c9f21e0e4419d06db",
     "schema_hash": "df0a1b25740fd361ededb5bf93df3428a133ea6dd44f27a74c45a76e1ce8fb3c",
     "rule_hashes": {
       "memberships.read": "a4500d80558e462bf40291836ee785e6a05a708f84bb1d5d919adc2da67c150b",
@@ -1428,6 +1425,7 @@
         "exhausted"
       ]
     },
-    "evictedRows": null
+    "evictedRows": null,
+    "next": null
   }
 }

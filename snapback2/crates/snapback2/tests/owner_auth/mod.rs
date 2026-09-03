@@ -6,8 +6,7 @@ use super::owner_wire::{Sse, request, status};
 use super::*;
 
 const SESSION_MILLIS: i64 = 30 * 24 * 60 * 60 * 1_000;
-const THREAD_PATH: &str =
-    "/api/subscribe?op=messages.thread&args=%7B%22conversationId%22%3A%22conversation-1%22%7D";
+const THREAD_PATH: &str = "/api/subscribe?op=messages.thread&args=%7B%22conversationId%22%3A%22conversation-1%22%2C%22c%22%3Anull%7D";
 const TYPING_PATH: &str =
     "/api/channel/typing/subscribe?args=%7B%22conversationId%22%3A%22conversation-1%22%7D";
 
@@ -50,7 +49,7 @@ fn exact_logout_fences_only_one_epoch_and_successors_cannot_resurrect_it() {
         &second_token,
         json!({
             "op": "messages.thread",
-            "args": { "conversationId": "conversation-1" },
+            "args": { "conversationId": "conversation-1", "c": null },
         }),
     );
     assert_eq!(retained_query.status, 200, "{}", retained_query.body);
@@ -66,7 +65,7 @@ fn exact_logout_fences_only_one_epoch_and_successors_cannot_resurrect_it() {
         &first_token,
         json!({
             "op": "messages.thread",
-            "args": { "conversationId": "conversation-1" },
+            "args": { "conversationId": "conversation-1", "c": null },
         }),
     );
     assert_auth_session(&revoked_query);
@@ -117,7 +116,7 @@ fn exact_logout_fences_only_one_epoch_and_successors_cannot_resurrect_it() {
         "POST",
         "/api/query",
         &first_token,
-        json!({ "op": "messages.thread", "args": { "conversationId": "conversation-1" } }),
+        json!({ "op": "messages.thread", "args": { "conversationId": "conversation-1", "c": null } }),
     ));
 
     let generation = status(port, &secret)["generation"]
@@ -147,7 +146,7 @@ fn exact_logout_fences_only_one_epoch_and_successors_cannot_resurrect_it() {
         "/api/channel/typing/publish",
         &first_token,
         json!({
-            "args": { "conversationId": "conversation-1" },
+            "args": { "conversationId": "conversation-1", "c": null },
             "payload": { "phase": "revoked" },
         }),
     ));
@@ -315,7 +314,7 @@ fn startup_and_persona_headers_do_not_issue_sessions() {
         &[("X-Snapback-As", "alice")],
         json!({
             "op": "messages.thread",
-            "args": { "conversationId": "conversation-1" },
+            "args": { "conversationId": "conversation-1", "c": null },
         }),
     );
     assert_eq!(

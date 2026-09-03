@@ -998,7 +998,6 @@
               "after": null,
               "before": null,
               "range": null,
-              "optional_cursor_args": [],
               "merge_site": null,
               "provenance": "Arg"
             }
@@ -1139,7 +1138,7 @@
   },
   "certificate": {
     "program": "sendMaintainedUnread",
-    "plan_hash": "74e5391d3051684638444550bec5d85d0d505ed1a34145c3a63710e58429195f",
+    "plan_hash": "134232f62f92b04c103531b931c21075a1ac99a566b35a18c3d74684445f7931",
     "schema_hash": "df0a1b25740fd361ededb5bf93df3428a133ea6dd44f27a74c45a76e1ce8fb3c",
     "rule_hashes": {
       "memberships.read": "a4500d80558e462bf40291836ee785e6a05a708f84bb1d5d919adc2da67c150b",
@@ -1672,6 +1671,7 @@
         "exhausted"
       ]
     },
-    "evictedRows": null
+    "evictedRows": null,
+    "next": null
   }
 }

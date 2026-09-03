@@ -1,7 +1,7 @@
 {
   "corpusVersion": 1,
-  "name": "optional-cursor-mixed-input-refused",
-  "category": "merge",
+  "name": "opaque-cursor-wrong-order-refused",
+  "category": "cursor-refusal",
   "randomSeed": null,
   "schema": {
     "tables": {
@@ -109,26 +109,20 @@
     "maintains": []
   },
   "program": {
-    "name": "optional-cursor-mixed-input-refused",
+    "name": "opaque-cursor-wrong-order-refused",
     "kind": "Query",
     "args": {
-      "cursorAt": {
-        "Optional": "Int"
-      },
-      "cursorId": {
-        "Optional": {
-          "Ref": {
-            "table": "posts"
-          }
-        }
+      "c": {
+        "Optional": "Cursor"
       }
     },
     "read_time_granularity_ms": null,
+    "result_page_site": "opaque-cursor-wrong-order-refused",
     "body": [
       {
         "Return": {
           "Scan": {
-            "site": "optional-cursor-mixed-input-refused",
+            "site": "opaque-cursor-wrong-order-refused",
             "table": "posts",
             "index": "byAt",
             "prefix": [],
@@ -137,21 +131,11 @@
               "Literal": 2
             },
             "after": {
-              "Array": [
-                {
-                  "Variable": "cursorAt"
-                },
-                {
-                  "Variable": "cursorId"
-                }
-              ]
+              "Variable": "c"
             },
             "before": null,
             "range": null,
-            "optional_cursor_args": [
-              "cursorAt",
-              "cursorId"
-            ],
+            "opaque_cursor": true,
             "merge_site": null,
             "provenance": "Arg"
           }
@@ -160,8 +144,8 @@
     ]
   },
   "certificate": {
-    "program": "optional-cursor-mixed-input-refused",
-    "plan_hash": "8b09e3a43f485b051be9e97a14f71c8adeceaa14fd90be4964b6f3490ef94668",
+    "program": "opaque-cursor-wrong-order-refused",
+    "plan_hash": "8c397c3faf3691f34a57b88f110b4038791e3fc66e0ea47831d7d782ae5c0978",
     "schema_hash": "f0678e830e1d82c9944be8c03fd432099f7c739ea93d4cd40939d8700359c528",
     "rule_hashes": {
       "posts.read": "0201f66714518c59ab12959e7a0541e23ec540e46fe516506e0985e20b514616"
@@ -170,7 +154,7 @@
     "value_model_version": "i53-codepoint-bytes-v2",
     "read_sites": [
       {
-        "site": "optional-cursor-mixed-input-refused",
+        "site": "opaque-cursor-wrong-order-refused",
         "table": "posts",
         "index": "byAt",
         "prefix_template": "Arg",
@@ -180,6 +164,23 @@
         "hoist": true
       }
     ],
+    "result_page_site": {
+      "site": "opaque-cursor-wrong-order-refused",
+      "table": "posts",
+      "index": "byAt",
+      "order": "Asc",
+      "suffix": [
+        {
+          "name": "at",
+          "kind": "Int"
+        },
+        {
+          "name": "id",
+          "kind": "Id"
+        }
+      ],
+      "merge": false
+    },
     "write_sites": [],
     "maintained_amplification": 0,
     "constraint_checks": [],
@@ -198,17 +199,16 @@
       "posts.byAt"
     ],
     "disclosures": [],
-    "bound_product": "optional-cursor-mixed-input-refused take 2 = 2"
+    "bound_product": "opaque-cursor-wrong-order-refused take 2 = 2"
   },
   "context": {
     "viewer": "u1",
     "principal_kind": "user",
     "auth_epoch": 1,
     "args": {
-      "cursorAt": {
-        "Int": 1
-      },
-      "cursorId": "Null"
+      "c": {
+        "String": "WzEsInBvc3RzIiwiYnlBdCIsIkRlc2MiLFt7Im5hbWUiOiJhdCIsImtpbmQiOiJJbnQifSx7Im5hbWUiOiJpZCIsImtpbmQiOiJJZCJ9XSxbeyJJbnQiOjJ9LHsiSWQiOiJhMiJ9XV0"
+      }
     },
     "now": null,
     "new_ids": [],
@@ -232,6 +232,7 @@
     "canonicalResult": "{\"Error\":\"E_INPUT\"}",
     "digest": "5ee5e4d7b111ebf8faeecb0490fe79766aeb97067ec8f13fafa649c346209d78",
     "rangeStops": {},
-    "evictedRows": null
+    "evictedRows": null,
+    "next": null
   }
 }

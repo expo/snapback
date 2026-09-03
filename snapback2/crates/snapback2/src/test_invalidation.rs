@@ -1057,6 +1057,10 @@ fn count_probe(
 
 pub(super) fn replay_arg_value(kind: &ArgType, value: &Json) -> Result<Value, Refusal> {
     match kind {
+        ArgType::Cursor => value
+            .as_str()
+            .map(|value| Value::String(value.to_owned()))
+            .ok_or_else(|| Refusal::input("cursor arguments must be strings", "pass next")),
         ArgType::Optional(_) if value.is_null() => Ok(Value::Null),
         ArgType::Optional(inner) => replay_arg_value(inner, value),
         ArgType::Id | ArgType::Principal | ArgType::Ref { .. } => value
@@ -1220,6 +1224,7 @@ mod tests {
                 ),
             ]),
             read_time_granularity_ms: None,
+            result_page_site: None,
             body: Vec::new(),
         };
         let seed = SeedData {
@@ -1263,6 +1268,7 @@ mod tests {
                 ),
             ]),
             read_time_granularity_ms: None,
+            result_page_site: None,
             body: Vec::new(),
         };
         let seed = SeedData {

@@ -1478,6 +1478,7 @@
     "canonicalResult": "{\"Id\":\"named-message\"}",
     "digest": "e26d4a5466bc74a62bf2eac4e97b613c966f4d6791522c863073c73b805e2625",
     "rangeStops": {},
-    "evictedRows": null
+    "evictedRows": null,
+    "next": null
   }
 }

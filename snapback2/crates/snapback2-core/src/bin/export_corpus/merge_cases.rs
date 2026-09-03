@@ -1,8 +1,8 @@
 use super::*;
 
-pub(super) fn add_merge_and_optional_cursor_cases(cases: &mut Vec<CorpusCase>) {
+pub(super) fn add_merge_and_opaque_cursor_cases(cases: &mut Vec<CorpusCase>) {
     add_merge_cases(cases);
-    add_optional_cursor_cases(cases);
+    add_opaque_cursor_cases(cases);
 }
 
 fn add_merge_cases(cases: &mut Vec<CorpusCase>) {
@@ -161,6 +161,7 @@ fn add_merge_cases(cases: &mut Vec<CorpusCase>) {
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
+        result_page_site: None,
         body: vec![Stmt::Return(Expr::Array(vec![first, second]))],
     };
     let pages = frozen_query(
@@ -180,61 +181,115 @@ fn add_merge_cases(cases: &mut Vec<CorpusCase>) {
     cases.push(for_lane_limit_case(schema));
 }
 
-fn add_optional_cursor_cases(cases: &mut Vec<CorpusCase>) {
+fn add_opaque_cursor_cases(cases: &mut Vec<CorpusCase>) {
     let schema = merge_schema();
     let rows = vec![
         post("a1", "u1", 1),
         post("a2", "u1", 2),
         post("a3", "u1", 3),
     ];
-    for (name, order, context, expected, state) in [
+    let mut complete = frozen_query(
+        "opaque-cursor-complete-next-null",
+        schema.clone(),
+        rows.clone(),
+        opaque_cursor_program("opaque-cursor-complete-next-null", Order::Asc, 5),
+        cursor_context(Value::Null),
+        ExecutionState::Complete,
+    );
+    complete.category = "cursor".to_owned();
+    assert_eq!(complete.expected.next, None);
+    cases.push(complete);
+
+    let mut first = frozen_query(
+        "opaque-cursor-capped-next-token",
+        schema.clone(),
+        rows.clone(),
+        opaque_cursor_program("opaque-cursor-capped-next-token", Order::Asc, 2),
+        cursor_context(Value::Null),
+        ExecutionState::Capped,
+    );
+    first.category = "cursor".to_owned();
+    assert_eq!(
+        row_ids(first.expected.local_result.as_ref()),
+        vec!["a1", "a2"]
+    );
+    let token = first.expected.next.clone().expect("capped page token");
+    cases.push(first);
+
+    let mut second = frozen_query(
+        "opaque-cursor-page-two-no-overlap",
+        schema.clone(),
+        rows.clone(),
+        opaque_cursor_program("opaque-cursor-page-two-no-overlap", Order::Asc, 2),
+        cursor_context(Value::String(token.clone())),
+        ExecutionState::Complete,
+    );
+    second.category = "cursor".to_owned();
+    assert_eq!(row_ids(second.expected.local_result.as_ref()), vec!["a3"]);
+    cases.push(second);
+
+    let mut raw = opaque_cursor_program("tuple-cursor-comparison", Order::Asc, 2);
+    raw.args.clear();
+    raw.result_page_site = None;
+    let Stmt::Return(Expr::Scan(scan)) = &mut raw.body[0] else {
+        unreachable!()
+    };
+    scan.after = Some(Box::new(Expr::Array(vec![
+        Expr::Literal(Value::Int(2)),
+        literal_id("a2"),
+    ])));
+    scan.opaque_cursor = false;
+    let raw_page = execute_seeded(&schema, &rows, &raw, query_context([]));
+    assert_eq!(
+        row_ids(Some(&raw_page.result)),
+        vec!["a3"],
+        "opaque page two diverged from tuple lowering target"
+    );
+
+    let mut hidden_schema = schema.clone();
+    hidden_schema.tables.get_mut("posts").unwrap().rules.read = RuleExpr::Eq(
+        RuleTerm::Field("author".to_owned()),
+        RuleTerm::Literal(id("u9")),
+    );
+    let mut empty = frozen_query(
+        "opaque-cursor-empty-capped-next-null",
+        hidden_schema,
+        rows.clone(),
+        opaque_cursor_program("opaque-cursor-empty-capped-next-null", Order::Asc, 2),
+        cursor_context(Value::Null),
+        ExecutionState::Capped,
+    );
+    empty.category = "cursor".to_owned();
+    assert!(row_ids(empty.expected.local_result.as_ref()).is_empty());
+    assert_eq!(empty.expected.next, None);
+    cases.push(empty);
+
+    for (name, token) in [
         (
-            "optional-cursor-absent-last",
-            Order::Desc,
-            optional_context(Value::Null, Value::Null),
-            vec!["a3", "a2"],
-            ExecutionState::Capped,
+            "opaque-cursor-wrong-order-refused",
+            opaque_token("byAt", Order::Desc, 2, "a2"),
         ),
         (
-            "optional-cursor-absent-first",
-            Order::Asc,
-            optional_context(Value::Null, Value::Null),
-            vec!["a1", "a2"],
-            ExecutionState::Capped,
-        ),
-        (
-            "optional-cursor-present-pages",
-            Order::Asc,
-            optional_context(Value::Int(1), id("a1")),
-            vec!["a2", "a3"],
-            ExecutionState::Complete,
+            "opaque-cursor-wrong-index-refused",
+            opaque_token("byAuthorAt", Order::Asc, 2, "a2"),
         ),
     ] {
-        let case = frozen_query(
+        let refused = case_from_parts(
             name,
+            "cursor-refusal",
             schema.clone(),
-            rows.clone(),
-            optional_cursor_program(name, order),
-            context,
-            state,
+            opaque_cursor_program(name, Order::Asc, 2),
+            cursor_context(Value::String(token)),
+            ClosureReceipt::default(),
+            Vec::new(),
+            None,
+            None,
         );
-        assert_eq!(row_ids(case.expected.local_result.as_ref()), expected);
-        cases.push(case);
+        assert_eq!(refused.expected.error_code.as_deref(), Some("E_INPUT"));
+        cases.push(refused);
     }
 
-    let mixed = case_from_parts(
-        "optional-cursor-mixed-input-refused",
-        "merge",
-        schema,
-        optional_cursor_program("optional-cursor-mixed-input-refused", Order::Asc),
-        optional_context(Value::Int(1), Value::Null),
-        ClosureReceipt::default(),
-        Vec::new(),
-        None,
-        None,
-    );
-    assert_eq!(mixed.expected.error_code.as_deref(), Some("E_INPUT"));
-    cases.push(mixed);
+    add_opaque_merge_pages(cases, schema);
 }
 
 fn merge_schema() -> Schema {
@@ -364,7 +419,7 @@ fn lane_scan(
         }),
         before: None,
         range: None,
-        optional_cursor_args: Vec::new(),
+        opaque_cursor: false,
         merge_site: Some(merge_site.to_owned()),
         provenance: KeyProvenance::Const,
     })
@@ -416,6 +471,7 @@ fn merge_program(name: &str, site: &str, lanes: Vec<Expr>, take: u32) -> Program
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
+        result_page_site: None,
         body: vec![Stmt::Return(merged(site, lanes, take))],
     }
 }
@@ -432,7 +488,7 @@ fn for_lane_limit_case(schema: Schema) -> CorpusCase {
         after: None,
         before: None,
         range: None,
-        optional_cursor_args: Vec::new(),
+        opaque_cursor: false,
         merge_site: None,
         provenance: KeyProvenance::Const,
     };
@@ -449,7 +505,7 @@ fn for_lane_limit_case(schema: Schema) -> CorpusCase {
         after: None,
         before: None,
         range: None,
-        optional_cursor_args: Vec::new(),
+        opaque_cursor: false,
         merge_site: Some(site.to_owned()),
         provenance: KeyProvenance::Shape,
     };
@@ -458,6 +514,7 @@ fn for_lane_limit_case(schema: Schema) -> CorpusCase {
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
+        result_page_site: None,
         body: vec![
             Stmt::Let {
                 name: "union".to_owned(),
@@ -509,45 +566,134 @@ fn for_lane_limit_case(schema: Schema) -> CorpusCase {
     )
 }
 
-fn optional_cursor_program(name: &str, order: Order) -> Program {
+fn opaque_cursor_program(name: &str, order: Order, take: u32) -> Program {
     Program {
         name: name.to_owned(),
         kind: ProgramKind::Query,
-        args: BTreeMap::from([
-            (
-                "cursorAt".to_owned(),
-                ArgType::Optional(Box::new(ArgType::Int)),
-            ),
-            (
-                "cursorId".to_owned(),
-                ArgType::Optional(Box::new(ArgType::Ref {
-                    table: "posts".to_owned(),
-                })),
-            ),
-        ]),
+        args: BTreeMap::from([("c".to_owned(), ArgType::Optional(Box::new(ArgType::Cursor)))]),
         read_time_granularity_ms: None,
+        result_page_site: Some(name.to_owned()),
         body: vec![Stmt::Return(Expr::Scan(Scan {
             site: name.to_owned(),
             table: "posts".to_owned(),
             index: "byAt".to_owned(),
             prefix: Vec::new(),
             order,
-            take: Bound::Literal(2),
-            after: Some(Box::new(Expr::Array(vec![
-                Expr::Variable("cursorAt".to_owned()),
-                Expr::Variable("cursorId".to_owned()),
-            ]))),
+            take: Bound::Literal(take),
+            after: Some(Box::new(Expr::Variable("c".to_owned()))),
             before: None,
             range: None,
-            optional_cursor_args: vec!["cursorAt".to_owned(), "cursorId".to_owned()],
+            opaque_cursor: true,
             merge_site: None,
             provenance: KeyProvenance::Arg,
         }))],
     }
 }
 
-fn optional_context(cursor_at: Value, cursor_id: Value) -> Context {
-    query_context([("cursorAt", cursor_at), ("cursorId", cursor_id)])
+fn cursor_context(cursor: Value) -> Context {
+    query_context([("c", cursor)])
+}
+
+fn opaque_token(index: &str, order: Order, at: i64, id_value: &str) -> String {
+    encode_cursor(&CursorPosition {
+        table: "posts".to_owned(),
+        index: index.to_owned(),
+        order,
+        suffix: vec![
+            CursorColumn {
+                name: "at".to_owned(),
+                kind: ColumnType::Int,
+            },
+            CursorColumn {
+                name: "id".to_owned(),
+                kind: ColumnType::Id,
+            },
+        ],
+        values: vec![Value::Int(at), id(id_value)],
+    })
+    .expect("opaque cursor token")
+}
+
+fn execute_seeded(
+    schema: &Schema,
+    rows: &[(&str, Value)],
+    program: &Program,
+    context: Context,
+) -> Execution {
+    let mut engine = Engine::memory(schema.clone()).expect("cursor engine");
+    for (table, value) in rows {
+        engine.seed(table, value.clone()).expect("cursor row");
+    }
+    authoritative(&mut engine, schema, program, context)
+}
+
+fn add_opaque_merge_pages(cases: &mut Vec<CorpusCase>, schema: Schema) {
+    let rows = vec![
+        post("a1", "u1", 1),
+        post("a3", "u1", 3),
+        post("b2", "u2", 2),
+        post("b4", "u2", 4),
+    ];
+    let program = |name: &str| {
+        let lanes = [(format!("{name}.a"), "u1"), (format!("{name}.b"), "u2")]
+            .into_iter()
+            .map(|(site, author)| {
+                Expr::Scan(Scan {
+                    site,
+                    table: "posts".to_owned(),
+                    index: "byAuthorAt".to_owned(),
+                    prefix: vec![literal_id(author)],
+                    order: Order::Asc,
+                    take: Bound::Literal(2),
+                    after: Some(Box::new(Expr::Variable("c".to_owned()))),
+                    before: None,
+                    range: None,
+                    opaque_cursor: true,
+                    merge_site: Some(name.to_owned()),
+                    provenance: KeyProvenance::Arg,
+                })
+            })
+            .collect();
+        let mut program = merge_program(name, name, lanes, 2);
+        program
+            .args
+            .insert("c".to_owned(), ArgType::Optional(Box::new(ArgType::Cursor)));
+        program.result_page_site = Some(name.to_owned());
+        program
+    };
+    let first_name = "opaque-cursor-merge-capped-token";
+    let mut first = frozen_query(
+        first_name,
+        schema.clone(),
+        rows.clone(),
+        program(first_name),
+        cursor_context(Value::Null),
+        ExecutionState::Capped,
+    );
+    first.category = "cursor".to_owned();
+    assert_eq!(
+        row_ids(first.expected.local_result.as_ref()),
+        vec!["a1", "b2"]
+    );
+    let token = first.expected.next.clone().expect("merge token");
+    cases.push(first);
+
+    let second_name = "opaque-cursor-merge-page-two";
+    let mut second = frozen_query(
+        second_name,
+        schema,
+        rows,
+        program(second_name),
+        cursor_context(Value::String(token)),
+        ExecutionState::Complete,
+    );
+    second.category = "cursor".to_owned();
+    assert_eq!(
+        row_ids(second.expected.local_result.as_ref()),
+        vec!["a3", "b4"]
+    );
+    assert_eq!(second.expected.next, None);
+    cases.push(second);
 }
 
 fn frozen_query(

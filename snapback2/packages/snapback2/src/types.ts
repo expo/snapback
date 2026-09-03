@@ -2,6 +2,7 @@ import type { Channel as ChannelRef, Op } from "./api.js";
 
 /** Server-minted authority subject; structurally compatible with `snapback2.Principal`. */
 export type Principal = string & { readonly __snapbackPrincipal: "Principal" };
+export type Cursor = string & { readonly __snapbackCursor: "Cursor" };
 
 export interface RefusalEnvelope {
   code: string;
@@ -13,11 +14,12 @@ export interface RefusalEnvelope {
   guide: string;
 }
 
-export type QueryComplete<Result> = { state: "complete"; data: Result; seq: number };
+export type QueryComplete<Result> = { state: "complete"; data: Result; seq: number; next: Cursor | null };
 export type QueryCapped<Result> = {
   state: "capped";
   data: Result;
   seq: number;
+  next: Cursor | null;
 };
 export type QueryPartial<Result> = {
   state: "partial";
@@ -198,10 +200,10 @@ export function reduceQueryState<Result>(
   let next: QueryView<Result>;
   switch (event.state) {
     case "complete":
-      next = { state: "complete", live, data: data as Result, seq: event.seq };
+      next = { state: "complete", live, data: data as Result, seq: event.seq, next: event.next };
       break;
     case "capped":
-      next = { state: "capped", live, data: data as Result, seq: event.seq };
+      next = { state: "capped", live, data: data as Result, seq: event.seq, next: event.next };
       break;
     case "partial":
       next = data === undefined

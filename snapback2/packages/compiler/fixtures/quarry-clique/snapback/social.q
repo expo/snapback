@@ -80,8 +80,8 @@ mutation toggleFollow(u: users):
       update users[principal = viewer] { followingCount: .followingCount + 1 }
       return true
 
-query globalFeed(cursorOrd: int ?, cursorId: feedItems ?):
-  return feedItems[] after (cursorOrd, cursorId) first 20 by byOrd {
+query globalFeed(c: cursor ?):
+  return feedItems[] after c first 20 by byOrd {
     id, kind, at, ord, actor, post,
     reposter: users[principal = .actor] authorCard,
     item: .post {
@@ -91,8 +91,8 @@ query globalFeed(cursorOrd: int ?, cursorId: feedItems ?):
   }
 
 -- The Following feed merges the viewer's lane with up to 50 followed actors.
-query followingFeed(cursorOrd: int ?, cursorId: feedItems ?):
-  page = merge feedItems after (cursorOrd, cursorId) first 20 by byActorOrd:
+query followingFeed(c: cursor ?):
+  page = merge feedItems after c first 20 by byActorOrd:
     [viewer]
     [f.followed] for f in follows[viewer] first 50 by byFollower
   return page {

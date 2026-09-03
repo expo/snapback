@@ -78,6 +78,7 @@ fn program() -> Program {
         kind: ProgramKind::Mutation,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
+        result_page_site: None,
         body: vec![Stmt::If {
             condition: Expr::Literal(Value::Bool(false)),
             then_body: Vec::new(),
@@ -155,6 +156,7 @@ fn insert_and_read_aggregate(aggregate_id: &str) -> Program {
         kind: ProgramKind::Mutation,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
+        result_page_site: None,
         body: vec![
             Stmt::Insert {
                 table: "events".to_owned(),

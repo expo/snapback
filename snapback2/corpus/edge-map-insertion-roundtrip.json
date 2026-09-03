@@ -1007,6 +1007,7 @@
     "canonicalResult": "{\"Map\":{\"alpha\":{\"Int\":2},\"middle\":{\"Int\":3},\"zeta\":{\"Int\":1}}}",
     "digest": "3aef682d77087c29ea83982adc5446fa3eee75744aaf16111d7249c3a6342605",
     "rangeStops": {},
-    "evictedRows": null
+    "evictedRows": null,
+    "next": null
   }
 }

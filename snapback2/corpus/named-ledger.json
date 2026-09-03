@@ -941,7 +941,6 @@
             "after": null,
             "before": null,
             "range": null,
-            "optional_cursor_args": [],
             "merge_site": null,
             "provenance": "Arg"
           }
@@ -951,7 +950,7 @@
   },
   "certificate": {
     "program": "ledger",
-    "plan_hash": "3a07861595104d455061884bc217ad6af9556ab56d432a4c954495d465f15ebc",
+    "plan_hash": "9a4d606458f4f33418fe771af0fd589144a016bbde29a3d842c234c1d266fdbc",
     "schema_hash": "df0a1b25740fd361ededb5bf93df3428a133ea6dd44f27a74c45a76e1ce8fb3c",
     "rule_hashes": {
       "owed.read": "86fc97a3ff8c6f52c56c0ad10e0e41d5a9c4474356ed8b7e523b28a0f78b6b72"
@@ -1131,6 +1130,7 @@
         "exhausted"
       ]
     },
-    "evictedRows": null
+    "evictedRows": null,
+    "next": null
   }
 }

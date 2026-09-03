@@ -2,6 +2,10 @@ use crate::value::Value;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
+fn is_false(value: &bool) -> bool {
+    !*value
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Program {
     pub name: String,
@@ -9,6 +13,8 @@ pub struct Program {
     #[serde(default)]
     pub args: BTreeMap<String, ArgType>,
     pub read_time_granularity_ms: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub result_page_site: Option<String>,
     pub body: Vec<Stmt>,
 }
 
@@ -20,6 +26,7 @@ pub enum ProgramKind {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ArgType {
+    Cursor,
     Id,
     Principal,
     Ref {
@@ -268,8 +275,8 @@ pub struct Scan {
     pub after: Option<Box<Expr>>,
     pub before: Option<Box<Expr>>,
     pub range: Option<Range>,
-    #[serde(default)]
-    pub optional_cursor_args: Vec<String>,
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub opaque_cursor: bool,
     #[serde(default)]
     pub merge_site: Option<String>,
     pub provenance: KeyProvenance,

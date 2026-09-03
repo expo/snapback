@@ -1,6 +1,7 @@
 export type Site = { file: string; line: number; col: number; expandedFrom?: Site };
 
 export type ScalarType =
+  | { kind: "cursor"; optional: boolean }
   | { kind: "text"; min?: number; max: number; format?: "handle" | "url"; optional: boolean }
   | { kind: "id"; optional: boolean }
   | { kind: "principal"; optional: boolean }
@@ -51,7 +52,7 @@ export type RangeSpec = {
   order: "asc" | "desc";
   take: number;
   cursor?: Expr;
-  cursorKind?: "after" | "before";
+  cursorKind?: "after";
   /** Refused author intent retained only until the post-catalog repair pass. */
   where?: { predicate: Expr; site: Site };
   /** Internal tag emitted only for scans belonging to one Quarry merge. */
@@ -70,7 +71,7 @@ export type MergeExpr = {
   order: "asc" | "desc";
   take: number;
   cursor?: Expr;
-  cursorKind?: "after" | "before";
+  cursorKind?: "after";
   lanes: MergeLane[];
   site: Site;
 };

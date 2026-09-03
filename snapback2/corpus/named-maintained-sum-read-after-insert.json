@@ -250,6 +250,7 @@
     "canonicalResult": "{\"Int\":250}",
     "digest": "430b0746c1db11e6c3c6fd38f0ca9070b457613c35a21639f15377520cafe9cc",
     "rangeStops": {},
-    "evictedRows": null
+    "evictedRows": null,
+    "next": null
   }
 }

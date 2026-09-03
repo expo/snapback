@@ -1169,44 +1169,63 @@ impl State {
                 .expect("certified index column");
             converted.push(json_as_kind(value, column)?);
         }
-        let after = match after {
-            Some(value) => {
-                let Some(column_name) = index.columns.get(prefix_values.len()) else {
-                    return Err(Refusal::input(
-                        "data after requires an index column after the prefix",
-                        "shorten the prefix or omit after",
-                    ));
-                };
-                let column = table
-                    .columns
-                    .get(column_name)
-                    .expect("certified index column");
-                Some(json_as_kind(&value, column)?)
+        if index.columns.last().map(String::as_str) != Some("id") && !index.unique {
+            return Err(Refusal::input(
+                format!("data index {table_name}.{index_name} does not end in intrinsic id"),
+                "choose a total-order index that is unique or ends in id",
+            ));
+        }
+        let pageable = prefix_values.len() < index.columns.len();
+        let cursor_value = match after {
+            Some(Json::String(token)) => Value::String(token),
+            Some(_) => {
+                return Err(Refusal::input(
+                    "data after must be an opaque cursor token",
+                    "pass --after <token>",
+                ));
             }
-            None => None,
+            None => Value::Null,
         };
+        let site = format!("<owner:data:{table_name}.{index_name}>");
+        let mut args = BTreeMap::new();
+        if pageable {
+            args.insert("c".to_owned(), ArgType::Optional(Box::new(ArgType::Cursor)));
+        } else if !matches!(cursor_value, Value::Null) {
+            return Err(Refusal::input(
+                "data after requires an index column after the prefix",
+                "shorten the prefix or omit --after",
+            ));
+        }
         let program = Program {
             name: format!("__owner.data.{table_name}"),
             kind: ProgramKind::Query,
-            args: BTreeMap::new(),
+            args,
             read_time_granularity_ms: None,
+            result_page_site: pageable.then(|| site.clone()),
             body: vec![Stmt::Return(Expr::Scan(Scan {
-                site: format!("<owner:data:{table_name}.{index_name}>"),
+                site,
                 table: table_name,
                 index: index_name,
                 prefix: converted.into_iter().map(Expr::Literal).collect(),
                 order: Order::Asc,
                 take: Bound::Literal(limit),
-                after: after.map(|value| Box::new(Expr::Literal(value))),
+                after: pageable.then(|| Box::new(Expr::Variable("c".to_owned()))),
                 before: None,
                 range: None,
-                optional_cursor_args: Vec::new(),
+                opaque_cursor: pageable,
                 merge_site: None,
                 provenance: KeyProvenance::Const,
             }))],
         };
         let authority = self.resolve_authority(identity)?;
-        let context = self.execution_context(&authority, BTreeMap::new())?;
+        let context = self.execution_context(
+            &authority,
+            if pageable {
+                BTreeMap::from([("c".to_owned(), cursor_value)])
+            } else {
+                BTreeMap::new()
+            },
+        )?;
         let execution = self
             .runtime_mut()
             .execute_adhoc(&program, context)
@@ -1346,6 +1365,15 @@ fn channel_args(
 
 fn json_as_arg(value: &Json, kind: &ArgType) -> Result<Value, Refusal> {
     match kind {
+        ArgType::Cursor => value
+            .as_str()
+            .map(|value| Value::String(value.to_owned()))
+            .ok_or_else(|| {
+                Refusal::input(
+                    "cursor arguments must be strings",
+                    "pass a returned next token",
+                )
+            }),
         ArgType::Optional(_) if value.is_null() => Ok(Value::Null),
         ArgType::Optional(inner) => json_as_arg(value, inner),
         ArgType::Id | ArgType::Principal | ArgType::Ref { .. } => value

@@ -956,7 +956,6 @@
                     }
                   }
                 },
-                "optional_cursor_args": [],
                 "merge_site": null,
                 "provenance": "Const"
               }
@@ -1006,7 +1005,6 @@
                     }
                   }
                 },
-                "optional_cursor_args": [],
                 "merge_site": null,
                 "provenance": "Const"
               }
@@ -1018,7 +1016,7 @@
   },
   "certificate": {
     "program": "cursor-asc-after-duplicate-tie",
-    "plan_hash": "a979894c4f844523ce84b4b7c53cf257afde858d6cca7f667c98fdd48b6deee8",
+    "plan_hash": "57c57b44cd56a1eaa4e9f2cb906ab426163bc788c32be7702bc69f0b51494612",
     "schema_hash": "df0a1b25740fd361ededb5bf93df3428a133ea6dd44f27a74c45a76e1ce8fb3c",
     "rule_hashes": {
       "messages.read": "a4500d80558e462bf40291836ee785e6a05a708f84bb1d5d919adc2da67c150b"
@@ -1316,6 +1314,7 @@
         "exhausted"
       ]
     },
-    "evictedRows": null
+    "evictedRows": null,
+    "next": null
   }
 }

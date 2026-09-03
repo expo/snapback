@@ -1,5 +1,6 @@
 #![allow(unused_imports)]
 use crate::certificate::{Certificate, RuleCertificate};
+use crate::cursor::{CursorPosition, decode_cursor, decode_cursor_for, encode_cursor};
 use crate::identity::{Actor, CURRENT_VALUE_MODEL_VERSION, SYSTEM_PRINCIPAL_ID};
 use crate::ir::*;
 use crate::principal::PrincipalId;
@@ -184,6 +185,7 @@ pub struct AuthoritativeTrace {
 pub struct MergeTrace {
     pub site: String,
     pub deduplicated_union_len: u64,
+    pub last_returned_suffix: Option<Vec<Value>>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -237,6 +239,8 @@ pub struct Execution {
     pub receipt: ClosureReceipt,
     pub state: ExecutionState,
     pub seq: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub next: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -438,7 +442,7 @@ impl Engine {
         certificate: &Certificate,
         context: Context,
     ) -> Result<Execution, RuntimeError> {
-        validate_inputs(program, &context.args)?;
+        validate_inputs(&self.schema, program, &context.args)?;
         match self.execute_with_kind(program, certificate, context, None) {
             Ok(execution) => Ok(execution),
             Err(error) if program.kind == ProgramKind::Mutation && is_sqlite_constraint(&error) => {
@@ -472,7 +476,7 @@ impl Engine {
         context.now = Some(now);
         context.read_time = read_time;
         context.new_ids = new_ids;
-        if let Err(error) = validate_inputs(program, &context.args) {
+        if let Err(error) = validate_inputs(&self.schema, program, &context.args) {
             let Some(code) = mutation_rejection_code(&error) else {
                 return Err(error);
             };
@@ -535,6 +539,7 @@ impl Engine {
                 message: message.to_owned(),
             },
             seq: seq.max(0) as u64,
+            next: None,
         })
     }
 
@@ -545,6 +550,7 @@ impl Engine {
             receipt: ClosureReceipt::default(),
             state,
             seq: self.store.commit_seq()?,
+            next: None,
         })
     }
 
@@ -634,6 +640,7 @@ impl Engine {
                     reason: MISSING_AUTHORITY_LABEL.to_owned(),
                 },
                 seq: current_seq,
+                next: None,
             });
         }
         let flow = match attempted {
@@ -658,6 +665,7 @@ impl Engine {
                     receipt: runner.receipt,
                     state,
                     seq,
+                    next: None,
                 };
                 transaction.commit()?;
                 return Ok(execution);
@@ -686,6 +694,7 @@ impl Engine {
                         message: error.to_string(),
                     },
                     seq: current_seq,
+                    next: None,
                 });
             }
             Err(error) => return Err(error),
@@ -704,12 +713,14 @@ impl Engine {
             (false, ProgramKind::Mutation) => ExecutionState::Committed { seq },
             (false, ProgramKind::Query) => query_state(&runner.trace, certificate),
         };
+        let next = next_cursor(&state, &runner.trace, certificate)?;
         let execution = Execution {
             result,
             trace: runner.trace,
             receipt: runner.receipt,
             state,
             seq,
+            next,
         };
         if program.kind == ProgramKind::Mutation {
             // @ref LLP 1001#2-what-a-commit-records — data, outbox, and commit record are atomic.
@@ -793,6 +804,7 @@ impl Engine {
             receipt: runner.receipt,
             state: ExecutionState::Committed { seq },
             seq,
+            next: None,
         };
         // @ref LLP 1001#2-what-a-commit-records — reset, seed rows, and the seed commit are atomic.
         let kind = commit_kind.unwrap_or(if is_system { "system" } else { "mutation" });
@@ -879,6 +891,7 @@ pub(crate) fn rebuild_owned_aggregate_target<'a>(
 }
 
 fn validate_inputs(
+    schema: &Schema,
     program: &Program,
     inputs: &BTreeMap<String, Value>,
 ) -> Result<(), RuntimeError> {
@@ -888,35 +901,34 @@ fn validate_inputs(
             .ok_or_else(|| RuntimeError::Input(format!("missing arg {name}")))?;
         validate_arg_value(kind, value, &format!("arg {name}"))?;
     }
-    validate_optional_cursor_groups(&program.body, inputs)
+    validate_cursor_tokens(schema, &program.body, inputs)
 }
 
-fn validate_optional_cursor_groups(
+fn validate_cursor_tokens(
+    schema: &Schema,
     statements: &[Stmt],
     inputs: &BTreeMap<String, Value>,
 ) -> Result<(), RuntimeError> {
-    fn scan(scan: &Scan, inputs: &BTreeMap<String, Value>) -> Result<(), RuntimeError> {
-        if !scan.optional_cursor_args.is_empty() {
-            let present = scan
-                .optional_cursor_args
-                .iter()
-                .filter(|name| inputs.get(*name).is_some_and(|value| *value != Value::Null))
-                .count();
-            if present != 0 && present != scan.optional_cursor_args.len() {
-                return Err(RuntimeError::Input(format!(
-                    "optional cursor group ({}) must be all absent or all present",
-                    scan.optional_cursor_args.join(", ")
-                )));
-            }
+    fn static_value(value: &Expr, values: &BTreeMap<String, Value>) -> Option<Value> {
+        match value {
+            Expr::Literal(value) => Some(value.clone()),
+            Expr::Variable(name) => values.get(name).cloned(),
+            _ => None,
         }
+    }
+    fn scan(
+        schema: &Schema,
+        scan: &Scan,
+        values: &BTreeMap<String, Value>,
+    ) -> Result<(), RuntimeError> {
         for value in &scan.prefix {
-            expr(value, inputs)?;
+            expr(schema, value, values)?;
         }
         for value in [scan.after.as_deref(), scan.before.as_deref()]
             .into_iter()
             .flatten()
         {
-            expr(value, inputs)?;
+            expr(schema, value, values)?;
         }
         if let Some(range) = &scan.range {
             for value in [
@@ -928,31 +940,82 @@ fn validate_optional_cursor_groups(
             .into_iter()
             .flatten()
             {
-                expr(value, inputs)?;
+                expr(schema, value, values)?;
+            }
+        }
+        if scan.opaque_cursor {
+            let expression = scan.after.as_deref().ok_or_else(|| {
+                RuntimeError::Input("opaque cursor scan is missing after".to_owned())
+            })?;
+            if scan.before.is_some() {
+                return Err(RuntimeError::Input(
+                    "opaque cursors may be used only with after".to_owned(),
+                ));
+            }
+            let value = static_value(expression, values).ok_or_else(|| {
+                RuntimeError::Input(
+                    "opaque cursor expression must derive from an operation argument".to_owned(),
+                )
+            })?;
+            if value != Value::Null {
+                let Value::String(token) = value else {
+                    return Err(RuntimeError::Input(
+                        "opaque cursor value must be a string or null".to_owned(),
+                    ));
+                };
+                let table = schema
+                    .table(&scan.table)
+                    .ok_or_else(|| RuntimeError::Schema(format!("missing table {}", scan.table)))?;
+                let index = table.index(&scan.index).ok_or_else(|| {
+                    RuntimeError::Schema(format!("missing index {}.{}", scan.table, scan.index))
+                })?;
+                let suffix =
+                    index.columns[scan.prefix.len()..]
+                        .iter()
+                        .map(|name| {
+                            table.columns.get(name).cloned().map(|kind| {
+                                crate::cursor::CursorColumn {
+                                    name: name.clone(),
+                                    kind,
+                                }
+                            })
+                        })
+                        .collect::<Option<Vec<_>>>()
+                        .ok_or_else(|| {
+                            RuntimeError::Schema("missing cursor index column".to_owned())
+                        })?;
+                decode_cursor_for(&token, &scan.table, &scan.index, scan.order, &suffix)
+                    .map_err(|error| RuntimeError::Input(error.to_string()))?;
             }
         }
         Ok(())
     }
-    fn expr(value: &Expr, inputs: &BTreeMap<String, Value>) -> Result<(), RuntimeError> {
+    fn expr(
+        schema: &Schema,
+        value: &Expr,
+        values: &BTreeMap<String, Value>,
+    ) -> Result<(), RuntimeError> {
         match value {
-            Expr::Field { base, .. } | Expr::Unary { value: base, .. } => expr(base, inputs),
+            Expr::Field { base, .. } | Expr::Unary { value: base, .. } => {
+                expr(schema, base, values)
+            }
             Expr::Binary { left, right, .. } => {
-                expr(left, inputs)?;
-                expr(right, inputs)
+                expr(schema, left, values)?;
+                expr(schema, right, values)
             }
-            Expr::Array(values) | Expr::Builtin { args: values, .. } => {
-                for value in values {
-                    expr(value, inputs)?;
+            Expr::Array(elements) | Expr::Builtin { args: elements, .. } => {
+                for value in elements {
+                    expr(schema, value, values)?;
                 }
                 Ok(())
             }
-            Expr::Object(values) => {
-                for value in values.values() {
-                    expr(value, inputs)?;
+            Expr::Object(fields) => {
+                for value in fields.values() {
+                    expr(schema, value, values)?;
                 }
                 Ok(())
             }
-            Expr::Scan(value) => scan(value, inputs),
+            Expr::Scan(value) => scan(schema, value, values),
             Expr::Literal(_)
             | Expr::Variable(_)
             | Expr::Input(_)
@@ -960,54 +1023,76 @@ fn validate_optional_cursor_groups(
             | Expr::Exists(_) => Ok(()),
         }
     }
-    fn domain(value: &LoopDomain, inputs: &BTreeMap<String, Value>) -> Result<(), RuntimeError> {
+    fn domain(
+        schema: &Schema,
+        value: &LoopDomain,
+        values: &BTreeMap<String, Value>,
+    ) -> Result<(), RuntimeError> {
         match value {
-            LoopDomain::Page(value) => scan(value, inputs),
-            LoopDomain::DerivedArray { value, .. } => expr(value, inputs),
-            LoopDomain::Recurse(value) => expr(&value.seed, inputs),
+            LoopDomain::Page(value) => scan(schema, value, values),
+            LoopDomain::DerivedArray { value, .. } => expr(schema, value, values),
+            LoopDomain::Recurse(value) => expr(schema, &value.seed, values),
             LoopDomain::LiteralRange { .. } | LoopDomain::ArgList { .. } => Ok(()),
         }
     }
-    for statement in statements {
-        match statement {
-            Stmt::Const { value, .. }
-            | Stmt::Let { value, .. }
-            | Stmt::Assign { value, .. }
-            | Stmt::Push { value, .. }
-            | Stmt::Return(value) => expr(value, inputs)?,
-            Stmt::If {
-                condition,
-                then_body,
-                else_body,
-            } => {
-                expr(condition, inputs)?;
-                validate_optional_cursor_groups(then_body, inputs)?;
-                validate_optional_cursor_groups(else_body, inputs)?;
+    fn body(
+        schema: &Schema,
+        statements: &[Stmt],
+        values: &mut BTreeMap<String, Value>,
+    ) -> Result<(), RuntimeError> {
+        for statement in statements {
+            match statement {
+                Stmt::Const { name, value }
+                | Stmt::Let { name, value }
+                | Stmt::Assign { name, value } => {
+                    expr(schema, value, values)?;
+                    if let Some(value) = static_value(value, values) {
+                        values.insert(name.clone(), value);
+                    } else {
+                        values.remove(name);
+                    }
+                }
+                Stmt::Push { value, .. } | Stmt::Return(value) => expr(schema, value, values)?,
+                Stmt::If {
+                    condition,
+                    then_body,
+                    else_body,
+                } => {
+                    expr(schema, condition, values)?;
+                    let mut then_values = values.clone();
+                    let mut else_values = values.clone();
+                    body(schema, then_body, &mut then_values)?;
+                    body(schema, else_body, &mut else_values)?;
+                    then_values.retain(|name, value| else_values.get(name) == Some(value));
+                    *values = then_values;
+                }
+                Stmt::For {
+                    domain: loop_domain,
+                    body: loop_body,
+                    ..
+                } => {
+                    domain(schema, loop_domain, values)?;
+                    let mut loop_values = values.clone();
+                    body(schema, loop_body, &mut loop_values)?;
+                }
+                Stmt::Require { condition, .. } => expr(schema, condition, values)?,
+                Stmt::Insert { row, .. } => expr(schema, row, values)?,
+                Stmt::Update { key, patch, .. } => {
+                    expr(schema, key, values)?;
+                    expr(schema, patch, values)?;
+                }
+                Stmt::Upsert { key, row, .. } => {
+                    expr(schema, key, values)?;
+                    expr(schema, row, values)?;
+                }
+                Stmt::Delete { key, .. } => expr(schema, key, values)?,
+                Stmt::Emit { payload, .. } => expr(schema, payload, values)?,
+                Stmt::Break | Stmt::Continue => {}
             }
-            Stmt::For {
-                domain: loop_domain,
-                body,
-                ..
-            } => {
-                domain(loop_domain, inputs)?;
-                validate_optional_cursor_groups(body, inputs)?;
-            }
-            Stmt::Require { condition, .. } => expr(condition, inputs)?,
-            Stmt::Insert { row, .. } => expr(row, inputs)?,
-            Stmt::Update { key, patch, .. } => {
-                expr(key, inputs)?;
-                expr(patch, inputs)?;
-            }
-            Stmt::Upsert { key, row, .. } => {
-                expr(key, inputs)?;
-                expr(row, inputs)?;
-            }
-            Stmt::Delete { key, .. } => expr(key, inputs)?,
-            Stmt::Emit { payload, .. } => expr(payload, inputs)?,
-            Stmt::Break | Stmt::Continue => {}
         }
+        Ok(())
     }
-    Ok(())
+    body(schema, statements, &mut inputs.clone())
 }
 
 pub(crate) fn validate_arg_value(
@@ -1023,6 +1108,14 @@ pub(crate) fn validate_arg_value(
         )));
     }
     match kind {
+        ArgType::Cursor => match value {
+            Value::String(token) => decode_cursor(token)
+                .map(|_| ())
+                .map_err(|error| RuntimeError::Input(format!("{label} {error}"))),
+            _ => Err(RuntimeError::Input(format!(
+                "{label} must be an opaque cursor string"
+            ))),
+        },
         ArgType::Optional(_) if *value == Value::Null => Ok(()),
         ArgType::Optional(inner) => validate_arg_value(inner, value, label),
         ArgType::Id | ArgType::Principal | ArgType::Ref { .. } => match value {
@@ -1127,6 +1220,60 @@ fn query_state(trace: &AuthoritativeTrace, certificate: &Certificate) -> Executi
         return ExecutionState::Capped;
     }
     ExecutionState::Complete
+}
+
+fn next_cursor(
+    state: &ExecutionState,
+    trace: &AuthoritativeTrace,
+    certificate: &Certificate,
+) -> Result<Option<String>, RuntimeError> {
+    if !matches!(state, ExecutionState::Capped) {
+        return Ok(None);
+    }
+    let Some(page) = &certificate.result_page_site else {
+        return Ok(None);
+    };
+    let values = if page.merge {
+        trace
+            .merges
+            .iter()
+            .rev()
+            .find(|entry| entry.site == page.site)
+            .and_then(|entry| entry.last_returned_suffix.clone())
+    } else {
+        let Some(row_id) = trace
+            .ranges
+            .iter()
+            .rev()
+            .find(|range| range.site == page.site)
+            .and_then(|range| range.returned_ids.last())
+        else {
+            return Ok(None);
+        };
+        trace
+            .rows
+            .iter()
+            .rev()
+            .find(|row| row.table == page.table && &row.id == row_id)
+            .and_then(|row| {
+                page.suffix
+                    .iter()
+                    .map(|column| row.row.field(&column.name).cloned().ok())
+                    .collect::<Option<Vec<_>>>()
+            })
+    };
+    let Some(values) = values else {
+        return Ok(None);
+    };
+    encode_cursor(&CursorPosition {
+        table: page.table.clone(),
+        index: page.index.clone(),
+        order: page.order,
+        suffix: page.suffix.clone(),
+        values,
+    })
+    .map(Some)
+    .map_err(|error| RuntimeError::Serialization(error.to_string()))
 }
 
 pub(crate) fn is_sqlite_constraint(error: &RuntimeError) -> bool {

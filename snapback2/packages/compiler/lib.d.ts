@@ -2,6 +2,7 @@ declare module "snapback2" {
   export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
   /** Server-minted authority subject; deliberately distinct from application row IDs. */
   export type Principal = string & { readonly __snapbackPrincipal: "Principal" };
+  export type Cursor = string & { readonly __snapbackCursor: "Cursor" };
   export type Bytes = { readonly Bytes: string };
   export type SeedValue = null | boolean | number | string | Bytes | SeedValue[] | { [key: string]: SeedValue };
   export type Decimal<S extends number> = number & {
@@ -69,6 +70,8 @@ declare module "snapback2" {
       range?: { gt?: unknown; gte?: unknown; lt?: unknown; lte?: unknown };
       /** Internal Quarry lowering tag; not an authored TypeScript surface. */
       mergeSite?: string;
+      /** Internal Quarry lowering tag; not an authored TypeScript surface. */
+      opaqueCursor?: boolean;
     }): Page<R>;
     insert<R extends Record<string, any>>(target: Table<R>, row: WriteRow<R>): R;
     update<R extends Record<string, any>>(target: Table<R>, key: unknown, patch: WritePatch<R> | ((row: R) => WritePatch<R>)): void;
@@ -91,6 +94,7 @@ declare module "snapback2" {
     constraints?: ReadonlyArray<unknown>;
   }): Table<RowOfColumns<C>>;
   export const t: {
+    cursor(): Arg<Cursor>;
     id(): Column<string>;
     principal(): Column<Principal>;
     text(max: number): Column<string>;

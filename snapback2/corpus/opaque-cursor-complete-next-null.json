@@ -1,7 +1,7 @@
 {
   "corpusVersion": 1,
-  "name": "optional-cursor-absent-last",
-  "category": "merge",
+  "name": "opaque-cursor-complete-next-null",
+  "category": "cursor",
   "randomSeed": null,
   "schema": {
     "tables": {
@@ -109,49 +109,33 @@
     "maintains": []
   },
   "program": {
-    "name": "optional-cursor-absent-last",
+    "name": "opaque-cursor-complete-next-null",
     "kind": "Query",
     "args": {
-      "cursorAt": {
-        "Optional": "Int"
-      },
-      "cursorId": {
-        "Optional": {
-          "Ref": {
-            "table": "posts"
-          }
-        }
+      "c": {
+        "Optional": "Cursor"
       }
     },
     "read_time_granularity_ms": null,
+    "result_page_site": "opaque-cursor-complete-next-null",
     "body": [
       {
         "Return": {
           "Scan": {
-            "site": "optional-cursor-absent-last",
+            "site": "opaque-cursor-complete-next-null",
             "table": "posts",
             "index": "byAt",
             "prefix": [],
-            "order": "Desc",
+            "order": "Asc",
             "take": {
-              "Literal": 2
+              "Literal": 5
             },
             "after": {
-              "Array": [
-                {
-                  "Variable": "cursorAt"
-                },
-                {
-                  "Variable": "cursorId"
-                }
-              ]
+              "Variable": "c"
             },
             "before": null,
             "range": null,
-            "optional_cursor_args": [
-              "cursorAt",
-              "cursorId"
-            ],
+            "opaque_cursor": true,
             "merge_site": null,
             "provenance": "Arg"
           }
@@ -160,8 +144,8 @@
     ]
   },
   "certificate": {
-    "program": "optional-cursor-absent-last",
-    "plan_hash": "0f07cf1f1bac7cf86e313395b0b7724f9e901e02d8fc6ea7b3ab2086459b9316",
+    "program": "opaque-cursor-complete-next-null",
+    "plan_hash": "7086c501265693d4bf32a81a7f4dda395b609a7dc0a6c47f7e3e2b490553417d",
     "schema_hash": "f0678e830e1d82c9944be8c03fd432099f7c739ea93d4cd40939d8700359c528",
     "rule_hashes": {
       "posts.read": "0201f66714518c59ab12959e7a0541e23ec540e46fe516506e0985e20b514616"
@@ -170,26 +154,43 @@
     "value_model_version": "i53-codepoint-bytes-v2",
     "read_sites": [
       {
-        "site": "optional-cursor-absent-last",
+        "site": "opaque-cursor-complete-next-null",
         "table": "posts",
         "index": "byAt",
         "prefix_template": "Arg",
-        "take": 2,
+        "take": 5,
         "max_calls": 1,
         "rule_probes_per_candidate": 0,
         "hoist": true
       }
     ],
+    "result_page_site": {
+      "site": "opaque-cursor-complete-next-null",
+      "table": "posts",
+      "index": "byAt",
+      "order": "Asc",
+      "suffix": [
+        {
+          "name": "at",
+          "kind": "Int"
+        },
+        {
+          "name": "id",
+          "kind": "Id"
+        }
+      ],
+      "merge": false
+    },
     "write_sites": [],
     "maintained_amplification": 0,
     "constraint_checks": [],
-    "max_examined": 4,
-    "max_index_entries": 4,
+    "max_examined": 7,
+    "max_index_entries": 7,
     "max_rule_probes": 0,
-    "max_steps": 22,
-    "max_heap_bytes": 704,
-    "max_output_bytes": 708,
-    "max_closure_bytes": 704,
+    "max_steps": 37,
+    "max_heap_bytes": 1184,
+    "max_output_bytes": 1767,
+    "max_closure_bytes": 1760,
     "completeness": "Page",
     "prediction_sites": [],
     "read_time_granularity_ms": null,
@@ -198,15 +199,14 @@
       "posts.byAt"
     ],
     "disclosures": [],
-    "bound_product": "optional-cursor-absent-last take 2 = 2"
+    "bound_product": "opaque-cursor-complete-next-null take 5 = 5"
   },
   "context": {
     "viewer": "u1",
     "principal_kind": "user",
     "auth_epoch": 1,
     "args": {
-      "cursorAt": "Null",
-      "cursorId": "Null"
+      "c": "Null"
     },
     "now": null,
     "new_ids": [],
@@ -218,17 +218,17 @@
     "rows": [
       {
         "table": "posts",
-        "id": "a3",
+        "id": "a1",
         "row": {
           "Row": {
             "at": {
-              "Int": 3
+              "Int": 1
             },
             "author": {
               "Id": "u1"
             },
             "id": {
-              "Id": "a3"
+              "Id": "a1"
             }
           }
         }
@@ -252,17 +252,17 @@
       },
       {
         "table": "posts",
-        "id": "a1",
+        "id": "a3",
         "row": {
           "Row": {
             "at": {
-              "Int": 1
+              "Int": 3
             },
             "author": {
               "Id": "u1"
             },
             "id": {
-              "Id": "a1"
+              "Id": "a3"
             }
           }
         }
@@ -270,12 +270,12 @@
     ],
     "ranges": [
       {
-        "site": "optional-cursor-absent-last",
+        "site": "opaque-cursor-complete-next-null",
         "table": "posts",
         "index": "byAt",
         "prefix": [],
-        "order": "Desc",
-        "take": 2,
+        "order": "Asc",
+        "take": 5,
         "after": null,
         "before": null,
         "gt": null,
@@ -284,28 +284,13 @@
         "lte": null,
         "rule_hash": "0201f66714518c59ab12959e7a0541e23ec540e46fe516506e0985e20b514616",
         "row_ids": [
-          "a3",
-          "a2"
+          "a1",
+          "a2",
+          "a3"
         ],
-        "stop": "Limit",
+        "stop": "Exhausted",
         "absence": false,
-        "halo": {
-          "table": "posts",
-          "id": "a1",
-          "row": {
-            "Row": {
-              "at": {
-                "Int": 1
-              },
-              "author": {
-                "Id": "u1"
-              },
-              "id": {
-                "Id": "a1"
-              }
-            }
-          }
-        },
+        "halo": null,
         "n2_key": null
       }
     ],
@@ -320,13 +305,13 @@
         {
           "Row": {
             "at": {
-              "Int": 3
+              "Int": 1
             },
             "author": {
               "Id": "u1"
             },
             "id": {
-              "Id": "a3"
+              "Id": "a1"
             }
           }
         },
@@ -342,19 +327,33 @@
               "Id": "a2"
             }
           }
+        },
+        {
+          "Row": {
+            "at": {
+              "Int": 3
+            },
+            "author": {
+              "Id": "u1"
+            },
+            "id": {
+              "Id": "a3"
+            }
+          }
         }
       ]
     },
     "errorCode": null,
     "localState": "fresh",
     "partialSites": [],
-    "canonicalResult": "{\"Array\":[{\"Row\":{\"at\":{\"Int\":3},\"author\":{\"Id\":\"u1\"},\"id\":{\"Id\":\"a3\"}}},{\"Row\":{\"at\":{\"Int\":2},\"author\":{\"Id\":\"u1\"},\"id\":{\"Id\":\"a2\"}}}]}",
-    "digest": "ee42007615faf8bd2bc8c2ffa0f76b1fa196677b0cdbdf297cb97c09046f0270",
+    "canonicalResult": "{\"Array\":[{\"Row\":{\"at\":{\"Int\":1},\"author\":{\"Id\":\"u1\"},\"id\":{\"Id\":\"a1\"}}},{\"Row\":{\"at\":{\"Int\":2},\"author\":{\"Id\":\"u1\"},\"id\":{\"Id\":\"a2\"}}},{\"Row\":{\"at\":{\"Int\":3},\"author\":{\"Id\":\"u1\"},\"id\":{\"Id\":\"a3\"}}}]}",
+    "digest": "2497e51ba3e0b447b64847522a5bc64a8ff5e70bd61679a24b11ac1103297355",
     "rangeStops": {
-      "optional-cursor-absent-last": [
-        "limit"
+      "opaque-cursor-complete-next-null": [
+        "exhausted"
       ]
     },
-    "evictedRows": null
+    "evictedRows": null,
+    "next": null
   }
 }

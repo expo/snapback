@@ -969,7 +969,6 @@
                     }
                   }
                 },
-                "optional_cursor_args": [],
                 "merge_site": null,
                 "provenance": "Const"
               }
@@ -1019,7 +1018,6 @@
                     }
                   }
                 },
-                "optional_cursor_args": [],
                 "merge_site": null,
                 "provenance": "Const"
               }
@@ -1031,7 +1029,7 @@
   },
   "certificate": {
     "program": "cursor-desc-before-two-pages",
-    "plan_hash": "bb199df1af5988e2d9c3c04a79a0818fd4a8072775afea18a692e35d80013bc7",
+    "plan_hash": "0ae2f1c40a8cc167fbc8df0ece25d413c43ad82da5cb07073f10dc6b632c40e2",
     "schema_hash": "df0a1b25740fd361ededb5bf93df3428a133ea6dd44f27a74c45a76e1ce8fb3c",
     "rule_hashes": {
       "messages.read": "a4500d80558e462bf40291836ee785e6a05a708f84bb1d5d919adc2da67c150b"
@@ -1316,6 +1314,7 @@
         "exhausted"
       ]
     },
-    "evictedRows": null
+    "evictedRows": null,
+    "next": null
   }
 }

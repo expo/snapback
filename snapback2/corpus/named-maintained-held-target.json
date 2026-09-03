@@ -249,6 +249,7 @@
     "canonicalResult": "{\"Row\":{\"__proto__\":\"Null\",\"id\":{\"Id\":\"[\\\"Null\\\",\\\"Null\\\"]\"},\"toString\":\"Null\",\"value\":{\"Int\":6}}}",
     "digest": "994caa7cb7243e1dc7773246adb86f0aa1d78f30ffc57e39865a8793edcbd0ca",
     "rangeStops": {},
-    "evictedRows": null
+    "evictedRows": null,
+    "next": null
   }
 }

@@ -79,7 +79,7 @@ function heartbeatSse(): Response {
   let timer: ReturnType<typeof setInterval> | undefined;
   return new Response(new ReadableStream({
     start(controller) {
-      controller.enqueue(encoder.encode('data: {"state":"complete","data":[],"seq":1}\n\n'));
+      controller.enqueue(encoder.encode('data: {"state":"complete","data":[],"seq":1,"next":null}\n\n'));
       let heartbeats = 0;
       timer = setInterval(() => {
         heartbeats += 1;
@@ -87,7 +87,7 @@ function heartbeatSse(): Response {
         if (heartbeats === 4) {
           clearInterval(timer);
           timer = undefined;
-          controller.enqueue(encoder.encode('data: {"state":"complete","data":[],"seq":2}\n\n'));
+          controller.enqueue(encoder.encode('data: {"state":"complete","data":[],"seq":2,"next":null}\n\n'));
         }
       }, 10);
     },
@@ -194,7 +194,7 @@ class MockOwner {
 
   private queryResult(op: string): unknown {
     if (op === "states.capped") {
-      return { state: "capped", data: this.rows, seq: this.seq };
+      return { state: "capped", data: this.rows, seq: this.seq, next: null };
     }
     if (op === "states.partial") {
       return { state: "partial", data: this.rows, seq: this.seq, reason: "coverage" };
@@ -202,7 +202,7 @@ class MockOwner {
     if (op === "states.denied") {
       return { state: "denied", seq: this.seq, rule: "members only" };
     }
-    return { state: "complete", data: this.rows, seq: this.seq };
+    return { state: "complete", data: this.rows, seq: this.seq, next: null };
   }
 
   private sendQuery(stream: QueryStream): void {
@@ -379,7 +379,7 @@ test("api proxy preserves operations named like proxy metadata", async () => {
     url: "http://wire.test",
     fetch: async (_input, init) => {
       seen.push(JSON.parse(String(init?.body)).op);
-      return fetchJson({ state: "complete", seq: seen.length, data: true });
+      return fetchJson({ state: "complete", seq: seen.length, data: true, next: null });
     },
   });
   for (const ref of [api.messages.op, api.messages.toJSON, api.op.list, api.toJSON.list]) {
@@ -448,11 +448,11 @@ test("an empty capped page is the terminal drain state", async () => {
     url: "http://wire.test",
     fetch: async () => {
       requests += 1;
-      return fetchJson({ state: "capped", data: [], seq: 1 });
+      return fetchJson({ state: "capped", data: [], seq: 1, next: null });
     },
   });
   const result = await value.query(api.states.capped, {});
-  assert.deepEqual(result, { state: "capped", data: [], seq: 1 });
+  assert.deepEqual(result, { state: "capped", data: [], seq: 1, next: null });
   assert.equal(requests, 1);
   value.close();
 });
@@ -463,30 +463,31 @@ test("an exact-full non-uniform drain requests one terminal empty capped page th
     [{ id: "three" }, { id: "four" }],
     [],
   ];
-  const afters: Array<string | undefined> = [];
+  const cursors: Array<string | null> = [];
   const value = createClient({
     url: "http://wire.test",
     fetch: async (_input, init) => {
       const request = JSON.parse(String(init?.body));
-      afters.push(request.args.after);
-      const data = pages[afters.length - 1];
+      cursors.push(request.args.c);
+      const data = pages[cursors.length - 1];
       assert.ok(data, "drain issued a request after the terminal empty page");
-      return fetchJson({ state: "capped", data, seq: 1 });
+      const next = data.length === 0 ? null : `page-${cursors.length}`;
+      return fetchJson({ state: "capped", data, seq: 1, next });
     },
   });
 
   const drained: Array<{ id: string }> = [];
-  let after: string | undefined;
+  let cursor: string | null = null;
   for (;;) {
-    const page = await value.query(api.states.capped, { after, take: 2 });
+    const page = await value.query(api.states.capped, { c: cursor, take: 2 });
     assert.equal(page.state, "capped");
     if (page.data.length === 0) break;
     drained.push(...page.data);
-    after = page.data.at(-1)!.id;
+    cursor = page.next;
   }
 
   assert.deepEqual(drained.map((row) => row.id), ["one", "two", "three", "four"]);
-  assert.deepEqual(afters, [undefined, "two", "four"]);
+  assert.deepEqual(cursors, [null, "page-1", "page-2"]);
   value.close();
 });
 
@@ -494,8 +495,14 @@ test("every HTTP wire state validates its state-specific required fields", async
   const queryCases = [
     [{ state: "complete", seq: 1 }, "data"],
     [{ state: "capped", seq: 1 }, "data"],
+    [{ state: "complete", data: [], seq: 1 }, "next"],
+    [{ state: "capped", data: [], seq: 1 }, "next"],
+    [{ state: "complete", data: [], seq: 1, next: 1 }, "next"],
+    [{ state: "capped", data: [], seq: 1, next: false }, "next"],
     [{ state: "partial", seq: 1 }, "reason"],
     [{ state: "denied", seq: 1 }, "rule"],
+    [{ state: "partial", seq: 1, reason: "coverage", next: null }, "next"],
+    [{ state: "denied", seq: 1, rule: "members", next: null }, "next"],
   ] as const;
   for (const [wire, missing] of queryCases) {
     const value = createClient({ url: "http://wire.test", fetch: async () => fetchJson(wire) });
@@ -503,7 +510,7 @@ test("every HTTP wire state validates its state-specific required fields", async
     value.close();
   }
   for (const forbidden of ["site", "take", "reason"] as const) {
-    const wire = { state: "capped", data: [], seq: 1, [forbidden]: forbidden === "take" ? 20 : "hidden" };
+    const wire = { state: "capped", data: [], seq: 1, next: null, [forbidden]: forbidden === "take" ? 20 : "hidden" };
     const value = createClient({ url: "http://wire.test", fetch: async () => fetchJson(wire) });
     await assert.rejects(() => value.query(api.states.complete, {}), (error: unknown) => isWireShape(error, forbidden));
     value.close();
@@ -511,17 +518,19 @@ test("every HTTP wire state validates its state-specific required fields", async
 
   const opaque = createClient({
     url: "http://wire.test",
-    fetch: async () => fetchJson({ state: "capped", data: [], seq: 1 }),
+    fetch: async () => fetchJson({ state: "capped", data: [], seq: 1, next: "opaque-token" }),
   });
   assert.deepEqual(await opaque.query(api.states.complete, {}), {
     state: "capped",
     data: [],
     seq: 1,
+    next: "opaque-token",
   });
   opaque.close();
 
   const mutationCases = [
     [{ state: "committed", seq: 1 }, "data"],
+    [{ state: "committed", seq: 1, data: true, next: null }, "next"],
     [{ state: "rejected", family: "op", message: "no" }, "code"],
     [{ state: "rejected", code: "E_NO", family: "op", message: "no" }, "guide"],
   ] as const;
@@ -614,7 +623,7 @@ test("bodyless GETs omit Content-Type", async () => {
         return fetchJson({ generation: "test", ops: {}, channels: {}, auth: {} });
       }
       if (path === "/api/subscribe") {
-        return fetchSse({ state: "complete", data: [], seq: 1 });
+        return fetchSse({ state: "complete", data: [], seq: 1, next: null });
       }
       throw new Error(`unexpected route ${path}`);
     },
@@ -636,7 +645,7 @@ test("a successful subscription delivery clears lastRefusal", async () => {
     fetch: async (input) => {
       const path = new URL(String(input)).pathname;
       if (path === "/api/query") return fetchJson(refusal("E_OP_UNKNOWN", "unknown"), 404);
-      if (path === "/api/subscribe") return fetchSse({ state: "complete", data: [], seq: 1 });
+      if (path === "/api/subscribe") return fetchSse({ state: "complete", data: [], seq: 1, next: null });
       throw new Error(`unexpected route ${path}`);
     },
   });
@@ -654,8 +663,14 @@ test("malformed subscription and channel frames deliver E_WIRE_SHAPE", async (co
   const queryCases = [
     [{ state: "complete", seq: 1 }, "data"],
     [{ state: "capped", seq: 1 }, "data"],
+    [{ state: "complete", data: [], seq: 1 }, "next"],
+    [{ state: "capped", data: [], seq: 1 }, "next"],
+    [{ state: "complete", data: [], seq: 1, next: 1 }, "next"],
+    [{ state: "capped", data: [], seq: 1, next: false }, "next"],
     [{ state: "partial", seq: 2 }, "reason"],
     [{ state: "denied", seq: 3 }, "rule"],
+    [{ state: "partial", seq: 2, reason: "coverage", next: null }, "next"],
+    [{ state: "denied", seq: 3, rule: "members", next: null }, "next"],
     [{ state: "stale", seq: 4, since: 1 }, "state"],
   ] as const;
   for (const [wire, missing] of queryCases) {
@@ -825,7 +840,8 @@ test("live queries expose capped and denied receipt states with live true", asyn
     assert.equal(delivery.state, state);
     assert.equal(delivery.live, true);
     if (delivery.state === "capped") {
-      assert.deepEqual(Object.keys(delivery).sort(), ["data", "live", "seq", "state"]);
+      assert.deepEqual(Object.keys(delivery).sort(), ["data", "live", "next", "seq", "state"]);
+      assert.equal(delivery.next, null);
     } else if (delivery.state === "denied") {
       assert.equal(delivery.rule, expected.rule);
     }
@@ -846,7 +862,7 @@ test("5xx and non-envelope subscribe failures are stale transport and reconnect"
       fetch: async () => {
         opens += 1;
         if (opens === 1) return first;
-        return fetchSse({ state: "complete", data: [{ id: "one" }], seq: 8 });
+        return fetchSse({ state: "complete", data: [{ id: "one" }], seq: 8, next: null });
       },
     });
     const unsubscribe = value.subscribeStatus((snapshot) => connections.push(snapshot.connection));
@@ -873,7 +889,7 @@ test("an idle stream becomes stale and reconnects after twice the heartbeat wind
     url: "http://wire.test",
     fetch: async () => {
       opens += 1;
-      return hangingSse(`data: ${JSON.stringify({ state: "complete", data: [], seq: opens })}\n\n`);
+      return hangingSse(`data: ${JSON.stringify({ state: "complete", data: [], seq: opens, next: null })}\n\n`);
     },
   });
   const sub = value.subscribe(api.messages.thread, {}, (event) => events.push(event));
@@ -945,7 +961,7 @@ test("subscription loss preserves data and seq from the same receipt", async (co
   const rows = [{ id: "message-1" }];
   const value = createClient({
     url: "http://wire.test",
-    fetch: async () => fetchSse({ state: "complete", seq: 3, data: rows }),
+    fetch: async () => fetchSse({ state: "complete", seq: 3, data: rows, next: null }),
   });
   const deliveries: any[] = [];
   const sub = value.subscribe(api.messages.thread, {}, (delivery) => deliveries.push(delivery));
@@ -1114,8 +1130,8 @@ test("React query reducer preserves every discriminant field and only reuses a d
   const hydrating = initialQueryState<Array<{ id: string }>>();
   assert.deepEqual(hydrating, { state: "hydrating", live: false });
   const data = [{ id: "one" }];
-  const live = reduceQueryState(hydrating, { state: "complete", live: true, data, seq: 1 });
-  const equivalent = reduceQueryState(live, { state: "complete", live: true, data: [{ id: "one" }], seq: 1 });
+  const live = reduceQueryState(hydrating, { state: "complete", live: true, data, seq: 1, next: null });
+  const equivalent = reduceQueryState(live, { state: "complete", live: true, data: [{ id: "one" }], seq: 1, next: null });
   assert.strictEqual(equivalent, live);
   assert.strictEqual(equivalent.data, data);
   assert.equal(equivalent.state, "complete");
@@ -1145,20 +1161,20 @@ test("React query reducer preserves every discriminant field and only reuses a d
   });
 
   const capped = reduceQueryState(stale, {
-    state: "capped", live: true, data, seq: 2,
+    state: "capped", live: true, data, seq: 2, next: "next-page",
   });
   const cappedEquivalent = reduceQueryState(capped, {
-    state: "capped", live: true, data: [{ id: "one" }], seq: 2,
+    state: "capped", live: true, data: [{ id: "one" }], seq: 2, next: "next-page",
   });
   assert.strictEqual(cappedEquivalent, capped);
   const differentSeq = reduceQueryState(capped, {
-    state: "capped", live: true, data, seq: 3,
+    state: "capped", live: true, data, seq: 3, next: "next-page",
   });
   assert.notStrictEqual(differentSeq, capped);
   assert.equal(differentSeq.seq, 3);
 
-  assert.deepEqual(reduceQueryState(stale, { state: "complete", data, seq: 2 }), {
-    state: "complete", live: false, data, seq: 2,
+  assert.deepEqual(reduceQueryState(stale, { state: "complete", data, seq: 2, next: null }), {
+    state: "complete", live: false, data, seq: 2, next: null,
   });
   assert.equal(stableSerialize({ b: 2, a: [1] }), stableSerialize({ a: [1], b: 2 }));
 });
@@ -1273,7 +1289,7 @@ test("useQuery renders hydrating immediately when its identity changes", async (
     }
     if (parsed.pathname === "/api/subscribe") {
       const op = parsed.searchParams.get("op") ?? "missing";
-      return hangingSse(`data: ${JSON.stringify({ state: "complete", data: [op], seq: 1 })}\n\n`);
+      return hangingSse(`data: ${JSON.stringify({ state: "complete", data: [op], seq: 1, next: null })}\n\n`);
     }
     throw new Error(`unexpected route ${parsed.pathname}`);
   };
@@ -1314,7 +1330,7 @@ test("non-live useQuery keeps hydrating across a network failure, reports connec
         await new Promise((resolve) => setTimeout(resolve, 10));
         throw new Error("offline once");
       }
-      return fetchJson({ state: "complete", seq: 7, data: [{ id: "message-1" }] });
+      return fetchJson({ state: "complete", seq: 7, data: [{ id: "message-1" }], next: null });
     }
     throw new Error(`unexpected route ${path}`);
   };
@@ -1350,7 +1366,7 @@ test("separately bundled client and React entry points share generated API refer
     const path = new URL(String(input)).pathname;
     if (path === "/api/manifest") return fetchJson({ generation: "test", ops: {}, channels: {}, auth: {} });
     operation = JSON.parse(String(init?.body)).op;
-    return fetchJson({ state: "complete", seq: 1, data: [] });
+    return fetchJson({ state: "complete", seq: 1, data: [], next: null });
   };
   function Harness() {
     bundledReact.useQuery(bundledClient.api.messages.thread, {}, { live: false });

@@ -1019,6 +1019,7 @@
     "canonicalResult": "{\"Row\":{\"quotient\":{\"Int\":-8},\"remainder\":{\"Int\":553},\"sink\":{\"String\":\"random\"}}}",
     "digest": "ebe608112a582160e47ca7ac07405e17bb769c197ecf2033f126eb3ed2021f5d",
     "rangeStops": {},
-    "evictedRows": null
+    "evictedRows": null,
+    "next": null
   }
 }

@@ -1013,6 +1013,7 @@
     "canonicalResult": "{\"Row\":{\"quotient\":{\"Int\":-1},\"remainder\":{\"Int\":2},\"sink\":{\"String\":\"sorted-first\"}}}",
     "digest": "3067d20ebc6057f2e0055ba256fce011ebbec9a8e14551a7bfa3b61a15f8fbb8",
     "rangeStops": {},
-    "evictedRows": null
+    "evictedRows": null,
+    "next": null
   }
 }

@@ -76,7 +76,6 @@
             "after": null,
             "before": null,
             "range": null,
-            "optional_cursor_args": [],
             "merge_site": null,
             "provenance": "Const"
           }
@@ -86,7 +85,7 @@
   },
   "certificate": {
     "program": "bytesIndexOrder",
-    "plan_hash": "2acc2b233d31e97433180ea6044e3a4d458ae650a189b8a2c195e22c6c163032",
+    "plan_hash": "3d25a2077704513a75eda929a0d0c290877fd4f085877379192c9e3e9f25daa2",
     "schema_hash": "aa3ab3dc991fa93b6e94897fbf6f338594e4b7beb58d876654645f9bb832de18",
     "rule_hashes": {
       "blobs.read": "e4b1bd5e6b4e5a53500b2fc0623371af6d2488bb32b96214d514e9eb79ede6e5"
@@ -234,6 +233,7 @@
         "exhausted"
       ]
     },
-    "evictedRows": null
+    "evictedRows": null,
+    "next": null
   }
 }

@@ -335,7 +335,7 @@ fn owner_state_publication_failure_finishes_rebind_then_stops() {
     let secret = owner_json["secret"].as_str().unwrap();
     let mut live = Sse::open(
         port,
-        "/api/subscribe?op=messages.thread&args=%7B%22conversationId%22%3A%22conversation-1%22%7D",
+        "/api/subscribe?op=messages.thread&args=%7B%22conversationId%22%3A%22conversation-1%22%2C%22c%22%3Anull%7D",
         "alice",
     );
     let _initial = live.event();
@@ -568,7 +568,7 @@ fn reset_removes_writer_and_core_live_subscriptions() {
     let secret = owner_json["secret"].as_str().unwrap();
     let mut live = Sse::open(
         port,
-        "/api/subscribe?op=messages.thread&args=%7B%22conversationId%22%3A%22conversation-1%22%7D",
+        "/api/subscribe?op=messages.thread&args=%7B%22conversationId%22%3A%22conversation-1%22%2C%22c%22%3Anull%7D",
         "alice",
     );
     let _ = live.event();
@@ -665,7 +665,7 @@ query denied():
     assert_eq!(
         run(
             "messages.thread",
-            r#"{"conversationId":"conversation-1"}"#,
+            r#"{"conversationId":"conversation-1","c":null}"#,
             "alice"
         )
         .status
@@ -780,7 +780,7 @@ fn slow_sse_writers_do_not_consume_json_or_control_worker_capacity() {
         "POST",
         "/api/query",
         &[("X-Snapback-As", "alice")],
-        json!({ "op": "messages.thread", "args": { "conversationId": "conversation-1" } }),
+        json!({ "op": "messages.thread", "args": { "conversationId": "conversation-1", "c": null } }),
     );
     assert_eq!(query.status, 200, "{}", query.body);
     assert_eq!(status(port, secret)["status"], "ready");
@@ -831,7 +831,7 @@ fn successful_hot_apply_never_pairs_successor_trace_with_predecessor_certificate
             &[("X-Snapback-Control", secret)],
             json!({
                 "op": "messages.thread",
-                "args": { "conversationId": "conversation-1" },
+                "args": { "conversationId": "conversation-1", "c": null },
                 "as": "alice",
             }),
         );
@@ -842,7 +842,7 @@ fn successful_hot_apply_never_pairs_successor_trace_with_predecessor_certificate
         .args([
             "why",
             "messages.thread",
-            r#"{"conversationId":"conversation-1"}"#,
+            r#"{"conversationId":"conversation-1","c":null}"#,
             "--as",
             "alice",
             "--json",

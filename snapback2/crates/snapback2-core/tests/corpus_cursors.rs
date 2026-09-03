@@ -47,6 +47,7 @@ struct FrozenReceipt {
 #[serde(rename_all = "camelCase")]
 struct FrozenExpected {
     local_result: Option<Value>,
+    next: Option<String>,
 }
 
 #[test]
@@ -57,7 +58,7 @@ fn frozen_cursor_cases_execute_against_the_engine() {
         .into_iter()
         .filter(|case| case.category == "cursor")
         .collect::<Vec<_>>();
-    assert_eq!(selected.len(), 4, "the frozen cursor case count changed");
+    assert_eq!(selected.len(), 10, "the frozen cursor case count changed");
     let names = selected
         .iter()
         .map(|case| case.name.as_str())
@@ -69,6 +70,12 @@ fn frozen_cursor_cases_execute_against_the_engine() {
             "cursor-asc-before-two-pages",
             "cursor-desc-after-two-pages",
             "cursor-desc-before-two-pages",
+            "opaque-cursor-capped-next-token",
+            "opaque-cursor-complete-next-null",
+            "opaque-cursor-empty-capped-next-null",
+            "opaque-cursor-merge-capped-token",
+            "opaque-cursor-merge-page-two",
+            "opaque-cursor-page-two-no-overlap",
         ])
     );
 
@@ -81,7 +88,11 @@ fn frozen_cursor_cases_execute_against_the_engine() {
             .iter()
             .any(|body| contains_key_value(body, "order", "Desc"))
     );
-    assert!(bodies.iter().any(contains_non_null_before));
+    assert!(
+        bodies
+            .iter()
+            .any(|body| body.to_string().contains("\"opaque_cursor\":true"))
+    );
 
     for case in selected {
         let certificate = Checker::new(&case.schema, Ceilings::default())
@@ -100,7 +111,38 @@ fn frozen_cursor_cases_execute_against_the_engine() {
             "{}",
             case.name
         );
+        assert_eq!(execution.next, case.expected.next, "{} next", case.name);
     }
+}
+
+#[test]
+fn opaque_cursor_argument_may_flow_through_a_binding() {
+    let mut case: CursorCorpusCase = serde_json::from_str(include_str!(
+        "../../../corpus/opaque-cursor-page-two-no-overlap.json"
+    ))
+    .unwrap();
+    let Stmt::Return(Expr::Scan(mut scan)) = case.program.body.pop().unwrap() else {
+        panic!("opaque cursor case stopped returning one scan")
+    };
+    scan.after = Some(Box::new(Expr::Variable("position".to_owned())));
+    case.program.body = vec![
+        Stmt::Const {
+            name: "position".to_owned(),
+            value: Expr::Variable("c".to_owned()),
+        },
+        Stmt::Return(Expr::Scan(scan)),
+    ];
+    let certificate = Checker::new(&case.schema, Ceilings::default())
+        .check(&case.program)
+        .expect("bound cursor program must certify");
+    let mut engine = Engine::memory(case.schema.clone()).unwrap();
+    for seeded in case.receipt.rows {
+        engine.seed(&seeded.table, seeded.row).unwrap();
+    }
+    let execution = engine
+        .execute(&case.program, &certificate, case.context.thaw())
+        .expect("bound opaque cursor must validate before its scan");
+    assert_eq!(Some(execution.result), case.expected.local_result);
 }
 
 #[test]
@@ -208,6 +250,7 @@ fn point_read_key_arity_is_rejected_at_certify_and_runtime() {
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
+        result_page_site: None,
         body: vec![Stmt::Return(Expr::Get(Read {
             site: "programs.overlongPoint.0".to_owned(),
             table: "items".to_owned(),
@@ -344,6 +387,7 @@ fn engine_rejects_non_indexable_point_prefix_range_and_indexed_write_values() {
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
+        result_page_site: None,
         body: vec![Stmt::Return(Expr::Get(Read {
             site: "programs.nonScalarPoint.0".to_owned(),
             table: "items".to_owned(),
@@ -387,6 +431,7 @@ fn engine_rejects_non_indexable_point_prefix_range_and_indexed_write_values() {
         kind: ProgramKind::Mutation,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
+        result_page_site: None,
         body: vec![
             Stmt::Insert {
                 table: "items".to_owned(),
@@ -404,6 +449,33 @@ fn engine_rejects_non_indexable_point_prefix_range_and_indexed_write_values() {
         ],
     };
     assert_non_indexable_runtime_error(&write_schema, &insert, ProgramKind::Mutation);
+}
+
+#[test]
+fn pageable_merge_index_must_end_in_intrinsic_id() {
+    let mut schema = cursor_schema();
+    let index = schema
+        .tables
+        .get_mut("items")
+        .unwrap()
+        .indexes
+        .get_mut("byAt")
+        .unwrap();
+    index.columns = vec!["at".to_owned()];
+    index.unique = true;
+    let mut program = uncursored_scan_program("mergeWithoutId", vec![], None);
+    let Stmt::Return(Expr::Scan(scan)) = &mut program.body[0] else {
+        unreachable!()
+    };
+    scan.index = "byAt".to_owned();
+    scan.merge_site = Some("programs.mergeWithoutId.merge".to_owned());
+    let refusal = Checker::new(&schema, Ceilings::default())
+        .check_all(&program)
+        .unwrap_err()
+        .into_iter()
+        .find(|error| error.code == "E_ARGS_CURSOR_INDEX")
+        .expect("merge id refusal");
+    assert!(refusal.message.contains("pageable merge") && refusal.rewrite.contains("[at, id]"));
 }
 
 fn assert_non_indexable_runtime_error(schema: &Schema, program: &Program, kind: ProgramKind) {
@@ -437,6 +509,7 @@ fn uncursored_scan_program(name: &str, prefix: Vec<Expr>, range: Option<Range>) 
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
+        result_page_site: None,
         body: vec![Stmt::Return(Expr::Scan(Scan {
             site: format!("programs.{name}.0"),
             table: "items".to_owned(),
@@ -447,7 +520,7 @@ fn uncursored_scan_program(name: &str, prefix: Vec<Expr>, range: Option<Range>) 
             after: None,
             before: None,
             range,
-            optional_cursor_args: Vec::new(),
+            opaque_cursor: false,
             merge_site: None,
             provenance: KeyProvenance::Const,
         }))],
@@ -523,6 +596,7 @@ fn scan_program(name: &str, index: &str, prefix: Vec<Expr>, after: Expr) -> Prog
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
+        result_page_site: None,
         body: vec![Stmt::Return(Expr::Scan(Scan {
             site: format!("programs.{name}.0"),
             table: "items".to_owned(),
@@ -533,7 +607,7 @@ fn scan_program(name: &str, index: &str, prefix: Vec<Expr>, after: Expr) -> Prog
             after: Some(Box::new(after)),
             before: None,
             range: None,
-            optional_cursor_args: Vec::new(),
+            opaque_cursor: false,
             merge_site: None,
             provenance: KeyProvenance::Const,
         }))],
@@ -607,17 +681,6 @@ fn contains_key_value(value: &serde_json::Value, key: &str, expected: &str) -> b
                 || values
                     .values()
                     .any(|value| contains_key_value(value, key, expected))
-        }
-        _ => false,
-    }
-}
-
-fn contains_non_null_before(value: &serde_json::Value) -> bool {
-    match value {
-        serde_json::Value::Array(values) => values.iter().any(contains_non_null_before),
-        serde_json::Value::Object(values) => {
-            values.get("before").is_some_and(|value| !value.is_null())
-                || values.values().any(contains_non_null_before)
         }
         _ => false,
     }

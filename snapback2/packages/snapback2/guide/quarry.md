@@ -93,7 +93,7 @@ maintain messageCounts = count messages by conversationId:
 
 Keys are positional (`table[value, …]`) or named
 (`table[column = value, …]`), as in `users[principal = viewer]`. Point reads
-need a complete unique key. Range order is `[after|before cursor] first|last N
+need a complete unique key. Range order is `[after cursor] first|last N
 [by index]`; repeats/permutations refuse. Point reads may add
 `by index`; `exists table[keys]` accepts an index prefix. Shapes use `{ * }`,
 bare fields, or `name: expression`; nested work stays bounded. An operations
@@ -101,29 +101,26 @@ module may declare `shape card = { fields }`, use `row card`, `page card`, or a
 named shape as a field value, and splice it with `...card`. Expansion preserves
 definition sites, refuses cycles, and is capped at depth 8.
 
-A cursor is the post-prefix ordering tuple; the prefix must leave a column.
-Components are indexable scalars matching their columns; `Null` is the
-universal pre-first sentinel. Scalar sugar needs one remaining column. The
-index must end in `id` or be unique. Refusals paste `.q` repairs: append `id`,
-reorder or widen the tuple, or drop a full-prefix cursor. `after` continues in
-scan order; `before c last N` is descending `after c`. If every cursor
-component is a direct optional operation argument and every suffix column is
-non-optional, the tuple is an optional group: all present applies the cursor,
-all absent omits it, and mixed presence refuses with `E_INPUT` before any scan.
-Literal `null` and other expressions retain `Null`'s pre-first sentinel meaning.
+A pageable query declares `c: cursor ?` and reads `after c`; absent means page
+one. `complete` and `capped` results carry `next`, either a server-minted opaque
+cursor or `null`. Pass it back unchanged. It encodes the table, index, order,
+typed post-prefix suffix, and last returned row—never a hidden examined
+position. A mismatched or noncanonical token is `E_INPUT` before any scan.
+Tokens are not operation-site-bound. The index must be total (end in `id` or be
+unique); `after` follows scan order.
 
-`merge table [after|before cursor] first|last N by index:` fan-ins one or more
+`merge table [after cursor] first|last N by index:` fan-ins one or more
 indented lanes. Each lane is `[prefix keys]`, optionally `for name in` a bounded
 range read. Prefixes must have equal widths and types, leave an index suffix,
 and not be structurally identical. Quarry scans every lane at N, concatenates,
 sorts by the shared suffix, deduplicates intrinsic `id` keeping the first row,
 then returns the first N as a page. Shapes, `for`, and `count` work as for a
-range page; an unshaped API result uses the table's row type. The shared cursor
-is applied unchanged to every lane.
+range page; an unshaped API result uses the table's row type. A pageable merge
+index ends in `id`; its shared cursor is applied unchanged to every lane.
 
 ```q
-query followingFeed(cursorAt: time ?, cursorId: posts ?):
-  page = merge posts before (cursorAt, cursorId) last 20 by byAuthorTime:
+query followingFeed(c: cursor ?):
+  page = merge posts after c last 20 by byAuthorTime:
     [viewer]
     [f.followed] for f in follows[viewer] first 50 by byFollower
   return page { post: ., author: profiles[.author] authorCard }
@@ -230,9 +227,9 @@ export const notify = effect({
 ```q
 effect notify from delivery
 
-query thread(conversationId: conversations):
+query thread(conversationId: conversations, c: cursor ?):
   require exists memberships[conversationId, viewer] else MEMBERSHIP_REQUIRED
-  return messages[conversationId] last 50
+  return messages[conversationId] after c last 50
 
 query summary(conversationId: conversations):
   require exists memberships[conversationId, viewer] else MEMBERSHIP_REQUIRED

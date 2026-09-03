@@ -552,13 +552,12 @@ function emitRead(expr: Extract<Expr, { kind: "read" }>, env: Environment, write
   const keys = expr.keys.map((key) => keyBinding(emitExpr(key.value, env, writer)));
   const target = index.name === "byId" ? expr.table : `${expr.table}.${index.name}`;
   if (expr.range) {
-    if (expr.range.cursorKind === "before" && expr.range.order !== "desc") refuse(expr.range.site, "before is supported only with last N; use after with first N for ascending pagination");
     const remainingColumns = index.columns.slice(expr.keys.length);
     if (expr.range.cursor && remainingColumns.length === 0) {
       const { cursor: _cursor, cursorKind: _cursorKind, ...range } = expr.range;
       typeError(
         expr.range.cursor.site,
-        `scan ${expr.table}.${index.name} prefix names every index column, so a cursor has no position to compare; remove after/before or shorten the prefix`,
+        `scan ${expr.table}.${index.name} prefix names every index column, so a cursor has no position to compare; remove after or shorten the prefix`,
         quarryExpression({ ...expr, range }),
       );
     }
@@ -570,47 +569,16 @@ function emitRead(expr: Extract<Expr, { kind: "read" }>, env: Environment, write
         `by ${index.name}: ${columns.join(", ")}`,
       );
     }
-    if (expr.range.cursor?.kind === "array") {
-      const cursor = expr.range.cursor;
-      const actual = cursor.items.map((item) => inferExpr(item, env));
-      const expected = remainingColumns.map((column) => column === "id"
-        ? { kind: "ref", table: expr.table, optional: false } satisfies ScalarType
-        : env.catalog.get(expr.table)?.columns.get(column));
-      const allInfer = actual.length === expected.length
-        && actual.every((type) => type !== undefined)
-        && expected.every((type) => type !== undefined);
-      const mismatch = allInfer
-        ? actual.findIndex((type, offset) =>
-          !cursorKindMatches(cursor.items[offset]!, type!, expected[offset]!))
-        : -1;
-      if (mismatch >= 0) {
-        const permutation = uniqueCursorPermutation(cursor.items, actual as ScalarType[], expected as ScalarType[]);
-        const { cursor: _cursor, cursorKind: _cursorKind, ...range } = expr.range;
-        const rewrite = permutation
-          ? `${expr.range.cursorKind ?? "after"} (${permutation.map(cursorRewriteExpression).join(", ")})`
-          : quarryExpression({ ...expr, range });
-        typeError(
-          expr.range.cursor.site,
-          `${expr.table}.${index.name} cursor component ${mismatch + 1} does not match ${remainingColumns[mismatch]}`,
-          rewrite,
-        );
-      }
-    }
-    if (expr.range.cursor && (index.columns.at(-1) === "id" || index.unique)
-      && remainingColumns.length > 1 && expr.range.cursor.kind !== "array") {
-      const cursor = expr.range.cursor;
-      const first = cursor.kind === "name" ? cursor.name : remainingColumns[0]!;
-      const firstSuffix = title(remainingColumns[0]!);
-      const root = first.endsWith(firstSuffix) ? first.slice(0, -firstSuffix.length) : first;
-      const tuple = [first, ...remainingColumns.slice(1).map((column) => `${root}${title(column)}`)];
+    const cursor = expr.range.cursor && emitExpr(expr.range.cursor, env, writer);
+    if (cursor && cursor.type.kind !== "cursor") {
       typeError(
-        cursor.site,
-        `${expr.table}.${index.name} has ${remainingColumns.length} ordering columns after the prefix (${remainingColumns.join(", ")}); its cursor must be a tuple`,
-        `${expr.range.cursorKind ?? "after"} (${tuple.join(", ")})`,
+        expr.range.cursor!.site,
+        `after expects a cursor value, got ${valueTypeName(cursor.type)}`,
+        "declare c: cursor ? and pass after c",
       );
     }
     const options = [`order: ${JSON.stringify(expr.range.order)}`, `take: ${expr.range.take}`];
-    if (expr.range.cursor) options.push(`after: ${emitExpr(expr.range.cursor, env, writer).code}`);
+    if (cursor) options.push(`after: ${cursor.code}`, "opaqueCursor: true");
     if (expr.range.mergeSite) options.push(`mergeSite: ${JSON.stringify(expr.range.mergeSite)}`);
     const scan = `db.scan(${target}, [${keys.map((key) => key.code).join(", ")}], { ${options.join(", ")} })`;
     return { code: scan, type: { kind: "page", table: expr.table } };
@@ -626,8 +594,17 @@ function emitMerge(expr: MergeExpr, env: Environment, writer: Writer): Emitted {
   if (!info) refuse(expr.site, `unknown table ${expr.table}`);
   const index = info.indexes.find((candidate) => candidate.name === expr.index);
   if (!index) refuse(expr.site, `table ${expr.table} has no index ${expr.index}`);
-  if (expr.cursorKind === "before" && expr.order !== "desc") {
-    refuse(expr.site, "before is supported only with last N; use after with first N for ascending pagination");
+  if (index.columns.at(-1) !== "id") {
+    const columns = [...index.columns.filter((column) => column !== "id"), "id"];
+    typeError(
+      index.site,
+      `pageable merge ${expr.table}.${index.name} must end in intrinsic id`,
+      `by ${index.name}: ${columns.join(", ")}`,
+    );
+  }
+  const cursor = expr.cursor && emitExpr(expr.cursor, env, writer);
+  if (cursor && cursor.type.kind !== "cursor") {
+    typeError(expr.cursor!.site, `merge after expects a cursor value, got ${valueTypeName(cursor.type)}`, "declare c: cursor ? and pass after c");
   }
   const widths = new Set(expr.lanes.map((lane) => lane.prefix.length));
   if (widths.size !== 1) {
@@ -1060,50 +1037,6 @@ export function quarryShapeDeclaration(shape: ShapeDecl): string {
       : field.kind === "bare" ? field.name : `${field.name}: ${quarryExpression(field.value)}`).join(", ")} }`;
 }
 
-function uniqueCursorPermutation(
-  items: Expr[],
-  actual: ScalarType[],
-  expected: ScalarType[],
-): Expr[] | undefined {
-  const matches: Expr[][] = [];
-  const visit = (offset: number, used: Set<number>, ordered: Expr[]): void => {
-    if (matches.length > 1) return;
-    if (offset === expected.length) {
-      matches.push([...ordered]);
-      return;
-    }
-    for (let index = 0; index < items.length; index += 1) {
-      if (used.has(index) || !cursorKindMatches(items[index]!, actual[index]!, expected[offset]!)) continue;
-      used.add(index);
-      ordered.push(items[index]!);
-      visit(offset + 1, used, ordered);
-      ordered.pop();
-      used.delete(index);
-    }
-  };
-  visit(0, new Set(), []);
-  return matches.length === 1 ? matches[0] : undefined;
-}
-
-function cursorRewriteExpression(expr: Expr): string {
-  const simple = simpleExpr(expr);
-  return simple === "x" ? quarryExpression(expr) : simple;
-}
-
-function cursorKindMatches(expr: Expr, actual: ScalarType, expected: ScalarType): boolean {
-  if (expr.kind === "literal" && expr.value === null) return true;
-  if (actual.optional) return true;
-  if (expected.kind === "json") return !["list"].includes(actual.kind);
-  if (["id", "principal", "ref"].includes(expected.kind)) {
-    return ["id", "principal", "ref"].includes(actual.kind);
-  }
-  if (["text", "enum"].includes(expected.kind)) return ["text", "enum"].includes(actual.kind);
-  if (["int", "time", "decimal", "money"].includes(expected.kind)) {
-    return ["int", "time", "decimal", "money"].includes(actual.kind);
-  }
-  return actual.kind === expected.kind;
-}
-
 function validateFieldType(field: ObjectField, actual: ValueType, expected: ScalarType | undefined): void {
   const expression = field.value ?? { kind: "name", name: field.name, site: field.site } satisfies Expr;
   if (expected?.kind === "int" && fractionalNumericLiteral(expression)) {
@@ -1164,7 +1097,7 @@ function scalarOrUnknown(type: ValueType): ScalarType {
 }
 
 function isScalar(type: ValueType): type is ScalarType {
-  return ["text", "id", "principal", "int", "decimal", "money", "time", "bool", "json", "bytes", "enum", "ref", "list"].includes(type.kind);
+  return ["cursor", "text", "id", "principal", "int", "decimal", "money", "time", "bool", "json", "bytes", "enum", "ref", "list"].includes(type.kind);
 }
 
 function isRef(type: ValueType): type is Extract<ScalarType, { kind: "ref" }> { return type.kind === "ref"; }

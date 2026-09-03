@@ -77,6 +77,7 @@ export interface CorpusExpected {
   digest: string;
   rangeStops: Record<string, string[]>;
   evictedRows: number | null;
+  next?: string | null;
 }
 
 export interface CorpusCase {
@@ -118,6 +119,7 @@ export interface TraceRange {
   lte: Value | null;
   rule_hash: string;
   stop: "limit" | "exhausted";
+  lastReturnedSuffix: Value[] | null;
 }
 
 export interface TraceAbsence {
@@ -136,12 +138,13 @@ export interface Trace {
   ranges: TraceRange[];
   absences: TraceAbsence[];
   points: TracePoint[];
-  merges: Array<{ site: string; deduplicated_union_len: number }>;
+  merges: Array<{ site: string; deduplicated_union_len: number; last_returned_suffix: Value[] | null }>;
 }
 
 export interface Execution {
   result: Value;
   trace: Trace;
+  next: string | null;
 }
 
 export interface LocalExecution {

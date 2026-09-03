@@ -995,6 +995,7 @@
     "canonicalResult": "{\"Row\":{\"payload\":{\"Bytes\":\"007f80ff\"}}}",
     "digest": "c52a3112e9b1643279ec54c494b490a3dd75d8c8ade0addabfd3497d9f1a856d",
     "rangeStops": {},
-    "evictedRows": null
+    "evictedRows": null,
+    "next": null
   }
 }

@@ -110,7 +110,7 @@ query before(boundary: time):
         "POST",
         "/api/query",
         &[("X-Snapback-As", "alice")],
-        json!({ "op": "messages.thread", "args": { "conversationId": "conversation-1" } }),
+        json!({ "op": "messages.thread", "args": { "conversationId": "conversation-1", "c": null } }),
     );
     assert_eq!(initial.status, 200);
     assert_eq!(initial.body["state"], "complete");
@@ -133,6 +133,109 @@ query before(boundary: time):
         "the owner data verb must cap chat's t.text(4000) rows to a certifiable page: {}",
         inspected.body
     );
+    assert!(
+        inspected.body.get("next").is_some(),
+        "data omitted next: {}",
+        inspected.body
+    );
+    let data_first = request(
+        port,
+        "POST",
+        "/control/data",
+        &[("X-Snapback-Control", &secret)],
+        json!({
+            "table": "messages",
+            "index": "byId",
+            "prefix": [],
+            "limit": 1,
+            "as": "alice",
+        }),
+    );
+    assert_eq!(data_first.body["state"], "capped", "{}", data_first.body);
+    let data_next = data_first.body["next"]
+        .as_str()
+        .expect("capped data page token");
+    let cli_page = Command::new(binary)
+        .args([
+            "data",
+            "messages",
+            "--index",
+            "byId",
+            "--prefix",
+            "[]",
+            "--after",
+            data_next,
+            "--limit",
+            "1",
+            "--as",
+            "alice",
+            "--json",
+            "--project",
+        ])
+        .arg(&root)
+        .output()
+        .unwrap();
+    assert!(
+        cli_page.status.success(),
+        "{}",
+        String::from_utf8_lossy(&cli_page.stderr)
+    );
+    let data_second: Value = serde_json::from_slice(&cli_page.stdout).unwrap();
+    assert_ne!(data_first.body["data"], data_second["data"]);
+    assert_eq!(data_second["state"], "capped", "{data_second}");
+    let second_next = data_second["next"]
+        .as_str()
+        .expect("second capped data page token");
+    let terminal_page = Command::new(binary)
+        .args([
+            "data",
+            "messages",
+            "--index",
+            "byId",
+            "--prefix",
+            "[]",
+            "--after",
+            second_next,
+            "--limit",
+            "1",
+            "--as",
+            "alice",
+            "--json",
+            "--project",
+        ])
+        .arg(&root)
+        .output()
+        .unwrap();
+    assert!(
+        terminal_page.status.success(),
+        "{}",
+        String::from_utf8_lossy(&terminal_page.stderr)
+    );
+    let data_terminal: Value = serde_json::from_slice(&terminal_page.stdout).unwrap();
+    assert_eq!(data_terminal["state"], "capped", "{data_terminal}");
+    assert_eq!(data_terminal["data"], json!([]), "{data_terminal}");
+    assert_eq!(data_terminal["next"], Value::Null, "{data_terminal}");
+    let human_page = Command::new(binary)
+        .args([
+            "data",
+            "messages",
+            "--index",
+            "byId",
+            "--prefix",
+            "[]",
+            "--after",
+            second_next,
+            "--limit",
+            "1",
+            "--as",
+            "alice",
+            "--project",
+        ])
+        .arg(&root)
+        .output()
+        .unwrap();
+    assert!(human_page.status.success());
+    assert!(String::from_utf8_lossy(&human_page.stdout).contains("\"next\": null"));
     let synthetic = request(
         port,
         "POST",
@@ -145,7 +248,7 @@ query before(boundary: time):
 
     let mut live = Sse::open(
         port,
-        "/api/subscribe?op=messages.thread&args=%7B%22conversationId%22%3A%22conversation-1%22%7D",
+        "/api/subscribe?op=messages.thread&args=%7B%22conversationId%22%3A%22conversation-1%22%2C%22c%22%3Anull%7D",
         "bob",
     );
     let first = live.event();
@@ -261,13 +364,13 @@ query before(boundary: time):
 
     let mut later_alice = Sse::open(
         port,
-        "/api/subscribe?op=messages.thread&args=%7B%22conversationId%22%3A%22conversation-1%22%7D",
+        "/api/subscribe?op=messages.thread&args=%7B%22conversationId%22%3A%22conversation-1%22%2C%22c%22%3Anull%7D",
         "alice",
     );
     assert_eq!(later_alice.event()["state"], "complete");
     let mut other_args = Sse::open(
         port,
-        "/api/subscribe?op=messages.thread&args=%7B%22conversationId%22%3A%22conversation-other%22%7D",
+        "/api/subscribe?op=messages.thread&args=%7B%22conversationId%22%3A%22conversation-other%22%2C%22c%22%3Anull%7D",
         "bob",
     );
     assert_eq!(other_args.event()["state"], "denied");
@@ -295,7 +398,7 @@ query before(boundary: time):
         &[("X-Snapback-Control", &secret)],
         json!({
             "op": "messages.thread",
-            "args": { "conversationId": "conversation-1" },
+            "args": { "conversationId": "conversation-1", "c": null },
             "as": "bob",
         }),
     );
@@ -816,7 +919,7 @@ fn serve_refuses_personas_before_every_route_dispatch() {
             "query",
             "POST",
             "/api/query",
-            json!({ "op": "messages.thread", "args": { "conversationId": "conversation-1" } }),
+            json!({ "op": "messages.thread", "args": { "conversationId": "conversation-1", "c": null } }),
             false,
         ),
         (
@@ -829,7 +932,7 @@ fn serve_refuses_personas_before_every_route_dispatch() {
         (
             "subscribe",
             "GET",
-            "/api/subscribe?op=messages.thread&args=%7B%22conversationId%22%3A%22conversation-1%22%7D",
+            "/api/subscribe?op=messages.thread&args=%7B%22conversationId%22%3A%22conversation-1%22%2C%22c%22%3Anull%7D",
             json!({}),
             false,
         ),
@@ -861,7 +964,7 @@ fn serve_refuses_personas_before_every_route_dispatch() {
         "POST",
         "/api/query",
         &[],
-        json!({ "op": "messages.thread", "args": { "conversationId": "conversation-1" } }),
+        json!({ "op": "messages.thread", "args": { "conversationId": "conversation-1", "c": null } }),
     );
     assert_eq!(anonymous.status, 401, "{}", anonymous.body);
     assert_eq!(

@@ -1127,6 +1127,7 @@
     "canonicalResult": "{\"Array\":[{\"Row\":{\"groupId\":{\"Id\":\"g1\"},\"id\":{\"Id\":\"a2\"},\"name\":{\"String\":\"Child\"},\"parentId\":{\"Id\":\"a1\"}}},{\"Row\":{\"groupId\":{\"Id\":\"g1\"},\"id\":{\"Id\":\"a1\"},\"name\":{\"String\":\"Root\"},\"parentId\":{\"Id\":\"none\"}}}]}",
     "digest": "1e6b1f92f782340aeb7868edaea096643fc91325c8ceeb8f3538a90dca92491e",
     "rangeStops": {},
-    "evictedRows": null
+    "evictedRows": null,
+    "next": null
   }
 }

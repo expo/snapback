@@ -1015,7 +1015,7 @@ for await (const line of createInterface({{ input: process.stdin }})) {{
     }
 
     #[test]
-    fn bundled_compiler_outputs_execute_tuple_cursors_counts_ids_and_money() {
+    fn bundled_compiler_outputs_execute_opaque_cursors_counts_ids_and_money() {
         use snapback2_core::{Actor, Context, Engine, ExecutionState};
 
         let stamp = SystemTime::now()
@@ -1036,7 +1036,7 @@ for await (const line of createInterface({{ input: process.stdin }})) {{
         .unwrap();
         fs::write(
             snapback.join("programs.q"),
-            "query page(previousId: items):\n  previous = items[previousId]! else NOT_FOUND\n  return items[] after (previous.at, previous.id) first 1 by byAt\n\nquery count():\n  return count(items[] first 2 by byAt)\n\nmutation put(id: id):\n  insert items { id, at: 2, label: 'inserted' }\n  return id\n\nmutation putPrice():\n  return insert prices { amount: 2.50 }\n\nquery getPrice(id: prices):\n  return prices[id]\n",
+            "query page(c: cursor ?):\n  return items[] after c first 1 by byAt\n\nquery count():\n  return count(items[] first 2 by byAt)\n\nmutation put(id: id):\n  insert items { id, at: 2, label: 'inserted' }\n  return id\n\nmutation putPrice():\n  return insert prices { amount: 2.50 }\n\nquery getPrice(id: prices):\n  return prices[id]\n",
         )
         .unwrap();
 
@@ -1072,7 +1072,7 @@ for await (const line of createInterface({{ input: process.stdin }})) {{
                 page_certificate,
                 Context::query(
                     actor.clone(),
-                    BTreeMap::from([("previousId".to_owned(), Value::Id("row-a".to_owned()))]),
+                    BTreeMap::from([("c".to_owned(), Value::Null)]),
                 ),
             )
             .unwrap();
@@ -1082,8 +1082,28 @@ for await (const line of createInterface({{ input: process.stdin }})) {{
                 .unwrap()
                 .as_str()
                 .unwrap(),
+            "row-a"
+        );
+        let next = page_execution.next.expect("first page must mint a cursor");
+        let page_two = engine
+            .execute(
+                page,
+                page_certificate,
+                Context::query(
+                    actor.clone(),
+                    BTreeMap::from([("c".to_owned(), Value::String(next))]),
+                ),
+            )
+            .unwrap();
+        assert_eq!(
+            page_two.result.as_array().unwrap()[0]
+                .field("id")
+                .unwrap()
+                .as_str()
+                .unwrap(),
             "row-b"
         );
+        assert_eq!(page_two.next, None);
 
         let (count, count_certificate) = &programs["programs.count"];
         let count_execution = engine

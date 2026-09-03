@@ -1044,6 +1044,7 @@
     "canonicalResult": "{\"Row\":{\"id\":{\"Id\":\"[{\\\"Id\\\":\\\"resource1\\\"}]\"},\"resourceId\":{\"Id\":\"resource1\"},\"value\":{\"Int\":7}}}",
     "digest": "2e6b691bcdf94f9da35650dd4e8b16c7551ebe217368f642343ce4858b88ea0b",
     "rangeStops": {},
-    "evictedRows": null
+    "evictedRows": null,
+    "next": null
   }
 }

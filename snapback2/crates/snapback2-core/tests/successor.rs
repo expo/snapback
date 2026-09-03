@@ -54,6 +54,7 @@ fn get_program(name: &str, table: &str, index: &str, key: &str) -> Program {
         kind: ProgramKind::Query,
         args: BTreeMap::from([(key.to_owned(), ArgType::Scalar)]),
         read_time_granularity_ms: None,
+        result_page_site: None,
         body: vec![Stmt::Return(Expr::Get(Read {
             site: name.to_owned(),
             table: table.to_owned(),
@@ -72,11 +73,9 @@ fn text_owner_runtime() -> (Runtime, Table) {
         ],
         &[("byId", &["id"])],
     );
+    let tables = BTreeMap::from([("items".to_owned(), items.clone())]);
     let base = generation(
-        schema(
-            BTreeMap::from([("items".to_owned(), items.clone())]),
-            Vec::new(),
-        ),
+        schema(tables, Vec::new()),
         vec![get_program("items.get", "items", "byId", "id")],
     );
     let mut runtime = Runtime::open(Store::memory().unwrap(), base).unwrap();
@@ -147,6 +146,7 @@ fn additive_successor_adds_table_column_index_and_program_in_place() {
                 kind: ProgramKind::Mutation,
                 args: BTreeMap::new(),
                 read_time_granularity_ms: None,
+                result_page_site: None,
                 body: vec![Stmt::Update {
                     table: "items".to_owned(),
                     key: Expr::Literal(Value::Id("i1".to_owned())),
@@ -229,6 +229,7 @@ fn successor_optional_column_is_null_in_expressions_rules_and_indexes() {
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
+        result_page_site: None,
         body: vec![Stmt::Return(field(
             Expr::Get(Read {
                 site: "items.note".to_owned(),
@@ -437,6 +438,7 @@ fn live_maintained_count_materializes_omitted_optional_group_as_null() {
         kind: ProgramKind::Mutation,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
+        result_page_site: None,
         body: vec![Stmt::Insert {
             table: "items".to_owned(),
             row: Expr::Literal(object([("id", Value::Id("i1".to_owned()))])),
@@ -1149,6 +1151,7 @@ fn maintained_target_rules_reject_users_but_not_engine_aggregate_writes() {
         kind: ProgramKind::Mutation,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
+        result_page_site: None,
         body: vec![Stmt::Insert {
             table: "cards".to_owned(),
             row: Expr::Literal(object([
@@ -1162,6 +1165,7 @@ fn maintained_target_rules_reject_users_but_not_engine_aggregate_writes() {
         kind: ProgramKind::Mutation,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
+        result_page_site: None,
         body: vec![Stmt::Insert {
             table: "counts".to_owned(),
             row: Expr::Literal(object([
@@ -1176,6 +1180,7 @@ fn maintained_target_rules_reject_users_but_not_engine_aggregate_writes() {
         kind: ProgramKind::Mutation,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
+        result_page_site: None,
         body: vec![Stmt::Update {
             table: "counts".to_owned(),
             key: Expr::Literal(Value::Id(aggregate_id)),
@@ -1374,6 +1379,7 @@ fn optional_and_list_column_types_validate_and_list_indexes_are_refused() {
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
+        result_page_site: None,
         body: vec![Stmt::Return(Expr::Get(Read {
             site: "rows.byNullNote".to_owned(),
             table: "rows".to_owned(),

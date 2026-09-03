@@ -167,6 +167,7 @@
     "canonicalResult": "\"Null\"",
     "digest": "6c7382d463fdb189bd1075f11b73b2335f49de592445abdd337b62ff8b9c5ece",
     "rangeStops": {},
-    "evictedRows": null
+    "evictedRows": null,
+    "next": null
   }
 }

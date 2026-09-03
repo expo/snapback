@@ -5,6 +5,7 @@ pub mod certificate;
 mod certificate_policy;
 pub mod client;
 mod collection_rewrite;
+pub mod cursor;
 pub mod engine;
 mod growth;
 pub mod identity;
@@ -25,6 +26,9 @@ pub use certificate::{
     RuleCertificate, WriteKind, WriteSite, declared_serialized_row_max, max_certified_page_rows,
 };
 pub use client::{ClientStore, LocalState};
+pub use cursor::{
+    CursorColumn, CursorError, CursorPosition, decode_cursor, decode_cursor_for, encode_cursor,
+};
 pub use engine::{
     AuthoritativeTrace, Context, Engine, Execution, ExecutionState, PointTrace, RuleInputTrace,
     RuntimeError, StopReason, validate_schema,

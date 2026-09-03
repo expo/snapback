@@ -46,7 +46,6 @@ import { guardedWalk, MAX_RECURSION_DEPTH } from "./recursion";
 import { derivedBound, operationArgumentList, staticBound } from "./binding-bound";
 import { maintainCollectionFacts } from "./collection-facts";
 import { checkScanPrefix, checkTupleCursor } from "./cursor";
-import { optionalCursorArgumentNames } from "./optional-cursor";
 import { isIdType } from "../authored-types";
 function concatExpressions(expressions: Expr[]): Expr {
   return expressions.slice(1).reduce<Expr>(
@@ -685,12 +684,15 @@ function lowerScan(call: ts.CallExpression, env: Environment, hint?: string): Sc
   const loweredPrefix = lowerKey(prefix, env);
   const afterNode = expressionProperty(options, "after");
   const beforeNode = expressionProperty(options, "before");
+  const opaqueCursorNode = expressionProperty(options, "opaqueCursor");
+  const opaqueCursor = opaqueCursorNode?.kind === ts.SyntaxKind.TrueKeyword;
+  if (opaqueCursorNode && !opaqueCursor) refuse(env, "E_OPAQUE", opaqueCursorNode, "opaqueCursor is an internal literal true tag");
   if (checkScanPrefix(prefix, env, ref.table, ref.index, loweredPrefix.length)) {
-    checkTupleCursor(afterNode, env, ref.table, ref.index, loweredPrefix.length);
-    checkTupleCursor(beforeNode, env, ref.table, ref.index, loweredPrefix.length);
+    if (!opaqueCursor) {
+      checkTupleCursor(afterNode, env, ref.table, ref.index, loweredPrefix.length);
+      checkTupleCursor(beforeNode, env, ref.table, ref.index, loweredPrefix.length);
+    }
   }
-  const cursorNode = afterNode ?? beforeNode;
-  const optionalCursorArgs = optionalCursorArgumentNames(cursorNode, env, ref.table, ref.index, loweredPrefix.length);
   const mergeSiteNode = expressionProperty(options, "mergeSite");
   const mergeSite = stringLiteral(mergeSiteNode);
   if (mergeSiteNode && mergeSite === undefined) refuse(env, "E_OPAQUE", mergeSiteNode, "mergeSite must be a static string");
@@ -711,7 +713,7 @@ function lowerScan(call: ts.CallExpression, env: Environment, hint?: string): Sc
           lte: optionalLower(expressionProperty(rangeNode, "lte"), env),
         }
       : null,
-    optional_cursor_args: optionalCursorArgs,
+    ...(opaqueCursor ? { opaque_cursor: true } : {}),
     merge_site: mergeSite ?? null,
     provenance: readProvenance(prefix, env),
   };
@@ -987,7 +989,6 @@ export function lowerCollectionDomain(
   }
   return { statements: [], ...lowerDomain(expression, env, binding, hint) };
 }
-
 function bindingOrigins(binding: VariableInfo): ProvenanceOrigin[] {
   if (binding.alternativeOrigins) return binding.alternativeOrigins;
   const { elementOrigins: _elements, ...valueBinding } = binding;

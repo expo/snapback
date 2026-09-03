@@ -159,6 +159,7 @@ class Parser {
     const name = this.word();
     this.take(":");
     const type = this.parseType();
+    if (type.kind === "cursor") syntax(name, "cursor is an operation argument type, not a table column", "use c: cursor ? on a query");
     this.newline();
     return { name: name.value, type, site: name };
   }
@@ -399,8 +400,8 @@ class Parser {
       } else if (name.value === "json" || name.value === "bytes") {
         this.take("<=");
         type = { kind: name.value, max: this.number(), optional: false };
-      } else if (["id", "principal", "int", "time", "bool"].includes(name.value)) {
-        type = { kind: name.value as "id" | "principal" | "int" | "time" | "bool", optional: false };
+      } else if (["cursor", "id", "principal", "int", "time", "bool"].includes(name.value)) {
+        type = { kind: name.value as "cursor" | "id" | "principal" | "int" | "time" | "bool", optional: false };
       } else if (name.value === "enum") {
         this.take("(");
         const variants: string[] = [];
@@ -658,7 +659,9 @@ class Parser {
         const site = this.take("where");
         const predicate = this.expression(0, new Set(["<newline>", "{", ",", "}"]));
         value = { ...value, range: { ...value.range!, where: { predicate, site } } };
-      } else if (value.kind === "read" && ["after", "before", "first", "last", "by"].includes(this.peek().value)) {
+      } else if (value.kind === "read" && this.at("before")) {
+        unsupported(this.peek(), "before", "use after c; reverse display order in the client when needed");
+      } else if (value.kind === "read" && ["after", "first", "last", "by"].includes(this.peek().value)) {
         value = this.parseRange(value);
       } else if (this.maybe("!")) {
         const assertion = this.tokens[this.position - 1]!;
@@ -702,22 +705,22 @@ class Parser {
     let order: "asc" | "desc" | undefined;
     let take: number | undefined;
     let cursor: Expr | undefined;
-    let cursorKind: "after" | "before" | undefined;
+    let cursorKind: "after" | undefined;
     const site = this.peek();
     let index = read.index;
     let highestRank = -1;
     const seen = new Set<number>();
     let violation: Token | undefined;
-    while (["after", "before", "first", "last", "by"].includes(this.peek().value)) {
+    while (["after", "first", "last", "by"].includes(this.peek().value)) {
       const key = this.word();
-      const rank = key.value === "after" || key.value === "before" ? 0
+      const rank = key.value === "after" ? 0
         : key.value === "first" || key.value === "last" ? 1
           : 2;
       if (!violation && (seen.has(rank) || rank < highestRank)) violation = key;
       seen.add(rank);
       highestRank = Math.max(highestRank, rank);
-      if (key.value === "after" || key.value === "before") {
-        const candidate = this.expression(0, new Set(["after", "before", "first", "last", "by", "where", "<newline>", ":", "{", ",", "}"]));
+      if (key.value === "after") {
+        const candidate = this.expression(0, new Set(["after", "first", "last", "by", "where", "<newline>", ":", "{", ",", "}"]));
         if (!cursor) {
           cursorKind = key.value;
           cursor = candidate;
@@ -748,14 +751,15 @@ class Parser {
     const site = this.take("merge");
     const table = this.word().value;
     let cursor: Expr | undefined;
-    let cursorKind: "after" | "before" | undefined;
-    if (this.at("after") || this.at("before")) {
-      cursorKind = this.word().value as "after" | "before";
+    let cursorKind: "after" | undefined;
+    if (this.at("before")) unsupported(this.peek(), "before", "use after c in the merge header");
+    if (this.at("after")) {
+      cursorKind = this.word().value as "after";
       cursor = this.expression(0, new Set(["first", "last", "by", ":"]));
     }
     const bound = this.peek();
     if (!this.at("first") && !this.at("last")) {
-      syntax(bound, "merge modifiers use [after|before cursor] first|last N by index", `merge ${table} first 20 by index:`);
+      syntax(bound, "merge modifiers use [after cursor] first|last N by index", `merge ${table} first 20 by index:`);
     }
     const order = this.word().value === "first" ? "asc" : "desc";
     const take = this.number();

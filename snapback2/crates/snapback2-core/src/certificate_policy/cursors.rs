@@ -33,6 +33,36 @@ pub(super) fn validate_scan_cursors(
         });
         return;
     }
+    if scan.merge_site.is_some() && index.columns.last().map(String::as_str) != Some("id") {
+        let columns = index
+            .columns
+            .iter()
+            .filter(|column| column.as_str() != "id")
+            .cloned()
+            .chain(std::iter::once("id".to_owned()))
+            .collect::<Vec<_>>()
+            .join(", ");
+        if !errors.iter().any(|error| {
+            error.code == "E_ARGS_CURSOR_INDEX"
+                && error
+                    .message
+                    .contains(scan.merge_site.as_deref().unwrap_or_default())
+        }) {
+            errors.push(CheckError {
+                code: "E_ARGS_CURSOR_INDEX".to_owned(),
+                message: format!(
+                    "pageable merge {} uses {}.{}, whose index does not end in intrinsic id",
+                    scan.merge_site.as_deref().unwrap_or(&scan.site),
+                    scan.table,
+                    scan.index,
+                ),
+                rewrite: format!(
+                    "change {}.{} columns to [{columns}] so the shared merge suffix is total",
+                    scan.table, scan.index
+                ),
+            });
+        }
+    }
     if scan.after.is_none() && scan.before.is_none() {
         return;
     }
@@ -94,6 +124,20 @@ pub(super) fn validate_scan_cursors(
             bindings,
             &mut BTreeSet::new(),
         );
+        if scan.opaque_cursor {
+            if bound != "after" || !matches!(unwrap_static_type(&fact.kind), StaticType::Cursor) {
+                errors.push(CheckError {
+                    code: "E_ARGS_TYPE".to_owned(),
+                    message: format!(
+                        "scan {} opaque cursor must be an after expression typed Cursor",
+                        scan.site
+                    ),
+                    rewrite: "pass a Cursor argument to after, or use a typed tuple in raw IR"
+                        .to_owned(),
+                });
+            }
+            continue;
+        }
         let expected = remaining_columns.len();
         if expected == 1 && matches!(fact.kind, StaticType::Object) {
             errors.push(CheckError {
@@ -229,6 +273,7 @@ fn static_cursor_kind(value: &StaticType) -> &'static str {
         StaticType::Row(_) | StaticType::Object => "object",
         StaticType::List { .. } => "array",
         StaticType::Unknown | StaticType::Json => "unknown",
+        StaticType::Cursor => "Cursor",
         StaticType::Optional(_) => unreachable!("static cursor types are unwrapped"),
     }
 }

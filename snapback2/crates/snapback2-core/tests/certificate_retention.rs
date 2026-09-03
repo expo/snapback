@@ -43,7 +43,7 @@ fn scan() -> Expr {
         after: None,
         before: None,
         range: None,
-        optional_cursor_args: Vec::new(),
+        opaque_cursor: false,
         merge_site: None,
         provenance: KeyProvenance::Const,
     })
@@ -86,7 +86,7 @@ fn growth_scan(take: u32) -> Scan {
         after: None,
         before: None,
         range: None,
-        optional_cursor_args: Vec::new(),
+        opaque_cursor: false,
         merge_site: None,
         provenance: KeyProvenance::Const,
     }
@@ -108,6 +108,7 @@ fn program(name: &str, body: Vec<Stmt>) -> Program {
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
+        result_page_site: None,
         body,
     }
 }
@@ -118,6 +119,7 @@ fn program_with_args(name: &str, args: BTreeMap<String, ArgType>, body: Vec<Stmt
         kind: ProgramKind::Query,
         args,
         read_time_granularity_ms: None,
+        result_page_site: None,
         body,
     }
 }

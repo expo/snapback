@@ -42,6 +42,7 @@ fn project(handle_column: ColumnType, min: u32) -> ProjectJson {
                 ),
             ]),
             read_time_granularity_ms: None,
+            result_page_site: None,
             body: vec![
                 Stmt::Insert {
                     table: "profiles".to_owned(),

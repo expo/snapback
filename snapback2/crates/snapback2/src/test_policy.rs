@@ -173,9 +173,9 @@ fn visible_rule_ids(
             .and_then(Json::as_array)
             .cloned()
             .unwrap_or_default();
-        let next = page
-            .last()
-            .and_then(|row| row.get("id"))
+        let next = response
+            .body
+            .get("next")
             .and_then(Json::as_str)
             .map(ToOwned::to_owned);
         ids.extend(

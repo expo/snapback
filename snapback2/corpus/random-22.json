@@ -1026,6 +1026,7 @@
     "canonicalResult": "{\"Array\":[{\"Int\":6716},{\"Int\":811},{\"Int\":5}]}",
     "digest": "2aa8374ae46bf595a2dd09ee45b5832ca7796fc31652d4b5a759feaa2fef2027",
     "rangeStops": {},
-    "evictedRows": null
+    "evictedRows": null,
+    "next": null
   }
 }

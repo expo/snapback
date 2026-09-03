@@ -49,7 +49,7 @@ mutation maybeNotify(shouldNotify: bool):
     let why = project.run(&[
         "why",
         "messages.thread",
-        r#"{"conversationId":"conversation-1"}"#,
+        r#"{"conversationId":"conversation-1","c":null}"#,
         "--as",
         "alice",
         "--json",

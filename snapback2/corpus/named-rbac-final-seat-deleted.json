@@ -297,6 +297,7 @@
     "canonicalResult": "{\"Error\":\"E_CONSTRAINT\"}",
     "digest": "e1e7bb43a4702c4812836a881ca6813abebafb1f5f07a5b3264ca6f85175b24d",
     "rangeStops": {},
-    "evictedRows": null
+    "evictedRows": null,
+    "next": null
   }
 }

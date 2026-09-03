@@ -568,9 +568,30 @@ impl<'a> Runner<'a> {
                         deduplicated.push(value);
                     }
                 }
+                let last_returned_suffix = self
+                    .certificate
+                    .and_then(|certificate| certificate.result_page_site.as_ref())
+                    .filter(|page| page.merge && page.site == *site)
+                    .and_then(|page| {
+                        let take = self
+                            .certificate
+                            .and_then(|certificate| {
+                                certificate
+                                    .merge_sites
+                                    .iter()
+                                    .find(|entry| entry.site == *site)
+                            })
+                            .map(|entry| entry.take as usize)?;
+                        let row = deduplicated.iter().take(take).last()?;
+                        page.suffix
+                            .iter()
+                            .map(|column| row.field(&column.name).cloned().ok())
+                            .collect::<Option<Vec<_>>>()
+                    });
                 self.trace.merges.push(MergeTrace {
                     site: site.clone(),
                     deduplicated_union_len: deduplicated.len() as u64,
+                    last_returned_suffix,
                 });
                 Ok(Value::Array(deduplicated))
             }
@@ -675,27 +696,19 @@ impl<'a> Runner<'a> {
             .iter()
             .map(|value| self.expr(value))
             .collect::<Result<Vec<_>, _>>()?;
-        let omit_optional_cursor = !scan.optional_cursor_args.is_empty()
-            && scan
-                .optional_cursor_args
-                .iter()
-                .all(|name| self.context.args.get(name) == Some(&Value::Null));
-        let after = if omit_optional_cursor {
-            None
-        } else {
-            scan.after
-                .as_deref()
-                .map(|value| self.expr(value))
-                .transpose()?
-        };
-        let before = if omit_optional_cursor {
-            None
-        } else {
-            scan.before
-                .as_deref()
-                .map(|value| self.expr(value))
-                .transpose()?
-        };
+        let mut after = scan
+            .after
+            .as_deref()
+            .map(|value| self.expr(value))
+            .transpose()?;
+        if after == Some(Value::Null) && scan.opaque_cursor {
+            after = None;
+        }
+        let before = scan
+            .before
+            .as_deref()
+            .map(|value| self.expr(value))
+            .transpose()?;
         let evaluated_range = scan
             .range
             .as_ref()
@@ -708,6 +721,34 @@ impl<'a> Runner<'a> {
         let index = table.index(&scan.index).ok_or_else(|| {
             RuntimeError::Schema(format!("missing index {}.{}", scan.table, scan.index))
         })?;
+        if scan.opaque_cursor {
+            let suffix = index.columns[scan.prefix.len()..]
+                .iter()
+                .map(|name| {
+                    table
+                        .columns
+                        .get(name)
+                        .cloned()
+                        .map(|kind| crate::cursor::CursorColumn {
+                            name: name.clone(),
+                            kind,
+                        })
+                })
+                .collect::<Option<Vec<_>>>()
+                .ok_or_else(|| RuntimeError::Schema("missing cursor index column".to_owned()))?;
+            after = match after {
+                Some(Value::String(token)) => Some(Value::Array(
+                    decode_cursor_for(&token, &scan.table, &scan.index, scan.order, &suffix)
+                        .map_err(|error| RuntimeError::Input(error.to_string()))?,
+                )),
+                None => None,
+                Some(_) => {
+                    return Err(RuntimeError::Input(
+                        "opaque cursor value must be a string or null".to_owned(),
+                    ));
+                }
+            };
+        }
         let read_site = self
             .certificate
             .expect("ordinary scans have a certificate")

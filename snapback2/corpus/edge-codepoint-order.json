@@ -1085,6 +1085,7 @@
     "canonicalResult": "{\"Array\":[{\"Row\":{\"key\":{\"String\":\"é\"},\"position\":{\"Int\":2}}},{\"Row\":{\"key\":{\"String\":\"é\"},\"position\":{\"Int\":3}}},{\"Row\":{\"key\":{\"String\":\"\"},\"position\":{\"Int\":1}}},{\"Row\":{\"key\":{\"String\":\"𐀀\"},\"position\":{\"Int\":0}}}]}",
     "digest": "cb9473b89c2e8a66575949b6a9a42876cc9fd63701ab372da223308aedef94ca",
     "rangeStops": {},
-    "evictedRows": null
+    "evictedRows": null,
+    "next": null
   }
 }

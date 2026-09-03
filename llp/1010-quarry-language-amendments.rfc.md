@@ -1,4 +1,4 @@
-# LLP 1010: Quarry amendments — words for writes, total equality, one row binder, no `where`, a merged feed, an optional cursor, one modifier order
+# LLP 1010: Quarry amendments — words for writes, total equality, one row binder, no `where`, a merged feed, an opaque cursor, one modifier order
 
 **Type:** RFC
 **Status:** Implemented (author, 2026-09-03 in session: "once you've revised
@@ -17,13 +17,14 @@ grok-4.6 at xhigh), `llp/reviews/1010-quarry-language-amendments.*`
 **Implementer:** codex gpt-5.6-sol (xhigh), lane `s2/quarry-amend`
 (`~/projects/snapback-s2`), orchestrated and landed by Claude Fable 5.1
 **Date:** 2026-09-03
-**Revised:** 2026-09-03 (c — implemented: §8 records the two landing commits
+**Revised:** 2026-09-03 (d — A6's optional cursor group was replaced by LLP
+1011 B1's opaque, forward-only cursor); 2026-09-03 (c — implemented: §8 records the two landing commits
 and the one departure from the brief, the guide budget); 2026-09-03 (b — after the panel: bounds-first withdrawn; A2
 restated as program-only because rules and the IR already compare totally;
 `where` is deleted instead of fenced; merge gains the table-in-header block
 form, a self lane, the shared-suffix cursor, id-dedupe, a certificate merge
 site for truthful completeness, and an honest cost; the optional cursor group
-and one canonical modifier order are added; `insertIfAbsent` deferred to a
+(since replaced by LLP 1011 B1) and one canonical modifier order are added; `insertIfAbsent` deferred to a
 ticket; every fact the panel corrected is corrected here); 2026-09-03 (a —
 initial draft, pre-panel)
 **Related:** LLP 1004 (Quarry is the only surface; the spec-truth rule), LLP
@@ -54,7 +55,7 @@ a deletion, and added two of its own (§9).
 | A3 | rules bind the row as `.`, like shapes | two conventions for one concept | the binder word in three rule paths, `readable`'s implicit `r` |
 | A4 | delete `where` | the residual post-filter that starves; every corpus use has a better spelling | the production, the page-to-sequence retype, every fence it would need |
 | A5 | bounded `merge`, table in the header, lanes as prefixes | the loop bar's own feed has three designs and no paved one | the `merge` refusal; the starving template; client-side lane merging |
-| A6 | an optional cursor group | paired `feed`/`feedBefore` operations and if-duplicated bodies; an absent cursor on a `last N` read is an empty page today | the paired operations, the duplicated bodies |
+| A6 | superseded by LLP 1011 B1 opaque cursors | paired operations and duplicated bodies | the paired operations and tuple cursor machinery |
 | A7 | one modifier order; a repeated modifier refuses | any permutation parses; a second `by` silently wins | the permutations, last-one-wins |
 
 Withdrawn from revision (a): bounds-first (nothing deleted, benefit imagined);
@@ -294,14 +295,15 @@ own read form (`merge(prefixes)`, LLP 0329.014.004 §1; `mergeByTime` in its
 §9 standard library).
 
 ```q
-query followingFeed(cursorAt: time ?, cursorId: posts ?):
-  page = merge posts before (cursorAt, cursorId) last 20 by byAuthorTime:
+query followingFeed(c: cursor ?):
+  page = merge posts after c last 20 by byAuthorTime:
     [viewer]
     [f.followed] for f in follows[viewer] first 50 by byFollower
   return page { post: ., author: profiles[.author] }
 ```
 
-- **Header.** `merge <table> [after|before cursor] first|last N by <index>:`
+- **Header.** As amended by LLP 1011 B1,
+  `merge <table> [after cursor] first|last N by <index>:`
   — the table and the index are named once, so one-table, one-index
   ownership is syntactic; the header `by` is required; the modifier order
   is A7's.
@@ -318,9 +320,9 @@ query followingFeed(cursorAt: time ?, cursorId: posts ?):
   cut to N. The own-posts lane is explicit, `[viewer]`, because the brief
   makes self-membership implicit and forbids a persisted self-follow
   (`social-messenger.md:91–95`).
-- **Pagination.** Every lane shares one total suffix order, so the last
-  merged row's suffix tuple, applied to every lane on the next call, gives
-  no duplicates and no gaps (the ordinary cursor semantics of
+- **Pagination.** Every lane shares one total suffix order, so the opaque
+  `next` token minted from the last returned merged row, applied to every
+  lane on the next call, gives no duplicates and no gaps (the ordinary cursor semantics of
   `guide/quarry.md` §Programs, on every lane at once). This meets M2 item 8
   and the diagnostic brief's item 7 (infinite scroll, 20 per page, both
   tabs). No frontier vector.
@@ -357,36 +359,13 @@ truncating union that is `capped`; a runtime-overlapping pair that dedupes;
 page two with the shared cursor), the evaluator twin's dedupe, the guide
 recipe, and the template. The only platform work in this RFC.
 
-## A6. An optional cursor group
+## A6. Opaque cursor replacement
 
-**Today.** The paged form is
-`cursorAt: time ?, cursorId: posts ?` plus
-`if cursorAt != null: return … after (cursorAt, cursorId) … else: return …`
-(`quarry-checks.ts:285–290`, `surface.q:14–26`), and Clique duplicates whole
-operations (`social.q:103–125`, `chat.q:124–136`). The front end already
-admits optional-typed cursor components and defers to the runtime
-(`quarry-checks.ts:344–355`); at runtime `Null` is the universal pre-first
-sentinel (`index.rs:296–300`), which encodes as the lowest index value
-(`:340`). On an ascending read that is "from the start"; on a `last N`
-read the bound is `<` the lowest value (`:150–162`) and **the page is
-empty**. Check-green, runtime-wrong, on the paved paging idiom.
-
-**Amendment.** A cursor tuple whose components are all optional-typed
-*operation arguments* over non-optional suffix columns is an optional
-group: all absent omits the cursor clause (page one, in either direction);
-all present applies it; mixed presence is `E_INPUT` before any scan. It
-applies to ordinary range reads and to the merge header. Literal and data
-`null`s elsewhere keep the sentinel contract; the sugar is deliberately
-narrow.
-
-**Tests.** An all-absent group on a `last N` read returns the first page
-(the defect above, pinned); mixed presence refuses with `E_INPUT`; the
-existing "defer their non-null arm" test is rewritten to the defined
-semantics.
-
-**Deletes.** The paired `foo`/`fooBefore` operations and if-duplicated
-bodies in the fixtures and templates, their duplicated API entries, and the
-client's first-page routing.
+Superseded by LLP 1011 B1. Quarry now has one branded `cursor` value: a read
+accepts `after c` with `c: cursor ?`, null means page one, and the caller feeds
+the prior delivery's `next` back as `c`. Tuple cursors, mixed-presence optional
+groups, scalar cursor sugar, and `before` are no longer Quarry forms. The raw
+IR keeps tuple `after`/`before` only as an internal lowering target.
 
 ## A7. One modifier order
 
@@ -397,7 +376,7 @@ can also be repeated or precede the range. The printer already emits one
 order (`program.ts:953–956`) and every `.q` in the corpus uses it.
 
 **Amendment.** The canonical order is the printer's:
-`table[prefix] [after|before cursor] first|last N [by index]`. A repeated
+`table[prefix] [after cursor] first|last N [by index]`. A repeated
 modifier, or a permutation, is `E_QUARRY_SYNTAX` with the complete
 canonical rewrite pasted. Both `parseRange` and the postfix `by` arm are
 covered; a point read `t[k] by index` stays. The merge header shares the
@@ -425,9 +404,9 @@ order after the table name.
 | `templates/chat/snapback/schema.q:48–54` (+ fixture copy) | drop the immutable-redundant matrix terms |
 | `templates/chat/snapback/schema.q` `posts` (+ copy) | `after insert <- exists profiles[.author]` |
 | `templates/chat/snapback/seed.ts` (+ copy) | drop `post-charlie`; `tests/chat.test.ts` feed journey adjusted |
-| `templates/chat/snapback/feeds.q` (+ copy) | `followingFeed` = A5 block with A6 cursor; `globalFeed` drops `where`, gains the cursor group |
-| `quarry-surface/snapback/surface.q:34–36` | index with `visible` in the prefix; plain scan; `postsAfter` collapses via A6 |
-| `quarry-clique/snapback/social.q:103–125`, `chat.q:124–136` | `laneFeed`/`laneFeedBefore` → one merge; `chatThread`/`chatThreadBefore` → one operation via A6 |
+| `templates/chat/snapback/feeds.q` (+ copy) | `followingFeed` = A5 block; `globalFeed` drops `where` (cursor form later replaced by LLP 1011 B1) |
+| `quarry-surface/snapback/surface.q:34–36` | index with `visible` in the prefix; plain scan; paired paging later replaced by LLP 1011 B1 |
+| `quarry-clique/snapback/social.q:103–125`, `chat.q:124–136` | lane pairs → one merge; thread pairs → one operation (cursor form later replaced by LLP 1011 B1) |
 | `guide/quarry.md`, `guide/grammar.md`, `families.source.json` | every form above; §6; the recipe for the merged feed with its named lane cap |
 
 ## 8. Sequencing and landing record
@@ -460,9 +439,10 @@ codex lanes, with zero Rust tests added by this landing — the case
 over-budget record was not committed.
 
 **What binds now.** The reference (`snapback2 guide quarry`) states the
-implemented language; the corpus carries the nine merge and optional-cursor
-cases; the check count stays five. This document is archived from the
-working set with the landing — the work it commissioned is done.
+implemented language. The original landing's optional-cursor corpus cases
+were replaced by LLP 1011 B1's opaque-cursor cases; the raw IR tuple target
+remains internal. This document is archived from the working set with the
+landing — the work it commissioned is done.
 
 ## 9. Panel record
 
@@ -494,7 +474,7 @@ What the panel changed, and who found it:
   every lane complete" false and the merge site is the fix (codex; grok
   changed to it); id-dedupe at runtime (both); the `take + 2` reserve and
   the corrected numbers (codex); the table-in-header spelling (codex).
-- **A6 optional cursor** (codex proposed; grok changed to include it); the
+- **A6 cursor grouping, since superseded by LLP 1011 B1** (codex proposed; grok changed to include it); the
   empty-page-on-`last N` defect was the author's finding while verifying
   round 1.
 - **A7 canonical order** (codex proposed; grok accepted); the postfix `by`

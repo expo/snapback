@@ -11,17 +11,11 @@ query requiredUser(u: users):
 query hasMembership(group: groups, principal: principal):
   return exists memberships[group, principal]
 
-query postsAfter(author: principal, cursorAt: time ?, cursorId: posts ?):
-  return posts[author] after (cursorAt, cursorId) first 3 by byAuthorAt {
+query postsAfter(author: principal, c: cursor ?):
+  return posts[author] after c first 3 by byAuthorAt {
     *,
     author: users[.author] { name, role },
     edited: .editedAt ?? .at,
-  }
-
-query postsBefore(author: principal, cursorAt: time, cursorId: posts):
-  return posts[author] before (cursorAt, cursorId) last 3 by byAuthorAt {
-    body,
-    author: users[.author] { name },
   }
 
 query visiblePosts(author: principal):

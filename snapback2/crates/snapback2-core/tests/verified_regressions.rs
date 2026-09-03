@@ -45,6 +45,7 @@ fn mutation(name: &str, args: BTreeMap<String, ArgType>, body: Vec<Stmt>) -> Pro
         kind: ProgramKind::Mutation,
         args,
         read_time_granularity_ms: None,
+        result_page_site: None,
         body,
     }
 }
@@ -69,6 +70,7 @@ fn query_get(name: &str, table: &str, index: &str, arg: &str) -> Program {
         kind: ProgramKind::Query,
         args: BTreeMap::from([(arg.to_owned(), ArgType::Id)]),
         read_time_granularity_ms: None,
+        result_page_site: None,
         body: vec![Stmt::Return(Expr::Get(Read {
             site: name.to_owned(),
             table: table.to_owned(),
@@ -880,6 +882,7 @@ fn huge_recurse_depth_is_refused_within_a_short_deadline() {
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
+        result_page_site: None,
         body: vec![Stmt::For {
             binding: "node".to_owned(),
             domain: LoopDomain::Recurse(Recurse {
@@ -927,6 +930,7 @@ fn malformed_builtin_arities_are_refused_before_execution() {
             kind: ProgramKind::Mutation,
             args: BTreeMap::new(),
             read_time_granularity_ms: None,
+            result_page_site: None,
             body: vec![Stmt::Return(Expr::Builtin { builtin, args })],
         };
         let error = Checker::new(&Schema::default(), Ceilings::default())
@@ -944,6 +948,7 @@ fn nested_out_of_i53_literals_are_refused_by_certification() {
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
+        result_page_site: None,
         body: vec![Stmt::Return(Expr::Literal(Value::Array(vec![Value::Row(
             BTreeMap::from([("unsafe".to_owned(), Value::Int(I53_MAX + 1))]),
         )])))],
@@ -962,6 +967,7 @@ fn execute_pure(expression: Expr) -> Result<Execution, RuntimeError> {
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
+        result_page_site: None,
         body: vec![Stmt::Return(expression)],
     };
     let certificate = Checker::new(&schema, Ceilings::default())

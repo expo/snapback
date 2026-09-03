@@ -93,7 +93,7 @@ export function generateApiDts(
     return [catalog, ...aliases].join("\n");
   })();
   const members = [modulesText, channelsText].filter(Boolean).join("\n");
-  return `import type { Bytes, Decimal, Json, Money, Page, Principal } from 'snapback2';\nimport type { Channel, Op } from 'snapback2/client';\n\n${rowTypes}\n\ndeclare module 'snapback2/client' {\n  interface Api {\n${members}\n  }\n}\n\nexport {};\n`;
+  return `import type { Bytes, Cursor, Decimal, Json, Money, Page, Principal } from 'snapback2';\nimport type { Channel, Op } from 'snapback2/client';\n\n${rowTypes}\n\ndeclare module 'snapback2/client' {\n  interface Api {\n${members}\n  }\n}\n\nexport {};\n`;
 }
 
 function apiChannels(program: ts.Program, checker: ts.TypeChecker): Array<{ name: string; args: string }> {
@@ -182,6 +182,7 @@ function argumentBrand(call: ts.CallExpression): string | undefined {
 
 function descriptorType(call: ts.CallExpression, checker: ts.TypeChecker): string {
   const name = callLeaf(call);
+  if (name === "cursor") return "Cursor";
   if (name === "principal") return "Principal";
   if (name === "id" || name === "text" || name === "ref") return "string";
   if (name === "bytes") return "Bytes";

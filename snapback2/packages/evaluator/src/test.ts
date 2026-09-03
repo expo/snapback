@@ -47,6 +47,19 @@ for (const testCase of cases) {
   assert(differences.length === 0, `${testCase.name}: ${differences.join("; ")}`);
 }
 
+const cursorPageTwo = cases.find((testCase) => testCase.name === "opaque-cursor-page-two-no-overlap");
+assert(cursorPageTwo !== undefined, "opaque cursor page-two case is absent from the corpus");
+const boundCursor = JSON.parse(JSON.stringify(cursorPageTwo)) as CorpusCase;
+const returnedScan = (boundCursor.program.body[0] as any).Return.Scan;
+returnedScan.after = { Variable: "position" };
+boundCursor.program.body.unshift({ Const: { name: "position", value: { Variable: "c" } } } as any);
+const boundCursorReplay = new ClientStore(boundCursor.schema, boundCursor.receipt)
+  .reexecute(boundCursor.program, boundCursor.context);
+assert(
+  JSON.stringify(boundCursorReplay.execution.result) === JSON.stringify(boundCursor.expected.localResult),
+  "evaluator did not preflight and execute a cursor expression bound from the operation argument",
+);
+
 type AuthorityFixture = "none" | "matching" | "hash" | "digest" | "principal" | "epoch";
 
 function derivedRuleInput(

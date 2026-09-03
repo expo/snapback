@@ -255,7 +255,7 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
         );
         assert_eq!(
             execution["steps"],
-            serde_json::json!({ "actual": if admitted { 7 } else { 4 }, "ceiling": 51203 })
+            serde_json::json!({ "actual": if admitted { 8 } else { 4 }, "ceiling": 51203 })
         );
         assert_eq!(execution["readSites"].as_array().unwrap().len(), 2);
         assert_eq!(

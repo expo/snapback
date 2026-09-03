@@ -246,7 +246,8 @@ function flattenBoolean(expr: Expr, op: "and" | "or"): Expr[] {
 
 export function typeCode(type: ScalarType): string {
   let code: string;
-  if (type.kind === "text") code = `t.text(${type.max})`;
+  if (type.kind === "cursor") code = "t.cursor()";
+  else if (type.kind === "text") code = `t.text(${type.max})`;
   else if (type.kind === "id") code = "t.id()";
   else if (type.kind === "principal") code = "t.principal()";
   else if (type.kind === "int") code = "t.int()";

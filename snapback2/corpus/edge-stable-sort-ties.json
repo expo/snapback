@@ -1065,6 +1065,7 @@
     "canonicalResult": "{\"Array\":[{\"Row\":{\"key\":{\"Int\":0},\"position\":{\"Int\":3}}},{\"Row\":{\"key\":{\"Int\":1},\"position\":{\"Int\":2}}},{\"Row\":{\"key\":{\"Int\":1},\"position\":{\"Int\":1}}}]}",
     "digest": "316bf3488b17d89e821923deff005b04aee0eb55e260ac601b4334f043a34de7",
     "rangeStops": {},
-    "evictedRows": null
+    "evictedRows": null,
+    "next": null
   }
 }

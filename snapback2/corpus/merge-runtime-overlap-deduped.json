@@ -166,7 +166,6 @@
                                     "after": null,
                                     "before": null,
                                     "range": null,
-                                    "optional_cursor_args": [],
                                     "merge_site": "merge.overlap",
                                     "provenance": "Const"
                                   }
@@ -190,7 +189,6 @@
                                     "after": null,
                                     "before": null,
                                     "range": null,
-                                    "optional_cursor_args": [],
                                     "merge_site": "merge.overlap",
                                     "provenance": "Const"
                                   }
@@ -222,7 +220,7 @@
   },
   "certificate": {
     "program": "merge.overlap",
-    "plan_hash": "b081a21dafbf46c10646d550106383df977928fd2de1aa290987f9ed118ab973",
+    "plan_hash": "632350d3f9fb9f08955edb95f0aa6c5bc2d194d338c98f6b61b11297ffecef88",
     "schema_hash": "f0678e830e1d82c9944be8c03fd432099f7c739ea93d4cd40939d8700359c528",
     "rule_hashes": {
       "posts.read": "0201f66714518c59ab12959e7a0541e23ec540e46fe516506e0985e20b514616"
@@ -434,6 +432,7 @@
         "exhausted"
       ]
     },
-    "evictedRows": null
+    "evictedRows": null,
+    "next": null
   }
 }

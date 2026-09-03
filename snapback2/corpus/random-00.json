@@ -1003,6 +1003,7 @@
     "canonicalResult": "{\"Int\":7658}",
     "digest": "3488b67a2847552fb70a9800e9c540e20a394893302db11c42a6b299a1ddaf84",
     "rangeStops": {},
-    "evictedRows": null
+    "evictedRows": null,
+    "next": null
   }
 }

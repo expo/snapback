@@ -3,7 +3,9 @@
 A query is live because its authoritative read trace intersects a commit, not
 because the author declares an invalidation list. Bound every scan:
 
-For paging, every cursor index ends in `id` and `after`/`before` carries the full post-prefix tuple from the boundary row (scalar sugar is only for one remaining column).
+For paging, every cursor index ends in intrinsic `id`. Declare a `cursor ?`
+argument and pass it to Quarry's forward-only `after` clause; `null` means the
+first page.
 
 ```ts
 export const thread = query({ conversationId: t.ref(conversations) }, ({ db, ctx, args }) => {
@@ -15,7 +17,10 @@ export const thread = query({ conversationId: t.ref(conversations) }, ({ db, ctx
 });
 ```
 
-For another page, pass `after: [last.at, last.id]`; in descending order it selects lower tuples, while `before: [last.at, last.id]` selects higher tuples.
+`complete` and `capped` receipts carry `next: Cursor | null`. Pass that opaque
+token back as the cursor argument for the next page. It represents the last
+returned row, is bound to the table/index/order, and must not be inspected or
+constructed by application code.
 
 Subscribe through `client.subscribe(api.messages.thread, args, listener)`.
 Each SSE data frame is a query response or refusal. Connection `live`/`stale`

@@ -136,6 +136,7 @@ pub(super) fn seed_effect_row(
         kind: ProgramKind::Mutation,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
+        result_page_site: None,
         body: vec![Stmt::Emit {
             effect: "delivery.notify".to_owned(),
             payload: Expr::Literal(snapback2_core::Value::Null),

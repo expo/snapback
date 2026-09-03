@@ -33,13 +33,13 @@
     "family": "args",
     "code": "E_ARGS_TYPE",
     "wrong": "client.query(api.messages.thread, { conversationId: 1 })",
-    "right": "client.query(api.messages.thread, { conversationId: \"conversation-1\" })"
+    "right": "client.query(api.messages.thread, { conversationId: \"conversation-1\", c: null })"
   },
   {
     "family": "op",
     "code": "E_OP_UNKNOWN",
     "wrong": "client.query(api.messages.threads, {})",
-    "right": "client.query(api.messages.thread, { conversationId: \"conversation-1\" })"
+    "right": "client.query(api.messages.thread, { conversationId: \"conversation-1\", c: null })"
   },
   {
     "family": "successor",
@@ -348,10 +348,10 @@
     "right": "indexes: { byConvTime: { columns: [\"conversationId\", \"at\", \"id\"] } }"
   },
   {
-    "family": "args",
-    "code": "E_ARGS_CURSOR_SHAPE",
-    "wrong": "db.scan(messages.byConvTime, [conversationId], { take: 50, after: previous.at })",
-    "right": "db.scan(messages.byConvTime, [conversationId], { take: 50, after: [previous.at, previous.id] })"
+    "family": "input",
+    "code": "E_INPUT",
+    "wrong": "pass a cursor minted for another index or order",
+    "right": "pass the previous page's next token back as the cursor argument"
   },
   {
     "family": "args",
