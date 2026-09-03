@@ -10,11 +10,11 @@
 **Battery gate:** `workout-apps`
 **Failure signature:** `sha256:f2d8ed99c36ad33b8dd2657a7915988050dda5b788e8e723fc47f99240ba52cf`
 **First observed run:** `local.20260826T230829Z.fb14180ba761`
-**Last observed run:** `local.20260902T222959Z.21867fec6d93`
-**Last processed run:** `local.20260902T222959Z.21867fec6d93`
+**Last observed run:** `local.20260903T071655Z.08643f8b0ad3`
+**Last processed run:** `local.20260903T071655Z.08643f8b0ad3`
 **Detected at revision:** `fb14180ba761ee0cee2881d4889f4fffa981ae83`
-**Last observed revision:** `21867fec6d938b0a0b27076ffab22c23232b7672`
-**Consecutive red runs:** `20`
+**Last observed revision:** `08643f8b0ad31cf0374055527f7234e3867b4cff`
+**Consecutive red runs:** `21`
 **Escalation:** `AUTHOR_ESCALATION_REQUIRED`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
