@@ -140,61 +140,6 @@ pub(super) fn add_client_scenarios(cases: &mut Vec<CorpusCase>) {
         None,
     ));
 
-    let mut maintain_server = Engine::memory(schema.clone()).expect("maintain server");
-    maintain_server
-        .seed(
-            "waitlist",
-            row([
-                ("id", id("wait-1")),
-                ("resourceId", id("resource1")),
-                ("ownerId", id("u1")),
-            ]),
-        )
-        .expect("waitlist source");
-    maintain_server
-        .seed(
-            "waitCounts",
-            row([
-                ("id", id("[{\"Id\":\"resource1\"}]")),
-                ("resourceId", id("resource1")),
-                ("value", Value::Int(1)),
-            ]),
-        )
-        .expect("wait count");
-    let maintained = maintained_waitlist_count_program();
-    let maintained_context = query_context([("resourceId", id("resource1"))]);
-    let maintained_hydration = authoritative(
-        &mut maintain_server,
-        &schema,
-        &maintained,
-        maintained_context.clone(),
-    );
-    let delete_wait = Program {
-        name: "deleteWait".to_owned(),
-        kind: ProgramKind::Mutation,
-        args: BTreeMap::new(),
-        read_time_granularity_ms: None,
-        body: vec![Stmt::Delete {
-            table: "waitlist".to_owned(),
-            key: Expr::Literal(id("wait-1")),
-        }],
-    };
-    cases.push(case_from_parts(
-        "scenario-maintain-missing-delete",
-        "scenario",
-        schema.clone(),
-        maintained,
-        maintained_context,
-        maintained_hydration.receipt,
-        vec![PreludeStep {
-            program: delete_wait,
-            context: mutation_context([], Vec::<String>::new()),
-            expected_state: "predicted".to_owned(),
-        }],
-        None,
-        None,
-    ));
-
     export_corpus_constraints::add_incomplete_constraint_cases(cases);
 
     let mention_send = PreludeStep {

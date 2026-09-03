@@ -38,8 +38,9 @@ decimal → left brand; money × money refuses.
 nonnegative; quotient equals floor for positive divisors. `share` keeps the
 amount brand, requires matching bounded recipients, and assigns remainder units
 by ascending value. Share/branded multiplication floor because divisors are
-positive; i53 products can overflow. Arguments/seeds use
-integer minor units; fractional JSON refuses.
+positive; i53 products can overflow. Wire arguments use integer minor units.
+Decimal/money seeds use whole-unit JSON numbers or decimal strings and are
+exactly normalized to minor units; exponent notation and excess precision refuse.
 Shaped rows and pages are typed and keep their brands.
 
 `principal` is the nominal type of `viewer`. It is neither a table reference
@@ -95,7 +96,10 @@ Keys are positional (`table[value, …]`) or named
 need a complete unique key. Range order is `[after|before cursor] first|last N
 [by index]`; repeats/permutations refuse. Point reads may add
 `by index`; `exists table[keys]` accepts an index prefix. Shapes use `{ * }`,
-bare fields, or `name: expression`; nested work stays bounded.
+bare fields, or `name: expression`; nested work stays bounded. An operations
+module may declare `shape card = { fields }`, use `row card`, `page card`, or a
+named shape as a field value, and splice it with `...card`. Expansion preserves
+definition sites, refuses cycles, and is capped at depth 8.
 
 A cursor is the post-prefix ordering tuple; the prefix must leave a column.
 Components are indexable scalars matching their columns; `Null` is the
@@ -122,7 +126,7 @@ query followingFeed(cursorAt: time ?, cursorId: posts ?):
   page = merge posts before (cursorAt, cursorId) last 20 by byAuthorTime:
     [viewer]
     [f.followed] for f in follows[viewer] first 50 by byFollower
-  return page { post: ., author: profiles[.author] }
+  return page { post: ., author: profiles[.author] authorCard }
 ```
 
 This recipe admits at most 50 follow rows. The query reports `capped` when that
@@ -144,7 +148,9 @@ creatorMembershipId }` uses shorthand for the second field. `count(x)` is
 `!` or `! else CODE` requires a present value; `??` supplies an absence
 fallback. Program `=`/`!=` are total: absent equals absent and differs from
 present; `!=` is `not (=)`. Ordered comparison refuses an optional operand;
-use `!` or `??` first. Conditions require Booleans.
+use `!` or `??` first. A direct `if x != null:` narrows a bound name or one-hop
+row field in that then branch; it does not narrow an `and` operand or the else.
+Conditions require Booleans.
 
 `now` is the read clock in queries and the commit clock in mutations; `commit`
 is the commit clock. In a mutation they are the same instant. `now` is pinned
@@ -161,10 +167,8 @@ the base table by its intrinsic `id`; alternate-key upsert passes the matched
 Key expressions are evaluated once. An upsert injects omitted key columns from
 them; a row or patch may spell a key column only with the same expression as
 the key, otherwise `E_QUARRY_TYPE` at that field with a drop-field rewrite. An
-`id: new` on an alternate-key upsert is the minted form (a present row keeps
-its id). Any other authored `id` must be the present row's id, else
-`UPSERT_ID_MISMATCH`; on the absent branch it inserts, or `UPSERT_ID_IN_USE` if
-that id belongs to another row. Insert yields the inserted row;
+upsert row may not spell `id`: by-id derives it from the key; alternate-key
+keeps a present row's id or mints one on the absent insert branch. Insert yields the inserted row;
 update, upsert, and delete yield no value. Each inserted row expression is
 evaluated once, including inline `new`.
 
@@ -254,11 +258,10 @@ and rewrite map back to the `.q` statement.
 ## Absence and bounds
 
 Point reads return a row or absence; absent shapes and optional members stay
-absent. `!` names a refusal and `??` handles absence. Alternate-key update and
-delete map a missing or unreadable row to `NOT_FOUND`; the same unreadable row
-updated by id yields `E_RULE`. Alternate-key upsert uses its absent branch.
-Deleting a missing id is a no-op; updating one yields `E_INPUT`.
-Changing only the key spelling can therefore change missing-row behavior. A
+absent. `!` names a refusal and `??` handles absence. Every missing update or
+delete is `NOT_FOUND`; upsert keeps its absent insert branch. The residual
+existence-oracle case is by-id unreadable → `E_RULE`, alternate-key unreadable
+→ `NOT_FOUND`. A
 missing maintained group is zero only through `#`; the ordinary target-table
 read remains absent.
 
@@ -272,9 +275,9 @@ The following are refused with `E_QUARRY_UNSUPPORTED`: `asset`/`use assets`,
 `schedule`, `where`, `device`, `oblivious`, `while`, user functions or recursion.
 Use bounded URL text instead of assets; a caller-invoked mutation instead of a
 schedule; explicit bounded arguments instead of device/oblivious state; bounded
-`for`/`walk` instead of while/recursion. Replace `where` with an index whose
-prefix pins the predicate, a table invariant such as `after insert <- exists …`,
-or `merge` for a fan-in feed.
+`for`/`walk` instead of while/recursion. An equality-conjunction `where` over
+indexable columns returns two repairs: the schema index line and the indexed
+prefix read. Other predicates name the index/invariant/merge alternatives.
 
 Writes through a non-unique or incomplete key are index-selection refusals.
 

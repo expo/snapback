@@ -164,7 +164,7 @@ fn clique_pay_runs_exact_money_sends_splits_settlement_and_privacy() {
                 "id": format!("deposit-{name}"),
                 "owner": format!("dev:{name}"),
                 "counterparty": format!("dev:{name}"),
-                "amount": 10_000,
+                "amount": 100,
                 "kind": "deposit",
                 "note": null,
                 "expense": null,

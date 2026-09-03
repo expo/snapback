@@ -100,8 +100,8 @@ mutation upsertKeyedRow(owner: principal, label: text <=40, value: int):
   upsert keyedRows[owner, label] { value }
   return null
 
-mutation upsertKeyedRowWithId(id: id, owner: principal, label: text <=40, value: int):
-  upsert keyedRows[owner, label] { id, value }
+mutation upsertKeyedRowWithId(owner: principal, label: text <=40, value: int):
+  upsert keyedRows[owner, label] { value }
   return null
 
 mutation deleteKeyedRow(owner: principal, label: text <=40):

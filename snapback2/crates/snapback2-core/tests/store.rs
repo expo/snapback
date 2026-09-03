@@ -529,7 +529,7 @@ fn durable_new_id_ranges_survive_rollback_reset_and_restart_without_aba() {
         .unwrap();
     assert!(matches!(
         stale.state,
-        ExecutionState::Rejected { ref code, .. } if code == "E_INPUT"
+        ExecutionState::Rejected { ref code, .. } if code == "NOT_FOUND"
     ));
     let rows = runtime
         .execute("items.list", Context::query(test_actor(), BTreeMap::new()))

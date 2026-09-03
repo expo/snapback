@@ -320,8 +320,8 @@
   {
     "family": "quarry",
     "code": "E_QUARRY_UNSUPPORTED",
-    "wrong": "```q\nquery visible(author: principal):\n  return posts[author] first 20 where .visible\n```",
-    "right": "```q\n-- Pin the predicate in an index prefix; use an after-insert invariant for durable validity; use merge for fan-in.\nquery visible(author: principal):\n  return posts[author, true] first 20 by byAuthorVisibleAt\n```"
+    "wrong": "```q\nquery visible(author: principal):\n  return posts[author] first 20 by byAuthorAt where .visible = true\n```",
+    "right": "```q\n-- schema.q: by byAuthorVisibleAt: author, visible, at, id\nquery visible(author: principal):\n  return posts[author, true] first 20 by byAuthorVisibleAt\n```"
   },
   {
     "family": "quarry",

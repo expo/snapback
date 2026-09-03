@@ -20,7 +20,6 @@ pub struct ClientStore {
     engine: Engine,
     coverage: ClosureReceipt,
     range_deletions: BTreeMap<String, u32>,
-    tainted_tables: BTreeSet<String>,
 }
 
 impl ClientStore {
@@ -36,7 +35,6 @@ impl ClientStore {
             engine,
             coverage,
             range_deletions: BTreeMap::new(),
-            tainted_tables: BTreeSet::new(),
         })
     }
 
@@ -60,7 +58,6 @@ impl ClientStore {
             engine: self.engine.memory_copy()?,
             coverage: self.coverage.clone(),
             range_deletions: self.range_deletions.clone(),
-            tainted_tables: self.tainted_tables.clone(),
         };
         let before = staged.covered_index_keys()?;
         let mut execution = staged.engine.execute(program, certificate, context)?;
@@ -79,16 +76,6 @@ impl ClientStore {
                 LocalState::Partial(partial.into_iter().collect()),
                 execution,
             ));
-        }
-        for (source, _) in &execution.trace.missing_preimages {
-            for maintain in staged
-                .schema
-                .maintains
-                .iter()
-                .filter(|maintain| maintain.source == *source)
-            {
-                staged.tainted_tables.insert(maintain.target.clone());
-            }
         }
         let after = staged.covered_index_keys()?;
         for (offset, (before_range, after_range)) in before.iter().zip(&after).enumerate() {
@@ -123,16 +110,8 @@ impl ClientStore {
             if !covered {
                 partial.insert(range.site.clone());
             }
-            if self.tainted_tables.contains(&range.table) {
-                partial.insert(range.site.clone());
-            }
             if self.range_deletions.get(&range.site).copied().unwrap_or(0) > 1 {
                 partial.insert(range.site.clone());
-            }
-        }
-        for point in &execution.trace.points {
-            if self.tainted_tables.contains(&point.table) {
-                partial.insert(point.site.clone());
             }
         }
         for absence in &execution.trace.absences {

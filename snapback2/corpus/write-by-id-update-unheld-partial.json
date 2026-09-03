@@ -1,0 +1,153 @@
+{
+  "corpusVersion": 1,
+  "name": "write-by-id-update-unheld-partial",
+  "category": "write",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "items": {
+        "columns": {
+          "id": "Id",
+          "label": {
+            "Text": {
+              "max": 40
+            }
+          }
+        },
+        "indexes": {
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          },
+          "byLabel": {
+            "columns": [
+              "label"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "write corpus fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "write corpus fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "write corpus fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "write corpus fixture"
+            }
+          }
+        },
+        "constraints": []
+      }
+    },
+    "maintains": []
+  },
+  "program": {
+    "name": "writeByIdUpdateUnheld",
+    "kind": "Mutation",
+    "args": {},
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Update": {
+          "table": "items",
+          "key": {
+            "Literal": {
+              "Id": "unheld"
+            }
+          },
+          "patch": {
+            "Object": {
+              "label": {
+                "Literal": {
+                  "String": "changed"
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "writeByIdUpdateUnheld",
+    "plan_hash": "df727b2801e8f3a0e8bc689a47cf5ea556ac3b706b77383eff6297751be1b544",
+    "schema_hash": "8927c8424327616699ad17116a0bf13ccd5cdaa93f4e8a782ff3a824885d79f8",
+    "rule_hashes": {
+      "items.update": "8869cd930bcd39cfa227d6b2762a74b6e9fbf6b959740af1c845a13bb092be77"
+    },
+    "evaluator_version": "bounded-spike-rust-1",
+    "value_model_version": "i53-codepoint-bytes-v2",
+    "read_sites": [],
+    "write_sites": [
+      {
+        "table": "items",
+        "kind": "Update",
+        "max_rows": 1
+      }
+    ],
+    "maintained_amplification": 0,
+    "constraint_checks": [
+      "items:Unique(byId)",
+      "items:Unique(byLabel)"
+    ],
+    "max_examined": 0,
+    "max_index_entries": 0,
+    "max_rule_probes": 0,
+    "max_steps": 9,
+    "max_heap_bytes": 288,
+    "max_output_bytes": 6,
+    "max_closure_bytes": 0,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [],
+    "disclosures": [],
+    "bound_product": null
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {},
+    "now": 0,
+    "new_ids": [],
+    "read_time": null,
+    "seed_write": false
+  },
+  "receipt": {
+    "schema_hash": "8927c8424327616699ad17116a0bf13ccd5cdaa93f4e8a782ff3a824885d79f8",
+    "rows": [],
+    "ranges": [],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": "Null",
+    "errorCode": null,
+    "localState": "partial",
+    "partialSites": [
+      "missing-authority"
+    ],
+    "canonicalResult": "\"Null\"",
+    "digest": "6c7382d463fdb189bd1075f11b73b2335f49de592445abdd337b62ff8b9c5ece",
+    "rangeStops": {},
+    "evictedRows": null
+  }
+}

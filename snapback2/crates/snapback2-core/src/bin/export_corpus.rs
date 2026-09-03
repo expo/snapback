@@ -14,6 +14,8 @@ mod export_corpus_constraints;
 mod merge_cases;
 #[path = "export_corpus/twin_cases.rs"]
 mod twin_cases;
+#[path = "export_corpus/write_cases.rs"]
+mod write_cases;
 
 const CORPUS_VERSION: u32 = 1;
 const RANDOM_SEED: u64 = 0x5eed_0329_0140_0003;
@@ -105,6 +107,7 @@ fn main() {
     add_cursor_cases(&mut cases);
     merge_cases::add_merge_and_optional_cursor_cases(&mut cases);
     twin_cases::add_twin_cases(&mut cases);
+    write_cases::add_write_cases(&mut cases);
     client_scenarios::add_client_scenarios(&mut cases);
     add_value_edges(&mut cases);
     add_bytes_cases(&mut cases);
@@ -1166,7 +1169,7 @@ fn evaluate_local(
             .apply_mutation(&step.program, &certificate, step.context.clone())
             .expect("prelude mutation");
         let (state, _) = local_state(state);
-        assert_eq!(state, step.expected_state);
+        assert_eq!(state, step.expected_state, "prelude {}", step.program.name);
     }
     let evicted_rows = replacement_receipt.map(|replacement| {
         client
@@ -1199,6 +1202,23 @@ fn evaluate_local(
                 canonical_result,
                 digest: digest(&execution.result),
                 range_stops,
+                evicted_rows,
+            }
+        }
+        Err(RuntimeError::Require { code }) => {
+            let canonical_result = canonical_json(&Value::Null);
+            Expected {
+                local_result: Some(Value::Null),
+                error_code: Some(code),
+                local_state: if program.kind == ProgramKind::Mutation {
+                    "rejected".to_owned()
+                } else {
+                    "denied".to_owned()
+                },
+                partial_sites: Vec::new(),
+                canonical_result,
+                digest: digest(&Value::Null),
+                range_stops: BTreeMap::new(),
                 evicted_rows,
             }
         }

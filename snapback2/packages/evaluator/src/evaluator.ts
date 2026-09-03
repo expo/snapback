@@ -83,7 +83,6 @@ export class ClientStore {
   private tables = new Map<string, Map<string, Value>>();
   private coverage: ClosureReceipt;
   private rangeDeletions = new Map<string, number>();
-  private taintedTables = new Set<string>();
 
   constructor(
     private readonly schema: any,
@@ -125,7 +124,6 @@ export class ClientStore {
     this.tables = staged.tables;
     this.coverage = staged.coverage;
     this.rangeDeletions = staged.rangeDeletions;
-    this.taintedTables = staged.taintedTables;
     return { state: "predicted", partialSites: [], execution };
   }
 
@@ -138,11 +136,8 @@ export class ClientStore {
       const covered = this.coverage.ranges.some(
         (coverage) => rangeCovered(coverage, range),
       );
-      if (!covered || (this.rangeDeletions.get(range.site) ?? 0) > 1 || this.taintedTables.has(range.table))
+      if (!covered || (this.rangeDeletions.get(range.site) ?? 0) > 1)
         partial.add(range.site);
-    }
-    for (const point of execution.trace.points) {
-      if (this.taintedTables.has(point.table)) partial.add(point.site);
     }
     for (const absence of execution.trace.absences) {
       const held =
@@ -167,7 +162,6 @@ export class ClientStore {
     this.tables = new Map();
     this.coverage = this.receiptForSchema(receipt);
     this.rangeDeletions = new Map();
-    this.taintedTables = new Set();
     this.seedReceipt(receipt);
     const after = this.allIds();
     let evicted = 0;
@@ -344,16 +338,6 @@ export class ClientStore {
     );
   }
 
-  taintMaintainedTargets(source: string): void {
-    for (const maintain of this.schema.maintains ?? []) {
-      if (maintain.source === source) this.taintedTables.add(maintain.target);
-    }
-  }
-
-  isTainted(table: string): boolean {
-    return this.taintedTables.has(table);
-  }
-
   private seedReceipt(receipt: ClosureReceipt): void {
     for (const row of receipt.rows) this.put(row.table, row.row);
   }
@@ -378,7 +362,6 @@ export class ClientStore {
     );
     fork.coverage = clone(this.coverage);
     fork.rangeDeletions = new Map(this.rangeDeletions);
-    fork.taintedTables = new Set(this.taintedTables);
     return fork;
   }
 
@@ -938,7 +921,10 @@ class Runner {
 
   private update(table: string, key: Value, patch: Value): void {
     const old = this.store.byId(table, asString(key));
-    if (old === null) throw new EvalError("E_INPUT", `missing ${table} row`);
+    if (old === null) {
+      this.missingWriteRow(table, asString(key));
+      return;
+    }
     const object = { ...asObject(old), ...asObject(patch) };
     this.replace(table, key, rowValue(object));
   }
@@ -963,7 +949,7 @@ class Runner {
   private delete(table: string, id: string): void {
     const old = this.store.byId(table, id);
     if (old === null) {
-      this.store.taintMaintainedTargets(table);
+      this.missingWriteRow(table, id);
       return;
     }
     if (!this.checkRule(table, "delete", null, old))
@@ -973,6 +959,17 @@ class Runner {
     this.forgetCreatedPoints(table, id);
     this.ruleMemo.clear();
     this.maintain(table, old, null);
+  }
+
+  // @ref LLP 1011#b3-one-missing-row-rule-no-id-in-an-upsert-row — preserve
+  // the engine's held/absent/unheld distinction in the receipt-only twin.
+  private missingWriteRow(table: string, id: string): void {
+    if (!this.store.authorityAbsence(table, id)) {
+      this.partial.add("missing-authority");
+      this.authorityMissSerial += 1;
+      return;
+    }
+    throw new EvalError("E_REQUIRE", "program requirement failed", "NOT_FOUND");
   }
 
   private maintain(source: string, old: Value | null, next: Value | null): void {

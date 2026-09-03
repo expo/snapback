@@ -7,7 +7,9 @@ import type { FrontendDiagnostic, Program } from "./ir";
 import { lowerProject } from "./project";
 import { rustCheck } from "./rust-check";
 import { compileQuarry, type QuarryInput } from "./quarry/index";
+import { expandDocuments } from "./quarry/expand";
 import { parseDocument } from "./quarry/parser";
+import { quarryExpression, quarryShapeDeclaration } from "./quarry/program";
 
 type Test = (name: string, run: () => void | Promise<void>) => void;
 
@@ -38,6 +40,105 @@ export function registerQuarryChecks(test: Test, frontend: string): void {
     ]) assert(text.includes(spelling), `Quarry full-surface lowering lost ${spelling}`);
     for (const line of text.split("\n").filter((line) => line.trim())) {
       assert(/\/\/ q:.+:\d+:\d+$/.test(line), `generated Quarry line lacks file:line:column provenance: ${line}`);
+    }
+  });
+
+  test("Quarry named shapes expand in every use position and print as authored", async () => {
+    const schema = `table profiles:
+  displayName: text <=80
+  handle: text <=40
+  by byDisplayName: displayName, id
+  public
+
+table posts:
+  author: profiles
+  body: text <=500
+  public
+`;
+    const module = `shape card = { displayName, handle }
+shape labeledCard = { ...card, label: .displayName }
+shape postCard = { body, author: profiles[.author] card }
+
+query direct(id: profiles):
+  return profiles[id] card
+
+query boundRow(id: profiles):
+  row = profiles[id]! else MISSING
+  return row labeledCard
+
+query boundPage():
+  page = profiles[] first 2 by byDisplayName
+  return page card
+
+query nested(id: posts):
+  return posts[id] postCard
+`;
+    const parsed = parseDocument("snapback/cards.q", module);
+    assert(parsed.diagnostics.length === 0, `named-shape source did not parse: ${JSON.stringify(parsed.diagnostics)}`);
+    const expanded = expandDocuments([parsed.document]);
+    const direct = expanded.documents[0]!.programs.find((program) => program.name === "direct")!.body[0]!;
+    assert(direct.kind === "return" && quarryExpression(direct.value) === "(profiles[id]) card",
+      `expanded use did not print the authored shape name: ${direct.kind === "return" ? quarryExpression(direct.value) : direct.kind}`);
+    assert(quarryShapeDeclaration(parsed.document.shapes[1]!) === "shape labeledCard = { ...card, label: .displayName }",
+      "shape declaration printer did not preserve the authored declaration");
+
+    await withProject({ "snapback/schema.q": schema, "snapback/cards.q": module }, async (root) => {
+      const lowered = await lowerProject(root);
+      assert(lowered.ok, `named shapes refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
+      const failures = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema).filter((item) => item.error);
+      assert(failures.length === 0, `expanded shapes did not certify: ${JSON.stringify(failures)}`);
+      for (const name of ["cards.direct", "cards.boundRow", "cards.boundPage", "cards.nested"]) {
+        const serialized = JSON.stringify(operation(lowered.project.programs, name));
+        assert(serialized.includes("displayName"), `${name} lost the named projection: ${serialized}`);
+      }
+    });
+  });
+
+  test("Quarry named shapes refuse placement, cycles, depth, and carry definition plus use sites", () => {
+    const schema = "table profiles:\n  displayName: text <=80\n  public\n";
+    const placement = compileInline([
+      { fileName: "snapback/schema.q", source: `${schema}\nshape card = { displayName }\n` },
+      { fileName: "snapback/ops.q", source: "query one():\n  return null\n" },
+    ]);
+    assert(!placement.ok && placement.diagnostics.some((item) => item.code === "E_QUARRY_PLACEMENT"),
+      `schema shape did not receive a placement refusal: ${JSON.stringify(placement)}`);
+
+    for (const [name, declarations] of [
+      ["direct", "shape a = { ...a }"],
+      ["indirect", "shape a = { ...b }\nshape b = { ...a }"],
+    ] as const) {
+      const result = compileInline([
+        { fileName: "snapback/schema.q", source: schema },
+        { fileName: `snapback/${name}.q`, source: `${declarations}\nquery use(id: profiles):\n  return profiles[id] a\n` },
+      ]);
+      assert(!result.ok && result.diagnostics.some((item) => item.code === "E_QUARRY_UNSUPPORTED" && item.message.includes("shape cycle")),
+        `${name} shape cycle compiled: ${JSON.stringify(result)}`);
+    }
+
+    const chain = Array.from({ length: 9 }, (_, offset) =>
+      `shape s${offset + 1} = { ${offset === 8 ? "displayName" : `...s${offset + 2}`} }`).join("\n");
+    const deep = compileInline([
+      { fileName: "snapback/schema.q", source: schema },
+      { fileName: "snapback/deep.q", source: `${chain}\nquery use(id: profiles):\n  return profiles[id] s1\n` },
+    ]);
+    assert(!deep.ok && deep.diagnostics.some((item) => item.code === "E_QUARRY_UNSUPPORTED" && item.message.includes("depth 8")),
+      `nine-deep shape compiled: ${JSON.stringify(deep)}`);
+
+    const bad = compileInline([
+      { fileName: "snapback/schema.q", source: schema },
+      { fileName: "snapback/bad.q", source: "shape broken = { missing }\nquery use(id: profiles):\n  return profiles[id] broken\n" },
+    ]);
+    const refusal = bad.ok ? undefined : bad.diagnostics.find((item) => item.code === "E_QUARRY_UNKNOWN");
+    assert(refusal?.site === "snapback/bad.q:1:18" && refusal.message.includes("used at snapback/bad.q:3:"),
+      `expanded diagnostic lost its definition and use sites: ${JSON.stringify(bad)}`);
+
+    for (const keyword of ["shape", "fn", "cursor"]) {
+      const result = compileInline([
+        { fileName: "snapback/schema.q", source: schema },
+        { fileName: "snapback/reserved.q", source: `query bad(${keyword}: int):\n  return ${keyword}\n` },
+      ]);
+      assert(!result.ok && result.diagnostics.some((item) => item.code === "E_QUARRY_UNKNOWN" && item.message.includes("reserved")),
+        `${keyword} was not reserved as a binding: ${JSON.stringify(result)}`);
     }
   });
 
@@ -177,9 +278,10 @@ export function registerQuarryChecks(test: Test, frontend: string): void {
       && upsert.includes(`owner: ${upsertKeys[0]}, label: ${upsertKeys[1]}`)
       && occurrences(upsert, "args.owner") === 1 && occurrences(upsert, "args.label") === 1,
     `composite upsert did not bind/inject its key columns into the platform scalar db.upsert row:\n${upsert}`);
-    assert(authored.includes('"UPSERT_ID_IN_USE"') && authored.includes('"UPSERT_ID_MISMATCH"')
-      && authored.includes("db.upsert(keyedRows, __q_upsertKey_"),
-    `authored-id alternate upsert did not lower all refusal branches:\n${authored}`);
+    assert(authored.includes("?.id ?? ctx.newId()")
+      && authored.includes("db.upsert(keyedRows, __q_upsertKey_")
+      && !authored.includes("UPSERT_ID_"),
+    `migrated alternate upsert did not keep the present id or mint on absence:\n${authored}`);
     assert(remove.includes("db.get(keyedRows.byOwnerLabel, [__q_writeKey1_")
       && remove.includes('db.require(__q_writeRow_')
       && remove.includes("db.delete(keyedRows, __q_writeRow_"),
@@ -236,23 +338,26 @@ mutation updateMismatch(owner: principal, label: text <=40, value: int):
     });
   });
 
-  test("Quarry alternate-key upsert with id: new mints only on the absent branch", async () => {
+  test("Quarry upsert rows refuse every authored id with a drop-field rewrite", async () => {
     const schema = "table keyedRows:\n  owner: principal\n  label: text <=40\n  value: int\n  unique owner, label\n  read <- allow\n  insert <- allow\n  update <- allow\n  delete <- allow\n";
     const module = "mutation bump(owner: principal, label: text <=40, value: int):\n  upsert keyedRows[owner, label] { id: new, value }\n  return true\n";
     const compiled = compileInline([
       { fileName: "snapback/schema.q", source: schema },
       { fileName: "snapback/keyed.q", source: module },
     ]);
-    assert(compiled.ok, `id: new upsert refused: ${compiled.ok ? "" : diagnosticsText(compiled.diagnostics)}`);
-    const source = compiled.modules[0]!.source;
-    assert(source.includes("?.id ?? ctx.newId()") && !source.includes("UPSERT_ID_MISMATCH") && !source.includes("UPSERT_ID_IN_USE"),
-      `id: new did not lower to the minted upsert form:\n${source}`);
-    await withProject({ "snapback/schema.q": schema, "snapback/keyed.q": module }, async (root) => {
-      const lowered = await lowerProject(root);
-      assert(lowered.ok, `id: new upsert project refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
-      const failures = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema).filter((item) => item.error);
-      assert(failures.length === 0, `id: new upsert did not certify: ${JSON.stringify(failures)}`);
-    });
+    assert(!compiled.ok, "id: new upsert compiled");
+    const diagnostic = compiled.diagnostics.find((item) => item.code === "E_QUARRY_TYPE");
+    assert(diagnostic?.site === "snapback/keyed.q:2:36"
+      && diagnostic.message.includes("upsert rows may not name id")
+      && diagnostic.rewrite === "-- upsert keyedRows[owner, label] { value }",
+    `authored upsert id lost its field site and drop-field rewrite: ${JSON.stringify(compiled)}`);
+    const repaired = module.replace("upsert keyedRows[owner, label] { id: new, value }", diagnostic!.rewrite.slice(3));
+    const fixed = compileInline([
+      { fileName: "snapback/schema.q", source: schema },
+      { fileName: "snapback/keyed.q", source: repaired },
+    ]);
+    assert(fixed.ok && fixed.modules[0]!.source.includes("?.id ?? ctx.newId()"),
+      `drop-field rewrite did not restore the absent insert branch: ${JSON.stringify(fixed)}`);
   });
 
   test("Quarry Clique M1-M3 plus Pay regression fixture lowers and certifies all 38 operations", async () => {
@@ -339,8 +444,8 @@ query ordered(a: int, b: int):
     const cases = [
       {
         name: "permutation",
-        source: "query page(at: time, cursor: posts):\n  return posts[at] by byAt after cursor first 3\n",
-        rewrite: "-- posts[at] after cursor first 3 by byAt",
+        source: "query page(at: time, c: posts):\n  return posts[at] by byAt after c first 3\n",
+        rewrite: "-- posts[at] after c first 3 by byAt",
       },
       {
         name: "double by",
@@ -367,7 +472,7 @@ query ordered(a: int, b: int):
 
   test("Quarry refuses a scalar composite cursor with a pasteable tuple rewrite", async () => {
     const schema = "table posts:\n  author: principal\n  at: time\n  by byAuthorAt: author, at, id\n  public\n";
-    const scalar = "query page(author: principal, cursor: time, cursorId: posts):\n  return posts[author] after cursor first 3\n";
+    const scalar = "query page(author: principal, c: time, cId: posts):\n  return posts[author] after c first 3\n";
     const refused = compileInline([
       { fileName: "snapback/schema.q", source: schema },
       { fileName: "snapback/ops.q", source: scalar },
@@ -376,10 +481,10 @@ query ordered(a: int, b: int):
     const diagnostic = refused.diagnostics.find((item) => item.code === "E_QUARRY_TYPE");
     assert(diagnostic?.family === "quarry" && diagnostic.site === "snapback/ops.q:2:30",
       `scalar cursor refusal lost code/family/site: ${JSON.stringify(refused)}`);
-    assert(diagnostic.rewrite === "-- after (cursor, cursorId)" && diagnostic.guide === "quarry/types",
+    assert(diagnostic.rewrite === "-- after (c, cId)" && diagnostic.guide === "quarry/types",
       `scalar cursor refusal lost tuple rewrite/guide: ${JSON.stringify(diagnostic)}`);
 
-    const repaired = scalar.replace("after cursor", diagnostic.rewrite.slice(3));
+    const repaired = scalar.replace("after c", diagnostic.rewrite.slice(3));
     await withProject({ "snapback/schema.q": schema, "snapback/ops.q": repaired }, async (root) => {
       const lowered = await lowerProject(root);
       assert(lowered.ok, `tuple rewrite did not parse/lower: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
@@ -454,7 +559,7 @@ query lastPage(cursorAt: time ?, cursorId: posts ?):
 
   test("Quarry cursor refusals stay sited and rewrite Quarry source", () => {
     const nonTotalSchema = "table posts:\n  author: principal\n  at: time\n  by byAuthorAt: author, at\n  public\n";
-    const nonTotalOps = "query page(cursor: principal, cursorAt: time, cursorId: posts):\n  return posts[] after cursor first 3 by byAuthorAt\n";
+    const nonTotalOps = "query page(c: principal, cAt: time, cId: posts):\n  return posts[] after c first 3 by byAuthorAt\n";
     const nonTotal = compileInline([
       { fileName: "snapback/schema.q", source: nonTotalSchema },
       { fileName: "snapback/ops.q", source: nonTotalOps },
@@ -474,22 +579,22 @@ query lastPage(cursorAt: time ?, cursorId: posts ?):
     ]);
     assert(!afterIndexRepair.ok, "index-only cursor repair unexpectedly skipped tuple widening");
     const widened = afterIndexRepair.diagnostics.find((item) => item.code === "E_QUARRY_TYPE");
-    assert(widened?.rewrite === "-- after (cursor, cursorAt, cursorId)",
+    assert(widened?.rewrite === "-- after (c, cAt, cId)",
       `index repair did not lead to the tuple rewrite: ${JSON.stringify(afterIndexRepair)}`);
     const afterBothRepairs = compileInline([
       { fileName: "snapback/schema.q", source: totalSchemaRepair },
-      { fileName: "snapback/ops.q", source: nonTotalOps.replace("after cursor", widened!.rewrite.slice(3)) },
+      { fileName: "snapback/ops.q", source: nonTotalOps.replace("after c", widened!.rewrite.slice(3)) },
     ]);
     assert(afterBothRepairs.ok, `index + tuple cursor rewrites did not compile green: ${JSON.stringify(afterBothRepairs)}`);
 
     const uniqueSchema = "table posts:\n  author: principal\n  at: time\n  unique byAuthorAt: author, at\n  public\n";
     const unique = compileInline([
       { fileName: "snapback/schema.q", source: uniqueSchema },
-      { fileName: "snapback/ops.q", source: "query page(cursor: principal, cursorAt: time):\n  return posts[] after cursor first 3 by byAuthorAt\n" },
+      { fileName: "snapback/ops.q", source: "query page(c: principal, cAt: time):\n  return posts[] after c first 3 by byAuthorAt\n" },
     ]);
     assert(!unique.ok, "scalar cursor on a composite unique index compiled");
     const tuple = unique.diagnostics.find((item) => item.code === "E_QUARRY_TYPE");
-    assert(tuple?.rewrite === "-- after (cursor, cursorAt)",
+    assert(tuple?.rewrite === "-- after (c, cAt)",
       `unique index did not receive the tuple rewrite: ${JSON.stringify(unique)}`);
 
     const totalSchema = "table posts:\n  author: principal\n  at: time\n  by byAuthorAt: author, at, id\n  public\n";
@@ -599,19 +704,20 @@ mutation direct(id: secrets, label: text <=40):
     });
   });
 
-  test("Quarry alternate-key update id is one front-end refusal", async () => {
+  test("Quarry alternate-key update and upsert id fields are front-end refusals", async () => {
     const compiled = compileFixture(fixtures, "quarry-update-id", ["schema", "update"]);
     assert(!compiled.ok, "alternate-key update naming id compiled");
     const compileDiagnostics = compiled.diagnostics.filter((item) => item.code === "E_QUARRY_TYPE");
-    assert(compileDiagnostics.length === 1
-      && compileDiagnostics[0]!.site.startsWith("snapback/update.q:")
-      && compileDiagnostics[0]!.rewrite === '-- update keyedRows[owner] { label: "changed" }',
+    assert(compileDiagnostics.length === 2
+      && compileDiagnostics.some((item) => item.site.startsWith("snapback/update.q:")
+        && item.rewrite === '-- update keyedRows[owner] { label: "changed" }')
+      && compileDiagnostics.some((item) => item.site.startsWith("snapback/update.q:")
+        && item.rewrite === '-- upsert keyedRows[owner] { label: "changed" }'),
     `update id front-end refusal changed: ${JSON.stringify(compiled)}`);
 
     const lowered = await lowerProject(resolve(fixtures, "quarry-update-id"));
     assert(!lowered.ok, "alternate-key update naming id lowered");
-    assert(lowered.diagnostics.length === 1 && lowered.diagnostics[0]!.code === "E_QUARRY_TYPE"
-      && lowered.diagnostics[0]!.rewrite === '-- update keyedRows[owner] { label: "changed" }',
+    assert(lowered.diagnostics.length === 2 && lowered.diagnostics.every((item) => item.code === "E_QUARRY_TYPE"),
     `update id leaked platform diagnostics: ${JSON.stringify(lowered)}`);
     assert(lowered.diagnostics.every((item) => item.code !== "E_SCHEMA_ID_RESERVED" && item.code !== "E_OPAQUE"),
       `update id retained platform leakage: ${JSON.stringify(lowered)}`);
@@ -744,16 +850,115 @@ query different(left: rows, right: rows):
       `optional ordered comparison lost its exact rewrite/site: ${JSON.stringify(result)}`);
   });
 
-  test("Quarry where is unsupported with the three honest rewrites", () => {
+  test("Quarry if presence tests narrow only the then-branch binding identity", async () => {
+    const schema = "table members:\n  lastReadAt: time ?\n  public\n";
+    const watermark = `query reached(id: members, upTo: time):
+  m = members[id]! else NOT_MEMBER
+  if m.lastReadAt != null:
+    if m.lastReadAt >= upTo:
+      return true
+  return false
+
+query direct(value: time ?, upTo: time):
+  if value != null:
+    return value >= upTo
+  return false
+`;
+    await withProject({ "snapback/schema.q": schema, "snapback/watermark.q": watermark }, async (root) => {
+      const lowered = await lowerProject(root);
+      assert(lowered.ok, `narrowed watermark refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
+      const program = operation(lowered.project.programs, "watermark.reached");
+      const generated = compileInline([
+        { fileName: "snapback/schema.q", source: schema },
+        { fileName: "snapback/watermark.q", source: watermark },
+      ]);
+      assert(generated.ok && occurrences(generated.modules[0]!.source, "db.require(") === 1
+        && !generated.modules[0]!.source.includes("lastReadAt!") && !generated.modules[0]!.source.includes("args.value!"),
+        `if narrowing emitted an assertion: ${JSON.stringify(generated)}`);
+      const store = new ClientStore(lowered.project.schema, {
+        rows: [{ table: "members", id: "m1", row: { Row: { id: { Id: "m1" }, lastReadAt: { Int: 12 } } } }],
+        ranges: [], absences: [], verdicts: [],
+      });
+      const execution = store.reexecute(program, {
+        viewer: "viewer", principal_kind: "user", auth_epoch: 1,
+        args: { id: { Id: "m1" }, upTo: { Int: 10 } }, now: 1, new_ids: [], read_time: 1,
+      });
+      assert(JSON.stringify(execution.execution.result) === JSON.stringify({ Bool: true }),
+        `narrowed watermark did not execute: ${JSON.stringify(execution)}`);
+      const directExecution = store.reexecute(operation(lowered.project.programs, "watermark.direct"), {
+        viewer: "viewer", principal_kind: "user", auth_epoch: 1,
+        args: { value: { Int: 12 }, upTo: { Int: 10 } }, now: 1, new_ids: [], read_time: 1,
+      });
+      assert(JSON.stringify(directExecution.execution.result) === JSON.stringify({ Bool: true }),
+        `narrowed bound name did not execute: ${JSON.stringify(directExecution)}`);
+    });
+
+    const refusing = [
+      ["shadow", "query bad(x: time ?, y: time, z: time ?):\n  if x != null:\n    x = z\n    return x >= y\n  return false\n"],
+      ["else", "query bad(x: time ?, y: time):\n  if x != null:\n    return true\n  else:\n    return x >= y\n"],
+      ["conjunction", "query bad(x: time ?, y: time):\n  return x != null and x >= y\n"],
+    ] as const;
+    for (const [name, source] of refusing) {
+      const result = compileInline([
+        { fileName: "snapback/schema.q", source: schema },
+        { fileName: `snapback/${name}.q`, source },
+      ]);
+      const diagnostic = result.ok ? undefined : result.diagnostics.find((item) => item.code === "E_QUARRY_TYPE");
+      assert(diagnostic?.rewrite.includes("x)! >= y"), `${name} unexpectedly retained narrowing: ${JSON.stringify(result)}`);
+    }
+  });
+
+  test("Quarry where emits the schema index and indexed-prefix repairs", () => {
     const result = compileInline([
-      { fileName: "snapback/schema.q", source: "table posts:\n  author: principal\n  at: time\n  by byAuthorAt: author, at, id\n  public\n" },
-      { fileName: "snapback/posts.q", source: "query byAuthor():\n  return posts[viewer] first 5 where .author = viewer\n" },
+      { fileName: "snapback/schema.q", source: "table posts:\n  author: principal\n  visible: bool\n  at: time\n  by byAuthorAt: author, at, id\n  public\n" },
+      { fileName: "snapback/posts.q", source: "query byAuthor():\n  return posts[viewer] first 5 by byAuthorAt where .visible = true\n" },
     ]);
-    const refusal = result.ok ? undefined : result.diagnostics.find((item) => item.code === "E_QUARRY_UNSUPPORTED");
-    assert(refusal?.rewrite.includes("index whose prefix pins the predicate")
-      && refusal.rewrite.includes("table invariant (after insert <- exists ...)")
-      && refusal.rewrite.includes("merge for a fan-in feed"),
-    `where refusal lost an honest spelling: ${JSON.stringify(result)}`);
+    const refusals = result.ok ? [] : result.diagnostics.filter((item) => item.code === "E_QUARRY_UNSUPPORTED");
+    assert(refusals.length === 2
+      && refusals.some((item) => item.site.startsWith("snapback/schema.q:")
+        && item.rewrite === "-- by byAuthorVisibleAt: author, visible, at, id")
+      && refusals.some((item) => item.site.startsWith("snapback/posts.q:")
+        && item.rewrite === "-- posts[viewer, true] first 5 by byAuthorVisibleAt"),
+    `where did not produce its two sited repairs: ${JSON.stringify(result)}`);
+
+    const reused = compileInline([
+      { fileName: "snapback/schema.q", source: "table posts:\n  author: principal\n  visible: bool\n  at: time\n  by byAuthorAt: author, at, id\n  by byAuthorVisibleAt: author, visible, at, id\n  public\n" },
+      { fileName: "snapback/posts.q", source: "query byAuthor():\n  return posts[viewer] first 5 by byAuthorAt where .visible = true\n" },
+    ]);
+    const reusedRefusals = reused.ok ? [] : reused.diagnostics.filter((item) => item.code === "E_QUARRY_UNSUPPORTED");
+    assert(reusedRefusals.length === 2
+      && reusedRefusals.some((item) => item.message.includes("reuses posts.byAuthorVisibleAt"))
+      && reusedRefusals.some((item) => item.rewrite === "-- posts[viewer, true] first 5 by byAuthorVisibleAt"),
+    `where did not reuse a compatible index: ${JSON.stringify(reused)}`);
+
+    const fallbacks = [
+      [
+        "non-conjunction",
+        "table posts:\n  author: principal\n  at: time\n  by byAuthorAt: author, at, id\n  public\n",
+        "return posts[viewer] first 5 by byAuthorAt where .author != viewer",
+      ],
+      [
+        "non-indexable",
+        "table posts:\n  author: principal\n  metadata: json <=100\n  at: time\n  by byAuthorAt: author, at, id\n  public\n",
+        "return posts[viewer] first 5 by byAuthorAt where .metadata = {}",
+      ],
+      [
+        "uncertain index",
+        "table posts:\n  author: principal\n  visible: bool\n  at: time\n  by byAuthorAt: author, at, id\n  by byAuthorVisibleAt: author, visible, at, id\n  public\n",
+        "return posts[viewer] first 5 where .visible = true",
+      ],
+    ] as const;
+    for (const [name, fallbackSchema, statement] of fallbacks) {
+      const fallback = compileInline([
+        { fileName: "snapback/schema.q", source: fallbackSchema },
+        { fileName: "snapback/posts.q", source: `query byAuthor():\n  ${statement}\n` },
+      ]);
+      const refusal = fallback.ok ? undefined : fallback.diagnostics.find((item) => item.code === "E_QUARRY_UNSUPPORTED");
+      assert(refusal?.rewrite.includes("index whose prefix pins the predicate")
+        && refusal.rewrite.includes("table invariant (after insert <- exists ...)")
+        && refusal.rewrite.includes("merge for a fan-in feed"),
+      `${name} where lost its honest refusal: ${JSON.stringify(fallback)}`);
+    }
   });
 
   test("Quarry rule binders use focal dot and two-binding updates retain row images", async () => {

@@ -7,6 +7,7 @@ import type {
   ObjectField,
   ProgramDecl,
   ScalarType,
+  ShapeDecl,
   ShapeField,
   Site,
   Stmt,
@@ -14,6 +15,7 @@ import type {
 } from "./ast";
 import { selectIndex } from "./catalog";
 import { refuse, typeError, unsupported } from "./diagnostics";
+import { narrowThenBindings } from "./narrowing";
 import { header, siteMark, typeCode } from "./schema";
 
 type ObjectType = { kind: "object"; fields: Map<string, ValueType>; nullable: boolean };
@@ -27,7 +29,7 @@ type ValueType =
   | ObjectType
   | NumericLiteralType
   | { kind: "unknown" };
-type Binding = { code: string; type: ValueType };
+type Binding = { code: string; type: ValueType; narrowedType?: ValueType; narrowedFields?: Set<string> };
 type Completion = { kind: "return" } | { kind: "assign"; name: string };
 type Emitted = Binding & { effectOnly?: boolean };
 
@@ -56,7 +58,10 @@ class Environment {
   clone(): Environment {
     const clone = new Environment(this.catalog, this.program, this.effects);
     clone.bindings.clear();
-    for (const [name, binding] of this.bindings) clone.bindings.set(name, { ...binding });
+    for (const [name, binding] of this.bindings) clone.bindings.set(name, {
+      ...binding,
+      narrowedFields: binding.narrowedFields && new Set(binding.narrowedFields),
+    });
     clone.focal = this.focal && { ...this.focal };
     clone.inlineComparisons = this.inlineComparisons;
     return clone;
@@ -165,7 +170,11 @@ function emitStatement(statement: Stmt, env: Environment, writer: Writer, comple
     const condition = emitExpr(statement.condition, env, writer);
     requireBoolean(statement.condition, condition.type, "if");
     writer.raw(`if (${condition.code}) {`, statement.site);
-    writer.nested(() => emitBody(statement.thenBody, env.clone(), writer, completion));
+    writer.nested(() => {
+      const thenEnv = env.clone();
+      narrowThenBindings(statement.condition, thenEnv.bindings);
+      emitBody(statement.thenBody, thenEnv, writer, completion);
+    });
     if (statement.elseBody.length > 0) {
       writer.raw("} else {", statement.site);
       writer.nested(() => emitBody(statement.elseBody, env.clone(), writer, completion));
@@ -285,6 +294,7 @@ function emitExpr(expr: Expr, env: Environment, writer: Writer): Emitted {
     writer.statement(`db.require(${local} !== null, ${JSON.stringify(expr.code)});`, expr.site);
     return { code: `${local}!`, type: nonNullable(value.type) };
   }
+  if (expr.kind === "shapeUse") refuse(expr.site, `shape ${expr.name} was not expanded`);
   if (expr.kind === "shape") return emitShape(expr, env, writer);
   if (expr.kind === "walk") {
     const info = env.catalog.get(expr.table);
@@ -308,7 +318,7 @@ function emitExpr(expr: Expr, env: Environment, writer: Writer): Emitted {
 
 function emitName(name: string, site: Site, env: Environment): Emitted {
   const binding = env.bindings.get(name);
-  if (binding) return binding;
+  if (binding) return { ...binding, type: binding.narrowedType ?? binding.type };
   if (name === "viewer") return { code: "ctx.viewer", type: { kind: "principal", optional: false } };
   if (name === "now") return { code: "ctx.now()", type: { kind: "time", optional: false } };
   if (name === "commit") return { code: "ctx.commitTime", type: { kind: "time", optional: false } };
@@ -330,7 +340,10 @@ function emitBinary(expr: Extract<Expr, { kind: "binary" }>, env: Environment, w
   // only ordered comparison requires present operands.
   if (["=", "!=", "<", "<=", ">", ">="].includes(expr.op)) {
     if ((expr.op === "=" || expr.op === "!=") && expr.right.kind === "literal" && expr.right.value === null) {
-      return { code: `(${left.code} ${expr.op === "=" ? "===" : "!=="} null)`, type: boolType() };
+      // @ref LLP 1011#b4-narrowing-on-if-x--null — loose null equality is
+      // intentional here: optional arguments arrive as undefined, and the
+      // generated TypeScript control flow must narrow without an assertion.
+      return { code: `(${left.code} ${expr.op === "=" ? "==" : "!="} null)`, type: boolType() };
     }
     refuseFractionalInt(expr, left.type, right.type);
     const branded = brandedType(left.type) ?? brandedType(right.type);
@@ -407,6 +420,7 @@ function emitBinary(expr: Extract<Expr, { kind: "binary" }>, env: Environment, w
 }
 
 function emitMember(expr: Extract<Expr, { kind: "member" }>, env: Environment, writer: Writer): Emitted {
+  const directBinding = expr.base.kind === "name" ? env.bindings.get(expr.base.name) : undefined;
   let base = emitExpr(expr.base, env, writer);
   if (isRef(base.type)) {
     const refType = base.type;
@@ -430,7 +444,11 @@ function emitMember(expr: Extract<Expr, { kind: "member" }>, env: Environment, w
       ? { kind: "ref", table: base.type.table, optional: false } satisfies ScalarType
       : info?.columns.get(expr.name);
     if (!column) refuse(expr.site, `table ${base.type.table} has no column ${expr.name}`);
-    return { code: `${base.code}${base.type.nullable ? "?." : "."}${expr.name}`, type: { ...column, optional: column.optional || base.type.nullable } };
+    const narrowed = directBinding?.narrowedFields?.has(expr.name) ?? false;
+    return {
+      code: `${base.code}${base.type.nullable ? "?." : "."}${expr.name}`,
+      type: { ...column, optional: narrowed ? false : column.optional || base.type.nullable },
+    };
   }
   if (base.type.kind === "object") {
     const field = base.type.fields.get(expr.name);
@@ -770,6 +788,8 @@ function shapeObject(fields: ShapeField[], focal: Binding, env: Environment, wri
         const value = emitMember({ kind: "member", base: { kind: "focal", site: field.site }, name: field.name, site: field.site }, env, writer);
         properties.push(`${property(field.name)}: ${value.code}`);
         types.set(field.name, value.type);
+      } else if (field.kind === "namedSpread") {
+        refuse(field.site, `shape ${field.name} was not expanded`);
       } else {
         const value = emitExpr(field.value, env, writer);
         properties.push(`${property(field.name)}: ${value.code}`);
@@ -880,33 +900,20 @@ function emitIndexedWrite(
   const prior = env.focal;
   env.focal = { code: row, type: { kind: "row", table: expr.table, nullable: true } };
   try {
-    // `id: new` is the minted form, not an authored id: the present branch keeps the
-    // row's id and only the absent branch mints, so the upsert converges.
-    const mintsId = (field: ObjectField) => field.name === "id" && field.value?.kind === "name" && field.value.name === "new";
-    const sourceFields = index.columns.includes("id") ? expr.fields : expr.fields.filter((field) => !mintsId(field));
-    const authoredId = sourceFields.find((field) => field.name === "id");
+    // @ref LLP 1011#b3-one-missing-row-rule-no-id-in-an-upsert-row — alternate
+    // upsert preserves a present identity and mints only on its absent branch.
+    const sourceFields = expr.fields;
     const key = temporary("upsertKey", expr.site);
     const fields = emitEvaluatedFieldEntries(sourceFields, env, writer, columns, addressedFields);
     const authoredNames = new Set(sourceFields.map((field) => field.name));
     const injected = index.columns.flatMap((column, offset) =>
       authoredNames.has(column) ? [] : [{ name: column, value: keys[offset]!.code }]);
     fields.unshift(...injected);
-    if (!authoredId && !index.columns.includes("id")) {
-      writer.statement(`const ${key} = ${row}?.id ?? ctx.newId();`, expr.site);
-      const rowFields = fields.map(fieldCode);
-      rowFields.unshift(`id: ${key}`);
-      writer.statement(`db.upsert(${expr.table}, ${key}, { ${rowFields.join(", ")} });`, expr.site);
-    } else {
-      const id = fields.find((field) => field.name === "id")!.value;
-      const idRow = temporary("upsertIdRow", expr.site);
-      writer.statement(`const ${idRow} = db.get(${expr.table}, ${id});`, expr.site);
-      writer.statement(`db.require(${row} !== null || ${idRow} === null, "UPSERT_ID_IN_USE");`, expr.site);
-      writer.statement(`db.require(${row} === null || ${row}.id === ${id}, "UPSERT_ID_MISMATCH");`, expr.site);
-      writer.statement(`const ${key} = ${row}?.id ?? ${id};`, expr.site);
-      const rowFields = fields.filter((field) => field.name !== "id").map(fieldCode);
-      rowFields.unshift(`id: ${key}`);
-      writer.statement(`db.upsert(${expr.table}, ${key}, { ${rowFields.join(", ")} });`, expr.site);
-    }
+    const addressedId = fields.find((field) => field.name === "id");
+    writer.statement(`const ${key} = ${addressedId ? addressedId.value : `${row}?.id ?? ctx.newId()`};`, expr.site);
+    const rowFields = fields.filter((field) => field.name !== "id").map(fieldCode);
+    rowFields.unshift(`id: ${key}`);
+    writer.statement(`db.upsert(${expr.table}, ${key}, { ${rowFields.join(", ")} });`, expr.site);
   } finally {
     env.focal = prior;
   }
@@ -964,13 +971,15 @@ function fieldCode(field: EvaluatedField): string { return `${property(field.nam
 
 function validateAddressedKeyFields(expr: Extract<Expr, { kind: "write" }>, index: IndexDecl): void {
   if (expr.op === "delete") return;
-  const authoredId = expr.op === "update"
+  const authoredId = expr.op === "update" || expr.op === "upsert"
     ? expr.fields.find((field) => field.name === "id")
     : undefined;
   if (authoredId) {
     typeError(
       authoredId.site,
-      "update patches may not name id; row identity is immutable",
+      expr.op === "upsert"
+        ? "upsert rows may not name id; identity comes from the addressed row or is minted on insert"
+        : "update patches may not name id; row identity is immutable",
       quarryWriteWithoutField(expr, authoredId),
     );
   }
@@ -1020,6 +1029,7 @@ export function quarryExpression(expr: Expr): string {
     if (expr.range?.cursor) rendered += ` ${expr.range.cursorKind ?? "after"} ${quarryExpression(expr.range.cursor)}`;
     if (expr.range) rendered += ` ${expr.range.order === "asc" ? "first" : "last"} ${expr.range.take}`;
     if (expr.index) rendered += ` by ${expr.index}`;
+    if (expr.range?.where) rendered += ` where ${quarryExpression(expr.range.where.predicate)}`;
     return rendered;
   }
   if (expr.kind === "merge") {
@@ -1030,14 +1040,24 @@ export function quarryExpression(expr: Expr): string {
   if (expr.kind === "exists" || expr.kind === "created") return `${expr.kind} ${quarryExpression(expr.read)}`;
   if (expr.kind === "aggregate") return `#${expr.table}[${expr.keys.map(quarryKeyPart).join(", ")}]`;
   if (expr.kind === "assert") return `(${quarryExpression(expr.value)})! else ${expr.code}`;
+  if (expr.kind === "shapeUse") return `(${quarryExpression(expr.base)}) ${expr.name}`;
   if (expr.kind === "shape") {
-    const fields = expr.fields.map((field) => field.kind === "spread"
+    if (expr.authoredName) return `(${quarryExpression(expr.base)}) ${expr.authoredName}`;
+    const fields = (expr.authoredFields ?? expr.fields).map((field) => field.kind === "spread"
       ? "*"
+      : field.kind === "namedSpread" ? `...${field.name}`
       : field.kind === "bare" ? field.name : `${field.name}: ${quarryExpression(field.value)}`);
     return `(${quarryExpression(expr.base)}) { ${fields.join(", ")} }`;
   }
   if (expr.kind === "walk") return `walk ${expr.table}[${quarryExpression(expr.seed)}] up .${expr.column} depth ${expr.depth}`;
   return quarryWriteWithoutField(expr, { name: "", site: expr.site });
+}
+
+export function quarryShapeDeclaration(shape: ShapeDecl): string {
+  return `shape ${shape.name} = { ${shape.fields.map((field) => field.kind === "spread"
+    ? "*"
+    : field.kind === "namedSpread" ? `...${field.name}`
+      : field.kind === "bare" ? field.name : `${field.name}: ${quarryExpression(field.value)}`).join(", ")} }`;
 }
 
 function uniqueCursorPermutation(
@@ -1282,6 +1302,7 @@ function mentionsFocal(expr: Expr): boolean {
   if (expr.kind === "merge") return expr.lanes.some((lane) => lane.prefix.some(mentionsFocal));
   if (expr.kind === "exists" || expr.kind === "created") return mentionsFocal(expr.read);
   if (expr.kind === "aggregate") return expr.keys.some((key) => mentionsFocal(key.value));
+  if (expr.kind === "shapeUse") return mentionsFocal(expr.base);
   if (expr.kind === "shape") return mentionsFocal(expr.base) || expr.fields.some((field) => field.kind === "field" && mentionsFocal(field.value));
   if (expr.kind === "walk") return mentionsFocal(expr.seed);
   if (expr.kind === "object") return expr.fields.some((field) => field.value !== undefined && mentionsFocal(field.value));

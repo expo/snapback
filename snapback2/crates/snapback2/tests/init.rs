@@ -164,7 +164,7 @@ fn quarry_optional_reads_total_equality_and_branch_writes_execute() {
     ).unwrap();
     std::fs::write(
         project.path.join("snapback/runtime.q"),
-        "query parentName(id: nodes):\n  node = nodes[id]! else NODE_MISSING\n  return node.parent.name\n\nquery parentsEqual(left: nodes, right: nodes):\n  a = nodes[left]! else LEFT_MISSING\n  b = nodes[right]! else RIGHT_MISSING\n  return a.parent = b.parent\n\nquery parentsDifferent(left: nodes, right: nodes):\n  a = nodes[left]! else LEFT_MISSING\n  b = nodes[right]! else RIGHT_MISSING\n  return a.parent != b.parent\n\nquery present(cursor: time ?):\n  if cursor != null:\n    return true\n  return false\n\nquery alicePosts(author: authors):\n  return posts[author] first 5\n\nmutation branchWrite(useFirst: bool):\n  if useFirst:\n    insert counters { value: 1 }\n  else:\n    insert counters { value: 2 }\n  return null\n",
+        "query parentName(id: nodes):\n  node = nodes[id]! else NODE_MISSING\n  return node.parent.name\n\nquery parentsEqual(left: nodes, right: nodes):\n  a = nodes[left]! else LEFT_MISSING\n  b = nodes[right]! else RIGHT_MISSING\n  return a.parent = b.parent\n\nquery parentsDifferent(left: nodes, right: nodes):\n  a = nodes[left]! else LEFT_MISSING\n  b = nodes[right]! else RIGHT_MISSING\n  return a.parent != b.parent\n\nquery present(watermark: time ?):\n  if watermark != null:\n    return true\n  return false\n\nquery alicePosts(author: authors):\n  return posts[author] first 5\n\nmutation branchWrite(useFirst: bool):\n  if useFirst:\n    insert counters { value: 1 }\n  else:\n    insert counters { value: 2 }\n  return null\n",
     ).unwrap();
     std::fs::write(
         project.path.join("snapback/seed.ts"),
@@ -185,8 +185,11 @@ fn quarry_optional_reads_total_equality_and_branch_writes_execute() {
     let parent = run("runtime.parentName", r#"{"id":"root"}"#);
     assert_eq!(parent["state"], "complete", "{parent}");
     assert!(parent["data"].is_null(), "{parent}");
-    assert_eq!(run("runtime.present", r#"{"cursor":null}"#)["data"], false);
-    assert_eq!(run("runtime.present", r#"{"cursor":123}"#)["data"], true);
+    assert_eq!(
+        run("runtime.present", r#"{"watermark":null}"#)["data"],
+        false
+    );
+    assert_eq!(run("runtime.present", r#"{"watermark":123}"#)["data"], true);
     for (left, right, equal) in [
         ("root", "absent-b", true),
         ("root", "present-a", false),
@@ -337,93 +340,36 @@ export default seed({
 
     let authored_absent = run(
         "surface.upsertKeyedRowWithId",
-        r#"{"id":"keyed-authored-new","owner":"dev:alice","label":"authored-new","value":31}"#,
+        r#"{"owner":"dev:alice","label":"migrated-upsert","value":31}"#,
     );
     assert_eq!(authored_absent["state"], "committed", "{authored_absent}");
     let authored_absent_read = run(
         "surface.keyedRow",
-        r#"{"owner":"dev:alice","label":"authored-new"}"#,
-    );
-    assert_eq!(
-        authored_absent_read["data"]["id"], "keyed-authored-new",
-        "{authored_absent_read}"
+        r#"{"owner":"dev:alice","label":"migrated-upsert"}"#,
     );
     assert_eq!(
         authored_absent_read["data"]["value"], 31,
         "{authored_absent_read}"
     );
+    let migrated_id = authored_absent_read["data"]["id"].clone();
 
     let authored_present = run(
         "surface.upsertKeyedRowWithId",
-        r#"{"id":"keyed-authored-present","owner":"dev:alice","label":"authored-present","value":32}"#,
+        r#"{"owner":"dev:alice","label":"migrated-upsert","value":32}"#,
     );
     assert_eq!(authored_present["state"], "committed", "{authored_present}");
     let authored_present_read = run(
         "surface.keyedRow",
-        r#"{"owner":"dev:alice","label":"authored-present"}"#,
+        r#"{"owner":"dev:alice","label":"migrated-upsert"}"#,
     );
     assert_eq!(
-        authored_present_read["data"]["id"], "keyed-authored-present",
+        authored_present_read["data"]["id"], migrated_id,
         "{authored_present_read}"
     );
     assert_eq!(
         authored_present_read["data"]["value"], 32,
         "{authored_present_read}"
     );
-
-    let authored_mismatch = run(
-        "surface.upsertKeyedRowWithId",
-        r#"{"id":"keyed-authored-other","owner":"dev:alice","label":"authored-present","value":33}"#,
-    );
-    assert_eq!(
-        authored_mismatch["state"], "rejected",
-        "{authored_mismatch}"
-    );
-    assert_eq!(
-        authored_mismatch["code"], "UPSERT_ID_MISMATCH",
-        "{authored_mismatch}"
-    );
-    assert_eq!(authored_mismatch["family"], "input", "{authored_mismatch}");
-    let authored_after_mismatch = run(
-        "surface.keyedRow",
-        r#"{"owner":"dev:alice","label":"authored-present"}"#,
-    );
-    assert_eq!(
-        authored_after_mismatch["data"]["id"], "keyed-authored-present",
-        "{authored_after_mismatch}"
-    );
-    assert_eq!(
-        authored_after_mismatch["data"]["value"], 32,
-        "{authored_after_mismatch}"
-    );
-
-    let authored_in_use = run(
-        "surface.upsertKeyedRowWithId",
-        r#"{"id":"keyed-id-in-use","owner":"dev:alice","label":"authored-collision","value":34}"#,
-    );
-    assert_eq!(authored_in_use["state"], "rejected", "{authored_in_use}");
-    assert_eq!(
-        authored_in_use["code"], "UPSERT_ID_IN_USE",
-        "{authored_in_use}"
-    );
-    assert_eq!(authored_in_use["family"], "input", "{authored_in_use}");
-    let authored_collision_read = run(
-        "surface.keyedRow",
-        r#"{"owner":"dev:alice","label":"authored-collision"}"#,
-    );
-    assert!(
-        authored_collision_read["data"].is_null(),
-        "{authored_collision_read}"
-    );
-    let id_in_use_read = run(
-        "surface.keyedRow",
-        r#"{"owner":"dev:alice","label":"id-in-use-original"}"#,
-    );
-    assert_eq!(
-        id_in_use_read["data"]["id"], "keyed-id-in-use",
-        "{id_in_use_read}"
-    );
-    assert_eq!(id_in_use_read["data"]["value"], 4, "{id_in_use_read}");
 
     let deleted = run(
         "surface.deleteKeyedRow",
@@ -445,7 +391,7 @@ export default seed({
         "{scalar_update_missing}"
     );
     assert_eq!(
-        scalar_update_missing["code"], "E_INPUT",
+        scalar_update_missing["code"], "NOT_FOUND",
         "{scalar_update_missing}"
     );
     assert_eq!(
@@ -457,7 +403,15 @@ export default seed({
         r#"{"id":"missing-scalar-delete"}"#,
     );
     assert_eq!(
-        scalar_delete_missing["state"], "committed",
+        scalar_delete_missing["state"], "rejected",
+        "{scalar_delete_missing}"
+    );
+    assert_eq!(
+        scalar_delete_missing["code"], "NOT_FOUND",
+        "{scalar_delete_missing}"
+    );
+    assert_eq!(
+        scalar_delete_missing["family"], "input",
         "{scalar_delete_missing}"
     );
 }

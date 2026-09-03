@@ -13,6 +13,7 @@ import type {
   ProgramDecl,
   RuleDecl,
   ScalarType,
+  ShapeDecl,
   ShapeField,
   Site,
   Stmt,
@@ -27,7 +28,7 @@ const RESERVED_BINDINGS = new Set([
   "arguments", "await", "break", "case", "catch", "class", "const", "continue", "debugger", "default", "delete", "do",
   "else", "enum", "eval", "export", "extends", "false", "finally", "for", "function", "if", "implements", "import",
   "in", "insert", "instanceof", "interface", "let", "merge", "new", "null", "package", "private", "protected", "public", "return", "static",
-  "super", "switch", "this", "throw", "true", "try", "typeof", "update", "upsert", "var", "void", "while", "with", "yield",
+  "shape", "fn", "cursor", "super", "switch", "this", "throw", "true", "try", "typeof", "update", "upsert", "var", "void", "while", "with", "yield",
 ]);
 const PRECEDENCE = new Map<string, number>([
   ["??", 1], ["or", 2], ["and", 3],
@@ -47,6 +48,7 @@ class Parser {
   private readonly maintains: MaintainDecl[] = [];
   private readonly channels: ChannelDecl[] = [];
   private readonly effects: Array<{ name: string; module: string; site: Site }> = [];
+  private readonly shapes: ShapeDecl[] = [];
   private readonly programs: ProgramDecl[] = [];
   private identity: Document["identity"];
 
@@ -64,6 +66,8 @@ class Parser {
         else if (this.at("channel")) this.channels.push(this.parseChannel());
         else if (this.at("query") || this.at("mutation")) this.programs.push(this.parseProgram());
         else if (this.at("effect")) this.effects.push(this.parseEffect());
+        else if (this.at("shape")) this.shapes.push(this.parseShapeDeclaration());
+        else if (this.at("fn") || this.at("cursor")) unsupported(token, token.value, `${token.value} is reserved for a future Quarry form; rename this declaration`);
         else if (this.at("schedule")) unsupported(token, "schedule", "perform the bounded work in a named mutation invoked by the caller");
         else if (this.at("index") || this.at("unique")) syntax(token, "top-level indexes are invalid; place by/unique inside the table block", "move the index line into its table block");
         else if (this.at("device") || this.at("oblivious")) unsupported(token, token.value, "pass an explicit bounded argument to the operation");
@@ -80,6 +84,7 @@ class Parser {
       maintains: this.maintains,
       channels: this.channels,
       effects: this.effects,
+      shapes: this.shapes,
       programs: this.programs,
     };
   }
@@ -231,8 +236,8 @@ class Parser {
     let value: Expr;
     if (this.at("(")) {
       this.take("(");
-      bindings = [this.word().value];
-      while (this.maybe(",")) bindings.push(this.word().value);
+      bindings = [this.generatedBinding("rule")];
+      while (this.maybe(",")) bindings.push(this.generatedBinding("rule"));
       this.take(")");
       if (effect !== "update" || bindings.length !== 2) {
         syntax(effectToken, `${effect} rules use <- for one row; only update (old, next) has named bindings`, `rewrite the ${effect} rule with <- and direct .field terms`);
@@ -311,7 +316,18 @@ class Parser {
     return { kind, name, args, body, site: kindToken };
   }
 
-  private generatedBinding(kind: "table" | "channel" | "effect" | "operation" | "merge lane"): string {
+  private parseShapeDeclaration(): ShapeDecl {
+    const site = this.take("shape");
+    const name = this.generatedBinding("shape");
+    this.take("=");
+    this.take("{");
+    const fields = this.parseShapeFields();
+    this.take("}");
+    this.newline();
+    return { name, fields, site };
+  }
+
+  private generatedBinding(kind: "table" | "channel" | "effect" | "operation" | "merge lane" | "shape" | "argument" | "local" | "loop" | "match" | "rule"): string {
     const token = this.word();
     if (RESERVED_BINDINGS.has(token.value)) {
       refuse(
@@ -327,9 +343,10 @@ class Parser {
     this.take("(");
     const args: ArgDecl[] = [];
     while (!this.at(")")) {
-        const name = this.word();
+        const name = this.peek();
+        const binding = this.generatedBinding("argument");
         this.take(":");
-        args.push({ name: name.value, type: this.parseType(), site: name });
+        args.push({ name: binding, type: this.parseType(), site: name });
         if (!this.maybe(",")) break;
     }
     this.take(")");
@@ -441,16 +458,17 @@ class Parser {
     if (this.at("device") || this.at("oblivious")) unsupported(this.peek(), this.peek().value, "pass an explicit bounded argument to the operation");
 
     if (this.atKind("word") && this.peek(1).value === "=") {
-      const name = this.word();
+      const name = this.peek();
+      const binding = this.generatedBinding("local");
       this.take("=");
       const value = this.expression(0, new Set(["<newline>"]));
       if (value.kind !== "merge") this.newline();
-      return { kind: "bind", names: [name.value], value, site: name };
+      return { kind: "bind", names: [binding], value, site: name };
     }
     if (this.at("(") && this.tupleBindingAhead()) {
       const site = this.take("(");
-      const names = [this.word().value];
-      while (this.maybe(",")) names.push(this.word().value);
+      const names = [this.generatedBinding("local")];
+      while (this.maybe(",")) names.push(this.generatedBinding("local"));
       this.take(")");
       this.take("=");
       const value = this.expression(0, new Set(["<newline>"]));
@@ -480,7 +498,7 @@ class Parser {
 
   private parseFor(): Stmt {
     const site = this.take("for");
-    const name = this.word().value;
+    const name = this.generatedBinding("loop");
     this.take("in");
     const domain = this.expression(0, new Set([":"]));
     this.take(":");
@@ -505,7 +523,7 @@ class Parser {
     this.newline();
     this.takeKind("indent");
     this.take("some");
-    const someName = this.word().value;
+    const someName = this.generatedBinding("match");
     this.take(":");
     this.newline();
     const someBody = this.parseBlock();
@@ -637,11 +655,9 @@ class Parser {
       } else if (this.at("[") && value.kind === "name") {
         value = this.parseRead(value.name, value.site);
       } else if (value.kind === "read" && this.at("where")) {
-        unsupported(
-          this.peek(),
-          "where",
-          "use an index whose prefix pins the predicate, a table invariant (after insert <- exists ...), or merge for a fan-in feed",
-        );
+        const site = this.take("where");
+        const predicate = this.expression(0, new Set(["<newline>", "{", ",", "}"]));
+        value = { ...value, range: { ...value.range!, where: { predicate, site } } };
       } else if (value.kind === "read" && ["after", "before", "first", "last", "by"].includes(this.peek().value)) {
         value = this.parseRange(value);
       } else if (this.maybe("!")) {
@@ -651,6 +667,10 @@ class Parser {
         value = { kind: "assert", value, code, site: assertion };
       } else if (this.at("{")) {
         value = this.parseShape(value);
+      } else if (this.atKind("word") && !PRECEDENCE.has(this.peek().value)
+        && !stops.has(this.peek().value) && !["else", "some", "none", "for", "in"].includes(this.peek().value)) {
+        const named = this.word();
+        value = { kind: "shapeUse", base: value, name: named.value, site: named };
       } else {
         break;
       }
@@ -786,10 +806,22 @@ class Parser {
 
   private parseShape(base: Expr): Expr {
     const site = this.take("{");
+    const fields = this.parseShapeFields();
+    this.take("}");
+    return { kind: "shape", base, fields, site };
+  }
+
+  private parseShapeFields(): ShapeField[] {
     const fields: ShapeField[] = [];
     while (!this.at("}")) {
         const fieldSite = this.peek();
         if (this.maybe("*")) fields.push({ kind: "spread", site: fieldSite });
+        else if (this.at(".") && this.peek(1).value === "." && this.peek(2).value === ".") {
+          this.take(".");
+          this.take(".");
+          this.take(".");
+          fields.push({ kind: "namedSpread", name: this.word().value, site: fieldSite });
+        }
         else {
           const name = this.word().value;
           if (this.maybe(":")) fields.push({ kind: "field", name, value: this.expression(0, new Set([",", "}"])), site: fieldSite });
@@ -797,8 +829,7 @@ class Parser {
         }
         if (!this.maybe(",")) break;
     }
-    this.take("}");
-    return { kind: "shape", base, fields, site };
+    return fields;
   }
 
   private parseWrite(): Expr {
@@ -911,7 +942,7 @@ class Parser {
   private recoverTopLevel(): void {
     this.recoverLine();
     let depth = 0;
-    const declarations = new Set(["use", "table", "maintain", "channel", "query", "mutation", "effect", "schedule", "index", "unique", "device", "oblivious"]);
+    const declarations = new Set(["use", "table", "maintain", "channel", "query", "mutation", "effect", "shape", "fn", "cursor", "schedule", "index", "unique", "device", "oblivious"]);
     while (!this.atKind("eof")) {
       if (this.atKind("indent")) { depth += 1; this.position += 1; continue; }
       if (this.atKind("dedent")) { depth = Math.max(0, depth - 1); this.position += 1; continue; }
@@ -935,11 +966,16 @@ function focalizeRuleBinding(expr: Expr, binding: string): Expr {
     range: expr.range && {
       ...expr.range,
       cursor: expr.range.cursor && focalizeRuleBinding(expr.range.cursor, binding),
+      where: expr.range.where && {
+        ...expr.range.where,
+        predicate: focalizeRuleBinding(expr.range.where.predicate, binding),
+      },
     },
   };
   if (expr.kind === "exists" || expr.kind === "created") return { ...expr, read: focalizeRuleBinding(expr.read, binding) as Extract<Expr, { kind: "read" }> };
   if (expr.kind === "aggregate") return { ...expr, keys: expr.keys.map((part) => ({ ...part, value: focalizeRuleBinding(part.value, binding) })) };
   if (expr.kind === "assert") return { ...expr, value: focalizeRuleBinding(expr.value, binding) };
+  if (expr.kind === "shapeUse") return { ...expr, base: focalizeRuleBinding(expr.base, binding) };
   if (expr.kind === "shape") return {
     ...expr,
     base: focalizeRuleBinding(expr.base, binding),

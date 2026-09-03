@@ -136,68 +136,6 @@ export function registerVerifiedRegressionTests(
     assert(outcome.errorCode === "AUTH:DENIED", `Require code became ${outcome.errorCode}`);
   });
 
-  test("F7 maintained-target taint makes range reads partial", () => {
-    const rules = { read: "Allow", insert: "Allow", update: "Allow", delete: "Allow" };
-    const source = evaluatorTable({ group: "Id" });
-    const counts = {
-      ...evaluatorTable({ group: "Id", value: "Int" }),
-      rules,
-    };
-    const schema = {
-      tables: { counts, source },
-      maintains: [{ kind: "Count", source: "source", by: ["group"], target: "counts", readable: null }],
-    };
-    const countId = '[{"Id":"g"}]';
-    const countRow: Value = { Row: { id: { Id: countId }, group: { Id: "g" }, value: { Int: 1 } } };
-    const receipt: ClosureReceipt = {
-      rows: [{ table: "counts", id: countId, row: countRow }],
-      ranges: [{
-        site: "counts.scan",
-        table: "counts",
-        index: "byId",
-        prefix: [],
-        order: "Asc",
-        take: 10,
-        after: null,
-        before: null,
-        gt: null,
-        gte: null,
-        lt: null,
-        lte: null,
-        rule_hash: scopedRuleHash(schema, counts.rules.read),
-        row_ids: [countId],
-        stop: "Exhausted",
-        absence: false,
-        halo: null,
-        n2_key: null,
-      }],
-      absences: [],
-      verdicts: [],
-    };
-    const store = new ClientStore(schema, receipt);
-    const deleted = store.applyMutation(
-      evaluatorProgram("Mutation", [{ Delete: { table: "source", key: literal({ Id: "s1" }) } }]),
-      context(),
-    );
-    assert(deleted.state === "predicted", `missing source delete used ${deleted.state}`);
-
-    const scan = evaluatorProgram("Query", [{ Return: { Scan: {
-      site: "counts.scan",
-      table: "counts",
-      index: "byId",
-      prefix: [],
-      order: "Asc",
-      take: { Literal: 10 },
-      after: null,
-      before: null,
-      range: null,
-      provenance: "Const",
-    } } }]);
-    const replay = store.reexecute(scan, context());
-    assert(replay.state === "partial", `tainted range replay used ${replay.state}`);
-    assert(replay.partialSites.includes("counts.scan"), "tainted range site was not named partial");
-  });
-
   test("F8 only an exact authority-issued byId absence initializes a maintained target", () => {
     const schema = { tables: {
       counts: evaluatorTable({ group: "Id", value: "Int" }),
@@ -1257,7 +1195,7 @@ export const pair = query({ leftId: t.id(), rightId: t.id() }, ({ db, args }) =>
       assert(codes.has(code as any), `seed validation omitted ${code}`);
     }
     const messages = invalid.diagnostics.map((item) => item.message).join("\n");
-    for (const text of ["one of", "integer minor units", "list max", "unknown column", "JSON numbers must be integers"]) {
+    for (const text of ["one of", "3 fractional digits, scale 2", "list max", "unknown column", "JSON numbers must be integers"]) {
       assert(messages.includes(text), `seed value validation omitted ${text}`);
     }
     assert(invalid.diagnostics.every((item) => item.site.startsWith("snapback/seed.ts:")), "seed refusal site is not seed.ts");
@@ -1283,6 +1221,48 @@ export const pair = query({ leftId: t.id(), rightId: t.id() }, ({ db, args }) =>
         "the prefix-safe persona name system should remain valid",
       );
     });
+  });
+
+  test("decimal and money seeds normalize whole-unit numbers and strings recursively", async () => {
+    const schema = `import { schema, table, t } from "snapback2";
+      export const prices = table({ columns: {
+        amount: t.decimal(2),
+        quoted: t.money("USD"),
+        discount: t.optional(t.decimal(2)),
+        rates: t.list(t.decimal(3), { max: 3 }),
+      } });
+      export default schema({ tables: { prices } });`;
+    await withProject({
+      "snapback/schema.ts": schema,
+      "snapback/seed.ts": `import { seed } from "snapback2";
+        export default seed({ personas: [], rows: { prices: [{
+          id: "p1", amount: 9.99, quoted: "12.50", discount: "0.25", rates: [1, "2.345"]
+        }] } });`,
+    }, async (root) => {
+      const lowered = await lowerSeed(root);
+      assert(lowered.ok, `whole-unit seed refused: ${lowered.ok ? "" : lowered.diagnostics.map((item) => item.message).join("; ")}`);
+      const row = lowered.seed.rows.prices![0] as Record<string, unknown>;
+      assert(row.amount === 999 && row.quoted === 1250 && row.discount === 25
+        && JSON.stringify(row.rates) === JSON.stringify([1000, 2345]),
+      `whole-unit seed was not normalized recursively: ${JSON.stringify(row)}`);
+    });
+
+    for (const [name, amount, message] of [
+      ["precision", "1.234", "3 fractional digits, scale 2"],
+      ["exponent", "1e2", "exponent notation"],
+    ] as const) {
+      await withProject({
+        "snapback/schema.ts": schema,
+        "snapback/seed.ts": `import { seed } from "snapback2";
+          export default seed({ personas: [], rows: { prices: [{
+            id: "p1", amount: ${amount}, quoted: 1, discount: null, rates: []
+          }] } });`,
+      }, async (root) => {
+        const lowered = await lowerSeed(root);
+        assert(!lowered.ok && lowered.diagnostics.some((item) => item.code === "E_SEED_VALUE" && item.message.includes(message)),
+          `${name} seed value compiled: ${JSON.stringify(lowered)}`);
+      });
+    }
   });
 
   test("seed Bytes values require one exact externally tagged key", async () => {

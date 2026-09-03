@@ -15,7 +15,7 @@ import { hasExport, propertyName, unwrapCall, walk } from "./syntax";
 import { typeDiagnosticSite } from "./type-diagnostic-site";
 import { compileQuarry, quarryInspection, remapVirtualDiagnostic, remapVirtualSource, type QuarryInput, type QuarryVirtualModule } from "./quarry/index";
 import { createProjectProgram, projectTypeDiagnostics } from "./project-program";
-import { validateSeedRow } from "./project-seed";
+import { moduleSeedJsonConstants, staticSeedJson, validateSeedRow } from "./project-seed";
 import { sortSerdeMaps } from "./project-sort";
 import { quarryOnlyDiagnostics, type LowerProjectOptions } from "./project-authoring";
 import { apiRowName, generateApiDts } from "./project-api-types";
@@ -263,7 +263,8 @@ export async function lowerSeed(root: string): Promise<
   if (call && callLeaf(call) === "seed") expression = call.arguments[0];
   const object = expression && objectOf(expression);
   const constants = moduleJsonConstants(sourceFile);
-  const value = object && staticJson(object, constants);
+  const seedConstants = moduleSeedJsonConstants(sourceFile);
+  const value = object && staticSeedJson(object, seedConstants);
   const record = value && typeof value === "object" ? value as Record<string, unknown> : undefined;
   const module = { sourceFile, source, fileName };
   const invalidSpread = object && firstInvalidStaticSpread(object, constants);

@@ -48,12 +48,10 @@ impl<'a> Runner<'a> {
                 "{table} update patch cannot change id"
             )));
         }
-        let old = self.fetch_id(table, key.as_str()?)?.ok_or_else(|| {
-            RuntimeError::Input(format!(
-                "missing {table} row {}",
-                key.as_str().unwrap_or("?")
-            ))
-        })?;
+        let id = key.as_str()?;
+        let Some(old) = self.fetch_id(table, id)? else {
+            return self.missing_write_row(table, id);
+        };
         let mut new = old.as_object()?.clone();
         for (name, value) in patch.as_object()? {
             new.insert(name.clone(), value.clone());
@@ -119,10 +117,7 @@ impl<'a> Runner<'a> {
 
     pub(super) fn delete(&mut self, table: &str, id: &str) -> Result<(), RuntimeError> {
         let Some(old) = self.fetch_id(table, id)? else {
-            self.trace
-                .missing_preimages
-                .push((table.to_owned(), id.to_owned()));
-            return Ok(());
+            return self.missing_write_row(table, id);
         };
         if !self.check_rule(table, Effect::Delete, None, &old)? {
             return Err(RuntimeError::Rule {
@@ -143,6 +138,28 @@ impl<'a> Runner<'a> {
         self.bump_write(table);
         self.maintain(table, Some(&old), None)?;
         Ok(())
+    }
+
+    // @ref LLP 1011#b3-one-missing-row-rule-no-id-in-an-upsert-row — a local
+    // write can distinguish proved absence from missing receipt authority.
+    fn missing_write_row(&mut self, table: &str, id: &str) -> Result<(), RuntimeError> {
+        if self.rule_authority == RuleAuthority::ReceiptOnly
+            && !self
+                .authority_absences
+                .iter()
+                .any(|(held_table, index, key)| {
+                    held_table == table
+                        && index == "byId"
+                        && matches!(key.as_slice(), [Value::Id(value)] if value == id)
+                })
+        {
+            self.mark_missing_authority();
+            Ok(())
+        } else {
+            Err(RuntimeError::Require {
+                code: "NOT_FOUND".to_owned(),
+            })
+        }
     }
 
     pub(super) fn maintain(

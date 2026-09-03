@@ -810,7 +810,7 @@ fn stale_grant_row_handle_cannot_hit_remove_then_recreate_incarnation() {
         .unwrap();
     assert!(matches!(
         stale_promote.state,
-        ExecutionState::Rejected { ref code, .. } if code == "E_INPUT"
+        ExecutionState::Rejected { ref code, .. } if code == "NOT_FOUND"
     ));
     assert_eq!(
         grant_role(&mut runtime, "grant-v2").as_deref(),
@@ -825,7 +825,7 @@ fn stale_grant_row_handle_cannot_hit_remove_then_recreate_incarnation() {
         .unwrap();
     assert!(matches!(
         stale_remove.state,
-        ExecutionState::Committed { .. }
+        ExecutionState::Rejected { ref code, .. } if code == "NOT_FOUND"
     ));
     assert_eq!(
         grant_role(&mut runtime, "grant-v2").as_deref(),

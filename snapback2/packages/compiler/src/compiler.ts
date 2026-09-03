@@ -701,7 +701,7 @@ function lowerCallbackWrite(
   if (method === "update") {
     statements.push({ Require: {
       condition: { Binary: { op: "Ne", left: { Variable: current }, right: literal(null) } },
-      code: "UPDATE_ROW_MISSING",
+      code: "NOT_FOUND",
     } });
   }
   statements.push(...lowered.statements);

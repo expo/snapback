@@ -1,5 +1,7 @@
 -- Clique profiles, posts, feeds, follows, and likes regression surface.
 
+shape authorCard = { displayName, handle }
+
 mutation createProfile(displayName: text <=50, handle: text <=20):
   return insert users { principal: viewer, displayName, handle, followerCount: 0, followingCount: 0 }
 
@@ -81,10 +83,10 @@ mutation toggleFollow(u: users):
 query globalFeed(cursorOrd: int ?, cursorId: feedItems ?):
   return feedItems[] after (cursorOrd, cursorId) first 20 by byOrd {
     id, kind, at, ord, actor, post,
-    reposter: users[principal = .actor] { displayName, handle },
+    reposter: users[principal = .actor] authorCard,
     item: .post {
       id, author, body, parent, at, likeCount, replyCount, repostCount,
-      authorProfile: users[principal = .author] { displayName, handle },
+      authorProfile: users[principal = .author] authorCard,
     },
   }
 
@@ -95,10 +97,10 @@ query followingFeed(cursorOrd: int ?, cursorId: feedItems ?):
     [f.followed] for f in follows[viewer] first 50 by byFollower
   return page {
     id, kind, at, ord, actor, post,
-    reposter: users[principal = .actor] { displayName, handle },
+    reposter: users[principal = .actor] authorCard,
     item: .post {
       id, author, body, parent, at, likeCount, replyCount, repostCount,
-      authorProfile: users[principal = .author] { displayName, handle },
+      authorProfile: users[principal = .author] authorCard,
     },
   }
 
@@ -106,10 +108,10 @@ query thread(p: posts):
   post = posts[p]! else POST_NOT_FOUND
   return post {
     *,
-    authorProfile: users[principal = .author] { displayName, handle },
+    authorProfile: users[principal = .author] authorCard,
     replies: posts[parent = p] first 50 by byParent {
       *,
-      authorProfile: users[principal = .author] { displayName, handle },
+      authorProfile: users[principal = .author] authorCard,
     },
   }
 

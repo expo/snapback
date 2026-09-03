@@ -1,5 +1,7 @@
 -- Clique messaging regression surface: DMs, groups, messages, and receipts.
 
+shape authorCard = { displayName, handle }
+
 mutation startDm(other: users):
   peer = users[other]! else USER_NOT_FOUND
   require peer.principal != viewer else SELF_DM
@@ -81,7 +83,7 @@ mutation send(c: conversations, body: text <=2000, quoted: messages ?, ord: int)
 mutation markDelivered(c: conversations, upTo: time):
   m = members[c, viewer]! else NOT_MEMBER
   if m.lastDeliveredAt != null:
-    if m.lastDeliveredAt! >= upTo:
+    if m.lastDeliveredAt >= upTo:
       return false
   update members[m.id] { lastDeliveredAt: upTo }
   return true
@@ -89,10 +91,10 @@ mutation markDelivered(c: conversations, upTo: time):
 mutation markRead(c: conversations, upTo: time):
   m = members[c, viewer]! else NOT_MEMBER
   if m.lastReadAt != null:
-    if m.lastReadAt! >= upTo:
+    if m.lastReadAt >= upTo:
       return false
   if m.lastDeliveredAt != null:
-    if m.lastDeliveredAt! >= upTo:
+    if m.lastDeliveredAt >= upTo:
       update members[m.id] { lastReadAt: upTo }
       return true
   update members[m.id] { lastReadAt: upTo, lastDeliveredAt: upTo }
@@ -104,27 +106,27 @@ query myConversations():
     joinedAt,
     conversation: conversations[.conv] {
       *,
-      creatorProfile: users[principal = .creator] { displayName, handle },
+      creatorProfile: users[principal = .creator] authorCard,
     },
     peers: members[conv = .conv] first 2 by byConvUser {
       user,
-      profile: users[principal = .user] { displayName, handle },
+      profile: users[principal = .user] authorCard,
     },
   }
 
 query conversation(c: conversations):
   conv = conversations[c]! else NOT_FOUND
-  return conv { *, creatorProfile: users[principal = .creator] { displayName, handle } }
+  return conv { *, creatorProfile: users[principal = .creator] authorCard }
 
 query convMembers(c: conversations):
   return members[conv = c] first 50 by byConvUser {
     *,
-    profile: users[principal = .user] { displayName, handle },
+    profile: users[principal = .user] authorCard,
   }
 
 query chatThread(c: conversations, cursorOrd: int ?, cursorId: messages ?):
   return messages[c] after (cursorOrd, cursorId) first 30 by byConvOrd {
     *,
-    authorProfile: users[principal = .author] { displayName, handle },
+    authorProfile: users[principal = .author] authorCard,
     quotedMsg: .quoted { id, body, author },
   }

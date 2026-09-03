@@ -1,3 +1,5 @@
+shape authorCard = { displayName, handle }
+
 mutation sendMoney(to: users, amount: money USD, note: text <=140 ?):
   require amount > 0 else NOT_POSITIVE
   recipient = users[to]! else USER_NOT_FOUND
@@ -40,18 +42,18 @@ query myBalance():
   return #balances[viewer]
 
 query myLedger():
-  return ledger[viewer] last 50 by byOwnerAt { *, counterpartyProfile: users[principal = .counterparty] { displayName, handle } }
+  return ledger[viewer] last 50 by byOwnerAt { *, counterpartyProfile: users[principal = .counterparty] authorCard }
 
 query convExpenses(c: conversations):
   require exists members[c, viewer] else NOT_MEMBER
   return {
     total: #convSpend[c],
-    expenses: expenses[c] last 20 by byConv { *, payerProfile: users[principal = .payer] { displayName, handle } },
+    expenses: expenses[c] last 20 by byConv { *, payerProfile: users[principal = .payer] authorCard },
   }
 
 query expenseShares(c: conversations, e: expenses):
   require exists members[c, viewer] else NOT_MEMBER
-  return shares[c, e] first 50 by byConvExpense { *, debtorProfile: users[principal = .debtor] { displayName, handle } }
+  return shares[c, e] first 50 by byConvExpense { *, debtorProfile: users[principal = .debtor] authorCard }
 
 query myOpenShares():
   return shares[viewer, false] first 50 by byDebtorOpen {

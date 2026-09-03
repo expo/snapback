@@ -1,4 +1,4 @@
-export type Site = { file: string; line: number; col: number };
+export type Site = { file: string; line: number; col: number; expandedFrom?: Site };
 
 export type ScalarType =
   | { kind: "text"; min?: number; max: number; format?: "handle" | "url"; optional: boolean }
@@ -19,8 +19,11 @@ export type KeyPart = { column?: string; value: Expr; site: Site };
 
 export type ShapeField =
   | { kind: "spread"; site: Site }
+  | { kind: "namedSpread"; name: string; site: Site }
   | { kind: "bare"; name: string; site: Site }
   | { kind: "field"; name: string; value: Expr; site: Site };
+
+export type ShapeDecl = { name: string; fields: ShapeField[]; site: Site };
 
 export type Expr =
   | { kind: "name"; name: string; site: Site }
@@ -38,7 +41,8 @@ export type Expr =
   | { kind: "created"; read: Extract<Expr, { kind: "read" }>; site: Site }
   | { kind: "aggregate"; table: string; keys: KeyPart[]; site: Site }
   | { kind: "assert"; value: Expr; code: string; site: Site }
-  | { kind: "shape"; base: Expr; fields: ShapeField[]; site: Site }
+  | { kind: "shapeUse"; base: Expr; name: string; site: Site }
+  | { kind: "shape"; base: Expr; fields: ShapeField[]; authoredName?: string; authoredFields?: ShapeField[]; site: Site }
   | { kind: "walk"; table: string; seed: Expr; column: string; depth: number; site: Site }
   | { kind: "write"; op: "insert" | "update" | "upsert" | "delete"; table: string; keys: KeyPart[]; fields: ObjectField[]; site: Site };
 
@@ -48,6 +52,8 @@ export type RangeSpec = {
   take: number;
   cursor?: Expr;
   cursorKind?: "after" | "before";
+  /** Refused author intent retained only until the post-catalog repair pass. */
+  where?: { predicate: Expr; site: Site };
   /** Internal tag emitted only for scans belonging to one Quarry merge. */
   mergeSite?: string;
   site: Site;
@@ -115,6 +121,7 @@ export type Document = {
   maintains: MaintainDecl[];
   channels: ChannelDecl[];
   effects: EffectDecl[];
+  shapes: ShapeDecl[];
   programs: ProgramDecl[];
 };
 

@@ -95,6 +95,7 @@ function collectExprDependencies(expr: Expr, into: Set<string>): void {
     into.add(expr.table);
     for (const key of expr.keys) collectExprDependencies(key.value, into);
     if (expr.range?.cursor) collectExprDependencies(expr.range.cursor, into);
+    if (expr.range?.where) collectExprDependencies(expr.range.where.predicate, into);
   } else if (expr.kind === "merge") {
     into.add(expr.table);
     if (expr.cursor) collectExprDependencies(expr.cursor, into);
@@ -116,6 +117,8 @@ function collectExprDependencies(expr: Expr, into: Set<string>): void {
     collectExprDependencies(expr.base, into);
   } else if (expr.kind === "call") {
     for (const arg of expr.args) collectExprDependencies(arg, into);
+  } else if (expr.kind === "shapeUse") {
+    collectExprDependencies(expr.base, into);
   } else if (expr.kind === "shape") {
     collectExprDependencies(expr.base, into);
     for (const field of expr.fields) if (field.kind === "field") collectExprDependencies(field.value, into);

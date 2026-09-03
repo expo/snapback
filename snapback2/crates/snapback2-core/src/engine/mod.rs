@@ -164,8 +164,6 @@ pub struct AuthoritativeTrace {
     pub rows: Vec<RowRecord>,
     pub points: Vec<PointTrace>,
     pub constraint_inputs: Vec<ConstraintTrace>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub missing_preimages: Vec<(String, String)>,
     pub ranges: Vec<TraceRange>,
     pub absences: Vec<(String, String, Vec<Value>)>,
     pub rule_inputs: Vec<RuleInputTrace>,

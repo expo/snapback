@@ -4,8 +4,12 @@ export class QuarryError extends Error {
   readonly diagnostic: QuarryDiagnostic;
 
   constructor(site: Site, message: string, code: QuarryCode = "E_QUARRY_UNKNOWN", rewrite = "fix the named Quarry declaration", guide = guideFor(code)) {
-    super(message);
-    this.diagnostic = { ...site, code, message, rewrite, guide };
+    const expanded = site.expandedFrom;
+    const contextualMessage = expanded
+      ? `${message} (from a named shape used at ${expanded.file}:${expanded.line}:${expanded.col})`
+      : message;
+    super(contextualMessage);
+    this.diagnostic = { ...site, code, message: contextualMessage, rewrite, guide };
   }
 }
 

@@ -2,9 +2,11 @@ import { basename } from "node:path";
 import type { Document, QuarryDiagnostic, RuleDecl, ScalarType, Site, TableCatalog, TableDecl } from "./ast";
 import { buildCatalog } from "./catalog";
 import { QuarryError } from "./diagnostics";
+import { expandDocuments } from "./expand";
 import { parseDocument } from "./parser";
 import { emitPrograms } from "./program";
 import { emitSchema } from "./schema";
+import { whereRepairDiagnostics } from "./where-repair";
 import type { FrontendDiagnostic, QuarryGenerated, SourceSite } from "../ir";
 
 export type QuarryInput = { path: string; fileName: string; source: string };
@@ -24,13 +26,17 @@ export type QuarryCompileResult =
 // generated TypeScript exists only in memory and retains authored source sites.
 export function compileQuarry(inputs: QuarryInput[]): QuarryCompileResult {
   const diagnostics: QuarryDiagnostic[] = [];
-  const documents: Document[] = [];
+  let documents: Document[] = [];
   for (const input of inputs) {
     const parsed = parseDocument(input.fileName, input.source);
     documents.push(parsed.document);
     diagnostics.push(...parsed.diagnostics);
   }
   diagnostics.push(...placementDiagnostics(documents));
+  if (diagnostics.length > 0) return { ok: false, diagnostics: diagnostics.map(frontend) };
+  const expansion = expandDocuments(documents);
+  documents = expansion.documents;
+  diagnostics.push(...expansion.diagnostics);
   if (diagnostics.length > 0) return { ok: false, diagnostics: diagnostics.map(frontend) };
 
   let catalog: TableCatalog;
@@ -40,6 +46,8 @@ export function compileQuarry(inputs: QuarryInput[]): QuarryCompileResult {
   } catch (error) {
     return { ok: false, diagnostics: [frontend(caughtDiagnostic(error, inputs[0]?.fileName))] };
   }
+  diagnostics.push(...whereRepairDiagnostics(documents, catalog));
+  if (diagnostics.length > 0) return { ok: false, diagnostics: diagnostics.map(frontend) };
 
   const schemaDocument = documents.find((document) => basename(document.file) === "schema.q")!;
   const schemaInput = inputs.find((input) => input.fileName === schemaDocument.file)!;
@@ -113,6 +121,10 @@ function placementDiagnostics(documents: Document[]): QuarryDiagnostic[] {
     const declarationSite = document.tables[0]?.site ?? document.maintains[0]?.site ?? document.channels[0]?.site
       ?? (document.identity ? { file: document.file, line: 1, col: 1 } : undefined);
     if (!isSchema && declarationSite) diagnostics.push(placement(document.file, declarationSite.line, declarationSite.col, "tables, maintains, channels, and use identity belong in schema.q", "move this declaration to snapback/schema.q"));
+    if (isSchema && document.shapes.length > 0) {
+      const site = document.shapes[0]!.site;
+      diagnostics.push(placement(document.file, site.line, site.col, "shape declarations belong in an operations .q module, not schema.q", "move this shape declaration to snapback/<module>.q"));
+    }
     if (isSchema && (document.programs.length > 0 || document.effects.length > 0)) {
       const site = document.programs[0]?.site ?? document.effects[0]!.site;
       diagnostics.push(placement(document.file, site.line, site.col, "schema.q holds declarations only; query, mutation, and effect declarations belong in a program module", "move this declaration to snapback/<module>.q"));
