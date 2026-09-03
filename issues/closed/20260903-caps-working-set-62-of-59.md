@@ -19,3 +19,10 @@ cap of 59` on pristine main. This surfaced once the line-cap red was fixed
 Wanted: the owner of that landing archives three links (removing the link is the
 archive; the documents stay), or names which three of the existing 59 are done. Not done
 here because choosing what leaves the working set is the authoring session's call.
+
+**Resolved 2026-09-03 (author's pick, `5c1492305`).** Archived three finished
+documents by removing their links: LLP 1004 (the Quarry ruling is implemented
+and amended; its remaining replication workstream is tracked in LLP 1007 §5),
+LLP 1005 and LLP 1008 (research syntheses already folded into the living RFCs
+1006 and 1009, which stay in the working set). Working set is 59 of 59 and
+`caps` is green on main.
