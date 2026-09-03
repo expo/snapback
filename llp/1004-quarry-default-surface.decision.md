@@ -130,7 +130,7 @@ is LLP 1007 §5 item 7 and is still open.
 
 ## Money and decimal worked out (2026-09-03)
 
-Clique Pay (`benchmarks/briefs/clique-pay.md`, `<SHA>`) makes the kept exact
+Clique Pay (`benchmarks/briefs/clique-pay.md`, `35b4b6349`) makes the kept exact
 value model app-shaped. Quarry now reaches the engine's existing Euclidean
 `divmod` and deterministic share builtins; types both fields and share results
 as the input's exact int, decimal, or money descriptor; preserves branded unary

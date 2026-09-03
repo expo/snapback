@@ -292,7 +292,7 @@ three and agreed on all of them by round 2.
   the paper archetype apps; once the TypeScript surface was gone nothing could
   reach them, and the author chose to spell them in Quarry (`decimal <scale>`,
   `money <CUR> [scale]`, decimal literals; `929a45268`) rather than delete them.
-  Clique Pay (`benchmarks/briefs/clique-pay.md`, `<SHA>`) subsequently worked
+  Clique Pay (`benchmarks/briefs/clique-pay.md`, `35b4b6349`) subsequently worked
   out their arithmetic, Euclidean split builtins, exact sum maintains, and
   integer argument wire form through a complete app fixture.
 - **The public `fork` verb.** Keep the owner's snapshot primitive, which
