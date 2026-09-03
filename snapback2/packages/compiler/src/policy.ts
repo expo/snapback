@@ -307,6 +307,7 @@ function declaredColumnMax(column: AuthoredType): number {
     case "string": return column.max === undefined ? 144 : column.max + 16;
     case "principal": return 144;
     case "bytes": return column.max * 2 + 16;
+    case "asset": return column.asset === "image" ? 256 : 288;
     case "int":
     case "decimal": return 32;
     case "bool": return 16;

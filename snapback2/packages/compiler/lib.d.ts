@@ -4,6 +4,9 @@ declare module "snapback2" {
   export type Principal = string & { readonly __snapbackPrincipal: "Principal" };
   export type Cursor = string & { readonly __snapbackCursor: "Cursor" };
   export type Bytes = { readonly Bytes: string };
+  // @ref LLP 1006#1-the-move — the phantom kind keeps the two closed asset records nominal without adding JSON bytes.
+  export type ImageAsset = { readonly __asset: "image"; readonly id: string; readonly width: number; readonly height: number };
+  export type VideoAsset = { readonly __asset: "video"; readonly id: string; readonly width: number; readonly height: number; readonly duration: number };
   export type SeedValue = null | boolean | number | string | Bytes | SeedValue[] | { [key: string]: SeedValue };
   export type Decimal<S extends number> = number & {
     readonly __decimalScale: S;
@@ -99,6 +102,8 @@ declare module "snapback2" {
     principal(): Column<Principal>;
     text(max: number): Column<string>;
     bytes(max: number): Column<Bytes>;
+    image(max: number): Column<ImageAsset>;
+    video(max: number): Column<VideoAsset>;
     int(): Column<number>;
     bool(): Column<boolean>;
     time(): Column<number>;

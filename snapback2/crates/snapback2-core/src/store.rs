@@ -215,10 +215,31 @@ impl Store {
                     CHECK(typeof(bucket_digest) = 'blob' AND length(bucket_digest) = 32),
                 window_start INTEGER NOT NULL,
                 attempts INTEGER NOT NULL
+             );
+             CREATE TABLE IF NOT EXISTS _assets (
+                id TEXT PRIMARY KEY,
+                state TEXT NOT NULL CHECK(state IN ('receiving', 'ready', 'failed')),
+                kind TEXT NOT NULL CHECK(kind IN ('image', 'video')),
+                type TEXT,
+                bytes INTEGER CHECK(bytes IS NULL OR bytes >= 0),
+                width INTEGER CHECK(width IS NULL OR width > 0),
+                height INTEGER CHECK(height IS NULL OR height > 0),
+                duration INTEGER CHECK(duration IS NULL OR duration > 0),
+                created_by TEXT NOT NULL,
+                created_at INTEGER NOT NULL,
+                released_at INTEGER,
+                locator_table TEXT,
+                locator_row TEXT,
+                locator_column TEXT,
+                CHECK(
+                    (locator_table IS NULL AND locator_row IS NULL AND locator_column IS NULL) OR
+                    (locator_table IS NOT NULL AND locator_row IS NOT NULL AND locator_column IS NOT NULL)
+                )
              );",
         )?;
         ensure_column(connection, "_outbox", "then_op", "TEXT")?;
         ensure_column(connection, "_outbox", "generation", "TEXT")?;
+        ensure_column(connection, "_assets", "released_at", "INTEGER")?;
         let now = unix_millis();
         connection.execute(
             "INSERT OR IGNORE INTO _meta(key, value) VALUES ('created_at', ?1)",
@@ -635,8 +656,9 @@ impl Store {
         Ok(())
     }
 
-    pub fn reset_data(&mut self) -> Result<(), RuntimeError> {
+    pub fn reset_data(&mut self) -> Result<Vec<String>, RuntimeError> {
         let transaction = self.conn.transaction()?;
+        let asset_ids = crate::assets_ledger::clear_assets(&transaction)?;
         transaction.execute_batch(
             "DELETE FROM index_entries;
              DELETE FROM rows;
@@ -644,7 +666,7 @@ impl Store {
              DELETE FROM _outbox;",
         )?;
         transaction.commit()?;
-        Ok(())
+        Ok(asset_ids)
     }
 }
 

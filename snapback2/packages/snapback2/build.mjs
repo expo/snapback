@@ -142,8 +142,8 @@ const guidePages = await Promise.all(
   ["grammar", "quarry", "auth", "live-query", "effects", "personas", "testing"].map(async (name) => ({
     name,
     markdown: await readFile(resolve(guideSource, `${name}.md`), "utf8"),
-    // LLP 1010 A5 expands the Quarry reference with the bounded merge contract.
-    limit: name === "grammar" ? 2048 : name === "quarry" ? 14336 : 4096,
+    // LLP 1010 A5 expands Quarry with merge; LLP 1006 adds the two asset types.
+    limit: name === "grammar" ? 2304 : name === "quarry" ? 14336 : 4096,
   })),
 );
 const guideErrors = [...familyErrors, ...guideFailures(guidePages, tsFixtureText, quarryFixtureText, parseDocument)];
@@ -342,7 +342,7 @@ async function loadQuarryParser() {
 
 async function fixtureFiles(root) {
   const output = [];
-  for (const name of ["todos", "chat", "quarry-todos", "quarry-chat", "quarry-surface"]) {
+  for (const name of ["todos", "chat", "quarry-todos", "quarry-chat", "quarry-surface", "quarry-assets"]) {
     const directory = resolve(root, name, "snapback");
     for (const entry of await readdir(directory, { withFileTypes: true })) {
       if (entry.isFile() && (entry.name.endsWith(".ts") || entry.name.endsWith(".q"))) output.push(resolve(directory, entry.name));

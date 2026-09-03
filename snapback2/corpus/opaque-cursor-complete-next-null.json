@@ -189,7 +189,7 @@
     "max_rule_probes": 0,
     "max_steps": 37,
     "max_heap_bytes": 1184,
-    "max_output_bytes": 1767,
+    "max_output_bytes": 1777,
     "max_closure_bytes": 1760,
     "completeness": "Page",
     "prediction_sites": [],

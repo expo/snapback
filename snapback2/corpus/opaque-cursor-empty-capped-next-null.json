@@ -196,7 +196,7 @@
     "max_rule_probes": 10240,
     "max_steps": 51202,
     "max_heap_bytes": 1638464,
-    "max_output_bytes": 708,
+    "max_output_bytes": 718,
     "max_closure_bytes": 704,
     "completeness": "Capped",
     "prediction_sites": [],

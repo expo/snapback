@@ -22,6 +22,18 @@ impl<'a> Runner<'a> {
         }
         self.check_constraints(table, None, &row, Effect::Insert)?;
         let id = row.field("id")?.as_str()?.to_owned();
+        if self.rule_authority == RuleAuthority::StoreAuthoritative {
+            crate::assets_ledger::reconcile_row_assets(
+                self.tx,
+                self.schema,
+                table,
+                &id,
+                None,
+                Some(&row),
+                self.context.viewer(),
+                self.context.now.unwrap_or_else(unix_millis),
+            )?;
+        }
         self.tx.execute(
             "INSERT INTO rows(table_name, row_id, data) VALUES (?1, ?2, ?3)",
             params![table, id, canonical_json(&row)],
@@ -100,6 +112,18 @@ impl<'a> Runner<'a> {
             });
         }
         self.check_constraints(table, Some(&old), &new, Effect::Update)?;
+        if self.rule_authority == RuleAuthority::StoreAuthoritative {
+            crate::assets_ledger::reconcile_row_assets(
+                self.tx,
+                self.schema,
+                table,
+                key_id,
+                Some(&old),
+                Some(&new),
+                self.context.viewer(),
+                self.context.now.unwrap_or_else(unix_millis),
+            )?;
+        }
         self.touch_row(table, &old)?;
         self.tx.execute(
             "UPDATE rows SET data = ?3 WHERE table_name = ?1 AND row_id = ?2",
@@ -126,6 +150,18 @@ impl<'a> Runner<'a> {
             });
         }
         self.check_constraints(table, Some(&old), &old, Effect::Delete)?;
+        if self.rule_authority == RuleAuthority::StoreAuthoritative {
+            crate::assets_ledger::reconcile_row_assets(
+                self.tx,
+                self.schema,
+                table,
+                id,
+                Some(&old),
+                None,
+                self.context.viewer(),
+                self.context.now.unwrap_or_else(unix_millis),
+            )?;
+        }
         self.touch_row(table, &old)?;
         self.tx.execute(
             "DELETE FROM rows WHERE table_name = ?1 AND row_id = ?2",

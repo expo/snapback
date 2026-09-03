@@ -54,6 +54,34 @@ export function registerApiShapeChecks(test: Test, frontend: string): void {
     assert(failures.length === 0, `${failures.join("\n")}\n\n${lowered.apiDts}`);
   });
 
+  test("generated API types preserve branded assets through rows and shaped pages", async () => {
+    await withProjectFiles("snapback2-api-assets-", {
+      "snapback/schema.q": `table media:
+  photo: image <=5000000
+  clip: video <=50000000
+  gallery: [image <=5000000] <=4 ?
+  public
+`,
+      "snapback/assets.q": `query rows():
+  return media[] first 5 by byId
+
+query cards():
+  return media[] first 5 by byId { photo, clip, gallery }
+`,
+    }, undefined, async (root) => {
+      const lowered = await lowerProject(root);
+      assert(lowered.ok, `asset shape probe refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
+      const expected: Record<string, string> = {
+        "assets.rows": "Page<MediaRow>",
+        "assets.cards": "{ photo: ImageAsset; clip: VideoAsset; gallery?: ImageAsset[] | undefined }[]",
+      };
+      for (const [operation, result] of Object.entries(expected)) {
+        assert(operationResult(lowered.apiDts, operation) === result,
+          `${operation} result differs:\nexpected ${result}\nreceived ${operationResult(lowered.apiDts, operation)}\n\n${lowered.apiDts}`);
+      }
+    });
+  });
+
   test("an empty-list return arm is absorbed into its sibling array type", async () => {
     await withCliqueProbe(fixtures, `query emptyOrTokens(body: text <=100, flag: bool):
   if flag:

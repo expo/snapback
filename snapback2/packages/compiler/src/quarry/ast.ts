@@ -12,6 +12,8 @@ export type ScalarType =
   | { kind: "bool"; optional: boolean }
   | { kind: "json"; max: number; optional: boolean }
   | { kind: "bytes"; max: number; optional: boolean }
+  | { kind: "image"; max: number; optional: boolean }
+  | { kind: "video"; max: number; optional: boolean }
   | { kind: "enum"; variants: string[]; optional: boolean }
   | { kind: "ref"; table: string; optional: boolean }
   | { kind: "list"; item: ScalarType; max: number; optional: boolean };

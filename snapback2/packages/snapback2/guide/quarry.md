@@ -27,6 +27,19 @@ and money scales are integers from 0 through 12; money defaults to scale 2 and
 its currency is exactly three uppercase letters. Add `?` for optional. Text
 can add `format handle` or `format url` after its bound. A minimum and a format
 become enforced text constraints; maximums remain part of the column type.
+Text values may not contain C0 control characters other than tab, newline,
+and carriage return.
+
+`image <=N` is a byte-bounded closed record `{ id, width, height }`; `video <=N`
+adds integer-millisecond `duration`. Both compose with `?` and bounded lists,
+and their fields work in expressions. Asset columns cannot be indexed or used
+in `maintain.by`.
+
+```q
+mutation inspect(photo: image <=5000000, clip: video <=50000000):
+  require clip.duration <= 60000 else TOO_LONG
+  return { photo, width: photo.width, clip }
+```
 
 Decimal/money literals are whole units (`2.50` → `250`); excess precision
 refuses. Matching nominal brands admit `+ - < <= > >= = != min max`; unary
@@ -96,10 +109,13 @@ Keys are positional (`table[value, …]`) or named
 need a complete unique key. Range order is `[after cursor] first|last N
 [by index]`; repeats/permutations refuse. Point reads may add
 `by index`; `exists table[keys]` accepts an index prefix. Shapes use `{ * }`,
-bare fields, or `name: expression`; nested work stays bounded. An operations
-module may declare `shape card = { fields }`, use `row card`, `page card`, or a
-named shape as a field value, and splice it with `...card`. Expansion preserves
-definition sites, refuses cycles, and is capped at depth 8.
+bare fields, or `name: expression`; nested work stays bounded. Byte ceilings
+bound canonical JSON: a shape is priced by the fields it selects and `*` by
+every column at its declared maximum (text at `4·max + 16` bytes), so focused
+shapes certify larger pages. An operations module may declare
+`shape card = { fields }`, use `row card`, `page card`, or a named shape as a
+field value, and splice it with `...card`; expansion keeps definition sites,
+refuses cycles, and is capped at depth 8.
 
 A pageable query declares `c: cursor ?` and reads `after c`; absent means page
 one. `complete` and `capped` results carry `next`, either a server-minted opaque
@@ -268,13 +284,13 @@ the same certificate, trace, and runtime budgets.
 
 ## Refused platform gaps
 
-The following are refused with `E_QUARRY_UNSUPPORTED`: `asset`/`use assets`,
-`schedule`, `where`, `device`, `oblivious`, `while`, user functions or recursion.
-Use bounded URL text instead of assets; a caller-invoked mutation instead of a
-schedule; explicit bounded arguments instead of device/oblivious state; bounded
-`for`/`walk` instead of while/recursion. An equality-conjunction `where` over
-indexable columns returns two repairs: the schema index line and the indexed
-prefix read. Other predicates name the index/invariant/merge alternatives.
+The following are refused with `E_QUARRY_UNSUPPORTED`: `schedule`, `where`,
+`device`, `oblivious`, `while`, user functions or recursion. Use a caller-invoked
+mutation instead of a schedule; explicit bounded arguments instead of
+device/oblivious state; bounded `for`/`walk` instead of while/recursion. An
+equality-conjunction `where` over indexable columns returns two repairs: the
+schema index line and the indexed prefix read; other predicates name the
+index, invariant (`after insert <- exists …`), or `merge` alternatives.
 
 Writes through a non-unique or incomplete key are index-selection refusals.
 

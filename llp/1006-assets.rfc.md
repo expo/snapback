@@ -12,7 +12,13 @@ decode helper executable, §14a), `packages/compiler` (the column types),
 revisions (f)–(j) by Claude Fable 5.1 at the author's rulings, in session,
 2026-09-03
 **Date:** 2026-08-31
-**Revised:** 2026-09-03 (j — the second panel folded (§16): fourteen unanimous
+**Revised:** 2026-09-03 (l — engine-core review correction: an affine asset's
+reclamation grace begins when its locator is released, while a never-referenced
+upload still ages from creation (§9)); 2026-09-03 (k — lane B3 publication source-builds and statically
+links a pinned decoder-only libheif → libde265 closure at the helper's derived
+platform floor; the package carries no codec dylibs, and Darwin/Linux
+dependency qualification is symmetric (§14a); `tmap` primaries refuse until
+libheif supports them upstream (§4).); 2026-09-03 (j — the second panel folded (§16): fourteen unanimous
 findings and the author's six decisions on the splits. **Correctness:**
 asset-typed arguments are ledger-validated at mutation entry, inside the
 transaction, so `require clip.duration` reads a fact (§6); the certified
@@ -218,8 +224,8 @@ Three consequences worth stating up front:
 `_assets` remains an engine-owned table (LLP 1001 §1 — `E_SCHEMA_RESERVED`
 already forbids declaring it): `id`, `state` (`receiving | ready | failed`),
 `kind` (`image | video`), `type` (the detected essence), `bytes`, `width`,
-`height`, `duration`, `created_by`, `created_at`, and the `locator` of §2a; a
-field a kind does not have is null. The blob key is the id (§9a), so there is
+`height`, `duration`, `created_by`, `created_at`, nullable `released_at`, and
+the `locator` of §2a; a field a kind does not have is null. The blob key is the id (§9a), so there is
 no key column. It is a staging and ownership ledger. After validation it is
 not the source of truth for anything a program reads.
 
@@ -583,7 +589,8 @@ the decision rather than mandating it.
   dragged from Photos, or picked in Safari — and only the server covers every
   path. The decoder ships in the one published helper (§14a). WebP is stored
   as WebP — its bitstream kept, its metadata chunks dropped — and decoded, in
-  pure Rust, only for derived widths.
+  pure Rust, only for derived widths. `tmap` primaries refuse until libheif
+  supports them upstream.
 - **The full-resolution image is kept, stripped** (author ruling, 2026-09-01).
   "The original" always means the full-size image *after* metadata removal —
   never the bytes as uploaded. Keeping the literal upload would keep the GPS
@@ -851,7 +858,11 @@ reason to revisit it; the walker is not one.
 **Reclamation is `locator IS NULL` over `_assets`** (§2a) — it never scans
 application tables. An asset whose row was deleted, whose column was patched,
 or that was never referenced has a null locator and is collected after a grace
-period, along with its derived widths. **Liveness buys space and never
+period, along with its derived widths. The reconciler sets nullable
+`released_at` when it clears a locator and clears it on a later claim; grace is
+measured from `max(created_at, released_at)`, with `created_at` alone governing
+uploads that were never referenced. An asset held for a year therefore still
+gets the full grace after replacement. **Liveness buys space and never
 authority** — an unreferenced asset is already
 undeliverable (§2), so a reclamation pass that lags or crashes is a disk cost,
 not a disclosure. Snapback 1's equivalent bug is open today: a partial reset
@@ -1383,6 +1394,18 @@ schema admits is the v1 HEIC bug in a new coat. The build flag stays for the
 development loop. `publish.mjs` reports the helper's size beside the
 engine's, and that number is the trigger for a slim package if it ever
 measures badly.
+
+**Publication source-builds one decoder-only static closure.** The publish
+path builds pinned, checksummed libde265 and libheif sources under `target/`,
+with libde265's encoder disabled and libheif's libde265 decoder enabled while
+every encoder and other decoder is disabled. It derives the macOS deployment
+target from a codec-free production build of the helper and uses that same
+target for both C libraries and the final Rust link; Linux uses the same
+source/static path. The shipped helper has no codec-library load commands.
+Publish refuses non-system Mach-O/ELF dependencies, refuses any shipped Mach-O
+whose minimum OS exceeds the helper's, and caches the source build by versions,
+hashes, platform, architecture, flags, and deployment target. There is no
+dylib-bundling fallback.
 
 **A missing codec refuses loudly; nothing degrades.** An installation with no
 helper at all whose schema declares an `image` column refuses at boot, exactly

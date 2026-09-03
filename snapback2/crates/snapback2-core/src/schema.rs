@@ -160,6 +160,9 @@ pub enum ColumnType {
     Text { max: u32 },
     // @ref LLP 1001#9-schema-additions — bytes use the value model's canonical lowercase-base16 wrapper.
     Bytes { max: u32 },
+    // @ref LLP 1006#1-the-move — assets are closed map values; the bound is stored bytes, not record size.
+    Image { max: u32 },
+    Video { max: u32 },
     Int,
     // @ref LLP 1001#9-schema-additions — enum and fixed-scale columns keep scalar storage keys.
     Enum { variants: Vec<String> },
@@ -174,10 +177,19 @@ pub enum ColumnType {
 }
 
 impl ColumnType {
-    pub(crate) fn contains_list(&self) -> bool {
+    // @ref LLP 1006#1-the-move — asset records and lists are deliberately outside scalar index custody.
+    pub(crate) fn is_indexable(&self) -> bool {
         match self {
-            Self::List { .. } => true,
-            Self::Optional(inner) => inner.contains_list(),
+            Self::Image { .. } | Self::Video { .. } | Self::List { .. } => false,
+            Self::Optional(inner) => inner.is_indexable(),
+            _ => true,
+        }
+    }
+
+    pub(crate) fn contains_asset(&self) -> bool {
+        match self {
+            Self::Image { .. } | Self::Video { .. } => true,
+            Self::Optional(inner) | Self::List { of: inner, .. } => inner.contains_asset(),
             _ => false,
         }
     }
@@ -190,6 +202,8 @@ impl fmt::Display for ColumnType {
             Self::Principal => formatter.write_str("Principal"),
             Self::Text { max } => write!(formatter, "Text(max={max})"),
             Self::Bytes { max } => write!(formatter, "Bytes(max={max})"),
+            Self::Image { max } => write!(formatter, "Image(max={max})"),
+            Self::Video { max } => write!(formatter, "Video(max={max})"),
             Self::Int => formatter.write_str("Int"),
             Self::Enum { variants } => write!(formatter, "Enum({})", variants.join("|")),
             Self::Decimal { scale } => write!(formatter, "Decimal(scale={scale})"),
@@ -447,6 +461,15 @@ pub(crate) fn maintain_issues(schema: &Schema) -> Vec<MaintainIssue> {
             if source.is_some_and(|table| !table.columns.contains_key(field)) {
                 issues.push(issue(format!(
                     "maintain names unknown source column {}.{field}",
+                    maintain.source
+                )));
+            } else if source
+                .and_then(|table| table.columns.get(field))
+                .is_some_and(ColumnType::contains_asset)
+            {
+                // @ref LLP 1006#2a-one-asset-one-home-author-ruling-2026-09-01 — maintained grouping would silently copy an affine asset into a second cell.
+                issues.push(issue(format!(
+                    "maintain.by cannot use asset-typed source column {}.{field}",
                     maintain.source
                 )));
             }

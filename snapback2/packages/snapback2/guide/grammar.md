@@ -21,8 +21,8 @@ fields. Channels declare `publish`, `subscribe`, and `ttl Ns`.
 
 Types are `principal`, `id`, table references, `int`, `time`, `bool`,
 `decimal <scale>`, `money <CUR> [scale]`, `text <=N`, `text M..N`, `json <=N`,
-`bytes <=N`, `enum(...)`, `[type] <=N`, and operation-only `cursor`; text may
-add a format and any type may add `?`.
+`bytes <=N`, `image <=N`, `video <=N`, `enum(...)`, `[type] <=N`, and
+operation-only `cursor`; text may add a format and any type may add `?`.
 
 ```q
 query list():

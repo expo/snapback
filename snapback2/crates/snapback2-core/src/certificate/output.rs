@@ -1,3 +1,7 @@
+use crate::bounds::{
+    CANONICAL_ARRAY_BASE_BYTES, CANONICAL_ROW_BASE_BYTES, declared_column_value_max,
+    declared_serialized_column_max,
+};
 use crate::collection_rewrite::{
     CollectionRewrite, OutputAssignmentPrice, OutputBound, OutputEstimate, OutputEstimator,
 };
@@ -32,6 +36,7 @@ impl<'a> OutputEstimator<'a> {
                         bytes: argument_max(argument),
                         instances: 1,
                         collection: matches!(argument, ArgType::List { .. }),
+                        table: None,
                         provenance: ProvenanceBinding::new(
                             identity,
                             crate::growth::ProvenanceExpression::argument(),
@@ -69,6 +74,7 @@ impl<'a> OutputEstimator<'a> {
                     let bytes = self.expression(value, variables);
                     let collection =
                         collection_price_from(value, variables, |bound| bound.collection);
+                    let table = self.expression_table(value, variables);
                     let rewrite = self.expression_rewrite(value, variables);
                     let identity = take_identity(&mut self.next_identity);
                     variables.insert(
@@ -77,6 +83,7 @@ impl<'a> OutputEstimator<'a> {
                             bytes,
                             instances: calls,
                             collection,
+                            table,
                             provenance: ProvenanceBinding::new(identity, provenance),
                             rewrite,
                             value: value.clone(),
@@ -98,6 +105,7 @@ impl<'a> OutputEstimator<'a> {
                             collection: collection_price_from(value, variables, |bound| {
                                 bound.collection
                             }),
+                            table: self.expression_table(value, variables),
                             rewrite: self.expression_rewrite(value, variables),
                         },
                     );
@@ -132,6 +140,7 @@ impl<'a> OutputEstimator<'a> {
                                     .saturating_add(price.bytes.saturating_mul(growth.repetitions))
                             };
                         current.collection = true;
+                        current.table = None;
                         current.provenance = current.provenance.assigned(provenance);
                         current.rewrite = Some((current.bytes, rewrite));
                         current.value = value.clone();
@@ -150,6 +159,7 @@ impl<'a> OutputEstimator<'a> {
                                 bytes: price.bytes,
                                 instances,
                                 collection: price.collection,
+                                table: price.table,
                                 provenance: assigned,
                                 rewrite: price.rewrite,
                                 value: value.clone(),
@@ -169,9 +179,10 @@ impl<'a> OutputEstimator<'a> {
                     });
                     let element = self.expression(value, variables).saturating_add(1);
                     let current = variables.entry(target.clone()).or_insert(OutputBound {
-                        bytes: 2,
+                        bytes: CANONICAL_ARRAY_BASE_BYTES,
                         instances: calls,
                         collection: true,
+                        table: None,
                         provenance: ProvenanceBinding::new(
                             take_identity(&mut self.next_identity),
                             crate::growth::ProvenanceExpression::iteration(true, iteration),
@@ -186,6 +197,7 @@ impl<'a> OutputEstimator<'a> {
                         .bytes
                         .saturating_add(repetitions.saturating_mul(element));
                     current.collection = true;
+                    current.table = None;
                     if let Some(rewrite) = rewrite {
                         current.rewrite = Some((current.bytes, rewrite));
                     }
@@ -208,6 +220,14 @@ impl<'a> OutputEstimator<'a> {
                     body,
                 } => {
                     let (bound, element) = self.domain(domain, variables);
+                    let table = match domain {
+                        LoopDomain::Page(scan) => Some(scan.table.clone()),
+                        LoopDomain::Recurse(recurse) => Some(recurse.table.clone()),
+                        LoopDomain::DerivedArray { value, .. } => {
+                            self.expression_table(value, variables)
+                        }
+                        _ => None,
+                    };
                     let mut nested = variables.clone();
                     let nested_calls = calls.saturating_mul(bound);
                     let nested_iteration = take_identity(&mut self.next_identity);
@@ -220,6 +240,7 @@ impl<'a> OutputEstimator<'a> {
                                 domain,
                                 LoopDomain::Page(_) | LoopDomain::Recurse(_)
                             ),
+                            table,
                             provenance: ProvenanceBinding::new(
                                 take_identity(&mut self.next_identity),
                                 crate::growth::ProvenanceExpression::iteration(
@@ -293,15 +314,16 @@ impl<'a> OutputEstimator<'a> {
             Expr::Variable(name) => variables.get(name).map(|bound| bound.bytes).unwrap_or(1024),
             Expr::Input(Input::Viewer | Input::NewId) => 144,
             Expr::Input(Input::Now | Input::ReadTime) => 32,
-            Expr::Field { base, .. } => self.expression(base, variables),
+            // @ref LLP 1001#10-what-binds-and-how-it-is-checked — row provenance,
+            // not a variable spelling, selects the declared column bound.
+            Expr::Field { base, name } => self
+                .expression_table(base, variables)
+                .and_then(|table| declared_serialized_column_max(self.schema, &table, name))
+                .unwrap_or_else(|| self.expression(base, variables)),
             Expr::Array(values) => {
                 collection_bytes(values.iter().map(|value| self.expression(value, variables)))
             }
-            Expr::Object(values) => values.iter().fold(2_u64, |size, (name, value)| {
-                size.saturating_add(name.len() as u64)
-                    .saturating_add(4)
-                    .saturating_add(self.expression(value, variables))
-            }),
+            Expr::Object(values) => self.object(values, variables),
             Expr::Binary { op, .. } => match op {
                 BinaryOp::Eq
                 | BinaryOp::Ne
@@ -353,7 +375,7 @@ impl<'a> OutputEstimator<'a> {
                 Builtin::MentionTokens => args
                     .first()
                     .map(|value| self.expression(value, variables).saturating_mul(2))
-                    .unwrap_or(2),
+                    .unwrap_or(CANONICAL_ARRAY_BASE_BYTES),
                 Builtin::Divmod { .. } => 256,
                 Builtin::Len
                 | Builtin::DeterministicShare
@@ -368,6 +390,107 @@ impl<'a> OutputEstimator<'a> {
     }
 
     fn repeated(element: u64, count: u64) -> u64 {
-        2_u64.saturating_add(count.saturating_mul(element.saturating_add(1)))
+        CANONICAL_ARRAY_BASE_BYTES.saturating_add(count.saturating_mul(element.saturating_add(1)))
+    }
+
+    fn expression_table(
+        &self,
+        expression: &Expr,
+        variables: &BTreeMap<String, OutputBound>,
+    ) -> Option<String> {
+        match expression {
+            Expr::Variable(name) => variables.get(name).and_then(|bound| bound.table.clone()),
+            Expr::Get(read) => Some(read.table.clone()),
+            Expr::Scan(scan) => Some(scan.table.clone()),
+            Expr::Builtin {
+                builtin: Builtin::DedupeById { table, .. },
+                ..
+            } => Some(table.clone()),
+            Expr::Builtin {
+                builtin: Builtin::Slice | Builtin::Sort { .. },
+                args,
+            } => args
+                .first()
+                .and_then(|value| self.expression_table(value, variables)),
+            _ => None,
+        }
+    }
+
+    fn object(
+        &self,
+        values: &BTreeMap<String, Expr>,
+        variables: &BTreeMap<String, OutputBound>,
+    ) -> u64 {
+        struct RowFields<'a> {
+            base: &'a Expr,
+            table: String,
+            fields: Vec<(&'a str, &'a str)>,
+        }
+
+        let mut size = CANONICAL_ROW_BASE_BYTES;
+        let mut row_fields: Vec<RowFields<'_>> = Vec::new();
+        for (output_name, value) in values {
+            let Expr::Field { base, name } = value else {
+                size = size
+                    .saturating_add(output_name.len() as u64)
+                    .saturating_add(4)
+                    .saturating_add(self.expression(value, variables));
+                continue;
+            };
+            let Some(table) = self.expression_table(base, variables) else {
+                size = size
+                    .saturating_add(output_name.len() as u64)
+                    .saturating_add(4)
+                    .saturating_add(self.expression(value, variables));
+                continue;
+            };
+            if declared_column_value_max(self.schema, &table, name).is_none() {
+                size = size
+                    .saturating_add(output_name.len() as u64)
+                    .saturating_add(4)
+                    .saturating_add(self.expression(value, variables));
+                continue;
+            }
+            if let Some(group) = row_fields
+                .iter_mut()
+                .find(|group| group.table == table && group.base == base.as_ref())
+            {
+                group.fields.push((output_name, name));
+            } else {
+                row_fields.push(RowFields {
+                    base,
+                    table,
+                    fields: vec![(output_name, name)],
+                });
+            }
+        }
+
+        for group in row_fields {
+            let table = self
+                .schema
+                .table(&group.table)
+                .expect("resolved table exists");
+            let whole_row = group.fields.len() == table.columns.len()
+                && group.fields.iter().all(|(output, column)| {
+                    output == column && table.columns.contains_key(*column)
+                });
+            if whole_row {
+                size = size.saturating_add(
+                    self.row(&group.table)
+                        .saturating_sub(CANONICAL_ROW_BASE_BYTES),
+                );
+                continue;
+            }
+            for (output, column) in group.fields {
+                size = size
+                    .saturating_add(output.len() as u64)
+                    .saturating_add(4)
+                    .saturating_add(
+                        declared_column_value_max(self.schema, &group.table, column)
+                            .expect("resolved column exists"),
+                    );
+            }
+        }
+        size
     }
 }

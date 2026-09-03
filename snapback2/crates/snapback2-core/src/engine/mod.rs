@@ -273,7 +273,9 @@ pub enum RuntimeError {
     Schema(String),
     #[error("E_SCHEMA_RESERVED: schema or program names reserved table {0}")]
     SchemaReserved(String),
-    #[error("E_SCHEMA_INDEX_COLUMN: index {table}.{index} cannot use list column {column}")]
+    #[error(
+        "E_SCHEMA_INDEX_COLUMN: index {table}.{index} cannot use non-indexable column {column}"
+    )]
     SchemaIndexColumn {
         table: String,
         index: String,
@@ -295,6 +297,16 @@ pub enum RuntimeError {
     Steps(u64),
     #[error("E_INPUT: {0}")]
     Input(String),
+    #[error("E_ASSET_TYPE: {0}")]
+    AssetType(String),
+    #[error("E_ASSET_TOO_LARGE: {0}")]
+    AssetTooLarge(String),
+    #[error("E_ASSET_NOT_READY: {0}")]
+    AssetNotReady(String),
+    #[error("E_ASSET_IN_USE: {0}")]
+    AssetInUse(String),
+    #[error("E_SCHEMA_SEED_ASSET: {table}.{column} cannot contain an asset value in seed data")]
+    SchemaSeedAsset { table: String, column: String },
     #[error("E_STORE_OWNED: {holder}")]
     StoreOwned { holder: String },
     #[error("E_STORE_VERSION: {detail}; reset the development store")]
@@ -331,6 +343,11 @@ impl RuntimeError {
             Self::Fanout => "E_FANOUT",
             Self::Steps(_) => "E_STEPS",
             Self::Input(_) => "E_INPUT",
+            Self::AssetType(_) => "E_ASSET_TYPE",
+            Self::AssetTooLarge(_) => "E_ASSET_TOO_LARGE",
+            Self::AssetNotReady(_) => "E_ASSET_NOT_READY",
+            Self::AssetInUse(_) => "E_ASSET_IN_USE",
+            Self::SchemaSeedAsset { .. } => "E_SCHEMA_SEED_ASSET",
             Self::StoreOwned { .. } => "E_STORE_OWNED",
             Self::StoreVersion { .. } => "E_STORE_VERSION",
             Self::TraceSubset(_) => "E_TRACE_SUBSET",
@@ -415,6 +432,9 @@ impl Engine {
 
     pub fn seed(&mut self, table: &str, row: Value) -> Result<(), RuntimeError> {
         validate_row(self.schema.table(table), table, &row)?;
+        if self.rule_authority == RuleAuthority::StoreAuthoritative {
+            crate::assets::refuse_seed_assets(&self.schema, table, &row)?;
+        }
         let id = row.field("id")?.as_str()?.to_owned();
         self.store.conn.execute(
             "INSERT OR REPLACE INTO rows(table_name, row_id, data) VALUES (?1, ?2, ?3)",
@@ -434,6 +454,65 @@ impl Engine {
             materialize_optional_fields(row, table_schema);
         }
         Ok(rows)
+    }
+
+    // @ref LLP 1006#2-authority-delivery-is-by-the-row-that-holds-it — the ledger, located row, asset cell, and certified read rule are checked in one read transaction.
+    pub(crate) fn asset_delivery(
+        &mut self,
+        id: &str,
+        context: Context,
+        certificates: &BTreeMap<String, RuleCertificate>,
+    ) -> Result<crate::assets_ledger::AssetDelivery, RuntimeError> {
+        let transaction = self.store.conn.transaction()?;
+        let ledger = crate::assets_ledger::delivery_row(&transaction, id)?;
+        let locator = ledger.locator.clone().ok_or_else(asset_unavailable)?;
+        let table = self
+            .schema
+            .table(&locator.table)
+            .ok_or_else(asset_unavailable)?;
+        let rule = table.rules.read.clone();
+        let certificate = certificates
+            .get(&locator.table)
+            .ok_or_else(asset_unavailable)?;
+        if certificate.schema_hash != self.schema.hash()
+            || certificate.rule_hash != self.schema.rule_hash(&rule)
+        {
+            return Err(RuntimeError::TraceSubset(
+                "asset delivery rule certificate mismatch".to_owned(),
+            ));
+        }
+        let seq = transaction
+            .query_row("SELECT COALESCE(MAX(seq), 0) FROM _commits", [], |row| {
+                row.get::<_, i64>(0)
+            })?
+            .max(0) as u64;
+        let mut runner = Runner::probe(
+            &transaction,
+            &self.schema,
+            context,
+            &self.verdicts,
+            &self.authority_absences,
+            RuleAuthority::StoreAuthoritative,
+            seq,
+            Some(certificate),
+        );
+        let row = runner
+            .fetch_id(&locator.table, &locator.row)
+            .map_err(|error| match error {
+                RuntimeError::Schema(_) | RuntimeError::Value(_) => asset_unavailable(),
+                error => error,
+            })?
+            .ok_or_else(asset_unavailable)?;
+        if !crate::assets_ledger::locator_cell_matches(&self.schema, &row, &locator, &ledger)
+            || !runner.check_rule(&locator.table, Effect::Read, None, &row)?
+        {
+            return Err(asset_unavailable());
+        }
+        runner.assert_rule_bounds()?;
+        drop(runner);
+        let delivery = crate::assets_ledger::ready_delivery(ledger, rule.is_public())?;
+        transaction.commit()?;
+        Ok(delivery)
     }
 
     pub fn execute(
@@ -505,7 +584,7 @@ impl Engine {
         program: &Program,
         certificate: &Certificate,
         now: i64,
-    ) -> Result<Execution, RuntimeError> {
+    ) -> Result<(Execution, Vec<String>), RuntimeError> {
         let mut context = Context::system();
         context.now = Some(now);
         context.seed_write = true;
@@ -603,6 +682,14 @@ impl Engine {
         if then_outbox_id.is_some() {
             transaction.execute_batch("SAVEPOINT snapback2_effect_then")?;
         }
+        // @ref LLP 1006#6-the-write-validated-not-stamped — authoritative asset facts are checked inside the mutation transaction before its first statement.
+        let entry_validation = if program.kind == ProgramKind::Mutation
+            && self.rule_authority == RuleAuthority::StoreAuthoritative
+        {
+            validate_asset_inputs(&transaction, program, &context)
+        } else {
+            Ok(())
+        };
         let mut runner = Runner::new(
             &transaction,
             &self.schema,
@@ -613,7 +700,7 @@ impl Engine {
             self.rule_authority,
             seq,
         );
-        let mut attempted = runner.statements(&program.body);
+        let mut attempted = entry_validation.and_then(|()| runner.statements(&program.body));
         if attempted.is_ok()
             && program.kind == ProgramKind::Mutation
             && let Err(error) = runner.check_final_constraints()
@@ -751,7 +838,7 @@ impl Engine {
         certificate: &Certificate,
         context: Context,
         commit_kind: Option<&str>,
-    ) -> Result<Execution, RuntimeError> {
+    ) -> Result<(Execution, Vec<String>), RuntimeError> {
         if program.kind != ProgramKind::Mutation {
             return Err(RuntimeError::Input(
                 "reset seed must be a mutation".to_owned(),
@@ -774,6 +861,7 @@ impl Engine {
         let is_system = context.viewer.is_system();
         let commit_at = context.now.unwrap_or_else(unix_millis);
         let transaction = self.store.conn.transaction()?;
+        let asset_ids = crate::assets_ledger::clear_assets(&transaction)?;
         transaction.execute_batch(
             "DELETE FROM index_entries;
              DELETE FROM rows;
@@ -822,7 +910,7 @@ impl Engine {
             },
         )?;
         transaction.commit()?;
-        Ok(execution)
+        Ok((execution, asset_ids))
     }
 
     pub(crate) fn probe_rule(
@@ -860,6 +948,10 @@ impl Engine {
         transaction.commit()?;
         Ok((result, trace))
     }
+}
+
+fn asset_unavailable() -> RuntimeError {
+    RuntimeError::AssetNotReady("asset is unavailable".to_owned())
 }
 
 // @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — successor
@@ -1107,6 +1199,10 @@ pub(crate) fn validate_arg_value(
             "{label} cannot carry the reserved system principal"
         )));
     }
+    if kind.contains_asset() {
+        crate::assets::arg_asset_uses(kind, value, label)?;
+        return Ok(());
+    }
     match kind {
         ArgType::Cursor => match value {
             Value::String(token) => decode_cursor(token)
@@ -1123,10 +1219,20 @@ pub(crate) fn validate_arg_value(
             _ => Err(RuntimeError::Input(format!("{label} must be an id"))),
         },
         ArgType::Text { max } => match value {
-            Value::String(value) if value.chars().count() <= *max as usize => Ok(()),
-            Value::String(_) => Err(RuntimeError::Input(format!(
-                "{label} exceeds text max {max}"
-            ))),
+            Value::String(value) => {
+                if let Some(code_point) = disallowed_text_control_code_point(value) {
+                    return Err(RuntimeError::Input(format!(
+                        "{label} contains disallowed control character U+{code_point:04X}"
+                    )));
+                }
+                if value.chars().count() <= *max as usize {
+                    Ok(())
+                } else {
+                    Err(RuntimeError::Input(format!(
+                        "{label} exceeds text max {max}"
+                    )))
+                }
+            }
             _ => Err(RuntimeError::Input(format!("{label} must be text"))),
         },
         ArgType::Bytes { max } => match value {
@@ -1136,6 +1242,9 @@ pub(crate) fn validate_arg_value(
             ))),
             _ => Err(RuntimeError::Input(format!("{label} must be bytes"))),
         },
+        ArgType::Image { .. } | ArgType::Video { .. } => {
+            unreachable!("asset-bearing arguments return above")
+        }
         ArgType::Int | ArgType::Time | ArgType::Decimal { .. } | ArgType::Money { .. } => {
             match value {
                 Value::Int(value) if (I53_MIN..=I53_MAX).contains(value) => Ok(()),
@@ -1180,6 +1289,32 @@ pub(crate) fn validate_arg_value(
         },
         ArgType::Scalar => Ok(()),
     }
+}
+
+pub(super) fn disallowed_text_control_code_point(text: &str) -> Option<u32> {
+    text.chars()
+        .find(|character| *character <= '\u{001f}' && !matches!(*character, '\t' | '\n' | '\r'))
+        .map(u32::from)
+}
+
+fn validate_asset_inputs(
+    transaction: &Transaction<'_>,
+    program: &Program,
+    context: &Context,
+) -> Result<(), RuntimeError> {
+    for (name, kind) in &program.args {
+        if !kind.contains_asset() {
+            continue;
+        }
+        let value = context
+            .args
+            .get(name)
+            .ok_or_else(|| RuntimeError::Input(format!("missing arg {name}")))?;
+        for asset in crate::assets::arg_asset_uses(kind, value, &format!("arg {name}"))? {
+            crate::assets_ledger::validate_asset_use(transaction, &asset, context.viewer(), true)?;
+        }
+    }
+    Ok(())
 }
 
 pub(crate) fn value_contains_reserved_principal(value: &Value) -> bool {
@@ -1293,6 +1428,10 @@ pub(crate) fn mutation_rejection_code(error: &RuntimeError) -> Option<&str> {
         RuntimeError::Constraint(_) => Some("E_CONSTRAINT"),
         error if is_sqlite_constraint(error) => Some("E_CONSTRAINT"),
         RuntimeError::Input(_) => Some("E_INPUT"),
+        RuntimeError::AssetType(_)
+        | RuntimeError::AssetTooLarge(_)
+        | RuntimeError::AssetNotReady(_)
+        | RuntimeError::AssetInUse(_) => Some(error.code()),
         RuntimeError::Value(error) => Some(match error {
             ValueError::DivideByZero => "E_DIV_ZERO",
             ValueError::Overflow(_) => "E_OVERFLOW",
@@ -1360,7 +1499,7 @@ pub fn validate_schema(schema: &Schema) -> Result<(), Vec<RuntimeError>> {
                 if table
                     .columns
                     .get(column)
-                    .is_some_and(ColumnType::contains_list)
+                    .is_some_and(|kind| !kind.is_indexable())
                 {
                     errors.push(RuntimeError::SchemaIndexColumn {
                         table: table_name.clone(),
@@ -1395,6 +1534,8 @@ fn first_schema_error(errors: Vec<RuntimeError>) -> RuntimeError {
         .expect("schema validation refusal contains at least one diagnostic")
 }
 
+#[cfg(test)]
+mod delivery_tests;
 mod index;
 mod runner;
 mod runner_ops;

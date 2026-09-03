@@ -2,9 +2,65 @@ use super::*;
 
 pub(super) fn add_twin_cases(cases: &mut Vec<CorpusCase>) {
     add_rbac_twin_cases(cases);
+    add_text_control_refusal_case(cases);
     add_constraint_and_memo_twin_cases(cases);
     add_optional_maintain_twin_case(cases);
     add_same_mutation_sum_read_twin_case(cases);
+}
+
+fn add_text_control_refusal_case(cases: &mut Vec<CorpusCase>) {
+    let schema = Schema {
+        tables: BTreeMap::from([(
+            "notes".to_owned(),
+            public_table(
+                BTreeMap::from([
+                    ("id".to_owned(), ColumnType::Id),
+                    ("body".to_owned(), ColumnType::Text { max: 1 }),
+                ]),
+                BTreeMap::new(),
+            ),
+        )]),
+        ..Schema::default()
+    };
+    let program = Program {
+        name: "notes.insert-control".to_owned(),
+        kind: ProgramKind::Mutation,
+        args: BTreeMap::from([("body".to_owned(), ArgType::Text { max: 1 })]),
+        read_time_granularity_ms: None,
+        result_page_site: None,
+        body: vec![Stmt::Insert {
+            table: "notes".to_owned(),
+            row: Expr::Object(BTreeMap::from([
+                ("id".to_owned(), Expr::Input(Input::NewId)),
+                ("body".to_owned(), var("body")),
+            ])),
+        }],
+    };
+    let context = mutation_context([("body", text("\u{0001}"))], ["note-1"]);
+    let certificate = Checker::new(&schema, Ceilings::default())
+        .check(&program)
+        .expect("text control certificate");
+    let mut server = Engine::memory(schema.clone()).expect("text control engine");
+    let error = server
+        .execute(&program, &certificate, context.clone())
+        .expect_err("server accepted a disallowed text control");
+    assert_eq!(
+        error.to_string(),
+        "E_INPUT: arg body contains disallowed control character U+0001"
+    );
+    let case = case_from_parts(
+        "named-text-control-refusal",
+        "named",
+        schema,
+        program,
+        context,
+        ClosureReceipt::default(),
+        Vec::new(),
+        None,
+        None,
+    );
+    assert_eq!(case.expected.error_code.as_deref(), Some("E_INPUT"));
+    cases.push(case);
 }
 
 // @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — both runtimes expose an engine-maintained sum to later statements in the writing mutation.

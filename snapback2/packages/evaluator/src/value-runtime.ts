@@ -344,6 +344,10 @@ export function validateTypedValue(
   assertValue(value, label);
   if (valueContainsReservedPrincipal(value))
     throw new EvalError("E_INPUT", `${label} cannot carry the reserved system principal`);
+  if (descriptorContainsAsset(descriptor)) {
+    validateAssetTypedValue(descriptor, value, label);
+    return;
+  }
   if (descriptor?.Optional !== undefined) {
     if (value !== "Null") validateTypedValue(descriptor.Optional, value, label, fanoutForLongList);
     return;
@@ -370,6 +374,9 @@ export function validateTypedValue(
   }
   if (descriptor?.Text !== undefined) {
     if (!isVariant(value, "String")) throw new EvalError("E_INPUT", `${label} must be text`);
+    const codePoint = disallowedTextControlCodePoint(value.String);
+    if (codePoint !== undefined)
+      throw new EvalError("E_INPUT", `${label} contains disallowed control character U+${codePoint.toString(16).toUpperCase().padStart(4, "0")}`);
     if (Array.from(value.String).length > descriptor.Text.max)
       throw new EvalError("E_INPUT", `${label} exceeds text max ${descriptor.Text.max}`);
     return;
@@ -401,6 +408,66 @@ export function validateTypedValue(
     return;
   }
   throw new EvalError("E_SCHEMA", `unsupported type for ${label}`);
+}
+
+function disallowedTextControlCodePoint(text: string): number | undefined {
+  for (const character of text) {
+    const codePoint = character.codePointAt(0)!;
+    if (codePoint < 0x20 && ![0x09, 0x0a, 0x0d].includes(codePoint)) return codePoint;
+  }
+  return undefined;
+}
+
+function descriptorContainsAsset(descriptor: any): boolean {
+  if (descriptor?.Image !== undefined || descriptor?.Video !== undefined) return true;
+  if (descriptor?.Optional !== undefined) return descriptorContainsAsset(descriptor.Optional);
+  if (descriptor?.List?.of !== null && descriptor?.List?.of !== undefined)
+    return descriptorContainsAsset(descriptor.List.of);
+  return false;
+}
+
+// @ref LLP 1006#6-the-write-validated-not-stamped — the twin enforces the closed asset record and list uniqueness but owns no ledger authority.
+function validateAssetTypedValue(descriptor: any, value: Value, label: string): string[] {
+  if (descriptor?.Optional !== undefined) {
+    return value === "Null" ? [] : validateAssetTypedValue(descriptor.Optional, value, label);
+  }
+  if (descriptor?.List !== undefined) {
+    if (!isVariant(value, "Array")) throw assetType(`${label} must be a list`);
+    if (value.Array.length > descriptor.List.max)
+      throw assetType(`${label} exceeds list max ${descriptor.List.max}`);
+    const ids = value.Array.flatMap((item, index) =>
+      validateAssetTypedValue(descriptor.List.of, item, `${label}[${index}]`),
+    );
+    const seen = new Set<string>();
+    const duplicate = ids.find((id) => seen.has(id) || !seen.add(id));
+    if (duplicate !== undefined)
+      throw assetType(`${label} repeats asset id ${duplicate}; asset ids in a list must be unique`);
+    return ids;
+  }
+  const kind = descriptor?.Image !== undefined ? "image" : descriptor?.Video !== undefined ? "video" : null;
+  if (kind === null) throw new EvalError("E_SCHEMA", `unsupported asset type for ${label}`);
+  if (!isVariant(value, "Map")) throw assetType(`${label} must be a closed ${kind} asset map`);
+  const expected = kind === "image" ? ["height", "id", "width"] : ["duration", "height", "id", "width"];
+  const actual = Object.keys(value.Map).sort(compareCodepoints);
+  if (actual.length !== expected.length || actual.some((name, index) => name !== expected[index]))
+    throw assetType(`${label} must contain exactly ${expected.join(", ")}`);
+  const idValue = value.Map.id;
+  const id = isVariant(idValue, "String") ? idValue.String : "";
+  if (!validEngineId(id)) throw assetType(`${label}.id must be a minted s2id`);
+  for (const field of kind === "image" ? ["width", "height"] : ["width", "height", "duration"]) {
+    const member = value.Map[field];
+    if (!isVariant(member, "Int") || !Number.isSafeInteger(member.Int) || member.Int <= 0)
+      throw assetType(`${label}.${field} must be a positive i53 integer`);
+  }
+  return [id];
+}
+
+function validEngineId(id: string): boolean {
+  return /^s2id-[0-9a-f]{32}-[0-9a-f]{16}$/.test(id) && !id.endsWith("-0000000000000000");
+}
+
+function assetType(message: string): EvalError {
+  return new EvalError("E_ASSET_TYPE", message);
 }
 
 export function assertValue(value: Value, label: string): void {

@@ -202,6 +202,14 @@ function lowerTable(
       for (const column of names) {
         if (!Object.hasOwn(columns, column)) {
           diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_INDEX_COLUMN", entry.node, `index ${name}.${entry.name} names unknown column ${column}`));
+        } else if (!indexableColumnDescriptor(columns[column])) {
+          // @ref LLP 1006#1-the-move — asset records have no scalar ordering and therefore cannot enter an index.
+          diagnostics.push(schemaDiagnostic(
+            module,
+            "E_SCHEMA_INDEX_COLUMN",
+            entry.node,
+            `index ${name}.${entry.name} column ${column} has non-indexable type ${columnDescriptorName(columns[column])}`,
+          ));
         }
       }
       indexes[entry.name] = { columns: names, unique: unique ?? false };
@@ -283,6 +291,13 @@ function lowerColumn(
   if (name === "bytes") {
     const max = numberValue(call.arguments[0]);
     if (call.arguments.length === 1 && validPositiveInteger(max)) return { Bytes: { max } };
+  }
+  if (name === "image" || name === "video") {
+    const max = numberValue(call.arguments[0]);
+    if (call.arguments.length === 1 && validPositiveInteger(max)) {
+      // @ref LLP 1006#3-authoring-surface — the byte bound is preserved in the externally tagged engine descriptor.
+      return { [name === "image" ? "Image" : "Video"]: { max } };
+    }
   }
   if (name === "json") {
     const maxBytes = numberValue(call.arguments[0]);
@@ -714,6 +729,14 @@ function lowerMaintains(
       }
       if (!(field in sourceColumns)) {
         diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_MAINTAIN", item, `maintain names unknown source column ${source}.${field}`));
+      } else if (assetColumnDescriptor(sourceColumns[field])) {
+        // @ref LLP 1006#2a-one-asset-one-home-author-ruling-2026-09-01 — maintained grouping would silently copy one affine asset into another row.
+        diagnostics.push(schemaDiagnostic(
+          module,
+          "E_SCHEMA_ASSET_MAINTAIN",
+          item,
+          `maintain.by cannot use asset-typed source column ${source}.${field}`,
+        ));
       }
     }
     if (sumField) {
@@ -795,6 +818,21 @@ function columnDescriptorName(value: unknown): string {
   if (!value || typeof value !== "object" || Array.isArray(value)) return "missing";
   const [name, detail] = Object.entries(value as Record<string, unknown>)[0] ?? ["unknown", undefined];
   return detail === undefined ? name : `${name} ${JSON.stringify(detail)}`;
+}
+
+function indexableColumnDescriptor(value: unknown): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return true;
+  const descriptor = value as Record<string, unknown>;
+  if ("Optional" in descriptor) return indexableColumnDescriptor(descriptor.Optional);
+  return !("List" in descriptor || "Image" in descriptor || "Video" in descriptor);
+}
+
+function assetColumnDescriptor(value: unknown): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const descriptor = value as Record<string, any>;
+  if ("Optional" in descriptor) return assetColumnDescriptor(descriptor.Optional);
+  if (descriptor.List) return assetColumnDescriptor(descriptor.List.of);
+  return "Image" in descriptor || "Video" in descriptor;
 }
 
 function sameColumnDescriptor(left: unknown, right: unknown): boolean {
@@ -905,6 +943,8 @@ export function lowerArgDescriptor(
     case "time": return "Time";
     case "text": return { Text: { max: numberValue(call.arguments[0]) } };
     case "bytes": return { Bytes: { max: numberValue(call.arguments[0]) } };
+    case "image": return { Image: { max: numberValue(call.arguments[0]) } };
+    case "video": return { Video: { max: numberValue(call.arguments[0]) } };
     case "json": return { Json: { max_bytes: numberValue(call.arguments[0]) } };
     default: return undefined;
   }
@@ -923,7 +963,9 @@ function validArgDescriptor(node: ts.Expression): boolean {
   const name = call && callLeaf(call);
   if (!call || !name) return false;
   if (["cursor", "id", "principal", "int", "bool", "time"].includes(name)) return call.arguments.length === 0;
-  if (name === "text" || name === "bytes" || name === "json") return call.arguments.length === 1 && validPositiveInteger(numberValue(call.arguments[0]));
+  if (["text", "bytes", "image", "video", "json"].includes(name)) {
+    return call.arguments.length === 1 && validPositiveInteger(numberValue(call.arguments[0]));
+  }
   if (name === "ref") return call.arguments.length === 1;
   if (name === "optional") return call.arguments.length === 1 && !!call.arguments[0] && validArgDescriptor(call.arguments[0]);
   if (name === "enum") {
@@ -1061,7 +1103,7 @@ export function invalidDescriptorRefusal(node: ts.Expression): { node: ts.Expres
   }
   const rewrites: Record<string, string> = {
     id: `${callee}()`, principal: `${callee}()`, int: `${callee}()`, bool: `${callee}()`, time: `${callee}()`,
-    text: `${callee}(100)`, bytes: `${callee}(100)`, json: `${callee}(1000)`, ref: `${callee}(table)`,
+    text: `${callee}(100)`, bytes: `${callee}(100)`, image: `${callee}(5000000)`, video: `${callee}(50000000)`, json: `${callee}(1000)`, ref: `${callee}(table)`,
     optional: `${callee}(${sibling("text")}(100))`,
     list: `${callee}(${sibling("text")}(100), { max: 10 })`,
   };
@@ -1080,7 +1122,7 @@ export function invalidNativeDescriptorRefusal(node: ts.Expression): ReturnType<
 
 function nativeDescriptorName(call: ts.CallExpression): string | undefined {
   const name = callLeaf(call);
-  if (!name || !["id", "principal", "text", "bytes", "int", "bool", "time", "ref", "json", "optional", "list", "enum", "decimal", "money"].includes(name)
+  if (!name || !["id", "principal", "text", "bytes", "image", "video", "int", "bool", "time", "ref", "json", "optional", "list", "enum", "decimal", "money"].includes(name)
     || !ts.isPropertyAccessExpression(call.expression)) return undefined;
   const owner = call.expression.expression.getText();
   if (owner === "t" || owner.endsWith(".t")) return name;
@@ -1132,7 +1174,7 @@ function validateKnownKeys(
 
 function schemaDiagnostic(
   module: SchemaModule,
-  code: "E_SCHEMA_RESERVED" | "E_SCHEMA_ID_RESERVED" | "E_SCHEMA_UNKNOWN_TABLE" | "E_SCHEMA_INDEX_COLUMN"
+  code: "E_SCHEMA_RESERVED" | "E_SCHEMA_ID_RESERVED" | "E_SCHEMA_UNKNOWN_TABLE" | "E_SCHEMA_INDEX_COLUMN" | "E_SCHEMA_ASSET_MAINTAIN"
     | "E_SCHEMA_INDEX_OPTION" | "E_SCHEMA_CONSTRAINT" | "E_SCHEMA_MAINTAIN" | "E_SCHEMA_DEFAULT_EXPORT"
     | "E_SCHEMA_COLUMN" | "E_SCHEMA_INVALID" | "E_RULE_INVALID",
   node: ts.Node,
@@ -1145,7 +1187,7 @@ function schemaDiagnostic(
       ? "{ appendOnly: true }"
       : code === "E_SCHEMA_INDEX_OPTION"
         ? "indexes: {}"
-        : code === "E_SCHEMA_MAINTAIN"
+        : code === "E_SCHEMA_MAINTAIN" || code === "E_SCHEMA_ASSET_MAINTAIN"
           ? "maintains: []"
           : schemaDeclarationRewrite(node));
   return diagnostic(module, code, node, message, rewrite);

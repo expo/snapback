@@ -454,7 +454,7 @@ test("loop collection refusals paste per-family rewrites that lower and certify"
       body: `let result = [];
         for (const item of range(0, 7000)) result = [...result, args.value];
         return result;`,
-      estimate: "output bytes 7133002 exceeds ceiling",
+      estimate: "output bytes 28203012 exceeds ceiling",
       rewrite: "result = [args.value]",
     },
     {
@@ -464,7 +464,7 @@ test("loop collection refusals paste per-family rewrites that lower and certify"
       body: `let result = [];
         for (const item of range(0, 7000)) result = append(result, args.value);
         return result;`,
-      estimate: "output bytes 7133002 exceeds ceiling",
+      estimate: "output bytes 28203012 exceeds ceiling",
       rewrite: "result = [args.value]",
     },
     {
@@ -520,7 +520,7 @@ test("loop collection refusals paste per-family rewrites that lower and certify"
           result = [...prior, args.value];
         }
         return result;`,
-      estimate: "output bytes 7133002 exceeds ceiling",
+      estimate: "output bytes 28203012 exceeds ceiling",
       rewrite: "result = [args.value]",
     },
     {
@@ -529,7 +529,7 @@ test("loop collection refusals paste per-family rewrites that lower and certify"
       body: `let result = args.value;
         for (const item of range(0, 7000)) result = [result, args.value];
         return result;`,
-      estimate: "output bytes 7141016 exceeds ceiling",
+      estimate: "output bytes 7211016 exceeds ceiling",
       rewrite: "result = [args.value]",
     },
   ];
@@ -566,7 +566,7 @@ test("loop collection refusals paste per-family rewrites that lower and certify"
   const decoy = lowerSource(decoySource, "two-growth-sites.ts", undefined, { tables });
   assert(decoy.ok, `two-site fixture did not lower: ${decoy.ok ? "" : decoy.diagnostics.map((diagnostic) => diagnostic.message).join("; ")}`);
   const decoyRefusal = rustCheck(decoy.programs, "synthetic", schema)[0]?.error;
-  assert(decoyRefusal?.message.startsWith("output bytes 7133002 exceeds ceiling")
+  assert(decoyRefusal?.message.startsWith("output bytes 28203012 exceeds ceiling")
     && decoyRefusal.rewrite.includes("let result = []")
     && decoyRefusal.rewrite.includes("range(0, 7000)")
     && !decoyRefusal.rewrite.includes("decoy"),
@@ -1019,7 +1019,7 @@ test("chat and todos lower schema, channels, effects, emit, API types, seed, and
 
   const todos = await lowerProject(`${frontend}fixtures/todos`);
   assert(todos.ok, `todos refused: ${todos.ok ? "" : todos.diagnostics.map((item) => item.message).join("; ")}`);
-  assert(todos.apiDts.startsWith("import type { Bytes, Cursor, Decimal, Json, Money, Page, Principal } from 'snapback2'"), "API declaration is not a module augmentation");
+  assert(todos.apiDts.startsWith("import type { Bytes, Cursor, Decimal, ImageAsset, Json, Money, Page, Principal, VideoAsset } from 'snapback2'"), "API declaration is not a module augmentation");
   assert(todos.apiDts.includes("note?: string") && todos.apiDts.includes("labels: string[]"), "optional/list API inference differs");
   assert(todos.apiDts.includes("type TodosRow = {") && todos.apiDts.includes("Page<TodosRow>"), "scan API did not use named row/Page types");
   assert(canonical(todos.project.schema.tables).includes('"Optional":{"List"'), "optional/list schema columns did not lower");

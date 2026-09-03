@@ -1000,6 +1000,17 @@ fn generated_arg(
             }
         },
         ArgType::Bytes { .. } => json!({ "Bytes": "00" }),
+        ArgType::Image { .. } => json!({
+            "id": "s2id-00000000000000000000000000000001-0000000000000001",
+            "width": 1,
+            "height": 1,
+        }),
+        ArgType::Video { .. } => json!({
+            "id": "s2id-00000000000000000000000000000001-0000000000000002",
+            "width": 1,
+            "height": 1,
+            "duration": 1,
+        }),
         ArgType::Int | ArgType::Time => json!(1),
         ArgType::Bool => json!(false),
         ArgType::Optional(inner) => return generated_arg(op, name, inner, seed, sample),

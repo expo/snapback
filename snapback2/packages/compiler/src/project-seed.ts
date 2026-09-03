@@ -95,12 +95,22 @@ export function validateSeedRow(
       continue;
     }
     const normalized = normalizeSeedValue(row[field], type, `${table}[${index}].${field}`);
-    if (normalized.message) diagnostics.push(diagnostic(module, "E_SEED_VALUE", node, normalized.message, module.source));
+    if (normalized.mismatch) diagnostics.push(diagnostic(module, normalized.mismatch.code, node, normalized.mismatch.message, normalized.mismatch.rewrite ?? module.source));
     else row[field] = normalized.value;
   }
 }
 
-type NormalizedSeed = { value?: unknown; message?: string };
+type SeedMismatch = {
+  code: "E_SEED_VALUE" | "E_SCHEMA_ASSET_SEED";
+  message: string;
+  rewrite?: string;
+};
+
+function seedMismatch(message: string): SeedMismatch {
+  return { code: "E_SEED_VALUE", message };
+}
+
+type NormalizedSeed = { value?: unknown; mismatch?: SeedMismatch };
 
 function normalizeSeedValue(value: unknown, type: unknown, path: string): NormalizedSeed {
   if (type && typeof type === "object" && !Array.isArray(type)) {
@@ -108,12 +118,12 @@ function normalizeSeedValue(value: unknown, type: unknown, path: string): Normal
     if (descriptor.Decimal || descriptor.Money) return normalizeWholeUnits(value, descriptor, path);
     if ("Optional" in descriptor) return value === null ? { value: null } : normalizeSeedValue(value, descriptor.Optional, path);
     if (descriptor.List) {
-      if (!Array.isArray(value)) return { message: `${path} must be a list` };
-      if (value.length > descriptor.List.max) return { message: `${path} exceeds list max ${descriptor.List.max}` };
+      if (!Array.isArray(value)) return { mismatch: seedMismatch(`${path} must be a list`) };
+      if (value.length > descriptor.List.max) return { mismatch: seedMismatch(`${path} exceeds list max ${descriptor.List.max}`) };
       const items: unknown[] = [];
       for (let index = 0; index < value.length; index += 1) {
         const normalized = normalizeSeedValue(value[index], descriptor.List.of, `${path}[${index}]`);
-        if (normalized.message) return normalized;
+        if (normalized.mismatch) return normalized;
         items.push(normalized.value);
       }
       return { value: items };
@@ -121,7 +131,7 @@ function normalizeSeedValue(value: unknown, type: unknown, path: string): Normal
   }
   const plain = plainSeedValue(value);
   const mismatch = seedValueMismatch(plain, type, path);
-  return mismatch ? { message: mismatch } : { value: plain };
+  return mismatch ? { mismatch } : { value: plain };
 }
 
 // @ref LLP 1011#b5-whole-unit-seeds — retain the authored character path so
@@ -134,19 +144,19 @@ function normalizeWholeUnits(value: unknown, descriptor: Record<string, any>, pa
     ? `Decimal<${descriptor.Decimal.scale}>`
     : `Money<${JSON.stringify(descriptor.Money.currency)}, ${descriptor.Money.scale}>`;
   const scale = Number((descriptor.Decimal ?? descriptor.Money).scale);
-  if (text === undefined) return { message: `${path} must be a JSON number or decimal string in whole units` };
-  if (/[eE]/.test(text)) return { message: `${path} refuses exponent notation; spell the whole-unit decimal directly` };
+  if (text === undefined) return { mismatch: seedMismatch(`${path} must be a JSON number or decimal string in whole units`) };
+  if (/[eE]/.test(text)) return { mismatch: seedMismatch(`${path} refuses exponent notation; spell the whole-unit decimal directly`) };
   const match = text.match(/^(-?)(\d+)(?:\.(\d+))?$/);
-  if (!match) return { message: `${path} must be a JSON number or decimal string in whole units` };
+  if (!match) return { mismatch: seedMismatch(`${path} must be a JSON number or decimal string in whole units`) };
   const fractional = match[3] ?? "";
   if (fractional.length > scale) {
-    return { message: `${fractional.length} fractional digits, scale ${scale}; ${named} cannot represent ${text}` };
+    return { mismatch: seedMismatch(`${fractional.length} fractional digits, scale ${scale}; ${named} cannot represent ${text}`) };
   }
   const digits = `${match[2]}${fractional.padEnd(scale, "0")}`.replace(/^0+(?=\d)/, "");
   const minor = BigInt(`${match[1]}${digits}`);
   const maximum = 9_007_199_254_740_991n;
   if (minor < -maximum || minor > maximum) {
-    return { message: `${text} at scale ${scale} is outside the safe integer wire range` };
+    return { mismatch: seedMismatch(`${text} at scale ${scale} is outside the safe integer wire range`) };
   }
   return { value: Number(minor) };
 }
@@ -162,19 +172,25 @@ function plainSeedValue(value: unknown): unknown {
   return value;
 }
 
-function seedValueMismatch(value: unknown, type: unknown, path: string): string | undefined {
+function seedValueMismatch(value: unknown, type: unknown, path: string): SeedMismatch | undefined {
   if (type === "Id" || type === "Principal" || (type && typeof type === "object" && "Ref" in type)) {
-    if (value === IR_CONTRACT.systemPrincipalId) return `${path} cannot carry the reserved system principal`;
-    return typeof value === "string" && value.length > 0 ? undefined : `${path} must be a non-empty string`;
+    if (value === IR_CONTRACT.systemPrincipalId) return seedMismatch(`${path} cannot carry the reserved system principal`);
+    return typeof value === "string" && value.length > 0 ? undefined : seedMismatch(`${path} must be a non-empty string`);
   }
   if (type === "Int" || type === "Time") {
-    return typeof value === "number" && Number.isSafeInteger(value) ? undefined : `${path} must be an integer`;
+    return typeof value === "number" && Number.isSafeInteger(value) ? undefined : seedMismatch(`${path} must be an integer`);
   }
-  if (type === "Bool") return typeof value === "boolean" ? undefined : `${path} must be boolean`;
-  if (!type || typeof type !== "object" || Array.isArray(type)) return `${path} has an unsupported schema type`;
+  if (type === "Bool") return typeof value === "boolean" ? undefined : seedMismatch(`${path} must be boolean`);
+  if (!type || typeof type !== "object" || Array.isArray(type)) return seedMismatch(`${path} has an unsupported schema type`);
   const descriptor = type as Record<string, any>;
   if (descriptor.Text) {
-    return typeof value === "string" && [...value].length <= descriptor.Text.max ? undefined : `${path} must be text of at most ${descriptor.Text.max} characters`;
+    if (typeof value !== "string" || [...value].length > descriptor.Text.max) {
+      return seedMismatch(`${path} must be text of at most ${descriptor.Text.max} characters`);
+    }
+    const codePoint = disallowedTextControlCodePoint(value);
+    return codePoint === undefined
+      ? undefined
+      : seedMismatch(`${path} contains disallowed control character U+${codePoint.toString(16).toUpperCase().padStart(4, "0")}`);
   }
   if (descriptor.Bytes) {
     const encodedObject = value && typeof value === "object" && !Array.isArray(value)
@@ -185,42 +201,60 @@ function seedValueMismatch(value: unknown, type: unknown, path: string): string 
       && typeof encoded === "string" && /^(?:[0-9a-f]{2})*$/.test(encoded)
       && encoded.length / 2 <= descriptor.Bytes.max
       ? undefined
-      : `${path} must be canonical lowercase base16 of at most ${descriptor.Bytes.max} bytes`;
+      : seedMismatch(`${path} must be canonical lowercase base16 of at most ${descriptor.Bytes.max} bytes`);
   }
   if (descriptor.Json) {
     const mismatch = jsonWireMismatch(value, path);
     if (mismatch) return mismatch;
     const bytes = new TextEncoder().encode(JSON.stringify(value)).length;
-    return bytes <= descriptor.Json.max_bytes ? undefined : `${path} JSON exceeds ${descriptor.Json.max_bytes} bytes`;
+    return bytes <= descriptor.Json.max_bytes ? undefined : seedMismatch(`${path} JSON exceeds ${descriptor.Json.max_bytes} bytes`);
   }
   if (descriptor.Enum) {
     const variants = descriptor.Enum.variants as unknown[];
     return typeof value === "string" && variants.includes(value)
       ? undefined
-      : `${path} must be one of ${variants.map(String).join(", ")}`;
+      : seedMismatch(`${path} must be one of ${variants.map(String).join(", ")}`);
   }
-  if (descriptor.Decimal || descriptor.Money) return `${path} was not normalized from whole units`;
+  if (descriptor.Decimal || descriptor.Money) return seedMismatch(`${path} was not normalized from whole units`);
+  if (descriptor.Image || descriptor.Video) {
+    const kind = descriptor.Image ? "image" : "video";
+    // @ref LLP 1006#2a-one-asset-one-home-author-ruling-2026-09-01 — seeds
+    // cannot fabricate the engine-owned ledger row required by an asset value.
+    return {
+      code: "E_SCHEMA_ASSET_SEED",
+      message: `${path} cannot seed a ${kind} asset because seeds cannot mint ledger rows`,
+      rewrite: "upload through the app; seeds cannot mint ledger rows",
+    };
+  }
   if ("Optional" in descriptor) {
     return value === null ? undefined : seedValueMismatch(value, descriptor.Optional, path);
   }
   if (descriptor.List) {
-    if (!Array.isArray(value)) return `${path} must be a list`;
-    if (value.length > descriptor.List.max) return `${path} exceeds list max ${descriptor.List.max}`;
+    if (!Array.isArray(value)) return seedMismatch(`${path} must be a list`);
+    if (value.length > descriptor.List.max) return seedMismatch(`${path} exceeds list max ${descriptor.List.max}`);
     for (let index = 0; index < value.length; index += 1) {
       const mismatch = seedValueMismatch(value[index], descriptor.List.of, `${path}[${index}]`);
       if (mismatch) return mismatch;
     }
     return undefined;
   }
-  return `${path} has an unsupported schema type`;
+  return seedMismatch(`${path} has an unsupported schema type`);
+}
+
+function disallowedTextControlCodePoint(text: string): number | undefined {
+  for (const character of text) {
+    const codePoint = character.codePointAt(0)!;
+    if (codePoint < 0x20 && ![0x09, 0x0a, 0x0d].includes(codePoint)) return codePoint;
+  }
+  return undefined;
 }
 
 function isOptionalColumn(type: unknown): boolean {
   return !!type && typeof type === "object" && !Array.isArray(type) && "Optional" in type;
 }
 
-function jsonWireMismatch(value: unknown, path: string): string | undefined {
-  if (typeof value === "number") return Number.isSafeInteger(value) ? undefined : `${path} JSON numbers must be integers`;
+function jsonWireMismatch(value: unknown, path: string): SeedMismatch | undefined {
+  if (typeof value === "number") return Number.isSafeInteger(value) ? undefined : seedMismatch(`${path} JSON numbers must be integers`);
   if (Array.isArray(value)) {
     for (let index = 0; index < value.length; index += 1) {
       const mismatch = jsonWireMismatch(value[index], `${path}[${index}]`);

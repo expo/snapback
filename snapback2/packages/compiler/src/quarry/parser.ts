@@ -92,7 +92,6 @@ class Parser {
   private parseUse(): void {
     const site = this.take("use");
     const kind = this.word();
-    if (kind.value === "assets") unsupported(kind, "use assets", "store an explicit bounded URL in a text <=N format url column");
     if (kind.value !== "identity") unsupported(kind, `use ${kind.value}`, "use identity password, use identity guests, or use identity");
     let password = true;
     let guests = true;
@@ -364,7 +363,6 @@ class Parser {
       type = { kind: "list", item, max: this.number(), optional: false };
     } else {
       const name = this.word();
-      if (name.value === "asset") unsupported(name, "asset", "store an explicit bounded URL in a text <=N format url column");
       if (name.value === "text") {
         let min: number | undefined;
         let max: number;
@@ -397,9 +395,9 @@ class Parser {
           ...(explicitScale ? { explicitScale: true } : {}),
           optional: false,
         };
-      } else if (name.value === "json" || name.value === "bytes") {
+      } else if (["json", "bytes", "image", "video"].includes(name.value)) {
         this.take("<=");
-        type = { kind: name.value, max: this.number(), optional: false };
+        type = { kind: name.value as "json" | "bytes" | "image" | "video", max: this.number(), optional: false };
       } else if (["cursor", "id", "principal", "int", "time", "bool"].includes(name.value)) {
         type = { kind: name.value as "cursor" | "id" | "principal" | "int" | "time" | "bool", optional: false };
       } else if (name.value === "enum") {

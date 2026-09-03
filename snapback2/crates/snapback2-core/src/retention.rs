@@ -1,4 +1,7 @@
-use crate::certificate::declared_serialized_row_max;
+use crate::bounds::{
+    CANONICAL_ARRAY_BASE_BYTES, declared_asset_record_max, declared_serialized_column_max,
+    declared_serialized_row_max,
+};
 use crate::growth::{
     ProvenanceBinding, assignment_growth, collection_price_from,
     expression_from as provenance_expression_from, geometric_sum, saturating_power, take_identity,
@@ -22,12 +25,22 @@ struct Flow {
 struct RowFlow {
     count: u64,
     bytes: u64,
+    max_bytes: u64,
+    retained_bytes: u64,
 }
 
 impl Flow {
     fn row(site: &str, bytes: u64, count: u64) -> Self {
         Self {
-            rows: BTreeMap::from([(site.to_owned(), RowFlow { count, bytes })]),
+            rows: BTreeMap::from([(
+                site.to_owned(),
+                RowFlow {
+                    count,
+                    bytes,
+                    max_bytes: bytes,
+                    retained_bytes: count.saturating_mul(bytes),
+                },
+            )]),
             value_bytes: 0,
             retained_value_bytes: 0,
             depends_on_scan: true,
@@ -45,7 +58,14 @@ impl Flow {
         for (site, incoming) in other.rows {
             self.rows
                 .entry(site)
-                .and_modify(|current| current.count = current.count.saturating_add(incoming.count))
+                .and_modify(|current| {
+                    current.count = current.count.saturating_add(incoming.count);
+                    current.bytes = current.bytes.max(incoming.bytes);
+                    current.max_bytes = current.max_bytes.max(incoming.max_bytes);
+                    current.retained_bytes = current
+                        .retained_bytes
+                        .saturating_add(incoming.retained_bytes);
+                })
                 .or_insert(incoming);
         }
         self.value_bytes = self.value_bytes.saturating_add(other.value_bytes);
@@ -56,11 +76,55 @@ impl Flow {
         self
     }
 
+    fn add_projection(mut self, other: Self) -> Self {
+        for (site, incoming) in other.rows {
+            self.rows
+                .entry(site)
+                .and_modify(|current| {
+                    current.count = current.count.max(incoming.count);
+                    current.max_bytes = current.max_bytes.max(incoming.max_bytes);
+                    current.bytes = current
+                        .bytes
+                        .saturating_add(incoming.bytes)
+                        .min(current.max_bytes);
+                    current.retained_bytes = current.count.saturating_mul(current.bytes);
+                })
+                .or_insert(incoming);
+        }
+        self.value_bytes = self.value_bytes.saturating_add(other.value_bytes);
+        self.retained_value_bytes = self
+            .retained_value_bytes
+            .saturating_add(other.retained_value_bytes);
+        self.depends_on_scan |= other.depends_on_scan;
+        self
+    }
+
+    fn project_width(mut self, bytes: u64) -> Self {
+        for row in self.rows.values_mut() {
+            row.bytes = bytes.min(row.max_bytes);
+            row.retained_bytes = row.count.saturating_mul(row.bytes);
+        }
+        self
+    }
+
+    fn whole_row_width(mut self) -> Self {
+        for row in self.rows.values_mut() {
+            row.bytes = row.max_bytes;
+            row.retained_bytes = row.count.saturating_mul(row.bytes);
+        }
+        self
+    }
+
     fn branch(mut self, other: Self) -> Self {
         for (site, incoming) in other.rows {
             self.rows
                 .entry(site)
-                .and_modify(|current| current.count = current.count.max(incoming.count))
+                .and_modify(|current| {
+                    current.count = current.count.max(incoming.count);
+                    current.bytes = current.bytes.max(incoming.bytes);
+                    current.max_bytes = current.max_bytes.max(incoming.max_bytes);
+                    current.retained_bytes = current.count.saturating_mul(current.bytes);
+                })
                 .or_insert(incoming);
         }
         self.value_bytes = self.value_bytes.max(other.value_bytes);
@@ -72,6 +136,7 @@ impl Flow {
     fn scale(mut self, factor: u64) -> Self {
         for row in self.rows.values_mut() {
             row.count = row.count.saturating_mul(factor);
+            row.retained_bytes = row.retained_bytes.saturating_mul(factor);
         }
         self.value_bytes = self.value_bytes.saturating_mul(factor);
         self.retained_value_bytes = self.retained_value_bytes.saturating_mul(factor);
@@ -84,6 +149,9 @@ impl Flow {
                 incoming.count = incoming
                     .count
                     .saturating_sub(retained.count.saturating_mul(occurrences));
+                incoming.retained_bytes = incoming
+                    .retained_bytes
+                    .saturating_sub(retained.retained_bytes.saturating_mul(occurrences));
             }
         }
         self.rows.retain(|_, row| row.count > 0);
@@ -113,6 +181,7 @@ impl Flow {
             // A slice may select all of one source from a concatenated page, so
             // proportional division would underprice mixed-width sources.
             row.count = row.count.min(retained);
+            row.retained_bytes = row.count.saturating_mul(row.bytes);
         }
         self
     }
@@ -123,6 +192,7 @@ impl Flow {
                 .count
                 .saturating_add(count.saturating_sub(1))
                 .saturating_div(count.max(1));
+            row.retained_bytes = row.count.saturating_mul(row.bytes);
         }
         self.value_bytes = self
             .value_bytes
@@ -148,18 +218,20 @@ impl Flow {
         self.rows
             .values()
             .fold(self.retained_value_bytes, |total, row| {
-                total.saturating_add(row.count.saturating_mul(row.bytes))
+                total.saturating_add(row.retained_bytes)
             })
     }
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
 struct Binding {
     flow: Flow,
     instances: u64,
     collection_len: Option<u64>,
     held_collection: bool,
     collection: bool,
+    table: Option<String>,
+    value: Expr,
     provenance: ProvenanceBinding,
 }
 
@@ -168,6 +240,7 @@ struct RetentionAssignmentPrice {
     collection_len: Option<u64>,
     held_collection: bool,
     collection: bool,
+    table: Option<String>,
 }
 
 pub(crate) struct RetentionEstimator<'a> {
@@ -202,6 +275,8 @@ impl<'a> RetentionEstimator<'a> {
                         },
                         held_collection: false,
                         collection,
+                        table: None,
+                        value: Expr::Variable(name.clone()),
                         provenance: ProvenanceBinding::new(
                             identity,
                             crate::growth::ProvenanceExpression::argument(),
@@ -242,6 +317,7 @@ impl<'a> RetentionEstimator<'a> {
                     let (flow, collection_len, held_collection) = self.expression(value, variables);
                     let collection =
                         collection_price_from(value, variables, |binding| binding.collection);
+                    let table = self.expression_table(value, variables);
                     let identity = take_identity(&mut self.next_identity);
                     variables.insert(
                         name.clone(),
@@ -251,6 +327,8 @@ impl<'a> RetentionEstimator<'a> {
                             collection_len,
                             held_collection,
                             collection,
+                            table,
+                            value: value.clone(),
                             provenance: ProvenanceBinding::new(identity, provenance),
                         },
                     );
@@ -278,6 +356,7 @@ impl<'a> RetentionEstimator<'a> {
                                 collection: collection_price_from(value, variables, |binding| {
                                     binding.collection
                                 }),
+                                table: self.expression_table(value, variables),
                             }
                         },
                     );
@@ -324,6 +403,8 @@ impl<'a> RetentionEstimator<'a> {
                             });
                         current.held_collection = true;
                         current.collection = true;
+                        current.table = None;
+                        current.value = value.clone();
                         current.provenance = current.provenance.assigned(provenance);
                     } else {
                         let identity = variables
@@ -342,6 +423,8 @@ impl<'a> RetentionEstimator<'a> {
                                 collection_len: price.collection_len,
                                 held_collection: price.held_collection,
                                 collection: price.collection,
+                                table: price.table,
+                                value: value.clone(),
                                 provenance: assigned,
                             },
                         );
@@ -356,6 +439,8 @@ impl<'a> RetentionEstimator<'a> {
                         collection_len: Some(0),
                         held_collection: true,
                         collection: true,
+                        table: None,
+                        value: Expr::Array(Vec::new()),
                         provenance: ProvenanceBinding::new(
                             take_identity(&mut self.next_identity),
                             crate::growth::ProvenanceExpression::iteration(true, iteration),
@@ -370,6 +455,7 @@ impl<'a> RetentionEstimator<'a> {
                         .map(|length| length.saturating_add(repetitions));
                     current.held_collection = true;
                     current.collection = true;
+                    current.table = None;
                     self.record_held_collections(variables);
                 }
                 Stmt::If {
@@ -391,6 +477,14 @@ impl<'a> RetentionEstimator<'a> {
                     body,
                 } => {
                     let (bound, element) = self.domain(domain, variables);
+                    let table = match domain {
+                        LoopDomain::Page(scan) => Some(scan.table.clone()),
+                        LoopDomain::Recurse(recurse) => Some(recurse.table.clone()),
+                        LoopDomain::DerivedArray { value, .. } => {
+                            self.expression_table(value, variables)
+                        }
+                        _ => None,
+                    };
                     let mut nested = variables.clone();
                     let nested_calls = calls.saturating_mul(bound);
                     let nested_iteration = take_identity(&mut self.next_identity);
@@ -405,6 +499,8 @@ impl<'a> RetentionEstimator<'a> {
                                 domain,
                                 LoopDomain::Page(_) | LoopDomain::Recurse(_)
                             ),
+                            table,
+                            value: Expr::Variable(binding.clone()),
                             provenance: ProvenanceBinding::new(
                                 take_identity(&mut self.next_identity),
                                 crate::growth::ProvenanceExpression::iteration(
@@ -504,8 +600,14 @@ impl<'a> RetentionEstimator<'a> {
                     )
                 })
                 .unwrap_or_default(),
-            Expr::Field { base, .. } => {
+            // @ref LLP 1001#10-what-binds-and-how-it-is-checked — a projected
+            // closure retains selected bytes from one source row, not one row per field.
+            Expr::Field { base, name } => {
                 let (flow, _, _) = self.expression(base, variables);
+                let flow = self
+                    .expression_table(base, variables)
+                    .and_then(|table| declared_serialized_column_max(self.schema, &table, name))
+                    .map_or(flow.clone(), |bytes| flow.project_width(bytes));
                 (flow, None, false)
             }
             Expr::Array(values) => {
@@ -514,12 +616,7 @@ impl<'a> RetentionEstimator<'a> {
                 });
                 (flow, Some(values.len() as u64), false)
             }
-            Expr::Object(values) => {
-                let flow = values.values().fold(Flow::default(), |flow, value| {
-                    flow.add(self.expression(value, variables).0)
-                });
-                (flow, None, false)
-            }
+            Expr::Object(values) => (self.object(values, variables), None, false),
             Expr::Binary { left, right, .. } => {
                 let flow = self
                     .expression(left, variables)
@@ -640,6 +737,8 @@ impl<'a> RetentionEstimator<'a> {
             variables
                 .entry(name)
                 .and_modify(|current| {
+                    let table = merged_table(current, &incoming);
+                    let prefer_incoming = incoming.flow.held_bytes() > current.flow.held_bytes();
                     current.flow = current.flow.clone().branch(incoming.flow.clone());
                     current.instances = current.instances.min(incoming.instances);
                     current.collection_len = match (current.collection_len, incoming.collection_len)
@@ -649,6 +748,10 @@ impl<'a> RetentionEstimator<'a> {
                     };
                     current.held_collection |= incoming.held_collection;
                     current.collection |= incoming.collection;
+                    current.table = table;
+                    if prefer_incoming {
+                        current.value = incoming.value.clone();
+                    }
                     current.provenance.merge(&incoming.provenance);
                 })
                 .or_insert(incoming);
@@ -664,19 +767,124 @@ impl<'a> RetentionEstimator<'a> {
             });
         self.max_held_bytes = self.max_held_bytes.max(held);
     }
+
+    fn expression_table(
+        &self,
+        expression: &Expr,
+        variables: &BTreeMap<String, Binding>,
+    ) -> Option<String> {
+        match expression {
+            Expr::Variable(name) => variables
+                .get(name)
+                .and_then(|binding| binding.table.clone()),
+            Expr::Get(read) => Some(read.table.clone()),
+            Expr::Scan(scan) => Some(scan.table.clone()),
+            Expr::Builtin {
+                builtin: Builtin::DedupeById { table, .. },
+                ..
+            } => Some(table.clone()),
+            Expr::Builtin {
+                builtin: Builtin::Slice | Builtin::Sort { .. },
+                args,
+            } => args
+                .first()
+                .and_then(|value| self.expression_table(value, variables)),
+            _ => None,
+        }
+    }
+
+    fn object(
+        &self,
+        values: &BTreeMap<String, Expr>,
+        variables: &BTreeMap<String, Binding>,
+    ) -> Flow {
+        struct RowFields<'a> {
+            base: &'a Expr,
+            table: String,
+            columns: Vec<&'a str>,
+            flow: Flow,
+        }
+
+        let mut flow = Flow::default();
+        let mut row_fields: Vec<RowFields<'_>> = Vec::new();
+        for value in values.values() {
+            let Expr::Field { base, name } = value else {
+                flow = flow.add(self.expression(value, variables).0);
+                continue;
+            };
+            let Some(table) = self.expression_table(base, variables) else {
+                flow = flow.add(self.expression(value, variables).0);
+                continue;
+            };
+            if declared_serialized_column_max(self.schema, &table, name).is_none() {
+                flow = flow.add(self.expression(value, variables).0);
+                continue;
+            }
+            let field_flow = self.expression(value, variables).0;
+            if let Some(group) = row_fields
+                .iter_mut()
+                .find(|group| group.table == table && group.base == base.as_ref())
+            {
+                group.columns.push(name);
+                group.flow = group.flow.clone().add_projection(field_flow);
+            } else {
+                row_fields.push(RowFields {
+                    base,
+                    table,
+                    columns: vec![name],
+                    flow: field_flow,
+                });
+            }
+        }
+        for group in row_fields {
+            let table = self
+                .schema
+                .table(&group.table)
+                .expect("resolved table exists");
+            let whole_row = group.columns.len() == table.columns.len()
+                && group
+                    .columns
+                    .iter()
+                    .all(|column| table.columns.contains_key(*column));
+            flow = flow.add(if whole_row {
+                group.flow.whole_row_width()
+            } else {
+                group.flow
+            });
+        }
+        flow
+    }
+}
+
+fn merged_table(current: &Binding, incoming: &Binding) -> Option<String> {
+    match (&current.table, &incoming.table) {
+        (Some(left), Some(right)) if left == right => Some(left.clone()),
+        (Some(table), None) if matches!(incoming.value, Expr::Literal(Value::Null)) => {
+            Some(table.clone())
+        }
+        (None, Some(table)) if matches!(current.value, Expr::Literal(Value::Null)) => {
+            Some(table.clone())
+        }
+        _ => None,
+    }
 }
 
 pub(crate) fn argument_max(argument: &ArgType) -> u64 {
     match argument {
         ArgType::Cursor => 5_480,
         ArgType::Id | ArgType::Principal | ArgType::Ref { .. } => 144,
-        ArgType::Text { max } | ArgType::Json { max_bytes: max } => u64::from(*max) + 16,
+        ArgType::Text { max } => u64::from(*max).saturating_mul(4).saturating_add(16),
+        ArgType::Json { max_bytes } => u64::from(*max_bytes).saturating_add(16),
         ArgType::Bytes { max } => u64::from(*max).saturating_mul(2).saturating_add(16),
+        // @ref LLP 1006#1-the-move — retention holds the same closed record
+        // priced by the row-width estimator, never the blob bytes bounded by max.
+        ArgType::Image { .. } => declared_asset_record_max(false),
+        ArgType::Video { .. } => declared_asset_record_max(true),
         ArgType::Int | ArgType::Time | ArgType::Decimal { .. } | ArgType::Money { .. } => 32,
         ArgType::Bool => 16,
         ArgType::Optional(inner) => argument_max(inner).max(8),
         ArgType::Scalar => 1024,
-        ArgType::List { of, max } => 2_u64.saturating_add(
+        ArgType::List { of, max } => CANONICAL_ARRAY_BASE_BYTES.saturating_add(
             u64::from(*max)
                 .saturating_mul(of.as_deref().map_or(1024, argument_max).saturating_add(1)),
         ),
@@ -689,7 +897,7 @@ pub(crate) fn argument_max(argument: &ArgType) -> u64 {
 }
 
 pub(crate) fn collection_bytes(values: impl Iterator<Item = u64>) -> u64 {
-    values.fold(2_u64, |size, value| {
+    values.fold(CANONICAL_ARRAY_BASE_BYTES, |size, value| {
         size.saturating_add(value).saturating_add(1)
     })
 }

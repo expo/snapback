@@ -18,6 +18,7 @@ pub(crate) struct OutputBound {
     pub(crate) bytes: u64,
     pub(crate) instances: u64,
     pub(crate) collection: bool,
+    pub(crate) table: Option<String>,
     pub(crate) provenance: ProvenanceBinding,
     pub(crate) rewrite: Option<(u64, CollectionRewrite)>,
     pub(crate) value: Expr,
@@ -31,6 +32,7 @@ pub(crate) struct OutputEstimate {
 pub(crate) struct OutputAssignmentPrice {
     pub(crate) bytes: u64,
     pub(crate) collection: bool,
+    pub(crate) table: Option<String>,
     pub(crate) rewrite: Option<(u64, CollectionRewrite)>,
 }
 
@@ -55,6 +57,7 @@ impl OutputEstimator<'_> {
             variables
                 .entry(name)
                 .and_modify(|current| {
+                    let table = merged_table(current, &bound);
                     if bound.bytes > current.bytes {
                         current.bytes = bound.bytes;
                         current.rewrite = bound.rewrite.clone();
@@ -67,6 +70,7 @@ impl OutputEstimator<'_> {
                     }
                     current.instances = current.instances.min(bound.instances);
                     current.collection |= bound.collection;
+                    current.table = table;
                     current.provenance.merge(&bound.provenance);
                 })
                 .or_insert(bound);
@@ -112,6 +116,19 @@ impl OutputEstimator<'_> {
             | Expr::Exists(_)
             | Expr::Scan(_) => None,
         }
+    }
+}
+
+fn merged_table(current: &OutputBound, incoming: &OutputBound) -> Option<String> {
+    match (&current.table, &incoming.table) {
+        (Some(left), Some(right)) if left == right => Some(left.clone()),
+        (Some(table), None) if matches!(incoming.value, Expr::Literal(Value::Null)) => {
+            Some(table.clone())
+        }
+        (None, Some(table)) if matches!(current.value, Expr::Literal(Value::Null)) => {
+            Some(table.clone())
+        }
+        _ => None,
     }
 }
 

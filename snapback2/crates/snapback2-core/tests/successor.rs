@@ -515,7 +515,7 @@ fn destructive_successor_reports_all_drops_and_applies_only_that_plan() {
             rows: 1,
         }]
     );
-    runtime.apply_migration(next, &refusal.plan).unwrap();
+    runtime.apply_migration(next, &refusal.plan, 0).unwrap();
     assert!(runtime.generation().schema().tables.is_empty());
 }
 
@@ -679,7 +679,7 @@ fn required_text_to_id_migration_refuses_without_installing_missing_value() {
         vec![get_program("items.get", "items", "byId", "id")],
     );
     let plan = runtime.apply_successor(next.clone()).unwrap_err().plan;
-    let error = runtime.apply_migration(next, &plan).unwrap_err();
+    let error = runtime.apply_migration(next, &plan, 0).unwrap_err();
 
     assert_eq!(error.code(), "E_SUCCESSOR_COLUMN_REQUIRED");
     assert_eq!(runtime.generation().hash(), original_hash);
@@ -710,7 +710,7 @@ fn optional_text_to_id_migration_drops_the_old_value_and_installs_null() {
         vec![get_program("items.get", "items", "byId", "id")],
     );
     let plan = runtime.apply_successor(next.clone()).unwrap_err().plan;
-    runtime.apply_migration(next, &plan).unwrap();
+    runtime.apply_migration(next, &plan, 0).unwrap();
     let row = runtime
         .execute(
             "items.get",
@@ -852,7 +852,7 @@ fn migration_rechecks_new_unique_indexes_and_rolls_back_its_drops() {
     let refusal = runtime.apply_successor(next.clone()).unwrap_err();
     assert_eq!(refusal.code, "E_SUCCESSOR_DESTRUCTIVE");
 
-    let error = runtime.apply_migration(next, &refusal.plan).unwrap_err();
+    let error = runtime.apply_migration(next, &refusal.plan, 0).unwrap_err();
     assert_eq!(error.code(), "E_SUCCESSOR_UNIQUE");
     let RuntimeError::Successor(refusal) = error else {
         panic!("migration must return the full successor refusal");
@@ -923,7 +923,7 @@ fn migration_rechecks_required_columns_and_rolls_back_its_drops() {
     let refusal = runtime.apply_successor(next.clone()).unwrap_err();
     assert_eq!(refusal.code, "E_SUCCESSOR_DESTRUCTIVE");
 
-    let error = runtime.apply_migration(next, &refusal.plan).unwrap_err();
+    let error = runtime.apply_migration(next, &refusal.plan, 0).unwrap_err();
     assert_eq!(error.code(), "E_SUCCESSOR_COLUMN_REQUIRED");
     let scratch = runtime
         .execute(
@@ -1317,7 +1317,7 @@ fn failed_migration_rolls_back_drops_backfill_and_generation_metadata() {
     );
     let refusal = runtime.apply_successor(next.clone()).unwrap_err();
     assert_eq!(refusal.code, "E_SUCCESSOR_DESTRUCTIVE");
-    let error = runtime.apply_migration(next, &refusal.plan).unwrap_err();
+    let error = runtime.apply_migration(next, &refusal.plan, 0).unwrap_err();
     assert!(matches!(error, RuntimeError::Constraint(message) if message.contains("overflow")));
     assert_eq!(runtime.generation().hash(), original_hash);
     assert_eq!(

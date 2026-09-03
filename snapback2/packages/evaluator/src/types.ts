@@ -87,7 +87,7 @@ export interface CorpusCase {
   randomSeed: number | null;
   schema: any;
   program: any;
-  certificate: any;
+  certificate: any | null;
   context: Context;
   receipt: ClosureReceipt;
   prelude: PreludeStep[];

@@ -1298,8 +1298,17 @@ struct CertificationCorpusCase {
     name: String,
     schema: Schema,
     program: Program,
+    certificate: Option<serde_json::Value>,
+    expected: CertificationExpected,
     #[serde(default)]
     prelude: Vec<CertificationPrelude>,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CertificationExpected {
+    error_code: Option<String>,
+    local_state: String,
 }
 
 #[derive(serde::Deserialize)]
@@ -1308,11 +1317,42 @@ struct CertificationPrelude {
 }
 
 #[test]
-fn every_frozen_corpus_program_remains_certified() {
+fn every_frozen_corpus_case_replays_its_certification_outcome() {
     let cases: Vec<CertificationCorpusCase> =
         serde_json::from_str(include_str!("../../../corpus/manifest.json")).unwrap();
     let mut refusals = Vec::new();
     for case in &cases {
+        if case.expected.local_state == "certification-refused" {
+            let result = Generation::certify(
+                &ProjectJson {
+                    version: 1,
+                    schema: case.schema.clone(),
+                    programs: vec![case.program.clone()],
+                    effects: Vec::new(),
+                    auth: Auth::default(),
+                },
+                Ceilings::default(),
+            );
+            let expected = case.expected.error_code.as_deref();
+            match result {
+                Err(errors)
+                    if errors
+                        .iter()
+                        .any(|(_, error)| Some(error.code.as_str()) == expected) => {}
+                outcome => refusals.push(format!(
+                    "{}: expected certification refusal {:?}, got {outcome:?}",
+                    case.name, expected
+                )),
+            }
+            continue;
+        }
+        if case.certificate.is_none() {
+            refusals.push(format!(
+                "{}: certified case omitted its certificate",
+                case.name
+            ));
+            continue;
+        }
         let checker = Checker::new(&case.schema, Ceilings::default());
         if let Err(errors) = checker.check_all(&case.program) {
             refusals.push(format!("{}: {errors:?}", case.name));
@@ -1325,7 +1365,7 @@ fn every_frozen_corpus_program_remains_certified() {
     }
     assert_eq!(
         cases.len(),
-        130,
+        160,
         "the complete frozen corpus must be checked"
     );
     assert!(

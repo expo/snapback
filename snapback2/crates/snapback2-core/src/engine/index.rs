@@ -312,6 +312,7 @@ fn cursor_value_matches_column(value: &Value, column: &ColumnType) -> bool {
         | ColumnType::Money { .. } => matches!(value, Value::Int(_)),
         ColumnType::Bool => matches!(value, Value::Bool(_)),
         ColumnType::Bytes { .. } => matches!(value, Value::Bytes(_)),
+        ColumnType::Image { .. } | ColumnType::Video { .. } => false,
         ColumnType::Json { .. } => matches!(
             value,
             Value::Bool(_) | Value::Int(_) | Value::String(_) | Value::Id(_) | Value::Bytes(_)
@@ -331,6 +332,7 @@ fn cursor_column_kind(column: &ColumnType) -> &'static str {
         | ColumnType::Money { .. } => "Int",
         ColumnType::Bool => "Bool",
         ColumnType::Bytes { .. } => "Bytes",
+        ColumnType::Image { .. } | ColumnType::Video { .. } => "a non-asset scalar",
         ColumnType::Json { .. } | ColumnType::List { .. } => "an indexable scalar",
     }
 }
@@ -445,12 +447,39 @@ pub(crate) fn validate_column_value(
             "{table_name}.{name} cannot carry the reserved system principal"
         )));
     }
+    if let Some(code_point) = disallowed_column_text_control_code_point(kind, value) {
+        return Err(RuntimeError::Input(format!(
+            "{table_name}.{name} contains disallowed control character U+{code_point:04X}"
+        )));
+    }
+    if kind.contains_asset() {
+        crate::assets::column_asset_uses(kind, value, &format!("{table_name}.{name}"))?;
+        return Ok(());
+    }
     if !valid_column_value(kind, value) {
         return Err(RuntimeError::Input(format!(
             "{table_name}.{name} violates {kind:?}"
         )));
     }
     Ok(())
+}
+
+fn disallowed_column_text_control_code_point(
+    kind: &ColumnType,
+    value: Option<&Value>,
+) -> Option<u32> {
+    match (kind, value) {
+        (ColumnType::Optional(inner), Some(value)) => {
+            disallowed_column_text_control_code_point(inner, Some(value))
+        }
+        (ColumnType::List { of, .. }, Some(Value::Array(values))) => values
+            .iter()
+            .find_map(|value| disallowed_column_text_control_code_point(of, Some(value))),
+        (ColumnType::Text { .. }, Some(Value::String(text))) => {
+            disallowed_text_control_code_point(text)
+        }
+        _ => None,
+    }
 }
 
 fn valid_column_value(kind: &ColumnType, value: Option<&Value>) -> bool {
@@ -470,6 +499,9 @@ fn valid_column_value(kind: &ColumnType, value: Option<&Value>) -> bool {
             text.chars().count() <= *max as usize
         }
         (ColumnType::Bytes { max }, Some(Value::Bytes(bytes))) => bytes.len() <= *max as usize,
+        // Asset-bearing descriptors are handled above so their typed refusal
+        // is not collapsed into the generic E_INPUT family code.
+        (ColumnType::Image { .. } | ColumnType::Video { .. }, _) => false,
         (ColumnType::Enum { variants }, Some(Value::String(value))) => variants.contains(value),
         (
             ColumnType::Int

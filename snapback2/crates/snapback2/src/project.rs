@@ -815,6 +815,9 @@ fn json_for_column(value: &Json, kind: &snapback2_core::ColumnType) -> Result<Va
                     "use canonical lowercase even-length base16",
                 )
             }),
+        ColumnType::Image { .. } | ColumnType::Video { .. } => {
+            crate::protocol::json_to_value(value)
+        }
         ColumnType::Int
         | ColumnType::Time
         | ColumnType::Decimal { .. }

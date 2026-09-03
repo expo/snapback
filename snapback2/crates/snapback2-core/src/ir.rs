@@ -38,6 +38,13 @@ pub enum ArgType {
     Bytes {
         max: u32,
     },
+    // @ref LLP 1006#1-the-move — argument descriptors mirror asset column descriptors exactly.
+    Image {
+        max: u32,
+    },
+    Video {
+        max: u32,
+    },
     Int,
     Bool,
     Time,
@@ -62,6 +69,19 @@ pub enum ArgType {
         currency: String,
         scale: u8,
     },
+}
+
+impl ArgType {
+    pub(crate) fn contains_asset(&self) -> bool {
+        match self {
+            Self::Image { .. } | Self::Video { .. } => true,
+            Self::Optional(inner) => inner.contains_asset(),
+            Self::List {
+                of: Some(inner), ..
+            } => inner.contains_asset(),
+            _ => false,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

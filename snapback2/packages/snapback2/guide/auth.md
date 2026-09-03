@@ -16,9 +16,9 @@ The dev-only `as` cannot be combined with `token` or `tokenStore`; they are
 exclusive authority sources, and persona clients cannot run bearer-session
 transitions.
 
-Keep the authority subject separate from the product profile row. The profile
-has its own row id; its immutable, unique `principal` column is what aligns it
-with `ctx.viewer`:
+Keep authority separate from the profile row. Its immutable, unique `principal`
+aligns it with `ctx.viewer`. The `avatarUrl` below is an external URL, not an
+upload; managed media is `avatar: image <=5000000 ?` in Quarry:
 
 ```ts
 export const profiles = table({

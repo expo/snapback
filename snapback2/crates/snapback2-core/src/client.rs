@@ -26,10 +26,10 @@ impl ClientStore {
     pub fn hydrate(schema: Schema, receipt: &ClosureReceipt) -> Result<Self, RuntimeError> {
         let mut engine = Engine::memory(schema.clone())?;
         let coverage = Self::receipt_for_schema(&schema, receipt);
+        engine.install_receipt_authority(&coverage);
         for row in &coverage.rows {
             engine.seed(&row.table, row.row.clone())?;
         }
-        engine.install_receipt_authority(&coverage);
         Ok(Self {
             schema,
             engine,

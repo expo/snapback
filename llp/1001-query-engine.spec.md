@@ -328,7 +328,7 @@ else is *destructive* and is **refused with a plan**:
 ```rust
 pub struct SuccessorRefusal { pub code: String /* E_SUCCESSOR_DESTRUCTIVE */, pub plan: MigrationPlan }
 pub struct MigrationPlan { pub drops: Vec<Drop> /* Table{name,rows} | Column{table,name} | Index{table,name} | TypeChange{table,column,from,to} */ }
-impl Runtime { pub fn apply_migration(&mut self, next: Generation, plan: &MigrationPlan) -> Result<SuccessorReport, RuntimeError>; }
+impl Runtime { pub fn apply_migration(&mut self, next: Generation, plan: &MigrationPlan, released_at: i64) -> Result<SuccessorReport, RuntimeError>; }
 ```
 
 `apply_migration` performs exactly the listed drops (type changes drop the
@@ -341,6 +341,9 @@ against the successor type, including the reserved-principal walk. A required
 retyped column therefore refuses rather than installing an absent value; an
 optional retyped column may install as `Null`. Never a prompt,
 never a silent drop, never a fresh database (LLP 0329.016 §5.4).
+The owner passes one sample of its logical mutation clock as `released_at`, so
+asset releases caused by every drop age on the same clock as writes and
+reclamation (LLP 1006 §9).
 
 **Generation fencing.** The served runtime accepts an operation name and
 resolves its program, certificate, and table rules from the one active
@@ -710,6 +713,10 @@ non-empty remainder and no whitespace/control characters. Optional text may
 be absent/`Null`; when present it is checked identically. Certification
 requires a text or optional-text field and refuses `min > max`.
 
+Text columns and `ArgType::Text` refuse C0 control characters other than tab,
+newline, and carriage return as `E_INPUT`, naming the code point and the
+column or argument. Text maximums continue to count Unicode scalar values.
+
 The implicit `id` column is intrinsic row identity and is immutable without an
 authored constraint. Every addressed update or upsert requires the resulting
 row's `id` to equal the addressed key before rule evaluation, index mutation,
@@ -736,6 +743,13 @@ out (the survey's "why no floats" section is the ruling).
 
 ## 10. What binds, and how it is checked
 
+- Certificate output and closure bounds price a known row projection from the
+  declared serialized maxima of its selected columns. `Get` and `*` retain the
+  table's whole-row maximum; an unresolved field base retains the conservative
+  whole-base price. `max_output_bytes` and `max_closure_bytes` bound canonical
+  JSON for the result and retained rows, respectively. Text costs
+  `4 * max + 16` bytes; JSON costs `max_bytes + 16`; Bytes costs
+  `2 * max + 16`.
 - `cargo test -p snapback2-core` stays under the 30 s budget; new tests live
   in `tests/{store,live,successor,successor_maintains,identity,outbox,
   certificate_retention,completeness,tier0_authorization}.rs`.

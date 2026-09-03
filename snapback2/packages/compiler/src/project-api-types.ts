@@ -41,7 +41,7 @@ export function generateApiDts(
   for (const operation of [...operations.values()].sort((left, right) => left.name.localeCompare(right.name))) {
     const checkedCall = checkedOperationCall(program, operation);
     const args = checkedCall?.arguments[0] && objectOf(checkedCall.arguments[0]);
-    const argsText = args ? apiArgsType(args, checker) : "{}";
+    const argsText = args ? apiArgsType(args, checker, operation.kind === "mutation") : "{}";
     const handler = checkedCall?.arguments[1];
     let resultText = "unknown";
     if (handler && (ts.isArrowFunction(handler) || ts.isFunctionExpression(handler))) {
@@ -93,7 +93,7 @@ export function generateApiDts(
     return [catalog, ...aliases].join("\n");
   })();
   const members = [modulesText, channelsText].filter(Boolean).join("\n");
-  return `import type { Bytes, Cursor, Decimal, Json, Money, Page, Principal } from 'snapback2';\nimport type { Channel, Op } from 'snapback2/client';\n\n${rowTypes}\n\ndeclare module 'snapback2/client' {\n  interface Api {\n${members}\n  }\n}\n\nexport {};\n`;
+  return `import type { Bytes, Cursor, Decimal, ImageAsset, Json, Money, Page, Principal, VideoAsset } from 'snapback2';\nimport type { Channel, Op } from 'snapback2/client';\n\n${rowTypes}\n\ndeclare module 'snapback2/client' {\n  interface Api {\n${members}\n  }\n}\n\nexport {};\n`;
 }
 
 function apiChannels(program: ts.Program, checker: ts.TypeChecker): Array<{ name: string; args: string }> {
@@ -108,7 +108,7 @@ function apiChannels(program: ts.Program, checker: ts.TypeChecker): Array<{ name
       if (!call || callLeaf(call) !== "channel") continue;
       const config = objectOf(call.arguments[0]);
       const args = config && objectOf(property(config, "args"));
-      channels.push({ name: declaration.name.text, args: args ? apiArgsType(args, checker) : "{}" });
+      channels.push({ name: declaration.name.text, args: args ? apiArgsType(args, checker, false) : "{}" });
     }
   }
   return channels.sort((left, right) => left.name.localeCompare(right.name));
@@ -143,11 +143,11 @@ function checkedOperationCall(program: ts.Program, operation: OperationDecl): ts
   return undefined;
 }
 
-function apiArgsType(object: ts.ObjectLiteralExpression, checker: ts.TypeChecker): string {
+function apiArgsType(object: ts.ObjectLiteralExpression, checker: ts.TypeChecker, acceptFiles: boolean): string {
   const fields = expandArgumentObject(object).entries.map((entry) => {
     const call = unwrapCall(entry.value);
     const optional = call && callLeaf(call) === "optional";
-    const type = call ? argumentDescriptorType(call, checker) : "unknown";
+    const type = call ? argumentDescriptorType(call, checker, acceptFiles) : "unknown";
     const brand = call && argumentBrand(call);
     const comment = brand ? `/** ${brand} — minor units */ ` : "";
     return `${comment}${quoteProperty(entry.name)}${optional ? "?" : ""}: ${type}`;
@@ -156,13 +156,17 @@ function apiArgsType(object: ts.ObjectLiteralExpression, checker: ts.TypeChecker
 }
 
 // @ref LLP 1004#money-and-decimal-worked-out-2026-09-03 — callers write integer minor units while results retain nominal brands.
-function argumentDescriptorType(call: ts.CallExpression, checker: ts.TypeChecker): string {
+function argumentDescriptorType(call: ts.CallExpression, checker: ts.TypeChecker, acceptFiles: boolean): string {
   const name = callLeaf(call);
   if ((name === "decimal" || name === "money")) return "number";
   if ((name === "optional" || name === "list") && call.arguments[0]) {
     const inner = unwrapCall(call.arguments[0]);
-    const value = inner ? argumentDescriptorType(inner, checker) : "unknown";
-    return name === "list" ? `${value}[]` : `${value} | null`;
+    const value = inner ? argumentDescriptorType(inner, checker, acceptFiles) : "unknown";
+    return name === "list" ? `${value.includes(" | ") ? `(${value})` : value}[]` : `${value} | null`;
+  }
+  if (acceptFiles && (name === "image" || name === "video")) {
+    // @ref LLP 1006#10-clients — File substitution is a generated mutation-call convenience; programs and results retain records.
+    return `File | ${name === "image" ? "ImageAsset" : "VideoAsset"}`;
   }
   return descriptorType(call, checker);
 }
@@ -186,6 +190,8 @@ function descriptorType(call: ts.CallExpression, checker: ts.TypeChecker): strin
   if (name === "principal") return "Principal";
   if (name === "id" || name === "text" || name === "ref") return "string";
   if (name === "bytes") return "Bytes";
+  if (name === "image") return "ImageAsset";
+  if (name === "video") return "VideoAsset";
   if (name === "int" || name === "time") return "number";
   if (name === "bool") return "boolean";
   if (name === "enum") {
@@ -376,7 +382,7 @@ function apiExpressionType(
     const call = descriptor && unwrapCall(descriptor);
     if (call) {
       const text = `${descriptorType(call, checker)}${callLeaf(call) === "optional" ? " | undefined" : ""}`;
-      return { text, special: /^(Decimal|Money)</.test(text) || text.includes(" | ") };
+      return { text, special: apiTypeIsSpecial(text) };
     }
   }
   if (ts.isPropertyAccessExpression(value) && propertyBase) {
@@ -512,7 +518,7 @@ function apiExpressionType(
     value,
     ts.TypeFormatFlags.NoTruncation | ts.TypeFormatFlags.InTypeAlias,
   ).replaceAll('import("snapback2").', "");
-  return { text, special: /\b(?:Decimal|Money)</.test(text) };
+  return { text, special: apiTypeIsSpecial(text) };
 }
 
 function apiLocalBinding(type: ApiType | undefined): ApiTypeBinding {
@@ -700,6 +706,7 @@ function apiAuthoredType(value: AuthoredType): string {
   if (value.kind === "string") return "string";
   if (value.kind === "principal") return "Principal";
   if (value.kind === "bytes") return "Bytes";
+  if (value.kind === "asset") return value.asset === "image" ? "ImageAsset" : "VideoAsset";
   if (value.kind === "bool") return "boolean";
   if (value.kind === "json") return "Json";
   if (value.kind === "decimal") {
@@ -710,6 +717,12 @@ function apiAuthoredType(value: AuthoredType): string {
   if (value.kind === "optional") return apiAuthoredType(value.of);
   if (value.kind === "row") return apiRowName(value.table);
   return "unknown";
+}
+
+function apiTypeIsSpecial(text: string): boolean {
+  return /\b(?:Decimal|Money)</.test(text)
+    || /\b(?:ImageAsset|VideoAsset)\b/.test(text)
+    || text.includes(" | ");
 }
 
 function apiTable(node: ts.Expression, tables: Map<string, TableInfo>): TableInfo | undefined {
