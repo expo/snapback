@@ -153,22 +153,22 @@ fn quarry_certification_refusal_rewrite_starts_with_the_authored_line() {
 }
 
 #[test]
-fn quarry_optional_reads_presence_where_and_branch_writes_execute() {
+fn quarry_optional_reads_total_equality_where_and_branch_writes_execute() {
     let project = Project::new();
     assert!(project.init("todos", "none").status.success());
     std::fs::remove_file(project.path.join("snapback/todos.q")).unwrap();
     std::fs::remove_dir_all(project.path.join("snapback/tests")).unwrap();
     std::fs::write(
         project.path.join("snapback/schema.q"),
-        "use identity\n\ntable nodes:\n  name: text <=50\n  parent: nodes ?\n  public\n\ntable authors:\n  name: text <=50\n  public\n\ntable posts:\n  author: authors\n  public\n  by author\n\ntable counters:\n  value: int\n  public\n  insert r <- allow\n",
+        "use identity\n\ntable nodes:\n  name: text <=50\n  parent: nodes ?\n  public\n\ntable authors:\n  name: text <=50\n  public\n\ntable posts:\n  author: authors\n  public\n  by author\n\ntable counters:\n  value: int\n  public\n  insert <- allow\n",
     ).unwrap();
     std::fs::write(
         project.path.join("snapback/runtime.q"),
-        "query parentName(id: nodes):\n  node = nodes[id]! else NODE_MISSING\n  return node.parent.name\n\nquery present(cursor: time ?):\n  if cursor != null:\n    return true\n  return false\n\nquery alicePosts(author: authors):\n  return posts[author] first 5 where .author.name = 'Alice'\n\nmutation branchWrite(useFirst: bool):\n  if useFirst:\n    +counters { value: 1 }\n  else:\n    +counters { value: 2 }\n  return null\n",
+        "query parentName(id: nodes):\n  node = nodes[id]! else NODE_MISSING\n  return node.parent.name\n\nquery parentsEqual(left: nodes, right: nodes):\n  a = nodes[left]! else LEFT_MISSING\n  b = nodes[right]! else RIGHT_MISSING\n  return a.parent = b.parent\n\nquery parentsDifferent(left: nodes, right: nodes):\n  a = nodes[left]! else LEFT_MISSING\n  b = nodes[right]! else RIGHT_MISSING\n  return a.parent != b.parent\n\nquery present(cursor: time ?):\n  if cursor != null:\n    return true\n  return false\n\nquery alicePosts(author: authors):\n  return posts[author] first 5 where .author.name = 'Alice'\n\nmutation branchWrite(useFirst: bool):\n  if useFirst:\n    insert counters { value: 1 }\n  else:\n    insert counters { value: 2 }\n  return null\n",
     ).unwrap();
     std::fs::write(
         project.path.join("snapback/seed.ts"),
-        "import { seed } from 'snapback2';\nexport default seed({ personas: ['alice'], rows: { nodes: [{ id: 'root', name: 'Root', parent: null }], authors: [{ id: 'author-alice', name: 'Alice' }, { id: 'author-bob', name: 'Bob' }], posts: [{ id: 'post-alice', author: 'author-alice' }, { id: 'post-bob', author: 'author-bob' }], counters: [] } });\n",
+        "import { seed } from 'snapback2';\nexport default seed({ personas: ['alice'], rows: { nodes: [{ id: 'root', name: 'Root', parent: null }, { id: 'absent-b', name: 'Absent B', parent: null }, { id: 'present-a', name: 'Present A', parent: 'root' }, { id: 'present-b', name: 'Present B', parent: 'root' }], authors: [{ id: 'author-alice', name: 'Alice' }, { id: 'author-bob', name: 'Bob' }], posts: [{ id: 'post-alice', author: 'author-alice' }, { id: 'post-bob', author: 'author-bob' }], counters: [] } });\n",
     ).unwrap();
     let checked = project.run(&["check", "--json"]);
     assert!(
@@ -187,6 +187,16 @@ fn quarry_optional_reads_presence_where_and_branch_writes_execute() {
     assert!(parent["data"].is_null(), "{parent}");
     assert_eq!(run("runtime.present", r#"{"cursor":null}"#)["data"], false);
     assert_eq!(run("runtime.present", r#"{"cursor":123}"#)["data"], true);
+    for (left, right, equal) in [
+        ("root", "absent-b", true),
+        ("root", "present-a", false),
+        ("present-a", "root", false),
+        ("present-a", "present-b", true),
+    ] {
+        let args = format!(r#"{{"left":"{left}","right":"{right}"}}"#);
+        assert_eq!(run("runtime.parentsEqual", &args)["data"], equal);
+        assert_eq!(run("runtime.parentsDifferent", &args)["data"], !equal);
+    }
     let posts = run("runtime.alicePosts", r#"{"author":"author-alice"}"#);
     assert_eq!(posts["state"], "complete", "{posts}");
     assert_eq!(posts["data"].as_array().map(Vec::len), Some(1), "{posts}");

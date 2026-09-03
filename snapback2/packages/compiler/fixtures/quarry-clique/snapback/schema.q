@@ -23,8 +23,8 @@ table users:
   by byHandlePage: handle, id
   immutable principal
   public
-  insert r <- r.principal = viewer
-  update r <- allow
+  insert <- .principal = viewer
+  update <- allow
 
 table posts:
   author: principal
@@ -37,9 +37,9 @@ table posts:
   by byAuthor: author, at, id
   by byParent: parent, at, id
   public
-  insert r <- r.author = viewer
-  update r <- allow
-  delete r <- r.author = viewer
+  insert <- .author = viewer
+  update <- allow
+  delete <- .author = viewer
 
 -- One row per feed appearance. Replies deliberately have no feedItems row.
 -- ord remains the caller-supplied descending key used by the executed app.
@@ -55,8 +55,8 @@ table feedItems:
   by byActor: actor, at, id
   by byActorOrd: actor, ord, id
   public
-  insert r <- r.actor = viewer
-  delete r <- r.actor = viewer
+  insert <- .actor = viewer
+  delete <- .actor = viewer
 
 table follows:
   follower: principal
@@ -66,8 +66,8 @@ table follows:
   by byFollower: follower, at, id
   by byFollowee: followee, at, id
   public
-  insert r <- r.follower = viewer
-  delete r <- r.follower = viewer
+  insert <- .follower = viewer
+  delete <- .follower = viewer
 
 table likes:
   user: principal
@@ -76,8 +76,8 @@ table likes:
   unique byUserPostUnique: user, post
   by byUserPost: user, post, id
   public
-  insert r <- r.user = viewer
-  delete r <- r.user = viewer
+  insert <- .user = viewer
+  delete <- .user = viewer
 
 table conversations:
   kind: enum('dm', 'group')
@@ -86,9 +86,9 @@ table conversations:
   creator: principal
   createdAt: time
   lastAt: time
-  read r <- exists members[r.id, viewer]
-  insert r <- r.creator = viewer
-  update r <- allow
+  read <- exists members[.id, viewer]
+  insert <- .creator = viewer
+  update <- allow
 
 table members:
   conv: conversations
@@ -99,10 +99,10 @@ table members:
   lastReadAt: time ?
   unique byConvUserUnique: conv, user
   by byConvUser: conv, user, id
-  read r <- exists members[r.conv, viewer]
-  insert r <- allow
-  update r <- allow
-  delete r <- allow
+  read <- exists members[.conv, viewer]
+  insert <- allow
+  update <- allow
+  delete <- allow
 
 -- Per-principal membership copy retained from the old app so inbox pages have
 -- a uniform public rule while conversation content stays members-only.
@@ -113,16 +113,16 @@ table inbox:
   unique byUserConvUnique: user, conv
   by byUserConv: user, conv, id
   public
-  insert r <- allow
-  delete r <- allow
+  insert <- allow
+  delete <- allow
 
 table dms:
   lo: principal
   hi: principal
   conv: conversations
   unique lo, hi
-  read r <- r.lo = viewer or r.hi = viewer
-  insert r <- r.lo = viewer or r.hi = viewer
+  read <- .lo = viewer or .hi = viewer
+  insert <- .lo = viewer or .hi = viewer
 
 table messages:
   conv: conversations
@@ -132,8 +132,8 @@ table messages:
   at: time
   ord: int
   by byConvOrd: conv, ord, id
-  read r <- exists members[r.conv, viewer]
-  insert r <- r.author = viewer and exists members[r.conv, viewer]
+  read <- exists members[.conv, viewer]
+  insert <- .author = viewer and exists members[.conv, viewer]
 
 table ledger:
   owner: principal
@@ -144,11 +144,11 @@ table ledger:
   expense: expenses ?
   at: time
   by byOwnerAt: owner, at, id
-  read r <- r.owner = viewer
-  insert r <- r.owner = viewer or r.counterparty = viewer
+  read <- .owner = viewer
+  insert <- .owner = viewer or .counterparty = viewer
 
 maintain balances = sum ledger of amount by owner:
-  read r <- r.owner = viewer
+  read <- .owner = viewer
 
 table expenses:
   conv: conversations
@@ -160,8 +160,8 @@ table expenses:
   grand: money USD
   at: time
   by byConv: conv, at, id
-  read r <- exists members[r.conv, viewer]
-  insert r <- r.payer = viewer and exists members[r.conv, viewer]
+  read <- exists members[.conv, viewer]
+  insert <- .payer = viewer and exists members[.conv, viewer]
 
 table shares:
   expense: expenses
@@ -177,12 +177,12 @@ table shares:
   unique expense, debtor
   by byConvExpense: conv, expense, debtor
   by byDebtorOpen: debtor, settled, id
-  read r <- exists members[r.conv, viewer]
-  insert r <- exists members[r.conv, viewer]
-  update r <- r.debtor = viewer
+  read <- exists members[.conv, viewer]
+  insert <- exists members[.conv, viewer]
+  update <- .debtor = viewer
 
 maintain convSpend = sum expenses of grand by conv:
-  read r <- exists members[r.conv, viewer]
+  read <- exists members[.conv, viewer]
 
 channel typing(conv: conversations):
   publish <- exists members[conv, viewer]

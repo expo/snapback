@@ -164,7 +164,7 @@ fn prepare_effect_fixture(root: &Path, origin: &str) {
     // turn this rewrite into a no-op (it did once; the test then failed far away).
     let source = fs::read_to_string(&schema)
         .unwrap()
-        .replace("read r <- deny", "public 'test observes effect completion'");
+        .replace("read <- deny", "public 'test observes effect completion'");
     assert!(
         source.contains("test observes effect completion"),
         "prepare_effect_fixture: the schema rewrite matched nothing"

@@ -4,8 +4,8 @@ mutation setFollow(target: principal, following: bool):
   if following:
     if existing != null:
       return existing
-    row = +follows { follower: viewer, followed: target, at: now }
+    row = insert follows { follower: viewer, followed: target, at: now }
     return { id: row.id, follower: viewer, followed: target, at: row.at }
   if existing != null:
-    -follows[existing]
+    delete follows[existing]
   return null

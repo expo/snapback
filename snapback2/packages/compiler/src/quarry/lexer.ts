@@ -3,7 +3,7 @@ import type { QuarryDiagnostic, Site } from "./ast";
 export type TokenKind = "word" | "number" | "string" | "symbol" | "newline" | "indent" | "dedent" | "eof";
 export type Token = Site & { kind: TokenKind; value: string };
 
-const TWO_CHARACTER = new Set(["<-", "->", "<=", ">=", "!=", "??", "+~"]);
+const TWO_CHARACTER = new Set(["<-", "->", "<=", ">=", "!=", "??"]);
 const SYMBOLS = new Set(":(),[]{}.?!#+-~*/%=<>");
 
 export function lex(file: string, source: string): { tokens: Token[]; diagnostics: QuarryDiagnostic[] } {

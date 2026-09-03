@@ -323,7 +323,9 @@ function emitBinary(expr: Extract<Expr, { kind: "binary" }>, env: Environment, w
     return { code: `(${left.code} ${expr.op === "and" ? "&&" : "||"} ${right.code})`, type: boolType() };
   }
   if (expr.op === "??") return { code: `(${left.code} ?? ${right.code})`, type: nonNullable(left.type) };
-  const operator = expr.op === "=" ? "===" : expr.op;
+  const operator = expr.op === "=" ? "===" : expr.op === "!=" ? "!==" : expr.op;
+  // @ref LLP 1010#a2-total-equality--program-only — program equality is total;
+  // only ordered comparison requires present operands.
   if (["=", "!=", "<", "<=", ">", ">="].includes(expr.op)) {
     if ((expr.op === "=" || expr.op === "!=") && expr.right.kind === "literal" && expr.right.value === null) {
       return { code: `(${left.code} ${expr.op === "=" ? "===" : "!=="} null)`, type: boolType() };
@@ -342,20 +344,16 @@ function emitBinary(expr: Extract<Expr, { kind: "binary" }>, env: Environment, w
     if (!branded && isScalar(left.type) && isScalar(right.type) && !compatible(left.type, right.type)) {
       refuse(expr.site, `cannot compare nominal ${left.type.kind} with ${right.type.kind}; use a principal value only with viewer`);
     }
-    if (!isNullableValue(left.type) && !isNullableValue(right.type)) {
-      const comparison = expr.op === "!=" ? `${left.code} !== ${right.code}` : `${left.code} ${operator} ${right.code}`;
-      return { code: `(${comparison})`, type: boolType() };
+    if (["<", "<=", ">", ">="].includes(expr.op) && (isNullableValue(left.type) || isNullableValue(right.type))) {
+      const leftText = optionalComparisonOperand(expr.left, left.type);
+      const rightText = optionalComparisonOperand(expr.right, right.type);
+      typeError(
+        expr.site,
+        `ordered comparison ${expr.op} requires present operands`,
+        `${leftText} ${expr.op} ${rightText}`,
+      );
     }
-    if (env.inlineComparisons) {
-      const comparison = expr.op === "!=" ? `${left.code} !== ${right.code}` : `${left.code} ${operator} ${right.code}`;
-      return { code: `(${left.code} !== null && ${right.code} !== null && ${comparison})`, type: boolType() };
-    }
-    const leftName = temporary("left", expr.site);
-    const rightName = temporary("right", expr.site);
-    writer.statement(`const ${leftName} = ${left.code};`, expr.left.site);
-    writer.statement(`const ${rightName} = ${right.code};`, expr.right.site);
-    const comparison = expr.op === "!=" ? `${leftName} !== ${rightName}` : `${leftName} ${operator} ${rightName}`;
-    return { code: `(${leftName} !== null && ${rightName} !== null && ${comparison})`, type: boolType() };
+    return { code: `(${left.code} ${operator} ${right.code})`, type: boolType() };
   }
   refuseFractionalInt(expr, left.type, right.type);
   const branded = brandedType(left.type) ?? brandedType(right.type);
@@ -920,10 +918,9 @@ function validateAddressedKeyFields(expr: Extract<Expr, { kind: "write" }>, inde
 }
 
 function quarryWriteWithoutField(expr: Extract<Expr, { kind: "write" }>, removed: ObjectField): string {
-  const operator = expr.op === "upsert" ? "+~" : expr.op === "update" ? "~" : expr.op === "delete" ? "-" : "+";
   const key = expr.op === "insert" ? "" : `[${expr.keys.map(quarryKeyPart).join(", ")}]`;
   const fields = expr.op === "delete" ? "" : ` { ${expr.fields.filter((field) => field !== removed).map(quarryObjectField).join(", ")} }`;
-  return `${operator}${expr.table}${key}${fields}`;
+  return `${expr.op} ${expr.table}${key}${fields}`;
 }
 
 function quarryKeyPart(part: KeyPart): string {
@@ -934,7 +931,7 @@ function quarryObjectField(field: ObjectField): string {
   return field.value ? `${field.name}: ${quarryExpression(field.value)}` : field.name;
 }
 
-function quarryExpression(expr: Expr): string {
+export function quarryExpression(expr: Expr): string {
   if (expr.kind === "name") return expr.name;
   if (expr.kind === "focal") return ".";
   if (expr.kind === "literal") return JSON.stringify(expr.value);
@@ -1109,6 +1106,11 @@ function simpleExpr(expr: Expr): string {
   if (expr.kind === "focal") return "";
   if (expr.kind === "member") return `${simpleExpr(expr.base)}.${expr.name}`;
   return "x";
+}
+function optionalComparisonOperand(expr: Expr, type: ValueType): string {
+  const rendered = simpleExpr(expr);
+  const value = rendered === "x" ? `(${quarryExpression(expr)})` : rendered;
+  return isNullableValue(type) ? `${value}!` : value;
 }
 function boolType(): ScalarType { return { kind: "bool", optional: false }; }
 function keyBinding(value: Emitted): Emitted {

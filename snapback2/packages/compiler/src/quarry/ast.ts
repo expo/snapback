@@ -57,7 +57,7 @@ export type Stmt =
 export type IndexDecl = { name: string; columns: string[]; unique: boolean; site: Site };
 export type RuleDecl = { effect: "read" | "insert" | "update" | "delete"; bindings: string[]; value: Expr; site: Site };
 export type ColumnDecl = { name: string; type: ScalarType; site: Site };
-export type FinalExistsDecl = { binding: string; value: Extract<Expr, { kind: "exists" }>; site: Site };
+export type FinalExistsDecl = { value: Extract<Expr, { kind: "exists" }>; site: Site };
 export type TableDecl = {
   name: string;
   columns: ColumnDecl[];

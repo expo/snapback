@@ -1,6 +1,6 @@
 # Quarry v0.3
 
-Quarry is Snapback 2's only backend authoring language. It is a small, bounded
+Quarry is Snapback 2's only backend authoring language. It is a bounded
 front end to the compiler, checker, evaluator, and server. `snapback2 check`
 compiles `.q` text in memory; it
 does not place generated files in `snapback/`. `snapback2 check` writes an
@@ -54,12 +54,13 @@ ordering; `by a, b` infers `byAB`. `unique name: a, b` declares a named unique
 ordering and its uniqueness constraint; `unique a, b` infers `byAB`. `id` may
 appear in an index. `immutable a, b` forbids changes to those columns. `public`
 accepts an optional reason string. An insert
-postcondition is exactly `after insert r <- exists table[...] [by index]`.
+postcondition is exactly `after insert <- exists table[...] [by index]`.
 
 Rules are `allow`, `deny`, `public`, `system`, `exists`, `created`, `and`,
-`or`, `not`, and `=`/`!=` between `viewer`, literals, row fields, and channel
-arguments. `created` is insert-only. `update (old, next)` exposes
-`old.field` and `next.field`; a one-binding update uses the candidate image.
+`or`, `not`, and `=`/`!=` over `viewer`, literals, `.field`, and channel
+arguments. `created` is insert-only. Table rules omit a binder (`read <- …`);
+`.` is the row, or the candidate image for update. Only `update (old, next)`
+names binders.
 Rule `exists`/`created` accepts any index whose leading columns match the key;
 when several match, add `by index`. Parentheses allow multiline rules.
 Reciprocal references and rule dependencies are supported.
@@ -85,25 +86,24 @@ later `#` read in a mutation reflects its earlier writes.
 
 ```q
 maintain messageCounts = count messages by conversationId:
-  read r <- exists memberships[r.conversationId, viewer]
+  read <- exists memberships[.conversationId, viewer]
 ```
 
 ## Programs
 
-Point reads select a complete unique key. Range reads use `first N` or
-`last N`, optional `after`/`before` cursor, and optional `by index`. An
-`exists table[keys]` probe accepts any prefix-matching index. Name an index to
-resolve ambiguity. Shapes use `{ * }`, bare row fields, or `name: expression`.
-Nested reads and shapes are bounded by the same compiler policy.
+Keys are positional (`table[value, …]`) or named
+(`table[column = value, …]`), as in `users[principal = viewer]`. Point reads
+need a complete unique key. Range order is `[after|before cursor] first|last N
+[by index] [where predicate]`; repeats/permutations refuse. Point reads may add
+`by index`; `exists table[keys]` accepts an index prefix. Shapes use `{ * }`,
+bare fields, or `name: expression`; nested work stays bounded.
 
 A cursor is the post-prefix ordering tuple; the prefix must leave a column.
-Components are indexable scalars matching their column kinds, with `Null` as
-the universal pre-first sentinel. Scalar sugar needs exactly one remaining
-column. The index must end in `id` or be unique, or tied keys could be skipped.
-Refusals paste `.q` repairs: append `id` to `by`, reorder the tuple, or drop the
-clause for a full prefix. After appending `id` to an index, widen the cursor
-tuple to include the new `id` component. `after` continues in scan order;
-`before c last N` lowers to `{ order: "desc", after: c }`.
+Components are indexable scalars matching their columns; `Null` is the
+universal pre-first sentinel. Scalar sugar needs one remaining column. The
+index must end in `id` or be unique. Refusals paste `.q` repairs: append `id`,
+reorder or widen the tuple, or drop a full-prefix cursor. `after` continues in
+scan order; `before c last N` is descending `after c`.
 
 `where predicate` follows a bounded range read. The compiler fetches at most
 its `take N` page and evaluates the predicate once per fetched row with `.` as
@@ -120,24 +120,24 @@ statement, not a binding expression.
 Object literals work anywhere expressions do; `{ id: conversationId,
 creatorMembershipId }` uses shorthand for the second field. `count(x)` is
 `x.length` for bounded lists and pages. Other built-ins are `tokens`, `range`,
-`min`, `max`, `divmod`, `share`, and `sorted`. `walk table[seed] up .parent
-depth N` is bounded.
+`min`, `max`, `divmod`, and `share`. `sorted` is only the two-name form
+`(lo, hi) = sorted(a, b)`. `walk table[seed] up .parent depth N` is bounded.
 `!` or `! else CODE` requires a present value; `??` supplies an absence
-fallback. Comparisons are absence-guarded except comparison with `null`, which
-is the presence test: `x != null` is true exactly when `x` is present. `if`,
-`require`, `and`, `or`, and `not` require Boolean operands.
+fallback. Program `=`/`!=` are total: absent equals absent and differs from
+present; `!=` is `not (=)`. Ordered comparison refuses an optional operand;
+use `!` or `??` first. Conditions require Booleans.
 
 `now` is the read clock in queries and the commit clock in mutations; `commit`
 is the commit clock. In a mutation they are the same instant. `now` is pinned
 once per request rather than redrawn; `new` allocates a fresh ID on each
 evaluation.
 
-Writes are `+table { fields }`, `~table[key] { patch }`,
-`+~table[key] { row }`, and `-table[key]`; a non-insert key is any complete
-unique key, composite alternate keys included. Alternate-key update and delete
-read the unique index once, require the row (`NOT_FOUND`), and write the base
-table by its intrinsic `id`; alternate-key upsert passes the matched `id`, or a
-fresh `new` id, to the platform's scalar-key `db.upsert`.
+Writes are `insert table { fields }`, `update table[key] { patch }`,
+`upsert table[key] { row }`, and `delete table[key]`; a non-insert key is any
+complete unique key, composite alternate keys included. Alternate-key update
+and delete read the unique index once, require the row (`NOT_FOUND`), and write
+the base table by its intrinsic `id`; alternate-key upsert passes the matched
+`id`, or a fresh `new` id, to the platform's scalar-key `db.upsert`.
 
 Key expressions are evaluated once. An upsert injects omitted key columns from
 them; a row or patch may spell a key column only with the same expression as
@@ -159,7 +159,7 @@ the two declarations this way.
 
 ```q
 mutation recordNotified(outboxId: id, effect: text <=100, result: json <=1000):
-  +notifications {
+  insert notifications {
     outboxId,
     effect,
     providerId: result.providerId,
@@ -222,7 +222,7 @@ mutation send(conversationId: conversations, recipientId: profiles, body: text <
   require exists memberships[conversationId, viewer] else NOT_MEMBER
   recipient = profiles[recipientId] ! else RECIPIENT_UNKNOWN
   require exists memberships[conversationId, recipient.principal] else RECIPIENT_NOT_MEMBER
-  row = +messages { conversationId, authorId: viewer, body, at: now }
+  row = insert messages { conversationId, authorId: viewer, body, at: now }
   emit notify { to: recipient.principal, body }
   return { id: row.id }
 ```

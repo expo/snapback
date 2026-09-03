@@ -15,6 +15,6 @@ mutation send(conversationId: conversations, recipientId: profiles, body: text <
   require exists memberships[conversationId, viewer] else NOT_MEMBER
   recipient = profiles[recipientId] ! else RECIPIENT_UNKNOWN
   require exists memberships[conversationId, recipient.principal] else RECIPIENT_NOT_MEMBER
-  row = +messages { conversationId, authorId: viewer, body, at: now }
+  row = insert messages { conversationId, authorId: viewer, body, at: now }
   emit notify { to: recipient.principal, body }
   return { id: row.id }

@@ -218,8 +218,8 @@
   {
     "family": "args",
     "code": "E_DECIMAL_SCALE",
-    "wrong": "```q\nmutation add():\n  +prices { amount: 1.234 }\n```",
-    "right": "```q\nmutation add():\n  +prices { amount: 1.23 }\n```"
+    "wrong": "```q\nmutation add():\n  insert prices { amount: 1.234 }\n```",
+    "right": "```q\nmutation add():\n  insert prices { amount: 1.23 }\n```"
   },
   {
     "family": "args",

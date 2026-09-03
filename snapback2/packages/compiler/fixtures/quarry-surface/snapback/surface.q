@@ -66,23 +66,23 @@ mutation ensureUser(name: text <=40, nickname: text <=40 ?, role: enum('member',
     some found:
       return found { * }
     none:
-      return +users { principal: viewer, name, nickname, score: 0, active: true, role, joinedAt: now, metadata: {}, externalId: new }
+      return insert users { principal: viewer, name, nickname, score: 0, active: true, role, joinedAt: now, metadata: {}, externalId: new }
 
 mutation createPost(group: groups, body: text <=500, at: time, visible: bool, peers: [principal] <=5):
   require commit >= at else FUTURE_POST
-  post = +posts { id: new, author: viewer, group, body, at: now, visible, mood: 'plain' }
+  post = insert posts { id: new, author: viewer, group, body, at: now, visible, mood: 'plain' }
   for principal in peers:
-    +memberships { group, principal, active: true }
-  ~posts[post] { body, editedAt: now }
+    insert memberships { group, principal, active: true }
+  update posts[post] { body, editedAt: now }
   return post { id, body }
 
 mutation bump(counter: counters, owner: principal, note: text <=40 ?):
-  +~counters[counter] { owner, value: (.value ?? 0) + 1, note }
+  upsert counters[counter] { owner, value: (.value ?? 0) + 1, note }
   return counters[counter]
 
 mutation addPair(a: principal, b: principal):
   (lo, hi) = sorted(a, b)
-  return +pairs { lo, hi }
+  return insert pairs { lo, hi }
 
 mutation boundedBuiltins(owner: principal, a: int, b: int, body: text <=500):
   words = tokens(body)
@@ -90,42 +90,42 @@ mutation boundedBuiltins(owner: principal, a: int, b: int, body: text <=500):
     require word != '' else EMPTY_TOKEN
   for i in range(0, 2):
     require i >= 0 else BAD_RANGE
-  return +counters { owner, value: min(a, max(b, 0)) }
+  return insert counters { owner, value: min(a, max(b, 0)) }
 
 mutation removePost(post: posts):
-  -posts[post]
+  delete posts[post]
   return null
 
 query keyedRow(owner: principal, label: text <=40):
   return keyedRows[owner, label]
 
 mutation updateKeyedRow(owner: principal, label: text <=40, value: int):
-  ~keyedRows[owner, label] { owner, label, value }
+  update keyedRows[owner, label] { owner, label, value }
   return null
 
 mutation upsertKeyedRow(owner: principal, label: text <=40, value: int):
-  +~keyedRows[owner, label] { value }
+  upsert keyedRows[owner, label] { value }
   return null
 
 mutation upsertKeyedRowWithId(id: id, owner: principal, label: text <=40, value: int):
-  +~keyedRows[owner, label] { id, value }
+  upsert keyedRows[owner, label] { id, value }
   return null
 
 mutation deleteKeyedRow(owner: principal, label: text <=40):
-  -keyedRows[owner, label]
+  delete keyedRows[owner, label]
   return null
 
 mutation updateKeyedRowById(id: keyedRows, value: int):
-  ~keyedRows[id] { value }
+  update keyedRows[id] { value }
   return null
 
 mutation deleteKeyedRowById(id: keyedRows):
-  -keyedRows[id]
+  delete keyedRows[id]
   return null
 
 mutation branchWrite(useFirst: bool):
   if useFirst:
-    +counters { owner: viewer, value: 1 }
+    insert counters { owner: viewer, value: 1 }
   else:
-    +counters { owner: viewer, value: 2 }
+    insert counters { owner: viewer, value: 2 }
   return null

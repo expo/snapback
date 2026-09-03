@@ -79,7 +79,7 @@ fn why_keeps_rule_admission_separate_from_the_page_cut() {
     assert!(project.init("todos", "none").status.success());
     fs::write(
         project.path.join("snapback/schema.q"),
-        "use identity\n\ntable items:\n  label: text <=20\n  public 'public'\n  insert r <- allow\n  update r <- allow\n  delete r <- allow\n",
+        "use identity\n\ntable items:\n  label: text <=20\n  public 'public'\n  insert <- allow\n  update <- allow\n  delete <- allow\n",
     )
     .unwrap();
     fs::write(

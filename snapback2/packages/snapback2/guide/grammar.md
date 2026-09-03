@@ -13,14 +13,14 @@ table todos:
   done: bool
   ownerId: principal
   by ownerId
-  read r <- r.ownerId = viewer
+  read <- .ownerId = viewer
 ```
 
 Schema declarations are `use identity [password|guests]`, `table`, `maintain`,
 and `channel`. Table lines are columns, `by`, `unique`, `immutable`, `public`,
-rules, and `after insert … <- exists`. Maintains are `count table by fields` or
-`sum table of intOrDecimalOrMoneyField by fields`, followed by `read` and
-optional `readable`.
+`read|insert|update|delete <-` rules, `update (old, next) <-`, and `after insert
+<- exists`; the single row is `.`. Maintains are `count table by fields` or
+`sum table of field by fields`, then `read` and optional `readable`.
 Channels declare `publish`, `subscribe`, and `ttl Ns`.
 
 Types are `principal`, `id`, table references, `int`, `time`, `bool`,
@@ -38,7 +38,13 @@ Program declarations are `effect name from module`, `query name(args)`, and
 `return`, `require … else CODE`, `if/else`, bounded `for`, `match … some/none`,
 `emit`, and expressions; a body's last expression returns implicitly.
 Expressions include literals, objects, arrays, reads and shapes, `exists`,
-`#maintain[key]`, `+ ~ +~ -` writes, `! [else CODE]`, `??`, `where`, and
+`#maintain[key]`, `insert`/`update`/`upsert`/`delete` writes,
+`! [else CODE]`, `??`, `where`, and
 `sorted/tokens/range/min/max/count/divmod/share`.
+
+Reads use `table[value, …]` or `table[column = value, …]`, then
+`[after|before cursor] first|last N [by index] [where predicate]`; point reads
+may use `by index`. Program `=`/`!=` are total; ordered comparison refuses
+optionals. `sorted` is only `(lo, hi) = sorted(a, b)`.
 
 See `quarry` for the complete normative surface and refusal list.

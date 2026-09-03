@@ -41,6 +41,24 @@ export function registerQuarryChecks(test: Test, frontend: string): void {
     }
   });
 
+  test("Quarry accepts word writes and refuses every write sigil with the word forms", () => {
+    const sigils = ["+", "~", ["+", "~"].join(""), "-"];
+    const forms = [
+      `${sigils[0]}items { value: 1 }`,
+      `${sigils[1]}items[id] { value: 2 }`,
+      `${sigils[2]}items[id] { value: 3 }`,
+      `${sigils[3]}items[id]`,
+    ];
+    const parsed = parseDocument("snapback/ops.q", `mutation oldWrites(id: items):\n${forms.map((form) => `  ${form}`).join("\n")}\n`);
+    const refusals = parsed.diagnostics.filter((item) => item.code === "E_QUARRY_SYNTAX" && item.message.startsWith("write sigils"));
+    assert(refusals.length === 4, `write sigils did not each refuse: ${JSON.stringify(parsed.diagnostics)}`);
+    for (const refusal of refusals) {
+      assert(["insert", "update", "upsert", "delete"].every((word) => refusal.message.includes(word)),
+        `write-sigil refusal did not name all four words: ${refusal.message}`);
+      assert(!/[~+-].*items/.test(refusal.rewrite), `write-sigil refusal pasted a compatibility rewrite: ${refusal.rewrite}`);
+    }
+  });
+
   test("Quarry money and decimal spellings preserve scale through IR and API types", async () => {
     const lowered = await lowerProject(resolve(fixtures, "quarry-money"));
     assert(lowered.ok, `quarry-money refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
@@ -78,7 +96,7 @@ export function registerQuarryChecks(test: Test, frontend: string): void {
   amount: money USD
   count: int
   public
-  insert r <- public
+  insert <- public
 `;
     await withProject({
       "snapback/schema.q": schema,
@@ -96,7 +114,7 @@ export function registerQuarryChecks(test: Test, frontend: string): void {
 
     await withProject({
       "snapback/schema.q": schema,
-      "snapback/literal.q": "mutation bad():\n  return +values { cents: 1.234, mills: 1.000, amount: 2.50, count: 1 }\n",
+      "snapback/literal.q": "mutation bad():\n  return insert values { cents: 1.234, mills: 1.000, amount: 2.50, count: 1 }\n",
     }, async (root) => {
       const result = await lowerProject(root);
       assert(!result.ok, "over-precise Quarry Decimal literal compiled");
@@ -116,7 +134,7 @@ export function registerQuarryChecks(test: Test, frontend: string): void {
 
     const fractionalInt = compileInline([
       { fileName: "snapback/schema.q", source: schema },
-      { fileName: "snapback/int.q", source: "mutation bad():\n  return +values { cents: 1.00, mills: 1.000, amount: 2, count: 2.50 }\n" },
+      { fileName: "snapback/int.q", source: "mutation bad():\n  return insert values { cents: 1.00, mills: 1.000, amount: 2, count: 2.50 }\n" },
     ]);
     assert(!fractionalInt.ok && fractionalInt.diagnostics.some((item) => item.code === "E_QUARRY_TYPE"
       && item.message === "int positions take integer literals"),
@@ -183,8 +201,8 @@ export function registerQuarryChecks(test: Test, frontend: string): void {
 
   test("Quarry addressed key columns refuse disagreement and paste drop-field rewrites", async () => {
     const schema = "table keyedRows:\n  owner: principal\n  label: text <=40\n  value: int\n  unique owner, label\n  public\n";
-    const badUpsert = "+~keyedRows[owner, label] { owner: viewer, label, value }";
-    const badUpdate = "~keyedRows[owner, label] { owner, label: 'other', value }";
+    const badUpsert = "upsert keyedRows[owner, label] { owner: viewer, label, value }";
+    const badUpdate = "update keyedRows[owner, label] { owner, label: 'other', value }";
     const operations = `mutation upsertMismatch(owner: principal, label: text <=40, value: int):
   ${badUpsert}
 
@@ -200,11 +218,11 @@ mutation updateMismatch(owner: principal, label: text <=40, value: int):
     assert(diagnostics.length === 2, `addressed-key check did not report both failures: ${JSON.stringify(refused)}`);
     const upsert = diagnostics.find((item) => item.message.startsWith("upsert may not"));
     const update = diagnostics.find((item) => item.message.startsWith("update may not"));
-    assert(upsert?.family === "quarry" && upsert.site === "snapback/ops.q:2:31"
-      && upsert.rewrite === "-- +~keyedRows[owner, label] { label, value }" && upsert.guide === "quarry/types",
+    assert(upsert?.family === "quarry" && upsert.site === "snapback/ops.q:2:36"
+      && upsert.rewrite === "-- upsert keyedRows[owner, label] { label, value }" && upsert.guide === "quarry/types",
     `upsert mismatch lost its code/family/field site/drop-field rewrite/guide: ${JSON.stringify(upsert)}`);
-    assert(update?.family === "quarry" && update.site === "snapback/ops.q:5:37"
-      && update.rewrite === "-- ~keyedRows[owner, label] { owner, value }" && update.guide === "quarry/types",
+    assert(update?.family === "quarry" && update.site === "snapback/ops.q:5:43"
+      && update.rewrite === "-- update keyedRows[owner, label] { owner, value }" && update.guide === "quarry/types",
     `update mismatch lost its code/family/field site/drop-field rewrite/guide: ${JSON.stringify(update)}`);
 
     const repaired = operations
@@ -219,8 +237,8 @@ mutation updateMismatch(owner: principal, label: text <=40, value: int):
   });
 
   test("Quarry alternate-key upsert with id: new mints only on the absent branch", async () => {
-    const schema = "table keyedRows:\n  owner: principal\n  label: text <=40\n  value: int\n  unique owner, label\n  read r <- allow\n  insert r <- allow\n  update r <- allow\n  delete r <- allow\n";
-    const module = "mutation bump(owner: principal, label: text <=40, value: int):\n  +~keyedRows[owner, label] { id: new, value }\n  return true\n";
+    const schema = "table keyedRows:\n  owner: principal\n  label: text <=40\n  value: int\n  unique owner, label\n  read <- allow\n  insert <- allow\n  update <- allow\n  delete <- allow\n";
+    const module = "mutation bump(owner: principal, label: text <=40, value: int):\n  upsert keyedRows[owner, label] { id: new, value }\n  return true\n";
     const compiled = compileInline([
       { fileName: "snapback/schema.q", source: schema },
       { fileName: "snapback/keyed.q", source: module },
@@ -316,6 +334,37 @@ query ordered(a: int, b: int):
       const failures = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema).filter((item) => item.error);
       assert(failures.length === 0, `tuple cursor project did not certify: ${JSON.stringify(failures)}`);
     });
+  });
+
+  test("Quarry range modifiers refuse permutations and repeats with the complete canonical read", () => {
+    const schema = "table posts:\n  at: time\n  by byAt: at, id\n  public\n";
+    const cases = [
+      {
+        name: "permutation",
+        source: "query page(at: time, cursor: posts):\n  return posts[at] by byAt after cursor first 3\n",
+        rewrite: "-- posts[at] after cursor first 3 by byAt",
+      },
+      {
+        name: "double by",
+        source: "query page(at: time):\n  return posts[at] first 3 by byAt by byId\n",
+        rewrite: "-- posts[at] first 3 by byAt",
+      },
+    ];
+    for (const item of cases) {
+      const result = compileInline([
+        { fileName: "snapback/schema.q", source: schema },
+        { fileName: "snapback/ops.q", source: item.source },
+      ]);
+      const refusal = !result.ok && result.diagnostics.find((diagnostic) => diagnostic.code === "E_QUARRY_SYNTAX");
+      assert(refusal && refusal.rewrite === item.rewrite,
+        `${item.name} did not receive its canonical read rewrite: ${JSON.stringify(result)}`);
+      const repaired = item.source.replace(item.source.split("\n")[1]!.trim().slice("return ".length), refusal.rewrite.slice(3));
+      const fixed = compileInline([
+        { fileName: "snapback/schema.q", source: schema },
+        { fileName: "snapback/ops.q", source: repaired },
+      ]);
+      assert(fixed.ok, `${item.name} canonical rewrite did not compile: ${fixed.ok ? "" : diagnosticsText(fixed.diagnostics)}`);
+    }
   });
 
   test("Quarry refuses a scalar composite cursor with a pasteable tuple rewrite", async () => {
@@ -452,16 +501,16 @@ query ordered(a: int, b: int):
   owner: principal
   label: text <=40
   unique byOwner: owner
-  read r <- r.owner = viewer
-  insert r <- allow
-  update r <- r.owner = viewer
+  read <- .owner = viewer
+  insert <- allow
+  update <- .owner = viewer
 `;
     const operations = `mutation alternate(owner: principal, label: text <=40):
-  ~secrets[owner] { label }
+  update secrets[owner] { label }
   return true
 
 mutation direct(id: secrets, label: text <=40):
-  ~secrets[id] { label }
+  update secrets[id] { label }
   return true
 `;
     await withProject({
@@ -507,13 +556,13 @@ mutation direct(id: secrets, label: text <=40):
     const compileDiagnostics = compiled.diagnostics.filter((item) => item.code === "E_QUARRY_TYPE");
     assert(compileDiagnostics.length === 1
       && compileDiagnostics[0]!.site.startsWith("snapback/update.q:")
-      && compileDiagnostics[0]!.rewrite === '-- ~keyedRows[owner] { label: "changed" }',
+      && compileDiagnostics[0]!.rewrite === '-- update keyedRows[owner] { label: "changed" }',
     `update id front-end refusal changed: ${JSON.stringify(compiled)}`);
 
     const lowered = await lowerProject(resolve(fixtures, "quarry-update-id"));
     assert(!lowered.ok, "alternate-key update naming id lowered");
     assert(lowered.diagnostics.length === 1 && lowered.diagnostics[0]!.code === "E_QUARRY_TYPE"
-      && lowered.diagnostics[0]!.rewrite === '-- ~keyedRows[owner] { label: "changed" }',
+      && lowered.diagnostics[0]!.rewrite === '-- update keyedRows[owner] { label: "changed" }',
     `update id leaked platform diagnostics: ${JSON.stringify(lowered)}`);
     assert(lowered.diagnostics.every((item) => item.code !== "E_SCHEMA_ID_RESERVED" && item.code !== "E_OPAQUE"),
       `update id retained platform leakage: ${JSON.stringify(lowered)}`);
@@ -587,6 +636,65 @@ mutation direct(id: secrets, label: text <=40):
     assert(accepted.ok, `presence tests refused: ${accepted.ok ? "" : diagnosticsText(accepted.diagnostics)}`);
   });
 
+  test("Quarry optional-column equality and inequality execute with total semantics", async () => {
+    const schema = "table rows:\n  value: int ?\n  public\n";
+    const module = `query equal(left: rows, right: rows):
+  a = rows[left]! else LEFT_MISSING
+  b = rows[right]! else RIGHT_MISSING
+  return a.value = b.value
+
+query different(left: rows, right: rows):
+  a = rows[left]! else LEFT_MISSING
+  b = rows[right]! else RIGHT_MISSING
+  return a.value != b.value
+`;
+    await withProject({ "snapback/schema.q": schema, "snapback/compare.q": module }, async (root) => {
+      const lowered = await lowerProject(root);
+      assert(lowered.ok, `total-equality project refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
+      assert(rustCheck(lowered.project.programs, "synthetic", lowered.project.schema).every((item) => !item.error),
+        "total-equality programs did not certify through the Rust checker");
+      const receipt: ClosureReceipt = {
+        rows: [
+          { table: "rows", id: "absent-a", row: { Row: { id: { Id: "absent-a" } } } },
+          { table: "rows", id: "absent-b", row: { Row: { id: { Id: "absent-b" } } } },
+          { table: "rows", id: "present-a", row: { Row: { id: { Id: "present-a" }, value: { Int: 7 } } } },
+          { table: "rows", id: "present-b", row: { Row: { id: { Id: "present-b" }, value: { Int: 7 } } } },
+        ],
+        ranges: [], absences: [], verdicts: [],
+      };
+      const context = (left: string, right: string): Context => ({
+        viewer: "viewer-1", principal_kind: "user", auth_epoch: 1,
+        args: { left: { Id: left }, right: { Id: right } }, now: 1, new_ids: [], read_time: 1,
+      });
+      const cases: Array<[string, string, boolean]> = [
+        ["absent-a", "absent-b", true],
+        ["absent-a", "present-a", false],
+        ["present-a", "absent-a", false],
+        ["present-a", "present-b", true],
+      ];
+      for (const [left, right, equal] of cases) {
+        const store = new ClientStore(lowered.project.schema, receipt);
+        const actualEqual = store.reexecute(operation(lowered.project.programs, "compare.equal"), context(left, right)).execution.result;
+        const actualDifferent = store.reexecute(operation(lowered.project.programs, "compare.different"), context(left, right)).execution.result;
+        assert(JSON.stringify(actualEqual) === JSON.stringify({ Bool: equal }),
+          `${left} = ${right} returned ${JSON.stringify(actualEqual)} instead of ${equal}`);
+        assert(JSON.stringify(actualDifferent) === JSON.stringify({ Bool: !equal }),
+          `${left} != ${right} returned ${JSON.stringify(actualDifferent)} instead of ${!equal}`);
+      }
+    });
+  });
+
+  test("Quarry ordered comparison refuses an optional operand with an assertion rewrite", () => {
+    const source = "query older(id: rows, cutoff: time):\n  row = rows[id]! else MISSING\n  return row.seenAt < cutoff\n";
+    const result = compileInline([
+      { fileName: "snapback/schema.q", source: "table rows:\n  seenAt: time ?\n  public\n" },
+      { fileName: "snapback/ops.q", source },
+    ]);
+    const refusal = result.ok ? undefined : result.diagnostics.find((item) => item.code === "E_QUARRY_TYPE");
+    assert(refusal?.rewrite === "-- row.seenAt! < cutoff" && refusal.site === "snapback/ops.q:3:21",
+      `optional ordered comparison lost its exact rewrite/site: ${JSON.stringify(result)}`);
+  });
+
   test("Quarry where preludes stay inside the per-row loop and certify", async () => {
     const schema = "table authors:\n  name: text <=50\n  public\n\ntable posts:\n  author: authors\n  public\n  by author\n";
     const module = "query byAuthor(author: authors):\n  return posts[author] first 5 where .author.name = 'Alice'\n";
@@ -607,19 +715,26 @@ mutation direct(id: secrets, label: text <=40):
     });
   });
 
-  test("Quarry rule binding arity is exact and two-binding updates retain row images", async () => {
+  test("Quarry rule binders use focal dot and two-binding updates retain row images", async () => {
     for (const rule of ["read (r, extra) <- allow", "insert (r, extra) <- allow", "delete (r, extra) <- allow", "update (old, next, extra) <- allow"]) {
       const result = compileInline([{ fileName: "snapback/schema.q", source: `table rows:\n  value: int\n  ${rule}\n` }]);
-      assert(!result.ok && result.diagnostics.some((item) => item.code === "E_QUARRY_SYNTAX" && item.rewrite.includes("binding")),
+      assert(!result.ok && result.diagnostics.some((item) => item.code === "E_QUARRY_SYNTAX" && item.message.includes("named bindings")),
         `invalid rule arity compiled: ${rule}: ${JSON.stringify(result)}`);
     }
-    const oneBinding = compileInline([{
+    const named = compileInline([{
       fileName: "snapback/schema.q",
       source: "table rows:\n  value: int\n  update next <- next.value = 1\n",
     }]);
-    assert(oneBinding.ok, `one-binding update refused: ${oneBinding.ok ? "" : diagnosticsText(oneBinding.diagnostics)}`);
+    const namedRefusal = named.ok ? undefined : named.diagnostics.find((item) => item.code === "E_QUARRY_SYNTAX");
+    assert(namedRefusal?.rewrite === "-- update <- (.value = 1)",
+      `named single-row rule lost its dot rewrite: ${JSON.stringify(named)}`);
+    const oneRow = compileInline([{
+      fileName: "snapback/schema.q",
+      source: "table rows:\n  value: int\n  update <- .value = 1\n",
+    }]);
+    assert(oneRow.ok, `focal one-row update refused: ${oneRow.ok ? "" : diagnosticsText(oneRow.diagnostics)}`);
     await withProject({
-      "snapback/schema.q": "table rows:\n  value: int\n  read r <- allow\n  update (old, next) <- old.value != next.value\n",
+      "snapback/schema.q": "table rows:\n  value: int\n  read <- allow\n  update (old, next) <- old.value != next.value\n",
       "snapback/rows.q": "query one(id: rows):\n  return rows[id]\n",
     }, async (root) => {
       const lowered = await lowerProject(root);
@@ -630,9 +745,9 @@ mutation direct(id: secrets, label: text <=40):
   });
 
   test("Quarry maintain readable rules are typed against the materialized target", () => {
-    const accepted = compileInline([{ fileName: "snapback/schema.q", source: "table source:\n  group: text <=20\n  body: text <=50\n  public\n\nmaintain totals = count source by group:\n  read r <- allow\n  readable r <- r.value = 0\n" }]);
+    const accepted = compileInline([{ fileName: "snapback/schema.q", source: "table source:\n  group: text <=20\n  body: text <=50\n  public\n\nmaintain totals = count source by group:\n  read <- allow\n  readable <- .value = 0\n" }]);
     assert(accepted.ok, `target value readable rule refused: ${accepted.ok ? "" : diagnosticsText(accepted.diagnostics)}`);
-    const refused = compileInline([{ fileName: "snapback/schema.q", source: "table source:\n  group: text <=20\n  body: text <=50\n  public\n\nmaintain totals = count source by group:\n  read r <- allow\n  readable r <- r.body = ''\n" }]);
+    const refused = compileInline([{ fileName: "snapback/schema.q", source: "table source:\n  group: text <=20\n  body: text <=50\n  public\n\nmaintain totals = count source by group:\n  read <- allow\n  readable <- .body = ''\n" }]);
     assert(!refused.ok && refused.diagnostics.some((item) => item.message.includes("body")),
       `source-only readable field compiled: ${JSON.stringify(refused)}`);
   });
@@ -711,6 +826,12 @@ mutation direct(id: secrets, label: text <=40):
       assert(refusal.rewrite.includes("rename") && refusal.rewrite.includes("delete"),
         `reserved ${item.name} refusal lost its rename rewrite: ${refusal.rewrite}`);
     }
+    for (const word of ["insert", "update", "upsert"]) {
+      const result = compileInline([{ fileName: "snapback/schema.q", source: `table ${word}:\n  value: int\n  public\n` }]);
+      const refusal = result.ok ? undefined : result.diagnostics.find((diagnostic) => diagnostic.message.includes("reserved"));
+      assert(refusal?.site === "snapback/schema.q:1:7" && refusal.rewrite.includes(word),
+        `reserved write word ${word} compiled or lost its rename rewrite: ${JSON.stringify(result)}`);
+    }
   });
 
   test("Quarry validates compound and range keys against the selected index types", () => {
@@ -755,13 +876,13 @@ mutation direct(id: secrets, label: text <=40):
       ["array", "payload: [.author]", ".author"],
       ["exists", "flag: exists users[.author]", "db.exists(users"],
       ["walk", "payload: walk nodes[.node] up .parent depth 2", "recurse("],
-      ["nested write", "related: +logs { post: .id }", "db.insert(logs"],
+      ["nested write", "related: insert logs { post: .id }", "db.insert(logs"],
       ["object literal", "payload: { author: .author }", "author:"],
     ];
     for (const [name, field, emitted] of cases) {
       const result = compileInline([
         { fileName: "snapback/schema.q", source: schema },
-        { fileName: "snapback/ops.q", source: `mutation refresh(id: posts):\n  ~posts[id] { ${field} }\n` },
+        { fileName: "snapback/ops.q", source: `mutation refresh(id: posts):\n  update posts[id] { ${field} }\n` },
       ]);
       assert(result.ok, `${name} focal container was refused: ${result.ok ? "" : diagnosticsText(result.diagnostics)}`);
       const source = result.modules[0]!.source;
@@ -774,7 +895,7 @@ mutation direct(id: secrets, label: text <=40):
   test("Quarry focal patch preludes remain callback-local and preserve field order", () => {
     const result = compileInline([
       { fileName: "snapback/schema.q", source: "table users:\n  name: text <=50\n  public\n\ntable posts:\n  author: users\n  authorName: text <=50\n  payload: json <=2048\n  public\n" },
-      { fileName: "snapback/ops.q", source: "mutation refresh(id: posts):\n  ~posts[id] { authorName: users[.author].name, payload: { author: .author } }\n" },
+      { fileName: "snapback/ops.q", source: "mutation refresh(id: posts):\n  update posts[id] { authorName: users[.author].name, payload: { author: .author } }\n" },
     ]);
     assert(result.ok, `focal patch refused: ${result.ok ? "" : diagnosticsText(result.diagnostics)}`);
     const source = result.modules[0]!.source;
@@ -790,7 +911,7 @@ mutation direct(id: secrets, label: text <=40):
 
   test("Quarry shaped pages retain spread/override field types and reference identity", async () => {
     const schema = "table authors:\n  name: text <=50\n  public\n\ntable posts:\n  author: authors\n  public\n  by author\n\ntable copies:\n  name: text <=50\n  public\n";
-    const unsafe = "mutation copy():\n  for post in posts[] first 5 by byAuthor { *, author: .author }:\n    +copies { name: post.author.name }\n  null\n";
+    const unsafe = "mutation copy():\n  for post in posts[] first 5 by byAuthor { *, author: .author }:\n    insert copies { name: post.author.name }\n  null\n";
     await withProject({ "snapback/schema.q": schema, "snapback/ops.q": unsafe }, async (root) => {
       const compiled = compileInline([
         { fileName: "snapback/schema.q", source: schema },
@@ -833,7 +954,7 @@ mutation direct(id: secrets, label: text <=40):
 
   test("Quarry mid-body matches discard arm values and accept write-only arms", async () => {
     const schema = "table todos:\n  title: text <=50\n  public\n";
-    const module = "mutation touch(id: todos):\n  match todos[id]:\n    some todo:\n      todo.title\n    none:\n      'missing'\n  ~todos[id] { title: 'touched' }\n\nmutation ensure(id: todos):\n  match todos[id]:\n    some todo:\n      ~todos[id] { title: 'found' }\n    none:\n      +todos { title: 'made' }\n  return null\n";
+    const module = "mutation touch(id: todos):\n  match todos[id]:\n    some todo:\n      todo.title\n    none:\n      'missing'\n  update todos[id] { title: 'touched' }\n\nmutation ensure(id: todos):\n  match todos[id]:\n    some todo:\n      update todos[id] { title: 'found' }\n    none:\n      insert todos { title: 'made' }\n  return null\n";
     await withProject({ "snapback/schema.q": schema, "snapback/ops.q": module }, async (root) => {
       const lowered = await lowerProject(root);
       assert(lowered.ok, `mid-body match refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
@@ -858,11 +979,11 @@ mutation direct(id: secrets, label: text <=40):
   });
 
   test("principal remains nominal in Quarry rules and program values", () => {
-    const source = `use identity\n\ntable users:\n  name: text <=40\n  public\n\ntable items:\n  owner: users\n  read r <- r.owner = viewer\n`;
+    const source = `use identity\n\ntable users:\n  name: text <=40\n  public\n\ntable items:\n  owner: users\n  read <- .owner = viewer\n`;
     const compiled = compileQuarry([{ path: "/virtual/schema.q", fileName: "snapback/schema.q", source }]);
     assert(!compiled.ok, "a table ref compared with viewer was accepted");
     const refusal = compiled.diagnostics[0]!;
-    assert(refusal.code === "E_QUARRY_UNKNOWN" && refusal.family === "quarry" && refusal.site === "snapback/schema.q:9:21",
+    assert(refusal.code === "E_QUARRY_UNKNOWN" && refusal.family === "quarry" && refusal.site === "snapback/schema.q:9:18",
       `nominal refusal was not a sited Quarry diagnostic: ${JSON.stringify(refusal)}`);
     assert(refusal.message.includes("fields compared with viewer must be principal"), `nominal refusal message changed: ${refusal.message}`);
   });
