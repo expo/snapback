@@ -16,6 +16,7 @@ import { rustCheck } from "./rust-check";
 import { registerRuleTransitionChecks } from "./rule-transitions-checks";
 import { registerQuarryChecks } from "./quarry-checks";
 import { registerRuntimeRedChecks } from "./runtime-red-checks";
+import { registerCursorIdentityChecks } from "./cursor-identity-checks";
 import { decimal } from "../../snapback2/src/index";
 import type { Principal } from "../../snapback2/src/index";
 import type { Op } from "../../snapback2/src/api";
@@ -43,6 +44,7 @@ function assert(condition: unknown, message: string): asserts condition {
 registerVerifiedRegressionTests(test, assert);
 registerPackageRegressionChecks(test, assert, crate);
 registerRuntimeRedChecks(test, assert, libText);
+registerCursorIdentityChecks(test, assert, libText);
 
 function canonical(value: unknown): string {
   const normalize = (item: any): any => Array.isArray(item)

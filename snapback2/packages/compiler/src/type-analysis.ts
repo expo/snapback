@@ -105,7 +105,7 @@ class Analyzer {
             env,
             name,
             binding,
-            !mutable && (statement.declarationList.flags & ts.NodeFlags.Const) !== 0 ? declaration.initializer : undefined,
+            !mutable ? declaration.initializer : undefined,
           );
         }
       }
@@ -370,6 +370,13 @@ class Analyzer {
     }
     let left = this.expression(node.left, env, undefined, true);
     let right = this.expression(node.right, env, undefined, true);
+    const equality = [
+      ts.SyntaxKind.EqualsEqualsToken,
+      ts.SyntaxKind.EqualsEqualsEqualsToken,
+      ts.SyntaxKind.ExclamationEqualsToken,
+      ts.SyntaxKind.ExclamationEqualsEqualsToken,
+    ].includes(operator);
+    const retargetIdentity = equality && identityScalar(left) !== identityScalar(right);
     if (this.analysisLimitReached) return unknownType;
     if (operator === ts.SyntaxKind.AsteriskToken) {
       if (left.kind === "decimal") right = this.expression(node.right, env);
@@ -377,6 +384,12 @@ class Analyzer {
       else {
         left = this.expression(node.left, env);
         right = this.expression(node.right, env);
+      }
+    } else if (retargetIdentity) {
+      if (identityScalar(left)) {
+        right = this.expression(node.right, env, idType);
+      } else {
+        left = this.expression(node.left, env, idType);
       }
     } else if (left.kind === "decimal") right = this.expression(node.right, env, left);
     else if (right.kind === "decimal") left = this.expression(node.left, env, right);
@@ -493,7 +506,7 @@ class Analyzer {
         if (key) this.key(key, env, indexTypes);
         if (method === "scan") {
           const options = call.arguments[2];
-          if (options) this.scanOptions(options, env, indexTypes.slice(prefixArity(key)));
+          if (options) this.scanOptions(options, env, indexTypes.slice(this.prefixArity(key, env)));
         }
         const row: AuthoredType = { kind: "row", table: table.name };
         return method === "scan" ? { kind: "list", of: row } : row;
@@ -781,6 +794,31 @@ class Analyzer {
     return { sources: array.elements, env: nested };
   }
 
+  private prefixArity(
+    node: ts.Expression | undefined,
+    env: TypeEnvironment,
+    seen = new Set<string>(),
+  ): number {
+    if (!node) return 0;
+    const value = unwrapExpression(node);
+    if (ts.isArrayLiteralExpression(value)) return value.elements.length;
+    if (ts.isIdentifier(value)) {
+      const key = `binding:${value.text}`;
+      if (seen.has(key)) return 1;
+      seen.add(key);
+      const stable = env.constants.get(value.text);
+      return stable ? this.prefixArity(stable, env, seen) : 1;
+    }
+    if (ts.isCallExpression(value) && ts.isIdentifier(value.expression) && !env.variables.has(value.expression.text)) {
+      const key = `helper:${value.expression.text}`;
+      if (seen.has(key)) return 1;
+      seen.add(key);
+      const returned = helperReturnExpression(this.module.helpers?.get(value.expression.text));
+      return returned ? this.prefixArity(returned, env, seen) : 1;
+    }
+    return 1;
+  }
+
   private idTextRewrite(
     node: ts.Expression,
     expected: AuthoredType | undefined,
@@ -1009,12 +1047,6 @@ function commonType(values: AuthoredType[]): AuthoredType {
   if (values.length === 0 || values.some((item) => item.kind === "unknown")) return unknownType;
   const first = JSON.stringify(values[0]);
   return values.every((item) => JSON.stringify(item) === first) ? values[0]! : unknownType;
-}
-
-function prefixArity(node: ts.Expression | undefined): number {
-  if (!node) return 0;
-  const value = unwrapExpression(node);
-  return ts.isArrayLiteralExpression(value) ? value.elements.length : 1;
 }
 
 function authoredTypeName(value: AuthoredType): string {

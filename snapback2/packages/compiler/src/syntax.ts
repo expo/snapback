@@ -321,5 +321,5 @@ export function expansionContext(parent: string, node: ts.Node, sourceFile: ts.S
 }
 
 export function contextualNodeKey(context: string, node: ts.Node, sourceFile: ts.SourceFile): string {
-  return `${context}:${node.getStart(sourceFile)}`;
+  return `${context}:${node.getStart(sourceFile)}:${node.getEnd()}:${node.kind}`;
 }

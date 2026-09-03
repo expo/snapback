@@ -22,6 +22,7 @@ import {
   int,
   isVariant,
   isWordCharacter,
+  kindOf,
   materializeOptionalFields,
   rangeStops,
   rowValue,
@@ -180,6 +181,15 @@ export class ClientStore {
 
   lookup(table: string, indexName: string, key: Value[]): Value | null {
     const index = this.index(table, indexName);
+    if (key.length !== index.columns.length) {
+      throw new EvalError(
+        "E_TYPE",
+        `point read ${table}.${indexName} supplied ${key.length} of ${index.columns.length} key columns`,
+      );
+    }
+    key.forEach((value, offset) => {
+      assertIndexableScalar(value, `point read ${table}.${indexName} key component ${offset + 1}`);
+    });
     for (const row of this.rows(table)) {
       const values = index.columns.map((column: string) => fieldOrNull(row, column));
       if (valuesEqual(values, key)) return row;
@@ -198,26 +208,55 @@ export class ClientStore {
     limit: number,
   ): Value[] {
     const index = this.index(table, indexName);
+    if (prefix.length > index.columns.length) {
+      throw new EvalError("E_TYPE", `scan ${table}.${indexName} prefix has too many columns`);
+    }
+    prefix.forEach((value, offset) => {
+      assertIndexableScalar(value, `scan ${table}.${indexName} prefix component ${offset + 1}`);
+    });
+    for (const [name, value] of Object.entries<Value | null | undefined>(range ?? {})) {
+      if (value !== null && value !== undefined) {
+        assertIndexableScalar(value, `scan ${table}.${indexName} range.${name}`);
+      }
+    }
     const rangeColumn = prefix.length;
     const remaining = index.columns.length - rangeColumn;
+    // @ref LLP 1001#3-read-and-write-states-no-silent-states — a cursor must
+    // move a scan; a fully named index has no post-prefix position to compare.
+    if (remaining === 0 && (after !== null || before !== null)) {
+      throw new EvalError(
+        "E_TYPE",
+        `scan ${table}.${indexName} prefix names every index column, so a cursor has no position to compare; remove after/before or shorten the prefix`,
+      );
+    }
     const cursorTuple = (cursor: Value): Value[] => {
+      let values: Value[];
       if (isVariant(cursor, "Array")) {
         if (cursor.Array.length !== remaining) {
           throw new EvalError("E_TYPE", `cursor supplied ${cursor.Array.length} of ${remaining} remaining index columns`);
         }
-        return cursor.Array;
+        values = cursor.Array;
+      } else if (remaining === 1) {
+        values = [cursor];
+      } else {
+        throw new EvalError("E_TYPE", `cursor for ${remaining} remaining index columns must be an array`);
       }
-      if (remaining === 1) return [cursor];
-      throw new EvalError("E_TYPE", `cursor for ${remaining} remaining index columns must be an array`);
+      values.forEach((value, offset) => {
+        const column = index.columns[rangeColumn + offset]!;
+        validateCursorComponent(this.schema, table, indexName, column, value);
+      });
+      return values;
     };
+    const afterTuple = after === null ? null : cursorTuple(after);
+    const beforeTuple = before === null ? null : cursorTuple(before);
     const selected = this.rows(table).filter((row) => {
       const values = index.columns.map((column: string) => fieldOrNull(row, column));
       if (!valuesEqual(values.slice(0, prefix.length), prefix)) return false;
       if (rangeColumn >= values.length) return true;
       const value = values[rangeColumn];
       const position = values.slice(rangeColumn);
-      if (after !== null && compareArrays(position, cursorTuple(after)) * (order === "Asc" ? 1 : -1) <= 0) return false;
-      if (before !== null && compareArrays(position, cursorTuple(before)) * (order === "Asc" ? 1 : -1) >= 0) return false;
+      if (afterTuple !== null && compareArrays(position, afterTuple) * (order === "Asc" ? 1 : -1) <= 0) return false;
+      if (beforeTuple !== null && compareArrays(position, beforeTuple) * (order === "Asc" ? 1 : -1) >= 0) return false;
       if (range?.gt !== null && range?.gt !== undefined && totalCompare(value, range.gt) <= 0)
         return false;
       if (range?.gte !== null && range?.gte !== undefined && totalCompare(value, range.gte) < 0)
@@ -245,6 +284,16 @@ export class ClientStore {
   put(table: string, row: Value): void {
     const normalized = materializeOptionalFields(this.schema, table, row);
     validateWriteRow(this.schema, table, normalized);
+    for (const [indexName, index] of Object.entries<any>(
+      this.schema.tables?.[table]?.indexes ?? {},
+    )) {
+      for (const column of index.columns) {
+        assertIndexableScalar(
+          fieldOrNull(normalized, column),
+          `indexed column ${table}.${indexName}.${column}`,
+        );
+      }
+    }
     const id = asString(field(normalized, "id"));
     let rows = this.tables.get(table);
     if (rows === undefined) {
@@ -1236,6 +1285,46 @@ class Runner {
     if (value === undefined) throw new EvalError("E_INPUT", `unknown variable ${name}`);
     return value;
   }
+}
+
+function validateCursorComponent(
+  schema: any,
+  table: string,
+  index: string,
+  column: string,
+  value: Value,
+): void {
+  assertIndexableScalar(value, `cursor component for ${table}.${index} column ${column}`);
+  const actual = kindOf(value);
+  // @ref LLP 1001#3-read-and-write-states-no-silent-states — Null is the
+  // universal pre-first cursor sentinel, independent of stored nullability.
+  if (actual === "Null") return;
+  const descriptor = schema.tables?.[table]?.columns?.[column];
+  const expected = cursorColumnKind(descriptor);
+  const matches = expected === "scalar" || expected === actual;
+  if (!matches) {
+    throw new EvalError(
+      "E_TYPE",
+      `cursor component for ${table}.${index} column ${column} must be ${expected}, got ${actual.toLowerCase()}`,
+    );
+  }
+}
+
+function assertIndexableScalar(value: Value, what: string): void {
+  const actual = kindOf(value);
+  if (!["Null", "Bool", "Int", "String", "Id", "Bytes"].includes(actual)) {
+    throw new EvalError("E_TYPE", `${actual.toLowerCase()} is not an indexable scalar (${what})`);
+  }
+}
+
+function cursorColumnKind(descriptor: any): "Id" | "String" | "Int" | "Bool" | "Bytes" | "scalar" {
+  if (descriptor?.Optional !== undefined) return cursorColumnKind(descriptor.Optional);
+  if (descriptor === "Id" || descriptor === "Principal" || descriptor?.Ref !== undefined) return "Id";
+  if (descriptor?.Text !== undefined || descriptor?.Enum !== undefined) return "String";
+  if (["Int", "Time"].includes(descriptor) || descriptor?.Decimal !== undefined || descriptor?.Money !== undefined) return "Int";
+  if (descriptor === "Bool") return "Bool";
+  if (descriptor?.Bytes !== undefined) return "Bytes";
+  return "scalar";
 }
 
 function substituteRuleTerm(term: any, columns: string[], probeKey: any[]): any | null {

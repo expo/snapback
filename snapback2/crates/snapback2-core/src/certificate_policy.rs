@@ -6,6 +6,8 @@ use crate::schema::{ColumnType, RuleExpr, RuleTerm, Schema};
 use crate::value::{I53_MAX, I53_MIN, Value};
 use std::collections::{BTreeMap, BTreeSet};
 
+mod cursors;
+
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 struct CappedSite {
     site: String,
@@ -251,14 +253,7 @@ impl CompletenessFlow<'_, '_> {
     fn expr(&mut self, expression: &Expr) -> Fact {
         match expression {
             Expr::Variable(name) => self.env.get(name).cloned().unwrap_or_default(),
-            Expr::Field { base, name } => {
-                let fact = self.expr(base);
-                if name == "hasMore" {
-                    fact.made_structural()
-                } else {
-                    fact
-                }
-            }
+            Expr::Field { base, .. } => self.expr(base),
             Expr::Binary { left, right, .. } => {
                 let mut fact = self.expr(left);
                 fact.merge(self.expr(right));
@@ -644,12 +639,13 @@ fn validate_expr(
         }
         Expr::Get(read) | Expr::Exists(read) => {
             register_site(sites, errors, &read.site, ReadSiteShape::point(read));
-            validate_read(checker, &read.table, &read.index, errors)
+            validate_read(checker, &read.table, &read.index, errors);
+            validate_point_key_arity(checker, read, errors);
         }
         Expr::Scan(scan) => {
             register_site(sites, errors, &scan.site, ReadSiteShape::range(scan));
             validate_read(checker, &scan.table, &scan.index, errors);
-            validate_scan_cursors(checker, program, scan, bindings, errors);
+            cursors::validate_scan_cursors(checker, program, scan, bindings, errors);
             if let Bound::Arg { name, .. } = &scan.take
                 && !program.args.contains_key(name)
             {
@@ -657,6 +653,28 @@ fn validate_expr(
                     code: "E_UNBOUND_SCAN".to_owned(),
                     message: format!("scan {} take arg {name} is not declared", scan.site),
                     rewrite: "declare the bounded take argument on the program".to_owned(),
+                });
+            }
+        }
+        Expr::Field { base, name } => {
+            let fact = static_expression_fact(
+                checker.schema,
+                program,
+                base,
+                bindings,
+                &mut BTreeSet::new(),
+            );
+            if matches!(unwrap_static_type(&fact.kind), StaticType::List { .. }) {
+                // @ref LLP 1001#3-read-and-write-states-no-silent-states — a
+                // page is a list, not an object carrying hidden pagination state.
+                errors.push(CheckError {
+                    code: "E_ARGS_TYPE".to_owned(),
+                    message: format!(
+                        ".{name} is read from a list (a page); lists have no fields"
+                    ),
+                    rewrite: format!(
+                        "iterate the page (`for (const row of page)`) or take an element before reading `.{name}`"
+                    ),
                 });
             }
         }
@@ -719,91 +737,6 @@ impl StaticFact {
             invalid_id_arithmetic: false,
         }
     }
-}
-
-fn validate_scan_cursors(
-    checker: &Checker<'_>,
-    program: &Program,
-    scan: &Scan,
-    bindings: &BTreeMap<String, StaticBinding>,
-    errors: &mut Vec<CheckError>,
-) {
-    if scan.after.is_none() && scan.before.is_none() {
-        return;
-    }
-    let Some(table) = checker.schema.table(&scan.table) else {
-        return;
-    };
-    let Some(index) = table.index(&scan.index) else {
-        return;
-    };
-    // @ref LLP 1001#3-read-and-write-states-no-silent-states — a cursored index must be a total order (ends in `id`, or is
-    // unique); the runtime accepts the lossy shape, so this is a policy refusal.
-    if index.columns.last().map(String::as_str) != Some("id") && !index.unique {
-        let columns = index
-            .columns
-            .iter()
-            .filter(|column| column.as_str() != "id")
-            .cloned()
-            .chain(std::iter::once("id".to_owned()))
-            .collect::<Vec<_>>()
-            .join(", ");
-        errors.push(CheckError {
-            code: "E_ARGS_CURSOR_INDEX".to_owned(),
-            message: format!(
-                "scan {} uses a cursor on {}.{}, whose index is not a total order (it neither ends in id nor is unique)",
-                scan.site, scan.table, scan.index
-            ),
-            rewrite: format!(
-                "change {}.{} columns to [{columns}] so every cursor position is a total order",
-                scan.table, scan.index
-            ),
-        });
-        return;
-    }
-    let remaining_columns = index.columns.get(scan.prefix.len()..).unwrap_or_default();
-    for (bound, expression) in [
-        ("after", scan.after.as_deref()),
-        ("before", scan.before.as_deref()),
-    ] {
-        let Some(expression) = expression else {
-            continue;
-        };
-        let mut seen = BTreeSet::new();
-        let fact = static_expression_fact(checker.schema, program, expression, bindings, &mut seen);
-        let expected = remaining_columns.len();
-        let shape_matches = match unwrap_static_type(&fact.kind) {
-            StaticType::List {
-                len: Some(actual), ..
-            } => Some(*actual == expected),
-            StaticType::List { len: None, .. } | StaticType::Unknown | StaticType::Json => None,
-            StaticType::Row(_) | StaticType::Object => (expected != 1).then_some(false),
-            _ => Some(expected == 1),
-        };
-        if shape_matches == Some(false) {
-            errors.push(CheckError {
-                code: "E_ARGS_CURSOR_SHAPE".to_owned(),
-                message: format!(
-                    "scan {} {bound} cursor must contain exactly {expected} value(s), one for each remaining {}.{} index column",
-                    scan.site, scan.table, scan.index
-                ),
-                rewrite: cursor_tuple_rewrite(scan, bound, remaining_columns),
-            });
-            continue;
-        }
-    }
-}
-
-fn cursor_tuple_rewrite(scan: &Scan, bound: &str, columns: &[String]) -> String {
-    let tuple = columns
-        .iter()
-        .map(|column| format!("lastRow.{column}"))
-        .collect::<Vec<_>>()
-        .join(", ");
-    format!(
-        "carry the last returned row and set {bound}: [{tuple}] when scanning {}.{}",
-        scan.table, scan.index
-    )
 }
 
 fn validate_write_expression(
@@ -1277,6 +1210,36 @@ fn validate_read(checker: &Checker<'_>, table: &str, index: &str, errors: &mut V
     if let Some(error) = error {
         errors.push(error);
     }
+}
+
+fn validate_point_key_arity(checker: &Checker<'_>, read: &Read, errors: &mut Vec<CheckError>) {
+    let Some(index) = checker
+        .schema
+        .table(&read.table)
+        .and_then(|table| table.index(&read.index))
+    else {
+        return;
+    };
+    if read.key.len() == index.columns.len() {
+        return;
+    }
+    errors.push(CheckError {
+        code: "E_ARGS_TYPE".to_owned(),
+        message: format!(
+            "point read {} key supplies {} components but {}.{} has {} columns",
+            read.site,
+            read.key.len(),
+            read.table,
+            read.index,
+            index.columns.len(),
+        ),
+        rewrite: format!(
+            "supply exactly {} key components when reading {}.{}",
+            index.columns.len(),
+            read.table,
+            read.index,
+        ),
+    });
 }
 
 fn visit_statement_exprs(statement: &Stmt, visit: &mut impl FnMut(&Expr)) {

@@ -45,7 +45,7 @@ import { isOperationCompositeBinding, withDirectRewrite } from "./operation-cont
 import { guardedWalk, MAX_RECURSION_DEPTH } from "./recursion";
 import { derivedBound, operationArgumentList, staticBound } from "./binding-bound";
 import { maintainCollectionFacts } from "./collection-facts";
-import { checkTupleCursor } from "./cursor";
+import { checkScanPrefix, checkTupleCursor } from "./cursor";
 import { isIdType } from "../authored-types";
 function concatExpressions(expressions: Expr[]): Expr {
   return expressions.slice(1).reduce<Expr>(
@@ -684,8 +684,10 @@ function lowerScan(call: ts.CallExpression, env: Environment, hint?: string): Sc
   const loweredPrefix = lowerKey(prefix, env);
   const afterNode = expressionProperty(options, "after");
   const beforeNode = expressionProperty(options, "before");
-  checkTupleCursor(afterNode, env, ref.table, ref.index, loweredPrefix.length);
-  checkTupleCursor(beforeNode, env, ref.table, ref.index, loweredPrefix.length);
+  if (checkScanPrefix(prefix, env, ref.table, ref.index, loweredPrefix.length)) {
+    checkTupleCursor(afterNode, env, ref.table, ref.index, loweredPrefix.length);
+    checkTupleCursor(beforeNode, env, ref.table, ref.index, loweredPrefix.length);
+  }
   return {
     site: allocateReadSite(env),
     table: ref.table,
@@ -730,7 +732,8 @@ export function lowerKey(node: ts.Expression, env: Environment): Expr[] {
     const identity = env.variables.get(value.text)?.identityExpression;
     if (identity && "Array" in identity) return identity.Array;
   }
-  return [lowerExpr(value, env)];
+  const lowered = lowerExpr(value, env);
+  return "Array" in lowered ? lowered.Array : [lowered];
 }
 
 export function cloneEnvironment(env: Environment): Environment {

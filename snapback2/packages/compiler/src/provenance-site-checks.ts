@@ -23,7 +23,8 @@ const schema = {
     columns: { id: "Id", key: { Text: { max: 40 } } },
     indexes: {
       byId: { columns: ["id"], unique: true },
-      byKey: { columns: ["key", "id"], unique: false },
+      byKey: { columns: ["key"], unique: true },
+      byKeyId: { columns: ["key", "id"], unique: true },
     },
     rules: { read: "Allow", insert: "Allow", update: "Allow", delete: "Allow" },
     constraints: [],
@@ -259,7 +260,7 @@ export const stableLet = query({ key: t.text(40) }, ({ db, args }) => {
 
     const lexical = lowerSource(`import { query, t } from "snapback2";
 export const renamed = query({ key: t.text(40) }, ({ db, args: packed, ctx: identity }) =>
-  db.get(items.byKey, [packed.key, identity.viewer]));
+  db.get(items.byKeyId, [packed.key, identity.viewer]));
 export const shadowed = query({ key: t.text(40) }, ({ db, args }) =>
   db.scan(alpha.byKey, [args.key], { take: 10 }).map(args => db.get(beta.byKey, [args.key])));`,
     "lexical-bindings.ts", undefined, { tables });

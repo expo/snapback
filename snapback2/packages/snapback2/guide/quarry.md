@@ -40,6 +40,8 @@ money. Seeds remain TypeScript and must provide minor-unit integers directly.
 `principal` is the nominal type of `viewer`. It is neither a table reference
 nor `id`, even though all three have ID-shaped wire values. A column compared
 with `viewer`, or assigned `viewer`, must be `principal`.
+A text literal in an Id position (key, cursor, equality, or `??` fallback) is
+an Id value on the wire.
 
 Tables get `id` and `byId` implicitly. `by name: a, b` declares a named
 ordering; `by a, b` infers `byAB`. `unique name: a, b` declares a named unique
@@ -91,11 +93,13 @@ Point reads select a complete unique key. Range reads use `first N` or
 resolve ambiguity. Shapes use `{ * }`, bare row fields, or `name: expression`.
 Nested reads and shapes are bounded by the same compiler policy.
 
-A cursor is the row's ordering position after the selected index prefix,
-written as a tuple of the remaining index columns. A cursored index must be a
-total order: it ends in `id`, or it is unique; any other index is refused for
-cursors because tied keys would be skipped between pages. Scalar cursor sugar is legal only
-when one column remains. `after` continues past the cursor in scan order.
+A cursor is the post-prefix ordering tuple; the prefix must leave a column.
+Components are indexable scalars matching their column kinds, with `Null` as
+the universal pre-first sentinel. Scalar sugar needs exactly one remaining
+column. The index must end in `id` or be unique, or tied keys could be skipped.
+Refusals paste `.q` repairs: append `id` to `by`, reorder the tuple, or drop the
+clause for a full prefix. After appending `id` to an index, widen the cursor
+tuple to include the new `id` component. `after` continues in scan order;
 `before c last N` lowers to `{ order: "desc", after: c }`.
 
 `where predicate` follows a bounded range read. The compiler fetches at most
@@ -226,12 +230,11 @@ and rewrite map back to the `.q` statement.
 
 ## Absence and bounds
 
-Point reads return a row or absence. Shapes over an absent point read are
-absent. Optional member selection remains absent. `!` turns absence into a
-named refusal, and `??` handles it explicitly. Alternate-key update and delete
-also turn a missing point into `NOT_FOUND`; alternate-key upsert instead uses
-its absent branch. Scalar-id writes retain the platform behavior: deleting a
-missing id commits as a no-op, while updating one rejects with `E_INPUT`.
+Point reads return a row or absence; absent shapes and optional members stay
+absent. `!` names a refusal and `??` handles absence. Alternate-key update and
+delete map a missing or unreadable row to `NOT_FOUND`; the same unreadable row
+updated by id yields `E_RULE`. Alternate-key upsert uses its absent branch.
+Deleting a missing id is a no-op; updating one yields `E_INPUT`.
 Changing only the key spelling can therefore change missing-row behavior. A
 missing maintained group is zero only through `#`; the ordinary target-table
 read remains absent.

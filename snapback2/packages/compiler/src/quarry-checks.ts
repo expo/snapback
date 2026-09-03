@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
+import { ClientStore, type ClosureReceipt, type Context } from "../../evaluator/src/evaluator";
 import type { FrontendDiagnostic, Program } from "./ir";
 import { lowerProject } from "./project";
 import { rustCheck } from "./rust-check";
@@ -337,6 +338,184 @@ query ordered(a: int, b: int):
     });
   });
 
+  test("Quarry optional cursor components defer their non-null arm to runtime", async () => {
+    const schema = "table posts:\n  at: time\n  by byAt: at, id\n  public\n";
+    const operations = `query page(afterAt: text <=80 ?, afterId: posts):
+  return posts[] after (afterAt, afterId) first 3 by byAt
+`;
+    await withProject({ "snapback/schema.q": schema, "snapback/ops.q": operations }, async (root) => {
+      const lowered = await lowerProject(root);
+      assert(lowered.ok, `optional Quarry cursor was refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
+      const failures = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema).filter((item) => item.error);
+      assert(failures.length === 0, `optional Quarry cursor failed raw certification: ${JSON.stringify(failures)}`);
+    });
+  });
+
+  test("Quarry cursor refusals stay sited and rewrite Quarry source", () => {
+    const nonTotalSchema = "table posts:\n  author: principal\n  at: time\n  by byAuthorAt: author, at\n  public\n";
+    const nonTotalOps = "query page(cursor: principal, cursorAt: time, cursorId: posts):\n  return posts[] after cursor first 3 by byAuthorAt\n";
+    const nonTotal = compileInline([
+      { fileName: "snapback/schema.q", source: nonTotalSchema },
+      { fileName: "snapback/ops.q", source: nonTotalOps },
+    ]);
+    assert(!nonTotal.ok, "cursor on a non-total Quarry index compiled");
+    const indexRefusals = nonTotal.diagnostics.filter((item) => item.code === "E_QUARRY_TYPE");
+    assert(indexRefusals.length === 1 && indexRefusals[0]!.site.startsWith("snapback/schema.q:")
+      && indexRefusals[0]!.message.includes("snapback/ops.q:2:")
+      && indexRefusals[0]!.rewrite === "-- by byAuthorAt: author, at, id",
+    `non-total cursor lost its exact Quarry rewrite: ${JSON.stringify(nonTotal)}`);
+    assert(nonTotal.diagnostics.every((item) => item.code !== "E_ARGS_CURSOR_INDEX"),
+      `platform cursor-index refusal leaked through Quarry: ${JSON.stringify(nonTotal)}`);
+    const totalSchemaRepair = nonTotalSchema.replace("by byAuthorAt: author, at", indexRefusals[0]!.rewrite.slice(3));
+    const afterIndexRepair = compileInline([
+      { fileName: "snapback/schema.q", source: totalSchemaRepair },
+      { fileName: "snapback/ops.q", source: nonTotalOps },
+    ]);
+    assert(!afterIndexRepair.ok, "index-only cursor repair unexpectedly skipped tuple widening");
+    const widened = afterIndexRepair.diagnostics.find((item) => item.code === "E_QUARRY_TYPE");
+    assert(widened?.rewrite === "-- after (cursor, cursorAt, cursorId)",
+      `index repair did not lead to the tuple rewrite: ${JSON.stringify(afterIndexRepair)}`);
+    const afterBothRepairs = compileInline([
+      { fileName: "snapback/schema.q", source: totalSchemaRepair },
+      { fileName: "snapback/ops.q", source: nonTotalOps.replace("after cursor", widened!.rewrite.slice(3)) },
+    ]);
+    assert(afterBothRepairs.ok, `index + tuple cursor rewrites did not compile green: ${JSON.stringify(afterBothRepairs)}`);
+
+    const uniqueSchema = "table posts:\n  author: principal\n  at: time\n  unique byAuthorAt: author, at\n  public\n";
+    const unique = compileInline([
+      { fileName: "snapback/schema.q", source: uniqueSchema },
+      { fileName: "snapback/ops.q", source: "query page(cursor: principal, cursorAt: time):\n  return posts[] after cursor first 3 by byAuthorAt\n" },
+    ]);
+    assert(!unique.ok, "scalar cursor on a composite unique index compiled");
+    const tuple = unique.diagnostics.find((item) => item.code === "E_QUARRY_TYPE");
+    assert(tuple?.rewrite === "-- after (cursor, cursorAt)",
+      `unique index did not receive the tuple rewrite: ${JSON.stringify(unique)}`);
+
+    const totalSchema = "table posts:\n  author: principal\n  at: time\n  by byAuthorAt: author, at, id\n  public\n";
+    const fullPrefix = compileInline([
+      { fileName: "snapback/schema.q", source: totalSchema },
+      { fileName: "snapback/ops.q", source: "query page(author: principal, at: time, id: posts):\n  return posts[author, at, id] after id first 3 by byAuthorAt\n" },
+    ]);
+    assert(!fullPrefix.ok, "full-prefix Quarry cursor compiled");
+    const full = fullPrefix.diagnostics.find((item) => item.code === "E_QUARRY_TYPE");
+    assert(full?.site.startsWith("snapback/ops.q:")
+      && full.rewrite === "-- posts[author, at, id] first 3 by byAuthorAt",
+    `full-prefix cursor lost its drop-clause rewrite: ${JSON.stringify(fullPrefix)}`);
+
+    const wrongDomain = compileInline([
+      { fileName: "snapback/schema.q", source: totalSchema },
+      { fileName: "snapback/ops.q", source: `query page(previous: posts):
+  p = posts[previous]! else MISSING
+  return posts[p.author] after (p.id, p.at) first 3 by byAuthorAt
+` },
+    ]);
+    assert(!wrongDomain.ok, "wrong-domain Quarry cursor compiled");
+    const domain = wrongDomain.diagnostics.find((item) => item.code === "E_QUARRY_TYPE");
+    assert(domain?.site.startsWith("snapback/ops.q:") && domain.rewrite === "-- after (p.at, p.id)",
+      `wrong-domain cursor lost its Quarry tuple reorder: ${JSON.stringify(wrongDomain)}`);
+
+    const unrelatedMembers = compileInline([
+      { fileName: "snapback/schema.q", source: "table posts:\n  at: time\n  by byAt: at, id\n  public\n" },
+      { fileName: "snapback/ops.q", source: "query page(a: posts, b: time):\n  return posts[] after (a, b) first 3 by byAt\n" },
+    ]);
+    assert(!unrelatedMembers.ok, "wrong-domain tuple without a shared member base compiled");
+    const unrelated = unrelatedMembers.diagnostics.find((item) => item.code === "E_QUARRY_TYPE");
+    assert(unrelated?.message.includes("cursor component 1") && unrelated.rewrite === "-- after (b, a)",
+      `unrelated tuple members lost their unique permutation repair: ${JSON.stringify(unrelatedMembers)}`);
+    const permuted = compileInline([
+      { fileName: "snapback/schema.q", source: "table posts:\n  at: time\n  by byAt: at, id\n  public\n" },
+      { fileName: "snapback/ops.q", source: "query page(a: posts, b: time):\n  return posts[] after (a, b) first 3 by byAt\n".replace("after (a, b)", unrelated!.rewrite.slice(3)) },
+    ]);
+    assert(permuted.ok, `unique permutation cursor rewrite did not compile green: ${JSON.stringify(permuted)}`);
+
+    const noPermutationSource = "query page(a: posts, b: posts):\n  return posts[] after (a, b) first 3 by byAt\n";
+    const noPermutation = compileInline([
+      { fileName: "snapback/schema.q", source: "table posts:\n  at: time\n  by byAt: at, id\n  public\n" },
+      { fileName: "snapback/ops.q", source: noPermutationSource },
+    ]);
+    assert(!noPermutation.ok, "tuple with no valid permutation compiled");
+    const dropped = noPermutation.diagnostics.find((item) => item.code === "E_QUARRY_TYPE");
+    assert(dropped?.rewrite === "-- posts[] first 3 by byAt",
+      `tuple without one permutation did not drop its cursor: ${JSON.stringify(noPermutation)}`);
+    const cursorDropped = compileInline([
+      { fileName: "snapback/schema.q", source: "table posts:\n  at: time\n  by byAt: at, id\n  public\n" },
+      { fileName: "snapback/ops.q", source: noPermutationSource.replace("posts[] after (a, b) first 3 by byAt", dropped!.rewrite.slice(3)) },
+    ]);
+    assert(cursorDropped.ok, `drop-cursor rewrite did not compile green: ${JSON.stringify(cursorDropped)}`);
+  });
+
+  test("Quarry alternate-key unreadable updates are NOT_FOUND while direct-id updates are E_RULE", async () => {
+    const qSchema = `table secrets:
+  owner: principal
+  label: text <=40
+  unique byOwner: owner
+  read r <- r.owner = viewer
+  insert r <- allow
+  update r <- r.owner = viewer
+`;
+    const operations = `mutation alternate(owner: principal, label: text <=40):
+  ~secrets[owner] { label }
+  return true
+
+mutation direct(id: secrets, label: text <=40):
+  ~secrets[id] { label }
+  return true
+`;
+    await withProject({
+      "snapback/schema.q": qSchema,
+      "snapback/ops.q": operations,
+    }, async (root) => {
+      const lowered = await lowerProject(root);
+      assert(lowered.ok, `unreadable update pair did not lower: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
+      assert(rustCheck(lowered.project.programs, "synthetic", lowered.project.schema).every((item) => !item.error),
+        "unreadable update pair did not certify");
+      const receipt: ClosureReceipt = {
+        rows: [{ table: "secrets", id: "secret-1", row: { Row: {
+          id: { Id: "secret-1" }, owner: { Id: "owner-1" }, label: { String: "hidden" },
+        } } }],
+        ranges: [], absences: [], verdicts: [],
+      };
+      const context = (args: Context["args"]): Context => ({
+        viewer: "viewer-1", principal_kind: "user", auth_epoch: 1,
+        args, now: 1, new_ids: [], read_time: 1,
+      });
+      const executeCode = (program: Program, args: Context["args"]): string => {
+        const store = new ClientStore(lowered.project.schema, receipt);
+        try {
+          store.applyMutation(program, context(args));
+          return "green";
+        } catch (error) {
+          const refusal = error as { code?: string; authoredCode?: string | null };
+          return refusal.authoredCode ? `${refusal.code}:${refusal.authoredCode}` : refusal.code ?? "unknown";
+        }
+      };
+      assert(executeCode(operation(lowered.project.programs, "ops.alternate"), {
+        owner: { Id: "owner-1" }, label: { String: "changed" },
+      }) === "E_REQUIRE:NOT_FOUND", "alternate-key unreadable update did not produce E_REQUIRE:NOT_FOUND");
+      assert(executeCode(operation(lowered.project.programs, "ops.direct"), {
+        id: { Id: "secret-1" }, label: { String: "changed" },
+      }) === "E_RULE", "direct-id unreadable update did not produce E_RULE");
+    });
+  });
+
+  test("Quarry alternate-key update id is one front-end refusal", async () => {
+    const compiled = compileFixture(fixtures, "quarry-update-id", ["schema", "update"]);
+    assert(!compiled.ok, "alternate-key update naming id compiled");
+    const compileDiagnostics = compiled.diagnostics.filter((item) => item.code === "E_QUARRY_TYPE");
+    assert(compileDiagnostics.length === 1
+      && compileDiagnostics[0]!.site.startsWith("snapback/update.q:")
+      && compileDiagnostics[0]!.rewrite === '-- ~keyedRows[owner] { label: "changed" }',
+    `update id front-end refusal changed: ${JSON.stringify(compiled)}`);
+
+    const lowered = await lowerProject(resolve(fixtures, "quarry-update-id"));
+    assert(!lowered.ok, "alternate-key update naming id lowered");
+    assert(lowered.diagnostics.length === 1 && lowered.diagnostics[0]!.code === "E_QUARRY_TYPE"
+      && lowered.diagnostics[0]!.rewrite === '-- ~keyedRows[owner] { label: "changed" }',
+    `update id leaked platform diagnostics: ${JSON.stringify(lowered)}`);
+    assert(lowered.diagnostics.every((item) => item.code !== "E_SCHEMA_ID_RESERVED" && item.code !== "E_OPAQUE"),
+      `update id retained platform leakage: ${JSON.stringify(lowered)}`);
+  });
+
   test("Quarry maps platform refusals and operation source sites back to .q", async () => {
     const qSchema = readFileSync(resolve(fixtures, "quarry-chat/snapback/schema.q"), "utf8");
     const effect = readFileSync(resolve(fixtures, "quarry-chat/snapback/delivery.ts"), "utf8");
@@ -566,10 +745,10 @@ query ordered(a: int, b: int):
   });
 
   test("Quarry focal detection covers every expression container used by patches", () => {
-    const schema = "table users:\n  name: text <=50\n  public\n  by name\n\ntable nodes:\n  parent: nodes?\n  public\n\ntable posts:\n  author: users\n  node: nodes\n  authorName: text <=50\n  payload: json <=2048\n  related: logs?\n  flag: bool\n  public\n\ntable logs:\n  post: posts\n  public\n";
+    const schema = "table users:\n  name: text <=50\n  public\n  by byName: name, id\n\ntable nodes:\n  parent: nodes?\n  public\n\ntable posts:\n  author: users\n  node: nodes\n  authorName: text <=50\n  payload: json <=2048\n  related: logs?\n  flag: bool\n  public\n\ntable logs:\n  post: posts\n  public\n";
     const cases: Array<[string, string, string]> = [
       ["read", "authorName: users[.author].name", "db.get(users"],
-      ["cursor", "payload: users[] first 1 after .author by byName", "db.scan(users.byName"],
+      ["cursor", "payload: users['seed'] after .author first 1 by byName", "db.scan(users.byName"],
       ["array", "payload: [.author]", ".author"],
       ["exists", "flag: exists users[.author]", "db.exists(users"],
       ["walk", "payload: walk nodes[.node] up .parent depth 2", "recurse("],

@@ -1,4 +1,5 @@
 import type { TableInfo } from "./authored-types";
+import { ClientStore, canonicalValue, type ClosureReceipt, type Context, type Value } from "../../evaluator/src/evaluator";
 import { lowerSource, typecheckSource } from "./compiler";
 import type { FrontendDiagnostic, Program } from "./ir";
 import { rustCheck } from "./rust-check";
@@ -55,6 +56,22 @@ const schema = {
 
 const sourceHeader = `import { concat, mutation, query, t } from "snapback2";
 declare const items: any;`;
+
+function emptyReceipt(): ClosureReceipt {
+  return { rows: [], ranges: [], absences: [], verdicts: [] };
+}
+
+function twinContext(args: Record<string, Value> = {}): Context {
+  return {
+    viewer: "viewer-1",
+    principal_kind: "user",
+    auth_epoch: 1,
+    args,
+    now: 1,
+    new_ids: [],
+    read_time: 1,
+  };
+}
 
 export function registerRuntimeRedChecks(test: RegisterTest, assert: Assert, libText: string): void {
   const assertRewrite = (
@@ -134,8 +151,19 @@ export const page = query({ label: t.text(80) }, ({ db, args }) =>
     assert(rustCheck(uniqueLowered.programs, "synthetic", schema).every((result) => result.error === null),
       "raw certification refused a cursor on a unique index");
 
+    const wrongDomains = `${sourceHeader}
+export const page = query({ previousId: t.id() }, ({ db, args }) => {
+  const previous = db.get(items.byId, args.previousId)!;
+  return db.scan(items.byAt, [], { take: 2, after: [previous.id, previous.at] });
+});`;
+    const domainLowered = lowerSource(wrongDomains, "wrong-domains.ts", undefined, { tables });
+    assert(!domainLowered.ok, "wrong-domain tuple cursor unexpectedly lowered");
+    const domainRefusals = domainLowered.diagnostics.filter((item) => item.code === "E_ARGS_TYPE");
+    assert(domainRefusals.length === 2 && domainRefusals.every((item) => item.rewrite.includes("[previous.at, previous.id]")),
+      `wrong-domain tuple lost its typed reorder rewrite: ${JSON.stringify(domainLowered.diagnostics)}`);
+    assertRewrite(domainRefusals[0]!, "wrong-domains");
+
     for (const [name, cursor] of [
-      ["wrong-domains", "[previous.id, previous.at]"],
       ["unknown-list-field", "previous.tags"],
     ]) {
       const source = `${sourceHeader}
@@ -147,6 +175,112 @@ export const page = query({ previousId: t.id() }, ({ db, args }) => {
       assert(lowered.ok, `${name} cursor was refused despite runtime authority: ${lowered.ok ? "" : JSON.stringify(lowered.diagnostics)}`);
       assert(rustCheck(lowered.programs, "synthetic", schema).every((result) => result.error === null), `${name} failed raw certification`);
     }
+  });
+
+  test("optional scalar cursors defer their non-null arm and execute Null", () => {
+    const source = `${sourceHeader}
+export const page = query({ cursor: t.optional(t.int()) }, ({ db, args }) =>
+  db.scan(items.byId, [], { take: 2, after: args.cursor }));`;
+    const lowered = lowerSource(source, "optional-scalar-cursor.ts", undefined, { tables });
+    assert(lowered.ok, `optional scalar cursor was refused: ${lowered.ok ? "" : JSON.stringify(lowered.diagnostics)}`);
+    assert(rustCheck(lowered.programs, "synthetic", schema).every((result) => result.error === null),
+      "optional scalar cursor failed raw certification");
+    const store = new ClientStore(schema, emptyReceipt());
+    const execution = store.reexecute(lowered.programs[0]!, twinContext({ cursor: "Null" }));
+    assert(canonicalValue(execution.execution.result) === canonicalValue({ Array: [] }),
+      `Null optional cursor did not return an empty page: ${canonicalValue(execution.execution.result)}`);
+  });
+
+  test("missing point-read cursors stay runtime-authoritative while objects refuse", () => {
+    for (const [name, assertion] of [["plain", ""], ["asserted", "!"]] as const) {
+      const source = `${sourceHeader}
+export const page = query({}, ({ db }) =>
+  db.scan(items.byId, [], { take: 2, after: db.get(items.byId, "missing")${assertion} }));`;
+      const lowered = lowerSource(source, `${name}-point-cursor.ts`, undefined, { tables });
+      assert(lowered.ok, `${name} point-read cursor was refused: ${lowered.ok ? "" : JSON.stringify(lowered.diagnostics)}`);
+      assert(rustCheck(lowered.programs, "synthetic", schema).every((result) => result.error === null),
+        `${name} point-read cursor failed raw certification`);
+      const execution = new ClientStore(schema, emptyReceipt()).reexecute(lowered.programs[0]!, twinContext());
+      assert(canonicalValue(execution.execution.result) === canonicalValue({ Array: [] }),
+        `${name} missing point-read cursor did not execute as Null`);
+    }
+
+    for (const [name, declaration, cursor] of [
+      ["literal", "", "{}"],
+      ["typed", "const cursor = { invalid: true };", "cursor"],
+    ]) {
+      const source = `${sourceHeader}
+export const page = query({}, ({ db }) => {
+  ${declaration}
+  return db.scan(items.byId, [], { take: 2, after: ${cursor} });
+});`;
+      const lowered = lowerSource(source, `${name}-object-cursor.ts`, undefined, { tables });
+      assert(!lowered.ok && lowered.diagnostics.some((item) => item.code === "E_ARGS_CURSOR_SHAPE"),
+        `${name} object cursor was not refused by shape: ${JSON.stringify(lowered)}`);
+    }
+  });
+
+  test("twin rejects every non-indexable index ingress with engine wording", () => {
+    const expectNonIndexable = (run: () => unknown, label: string): void => {
+      let message = "green";
+      try {
+        run();
+      } catch (error) {
+        message = error instanceof Error ? error.message : String(error);
+      }
+      assert(message.startsWith("E_TYPE: row is not an indexable scalar") && message.includes(label),
+        `${label} produced ${message}`);
+    };
+    const queryProgram = (name: string, expression: any): Program => ({
+      name,
+      kind: "Query",
+      args: {},
+      read_time_granularity_ms: null,
+      body: [{ Return: expression }],
+    });
+    const runQuery = (program: Program): unknown =>
+      new ClientStore(schema, emptyReceipt()).reexecute(program, twinContext());
+
+    expectNonIndexable(() => runQuery(queryProgram("indexable.point", { Get: {
+      site: "indexable.point.0", table: "items", index: "byId",
+      key: [{ Object: {} }], provenance: "Const",
+    } })), "point read items.byId key component 1");
+    expectNonIndexable(() => runQuery(queryProgram("indexable.prefix", { Scan: {
+      site: "indexable.prefix.0", table: "items", index: "byId",
+      prefix: [{ Object: {} }], order: "Asc", take: { Literal: 1 },
+      after: null, before: null, range: null, provenance: "Const",
+    } })), "scan items.byId prefix component 1");
+    expectNonIndexable(() => runQuery(queryProgram("indexable.range", { Scan: {
+      site: "indexable.range.0", table: "items", index: "byId",
+      prefix: [], order: "Asc", take: { Literal: 1 }, after: null, before: null,
+      range: { gt: { Object: {} }, gte: null, lt: null, lte: null }, provenance: "Const",
+    } })), "scan items.byId range.gt");
+
+    const indexedJsonSchema = JSON.parse(JSON.stringify(schema));
+    indexedJsonSchema.tables.items.columns.payload = { Json: { max_bytes: 256 } };
+    indexedJsonSchema.tables.items.indexes.byPayload = { columns: ["payload", "id"], unique: false };
+    const row: Value = { Row: {
+      id: { Id: "row-1" }, at: { Int: 1 }, label: { String: "row" }, tags: "Null",
+      payload: { Row: { x: { Int: 1 } } },
+    } };
+    const receipt: ClosureReceipt = { ...emptyReceipt(), rows: [{ table: "items", id: "row-1", row }] };
+    expectNonIndexable(() => new ClientStore(indexedJsonSchema, receipt), "indexed column items.byPayload.payload");
+
+    const insert: Program = {
+      name: "indexable.insert",
+      kind: "Mutation",
+      args: {},
+      read_time_granularity_ms: null,
+      body: [{ Insert: { table: "items", row: { Object: {
+        id: { Literal: { Id: "row-1" } }, at: { Literal: { Int: 1 } },
+        label: { Literal: { String: "row" } }, tags: { Literal: "Null" },
+        payload: { Object: { x: { Literal: { Int: 1 } } } },
+      } } } }, { Return: { Literal: "Null" } }],
+    };
+    expectNonIndexable(
+      () => new ClientStore(indexedJsonSchema, emptyReceipt()).applyMutation(insert, twinContext()),
+      "indexed column items.byPayload.payload",
+    );
   });
 
   test("valid tuple cursors lower and certify", () => {
@@ -188,7 +322,7 @@ export const page = query({}, ({ db }) => {
       "loop-row cursor was refused by raw certification");
   });
 
-  test("raw IR refuses known cursor arity and stays silent on domains and unknown shapes", () => {
+  test("raw IR refuses known cursor arity and domains while staying silent on unknown shapes", () => {
     const cursorProgram = (name: string, after: any): Program => ({
       name,
       kind: "Query",
@@ -247,7 +381,10 @@ export const page = query({}, ({ db }) => {
       { Literal: { Id: "row-a" } }, { Literal: { Int: 5 } },
     ] });
     const domainsChecked = rustCheck([domains], "synthetic", schema)[0]!;
-    assert(domainsChecked.error === null, `runtime-accepted cursor domains got ${domainsChecked.error?.code}`);
+    assert(domainsChecked.error?.code === "E_ARGS_TYPE",
+      `wrong-domain raw cursor got ${domainsChecked.error?.code ?? "green"}`);
+    assert(domainsChecked.error.rewrite.includes("lastRow.at") && domainsChecked.error.rewrite.includes("lastRow.id"),
+      `wrong-domain raw cursor lost its tuple rewrite: ${JSON.stringify(domainsChecked.error)}`);
   });
 
   test("cursor rewrites ignore rows from other tables and add typed cursor arguments", () => {

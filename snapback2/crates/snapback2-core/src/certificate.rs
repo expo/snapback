@@ -904,6 +904,31 @@ impl<'a> Analyzer<'a> {
         calls: u64,
         factors: &[(String, u64)],
     ) -> Result<Summary, CheckError> {
+        // @ref LLP 1001#2-what-a-commit-records — a read nested in a scan's
+        // key or bounds is still a certified read site with its own budget.
+        let mut summary = Summary::default();
+        for value in &scan.prefix {
+            summary = summary.add(self.expr(value, calls, factors)?);
+        }
+        for value in [scan.after.as_deref(), scan.before.as_deref()]
+            .into_iter()
+            .flatten()
+        {
+            summary = summary.add(self.expr(value, calls, factors)?);
+        }
+        if let Some(range) = &scan.range {
+            for value in [
+                range.gt.as_deref(),
+                range.gte.as_deref(),
+                range.lt.as_deref(),
+                range.lte.as_deref(),
+            ]
+            .into_iter()
+            .flatten()
+            {
+                summary = summary.add(self.expr(value, calls, factors)?);
+            }
+        }
         let take = scan.take.maximum();
         let reserve = take.saturating_add(2);
         let hoist = crate::certificate_policy::uniform_visibility(self.schema, scan);
@@ -917,7 +942,6 @@ impl<'a> Analyzer<'a> {
         } else {
             0
         };
-        let mut summary = Summary::default();
         summary.reads.insert(
             scan.site.clone(),
             ReadSite {

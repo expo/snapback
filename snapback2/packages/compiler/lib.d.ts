@@ -48,6 +48,7 @@ declare module "snapback2" {
     { [K in keyof A as A[K] extends Arg<any, true> ? never : K]: A[K] extends Arg<infer T, any> ? T : never }
     & { [K in keyof A as A[K] extends Arg<any, true> ? K : never]?: A[K] extends Arg<infer T, any> ? T : never };
   export type Page<T> = Array<T>;
+  export type IndexableScalar = string | number | boolean | null | Bytes | Json;
   export type WriteValue<T> = T extends Principal ? Principal : T extends Decimal<any> ? number : T extends string ? string : T extends Array<infer U> ? WriteValue<U>[] : T;
   export type WriteRow<R extends Record<string, any>> = { [K in keyof R]: WriteValue<R[K]> };
   // @ref LLP 1001#1-store-storers — an update patch cannot rewrite the implicit storage identity.
@@ -59,10 +60,10 @@ declare module "snapback2" {
     scan<R extends Record<string, any>>(target: Table<R> | TableIndex<R>, prefix: unknown, options?: {
       order?: "asc" | "desc";
       take?: number;
-      /** Full ordering tuple after the prefix; scalar sugar is valid only when one index column remains, and cursored indexes end in id. */
-      after?: unknown[] | unknown;
-      /** Full ordering tuple after the prefix; scalar sugar is valid only when one index column remains, and cursored indexes end in id. */
-      before?: unknown[] | unknown;
+      /** Full post-prefix ordering tuple; scalar sugar needs one remaining column, the prefix may not name every column, and the index ends in id or is unique. Components are indexable scalars matching their column kinds; null is a universal pre-first sentinel. */
+      after?: readonly unknown[] | IndexableScalar;
+      /** Full post-prefix ordering tuple; scalar sugar needs one remaining column, the prefix may not name every column, and the index ends in id or is unique. Components are indexable scalars matching their column kinds; null is a universal pre-first sentinel. */
+      before?: readonly unknown[] | IndexableScalar;
       range?: { gt?: unknown; gte?: unknown; lt?: unknown; lte?: unknown };
     }): Page<R>;
     insert<R extends Record<string, any>>(target: Table<R>, row: WriteRow<R>): R;

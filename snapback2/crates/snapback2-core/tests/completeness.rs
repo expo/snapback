@@ -493,13 +493,7 @@ fn capped_only_counts_branches_and_writes_reuse_the_structural_fact_refusal() {
         })],
     };
 
-    for (program, minimum) in [
-        (count, 1),
-        (branch, 2),
-        (has_more, 2),
-        (write, 1),
-        (len_items, 1),
-    ] {
+    for (program, minimum) in [(count, 1), (branch, 2), (write, 1)] {
         let errors = Checker::new(&non_uniform_schema, Ceilings::default())
             .check_all(&program)
             .unwrap_err();
@@ -515,6 +509,34 @@ fn capped_only_counts_branches_and_writes_reuse_the_structural_fact_refusal() {
                 .contains("denormalize the authorization scope")
                 && error.rewrite.contains("maintained aggregate")
         }));
+    }
+
+    for (program, structural_count, field) in [(has_more, 2, "hasMore"), (len_items, 1, "items")] {
+        let errors = Checker::new(&non_uniform_schema, Ceilings::default())
+            .check_all(&program)
+            .expect_err("a statically known page has no fields");
+        assert_eq!(
+            errors.len(),
+            structural_count + 1,
+            "the list-type refusal must not hide structural refusals: {errors:?}"
+        );
+        assert_eq!(
+            errors
+                .iter()
+                .filter(|error| error.code == "E_STRUCTURAL_COUNT")
+                .count(),
+            structural_count,
+            "every structural refusal must remain visible: {errors:?}"
+        );
+        let list_error = errors
+            .iter()
+            .find(|error| error.code == "E_ARGS_TYPE")
+            .expect("page field access needs E_ARGS_TYPE");
+        assert_eq!(
+            list_error.message,
+            format!(".{field} is read from a list (a page); lists have no fields")
+        );
+        assert!(list_error.rewrite.contains("iterate the page"));
     }
 
     let uniform = Checker::new(&schema("owner"), Ceilings::default())

@@ -204,11 +204,13 @@ that follow `c` (`>` in ascending order, `<` in descending order), while
 A cursor is the full lexicographically compared post-prefix index tuple, the
 index must be a total order (it ends in `id`, or it is unique; certification
 refuses cursors on any other index because tied keys would be skipped between
-pages), and scalar sugar is accepted only for a one-column
-tuple; a nullable stored boundary component may carry `Null` as the
-pre-first-value sentinel because `Null` already participates in the engine's
-total scalar order. Explicit `range.gt/gte/lt/lte` bounds remain key-order
-comparisons.
+pages), and scalar sugar is accepted only for a one-column tuple. A cursor
+whose prefix already names every index column is refused (`E_SCHEMA` at
+runtime, `E_ARGS_CURSOR_SHAPE` at certification), because it has no position
+left to compare. Every component is an indexable scalar whose kind matches its
+column; `Null` is the universal pre-first-value sentinel because it already
+participates in the engine's total scalar order, while non-scalar components
+are refused. Explicit `range.gt/gte/lt/lte` bounds remain key-order comparisons.
 
 > ~~A drain always makes visible progress (no starvation).~~
 >

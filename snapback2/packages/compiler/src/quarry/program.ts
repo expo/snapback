@@ -463,7 +463,49 @@ function emitRead(expr: Extract<Expr, { kind: "read" }>, env: Environment, write
   if (expr.range) {
     if (expr.range.cursorKind === "before" && expr.range.order !== "desc") refuse(expr.range.site, "before is supported only with last N; use after with first N for ascending pagination");
     const remainingColumns = index.columns.slice(expr.keys.length);
-    if (expr.range.cursor && index.columns.at(-1) === "id"
+    if (expr.range.cursor && remainingColumns.length === 0) {
+      const { cursor: _cursor, cursorKind: _cursorKind, ...range } = expr.range;
+      typeError(
+        expr.range.cursor.site,
+        `scan ${expr.table}.${index.name} prefix names every index column, so a cursor has no position to compare; remove after/before or shorten the prefix`,
+        quarryExpression({ ...expr, range }),
+      );
+    }
+    if (expr.range.cursor && index.columns.at(-1) !== "id" && !index.unique) {
+      const columns = [...index.columns.filter((column) => column !== "id"), "id"];
+      typeError(
+        index.site,
+        `cursor at ${formatSite(expr.range.cursor.site)} uses \`${expr.table}.${index.name}\`, which is not a total order (it neither ends in id nor is unique)`,
+        `by ${index.name}: ${columns.join(", ")}`,
+      );
+    }
+    if (expr.range.cursor?.kind === "array") {
+      const cursor = expr.range.cursor;
+      const actual = cursor.items.map((item) => inferExpr(item, env));
+      const expected = remainingColumns.map((column) => column === "id"
+        ? { kind: "ref", table: expr.table, optional: false } satisfies ScalarType
+        : env.catalog.get(expr.table)?.columns.get(column));
+      const allInfer = actual.length === expected.length
+        && actual.every((type) => type !== undefined)
+        && expected.every((type) => type !== undefined);
+      const mismatch = allInfer
+        ? actual.findIndex((type, offset) =>
+          !cursorKindMatches(cursor.items[offset]!, type!, expected[offset]!))
+        : -1;
+      if (mismatch >= 0) {
+        const permutation = uniqueCursorPermutation(cursor.items, actual as ScalarType[], expected as ScalarType[]);
+        const { cursor: _cursor, cursorKind: _cursorKind, ...range } = expr.range;
+        const rewrite = permutation
+          ? `${expr.range.cursorKind ?? "after"} (${permutation.map(cursorRewriteExpression).join(", ")})`
+          : quarryExpression({ ...expr, range });
+        typeError(
+          expr.range.cursor.site,
+          `${expr.table}.${index.name} cursor component ${mismatch + 1} does not match ${remainingColumns[mismatch]}`,
+          rewrite,
+        );
+      }
+    }
+    if (expr.range.cursor && (index.columns.at(-1) === "id" || index.unique)
       && remainingColumns.length > 1 && expr.range.cursor.kind !== "array") {
       const cursor = expr.range.cursor;
       const first = cursor.kind === "name" ? cursor.name : remainingColumns[0]!;
@@ -781,6 +823,16 @@ function fieldCode(field: EvaluatedField): string { return `${property(field.nam
 
 function validateAddressedKeyFields(expr: Extract<Expr, { kind: "write" }>, index: IndexDecl): void {
   if (expr.op === "delete") return;
+  const authoredId = expr.op === "update"
+    ? expr.fields.find((field) => field.name === "id")
+    : undefined;
+  if (authoredId) {
+    typeError(
+      authoredId.site,
+      "update patches may not name id; row identity is immutable",
+      quarryWriteWithoutField(expr, authoredId),
+    );
+  }
   for (const [offset, column] of index.columns.entries()) {
     const field = expr.fields.find((candidate) => candidate.name === column);
     if (!field) continue;
@@ -844,6 +896,50 @@ function quarryExpression(expr: Expr): string {
   return quarryWriteWithoutField(expr, { name: "", site: expr.site });
 }
 
+function uniqueCursorPermutation(
+  items: Expr[],
+  actual: ScalarType[],
+  expected: ScalarType[],
+): Expr[] | undefined {
+  const matches: Expr[][] = [];
+  const visit = (offset: number, used: Set<number>, ordered: Expr[]): void => {
+    if (matches.length > 1) return;
+    if (offset === expected.length) {
+      matches.push([...ordered]);
+      return;
+    }
+    for (let index = 0; index < items.length; index += 1) {
+      if (used.has(index) || !cursorKindMatches(items[index]!, actual[index]!, expected[offset]!)) continue;
+      used.add(index);
+      ordered.push(items[index]!);
+      visit(offset + 1, used, ordered);
+      ordered.pop();
+      used.delete(index);
+    }
+  };
+  visit(0, new Set(), []);
+  return matches.length === 1 ? matches[0] : undefined;
+}
+
+function cursorRewriteExpression(expr: Expr): string {
+  const simple = simpleExpr(expr);
+  return simple === "x" ? quarryExpression(expr) : simple;
+}
+
+function cursorKindMatches(expr: Expr, actual: ScalarType, expected: ScalarType): boolean {
+  if (expr.kind === "literal" && expr.value === null) return true;
+  if (actual.optional) return true;
+  if (expected.kind === "json") return !["list"].includes(actual.kind);
+  if (["id", "principal", "ref"].includes(expected.kind)) {
+    return ["id", "principal", "ref"].includes(actual.kind);
+  }
+  if (["text", "enum"].includes(expected.kind)) return ["text", "enum"].includes(actual.kind);
+  if (["int", "time", "decimal", "money"].includes(expected.kind)) {
+    return ["int", "time", "decimal", "money"].includes(actual.kind);
+  }
+  return actual.kind === expected.kind;
+}
+
 function validateFieldType(field: ObjectField, actual: ValueType, expected: ScalarType | undefined): void {
   const expression = field.value ?? { kind: "name", name: field.name, site: field.site } satisfies Expr;
   if (expected?.kind === "int" && fractionalNumericLiteral(expression)) {
@@ -881,7 +977,10 @@ function inferExpr(expr: Expr, env: Environment): ScalarType | undefined {
   }
   if (expr.kind === "member") {
     const base = inferExpr(expr.base, env);
-    if (base?.kind === "ref" && base.table) return env.catalog.get(base.table)?.columns.get(expr.name);
+    if (base?.kind === "ref" && base.table) {
+      if (expr.name === "id") return { kind: "ref", table: base.table, optional: base.optional };
+      return env.catalog.get(base.table)?.columns.get(expr.name);
+    }
   }
   return undefined;
 }
@@ -996,6 +1095,7 @@ function literalNumber(expr: Expr | undefined): number | undefined { return expr
 function property(value: string): string { return /^[A-Za-z_$][\w$]*$/.test(value) ? value : JSON.stringify(value); }
 function title(value: string): string { return value.length === 0 ? value : value[0]!.toUpperCase() + value.slice(1); }
 function temporary(kind: string, site: Site): string { return `__q_${kind}_${site.line}_${site.col}`; }
+function formatSite(site: Site): string { return `${site.file}:${site.line}:${site.col}`; }
 
 function mentionsFocal(expr: Expr): boolean {
   if (expr.kind === "focal") return true;

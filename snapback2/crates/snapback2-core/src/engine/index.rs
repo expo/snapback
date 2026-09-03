@@ -122,6 +122,7 @@ pub(super) fn scan_indexed(
     connection: &Connection,
     table_name: &str,
     index_name: &str,
+    table: &Table,
     index: &Index,
     prefix: &[Value],
     after: Option<&Value>,
@@ -133,6 +134,13 @@ pub(super) fn scan_indexed(
     if prefix.len() > index.columns.len() {
         return Err(RuntimeError::Schema(format!(
             "scan {table_name}.{index_name} prefix has too many columns"
+        )));
+    }
+    // @ref LLP 1001#3-read-and-write-states-no-silent-states — a cursor must
+    // move a scan; a fully named index has no post-prefix position to compare.
+    if prefix.len() == index.columns.len() && (after.is_some() || before.is_some()) {
+        return Err(RuntimeError::Schema(format!(
+            "scan {table_name}.{index_name} prefix names every index column, so a cursor has no position to compare; remove after/before or shorten the prefix"
         )));
     }
     let mut parameters = vec![table_name.to_owned(), index_name.to_owned()];
@@ -149,7 +157,10 @@ pub(super) fn scan_indexed(
                 range_column,
                 if order == Order::Asc { ">" } else { "<" },
                 value,
-                index.columns.len(),
+                table_name,
+                index_name,
+                table,
+                index,
             )?;
         }
         if let Some(value) = before {
@@ -159,7 +170,10 @@ pub(super) fn scan_indexed(
                 range_column,
                 if order == Order::Asc { "<" } else { ">" },
                 value,
-                index.columns.len(),
+                table_name,
+                index_name,
+                table,
+                index,
             )?;
         }
         if let Some(range) = range {
@@ -225,8 +239,12 @@ fn push_cursor_bound(
     first_column: usize,
     operator: &str,
     cursor: &Value,
-    column_count: usize,
+    table_name: &str,
+    index_name: &str,
+    table: &Table,
+    index: &Index,
 ) -> Result<(), RuntimeError> {
+    let column_count = index.columns.len();
     let remaining = column_count - first_column;
     let values = match cursor {
         Value::Array(values) => values.as_slice(),
@@ -249,8 +267,22 @@ fn push_cursor_bound(
         .collect::<Vec<_>>()
         .join(", ");
     let mut placeholders = Vec::with_capacity(values.len());
-    for value in values {
-        parameters.push(encode_index_value(value)?);
+    for (offset, value) in values.iter().enumerate() {
+        let encoded = encode_index_value(value)?;
+        let column = &index.columns[first_column + offset];
+        let expected = table.columns.get(column).ok_or_else(|| {
+            RuntimeError::Schema(format!(
+                "index {table_name}.{index_name} names missing column {column}"
+            ))
+        })?;
+        if !cursor_value_matches_column(value, expected) {
+            return Err(RuntimeError::Schema(format!(
+                "cursor component for {table_name}.{index_name} column {column} must be {}, got {}",
+                cursor_column_kind(expected),
+                value.kind()
+            )));
+        }
+        parameters.push(encoded);
         placeholders.push(format!("?{}", parameters.len()));
     }
     predicates.push(format!(
@@ -258,6 +290,49 @@ fn push_cursor_bound(
         placeholders.join(", ")
     ));
     Ok(())
+}
+
+fn cursor_value_matches_column(value: &Value, column: &ColumnType) -> bool {
+    // @ref LLP 1001#3-read-and-write-states-no-silent-states — Null is the
+    // universal pre-first cursor sentinel, independent of stored nullability.
+    if matches!(value, Value::Null) {
+        return true;
+    }
+    match column {
+        ColumnType::Optional(inner) => cursor_value_matches_column(value, inner),
+        ColumnType::Id | ColumnType::Principal | ColumnType::Ref { .. } => {
+            matches!(value, Value::Id(_))
+        }
+        ColumnType::Text { .. } | ColumnType::Enum { .. } => {
+            matches!(value, Value::String(_))
+        }
+        ColumnType::Int
+        | ColumnType::Time
+        | ColumnType::Decimal { .. }
+        | ColumnType::Money { .. } => matches!(value, Value::Int(_)),
+        ColumnType::Bool => matches!(value, Value::Bool(_)),
+        ColumnType::Bytes { .. } => matches!(value, Value::Bytes(_)),
+        ColumnType::Json { .. } => matches!(
+            value,
+            Value::Bool(_) | Value::Int(_) | Value::String(_) | Value::Id(_) | Value::Bytes(_)
+        ),
+        ColumnType::List { .. } => false,
+    }
+}
+
+fn cursor_column_kind(column: &ColumnType) -> &'static str {
+    match column {
+        ColumnType::Optional(inner) => cursor_column_kind(inner),
+        ColumnType::Id | ColumnType::Principal | ColumnType::Ref { .. } => "Id",
+        ColumnType::Text { .. } | ColumnType::Enum { .. } => "String",
+        ColumnType::Int
+        | ColumnType::Time
+        | ColumnType::Decimal { .. }
+        | ColumnType::Money { .. } => "Int",
+        ColumnType::Bool => "Bool",
+        ColumnType::Bytes { .. } => "Bytes",
+        ColumnType::Json { .. } | ColumnType::List { .. } => "an indexable scalar",
+    }
 }
 
 pub(super) fn encode_index_value(value: &Value) -> Result<String, RuntimeError> {

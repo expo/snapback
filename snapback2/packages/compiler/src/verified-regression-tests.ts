@@ -650,7 +650,7 @@ export const compositeId = mutation({ a: t.id(), b: t.id() }, ({ db, args }) => 
       `evaluator accepted or differently classified a short sliced cursor: ${message}`);
   });
 
-  test("certification stays silent for runtime cursor and viewer values, and the twin executes them", () => {
+  test("cursor and viewer parity accepts valid values and rejects known wrong domains", () => {
     const idType = { kind: "string", id: true } as const;
     const itemsInfo: TableInfo = {
       name: "items", private: false,
@@ -798,8 +798,12 @@ export const concatInsert = mutation({ owner: t.ref(users) }, ({ db, ctx, args }
         before: null, range: null, provenance: "Const",
       } } }],
     };
-    assert(rustCheck([domainCursor], "synthetic", schema)[0]!.error === null, "cursor domain tags were refused");
-    runProgram(domainCursor, {}, [], schema, receipt);
+    const domainRefusal = rustCheck([domainCursor], "synthetic", schema)[0]!.error;
+    assert(domainRefusal?.code === "E_ARGS_TYPE", `wrong-domain cursor got ${domainRefusal?.code ?? "green"}`);
+    let domainRuntime = "";
+    try { runProgram(domainCursor, {}, [], schema, receipt); } catch (error) { domainRuntime = String(error); }
+    assert(domainRuntime.includes("E_TYPE: cursor component for items.byAt column at must be Int, got id"),
+      `wrong-domain cursor stayed twin-green: ${domainRuntime}`);
 
     const jsonWrite: Program = {
       name: "raw.jsonWrite", kind: "Mutation", args: { id: { Json: { max_bytes: 1024 } } }, read_time_granularity_ms: null,
@@ -896,6 +900,7 @@ export const concatInsert = mutation({ owner: t.ref(users) }, ({ db, ctx, args }
     for (const [program, code, args] of [
       [wrongCursor, "E_ARGS_CURSOR_SHAPE", {}],
       [wrongCursorArray, "E_ARGS_CURSOR_SHAPE", {}],
+      [wrongCursorObject, "E_ARGS_CURSOR_SHAPE", {}],
       [wrongId, "E_ARGS_ID_SCALAR", {}],
       [wrongRow, "E_ARGS_TYPE", {}],
       [wrongField, "E_ARGS_TYPE", {}],
@@ -914,13 +919,16 @@ export const concatInsert = mutation({ owner: t.ref(users) }, ({ db, ctx, args }
       try { runProgram(program, args, [], schema, receipt); } catch { runtimeRed = true; }
       assert(runtimeRed, `${program.name} was certify-red but runtime-green`);
     }
-    assert(rustCheck([wrongCursorObject], "synthetic", schema)[0]!.error === null,
-      "one-column object cursor should defer scalar indexability to runtime");
-    runProgram(wrongCursorObject, {}, [], schema, { ...emptyReceipt, rows: [{
-      table: "items", id: "row", row: { Row: {
-        id: { Id: "row" }, at: { Int: 1 }, label: { String: "held" },
-      } },
-    }] });
+    let objectRuntime = "";
+    try {
+      runProgram(wrongCursorObject, {}, [], schema, { ...emptyReceipt, rows: [{
+        table: "items", id: "row", row: { Row: {
+          id: { Id: "row" }, at: { Int: 1 }, label: { String: "held" },
+        } },
+      }] });
+    } catch (error) { objectRuntime = String(error); }
+    assert(objectRuntime.includes("E_TYPE: row is not an indexable scalar (cursor component for items.byId column id)"),
+      `one-column object cursor stayed twin-green: ${objectRuntime}`);
   });
 
   test("cursor-index and Id-text guide right forms type-check, lower, and certify", async () => {
