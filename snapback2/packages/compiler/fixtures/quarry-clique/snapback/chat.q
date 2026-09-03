@@ -9,24 +9,24 @@ mutation startDm(other: users):
     return existing.conv
   else:
     cid = new
-    +conversations { id: cid, kind: 'dm', creator: viewer, createdAt: now, lastAt: now }
-    +dms { lo, hi, conv: cid }
+    insert conversations { id: cid, kind: 'dm', creator: viewer, createdAt: now, lastAt: now }
+    insert dms { lo, hi, conv: cid }
     for principal in [viewer, peer.principal]:
-      +members { conv: cid, user: principal, role: 'member', joinedAt: now }
+      insert members { conv: cid, user: principal, role: 'member', joinedAt: now }
     for principal in [viewer, peer.principal]:
-      +inbox { user: principal, conv: cid, joinedAt: now }
+      insert inbox { user: principal, conv: cid, joinedAt: now }
     return cid
 
 mutation createGroup(name: text <=50, description: text <=200 ?, invitees: [users] <=49):
   cid = new
-  +conversations { id: cid, kind: 'group', name, description, creator: viewer, createdAt: now, lastAt: now }
-  +members { conv: cid, user: viewer, role: 'admin', joinedAt: now }
-  +inbox { user: viewer, conv: cid, joinedAt: now }
+  insert conversations { id: cid, kind: 'group', name, description, creator: viewer, createdAt: now, lastAt: now }
+  insert members { conv: cid, user: viewer, role: 'admin', joinedAt: now }
+  insert inbox { user: viewer, conv: cid, joinedAt: now }
   for u in invitees:
     person = users[u]! else USER_NOT_FOUND
     if person.principal != viewer:
-      +members { conv: cid, user: person.principal, role: 'member', joinedAt: now }
-      +inbox { user: person.principal, conv: cid, joinedAt: now }
+      insert members { conv: cid, user: person.principal, role: 'member', joinedAt: now }
+      insert inbox { user: person.principal, conv: cid, joinedAt: now }
   return cid
 
 mutation addMember(c: conversations, u: users):
@@ -36,8 +36,8 @@ mutation addMember(c: conversations, u: users):
   require me.role = 'admin' else NOT_ADMIN
   person = users[u]! else USER_NOT_FOUND
   require not exists members[c, person.principal] else ALREADY_MEMBER
-  +members { conv: conv.id, user: person.principal, role: 'member', joinedAt: now }
-  +inbox { user: person.principal, conv: conv.id, joinedAt: now }
+  insert members { conv: conv.id, user: person.principal, role: 'member', joinedAt: now }
+  insert inbox { user: person.principal, conv: conv.id, joinedAt: now }
   return true
 
 mutation removeMember(c: conversations, u: users):
@@ -46,9 +46,9 @@ mutation removeMember(c: conversations, u: users):
   person = users[u]! else USER_NOT_FOUND
   require person.principal != viewer else USE_LEAVE
   row = members[c, person.principal]! else NOT_A_MEMBER
-  -members[row.id]
+  delete members[row.id]
   gone = inbox[person.principal, c]! else NO_INBOX
-  -inbox[gone.id]
+  delete inbox[gone.id]
   return true
 
 mutation promoteAdmin(c: conversations, u: users):
@@ -56,46 +56,47 @@ mutation promoteAdmin(c: conversations, u: users):
   require me.role = 'admin' else NOT_ADMIN
   person = users[u]! else USER_NOT_FOUND
   row = members[c, person.principal]! else NOT_A_MEMBER
-  ~members[row.id] { role: 'admin' }
+  update members[row.id] { role: 'admin' }
   return true
 
 mutation leaveGroup(c: conversations):
   conv = conversations[c]! else NOT_FOUND
   require conv.kind = 'group' else NOT_GROUP
   row = members[c, viewer]! else NOT_MEMBER
-  -members[row.id]
+  delete members[row.id]
   gone = inbox[viewer, c]! else NO_INBOX
-  -inbox[gone.id]
+  delete inbox[gone.id]
   return true
 
 mutation send(c: conversations, body: text <=2000, quoted: messages ?, ord: int):
   require exists members[c, viewer] else NOT_MEMBER
   mid = new
   t = now
-  +messages { id: mid, conv: c, author: viewer, body, quoted, at: t, ord }
-  ~conversations[c] { lastAt: t }
+  insert messages { id: mid, conv: c, author: viewer, body, quoted, at: t, ord }
+  update conversations[c] { lastAt: t }
   m = messages[mid]! else IMPOSSIBLE
   return m { id, at }
 
 -- Receipt watermarks remain hand-kept and monotonic.
 mutation markDelivered(c: conversations, upTo: time):
   m = members[c, viewer]! else NOT_MEMBER
-  if m.lastDeliveredAt >= upTo:
-    return false
-  else:
-    ~members[m.id] { lastDeliveredAt: upTo }
-    return true
+  if m.lastDeliveredAt != null:
+    if m.lastDeliveredAt! >= upTo:
+      return false
+  update members[m.id] { lastDeliveredAt: upTo }
+  return true
 
 mutation markRead(c: conversations, upTo: time):
   m = members[c, viewer]! else NOT_MEMBER
-  if m.lastReadAt >= upTo:
-    return false
-  else:
-    if m.lastDeliveredAt >= upTo:
-      ~members[m.id] { lastReadAt: upTo }
-    else:
-      ~members[m.id] { lastReadAt: upTo, lastDeliveredAt: upTo }
-    return true
+  if m.lastReadAt != null:
+    if m.lastReadAt! >= upTo:
+      return false
+  if m.lastDeliveredAt != null:
+    if m.lastDeliveredAt! >= upTo:
+      update members[m.id] { lastReadAt: upTo }
+      return true
+  update members[m.id] { lastReadAt: upTo, lastDeliveredAt: upTo }
+  return true
 
 query myConversations():
   return inbox[user = viewer] first 50 by byUserConv {
@@ -121,14 +122,7 @@ query convMembers(c: conversations):
     profile: users[principal = .user] { displayName, handle },
   }
 
-query chatThread(c: conversations):
-  return messages[c] first 30 by byConvOrd {
-    *,
-    authorProfile: users[principal = .author] { displayName, handle },
-    quotedMsg: .quoted { id, body, author },
-  }
-
-query chatThreadBefore(c: conversations, cursorOrd: int, cursorId: messages):
+query chatThread(c: conversations, cursorOrd: int ?, cursorId: messages ?):
   return messages[c] after (cursorOrd, cursorId) first 30 by byConvOrd {
     *,
     authorProfile: users[principal = .author] { displayName, handle },

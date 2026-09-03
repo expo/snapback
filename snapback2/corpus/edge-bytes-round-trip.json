@@ -76,6 +76,8 @@
             "after": null,
             "before": null,
             "range": null,
+            "optional_cursor_args": [],
+            "merge_site": null,
             "provenance": "Const"
           }
         }
@@ -84,7 +86,7 @@
   },
   "certificate": {
     "program": "bytesRoundTrip",
-    "plan_hash": "dcfa0ba551582ddd87bd04c01421dc38bbf32619246913959614c94d0237ecb2",
+    "plan_hash": "c595621219e4b806f003573044955c4327a646b547380bb0403cfd5575aac65e",
     "schema_hash": "aa3ab3dc991fa93b6e94897fbf6f338594e4b7beb58d876654645f9bb832de18",
     "rule_hashes": {
       "blobs.read": "e4b1bd5e6b4e5a53500b2fc0623371af6d2488bb32b96214d514e9eb79ede6e5"

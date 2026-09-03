@@ -177,7 +177,7 @@ export const page = query({ previousId: t.id() }, ({ db, args }) => {
     }
   });
 
-  test("optional scalar cursors defer their non-null arm and execute Null", () => {
+  test("optional scalar cursor groups omit absent cursor clauses", () => {
     const source = `${sourceHeader}
 export const page = query({ cursor: t.optional(t.int()) }, ({ db, args }) =>
   db.scan(items.byId, [], { take: 2, after: args.cursor }));`;
@@ -185,10 +185,12 @@ export const page = query({ cursor: t.optional(t.int()) }, ({ db, args }) =>
     assert(lowered.ok, `optional scalar cursor was refused: ${lowered.ok ? "" : JSON.stringify(lowered.diagnostics)}`);
     assert(rustCheck(lowered.programs, "synthetic", schema).every((result) => result.error === null),
       "optional scalar cursor failed raw certification");
+    assert(JSON.stringify(lowered.programs[0]).includes('"optional_cursor_args":["cursor"]'),
+      `optional scalar cursor lost its runtime group: ${JSON.stringify(lowered.programs[0])}`);
     const store = new ClientStore(schema, emptyReceipt());
     const execution = store.reexecute(lowered.programs[0]!, twinContext({ cursor: "Null" }));
     assert(canonicalValue(execution.execution.result) === canonicalValue({ Array: [] }),
-      `Null optional cursor did not return an empty page: ${canonicalValue(execution.execution.result)}`);
+      `absent optional cursor failed on an empty first page: ${canonicalValue(execution.execution.result)}`);
   });
 
   test("missing point-read cursors stay runtime-authoritative while objects refuse", () => {

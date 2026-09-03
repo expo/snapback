@@ -73,6 +73,8 @@ fn range_point_and_absence_invalidation_is_exact_and_reruns_coalesce() {
             after: None,
             before: None,
             range: None,
+            optional_cursor_args: Vec::new(),
+            merge_site: None,
             provenance: KeyProvenance::Arg,
         }))],
     };
@@ -104,6 +106,8 @@ fn range_point_and_absence_invalidation_is_exact_and_reruns_coalesce() {
             after: None,
             before: None,
             range: None,
+            optional_cursor_args: Vec::new(),
+            merge_site: None,
             provenance: KeyProvenance::Arg,
         }))],
     };
@@ -247,6 +251,8 @@ fn hoisted_false_hidden_range_halts_once_and_membership_addition_redelivers_it()
             after: None,
             before: None,
             range: None,
+            optional_cursor_args: Vec::new(),
+            merge_site: None,
             provenance: KeyProvenance::Arg,
         }))],
     };
@@ -265,6 +271,8 @@ fn hoisted_false_hidden_range_halts_once_and_membership_addition_redelivers_it()
             after: None,
             before: None,
             range: None,
+            optional_cursor_args: Vec::new(),
+            merge_site: None,
             provenance: KeyProvenance::Arg,
         }))],
     };
@@ -373,6 +381,8 @@ fn hidden_rows_before_a_visible_row_still_produce_capped_from_trace() {
             after: None,
             before: None,
             range: None,
+            optional_cursor_args: Vec::new(),
+            merge_site: None,
             provenance: KeyProvenance::Const,
         }))],
     };

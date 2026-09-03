@@ -67,6 +67,8 @@ declare module "snapback2" {
       /** Full post-prefix ordering tuple; scalar sugar needs one remaining column, the prefix may not name every column, and the index ends in id or is unique. Components are indexable scalars matching their column kinds; null is a universal pre-first sentinel. */
       before?: readonly unknown[] | IndexableScalar;
       range?: { gt?: unknown; gte?: unknown; lt?: unknown; lte?: unknown };
+      /** Internal Quarry lowering tag; not an authored TypeScript surface. */
+      mergeSite?: string;
     }): Page<R>;
     insert<R extends Record<string, any>>(target: Table<R>, row: WriteRow<R>): R;
     update<R extends Record<string, any>>(target: Table<R>, key: unknown, patch: WritePatch<R> | ((row: R) => WritePatch<R>)): void;
@@ -161,5 +163,7 @@ declare module "snapback2" {
   export function min(first: number, second: number, ...values: number[]): number;
   /** Euclidean quotient and remainder; a zero divisor refuses with `E_DIV_ZERO`. */
   export function divmod<A extends number>(value: A, divisor: number): { quotient: A extends Decimal<any> ? A : number; remainder: A extends Decimal<any> ? A : number };
+  /** Internal Quarry lowering helper for a bounded multi-prefix merge. */
+  export function mergeByIndex<T>(values: T[], fields: string[], order: "asc" | "desc", take: number, site: string, table: string): Page<T>;
   export function recurse<T>(seed: unknown, step: (value: any) => T | null, options: { depth: number; fanout: number }): T[];
 }

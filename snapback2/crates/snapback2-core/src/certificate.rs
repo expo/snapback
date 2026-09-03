@@ -51,6 +51,8 @@ pub struct Certificate {
     pub evaluator_version: String,
     pub value_model_version: String,
     pub read_sites: Vec<ReadSite>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub merge_sites: Vec<MergeSite>,
     pub write_sites: Vec<WriteSite>,
     pub maintained_amplification: u64,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
@@ -70,6 +72,13 @@ pub struct Certificate {
     pub indexes_required: Vec<String>,
     pub disclosures: Vec<String>,
     pub bound_product: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MergeSite {
+    pub site: String,
+    pub lane_sites: Vec<String>,
+    pub take: u64,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -486,6 +495,7 @@ impl<'a> Checker<'a> {
             evaluator_version: "bounded-spike-rust-1".to_owned(),
             value_model_version: CURRENT_VALUE_MODEL_VERSION.to_string(),
             read_sites,
+            merge_sites: analyzer.merge_sites.into_values().collect(),
             write_sites: summary.writes,
             maintained_amplification,
             maintained_writes,
@@ -682,6 +692,7 @@ fn sum_write_sites(writes: Vec<WriteSite>) -> Vec<WriteSite> {
 struct Analyzer<'a> {
     schema: &'a Schema,
     completeness: Completeness,
+    merge_sites: BTreeMap<String, MergeSite>,
 }
 
 impl<'a> Analyzer<'a> {
@@ -689,6 +700,7 @@ impl<'a> Analyzer<'a> {
         Self {
             schema,
             completeness: Completeness::Page,
+            merge_sites: BTreeMap::new(),
         }
     }
 
@@ -955,6 +967,21 @@ impl<'a> Analyzer<'a> {
                 hoist,
             },
         );
+        if let Some(merge_site) = &scan.merge_site {
+            let site = self
+                .merge_sites
+                .entry(merge_site.clone())
+                .or_insert_with(|| MergeSite {
+                    site: merge_site.clone(),
+                    lane_sites: Vec::new(),
+                    take,
+                });
+            if !site.lane_sites.contains(&scan.site) {
+                site.lane_sites.push(scan.site.clone());
+                site.lane_sites.sort();
+            }
+            site.take = site.take.max(take);
+        }
         summary.examined = calls.saturating_mul(reserve);
         summary.index_entries = summary.examined;
         summary.rule_probes = rule_probes;

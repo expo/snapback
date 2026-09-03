@@ -33,6 +33,7 @@ export type Expr =
   | { kind: "member"; base: Expr; name: string; site: Site }
   | { kind: "call"; name: string; args: Expr[]; site: Site }
   | { kind: "read"; table: string; keys: KeyPart[]; index?: string; range?: RangeSpec; site: Site }
+  | MergeExpr
   | { kind: "exists"; read: Extract<Expr, { kind: "read" }>; site: Site }
   | { kind: "created"; read: Extract<Expr, { kind: "read" }>; site: Site }
   | { kind: "aggregate"; table: string; keys: KeyPart[]; site: Site }
@@ -42,7 +43,31 @@ export type Expr =
   | { kind: "write"; op: "insert" | "update" | "upsert" | "delete"; table: string; keys: KeyPart[]; fields: ObjectField[]; site: Site };
 
 export type ObjectField = { name: string; value?: Expr; site: Site };
-export type RangeSpec = { order: "asc" | "desc"; take: number; cursor?: Expr; cursorKind?: "after" | "before"; where?: Expr; site: Site };
+export type RangeSpec = {
+  order: "asc" | "desc";
+  take: number;
+  cursor?: Expr;
+  cursorKind?: "after" | "before";
+  /** Internal tag emitted only for scans belonging to one Quarry merge. */
+  mergeSite?: string;
+  site: Site;
+};
+export type MergeLane = {
+  prefix: Expr[];
+  loop?: { name: string; domain: Extract<Expr, { kind: "read" }> };
+  site: Site;
+};
+export type MergeExpr = {
+  kind: "merge";
+  table: string;
+  index: string;
+  order: "asc" | "desc";
+  take: number;
+  cursor?: Expr;
+  cursorKind?: "after" | "before";
+  lanes: MergeLane[];
+  site: Site;
+};
 
 export type Stmt =
   | { kind: "bind"; names: string[]; value: Expr; site: Site }
@@ -57,7 +82,7 @@ export type Stmt =
 export type IndexDecl = { name: string; columns: string[]; unique: boolean; site: Site };
 export type RuleDecl = { effect: "read" | "insert" | "update" | "delete"; bindings: string[]; value: Expr; site: Site };
 export type ColumnDecl = { name: string; type: ScalarType; site: Site };
-export type FinalExistsDecl = { binding: string; value: Extract<Expr, { kind: "exists" }>; site: Site };
+export type FinalExistsDecl = { value: Extract<Expr, { kind: "exists" }>; site: Site };
 export type TableDecl = {
   name: string;
   columns: ColumnDecl[];

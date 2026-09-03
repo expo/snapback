@@ -142,8 +142,8 @@ const guidePages = await Promise.all(
   ["grammar", "quarry", "auth", "live-query", "effects", "personas", "testing"].map(async (name) => ({
     name,
     markdown: await readFile(resolve(guideSource, `${name}.md`), "utf8"),
-    // Quarry is the language reference, so its deliberate budget is 12 KiB.
-    limit: name === "grammar" ? 2048 : name === "quarry" ? 12288 : 4096,
+    // LLP 1010 A5 expands the Quarry reference with the bounded merge contract.
+    limit: name === "grammar" ? 2048 : name === "quarry" ? 14336 : 4096,
   })),
 );
 const guideErrors = [...familyErrors, ...guideFailures(guidePages, tsFixtureText, quarryFixtureText, parseDocument)];

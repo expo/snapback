@@ -209,7 +209,10 @@ pub(crate) fn expression(
             );
             if matches!(
                 builtin,
-                Builtin::Slice | Builtin::Sort { .. } | Builtin::Concat
+                Builtin::Slice
+                    | Builtin::Sort { .. }
+                    | Builtin::DedupeById { .. }
+                    | Builtin::Concat
             ) {
                 provenance.constructed_at = Some(iteration);
             }
@@ -291,7 +294,7 @@ pub(crate) fn collection_price_from<T>(
         Expr::Array(_) | Expr::Object(_) | Expr::Get(_) | Expr::Scan(_) => true,
         Expr::Builtin { builtin, .. } => matches!(
             builtin,
-            Builtin::Slice | Builtin::Sort { .. } | Builtin::Concat
+            Builtin::Slice | Builtin::Sort { .. } | Builtin::DedupeById { .. } | Builtin::Concat
         ),
         Expr::Literal(value) => matches!(value, Value::Array(_) | Value::Row(_) | Value::Map(_)),
         Expr::Field { .. }

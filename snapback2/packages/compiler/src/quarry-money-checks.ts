@@ -22,7 +22,7 @@ table ledger:
   public
 
 maintain balances = sum ledger of amount by owner:
-  read r <- public
+  read <- public
 
 table rateEntries:
   owner: principal
@@ -30,7 +30,7 @@ table rateEntries:
   public
 
 maintain rates = sum rateEntries of rate by owner:
-  read r <- public
+  read <- public
 `;
     const operations = `mutation exercise(amount: money USD, rate: decimal 4, other: decimal 3, recipients: [users] <=10, recipient: users, divisor: int):
   require amount > 0 else NOT_POSITIVE
@@ -205,8 +205,8 @@ query branded(amount: money USD):
 
   test("Quarry rejects a decimal literal beyond its scale at the authored q site", async () => {
     await withProject({
-      "snapback/schema.q": "table rates:\n  value: decimal 4\n  public\n  insert r <- public\n",
-      "snapback/rates.q": "mutation bad():\n  return +rates { value: 0.12345 }\n",
+      "snapback/schema.q": "table rates:\n  value: decimal 4\n  public\n  insert <- public\n",
+      "snapback/rates.q": "mutation bad():\n  return insert rates { value: 0.12345 }\n",
     }, async (root) => {
       const result = await lowerProject(root);
       assert(!result.ok, "0.12345 entered a decimal 4 position");
@@ -327,7 +327,7 @@ query order(amount: money USD, r1: decimal 4, r2: decimal 3):
   public
 
 maintain balances = sum ledger of amount by owner:
-  read r <- public
+  read <- public
 
 table expenses:
   conv: text <=20
@@ -335,7 +335,7 @@ table expenses:
   public
 
 maintain convSpend = sum expenses of grand by conv:
-  read r <- public
+  read <- public
 `;
     const operations = `query aggregateOperands(owner: principal, c: text <=20, recipients: [principal] <=5, rate: decimal 4):
   return { shared: share(#balances[owner], recipients, viewer), divided: divmod(#balances[owner], 3).quotient, product: #convSpend[c] * rate }
@@ -362,18 +362,18 @@ maintain convSpend = sum expenses of grand by conv:
     });
   });
 
-  test("Clique Pay lowers and certifies the exact 41-operation inventory", async () => {
+  test("Clique Pay lowers and certifies the exact 38-operation inventory", async () => {
     const lowered = await lowerProject(resolve(fixtures, "quarry-clique"));
     assert(lowered.ok, `Clique Pay refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
     const names = lowered.project.programs.map((program) => program.name).sort();
     const expected = [
-      "chat.addMember", "chat.chatThread", "chat.chatThreadBefore", "chat.convMembers",
+      "chat.addMember", "chat.chatThread", "chat.convMembers",
       "chat.conversation", "chat.createGroup", "chat.leaveGroup", "chat.markDelivered",
       "chat.markRead", "chat.myConversations", "chat.promoteAdmin", "chat.removeMember",
       "chat.send", "chat.startDm", "pay.addExpense", "pay.convExpenses", "pay.expenseShares", "pay.myBalance",
       "pay.myLedger", "pay.myOpenShares", "pay.sendMoney", "pay.settleShare",
-      "social.createPost", "social.createProfile", "social.createReply", "social.globalFeed",
-      "social.globalFeedBefore", "social.laneFeed", "social.laneFeedBefore", "social.listUsers",
+      "social.createPost", "social.createProfile", "social.createReply", "social.followingFeed",
+      "social.globalFeed", "social.listUsers",
       "social.me", "social.myFeedMarks", "social.myFollowing", "social.myLikes", "social.profile",
       "social.profileByHandle", "social.thread", "social.toggleFollow", "social.toggleLike",
       "social.toggleRepost", "social.updateProfile",

@@ -265,7 +265,10 @@ impl CompletenessFlow<'_, '_> {
             Expr::Builtin { builtin, args } => {
                 let fact = self.exprs(args);
                 match builtin {
-                    Builtin::Slice | Builtin::Concat | Builtin::Sort { .. } => fact,
+                    Builtin::Slice
+                    | Builtin::Concat
+                    | Builtin::Sort { .. }
+                    | Builtin::DedupeById { .. } => fact,
                     Builtin::Len
                     | Builtin::Min
                     | Builtin::Max
@@ -963,7 +966,7 @@ fn static_expression_fact(
                     of: Box::new(StaticType::Unknown),
                     len: None,
                 },
-                Builtin::Sort { .. } => facts
+                Builtin::Sort { .. } | Builtin::DedupeById { .. } => facts
                     .first()
                     .map(|fact| fact.kind.clone())
                     .unwrap_or(StaticType::Unknown),

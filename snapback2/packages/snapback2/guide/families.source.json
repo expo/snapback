@@ -218,8 +218,8 @@
   {
     "family": "args",
     "code": "E_DECIMAL_SCALE",
-    "wrong": "```q\nmutation add():\n  +prices { amount: 1.234 }\n```",
-    "right": "```q\nmutation add():\n  +prices { amount: 1.23 }\n```"
+    "wrong": "```q\nmutation add():\n  insert prices { amount: 1.234 }\n```",
+    "right": "```q\nmutation add():\n  insert prices { amount: 1.23 }\n```"
   },
   {
     "family": "args",
@@ -320,8 +320,8 @@
   {
     "family": "quarry",
     "code": "E_QUARRY_UNSUPPORTED",
-    "wrong": "```q\nquery spin():\n  while true:\n    return 1\n```",
-    "right": "```q\nquery bounded():\n  for i in range(0, 10):\n    return i\n  return 0\n```"
+    "wrong": "```q\nquery visible(author: principal):\n  return posts[author] first 20 where .visible\n```",
+    "right": "```q\n-- Pin the predicate in an index prefix; use an after-insert invariant for durable validity; use merge for fan-in.\nquery visible(author: principal):\n  return posts[author, true] first 20 by byAuthorVisibleAt\n```"
   },
   {
     "family": "quarry",

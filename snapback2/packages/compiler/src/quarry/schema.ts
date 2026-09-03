@@ -4,6 +4,7 @@ import { refuse, typeError } from "./diagnostics";
 
 type RuleContext = {
   names: Set<string>;
+  focal?: boolean;
   effect?: RuleDecl["effect"];
   old?: string;
   next?: string;
@@ -81,7 +82,7 @@ function emitConstraints(declaration: TableDecl, catalog: TableCatalog): string[
   }
   for (const finalExists of declaration.finalExists) {
     const read = finalExists.value.read;
-    const context: RuleContext = { names: new Set([finalExists.binding]), effect: "insert", table: declaration };
+    const context: RuleContext = { names: new Set(), focal: true, effect: "insert", table: declaration };
     const index = selectIndex(catalog, read.table, read.keys, "exists", read.index, (value) => ruleTermType(value, context), read.site);
     const key = read.keys.map((item) => ruleTerm(item.value, context).code).join(", ");
     lines.push(withSite(
@@ -118,7 +119,7 @@ function maintainCode(declaration: MaintainDecl, catalog: TableCatalog): string 
 }
 
 function emitRule(declaration: RuleDecl, catalog: TableCatalog, table?: TableDecl): string {
-  const context: RuleContext = { names: new Set(declaration.bindings), effect: declaration.effect, table };
+  const context: RuleContext = { names: new Set(declaration.bindings), focal: declaration.bindings.length === 0, effect: declaration.effect, table };
   if (declaration.effect === "update" && declaration.bindings.length === 2) [context.old, context.next] = declaration.bindings;
   return ruleExpr(declaration.value, catalog, context);
 }
@@ -157,7 +158,7 @@ function ruleExpr(expr: Expr, catalog: TableCatalog, context: RuleContext): stri
     const keys = expr.read.keys.map((key) => ruleTerm(key.value, context).code).join(", ");
     return `rule.${expr.kind}(${expr.read.table}, ${JSON.stringify(index.name)}, [${keys}])`;
   }
-  if (expr.kind === "member" || expr.kind === "read") refuse(expr.site, "rules cannot follow point reads or nested field chains; use a direct row field or exists/created probe");
+  if (expr.kind === "member" || expr.kind === "read") refuse(expr.site, "rules cannot follow point reads or nested field chains; use a direct .field or exists/created probe");
   if (expr.kind === "binary" && ["<", "<=", ">", ">="].includes(expr.op)) refuse(expr.site, `the platform rule vocabulary has eq/ne but not ${expr.op}; move the bounded comparison into a mutation require`);
   refuse(expr.site, `rule expression cannot be represented by the Snapback 2 platform${context.effect ? ` for ${context.effect}` : ""}`);
 }
@@ -165,6 +166,14 @@ function ruleExpr(expr: Expr, catalog: TableCatalog, context: RuleContext): stri
 function ruleTerm(expr: Expr, context: RuleContext): { code: string; kind: "field" | "other"; field?: string; method?: string } {
   if (expr.kind === "name" && expr.name === "viewer") return { code: "rule.viewer", kind: "other" };
   if (expr.kind === "literal") return { code: `rule.literal(${literalCode(expr)})`, kind: "other" };
+  // @ref LLP 1010#a3-one-row-binder — focal .field is the candidate row;
+  // only a two-image update retains named old/next terms.
+  if (expr.kind === "member" && expr.base.kind === "focal" && context.focal) {
+    if (context.table && expr.name !== "id" && !context.table.columns.some((column) => column.name === expr.name)) {
+      refuse(expr.site, `table ${context.table.name} has no rule field ${expr.name}`);
+    }
+    return { code: `rule.field(${JSON.stringify(expr.name)})`, kind: "field", field: expr.name, method: "field" };
+  }
   if (expr.kind === "member" && expr.base.kind === "name" && context.names.has(expr.base.name)) {
     if (context.table && expr.name !== "id" && !context.table.columns.some((column) => column.name === expr.name)) {
       refuse(expr.site, `table ${context.table.name} has no rule field ${expr.name}`);
@@ -173,8 +182,8 @@ function ruleTerm(expr: Expr, context: RuleContext): { code: string; kind: "fiel
     return { code: `rule.${method}(${JSON.stringify(expr.name)})`, kind: "field", field: expr.name, method };
   }
   if (expr.kind === "name" && context.names.has(expr.name)) return { code: `rule.field(${JSON.stringify(expr.name)})`, kind: "field", field: expr.name, method: "field" };
-  if (expr.kind === "member") refuse(expr.site, "rule terms cannot follow nested field chains; use a direct row field or exists/created probe");
-  refuse(expr.site, "rule terms may only be viewer, literals, or direct fields of the ruled row/channel args");
+  if (expr.kind === "member") refuse(expr.site, "rule terms cannot follow nested field chains; use a direct .field or exists/created probe");
+  refuse(expr.site, "rule terms may only be viewer, literals, channel arguments, or direct .fields of the ruled row");
 }
 
 function ruleTermType(expr: Expr, context: RuleContext): ScalarType | undefined {
@@ -183,6 +192,10 @@ function ruleTermType(expr: Expr, context: RuleContext): ScalarType | undefined 
     if (typeof expr.value === "string") return { kind: "text", max: Math.max(1, expr.value.length), optional: false };
     if (typeof expr.value === "number") return { kind: "int", optional: false };
     if (typeof expr.value === "boolean") return { kind: "bool", optional: false };
+  }
+  if (expr.kind === "member" && expr.base.kind === "focal" && context.focal) {
+    if (expr.name === "id" && context.table) return { kind: "ref", table: context.table.name, optional: false };
+    return context.table?.columns.find((column) => column.name === expr.name)?.type;
   }
   if (expr.kind === "member" && expr.base.kind === "name" && context.names.has(expr.base.name)) {
     if (expr.name === "id" && context.table) return { kind: "ref", table: context.table.name, optional: false };

@@ -36,7 +36,7 @@ fn chat_owner_wire_sse_channels_and_successors() {
         + r#"
 
 mutation forceCount(conversationId: id):
-  +messageCounts { conversationId, value: 999 }
+  insert messageCounts { conversationId, value: 999 }
   return null
 
 query counts(conversationId: id):
@@ -536,7 +536,7 @@ fn rule_denied_then_settles_sent_with_the_rejection_visible_in_trace() {
     let schema = root.join("snapback/schema.q");
     let source = fs::read_to_string(&schema)
         .unwrap()
-        .replace("insert r <- system", "insert r <- deny");
+        .replace("insert <- system", "insert <- deny");
     fs::write(schema, source).unwrap();
     let binary = env!("CARGO_BIN_EXE_snapback2");
     let compiler = compiler(&root);

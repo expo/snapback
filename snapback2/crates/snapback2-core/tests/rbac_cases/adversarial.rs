@@ -147,6 +147,8 @@ fn scan_program(name: &str, table: &str, take: u32) -> Program {
             after: None,
             before: None,
             range: None,
+            optional_cursor_args: Vec::new(),
+            merge_site: None,
             provenance: KeyProvenance::Arg,
         }))],
     }
@@ -173,6 +175,8 @@ fn owner_scan(site: &str, prefix: Vec<Expr>) -> Expr {
         after: None,
         before: None,
         range: None,
+        optional_cursor_args: Vec::new(),
+        merge_site: None,
         provenance: KeyProvenance::Viewer,
     })
 }
@@ -450,6 +454,8 @@ fn later_nonuniform_scan_makes_an_earlier_detailed_cap_opaque() {
                     after: None,
                     before: None,
                     range: None,
+                    optional_cursor_args: Vec::new(),
+                    merge_site: None,
                     provenance: KeyProvenance::Const,
                 }),
             },
@@ -463,6 +469,8 @@ fn later_nonuniform_scan_makes_an_earlier_detailed_cap_opaque() {
                 after: None,
                 before: None,
                 range: None,
+                optional_cursor_args: Vec::new(),
+                merge_site: None,
                 provenance: KeyProvenance::Const,
             })),
         ],

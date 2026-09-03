@@ -12,20 +12,20 @@ table profiles:
   unique byHandle: handle
   immutable principal
   public 'profiles are public'
-  insert r <- r.principal = viewer
-  update r <- r.principal = viewer
-  delete r <- deny
+  insert <- .principal = viewer
+  update <- .principal = viewer
+  delete <- deny
 
 table conversations:
   title: text <=120
   creatorId: principal
   by byCreator: creatorId
   unique byIdCreator: id, creatorId
-  read r <- exists memberships[r.id, viewer]
-  insert r <- r.creatorId = viewer
-  update r <- deny
-  delete r <- deny
-  after insert r <- exists memberships[r.id, r.creatorId, 'admin']
+  read <- exists memberships[.id, viewer]
+  insert <- .creatorId = viewer
+  update <- deny
+  delete <- deny
+  after insert <- exists memberships[.id, .creatorId, 'admin']
 
 table memberships:
   conversationId: conversations
@@ -36,25 +36,23 @@ table memberships:
   by byConversationPrincipalRole: conversationId, principal, role
   by byPrincipalConversation: principal, conversationId
   immutable conversationId, principal, joinedAt
-  read r <- exists memberships[r.conversationId, viewer]
-  insert r <- (
-    exists memberships[r.conversationId, viewer, 'admin']
+  read <- exists memberships[.conversationId, viewer]
+  insert <- (
+    exists memberships[.conversationId, viewer, 'admin']
     or (
-      r.principal = viewer
-      and r.role = 'admin'
-      and created conversations[r.conversationId, viewer]
+      .principal = viewer
+      and .role = 'admin'
+      and created conversations[.conversationId, viewer]
     )
   )
   update (old, next) <- (
     exists memberships[old.conversationId, viewer, 'admin']
-    and old.conversationId = next.conversationId
-    and old.principal = next.principal
     and old.role = 'member'
     and next.role = 'admin'
   )
-  delete r <- (
-    r.principal = viewer
-    or exists memberships[r.conversationId, viewer, 'admin']
+  delete <- (
+    .principal = viewer
+    or exists memberships[.conversationId, viewer, 'admin']
   )
 
 table messages:
@@ -63,13 +61,13 @@ table messages:
   body: text <=4000
   at: time
   by byConvTime: conversationId, at, id
-  read r <- exists memberships[r.conversationId, viewer]
-  insert r <- (
-    r.authorId = viewer
-    and exists memberships[r.conversationId, viewer]
+  read <- exists memberships[.conversationId, viewer]
+  insert <- (
+    .authorId = viewer
+    and exists memberships[.conversationId, viewer]
   )
-  update r <- r.authorId = viewer
-  delete r <- r.authorId = viewer
+  update <- .authorId = viewer
+  delete <- .authorId = viewer
 
 table posts:
   author: principal
@@ -79,9 +77,10 @@ table posts:
   by byAuthorTime: author, at, id
   immutable author, at
   public 'posts are globally readable product content'
-  insert r <- r.author = viewer
-  update r <- r.author = viewer
-  delete r <- r.author = viewer
+  insert <- .author = viewer
+  update <- .author = viewer
+  delete <- .author = viewer
+  after insert <- exists profiles[.author]
 
 table follows:
   follower: principal
@@ -92,22 +91,22 @@ table follows:
   by byFollowed: followed, follower
   immutable follower, followed, at
   public 'follows are public product-selection relationships'
-  insert r <- r.follower = viewer
-  update r <- deny
-  delete r <- r.follower = viewer
+  insert <- .follower = viewer
+  update <- deny
+  delete <- .follower = viewer
 
 table notifications:
   outboxId: id
   effect: text <=100
   providerId: text <=200
   unique byOutbox: outboxId
-  read r <- deny
-  insert r <- system
-  update r <- system
-  delete r <- deny
+  read <- deny
+  insert <- system
+  update <- system
+  delete <- deny
 
 maintain messageCounts = count messages by conversationId:
-  read r <- exists memberships[r.conversationId, viewer]
+  read <- exists memberships[.conversationId, viewer]
 
 channel typing(conversationId: conversations):
   publish <- exists memberships[conversationId, viewer]
