@@ -28,11 +28,17 @@ fn write_png(path: &Path, image: &RgbaImage, orientation: Option<u8>) {
         .unwrap();
 }
 
-fn write_jpeg(path: &Path) {
+fn write_jpeg(path: &Path, orientation: Option<u8>) {
     let image = rgba_fixture();
     let rgb = image::DynamicImage::ImageRgba8(image).to_rgb8();
     let mut output = File::create(path).unwrap();
-    image::codecs::jpeg::JpegEncoder::new_with_quality(&mut output, 90)
+    let mut encoder = image::codecs::jpeg::JpegEncoder::new_with_quality(&mut output, 90);
+    if let Some(orientation) = orientation {
+        encoder
+            .set_exif_metadata(exif_orientation(orientation))
+            .unwrap();
+    }
+    encoder
         .write_image(
             rgb.as_raw(),
             rgb.width(),
@@ -42,10 +48,15 @@ fn write_jpeg(path: &Path) {
         .unwrap();
 }
 
-fn write_webp(path: &Path) {
-    let image = rgba_fixture();
+fn write_webp(path: &Path, image: &RgbaImage, orientation: Option<u8>) {
     let mut output = File::create(path).unwrap();
-    image::codecs::webp::WebPEncoder::new_lossless(&mut output)
+    let mut encoder = image::codecs::webp::WebPEncoder::new_lossless(&mut output);
+    if let Some(orientation) = orientation {
+        encoder
+            .set_exif_metadata(exif_orientation(orientation))
+            .unwrap();
+    }
+    encoder
         .write_image(
             image.as_raw(),
             image.width(),
@@ -53,6 +64,12 @@ fn write_webp(path: &Path) {
             image::ExtendedColorType::Rgba8,
         )
         .unwrap();
+}
+
+fn fixture(name: &str) -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("testdata")
+        .join(name)
 }
 
 fn exif_orientation(orientation: u8) -> Vec<u8> {
@@ -110,9 +127,9 @@ fn probe_supports_synthesized_jpeg_png_and_webp() {
     let jpeg = temp.path().join("sample.jpg");
     let png = temp.path().join("sample.png");
     let webp = temp.path().join("sample.webp");
-    write_jpeg(&jpeg);
+    write_jpeg(&jpeg, None);
     write_png(&png, &rgba_fixture(), None);
-    write_webp(&webp);
+    write_webp(&webp, &rgba_fixture(), None);
 
     for (path, expected) in [
         (&jpeg, MediaFormat::Jpeg),
@@ -130,7 +147,7 @@ fn render_never_upscales() {
     let temp = TempDir::new().unwrap();
     let source = temp.path().join("source.jpg");
     let destination = temp.path().join("rendered.jpg");
-    write_jpeg(&source);
+    write_jpeg(&source, None);
     let result = render(&source, &destination, 300, Some(1), CEILINGS).unwrap();
     assert_eq!((result.width, result.height), (3, 2));
     assert_eq!(image::image_dimensions(destination).unwrap(), (3, 2));
@@ -153,7 +170,12 @@ fn orientations_one_through_eight_move_pixels_correctly() {
         let source = temp.path().join("source.png");
         let destination = temp.path().join("rendered.png");
         write_png(&source, &rgba_fixture(), Some(orientation));
-        assert_eq!(probe(&source).unwrap().orientation, orientation);
+        let probed = probe(&source).unwrap();
+        assert_eq!(probed.orientation, orientation);
+        assert_eq!(
+            (probed.width, probed.height),
+            if orientation >= 5 { (2, 3) } else { (3, 2) }
+        );
         let requested_width = if orientation >= 5 { 2 } else { 3 };
         render(&source, &destination, requested_width, None, CEILINGS).unwrap();
         assert_eq!(
@@ -177,16 +199,59 @@ fn explicit_orientation_overrides_the_embedded_tag() {
 }
 
 #[test]
-fn alpha_source_renders_as_png() {
-    let temp = TempDir::new().unwrap();
-    let source = temp.path().join("source.png");
-    let destination = temp.path().join("rendered.bin");
+fn translucent_png_and_webp_preserve_alpha_through_render() {
     let mut image = rgba_fixture();
     image.get_pixel_mut(1, 1)[3] = 31;
-    write_png(&source, &image, None);
+    for source_format in [MediaFormat::Png, MediaFormat::Webp] {
+        let temp = TempDir::new().unwrap();
+        let source = temp.path().join("source.image");
+        let destination = temp.path().join("rendered.png");
+        match source_format {
+            MediaFormat::Png => write_png(&source, &image, None),
+            MediaFormat::Webp => write_webp(&source, &image, None),
+            _ => unreachable!(),
+        }
+        let result = render(&source, &destination, 3, None, CEILINGS).unwrap();
+        assert_eq!(result.format, MediaFormat::Png);
+        assert_eq!(&fs::read(&destination).unwrap()[..8], b"\x89PNG\r\n\x1a\n");
+        let rendered = image::open(destination).unwrap().to_rgba8();
+        assert_eq!(rendered.get_pixel(1, 1)[3], 31, "{source_format:?}");
+    }
+}
+
+#[test]
+fn opaque_jpeg_renders_as_jpeg() {
+    let temp = TempDir::new().unwrap();
+    let source = temp.path().join("source.jpg");
+    let destination = temp.path().join("rendered.bin");
+    write_jpeg(&source, None);
     let result = render(&source, &destination, 3, None, CEILINGS).unwrap();
-    assert_eq!(result.format, MediaFormat::Png);
-    assert_eq!(&fs::read(destination).unwrap()[..8], b"\x89PNG\r\n\x1a\n");
+    assert_eq!(result.format, MediaFormat::Jpeg);
+    assert!(fs::read(destination).unwrap().starts_with(&[0xff, 0xd8]));
+}
+
+#[test]
+fn jpeg_and_webp_exif_six_probe_as_display_dimensions() {
+    let temp = TempDir::new().unwrap();
+    let jpeg = temp.path().join("oriented.jpg");
+    let webp = temp.path().join("oriented.webp");
+    write_jpeg(&jpeg, Some(6));
+    write_webp(&webp, &rgba_fixture(), Some(6));
+    for path in [&jpeg, &webp] {
+        let result = probe(path).unwrap();
+        assert_eq!((result.width, result.height, result.orientation), (2, 3, 6));
+    }
+}
+
+#[test]
+fn no_upscale_is_decided_after_orientation_swap() {
+    let temp = TempDir::new().unwrap();
+    let source = temp.path().join("source.png");
+    let destination = temp.path().join("rendered.png");
+    write_png(&source, &rgba_fixture(), Some(6));
+    let result = render(&source, &destination, 3, None, CEILINGS).unwrap();
+    assert_eq!((result.width, result.height), (2, 3));
+    assert_eq!(image::image_dimensions(destination).unwrap(), (2, 3));
 }
 
 #[test]
@@ -237,6 +302,42 @@ fn header_ceiling_refuses_before_decode() {
 }
 
 #[test]
+fn jpeg_fill_bytes_are_charged_to_the_header_ceiling() {
+    let temp = TempDir::new().unwrap();
+    let source = temp.path().join("fill.jpg");
+    let mut bytes = vec![0xff, 0xd8];
+    bytes.extend(std::iter::repeat_n(0, 2 * 1024 * 1024));
+    bytes.extend_from_slice(&[0xff, 0xc0, 0, 7, 8, 0, 2, 0, 3]);
+    fs::write(&source, bytes).unwrap();
+    let refusal = inspect_raster(&source, CEILINGS).unwrap_err();
+    assert_eq!(refusal.code, E_ASSET_TOO_LARGE);
+    assert!(refusal.detail.contains("JPEG header"));
+}
+
+#[test]
+fn png_metadata_chunks_are_charged_before_decoder_creation() {
+    for chunk_type in [b"tEXt", b"zTXt", b"iTXt", b"eXIf"] {
+        let temp = TempDir::new().unwrap();
+        let source = temp.path().join("metadata.png");
+        let mut bytes = b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR".to_vec();
+        bytes.extend_from_slice(&3_u32.to_be_bytes());
+        bytes.extend_from_slice(&2_u32.to_be_bytes());
+        bytes.extend_from_slice(&[8, 6, 0, 0, 0]);
+        bytes.extend_from_slice(&[0; 4]);
+        bytes.extend_from_slice(&100_u32.to_be_bytes());
+        bytes.extend_from_slice(chunk_type);
+        fs::write(&source, bytes).unwrap();
+        let ceilings = Ceilings {
+            max_header_bytes: 64,
+            ..CEILINGS
+        };
+        let refusal = inspect_raster(&source, ceilings).unwrap_err();
+        assert_eq!(refusal.code, E_ASSET_TOO_LARGE, "{chunk_type:?}");
+        assert!(refusal.detail.contains("PNG metadata"));
+    }
+}
+
+#[test]
 fn output_ceiling_leaves_no_partial_destination_or_temp() {
     let temp = TempDir::new().unwrap();
     let source = temp.path().join("source.png");
@@ -249,7 +350,16 @@ fn output_ceiling_leaves_no_partial_destination_or_temp() {
     let refusal = render(&source, &destination, 3, None, ceilings).unwrap_err();
     assert_eq!(refusal.code, E_ASSET_TOO_LARGE);
     assert!(!destination.exists());
-    assert_eq!(fs::read_dir(temp.path()).unwrap().count(), 1);
+    let survivors = fs::read_dir(temp.path())
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name())
+        .collect::<Vec<_>>();
+    assert_eq!(survivors.len(), 1);
+    assert_eq!(survivors[0], source.file_name().unwrap());
+    assert!(!survivors.iter().any(|name| {
+        name.to_string_lossy().starts_with(".snapback2-media-")
+            && name.to_string_lossy().ends_with(".tmp")
+    }));
 }
 
 #[cfg(not(feature = "heic"))]
@@ -262,22 +372,86 @@ fn heic_without_feature_is_a_typed_refusal() {
     )
     .unwrap_err();
     assert_eq!(refusal.code, E_ASSET_TYPE);
-    assert_eq!(refusal.detail, "HEIC decoder not built");
+    assert_eq!(
+        refusal.detail,
+        "HEIC decoder not built; rebuild snapback2-media with --features heic"
+    );
 }
 
 #[cfg(feature = "heic")]
 #[test]
-fn heic_feature_routes_into_the_decoder() {
+fn real_heic_fixtures_normalize_orientation_exactly_once() {
     let temp = TempDir::new().unwrap();
-    let source = temp.path().join("source.heic");
-    let destination = temp.path().join("output.jpg");
-    let mut bytes = vec![0, 0, 0, 24];
-    bytes.extend_from_slice(b"ftypheic");
-    bytes.extend_from_slice(&[0, 0, 0, 0]);
-    bytes.extend_from_slice(b"heic");
-    fs::write(&source, bytes).unwrap();
-    let refusal = normalize_heic(&source, &destination).unwrap_err();
-    assert_eq!(refusal.code, E_ASSET_TYPE);
-    assert_ne!(refusal.detail, "HEIC decoder not built");
-    assert!(!destination.exists());
+    for (name, expected, has_item_transform) in [
+        ("minimal.heic", (16, 8), false),
+        ("exif-orientation-6.heic", (8, 16), false),
+        ("exif-orientation-6-offset-4.heic", (8, 16), false),
+        ("irot-90.heic", (8, 16), true),
+        ("irot-90-exif-6.heic", (8, 16), true),
+    ] {
+        let source = fixture(name);
+        assert_eq!(
+            heic_has_item_transform_file(&source).unwrap(),
+            has_item_transform,
+            "{name}"
+        );
+        let probed = probe(&source).unwrap();
+        assert_eq!((probed.width, probed.height), expected, "{name}");
+        assert_eq!(probed.orientation, 1, "{name}");
+        let destination = temp.path().join(format!("{name}.jpg"));
+        let rendered = normalize_heic(&source, &destination).unwrap();
+        assert_eq!((rendered.width, rendered.height), expected, "{name}");
+        assert_eq!(
+            image::image_dimensions(&destination).unwrap(),
+            expected,
+            "{name}"
+        );
+        let header = inspect_raster(&destination, CEILINGS).unwrap();
+        assert_eq!(
+            raster_orientation(&destination, header, CEILINGS).unwrap(),
+            1,
+            "{name}"
+        );
+    }
+}
+
+#[cfg(feature = "heic")]
+#[test]
+fn capabilities_prove_the_embedded_heic_fixture_decodes() {
+    let supported = capabilities();
+    assert!(supported.images);
+    assert!(supported.heic);
+}
+
+#[cfg(feature = "heic")]
+#[test]
+fn heic_ispe_limit_refuses_before_pixel_decode() {
+    let bytes = fs::read(fixture("minimal.heic")).unwrap();
+    let ceilings = Ceilings {
+        max_edge: 10,
+        ..CEILINGS
+    };
+    let refusal = decode_heic_bytes(&bytes, ceilings).unwrap_err();
+    assert_eq!(refusal.code, E_ASSET_TOO_LARGE);
+    assert!(refusal.detail.contains("longest-edge"));
+}
+
+#[test]
+fn mif1_compatible_brand_is_recognized_as_heic() {
+    let source = fixture("minimal.heic");
+    let mut bytes = fs::read(&source).unwrap();
+    assert!(bytes.windows(4).any(|brand| brand == b"mif1"));
+    bytes[8..12].copy_from_slice(b"mif1");
+    let temp = TempDir::new().unwrap();
+    let mif1 = temp.path().join("mif1.heic");
+    fs::write(&mif1, bytes).unwrap();
+    assert_eq!(detect_format(&mif1, CEILINGS).unwrap(), MediaFormat::Heic);
+}
+
+#[test]
+fn refusal_detail_is_escaped_and_bounded() {
+    let refusal = Refusal::asset_type(format!("argument {}\n", "x".repeat(32_000)));
+    assert!(refusal.detail.len() <= MAX_DETAIL_BYTES + 3);
+    assert!(!refusal.detail.contains('\n'));
+    assert!(refusal.detail.ends_with("..."));
 }

@@ -10,7 +10,8 @@ description = "Snapback 2's isolated image decode, resize, and encode helper."
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 image = { version = "0.25.10", default-features = false, features = ["jpeg", "png", "webp"], optional = true }
-libheif-rs = { version = "3", default-features = false, features = ["v1_17"], optional = true }
+libheif-rs = { version = "3", default-features = false, features = ["v1_19"], optional = true }
+libheif-sys = { version = "5.3.1", default-features = false, features = ["v1_19"], optional = true }
 
 [dev-dependencies]
 tempfile = "3"
@@ -18,4 +19,4 @@ tempfile = "3"
 [features]
 default = ["images"]
 images = ["dep:image"]
-heic = ["images", "dep:libheif-rs"]
+heic = ["images", "dep:libheif-rs", "dep:libheif-sys"]

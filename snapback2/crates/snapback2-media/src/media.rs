@@ -1,3 +1,13 @@
+//! JSON-line protocol for Snapback 2's store-less media subprocess.
+//!
+//! `probe` reports display dimensions. For JPEG, PNG, and WebP it also returns
+//! the retained EXIF orientation; for HEIC, libheif item transforms and an
+//! eligible EXIF transform are baked by `heic`, so the reported orientation is
+//! `1`. `render` and `heic` write beside the destination under the fixed
+//! `.snapback2-media-*.tmp` prefix before an atomic rename. The parent owns a
+//! sweep of that prefix after every child outcome because SIGKILL and
+//! `panic=abort` cannot run this process's `Drop` cleanup.
+
 #![cfg_attr(not(feature = "images"), allow(dead_code))]
 
 use serde::Serialize;
@@ -17,6 +27,7 @@ const MAX_DECOMPRESSION_RATIO: u64 = 500;
 const RATIO_FLOOR_BYTES: u64 = 16 * 1024 * 1024;
 const MAX_HEADER_BYTES: u64 = 1024 * 1024;
 const MAX_OUTPUT_BYTES: u64 = 64 * 1024 * 1024;
+const MAX_DETAIL_BYTES: usize = 1024;
 const CEILINGS: Ceilings = Ceilings {
     max_pixels: MAX_PIXELS,
     max_edge: MAX_EDGE,
@@ -51,16 +62,33 @@ impl Refusal {
     fn asset_type(detail: impl Into<String>) -> Self {
         Self {
             code: E_ASSET_TYPE,
-            detail: detail.into(),
+            detail: bounded_detail(detail.into()),
         }
     }
 
     fn too_large(detail: impl Into<String>) -> Self {
         Self {
             code: E_ASSET_TOO_LARGE,
-            detail: detail.into(),
+            detail: bounded_detail(detail.into()),
         }
     }
+}
+
+fn bounded_detail(detail: String) -> String {
+    let mut escaped = String::with_capacity(detail.len().min(MAX_DETAIL_BYTES));
+    let mut clipped = false;
+    for character in detail.chars() {
+        let encoded = character.escape_default().to_string();
+        if escaped.len().saturating_add(encoded.len()) > MAX_DETAIL_BYTES {
+            clipped = true;
+            break;
+        }
+        escaped.push_str(&encoded);
+    }
+    if clipped {
+        escaped.push_str("...");
+    }
+    escaped
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
@@ -103,14 +131,11 @@ struct RasterHeader {
 pub(crate) fn run(args: &[String]) -> Result<serde_json::Value, Refusal> {
     let Some(command) = args.first().map(String::as_str) else {
         return Err(Refusal::asset_type(
-            "usage: snapback2-media <probe|render|heic> ...",
+            "usage: snapback2-media <capabilities|probe|render|heic> ...",
         ));
     };
     let value = match command {
-        "capabilities" if args.len() == 1 => serde_json::to_value(Capabilities {
-            images: cfg!(feature = "images"),
-            heic: cfg!(feature = "heic"),
-        }),
+        "capabilities" if args.len() == 1 => serde_json::to_value(capabilities()),
         "probe" if args.len() == 2 => serde_json::to_value(probe(Path::new(&args[1]))?),
         "render" => {
             let request = parse_render(args)?;
@@ -130,6 +155,35 @@ pub(crate) fn run(args: &[String]) -> Result<serde_json::Value, Refusal> {
         }
     };
     value.map_err(|error| Refusal::asset_type(format!("cannot encode result: {error}")))
+}
+
+fn capabilities() -> Capabilities {
+    Capabilities {
+        images: images_codec_available(),
+        heic: heic_codec_available(),
+    }
+}
+
+#[cfg(feature = "images")]
+fn images_codec_available() -> bool {
+    const PNG: &[u8] = include_bytes!("../testdata/capability.png");
+    image::load_from_memory_with_format(PNG, image::ImageFormat::Png).is_ok()
+}
+
+#[cfg(not(feature = "images"))]
+fn images_codec_available() -> bool {
+    false
+}
+
+#[cfg(feature = "heic")]
+fn heic_codec_available() -> bool {
+    const HEIC: &[u8] = include_bytes!("../testdata/minimal.heic");
+    decode_heic_bytes(HEIC, CEILINGS).is_ok()
+}
+
+#[cfg(not(feature = "heic"))]
+fn heic_codec_available() -> bool {
+    false
 }
 
 struct RenderRequest {
@@ -197,16 +251,19 @@ fn probe(path: &Path) -> Result<ProbeResult, Refusal> {
             {
                 let header = inspect_raster(path, CEILINGS)?;
                 let orientation = raster_orientation(path, header, CEILINGS)?;
+                let (width, height) = display_dimensions(header.width, header.height, orientation);
                 Ok(ProbeResult {
                     format: header.format,
-                    width: header.width,
-                    height: header.height,
+                    width,
+                    height,
                     orientation,
                 })
             }
             #[cfg(not(feature = "images"))]
             {
-                Err(Refusal::asset_type("image decoders not built"))
+                Err(Refusal::asset_type(
+                    "image decoders not built; rebuild snapback2-media with --features images",
+                ))
             }
         }
         MediaFormat::Heic => probe_heic(path, CEILINGS),
@@ -262,7 +319,9 @@ fn render(
     _requested_orientation: Option<u8>,
     _ceilings: Ceilings,
 ) -> Result<RenderResult, Refusal> {
-    Err(Refusal::asset_type("image decoders not built"))
+    Err(Refusal::asset_type(
+        "image decoders not built; rebuild snapback2-media with --features images",
+    ))
 }
 
 fn normalize_heic(source: &Path, destination: &Path) -> Result<RenderResult, Refusal> {
@@ -286,7 +345,9 @@ fn normalize_heic(source: &Path, destination: &Path) -> Result<RenderResult, Ref
     #[cfg(not(feature = "heic"))]
     {
         let _ = (source, destination);
-        Err(Refusal::asset_type("HEIC decoder not built"))
+        Err(Refusal::asset_type(
+            "HEIC decoder not built; rebuild snapback2-media with --features heic",
+        ))
     }
 }
 
@@ -303,6 +364,14 @@ fn scaled_height(source_width: u32, source_height: u32, width: u32) -> u32 {
         .max(1)
 }
 
+fn display_dimensions(width: u32, height: u32, orientation: u8) -> (u32, u32) {
+    if (5..=8).contains(&orientation) {
+        (height, width)
+    } else {
+        (width, height)
+    }
+}
+
 fn detect_format(path: &Path, ceilings: Ceilings) -> Result<MediaFormat, Refusal> {
     let mut file = open_input(path)?;
     let mut prefix = [0_u8; 32];
@@ -310,7 +379,7 @@ fn detect_format(path: &Path, ceilings: Ceilings) -> Result<MediaFormat, Refusal
         .read(&mut prefix)
         .map_err(|error| io_refusal("read input header", path, error))?;
     let prefix = &prefix[..read];
-    if prefix.starts_with(&[0xff, 0xd8, 0xff]) {
+    if prefix.starts_with(&[0xff, 0xd8]) {
         return Ok(MediaFormat::Jpeg);
     }
     if prefix.starts_with(b"\x89PNG\r\n\x1a\n") {
@@ -356,7 +425,7 @@ fn heic_brand(file: &mut File, ceilings: Ceilings) -> Result<bool, Refusal> {
     Ok(brands.into_iter().any(|brand| {
         matches!(
             brand,
-            b"heic" | b"heix" | b"heim" | b"heis" | b"hevc" | b"hevx"
+            b"heic" | b"heix" | b"heim" | b"heis" | b"hevc" | b"hevx" | b"mif1"
         )
     }))
 }
@@ -380,6 +449,9 @@ fn inspect_raster(path: &Path, ceilings: Ceilings) -> Result<RasterHeader, Refus
         MediaFormat::Heic => unreachable!(),
     };
     check_dimensions(width, height, file_bytes, ceilings)?;
+    if format == MediaFormat::Png {
+        png_metadata_within_ceiling(&mut file, ceilings)?;
+    }
     Ok(RasterHeader {
         format,
         width,
@@ -427,8 +499,7 @@ fn jpeg_dimensions(file: &mut File, ceilings: Ceilings) -> Result<(u32, u32), Re
         .map_err(|error| Refusal::asset_type(format!("cannot seek JPEG header: {error}")))?;
     let mut scanned = 2_u64;
     loop {
-        let marker = next_jpeg_marker(file)?;
-        scanned = scanned.saturating_add(2);
+        let marker = next_jpeg_marker(file, &mut scanned, ceilings)?;
         if marker == 0xda || marker == 0xd9 {
             break;
         }
@@ -436,16 +507,12 @@ fn jpeg_dimensions(file: &mut File, ceilings: Ceilings) -> Result<(u32, u32), Re
             continue;
         }
         let length = read_u16_be(file)?;
+        charge_header_bytes(&mut scanned, 2, ceilings, "JPEG")?;
         if length < 2 {
             return Err(Refusal::asset_type("JPEG segment has an invalid length"));
         }
-        scanned = scanned.saturating_add(u64::from(length));
-        if scanned > ceilings.max_header_bytes {
-            return Err(Refusal::too_large(format!(
-                "JPEG header exceeds the {} byte ceiling",
-                ceilings.max_header_bytes
-            )));
-        }
+        let payload_bytes = u64::from(length - 2);
+        charge_header_bytes(&mut scanned, payload_bytes, ceilings, "JPEG")?;
         if matches!(marker, 0xc0..=0xcf) && !matches!(marker, 0xc4 | 0xc8 | 0xcc) {
             let mut dimensions = [0_u8; 5];
             file.read_exact(&mut dimensions).map_err(|error| {
@@ -462,11 +529,12 @@ fn jpeg_dimensions(file: &mut File, ceilings: Ceilings) -> Result<(u32, u32), Re
     Err(Refusal::asset_type("JPEG carries no frame dimensions"))
 }
 
-fn next_jpeg_marker(file: &mut File) -> Result<u8, Refusal> {
+fn next_jpeg_marker(file: &mut File, scanned: &mut u64, ceilings: Ceilings) -> Result<u8, Refusal> {
     let mut byte = [0_u8; 1];
     loop {
         file.read_exact(&mut byte)
             .map_err(|error| Refusal::asset_type(format!("truncated JPEG header: {error}")))?;
+        charge_header_bytes(scanned, 1, ceilings, "JPEG")?;
         if byte[0] == 0xff {
             break;
         }
@@ -474,10 +542,27 @@ fn next_jpeg_marker(file: &mut File) -> Result<u8, Refusal> {
     loop {
         file.read_exact(&mut byte)
             .map_err(|error| Refusal::asset_type(format!("truncated JPEG marker: {error}")))?;
+        charge_header_bytes(scanned, 1, ceilings, "JPEG")?;
         if byte[0] != 0xff {
             return Ok(byte[0]);
         }
     }
+}
+
+fn charge_header_bytes(
+    scanned: &mut u64,
+    consumed: u64,
+    ceilings: Ceilings,
+    format: &str,
+) -> Result<(), Refusal> {
+    *scanned = scanned.saturating_add(consumed);
+    if *scanned > ceilings.max_header_bytes {
+        return Err(Refusal::too_large(format!(
+            "{format} header exceeds the {} byte ceiling",
+            ceilings.max_header_bytes
+        )));
+    }
+    Ok(())
 }
 
 fn png_dimensions(file: &mut File) -> Result<(u32, u32), Refusal> {
@@ -493,6 +578,36 @@ fn png_dimensions(file: &mut File) -> Result<(u32, u32), Refusal> {
         u32::from_be_bytes(header[16..20].try_into().expect("four bytes")),
         u32::from_be_bytes(header[20..24].try_into().expect("four bytes")),
     ))
+}
+
+fn png_metadata_within_ceiling(file: &mut File, ceilings: Ceilings) -> Result<(), Refusal> {
+    file.seek(SeekFrom::Start(8))
+        .map_err(|error| Refusal::asset_type(format!("cannot seek PNG chunks: {error}")))?;
+    let mut scanned = 8_u64;
+    loop {
+        let mut header = [0_u8; 8];
+        file.read_exact(&mut header)
+            .map_err(|error| Refusal::asset_type(format!("truncated PNG chunk header: {error}")))?;
+        charge_header_bytes(&mut scanned, 8, ceilings, "PNG metadata")?;
+        let length = u64::from(u32::from_be_bytes(
+            header[..4].try_into().expect("four bytes"),
+        ));
+        if &header[4..8] == b"IDAT" {
+            return Ok(());
+        }
+        let chunk_bytes = length.saturating_add(4);
+        charge_header_bytes(&mut scanned, chunk_bytes, ceilings, "PNG metadata")?;
+        match &header[4..8] {
+            b"IEND" => return Err(Refusal::asset_type("PNG carries no image data")),
+            _ => file
+                .seek(SeekFrom::Current(
+                    i64::try_from(chunk_bytes).unwrap_or(i64::MAX),
+                ))
+                .map_err(|error| {
+                    Refusal::asset_type(format!("cannot seek PNG metadata chunk: {error}"))
+                })?,
+        };
+    }
 }
 
 fn webp_dimensions(file: &mut File, ceilings: Ceilings) -> Result<(u32, u32), Refusal> {
@@ -737,14 +852,10 @@ struct TemporaryOutput {
 impl TemporaryOutput {
     fn create(destination: &Path) -> Result<Self, Refusal> {
         let directory = destination.parent().unwrap_or_else(|| Path::new("."));
-        let base = destination
-            .file_name()
-            .and_then(|name| name.to_str())
-            .unwrap_or("output");
         for _ in 0..100 {
             let sequence = TEMP_SEQUENCE.fetch_add(1, Ordering::Relaxed);
             let path = directory.join(format!(
-                ".{base}.snapback2-media-{}-{sequence}.tmp",
+                ".snapback2-media-{}-{sequence}.tmp",
                 std::process::id()
             ));
             match OpenOptions::new().write(true).create_new(true).open(&path) {
@@ -804,40 +915,59 @@ fn probe_heic(path: &Path, ceilings: Ceilings) -> Result<ProbeResult, Refusal> {
         format: MediaFormat::Heic,
         width: facts.width,
         height: facts.height,
-        orientation: facts.orientation,
+        orientation: 1,
     })
 }
 
 #[cfg(not(feature = "heic"))]
 fn probe_heic(_path: &Path, _ceilings: Ceilings) -> Result<ProbeResult, Refusal> {
-    Err(Refusal::asset_type("HEIC decoder not built"))
+    Err(Refusal::asset_type(
+        "HEIC decoder not built; rebuild snapback2-media with --features heic",
+    ))
 }
 
 #[cfg(feature = "heic")]
 struct HeicFacts {
     width: u32,
     height: u32,
-    orientation: u8,
+    exif_orientation: u8,
+    has_item_transform: bool,
 }
 
 #[cfg(feature = "heic")]
 fn heic_facts(path: &Path, ceilings: Ceilings) -> Result<HeicFacts, Refusal> {
-    use image::metadata::Orientation;
-    use libheif_rs::{HeifContext, ItemId};
+    use libheif_rs::HeifContext;
 
     let file_bytes = fs::metadata(path)
         .map_err(|error| io_refusal("inspect input", path, error))?
         .len();
     let context = HeifContext::read_from_file(&path.to_string_lossy())
         .map_err(|error| Refusal::asset_type(format!("cannot read HEIC container: {error}")))?;
+    let has_item_transform = heic_has_item_transform_file(path)?;
+    heic_facts_from_context(&context, file_bytes, has_item_transform, ceilings)
+}
+
+#[cfg(feature = "heic")]
+fn heic_facts_from_context(
+    context: &libheif_rs::HeifContext<'_>,
+    file_bytes: u64,
+    has_item_transform: bool,
+    ceilings: Ceilings,
+) -> Result<HeicFacts, Refusal> {
+    use libheif_rs::ItemId;
+
     let handle = context
         .primary_image_handle()
         .map_err(|error| Refusal::asset_type(format!("HEIC has no primary image: {error}")))?;
-    let width = u32::try_from(handle.ispe_width())
+    let sensor_width = u32::try_from(handle.ispe_width())
         .map_err(|_| Refusal::asset_type("HEIC sensor width is invalid"))?;
-    let height = u32::try_from(handle.ispe_height())
+    let sensor_height = u32::try_from(handle.ispe_height())
         .map_err(|_| Refusal::asset_type("HEIC sensor height is invalid"))?;
-    check_dimensions(width, height, file_bytes, ceilings)?;
+    // The ispe check is the pre-decode allocation gate. handle dimensions
+    // already include libheif's irot/imir/clap transforms.
+    check_dimensions(sensor_width, sensor_height, file_bytes, ceilings)?;
+    let transformed_width = handle.width();
+    let transformed_height = handle.height();
 
     let count = handle.number_of_metadata_blocks(b"Exif").max(0) as usize;
     if (count as u64).saturating_mul(std::mem::size_of::<ItemId>() as u64)
@@ -849,7 +979,7 @@ fn heic_facts(path: &Path, ceilings: Ceilings) -> Result<HeicFacts, Refusal> {
         )));
     }
     let mut ids = vec![0 as ItemId; count];
-    let orientation = if handle.metadata_block_ids(&mut ids, b"Exif") == 0 {
+    let exif_orientation = if handle.metadata_block_ids(&mut ids, b"Exif") == 0 {
         1
     } else {
         if handle.metadata_size(ids[0]) as u64 > ceilings.max_header_bytes {
@@ -861,28 +991,170 @@ fn heic_facts(path: &Path, ceilings: Ceilings) -> Result<HeicFacts, Refusal> {
         handle
             .metadata(ids[0])
             .ok()
-            .and_then(|bytes| bytes.get(4..).and_then(Orientation::from_exif_chunk))
-            .map(Orientation::to_exif)
+            .and_then(|bytes| heic_exif_orientation(&bytes))
             .unwrap_or(1)
     };
+    let applied_exif = if has_item_transform {
+        1
+    } else {
+        exif_orientation
+    };
+    let (width, height) = display_dimensions(transformed_width, transformed_height, applied_exif);
+    check_dimensions(width, height, file_bytes, ceilings)?;
     Ok(HeicFacts {
         width,
         height,
-        orientation,
+        exif_orientation,
+        has_item_transform,
     })
 }
 
 #[cfg(feature = "heic")]
+fn heic_exif_orientation(bytes: &[u8]) -> Option<u8> {
+    use image::metadata::Orientation;
+
+    let offset = u32::from_be_bytes(bytes.get(..4)?.try_into().ok()?) as usize;
+    let tiff = bytes.get(4_usize.checked_add(offset)?..)?;
+    Orientation::from_exif_chunk(tiff).map(Orientation::to_exif)
+}
+
+#[cfg(feature = "heic")]
+fn heic_has_item_transform_file(path: &Path) -> Result<bool, Refusal> {
+    use std::ffi::CString;
+
+    let path = CString::new(path.to_string_lossy().as_bytes())
+        .map_err(|_| Refusal::asset_type("HEIC path contains a NUL byte"))?;
+    raw_heic_has_item_transform(|context| unsafe {
+        libheif_sys::heif_context_read_from_file(context, path.as_ptr(), std::ptr::null())
+    })
+}
+
+#[cfg(feature = "heic")]
+fn heic_has_item_transform_bytes(bytes: &[u8]) -> Result<bool, Refusal> {
+    raw_heic_has_item_transform(|context| unsafe {
+        libheif_sys::heif_context_read_from_memory_without_copy(
+            context,
+            bytes.as_ptr().cast(),
+            bytes.len(),
+            std::ptr::null(),
+        )
+    })
+}
+
+#[cfg(feature = "heic")]
+fn raw_heic_has_item_transform(
+    read: impl FnOnce(*mut libheif_sys::heif_context) -> libheif_sys::heif_error,
+) -> Result<bool, Refusal> {
+    struct RawContext(*mut libheif_sys::heif_context);
+    impl Drop for RawContext {
+        fn drop(&mut self) {
+            unsafe { libheif_sys::heif_context_free(self.0) };
+        }
+    }
+
+    let context = RawContext(unsafe { libheif_sys::heif_context_alloc() });
+    if context.0.is_null() {
+        return Err(Refusal::asset_type("cannot allocate HEIC context"));
+    }
+    raw_heic_ok(read(context.0), "cannot read HEIC transforms")?;
+    let mut item_id = 0;
+    raw_heic_ok(
+        unsafe { libheif_sys::heif_context_get_primary_image_ID(context.0, &mut item_id) },
+        "HEIC has no primary image",
+    )?;
+    let count = unsafe {
+        libheif_sys::heif_item_get_transformation_properties(
+            context.0,
+            item_id,
+            std::ptr::null_mut(),
+            0,
+        )
+    };
+    if count < 0 {
+        return Err(Refusal::asset_type(
+            "cannot inspect HEIC item transformations",
+        ));
+    }
+    let mut properties = vec![0; count as usize];
+    let filled = unsafe {
+        libheif_sys::heif_item_get_transformation_properties(
+            context.0,
+            item_id,
+            properties.as_mut_ptr(),
+            count,
+        )
+    };
+    if filled < 0 {
+        return Err(Refusal::asset_type(
+            "cannot inspect HEIC item transformations",
+        ));
+    }
+    for property in properties.into_iter().take(filled as usize) {
+        let property_type =
+            unsafe { libheif_sys::heif_item_get_property_type(context.0, item_id, property) };
+        if property_type
+            == libheif_sys::heif_item_property_type_heif_item_property_type_transform_mirror
+        {
+            return Ok(true);
+        }
+        if property_type
+            == libheif_sys::heif_item_property_type_heif_item_property_type_transform_rotation
+        {
+            let degrees = unsafe {
+                libheif_sys::heif_item_get_property_transform_rotation_ccw(
+                    context.0, item_id, property,
+                )
+            };
+            if degrees != 0 {
+                return Ok(true);
+            }
+        }
+    }
+    Ok(false)
+}
+
+#[cfg(feature = "heic")]
+fn raw_heic_ok(error: libheif_sys::heif_error, action: &str) -> Result<(), Refusal> {
+    if error.code == libheif_sys::heif_error_code_heif_error_Ok {
+        Ok(())
+    } else {
+        Err(Refusal::asset_type(action))
+    }
+}
+
+#[cfg(feature = "heic")]
 fn decode_heic(path: &Path, ceilings: Ceilings) -> Result<image::DynamicImage, Refusal> {
-    use image::{DynamicImage, RgbImage};
-    use libheif_rs::{ColorSpace, HeifContext, LibHeif, RgbChroma};
+    use libheif_rs::HeifContext;
 
     if detect_format(path, ceilings)? != MediaFormat::Heic {
         return Err(Refusal::asset_type("input is not HEIC"));
     }
-    let _facts = heic_facts(path, ceilings)?;
+    let facts = heic_facts(path, ceilings)?;
     let context = HeifContext::read_from_file(&path.to_string_lossy())
         .map_err(|error| Refusal::asset_type(format!("cannot read HEIC container: {error}")))?;
+    decode_heic_context(&context, facts)
+}
+
+#[cfg(feature = "heic")]
+fn decode_heic_bytes(bytes: &[u8], ceilings: Ceilings) -> Result<image::DynamicImage, Refusal> {
+    use libheif_rs::HeifContext;
+
+    let context = HeifContext::read_from_bytes(bytes)
+        .map_err(|error| Refusal::asset_type(format!("cannot read HEIC container: {error}")))?;
+    let has_item_transform = heic_has_item_transform_bytes(bytes)?;
+    let facts =
+        heic_facts_from_context(&context, bytes.len() as u64, has_item_transform, ceilings)?;
+    decode_heic_context(&context, facts)
+}
+
+#[cfg(feature = "heic")]
+fn decode_heic_context(
+    context: &libheif_rs::HeifContext<'_>,
+    facts: HeicFacts,
+) -> Result<image::DynamicImage, Refusal> {
+    use image::{DynamicImage, GenericImageView, RgbImage};
+    use libheif_rs::{ColorSpace, LibHeif, RgbChroma};
+
     let handle = context
         .primary_image_handle()
         .map_err(|error| Refusal::asset_type(format!("HEIC has no primary image: {error}")))?;
@@ -892,12 +1164,6 @@ fn decode_heic(path: &Path, ceilings: Ceilings) -> Result<image::DynamicImage, R
         .map_err(|error| Refusal::asset_type(format!("HEIC decode failed: {error}")))?;
     let width = decoded.width();
     let height = decoded.height();
-    check_dimensions(
-        width,
-        height,
-        fs::metadata(path).map(|m| m.len()).unwrap_or(1),
-        ceilings,
-    )?;
     let plane = decoded
         .planes()
         .interleaved
@@ -918,7 +1184,16 @@ fn decode_heic(path: &Path, ceilings: Ceilings) -> Result<image::DynamicImage, R
     }
     let image = RgbImage::from_raw(width, height, pixels)
         .ok_or_else(|| Refusal::asset_type("HEIC RGB plane dimensions are inconsistent"))?;
-    Ok(DynamicImage::ImageRgb8(image))
+    let mut image = DynamicImage::ImageRgb8(image);
+    if !facts.has_item_transform && (2..=8).contains(&facts.exif_orientation) {
+        image.apply_orientation(image_orientation(facts.exif_orientation));
+    }
+    if image.dimensions() != (facts.width, facts.height) {
+        return Err(Refusal::asset_type(
+            "HEIC decoded dimensions disagree with the bounded display probe",
+        ));
+    }
+    Ok(image)
 }
 
 #[cfg(test)]
