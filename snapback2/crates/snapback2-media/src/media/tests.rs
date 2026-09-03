@@ -522,7 +522,7 @@ fn pitm_to_tmap_primary_refuses_with_typed_pinned_libheif_detail() {
     assert_eq!(refusal.code, E_ASSET_TYPE);
     assert_eq!(
         refusal.detail,
-        "HEIF primary item unreadable by the pinned libheif (gain-map/tmap primaries unsupported)"
+        "HEIF primary item could not be read by the pinned libheif (corrupt or truncated file, or an unsupported primary such as a gain-map/tmap item)"
     );
 }
 

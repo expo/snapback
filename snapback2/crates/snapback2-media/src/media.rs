@@ -1126,7 +1126,7 @@ fn heif_primary_item_has_only_hevc_leaves(
 ) -> Result<bool, Refusal> {
     let context = read_raw_heif_context(
         read,
-        "HEIF primary item unreadable by the pinned libheif (gain-map/tmap primaries unsupported)",
+        "HEIF primary item could not be read by the pinned libheif (corrupt or truncated file, or an unsupported primary such as a gain-map/tmap item)",
     )?;
     let mut item_id = 0;
     raw_heic_ok(
