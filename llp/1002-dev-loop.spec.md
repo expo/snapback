@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2` (the binary: owner, server, verbs), `snapback2/packages/compiler` (project lowering, worker), `snapback2/packages/snapback2` (authoring runtime, client, React, test runner, shim), `snapback2/scripts/measure.mjs`
 **Author:** Claude Fable 5 (orchestrator) — implementers: codex gpt-5.6-sol, lanes B0 (compiler + authoring surface), B1 (owner + server + verbs), B2 (`init`, `test`, `why`, `trace`, `guide`), D (client + React + evaluator)
 **Date:** 2026-08-29
-**Revised:** 2026-09-01
+**Revised:** 2026-09-03 (decision 1 amended: the LLP 1006 §14a media helper is the one child spawned besides the compiler worker); 2026-09-01
 **Related:** LLP 1000, LLP 1001 (the engine this serves), LLP 1003 (effects),
 LLP 0329.016 §5 (the design this implements verbatim where it can), LLP
 0329.016 §5.11 (the verb table — no verb exists without its row), LLP
@@ -36,7 +36,11 @@ Implementers and date: codex gpt-5.6-sol (xhigh), lanes B0/B1/B2/D,
    `node <compiler.mjs> --worker` (path from `SNAPBACK2_COMPILER`, which the
    npm shim sets to its bundled compiler; else the sibling of the binary) and
    talks JSON lines over stdio (§3). The worker stays alive for the owner's
-   life so successors compile warm. Nothing else is ever spawned.
+   life so successors compile warm. Nothing else is ever spawned, with one
+   exception recorded by LLP 1006 §14a (amended 2026-09-03): the media helper
+   `snapback2-media`, spawned per finalize job and short-lived, with a cleared
+   environment, a timeout, and a memory ceiling — resource isolation for
+   decoders, not a second worker.
 2. **Project layout is fixed.** `snapback/schema.ts` (the schema, default
    export), `snapback/<module>.ts` (programs; `<module>` is the namespace),
    `snapback/seed.ts` (data, optional), `snapback/tests/*.test.ts` (journeys,

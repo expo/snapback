@@ -472,3 +472,179 @@ There is no ID-to-record rewrite, `kind`, `ready`, `src`, `hash`, or `digest`.
 If forced, I would cut the fixed thumbnail.
 
 Serve only the bounded primary and remove `/thumb`, the `thumb` prop, the second resize, and the second stored rendition. Photo grids would download more bytes, but all five apps would remain buildable. That is a real ergonomic/performance loss, which is why it survives this round—but it is still a feature above the floor.
+
+---
+
+# Panel 2 (2026-09-03) — revision (i) at `4d67b2a78` (codex gpt-5.6-sol)
+
+**Reviewed:** `llp/1006-assets.rfc.md` revision (i) at `4d67b2a78` — the
+unreviewed revisions (f)–(i) — with LLP 1005, 1000–1004, 1007, `rules/`,
+`benchmarks/briefs/social-messenger.md`, the previous panel record, and the
+`snapback2/` and `crates/` sources available read-only in a detached worktree.
+**Family:** codex gpt-5.6-sol
+**Provider/runtime:** OpenAI Codex CLI 0.153.0 (`codex exec -s read-only`), model gpt-5.6-sol, reasoning effort **ultra**
+**Date:** 2026-09-03
+**Redacted:** No — the panelist read in-repo documents directly; no content left the local machine beyond the model serving this CLI.
+**Method:** Two rounds, as below.
+
+> **Independence (LLP 0005).** Revisions (f)–(i) of LLP 1006 were written by the
+> orchestrating Claude session at the author's rulings. That session is
+> disclosed as the author-side voice and is not counted as an independent
+> family. Both panel families are non-author. The orchestrator's own round-1
+> review was sealed before either family's round-1 output was opened; its
+> round-2 positions were sealed before either family's round-2 output was
+> opened.
+
+**Brief constraint, stated to all three as binding:** simplicity, elegance,
+speed, ease, and ergonomics are priority 1; features are a floor (the
+capability bar's apps); every addition names what it deletes; the author's ten
+rulings may be challenged only with the reasoning that justifies reopening.
+Round 1 mutually blind on `brief-r1`; round 2 cross-read on `brief-r2` (all
+three round-1 reviews verbatim, twelve settled agreements A1–A12, twelve
+numbered disagreements D-A–D-L). Synthesis: `1006-assets.panel.synthesis.md`.
+
+## Round 1 (blind)
+
+## 1. Verdict
+
+Revision (i) is not ready to implement as written. Its center remains strong: closed asset records, ordinary bounded lists, affine row authority, no attach call, and no asset-specific authorization system. The blockers are in the unreviewed expansion: it contradicts the governing format trim, lets mutations consume unauthenticated asset facts, assumes an engine delivery primitive that does not exist, gives incompatible reset/fork guarantees, misstates the ported media behavior, and omits the Expo/runtime machinery needed by the capability bar. These are repairable without reopening revisions (a)–(e), chiefly by deleting scope.
+
+## 2. Defects
+
+1. **Critical — revision (i) violates the binding trim.** The capability bar requires Expo plus JPEG/PNG/WebP and MP4 H.264/AAC (`benchmarks/briefs/social-messenger.md:19-22,45-49`); `rules/NOT-DOING.md:17-21` and the delegated ruling in `llp/1007-state-of-snapback2-and-the-work.plan.md:177-191` explicitly say LLP 1006 is trimmed to those formats. Generic files, HEIC, MOV, HEVC behavior, and two codec packages exceed that bar. Resolve by retaining only `image` and `video` with the brief’s formats and limits. This deletes the entire `file` branch, `as`, C HEIC codecs, and the full/slim matrix.
+
+2. **Blocker — `duration` is forgeable when policy reads it.** Section 3 presents `require clip.duration <= 60000` as authoritative, but §6 ledger-validates only while writing an asset column (`llp/1006-assets.rfc.md:608-615`). Current execution performs pure argument validation before opening the transaction (`snapback2/crates/snapback2-core/src/engine/mod.rs:429-446,875-964`), then the program can immediately read any record field (`engine/runner.rs:323-345`). A mutation can therefore consume a forged duration and commit other work without ever storing `clip`. Ledger-validate every asset-typed mutation argument after opening the authoritative transaction and before executing the body; destination writes still perform bound and affine-claim checks. That one validator deletes both the forged-policy path and any need to revive declared duration-admission grammar.
+
+3. **Critical — reset, forks, and content addressing are mutually inconsistent.** Reset empties blobs, while forks are SQLite-only snapshots that share and must preserve those same blobs (`llp/1006-assets.rfc.md:788-796`). Current fork and reset boundaries confirm there is no SQLite/filesystem atomic operation (`snapback2/crates/snapback2/src/writer.rs:497-510`; `snapback2-core/src/store.rs:631-647`). The three-operation blob trait also cannot enumerate a crash-orphaned CAS key, and the listed `_assets` schema does not contain the blob key §9a later requires.
+
+   Key blobs by immutable asset ID instead. The existing allocator durably reserves non-reusable IDs (`store.rs:257-330`). Persist `receiving` first, publish `<asset-id>` and its rung keys, then mark `ready`; reset clears authority/locators and staging, after which a fork-aware sweep deletes the blob before deleting its garbage ledger row. This deletes hashing, deduplication races, derived reference counts, bucket listing, `failed` state, and impossible cross-store atomicity.
+
+4. **Blocker — the claimed certified delivery read does not exist.** The reusable runtime method scans every table row and probes it (`snapback2-core/src/registry.rs:771-797`); `Engine::probe_rule` is crate-private and opens its own transaction (`engine/mod.rs:810-843`). Indexed lookup plus certified rule evaluation exists only inside a program runner (`engine/runner.rs:615-653`). Add one core primitive that resolves `_assets`, point-reads the located row, verifies the cell contains the ID, and evaluates the table read rule under a stored rule certificate in one read transaction; expose it through the sole-writer action channel. This deletes the possible O(table) fallback and §2’s false “no new machinery” claim while avoiding a second ACL.
+
+   The hosted presigned `302` must also go: after redirect, bucket range requests no longer re-evaluate the row rule (`llp/1006-assets.rfc.md:776-784`). Likewise, scope “exact and immediate” revocation to requests that reach Snapback: a `public, immutable` shared-cache hit can outlive public→private or deletion. That wording correction respects the prior panel’s settled public-cache tradeoff.
+
+5. **High — affine lifecycle coverage is incomplete.** Normal validation is pure recursive shape checking (`snapback2-core/src/engine/index.rs:402-485`), while destructive successors directly delete or rewrite rows (`successor.rs:472-557`). Dropping a table or asset column would strand claimed locators. Maintained projections copy grouping values into another row (`schema.rs:411-477`; `engine/runner_ops.rs:183-229`), which would automatically violate one-home affinity. Seeds cannot contain real assets after reset because no seed path mints their ledger rows.
+
+   Specify one transaction-aware old-row/new-row asset-set reconciler for insert, replace, delete, and successor operations. Recursively forbid asset types in `maintain.by` and non-null asset seed values. Delete the unused `created_by=system` escape until effects can actually mint assets. These refusals delete unsupported combinations instead of adding special lifecycle paths.
+
+6. **High — the media claims do not match the code being ported.**
+
+   - Removing all EXIF while preserving the encoded pixels removes orientation, so phone JPEGs rotate and reported dimensions cease to be display dimensions. V1 deliberately decodes, applies orientation, and re-encodes (`crates/snapback-services/src/assets_image.rs:558-604`). Use the helper to bake orientation before stripping; delete the segment-only/exact-bitstream claim.
+   - The v1 video walker accepts `&[u8]`, returns a full `Vec`, and calls `bytes.to_vec()` (`assets_video.rs:499-531`). It is not streaming. The smaller resolution is to retain the port, explicitly budget its approximately two-object memory, and serialize video finalization; delete “structurally no whole-object buffer.”
+   - Its `tkhd` handling ignores the transform matrix (`assets_video.rs:446-467`), so portrait display dimensions are wrong. Add matrix interpretation, paid for by deleting MOV/HEVC scope.
+   - A memory-limited helper already imposes a resolution ceiling nondeterministically. Add one fixed internal dimensions/pixels/decompression/output safety ceiling, using v1’s pre-allocation bounds (`assets_image.rs:18-44,83-179`). This deletes decompression-bomb-as-child-crash while preserving full resolution for every admitted image.
+   - “Always at least as large as requested” is impossible above the source width. Define the effective width as `min(requested, source width)` and never upscale; no new refusal is needed.
+
+7. **High — the session carrier is not yet a closed credential contract.** It is transferable during its lifetime and authenticates its viewer to every asset route, contrary to “carries no authority of its own.” Logout requires binding to the exact session epoch: current logout deletes one epoch (`snapback2-core/src/identity.rs:322-351`). Development personas have no session fence (`snapback2/src/writer_auth.rs:17-32,88-103`), so the normal `createClient({as})` loop cannot mint the proposed carrier.
+
+   Require exact-epoch validation on every GET; define a dev carrier bound to owner incarnation plus persona; reject carrier combined with bearer/persona; redact it; and use `private, no-store` plus `Referrer-Policy: no-referrer`. Do not proactively replace a mounted media URL. For public rows, redirect a carrier URL to the canonical tokenless Snapback URL, not to a bucket. These rules delete logout-surviving credentials, ambiguous authority, public-cache loss, and the bucket redirect.
+
+8. **High — the paved client and Expo arm are underspecified.** Runtime `Op` objects retain only their name; type parameters are erased (`snapback2/packages/snapback2/src/api.ts:3-8,24-47`), and mutation currently serializes arguments directly (`client.ts:390-397`). Generated declarations also erase numeric bounds (`compiler/src/project.ts:736-764`). Thus `.d.ts` cannot drive hidden upload substitution or runtime size checks. Runtime descriptors do already exist in `/api/manifest` (`snapback2/src/writer_ledger.rs:204-226`).
+
+   Make substitution manifest-driven and generation-fenced, recursively covering optionals and lists and preflighting all source lengths before any upload. Add an Expo native-URI streaming source and an explicit Expo lane; the brief’s picker supplies a URI, not a browser `File` (`benchmarks/briefs/media.md:18-20`). Replace the scalar-only URL hook with a scalar/list resolver suitable for the frozen UI.
+
+   Also correct §10’s failure statement: mutations resolve `MutationRejected`; they do not throw (`snapback2/packages/snapback2/src/types.ts:39-51`; `react.tsx:167-215`). Upload/transport failures throw; server mutation refusals remain typed results.
+
+9. **Medium — the HTTP and helper contracts are inaccurate.** A normal GET is `200`; only one satisfiable range is `206`; an unsatisfiable range is `416`. Reuse the closed v1 parser at `crates/snapback-kernel/src/assets.rs:2810-2874`. Upload must branch before the current 1 MiB UTF-8 JSON reader (`snapback2/src/serve.rs:307-313,584-611`) and receive a separately bounded asset worker class; otherwise long streams/helper processes consume the shared JSON pool (`serve.rs:139-203`). That class deletes unbounded media fan-out and query starvation.
+
+   Finally, a same-UID subprocess with “no store handle” can still open `.snapback/store.sqlite` (`snapback2/src/owner.rs:161-167`). Either specify an actual OS sandbox or, preferably for this slice, delete the security-boundary claim and describe the helper as crash/RSS isolation, with cleared environment, bounded output, and process-group termination.
+
+10. **Medium — “three validation arms” materially understates lane A/C.** New structured types touch `ColumnType`, `ArgType`, rule/static typing, retention bounds, JSON conversion, index refusal, compiler lowering, and the twin (`schema.rs:154-173`; `ir.rs:21-58`; `certificate_policy.rs:1035-1077`). Revise the lane inventory and introduce one shared recursive `is_indexable` predicate; this deletes duplicated List/asset special cases.
+
+## 3. Recommended changes, ranked
+
+1. **Trim to the exact bar:** image and video only; JPEG/PNG/WebP ≤10 MB and MP4 H.264/AAC ≤50 MB/60 s. Delete `file`, HEIC, MOV/HEVC behavior, `as`, filename/disposition logic, and codec variants. This is the governing ruling, not discretionary scope reduction.
+
+2. **Make asset authenticity an engine invariant:** add pre-body authoritative argument validation, the certified delivery primitive, and one row-delta lifecycle reconciler. Delete scattered claim/release hooks, unbounded rule probing, invalid maintain/seed combinations, and `created_by=system`.
+
+3. **Use asset-ID blob keys:** retain the filesystem implementation and streaming interface, but remove CAS/deduplication and presigned delivery. Delete hash/refcount/list/race machinery and make reset/fork recovery derivable.
+
+4. **Repair only the required media:** bake image orientation, impose fixed internal safety limits, parse video transforms and H.264/AAC, and honestly bound the existing whole-buffer walker. Delete C codecs, MOV/HEVC, and the false streaming/no-ceiling claims.
+
+5. **Close the actual client path:** cache manifest descriptors by generation, accept browser `File` and Expo URI sources, add scalar/list URL resolution, and use the existing authority fence. Delete the `.d.ts`-as-runtime fiction, `as`, slice-1 progress callbacks, and any asset-only persona bypass.
+
+6. **Close the wire before implementation:** specify exact session-epoch carrier behavior, full Range status/header semantics, an asset worker budget, and the real `MutationResult` failure shape. Delete proactive URL rotation, bucket redirects, and bespoke Range interpretation.
+
+## 4. Cut list
+
+- The complete non-media `file` branch and `AssetFile`.
+- HEIC, MOV, admitted HEVC, libheif/libde265, and full/slim publishing.
+- `as=` once file ambiguity is gone.
+- CAS deduplication, presigned bucket redirects, and normative hosted/CDN behavior.
+- Durable `failed` ledger rows and the future-only `created_by=system` escape.
+- Slice-1 upload progress and security claims unsupported by an OS sandbox.
+
+## 5. Add list
+
+- Authoritative asset-argument validation and certified delivery lookup, paid for by deleting special admission grammar and any second byte ACL.
+- Expo URI streaming plus scalar/list URL resolution, paid for by deleting generic files, codec variants, and progress.
+- Orientation baking, deterministic decode ceilings, video matrix/H.264/AAC inspection, paid for by deleting HEIC/MOV/HEVC breadth.
+- Exact-epoch/persona carrier handling and one bounded asset worker pool, paid for by deleting proactive refresh, presigning, and unbounded helper concurrency.
+- Central affine row-delta handling plus schema refusals for maintain/seed, paid for by deleting per-write lifecycle implementations and the unused system escape.
+
+## 6. Most likely to be wrong
+
+The session carrier. The reopening trigger should be one real-phone test: play a private clip, background the app past the carrier TTL but not the parent session, resume, and seek. Any reload, lost position, flicker, or `401` reopens carrier lifetime and refresh design.
+
+## 7. Rulings I would ask the author to revisit
+
+- **Ruling 5, non-media half; ruling 7, HEIC half; ruling 10, variants:** the new controlling evidence is the already-delegated exact-format trim in LLP 1007 and `rules/NOT-DOING.md`. Keep video and WebP; delete files, HEIC, MOV, and the package matrix.
+- **Ruling 6, narrowly:** keep “no author-configurable downscale ceiling,” but admit one fixed internal decode-safety ceiling. The helper’s memory cap proves a ceiling already exists; making it deterministic is simpler and safer.
+- **Ruling 8, narrowly:** keep local filesystem now and an S3-compatible implementation later, but replace content addresses with asset-ID keys and remove presigned redirects. The current allocator and fork/reset model are new engine evidence that CAS adds rather than deletes machinery.
+
+I would not reopen affine ownership, arbitrary-width ergonomics, preservation of admitted full-resolution originals, subprocess execution itself, share-link deferral, or the no-resume decision.
+
+## Round 2 (cross-read)
+
+## 1. Disagreements
+
+**D-A — Hold: cut `file` from slice 1.** The binding trim and both independent reviews justify revisiting ruling 5. Keeping `file` buys future attachments but adds a third type and record across every layer, `as`, filename handling, attachment delivery, `<AssetFile>`, and a confusing partial-privacy contract. Cutting it means the first document-sharing app must add that branch later; none of the capability-bar apps is blocked.
+
+**D-B — Hold: remove HEIC from slice 1.** HEIC is outside the named formats and uniquely introduces the C codec and cross-compilation burden. A named optional package saves default bytes but does not delete implementation, testing, documentation, or support complexity. The honest cost is that raw Photos/Safari HEIC refuses with a conversion hint; reopen when a real-phone acceptance journey actually requires raw HEIC.
+
+**D-C — Hold, refined: publish one fixed-capability helper.** It should support JPEG, PNG, and WebP everywhere, with no full/slim install-time matrix. Claude’s useful principle is that the default installation must honor every advertised format; an internal developer build switch may survive only if loop measurements earn it. This deletes variant naming, duplicated artifacts, and capability-dependent refusal rules.
+
+**D-D — Change: retain content-addressed keys.** I changed my mind because a fork copies the allocator namespace and high-water mark: independently writable descendants can eventually expose the same future asset ID while sharing the blob pool. CAS avoids needing a writable-fork namespace protocol and makes that collision impossible. Add `_assets.blob_key`; record the digest on the durable `receiving` row before an idempotent publish, and retain that row until cleanup succeeds—this avoids maintained refcounts and makes bucket listing unnecessary.
+
+**D-E — Change on caching; hold on carrier scope.** Carriers belong only on `<video>`, native players, and explicit downloads; images use bearer/persona headers and blob URLs. A carrier is bound to the exact bearer epoch or dev persona/owner incarnation, is not rotated under a mounted player, and redirects to the exact tokenless Snapback URL when anonymous evaluation also admits the row. Claude convinced me that unconditional `no-store` needlessly retransfers private images, but `private, immutable` bypasses later authorization; use `private, no-cache` with an ETag and authorization before any `304`, while carrier responses remain `no-store`.
+
+**D-F — Change: use orientation-only chunk surgery.** The explicit alternative convinced me: extract the bounded orientation value, discard all source metadata, and synthesize a fresh Orientation-only payload rather than retaining the original EXIF container. Record dimensions are post-orientation, and derived rungs bake the transform while decoding. This preserves compressed pixels and color fidelity while deleting unconditional decode/re-encode, JPEG generation loss, output expansion, and helper latency at admission; acceptance must cover orientations 2–8 on web and Expo.
+
+**D-G — Hold: add a fixed internal decode-safety ceiling.** The helper’s RSS limit already creates an implicit, platform-dependent ceiling, so ruling 6 should be narrowed. Probe fixed dimension, pixel, decompression, and output bounds before allocation; refuse rather than downscale, so every admitted image still retains full resolution. This deletes OOM or child death as accidental admission policy.
+
+**D-H — Hold: delete `created_by = system`.** A future consumer named in §13 does not justify a live ownership exception today. Add it atomically with effect-side minting, when its provenance and tests exist.
+
+**D-I — Hold: describe resource isolation honestly.** The helper provides dependency/build separation plus crash, timeout, and RSS containment—not a security boundary. A same-UID child can open the known store path, and “no store handle/network” is an API convention unless an OS sandbox enforces it. Keep a cleared environment, bounded protocol/output, resource limits, and process-group termination; delete the decoder-compromise-cannot-touch-store claim.
+
+**D-J — Hold; no dissent.** Recursively ledger-validate every asset-typed mutation argument, including optionals and lists, after opening the authoritative transaction and before executing the body. Entry validation establishes ready state, kind, bounds, and exact facts; the row-delta reconciler separately handles new ownership and same-cell carry-forward. This deletes forged policy facts and duplicated claim logic.
+
+**D-K — Hold: add one core delivery primitive and delete presigning.** In one read transaction it must resolve `_assets`, point-read the locator row, verify the cell still recursively contains the exact ID, and evaluate that table’s read rule under its certificate. Expose only the authorized immutable delivery locator through the owner channel; this deletes table scans and any second ACL. A private presigned `302` turns the bucket URL into temporary asset authority whose later ranges bypass Snapback, so hosted private delivery must remain proxied. “Immediate” means the next request reaching Snapback; public shared-cache and already-started-stream limits should be stated separately.
+
+**D-L — Hold: trim the RFC, not `NOT-DOING.md`.** `NOT-DOING.md` is binding, and LLP 1007 records the author-delegated ruling to trim LLP 1006 to the brief’s formats. The later rulings did not name an unblocked app or remove an offsetting doing-list item. Slice 1 should therefore be `image` and `video`, JPEG/PNG/WebP and MP4 H.264/AAC; keeping `file`, HEIC, MOV, or HEVC requires a formal contrary trade that does not currently exist.
+
+## 2. Final recommended changes, ranked
+
+1. Trim slice 1 to `image`/`video` and the brief’s exact formats; deletes `file`, `FileAsset`, `as`, `name`, attachment UI/privacy, HEIC, MOV, and HEVC behavior.
+2. Add transactional argument authenticity plus one old-row/new-row asset reconciler; deletes forged facts, same-cell refusals, scattered claim/release hooks, unsupported maintain/seed combinations, and `created_by=system`.
+3. Add the certified transactional delivery point-read; deletes table scans, duplicated authorization logic, and §2’s false “no new machinery” claim.
+4. Keep CAS with an explicit blob-key field and receiving→publish→ready recovery; deletes ambiguous crash orphans, maintained refcounts, bucket listing, and destructive reset.
+5. Preserve only synthesized orientation metadata and enforce fixed safety bounds; deletes unconditional lossy re-encoding and nondeterministic OOM admission.
+6. Restrict carriers to video/download, bind exact identities, canonicalize public requests, and revalidate private image caches; deletes image tokens, public-cache fragmentation, and immutable-private authorization bypass.
+7. Port the video walker onto staging in place, apply `tkhd`, require all facts, and verify H.264/AAC; deletes the full `Vec`, optional facts, and unsupported-container promises.
+8. Make client substitution manifest-driven and recursive, add Expo URI streaming and scalar/list URL resolution, and preserve `MutationRejected`; deletes `.d.ts` runtime inference, browser-only support, and partial preflight uploads.
+9. Branch asset routes before the JSON reader and add bounded upload/delivery workers plus global and per-principal staging caps; deletes JSON-pool starvation and guest-multiplied disk exhaustion.
+10. Make rungs lazy, clamp effective width to the source, and never upscale; deletes eager admission work and the impossible “always at least requested” claim.
+11. Publish one helper, amend LLP 1002 for its child process, and call it resource isolation; deletes the variant matrix, the spawn contradiction, and the false sandbox claim.
+12. Apply exact 200/206/416 Range semantics and remove the stale `option A`, `max`, parser, and line citations; deletes wire ambiguity and copy-paste residue.
+
+## 3. What I would steal
+
+From Grok: in-place video blanking, mandatory video facts, and its mounted-player lifetime analysis. Those improve my round-one whole-buffer recommendation.
+
+From Claude: the same-cell claim exception, the global staging cap, and the measured trigger for ever adding a second helper artifact. Its caching concern also led to the `private, no-cache` compromise, though not to `private, immutable`.
+
+## 4. Verdict after the changes
+
+Ready to implement after these revisions; revision (i) at `4d67b2a78` is not. The only remaining author decision is whether to accept the justified reversals of rulings 5, 7, and 10; rejecting them requires first reconciling `NOT-DOING.md` with an explicit named trade.
+
+The checkout is read-only, so I could not append this cross-read to the repository’s review artifact.
