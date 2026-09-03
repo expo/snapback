@@ -5,13 +5,27 @@
 **Systems:** `snapback2-core` (the `_assets` ledger, the three asset columns,
 the write-time validation, reclamation), `snapback2` (upload, delivery, and
 session-carrier routes, the finalize worker, the container walker),
-`packages/compiler` (the column types), `packages/quarry` (the notation),
-`packages/snapback2` (client + React)
+`snapback2-media` (the decode helper executable, §14a), `packages/compiler`
+(the column types), `packages/quarry` (the notation), `packages/snapback2`
+(client + React)
 **Author:** Claude Opus 5 (design), commissioned by Charlie Cheever 2026-08-31;
-revisions (f) and (g) by Claude Fable 5.1 at the author's rulings, in session,
-2026-09-03
+revisions (f), (g), and (h) by Claude Fable 5.1 at the author's rulings, in
+session, 2026-09-03
 **Date:** 2026-08-31
-**Revised:** 2026-09-03 (g — the author's rulings on the three questions
+**Revised:** 2026-09-03 (i — recorded at the author's delegation, no ruling
+changed: the "upload this, then do X" question is answered in §12 — the
+mutation is the "then", and a dedicated construct would be `defineMediaCommand`
+returning — and the one real gap it exposed, assets minted by effects, is named
+in §13 with its additive shape.); 2026-09-03 (h — the author's rulings on OQ1, in session:
+**decode runs in a subprocess** — anything that produces pixels runs in a
+separate media helper executable with no store handle, a timeout, and a memory
+ceiling, while anything that walks boxes or chunks stays in-process (§9,
+§14a); and **the codecs are chosen at build and install time** — the engine
+binary carries none, the helper is built with `images`/`heic` features and
+published as a default full variant and a slim one, and a helper that lacks a
+codec refuses that format loudly rather than degrading (§14a). Ruling 7's "the
+published binary carries the decoder" is narrowed to the default variant. No
+open question remains.); 2026-09-03 (g — the author's rulings on the three questions
 revision (f) added, in session: **`max` is withdrawn** — full resolution is
 the only behavior, and the ceiling could not survive column-less upload (§4,
 §12); **WebP and HEIC are both handled** — WebP joins the accept list with
@@ -109,7 +123,8 @@ The author's rulings of 2026-09-01 are folded in: an asset has one home
 slice-1 work, not a later slice (§1, §13); there is no resolution ceiling
 (§4); WebP and HEIC are both admitted (§4); and bytes live beside the store
 locally and in an S3-compatible bucket when hosted, behind one trait (§9a).
-The one open question is decode isolation (§14a), which blocks nothing.
+Decode runs in a subprocess and the codecs are chosen at build and install
+time (§14a). No open question remains.
 
 ## 1. The move
 
@@ -474,8 +489,9 @@ the decision rather than mandating it.
   This is a **server-side** decode, ruled so on 2026-09-03: the Expo SDK may
   transcode on the device as a courtesy, but a browser hands over HEIC too —
   dragged from Photos, or picked in Safari — and only the server covers every
-  path. The `heic` cargo feature (§14a) is therefore optional for a developer
-  and mandatory for the published binary. WebP is stored as WebP — its
+  path. The HEIC decoder therefore ships in the default published variant of
+  the media helper, and a slim variant that omits it refuses a HEIC upload
+  loudly (§14a). WebP is stored as WebP — its
   bitstream kept, its metadata chunks dropped — and decoded, in pure Rust, only
   for derived widths.
 - **The full-resolution image is kept, stripped** (author ruling, 2026-09-01).
@@ -592,7 +608,8 @@ Here there is no call. Validation splits cleanly across the two twins:
 - **The server, additionally**, in the writing transaction: the ledger row
   exists, is `ready`, and is of the column's kind; `created_by` is the writer
   (or `system`, so an effect's `then` mutation can place an asset the service
-  principal produced); **every field of the record equals the ledger** —
+  principal produced — §13 records how such an asset would be minted, and
+  nothing mints one yet); **every field of the record equals the ledger** —
   `width` and `height` for an image, plus `duration` for a video, and `size`,
   `type`, and `name` for a file; bytes are within this column's bound. Under option A it also requires the asset unclaimed and claims it
   (`E_ASSET_IN_USE` otherwise).
@@ -696,12 +713,14 @@ writer lock, so one large upload stalls the instance with ~2× RSS spikes; the
 ticket is P2 and still open, and the S3 path still does `read → Vec → put`
 (LLP 1005 §9). This is the clearest inherited-debt warning in the v1 record, and
 the answer is to make it structurally impossible: bytes stream to staging;
-validation, strip, HEIC decode, and both renditions run on a worker thread
-outside any store transaction; success is one small write flipping
+validation and strip run on a worker thread outside any store transaction,
+and that thread hands anything that produces pixels to the media helper
+subprocess (§14a); success is one small write flipping
 `_assets.state` to `ready` and answering the POST.
 
-**Three finalizers, one lifecycle.** Image finalize is strip, HEIC decode, and
-the common rungs (§8). **Video finalize is the v1 container walker, ported,
+**Three finalizers, one lifecycle.** Image finalize is strip, in-process, then
+HEIC decode and the common rungs (§8) in the helper subprocess (§14a). **Video
+finalize is the v1 container walker, ported,
 not rebuilt** (author ruling, 2026-09-03):
 `crates/snapback-services/src/assets_video.rs` is 894 lines with its tests. It
 blanks every location-bearing box in place by renaming it to `free` and
@@ -908,7 +927,17 @@ and an extension point with no users is pure apparatus; and it would put a
 plugin boundary through trusted admission, which is the single place this
 design's privacy property is enforced. Codecs being *optional at compile time*
 (§14a) delivers the buildability benefit a plugin was reaching for, with none of
-the surface.
+the surface. The media helper executable (§14a) is not a plugin API either: it
+is the same workspace, built with the same features, spoken to over a private
+protocol, with no third-party extension point.
+
+**Decoding in the engine's address space.** The field's norm — Snapback 1 did
+it for a year, and every backend in the LLP 0139 bakeoff does — and revisions
+(c)–(g) kept it open as OQ1 pending two measurements. Ruled out on 2026-09-03
+without waiting for them: a process spawn costs milliseconds against a decode
+that costs hundreds, so the isolation is nearly free, and a decoder bug
+in-process is the application's data, not its images. The measurements become
+a post-landing check on the helper's spawn cost rather than a gate.
 
 **Delegating image processing to an external service** (imgproxy, Cloudinary, a
 sidecar). Rejected: it breaks the high-fidelity local target, which LLP 1005 §7
@@ -928,6 +957,18 @@ destination back, and it deletes the generation-wide admission ceiling. Naming
 the *kind* at upload (§5) is not this: it is one of three schema words, it
 selects no column policy, and it exists only because a JPEG can legitimately
 be a `file`.
+
+**An "upload this, then do X" construct.** Raised on 2026-09-03 — "upload this
+file, then set it as the profile photo." That is the paved call:
+`setAvatar.run({ avatar: file })` uploads, waits for finalize, substitutes the
+record, and runs the mutation, whose body *is* the "then" (§10); if the
+mutation refuses, no row is written and the upload is reclaimed. A dedicated
+construct would be `defineMediaCommand` returning under a new name (§3, §11),
+and it could not live inside a mutation anyway: a mutation is one transaction
+in the Rust interpreter, and an upload is I/O. Steps *after* the write are
+effects — `emit` in the mutation, a TypeScript body, a `then` mutation
+(LLP 1003) — which Quarry already has. The one thing neither covers, an asset
+produced by an effect, is a named non-goal (§13).
 
 **One `asset` column type with a union record.** Considered for revision (f)
 as the way to make an attachments column take photos and PDFs alike without
@@ -989,6 +1030,17 @@ redirect of §9a is issued only after that authorization and lives for seconds.
 - **Codec admission facts.** `duration` is in the record and needs no
   admission grammar (§3); codec is not, for the reason above. If a codec fact
   is ever wanted it is one more validated field, not a declaration.
+- **Assets minted by effects.** An effect that fetches an image from a
+  provider or renders a document has no way to produce an asset record for its
+  `then` mutation to place; §6's `system` uploader escape exists for that case,
+  and nothing fills it yet. Neither named app needs it, so it waits for one
+  that does. **Verified additive:** the shape is one call on the effect context
+  — put a byte stream with a kind, get back the same closed record an upload
+  returns — through the same finalize (§9) and the same helper (§14a), with
+  `created_by = system`. It touches no column type, no value, no schema, no
+  twin, no route, and no rule. It is not a media command: the effect's `then`
+  is Quarry's existing "do this after that" (LLP 1003), and the record it
+  places is validated exactly as a client's would be (§6).
 - **Per-column accept lists for `file`** (PDF-only, no executables). A `file`
   column admits anything; the first such list is the add that puts a
   destination back on the upload (§12), and no named app asks for one.
@@ -1028,9 +1080,11 @@ redirect of §9a is issued only after that authorization and lives for seconds.
 - **No certificate version bump and no new `Value` variant** (§1).
 - **`check` stays under 1 s.** Three schema node kinds and three validation
   arms.
-- **Binary size and decode isolation** — the largest honest costs for images,
-  and Open question 1. See §14a. Video adds neither: the walker decodes
-  nothing.
+- **Two executables.** The engine and the media helper ship together; the
+  helper is where image size lives and is chosen at install (§14a). Video and
+  file need no helper: the walker decodes nothing.
+- **A spawn per finalize** — milliseconds, against a decode of hundreds
+  (§14a).
 - **Fifty-megabyte bodies through the HTTP layer.** `snapback2` reads request
   bodies into a 1 MiB JSON buffer today; uploads need a streaming body path to
   staging and a bound on concurrent uploads, so lane B is larger than "two
@@ -1044,7 +1098,8 @@ redirect of §9a is issued only after that authorization and lives for seconds.
   nothing else (§4).
 - **Full-resolution originals, always** (§4). An app that wants smaller
   originals downscales on the device.
-- **The C decoders in every published binary** (§14a), for HEIC.
+- **The C decoders in the default helper variant** (§14a), for HEIC; the slim
+  variant omits them and refuses HEIC loudly.
 - **Two blob-store implementations over time, one now** (§9a).
 - **A dropped upload retries in full** (§5), now including a 50 MB clip; the
   return trigger for resume is recorded there.
@@ -1054,57 +1109,69 @@ redirect of §9a is issued only after that authorization and lives for seconds.
   for this number; it is internal, not authored.
 - **Denormalized dimensions**, a few dozen immutable bytes per reference.
 
-### 14a. Codecs are a build feature; the type is not
+### 14a. Codecs live in a separate executable; the type does not
 
 Image decode and resize are heavy dependencies, and HEIC in particular is where
 C libraries appear (libheif → libde265), which is what makes cross-compiling
-the published platform packages awkward. `snapback2` already has the pattern for
-this — the JS engine is optional at compile time and the published binary turns
-it on:
+the published platform packages awkward. Decoding is also the one place this
+design parses hostile bytes with a decoder: an upload is attacker-controlled
+input, and a decoder is a well-known remote attack surface (libwebp's
+CVE-2023-4863 was a zero-click RCE). Two rulings of 2026-09-03 answer both
+costs with one shape.
+
+**Anything that produces pixels runs in a subprocess; anything that walks
+boxes or chunks runs in-process.** Decode, resize, and re-encode — the derived
+widths of §8 and the HEIC normalization of §4 — run in a separate executable,
+`snapback2-media`, spawned by the finalize worker per job with the staging
+file as its only input, no store handle, no network, a wall-clock timeout, and
+a memory ceiling. A crash, a hang, or a decompression bomb kills the child and
+refuses the upload in the `input` family; the engine and the store are
+untouched. The parsers — JPEG/PNG/WebP chunk strip (§4), the video container
+walker (§9), type detection — are bounded walks in safe Rust and stay
+in-process, as the walker already does. Spawn is milliseconds against a decode
+of hundreds, which is why this was ruled rather than measured; the measurement
+OQ1 asked for becomes a post-landing check on the helper's spawn cost, not a
+gate.
+
+**The engine binary carries no codec.** `snapback2` is unchanged in size by
+media, and a snapback2 developer who is not touching media never rebuilds an
+image library against `rules/RULES.md`'s 15 s incremental and 5 min full-build
+budgets. The helper is its own crate, with the pattern the JS engine already
+uses:
 
 ```toml
+# crates/snapback2-media
 [features]
-default = []
-effects = []
-hermes  = ["effects", "snapback2-effects/hermes"]
-images  = [...]              # JPEG/PNG/WebP decode + resize, pure Rust
-heic    = ["images", ...]    # the C decoder, separable because it is the costly one
+default = ["images"]
+images  = [...]              # JPEG/PNG/WebP decode + resize + encode, pure Rust
+heic    = ["images", ...]    # libheif → libde265, separable because it is the costly one
 ```
 
+**The codecs are chosen at build and install time, never at runtime.** The
+published package ships the helper in a **default variant** with every codec
+§4 admits, and publish refuses to ship the default without them — a default
+that cannot finalize what the schema admits is the v1 HEIC bug in a new coat. A
+**slim variant** without `heic` is published under that name for installations
+that will never see an iPhone photo and want the size back. Choosing it is an
+install-time decision; nothing in a schema, a value, or a request depends on
+which variant is present. `publish.mjs` reports each variant's size beside the
+engine's.
+
+**A missing codec refuses loudly; nothing degrades.** An installation with no
+helper at all whose schema declares an `image` column refuses at boot, exactly
+as the engine-less build does for effects; `video` and `file` columns need no
+helper and boot without one. An installation whose helper lacks HEIC refuses a
+HEIC upload with `E_ASSET_TYPE` and a hint naming the default variant. There is
+no serve-the-original-only mode and no silent fallback — LLP 1005 §6's lesson
+is that a capability the binary cannot honor must fail where the author can
+see it.
+
 **The `image`, `video`, and `file` column types are unconditional in every
-build.** Only the image codecs are optional; the container walker is pure Rust
-with no dependency and ships everywhere, and `file` needs nothing. This is not
-a preference: the Rust engine and the TypeScript twin must agree on every
-corpus case, so a schema vocabulary that varies with a build flag breaks the
-agreement — the same class of defect the panel caught in revision (c)'s stamp.
-A codec-less binary therefore still parses, certifies, and type-checks a
-schema containing `image` columns; what it cannot do is finalize an *image*
-upload, and it refuses loudly at boot, exactly as the engine-less build
-already does for effects.
-
-What the flag actually buys is **the development loop, not the user's bytes.**
-The published binary carries the codecs, so users always pay that size; what the
-flag prevents is every snapback2 developer who is not touching media rebuilding
-image libraries against `rules/RULES.md`'s 15 s incremental and 5 min full-build
-budgets. `publish.mjs` should report the with/without delta the way it already
-reports the engine's. **And it refuses to publish without them** (author
-ruling, 2026-09-03): `heic` is optional for a developer's build and mandatory
-for a published one, because §4 admits HEIC and a published binary that cannot
-finalize what the schema admits is the v1 bug in a new coat.
-
-**Decoding is the one place this design parses hostile bytes.** An upload is
-attacker-controlled input handed to a decoder, which is a well-known remote
-attack surface (libwebp's CVE-2023-4863 was a zero-click RCE). Under §9 finalize
-runs on a worker *thread*, so it shares an address space with the engine and the
-store: a decoder bug is compromise of the application and its data, not just its
-images. That is a blast-radius argument for running decode in a subprocess, and
-it is stronger than the binary-size argument that OQ1 originally rested on.
-
-The honest counterweight, so this is not read as alarm: Snapback 1 ran decoders
-in-process for a year, and every backend in the LLP 0139 bakeoff does the same.
-In-process is the field's norm, not a novel risk, and the mitigation that
-matters most in practice is keeping the dependencies current. The decision
-belongs to measurement (OQ1), not to argument.
+build.** The Rust engine and the TypeScript twin must agree on every corpus
+case, so a schema vocabulary that varies with a build flag or an installed
+variant breaks the agreement — the same class of defect the panel caught in
+revision (c)'s stamp. A codec-less installation still parses, certifies, and
+type-checks a schema containing `image` columns; it just cannot finalize one.
 
 ## 15. Implementation shape
 
@@ -1114,7 +1181,8 @@ the author's scheduling:
 | lane | scope |
 |---|---|
 | A | `_assets` ledger + lifecycle, the `image`/`video`/`file` column types, the three `valid_column_value` arms, write-time validation (§6), reclamation with the derived key count and fork-aware referrers (§9, §9a), `reset` clearing the ledger — `snapback2-core` |
-| B | the blob-store trait with its filesystem implementation and content-addressed keys (§9a), upload + delivery routes with streaming staging and `Range`/`206` (§2), the `as`/`name` parameters (§5), the finalize worker, chunk-level strip for JPEG/PNG/WebP, width snapping, the session-carrier mint and check (§2b), attachment/nosniff delivery, the `images`/`heic` cargo features, the codec-less boot refusal, and the publish-time refusal (§14a) — `snapback2` |
+| B | the blob-store trait with its filesystem implementation and content-addressed keys (§9a), upload + delivery routes with streaming staging and `Range`/`206` (§2), the `as`/`name` parameters (§5), the finalize worker, chunk-level strip for JPEG/PNG/WebP, width snapping, the session-carrier mint and check (§2b), attachment/nosniff delivery, the helper spawn protocol (timeout, memory ceiling, no store handle), the no-helper boot refusal and the per-format refusal (§14a) — `snapback2` |
+| B3 | the `snapback2-media` helper crate: decode, resize, encode, and HEIC normalization behind the `images`/`heic` features; the default and slim published variants and the publish-time refusal (§14a) |
 | B2 | the container walker port from `crates/snapback-services/src/assets_video.rs` with its tests and a real iPhone MOV fixture, plus display-dimension and duration extraction (§9) — `snapback2` |
 | C | `image`/`video`/`file` in Quarry (replacing the `asset` refusal at `packages/compiler/src/quarry/parser.ts:340`), the builders in the lowering target, member access on asset-typed arguments in `require` (§3), `api.d.ts` types incl. `File \| ImageAsset` client args by kind |
 | D | `run()` file substitution with `as` by column, `client.upload`, `useAssetUrl`, `AssetImage`/`AssetVideo`/`AssetFile`, carrier refresh, React; one template with a photo, a clip, and an attachment |
@@ -1143,13 +1211,15 @@ effect on this document was **six deletions, two defect fixes, and one
 correction**, against **one addition** (the asset id in the URL, which pays for
 itself by deleting the stale-cache bug).
 
-**Revision (f) was not panel-reviewed.** It folds one author ruling (video and
-files in slice 1) and the consequences the orchestrator derived from it —
-chiefly the session carrier (§2b), the `as` parameter (§5), and
-strip-by-detected-type (§4). The Confidence section names those three as the
-places a review round should look first, and the standing arrangement — codex
-and grok, mutually blind, then cross-read — is the right shape for it before
-lane B starts.
+**Revisions (f), (g), and (h) were not panel-reviewed.** They fold the
+author's rulings of 2026-09-03 — video and files in slice 1, and the answers to
+the questions that raised — and the consequences the orchestrator derived from
+them: chiefly the session carrier (§2b), the `as` parameter (§5),
+strip-by-detected-type (§4), the storage trait (§9a), and the helper executable
+(§14a). The Confidence section names the first three as the places a review
+round should look first, and the standing arrangement — codex and grok,
+mutually blind, then cross-read — is the right shape for it before lane B
+starts.
 
 ## Confidence
 
@@ -1193,18 +1263,23 @@ alternative examined is larger (§12).
 
 **0.7** on `as` at upload (§5) and on strip-by-detected-type under `file`
 (§4). Both answer questions that video and files raised on 2026-09-03 and the
-panel never saw; a review round on revisions (f) and (g) is the right next
-step before lane B starts.
+panel never saw; a review round on revisions (f)–(h) is the right next step
+before lane B starts.
 
 **0.8** on §9a. The trait is the shape every blob store ends up with, and
 content addressing is what makes affine cheap and `fork` free; the presigned
 redirect is the one piece that changes client-visible behavior, and only on a
 hosted target that does not exist yet.
 
+**0.85** on the helper subprocess (§14a). It is the standard containment for
+decoders, its cost is predictable, and it closes the last open question; the
+variant packaging is the one part that touches `publish.mjs`, and that script
+already knows how to report a feature's size.
+
 ## Rulings settled (author)
 
 Recorded here so a reader knows these are decided, not merely proposed. Items
-1–4 are the rulings of 2026-09-01; items 5–8 are 2026-09-03:
+1–4 are the rulings of 2026-09-01; items 5–10 are 2026-09-03:
 
 1. **Affine** — one asset, one home (§2a).
 2. **Any width may be requested**, snapped internally; no closed ladder and no
@@ -1221,34 +1296,30 @@ Recorded here so a reader knows these are decided, not merely proposed. Items
    the app wants less (§4, §12).
 7. **WebP and HEIC are both handled.** WebP joins the accept list with
    chunk-level strip and pure-Rust decode; HEIC stays a server-side decode, and
-   the published binary carries the decoder (§4, §14a).
+   the default published variant carries the decoder (§4, §14a; narrowed by
+   ruling 10).
 8. **Bytes live beside the store locally and in an S3-compatible bucket when
    hosted**, behind one streaming-first, content-addressed trait, delivered
    through the server in both cases (§9a).
+9. **Decode runs in a subprocess.** Anything that produces pixels runs in the
+   `snapback2-media` helper with no store handle, a timeout, and a memory
+   ceiling; walkers stay in-process (§9, §14a).
+10. **Codecs are chosen at build and install time.** The engine carries none;
+    the helper is built with `images`/`heic` features and published as a
+    default full variant and a slim one; a missing codec refuses loudly
+    (§14a).
 
 ## Open questions (author)
 
-1. **In-process or subprocess decode?** (§14a.) Not "is the binary too big" —
-   that framing under-weighted the real issue. Decoding is where this design
-   parses attacker-controlled bytes, and a worker thread shares an address space
-   with the engine and the store. Settle it with two measurements rather than an
-   argument: **(a)** the published binary's size delta with `images` and `heic`
-   on, against today's 2.18 MB / 5.06 MB; **(b)** finalize latency in-process
-   versus in a subprocess. If (b) is small, isolation is nearly free and worth
-   taking; if it is large, in-process is the field's norm (§14a) and the answer
-   is to keep the codec dependencies current. Not blocking — nothing else in the
-   design depends on it, and the feature flags land either way. Video is
-   unaffected: the walker decodes nothing, so this question is image-only.
-
-The three questions revision (f) added — the `max` ceiling, the brief's
-formats, and where bytes live — were ruled on 2026-09-03 and are rulings 6–8.
+None. OQ1 — in-process or subprocess decode — was ruled on 2026-09-03 and is
+ruling 9; the three questions revision (f) added — the `max` ceiling, the
+brief's formats, and where bytes live — are rulings 6–8.
 
 ## What promotion to a Spec requires
 
 `rules/RULES.md`: *"A spec needs an implementer and a date, or it isn't
 written,"* and *"only implemented specs bind."* This document is complete enough
-to implement — §15's five lanes are disjoint, and every question that set
-their scope is ruled — but it stays an RFC until the author assigns an
-implementer and a date. The standing arrangement routes implementation to codex
+to implement — §15's six lanes are disjoint and no question is open — but it
+stays an RFC until the author assigns an implementer and a date. The standing arrangement routes implementation to codex
 gpt-5.6-sol; the date is the author's scheduling call, not a number this
 document may invent.
