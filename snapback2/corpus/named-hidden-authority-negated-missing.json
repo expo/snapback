@@ -381,6 +381,9 @@
           },
           "id": "Id",
           "lastReadAt": "Time",
+          "lastReadId": {
+            "Optional": "Id"
+          },
           "userId": "Principal"
         },
         "indexes": {
@@ -942,9 +945,9 @@
   "certificate": {
     "program": "hiddenRuleDocument",
     "plan_hash": "dbe16017ab622ab13249595d3517a0018b41b33e7263f43f10d60b98b5782dfa",
-    "schema_hash": "470cb398d680f8e07ea91eaac7c2f1c95c68f57eebf1a4f0d0eb8b6ab17d7978",
+    "schema_hash": "89f217f3328ef41f1ee69e710d7f00892c833ce30d258263e2f6e837a04c2052",
     "rule_hashes": {
-      "secretDocs.read": "8d647768796c31b2755852c5663c700736a6572244b8939f485ad739bb774e96"
+      "secretDocs.read": "3930bf7da3a70461880e7f42cd69c9986a1021deb9c1f74b812aad5e93ab9b0b"
     },
     "evaluator_version": "bounded-spike-rust-1",
     "value_model_version": "i53-codepoint-bytes-v2",
@@ -998,7 +1001,7 @@
     "seed_write": false
   },
   "receipt": {
-    "schema_hash": "470cb398d680f8e07ea91eaac7c2f1c95c68f57eebf1a4f0d0eb8b6ab17d7978",
+    "schema_hash": "89f217f3328ef41f1ee69e710d7f00892c833ce30d258263e2f6e837a04c2052",
     "rows": [
       {
         "table": "entitlements",

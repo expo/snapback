@@ -381,6 +381,9 @@
           },
           "id": "Id",
           "lastReadAt": "Time",
+          "lastReadId": {
+            "Optional": "Id"
+          },
           "userId": "Principal"
         },
         "indexes": {
@@ -1047,6 +1050,9 @@
                         "Int": 0
                       }
                     },
+                    "lastReadId": {
+                      "Literal": "Null"
+                    },
                     "userId": {
                       "Variable": "lo"
                     }
@@ -1074,6 +1080,9 @@
                       "Literal": {
                         "Int": 0
                       }
+                    },
+                    "lastReadId": {
+                      "Literal": "Null"
                     },
                     "userId": {
                       "Variable": "hi"
@@ -1106,13 +1115,13 @@
   },
   "certificate": {
     "program": "startDm",
-    "plan_hash": "962bea0e3476fc39830c16a2a575903ab5f64c0ab37a9ebf88983fb9cb3d163c",
-    "schema_hash": "31792591fb75b5ab316e24a71206d3f7de6e02ed12f49a2f39782dbcab4b3566",
+    "plan_hash": "67e5288fb3a26b95c04ae7440dda0354ed84ec668d019650508670bf4e53e54e",
+    "schema_hash": "df0a1b25740fd361ededb5bf93df3428a133ea6dd44f27a74c45a76e1ce8fb3c",
     "rule_hashes": {
-      "conversations.insert": "66a1b2b0d1f21fd55f866a1e5d7135598e3234c1f55cb62bb8cd602d50bb42a6",
-      "dmKeys.insert": "66a1b2b0d1f21fd55f866a1e5d7135598e3234c1f55cb62bb8cd602d50bb42a6",
-      "dmKeys.read": "66a1b2b0d1f21fd55f866a1e5d7135598e3234c1f55cb62bb8cd602d50bb42a6",
-      "memberships.insert": "fb0f71521deb5ab233925cec189620ee4bc630049393085ad2b1b3db0c6135b0"
+      "conversations.insert": "86fc97a3ff8c6f52c56c0ad10e0e41d5a9c4474356ed8b7e523b28a0f78b6b72",
+      "dmKeys.insert": "86fc97a3ff8c6f52c56c0ad10e0e41d5a9c4474356ed8b7e523b28a0f78b6b72",
+      "dmKeys.read": "86fc97a3ff8c6f52c56c0ad10e0e41d5a9c4474356ed8b7e523b28a0f78b6b72",
+      "memberships.insert": "8272e72fd22f115e633327fe4824a29c2680dcf5ef9aab37878502f72105413a"
     },
     "evaluator_version": "bounded-spike-rust-1",
     "value_model_version": "i53-codepoint-bytes-v2",
@@ -1156,8 +1165,8 @@
     "max_examined": 1,
     "max_index_entries": 1,
     "max_rule_probes": 0,
-    "max_steps": 64,
-    "max_heap_bytes": 2048,
+    "max_steps": 66,
+    "max_heap_bytes": 2112,
     "max_output_bytes": 622,
     "max_closure_bytes": 622,
     "completeness": "Page",
@@ -1195,7 +1204,7 @@
     "seed_write": false
   },
   "receipt": {
-    "schema_hash": "31792591fb75b5ab316e24a71206d3f7de6e02ed12f49a2f39782dbcab4b3566",
+    "schema_hash": "df0a1b25740fd361ededb5bf93df3428a133ea6dd44f27a74c45a76e1ce8fb3c",
     "rows": [
       {
         "table": "accounts",
@@ -1325,6 +1334,7 @@
             "lastReadAt": {
               "Int": 0
             },
+            "lastReadId": "Null",
             "userId": {
               "Id": "u1"
             }
@@ -1348,6 +1358,7 @@
             "lastReadAt": {
               "Int": 0
             },
+            "lastReadId": "Null",
             "userId": {
               "Id": "u2"
             }

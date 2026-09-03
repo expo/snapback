@@ -7,6 +7,8 @@ use snapback2_core::{Auth, Ceilings, Generation, ProjectJson, Value};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::io::{BufRead, BufReader, BufWriter, Write};
+#[cfg(unix)]
+use std::os::unix::process::CommandExt;
 use std::path::{Component, Path, PathBuf};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use std::sync::Arc;
@@ -16,6 +18,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 const COMPILER_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
+const COMPILER_OUTPUT_DRAIN_TIMEOUT: Duration = Duration::from_secs(4);
 static NEXT_CACHE_STAGE: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Clone)]
@@ -142,23 +145,25 @@ impl CompilerWorker {
     }
 
     fn spawn_path(path: PathBuf) -> Result<Self, Refusal> {
-        let mut child = Command::new("node")
+        let mut command = Command::new("node");
+        command
             .arg(&path)
             .arg("--worker")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::inherit())
-            .spawn()
-            .map_err(|error| {
-                Refusal::owner(
-                    "E_OWNER_NO_COMPILER",
-                    format!(
-                        "cannot start compiler worker at {}: {error}",
-                        path.display()
-                    ),
-                    "set SNAPBACK2_COMPILER to the absolute bundled dist/compiler.mjs path",
-                )
-            })?;
+            .stderr(Stdio::inherit());
+        #[cfg(unix)]
+        command.process_group(0);
+        let mut child = command.spawn().map_err(|error| {
+            Refusal::owner(
+                "E_OWNER_NO_COMPILER",
+                format!(
+                    "cannot start compiler worker at {}: {error}",
+                    path.display()
+                ),
+                "set SNAPBACK2_COMPILER to the absolute bundled dist/compiler.mjs path",
+            )
+        })?;
         let input = child.stdin.take().ok_or_else(|| {
             Refusal::owner(
                 "E_OWNER_NO_COMPILER",
@@ -410,12 +415,51 @@ impl CompilerWorker {
     }
 
     fn terminate(&mut self) {
+        self.terminate_with_output_drain_timeout(COMPILER_OUTPUT_DRAIN_TIMEOUT);
+    }
+
+    fn terminate_with_output_drain_timeout(&mut self, output_drain_timeout: Duration) {
+        let mut worker_pid = None;
         if let Some(mut child) = self.child.take() {
+            let pid = child.id();
+            worker_pid = Some(pid);
+            #[cfg(unix)]
+            {
+                if unsafe { libc::killpg(pid as i32, libc::SIGKILL) } != 0 {
+                    let _ = child.kill();
+                }
+            }
+            #[cfg(not(unix))]
             let _ = child.kill();
             let _ = child.wait();
         }
         if let Some(output_thread) = self.output_thread.take() {
-            let _ = output_thread.join();
+            let deadline = Instant::now() + output_drain_timeout;
+            let mut disconnected = false;
+            while !output_thread.is_finished() {
+                let now = Instant::now();
+                if now >= deadline {
+                    break;
+                }
+                match self
+                    .output
+                    .recv_timeout((deadline - now).min(Duration::from_millis(50)))
+                {
+                    Ok(_) | Err(RecvTimeoutError::Timeout) => {}
+                    Err(RecvTimeoutError::Disconnected) => {
+                        disconnected = true;
+                        break;
+                    }
+                }
+            }
+            if disconnected || output_thread.is_finished() {
+                let _ = output_thread.join();
+            } else {
+                eprintln!(
+                    "snapback2: compiler worker pid {} left an open stdout pipe; detaching its output reader",
+                    worker_pid.unwrap_or(0)
+                );
+            }
         }
     }
 }
@@ -968,5 +1012,260 @@ for await (const line of createInterface({{ input: process.stdin }})) {{
         assert_eq!(unsafe { libc::kill(pid as i32, 0) }, -1);
         drop(worker);
         fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn bundled_compiler_outputs_execute_tuple_cursors_counts_and_id_arguments() {
+        use snapback2_core::{Actor, Context, Engine, ExecutionState};
+
+        let stamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "snapback2-compiled-execution-{}-{stamp}",
+            std::process::id()
+        ));
+        let snapback = root.join("snapback");
+        fs::create_dir_all(&snapback).unwrap();
+        fs::write(
+            snapback.join("schema.ts"),
+            r#"import { rule, schema, table, t } from "snapback2";
+export const items = table({
+  columns: { at: t.time(), label: t.text(40) },
+  indexes: { byAt: { columns: ["at", "id"] } },
+  rules: {
+    read: rule.public("compiled execution regression"),
+    insert: rule.public("compiled execution regression"),
+    update: rule.public("compiled execution regression"),
+    delete: rule.public("compiled execution regression"),
+  },
+});
+export default schema({ tables: { items } });
+"#,
+        )
+        .unwrap();
+        fs::write(
+            snapback.join("programs.ts"),
+            r#"import { mutation, query, t } from "snapback2";
+import { items } from "./schema";
+export const page = query({ previousId: t.id() }, ({ db, args }) => {
+  const previous = db.get(items, args.previousId)!;
+  return db.scan(items.byAt, [], { take: 1, after: [previous.at, previous.id] });
+});
+export const count = query({}, ({ db }) => db.scan(items.byAt, [], { take: 2 }).countCapped());
+export const put = mutation({ id: t.id() }, ({ db, args }) => {
+  db.insert(items, { id: args.id, at: 2, label: "inserted" });
+  return args.id;
+});
+"#,
+        )
+        .unwrap();
+
+        let compiler = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../packages/snapback2/dist/compiler.mjs");
+        assert!(
+            compiler.is_file(),
+            "build the bundled compiler before this test"
+        );
+        let mut worker = CompilerWorker::spawn_path(compiler).unwrap();
+        let compiled = worker.compile(&root).unwrap();
+        drop(worker);
+
+        let mut engine = Engine::memory(compiled.generation.schema().clone()).unwrap();
+        for (id, label) in [("row-a", "a"), ("row-b", "b")] {
+            engine
+                .seed(
+                    "items",
+                    Value::Row(BTreeMap::from([
+                        ("id".to_owned(), Value::Id(id.to_owned())),
+                        ("at".to_owned(), Value::Int(1)),
+                        ("label".to_owned(), Value::String(label.to_owned())),
+                    ])),
+                )
+                .unwrap();
+        }
+        let actor = Actor::user("tester").unwrap();
+        let programs = compiled.generation.programs();
+        let (page, page_certificate) = &programs["programs.page"];
+        let page_execution = engine
+            .execute(
+                page,
+                page_certificate,
+                Context::query(
+                    actor.clone(),
+                    BTreeMap::from([("previousId".to_owned(), Value::Id("row-a".to_owned()))]),
+                ),
+            )
+            .unwrap();
+        assert_eq!(
+            page_execution.result.as_array().unwrap()[0]
+                .field("id")
+                .unwrap()
+                .as_str()
+                .unwrap(),
+            "row-b"
+        );
+
+        let (count, count_certificate) = &programs["programs.count"];
+        let count_execution = engine
+            .execute(
+                count,
+                count_certificate,
+                Context::query(actor.clone(), BTreeMap::new()),
+            )
+            .unwrap();
+        assert_eq!(count_execution.result, Value::Int(2));
+
+        let (put, put_certificate) = &programs["programs.put"];
+        let put_execution = engine
+            .execute(
+                put,
+                put_certificate,
+                Context::mutation(
+                    actor,
+                    BTreeMap::from([("id".to_owned(), Value::Id("row-c".to_owned()))]),
+                ),
+            )
+            .unwrap();
+        assert!(matches!(
+            put_execution.state,
+            ExecutionState::Committed { .. }
+        ));
+        assert!(
+            engine
+                .rows("items")
+                .unwrap()
+                .iter()
+                .any(|row| { row.field("id").and_then(Value::as_str) == Ok("row-c") })
+        );
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn dropping_worker_kills_descendant_holding_stdout_without_hanging() {
+        let stamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!(
+            "snapback2-descendant-worker-{}-{stamp}.mjs",
+            std::process::id()
+        ));
+        let pid_path = std::env::temp_dir().join(format!(
+            "snapback2-descendant-pid-{}-{stamp}",
+            std::process::id()
+        ));
+        fs::write(
+            &path,
+            format!(
+                r#"import {{ spawn }} from "node:child_process";
+import {{ writeFileSync }} from "node:fs";
+const child = spawn("sleep", ["60"], {{ stdio: ["ignore", "inherit", "ignore"], detached: false }});
+writeFileSync({}, String(child.pid));
+await new Promise(() => {{}});
+"#,
+                serde_json::to_string(&pid_path).unwrap()
+            ),
+        )
+        .unwrap();
+        let worker = CompilerWorker::spawn_path(path.clone()).unwrap();
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while !pid_path.is_file() && Instant::now() < deadline {
+            thread::sleep(Duration::from_millis(10));
+        }
+        let descendant_pid: i32 = loop {
+            if let Ok(pid) = fs::read_to_string(&pid_path)
+                && let Ok(pid) = pid.parse()
+            {
+                break pid;
+            }
+            assert!(
+                Instant::now() < deadline,
+                "descendant pid was not published"
+            );
+            thread::sleep(Duration::from_millis(10));
+        };
+
+        let started = Instant::now();
+        drop(worker);
+        assert!(
+            started.elapsed() < Duration::from_secs(5),
+            "worker drop waited {:?}",
+            started.elapsed()
+        );
+        let reap_deadline = Instant::now() + Duration::from_secs(2);
+        while unsafe { libc::kill(descendant_pid, 0) } == 0 && Instant::now() < reap_deadline {
+            thread::sleep(Duration::from_millis(10));
+        }
+        assert_eq!(unsafe { libc::kill(descendant_pid, 0) }, -1);
+        fs::remove_file(path).unwrap();
+        fs::remove_file(pid_path).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn terminating_worker_detaches_reader_when_setsid_descendant_holds_stdout() {
+        let stamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!(
+            "snapback2-setsid-worker-{}-{stamp}.mjs",
+            std::process::id()
+        ));
+        let pid_path = std::env::temp_dir().join(format!(
+            "snapback2-setsid-pid-{}-{stamp}",
+            std::process::id()
+        ));
+        fs::write(
+            &path,
+            format!(
+                r#"import {{ spawn }} from "node:child_process";
+import {{ writeFileSync }} from "node:fs";
+const child = spawn("sleep", ["60"], {{ stdio: ["ignore", "inherit", "ignore"], detached: true }});
+writeFileSync({}, String(child.pid));
+await new Promise(() => {{}});
+"#,
+                serde_json::to_string(&pid_path).unwrap()
+            ),
+        )
+        .unwrap();
+        let mut worker = CompilerWorker::spawn_path(path.clone()).unwrap();
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while !pid_path.is_file() && Instant::now() < deadline {
+            thread::sleep(Duration::from_millis(10));
+        }
+        let descendant_pid: i32 = loop {
+            if let Ok(pid) = fs::read_to_string(&pid_path)
+                && let Ok(pid) = pid.parse()
+            {
+                break pid;
+            }
+            assert!(
+                Instant::now() < deadline,
+                "descendant pid was not published"
+            );
+            thread::sleep(Duration::from_millis(10));
+        };
+
+        let started = Instant::now();
+        worker.terminate_with_output_drain_timeout(Duration::from_millis(100));
+        assert!(
+            started.elapsed() < Duration::from_secs(1),
+            "worker detach path waited {:?}",
+            started.elapsed()
+        );
+        assert_eq!(unsafe { libc::kill(descendant_pid, 0) }, 0);
+        assert_eq!(unsafe { libc::kill(descendant_pid, libc::SIGKILL) }, 0);
+        let reap_deadline = Instant::now() + Duration::from_secs(2);
+        while unsafe { libc::kill(descendant_pid, 0) } == 0 && Instant::now() < reap_deadline {
+            thread::sleep(Duration::from_millis(10));
+        }
+        assert_eq!(unsafe { libc::kill(descendant_pid, 0) }, -1);
+        fs::remove_file(path).unwrap();
+        fs::remove_file(pid_path).unwrap();
     }
 }

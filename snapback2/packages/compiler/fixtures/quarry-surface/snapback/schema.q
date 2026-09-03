@@ -46,8 +46,8 @@ table posts:
   editedAt: time ?
   visible: bool
   mood: enum('plain', 'bright')
-  by byAuthorAt: author, at
-  by byGroupAt: group, at
+  by byAuthorAt: author, at, id
+  by byGroupAt: group, at, id
   public
   insert r <- r.author = viewer
   update r <- r.author = viewer

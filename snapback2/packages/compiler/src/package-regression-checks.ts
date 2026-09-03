@@ -5,6 +5,11 @@ import { dirname, join, resolve } from "node:path";
 type Test = (name: string, run: () => void | Promise<void>) => void;
 type Assert = (condition: unknown, message: string) => asserts condition;
 
+function killLockHolder(pid: unknown): void {
+  if (typeof pid !== "number" || !Number.isInteger(pid) || pid <= 1) return;
+  try { process.kill(pid, 9); } catch {}
+}
+
 export function registerPackageRegressionChecks(test: Test, assert: Assert, crate: string): void {
   test("a killed package builder leaves a lock that the next build reclaims", async () => {
     const lock = resolve(crate, "target/b2-package-build.lock");
@@ -26,7 +31,12 @@ export function registerPackageRegressionChecks(test: Test, assert: Assert, crat
         } catch {}
         await Bun.sleep(10);
       }
-      assert((await readFile(lock, "utf8")).includes("killed-builder"), "lock holder did not acquire the package build lock");
+      const held = await readFile(lock, "utf8");
+      assert(held.includes("killed-builder"), "lock holder did not acquire the package build lock");
+      // The holder recorded its own pid. When `node` on PATH is a shim (volta spawns the
+      // real node as a child), killing the spawned pid orphans the real holder, which keeps
+      // the lock alive and its stderr pipe open; kill the recorded pid too.
+      killLockHolder(JSON.parse(held.trim()).pid);
       holder.kill(9);
       await holder.exited;
       const rebuilt = Bun.spawnSync({
@@ -34,6 +44,7 @@ export function registerPackageRegressionChecks(test: Test, assert: Assert, crat
       });
       assert(rebuilt.exitCode === 0, `next package build did not reclaim the killed holder's lock: ${new TextDecoder().decode(rebuilt.stderr)}`);
     } finally {
+      try { killLockHolder(JSON.parse((await readFile(lock, "utf8")).trim()).pid); } catch {}
       if (holder.exitCode === null) holder.kill(9);
       await holder.exited;
       await rm(lock, { force: true });

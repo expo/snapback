@@ -137,35 +137,43 @@ pub(super) fn scan_indexed(
     }
     let mut parameters = vec![table_name.to_owned(), index_name.to_owned()];
     let mut predicates = Vec::new();
-    let mut push_bound =
-        |column: usize, operator: &str, value: &Value| -> Result<(), RuntimeError> {
-            parameters.push(encode_index_value(value)?);
-            predicates.push(format!("ie.c{column} {operator} ?{}", parameters.len()));
-            Ok(())
-        };
     for (offset, value) in prefix.iter().enumerate() {
-        push_bound(offset, "=", value)?;
+        push_index_bound(&mut parameters, &mut predicates, offset, "=", value)?;
     }
     let range_column = prefix.len();
     if range_column < index.columns.len() {
         if let Some(value) = after {
-            push_bound(range_column, ">", value)?;
+            push_cursor_bound(
+                &mut parameters,
+                &mut predicates,
+                range_column,
+                if order == Order::Asc { ">" } else { "<" },
+                value,
+                index.columns.len(),
+            )?;
         }
         if let Some(value) = before {
-            push_bound(range_column, "<", value)?;
+            push_cursor_bound(
+                &mut parameters,
+                &mut predicates,
+                range_column,
+                if order == Order::Asc { "<" } else { ">" },
+                value,
+                index.columns.len(),
+            )?;
         }
         if let Some(range) = range {
             if let Some(value) = &range.gt {
-                push_bound(range_column, ">", value)?;
+                push_index_bound(&mut parameters, &mut predicates, range_column, ">", value)?;
             }
             if let Some(value) = &range.gte {
-                push_bound(range_column, ">=", value)?;
+                push_index_bound(&mut parameters, &mut predicates, range_column, ">=", value)?;
             }
             if let Some(value) = &range.lt {
-                push_bound(range_column, "<", value)?;
+                push_index_bound(&mut parameters, &mut predicates, range_column, "<", value)?;
             }
             if let Some(value) = &range.lte {
-                push_bound(range_column, "<=", value)?;
+                push_index_bound(&mut parameters, &mut predicates, range_column, "<=", value)?;
             }
         }
     }
@@ -197,6 +205,59 @@ pub(super) fn scan_indexed(
         serde_json::from_str(&row).map_err(|error| RuntimeError::Schema(error.to_string()))
     })
     .collect()
+}
+
+fn push_index_bound(
+    parameters: &mut Vec<String>,
+    predicates: &mut Vec<String>,
+    column: usize,
+    operator: &str,
+    value: &Value,
+) -> Result<(), RuntimeError> {
+    parameters.push(encode_index_value(value)?);
+    predicates.push(format!("ie.c{column} {operator} ?{}", parameters.len()));
+    Ok(())
+}
+
+fn push_cursor_bound(
+    parameters: &mut Vec<String>,
+    predicates: &mut Vec<String>,
+    first_column: usize,
+    operator: &str,
+    cursor: &Value,
+    column_count: usize,
+) -> Result<(), RuntimeError> {
+    let remaining = column_count - first_column;
+    let values = match cursor {
+        Value::Array(values) => values.as_slice(),
+        value if remaining == 1 => std::slice::from_ref(value),
+        value => {
+            return Err(RuntimeError::Schema(format!(
+                "cursor for {remaining} remaining index columns must be an array, got {}",
+                value.kind()
+            )));
+        }
+    };
+    if values.len() != remaining {
+        return Err(RuntimeError::Schema(format!(
+            "cursor supplied {} of {remaining} remaining index columns",
+            values.len()
+        )));
+    }
+    let columns = (first_column..column_count)
+        .map(|column| format!("ie.c{column}"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let mut placeholders = Vec::with_capacity(values.len());
+    for value in values {
+        parameters.push(encode_index_value(value)?);
+        placeholders.push(format!("?{}", parameters.len()));
+    }
+    predicates.push(format!(
+        "({columns}) {operator} ({})",
+        placeholders.join(", ")
+    ));
+    Ok(())
 }
 
 pub(super) fn encode_index_value(value: &Value) -> Result<String, RuntimeError> {

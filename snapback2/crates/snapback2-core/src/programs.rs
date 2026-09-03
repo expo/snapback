@@ -23,6 +23,7 @@ pub fn spike_schema() -> Schema {
                 ("conversationId", reference("conversations")),
                 ("userId", ColumnType::Principal),
                 ("lastReadAt", ColumnType::Time),
+                ("lastReadId", ColumnType::Optional(Box::new(ColumnType::Id))),
                 ("activity", ColumnType::Time),
             ]),
             indexes: indexes([
@@ -418,13 +419,14 @@ pub fn mark_read_program() -> Program {
         args: BTreeMap::from([
             ("membershipId".to_owned(), ArgType::Scalar),
             ("at".to_owned(), ArgType::Scalar),
+            ("messageId".to_owned(), ArgType::Id),
         ]),
         read_time_granularity_ms: None,
         body: vec![
             Stmt::Update {
                 table: "memberships".to_owned(),
                 key: var("membershipId"),
-                patch: obj([("lastReadAt", var("at"))]),
+                patch: obj([("lastReadAt", var("at")), ("lastReadId", var("messageId"))]),
             },
             Stmt::Return(Expr::Literal(Value::Bool(true))),
         ],
@@ -470,7 +472,10 @@ pub fn inbox_program(maintained: bool) -> Program {
                 prefix: vec![field(var("membership"), "conversationId")],
                 order: Order::Asc,
                 take: Bound::Literal(100),
-                after: Some(Box::new(field(var("membership"), "lastReadAt"))),
+                after: Some(Box::new(Expr::Array(vec![
+                    field(var("membership"), "lastReadAt"),
+                    field(var("membership"), "lastReadId"),
+                ]))),
                 before: None,
                 range: None,
                 provenance: KeyProvenance::Shape,
@@ -583,6 +588,7 @@ pub fn start_dm_program() -> Program {
                             ("conversationId", var("conversationId")),
                             ("userId", var("lo")),
                             ("lastReadAt", Expr::Literal(Value::Int(0))),
+                            ("lastReadId", Expr::Literal(Value::Null)),
                             ("activity", Expr::Literal(Value::Int(0))),
                         ]),
                     },
@@ -593,6 +599,7 @@ pub fn start_dm_program() -> Program {
                             ("conversationId", var("conversationId")),
                             ("userId", var("hi")),
                             ("lastReadAt", Expr::Literal(Value::Int(0))),
+                            ("lastReadId", Expr::Literal(Value::Null)),
                             ("activity", Expr::Literal(Value::Int(0))),
                         ]),
                     },

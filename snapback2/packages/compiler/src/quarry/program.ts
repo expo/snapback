@@ -403,6 +403,20 @@ function emitRead(expr: Extract<Expr, { kind: "read" }>, env: Environment, write
   const target = index.name === "byId" ? expr.table : `${expr.table}.${index.name}`;
   if (expr.range) {
     if (expr.range.cursorKind === "before" && expr.range.order !== "desc") refuse(expr.range.site, "before is supported only with last N; use after with first N for ascending pagination");
+    const remainingColumns = index.columns.slice(expr.keys.length);
+    if (expr.range.cursor && index.columns.at(-1) === "id"
+      && remainingColumns.length > 1 && expr.range.cursor.kind !== "array") {
+      const cursor = expr.range.cursor;
+      const first = cursor.kind === "name" ? cursor.name : remainingColumns[0]!;
+      const firstSuffix = title(remainingColumns[0]!);
+      const root = first.endsWith(firstSuffix) ? first.slice(0, -firstSuffix.length) : first;
+      const tuple = [first, ...remainingColumns.slice(1).map((column) => `${root}${title(column)}`)];
+      typeError(
+        cursor.site,
+        `${expr.table}.${index.name} has ${remainingColumns.length} ordering columns after the prefix (${remainingColumns.join(", ")}); its cursor must be a tuple`,
+        `${expr.range.cursorKind ?? "after"} (${tuple.join(", ")})`,
+      );
+    }
     const options = [`order: ${JSON.stringify(expr.range.order)}`, `take: ${expr.range.take}`];
     if (expr.range.cursor) options.push(`after: ${emitExpr(expr.range.cursor, env, writer).code}`);
     const scan = `db.scan(${target}, [${keys.map((key) => key.code).join(", ")}], { ${options.join(", ")} })`;
@@ -673,6 +687,7 @@ function compatible(left: ScalarType, right: ScalarType): boolean {
 }
 function literalNumber(expr: Expr | undefined): number | undefined { return expr?.kind === "literal" && typeof expr.value === "number" ? expr.value : undefined; }
 function property(value: string): string { return /^[A-Za-z_$][\w$]*$/.test(value) ? value : JSON.stringify(value); }
+function title(value: string): string { return value.length === 0 ? value : value[0]!.toUpperCase() + value.slice(1); }
 function temporary(kind: string, site: Site): string { return `__q_${kind}_${site.line}_${site.col}`; }
 
 function mentionsFocal(expr: Expr): boolean {

@@ -901,7 +901,14 @@ fn seed_program(
     };
     let certificate = Checker::new(schema, ceilings)
         .check(&program)
-        .map_err(|error| RuntimeError::Schema(error.to_string()))?;
+        .map_err(|error| {
+            // Seed E_ARGS_* refusals describe invalid supplied row values, not schema structure.
+            if error.code.starts_with("E_ARGS_") {
+                RuntimeError::Input(error.to_string())
+            } else {
+                RuntimeError::Schema(error.to_string())
+            }
+        })?;
     Ok((program, certificate))
 }
 

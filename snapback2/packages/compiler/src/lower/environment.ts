@@ -14,6 +14,7 @@ export type VariableInfo = {
   alternativeOrigins?: ProvenanceOrigin[];
   elementOrigins?: ProvenanceOrigin[];
   rowBinding?: boolean;
+  rowTable?: string;
   rowCollection?: boolean;
   max?: number;
   boundSource?: string;

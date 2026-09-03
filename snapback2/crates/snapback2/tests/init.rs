@@ -209,7 +209,20 @@ fn quarry_surface_branch_write_executes_both_arms() {
     }
     std::fs::write(
         project.path.join("snapback/seed.ts"),
-        "import { seed } from 'snapback2';\nexport default seed({ personas: ['alice'], rows: { counters: [] } });\n",
+        r#"import { seed } from 'snapback2';
+export default seed({
+  personas: ['alice'],
+  rows: {
+    groups: [{ id: 'group-1', owner: 'dev:alice', label: 'Group' }],
+    posts: [
+      { id: 'post-1', author: 'dev:alice', group: 'group-1', body: 'first', at: 10, editedAt: null, visible: true, mood: 'plain' },
+      { id: 'post-2', author: 'dev:alice', group: 'group-1', body: 'second', at: 20, editedAt: null, visible: true, mood: 'plain' },
+      { id: 'post-3', author: 'dev:alice', group: 'group-1', body: 'third', at: 30, editedAt: null, visible: true, mood: 'plain' },
+    ],
+    counters: [],
+  },
+});
+"#,
     )
     .unwrap();
     let checked = project.run(&["check", "--json"]);
@@ -220,16 +233,29 @@ fn quarry_surface_branch_write_executes_both_arms() {
         String::from_utf8_lossy(&checked.stderr)
     );
     let _owner = OwnerGuard::start(&project);
+    let run = |op: &str, args: &str| {
+        json_stdout(&project.run(&["run", op, args, "--as", "alice", "--json"]))
+    };
+    let after = run(
+        "surface.postsAfter",
+        r#"{"author":"dev:alice","cursorAt":10,"cursorId":"post-1"}"#,
+    );
+    assert_eq!(after["state"], "complete", "{after}");
+    assert_eq!(after["data"].as_array().map(Vec::len), Some(2), "{after}");
+    assert_eq!(after["data"][0]["id"], "post-2", "{after}");
+    assert_eq!(after["data"][1]["id"], "post-3", "{after}");
+
+    let before = run(
+        "surface.postsBefore",
+        r#"{"author":"dev:alice","cursorAt":30,"cursorId":"post-3"}"#,
+    );
+    assert_eq!(before["state"], "complete", "{before}");
+    assert_eq!(before["data"].as_array().map(Vec::len), Some(2), "{before}");
+    assert_eq!(before["data"][0]["body"], "second", "{before}");
+    assert_eq!(before["data"][1]["body"], "first", "{before}");
+
     for value in [true, false] {
-        let run = project.run(&[
-            "run",
-            "surface.branchWrite",
-            &format!(r#"{{"useFirst":{value}}}"#),
-            "--as",
-            "alice",
-            "--json",
-        ]);
-        let result = json_stdout(&run);
+        let result = run("surface.branchWrite", &format!(r#"{{"useFirst":{value}}}"#));
         assert_eq!(result["state"], "committed", "{result}");
     }
 }

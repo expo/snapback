@@ -93,7 +93,8 @@ fn page(after: Option<Expr>, take: u32) -> Scan {
 fn page_program(take: u32, with_after: bool) -> Program {
     let mut args = BTreeMap::from([("scope".to_owned(), ArgType::Scalar)]);
     if with_after {
-        args.insert("after".to_owned(), ArgType::Int);
+        args.insert("afterOrder".to_owned(), ArgType::Int);
+        args.insert("afterId".to_owned(), ArgType::Id);
     }
     Program {
         name: "docs.page".to_owned(),
@@ -101,7 +102,7 @@ fn page_program(take: u32, with_after: bool) -> Program {
         args,
         read_time_granularity_ms: None,
         body: vec![Stmt::Return(Expr::Scan(page(
-            with_after.then(|| var("after")),
+            with_after.then(|| Expr::Array(vec![var("afterOrder"), var("afterId")])),
             take,
         )))],
     }
@@ -130,10 +131,11 @@ fn doc(id: &str, group: &str, owner: &str, order: i64) -> Value {
     ])
 }
 
-fn context(scope: &str, after: Option<i64>) -> Context {
+fn context(scope: &str, after: Option<(i64, &str)>) -> Context {
     let mut args = BTreeMap::from([("scope".to_owned(), Value::Id(scope.to_owned()))]);
-    if let Some(after) = after {
-        args.insert("after".to_owned(), Value::Int(after));
+    if let Some((order, id)) = after {
+        args.insert("afterOrder".to_owned(), Value::Int(order));
+        args.insert("afterId".to_owned(), Value::Id(id.to_owned()));
     }
     Context::query(Actor::user("u1").unwrap(), args)
 }
@@ -248,11 +250,11 @@ fn visible_only_take_reaches_rows_within_the_certified_examined_budget() {
         )
         .unwrap();
 
-    let mut after = 0;
+    let mut after = (0, String::new());
     let mut delivered = Vec::new();
     for _ in 0..3 {
         let execution = runtime
-            .execute("docs.page", context("g1", Some(after)))
+            .execute("docs.page", context("g1", Some((after.0, &after.1))))
             .unwrap();
         let page = execution.result.as_array().unwrap();
         delivered.extend(
@@ -260,7 +262,10 @@ fn visible_only_take_reaches_rows_within_the_certified_examined_budget() {
                 .map(|row| row.field("id").unwrap().as_str().unwrap().to_owned()),
         );
         if let Some(row) = page.last() {
-            after = row.field("order").unwrap().as_int().unwrap();
+            after = (
+                row.field("order").unwrap().as_int().unwrap(),
+                row.field("id").unwrap().as_str().unwrap().to_owned(),
+            );
         }
         if page.len() < 2 {
             break;

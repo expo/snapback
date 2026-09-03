@@ -1,0 +1,1317 @@
+{
+  "corpusVersion": 1,
+  "name": "cursor-asc-before-two-pages",
+  "category": "cursor",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "accounts": {
+        "columns": {
+          "groupId": "Id",
+          "id": "Id",
+          "name": {
+            "Text": {
+              "max": 64
+            }
+          },
+          "parentId": "Id"
+        },
+        "indexes": {
+          "byGroup": {
+            "columns": [
+              "groupId",
+              "id"
+            ],
+            "unique": false
+          },
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": []
+      },
+      "cardCounts": {
+        "columns": {
+          "columnId": "Id",
+          "id": "Id",
+          "value": "Int"
+        },
+        "indexes": {
+          "byGroup": {
+            "columns": [
+              "columnId"
+            ],
+            "unique": true
+          },
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": []
+      },
+      "cards": {
+        "columns": {
+          "columnId": "Id",
+          "id": "Id",
+          "order": "Int",
+          "title": {
+            "Text": {
+              "max": 64
+            }
+          }
+        },
+        "indexes": {
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          },
+          "byParentOrder": {
+            "columns": [
+              "columnId",
+              "order",
+              "id"
+            ],
+            "unique": false
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": []
+      },
+      "columns": {
+        "columns": {
+          "boardId": "Id",
+          "id": "Id",
+          "order": "Int",
+          "title": {
+            "Text": {
+              "max": 64
+            }
+          }
+        },
+        "indexes": {
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          },
+          "byParentOrder": {
+            "columns": [
+              "boardId",
+              "order",
+              "id"
+            ],
+            "unique": false
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": []
+      },
+      "conversations": {
+        "columns": {
+          "id": "Id",
+          "title": {
+            "Text": {
+              "max": 64
+            }
+          }
+        },
+        "indexes": {
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": []
+      },
+      "dmKeys": {
+        "columns": {
+          "conversationId": {
+            "Ref": {
+              "table": "conversations"
+            }
+          },
+          "hi": "Principal",
+          "id": "Id",
+          "lo": "Principal"
+        },
+        "indexes": {
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          },
+          "byPair": {
+            "columns": [
+              "lo",
+              "hi"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [
+          {
+            "Unique": {
+              "index": "byPair"
+            }
+          }
+        ]
+      },
+      "entitlements": {
+        "columns": {
+          "id": "Id",
+          "userId": "Principal"
+        },
+        "indexes": {
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          },
+          "byUser": {
+            "columns": [
+              "userId"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": "Deny",
+          "insert": "Allow",
+          "update": "Allow",
+          "delete": "Allow"
+        },
+        "constraints": []
+      },
+      "expenses": {
+        "columns": {
+          "amount": "Int",
+          "groupId": "Id",
+          "id": "Id",
+          "payerId": "Principal"
+        },
+        "indexes": {
+          "byGroup": {
+            "columns": [
+              "groupId",
+              "id"
+            ],
+            "unique": false
+          },
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": []
+      },
+      "memberships": {
+        "columns": {
+          "activity": "Time",
+          "conversationId": {
+            "Ref": {
+              "table": "conversations"
+            }
+          },
+          "id": "Id",
+          "lastReadAt": "Time",
+          "lastReadId": {
+            "Optional": "Id"
+          },
+          "userId": "Principal"
+        },
+        "indexes": {
+          "byConvUser": {
+            "columns": [
+              "conversationId",
+              "userId"
+            ],
+            "unique": true
+          },
+          "byConversation": {
+            "columns": [
+              "conversationId",
+              "userId"
+            ],
+            "unique": false
+          },
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          },
+          "byUserActivity": {
+            "columns": [
+              "userId",
+              "activity"
+            ],
+            "unique": false
+          }
+        },
+        "rules": {
+          "read": {
+            "Exists": {
+              "table": "memberships",
+              "index": "byConvUser",
+              "key": [
+                {
+                  "Field": "conversationId"
+                },
+                "Viewer"
+              ],
+              "provenance": "Shape"
+            }
+          },
+          "insert": "Allow",
+          "update": {
+            "Eq": [
+              {
+                "Field": "userId"
+              },
+              "Viewer"
+            ]
+          },
+          "delete": {
+            "Eq": [
+              {
+                "Field": "userId"
+              },
+              "Viewer"
+            ]
+          }
+        },
+        "constraints": [
+          {
+            "Unique": {
+              "index": "byConvUser"
+            }
+          }
+        ]
+      },
+      "messages": {
+        "columns": {
+          "at": "Time",
+          "authorId": "Principal",
+          "body": {
+            "Text": {
+              "max": 256
+            }
+          },
+          "conversationId": {
+            "Ref": {
+              "table": "conversations"
+            }
+          },
+          "id": "Id"
+        },
+        "indexes": {
+          "byConvTime": {
+            "columns": [
+              "conversationId",
+              "at",
+              "id"
+            ],
+            "unique": false
+          },
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          },
+          "byToken": {
+            "columns": [
+              "body",
+              "id"
+            ],
+            "unique": false
+          }
+        },
+        "rules": {
+          "read": {
+            "Exists": {
+              "table": "memberships",
+              "index": "byConvUser",
+              "key": [
+                {
+                  "Field": "conversationId"
+                },
+                "Viewer"
+              ],
+              "provenance": "Shape"
+            }
+          },
+          "insert": {
+            "And": [
+              {
+                "Eq": [
+                  {
+                    "Field": "authorId"
+                  },
+                  "Viewer"
+                ]
+              },
+              {
+                "Exists": {
+                  "table": "memberships",
+                  "index": "byConvUser",
+                  "key": [
+                    {
+                      "Field": "conversationId"
+                    },
+                    "Viewer"
+                  ],
+                  "provenance": "Shape"
+                }
+              }
+            ]
+          },
+          "update": {
+            "Eq": [
+              {
+                "Field": "authorId"
+              },
+              "Viewer"
+            ]
+          },
+          "delete": {
+            "Eq": [
+              {
+                "Field": "authorId"
+              },
+              "Viewer"
+            ]
+          }
+        },
+        "constraints": []
+      },
+      "owed": {
+        "columns": {
+          "groupId": "Id",
+          "id": "Id",
+          "userId": "Principal",
+          "value": "Int"
+        },
+        "indexes": {
+          "byGroup": {
+            "columns": [
+              "groupId",
+              "userId"
+            ],
+            "unique": true
+          },
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": []
+      },
+      "secretDocs": {
+        "columns": {
+          "id": "Id",
+          "title": {
+            "Text": {
+              "max": 64
+            }
+          }
+        },
+        "indexes": {
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Exists": {
+              "table": "entitlements",
+              "index": "byUser",
+              "key": [
+                "Viewer"
+              ],
+              "provenance": "Viewer"
+            }
+          },
+          "insert": "Allow",
+          "update": "Allow",
+          "delete": "Allow"
+        },
+        "constraints": []
+      },
+      "shares": {
+        "columns": {
+          "amount": "Int",
+          "expenseId": {
+            "Ref": {
+              "table": "expenses"
+            }
+          },
+          "groupId": "Id",
+          "id": "Id",
+          "userId": "Principal"
+        },
+        "indexes": {
+          "byExpense": {
+            "columns": [
+              "expenseId",
+              "id"
+            ],
+            "unique": false
+          },
+          "byGroupUser": {
+            "columns": [
+              "groupId",
+              "userId",
+              "id"
+            ],
+            "unique": false
+          },
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": []
+      },
+      "unreads": {
+        "columns": {
+          "conversationId": {
+            "Ref": {
+              "table": "conversations"
+            }
+          },
+          "id": "Id",
+          "userId": "Principal",
+          "value": "Int"
+        },
+        "indexes": {
+          "byConvUser": {
+            "columns": [
+              "conversationId",
+              "userId"
+            ],
+            "unique": true
+          },
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": []
+      },
+      "users": {
+        "columns": {
+          "handle": {
+            "Text": {
+              "max": 32
+            }
+          },
+          "id": "Id",
+          "principal": "Principal"
+        },
+        "indexes": {
+          "byHandle": {
+            "columns": [
+              "handle"
+            ],
+            "unique": true
+          },
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          },
+          "byPrincipal": {
+            "columns": [
+              "principal"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": []
+      },
+      "waitCounts": {
+        "columns": {
+          "id": "Id",
+          "resourceId": "Id",
+          "value": "Int"
+        },
+        "indexes": {
+          "byGroup": {
+            "columns": [
+              "resourceId"
+            ],
+            "unique": true
+          },
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": []
+      },
+      "waitlist": {
+        "columns": {
+          "id": "Id",
+          "ownerId": "Principal",
+          "resourceId": "Id"
+        },
+        "indexes": {
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          },
+          "byResource": {
+            "columns": [
+              "resourceId",
+              "id"
+            ],
+            "unique": false
+          }
+        },
+        "rules": {
+          "read": {
+            "Eq": [
+              {
+                "Field": "ownerId"
+              },
+              "Viewer"
+            ]
+          },
+          "insert": "Allow",
+          "update": "Allow",
+          "delete": "Allow"
+        },
+        "constraints": []
+      }
+    },
+    "maintains": [
+      {
+        "kind": "Count",
+        "source": "cards",
+        "by": [
+          "columnId"
+        ],
+        "target": "cardCounts",
+        "readable": null
+      },
+      {
+        "kind": {
+          "Sum": {
+            "of": "amount"
+          }
+        },
+        "source": "shares",
+        "by": [
+          "groupId",
+          "userId"
+        ],
+        "target": "owed",
+        "readable": null
+      },
+      {
+        "kind": "Count",
+        "source": "waitlist",
+        "by": [
+          "resourceId"
+        ],
+        "target": "waitCounts",
+        "readable": {
+          "Public": {
+            "reason": "resource owners disclose queue depth"
+          }
+        }
+      }
+    ]
+  },
+  "program": {
+    "name": "cursor-asc-before-two-pages",
+    "kind": "Query",
+    "args": {},
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Return": {
+          "Array": [
+            {
+              "Scan": {
+                "site": "cursor-asc-before-two-pages.first",
+                "table": "messages",
+                "index": "byConvTime",
+                "prefix": [
+                  {
+                    "Literal": {
+                      "Id": "c1"
+                    }
+                  }
+                ],
+                "order": "Asc",
+                "take": {
+                  "Literal": 1
+                },
+                "after": {
+                  "Array": [
+                    {
+                      "Literal": {
+                        "Int": 5
+                      }
+                    },
+                    {
+                      "Literal": {
+                        "Id": "message-00004"
+                      }
+                    }
+                  ]
+                },
+                "before": null,
+                "range": {
+                  "gt": null,
+                  "gte": {
+                    "Literal": {
+                      "Int": 5
+                    }
+                  },
+                  "lt": null,
+                  "lte": {
+                    "Literal": {
+                      "Int": 5
+                    }
+                  }
+                },
+                "provenance": "Const"
+              }
+            },
+            {
+              "Scan": {
+                "site": "cursor-asc-before-two-pages.second",
+                "table": "messages",
+                "index": "byConvTime",
+                "prefix": [
+                  {
+                    "Literal": {
+                      "Id": "c1"
+                    }
+                  }
+                ],
+                "order": "Asc",
+                "take": {
+                  "Literal": 1
+                },
+                "after": null,
+                "before": {
+                  "Array": [
+                    {
+                      "Literal": {
+                        "Int": 5
+                      }
+                    },
+                    {
+                      "Literal": {
+                        "Id": "message-00005"
+                      }
+                    }
+                  ]
+                },
+                "range": {
+                  "gt": null,
+                  "gte": {
+                    "Literal": {
+                      "Int": 5
+                    }
+                  },
+                  "lt": null,
+                  "lte": {
+                    "Literal": {
+                      "Int": 5
+                    }
+                  }
+                },
+                "provenance": "Const"
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "cursor-asc-before-two-pages",
+    "plan_hash": "2a5694a22c55a8f33dcfe056f03581b101c35b2fa0c727b2a2c51b7345b665e5",
+    "schema_hash": "df0a1b25740fd361ededb5bf93df3428a133ea6dd44f27a74c45a76e1ce8fb3c",
+    "rule_hashes": {
+      "messages.read": "a4500d80558e462bf40291836ee785e6a05a708f84bb1d5d919adc2da67c150b"
+    },
+    "evaluator_version": "bounded-spike-rust-1",
+    "value_model_version": "i53-codepoint-bytes-v2",
+    "read_sites": [
+      {
+        "site": "cursor-asc-before-two-pages.first",
+        "table": "messages",
+        "index": "byConvTime",
+        "prefix_template": "Const",
+        "take": 1,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 2,
+        "hoist": true
+      },
+      {
+        "site": "cursor-asc-before-two-pages.second",
+        "table": "messages",
+        "index": "byConvTime",
+        "prefix_template": "Const",
+        "take": 1,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 2,
+        "hoist": true
+      }
+    ],
+    "write_sites": [],
+    "maintained_amplification": 0,
+    "constraint_checks": [],
+    "max_examined": 10240,
+    "max_index_entries": 10240,
+    "max_rule_probes": 4,
+    "max_steps": 51204,
+    "max_heap_bytes": 1638528,
+    "max_output_bytes": 1602,
+    "max_closure_bytes": 1592,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [
+      "memberships.byConvUser",
+      "messages.byConvTime"
+    ],
+    "disclosures": [
+      "E_DISCLOSURE: count waitlist summarized into waitCounts"
+    ],
+    "bound_product": "cursor-asc-before-two-pages.first take 1 = 1"
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {},
+    "now": null,
+    "new_ids": [],
+    "read_time": null,
+    "seed_write": false
+  },
+  "receipt": {
+    "schema_hash": "df0a1b25740fd361ededb5bf93df3428a133ea6dd44f27a74c45a76e1ce8fb3c",
+    "rows": [
+      {
+        "table": "memberships",
+        "id": "m1",
+        "row": {
+          "Row": {
+            "activity": {
+              "Int": 100
+            },
+            "conversationId": {
+              "Id": "c1"
+            },
+            "id": {
+              "Id": "m1"
+            },
+            "lastReadAt": {
+              "Int": 0
+            },
+            "lastReadId": "Null",
+            "userId": {
+              "Id": "u1"
+            }
+          }
+        }
+      },
+      {
+        "table": "messages",
+        "id": "message-00005",
+        "row": {
+          "Row": {
+            "at": {
+              "Int": 5
+            },
+            "authorId": {
+              "Id": "u1"
+            },
+            "body": {
+              "String": "message 5, tied"
+            },
+            "conversationId": {
+              "Id": "c1"
+            },
+            "id": {
+              "Id": "message-00005"
+            }
+          }
+        }
+      },
+      {
+        "table": "messages",
+        "id": "message-00004",
+        "row": {
+          "Row": {
+            "at": {
+              "Int": 5
+            },
+            "authorId": {
+              "Id": "u1"
+            },
+            "body": {
+              "String": "message 4"
+            },
+            "conversationId": {
+              "Id": "c1"
+            },
+            "id": {
+              "Id": "message-00004"
+            }
+          }
+        }
+      }
+    ],
+    "ranges": [
+      {
+        "site": "cursor-asc-before-two-pages.first",
+        "table": "messages",
+        "index": "byConvTime",
+        "prefix": [
+          {
+            "Id": "c1"
+          }
+        ],
+        "order": "Asc",
+        "take": 1,
+        "after": {
+          "Array": [
+            {
+              "Int": 5
+            },
+            {
+              "Id": "message-00004"
+            }
+          ]
+        },
+        "before": null,
+        "gt": null,
+        "gte": {
+          "Int": 5
+        },
+        "lt": null,
+        "lte": {
+          "Int": 5
+        },
+        "rule_hash": "a4500d80558e462bf40291836ee785e6a05a708f84bb1d5d919adc2da67c150b",
+        "row_ids": [
+          "message-00005"
+        ],
+        "stop": "Exhausted",
+        "absence": false,
+        "halo": null,
+        "n2_key": null
+      },
+      {
+        "site": "cursor-asc-before-two-pages.second",
+        "table": "messages",
+        "index": "byConvTime",
+        "prefix": [
+          {
+            "Id": "c1"
+          }
+        ],
+        "order": "Asc",
+        "take": 1,
+        "after": null,
+        "before": {
+          "Array": [
+            {
+              "Int": 5
+            },
+            {
+              "Id": "message-00005"
+            }
+          ]
+        },
+        "gt": null,
+        "gte": {
+          "Int": 5
+        },
+        "lt": null,
+        "lte": {
+          "Int": 5
+        },
+        "rule_hash": "a4500d80558e462bf40291836ee785e6a05a708f84bb1d5d919adc2da67c150b",
+        "row_ids": [
+          "message-00004"
+        ],
+        "stop": "Exhausted",
+        "absence": false,
+        "halo": null,
+        "n2_key": null
+      }
+    ],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": {
+      "Array": [
+        {
+          "Array": [
+            {
+              "Row": {
+                "at": {
+                  "Int": 5
+                },
+                "authorId": {
+                  "Id": "u1"
+                },
+                "body": {
+                  "String": "message 5, tied"
+                },
+                "conversationId": {
+                  "Id": "c1"
+                },
+                "id": {
+                  "Id": "message-00005"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "Array": [
+            {
+              "Row": {
+                "at": {
+                  "Int": 5
+                },
+                "authorId": {
+                  "Id": "u1"
+                },
+                "body": {
+                  "String": "message 4"
+                },
+                "conversationId": {
+                  "Id": "c1"
+                },
+                "id": {
+                  "Id": "message-00004"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "errorCode": null,
+    "localState": "fresh",
+    "partialSites": [],
+    "canonicalResult": "{\"Array\":[{\"Array\":[{\"Row\":{\"at\":{\"Int\":5},\"authorId\":{\"Id\":\"u1\"},\"body\":{\"String\":\"message 5, tied\"},\"conversationId\":{\"Id\":\"c1\"},\"id\":{\"Id\":\"message-00005\"}}}]},{\"Array\":[{\"Row\":{\"at\":{\"Int\":5},\"authorId\":{\"Id\":\"u1\"},\"body\":{\"String\":\"message 4\"},\"conversationId\":{\"Id\":\"c1\"},\"id\":{\"Id\":\"message-00004\"}}}]}]}",
+    "digest": "93e3958a14b263fb26ffbed84bf641c1664ed660770ab95b54fa3b7dc76ba574",
+    "rangeStops": {
+      "cursor-asc-before-two-pages.first": [
+        "exhausted"
+      ],
+      "cursor-asc-before-two-pages.second": [
+        "exhausted"
+      ]
+    },
+    "evictedRows": null
+  }
+}

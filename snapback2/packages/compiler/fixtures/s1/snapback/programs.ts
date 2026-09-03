@@ -60,7 +60,7 @@ function inboxUnreadMessages(db: Db, membership: any) {
   return db.scan(messages.byConvTime, [membership.conversationId], {
     order: "asc",
     take: 100,
-    after: membership.lastReadAt,
+    after: [membership.lastReadAt, membership.lastReadId],
   });
 }
 
@@ -172,8 +172,8 @@ export const sendMaintainedUnread = mutation(
   },
 );
 
-export const markRead = mutation({ membershipId: t.id(), at: t.time() }, ({ db, args }) => {
-  db.update(memberships, args.membershipId, { lastReadAt: args.at });
+export const markRead = mutation({ membershipId: t.id(), at: t.time(), messageId: t.id() }, ({ db, args }) => {
+  db.update(memberships, args.membershipId, { lastReadAt: args.at, lastReadId: args.messageId });
   return true;
 });
 
@@ -213,6 +213,7 @@ export const startDm = mutation({ lo: t.principal(), hi: t.principal() }, ({ db,
       conversationId,
       userId: args.lo,
       lastReadAt: 0,
+      lastReadId: null,
       activity: 0,
     });
     db.insert(memberships, {
@@ -220,6 +221,7 @@ export const startDm = mutation({ lo: t.principal(), hi: t.principal() }, ({ db,
       conversationId,
       userId: args.hi,
       lastReadAt: 0,
+      lastReadId: null,
       activity: 0,
     });
     return conversationId;

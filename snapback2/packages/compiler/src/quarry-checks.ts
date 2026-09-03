@@ -62,6 +62,65 @@ export function registerQuarryChecks(test: Test, frontend: string): void {
     }
   });
 
+  test("Quarry tuple cursors lower, group, bind, and certify with Ref ids", async () => {
+    const schema = "table posts:\n  author: principal\n  at: time\n  by byAuthorAt: author, at, id\n  public\n";
+    const module = `query page(author: principal, cursorAt: time ?, cursorId: posts ?):
+  if cursorAt != null:
+    return posts[author] after (cursorAt, cursorId) first 3
+  return posts[author] first 3
+
+query grouped(value: int):
+  return (value)
+
+query scalar(author: principal, at: time, cursorId: posts):
+  return posts[author, at] after cursorId first 3 by byAuthorAt
+
+query ordered(a: int, b: int):
+  (lo, hi) = sorted(a, b)
+  return [lo, hi]
+`;
+    const compiled = compileInline([
+      { fileName: "snapback/schema.q", source: schema },
+      { fileName: "snapback/ops.q", source: module },
+    ]);
+    assert(compiled.ok, `tuple cursor front end refused: ${compiled.ok ? "" : diagnosticsText(compiled.diagnostics)}`);
+    const source = compiled.modules[0]!.source;
+    assert(source.includes("after: [args.cursorAt, args.cursorId]"), `tuple cursor did not emit an array literal:\n${source}`);
+    assert(source.includes("after: args.cursorId"), `one-column scalar cursor sugar stopped lowering:\n${source}`);
+    assert(source.includes("return args.value;") && !source.includes("return [args.value];"), `single parentheses stopped grouping:\n${source}`);
+    assert(source.includes("orderedPair(args.a, args.b)"), `tuple binding changed:\n${source}`);
+
+    await withProject({ "snapback/schema.q": schema, "snapback/ops.q": module }, async (root) => {
+      const lowered = await lowerProject(root);
+      assert(lowered.ok, `tuple cursor project refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
+      const failures = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema).filter((item) => item.error);
+      assert(failures.length === 0, `tuple cursor project did not certify: ${JSON.stringify(failures)}`);
+    });
+  });
+
+  test("Quarry refuses a scalar composite cursor with a pasteable tuple rewrite", async () => {
+    const schema = "table posts:\n  author: principal\n  at: time\n  by byAuthorAt: author, at, id\n  public\n";
+    const scalar = "query page(author: principal, cursor: time, cursorId: posts):\n  return posts[author] after cursor first 3\n";
+    const refused = compileInline([
+      { fileName: "snapback/schema.q", source: schema },
+      { fileName: "snapback/ops.q", source: scalar },
+    ]);
+    assert(!refused.ok, "scalar cursor over two remaining columns compiled");
+    const diagnostic = refused.diagnostics.find((item) => item.code === "E_QUARRY_TYPE");
+    assert(diagnostic?.family === "quarry" && diagnostic.site === "snapback/ops.q:2:30",
+      `scalar cursor refusal lost code/family/site: ${JSON.stringify(refused)}`);
+    assert(diagnostic.rewrite === "-- after (cursor, cursorId)" && diagnostic.guide === "quarry/types",
+      `scalar cursor refusal lost tuple rewrite/guide: ${JSON.stringify(diagnostic)}`);
+
+    const repaired = scalar.replace("after cursor", diagnostic.rewrite.slice(3));
+    await withProject({ "snapback/schema.q": schema, "snapback/ops.q": repaired }, async (root) => {
+      const lowered = await lowerProject(root);
+      assert(lowered.ok, `tuple rewrite did not parse/lower: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
+      const failures = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema).filter((item) => item.error);
+      assert(failures.length === 0, `tuple rewrite did not certify: ${JSON.stringify(failures)}`);
+    });
+  });
+
   test("Quarry maps platform refusals and operation source sites back to .q", async () => {
     const qSchema = readFileSync(resolve(fixtures, "quarry-chat/snapback/schema.q"), "utf8");
     const effect = readFileSync(resolve(fixtures, "quarry-chat/snapback/delivery.ts"), "utf8");

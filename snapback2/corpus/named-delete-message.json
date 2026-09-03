@@ -381,6 +381,9 @@
           },
           "id": "Id",
           "lastReadAt": "Time",
+          "lastReadId": {
+            "Optional": "Id"
+          },
           "userId": "Principal"
         },
         "indexes": {
@@ -933,9 +936,9 @@
   "certificate": {
     "program": "deleteMessage",
     "plan_hash": "5edacacac896fd9d19e8abe5588a1d4a49aeabbe2a24c16c16451f59d4969630",
-    "schema_hash": "31792591fb75b5ab316e24a71206d3f7de6e02ed12f49a2f39782dbcab4b3566",
+    "schema_hash": "df0a1b25740fd361ededb5bf93df3428a133ea6dd44f27a74c45a76e1ce8fb3c",
     "rule_hashes": {
-      "messages.delete": "347c33bc0f35d3d47e4079ee2b2fd578c54acf8eeb991f93d8b6b507a5d1cc68"
+      "messages.delete": "2f530cc93628330732bce2ae64a9e64e639dca3c4c179f50c7a6e0c1060926b4"
     },
     "evaluator_version": "bounded-spike-rust-1",
     "value_model_version": "i53-codepoint-bytes-v2",
@@ -983,7 +986,7 @@
     "seed_write": false
   },
   "receipt": {
-    "schema_hash": "31792591fb75b5ab316e24a71206d3f7de6e02ed12f49a2f39782dbcab4b3566",
+    "schema_hash": "df0a1b25740fd361ededb5bf93df3428a133ea6dd44f27a74c45a76e1ce8fb3c",
     "rows": [
       {
         "table": "accounts",
@@ -1113,6 +1116,7 @@
             "lastReadAt": {
               "Int": 0
             },
+            "lastReadId": "Null",
             "userId": {
               "Id": "u1"
             }
@@ -1136,6 +1140,7 @@
             "lastReadAt": {
               "Int": 0
             },
+            "lastReadId": "Null",
             "userId": {
               "Id": "u2"
             }

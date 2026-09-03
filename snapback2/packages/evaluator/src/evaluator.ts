@@ -15,6 +15,7 @@ import {
   canonicalValue,
   canonicalValues,
   clone,
+  compareArrays,
   compareCodepoints,
   field,
   fieldOrNull,
@@ -198,13 +199,25 @@ export class ClientStore {
   ): Value[] {
     const index = this.index(table, indexName);
     const rangeColumn = prefix.length;
+    const remaining = index.columns.length - rangeColumn;
+    const cursorTuple = (cursor: Value): Value[] => {
+      if (isVariant(cursor, "Array")) {
+        if (cursor.Array.length !== remaining) {
+          throw new EvalError("E_TYPE", `cursor supplied ${cursor.Array.length} of ${remaining} remaining index columns`);
+        }
+        return cursor.Array;
+      }
+      if (remaining === 1) return [cursor];
+      throw new EvalError("E_TYPE", `cursor for ${remaining} remaining index columns must be an array`);
+    };
     const selected = this.rows(table).filter((row) => {
       const values = index.columns.map((column: string) => fieldOrNull(row, column));
       if (!valuesEqual(values.slice(0, prefix.length), prefix)) return false;
       if (rangeColumn >= values.length) return true;
       const value = values[rangeColumn];
-      if (after !== null && totalCompare(value, after) <= 0) return false;
-      if (before !== null && totalCompare(value, before) >= 0) return false;
+      const position = values.slice(rangeColumn);
+      if (after !== null && compareArrays(position, cursorTuple(after)) * (order === "Asc" ? 1 : -1) <= 0) return false;
+      if (before !== null && compareArrays(position, cursorTuple(before)) * (order === "Asc" ? 1 : -1) >= 0) return false;
       if (range?.gt !== null && range?.gt !== undefined && totalCompare(value, range.gt) <= 0)
         return false;
       if (range?.gte !== null && range?.gte !== undefined && totalCompare(value, range.gte) < 0)

@@ -381,6 +381,9 @@
           },
           "id": "Id",
           "lastReadAt": "Time",
+          "lastReadId": {
+            "Optional": "Id"
+          },
           "userId": "Principal"
         },
         "indexes": {
@@ -917,7 +920,8 @@
     "kind": "Mutation",
     "args": {
       "at": "Scalar",
-      "membershipId": "Scalar"
+      "membershipId": "Scalar",
+      "messageId": "Id"
     },
     "read_time_granularity_ms": null,
     "body": [
@@ -931,6 +935,9 @@
             "Object": {
               "lastReadAt": {
                 "Variable": "at"
+              },
+              "lastReadId": {
+                "Variable": "messageId"
               }
             }
           }
@@ -947,10 +954,10 @@
   },
   "certificate": {
     "program": "markRead",
-    "plan_hash": "e3c6df51661bb7ae7a69fb28e695bc79e83897bd7ca494dcd6499a27853b9c6f",
-    "schema_hash": "31792591fb75b5ab316e24a71206d3f7de6e02ed12f49a2f39782dbcab4b3566",
+    "plan_hash": "c3400ad9350d5421fd746d8d2d3bd6181723fc7f23428d2630af097b6200039b",
+    "schema_hash": "df0a1b25740fd361ededb5bf93df3428a133ea6dd44f27a74c45a76e1ce8fb3c",
     "rule_hashes": {
-      "memberships.update": "4f96acefd3598b72c1963d585b9c46909ed212702335e097586b73f98185af82"
+      "memberships.update": "cf80675399155d57de09fdd9f316b076f13f1a2c3be4a757d23b21ec28609c6a"
     },
     "evaluator_version": "bounded-spike-rust-1",
     "value_model_version": "i53-codepoint-bytes-v2",
@@ -970,8 +977,8 @@
     "max_examined": 0,
     "max_index_entries": 0,
     "max_rule_probes": 0,
-    "max_steps": 11,
-    "max_heap_bytes": 352,
+    "max_steps": 12,
+    "max_heap_bytes": 384,
     "max_output_bytes": 13,
     "max_closure_bytes": 0,
     "completeness": "Page",
@@ -994,6 +1001,9 @@
       },
       "membershipId": {
         "Id": "m1"
+      },
+      "messageId": {
+        "Id": "message-00002"
       }
     },
     "now": 0,
@@ -1002,7 +1012,7 @@
     "seed_write": false
   },
   "receipt": {
-    "schema_hash": "31792591fb75b5ab316e24a71206d3f7de6e02ed12f49a2f39782dbcab4b3566",
+    "schema_hash": "df0a1b25740fd361ededb5bf93df3428a133ea6dd44f27a74c45a76e1ce8fb3c",
     "rows": [
       {
         "table": "accounts",
@@ -1132,6 +1142,7 @@
             "lastReadAt": {
               "Int": 0
             },
+            "lastReadId": "Null",
             "userId": {
               "Id": "u1"
             }
@@ -1155,6 +1166,7 @@
             "lastReadAt": {
               "Int": 0
             },
+            "lastReadId": "Null",
             "userId": {
               "Id": "u2"
             }

@@ -381,6 +381,9 @@
           },
           "id": "Id",
           "lastReadAt": "Time",
+          "lastReadId": {
+            "Optional": "Id"
+          },
           "userId": "Principal"
         },
         "indexes": {
@@ -984,10 +987,10 @@
   "certificate": {
     "program": "inboxMaintainedComplete",
     "plan_hash": "ed1a7695b7fa026da94194e02c3228a0d1ba407ed5821e4d3b99dd2a8a9bd1bb",
-    "schema_hash": "9115d65fcfb8dde1a1c7171c7674718c5252c1971788622221234205acbf3496",
+    "schema_hash": "f4ed0fdb1f3c52cfd706a1e35024f2a1e5236d857f93be4812538e4f7355170c",
     "rule_hashes": {
-      "memberships.read": "58f37c2077082cc71adc9367a0718748ab28d90524b7562cfd3caefa8eee81be",
-      "unreads.read": "9aa745bc31a6aa5fc3648d61a9c19cca94addec7cbce08f18f4007738287153a"
+      "memberships.read": "c574964396c66009dab351e9437cb29a17105cfcea20268c16f5db954bc257ef",
+      "unreads.read": "5b4957a894014996006423db6be6b713dc4f702a36a26a9d4e0c1ddeaaf8196b"
     },
     "evaluator_version": "bounded-spike-rust-1",
     "value_model_version": "i53-codepoint-bytes-v2",
@@ -1047,7 +1050,7 @@
     "seed_write": false
   },
   "receipt": {
-    "schema_hash": "9115d65fcfb8dde1a1c7171c7674718c5252c1971788622221234205acbf3496",
+    "schema_hash": "f4ed0fdb1f3c52cfd706a1e35024f2a1e5236d857f93be4812538e4f7355170c",
     "rows": [
       {
         "table": "memberships",
@@ -1066,6 +1069,7 @@
             "lastReadAt": {
               "Int": 0
             },
+            "lastReadId": "Null",
             "userId": {
               "Id": "u1"
             }
@@ -1111,7 +1115,7 @@
         "gte": null,
         "lt": null,
         "lte": null,
-        "rule_hash": "58f37c2077082cc71adc9367a0718748ab28d90524b7562cfd3caefa8eee81be",
+        "rule_hash": "c574964396c66009dab351e9437cb29a17105cfcea20268c16f5db954bc257ef",
         "row_ids": [
           "m1"
         ],

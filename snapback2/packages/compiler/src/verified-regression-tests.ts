@@ -543,6 +543,412 @@ export function registerVerifiedRegressionTests(
     assert(canonicalValue(result) === canonicalValue({ Array: [{ Int: 100 }, { Int: -10 }] }), "variadic min/max truncated operands");
   });
 
+  test("Quarry-shaped Id composites certify and execute without scalar false positives", () => {
+    const id = { kind: "string", id: true } as const;
+    const tables = new Map<string, TableInfo>([
+      ["items", { name: "items", private: false,
+        columns: { id, at: { kind: "int" }, label: { kind: "string", max: 80 } },
+        indexes: { byId: { columns: ["id"], types: [id] }, byAt: { columns: ["at", "id"], types: [{ kind: "int" }, id] } } }],
+      ["pairs", { name: "pairs", private: false,
+        columns: { id, lo: id, hi: id },
+        indexes: { byId: { columns: ["id"], types: [id] }, byPair: { columns: ["lo", "hi"], types: [id, id] } } }],
+      ["nodes", { name: "nodes", private: false,
+        columns: { id, parent: { kind: "optional", of: id }, name: { kind: "string", max: 80 } },
+        indexes: { byId: { columns: ["id"], types: [id] } } }],
+    ]);
+    const source = lowerSource(`import { concat, mutation, query, t } from "snapback2";
+declare const items: any, pairs: any, nodes: any;
+function orderedPair(l: any, r: any) { return [l, r]; }
+export const addPair = mutation({ a: t.id(), b: t.id() }, ({ db, ctx, args }) => {
+  const [lo, hi] = orderedPair(args.a, args.b);
+  db.insert(pairs, { id: ctx.newId(), lo, hi });
+  return null;
+});
+export const parent = query({ seed: t.id() }, ({ db, args }) => {
+  const node = db.get(nodes, args.seed)!;
+  const key = node.parent ?? null;
+  let parent = null;
+  if (key !== null) parent = db.get(nodes, key);
+  return parent;
+});
+export const pair = query({ a: t.id(), b: t.id() }, ({ db, args }) => {
+  const key = [args.a, args.b];
+  return db.get(pairs.byPair, key);
+});
+export const page = query({}, ({ db }) => {
+  let next: any[] = [];
+  for (const row of db.scan(items.byAt, [], { take: 1 })) {
+    next = db.scan(items.byAt, [], { take: 2, after: [row.at, row.id] });
+  }
+  return next;
+});
+export const enumText = mutation({ kind: t.enum(["a", "b"]) }, ({ db, ctx, args }) => {
+  db.insert(items, { id: ctx.newId(), at: 1, label: args.kind });
+  return null;
+});
+export const compositeId = mutation({ a: t.id(), b: t.id() }, ({ db, args }) => {
+  db.insert(items, { id: concat(args.a, args.b), at: 2, label: "pair" });
+  return null;
+});`, "quarry-id-shapes.ts", undefined, { tables });
+    assert(source.ok, `Quarry-shaped Id constructs refused: ${source.ok ? "" : JSON.stringify(source.diagnostics)}`);
+    const schema = { tables: {
+      items: { ...evaluatorTable({ at: "Int", label: { Text: { max: 80 } } }), indexes: {
+        byId: { columns: ["id"], unique: true }, byAt: { columns: ["at", "id"], unique: false },
+      } },
+      pairs: { ...evaluatorTable({ lo: "Id", hi: "Id" }), indexes: {
+        byId: { columns: ["id"], unique: true }, byPair: { columns: ["lo", "hi"], unique: true },
+      } },
+      nodes: evaluatorTable({ parent: { Optional: "Id" }, name: { Text: { max: 80 } } }),
+    }, maintains: [], channels: {}, auth: { password: false, guests: false }, effects: [] };
+    const checked = rustCheck(source.programs, "synthetic", schema);
+    assert(checked.every((item) => item.error === null), `Quarry-shaped Id constructs failed raw certification: ${JSON.stringify(checked)}`);
+    const programs = new Map(source.programs.map((program) => [program.name, program]));
+
+    runProgram(programs.get("addPair")!, { a: { Id: "a" }, b: { Id: "b" } }, ["pair-row"], schema);
+    runProgram(programs.get("enumText")!, { kind: { String: "a" } }, ["enum-row"], schema);
+    runProgram(programs.get("compositeId")!, { a: { Id: "a" }, b: { Id: "b" } }, [], schema);
+
+    const held: ClosureReceipt = { ...emptyReceipt, rows: [
+      { table: "nodes", id: "seed", row: { Row: { id: { Id: "seed" }, parent: { Id: "parent" }, name: { String: "seed" } } } },
+      { table: "nodes", id: "parent", row: { Row: { id: { Id: "parent" }, parent: "Null", name: { String: "parent" } } } },
+      { table: "pairs", id: "held-pair", row: { Row: { id: { Id: "held-pair" }, lo: { Id: "a" }, hi: { Id: "b" } } } },
+      { table: "items", id: "row-a", row: { Row: { id: { Id: "row-a" }, at: { Int: 1 }, label: { String: "a" } } } },
+      { table: "items", id: "row-b", row: { Row: { id: { Id: "row-b" }, at: { Int: 2 }, label: { String: "b" } } } },
+    ] };
+    const parent = runProgram(programs.get("parent")!, { seed: { Id: "seed" } }, [], schema, held).result;
+    assert(canonicalValue(parent).includes('"parent"'), `guarded optional parent did not execute: ${canonicalValue(parent)}`);
+    const pair = runProgram(programs.get("pair")!, { a: { Id: "a" }, b: { Id: "b" } }, [], schema, held).result;
+    assert(canonicalValue(pair).includes('"held-pair"'), `composite key did not execute: ${canonicalValue(pair)}`);
+    const page = runProgram(programs.get("page")!, {}, [], schema, held).result;
+    assert(canonicalValue(page).includes('"row-b"'), `loop-row tuple cursor did not execute: ${canonicalValue(page)}`);
+  });
+
+  test("the evaluator refuses a sliced short tuple cursor exactly like the engine", () => {
+    const schema = { tables: { items: {
+      ...evaluatorTable({ at: "Int" }),
+      indexes: { byId: { columns: ["id"], unique: true }, byAt: { columns: ["at", "id"], unique: false } },
+    } } };
+    const program: Program = {
+      name: "sliceCursor", kind: "Query", args: {}, read_time_granularity_ms: null,
+      body: [{ Return: { Scan: {
+        site: "sliceCursor.0", table: "items", index: "byAt", prefix: [], order: "Asc", take: { Literal: 1 },
+        after: { Builtin: { builtin: "Slice", args: [
+          { Array: [{ Literal: { Int: 5 } }, { Literal: { Id: "row-a" } }] },
+          { Literal: { Int: 0 } }, { Literal: { Int: 1 } },
+        ] } }, before: null, range: null, provenance: "Const",
+      } } }],
+    };
+    let message = "";
+    try {
+      runProgram(program, {}, [], schema, { ...emptyReceipt, rows: [
+        { table: "items", id: "row-a", row: { Row: { id: { Id: "row-a" }, at: { Int: 5 } } } },
+      ] });
+    } catch (error) {
+      message = error instanceof Error ? error.message : String(error);
+    }
+    assert(message.includes("cursor supplied 1 of 2 remaining index columns"),
+      `evaluator accepted or differently classified a short sliced cursor: ${message}`);
+  });
+
+  test("certification stays silent for runtime cursor and viewer values, and the twin executes them", () => {
+    const idType = { kind: "string", id: true } as const;
+    const itemsInfo: TableInfo = {
+      name: "items", private: false,
+      columns: { id: idType, at: { kind: "int" }, label: { kind: "string", max: 80 }, owner: idType },
+      indexes: {
+        byId: { columns: ["id"], types: [idType] },
+        byAt: { columns: ["at", "id"], types: [{ kind: "int" }, idType] },
+        byOwnerOnly: { columns: ["owner"], types: [idType] },
+        byLabel: { columns: ["label", "id"], types: [{ kind: "string", max: 80 }, idType] },
+        byUnsafe: { columns: ["id", "at"], types: [idType, { kind: "int" }] },
+      },
+    };
+    const usersInfo: TableInfo = {
+      name: "users", private: false,
+      columns: { id: idType, name: { kind: "string", max: 80 } },
+      indexes: { byId: { columns: ["id"], types: [idType] } },
+    };
+    const tables = new Map([["items", itemsInfo], ["users", usersInfo]]);
+    const schema = { tables: {
+      items: {
+        ...evaluatorTable({ at: "Int", label: { Text: { max: 80 } }, owner: { Ref: { table: "users" } } }),
+        indexes: {
+          byId: { columns: ["id"], unique: true },
+          byAt: { columns: ["at", "id"], unique: false },
+          byOwnerOnly: { columns: ["owner"], unique: false },
+          byLabel: { columns: ["label", "id"], unique: false },
+          byUnsafe: { columns: ["id", "at"], unique: false },
+        },
+      },
+      users: evaluatorTable({ name: { Text: { max: 80 } } }),
+    }, maintains: [], channels: {}, auth: { password: false, guests: false }, effects: [] };
+    const source = lowerSource(`import { mutation, query, t } from "snapback2";
+declare const items: any, users: any;
+function cursorOf(row: any) { return [row.at, row.id]; }
+export const loopCarry = query({ seedAt: t.time(), seedId: t.id() }, ({ db, args }) => {
+  let lastAt = args.seedAt;
+  let lastId = args.seedId;
+  for (const row of db.scan(items.byAt, [], { take: 1, after: [args.seedAt, args.seedId] })) {
+    lastAt = row.at;
+    lastId = row.id;
+  }
+  return db.scan(items.byAt, [], { take: 2, after: [lastAt, lastId] });
+});
+export const branchCarry = query({ a: t.id(), b: t.id(), flag: t.bool() }, ({ db, args }) => {
+  let anchor = db.get(items, args.a)!;
+  if (args.flag) anchor = db.get(items, args.b)!;
+  return db.scan(items.byAt, [], { take: 2, after: [anchor.at, anchor.id] });
+});
+export const helperPage = query({ previousId: t.id() }, ({ db, args }) => {
+  const previous = db.get(items, args.previousId)!;
+  return db.scan(items.byAt, [], { take: 2, after: cursorOf(previous) });
+});
+export const literalPage = query({}, ({ db }) => db.scan(items.byAt, [], { take: 2, after: [5, "row-a"] }));
+export const unsafePage = query({ seedId: t.id(), seedAt: t.time() }, ({ db, args }) =>
+  db.scan(items.byAt, [], { take: 2, after: [args.seedAt, args.seedId] }));
+export const viewerReads = query({}, ({ db, ctx }) => [
+  db.get(users, ctx.viewer), db.get(items.byOwnerOnly, [ctx.viewer]),
+  db.scan(items.byOwnerOnly, [ctx.viewer], { take: 2 }), db.exists(items.byOwnerOnly, [ctx.viewer]),
+]);
+export const viewerInsert = mutation({}, ({ db, ctx }) => {
+  const me = ctx.viewer;
+  return db.insert(items, { id: ctx.newId(), at: 40, label: "mine", owner: me });
+});
+export const assignedInsert = mutation({ given: t.id() }, ({ db, args }) => {
+  let id = "";
+  id = args.given;
+  return db.insert(items, { id, at: 50, label: "assigned", owner: args.given });
+});
+export const jsonInsert = mutation({ given: t.json(1024) }, ({ db, args }) => {
+  return db.insert(items, { id: args.given, at: 60, label: "json", owner: args.given });
+});
+export const coalescedInsert = mutation({ given: t.json(1024) }, ({ db, args }) => {
+  const id = args.given ?? null;
+  return db.insert(items, { id, at: 65, label: "coalesced", owner: id });
+});
+export const textInsert = mutation({ owner: t.ref(users) }, ({ db, ctx, args }) =>
+  db.insert(items, { id: ctx.newId(), at: 70, label: \`owner \${args.owner}\`, owner: args.owner }));
+export const concatInsert = mutation({ owner: t.ref(users) }, ({ db, ctx, args }) =>
+  db.insert(items, { id: ctx.newId(), at: 75, label: concat("hello ", args.owner), owner: args.owner }));`, "parity.ts", undefined, { tables });
+    assert(source.ok, `runtime-green parity scenarios were refused: ${source.ok ? "" : JSON.stringify(source.diagnostics)}`);
+    const checked = rustCheck(source.programs, "synthetic", schema);
+    assert(checked.every((item) => item.error === null), `runtime-green parity scenarios failed raw certification: ${JSON.stringify(checked)}`);
+    const programs = new Map(source.programs.map((program) => [program.name, program]));
+    const receipt: ClosureReceipt = { ...emptyReceipt, rows: [
+      { table: "users", id: "viewer", row: { Row: { id: { Id: "viewer" }, name: { String: "Viewer" } } } },
+      ...[["row-a", 10], ["row-b", 20], ["row-c", 30]].map(([rowId, at]) => ({
+        table: "items", id: rowId as string, row: { Row: {
+          id: { Id: rowId as string }, at: { Int: at as number }, label: { String: "x" }, owner: { Id: "viewer" },
+        } } as Value,
+      })),
+    ] };
+    const rows = (value: Value): string[] => value !== "Null" && "Array" in value
+      ? value.Array.map((row) => row !== "Null" && "Row" in row ? (row.Row.id as { Id: string }).Id : "")
+      : [];
+    const loop = runProgram(programs.get("loopCarry")!, { seedAt: { Int: 0 }, seedId: { Id: "seed" } }, [], schema, receipt).result;
+    assert(JSON.stringify(rows(loop)) === JSON.stringify(["row-b", "row-c"]), `loop cursor returned ${canonicalValue(loop)}`);
+    const branch = runProgram(programs.get("branchCarry")!, {
+      a: { Id: "row-a" }, b: { Id: "row-b" }, flag: { Bool: true },
+    }, [], schema, receipt).result;
+    assert(JSON.stringify(rows(branch)) === JSON.stringify(["row-c"]), `branch cursor returned ${canonicalValue(branch)}`);
+    for (const name of ["helperPage", "literalPage"]) {
+      const args: Record<string, Value> = name === "helperPage" ? { previousId: { Id: "row-a" } } : {};
+      const result = runProgram(programs.get(name)!, args, [], schema, receipt).result;
+      const expected = name === "helperPage" ? ["row-b", "row-c"] : ["row-a", "row-b"];
+      assert(JSON.stringify(rows(result)) === JSON.stringify(expected), `${name} returned ${canonicalValue(result)}`);
+    }
+    assert(JSON.stringify(programs.get("literalPage")).includes('"Id":"row-a"'), "Id cursor literal lost its target type");
+    const unsafe = runProgram(programs.get("unsafePage")!, {
+      seedId: { Id: "row-a" }, seedAt: { Int: 10 },
+    }, [], schema, receipt).result;
+    assert(rows(unsafe).includes("row-b"), `argument tuple cursor did not execute: ${canonicalValue(unsafe)}`);
+    const viewer = runProgram(programs.get("viewerReads")!, {}, [], schema, receipt).result;
+    assert(canonicalValue(viewer).includes('"viewer"'), `viewer reads did not execute: ${canonicalValue(viewer)}`);
+    const inserted = runProgram(programs.get("viewerInsert")!, {}, ["viewer-row"], schema, receipt);
+    const viewerRow = inserted.store.byId("items", "viewer-row");
+    assert(viewerRow !== null && canonicalValue(viewerRow).includes('"viewer"'), "viewer alias changed authority");
+    for (const [name, minted, expectedLabel] of [["textInsert", "text-row", "owner viewer"], ["concatInsert", "concat-row", "hello viewer"]] as const) {
+      const written = runProgram(programs.get(name)!, { owner: { Id: "viewer" } }, [minted], schema, receipt);
+      const row = written.store.byId("items", minted);
+      assert(row !== null && canonicalValue(row).includes(JSON.stringify(expectedLabel)), `${name}: Id-derived text did not reach a Text column: ${row === null ? "null" : canonicalValue(row)}`);
+    }
+    const assigned = runProgram(programs.get("assignedInsert")!, { given: { Id: "assigned-row" } }, [], schema, receipt);
+    assert(assigned.store.byId("items", "assigned-row") !== null, "assigned Id did not reach runtime");
+    const json = runProgram(programs.get("jsonInsert")!, { given: { Id: "json-row" } }, [], schema, receipt);
+    assert(json.store.byId("items", "json-row") !== null, "Json-carried Id did not reach runtime");
+    const coalesced = runProgram(programs.get("coalescedInsert")!, { given: { Id: "coalesced-row" } }, [], schema, receipt);
+    assert(coalesced.store.byId("items", "coalesced-row") !== null, "coalesced unknown Id did not reach runtime");
+
+    const scalarCursor: Program = {
+      name: "raw.scalarCursor", kind: "Query", args: { cursor: "Scalar" }, read_time_granularity_ms: null,
+      body: [{ Return: { Scan: {
+        site: "raw.scalarCursor.0", table: "items", index: "byLabel", prefix: [{ Literal: { String: "x" } }],
+        order: "Asc", take: { Literal: 2 }, after: { Variable: "cursor" }, before: null, range: null, provenance: "Arg",
+      } } }],
+    };
+    assert(rustCheck([scalarCursor], "synthetic", schema)[0]!.error === null, "ArgType::Scalar cursor was refused");
+    const scalarResult = runProgram(scalarCursor, { cursor: { Id: "row-a" } }, [], schema, receipt).result;
+    assert(JSON.stringify(rows(scalarResult)) === JSON.stringify(["row-b", "row-c"]), `scalar raw cursor returned ${canonicalValue(scalarResult)}`);
+
+    const domainCursor: Program = {
+      name: "raw.domainCursor", kind: "Query", args: {}, read_time_granularity_ms: null,
+      body: [{ Return: { Scan: {
+        site: "raw.domainCursor.0", table: "items", index: "byAt", prefix: [], order: "Asc", take: { Literal: 2 },
+        after: { Array: [{ Literal: { Id: "row-a" } }, { Literal: { Int: 10 } }] },
+        before: null, range: null, provenance: "Const",
+      } } }],
+    };
+    assert(rustCheck([domainCursor], "synthetic", schema)[0]!.error === null, "cursor domain tags were refused");
+    runProgram(domainCursor, {}, [], schema, receipt);
+
+    const jsonWrite: Program = {
+      name: "raw.jsonWrite", kind: "Mutation", args: { id: { Json: { max_bytes: 1024 } } }, read_time_granularity_ms: null,
+      body: [{ Insert: { table: "items", row: { Object: {
+        id: { Variable: "id" }, at: { Literal: { Int: 70 } }, label: { Literal: { String: "json" } },
+        owner: { Variable: "id" },
+      } } } }, { Return: { Literal: "Null" } }],
+    };
+    assert(rustCheck([jsonWrite], "synthetic", schema)[0]!.error === null, "ArgType::Json Id write was refused");
+    const jsonWritten = runProgram(jsonWrite, { id: { Id: "raw-json-row" } }, [], schema, receipt);
+    assert(jsonWritten.store.byId("items", "raw-json-row") !== null, "raw Json-carried Id did not reach runtime");
+
+    const identitySchema = { tables: { identities: evaluatorTable({
+      owner: { Ref: { table: "users" } }, actor: "Principal",
+    }) } };
+    const crossIdentity: Program = {
+      name: "raw.crossIdentity", kind: "Mutation",
+      args: { id: { Ref: { table: "elsewhere" } } }, read_time_granularity_ms: null,
+      body: [{ Insert: { table: "identities", row: { Object: {
+        id: { Variable: "id" }, owner: { Variable: "id" }, actor: { Variable: "id" },
+      } } } }, { Return: { Literal: "Null" } }],
+    };
+    assert(rustCheck([crossIdentity], "synthetic", identitySchema)[0]!.error === null,
+      "runtime-equivalent Ref/Id/Principal write axes were refused");
+    const crossWritten = runProgram(crossIdentity, { id: { Id: "cross-row" } }, [], identitySchema);
+    assert(crossWritten.store.byId("identities", "cross-row") !== null,
+      "cross-axis runtime Id did not reach the write");
+
+    const dynamicUpsert: Program = {
+      name: "raw.dynamicUpsert", kind: "Mutation", args: { key: "Id", rowId: "Id" }, read_time_granularity_ms: null,
+      body: [{ Upsert: { table: "items", key: { Variable: "key" }, row: { Object: {
+        id: { Variable: "rowId" }, at: { Literal: { Int: 80 } }, label: { Literal: { String: "upsert" } },
+        owner: { Variable: "rowId" },
+      } } } }, { Return: { Literal: "Null" } }],
+    };
+    assert(rustCheck([dynamicUpsert], "synthetic", schema)[0]!.error === null,
+      "runtime-dependent upsert identity equality was refused");
+    const upserted = runProgram(dynamicUpsert, {
+      key: { Id: "upsert-row" }, rowId: { Id: "upsert-row" },
+    }, [], schema, receipt);
+    assert(upserted.store.byId("items", "upsert-row") !== null,
+      "equal runtime upsert identities did not commit");
+  });
+
+  test("every remaining args refusal predicate is also runtime-red", () => {
+    const schema = { tables: { items: {
+      ...evaluatorTable({ at: "Int", label: { Text: { max: 80 } } }),
+      indexes: { byId: { columns: ["id"], unique: true }, byAt: { columns: ["at", "id"], unique: false } },
+    } } };
+    const wrongCursor: Program = {
+      name: "red.cursor", kind: "Query", args: {}, read_time_granularity_ms: null,
+      body: [{ Return: { Scan: { site: "red.cursor.0", table: "items", index: "byAt", prefix: [], order: "Asc",
+        take: { Literal: 1 }, after: { Literal: { Int: 1 } }, before: null, range: null, provenance: "Const" } } }],
+    };
+    const wrongCursorArray: Program = {
+      ...wrongCursor, name: "red.cursorArray",
+      body: [{ Return: { Scan: { site: "red.cursorArray.0", table: "items", index: "byAt", prefix: [], order: "Asc",
+        take: { Literal: 1 }, after: { Array: [{ Literal: { Int: 1 } }] }, before: null, range: null, provenance: "Const" } } }],
+    };
+    const wrongCursorObject: Program = {
+      ...wrongCursor, name: "red.cursorObject",
+      body: [{ Return: { Scan: { site: "red.cursorObject.0", table: "items", index: "byId", prefix: [], order: "Asc",
+        take: { Literal: 1 }, after: { Object: {} }, before: null, range: null, provenance: "Const" } } }],
+    };
+    const wrongId: Program = {
+      name: "red.id", kind: "Mutation", args: {}, read_time_granularity_ms: null,
+      body: [{ Insert: { table: "items", row: { Object: {
+        id: { Literal: { String: "" } }, at: { Literal: { Int: 1 } }, label: { Literal: { String: "bad" } },
+      } } } }, { Return: { Literal: "Null" } }],
+    };
+    const wrongRow: Program = {
+      ...wrongId, name: "red.row",
+      body: [{ Insert: { table: "items", row: { Literal: { Int: 1 } } } }, { Return: { Literal: "Null" } }],
+    };
+    const wrongField: Program = {
+      ...wrongId, name: "red.field",
+      body: [{ Insert: { table: "items", row: { Object: {
+        id: { Literal: { Id: "field-row" } }, at: { Literal: { String: "bad" } }, label: { Literal: { String: "bad" } },
+      } } } }, { Return: { Literal: "Null" } }],
+    };
+    const wrongLiteralRow: Program = {
+      ...wrongId, name: "red.literalRow",
+      body: [{ Insert: { table: "items", row: { Literal: { Map: {
+        id: { String: "" }, at: { Int: 1 }, label: { String: "bad" },
+      } } } } }, { Return: { Literal: "Null" } }],
+    };
+    const idAdd: Program = {
+      name: "red.idAdd", kind: "Mutation", args: { id: "Id" }, read_time_granularity_ms: null,
+      body: [{ Insert: { table: "items", row: { Object: {
+        id: { Binary: { op: "Add", left: { Variable: "id" }, right: { Literal: { String: ":suffix" } } } },
+        at: { Literal: { Int: 1 } }, label: { Literal: { String: "bad" } },
+      } } } }, { Return: { Literal: "Null" } }],
+    };
+    for (const [program, code, args] of [
+      [wrongCursor, "E_ARGS_CURSOR_SHAPE", {}],
+      [wrongCursorArray, "E_ARGS_CURSOR_SHAPE", {}],
+      [wrongId, "E_ARGS_ID_SCALAR", {}],
+      [wrongRow, "E_ARGS_TYPE", {}],
+      [wrongField, "E_ARGS_TYPE", {}],
+      [wrongLiteralRow, "E_ARGS_ID_SCALAR", {}],
+      [idAdd, "E_ARGS_ID_TEXT", { id: { Id: "row" } }],
+    ] as Array<[Program, string, Record<string, Value>]>) {
+      const refusal = rustCheck([program], "synthetic", schema)[0]!.error;
+      assert(refusal?.code === code && refusal.family === "args" && refusal.site && refusal.rewrite && refusal.guide === "programs/types",
+        `${program.name} lost its complete ${code} refusal: ${JSON.stringify(refusal)}`);
+      let runtimeRed = false;
+      const receipt: ClosureReceipt = { ...emptyReceipt, rows: [{
+        table: "items", id: "row", row: { Row: {
+          id: { Id: "row" }, at: { Int: 1 }, label: { String: "held" },
+        } },
+      }] };
+      try { runProgram(program, args, [], schema, receipt); } catch { runtimeRed = true; }
+      assert(runtimeRed, `${program.name} was certify-red but runtime-green`);
+    }
+    assert(rustCheck([wrongCursorObject], "synthetic", schema)[0]!.error === null,
+      "one-column object cursor should defer scalar indexability to runtime");
+    runProgram(wrongCursorObject, {}, [], schema, { ...emptyReceipt, rows: [{
+      table: "items", id: "row", row: { Row: {
+        id: { Id: "row" }, at: { Int: 1 }, label: { String: "held" },
+      } },
+    }] });
+  });
+
+  test("cursor-index and Id-text guide right forms type-check, lower, and certify", async () => {
+    const families = await Bun.file(resolve(snapback2Root, "packages/snapback2/guide/families.source.json")).json() as Array<{ code: string; right: string }>;
+    const cursor = families.find((item) => item.code === "E_ARGS_CURSOR_INDEX")?.right;
+    const identity = families.find((item) => item.code === "E_ARGS_ID_TEXT")?.right;
+    assert(cursor === 'indexes: { byConvTime: { columns: ["conversationId", "at", "id"] } }',
+      `cursor-index guide right form drifted: ${cursor}`);
+    assert(identity === "db.get(dmPairs.byPair, [leftId, rightId])", `Id-text guide right form drifted: ${identity}`);
+    await withProject({
+      "snapback/schema.ts": `import { schema, table, t } from "snapback2";
+export const messages = table({ columns: { conversationId: t.id(), at: t.time() }, ${cursor} });
+export const dmPairs = table({ columns: { lo: t.id(), hi: t.id() }, indexes: { byPair: { columns: ["lo", "hi"], unique: true } } });
+export default schema({ tables: { messages, dmPairs } });`,
+      "snapback/pairs.ts": `import { query, t } from "snapback2"; import { dmPairs } from "./schema";
+export const pair = query({ leftId: t.id(), rightId: t.id() }, ({ db, args }) => {
+  const leftId = args.leftId;
+  const rightId = args.rightId;
+  return ${identity};
+});`,
+    }, async (root) => {
+      const lowered = await lowerProject(root);
+      assert(lowered.ok, `guide right forms did not type-check/lower: ${lowered.ok ? "" : JSON.stringify(lowered.diagnostics)}`);
+      const checked = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema);
+      assert(checked.every((item) => item.error === null), `guide right forms did not certify: ${JSON.stringify(checked)}`);
+    });
+  });
+
   test("Decimal and Money rule literals use their schema scale", () => {
     const lowered = lowerSchema(`import { rule, schema, table, t } from "snapback2";
       export const prices = table({ columns: { price: t.decimal(2), cost: t.money("USD") },
