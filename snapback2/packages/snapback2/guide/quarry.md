@@ -40,8 +40,7 @@ amount brand, requires matching bounded recipients, and assigns remainder units
 by ascending value. Share/branded multiplication floor because divisors are
 positive; i53 products can overflow. Arguments/seeds use
 integer minor units; fractional JSON refuses.
-Column reads, maintained reads, and computed scalars stay branded; shaped pages
-are untyped today.
+Shaped rows and pages are typed and keep their brands.
 
 `principal` is the nominal type of `viewer`. It is neither a table reference
 nor `id`, even though all three have ID-shaped wire values. A column compared

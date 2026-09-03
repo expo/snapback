@@ -12,7 +12,7 @@ journey("alice sends bob a message", async ({ as }) => {
   });
   if (sent.state !== "committed") throw new Error(`send was ${sent.state}`);
   const after = await alice.query(api.messages.thread, { conversationId: "conversation-1" });
-  if (!("data" in after) || !after.data.some((row: { body?: string }) => row.body === "hello bob")) throw new Error("sent message was not readable");
+  if (!("data" in after) || !after.data?.some((row: { body?: string }) => row.body === "hello bob")) throw new Error("sent message was not readable");
   const sideBefore = await alice.query(api.messages.thread, { conversationId: "conversation-2" });
   if (sideBefore.state !== "complete") throw new Error(`side thread was ${sideBefore.state}`);
   const rejected = await alice.mutation(api.messages.send, {

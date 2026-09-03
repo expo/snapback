@@ -300,7 +300,7 @@ journey("minor units", async ({ as }) => {
 
   test("computed money results retain named brands in generated API declarations", async () => {
     const operations = `query b(amount: money USD, rate: decimal 4, r: [principal] <=5):
-  return { neg: -amount, zero: 0 - amount, times: amount * 2, prod: amount * rate, q: divmod(amount, 3).quotient, s: share(amount, r, viewer), plain: amount }
+  return { neg: -amount, zero: 0 - amount, times: amount * 2, prod: amount * rate, q: divmod(amount, 3).quotient, s: share(amount, r, viewer), low: min(amount, amount), high: max(amount, amount), plain: amount }
 
 query order(amount: money USD, r1: decimal 4, r2: decimal 3):
   return { reverse: r1 * amount, chain: amount * r1 * r2 }
@@ -311,7 +311,7 @@ query order(amount: money USD, r1: decimal 4, r2: decimal 3):
     }, async (root) => {
       const lowered = await lowerProject(root);
       assert(lowered.ok, `computed-brand project refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
-      const b = 'readonly b: Op<{ /** money USD 2 — minor units */ amount: number; /** decimal 4 — minor units */ rate: number; r: Principal[] }, { neg: Money<"USD", 2>; zero: Money<"USD", 2>; times: Money<"USD", 2>; prod: Money<"USD", 2>; q: Money<"USD", 2>; s: Money<"USD", 2>; plain: Money<"USD", 2> }>';
+      const b = 'readonly b: Op<{ /** money USD 2 — minor units */ amount: number; /** decimal 4 — minor units */ rate: number; r: Principal[] }, { neg: Money<"USD", 2>; zero: Money<"USD", 2>; times: Money<"USD", 2>; prod: Money<"USD", 2>; q: Money<"USD", 2>; s: Money<"USD", 2>; low: Money<"USD", 2>; high: Money<"USD", 2>; plain: Money<"USD", 2> }>';
       const order = 'readonly order: Op<{ /** money USD 2 — minor units */ amount: number; /** decimal 4 — minor units */ r1: number; /** decimal 3 — minor units */ r2: number }, { reverse: Money<"USD", 2>; chain: Money<"USD", 2> }>';
       assert(lowered.apiDts.includes(b) && lowered.apiDts.includes(order)
         && !lowered.apiDts.includes("number & { readonly __money")
