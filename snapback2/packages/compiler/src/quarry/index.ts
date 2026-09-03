@@ -86,9 +86,11 @@ export function remapVirtualDiagnostic(
     ...diagnostic,
     site: `${authored.file}:${authored.line}:${authored.col}`,
     message: generatedTypeError ? `in code generated from ${authored.file}: ${diagnostic.message}` : diagnostic.message,
-    rewrite: generatedTypeError && diagnostic.message.includes("undefined")
-      ? "add ! else CODE to assert the possibly absent Quarry value before using it here"
-      : virtual.authoredSource,
+    rewrite: diagnostic.code === "E_DECIMAL_SCALE"
+      ? quarryDecimalRewrite(virtual.authoredSource, authored.line, diagnostic.message)
+      : generatedTypeError && diagnostic.message.includes("undefined")
+        ? "add ! else CODE to assert the possibly absent Quarry value before using it here"
+        : virtual.authoredSource,
   };
 }
 
@@ -210,6 +212,11 @@ function mapGeneratedLine(module: QuarryVirtualModule, line: number): SourceSite
     if (mapped) return mapped;
   }
   return undefined;
+}
+
+function quarryDecimalRewrite(source: string, line: number, message: string): string {
+  const authoredLine = source.replace(/\r\n?/g, "\n").split("\n")[line - 1]?.trimEnd();
+  return authoredLine ? `${authoredLine} -- ${message}` : `-- ${message}`;
 }
 
 function title(value: string): string { return value.length === 0 ? value : value[0]!.toUpperCase() + value.slice(1); }

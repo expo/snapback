@@ -231,6 +231,7 @@ class Analyzer {
       }
       const base = this.expression(value.expression, env, undefined, true);
       if (base.kind === "row") return this.table(base.table)?.columns?.[value.name.text] ?? unknownType;
+      if (base.kind === "object") return base.fields?.[value.name.text] ?? unknownType;
       if ((base.kind === "list" || base.kind === "string") && value.name.text === "length") return { kind: "int" };
       return unknownType;
     }
@@ -258,21 +259,25 @@ class Analyzer {
     }
     if (ts.isObjectLiteralExpression(value)) {
       const row = target?.kind === "row" ? this.table(target.table) : undefined;
+      const fields: Record<string, AuthoredType> = Object.create(null);
       for (const property of value.properties) {
         if (ts.isSpreadAssignment(property)) {
-          this.expression(property.expression, env);
+          const spread = this.expression(property.expression, env);
+          if (spread.kind === "object" && spread.fields) Object.assign(fields, spread.fields);
+          else for (const name of Object.keys(fields)) delete fields[name];
           continue;
         }
         if (ts.isShorthandPropertyAssignment(property)) {
-          this.expression(property.name, env, row?.columns?.[property.name.text]);
+          fields[property.name.text] = this.expression(property.name, env, row?.columns?.[property.name.text]);
           continue;
         }
         if (!ts.isPropertyAssignment(property)) continue;
         const name = propertyName(property.name);
         const field = name ? row?.columns?.[name] : undefined;
-        this.expression(property.initializer, env, field);
+        const type = this.expression(property.initializer, env, field);
+        if (name) fields[name] = type;
       }
-      return target ?? { kind: "object" };
+      return target ?? { kind: "object", fields };
     }
     if (ts.isConditionalExpression(value)) {
       this.expression(value.condition, env);
@@ -406,6 +411,7 @@ class Analyzer {
   private decimalBinary(node: ts.BinaryExpression, left: AuthoredType, right: AuthoredType, comparison: boolean): AuthoredType {
     const operator = node.operatorToken.kind;
     const decimal = left.kind === "decimal" ? left : right.kind === "decimal" ? right : unknownType;
+    if (comparison && (left.kind === "null" || right.kind === "null")) return { kind: "bool" };
     const zero = isIntegerZero(node.left) || isIntegerZero(node.right);
     const same = left.kind === "decimal" && right.kind === "decimal" && sameDecimal(left, right);
     const addCompare = comparison || operator === ts.SyntaxKind.PlusToken || operator === ts.SyntaxKind.MinusToken;

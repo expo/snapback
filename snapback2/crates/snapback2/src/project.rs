@@ -1015,7 +1015,7 @@ for await (const line of createInterface({{ input: process.stdin }})) {{
     }
 
     #[test]
-    fn bundled_compiler_outputs_execute_tuple_cursors_counts_and_id_arguments() {
+    fn bundled_compiler_outputs_execute_tuple_cursors_counts_ids_and_money() {
         use snapback2_core::{Actor, Context, Engine, ExecutionState};
 
         let stamp = SystemTime::now()
@@ -1031,12 +1031,12 @@ for await (const line of createInterface({{ input: process.stdin }})) {{
         // Authored in Quarry: the worker refuses TypeScript-authored backends (E_QUARRY_ONLY).
         fs::write(
             snapback.join("schema.q"),
-            "table items:\n  at: time\n  label: text <=40\n  by byAt: at, id\n  public\n  insert r <- public\n  update r <- public\n  delete r <- public\n",
+            "table items:\n  at: time\n  label: text <=40\n  by byAt: at, id\n  public\n  insert r <- public\n  update r <- public\n  delete r <- public\n\ntable prices:\n  amount: money USD\n  public\n  insert r <- public\n",
         )
         .unwrap();
         fs::write(
             snapback.join("programs.q"),
-            "query page(previousId: items):\n  previous = items[previousId]! else NOT_FOUND\n  return items[] after (previous.at, previous.id) first 1 by byAt\n\nquery count():\n  return count(items[] first 2 by byAt)\n\nmutation put(id: id):\n  +items { id, at: 2, label: 'inserted' }\n  return id\n",
+            "query page(previousId: items):\n  previous = items[previousId]! else NOT_FOUND\n  return items[] after (previous.at, previous.id) first 1 by byAt\n\nquery count():\n  return count(items[] first 2 by byAt)\n\nmutation put(id: id):\n  +items { id, at: 2, label: 'inserted' }\n  return id\n\nmutation putPrice():\n  return +prices { amount: 2.50 }\n\nquery getPrice(id: prices):\n  return prices[id]\n",
         )
         .unwrap();
 
@@ -1101,7 +1101,7 @@ for await (const line of createInterface({{ input: process.stdin }})) {{
                 put,
                 put_certificate,
                 Context::mutation(
-                    actor,
+                    actor.clone(),
                     BTreeMap::from([("id".to_owned(), Value::Id("row-c".to_owned()))]),
                 ),
             )
@@ -1116,6 +1116,54 @@ for await (const line of createInterface({{ input: process.stdin }})) {{
                 .unwrap()
                 .iter()
                 .any(|row| { row.field("id").and_then(Value::as_str) == Ok("row-c") })
+        );
+
+        let (put_price, put_price_certificate) = &programs["programs.putPrice"];
+        let mut put_price_context = Context::mutation(actor.clone(), BTreeMap::new());
+        put_price_context.new_ids = std::collections::VecDeque::from(["price-row".to_owned()]);
+        let put_price_execution = engine
+            .execute(put_price, put_price_certificate, put_price_context)
+            .unwrap();
+        assert!(matches!(
+            put_price_execution.state,
+            ExecutionState::Committed { .. }
+        ));
+        assert_eq!(
+            put_price_execution.result.field("amount").unwrap(),
+            &Value::Int(250)
+        );
+        assert_eq!(
+            crate::protocol::value_to_json(&put_price_execution.result)["amount"],
+            json!(250)
+        );
+        let price_id = put_price_execution
+            .result
+            .field("id")
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .to_owned();
+        assert!(engine.rows("prices").unwrap().iter().any(|row| {
+            row.field("id").and_then(Value::as_str) == Ok(price_id.as_str())
+                && row
+                    .field("amount")
+                    .is_ok_and(|value| value == &Value::Int(250))
+        }));
+
+        let (get_price, get_price_certificate) = &programs["programs.getPrice"];
+        let get_price_execution = engine
+            .execute(
+                get_price,
+                get_price_certificate,
+                Context::query(
+                    actor,
+                    BTreeMap::from([("id".to_owned(), Value::Id(price_id))]),
+                ),
+            )
+            .unwrap();
+        assert_eq!(
+            get_price_execution.result.field("amount").unwrap(),
+            &Value::Int(250)
         );
 
         fs::remove_dir_all(root).unwrap();

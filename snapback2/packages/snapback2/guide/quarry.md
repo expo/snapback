@@ -21,10 +21,21 @@ effect module's stem must differ from every `.q` stem.
 ## Types and tables
 
 Columns and arguments use `principal`, `id`, table references, `int`, `time`,
-`bool`, `text <=N`, `text M..N`, `json <=N`, `bytes <=N`, `enum(...)`, and
-bounded lists `[type] <=N`. Add `?` for optional. Text can add `format handle`
-or `format url` after its bound. A minimum and a format become enforced text
-constraints; maximums remain part of the column type.
+`bool`, `decimal <scale>`, `money <CUR> [scale]`, `text <=N`, `text M..N`,
+`json <=N`, `bytes <=N`, `enum(...)`, and bounded lists `[type] <=N`. Decimal
+and money scales are integers from 0 through 18; money defaults to scale 2 and
+its currency is exactly three uppercase letters. Add `?` for optional. Text
+can add `format handle` or `format url` after its bound. A minimum and a format
+become enforced text constraints; maximums remain part of the column type.
+
+Decimal and money literals are written in whole units: `2.50` in a
+`money USD` position certifies to the exact minor-unit integer `250`, and `10`
+certifies to `1000`. A literal with more fractional digits than the declared
+scale refuses. Decimal scales and money currency/scale pairs are nominal;
+matching values admit `+`, `-`, comparisons, and `min`/`max`, while `*` admits
+one integer operand and `/`/`%` refuse. The engine and client wire carry minor-unit
+integers. `maintain … sum` still requires an `int` source column, not decimal or
+money. Seeds remain TypeScript and must provide minor-unit integers directly.
 
 `principal` is the nominal type of `viewer`. It is neither a table reference
 nor `id`, even though all three have ID-shaped wire values. A column compared
@@ -216,11 +227,10 @@ the same certificate, trace, and runtime budgets.
 
 The following are refused with `E_QUARRY_UNSUPPORTED`: `asset`/`use assets`,
 `schedule`, `merge`, `device`, `oblivious`, `while`, user functions or
-recursion, `decimal`, and `money`.
+recursion.
 Use bounded URL text instead of assets; a caller-invoked mutation instead of a
 schedule; one named bounded scan or a maintained feed table instead of merge;
 explicit bounded arguments instead of device/oblivious state; bounded
-`for`/`walk` instead of while/recursion. `decimal`/`money` are not authorable;
-the engine's Decimal/Money columns are unreachable until Quarry spells them.
+`for`/`walk` instead of while/recursion.
 
 There is no hidden larger Quarry subset to opt into.

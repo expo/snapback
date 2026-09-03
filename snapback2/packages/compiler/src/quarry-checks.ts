@@ -40,6 +40,101 @@ export function registerQuarryChecks(test: Test, frontend: string): void {
     }
   });
 
+  test("Quarry money and decimal spellings preserve scale through IR and API types", async () => {
+    const lowered = await lowerProject(resolve(fixtures, "quarry-money"));
+    assert(lowered.ok, `quarry-money refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
+    const schema = JSON.stringify(lowered.project.schema);
+    assert(schema.includes('"Money":{"currency":"USD","scale":2}')
+      && schema.includes('"Decimal":{"scale":3}'), `Quarry descriptors changed: ${schema}`);
+    const add = JSON.stringify(operation(lowered.project.programs, "money.add"));
+    assert(add.includes('"Int":250') && add.includes('"Int":1000'),
+      `whole-unit Quarry literals did not lower to minor units: ${add}`);
+    assert(add.includes('"op":"Add"') && add.includes('"op":"Sub"')
+      && add.includes('"op":"Mul"') && add.includes('"builtin":"Min"'),
+      `matching money/decimal arithmetic did not reach IR: ${add}`);
+    assert(lowered.apiDts.includes('price: Money<"USD", 2>')
+      && lowered.apiDts.includes("rate: Decimal<3>")
+      && lowered.apiDts.includes('yen?: Money<"JPY", 0>')
+      && lowered.apiDts.includes('amount: Money<"USD", 2>'),
+    `Quarry branded API types are missing:\n${lowered.apiDts}`);
+    const failures = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema).filter((item) => item.error);
+    assert(failures.length === 0, `quarry-money did not certify: ${JSON.stringify(failures)}`);
+
+    const compiled = compileFixture(fixtures, "quarry-money", ["schema", "money"]);
+    assert(compiled.ok, `quarry-money front end refused: ${compiled.ok ? "" : diagnosticsText(compiled.diagnostics)}`);
+    const generated = `${compiled.schema.source}\n${compiled.modules[0]!.source}`;
+    assert(generated.includes('t.money("USD")') && generated.includes('t.money("JPY", 0)')
+      && generated.includes("t.decimal(3)")
+      && generated.includes("price: 2.50") && generated.includes("+ 1.000"),
+    `Quarry lowering lost a descriptor or authored literal spelling:\n${generated}`);
+  });
+
+  test("Quarry money and decimal refusals are nominal, exact-scale, and sited", async () => {
+    const schema = `table values:
+  cents: decimal 2
+  mills: decimal 3
+  amount: money USD
+  count: int
+  public
+  insert r <- public
+`;
+    await withProject({
+      "snapback/schema.q": schema,
+      "snapback/mixed.q": "query mixed(id: values):\n  row = values[id]! else MISSING\n  return row.cents + row.mills\n",
+    }, async (root) => {
+      const result = await lowerProject(root);
+      assert(!result.ok, "mixed Quarry Decimal scales compiled");
+      const refusal = result.diagnostics.find((item) => item.code === "E_DECIMAL_SCALE");
+      assert(refusal, `mixed-scale refusal was not E_DECIMAL_SCALE: ${JSON.stringify(result)}`);
+      assert(refusal.site.startsWith("snapback/mixed.q:") && !refusal.site.includes(".ts:"),
+        `mixed-scale refusal did not map to Quarry: ${JSON.stringify(result)}`);
+      assert(refusal.rewrite.includes("row.cents + row.mills") && refusal.rewrite.includes("--"),
+        `mixed-scale refusal lost its Quarry rewrite: ${refusal.rewrite}`);
+    });
+
+    await withProject({
+      "snapback/schema.q": schema,
+      "snapback/literal.q": "mutation bad():\n  return +values { cents: 1.234, mills: 1.000, amount: 2.50, count: 1 }\n",
+    }, async (root) => {
+      const result = await lowerProject(root);
+      assert(!result.ok, "over-precise Quarry Decimal literal compiled");
+      const refusal = result.diagnostics.find((item) => item.code === "E_DECIMAL_SCALE");
+      assert(refusal?.site.startsWith("snapback/literal.q:")
+        && refusal.rewrite.includes("cents: 1.234") && refusal.rewrite.includes("--"),
+      `literal scale refusal lost its Quarry site/rewrite: ${JSON.stringify(result)}`);
+    });
+
+    const nominal = compileInline([
+      { fileName: "snapback/schema.q", source: schema },
+      { fileName: "snapback/nominal.q", source: "query bad(amount: money USD, count: int):\n  return amount = count\n" },
+    ]);
+    assert(!nominal.ok && nominal.diagnostics.some((item) => item.code === "E_QUARRY_TYPE"
+      && item.message.includes("money USD 2") && item.message.includes("int")),
+    `int/money comparison lost its nominal refusal: ${JSON.stringify(nominal)}`);
+
+    const fractionalInt = compileInline([
+      { fileName: "snapback/schema.q", source: schema },
+      { fileName: "snapback/int.q", source: "mutation bad():\n  return +values { cents: 1.00, mills: 1.000, amount: 2, count: 2.50 }\n" },
+    ]);
+    assert(!fractionalInt.ok && fractionalInt.diagnostics.some((item) => item.code === "E_QUARRY_TYPE"
+      && item.message === "int positions take integer literals"),
+    `decimal literal entered an int position: ${JSON.stringify(fractionalInt)}`);
+
+    for (const operator of ["/", "%"]) {
+      const result = compileInline([
+        { fileName: "snapback/schema.q", source: schema },
+        { fileName: "snapback/divmod.q", source: `query bad(left: money USD, right: money USD):\n  return left ${operator} right\n` },
+      ]);
+      assert(!result.ok && result.diagnostics.some((item) => item.code === "E_QUARRY_TYPE"
+        && item.message.includes(`does not admit ${operator}`)),
+      `Quarry admitted money ${operator}: ${JSON.stringify(result)}`);
+    }
+
+    const syntax = compileInline([{ fileName: "snapback/schema.q", source: "table invalid:\n  lower: money usd\n  huge: decimal 19\n  public\n" }]);
+    assert(!syntax.ok && syntax.diagnostics.filter((item) => item.code === "E_QUARRY_SYNTAX").length === 2,
+      `money currency/decimal scale syntax did not report both refusals: ${JSON.stringify(syntax)}`);
+  });
+
   test("Quarry effects, maintains, aggregate sugar, where, returns, objects, and count reach IR", async () => {
     const chat = await lowerProject(resolve(fixtures, "quarry-chat"));
     const surface = await lowerProject(resolve(fixtures, "quarry-surface"));

@@ -338,7 +338,6 @@ class Parser {
     } else {
       const name = this.word();
       if (name.value === "asset") unsupported(name, "asset", "store an explicit bounded URL in a text <=N format url column");
-      if (name.value === "decimal" || name.value === "money") unsupported(name, name.value, "use int minor units with a domain-specific field name");
       if (name.value === "text") {
         let min: number | undefined;
         let max: number;
@@ -356,6 +355,21 @@ class Parser {
           format = value.value;
         }
         type = { kind: "text", ...(min === undefined ? {} : { min }), max, ...(format ? { format } : {}), optional: false };
+      } else if (name.value === "decimal") {
+        type = { kind: "decimal", scale: this.scale(), optional: false };
+      } else if (name.value === "money") {
+        const currency = this.word();
+        if (!/^[A-Z]{3}$/.test(currency.value)) {
+          syntax(currency, "money currency must be exactly three uppercase letters", "use money USD or money USD 2");
+        }
+        const explicitScale = this.atKind("number");
+        type = {
+          kind: "money",
+          currency: currency.value,
+          scale: explicitScale ? this.scale() : 2,
+          ...(explicitScale ? { explicitScale: true } : {}),
+          optional: false,
+        };
       } else if (name.value === "json" || name.value === "bytes") {
         this.take("<=");
         type = { kind: name.value, max: this.number(), optional: false };
@@ -547,7 +561,7 @@ class Parser {
       value = { kind: "literal", value: token.value, site: token };
     } else if (token.kind === "number") {
       this.position += 1;
-      value = { kind: "literal", value: Number(token.value), site: token };
+      value = { kind: "literal", value: Number(token.value), numericText: token.value, site: token };
     } else if (token.value === "true" || token.value === "false" || token.value === "null") {
       this.position += 1;
       value = { kind: "literal", value: token.value === "null" ? null : token.value === "true", site: token };
@@ -748,7 +762,17 @@ class Parser {
 
   private newline(): void { this.takeKind("newline"); }
   private skipNewlines(): void { while (this.atKind("newline")) this.position += 1; }
-  private number(): number { return Number(this.takeKind("number").value); }
+  private number(): number {
+    const token = this.takeKind("number");
+    if (!/^\d+$/.test(token.value)) syntax(token, "this position takes an integer literal");
+    return Number(token.value);
+  }
+  private scale(): number {
+    const token = this.peek();
+    const scale = this.number();
+    if (scale < 0 || scale > 18) syntax(token, "decimal and money scales must be integers from 0 through 18");
+    return scale;
+  }
   private word(): Token { return this.takeKind("word"); }
   private at(value: string): boolean { return this.peek().value === value; }
   private atKind(kind: TokenKind): boolean { return this.peek().kind === kind; }

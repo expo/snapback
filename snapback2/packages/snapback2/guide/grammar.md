@@ -23,8 +23,9 @@ rules, and `after insert … <- exists`. Maintains are `count table by fields` o
 Channels declare `publish`, `subscribe`, and `ttl Ns`.
 
 Types are `principal`, `id`, table references, `int`, `time`, `bool`,
-`text <=N`, `text M..N`, `json <=N`, `bytes <=N`, `enum('a', 'b')`, and
-`[type] <=N`; text may add `format handle|url`, and any type may add `?`.
+`decimal <scale>`, `money <CUR> [scale]`, `text <=N`, `text M..N`, `json <=N`,
+`bytes <=N`, `enum('a', 'b')`, and `[type] <=N`; text may add
+`format handle|url`, and any type may add `?`.
 
 ```q
 query list():

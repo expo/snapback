@@ -5,6 +5,8 @@ export type ScalarType =
   | { kind: "id"; optional: boolean }
   | { kind: "principal"; optional: boolean }
   | { kind: "int"; optional: boolean }
+  | { kind: "decimal"; scale: number; optional: boolean }
+  | { kind: "money"; currency: string; scale: number; explicitScale?: boolean; optional: boolean }
   | { kind: "time"; optional: boolean }
   | { kind: "bool"; optional: boolean }
   | { kind: "json"; max: number; optional: boolean }
@@ -23,7 +25,7 @@ export type ShapeField =
 export type Expr =
   | { kind: "name"; name: string; site: Site }
   | { kind: "focal"; site: Site }
-  | { kind: "literal"; value: string | number | boolean | null; site: Site }
+  | { kind: "literal"; value: string | number | boolean | null; numericText?: string; site: Site }
   | { kind: "array"; items: Expr[]; site: Site }
   | { kind: "object"; fields: ObjectField[]; site: Site }
   | { kind: "unary"; op: "not" | "-"; value: Expr; site: Site }

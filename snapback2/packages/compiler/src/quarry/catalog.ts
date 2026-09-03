@@ -1,5 +1,5 @@
 import type { Document, Expr, IndexDecl, KeyPart, ScalarType, Site, TableCatalog, TableDecl } from "./ast";
-import { ambiguous, refuse } from "./diagnostics";
+import { ambiguous, refuse, typeError } from "./diagnostics";
 
 export function buildCatalog(documents: Document[]): TableCatalog {
   const catalog: TableCatalog = new Map();
@@ -190,10 +190,18 @@ function validateIndexKeys(
     if (key.column && column !== key.column) refuse(key.site, `${table.name}.${index.name} expects ${column} at key position ${offset + 1}`);
     const actual = infer(key.value);
     const expected = columnType(table, column);
+    if (expected.kind === "int" && fractionalNumericLiteral(key.value)) {
+      typeError(key.value.site, "int positions take integer literals", "use an integer literal for this int index key");
+    }
     if (actual && !compatible(actual, expected)) {
       refuse(key.value.site, `${table.name}.${index.name} expects ${typeName(expected)} for ${column}, got ${typeName(actual)}`);
     }
   }
+}
+
+function fractionalNumericLiteral(expr: Expr): boolean {
+  if (expr.kind === "unary" && expr.op === "-") return fractionalNumericLiteral(expr.value);
+  return expr.kind === "literal" && typeof expr.value === "number" && expr.numericText?.includes(".") === true;
 }
 
 function columnType(table: TableDecl, name: string): ScalarType {
@@ -210,11 +218,17 @@ function compatible(actual: ScalarType | undefined, expected: ScalarType): boole
   if (expected.kind === "id") return actual.kind === "ref" || actual.kind === "id";
   if (expected.kind === "principal") return actual.kind === "principal";
   if (expected.kind === "enum" && actual.kind === "text") return true;
+  if (expected.kind === "decimal") return actual.kind === "decimal" && actual.scale === expected.scale;
+  if (expected.kind === "money") {
+    return actual.kind === "money" && actual.currency === expected.currency && actual.scale === expected.scale;
+  }
   return actual.kind === expected.kind;
 }
 
 function typeName(type: ScalarType): string {
   if (type.kind === "ref") return `reference to ${type.table}`;
   if (type.kind === "list") return "list";
+  if (type.kind === "decimal") return `decimal ${type.scale}`;
+  if (type.kind === "money") return `money ${type.currency} ${type.scale}`;
   return type.kind;
 }

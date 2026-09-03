@@ -1,7 +1,7 @@
 export type AuthoredType =
   | { kind: "unknown" }
   | { kind: "null" }
-  | { kind: "object" }
+  | { kind: "object"; fields?: Record<string, AuthoredType> }
   | { kind: "int" }
   | { kind: "decimal"; scale: number; currency?: string }
   | { kind: "enum"; variants: string[] }

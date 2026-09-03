@@ -16,12 +16,14 @@ import { header, siteMark, typeCode } from "./schema";
 
 type ObjectType = { kind: "object"; fields: Map<string, ValueType>; nullable: boolean };
 type SequenceType = { kind: "sequence"; item: ValueType; max: number };
+type NumericLiteralType = { kind: "numeric-literal"; fractionalDigits: number };
 type ValueType =
   | ScalarType
   | { kind: "row"; table: string; nullable: boolean }
   | { kind: "page"; table: string }
   | SequenceType
   | ObjectType
+  | NumericLiteralType
   | { kind: "unknown" };
 type Binding = { code: string; type: ValueType };
 type Completion = { kind: "return" } | { kind: "assign"; name: string };
@@ -225,7 +227,7 @@ function finishNull(completion: Completion | undefined, writer: Writer, site: Si
 }
 
 function emitExpr(expr: Expr, env: Environment, writer: Writer): Emitted {
-  if (expr.kind === "literal") return { code: JSON.stringify(expr.value), type: literalType(expr.value) };
+  if (expr.kind === "literal") return { code: literalCode(expr), type: literalType(expr) };
   if (expr.kind === "name") return emitName(expr.name, expr.site, env);
   if (expr.kind === "focal") {
     if (!env.focal) refuse(expr.site, ". is available only inside a shape or write patch");
@@ -315,8 +317,23 @@ function emitBinary(expr: Extract<Expr, { kind: "binary" }>, env: Environment, w
     if ((expr.op === "=" || expr.op === "!=") && expr.right.kind === "literal" && expr.right.value === null) {
       return { code: `(${left.code} ${expr.op === "=" ? "===" : "!=="} null)`, type: boolType() };
     }
-    if (isScalar(left.type) && isScalar(right.type) && !compatible(left.type, right.type)) {
+    refuseFractionalInt(expr, left.type, right.type);
+    const branded = brandedType(left.type) ?? brandedType(right.type);
+    const other = branded === left.type ? right : left;
+    const otherExpr = branded === left.type ? expr.right : expr.left;
+    if (branded && !brandedType(other.type) && !numericLiteral(otherExpr)) {
+      typeError(
+        expr.site,
+        `cannot compare nominal ${brandedName(branded)} with ${valueTypeName(other.type)}`,
+        `compare ${simpleExpr(branded === left.type ? expr.left : expr.right)} with the same ${brandedName(branded)} type`,
+      );
+    }
+    if (!branded && isScalar(left.type) && isScalar(right.type) && !compatible(left.type, right.type)) {
       refuse(expr.site, `cannot compare nominal ${left.type.kind} with ${right.type.kind}; use a principal value only with viewer`);
+    }
+    if (!isNullableValue(left.type) && !isNullableValue(right.type)) {
+      const comparison = expr.op === "!=" ? `${left.code} !== ${right.code}` : `${left.code} ${operator} ${right.code}`;
+      return { code: `(${comparison})`, type: boolType() };
     }
     if (env.inlineComparisons) {
       const comparison = expr.op === "!=" ? `${left.code} !== ${right.code}` : `${left.code} ${operator} ${right.code}`;
@@ -328,6 +345,27 @@ function emitBinary(expr: Extract<Expr, { kind: "binary" }>, env: Environment, w
     writer.statement(`const ${rightName} = ${right.code};`, expr.right.site);
     const comparison = expr.op === "!=" ? `${leftName} !== ${rightName}` : `${leftName} ${operator} ${rightName}`;
     return { code: `(${leftName} !== null && ${rightName} !== null && ${comparison})`, type: boolType() };
+  }
+  refuseFractionalInt(expr, left.type, right.type);
+  const branded = brandedType(left.type) ?? brandedType(right.type);
+  if (branded && (expr.op === "/" || expr.op === "%")) {
+    typeError(expr.site, `${brandedName(branded)} does not admit ${expr.op}`, "use +, -, comparison, min/max, or multiply by an int");
+  }
+  if (branded && (expr.op === "+" || expr.op === "-")) {
+    const other = branded === left.type ? right : left;
+    const otherExpr = branded === left.type ? expr.right : expr.left;
+    if (!brandedType(other.type) && !numericLiteral(otherExpr)) {
+      typeError(expr.site, `${expr.op} requires matching ${brandedName(branded)} values`, `use two matching ${brandedName(branded)} values`);
+    }
+    return { code: `(${left.code} ${expr.op} ${right.code})`, type: branded };
+  }
+  if (branded && expr.op === "*") {
+    const other = branded === left.type ? right : left;
+    const otherExpr = branded === left.type ? expr.right : expr.left;
+    if (!brandedType(other.type) && (other.type.kind !== "int" || fractionalNumericLiteral(otherExpr))) {
+      typeError(expr.site, `${brandedName(branded)} multiplication requires one int operand`, "multiply the money/decimal value by an int");
+    }
+    return { code: `(${left.code} * ${right.code})`, type: branded };
   }
   return { code: `(${left.code} ${expr.op} ${right.code})`, type: left.type };
 }
@@ -387,10 +425,30 @@ function emitCall(expr: Extract<Expr, { kind: "call" }>, env: Environment, write
   if (expr.name === "tokens") return { code: `${target}(${args.map((arg) => arg.code).join(", ")})`, type: { kind: "list", item: { kind: "text", max: 4096, optional: false }, max: 64, optional: false } };
   if (expr.name === "range") {
     if (args.length !== 2) refuse(expr.site, "range(a, b) requires two arguments");
+    for (const argument of expr.args) {
+      if (fractionalNumericLiteral(argument)) {
+        typeError(argument.site, "int positions take integer literals", `replace ${literalExpressionText(argument)} with an integer literal`);
+      }
+    }
     const start = literalNumber(expr.args[0]);
     const end = literalNumber(expr.args[1]);
     const max = start === undefined || end === undefined ? 1000 : Math.max(0, end - start);
     return { code: `range(${args.map((arg) => arg.code).join(", ")})`, type: { kind: "list", item: { kind: "int", optional: false }, max, optional: false } };
+  }
+  if (expr.name === "min" || expr.name === "max") {
+    const branded = args.map((arg) => brandedType(arg.type)).find((type) => type !== undefined);
+    if (branded) {
+      args.forEach((arg, index) => {
+        if (!brandedType(arg.type) && !numericLiteral(expr.args[index]!)) {
+          typeError(expr.args[index]!.site, `${expr.name} requires matching ${brandedName(branded)} values`, `use matching ${brandedName(branded)} values`);
+        }
+      });
+      return { code: `${target}(${args.map((arg) => arg.code).join(", ")})`, type: branded };
+    }
+    const fractional = expr.args.find(fractionalNumericLiteral);
+    if (fractional && args.some((arg) => arg.type.kind === "int")) {
+      typeError(fractional.site, "int positions take integer literals", `replace ${literalExpressionText(fractional)} with an integer literal`);
+    }
   }
   return { code: `${target}(${args.map((arg) => arg.code).join(", ")})`, type: args[0]?.type ?? { kind: "int", optional: false } };
 }
@@ -604,6 +662,18 @@ function emitEvaluatedFields(fields: ObjectField[], env: Environment, writer: Wr
 }
 
 function validateFieldType(field: ObjectField, actual: ValueType, expected: ScalarType | undefined): void {
+  const expression = field.value ?? { kind: "name", name: field.name, site: field.site } satisfies Expr;
+  if (expected?.kind === "int" && fractionalNumericLiteral(expression)) {
+    typeError(field.site, "int positions take integer literals", `replace ${literalExpressionText(expression)} with an integer literal`);
+  }
+  if (expected?.kind === "decimal" || expected?.kind === "money") {
+    if (numericLiteral(expression)) return;
+    if (actual.kind === "decimal" || actual.kind === "money") return;
+    typeError(field.site, `${field.name} is ${brandedName(expected)}; ${valueTypeName(actual)} is nominally different`, `use a ${brandedName(expected)} value`);
+  }
+  if ((actual.kind === "decimal" || actual.kind === "money") && expected) {
+    typeError(field.site, `${field.name} is ${expected.kind}; ${brandedName(actual)} is nominally different`, `use a ${expected.kind} value`);
+  }
   if (expected?.kind === "principal" && actual.kind !== "principal") {
     refuse(field.site, `${field.name} is principal; ${actual.kind} is nominally different (a ref/id is not a principal)`);
   }
@@ -622,7 +692,10 @@ function inferExpr(expr: Expr, env: Environment): ScalarType | undefined {
     if (expr.name === "now" || expr.name === "commit") return { kind: "time", optional: false };
   }
   if (expr.kind === "focal" && env.focal?.type.kind === "row") return { kind: "ref", table: env.focal.type.table, optional: env.focal.type.nullable };
-  if (expr.kind === "literal") return literalType(expr.value);
+  if (expr.kind === "literal") {
+    const type = literalType(expr);
+    return isScalar(type) ? type : undefined;
+  }
   if (expr.kind === "member") {
     const base = inferExpr(expr.base, env);
     if (base?.kind === "ref" && base.table) return env.catalog.get(base.table)?.columns.get(expr.name);
@@ -630,10 +703,13 @@ function inferExpr(expr: Expr, env: Environment): ScalarType | undefined {
   return undefined;
 }
 
-function literalType(value: string | number | boolean | null): ScalarType {
-  if (typeof value === "string") return { kind: "text", max: Math.max(1, value.length), optional: false };
-  if (typeof value === "number") return { kind: "int", optional: false };
-  if (typeof value === "boolean") return { kind: "bool", optional: false };
+function literalType(expr: Extract<Expr, { kind: "literal" }>): ScalarType | NumericLiteralType {
+  if (typeof expr.value === "string") return { kind: "text", max: Math.max(1, expr.value.length), optional: false };
+  if (typeof expr.value === "number") {
+    const digits = fractionalDigits(expr.numericText);
+    return digits === 0 ? { kind: "int", optional: false } : { kind: "numeric-literal", fractionalDigits: digits };
+  }
+  if (typeof expr.value === "boolean") return { kind: "bool", optional: false };
   return { kind: "text", max: 1, optional: true };
 }
 
@@ -642,7 +718,7 @@ function scalarOrUnknown(type: ValueType): ScalarType {
 }
 
 function isScalar(type: ValueType): type is ScalarType {
-  return ["text", "id", "principal", "int", "time", "bool", "json", "bytes", "enum", "ref", "list"].includes(type.kind);
+  return ["text", "id", "principal", "int", "decimal", "money", "time", "bool", "json", "bytes", "enum", "ref", "list"].includes(type.kind);
 }
 
 function isRef(type: ValueType): type is Extract<ScalarType, { kind: "ref" }> { return type.kind === "ref"; }
@@ -656,6 +732,11 @@ function nullableValue(type: ValueType): ValueType {
   if (type.kind === "row" || type.kind === "object") return { ...type, nullable: true };
   if (isScalar(type)) return { ...type, optional: true } as ScalarType;
   return { kind: "unknown" };
+}
+function isNullableValue(type: ValueType): boolean {
+  if (type.kind === "row" || type.kind === "object") return type.nullable;
+  if (type.kind === "unknown") return true;
+  return isScalar(type) && type.optional;
 }
 function requireBoolean(expr: Expr, type: ValueType, construct: string): void {
   if (type.kind === "bool" && !type.optional) return;
@@ -683,7 +764,50 @@ function compatible(left: ScalarType, right: ScalarType): boolean {
   if (left.kind === "ref" || left.kind === "id") return right.kind === "ref" || right.kind === "id";
   if (right.kind === "ref" || right.kind === "id") return false;
   if ((left.kind === "enum" && right.kind === "text") || (left.kind === "text" && right.kind === "enum")) return true;
+  if (left.kind === "decimal" || right.kind === "decimal") {
+    return left.kind === "decimal" && right.kind === "decimal" && left.scale === right.scale;
+  }
+  if (left.kind === "money" || right.kind === "money") {
+    return left.kind === "money" && right.kind === "money"
+      && left.currency === right.currency && left.scale === right.scale;
+  }
   return left.kind === right.kind;
+}
+function brandedType(type: ValueType): Extract<ScalarType, { kind: "decimal" | "money" }> | undefined {
+  return type.kind === "decimal" || type.kind === "money" ? type : undefined;
+}
+function brandedName(type: Extract<ScalarType, { kind: "decimal" | "money" }>): string {
+  return type.kind === "decimal" ? `decimal ${type.scale}` : `money ${type.currency} ${type.scale}`;
+}
+function valueTypeName(type: ValueType): string {
+  return type.kind === "numeric-literal" ? "decimal literal" : type.kind;
+}
+function numericLiteral(expr: Expr): boolean {
+  return expr.kind === "literal" && typeof expr.value === "number"
+    || expr.kind === "unary" && expr.op === "-" && numericLiteral(expr.value);
+}
+function fractionalNumericLiteral(expr: Expr): boolean {
+  if (expr.kind === "unary" && expr.op === "-") return fractionalNumericLiteral(expr.value);
+  return expr.kind === "literal" && typeof expr.value === "number" && fractionalDigits(expr.numericText) > 0;
+}
+function fractionalDigits(text: string | undefined): number {
+  const dot = text?.indexOf(".") ?? -1;
+  return dot < 0 ? 0 : text!.length - dot - 1;
+}
+function literalCode(expr: Extract<Expr, { kind: "literal" }>): string {
+  return typeof expr.value === "number" ? expr.numericText ?? JSON.stringify(expr.value) : JSON.stringify(expr.value);
+}
+function literalExpressionText(expr: Expr): string {
+  if (expr.kind === "unary" && expr.op === "-") return `-${literalExpressionText(expr.value)}`;
+  return expr.kind === "literal" && typeof expr.value === "number" ? expr.numericText ?? String(expr.value) : "the literal";
+}
+function refuseFractionalInt(expr: Extract<Expr, { kind: "binary" }>, left: ValueType, right: ValueType): void {
+  const fractional = left.kind === "int" && fractionalNumericLiteral(expr.right)
+    ? expr.right
+    : right.kind === "int" && fractionalNumericLiteral(expr.left) ? expr.left : undefined;
+  if (fractional) {
+    typeError(fractional.site, "int positions take integer literals", `replace ${literalExpressionText(fractional)} with an integer literal`);
+  }
 }
 function literalNumber(expr: Expr | undefined): number | undefined { return expr?.kind === "literal" && typeof expr.value === "number" ? expr.value : undefined; }
 function property(value: string): string { return /^[A-Za-z_$][\w$]*$/.test(value) ? value : JSON.stringify(value); }

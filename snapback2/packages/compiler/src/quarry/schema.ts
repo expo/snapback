@@ -1,6 +1,6 @@
 import type { ChannelDecl, Document, Expr, MaintainDecl, RuleDecl, ScalarType, Site, TableCatalog, TableDecl } from "./ast";
 import { orderedTables, selectIndex } from "./catalog";
-import { refuse } from "./diagnostics";
+import { refuse, typeError } from "./diagnostics";
 
 type RuleContext = {
   names: Set<string>;
@@ -138,7 +138,12 @@ function ruleExpr(expr: Expr, catalog: TableCatalog, context: RuleContext): stri
   if (expr.kind === "binary" && (expr.op === "=" || expr.op === "!=")) {
     const leftType = ruleTermType(expr.left, context);
     const rightType = ruleTermType(expr.right, context);
-    if (leftType && rightType && !compatibleRuleTypes(leftType, rightType)) {
+    if (leftType?.kind === "int" && fractionalNumericLiteral(expr.right)
+      || rightType?.kind === "int" && fractionalNumericLiteral(expr.left)) {
+      typeError(expr.site, "int positions take integer literals", "use an integer literal in the int comparison");
+    }
+    if (leftType && rightType && !compatibleRuleTypes(leftType, rightType)
+      && !brandedLiteralPair(leftType, expr.right) && !brandedLiteralPair(rightType, expr.left)) {
       refuse(expr.site, `cannot compare nominal ${leftType.kind} with ${rightType.kind}; fields compared with viewer must be principal`);
     }
     const left = ruleTerm(expr.left, context);
@@ -159,7 +164,7 @@ function ruleExpr(expr: Expr, catalog: TableCatalog, context: RuleContext): stri
 
 function ruleTerm(expr: Expr, context: RuleContext): { code: string; kind: "field" | "other"; field?: string; method?: string } {
   if (expr.kind === "name" && expr.name === "viewer") return { code: "rule.viewer", kind: "other" };
-  if (expr.kind === "literal") return { code: `rule.literal(${JSON.stringify(expr.value)})`, kind: "other" };
+  if (expr.kind === "literal") return { code: `rule.literal(${literalCode(expr)})`, kind: "other" };
   if (expr.kind === "member" && expr.base.kind === "name" && context.names.has(expr.base.name)) {
     if (context.table && expr.name !== "id" && !context.table.columns.some((column) => column.name === expr.name)) {
       refuse(expr.site, `table ${context.table.name} has no rule field ${expr.name}`);
@@ -192,7 +197,32 @@ function compatibleRuleTypes(left: ScalarType, right: ScalarType): boolean {
   if (left.kind === "ref" || left.kind === "id") return right.kind === "ref" || right.kind === "id";
   if (right.kind === "ref" || right.kind === "id") return false;
   if ((left.kind === "enum" && right.kind === "text") || (left.kind === "text" && right.kind === "enum")) return true;
+  if (left.kind === "decimal" || right.kind === "decimal") {
+    return left.kind === "decimal" && right.kind === "decimal" && left.scale === right.scale;
+  }
+  if (left.kind === "money" || right.kind === "money") {
+    return left.kind === "money" && right.kind === "money"
+      && left.currency === right.currency && left.scale === right.scale;
+  }
   return left.kind === right.kind;
+}
+
+function brandedLiteralPair(type: ScalarType, expr: Expr): boolean {
+  return (type.kind === "decimal" || type.kind === "money") && numericLiteral(expr);
+}
+
+function numericLiteral(expr: Expr): boolean {
+  return expr.kind === "literal" && typeof expr.value === "number"
+    || expr.kind === "unary" && expr.op === "-" && numericLiteral(expr.value);
+}
+
+function fractionalNumericLiteral(expr: Expr): boolean {
+  if (expr.kind === "unary" && expr.op === "-") return fractionalNumericLiteral(expr.value);
+  return expr.kind === "literal" && typeof expr.value === "number" && expr.numericText?.includes(".") === true;
+}
+
+function literalCode(expr: Extract<Expr, { kind: "literal" }>): string {
+  return typeof expr.value === "number" ? expr.numericText ?? JSON.stringify(expr.value) : JSON.stringify(expr.value);
 }
 
 function flattenBoolean(expr: Expr, op: "and" | "or"): Expr[] {
@@ -207,6 +237,10 @@ export function typeCode(type: ScalarType): string {
   else if (type.kind === "id") code = "t.id()";
   else if (type.kind === "principal") code = "t.principal()";
   else if (type.kind === "int") code = "t.int()";
+  else if (type.kind === "decimal") code = `t.decimal(${type.scale})`;
+  else if (type.kind === "money") code = type.explicitScale
+    ? `t.money(${JSON.stringify(type.currency)}, ${type.scale})`
+    : `t.money(${JSON.stringify(type.currency)})`;
   else if (type.kind === "time") code = "t.time()";
   else if (type.kind === "bool") code = "t.bool()";
   else if (type.kind === "json") code = `t.json(${type.max})`;

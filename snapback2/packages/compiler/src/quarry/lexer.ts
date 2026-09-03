@@ -86,7 +86,7 @@ export function lex(file: string, source: string): { tokens: Token[]; diagnostic
         continue;
       }
       if (/[0-9]/.test(char)) {
-        const match = raw.slice(offset).match(/^\d+/)![0];
+        const match = raw.slice(offset).match(/^\d+(?:\.\d+)?/)![0];
         tokens.push({ ...site, kind: "number", value: match });
         offset += match.length;
         emitted = true;
