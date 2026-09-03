@@ -74,11 +74,28 @@ function sri(path) {
 function loadResume(path, name, version) {
   if (!existsSync(path)) return undefined;
   const resume = JSON.parse(readFileSync(path, "utf8"));
-  if (resume.name !== name || resume.version !== version || !Array.isArray(resume.artifacts)) return undefined;
+  if (resume.name !== name
+    || resume.version !== version
+    || !Array.isArray(resume.artifacts)
+    || typeof resume.mediaBin !== "string"
+    || !existsSync(resume.mediaBin)) return undefined;
   for (const artifact of resume.artifacts) {
     if (!existsSync(artifact.tarball) || sri(artifact.tarball) !== artifact.integrity) return undefined;
   }
   return resume;
+}
+
+function requireFullMediaHelper(mediaBin, run = command) {
+  const result = run(mediaBin, ["capabilities"]);
+  let capabilities;
+  try {
+    capabilities = JSON.parse(result.stdout);
+  } catch {
+    throw new Error("snapback2-media did not report valid capabilities JSON");
+  }
+  if (capabilities?.images !== true || capabilities?.heic !== true) {
+    throw new Error("refusing to publish snapback2-media without the images and heic features");
+  }
 }
 
 function registryIntegrity(name, version) {
@@ -114,6 +131,21 @@ function convergeArtifacts(artifacts, lookup, publish) {
 function prepare(version, name, stateDirectory, resumePath) {
   rmSync(stateDirectory, { recursive: true, force: true });
   mkdirSync(stateDirectory, { recursive: true });
+  // @ref LLP 1006#14a-codecs-live-in-a-separate-executable-the-type-does-not — the one published helper carries every admitted image codec.
+  command("cargo", [
+    "build",
+    "--quiet",
+    "--profile",
+    "production",
+    "-p",
+    "snapback2-media",
+    "--features",
+    "images,heic",
+  ], { stdio: "inherit" });
+  const mediaBin = resolve(root, "target/production/snapback2-media");
+  requireFullMediaHelper(mediaBin);
+  const mediaBytes = statSync(mediaBin).size;
+
   command("cargo", ["build", "--quiet", "--profile", "production", "-p", "snapback2"], { stdio: "inherit" });
   const engineLessBin = resolve(root, "target/production/snapback2");
   const withoutEngineBytes = statSync(engineLessBin).size;
@@ -151,6 +183,7 @@ function prepare(version, name, stateDirectory, resumePath) {
   const platformStage = resolve(stateDirectory, name);
   mkdirSync(resolve(platformStage, "bin"), { recursive: true });
   copyFileSync(bin, resolve(platformStage, "bin/snapback2"));
+  copyFileSync(mediaBin, resolve(platformStage, "bin/snapback2-media"));
   writeFileSync(resolve(platformStage, "package.json"), `${JSON.stringify({
     name,
     version,
@@ -168,6 +201,8 @@ function prepare(version, name, stateDirectory, resumePath) {
     name,
     version,
     bin,
+    mediaBin,
+    mediaBytes,
     withoutEngine,
     withoutEngineBytes,
     withEngineBytes,
@@ -225,6 +260,13 @@ function runSelfTest() {
     });
     assert.equal(qualified, true, "doctor ran before the clean package snapshot was built");
 
+    requireFullMediaHelper("snapback2-media", () => ({
+      stdout: '{"images":true,"heic":true}\n',
+    }));
+    assert.throws(() => requireFullMediaHelper("snapback2-media", () => ({
+      stdout: '{"images":true,"heic":false}\n',
+    })), /refusing to publish snapback2-media without the images and heic features/);
+
     const artifacts = [
       { name: "snapback2-test-platform", version: "0.0.1", integrity: "sha512-platform", tarball: "platform.tgz" },
       { name: "snapback2", version: "0.0.1", integrity: "sha512-shim", tarball: "shim.tgz" },
@@ -255,12 +297,15 @@ function runSelfTest() {
     mkdirSync(durable, { recursive: true });
     const oldPlatform = resolve(durable, "old-platform.tgz");
     const oldShim = resolve(durable, "old-shim.tgz");
+    const oldMedia = resolve(durable, "snapback2-media");
     writeFileSync(oldPlatform, "published platform bytes");
     writeFileSync(oldShim, "missing shim bytes");
+    writeFileSync(oldMedia, "published media bytes");
     const durableResume = resolve(durable, "resume.json");
     writeFileSync(durableResume, `${JSON.stringify({
       name: "snapback2-test-platform",
       version: "0.0.1",
+      mediaBin: oldMedia,
       artifacts: [
         { ...artifacts[0], tarball: oldPlatform, integrity: sri(oldPlatform) },
         { ...artifacts[1], tarball: oldShim, integrity: sri(oldShim) },
@@ -287,7 +332,7 @@ function runSelfTest() {
     dryStage.cleanup();
     assert.equal(existsSync(oldPlatform), true);
     assert.equal(existsSync(oldShim), true);
-    console.log("publish self-test ok; durable dry-run resume preserved");
+    console.log("publish self-test ok; full media helper required; durable dry-run resume preserved");
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
@@ -323,7 +368,7 @@ function main() {
     const seconds = +((performance.now() - started) / 1000).toFixed(1);
     const bytes = staged.withoutEngine ? staged.withoutEngineBytes : staged.withEngineBytes;
     console.log(
-      `published ${name}@${version} (${(bytes / 1e6).toFixed(1)} MB; no-engine ${(staged.withoutEngineBytes / 1e6).toFixed(1)} MB) + snapback2@${version} in ${seconds}s${dry ? " (dry run)" : ""}`,
+      `published ${name}@${version} (engine ${(bytes / 1e6).toFixed(1)} MB; media ${(staged.mediaBytes / 1e6).toFixed(1)} MB; no-engine ${(staged.withoutEngineBytes / 1e6).toFixed(1)} MB) + snapback2@${version} in ${seconds}s${dry ? " (dry run)" : ""}`,
     );
     const metric = {
       at: new Date().toISOString(),
@@ -331,6 +376,7 @@ function main() {
       production_binary_bytes: bytes,
       production_binary_without_engine_bytes: staged.withoutEngineBytes,
       production_binary_with_engine_bytes: staged.withEngineBytes,
+      production_media_binary_bytes: staged.mediaBytes,
       engine: staged.withoutEngine ? "none (explicit override)" : "ibex2 + vanilla hermes",
       dry,
     };
