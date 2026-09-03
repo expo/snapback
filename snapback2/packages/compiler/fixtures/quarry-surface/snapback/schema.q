@@ -69,6 +69,16 @@ table pairs:
   read r <- r.lo = viewer or r.hi = viewer
   insert r <- r.lo = viewer or r.hi = viewer
 
+table keyedRows:
+  owner: principal
+  label: text <=40
+  value: int
+  unique owner, label
+  read r <- allow
+  insert r <- allow
+  update r <- allow
+  delete r <- allow
+
 table nodes:
   name: text <=80
   parent: nodes ?

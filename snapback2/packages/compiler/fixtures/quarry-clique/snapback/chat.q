@@ -1,0 +1,136 @@
+-- Clique messaging regression surface: DMs, groups, messages, and receipts.
+
+mutation startDm(other: users):
+  peer = users[other]! else USER_NOT_FOUND
+  require peer.principal != viewer else SELF_DM
+  (lo, hi) = sorted(viewer, peer.principal)
+  if exists dms[lo, hi]:
+    existing = dms[lo, hi]! else DM_RACE
+    return existing.conv
+  else:
+    cid = new
+    +conversations { id: cid, kind: 'dm', creator: viewer, createdAt: now, lastAt: now }
+    +dms { lo, hi, conv: cid }
+    for principal in [viewer, peer.principal]:
+      +members { conv: cid, user: principal, role: 'member', joinedAt: now }
+    for principal in [viewer, peer.principal]:
+      +inbox { user: principal, conv: cid, joinedAt: now }
+    return cid
+
+mutation createGroup(name: text <=50, description: text <=200 ?, invitees: [users] <=49):
+  cid = new
+  +conversations { id: cid, kind: 'group', name, description, creator: viewer, createdAt: now, lastAt: now }
+  +members { conv: cid, user: viewer, role: 'admin', joinedAt: now }
+  +inbox { user: viewer, conv: cid, joinedAt: now }
+  for u in invitees:
+    person = users[u]! else USER_NOT_FOUND
+    if person.principal != viewer:
+      +members { conv: cid, user: person.principal, role: 'member', joinedAt: now }
+      +inbox { user: person.principal, conv: cid, joinedAt: now }
+  return cid
+
+mutation addMember(c: conversations, u: users):
+  conv = conversations[c]! else NOT_FOUND
+  require conv.kind = 'group' else NOT_GROUP
+  me = members[c, viewer]! else NOT_MEMBER
+  require me.role = 'admin' else NOT_ADMIN
+  person = users[u]! else USER_NOT_FOUND
+  require not exists members[c, person.principal] else ALREADY_MEMBER
+  +members { conv: conv.id, user: person.principal, role: 'member', joinedAt: now }
+  +inbox { user: person.principal, conv: conv.id, joinedAt: now }
+  return true
+
+mutation removeMember(c: conversations, u: users):
+  me = members[c, viewer]! else NOT_MEMBER
+  require me.role = 'admin' else NOT_ADMIN
+  person = users[u]! else USER_NOT_FOUND
+  require person.principal != viewer else USE_LEAVE
+  row = members[c, person.principal]! else NOT_A_MEMBER
+  -members[row.id]
+  gone = inbox[person.principal, c]! else NO_INBOX
+  -inbox[gone.id]
+  return true
+
+mutation promoteAdmin(c: conversations, u: users):
+  me = members[c, viewer]! else NOT_MEMBER
+  require me.role = 'admin' else NOT_ADMIN
+  person = users[u]! else USER_NOT_FOUND
+  row = members[c, person.principal]! else NOT_A_MEMBER
+  ~members[row.id] { role: 'admin' }
+  return true
+
+mutation leaveGroup(c: conversations):
+  conv = conversations[c]! else NOT_FOUND
+  require conv.kind = 'group' else NOT_GROUP
+  row = members[c, viewer]! else NOT_MEMBER
+  -members[row.id]
+  gone = inbox[viewer, c]! else NO_INBOX
+  -inbox[gone.id]
+  return true
+
+mutation send(c: conversations, body: text <=2000, quoted: messages ?, ord: int):
+  require exists members[c, viewer] else NOT_MEMBER
+  mid = new
+  t = now
+  +messages { id: mid, conv: c, author: viewer, body, quoted, at: t, ord }
+  ~conversations[c] { lastAt: t }
+  m = messages[mid]! else IMPOSSIBLE
+  return m { id, at }
+
+-- Receipt watermarks remain hand-kept and monotonic.
+mutation markDelivered(c: conversations, upTo: time):
+  m = members[c, viewer]! else NOT_MEMBER
+  if m.lastDeliveredAt >= upTo:
+    return false
+  else:
+    ~members[m.id] { lastDeliveredAt: upTo }
+    return true
+
+mutation markRead(c: conversations, upTo: time):
+  m = members[c, viewer]! else NOT_MEMBER
+  if m.lastReadAt >= upTo:
+    return false
+  else:
+    if m.lastDeliveredAt >= upTo:
+      ~members[m.id] { lastReadAt: upTo }
+    else:
+      ~members[m.id] { lastReadAt: upTo, lastDeliveredAt: upTo }
+    return true
+
+query myConversations():
+  return inbox[user = viewer] first 50 by byUserConv {
+    conv,
+    joinedAt,
+    conversation: conversations[.conv] {
+      *,
+      creatorProfile: users[principal = .creator] { displayName, handle },
+    },
+    peers: members[conv = .conv] first 2 by byConvUser {
+      user,
+      profile: users[principal = .user] { displayName, handle },
+    },
+  }
+
+query conversation(c: conversations):
+  conv = conversations[c]! else NOT_FOUND
+  return conv { *, creatorProfile: users[principal = .creator] { displayName, handle } }
+
+query convMembers(c: conversations):
+  return members[conv = c] first 50 by byConvUser {
+    *,
+    profile: users[principal = .user] { displayName, handle },
+  }
+
+query chatThread(c: conversations):
+  return messages[c] first 30 by byConvOrd {
+    *,
+    authorProfile: users[principal = .author] { displayName, handle },
+    quotedMsg: .quoted { id, body, author },
+  }
+
+query chatThreadBefore(c: conversations, cursorOrd: int, cursorId: messages):
+  return messages[c] after (cursorOrd, cursorId) first 30 by byConvOrd {
+    *,
+    authorProfile: users[principal = .author] { displayName, handle },
+    quotedMsg: .quoted { id, body, author },
+  }

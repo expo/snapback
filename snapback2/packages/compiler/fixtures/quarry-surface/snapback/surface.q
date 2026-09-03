@@ -96,6 +96,33 @@ mutation removePost(post: posts):
   -posts[post]
   return null
 
+query keyedRow(owner: principal, label: text <=40):
+  return keyedRows[owner, label]
+
+mutation updateKeyedRow(owner: principal, label: text <=40, value: int):
+  ~keyedRows[owner, label] { owner, label, value }
+  return null
+
+mutation upsertKeyedRow(owner: principal, label: text <=40, value: int):
+  +~keyedRows[owner, label] { value }
+  return null
+
+mutation upsertKeyedRowWithId(id: id, owner: principal, label: text <=40, value: int):
+  +~keyedRows[owner, label] { id, value }
+  return null
+
+mutation deleteKeyedRow(owner: principal, label: text <=40):
+  -keyedRows[owner, label]
+  return null
+
+mutation updateKeyedRowById(id: keyedRows, value: int):
+  ~keyedRows[id] { value }
+  return null
+
+mutation deleteKeyedRowById(id: keyedRows):
+  -keyedRows[id]
+  return null
+
 mutation branchWrite(useFirst: bool):
   if useFirst:
     +counters { owner: viewer, value: 1 }

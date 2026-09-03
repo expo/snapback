@@ -1,6 +1,7 @@
 import type {
   Expr,
   EffectDecl,
+  IndexDecl,
   KeyPart,
   ObjectField,
   ProgramDecl,
@@ -607,17 +608,28 @@ function emitWrite(expr: Extract<Expr, { kind: "write" }>, env: Environment, wri
     return { code: `db.insert(${expr.table}, { ${fields.join(", ")} })`, type: { kind: "row", table: expr.table, nullable: false } };
   }
   const index = selectIndex(env.catalog, expr.table, expr.keys, "point", undefined, (value) => inferExpr(value, env), expr.site);
-  if (index.name !== "byId" || expr.keys.length !== 1) {
-    refuse(expr.site, `the packaged db.${expr.op} surface accepts only a scalar id key; get the row by ${index.name} and write using its id`);
+  validateAddressedKeyFields(expr, index);
+  const keys = expr.keys.map((part, offset) => {
+    const emitted = keyBinding(emitExpr(part.value, env, writer));
+    const local = temporary(`writeKey${offset + 1}`, part.site);
+    writer.statement(`const ${local} = ${emitted.code};`, part.value.site);
+    return { ...emitted, code: local };
+  });
+  const addressedFields = new Map(index.columns.map((column, offset) => [column, keys[offset]!.code]));
+  if (index.name !== "byId" || keys.length !== 1) {
+    return emitIndexedWrite(expr, env, writer, info.columns, index, keys);
   }
-  const key = keyBinding(emitExpr(expr.keys[0]!.value, env, writer));
+  const key = keys[0]!;
   if (expr.op === "delete") {
     writer.statement(`db.delete(${expr.table}, ${key.code});`, expr.site);
     return { code: "null", type: { kind: "unknown" }, effectOnly: true };
   }
-  const usesFocal = expr.fields.some((field) => field.value && mentionsFocal(field.value));
+  const writeFields = expr.op === "update"
+    ? expr.fields.filter((field) => !addressedFields.has(field.name))
+    : expr.fields;
+  const usesFocal = writeFields.some((field) => field.value && mentionsFocal(field.value));
   if (!usesFocal && expr.op !== "upsert") {
-    const fields = emitFields(expr.fields, env, writer, info.columns);
+    const fields = emitFields(writeFields, env, writer, info.columns);
     writer.statement(`db.${expr.op}(${expr.table}, ${key.code}, { ${fields.join(", ")} });`, expr.site);
     return { code: "null", type: { kind: "unknown" }, effectOnly: true };
   }
@@ -628,7 +640,13 @@ function emitWrite(expr: Extract<Expr, { kind: "write" }>, env: Environment, wri
   try {
     writer.raw(`db.${expr.op}(${expr.table}, ${key.code}, (${rowName}) => {`);
     writer.nested(() => {
-      const fields = emitEvaluatedFields(expr.fields, env, writer, info.columns);
+      const fields = emitEvaluatedFields(
+        writeFields,
+        env,
+        writer,
+        info.columns,
+        expr.op === "upsert" ? addressedFields : undefined,
+      );
       if (expr.op === "upsert" && !expr.fields.some((field) => field.name === "id")) fields.unshift(`id: ${key.code}`);
       writer.statement(`return { ${fields.join(", ")} };`, expr.site);
     });
@@ -639,7 +657,85 @@ function emitWrite(expr: Extract<Expr, { kind: "write" }>, env: Environment, wri
   return { code: "null", type: { kind: "unknown" }, effectOnly: true };
 }
 
-function emitFields(fields: ObjectField[], env: Environment, writer: Writer, columns: Map<string, ScalarType>): string[] {
+// @ref LLP 1001#1-store-storers — the engine's write address remains the
+// intrinsic scalar row id; Quarry resolves an alternate unique key before it
+// emits the base-table write rather than pretending the IR has composite ids.
+function emitIndexedWrite(
+  expr: Extract<Expr, { kind: "write" }>,
+  env: Environment,
+  writer: Writer,
+  columns: Map<string, ScalarType>,
+  index: IndexDecl,
+  keys: Emitted[],
+): Emitted {
+  const row = temporary("writeRow", expr.site);
+  writer.statement(`const ${row} = db.get(${expr.table}.${index.name}, [${keys.map((key) => key.code).join(", ")}]);`, expr.site);
+  const addressedFields = new Map(index.columns.map((column, offset) => [column, keys[offset]!.code]));
+
+  if (expr.op === "delete") {
+    writer.statement(`db.require(${row} !== null, "NOT_FOUND");`, expr.site);
+    writer.statement(`db.delete(${expr.table}, ${row}!.id);`, expr.site);
+    return { code: "null", type: { kind: "unknown" }, effectOnly: true };
+  }
+
+  if (expr.op === "update") {
+    writer.statement(`db.require(${row} !== null, "NOT_FOUND");`, expr.site);
+    const prior = env.focal;
+    env.focal = { code: `${row}!`, type: { kind: "row", table: expr.table, nullable: false } };
+    try {
+      const patch = expr.fields.filter((field) => !addressedFields.has(field.name));
+      const fields = patch.some((field) => field.value && mentionsFocal(field.value))
+        ? emitEvaluatedFields(patch, env, writer, columns)
+        : emitFields(patch, env, writer, columns);
+      writer.statement(`db.update(${expr.table}, ${row}!.id, { ${fields.join(", ")} });`, expr.site);
+    } finally {
+      env.focal = prior;
+    }
+    return { code: "null", type: { kind: "unknown" }, effectOnly: true };
+  }
+
+  const prior = env.focal;
+  env.focal = { code: row, type: { kind: "row", table: expr.table, nullable: true } };
+  try {
+    // `id: new` is the minted form, not an authored id: the present branch keeps the
+    // row's id and only the absent branch mints, so the upsert converges.
+    const mintsId = (field: ObjectField) => field.name === "id" && field.value?.kind === "name" && field.value.name === "new";
+    const sourceFields = index.columns.includes("id") ? expr.fields : expr.fields.filter((field) => !mintsId(field));
+    const authoredId = sourceFields.find((field) => field.name === "id");
+    const key = temporary("upsertKey", expr.site);
+    const fields = emitEvaluatedFieldEntries(sourceFields, env, writer, columns, addressedFields);
+    const authoredNames = new Set(sourceFields.map((field) => field.name));
+    const injected = index.columns.flatMap((column, offset) =>
+      authoredNames.has(column) ? [] : [{ name: column, value: keys[offset]!.code }]);
+    fields.unshift(...injected);
+    if (!authoredId && !index.columns.includes("id")) {
+      writer.statement(`const ${key} = ${row}?.id ?? ctx.newId();`, expr.site);
+      const rowFields = fields.map(fieldCode);
+      rowFields.unshift(`id: ${key}`);
+      writer.statement(`db.upsert(${expr.table}, ${key}, { ${rowFields.join(", ")} });`, expr.site);
+    } else {
+      const id = fields.find((field) => field.name === "id")!.value;
+      const idRow = temporary("upsertIdRow", expr.site);
+      writer.statement(`const ${idRow} = db.get(${expr.table}, ${id});`, expr.site);
+      writer.statement(`db.require(${row} !== null || ${idRow} === null, "UPSERT_ID_IN_USE");`, expr.site);
+      writer.statement(`db.require(${row} === null || ${row}.id === ${id}, "UPSERT_ID_MISMATCH");`, expr.site);
+      writer.statement(`const ${key} = ${row}?.id ?? ${id};`, expr.site);
+      const rowFields = fields.filter((field) => field.name !== "id").map(fieldCode);
+      rowFields.unshift(`id: ${key}`);
+      writer.statement(`db.upsert(${expr.table}, ${key}, { ${rowFields.join(", ")} });`, expr.site);
+    }
+  } finally {
+    env.focal = prior;
+  }
+  return { code: "null", type: { kind: "unknown" }, effectOnly: true };
+}
+
+function emitFields(
+  fields: ObjectField[],
+  env: Environment,
+  writer: Writer,
+  columns: Map<string, ScalarType>,
+): string[] {
   return fields.map((field) => {
     const value = emitExpr(field.value ?? { kind: "name", name: field.name, site: field.site }, env, writer);
     const expected = field.name === "id" ? { kind: "id", optional: false } satisfies ScalarType : columns.get(field.name);
@@ -649,16 +745,103 @@ function emitFields(fields: ObjectField[], env: Environment, writer: Writer, col
   });
 }
 
-function emitEvaluatedFields(fields: ObjectField[], env: Environment, writer: Writer, columns: Map<string, ScalarType>): string[] {
+type EvaluatedField = { name: string; value: string };
+
+function emitEvaluatedFields(
+  fields: ObjectField[],
+  env: Environment,
+  writer: Writer,
+  columns: Map<string, ScalarType>,
+  replacements: Map<string, string> = new Map(),
+): string[] {
+  return emitEvaluatedFieldEntries(fields, env, writer, columns, replacements).map(fieldCode);
+}
+
+function emitEvaluatedFieldEntries(
+  fields: ObjectField[],
+  env: Environment,
+  writer: Writer,
+  columns: Map<string, ScalarType>,
+  replacements: Map<string, string> = new Map(),
+): EvaluatedField[] {
   return fields.map((field) => {
+    const replacement = replacements.get(field.name);
+    if (replacement) return { name: field.name, value: replacement };
     const value = emitExpr(field.value ?? { kind: "name", name: field.name, site: field.site }, env, writer);
     const expected = field.name === "id" ? { kind: "id", optional: false } satisfies ScalarType : columns.get(field.name);
     validateFieldType(field, value.type, expected);
     const code = expected && (expected.kind === "ref" || expected.kind === "id") ? keyBinding(value).code : value.code;
     const local = temporary("patch", field.site);
     writer.statement(`const ${local} = ${code};`, field.site);
-    return `${property(field.name)}: ${local}`;
+    return { name: field.name, value: local };
   });
+}
+
+function fieldCode(field: EvaluatedField): string { return `${property(field.name)}: ${field.value}`; }
+
+function validateAddressedKeyFields(expr: Extract<Expr, { kind: "write" }>, index: IndexDecl): void {
+  if (expr.op === "delete") return;
+  for (const [offset, column] of index.columns.entries()) {
+    const field = expr.fields.find((candidate) => candidate.name === column);
+    if (!field) continue;
+    const value = field.value ?? { kind: "name", name: field.name, site: field.site } satisfies Expr;
+    if (quarryExpression(value) === quarryExpression(expr.keys[offset]!.value)) continue;
+    typeError(
+      field.site,
+      `${expr.op} may not reassign addressed key column ${column}; the ${index.name} address is authoritative`,
+      quarryWriteWithoutField(expr, field),
+    );
+  }
+}
+
+function quarryWriteWithoutField(expr: Extract<Expr, { kind: "write" }>, removed: ObjectField): string {
+  const operator = expr.op === "upsert" ? "+~" : expr.op === "update" ? "~" : expr.op === "delete" ? "-" : "+";
+  const key = expr.op === "insert" ? "" : `[${expr.keys.map(quarryKeyPart).join(", ")}]`;
+  const fields = expr.op === "delete" ? "" : ` { ${expr.fields.filter((field) => field !== removed).map(quarryObjectField).join(", ")} }`;
+  return `${operator}${expr.table}${key}${fields}`;
+}
+
+function quarryKeyPart(part: KeyPart): string {
+  return `${part.column ? `${part.column} = ` : ""}${quarryExpression(part.value)}`;
+}
+
+function quarryObjectField(field: ObjectField): string {
+  return field.value ? `${field.name}: ${quarryExpression(field.value)}` : field.name;
+}
+
+function quarryExpression(expr: Expr): string {
+  if (expr.kind === "name") return expr.name;
+  if (expr.kind === "focal") return ".";
+  if (expr.kind === "literal") return JSON.stringify(expr.value);
+  if (expr.kind === "array") return `[${expr.items.map(quarryExpression).join(", ")}]`;
+  if (expr.kind === "object") return `{ ${expr.fields.map(quarryObjectField).join(", ")} }`;
+  if (expr.kind === "unary") return `${expr.op} (${quarryExpression(expr.value)})`;
+  if (expr.kind === "binary") return `(${quarryExpression(expr.left)} ${expr.op} ${quarryExpression(expr.right)})`;
+  if (expr.kind === "member") {
+    return expr.base.kind === "focal"
+      ? `.${expr.name}`
+      : `(${quarryExpression(expr.base)}).${expr.name}`;
+  }
+  if (expr.kind === "call") return `${expr.name}(${expr.args.map(quarryExpression).join(", ")})`;
+  if (expr.kind === "read") {
+    let rendered = `${expr.table}[${expr.keys.map(quarryKeyPart).join(", ")}]`;
+    if (expr.range?.cursor) rendered += ` ${expr.range.cursorKind ?? "after"} ${quarryExpression(expr.range.cursor)}`;
+    if (expr.range) rendered += ` ${expr.range.order === "asc" ? "first" : "last"} ${expr.range.take}`;
+    if (expr.index) rendered += ` by ${expr.index}`;
+    if (expr.range?.where) rendered += ` where ${quarryExpression(expr.range.where)}`;
+    return rendered;
+  }
+  if (expr.kind === "exists" || expr.kind === "created") return `${expr.kind} ${quarryExpression(expr.read)}`;
+  if (expr.kind === "aggregate") return `#${expr.table}[${expr.keys.map(quarryKeyPart).join(", ")}]`;
+  if (expr.kind === "assert") return `(${quarryExpression(expr.value)})! else ${expr.code}`;
+  if (expr.kind === "shape") {
+    const fields = expr.fields.map((field) => field.kind === "spread"
+      ? "*"
+      : field.kind === "bare" ? field.name : `${field.name}: ${quarryExpression(field.value)}`);
+    return `(${quarryExpression(expr.base)}) { ${fields.join(", ")} }`;
+  }
+  if (expr.kind === "walk") return `walk ${expr.table}[${quarryExpression(expr.seed)}] up .${expr.column} depth ${expr.depth}`;
+  return quarryWriteWithoutField(expr, { name: "", site: expr.site });
 }
 
 function validateFieldType(field: ObjectField, actual: ValueType, expected: ScalarType | undefined): void {

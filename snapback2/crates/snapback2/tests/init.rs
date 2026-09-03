@@ -2,6 +2,7 @@ mod common;
 
 use common::{OwnerGuard, Project, json_stdout, shared_package_dist, snapshot};
 use serde_json::Value as Json;
+use std::collections::BTreeSet;
 use std::path::Path;
 
 #[cfg(unix)]
@@ -220,6 +221,12 @@ export default seed({
       { id: 'post-3', author: 'dev:alice', group: 'group-1', body: 'third', at: 30, editedAt: null, visible: true, mood: 'plain' },
     ],
     counters: [],
+    keyedRows: [
+      { id: 'keyed-update', owner: 'dev:alice', label: 'update', value: 1 },
+      { id: 'keyed-delete', owner: 'dev:alice', label: 'delete', value: 2 },
+      { id: 'keyed-authored-present', owner: 'dev:alice', label: 'authored-present', value: 3 },
+      { id: 'keyed-id-in-use', owner: 'dev:alice', label: 'id-in-use-original', value: 4 },
+    ],
   },
 });
 "#,
@@ -258,6 +265,341 @@ export default seed({
         let result = run("surface.branchWrite", &format!(r#"{{"useFirst":{value}}}"#));
         assert_eq!(result["state"], "committed", "{result}");
     }
+
+    let updated = run(
+        "surface.updateKeyedRow",
+        r#"{"owner":"dev:alice","label":"update","value":11}"#,
+    );
+    assert_eq!(updated["state"], "committed", "{updated}");
+    let update_read = run(
+        "surface.keyedRow",
+        r#"{"owner":"dev:alice","label":"update"}"#,
+    );
+    assert_eq!(update_read["data"]["id"], "keyed-update", "{update_read}");
+    assert_eq!(update_read["data"]["value"], 11, "{update_read}");
+    for (operation, args) in [
+        (
+            "surface.updateKeyedRow",
+            r#"{"owner":"dev:alice","label":"missing-update","value":1}"#,
+        ),
+        (
+            "surface.deleteKeyedRow",
+            r#"{"owner":"dev:alice","label":"missing-delete"}"#,
+        ),
+    ] {
+        let missing = run(operation, args);
+        assert_eq!(missing["state"], "rejected", "{missing}");
+        assert_eq!(missing["code"], "NOT_FOUND", "{missing}");
+        assert_eq!(missing["family"], "input", "{missing}");
+    }
+
+    let upserted = run(
+        "surface.upsertKeyedRow",
+        r#"{"owner":"dev:alice","label":"upsert","value":21}"#,
+    );
+    assert_eq!(upserted["state"], "committed", "{upserted}");
+    let upsert_read = run(
+        "surface.keyedRow",
+        r#"{"owner":"dev:alice","label":"upsert"}"#,
+    );
+    assert_eq!(upsert_read["data"]["value"], 21, "{upsert_read}");
+    let upsert_id = upsert_read["data"]["id"]
+        .as_str()
+        .expect("alternate upsert inserted an id")
+        .to_owned();
+    let upsert_updated = run(
+        "surface.upsertKeyedRow",
+        r#"{"owner":"dev:alice","label":"upsert","value":22}"#,
+    );
+    assert_eq!(upsert_updated["state"], "committed", "{upsert_updated}");
+    let upsert_update_read = run(
+        "surface.keyedRow",
+        r#"{"owner":"dev:alice","label":"upsert"}"#,
+    );
+    assert_eq!(
+        upsert_update_read["data"]["id"], upsert_id,
+        "{upsert_update_read}"
+    );
+    assert_eq!(
+        upsert_update_read["data"]["value"], 22,
+        "{upsert_update_read}"
+    );
+
+    let authored_absent = run(
+        "surface.upsertKeyedRowWithId",
+        r#"{"id":"keyed-authored-new","owner":"dev:alice","label":"authored-new","value":31}"#,
+    );
+    assert_eq!(authored_absent["state"], "committed", "{authored_absent}");
+    let authored_absent_read = run(
+        "surface.keyedRow",
+        r#"{"owner":"dev:alice","label":"authored-new"}"#,
+    );
+    assert_eq!(
+        authored_absent_read["data"]["id"], "keyed-authored-new",
+        "{authored_absent_read}"
+    );
+    assert_eq!(
+        authored_absent_read["data"]["value"], 31,
+        "{authored_absent_read}"
+    );
+
+    let authored_present = run(
+        "surface.upsertKeyedRowWithId",
+        r#"{"id":"keyed-authored-present","owner":"dev:alice","label":"authored-present","value":32}"#,
+    );
+    assert_eq!(authored_present["state"], "committed", "{authored_present}");
+    let authored_present_read = run(
+        "surface.keyedRow",
+        r#"{"owner":"dev:alice","label":"authored-present"}"#,
+    );
+    assert_eq!(
+        authored_present_read["data"]["id"], "keyed-authored-present",
+        "{authored_present_read}"
+    );
+    assert_eq!(
+        authored_present_read["data"]["value"], 32,
+        "{authored_present_read}"
+    );
+
+    let authored_mismatch = run(
+        "surface.upsertKeyedRowWithId",
+        r#"{"id":"keyed-authored-other","owner":"dev:alice","label":"authored-present","value":33}"#,
+    );
+    assert_eq!(
+        authored_mismatch["state"], "rejected",
+        "{authored_mismatch}"
+    );
+    assert_eq!(
+        authored_mismatch["code"], "UPSERT_ID_MISMATCH",
+        "{authored_mismatch}"
+    );
+    assert_eq!(authored_mismatch["family"], "input", "{authored_mismatch}");
+    let authored_after_mismatch = run(
+        "surface.keyedRow",
+        r#"{"owner":"dev:alice","label":"authored-present"}"#,
+    );
+    assert_eq!(
+        authored_after_mismatch["data"]["id"], "keyed-authored-present",
+        "{authored_after_mismatch}"
+    );
+    assert_eq!(
+        authored_after_mismatch["data"]["value"], 32,
+        "{authored_after_mismatch}"
+    );
+
+    let authored_in_use = run(
+        "surface.upsertKeyedRowWithId",
+        r#"{"id":"keyed-id-in-use","owner":"dev:alice","label":"authored-collision","value":34}"#,
+    );
+    assert_eq!(authored_in_use["state"], "rejected", "{authored_in_use}");
+    assert_eq!(
+        authored_in_use["code"], "UPSERT_ID_IN_USE",
+        "{authored_in_use}"
+    );
+    assert_eq!(authored_in_use["family"], "input", "{authored_in_use}");
+    let authored_collision_read = run(
+        "surface.keyedRow",
+        r#"{"owner":"dev:alice","label":"authored-collision"}"#,
+    );
+    assert!(
+        authored_collision_read["data"].is_null(),
+        "{authored_collision_read}"
+    );
+    let id_in_use_read = run(
+        "surface.keyedRow",
+        r#"{"owner":"dev:alice","label":"id-in-use-original"}"#,
+    );
+    assert_eq!(
+        id_in_use_read["data"]["id"], "keyed-id-in-use",
+        "{id_in_use_read}"
+    );
+    assert_eq!(id_in_use_read["data"]["value"], 4, "{id_in_use_read}");
+
+    let deleted = run(
+        "surface.deleteKeyedRow",
+        r#"{"owner":"dev:alice","label":"delete"}"#,
+    );
+    assert_eq!(deleted["state"], "committed", "{deleted}");
+    let delete_read = run(
+        "surface.keyedRow",
+        r#"{"owner":"dev:alice","label":"delete"}"#,
+    );
+    assert!(delete_read["data"].is_null(), "{delete_read}");
+
+    let scalar_update_missing = run(
+        "surface.updateKeyedRowById",
+        r#"{"id":"missing-scalar-update","value":1}"#,
+    );
+    assert_eq!(
+        scalar_update_missing["state"], "rejected",
+        "{scalar_update_missing}"
+    );
+    assert_eq!(
+        scalar_update_missing["code"], "E_INPUT",
+        "{scalar_update_missing}"
+    );
+    assert_eq!(
+        scalar_update_missing["family"], "input",
+        "{scalar_update_missing}"
+    );
+    let scalar_delete_missing = run(
+        "surface.deleteKeyedRowById",
+        r#"{"id":"missing-scalar-delete"}"#,
+    );
+    assert_eq!(
+        scalar_delete_missing["state"], "committed",
+        "{scalar_delete_missing}"
+    );
+}
+
+#[test]
+fn quarry_clique_sends_a_dm_and_pages_feed_with_a_tuple_cursor() {
+    let project = Project::new();
+    assert!(project.init("todos", "none").status.success());
+    std::fs::remove_file(project.path.join("snapback/todos.q")).unwrap();
+    std::fs::remove_dir_all(project.path.join("snapback/tests")).unwrap();
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../packages/compiler/fixtures/quarry-clique/snapback");
+    for file in ["schema.q", "chat.q", "social.q"] {
+        std::fs::copy(fixture.join(file), project.path.join("snapback").join(file)).unwrap();
+    }
+
+    let posts = (0..21)
+        .map(|index| {
+            serde_json::json!({
+                "id": format!("post-{index:02}"),
+                "author": "dev:alice",
+                "body": format!("post {index}"),
+                "parent": null,
+                "at": index,
+                "likeCount": 0,
+                "replyCount": 0,
+                "repostCount": 0,
+            })
+        })
+        .collect::<Vec<_>>();
+    let feed_items = (0..21)
+        .map(|index| {
+            serde_json::json!({
+                "id": format!("feed-{index:02}"),
+                "actor": "dev:alice",
+                "post": format!("post-{index:02}"),
+                "kind": "post",
+                "origAuthor": "dev:alice",
+                "at": index,
+                "ord": index,
+            })
+        })
+        .collect::<Vec<_>>();
+    let seed = serde_json::json!({
+        "personas": ["alice", "bob"],
+        "rows": {
+            "users": [
+                {
+                    "id": "user-alice", "principal": "dev:alice", "displayName": "Alice",
+                    "handle": "alice", "bio": null, "location": null, "link": null,
+                    "followerCount": 0, "followingCount": 0,
+                },
+                {
+                    "id": "user-bob", "principal": "dev:bob", "displayName": "Bob",
+                    "handle": "bob", "bio": null, "location": null, "link": null,
+                    "followerCount": 0, "followingCount": 0,
+                },
+            ],
+            "posts": posts,
+            "feedItems": feed_items,
+        },
+    });
+    std::fs::write(
+        project.path.join("snapback/seed.ts"),
+        format!("import {{ seed }} from 'snapback2';\nexport default seed({seed});\n"),
+    )
+    .unwrap();
+
+    let checked = project.run(&["check", "--json"]);
+    assert!(
+        checked.status.success(),
+        "{}{}",
+        String::from_utf8_lossy(&checked.stdout),
+        String::from_utf8_lossy(&checked.stderr)
+    );
+    let _owner = OwnerGuard::start(&project);
+    let run = |op: &str, args: &str| {
+        json_stdout(&project.run(&["run", op, args, "--as", "alice", "--json"]))
+    };
+
+    let followed = run("social.toggleFollow", r#"{"u":"user-bob"}"#);
+    assert_eq!(followed["state"], "committed", "{followed}");
+    assert_eq!(followed["data"], true, "{followed}");
+    let alice_after_follow = run("social.profile", r#"{"u":"user-alice"}"#);
+    let bob_after_follow = run("social.profile", r#"{"u":"user-bob"}"#);
+    assert_eq!(
+        alice_after_follow["data"]["followingCount"], 1,
+        "{alice_after_follow}"
+    );
+    assert_eq!(
+        bob_after_follow["data"]["followerCount"], 1,
+        "{bob_after_follow}"
+    );
+    let unfollowed = run("social.toggleFollow", r#"{"u":"user-bob"}"#);
+    assert_eq!(unfollowed["state"], "committed", "{unfollowed}");
+    assert_eq!(unfollowed["data"], false, "{unfollowed}");
+    let alice_after_unfollow = run("social.profile", r#"{"u":"user-alice"}"#);
+    let bob_after_unfollow = run("social.profile", r#"{"u":"user-bob"}"#);
+    assert_eq!(
+        alice_after_unfollow["data"]["followingCount"], 0,
+        "{alice_after_unfollow}"
+    );
+    assert_eq!(
+        bob_after_unfollow["data"]["followerCount"], 0,
+        "{bob_after_unfollow}"
+    );
+
+    let dm = run("chat.startDm", r#"{"other":"user-bob"}"#);
+    assert_eq!(dm["state"], "committed", "{dm}");
+    let conversation = dm["data"]
+        .as_str()
+        .expect("startDm returns conversation id");
+    let send_args = serde_json::json!({
+        "c": conversation,
+        "body": "hello Bob",
+        "quoted": null,
+        "ord": -100,
+    })
+    .to_string();
+    let sent = run("chat.send", &send_args);
+    assert_eq!(sent["state"], "committed", "{sent}");
+    assert!(sent["data"]["id"].as_str().is_some(), "{sent}");
+    let thread_args = serde_json::json!({ "c": conversation }).to_string();
+    let thread = run("chat.chatThread", &thread_args);
+    assert_eq!(thread["state"], "complete", "{thread}");
+    assert_eq!(thread["data"].as_array().map(Vec::len), Some(1), "{thread}");
+    assert_eq!(thread["data"][0]["body"], "hello Bob", "{thread}");
+
+    let first = run("social.globalFeed", "{}");
+    assert_eq!(first["state"], "capped", "{first}");
+    let first_rows = first["data"].as_array().expect("first feed page");
+    assert_eq!(first_rows.len(), 20, "{first}");
+    let cursor = first_rows.last().expect("first page cursor row");
+    let second_args = serde_json::json!({
+        "cursorOrd": cursor["ord"],
+        "cursorId": cursor["id"],
+    })
+    .to_string();
+    let second = run("social.globalFeedBefore", &second_args);
+    assert_eq!(second["state"], "complete", "{second}");
+    let second_rows = second["data"].as_array().expect("second feed page");
+    assert_eq!(second_rows.len(), 1, "{second}");
+    let first_ids = first_rows
+        .iter()
+        .map(|row| row["id"].as_str().unwrap())
+        .collect::<BTreeSet<_>>();
+    assert!(
+        second_rows
+            .iter()
+            .all(|row| !first_ids.contains(row["id"].as_str().unwrap())),
+        "tuple cursor pages overlap: first={first} second={second}"
+    );
 }
 
 #[test]

@@ -15,7 +15,7 @@ export function registerQuarryChecks(test: Test, frontend: string): void {
   const packageRoot = resolve(frontend, "../snapback2");
 
   test("Quarry todos and full surface lower in memory and certify", async () => {
-    for (const [name, count] of [["quarry-todos", 2], ["quarry-surface", 20]] as const) {
+    for (const [name, count] of [["quarry-todos", 2], ["quarry-surface", 27]] as const) {
       const lowered = await lowerProject(resolve(fixtures, name));
       assert(lowered.ok, `${name} refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
       assert(lowered.project.programs.length === count, `${name} program count changed to ${lowered.project.programs.length}`);
@@ -133,6 +133,127 @@ export function registerQuarryChecks(test: Test, frontend: string): void {
     const syntax = compileInline([{ fileName: "snapback/schema.q", source: "table invalid:\n  lower: money usd\n  huge: decimal 19\n  public\n" }]);
     assert(!syntax.ok && syntax.diagnostics.filter((item) => item.code === "E_QUARRY_SYNTAX").length === 2,
       `money currency/decimal scale syntax did not report both refusals: ${JSON.stringify(syntax)}`);
+  });
+
+  test("Quarry composite unique-key writes lower through row identity and certify", async () => {
+    const compiled = compileFixture(fixtures, "quarry-surface", ["schema", "surface"]);
+    assert(compiled.ok, `composite write front end refused: ${compiled.ok ? "" : diagnosticsText(compiled.diagnostics)}`);
+    const source = compiled.modules[0]!.source;
+    const update = generatedOperation(source, "updateKeyedRow");
+    const upsert = generatedOperation(source, "upsertKeyedRow");
+    const authored = generatedOperation(source, "upsertKeyedRowWithId");
+    const remove = generatedOperation(source, "deleteKeyedRow");
+    const updateKeys = writeKeyNames(update);
+    const upsertKeys = writeKeyNames(upsert);
+    assert(updateKeys && update.includes(`db.get(keyedRows.byOwnerLabel, [${updateKeys[0]}, ${updateKeys[1]}])`)
+      && update.includes('db.require(__q_writeRow_')
+      && update.includes("db.update(keyedRows, __q_writeRow_")
+      && update.includes("{ value: args.value }")
+      && occurrences(update, "args.owner") === 1 && occurrences(update, "args.label") === 1,
+    `composite update did not bind its address once, elide same-key fields, and write by row id:\n${update}`);
+    assert(upsertKeys && upsert.includes(`db.get(keyedRows.byOwnerLabel, [${upsertKeys[0]}, ${upsertKeys[1]}])`)
+      && upsert.includes("?.id ?? ctx.newId()")
+      && upsert.includes("db.upsert(keyedRows, __q_upsertKey_")
+      && upsert.includes(`owner: ${upsertKeys[0]}, label: ${upsertKeys[1]}`)
+      && occurrences(upsert, "args.owner") === 1 && occurrences(upsert, "args.label") === 1,
+    `composite upsert did not bind/inject its key columns into the platform scalar db.upsert row:\n${upsert}`);
+    assert(authored.includes('"UPSERT_ID_IN_USE"') && authored.includes('"UPSERT_ID_MISMATCH"')
+      && authored.includes("db.upsert(keyedRows, __q_upsertKey_"),
+    `authored-id alternate upsert did not lower all refusal branches:\n${authored}`);
+    assert(remove.includes("db.get(keyedRows.byOwnerLabel, [__q_writeKey1_")
+      && remove.includes('db.require(__q_writeRow_')
+      && remove.includes("db.delete(keyedRows, __q_writeRow_"),
+    `composite delete did not resolve and write by row id:\n${remove}`);
+    for (const line of source.split("\n").filter((line) => line.includes("__q_writeRow_") || line.includes("__q_upsertKey_") || line.includes("__q_writeKey"))) {
+      assert(/\/\/ q:snapback\/surface\.q:\d+:\d+$/.test(line), `generated indexed-write statement lost its .q site: ${line}`);
+    }
+
+    const lowered = await lowerProject(resolve(fixtures, "quarry-surface"));
+    assert(lowered.ok, `composite write project refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
+    const names = [
+      "surface.updateKeyedRow", "surface.upsertKeyedRow", "surface.upsertKeyedRowWithId",
+      "surface.deleteKeyedRow", "surface.updateKeyedRowById", "surface.deleteKeyedRowById",
+    ];
+    const failures = rustCheck(names.map((name) => operation(lowered.project.programs, name)), "synthetic", lowered.project.schema)
+      .filter((item) => item.error);
+    assert(failures.length === 0, `composite writes did not certify: ${JSON.stringify(failures)}`);
+  });
+
+  test("Quarry addressed key columns refuse disagreement and paste drop-field rewrites", async () => {
+    const schema = "table keyedRows:\n  owner: principal\n  label: text <=40\n  value: int\n  unique owner, label\n  public\n";
+    const badUpsert = "+~keyedRows[owner, label] { owner: viewer, label, value }";
+    const badUpdate = "~keyedRows[owner, label] { owner, label: 'other', value }";
+    const operations = `mutation upsertMismatch(owner: principal, label: text <=40, value: int):
+  ${badUpsert}
+
+mutation updateMismatch(owner: principal, label: text <=40, value: int):
+  ${badUpdate}
+`;
+    const refused = compileInline([
+      { fileName: "snapback/schema.q", source: schema },
+      { fileName: "snapback/ops.q", source: operations },
+    ]);
+    assert(!refused.ok, "disagreeing addressed key fields compiled");
+    const diagnostics = refused.diagnostics.filter((item) => item.code === "E_QUARRY_TYPE");
+    assert(diagnostics.length === 2, `addressed-key check did not report both failures: ${JSON.stringify(refused)}`);
+    const upsert = diagnostics.find((item) => item.message.startsWith("upsert may not"));
+    const update = diagnostics.find((item) => item.message.startsWith("update may not"));
+    assert(upsert?.family === "quarry" && upsert.site === "snapback/ops.q:2:31"
+      && upsert.rewrite === "-- +~keyedRows[owner, label] { label, value }" && upsert.guide === "quarry/types",
+    `upsert mismatch lost its code/family/field site/drop-field rewrite/guide: ${JSON.stringify(upsert)}`);
+    assert(update?.family === "quarry" && update.site === "snapback/ops.q:5:37"
+      && update.rewrite === "-- ~keyedRows[owner, label] { owner, value }" && update.guide === "quarry/types",
+    `update mismatch lost its code/family/field site/drop-field rewrite/guide: ${JSON.stringify(update)}`);
+
+    const repaired = operations
+      .replace(badUpsert, upsert.rewrite.slice(3))
+      .replace(badUpdate, update.rewrite.slice(3));
+    await withProject({ "snapback/schema.q": schema, "snapback/ops.q": repaired }, async (root) => {
+      const lowered = await lowerProject(root);
+      assert(lowered.ok, `addressed-key rewrites did not paste/lower: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
+      const failures = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema).filter((item) => item.error);
+      assert(failures.length === 0, `addressed-key rewrites did not certify: ${JSON.stringify(failures)}`);
+    });
+  });
+
+  test("Quarry alternate-key upsert with id: new mints only on the absent branch", async () => {
+    const schema = "table keyedRows:\n  owner: principal\n  label: text <=40\n  value: int\n  unique owner, label\n  read r <- allow\n  insert r <- allow\n  update r <- allow\n  delete r <- allow\n";
+    const module = "mutation bump(owner: principal, label: text <=40, value: int):\n  +~keyedRows[owner, label] { id: new, value }\n  return true\n";
+    const compiled = compileInline([
+      { fileName: "snapback/schema.q", source: schema },
+      { fileName: "snapback/keyed.q", source: module },
+    ]);
+    assert(compiled.ok, `id: new upsert refused: ${compiled.ok ? "" : diagnosticsText(compiled.diagnostics)}`);
+    const source = compiled.modules[0]!.source;
+    assert(source.includes("?.id ?? ctx.newId()") && !source.includes("UPSERT_ID_MISMATCH") && !source.includes("UPSERT_ID_IN_USE"),
+      `id: new did not lower to the minted upsert form:\n${source}`);
+    await withProject({ "snapback/schema.q": schema, "snapback/keyed.q": module }, async (root) => {
+      const lowered = await lowerProject(root);
+      assert(lowered.ok, `id: new upsert project refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
+      const failures = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema).filter((item) => item.error);
+      assert(failures.length === 0, `id: new upsert did not certify: ${JSON.stringify(failures)}`);
+    });
+  });
+
+  test("Quarry Clique M1-M3 regression fixture lowers and certifies all 33 operations", async () => {
+    const lowered = await lowerProject(resolve(fixtures, "quarry-clique"));
+    assert(lowered.ok, `Quarry Clique refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
+    assert(lowered.project.programs.length === 33,
+      `Quarry Clique program count changed to ${lowered.project.programs.length}`);
+    assert(JSON.stringify(lowered.project.programs.map((program) => program.name).sort()) === JSON.stringify([
+      "chat.addMember", "chat.chatThread", "chat.chatThreadBefore", "chat.convMembers",
+      "chat.conversation", "chat.createGroup", "chat.leaveGroup", "chat.markDelivered",
+      "chat.markRead", "chat.myConversations", "chat.promoteAdmin", "chat.removeMember",
+      "chat.send", "chat.startDm", "social.createPost", "social.createProfile",
+      "social.createReply", "social.globalFeed", "social.globalFeedBefore", "social.laneFeed",
+      "social.laneFeedBefore", "social.listUsers", "social.me", "social.myFeedMarks",
+      "social.myFollowing", "social.myLikes", "social.profile", "social.profileByHandle",
+      "social.thread", "social.toggleFollow", "social.toggleLike", "social.toggleRepost",
+      "social.updateProfile",
+    ].sort()), "Quarry Clique operation inventory changed");
+    const failures = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema)
+      .filter((item) => item.error);
+    assert(failures.length === 0, `Quarry Clique did not certify: ${JSON.stringify(failures)}`);
   });
 
   test("Quarry effects, maintains, aggregate sugar, where, returns, objects, and count reach IR", async () => {
@@ -653,6 +774,20 @@ function operation(programs: Program[], name: string): Program {
   const program = programs.find((item) => item.name === name);
   assert(program, `missing operation ${name}`);
   return program;
+}
+function generatedOperation(source: string, name: string): string {
+  const start = source.indexOf(`export const ${name}`);
+  assert(start >= 0, `missing generated operation ${name}`);
+  const end = source.indexOf("\nexport const ", start + 1);
+  return source.slice(start, end < 0 ? source.length : end);
+}
+function writeKeyNames(source: string): [string, string] | undefined {
+  const first = source.match(/const (__q_writeKey1_[A-Za-z0-9_]+) = args\.owner;/)?.[1];
+  const second = source.match(/const (__q_writeKey2_[A-Za-z0-9_]+) = args\.label;/)?.[1];
+  return first && second ? [first, second] : undefined;
+}
+function occurrences(source: string, needle: string): number {
+  return source.split(needle).length - 1;
 }
 function deepKey(value: unknown, key: string): boolean {
   if (Array.isArray(value)) return value.some((item) => deepKey(item, key));

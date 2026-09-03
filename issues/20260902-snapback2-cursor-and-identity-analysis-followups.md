@@ -12,3 +12,8 @@
 7. **Wrong-domain tuple is silent everywhere:** `after: [previous.id, previous.at]` on `byAt [at, id]` certifies (silence rule) and both runtimes return `[]` on every page because Int tags sort below Id tags. Fix: validate cursor element kinds against the index column types at runtime (`push_cursor_bound` / `cursorTuple`), after which the static refusal becomes legal.
 8. **Equality operands never receive the Id target,** so `db.get(users, "user-1")` lowers `Literal.Id` while `row.owner === "user-1"` lowers `Literal.String` and the guard is always false with no diagnostic. Fix: propagate an Id-typed operand as the contextual target of the other operand for `===`/`!==`, or refuse Id-vs-Text comparisons.
 9. Nits: `args.maybe ?? "anonymous"` with `maybe: t.optional(t.id())` now yields `{Id:"anonymous"}` (wire-variant change, undocumented); `lib.d.ts` types `after?: unknown[] | unknown`, which collapses to `unknown` (only the doc comment carries the contract).
+
+## Added from the phase-2 (composite-key writes) review, 2026-09-02
+
+10. An alternate-key update patch naming `id` is refused by the platform (`E_SCHEMA_ID_RESERVED`, whole-file rewrite, plus a leaked `E_OPAQUE`) rather than by the Quarry front end with a sited drop-field rewrite; add `id` to the guarded set in `validateAddressedKeyFields` for updates.
+11. A row the viewer cannot read is `NOT_FOUND` through an alternate key but `E_RULE` through its id; the guide's absence paragraph says "missing" and should say "missing or unreadable".

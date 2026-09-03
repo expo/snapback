@@ -124,8 +124,20 @@ is the commit clock. In a mutation they are the same instant. `now` is pinned
 once per request rather than redrawn; `new` allocates a fresh ID on each
 evaluation.
 
-Writes are `+table { fields }`, `~table[id] { fields }`,
-`+~table[id] { fields }`, and `-table[id]`. Insert yields the inserted row;
+Writes are `+table { fields }`, `~table[key] { patch }`,
+`+~table[key] { row }`, and `-table[key]`; a non-insert key is any complete
+unique key, composite alternate keys included. Alternate-key update and delete
+read the unique index once, require the row (`NOT_FOUND`), and write the base
+table by its intrinsic `id`; alternate-key upsert passes the matched `id`, or a
+fresh `new` id, to the platform's scalar-key `db.upsert`.
+
+Key expressions are evaluated once. An upsert injects omitted key columns from
+them; a row or patch may spell a key column only with the same expression as
+the key, otherwise `E_QUARRY_TYPE` at that field with a drop-field rewrite. An
+`id: new` on an alternate-key upsert is the minted form (a present row keeps
+its id). Any other authored `id` must be the present row's id, else
+`UPSERT_ID_MISMATCH`; on the absent branch it inserts, or `UPSERT_ID_IN_USE` if
+that id belongs to another row. Insert yields the inserted row;
 update, upsert, and delete yield no value. Each inserted row expression is
 evaluated once, including inline `new`.
 
@@ -216,8 +228,13 @@ and rewrite map back to the `.q` statement.
 
 Point reads return a row or absence. Shapes over an absent point read are
 absent. Optional member selection remains absent. `!` turns absence into a
-named refusal, and `??` handles it explicitly. A missing maintained group is
-zero only through `#`; the ordinary target-table read remains absent.
+named refusal, and `??` handles it explicitly. Alternate-key update and delete
+also turn a missing point into `NOT_FOUND`; alternate-key upsert instead uses
+its absent branch. Scalar-id writes retain the platform behavior: deleting a
+missing id commits as a no-op, while updating one rejects with `E_INPUT`.
+Changing only the key spelling can therefore change missing-row behavior. A
+missing maintained group is zero only through `#`; the ordinary target-table
+read remains absent.
 
 Every scan, list, text, JSON, and bytes value is bounded. `for` iterates only
 a bounded list/page/range/tokens result. Lowered queries and mutations retain
@@ -232,5 +249,7 @@ Use bounded URL text instead of assets; a caller-invoked mutation instead of a
 schedule; one named bounded scan or a maintained feed table instead of merge;
 explicit bounded arguments instead of device/oblivious state; bounded
 `for`/`walk` instead of while/recursion.
+
+Writes through a non-unique or incomplete key are index-selection refusals.
 
 There is no hidden larger Quarry subset to opt into.
