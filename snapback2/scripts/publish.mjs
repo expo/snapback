@@ -194,9 +194,14 @@ function cachedCodecPrefix(cache, expectedReceipt) {
   const prefix = resolve(cache, "prefix");
   try {
     const receipt = JSON.parse(readFileSync(resolve(cache, "receipt.json"), "utf8"));
-    if (JSON.stringify(receipt) !== JSON.stringify(expectedReceipt)) return undefined;
+    const { archives, ...buildReceipt } = receipt;
+    if (JSON.stringify(buildReceipt) !== JSON.stringify(expectedReceipt)) return undefined;
+    if (archives === null || typeof archives !== "object" || Array.isArray(archives)) return undefined;
     for (const library of ["libde265.a", "libheif.a"]) {
-      if (!existsSync(resolve(prefix, "lib", library))) return undefined;
+      const path = resolve(prefix, "lib", library);
+      if (!existsSync(path)
+        || !/^[a-f0-9]{64}$/.test(archives[library] ?? "")
+        || sha256(path) !== archives[library]) return undefined;
     }
     return prefix;
   } catch {
@@ -206,7 +211,7 @@ function cachedCodecPrefix(cache, expectedReceipt) {
 
 function buildStaticHeicClosure(macosDeploymentTarget, run = command) {
   const receipt = {
-    format: 2,
+    format: 3,
     platform: process.platform,
     arch: process.arch,
     macosDeploymentTarget: macosDeploymentTarget ?? null,
@@ -275,7 +280,16 @@ function buildStaticHeicClosure(macosDeploymentTarget, run = command) {
       env: environment,
       stdio: "inherit",
     });
-    writeFileSync(resolve(cache, "receipt.json"), `${JSON.stringify(receipt, null, 2)}\n`);
+    const archives = Object.fromEntries(
+      ["libde265.a", "libheif.a"].map((library) => [
+        library,
+        sha256(resolve(prefix, "lib", library)),
+      ]),
+    );
+    writeFileSync(
+      resolve(cache, "receipt.json"),
+      `${JSON.stringify({ ...receipt, archives }, null, 2)}\n`,
+    );
     rmSync(staging, { recursive: true, force: true });
   } catch (error) {
     rmSync(staging, { recursive: true, force: true });
@@ -674,6 +688,32 @@ function runSelfTest() {
       "darwin",
     ), /minos 14\.0 exceeds helper minos 11\.0/);
 
+    const codecCache = resolve(directory, "codec-cache");
+    const codecPrefix = resolve(codecCache, "prefix");
+    const codecLibraryDirectory = resolve(codecPrefix, "lib");
+    mkdirSync(codecLibraryDirectory, { recursive: true });
+    const de265Archive = resolve(codecLibraryDirectory, "libde265.a");
+    const heifArchive = resolve(codecLibraryDirectory, "libheif.a");
+    writeFileSync(de265Archive, "de265 archive bytes");
+    writeFileSync(heifArchive, "heif archive bytes");
+    const codecReceipt = { format: 3, platform: "test", arch: "test" };
+    writeFileSync(resolve(codecCache, "receipt.json"), `${JSON.stringify({
+      ...codecReceipt,
+      archives: {
+        "libde265.a": sha256(de265Archive),
+        "libheif.a": sha256(heifArchive),
+      },
+    })}\n`);
+    assert.equal(cachedCodecPrefix(codecCache, codecReceipt), codecPrefix);
+    const de265Bytes = readFileSync(de265Archive);
+    const heifBytes = readFileSync(heifArchive);
+    writeFileSync(de265Archive, heifBytes);
+    writeFileSync(heifArchive, de265Bytes);
+    assert.equal(cachedCodecPrefix(codecCache, codecReceipt), undefined);
+    writeFileSync(de265Archive, de265Bytes);
+    writeFileSync(heifArchive, Buffer.concat([heifBytes, Buffer.from("corrupt")]));
+    assert.equal(cachedCodecPrefix(codecCache, codecReceipt), undefined);
+
     const artifacts = [
       { name: "snapback2-test-platform", version: "0.0.1", integrity: "sha512-platform", tarball: "platform.tgz" },
       { name: "snapback2", version: "0.0.1", integrity: "sha512-shim", tarball: "shim.tgz" },
@@ -808,7 +848,7 @@ function runSelfTest() {
         },
       },
     ), /does not match resume record/);
-    console.log("publish self-test ok; staged helper qualified; macOS floors and Linux dependencies checked; resume without HEIC refused; helper digest bound; durable dry-run resume preserved");
+    console.log("publish self-test ok; staged helper qualified; macOS floors and Linux dependencies checked; codec cache archives digest-bound; resume without HEIC refused; helper digest bound; durable dry-run resume preserved");
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

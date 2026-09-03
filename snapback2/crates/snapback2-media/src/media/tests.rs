@@ -452,6 +452,32 @@ fn mif1_only_hevc_primary_is_recognized_as_heic() {
     assert_eq!(detect_format(&mif1, CEILINGS).unwrap(), MediaFormat::Heic);
 }
 
+#[cfg(not(feature = "heic"))]
+fn assert_explicit_hevc_brand_is_recognized(brand: &[u8; 4]) {
+    let mut bytes = fs::read(fixture("minimal.heic")).unwrap();
+    bytes[8..12].copy_from_slice(brand);
+    bytes[16..20].copy_from_slice(brand);
+    bytes[20..24].copy_from_slice(brand);
+    let temp = TempDir::new().unwrap();
+    let path = temp
+        .path()
+        .join(format!("{}.heic", String::from_utf8_lossy(brand)));
+    fs::write(&path, bytes).unwrap();
+    assert_eq!(detect_format(&path, CEILINGS).unwrap(), MediaFormat::Heic);
+}
+
+#[cfg(not(feature = "heic"))]
+#[test]
+fn heim_hevc_primary_is_recognized_as_heic() {
+    assert_explicit_hevc_brand_is_recognized(b"heim");
+}
+
+#[cfg(not(feature = "heic"))]
+#[test]
+fn heis_hevc_primary_is_recognized_as_heic() {
+    assert_explicit_hevc_brand_is_recognized(b"heis");
+}
+
 #[test]
 fn avif_brands_are_refused_even_with_mif1_compatibility() {
     for brand in [b"avif", b"avis", b"av01"] {

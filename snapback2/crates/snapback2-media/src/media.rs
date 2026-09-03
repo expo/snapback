@@ -429,9 +429,17 @@ fn heic_brand(path: &Path, file: &mut File, ceilings: Ceilings) -> Result<bool, 
     {
         return Ok(false);
     }
-    let declares_hevc = brands
-        .iter()
-        .any(|brand| [b"heic".as_slice(), b"heix", b"hevc", b"hevx"].contains(brand));
+    let declares_hevc = brands.iter().any(|brand| {
+        [
+            b"heic".as_slice(),
+            b"heix",
+            b"heim",
+            b"heis",
+            b"hevc",
+            b"hevx",
+        ]
+        .contains(brand)
+    });
     let generic_heif = brands
         .iter()
         .any(|brand| [b"mif1".as_slice(), b"msf1"].contains(brand));
