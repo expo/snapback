@@ -10,11 +10,11 @@
 **Battery gate:** `demo-catalog-fixtures`
 **Failure signature:** `sha256:3bac241e7e5d1ca2698edb5b47aa1428da3849d829c74ed7edf66041e083707c`
 **First observed run:** `local.20260829T223616Z.81cc759a07a7`
-**Last observed run:** `local.20260902T222959Z.21867fec6d93`
-**Last processed run:** `local.20260902T222959Z.21867fec6d93`
+**Last observed run:** `local.20260903T071655Z.08643f8b0ad3`
+**Last processed run:** `local.20260903T071655Z.08643f8b0ad3`
 **Detected at revision:** `81cc759a07a706300e471f106fe41dc761c39474`
-**Last observed revision:** `21867fec6d938b0a0b27076ffab22c23232b7672`
-**Consecutive red runs:** `12`
+**Last observed revision:** `08643f8b0ad31cf0374055527f7234e3867b4cff`
+**Consecutive red runs:** `13`
 **Escalation:** `AUTHOR_ESCALATION_REQUIRED`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 

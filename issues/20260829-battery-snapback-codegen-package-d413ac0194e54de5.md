@@ -10,11 +10,11 @@
 **Battery gate:** `snapback-codegen-package`
 **Failure signature:** `sha256:d413ac0194e54de53e8a32fd24a0027bd9f6306016383ce3b0ad5ba88d0e0ef7`
 **First observed run:** `local.20260829T140951Z.cace7b53cf00`
-**Last observed run:** `local.20260902T222959Z.21867fec6d93`
-**Last processed run:** `local.20260902T222959Z.21867fec6d93`
+**Last observed run:** `local.20260903T071655Z.08643f8b0ad3`
+**Last processed run:** `local.20260903T071655Z.08643f8b0ad3`
 **Detected at revision:** `cace7b53cf008e7692e4cb633c14b4c2400fdd5c`
-**Last observed revision:** `21867fec6d938b0a0b27076ffab22c23232b7672`
-**Consecutive red runs:** `13`
+**Last observed revision:** `08643f8b0ad31cf0374055527f7234e3867b4cff`
+**Consecutive red runs:** `14`
 **Escalation:** `AUTHOR_ESCALATION_REQUIRED`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
