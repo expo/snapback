@@ -1,10 +1,10 @@
 # LLP 1011: Quarry ergonomics — opaque cursors, named shapes, one missing-row rule, narrowing, whole-unit seeds, a repair for the refused filter
 
 **Type:** RFC
-**Status:** Accepted (under the author's standing instruction of 2026-09-03,
+**Status:** Implemented (under the author's standing instruction of 2026-09-03,
 "revise until you are happy with it, then if you think it's good, implement
-the changes": revision (b) is the version both panel families marked READY,
-and the orchestrator judges it good)
+the changes": revision (b) is the version both panel families marked READY;
+implemented and landed the same day, §8)
 **Systems:** Authoring surface (`snapback2/packages/compiler/src/quarry/`), the
 Quarry reference (`snapback2/packages/snapback2/guide/`), templates and
 fixtures, the `quarry` diagnostics family; for B1 the wire
@@ -21,7 +21,8 @@ ultra, grok-4.6 at xhigh), `llp/reviews/1011-quarry-ergonomics.*`
 **Implementer:** codex gpt-5.6-sol (xhigh), lane `s2/quarry-ergo`
 (`~/projects/snapback-s2`), orchestrated and landed by Claude Fable 5.1
 **Date:** 2026-09-03
-**Revised:** 2026-09-03 (b — after the panel: `fn` deferred and `shape` kept;
+**Revised:** 2026-09-03 (c — implemented: §8 records the two lane commits
+and the one re-pinned expectation); 2026-09-03 (b — after the panel: `fn` deferred and `shape` kept;
 B1 gains the corrected mint rule, page provenance through shapes, a typed
 site-free token, the merge anchor and the end-in-`id` rule, `data --after`,
 and the chat `thread`; B3 moves into the engine's write primitives with the
@@ -347,15 +348,32 @@ committed. Delete it.
 | `fixtures/todos/snapback/seed.ts`, `verified-regression-tests.ts:1252–1263`, `quarry_pay.rs:160–217` | whole units (B5) |
 | `guide/quarry.md`, `grammar.md`, `families.source.json`; LLP 1001 §3; LLP 1002 §4, §6 | cursors, `next`, `shape`, one missing-row rule, narrowing, seeds, the two-site repair |
 
-## 8. Sequencing
+## 8. Sequencing and landing record
 
-Two sequential codex lanes on `s2/quarry-ergo`, each leaving
-`scripts/test.sh` green:
+Two sequential codex gpt-5.6-sol (xhigh) lanes on `s2/quarry-ergo`, each
+verified out of sandbox by the orchestrator before commit. Both lanes wrote
+their reports incrementally, as the LLP 1010 stall taught, and neither
+stalled.
 
-| Lane | Items | Why |
-|---|---|---|
-| 1 — notation and primitives | B2, B3, B4, B5, B6, §6a | compiler and guide, plus two engine write primitives and the twin; no wire change |
-| 2 — cursors | B1, `data --after`, the `thread` migration, LLP 1001/1002 text | the wire, certificate, engine, client, twin, grammar, and migrations that all depend on the token |
+| Lane | Items | Commit | Out-of-sandbox suite |
+|---|---|---|---|
+| 1 — notation and primitives | B2, B3, B4, B5, B6, §6a | `d58c89d76` | 371/371 Rust, 126/126 evaluator, 290/290 compiler |
+| 2 — cursors | B1, `data --after`, the `thread` migration, LLP 1001/1002 text | `c91e51938` | 375/375 Rust, 130/130 evaluator, 289/289 compiler |
+
+The orchestrator's one hand edit after lane 2: the chat template receipt test
+pins the interpreter step count of `messages.thread`; the thread now pages, so
+an admitted execution costs one more step (7 → 8).
+
+**Budgets after landing.** `quarry/program.ts` 1,247 of 1,500 lines;
+`guide/quarry.md` 13,509 of 14,336 bytes; `guide/grammar.md` 2,032 of 2,048 —
+both guide pages shrank when tuples, `before`, the optional group, and three
+refusal families left. No budget was raised.
+
+**What binds now.** The reference (`snapback2 guide quarry`) states the
+implemented language; the corpus carries 130 cases including eight
+opaque-cursor and five missing-row cases; LLP 1001 §3 and LLP 1002 §4/§6
+carry `next` and `data --after`; LLP 1010's A6 is marked superseded. This
+document lands with no working-set link — the work it commissioned is done.
 
 ## 9. Panel record
 
