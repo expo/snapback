@@ -18,11 +18,15 @@ mod serve;
 mod test;
 mod trace;
 mod verbs;
+pub mod video_walk;
 mod watch;
 mod why;
 mod writer;
 mod writer_util;
 mod writer_wire;
+
+#[cfg(test)]
+mod video_walk_tests;
 
 use std::path::PathBuf;
 use std::process::ExitCode;
