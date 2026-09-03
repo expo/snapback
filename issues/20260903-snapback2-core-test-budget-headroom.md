@@ -19,3 +19,9 @@ Options, cheapest first:
 
 Not a regression to name (the quiet measurement is within budget); filed so the
 next over-budget red is not attributed to an innocent landing.
+
+**2026-09-03, landing `ce221e90c` (LLP 1010):** `core_test_s` read 57.7 s and then
+43.1 s on two runs under load average 10.4 with three concurrent codex lanes on the
+machine; the landing added zero Rust tests (339 → 339 through both lanes; the merge
+with main brought 371). Landed on a green `test.sh`; the over-budget records were not
+committed. Second data point for option 1.

@@ -438,7 +438,7 @@ verified out of sandbox by the orchestrator before commit:
 | Lane | Items | Commit | Out-of-sandbox suite |
 |---|---|---|---|
 | 1 — notation | A1, A2, A3, A7, §6, and their migrations | `1f4b90a6d` | 339/339 Rust, 113/113 evaluator, 278/278 compiler |
-| 2 — reads | A5, A6, A4, the `posts` invariant, the feed migrations | the commit that carries this revision | see the commit message |
+| 2 — reads | A5, A6, A4, the `posts` invariant, the feed migrations | `2b2dd6e32` | 339/339 Rust, 122/122 evaluator, 279/279 compiler; on the merged tree (`661f5e2d4` + `ce221e90c`): 371/371, 122/122, 287/287 |
 
 Lane 2's codex run stalled after writing every item but its report; the
 orchestrator finished the two mechanical remainders (twenty test-only `Scan`
@@ -449,6 +449,15 @@ byte-identical to the reference's snippet) and verified.
 12,288 to 14,336 (`packages/snapback2/build.mjs`) to hold the merge contract
 and the optional-cursor paragraph after the `where` prose was removed; the
 rise is commented with this LLP's A5.
+
+**Landing.** `git push origin s2/quarry-amend:main`, `114430434..ce221e90c`,
+2026-09-03. The landing verification was green on `test.sh`, `caps` (59 of 59),
+and `ref-check`; `check-inventories` carried the two pre-existing root reds
+(`scripts-test`, `guide-manifest`); `measure --check`'s core-test step read
+43 s against its 30 s budget under a load average of 10 with three concurrent
+codex lanes, with zero Rust tests added by this landing — the case
+`issues/20260903-snapback2-core-test-budget-headroom.md` was filed for; the
+over-budget record was not committed.
 
 **What binds now.** The reference (`snapback2 guide quarry`) states the
 implemented language; the corpus carries the nine merge and optional-cursor
