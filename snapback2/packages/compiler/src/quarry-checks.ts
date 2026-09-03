@@ -255,20 +255,20 @@ mutation updateMismatch(owner: principal, label: text <=40, value: int):
     });
   });
 
-  test("Quarry Clique M1-M3 plus Pay regression fixture lowers and certifies all 41 operations", async () => {
+  test("Quarry Clique M1-M3 plus Pay regression fixture lowers and certifies all 38 operations", async () => {
     const lowered = await lowerProject(resolve(fixtures, "quarry-clique"));
     assert(lowered.ok, `Quarry Clique refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
-    assert(lowered.project.programs.length === 41,
+    assert(lowered.project.programs.length === 38,
       `Quarry Clique program count changed to ${lowered.project.programs.length}`);
     assert(JSON.stringify(lowered.project.programs.map((program) => program.name).sort()) === JSON.stringify([
-      "chat.addMember", "chat.chatThread", "chat.chatThreadBefore", "chat.convMembers",
+      "chat.addMember", "chat.chatThread", "chat.convMembers",
       "chat.conversation", "chat.createGroup", "chat.leaveGroup", "chat.markDelivered",
       "chat.markRead", "chat.myConversations", "chat.promoteAdmin", "chat.removeMember",
       "chat.send", "chat.startDm", "social.createPost", "social.createProfile",
       "pay.addExpense", "pay.convExpenses", "pay.expenseShares", "pay.myBalance", "pay.myLedger",
       "pay.myOpenShares", "pay.sendMoney", "pay.settleShare",
-      "social.createReply", "social.globalFeed", "social.globalFeedBefore", "social.laneFeed",
-      "social.laneFeedBefore", "social.listUsers", "social.me", "social.myFeedMarks",
+      "social.createReply", "social.followingFeed", "social.globalFeed", "social.listUsers",
+      "social.me", "social.myFeedMarks",
       "social.myFollowing", "social.myLikes", "social.profile", "social.profileByHandle",
       "social.thread", "social.toggleFollow", "social.toggleLike", "social.toggleRepost",
       "social.updateProfile",
@@ -278,7 +278,7 @@ mutation updateMismatch(owner: principal, label: text <=40, value: int):
     assert(failures.length === 0, `Quarry Clique did not certify: ${JSON.stringify(failures)}`);
   });
 
-  test("Quarry effects, maintains, aggregate sugar, where, returns, objects, and count reach IR", async () => {
+  test("Quarry effects, maintains, aggregate sugar, returns, objects, and count reach IR", async () => {
     const chat = await lowerProject(resolve(fixtures, "quarry-chat"));
     const surface = await lowerProject(resolve(fixtures, "quarry-surface"));
     assert(chat.ok && surface.ok, "Quarry feature fixtures refused");
@@ -290,8 +290,6 @@ mutation updateMismatch(owner: principal, label: text <=40, value: int):
     const sumMaintain = surface.project.schema.maintains[0] as any;
     assert(sumMaintain.kind?.Sum?.of === "value" && sumMaintain.readable, "sum/readable maintain changed");
     assert(deepKey(operation(surface.project.programs, "surface.counterTotal").body, "Get"), "#maintain did not lower to a target-table get");
-    assert(deepKey(operation(surface.project.programs, "surface.visiblePosts").body, "For")
-      && deepKey(operation(surface.project.programs, "surface.visiblePosts").body, "Push"), "where did not lower to a bounded filter loop");
     assert(deepKey(operation(surface.project.programs, "surface.visiblePosts").body, "Object"), "object literal did not reach IR");
     assert(deepKey(operation(surface.project.programs, "surface.visiblePosts").body, "Builtin")
       && JSON.stringify(operation(surface.project.programs, "surface.visiblePosts")).includes('"builtin":"Len"'), "count(page) did not lower through bounded Len policy");
@@ -390,17 +388,68 @@ query ordered(a: int, b: int):
     });
   });
 
-  test("Quarry optional cursor components defer their non-null arm to runtime", async () => {
+  test("Quarry optional cursor groups omit when absent and reject mixed presence before scans", async () => {
     const schema = "table posts:\n  at: time\n  by byAt: at, id\n  public\n";
-    const operations = `query page(afterAt: text <=80 ?, afterId: posts):
-  return posts[] after (afterAt, afterId) first 3 by byAt
+    const operations = `query firstPage(cursorAt: time ?, cursorId: posts ?):
+  return posts[] after (cursorAt, cursorId) first 3 by byAt
+
+query lastPage(cursorAt: time ?, cursorId: posts ?):
+  return posts[] before (cursorAt, cursorId) last 3 by byAt
 `;
     await withProject({ "snapback/schema.q": schema, "snapback/ops.q": operations }, async (root) => {
       const lowered = await lowerProject(root);
       assert(lowered.ok, `optional Quarry cursor was refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
       const failures = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema).filter((item) => item.error);
       assert(failures.length === 0, `optional Quarry cursor failed raw certification: ${JSON.stringify(failures)}`);
+      for (const name of ["ops.firstPage", "ops.lastPage"]) {
+        const json = JSON.stringify(operation(lowered.project.programs, name));
+        assert(json.includes('"optional_cursor_args":["cursorAt","cursorId"]'), `${name} lost its optional cursor group: ${json}`);
+      }
+      let mixed = "green";
+      try {
+        new ClientStore(lowered.project.schema, { rows: [], ranges: [], absences: [], verdicts: [] }).reexecute(
+          operation(lowered.project.programs, "ops.firstPage"),
+          { viewer: "viewer-1", principal_kind: "user", auth_epoch: 1, args: { cursorAt: { Int: 1 }, cursorId: "Null" }, now: 1, new_ids: [], read_time: 1 },
+        );
+      } catch (error) {
+        mixed = error instanceof Error ? error.message : String(error);
+      }
+      assert(mixed.startsWith("E_INPUT:"), `mixed optional cursor group produced ${mixed}`);
     });
+  });
+
+  test("Quarry merge lowers bounded lanes, records its certificate site, and refuses malformed lanes", async () => {
+    const chat = await lowerProject(resolve(fixtures, "quarry-chat"));
+    assert(chat.ok, `Quarry chat merge refused: ${chat.ok ? "" : diagnosticsText(chat.diagnostics)}`);
+    const following = operation(chat.project.programs, "feeds.followingFeed");
+    const body = JSON.stringify(following.body);
+    assert(body.includes('"DedupeById"') && body.includes('"Sort"') && body.includes('"Slice"'), `merge composition changed: ${body}`);
+    const checked = rustCheck([following], "synthetic", chat.project.schema, chat.project.effects as unknown as Array<Record<string, unknown>>);
+    assert(checked.length === 1 && !checked[0]!.error, `chat merge did not certify: ${JSON.stringify(checked)}`);
+    const certificate = checked[0]!.certificate as any;
+    assert(certificate.merge_sites?.length === 1
+      && certificate.merge_sites[0].lane_sites.length === 2
+      && certificate.merge_sites[0].take === 20,
+    `merge certificate site changed: ${JSON.stringify(certificate.merge_sites)}`);
+    const beforeShapes = certificate.read_sites
+      .filter((site: any) => site.table !== "profiles")
+      .reduce((total: number, site: any) => total + (site.take + 2) * site.max_calls, 0);
+    assert(beforeShapes === 1174, `following feed examined ${beforeShapes} before shaped point reads, expected 1174`);
+
+    const schema = "table posts:\n  author: principal\n  at: time\n  by byAuthorAt: author, at, id\n  public\n";
+    const cases = [
+      ["empty", "query q():\n  return merge posts first 3 by byAuthorAt:\n", "E_QUARRY_SYNTAX"],
+      ["unequal", "query q():\n  return merge posts first 3 by byAuthorAt:\n    [viewer]\n    [viewer, now]\n", "E_QUARRY_TYPE"],
+      ["duplicate", "query q():\n  return merge posts first 3 by byAuthorAt:\n    [viewer]\n    [viewer]\n", "E_QUARRY_TYPE"],
+      ["missing by", "query q():\n  return merge posts first 3:\n    [viewer]\n", "E_QUARRY_SYNTAX"],
+    ] as const;
+    for (const [name, source, code] of cases) {
+      const result = compileInline([
+        { fileName: "snapback/schema.q", source: schema },
+        { fileName: "snapback/ops.q", source },
+      ]);
+      assert(!result.ok && result.diagnostics.some((item) => item.code === code), `${name} merge compiled: ${JSON.stringify(result)}`);
+    }
   });
 
   test("Quarry cursor refusals stay sited and rewrite Quarry source", () => {
@@ -695,24 +744,16 @@ query different(left: rows, right: rows):
       `optional ordered comparison lost its exact rewrite/site: ${JSON.stringify(result)}`);
   });
 
-  test("Quarry where preludes stay inside the per-row loop and certify", async () => {
-    const schema = "table authors:\n  name: text <=50\n  public\n\ntable posts:\n  author: authors\n  public\n  by author\n";
-    const module = "query byAuthor(author: authors):\n  return posts[author] first 5 where .author.name = 'Alice'\n";
-    const compiled = compileInline([
-      { fileName: "snapback/schema.q", source: schema },
-      { fileName: "snapback/posts.q", source: module },
+  test("Quarry where is unsupported with the three honest rewrites", () => {
+    const result = compileInline([
+      { fileName: "snapback/schema.q", source: "table posts:\n  author: principal\n  at: time\n  by byAuthorAt: author, at, id\n  public\n" },
+      { fileName: "snapback/posts.q", source: "query byAuthor():\n  return posts[viewer] first 5 where .author = viewer\n" },
     ]);
-    assert(compiled.ok, `nested where refused: ${compiled.ok ? "" : diagnosticsText(compiled.diagnostics)}`);
-    const source = compiled.modules[0]!.source;
-    const loop = source.indexOf("for (const __q_whereRow_");
-    assert(loop >= 0 && source.indexOf("db.get(authors", loop) > loop && source.indexOf(".push(__q_whereRow_", loop) > loop,
-      `where prelude escaped its row loop:\n${source}`);
-    await withProject({ "snapback/schema.q": schema, "snapback/posts.q": module }, async (root) => {
-      const lowered = await lowerProject(root);
-      assert(lowered.ok, `nested where project refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
-      assert(rustCheck(lowered.project.programs, "synthetic", lowered.project.schema).every((item) => !item.error),
-        "nested where project did not certify");
-    });
+    const refusal = result.ok ? undefined : result.diagnostics.find((item) => item.code === "E_QUARRY_UNSUPPORTED");
+    assert(refusal?.rewrite.includes("index whose prefix pins the predicate")
+      && refusal.rewrite.includes("table invariant (after insert <- exists ...)")
+      && refusal.rewrite.includes("merge for a fan-in feed"),
+    `where refusal lost an honest spelling: ${JSON.stringify(result)}`);
   });
 
   test("Quarry rule binders use focal dot and two-binding updates retain row images", async () => {

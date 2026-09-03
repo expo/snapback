@@ -122,14 +122,7 @@ query convMembers(c: conversations):
     profile: users[principal = .user] { displayName, handle },
   }
 
-query chatThread(c: conversations):
-  return messages[c] first 30 by byConvOrd {
-    *,
-    authorProfile: users[principal = .author] { displayName, handle },
-    quotedMsg: .quoted { id, body, author },
-  }
-
-query chatThreadBefore(c: conversations, cursorOrd: int, cursorId: messages):
+query chatThread(c: conversations, cursorOrd: int ?, cursorId: messages ?):
   return messages[c] after (cursorOrd, cursorId) first 30 by byConvOrd {
     *,
     authorProfile: users[principal = .author] { displayName, handle },

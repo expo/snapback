@@ -437,7 +437,7 @@ class Runner {
   private readonly env = new Map<string, Value>();
   private readonly consts = new Set<string>();
   private readonly context: Context;
-  readonly trace: Trace = { ranges: [], absences: [], points: [] };
+  readonly trace: Trace = { ranges: [], absences: [], points: [], merges: [] };
   private readonly ruleMemo = new Map<string, boolean>();
   private readonly partial = new Set<string>();
   private authorityMissSerial = 0;
@@ -787,6 +787,19 @@ class Runner {
           }),
         };
       }
+      case "DedupeById": {
+        const seen = new Set<string>();
+        const values: Value[] = [];
+        for (const value of asArray(args[0])) {
+          const id = asString(field(value, "id"));
+          if (!seen.has(id)) {
+            seen.add(id);
+            values.push(value);
+          }
+        }
+        this.trace.merges.push({ site: data.site, deduplicated_union_len: values.length });
+        return { Array: values };
+      }
       case "MentionTokens": {
         const seen = new Set<string>();
         const mentions: Value[] = [];
@@ -853,8 +866,11 @@ class Runner {
 
   private scan(scan: any): Value {
     const prefix = scan.prefix.map((value: any) => this.expr(value));
-    const after = scan.after === null ? null : this.expr(scan.after);
-    const before = scan.before === null ? null : this.expr(scan.before);
+    const omitOptionalCursor = Array.isArray(scan.optional_cursor_args)
+      && scan.optional_cursor_args.length > 0
+      && scan.optional_cursor_args.every((name: string) => this.context.args[name] === "Null");
+    const after = omitOptionalCursor || scan.after === null ? null : this.expr(scan.after);
+    const before = omitOptionalCursor || scan.before === null ? null : this.expr(scan.before);
     const evaluatedRange = scan.range === null ? null : this.evaluateRange(scan.range);
     const [boundKind, boundData] = variant(scan.take);
     const take =

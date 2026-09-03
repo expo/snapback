@@ -80,6 +80,7 @@ table posts:
   insert <- .author = viewer
   update <- .author = viewer
   delete <- .author = viewer
+  after insert <- exists profiles[.author]
 
 table follows:
   follower: principal

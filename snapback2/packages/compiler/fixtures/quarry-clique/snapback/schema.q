@@ -61,6 +61,7 @@ table feedItems:
 table follows:
   follower: principal
   followee: users
+  followed: principal
   at: time
   unique follower, followee
   by byFollower: follower, at, id

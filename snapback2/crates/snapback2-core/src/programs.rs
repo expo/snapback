@@ -220,7 +220,9 @@ pub fn thread_program(take: u32) -> Program {
         take: Bound::Literal(take),
         after: None,
         before: None,
-        range: None,
+        range: None, // no scalar range bounds
+        optional_cursor_args: Vec::new(),
+        merge_site: None,
         provenance: KeyProvenance::Arg,
     };
     let mention_scan = Scan {
@@ -232,7 +234,9 @@ pub fn thread_program(take: u32) -> Program {
         take: Bound::Literal(1),
         after: None,
         before: None,
-        range: None,
+        range: None, // no scalar range bounds
+        optional_cursor_args: Vec::new(),
+        merge_site: None,
         provenance: KeyProvenance::Computed,
     };
     Program {
@@ -344,7 +348,9 @@ pub fn send_program(with_unread: bool) -> Program {
                 take: Bound::Literal(256),
                 after: None,
                 before: None,
-                range: None,
+                range: None, // no scalar range bounds
+                optional_cursor_args: Vec::new(),
+                merge_site: None,
                 provenance: KeyProvenance::Arg,
             }),
             body: vec![
@@ -448,7 +454,9 @@ pub fn inbox_program(maintained: bool) -> Program {
         take: Bound::Literal(50),
         after: None,
         before: None,
-        range: None,
+        range: None, // no scalar range bounds
+        optional_cursor_args: Vec::new(),
+        merge_site: None,
         provenance: KeyProvenance::Viewer,
     };
     let unread = if maintained {
@@ -477,7 +485,9 @@ pub fn inbox_program(maintained: bool) -> Program {
                     field(var("membership"), "lastReadId"),
                 ]))),
                 before: None,
-                range: None,
+                range: None, // no scalar range bounds
+                optional_cursor_args: Vec::new(),
+                merge_site: None,
                 provenance: KeyProvenance::Shape,
             })],
         }
@@ -509,7 +519,9 @@ pub fn inbox_program(maintained: bool) -> Program {
                                 take: Bound::Literal(1),
                                 after: None,
                                 before: None,
-                                range: None,
+                                range: None, // no scalar range bounds
+                                optional_cursor_args: Vec::new(),
+                                merge_site: None,
                                 provenance: KeyProvenance::Shape,
                             }),
                         ),
@@ -639,7 +651,9 @@ fn nested_board_program(summary: bool) -> Program {
             take: Bound::Literal(50),
             after: None,
             before: None,
-            range: None,
+            range: None, // no scalar range bounds
+            optional_cursor_args: Vec::new(),
+            merge_site: None,
             provenance: KeyProvenance::Shape,
         })
     };
@@ -664,7 +678,9 @@ fn nested_board_program(summary: bool) -> Program {
                     take: Bound::Literal(20),
                     after: None,
                     before: None,
-                    range: None,
+                    range: None, // no scalar range bounds
+                    optional_cursor_args: Vec::new(),
+                    merge_site: None,
                     provenance: KeyProvenance::Arg,
                 }),
                 body: vec![Stmt::Push {
@@ -692,7 +708,9 @@ pub fn ledger_program() -> Program {
             take: Bound::Literal(50),
             after: None,
             before: None,
-            range: None,
+            range: None, // no scalar range bounds
+            optional_cursor_args: Vec::new(),
+            merge_site: None,
             provenance: KeyProvenance::Arg,
         }))],
     }
@@ -814,7 +832,9 @@ pub fn mention_scan_program() -> Program {
                     take: Bound::Literal(20),
                     after: None,
                     before: None,
-                    range: None,
+                    range: None, // no scalar range bounds
+                    optional_cursor_args: Vec::new(),
+                    merge_site: None,
                     provenance: KeyProvenance::Computed,
                 }),
                 body: vec![Stmt::Push {
@@ -847,7 +867,9 @@ pub fn nested_expenses_program() -> Program {
                 take: Bound::Literal(500),
                 after: None,
                 before: None,
-                range: None,
+                range: None, // no scalar range bounds
+                optional_cursor_args: Vec::new(),
+                merge_site: None,
                 provenance: KeyProvenance::Arg,
             }),
             body: vec![Stmt::Let {
@@ -861,7 +883,9 @@ pub fn nested_expenses_program() -> Program {
                     take: Bound::Literal(50),
                     after: None,
                     before: None,
-                    range: None,
+                    range: None, // no scalar range bounds
+                    optional_cursor_args: Vec::new(),
+                    merge_site: None,
                     provenance: KeyProvenance::Shape,
                 }),
             }],
@@ -880,7 +904,9 @@ pub fn helper_wrapped_scan_program() -> Program {
             take: Bound::Literal(37),
             after: None,
             before: None,
-            range: None,
+            range: None, // no scalar range bounds
+            optional_cursor_args: Vec::new(),
+            merge_site: None,
             provenance: KeyProvenance::Arg,
         }
     }
@@ -911,6 +937,8 @@ pub fn structural_waitlist_count_program() -> Program {
                 after: None,
                 before: None,
                 range: None,
+                optional_cursor_args: Vec::new(),
+                merge_site: None,
                 provenance: KeyProvenance::Arg,
             })],
         })],

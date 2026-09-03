@@ -7,6 +7,8 @@ import type {
   IndexDecl,
   KeyPart,
   MaintainDecl,
+  MergeExpr,
+  MergeLane,
   ObjectField,
   ProgramDecl,
   RuleDecl,
@@ -24,7 +26,7 @@ import { quarryExpression } from "./program";
 const RESERVED_BINDINGS = new Set([
   "arguments", "await", "break", "case", "catch", "class", "const", "continue", "debugger", "default", "delete", "do",
   "else", "enum", "eval", "export", "extends", "false", "finally", "for", "function", "if", "implements", "import",
-  "in", "insert", "instanceof", "interface", "let", "new", "null", "package", "private", "protected", "public", "return", "static",
+  "in", "insert", "instanceof", "interface", "let", "merge", "new", "null", "package", "private", "protected", "public", "return", "static",
   "super", "switch", "this", "throw", "true", "try", "typeof", "update", "upsert", "var", "void", "while", "with", "yield",
 ]);
 const PRECEDENCE = new Map<string, number>([
@@ -309,7 +311,7 @@ class Parser {
     return { kind, name, args, body, site: kindToken };
   }
 
-  private generatedBinding(kind: "table" | "channel" | "effect" | "operation"): string {
+  private generatedBinding(kind: "table" | "channel" | "effect" | "operation" | "merge lane"): string {
     const token = this.word();
     if (RESERVED_BINDINGS.has(token.value)) {
       refuse(
@@ -426,7 +428,7 @@ class Parser {
     if (this.at("return")) {
       const site = this.take("return");
       const value = this.expression(0, new Set(["<newline>"]));
-      this.newline();
+      if (value.kind !== "merge") this.newline();
       return { kind: "return", value, site };
     }
     if (this.at("emit")) {
@@ -442,7 +444,7 @@ class Parser {
       const name = this.word();
       this.take("=");
       const value = this.expression(0, new Set(["<newline>"]));
-      this.newline();
+      if (value.kind !== "merge") this.newline();
       return { kind: "bind", names: [name.value], value, site: name };
     }
     if (this.at("(") && this.tupleBindingAhead()) {
@@ -456,7 +458,7 @@ class Parser {
       return { kind: "bind", names, value, site };
     }
     const value = this.expression(0, new Set(["<newline>"]));
-    this.newline();
+    if (value.kind !== "merge") this.newline();
     return { kind: "expr", value, site: value.site };
   }
 
@@ -566,7 +568,7 @@ class Parser {
       const read = this.parseRead(table.value, table);
       return { kind: "aggregate", table: table.value, keys: read.keys, site: token };
     }
-    if (token.value === "merge") unsupported(token, "merge", "name one bounded index scan or maintain a feed table");
+    if (token.value === "merge") return this.parseMerge();
     if (token.value === "device" || token.value === "oblivious") unsupported(token, token.value, "pass an explicit bounded argument to the operation");
 
     let value: Expr;
@@ -634,7 +636,13 @@ class Parser {
         value = { kind: "call", name: value.name, args, site };
       } else if (this.at("[") && value.kind === "name") {
         value = this.parseRead(value.name, value.site);
-      } else if (value.kind === "read" && ["after", "before", "first", "last", "by", "where"].includes(this.peek().value)) {
+      } else if (value.kind === "read" && this.at("where")) {
+        unsupported(
+          this.peek(),
+          "where",
+          "use an index whose prefix pins the predicate, a table invariant (after insert <- exists ...), or merge for a fan-in feed",
+        );
+      } else if (value.kind === "read" && ["after", "before", "first", "last", "by"].includes(this.peek().value)) {
         value = this.parseRange(value);
       } else if (this.maybe("!")) {
         const assertion = this.tokens[this.position - 1]!;
@@ -676,16 +684,15 @@ class Parser {
     let cursor: Expr | undefined;
     let cursorKind: "after" | "before" | undefined;
     const site = this.peek();
-    let where: Expr | undefined;
     let index = read.index;
     let highestRank = -1;
     const seen = new Set<number>();
     let violation: Token | undefined;
-    while (["after", "before", "first", "last", "by", "where"].includes(this.peek().value)) {
+    while (["after", "before", "first", "last", "by"].includes(this.peek().value)) {
       const key = this.word();
       const rank = key.value === "after" || key.value === "before" ? 0
         : key.value === "first" || key.value === "last" ? 1
-          : key.value === "by" ? 2 : 3;
+          : 2;
       if (!violation && (seen.has(rank) || rank < highestRank)) violation = key;
       seen.add(rank);
       highestRank = Math.max(highestRank, rank);
@@ -704,20 +711,77 @@ class Parser {
       } else if (key.value === "by") {
         const candidate = this.word().value;
         if (!index) index = candidate;
-      } else {
-        const candidate = this.expression(0, new Set(["after", "before", "first", "last", "by", "where", "<newline>", ":", "{", ",", "}"]));
-        if (!where) where = candidate;
       }
     }
-    if (take === undefined && !cursor && !where) {
+    if (take === undefined && !cursor) {
       const point = { ...read, index };
       if (violation) syntax(violation, "read modifiers may appear once and only in canonical order", quarryExpression(point));
       return point;
     }
     if (take === undefined || !order) syntax(site, "range reads require first N or last N");
-    const range = { ...read, index, range: { order, take, cursor, cursorKind, where, site } };
+    const range = { ...read, index, range: { order, take, cursor, cursorKind, site } };
     if (violation) syntax(violation, "read modifiers may appear once and only in canonical order", quarryExpression(range));
     return range;
+  }
+
+  private parseMerge(): MergeExpr {
+    const site = this.take("merge");
+    const table = this.word().value;
+    let cursor: Expr | undefined;
+    let cursorKind: "after" | "before" | undefined;
+    if (this.at("after") || this.at("before")) {
+      cursorKind = this.word().value as "after" | "before";
+      cursor = this.expression(0, new Set(["first", "last", "by", ":"]));
+    }
+    const bound = this.peek();
+    if (!this.at("first") && !this.at("last")) {
+      syntax(bound, "merge modifiers use [after|before cursor] first|last N by index", `merge ${table} first 20 by index:`);
+    }
+    const order = this.word().value === "first" ? "asc" : "desc";
+    const take = this.number();
+    if (!this.at("by")) {
+      const cursorText = cursor ? ` ${cursorKind} ${this.renderExpr(cursor)}` : "";
+      syntax(this.peek(), "merge requires by <index> in its header", `merge ${table}${cursorText} ${order === "asc" ? "first" : "last"} ${take} by index:`);
+    }
+    this.take("by");
+    const index = this.word().value;
+    this.take(":");
+    this.newline();
+    if (!this.atKind("indent")) {
+      syntax(this.peek(), "merge requires an indented block with at least one [prefix] lane", `[viewer]`);
+    }
+    this.takeKind("indent");
+    const lanes: MergeLane[] = [];
+    while (!this.atKind("dedent") && !this.atKind("eof")) {
+      this.skipNewlines();
+      if (this.atKind("dedent")) break;
+      const laneSite = this.take("[");
+      const prefix: Expr[] = [];
+      while (!this.at("]")) {
+        prefix.push(this.expression(0, new Set([",", "]"])));
+        if (!this.maybe(",")) break;
+      }
+      this.take("]");
+      let loop: MergeLane["loop"];
+      if (this.maybe("for")) {
+        const name = this.generatedBinding("merge lane");
+        this.take("in");
+        const domain = this.expression(0, new Set(["<newline>"]));
+        if (domain.kind !== "read" || !domain.range) {
+          syntax(domain.site, "a merge for lane requires a bounded range read", "for row in table[prefix] first 50 by index");
+        }
+        loop = { name, domain };
+      }
+      this.newline();
+      lanes.push({ prefix, ...(loop ? { loop } : {}), site: laneSite });
+    }
+    this.takeKind("dedent");
+    if (lanes.length === 0) syntax(site, "merge requires at least one lane", `[viewer]`);
+    return { kind: "merge", table, index, order, take, cursor, cursorKind, lanes, site };
+  }
+
+  private renderExpr(expr: Expr): string {
+    return quarryExpression(expr);
   }
 
   private parseShape(base: Expr): Expr {
@@ -871,7 +935,6 @@ function focalizeRuleBinding(expr: Expr, binding: string): Expr {
     range: expr.range && {
       ...expr.range,
       cursor: expr.range.cursor && focalizeRuleBinding(expr.range.cursor, binding),
-      where: expr.range.where && focalizeRuleBinding(expr.range.where, binding),
     },
   };
   if (expr.kind === "exists" || expr.kind === "created") return { ...expr, read: focalizeRuleBinding(expr.read, binding) as Extract<Expr, { kind: "read" }> };

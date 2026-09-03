@@ -43,6 +43,8 @@ fn scan() -> Expr {
         after: None,
         before: None,
         range: None,
+        optional_cursor_args: Vec::new(),
+        merge_site: None,
         provenance: KeyProvenance::Const,
     })
 }
@@ -84,6 +86,8 @@ fn growth_scan(take: u32) -> Scan {
         after: None,
         before: None,
         range: None,
+        optional_cursor_args: Vec::new(),
+        merge_site: None,
         provenance: KeyProvenance::Const,
     }
 }

@@ -550,7 +550,7 @@ impl<'a> RetentionEstimator<'a> {
                             true,
                         )
                     }
-                    Builtin::Sort { .. } => (first.0, first.1, true),
+                    Builtin::Sort { .. } | Builtin::DedupeById { .. } => (first.0, first.1, true),
                     Builtin::Concat => {
                         let (flow, length) = flows.fold(
                             (first.0, first.1),

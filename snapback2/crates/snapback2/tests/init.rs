@@ -153,7 +153,7 @@ fn quarry_certification_refusal_rewrite_starts_with_the_authored_line() {
 }
 
 #[test]
-fn quarry_optional_reads_total_equality_where_and_branch_writes_execute() {
+fn quarry_optional_reads_total_equality_and_branch_writes_execute() {
     let project = Project::new();
     assert!(project.init("todos", "none").status.success());
     std::fs::remove_file(project.path.join("snapback/todos.q")).unwrap();
@@ -164,7 +164,7 @@ fn quarry_optional_reads_total_equality_where_and_branch_writes_execute() {
     ).unwrap();
     std::fs::write(
         project.path.join("snapback/runtime.q"),
-        "query parentName(id: nodes):\n  node = nodes[id]! else NODE_MISSING\n  return node.parent.name\n\nquery parentsEqual(left: nodes, right: nodes):\n  a = nodes[left]! else LEFT_MISSING\n  b = nodes[right]! else RIGHT_MISSING\n  return a.parent = b.parent\n\nquery parentsDifferent(left: nodes, right: nodes):\n  a = nodes[left]! else LEFT_MISSING\n  b = nodes[right]! else RIGHT_MISSING\n  return a.parent != b.parent\n\nquery present(cursor: time ?):\n  if cursor != null:\n    return true\n  return false\n\nquery alicePosts(author: authors):\n  return posts[author] first 5 where .author.name = 'Alice'\n\nmutation branchWrite(useFirst: bool):\n  if useFirst:\n    insert counters { value: 1 }\n  else:\n    insert counters { value: 2 }\n  return null\n",
+        "query parentName(id: nodes):\n  node = nodes[id]! else NODE_MISSING\n  return node.parent.name\n\nquery parentsEqual(left: nodes, right: nodes):\n  a = nodes[left]! else LEFT_MISSING\n  b = nodes[right]! else RIGHT_MISSING\n  return a.parent = b.parent\n\nquery parentsDifferent(left: nodes, right: nodes):\n  a = nodes[left]! else LEFT_MISSING\n  b = nodes[right]! else RIGHT_MISSING\n  return a.parent != b.parent\n\nquery present(cursor: time ?):\n  if cursor != null:\n    return true\n  return false\n\nquery alicePosts(author: authors):\n  return posts[author] first 5\n\nmutation branchWrite(useFirst: bool):\n  if useFirst:\n    insert counters { value: 1 }\n  else:\n    insert counters { value: 2 }\n  return null\n",
     ).unwrap();
     std::fs::write(
         project.path.join("snapback/seed.ts"),
@@ -596,7 +596,7 @@ fn quarry_clique_sends_a_dm_and_pages_feed_with_a_tuple_cursor() {
         "cursorId": cursor["id"],
     })
     .to_string();
-    let second = run("social.globalFeedBefore", &second_args);
+    let second = run("social.globalFeed", &second_args);
     assert_eq!(second["state"], "complete", "{second}");
     let second_rows = second["data"].as_array().expect("second feed page");
     assert_eq!(second_rows.len(), 1, "{second}");

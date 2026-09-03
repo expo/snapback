@@ -558,6 +558,22 @@ impl<'a> Runner<'a> {
                 });
                 Ok(Value::Array(values))
             }
+            Builtin::DedupeById { site, .. } => {
+                let values = args.remove(0).as_array()?.to_vec();
+                let mut seen = BTreeSet::new();
+                let mut deduplicated = Vec::new();
+                for value in values {
+                    let id = value.field("id")?.as_str()?.to_owned();
+                    if seen.insert(id) {
+                        deduplicated.push(value);
+                    }
+                }
+                self.trace.merges.push(MergeTrace {
+                    site: site.clone(),
+                    deduplicated_union_len: deduplicated.len() as u64,
+                });
+                Ok(Value::Array(deduplicated))
+            }
             Builtin::MentionTokens => {
                 let text = args.remove(0).as_str()?.to_owned();
                 let mut seen = BTreeSet::new();
@@ -659,16 +675,27 @@ impl<'a> Runner<'a> {
             .iter()
             .map(|value| self.expr(value))
             .collect::<Result<Vec<_>, _>>()?;
-        let after = scan
-            .after
-            .as_deref()
-            .map(|value| self.expr(value))
-            .transpose()?;
-        let before = scan
-            .before
-            .as_deref()
-            .map(|value| self.expr(value))
-            .transpose()?;
+        let omit_optional_cursor = !scan.optional_cursor_args.is_empty()
+            && scan
+                .optional_cursor_args
+                .iter()
+                .all(|name| self.context.args.get(name) == Some(&Value::Null));
+        let after = if omit_optional_cursor {
+            None
+        } else {
+            scan.after
+                .as_deref()
+                .map(|value| self.expr(value))
+                .transpose()?
+        };
+        let before = if omit_optional_cursor {
+            None
+        } else {
+            scan.before
+                .as_deref()
+                .map(|value| self.expr(value))
+                .transpose()?
+        };
         let evaluated_range = scan
             .range
             .as_ref()

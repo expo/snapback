@@ -10,6 +10,8 @@ use std::path::PathBuf;
 mod client_scenarios;
 #[path = "export_corpus/constraints.rs"]
 mod export_corpus_constraints;
+#[path = "export_corpus/merge_cases.rs"]
+mod merge_cases;
 #[path = "export_corpus/twin_cases.rs"]
 mod twin_cases;
 
@@ -101,6 +103,7 @@ fn main() {
     let mut cases = Vec::new();
     add_named_cases(&mut cases);
     add_cursor_cases(&mut cases);
+    merge_cases::add_merge_and_optional_cursor_cases(&mut cases);
     twin_cases::add_twin_cases(&mut cases);
     client_scenarios::add_client_scenarios(&mut cases);
     add_value_edges(&mut cases);
@@ -155,6 +158,8 @@ fn add_cursor_cases(cases: &mut Vec<CorpusCase>) {
                 lt: None,
                 lte: Some(Box::new(Expr::Literal(Value::Int(5)))),
             }),
+            optional_cursor_args: Vec::new(),
+            merge_site: None,
             provenance: KeyProvenance::Const,
         })
     };
@@ -418,7 +423,9 @@ fn named_uniform_maintained_inbox_case() -> CorpusCase {
                     take: Bound::Literal(50),
                     after: None,
                     before: None,
-                    range: None,
+                    range: None, // no scalar range bounds
+                    optional_cursor_args: Vec::new(),
+                    merge_site: None,
                     provenance: KeyProvenance::Viewer,
                 }),
                 body: vec![Stmt::Push {
@@ -813,7 +820,9 @@ fn bytes_scan_program(name: &str) -> Program {
             take: Bound::Literal(10),
             after: None,
             before: None,
-            range: None,
+            range: None, // no scalar range bounds
+            optional_cursor_args: Vec::new(),
+            merge_site: None,
             provenance: KeyProvenance::Const,
         }))],
     }

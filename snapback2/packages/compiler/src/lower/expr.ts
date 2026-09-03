@@ -46,6 +46,7 @@ import { guardedWalk, MAX_RECURSION_DEPTH } from "./recursion";
 import { derivedBound, operationArgumentList, staticBound } from "./binding-bound";
 import { maintainCollectionFacts } from "./collection-facts";
 import { checkScanPrefix, checkTupleCursor } from "./cursor";
+import { optionalCursorArgumentNames } from "./optional-cursor";
 import { isIdType } from "../authored-types";
 function concatExpressions(expressions: Expr[]): Expr {
   return expressions.slice(1).reduce<Expr>(
@@ -688,6 +689,11 @@ function lowerScan(call: ts.CallExpression, env: Environment, hint?: string): Sc
     checkTupleCursor(afterNode, env, ref.table, ref.index, loweredPrefix.length);
     checkTupleCursor(beforeNode, env, ref.table, ref.index, loweredPrefix.length);
   }
+  const cursorNode = afterNode ?? beforeNode;
+  const optionalCursorArgs = optionalCursorArgumentNames(cursorNode, env, ref.table, ref.index, loweredPrefix.length);
+  const mergeSiteNode = expressionProperty(options, "mergeSite");
+  const mergeSite = stringLiteral(mergeSiteNode);
+  if (mergeSiteNode && mergeSite === undefined) refuse(env, "E_OPAQUE", mergeSiteNode, "mergeSite must be a static string");
   return {
     site: allocateReadSite(env),
     table: ref.table,
@@ -705,6 +711,8 @@ function lowerScan(call: ts.CallExpression, env: Environment, hint?: string): Sc
           lte: optionalLower(expressionProperty(rangeNode, "lte"), env),
         }
       : null,
+    optional_cursor_args: optionalCursorArgs,
+    merge_site: mergeSite ?? null,
     provenance: readProvenance(prefix, env),
   };
 }

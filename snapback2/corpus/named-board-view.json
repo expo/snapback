@@ -951,6 +951,8 @@
               "after": null,
               "before": null,
               "range": null,
+              "optional_cursor_args": [],
+              "merge_site": null,
               "provenance": "Arg"
             }
           },
@@ -982,6 +984,8 @@
                         "after": null,
                         "before": null,
                         "range": null,
+                        "optional_cursor_args": [],
+                        "merge_site": null,
                         "provenance": "Shape"
                       }
                     },
@@ -1004,7 +1008,7 @@
   },
   "certificate": {
     "program": "boardView",
-    "plan_hash": "6d6122b39d71cdaf21d6be6fc69a1f1b14d0bb21102db2258fa3e907bc7e8792",
+    "plan_hash": "09421914a3418cea7547b81b1e1c0e04e7ca1e1fd4d30f6534380ce698bfd8dd",
     "schema_hash": "df0a1b25740fd361ededb5bf93df3428a133ea6dd44f27a74c45a76e1ce8fb3c",
     "rule_hashes": {
       "cards.read": "86fc97a3ff8c6f52c56c0ad10e0e41d5a9c4474356ed8b7e523b28a0f78b6b72",

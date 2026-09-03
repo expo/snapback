@@ -73,22 +73,12 @@ mutation toggleFollow(u: users):
       update users[principal = viewer] { followingCount: .followingCount - 1 }
       return false
     none:
-      insert follows { follower: viewer, followee: u, at: now }
+      insert follows { follower: viewer, followee: u, followed: other.principal, at: now }
       update users[u] { followerCount: .followerCount + 1 }
       update users[principal = viewer] { followingCount: .followingCount + 1 }
       return true
 
-query globalFeed():
-  return feedItems[] first 20 by byOrd {
-    id, kind, at, ord, actor, post,
-    reposter: users[principal = .actor] { displayName, handle },
-    item: .post {
-      id, author, body, parent, at, likeCount, replyCount, repostCount,
-      authorProfile: users[principal = .author] { displayName, handle },
-    },
-  }
-
-query globalFeedBefore(cursorOrd: int, cursorId: feedItems):
+query globalFeed(cursorOrd: int ?, cursorId: feedItems ?):
   return feedItems[] after (cursorOrd, cursorId) first 20 by byOrd {
     id, kind, at, ord, actor, post,
     reposter: users[principal = .actor] { displayName, handle },
@@ -98,22 +88,12 @@ query globalFeedBefore(cursorOrd: int, cursorId: feedItems):
     },
   }
 
--- One lane of the Following feed. The app still merges these bounded lanes
--- client-side because Quarry intentionally has no merge primitive.
-query laneFeed(u: users):
-  actor = users[u]! else USER_NOT_FOUND
-  return feedItems[actor.principal] first 20 by byActorOrd {
-    id, kind, at, ord, actor, post,
-    reposter: users[principal = .actor] { displayName, handle },
-    item: .post {
-      id, author, body, parent, at, likeCount, replyCount, repostCount,
-      authorProfile: users[principal = .author] { displayName, handle },
-    },
-  }
-
-query laneFeedBefore(u: users, cursorOrd: int, cursorId: feedItems):
-  actor = users[u]! else USER_NOT_FOUND
-  return feedItems[actor.principal] after (cursorOrd, cursorId) first 20 by byActorOrd {
+-- The Following feed merges the viewer's lane with up to 50 followed actors.
+query followingFeed(cursorOrd: int ?, cursorId: feedItems ?):
+  page = merge feedItems after (cursorOrd, cursorId) first 20 by byActorOrd:
+    [viewer]
+    [f.followed] for f in follows[viewer] first 50 by byFollower
+  return page {
     id, kind, at, ord, actor, post,
     reposter: users[principal = .actor] { displayName, handle },
     item: .post {

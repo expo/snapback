@@ -319,7 +319,26 @@ impl<'a> OutputEstimator<'a> {
                 UnaryOp::Neg => 32,
             },
             Expr::Builtin { builtin, args } => match builtin {
-                Builtin::Slice | Builtin::Sort { .. } => args
+                Builtin::Slice => {
+                    let source = args.first();
+                    let merge_table = source.and_then(|value| match value {
+                        Expr::Builtin {
+                            builtin: Builtin::DedupeById { table, .. },
+                            ..
+                        } => Some(table),
+                        _ => None,
+                    });
+                    let literal_take = args.get(2).and_then(|value| match value {
+                        Expr::Literal(Value::Int(value)) if *value >= 0 => Some(*value as u64),
+                        _ => None,
+                    });
+                    match (source, merge_table, literal_take) {
+                        (Some(_), Some(table), Some(take)) => Self::repeated(self.row(table), take),
+                        (Some(value), _, _) => self.expression(value, variables),
+                        _ => 0,
+                    }
+                }
+                Builtin::Sort { .. } | Builtin::DedupeById { .. } => args
                     .first()
                     .map(|value| self.expression(value, variables))
                     .unwrap_or(0),

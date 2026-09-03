@@ -47,6 +47,7 @@ table posts:
   visible: bool
   mood: enum('plain', 'bright')
   by byAuthorAt: author, at, id
+  by byAuthorVisibleAt: author, visible, at, id
   by byGroupAt: group, at, id
   public
   insert <- .author = viewer

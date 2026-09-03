@@ -949,6 +949,8 @@
               "after": null,
               "before": null,
               "range": null,
+              "optional_cursor_args": [],
+              "merge_site": null,
               "provenance": "Viewer"
             }
           },
@@ -980,6 +982,8 @@
                         "after": null,
                         "before": null,
                         "range": null,
+                        "optional_cursor_args": [],
+                        "merge_site": null,
                         "provenance": "Shape"
                       }
                     },
@@ -1020,7 +1024,7 @@
   },
   "certificate": {
     "program": "inboxMaintained",
-    "plan_hash": "b5cb867ac0ea4ae81eee24c81500559b00a7cbd3ea0be1d56b69a00288246e9d",
+    "plan_hash": "8d2f8c44df70cf5b6b68b4168713974a8d86ccd355b1972df02faf58aac708ae",
     "schema_hash": "df0a1b25740fd361ededb5bf93df3428a133ea6dd44f27a74c45a76e1ce8fb3c",
     "rule_hashes": {
       "memberships.read": "a4500d80558e462bf40291836ee785e6a05a708f84bb1d5d919adc2da67c150b",

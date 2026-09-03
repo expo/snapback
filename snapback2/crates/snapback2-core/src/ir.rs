@@ -218,6 +218,7 @@ pub enum Builtin {
     Max,
     Divmod { remainder_sink: String },
     Sort { keys: Vec<SortKey> },
+    DedupeById { site: String, table: String },
     MentionTokens,
     DeterministicShare,
     Count,
@@ -230,6 +231,7 @@ impl Builtin {
         match self {
             Self::Len
             | Self::Sort { .. }
+            | Self::DedupeById { .. }
             | Self::MentionTokens
             | Self::Count
             | Self::Sum
@@ -266,6 +268,10 @@ pub struct Scan {
     pub after: Option<Box<Expr>>,
     pub before: Option<Box<Expr>>,
     pub range: Option<Range>,
+    #[serde(default)]
+    pub optional_cursor_args: Vec<String>,
+    #[serde(default)]
+    pub merge_site: Option<String>,
     pub provenance: KeyProvenance,
 }
 

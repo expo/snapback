@@ -12,27 +12,20 @@ query hasMembership(group: groups, principal: principal):
   return exists memberships[group, principal]
 
 query postsAfter(author: principal, cursorAt: time ?, cursorId: posts ?):
-  if cursorAt != null:
-    return posts[author] after (cursorAt, cursorId) first 3 {
-      *,
-      author: users[.author] { name, role },
-      edited: .editedAt ?? .at,
-    }
-  else:
-    return posts[author] first 3 {
-      *,
-      author: users[.author] { name, role },
-      edited: .editedAt ?? .at,
-    }
+  return posts[author] after (cursorAt, cursorId) first 3 by byAuthorAt {
+    *,
+    author: users[.author] { name, role },
+    edited: .editedAt ?? .at,
+  }
 
 query postsBefore(author: principal, cursorAt: time, cursorId: posts):
-  return posts[author] before (cursorAt, cursorId) last 3 {
+  return posts[author] before (cursorAt, cursorId) last 3 by byAuthorAt {
     body,
     author: users[.author] { name },
   }
 
 query visiblePosts(author: principal):
-  page = posts[author] first 5 where .visible = true
+  page = posts[author, true] first 5 by byAuthorVisibleAt
   return { rows: page, count: count(page) }
 
 query ancestors(seed: nodes):

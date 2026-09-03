@@ -386,6 +386,8 @@ fn then_generation_with_rule(source: &str, reject: bool, write_rule: RuleExpr) -
             after: None,
             before: None,
             range: None,
+            optional_cursor_args: Vec::new(),
+            merge_site: None,
             provenance: KeyProvenance::Const,
         }))],
     };

@@ -94,7 +94,7 @@ maintain messageCounts = count messages by conversationId:
 Keys are positional (`table[value, …]`) or named
 (`table[column = value, …]`), as in `users[principal = viewer]`. Point reads
 need a complete unique key. Range order is `[after|before cursor] first|last N
-[by index] [where predicate]`; repeats/permutations refuse. Point reads may add
+[by index]`; repeats/permutations refuse. Point reads may add
 `by index`; `exists table[keys]` accepts an index prefix. Shapes use `{ * }`,
 bare fields, or `name: expression`; nested work stays bounded.
 
@@ -103,13 +103,33 @@ Components are indexable scalars matching their columns; `Null` is the
 universal pre-first sentinel. Scalar sugar needs one remaining column. The
 index must end in `id` or be unique. Refusals paste `.q` repairs: append `id`,
 reorder or widen the tuple, or drop a full-prefix cursor. `after` continues in
-scan order; `before c last N` is descending `after c`.
+scan order; `before c last N` is descending `after c`. If every cursor
+component is a direct optional operation argument and every suffix column is
+non-optional, the tuple is an optional group: all present applies the cursor,
+all absent omits it, and mixed presence refuses with `E_INPUT` before any scan.
+Literal `null` and other expressions retain `Null`'s pre-first sentinel meaning.
 
-`where predicate` follows a bounded range read. The compiler fetches at most
-its `take N` page and evaluates the predicate once per fetched row with `.` as
-the row. Nested reads and `exists` are allowed. Filtering does not backfill,
-so the result is a bounded list that may contain fewer than N rows; cursors do
-not survive filtering.
+`merge table [after|before cursor] first|last N by index:` fan-ins one or more
+indented lanes. Each lane is `[prefix keys]`, optionally `for name in` a bounded
+range read. Prefixes must have equal widths and types, leave an index suffix,
+and not be structurally identical. Quarry scans every lane at N, concatenates,
+sorts by the shared suffix, deduplicates intrinsic `id` keeping the first row,
+then returns the first N as a page. Shapes, `for`, and `count` work as for a
+range page; an unshaped API result uses the table's row type. The shared cursor
+is applied unchanged to every lane.
+
+```q
+query followingFeed(cursorAt: time ?, cursorId: posts ?):
+  page = merge posts before (cursorAt, cursorId) last 20 by byAuthorTime:
+    [viewer]
+    [f.followed] for f in follows[viewer] first 50 by byFollower
+  return page { post: ., author: profiles[.author] }
+```
+
+This recipe admits at most 50 follow rows. The query reports `capped` when that
+domain hits its limit; it does not meet a product that must cover larger follow
+graphs. A merge is `complete` only when every member lane scan exhausted and
+the deduplicated union had at most N rows; otherwise it is `capped`.
 
 Statements are expression bindings, tuple bindings from `sorted`, `return`,
 `require condition else CODE`, `if/else`, bounded `for`, and
@@ -250,12 +270,12 @@ the same certificate, trace, and runtime budgets.
 ## Refused platform gaps
 
 The following are refused with `E_QUARRY_UNSUPPORTED`: `asset`/`use assets`,
-`schedule`, `merge`, `device`, `oblivious`, `while`, user functions or
-recursion.
+`schedule`, `where`, `device`, `oblivious`, `while`, user functions or recursion.
 Use bounded URL text instead of assets; a caller-invoked mutation instead of a
-schedule; one named bounded scan or a maintained feed table instead of merge;
-explicit bounded arguments instead of device/oblivious state; bounded
-`for`/`walk` instead of while/recursion.
+schedule; explicit bounded arguments instead of device/oblivious state; bounded
+`for`/`walk` instead of while/recursion. Replace `where` with an index whose
+prefix pins the predicate, a table invariant such as `after insert <- exists …`,
+or `merge` for a fan-in feed.
 
 Writes through a non-unique or incomplete key are index-selection refusals.
 

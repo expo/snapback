@@ -362,18 +362,18 @@ maintain convSpend = sum expenses of grand by conv:
     });
   });
 
-  test("Clique Pay lowers and certifies the exact 41-operation inventory", async () => {
+  test("Clique Pay lowers and certifies the exact 38-operation inventory", async () => {
     const lowered = await lowerProject(resolve(fixtures, "quarry-clique"));
     assert(lowered.ok, `Clique Pay refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
     const names = lowered.project.programs.map((program) => program.name).sort();
     const expected = [
-      "chat.addMember", "chat.chatThread", "chat.chatThreadBefore", "chat.convMembers",
+      "chat.addMember", "chat.chatThread", "chat.convMembers",
       "chat.conversation", "chat.createGroup", "chat.leaveGroup", "chat.markDelivered",
       "chat.markRead", "chat.myConversations", "chat.promoteAdmin", "chat.removeMember",
       "chat.send", "chat.startDm", "pay.addExpense", "pay.convExpenses", "pay.expenseShares", "pay.myBalance",
       "pay.myLedger", "pay.myOpenShares", "pay.sendMoney", "pay.settleShare",
-      "social.createPost", "social.createProfile", "social.createReply", "social.globalFeed",
-      "social.globalFeedBefore", "social.laneFeed", "social.laneFeedBefore", "social.listUsers",
+      "social.createPost", "social.createProfile", "social.createReply", "social.followingFeed",
+      "social.globalFeed", "social.listUsers",
       "social.me", "social.myFeedMarks", "social.myFollowing", "social.myLikes", "social.profile",
       "social.profileByHandle", "social.thread", "social.toggleFollow", "social.toggleLike",
       "social.toggleRepost", "social.updateProfile",

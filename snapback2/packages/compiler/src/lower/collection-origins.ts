@@ -67,6 +67,10 @@ function collectionElementOriginsInner(node: ts.Expression, env: Environment): P
       objectFields: rowFields(call.arguments[0], env),
     } }];
   }
+  if (call && ts.isIdentifier(call.expression) && call.expression.text === "mergeByIndex") {
+    const rows = call.arguments[0];
+    return rows ? collectionElementOrigins(rows, env) : undefined;
+  }
   if (call && ts.isIdentifier(call.expression) && call.expression.text === "mentionTokens") {
     return [{ binding: { provenance: "Computed" } }];
   }

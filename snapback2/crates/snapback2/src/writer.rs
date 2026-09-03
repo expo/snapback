@@ -1200,6 +1200,8 @@ impl State {
                 after: after.map(|value| Box::new(Expr::Literal(value))),
                 before: None,
                 range: None,
+                optional_cursor_args: Vec::new(),
+                merge_site: None,
                 provenance: KeyProvenance::Const,
             }))],
         };

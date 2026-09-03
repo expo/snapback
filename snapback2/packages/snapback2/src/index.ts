@@ -141,6 +141,13 @@ export function divmod(value: number, divisor: number): { quotient: number; rema
   return { quotient: Math.floor(value / divisor), remainder: value % divisor };
 }
 
+/** Internal Quarry lowering helper; authored descriptors are never executed. */
+export function mergeByIndex<T>(
+  _values: T[], _fields: string[], _order: "asc" | "desc", _take: number, _site: string, _table: string,
+): T[] {
+  throw new Error("snapback2: authored program descriptors are inert");
+}
+
 export function recurse(): never {
   throw new Error("snapback2: authored program descriptors are inert");
 }

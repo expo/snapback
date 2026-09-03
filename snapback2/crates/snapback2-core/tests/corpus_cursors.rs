@@ -447,6 +447,8 @@ fn uncursored_scan_program(name: &str, prefix: Vec<Expr>, range: Option<Range>) 
             after: None,
             before: None,
             range,
+            optional_cursor_args: Vec::new(),
+            merge_site: None,
             provenance: KeyProvenance::Const,
         }))],
     }
@@ -531,6 +533,8 @@ fn scan_program(name: &str, index: &str, prefix: Vec<Expr>, after: Expr) -> Prog
             after: Some(Box::new(after)),
             before: None,
             range: None,
+            optional_cursor_args: Vec::new(),
+            merge_site: None,
             provenance: KeyProvenance::Const,
         }))],
     }

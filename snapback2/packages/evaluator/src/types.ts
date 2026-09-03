@@ -136,6 +136,7 @@ export interface Trace {
   ranges: TraceRange[];
   absences: TraceAbsence[];
   points: TracePoint[];
+  merges: Array<{ site: string; deduplicated_union_len: number }>;
 }
 
 export interface Execution {

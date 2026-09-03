@@ -1,9 +1,9 @@
 # LLP 1010: Quarry amendments — words for writes, total equality, one row binder, no `where`, a merged feed, an optional cursor, one modifier order
 
 **Type:** RFC
-**Status:** Accepted (author, 2026-09-03 in session: "once you've revised the
-RFC to your liking, go ahead and implement the changes" — the revision is (b),
-after the two-family panel recorded in §9)
+**Status:** Implemented (author, 2026-09-03 in session: "once you've revised
+the RFC to your liking, go ahead and implement the changes" — revision (b),
+after the two-family panel recorded in §9; landed the same day, §8)
 **Systems:** Authoring surface (`snapback2/packages/compiler/src/quarry/`), the
 Quarry reference (`snapback2/packages/snapback2/guide/quarry.md`,
 `guide/grammar.md`), the `quarry` diagnostics family and
@@ -17,7 +17,8 @@ grok-4.6 at xhigh), `llp/reviews/1010-quarry-language-amendments.*`
 **Implementer:** codex gpt-5.6-sol (xhigh), lane `s2/quarry-amend`
 (`~/projects/snapback-s2`), orchestrated and landed by Claude Fable 5.1
 **Date:** 2026-09-03
-**Revised:** 2026-09-03 (b — after the panel: bounds-first withdrawn; A2
+**Revised:** 2026-09-03 (c — implemented: §8 records the two landing commits
+and the one departure from the brief, the guide budget); 2026-09-03 (b — after the panel: bounds-first withdrawn; A2
 restated as program-only because rules and the IR already compare totally;
 `where` is deleted instead of fenced; merge gains the table-in-header block
 form, a self lane, the shared-suffix cursor, id-dedupe, a certificate merge
@@ -429,19 +430,30 @@ order after the table name.
 | `quarry-clique/snapback/social.q:103–125`, `chat.q:124–136` | `laneFeed`/`laneFeedBefore` → one merge; `chatThread`/`chatThreadBefore` → one operation via A6 |
 | `guide/quarry.md`, `guide/grammar.md`, `families.source.json` | every form above; §6; the recipe for the merged feed with its named lane cap |
 
-## 8. Sequencing
+## 8. Sequencing and landing record
 
-Two sequential codex lanes in `s2/quarry-amend`, each leaving `scripts/test.sh`
-green, each committed by the orchestrator:
+Two sequential codex gpt-5.6-sol (xhigh) lanes on `s2/quarry-amend`, each
+verified out of sandbox by the orchestrator before commit:
 
-| Lane | Items | Why this split |
-|---|---|---|
-| 1 — notation | A1, A2, A3, A7, §6, and their migrations | compiler, guide, fixtures only; no platform change; the tree stays expressible |
-| 2 — reads | A5, A6, A4, the `posts` invariant, the feed migrations | A4 deletes the only spelling of the following feed, so it lands with the merge that replaces it |
+| Lane | Items | Commit | Out-of-sandbox suite |
+|---|---|---|---|
+| 1 — notation | A1, A2, A3, A7, §6, and their migrations | `1f4b90a6d` | 339/339 Rust, 113/113 evaluator, 278/278 compiler |
+| 2 — reads | A5, A6, A4, the `posts` invariant, the feed migrations | the commit that carries this revision | see the commit message |
 
-The check count stays five; the Quarry tests run in the compiler leg of
-`snapback2/scripts/test.sh`. Landing is `git push origin s2/quarry-amend:main`
-after the merged tree is green out of sandbox, per `rules/RULES.md`.
+Lane 2's codex run stalled after writing every item but its report; the
+orchestrator finished the two mechanical remainders (twenty test-only `Scan`
+initializers gaining the new fields; the template's following feed made
+byte-identical to the reference's snippet) and verified.
+
+**Departure from the brief.** The Quarry reference's byte budget rose from
+12,288 to 14,336 (`packages/snapback2/build.mjs`) to hold the merge contract
+and the optional-cursor paragraph after the `where` prose was removed; the
+rise is commented with this LLP's A5.
+
+**What binds now.** The reference (`snapback2 guide quarry`) states the
+implemented language; the corpus carries the nine merge and optional-cursor
+cases; the check count stays five. This document is archived from the
+working set with the landing — the work it commissioned is done.
 
 ## 9. Panel record
 
