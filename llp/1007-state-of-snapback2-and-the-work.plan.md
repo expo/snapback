@@ -287,7 +287,11 @@ three and agreed on all of them by round 2.
   pull specialized type analysis, Quarry cannot spell either, and
   `issues/20260831-snapback2-object-literal-decimal-field-types.md` is open.
   Neither bar needs them. Do not rip the engine variants out this week; keep
-  them out of the grammar and stop growing the analysis.
+  them out of the grammar and stop growing the analysis. **Ruled 2026-09-02
+  (author): kept.** They implement LLP 0329.014.004's exact value model for
+  the paper archetype apps; once the TypeScript surface was gone nothing could
+  reach them, and the author chose to spell them in Quarry (`decimal <scale>`,
+  `money <CUR> [scale]`, decimal literals; `929a45268`) rather than delete them.
 - **The public `fork` verb.** Keep the owner's snapshot primitive, which
   `test`'s replay needs; drop the thin CLI adapter.
 - **The TypeScript authoring surface** — templates, docs, escape hatch,

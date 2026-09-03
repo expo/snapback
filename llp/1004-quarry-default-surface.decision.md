@@ -111,9 +111,9 @@ where the code departs from the letter of the ruling:
    `emit` reach the effects subsystem, and `principal`, `json`, `bytes`, text
    ranges/formats, `immutable`, `after insert` (final-exists), `created`,
    `system`, `(old, next)` update rules, `return`, object literals, `count`,
-   `where` on range reads, and inline `new` are all spelled. `asset`, `schedule`, `merge`,
-   `decimal`/`money`, `while`, and user functions remain refused as
-   not-platform.
+   `where` on range reads, and inline `new` are all spelled; `decimal <scale>` and
+   `money <CUR> [scale]` followed on 2026-09-02 (`929a45268`). `asset`, `schedule`,
+   `merge`, `while`, and user functions remain refused as not-platform.
 7. **Blocking coverage.** The Quarry tests run in the compiler leg of
    `snapback2/scripts/test.sh`; the check count stays five (LLP 1007 §5 item 8).
    Both templates ship in both renderings (`todos`, `chat`, `todos-ts`,

@@ -10,3 +10,10 @@
 A local object literal does not retain per-field Decimal type facts through a later member selection. For example, with `amount: t.decimal(2)`, `const packed = { amount: args.amount }; db.insert(items, { amount: packed.amount + 2 })` cannot recover `packed.amount` as `Decimal<2>` and refuses rather than borrowing the operation argument's scale. The refusal is safe; the missing capability is typed immutable object members.
 
 Resolve by carrying field types on immutable object-literal bindings (including aliases and ordered spreads) and selecting the bind-time field type lexically. Pin both Decimal arithmetic through `packed.amount` and a shadowing case so an unrelated use-time `packed` or `args` binding cannot supply the scale.
+
+**Resolved 2026-09-02 (`929a45268`).** Authored object types now retain known
+field types through local bindings and property selection (conservative on
+spreads), so `packed.amount + 2` recovers `Decimal<2>` from
+`const packed = { amount: args.amount }`. Pinned by the Quarry money fixture
+(`fixtures/quarry-money`), which selects Money/Decimal fields out of an object
+and uses them in exact arithmetic.
