@@ -68,13 +68,20 @@ export function offlineRefusal(error: unknown, carrier: string): SnapbackRefusal
       guide: "offline",
     });
   }
-  const code = candidate === "E_OFFLINE_LOCK" || candidate === "E_OFFLINE_CARRIER" || candidate === "E_OFFLINE_RESET"
-    ? candidate : "E_OFFLINE_CARRIER";
+  if (candidate === "E_OFFLINE_AUTHORITY") {
+    return new SnapbackRefusal({
+      code: candidate,
+      family: "offline",
+      message: error instanceof Error ? error.message : String(error),
+      site: "RangeStore.commit",
+      rewrite: "keep the held coverage; a delivery for another principal, generation, or auth epoch is refused, not committed — open the partition it belongs to",
+      guide: "offline",
+    });
+  }
+  const code = candidate === "E_OFFLINE_LOCK" || candidate === "E_OFFLINE_CARRIER" ? candidate : "E_OFFLINE_CARRIER";
   const rewrite = code === "E_OFFLINE_LOCK"
     ? "this account is open in another tab"
-    : code === "E_OFFLINE_RESET"
-      ? "cold-drain this principal after re-authentication"
-      : `install or configure the ${carrier} carrier`;
+    : `install or configure the ${carrier} carrier`;
   return new SnapbackRefusal({
     code,
     family: "offline",

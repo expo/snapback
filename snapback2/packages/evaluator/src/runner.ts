@@ -908,7 +908,8 @@ export class Runner {
       case "Exists": {
         // @ref LLP 1002#9-the-client-snapback2client-snapback2react-snapback2test — absence and authorization are authority-only.
         const key = data.key.map((term: any) => this.ruleTerm(term, old, next));
-        const pinnedDigest = sha256(JSON.stringify([data.table, data.index, key.map(wireJson)])); // wire fact, LLP 1012 §7
+        // The verdict's inputs digest as the wire defines it: `sha256(canonical([table, index, key]))` (LLP 1012 §7).
+        const pinnedDigest = sha256(canonicalJson([data.table, data.index, key.map(wireJson)]));
         const memoKey = `${ruleHash}:${pinnedDigest}`;
         const memoized = this.ruleMemo.get(memoKey);
         if (memoized !== undefined) {

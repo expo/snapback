@@ -240,7 +240,7 @@ test("a committed settlement lands in the same swap as the log tail rows, or not
   await rm(root, { recursive: true, force: true });
 });
 
-test("online writes carry the replay envelope under custody and today's bytes without; a transport failure enqueues; a queued outbox keeps FIFO", async () => {
+test("online writes carry the replay envelope under custody; a transport failure enqueues; a queued outbox keeps FIFO", async () => {
   const root = await tempRoot();
   let dead = false;
   const owner = fakeOwner({ dead: () => dead });
@@ -267,32 +267,66 @@ test("online writes carry the replay envelope under custody and today's bytes wi
   assert.deepEqual(owner.executions.map((item) => (item.args as any).body), ["plain"]);
   assert.deepEqual(await spying.outbox.entries(), [], "an online write that settled in its own call is retired from the queue");
   spying.close();
-  // Without custody (a fresh partition that never earned a grant) the bytes are today's.
-  const plainRoot = await tempRoot();
-  const plainBodies: string[] = [];
-  const plain = createClient({
-    url: "http://bytes.test", as: "alice", offline: { store: fileRangeStore(plainRoot) },
-    fetch: async (input, init) => {
-      if (new URL(String(input)).pathname === "/api/mutation") plainBodies.push(String(init?.body));
-      return owner.fetch(input, init);
-    },
-  });
-  await plain.ready;
-  assert.equal((await plain.mutation(api.deliveries.post as any, post("no custody"))).state, "committed");
-  assert.equal(plainBodies[0], JSON.stringify({ op: "deliveries.post", args: post("no custody") }), "no custody, no envelope");
-  plain.close();
-  await rm(plainRoot, { recursive: true, force: true });
   dead = true;
   const queued = await client.mutation(api.deliveries.post as any, post("after failure"));
   assert.equal(queued.state, "queued", "a network failure enqueues instead of throwing");
   dead = false;
   const behind = await client.mutation(api.deliveries.post as any, post("behind"));
   assert.equal(behind.state, "committed", "the queued intent drained first, then the new write settled in its own call");
-  // The plain write never entered the ledger; the three under custody did, in order.
+  // Every write under custody entered the ledger, in order.
   assert.deepEqual(owner.executions.map((item) => (item.args as any).body), ["plain", "after failure", "behind"]);
   assert.deepEqual((await client.outbox.entries()).map((entry) => [entry.state, (entry.args as any).body]), [["committed", "after failure"]]);
   client.close();
   await rm(root, { recursive: true, force: true });
+});
+
+// @ref LLP 1012#7-writes-offline — with a partition open there is no plain-bytes
+// path: no grant or no bound refuses before any request, so a 503 after a commit
+// can never double-send; only a client with no store sends today's bytes.
+test("a store with an open partition never sends plain bytes: no grant or no bound refuses E_OFFLINE_ID_BLOCK with no request; a client with no store sends today's bytes", async () => {
+  const owner = fakeOwner();
+  const bodies: string[] = [];
+  const spy = async (input: string | URL | Request, init?: RequestInit) => {
+    if (new URL(String(input)).pathname === "/api/mutation") bodies.push(String(init?.body));
+    return owner.fetch(input, init);
+  };
+  // No grant: a fresh partition that neither logged in nor drained a query.
+  const grantlessRoot = await tempRoot();
+  const grantless = createClient({ url: "http://custody.test", as: "alice", fetch: spy, offline: { store: fileRangeStore(grantlessRoot) } });
+  await grantless.ready;
+  assert.equal(owner.grantsMinted(), 0);
+  await assert.rejects(
+    () => grantless.mutation(api.deliveries.post as any, post("no grant")),
+    (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_OFFLINE_ID_BLOCK"
+      && error.envelope.family === "offline" && /grant/.test(error.message) && typeof error.envelope.rewrite === "string",
+  );
+  assert.deepEqual(bodies, [], "no grant: no request left the device");
+  grantless.close();
+  await rm(grantlessRoot, { recursive: true, force: true });
+  // No bound: a partition with a grant whose /api/program answered 404, so the write cannot be priced.
+  const unboundRoot = await tempRoot();
+  await seededStore(fileRangeStore(unboundRoot));
+  const unbound = createClient({
+    url: "http://custody.test", as: "alice", offline: { store: fileRangeStore(unboundRoot) },
+    fetch: async (input, init) => new URL(String(input)).pathname === "/api/program"
+      ? new Response(JSON.stringify({ code: "E_OP_UNKNOWN", family: "op", message: "not active", guide: "op/manifest" }), { status: 404, headers: { "content-type": "application/json" } })
+      : spy(input, init),
+  });
+  await unbound.ready;
+  assert.equal(owner.grantsMinted(), 1, "the resume minted a grant");
+  await assert.rejects(
+    () => unbound.mutation(api.deliveries.post as any, post("no bound")),
+    (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_OFFLINE_ID_BLOCK" && /bound/.test(error.message),
+  );
+  assert.deepEqual(bodies, [], "no bound: no request left the device");
+  assert.deepEqual(await unbound.outbox.entries(), [], "a refused write is not an intent");
+  unbound.close();
+  await rm(unboundRoot, { recursive: true, force: true });
+  // No store: today's bytes, byte-identical.
+  const plain = createClient({ url: "http://custody.test", as: "alice", fetch: spy });
+  assert.equal((await plain.mutation(api.deliveries.post as any, post("no store"))).state, "committed");
+  assert.deepEqual(bodies, [JSON.stringify({ op: "deliveries.post", args: post("no store") })], "no store, no envelope");
+  plain.close();
 });
 
 test("useMutation resolves last queued offline with pending filtered by op, and useOutbox lists the outbox at cold start", async () => {

@@ -20,6 +20,7 @@ const V = "s2id-00000000000000000000000000000006-0000000000000005";
 const generation = "d".repeat(64);
 const schemaHash = "e".repeat(64);
 const planHash = "f".repeat(64);
+/** The version-1 carrier's seven state stores; version 3 keeps four and deletes the three projections. */
 const STATE_STORES = ["rows", "answers", "ranges", "absences", "verdicts", "outbox", "meta"];
 
 const photo = (id: string, width = 8) => ({ id, width, height: 8 });

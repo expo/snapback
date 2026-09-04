@@ -130,6 +130,8 @@ export interface EvaluatorClosureReceipt {
     absence: boolean;
     halo: { table: string; id: string; row: TaggedValue } | null;
     n2_key: null;
+    /** Members a later swap evicted from this page; absent when none (the goldens' bytes carry none). */
+    evicted_ids?: string[];
   }>;
   absences: Array<[string, string, TaggedValue[]]>;
   verdicts: Array<{

@@ -116,8 +116,12 @@ export function decodeHeldProgram(value: unknown): HeldProgram | undefined {
   return { generation, schemaHash, schema: schema as HeldProgram["schema"], programs: held };
 }
 
+// @ref LLP 1012#15-diagnostics — a local authority violation (a delivery for
+// another principal, generation, or auth epoch; a commit with no partition
+// open) has its own code: it is never `E_OFFLINE_RESET`, which drops held
+// coverage, so a healthy store is refused a delivery and keeps everything.
 export class OfflineAuthorityError extends Error {
-  readonly code = "E_OFFLINE_RESET";
+  readonly code = "E_OFFLINE_AUTHORITY";
   constructor(message: string) {
     super(message);
     this.name = "OfflineAuthorityError";

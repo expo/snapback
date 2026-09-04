@@ -129,6 +129,56 @@ test("RangeStore stores rows once and shares them across answers on both carrier
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
+// @ref LLP 1012#4-the-range-store — the carrier holds only what `coverage()` reads back.
+test("the IndexedDB carrier keeps rows, answers, outbox, meta, and bytes; the version-2 projection stores are deleted and never written", async () => {
+  const { database, factory } = indexedFactory();
+  const name = "snapback2:dev:alice";
+  const fresh: any = factory();
+  await fresh.open("dev:alice");
+  assert.deepEqual(database.storeNames(name), ["answers", "bytes", "meta", "outbox", "rows"], "a fresh database has exactly the stores coverage() reads");
+  await fresh.commit({ deliveries: [{
+    op: "thread", args: {}, state: "complete", data: [ref("messages", "m1")], next: null, seq: 1, rows: [row("messages", "m1")],
+    receipt: { ranges: [range({ rowIds: ["m1"] })], absences: [["messages", "byId", ["m9"]]], verdicts: [{ ruleHash: "a".repeat(64), pinnedInputsDigest: "b".repeat(64), principal: "dev:alice", authEpoch: 1, result: true }] },
+  }] });
+  assert.deepEqual(database.storeNames(name), ["answers", "bytes", "meta", "outbox", "rows"], "a swap with a receipt writes no projection store");
+  assert.equal((await fresh.coverage()).ranges.length, 1, "coverage derives the range from the answer's receipt");
+  assert.equal((await fresh.coverage()).absences.length, 1);
+  assert.equal((await fresh.coverage()).verdicts.length, 1);
+  await fresh.close?.();
+  // A version-2 database (the seven state stores plus bytes) loses its three projections on open and keeps its answers.
+  database.seedVersion2(name, ["rows", "answers", "ranges", "absences", "verdicts", "outbox", "meta", "bytes"]);
+  const upgraded: any = factory();
+  await upgraded.open("dev:alice");
+  assert.deepEqual(database.storeNames(name), ["answers", "bytes", "meta", "outbox", "rows"], "version 3 deleted the projections");
+  await upgraded.close?.();
+});
+
+test("a pooled row no answer references any more leaves the swap: a replaced closure drops what it stopped pooling, a dropped answer drops its pool", async () => {
+  const root = await tempRoot();
+  const store = fileRangeStore(root)();
+  await store.open("dev:alice");
+  // `mem1` is pooled as a rule input (never cited by `data`); it survives only through the answer's refs.
+  await store.commit({ deliveries: [{
+    op: "thread", args: {}, state: "complete", data: [ref("messages", "m1")], next: null, seq: 1,
+    rows: [row("messages", "m1"), row("memberships", "mem1")], receipt: emptyReceipt(),
+  }, {
+    op: "other", args: {}, state: "complete", data: [ref("messages", "m2")], next: null, seq: 1,
+    rows: [row("messages", "m2"), row("memberships", "mem2")], receipt: emptyReceipt(),
+  }] });
+  assert.deepEqual((await store.coverage()).rows.map((item) => item.id).sort(), ["m1", "m2", "mem1", "mem2"], "pooled rule inputs are held");
+  // The same answer re-delivered without `mem1` in its closure: the row is referenced by nothing and leaves.
+  await store.commit({ deliveries: [{
+    op: "thread", args: {}, state: "complete", data: [ref("messages", "m1")], next: null, seq: 2,
+    rows: [row("messages", "m1")], receipt: emptyReceipt(),
+  }] });
+  assert.deepEqual((await store.coverage()).rows.map((item) => item.id).sort(), ["m1", "m2", "mem2"], "a replaced closure drops the row it stopped pooling");
+  assert.deepEqual((await store.coverage()).evicted, [], "leaving unreferenced is not an eviction");
+  await store.commit({ dropAnswers: ["other\u0000{}"] });
+  assert.deepEqual((await store.coverage()).rows.map((item) => item.id).sort(), ["m1"], "a dropped answer takes its pool with it");
+  await store.close?.();
+  await rm(root, { recursive: true, force: true });
+});
+
 test("file and IndexedDB swaps are atomic when persistence fails", async () => {
   const root = await tempRoot();
   let failRename = false;
@@ -593,26 +643,36 @@ test("a sealed cold start stays unreadable until auth.me confirms the same beare
   await rm(root, { recursive: true, force: true });
 });
 
-test("an envelope cannot switch the open principal partition", async () => {
+// @ref LLP 1012#15-diagnostics — a partition mismatch is `E_OFFLINE_AUTHORITY`,
+// never `E_OFFLINE_RESET`: the held coverage survives the refused delivery.
+test("an envelope cannot switch the open principal partition: E_OFFLINE_AUTHORITY, and the held coverage survives", async () => {
   const root = await tempRoot();
+  let reads = 0;
   const client = createClient({
     url: "http://authority.test", as: "alice", offline: { store: fileRangeStore(root) },
     fetch: async (input) => {
       const metadata = metadataResponse(input);
       if (metadata) return metadata;
-      const wrong = envelope(["secret"]);
-      wrong.authority.principal = "dev:bob";
-      return new Response(JSON.stringify(wrong), { status: 200 });
+      const value = envelope([reads === 0 ? "held" : "secret"], String(reads + 1).repeat(64), reads + 1);
+      if (reads++ > 0) value.authority.principal = "dev:bob";
+      return new Response(JSON.stringify(value), { status: 200 });
     },
   });
   await client.ready;
+  await client.query(api.messages.thread, {});
   await assert.rejects(client.query(api.messages.thread, {}), (error: unknown) =>
-    error instanceof SnapbackRefusal && error.code === "E_OFFLINE_RESET");
-  client.close();
+    error instanceof SnapbackRefusal && error.code === "E_OFFLINE_AUTHORITY" && error.envelope.family === "offline"
+      && error.envelope.site === "RangeStore.commit" && typeof error.envelope.rewrite === "string");
+  await client.offline();
+  const held = await client.query<any, any>(api.messages.thread as any, {});
+  assert.deepEqual("data" in held ? held.data : undefined, ["held"], "the held coverage survived the refused delivery");
+  await client.close();
   for (const principal of ["dev:alice", "dev:bob"]) {
     const inspect = fileRangeStore(root)();
     await inspect.open(principal);
-    assert.equal(await inspect.answer("messages.thread", {}), undefined);
+    const answer = await inspect.answer("messages.thread", {});
+    if (principal === "dev:alice") assert.deepEqual(answer?.data, ["held"], "alice's coverage is intact on disk");
+    else assert.equal(answer, undefined, "nothing was committed under the delivery's principal");
     await inspect.close?.();
   }
   await rm(root, { recursive: true, force: true });
@@ -713,10 +773,10 @@ test("generation and auth-epoch mismatches cannot replace held coverage", async 
   await client.ready;
   await client.query(api.messages.thread, {});
   await assert.rejects(client.query(api.messages.thread, {}), (error: unknown) =>
-    error instanceof SnapbackRefusal && error.code === "E_OFFLINE_RESET");
+    error instanceof SnapbackRefusal && error.code === "E_OFFLINE_AUTHORITY");
   await client.offline();
   const held = await client.query<any, any>(api.messages.thread as any, {});
-  assert.deepEqual("data" in held ? held.data : undefined, ["held"]);
+  assert.deepEqual("data" in held ? held.data : undefined, ["held"], "the fence refused the delivery and kept the coverage");
   await client.close();
   await rm(root, { recursive: true, force: true });
 });

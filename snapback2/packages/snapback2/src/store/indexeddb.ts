@@ -8,11 +8,17 @@ import {
 } from "./range-store.js";
 import type { ByteDelta } from "./byte-cache.js";
 
-const STORE_NAMES = ["rows", "answers", "ranges", "absences", "verdicts", "outbox", "meta"] as const;
+// @ref LLP 1012#4-the-range-store — the carrier holds exactly what `coverage()`
+// reads back: rows, answers (their receipts inside), the outbox, and the meta
+// record. The version-1 `ranges`/`absences`/`verdicts` projections were written
+// and never read; version 3 deletes them so nothing on the device looks
+// authoritative without being the source.
+const STORE_NAMES = ["rows", "answers", "outbox", "meta"] as const;
+const LEGACY_STORES = ["ranges", "absences", "verdicts"] as const;
 /** Byte payloads are keyed by `byteKey` and changed by delta, never cleared with the state stores. */
 const BYTES_STORE = "bytes";
 const ALL_STORES = [...STORE_NAMES, BYTES_STORE];
-const DATABASE_VERSION = 2;
+const DATABASE_VERSION = 3;
 type StoreName = typeof STORE_NAMES[number];
 type Entry = { key: string; value: unknown };
 
@@ -59,6 +65,9 @@ function openDatabase(factory: IDBFactory, name: string): Promise<IDBDatabase> {
       for (const store of ALL_STORES) {
         if (!request.result.objectStoreNames.contains(store)) request.result.createObjectStore(store, { keyPath: "key" });
       }
+      for (const store of LEGACY_STORES) {
+        if (request.result.objectStoreNames.contains(store)) request.result.deleteObjectStore(store);
+      }
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error ?? new Error("IndexedDB open failed"));
@@ -84,26 +93,9 @@ function record(values: Entry[]): Record<string, any> {
 }
 
 function projections(state: PersistedRangeState): Record<StoreName, Entry[]> {
-  const ranges: Entry[] = [];
-  const absences: Entry[] = [];
-  const verdicts: Entry[] = [];
-  for (const [answerKey, answer] of Object.entries(state.answers)) {
-    for (const [index, value] of (answer.receipt?.ranges ?? []).entries()) {
-      ranges.push({ key: `${answerKey}\u0000${index}`, value });
-    }
-    for (const [index, value] of (answer.receipt?.absences ?? []).entries()) {
-      absences.push({ key: `${answerKey}\u0000${index}`, value });
-    }
-    for (const [index, value] of (answer.receipt?.verdicts ?? []).entries()) {
-      verdicts.push({ key: `${answerKey}\u0000${index}`, value });
-    }
-  }
   return {
     rows: entries(state.rows),
     answers: entries(state.answers),
-    ranges,
-    absences,
-    verdicts,
     outbox: entries(state.outbox),
     meta: [{
       key: "state",

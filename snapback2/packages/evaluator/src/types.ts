@@ -44,6 +44,8 @@ export interface ReceiptRange {
   absence: boolean;
   halo: RowRecord | null;
   n2_key: Value[] | null;
+  /** Members a later swap evicted from this page (LLP 1012 §5); a page with a hole covers nothing whole. */
+  evicted_ids?: string[];
 }
 
 export interface Verdict {

@@ -81,6 +81,8 @@ export interface EnqueuePrediction {
   predicted: boolean;
   overlay: OverlayRow[];
   trace: OutboxTrace;
+  /** Maintained targets the overlay intentionally omits (LLP 1012 §7); recorded on the entry when non-empty. */
+  omitted?: string[];
 }
 
 export interface OutboxLedgerOptions {
@@ -168,14 +170,6 @@ export class OutboxLedger {
     return this.serial(action);
   }
 
-  /** Whether custody can price a slice for `op` now: a current grant inside the fence with a known bound and ids left. */
-  async canEnqueue(op: string): Promise<boolean> {
-    const grant = await this.grant();
-    if (!grant || this.pastFence(grant)) return false;
-    const bound = (await this.store.outbox.bounds())[op];
-    return bound !== undefined && grant.used + 1 + bound <= grant.count;
-  }
-
   pastFence(grant: Pick<OutboxGrant, "mintedAt">): boolean {
     return this.options.now() - grant.mintedAt > this.options.fenceMs;
   }
@@ -190,9 +184,9 @@ export class OutboxLedger {
       if (!grant) {
         throw new OutboxRefusal(
           "E_OFFLINE_ID_BLOCK",
-          "this device holds no replay grant; log in or resume online before writing offline",
+          "this device holds no replay grant; log in, or drain a query online, before writing",
           "client.outbox.enqueue",
-          "resume as this principal for a grant, then enqueue a new intent",
+          "resume as this principal for a grant (a login, or a query with { drain: true } reaching its watermark), then send again",
         );
       }
       if (this.pastFence(grant)) {
@@ -238,6 +232,7 @@ export class OutboxLedger {
         issuedSeq: input.issuedSeq,
         state: "queued",
         ...(prediction?.predicted ? { predicted: true } : {}),
+        ...(prediction?.predicted && prediction.omitted !== undefined && prediction.omitted.length > 0 ? { omitted: [...prediction.omitted] } : {}),
         trace: prediction?.trace ?? input.trace ?? emptyTrace(),
         createdAt: now,
         updatedAt: now,

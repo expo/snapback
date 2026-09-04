@@ -183,12 +183,13 @@ impl Refusal {
 }
 
 #[cfg(test)]
-const OFFLINE_CODES: [&str; 5] = [
+const OFFLINE_CODES: [&str; 6] = [
     "E_OFFLINE_RESET",
     "E_OFFLINE_RESUME",
     "E_OFFLINE_INTENT_EXPIRED",
     "E_OFFLINE_INTENT_REUSE",
     "E_OFFLINE_ID_BLOCK",
+    "E_OFFLINE_AUTHORITY",
 ];
 
 fn offline_site_and_rewrite(code: &str) -> (&'static str, &'static str) {
@@ -212,6 +213,12 @@ fn offline_site_and_rewrite(code: &str) -> (&'static str, &'static str) {
         "E_OFFLINE_ID_BLOCK" => (
             "/api/mutation.replay.offset",
             "consume an unused contiguous slice inside the grant and name the intent <grant>:<offset>",
+        ),
+        // @ref LLP 1012#15-diagnostics — a local authority violation is never a
+        // reset: the client keeps its held coverage and refuses the delivery.
+        "E_OFFLINE_AUTHORITY" => (
+            "/api/query.authority.principal",
+            "keep the held coverage; a delivery for another principal, generation, or auth epoch is refused, not committed — open the partition it belongs to",
         ),
         _ => panic!("{code} is not an offline diagnostic"),
     }

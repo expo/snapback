@@ -16,6 +16,7 @@ import {
   type Value,
 } from "./evaluator";
 import { canonicalSchemaJson } from "./certificate-identity";
+import { EvalError } from "./errors";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -772,6 +773,42 @@ const expectCode = (run: () => unknown, code: string, label: string) => {
   const broken = new ClientStore(logSchema, drainedReceipt({ Array: [{ Int: 9 }, { Id: "d9" }] }));
   const uncovered = broken.reexecute(thread, threadContext("c1"));
   assert(uncovered.state === "partial" && uncovered.partialSites.includes("thread.1"), "a broken drain chain covered a thread");
+  // Interior eviction (Muse M1): a page that lost a member since it was recorded is no link — the thread is partial, not fresh.
+  const holed = drainedReceipt({ Array: [{ Int: 2 }, { Id: "d2" }] });
+  holed.ranges[0] = { ...holed.ranges[0]!, row_ids: ["d1", "d2"], evicted_ids: ["d0"] };
+  const holedReplay = new ClientStore(logSchema, holed).reexecute(thread, threadContext("c1"));
+  assert(holedReplay.state === "partial" && holedReplay.partialSites.includes("thread.1"), "a drained page with an interior eviction still covered the thread");
+  // A viewed view-once row as the last row of a Limit page (grok 3a): absent to the twin, the chain still links by the recorded id.
+  const viewedLast = { ...drainedReceipt({ Array: [{ Int: 2 }, { Id: "d2" }] }), rows: rows.filter((row) => row.id !== "d2") };
+  const viewedReplay = new ClientStore(logSchema, viewedLast).reexecute(thread, threadContext("c1"));
+  assert(viewedReplay.state === "fresh", `a viewed last row broke the drain chain: ${viewedReplay.partialSites.join(",")}`);
+  assert(
+    canonicalValue(viewedReplay.execution.result) === canonicalValue({ Array: [
+      { Row: { id: { Id: "d3" }, message: rows[4]!.row } },
+      { Row: { id: { Id: "d1" }, message: rows[3]!.row } },
+    ] }),
+    "the viewed row rendered, or the drained thread lost a row",
+  );
+  // A middle page re-marked Exhausted (grok 3b): a later page of the group holding a row the chain does not is refused;
+  // one whose rows the chain already holds adds nothing and is tolerated.
+  const d4 = { table: "deliveries", id: "d4", row: delivery("d4", "c1", "m1", 4) };
+  const remarked = (tailIds: string[]): ClosureReceipt => ({
+    ...drainedReceipt({ Array: [{ Int: 2 }, { Id: "d2" }] }),
+    rows: [...rows, d4],
+    ranges: [
+      page("inbox.0", "byRecipientAt", [viewer], "Asc", null, ["d1", "d2"], "Limit"),
+      page("inbox.0", "byRecipientAt", [viewer], "Asc", { Array: [{ Int: 2 }, { Id: "d2" }] }, ["d3"], "Exhausted"),
+      page("inbox.0", "byRecipientAt", [viewer], "Asc", { Array: [{ Int: 3 }, { Id: "d3" }] }, tailIds, "Exhausted"),
+    ],
+  });
+  const overClaim = new ClientStore(logSchema, remarked(["d4"])).reexecute(thread, threadContext("c1"));
+  assert(overClaim.state === "partial" && overClaim.partialSites.includes("thread.1"), "a page past a re-marked Exhausted page still holding a row was counted as drained");
+  const subset = new ClientStore(logSchema, remarked(["d3"])).reexecute(thread, threadContext("c1"));
+  assert(subset.state === "fresh", `a page adding no row to the chain broke the drain: ${subset.partialSites.join(",")}`);
+  // An exact page with a hole covers nothing whole either (the store calls its answer partial/evicted).
+  const exactHoled: ClosureReceipt = { ...drainedReceipt(null), ranges: [{ ...page("thread.1", "byRecipientConversationAt", [viewer, { Id: "c1" }], "Desc", null, ["d3", "d1"], "Exhausted"), take: 50, evicted_ids: ["d5"] }] };
+  const exactReplay = new ClientStore(logSchema, exactHoled).reexecute(thread, threadContext("c1"));
+  assert(exactReplay.state === "partial" && exactReplay.partialSites.includes("thread.1"), "an exact page with an interior eviction still covered its site");
   // The trace: every point read carries its index, key, and the wire digest it saw; a hidden hit reads as an absence.
   const points = replay.execution.trace.points;
   const membershipPoint = points.find((point) => point.site === "thread.0");
@@ -813,6 +850,47 @@ const expectCode = (run: () => unknown, code: string, label: string) => {
       === JSON.stringify([["notes", "n1", canonicalValue({ Row: { id: { Id: "n1" }, body: { String: "a" } } })], ["notes", "n2", null]]),
     `write set was ${JSON.stringify(written.execution.writes)}`,
   );
+}
+
+// @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — an unseen
+// schema shape never hashes equal to a known one: a field the serde struct does
+// not carry is refused, an unknown variant hashes deep-sorted and unlike anything known.
+{
+  const known = { tables: { notes: table({ id: "Id", body: { Text: { max: 10 } } }) }, maintains: [] };
+  const knownHash = sha256(canonicalSchemaJson(known));
+  const withIndexField = structuredClone(known) as any;
+  withIndexField.tables.notes.indexes.byId.shard = 3;
+  let refused: unknown;
+  try { canonicalSchemaJson(withIndexField); } catch (error) { refused = error; }
+  assert(refused instanceof EvalError && refused.code === "E_SCHEMA" && /index field shard/.test(refused.message), "a novel index field was hashed instead of refused");
+  const withColumnField = structuredClone(known) as any;
+  withColumnField.tables.notes.columns.body = { Text: { max: 10, collation: "und" } };
+  refused = undefined;
+  try { canonicalSchemaJson(withColumnField); } catch (error) { refused = error; }
+  assert(refused instanceof EvalError && /column.Text field collation/.test(refused.message), "a novel column payload was hashed instead of refused");
+  const withTableField = structuredClone(known) as any;
+  withTableField.tables.notes.ttl = 5;
+  refused = undefined;
+  try { canonicalSchemaJson(withTableField); } catch (error) { refused = error; }
+  assert(refused instanceof EvalError && /table field ttl/.test(refused.message), "a novel table field was hashed instead of refused");
+  // An unknown rule variant is kept whole, deep-sorted: the same shape in another key order hashes the same, and never as the known schema.
+  const novelRule = structuredClone(known) as any;
+  novelRule.tables.notes.rules.read = { Within: { until: 5, since: 1, of: { b: 1, a: 2 } } };
+  const reordered = structuredClone(known) as any;
+  reordered.tables.notes.rules.read = { Within: { of: { a: 2, b: 1 }, since: 1, until: 5 } };
+  const novelHash = sha256(canonicalSchemaJson(novelRule));
+  assert(novelHash === sha256(canonicalSchemaJson(reordered)), "an unknown rule variant did not hash deterministically across key orders");
+  assert(novelHash !== knownHash, "an unknown rule variant hashed as the known schema");
+  assert(canonicalSchemaJson(novelRule).includes('{"Within":{"of":{"a":2,"b":1},"since":1,"until":5}}'), `unknown variant payload was not deep-sorted: ${canonicalSchemaJson(novelRule)}`);
+  const novelConstraint = structuredClone(known) as any;
+  novelConstraint.tables.notes.constraints = [{ Monotone: { field: "at", zzz: 1, aaa: 2 } }];
+  assert(canonicalSchemaJson(novelConstraint).includes('{"Monotone":{"aaa":2,"field":"at","zzz":1}}'), "unknown constraint payload was not deep-sorted");
+  assert(sha256(canonicalSchemaJson(novelConstraint)) !== knownHash);
+  const novelColumn = structuredClone(known) as any;
+  novelColumn.tables.notes.columns.body = { Geo: { srid: 4326, dims: 2 } };
+  assert(canonicalSchemaJson(novelColumn).includes('{"Geo":{"dims":2,"srid":4326}}'), "unknown column kind payload was not deep-sorted");
+  // The known schema itself still hashes as before the strictness landed.
+  assert(knownHash === sha256(canonicalSchemaJson(structuredClone(known))), "the known hash moved");
 }
 
 console.log(

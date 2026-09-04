@@ -645,6 +645,10 @@ journey("a never-opened chat renders offline from the drained log and an offline
   if (!entry.trace?.points.some((point) => point.table === "memberships" && typeof point.digest === "string")) {
     throw new Error(`the trace lacks the membership read: ${JSON.stringify(entry.trace)}`);
   }
+  // @ref LLP 1012#7-writes-offline — `maintain messageCounts` is the server's write: the prediction names what it omits.
+  if (JSON.stringify(entry.omitted) !== JSON.stringify(["messageCounts"])) {
+    throw new Error(`the prediction did not name the omitted aggregate: ${JSON.stringify(entry.omitted)}`);
+  }
   const predicted = await bob.query(api.deliveries.thread, { conversationId: "conversation-1", c: null });
   if (!("data" in predicted) || !Array.isArray(predicted.data)) throw new Error("the predicted thread did not return rows");
   // `last 50` pages newest-first: the queued send leads.
@@ -663,4 +667,68 @@ journey("a never-opened chat renders offline from the drained log and an offline
   const replayed = JSON.stringify(local.data.map((row: LogRow) => [row.messageId, row.message?.body]));
   const served = JSON.stringify(online.data.slice(1).map((row: LogRow) => [row.messageId, row.message?.body]));
   if (replayed !== served) throw new Error(`the offline thread differed from the server's: ${replayed} vs ${served}`);
+});
+
+// @ref LLP 1012#7-writes-offline — fan-out beyond 1:1: the twin mints the
+// viewer's own delivery row under a pinned id the server does not use (the
+// server iterates every member), so the overlay is superseded by seq and
+// table, never by id: one bubble while queued, the message id stable, no
+// duplicate delivery row after settle, and every other member delivered once.
+journey("a send queued offline into a three-member group shows one bubble, keeps its message id, leaves no duplicate delivery, and reaches both other members once", async ({ as }) => {
+  const alice = as("alice");
+  const charlie = as("charlie");
+  const bob = as("bob", { store: "file", onTombstone: tombstones });
+  try {
+    const bobPrincipal = (await bob.auth.me()).viewer;
+    const charliePrincipal = (await charlie.auth.me()).viewer;
+    const trio = await alice.mutation(api.groups.groupCreate, { title: "Trio", members: [bobPrincipal, charliePrincipal] });
+    if (trio.state !== "committed") throw new Error(`group creation was ${trio.state}`);
+    const conversationId = trio.data.id;
+    // A first message lands a delivery in bob's log, whose read rule pools his membership: the send below is predictable.
+    const opener = await alice.mutation(api.deliveries.post, { conversationId, body: "welcome to the trio" });
+    if (opener.state !== "committed") throw new Error(`the opener was ${opener.state}`);
+    const drain = bob.subscribe(api.deliveries.inbox, { c: null }, () => undefined, { drain: true });
+    await drain.until((value) => (value.state === "complete" || value.state === "capped") && value.caughtUp === true
+      && "data" in value && bodies(value.data).includes("welcome to the trio"));
+    drain.close();
+    await bob.offline();
+    const sent = await bob.mutation(api.deliveries.post, { conversationId, body: "to the trio" });
+    if (sent.state !== "queued") throw new Error(`the offline send was ${sent.state}`);
+    const entry = (await bob.outbox.entries()).find((item) => item.intent === sent.intent);
+    if (entry?.predicted !== true) throw new Error("the group send was queued without a prediction");
+    if (JSON.stringify(entry.omitted) !== JSON.stringify(["messageCounts"])) throw new Error(`omitted was ${JSON.stringify(entry.omitted)}`);
+    const queued = await bob.query(api.deliveries.thread, { conversationId, c: null });
+    if (!("data" in queued) || !Array.isArray(queued.data)) throw new Error("the predicted thread did not return rows");
+    const bubbles = queued.data.filter((row: LogRow) => row.message?.id === sent.ids[0]);
+    if (bubbles.length !== 1 || bubbles[0]?.message?.body !== "to the trio") throw new Error(`expected one bubble while queued, saw ${bubbles.length}`);
+    await bob.online();
+    await bob.settled();
+    const settled = (await bob.outbox.entries()).find((item) => item.intent === sent.intent);
+    if (settled?.state !== "committed") throw new Error(`the group send settled as ${settled?.state}: ${JSON.stringify(settled?.response)}`);
+    const response = settled.response as { data?: { id?: string } };
+    if (response.data?.id !== sent.ids[0]) throw new Error("the server minted the message under another id than the prediction");
+    const served = await bob.query(api.deliveries.thread, { conversationId, c: null });
+    if (!("data" in served) || !Array.isArray(served.data)) throw new Error("the online thread did not return rows");
+    const rows = served.data.filter((row: LogRow) => row.messageId === sent.ids[0]);
+    if (rows.length !== 1 || rows[0]?.message?.id !== sent.ids[0]) throw new Error(`expected exactly one delivery row for the send online, saw ${rows.length}`);
+    // Offline again: the twin's overlay left with the settlement's tail, so the server's row is the only one.
+    await bob.offline();
+    const replayed = await bob.query(api.deliveries.thread, { conversationId, c: null });
+    if (!("data" in replayed) || !Array.isArray(replayed.data)) throw new Error("the offline thread did not return rows");
+    const duplicates = replayed.data.filter((row: LogRow) => row.messageId === sent.ids[0]);
+    if (duplicates.length !== 1) throw new Error(`the prediction's delivery row survived beside the server's: ${duplicates.length} rows`);
+    if ("predicted" in replayed && replayed.predicted?.includes(sent.intent)) throw new Error("a settled send is still marked predicted");
+    await bob.online();
+    for (const [name, member] of [["alice", alice], ["charlie", charlie]] as const) {
+      const inbox = await member.query(api.deliveries.inbox, { c: null });
+      if (!("data" in inbox) || !Array.isArray(inbox.data)) throw new Error(`${name}'s inbox did not return rows`);
+      const delivered = inbox.data.filter((row: LogRow) => row.messageId === sent.ids[0]);
+      if (delivered.length !== 1 || delivered[0]?.message?.body !== "to the trio") {
+        throw new Error(`${name} received ${delivered.length} deliveries of the group send`);
+      }
+    }
+  } finally {
+    alice.close();
+    charlie.close();
+  }
 });

@@ -129,6 +129,8 @@ export class FakeDatabase {
 
   createObjectStore(name: string): void { this.stores.set(name, new Map()); }
 
+  deleteObjectStore(name: string): void { this.stores.delete(name); }
+
   transaction(_names: string[], mode: "readonly" | "readwrite"): FakeTransaction {
     return new FakeTransaction(this.factory, this.stores, mode);
   }
@@ -179,6 +181,15 @@ export class FakeIndexedDb {
   has(name: string): boolean { return this.databases.has(name); }
 
   hasStore(name: string, store: string): boolean { return this.databases.get(name)?.has(store) ?? false; }
+
+  /** The object stores a database holds, sorted. */
+  storeNames(name: string): string[] { return [...(this.databases.get(name)?.keys() ?? [])].sort(); }
+
+  /** A database as a version-2 carrier left it: the given stores at version 2. */
+  seedVersion2(name: string, stores: readonly string[]): void {
+    this.databases.set(name, new Map(stores.map((store) => [store, new Map()])));
+    this.versions.set(name, 2);
+  }
 
   keys(name: string, store: string): string[] {
     return [...(this.databases.get(name)?.get(store)?.keys() ?? [])].sort();

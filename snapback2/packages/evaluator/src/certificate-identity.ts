@@ -2,6 +2,8 @@
 // Rust serde's BTreeMap order even when a direct TypeScript caller constructed
 // the equivalent object with a different property insertion order.
 
+import { EvalError } from "./errors";
+
 export function canonicalProgramJson(program: any): string {
   return JSON.stringify({
     ...program,
@@ -14,7 +16,15 @@ export function canonicalProgramJson(program: any): string {
 // rule identity mirror serde's struct-field order and skip rules exactly, so
 // the hash is the same whether the schema arrived in struct order (the
 // corpus) or through a sorted `serde_json::Value` (`GET /api/program`).
+//
+// An unseen shape never hashes equal to a known one: a payload with a field
+// serde's struct does not carry is refused (`E_SCHEMA`) rather than dropped,
+// since dropping would let two different schemas hash the same; an unknown
+// variant is kept whole with its payload deep-sorted, so it hashes
+// deterministically and unlike anything this normalizer knows. The twin
+// treats a refusal as `hydrating` and never predicts under it.
 export function canonicalSchemaJson(schema: any): string {
+  known(schema, ["tables", "maintains", "channels", "auth", "effects"], "schema");
   const canonical: Record<string, any> = {
     tables: sortedMap(schema.tables ?? {}, normalizeTable),
     maintains: (schema.maintains ?? []).map(normalizeMaintain),
@@ -22,11 +32,38 @@ export function canonicalSchemaJson(schema: any): string {
   if (schema.channels !== undefined && Object.keys(schema.channels).length > 0) {
     canonical.channels = sortedMap(schema.channels, normalizeChannel);
   }
+  if (schema.auth !== undefined && schema.auth !== null) known(schema.auth, ["password", "guests"], "auth");
   if (schema.auth !== undefined && (schema.auth.password || schema.auth.guests)) {
     canonical.auth = { password: schema.auth.password, guests: schema.auth.guests };
   }
   if (schema.effects !== undefined && schema.effects.length > 0) canonical.effects = schema.effects;
   return JSON.stringify(canonical);
+}
+
+/** Refuses a payload carrying a field the serde struct does not: a shape this hasher has never seen. */
+function known(record: any, fields: readonly string[], what: string): void {
+  if (typeof record !== "object" || record === null || Array.isArray(record)) {
+    throw new EvalError("E_SCHEMA", `${what} must be an object`);
+  }
+  const unknown = Object.keys(record).filter((key) => !fields.includes(key));
+  if (unknown.length > 0) {
+    throw new EvalError("E_SCHEMA", `unknown ${what} field ${unknown.join(", ")}: a schema shape newer than this evaluator`);
+  }
+}
+
+/** The struct's fields in serde order, and nothing else: `known` plus the reconstruction in one step. */
+function pick(record: any, fields: readonly string[], what: string): Record<string, any> {
+  known(record, fields, what);
+  const out: Record<string, any> = {};
+  for (const field of fields) if (record[field] !== undefined) out[field] = record[field];
+  return out;
+}
+
+/** An unknown variant's payload with every object's keys sorted: deterministic, and never a known shape's bytes. */
+function deepSorted(value: any): any {
+  if (Array.isArray(value)) return value.map(deepSorted);
+  if (typeof value !== "object" || value === null) return value;
+  return sortedMap(value, deepSorted);
 }
 
 /** A rule in serde's field order: what `Schema::rule_hash` serializes beside the schema hash. */
@@ -35,6 +72,7 @@ export function canonicalRuleJson(rule: any): string {
 }
 
 function normalizeMaintain(maintain: any): any {
+  known(maintain, ["kind", "source", "by", "target", "readable"], "maintain");
   return {
     kind: normalizeMaintainKind(maintain.kind),
     source: maintain.source,
@@ -47,10 +85,11 @@ function normalizeMaintain(maintain: any): any {
 function normalizeMaintainKind(kind: any): any {
   if (typeof kind !== "object" || kind === null) return kind;
   const [tag, data] = tagged(kind);
-  return tag === "Sum" ? { Sum: { of: data.of } } : kind;
+  return { [tag]: tag === "Sum" ? pick(data, ["of"], "maintain.kind.Sum") : deepSorted(data) };
 }
 
 function normalizeTable(table: any): any {
+  known(table, ["columns", "indexes", "rules", "constraints", "retain"], "table");
   return {
     columns: sortedMap(table.columns ?? {}, normalizeColumnType),
     indexes: sortedMap(table.indexes ?? {}, normalizeIndex),
@@ -61,10 +100,11 @@ function normalizeTable(table: any): any {
 }
 
 function normalizeIndex(index: any): any {
-  return { columns: index?.columns, unique: index?.unique };
+  return pick(index, ["columns", "unique"], "index");
 }
 
 function normalizeChannel(channel: any): any {
+  known(channel, ["args", "publish", "subscribe", "ttl_ms"], "channel");
   return {
     args: sortedMap(channel.args ?? {}, normalizeArgType),
     publish: normalizeRule(channel.publish),
@@ -75,6 +115,7 @@ function normalizeChannel(channel: any): any {
 
 function normalizeRules(rules: any): any {
   if (rules === undefined || rules === null) return rules;
+  known(rules, ["read", "insert", "update", "delete"], "rules");
   return {
     read: normalizeRule(rules.read),
     insert: normalizeRule(rules.insert),
@@ -97,43 +138,40 @@ export function normalizeRule(rule: any): any {
       return { [kind]: normalizeRule(data) };
     case "Exists":
     case "Created":
-      return { [kind]: {
-        table: data.table,
-        index: data.index,
-        key: data.key.map(normalizeRuleTerm),
-        provenance: data.provenance,
-      } };
+      return { [kind]: { ...pick(data, ["table", "index", "key", "provenance"], `rule.${kind}`), key: data.key.map(normalizeRuleTerm) } };
     case "Public":
-      return { Public: { reason: data.reason } };
+      return { Public: pick(data, ["reason"], "rule.Public") };
     default:
-      return rule;
+      return { [kind]: deepSorted(data) };
   }
 }
 
 function normalizeRuleTerm(term: any): any {
   if (typeof term !== "object" || term === null) return term;
   const [kind, data] = tagged(term);
-  return kind === "Literal" ? { Literal: normalizeValue(data) } : term;
+  if (kind === "Literal") return { Literal: normalizeValue(data) };
+  if (kind === "Field" || kind === "OldField" || kind === "NextField") return term;
+  return { [kind]: deepSorted(data) };
 }
 
 function normalizeConstraint(constraint: any): any {
   if (typeof constraint !== "object" || constraint === null) return constraint;
   const [kind, data] = tagged(constraint);
+  const what = `constraint.${kind}`;
   switch (kind) {
-    case "Unique": return { Unique: { index: data.index } };
-    case "Cap": return { Cap: { by: data.by, max: data.max } };
-    case "Immutable": return { Immutable: { fields: data.fields } };
-    case "Text": return { Text: {
-      field: data.field,
-      min: data.min ?? 0,
-      ...(data.format === undefined || data.format === null ? {} : { format: data.format }),
-    } };
-    case "FinalExistsOnInsert": return { FinalExistsOnInsert: {
-      table: data.table,
-      index: data.index,
-      key: data.key.map(normalizeRuleTerm),
-    } };
-    default: return constraint;
+    case "Unique": return { Unique: pick(data, ["index"], what) };
+    case "Cap": return { Cap: pick(data, ["by", "max"], what) };
+    case "Immutable": return { Immutable: pick(data, ["fields"], what) };
+    case "Text":
+      known(data, ["field", "min", "format"], what);
+      return { Text: {
+        field: data.field,
+        min: data.min ?? 0,
+        ...(data.format === undefined || data.format === null ? {} : { format: data.format }),
+      } };
+    case "FinalExistsOnInsert":
+      return { FinalExistsOnInsert: { ...pick(data, ["table", "index", "key"], what), key: data.key.map(normalizeRuleTerm) } };
+    default: return { [kind]: deepSorted(data) };
   }
 }
 
@@ -141,15 +179,17 @@ function normalizeColumnType(column: any): any {
   if (typeof column !== "object" || column === null) return column;
   const [kind, data] = tagged(column);
   if (kind === "Optional") return { Optional: normalizeColumnType(data) };
-  if (kind === "List") return { List: { of: normalizeColumnType(data.of), max: data.max } };
-  if (["Text", "Bytes", "Image", "Video"].includes(kind)) return { [kind]: { max: data.max } };
-  if (kind === "Enum") return { Enum: { variants: data.variants } };
-  if (kind === "Decimal") return { Decimal: { scale: data.scale } };
-  if (kind === "Money") return { Money: { currency: data.currency, scale: data.scale } };
-  if (kind === "Ref") return { Ref: { table: data.table } };
-  if (kind === "Json") return { Json: { max_bytes: data.max_bytes } };
-  return { [kind]: data };
+  const what = `column.${kind}`;
+  if (kind === "List") return { List: { ...pick(data, ["of", "max"], what), of: normalizeColumnType(data.of) } };
+  const fields = COLUMN_FIELDS[kind];
+  return { [kind]: fields === undefined ? deepSorted(data) : pick(data, fields, what) };
 }
+
+/** The payload fields of each struct-variant column kind, in serde order. */
+const COLUMN_FIELDS: Record<string, readonly string[]> = {
+  Text: ["max"], Bytes: ["max"], Image: ["max"], Video: ["max"], Enum: ["variants"], Decimal: ["scale"],
+  Money: ["currency", "scale"], Ref: ["table"], Json: ["max_bytes"],
+};
 
 function normalizeArgType(arg: any): any {
   if (typeof arg !== "object" || arg === null) return arg;

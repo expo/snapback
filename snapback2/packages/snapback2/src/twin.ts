@@ -9,7 +9,7 @@ import { queryState } from "../../evaluator/src/runner.js";
 import { ClientStore } from "../../evaluator/src/store.js";
 import { wireJson } from "../../evaluator/src/value-runtime.js";
 import type { Context, Trace } from "../../evaluator/src/types.js";
-import { DeliveryEnvelopeDecodeError, tagWireRow, type WireValue } from "./offline-protocol.js";
+import { tagWireRow, type WireValue } from "./offline-protocol.js";
 import { emptyTrace } from "./store/outbox.js";
 import type { Coverage, HeldProgram, OutboxEntry, OutboxTrace, OverlayRow } from "./store/range-store.js";
 import { closureFromCoverage, partialReasons, tagArguments, type PartialSite } from "./twin-hydrate.js";
@@ -52,6 +52,12 @@ export interface Prediction {
   partialRanges: string[];
   /** The point reads or rule inputs outside coverage that stopped the prediction. */
   uncovered: PartialSite[];
+  /**
+   * Engine-owned aggregate targets (`maintain … count`) this write updates on the
+   * server but the overlay omits, because the store does not hold them: named so
+   * a reader can tell an intentionally omitted aggregate from a lost write.
+   */
+  omitted: string[];
 }
 
 interface Hydrated {
@@ -125,7 +131,7 @@ export class Twin {
    * queued without a prediction and with an empty trace: the server judges.
    */
   async predict(op: string, args: unknown, ids: string[]): Promise<Prediction> {
-    const none: Prediction = { predicted: false, overlay: [], trace: emptyTrace(), partialRanges: [], uncovered: [] };
+    const none: Prediction = { predicted: false, overlay: [], trace: emptyTrace(), partialRanges: [], uncovered: [], omitted: [] };
     const hydrated = await this.hydrate();
     if (!hydrated) return none;
     const operation = hydrated.program.programs[op];
@@ -151,8 +157,9 @@ export class Twin {
     // An engine-owned aggregate target the store does not hold (`maintain …
     // count`) is the server's to update: it is no read of the program's and
     // nothing the viewer renders from this write, so it does not block the
-    // prediction; the overlay simply carries no count row. Every other
-    // `missing-authority` (a rule input, a write row) does.
+    // prediction; the overlay simply carries no count row, and names the
+    // target under `omitted`. Every other `missing-authority` (a rule input,
+    // a write row) does block.
     const onlyMaintainTargets = local.state === "partial"
       && local.partialSites.every((site) => site === "missing-authority")
       && local.authorityMisses !== undefined && local.authorityMisses.other === 0 && local.authorityMisses.maintainTargets.length > 0;
@@ -181,6 +188,7 @@ export class Twin {
       },
       partialRanges: uncovered.filter((site) => rangeSites.has(site)),
       uncovered: [],
+      omitted: [...new Set(local.authorityMisses?.maintainTargets ?? [])],
     };
   }
 
@@ -230,9 +238,11 @@ export class Twin {
       }
       return { program, coverage, store, predicted };
     } catch (error) {
-      // Coverage the held schema cannot tag was not delivered under this
-      // program; the held answers stand and the read is `hydrating` otherwise.
-      if (error instanceof DeliveryEnvelopeDecodeError || error instanceof EvalError || error instanceof TypeError) return undefined;
+      // Coverage the held schema cannot tag, a schema the hasher refuses (an
+      // unseen shape) or hashes unlike the program's, or an overlay row the
+      // schema rejects: not delivered under this program, so the held answers
+      // stand and the read is `hydrating`.
+      if (error instanceof Error) return undefined;
       throw error;
     }
   }

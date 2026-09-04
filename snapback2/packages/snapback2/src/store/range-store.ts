@@ -39,6 +39,12 @@ export interface ReceiptRange {
   absence: boolean;
   haloId?: string;
   ruleHash: string;
+  /**
+   * Members this page was recorded with that a later swap evicted (LLP 1012 §5):
+   * the page's answer is `partial/evicted` from then on, and the twin's
+   * drained-prefix rule (§6) no longer counts the page as a link in a complete chain.
+   */
+  evictedIds?: string[];
 }
 
 export interface Receipt {
@@ -153,6 +159,8 @@ export interface OutboxEntry {
   state: OutboxState;
   response?: unknown;
   predicted?: boolean;
+  /** Engine-owned aggregate targets the prediction's overlay omits by design (the server writes them); absent when none. */
+  omitted?: string[];
   trace?: OutboxTrace;
   createdAt: number;
   updatedAt: number;
@@ -901,7 +909,12 @@ export class PersistentRangeStore implements RangeStore {
         for (const range of answer.receipt?.ranges ?? []) {
           if (range.table !== eviction.table) continue;
           const id = eviction.id;
-          range.rowIds = range.rowIds.filter((rowId) => rowId !== id);
+          if (range.rowIds.includes(id)) {
+            range.rowIds = range.rowIds.filter((rowId) => rowId !== id);
+            // The page remembers what it lost: an interior eviction leaves a hole
+            // the twin must not paper over with "complete" (LLP 1012 §6).
+            range.evictedIds = [...(range.evictedIds ?? []), id];
+          }
           if (range.haloId === id) delete range.haloId;
         }
         if (!answer.refs.some((ref) => rowKey(ref) === key)) continue;
@@ -924,7 +937,9 @@ export class PersistentRangeStore implements RangeStore {
     }
 
     const referenced = new Set(Object.values(state.answers).flatMap((answer) => answer.refs.map(rowKey)));
-    // Rows that arrived only as unused pool entries do not survive the swap.
+    // Every pooled row joins its answer's refs above, so nothing arrives unused;
+    // a row leaves here when no answer references it any more — its answer was
+    // dropped, or replaced by a delivery whose closure no longer pools it.
     for (const key of Object.keys(state.rows)) if (!referenced.has(key)) {
       delete state.rows[key];
       delete state.rowSeq[key];
@@ -968,16 +983,18 @@ export class PersistentRangeStore implements RangeStore {
     for (const [intent, rows] of Object.entries(swap.overlay?.put ?? {})) state.overlay[intent] = clone(rows);
     // @ref LLP 1012#7-writes-offline — a prediction is discarded when its intent
     // settles: dropped on `rejected` or `expired`, and on `committed` once the
-    // server's rows have replaced it — that is, once the store holds a delivery
-    // at or past the commit's `seq` (the settlement's log tail, or any later
-    // page); a commit with no rows in its swap (no drained log to fetch a tail
-    // from) keeps the overlay until one lands. The server's rows are matched
-    // by seq, not by id: a fan-out evaluated over held rows only mints the
-    // viewer's own log row under another pinned id than the server does.
+    // server's rows have replaced it — that is, once the store holds, at or
+    // past the commit's `seq`, a page of the drained log (the settlement's
+    // tail, or any later page of that op) or a delivery carrying one of the
+    // tables the prediction wrote. An unrelated query's delivery at a later
+    // seq is no evidence the predicted rows arrived and leaves the bubble; a
+    // commit with no rows in its swap (no drained log to fetch a tail from)
+    // keeps the overlay until one lands. The server's rows are matched by
+    // seq and table, not by id: a fan-out evaluated over held rows only mints
+    // the viewer's own log row under another pinned id than the server does.
     // Decided last, over the swap's final state, so a settlement that also
     // carries a prediction can never resurrect what it settled.
-    let deliveredSeq = -1;
-    for (const answer of Object.values(state.answers)) deliveredSeq = Math.max(deliveredSeq, answer.seq);
+    const drainedOps = new Set(Object.values(state.watermarks).map((mark) => mark.op));
     for (const intent of Object.keys(state.overlay)) {
       const entry = state.outbox[intent];
       if (entry === undefined || entry.state === "rejected" || entry.state === "expired") {
@@ -986,7 +1003,16 @@ export class PersistentRangeStore implements RangeStore {
       }
       if (entry.state !== "committed") continue;
       const committedSeq = (entry.response as { seq?: unknown } | undefined)?.seq;
-      if (!Number.isSafeInteger(committedSeq) || deliveredSeq >= Number(committedSeq)) delete state.overlay[intent];
+      if (!Number.isSafeInteger(committedSeq)) {
+        delete state.overlay[intent];
+        continue;
+      }
+      const tables = new Set(state.overlay[intent]!.map((row) => row.table));
+      const replaced = Object.values(state.answers).some((answer) => answer.seq >= Number(committedSeq)
+        && (drainedOps.has(answer.op)
+          || answer.refs.some((ref) => tables.has(ref.table))
+          || (answer.receipt?.ranges ?? []).some((range) => tables.has(range.table))));
+      if (replaced) delete state.overlay[intent];
     }
     return state;
   }

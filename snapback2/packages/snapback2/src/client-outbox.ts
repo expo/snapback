@@ -62,18 +62,17 @@ export interface SubmitMutationOptions {
   drain(): Promise<{ stopped: boolean }>;
 }
 
-function transportFailure(error: unknown): boolean {
-  return isSnapbackRefusal(error) && error.retryable && (error.code === "E_NETWORK" || error.code === "E_TRANSPORT");
-}
-
 /**
- * A client with no store, or a partition with no custody yet (no grant or no
- * bound), sends today's bytes. With custody every write carries the replay
- * envelope, online or not: the twin runs it locally for its ids and trace, the
- * intent is durable before the request, and the server's ledger makes the
- * online path exactly-once too — a 503 after a commit can no longer double-send
- * (LLP 1002 §9, LLP 1012 §7). Offline, behind queued intents a drain could not
- * clear, or after a transport failure, the write resolves `queued`.
+ * A client with no store (no partition open) sends today's bytes. With a
+ * partition open every write carries the replay envelope, online or not: the
+ * twin runs it locally for its ids and trace, the intent is durable before the
+ * request, and the server's ledger makes the online path exactly-once too — a
+ * 503 after a commit can no longer double-send (LLP 1002 §9, LLP 1012 §7). A
+ * partition with no custody yet (no grant, or an unknown write bound) refuses
+ * `E_OFFLINE_ID_BLOCK` with no request rather than fall back to plain bytes:
+ * that window is exactly where a 503 after a commit would double-send.
+ * Offline, behind queued intents a drain could not clear, or after a transport
+ * failure, the write resolves `queued`.
  */
 export async function submitMutation<Result>(options: SubmitMutationOptions): Promise<MutationResult<Result>> {
   const { runtime } = options;
@@ -105,14 +104,6 @@ export async function submitMutation<Result>(options: SubmitMutationOptions): Pr
       stopped = true;
     }
     if (stopped) return queued(await enqueue());
-  }
-  if (!(await runtime.outbox.canEnqueue(options.op))) {
-    try {
-      return await plain();
-    } catch (error) {
-      if (transportFailure(error)) return queued(await enqueue());
-      throw error;
-    }
   }
   const entry = await enqueue();
   let stopped: boolean;

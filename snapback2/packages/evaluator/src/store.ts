@@ -137,7 +137,7 @@ export class ClientStore {
     const partial = new Set(misses);
     for (const range of trace.ranges) {
       const covered = this.coverage.ranges.some(
-        (coverage) => rangeCovered(coverage, range),
+        (coverage) => whole(coverage) && rangeCovered(coverage, range),
       ) || this.drainedPrefixCovers(range.table, range.index, range.prefix, range.rule_hash);
       if (!covered || (this.rangeDeletions.get(range.site) ?? 0) > 1)
         partial.add(range.site);
@@ -326,6 +326,7 @@ export class ClientStore {
       && this.drainedPrefixCovers(table, index, prefix, scopedRuleHash(this.schema, readRule))) return true;
     return this.coverage.ranges.some(
       (range) =>
+        whole(range) &&
         range.table === table &&
         range.index === index &&
         valuesEqual(range.prefix, prefix) &&
@@ -356,7 +357,18 @@ export class ClientStore {
       }));
   }
 
-  /** The drained prefixes: for each (table, index, prefix, rule) a chain of held pages from `after: null` to `Exhausted`. */
+  /**
+   * The drained prefixes: for each (table, index, order, rule, prefix) group a
+   * chain of held pages from `after: null` to `Exhausted`, each page's `after`
+   * the previous page's last recorded row — by that row's index suffix when it
+   * is held, by its id alone when it is not (a viewed view-once row is absent
+   * to the twin but the server's cursor still names it), which needs the index
+   * to end in `id`. A page with a hole (`evicted_ids`) is no link: the store
+   * already calls its answer `partial/evicted`. And once the chain is complete,
+   * every other page of the group must add no row the chain does not hold — a
+   * page past a re-marked `Exhausted` that still holds rows would let a scan
+   * over-claim. Every `after: null` page is tried as a chain start.
+   */
   private drainedPrefixes(): DrainedPrefix[] {
     if (this.drained) return this.drained;
     const groups = new Map<string, ReceiptRange[]>();
@@ -369,32 +381,49 @@ export class ClientStore {
     }
     const drained: DrainedPrefix[] = [];
     for (const pages of groups.values()) {
-      const first = pages.find((page) => page.after === null);
-      if (!first) continue;
-      const index = this.schema.tables?.[first.table]?.indexes?.[first.index];
+      const starts = pages.filter((page) => page.after === null);
+      if (starts.length === 0) continue;
+      const index = this.schema.tables?.[starts[0]!.table]?.indexes?.[starts[0]!.index];
       if (!index) continue;
-      const suffixColumns: string[] = index.columns.slice(first.prefix.length);
-      const byAfter = new Map<string, ReceiptRange>();
-      for (const page of pages) if (page.after !== null) byAfter.set(canonicalValue(page.after), page);
-      const seen = new Set<ReceiptRange>();
-      let page = first;
-      while (page.stop !== "Exhausted" && !seen.has(page)) {
-        seen.add(page);
+      const suffixColumns: string[] = index.columns.slice(starts[0]!.prefix.length);
+      const endsInId = suffixColumns[suffixColumns.length - 1] === "id";
+      const later = pages.filter((page) => page.after !== null);
+      const afterComponents = (page: ReceiptRange): Value[] =>
+        isVariant(page.after!, "Array") ? page.after!.Array : [page.after!];
+      const linked = (page: ReceiptRange): ReceiptRange | undefined => {
         const lastId = page.row_ids[page.row_ids.length - 1];
-        const row = lastId === undefined ? null : this.byId(page.table, lastId);
-        if (row === null) break;
-        const suffix = suffixColumns.map((column) => fieldOrNull(row, column));
-        const next = byAfter.get(canonicalValue({ Array: suffix }))
-          ?? (suffix.length === 1 ? byAfter.get(canonicalValue(suffix[0]!)) : undefined);
-        if (!next) break;
-        page = next;
-      }
-      if (page.stop !== "Exhausted") continue;
+        if (lastId === undefined) return undefined;
+        const row = this.byId(page.table, lastId);
+        if (row !== null) {
+          const suffix = suffixColumns.map((column) => fieldOrNull(row, column));
+          return later.find((candidate) => valuesEqual(afterComponents(candidate), suffix));
+        }
+        if (!endsInId) return undefined;
+        return later.find((candidate) => {
+          const components = afterComponents(candidate);
+          return components.length === suffixColumns.length && valuesEqual([components[components.length - 1]!], [{ Id: lastId }]);
+        });
+      };
+      const complete = starts.some((first) => {
+        const seen = new Set<ReceiptRange>();
+        let page: ReceiptRange | undefined = first;
+        while (page !== undefined && !seen.has(page)) {
+          if (!whole(page)) return false;
+          seen.add(page);
+          if (page.stop === "Exhausted") break;
+          page = linked(page);
+        }
+        if (page === undefined || page.stop !== "Exhausted") return false;
+        const held = new Set<string>();
+        for (const link of seen) for (const id of link.row_ids) held.add(id);
+        return pages.every((other) => seen.has(other) || other.row_ids.every((id) => held.has(id)));
+      });
+      if (!complete) continue;
       drained.push({
-        table: first.table,
-        ruleHash: first.rule_hash,
-        columns: index.columns.slice(0, first.prefix.length),
-        prefix: first.prefix,
+        table: starts[0]!.table,
+        ruleHash: starts[0]!.rule_hash,
+        columns: index.columns.slice(0, starts[0]!.prefix.length),
+        prefix: starts[0]!.prefix,
       });
     }
     this.drained = drained;
@@ -459,6 +488,11 @@ export class ClientStore {
   }
 }
 
+
+/** A page that lost no member since it was recorded: only such a page covers what it says (LLP 1012 §5, §6). */
+function whole(range: ReceiptRange): boolean {
+  return range.evicted_ids === undefined || range.evicted_ids.length === 0;
+}
 
 function nullableValueEqual(left: Value | null, right: Value | null): boolean {
   return left === null ? right === null : right !== null && valuesEqual([left], [right]);

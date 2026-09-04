@@ -1,20 +1,19 @@
 # Offline
 
 `offline.store`: a durable carrier (IndexedDB on web, a file in tests);
-`E_OFFLINE_CARRIER` if it can't open, never memory. Per principal: session
+`E_OFFLINE_CARRIER` if it can't open. Per principal: session
 expiry seals it until they return; sign-out or another principal wipes it;
 one writer (`E_OFFLINE_LOCK`). `offline.fenceDays` (1..30) bounds trust, not
 reading: past it no predicting or replay until a resume succeeds; held
 answers read `stale`. `useQuery(op, args, { drain: true })` drains to `null`
-by the `Cursor` argument (`c` until the manifest loads), keeps the watermark,
+by the `Cursor` argument, keeps the watermark,
 watches the tail. Offline, `run()` resolves `{ state: "queued", intent, ids }`,
 durable, replayed FIFO at the next resume; `useOutbox()` is `{ entries,
 dismiss }`, `client.outbox.drain()` replays now. The twin runs the certified
 program on held rows: a covered read is exact, else `partial` with `reason`;
 a queued send is predicted into its thread. Asset bytes cache under their
 row's lease, keyed `(assetId, width)`, and leave with it;
-`offline.maxAssetBytes` (256 MiB) caps an LRU by last read, saved at the next
-swap. `offline.viewOnce(table, row)` marks rows that render once: an image
+`offline.maxAssetBytes` (256 MiB) caps an LRU by last read. `offline.viewOnce(table, row)` marks rows that render once: an image
 when fetched, a clip when played (`assetCache.markViewed`, never prefetched);
 viewed, the row reads `null`, never caches, `useAssetUrl` mints no URL,
 `assetBlob` refuses `E_ASSET_VIEWED`.
@@ -37,7 +36,8 @@ queries, to 1 MiB (`more` past it). The log op pages ascending, `after c
 first <=50`; mounted caps at 32 (`E_OFFLINE_RESUME` 413, `which`). New
 program or schema: `E_OFFLINE_RESET` (409) with the live `{ generation,
 schemaHash }`; drop held coverage, keep the outbox, fetch `/api/program`,
-cold-drain. Stale `authEpoch`: `E_AUTH_SESSION`.
+cold-drain. Stale `authEpoch`: `E_AUTH_SESSION`. Another partition's delivery:
+`E_OFFLINE_AUTHORITY`, coverage kept.
 
 ## Grants
 

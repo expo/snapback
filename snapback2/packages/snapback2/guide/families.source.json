@@ -433,6 +433,12 @@
   },
   {
     "family": "offline",
+    "code": "E_OFFLINE_AUTHORITY",
+    "wrong": "client.query(api.messages.thread, args) // a delivery for dev:bob while dev:alice's partition is open",
+    "right": "keep the held coverage: open the store as the delivery's principal (sign in as it) before committing it; never a reset"
+  },
+  {
+    "family": "offline",
     "code": "E_OFFLINE_CONFLICT",
     "wrong": "replay a queued edit whose traced row moved and read the refusal as a session error",
     "right": "the intent settles rejected with reason: \"conflict\" and site; read the current row and send a new intent"

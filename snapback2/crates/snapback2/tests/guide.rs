@@ -112,6 +112,7 @@ fn offline_guide_page_is_under_four_kilobytes_and_its_codes_have_pages() {
         "E_OFFLINE_INTENT_EXPIRED",
         "E_OFFLINE_INTENT_REUSE",
         "E_OFFLINE_ID_BLOCK",
+        "E_OFFLINE_AUTHORITY",
     ] {
         assert!(content.contains(needle), "offline guide lacks {needle}");
     }
@@ -121,6 +122,7 @@ fn offline_guide_page_is_under_four_kilobytes_and_its_codes_have_pages() {
         "E_OFFLINE_INTENT_EXPIRED",
         "E_OFFLINE_INTENT_REUSE",
         "E_OFFLINE_ID_BLOCK",
+        "E_OFFLINE_AUTHORITY",
     ] {
         let refusal = project.run(&["guide", code]);
         let text = String::from_utf8_lossy(&refusal.stdout);
