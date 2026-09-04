@@ -532,7 +532,10 @@ probed rule check derived on a disclosed row, and it skips a traced verdict no
 disclosed rule check derived (a hidden or absent row settle byte-identically);
 the rule inputs minted while a candidate turned out hidden are recorded at
 rollback and excluded from the compare set on both paths, so a hidden hit can
-no longer vouch for a verdict on the committed path; conflict precedence is
+no longer vouch for a verdict on the committed path; on the committed path a
+traced verdict no disclosed rule check derived is a conflict (strict), never a
+skip, because a commit must not proceed on a claim the run could not verify;
+conflict precedence is
 independent of `require` order; the verdict `inputsDigest` is
 `sha256(canonical([table, index, key]))` over wire values, computable from the
 envelope; a replay needs a live session (`E_AUTH_SESSION` before the ledger,
