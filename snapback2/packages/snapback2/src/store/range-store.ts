@@ -80,6 +80,12 @@ export interface WatermarkRecord {
   schemaHash?: string;
   authEpoch?: number;
   updatedAt: number;
+  /**
+   * Durable position among this partition's drained queries: assigned by the store
+   * when the query first records a watermark, kept across every later mark. The
+   * lowest order is the log a settlement and a resume name (LLP 1012 §7).
+   */
+  order?: number;
 }
 
 export interface Coverage {
@@ -138,6 +144,10 @@ export interface OutboxStore {
   grant(): Promise<OutboxGrant | undefined>;
   /** Every held grant, including those older queued intents still name. */
   grants(): Promise<OutboxGrant[]>;
+  /** Each op's persisted write bound (`maxNewIds`); an enqueue refuses without one. */
+  bounds(): Promise<Record<string, number>>;
+  /** The prediction overlay by intent (lane O2b fills it); read here to prove it is dropped on settlement. */
+  overlay(): Promise<Record<string, StoredRow[]>>;
 }
 
 export interface StoreDelivery {
@@ -194,6 +204,11 @@ export interface StoreSwap {
   grants?: { put?: OutboxGrant[]; current?: string | null; remove?: string[] };
   /** Predicted rows keyed by intent (lane O2b fills); never consulted by answers here. */
   overlay?: { put?: Record<string, StoredRow[]>; remove?: string[] };
+  /**
+   * The program's write bounds, replaced whole: what `/api/program` certified each op may
+   * mint. Custody like the outbox — a coverage reset never touches it (LLP 1012 §7).
+   */
+  bounds?: Record<string, number>;
 }
 
 export interface RangeStore {
@@ -231,6 +246,7 @@ export interface PersistedRangeState {
   grants: Record<string, OutboxGrant>;
   currentGrant?: string;
   overlay: Record<string, StoredRow[]>;
+  bounds: Record<string, number>;
   negative: Record<string, number>;
   rowSeq: Record<string, number>;
   /** The byte-cache index; payloads live beside the state in the carrier, keyed by `byteKey`. */
@@ -253,7 +269,7 @@ const NO_BYTES: ByteDelta = { put: [], remove: [] };
 function emptyState(): PersistedRangeState {
   return {
     version: 1, sealed: false, clock: 0, rows: {}, answers: {}, watermarks: {}, outbox: {},
-    grants: {}, overlay: {}, negative: {}, rowSeq: {}, assets: {}, viewed: {},
+    grants: {}, overlay: {}, bounds: {}, negative: {}, rowSeq: {}, assets: {}, viewed: {},
   };
 }
 
@@ -461,6 +477,7 @@ function normalizeState(value: PersistedRangeState | undefined): PersistedRangeS
     outbox: value.outbox ?? {},
     grants: value.grants ?? {},
     overlay: value.overlay ?? {},
+    bounds: value.bounds ?? {},
     negative: value.negative ?? {},
     rowSeq: value.rowSeq ?? {},
     assets: value.assets ?? {},
@@ -498,6 +515,14 @@ export class PersistentRangeStore implements RangeStore {
     grants: async () => this.read(() => {
       this.ensureUnsealed();
       return clone(Object.values(this.state.grants));
+    }),
+    bounds: async () => this.read(() => {
+      this.ensureUnsealed();
+      return clone(this.state.bounds);
+    }),
+    overlay: async () => this.read(() => {
+      this.ensureUnsealed();
+      return clone(this.state.overlay);
     }),
   };
 
@@ -844,9 +869,14 @@ export class PersistentRangeStore implements RangeStore {
     bytes.put.push(...byteDelta.put);
     bytes.remove.push(...byteDelta.remove);
 
-    if (swap.watermark) state.watermarks[canonicalAnswerKey(swap.watermark.op, swap.watermark.args)] = clone(swap.watermark);
-    // The outbox, its grants, and the prediction overlay are custody of unsent
-    // work: a coverage reset above never touches them.
+    if (swap.watermark) {
+      const key = canonicalAnswerKey(swap.watermark.op, swap.watermark.args);
+      // The order is the store's: first recorded, kept across re-marks (LLP 1012 §7's tail chooser).
+      const order = state.watermarks[key]?.order ?? ++state.clock;
+      state.watermarks[key] = { ...clone(swap.watermark), order };
+    }
+    // The outbox, its grants, its write bounds, and the prediction overlay are
+    // custody of unsent work: a coverage reset above never touches them.
     for (const intent of swap.outbox?.remove ?? []) {
       delete state.outbox[intent];
       delete state.overlay[intent];
@@ -855,7 +885,12 @@ export class PersistentRangeStore implements RangeStore {
       if (typeof entry.intent !== "string" || entry.intent.length === 0) throw new TypeError("outbox entry needs an intent");
       const order = state.outbox[entry.intent]?.order ?? entry.order ?? ++state.clock;
       state.outbox[entry.intent] = { ...clone(entry), order };
+      // @ref LLP 1012#7-writes-offline — a prediction is discarded when its intent
+      // settles: replaced by the server's rows on `committed`, dropped on
+      // `rejected` or `expired`, in the same swap as the terminal entry.
+      if (entry.state !== "queued") delete state.overlay[entry.intent];
     }
+    if (swap.bounds) state.bounds = clone(swap.bounds);
     for (const id of swap.grants?.remove ?? []) {
       delete state.grants[id];
       if (state.currentGrant === id) delete state.currentGrant;

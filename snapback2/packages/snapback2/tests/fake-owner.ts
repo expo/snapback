@@ -37,6 +37,8 @@ export interface FakeOwnerOptions {
   conflict?: (intent: string, body: any) => boolean;
   /** Intents whose execution is an ordinary rejection. */
   reject?: (intent: string, body: any) => boolean;
+  /** Replays the owner refuses outright (a coded 4xx envelope) instead of executing. */
+  refuse?: (intent: string, body: any) => { status: number; envelope: Record<string, unknown> } | undefined;
   /** Refuses every request as a network failure. */
   dead?: () => boolean;
 }
@@ -144,6 +146,9 @@ export function fakeOwner(options: FakeOwnerOptions = {}) {
         log: { unchanged: true }, mounted: [], grant: mint(),
       });
     }
+    // A login mints a grant like a resume does; the bearer flow is otherwise unchecked here.
+    if (url.pathname === "/api/auth/login") return json({ token: "token-alice", viewer: "dev:alice", grant: mint() });
+    if (url.pathname === "/api/auth/me") return json({ viewer: "dev:alice", kind: "user" });
     if (url.pathname === "/api/mutation") {
       const body = JSON.parse(String(init?.body));
       if (!body.replay) {
@@ -152,6 +157,8 @@ export function fakeOwner(options: FakeOwnerOptions = {}) {
       }
       const intent = body.replay.intent as string;
       if (stored.has(intent)) return json(stored.get(intent));
+      const refused = options.refuse?.(intent, body);
+      if (refused) return json(refused.envelope, refused.status);
       const ids = Array.from({ length: body.replay.count as number }, (_, index) =>
         engineId(Number.parseInt(body.replay.grant.slice(-16), 16) + body.replay.offset + index));
       executions.push({ op: body.op, args: body.args, intent, ids });
