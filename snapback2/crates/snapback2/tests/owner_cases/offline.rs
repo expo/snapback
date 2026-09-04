@@ -91,11 +91,21 @@ fn offline_query_program_and_subscribe_wire_contract() {
         manifest.body["generation"],
         manifest.body["programGeneration"]
     );
-    let program = request(
+    let anonymous_program = request(
         port,
         "GET",
         &format!("/api/program?generation={program_generation}"),
         &[],
+        json!({}),
+    );
+    assert_eq!(anonymous_program.status, 401, "{}", anonymous_program.body);
+    assert_eq!(anonymous_program.body["code"], "E_AUTH_REQUIRED");
+
+    let program = request(
+        port,
+        "GET",
+        &format!("/api/program?generation={program_generation}"),
+        &[("X-Snapback-As", "alice")],
         json!({}),
     );
     assert_eq!(program.status, 200, "{}", program.body);
@@ -103,7 +113,7 @@ fn offline_query_program_and_subscribe_wire_contract() {
         program
             .headers
             .lines()
-            .any(|line| line.eq_ignore_ascii_case("Cache-Control: public, immutable"))
+            .any(|line| line.eq_ignore_ascii_case("Cache-Control: private, immutable"))
     );
     assert_eq!(
         program.body["generation"],
@@ -122,7 +132,7 @@ fn offline_query_program_and_subscribe_wire_contract() {
         port,
         "GET",
         &format!("/api/program?generation={}", "0".repeat(64)),
-        &[],
+        &[("X-Snapback-As", "alice")],
         json!({}),
     );
     assert_eq!(missing_program.status, 404);
@@ -133,7 +143,13 @@ fn offline_query_program_and_subscribe_wire_contract() {
                 .is_some_and(|value| !value.is_empty())
         );
     }
-    let no_generation = request(port, "GET", "/api/program", &[], json!({}));
+    let no_generation = request(
+        port,
+        "GET",
+        "/api/program",
+        &[("X-Snapback-As", "alice")],
+        json!({}),
+    );
     assert_eq!(no_generation.status, 400);
     assert!(
         no_generation.body["message"]
@@ -224,6 +240,14 @@ fn offline_query_program_and_subscribe_wire_contract() {
     );
     let first_token = signup.body["token"].as_str().unwrap();
     let first_authorization = format!("Bearer {first_token}");
+    let bearer_program = request(
+        port,
+        "GET",
+        &format!("/api/program?generation={program_generation}"),
+        &[("Authorization", &first_authorization)],
+        json!({}),
+    );
+    assert_eq!(bearer_program.status, 200, "{}", bearer_program.body);
     let first_epoch = request(
         port,
         "POST",

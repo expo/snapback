@@ -73,6 +73,27 @@ test("offline envelope decoder refuses unknown protocols and malformed shapes", 
     () => decodeDeliveryEnvelope({ ...fixture, data: { $row: { table: "messages" } } }),
     (error: unknown) => error instanceof DeliveryEnvelopeDecodeError && error.path === "$.data",
   );
+  const decodeError = new DeliveryEnvelopeDecodeError("$", "bad envelope");
+  assert.equal("code" in decodeError, false, "decode TypeErrors are not runtime diagnostics");
+});
+
+test("all-column-kind golden tags closed asset records by their declared field types", async () => {
+  const fixture = JSON.parse(await readFile(resolve(corpus, "envelope-every-column-kind.json"), "utf8"));
+  const companion = JSON.parse(await readFile(resolve(corpus, "closure-every-column-kind.json"), "utf8"));
+  const wrongWidth = structuredClone(fixture);
+  wrongWidth.rows[0].row.image.width = "wide";
+  assert.throws(
+    () => toClosureReceipt(decodeDeliveryEnvelope(wrongWidth), companion.schema),
+    (error: unknown) => error instanceof DeliveryEnvelopeDecodeError
+      && error.path === "rows.allTypes.image.width",
+  );
+  const undeclared = structuredClone(fixture);
+  undeclared.rows[0].row.video.caption = "clip";
+  assert.throws(
+    () => toClosureReceipt(decodeDeliveryEnvelope(undeclared), companion.schema),
+    (error: unknown) => error instanceof DeliveryEnvelopeDecodeError
+      && error.path === "rows.allTypes.video",
+  );
 });
 
 test("offline delivery decoder accepts the conditional unchanged marker", () => {

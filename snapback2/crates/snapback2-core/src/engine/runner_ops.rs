@@ -41,8 +41,7 @@ impl<'a> Runner<'a> {
         reindex_row(self.tx, self.schema, table, &row)?;
         self.remember_created_row(table, &row)?;
         self.inserted_rows.push((table.to_owned(), row.clone()));
-        self.rule_memo.clear();
-        self.visibility_memo.clear();
+        self.clear_rule_memos();
         self.touch_row(table, &row)?;
         self.bump_write(table);
         self.maintain(table, None, Some(&row))?;
@@ -131,8 +130,7 @@ impl<'a> Runner<'a> {
         )?;
         reindex_row(self.tx, self.schema, table, &new)?;
         self.refresh_created_points(table, &new)?;
-        self.rule_memo.clear();
-        self.visibility_memo.clear();
+        self.clear_rule_memos();
         self.touch_row(table, &new)?;
         self.bump_write(table);
         self.maintain(table, Some(&old), Some(&new))?;
@@ -169,8 +167,7 @@ impl<'a> Runner<'a> {
         )?;
         delete_index_row(self.tx, table, id)?;
         self.forget_created_points(table, id);
-        self.rule_memo.clear();
-        self.visibility_memo.clear();
+        self.clear_rule_memos();
         self.bump_write(table);
         self.maintain(table, Some(&old), None)?;
         Ok(())
@@ -317,8 +314,7 @@ impl<'a> Runner<'a> {
         } else {
             self.refresh_created_points(target, &aggregate)?;
         }
-        self.rule_memo.clear();
-        self.visibility_memo.clear();
+        self.clear_rule_memos();
         self.touch_row(target, &aggregate)?;
         self.bump_write(target);
         Ok(())
@@ -347,8 +343,7 @@ impl<'a> Runner<'a> {
             )?;
             delete_index_row(self.tx, target, &id)?;
             self.forget_created_points(target, &id);
-            self.rule_memo.clear();
-            self.visibility_memo.clear();
+            self.clear_rule_memos();
             self.bump_write(target);
         }
         Ok(())
@@ -779,7 +774,8 @@ impl<'a> Runner<'a> {
                         && verdict.principal == self.context.viewer.as_str()
                         && verdict.auth_epoch == self.context.auth_epoch
                 }) {
-                    self.rule_memo.insert(memo_key, verdict.result);
+                    self.rule_memo.insert(memo_key.clone(), verdict.result);
+                    self.rule_memo_entries.push(memo_key);
                     return Ok(verdict.result);
                 }
                 if !structurally_readable && self.rule_authority == RuleAuthority::ReceiptOnly {
@@ -820,7 +816,8 @@ impl<'a> Runner<'a> {
                     self.trace.absences.push(absence.clone());
                     self.receipt.absences.push(absence);
                 }
-                self.rule_memo.insert(memo_key, result);
+                self.rule_memo.insert(memo_key.clone(), result);
+                self.rule_memo_entries.push(memo_key);
                 Ok(result)
             }
             RuleExpr::Created {
@@ -946,13 +943,21 @@ impl<'a> Runner<'a> {
                     hidden: true,
                     pinned_inputs_digest,
                 });
-                self.visibility_memo.insert(memo_key, result);
+                self.visibility_memo.insert(memo_key.clone(), result);
+                self.visibility_memo_entries.push(memo_key);
                 Ok(result)
             }
             RuleExpr::Created { .. } => Err(RuntimeError::Schema(
                 "created-row probe evaluated while deriving read visibility".to_owned(),
             )),
         }
+    }
+
+    fn clear_rule_memos(&mut self) {
+        self.rule_memo.clear();
+        self.rule_memo_entries.clear();
+        self.visibility_memo.clear();
+        self.visibility_memo_entries.clear();
     }
 
     pub(super) fn rule_term(

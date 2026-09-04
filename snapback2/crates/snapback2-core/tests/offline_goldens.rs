@@ -3,10 +3,11 @@ use snapback2_core::engine::{
     AuthoritativeTrace, ClosureReceipt, ReceiptRange, RowRecord, Verdict,
 };
 use snapback2_core::{
-    Actor, Auth, Bound, Builtin, Ceilings, Checker, ColumnType, Context, DeliveryProjectionContext,
-    Engine, Execution, ExecutionState, Expr, Generation, Index, KeyProvenance, Order, Program,
-    ProgramKind, ProjectJson, Read, ResultProvenance, RuleExpr, RuleTerm, Rules, Scan, Schema,
-    Stmt, StopReason, Table, Value, digest, object, project_delivery,
+    Actor, Auth, Bound, Builtin, Ceilings, Checker, ClientStore, ColumnType, Context,
+    DeliveryProjectionContext, Engine, Execution, ExecutionState, Expr, Generation, Index,
+    KeyProvenance, Order, Program, ProgramKind, ProjectJson, Read, ResultProvenance, RuleExpr,
+    RuleTerm, Rules, Scan, Schema, Stmt, StopReason, Table, Value, digest, object,
+    project_delivery,
 };
 use std::collections::BTreeMap;
 use std::fs;
@@ -712,6 +713,189 @@ fn engine_executed_oracle_goldens_match_public_projection() {
             assert!(execution.receipt.verdicts.is_empty());
         }
         write_or_assert_golden(name, &schema, &program.name, &execution);
+    }
+}
+
+#[test]
+fn hidden_candidate_memo_rollback_preserves_envelope_receipt_replay() {
+    let by_id = || Index {
+        columns: vec!["id".to_owned()],
+        unique: true,
+    };
+    let read_rule = RuleExpr::And(vec![
+        RuleExpr::Exists {
+            table: "grants".to_owned(),
+            index: "byId".to_owned(),
+            key: vec![RuleTerm::Field("grantId".to_owned())],
+            provenance: KeyProvenance::Shape,
+        },
+        RuleExpr::Eq(RuleTerm::Field("owner".to_owned()), RuleTerm::Viewer),
+    ]);
+    let schema = Schema {
+        tables: BTreeMap::from([
+            (
+                "documents".to_owned(),
+                Table {
+                    columns: BTreeMap::from([
+                        ("id".to_owned(), ColumnType::Id),
+                        (
+                            "grantId".to_owned(),
+                            ColumnType::Ref {
+                                table: "grants".to_owned(),
+                            },
+                        ),
+                        ("owner".to_owned(), ColumnType::Principal),
+                        ("rank".to_owned(), ColumnType::Int),
+                    ]),
+                    indexes: BTreeMap::from([
+                        ("byId".to_owned(), by_id()),
+                        (
+                            "byRank".to_owned(),
+                            Index {
+                                columns: vec!["rank".to_owned(), "id".to_owned()],
+                                unique: false,
+                            },
+                        ),
+                    ]),
+                    rules: Rules {
+                        read: read_rule,
+                        ..allow_rules()
+                    },
+                    constraints: Vec::new(),
+                    retain: Default::default(),
+                },
+            ),
+            (
+                "grants".to_owned(),
+                Table {
+                    columns: BTreeMap::from([("id".to_owned(), ColumnType::Id)]),
+                    indexes: BTreeMap::from([("byId".to_owned(), by_id())]),
+                    rules: Rules {
+                        read: RuleExpr::Deny,
+                        ..allow_rules()
+                    },
+                    constraints: Vec::new(),
+                    retain: Default::default(),
+                },
+            ),
+        ]),
+        ..Schema::default()
+    };
+    let point = Program {
+        name: "documents.pointMemo".to_owned(),
+        kind: ProgramKind::Query,
+        args: BTreeMap::new(),
+        read_time_granularity_ms: None,
+        result_page_site: None,
+        body: vec![
+            Stmt::Let {
+                name: "discarded".to_owned(),
+                value: Expr::Get(Read {
+                    site: "documents.pointMemo.hidden".to_owned(),
+                    table: "documents".to_owned(),
+                    index: "byId".to_owned(),
+                    key: vec![Expr::Literal(Value::Id("document-hidden".to_owned()))],
+                    provenance: KeyProvenance::Const,
+                }),
+            },
+            Stmt::Return(Expr::Get(Read {
+                site: "documents.pointMemo.visible".to_owned(),
+                table: "documents".to_owned(),
+                index: "byId".to_owned(),
+                key: vec![Expr::Literal(Value::Id("document-visible".to_owned()))],
+                provenance: KeyProvenance::Const,
+            })),
+        ],
+    };
+    let range = Program {
+        name: "documents.rangeMemo".to_owned(),
+        kind: ProgramKind::Query,
+        args: BTreeMap::new(),
+        read_time_granularity_ms: None,
+        result_page_site: None,
+        body: vec![Stmt::Return(Expr::Scan(Scan {
+            site: "documents.rangeMemo.rows".to_owned(),
+            table: "documents".to_owned(),
+            index: "byRank".to_owned(),
+            prefix: Vec::new(),
+            order: Order::Asc,
+            take: Bound::Literal(2),
+            after: None,
+            before: None,
+            range: None,
+            opaque_cursor: false,
+            merge_site: None,
+            provenance: KeyProvenance::Const,
+        }))],
+    };
+
+    for program in [&point, &range] {
+        let certificate = Checker::new(&schema, Ceilings::default())
+            .check(program)
+            .unwrap();
+        let mut server = Engine::memory(schema.clone()).unwrap();
+        server
+            .seed(
+                "grants",
+                object([("id", Value::Id("grant-shared".to_owned()))]),
+            )
+            .unwrap();
+        for (id, owner, rank) in [
+            ("document-hidden", "bob", 1),
+            ("document-visible", "alice", 2),
+        ] {
+            server
+                .seed(
+                    "documents",
+                    object([
+                        ("id", Value::Id(id.to_owned())),
+                        ("grantId", Value::Id("grant-shared".to_owned())),
+                        ("owner", Value::Id(owner.to_owned())),
+                        ("rank", Value::Int(rank)),
+                    ]),
+                )
+                .unwrap();
+        }
+        let mut context = Context::query(Actor::user("alice").unwrap(), BTreeMap::new());
+        context.auth_epoch = 9;
+        let served = server
+            .execute(program, &certificate, context.clone())
+            .unwrap();
+        assert_eq!(served.receipt.verdicts.len(), 1, "{}", program.name);
+        assert!(
+            served
+                .receipt
+                .rows
+                .iter()
+                .any(|row| { row.table == "documents" && row.id == "document-visible" })
+        );
+        assert!(
+            served
+                .receipt
+                .rows
+                .iter()
+                .all(|row| { row.table != "documents" || row.id != "document-hidden" })
+        );
+
+        let args = BTreeMap::new();
+        let envelope = project_delivery(
+            &served,
+            &DeliveryProjectionContext {
+                op: &program.name,
+                args: &args,
+                generation: &hash('d'),
+                schema_hash: &schema.hash(),
+                plan_hash: &hash('e'),
+                principal: "alice",
+                auth_epoch: 9,
+            },
+        )
+        .unwrap();
+        let delivered = public_receipt(&served, &envelope);
+        assert_eq!(delivered.verdicts.len(), 1, "{}", program.name);
+        let mut client = ClientStore::hydrate(schema.clone(), &delivered).unwrap();
+        let (_, replayed) = client.reexecute(program, &certificate, context).unwrap();
+        assert_eq!(replayed.result, served.result, "{}", program.name);
     }
 }
 

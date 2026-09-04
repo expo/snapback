@@ -130,7 +130,6 @@ export interface EvaluatorClosureReceipt {
 }
 
 export class DeliveryEnvelopeDecodeError extends TypeError {
-  readonly code = "E_DELIVERY_ENVELOPE";
   constructor(readonly path: string, detail: string) {
     super(`${path}: ${detail}`);
     this.name = "DeliveryEnvelopeDecodeError";
@@ -486,13 +485,32 @@ function tagTyped(descriptor: any, value: WireValue, path: string): TaggedValue 
   }
   if (plain(descriptor) && ("Image" in descriptor || "Video" in descriptor)) {
     object(value, path, [], [], true);
+    const kind = "Image" in descriptor ? "Image" : "Video";
+    const fields = ASSET_RECORD_FIELDS[kind];
+    const names = Object.keys(value);
+    if (names.length !== Object.keys(fields).length || names.some((name) => !(name in fields)))
+      fail(path, `must contain exactly ${Object.keys(fields).sort().join(", ")}`);
     return { Map: Object.fromEntries(Object.entries(value).map(([key, item]) => [
       key,
-      key === "id" ? ({ String: item } as TaggedValue) : ({ Int: item } as TaggedValue),
+      tagAssetField(fields[key as keyof typeof fields], item, `${path}.${key}`),
     ])) };
   }
   if (plain(descriptor) && "Json" in descriptor) return tagGeneric(value);
   fail(path, "has an unsupported schema descriptor");
+}
+
+const ASSET_RECORD_FIELDS = {
+  Image: { id: "String", width: "Int", height: "Int" },
+  Video: { id: "String", width: "Int", height: "Int", duration: "Int" },
+} as const;
+
+function tagAssetField(descriptor: "String" | "Int", value: WireValue, path: string): TaggedValue {
+  if (descriptor === "String") {
+    if (typeof value !== "string") fail(path, "expected string");
+    return { String: value };
+  }
+  uintOrSigned(value, path);
+  return { Int: value as number };
 }
 
 function tagGeneric(value: WireValue): TaggedValue {

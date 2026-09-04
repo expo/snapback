@@ -111,6 +111,7 @@ pub enum Action {
     Manifest,
     Program {
         generation: String,
+        identity: Identity,
     },
     Execute {
         op: String,
@@ -459,7 +460,11 @@ impl State {
         match action {
             Action::Status => self.status(),
             Action::Manifest => Ok(self.manifest()),
-            Action::Program { generation } => {
+            Action::Program {
+                generation,
+                identity,
+            } => {
+                self.resolve_authority(identity)?;
                 writer_offline::program(self.runtime().generation(), &generation)
             }
             Action::Execute {

@@ -24,6 +24,16 @@ struct TrackedValue {
     provenance: ResultProvenance,
 }
 
+#[derive(Clone, Copy)]
+struct CandidateCheckpoint {
+    rows: usize,
+    ranges: usize,
+    absences: usize,
+    verdicts: usize,
+    rule_memos: usize,
+    visibility_memos: usize,
+}
+
 impl TrackedValue {
     fn plain(value: Value) -> Self {
         Self {
@@ -45,6 +55,7 @@ pub(super) struct Runner<'a> {
     pub(super) trace: AuthoritativeTrace,
     pub(super) receipt: ClosureReceipt,
     pub(super) rule_memo: BTreeMap<String, bool>,
+    pub(super) rule_memo_entries: Vec<String>,
     /// Row identities inserted by this runner. This is transaction-local
     /// provenance, not durable authority and not reconstructed from storage.
     pub(super) created_rows: BTreeSet<(String, String)>,
@@ -56,6 +67,7 @@ pub(super) struct Runner<'a> {
     /// complete statement body and immediately before commit.
     pub(super) inserted_rows: Vec<(String, Value)>,
     pub(super) visibility_memo: BTreeMap<String, bool>,
+    pub(super) visibility_memo_entries: Vec<String>,
     pub(super) verdicts: &'a [Verdict],
     pub(super) authority_absences: &'a [(String, String, Vec<Value>)],
     pub(super) rule_authority: RuleAuthority,
@@ -91,10 +103,12 @@ impl<'a> Runner<'a> {
                 ..ClosureReceipt::default()
             },
             rule_memo: BTreeMap::new(),
+            rule_memo_entries: Vec::new(),
             created_rows: BTreeSet::new(),
             created_points: BTreeSet::new(),
             inserted_rows: Vec::new(),
             visibility_memo: BTreeMap::new(),
+            visibility_memo_entries: Vec::new(),
             verdicts,
             authority_absences,
             rule_authority,
@@ -130,10 +144,12 @@ impl<'a> Runner<'a> {
                 ..ClosureReceipt::default()
             },
             rule_memo: BTreeMap::new(),
+            rule_memo_entries: Vec::new(),
             created_rows: BTreeSet::new(),
             created_points: BTreeSet::new(),
             inserted_rows: Vec::new(),
             visibility_memo: BTreeMap::new(),
+            visibility_memo_entries: Vec::new(),
             verdicts,
             authority_absences,
             rule_authority,
@@ -919,12 +935,7 @@ impl<'a> Runner<'a> {
         if let Some(row) = found {
             self.trace.examined += 1;
             let id = row.field("id")?.as_str()?.to_owned();
-            let receipt_lengths = (
-                self.receipt.rows.len(),
-                self.receipt.ranges.len(),
-                self.receipt.absences.len(),
-                self.receipt.verdicts.len(),
-            );
+            let checkpoint = self.candidate_checkpoint();
             let visible = self.check_rule(&read.table, Effect::Read, None, &row)?;
             self.trace.points.push(PointTrace {
                 site: read.site.clone(),
@@ -948,10 +959,7 @@ impl<'a> Runner<'a> {
                 // evaluation may have learned public rows, absences, ranges,
                 // or verdicts; shipping any of them would distinguish the
                 // hidden hit from an alternate-key miss.
-                self.receipt.rows.truncate(receipt_lengths.0);
-                self.receipt.ranges.truncate(receipt_lengths.1);
-                self.receipt.absences.truncate(receipt_lengths.2);
-                self.receipt.verdicts.truncate(receipt_lengths.3);
+                self.rollback_candidate(checkpoint);
                 Ok(TrackedValue::plain(Value::Null))
             }
         } else {
@@ -1102,21 +1110,13 @@ impl<'a> Runner<'a> {
             )?;
             if let Some(mut row) = probe.pop() {
                 materialize_optional_fields(&mut row, table);
-                let receipt_lengths = (
-                    self.receipt.rows.len(),
-                    self.receipt.ranges.len(),
-                    self.receipt.absences.len(),
-                    self.receipt.verdicts.len(),
-                );
+                let checkpoint = self.candidate_checkpoint();
                 let allowed = self.check_rule(&scan.table, Effect::Read, None, &row)?;
                 uniform_result = Some(allowed);
                 if !allowed {
                     // The candidate and its rule inputs remain authoritative
                     // trace only; the viewer gets the same absence as empty.
-                    self.receipt.rows.truncate(receipt_lengths.0);
-                    self.receipt.ranges.truncate(receipt_lengths.1);
-                    self.receipt.absences.truncate(receipt_lengths.2);
-                    self.receipt.verdicts.truncate(receipt_lengths.3);
+                    self.rollback_candidate(checkpoint);
                     uniform_false_row = Some(row);
                 }
             } else {
@@ -1156,12 +1156,7 @@ impl<'a> Runner<'a> {
             if visible.len() >= visible_target {
                 break;
             }
-            let receipt_lengths = (
-                self.receipt.rows.len(),
-                self.receipt.ranges.len(),
-                self.receipt.absences.len(),
-                self.receipt.verdicts.len(),
-            );
+            let checkpoint = self.candidate_checkpoint();
             let allowed = match uniform_result {
                 Some(allowed) => allowed,
                 None => {
@@ -1175,10 +1170,7 @@ impl<'a> Runner<'a> {
             if !allowed {
                 // A rule probe keyed by a hidden candidate is authoritative trace,
                 // never a receipt artifact: even a public absence would reveal the row.
-                self.receipt.rows.truncate(receipt_lengths.0);
-                self.receipt.ranges.truncate(receipt_lengths.1);
-                self.receipt.absences.truncate(receipt_lengths.2);
-                self.receipt.verdicts.truncate(receipt_lengths.3);
+                self.rollback_candidate(checkpoint);
             }
             examined_rows.push(row.clone());
             if allowed {
@@ -1297,6 +1289,33 @@ impl<'a> Runner<'a> {
                 },
             })
             .collect())
+    }
+
+    fn candidate_checkpoint(&self) -> CandidateCheckpoint {
+        CandidateCheckpoint {
+            rows: self.receipt.rows.len(),
+            ranges: self.receipt.ranges.len(),
+            absences: self.receipt.absences.len(),
+            verdicts: self.receipt.verdicts.len(),
+            rule_memos: self.rule_memo_entries.len(),
+            visibility_memos: self.visibility_memo_entries.len(),
+        }
+    }
+
+    fn rollback_candidate(&mut self, checkpoint: CandidateCheckpoint) {
+        self.receipt.rows.truncate(checkpoint.rows);
+        self.receipt.ranges.truncate(checkpoint.ranges);
+        self.receipt.absences.truncate(checkpoint.absences);
+        self.receipt.verdicts.truncate(checkpoint.verdicts);
+        for key in self.rule_memo_entries.split_off(checkpoint.rule_memos) {
+            self.rule_memo.remove(&key);
+        }
+        for key in self
+            .visibility_memo_entries
+            .split_off(checkpoint.visibility_memos)
+        {
+            self.visibility_memo.remove(&key);
+        }
     }
 
     pub(super) fn eval_range(&mut self, range: &Range) -> Result<EvaluatedRange, RuntimeError> {

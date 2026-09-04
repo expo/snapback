@@ -364,6 +364,7 @@ fn handle(mut request: Request, context: Context) {
             &context,
             Action::Program {
                 generation: query.get("generation").unwrap_or_default().to_owned(),
+                identity,
             },
             200,
         ),
@@ -511,7 +512,7 @@ pub(crate) fn respond_json(request: Request, status: u16, value: Json, mode: &st
     let mut headers = vec![content_type("application/json")];
     decorate_asset_response_headers(request.url(), &mut headers);
     if status == 200 && request.url().split('?').next() == Some("/api/program") {
-        headers.push(header_value("Cache-Control", "public, immutable"));
+        headers.push(header_value("Cache-Control", "private, immutable"));
     }
     let mut response =
         Response::from_string(serde_json::to_string(&value).unwrap_or_else(|_| "{}".to_owned()))
