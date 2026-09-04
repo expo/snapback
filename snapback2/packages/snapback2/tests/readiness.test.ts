@@ -97,7 +97,7 @@ test("operation change mid-probe hides old readiness and ignores superseded comp
 });
 
 for (const boundary of ["fence", "expiresAt"]) {
-  test(`time alone invalidates ready and notifies mounted hooks at the ${boundary} boundary`, async (t) => {
+  test(`time alone notifies mounted hooks at the ${boundary} boundary: the fence turns past, expiry invalidates ready`, async (t) => {
     const f = await mounted();
     try {
       const now = Date.now();
@@ -106,11 +106,23 @@ for (const boundary of ["fence", "expiresAt"]) {
       if (boundary === "expiresAt") held.expiresAt = now + 11;
       await act(async () => { await f.client.offlineRuntime.outbox.adopt(held); });
       assert.equal(f.outbox.ready, true);
+      assert.equal(f.outbox.fence, "inside");
       assert.equal(f.mutation.ready, true);
       await act(async () => { t.mock.timers.tick(11); });
-      assert.equal(await f.client.outbox.ready(), false);
-      assert.equal(f.outbox.ready, false);
-      assert.equal(f.mutation.ready, false);
+      if (boundary === "fence") {
+        // Merged with lane F (LLP 1012 revision (i)): the fence bounds trust —
+        // prediction and replay — never custody, so ready stays true past it and
+        // the hook's `fence` reports the crossing; only expiry unreadies a write.
+        assert.equal(await f.client.outbox.ready(), true);
+        assert.equal(await f.client.outbox.fence(), "past");
+        assert.equal(f.outbox.ready, true);
+        assert.equal(f.outbox.fence, "past");
+        assert.equal(f.mutation.ready, true);
+      } else {
+        assert.equal(await f.client.outbox.ready(), false);
+        assert.equal(f.outbox.ready, false);
+        assert.equal(f.mutation.ready, false);
+      }
       assert.deepEqual(f.outbox.entries, []);
     } finally { t.mock.timers.reset(); await f.close(); }
   });

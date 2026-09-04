@@ -4,12 +4,25 @@
  * (dedup, 503-after-commit, rejection, conflict), and the delivery log.
  */
 import { fileRangeStore } from "../dist/test.mjs";
+import { schemaDigest } from "../dist/index.mjs";
 
 export const generation = "d".repeat(64);
-export const schemaHash = "e".repeat(64);
 export const planHash = "f".repeat(64);
 const namespace = "0".repeat(31) + "a";
 export const DAY = 24 * 60 * 60 * 1_000;
+const schema = {
+  tables: {
+    messages: {
+      columns: { id: "Id" },
+      indexes: { byId: { columns: ["id"], unique: true } },
+      rules: { read: "Allow", insert: "Allow", update: "Allow", delete: "Allow" },
+      constraints: [],
+      retain: "until-revoked",
+    },
+  },
+  maintains: [],
+};
+export const schemaHash = schemaDigest(schema);
 
 export function engineId(sequence: number): string {
   return `s2id-${namespace}-${sequence.toString(16).padStart(16, "0")}`;
@@ -41,6 +54,8 @@ export interface FakeOwnerOptions {
   refuse?: (intent: string, body: any) => { status: number; envelope: Record<string, unknown> } | undefined;
   /** Refuses every request as a network failure. */
   dead?: () => boolean;
+  /** Manifest name for the delivery log's optional Cursor argument; omitted by older outbox tests. */
+  cursorArg?: string;
 }
 
 type Message = { id: string; conversationId: string; authorId: string; body: string; at: number };
@@ -114,25 +129,32 @@ export function fakeOwner(options: FakeOwnerOptions = {}) {
     if (options.dead?.()) throw new TypeError("fetch failed");
     if (url.pathname === "/api/manifest") {
       return json({
-        generation: "schema-generation", programGeneration: generation, ops: {}, channels: {}, auth: {},
+        generation: "schema-generation", programGeneration: generation,
+        ops: options.cursorArg ? {
+          "deliveries.inbox": { kind: "query", planHash, args: { [options.cursorArg]: { Optional: "Cursor" } } },
+        } : {},
+        channels: {}, auth: {},
         tables: { messages: { retain: "delivered-history" } },
       });
     }
     if (url.pathname === "/api/program") {
       return json({
         generation, schemaHash,
-        schema: { tables: { messages: { columns: { id: "Id" }, indexes: { byId: { columns: ["id"], unique: true } } } } },
+        schema,
         programs: {
           "deliveries.post": {
-            kind: "mutation", planHash, ir: { body: [] },
-            certificate: { write_sites: [
+            kind: "mutation", planHash, ir: {
+              name: "deliveries.post", kind: "Mutation", args: {}, read_time_granularity_ms: null,
+              body: [{ Insert: { table: "messages", row: { Object: { id: { Input: "NewId" } } } } }],
+            },
+            certificate: { plan_hash: planHash, write_sites: [
               { table: "messages", kind: "Insert", max_rows: 1 },
               { table: "deliveries", kind: "Insert", max_rows: 50 },
             ] },
           },
           "deliveries.edit": {
             kind: "mutation", planHash, ir: { body: [] },
-            certificate: { write_sites: [
+            certificate: { plan_hash: planHash, write_sites: [
               { table: "messages", kind: "Update", max_rows: 1 },
               { table: "deliveries", kind: "Insert", max_rows: 50 },
             ] },
@@ -207,4 +229,3 @@ export async function seededStore(factory: ReturnType<typeof fileRangeStore>): P
   });
   await store.close?.();
 }
-

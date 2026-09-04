@@ -578,7 +578,7 @@ journey("offline sends queue, survive a restart, replay in order, and a 503 afte
   tail.close();
 });
 
-journey("an edit queued offline against a row the owner then edits settles as a conflict", async ({ as }) => {
+journey("offline edits reject stale reads by trace, and past-fence edits by the program CONFLICT", async ({ as }) => {
   const alice = as("alice", { store: "file", onTombstone: tombstones });
   const drain = alice.subscribe(api.deliveries.inbox, { c: null }, () => undefined, { drain: true });
   await drain.until((value) => (value.state === "complete" || value.state === "capped") && value.caughtUp === true);
@@ -620,6 +620,30 @@ journey("an edit queued offline against a row the owner then edits settles as a 
   const thread = await alice.query(api.deliveries.thread, { conversationId: "conversation-1", c: null });
   if (!("data" in thread) || !bodies(thread.data).includes("theirs") || bodies(thread.data).includes("mine")) {
     throw new Error("the conflict did not leave the owner's edit in place");
+  }
+  // Past the default seven-day fence the twin does not run and there is no
+  // trace OCC. The certified edit's compare-and-set must reject the stale base.
+  const originalNow = Date.now;
+  const pastFenceNow = originalNow() + 8 * 24 * 60 * 60 * 1000;
+  try {
+    await alice.offline();
+    Date.now = () => pastFenceNow;
+    const late = await alice.mutation(api.deliveries.edit, { messageId: posted.data.id, body: "late edit", baseBody: "original" });
+    if (late.state !== "queued") throw new Error(`past-fence edit was ${late.state}`);
+    const pending = (await alice.outbox.entries()).find((item) => item.intent === late.intent);
+    if (pending?.predicted !== false || pending.reason !== "fence"
+      || pending.trace?.points.length !== 0 || pending.trace?.verdicts.length !== 0) {
+      throw new Error(`past-fence edit was not marked unpredicted with an empty trace: ${JSON.stringify(pending)}`);
+    }
+    await alice.online();
+    await alice.settled();
+    const terminal = (await alice.outbox.entries()).find((item) => item.intent === late.intent);
+    const refusal = terminal?.response as { code?: string; reason?: string };
+    if (terminal?.state !== "rejected" || refusal.code !== "CONFLICT" || refusal.reason === "conflict") {
+      throw new Error(`past-fence edit must fail the program's CONFLICT, not trace OCC: ${JSON.stringify(terminal)}`);
+    }
+  } finally {
+    Date.now = originalNow;
   }
   drain.close();
 });

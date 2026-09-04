@@ -15,6 +15,9 @@ import {
   type ViewedRecord,
 } from "./byte-cache.js";
 
+import { advanceOverlay, cursorChain, pagePosition, type OverlayWatermark } from "./overlay-retirement.js";
+import { canonical } from "./canonical.js";
+
 export type PrincipalPartition = string;
 export type RetentionPolicy = "until-revoked" | "delivered-history";
 
@@ -75,11 +78,17 @@ export interface StoredAnswer extends Omit<HeldAnswer, "data"> {
   refs: RowRef[];
   order: number;
   fingerprint?: string;
+  /** Cursor argument used when this page was filed, before or after manifest load. */
+  cursorArg?: string;
+  /** Seq of the delivery that recorded `next`; conditional refreshes cannot renew a link. */
+  nextSeq?: number;
 }
 
 export interface WatermarkRecord {
   op: string;
   args: unknown;
+  /** The argument the manifest types as this query's cursor; `c` before the manifest loads. */
+  cursorArg?: string;
   watermark: string | null;
   validator?: string;
   generation?: string;
@@ -166,6 +175,8 @@ export interface OutboxEntry {
   state: OutboxState;
   response?: unknown;
   predicted?: boolean;
+  /** Prediction and its trace were skipped; the program will check this write on the server. */
+  reason?: "fence";
   /** Engine-owned aggregate targets the prediction's overlay omits by design (the server writes them); absent when none. */
   omitted?: string[];
   trace?: OutboxTrace;
@@ -206,6 +217,7 @@ export interface OutboxStore {
 export interface OverlayRow extends StoredRow { removed?: true }
 
 export interface StoreDelivery {
+  cursorArg?: string;
   op: string;
   args: unknown;
   state: HeldAnswer["state"];
@@ -245,6 +257,8 @@ export interface StoreSwap {
   schema?: OfflineSchema;
   watermark?: WatermarkRecord;
   resetCoverage?: boolean;
+  /** One validated resume response, including unchanged; never a query re-delivery. */
+  resumeSeq?: number;
   dropAnswers?: string[];
   outbox?: { put?: OutboxEntry[]; remove?: string[] };
   /**
@@ -307,8 +321,12 @@ export interface PersistedRangeState {
   grants: Record<string, OutboxGrant>;
   currentGrant?: string;
   overlay: Record<string, OverlayRow[]>;
-  /** Per committed intent, how many times the store moved past its commit without its rows (the overlay's leak bound). */
+  /** Per committed intent, successful resumes or proven tail advances without its rows. */
   overlayMisses: Record<string, number>;
+  /** The commit-time tail snapshot; null after reset until the next drain establishes a new head. */
+  overlayWatermarks: Record<string, OverlayWatermark | null>;
+  /** Only primary absences and tombstones, scoped to each prediction's ids. */
+  overlayNegatives: Record<string, Record<string, { seq: number; source: "absence" | "tombstone" }>>;
   bounds: Record<string, number>;
   programs: Record<string, HeldProgram>;
   facts?: CoverageFacts;
@@ -335,20 +353,12 @@ const NO_BYTES: ByteDelta = { put: [], remove: [] };
 function emptyState(): PersistedRangeState {
   return {
     version: 1, sealed: false, clock: 0, rows: {}, answers: {}, watermarks: {}, outbox: {},
-    grants: {}, overlay: {}, overlayMisses: {}, bounds: {}, programs: {}, negative: {}, rowSeq: {}, assets: {}, viewed: {},
+    grants: {}, overlay: {}, overlayMisses: {}, overlayWatermarks: {}, overlayNegatives: {}, bounds: {}, programs: {}, negative: {}, rowSeq: {}, assets: {}, viewed: {},
   };
 }
 
 function clone<T>(value: T): T {
   return structuredClone(value);
-}
-
-function canonical(value: unknown): string {
-  if (value === undefined) return "undefined";
-  if (value === null || typeof value !== "object") return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
-  return `{${Object.keys(value as object).sort().map((key) =>
-    `${JSON.stringify(key)}:${canonical((value as Record<string, unknown>)[key])}`).join(",")}}`;
 }
 
 export function canonicalAnswerKey(op: string, args: unknown): string {
@@ -544,6 +554,8 @@ function normalizeState(value: PersistedRangeState | undefined): PersistedRangeS
     grants: value.grants ?? {},
     overlay: value.overlay ?? {},
     overlayMisses: value.overlayMisses ?? {},
+    overlayWatermarks: value.overlayWatermarks ?? {},
+    overlayNegatives: value.overlayNegatives ?? {},
     bounds: value.bounds ?? {},
     programs: value.programs ?? {},
     negative: value.negative ?? {},
@@ -567,28 +579,8 @@ export function tailWatermark(watermarks: WatermarkRecord[]): WatermarkRecord | 
     || canonicalAnswerKey(a.op, a.args).localeCompare(canonicalAnswerKey(b.op, b.args)))[0];
 }
 
-/** How many times the store may move past a commit without its rows before the overlay is dropped as stranded. */
+/** Two post-commit resumes or proven tail advances retire a stranded prediction. */
 const OVERLAY_PATIENCE = 2;
-
-/**
- * A page of the drained query a watermark names: the same op and the same
- * arguments but for the cursor, which the drain's base page carries as `null`
- * and every later page (the settlement tail, a resume's log) as a position.
- */
-function pageOfDrainedQuery(page: { op: string; args: unknown }, mark: WatermarkRecord): boolean {
-  if (page.op !== mark.op) return false;
-  const base = mark.args;
-  const args = page.args;
-  if (typeof base !== "object" || base === null || Array.isArray(base) || typeof args !== "object" || args === null || Array.isArray(args)) {
-    return canonical(base) === canonical(args);
-  }
-  const baseRecord = base as Record<string, unknown>;
-  const pageRecord = args as Record<string, unknown>;
-  const keys = Object.keys(baseRecord);
-  if (keys.length !== Object.keys(pageRecord).length) return false;
-  return keys.every((key) => key in pageRecord
-    && (canonical(baseRecord[key]) === canonical(pageRecord[key]) || (baseRecord[key] === null && typeof pageRecord[key] === "string")));
-}
 
 function outboxOrder(entries: Record<string, OutboxEntry>): OutboxEntry[] {
   return Object.values(entries).sort((a, b) =>
@@ -685,7 +677,7 @@ export class PersistentRangeStore implements RangeStore {
       const stored = this.state.answers[key];
       if (!stored) return undefined;
       const watermark = this.state.watermarks[key];
-      const { refs: _refs, order: _order, fingerprint: _fingerprint, data, ...answer } = clone(stored);
+      const { refs: _refs, order: _order, fingerprint: _fingerprint, cursorArg: _cursorArg, data, ...answer } = clone(stored);
       return {
         ...answer,
         // A viewed view-once row reads as absent: the view was its one delivery (LLP 1012 §9).
@@ -820,11 +812,36 @@ export class PersistentRangeStore implements RangeStore {
       state.negative = {};
       state.answers = {};
       state.watermarks = {};
+      // These describe coverage, unlike the overlay and its replay entry.
+      state.overlayWatermarks = Object.fromEntries(Object.keys(state.overlay).map((intent) => [intent, null]));
+      state.overlayMisses = {};
       delete state.facts;
     }
     if (swap.superseded === null) delete state.superseded;
+    if (swap.resumeSeq !== undefined && (!Number.isSafeInteger(swap.resumeSeq) || swap.resumeSeq < 0)) {
+      throw new TypeError("store resume seq must be a non-negative safe integer");
+    }
     if (swap.facts) state.facts = clone(swap.facts);
     if (swap.superseded) state.superseded = clone(swap.superseded);
+    const explicitEvictions = new Map<string, StoreTombstone>();
+    // Keep provenance distinct from hidden-row and extent evictions. These facts
+    // join each matching overlay below, even while its response is still queued.
+    const authoritativeNegatives = new Map<string, { seq: number; source: "absence" | "tombstone" }>();
+    const recordNegative = (ref: StoreTombstone, source: "absence" | "tombstone") => {
+      const key = rowKey(ref);
+      if ((authoritativeNegatives.get(key)?.seq ?? -1) <= ref.seq) {
+        authoritativeNegatives.set(key, { seq: ref.seq, source });
+      }
+      recordEviction(explicitEvictions, ref);
+    };
+    const recordAbsences = (answer: Pick<StoredAnswer, "receipt" | "seq">) => {
+      for (const [table, index, key] of answer.receipt?.absences ?? []) {
+        if (index !== "byId" || key.length !== 1) {
+          throw new TypeError("store receipts may evict only a primary byId absence");
+        }
+        if (typeof key[0] === "string") recordNegative({ table, id: key[0], seq: answer.seq }, "absence");
+      }
+    };
     for (const key of swap.dropAnswers ?? []) delete state.answers[key];
     for (const refresh of swap.refreshes ?? []) {
       const answer = state.answers[canonicalAnswerKey(refresh.op, refresh.args)];
@@ -833,17 +850,17 @@ export class PersistentRangeStore implements RangeStore {
         throw new TypeError(`conditional validator changed for ${refresh.op}`);
       }
       if (refresh.seq === answer.seq) continue;
+      answer.nextSeq ??= answer.seq;
       answer.seq = refresh.seq;
       answer.validator = refresh.validator;
       answer.deliveredAt = refresh.deliveredAt ?? Date.now();
       answer.order = ++state.clock;
+      recordAbsences(answer);
     }
     const before = clone(state.answers);
     const freshRanges: Array<{ range: ReceiptRange; seq: number }> = [];
-    const explicitEvictions = new Map<string, StoreTombstone>();
     for (const ref of swap.tombstones ?? []) {
-      const key = rowKey(ref);
-      if ((state.negative[key] ?? -1) <= ref.seq) recordEviction(explicitEvictions, ref);
+      recordNegative(ref, "tombstone");
     }
     for (const delivery of swap.deliveries ?? []) {
       if (!Number.isSafeInteger(delivery.seq) || delivery.seq < 0) {
@@ -911,10 +928,12 @@ export class PersistentRangeStore implements RangeStore {
       }
       const stored: StoredAnswer = {
         op: delivery.op,
+        ...(delivery.cursorArg === undefined ? {} : { cursorArg: delivery.cursorArg }),
         args: clone(delivery.args),
         state: answerState,
         ...(data === undefined ? {} : { data }),
         ...(delivery.next === undefined ? {} : { next: delivery.next }),
+        nextSeq: delivery.seq,
         seq: delivery.seq,
         ...(delivery.validator === undefined ? {} : { validator: delivery.validator }),
         ...(delivery.receipt === undefined ? {} : { receipt: clone(delivery.receipt) }),
@@ -928,13 +947,7 @@ export class PersistentRangeStore implements RangeStore {
       };
       state.answers[key] = stored;
       freshRanges.push(...(delivery.receipt?.ranges ?? []).map((range) => ({ range, seq: delivery.seq })));
-      for (const [table, index, absenceKey] of delivery.receipt?.absences ?? []) {
-        if (index !== "byId" || absenceKey.length !== 1) {
-          throw new TypeError("store receipts may evict only a primary byId absence");
-        }
-        const id = absenceKey[0];
-        if (typeof id === "string") recordEviction(explicitEvictions, { table, id, seq: delivery.seq });
-      }
+      recordAbsences(stored);
     }
 
     const heldRanges = Object.values(before).flatMap((answer) => answer.receipt?.ranges ?? []);
@@ -1007,21 +1020,29 @@ export class PersistentRangeStore implements RangeStore {
     bytes.put.push(...byteDelta.put);
     bytes.remove.push(...byteDelta.remove);
 
+    const previousTail = tailWatermark(Object.values(state.watermarks));
     if (swap.watermark) {
       const key = canonicalAnswerKey(swap.watermark.op, swap.watermark.args);
       // The order is the store's: first recorded, kept across re-marks (LLP 1012 §7's tail chooser).
       const order = state.watermarks[key]?.order ?? ++state.clock;
       state.watermarks[key] = { ...clone(swap.watermark), order };
     }
+    const tail = tailWatermark(Object.values(state.watermarks));
     // The outbox, its grants, its write bounds, and the prediction overlay are
     // custody of unsent work: a coverage reset above never touches them.
     for (const intent of swap.outbox?.remove ?? []) {
       delete state.outbox[intent];
+      delete state.overlayMisses[intent];
       delete state.overlay[intent];
+      delete state.overlayWatermarks[intent];
+      delete state.overlayNegatives[intent];
     }
+    const committedNow = new Set<string>();
     for (const entry of swap.outbox?.put ?? []) {
       if (typeof entry.intent !== "string" || entry.intent.length === 0) throw new TypeError("outbox entry needs an intent");
-      const order = state.outbox[entry.intent]?.order ?? entry.order ?? ++state.clock;
+      const previous = state.outbox[entry.intent];
+      if (entry.state === "committed" && previous?.state !== "committed") committedNow.add(entry.intent);
+      const order = previous?.order ?? entry.order ?? ++state.clock;
       state.outbox[entry.intent] = { ...clone(entry), order };
     }
     if (swap.bounds) state.bounds = clone(swap.bounds);
@@ -1039,57 +1060,99 @@ export class PersistentRangeStore implements RangeStore {
     for (const intent of swap.overlay?.remove ?? []) {
       delete state.overlay[intent];
       delete state.overlayMisses[intent];
+      delete state.overlayWatermarks[intent];
+      delete state.overlayNegatives[intent];
     }
     for (const [intent, rows] of Object.entries(swap.overlay?.put ?? {})) {
       state.overlay[intent] = clone(rows);
       delete state.overlayMisses[intent];
+      delete state.overlayWatermarks[intent];
+      delete state.overlayNegatives[intent];
     }
-    // @ref LLP 1012#7-writes-offline — a prediction is discarded when its intent
-    // settles: dropped on `rejected` or `expired`, and on `committed` once the
-    // server's rows have replaced it. The evidence is narrow: at or past the
-    // commit's `seq`, (a) a page of the drained log the settlement tail names —
-    // the tail chooser's op and arguments, the cursor aside — or (b) a delivery
-    // holding one of the rows the prediction wrote, by table and id. Another
-    // conversation's page, another row of the same table, or an unrelated
-    // query's delivery at a later seq is no evidence the rows arrived and leaves
-    // the bubble. A commit with no rows in its swap (no drained log to fetch a
-    // tail from) keeps the overlay until one lands — bounded: once the store has
-    // moved past the commit twice without the rows (a later delivery or refresh
-    // at or past the seq, or a drain catching up again), the overlay is dropped
-    // and the entry retired from prediction, so the app renders the intent from
-    // its `args` and the bubble never leaks. Decided last, over the swap's final
-    // state, so a settlement that also carries a prediction can never resurrect
-    // what it settled.
-    const tail = tailWatermark(Object.values(state.watermarks));
-    const moved = (seq: number) => swap.watermark !== undefined
-      || (swap.deliveries ?? []).some((delivery) => delivery.seq >= seq)
-      || (swap.refreshes ?? []).some((refresh) => refresh.seq >= seq);
+    // @ref LLP 1012#7-writes-offline — retire on authoritative row/negative
+    // evidence, a non-empty page reached by a post-commit next-cursor chain,
+    // or two misses (proven forward marks or successful resumes, once per swap).
+    // A reset rebases the snapshot at the new drain's current head; opaque cursor names
+    // and positions from the former coverage cannot order the new log.
+    const answers = Object.keys(state.overlay).some((intent) => state.outbox[intent]?.state === "committed")
+      ? Object.values(state.answers) : [];
+    const pages = answers.filter((answer) => {
+      const nonempty = Array.isArray(answer.data) ? answer.data.length > 0 : collectRefs(answer.data).length > 0;
+      return (answer.state === "complete" || answer.state === "capped") && answer.receipt !== undefined
+        && !answer.receipt.ranges.some((range) => (range.evictedIds?.length ?? 0) > 0)
+        && nonempty && answer.refs.length > 0 && answer.refs.every((ref) => state.rows[rowKey(ref)] !== undefined);
+    });
+    const chains = new Map<string, { chain: string[]; reached: Set<string | null | undefined> }>();
     for (const intent of Object.keys(state.overlay)) {
       const entry = state.outbox[intent];
       if (entry === undefined || entry.state === "rejected" || entry.state === "expired") {
         delete state.overlay[intent];
         delete state.overlayMisses[intent];
+        delete state.overlayWatermarks[intent];
+        delete state.overlayNegatives[intent];
+        if (entry) delete entry.predicted;
         continue;
       }
+      for (const row of state.overlay[intent]!) {
+        const key = rowKey(row);
+        const evidence = authoritativeNegatives.get(key);
+        if (evidence !== undefined && evidence.seq >= (state.overlayNegatives[intent]?.[key]?.seq ?? -1)) {
+          (state.overlayNegatives[intent] ??= {})[key] = evidence;
+        }
+      }
       if (entry.state !== "committed") continue;
+      if (state.overlayWatermarks[intent] == null && tail !== undefined) {
+        const snapshot = committedNow.has(intent) && state.overlayWatermarks[intent] !== null ? previousTail ?? tail : tail;
+        state.overlayWatermarks[intent] = {
+          op: snapshot.op, args: clone(snapshot.args), cursorArg: snapshot.cursorArg ?? "c",
+          watermark: snapshot.watermark,
+        };
+      }
       const committedSeq = (entry.response as { seq?: unknown } | undefined)?.seq;
       if (!Number.isSafeInteger(committedSeq)) {
         delete state.overlay[intent];
         delete state.overlayMisses[intent];
+        delete state.overlayWatermarks[intent];
+        delete state.overlayNegatives[intent];
+        delete entry.predicted;
         continue;
       }
-      const predicted = new Set(state.overlay[intent]!.map(rowKey));
-      const arrived = Object.values(state.answers).some((answer) => answer.seq >= Number(committedSeq)
-        && ((tail !== undefined && pageOfDrainedQuery(answer, tail))
-          || answer.refs.some((ref) => predicted.has(rowKey(ref)))));
-      const misses = arrived ? 0 : (state.overlayMisses[intent] ?? 0) + (moved(Number(committedSeq)) ? 1 : 0);
+      const overlay = state.overlay[intent]!;
+      const seq = Number(committedSeq);
+      // A deletion is confirmed by absence, never by a still-present row.
+      const predicted = new Set(overlay.filter((row) => !row.removed).map(rowKey));
+      const committedWatermark = state.overlayWatermarks[intent] ?? undefined;
+      const chainKey = committedWatermark ? canonical({ op: committedWatermark.op, args: committedWatermark.args,
+        cursorArg: committedWatermark.cursorArg, watermark: committedWatermark.watermark, seq }) : "";
+      if (!chains.has(chainKey)) {
+        const chain = committedWatermark ? cursorChain(pages, committedWatermark, seq) : [];
+        chains.set(chainKey, { chain, reached: new Set(chain) });
+      }
+      const { chain, reached } = chains.get(chainKey)!;
+      const negative = overlay.some((row) => {
+        const evidence = state.overlayNegatives[intent]?.[rowKey(row)];
+        return evidence !== undefined && evidence.seq >= seq && (state.rowSeq[rowKey(row)] ?? -1) <= evidence.seq;
+      });
+      // The closure's pooled halo/rule-input row is authoritative arrival too.
+      const arrived = negative || answers.some((answer) => answer.seq >= seq && !answer.retained && answer.state !== "denied"
+        && answer.refs.some((ref) => predicted.has(rowKey(ref)) && state.rows[rowKey(ref)] !== undefined))
+        || (predicted.size > 0 && committedWatermark !== undefined && pages.some((page) => page.seq >= seq
+          && reached.has(pagePosition(page, committedWatermark))));
+      const advanced = committedWatermark !== undefined && swap.watermark !== undefined
+        && tail !== undefined && canonicalAnswerKey(tail.op, tail.args) === canonicalAnswerKey(swap.watermark.op, swap.watermark.args)
+        && advanceOverlay(committedWatermark, tail, chain);
+      const moved = advanced || (swap.resumeSeq !== undefined && swap.resumeSeq > seq);
+      const misses = arrived ? 0 : (state.overlayMisses[intent] ?? 0)
+        + (moved && !committedNow.has(intent) ? 1 : 0);
       if (!arrived && misses < OVERLAY_PATIENCE) {
         if (misses > 0) state.overlayMisses[intent] = misses;
         continue;
       }
       delete state.overlay[intent];
       delete state.overlayMisses[intent];
-      if (!arrived) delete entry.predicted;
+      delete state.overlayWatermarks[intent];
+      delete state.overlayNegatives[intent];
+      delete entry.predicted;
     }
     return state;
   }

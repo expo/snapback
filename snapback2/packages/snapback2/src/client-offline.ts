@@ -57,7 +57,7 @@ export function createOfflineRuntime(options: OfflineClientOptions | undefined):
 export function offlineRefusal(error: unknown, carrier: string): SnapbackRefusal {
   if (isSnapbackRefusal(error)) return error;
   const candidate = error && typeof error === "object" ? (error as { code?: unknown }).code : undefined;
-  if (candidate === "E_OFFLINE_ID_BLOCK" || candidate === "E_OFFLINE_INTENT_EXPIRED") {
+  if (candidate === "E_OFFLINE_ID_BLOCK") {
     const local = error as { message: string; site?: string; rewrite?: string };
     return new SnapbackRefusal({
       code: candidate,
@@ -368,15 +368,41 @@ export async function performOfflineResume<Authority>(options: {
   check();
   if (!options.runtime) return false;
   const revision = options.runtime.coverageRevision;
-  const request = await options.runtime.resumeRequest([...options.mounted.values()], adjustment);
+  const generation = options.runtime.outbox.generation;
+  let request = await options.runtime.resumeRequest([...options.mounted.values()], adjustment);
   check();
   if (!request) {
     // @ref LLP 1012#7-writes-offline — no resume can be built without facts (a
     // login grant with nothing delivered yet), but the queue must never sit:
-    // the held grant replays it directly, and a missing grant settles loudly.
-    await drainOutbox(drainOptions(options));
+    // inside the fence the held grant replays it directly. Past the fence a
+    // login grant may precede every delivery: earn real authority facts
+    // through a named query, then use the owner's supported logless resume;
+    // metadata or a fresh consumption grant alone never opens the fence.
+    if ((await options.runtime.queuedIntents()).length === 0) return false;
     check();
-    return false;
+    if (await options.runtime.outbox.fence() === "inside") {
+      check();
+      await drainOutbox(drainOptions(options));
+      check();
+      return false;
+    }
+    check();
+    const seed = await options.runtime.resumeSeed([...options.mounted.values()]);
+    check();
+    if (!seed) throw resumeUnavailable("no query with known arguments can establish resume facts");
+    const raw = await options.json("/api/query?receipt=1", {
+      method: "POST", body: JSON.stringify({ op: seed.op, args: seed.args }), signal: options.signal,
+    }, options.authority);
+    check();
+    const accepted = await acceptOffline(options.runtime, seed.op, seed.args, raw, options.shape);
+    check();
+    wireQuery(accepted.result);
+    await commitOffline(options.runtime, seed.op, seed.args, accepted, options.failure ?? ((error) => error as Error),
+      revision, () => !options.signal?.aborted);
+    check();
+    request = await options.runtime.resumeRequest([...options.mounted.values()], adjustment);
+    check();
+    if (!request) throw resumeUnavailable("the owner query did not deliver the facts required for resume");
   }
   const standIn = request.log !== undefined && options.runtime.standInLog(request.log);
   const rebuild = async () => {
@@ -400,7 +426,10 @@ export async function performOfflineResume<Authority>(options: {
     check();
     const candidate = refusal(error);
     if (candidate?.code === "E_OFFLINE_RESET") return rebuild();
-    if (candidate?.status === 404) return false;
+    if (candidate?.status === 404) {
+      if ((await options.runtime.queuedIntents()).length > 0) throw error;
+      return false;
+    }
     if (candidate?.code === "E_OFFLINE_RESUME" && retry) {
       return performOfflineResume(options, resumeAdjustment(candidate), false);
     }
@@ -457,11 +486,14 @@ export async function performOfflineResume<Authority>(options: {
     });
     check();
   }
-  await options.runtime.commitMany(swaps, watermark, undefined, revision, () => !options.signal?.aborted);
+  if (!Number.isSafeInteger(response.seq) || Number(response.seq) < 0) {
+    throw options.shape("resume response.seq must be a non-negative safe integer");
+  }
+  await options.runtime.commitMany(swaps, watermark, undefined, revision, () => !options.signal?.aborted, Number(response.seq));
   check();
   options.validated(options.authority);
-  // @ref LLP 1012#7-writes-offline — every successful resume returns a grant,
-  // and the outbox replays FIFO right after it.
+  // @ref LLP 1012#7-writes-offline — a resume may omit a replacement grant;
+  // successful re-authorization itself renews trust, then replay is FIFO.
   options.runtime.noteGrant(response);
   try {
     await options.runtime.adoptPendingGrant();
@@ -469,9 +501,18 @@ export async function performOfflineResume<Authority>(options: {
   } catch (error) {
     throw options.failure ? options.failure(error) : error;
   }
+  if (!options.runtime.outbox.resumeSucceeded(generation)) return false;
   await drainOutbox(drainOptions(options));
   check();
   return false;
+}
+
+function resumeUnavailable(message: string): SnapbackRefusal {
+  return new SnapbackRefusal({
+    code: "E_OFFLINE_RESUME", family: "offline", message,
+    site: "client.online.resume", guide: "offline",
+    rewrite: "query an authorized operation online with receipt support, then call online() again; queued writes are kept",
+  });
 }
 
 function drainOptions<Authority>(options: {

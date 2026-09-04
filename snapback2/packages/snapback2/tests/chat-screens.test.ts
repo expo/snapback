@@ -111,6 +111,13 @@ test("the chat screens render the log, queue offline sends as pinned bubbles, se
     dead: () => dead,
     reject: (_intent, body) => body.args?.body === "reject me",
     conflict: (_intent, body) => body.op === "deliveries.edit",
+    refuse: (_intent, body) => body.args?.body === "owner expired"
+      ? { status: 409, envelope: {
+        code: "E_OFFLINE_INTENT_EXPIRED", family: "offline",
+        message: "the replay grant is older than thirty days",
+        rewrite: "resume for a fresh grant and send again", guide: "offline",
+      } }
+      : undefined,
   });
   await seededStore(fileRangeStore(root));
   let client: any;
@@ -185,17 +192,45 @@ test("the chat screens render the log, queue offline sends as pinned bubbles, se
     await waitFor(() => document.querySelector(`li[data-message="${pinned}"] small[data-edit=rejected]`) !== null, "the conflict note");
     assert.match(text(document.querySelector(`li[data-message="${pinned}"] small[data-edit=rejected]`)), /Edit not sent · message changed/);
 
-    // Expired: a grant past the fence settles locally, without a request.
+    // Past the fence: custody continues without prediction, but replay waits
+    // for a successful resume and then sends every queued intent in order.
     await act(async () => { await client.offline(); });
-    await type(input, "too late");
+    await type(input, "three days old");
     await act(async () => { document.querySelector<HTMLFormElement>("form[aria-label=Composer]")!.requestSubmit(); });
     await waitFor(() => document.querySelector("li[data-state=queued]") !== null, "the late send's bubble");
     Date.now = () => originalNow() + 3 * DAY;
+    await type(input, "typed past the fence");
+    await act(async () => { document.querySelector<HTMLFormElement>("form[aria-label=Composer]")!.requestSubmit(); });
+    await waitFor(() => document.querySelector("small[data-waiting=fence]") !== null, "the composer fence status");
+    assert.equal(await client.outbox.ready(), true, "the composer remains ready past the fence");
+    assert.equal(document.querySelector<HTMLButtonElement>("form[aria-label=Composer] button[type=submit]")!.disabled, false);
+    assert.match(text(document.querySelector("small[data-waiting=fence]")), /Queued until the next sync/);
+    assert.match(text(document.querySelector("ol")), /Will be checked by the server/);
     const mutations = owner.requests.filter((path) => path === "/api/mutation").length;
+    await act(async () => { await client.outbox.drain(); });
+    assert.equal(owner.requests.filter((path) => path === "/api/mutation").length, mutations,
+      "before a successful resume the past-fence drain sends nothing");
+    assert.deepEqual((await client.outbox.entries()).filter((item: any) => item.state === "queued")
+      .map((item: any) => item.args.body), ["three days old", "typed past the fence"]);
     await act(async () => { await client.online(); await client.outbox.settled(); });
-    await waitFor(() => document.querySelector("li[data-state=expired]") !== null, "the expired bubble");
-    assert.equal(owner.requests.filter((path) => path === "/api/mutation").length, mutations);
+    await waitFor(() => document.querySelector("small[data-waiting=fence]") === null, "the composer fence reopened after resume");
+    assert.deepEqual(owner.executions.slice(-2).map((item) => (item.args as any).body), ["three days old", "typed past the fence"],
+      "after resume the old queue commits FIFO");
+
+    // Expired remains a visible, dismissible state, but only after the owner
+    // refuses that intent; the next intent still commits.
+    await act(async () => { await client.offline(); });
+    const ownerExpired = await client.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "owner expired" });
+    const afterExpiry = await client.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "after owner expiry" });
+    assert.equal(ownerExpired.state, "queued");
+    assert.equal(afterExpiry.state, "queued");
+    const serverMutations = owner.requests.filter((path) => path === "/api/mutation").length;
+    await act(async () => { await client.online(); await client.outbox.settled(); });
+    await waitFor(() => document.querySelector("li[data-state=expired]") !== null, "the owner-expired bubble");
+    assert.equal(owner.requests.filter((path) => path === "/api/mutation").length, serverMutations + 2,
+      "the owner judged both intents and the drain continued");
     assert.match(text(document.querySelector("li[data-state=expired]")), /Expired/);
+    assert.equal(owner.executions.at(-1)?.args && (owner.executions.at(-1)!.args as any).body, "after owner expiry");
 
     // Offline search is a filter over the downloaded log, labeled as such.
     dead = true;
@@ -210,6 +245,9 @@ test("the chat screens render the log, queue offline sends as pinned bubbles, se
   } finally {
     Date.now = originalNow;
     await act(async () => { reactRoot.unmount(); });
+    // The provider defers its close a tick; wait for the carrier to go quiet before
+    // the root is removed, or node:test sees activity after the test end.
+    await client.close();
     restore();
     await rm(root, { recursive: true, force: true });
   }

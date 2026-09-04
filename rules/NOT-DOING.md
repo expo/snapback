@@ -69,10 +69,11 @@ the third on 2026-09-04, LLP 1012 §12):
 - **A guide.** `snapback2 guide` serves the compiler's facts, a one-screen grammar, and
   about twelve recipes with CI-executed snippets. No million-word corpus, no embedded
   20 MB guide in the binary, no calendar freshness dates.
-- **WASM anywhere.** The client evaluator is the TypeScript twin: 19.7 KB gzip as
-  measured at landing 5 of LLP 1012 (`snapback2/metrics/twin.jsonl`, with the method;
-  the RBAC-complete, trace-producing successor to spike S3's 7.8 KB and the 9.7 KB first
-  measurement). Still far under anything that would justify WASM; do not grow it.
+- **WASM anywhere.** The client evaluator is the TypeScript twin, under a **30 KB gzip
+  ceiling** (author ruling 2026-09-04): 19.7 KB measured at landings 5–6 of LLP 1012
+  (`snapback2/metrics/twin.jsonl`, with the method; the RBAC-complete, trace-producing
+  successor to spike S3's 7.8 KB and the 9.7 KB first measurement). A lane that would
+  cross 30 KB files the move here first.
 
 ## Process not doing
 

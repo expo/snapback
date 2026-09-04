@@ -1027,7 +1027,7 @@ class Client implements SnapbackClient {
     if (!this.offlineRuntime) return;
     try {
       const changed = this.offlineRuntime.principal !== principal;
-      await this.offlineRuntime.open(principal);
+      await this.offlineRuntime.open(principal, authenticated);
       if (authenticated) await this.offlineRuntime.reauthenticate(principal);
       this.currentPrincipal = principal;
       if (changed) {
@@ -1074,6 +1074,8 @@ class Client implements SnapbackClient {
       this.resetRefusal = undefined;
       this.validated(authority);
     }, (error) => {
+      // Local no-facts refusals never pass through json(): offlineRefusal()
+      // publishes them on cold initialization as well as online().
       if (this.authorityCurrent(authority)) {
         const refusal = this.offlineRefusal(error);
         this.resetRefusal = refusal.envelope;
@@ -1147,15 +1149,21 @@ class Client implements SnapbackClient {
         if (superseded || revision !== runtime.coverageRevision) break;
       }
       if (superseded || revision !== runtime.coverageRevision) continue;
+      let fenced = false;
       if (reset) {
-        await drainOutbox({ runtime, json, signal, shape: wireShape, failure: (error) => this.offlineRefusal(error) });
+        // @ref LLP 1012#7-writes-offline — the rebuild cleared the fence's trust
+        // anchor (resetCoverage resets trust), so this drain releases only
+        // intents inside the fence; a fence stop is answered by the resume the
+        // next round completes, never by the rebuild alone.
+        const drained = await drainOutbox({ runtime, json, signal, shape: wireShape, failure: (error) => this.offlineRefusal(error) });
         check();
+        fenced = drained.reason === "fence";
       }
       const complete = await runtime.completeReset(revision, signal);
       check();
       if (!complete) continue;
       for (const [key, item] of pending) if (this.supersessionQueries.get(key) === item) this.supersessionQueries.delete(key);
-      if (this.supersessionQueries.size === 0 && !runtime.resetNeeded) return;
+      if (this.supersessionQueries.size === 0 && !runtime.resetNeeded && !fenced) return;
     }
     throw new SnapbackRefusal({
       code: "E_OFFLINE_RESET", family: "offline", message: "the program changed during three coverage rebuild attempts",
@@ -1163,7 +1171,7 @@ class Client implements SnapbackClient {
     });
   }
 
-  private async drainNow(): Promise<{ stopped: boolean }> {
+  private async drainNow(): Promise<{ stopped: boolean; reason?: "fence" }> {
     const authority = await this.operationAuthority();
     if (!this.offlineRuntime) return { stopped: false };
     return drainOutbox({ runtime: this.offlineRuntime, json: (path, init) => this.json(path, init, authority),

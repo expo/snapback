@@ -162,6 +162,9 @@ impl Store {
              CREATE INDEX IF NOT EXISTS index_entries_lookup ON index_entries(
                 table_name, index_name, c0, c1, c2, c3, c4, c5, c6, c7, row_id
              );
+             -- Row replacement/deletion spans all indexes. The primary key's
+             -- intervening index_name otherwise makes each cleanup scan the table.
+             CREATE INDEX IF NOT EXISTS index_entries_by_row ON index_entries(table_name, row_id);
              CREATE TABLE IF NOT EXISTS _meta (
                 key TEXT PRIMARY KEY,
                 value TEXT NOT NULL

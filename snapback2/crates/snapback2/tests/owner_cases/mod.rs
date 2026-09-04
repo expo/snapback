@@ -2,11 +2,15 @@ use super::owner_support::*;
 use super::*;
 
 #[cfg(not(feature = "hermes"))]
+mod effects;
+#[cfg(not(feature = "hermes"))]
 mod offline;
 #[cfg(not(feature = "hermes"))]
 mod offline_replay;
 #[cfg(not(feature = "hermes"))]
 mod offline_resume;
+#[cfg(not(feature = "hermes"))]
+mod wire_lifecycle;
 
 #[test]
 fn quarry_source_watch_applies_a_successor() {

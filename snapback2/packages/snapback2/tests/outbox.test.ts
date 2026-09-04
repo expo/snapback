@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -9,7 +9,7 @@ import { SnapbackRefusal, api, createClient } from "../dist/client.mjs";
 import { SnapbackProvider, indexedDbRangeStore, useMutation, useOutbox, useSnapbackClient } from "../dist/react.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
 import { FakeIndexedDb, FakeLocks } from "./fake-indexeddb.ts";
-import { DAY, engineId, fakeOwner, seededStore } from "./fake-owner.ts";
+import { DAY, engineId, fakeOwner, seededStore, generation, schemaHash } from "./fake-owner.ts";
 
 // @ref LLP 1012#7-writes-offline — the outbox contract, proven against a
 // replay-aware owner double on both carriers.
@@ -36,6 +36,513 @@ async function carriers(): Promise<Array<{ name: string; factory: () => ReturnTy
 }
 
 const post = (body: string) => ({ conversationId: "conversation-1", body });
+
+const jsonResponse = (value: unknown, status = 200) => new Response(JSON.stringify(value), {
+  status, headers: { "content-type": "application/json" },
+});
+
+test("a resume whose grant persistence crosses a seal cannot restore trust; the next login waits for its own resume on both carriers", async () => {
+  for (const carrier of await carriers()) {
+    const originalNow = Date.now;
+    let now = originalNow();
+    Date.now = () => now;
+    const owner = fakeOwner();
+    const meStarted = Promise.withResolvers<void>();
+    const expired = Promise.withResolvers<Response>();
+    const persistenceStarted = Promise.withResolvers<void>();
+    const releasePersistence = Promise.withResolvers<void>();
+    const subscribed = Promise.withResolvers<void>();
+    const sealStarted = Promise.withResolvers<void>();
+    let pauseGrant = false;
+    let holdMe = false;
+    let mutations = 0;
+    let unsubscribe = () => {};
+    let pending: Promise<unknown>[] = [];
+    let client: ReturnType<typeof createClient> | undefined;
+    try {
+      await seededStore(carrier.factory());
+      const factory = carrier.factory();
+      client = createClient({ url: "http://obsolete-resume.test", token: "alice-token",
+        offline: { fenceDays: 1, store: () => {
+          const store = factory();
+          const commit = store.commit.bind(store);
+          store.commit = async (swap) => {
+            if (pauseGrant && swap.grants) {
+              pauseGrant = false;
+              persistenceStarted.resolve();
+              await releasePersistence.promise;
+            }
+            await commit(swap);
+          };
+          return store;
+        } },
+        fetch: async (input, init) => {
+          const path = new URL(String(input)).pathname;
+          if (path === "/api/mutation") mutations += 1;
+          if (path === "/api/auth/me" && holdMe) {
+            holdMe = false;
+            meStarted.resolve();
+            return expired.promise;
+          }
+          return owner.fetch(input, init);
+        },
+      });
+      await client.ready;
+      now += 3 * DAY;
+      await client.mutation(api.deliveries.post as any, post("kept across seal"));
+      assert.equal(mutations, 0);
+      holdMe = true;
+      const me = assert.rejects(client.auth.me(), (error: any) => error.code === "E_AUTH_SESSION");
+      pending = [me];
+      await meStarted.promise;
+      pauseGrant = true;
+      // Attach the handler now: the obsolete operation may refuse when sealed.
+      const obsolete = client.online().catch((error) => error);
+      pending.push(obsolete);
+      await persistenceStarted.promise;
+      let notifications = 0;
+      unsubscribe = client.outbox.subscribe(() => {
+        if (++notifications === 1) subscribed.resolve();
+        else sealStarted.resolve();
+      });
+      await subscribed.promise;
+      expired.resolve(jsonResponse({ code: "E_AUTH_SESSION", family: "auth", message: "session expired", guide: "auth/session" }, 401));
+      // resetTrust notifies synchronously before the serialized seal waits for
+      // grant persistence. No timer decides which side of the race was tested.
+      await sealStarted.promise;
+      unsubscribe();
+      releasePersistence.resolve();
+      await Promise.all(pending);
+      assert.equal(mutations, 0, `${carrier.name}: obsolete resume sent nothing`);
+
+      await client.auth.login({ email: "alice@example.com", password: "pw" });
+      assert.equal(await client.outbox.fence(), "past", `${carrier.name}: no pre-seal anchor survived`);
+      assert.deepEqual(await client.outbox.drain(), { stopped: "fence" });
+      assert.equal(mutations, 0, `${carrier.name}: login did not release the old queue`);
+      assert.equal((await client.outbox.entries())[0]?.state, "queued");
+      await client.online();
+      assert.equal(mutations, 1);
+      assert.equal((await client.outbox.entries())[0]?.state, "committed");
+    } finally {
+      unsubscribe();
+      expired.resolve(jsonResponse({ viewer: "dev:alice", kind: "user" }));
+      releasePersistence.resolve();
+      await Promise.allSettled(pending);
+      await client?.close();
+      Date.now = originalNow;
+      await carrier.cleanup();
+    }
+  }
+});
+
+test("no-facts recovery chooses the mounted drain ahead of another mounted candidate, then the recorded log, manifest Cursor, or optional query on both carriers", async () => {
+  for (const carrier of await carriers()) {
+    const originalNow = Date.now;
+    let now = originalNow();
+    Date.now = () => now;
+    try {
+      for (const choice of ["mounted", "recorded", "cursor", "optional"] as const) {
+        const owner = fakeOwner();
+        const queries: string[] = [];
+        const manifestOps = {
+          "account.mine": { kind: "query", args: {}, planHash: "f".repeat(64) },
+          ...(choice === "optional" ? {} : {
+            "feed.global": { kind: "query", args: { c: { Optional: "Cursor" } }, planHash: "f".repeat(64) },
+            "deliveries.inbox": { kind: "query", args: { c: { Optional: "Cursor" } }, planHash: "f".repeat(64) },
+          }),
+        };
+        const fetch: typeof globalThis.fetch = async (input, init) => {
+          const path = new URL(String(input)).pathname;
+          if (path === "/api/query") queries.push(JSON.parse(String(init?.body)).op);
+          const response = await owner.fetch(input, init);
+          if (path !== "/api/manifest") return response;
+          return jsonResponse({ ...await response.json(), ops: manifestOps });
+        };
+        let client = createClient({ url: "http://seed-choice.test", fetch, offline: { store: carrier.factory(), fenceDays: 1 } });
+        const subscriptions: Array<{ close(): void }> = [];
+        try {
+          await client.ready;
+          await client.auth.login({ email: "alice@example.com", password: "pw" });
+          await client.offline();
+          await client.mutation(api.deliveries.post as any, post(choice));
+          await client.close();
+          now += 3 * DAY;
+          if (choice === "recorded") {
+            const store = carrier.factory()();
+            await store.open("dev:alice");
+            // The log choice survived, but it has no generation/auth facts yet.
+            await store.commit({ watermark: { op: "deliveries.inbox", args: { c: null }, watermark: null, updatedAt: now } });
+            await store.close?.();
+          }
+          client = createClient({ url: "http://seed-choice.test", fetch, token: "alice-token", offline: { store: carrier.factory(), fenceDays: 1 } });
+          if (choice === "mounted") {
+            subscriptions.push(client.subscribe(api.feed.global as any, { c: null }, () => {}));
+            subscriptions.push(client.subscribe(api.deliveries.inbox as any, { c: null }, () => {}, { drain: true }));
+          }
+          await client.ready;
+          const expected = choice === "optional" ? "account.mine" : choice === "cursor" ? "feed.global" : "deliveries.inbox";
+          assert.equal(queries[0], expected, `${carrier.name}: ${choice}`);
+          assert.equal((await client.outbox.entries())[0]?.state, "committed");
+          if (choice === "mounted") await (subscriptions[1] as any).until((value: any) => value.caughtUp === true, 2_000);
+        } finally {
+          for (const subscription of subscriptions) subscription.close();
+          await client.close();
+          const store = carrier.factory()();
+          await store.wipe("dev:alice");
+          await store.close?.();
+        }
+      }
+    } finally {
+      Date.now = originalNow;
+      await carrier.cleanup();
+    }
+  }
+});
+
+test("cold no-facts recovery exposes E_OFFLINE_RESUME in lastRefusal and online rejects while keeping the queue on both carriers", async () => {
+  for (const carrier of await carriers()) {
+    const originalNow = Date.now;
+    const owner = fakeOwner();
+    let client = createClient({ url: "http://cold-refusal.test", fetch: owner.fetch, offline: { store: carrier.factory(), fenceDays: 1 } });
+    try {
+      await client.ready;
+      await client.auth.login({ email: "alice@example.com", password: "pw" });
+      await client.offline();
+      await client.mutation(api.deliveries.post as any, post("survives cold refusal"));
+      await client.close();
+      Date.now = () => originalNow() + 3 * DAY;
+      client = createClient({ url: "http://cold-refusal.test", fetch: owner.fetch, token: "alice-token", offline: { store: carrier.factory(), fenceDays: 1 } });
+      await client.ready;
+      assert.equal(client.snapshot.lastRefusal?.code, "E_OFFLINE_RESUME", `${carrier.name}: cold refusal is visible`);
+      assert.equal(client.snapshot.lastRefusal?.site, "client.online.resume");
+      await assert.rejects(client.online(), (error: any) => error.code === "E_OFFLINE_RESUME");
+      assert.equal(client.snapshot.lastRefusal?.code, "E_OFFLINE_RESUME");
+      assert.deepEqual((await client.outbox.entries()).map((entry) => entry.state), ["queued"]);
+      assert.equal(owner.executions.length, 0);
+      // ready remains usable: an explicit receipt lets the same cold client recover.
+      await client.query(api.deliveries.inbox as any, { c: null });
+      await client.online();
+      assert.equal(client.snapshot.lastRefusal, undefined);
+      assert.equal((await client.outbox.entries())[0]?.state, "committed");
+    } finally {
+      await client.close();
+      Date.now = originalNow;
+      await carrier.cleanup();
+    }
+  }
+});
+
+test("live transport and a fresh login grant cannot release old intents; a grantless resume opens the fence and restart closes it on both carriers", async () => {
+  for (const carrier of await carriers()) {
+    const originalNow = Date.now;
+    let now = originalNow();
+    Date.now = () => now;
+    const owner = fakeOwner();
+    let failResume = true;
+    let mutations = 0;
+    let client: ReturnType<typeof createClient> | undefined;
+    try {
+      client = createClient({ url: "http://trust.test", offline: { store: carrier.factory(), fenceDays: 1 },
+        fetch: async (input, init) => {
+          const path = new URL(String(input)).pathname;
+          if (path === "/api/mutation") mutations += 1;
+          if (path === "/api/resume" && failResume) return jsonResponse({ message: "resume unavailable" }, 503);
+          const response = await owner.fetch(input, init);
+          if (path !== "/api/resume") return response;
+          const { grant: _grant, ...resumed } = await response.json();
+          return jsonResponse(resumed);
+        },
+      });
+      await client.ready;
+      await client.auth.login({ email: "alice@example.com", password: "pw" });
+      await client.query(api.deliveries.inbox as any, { c: null });
+      await client.offline();
+      await client.mutation(api.deliveries.post as any, post("old grant"));
+      now += 3 * DAY;
+      await client.mutation(api.deliveries.post as any, post("past fence"));
+      assert.equal(await client.outbox.ready(), true, "fence age does not gate custody");
+      await assert.rejects(client.online(), (error: any) => error.code === "E_NETWORK" || error.retryable);
+      // online() restored transport before its failed resume. Mutations would
+      // reach this spy if the fence guard were removed.
+      assert.deepEqual(await client.outbox.drain(), { stopped: "fence" });
+      assert.deepEqual(await client.outbox.settled(), { stopped: "fence" });
+      assert.equal(mutations, 0, `${carrier.name}: live transport cannot bypass the failed resume`);
+      await client.auth.login({ email: "alice@example.com", password: "pw" });
+      assert.equal(await client.outbox.ready(), true);
+      assert.equal(await client.outbox.fence(), "past", "a fresh consumption grant does not renew old intents");
+      await client.outbox.drain();
+      assert.equal(mutations, 0, `${carrier.name}: fresh login is not a resume`);
+      assert.deepEqual((await client.outbox.entries()).map((entry) => entry.state), ["queued", "queued"]);
+      failResume = false;
+      await client.online();
+      assert.equal(await client.outbox.settled(), undefined);
+      assert.deepEqual(owner.executions.map((entry) => (entry.args as any).body), ["old grant", "past fence"]);
+      assert.equal(await client.outbox.fence(), "inside");
+
+      // Make the consumption grant old too, resume without replacing it, then
+      // queue under the renewed trust and restart while cut.
+      now += 3 * DAY;
+      await client.offline();
+      await client.mutation(api.deliveries.post as any, post("renew again"));
+      await client.online();
+      await client.offline();
+      await client.mutation(api.deliveries.post as any, post("after grantless resume"));
+      assert.equal((await client.outbox.entries()).at(-1)?.predicted, true, "resume itself restored prediction");
+      failResume = true;
+      client = await client.restart();
+      await assert.rejects(client.online());
+      const before = mutations;
+      assert.deepEqual(await client.outbox.drain(), { stopped: "fence" });
+      assert.equal(mutations, before, `${carrier.name}: restart discarded the old runtime's trust`);
+      await client.mutation(api.deliveries.post as any, post("after restart"));
+      assert.equal((await client.outbox.entries()).at(-1)?.predicted, false);
+      failResume = false;
+      await client.online();
+      assert.deepEqual((await client.outbox.entries()).map((entry) => entry.state), ["committed", "committed", "committed", "committed", "committed"]);
+    } finally {
+      await client?.close();
+      Date.now = originalNow;
+      await carrier.cleanup();
+    }
+  }
+});
+
+test("partition change, seal, and wipe never inherit a successful resume for drain or prediction on both carriers", async () => {
+  for (const carrier of await carriers()) {
+    const originalNow = Date.now;
+    const now = originalNow();
+    Date.now = () => now;
+    const alice = fakeOwner();
+    const bob = fakeOwner({ grantMintedAt: () => now - 3 * DAY });
+    let principal = "dev:alice";
+    let expireSession = false;
+    let mutations = 0;
+    let resumes = 0;
+    let client: ReturnType<typeof createClient> | undefined;
+    try {
+      // Bob's partition survived a previous process, with an old grant and a
+      // queued intent. Opening Alice must not open Bob's replay fence.
+      const store = carrier.factory()();
+      await store.open("dev:bob");
+      const id = engineId(1);
+      await store.commit({
+        grants: { current: id, put: [{ id, from: id, count: 8192, used: 52, mintedAt: now - 3 * DAY, expiresAt: now + 27 * DAY }] },
+        bounds: { "deliveries.post": 51 },
+        outbox: { put: [{ intent: `${id}:0`, grant: id, offset: 0, count: 52, ids: [id],
+          op: "deliveries.post", args: post("Bob's old queue"), state: "queued", issuedSeq: 0,
+          createdAt: now - 3 * DAY, updatedAt: now - 3 * DAY, trace: { points: [], verdicts: [] } }] },
+      });
+      await store.close?.();
+      await seededStore(carrier.factory());
+      client = createClient({ url: "http://partition-trust.test", token: "alice-token", offline: { store: carrier.factory(), fenceDays: 1 },
+        fetch: async (input, init) => {
+          const path = new URL(String(input)).pathname;
+          if (path === "/api/auth/login") principal = JSON.parse(String(init?.body)).email.startsWith("bob") ? "dev:bob" : "dev:alice";
+          if (path === "/api/auth/logout") return jsonResponse({ ok: true });
+          if (path === "/api/auth/me" && expireSession) return jsonResponse({
+            code: "E_AUTH_SESSION", family: "auth", message: "session expired", guide: "auth/session",
+          }, 401);
+          if (path === "/api/mutation") mutations += 1;
+          if (path === "/api/resume") resumes += 1;
+          const response = await (principal === "dev:alice" ? alice : bob).fetch(input, init);
+          const value = await response.json();
+          if (value.viewer) value.viewer = principal;
+          if (value.authority) value.authority.principal = principal;
+          if (path === "/api/resume" && principal === "dev:bob") delete value.grant;
+          return jsonResponse(value, response.status);
+        },
+      });
+      await client.ready;
+      assert.equal(resumes, 1, "Alice successfully resumed");
+      await client.auth.login({ email: "bob@example.com", password: "pw" });
+      await client.query(api.deliveries.inbox as any, { c: null });
+      await client.mutation(api.deliveries.post as any, post("Bob before resume"));
+      assert.equal((await client.outbox.entries()).at(-1)?.predicted, false);
+      assert.deepEqual(await client.outbox.drain(), { stopped: "fence" });
+      assert.equal(mutations, 0, `${carrier.name}: Alice's resume authorized no Bob writes`);
+      assert.equal(resumes, 1);
+      await client.online();
+      assert.deepEqual(bob.executions.map((entry) => (entry.args as any).body), ["Bob's old queue", "Bob before resume"]);
+      assert.equal(await client.outbox.fence(), "inside");
+
+      for (const boundary of ["seal", "wipe"]) {
+        if (boundary === "seal") {
+          expireSession = true;
+          await assert.rejects(client.auth.me(), (error: any) => error.code === "E_AUTH_SESSION");
+          expireSession = false;
+        } else await client.auth.logout();
+        await client.auth.login({ email: "bob@example.com", password: "pw" });
+        await client.query(api.deliveries.inbox as any, { c: null });
+        const before = mutations;
+        await client.mutation(api.deliveries.post as any, post(`after ${boundary}`));
+        assert.equal((await client.outbox.entries()).at(-1)?.predicted, false, `${carrier.name}: ${boundary} cleared prediction trust`);
+        assert.deepEqual(await client.outbox.drain(), { stopped: "fence" });
+        assert.equal(mutations, before, `${carrier.name}: ${boundary} cleared replay trust`);
+        await client.online();
+        assert.equal((await client.outbox.entries()).at(-1)?.state, "committed");
+      }
+    } finally {
+      await client?.close();
+      Date.now = originalNow;
+      await carrier.cleanup();
+    }
+  }
+});
+
+test("login then offline before any delivery resumes a three-day queue, including after reset, on both carriers", async () => {
+  for (const carrier of await carriers()) {
+    const originalNow = Date.now;
+    let now = originalNow();
+    Date.now = () => now;
+    const owner = fakeOwner();
+    let reset = false;
+    const requests: string[] = [];
+    let client: ReturnType<typeof createClient> | undefined;
+    try {
+      client = createClient({ url: "http://empty-resume.test", offline: { store: carrier.factory(), fenceDays: 1 },
+        fetch: async (input, init) => {
+          const path = new URL(String(input)).pathname;
+          requests.push(path);
+          if (path === "/api/resume" && reset) {
+            reset = false;
+            return jsonResponse({ code: "E_OFFLINE_RESET", family: "offline", message: "reset coverage", generation, schemaHash, guide: "offline" }, 409);
+          }
+          const response = await owner.fetch(input, init);
+          if (path !== "/api/manifest") return response;
+          const manifest = await response.json();
+          manifest.ops = { "deliveries.inbox": { kind: "query", args: { c: { Optional: "Cursor" } }, planHash: "f".repeat(64) } };
+          return jsonResponse(manifest);
+        },
+      });
+      await client.ready;
+      await client.auth.login({ email: "alice@example.com", password: "pw" });
+      assert.equal(requests.includes("/api/query"), false, "login had no deliveries");
+      await client.offline();
+      await client.mutation(api.deliveries.post as any, post("before any delivery"));
+      now += 3 * DAY;
+      const start = requests.length;
+      await client.online();
+      assert.deepEqual(requests.slice(start), ["/api/query", "/api/resume", "/api/mutation"], `${carrier.name}: real facts, then resume, then replay`);
+      assert.equal((await client.outbox.entries())[0]?.state, "committed");
+      await client.offline();
+      await client.mutation(api.deliveries.post as any, post("before reset"));
+      now += 3 * DAY;
+      reset = true;
+      const resetStart = requests.length;
+      await client.online();
+      const recovery = requests.slice(resetStart);
+      assert.equal(recovery.filter((path) => path === "/api/resume").length, 2, "reset completes a second resume");
+      // Merged with lane T2 (LLP 1012 tail): a rebuild keeps the authenticated
+      // facts, so the second resume needs no seed query; any query that does run
+      // follows the refused resume rather than preceding it.
+      const query = recovery.indexOf("/api/query");
+      assert.ok(query === -1 || query > recovery.indexOf("/api/resume"));
+      assert.ok(recovery.lastIndexOf("/api/resume") < recovery.indexOf("/api/mutation"));
+      assert.deepEqual((await client.outbox.entries()).map((entry) => entry.state), ["committed", "committed"]);
+    } finally {
+      await client?.close();
+      Date.now = originalNow;
+      await carrier.cleanup();
+    }
+  }
+});
+
+test("online refuses E_OFFLINE_RESUME and retains a past-fence queue when no query can supply resume facts", async () => {
+  for (const carrier of await carriers()) {
+    const originalNow = Date.now;
+    const owner = fakeOwner();
+    const client = createClient({ url: "http://unbuildable-resume.test", fetch: owner.fetch, offline: { store: carrier.factory(), fenceDays: 1 } });
+    try {
+      await client.ready;
+      await client.auth.login({ email: "alice@example.com", password: "pw" });
+      await client.offline();
+      await client.mutation(api.deliveries.post as any, post("kept"));
+      Date.now = () => originalNow() + 3 * DAY;
+      await assert.rejects(client.online(), (error: any) => error.code === "E_OFFLINE_RESUME"
+        && error.envelope.family === "offline" && error.envelope.site === "client.online.resume"
+        && error.envelope.guide === "offline" && /queued writes are kept/.test(error.envelope.rewrite));
+      assert.equal(client.snapshot.lastRefusal?.code, "E_OFFLINE_RESUME");
+      assert.equal(owner.executions.length, 0);
+      assert.deepEqual((await client.outbox.entries()).map((entry) => entry.state), ["queued"]);
+    } finally {
+      await client.close();
+      Date.now = originalNow;
+      await carrier.cleanup();
+    }
+  }
+});
+
+test("missing grant trust waits for resume and the client clock never expires an intent on both carriers", async () => {
+  for (const carrier of await carriers()) {
+    const originalNow = Date.now;
+    const mintedAt = originalNow();
+    const owner = fakeOwner({ grantMintedAt: () => mintedAt });
+    await seededStore(carrier.factory());
+    const factory = carrier.factory();
+    let store: ReturnType<typeof factory>;
+    const client = createClient({ url: "http://missing-trust.test", fetch: owner.fetch, as: "alice",
+      offline: { store: () => (store = factory()), fenceDays: 1 },
+    });
+    try {
+      await client.ready;
+      await client.offline();
+      await client.mutation(api.deliveries.post as any, post("owner judges age"));
+      Date.now = () => mintedAt + 40 * DAY;
+      const [entry] = await client.outbox.entries();
+      await store!.commit({ grants: { current: null, remove: [entry!.grant] } });
+      assert.deepEqual(await client.outbox.drain(), { stopped: "fence" }, "missing trust is not permission to send");
+      assert.equal((await client.outbox.entries())[0]?.state, "queued");
+      await client.online();
+      assert.equal((await client.outbox.entries())[0]?.state, "committed", "server acceptance wins even forty days ahead on the client clock");
+      assert.equal(owner.executions.length, 1);
+    } finally {
+      await client.close();
+      Date.now = originalNow;
+      await carrier.cleanup();
+    }
+  }
+});
+
+test("useOutbox exposes fence inside and past while ready stays true, then updates after grantless resume", async () => {
+  const root = await tempRoot();
+  const originalNow = Date.now;
+  const owner = fakeOwner();
+  await seededStore(fileRangeStore(root));
+  let client: any;
+  let outbox: any;
+  let renderer: TestRenderer.ReactTestRenderer | undefined;
+  function Harness() { client = useSnapbackClient(); outbox = useOutbox(); return null; }
+  try {
+    await act(async () => {
+      renderer = TestRenderer.create(React.createElement(SnapbackProvider, {
+        url: "http://fence-hook.test", as: "alice", offline: { store: fileRangeStore(root), fenceDays: 1 },
+        fetch: async (input, init) => {
+          const response = await owner.fetch(input, init);
+          if (new URL(String(input)).pathname !== "/api/resume" || owner.grantsMinted() === 1) return response;
+          const { grant: _grant, ...value } = await response.json();
+          return jsonResponse(value);
+        },
+      }, React.createElement(Harness)));
+    });
+    await act(async () => { await client.ready; await client.offline(); });
+    assert.equal(outbox.ready, true);
+    assert.equal(outbox.fence, "inside");
+    Date.now = () => originalNow() + 3 * DAY;
+    await act(async () => { await client.mutation(api.deliveries.post as any, post("past")); });
+    assert.equal(outbox.ready, true, "fence does not disable accepting a write");
+    assert.equal(outbox.fence, "past");
+    assert.equal(outbox.entries[0].reason, "fence");
+    assert.equal(outbox.entries[0].predicted, false);
+    await act(async () => { await client.online(); });
+    assert.equal(outbox.ready, true);
+    assert.equal(outbox.fence, "inside");
+    assert.equal(outbox.entries[0].state, "committed");
+  } finally {
+    await act(async () => { renderer?.unmount(); await client?.close(); });
+    Date.now = originalNow;
+    await rm(root, { recursive: true, force: true });
+  }
+});
 
 test("enqueue consumes a grant slice of 1 + maxNewIds and refuses E_OFFLINE_ID_BLOCK when the grant is spent", async () => {
   for (const carrier of await carriers()) {
@@ -210,30 +717,72 @@ test("a rejection and a trace conflict settle only their own intent and the drai
   }
 });
 
-test("a grant past fenceDays refuses new intents and settles queued ones expired locally without sending", async () => {
-  const root = await tempRoot();
-  const owner = fakeOwner();
-  await seededStore(fileRangeStore(root));
-  const client = createClient({ url: "http://fence.test", as: "alice", fetch: owner.fetch, offline: { store: fileRangeStore(root), fenceDays: 2 } });
-  await client.ready;
-  await client.offline();
-  await client.mutation(api.deliveries.post as any, post("stale"));
-  const originalNow = Date.now;
-  Date.now = () => originalNow() + 3 * DAY;
-  try {
-    await assert.rejects(
-      () => client.mutation(api.deliveries.post as any, post("past the fence")),
-      (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_OFFLINE_INTENT_EXPIRED",
-    );
-    const mutations = owner.requests.filter((path) => path === "/api/mutation").length;
-    await client.outbox.drain();
-    assert.equal(owner.requests.filter((path) => path === "/api/mutation").length, mutations, "an expired intent is never sent");
+test("a three-day-old queue under fenceDays 1 waits for resume without prediction, then replays FIFO and commits on both carriers", async () => {
+  for (const carrier of await carriers()) {
+    const owner = fakeOwner();
+    await seededStore(carrier.factory());
+    const client = createClient({ url: "http://fence.test", as: "alice", fetch: owner.fetch, offline: { store: carrier.factory(), fenceDays: 1 } });
+    const originalNow = Date.now;
+    try {
+      await client.ready;
+      await client.offline();
+      await client.mutation(api.deliveries.post as any, post("three days old"));
+      assert.equal((await client.outbox.entries())[0]?.predicted, true, `${carrier.name}: prediction starts inside the fence`);
+      Date.now = () => originalNow() + 3 * DAY;
+      const pastFence = await client.mutation(api.deliveries.post as any, post("typed past the fence"));
+      assert.equal(pastFence.state, "queued", `${carrier.name}: the fence never refuses custody`);
+      const queued = await client.outbox.entries();
+      assert.equal(queued[1]?.predicted, false, `${carrier.name}: prediction is off past the fence`);
+      assert.equal(queued[1]?.reason, "fence");
+      const mutations = owner.requests.filter((path) => path === "/api/mutation").length;
+      await client.outbox.drain();
+      assert.equal(owner.requests.filter((path) => path === "/api/mutation").length, mutations,
+        `${carrier.name}: drain sends nothing before a successful resume`);
+      assert.deepEqual((await client.outbox.entries()).map((entry) => entry.state), ["queued", "queued"]);
+      await client.online();
+      await client.outbox.settled();
+      assert.deepEqual(owner.executions.map((item) => (item.args as any).body), ["three days old", "typed past the fence"],
+        `${carrier.name}: the successful resume released every intent in FIFO order`);
+      assert.deepEqual((await client.outbox.entries()).map((entry) => entry.state), ["committed", "committed"]);
+    } finally {
+      Date.now = originalNow;
+      client.close();
+      await carrier.cleanup();
+    }
+  }
+});
+
+test("only the owner's E_OFFLINE_INTENT_EXPIRED refusal expires an intent and the drain continues on both carriers", async () => {
+  for (const carrier of await carriers()) {
+    const owner = fakeOwner({
+      refuse: (_intent, body) => body.args.body === "server expired"
+        ? { status: 409, envelope: {
+          code: "E_OFFLINE_INTENT_EXPIRED", family: "offline",
+          message: "the replay grant is older than thirty days",
+          rewrite: "resume for a fresh grant and send again", guide: "offline",
+        } }
+        : undefined,
+    });
+    await seededStore(carrier.factory());
+    const client = createClient({ url: "http://server-expiry.test", as: "alice", fetch: owner.fetch, offline: { store: carrier.factory() } });
+    await client.ready;
+    await client.offline();
+    await client.mutation(api.deliveries.post as any, post("server expired"));
+    await client.mutation(api.deliveries.post as any, post("after expiry"));
+    const before = owner.requests.filter((path) => path === "/api/mutation").length;
+    await client.online();
+    await client.outbox.settled();
     const entries = await client.outbox.entries();
-    assert.deepEqual(entries.map((entry) => entry.state), ["expired"]);
-  } finally {
-    Date.now = originalNow;
+    assert.deepEqual(entries.map((entry) => entry.state), ["expired", "committed"], carrier.name);
+    assert.equal((entries[0]?.response as any)?.code, "E_OFFLINE_INTENT_EXPIRED", `${carrier.name}: expiry came from the owner envelope`);
+    assert.equal(owner.requests.filter((path) => path === "/api/mutation").length - before, 2,
+      `${carrier.name}: both intents reached the owner`);
+    assert.deepEqual(owner.executions.map((item) => (item.args as any).body), ["after expiry"],
+      `${carrier.name}: refusal settled only its intent and drain continued`);
+    await client.outbox.dismiss(entries[0]!.intent);
+    assert.deepEqual((await client.outbox.entries()).map((entry) => entry.state), ["committed"], `${carrier.name}: expired remains dismissible`);
     client.close();
-    await rm(root, { recursive: true, force: true });
+    await carrier.cleanup();
   }
 });
 
@@ -241,12 +790,16 @@ test("a committed settlement lands in the same swap as the log tail rows, or not
   const root = await tempRoot();
   const owner = fakeOwner();
   await seededStore(fileRangeStore(root));
-  let failAt = -1;
+  let failSettlement = false;
   let writes = 0;
   const store = fileRangeStore(root, {
-    beforeRename: () => {
+    beforeRename: async (temporary) => {
       writes += 1;
-      if (writes === failAt) throw new Error("disk full");
+      const pending = JSON.parse(await readFile(temporary, "utf8"));
+      if (failSettlement && Object.values(pending.outbox).some((entry: any) => entry.state === "committed")) {
+        failSettlement = false;
+        throw new Error("disk full");
+      }
     },
   });
   const client = createClient({ url: "http://atomic.test", as: "alice", fetch: owner.fetch, offline: { store } });
@@ -255,8 +808,8 @@ test("a committed settlement lands in the same swap as the log tail rows, or not
   const queued = await client.mutation(api.deliveries.post as any, post("atomic"));
   assert.equal(queued.state, "queued");
   const pinned = queued.state === "queued" ? queued.ids[0]! : "";
-  // online(): write 1 adopts the resume's grant, write 2 is the settlement swap.
-  failAt = writes + 2;
+  // Target the settlement, after the resume event and grant adoption writes.
+  failSettlement = true;
   await assert.rejects(() => client.online(), (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_OFFLINE_CARRIER");
   assert.equal(owner.executions.length, 1, "the owner committed before the local swap failed");
   const inspect = fileRangeStore(root)();
@@ -277,6 +830,47 @@ test("a committed settlement lands in the same swap as the log tail rows, or not
   assert.equal(owner.executions.length, 1, "the replay after the failed swap was deduplicated");
   client.close();
   await rm(root, { recursive: true, force: true });
+});
+
+test("the settlement log tail uses its recorded cursor name even when the live manifest changes", async () => {
+  for (const liveCursor of ["after", "c"]) {
+    const root = await tempRoot();
+    const seeded = fileRangeStore(root)();
+    await seeded.open("dev:alice");
+    await seeded.commit({
+      deliveries: [{
+        op: "deliveries.inbox", args: { after: null }, state: "complete", data: [], next: null, seq: 3,
+        validator: "1".repeat(64), receipt: { ranges: [], absences: [], verdicts: [] },
+      }],
+      watermark: {
+        op: "deliveries.inbox", args: { after: null }, cursorArg: "after", watermark: "cursor-9",
+        validator: "1".repeat(64), generation, schemaHash, authEpoch: 7, updatedAt: 10,
+      },
+      facts: { generation, schemaHash, authEpoch: 7 },
+    });
+    await seeded.close?.();
+    const owner = fakeOwner({ cursorArg: liveCursor });
+    const tails: unknown[] = [];
+    const client = createClient({
+      url: "http://cursor-tail.test", as: "alice", offline: { store: fileRangeStore(root) },
+      fetch: async (input, init) => {
+        if (new URL(String(input)).pathname === "/api/query") tails.push(JSON.parse(String(init?.body)).args);
+        return owner.fetch(input, init);
+      },
+    });
+    try {
+      await client.ready;
+      await client.offline();
+      await client.mutation(api.deliveries.post as any, post("named cursor"));
+      await client.online();
+      await client.outbox.settled();
+      assert.deepEqual(tails, [{ after: "cursor-9" }]);
+      assert.equal("c" in (tails[0] as Record<string, unknown>), false);
+    } finally {
+      await client.close();
+      await rm(root, { recursive: true, force: true });
+    }
+  }
 });
 
 test("online writes carry the replay envelope under custody; a transport failure enqueues; a queued outbox keeps FIFO", async () => {

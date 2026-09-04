@@ -563,11 +563,9 @@ test("an offline send is predicted into the thread in order with its trace, a de
   }
 });
 
-// @ref LLP 1012#7-writes-offline — the overlay drop is keyed to the evidence
-// the rows arrived: a page of the drained log the settlement tail names, or a
-// delivery holding a predicted row; never another conversation's page, another
-// row of the same table, or an unrelated query — and a stranded overlay is bounded.
-test("a committed intent's overlay survives another conversation's page, an unrelated row of its table, and an unrelated query; leaves with a page of the settlement log or a delivery holding its row; and a stranded one is dropped by the bound with the entry retired from prediction", async () => {
+// @ref LLP 1012#7-writes-offline — the overlay drops only on authoritative
+// arrival or after two successful resumes at or after the commit seq.
+test("a committed intent's overlay survives unrelated answers and an empty current-tail page; leaves with its predicted row; and two resumes retire a stranded prediction", async () => {
   const base = { grant: "g", offset: 0, count: 3, ids: ["m", "d", "x"], op: "deliveries.post", args: { conversationId: "c1" }, issuedSeq: 0, createdAt: 1, updatedAt: 1 };
   const overlay = [{ table: "messages", id: "m", row: { id: "m", body: "predicted" } }, { table: "deliveries", id: "d", row: { id: "d", messageId: "m" } }];
   const committed = { ...base, intent: "g:0", state: "committed" as const, predicted: true, response: { state: "committed", seq: 30, data: { id: "m" } } };
@@ -575,7 +573,6 @@ test("a committed intent's overlay survives another conversation's page, an unre
     op, args, state: "complete" as const, data: rows.map((row) => ({ $row: { table: row.table, id: row.id } })), next: null, seq, rows,
     receipt: { ranges: [], absences: [], verdicts: [] },
   });
-  const unrelated = page("profiles.me", {}, 31, [{ table: "profiles", id: "p1", row: { id: "p1", handle: "viewer" } }]);
   const cases: Array<[string, ReturnType<typeof page>, boolean]> = [
     ["another conversation's thread page", page("deliveries.thread", { conversationId: "c2" }, 32, [
       { table: "deliveries", id: "d-c2", row: { id: "d-c2", messageId: "m-c2" } }, { table: "messages", id: "m-c2", row: { id: "m-c2", body: "elsewhere" } },
@@ -583,7 +580,7 @@ test("a committed intent's overlay survives another conversation's page, an unre
     ["an unrelated row of the predicted table", page("deliveries.thread", { conversationId: "c1" }, 32, [
       { table: "deliveries", id: "d-other", row: { id: "d-other", messageId: "m-other" } },
     ]), false],
-    ["a page of the drained log the settlement tail names", page("deliveries.inbox", { c: "cursor-9" }, 32, []), true],
+    ["an empty page at the held tail position", page("deliveries.inbox", { c: "cursor-9" }, 32, []), false],
     ["a delivery holding the predicted message row", page("deliveries.thread", { conversationId: "c1" }, 32, [
       { table: "messages", id: "m", row: { id: "m", body: "predicted" } },
     ]), true],
@@ -601,22 +598,25 @@ test("a committed intent's overlay survives another conversation's page, an unre
       assert.ok((await store.outbox.overlay())["g:0"], `${label}: a commit with no rows in its swap keeps its overlay`);
       await store.commit({ deliveries: [arrival] });
       assert.equal((await store.outbox.overlay())["g:0"] !== undefined, !leaves, `${label}: the overlay ${leaves ? "did not leave" : "left"}`);
-      assert.equal((await store.outbox.get("g:0"))!.predicted, true, `${label}: the entry stays predicted`);
+      assert.equal((await store.outbox.get("g:0"))!.predicted, leaves ? undefined : true, `${label}: prediction follows overlay custody`);
       await store.close?.();
     } finally {
       await rm(root, { recursive: true, force: true });
     }
   }
-  // The bound: no drained log to fetch a tail from, and two arrivals past the commit that never hold the rows.
+  // The bound also runs when the selected log is stationary.
   const root = await tempRoot();
   try {
     const store = fileRangeStore(root)();
     await store.open("viewer");
-    await store.commit({ outbox: { put: [{ ...base, intent: "g:0", state: "queued", predicted: true }] }, overlay: { put: { "g:0": overlay } } });
+    await store.commit({
+      watermark: { op: "deliveries.inbox", args: { c: null }, cursorArg: "c", watermark: "cursor-9", updatedAt: 1 },
+      outbox: { put: [{ ...base, intent: "g:0", state: "queued", predicted: true }] }, overlay: { put: { "g:0": overlay } },
+    });
     await store.commit({ outbox: { put: [committed] } });
-    await store.commit({ deliveries: [unrelated] });
-    assert.ok((await store.outbox.overlay())["g:0"], "one unrelated arrival past the commit keeps the overlay");
-    await store.commit({ refreshes: [{ op: "profiles.me", args: {}, seq: 33, validator: hex("a"), deliveredAt: 2 }] });
+    await store.commit({ resumeSeq: 31 });
+    assert.ok((await store.outbox.overlay())["g:0"], "one resume keeps the overlay");
+    await store.commit({ resumeSeq: 31 });
     assert.equal((await store.outbox.overlay())["g:0"], undefined, "the stranded overlay did not leave at the bound");
     const retired = (await store.outbox.get("g:0"))!;
     assert.equal(retired.state, "committed", "the entry itself stays until its rows arrive or the app dismisses it");

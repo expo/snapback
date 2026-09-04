@@ -175,6 +175,7 @@ test("the drain and the resume tail key the cursor by the argument the manifest 
     await inspect.open("dev:alice");
     const watermark = (await inspect.coverage()).watermarks.find((item) => item.op === "deliveries.inbox");
     assert.deepEqual(watermark?.args, { after: null });
+    assert.equal(watermark?.cursorArg, "after", "the watermark keeps the manifest-named cursor for store-side tail matching");
     assert.equal(watermark?.watermark, "k1");
     assert.equal(watermark?.validator, "2".repeat(64), "the watermark carries the validator of the page held under { after: k1 }");
     await inspect.close?.();

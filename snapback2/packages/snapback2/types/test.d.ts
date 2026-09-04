@@ -13,8 +13,8 @@ export type JourneyDevice = Omit<SnapbackClient, "restart"> & {
    * replaced by `status` (a 503 after a commit); the owner is untouched.
    */
   failNextResponse(path: string, status: number): void;
-  /** Resolves once the outbox replay in flight, if any, has stopped or emptied the queue. */
-  settled(): Promise<void>;
+  /** Awaits replay; { stopped: "fence" } means the queue still waits for resume. */
+  settled(): ReturnType<SnapbackClient["outbox"]["settled"]>;
 };
 
 export declare function journey(name: string, body: (context: {

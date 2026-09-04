@@ -410,6 +410,17 @@ test("a cache read stamps the LRU in memory without rewriting the carrier; the n
 test("AssetImage, AssetVideo, and useAssetUrl render held renditions from the byte cache offline without the network", async () => {
   const root = await tempRoot();
   const env = domEnvironment();
+  let bytesCommitted!: () => void;
+  const cachedRenditions = new Promise<void>((resolve) => { bytesCommitted = resolve; });
+  const onlineStore = () => {
+    const store: any = fileRangeStore(root)();
+    const commit = store.commit.bind(store);
+    store.commit = async (swap: unknown) => {
+      await commit(swap);
+      if ((await store.bytes()).entries.length === 2) bytesCommitted();
+    };
+    return store;
+  };
   const assetFetches: string[] = [];
   let carrierCalls = 0;
   let phase: "online" | "offline" = "online";
@@ -438,7 +449,7 @@ test("AssetImage, AssetVideo, and useAssetUrl render held renditions from the by
   const seed = createClient({ url: "http://assets.test", as: "alice", offline: { store: fileRangeStore(root) }, fetch });
   await seed.ready;
   await seed.query(api.messages.thread, { conversationId: "c1", c: null });
-  seed.close();
+  await seed.close();
   function Harness() {
     return React.createElement(React.Fragment, null,
       React.createElement(AssetImage, { asset: photo(A) as any, alt: "photo" }),
@@ -452,7 +463,7 @@ test("AssetImage, AssetVideo, and useAssetUrl render held renditions from the by
     await act(async () => {
       reactRoot!.render(React.createElement(
         SnapbackProvider,
-        { url: "http://assets.test", as: "alice", fetch, offline: { store: fileRangeStore(root) } } as any,
+        { url: "http://assets.test", as: "alice", fetch, offline: { store: onlineStore } } as any,
         React.createElement(Harness),
       ));
     });
@@ -461,17 +472,12 @@ test("AssetImage, AssetVideo, and useAssetUrl render held renditions from the by
     assert.equal(document.querySelector("video")!.src, `http://assets.test/api/asset/${V}?s=dom-carrier`, "online, the player streams from the carrier");
     assert.ok(carrierCalls >= 1);
     const shown = document.querySelector("img")!.getAttribute("src")!;
+    // A started fetch is not a held rendition: unmount aborts video prefetch.
+    // Wait for both carrier writes before the offline cold mount.
+    await act(async () => { await cachedRenditions; });
     await act(async () => reactRoot!.unmount());
     reactRoot = undefined;
     assert.ok(env.revoked.includes(shown), "unmount revoked the image's blob: URL");
-    for (let attempt = 0; attempt < 20; attempt += 1) {
-      const inspect: any = fileRangeStore(root)();
-      await inspect.open("dev:alice");
-      const cached = (await inspect.bytes()).entries.length;
-      await inspect.close?.();
-      if (cached === 2) break;
-      await new Promise((resolve) => setTimeout(resolve, 10));
-    }
     phase = "offline";
     const fetchesBefore = assetFetches.length;
     const carriersBefore = carrierCalls;

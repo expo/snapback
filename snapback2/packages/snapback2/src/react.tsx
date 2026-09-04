@@ -237,9 +237,11 @@ export interface UseMutationResult<Args, Result> {
   /** This op's intents still queued in the durable outbox, FIFO (LLP 1012 §7). */
   pending: OutboxEntry[];
   /**
-   * This write would not refuse `E_OFFLINE_ID_BLOCK` for want of a replay grant,
-   * a known bound, or capacity for `1 + maxNewIds`. False until the device has
-   * all three; gate the send on it rather than retrying the refusal (LLP 1012 §7).
+   * `run()` will not refuse `E_OFFLINE_ID_BLOCK` for want of a replay grant, a
+   * known bound, or capacity for `1 + maxNewIds`: no partition, or one holding a
+   * current grant this write fits. False until the device has all three (the
+   * first drain reaching its watermark, or a login, earns the grant); gate the
+   * send on it rather than retrying the refusal (LLP 1012 §7).
    */
   ready: boolean;
   last: MutationResult<Result> | undefined;
@@ -249,8 +251,10 @@ export interface UseMutationResult<Args, Result> {
 /** The durable outbox of the open partition, FIFO, with `dismiss` for settled intents. */
 export interface UseOutboxResult {
   entries: OutboxEntry[];
-  /** Grant-present-and-inside-fence readiness (`client.outbox.ready()`); no particular write bound is implied. */
+  /** Grant-present readiness (`client.outbox.ready()`): no particular write bound is implied, and the fence does not gate it. */
   ready: boolean;
+  /** Past means queued until this partition resumes; accepting writes remains enabled. */
+  fence: "inside" | "past";
   dismiss(intent: string): Promise<void>;
 }
 
@@ -260,22 +264,24 @@ function useOutboxState(op?: Op<any, any>): UseOutboxResult {
   const { client, snapshot } = provider();
   const operation = op === undefined ? undefined : referenceName(op);
   const identity = useMemo(() => ({}), [client, snapshot.authGeneration, operation]);
-  const [state, setState] = useState<{ identity?: object; entries: OutboxEntry[]; ready: boolean }>({ entries: [], ready: false });
+  const [state, setState] = useState<{ identity?: object; entries: OutboxEntry[]; ready: boolean; fence: "inside" | "past" }>({ entries: [], ready: false, fence: "inside" });
   useEffect(() => {
     let active = true;
     let probe = 0;
     const unsubscribe = client.outbox.subscribe((entries) => {
       const current = ++probe;
-      const publish = (ready: boolean) => {
-        if (active && current === probe) setState({ identity, entries, ready });
+      const publish = (ready: boolean, fence: "inside" | "past") => {
+        if (active && current === probe) setState({ identity, entries, ready, fence });
       };
-      void client.outbox.ready(op).then(publish, () => publish(false));
+      void Promise.all([client.outbox.ready(op), client.outbox.fence()])
+        .then(([ready, fence]) => publish(ready, fence), () => publish(false, "past"));
     });
     return () => { active = false; unsubscribe(); };
   }, [identity]);
   const dismiss = useCallback((intent: string) => client.outbox.dismiss(intent), [client]);
   return useMemo(() => ({ entries: state.identity === identity ? state.entries : [],
-    ready: state.identity === identity && state.ready, dismiss }), [state, identity, dismiss]);
+    ready: state.identity === identity && state.ready,
+    fence: state.identity === identity ? state.fence : "inside", dismiss }), [state, identity, dismiss]);
 }
 
 export function useOutbox(): UseOutboxResult {
