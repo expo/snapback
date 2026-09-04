@@ -716,6 +716,20 @@ delivery for the row-level cache refusal.
 Each lane lands under two-family blind review (LLP 0005), and the spec's
 status moves to **Implemented** lane by lane in a record appended here.
 
+**Landing record.** Lane O1c landed on `main` at `7438b6a4b` (2026-09-04): `retain`
+grammar, IR, and core default; the certified delivery-log recipe with the membership
+cap and the private log; three review rounds (codex, grok, Muse). Lane O1a landed at
+`7438b6a4b` (round 1) and `f24ad7d6d` (round 2): the frozen envelope with a
+provenance-addressed row pool, the validator over every delivered byte, conditional
+reads, program custody behind a session, hidden-candidate memo rollback, the engine
+receipt module, the package tests in the gate; three rounds. Lane O2a landed at
+`f24ad7d6d`: the range store on IndexedDB and a Node file carrier, atomic swaps, the
+four eviction rules, seal and wipe, Web Locks, `drain: true`, the resume client, the
+journey primitives, the client split under the cap; two rounds. The codex account hit
+its usage limit at 06:02 during the second rounds of O1a and O2a and twelve minutes
+into O1b; those two rounds were verified and landed on grok and Muse alone. O1b, O2c,
+O2b, and O4 are pending the author's roster decision.
+
 ## 13. The trade
 
 `rules/RULES.md`: nothing moves onto the doing-list without something coming
