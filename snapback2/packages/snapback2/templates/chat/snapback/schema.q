@@ -61,6 +61,7 @@ table messages:
   body: text <=4000
   at: time
   by byConvTime: conversationId, at, id
+  retain delivered-history
   read <- exists memberships[.conversationId, viewer]
   insert <- (
     .authorId = viewer
@@ -68,6 +69,20 @@ table messages:
   )
   update <- .authorId = viewer
   delete <- .authorId = viewer
+
+table deliveries:
+  recipient: principal
+  conversationId: conversations
+  messageId: messages
+  kind: enum('message', 'edit', 'removed', 'expired')
+  at: time
+  by byRecipientAt: recipient, at, id
+  by byRecipientConversationAt: recipient, conversationId, at, id
+  immutable recipient, conversationId, messageId, kind, at
+  read <- .recipient = viewer
+  insert <- exists memberships[.conversationId, viewer]
+  update <- deny
+  delete <- deny
 
 table posts:
   author: principal

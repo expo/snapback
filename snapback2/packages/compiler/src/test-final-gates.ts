@@ -125,7 +125,7 @@ export function registerFinalGateChecks(test: RegisterTest, legacyLib: string): 
 
     const explicit = runBinaryCheck(["--json", "--ir"], {
       schema: {
-        tables: { rows: { columns: { id: "Id", values: { Optional: { List: { of: "Int", max: 2 } } } }, indexes: {}, rules: { read: "Allow", insert: "Allow", update: "Allow", delete: "Allow" }, constraints: [] } },
+        tables: { rows: { columns: { id: "Id", values: { Optional: { List: { of: "Int", max: 2 } } } }, indexes: {}, rules: { read: "Allow", insert: "Allow", update: "Allow", delete: "Allow" }, constraints: [], retain: "until-revoked" } },
         maintains: [],
         channels: {},
         auth: { password: false, guests: false },

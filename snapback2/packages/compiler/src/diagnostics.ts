@@ -127,6 +127,7 @@ function diagnosticGuide(code: DiagnosticCode): string {
   if (code === "E_QUARRY_AMBIGUOUS") return "quarry/indexes";
   if (code === "E_QUARRY_UNSUPPORTED") return "quarry/refusals";
   if (code === "E_QUARRY_PLACEMENT") return "quarry/projects";
+  if (code === "E_QUARRY_RETAIN") return "quarry/grammar";
   if (code === "E_QUARRY_ONLY") return "quarry/projects";
   if (code === "E_QUARRY_UNKNOWN") return "quarry/names";
   if (code === "E_UNBOUND_SCAN") return "bound/scan";

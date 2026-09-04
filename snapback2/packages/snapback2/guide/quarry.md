@@ -2,7 +2,7 @@
 
 Quarry is Snapback 2's only backend authoring language. It is a bounded
 front end to the compiler, checker, evaluator, and server. `snapback2 check`
-compiles `.q` text in memory; it
+compiles `.q` in memory; it
 does not place generated files in `snapback/`. `snapback2 check` writes an
 inspection copy under `.snapback/build/quarry/`.
 
@@ -67,7 +67,10 @@ ordering; `by a, b` infers `byAB`. `unique name: a, b` declares a named unique
 ordering and its uniqueness constraint; `unique a, b` infers `byAB`. `id` may
 appear in an index. `immutable a, b` forbids changes to those columns. `public`
 accepts an optional reason string. An insert
-postcondition is exactly `after insert <- exists table[...] [by index]`.
+postcondition is `after insert <- exists table[...] [by index]`.
+
+`retain until-revoked` (the default) drops rows omitted by a fresh answer.
+`retain delivered-history` keeps them until explicit revocation.
 
 Rules are `allow`, `deny`, `public`, `system`, `exists`, `created`, `and`,
 `or`, `not`, and `=`/`!=` over `viewer`, literals, `.field`, and channel

@@ -53,7 +53,8 @@
             }
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "cardCounts": {
         "columns": {
@@ -97,7 +98,8 @@
             }
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "cards": {
         "columns": {
@@ -148,7 +150,8 @@
             }
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "columns": {
         "columns": {
@@ -199,7 +202,8 @@
             }
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "conversations": {
         "columns": {
@@ -240,7 +244,8 @@
             }
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "dmKeys": {
         "columns": {
@@ -296,7 +301,8 @@
               "index": "byPair"
             }
           }
-        ]
+        ],
+        "retain": "until-revoked"
       },
       "entitlements": {
         "columns": {
@@ -323,7 +329,8 @@
           "update": "Allow",
           "delete": "Allow"
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "expenses": {
         "columns": {
@@ -369,7 +376,8 @@
             }
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "memberships": {
         "columns": {
@@ -453,7 +461,8 @@
               "index": "byConvUser"
             }
           }
-        ]
+        ],
+        "retain": "until-revoked"
       },
       "messages": {
         "columns": {
@@ -550,7 +559,8 @@
             ]
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "owed": {
         "columns": {
@@ -596,7 +606,8 @@
             }
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "secretDocs": {
         "columns": {
@@ -632,7 +643,8 @@
           "update": "Allow",
           "delete": "Allow"
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "shares": {
         "columns": {
@@ -691,7 +703,8 @@
             }
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "unreads": {
         "columns": {
@@ -741,7 +754,8 @@
             }
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "users": {
         "columns": {
@@ -795,7 +809,8 @@
             }
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "waitCounts": {
         "columns": {
@@ -839,7 +854,8 @@
             }
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "waitlist": {
         "columns": {
@@ -875,7 +891,8 @@
           "update": "Allow",
           "delete": "Allow"
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       }
     },
     "maintains": [
@@ -945,9 +962,9 @@
   "certificate": {
     "program": "hiddenRuleDocument",
     "plan_hash": "dbe16017ab622ab13249595d3517a0018b41b33e7263f43f10d60b98b5782dfa",
-    "schema_hash": "89f217f3328ef41f1ee69e710d7f00892c833ce30d258263e2f6e837a04c2052",
+    "schema_hash": "02618d09af2bde3a99a789d0b7b6ed8804b397e1ac5b97a21156ecfee0c3484e",
     "rule_hashes": {
-      "secretDocs.read": "3930bf7da3a70461880e7f42cd69c9986a1021deb9c1f74b812aad5e93ab9b0b"
+      "secretDocs.read": "0f2d4648bb1a7f066f0052af361093d5fb10375cbaf625d07d6ebf54e7533fb4"
     },
     "evaluator_version": "bounded-spike-rust-1",
     "value_model_version": "i53-codepoint-bytes-v2",
@@ -1001,7 +1018,7 @@
     "seed_write": false
   },
   "receipt": {
-    "schema_hash": "89f217f3328ef41f1ee69e710d7f00892c833ce30d258263e2f6e837a04c2052",
+    "schema_hash": "02618d09af2bde3a99a789d0b7b6ed8804b397e1ac5b97a21156ecfee0c3484e",
     "rows": [
       {
         "table": "entitlements",

@@ -42,6 +42,15 @@ export function typeError(site: Site, message: string, rewrite: string): never {
   throw new QuarryError(site, message, "E_QUARRY_TYPE", rewrite);
 }
 
+export function retention(site: Site, message: string): never {
+  throw new QuarryError(
+    site,
+    message,
+    "E_QUARRY_RETAIN",
+    "retain until-revoked  -- alternatively: retain delivered-history",
+  );
+}
+
 export function formatDiagnostic(item: QuarryDiagnostic): string {
   return `${item.file}:${item.line}:${item.col} — ${item.message}`;
 }
@@ -52,5 +61,6 @@ function guideFor(code: QuarryCode): string {
   if (code === "E_QUARRY_UNSUPPORTED") return "quarry/refusals";
   if (code === "E_QUARRY_PLACEMENT") return "quarry/projects";
   if (code === "E_QUARRY_TYPE") return "quarry/types";
+  if (code === "E_QUARRY_RETAIN") return "quarry/grammar";
   return "quarry/names";
 }

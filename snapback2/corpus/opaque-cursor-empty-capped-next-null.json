@@ -50,7 +50,8 @@
             }
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "posts": {
         "columns": {
@@ -110,7 +111,8 @@
             }
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       }
     },
     "maintains": []
@@ -153,9 +155,9 @@
   "certificate": {
     "program": "opaque-cursor-empty-capped-next-null",
     "plan_hash": "b64f80c2e20eee6e03fd94d54413a48703a812c3537d758845bb63f403a33cab",
-    "schema_hash": "7e7d63b584e75b435de67691261409a6b3c636e66487f1a0a966376188b9a9ca",
+    "schema_hash": "44c6957456dcabaa83753fc0fa1c1c43299591e6abd79d911808b406f8f75777",
     "rule_hashes": {
-      "posts.read": "8e8312516deb089e129bc6a1416575d3fdabf67cf332b356eb5b4906e9123680"
+      "posts.read": "3d2a1636caedd2991ec8e604d56f45bc444494d5aa1c032b1d40f6b6b3e9f04b"
     },
     "evaluator_version": "bounded-spike-rust-1",
     "value_model_version": "i53-codepoint-bytes-v2",
@@ -221,7 +223,7 @@
     "seed_write": false
   },
   "receipt": {
-    "schema_hash": "7e7d63b584e75b435de67691261409a6b3c636e66487f1a0a966376188b9a9ca",
+    "schema_hash": "44c6957456dcabaa83753fc0fa1c1c43299591e6abd79d911808b406f8f75777",
     "rows": [],
     "ranges": [],
     "absences": [],

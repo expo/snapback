@@ -20,14 +20,14 @@ import type {
   TableDecl,
 } from "./ast";
 import type { QuarryDiagnostic } from "./ast";
-import { QuarryError, refuse, syntax, unsupported } from "./diagnostics";
+import { QuarryError, refuse, retention, syntax, unsupported } from "./diagnostics";
 import { lex, type Token, type TokenKind } from "./lexer";
 import { quarryExpression } from "./program";
 
 const RESERVED_BINDINGS = new Set([
   "arguments", "await", "break", "case", "catch", "class", "const", "continue", "debugger", "default", "delete", "do",
   "else", "enum", "eval", "export", "extends", "false", "finally", "for", "function", "if", "implements", "import",
-  "in", "insert", "instanceof", "interface", "let", "merge", "new", "null", "package", "private", "protected", "public", "return", "static",
+  "in", "insert", "instanceof", "interface", "let", "merge", "new", "null", "package", "private", "protected", "public", "retain", "return", "static",
   "shape", "fn", "cursor", "super", "switch", "this", "throw", "true", "try", "typeof", "update", "upsert", "var", "void", "while", "with", "yield",
 ]);
 const PRECEDENCE = new Map<string, number>([
@@ -112,6 +112,7 @@ class Parser {
     const rules: RuleDecl[] = [];
     const immutable: Array<{ columns: string[]; site: Site }> = [];
     const finalExists: TableDecl["finalExists"] = [];
+    let retain: TableDecl["retain"];
     let publicDecl: TableDecl["public"];
     while (!this.atKind("dedent") && !this.atKind("eof")) {
       this.skipNewlines();
@@ -125,6 +126,10 @@ class Parser {
         } else if (this.at("by")) indexes.push(this.parseIndex(false));
         else if (this.at("unique")) indexes.push(this.parseIndex(true));
         else if (this.at("immutable")) immutable.push(this.parseImmutable());
+        else if (this.at("retain")) {
+          if (retain) retention(this.peek(), `table ${name} has more than one retain line`);
+          retain = this.parseRetention();
+        }
         else if (this.at("after")) finalExists.push(this.parseFinalExists());
         else if (["read", "insert", "update", "delete"].includes(this.peek().value)) rules.push(this.parseRule());
         else columns.push(this.parseColumn());
@@ -134,7 +139,19 @@ class Parser {
       }
     }
     this.takeKind("dedent");
-    return { name, columns, indexes, rules, immutable, finalExists, ...(publicDecl ? { public: publicDecl } : {}), site };
+    return { name, columns, indexes, rules, immutable, finalExists, ...(retain ? { retain } : {}), ...(publicDecl ? { public: publicDecl } : {}), site };
+  }
+
+  private parseRetention(): NonNullable<TableDecl["retain"]> {
+    const site = this.take("retain");
+    if (!this.atKind("word")) retention(site, "retain requires a policy word");
+    const policy = this.word();
+    if (policy.value !== "until-revoked" && policy.value !== "delivered-history") {
+      retention(site, `unknown retention policy ${policy.value}`);
+    }
+    if (!this.atKind("newline")) retention(site, "retain accepts exactly one policy word");
+    this.newline();
+    return { policy: policy.value, site };
   }
 
   private parseImmutable(): { columns: string[]; site: Site } {

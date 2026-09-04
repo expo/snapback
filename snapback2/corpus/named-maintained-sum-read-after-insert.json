@@ -35,7 +35,8 @@
           "update": "Deny",
           "delete": "Deny"
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "ledger": {
         "columns": {
@@ -61,7 +62,8 @@
           "update": "Allow",
           "delete": "Allow"
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       }
     },
     "maintains": [
@@ -141,10 +143,10 @@
   "certificate": {
     "program": "ledger.insertAndReadBalance",
     "plan_hash": "b91a127a830e0586b8195525e1677584b4af71f425a846bc6ff875815dd8f6de",
-    "schema_hash": "8988873004176a4824cc626649e7e59b545a06e80e15db2ec488ebeb600ce0ad",
+    "schema_hash": "8a2605617c230271c89200e4454c8856a0f31b12c84e38c974532fb401de6170",
     "rule_hashes": {
-      "balances.read": "8ba20ac97de84fa402140e8e67526f4da8b06713858281184543b70365b8aa9e",
-      "ledger.insert": "d6f6dbc8194fda32f0db272ec17fcd5c7615690295d9c428bb879892c40afc7d"
+      "balances.read": "6a3546c4495ba78170d882b2875e91a9b6c1a7924b697dd8d2d04ea27b6e576f",
+      "ledger.insert": "d66c70dc10a87ebcadd5ff7b90cd5875721eab2869dd7c3ac5d79d2f33a47e2a"
     },
     "evaluator_version": "bounded-spike-rust-1",
     "value_model_version": "i53-codepoint-bytes-v2",
@@ -204,7 +206,7 @@
     "seed_write": false
   },
   "receipt": {
-    "schema_hash": "8988873004176a4824cc626649e7e59b545a06e80e15db2ec488ebeb600ce0ad",
+    "schema_hash": "8a2605617c230271c89200e4454c8856a0f31b12c84e38c974532fb401de6170",
     "rows": [
       {
         "table": "balances",

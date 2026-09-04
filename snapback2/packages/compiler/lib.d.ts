@@ -92,6 +92,8 @@ declare module "snapback2" {
   export function schema<const S extends Record<string, unknown>>(value: S): { readonly __schema: S };
   export function table<const C extends Record<string, Column<any, any>>>(value: {
     columns: C;
+    /** Client treatment of rows hidden by a fresh authorized answer; Quarry supplies the default. */
+    retain?: "until-revoked" | "delivered-history";
     indexes?: Record<string, { columns: ReadonlyArray<keyof C | "id">; unique?: boolean }>;
     rules?: Partial<Record<"read" | "insert" | "update" | "delete", Rule>>;
     constraints?: ReadonlyArray<unknown>;

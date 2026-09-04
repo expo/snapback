@@ -87,6 +87,7 @@ fn authority_schema(principal_column: ColumnType) -> Schema {
             delete: viewer_is_principal,
         },
         constraints: Vec::new(),
+        retain: Default::default(),
     };
     let protected = Table {
         columns: BTreeMap::from([(
@@ -103,6 +104,7 @@ fn authority_schema(principal_column: ColumnType) -> Schema {
             delete: RuleExpr::Allow,
         },
         constraints: Vec::new(),
+        retain: Default::default(),
     };
     Schema {
         tables: BTreeMap::from([

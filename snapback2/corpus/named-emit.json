@@ -44,7 +44,8 @@
             }
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       }
     },
     "maintains": [],
@@ -131,9 +132,9 @@
   "certificate": {
     "program": "emitAfterInsert",
     "plan_hash": "abb93e536653fa78c697cc285428921b18224a0618082965f39afcd03ecff06c",
-    "schema_hash": "fb4b3e58ab209a677cb4bb2807cf109d1d1ba954bb45d94cb6ae104e45e7e300",
+    "schema_hash": "2179352cc2000b5efca6aa775c6c1767366012e5482a715e3b9331ace6054c8c",
     "rule_hashes": {
-      "events.insert": "9d8367b0e8668f756a63ace456a7b831949de8ab04c01674f3856ca656f6fb96"
+      "events.insert": "833a1d680f3c85fa659ee818e86bccc18245827011c38e359e5a15e4a1512e98"
     },
     "evaluator_version": "bounded-spike-rust-1",
     "value_model_version": "i53-codepoint-bytes-v2",
@@ -193,7 +194,7 @@
     "seed_write": false
   },
   "receipt": {
-    "schema_hash": "fb4b3e58ab209a677cb4bb2807cf109d1d1ba954bb45d94cb6ae104e45e7e300",
+    "schema_hash": "2179352cc2000b5efca6aa775c6c1767366012e5482a715e3b9331ace6054c8c",
     "rows": [],
     "ranges": [],
     "absences": [],

@@ -512,6 +512,7 @@ fn synthetic_table() -> Table {
             delete: public,
         },
         constraints: Vec::new(),
+        retain: Default::default(),
     }
 }
 

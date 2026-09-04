@@ -35,6 +35,7 @@ fn schema() -> Schema {
         indexes: by_id(),
         rules: public_rules(),
         constraints: Vec::new(),
+        retain: Default::default(),
     };
     let counts = Table {
         columns: BTreeMap::from([
@@ -45,6 +46,7 @@ fn schema() -> Schema {
         indexes: by_id(),
         rules: public_rules(),
         constraints: Vec::new(),
+        retain: Default::default(),
     };
     Schema {
         tables: BTreeMap::from([("counts".to_owned(), counts), ("events".to_owned(), events)]),

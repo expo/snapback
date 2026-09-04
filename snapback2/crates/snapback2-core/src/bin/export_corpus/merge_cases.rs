@@ -306,6 +306,7 @@ fn merge_schema() -> Schema {
             delete: public.clone(),
         },
         constraints: Vec::new(),
+        retain: Default::default(),
     };
     Schema {
         tables: BTreeMap::from([

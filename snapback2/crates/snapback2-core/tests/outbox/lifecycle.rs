@@ -336,6 +336,7 @@ fn then_generation_with_rule(source: &str, reject: bool, write_rule: RuleExpr) -
             delete: RuleExpr::Deny,
         },
         constraints: Vec::new(),
+        retain: Default::default(),
     };
     let emit = Program {
         name: "notifications.emit".to_owned(),

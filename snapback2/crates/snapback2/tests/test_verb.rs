@@ -84,7 +84,7 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
     );
     assert_eq!(revocation["detail"]["postDenialRows"], 0);
     assert_eq!(
-        revocation["detail"]["protectedWrite"], "messages.send",
+        revocation["detail"]["protectedWrite"], "deliveries.post",
         "{revocation}"
     );
     assert_eq!(revocation["detail"]["protectedWriteAs"], "alice");
@@ -222,8 +222,10 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
     }));
     let bounds = check(&receipt, "bounds");
     let executions = bounds["detail"]["executions"].as_array().unwrap();
-    assert_eq!(executions.len(), 18, "{bounds}");
+    assert_eq!(executions.len(), 24, "{bounds}");
     for operation in [
+        "deliveries.inbox",
+        "deliveries.thread",
         "feeds.followingFeed",
         "feeds.globalFeed",
         "messages.summary",

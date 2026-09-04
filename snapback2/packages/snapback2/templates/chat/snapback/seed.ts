@@ -18,8 +18,16 @@ export default seed({
       { id: "membership-4", conversationId: "conversation-2", principal: "dev:charlie", role: "member", joinedAt: 0 },
     ],
     messages: [
+      // Keep the disjoint room first so derived invalidation probes can commit
+      // the recipe's messageId-only edit/unsend mutations outside General.
+      { id: "message-2", conversationId: "conversation-2", authorId: "dev:alice", body: "derived test", at: 1 },
       { id: "message-1", conversationId: "conversation-1", authorId: "dev:alice", body: "Welcome", at: 1 },
-      { id: "message-2", conversationId: "conversation-2", authorId: "dev:alice", body: "Side note", at: 1 },
+    ],
+    deliveries: [
+      { id: "delivery-1-alice", recipient: "dev:alice", conversationId: "conversation-1", messageId: "message-1", kind: "message", at: 1 },
+      { id: "delivery-1-bob", recipient: "dev:bob", conversationId: "conversation-1", messageId: "message-1", kind: "message", at: 1 },
+      { id: "delivery-2-alice", recipient: "dev:alice", conversationId: "conversation-2", messageId: "message-2", kind: "message", at: 1 },
+      { id: "delivery-2-charlie", recipient: "dev:charlie", conversationId: "conversation-2", messageId: "message-2", kind: "message", at: 1 },
     ],
     posts: [
       { id: "post-alice", author: "dev:alice", body: "Hello from Alice", at: 1 },

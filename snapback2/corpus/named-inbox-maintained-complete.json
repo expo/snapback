@@ -53,7 +53,8 @@
             }
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "cardCounts": {
         "columns": {
@@ -97,7 +98,8 @@
             }
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "cards": {
         "columns": {
@@ -148,7 +150,8 @@
             }
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "columns": {
         "columns": {
@@ -199,7 +202,8 @@
             }
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "conversations": {
         "columns": {
@@ -240,7 +244,8 @@
             }
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "dmKeys": {
         "columns": {
@@ -296,7 +301,8 @@
               "index": "byPair"
             }
           }
-        ]
+        ],
+        "retain": "until-revoked"
       },
       "entitlements": {
         "columns": {
@@ -323,7 +329,8 @@
           "update": "Allow",
           "delete": "Allow"
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "expenses": {
         "columns": {
@@ -369,7 +376,8 @@
             }
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "memberships": {
         "columns": {
@@ -448,7 +456,8 @@
               "index": "byConvUser"
             }
           }
-        ]
+        ],
+        "retain": "until-revoked"
       },
       "messages": {
         "columns": {
@@ -545,7 +554,8 @@
             ]
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "owed": {
         "columns": {
@@ -591,7 +601,8 @@
             }
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "secretDocs": {
         "columns": {
@@ -625,7 +636,8 @@
           "update": "Allow",
           "delete": "Allow"
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "shares": {
         "columns": {
@@ -684,7 +696,8 @@
             }
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "unreads": {
         "columns": {
@@ -734,7 +747,8 @@
             }
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "users": {
         "columns": {
@@ -788,7 +802,8 @@
             }
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "waitCounts": {
         "columns": {
@@ -832,7 +847,8 @@
             }
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "waitlist": {
         "columns": {
@@ -868,7 +884,8 @@
           "update": "Allow",
           "delete": "Allow"
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       }
     },
     "maintains": [
@@ -988,10 +1005,10 @@
   "certificate": {
     "program": "inboxMaintainedComplete",
     "plan_hash": "9c5c21cef39b5399733b986f7864d173098557eb59f5bb5e8c0ecda27079e903",
-    "schema_hash": "f4ed0fdb1f3c52cfd706a1e35024f2a1e5236d857f93be4812538e4f7355170c",
+    "schema_hash": "10ba5e3430cd55b2847e9a6697542274c3acf880a417e1b7e5b469ae3a362350",
     "rule_hashes": {
-      "memberships.read": "c574964396c66009dab351e9437cb29a17105cfcea20268c16f5db954bc257ef",
-      "unreads.read": "5b4957a894014996006423db6be6b713dc4f702a36a26a9d4e0c1ddeaaf8196b"
+      "memberships.read": "24dd029d31ffb957c55d0d919c19bc27882e302aec95339d9134faee32ffd073",
+      "unreads.read": "9a69980e8e39f51534cd99e8f302dc54a4fcfbc2ce402972e17892dfdca62b3d"
     },
     "evaluator_version": "bounded-spike-rust-1",
     "value_model_version": "i53-codepoint-bytes-v2",
@@ -1051,7 +1068,7 @@
     "seed_write": false
   },
   "receipt": {
-    "schema_hash": "f4ed0fdb1f3c52cfd706a1e35024f2a1e5236d857f93be4812538e4f7355170c",
+    "schema_hash": "10ba5e3430cd55b2847e9a6697542274c3acf880a417e1b7e5b469ae3a362350",
     "rows": [
       {
         "table": "memberships",
@@ -1116,7 +1133,7 @@
         "gte": null,
         "lt": null,
         "lte": null,
-        "rule_hash": "c574964396c66009dab351e9437cb29a17105cfcea20268c16f5db954bc257ef",
+        "rule_hash": "24dd029d31ffb957c55d0d919c19bc27882e302aec95339d9134faee32ffd073",
         "row_ids": [
           "m1"
         ],

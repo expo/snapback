@@ -19,6 +19,7 @@ import { registerQuarryMoneyChecks } from "./quarry-money-checks";
 import { registerRuntimeRedChecks } from "./runtime-red-checks";
 import { registerCursorIdentityChecks } from "./cursor-identity-checks";
 import { registerApiShapeChecks } from "./api-shape-checks";
+import { registerRetentionChecks } from "./retention-checks";
 import { decimal } from "../../snapback2/src/index";
 import type { Principal } from "../../snapback2/src/index";
 import type { Op } from "../../snapback2/src/api";
@@ -41,6 +42,7 @@ registerRuleTransitionChecks(test, libText);
 registerQuarryChecks(test, frontend);
 registerQuarryMoneyChecks(test, frontend);
 registerApiShapeChecks(test, frontend);
+registerRetentionChecks(test);
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);

@@ -1,7 +1,7 @@
 import ts from "typescript";
 import { authoredTypeFromColumn, requiredType, unknownType, type AuthoredType } from "../authored-types";
 import { diagnostic } from "../diagnostics";
-import { IR_CONTRACT, type FrontendDiagnostic, type SchemaJson, type Value } from "../ir";
+import { IR_CONTRACT, type FrontendDiagnostic, type RetentionPolicy, type SchemaJson, type TableJson, type Value } from "../ir";
 import type { TableInfo } from "../compiler";
 import { expandedNumericLiteral, hasExport, propertyName, staticMemberPath, unwrapCall, unwrapExpression } from "../syntax";
 import {
@@ -64,7 +64,7 @@ export function lowerSchema(source: string, fileName: string): LoweredSchema {
     tables.set(name, { name, private: true });
   }
 
-  const tableJson: Record<string, unknown> = Object.create(null);
+  const tableJson: Record<string, TableJson> = Object.create(null);
   for (const [name, call] of tableCalls) {
     const lowered = lowerTable(module, name, call, tables, diagnostics);
     if (lowered) {
@@ -135,7 +135,7 @@ function lowerTable(
   tables: Map<string, TableInfo>,
   diagnostics: FrontendDiagnostic[],
 ): {
-  value: unknown;
+  value: TableJson;
   private: boolean;
   columns: Record<string, AuthoredType>;
   indexes: Record<string, { columns: string[]; types: AuthoredType[] }>;
@@ -151,7 +151,7 @@ function lowerTable(
     diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_INVALID", config, `table ${name} requires columns`));
     return undefined;
   }
-  validateKnownKeys(module, config, ["columns", "indexes", "rules", "constraints"], `table ${name}`, "E_SCHEMA_INVALID", diagnostics);
+  validateKnownKeys(module, config, ["columns", "indexes", "rules", "constraints", "retain"], `table ${name}`, "E_SCHEMA_INVALID", diagnostics);
   validateRecordShape(module, columnsObject, `columns for ${name}`, "E_SCHEMA_INVALID", diagnostics);
   const columns: Record<string, unknown> = Object.assign(Object.create(null), { id: "Id" });
   for (const entry of propertyEntries(columnsObject)) {
@@ -239,9 +239,23 @@ function lowerTable(
     const node = rulesObject && property(rulesObject, side);
     rules[side] = node ? lowerRule(module, node, tables, diagnostics, authoredColumns) ?? "Deny" : "Deny";
   }
+  const retainNode = property(config, "retain");
+  const authoredRetention = retainNode && stringValue(retainNode);
+  const retain = authoredRetention && IR_CONTRACT.retentionPolicies.includes(authoredRetention as RetentionPolicy)
+    ? authoredRetention as RetentionPolicy
+    : "until-revoked";
+  if (retainNode && !IR_CONTRACT.retentionPolicies.includes(authoredRetention as RetentionPolicy)) {
+    diagnostics.push(schemaDiagnostic(
+      module,
+      "E_SCHEMA_INVALID",
+      retainNode,
+      `table ${name} retain must be until-revoked or delivered-history`,
+      'retain: "until-revoked"',
+    ));
+  }
   const constraints = lowerConstraints(module, property(config, "constraints"), columns, indexes, diagnostics);
   return {
-    value: { columns, indexes, rules, constraints },
+    value: { columns, indexes, rules, constraints, retain },
     private: !isPublicRule(rules.read),
     columns: authoredColumns,
     indexes: authoredIndexes,

@@ -53,7 +53,8 @@
             }
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "cardCounts": {
         "columns": {
@@ -97,7 +98,8 @@
             }
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "cards": {
         "columns": {
@@ -148,7 +150,8 @@
             }
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "columns": {
         "columns": {
@@ -199,7 +202,8 @@
             }
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "conversations": {
         "columns": {
@@ -240,7 +244,8 @@
             }
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "dmKeys": {
         "columns": {
@@ -296,7 +301,8 @@
               "index": "byPair"
             }
           }
-        ]
+        ],
+        "retain": "until-revoked"
       },
       "entitlements": {
         "columns": {
@@ -323,7 +329,8 @@
           "update": "Allow",
           "delete": "Allow"
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "expenses": {
         "columns": {
@@ -369,7 +376,8 @@
             }
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "memberships": {
         "columns": {
@@ -453,7 +461,8 @@
               "index": "byConvUser"
             }
           }
-        ]
+        ],
+        "retain": "until-revoked"
       },
       "messages": {
         "columns": {
@@ -550,7 +559,8 @@
             ]
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "owed": {
         "columns": {
@@ -596,7 +606,8 @@
             }
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "secretDocs": {
         "columns": {
@@ -630,7 +641,8 @@
           "update": "Allow",
           "delete": "Allow"
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "shares": {
         "columns": {
@@ -689,7 +701,8 @@
             }
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "unreads": {
         "columns": {
@@ -739,7 +752,8 @@
             }
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "users": {
         "columns": {
@@ -793,7 +807,8 @@
             }
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "waitCounts": {
         "columns": {
@@ -837,7 +852,8 @@
             }
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "waitlist": {
         "columns": {
@@ -873,7 +889,8 @@
           "update": "Allow",
           "delete": "Allow"
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       }
     },
     "maintains": [
@@ -1007,10 +1024,10 @@
   "certificate": {
     "program": "boardView",
     "plan_hash": "b19c7ef9f1dc43e0782e681f6940b5d55d943b3074cb093e521248c5926f8284",
-    "schema_hash": "df0a1b25740fd361ededb5bf93df3428a133ea6dd44f27a74c45a76e1ce8fb3c",
+    "schema_hash": "47a69e759777a52a0c713eb045039770fa7a4f2ff09ce7e525690348d01897dd",
     "rule_hashes": {
-      "cards.read": "86fc97a3ff8c6f52c56c0ad10e0e41d5a9c4474356ed8b7e523b28a0f78b6b72",
-      "columns.read": "86fc97a3ff8c6f52c56c0ad10e0e41d5a9c4474356ed8b7e523b28a0f78b6b72"
+      "cards.read": "6532c3b91cc26aeed3a85559ee10aa92512936a6c20be353f97a5dea3318648a",
+      "columns.read": "6532c3b91cc26aeed3a85559ee10aa92512936a6c20be353f97a5dea3318648a"
     },
     "evaluator_version": "bounded-spike-rust-1",
     "value_model_version": "i53-codepoint-bytes-v2",
@@ -1074,7 +1091,7 @@
     "seed_write": false
   },
   "receipt": {
-    "schema_hash": "df0a1b25740fd361ededb5bf93df3428a133ea6dd44f27a74c45a76e1ce8fb3c",
+    "schema_hash": "47a69e759777a52a0c713eb045039770fa7a4f2ff09ce7e525690348d01897dd",
     "rows": [
       {
         "table": "columns",
@@ -1135,7 +1152,7 @@
         "gte": null,
         "lt": null,
         "lte": null,
-        "rule_hash": "86fc97a3ff8c6f52c56c0ad10e0e41d5a9c4474356ed8b7e523b28a0f78b6b72",
+        "rule_hash": "6532c3b91cc26aeed3a85559ee10aa92512936a6c20be353f97a5dea3318648a",
         "row_ids": [
           "col1"
         ],
@@ -1161,7 +1178,7 @@
         "gte": null,
         "lt": null,
         "lte": null,
-        "rule_hash": "86fc97a3ff8c6f52c56c0ad10e0e41d5a9c4474356ed8b7e523b28a0f78b6b72",
+        "rule_hash": "6532c3b91cc26aeed3a85559ee10aa92512936a6c20be353f97a5dea3318648a",
         "row_ids": [
           "card1"
         ],

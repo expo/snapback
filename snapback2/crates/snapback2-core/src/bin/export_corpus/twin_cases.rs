@@ -80,6 +80,7 @@ fn add_same_mutation_sum_read_twin_case(cases: &mut Vec<CorpusCase>) {
             delete: writes,
         },
         constraints: Vec::new(),
+        retain: Default::default(),
     };
     let schema = Schema {
         tables: BTreeMap::from([
@@ -435,6 +436,7 @@ fn rbac_twin_schema() -> Schema {
                 RuleTerm::Literal(text("admin")),
             ],
         }],
+        retain: Default::default(),
     };
     let memberships = Table {
         columns: BTreeMap::from([
@@ -493,6 +495,7 @@ fn rbac_twin_schema() -> Schema {
             delete: RuleExpr::Allow,
         },
         constraints: Vec::new(),
+        retain: Default::default(),
     };
     Schema {
         tables: BTreeMap::from([
@@ -616,6 +619,7 @@ fn add_constraint_and_memo_twin_cases(cases: &mut Vec<CorpusCase>) {
                 format: Some(TextFormat::Url),
             },
         ],
+        retain: Default::default(),
     };
     let profile_schema = Schema {
         tables: BTreeMap::from([("profiles".to_owned(), profiles)]),
@@ -683,6 +687,7 @@ fn add_constraint_and_memo_twin_cases(cases: &mut Vec<CorpusCase>) {
             delete: RuleExpr::Allow,
         },
         constraints: Vec::new(),
+        retain: Default::default(),
     };
     let counts = Table {
         columns: BTreeMap::from([
@@ -704,6 +709,7 @@ fn add_constraint_and_memo_twin_cases(cases: &mut Vec<CorpusCase>) {
             delete: RuleExpr::Deny,
         },
         constraints: Vec::new(),
+        retain: Default::default(),
     };
     let maintained_schema = Schema {
         tables: BTreeMap::from([("counts".to_owned(), counts), ("events".to_owned(), events)]),
@@ -765,6 +771,7 @@ fn add_rule_memo_twin_cases(cases: &mut Vec<CorpusCase>, public: RuleExpr) {
         indexes,
         rules,
         constraints: Vec::new(),
+        retain: Default::default(),
     };
     let by_id = || {
         BTreeMap::from([(
@@ -934,6 +941,7 @@ fn add_optional_maintain_twin_case(cases: &mut Vec<CorpusCase>) {
             delete: public,
         },
         constraints: Vec::new(),
+        retain: Default::default(),
     };
     let counts = Table {
         columns: BTreeMap::from([
@@ -967,6 +975,7 @@ fn add_optional_maintain_twin_case(cases: &mut Vec<CorpusCase>) {
             delete: RuleExpr::Deny,
         },
         constraints: Vec::new(),
+        retain: Default::default(),
     };
     let schema = Schema {
         tables: BTreeMap::from([("counts".to_owned(), counts), ("events".to_owned(), events)]),
