@@ -177,6 +177,54 @@ test("the view-once session allowance obeys custody: a partition switch, a wipe,
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
+test("a byte read in flight during a partition change never serves the previous principal's session blob", async () => {
+  const root = await tempRoot();
+  try {
+    const { state, fetch } = bearerServer();
+    const base = fileRangeStore(root);
+    let opens = 0;
+    let midOpen: Promise<Blob | undefined> | undefined;
+    let client!: ReturnType<typeof createClient>;
+    // A store whose open() lets a read land after the carrier opened the incoming
+    // partition and before the runtime bound the byte cache to it. Two things close
+    // the window and this test holds both: a switch wipes the outgoing partition, so
+    // the incoming one has no viewed row to serve under, and the runtime drops the
+    // session allowance before its first await.
+    const store = () => {
+      const inner = base();
+      const open = inner.open.bind(inner);
+      inner.open = async (partition) => {
+        const result = await open(partition);
+        opens += 1;
+        if (opens === 3) midOpen = client.assetCache!.get(B, 8);
+        return result;
+      };
+      return inner;
+    };
+    client = createClient({
+      url: "http://custody-race.test", tokenStore: memoryTokenStore(),
+      offline: { store, viewOnce: (_table, row) => row.id === "m2" }, fetch,
+    });
+    // b views the clip once, so b's partition records it viewed while still holding the row.
+    state.fill = 6;
+    await client.auth.login({ email: "b@example.com", password: "pw" });
+    await client.query(api.messages.thread, THREAD_ARGS);
+    const urlB = (await client.assetUrl(photo(B) as any, { width: 8 }))!;
+    assert.deepEqual(await bytes(await client.assetBlob(urlB)), [6, 6, 6, 6]);
+    // a views it too; a's session now holds a's blob.
+    state.fill = 5;
+    await client.auth.login({ email: "a@example.com", password: "pw" });
+    await client.query(api.messages.thread, THREAD_ARGS);
+    assert.deepEqual(await bytes(await client.assetBlob(urlB)), [5, 5, 5, 5]);
+    // b returns: the read that lands inside open() must not see a's blob.
+    await client.auth.login({ email: "b@example.com", password: "pw" });
+    assert.equal(opens, 3, "the probe ran on b's second open");
+    assert.equal(await midOpen, undefined, "a's session blob is gone before b's partition can be read");
+    assert.equal(await client.assetCache!.get(B, 8), undefined, "and it stays gone");
+    await client.close();
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
 test("AssetVideo never prefetches a view-once clip and marks it viewed at play; useAssetUrl mints no URL for a viewed row", async () => {
   const root = await tempRoot();
   const env = domEnvironment();

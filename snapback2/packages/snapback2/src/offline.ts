@@ -178,6 +178,10 @@ export class OfflineRuntime {
   get seq(): number { return this.latestSeq; }
 
   async open(principal: string): Promise<void> {
+    // The session allowance is dropped before the first await of a partition change:
+    // a byte read that lands between the carrier's open and bind() must never hand
+    // the previous principal's blob to the incoming partition (grok, O4-web round 2).
+    if (this.partition !== undefined && this.partition !== principal) this.bytes.forget();
     await this.serial(async () => {
       if (this.partition !== undefined && this.partition !== principal) await this.store.wipe(this.partition);
       await this.store.open(principal);
