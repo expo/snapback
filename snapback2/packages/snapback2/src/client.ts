@@ -15,7 +15,47 @@ import {
   withProgress,
   type PreparedAssetSource,
 } from "./assets.js";
+import {
+  acceptOffline,
+  answerOffline,
+  commitOffline,
+  createOfflineDrain,
+  createOfflineRuntime,
+  decodeOfflineSubscription,
+  goOffline,
+  goOnline,
+  initializeOfflineClient,
+  offlineNetworkRefusal,
+  offlineRefusal as makeOfflineRefusal,
+  performOfflineResume,
+  restartOffline,
+  settleSubscription,
+  validateOfflineOptions,
+} from "./client-offline.js";
+import {
+  SnapbackRefusal,
+  copyRefusal,
+  fallbackRefusal,
+  isSnapbackRefusal,
+  isTerminalSession,
+  responseRefusal,
+  sseObject,
+  terminalSessionEnvelope,
+  wireAssetSession,
+  wireAuthMe,
+  wireAuthSession,
+  wireChannelDelivery,
+  wireChannelPublish,
+  wireLogout,
+  wireManifest,
+  wireMutation,
+  wireQuery,
+  wireShape,
+  wireSubscription,
+} from "./client-wire.js";
+import { type OfflineRuntime, type MountedQuery } from "./offline.js";
 import { ReconnectingSse } from "./sse.js";
+import { stableSerialize } from "./types.js";
 import type {
   AssetInput,
   AssetRecord,
@@ -30,14 +70,13 @@ import type {
   ChannelPublishResult,
   ClientSnapshot,
   CreateClientOptions,
-  Cursor,
   ImageAsset,
   LiveQueryDelivery,
   Manifest,
   MutationResult,
   Principal,
-  QueryRefusedDelivery,
   QueryResult,
+  QueryRefusedDelivery,
   RefusalEnvelope,
   RefusedDelivery,
   SnapbackClient,
@@ -47,309 +86,21 @@ import type {
 } from "./types.js";
 
 export { api };
+export { SnapbackRefusal, isSnapbackRefusal };
+export { browserTokenStore } from "./token-store.js";
 export type { Api, ApiProxy, ChannelRef as Channel, Op };
 export * from "./types.js";
-
-function fallbackRefusal(code: string, message: string): RefusalEnvelope {
-  return { code, family: "owner", message, guide: "owner/connect" };
-}
-
-const snapbackRefusalBrand = Symbol.for("snapback2.SnapbackRefusal");
-
-export class SnapbackRefusal extends Error {
-  readonly [snapbackRefusalBrand] = true;
-  readonly envelope: RefusalEnvelope;
-  readonly code: string;
-
-  constructor(envelope: RefusalEnvelope, readonly retryable = false) {
-    super(envelope.message);
-    this.name = "SnapbackRefusal";
-    this.envelope = envelope;
-    this.code = envelope.code;
-  }
-}
-
-export function isSnapbackRefusal(value: unknown): value is SnapbackRefusal {
-  return typeof value === "object"
-    && value !== null
-    && (value as { name?: unknown }).name === "SnapbackRefusal"
-    && (value as Record<symbol, unknown>)[snapbackRefusalBrand] === true;
-}
-
-// @ref LLP 1002#4-the-wire — validate every state-specific body before exposing owner data to callers.
-function wireShape(message: string): SnapbackRefusal {
-  return new SnapbackRefusal({ code: "E_WIRE_SHAPE", family: "op", message, guide: "op/wire-shape" });
-}
-
-function wireObject(value: unknown, surface: string): Record<string, unknown> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw wireShape(`${surface} must be an object`);
-  }
-  return value as Record<string, unknown>;
-}
-
-function has(record: Record<string, unknown>, field: string): boolean {
-  return Object.prototype.hasOwnProperty.call(record, field);
-}
-
-function present(record: Record<string, unknown>, field: string, surface: string): unknown {
-  if (!has(record, field)) throw wireShape(`${surface} is missing ${field}`);
-  return record[field];
-}
-
-function stringField(record: Record<string, unknown>, field: string, surface: string): string {
-  const value = present(record, field, surface);
-  if (typeof value !== "string" || value.length === 0) throw wireShape(`${surface}.${field} must be a non-empty string`);
-  return value;
-}
-
-function numberField(record: Record<string, unknown>, field: string, surface: string): number {
-  const value = present(record, field, surface);
-  if (typeof value !== "number" || !Number.isFinite(value)) throw wireShape(`${surface}.${field} must be a number`);
-  return value;
-}
-
-function optionalString(record: Record<string, unknown>, field: string, surface: string): string | undefined {
-  if (!has(record, field)) return undefined;
-  const value = record[field];
-  if (typeof value !== "string") throw wireShape(`${surface}.${field} must be a string`);
-  return value;
-}
-
-function optionalNumber(record: Record<string, unknown>, field: string, surface: string): number | undefined {
-  if (!has(record, field)) return undefined;
-  const value = record[field];
-  if (typeof value !== "number" || !Number.isFinite(value)) throw wireShape(`${surface}.${field} must be a number`);
-  return value;
-}
-
-function nullableString(record: Record<string, unknown>, field: string, surface: string): string | null {
-  const value = present(record, field, surface);
-  if (value !== null && typeof value !== "string") throw wireShape(`${surface}.${field} must be a string or null`);
-  return value;
-}
-
-function wireRefusalEnvelope(value: unknown, surface: string): RefusalEnvelope {
-  const record = wireObject(value, surface);
-  const envelope: RefusalEnvelope = {
-    code: stringField(record, "code", surface),
-    family: stringField(record, "family", surface),
-    message: stringField(record, "message", surface),
-    guide: stringField(record, "guide", surface),
-  };
-  for (const field of ["site", "rule", "rewrite"] as const) {
-    const item = optionalString(record, field, surface);
-    if (item !== undefined) envelope[field] = item;
-  }
-  return envelope;
-}
-
-function copyRefusal(envelope: RefusalEnvelope): RefusalEnvelope {
-  const refusal: RefusalEnvelope = {
-    code: envelope.code,
-    family: envelope.family,
-    message: envelope.message,
-    guide: envelope.guide,
-  };
-  if (envelope.site !== undefined) refusal.site = envelope.site;
-  if (envelope.rule !== undefined) refusal.rule = envelope.rule;
-  if (envelope.rewrite !== undefined) refusal.rewrite = envelope.rewrite;
-  return refusal;
-}
-
-function isTerminalSession(envelope: Pick<RefusalEnvelope, "code" | "family">): boolean {
-  return envelope.code === "E_AUTH_SESSION" && envelope.family === "auth";
-}
-
-function wireQuery<Result>(value: unknown, surface = "query response"): QueryResult<Result> {
-  const record = wireObject(value, surface);
-  switch (stringField(record, "state", surface)) {
-    case "complete":
-      return {
-        state: "complete", data: present(record, "data", surface) as Result,
-        seq: numberField(record, "seq", surface), next: nullableString(record, "next", surface) as Cursor | null,
-      };
-    case "capped": {
-      for (const field of ["site", "take", "reason"]) {
-        if (has(record, field)) throw wireShape(`${surface}.capped must not carry ${field}`);
-      }
-      return {
-        state: "capped",
-        data: present(record, "data", surface) as Result,
-        seq: numberField(record, "seq", surface),
-        next: nullableString(record, "next", surface) as Cursor | null,
-      };
-    }
-    case "partial": {
-      if (has(record, "next")) throw wireShape(`${surface}.partial must not carry next`);
-      const partial = {
-        state: "partial" as const,
-        seq: numberField(record, "seq", surface),
-        reason: stringField(record, "reason", surface),
-      };
-      return has(record, "data") ? { ...partial, data: record.data as Result } : partial;
-    }
-    case "denied":
-      if (has(record, "next")) throw wireShape(`${surface}.denied must not carry next`);
-      return { state: "denied", seq: numberField(record, "seq", surface), rule: stringField(record, "rule", surface) };
-    default:
-      throw wireShape(`${surface}.state must be complete, capped, partial, or denied`);
-  }
-}
-
-function wireMutation<Result>(value: unknown): MutationResult<Result> {
-  const surface = "mutation response";
-  const record = wireObject(value, surface);
-  if (has(record, "next")) throw wireShape(`${surface} must not carry next`);
-  switch (stringField(record, "state", surface)) {
-    case "committed":
-      return { state: "committed", data: present(record, "data", surface) as Result, seq: numberField(record, "seq", surface) };
-    case "rejected":
-      return { state: "rejected", ...wireRefusalEnvelope(record, "mutation rejected response") };
-    default:
-      throw wireShape(`${surface}.state must be committed or rejected`);
-  }
-}
-
-function wireSubscription<Result>(data: string): LiveQueryDelivery<Result> | QueryRefusedDelivery {
-  const surface = "subscription delivery";
-  const record = sseObject(data, surface);
-  if (stringField(record, "state", surface) === "refused") {
-    if (has(record, "next")) throw wireShape(`${surface}.refused must not carry next`);
-    const refusal = wireRefusalEnvelope(record, `${surface} refusal`);
-    const seq = optionalNumber(record, "seq", surface);
-    return {
-      state: "refused",
-      live: false,
-      ...refusal,
-      ...(seq === undefined ? {} : { seq }),
-    };
-  }
-  return { ...wireQuery<Result>(record, surface), live: true };
-}
-
-function wireChannelDelivery<Payload>(data: string): ChannelDelivery<Payload> {
-  const surface = "channel delivery";
-  const record = sseObject(data, surface);
-  if (record.state === "refused") {
-    return { state: "refused", ...wireRefusalEnvelope(record, `${surface} refusal`) } as RefusedDelivery;
-  }
-  return {
-    from: stringField(record, "from", surface) as Principal,
-    payload: present(record, "payload", surface) as Payload,
-    at: numberField(record, "at", surface),
-  };
-}
-
-function wireChannelPublish(value: unknown): ChannelPublishResult {
-  const surface = "channel publish response";
-  const record = wireObject(value, surface);
-  if (record.ok === true) return { ok: true };
-  if (record.state !== "refused") throw wireShape(`${surface} must contain ok: true or state: refused`);
-  return { state: "refused", ...wireRefusalEnvelope(record, `${surface} refusal`) };
-}
-
-function terminalSessionEnvelope(value: unknown): RefusalEnvelope | undefined {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
-  const record = value as Record<string, unknown>;
-  if (record.state !== "rejected" && record.state !== "refused") return undefined;
-  const refusal = wireRefusalEnvelope(record, "terminal session response");
-  return isTerminalSession(refusal) ? refusal : undefined;
-}
-
-function wireAuthSession(value: unknown, surface: string): AuthSession {
-  const record = wireObject(value, surface);
-  return { token: stringField(record, "token", surface), viewer: stringField(record, "viewer", surface) as Principal };
-}
-
-function wireAuthMe(value: unknown): AuthMe {
-  const surface = "auth me response";
-  const record = wireObject(value, surface);
-  return { viewer: stringField(record, "viewer", surface) as Principal, kind: stringField(record, "kind", surface) };
-}
-
-function wireLogout(value: unknown): { ok: boolean } {
-  const surface = "auth logout response";
-  const record = wireObject(value, surface);
-  if (typeof present(record, "ok", surface) !== "boolean") throw wireShape(`${surface}.ok must be a boolean`);
-  return { ok: record.ok as boolean };
-}
-
-function wireManifest(value: unknown): Manifest {
-  const surface = "manifest response";
-  const record = wireObject(value, surface);
-  const ops = wireObject(present(record, "ops", surface), `${surface}.ops`);
-  for (const [name, operation] of Object.entries(ops)) {
-    const item = wireObject(operation, `${surface}.ops.${name}`);
-    stringField(item, "kind", `${surface}.ops.${name}`);
-    stringField(item, "planHash", `${surface}.ops.${name}`);
-    present(item, "args", `${surface}.ops.${name}`);
-  }
-  return {
-    generation: stringField(record, "generation", surface),
-    programGeneration: stringField(record, "programGeneration", surface),
-    ops: ops as unknown as Manifest["ops"],
-    channels: wireObject(present(record, "channels", surface), `${surface}.channels`),
-    auth: wireObject(present(record, "auth", surface), `${surface}.auth`),
-  };
-}
-
-function wireAssetSession(value: unknown): { token: string; expiresAt: number } {
-  const surface = "asset session response";
-  const record = wireObject(value, surface);
-  return {
-    token: stringField(record, "token", surface),
-    expiresAt: numberField(record, "expiresAt", surface),
-  };
-}
-
-async function responseRefusal(response: Response): Promise<SnapbackRefusal> {
-  let value: unknown;
-  try {
-    value = await response.json();
-  } catch {
-    throw new SnapbackRefusal(
-      fallbackRefusal("E_TRANSPORT", `HTTP ${response.status} did not contain a refusal envelope`),
-      true,
-    );
-  }
-  if (!value || typeof value !== "object" || Array.isArray(value)
-    || !["code", "family", "guide"].some((field) => has(value as Record<string, unknown>, field))) {
-    throw new SnapbackRefusal(
-      fallbackRefusal("E_TRANSPORT", `HTTP ${response.status} did not contain a refusal envelope`),
-      true,
-    );
-  }
-  return new SnapbackRefusal(wireRefusalEnvelope(value, `HTTP ${response.status} refusal`));
-}
-
-function sseObject(data: string, surface: string): Record<string, unknown> {
-  try {
-    return wireObject(JSON.parse(data), surface);
-  } catch (error) {
-    if (isSnapbackRefusal(error)) throw error;
-    throw wireShape(`${surface} must contain valid JSON`);
-  }
-}
-
-/** Adapts explicitly supplied browser storage; the client never selects storage itself. */
-export function browserTokenStore(
-  storage: Pick<Storage, "getItem" | "setItem" | "removeItem">,
-  key: string,
-): AuthTokenStore {
-  if (!storage || typeof storage.getItem !== "function"
-    || typeof storage.setItem !== "function" || typeof storage.removeItem !== "function") {
-    throw new TypeError("browserTokenStore requires an explicit Storage implementation");
-  }
-  if (!key) throw new TypeError("browserTokenStore requires a non-empty key");
-  return {
-    load: () => storage.getItem(key),
-    save: (token) => {
-      if (token === null) storage.removeItem(key);
-      else storage.setItem(key, token);
-    },
-  };
-}
+export type {
+  Coverage,
+  HeldAnswer,
+  OutboxEntry,
+  OutboxStore,
+  RangeStore,
+  RangeStoreFactory,
+  Receipt,
+  ReceiptRange,
+  StoreSwap,
+} from "./store/range-store.js";
 
 interface Authority {
   authGeneration: number;
@@ -362,6 +113,11 @@ type SessionExpiration =
   | { cleared: false }
   | { cleared: true; authGeneration: number; fence: number };
 
+type InternalClientOptions = CreateClientOptions & {
+  offlinePrincipal?: Principal;
+  offlineReadObserver?: (ref: unknown, args: unknown, result: unknown) => void;
+};
+
 // @ref LLP 1002#9-the-client-snapback2client-snapback2react-snapback2test — auth custody is restored explicitly and every principal transition fences old in-memory work.
 class Client implements SnapbackClient {
   readonly auth;
@@ -371,7 +127,14 @@ class Client implements SnapbackClient {
   private readonly customFetch: boolean;
   private readonly tokenStore?: AuthTokenStore;
   private readonly persona?: string;
+  private readonly createOptions: InternalClientOptions;
+  private readonly offlineRuntime?: OfflineRuntime;
+  private readonly mounted = new Map<string, MountedQuery>();
+  private offlineMetadataLoaded = false;
+  private resumeTail: Promise<void> = Promise.resolve();
+  private forcedOffline = false;
   private currentToken?: string;
+  private currentPrincipal?: Principal;
   private authGeneration = 0;
   private custodyGeneration = 0;
   private operationFence = 0;
@@ -390,11 +153,12 @@ class Client implements SnapbackClient {
   };
   private closed = false;
 
-  constructor(options: CreateClientOptions) {
+  constructor(options: InternalClientOptions) {
     if (!options?.url) throw new TypeError("createClient requires url");
     if (options.as !== undefined && (options.token !== undefined || options.tokenStore !== undefined)) {
       throw new TypeError("createClient cannot combine dev persona `as` with bearer token custody");
     }
+    this.createOptions = options;
     this.url = options.url.replace(/\/+$/, "");
     this.fetchImpl = options.fetch ?? globalThis.fetch;
     this.customFetch = options.fetch !== undefined;
@@ -406,6 +170,12 @@ class Client implements SnapbackClient {
       persona: options.as,
       connection: "reconnecting",
     };
+    validateOfflineOptions(options.offline);
+    try {
+      this.offlineRuntime = createOfflineRuntime(options.offline);
+    } catch (error) {
+      throw this.offlineRefusal(error);
+    }
     this.auth = {
       signup: (input: { email: string; password: string }) => this.session("/api/auth/signup", input),
       login: (input: { email: string; password: string }) => this.session("/api/auth/login", input),
@@ -413,7 +183,7 @@ class Client implements SnapbackClient {
       logout: () => this.logout(),
       me: () => this.me(),
     };
-    this.ready = this.hydrate(options.token);
+    this.ready = this.hydrate(options.token).then(() => this.initializeOffline());
   }
 
   get snapshot(): ClientSnapshot {
@@ -422,18 +192,41 @@ class Client implements SnapbackClient {
 
   async query<Args, Result>(ref: Op<Args, Result>, args: Args): Promise<QueryResult<Result>> {
     const authority = await this.operationAuthority();
+    const op = referenceName(ref);
+    if (this.forcedOffline) {
+      this.patchSnapshot({ connection: "offline" });
+      return answerOffline(this.offlineRuntime, op, args, (error) => this.offlineRefusal(error));
+    }
+    await this.ensureOfflineMetadata(authority);
     let backoff = 50;
     for (let attempt = 1; ; attempt += 1) {
       try {
-        const result = wireQuery<Result>(await this.json("/api/query", {
+        const held = await this.offlineRuntime?.answer(op, args);
+        const raw = await this.json(this.offlineRuntime ? "/api/query?receipt=1" : "/api/query", {
           method: "POST",
-          body: JSON.stringify({ op: referenceName(ref), args }),
-        }, authority));
+          body: JSON.stringify(this.offlineRuntime && held?.validator ? { op, args, validator: held.validator } : { op, args }),
+        }, authority);
+        const accepted = await acceptOffline<Result>(this.offlineRuntime, op, args, raw, wireShape);
+        const result = wireQuery<Result>(accepted.result);
+        await commitOffline(this.offlineRuntime, op, args, accepted, (error) => this.offlineRefusal(error));
+        if (this.offlineRuntime && this.createOptions.offlineReadObserver) {
+          const held = await answerOffline<Result>(
+            this.offlineRuntime,
+            op,
+            args,
+            (error) => this.offlineRefusal(error),
+          );
+          this.createOptions.offlineReadObserver(ref, args, held);
+        }
         this.validated(authority);
         // Every typed receipt terminates this request. In particular, an
         // empty Capped array is the terminal drain state, never a retry cue.
         return result;
       } catch (error) {
+        if (isSnapbackRefusal(error) && error.retryable && this.offlineRuntime && attempt >= 3) {
+          this.patchSnapshot({ connection: "offline" });
+          return answerOffline(this.offlineRuntime, op, args, (failure) => this.offlineRefusal(failure));
+        }
         if (!isSnapbackRefusal(error)
           || (error.code !== "E_TRANSPORT" && error.code !== "E_NETWORK")
           || !error.retryable
@@ -586,32 +379,51 @@ class Client implements SnapbackClient {
     ref: Op<Args, Result>,
     args: Args,
     callback: (delivery: SubscriptionDelivery<Result>) => void,
+    options: { drain?: boolean } = {},
   ): Subscription<SubscriptionDelivery<Result>> {
-    const path = `/api/subscribe?op=${encodeURIComponent(referenceName(ref))}&args=${encodeURIComponent(JSON.stringify(args))}`;
+    if (options.drain) return this.drain(ref, args, callback);
+    return this.subscribeRegular(ref, args, callback);
+  }
+
+  private subscribeRegular<Args, Result>(
+    ref: Op<Args, Result>,
+    args: Args,
+    callback: (delivery: SubscriptionDelivery<Result>) => void,
+  ): Subscription<SubscriptionDelivery<Result>> {
+    const op = referenceName(ref);
+    const mountedKey = `${op}\u0000${stableSerialize(args)}`;
+    this.mounted.set(mountedKey, { op, args, drain: false });
     let lastPair: { seq: number; data?: Result } | undefined;
     let authority: Authority | undefined;
     let subscription: Subscription<SubscriptionDelivery<Result>>;
+    const finish = (value: LiveQueryDelivery<Result> | QueryRefusedDelivery) => {
+      lastPair = settleSubscription(value, () => this.ensureAuthority(authority), (patch) => this.patchSnapshot(patch));
+      return value;
+    };
     subscription = new ReconnectingSse<SubscriptionDelivery<Result>>({
       open: async (lastEventId, signal) => {
         authority ??= await this.operationAuthority();
+        if (this.forcedOffline) throw offlineNetworkRefusal();
+        await this.ensureOfflineMetadata(authority);
+        const held = await this.offlineRuntime?.answer(op, args);
+        let path = `/api/subscribe?op=${encodeURIComponent(op)}&args=${encodeURIComponent(JSON.stringify(args))}`;
+        if (this.offlineRuntime) path += "&receipt=1";
+        if (held?.validator) path += `&validator=${encodeURIComponent(held.validator)}`;
         return this.stream(path, lastEventId, signal, authority);
       },
       decode: ({ data }) => {
-        const value = wireSubscription<Result>(data);
-        if (value.state === "refused" && isTerminalSession(value)) {
-          throw new SnapbackRefusal(copyRefusal(value));
-        }
-        this.ensureAuthority(authority);
-        if (value.state === "refused") {
-          lastPair = undefined;
-        } else {
-          lastPair = "data" in value ? { seq: value.seq, data: value.data } : { seq: value.seq };
-        }
-        this.patchSnapshot({
-          connection: "connected",
-          lastRefusal: value.state === "refused" ? copyRefusal(value) : undefined,
-        });
-        return value;
+        if (!this.offlineRuntime) return finish(wireSubscription<Result>(data));
+        return decodeOfflineSubscription<Result>({
+          runtime: this.offlineRuntime, op, args, data, shape: wireShape,
+          failure: (error) => this.offlineRefusal(error),
+          observe: this.createOptions.offlineReadObserver
+            ? async () => this.createOptions.offlineReadObserver!(
+                ref,
+                args,
+                await answerOffline(this.offlineRuntime, op, args, (error) => this.offlineRefusal(error)),
+              )
+            : undefined,
+        }).then(finish);
       },
       bufferedTerminal: ({ data }) => {
         const value = wireSubscription<Result>(data);
@@ -621,6 +433,16 @@ class Client implements SnapbackClient {
       },
       onError: async (error) => {
         const { retry, event, refusal } = await this.subscriptionError(error, authority, subscription);
+        if (retry && this.offlineRuntime) {
+          this.patchSnapshot({ connection: "offline" });
+          const event = await answerOffline<Result>(
+            this.offlineRuntime,
+            op,
+            args,
+            (failure) => this.offlineRefusal(failure),
+          );
+          return { retry, event: event as SubscriptionDelivery<Result>, failure: refusal };
+        }
         return {
           retry,
           event: event === undefined ? undefined : { ...event, live: false as const },
@@ -630,6 +452,7 @@ class Client implements SnapbackClient {
       onLoss: () => {
         if (!this.authorityCurrent(authority)) return undefined;
         this.patchSnapshot({ connection: this.transportFailureState() });
+        if (this.offlineRuntime) return undefined;
         if (!lastPair) return undefined;
         return "data" in lastPair
           ? { state: "stale", live: false, since: Date.now(), seq: lastPair.seq, data: lastPair.data }
@@ -640,7 +463,39 @@ class Client implements SnapbackClient {
         : undefined,
       onEvent: callback,
     });
-    return this.track(subscription);
+    const tracked = this.track(subscription);
+    const close = tracked.close.bind(tracked);
+    tracked.close = () => {
+      this.mounted.delete(mountedKey);
+      close();
+    };
+    return tracked;
+  }
+
+  private drain<Args, Result>(
+    ref: Op<Args, Result>,
+    args: Args,
+    callback: (delivery: SubscriptionDelivery<Result>) => void,
+  ): Subscription<SubscriptionDelivery<Result>> {
+    const op = referenceName(ref);
+    return createOfflineDrain({
+      ref,
+      op,
+      args,
+      callback,
+      runtime: this.offlineRuntime,
+      mounted: this.mounted,
+      query: (pageArgs: Args) => this.query(ref, pageArgs),
+      subscribe: (tailArgs, onEvent) => this.subscribeRegular(ref, tailArgs, onEvent),
+      track: (subscription) => this.track(subscription),
+      observe: this.offlineRuntime && this.createOptions.offlineReadObserver
+        ? async () => this.createOptions.offlineReadObserver!(
+            ref,
+            args,
+            await answerOffline(this.offlineRuntime, op, args, (error) => this.offlineRefusal(error)),
+          )
+        : undefined,
+    });
   }
 
   channel<Args, Payload = unknown>(ref: ChannelRef<Args, Payload>, args: Args): ChannelHandle<Payload> {
@@ -720,6 +575,54 @@ class Client implements SnapbackClient {
     return this.manifestFor(authority);
   }
 
+  async offline(): Promise<void> {
+    return goOffline({
+      ready: this.ready,
+      ensureOpen: () => this.ensureOpen(),
+      force: (value) => { this.forcedOffline = value; },
+      connection: (value) => { this.patchSnapshot({ connection: value }); },
+      reconnect: () => this.reconnectTransports(),
+    });
+  }
+
+  async online(): Promise<void> {
+    return goOnline({
+      ready: this.ready,
+      ensureOpen: () => this.ensureOpen(),
+      force: (value) => { this.forcedOffline = value; },
+      connection: (value) => { this.patchSnapshot({ connection: value }); },
+      authority: () => this.operationAuthority(),
+      resume: (authority) => this.performResume(authority),
+      setResume: (run) => { this.resumeTail = run; },
+      reconnect: () => this.reconnectTransports(),
+    });
+  }
+
+  async restart(): Promise<SnapbackClient> {
+    return restartOffline({
+      ready: this.ready,
+      ensureOpen: () => this.ensureOpen(),
+      forced: () => this.forcedOffline,
+      shutdown: async () => {
+        this.closed = true;
+        this.operationFence += 1;
+        this.closeTransports();
+        this.patchSnapshot({ connection: "offline" });
+        await this.offlineRuntime?.close();
+      },
+      create: () => {
+        const offline = this.createOptions.offline;
+        const options: InternalClientOptions = this.persona !== undefined
+          ? { url: this.url, as: this.persona, fetch: this.fetchImpl, offline,
+              offlineReadObserver: this.createOptions.offlineReadObserver }
+          : { url: this.url, token: this.currentToken, tokenStore: this.tokenStore, fetch: this.fetchImpl, offline,
+              offlinePrincipal: this.currentPrincipal,
+              offlineReadObserver: this.createOptions.offlineReadObserver };
+        return new Client(options);
+      },
+    });
+  }
+
   subscribeStatus(callback: (snapshot: ClientSnapshot) => void): () => void {
     this.statusListeners.add(callback);
     try {
@@ -737,6 +640,7 @@ class Client implements SnapbackClient {
     this.operationFence += 1;
     this.closeTransports();
     this.patchSnapshot({ connection: "offline" });
+    void this.offlineRuntime?.close();
   }
 
   private track<Event>(subscription: Subscription<Event>): Subscription<Event> {
@@ -756,6 +660,7 @@ class Client implements SnapbackClient {
         await this.json(path, { method: "POST", body: JSON.stringify(input) }, authority, false, false),
         `${path.slice("/api/".length)} response`,
       );
+      await this.openOffline(session.viewer, true);
       await this.installToken(session.token);
       this.ensureOpen();
       this.validated(undefined);
@@ -779,9 +684,12 @@ class Client implements SnapbackClient {
       } catch (error) {
         requestFailure = error;
       }
+      let wipeFailure: unknown;
+      try { await this.wipeOffline(); } catch (error) { wipeFailure = error; }
       await this.clearToken();
       this.ensureOpen();
       if (requestFailure !== undefined) throw requestFailure;
+      if (wipeFailure !== undefined) throw wipeFailure;
       this.validated(undefined);
       return result as { ok: boolean };
     });
@@ -790,15 +698,21 @@ class Client implements SnapbackClient {
   private async me(): Promise<AuthMe> {
     const authority = await this.operationAuthority();
     const result = wireAuthMe(await this.json("/api/auth/me", {}, authority));
+    await this.openOffline(result.viewer, true);
     this.validated(authority);
     return result;
   }
 
   private async hydrate(explicitToken: string | undefined): Promise<void> {
     let token = explicitToken;
+    let principal: string | null | undefined;
     if (token === undefined && this.tokenStore) {
       try {
-        token = (await this.tokenStore.load()) ?? undefined;
+        const [storedToken, storedPrincipal] = await Promise.all([
+          this.tokenStore.load(), this.tokenStore.loadPrincipal?.(),
+        ]);
+        token = storedToken ?? undefined;
+        principal = storedPrincipal;
       } catch (error) {
         throw this.storageRefusal("load", error);
       }
@@ -809,6 +723,7 @@ class Client implements SnapbackClient {
     if (explicitToken !== undefined) await this.saveToken(token!);
     if (this.closed) return;
     this.currentToken = token;
+    if (token !== undefined && principal) this.currentPrincipal = principal as Principal;
     this.authGeneration += 1;
     this.publishAuthSnapshot();
   }
@@ -826,7 +741,24 @@ class Client implements SnapbackClient {
     const value = wireManifest(await this.json("/api/manifest", {}, authority));
     this.validated(authority);
     this.patchSnapshot({ generation: value.generation });
+    this.offlineRuntime?.manifest(value);
     return value;
+  }
+
+  private async ensureOfflineMetadata(authority: Authority): Promise<void> {
+    if (!this.offlineRuntime || this.offlineMetadataLoaded) return;
+    const manifest = await this.manifestFor(authority);
+    try {
+      const program = await this.json(
+        `/api/program?generation=${encodeURIComponent(manifest.programGeneration)}`,
+        {},
+        authority,
+      );
+      this.offlineRuntime.program(program);
+    } catch (error) {
+      if (!isSnapbackRefusal(error) || error.status !== 404) throw error;
+    }
+    this.offlineMetadataLoaded = true;
   }
 
   private async uploadPrepared(
@@ -1019,6 +951,7 @@ class Client implements SnapbackClient {
   ): Promise<unknown> {
     if (enforceAuthority) this.ensureAuthority(authority);
     else this.ensureOpen();
+    if (this.forcedOffline) throw offlineNetworkRefusal();
     let response: Response;
     try {
       response = await this.fetchImpl(`${this.url}${path}`, {
@@ -1112,6 +1045,7 @@ class Client implements SnapbackClient {
     authority: Authority,
   ): Promise<Response> {
     this.ensureAuthority(authority);
+    if (this.forcedOffline) throw offlineNetworkRefusal();
     const headers = this.headers(authority, true);
     if (lastEventId !== undefined) headers.set("Last-Event-ID", lastEventId);
     try {
@@ -1223,6 +1157,77 @@ class Client implements SnapbackClient {
     return { retry: false, refusal, event: { state: "refused", ...refusal.envelope } };
   }
 
+  private async initializeOffline(): Promise<void> {
+    if (!this.offlineRuntime) return;
+    const authority = {
+      authGeneration: this.authGeneration,
+      custodyGeneration: this.custodyGeneration,
+      fence: this.operationFence,
+      token: this.currentToken,
+    };
+    return initializeOfflineClient({
+      principal: this.persona === undefined
+        ? this.createOptions.offlinePrincipal ?? this.currentPrincipal
+        : `dev:${this.persona}` as Principal,
+      bearer: this.persona === undefined && this.currentToken !== undefined,
+      authority,
+      open: (principal, authenticated) => this.openOffline(principal, authenticated),
+      confirm: async (current) => wireAuthMe(await this.json("/api/auth/me", {}, current)).viewer,
+      metadata: (current) => this.ensureOfflineMetadata(current),
+      resume: (current) => this.performResume(current),
+      ignore: (error) => isSnapbackRefusal(error) && (error.retryable || error.code === "E_OFFLINE_RESUME"),
+    });
+  }
+
+  private async openOffline(principal: Principal, authenticated = false): Promise<void> {
+    if (!this.offlineRuntime) return;
+    try {
+      const changed = this.offlineRuntime.principal !== principal;
+      await this.offlineRuntime.open(principal);
+      if (authenticated) await this.offlineRuntime.reauthenticate(principal);
+      this.currentPrincipal = principal;
+      if (changed) this.offlineMetadataLoaded = false;
+    } catch (error) {
+      throw this.offlineRefusal(error);
+    }
+  }
+
+  private async sealOffline(): Promise<void> {
+    if (!this.offlineRuntime) return;
+    try { await this.offlineRuntime.seal(); }
+    catch (error) { throw this.offlineRefusal(error); }
+  }
+
+  private async wipeOffline(): Promise<void> {
+    if (!this.offlineRuntime) return;
+    try { await this.offlineRuntime.wipe(); this.currentPrincipal = undefined; }
+    catch (error) { throw this.offlineRefusal(error); }
+  }
+
+  private async performResume(authority: Authority): Promise<void> {
+    if (!this.offlineRuntime || this.forcedOffline) return;
+    await this.ensureOfflineMetadata(authority);
+    return performOfflineResume({
+      runtime: this.offlineRuntime,
+      mounted: this.mounted,
+      authority,
+      bearerConfirmed: authority.token !== undefined,
+      json: (path, init, current) => this.json(path, init, current),
+      validated: (current) => this.validated(current),
+      shape: wireShape,
+      subscriptions: this.subscriptions,
+    });
+  }
+
+  private offlineRefusal(error: unknown): SnapbackRefusal {
+    const carrier = this.createOptions?.offline?.store.carrier
+      ?? this.createOptions?.offline?.store.name
+      ?? "configured";
+    const refusal = makeOfflineRefusal(error, carrier);
+    this.recordRefusal(refusal.envelope);
+    return refusal;
+  }
+
   private recordRefusal(envelope: RefusalEnvelope): void {
     this.patchSnapshot({ lastRefusal: envelope });
   }
@@ -1240,6 +1245,7 @@ class Client implements SnapbackClient {
       await transition;
       if (transition === this.transitionTail) break;
     }
+    await this.resumeTail;
     this.ensureOpen();
     return {
       authGeneration: this.authGeneration,
@@ -1286,8 +1292,11 @@ class Client implements SnapbackClient {
       const fence = this.operationFence;
       const authGeneration = this.authGeneration + 1;
       this.closeTransports(origin);
+      let sealFailure: unknown;
       try {
+        try { await this.sealOffline(); } catch (error) { sealFailure = error; }
         await this.clearTokenNow();
+        if (sealFailure !== undefined) throw sealFailure;
       } finally {
         this.authGeneration += 1;
         this.publishAuthSnapshot();
@@ -1308,6 +1317,7 @@ class Client implements SnapbackClient {
     await this.custody(async () => {
       this.ensureOpen();
       await this.saveToken(token);
+      await this.tokenStore?.savePrincipal?.(this.currentPrincipal ?? null);
       // Commit replacement custody only after durable persistence succeeds,
       // but before close can prevent its in-memory installation. Predecessor
       // evidence may clear a failed save; it cannot erase a completed one.
@@ -1343,11 +1353,13 @@ class Client implements SnapbackClient {
     if (this.tokenStore) {
       try {
         await this.tokenStore.save(null);
+        await this.tokenStore.savePrincipal?.(null);
       } catch (error) {
         failure = this.storageRefusal("clear", error);
       }
     }
     this.currentToken = undefined;
+    this.currentPrincipal = undefined;
     if (failure) throw failure;
   }
 
@@ -1391,6 +1403,12 @@ class Client implements SnapbackClient {
     }
   }
 
+  private reconnectTransports(): void {
+    for (const subscription of this.subscriptions) {
+      (subscription as Subscription<unknown> & { reconnect?: () => void }).reconnect?.();
+    }
+  }
+
   private authorityCurrent(authority: Authority | undefined): authority is Authority {
     return authority !== undefined
       && !this.closed
@@ -1431,7 +1449,8 @@ class Client implements SnapbackClient {
   }
 
   private transportFailureState(): "reconnecting" | "offline" {
-    return typeof navigator !== "undefined" && navigator.onLine === false ? "offline" : "reconnecting";
+    return this.forcedOffline || (typeof navigator !== "undefined" && navigator.onLine === false)
+      ? "offline" : "reconnecting";
   }
 
   private patchSnapshot(patch: Partial<ClientSnapshot>): ClientSnapshot {

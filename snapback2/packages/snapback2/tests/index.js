@@ -9,5 +9,6 @@ await import("./typing.test.ts");
 await import("./real-owner.test.ts");
 await import("./native-assets.test.ts");
 await import("./offline-protocol.test.ts");
+await import("./offline-store.test.ts");
 
 after(async () => owner.close());

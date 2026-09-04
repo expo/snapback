@@ -19,6 +19,7 @@ const RECIPES: &[&str] = &[
     "personas",
     "quarry",
     "testing",
+    "offline",
 ];
 
 pub fn run(args: &[String]) -> ExitCode {

@@ -401,3 +401,43 @@ journey("scoped roles reject non-admin and stale membership authority", async ({
     charlie.close();
   }
 });
+
+journey("offline drain removes an unsent body and survives a cold restart", async ({ as }) => {
+  const alice = as("alice", {
+    store: "file",
+    onTombstone: (item) => item.table === "deliveries"
+      && (item.row.kind === "removed" || item.row.kind === "expired")
+      && typeof item.row.messageId === "string"
+      ? [{ table: "messages", id: item.row.messageId }]
+      : [],
+  });
+  const drain = alice.subscribe(
+    api.deliveries.inbox,
+    { c: null },
+    () => undefined,
+    { drain: true },
+  );
+  await drain.until((value) =>
+    (value.state === "complete" || value.state === "capped") && value.caughtUp === true);
+  await alice.offline();
+  const owner = as("alice");
+  const unsent = await owner.mutation(api.deliveries.unsend, { messageId: "message-1" });
+  if (unsent.state !== "committed") throw new Error(`unsend was ${unsent.state}`);
+  owner.close();
+  await alice.online();
+  await drain.until((value) => "data" in value
+    && Array.isArray(value.data)
+    && value.data.some((row: { kind?: string; messageId?: string }) =>
+      row.kind === "removed" && row.messageId === "message-1"));
+  drain.close();
+  await alice.offline();
+  const cold = await alice.restart();
+  const held = await cold.query(api.deliveries.inbox, { c: null });
+  if ((held.state !== "complete" && held.state !== "capped" && held.state !== "partial")
+    || !("connection" in held) || held.connection !== "offline" || !Array.isArray(held.data)) {
+    throw new Error("cold offline inbox did not render its held answer");
+  }
+  if (JSON.stringify(held.data).includes("Welcome")) {
+    throw new Error("unsent message body survived in the cold held inbox");
+  }
+});

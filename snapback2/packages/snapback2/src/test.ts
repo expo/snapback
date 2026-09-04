@@ -1,9 +1,21 @@
-import { basename, resolve } from "node:path";
+import { rm } from "node:fs/promises";
+import { basename, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { createClient, type SnapbackClient } from "./client.js";
+import {
+  createClient,
+  stableSerialize,
+  type OfflineClientOptions,
+  type SnapbackClient,
+} from "./client.js";
+import { fileRangeStore } from "./store/file.js";
+
+export { fileRangeStore };
 
 type JourneyContext = {
-  as(name: string): SnapbackClient;
+  as(name: string, options?: {
+    store?: "file";
+    onTombstone?: OfflineClientOptions["onTombstone"];
+  }): SnapbackClient;
   tick(ms: number): Promise<Record<string, unknown>>;
   url: string;
 };
@@ -68,6 +80,7 @@ async function runEntry(): Promise<void> {
   const url = argument("--url");
   const secret = argument("--secret");
   const files = runnerFiles();
+  const storeRoot = argument("--store-root");
   if (!url || !secret || files.length === 0) {
     process.stdout.write(`${JSON.stringify({ name: "journeys", kind: "journey", verdict: "fail", ms: 0, detail: "runner requires --url, --secret, and files" })}\n`);
     process.exitCode = 1;
@@ -97,7 +110,7 @@ async function runEntry(): Promise<void> {
       const journeys = await loadJourneyFile(files[0]!);
       const check = journeys[index];
       if (!check) throw new Error(`journey index ${index} is out of range`);
-      if (!await runCheck(check, files[0]!, url, secret)) process.exitCode = 1;
+      if (!await runCheck(check, files[0]!, url, secret, storeRoot)) process.exitCode = 1;
     } catch (error) {
       process.stdout.write(`${JSON.stringify({ name: files[0], kind: "journey", verdict: "fail", ms: 0, detail: String(error) })}\n`);
       process.exitCode = 1;
@@ -115,26 +128,100 @@ async function runEntry(): Promise<void> {
       continue;
     }
     for (const check of journeys) {
-      if (!await runCheck(check, file, url, secret)) failed = true;
+      if (!await runCheck(check, file, url, secret, storeRoot)) failed = true;
     }
   }
   if (failed) process.exitCode = 1;
 }
 
-async function runCheck(check: RegisteredJourney, file: string, url: string, secret: string): Promise<boolean> {
+type QueryRecord = { ref: any; args: unknown; expected: unknown };
+type Device = { client: SnapbackClient; records: Map<string, QueryRecord>; durable: boolean };
+
+function queryBytes(value: unknown): string {
+  return stableSerialize(value);
+}
+
+function wrapDevice(device: Device, clients: Set<SnapbackClient>): SnapbackClient {
+  return new Proxy(device.client, {
+    get(target, property) {
+      if (property === "restart") return async () => {
+        const restarted = await target.restart();
+        device.client = restarted;
+        clients.add(restarted);
+        return wrapDevice(device, clients);
+      };
+      const value = Reflect.get(target, property, target);
+      return typeof value === "function" ? value.bind(target) : value;
+    },
+  });
+}
+
+async function runOfflineDerived(devices: Set<Device>): Promise<number> {
+  const started = performance.now();
+  let checked = 0;
+  const durable = [...devices].filter((device) => device.durable);
+  if (durable.length === 0) return 0;
+  for (const device of durable) {
+    if (device.records.size === 0) continue;
+    await device.client.offline();
+    for (const { ref, args, expected } of device.records.values()) {
+      const replayed = await device.client.query(ref, args as never);
+      if (queryBytes(replayed) !== queryBytes(expected)) {
+        throw new Error(`offline replay changed bytes: ${queryBytes(expected)} != ${queryBytes(replayed)}`);
+      }
+      checked += 1;
+    }
+  }
+  if (checked === 0) throw new Error("offline derived check observed no online durable query");
+  process.stdout.write(`${JSON.stringify({ name: "offline", kind: "derived", verdict: "pass", ms: Math.round(performance.now() - started), detail: { queries: checked } })}\n`);
+  return checked;
+}
+
+async function runCheck(
+  check: RegisteredJourney,
+  file: string,
+  url: string,
+  secret: string,
+  storeRoot?: string,
+): Promise<boolean> {
   const started = performance.now();
   const clients = new Set<SnapbackClient>();
+  const devices = new Set<Device>();
   process.stdout.write(`${JSON.stringify({ runner: "start", name: check.name })}\n`);
   try {
+    if (storeRoot) await rm(storeRoot, { recursive: true, force: true });
     await within(5_000, async () => check.body({
-      as: (name) => {
-        const client = createClient({ url, as: name });
+      as: (name, options = {}) => {
+        if (options.store !== undefined && options.store !== "file") {
+          throw new TypeError("journey as(...).store must be 'file'");
+        }
+        if (options.store === "file" && !storeRoot) throw new Error("file journey store root was not supplied");
+        const records = new Map<string, QueryRecord>();
+        const client = createClient(options.store === "file"
+          ? {
+              url,
+              as: name,
+              offline: {
+                store: fileRangeStore(join(storeRoot!, name)),
+                onTombstone: options.onTombstone,
+              },
+              // Test-only custody observer: unlike the public proxy, this sees
+              // drain pages issued by the client's internal query path too.
+              offlineReadObserver: (ref: any, args: unknown, expected: unknown) => {
+                const key = `${String(ref?.op ?? ref)}:${stableSerialize(args)}`;
+                records.set(key, { ref, args, expected });
+              },
+            } as Parameters<typeof createClient>[0]
+          : { url, as: name });
         clients.add(client);
-        return client;
+        const device = { client, records, durable: options.store === "file" };
+        devices.add(device);
+        return wrapDevice(device, clients);
       },
       tick: (ms) => control(url, secret, "/control/clock", { advanceMs: ms }),
       url,
     }));
+    await within(5_000, () => runOfflineDerived(devices));
     process.stdout.write(`${JSON.stringify({ name: check.name, kind: "journey", verdict: "pass", ms: Math.round(performance.now() - started), detail: { file } })}\n`);
     return true;
   } catch (error) {
@@ -142,6 +229,7 @@ async function runCheck(check: RegisteredJourney, file: string, url: string, sec
     return false;
   } finally {
     for (const client of clients) client.close();
+    if (storeRoot) await rm(storeRoot, { recursive: true, force: true }).catch(() => undefined);
   }
 }
 
