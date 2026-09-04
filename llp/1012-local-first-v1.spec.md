@@ -551,7 +551,18 @@ envelope per request after a resume; a transport failure keeps the intent
 settles only its own intent; a grant past the fence settles `expired` locally;
 a committed settlement lands in the same swap as the log tail; `useOutbox()`
 and `useMutation().pending` expose the queue; the provider creates its client
-once so StrictMode does not leak a lock holder. *Open question for the author
+once so StrictMode does not leak a lock holder. *Fix round 1:* the ledger's
+adopt, enqueue, and dismiss run on one serial tail so a grant slice is never
+consumed twice; a committed reply whose log-tail fetch fails leaves the intent
+`queued` (the retry is the same bytes and the server's ledger answers
+unexecuted), so rows and settlement always land in one swap; the settlement
+tail and the resume `log` name the drained query whose watermark the partition
+recorded first; `settled()` rejects with the refusal that stopped the replay; a
+terminal settlement drops the prediction overlay in the same swap; each op's
+certified `maxNewIds` is persisted in the store and an enqueue with no known
+bound refuses `E_OFFLINE_ID_BLOCK` rather than pricing from a fallback; the
+provider compares offline options by store factory and values; `online()`
+drains a held queue even when no resume can be built. *Open question for the author
 (f):* the local expiry of intents whose grant is past the fence discards writes
 the server would still accept for thirty days and would validate by trace; the
 alternative is to replay after a successful resume and let the server judge,
