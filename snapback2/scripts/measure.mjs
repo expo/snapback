@@ -158,12 +158,15 @@ function preserveUnchangedExecutable(executable, operation, platform = process.p
       rmSync(replacement, { force: true });
     }
   } finally {
-    rmSync(preserved, { force: true });
-    if (!existsSync(executable) && existsSync(replacement)) {
-      renameSync(replacement, executable);
-    } else {
-      rmSync(replacement, { force: true });
+    if (!existsSync(executable)) {
+      if (existsSync(replacement)) {
+        renameSync(replacement, executable);
+      } else if (existsSync(preserved)) {
+        renameSync(preserved, executable);
+      }
     }
+    rmSync(preserved, { force: true });
+    rmSync(replacement, { force: true });
   }
   return {
     ...result,
@@ -378,6 +381,18 @@ function selfTest() {
   assert.equal(statSync(artifact).ino, stableInode, "byte-identical build keeps its inode");
   preserveUnchangedExecutable(artifact, () => replaceArtifact("changed bytes"), "darwin");
   assert.notEqual(statSync(artifact).ino, stableInode, "changed build keeps its new inode");
+  const recoverableInode = statSync(artifact).ino;
+  const failedBuild = preserveUnchangedExecutable(artifact, () => {
+    rmSync(artifact);
+    return { status: 1, stdout: "", stderr: "build failed" };
+  }, "darwin");
+  assert.equal(failedBuild.status, 1);
+  assert.equal(statSync(artifact).ino, recoverableInode, "failed build restores the prior artifact");
+  assert.throws(() => preserveUnchangedExecutable(artifact, () => {
+    rmSync(artifact);
+    throw new Error("build threw");
+  }, "darwin"), /build threw/);
+  assert.equal(statSync(artifact).ino, recoverableInode, "thrown build restores the prior artifact");
   rmSync(artifactRoot, { recursive: true, force: true });
 
   const coreCommands = [];
