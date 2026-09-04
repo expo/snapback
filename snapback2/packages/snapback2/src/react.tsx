@@ -238,7 +238,7 @@ export interface UseMutationResult<Args, Result> {
   pending: OutboxEntry[];
   /**
    * `run()` will not refuse `E_OFFLINE_ID_BLOCK` for want of a replay grant: no
-   * partition, or one holding a grant inside the fence. False until the first
+   * partition, or one holding a current grant. False until the first
    * drain reaches its watermark (or a login) on a device that has none: gate the
    * send on it rather than retrying the refusal (LLP 1012 §7).
    */
@@ -252,6 +252,8 @@ export interface UseOutboxResult {
   entries: OutboxEntry[];
   /** A write will not refuse for want of a replay grant (`client.outbox.ready()`), kept current with the entries. */
   ready: boolean;
+  /** Past means queued until this partition resumes; accepting writes remains enabled. */
+  fence: "inside" | "past";
   dismiss(intent: string): Promise<void>;
 }
 
@@ -259,12 +261,22 @@ export interface UseOutboxResult {
 // so a queued message is on screen at cold start before the network is tried.
 export function useOutbox(): UseOutboxResult {
   const { client, snapshot } = provider();
-  const [state, setState] = useState<{ entries: OutboxEntry[]; ready: boolean }>({ entries: [], ready: false });
-  useEffect(() => client.outbox.subscribe((entries) => {
-    void client.outbox.ready().then((ready) => setState({ entries, ready }), () => setState({ entries, ready: false }));
-  }), [client, snapshot.authGeneration]);
+  const [state, setState] = useState<{ entries: OutboxEntry[]; ready: boolean; fence: "inside" | "past" }>({ entries: [], ready: false, fence: "inside" });
+  useEffect(() => {
+    let current = true;
+    let revision = 0;
+    const unsubscribe = client.outbox.subscribe((entries) => {
+      const issued = ++revision;
+      void Promise.all([client.outbox.ready(), client.outbox.fence()]).then(([ready, fence]) => {
+        if (current && issued === revision) setState({ entries, ready, fence });
+      }, () => {
+        if (current && issued === revision) setState({ entries, ready: false, fence: "past" });
+      });
+    });
+    return () => { current = false; unsubscribe(); };
+  }, [client, snapshot.authGeneration, snapshot.connection]);
   const dismiss = useCallback((intent: string) => client.outbox.dismiss(intent), [client]);
-  return useMemo(() => ({ entries: state.entries, ready: state.ready, dismiss }), [state, dismiss]);
+  return useMemo(() => ({ ...state, dismiss }), [state, dismiss]);
 }
 
 export function useMutation<Args, Result>(ref: Op<Args, Result>): UseMutationResult<Args, Result> {

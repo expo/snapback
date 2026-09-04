@@ -993,7 +993,7 @@ class Client implements SnapbackClient {
     if (!this.offlineRuntime) return;
     try {
       const changed = this.offlineRuntime.principal !== principal;
-      await this.offlineRuntime.open(principal);
+      await this.offlineRuntime.open(principal, authenticated);
       if (authenticated) await this.offlineRuntime.reauthenticate(principal);
       this.currentPrincipal = principal;
       if (changed) this.offlineMetadataLoaded = false;
@@ -1031,7 +1031,7 @@ class Client implements SnapbackClient {
     });
   }
 
-  private async drainNow(): Promise<{ stopped: boolean }> {
+  private async drainNow(): Promise<{ stopped: boolean; reason?: "fence" }> {
     const authority = await this.operationAuthority();
     if (!this.offlineRuntime) return { stopped: false };
     return drainOutbox({ runtime: this.offlineRuntime, json: (path, init) => this.json(path, init, authority),

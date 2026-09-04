@@ -166,6 +166,8 @@ export interface OutboxEntry {
   state: OutboxState;
   response?: unknown;
   predicted?: boolean;
+  /** Prediction and its trace were skipped; the program will check this write on the server. */
+  reason?: "fence";
   /** Engine-owned aggregate targets the prediction's overlay omits by design (the server writes them); absent when none. */
   omitted?: string[];
   trace?: OutboxTrace;

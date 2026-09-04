@@ -199,8 +199,13 @@ test("the chat screens render the log, queue offline sends as pinned bubbles, se
     await act(async () => { document.querySelector<HTMLFormElement>("form[aria-label=Composer]")!.requestSubmit(); });
     await waitFor(() => document.querySelector("li[data-state=queued]") !== null, "the late send's bubble");
     Date.now = () => originalNow() + 3 * DAY;
-    const pastFence = await client.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "typed past the fence" });
-    assert.equal(pastFence.state, "queued", "a write typed past the fence remains in durable custody");
+    await type(input, "typed past the fence");
+    await act(async () => { document.querySelector<HTMLFormElement>("form[aria-label=Composer]")!.requestSubmit(); });
+    await waitFor(() => document.querySelector("small[data-waiting=fence]") !== null, "the composer fence status");
+    assert.equal(await client.outbox.ready(), true, "the composer remains ready past the fence");
+    assert.equal(document.querySelector<HTMLButtonElement>("form[aria-label=Composer] button[type=submit]")!.disabled, false);
+    assert.match(text(document.querySelector("small[data-waiting=fence]")), /Queued until the next sync/);
+    assert.match(text(document.querySelector("ol")), /Will be checked by the server/);
     const mutations = owner.requests.filter((path) => path === "/api/mutation").length;
     await act(async () => { await client.outbox.drain(); });
     assert.equal(owner.requests.filter((path) => path === "/api/mutation").length, mutations,
@@ -208,6 +213,7 @@ test("the chat screens render the log, queue offline sends as pinned bubbles, se
     assert.deepEqual((await client.outbox.entries()).filter((item: any) => item.state === "queued")
       .map((item: any) => item.args.body), ["three days old", "typed past the fence"]);
     await act(async () => { await client.online(); await client.outbox.settled(); });
+    await waitFor(() => document.querySelector("small[data-waiting=fence]") === null, "the composer fence reopened after resume");
     assert.deepEqual(owner.executions.slice(-2).map((item) => (item.args as any).body), ["three days old", "typed past the fence"],
       "after resume the old queue commits FIFO");
 

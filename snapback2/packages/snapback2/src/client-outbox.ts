@@ -50,6 +50,7 @@ export function wireReplayResponse<Result>(value: unknown): MutationResult<Resul
 }
 
 type Transport = (path: string, init: RequestInit) => Promise<unknown>;
+type DrainResult = { stopped: boolean; reason?: "fence" };
 
 export interface SubmitMutationOptions {
   runtime: OfflineRuntime | undefined;
@@ -152,26 +153,25 @@ export interface DrainOptions {
  * and the drain continues. Past the fence, replay waits for a successful
  * resume; only the owner's `E_OFFLINE_INTENT_EXPIRED` refusal settles expired.
  */
-export function drainOutbox(options: DrainOptions): Promise<{ stopped: boolean }> {
+export function drainOutbox(options: DrainOptions): Promise<DrainResult> {
   const { runtime } = options;
   const run = runtime.drainTail.then(() => drainQueued(options));
   runtime.drainTail = run.then(() => undefined, () => undefined);
   // The outcome keeps the rejection for `settled()`; the handler here only
   // stops an unobserved refusal from surfacing as an unhandled rejection.
-  const outcome = run.then(() => undefined);
+  const outcome = run.then((result) => result.reason === "fence" ? { stopped: "fence" as const } : undefined);
   void outcome.catch(() => undefined);
   runtime.drainOutcome = outcome;
   return run;
 }
 
-async function drainQueued(options: DrainOptions): Promise<{ stopped: boolean }> {
+async function drainQueued(options: DrainOptions): Promise<DrainResult> {
   const { runtime } = options;
   if (runtime.principal === undefined) return { stopped: false };
-  const currentGrant = await runtime.outbox.grant();
-  if (currentGrant && runtime.outbox.pastFence(currentGrant)) return { stopped: true };
   for (const queued of await runtime.outbox.queued()) {
     const entry = await runtime.store.outbox.get(queued.intent);
     if (!entry || entry.state !== "queued") continue;
+    if (!(await runtime.outbox.canReplay(entry))) return { stopped: true, reason: "fence" };
     let raw: unknown;
     try {
       raw = await options.json("/api/mutation", { method: "POST", body: JSON.stringify(replayEnvelope(entry)) });
@@ -264,7 +264,7 @@ async function logTail(options: DrainOptions) {
 
 export function createOutboxApi(
   runtime: OfflineRuntime | undefined,
-  drain: () => Promise<{ stopped: boolean }>,
+  drain: () => Promise<DrainResult>,
   ready: () => Promise<void> = async () => undefined,
 ): OutboxApi {
   const entries = async (): Promise<OutboxEntry[]> => {
@@ -302,9 +302,21 @@ export function createOutboxApi(
         throw error;
       }
     },
-    drain: async () => { await drain(); },
-    // Resolves when the replay emptied the queue or a retryable transport
-    // failure stopped it; rejects with the refusal that stopped it otherwise.
-    settled: async () => { await runtime?.drainOutcome; },
+    fence: async () => {
+      await ready().catch(() => undefined);
+      if (!runtime || runtime.principal === undefined) return "inside";
+      try { return await runtime.outbox.fence(); }
+      catch (error) {
+        if (error instanceof Error && /sealed/.test(error.message)) return "past";
+        throw error;
+      }
+    },
+    drain: async () => {
+      const result = await drain();
+      return result.reason === "fence" ? { stopped: "fence" } : undefined;
+    },
+    // A fence stop is explicit even though custody remains queued. Other
+    // non-retryable refusals still reject; transport stops retain their behavior.
+    settled: async () => runtime?.drainOutcome,
   };
 }

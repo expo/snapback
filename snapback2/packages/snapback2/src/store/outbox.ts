@@ -173,12 +173,42 @@ export class OutboxLedger {
   }
 
   pastFence(grant: Pick<OutboxGrant, "mintedAt">): boolean {
-    return this.options.now() - Math.max(grant.mintedAt, this.resumedAt ?? grant.mintedAt) > this.options.fenceMs;
+    const crossedAt = grant.mintedAt + this.options.fenceMs;
+    return this.options.now() > crossedAt && !this.resumedSince(crossedAt);
+  }
+
+  private resumedSince(at: number): boolean {
+    return this.resumedAt !== undefined && this.resumedAt >= at
+      && this.options.now() - this.resumedAt <= this.options.fenceMs;
+  }
+
+  /** Trust belongs to this open partition and session, never to the next one. */
+  resetTrust(): void {
+    this.resumedAt = undefined;
+    this.notify();
+  }
+
+  /** A newer consumption grant cannot authorize work queued under an older one. */
+  async canReplay(entry: OutboxEntry): Promise<boolean> {
+    if (entry.reason === "fence" && !this.resumedSince(entry.createdAt)) return false;
+    const grant = await this.grantById(entry.grant);
+    // Without the original grant's trust facts only a subsequent resume can
+    // authorize sending; the owner still judges the grant and the intent.
+    return grant ? !this.pastFence(grant) : this.resumedSince(entry.createdAt);
+  }
+
+  async fence(): Promise<"inside" | "past"> {
+    for (const entry of await this.queued()) {
+      if (!(await this.canReplay(entry))) return "past";
+    }
+    const grant = await this.grant();
+    return grant && this.pastFence(grant) ? "past" : "inside";
   }
 
   /** The owner re-authorized this partition; old intents may now replay for the server to judge. */
   resumeSucceeded(): void {
     this.resumedAt = this.options.now();
+    this.notify();
   }
 
   // @ref LLP 1012#7-writes-offline — the first id names the intent; the rest
@@ -220,7 +250,8 @@ export class OutboxLedger {
       // same ids; the overlay and the trace land in the entry's own swap.
       // The fence bounds local trust, not custody: keep the write, but do not
       // predict it until a successful resume has renewed trust in this runtime.
-      const prediction = predict === undefined || this.pastFence(grant) ? undefined : await predict(ids);
+      const pastFence = this.pastFence(grant);
+      const prediction = predict === undefined || pastFence ? undefined : await predict(ids);
       const now = this.options.now();
       const entry: OutboxEntry = {
         intent: intentName(grant.id, grant.used),
@@ -233,8 +264,11 @@ export class OutboxLedger {
         issuedSeq: input.issuedSeq,
         state: "queued",
         ...(prediction?.predicted ? { predicted: true } : {}),
+        ...(pastFence ? { predicted: false, reason: "fence" as const } : {}),
         ...(prediction?.predicted && prediction.omitted !== undefined && prediction.omitted.length > 0 ? { omitted: [...prediction.omitted] } : {}),
-        trace: prediction?.trace ?? input.trace ?? emptyTrace(),
+        // No trusted prediction means no trace OCC: the program's own
+        // requirements (for example baseBody = body) judge this write.
+        trace: pastFence ? emptyTrace() : prediction?.trace ?? input.trace ?? emptyTrace(),
         createdAt: now,
         updatedAt: now,
       };

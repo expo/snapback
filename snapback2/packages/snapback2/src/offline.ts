@@ -26,7 +26,7 @@ import {
 } from "./store/range-store.js";
 import { ByteCache } from "./store/byte-cache.js";
 import { Twin, type LocalAnswer, type Prediction } from "./twin.js";
-import type { Manifest, OfflineClientOptions } from "./types.js";
+import type { Manifest, OfflineClientOptions, OutboxSettlement } from "./types.js";
 
 /**
  * Ids a certified mutation can mint: the certificate's insert/upsert bounds, which
@@ -181,7 +181,7 @@ export class OfflineRuntime {
    * non-retryable refusal that stopped the replay reaches the caller instead of
    * resolving with intents still queued (LLP 1012 §7).
    */
-  drainOutcome: Promise<void> = Promise.resolve();
+  drainOutcome: Promise<OutboxSettlement> = Promise.resolve();
   /** The twin: the certified program over this partition's coverage (LLP 1012 §6, §7). */
   readonly twin: Twin;
   private partition?: string;
@@ -197,6 +197,7 @@ export class OfflineRuntime {
   private pendingProgram?: HeldProgram;
   private held?: HeldProgram;
   private standIn?: string;
+  private resumeQueries: MountedQuery[] = [];
   private tail: Promise<void> = Promise.resolve();
 
   constructor(private readonly options: OfflineClientOptions) {
@@ -238,14 +239,24 @@ export class OfflineRuntime {
   /** The highest server seq this runtime has committed; what a queued intent was issued against. */
   get seq(): number { return this.latestSeq; }
 
-  async open(principal: string): Promise<void> {
+  async open(principal: string, authenticated = false): Promise<void> {
+    if (this.partition !== principal) this.outbox.resetTrust();
     // The session allowance is dropped before the first await of a partition change:
     // a byte read that lands between the carrier's open and bind() must never hand
     // the previous principal's blob to the incoming partition (grok, O4-web round 2).
     if (this.partition !== undefined && this.partition !== principal) this.bytes.forget();
     await this.serial(async () => {
+      if (this.partition !== principal) {
+        this.outbox.resetTrust();
+        this.facts = undefined;
+        this.superseded = undefined;
+        this.held = undefined;
+        this.standIn = undefined;
+        this.drainOutcome = Promise.resolve();
+      }
       if (this.partition !== undefined && this.partition !== principal) await this.store.wipe(this.partition);
       await this.store.open(principal);
+      if (authenticated) await this.store.unseal();
       this.partition = principal;
       this.bytes.bind(principal);
       await this.loadFacts();
@@ -297,6 +308,7 @@ export class OfflineRuntime {
   }
 
   async seal(): Promise<void> {
+    this.outbox.resetTrust();
     if (this.partition === undefined) return;
     await this.serial(async () => {
       this.bytes.forget();
@@ -305,6 +317,7 @@ export class OfflineRuntime {
   }
 
   async wipe(): Promise<void> {
+    this.outbox.resetTrust();
     await this.serial(async () => {
       if (this.partition === undefined) return;
       const partition = this.partition;
@@ -319,6 +332,7 @@ export class OfflineRuntime {
   }
 
   async close(): Promise<void> {
+    this.outbox.resetTrust();
     await this.tail;
     this.bytes.forget();
     await this.store.close?.();
@@ -339,6 +353,13 @@ export class OfflineRuntime {
       if (cursor !== undefined) cursors[name] = cursor;
     }
     this.cursors = cursors;
+    // A fresh login has no receipt/auth epoch. A parameter-free query (including
+    // optional cursor arguments) can earn those facts before a logless resume.
+    this.resumeQueries = Object.entries(value.ops ?? {}).flatMap(([op, operation]) => {
+      if (operation.kind !== "query" || !object(operation.args)) return [];
+      if (!Object.values(operation.args).every((arg) => object(arg) && "Optional" in arg)) return [];
+      return [{ op, args: Object.fromEntries(Object.keys(operation.args).map((key) => [key, null])), drain: false }];
+    });
     if (value.schema?.tables) this.schema = value.schema as OfflineSchema;
   }
 
@@ -566,7 +587,7 @@ export class OfflineRuntime {
     // answer stands in, with a null watermark, and leaves no watermark behind.
     const standIn = !watermark && !omitLog ? mountedAnswers.shift() : undefined;
     this.standIn = standIn ? canonicalAnswerKey(standIn.query.op, standIn.query.args) : undefined;
-    if (!watermark && !standIn) return undefined;
+    if (!watermark && !standIn && (await this.queuedIntents()).length === 0) return undefined;
     return {
       protocol: 1,
       ...this.facts,
@@ -589,6 +610,7 @@ export class OfflineRuntime {
   }
 
   async resetCoverage(): Promise<void> {
+    this.outbox.resetTrust();
     if (this.partition !== undefined) await this.serial(async () => {
       await this.store.commit({ resetCoverage: true });
       this.facts = undefined;
@@ -598,6 +620,14 @@ export class OfflineRuntime {
 
   async coverage(): Promise<Coverage | undefined> {
     return this.partition === undefined ? undefined : this.store.coverage();
+  }
+
+  /** A real query earns the authority facts; metadata alone never renews trust. */
+  async resumeSeed(mounted: MountedQuery[]): Promise<MountedQuery | undefined> {
+    if (this.partition === undefined) return undefined;
+    const coverage = await this.store.coverage();
+    const held = tailWatermark(coverage.watermarks);
+    return mounted[0] ?? (held ? { op: held.op, args: held.args, drain: false } : this.resumeQueries[0]);
   }
 
   private async flushGrant(): Promise<void> {
