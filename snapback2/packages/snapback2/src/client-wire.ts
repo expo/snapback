@@ -210,6 +210,8 @@ export function terminalSessionEnvelope(value: unknown): RefusalEnvelope | undef
   if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
   const record = value as Record<string, unknown>;
   if (record.state !== "rejected" && record.state !== "refused") return undefined;
+  // A replayed write's trace conflict carries no code (LLP 1012 §7); it is never a session terminal.
+  if (record.state === "rejected" && record.reason === "conflict") return undefined;
   const refusal = wireRefusalEnvelope(record, "terminal session response");
   return isTerminalSession(refusal) ? refusal : undefined;
 }

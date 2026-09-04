@@ -24,6 +24,12 @@ export interface IndexedDbRangeStoreOptions {
   indexedDB?: IDBFactory;
   locks?: WebLocksLike;
   databasePrefix?: string;
+  /**
+   * Witness barrier: awaited with the next state before its readwrite
+   * transaction opens, so a harness can kill the profile between two swaps
+   * and prove the carrier lands whole swaps or nothing (LLP 1012 §10).
+   */
+  beforeReplace?: (state: PersistedRangeState) => void | Promise<void>;
 }
 
 function requestResult<T>(request: IDBRequest<T>): Promise<T> {
@@ -101,6 +107,9 @@ function projections(state: PersistedRangeState): Record<StoreName, Entry[]> {
         sealed: state.sealed,
         clock: state.clock,
         watermarks: state.watermarks,
+        grants: state.grants,
+        ...(state.currentGrant === undefined ? {} : { currentGrant: state.currentGrant }),
+        overlay: state.overlay,
         negative: state.negative,
         rowSeq: state.rowSeq,
       },
@@ -118,6 +127,7 @@ class IndexedDbBackend implements RangeStoreBackend {
     private readonly factory: IDBFactory,
     private readonly locks: WebLocksLike,
     private readonly prefix: string,
+    private readonly beforeReplace?: IndexedDbRangeStoreOptions["beforeReplace"],
   ) {}
 
   async open(partition: PrincipalPartition): Promise<PersistedRangeState | undefined> {
@@ -148,6 +158,9 @@ class IndexedDbBackend implements RangeStoreBackend {
         answers: record(answers),
         watermarks: value?.watermarks ?? {},
         outbox: record(outbox),
+        grants: value?.grants ?? {},
+        ...(typeof value?.currentGrant === "string" ? { currentGrant: value.currentGrant } : {}),
+        overlay: value?.overlay ?? {},
         negative: value?.negative ?? {},
         rowSeq: value?.rowSeq ?? {},
       };
@@ -166,6 +179,7 @@ class IndexedDbBackend implements RangeStoreBackend {
     if (!database) throw new OfflineStoreFailure("E_OFFLINE_CARRIER", "IndexedDB carrier is not open");
     // All cloning/projection work is complete before the readwrite transaction opens.
     const projected = projections(state);
+    await this.beforeReplace?.(state);
     const transaction = database.transaction(STORE_NAMES as unknown as string[], "readwrite");
     try {
       for (const name of STORE_NAMES) {
@@ -236,7 +250,7 @@ export function indexedDbRangeStore(options: IndexedDbRangeStoreOptions = {}): R
     return unavailable;
   }
   const prefix = options.databasePrefix ?? "snapback2:";
-  const create = (() => new PersistentRangeStore(new IndexedDbBackend(factory, locks, prefix))) as RangeStoreFactory;
+  const create = (() => new PersistentRangeStore(new IndexedDbBackend(factory, locks, prefix, options.beforeReplace))) as RangeStoreFactory;
   Object.defineProperty(create, "carrier", { value: "IndexedDB" });
   return create;
 }

@@ -135,6 +135,8 @@ const fixtures = resolve(here, "../compiler/fixtures");
 const templateDist = resolve(dist, "templates");
 for (const name of ["todos", "chat"]) {
   await cp(resolve(here, `templates/${name}/snapback`), resolve(templateDist, name, "snapback"), { recursive: true });
+  const screens = resolve(here, `templates/${name}/react`);
+  if (existsSync(screens)) await cp(screens, resolve(templateDist, name, "react"), { recursive: true });
 }
 await cp(resolve(here, "templates/react"), resolve(templateDist, "react"), { recursive: true });
 

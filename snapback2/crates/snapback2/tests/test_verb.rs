@@ -300,11 +300,11 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
             .iter()
             .filter(|check| check["kind"] == "journey")
             .count(),
-        9
+        11
     );
     for name in [
-        "alice sends bob a message",
-        "bob replies and alice's live thread updates",
+        "alice posts to the room and a non-member cannot",
+        "bob replies and alice's live log thread updates",
         "profile ownership, uniqueness, and live public reads",
         "unfollow changes Following selection but not Global authorization",
         "group creation bootstraps one creator admin atomically",
@@ -312,6 +312,8 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
         "scoped roles reject non-admin and stale membership authority",
         "alice sends and reads back a JPEG photo and synthesized MP4 clip",
         "offline drain removes an unsent body and survives a cold restart",
+        "offline sends queue, survive a restart, replay in order, and a 503 after a commit is exactly once",
+        "an edit queued offline against a row the owner then edits settles as a conflict",
     ] {
         let journey = check(&receipt, name);
         assert_eq!(journey["kind"], "journey", "{name}: {journey}");

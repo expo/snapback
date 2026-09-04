@@ -424,5 +424,11 @@
     "code": "E_OFFLINE_ID_BLOCK",
     "wrong": "replay: { grant, offset: 8191, count: 2, intent: `${grant}:8191` }",
     "right": "replay: { grant, offset: unusedOffset, count: 1 + maxNewIds, intent: `${grant}:${unusedOffset}` }"
+  },
+  {
+    "family": "offline",
+    "code": "E_OFFLINE_CONFLICT",
+    "wrong": "replay a queued edit whose traced row moved and read the refusal as a session error",
+    "right": "the intent settles rejected with reason: \"conflict\" and site; read the current row and send a new intent"
   }
 ]

@@ -52,55 +52,50 @@ function synthesizedMp4(): Uint8Array {
   return bytes(ftyp, atom("moov", atom("mvhd", mvhdPayload), track));
 }
 
-journey("alice sends bob a message", async ({ as }) => {
+type LogRow = { kind?: string; messageId?: string; message?: { id?: string; body?: string } | null };
+
+function bodies(rows: unknown): string[] {
+  return Array.isArray(rows)
+    ? rows.map((row: LogRow) => row.message?.body).filter((body): body is string => typeof body === "string")
+    : [];
+}
+
+journey("alice posts to the room and a non-member cannot", async ({ as }) => {
   const alice = as("alice");
-  const before = await alice.query(api.messages.thread, { conversationId: "conversation-1", c: null });
+  const charlie = as("charlie");
+  const before = await alice.query(api.deliveries.thread, { conversationId: "conversation-1", c: null });
   if ((before.state !== "complete" && before.state !== "capped") || !Array.isArray(before.data)) throw new Error("thread did not return rows");
-  const sent = await alice.mutation(api.messages.send, {
+  const sent = await alice.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "hello bob" });
+  if (sent.state !== "committed") throw new Error(`post was ${sent.state}`);
+  const after = await alice.query(api.deliveries.thread, { conversationId: "conversation-1", c: null });
+  if (!("data" in after) || !after.data?.some((row: LogRow) => row.message?.body === "hello bob")) throw new Error("posted message was not readable through the log");
+  const rejected = await charlie.mutation(api.deliveries.post, {
     conversationId: "conversation-1",
-    recipientId: "profile-bob",
-    body: "hello bob",
+    body: "must not cross the membership boundary",
   });
-  if (sent.state !== "committed") throw new Error(`send was ${sent.state}`);
-  const after = await alice.query(api.messages.thread, { conversationId: "conversation-1", c: before.next });
-  if (!("data" in after) || !after.data?.some((row: { body?: string }) => row.body === "hello bob")) throw new Error("sent message was not readable");
-  const sideBefore = await alice.query(api.messages.thread, { conversationId: "conversation-2", c: null });
-  if (sideBefore.state !== "complete") throw new Error(`side thread was ${sideBefore.state}`);
-  const rejected = await alice.mutation(api.messages.send, {
-    conversationId: "conversation-2",
-    recipientId: "profile-bob",
-    body: "must not cross the conversation boundary",
-  });
-  if (rejected.state !== "rejected") throw new Error("outsider recipient received a private send");
-  const sideAfter = await alice.query(api.messages.thread, { conversationId: "conversation-2", c: null });
-  if (sideAfter.state !== "complete") throw new Error(`side thread became ${sideAfter.state}`);
-  if (sideAfter.seq !== sideBefore.seq) throw new Error("rejected private send committed message or outbox work");
-  if (sideAfter.data.some((row: { body?: string }) => row.body === "must not cross the conversation boundary")) {
-    throw new Error("rejected private send persisted its message body");
+  if (rejected.state !== "rejected") throw new Error("a non-member posted into a private room");
+  const sideAfter = await alice.query(api.deliveries.thread, { conversationId: "conversation-1", c: null });
+  if (sideAfter.state !== "complete") throw new Error(`thread became ${sideAfter.state}`);
+  if (sideAfter.seq !== after.seq) throw new Error("rejected post committed message or delivery work");
+  if (bodies(sideAfter.data).includes("must not cross the membership boundary")) {
+    throw new Error("rejected post persisted its message body");
   }
+  charlie.close();
 });
 
-journey("bob replies and alice's live thread updates", async ({ as }) => {
+journey("bob replies and alice's live log thread updates", async ({ as }) => {
   const alice = as("alice");
   const bob = as("bob");
   const thread = alice.subscribe(
-    api.messages.thread,
+    api.deliveries.thread,
     { conversationId: "conversation-1", c: null },
     () => {},
   );
   try {
     await thread.until((delivery) => delivery.state === "complete");
-    const sent = await bob.mutation(api.messages.send, {
-      conversationId: "conversation-1",
-      recipientId: "profile-alice",
-      body: "hello alice",
-    });
+    const sent = await bob.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "hello alice" });
     if (sent.state !== "committed") throw new Error(`reply was ${sent.state}`);
-    await thread.until((delivery) =>
-      "data" in delivery
-      && Array.isArray(delivery.data)
-      && delivery.data.some((row: { body?: string }) => row.body === "hello alice")
-    );
+    await thread.until((delivery) => "data" in delivery && bodies(delivery.data).includes("hello alice"));
   } finally {
     thread.close();
   }
@@ -440,4 +435,82 @@ journey("offline drain removes an unsent body and survives a cold restart", asyn
   if (JSON.stringify(held.data).includes("Welcome")) {
     throw new Error("unsent message body survived in the cold held inbox");
   }
+});
+
+const tombstones = (item: { table: string; row: Record<string, unknown> }) =>
+  item.table === "deliveries"
+    && (item.row.kind === "removed" || item.row.kind === "expired")
+    && typeof item.row.messageId === "string"
+    ? [{ table: "messages", id: item.row.messageId }]
+    : [];
+
+// @ref LLP 1012#10-carriers-the-fast-loop-and-the-witness — the send step:
+// queued offline, on screen across a cold start, replayed in order, and a 503
+// after the commit is never a double send.
+journey("offline sends queue, survive a restart, replay in order, and a 503 after a commit is exactly once", async ({ as }) => {
+  const alice = as("alice", { store: "file", onTombstone: tombstones });
+  const drain = alice.subscribe(api.deliveries.inbox, { c: null }, () => undefined, { drain: true });
+  await drain.until((value) => (value.state === "complete" || value.state === "capped") && value.caughtUp === true);
+  drain.close();
+  await alice.offline();
+  const first = await alice.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "queued one" });
+  const second = await alice.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "queued two" });
+  if (first.state !== "queued" || second.state !== "queued") throw new Error(`offline sends were ${first.state} and ${second.state}`);
+  const cold = await alice.restart();
+  const queued = await cold.outbox.entries();
+  if (queued.map((entry) => `${entry.intent}:${entry.state}`).join(" ") !== `${first.intent}:queued ${second.intent}:queued`) {
+    throw new Error(`the outbox did not survive the restart in order: ${JSON.stringify(queued.map((entry) => [entry.intent, entry.state]))}`);
+  }
+  cold.failNextResponse("/api/mutation", 503);
+  await cold.online();
+  await cold.settled();
+  const afterFault = await cold.outbox.entries();
+  if (afterFault.some((entry) => entry.state !== "queued")) throw new Error("a 503 after the commit settled an intent");
+  await cold.outbox.drain();
+  const settled = await cold.outbox.entries();
+  if (settled.map((entry) => entry.state).join() !== "committed,committed") {
+    throw new Error(`replay settled as ${settled.map((entry) => entry.state).join()}`);
+  }
+  const tail = cold.subscribe(api.deliveries.inbox, { c: null }, () => undefined, { drain: true });
+  await tail.until((value) => (value.state === "complete" || value.state === "capped") && value.caughtUp === true);
+  const thread = await cold.query(api.deliveries.thread, { conversationId: "conversation-1", c: null });
+  if (!("data" in thread) || !Array.isArray(thread.data)) throw new Error("thread did not return rows");
+  const rows = thread.data.filter((row: LogRow) => row.message?.body === "queued one" || row.message?.body === "queued two");
+  if (rows.length !== 2) throw new Error(`expected exactly one row per send, saw ${rows.length}`);
+  // `last 50` pages newest-first: the second send precedes the first.
+  if (rows[0]?.message?.id !== second.ids[0] || rows[1]?.message?.id !== first.ids[0]) {
+    throw new Error("server rows do not carry the pinned ids in send order");
+  }
+  await tail.until((value) => "data" in value && bodies(value.data).includes("queued two"));
+  tail.close();
+});
+
+journey("an edit queued offline against a row the owner then edits settles as a conflict", async ({ as }) => {
+  const alice = as("alice", { store: "file", onTombstone: tombstones });
+  const drain = alice.subscribe(api.deliveries.inbox, { c: null }, () => undefined, { drain: true });
+  await drain.until((value) => (value.state === "complete" || value.state === "capped") && value.caughtUp === true);
+  const posted = await alice.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "original" });
+  if (posted.state !== "committed") throw new Error(`post was ${posted.state}`);
+  await drain.until((value) => "data" in value && bodies(value.data).includes("original"));
+  await alice.offline();
+  const edit = await alice.mutation(api.deliveries.edit, { messageId: posted.data.id, body: "mine", baseBody: "original" });
+  if (edit.state !== "queued") throw new Error(`offline edit was ${edit.state}`);
+  const owner = as("alice");
+  const theirs = await owner.mutation(api.deliveries.edit, { messageId: posted.data.id, body: "theirs", baseBody: "original" });
+  if (theirs.state !== "committed") throw new Error(`the owner's edit was ${theirs.state}`);
+  owner.close();
+  await alice.online();
+  await alice.settled();
+  const entry = (await alice.outbox.entries()).find((item) => item.intent === edit.intent);
+  if (entry?.state !== "rejected") throw new Error(`the stale edit settled as ${entry?.state}`);
+  const response = entry.response as { code?: string; reason?: string };
+  if (response.code !== "CONFLICT" && response.reason !== "conflict") {
+    throw new Error(`the stale edit was refused for another reason: ${JSON.stringify(response)}`);
+  }
+  await drain.until((value) => "data" in value && bodies(value.data).includes("theirs"));
+  const thread = await alice.query(api.deliveries.thread, { conversationId: "conversation-1", c: null });
+  if (!("data" in thread) || !bodies(thread.data).includes("theirs") || bodies(thread.data).includes("mine")) {
+    throw new Error("the conflict did not leave the owner's edit in place");
+  }
+  drain.close();
 });

@@ -15,6 +15,7 @@ import {
   withProgress,
   type PreparedAssetSource,
 } from "./assets.js";
+import { captureGrant, createOutboxApi, drainOutbox, submitMutation } from "./client-outbox.js";
 import {
   acceptOffline,
   answerOffline,
@@ -48,7 +49,6 @@ import {
   wireChannelPublish,
   wireLogout,
   wireManifest,
-  wireMutation,
   wireQuery,
   wireShape,
   wireSubscription,
@@ -74,6 +74,7 @@ import type {
   LiveQueryDelivery,
   Manifest,
   MutationResult,
+  OutboxApi,
   Principal,
   QueryResult,
   QueryRefusedDelivery,
@@ -116,11 +117,14 @@ type SessionExpiration =
 type InternalClientOptions = CreateClientOptions & {
   offlinePrincipal?: Principal;
   offlineReadObserver?: (ref: unknown, args: unknown, result: unknown) => void;
+  /** A restart of a device whose transport was cut boots cut, before any request. */
+  startOffline?: boolean;
 };
 
 // @ref LLP 1002#9-the-client-snapback2client-snapback2react-snapback2test — auth custody is restored explicitly and every principal transition fences old in-memory work.
 class Client implements SnapbackClient {
   readonly auth;
+  readonly outbox: OutboxApi;
   readonly ready: Promise<void>;
   private readonly url: string;
   private readonly fetchImpl: typeof globalThis.fetch;
@@ -165,17 +169,15 @@ class Client implements SnapbackClient {
     if (typeof this.fetchImpl !== "function") throw new TypeError("createClient requires a fetch implementation");
     this.tokenStore = options.tokenStore;
     this.persona = options.as;
-    this.currentSnapshot = {
-      authGeneration: 0,
-      persona: options.as,
-      connection: "reconnecting",
-    };
+    this.forcedOffline = options.startOffline === true;
+    this.currentSnapshot = { authGeneration: 0, persona: options.as, connection: this.forcedOffline ? "offline" : "reconnecting" };
     validateOfflineOptions(options.offline);
     try {
       this.offlineRuntime = createOfflineRuntime(options.offline);
     } catch (error) {
       throw this.offlineRefusal(error);
     }
+    this.outbox = createOutboxApi(this.offlineRuntime, () => this.drainNow());
     this.auth = {
       signup: (input: { email: string; password: string }) => this.session("/api/auth/signup", input),
       login: (input: { email: string; password: string }) => this.session("/api/auth/login", input),
@@ -273,10 +275,11 @@ class Client implements SnapbackClient {
             mutationArgs = substituteAssetRecords(args, placements, records);
           }
         }
-        const result = wireMutation<Result>(await this.json("/api/mutation", {
-          method: "POST",
-          body: JSON.stringify({ op: referenceName(ref), args: mutationArgs }),
-        }, authority));
+        const result = await submitMutation<Result>({
+          runtime: this.offlineRuntime, offline: this.forcedOffline, op: referenceName(ref), args: mutationArgs,
+          json: (path, init) => this.json(path, init, authority), failure: (error) => this.offlineRefusal(error),
+          drain: () => this.drainNow(),
+        });
         if (result.state === "rejected" && isTerminalSession(result)) {
           const wasCurrent = this.authorityCurrent(authority);
           const expiration = await this.expireSession(authority);
@@ -488,6 +491,7 @@ class Client implements SnapbackClient {
       query: (pageArgs: Args) => this.query(ref, pageArgs),
       subscribe: (tailArgs, onEvent) => this.subscribeRegular(ref, tailArgs, onEvent),
       track: (subscription) => this.track(subscription),
+      resume: async () => this.performResume(await this.operationAuthority()),
       observe: this.offlineRuntime && this.createOptions.offlineReadObserver
         ? async () => this.createOptions.offlineReadObserver!(
             ref,
@@ -613,10 +617,10 @@ class Client implements SnapbackClient {
       create: () => {
         const offline = this.createOptions.offline;
         const options: InternalClientOptions = this.persona !== undefined
-          ? { url: this.url, as: this.persona, fetch: this.fetchImpl, offline,
+          ? { url: this.url, as: this.persona, fetch: this.fetchImpl, offline, startOffline: this.forcedOffline,
               offlineReadObserver: this.createOptions.offlineReadObserver }
           : { url: this.url, token: this.currentToken, tokenStore: this.tokenStore, fetch: this.fetchImpl, offline,
-              offlinePrincipal: this.currentPrincipal,
+              offlinePrincipal: this.currentPrincipal, startOffline: this.forcedOffline,
               offlineReadObserver: this.createOptions.offlineReadObserver };
         return new Client(options);
       },
@@ -657,7 +661,7 @@ class Client implements SnapbackClient {
     this.ensureBearerTransition(path.slice("/api/auth/".length));
     return this.transition(async (authority) => {
       const session = wireAuthSession(
-        await this.json(path, { method: "POST", body: JSON.stringify(input) }, authority, false, false),
+        captureGrant(this.offlineRuntime, await this.json(path, { method: "POST", body: JSON.stringify(input) }, authority, false, false)),
         `${path.slice("/api/".length)} response`,
       );
       await this.openOffline(session.viewer, true);
@@ -747,7 +751,9 @@ class Client implements SnapbackClient {
 
   private async ensureOfflineMetadata(authority: Authority): Promise<void> {
     if (!this.offlineRuntime || this.offlineMetadataLoaded) return;
-    const manifest = await this.manifestFor(authority);
+    let manifest: Manifest;
+    // Unreachable at cold start: held answers and the outbox still serve; the metadata loads on the next reach.
+    try { manifest = await this.manifestFor(authority); } catch (error) { if (isSnapbackRefusal(error) && error.retryable) return; throw error; }
     try {
       const program = await this.json(
         `/api/program?generation=${encodeURIComponent(manifest.programGeneration)}`,
@@ -1215,8 +1221,16 @@ class Client implements SnapbackClient {
       json: (path, init, current) => this.json(path, init, current),
       validated: (current) => this.validated(current),
       shape: wireShape,
+      failure: (error) => this.offlineRefusal(error),
       subscriptions: this.subscriptions,
     });
+  }
+
+  private async drainNow(): Promise<{ stopped: boolean }> {
+    const authority = await this.operationAuthority();
+    if (!this.offlineRuntime) return { stopped: false };
+    return drainOutbox({ runtime: this.offlineRuntime, json: (path, init) => this.json(path, init, authority),
+      shape: wireShape, failure: (error) => this.offlineRefusal(error) });
   }
 
   private offlineRefusal(error: unknown): SnapbackRefusal {

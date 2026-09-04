@@ -1,4 +1,5 @@
 // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — offline transport coordination is isolated from auth custody and asset methods.
+import { drainOutbox } from "./client-outbox.js";
 import { DrainSubscription } from "./drain.js";
 import { DeliveryEnvelopeDecodeError } from "./offline-protocol.js";
 import {
@@ -53,6 +54,17 @@ export function createOfflineRuntime(options: OfflineClientOptions | undefined):
 export function offlineRefusal(error: unknown, carrier: string): SnapbackRefusal {
   if (isSnapbackRefusal(error)) return error;
   const candidate = error && typeof error === "object" ? (error as { code?: unknown }).code : undefined;
+  if (candidate === "E_OFFLINE_ID_BLOCK" || candidate === "E_OFFLINE_INTENT_EXPIRED") {
+    const local = error as { message: string; site?: string; rewrite?: string };
+    return new SnapbackRefusal({
+      code: candidate,
+      family: "offline",
+      message: local.message,
+      site: local.site ?? "client.outbox.enqueue",
+      rewrite: local.rewrite ?? "resume online for a fresh grant, then enqueue a new intent",
+      guide: "offline",
+    });
+  }
   const code = candidate === "E_OFFLINE_LOCK" || candidate === "E_OFFLINE_CARRIER" || candidate === "E_OFFLINE_RESET"
     ? candidate : "E_OFFLINE_CARRIER";
   const rewrite = code === "E_OFFLINE_LOCK"
@@ -171,6 +183,8 @@ export function createOfflineDrain<Args, Result>(options: {
   subscribe(tailArgs: Args, callback: (delivery: SubscriptionDelivery<Result>) => void): Subscription<SubscriptionDelivery<Result>>;
   track(subscription: Subscription<SubscriptionDelivery<Result>>): Subscription<SubscriptionDelivery<Result>>;
   observe?(): Promise<void>;
+  /** Performs a resume; a drained log that holds no replay grant asks for one here. */
+  resume?(): Promise<void>;
 }): Subscription<SubscriptionDelivery<Result>> {
   const key = `${options.op}\u0000${stableSerialize(options.args)}`;
   options.mounted.set(key, { op: options.op, args: options.args, drain: true });
@@ -184,6 +198,11 @@ export function createOfflineDrain<Args, Result>(options: {
       const held = await options.runtime.answer(options.op, tailArgs);
       await options.runtime.markWatermark(options.op, options.args, watermark, held?.validator);
       await options.observe?.();
+      // @ref LLP 1012#7-writes-offline — the recipe's drain is where a device
+      // earns its first grant, so a send after going offline has ids to pin.
+      if (options.resume && !(await options.runtime.outbox.grant())) {
+        await options.resume().catch(() => undefined);
+      }
     },
     onEvent: options.callback,
   });
@@ -304,11 +323,13 @@ export async function performOfflineResume<Authority>(options: {
   json(path: string, init: RequestInit, authority: Authority): Promise<unknown>;
   validated(authority: Authority): void;
   shape(message: string): Error;
+  failure?(error: unknown): Error;
   subscriptions: Iterable<Subscription<unknown>>;
 }, adjustment: ResumeAdjustment = {}, retry = true): Promise<void> {
   if (!options.runtime) return;
   const request = await options.runtime.resumeRequest([...options.mounted.values()], adjustment);
   if (!request) return;
+  const standIn = request.log !== undefined && options.runtime.standInLog(request.log);
   let value: unknown;
   try {
     value = await options.json("/api/resume", { method: "POST", body: JSON.stringify(request) }, options.authority);
@@ -343,9 +364,16 @@ export async function performOfflineResume<Authority>(options: {
     && (response.log as Record<string, unknown>).unchanged !== true && request.log) {
     const { watermark: returned, ...delivery } = response.log as Record<string, unknown>;
     if (returned !== null && typeof returned !== "string") throw options.shape("resume response.log.watermark must be a string or null");
-    const accepted = await acceptOffline(options.runtime, request.log.op, request.log.args, delivery, options.shape);
-    swaps.push({ op: request.log.op, args: request.log.args, accepted });
-    watermark = {
+    // The server evaluates the log after the watermark, so the returned page is
+    // filed under the tail key; the base key already holds page one at that seq.
+    const tailArgs = request.log.watermark === null
+      ? request.log.args
+      : { ...(request.log.args as Record<string, unknown>), c: request.log.watermark };
+    const accepted = await acceptOffline(options.runtime, request.log.op, tailArgs, delivery, options.shape);
+    swaps.push({ op: request.log.op, args: tailArgs, accepted });
+    // A stand-in log (no drained query held) borrows an ordinary answer; it
+    // must not leave a watermark behind and turn that answer into a drain.
+    if (!standIn) watermark = {
       op: request.log.op,
       args: request.log.args,
       watermark: returned as string | null,
@@ -365,4 +393,18 @@ export async function performOfflineResume<Authority>(options: {
   }
   await options.runtime.commitMany(swaps, watermark);
   options.validated(options.authority);
+  // @ref LLP 1012#7-writes-offline — every successful resume returns a grant,
+  // and the outbox replays FIFO right after it.
+  options.runtime.noteGrant(response);
+  try {
+    await options.runtime.adoptPendingGrant();
+  } catch (error) {
+    throw options.failure ? options.failure(error) : error;
+  }
+  await drainOutbox({
+    runtime: options.runtime,
+    json: (path, init) => options.json(path, init, options.authority),
+    shape: options.shape,
+    failure: options.failure ?? ((error) => (error instanceof Error ? error : new Error(String(error)))),
+  });
 }

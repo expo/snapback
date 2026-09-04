@@ -27,6 +27,7 @@ import {
   type CreateClientOptions,
   type MutationResult,
   type ImageAsset,
+  type OutboxEntry,
   type Principal,
   type QueryHookResult,
   type QueryMachineEvent,
@@ -55,20 +56,34 @@ export function SnapbackProvider({ url, as, token, tokenStore, fetch, offline, c
   if (as !== undefined && (token !== undefined || tokenStore !== undefined)) {
     throw new TypeError("SnapbackProvider cannot combine dev persona `as` with bearer token custody");
   }
-  const client = useMemo(
-    () => createClient(as !== undefined
-      ? { url, as, fetch, offline }
-      : { url, token, tokenStore, fetch, offline }),
-    [url, as, token, tokenStore, fetch, offline],
-  );
+  // A client opens its offline partition (and takes the principal's Web Lock)
+  // the moment it is created, so it must be created exactly once per identity.
+  // StrictMode double-invokes memo factories and discards one result, which
+  // would leak a lock-holding client; a ref survives the re-render untouched.
+  const identity = [url, as, token, tokenStore, fetch, offline] as const;
+  const held = useRef<{ identity: readonly unknown[]; client: SnapbackClient }>(undefined);
+  if (!held.current || held.current.identity.some((item, index) => item !== identity[index])) {
+    held.current = {
+      identity,
+      client: createClient(as !== undefined ? { url, as, fetch, offline } : { url, token, tokenStore, fetch, offline }),
+    };
+  }
+  const client = held.current.client;
   const [snapshot, setSnapshot] = useState<ClientSnapshot>(client.snapshot);
+  const pendingClose = useRef<{ client: SnapbackClient; timer: ReturnType<typeof setTimeout> } | undefined>(undefined);
 
   useEffect(() => {
+    // StrictMode unmounts and remounts synchronously; a close deferred by one
+    // tick is cancelled by the remount and still runs on a real unmount.
+    if (pendingClose.current?.client === client) {
+      clearTimeout(pendingClose.current.timer);
+      pendingClose.current = undefined;
+    }
     const unsubscribe = client.subscribeStatus(setSnapshot);
     void client.manifest().catch(() => undefined);
     return () => {
       unsubscribe();
-      client.close();
+      pendingClose.current = { client, timer: setTimeout(() => client.close(), 0) };
     };
   }, [client]);
 
@@ -182,13 +197,38 @@ export function useSubscription<Args, Result>(
 
 export interface UseMutationResult<Args, Result> {
   run(args: AssetInput<Args>): Promise<MutationResult<Result>>;
-  pending: boolean;
+  /** A `run()` is awaiting the owner right now. */
+  inFlight: boolean;
+  /** This op's intents still queued in the durable outbox, FIFO (LLP 1012 §7). */
+  pending: OutboxEntry[];
   last: MutationResult<Result> | undefined;
   transport: SnapbackRefusal | undefined;
 }
 
+/** The durable outbox of the open partition, FIFO, with `dismiss` for settled intents. */
+export interface UseOutboxResult {
+  entries: OutboxEntry[];
+  dismiss(intent: string): Promise<void>;
+}
+
+// @ref LLP 1012#7-writes-offline — the outbox opens before the first request,
+// so a queued message is on screen at cold start before the network is tried.
+export function useOutbox(): UseOutboxResult {
+  const { client, snapshot } = provider();
+  const [entries, setEntries] = useState<OutboxEntry[]>([]);
+  useEffect(() => client.outbox.subscribe(setEntries), [client, snapshot.authGeneration]);
+  const dismiss = useCallback((intent: string) => client.outbox.dismiss(intent), [client]);
+  return useMemo(() => ({ entries, dismiss }), [entries, dismiss]);
+}
+
 export function useMutation<Args, Result>(ref: Op<Args, Result>): UseMutationResult<Args, Result> {
   const { client, snapshot } = provider();
+  const operation = referenceName(ref);
+  const { entries } = useOutbox();
+  const pending = useMemo(
+    () => entries.filter((entry) => entry.op === operation && entry.state === "queued"),
+    [entries, operation],
+  );
   const [machine, setMachine] = useState<{
     generation: number;
     pending: number;
@@ -225,10 +265,10 @@ export function useMutation<Args, Result>(ref: Op<Args, Result>): UseMutationRes
         ? { ...current, pending: Math.max(0, current.pending - 1) }
         : current);
     }
-  }, [client, referenceName(ref)]);
+  }, [client, operation]);
   return useMemo(
-    () => ({ run, pending: visible.pending > 0, last: visible.last, transport: visible.transport }),
-    [run, visible.pending, visible.last, visible.transport],
+    () => ({ run, inFlight: visible.pending > 0, pending, last: visible.last, transport: visible.transport }),
+    [run, visible.pending, pending, visible.last, visible.transport],
   );
 }
 

@@ -10,5 +10,7 @@ await import("./real-owner.test.ts");
 await import("./native-assets.test.ts");
 await import("./offline-protocol.test.ts");
 await import("./offline-store.test.ts");
+await import("./outbox.test.ts");
+await import("./chat-screens.test.ts");
 
 after(async () => owner.close());

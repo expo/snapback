@@ -77,15 +77,37 @@ export interface Coverage {
 }
 
 export type OutboxState = "queued" | "committed" | "rejected" | "expired";
+/** The seam lane O2b fills: what the twin read when the intent was queued. */
+export interface OutboxTrace { points: unknown[]; verdicts: unknown[] }
+// @ref LLP 1012#7-writes-offline — one durable intent: its pinned id slice, its
+// bytes, and its terminal response, so a retry is the same envelope.
 export interface OutboxEntry {
   intent: string;
+  grant: string;
+  offset: number;
+  count: number;
   ids: string[];
   op: string;
   args: unknown;
+  issuedSeq: number;
   state: OutboxState;
-  refusal?: unknown;
+  response?: unknown;
+  predicted?: boolean;
+  trace?: OutboxTrace;
   createdAt: number;
   updatedAt: number;
+  /** Durable FIFO position; assigned by the store when absent. */
+  order?: number;
+}
+
+/** A principal-bound replay grant plus the client's own consumption cursor. */
+export interface OutboxGrant {
+  id: string;
+  from: string;
+  count: number;
+  mintedAt: number;
+  expiresAt: number;
+  used: number;
 }
 
 export interface OutboxStore {
@@ -93,6 +115,10 @@ export interface OutboxStore {
   get(intent: string): Promise<OutboxEntry | undefined>;
   put(entry: OutboxEntry): Promise<void>;
   remove(intent: string): Promise<void>;
+  /** The grant new intents consume from, if one is held. */
+  grant(): Promise<OutboxGrant | undefined>;
+  /** Every held grant, including those older queued intents still name. */
+  grants(): Promise<OutboxGrant[]>;
 }
 
 export interface StoreDelivery {
@@ -137,6 +163,10 @@ export interface StoreSwap {
   resetCoverage?: boolean;
   dropAnswers?: string[];
   outbox?: { put?: OutboxEntry[]; remove?: string[] };
+  /** `current` names the grant new intents consume; `null` clears it. */
+  grants?: { put?: OutboxGrant[]; current?: string | null; remove?: string[] };
+  /** Predicted rows keyed by intent (lane O2b fills); never consulted by answers here. */
+  overlay?: { put?: Record<string, StoredRow[]>; remove?: string[] };
 }
 
 export interface RangeStore {
@@ -171,6 +201,9 @@ export interface PersistedRangeState {
   answers: Record<string, StoredAnswer>;
   watermarks: Record<string, WatermarkRecord>;
   outbox: Record<string, OutboxEntry>;
+  grants: Record<string, OutboxGrant>;
+  currentGrant?: string;
+  overlay: Record<string, StoredRow[]>;
   negative: Record<string, number>;
   rowSeq: Record<string, number>;
 }
@@ -186,7 +219,7 @@ export interface RangeStoreBackend {
 function emptyState(): PersistedRangeState {
   return {
     version: 1, sealed: false, clock: 0, rows: {}, answers: {}, watermarks: {}, outbox: {},
-    negative: {}, rowSeq: {},
+    grants: {}, overlay: {}, negative: {}, rowSeq: {},
   };
 }
 
@@ -387,9 +420,16 @@ function normalizeState(value: PersistedRangeState | undefined): PersistedRangeS
     ...value,
     watermarks: value.watermarks ?? {},
     outbox: value.outbox ?? {},
+    grants: value.grants ?? {},
+    overlay: value.overlay ?? {},
     negative: value.negative ?? {},
     rowSeq: value.rowSeq ?? {},
   };
+}
+
+function outboxOrder(entries: Record<string, OutboxEntry>): OutboxEntry[] {
+  return Object.values(entries).sort((a, b) =>
+    (a.order ?? a.createdAt) - (b.order ?? b.createdAt) || a.createdAt - b.createdAt || (a.intent < b.intent ? -1 : 1));
 }
 
 /** Shared swap engine; carrier subclasses only provide the atomic replace. */
@@ -401,7 +441,7 @@ export class PersistentRangeStore implements RangeStore {
   readonly outbox: OutboxStore = {
     all: async () => this.read(() => {
       this.ensureUnsealed();
-      return clone(Object.values(this.state.outbox).sort((a, b) => a.createdAt - b.createdAt));
+      return clone(outboxOrder(this.state.outbox));
     }),
     get: async (intent) => this.read(() => {
       this.ensureUnsealed();
@@ -409,6 +449,15 @@ export class PersistentRangeStore implements RangeStore {
     }),
     put: async (entry) => this.commit({ outbox: { put: [entry] } }),
     remove: async (intent) => this.commit({ outbox: { remove: [intent] } }),
+    grant: async () => this.read(() => {
+      this.ensureUnsealed();
+      const current = this.state.currentGrant === undefined ? undefined : this.state.grants[this.state.currentGrant];
+      return current && clone(current);
+    }),
+    grants: async () => this.read(() => {
+      this.ensureUnsealed();
+      return clone(Object.values(this.state.grants));
+    }),
   };
 
   constructor(private readonly backend: RangeStoreBackend) {}
@@ -684,8 +733,29 @@ export class PersistentRangeStore implements RangeStore {
     }
 
     if (swap.watermark) state.watermarks[canonicalAnswerKey(swap.watermark.op, swap.watermark.args)] = clone(swap.watermark);
-    for (const intent of swap.outbox?.remove ?? []) delete state.outbox[intent];
-    for (const entry of swap.outbox?.put ?? []) state.outbox[entry.intent] = clone(entry);
+    // The outbox, its grants, and the prediction overlay are custody of unsent
+    // work: a coverage reset above never touches them.
+    for (const intent of swap.outbox?.remove ?? []) {
+      delete state.outbox[intent];
+      delete state.overlay[intent];
+    }
+    for (const entry of swap.outbox?.put ?? []) {
+      if (typeof entry.intent !== "string" || entry.intent.length === 0) throw new TypeError("outbox entry needs an intent");
+      const order = state.outbox[entry.intent]?.order ?? entry.order ?? ++state.clock;
+      state.outbox[entry.intent] = { ...clone(entry), order };
+    }
+    for (const id of swap.grants?.remove ?? []) {
+      delete state.grants[id];
+      if (state.currentGrant === id) delete state.currentGrant;
+    }
+    for (const grant of swap.grants?.put ?? []) state.grants[grant.id] = clone(grant);
+    if (swap.grants?.current === null) delete state.currentGrant;
+    else if (typeof swap.grants?.current === "string") {
+      if (!state.grants[swap.grants.current]) throw new TypeError("current grant must be a held grant");
+      state.currentGrant = swap.grants.current;
+    }
+    for (const intent of swap.overlay?.remove ?? []) delete state.overlay[intent];
+    for (const [intent, rows] of Object.entries(swap.overlay?.put ?? {})) state.overlay[intent] = clone(rows);
     return state;
   }
 
