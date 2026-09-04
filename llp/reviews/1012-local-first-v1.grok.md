@@ -162,3 +162,331 @@ None on the thirteen rulings. Two mechanism picks, if you want them now rather t
 
 I would not touch IndexedDB. I would add `retain` to the table grammar and the certificate, put a *coverage-only* receipt behind `receipt=1`, define one canonical digest on the query response, and land `POST /api/resume` as N owner-thread executes at one `seq` with a hard `held[]` cap and cumulative session id blocks injected through `Context.new_ids`. `E_INTENT_EXPIRED` at 30 d on `issuedAt`. Stop there. That is the minimum that makes O2 a range store instead of a blob, and it is the part of 1012 the current engine can grow without lying about digests, absences, or bounds.
 
+
+
+---
+
+## Round 2 — proposals (2026-09-04, later the same day; verbatim)
+
+**Method:** round 2 on the brief preserved at `1012-local-first-v1.panel.brief-r2.md`, which carried the orchestrator's verified round-1 synthesis and asked for designs rather than critique, per the author's instruction. grok-4.6, same runner as round 1; self-reported effort `high` this round.
+
+Reviewer: grok-4.6 (high) · Date: 2026-09-04 · Method: round 2, proposals, read-only capsule at 9ffdf6dd0, after the verified round-1 synthesis
+
+Designs, not a second review. Citations are against this capsule. The thirteen rulings stand; these sketches implement them.
+
+---
+
+## 1. The purge design
+
+**A + B, with C as the generic client rule.** No `evictions[]`. No bodies on the log row. No engine change to receipt facts.
+
+The engine already proves: a point miss is an absence (`runner.rs:677-688`); a hidden point is `Null` with none (`runner.rs:671-676`); only a certified-uniform range ships a range fact (`runner.rs:985-987`); hidden candidates are stripped (`runner.rs:895-902`); a non-uniform range ships no coverage. Messenger reads in the recipe are uniform. Leave-group hides a *conversation*; delete and expiry remove *one row*. Those two cases must not share a policy bit.
+
+### Swap rule (once per swap, union of claims)
+
+A row that slid from page 1 to page 2 must survive. After the swap is assembled:
+
+1. **Point absence** for `(table, index, key)` drops that row. That is how a *body* dies.
+2. **Uniform-extent hole (C).** On a granted `ReceiptRange`: if `stop = Exhausted`, the interval is the prefix bounds; if `stop = Limit`, it is the closed key interval from the first `row_ids` entry to the last (halo is a presence). A held id whose index key sits in that interval and is not in `row_ids` ∪ `{halo.id}` is gone. Reading of `runner.rs:985-1008`, not a new fact.
+3. **Denied range.** `until-revoked` drops that range’s claims; `delivered-history` keeps them. A hole from (2) still evicts — deleted is not “history”. History means *revoked-for-you*, not *deleted-for-everyone*.
+4. Zero remaining claims → the row leaves, and so do its asset bytes (O4).
+
+### What the app author writes
+
+`retain` is a certificate line the *client* applies.
+
+```q
+table deliveries:
+  recipient: principal
+  conversationId: conversations
+  messageId: messages
+  kind: enum('message', 'edit', 'delete', 'expiry')
+  at: time
+  by byRecipientAt: recipient, at, id
+  by byRecipientConversationAt: recipient, conversationId, at, id
+  immutable recipient, conversationId, messageId, kind, at
+  retain delivered-history
+  read <- .recipient = viewer
+  insert <- exists memberships[.conversationId, viewer]
+  update <- deny
+  delete <- deny
+
+query inbox(c: cursor ?):
+  page = deliveries[viewer] after c first 50 by byRecipientAt
+  return page { *, message: messages[.messageId] }
+
+query thread(conversationId: conversations, c: cursor ?):
+  require exists memberships[conversationId, viewer] else MEMBERSHIP_REQUIRED
+  page = deliveries[viewer, conversationId] after c last 50 by byRecipientConversationAt
+  return page { *, message: messages[.messageId] }
+
+mutation deleteMessage(id: messages):
+  row = messages[id] ! else NOT_FOUND
+  require row.authorId = viewer else NOT_AUTHOR
+  delete messages[id]
+  for m in memberships[row.conversationId] first 50 by byConversationPrincipal:
+    insert deliveries { recipient: m.principal, conversationId: row.conversationId, messageId: id, kind: 'delete', at: now }
+```
+
+`messages` stays `until-revoked` (omit the line). `first 50`, not 200 (`E_BOUND` at 3,456,012 bytes). Spread is `*`. Thread is a log index, not `messages[conversationId]`. Fan-out `first 50` matches `members: [principal] <=49` plus creator (`templates/chat/snapback/groups.q:1`).
+
+Delete and expiry **must** append a log row **and** delete (or refuse) the `messages` row. The tail point-join is then an absence, and rule (1) drops the body everywhere. The original `kind: 'message'` row stays; the app renders a tombstone from the later row. That is B, and it makes watermark resume in §2 sound: a prefix that is not re-executed never sees a hole unless the tip carries one.
+
+Leave-group: `insert` requires membership, so no new log rows. Old log rows stay. The point-read of the body is hidden, not absent, so the held body stays — delivered-history for messages **without putting the word on `messages`**. Do not subscribe a `messages` range.
+
+Disappearing messages have no server clock (`schedule` is refused). M5 acceptance 1 depends on a caller-invoked `purgeExpired` that does the same two writes with `kind: 'expiry'`. That mutation is a Clique recipe dependency, not an engine change. View-once is excluded at view time (a local `viewed` set consulted before `answer()`); owner is O4. A later purge re-renders on cold start.
+
+### What `retain` means
+
+`until-revoked` (default): denied coverage drops claims; holes and absences evict. `delivered-history`: denied coverage keeps claims; holes and absences still evict. Check-time `E_SCHEMA_RETAIN`, family `schema`/`quarry`, rewrite listing the two words — not `E_RETAIN_POLICY` in `offline` (`RefusalFamily` is `bound | opaque | schema | rule | effect | args | op | input | quarry`, `packages/compiler/src/ir.ts:188`).
+
+**Rejected:** (D) body-on-the-log — `deliveries` is immutable, so disappearing-message bytes cannot leave the original row. **Rejected:** (E) `evictions[]` — restates C for uniform sites and does not exist for non-uniform ones. **Rejected:** C alone — a watermarked log never re-executes the prefix.
+
+**Cost.** One certificate field per table, one client rule. **Pays.** M5/M6 acceptance 1 against the engine that exists; leave-group history without a replica; §2 is sound.
+
+---
+
+## 2. Resume a phone would love
+
+Reconnect is **one log watermark plus a capped digest check of everything that is not that log**, then one generation swap, then the outbox. Ruling 5 (watermark on ordered ranges, full re-delivery elsewhere), spelled so the exclusive owner (`writer.rs:70-82`, `store.rs:97-108`) does a handful of executes.
+
+The drained inbox is **one logical range**, not 200 pages. Delivery rows are immutable; the prefix never changes; new mail, edits, deletes, and expiry append. The watermark *is* re-authorization of the log.
+
+### Wire
+
+```
+POST /api/resume
+{ generation, schemaHash, authEpoch,
+  log: { op: "inbox", args: {}, watermark: { at, id } | null, digest },
+  mounted: [{ op, args, digest }],   // visible now; cap 16
+  held:    [{ op, args, digest }] }  // unmounted non-log; cap 64
+
+→ 200 { seq, generation, schemaHash, authEpoch, digestAlgo: "sha256-canonical-v1",
+        log: { unchanged: true } | { ...queryResponse, receipt, digest, watermark },
+        mounted: [{ op, args, unchanged: true } | { op, args, ...queryResponse, receipt, digest }],
+        held: [same],
+        clientId, lastMutationId,
+        grant: { mintedAt, validUntil, ids: { from, count } } }
+→ 409 E_OFFLINE_RESET  { generation, schemaHash }  // drop coverage, keep sealed outbox
+→ 413 E_OFFLINE_RESUME { which, cap, rewrite: "drop oldest unmounted pages" }
+```
+
+No `want: 'receipt'`. No bare `epoch`. The receipt is the frozen O1 object in §7, never a second copy of `data`.
+
+**Canonical digest:** the engine’s `digest` (`value.rs:242-246`) over `{ state, result, next, generation, schemaHash, authEpoch, ranges: [{ site, table, index, prefix, bounds, row_ids, stop, absence, haloId }], absences, verdicts }`. Not `delivery_digest` (`live.rs:17-19`) and not `frame_digest` (`writer_values.rs:56-61`). A new absence or a new verdict epoch busts it. Put it on every query and the first subscribe frame so the client has something to echo. Predicted overlays are excluded.
+
+### Server order, owner thread, one `seq`
+
+Serialization already gives one version (`mod.rs:728-734` plus exclusive lock). No wrapping read transaction.
+
+1. Authenticate. A dead session *seals* the partition until the same principal re-authenticates; sign-out or a different principal wipes. (Sessions are 30 days with no renewal, `identity.rs:15`.)
+2. `generation` / `schemaHash` mismatch → `E_OFFLINE_RESET`.
+3. Stale `authEpoch` for this token → seal, no data.
+4. Mint/refresh the id grant (§3) if remaining < 32.
+5. Execute `inbox after watermark first 50`. Empty tail and matching digest → `{ unchanged: true }`; else the page. A long tail is ordinary drain after this request, not resume.
+6. Execute each `mounted` and `held`, compare digest. Refuse over cap.
+7. Do not reopen SSE. Swap, *then* outbox, *then* subscribe — that kills the double-execute (`live.rs:117-146`).
+
+Two tabs: `navigator.locks.request("snapback2:" + principalId)`. Loser: `E_OFFLINE_LOCK`, rewrite “this account is open in another tab”. `lastMutationId` cannot have two writers.
+
+### Clique cost, roughly
+
+Fifty conversations, 10k drained, 200 new in five chats, one thread on screen, conversation list as **one** query.
+
+| | Wire | Owner executes | Owner time |
+|---|---|---|---|
+| Unchanged hour | ~1 KB in, ~0.5 KB out | 1 tip seek + 1 list + 1 thread | single-digit to tens of ms |
+| 200 new | one 50-row page (≤ ~0.8 MB worst-case with `text <=4000`; typical tens of KB) + two hashes; three more pages as drain | 1+2, then 3 | tens of ms, then catch-up |
+| Schema generation change | `E_OFFLINE_RESET`, then a fresh drain | drain | first-install cost |
+
+**Rejected:** re-executing every held page under a cap of 256 — it stalls the only thread that can touch SQLite. The log is one range.
+
+---
+
+## 3. Ids and replay, the smallest correct scheme
+
+**Session-issued id blocks plus Replicache’s `clientId` + `mutationId` + `lastMutationId`.** No intent UUIDs. No client `issuedAt`.
+
+Idempotency and identity are different jobs. The mutation id does the first; the block does the second; the grant’s `mintedAt` does age. `Context.new_ids` (`mod.rs:23`, `runner.rs:392-397`) stays the injection point LLP 1001 §8 already names.
+
+### Wire
+
+Login, guest, and resume return the grant in §2. The partition stores `{ clientId, lastMutationId, grant }`.
+
+```
+POST /api/mutation
+{ op, args, clientId, mutationId, ids: ["s2id-<ns>-…"] }
+```
+
+`clientId` is bound to this `auth_epoch`. `mutationId` is a u53, monotonic per `clientId` from 1. Clients with no store omit the envelope; the server keeps today’s `reserve_new_ids()` path (`writer_auth.rs:152-156`, block of 1,024, `store.rs:294-368`).
+
+### What the server checks (the OCC question)
+
+There is no base-seq OCC in the invoked path (`mod.rs:728-756`). Ruling 4 survives as: the server applies the intent against **current rows**; conflict detection is a `require` the mutation authors. Sends do not conflict. An edit:
+
+```q
+mutation editMessage(id: messages, body: text <=4000, baseBody: text <=4000):
+  row = messages[id] ! else NOT_FOUND
+  require row.authorId = viewer else NOT_AUTHOR
+  require row.body = baseBody else CONFLICT
+  replace messages[id] { body }
+```
+
+Before `execute`:
+
+1. `clientId` belongs to this `auth_epoch`, else `E_AUTH_SESSION` (seal, do not wipe).
+2. `grant.mintedAt` (server time) older than 30 days → `E_INTENT_EXPIRED`. Never a client clock.
+3. `mutationId <= lastMutationId` → return the stored `{ state, seq, data }` for that id. This is the 503-after-commit path. Keep the last 32 results per `clientId`; older than that and `<= last` returns `{ state: "committed", seq, data: null, replayed: true }`.
+4. `mutationId != lastMutationId + 1` → `E_MUTATION_GAP`, rewrite “replay in order”.
+5. Every `ids[]` entry lies in the union of unexpired grants for this `clientId`, is unused, and matches this program’s `newId`/`emit` count. Else `E_ID_BLOCK`.
+6. `context.new_ids = VecDeque::from(ids)` — do **not** call `reserve_new_ids()`.
+7. `execute`. Commit persists the result, marks ids used, increments `lastMutationId`. Reject still consumes `mutationId` (retry of the same envelope is stable) and the ids (gaps are already allowed, `store.rs:292-294`).
+
+### Failure shapes
+
+- **Block exhausted.** Client refuses locally with `E_ID_BLOCK` before enqueue when remaining < this intent’s inserts. Resume mints another 1,024 only if remaining < 32. No silent reuse.
+- **Device wiped.** Partition gone, including `clientId` / outbox / grant. New session, `mutationId = 1`, new block. Leftover server ids are gaps. The wiped outbox is not retried.
+- **Two devices.** Two sessions, two `clientId`s, two counters, two blocks. The log is per-recipient (ruling 2).
+- **Parent rejected.** FIFO continues (ruling 4). Child `send` whose `ids` point at an uncommitted group fails the `ref`/`require` on current rows and comes back `rejected`. No cascade in v1.
+- **503 after commit.** Intent stays `queued`; retry the same envelope; step 3 returns the stored commit.
+
+The client pins ids from the grant at enqueue, so a later O3 prediction and the commit mint the same ids. Until O3, the thread renders from `args` keyed by `mutationId` (§4.3).
+
+**Rejected:** client-minted UUIDv7 — bypasses `new_ids`, does not look like `s2id-<ns>-<seq>`, carries no server time. **Rejected:** intent-id dedup alone — the 503 hole still needs a monotonic per-client id, and pinning ids is one array on a wire already changing.
+
+**Cost.** One `_client_replay` table; tens of bytes per in-flight mutation. **Pays.** Double-send is gone; dependent ids work; the 30-day rule is a server timestamp.
+
+---
+
+## 4. Make it feel like WhatsApp
+
+Three additions inside NOT-DOING’s v1. Ranked by how much they change the next day of work.
+
+### 4.1 `journey` can cut the network, kill the process, and name what the phone still holds — rank 1
+
+Extend the journey runner (`packages/snapback2/src/test.ts`; owner already has `/control/clock` and `/control/stop`, `control.rs:150,203`):
+
+```ts
+journey("offline-send-and-search", async ({ as, cut, restore, kill, held }) => {
+  const alice = as("alice");
+  await alice.mutation(api.send, { conversationId, body: "before" });
+  cut();                          // transport fence; owner still up
+  const q = await alice.mutation(api.send, { conversationId, body: "queued" });
+  assert(q.last.state === "queued");
+  assert(alice.searchHeld("before").length >= 1);
+  kill();                         // drop the JS heap; reopen the same partition
+  const alice2 = as("alice");     // cold start, still cut
+  assert(held("inbox", {}).data.length >= 1);
+  restore();
+  await alice2.outbox.idle();
+  assert(alice2.outbox.states().every((s) => s === "committed"));
+});
+```
+
+`cut`/`restore` model M5 acceptance 5 (warm-offline, app still running). `kill` is a new client on the O2 Node file carrier. The scheduled physical witness still does a real tab discard and a simulator SIGKILL; this is the loop the agent runs in five seconds. Expiry: `cut(); await clock(ttl + 1); restore();` then recipe `purgeExpired` + resume, then `held` no longer contains the body.
+
+**Cost.** ~150 lines in `test.ts` plus a `cut` flag on the test client. No production surface. **Pays.** M5 acc 5 and M6 acc 1–2 become ordinary journeys. **Prove.** One `chat` template journey in the sixty-second set.
+
+### 4.2 `useDrain` — “everything on the phone” is one hook — rank 2
+
+A React hook (and `client.drain(op, args)`) that, while online, follows `next` until `null`, persists the last complete page’s watermark, and exposes `{ data, watermark, catchingUp, connection, stale }`. Subscribe is `inbox after watermark`, not one live subscription per drained page. The recipe says: call this once at the principal root; open a thread with `useQuery(api.thread, { conversationId })`.
+
+**Cost.** One hook, ~80 lines; one recipe; the resume shape in §2. **Pays.** Yesterday’s chats survive a flight-mode cold start; the agent does not write a 200-page loop and then fail resume. The drain-to-`next: null` policy becomes the paved form. **Prove.** Seed 10k across 50 conversations; `catchingUp` becomes false; `cut(); kill();` search finds message 1 and message 10,000, labeled “in downloaded messages”.
+
+### 4.3 Pending bubbles from `args`, labeled “Sending…”, no client clock — rank 3
+
+In O2, before any twin: `useMutation(api.send).pending[]` overlays the open thread, keyed by `mutationId`. The bubble shows `args.body` and **Sending…**. It does not show a time. On `committed`, the overlay drops and the server row (server `at`) takes its place, keyed by the pinned `ids[0]`. On `rejected`, **Not sent** plus the refusal rewrite. On `expired`, **Expired**. Two queued sends keep FIFO order in the overlay.
+
+**Cost.** The hook already returns `pending[]`; the `chat` template spends ~40 lines. Zero extra wire bytes. **Pays.** The person sees their own message while the radio is down; the agent does not invent a second local table; a skewing `issuedAt` never renders as “2:14 PM”. **Prove.** Journey 4.1 asserts `threadShows("queued")` before `restore()` and `threadShows("committed")` after.
+
+Not proposed: cancel-while-queued (NOT-DOING candidate 8), read receipts as extra fan-out, a local token index, merge modes.
+
+---
+
+## 5. Steal one thing
+
+**Replicache’s `clientID` + `mutationID` + `lastMutationID`.**
+
+Replicache is a client view with a push queue, not a SQL replica. Each client names its mutations with a monotonic integer; the server stores one integer per client and replays or ignores anything at or below it. Snapback 2 is already “a result cache plus cursor state plus an outbox, never a relational replica” (LLP 0329.014.007 F11, ruling 2). The outbox is the push queue. The missing piece is the integer.
+
+It fits the other principles: the certificate still gates what a mutation may do; a replayed envelope either re-returns a stored result or runs the certified program against current rows; nothing is invented. It does not pull in Replicache’s rebase, its key-value model, or its cookie-over-the-whole-view.
+
+**It replaces:** the spec’s `{ id: uuid, issuedAt }` intent identity; a server-side set of consumed UUIDs; the prose that a 503 after commit stays `queued` with no idempotency key; any temptation to treat a client clock as the 30-day bound.
+
+ElectricSQL’s shape+offset is the ancestry of §2 (a certified uniform range *is* a shape; the watermark *is* the offset) and is already ruling 5. WhatsApp’s per-device queue is already ruling 2. PowerSync’s CRUD `op_id` is lastMutationID with more envelope. CloudKit change tokens and Firestore’s latency-compensated snapshots both want a replica. Linear’s sync engine is the closest cousin after Replicache; Replicache is the smaller object — one integer per session, which is what v1 can afford on an exclusive SQLite owner.
+
+---
+
+## 6. Cut
+
+Remove from 1012 v1 everything the offline bar does not need. The bar is M5 acceptance 5, M6 acceptance 1 and 2, and the physical kill witness.
+
+| Cut | Why the bar does not need it | What it unblocks |
+|---|---|---|
+| **Lane O3** as a condition of the bar | Cold-start reads are held answers; search is an app filter; pending renders from `args` (§4.3). | O1 freezes a receipt for a phone. O2 is not “against a stub”. |
+| **Re-authorizing every drained log page** | The log is immutable; the watermark re-authorizes it (§2). | Resume drops from hundreds of owner executes to a handful. |
+| **`delivered-history` on `messages`** | Point-held bodies survive hide and die on absence (§1). Keep the word on `deliveries`. | The recipe stops lying about a messages range. |
+| **Template `thread` over `messages[conversationId]`** | No conversation prefix on `(recipient, at, id)`. Use the second log index. | Inbox drain *is* the thread’s coverage. |
+| **`want: 'receipt'`** | Duplicates `receipt=1`. | One spelling. |
+| **`receipt.rows` on the wire** | `data` already has visible rows; halo can be an id (`mod.rs:88-92, 191-208`). | Frames stop doubling; the 1 MiB output ceiling (`certificate.rs:31-42`) stays livable. |
+| **`assets` on the O2 `RangeStore`** | O4. | O2’s interface matches what it implements. |
+| **Client `issuedAt` as a protocol field** | Age is `grant.mintedAt` (§3). | No fake clock in the bubble (§4.3). |
+| **Engine OCC / a base-seq envelope** | Not in the invoked path; inserts do not conflict; edits `require` a field (§3). | Ruling 4’s intent without a fictional mechanism. |
+| **Wipe-on-terminal-`E_AUTH_SESSION`** | A 30-day session with no renewal is a monthly history wipe. Seal until the same principal returns. | M6 cold start still works on day 31 after a re-login. |
+| **View-once and images in the O2 witness** | One-use delivery is deferred in LLP 1006; images are O4. | O2 tests rows + outbox + mid-swap + enqueue-before-kill. |
+| **`fence: { days }` beside a flat `maxAssetBytes`** | One bag: `createClient({ offline: { maxAgeDays: 7, maxAssetBytes: 256e6 } })`. | U7 spelling. |
+| **`swap(gen: Generation)`** | Collides with engine `Generation` (`registry.rs:42`). Rename `applySwap(generationId)`. | O2 can type the carrier. |
+| **Recipe `first 200` and bare `.`** | Check refuses both. | The snippet in the spec compiles. |
+| **An `offline` family for `retain`** | Check-time, `schema`/`quarry`. Keep `offline` for the runtime codes in §7. | Diagnostics match `ir.ts:188` plus one runtime family. |
+
+Do **not** cut: the durable range store, the FIFO outbox, `receipt=1`, `POST /api/resume`, id blocks, the two-word `retain` (ruling 8), the physical witness, asset bytes under the row (ruling 7, O4), the fence as a trust bound (ruling 1). O3 remains a lane. It is not on the offline bar. `predicted` waits with it.
+
+---
+
+## 7. Lane O1 on one page
+
+Freeze the **wire receipt**, the **canonical digest**, the **resume request/response**, and the **mutation envelope**, so O2 builds a row-per-range store against types, not a stub. No `RangeStore`, no IndexedDB, no twin, no assets.
+
+Land in this order. Each step has a test O2 may pin.
+
+1. **Wire receipt + digest (types only).**
+   Files: `snapback2-core/src/engine/mod.rs` (`WireReceipt`, conversion that **drops `rows`**, halo → `haloId`); `value.rs` (`resume_digest` over the object in §2); `packages/snapback2/src/types.ts`.
+   ```ts
+   type WireReceipt = {
+     schemaHash: string; planHash: string; evaluatorVersion: string;
+     ranges: Array<Omit<ReceiptRange, "halo"> & { haloId?: string }>;
+     absences: Array<[string, string, unknown[]]>;
+     verdicts: Verdict[];
+   };
+   ```
+   Tests (`crates/snapback2-core/tests/wire_receipt.rs`): point miss records an absence; hidden point does not; uniform exhausted range present; non-uniform range absent; `rows` empty on the wire object; digest stable across `seq`; digest changes when an absence is added. **O2 may start here.**
+
+2. **`retain` in Quarry, schema, certificate.**
+   Files: `packages/compiler/src/quarry/parser.ts` (next to `immutable` at `parser.ts:104-137`); `quarry/schema.ts`; `ir.ts` (do not add an `offline` family for this code); `snapback2-core/src/schema.rs` (`Table.retain`, default `UntilRevoked`); `certificate.rs`; fixtures `retain-*.q`.
+   Tests: omit → `until-revoked`; `retain delivered-history` accepted; `retain purge-on-block` → `E_SCHEMA_RETAIN`, family `schema`, rewrite “until-revoked or delivered-history”. Hyphenate `delivered-history` as one lexer token (`lexer.ts:7,96` cannot see it today).
+
+3. **`receipt=1` on query and subscribe.**
+   Files: `serve.rs` (`POST /api/query` at `402-412`, `GET /api/subscribe` at `413-437`); `writer_wire.rs:8-36` (`digest` always, `receipt` when asked); `packages/snapback2/src/client.ts:385-441`.
+   Tests: default body equals today’s JSON plus a digest; `receipt=1` has `receipt` and no duplicated row map; a missing point includes an absence; a hidden alternate-key point does not (`runner.rs:671-676`) — existence-oracle regression. Do not send the receipt on every later SSE frame unless coverage or digest changed; the first subscribe frame always has it.
+
+4. **`POST /api/resume`.**
+   Files: `serve.rs` match arm; `writer.rs` `Action::Resume`; new `writer_resume.rs` (keep `writer.rs` under 1,500 lines); `protocol.rs` refusals `E_OFFLINE_RESET`, `E_OFFLINE_RESUME`.
+   Caps and order as §2. Tests: `log.watermark = null` returns a first page; matching empty tail → `unchanged`; `mounted.length = 17` → 413; `generation` mismatch → 409; execute count equals `1 + mounted + held`, not page count; resume does not open a subscribe.
+
+5. **Mutation envelope.**
+   Files: `serve.rs` `POST /api/mutation`; `writer_auth.rs:145-157`; `store.rs` `_client_replay` DDL next to `_sessions`; grant mint at login, bound to `auth_epoch`.
+   Tests: no envelope → today’s `reserve_new_ids` path; pinned ids inject and skip reserve; id outside the grant → `E_ID_BLOCK`; `mutationId` replay returns the same `seq`; gap → `E_MUTATION_GAP`; grant older than 30 days → `E_INTENT_EXPIRED` via `/control/clock`; two `clientId`s do not share a counter; short `ids[]` maps `newId envelope exhausted` (`runner.rs:392-397`) to `E_ID_BLOCK`.
+
+6. **Diagnostics page.** `E_SCHEMA_RETAIN`, `E_OFFLINE_CARRIER`, `E_OFFLINE_RESUME`, `E_OFFLINE_RESET`, `E_OFFLINE_LOCK`, `E_OFFLINE_FENCE`, `E_ID_BLOCK`, `E_MUTATION_GAP`, `E_INTENT_EXPIRED`. Each: family, site, rewrite, guide slug. Add `"offline"` to `RefusalFamily` **only** for the runtime codes.
+
+7. **Recipe compile, not adopt.** Fix LLP 1012 §3’s snippet to the §1 recipe. `snapback2 check` green on that file. The `chat` template adopts it in O2.
+
+O2 starts at the end of step 1 against frozen `WireReceipt`. It must not start against `ClosureReceipt` as-is. O3 is not on this page.
+
+---
+
+## 8. If I could change one ruling
+
+**Ruling 3 — “offline reads are staged: O2 then O3.”**
+
+The offline bar is M5 acceptance 5, M6 acceptance 1 and 2, and the kill witness; those are held answers, a drain, an outbox, and a purge, not local evaluation. Staging the twin into the same v1 that has to meet that bar is why O2 was specified to run against a stub of a receipt O1 might still reshape, and why `RangeStore` grew `rows()` / `ranges()` before it grew a carrier. Make O2 the offline bar; let O3 start when a brief measures unpredicted sends as a problem. Ruling 4’s `predicted` flag waits with it — §4.3’s pending bubble from `args` is what the person sees in the meantime. I would not touch ruling 5: watermark resume on the ordered log is already the right ruling; only the spec text drifted to “every held page.”

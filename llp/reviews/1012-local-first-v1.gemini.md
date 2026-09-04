@@ -398,3 +398,283 @@ LLP 1012 captures the right architectural intuition (a durable range store and r
 
 If I owned Lane O1, I would first implement `retain until-revoked | delivered-history` in the Quarry compiler (`snapback2/packages/compiler/src/quarry/`), update the static certificate to record table retention policies, and add `retain` to `ReceiptRange` in `snapback2-core`. Then, before touching resume or wire streaming, I would implement the missing server mutation hook: adding optional `pinned_ids` to `/api/mutation` and plumbing them through `Action::Execute` into `context.new_ids` in `snapback2/crates/snapback2/src/writer_auth.rs`, with a unit test demonstrating that a replayed mutation commits with its exact client-pinned ID. That establishes the authoritative contract required for all subsequent lanes.
 
+
+
+---
+
+## Round 2 — proposals (2026-09-04, later the same day; verbatim)
+
+**Method:** round 2 on the brief preserved at `1012-local-first-v1.panel.brief-r2.md`, which carried the orchestrator's verified round-1 synthesis and asked for designs rather than critique, per the author's instruction. Gemini 3.8 Flash High, one sample this round at the author's instruction (the duplicate Antigravity default-model run was stopped before it finished).
+
+Reviewer: gemini-3.8-flash (high) · Date: 2026-09-04 · Method: round 2, proposals, read-only capsule at 9ffdf6dd0, after the verified round-1 synthesis
+
+# Panel: LLP 1012, Local-first v1 — Round-2 Contribution
+
+---
+
+## 1. The Purge Design
+
+The receipt model established in round 1 confirms that point reads record absences, hidden rows return null without an absence, and range receipts are emitted exclusively for certified-uniform sites (`snapback2-core/src/engine/runner.rs:985-987`) with no per-row absence facts (`snapback2-core/src/engine/mod.rs:223-236`).
+
+To satisfy M5 acceptance 1 and M6 acceptance 1 cleanly, we combine **(C) Extent Eviction on Uniform Ranges** for active views with **(B) Tombstone Events in the Delivery Log** for historical and background purges.
+
+### Design and Mechanics
+1. **Extent Eviction on Active Uniform Ranges:** Because the engine emits range receipts *only* for certified-uniform sites (`runner.rs:985`), there are no hidden candidates within an evaluated range. The receipt carries the range bounds (`prefix`, `after`, `before`, `gt`, `gte`, `lt`, `lte`) and `row_ids` (`runner.rs:990-1008`). When `ClientStore` applies a fresh range delivery covering key interval [lo, hi], any previously held row r whose index key falls within [lo, hi] but whose ID is missing from `row_ids` is mathematically proven to be deleted or expired on the server. The client store evicts r immediately.
+2. **Log-Driven Historical Purge:** For messages outside the actively subscribed viewport, or when clients are closed during expiry (M5 acceptance 1), the server purge mutation inserts an explicit tombstone into `deliveries`:
+   ```q
+   insert deliveries { recipient: m.principal, conversationId, messageId: row.id, kind: 'delete', at: now }
+   ```
+   When the phone reconnects and drains `deliveries`, it processes `kind: 'delete'` and removes the referenced `messageId` and its cached asset leases from `RangeStore`.
+
+### Retain Policy and Engine Impact
+We eliminate `retain delivered-history` from Quarry syntax entirely. All tables use the default `retain until-revoked`. Messages are retained locally because the append-only `deliveries` log references them; they are purged when an extent eviction or a `delete` log row arrives. The Rust engine (`snapback2-core`) requires **zero changes**; eviction logic lives entirely within `ClientStore::apply_swap` in `packages/snapback2`.
+
+*Alternative rejected in one sentence:* We reject (E) (explicit server-side `evictions[]` negative facts) because tracking per-client delivery state on the server violates the scale-to-zero stateless owner principle.
+
+---
+
+## 2. Resume a Phone Would Love
+
+The Snapback 2 owner is a single thread over an `mpsc` channel (`snapback2/src/writer.rs:70-82`) holding SQLite in `locking_mode = EXCLUSIVE` (`snapback2-core/src/store.rs:97-108`). Executing hundreds of held queries on reconnect would serialize and stall the server. 
+
+### Reconnect Protocol
+The client sends its schema hash, auth epoch, delivery log watermark, and a capped set of currently mounted queries (maximum 8). Cold held pages are not sent.
+
+```json
+// POST /api/resume
+{
+  "schemaHash": "a1b2c3d4e5f6",
+  "authEpoch": 3,
+  "watermark": { "at": 1725400000000, "id": "del_018f3a" },
+  "mounted": [
+    { "op": "inbox", "args": {}, "digest": "d_8f12a4b9" },
+    { "op": "conversation", "args": { "id": "c_42" }, "digest": "d_3c71e902" }
+  ]
+}
+```
+
+### Server Execution Sequence
+1. **Header Validation:** Validate `schemaHash` and `authEpoch`. If stale, respond immediately with `E_SCHEMA_STALE` or `E_AUTH_SESSION`.
+2. **Fast Watermark Index Probe:** Execute a single indexed query:
+   ```sql
+   SELECT 1 FROM deliveries 
+   WHERE recipient = ? AND (at > ? OR (at = ? AND id > ?)) 
+   LIMIT 1;
+   ```
+   If no rows exist, the user's message universe has had zero inserts, edits, or deletes.
+3. **Fast-Path Response:** When the watermark check confirms no changes, the server bypasses query execution and returns in < 0.3 ms:
+   ```json
+   {
+     "seq": 2048,
+     "logUnchanged": true,
+     "idBlock": { "prefix": "s_a91b_", "start": 1, "limit": 128 },
+     "mounted": [
+       { "op": "inbox", "args": {}, "unchanged": true },
+       { "op": "conversation", "args": { "id": "c_42" }, "unchanged": true }
+     ]
+   }
+   ```
+4. **Slow Path:** If new deliveries exist, re-execute only the mounted queries (capped at 8) in one read transaction and return full results with receipts only for changed queries.
+
+### Canonical Digest and Schema Changes
+The canonical digest is bound across the complete execution state:
+```rust
+canonical_digest = sha256(&(schema_hash, plan_hash, auth_epoch, &execution.state, &execution.result, next_cursor));
+```
+On a schema generation change, the server returns `schemaStale: true`. The client clears absences per `client.rs:162-171`, marks held answers `stale`, and re-queries fresh.
+
+### Cost for Clique Inbox
+- **Bytes:** ~260 bytes request, ~140 bytes response on the fast path.
+- **Owner time:** ~0.2 ms for a single SQLite index seek, keeping writer latency near zero.
+
+*Alternative rejected in one sentence:* We reject re-executing all 200+ held ranges in one transaction because it causes 50–100 ms exclusive write-lock stalls on the owner thread during client reconnection storms.
+
+---
+
+## 3. Ids and Replay, the Smallest Correct Scheme
+
+Offline writes require deterministic IDs for local joins (e.g., creating a conversation and immediately sending a message to it). Network retries after a 503 must never double-insert (`snapback2/src/serve.rs:402-412`).
+
+### Wire Shape and Deduplication
+The mutation request envelope is extended to include `intentId` and optional `pinnedIds`:
+
+```json
+// POST /api/mutation
+{
+  "intentId": "018f3a9b-7c1e-7000-8000-000000000001",
+  "op": "send",
+  "args": { "conversationId": "s_devA_1", "body": "Hello offline" },
+  "pinnedIds": ["s_devA_2"]
+}
+```
+
+### Server Execution and Injection Point
+In `snapback2-core/src/store.rs`, create a system table:
+```sql
+CREATE TABLE IF NOT EXISTS _intents (
+  intent_id TEXT PRIMARY KEY,
+  seq INTEGER NOT NULL,
+  result TEXT NOT NULL,
+  committed_at INTEGER NOT NULL
+);
+```
+
+In `snapback2/src/writer_auth.rs:150-156`:
+1. Check `_intents` for `intentId`. If present, return the stored result immediately without re-executing the mutation.
+2. If `pinnedIds` are supplied, verify they match the session's allocated prefix (`s_<sessionId>_`) and remain within the allocated count.
+3. Instead of reserving new IDs from `store.reserve_new_ids()` (`store.rs:294`), populate the execution context directly:
+   ```rust
+   context.new_ids = VecDeque::from(pinned_ids);
+   ```
+   The engine runner pops these via `Input::NewId` (`runner.rs:392-397`).
+4. On commit, record `(intentId, seq, result, now)` in `_intents` in the same SQLite transaction.
+
+### Failure Shapes
+- **Block Exhausted:** Client counter reaches the allocated limit offline. The outbox rejects further offline inserts with `E_ID_BLOCK_EXHAUSTED` (edits and reactions continue).
+- **Device Wiped:** Local state is discarded. On re-authentication, the server grants a fresh session ID and disjoint prefix (`s_devA2_`); orphaned intents are gone, preventing collisions.
+- **Two Devices of One Principal:** Each device authenticates under its own session token, receiving disjoint prefixes (`s_devA_` vs `s_devB_`), eliminating cross-device collision.
+- **Parent Intent Rejected:** If intent 1 fails commit (OCC/validation), intent 2 referencing its pinned ID fails during execution with `NOT_FOUND`. The client outbox marks child intent 2 `rejected` with `reason: 'parent_rejected'`.
+
+*Alternative rejected in one sentence:* We reject uncoordinated client-minted UUIDv7s without session prefixes because they permit cross-tenant ID spoofing and break SQLite clustered B-Tree insertion locality.
+
+---
+
+## 4. Make It Feel Like WhatsApp
+
+Three concrete improvements inside NOT-DOING that elevate the offline experience for both the user and the agent builder:
+
+### 1. The Offline Simulation Harness Primitive (`harness.transport.sever()` & `reconnect()`) [Rank 1]
+- **What it is:** A network fault injection API built directly into `snapback2/test` and the Node client harness. It allows test scripts to sever HTTP and SSE transport cleanly while leaving the in-memory client, storage carrier (IndexedDB/expo-sqlite), and UI component tree intact.
+  ```ts
+  const harness = await createTestHarness({ app });
+  await harness.transport.sever();
+  await harness.client.mutate('send', { body: 'Offline message' });
+  expect(harness.client.outbox.peek().state).toBe('queued');
+  await harness.transport.reconnect();
+  await harness.drain();
+  expect(harness.client.outbox.peek()).toBeUndefined();
+  ```
+- **Cost:** ~85 lines of TypeScript in `packages/snapback2/src/test_harness.ts`. 0 bytes on the wire; 0 production runtime overhead.
+- **What it pays:** Transforms offline verification from a multi-second ordeal involving OS process kills (`SIGKILL`) and native simulator restarts into a deterministic, 200 ms in-memory test. Agents building on Snapback 2 can author and verify M5 acceptance 5 and M6 acceptance 2 in CI hermetically.
+- **Proof:** A test `tests/offline_harness.test.ts` where the test severs transport, enqueues two writes, asserts `queued` status, re-establishes transport, and verifies in-order settlement.
+
+### 2. The Unified WhatsApp Delivery Lifecycle Hook (`useMessageState`) [Rank 2]
+- **What it is:** A React client hook that reconciles outbox intents with query-delivered rows, tracking the four canonical states:
+  - `queued`: clock icon (held in outbox)
+  - `sent`: single grey check (server committed via `_intents`)
+  - `delivered`: double grey check (delivered to recipient log)
+  - `read`: double blue check (read receipt acknowledged)
+  It maps temporary client intent IDs to permanent message IDs, eliminating UI flicker when an outgoing message transitions from `pending[]` outbox arguments to query stream results.
+- **Cost:** ~45 lines of TypeScript in `packages/snapback2/src/react.ts`. 0 wire bytes.
+- **What it pays:** Eliminates optimistic UI jumpiness and provides the classic WhatsApp visual contract out of the box for agent-built UIs.
+- **Proof:** Playwright browser test asserting seamless DOM transition from `.icon-clock` to `.icon-check-single` to `.icon-check-double` without component re-mounting.
+
+### 3. Viewport-First Prioritized Drain Policy (`drainPolicy: 'viewport-first'`) [Rank 3]
+- **What it is:** A client-side sync scheduler that coordinates delivery log draining. On cold start or reconnect, the client prioritizes:
+  1. The currently open conversation;
+  2. The latest message for the top 20 inbox conversations;
+  3. Background idle draining of deep message history via `requestIdleCallback` (web) or `InteractionManager` (Expo).
+- **Cost:** ~60 lines of TypeScript in `packages/snapback2/src/drain.ts`. 0 server bytes.
+- **What it pays:** Cold-start time-to-interactive remains under 40 ms even with thousands of backlogged messages, preventing thread jank on low-end mobile devices.
+- **Proof:** Benchmark measuring frame rate and time-to-first-paint on a seeded account with 5,000 pending delivery rows.
+
+---
+
+## 5. Steal One Thing
+
+### Stolen Mechanism
+**Replicache's and Linear's Transaction-Bound Intent Deduplication Log (`_intents` Table).**
+
+### Why It Fits
+Snapback 2's writer already processes mutations sequentially within exclusive SQLite transactions (`snapback2-core/src/store.rs:97-108`, `snapback2/src/writer.rs:70-82`). In Replicache and Linear, every mutation envelope carries a client-assigned `mutation_id`. When committing, the engine records `(mutation_id, seq, result)` in an internal table inside that same database transaction.
+
+This adheres strictly to Snapback's core principles:
+- **Result cache, never a replica:** It requires no client-side relational storage or CRDTs.
+- **Certificate as the gate:** Mutations execute under normal engine authority and permission rules.
+- **Exact, never invented:** Retried mutations return the exact committed result without re-execution.
+
+### What It Replaces
+It completely eliminates the U3 double-send vulnerability (`POST /api/mutation` retries after 503 or network drops) and removes the need for bespoke, application-level deduplication code.
+
+*Alternative rejected in one sentence:* We reject Replicache's client-side scan/diff engine because running local relational queries turns the client into a full replica, violating Ruling 2.
+
+---
+
+## 6. Cut
+
+To simplify v1 and reliably hit the offline bar, we cut two components:
+
+### 1. Cut Lane O3: The Client Twin / Local Evaluator (`packages/evaluator`)
+- **Rationale:** Round 1 verified (U8) that the offline bar (M5 acceptance 5, M6 acceptance 1 & 2) does not require Lane O3:
+  - Cold-start offline reads are satisfied by stored answers in Lane O2 (`answer(op, args)`).
+  - Warm and cold offline search is an in-memory JavaScript filter over held delivery log rows.
+  - Offline pending writes render directly from mutation arguments (`pending[]`).
+- **What it unblocks:** Cutting Lane O3 eliminates the need to compile and ship bytecode evaluator machinery into the client runtime. It eliminates JS/Rust engine drift risks, reduces mobile bundle size, and removes complex prediction overlay reconciliation logic.
+
+### 2. Cut `retain delivered-history` from Quarry Syntax
+- **Rationale:** As established in Task 1, `delivered-history` created the U1 flaw (failure to evict deleted/expired messages). Message retention is an application data pattern—an append-only delivery log under the uniform `until-revoked` rule—paired with extent eviction.
+- **What it unblocks:** Removes new grammar keywords, compiler parsing changes (`parser.ts:104-137`), certificate schema modifications, and `E_RETAIN_POLICY` error machinery.
+
+*Alternative rejected in one sentence:* We reject cutting asset caching (Lane O4) because M6 acceptance 1 explicitly mandates offline rendering of previously viewed media.
+
+---
+
+## 7. Lane O1 on One Page
+
+### Deliverables
+1. **Engine and Store (`snapback2-core`):**
+   - In `snapback2-core/src/engine/mod.rs`, update `ClosureReceipt` to include `schema_hash: String` and `auth_epoch: u64`. Strip duplicate `rows` from the receipt when already present in data. Ensure `ReceiptRange` exposes evaluated bounds for uniform extent eviction.
+   - In `snapback2-core/src/store.rs`, add `_intents` table and session ID block allocation helper (`allocate_id_block(session_id, 128)`).
+2. **Server and Wire (`snapback2`):**
+   - In `snapback2/src/serve.rs`, add route `POST /api/resume`.
+   - In `snapback2/src/serve.rs`, update `POST /api/mutation` to parse `intentId` and optional `pinnedIds`.
+   - In `snapback2/src/serve.rs`, support `receipt=1` query parameter on `POST /api/query` and `GET /api/subscribe`.
+   - In `snapback2/src/writer_auth.rs`, check `_intents` for deduplication and inject `pinnedIds` into `context.new_ids`.
+3. **TypeScript Wire Types (`packages/snapback2/src/types.ts`):**
+   - Freeze wire interfaces: `ClosureReceipt`, `ResumeRequest`, `ResumeResponse`, `MutationEnvelope`.
+
+### Wire Contracts
+```ts
+interface ResumeRequest {
+  schemaHash: string;
+  authEpoch: number;
+  watermark: { at: number; id: string };
+  mounted: Array<{ op: string; args: Record<string, unknown>; digest: string }>;
+}
+
+interface ResumeResponse {
+  seq: number;
+  logUnchanged: boolean;
+  idBlock: { prefix: string; start: number; limit: number };
+  mounted: Array<{
+    op: string;
+    args: Record<string, unknown>;
+    unchanged?: boolean;
+    result?: unknown;
+    receipt?: ClosureReceipt;
+  }>;
+}
+
+interface MutationEnvelope {
+  intentId: string;
+  op: string;
+  args: Record<string, unknown>;
+  pinnedIds?: string[];
+}
+```
+
+### Landing Order
+1. **PR 1: Receipt Wire Types & TypeScript Contracts:** Freeze `ClosureReceipt` and export wire types in `packages/snapback2/src/types.ts`.
+2. **PR 2: Idempotent Mutation Path & ID Blocks:** Implement `_intents` deduplication and `pinnedIds` context injection. Unit test in `tests/mutation_dedup.rs`.
+3. **PR 3: `/api/resume` Endpoint:** Implement the fast-path watermark index probe and canonical digest check. Unit test in `tests/resume_fast_path.rs`.
+4. **PR 4: Integration Verification:** Add end-to-end integration tests in `snapback2/tests/api_resume_and_replay.rs`.
+
+Lane O2 can start immediately against PR 1's frozen TypeScript types and PR 4's recorded JSON fixtures.
+
+*Alternative rejected in one sentence:* We reject building Lane O2 against a temporary stub receipt shape because changing receipt field custody after O2 is built would invalidate the underlying range store schema.
+
+---
+
+## 8. If I Could Change One Ruling
+
+I would change Ruling 8, which introduced `delivered-history` alongside `until-revoked`. Syntactic retention policies in the database schema broke the clean mathematical properties of closure receipts by making deletions indistinguishable from unread history. In real-world messengers, durable history is an application data pattern—an append-only delivery log—rather than an engine-level storage primitive. Relying solely on `until-revoked` paired with extent eviction over certified-uniform ranges cleanly evicts deleted and expired rows while preserving older log entries. Retiring Ruling 8 eliminates new Quarry keywords and compiler diagnostics while providing a simpler, more robust offline retention model.

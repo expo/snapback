@@ -169,3 +169,238 @@ Does “server OCC” mean a new generic comparison against an offline base arti
 # If I owned O1
 
 I would first land a lost-response test and the narrow protocol it forces: server-minted replay grant, stable `intentId`, pinned ID grant, and atomic settlement replay. In the same envelope I would bind the certified program and receipt digest to plan, schema, authority, and retention policy. Then I would implement aggregate-certified batch resume and explicit held-row eviction facts. `retain` syntax is cheap and should follow executable semantics, not precede them.
+
+
+---
+
+## Round 2 — proposals (2026-09-04, later the same day; verbatim)
+
+**Method:** round 2 on the brief preserved at `1012-local-first-v1.panel.brief-r2.md`, which carried the orchestrator's verified round-1 synthesis and asked for designs rather than critique, per the author's instruction. codex gpt-5.6-sol, same runner as round 1; the read-only sandbox again refused its file write, so this is the captured last message. Self-reported effort `xhigh`; the CLI was invoked with `ultra`.
+
+Reviewer: codex gpt-5.6-sol (xhigh) · Date: 2026-09-04 · Method: round 2, proposals, read-only capsule at 9ffdf6dd0, after the verified round-1 synthesis.
+
+_Environment note: the managed read-only sandbox refused both normal and escalated writes to `OUT`, so the completed contribution is printed here for capture._
+
+## 1. The purge design
+
+Use the application's immutable, per-recipient delivery log as the positive revocation channel, and use receipt negatives only as a redundant cleanup path. The log carries identifiers, never revocable content:
+
+```q
+table deliveries:
+  recipient: principal
+  conversationId: conversations
+  messageId: messages
+  kind: enum('put', 'edit', 'purge')
+  reason: enum('none', 'deleted', 'expired', 'revoked')
+  at: time
+  by byRecipientAt: recipient, at, id
+  immutable recipient, conversationId, messageId, kind, reason, at
+  retain deliveredHistory
+  read <- .recipient = viewer
+  insert <- exists memberships[.conversationId, viewer]
+  update <- deny
+  delete <- deny
+
+table messages:
+  retain deliveredHistory
+```
+
+The template's `send` and `edit` mutations append an event per recipient. `deleteForEveryone`, the caller-invoked expiry mutation, and any authority revocation scrub the authoritative body and append `purge` events in the same transaction. The order key must be server-stamped (`at: now`) and monotone for this certified log shape; the compiler refuses a resume cohort whose order can be supplied by a client. The application drains `first 50` pages to `next: null`, then follows the tail.
+
+The client template registers one pure reducer:
+
+```ts
+syncLog(api.delivery.drain, {
+  discard: e => e.kind === "purge"
+    ? [{ table: "messages", id: e.messageId }]
+    : [],
+});
+```
+
+Applying an event page, deleting the row and leased bytes, recording the purge event, and advancing the watermark is one carrier swap. Reapplying after a crash is harmless. View-once bytes are excluded at view time; a later purge is not relied on to repair a cold-start leak. Cost is one small event per affected recipient and no negative fact per held row. M5 and M6 pass because a synced purge removes the body from held-row search, while view-once content never enters durable custody.
+
+`untilRevoked` now means that a disclosure-safe point absence or a fresh, exhausted uniform extent can release a row, after computing holders across the whole swap. Only certified-uniform scans emit such extents (`snapback2/crates/snapback2-core/src/engine/runner.rs:985-1007`). `deliveredHistory` means delivery itself is the local read lease: omission, a denied re-read, or an auth-epoch change does not make the held row unrenderable; only a positive purge, safe authoritative absence, schema reset, or partition wipe ends it.
+
+No general `evictions[]`, tombstone ledger, or hold set is added. O1 does need retention in the certificate and a safe public-receipt projection: raw point execution distinguishes absent from hidden (`snapback2/crates/snapback2-core/src/engine/runner.rs:671-688`) and raw receipts expose the absence tuple (`snapback2/crates/snapback2-core/src/engine/mod.rs:223-231`), so a point absence is exported only at a certificate-proven uniformly readable site. Rejected alternative: point-absence-only purge makes old-page replay and a disclosure-sensitive fact load-bearing.
+
+## 2. Resume a phone would love
+
+Treat the fully drained delivery log as one **resume cohort**, not hundreds of page descriptors. The compiler derives a cohort only from a certified-uniform, immutable, cursor-ordered query with a server-stamped monotone order key. Its identity binds operation, canonical arguments excluding the cursor, plan/site/index/prefix/order, program generation, and schema hash; the store compacts contiguous exhausted pages into `{cohort, through, validator}`. Unmounted `deliveredHistory` snapshots remain readable and stale; unmounted `untilRevoked` answers are sealed until reopened. The hard cap is one cohort plus 32 mounted descriptors and 64 KiB of request metadata.
+
+```json
+POST /api/resume
+{
+  "protocol": 1,
+  "programGeneration": "G1",
+  "drain": {
+    "cohort": "delivery.v1",
+    "through": "c…",
+    "validator": "v1.…"
+  },
+  "mounted": [
+    {
+      "key": "inbox",
+      "op": "chat.inbox",
+      "args": {},
+      "validator": "v1.…"
+    },
+    {
+      "key": "thread",
+      "op": "chat.thread",
+      "args": {"id": "c7"},
+      "validator": "v1.…"
+    }
+  ]
+}
+```
+
+```json
+{
+  "snapshot": {
+    "seq": 8421,
+    "programGeneration": "G1",
+    "schemaHash": "S1",
+    "authority": {"principal": "p1", "authEpoch": 9}
+  },
+  "drain": {
+    "events": [],
+    "through": "c…",
+    "more": false,
+    "validator": "v1.…"
+  },
+  "mounted": [
+    {
+      "key": "inbox",
+      "notModified": true,
+      "validator": "v1.…",
+      "attach": "a…"
+    },
+    {
+      "key": "thread",
+      "delivery": {
+        "state": "complete",
+        "data": {},
+        "next": null,
+        "receipt": {}
+      },
+      "validator": "v1.…",
+      "attach": "b…"
+    }
+  ],
+  "replayGrant": {
+    "id": "rg_7",
+    "from": 1,
+    "count": 8192,
+    "expiresAt": 178…
+  }
+}
+```
+
+One `Action::Resume` resolves authority once, pins `(seq, now, generation)`, checks or drains events strictly after `through`, and then executes mounted queries. That matches the actual serialization unit: calls enter one owner through an `mpsc` request (`snapback2/crates/snapback2/src/writer.rs:70-82,423-428`) over an exclusive SQLite connection (`snapback2/crates/snapback2-core/src/store.rs:84-110`). Individual executions may open separate transactions (`snapback2/crates/snapback2-core/src/engine/mod.rs:728-756`), but no owner action interleaves and read-only work observes the pinned seq. Attach tickets adopt the subscriptions already evaluated, avoiding the present subscribe-time execution (`snapback2/crates/snapback2-core/src/live.rs:117-146`).
+
+There is one server-issued validator:
+
+```text
+SHA-256("sb2-representation-v1", op, canonical(args), state, data, next,
+        publicReceipt, programGeneration, schemaHash, planHash,
+        principal, authEpoch)
+```
+
+It excludes transport seq and timestamps. Because the current generation hash is schema-only (`snapback2/crates/snapback2-core/src/registry.rs:88-99`), O1 must mint a full certified-program generation. An empty tail scan makes hundreds of drained pages a no-op; normally Clique sends about 1–2 KiB each way and performs that scan plus two or three query executions—roughly single-digit to tens of milliseconds of warm owner time, to be measured. A response is capped at 256 events or 512 KiB; `more:true` continues in another bounded action before mounted queries attach or the outbox drains.
+
+A schema or program-generation mismatch returns `reset:{reason:"generation"}` only. The client seals the old partition, cold-drains into the new generation, and replays an old intent only if its operation compatibility hash still matches; it never mixes receipts. Tabs share one partition under a Web Lock. Rejected alternative: an unbounded `held[]` manifest turns accumulated reading into request amplification and owner-thread stalls.
+
+## 3. Ids and replay, the smallest correct scheme
+
+A successful resume mints a principal-bound `ReplayGrant {grantId, namespace, from, count:8192, mintedAt, expiresAt}`. It is not tied to one auth epoch: a fresh session for the same principal may finish its intents. The compiler adds `maxNewIds` and infers `offlineReplay: append | onlineOnly`; `append` requires every application write site to be `Insert`, a distinction the certificate already records (`snapback2/crates/snapback2-core/src/certificate.rs:118-132`). No Quarry annotation is added.
+
+Each enqueue atomically consumes a fixed slice of `1 + maxNewIds`: the first ID names the intent and the rest are its deterministic `newId()` envelope. The client can therefore hand a parent's pinned result ID to a later intent.
+
+```json
+POST /api/mutation
+{
+  "op": "send",
+  "args": {"conversationId": "c1", "body": "hi"},
+  "replay": {
+    "grant": "rg_7",
+    "offset": 104,
+    "count": 52,
+    "intentId": "rg_7:104",
+    "planHash": "p…"
+  }
+}
+```
+
+The server first looks up `(principal, intentId)`. Equal canonical request bytes return the stored terminal response, even after grant expiry; unequal bytes refuse `E_INTENT_REUSE`. On a miss it validates current principal and plan, server-recorded grant age, slice bounds, and the next unused offset. It derives the IDs and injects them into `Context.new_ids` where the served path currently overwrites that field with a fresh reservation (`snapback2/crates/snapback2/src/writer_auth.rs:145-156`). Application writes, commit record, grant advancement, and `_client_intents(requestDigest, terminalResponse)` settle in the same transaction; the engine already makes data and its commit record atomic (`snapback2/crates/snapback2-core/src/engine/mod.rs:865-884`). A post-commit 503 retry therefore cannot execute twice.
+
+The v1 server-side conflict check is deliberately small: pinned IDs must be absent, then the mutation runs against current authority, rules, constraints, and fan-out. Offline Update/Upsert/Delete is not queued; it refuses locally as `E_OFFLINE_REPLAY_UNSAFE` with “reconnect, or model this action as an immutable event.” This is honest OCC for the bar's inserts without inventing row versions.
+
+If the grant is exhausted, no outbox row or prediction is written and the client asks for a grant online. A wiped device loses unsent local intents and unused IDs become holes; a committed send returns through the log. Two devices receive disjoint grants and promise only per-device FIFO. If a parent is rejected, its child is still sent; the child's own `ref`/`require` either rejects it or its authored semantics allow it. Rejected alternative: UUIDv7 still needs both server evidence of age and an intent ledger, while adding a second ID form.
+
+## 4. Make it feel like WhatsApp
+
+### 1. `useDrain`: downloaded really means downloaded
+
+`useDrain(api.delivery.drain, args)` serially fetches certified pages until `next === null`, persists after every page, and then follows the tail. It returns `{downloaded, caughtUp, staleSince, watermark}`; `downloaded` is the iterable the app filters for offline thread and search views. Offline, `caughtUp` means the last online drain exhausted and `staleSince` stays visible.
+
+The agent writes one hook rather than cursor rotation across fifty chats. Surface cost is one React/Expo hook and one local cursor record; wire cost is only missing pages. It pays warm-offline search over everything actually downloaded and a truthful “up to date as of …” label. Prove it with 10,000 deliveries, then 200 across five conversations: reconnect, cut the network, and find both the oldest and newest downloaded messages without fetching an old page.
+
+### 2. A stable durable outbox bubble
+
+`useOutbox(api.messages.send)` exposes durable entries as `{intentId, ids, args, state, refusal}`. The chat template keys a bubble by the pinned message ID and renders it from `args`; reconnect changes that same bubble `queued → committed | rejected | expired`, never inserts a second bubble.
+
+Surface cost is one hook and a local index over data the outbox already stores; the replay envelope adds no extra bytes beyond §3. It pays the familiar “clock/check/error on my one message” experience and makes unpredicted sends feel intentional. Prove it by killing after enqueue and by injecting a 503 after commit: the DOM key, text, and list position stay constant, and the server contains exactly one message.
+
+### 3. A named offline device in journeys
+
+Extend the journey context from today's `{as,tick,url}` (`snapback2/packages/snapback2/src/test.ts:5-10`) with `device(name, principal)`, whose test-only handle supports `network.down()`, `close()`, `coldStart()`, and `network.up()`. A named device owns one temporary durable carrier across fresh client instances.
+
+Cost is a test-only store and four verbs, with zero production or wire bytes. It gives an agent a five-second approximation of the scheduled browser/simulator witness and catches most custody mistakes before physical qualification. Prove that the transport records zero requests while down, that a new JS process reads held answers, and that its FIFO outbox survives; current journeys create and close ephemeral clients (`snapback2/packages/snapback2/src/test.ts:124-145`).
+
+Ranked in that order: complete foreground custody changes the user's experience most, stable intent identity removes the next-largest confusion, and the device primitive makes both hard to regress. Rejected alternative: background push or cron drain violates NOT-DOING and makes offline evidence depend on timing outside the app.
+
+## 5. Steal one thing
+
+Steal HTTP's **strong validator** contract: the origin mints an opaque ETag, the client echoes it with `If-None-Match`, equality reuses the stored representation, and a miss returns the complete replacement. RFC 9110 defines that revalidation and `304 Not Modified` behavior ([RFC 9110](https://www.rfc-editor.org/rfc/rfc9110.html)).
+
+Snapback should call the token `validator`, because one POST batches representations, but preserve those semantics exactly: server-minted, opaque, strong equality only, and bound to the complete typed representation listed in §2. A batch item is either `{notModified:true, validator}` or a full delivery with a new validator; it borrows the equality contract, not HTTP's status code. The same algorithm serves query responses, SSE frames, and resume, replacing both the current live digest over only `(state,result)` (`snapback2/crates/snapback2-core/src/live.rs:17-19`) and the separate frame-minus-seq digest (`snapback2/crates/snapback2/src/writer_values.rs:56-61`).
+
+It fits because a validator carries no row and grants no authority; it only selects an answer that the certificate and receipt already admitted. `complete`, `capped`, `denied`, and `partial` necessarily validate differently, so the cache cannot invent completeness. Cost is one SHA-256 over an envelope already serialized and one 43-byte base64url token per logical result. Prove that an unrelated commit changes `seq` but not the validator, while any change to state, cursor, public receipt, plan/schema generation, principal, or auth epoch forces a full delivery. Rejected alternative: CloudKit-style change tokens would import deletion history and record patches—the deferred delta-replica design.
+
+## 6. Cut
+
+I would remove apparatus, not offline outcomes:
+
+- Remove general mutable offline replay and its unimplemented OCC prose. V1 queues only compiler-inferred append-only mutations; mutable operations remain online. This deletes row-version/read-set design work and lets O1 prove one conflict rule: compare-and-insert, then current rules.
+
+- Remove per-page delivery-log descriptors from resume. Once a contiguous drain is exhausted, compact it into the single cohort and watermark from §2; unmounted `deliveredHistory` snapshots remain readable but stale, while other holders are sealed. This makes a hard cap honest and turns hundreds of scans and hashes into one tail scan.
+
+- Remove `want:'receipt'`, bare `epoch`, and `assets` on `RangeStore`. Resume always carries custody; ordinary query/subscribe use only `receipt=1`; wire fields are `authEpoch` and `programGeneration`; O4's `ByteCache` collaborates by row lease instead of coupling media into O2. Also make the 256 MiB asset ceiling fixed in v1 rather than expose a second option-bag spelling.
+
+- Remove duplicated row payloads from the public envelope. Internal `ClosureReceipt.rows` contains full `RowRecord`s (`snapback2/crates/snapback2-core/src/engine/mod.rs:223-231`); O1 should ship one row pool, let typed result nodes reference it, and make receipt facts reference `(table,id)`. The client expands refs before exposing `data`.
+
+- Remove `offline/E_RETAIN_POLICY`; invalid schema vocabulary belongs to `schema/E_RETAIN_POLICY` with the exact legal rewrite.
+
+Lane O3 is not needed to meet the stated bar: cold reads replay answers, search filters the drained log, and pending sends render from arguments. Ruling 3 still requires it, so I would mark it explicitly non-gating and start it only after O2 and the physical witness, preventing the twin from shaping O1's wire or delaying the bar. These cuts unblock a frozen receipt, a small store, and an independently shippable carrier. Rejected alternative: cutting `deliveredHistory`, byte leases, or the cold-kill witness would remove user-visible outcomes rather than machinery.
+
+## 7. Lane O1 on one page
+
+Land these slices in order; O2 starts after slice 1 against exported types and shared golden vectors.
+
+1. **Freeze the envelope.** Add `ClientReceiptV1`, `ClientRangeFactV1`, `ClientAbsenceFactV1`, `AuthorityCohortV1`, `DeliveryEnvelopeV1`, and `RepresentationValidatorV1` in `snapback2/crates/snapback2-core/src/offline.rs`; mirror them with a strict decoder in `snapback2/packages/snapback2/src/offline-protocol.ts`. `DeliveryEnvelopeV1` has `{protocol, programGeneration, schemaHash, planHash, authority, state, result, next, rowPool, receipt, validator}`. Row-valued result nodes and receipt facts reference the one pool. Keep `ClosureReceipt` private. Rust/TypeScript golden fixtures must round-trip byte-identically, and hidden-versus-absent protected reads must yield indistinguishable public facts. This is O2's start gate.
+
+2. **Land retention authoring.** Add `RetentionPolicy::{UntilRevoked, DeliveredHistory}` in `snapback2/crates/snapback2-core/src/schema.rs` and project it into `snapback2/crates/snapback2-core/src/certificate.rs`. Extend `snapback2/packages/compiler/src/quarry/{ast,parser,schema}.ts`, `snapback2/packages/compiler/src/lower/schema.ts`, `snapback2/packages/compiler/src/ir.ts`, and `snapback2/packages/compiler/lib.d.ts`. The spelling is `retain deliveredHistory`; omission means `untilRevoked`. Invalid values produce `schema/E_RETAIN_POLICY` plus “remove the line or write `retain deliveredHistory`.” Compiler fixtures include the corrected `first 50` messenger and reaction-delivery shapes.
+
+3. **Project receipts onto existing routes.** In `snapback2/crates/snapback2/src/writer_wire.rs`, build the frozen public envelope and canonical validator. Thread `withReceipt` through `serve.rs` and `writer.rs::Action::{Execute,Subscribe}`. `/api/query?receipt=1` and `/api/subscribe?...&receipt=1` opt in; omission preserves current bytes. Add certificate-gated point-absence projection in `snapback2/crates/snapback2-core/src/engine/runner.rs`. Route tests cover every query state and every SSE frame, plus receipt-off byte identity.
+
+4. **Add bounded resume.** Put DTO validation in new `snapback2/crates/snapback2/src/writer_offline.rs`, add `Action::Resume` in `writer.rs`, and register `POST /api/resume` in `serve.rs`. Reject caps before execution; resolve authority once; pin seq/time/generation; process the cohort before mounted queries; issue attach tickets and the replay grant; return only `notModified` or a full frozen envelope. Tests cover quiet tail, chunking, caps, no subscribe rerun, same-principal re-login, principal replacement, and generation reset.
+
+5. **Add replay grants and dedup.** Persist grants and intent outcomes in `snapback2/crates/snapback2-core/src/store.rs`; parse `ReplayEnvelopeV1` on `/api/mutation`; inject its IDs in `writer_auth.rs::mutation_context`; make outcome persistence part of the mutation transaction. Tests cover exhaustion, offset reuse, altered-body reuse, two devices, rejected parents, expiry from server-minted time, and a fault injected after commit but before response.
+
+6. **Close the executable seam.** One cross-language fixture sends O1 JSON through the TypeScript carrier decoder. One journey drains, kills, cold-starts, purges, reconnects, and replays two sends in order. Add `snapback2/packages/snapback2/guide/offline.md`, the necessary entries in `guide/families.source.json`, and receipt/resume wire examples; run the affected compiler, core, server, guide, inventory, and measurement checks. The LLP orientation constraints determine this order: authority-safe wire first, then storage, with no replica, tombstone service, scheduler kind, or new gate.
+
+Rejected alternative: building O2 against a hand-written receipt stub would freeze its storage around precisely the shape O1 is responsible for correcting.
+
+## If I could change one ruling
+
+I would change ruling 3: ship O2 stored-answer replay and the durable outbox in v1, and move O3's twin and prediction to the first evidence-triggered follow-on. The offline bar's reads are already satisfied by held answers and the drained-log filter. Sends can preserve one stable pending bubble from their arguments without pretending a local mutation was authoritative. This removes the evaluator bundle and coverage semantics from the critical path while keeping the receipt capable of supporting them later. I would reopen O3 when a measured app needs a new named query offline or when argument-rendered pending UI proves inadequate.
