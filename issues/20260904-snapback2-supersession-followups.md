@@ -16,3 +16,13 @@
 3. **The settlement-tail retry proof is staged** (Muse M3): the test hand-commits the successor
    drain page before the byte-identical retry; prove the retry end-to-end against the fake
    owner without the hand commit.
+4. **`abortResume()` drops `resumeFlight` before the aborted run exits** (grok r3 1): a new
+   `performResume` can start while the old one is still unwinding; hold the slot until the
+   aborted run settles.
+5. **`program()` can persist then abort before memory adopts** (grok r3 2): the store holds G2
+   while memory names G1 after an abort between the commit and the adoption; adopt in the
+   same step or re-read on the next flight.
+6. **`json()` does not fence an aborted signal before interpreting a late 4xx** (grok r3 3):
+   mirror `stream()`'s check so an aborted request cannot seal the session.
+7. **`drainNow()` has no signal** (grok r3 4): drains rely on the revision fence only; give the
+   drain the flight's signal or a revision check at each await.
