@@ -63,6 +63,7 @@ table messages:
   clip: video <=50000000 ?
   at: time
   by byConvTime: conversationId, at, id
+  retain delivered-history
   read <- exists memberships[.conversationId, viewer]
   insert <- (
     .authorId = viewer
@@ -70,6 +71,21 @@ table messages:
   )
   update <- .authorId = viewer
   delete <- .authorId = viewer
+
+-- @ref LLP 1012#3-the-model-on-one-page-and-the-program-shape — delivery metadata stays visible only to its recipient.
+table deliveries:
+  recipient: principal
+  conversationId: conversations
+  messageId: messages
+  kind: enum('message', 'edit', 'removed', 'expired')
+  at: time
+  by byRecipientAt: recipient, at, id
+  by byRecipientConversationAt: recipient, conversationId, at, id
+  immutable recipient, conversationId, messageId, kind, at
+  read <- .recipient = viewer
+  insert <- exists memberships[.conversationId, viewer]
+  update <- deny
+  delete <- deny
 
 table posts:
   author: principal
@@ -114,3 +130,6 @@ channel typing(conversationId: conversations):
   publish <- exists memberships[conversationId, viewer]
   subscribe <- exists memberships[conversationId, viewer]
   ttl 4s
+
+maintain memberCounts = count memberships by conversationId:
+  read <- exists memberships[.conversationId, viewer]

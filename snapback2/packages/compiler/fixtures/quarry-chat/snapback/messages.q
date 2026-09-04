@@ -16,6 +16,8 @@ mutation send(conversationId: conversations, recipientId: profiles, body: text <
   recipient = profiles[recipientId] ! else RECIPIENT_UNKNOWN
   require exists memberships[conversationId, recipient.principal] else RECIPIENT_NOT_MEMBER
   row = insert messages { conversationId, authorId: viewer, body, photo: null, clip: null, at: now }
+  for m in memberships[conversationId] first 50 by byConversationPrincipal:
+    insert deliveries { recipient: m.principal, conversationId, messageId: row.id, kind: 'message', at: now }
   emit notify { to: recipient.principal, body }
   return { id: row.id }
 

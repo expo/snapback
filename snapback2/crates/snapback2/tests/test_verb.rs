@@ -45,6 +45,7 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
     let rules = check(&receipt, "rules");
     assert_eq!(rules["verdict"], "pass", "{rules}");
     assert_eq!(rules["detail"]["tables"]["memberships"]["probes"], 16);
+    assert_eq!(rules["detail"]["tables"]["memberCounts"]["probes"], 8);
     assert_eq!(rules["detail"]["tables"]["messages"]["probes"], 8);
     assert_eq!(rules["detail"]["tables"]["notifications"]["probes"], 4);
     assert_eq!(rules["detail"]["expectedBy"], "engine");
@@ -341,6 +342,224 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
     assert!(
         scratch.is_empty(),
         "test left temporary stores behind: {scratch:?}"
+    );
+}
+
+#[test]
+fn chat_delivery_log_caps_members_and_evicts_unsent_departed_body() {
+    let project = Project::new();
+    let initialized = project.init("chat", "none");
+    assert!(
+        initialized.status.success(),
+        "init failed: {}{}",
+        String::from_utf8_lossy(&initialized.stdout),
+        String::from_utf8_lossy(&initialized.stderr)
+    );
+    let _owner = OwnerGuard::start(&project);
+    let run = |persona: &str, operation: &str, arguments: serde_json::Value| {
+        let arguments = arguments.to_string();
+        json_stdout(&project.run(&["run", operation, &arguments, "--as", persona, "--json"]))
+    };
+
+    let initial_members = (1..=48)
+        .map(|number| format!("dev:capacity-{number}"))
+        .collect::<Vec<_>>();
+    let capacity_group = run(
+        "alice",
+        "groups.groupCreate",
+        serde_json::json!({ "title": "Capacity", "members": initial_members }),
+    );
+    assert_eq!(capacity_group["state"], "committed", "{capacity_group}");
+    let capacity_id = capacity_group["data"]["id"].as_str().unwrap();
+    let fiftieth = run(
+        "alice",
+        "groups.memberAdd",
+        serde_json::json!({ "conversationId": capacity_id, "principal": "dev:capacity-49" }),
+    );
+    assert_eq!(fiftieth["state"], "committed", "{fiftieth}");
+    let fifty_first = run(
+        "alice",
+        "groups.memberAdd",
+        serde_json::json!({ "conversationId": capacity_id, "principal": "dev:capacity-50" }),
+    );
+    assert_eq!(fifty_first["state"], "rejected", "{fifty_first}");
+    assert_eq!(fifty_first["code"], "GROUP_FULL", "{fifty_first}");
+    let capacity_post = run(
+        "alice",
+        "deliveries.post",
+        serde_json::json!({ "conversationId": capacity_id, "body": "all fifty" }),
+    );
+    assert_eq!(capacity_post["state"], "committed", "{capacity_post}");
+    let capacity_seq = capacity_post["seq"].as_u64().unwrap().to_string();
+    let capacity_trace = json_stdout(&project.run(&["trace", &capacity_seq, "--json"]));
+    assert_eq!(
+        capacity_trace["commit"]["writes"]["deliveries"], 50,
+        "{capacity_trace}"
+    );
+
+    let recipient_group = run(
+        "alice",
+        "groups.groupCreate",
+        serde_json::json!({ "title": "Original recipients", "members": ["dev:recipient-charlie"] }),
+    );
+    assert_eq!(recipient_group["state"], "committed", "{recipient_group}");
+    let recipient_group_id = recipient_group["data"]["id"].as_str().unwrap();
+    let bob_membership = run(
+        "alice",
+        "groups.memberAdd",
+        serde_json::json!({ "conversationId": recipient_group_id, "principal": "dev:bob" }),
+    );
+    assert_eq!(bob_membership["state"], "committed", "{bob_membership}");
+    let bob_membership_id = bob_membership["data"]["id"].as_str().unwrap();
+    let edited_post = run(
+        "alice",
+        "deliveries.post",
+        serde_json::json!({ "conversationId": recipient_group_id, "body": "before edit" }),
+    );
+    assert_eq!(edited_post["state"], "committed", "{edited_post}");
+    let edited_message = edited_post["data"]["id"].as_str().unwrap();
+    let unsent_send = run(
+        "alice",
+        "messages.send",
+        serde_json::json!({
+            "conversationId": recipient_group_id,
+            "recipientId": "profile-bob",
+            "body": "before unsend"
+        }),
+    );
+    assert_eq!(unsent_send["state"], "committed", "{unsent_send}");
+    let unsent_message = unsent_send["data"]["id"].as_str().unwrap();
+    let left = run(
+        "bob",
+        "groups.memberLeave",
+        serde_json::json!({ "conversationId": recipient_group_id, "membershipId": bob_membership_id }),
+    );
+    assert_eq!(left["state"], "committed", "{left}");
+    let edited = run(
+        "alice",
+        "deliveries.edit",
+        serde_json::json!({ "messageId": edited_message, "body": "after edit", "baseBody": "before edit" }),
+    );
+    assert_eq!(edited["state"], "committed", "{edited}");
+    let unsent = run(
+        "alice",
+        "deliveries.unsend",
+        serde_json::json!({ "messageId": unsent_message }),
+    );
+    assert_eq!(unsent["state"], "committed", "{unsent}");
+
+    let outsider_deliveries = json_stdout(&project.run(&[
+        "data",
+        "deliveries",
+        "--as",
+        "mallory",
+        "--limit",
+        "500",
+        "--json",
+    ]));
+    assert!(
+        outsider_deliveries["data"].as_array().unwrap().is_empty(),
+        "{outsider_deliveries}"
+    );
+
+    let visible_deliveries = ["alice", "bob", "recipient-charlie"]
+        .into_iter()
+        .flat_map(|persona| {
+            json_stdout(&project.run(&[
+                "data",
+                "deliveries",
+                "--as",
+                persona,
+                "--limit",
+                "500",
+                "--json",
+            ]))["data"]
+                .as_array()
+                .unwrap()
+                .clone()
+        })
+        .collect::<Vec<_>>();
+    let count = |message: &str, kind: &str| {
+        visible_deliveries
+            .iter()
+            .filter(|row| row["messageId"] == message && row["kind"] == kind)
+            .count()
+    };
+    assert_eq!(
+        count(edited_message, "message"),
+        3,
+        "{visible_deliveries:?}"
+    );
+    assert_eq!(count(edited_message, "edit"), 2, "{visible_deliveries:?}");
+    assert_eq!(
+        count(unsent_message, "message"),
+        3,
+        "{visible_deliveries:?}"
+    );
+    assert_eq!(
+        count(unsent_message, "removed"),
+        2,
+        "{visible_deliveries:?}"
+    );
+
+    for persona in ["alice", "recipient-charlie"] {
+        let inbox = run(
+            persona,
+            "deliveries.inbox",
+            serde_json::json!({ "c": null }),
+        );
+        let inbox_rows = inbox["data"].as_array().unwrap();
+        assert!(
+            inbox_rows
+                .iter()
+                .any(|row| { row["messageId"] == edited_message && row["kind"] == "edit" }),
+            "{persona} did not receive the edit after bob left: {inbox}"
+        );
+        assert!(
+            inbox_rows
+                .iter()
+                .any(|row| { row["messageId"] == unsent_message && row["kind"] == "removed" }),
+            "{persona} did not receive the removal after bob left: {inbox}"
+        );
+    }
+
+    let bob_inbox = run("bob", "deliveries.inbox", serde_json::json!({ "c": null }));
+    let bob_rows = bob_inbox["data"].as_array().unwrap();
+    assert!(
+        bob_rows
+            .iter()
+            .any(|row| row["messageId"] == unsent_message && row["kind"] == "message"),
+        "bob lost the page that must revalidate the deleted body: {bob_inbox}"
+    );
+    assert!(
+        bob_rows.iter().all(|row| {
+            row["messageId"] != edited_message && row["messageId"] != unsent_message
+                || row["kind"] == "message"
+        }),
+        "departed bob received a post-departure delivery: {bob_inbox}"
+    );
+
+    let why = json_stdout(&project.run(&[
+        "why",
+        "deliveries.inbox",
+        r#"{"c":null}"#,
+        "--as",
+        "bob",
+        "--json",
+    ]));
+    let absences = why["authoritativeTrace"]["absences"].as_array().unwrap();
+    let absent_message = |message: &str| {
+        absences.iter().any(|absence| {
+            absence[0] == "messages" && absence[1] == "byId" && absence[2][0]["Id"] == message
+        })
+    };
+    assert!(
+        absent_message(unsent_message),
+        "bob's next page revalidation did not prove the unsent body absent: {why}"
+    );
+    assert!(
+        !absent_message(edited_message),
+        "a hidden edited body was incorrectly reported absent: {why}"
     );
 }
 

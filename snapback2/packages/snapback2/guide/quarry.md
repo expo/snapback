@@ -3,8 +3,7 @@
 Quarry is Snapback 2's only backend authoring language. It is a bounded
 front end to the compiler, checker, evaluator, and server. `snapback2 check`
 compiles `.q` in memory; it
-does not place generated files in `snapback/`. `snapback2 check` writes an
-inspection copy under `.snapback/build/quarry/`.
+does not place generated files in `snapback/`. `snapback2 check` writes an inspection copy under `.snapback/build/quarry/`.
 
 ## Project
 
@@ -261,14 +260,14 @@ mutation send(conversationId: conversations, recipientId: profiles, body: text <
   recipient = profiles[recipientId] ! else RECIPIENT_UNKNOWN
   require exists memberships[conversationId, recipient.principal] else RECIPIENT_NOT_MEMBER
   row = insert messages { conversationId, authorId: viewer, body, photo: null, clip: null, at: now }
+  for m in memberships[conversationId] first 50 by byConversationPrincipal:
+    insert deliveries { recipient: m.principal, conversationId, messageId: row.id, kind: 'message', at: now }
   emit notify { to: recipient.principal, body }
   return { id: row.id }
 ```
 
-`then: recordNotified` resolves to `notifications.recordNotified` in the
-project operation map. `emit notify { … }` enters the normal durable outbox.
-Emitting in a query is refused as `E_EMIT_IN_QUERY`; the generated code site
-and rewrite map back to the `.q` statement.
+Edit/unsend target current members. Departed recipients evict unsent bodies by
+point absence on held-page revalidation, not tombstones (LLP 1012 §5).
 
 ## Absence and bounds
 
@@ -296,4 +295,3 @@ index, invariant (`after insert <- exists …`), or `merge` alternatives.
 
 Writes through a non-unique or incomplete key are index-selection refusals.
 
-There is no hidden larger Quarry subset to opt into.

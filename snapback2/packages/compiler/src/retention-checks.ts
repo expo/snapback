@@ -41,6 +41,8 @@ table historyRows:
   test("Quarry retention refusals are sited and rewrite to both valid spellings", () => {
     for (const [name, source, line] of [
       ["bad", "table rows:\n  label: text <=20\n  retain forever\n", 3],
+      ["bare", "table rows:\n  label: text <=20\n  retain\n", 3],
+      ["quoted", "table rows:\n  label: text <=20\n  retain \"until-revoked\"\n", 3],
       ["trailing", "table rows:\n  label: text <=20\n  retain delivered-history forever\n", 3],
       ["duplicate", "table rows:\n  label: text <=20\n  retain until-revoked\n  retain delivered-history\n", 4],
     ] as const) {
@@ -54,6 +56,28 @@ table historyRows:
       assert(!compiled.ok && compiled.diagnostics.some((item) => item.code === "E_QUARRY_RETAIN" && item.family === "quarry"),
         `${name} retention refusal lost the quarry family: ${JSON.stringify(compiled)}`);
     }
+  });
+
+  test("Quarry retention words are contextual and subtraction keeps its token shape", () => {
+    for (const [name, source] of [
+      ["table-policy-name", "table until-revoked:\n  value: int\n  public\n"],
+      ["binding-policy-name", "query invalid(a: int, history: int):\n  delivered-history = a-history\n  return delivered-history\n"],
+    ] as const) {
+      const parsed = parseDocument(`snapback/${name}.q`, source);
+      assert(parsed.diagnostics.some((item) => item.code === "E_QUARRY_SYNTAX"),
+        `${name} did not refuse cleanly: ${JSON.stringify(parsed.diagnostics)}`);
+      const compiled = compileQuarry([{ path: `/virtual/snapback/${name}.q`, fileName: `snapback/${name}.q`, source }]);
+      assert(!compiled.ok, `${name} reached emission`);
+    }
+
+    const subtraction = "query subtract(a: int, b: int):\n  return a-b\n";
+    const lexical = lex("snapback/subtract.q", subtraction);
+    assert(lexical.diagnostics.length === 0, `subtraction did not lex: ${JSON.stringify(lexical.diagnostics)}`);
+    assert(lexical.tokens.some((token, index, tokens) => token.value === "-"
+      && tokens[index - 1]?.value === "a" && tokens[index + 1]?.value === "b"),
+    `a-b did not retain its word/minus/word tokens: ${JSON.stringify(lexical.tokens)}`);
+    const parsed = parseDocument("snapback/subtract.q", subtraction);
+    assert(parsed.diagnostics.length === 0, `subtraction did not parse: ${JSON.stringify(parsed.diagnostics)}`);
   });
 
   test("Quarry retention lowers into every project JSON table", async () => {

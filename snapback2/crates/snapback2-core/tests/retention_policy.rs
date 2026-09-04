@@ -39,4 +39,21 @@ fn table_retention_deserializes_default_and_round_trips_policy_spellings() {
         serde_json::to_value(&delivered).unwrap()["retain"],
         "delivered-history"
     );
+
+    let unknown = json!({
+        "columns": {},
+        "indexes": {},
+        "rules": {
+            "read": "Deny",
+            "insert": "Deny",
+            "update": "Deny",
+            "delete": "Deny"
+        },
+        "constraints": [],
+        "retain": "forever"
+    });
+    assert!(
+        serde_json::from_value::<Table>(unknown).is_err(),
+        "an unknown retention policy must fail closed"
+    );
 }

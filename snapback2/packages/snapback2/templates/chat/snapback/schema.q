@@ -72,6 +72,7 @@ table messages:
   update <- .authorId = viewer
   delete <- .authorId = viewer
 
+-- @ref LLP 1012#3-the-model-on-one-page-and-the-program-shape — delivery metadata stays visible only to its recipient.
 table deliveries:
   recipient: principal
   conversationId: conversations
@@ -129,3 +130,6 @@ channel typing(conversationId: conversations):
   publish <- exists memberships[conversationId, viewer]
   subscribe <- exists memberships[conversationId, viewer]
   ttl 4s
+
+maintain memberCounts = count memberships by conversationId:
+  read <- exists memberships[.conversationId, viewer]
