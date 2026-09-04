@@ -1,6 +1,6 @@
 # Snapback 2 twin: overlay retirement and drained-query keying hazards
 
-**Status:** Open
+**Status:** Closed
 **Systems:** snapback2 client (`packages/snapback2/src/store/range-store.ts` applySwap, `pageOfDrainedQuery`; `client-outbox.ts` logTail; `templates/chat/react/src/chat/log.ts`)
 **Date:** 2026-09-04
 **Related:** LLP 1012 §7 (revision (h)); reviews `o2b-r3-grok.md` item 1, `o2b-r3-muse.md` M1 (cross-family)
@@ -30,3 +30,13 @@ carry a seq strictly past the watermark held at commit (or the predicted row); c
 when the tail chooser's own watermark advances; clear `predicted` when the overlay is deleted on
 arrival; tests for each. This was the lane's third review round, so it is filed, not fixed in a
 fourth loop.
+
+## Resolution (2026-09-04)
+
+The range store now snapshots the selected tail's manifest-named cursor and watermark when an
+intent becomes committed. A tail page retires the overlay only when it is non-empty, matches all
+non-cursor arguments, and sits at the selected tail's current position strictly beyond that
+snapshot. Only changes to that selected watermark consume the two-miss patience bound; unrelated
+watermark writes do not. Every overlay retirement clears `predicted`, including authoritative-row
+arrival. Carrier regressions cover the Node file and IndexedDB implementations, including a second
+nullable string argument. `logTail` now writes the cursor argument named by the manifest.

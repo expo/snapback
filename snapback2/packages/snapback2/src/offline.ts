@@ -515,6 +515,7 @@ export class OfflineRuntime {
       }
       const watermarkRecord = watermark ? {
         ...watermark,
+        cursorArg: this.cursorArg(watermark.op),
         ...(nextFacts?.generation === undefined ? {} : { generation: nextFacts.generation }),
         ...(nextFacts?.schemaHash === undefined ? {} : { schemaHash: nextFacts.schemaHash }),
         ...(nextFacts?.authEpoch === undefined ? {} : { authEpoch: nextFacts.authEpoch }),

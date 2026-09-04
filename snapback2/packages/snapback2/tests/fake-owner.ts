@@ -54,6 +54,8 @@ export interface FakeOwnerOptions {
   refuse?: (intent: string, body: any) => { status: number; envelope: Record<string, unknown> } | undefined;
   /** Refuses every request as a network failure. */
   dead?: () => boolean;
+  /** Manifest name for the delivery log's optional Cursor argument; omitted by older outbox tests. */
+  cursorArg?: string;
 }
 
 type Message = { id: string; conversationId: string; authorId: string; body: string; at: number };
@@ -127,7 +129,11 @@ export function fakeOwner(options: FakeOwnerOptions = {}) {
     if (options.dead?.()) throw new TypeError("fetch failed");
     if (url.pathname === "/api/manifest") {
       return json({
-        generation: "schema-generation", programGeneration: generation, ops: {}, channels: {}, auth: {},
+        generation: "schema-generation", programGeneration: generation,
+        ops: options.cursorArg ? {
+          "deliveries.inbox": { kind: "query", planHash, args: { [options.cursorArg]: { Optional: "Cursor" } } },
+        } : {},
+        channels: {}, auth: {},
         tables: { messages: { retain: "delivered-history" } },
       });
     }
