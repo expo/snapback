@@ -20,6 +20,7 @@ fn schema() -> Schema {
         tables: BTreeMap::from([(
             "messages".to_owned(),
             Table {
+                retain: Default::default(),
                 columns: BTreeMap::from([
                     ("at".to_owned(), ColumnType::Time),
                     ("body".to_owned(), ColumnType::Text { max: 256 }),
