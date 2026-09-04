@@ -50,7 +50,8 @@
             }
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "posts": {
         "columns": {
@@ -103,7 +104,8 @@
             }
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       }
     },
     "maintains": []
@@ -252,10 +254,10 @@
   "certificate": {
     "program": "merge.for-limit",
     "plan_hash": "5a344daeb7afee33d3bd54332576f1feffdc39cc054e531388cfe39735c227d0",
-    "schema_hash": "f0678e830e1d82c9944be8c03fd432099f7c739ea93d4cd40939d8700359c528",
+    "schema_hash": "f7c842236978e842a20695dbea23d49d1277bd8bdbc0c342ee6422331cb188f8",
     "rule_hashes": {
-      "follows.read": "0201f66714518c59ab12959e7a0541e23ec540e46fe516506e0985e20b514616",
-      "posts.read": "0201f66714518c59ab12959e7a0541e23ec540e46fe516506e0985e20b514616"
+      "follows.read": "fd79905c6b2537749a4f00979344bce28f421b3d1fee4a30a4fbf41e3fc8f8a6",
+      "posts.read": "fd79905c6b2537749a4f00979344bce28f421b3d1fee4a30a4fbf41e3fc8f8a6"
     },
     "evaluator_version": "bounded-spike-rust-1",
     "value_model_version": "i53-codepoint-bytes-v2",
@@ -322,7 +324,7 @@
     "seed_write": false
   },
   "receipt": {
-    "schema_hash": "f0678e830e1d82c9944be8c03fd432099f7c739ea93d4cd40939d8700359c528",
+    "schema_hash": "f7c842236978e842a20695dbea23d49d1277bd8bdbc0c342ee6422331cb188f8",
     "rows": [
       {
         "table": "follows",
@@ -400,7 +402,7 @@
         "gte": null,
         "lt": null,
         "lte": null,
-        "rule_hash": "0201f66714518c59ab12959e7a0541e23ec540e46fe516506e0985e20b514616",
+        "rule_hash": "fd79905c6b2537749a4f00979344bce28f421b3d1fee4a30a4fbf41e3fc8f8a6",
         "row_ids": [
           "f1"
         ],
@@ -445,7 +447,7 @@
         "gte": null,
         "lt": null,
         "lte": null,
-        "rule_hash": "0201f66714518c59ab12959e7a0541e23ec540e46fe516506e0985e20b514616",
+        "rule_hash": "fd79905c6b2537749a4f00979344bce28f421b3d1fee4a30a4fbf41e3fc8f8a6",
         "row_ids": [
           "a1"
         ],

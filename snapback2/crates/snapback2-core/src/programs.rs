@@ -41,6 +41,7 @@ pub fn spike_schema() -> Schema {
             constraints: vec![Constraint::Unique {
                 index: "byConvUser".to_owned(),
             }],
+            retain: RetentionPolicy::default(),
         },
     );
 
@@ -78,6 +79,7 @@ pub fn spike_schema() -> Schema {
                 delete: RuleExpr::Eq(RuleTerm::Field("authorId".to_owned()), RuleTerm::Viewer),
             },
             constraints: Vec::new(),
+            retain: RetentionPolicy::default(),
         },
     );
 
@@ -100,6 +102,7 @@ pub fn spike_schema() -> Schema {
                 delete: RuleExpr::Allow,
             },
             constraints: Vec::new(),
+            retain: RetentionPolicy::default(),
         },
     );
 
@@ -115,6 +118,7 @@ pub fn spike_schema() -> Schema {
                 delete: RuleExpr::Allow,
             },
             constraints: Vec::new(),
+            retain: RetentionPolicy::default(),
         },
     );
     tables.insert(
@@ -137,6 +141,7 @@ pub fn spike_schema() -> Schema {
                 delete: RuleExpr::Allow,
             },
             constraints: Vec::new(),
+            retain: RetentionPolicy::default(),
         },
     );
 

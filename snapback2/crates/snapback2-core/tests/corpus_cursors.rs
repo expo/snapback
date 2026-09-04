@@ -657,6 +657,7 @@ fn cursor_schema() -> Schema {
                     delete: public,
                 },
                 constraints: vec![],
+                retain: Default::default(),
             },
         )]),
         ..Schema::default()

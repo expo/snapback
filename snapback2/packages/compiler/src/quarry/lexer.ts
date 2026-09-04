@@ -5,6 +5,7 @@ export type Token = Site & { kind: TokenKind; value: string };
 
 const TWO_CHARACTER = new Set(["<-", "->", "<=", ">=", "!=", "??"]);
 const SYMBOLS = new Set(":(),[]{}.?!#+-~*/%=<>");
+const HYPHENATED_WORDS = ["until-revoked", "delivered-history"];
 
 export function lex(file: string, source: string): { tokens: Token[]; diagnostics: QuarryDiagnostic[] } {
   const tokens: Token[] = [];
@@ -93,7 +94,11 @@ export function lex(file: string, source: string): { tokens: Token[]; diagnostic
         continue;
       }
       if (/[A-Za-z_]/.test(char)) {
-        const match = raw.slice(offset).match(/^[A-Za-z_][A-Za-z0-9_]*/)![0];
+        // @ref LLP 1012#5-retention-revocation-and-the-fence — the two
+        // retention policies are single Quarry tokens without changing `-`.
+        const hyphenated = HYPHENATED_WORDS.find((word) => raw.startsWith(word, offset)
+          && !/[A-Za-z0-9_-]/.test(raw[offset + word.length] ?? ""));
+        const match = hyphenated ?? raw.slice(offset).match(/^[A-Za-z_][A-Za-z0-9_]*/)![0];
         tokens.push({ ...site, kind: "word", value: match });
         offset += match.length;
         emitted = true;

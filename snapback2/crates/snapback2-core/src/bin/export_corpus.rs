@@ -509,6 +509,7 @@ fn named_emit_case() -> CorpusCase {
                     delete: public,
                 },
                 constraints: Vec::new(),
+                retain: Default::default(),
             },
         )]),
         maintains: Vec::new(),

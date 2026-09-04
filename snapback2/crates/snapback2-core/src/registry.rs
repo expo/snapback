@@ -1402,6 +1402,7 @@ mod tests {
                         delete: RuleExpr::Allow,
                     },
                     constraints: Vec::new(),
+                    retain: Default::default(),
                 },
             )]),
             ..Schema::default()

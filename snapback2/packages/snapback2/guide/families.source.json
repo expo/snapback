@@ -349,6 +349,12 @@
   },
   {
     "family": "quarry",
+    "code": "E_QUARRY_RETAIN",
+    "wrong": "```q\ntable messages:\n  body: text <=4000\n  retain forever\n```",
+    "right": "```q\ntable messages:\n  body: text <=4000\n  retain delivered-history\n```"
+  },
+  {
+    "family": "quarry",
     "code": "E_QUARRY_ONLY",
     "wrong": "```ts\nexport const list = query({}, () => null);\n```",
     "right": "```q\nquery list():\n  return null\n```"

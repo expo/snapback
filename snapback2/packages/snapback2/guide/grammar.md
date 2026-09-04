@@ -16,7 +16,8 @@ table todos:
 
 Schema declarations are `use identity [password|guests]`, `table`, `maintain`,
 and `channel`. Tables contain columns, indexes, invariants, rules, and
-`after insert <- exists`; `.` is the row. Maintains count/sum by
+`after insert <- exists`; they may contain one `retain until-revoked` or
+`retain delivered-history` line, with `until-revoked` the default. `.` is the row. Maintains count/sum by
 fields. Channels declare `publish`, `subscribe`, and `ttl Ns`.
 
 Types are `principal`, `id`, table references, `int`, `time`, `bool`,

@@ -1,11 +1,13 @@
 export type ProgramKind = "Query" | "Mutation";
 export type Provenance = "Arg" | "Viewer" | "Const" | "Shape" | "Computed";
 export type Order = "Asc" | "Desc";
+export type RetentionPolicy = "until-revoked" | "delivered-history";
 
 import coreIrContract from "../../../crates/snapback2-core/ir-contract.json" with { type: "json" };
 
 export const IR_CONTRACT = Object.freeze({
   systemPrincipalId: coreIrContract.systemPrincipalId,
+  retentionPolicies: coreIrContract.retentionPolicies as readonly RetentionPolicy[],
 });
 
 export type Value =
@@ -183,6 +185,7 @@ export type DiagnosticCode =
   | "E_QUARRY_UNSUPPORTED"
   | "E_QUARRY_PLACEMENT"
   | "E_QUARRY_TYPE"
+  | "E_QUARRY_RETAIN"
   | "E_QUARRY_ONLY";
 
 export type RefusalFamily = "bound" | "opaque" | "schema" | "rule" | "effect" | "args" | "op" | "input" | "quarry";
@@ -197,8 +200,13 @@ export type FrontendDiagnostic = {
   guide: string;
 };
 
+export type TableJson = {
+  retain: RetentionPolicy;
+  [key: string]: unknown;
+};
+
 export type SchemaJson = {
-  tables: Record<string, unknown>;
+  tables: Record<string, TableJson>;
   maintains: unknown[];
   channels: Record<string, unknown>;
   auth: { password: boolean; guests: boolean };

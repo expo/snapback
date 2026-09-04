@@ -48,7 +48,8 @@
               ]
             }
           }
-        ]
+        ],
+        "retain": "until-revoked"
       },
       "memberships": {
         "columns": {
@@ -153,7 +154,8 @@
           },
           "delete": "Allow"
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       }
     },
     "maintains": []
@@ -195,9 +197,9 @@
   "certificate": {
     "program": "memberships.promote",
     "plan_hash": "5163414006746669c6b59ed496888405d674f29f3b6bce1494988bf06b702b65",
-    "schema_hash": "e3be1428b57215ef9f1b8696117e30238f13b0ff56da6bb99f5fd37bcef9ea97",
+    "schema_hash": "2ad71c2d6bd133ed183097730c44edfb2afc2dfdbc75d8df8321c8db202899fc",
     "rule_hashes": {
-      "memberships.update": "b02a05ceb743ba17127f016917b788ca27a70433b07b6f0a1da6363bf20da176"
+      "memberships.update": "9a0acf66b1534561fc9b9ed91788a0e8fc2fff31fab3d54d65d8fd9f2bb8bb15"
     },
     "evaluator_version": "bounded-spike-rust-1",
     "value_model_version": "i53-codepoint-bytes-v2",
@@ -240,7 +242,7 @@
     "seed_write": false
   },
   "receipt": {
-    "schema_hash": "e3be1428b57215ef9f1b8696117e30238f13b0ff56da6bb99f5fd37bcef9ea97",
+    "schema_hash": "2ad71c2d6bd133ed183097730c44edfb2afc2dfdbc75d8df8321c8db202899fc",
     "rows": [
       {
         "table": "memberships",

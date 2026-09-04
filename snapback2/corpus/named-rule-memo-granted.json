@@ -36,7 +36,8 @@
           "update": "Deny",
           "delete": "Deny"
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "docs": {
         "columns": {
@@ -65,7 +66,8 @@
           "update": "Deny",
           "delete": "Deny"
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "grants": {
         "columns": {
@@ -96,7 +98,8 @@
           "update": "Allow",
           "delete": "Allow"
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       }
     },
     "maintains": []
@@ -170,11 +173,11 @@
   "certificate": {
     "program": "actions.afterGrant",
     "plan_hash": "32cb3da9d658d32a1065354a36f8e9a512d7d0be8d008ecc3f37c1c5ea39f2fb",
-    "schema_hash": "a7e6629ce2b28f103a54f185054be3955dc4ba05c27dcfa2f70a6e78a6b6494f",
+    "schema_hash": "bd7dedaae4101a6144d0476581d375747afe34d853845c137ce3e1beecde4913",
     "rule_hashes": {
-      "actions.insert": "7895828b7c9c46fd0c94c48cc96d4c211966079a80863ee78389cab70d701920",
-      "docs.read": "7895828b7c9c46fd0c94c48cc96d4c211966079a80863ee78389cab70d701920",
-      "grants.insert": "a2ddf46b4f100a50d56e61bf7cd1eb33ca3a3ee7f4ad8397734ec78eb29f7843"
+      "actions.insert": "a44720d99f2fd96f1fbdc74f06d666f740fb29a3041f2b096a71bc47f7545b7f",
+      "docs.read": "a44720d99f2fd96f1fbdc74f06d666f740fb29a3041f2b096a71bc47f7545b7f",
+      "grants.insert": "597586188ec0d65460481b1bf8432d06df8823a66f34ec062d1c4b00ba5ccced"
     },
     "evaluator_version": "bounded-spike-rust-1",
     "value_model_version": "i53-codepoint-bytes-v2",
@@ -237,7 +240,7 @@
     "seed_write": false
   },
   "receipt": {
-    "schema_hash": "a7e6629ce2b28f103a54f185054be3955dc4ba05c27dcfa2f70a6e78a6b6494f",
+    "schema_hash": "bd7dedaae4101a6144d0476581d375747afe34d853845c137ce3e1beecde4913",
     "rows": [
       {
         "table": "docs",

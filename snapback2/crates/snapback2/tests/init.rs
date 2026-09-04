@@ -23,6 +23,9 @@ fn built_template_precondition(rendering: &str, schema: &str) {
 
 fn assert_rendering(template: &str, chat: bool) {
     built_template_precondition(template, "schema.q");
+    if chat {
+        built_template_precondition(template, "deliveries.q");
+    }
     let project = Project::new();
     let initialized = project.init(template, "none");
     assert!(
@@ -47,6 +50,41 @@ fn assert_rendering(template: &str, chat: bool) {
         String::from_utf8_lossy(&checked.stdout),
         String::from_utf8_lossy(&checked.stderr)
     );
+
+    if chat {
+        let compiled: Json = serde_json::from_slice(
+            &std::fs::read(project.path.join(".snapback/build/project.json")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            compiled["schema"]["tables"]["messages"]["retain"],
+            "delivered-history"
+        );
+        assert!(compiled["schema"]["tables"]["deliveries"].is_object());
+        let operations = compiled["programs"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|program| program["name"].as_str())
+            .collect::<BTreeSet<_>>();
+        assert_eq!(
+            operations.len(),
+            22,
+            "unexpected chat operation set: {operations:?}"
+        );
+        for operation in [
+            "deliveries.inbox",
+            "deliveries.thread",
+            "deliveries.post",
+            "deliveries.unsend",
+            "deliveries.edit",
+        ] {
+            assert!(
+                operations.contains(operation),
+                "missing {operation}: {operations:?}"
+            );
+        }
+    }
 
     if template == "todos" {
         assert!(
@@ -654,6 +692,7 @@ fn chat_template_ships_exactly_its_complete_owned_tree() {
     assert_eq!(
         shipped,
         [
+            "deliveries.q",
             "delivery.ts",
             "feeds.q",
             "follows.q",

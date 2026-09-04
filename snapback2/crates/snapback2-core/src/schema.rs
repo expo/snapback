@@ -144,12 +144,24 @@ pub struct Table {
     pub rules: Rules,
     #[serde(default)]
     pub constraints: Vec<Constraint>,
+    // @ref LLP 1012#5-retention-revocation-and-the-fence — retention governs
+    // the client-side hidden-row case and defaults compatibly for older IR.
+    #[serde(default)]
+    pub retain: RetentionPolicy,
 }
 
 impl Table {
     pub fn index(&self, name: &str) -> Option<&Index> {
         self.indexes.get(name)
     }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum RetentionPolicy {
+    #[default]
+    UntilRevoked,
+    DeliveredHistory,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -594,5 +606,6 @@ pub fn public_table(
             delete: public,
         },
         constraints: Vec::new(),
+        retain: RetentionPolicy::default(),
     }
 }

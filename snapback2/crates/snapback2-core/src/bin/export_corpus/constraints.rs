@@ -38,6 +38,7 @@ pub(super) fn add_incomplete_constraint_cases(cases: &mut Vec<CorpusCase>) {
                 indexes,
                 rules: rules.clone(),
                 constraints: Vec::new(),
+                retain: Default::default(),
             },
         )]),
         ..Schema::default()
@@ -97,6 +98,7 @@ pub(super) fn add_incomplete_constraint_cases(cases: &mut Vec<CorpusCase>) {
                     by: vec!["group".to_owned()],
                     max: 1,
                 }],
+                retain: Default::default(),
             },
         )]),
         ..Schema::default()

@@ -1,4 +1,5 @@
 {
   "systemPrincipalId": "system",
+  "retentionPolicies": ["until-revoked", "delivered-history"],
   "valueModelVersion": "i53-codepoint-bytes-v2"
 }

@@ -108,6 +108,7 @@ fn write_schema() -> Schema {
                     delete: public,
                 },
                 constraints: Vec::new(),
+                retain: Default::default(),
             },
         )]),
         ..Schema::default()

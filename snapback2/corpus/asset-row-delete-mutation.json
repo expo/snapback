@@ -44,7 +44,8 @@
             }
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       }
     },
     "maintains": []
@@ -70,9 +71,9 @@
   "certificate": {
     "program": "media.deleteForSuccessorWitness",
     "plan_hash": "38e5d27d721d9720fd0955820ab633862ccd6551479b4d5388499b76b3ff4f82",
-    "schema_hash": "dacc363eb70324e9bce09c7215dbd2392282cbe8144b9a42b3da1c04d404fccf",
+    "schema_hash": "41a3b7ce72f04841ad8bfc275facca90679fe242bb64ec6f1f604e2f68169f84",
     "rule_hashes": {
-      "media.delete": "794b1f593f4abc57b9f56ad4e9e050f102400a489fb1a3b58eddea5d2ba0cd58"
+      "media.delete": "697120674f17c7a901edf09dc2a35a9be6684db940084dfb7120f113efa9463b"
     },
     "evaluator_version": "bounded-spike-rust-1",
     "value_model_version": "i53-codepoint-bytes-v2",
@@ -118,7 +119,7 @@
     "seed_write": false
   },
   "receipt": {
-    "schema_hash": "dacc363eb70324e9bce09c7215dbd2392282cbe8144b9a42b3da1c04d404fccf",
+    "schema_hash": "41a3b7ce72f04841ad8bfc275facca90679fe242bb64ec6f1f604e2f68169f84",
     "rows": [
       {
         "table": "media",

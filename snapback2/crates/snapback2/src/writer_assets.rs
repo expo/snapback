@@ -398,6 +398,7 @@ mod tests {
                 delete: RuleExpr::Allow,
             },
             constraints: Vec::new(),
+            retain: Default::default(),
         };
         let insert = Program {
             name: "media.insert".to_owned(),
@@ -564,6 +565,7 @@ mod tests {
                 delete: RuleExpr::Allow,
             },
             constraints: Vec::new(),
+            retain: Default::default(),
         };
         let insert = Program {
             name: "media.insert".to_owned(),

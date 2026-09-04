@@ -53,7 +53,8 @@
             }
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "cardCounts": {
         "columns": {
@@ -97,7 +98,8 @@
             }
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "cards": {
         "columns": {
@@ -148,7 +150,8 @@
             }
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "columns": {
         "columns": {
@@ -199,7 +202,8 @@
             }
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "conversations": {
         "columns": {
@@ -240,7 +244,8 @@
             }
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "dmKeys": {
         "columns": {
@@ -296,7 +301,8 @@
               "index": "byPair"
             }
           }
-        ]
+        ],
+        "retain": "until-revoked"
       },
       "entitlements": {
         "columns": {
@@ -323,7 +329,8 @@
           "update": "Allow",
           "delete": "Allow"
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "expenses": {
         "columns": {
@@ -369,7 +376,8 @@
             }
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "memberships": {
         "columns": {
@@ -453,7 +461,8 @@
               "index": "byConvUser"
             }
           }
-        ]
+        ],
+        "retain": "until-revoked"
       },
       "messages": {
         "columns": {
@@ -550,7 +559,8 @@
             ]
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "owed": {
         "columns": {
@@ -596,7 +606,8 @@
             }
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "secretDocs": {
         "columns": {
@@ -630,7 +641,8 @@
           "update": "Allow",
           "delete": "Allow"
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "shares": {
         "columns": {
@@ -689,7 +701,8 @@
             }
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "unreads": {
         "columns": {
@@ -739,7 +752,8 @@
             }
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "users": {
         "columns": {
@@ -793,7 +807,8 @@
             }
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "waitCounts": {
         "columns": {
@@ -837,7 +852,8 @@
             }
           }
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       },
       "waitlist": {
         "columns": {
@@ -873,7 +889,8 @@
           "update": "Allow",
           "delete": "Allow"
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       }
     },
     "maintains": [
@@ -955,9 +972,9 @@
   "certificate": {
     "program": "markRead",
     "plan_hash": "c3400ad9350d5421fd746d8d2d3bd6181723fc7f23428d2630af097b6200039b",
-    "schema_hash": "df0a1b25740fd361ededb5bf93df3428a133ea6dd44f27a74c45a76e1ce8fb3c",
+    "schema_hash": "47a69e759777a52a0c713eb045039770fa7a4f2ff09ce7e525690348d01897dd",
     "rule_hashes": {
-      "memberships.update": "cf80675399155d57de09fdd9f316b076f13f1a2c3be4a757d23b21ec28609c6a"
+      "memberships.update": "4dc6746a5e58ac5fe7103d7cecf6aeba25f21e93d4d2084488b653dfef569cda"
     },
     "evaluator_version": "bounded-spike-rust-1",
     "value_model_version": "i53-codepoint-bytes-v2",
@@ -1012,7 +1029,7 @@
     "seed_write": false
   },
   "receipt": {
-    "schema_hash": "df0a1b25740fd361ededb5bf93df3428a133ea6dd44f27a74c45a76e1ce8fb3c",
+    "schema_hash": "47a69e759777a52a0c713eb045039770fa7a4f2ff09ce7e525690348d01897dd",
     "rows": [
       {
         "table": "accounts",

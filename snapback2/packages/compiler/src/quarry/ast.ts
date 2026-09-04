@@ -1,3 +1,5 @@
+import type { RetentionPolicy } from "../ir";
+
 export type Site = { file: string; line: number; col: number; expandedFrom?: Site };
 
 export type ScalarType =
@@ -99,6 +101,7 @@ export type TableDecl = {
   rules: RuleDecl[];
   immutable: Array<{ columns: string[]; site: Site }>;
   finalExists: FinalExistsDecl[];
+  retain?: { policy: RetentionPolicy; site: Site };
   public?: { reason: string; site: Site };
   site: Site;
 };
@@ -128,7 +131,7 @@ export type Document = {
   programs: ProgramDecl[];
 };
 
-export type QuarryCode = "E_QUARRY_SYNTAX" | "E_QUARRY_UNKNOWN" | "E_QUARRY_AMBIGUOUS" | "E_QUARRY_UNSUPPORTED" | "E_QUARRY_PLACEMENT" | "E_QUARRY_TYPE";
+export type QuarryCode = "E_QUARRY_SYNTAX" | "E_QUARRY_UNKNOWN" | "E_QUARRY_AMBIGUOUS" | "E_QUARRY_UNSUPPORTED" | "E_QUARRY_PLACEMENT" | "E_QUARRY_TYPE" | "E_QUARRY_RETAIN";
 export type QuarryDiagnostic = Site & { code: QuarryCode; message: string; rewrite: string; guide: string };
 
 export type TableCatalog = Map<string, {

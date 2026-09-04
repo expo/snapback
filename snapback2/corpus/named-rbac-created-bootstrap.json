@@ -48,7 +48,8 @@
               ]
             }
           }
-        ]
+        ],
+        "retain": "until-revoked"
       },
       "memberships": {
         "columns": {
@@ -153,7 +154,8 @@
           },
           "delete": "Allow"
         },
-        "constraints": []
+        "constraints": [],
+        "retain": "until-revoked"
       }
     },
     "maintains": []
@@ -216,10 +218,10 @@
   "certificate": {
     "program": "groups.bootstrap",
     "plan_hash": "7f426ee80f1ee83e3e66d60d6c5cdacc4f7aad774f584e2858344f360e74b150",
-    "schema_hash": "e3be1428b57215ef9f1b8696117e30238f13b0ff56da6bb99f5fd37bcef9ea97",
+    "schema_hash": "2ad71c2d6bd133ed183097730c44edfb2afc2dfdbc75d8df8321c8db202899fc",
     "rule_hashes": {
-      "groups.insert": "556e8eb16b3bb0c45fb9523d83fce5df8bd43d534f8d825f8d2125cc3a944151",
-      "memberships.insert": "3deebe9ecddc9447fadeebaa9938ec7123910975377edfe102bb88c9c8967185"
+      "groups.insert": "95377ccfd58e9cc0a6dba7cae1c7269bc0276e199e79f404699a6e4d2cb716d9",
+      "memberships.insert": "e5311a4ffe4d5103356605a9343e86318e47c64d08e40b202530dc1bb69761f3"
     },
     "evaluator_version": "bounded-spike-rust-1",
     "value_model_version": "i53-codepoint-bytes-v2",
@@ -272,7 +274,7 @@
     "seed_write": false
   },
   "receipt": {
-    "schema_hash": "e3be1428b57215ef9f1b8696117e30238f13b0ff56da6bb99f5fd37bcef9ea97",
+    "schema_hash": "2ad71c2d6bd133ed183097730c44edfb2afc2dfdbc75d8df8321c8db202899fc",
     "rows": [],
     "ranges": [],
     "absences": [

@@ -40,6 +40,9 @@ function emitTable(declaration: TableDecl, catalog: TableCatalog): string[] {
   lines.push(withSite("  columns: {", declaration.site));
   for (const column of declaration.columns) lines.push(withSite(`    ${property(column.name)}: ${typeCode(column.type)},`, column.site));
   lines.push(withSite("  },", declaration.site));
+  // @ref LLP 1012#5-retention-revocation-and-the-fence — omission is an
+  // explicit IR default; the client policy is carried once per table.
+  lines.push(withSite(`  retain: ${JSON.stringify(declaration.retain?.policy ?? "until-revoked")},`, declaration.retain?.site ?? declaration.site));
   if (declaration.indexes.length > 0) {
     lines.push(withSite("  indexes: {", declaration.site));
     for (const index of declaration.indexes) {

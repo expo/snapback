@@ -682,6 +682,7 @@ fn visibility_probe_case(
             delete: public.clone(),
         },
         constraints: Vec::new(),
+        retain: Default::default(),
     };
     let relationships = Table {
         columns: BTreeMap::from([
@@ -713,6 +714,7 @@ fn visibility_probe_case(
             delete: public,
         },
         constraints: Vec::new(),
+        retain: Default::default(),
     };
     let schema = Schema {
         tables: BTreeMap::from([
