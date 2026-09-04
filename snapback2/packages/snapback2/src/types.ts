@@ -1,5 +1,12 @@
 import type { Channel as ChannelRef, Op } from "./api.js";
 
+// @ref LLP 1006#1-the-move — the phantom kind keeps the two closed asset records
+// nominal; these must stay identical to the package-root declarations the
+// generated `snapback2` API imports, or a client-minted record cannot flow into
+// a generated argument.
+export type ImageAsset = { readonly __asset: "image"; readonly id: string; readonly width: number; readonly height: number };
+export type VideoAsset = { readonly __asset: "video"; readonly id: string; readonly width: number; readonly height: number; readonly duration: number };
+
 /** Server-minted authority subject; structurally compatible with `snapback2.Principal`. */
 export type Principal = string & { readonly __snapbackPrincipal: "Principal" };
 export type Cursor = string & { readonly __snapbackCursor: "Cursor" };
@@ -110,6 +117,50 @@ export interface Manifest {
   auth: Record<string, unknown>;
 }
 
+export type AssetRecord = ImageAsset | VideoAsset;
+export interface NativeAssetSource {
+  readonly uri: string;
+  readonly size?: number;
+  readonly fileSize?: number;
+  readonly type?: string;
+  readonly mimeType?: string;
+}
+export type AssetUploadSource = File | NativeAssetSource;
+export interface UploadProgress {
+  readonly loaded: number;
+  readonly total: number;
+}
+export type AssetKind = "image" | "video";
+export interface AssetUploadOptions {
+  /**
+   * The nominal record expected back. The server sniffs the bytes and decides the
+   * kind; when `kind` is given the client verifies the returned record and refuses
+   * `E_ASSET_TYPE` on a mismatch, so the result can flow straight into a generated
+   * `image`/`video` argument (LLP 1006 §10). Without it the result is the union.
+   */
+  readonly kind?: AssetKind;
+  /**
+   * Reports streamed byte progress where the runtime supports request streams.
+   * Expo native File uploads use expo/fetch's direct File body and report only
+   * whole-body start and successful completion (0, then total).
+   */
+  readonly onProgress?: (progress: UploadProgress) => void;
+}
+export interface AssetUrlOptions {
+  readonly width?: number;
+  readonly carrier?: boolean;
+  readonly download?: boolean;
+}
+
+/** Replaces generated asset leaves with the browser/native upload convenience accepted by the SDK. */
+export type AssetInput<Value> =
+  Value extends VideoAsset ? Value | File | NativeAssetSource
+    : Value extends ImageAsset ? Value | File | NativeAssetSource
+      : Value extends File ? Value
+        : Value extends readonly (infer Item)[] ? AssetInput<Item>[]
+          : Value extends object ? { [Key in keyof Value]: AssetInput<Value[Key]> }
+            : Value;
+
 export type ConnectionState = "connected" | "reconnecting" | "offline";
 export interface ClientSnapshot {
   /** Client-local cache/transport partition; never a server bearer or epoch. */
@@ -145,7 +196,17 @@ export interface SnapbackClient {
   readonly ready: Promise<void>;
   readonly snapshot: ClientSnapshot;
   query<Args, Result>(ref: Op<Args, Result>, args: NoInfer<Args>): Promise<QueryResult<Result>>;
-  mutation<Args, Result>(ref: Op<Args, Result>, args: NoInfer<Args>): Promise<MutationResult<Result>>;
+  mutation<Args, Result>(ref: Op<Args, Result>, args: NoInfer<AssetInput<Args>>): Promise<MutationResult<Result>>;
+  /** Uploads one browser File or Expo URI-backed File and returns its closed asset record. */
+  upload(source: AssetUploadSource, options: AssetUploadOptions & { readonly kind: "image" }): Promise<ImageAsset>;
+  upload(source: AssetUploadSource, options: AssetUploadOptions & { readonly kind: "video" }): Promise<VideoAsset>;
+  upload(source: AssetUploadSource, options?: AssetUploadOptions): Promise<AssetRecord>;
+  assetUrl(asset: AssetRecord | null | undefined, options?: AssetUrlOptions): Promise<string | undefined>;
+  assetUrl(assets: readonly AssetRecord[], options?: AssetUrlOptions): Promise<string[]>;
+  /** Authentication headers for a native image source; carriers stay reserved for players/downloads. */
+  assetHeaders(): Promise<Record<string, string>>;
+  /** Fetches a client-issued asset URL with the current header credential. */
+  assetBlob(url: string, options?: { signal?: AbortSignal }): Promise<Blob>;
   /** Delivers validated query receipt states with `live: true`; transport loss is client-made `stale`. */
   subscribe<Args, Result>(
     ref: Op<Args, Result>,

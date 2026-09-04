@@ -15,6 +15,10 @@
       "import": "./dist/client.mjs"
     },
     "./react": {
+      "react-native": {
+        "types": "./dist/react-native.d.ts",
+        "import": "./dist/react-native.mjs"
+      },
       "types": "./dist/react.d.ts",
       "import": "./dist/react.mjs"
     },
@@ -32,18 +36,31 @@
   ],
   "scripts": {
     "build": "node build.mjs",
-    "prepack": "node build.mjs"
+    "prepack": "node build.mjs",
+    "test": "node build.mjs && env -u SNAPBACK_URL node --test --test-timeout=120000 tests/"
   },
   "dependencies": {
     "typescript": "5.9.2"
   },
   "peerDependencies": {
+    "expo": ">=54",
+    "expo-file-system": ">=19",
+    "expo-video": ">=2",
+    "react-native": ">=0.75",
     "react": ">=18"
+  },
+  "peerDependenciesMeta": {
+    "expo": { "optional": true },
+    "expo-file-system": { "optional": true },
+    "expo-video": { "optional": true },
+    "react-native": { "optional": true }
   },
   "devDependencies": {
     "@types/react": "^19.1.12",
     "esbuild": "0.25.9",
+    "jsdom": "^26.1.0",
     "react": "^19.1.1",
+    "react-dom": "^19.1.1",
     "react-test-renderer": "^19.1.1"
   },
   "optionalDependencies": {

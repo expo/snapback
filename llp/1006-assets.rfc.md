@@ -12,7 +12,9 @@ decode helper executable, §14a), `packages/compiler` (the column types),
 revisions (f)–(j) by Claude Fable 5.1 at the author's rulings, in session,
 2026-09-03
 **Date:** 2026-08-31
-**Revised:** 2026-09-04 (n — §9b, bytes on the device, cached under the owning
+**Revised:** 2026-09-04 (p — the two-phase `upload()` takes `kind` and returns the
+nominal record, verified against the server's sniff (§10)); 2026-09-04 (o — the client generation check is named honestly as a
+descriptor fence (§10)); 2026-09-04 (n — §9b, bytes on the device, cached under the owning
 row's lease; author ruling 2026-09-04 via LLP 1012 decision 7, built by its lane
 O4); 2026-09-04 (m — fix-round correction: finalized growth is
 durably reserved on the receiving ledger before blob publication; §9a
@@ -996,16 +998,26 @@ which arguments are asset-typed from the manifest, not from `.d.ts`:** the
 second panel found that runtime operation objects carry only their name —
 type parameters are erased — while `/api/manifest` already carries the
 descriptors. Substitution is therefore manifest-driven and
-generation-fenced, recursive through optionals and lists, and it preflights
+descriptor-fenced, recursive through optionals and lists, and it preflights
 every source's length against the bound before any upload starts. A source is
 a browser `File` or an Expo native URI — the brief's picker hands over a URI,
-not a `File` — streamed, never buffered. The two-phase form remains available
+not a `File` — streamed, never buffered. The descriptor fence guarantees that
+substitution uses the descriptors of the generation the SDK read; it does not
+atomically bind the later mutation send to that generation. The owner validates
+every asset-typed argument against the live generation on request entry (§6);
+an atomic expected-generation request field is deferred in
+`issues/20260904-snapback2-mutation-expected-generation.md`. The two-phase form remains available
 for progress UIs:
 
 ```ts
-const avatar = await client.upload(file, { onProgress })
+const avatar = await client.upload(file, { kind: "image", onProgress })
 await setAvatar.run({ avatar })
 ```
+
+`kind` names the nominal record the caller expects back (`ImageAsset` here); the
+server still decides by sniffing the bytes, and the client refuses `E_ASSET_TYPE`
+when the two disagree, so the two-phase form types as tightly as the one-call
+form. Without `kind`, `upload()` returns the `ImageAsset | VideoAsset` union.
 
 **This was a live panel disagreement and is settled by the v1 evidence rather
 than by preference.** Codex argued for the explicit two-phase call as the only
@@ -1485,7 +1497,7 @@ and lands); commissioned 2026-09-03, revision (j), starting immediately.
 | B2 | the container walker port from `crates/snapback-services/src/assets_video.rs` with its tests, blanking in place on the staging file, applying the `tkhd` matrix, refusing missing facts, and a real portrait iPhone MOV fixture (§9) — `snapback2` |
 | B3 | the `snapback2-media` helper crate: decode, resize, encode, HEIC normalization behind the `images`/`heic` features, the fixed decode-safety ceiling (§4), one published artifact and the publish-time refusal (§14a) |
 | C | `image`/`video` in Quarry (replacing both the `asset` refusal at `parser.ts:340` and the `use assets` refusal at `parser.ts:87`), lowered as closed object types; the builders in the lowering target; member access on asset-typed arguments in `require` (§3); `api.d.ts` types incl. `File \| ImageAsset` client args by kind; manifest descriptors for asset-typed arguments (§10) |
-| D | manifest-driven, generation-fenced `run()` substitution with preflight, for browser `File` and Expo native URI sources (§10); `client.upload`; `useAssetUrl` for scalars and lists; `AssetImage` on the header path, `AssetVideo` on the carrier, carrier refresh without `src` rotation; `MutationRejected` semantics; React; one template with a photo and a clip |
+| D | manifest-driven, descriptor-fenced `run()` substitution with preflight, for browser `File` and Expo native URI sources (§10); `client.upload`; `useAssetUrl` for scalars and lists; `AssetImage` on the header path, `AssetVideo` on the carrier, carrier refresh without `src` rotation; `MutationRejected` semantics; React; one template with a photo and a clip |
 | E | the amendments this revision requires in the same landing: LLP 1002 decision 1 (the helper child) and `rules/NOT-DOING.md` (HEIC and MOV named, `file` deferred) — landed with (j) |
 
 Fix loops get three rounds. The acceptance that matters is not a unit suite:

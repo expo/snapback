@@ -38,6 +38,12 @@ test("generated Api rejects typos, extra query args, and wrong channel args", as
         void seq; void since;
       }
       if (view.state === "live") {}
+      client.mutation(api.assets.send, {
+        photo: { uri: "asset-library://photo", size: 10 },
+        optional: null,
+        gallery: [{ uri: "asset-library://gallery" }],
+        clip: { uri: "asset-library://clip", type: "video/mp4" },
+      });
       client.query(api.mesages.typo, {});
       client.query(api.messages.thread, { conversationId: "general", extra: true });
       client.channel(api.typing, { bogus: true });
@@ -45,10 +51,17 @@ test("generated Api rejects typos, extra query args, and wrong channel args", as
       createClient({ url: "http://127.0.0.1:3210", as: "alice", token: "bearer" });
     `);
     await writeFile(apiDts, `
+      import type { ImageAsset, VideoAsset } from "snapback2";
       import type { Channel, Op } from "snapback2/client";
       declare module "snapback2/client" {
         interface Api {
           messages: { thread: Op<{ conversationId: string }, unknown> };
+          assets: { send: Op<{
+            photo: File | ImageAsset;
+            optional: File | ImageAsset | null;
+            gallery: (File | ImageAsset)[];
+            clip: File | VideoAsset;
+          }, unknown> };
           channels: { typing: Channel<{ conversationId: string }, unknown> };
           typing: Channel<{ conversationId: string }, unknown>;
         }

@@ -98,6 +98,34 @@ fn generated_args_exercises_every_arg_type_variant() {
 }
 
 #[test]
+fn asset_probe_skip_recognizes_nested_asset_arguments_and_records_the_reason() {
+    let program = Program {
+        result_page_site: None,
+        name: "assets.send".to_owned(),
+        kind: ProgramKind::Mutation,
+        args: BTreeMap::from([(
+            "photos".to_owned(),
+            ArgType::Optional(Box::new(ArgType::List {
+                of: Some(Box::new(ArgType::Image { max: 5_000_000 })),
+                max: 4,
+            })),
+        )]),
+        read_time_granularity_ms: None,
+        body: Vec::new(),
+    };
+
+    assert!(program_has_asset_arguments(&program));
+    assert_eq!(
+        asset_probe_skip(&program.name),
+        json!({
+            "op": "assets.send",
+            "reason": "E_ASSET_PROBE_NEEDS_UPLOAD",
+            "note": "asset-typed arguments are proven by an upload journey, not the generic prover",
+        })
+    );
+}
+
+#[test]
 fn bare_named_id_uses_the_matching_seed_table_instead_of_btree_first() {
     let program = Program {
         name: "todos.byId".to_owned(),

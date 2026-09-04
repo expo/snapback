@@ -15,6 +15,16 @@ mutation send(conversationId: conversations, recipientId: profiles, body: text <
   require exists memberships[conversationId, viewer] else NOT_MEMBER
   recipient = profiles[recipientId] ! else RECIPIENT_UNKNOWN
   require exists memberships[conversationId, recipient.principal] else RECIPIENT_NOT_MEMBER
-  row = insert messages { conversationId, authorId: viewer, body, at: now }
+  row = insert messages { conversationId, authorId: viewer, body, photo: null, clip: null, at: now }
   emit notify { to: recipient.principal, body }
   return { id: row.id }
+
+mutation sendPhoto(conversationId: conversations, photo: image <=5000000):
+  require exists memberships[conversationId, viewer] else NOT_MEMBER
+  row = insert messages { conversationId, authorId: viewer, body: null, photo, clip: null, at: now }
+  return { id: row.id, photo: row.photo }
+
+mutation sendClip(conversationId: conversations, clip: video <=50000000):
+  require exists memberships[conversationId, viewer] else NOT_MEMBER
+  row = insert messages { conversationId, authorId: viewer, body: null, photo: null, clip, at: now }
+  return { id: row.id, clip: row.clip, duration: clip.duration }

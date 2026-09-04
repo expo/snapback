@@ -75,6 +75,20 @@ fn assert_rendering(template: &str, chat: bool) {
                     check["detail"]["reason"], "no engine in this build",
                     "{check}"
                 );
+            } else if matches!(check["name"].as_str(), Some("invalidation" | "replay")) {
+                // @ref LLP 1006#6-the-write-validated-not-stamped — the generic
+                // prover cannot forge ready ledger rows; the asset journey below
+                // supplies the physical upload/claim proof instead, so the
+                // generic check passes with an explicit skipped note.
+                assert_eq!(check["verdict"], "pass", "{check}");
+                let skipped = check["detail"]["skipped"].as_array().unwrap();
+                for operation in ["messages.sendPhoto", "messages.sendClip"] {
+                    let note = skipped
+                        .iter()
+                        .find(|item| item["op"] == operation)
+                        .unwrap_or_else(|| panic!("missing {operation} skip: {check}"));
+                    assert_eq!(note["reason"], "E_ASSET_PROBE_NEEDS_UPLOAD");
+                }
             } else {
                 assert_eq!(check["verdict"], "pass", "{check}");
             }
@@ -83,7 +97,7 @@ fn assert_rendering(template: &str, chat: bool) {
             .iter()
             .filter(|check| check["kind"] == "journey")
             .collect::<Vec<_>>();
-        assert_eq!(journeys.len(), 7, "{receipt}");
+        assert_eq!(journeys.len(), 8, "{receipt}");
         assert!(
             journeys.iter().all(|check| check["verdict"] == "pass"),
             "{receipt}"

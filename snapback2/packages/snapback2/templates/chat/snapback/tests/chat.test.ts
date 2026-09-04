@@ -1,6 +1,57 @@
 import { api } from "snapback2/client";
 import { journey } from "snapback2/test";
 
+function bytes(...parts: Uint8Array[]): Uint8Array {
+  const output = new Uint8Array(parts.reduce((total, part) => total + part.length, 0));
+  let offset = 0;
+  for (const part of parts) { output.set(part, offset); offset += part.length; }
+  return output;
+}
+
+function ascii(value: string): Uint8Array {
+  return new TextEncoder().encode(value);
+}
+
+function uint32(value: number): Uint8Array {
+  const output = new Uint8Array(4);
+  new DataView(output.buffer).setUint32(0, value);
+  return output;
+}
+
+function int32At(output: Uint8Array, offset: number, value: number): void {
+  new DataView(output.buffer).setInt32(offset, value);
+}
+
+function base64(value: Uint8Array): string {
+  let binary = "";
+  for (const byte of value) binary += String.fromCharCode(byte);
+  return btoa(binary);
+}
+
+function atom(kind: string, ...payload: Uint8Array[]): Uint8Array {
+  const content = bytes(...payload);
+  return bytes(uint32(content.length + 8), ascii(kind), content);
+}
+
+// A structural MP4 synthesized in-process keeps the acceptance journey tiny
+// while exercising the same bounded ISO-BMFF walker as an uploaded camera clip.
+function synthesizedMp4(): Uint8Array {
+  const ftyp = atom("ftyp", ascii("isom"), uint32(0), ascii("isom"), ascii("mp42"));
+  const mvhdPayload = new Uint8Array(100);
+  new DataView(mvhdPayload.buffer).setUint32(12, 1_000);
+  new DataView(mvhdPayload.buffer).setUint32(16, 2_000);
+  const tkhdPayload = new Uint8Array(84);
+  int32At(tkhdPayload, 40, 0x0001_0000);
+  int32At(tkhdPayload, 56, 0x0001_0000);
+  int32At(tkhdPayload, 72, 0x4000_0000);
+  new DataView(tkhdPayload.buffer).setUint32(76, 2 << 16);
+  new DataView(tkhdPayload.buffer).setUint32(80, 2 << 16);
+  const hdlrPayload = new Uint8Array(24);
+  hdlrPayload.set(ascii("vide"), 8);
+  const track = atom("trak", atom("tkhd", tkhdPayload), atom("mdia", atom("hdlr", hdlrPayload)));
+  return bytes(ftyp, atom("moov", atom("mvhd", mvhdPayload), track));
+}
+
 journey("alice sends bob a message", async ({ as }) => {
   const alice = as("alice");
   const before = await alice.query(api.messages.thread, { conversationId: "conversation-1", c: null });
@@ -52,6 +103,66 @@ journey("bob replies and alice's live thread updates", async ({ as }) => {
     );
   } finally {
     thread.close();
+  }
+});
+
+journey("alice sends and reads back a JPEG photo and synthesized MP4 clip", async ({ as }) => {
+  const alice = as("alice");
+  const charlie = as("charlie");
+  try {
+    const jpeg = Uint8Array.from(atob("/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAACAAIDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDzSiiiv18+FP/Z"), (value) => value.charCodeAt(0));
+    const validJpeg = bytes(jpeg.slice(0, 155), new Uint8Array([40, 40, 40]), jpeg.slice(155));
+    // The encoded fixture is one baseline MCU; advertise its padded 8×8 display extent.
+    validJpeg[164] = 8;
+    validJpeg[166] = 8;
+    const photoSent = await alice.mutation(api.messages.sendPhoto, {
+      conversationId: "conversation-1",
+      photo: {
+        uri: `data:image/jpeg;base64,${base64(validJpeg)}`,
+        fileSize: validJpeg.byteLength,
+        mimeType: "image/jpeg",
+      },
+    });
+    if (photoSent.state !== "committed") throw new Error(`photo send was ${photoSent.state}`);
+    const clipSent = await alice.mutation(api.messages.sendClip, {
+      conversationId: "conversation-1",
+      clip: new File([synthesizedMp4().buffer as ArrayBuffer], "clip.mp4", { type: "video/mp4" }),
+    });
+    if (clipSent.state !== "committed") throw new Error(`clip send was ${clipSent.state}`);
+    if (clipSent.data.duration !== 2_000) throw new Error(`clip duration was ${clipSent.data.duration}`);
+
+    const orphan = await charlie.upload(new File(
+      [validJpeg.buffer as ArrayBuffer],
+      "orphan-after-rejection.jpg",
+      { type: "image/jpeg" },
+    ), { kind: "image" });
+    const rejected = await charlie.mutation(api.messages.sendPhoto, {
+      conversationId: "conversation-1",
+      photo: orphan,
+    });
+    if (rejected.state !== "rejected") throw new Error("asset mutation unexpectedly accepted an outsider");
+    // The successful upload remains unclaimed, so the server's locator-null
+    // reclamation pass can collect this orphan (LLP 1006 §9).
+
+    const thread = await alice.query(api.messages.thread, { conversationId: "conversation-1" });
+    if (!("data" in thread) || !Array.isArray(thread.data)) throw new Error("asset thread did not return rows");
+    const photo = thread.data.find((row) => row.id === photoSent.data.id)?.photo;
+    const clip = thread.data.find((row) => row.id === clipSent.data.id)?.clip;
+    if (!photo || photo.width !== 8 || photo.height !== 8) throw new Error("JPEG record was not readable");
+    if (!clip || clip.width !== 2 || clip.height !== 2 || clip.duration !== 2_000) {
+      throw new Error("MP4 record was not readable");
+    }
+    const photoUrl = await alice.assetUrl(photo);
+    const clipUrl = await alice.assetUrl(clip, { carrier: true });
+    if (!photoUrl || !clipUrl) throw new Error("asset delivery URLs were absent");
+    if (new URL(photoUrl).searchParams.has("s")) throw new Error("photo URL carried a session token");
+    if (!new URL(clipUrl).searchParams.has("s")) throw new Error("private clip URL lacked its persona carrier");
+    if ((await alice.assetBlob(photoUrl)).size === 0) throw new Error("JPEG delivery was empty");
+    const clipResponse = await fetch(clipUrl);
+    if (!clipResponse.ok || (await clipResponse.blob()).size === 0) throw new Error("carried MP4 delivery was empty");
+  } finally {
+    alice.close();
+    charlie.close();
   }
 });
 

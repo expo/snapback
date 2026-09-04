@@ -1,17 +1,39 @@
 import { api, referenceName, type Api, type ApiProxy, type Channel as ChannelRef, type Op } from "./api.js";
+import {
+  AssetInputError,
+  assetPath,
+  assetRecord,
+  expoUploadFetch,
+  isBlobLike,
+  isBrowserFile,
+  isNativeAssetSource,
+  mayNeedAssetPlanning,
+  planAssetArguments,
+  prepareAssetSource,
+  preparedBody,
+  substituteAssetRecords,
+  withProgress,
+  type PreparedAssetSource,
+} from "./assets.js";
 import { ReconnectingSse } from "./sse.js";
 import type {
-  AuthTokenStore,
-  AuthSession,
+  AssetInput,
+  AssetRecord,
+  AssetUploadOptions,
+  AssetUploadSource,
+  AssetUrlOptions,
   AuthMe,
+  AuthSession,
+  AuthTokenStore,
   ChannelDelivery,
   ChannelHandle,
   ChannelPublishResult,
   ClientSnapshot,
   CreateClientOptions,
   Cursor,
-  Manifest,
+  ImageAsset,
   LiveQueryDelivery,
+  Manifest,
   MutationResult,
   Principal,
   QueryRefusedDelivery,
@@ -21,6 +43,7 @@ import type {
   SnapbackClient,
   Subscription,
   SubscriptionDelivery,
+  VideoAsset,
 } from "./types.js";
 
 export { api };
@@ -269,6 +292,15 @@ function wireManifest(value: unknown): Manifest {
   };
 }
 
+function wireAssetSession(value: unknown): { token: string; expiresAt: number } {
+  const surface = "asset session response";
+  const record = wireObject(value, surface);
+  return {
+    token: stringField(record, "token", surface),
+    expiresAt: numberField(record, "expiresAt", surface),
+  };
+}
+
 async function responseRefusal(response: Response): Promise<SnapbackRefusal> {
   let value: unknown;
   try {
@@ -334,6 +366,7 @@ class Client implements SnapbackClient {
   readonly ready: Promise<void>;
   private readonly url: string;
   private readonly fetchImpl: typeof globalThis.fetch;
+  private readonly customFetch: boolean;
   private readonly tokenStore?: AuthTokenStore;
   private readonly persona?: string;
   private currentToken?: string;
@@ -346,6 +379,13 @@ class Client implements SnapbackClient {
   private readonly statusListeners = new Set<(snapshot: ClientSnapshot) => void>();
   private readonly subscriptions = new Set<Subscription<unknown>>();
   private readonly writes = new Set<Promise<unknown>>();
+  private carrier?: {
+    token: string;
+    expiresAt: number;
+    authGeneration: number;
+    custodyGeneration: number;
+    fence: number;
+  };
   private closed = false;
 
   constructor(options: CreateClientOptions) {
@@ -355,6 +395,7 @@ class Client implements SnapbackClient {
     }
     this.url = options.url.replace(/\/+$/, "");
     this.fetchImpl = options.fetch ?? globalThis.fetch;
+    this.customFetch = options.fetch !== undefined;
     if (typeof this.fetchImpl !== "function") throw new TypeError("createClient requires a fetch implementation");
     this.tokenStore = options.tokenStore;
     this.persona = options.as;
@@ -402,13 +443,44 @@ class Client implements SnapbackClient {
     }
   }
 
-  async mutation<Args, Result>(ref: Op<Args, Result>, args: Args): Promise<MutationResult<Result>> {
+  async mutation<Args, Result>(ref: Op<Args, Result>, args: AssetInput<Args>): Promise<MutationResult<Result>> {
     const authority = await this.operationAuthority();
     return this.trackWrite(async () => {
       try {
+        let mutationArgs: unknown = args;
+        if (mayNeedAssetPlanning(args)) {
+          // @ref LLP 1006#10-clients — the descriptor fence binds substitution
+          // to the manifest read here. The owner independently validates the
+          // resulting records against its live generation on every request.
+          const operation = referenceName(ref);
+          const descriptorManifest = await this.manifestFor(authority);
+          const descriptor = descriptorManifest.ops[operation]?.args;
+          if (descriptor === undefined) {
+            throw this.assetInput(new AssetInputError(
+              "E_ASSET_TYPE",
+              `manifest generation ${descriptorManifest.generation} has no argument descriptor for ${operation}`,
+            ));
+          }
+          const placements = await planAssetArguments(args, descriptor)
+            .catch((error) => { throw this.assetInput(error); });
+          if (placements.length > 0) {
+            const records: AssetRecord[] = [];
+            for (const placement of placements) {
+              records.push(await this.uploadPrepared(placement.prepared, {}, authority));
+            }
+            const current = await this.manifestFor(authority);
+            if (current.generation !== descriptorManifest.generation) {
+              throw this.assetInput(new AssetInputError(
+                "E_ASSET_NOT_READY",
+                `descriptor generation changed from ${descriptorManifest.generation} to ${current.generation} during asset upload`,
+              ));
+            }
+            mutationArgs = substituteAssetRecords(args, placements, records);
+          }
+        }
         const result = wireMutation<Result>(await this.json("/api/mutation", {
           method: "POST",
-          body: JSON.stringify({ op: referenceName(ref), args }),
+          body: JSON.stringify({ op: referenceName(ref), args: mutationArgs }),
         }, authority));
         if (result.state === "rejected" && isTerminalSession(result)) {
           const wasCurrent = this.authorityCurrent(authority);
@@ -431,6 +503,81 @@ class Client implements SnapbackClient {
         throw error;
       }
     });
+  }
+
+  upload(source: AssetUploadSource, options: AssetUploadOptions & { readonly kind: "image" }): Promise<ImageAsset>;
+  upload(source: AssetUploadSource, options: AssetUploadOptions & { readonly kind: "video" }): Promise<VideoAsset>;
+  upload(source: AssetUploadSource, options?: AssetUploadOptions): Promise<AssetRecord>;
+  async upload(source: AssetUploadSource, options: AssetUploadOptions = {}): Promise<AssetRecord> {
+    const authority = await this.operationAuthority();
+    return this.trackWrite(async () => {
+      const prepared = await prepareAssetSource(source)
+        .catch((error) => { throw this.assetInput(error); });
+      return this.uploadPrepared(prepared, options, authority);
+    });
+  }
+
+  async assetUrl(asset: AssetRecord | null | undefined, options?: AssetUrlOptions): Promise<string | undefined>;
+  async assetUrl(assets: readonly AssetRecord[], options?: AssetUrlOptions): Promise<string[]>;
+  async assetUrl(
+    assetOrList: AssetRecord | readonly AssetRecord[] | null | undefined,
+    options: AssetUrlOptions = {},
+  ): Promise<string | string[] | undefined> {
+    const authority = await this.operationAuthority();
+    const records = Array.isArray(assetOrList)
+      ? assetOrList
+      : assetOrList == null ? [] : [assetOrList as AssetRecord];
+    const wantsCarrier = options.carrier === true || options.download === true;
+    if (wantsCarrier && records.some((asset) => !("duration" in asset))) {
+      throw this.assetInput(new AssetInputError(
+        "E_ASSET_CARRIER_IMAGE",
+        "image asset URLs never carry a session token; fetch the URL with assetHeaders or assetBlob",
+      ));
+    }
+    let carrier: string | undefined;
+    if (wantsCarrier && records.length > 0 && (authority.token !== undefined || this.persona !== undefined)) {
+      carrier = await this.assetCarrier(authority);
+    }
+    try {
+      if (Array.isArray(assetOrList)) {
+        return assetOrList.map((asset) => assetPath(this.url, asset, options.width, carrier));
+      }
+      return assetOrList == null
+        ? undefined
+        : assetPath(this.url, assetOrList as AssetRecord, options.width, carrier);
+    } catch (error) {
+      throw this.assetInput(error);
+    }
+  }
+
+  async assetHeaders(): Promise<Record<string, string>> {
+    const authority = await this.operationAuthority();
+    const headers: Record<string, string> = {};
+    if (authority.token) headers.Authorization = `Bearer ${authority.token}`;
+    if (this.persona) headers["X-Snapback-As"] = this.persona;
+    return headers;
+  }
+
+  async assetBlob(url: string, options: { signal?: AbortSignal } = {}): Promise<Blob> {
+    const authority = await this.operationAuthority();
+    let parsed: URL;
+    try {
+      parsed = new URL(url);
+    } catch {
+      throw this.assetInput(new AssetInputError("E_ASSET_TYPE", "asset blob URL must be absolute"));
+    }
+    const base = new URL(this.url);
+    if (parsed.origin !== base.origin || !parsed.pathname.startsWith("/api/asset/") || parsed.searchParams.has("s")) {
+      throw this.assetInput(new AssetInputError(
+        "E_ASSET_TYPE",
+        "asset blob fetch requires a tokenless URL issued by this client",
+      ));
+    }
+    const headers = this.headers(authority);
+    headers.set("Accept", "*/*");
+    const response = await this.fetchResponse(url, { headers, signal: options.signal }, authority);
+    this.validated(authority);
+    return response.blob();
   }
 
   subscribe<Args, Result>(
@@ -568,10 +715,7 @@ class Client implements SnapbackClient {
 
   async manifest(): Promise<Manifest> {
     const authority = await this.operationAuthority();
-    const value = wireManifest(await this.json("/api/manifest", {}, authority));
-    this.validated(authority);
-    this.patchSnapshot({ generation: value.generation });
-    return value;
+    return this.manifestFor(authority);
   }
 
   subscribeStatus(callback: (snapshot: ClientSnapshot) => void): () => void {
@@ -674,6 +818,194 @@ class Client implements SnapbackClient {
     if (authority.token) headers.set("Authorization", `Bearer ${authority.token}`);
     if (this.persona) headers.set("X-Snapback-As", this.persona);
     return headers;
+  }
+
+  private async manifestFor(authority: Authority): Promise<Manifest> {
+    const value = wireManifest(await this.json("/api/manifest", {}, authority));
+    this.validated(authority);
+    this.patchSnapshot({ generation: value.generation });
+    return value;
+  }
+
+  private async uploadPrepared(
+    prepared: PreparedAssetSource,
+    options: AssetUploadOptions,
+    authority: Authority,
+  ): Promise<AssetRecord> {
+    this.ensureAuthority(authority);
+    let response: Response;
+    if (options.onProgress && isBrowserFile(prepared.source) && !this.customFetch
+      && typeof XMLHttpRequest === "function") {
+      response = await this.xhrUpload(prepared.source, prepared.bytes, options, authority);
+    } else {
+      let body;
+      try {
+        body = await preparedBody(prepared);
+      } catch (error) {
+        throw this.assetInput(error);
+      }
+      const headers = this.headers(authority);
+      headers.set("Content-Length", String(prepared.bytes));
+      const nativeExpoFile = isNativeAssetSource(prepared.source)
+        && !/^(?:data|https?):/i.test(prepared.source.uri)
+        && isBlobLike(body);
+      if (nativeExpoFile) {
+        let nativeFetch: typeof globalThis.fetch;
+        try {
+          nativeFetch = await expoUploadFetch();
+        } catch (error) {
+          throw this.assetInput(error);
+        }
+        options.onProgress?.({ loaded: 0, total: prepared.bytes });
+        response = await this.fetchResponse(`${this.url}/api/upload`, {
+          method: "POST",
+          headers,
+          body: body as unknown as BodyInit,
+        }, authority, nativeFetch);
+        options.onProgress?.({ loaded: prepared.bytes, total: prepared.bytes });
+      } else {
+        body = withProgress(body, prepared.bytes, options);
+        const stream = !isBlobLike(body);
+        response = await this.fetchResponse(`${this.url}/api/upload`, {
+          method: "POST",
+          headers,
+          body: body as unknown as BodyInit,
+          ...(stream ? { duplex: "half" } as RequestInit : {}),
+        }, authority);
+      }
+    }
+    let value: unknown;
+    try {
+      value = await response.json();
+    } catch {
+      throw this.assetInput(new AssetInputError("E_ASSET_TYPE", "upload response must contain valid JSON"));
+    }
+    try {
+      const record = assetRecord(value);
+      const produced = Object.hasOwn(record, "duration") ? "video" : "image";
+      if (options.kind && options.kind !== produced) {
+        throw new AssetInputError("E_ASSET_TYPE", `upload produced ${produced === "image" ? "an image" : "a video"} asset but kind ${options.kind} was requested`);
+      }
+      this.validated(authority);
+      return record;
+    } catch (error) {
+      throw this.assetInput(error);
+    }
+  }
+
+  private xhrUpload(
+    file: File | Blob,
+    bytes: number,
+    options: AssetUploadOptions,
+    authority: Authority,
+  ): Promise<Response> {
+    return new Promise<Response>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", `${this.url}/api/upload`);
+      for (const [name, value] of this.headers(authority)) xhr.setRequestHeader(name, value);
+      options.onProgress?.({ loaded: 0, total: bytes });
+      xhr.upload.onprogress = (event) => options.onProgress?.({
+        loaded: Math.min(bytes, event.loaded),
+        total: bytes,
+      });
+      xhr.onerror = () => reject(this.networkRefusal("asset upload failed"));
+      xhr.onabort = () => reject(this.networkRefusal("asset upload was aborted"));
+      xhr.onload = () => {
+        try {
+          this.ensureAuthority(authority);
+          options.onProgress?.({ loaded: bytes, total: bytes });
+          resolve(new Response(xhr.responseText, {
+            status: xhr.status,
+            headers: { "Content-Type": xhr.getResponseHeader("Content-Type") ?? "application/json" },
+          }));
+        } catch (error) {
+          reject(error);
+        }
+      };
+      xhr.send(file);
+    }).then(async (response) => {
+      if (response.ok) return response;
+      if (response.status >= 400 && response.status < 500) {
+        const refusal = await responseRefusal(response);
+        this.recordRefusal(refusal.envelope);
+        throw refusal;
+      }
+      throw this.transportRefusal(`/api/upload returned HTTP ${response.status}`);
+    });
+  }
+
+  private async fetchResponse(
+    url: string,
+    init: RequestInit,
+    authority: Authority,
+    fetchImpl: typeof globalThis.fetch = this.fetchImpl,
+  ): Promise<Response> {
+    let response: Response;
+    try {
+      response = await fetchImpl(url, init);
+    } catch (error) {
+      this.ensureAuthority(authority);
+      throw this.networkRefusal(error instanceof Error ? error.message : String(error));
+    }
+    this.ensureAuthority(authority);
+    if (response.ok) return response;
+    if (response.status >= 400 && response.status < 500) {
+      const refusal = await responseRefusal(response);
+      this.recordRefusal(refusal.envelope);
+      throw refusal;
+    }
+    throw this.transportRefusal(`${new URL(url).pathname} returned HTTP ${response.status}`);
+  }
+
+  private async assetCarrier(authority: Authority): Promise<string> {
+    const refreshBefore = Date.now() + 60_000;
+    if (this.carrier
+      && this.carrier.authGeneration === authority.authGeneration
+      && this.carrier.custodyGeneration === authority.custodyGeneration
+      && this.carrier.fence === authority.fence
+      && this.carrier.expiresAt > refreshBefore) return this.carrier.token;
+    const carrier = wireAssetSession(await this.json(
+      "/api/auth/asset-session",
+      { method: "POST", body: JSON.stringify({}) },
+      authority,
+    ));
+    this.ensureAuthority(authority);
+    this.carrier = {
+      token: carrier.token,
+      expiresAt: carrier.expiresAt,
+      authGeneration: authority.authGeneration,
+      custodyGeneration: authority.custodyGeneration,
+      fence: authority.fence,
+    };
+    return carrier.token;
+  }
+
+  private assetInput(error: unknown): SnapbackRefusal {
+    if (isSnapbackRefusal(error)) return error;
+    const input = error instanceof AssetInputError
+      ? error
+      : new AssetInputError("E_ASSET_TYPE", error instanceof Error ? error.message : String(error));
+    const refusal = new SnapbackRefusal({
+      code: input.code,
+      family: "input",
+      message: input.message,
+      rewrite: "pass a File or { uri, size?/fileSize?, type?/mimeType? } only to a matching manifest asset argument",
+      guide: "assets/client",
+    });
+    this.recordRefusal(refusal.envelope);
+    return refusal;
+  }
+
+  private networkRefusal(message: string): SnapbackRefusal {
+    const refusal = new SnapbackRefusal(fallbackRefusal("E_NETWORK", message), true);
+    this.patchSnapshot({ connection: this.transportFailureState(), lastRefusal: refusal.envelope });
+    return refusal;
+  }
+
+  private transportRefusal(message: string): SnapbackRefusal {
+    const refusal = new SnapbackRefusal(fallbackRefusal("E_TRANSPORT", message), true);
+    this.patchSnapshot({ connection: this.transportFailureState(), lastRefusal: refusal.envelope });
+    return refusal;
   }
 
   private async json(

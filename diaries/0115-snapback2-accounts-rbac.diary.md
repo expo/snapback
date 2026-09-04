@@ -132,3 +132,30 @@ could not silently retarget.
 
 Exact and Contract were not used in this build, so there are no observations
 about either tool to attribute to this experience.
+
+## 2026-09-04 — native asset and receipt-proof repair
+
+The chat template's asset journey now crosses the actual client boundary: a
+native-URI photo is uploaded and read back without putting a carrier on its
+URL, a private clip is fetched through a persona carrier, and an outsider's
+successful upload followed by a rejected mutation leaves an explicitly
+reclaimable orphan. The generic invalidation and replay generators no longer
+pretend they can forge the ready ledger row needed for an asset argument;
+they pass with an `E_ASSET_PROBE_NEEDS_UPLOAD` skip note while the journey
+keeps the physical proof.
+
+The most surprising native detail was that an Expo picker URI is not a web
+resource. Routing `file://`/`content://` through `expo-file-system.File`
+preserved streaming and supplied the byte length without sending local URIs
+through the backend's custom fetch. React Native also needed an explicit
+header-ready state: rendering a private image URL one commit before its
+persona/bearer headers exist is already an unauthenticated request. A stable
+string source to `expo-video` kept parent rerenders and carrier expiry from
+replacing the mounted player.
+
+Compared with a direct React Native upload to Convex or Supabase Storage, the
+native file-to-Blob adapter is familiar platform work. Snapback adds the
+manifest walk and owner-side ledger validation, but those pieces make mixed
+lists, byte-bound preflight, mutation refusal, and orphan reclamation one
+coherent contract instead of application coordination. Exact and Contract
+were not used in this repair.

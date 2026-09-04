@@ -133,7 +133,8 @@ test("React-free hook driver reduces eight real-owner transitions including live
   const capped = reader.subscribe(api.integration.capped, {}, drive);
   const cappedDelivery = await capped.until((delivery) => delivery.state === "capped", 2_000);
   assert.equal(cappedDelivery.live, true);
-  assert.deepEqual(Object.keys(cappedDelivery).sort(), ["data", "live", "seq", "state"]);
+  // LLP 1011: capped deliveries carry the forward cursor like complete ones.
+  assert.deepEqual(Object.keys(cappedDelivery).sort(), ["data", "live", "next", "seq", "state"]);
   capped.close();
 
   const outsider = createClient({ url: owner.url, as: "charlie" });

@@ -53,13 +53,30 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
         "certify",
         "rules",
         "bounds",
-        "invalidation",
-        "replay",
         "live-revocation",
         "successor-policy-fence",
     ] {
         let derived = check(&receipt, name);
         assert_eq!(derived["verdict"], "pass", "{name}: {derived}");
+    }
+    // @ref LLP 1006#6-the-write-validated-not-stamped — generic derived probes
+    // cannot forge ready ledger rows; the authored asset journey supplies the
+    // physical upload/claim proof instead, so this is a pass-with-note.
+    for name in ["invalidation", "replay"] {
+        let derived = check(&receipt, name);
+        assert_eq!(derived["verdict"], "pass", "{name}: {derived}");
+        let skipped = derived["detail"]["skipped"].as_array().unwrap();
+        for operation in ["messages.sendPhoto", "messages.sendClip"] {
+            let note = skipped
+                .iter()
+                .find(|item| item["op"] == operation)
+                .unwrap_or_else(|| panic!("{name} did not skip {operation}: {derived}"));
+            assert_eq!(note["reason"], "E_ASSET_PROBE_NEEDS_UPLOAD");
+            assert_eq!(
+                note["note"],
+                "asset-typed arguments are proven by an upload journey, not the generic prover"
+            );
+        }
     }
 
     let revocation = check(&receipt, "live-revocation");
@@ -280,7 +297,7 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
             .iter()
             .filter(|check| check["kind"] == "journey")
             .count(),
-        7
+        8
     );
     for name in [
         "alice sends bob a message",
@@ -290,20 +307,23 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
         "group creation bootstraps one creator admin atomically",
         "conversation metadata stays inside membership",
         "scoped roles reject non-admin and stale membership authority",
+        "alice sends and reads back a JPEG photo and synthesized MP4 clip",
     ] {
         let journey = check(&receipt, name);
         assert_eq!(journey["kind"], "journey", "{name}: {journey}");
         assert_eq!(journey["verdict"], "pass", "{name}: {journey}");
     }
-    assert_eq!(output.status.code(), Some(1));
-    assert_eq!(receipt["verdict"], "blocked");
     if cfg!(feature = "hermes") {
+        assert_eq!(output.status.code(), Some(0));
+        assert_eq!(receipt["verdict"], "pass");
         assert!(checks.iter().any(|check| {
             check["name"] == "effects"
                 && check["verdict"] == "pass"
                 && check["detail"]["engine"] == "ibex2 + vanilla hermes"
         }));
     } else {
+        assert_eq!(output.status.code(), Some(1));
+        assert_eq!(receipt["verdict"], "blocked");
         assert!(checks.iter().any(|check| {
             check["name"] == "effects"
                 && check["verdict"] == "blocked"

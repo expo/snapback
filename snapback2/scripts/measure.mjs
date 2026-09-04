@@ -80,7 +80,7 @@ function scoreChecks(checks, budget, failedSteps, report = console.log, refuse =
   }
 }
 
-function testVerdict(result, allowEffectsBlocked) {
+function testVerdict(result, allowChatBlocked) {
   let receipt;
   try {
     receipt = JSON.parse(result.stdout);
@@ -90,17 +90,18 @@ function testVerdict(result, allowEffectsBlocked) {
   if (result.status === 0 && receipt.verdict === "pass") {
     return { accepted: true, verdict: "pass" };
   }
-  const effects = Array.isArray(receipt.checks)
-    ? receipt.checks.find((check) => check.name === "effects")
-    : undefined;
-  const onlyEffectsBlocked = Array.isArray(receipt.checks)
-    && receipt.checks.every((check) => check === effects
-      ? check.verdict === "blocked"
-      : check.verdict === "pass");
-  if (allowEffectsBlocked && result.status === 1 && receipt.verdict === "blocked"
-    && onlyEffectsBlocked && effects?.verdict === "blocked"
-    && effects?.detail?.reason === "no engine in this build") {
-    return { accepted: true, verdict: "blocked", blocked: "effects" };
+  const checks = Array.isArray(receipt.checks) ? receipt.checks : [];
+  const blocked = checks.filter((check) => check.verdict === "blocked");
+  const onlyExpectedBlocked = checks.every((check) => {
+    if (check.verdict === "pass") return true;
+    return check.name === "effects"
+      && check.verdict === "blocked"
+      && check.detail?.reason === "no engine in this build";
+  });
+  if (allowChatBlocked && result.status === 1 && receipt.verdict === "blocked"
+    && blocked.length > 0 && onlyExpectedBlocked) {
+    const names = blocked.map((check) => check.name).sort().join("+");
+    return { accepted: true, verdict: "blocked", blocked: names };
   }
   return { accepted: false, verdict: receipt.verdict ?? "missing" };
 }
@@ -365,6 +366,30 @@ function selfTest() {
     }, true),
     { accepted: true, verdict: "blocked", blocked: "effects" },
   );
+  assert.deepEqual(
+    testVerdict({
+      status: 1,
+      stdout: JSON.stringify({
+        verdict: "blocked",
+        checks: [
+          { name: "invalidation", verdict: "blocked", detail: { blocked: [
+            { mutation: "messages.sendPhoto" }, { mutation: "messages.sendClip" },
+          ] } },
+          { name: "replay", verdict: "blocked", detail: { blocked: [
+            { op: "messages.sendPhoto" }, { op: "messages.sendClip" },
+          ] } },
+        ],
+      }),
+    }, true),
+    { accepted: false, verdict: "blocked" },
+  );
+  assert.equal(testVerdict({
+    status: 1,
+    stdout: JSON.stringify({
+      verdict: "blocked",
+      checks: [{ name: "messages.send", verdict: "blocked", detail: {} }],
+    }),
+  }, true).accepted, false);
   assert.equal(testVerdict({ status: 1, stdout: "{}" }, true).accepted, false);
   process.exitCode = originalExitCode;
   console.log("measure self-test ok");

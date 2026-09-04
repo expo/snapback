@@ -3,7 +3,10 @@
 // candidates; retained authoritative traces and physical commit keys decide
 // overlap, invalidation, delivery, or proven silence.
 
-use super::{elapsed_ms, generated_args_at, probe_candidates, test_sse::SseProbe};
+use super::{
+    asset_probe_skip, elapsed_ms, generated_args_at, probe_candidates, program_has_asset_arguments,
+    test_sse::SseProbe,
+};
 use crate::{
     client,
     owner::OwnerInfo,
@@ -627,6 +630,19 @@ pub(super) fn check(
     let started = Instant::now();
     let mut failures = Vec::new();
     let mut blocked = Vec::new();
+    let asset_mutations = compiled
+        .generation
+        .programs()
+        .iter()
+        .filter_map(|(name, (program, _))| {
+            (program.kind == ProgramKind::Mutation && program_has_asset_arguments(program))
+                .then_some(name.as_str())
+        })
+        .collect::<BTreeSet<_>>();
+    let skipped = asset_mutations
+        .iter()
+        .map(|name| asset_probe_skip(name))
+        .collect::<Vec<_>>();
     let mut outcomes = Vec::new();
     let mut intersections = Vec::new();
     let mut attempts = 0_u64;
@@ -658,8 +674,12 @@ pub(super) fn check(
             }
         };
         let mut query_has_silence = false;
+        let mut query_has_generic_mutation = false;
         for (mutation_name, (mutation, mutation_certificate)) in compiled.generation.programs() {
             if mutation.kind != ProgramKind::Mutation {
+                continue;
+            }
+            if asset_mutations.contains(mutation_name.as_str()) {
                 continue;
             }
             let shared_sites = certificate_site_intersection(
@@ -695,6 +715,7 @@ pub(super) fn check(
                 }));
                 continue;
             }
+            query_has_generic_mutation = true;
             let candidates = match probe_candidates(mutation, seed) {
                 Ok(candidates) => candidates,
                 Err(reason) => {
@@ -798,13 +819,14 @@ pub(super) fn check(
                 }
             }
         }
-        if !query_has_silence {
+        if !query_has_silence && query_has_generic_mutation {
             let disjoint_persona = format!("__snapback2_disjoint_{}", query_name.replace('.', "_"));
             'fallback: for (mutation_name, (mutation, mutation_certificate)) in
                 compiled.generation.programs()
             {
                 if mutation.kind != ProgramKind::Mutation
                     || system_then.contains(mutation_name.as_str())
+                    || asset_mutations.contains(mutation_name.as_str())
                 {
                     continue;
                 }
@@ -880,7 +902,7 @@ pub(super) fn check(
                 }
             }
         }
-        if !query_has_silence {
+        if !query_has_silence && query_has_generic_mutation {
             blocked.push(json!({
                 "query": query_name,
                 "reason": format!("no physical concrete-disjoint probe for {query_name}"),
@@ -899,6 +921,7 @@ pub(super) fn check(
         "intersections": intersections,
         "outcomes": outcomes,
         "blocked": blocked,
+        "skipped": skipped,
     });
     if !failures.is_empty() {
         CheckReceipt::fail(

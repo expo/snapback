@@ -17,17 +17,22 @@ import {
   stableSerialize,
   type AuthMe,
   type AuthSession,
+  type AssetRecord,
+  type AssetInput,
+  type AssetUrlOptions,
   type ChannelHandle,
   type ClientSnapshot,
   type ConnectionState,
   type CreateClientOptions,
   type MutationResult,
+  type ImageAsset,
   type Principal,
   type QueryHookResult,
   type QueryMachineEvent,
   type QueryView,
   type RefusalEnvelope,
   type SnapbackClient,
+  type VideoAsset,
 } from "./types.js";
 
 export { initialQueryState, reduceQueryState } from "./types.js";
@@ -73,6 +78,15 @@ function provider(): ProviderValue {
   const value = useContext(Context);
   if (!value) throw new Error("Snapback hooks require <SnapbackProvider>");
   return value;
+}
+
+/** The provider-owned client, for first-party platform components and custom transports. */
+export function useSnapbackClient(): SnapbackClient {
+  return provider().client;
+}
+
+export function useSnapbackSnapshot(): ClientSnapshot {
+  return provider().snapshot;
 }
 
 export function useConnection(): ConnectionState {
@@ -165,7 +179,7 @@ export function useSubscription<Args, Result>(
 }
 
 export interface UseMutationResult<Args, Result> {
-  run(args: Args): Promise<MutationResult<Result>>;
+  run(args: AssetInput<Args>): Promise<MutationResult<Result>>;
   pending: boolean;
   last: MutationResult<Result> | undefined;
   transport: SnapbackRefusal | undefined;
@@ -182,7 +196,7 @@ export function useMutation<Args, Result>(ref: Op<Args, Result>): UseMutationRes
   const visible = machine.generation === snapshot.authGeneration
     ? machine
     : { generation: snapshot.authGeneration, pending: 0 };
-  const run = useCallback(async (args: Args) => {
+  const run = useCallback(async (args: AssetInput<Args>) => {
     const startedGeneration = client.snapshot.authGeneration;
     setMachine((current) => current.generation === startedGeneration
       ? { ...current, pending: current.pending + 1 }
@@ -311,6 +325,125 @@ export function useChannel<Args, Payload = unknown>(ref: ChannelRef<Args, Payloa
     () => client.channel<Args, Payload>(ref, args),
     [client, snapshot.authGeneration, referenceName(ref), argsKey],
   );
+}
+
+type AssetUrlValue = string | string[] | undefined;
+
+/**
+ * Resolves records without putting authority in image URLs. A carrier is minted
+ * only when explicitly requested for a player/download that cannot send headers.
+ */
+// @ref LLP 1006#2b-the-session-carrier-author-ruling-2026-09-03 — refreshes
+// affect newly resolved URLs only; an already returned player src is immutable.
+export function useAssetUrl(asset: AssetRecord | null | undefined, options?: AssetUrlOptions): string | undefined;
+export function useAssetUrl(assets: readonly AssetRecord[], options?: AssetUrlOptions): string[] | undefined;
+export function useAssetUrl(
+  assetOrList: AssetRecord | readonly AssetRecord[] | null | undefined,
+  options: AssetUrlOptions = {},
+): AssetUrlValue {
+  const client = useSnapbackClient();
+  const key = stableSerialize({
+    assets: Array.isArray(assetOrList)
+      ? assetOrList.map((asset) => asset.id)
+      : assetOrList == null ? null : (assetOrList as AssetRecord).id,
+    width: options.width,
+    carrier: options.carrier === true,
+    download: options.download === true,
+  });
+  const stableAsset = useMemo(() => assetOrList, [key]);
+  const identity = useMemo(() => ({ client, key }), [client, key]);
+  const [resolved, setResolved] = useState<{ identity: typeof identity; value?: AssetUrlValue }>({ identity });
+  const value = resolved.identity === identity ? resolved.value : undefined;
+  useEffect(() => {
+    let active = true;
+    const request = Array.isArray(stableAsset)
+      ? client.assetUrl(stableAsset, options)
+      : client.assetUrl(stableAsset as AssetRecord | null | undefined, options);
+    void request
+      .then((next) => {
+        if (active) setResolved({ identity, value: next });
+      })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, [identity, stableAsset, options.width, options.carrier, options.download]);
+  return value;
+}
+
+export type AssetImageProps = Omit<React.ImgHTMLAttributes<HTMLImageElement>, "src" | "width" | "height"> & {
+  asset: ImageAsset;
+  width?: number | string;
+  height?: number | string;
+};
+
+// @ref LLP 1006#8-sizes-ask-for-any-width — the web image measures its box,
+// asks for device pixels, and keeps intrinsic record dimensions before bytes arrive.
+export function AssetImage({ asset, width, height, style, ...props }: AssetImageProps): React.ReactElement {
+  const { client, snapshot } = provider();
+  const [element, setElement] = useState<HTMLImageElement | null>(null);
+  const [requestedWidth, setRequestedWidth] = useState<number>();
+  const [measured, setMeasured] = useState(false);
+  useEffect(() => {
+    if (!element) return;
+    const update = (layoutWidth: number) => {
+      const fallback = typeof width === "number" ? width : asset.width;
+      const cssWidth = layoutWidth > 0 ? layoutWidth : fallback;
+      const ratio = typeof window === "undefined" ? 1 : window.devicePixelRatio || 1;
+      setRequestedWidth(Math.max(1, Math.ceil(cssWidth * ratio)));
+      setMeasured(true);
+    };
+    update(element.getBoundingClientRect().width);
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver((entries) => update(entries[0]?.contentRect.width ?? 0));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [element, width, asset.id, asset.width]);
+  const deliveryUrl = useAssetUrl(measured ? asset : null, { width: requestedWidth });
+  const [blobUrl, setBlobUrl] = useState<string>();
+  useEffect(() => {
+    if (!deliveryUrl || typeof URL.createObjectURL !== "function") return;
+    let active = true;
+    let created: string | undefined;
+    const controller = new AbortController();
+    setBlobUrl(undefined);
+    void client.assetBlob(deliveryUrl, { signal: controller.signal }).then((blob) => {
+      created = URL.createObjectURL(blob);
+      if (active) setBlobUrl(created);
+      else URL.revokeObjectURL(created);
+    }).catch(() => undefined);
+    return () => {
+      active = false;
+      controller.abort();
+      if (created) URL.revokeObjectURL(created);
+    };
+  }, [client, deliveryUrl, snapshot.authGeneration]);
+  return <img
+    {...props}
+    ref={setElement}
+    src={blobUrl}
+    width={width ?? asset.width}
+    height={height ?? asset.height}
+    style={{ aspectRatio: `${asset.width} / ${asset.height}`, ...style }}
+  />;
+}
+
+export type AssetVideoProps = Omit<React.VideoHTMLAttributes<HTMLVideoElement>, "src" | "width" | "height"> & {
+  asset: VideoAsset;
+  width?: number | string;
+  height?: number | string;
+};
+
+// @ref LLP 1006#10-clients — video streams directly with a carrier because a
+// native player/video element cannot send the session header or wait for a blob.
+export function AssetVideo({ asset, width, height, style, controls, ...props }: AssetVideoProps): React.ReactElement {
+  const url = useAssetUrl(asset, { carrier: true });
+  return <video
+    {...props}
+    controls={controls ?? true}
+    src={url}
+    width={width ?? asset.width}
+    height={height ?? asset.height}
+    style={{ aspectRatio: `${asset.width} / ${asset.height}`, ...style }}
+  />;
 }
 
 export function DevOverlay(): React.ReactElement {

@@ -58,7 +58,9 @@ table memberships:
 table messages:
   conversationId: conversations
   authorId: principal
-  body: text <=4000
+  body: text <=4000 ?
+  photo: image <=5000000 ?
+  clip: video <=50000000 ?
   at: time
   by byConvTime: conversationId, at, id
   read <- exists memberships[.conversationId, viewer]

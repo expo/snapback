@@ -20,7 +20,7 @@ const externalClient = {
   name: "external-client",
   setup(build) {
     build.onResolve({ filter: /^\.\/client\.js$/ }, (args) =>
-      args.importer === resolve(here, "src/react.tsx")
+      [resolve(here, "src/react.tsx"), resolve(here, "src/react-native.tsx")].includes(args.importer)
         ? { path: "snapback2/client", external: true }
         : undefined);
   },
@@ -31,6 +31,7 @@ await build({
     index: resolve(here, "src/index.ts"),
     client: resolve(here, "src/client.ts"),
     react: resolve(here, "src/react.tsx"),
+    "react-native": resolve(here, "src/react-native.tsx"),
   },
   outdir: dist,
   outExtension: { ".js": ".mjs" },
@@ -39,7 +40,7 @@ await build({
   minify: true,
   platform: "neutral",
   target: "es2022",
-  external: ["react", "snapback2/client"],
+  external: ["react", "react-native", "expo-file-system", "expo/fetch", "expo-video", "snapback2/client"],
   plugins: [externalClient],
 });
 
@@ -78,7 +79,10 @@ await cp(resolve(here, "types/test.d.ts"), resolve(dist, "test.d.ts"));
 const declarationProgram = ts.createProgram({
   rootNames: [
     resolve(here, "src/api.ts"),
+    resolve(here, "src/assets.ts"),
     resolve(here, "src/client.ts"),
+    resolve(here, "src/native-modules.d.ts"),
+    resolve(here, "src/react-native.tsx"),
     resolve(here, "src/react.tsx"),
     resolve(here, "src/sse.ts"),
     resolve(here, "src/types.ts"),

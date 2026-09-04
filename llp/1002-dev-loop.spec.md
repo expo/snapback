@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2` (the binary: owner, server, verbs), `snapback2/packages/compiler` (project lowering, worker), `snapback2/packages/snapback2` (authoring runtime, client, React, test runner, shim), `snapback2/scripts/measure.mjs`
 **Author:** Claude Fable 5 (orchestrator) — implementers: codex gpt-5.6-sol, lanes B0 (compiler + authoring surface), B1 (owner + server + verbs), B2 (`init`, `test`, `why`, `trace`, `guide`), D (client + React + evaluator)
 **Date:** 2026-08-29
-**Revised:** 2026-09-04 (§9 points at LLP 1012 for the outbox and the store); 2026-09-03 (decision 1 amended: the LLP 1006 §14a media helper is the one child spawned besides the compiler worker); 2026-09-01
+**Revised:** 2026-09-04 (§9 points at LLP 1012 for the outbox and the store); 2026-09-04 (derived asset mutation probes are pass-with-note skips); 2026-09-03 (decision 1 amended: the LLP 1006 §14a media helper is the one child spawned besides the compiler worker); 2026-09-01
 **Related:** LLP 1000, LLP 1001 (the engine this serves), LLP 1003 (effects),
 LLP 0329.016 §5 (the design this implements verbatim where it can), LLP
 0329.016 §5.11 (the verb table — no verb exists without its row), LLP
@@ -535,6 +535,7 @@ read-only in the receipt, never editable):
    not by inventing a privileged served persona.
 5. `replay` — every seed mutation, run twice against two forks of the seeded
    store with the same pinned `now`/`newId`s, yields byte-identical traces.
+   **Revision 2026-09-04:** an asset-typed mutation is recorded as `skipped` in both invalidation and replay with reason `E_ASSET_PROBE_NEEDS_UPLOAD` ("asset-typed arguments are proven by an upload journey, not the generic prover"), which is a pass-with-note because only the upload journey can mint the ready ledger row that LLP 1006 §6 requires.
 6. `effects` — every effect declaration has a runner able to run it, or the
    check is `blocked: no engine in this build` (LLP 1003 §4).
 

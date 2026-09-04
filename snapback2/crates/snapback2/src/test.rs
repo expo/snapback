@@ -491,6 +491,7 @@ fn check_replay(owner: &OwnerInfo, compiled: &CompiledProject, seed: &SeedData) 
     let started = Instant::now();
     let mut failures = Vec::new();
     let mut blocked = Vec::new();
+    let mut skipped = Vec::new();
     let mut probes = 0_u64;
     let mut attempts = 0_u64;
     let mut forks_count = 0_u64;
@@ -504,6 +505,10 @@ fn check_replay(owner: &OwnerInfo, compiled: &CompiledProject, seed: &SeedData) 
             .values()
             .any(|effect| effect.then.as_deref() == Some(name.as_str()))
         {
+            continue;
+        }
+        if program_has_asset_arguments(program) {
+            skipped.push(asset_probe_skip(name));
             continue;
         }
         let candidates = match probe_candidates(program, seed) {
@@ -589,6 +594,7 @@ fn check_replay(owner: &OwnerInfo, compiled: &CompiledProject, seed: &SeedData) 
         "attempts": attempts,
         "forks": forks_count,
         "blocked": blocked,
+        "skipped": skipped,
         "clock": "1700000000000 + mutation index",
         "newIds": "replay-<mutation>-<ordinal>",
         "comparison": "byte-identical committed execution + authoritative trace",
@@ -960,6 +966,33 @@ fn journey_host_failure(name: &str, output: &JourneyRunnerOutput, message: &str)
 
 fn generated_args(program: &Program, seed: &SeedData) -> Result<Json, String> {
     generated_args_at(program, seed, 0)
+}
+
+const ASSET_PROBE_SKIP_CODE: &str = "E_ASSET_PROBE_NEEDS_UPLOAD";
+const ASSET_PROBE_SKIP_NOTE: &str =
+    "asset-typed arguments are proven by an upload journey, not the generic prover";
+
+fn program_has_asset_arguments(program: &Program) -> bool {
+    program.args.values().any(arg_type_has_asset)
+}
+
+fn arg_type_has_asset(kind: &ArgType) -> bool {
+    match kind {
+        ArgType::Image { .. } | ArgType::Video { .. } => true,
+        ArgType::Optional(inner) => arg_type_has_asset(inner),
+        ArgType::List {
+            of: Some(inner), ..
+        } => arg_type_has_asset(inner),
+        _ => false,
+    }
+}
+
+fn asset_probe_skip(op: &str) -> Json {
+    json!({
+        "op": op,
+        "reason": ASSET_PROBE_SKIP_CODE,
+        "note": ASSET_PROBE_SKIP_NOTE,
+    })
 }
 
 fn generated_args_at(program: &Program, seed: &SeedData, sample: usize) -> Result<Json, String> {

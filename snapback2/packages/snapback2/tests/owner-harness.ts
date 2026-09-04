@@ -109,8 +109,24 @@ export class RealOwnerHarness {
     assert.ok(this.owned && this.root, "an external owner cannot be stopped by the harness");
     const child = this.child;
     assert.ok(child, "owner is not running");
-    const stopped = command([binary, "dev", "--project", this.root, "--stop", "--json"]);
-    assert.equal(stopped.status, 0, `snapback2 dev --stop failed\n${stopped.stdout}\n${stopped.stderr}`);
+    // Keep the JS event loop moving while the owner drains fetch keep-alive
+    // sockets; a synchronous child wait can hold the very sockets it needs.
+    const stopping = spawn(binary, ["dev", "--project", this.root, "--stop", "--json"], {
+      cwd: workspaceRoot,
+      env: process.env,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let stdout = "";
+    let stderr = "";
+    stopping.stdout.setEncoding("utf8");
+    stopping.stderr.setEncoding("utf8");
+    stopping.stdout.on("data", (chunk) => { stdout += chunk; });
+    stopping.stderr.on("data", (chunk) => { stderr += chunk; });
+    const status = await new Promise<number | null>((resolveExit, reject) => {
+      stopping.once("error", reject);
+      stopping.once("exit", resolveExit);
+    });
+    assert.equal(status, 0, `snapback2 dev --stop failed\n${stdout}\n${stderr}`);
     await exited(child);
     this.child = undefined;
   }
