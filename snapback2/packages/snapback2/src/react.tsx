@@ -10,6 +10,7 @@ import React, {
   type ReactNode,
 } from "react";
 import { createClient, isSnapbackRefusal, type SnapbackRefusal } from "./client.js";
+export { indexedDbRangeStore } from "./store/indexeddb.js";
 import { referenceName, type Channel as ChannelRef, type Op } from "./api.js";
 import {
   initialQueryState,
@@ -45,15 +46,15 @@ export type SnapbackProviderProps = CreateClientOptions & {
 };
 
 // @ref LLP 1002#9-the-client-snapback2client-snapback2react-snapback2test — React web is the first arm over the shared headless client.
-export function SnapbackProvider({ url, as, token, tokenStore, fetch, children }: SnapbackProviderProps): React.ReactElement {
+export function SnapbackProvider({ url, as, token, tokenStore, fetch, offline, children }: SnapbackProviderProps): React.ReactElement {
   if (as !== undefined && (token !== undefined || tokenStore !== undefined)) {
     throw new TypeError("SnapbackProvider cannot combine dev persona `as` with bearer token custody");
   }
   const client = useMemo(
     () => createClient(as !== undefined
-      ? { url, as, fetch }
-      : { url, token, tokenStore, fetch }),
-    [url, as, token, tokenStore, fetch],
+      ? { url, as, fetch, offline }
+      : { url, token, tokenStore, fetch, offline }),
+    [url, as, token, tokenStore, fetch, offline],
   );
   const [snapshot, setSnapshot] = useState<ClientSnapshot>(client.snapshot);
 
@@ -87,16 +88,17 @@ export function useConnection(): ConnectionState {
 export function useQuery<Args, Result>(
   ref: Op<Args, Result>,
   args: NoInfer<Args>,
-  options: { live?: false } = {},
+  options: { live?: false; drain?: boolean } = {},
 ): QueryHookResult<Result> {
   const { client, snapshot } = provider();
   const argsKey = stableSerialize(args);
   const stableArgs = useMemo(() => args, [argsKey]);
   const live = options.live !== false;
+  if (!live && options.drain) throw new TypeError("useQuery drain requires a live subscription");
   const operation = referenceName(ref);
   const identity = useMemo(
-    () => ({ client, key: `${snapshot.authGeneration}:${operation}:${argsKey}:${live}` }),
-    [client, snapshot.authGeneration, operation, argsKey, live],
+    () => ({ client, key: `${snapshot.authGeneration}:${operation}:${argsKey}:${live}:${options.drain === true}` }),
+    [client, snapshot.authGeneration, operation, argsKey, live, options.drain],
   );
   const [machine, dispatch] = useReducer(
     (
@@ -118,7 +120,7 @@ export function useQuery<Args, Result>(
     if (live) {
       const subscription = client.subscribe(ref, stableArgs, (delivery) => {
         if (active) dispatch({ identity, event: delivery });
-      });
+      }, { drain: options.drain });
       return () => {
         active = false;
         subscription.close();

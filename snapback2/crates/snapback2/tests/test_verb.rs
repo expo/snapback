@@ -280,7 +280,7 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
             .iter()
             .filter(|check| check["kind"] == "journey")
             .count(),
-        7
+        8
     );
     for name in [
         "alice sends bob a message",
@@ -290,6 +290,7 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
         "group creation bootstraps one creator admin atomically",
         "conversation metadata stays inside membership",
         "scoped roles reject non-admin and stale membership authority",
+        "offline held thread survives a cold restart",
     ] {
         let journey = check(&receipt, name);
         assert_eq!(journey["kind"], "journey", "{name}: {journey}");

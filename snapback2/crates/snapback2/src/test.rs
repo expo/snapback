@@ -816,7 +816,14 @@ fn journey_command(runner: &Path, owner: &OwnerInfo) -> Command {
         .arg("--url")
         .arg(&owner.url)
         .arg("--secret")
-        .arg(&owner.secret);
+        .arg(&owner.secret)
+        .arg("--store-root")
+        .arg(
+            owner
+                .project
+                .join(".snapback")
+                .join(format!("test-{}", owner.started_at)),
+        );
     command
 }
 

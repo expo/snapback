@@ -290,3 +290,28 @@ journey("scoped roles reject non-admin and stale membership authority", async ({
     charlie.close();
   }
 });
+
+journey("offline held thread survives a cold restart", async ({ as }) => {
+  const alice = as("alice", { store: "file" });
+  const drain = alice.subscribe(
+    api.messages.thread,
+    { conversationId: "conversation-1", c: null },
+    () => undefined,
+    { drain: true },
+  );
+  await drain.until((value) =>
+    (value.state === "complete" || value.state === "capped") && value.caughtUp === true);
+  drain.close();
+  await alice.offline();
+  const cold = await alice.restart();
+  const held = await cold.query(api.messages.thread, { conversationId: "conversation-1", c: null });
+  if ((held.state !== "complete" && held.state !== "capped")
+    || !("connection" in held) || held.connection !== "offline" || !Array.isArray(held.data)) {
+    throw new Error("cold offline thread did not render its held answer");
+  }
+  await cold.online();
+  const resumed = await cold.query(api.messages.thread, { conversationId: "conversation-1", c: null });
+  if (resumed.state !== "complete" && resumed.state !== "capped") {
+    throw new Error(`online resume returned ${resumed.state}`);
+  }
+});

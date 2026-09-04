@@ -366,6 +366,18 @@
     "right": "pass the previous page's next token back as the cursor argument"
   },
   {
+    "family": "offline",
+    "code": "E_OFFLINE_CARRIER",
+    "wrong": "createClient({ offline: { store: unavailableCarrier } })",
+    "right": "configure the IndexedDB web carrier or Node file test carrier"
+  },
+  {
+    "family": "offline",
+    "code": "E_OFFLINE_LOCK",
+    "wrong": "open the same account in two writing browser tabs",
+    "right": "close the other tab before opening this account"
+  },
+  {
     "family": "args",
     "code": "E_ARGS_ID_SCALAR",
     "wrong": "db.insert(todos, { id: \"\", title })",
