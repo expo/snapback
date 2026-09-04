@@ -4,7 +4,10 @@
 // `--cold` also measures a cold build (cargo clean first) — slow, opt-in.
 import { strict as assert } from "node:assert";
 import { spawnSync } from "node:child_process";
-import { appendFileSync, cpSync, mkdtempSync, readFileSync, rmSync, statSync, utimesSync } from "node:fs";
+import {
+  appendFileSync, cpSync, existsSync, linkSync, mkdtempSync, readFileSync,
+  renameSync, rmSync, statSync, utimesSync, writeFileSync,
+} from "node:fs";
 import { resolve, dirname } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
@@ -131,6 +134,40 @@ function coreTests(runStep = run) {
   };
 }
 
+function preserveUnchangedExecutable(executable, operation, platform = process.platform) {
+  if (platform !== "darwin" || !existsSync(executable)) return operation();
+  const suffix = `.measure-${process.pid}-${Date.now()}`;
+  const preserved = `${executable}${suffix}-preserved`;
+  const replacement = `${executable}${suffix}-replacement`;
+  try {
+    linkSync(executable, preserved);
+  } catch {
+    return operation();
+  }
+  let result;
+  try {
+    result = operation();
+    if (result.status !== 0 || !existsSync(executable)
+      || !readFileSync(executable).equals(readFileSync(preserved))) {
+      return result;
+    }
+    // A no-op Cargo build replaces this path with byte-identical output on
+    // macOS. Keep the prior inode so first-exec policy work is not charged to
+    // doctor. Changed output keeps Cargo's new inode and its real launch cost.
+    renameSync(executable, replacement);
+    renameSync(preserved, executable);
+    rmSync(replacement, { force: true });
+    return result;
+  } finally {
+    rmSync(preserved, { force: true });
+    if (!existsSync(executable) && existsSync(replacement)) {
+      renameSync(replacement, executable);
+    } else {
+      rmSync(replacement, { force: true });
+    }
+  }
+}
+
 function main() {
   const failedSteps = new Set();
   const record = {
@@ -140,6 +177,7 @@ function main() {
   };
   // The chat template's image columns require the sibling media helper at boot.
   const buildArgs = ["build", "-q", "--release", "-p", "snapback2", "-p", "snapback2-media"];
+  const bin = resolve(root, "target/release/snapback2");
 
   if (args.has("--cold")) {
     recordStep(record, failedSteps, "cold_build_s", () => {
@@ -149,10 +187,10 @@ function main() {
     }, 2, (result) => `cold clean/build failed\n${result.stderr ?? ""}`);
   }
   // Warm, then a one-line-edit proxy: bump the mtime of a core source file and rebuild.
-  recordStep(record, failedSteps, "warm_build_s", () => run("cargo", buildArgs), 2,
+  recordStep(record, failedSteps, "warm_build_s",
+    () => preserveUnchangedExecutable(bin, () => run("cargo", buildArgs)), 2,
     (result) => `warm build failed\n${result.stderr ?? ""}`);
 
-  const bin = resolve(root, "target/release/snapback2");
   const compiler = resolve(root, "packages/snapback2/dist/compiler.mjs");
   recordStep(record, failedSteps, "package_build_s",
     () => run("node", ["build.mjs"], { cwd: resolve(root, "packages/snapback2") }), 3,
@@ -324,6 +362,21 @@ function main() {
 }
 
 function selfTest() {
+  const artifactRoot = mkdtempSync(resolve(tmpdir(), "snapback2-measure-artifact-"));
+  const artifact = resolve(artifactRoot, "snapback2");
+  writeFileSync(artifact, "same bytes");
+  const stableInode = statSync(artifact).ino;
+  const replaceArtifact = (contents) => {
+    rmSync(artifact);
+    writeFileSync(artifact, contents);
+    return { status: 0, stdout: "", stderr: "" };
+  };
+  preserveUnchangedExecutable(artifact, () => replaceArtifact("same bytes"), "darwin");
+  assert.equal(statSync(artifact).ino, stableInode, "byte-identical build keeps its inode");
+  preserveUnchangedExecutable(artifact, () => replaceArtifact("changed bytes"), "darwin");
+  assert.notEqual(statSync(artifact).ino, stableInode, "changed build keeps its new inode");
+  rmSync(artifactRoot, { recursive: true, force: true });
+
   const coreCommands = [];
   const core = coreTests((command, argv) => {
     coreCommands.push([command, argv]);
