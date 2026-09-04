@@ -4,6 +4,7 @@
 use super::offline_resume::{append_source, boot, generation_pair, resume_body, thread_args};
 use super::*;
 use crate::owner_wire::Response;
+use snapback2_core::{Value as CoreValue, rule_inputs_digest};
 
 const GRANT_COUNT: u64 = 8_192;
 const THIRTY_DAYS_MS: i64 = 30 * 24 * 60 * 60 * 1_000;
@@ -153,6 +154,12 @@ fn replay_trace_from(trace: &Value) -> Value {
 }
 
 fn why_trace(port: u16, secret: &str, op: &str, args: Value, as_persona: &str) -> Value {
+    why_trace_in_state(port, secret, op, args, as_persona, "committed")
+}
+
+/// The owner's authoritative trace of one run of `op` as `as_persona`, which
+/// must settle in `state` (`committed` for a mutation, `complete` for a query).
+fn why_trace_in_state(port: u16, secret: &str, op: &str, args: Value, as_persona: &str, state: &str) -> Value {
     let why = request(
         port,
         "POST",
@@ -161,7 +168,7 @@ fn why_trace(port: u16, secret: &str, op: &str, args: Value, as_persona: &str) -
         json!({ "op": op, "args": args, "as": as_persona }),
     );
     assert_eq!(why.status, 200, "{}", why.body);
-    assert_eq!(why.body["result"]["state"], "committed", "{}", why.body);
+    assert_eq!(why.body["result"]["state"], state, "{}", why.body);
     why.body["trace"].clone()
 }
 
@@ -659,5 +666,341 @@ mutation unguarded(messageId: messages, other: messages, body: text <=4000, expe
         assert_eq!(stale.body["code"], "STALE", "{op}: {}", stale.body);
     }
     stop_owner(port, &secret, &mut owner, "offline conflict precedence complete");
+    fs::remove_dir_all(root).unwrap();
+}
+
+/// Fix round 2, item 1: an unreached verdict is re-derived only through a
+/// rule check on a row this principal may see, never from raw existence, and
+/// the rule inputs a hidden candidate minted never reach the compare. So a
+/// trace whose verdict names a hidden row's key settles exactly as one
+/// naming an absent key — on the rejected path and on the committed path —
+/// and the ledger stores the same terminal for both; a verdict the twin
+/// legitimately holds still validates.
+#[test]
+fn offline_replay_unreached_verdicts_never_disclose_hidden_rows() {
+    let (root, mut owner, port, secret) = boot(|root| {
+        append_source(
+            root,
+            "snapback/messages.q",
+            r#"
+mutation peek(messageId: messages, other: messages, expected: text <=4000):
+  msg = messages[messageId] ! else NOT_FOUND
+  require msg.body = expected else STALE
+  peer = messages[other]
+  if peer != null:
+    return { seen: true }
+  return { seen: false }
+"#,
+        );
+    });
+    // bob is a member of conversation-1 only: message-2 (conversation-2) is a
+    // row that exists and is hidden from him; message-nope is absent.
+    let bob = persona("bob");
+    let grant = resume_grant(port, &bob);
+    let welcome = pool_digest(port, &bob, "messages", "message-1");
+    let peek_args = |other: &str, expected: &str| {
+        json!({ "messageId": "message-1", "other": other, "expected": expected })
+    };
+    // Everything a probing client needs is public: the read rule's hash is on
+    // every trace the rule ever minted for it, and the inputs digest formula
+    // is a wire fact it can compute for any key.
+    let why = why_trace(port, &secret, "messages.peek", peek_args("message-1", "Welcome"), "bob");
+    let own_membership = why["rule_inputs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|input| input["table"] == "memberships")
+        .unwrap_or_else(|| panic!("{why}"))
+        .clone();
+    let read_rule = own_membership["rule_hash"].as_str().unwrap().to_owned();
+    let membership_digest = |conversation: &str| {
+        rule_inputs_digest(
+            "memberships",
+            "byConversationPrincipal",
+            &[CoreValue::Id(conversation.to_owned()), CoreValue::Id("dev:bob".to_owned())],
+        )
+    };
+    assert_eq!(
+        own_membership["pinned_inputs_digest"],
+        membership_digest("conversation-1"),
+        "the formula the client computes is the digest the rule minted"
+    );
+    let own_key_digest = |id: &str| rule_inputs_digest("messages", "byId", &[CoreValue::Id(id.to_owned())]);
+    let verdict = |digest: String, result: bool| {
+        json!([{ "ruleHash": read_rule, "inputsDigest": digest, "result": result }])
+    };
+    let trace = |other: &str, verdicts: Value| {
+        json!({
+            "points": [
+                { "table": "messages", "index": "byId", "key": ["message-1"], "digest": welcome },
+                { "table": "messages", "index": "byId", "key": [other], "digest": null },
+            ],
+            "verdicts": verdicts,
+        })
+    };
+    // Settle one intent twice and return its terminal without the intent
+    // name, so two intents can be compared field for field.
+    let settle = |offset: u64, other: &str, expected: &str, verdicts: Value| {
+        let replay = envelope(&grant, offset, 8, trace(other, verdicts));
+        let first = mutation(port, &bob, "messages.peek", peek_args(other, expected), replay.clone());
+        assert_eq!(first.status, 200, "{}", first.body);
+        let again = mutation(port, &bob, "messages.peek", peek_args(other, expected), replay);
+        assert_eq!(again.body_bytes, first.body_bytes, "the ledger holds one terminal per intent");
+        let mut body = first.body;
+        body.as_object_mut().unwrap().remove("intent");
+        body
+    };
+    let seq = status(port, &secret)["seq"].as_u64().unwrap();
+
+    // Rejected path, a verdict over the row's own key: re-deriving it from
+    // raw existence would flip the hidden row alone to a conflict.
+    let hidden = settle(0, "message-2", "not the body", verdict(own_key_digest("message-2"), false));
+    let absent = settle(8, "message-nope", "not the body", verdict(own_key_digest("message-nope"), false));
+    assert_eq!(hidden["state"], "rejected", "{hidden}");
+    assert_eq!(hidden["code"], "STALE", "an unverifiable verdict leaves the program's own code: {hidden}");
+    assert_eq!(hidden, absent, "own-key verdict: a hidden row and an absent one settle identically");
+
+    // Rejected path, a verdict over the membership the read rule probes:
+    // the probe of a hidden hit does derive that input, and it must not count.
+    let hidden = settle(16, "message-2", "not the body", verdict(membership_digest("conversation-2"), true));
+    let absent = settle(24, "message-nope", "not the body", verdict(membership_digest("conversation-2"), true));
+    assert_eq!(hidden["code"], "STALE", "{hidden}");
+    assert_eq!(hidden, absent, "membership verdict: a hidden row and an absent one settle identically");
+    assert_eq!(status(port, &secret)["seq"], seq, "nothing committed");
+
+    // Committed path: the program reads `other` (null either way) and would
+    // commit; the strict compare must not let a hidden hit's rule inputs
+    // vouch for the verdict, or only the hidden row would commit.
+    let hidden = settle(32, "message-2", "Welcome", verdict(membership_digest("conversation-2"), false));
+    let absent = settle(40, "message-nope", "Welcome", verdict(membership_digest("conversation-2"), false));
+    assert_eq!(hidden["state"], "rejected", "{hidden}");
+    assert_eq!(hidden["reason"], "conflict", "{hidden}");
+    assert_eq!(hidden["site"], format!("rule:{read_rule}"), "{hidden}");
+    assert_eq!(hidden, absent, "committed path: a hidden row and an absent one settle identically");
+    assert_eq!(status(port, &secret)["seq"], seq, "nothing committed");
+
+    // Control: the verdict bob legitimately holds — his own membership, derived
+    // by the visible read of message-1 — still validates and commits.
+    let held = settle(48, "message-nope", "Welcome", verdict(membership_digest("conversation-1"), true));
+    assert_eq!(held["state"], "committed", "{held}");
+    assert_eq!(held["data"]["seen"], false, "{held}");
+
+    stop_owner(port, &secret, &mut owner, "offline hidden-row verdicts complete");
+    fs::remove_dir_all(root).unwrap();
+}
+
+/// Fix round 2, item 2: the verdict leg of conflict precedence is whole. A
+/// traced verdict that flipped is a conflict whether the program's `require`
+/// fails before or after the read whose rule derives it — the rejected path
+/// probes the unread point through its rule — while the same verdict, still
+/// holding, leaves the program's own code on either shape.
+#[test]
+fn offline_replay_verdict_conflict_precedence_is_independent_of_require_order() {
+    let (root, mut owner, port, secret) = boot(|root| {
+        // A read rule with a redundant term: removing bob's membership flips
+        // the membership verdict without hiding his own note, so the verdict
+        // is the only thing that moves.
+        append_source(
+            root,
+            "snapback/schema.q",
+            r#"
+
+table notes:
+  conversationId: conversations
+  authorId: principal
+  body: text <=4000
+  read <- (exists memberships[.conversationId, viewer] or .authorId = viewer)
+  insert <- .authorId = viewer
+  update <- .authorId = viewer
+  delete <- deny
+"#,
+        );
+        append_source(
+            root,
+            "snapback/notes.q",
+            r#"
+mutation create(conversationId: conversations, body: text <=4000):
+  row = insert notes { conversationId, authorId: viewer, body }
+  return { id: row.id }
+
+query view(noteId: notes):
+  return notes[noteId]
+
+mutation guarded(profileId: profiles, noteId: notes, expected: text <=20, body: text <=4000):
+  author = profiles[profileId] ! else NOT_FOUND
+  require author.handle = expected else STALE
+  note = notes[noteId] ! else NOT_FOUND
+  update notes[note] { body }
+  return null
+
+mutation unguarded(profileId: profiles, noteId: notes, expected: text <=20, body: text <=4000):
+  author = profiles[profileId] ! else NOT_FOUND
+  note = notes[noteId] ! else NOT_FOUND
+  require author.handle = expected else STALE
+  update notes[note] { body }
+  return null
+"#,
+        );
+    });
+    let alice = persona("alice");
+    let bob = persona("bob");
+    let grant = resume_grant(port, &bob);
+    let created = mutation(
+        port,
+        &bob,
+        "notes.create",
+        json!({ "conversationId": "conversation-1", "body": "mine" }),
+        Value::Null,
+    );
+    assert_eq!(created.body["state"], "committed", "{}", created.body);
+    let note = created.body["data"]["id"].as_str().unwrap().to_owned();
+    // The owner's trace of reading the note: its point, the membership
+    // verdict its read rule derived, and the transitive visibility probe of
+    // the membership row that rule found (same inputs, the memberships read
+    // rule's hash) — a twin holds only the first, since visibility probes
+    // never become receipt verdicts.
+    let view_args = json!({ "noteId": note });
+    let full = replay_trace_from(&why_trace_in_state(port, &secret, "notes.view", view_args.clone(), "bob", "complete"));
+    assert_eq!(full["points"].as_array().unwrap().len(), 1, "{full}");
+    assert_eq!(full["verdicts"].as_array().unwrap().len(), 2, "{full}");
+    assert!(full["verdicts"].as_array().unwrap().iter().all(|verdict| verdict["result"] == true), "{full}");
+    let args = json!({ "profileId": "profile-bob", "noteId": note, "expected": "not the handle", "body": "changed" });
+    let body_of = || {
+        let view = request(
+            port,
+            "POST",
+            "/api/query",
+            &bob,
+            json!({ "op": "notes.view", "args": { "noteId": note } }),
+        );
+        assert_eq!(view.status, 200, "{}", view.body);
+        view.body["data"]["body"].as_str().unwrap().to_owned()
+    };
+
+    // While the verdicts hold, the program's own rejection stands on either shape.
+    for (op, offset) in [("notes.guarded", 0), ("notes.unguarded", 8)] {
+        let stale = mutation(port, &bob, op, args.clone(), envelope(&grant, offset, 8, full.clone()));
+        assert_eq!(stale.body["state"], "rejected", "{op}: {}", stale.body);
+        assert_eq!(stale.body["code"], "STALE", "{op}: {}", stale.body);
+    }
+
+    // alice removes bob: the verdict flips while the note stays visible to
+    // its author with the same digest.
+    let removed = mutation(
+        port,
+        &alice,
+        "groups.memberRemove",
+        json!({ "conversationId": "conversation-1", "membershipId": "membership-2" }),
+        Value::Null,
+    );
+    assert_eq!(removed.body["state"], "committed", "{}", removed.body);
+    assert_eq!(body_of(), "mine", "the note is still bob's to read");
+    // With the membership gone only the read rule's own probe is derived
+    // (nothing was found to derive visibility for), which names that rule.
+    let flipped = why_trace_in_state(port, &secret, "notes.view", view_args, "bob", "complete");
+    let flipped = flipped["rule_inputs"].as_array().unwrap();
+    assert_eq!(flipped.len(), 1, "{flipped:?}");
+    assert_eq!(flipped[0]["result"], false, "{flipped:?}");
+    let rule = flipped[0]["rule_hash"].as_str().unwrap().to_owned();
+    let held = json!({
+        "points": full["points"],
+        "verdicts": full["verdicts"].as_array().unwrap().iter().filter(|verdict| verdict["ruleHash"] == rule).collect::<Vec<_>>(),
+    });
+    assert_eq!(held["verdicts"].as_array().unwrap().len(), 1, "{full}");
+    let seq = status(port, &secret)["seq"].as_u64().unwrap();
+    for (label, op, offset) in [
+        ("require before the read whose rule derives it", "notes.guarded", 16),
+        ("require after it", "notes.unguarded", 24),
+    ] {
+        let settled = mutation(port, &bob, op, args.clone(), envelope(&grant, offset, 8, held.clone()));
+        assert_eq!(settled.status, 200, "{label}: {}", settled.body);
+        assert_eq!(settled.body["state"], "rejected", "{label}: {}", settled.body);
+        assert_eq!(settled.body["reason"], "conflict", "{label}: {}", settled.body);
+        assert_eq!(settled.body["site"], format!("rule:{rule}"), "{label}: {}", settled.body);
+        assert!(settled.body.get("code").is_none(), "{label}: a conflict is a state, not a code");
+    }
+    assert_eq!(body_of(), "mine", "a conflicting program writes nothing");
+    assert_eq!(status(port, &secret)["seq"], seq);
+
+    stop_owner(port, &secret, &mut owner, "offline verdict precedence complete");
+    fs::remove_dir_all(root).unwrap();
+}
+
+/// Fix round 2, item 3: a bearer whose session was logged out cannot replay
+/// at all — the mutation route refuses it before the ledger, the grant, or
+/// the slice is consulted — while the grant, bound to the principal, outlives
+/// that session, so a fresh login of the same principal finishes the outbox
+/// it queued and reads the terminals it stored.
+#[test]
+fn offline_replay_needs_a_live_session_and_the_grant_outlives_it() {
+    let (root, mut owner, port, secret) = boot(|_| {});
+    let credentials = json!({ "email": "outbox@example.com", "password": "correct horse" });
+    let signup = request(port, "POST", "/api/auth/signup", &[], credentials.clone());
+    assert_eq!(signup.status, 200, "{}", signup.body);
+    let login = |remaining: Value| {
+        let mut body = credentials.clone();
+        if !remaining.is_null() {
+            body["remaining"] = remaining;
+        }
+        let response = request(port, "POST", "/api/auth/login", &[], body);
+        assert_eq!(response.status, 200, "{}", response.body);
+        response.body
+    };
+    let first = login(Value::Null);
+    let grant = first["grant"].clone();
+    assert_grant_shape(&grant);
+    let grant_id = grant["id"].as_str().unwrap().to_owned();
+    let first_authorization = format!("Bearer {}", first["token"].as_str().unwrap());
+    let first_session = [("Authorization", first_authorization.as_str())];
+    let profile_args = json!({ "displayName": "Outbox Owner", "handle": "outbox_owner", "bio": "", "location": "" });
+    let post_args = json!({ "body": "queued before logout" });
+    let created = mutation(
+        port,
+        &first_session,
+        "profiles.createMyProfile",
+        profile_args.clone(),
+        envelope(&grant, 0, 4, empty_trace()),
+    );
+    assert_eq!(created.body["state"], "committed", "{}", created.body);
+
+    let logout = request(port, "POST", "/api/auth/logout", &first_session, json!({}));
+    assert_eq!(logout.status, 200, "{}", logout.body);
+    let before = status(port, &secret);
+    // A new intent and a retry of the committed one both die at the session
+    // check: no terminal, stored or fresh, reaches a dead session.
+    for (label, op, args, offset) in [
+        ("a new intent", "posts.createPost", post_args.clone(), 8),
+        ("a retry of the committed intent", "profiles.createMyProfile", profile_args.clone(), 0),
+    ] {
+        let refused = mutation(port, &first_session, op, args, envelope(&grant, offset, 4, empty_trace()));
+        assert_eq!(refused.status, 401, "{label}: {}", refused.body);
+        assert_eq!(refused.body["code"], "E_AUTH_SESSION", "{label}: {}", refused.body);
+        assert_eq!(refused.body["family"], "auth", "{label}: {}", refused.body);
+        assert!(
+            refused.body.get("state").is_none() && refused.body.get("intent").is_none(),
+            "{label}: {}",
+            refused.body
+        );
+    }
+    let after = status(port, &secret);
+    assert_eq!(after["seq"], before["seq"], "nothing executed");
+    assert_eq!(after["executions"], before["executions"]);
+
+    // A fresh session of the same principal, holding enough ids to be minted
+    // nothing, finishes the outbox on the old grant: the refused attempt
+    // stored nothing, and the first session's terminal is the principal's.
+    let second = login(json!(8_000));
+    assert!(second.get("grant").is_none(), "{second}");
+    let second_authorization = format!("Bearer {}", second["token"].as_str().unwrap());
+    let second_session = [("Authorization", second_authorization.as_str())];
+    let executions = status(port, &secret)["executions"].as_u64().unwrap();
+    let finished = mutation(port, &second_session, "posts.createPost", post_args, envelope(&grant, 8, 4, empty_trace()));
+    assert_eq!(finished.body["state"], "committed", "{}", finished.body);
+    assert_eq!(finished.body["intent"], format!("{grant_id}:8"));
+    assert_eq!(status(port, &secret)["executions"], executions + 1, "the dead session's attempt left no terminal");
+    let stored = mutation(port, &second_session, "profiles.createMyProfile", profile_args, envelope(&grant, 0, 4, empty_trace()));
+    assert_eq!(stored.body_bytes, created.body_bytes, "the stored terminal, byte for byte");
+
+    stop_owner(port, &secret, &mut owner, "offline replay session complete");
     fs::remove_dir_all(root).unwrap();
 }

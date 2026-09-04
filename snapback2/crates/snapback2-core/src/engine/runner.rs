@@ -32,6 +32,7 @@ pub(super) struct CandidateCheckpoint {
     verdicts: usize,
     rule_memos: usize,
     visibility_memos: usize,
+    rule_inputs: usize,
 }
 
 impl TrackedValue {
@@ -74,6 +75,10 @@ pub(super) struct Runner<'a> {
     pub(super) missing_authority: bool,
     pub(super) authority_miss_serial: u64,
     pub(super) seq: u64,
+    /// Index ranges of `trace.rule_inputs` minted while a rule check ran on a
+    /// candidate row that turned out hidden. They stay in the authoritative
+    /// trace (metering, invalidation) but never reach a client-facing compare.
+    pub(super) discarded_rule_inputs: Vec<std::ops::Range<usize>>,
 }
 
 impl<'a> Runner<'a> {
@@ -115,6 +120,7 @@ impl<'a> Runner<'a> {
             missing_authority: false,
             authority_miss_serial: 0,
             seq,
+            discarded_rule_inputs: Vec::new(),
         }
     }
 
@@ -156,6 +162,7 @@ impl<'a> Runner<'a> {
             missing_authority: false,
             authority_miss_serial: 0,
             seq,
+            discarded_rule_inputs: Vec::new(),
         }
     }
 
@@ -1301,10 +1308,18 @@ impl<'a> Runner<'a> {
             verdicts: self.receipt.verdicts.len(),
             rule_memos: self.rule_memo_entries.len(),
             visibility_memos: self.visibility_memo_entries.len(),
+            rule_inputs: self.trace.rule_inputs.len(),
         }
     }
 
     pub(super) fn rollback_candidate(&mut self, checkpoint: CandidateCheckpoint) {
+        // @ref LLP 1012#7-writes-offline — a hidden candidate's rule inputs
+        // are authoritative trace only; the replay compare must not see them,
+        // or a planted verdict would tell a hidden row from an absent one.
+        if self.trace.rule_inputs.len() > checkpoint.rule_inputs {
+            self.discarded_rule_inputs
+                .push(checkpoint.rule_inputs..self.trace.rule_inputs.len());
+        }
         self.receipt.rows.truncate(checkpoint.rows);
         self.receipt.ranges.truncate(checkpoint.ranges);
         self.receipt.absences.truncate(checkpoint.absences);

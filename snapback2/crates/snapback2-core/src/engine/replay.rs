@@ -3,9 +3,7 @@
 // application commit, id-slice claim, and intent response share one transaction.
 
 use super::*;
-use crate::offline::{
-    ReplayCommit, ReplayTrace, replay_mutation_response, row_digest, rule_inputs_digest,
-};
+use crate::offline::{ReplayCommit, ReplayTrace, replay_mutation_response, row_digest};
 
 /// The mutation state a moved trace settles as: a state, not a refusal code.
 pub const CONFLICT_CODE: &str = "conflict";
@@ -52,14 +50,18 @@ pub(super) struct ReplayRun {
     missing_authority: bool,
     trace: AuthoritativeTrace,
     receipt: ClosureReceipt,
+    /// The rule inputs the trace compare may see: every verdict a rule check
+    /// derived on a row this run disclosed (read, probed, or written), with
+    /// those minted while a candidate turned out hidden left out.
+    rule_inputs: Vec<RuleInputTrace>,
 }
 
 /// Take the run out of its runner. A program that stopped early — a rejection,
 /// or a read that needed authority this engine does not hold — has its writes
 /// rolled back to the replay savepoint here. On the rejected path every traced
-/// point and verdict the program did not reach is then read against the rows
-/// as they stand, so the conflict compare covers the whole trace whatever
-/// order the program's `require`s sit in.
+/// point the program did not reach is then read against the rows as they
+/// stand, through its read rule, so the conflict compare covers the whole
+/// trace whatever order the program's `require`s sit in.
 pub(super) fn finish_run(
     mut runner: Runner<'_>,
     attempted: Result<Flow, RuntimeError>,
@@ -75,12 +77,38 @@ pub(super) fn finish_run(
         rollback_savepoint(runner.tx)?;
         probe_unreached(&mut runner, &replay.trace)?;
     }
+    let rule_inputs = disclosed_rule_inputs(&runner);
     Ok(ReplayRun {
         attempted,
         missing_authority,
         trace: std::mem::take(&mut runner.trace),
         receipt: std::mem::take(&mut runner.receipt),
+        rule_inputs,
     })
+}
+
+/// The rule inputs a client-facing compare may see. A rule check on a
+/// candidate that turned out hidden leaves its inputs in the authoritative
+/// trace (`rollback_candidate` keeps them for metering and invalidation);
+/// here they are dropped, exactly as the receipt dropped its verdicts, so the
+/// compare knows only what a program read would have disclosed to this
+/// principal.
+// @ref LLP 1012#7-writes-offline — a verdict is re-derived through the rule
+// on a disclosed row or not at all; raw existence never reaches the compare.
+fn disclosed_rule_inputs(runner: &Runner<'_>) -> Vec<RuleInputTrace> {
+    runner
+        .trace
+        .rule_inputs
+        .iter()
+        .enumerate()
+        .filter(|(index, _)| {
+            !runner
+                .discarded_rule_inputs
+                .iter()
+                .any(|range| range.contains(index))
+        })
+        .map(|(_, input)| input.clone())
+        .collect()
 }
 
 /// Settle a replayed mutation: the Partial and rejected states are recorded as
@@ -104,6 +132,7 @@ pub(super) fn settle(
         missing_authority,
         trace,
         receipt,
+        rule_inputs,
     } = run;
     if missing_authority {
         // @ref LLP 1012#7-writes-offline — a rollback for missing authority
@@ -121,9 +150,10 @@ pub(super) fn settle(
             };
             // A rejection whose reads moved is the conflict the client should
             // see, because its twin passed the same program over the rows it
-            // held; the compare is complete because `finish_run` probed every
-            // traced point and every recoverable verdict the run did not reach.
-            let state = match conflict_site(&replay.trace, &trace, false) {
+            // held; the compare covers every traced point because `finish_run`
+            // probed the ones the run did not reach, and every verdict those
+            // reads and probes derived through a rule.
+            let state = match conflict_site(&replay.trace, &trace.points, &rule_inputs, false) {
                 Some(site) => ExecutionState::Rejected {
                     code: CONFLICT_CODE.to_owned(),
                     message: site,
@@ -149,19 +179,32 @@ pub(super) fn settle(
         seq,
         next: None,
     };
-    settle_after_run(transaction, principal, replay, execution, program, kind, commit_at, current_seq)
+    settle_after_run(
+        transaction,
+        principal,
+        replay,
+        execution,
+        &rule_inputs,
+        program,
+        kind,
+        commit_at,
+        current_seq,
+    )
 }
 
 fn same_point(actual: &PointTrace, table: &str, index: &str, key: &[Value]) -> bool {
     actual.table == table && actual.index == index && actual.key == key
 }
 
-/// Read every traced point and verdict this run did not reach, against the
-/// rows as they stand with the program's own writes rolled back. Points go
-/// through the table's read rule so a hidden hit validates as an absence
-/// exactly as a program read would; a verdict is re-derived only when its
-/// inputs can be recovered from a traced or read point, since the digest
-/// alone names no row.
+/// Read every traced point this run did not reach, against the rows as they
+/// stand with the program's own writes rolled back. Each goes through the
+/// table's read rule exactly as a program read would: a hidden hit validates
+/// as an absence, and the rule inputs that check derives are the only way an
+/// unreached verdict is re-derived — through the rule, as the replaying
+/// principal, with a hidden candidate's inputs discarded. A verdict no rule
+/// check of this run or of these probes derives is unverifiable: the digest
+/// alone names no row, and reading one raw would tell a hidden row from an
+/// absent one, so it is skipped rather than claimed a conflict.
 fn probe_unreached(runner: &mut Runner<'_>, expected: &ReplayTrace) -> Result<(), RuntimeError> {
     let unread = expected
         .points
@@ -198,44 +241,6 @@ fn probe_unreached(runner: &mut Runner<'_>, expected: &ReplayTrace) -> Result<()
             digest,
         });
     }
-    let inputs = expected
-        .points
-        .iter()
-        .map(|point| (point.table.clone(), point.index.clone(), point.key.clone()))
-        .chain(
-            runner
-                .trace
-                .points
-                .iter()
-                .map(|point| (point.table.clone(), point.index.clone(), point.key.clone())),
-        )
-        .collect::<Vec<_>>();
-    for verdict in &expected.verdicts {
-        let evaluated = runner.trace.rule_inputs.iter().any(|actual| {
-            actual.rule_hash == verdict.rule_hash
-                && actual.pinned_inputs_digest == verdict.inputs_digest
-        });
-        if evaluated {
-            continue;
-        }
-        let Some((table, index, key)) = inputs
-            .iter()
-            .find(|(table, index, key)| rule_inputs_digest(table, index, key) == verdict.inputs_digest)
-            .cloned()
-        else {
-            continue;
-        };
-        let result = runner.lookup_raw(&table, &index, &key)?.is_some();
-        runner.trace.rule_inputs.push(RuleInputTrace {
-            rule_hash: verdict.rule_hash.clone(),
-            table,
-            index,
-            key,
-            result,
-            hidden: true,
-            pinned_inputs_digest: verdict.inputs_digest.clone(),
-        });
-    }
     Ok(())
 }
 
@@ -253,18 +258,20 @@ fn observed_digest(point: &PointTrace) -> Option<&str> {
 /// The first traced point or verdict that no longer holds against what this
 /// execution read, as the site that moved. Ranges are never compared.
 ///
-/// `strict` is the committed path: a traced point or verdict this execution
-/// did not evaluate is itself a mismatch. The rejected path arrives with
-/// every traced point probed (`finish_run`), so only a verdict whose inputs
-/// could not be recovered is skipped there.
+/// A verdict is compared only against a rule input with the same rule hash
+/// and inputs digest — one a rule check derived on a disclosed row; `strict`
+/// is the committed path, where a traced point or verdict this execution did
+/// not derive is itself a mismatch. The rejected path arrives with every
+/// traced point probed (`finish_run`), so a point is always compared there,
+/// and only a verdict no rule check derived is skipped.
 pub(super) fn conflict_site(
     expected: &ReplayTrace,
-    authoritative: &AuthoritativeTrace,
+    points: &[PointTrace],
+    rule_inputs: &[RuleInputTrace],
     strict: bool,
 ) -> Option<String> {
     for point in &expected.points {
-        let current = authoritative
-            .points
+        let current = points
             .iter()
             .find(|actual| same_point(actual, &point.table, &point.index, &point.key));
         match current {
@@ -275,21 +282,20 @@ pub(super) fn conflict_site(
         }
     }
     for verdict in &expected.verdicts {
-        let mut evaluated = authoritative
-            .rule_inputs
+        let mut derived = rule_inputs
             .iter()
-            .filter(|actual| actual.rule_hash == verdict.rule_hash)
+            .filter(|actual| {
+                actual.rule_hash == verdict.rule_hash
+                    && actual.pinned_inputs_digest == verdict.inputs_digest
+            })
             .peekable();
-        if evaluated.peek().is_none() {
+        if derived.peek().is_none() {
             if strict {
                 return Some(format!("rule:{}", verdict.rule_hash));
             }
             continue;
         }
-        let holds = evaluated.any(|actual| {
-            actual.pinned_inputs_digest == verdict.inputs_digest && actual.result == verdict.result
-        });
-        if !holds {
+        if !derived.any(|actual| actual.result == verdict.result) {
             return Some(format!("rule:{}", verdict.rule_hash));
         }
     }
@@ -332,12 +338,13 @@ fn settle_after_run(
     principal: &str,
     replay: &ReplayCommit,
     mut execution: Execution,
+    rule_inputs: &[RuleInputTrace],
     program: &Program,
     kind: &str,
     commit_at: i64,
     current_seq: u64,
 ) -> Result<Execution, RuntimeError> {
-    if let Some(site) = conflict_site(&replay.trace, &execution.trace, true) {
+    if let Some(site) = conflict_site(&replay.trace, &execution.trace.points, rule_inputs, true) {
         rollback_savepoint(&transaction)?;
         execution.result = Value::Null;
         execution.result_provenance = ResultProvenance::None;
@@ -458,27 +465,27 @@ mod tests {
                 result: true,
             }],
         };
-        assert_eq!(conflict_site(&expected, &actual, true), None);
+        assert_eq!(conflict_site(&expected, &actual.points, &actual.rule_inputs, true), None);
         expected.points[0].digest = Some("d".repeat(64));
         assert_eq!(
-            conflict_site(&expected, &actual, true).as_deref(),
+            conflict_site(&expected, &actual.points, &actual.rule_inputs, true).as_deref(),
             Some("messages.edit:1")
         );
         expected.points[0].digest = None;
         assert_eq!(
-            conflict_site(&expected, &actual, false).as_deref(),
+            conflict_site(&expected, &actual.points, &actual.rule_inputs, false).as_deref(),
             Some("messages.edit:1"),
             "a traced absence that now hits is a conflict on either path"
         );
         expected.points[0].digest = Some("a".repeat(64));
         expected.verdicts[0].result = false;
         assert!(
-            conflict_site(&expected, &actual, true)
+            conflict_site(&expected, &actual.points, &actual.rule_inputs, true)
                 .unwrap()
                 .starts_with("rule:")
         );
         assert!(
-            conflict_site(&expected, &actual, false)
+            conflict_site(&expected, &actual.points, &actual.rule_inputs, false)
                 .unwrap()
                 .starts_with("rule:"),
             "an evaluated verdict that flipped conflicts even when the program was rejected"
@@ -493,15 +500,61 @@ mod tests {
             points: vec![expected_point(None)],
             verdicts: Vec::new(),
         };
-        assert_eq!(conflict_site(&expected, &actual, true), None);
+        assert_eq!(conflict_site(&expected, &actual.points, &actual.rule_inputs, true), None);
         let seen = ReplayTrace {
             points: vec![expected_point(Some("a".repeat(64)))],
             verdicts: Vec::new(),
         };
         assert_eq!(
-            conflict_site(&seen, &actual, true).as_deref(),
+            conflict_site(&seen, &actual.points, &actual.rule_inputs, true).as_deref(),
             Some("messages.edit:1"),
             "a row the client once read that is now hidden has moved"
+        );
+    }
+
+    /// A verdict is compared only against an input a rule check derived with
+    /// the same rule hash *and* inputs digest; the rule having run for other
+    /// inputs proves nothing about this one, and a discarded (hidden
+    /// candidate) input is simply not in the compare set.
+    #[test]
+    fn verdicts_compare_only_against_inputs_a_rule_check_derived() {
+        let actual = authoritative();
+        let other_inputs = ReplayTrace {
+            points: vec![expected_point(Some("a".repeat(64)))],
+            verdicts: vec![ReplayTraceVerdict {
+                rule_hash: "b".repeat(64),
+                inputs_digest: "e".repeat(64),
+                result: false,
+            }],
+        };
+        assert_eq!(
+            conflict_site(&other_inputs, &actual.points, &actual.rule_inputs, false),
+            None,
+            "the rule ran for other inputs only: unverifiable, not a conflict"
+        );
+        assert!(
+            conflict_site(&other_inputs, &actual.points, &actual.rule_inputs, true)
+                .unwrap()
+                .starts_with("rule:")
+        );
+        let held = ReplayTrace {
+            points: vec![expected_point(Some("a".repeat(64)))],
+            verdicts: vec![ReplayTraceVerdict {
+                rule_hash: "b".repeat(64),
+                inputs_digest: "c".repeat(64),
+                result: false,
+            }],
+        };
+        assert!(
+            conflict_site(&held, &actual.points, &actual.rule_inputs, false)
+                .unwrap()
+                .starts_with("rule:"),
+            "a derived input with the other result is a conflict on either path"
+        );
+        assert_eq!(
+            conflict_site(&held, &actual.points, &[], false),
+            None,
+            "an input a hidden candidate minted is not in the compare set"
         );
     }
 
@@ -517,10 +570,10 @@ mod tests {
             }],
         };
         assert_eq!(
-            conflict_site(&expected, &actual, true).as_deref(),
+            conflict_site(&expected, &actual.points, &actual.rule_inputs, true).as_deref(),
             Some("messages.byId")
         );
-        assert_eq!(conflict_site(&expected, &actual, false), None);
+        assert_eq!(conflict_site(&expected, &actual.points, &actual.rule_inputs, false), None);
     }
 
     /// A replayed insert whose rule needs a verdict this engine does not hold
