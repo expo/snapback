@@ -41,7 +41,7 @@ function json(value: unknown, status = 200): Response {
 function nativeManifest(max = 16) {
   return {
     generation: "native-v1",
-    ops: { "assets.send": { kind: "mutation", args: {
+    ops: { "assets.send": { kind: "mutation", planHash: "plan-test", args: {
       photo: { Image: { max } },
       clip: { Video: { max } },
     } } },

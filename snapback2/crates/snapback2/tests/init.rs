@@ -69,7 +69,7 @@ fn assert_rendering(template: &str, chat: bool) {
             .collect::<BTreeSet<_>>();
         assert_eq!(
             operations.len(),
-            22,
+            24,
             "unexpected chat operation set: {operations:?}"
         );
         for operation in [
