@@ -33,3 +33,90 @@ Everything else is green (warm build 15.6 s, incremental 1.57 s, check 0.52 s, i
 
 The measurement line for `ee82e5aae` is appended to `snapback2/metrics/loop.jsonl` in the
 same commit as this ticket.
+
+## Lane L implementation, 2026-09-04 — still open
+
+Worktree `snapback-s2-loop`, base `1d3f369ca`; uncommitted for the orchestrator.
+
+The largest core test was the pre-1012
+`spike::ten_thousand_messages_stay_below_certificate_and_membership_hoists`.
+Every seeded row deleted its old index entries by `(table_name, row_id)`, but the
+existing primary key was `(table_name, index_name, row_id)`. SQLite searched only
+`table_name`, repeatedly scanning the table's index entries. Added
+`index_entries_by_row(table_name, row_id)` for row replacement and deletion.
+`row_index_cleanup_seeks_the_row_on_new_and_reopened_stores` fails before the fix
+with `SEARCH index_entries USING INDEX sqlite_autoindex_index_entries_1 (table_name=?)`
+and passes after it, including an existing store without the new index. The
+10,000-message test's median fell from **16.724 s to 2.009 s** across three workspace
+profiles each. All assertions and all 10,000 rows remain. Existing stores build the
+additional index on their next open; the index also consumes additional disk space.
+
+`measure.mjs` now uses the gate's parallel nextest runner for every core executable
+test, followed by all core doctests even after a failure. Compilation remains inside
+the measured step. No tests moved or were deleted. The workspace gained one test
+(498 → 499). The measurement also builds `snapback2-media`: the previous main-binary-only
+build left fresh release trees unable to boot the chat template (`E_ASSET_NOT_READY`).
+
+The gate exposed an O4-web fixture race: its offline video test unmounted as soon as
+the request started, aborting prefetch before the bytes committed. It now awaits the
+two durable cache writes before unmounting, rather than polling after aborting the
+write. The offline rendering and no-network assertions remain intact.
+
+### Measurements — loaded, not quiet
+
+Quiet-machine qualification was unavailable. The host reports 18 available CPUs;
+observed one-minute load reached 87.68. Other processes were not stopped. These are
+diagnostic measurements, not a quiet-machine pass or evidence for a budget re-baseline.
+All nine records were appended by `node scripts/measure.mjs --check`, never hand-written.
+
+| Run | Initial 1-minute load | Core before | Doctor first before | Final initial load | Core final | Doctor first final | Check final | Chat test final |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 20.17 | 45.23 s | 0.651 s | 36.22 | 36.68 s | 1.496 s | 0.951 s | 26.292 s |
+| 2 | 21.50 | 33.04 s | 0.511 s | 34.67 | 30.15 s | 0.558 s | 0.917 s | 29.253 s |
+| 3 | 14.67 | 30.44 s | 0.370 s | 22.26 | 35.07 s | 1.202 s | 1.348 s | 30.393 s |
+
+The intermediate index-only/serial-runner core samples were 54.65 / 35.93 / 85.67 s
+(initial loads 15.61 / 18.96 / 82.18). Final nextest execution alone was
+10.387 / 8.784 / 12.778 s, with **226/226 core tests passing** each time; the balance
+of each measured core step includes compilation, discovery/launch, and doctests.
+
+The measured core step never included the owner or package suites. Before the fix,
+the slowest of the 20 core asset tests was 0.093 s median (LLP 1006 A); the slowest
+of 15 offline owner tests was 2.555 s (LLP 1012 O1b), and the slowest asset HTTP test
+was 4.036 s (LLP 1006 B). The older chat-template runners now include O2b/O2c journeys.
+
+Doctor's final second samples were 0.077 / 0.056 / 0.052 s, and the maximum reported
+in-process work per pair was 69.84 / 50.72 / 52.89 ms. The dominant first-sample delay
+is outside that reported work; process launch/loading is a suspect, not a proven
+dyld diagnosis. This invocation has no project store to open. Between `9c9bf7cb1`
+and `ee82e5aae`, doctor added the cached-project media probe, which is skipped here;
+release binary size grew from 9,129,632 to 10,539,616 bytes (historical measurement
+records). No doctor work was deferred without evidence that it causes the delay.
+
+### Remaining to close
+
+- Three genuinely quiet measurements. All final core and first-doctor samples remain
+  over their budgets; the third also exceeds `check` (1 s) and chat-template test
+  (30 s). No budget was changed and no re-baseline is proposed from loaded samples.
+- Quiet first-doctor reproduction/investigation; the 0.370 s baseline sample shows
+  this is intermittent in the current environment, not a demonstrated fixed boot cost.
+- Run `cargo build && scripts/test.sh` outside the sandbox with the real Node 24.18.0
+  on PATH. The two `E_OWNER_STOP_TIMEOUT` tests fail before and after the change in
+  this sandbox. Full verification details and the before/after slowest-test tables
+  are in the lane report; raw logs/JUnit are in `snapback2/target/loop-budget/`.
+- Root caps is also inherited red: it counts
+  `crates/snapback-tools/src/bin/snapback-agent-safe-paired.rs` at 1,504 lines and
+  205 oversize files against the 204 baseline. That file is byte-identical to HEAD
+  and outside this lane's authorized `snapback2/` scope.
+- An unrelated chat-screen test reported `E_OFFLINE_CARRIER: Node file range store
+  is not open` once during the loaded package rerun. Its isolated rerun passed,
+  as did the final complete 95-test package step; the intermittent failure's cause
+  remains unproven and is not classified as a sandbox artifact.
+
+Final affected verification: package 95/95; evaluator 160/160; compiler typecheck
+and 304/304 checks; workspace Rust 497/499 with only the two named sandbox-suspect
+owner-stop failures; all workspace doctests pass. The full command before the
+asset-fixture correction exited 1 (283.58 s under load); its entire affected
+package step was rerun after the correction. `bun src/test.ts` in the touched
+package exits 0. `./ref-check --verbose` is clean: 405 LLP docs, 7,497 refs,
+15,442 files, 0 errors, 0 unchecked. The compiler F9 check passed here.
