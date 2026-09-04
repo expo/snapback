@@ -74,7 +74,7 @@ export function offlineRefusal(error: unknown, carrier: string): SnapbackRefusal
       family: "offline",
       message: error instanceof Error ? error.message : String(error),
       site: "RangeStore.commit",
-      rewrite: "keep the held coverage; a delivery for another principal, generation, or auth epoch is refused, not committed — open the partition it belongs to",
+      rewrite: "keep the held coverage; a delivery for another principal or auth epoch is refused, not committed — open the partition it belongs to (another generation is not refused: it supersedes the held coverage until the next resume resets it)",
       guide: "offline",
     });
   }

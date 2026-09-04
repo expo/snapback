@@ -22,6 +22,7 @@ import {
   type StoreRefresh,
   type StoreTombstone,
   type WatermarkRecord,
+  tailWatermark,
 } from "./store/range-store.js";
 import { ByteCache } from "./store/byte-cache.js";
 import { Twin, type LocalAnswer, type Prediction } from "./twin.js";
@@ -46,19 +47,9 @@ export function certificateMaxNewIds(program: unknown): number | undefined {
   return total;
 }
 
-/**
- * The log a settlement's tail request and a resume's `log` both name: the drained
- * query whose watermark was recorded first in this partition — the first-mounted
- * drain, since a drain records its watermark when it first catches up — by the
- * store's durable `order`, so the choice survives restarts and re-marks and never
- * follows whichever page moved last (LLP 1012 §7, §8).
- */
-export function tailWatermark(watermarks: WatermarkRecord[]): WatermarkRecord | undefined {
-  return [...watermarks].sort((a, b) =>
-    (a.order ?? Number.MAX_SAFE_INTEGER) - (b.order ?? Number.MAX_SAFE_INTEGER)
-    || a.updatedAt - b.updatedAt
-    || canonicalAnswerKey(a.op, a.args).localeCompare(canonicalAnswerKey(b.op, b.args)))[0];
-}
+// The tail chooser lives with the store, which keys the overlay drop by it; the
+// settlement tail and the resume's `log` import it from here as before.
+export { tailWatermark };
 
 export interface MountedQuery {
   op: string;
@@ -117,9 +108,11 @@ export function decodeHeldProgram(value: unknown): HeldProgram | undefined {
 }
 
 // @ref LLP 1012#15-diagnostics — a local authority violation (a delivery for
-// another principal, generation, or auth epoch; a commit with no partition
-// open) has its own code: it is never `E_OFFLINE_RESET`, which drops held
-// coverage, so a healthy store is refused a delivery and keeps everything.
+// another principal or auth epoch; a commit with no partition open) has its
+// own code: it is never `E_OFFLINE_RESET`, which drops held coverage, so a
+// healthy store is refused a delivery and keeps everything. A delivery under
+// another generation or schema is not a violation but a rotation: it is not
+// held, and the coverage is superseded until the reset path (`commitMany`).
 export class OfflineAuthorityError extends Error {
   readonly code = "E_OFFLINE_AUTHORITY";
   constructor(message: string) {
@@ -196,6 +189,8 @@ export class OfflineRuntime {
   private cursors: Record<string, string> = {};
   private schema?: OfflineSchema;
   private facts?: ResumeFacts;
+  /** Set by a delivery under another generation or schema: held coverage is stale-exact until the reset path (LLP 1012 §8). */
+  private superseded?: CoverageFacts;
   private latestSeq = 0;
   private pendingGrant?: OutboxGrant;
   private pendingBounds?: Record<string, number>;
@@ -315,6 +310,7 @@ export class OfflineRuntime {
       const partition = this.partition;
       this.partition = undefined;
       this.facts = undefined;
+      this.superseded = undefined;
       this.held = undefined;
       this.bytes.bind(undefined);
       await this.store.wipe(partition);
@@ -442,6 +438,7 @@ export class OfflineRuntime {
       const refreshes: StoreRefresh[] = [];
       const tombstones: StoreTombstone[] = [];
       let nextFacts = this.facts;
+      let superseded = this.superseded;
       for (const { op, args, accepted } of items) {
         const envelope = accepted.envelope;
         if (envelope && envelope.authority.principal !== this.partition) {
@@ -454,10 +451,21 @@ export class OfflineRuntime {
           continue;
         }
         if (envelope) {
-          if (nextFacts && (envelope.generation !== nextFacts.generation
-            || envelope.schemaHash !== nextFacts.schemaHash
-            || envelope.authority.authEpoch !== nextFacts.authEpoch)) {
-            throw new OfflineAuthorityError("delivery generation or auth epoch does not match the open coverage");
+          // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — a
+          // rotation: the server now runs another generation or schema. The
+          // delivery is not held (one generation per partition), the caller
+          // still gets the live answer, and the held coverage is marked
+          // superseded so the twin serves nothing stale-exact from it; the next
+          // resume carries the old facts, is refused `E_OFFLINE_RESET`, and the
+          // reset path drops the coverage and re-fetches the program.
+          if (nextFacts && (envelope.generation !== nextFacts.generation || envelope.schemaHash !== nextFacts.schemaHash)) {
+            superseded = { generation: envelope.generation, schemaHash: envelope.schemaHash, authEpoch: envelope.authority.authEpoch };
+            continue;
+          }
+          // Another auth epoch under the same program is a local authority
+          // violation: refused, and the coverage kept (LLP 1012 §15).
+          if (nextFacts && envelope.authority.authEpoch !== nextFacts.authEpoch) {
+            throw new OfflineAuthorityError("delivery auth epoch does not match the open coverage");
           }
           nextFacts = {
             generation: envelope.generation,
@@ -500,8 +508,10 @@ export class OfflineRuntime {
         ...(watermarkRecord ? { watermark: watermarkRecord } : {}),
         ...(outbox ? { outbox } : {}),
         ...(nextFacts && nextFacts !== this.facts ? { facts: nextFacts } : {}),
+        ...(superseded && superseded !== this.superseded ? { superseded } : {}),
       });
       this.facts = nextFacts;
+      this.superseded = superseded;
       for (const item of [...deliveries, ...refreshes]) this.latestSeq = Math.max(this.latestSeq, item.seq);
       if (outbox) this.outbox.notify();
     });
@@ -509,7 +519,9 @@ export class OfflineRuntime {
   }
 
   async answer<Result>(op: string, args: unknown): Promise<HeldAnswer<Result> | undefined> {
-    if (this.partition === undefined) return undefined;
+    // Superseded coverage answers nothing: not served offline, and its validators
+    // are never sent, so a conditional `unchanged` cannot carry a stale answer forward.
+    if (this.partition === undefined || this.superseded !== undefined) return undefined;
     return this.store.answer<Result>(op, args);
   }
 
@@ -580,6 +592,7 @@ export class OfflineRuntime {
     if (this.partition !== undefined) await this.serial(async () => {
       await this.store.commit({ resetCoverage: true });
       this.facts = undefined;
+      this.superseded = undefined;
     });
   }
 
@@ -626,6 +639,7 @@ export class OfflineRuntime {
 
   private async loadFacts(): Promise<void> {
     const coverage = await this.store.coverage();
+    this.superseded = coverage.superseded;
     if (coverage.facts) {
       this.facts = coverage.facts;
       return;

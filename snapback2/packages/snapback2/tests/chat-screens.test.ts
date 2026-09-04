@@ -20,10 +20,18 @@ import { DAY, fakeOwner, seededStore } from "./fake-owner.ts";
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const bundlePath = resolve(packageRoot, "dist/.chat-screens.test-bundle.mjs");
 let App: (props: Record<string, never>) => React.ReactElement;
+let Thread: (props: { conversationId: string; viewer: string | undefined; onNote(note: string): void }) => React.ReactElement;
 
 before(async () => {
   const bundled = await build({
-    entryPoints: [resolve(packageRoot, "templates/chat/react/src/App.tsx")],
+    // The app, and the thread screen on its own: the composer lives there, and the
+    // grant test needs it on screen while the inbox drain is still held at its first page.
+    stdin: {
+      contents: 'export { App } from "./App";\nexport { Thread } from "./chat/Thread";\n',
+      resolveDir: resolve(packageRoot, "templates/chat/react/src"),
+      sourcefile: "screens.tsx",
+      loader: "tsx",
+    },
     bundle: true,
     write: false,
     format: "esm",
@@ -39,7 +47,7 @@ before(async () => {
     }],
   });
   await writeFile(bundlePath, bundled.outputFiles[0]!.text);
-  App = (await import(pathToFileURL(bundlePath).href)).App;
+  ({ App, Thread } = await import(pathToFileURL(bundlePath).href));
 });
 
 after(async () => { await rm(bundlePath, { force: true }); });
@@ -201,6 +209,54 @@ test("the chat screens render the log, queue offline sends as pinned bubbles, se
     assert.equal(document.querySelectorAll("section[aria-label=Search] .hits li").length, 0);
   } finally {
     Date.now = originalNow;
+    await act(async () => { reactRoot.unmount(); });
+    restore();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+// @ref LLP 1012#7-writes-offline — a device with a store writes only under a
+// replay grant, which the inbox drain earns when it first reaches its watermark:
+// the composer is disabled with the reason until then, never retried blindly.
+test("the composer is disabled until the inbox drain catches up and the first grant exists, then enabled", async () => {
+  const restore = installDom();
+  const root = await mkdtemp(join(tmpdir(), "snapback2-screens-grant-"));
+  const owner = fakeOwner({ seed: true });
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  // The inbox drain's first page waits at the owner until released; the thread's own page does not.
+  const fetch = async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+    const op = String(input).includes("/api/query") && init?.body ? JSON.parse(String(init.body)).op : undefined;
+    if (op === "deliveries.inbox") await gate;
+    return owner.fetch(input, init);
+  };
+  let client: any;
+  function Probe() { client = useSnapbackClient(); return null; }
+  const reactRoot: Root = createRoot(document.getElementById("root")!);
+  try {
+    await act(async () => {
+      reactRoot.render(React.createElement(
+        SnapbackProvider,
+        { url: "http://grant.test", as: "alice", fetch, offline: { store: fileRangeStore(root) } },
+        React.createElement(Probe),
+        React.createElement(Thread, { conversationId: "conversation-1", viewer: "dev:alice", onNote: () => undefined }),
+      ));
+    });
+    // The drain the app mounts, held at its first page.
+    const drain = client.subscribe(api.deliveries.inbox, { c: null }, () => undefined, { drain: true });
+    await waitFor(() => document.querySelector("li[data-message=message-1]") !== null, "the thread");
+    const send = () => document.querySelector<HTMLButtonElement>("form[aria-label=Composer] button[type=submit]")!;
+    assert.equal(send().disabled, true, "send is enabled before a grant exists");
+    assert.match(text(document.querySelector("form[aria-label=Composer] small[data-waiting=grant]")), /log has downloaded/);
+    assert.equal(owner.grantsMinted(), 0, "no grant was minted while the drain waited");
+    await assert.rejects(client.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "too early" }), (error: any) =>
+      error.code === "E_OFFLINE_ID_BLOCK" && /drain/.test(error.envelope.rewrite), "a write before the grant is refused with the rewrite the composer would surface");
+    release();
+    await waitFor(() => !send().disabled, "the grant");
+    assert.equal(owner.grantsMinted(), 1, "the drain reaching its watermark minted the first grant");
+    assert.equal(document.querySelector("form[aria-label=Composer] small[data-waiting=grant]"), null, "the reason left with the grant");
+    drain.close();
+  } finally {
     await act(async () => { reactRoot.unmount(); });
     restore();
     await rm(root, { recursive: true, force: true });

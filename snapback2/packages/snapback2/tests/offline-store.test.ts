@@ -757,7 +757,11 @@ test("a subscription conditional unchanged frame reuses the held pooled answer",
   await rm(root, { recursive: true, force: true });
 });
 
-test("generation and auth-epoch mismatches cannot replace held coverage", async () => {
+// @ref LLP 1012#15-diagnostics — another auth epoch under the same program is
+// `E_OFFLINE_AUTHORITY` and the coverage is kept; another generation is a
+// rotation: the live answer is served, and the held coverage is superseded —
+// `hydrating` offline, never stale-exact — until the reset path rebuilds it.
+test("an auth-epoch mismatch cannot replace held coverage; a generation mismatch supersedes it without a refusal", async () => {
   const root = await tempRoot();
   let reads = 0;
   const client = createClient({
@@ -765,8 +769,10 @@ test("generation and auth-epoch mismatches cannot replace held coverage", async 
     fetch: async (input) => {
       const metadata = metadataResponse(input);
       if (metadata) return metadata;
-      const value = envelope([reads === 0 ? "held" : "wrong"], String(reads + 1).repeat(64), reads + 1);
-      if (reads++ > 0) value.authority.authEpoch = 8;
+      const value = envelope([["held", "wrong", "rotated"][reads] ?? "later"], String(reads + 1).repeat(64), reads + 1);
+      if (reads === 1) value.authority.authEpoch = 8;
+      if (reads >= 2) value.generation = "9".repeat(64);
+      reads += 1;
       return new Response(JSON.stringify(value), { status: 200 });
     },
   });
@@ -777,7 +783,20 @@ test("generation and auth-epoch mismatches cannot replace held coverage", async 
   await client.offline();
   const held = await client.query<any, any>(api.messages.thread as any, {});
   assert.deepEqual("data" in held ? held.data : undefined, ["held"], "the fence refused the delivery and kept the coverage");
+  await client.online();
+  const rotated = await client.query<any, any>(api.messages.thread as any, {});
+  assert.deepEqual("data" in rotated ? rotated.data : undefined, ["rotated"], "a rotation serves the live answer, refusing nothing");
+  await client.offline();
+  const superseded = await client.query<any, any>(api.messages.thread as any, {});
+  assert.deepEqual(superseded, { state: "hydrating", live: false, connection: "offline" }, "the held answer is superseded, never served stale-exact");
   await client.close();
+  const store = fileRangeStore(root)();
+  await store.open("dev:alice");
+  const coverage = await store.coverage();
+  assert.equal(coverage.facts?.generation, generation, "the old facts stay until the reset path");
+  assert.deepEqual(coverage.superseded, { generation: "9".repeat(64), schemaHash, authEpoch: 7 }, "the supersession is durable");
+  assert.ok((await store.answer("messages.thread", {})), "the held answer is still on disk for the reset path to drop");
+  await store.close?.();
   await rm(root, { recursive: true, force: true });
 });
 

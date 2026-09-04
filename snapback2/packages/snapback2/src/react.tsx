@@ -236,6 +236,13 @@ export interface UseMutationResult<Args, Result> {
   inFlight: boolean;
   /** This op's intents still queued in the durable outbox, FIFO (LLP 1012 §7). */
   pending: OutboxEntry[];
+  /**
+   * `run()` will not refuse `E_OFFLINE_ID_BLOCK` for want of a replay grant: no
+   * partition, or one holding a grant inside the fence. False until the first
+   * drain reaches its watermark (or a login) on a device that has none: gate the
+   * send on it rather than retrying the refusal (LLP 1012 §7).
+   */
+  ready: boolean;
   last: MutationResult<Result> | undefined;
   transport: SnapbackRefusal | undefined;
 }
@@ -243,6 +250,8 @@ export interface UseMutationResult<Args, Result> {
 /** The durable outbox of the open partition, FIFO, with `dismiss` for settled intents. */
 export interface UseOutboxResult {
   entries: OutboxEntry[];
+  /** A write will not refuse for want of a replay grant (`client.outbox.ready()`), kept current with the entries. */
+  ready: boolean;
   dismiss(intent: string): Promise<void>;
 }
 
@@ -250,16 +259,18 @@ export interface UseOutboxResult {
 // so a queued message is on screen at cold start before the network is tried.
 export function useOutbox(): UseOutboxResult {
   const { client, snapshot } = provider();
-  const [entries, setEntries] = useState<OutboxEntry[]>([]);
-  useEffect(() => client.outbox.subscribe(setEntries), [client, snapshot.authGeneration]);
+  const [state, setState] = useState<{ entries: OutboxEntry[]; ready: boolean }>({ entries: [], ready: false });
+  useEffect(() => client.outbox.subscribe((entries) => {
+    void client.outbox.ready().then((ready) => setState({ entries, ready }), () => setState({ entries, ready: false }));
+  }), [client, snapshot.authGeneration]);
   const dismiss = useCallback((intent: string) => client.outbox.dismiss(intent), [client]);
-  return useMemo(() => ({ entries, dismiss }), [entries, dismiss]);
+  return useMemo(() => ({ entries: state.entries, ready: state.ready, dismiss }), [state, dismiss]);
 }
 
 export function useMutation<Args, Result>(ref: Op<Args, Result>): UseMutationResult<Args, Result> {
   const { client, snapshot } = provider();
   const operation = referenceName(ref);
-  const { entries } = useOutbox();
+  const { entries, ready } = useOutbox();
   const pending = useMemo(
     () => entries.filter((entry) => entry.op === operation && entry.state === "queued"),
     [entries, operation],
@@ -302,8 +313,8 @@ export function useMutation<Args, Result>(ref: Op<Args, Result>): UseMutationRes
     }
   }, [client, operation]);
   return useMemo(
-    () => ({ run, inFlight: visible.pending > 0, pending, last: visible.last, transport: visible.transport }),
-    [run, visible.pending, pending, visible.last, visible.transport],
+    () => ({ run, inFlight: visible.pending > 0, pending, ready, last: visible.last, transport: visible.transport }),
+    [run, visible.pending, pending, ready, visible.last, visible.transport],
   );
 }
 

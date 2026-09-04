@@ -9,7 +9,7 @@ import { queryState } from "../../evaluator/src/runner.js";
 import { ClientStore } from "../../evaluator/src/store.js";
 import { wireJson } from "../../evaluator/src/value-runtime.js";
 import type { Context, Trace } from "../../evaluator/src/types.js";
-import { tagWireRow, type WireValue } from "./offline-protocol.js";
+import { DeliveryEnvelopeDecodeError, tagWireRow, type WireValue } from "./offline-protocol.js";
 import { emptyTrace } from "./store/outbox.js";
 import type { Coverage, HeldProgram, OutboxEntry, OutboxTrace, OverlayRow } from "./store/range-store.js";
 import { closureFromCoverage, partialReasons, tagArguments, type PartialSite } from "./twin-hydrate.js";
@@ -213,6 +213,9 @@ export class Twin {
     if (!program) return undefined;
     const coverage = await this.sources.coverage();
     if (!coverage) return undefined;
+    // Coverage a rotation superseded is never evaluated, exact or partial: the
+    // reset path rebuilds it under the live generation (LLP 1012 §8).
+    if (coverage.superseded) return undefined;
     if (coverage.facts
       && (coverage.facts.generation !== program.generation || coverage.facts.schemaHash !== program.schemaHash)) {
       return undefined;
@@ -238,11 +241,14 @@ export class Twin {
       }
       return { program, coverage, store, predicted };
     } catch (error) {
-      // Coverage the held schema cannot tag, a schema the hasher refuses (an
-      // unseen shape) or hashes unlike the program's, or an overlay row the
-      // schema rejects: not delivered under this program, so the held answers
-      // stand and the read is `hydrating`.
-      if (error instanceof Error) return undefined;
+      // Coverage the held schema cannot tag (the tagger's `TypeError`), a
+      // schema the hasher refuses (an unseen shape: `EvalError` E_SCHEMA) or
+      // hashes unlike the program's (`DeliveryEnvelopeDecodeError`), or an
+      // overlay row the schema rejects: not delivered under this program, so
+      // the held answers stand and the read is `hydrating`. Only those three:
+      // anything else is a bug in the hydrate path and propagates, because
+      // `hydrating` must never mask one.
+      if (error instanceof DeliveryEnvelopeDecodeError || error instanceof EvalError || error instanceof TypeError) return undefined;
       throw error;
     }
   }

@@ -267,6 +267,7 @@ async function logTail(options: DrainOptions) {
 export function createOutboxApi(
   runtime: OfflineRuntime | undefined,
   drain: () => Promise<{ stopped: boolean }>,
+  ready: () => Promise<void> = async () => undefined,
 ): OutboxApi {
   const entries = async (): Promise<OutboxEntry[]> => {
     if (!runtime || runtime.principal === undefined) return [];
@@ -287,6 +288,21 @@ export function createOutboxApi(
       const push = () => { void entries().then(listener, () => undefined); };
       push();
       return runtime ? runtime.outbox.subscribe(push) : () => undefined;
+    },
+    // @ref LLP 1012#7-writes-offline — with a partition open every write needs a
+    // grant before any request leaves; an app gates its send on this instead of
+    // retrying a refusal blindly. Answered after the client's own startup, so a
+    // partition about to open never reads as "no partition, plain bytes".
+    ready: async () => {
+      await ready().catch(() => undefined);
+      if (!runtime || runtime.principal === undefined) return true;
+      try {
+        const grant = await runtime.outbox.grant();
+        return grant !== undefined && !runtime.outbox.pastFence(grant);
+      } catch (error) {
+        if (error instanceof Error && /sealed/.test(error.message)) return false;
+        throw error;
+      }
     },
     drain: async () => { await drain(); },
     // Resolves when the replay emptied the queue or a retryable transport

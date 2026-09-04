@@ -218,7 +218,7 @@ fn offline_site_and_rewrite(code: &str) -> (&'static str, &'static str) {
         // reset: the client keeps its held coverage and refuses the delivery.
         "E_OFFLINE_AUTHORITY" => (
             "/api/query.authority.principal",
-            "keep the held coverage; a delivery for another principal, generation, or auth epoch is refused, not committed — open the partition it belongs to",
+            "keep the held coverage; a delivery for another principal or auth epoch is refused, not committed — open the partition it belongs to (another generation is not refused: it supersedes the held coverage until the next resume resets it)",
         ),
         _ => panic!("{code} is not an offline diagnostic"),
     }

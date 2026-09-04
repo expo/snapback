@@ -889,6 +889,22 @@ const expectCode = (run: () => unknown, code: string, label: string) => {
   const novelColumn = structuredClone(known) as any;
   novelColumn.tables.notes.columns.body = { Geo: { srid: 4326, dims: 2 } };
   assert(canonicalSchemaJson(novelColumn).includes('{"Geo":{"dims":2,"srid":4326}}'), "unknown column kind payload was not deep-sorted");
+  // `List` payloads are structs too: a novel field on a column list or on a channel argument list is refused, never dropped.
+  const withListColumnField = structuredClone(known) as any;
+  withListColumnField.tables.notes.columns.tags = { List: { of: { Text: { max: 4 } }, max: 3, shard: 1 } };
+  refused = undefined;
+  try { canonicalSchemaJson(withListColumnField); } catch (error) { refused = error; }
+  assert(refused instanceof EvalError && refused.code === "E_SCHEMA" && /column\.List field shard/.test(refused.message), "a novel column List field was hashed instead of refused");
+  const withChannel = structuredClone(known) as any;
+  withChannel.channels = { typing: { args: { ids: { List: { of: "Id", max: 4 } } }, publish: "Allow", subscribe: "Allow", ttl_ms: 1_000 } };
+  const channelHash = sha256(canonicalSchemaJson(withChannel));
+  assert(channelHash !== knownHash && canonicalSchemaJson(withChannel).includes('"ids":{"List":{"of":"Id","max":4}}'), "the channel List argument did not hash in serde order");
+  const withListArgField = structuredClone(withChannel) as any;
+  withListArgField.channels.typing.args.ids.List.shard = 1;
+  refused = undefined;
+  try { canonicalSchemaJson(withListArgField); } catch (error) { refused = error; }
+  assert(refused instanceof EvalError && refused.code === "E_SCHEMA" && /arg\.List field shard/.test(refused.message), "a novel channel-argument List field was hashed instead of refused");
+  assert(channelHash === sha256(canonicalSchemaJson(structuredClone(withChannel))), "the known channel hash moved");
   // The known schema itself still hashes as before the strictness landed.
   assert(knownHash === sha256(canonicalSchemaJson(structuredClone(known))), "the known hash moved");
 }

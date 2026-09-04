@@ -272,6 +272,13 @@ export interface OutboxApi {
   dismiss(intent: string): Promise<void>;
   /** Observes the outbox; called with the current entries at once and after every change. */
   subscribe(listener: (entries: OutboxEntry[]) => void): () => void;
+  /**
+   * True when a write will not refuse `E_OFFLINE_ID_BLOCK` for want of a replay
+   * grant: no partition is open (today's bytes), or the open partition holds a
+   * grant inside the fence — minted by a login, a guest call, or the first drain
+   * reaching its watermark. Changes are observable through `subscribe` (LLP 1012 §7).
+   */
+  ready(): Promise<boolean>;
   /** Replays queued intents FIFO now; resolves when the queue is empty or a transport failure stopped it. */
   drain(): Promise<void>;
   /**

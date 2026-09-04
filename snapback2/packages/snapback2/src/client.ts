@@ -170,7 +170,7 @@ class Client implements SnapbackClient {
     } catch (error) {
       throw this.offlineRefusal(error);
     }
-    this.outbox = createOutboxApi(this.offlineRuntime, () => this.drainNow());
+    this.outbox = createOutboxApi(this.offlineRuntime, () => this.drainNow(), () => this.ready);
     this.auth = {
       signup: (input: { email: string; password: string }) => this.session("/api/auth/signup", input),
       login: (input: { email: string; password: string }) => this.session("/api/auth/login", input),

@@ -196,6 +196,10 @@ function normalizeArgType(arg: any): any {
   const [kind, data] = tagged(arg);
   if (kind === "Optional") return { Optional: normalizeArgType(data) };
   if (kind === "List") {
+    // `ArgType::List { of: Option<Box<ArgType>>, max }`: `of` is skipped when
+    // absent, and a payload carrying any other field is refused like every
+    // struct variant, never rebuilt without it.
+    known(data, ["of", "max"], "arg.List");
     return { List: {
       ...(data.of === null || data.of === undefined ? {} : { of: normalizeArgType(data.of) }),
       max: data.max,
