@@ -343,8 +343,13 @@ export async function performOfflineResume<Authority>(options: {
     && (response.log as Record<string, unknown>).unchanged !== true && request.log) {
     const { watermark: returned, ...delivery } = response.log as Record<string, unknown>;
     if (returned !== null && typeof returned !== "string") throw options.shape("resume response.log.watermark must be a string or null");
-    const accepted = await acceptOffline(options.runtime, request.log.op, request.log.args, delivery, options.shape);
-    swaps.push({ op: request.log.op, args: request.log.args, accepted });
+    // The server evaluated the log after the request's watermark, so the page it returned
+    // belongs under the tail key, not under the base page's key at the same seq.
+    const tailArgs = request.log.watermark === null
+      ? request.log.args
+      : { ...(request.log.args as Record<string, unknown>), c: request.log.watermark };
+    const accepted = await acceptOffline(options.runtime, request.log.op, tailArgs, delivery, options.shape);
+    swaps.push({ op: request.log.op, args: tailArgs, accepted });
     watermark = {
       op: request.log.op,
       args: request.log.args,

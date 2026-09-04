@@ -54,5 +54,16 @@ an absence, and each rule verdict. At commit the server executes against
 current rows, then compares inside the same transaction; a moved point or
 verdict rolls the write back and answers `{ state: "rejected", reason:
 "conflict", site, intent }`. Ranges re-execute fresh and are never validated,
-so a fan-out uses the members at commit. It is `require msg.body = baseBody
-else CONFLICT`, made universal.
+so a fan-out uses the members at commit. It is the compare-and-set edit, made
+universal:
+
+```q
+mutation edit(messageId: messages, body: text <=4000, baseBody: text <=4000):
+  msg = messages[messageId] ! else NOT_FOUND
+  require msg.authorId = viewer else NOT_AUTHOR
+  require msg.body = baseBody else CONFLICT
+  update messages[msg] { body }
+  for m in memberships[msg.conversationId] first 50 by byConversationPrincipal:
+    insert deliveries { recipient: m.principal, conversationId: msg.conversationId, messageId, kind: 'edit', at: now }
+  return null
+```
