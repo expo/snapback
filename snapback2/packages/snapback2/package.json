@@ -88,16 +88,20 @@
     }
   },
   "devDependencies": {
-    "@types/react": "^19.1.12",
+    "@types/react": "19.1.12",
     "esbuild": "0.25.9",
     "jsdom": "^26.1.0",
     "playwright-core": "1.55.1",
-    "react": "^19.1.1",
-    "react-dom": "^19.1.1",
-    "react-test-renderer": "^19.1.1",
-    "expo-sqlite": "^16",
-    "expo-secure-store": "^15",
-    "@types/node": "^24"
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "react-test-renderer": "19.1.0",
+    "expo-sqlite": "16.0.10",
+    "expo-secure-store": "15.0.8",
+    "@types/node": "^24",
+    "expo": "54.0.37",
+    "expo-file-system": "19.0.24",
+    "expo-video": "3.0.16",
+    "react-native": "0.81.5"
   },
   "optionalDependencies": {
     "snapback2-darwin-arm64": "0.0.1",

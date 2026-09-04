@@ -8,6 +8,7 @@ import TestRenderer, { act } from "react-test-renderer";
 import { SnapbackRefusal, api, createClient } from "../dist/client.mjs";
 import { SnapbackProvider, indexedDbRangeStore, useSnapbackClient } from "../dist/react.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
+import { sqliteFactory } from "./sqlite-fixture.ts";
 import { FakeIndexedDb, FakeLocks } from "./fake-indexeddb.ts";
 import { DAY, engineId, fakeOwner, seededStore } from "./fake-owner.ts";
 
@@ -33,16 +34,18 @@ interface Carrier {
   name: string;
   /** A fresh factory over the same durable partition; every call shares the carrier. */
   factory(): ReturnType<typeof fileRangeStore>;
-  /** Carrier writes so far (state renames on the file carrier, readwrite transactions on IndexedDB). */
+  /** Carrier writes so far (state renames on the file carrier, readwrite transactions on IndexedDB/SQLite). */
   writes(): number;
   cleanup(): Promise<void>;
 }
 
-/** Both carriers, each counting its swaps, over a fresh partition. */
+/** All three carriers, each counting its swaps, over a fresh partition. */
 async function carriers(): Promise<Carrier[]> {
   const root = await tempRoot();
+  const sqliteRoot = await tempRoot();
   const database = new FakeIndexedDb();
   const locks = new FakeLocks();
+  let sqliteWrites = 0;
   let fileWrites = 0;
   let indexedWrites = 0;
   return [
@@ -57,6 +60,12 @@ async function carriers(): Promise<Carrier[]> {
       factory: () => indexedDbRangeStore({ indexedDB: database as any, locks: locks as any, beforeReplace: () => { indexedWrites += 1; } }),
       writes: () => indexedWrites,
       cleanup: async () => undefined,
+    },
+    {
+      name: "SQLite",
+      factory: () => sqliteFactory(join(sqliteRoot, "custody.db"), { beforeCommit: () => { sqliteWrites += 1; } }),
+      writes: () => sqliteWrites,
+      cleanup: () => rm(sqliteRoot, { recursive: true, force: true }),
     },
   ];
 }
@@ -95,7 +104,7 @@ test("two overlapping enqueues consume distinct grant slices: both entries exist
       [52, 52, engineId(152)],
     ], `${carrier.name}: both entries exist with distinct offsets`);
     assert.equal((await held.store().outbox.grant())?.used, 104, `${carrier.name}: used advanced by the sum`);
-    client.close();
+    await client.close();
     await tick();
     await carrier.cleanup();
   }
@@ -140,7 +149,7 @@ test("a committed reply whose tail fetch fails leaves the intent queued with no 
     assert.equal(carrier.writes(), before + 1, `${carrier.name}: rows and the settlement were one carrier write`);
     assert.equal((await client.outbox.entries())[0]?.state, "committed");
     assert.deepEqual((await held.store().coverage()).rows.map((row) => row.id), [pinned], `${carrier.name}: the tail page holds the committed row`);
-    client.close();
+    await client.close();
     await tick();
     await carrier.cleanup();
   }
@@ -278,7 +287,7 @@ test("the prediction overlay is dropped in the same swap as a rejected or an exp
     } finally {
       Date.now = originalNow;
     }
-    client.close();
+    await client.close();
     await tick();
     await carrier.cleanup();
   }
@@ -291,7 +300,7 @@ test("a cold start with the owner cut prices its slice from the persisted write 
     const warm = createClient({ url: "http://bound.test", as: "alice", fetch: owner.fetch, offline: { store: carrier.factory() } });
     await warm.ready;
     assert.equal(owner.grantsMinted(), 1, `${carrier.name}: the warm start earned a grant and recorded /api/program`);
-    warm.close();
+    await warm.close();
     await tick();
     let dead = true;
     const held = capturing(carrier.factory());
@@ -309,7 +318,7 @@ test("a cold start with the owner cut prices its slice from the persisted write 
     assert.equal(queued.state === "queued" && queued.ids.length, 52, `${carrier.name}: 1 + maxNewIds exactly, never the engine's 1,024`);
     assert.equal((await cold.outbox.entries())[0]?.count, 52);
     assert.equal((await held.store().outbox.grant())?.used, 52, carrier.name);
-    cold.close();
+    await cold.close();
     await tick();
     dead = false;
     await carrier.cleanup();
@@ -334,7 +343,7 @@ test("a cold start with the owner cut prices its slice from the persisted write 
       `${carrier.name}: no bound is a loud refusal, not a guessed slice`,
     );
     assert.deepEqual(await cold.outbox.entries(), [], `${carrier.name}: nothing was enqueued`);
-    cold.close();
+    await cold.close();
     await tick();
     await carrier.cleanup();
   }

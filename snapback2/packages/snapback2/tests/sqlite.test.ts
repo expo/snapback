@@ -28,8 +28,17 @@ test("SQLite driver conformance: BLOBs, JSON keys, rollback, late beforeCommit, 
 
 test("every PersistedRangeState field round-trips on file, IndexedDB, and SQLite", async () => {
   const root = await temporary();
-  const state = { ...sqliteState(), futureMetadata: { stillHeld: ["yes"] } };
-  assert.deepEqual(unprojectState(projectState(state)), state);
+  const state = { ...sqliteState(), currentGrant: undefined, facts: undefined,
+    futureMetadata: { stillHeld: ["yes", undefined, null], omitted: undefined, explicit: null } };
+  const row = Object.values(state.rows)[0].row;
+  row.omitted = undefined;
+  row.explicit = null;
+  Object.values(state.answers)[0].reason = undefined;
+  const expected = JSON.parse(JSON.stringify(state));
+  assert.deepEqual(unprojectState(projectState(state)), expected);
+  assert.equal(Object.hasOwn(expected, "currentGrant"), false);
+  assert.equal(Object.hasOwn(Object.values(expected.rows)[0].row, "omitted"), false);
+  assert.deepEqual(expected.futureMetadata, { stillHeld: ["yes", null, null], explicit: null });
   const factories = [fileRangeStore(root),
     indexedDbRangeStore({ indexedDB: new FakeIndexedDb() as any, locks: new FakeLocks() }),
     sqliteFactory(join(root, "state.db"))];
@@ -39,13 +48,59 @@ test("every PersistedRangeState field round-trips on file, IndexedDB, and SQLite
       // Exercise the carrier projection directly, before the common store's normalization.
       const backend = store.backend;
       assert.equal(await backend.open("projection"), undefined);
-      await backend.replace(state, { put: [{ key: fixtureAsset, bytes: new Uint8Array([1, 2, 3]) }], remove: [] });
-      await backend.close();
-      assert.deepEqual(await backend.open("projection"), state, factory.carrier);
-      assert.deepEqual(await backend.readBytes(fixtureAsset), new Uint8Array([1, 2, 3]));
-      await backend.close();
+      try {
+        for (const value of [sqliteState(), state]) {
+          await backend.replace(value, { put: [{ key: fixtureAsset, bytes: new Uint8Array([1, 2, 3]) }], remove: [] });
+          await backend.close();
+          assert.deepEqual(await backend.open("projection"), value === state ? expected : value, factory.carrier);
+          assert.deepEqual(await backend.readBytes(fixtureAsset), new Uint8Array([1, 2, 3]));
+        }
+      } finally { await backend.close(); }
     }
   } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test("IndexedDB rows without meta survive open with version 1 and default maps on every carrier", async () => {
+  const root = await temporary();
+  const database = new FakeIndexedDb();
+  const name = "snapback2:partial";
+  database.seedVersion1(name, ["rows", "answers", "outbox", "meta", "ranges", "absences", "verdicts"]);
+  const opened = database.open(name);
+  const db = await new Promise<any>((resolve) => { opened.onsuccess = () => resolve(opened.result); });
+  const state = sqliteState();
+  const rows = projectState(state).rows;
+  const transaction = db.transaction(["rows"], "readwrite");
+  for (const entry of rows) transaction.objectStore("rows").put(entry);
+  await new Promise<void>((resolve) => { transaction.oncomplete = () => resolve(); });
+  db.close();
+  const indexed: any = indexedDbRangeStore({ indexedDB: database as any, locks: new FakeLocks() })();
+  const path = join(root, "partial.db");
+  const sqlite = new SqliteBackend(nodeSqliteDriver(path));
+  const raw = nodeSqliteDriver(path);
+  const file: any = fileRangeStore(root)();
+  try {
+    await sqlite.open("partial");
+    await sqlite.replace(state, noBytes);
+    await sqlite.close();
+    await raw.run("DELETE FROM state");
+    await raw.run("DELETE FROM answers");
+    await raw.run("DELETE FROM outbox");
+    await raw.close();
+    await file.backend.open("partial");
+    await file.backend.replace({ rows: state.rows }, noBytes);
+    await file.backend.close();
+    const expected = { ...sqliteState(), version: 1, sealed: false, clock: 0, rows: state.rows };
+    const defaults = ["answers", "outbox", "watermarks", "grants", "overlay", "overlayMisses", "bounds", "programs", "negative", "rowSeq", "assets", "viewed"];
+    for (const backend of [indexed.backend, sqlite, file.backend]) {
+      const restored = await backend.open("partial");
+      assert.deepEqual(restored.rows, expected.rows, backend.carrier);
+      assert.equal(restored.version, 1);
+      assert.equal(restored.sealed, false);
+      assert.equal(restored.clock, 0);
+      for (const field of defaults) assert.deepEqual(restored[field], {}, `${backend.carrier}: ${field}`);
+      await backend.close();
+    }
+  } finally { await indexed.close(); await sqlite.close(); await raw.close(); await file.close(); await rm(root, { recursive: true, force: true }); }
 });
 
 test("SQLite replace rolls state and byte deltas back when beforeCommit throws", async () => {
@@ -112,6 +167,25 @@ test("in-process locks refuse a second client on the partition and release on cl
   } finally { first.close(); second.close(); await first.close(); await second.close(); await rm(root, { recursive: true, force: true }); }
 });
 
+test("in-process locks scope one partition to its database across separate factories", async () => {
+  const root = await temporary();
+  const first = sqliteFactory(join(root, "first.db"))();
+  const duplicate = sqliteFactory(join(root, ".", "first.db"))();
+  const second = sqliteFactory(join(root, "second.db"))();
+  const file = fileRangeStore(root)();
+  try {
+    await first.open("dev:alice");
+    await second.open("dev:alice");
+    await file.open("dev:alice");
+    await assert.rejects(duplicate.open("dev:alice"), (error: any) => error.code === "E_OFFLINE_LOCK");
+    await duplicate.close();
+    await first.close();
+    await duplicate.open("dev:alice");
+    await second.commit({ bounds: { second: 2 } });
+    assert.deepEqual(await second.outbox.bounds(), { second: 2 });
+  } finally { await first.close(); await duplicate.close(); await second.close(); await file.close(); await rm(root, { recursive: true, force: true }); }
+});
+
 test("SQLite refuses unopenable files, a journal mismatch, and competing writes as E_OFFLINE_CARRIER", async () => {
   const root = await temporary();
   const bad = new SqliteBackend(nodeSqliteDriver(join(root, "missing", "db")));
@@ -121,12 +195,19 @@ test("SQLite refuses unopenable files, a journal mismatch, and competing writes 
   const backend = new SqliteBackend(nodeSqliteDriver(path));
   const carrierFailure = (error: any) => error.code === "E_OFFLINE_CARRIER";
   try {
-    await assert.rejects(bad.open("unopenable"), carrierFailure);
+    await assert.rejects(bad.open("unopenable"), (error: any) => carrierFailure(error) && /writable database/.test(error.rewrite));
     await assert.rejects(memory.open("mismatch"), (error: any) => carrierFailure(error) && /journal_mode/.test(error.message));
     await backend.open("busy");
     await driver.transaction(async (tx) => {
       await tx.run("INSERT INTO state VALUES (?, ?)", ["other", "{}"]);
-      await assert.rejects(backend.replace(sqliteState(), noBytes), (error: any) => carrierFailure(error) && /busy|locked/.test(error.message));
+      await assert.rejects(backend.replace(sqliteState(), noBytes), (error: any) => carrierFailure(error)
+        && error.rewrite === "another writer holds the store; close it or wait");
+      const client = createClient({ url: "http://busy.test", as: "alice", offline: { store: sqliteFactory(path) } });
+      try {
+        await assert.rejects(client.ready, (error: any) => error instanceof SnapbackRefusal && carrierFailure(error)
+          && error.envelope.rewrite === "another writer holds the store; close it or wait"
+          && error.envelope.family === "offline" && error.envelope.guide === "offline" && !!error.envelope.site);
+      } finally { await client.close(); }
     });
   } finally { await bad.close(); await memory.close(); await backend.close(); await driver.close(); await rm(root, { recursive: true, force: true }); }
 });

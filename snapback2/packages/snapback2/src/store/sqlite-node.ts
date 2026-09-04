@@ -1,4 +1,5 @@
 import { DatabaseSync } from "node:sqlite";
+import { resolve } from "node:path";
 import { driverQueue, type SqliteDriver, type SqliteExecutor } from "./sqlite-driver.js";
 
 /** Test-only Node 24 driver. Opening is lazy so carrier failures use E_OFFLINE_CARRIER. */
@@ -12,6 +13,7 @@ export function nodeSqliteDriver(path: string): SqliteDriver {
     async all<T>(sql: string, params = []) { return db().prepare(sql).all(...params) as T[]; },
   };
   return {
+    identity: `sqlite:${resolve(path)}`,
     run: (sql, params) => queue(() => executor.run(sql, params)),
     get: (sql, params) => queue(() => executor.get(sql, params)),
     all: (sql, params) => queue(() => executor.all(sql, params)),

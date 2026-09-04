@@ -33,6 +33,7 @@ export class SqliteBackend implements RangeStoreBackend {
   private driver?: SqliteDriver;
   private partition?: string;
   private release?: () => Promise<void>;
+  private locks?: StoreLocks;
 
   constructor(private readonly source: DriverSource, private readonly options: SqliteRangeStoreOptions = {}) {}
 
@@ -40,28 +41,38 @@ export class SqliteBackend implements RangeStoreBackend {
     try { return await body(); }
     catch (error) {
       if (error instanceof OfflineStoreFailure) throw error;
-      throw new OfflineStoreFailure("E_OFFLINE_CARRIER", `SQLite carrier: ${error instanceof Error ? error.message : String(error)}; open a writable database with expo-sqlite ^16`);
+      const message = error instanceof Error ? error.message : String(error);
+      const busy = /SQLITE_BUSY|SQLITE_LOCKED|database (?:is )?(?:busy|locked)/i.test(message);
+      const rewrite = busy ? "another writer holds the store; close it or wait" : "open a writable database with expo-sqlite ^16";
+      throw new OfflineStoreFailure("E_OFFLINE_CARRIER", `SQLite carrier: ${message}; ${rewrite}`, rewrite);
     }
   }
 
   async open(partition: string): Promise<PersistedRangeState | undefined> {
     await this.close();
     return this.guard(async () => {
-      this.release = await acquireStoreLock(this.options.locks ?? inProcessLocks(), partition);
+      const driver = typeof this.source === "function" ? await this.source() : this.source;
+      this.locks = this.options.locks ?? inProcessLocks(driver.identity ?? this.source);
+      try { this.release = await acquireStoreLock(this.locks, partition); }
+      catch (error) {
+        // A factory may open eagerly; a refused client owns that fresh connection.
+        // A caller-supplied driver may belong to the client holding the lock.
+        if (typeof this.source === "function") await driver.close().catch(() => undefined);
+        throw error;
+      }
       try {
-        this.driver = typeof this.source === "function" ? await this.source() : this.source;
+        this.driver = driver;
         this.partition = partition;
         const mode = await this.driver.get<{ journal_mode: string }>("PRAGMA journal_mode=WAL");
         if (mode?.journal_mode.toLowerCase() !== "wal") throw new Error(`journal_mode is ${mode?.journal_mode ?? "missing"}, expected wal`);
         await this.driver.exec(SCHEMA);
         return await this.driver.transaction(async (tx) => {
           const meta = await tx.get<{ value: string }>("SELECT value FROM state WHERE partition = ?", [partition]);
-          if (!meta) return undefined;
           const read = async (table: "rows" | "answers" | "outbox"): Promise<StateEntry[]> =>
             (await tx.all<{ key: string; value: string }>(`SELECT key, value FROM ${table} WHERE partition = ?`, [partition]))
               .map(({ key, value }) => ({ key: decodeStateKey(key), value: JSON.parse(value) }));
           return unprojectState({ rows: await read("rows"), answers: await read("answers"), outbox: await read("outbox"),
-            meta: [{ key: "state", value: JSON.parse(meta.value) }] });
+            meta: meta ? [{ key: "state", value: JSON.parse(meta.value) }] : [] });
         });
       } catch (error) {
         await this.close().catch(() => undefined);
@@ -111,7 +122,7 @@ export class SqliteBackend implements RangeStoreBackend {
       return this.wipe(partition);
     }
     if (this.partition !== partition) {
-      const release = await acquireStoreLock(this.options.locks ?? inProcessLocks(), partition);
+      const release = await acquireStoreLock(this.locks!, partition);
       try {
         await this.guard(() => this.driver!.transaction(async (tx) => {
           for (const table of TABLES) await tx.run(`DELETE FROM ${table} WHERE partition = ?`, [partition]);

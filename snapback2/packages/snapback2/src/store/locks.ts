@@ -6,17 +6,23 @@ export interface StoreLocks {
 
 // @ref LLP 1013#4-locks-the-token-store-and-the-partition — a global symbol
 // keeps the one-writer table shared even across separately emitted bundles.
-const key = Symbol.for("snapback2.offline.locks");
-const held = ((globalThis as Record<PropertyKey, unknown>)[key] ??= new Map<string, object>()) as Map<string, object>;
+const key = Symbol.for("snapback2.offline.storeLocks");
+type LockScope = string | object;
+const scopes = ((globalThis as Record<PropertyKey, unknown>)[key] ??= new Map()) as Map<LockScope, Map<string, object>>;
 
-export function inProcessLocks(): StoreLocks {
+export function inProcessLocks(scope: LockScope = "default"): StoreLocks {
   return {
     async request(name, _options, callback) {
+      const held = scopes.get(scope) ?? new Map<string, object>();
       if (held.has(name)) return callback(null);
+      scopes.set(scope, held);
       const lock = { name };
       held.set(name, lock);
       try { return await callback(lock); }
-      finally { if (held.get(name) === lock) held.delete(name); }
+      finally {
+        if (held.get(name) === lock) held.delete(name);
+        if (held.size === 0) scopes.delete(scope);
+      }
     },
   };
 }

@@ -79,7 +79,8 @@ export function offlineRefusal(error: unknown, carrier: string): SnapbackRefusal
     });
   }
   const code = candidate === "E_OFFLINE_LOCK" || candidate === "E_OFFLINE_CARRIER" ? candidate : "E_OFFLINE_CARRIER";
-  const rewrite = code === "E_OFFLINE_LOCK"
+  const carrierRewrite = (error as { rewrite?: unknown } | undefined)?.rewrite;
+  const rewrite = typeof carrierRewrite === "string" ? carrierRewrite : code === "E_OFFLINE_LOCK"
     ? (carrier === "SQLite" ? "this account is open in another client; close it and try again" : "this account is open in another tab")
     : `install or configure the ${carrier} carrier`;
   return new SnapbackRefusal({

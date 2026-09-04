@@ -9,6 +9,7 @@ import {
   type RangeStoreFactory,
 } from "./range-store.js";
 import type { ByteDelta } from "./byte-cache.js";
+import { projectState, unprojectState } from "./projection.js";
 
 export interface FileRangeStoreOptions {
   /** Test barrier used to prove a failed pre-rename write leaves the old file. */
@@ -27,7 +28,7 @@ class FileBackend implements RangeStoreBackend {
     this.path = this.partitionPath(partition);
     let state: PersistedRangeState | undefined;
     try {
-      state = JSON.parse(await readFile(this.path, "utf8")) as PersistedRangeState;
+      state = unprojectState(projectState(JSON.parse(await readFile(this.path, "utf8")) as PersistedRangeState));
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
         throw new OfflineStoreFailure(

@@ -15,6 +15,7 @@ export function expoSqliteDriver(name = "snapback2.db"): SqliteDriver {
   const db = () => database ??= openDatabaseAsync(name, { useNewConnection: true });
   const queue = driverQueue();
   return {
+    identity: `expo-sqlite:${name}`,
     run: (sql, params) => queue(async () => executor(await db()).run(sql, params)),
     get: (sql, params) => queue(async () => executor(await db()).get(sql, params)),
     all: (sql, params) => queue(async () => executor(await db()).all(sql, params)),

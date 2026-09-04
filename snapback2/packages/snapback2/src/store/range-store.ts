@@ -290,7 +290,7 @@ export interface RangeStoreFactory {
 }
 
 export class OfflineStoreFailure extends Error {
-  constructor(readonly code: "E_OFFLINE_CARRIER" | "E_OFFLINE_LOCK", message: string) {
+  constructor(readonly code: "E_OFFLINE_CARRIER" | "E_OFFLINE_LOCK", message: string, readonly rewrite?: string) {
     super(message);
     this.name = "OfflineStoreFailure";
   }
@@ -332,7 +332,7 @@ export interface RangeStoreBackend {
 
 const NO_BYTES: ByteDelta = { put: [], remove: [] };
 
-function emptyState(): PersistedRangeState {
+export function emptyState(): PersistedRangeState {
   return {
     version: 1, sealed: false, clock: 0, rows: {}, answers: {}, watermarks: {}, outbox: {},
     grants: {}, overlay: {}, overlayMisses: {}, bounds: {}, programs: {}, negative: {}, rowSeq: {}, assets: {}, viewed: {},

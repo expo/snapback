@@ -89,7 +89,6 @@ const declarations = resolve(dist, ".declarations");
 const declarationProgram = ts.createProgram({
   rootNames: [
     resolve(here, "src/api.ts"),
-    resolve(here, "tests/sqlite-exports.ts"),
     resolve(here, "src/expo.ts"),
     resolve(here, "src/expo/witness.ts"),
     resolve(here, "src/assets.ts"),
@@ -116,6 +115,7 @@ const declarationProgram = ts.createProgram({
     resolveJsonModule: true,
     skipLibCheck: true,
     strict: true,
+    types: [],
     target: ts.ScriptTarget.ES2022,
   },
 });

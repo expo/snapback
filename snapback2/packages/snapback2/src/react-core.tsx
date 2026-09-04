@@ -102,7 +102,8 @@ export function SnapbackProvider({ client: supplied, url, as, token, tokenStore,
     };
   }
   const client = held.current.client;
-  const [snapshot, setSnapshot] = useState<ClientSnapshot>(client.snapshot);
+  const [status, setStatus] = useState({ client, snapshot: client.snapshot });
+  const snapshot = status.client === client ? status.snapshot : client.snapshot;
   const pendingClose = useRef<{ client: SnapbackClient; timer: ReturnType<typeof setTimeout> } | undefined>(undefined);
 
   useEffect(() => {
@@ -112,9 +113,12 @@ export function SnapbackProvider({ client: supplied, url, as, token, tokenStore,
       clearTimeout(pendingClose.current.timer);
       pendingClose.current = undefined;
     }
-    const unsubscribe = client.subscribeStatus(setSnapshot);
+    let active = true;
+    const unsubscribe = client.subscribeStatus((snapshot) => { if (active) setStatus({ client, snapshot }); });
+    setStatus({ client, snapshot: client.snapshot });
     void client.manifest().catch(() => undefined);
     return () => {
+      active = false;
       unsubscribe();
       // Supplied clients belong to the caller and may outlive this provider.
       if (!supplied) pendingClose.current = { client, timer: setTimeout(() => client.close(), 0) };
@@ -258,59 +262,72 @@ export interface UseOutboxResult {
 // so a queued message is on screen at cold start before the network is tried.
 export function useOutbox(): UseOutboxResult {
   const { client, snapshot } = provider();
-  const [state, setState] = useState<{ entries: OutboxEntry[]; ready: boolean }>({ entries: [], ready: false });
-  useEffect(() => client.outbox.subscribe((entries) => {
-    void client.outbox.ready().then((ready) => setState({ entries, ready }), () => setState({ entries, ready: false }));
-  }), [client, snapshot.authGeneration]);
+  const identity = useMemo(() => ({ client, generation: snapshot.authGeneration }), [client, snapshot.authGeneration]);
+  const [state, setState] = useState<{ identity: typeof identity; entries: OutboxEntry[]; ready: boolean }>({ identity, entries: [], ready: false });
+  useEffect(() => {
+    let active = true;
+    let revision = 0;
+    const unsubscribe = client.outbox.subscribe((entries) => {
+      const requested = ++revision;
+      const publish = (ready: boolean) => {
+        if (active && requested === revision) setState({ identity, entries, ready });
+      };
+      void client.outbox.ready().then(publish, () => publish(false));
+    });
+    return () => { active = false; unsubscribe(); };
+  }, [identity]);
+  const visible = state.identity === identity ? state : { entries: [], ready: false };
   const dismiss = useCallback((intent: string) => client.outbox.dismiss(intent), [client]);
-  return useMemo(() => ({ entries: state.entries, ready: state.ready, dismiss }), [state, dismiss]);
+  return useMemo(() => ({ entries: visible.entries, ready: visible.ready, dismiss }), [visible.entries, visible.ready, dismiss]);
 }
 
 export function useMutation<Args, Result>(ref: Op<Args, Result>): UseMutationResult<Args, Result> {
   const { client, snapshot } = provider();
   const operation = referenceName(ref);
+  const identity = useMemo(() => ({ client, generation: snapshot.authGeneration, operation }), [client, snapshot.authGeneration, operation]);
+  const activeIdentity = useRef(identity);
+  activeIdentity.current = identity;
   const { entries, ready } = useOutbox();
   const pending = useMemo(
     () => entries.filter((entry) => entry.op === operation && entry.state === "queued"),
     [entries, operation],
   );
   const [machine, setMachine] = useState<{
-    generation: number;
+    identity: typeof identity;
     pending: number;
     last?: MutationResult<Result>;
     transport?: SnapbackRefusal;
-  }>({ generation: snapshot.authGeneration, pending: 0 });
-  const visible = machine.generation === snapshot.authGeneration
+  }>({ identity, pending: 0 });
+  const visible = machine.identity === identity
     ? machine
-    : { generation: snapshot.authGeneration, pending: 0 };
+    : { identity, pending: 0 };
   const run = useCallback(async (args: AssetInput<Args>) => {
-    const startedGeneration = client.snapshot.authGeneration;
-    setMachine((current) => current.generation === startedGeneration
+    const active = () => activeIdentity.current === identity && client.snapshot.authGeneration === identity.generation;
+    if (!active()) return client.mutation(ref, args);
+    setMachine((current) => current.identity === identity
       ? { ...current, pending: current.pending + 1 }
-      : { generation: startedGeneration, pending: 1 });
+      : { identity, pending: 1 });
     try {
       const result = await client.mutation(ref, args);
-      const generation = client.snapshot.authGeneration;
-      setMachine((current) => ({
-        generation,
-        pending: current.generation === generation ? current.pending : 0,
+      if (active()) setMachine((current) => ({
+        identity,
+        pending: current.identity === identity ? current.pending : 0,
         last: result,
       }));
       return result;
     } catch (error) {
-      if (isSnapbackRefusal(error) && error.retryable) {
-        const generation = client.snapshot.authGeneration;
-        setMachine((current) => current.generation === generation
+      if (active() && isSnapbackRefusal(error) && error.retryable) {
+        setMachine((current) => current.identity === identity
           ? { ...current, transport: error }
-          : { generation, pending: 0, transport: error });
+          : { identity, pending: 0, transport: error });
       }
       throw error;
     } finally {
-      setMachine((current) => current.generation === startedGeneration
+      if (active()) setMachine((current) => current.identity === identity
         ? { ...current, pending: Math.max(0, current.pending - 1) }
         : current);
     }
-  }, [client, operation]);
+  }, [identity]);
   return useMemo(
     () => ({ run, inFlight: visible.pending > 0, pending, ready, last: visible.last, transport: visible.transport }),
     [run, visible.pending, pending, ready, visible.last, visible.transport],
@@ -340,11 +357,12 @@ export function useAuth(): UseAuthResult {
     requestEpoch.current += 1;
   }
   type AuthState = Omit<UseAuthResult, "signup" | "login" | "guest" | "logout" | "me">;
-  const [machine, setMachine] = useState<{ generation: number; value: AuthState }>({
+  const [machine, setMachine] = useState<{ client: SnapbackClient; generation: number; value: AuthState }>({
+    client,
     generation: snapshot.authGeneration,
     value: { state: "hydrating", token: snapshot.token },
   });
-  const state = machine.generation === snapshot.authGeneration
+  const state = machine.client === client && machine.generation === snapshot.authGeneration
     ? machine.value
     : { state: "hydrating" as const, token: snapshot.token };
   const me = useCallback(async () => {
@@ -355,7 +373,7 @@ export function useAuth(): UseAuthResult {
       if (epoch === requestEpoch.current
         && activeClient.current === client
         && client.snapshot.authGeneration === generation) {
-        setMachine({ generation, value: { state: "authenticated", ...value, token: client.snapshot.token } });
+        setMachine({ client, generation, value: { state: "authenticated", ...value, token: client.snapshot.token } });
       }
       return value;
     } catch (error) {
@@ -364,10 +382,10 @@ export function useAuth(): UseAuthResult {
         && client.snapshot.authGeneration === generation) {
         if (isSnapbackRefusal(error)
           && (error.code === "E_AUTH" || error.code === "E_AUTH_REQUIRED" || error.code === "E_AUTH_SESSION")) {
-          setMachine({ generation, value: { state: "anonymous", refusal: error.envelope } });
+          setMachine({ client, generation, value: { state: "anonymous", refusal: error.envelope } });
         } else if (!isSnapbackRefusal(error) || error.code !== "E_AUTH_SUPERSEDED") {
           const refusal = isSnapbackRefusal(error) ? error.envelope : undefined;
-          setMachine({ generation, value: { state: "refused", refusal, token: client.snapshot.token } });
+          setMachine({ client, generation, value: { state: "refused", refusal, token: client.snapshot.token } });
         }
       }
       throw error;
@@ -397,7 +415,7 @@ export function useAuth(): UseAuthResult {
       if (activeClient.current === client) {
         requestEpoch.current += 1;
         const generation = client.snapshot.authGeneration;
-        setMachine({ generation, value: { state: "anonymous" } });
+        setMachine({ client, generation, value: { state: "anonymous" } });
       }
       return result;
     },
@@ -483,4 +501,3 @@ export function useAssetUrl(
   }, [identity, stableAsset, options.width, options.carrier, options.download]);
   return value;
 }
-
