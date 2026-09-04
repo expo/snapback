@@ -34,7 +34,7 @@ The log op pages ascending, `after c
 first <=50`; mounted caps at 32 (`E_OFFLINE_RESUME` 413, `which`). New
 program or schema: `E_OFFLINE_RESET` (409) with the live `{ generation,
 schemaHash }`; drop held coverage, keep the outbox, fetch `/api/program`,
-cold-drain. Stale `authEpoch`: `E_AUTH_SESSION`. Another partition's delivery:
+re-resume. Stale `authEpoch`: `E_AUTH_SESSION`. Another partition's delivery:
 `E_OFFLINE_AUTHORITY`, coverage kept.
 No facts: query for a receipt, then logless resume. No query:
 `E_OFFLINE_RESUME`; keep the queue.

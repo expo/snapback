@@ -1017,18 +1017,25 @@ class Client implements SnapbackClient {
   private async performResume(authority: Authority): Promise<void> {
     if (!this.offlineRuntime || this.forcedOffline) return;
     await this.ensureOfflineMetadata(authority);
-    return performOfflineResume({
-      runtime: this.offlineRuntime,
-      mounted: this.mounted,
-      authority,
-      bearerConfirmed: authority.token !== undefined,
-      json: (path, init, current) => this.json(path, init, current),
-      validated: (current) => this.validated(current),
-      shape: wireShape,
-      failure: (error) => this.offlineRefusal(error),
-      subscriptions: this.subscriptions,
-      reload: (current) => this.ensureOfflineMetadata(current, true),
-    });
+    try {
+      await performOfflineResume({
+        runtime: this.offlineRuntime,
+        mounted: this.mounted,
+        authority,
+        bearerConfirmed: authority.token !== undefined,
+        json: (path, init, current) => this.json(path, init, current),
+        validated: (current) => this.validated(current),
+        shape: wireShape,
+        failure: (error) => this.offlineRefusal(error),
+        subscriptions: this.subscriptions,
+        reload: (current) => this.ensureOfflineMetadata(current, true),
+      });
+    } catch (error) {
+      // Local no-facts refusals never pass through json(). Publish them on cold
+      // initialization as well as online(), without making ready unusable.
+      if (isSnapbackRefusal(error) && this.authorityCurrent(authority)) this.recordRefusal(error.envelope);
+      throw error;
+    }
   }
 
   private async drainNow(): Promise<{ stopped: boolean; reason?: "fence" }> {

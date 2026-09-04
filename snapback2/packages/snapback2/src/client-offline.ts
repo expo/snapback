@@ -355,6 +355,7 @@ export async function performOfflineResume<Authority>(options: {
   reload?(authority: Authority): Promise<void>;
 }, adjustment: ResumeAdjustment = {}, retry = true): Promise<void> {
   if (!options.runtime) return;
+  const generation = options.runtime.outbox.generation;
   let request = await options.runtime.resumeRequest([...options.mounted.values()], adjustment);
   if (!request) {
     if ((await options.runtime.queuedIntents()).length === 0) return;
@@ -459,7 +460,7 @@ export async function performOfflineResume<Authority>(options: {
   } catch (error) {
     throw options.failure ? options.failure(error) : error;
   }
-  options.runtime.outbox.resumeSucceeded();
+  if (!options.runtime.outbox.resumeSucceeded(generation)) return;
   await drainOutbox(drainOptions(options));
 }
 

@@ -94,6 +94,8 @@ export class OutboxLedger {
   private readonly listeners = new Set<() => void>();
   /** A successful resume renews trust without changing the server-minted grant's age. */
   private resumedAt?: number;
+  /** Runtime lifecycle, advanced synchronously on open, seal, wipe, reset, or close. */
+  private trustGeneration = 0;
   /**
    * Grant custody is one critical section: a read of the grant's cursor and the
    * swap that advances it never interleave with another enqueue or adoption, so
@@ -184,9 +186,13 @@ export class OutboxLedger {
 
   /** Trust belongs to this open partition and session, never to the next one. */
   resetTrust(): void {
+    this.trustGeneration += 1;
     this.resumedAt = undefined;
     this.notify();
   }
+
+  /** Capture before a resume starts; this is independent of the program generation. */
+  get generation(): number { return this.trustGeneration; }
 
   /** A newer consumption grant cannot authorize work queued under an older one. */
   async canReplay(entry: OutboxEntry): Promise<boolean> {
@@ -206,9 +212,12 @@ export class OutboxLedger {
   }
 
   /** The owner re-authorized this partition; old intents may now replay for the server to judge. */
-  resumeSucceeded(): void {
+  resumeSucceeded(generation: number): boolean {
+    // Grant persistence can finish after a seal has already invalidated trust.
+    if (generation !== this.trustGeneration) return false;
     this.resumedAt = this.options.now();
     this.notify();
+    return true;
   }
 
   // @ref LLP 1012#7-writes-offline — the first id names the intent; the rest

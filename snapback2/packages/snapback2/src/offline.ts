@@ -627,7 +627,17 @@ export class OfflineRuntime {
     if (this.partition === undefined) return undefined;
     const coverage = await this.store.coverage();
     const held = tailWatermark(coverage.watermarks);
-    return mounted[0] ?? (held ? { op: held.op, args: held.args, drain: false } : this.resumeQueries[0]);
+    // Prefer the mounted drain, then the recorded log, then the first manifest
+    // query with a Cursor and known arguments, then the first all-optional query.
+    // An ordinary mounted query must not displace the app's chosen delivery log.
+    const log = mounted.find((query) => query.drain);
+    if (log) return log;
+    if (held) return { op: held.op, args: held.args, drain: true };
+    for (const op of Object.keys(this.cursors)) {
+      const query = mounted.find((query) => query.op === op) ?? this.resumeQueries.find((query) => query.op === op);
+      if (query) return query;
+    }
+    return this.resumeQueries[0] ?? mounted[0];
   }
 
   private async flushGrant(): Promise<void> {

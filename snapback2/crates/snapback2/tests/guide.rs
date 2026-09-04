@@ -99,6 +99,8 @@ fn offline_guide_page_is_under_four_kilobytes_and_its_codes_have_pages() {
     let page = json_stdout(&output);
     let content = page["content"].as_str().unwrap();
     assert!(content.len() <= 4_096, "offline guide is {} bytes", content.len());
+    assert!(content.contains("fetch `/api/program`,\nre-resume."), "reset recovery must resume before replay");
+    assert!(!content.contains("cold-drain"));
     for needle in [
         "receipt",
         "/api/resume",

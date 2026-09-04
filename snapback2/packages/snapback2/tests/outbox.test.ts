@@ -41,6 +41,197 @@ const jsonResponse = (value: unknown, status = 200) => new Response(JSON.stringi
   status, headers: { "content-type": "application/json" },
 });
 
+test("a resume whose grant persistence crosses a seal cannot restore trust; the next login waits for its own resume on both carriers", async () => {
+  for (const carrier of await carriers()) {
+    const originalNow = Date.now;
+    let now = originalNow();
+    Date.now = () => now;
+    const owner = fakeOwner();
+    const meStarted = Promise.withResolvers<void>();
+    const expired = Promise.withResolvers<Response>();
+    const persistenceStarted = Promise.withResolvers<void>();
+    const releasePersistence = Promise.withResolvers<void>();
+    const subscribed = Promise.withResolvers<void>();
+    const sealStarted = Promise.withResolvers<void>();
+    let pauseGrant = false;
+    let holdMe = false;
+    let mutations = 0;
+    let unsubscribe = () => {};
+    let pending: Promise<unknown>[] = [];
+    let client: ReturnType<typeof createClient> | undefined;
+    try {
+      await seededStore(carrier.factory());
+      const factory = carrier.factory();
+      client = createClient({ url: "http://obsolete-resume.test", token: "alice-token",
+        offline: { fenceDays: 1, store: () => {
+          const store = factory();
+          const commit = store.commit.bind(store);
+          store.commit = async (swap) => {
+            if (pauseGrant && swap.grants) {
+              pauseGrant = false;
+              persistenceStarted.resolve();
+              await releasePersistence.promise;
+            }
+            await commit(swap);
+          };
+          return store;
+        } },
+        fetch: async (input, init) => {
+          const path = new URL(String(input)).pathname;
+          if (path === "/api/mutation") mutations += 1;
+          if (path === "/api/auth/me" && holdMe) {
+            holdMe = false;
+            meStarted.resolve();
+            return expired.promise;
+          }
+          return owner.fetch(input, init);
+        },
+      });
+      await client.ready;
+      now += 3 * DAY;
+      await client.mutation(api.deliveries.post as any, post("kept across seal"));
+      assert.equal(mutations, 0);
+      holdMe = true;
+      const me = assert.rejects(client.auth.me(), (error: any) => error.code === "E_AUTH_SESSION");
+      pending = [me];
+      await meStarted.promise;
+      pauseGrant = true;
+      // Attach the handler now: the obsolete operation may refuse when sealed.
+      const obsolete = client.online().catch((error) => error);
+      pending.push(obsolete);
+      await persistenceStarted.promise;
+      let notifications = 0;
+      unsubscribe = client.outbox.subscribe(() => {
+        if (++notifications === 1) subscribed.resolve();
+        else sealStarted.resolve();
+      });
+      await subscribed.promise;
+      expired.resolve(jsonResponse({ code: "E_AUTH_SESSION", family: "auth", message: "session expired", guide: "auth/session" }, 401));
+      // resetTrust notifies synchronously before the serialized seal waits for
+      // grant persistence. No timer decides which side of the race was tested.
+      await sealStarted.promise;
+      unsubscribe();
+      releasePersistence.resolve();
+      await Promise.all(pending);
+      assert.equal(mutations, 0, `${carrier.name}: obsolete resume sent nothing`);
+
+      await client.auth.login({ email: "alice@example.com", password: "pw" });
+      assert.equal(await client.outbox.fence(), "past", `${carrier.name}: no pre-seal anchor survived`);
+      assert.deepEqual(await client.outbox.drain(), { stopped: "fence" });
+      assert.equal(mutations, 0, `${carrier.name}: login did not release the old queue`);
+      assert.equal((await client.outbox.entries())[0]?.state, "queued");
+      await client.online();
+      assert.equal(mutations, 1);
+      assert.equal((await client.outbox.entries())[0]?.state, "committed");
+    } finally {
+      unsubscribe();
+      expired.resolve(jsonResponse({ viewer: "dev:alice", kind: "user" }));
+      releasePersistence.resolve();
+      await Promise.allSettled(pending);
+      await client?.close();
+      Date.now = originalNow;
+      await carrier.cleanup();
+    }
+  }
+});
+
+test("no-facts recovery chooses the mounted drain ahead of another mounted candidate, then the recorded log, manifest Cursor, or optional query on both carriers", async () => {
+  for (const carrier of await carriers()) {
+    const originalNow = Date.now;
+    let now = originalNow();
+    Date.now = () => now;
+    try {
+      for (const choice of ["mounted", "recorded", "cursor", "optional"] as const) {
+        const owner = fakeOwner();
+        const queries: string[] = [];
+        const manifestOps = {
+          "account.mine": { kind: "query", args: {}, planHash: "f".repeat(64) },
+          ...(choice === "optional" ? {} : {
+            "feed.global": { kind: "query", args: { c: { Optional: "Cursor" } }, planHash: "f".repeat(64) },
+            "deliveries.inbox": { kind: "query", args: { c: { Optional: "Cursor" } }, planHash: "f".repeat(64) },
+          }),
+        };
+        const fetch: typeof globalThis.fetch = async (input, init) => {
+          const path = new URL(String(input)).pathname;
+          if (path === "/api/query") queries.push(JSON.parse(String(init?.body)).op);
+          const response = await owner.fetch(input, init);
+          if (path !== "/api/manifest") return response;
+          return jsonResponse({ ...await response.json(), ops: manifestOps });
+        };
+        let client = createClient({ url: "http://seed-choice.test", fetch, offline: { store: carrier.factory(), fenceDays: 1 } });
+        const subscriptions: Array<{ close(): void }> = [];
+        try {
+          await client.ready;
+          await client.auth.login({ email: "alice@example.com", password: "pw" });
+          await client.offline();
+          await client.mutation(api.deliveries.post as any, post(choice));
+          await client.close();
+          now += 3 * DAY;
+          if (choice === "recorded") {
+            const store = carrier.factory()();
+            await store.open("dev:alice");
+            // The log choice survived, but it has no generation/auth facts yet.
+            await store.commit({ watermark: { op: "deliveries.inbox", args: { c: null }, watermark: null, updatedAt: now } });
+            await store.close?.();
+          }
+          client = createClient({ url: "http://seed-choice.test", fetch, token: "alice-token", offline: { store: carrier.factory(), fenceDays: 1 } });
+          if (choice === "mounted") {
+            subscriptions.push(client.subscribe(api.feed.global as any, { c: null }, () => {}));
+            subscriptions.push(client.subscribe(api.deliveries.inbox as any, { c: null }, () => {}, { drain: true }));
+          }
+          await client.ready;
+          const expected = choice === "optional" ? "account.mine" : choice === "cursor" ? "feed.global" : "deliveries.inbox";
+          assert.equal(queries[0], expected, `${carrier.name}: ${choice}`);
+          assert.equal((await client.outbox.entries())[0]?.state, "committed");
+          if (choice === "mounted") await (subscriptions[1] as any).until((value: any) => value.caughtUp === true, 2_000);
+        } finally {
+          for (const subscription of subscriptions) subscription.close();
+          await client.close();
+          const store = carrier.factory()();
+          await store.wipe("dev:alice");
+          await store.close?.();
+        }
+      }
+    } finally {
+      Date.now = originalNow;
+      await carrier.cleanup();
+    }
+  }
+});
+
+test("cold no-facts recovery exposes E_OFFLINE_RESUME in lastRefusal and online rejects while keeping the queue on both carriers", async () => {
+  for (const carrier of await carriers()) {
+    const originalNow = Date.now;
+    const owner = fakeOwner();
+    let client = createClient({ url: "http://cold-refusal.test", fetch: owner.fetch, offline: { store: carrier.factory(), fenceDays: 1 } });
+    try {
+      await client.ready;
+      await client.auth.login({ email: "alice@example.com", password: "pw" });
+      await client.offline();
+      await client.mutation(api.deliveries.post as any, post("survives cold refusal"));
+      await client.close();
+      Date.now = () => originalNow() + 3 * DAY;
+      client = createClient({ url: "http://cold-refusal.test", fetch: owner.fetch, token: "alice-token", offline: { store: carrier.factory(), fenceDays: 1 } });
+      await client.ready;
+      assert.equal(client.snapshot.lastRefusal?.code, "E_OFFLINE_RESUME", `${carrier.name}: cold refusal is visible`);
+      assert.equal(client.snapshot.lastRefusal?.site, "client.online.resume");
+      await assert.rejects(client.online(), (error: any) => error.code === "E_OFFLINE_RESUME");
+      assert.equal(client.snapshot.lastRefusal?.code, "E_OFFLINE_RESUME");
+      assert.deepEqual((await client.outbox.entries()).map((entry) => entry.state), ["queued"]);
+      assert.equal(owner.executions.length, 0);
+      // ready remains usable: an explicit receipt lets the same cold client recover.
+      await client.query(api.deliveries.inbox as any, { c: null });
+      await client.online();
+      assert.equal(client.snapshot.lastRefusal, undefined);
+      assert.equal((await client.outbox.entries())[0]?.state, "committed");
+    } finally {
+      await client.close();
+      Date.now = originalNow;
+      await carrier.cleanup();
+    }
+  }
+});
+
 test("live transport and a fresh login grant cannot release old intents; a grantless resume opens the fence and restart closes it on both carriers", async () => {
   for (const carrier of await carriers()) {
     const originalNow = Date.now;
@@ -266,6 +457,7 @@ test("online refuses E_OFFLINE_RESUME and retains a past-fence queue when no que
       await assert.rejects(client.online(), (error: any) => error.code === "E_OFFLINE_RESUME"
         && error.envelope.family === "offline" && error.envelope.site === "client.online.resume"
         && error.envelope.guide === "offline" && /queued writes are kept/.test(error.envelope.rewrite));
+      assert.equal(client.snapshot.lastRefusal?.code, "E_OFFLINE_RESUME");
       assert.equal(owner.executions.length, 0);
       assert.deepEqual((await client.outbox.entries()).map((entry) => entry.state), ["queued"]);
     } finally {
