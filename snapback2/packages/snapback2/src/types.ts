@@ -309,7 +309,8 @@ export interface SnapbackClient {
   online(): Promise<void>;
   /** Close and reopen this logical device on the same durable partition. */
   restart(): Promise<SnapbackClient>;
-  close(): void;
+  /** Resolves when the offline carrier is quiet; safe to remove the store after. */
+  close(): Promise<void>;
 }
 
 export type QueryView<Result> =

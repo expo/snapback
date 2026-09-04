@@ -157,6 +157,7 @@ class Client implements SnapbackClient {
     fence: number;
   };
   private closed = false;
+  private closing: Promise<void> = Promise.resolve();
 
   constructor(options: InternalClientOptions) {
     if (!options?.url) throw new TypeError("createClient requires url");
@@ -636,13 +637,16 @@ class Client implements SnapbackClient {
     return () => this.statusListeners.delete(callback);
   }
 
-  close(): void {
-    if (this.closed) return;
+  close(): Promise<void> {
+    if (this.closed) return this.closing;
     this.closed = true;
     this.operationFence += 1;
     this.closeTransports();
     this.patchSnapshot({ connection: "offline" });
-    void this.offlineRuntime?.close();
+    // Resolves once the carrier is quiet: a test or a shutdown that removes the
+    // store's directory right after close() would otherwise race the last swap.
+    this.closing = this.offlineRuntime?.close() ?? Promise.resolve();
+    return this.closing;
   }
 
   private track<Event>(subscription: Subscription<Event>): Subscription<Event> {

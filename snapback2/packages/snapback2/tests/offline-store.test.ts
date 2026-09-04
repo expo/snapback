@@ -641,7 +641,7 @@ test("manifest retention is loaded before the first commit without an app manife
   const held = await client.query<any, any>(api.messages.alternate as any, {});
   assert.equal("retained" in held && held.retained, true);
   assert.equal("data" in held && held.data?.body, "hello");
-  client.close();
+  await client.close();
   await rm(root, { recursive: true, force: true });
 });
 
@@ -667,7 +667,7 @@ test("conditional unchanged branches before envelope decoding and refreshes the 
   assert.deepEqual("data" in unchanged ? unchanged.data : undefined, ["held"]);
   await client.offline();
   assert.equal((await client.query<any, any>(api.messages.thread as any, {})).seq, 4);
-  client.close();
+  await client.close();
   await rm(root, { recursive: true, force: true });
 });
 
@@ -693,7 +693,7 @@ test("a subscription conditional unchanged frame reuses the held pooled answer",
   assert.equal(unchanged.seq, 4);
   assert.deepEqual("data" in unchanged ? unchanged.data : undefined, ["held"]);
   sub.close();
-  client.close();
+  await client.close();
   await rm(root, { recursive: true, force: true });
 });
 
@@ -717,7 +717,7 @@ test("generation and auth-epoch mismatches cannot replace held coverage", async 
   await client.offline();
   const held = await client.query<any, any>(api.messages.thread as any, {});
   assert.deepEqual("data" in held ? held.data : undefined, ["held"]);
-  client.close();
+  await client.close();
   await rm(root, { recursive: true, force: true });
 });
 
@@ -789,7 +789,7 @@ test("the client tombstone hook evicts the named body in the same delivery swap"
   assert.equal(body.state, "partial");
   assert.deepEqual("data" in body ? body.data : undefined, null);
   assert.equal("validator" in body, false);
-  client.close();
+  await client.close();
   await rm(root, { recursive: true, force: true });
 });
 
@@ -803,7 +803,7 @@ test("the frozen delivery decoder rejects malformed custody facts", async () => 
   });
   await assert.rejects(client.query(api.messages.thread, {}), (error: unknown) =>
     error instanceof SnapbackRefusal && error.code === "E_WIRE_SHAPE" && error.message.includes("planHash"));
-  client.close();
+  await client.close();
   await rm(root, { recursive: true, force: true });
 });
 
@@ -923,7 +923,7 @@ test("cold resume sends the bounded shape before subscribe and a 404 falls back 
     mounted: [],
   });
   sub.close();
-  client.close();
+  await client.close();
   await rm(root, { recursive: true, force: true });
 });
 
@@ -1049,7 +1049,7 @@ test("E_OFFLINE_RESET cold-drains a mounted drain from the null cursor", async (
   }
   assert.deepEqual(queryCursors, [null, null]);
   drain.close();
-  client.close();
+  await client.close();
   await rm(root, { recursive: true, force: true });
 });
 
@@ -1088,7 +1088,7 @@ test("E_OFFLINE_RESUME honors which and cap and initial consecutive 413s do not 
   assert.equal((await client.query(api.old.value as any, {})).state, "complete");
   await client.online();
   assert.equal(resumes, 3, "ready settled and a later online call could resume");
-  client.close();
+  await client.close();
   await rm(root, { recursive: true, force: true });
 });
 
@@ -1119,7 +1119,7 @@ test("a second consecutive E_OFFLINE_RESUME settles online as a refusal and leav
   assert.equal(resumes, 3);
   await client.offline();
   assert.equal((await client.query(api.deliveries.inbox as any, { c: null })).state, "complete");
-  client.close();
+  await client.close();
   await rm(root, { recursive: true, force: true });
 });
 
@@ -1163,7 +1163,7 @@ test("resume applies its mounted swap before online resolves", async () => {
   const held = await client.query<any, any>(api.messages.body as any, {});
   assert.deepEqual("data" in held ? held.data : undefined, ["fresh"]);
   sub.close();
-  client.close();
+  await client.close();
   await rm(root, { recursive: true, force: true });
 });
 
