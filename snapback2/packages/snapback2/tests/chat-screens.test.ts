@@ -27,7 +27,7 @@ before(async () => {
     // The app, and the thread screen on its own: the composer lives there, and the
     // grant test needs it on screen while the inbox drain is still held at its first page.
     stdin: {
-      contents: 'export { App } from "./App";\nexport { Thread } from "./chat/Thread";\n',
+      contents: 'export { App } from "./App";\nexport { Thread } from "./Thread";\n',
       resolveDir: resolve(packageRoot, "templates/chat/react/src"),
       sourcefile: "screens.tsx",
       loader: "tsx",

@@ -1,4 +1,4 @@
-import { mkdir } from "node:fs/promises";
+import { mkdir, readdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { assessGauntlet } from "./gauntlet";
 import type { ProjectJson } from "./ir";
@@ -45,7 +45,7 @@ export function registerFinalGateChecks(test: RegisterTest, legacyLib: string): 
     );
   });
 
-  test("the chat template's React screens typecheck against the built package and the template's generated api.d.ts", async () => {
+  test("the chat template's React and Expo apps typecheck against the built package and generated API", async () => {
     const packageRoot = resolve(crate, "packages/snapback2");
     const template = resolve(packageRoot, "templates/chat");
     const lowered = await lowerProject(template);
@@ -54,10 +54,12 @@ export function registerFinalGateChecks(test: RegisterTest, legacyLib: string): 
     await mkdir(buildDir, { recursive: true });
     const apiDts = resolve(buildDir, "api.d.ts");
     await Bun.write(apiDts, lowered.apiDts);
-    // main.tsx is the generic shell's entry (react-dom/client has no workspace
-    // declarations), exactly as the React template gate above skips it.
-    const screens = ["src/App.tsx", "src/chat/Thread.tsx", "src/chat/Composer.tsx", "src/chat/Search.tsx", "src/chat/Inbox.tsx", "src/chat/log.ts"]
-      .map((file) => resolve(template, "react", file));
+    const files = async (path: string): Promise<string[]> => {
+      const entries = await readdir(path, { withFileTypes: true });
+      return (await Promise.all(entries.map((entry) => entry.isDirectory() ? files(resolve(path, entry.name))
+        : entry.isFile() && /\.tsx?$/.test(entry.name) ? [resolve(path, entry.name)] : []))).flat();
+    };
+    const screens = (await Promise.all(["react", "expo", "shared"].map((arm) => files(resolve(template, arm))))).flat();
     const program = ts.createProgram({
       rootNames: [...screens, apiDts],
       options: {
@@ -71,18 +73,22 @@ export function registerFinalGateChecks(test: RegisterTest, legacyLib: string): 
           snapback2: [resolve(packageRoot, "dist/index.d.ts")],
           "snapback2/client": [resolve(packageRoot, "dist/client.d.ts")],
           "snapback2/react": [resolve(packageRoot, "dist/react.d.ts")],
+          "snapback2/react-native": [resolve(packageRoot, "dist/react-native.d.ts")],
+          "snapback2/expo": [resolve(packageRoot, "dist/expo.d.ts")],
+          "snapback2/expo/witness": [resolve(packageRoot, "dist/expo/witness.d.ts")],
         },
         skipLibCheck: true,
         strict: true,
         target: ts.ScriptTarget.ES2022,
-        types: ["react"],
+        typeRoots: [resolve(packageRoot, "node_modules/@types")],
+        types: ["react", "node"],
       },
     });
     const diagnostics = ts.getPreEmitDiagnostics(program)
-      .filter((item) => screens.includes(item.file?.fileName ?? ""));
+      .filter((item) => !item.file || item.file.fileName.startsWith(template));
     assert(
       diagnostics.length === 0,
-      `chat React screens did not typecheck:\n${diagnostics.map((item) => `${item.file?.fileName}:${item.start}: ${ts.flattenDiagnosticMessageText(item.messageText, "\n")}`).join("\n")}`,
+      `chat apps did not typecheck:\n${diagnostics.map((item) => `${item.file?.fileName}:${item.start}: ${ts.flattenDiagnosticMessageText(item.messageText, "\n")}`).join("\n")}`,
     );
   });
 

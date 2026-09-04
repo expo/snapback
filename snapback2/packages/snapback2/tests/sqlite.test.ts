@@ -24,7 +24,7 @@ test("SQLite driver conformance: BLOBs, JSON keys, rollback, late beforeCommit, 
     const result = await runSqliteDriverConformance(() => nodeSqliteDriver(join(root, "conformance.db")));
     t.diagnostic(`journal_mode=${result.journalMode}; ${result.checks.join(", ")}`);
     assert.equal(result.journalMode, "wal");
-    assert.equal(result.checks.length, 9);
+    assert.equal(result.checks.length, 10);
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 

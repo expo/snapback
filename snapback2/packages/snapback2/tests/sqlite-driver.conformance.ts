@@ -44,6 +44,19 @@ export async function runSqliteDriverConformance(open: () => SqliteDriver | Prom
     } catch (error) { check(error === marker, "rollback propagates the body error"); }
     check(await first.get("SELECT key FROM conformance WHERE key = ?", ["rollback"]) === undefined, "rollback on throw");
     checks.push("rollback on throw");
+    // Force an actual native COMMIT failure, without an IO shim: end the
+    // transaction in its body, then let the driver's COMMIT run and fail.
+    // This also works on Expo's separately opened exclusive connection.
+    let commitFailed = false;
+    await first.transaction(async (tx) => {
+      await tx.run("INSERT INTO conformance VALUES (?, ?)", ["failed-commit", new Uint8Array([7])]);
+      await tx.run("ROLLBACK");
+    }).catch(() => { commitFailed = true; });
+    check(commitFailed, "COMMIT after rollback must fail");
+    check(await first.get("SELECT key FROM conformance WHERE key = ?", ["failed-commit"]) === undefined, "failed COMMIT leaves no row");
+    await first.transaction((tx) => tx.run("INSERT INTO conformance VALUES (?, ?)", ["after-failed-commit", new Uint8Array([8])]));
+    check(await first.get("SELECT key FROM conformance WHERE key = ?", ["after-failed-commit"]) !== undefined, "next transaction after failed COMMIT succeeds");
+    checks.push("failed COMMIT rolls back and next transaction succeeds");
     let release!: () => void;
     let reached!: () => void;
     let committed = false;

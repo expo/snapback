@@ -241,10 +241,17 @@ test("a mounted subscription cold-opens after supersession without Last-Event-ID
 
 test("tracked Snapback 2 source contains no literal NUL bytes", async () => {
   const root = resolve(import.meta.dirname, "../../../..");
-  const paths = execFileSync("git", ["ls-files", "-z", "--", "snapback2"], { cwd: root }).toString().split("\u0000")
+  const paths = execFileSync("git", ["ls-files", "--cached", "--others", "--exclude-standard", "-z", "--", "snapback2"], { cwd: root }).toString().split("\u0000")
     .filter(path => /\.(?:ts|tsx|js|jsx|mjs|cjs|rs|q|sh|py|json)$/.test(path));
   const bad: string[] = [];
-  for (const path of paths) if ((await readFile(join(root, path))).includes(0)) bad.push(path);
+  for (const path of paths) {
+    // A worktree rename has an unstaged deleted path until the orchestrator lands it.
+    const bytes = await readFile(join(root, path)).catch((error) => {
+      if (error.code === "ENOENT") return undefined;
+      throw error;
+    });
+    if (bytes?.includes(0)) bad.push(path);
+  }
   assert.deepEqual(bad, [], "literal NULs hide source diffs as binary patches");
 });
 

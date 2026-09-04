@@ -1,0 +1,11 @@
+{
+  "expo": {
+    "name": "Snapback Chat",
+    "slug": "snapback-chat",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "jsEngine": "hermes",
+    "ios": { "bundleIdentifier": "dev.snapback.chat", "supportsTablet": true },
+    "plugins": ["expo-sqlite", "expo-secure-store", "expo-video"]
+  }
+}

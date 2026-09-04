@@ -2,7 +2,7 @@ import { useEffect, useMemo } from "react";
 import { api, isSnapbackRefusal } from "snapback2/client";
 import { useMutation, useOutbox, useQuery } from "snapback2/react";
 import { Composer } from "./Composer";
-import { intentLabel, settledByRows, threadBubbles, type Bubble, type LogRow } from "./log";
+import { intentLabel, settledByRows, threadBubbles, type Bubble, type LogRow } from "../shared/log.js";
 
 function when(at: number): string {
   return new Date(at).toLocaleTimeString();

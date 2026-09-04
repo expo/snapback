@@ -315,6 +315,8 @@ export interface SnapbackClient {
   assetHeaders(): Promise<Record<string, string>>;
   /** Fetches a client-issued asset URL: the byte cache under the row's lease first, then the network with the header credential. */
   assetBlob(url: string, options?: { signal?: AbortSignal }): Promise<Blob>;
+  /** Native byte path: cache first, then an authenticated ArrayBuffer response; no Blob. */
+  assetBytes(url: string, options?: { signal?: AbortSignal }): Promise<import("./store/byte-cache.js").AssetBytes>;
   /** The partition's byte cache when the client has an offline store; components read it before the network. */
   readonly assetCache: AssetCache | undefined;
   /** Delivers validated query receipt states with `live: true`; transport loss is client-made `stale`. */

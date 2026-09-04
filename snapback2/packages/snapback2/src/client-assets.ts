@@ -2,7 +2,7 @@
 // network and filled after it; a viewed view-once row is refused before any byte moves.
 import { AssetInputError } from "./assets.js";
 import { SnapbackRefusal } from "./client-wire.js";
-import { ASSET_ID, type AssetCache, type ByteCache } from "./store/byte-cache.js";
+import { ASSET_ID, type AssetCache, type AssetBytes, type ByteCache } from "./store/byte-cache.js";
 import type { RefusalEnvelope } from "./types.js";
 
 export interface AssetBlobTarget { url: string; assetId: string; width: number | null }
@@ -77,4 +77,27 @@ export async function cachedAssetBlob(
   const blob = await network();
   await cache.put(target.assetId, target.width, blob);
   return blob;
+}
+
+/** Native byte ingress; the caller fences custody after each awaited read. */
+export async function cachedAssetBytes(
+  cache: ByteCache | undefined, target: AssetBlobTarget, network: () => Promise<AssetBytes>,
+  record: (refusal: RefusalEnvelope) => void, current: () => void,
+): Promise<AssetBytes> {
+  if (!cache || target.assetId === "") return network();
+  const held = await cache.getBytes(target.assetId, target.width);
+  current();
+  if (held) return held;
+  const viewed = await cache.viewed(target.assetId);
+  current();
+  if (viewed) {
+    const refusal = viewedRefusal(target.assetId);
+    record(refusal.envelope);
+    throw refusal;
+  }
+  const value = await network();
+  current();
+  await cache.putBytes(target.assetId, target.width, value);
+  current();
+  return value;
 }

@@ -1,5 +1,3 @@
-/// <reference path="./native-modules.d.ts" />
-
 import type {
   AssetRecord,
   AssetUploadOptions,

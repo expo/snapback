@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { conversations, type LogRow } from "./log";
+import { conversations, type LogRow } from "../shared/log.js";
 
 export function Inbox({ rows, selected, onSelect }: {
   rows: readonly LogRow[];

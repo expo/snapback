@@ -93,7 +93,6 @@ const declarationProgram = ts.createProgram({
     resolve(here, "src/expo/witness.ts"),
     resolve(here, "src/assets.ts"),
     resolve(here, "src/client.ts"),
-    resolve(here, "src/native-modules.d.ts"),
     resolve(here, "src/react-native.tsx"),
     resolve(here, "src/offline-protocol.ts"),
     resolve(here, "src/react.tsx"),
@@ -153,8 +152,18 @@ const fixtures = resolve(here, "../compiler/fixtures");
 const templateDist = resolve(dist, "templates");
 for (const name of ["todos", "chat"]) {
   await cp(resolve(here, `templates/${name}/snapback`), resolve(templateDist, name, "snapback"), { recursive: true });
-  const screens = resolve(here, `templates/${name}/react`);
-  if (existsSync(screens)) await cp(screens, resolve(templateDist, name, "react"), { recursive: true });
+  for (const arm of ["react", "expo", "shared"]) {
+    const source = resolve(here, `templates/${name}/${arm}`);
+    if (existsSync(source)) await cp(source, resolve(templateDist, name, arm), { recursive: true, dereference: true });
+  }
+  if (name === "chat") {
+    // Metro 54 does not resolve an explicit .js import to its .ts source. Build
+    // the shared reducers ahead; ship their TS beside JS for generated-API types.
+    for (const directory of ["shared", "react/shared", "expo/shared"]) await build({
+      entryPoints: [resolve(here, "templates/chat/shared/log.ts"), resolve(here, "templates/chat/shared/offline.ts")],
+      outdir: resolve(templateDist, name, directory), format: "esm", platform: "neutral", target: "es2022",
+    });
+  }
 }
 await cp(resolve(here, "templates/react"), resolve(templateDist, "react"), { recursive: true });
 

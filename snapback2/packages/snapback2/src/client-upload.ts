@@ -14,10 +14,10 @@ import {
   withProgress,
   type PreparedAssetSource,
 } from "./assets.js";
-import { assetBlobTarget, cachedAssetBlob, type AssetBlobTarget } from "./client-assets.js";
+import { assetBlobTarget, cachedAssetBlob, cachedAssetBytes, type AssetBlobTarget } from "./client-assets.js";
 import { offlineNetworkRefusal } from "./client-offline.js";
 import { SnapbackRefusal, isSnapbackRefusal, responseRefusal, wireAssetSession } from "./client-wire.js";
-import type { ByteCache } from "./store/byte-cache.js";
+import type { AssetBytes, ByteCache } from "./store/byte-cache.js";
 import type {
   AssetRecord,
   AssetUploadOptions,
@@ -126,6 +126,24 @@ export async function assetBlobFor(
     host.validated(authority);
     return response.blob();
   }, (refusal) => host.recordRefusal(refusal));
+}
+
+export async function assetBytesFor(
+  host: UploadHost, cache: ByteCache | undefined, offline: boolean, url: string,
+  options: { signal?: AbortSignal }, authority: Authority,
+): Promise<AssetBytes> {
+  let target: AssetBlobTarget;
+  try { target = assetBlobTarget(host.url, url); } catch (error) { throw assetInput(host, error); }
+  return cachedAssetBytes(cache, target, async () => {
+    if (offline) throw offlineNetworkRefusal();
+    const headers = host.headers(authority);
+    headers.set("Accept", "*/*");
+    const response = await fetchResponse(host, url, { headers, signal: options.signal }, authority);
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    host.ensureAuthority(authority);
+    host.validated(authority);
+    return { bytes, type: response.headers.get("Content-Type") ?? "application/octet-stream" };
+  }, (refusal) => host.recordRefusal(refusal), () => host.ensureAuthority(authority));
 }
 
 export async function uploadPrepared(

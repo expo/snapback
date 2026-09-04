@@ -216,159 +216,65 @@ test("file:// clip runs through Expo File upload, mutation substitution, and car
   client.close();
 });
 
-test("native AssetImage withholds source until persona headers are ready", async () => {
-  const fetch = async (input: string | URL | Request) => {
+test("native AssetImage fetches bytes with persona headers and renders an in-memory source without Blob", async () => {
+  const requests: RequestInit[] = [];
+  const fetch = async (input: string | URL | Request, init?: RequestInit) => {
     if (new URL(String(input)).pathname === "/api/manifest") return json(nativeManifest());
-    throw new Error(`unexpected URL ${input}`);
+    requests.push(init!);
+    return new Response(new Uint8Array([1, 2, 3]), { headers: { "Content-Type": "image/png" } });
   };
   let renderer!: ReactTestRenderer;
-  await act(async () => {
-    renderer = TestRenderer.create(React.createElement(
-      SnapbackProvider,
-      { url: "http://assets.test", as: "alice", fetch },
-      React.createElement(AssetImage, { asset: image }),
-    ));
-  });
-  assert.equal(nativeImage(renderer).props.source, undefined);
-  await act(async () => nativeImage(renderer).props.onLayout({ nativeEvent: { layout: { width: 100, height: 75 } } }));
-  await settle();
-  assert.deepEqual(nativeImage(renderer).props.source, {
-    uri: `http://assets.test/api/asset/${image.id}?w=200`,
-    headers: { "X-Snapback-As": "alice" },
-  });
-  await act(async () => renderer.unmount());
+  const Original = globalThis.Blob;
+  globalThis.Blob = class { constructor() { throw new Error("native Blob is forbidden"); } } as any;
+  try {
+    await act(async () => { renderer = TestRenderer.create(React.createElement(SnapbackProvider,
+      { url: "http://assets.test", as: "alice", fetch }, React.createElement(AssetImage, { asset: image, width: 100 }))); });
+    await settle();
+    assert.deepEqual(nativeImage(renderer).props.source, { uri: "data:image/png;base64,AQID" });
+    assert.equal(new Headers(requests[0]?.headers).get("X-Snapback-As"), "alice");
+  } finally { globalThis.Blob = Original; await act(async () => renderer.unmount()); }
 });
 
-test("native AssetImage exposes bearer header failure and never issues an unauthenticated source", async () => {
+test("native AssetImage exposes bearer restoration failure without fetching unauthenticated bytes", async () => {
   let rejectLoad!: (error: Error) => void;
   const load = new Promise<string>((_resolve, reject) => { rejectLoad = reject; });
   const refusals: InstanceType<typeof SnapbackRefusal>[] = [];
-  const onRefusal = (refusal: InstanceType<typeof SnapbackRefusal>) => refusals.push(refusal);
   let renderer!: ReactTestRenderer;
-  await act(async () => {
-    renderer = TestRenderer.create(React.createElement(
-      SnapbackProvider,
-      {
-        url: "http://assets.test",
-        tokenStore: { load: () => load, save: () => undefined },
-        fetch: async () => { throw new Error("network must wait for token restore"); },
-      },
-      React.createElement(AssetImage, { asset: image, onRefusal }),
-    ));
-  });
-  await act(async () => nativeImage(renderer).props.onLayout({ nativeEvent: { layout: { width: 100, height: 75 } } }));
+  await act(async () => { renderer = TestRenderer.create(React.createElement(SnapbackProvider,
+    { url: "http://assets.test", tokenStore: { load: () => load, save: () => undefined },
+      fetch: async () => { throw new Error("network must wait for token restore"); } },
+    React.createElement(AssetImage, { asset: image, onRefusal: (error) => refusals.push(error) }))); });
   assert.equal(nativeImage(renderer).props.source, undefined);
   rejectLoad(new Error("secure store unavailable"));
   await settle();
   assert.equal(nativeImage(renderer).props.source, undefined);
-  assert.equal(refusals.length, 1);
-  assert.ok(refusals[0] instanceof SnapbackRefusal);
   assert.equal(refusals[0]?.code, "E_AUTH_TOKEN_STORE");
   await act(async () => renderer.unmount());
 });
 
-test("native AssetImage sends Authorization only after bearer restoration", async () => {
+test("native AssetImage waits for bearer bytes and keeps its source across callback changes", async () => {
   let resolveLoad!: (token: string) => void;
   const load = new Promise<string>((resolve) => { resolveLoad = resolve; });
-  const fetch = async (input: string | URL | Request) => {
-    if (new URL(String(input)).pathname === "/api/manifest") return json(nativeManifest());
-    throw new Error(`unexpected URL ${input}`);
-  };
+  let calls = 0;
+  const client = createClient({ url: "http://assets.test", tokenStore: { load: () => load, save: () => undefined },
+    fetch: async (input, init) => {
+      if (new URL(String(input)).pathname === "/api/manifest") return json(nativeManifest());
+      assert.equal(new Headers(init?.headers).get("Authorization"), "Bearer restored");
+      calls++;
+      return new Response(new Uint8Array([4]), { headers: { "Content-Type": "image/png" } });
+    } });
+  const tree = () => React.createElement(SnapbackProvider, { client }, React.createElement(AssetImage, { asset: image, onRefusal: () => {} }));
   let renderer!: ReactTestRenderer;
-  await act(async () => {
-    renderer = TestRenderer.create(React.createElement(
-      SnapbackProvider,
-      { url: "http://assets.test", tokenStore: { load: () => load, save: () => undefined }, fetch },
-      React.createElement(AssetImage, { asset: image }),
-    ));
-  });
-  await act(async () => nativeImage(renderer).props.onLayout({ nativeEvent: { layout: { width: 80, height: 60 } } }));
+  await act(async () => { renderer = TestRenderer.create(tree()); });
   assert.equal(nativeImage(renderer).props.source, undefined);
-  resolveLoad("bearer-token");
-  await settle();
-  assert.deepEqual(nativeImage(renderer).props.source, {
-    uri: `http://assets.test/api/asset/${image.id}?w=160`,
-    headers: { Authorization: "Bearer bearer-token" },
-  });
-  await act(async () => renderer.unmount());
-});
-
-test("native AssetImage keeps ready source when an inline onRefusal callback changes", async () => {
-  let headerLoads = 0;
-  const fetch = async (input: string | URL | Request) => {
-    if (new URL(String(input)).pathname === "/api/manifest") return json(nativeManifest());
-    throw new Error(`unexpected URL ${input}`);
-  };
-  function Harness({ revision }: { revision: number }) {
-    const client = useSnapbackClient();
-    const patched = React.useRef(false);
-    if (!patched.current) {
-      patched.current = true;
-      const load = client.assetHeaders.bind(client);
-      client.assetHeaders = async () => {
-        headerLoads += 1;
-        return load();
-      };
-    }
-    return React.createElement(AssetImage, {
-      asset: image,
-      onRefusal: () => { void revision; },
-    });
-  }
-  const tree = (revision: number) => React.createElement(
-    SnapbackProvider,
-    { url: "http://assets.test", as: "alice", fetch },
-    React.createElement(Harness, { revision }),
-  );
-  let renderer!: ReactTestRenderer;
-  await act(async () => { renderer = TestRenderer.create(tree(1)); });
-  await act(async () => nativeImage(renderer).props.onLayout({ nativeEvent: { layout: { width: 100, height: 75 } } }));
-  await settle();
-  const readySource = nativeImage(renderer).props.source;
-  assert.ok(readySource);
-
-  await act(async () => renderer.update(tree(2)));
-  assert.deepEqual(nativeImage(renderer).props.source, readySource);
-  assert.equal(headerLoads, 1);
-  await act(async () => renderer.unmount());
-});
-
-test("mounted native video keeps its first carrier source across expiry and parent re-render", async () => {
-  const originalNow = Date.now;
-  let now = 1_000_000;
-  Date.now = () => now;
-  harness.__snapbackNative.videoSources = [];
-  let carrierCalls = 0;
-  const fetch = async (input: string | URL | Request) => {
-    const path = new URL(String(input)).pathname;
-    if (path === "/api/manifest") return json(nativeManifest());
-    if (path === "/api/auth/asset-session") {
-      carrierCalls += 1;
-      return json({ token: `native-carrier-${carrierCalls}`, expiresAt: now + 60_000 });
-    }
-    throw new Error(`unexpected path ${path}`);
-  };
-  const tree = () => React.createElement(
-    SnapbackProvider,
-    { url: "http://assets.test", as: "alice", fetch },
-    React.createElement(AssetVideo, { asset: { ...video }, testID: "clip" }),
-  );
-  let renderer!: ReactTestRenderer;
-  try {
-    await act(async () => { renderer = TestRenderer.create(tree()); });
-    await settle();
-    const first = harness.__snapbackNative.videoSources.at(-1);
-    assert.equal(first, `http://assets.test/api/asset/${video.id}?s=native-carrier-1`);
-    now += 120_000;
-    await act(async () => renderer.update(tree()));
-    await settle();
-    assert.equal(carrierCalls, 1);
-    assert.ok(harness.__snapbackNative.videoSources.length >= 2);
-    assert.ok(harness.__snapbackNative.videoSources.every((source) => source === first));
-  } finally {
-    Date.now = originalNow;
-    if (renderer) await act(async () => renderer.unmount());
-  }
+  assert.equal(calls, 0);
+  resolveLoad("restored"); await settle();
+  const source = nativeImage(renderer).props.source;
+  assert.deepEqual(source, { uri: "data:image/png;base64,BA==" });
+  await act(async () => renderer.update(tree()));
+  assert.deepEqual(nativeImage(renderer).props.source, source);
+  assert.equal(calls, 1);
+  await act(async () => renderer.unmount()); await client.close();
 });
 
 test("native URI refuses E_ASSET_NATIVE_FILE_API when expo-file-system has no File constructor", async () => {
@@ -391,4 +297,87 @@ test("native URI refuses E_ASSET_NATIVE_FILE_API when expo-file-system has no Fi
     client.close();
     expoFileSystem.setFileConstructorForTest(FileConstructor);
   }
+});
+
+test("native AssetVideo cold mount never prefetches view-once, marks viewed on play, and writes no file", async () => {
+  const { mkdtemp, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const { NativeAssetFiles, attachAssetFiles, fileBackend, PersistentRangeStore, SqliteBackend, nodeSqliteDriver } = await import("../dist/sqlite-test.mjs");
+  const root = await mkdtemp(join(tmpdir(), "e2-native-video-"));
+  const writes: string[] = [];
+  const files = new NativeAssetFiles({ root: "file:///cache/snapback2", async list() { return []; }, async remove() {}, async write(uri) { writes.push(uri); } });
+  const store = new PersistentRangeStore(fileBackend(new SqliteBackend(() => nodeSqliteDriver(join(root, "state.db"))), files));
+  attachAssetFiles(store, files);
+  await store.open("dev:alice");
+  await store.commit({ deliveries: [{ op: "thread", args: {}, seq: 1, state: "complete", next: null,
+    rows: [{ table: "messages", id: "clip-row", row: { id: "clip-row", clip: video } }],
+    data: [{ $row: { table: "messages", id: "clip-row" } }], receipt: { ranges: [], absences: [], verdicts: [] } }] });
+  await store.close();
+  let release!: () => void;
+  const opening = new Promise<void>((resolve) => { release = resolve; });
+  const open = store.open.bind(store);
+  store.open = async (partition) => { await opening; await open(partition); };
+  let fetches = 0;
+  const client = createClient({ url: "http://assets.test", as: "alice", offline: { store: () => store, viewOnce: () => true },
+    fetch: async (input) => {
+      if (new URL(String(input)).pathname === "/api/manifest") return json(nativeManifest());
+      if (new URL(String(input)).pathname === "/api/program") return json({ code: "E_ROUTE", family: "op", message: "absent", guide: "op/reference" }, 404);
+      fetches++; return new Response(new Uint8Array([1, 2, 3]), { headers: { "Content-Type": "video/mp4" } });
+    } });
+  let renderer: ReactTestRenderer | undefined;
+  try {
+    await act(async () => { renderer = TestRenderer.create(React.createElement(SnapbackProvider, { client }, React.createElement(AssetVideo, { asset: video }))); });
+    await settle(); assert.equal(fetches, 0);
+    await act(async () => { release(); await client.ready; });
+    let viewed = 0;
+    const mark = client.assetCache!.markViewed.bind(client.assetCache);
+    client.assetCache!.markViewed = async (id) => { viewed++; return mark(id); };
+    await settle(); assert.equal(fetches, 0); assert.deepEqual(writes, []);
+    await act(async () => renderer!.root.findByType("NativePressable").props.onPress());
+    for (let i = 0; i < 10 && viewed === 0; i++) await settle();
+    assert.ok(viewed > 0); assert.equal(fetches, 1);
+    assert.match(renderer!.root.findByType("NativeVideo").props.player.source, /^data:video\/mp4;base64,/);
+    assert.equal(await client.assetCache!.viewed(video.id), true); assert.deepEqual(writes, []);
+    await act(async () => store.seal()); await settle();
+    assert.equal(renderer!.root.findAllByType("NativeVideo").length, 0, "seal invalidates a mounted player");
+  } finally { release(); if (renderer) await act(async () => renderer!.unmount()); await client.close(); await rm(root, { recursive: true, force: true }); }
+});
+
+test("native AssetImage and ordinary AssetVideo serve cached files and clear mounted sources on custody change", async () => {
+  const { mkdtemp, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const { NativeAssetFiles, attachAssetFiles, fileBackend, PersistentRangeStore, SqliteBackend, nodeSqliteDriver } = await import("../dist/sqlite-test.mjs");
+  const root = await mkdtemp(join(tmpdir(), "e2-native-image-"));
+  const held = new Map<string, Uint8Array>();
+  const files = new NativeAssetFiles({ root: "file:///cache/snapback2", async list() { return []; }, async remove(uri) { held.delete(uri); },
+    async write(uri, bytes) { held.set(uri, bytes); } });
+  const store = new PersistentRangeStore(fileBackend(new SqliteBackend(() => nodeSqliteDriver(join(root, "state.db"))), files));
+  attachAssetFiles(store, files);
+  let fetches = 0;
+  const client = createClient({ url: "http://assets.test", as: "alice", offline: { store: () => store },
+    fetch: async (input) => {
+      if (new URL(String(input)).pathname === "/api/manifest") return json(nativeManifest());
+      if (new URL(String(input)).pathname === "/api/program") return json({ code: "E_ROUTE", family: "op", message: "absent", guide: "op/reference" }, 404);
+      fetches++; return new Response(new Uint8Array([1, 2, 3]), { headers: { "Content-Type": "image/png" } });
+    } });
+  let renderer: ReactTestRenderer | undefined;
+  try {
+    await client.ready;
+    await store.commit({ deliveries: [{ op: "thread", args: {}, seq: 1, state: "complete", next: null,
+      rows: [{ table: "messages", id: "photo-row", row: { id: "photo-row", photo: image, clip: video } }],
+      data: [{ $row: { table: "messages", id: "photo-row" } }], receipt: { ranges: [], absences: [], verdicts: [] } }] });
+    await client.assetCache!.putBytes(video.id, null, { bytes: new Uint8Array([4]), type: "video/mp4" });
+    await act(async () => { renderer = TestRenderer.create(React.createElement(SnapbackProvider, { client },
+      React.createElement(AssetImage, { asset: image, width: 64 }), React.createElement(AssetVideo, { asset: video }))); });
+    for (let i = 0; i < 10 && !nativeImage(renderer!).props.source; i++) await settle();
+    const source = nativeImage(renderer!).props.source;
+    assert.equal(source.uri, `file:///cache/snapback2/dev%3Aalice/${image.id}.w128`);
+    assert.ok(held.has(source.uri)); assert.equal(fetches, 1);
+    assert.equal(renderer!.root.findByType("NativeVideo").props.player.source, `file:///cache/snapback2/dev%3Aalice/${video.id}`);
+    await act(async () => store.seal()); await settle();
+    assert.equal(nativeImage(renderer!).props.source, undefined); assert.equal(fetches, 1);
+    assert.equal(renderer!.root.findAllByType("NativeVideo").length, 0);
+  } finally { if (renderer) await act(async () => renderer!.unmount()); await client.close(); await rm(root, { recursive: true, force: true }); }
 });

@@ -19,7 +19,7 @@ import {
   validateOfflineOptions,
 } from "./client-offline.js";
 import {
-  assetBlobFor,
+  assetBlobFor, assetBytesFor,
   assetHeadersFor,
   assetInput,
   assetUrlFor,
@@ -314,12 +314,8 @@ class Client implements SnapbackClient {
 
   async assetUrl(asset: AssetRecord | null | undefined, options?: AssetUrlOptions): Promise<string | undefined>;
   async assetUrl(assets: readonly AssetRecord[], options?: AssetUrlOptions): Promise<string[]>;
-  async assetUrl(
-    assetOrList: AssetRecord | readonly AssetRecord[] | null | undefined,
-    options: AssetUrlOptions = {},
-  ): Promise<string | string[] | undefined> {
-    const authority = await this.operationAuthority();
-    return assetUrlFor(this, assetOrList, options, authority);
+  async assetUrl(assetOrList: AssetRecord | readonly AssetRecord[] | null | undefined, options: AssetUrlOptions = {}): Promise<string | string[] | undefined> {
+    return assetUrlFor(this, assetOrList, options, await this.operationAuthority());
   }
 
   async assetHeaders(): Promise<Record<string, string>> {
@@ -327,10 +323,11 @@ class Client implements SnapbackClient {
   }
 
   async assetBlob(url: string, options: { signal?: AbortSignal } = {}): Promise<Blob> {
-    const authority = await this.operationAuthority();
-    return assetBlobFor(this, this.offlineRuntime?.bytes, this.forcedOffline, url, options, authority);
+    return assetBlobFor(this, this.offlineRuntime?.bytes, this.forcedOffline, url, options, await this.operationAuthority());
   }
-
+  async assetBytes(url: string, options: { signal?: AbortSignal } = {}) {
+    return assetBytesFor(this, this.offlineRuntime?.bytes, this.forcedOffline, url, options, await this.operationAuthority());
+  }
   get assetCache(): OfflineRuntime["bytes"] | undefined {
     return this.offlineRuntime?.bytes;
   }

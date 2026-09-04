@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { searchHeld, type LogRow } from "./log";
+import { searchHeld, type LogRow } from "../shared/log.js";
 
 // @ref LLP 1012#6-reads-offline — a search op has no held answer for a new
 // term, so the recipe filters the downloaded log and says so.

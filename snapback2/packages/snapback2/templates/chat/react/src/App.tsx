@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { api } from "snapback2/client";
 import { DevOverlay, useAuth, useConnection, useQuery } from "snapback2/react";
-import { Inbox } from "./chat/Inbox";
-import { Search } from "./chat/Search";
-import { Thread } from "./chat/Thread";
-import type { LogRow } from "./chat/log";
+import { Inbox } from "./Inbox";
+import { Search } from "./Search";
+import { Thread } from "./Thread";
+import type { LogRow } from "../shared/log.js";
 
 // @ref LLP 1012#3-the-model-on-one-page-and-the-program-shape — one drained
 // delivery log is "everything on the phone"; the inbox, every thread, and

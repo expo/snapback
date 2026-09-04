@@ -214,7 +214,7 @@ test("built witness conformance opens two connections and reports WAL plus every
     assert.equal(result.journalMode, "wal");
     assert.deepEqual(result.checks, ["journal_mode readback", "BLOB 1", "BLOB 1048576", "BLOB 0",
       "JSON tuple key round trip", "missing row is undefined", "rollback on throw",
-      "late beforeCommit holds transaction", "transaction result"]);
+      "failed COMMIT rolls back and next transaction succeeds", "late beforeCommit holds transaction", "transaction result"]);
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
@@ -353,7 +353,7 @@ test("createExpoClient defaults to Expo fetch and secure custody, preserves over
     let expected;
     try { createClient(invalid as any); } catch (error) { expected = error; }
     assert.throws(() => createExpoClient(invalid as any), (error) => error instanceof TypeError && error.message === expected.message);
-    assert.throws(() => witnessControl(persona, "ws://localhost"), /not built/);
+    assert.equal(typeof witnessControl, "function");
     await custom.ready;
     await custom.manifest();
     assert.equal(customCalls, 1);

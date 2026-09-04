@@ -8,6 +8,8 @@ await import("./auth-ownership.test.ts");
 await import("./typing.test.ts");
 await import("./real-owner.test.ts");
 await import("./native-assets.test.ts");
+await import("./native-files.test.ts");
+await import("./expo-witness.test.ts");
 await import("./offline-protocol.test.ts");
 await import("./offline-store.test.ts");
 await import("./sqlite.test.ts");
