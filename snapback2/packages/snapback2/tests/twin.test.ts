@@ -1031,3 +1031,68 @@ test("covered evaluation errors surface; typed local mutation refusals omit pred
     await assert.rejects(twin.predict("named-send", { conversationId: "c1", body: "test", at: 30 }, [engineId(1)]), /mutation evaluator bug/);
   } finally { await client?.close(); await rm(root, { recursive: true, force: true }); }
 });
+
+for (const carrier of ["file", "IndexedDB"] as const) {
+  test(`${carrier}: a G1 prediction overlay fails closed after a schema reset until it is retired`, async () => {
+    const m = await messenger();
+    const generation = hex("1"), successor = hex("2");
+    const root = await tempRoot();
+    const factory = carrier === "file" ? fileRangeStore(root) : indexedDbRangeStore({ indexedDB: new FakeIndexedDb() as any, locks: new FakeLocks() as any });
+    let client: any;
+    try {
+      await seedCoverage(factory as any, "u1", m.thread, { generation, schemaHash: m.schemaHash, authEpoch: 1 });
+      const owner = corpusOwner({ viewer: "u1", generation, schemaHash: m.schemaHash, schema: m.schema, programs: m.programs });
+      client = createClient({ url: "http://overlay-reset.test", fetch: owner.fetch, offline: { store: factory } });
+      await client.ready;
+      await client.auth.login({ email: "u1", password: "pw" });
+      await client.offline();
+      const sent = await client.mutation((api as any)["named-send"], { conversationId: "c1", body: "old prediction", at: 20 });
+      const runtime = client.offlineRuntime;
+      const entry = (await client.outbox.entries())[0];
+      assert.equal(entry.predicted, true);
+      assert.deepEqual((await client.query((api as any)["named-thread"], threadArgs)).predicted, [entry.intent]);
+      const schema = structuredClone(m.schema);
+      schema.tables.messages.columns.body = "Int";
+      const schemaHash = schemaDigest(schema);
+      await runtime.program({ generation: successor, schemaHash, schema,
+        programs: Object.fromEntries(Object.entries(m.programs).map(([name, p]) => [name, { ...p, planHash: p.certificate.plan_hash }])) });
+      await runtime.resetCoverage(1);
+      const { rows, receipt } = wireReceipt(m.thread.receipt);
+      for (const row of rows) if (row.table === "messages") row.row.body = 1;
+      await runtime.store.commit({ deliveries: [{ op: "coverage", args: {}, state: "complete", seq: 1, data: null, rows, receipt }] });
+      assert.equal(await runtime.completeReset(runtime.coverageRevision), true);
+      assert.ok((await runtime.store.outbox.overlay())[entry.intent], "reset preserves queued intent custody");
+      assert.equal((await client.query((api as any)["named-thread"], threadArgs)).state, "hydrating");
+      assert.equal((await runtime.store.outbox.get(entry.intent)).state, "queued");
+      assert.equal((await runtime.store.outbox.get(entry.intent)).ids[0], sent.ids[0]);
+      await runtime.store.commit({ overlay: { remove: [entry.intent] } });
+      assert.ok(await runtime.twin.hydrate(), "successor coverage hydrates once the incompatible overlay is retired");
+    } finally { await client?.close(); await rm(root, { recursive: true, force: true }); }
+  });
+}
+
+test("overlay put and remove bugs escape the hydrate catch boundary", async () => {
+  const m = await messenger(), generation = hex("3");
+  const root = await tempRoot();
+  let client: any;
+  try {
+    await seedCoverage(fileRangeStore(root), "u1", m.thread, { generation, schemaHash: m.schemaHash, authEpoch: 1 });
+    const owner = corpusOwner({ viewer: "u1", generation, schemaHash: m.schemaHash, schema: m.schema, programs: m.programs });
+    client = createClient({ url: "http://hydrate-bug.test", fetch: owner.fetch, offline: { store: fileRangeStore(root) } });
+    await client.ready;
+    await client.auth.login({ email: "u1", password: "pw" });
+    await client.offline();
+    await client.mutation((api as any)["named-send"], { conversationId: "c1", body: "predicted", at: 20 });
+    const runtime = client.offlineRuntime;
+    const entry = (await client.outbox.entries())[0];
+    const prototype = Object.getPrototypeOf((await runtime.twin.hydrate()).store);
+    for (const method of ["put", "remove"]) {
+      if (method === "remove") await runtime.store.commit({ overlay: { put: { [entry.intent]: [{ table: "messages", id: "message-00004", removed: true }] } } });
+      const original = prototype[method];
+      try {
+        prototype[method] = () => { throw new TypeError(`overlay ${method} bug`); };
+        await assert.rejects(runtime.twin.hydrate(), new RegExp(`overlay ${method} bug`));
+      } finally { prototype[method] = original; }
+    }
+  } finally { await client?.close(); await rm(root, { recursive: true, force: true }); }
+});

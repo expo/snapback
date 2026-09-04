@@ -263,8 +263,8 @@ export interface StoreSwap {
   programs?: Record<string, HeldProgram>;
   /** The facts the swap's envelopes were delivered under; cleared by `resetCoverage`. */
   facts?: CoverageFacts;
-  /** A rotation: the facts a refused delivery arrived under; held coverage is superseded until `resetCoverage`. */
-  superseded?: CoverageFacts;
+  /** A rotation: the facts a refused delivery arrived under; held coverage is superseded until rebuild completion clears it with `null`. */
+  superseded?: CoverageFacts | null;
   /**
    * The program's write bounds, replaced whole: what `/api/program` certified each op may
    * mint. Custody like the outbox — a coverage reset never touches it (LLP 1012 §7).
@@ -817,11 +817,12 @@ export class PersistentRangeStore implements RangeStore {
       // Sequence guards belong to this generation's coverage, just like rows.
       // A query-only successor can deliver the same row at the same data seq.
       state.rowSeq = {};
+      state.negative = {};
       state.answers = {};
       state.watermarks = {};
       delete state.facts;
-      delete state.superseded;
     }
+    if (swap.superseded === null) delete state.superseded;
     if (swap.facts) state.facts = clone(swap.facts);
     if (swap.superseded) state.superseded = clone(swap.superseded);
     for (const key of swap.dropAnswers ?? []) delete state.answers[key];

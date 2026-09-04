@@ -141,6 +141,7 @@ async function settledResult<Result>(entry: OutboxEntry, runtime: OfflineRuntime
 }
 
 export interface DrainOptions {
+  signal?: AbortSignal;
   runtime: OfflineRuntime;
   json: Transport;
   shape(message: string): Error;
@@ -166,11 +167,15 @@ export function drainOutbox(options: DrainOptions): Promise<{ stopped: boolean }
 
 async function drainQueued(options: DrainOptions): Promise<{ stopped: boolean }> {
   const { runtime } = options;
+  options.signal?.throwIfAborted();
   if (runtime.principal === undefined) return { stopped: false };
   for (const queued of await runtime.outbox.queued()) {
+    options.signal?.throwIfAborted();
     const entry = await runtime.store.outbox.get(queued.intent);
+    options.signal?.throwIfAborted();
     if (!entry || entry.state !== "queued") continue;
     const grant = await runtime.outbox.grantById(entry.grant);
+    options.signal?.throwIfAborted();
     if (!grant || runtime.outbox.pastFence(grant)) {
       await settle(options, entry, "expired");
       continue;
@@ -191,6 +196,7 @@ async function drainQueued(options: DrainOptions): Promise<{ stopped: boolean }>
       }
       throw error;
     }
+    options.signal?.throwIfAborted();
     const result = wireReplayResponse(raw);
     if (result.state === "committed") {
       // @ref LLP 1012#7-writes-offline — a committed settlement lands with the
@@ -198,14 +204,17 @@ async function drainQueued(options: DrainOptions): Promise<{ stopped: boolean }>
       // the intent stays queued and the drain stops; the retry is the same
       // envelope, which the owner's ledger answers unexecuted, and the tail
       // then joins the settlement swap.
+      const revision = runtime.coverageRevision;
       let tail: Awaited<ReturnType<typeof logTail>>;
       try {
-        tail = await logTail(options);
+        tail = await logTail(options, revision);
       } catch (error) {
         if (isSnapbackRefusal(error) && error.retryable) return { stopped: true };
         throw error;
       }
-      await settle(options, entry, "committed", result, tail);
+      options.signal?.throwIfAborted();
+      if (revision !== runtime.coverageRevision) return { stopped: true };
+      if (!(await settle(options, entry, "committed", result, tail, revision))) return { stopped: true };
     } else {
       await settle(options, entry, "rejected", result);
     }
@@ -219,10 +228,15 @@ async function settle(
   state: "committed" | "rejected" | "expired",
   response?: unknown,
   tail?: { op: string; args: unknown; accepted: AcceptedDelivery<unknown> },
-): Promise<void> {
+  revision = options.runtime.coverageRevision,
+): Promise<boolean> {
   const settled = options.runtime.outbox.settle(entry, state, response);
   try {
-    await options.runtime.commitMany(tail ? [tail] : [], undefined, { put: [settled] });
+    options.signal?.throwIfAborted();
+    const superseded = await options.runtime.commitMany(tail ? [tail] : [], undefined, { put: [settled] }, revision,
+      () => !options.signal?.aborted);
+    options.signal?.throwIfAborted();
+    return !superseded && revision === options.runtime.coverageRevision;
   } catch (error) {
     throw options.failure(error);
   }
@@ -237,9 +251,11 @@ async function settle(
  * (`tailWatermark`), so a second drained query never feeds the wrong page into
  * the settlement swap (LLP 1012 §7).
  */
-async function logTail(options: DrainOptions) {
+async function logTail(options: DrainOptions, revision: number) {
   const { runtime } = options;
   const coverage = await runtime.coverage();
+  options.signal?.throwIfAborted();
+  if (revision !== runtime.coverageRevision) return undefined;
   const watermark = coverage ? tailWatermark(coverage.watermarks) : undefined;
   // No drained query, no tail: the intent settles `committed` with no rows in
   // its swap. That is the only way a queue held under a login grant with
@@ -251,10 +267,14 @@ async function logTail(options: DrainOptions) {
     ? watermark.args
     : { ...(watermark.args as Record<string, unknown>), c: watermark.watermark };
   const held = await runtime.answer(watermark.op, args);
+  options.signal?.throwIfAborted();
+  if (revision !== runtime.coverageRevision) return undefined;
   const raw = await options.json("/api/query?receipt=1", {
     method: "POST",
     body: JSON.stringify(held?.validator ? { op: watermark.op, args, validator: held.validator } : { op: watermark.op, args }),
   });
+  options.signal?.throwIfAborted();
+  if (revision !== runtime.coverageRevision) return undefined;
   let accepted: AcceptedDelivery<unknown>;
   try {
     accepted = await runtime.accept(watermark.op, args, raw);

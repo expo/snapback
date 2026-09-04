@@ -4,7 +4,7 @@ interface ParsedEvent { id?: string; data: string }
 interface ErrorDecision<Event> { event?: Event; failure?: Error; retry: boolean }
 export interface ReconnectingSseOptions<Event> {
   open(lastEventId: string | undefined, signal: AbortSignal): Promise<Response>;
-  decode(event: ParsedEvent): Event | Promise<Event>;
+  decode(event: ParsedEvent, current: () => boolean): Event | Promise<Event>;
   bufferedTerminal?(event: ParsedEvent): Error | undefined;
   onError(error: unknown, hadDelivery: boolean): Promise<ErrorDecision<Event>> | ErrorDecision<Event>;
   onLoss(last: Event | undefined): Event | undefined;
@@ -119,9 +119,10 @@ export class ReconnectingSse<Event> implements Subscription<Event> {
   private activeAttempt?: AbortController;
   private retryNow?: () => void;
   private resets = 0;
+  private running?: Promise<void>;
 
   constructor(private readonly options: ReconnectingSseOptions<Event>) {
-    void this.run();
+    this.start();
   }
 
   close(): void {
@@ -144,10 +145,13 @@ export class ReconnectingSse<Event> implements Subscription<Event> {
 
   /** A successor starts a new stream, with no predecessor event id or answer. */
   reset(): void {
+    if (this.closed) return;
+    this.terminalFailure = undefined;
     this.resets += 1;
     this.lastEventId = undefined;
     this.last = undefined;
     this.reconnect();
+    this.start();
   }
 
   until(predicate: (event: Event) => boolean, timeoutMs = 30_000): Promise<Event> {
@@ -202,6 +206,18 @@ export class ReconnectingSse<Event> implements Subscription<Event> {
     this.waiters.clear();
   }
 
+  private start(): void {
+    if (this.closed || this.running) return;
+    const reset = this.resets;
+    const run = this.run();
+    this.running = run;
+    void run.finally(() => {
+      this.running = undefined;
+      // reset() can clear a terminal latch while the old run is unwinding.
+      if (!this.closed && !this.terminalFailure && reset !== this.resets) this.start();
+    }).catch(() => undefined);
+  }
+
   private async run(): Promise<void> {
     let backoff = 250;
     let hadDelivery = false;
@@ -214,6 +230,8 @@ export class ReconnectingSse<Event> implements Subscription<Event> {
       this.controller.signal.addEventListener("abort", closeAttempt, { once: true });
       let idleTimer: ReturnType<typeof setTimeout> | undefined;
       let idle = false;
+      let decodingTerminal: Error | undefined;
+      const current = () => !this.closed && reset === this.resets && !attempt.signal.aborted;
       const armIdle = () => {
         if (idleTimer !== undefined) clearTimeout(idleTimer);
         idleTimer = setTimeout(() => {
@@ -243,9 +261,11 @@ export class ReconnectingSse<Event> implements Subscription<Event> {
             }
             continue;
           }
+          try { decodingTerminal = this.options.bufferedTerminal?.(parsed); } catch { decodingTerminal = undefined; }
+          const event = await this.options.decode(parsed, current);
+          decodingTerminal = undefined;
+          if (!current()) continue;
           if (parsed.id !== undefined) this.lastEventId = parsed.id;
-          const event = await this.options.decode(parsed);
-          if (this.closed || reset !== this.resets) continue;
           this.deliver(event);
           hadDelivery = true;
           lossReported = false;
@@ -263,6 +283,16 @@ export class ReconnectingSse<Event> implements Subscription<Event> {
           lossReported = true;
         }
       } catch (error) {
+        // Session evidence survives a decode crossing reset/close; onError
+        // still fences it by the exact bearer before retiring any custody.
+        if (decodingTerminal && !current()) {
+          const decision = await this.options.onError(decodingTerminal, hadDelivery);
+          if (!this.closed) {
+            if (decision.event !== undefined) this.deliver(decision.event, decision.failure === undefined);
+            if (decision.failure !== undefined) this.fail(decision.failure);
+          }
+          return;
+        }
         if (this.closed || this.controller.signal.aborted) return;
         if (reset !== this.resets) continue;
         const failure = idle

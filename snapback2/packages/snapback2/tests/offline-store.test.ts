@@ -1103,6 +1103,7 @@ test("E_OFFLINE_RESET cold-drains a mounted drain from the null cursor", async (
         if (resumes === 1) return new Response(JSON.stringify({
           seq: 3, generation, schemaHash,
           authority: { principal: "dev:alice", authEpoch: 7 }, log: { unchanged: true }, mounted: [],
+          grant: { id: "s2id-00000000000000000000000000000001-0000000000000001", from: "s2id-00000000000000000000000000000001-0000000000000001", count: 8192, mintedAt: Date.now(), expiresAt: Date.now() + 86400000 },
         }), { status: 200 });
         return new Response(JSON.stringify({
           code: "E_OFFLINE_RESET", family: "offline", message: "generation moved",
