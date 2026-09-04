@@ -180,3 +180,11 @@ run:
 
 The three generated records are the first canonical metrics under the corrected
 runner and are appended to `snapback2/metrics/loop.jsonl`.
+
+## Corroboration (2026-09-04, 22:05 UTC, main `aa2ec8d33`, the LLP 1012 orchestrator)
+
+Three quiet measurements with the core step through nextest (author ruling): core 25.56 /
+27.87 / 22.74 s (≤ 30); `doctor` first sample 10.18 s (run 1, immediately after a 35.65 s
+relink — a cold binary load), then 0.094 / 0.106 s; every other step green. Records are in
+`snapback2/metrics/loop.jsonl` (`6183cbba1`). No re-baseline needed; the first-sample outlier
+is measurement order (warm the binary once before sampling), not a boot regression.
