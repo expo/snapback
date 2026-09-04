@@ -338,7 +338,13 @@ export async function performOfflineResume<Authority>(options: {
 }, adjustment: ResumeAdjustment = {}, retry = true): Promise<void> {
   if (!options.runtime) return;
   const request = await options.runtime.resumeRequest([...options.mounted.values()], adjustment);
-  if (!request) return;
+  if (!request) {
+    // @ref LLP 1012#7-writes-offline — no resume can be built without facts (a
+    // login grant with nothing delivered yet), but the queue must never sit:
+    // the held grant replays it directly, and a missing grant settles loudly.
+    if ((await options.runtime.queuedIntents()).length > 0) await drainOutbox(drainOptions(options));
+    return;
+  }
   const standIn = request.log !== undefined && options.runtime.standInLog(request.log);
   let value: unknown;
   try {
@@ -413,10 +419,20 @@ export async function performOfflineResume<Authority>(options: {
   } catch (error) {
     throw options.failure ? options.failure(error) : error;
   }
-  await drainOutbox({
-    runtime: options.runtime,
+  await drainOutbox(drainOptions(options));
+}
+
+function drainOptions<Authority>(options: {
+  runtime: OfflineRuntime | undefined;
+  authority: Authority;
+  json(path: string, init: RequestInit, authority: Authority): Promise<unknown>;
+  shape(message: string): Error;
+  failure?(error: unknown): Error;
+}): Parameters<typeof drainOutbox>[0] {
+  return {
+    runtime: options.runtime!,
     json: (path, init) => options.json(path, init, options.authority),
     shape: options.shape,
     failure: options.failure ?? ((error) => (error instanceof Error ? error : new Error(String(error)))),
-  });
+  };
 }

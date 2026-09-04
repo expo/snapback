@@ -269,7 +269,10 @@ export interface OutboxApi {
   subscribe(listener: (entries: OutboxEntry[]) => void): () => void;
   /** Replays queued intents FIFO now; resolves when the queue is empty or a transport failure stopped it. */
   drain(): Promise<void>;
-  /** Resolves once the in-flight replay, if any, has stopped or emptied the queue. */
+  /**
+   * Resolves once the in-flight replay, if any, emptied the queue or a retryable
+   * transport failure stopped it; rejects with the refusal that stopped it otherwise.
+   */
   settled(): Promise<void>;
 }
 

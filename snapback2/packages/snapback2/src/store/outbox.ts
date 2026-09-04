@@ -71,8 +71,6 @@ export function settledEntry(entry: OutboxEntry, state: OutboxState, response: u
 export interface EnqueueInput {
   op: string;
   args: unknown;
-  /** Ids the certified program may mint; the slice is one intent id plus these. */
-  maxNewIds: number;
   issuedSeq: number;
   trace?: OutboxTrace;
 }
@@ -84,6 +82,12 @@ export interface OutboxLedgerOptions {
 
 export class OutboxLedger {
   private readonly listeners = new Set<() => void>();
+  /**
+   * Grant custody is one critical section: a read of the grant's cursor and the
+   * swap that advances it never interleave with another enqueue or adoption, so
+   * two overlapping writes can never mint the same slice.
+   */
+  private tail: Promise<void> = Promise.resolve();
 
   constructor(private readonly store: RangeStore, private readonly options: OutboxLedgerOptions) {}
 
@@ -115,20 +119,34 @@ export class OutboxLedger {
   }
 
   /** A fresh grant replaces the consumption target; older grants stay for the intents that name them. */
-  async adopt(grant: OutboxGrant): Promise<void> {
-    const held = await this.grantById(grant.id);
-    if (held) {
-      await this.store.commit({ grants: { current: grant.id } });
-      return;
-    }
-    const stale = (await this.store.outbox.grants())
-      .filter((item) => item.id !== grant.id)
-      .map((item) => item.id);
-    const queued = new Set((await this.queued()).map((entry) => entry.grant));
-    await this.store.commit({
-      grants: { put: [grant], current: grant.id, remove: stale.filter((id) => !queued.has(id)) },
+  adopt(grant: OutboxGrant): Promise<void> {
+    return this.serial(async () => {
+      const held = await this.grantById(grant.id);
+      if (held) {
+        await this.store.commit({ grants: { current: grant.id } });
+        return;
+      }
+      const stale = (await this.store.outbox.grants())
+        .filter((item) => item.id !== grant.id)
+        .map((item) => item.id);
+      const queued = new Set((await this.queued()).map((entry) => entry.grant));
+      await this.store.commit({
+        grants: { put: [grant], current: grant.id, remove: stale.filter((id) => !queued.has(id)) },
+      });
+      this.notify();
     });
-    this.notify();
+  }
+
+  /**
+   * Persists the program's write bounds (each op's `maxNewIds`) beside the grants,
+   * on the same tail as enqueue, so an enqueue issued after the program loaded
+   * always sees the bound it certified.
+   */
+  recordBounds(bounds: Record<string, number>): Promise<void> {
+    for (const [op, bound] of Object.entries(bounds)) {
+      if (!Number.isSafeInteger(bound) || bound < 0) throw new TypeError(`write bound for ${op} must be a non-negative integer`);
+    }
+    return this.serial(() => this.store.commit({ bounds }));
   }
 
   pastFence(grant: Pick<OutboxGrant, "mintedAt">): boolean {
@@ -136,59 +154,74 @@ export class OutboxLedger {
   }
 
   // @ref LLP 1012#7-writes-offline — the first id names the intent; the rest
-  // are the program's `new` envelope in order. No remaining ids is a refusal,
-  // never a silent reuse.
-  async enqueue(input: EnqueueInput): Promise<OutboxEntry> {
-    if (!Number.isSafeInteger(input.maxNewIds) || input.maxNewIds < 0) {
-      throw new TypeError("outbox enqueue requires a non-negative maxNewIds");
-    }
-    const grant = await this.grant();
-    if (!grant) {
-      throw new OutboxRefusal(
-        "E_OFFLINE_ID_BLOCK",
-        "this device holds no replay grant; log in or resume online before writing offline",
-        "client.outbox.enqueue",
-        "resume as this principal for a grant, then enqueue a new intent",
-      );
-    }
-    if (this.pastFence(grant)) {
-      throw new OutboxRefusal(
-        "E_OFFLINE_INTENT_EXPIRED",
-        "the held replay grant is older than offline.fenceDays; resume before queuing writes",
-        "client.outbox.enqueue",
-        "resume as the grant's principal for a fresh grant, then enqueue a new intent",
-      );
-    }
-    const count = 1 + input.maxNewIds;
-    if (grant.used + count > grant.count) {
-      throw new OutboxRefusal(
-        "E_OFFLINE_ID_BLOCK",
-        `the replay grant has ${grant.count - grant.used} ids left and this write needs ${count}`,
-        "client.outbox.enqueue",
-        "resume online for a fresh grant, then enqueue a new intent",
-      );
-    }
-    const now = this.options.now();
-    const entry: OutboxEntry = {
-      intent: intentName(grant.id, grant.used),
-      grant: grant.id,
-      offset: grant.used,
-      count,
-      ids: sliceIds(grant, grant.used, count),
-      op: input.op,
-      args: structuredClone(input.args),
-      issuedSeq: input.issuedSeq,
-      state: "queued",
-      trace: input.trace ?? emptyTrace(),
-      createdAt: now,
-      updatedAt: now,
-    };
-    await this.store.commit({
-      grants: { put: [{ ...grant, used: grant.used + count }] },
-      outbox: { put: [entry] },
+  // are the program's `new` envelope in order, as many as the certificate's
+  // persisted write bound allows. No bound, or no remaining ids, is a refusal,
+  // never a silent reuse or a guessed reservation.
+  enqueue(input: EnqueueInput): Promise<OutboxEntry> {
+    return this.serial(async () => {
+      const grant = await this.grant();
+      if (!grant) {
+        throw new OutboxRefusal(
+          "E_OFFLINE_ID_BLOCK",
+          "this device holds no replay grant; log in or resume online before writing offline",
+          "client.outbox.enqueue",
+          "resume as this principal for a grant, then enqueue a new intent",
+        );
+      }
+      if (this.pastFence(grant)) {
+        throw new OutboxRefusal(
+          "E_OFFLINE_INTENT_EXPIRED",
+          "the held replay grant is older than offline.fenceDays; resume before queuing writes",
+          "client.outbox.enqueue",
+          "resume as the grant's principal for a fresh grant, then enqueue a new intent",
+        );
+      }
+      const maxNewIds = (await this.store.outbox.bounds())[input.op];
+      if (maxNewIds === undefined) {
+        throw new OutboxRefusal(
+          "E_OFFLINE_ID_BLOCK",
+          `the write bound for ${input.op} is unknown on this device: its certificate was never recorded here, so the slice size cannot be priced`,
+          "client.outbox.enqueue",
+          "reach the owner once so /api/program is recorded, then enqueue a new intent",
+        );
+      }
+      const count = 1 + maxNewIds;
+      if (grant.used + count > grant.count) {
+        throw new OutboxRefusal(
+          "E_OFFLINE_ID_BLOCK",
+          `the replay grant has ${grant.count - grant.used} ids left and this write needs ${count}`,
+          "client.outbox.enqueue",
+          "resume online for a fresh grant, then enqueue a new intent",
+        );
+      }
+      const now = this.options.now();
+      const entry: OutboxEntry = {
+        intent: intentName(grant.id, grant.used),
+        grant: grant.id,
+        offset: grant.used,
+        count,
+        ids: sliceIds(grant, grant.used, count),
+        op: input.op,
+        args: structuredClone(input.args),
+        issuedSeq: input.issuedSeq,
+        state: "queued",
+        trace: input.trace ?? emptyTrace(),
+        createdAt: now,
+        updatedAt: now,
+      };
+      await this.store.commit({
+        grants: { put: [{ ...grant, used: grant.used + count }] },
+        outbox: { put: [entry] },
+      });
+      this.notify();
+      return (await this.store.outbox.get(entry.intent)) ?? entry;
     });
-    this.notify();
-    return (await this.store.outbox.get(entry.intent)) ?? entry;
+  }
+
+  private serial<T>(action: () => Promise<T>): Promise<T> {
+    const run = this.tail.then(action);
+    this.tail = run.then(() => undefined, () => undefined);
+    return run;
   }
 
   settle(entry: OutboxEntry, state: OutboxState, response?: unknown): OutboxEntry {
@@ -196,11 +229,13 @@ export class OutboxLedger {
   }
 
   /** Removes a settled entry; a queued intent is never dismissed. */
-  async dismiss(intent: string): Promise<void> {
-    const entry = await this.store.outbox.get(intent);
-    if (!entry || entry.state === "queued") return;
-    await this.store.commit({ outbox: { remove: [intent] } });
-    this.notify();
+  dismiss(intent: string): Promise<void> {
+    return this.serial(async () => {
+      const entry = await this.store.outbox.get(intent);
+      if (!entry || entry.state === "queued") return;
+      await this.store.commit({ outbox: { remove: [intent] } });
+      this.notify();
+    });
   }
 }
 

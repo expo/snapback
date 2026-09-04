@@ -28,6 +28,7 @@ import {
   type CreateClientOptions,
   type MutationResult,
   type ImageAsset,
+  type OfflineClientOptions,
   type OutboxEntry,
   type Principal,
   type QueryHookResult,
@@ -52,6 +53,22 @@ export type SnapbackProviderProps = CreateClientOptions & {
   children: ReactNode;
 };
 
+/**
+ * The offline options by value: the carrier factory and each callback by
+ * identity, the numbers by value. A parent that renders an inline
+ * `offline={{ store }}` allocates a new object every render; that must not
+ * allocate a new lock-holding client.
+ */
+function sameOffline(left: OfflineClientOptions | undefined, right: OfflineClientOptions | undefined): boolean {
+  if (left === right) return true;
+  if (!left || !right) return false;
+  return left.store === right.store
+    && left.fenceDays === right.fenceDays
+    && left.maxAssetBytes === right.maxAssetBytes
+    && left.onTombstone === right.onTombstone
+    && left.viewOnce === right.viewOnce;
+}
+
 // @ref LLP 1002#9-the-client-snapback2client-snapback2react-snapback2test — React web is the first arm over the shared headless client.
 export function SnapbackProvider({ url, as, token, tokenStore, fetch, offline, children }: SnapbackProviderProps): React.ReactElement {
   if (as !== undefined && (token !== undefined || tokenStore !== undefined)) {
@@ -60,12 +77,16 @@ export function SnapbackProvider({ url, as, token, tokenStore, fetch, offline, c
   // A client opens its offline partition (and takes the principal's Web Lock)
   // the moment it is created, so it must be created exactly once per identity.
   // StrictMode double-invokes memo factories and discards one result, which
-  // would leak a lock-holding client; a ref survives the re-render untouched.
-  const identity = [url, as, token, tokenStore, fetch, offline] as const;
-  const held = useRef<{ identity: readonly unknown[]; client: SnapbackClient }>(undefined);
-  if (!held.current || held.current.identity.some((item, index) => item !== identity[index])) {
+  // would leak a lock-holding client; a ref survives the re-render untouched,
+  // and the identity compares `offline` by its values, not its reference.
+  const identity = [url, as, token, tokenStore, fetch] as const;
+  const held = useRef<{ identity: readonly unknown[]; offline: OfflineClientOptions | undefined; client: SnapbackClient }>(undefined);
+  if (!held.current
+    || held.current.identity.some((item, index) => item !== identity[index])
+    || !sameOffline(held.current.offline, offline)) {
     held.current = {
       identity,
+      offline,
       client: createClient(as !== undefined ? { url, as, fetch, offline } : { url, token, tokenStore, fetch, offline }),
     };
   }

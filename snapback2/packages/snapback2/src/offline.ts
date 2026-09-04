@@ -23,7 +23,11 @@ import {
 import { ByteCache } from "./store/byte-cache.js";
 import type { Manifest, OfflineClientOptions } from "./types.js";
 
-/** Ids a certified mutation can mint: its insert/upsert bounds plus explicit `new`s. */
+/**
+ * Ids a certified mutation can mint: the certificate's insert/upsert bounds, which
+ * already price every row the program creates. A program without a certificate
+ * has no bound, and an offline write against it refuses rather than guessing.
+ */
 export function certificateMaxNewIds(program: unknown): number | undefined {
   if (!object(program)) return undefined;
   const certificate = program.certificate;
@@ -35,18 +39,22 @@ export function certificateMaxNewIds(program: unknown): number | undefined {
       total += Number(site.max_rows);
     }
   }
-  return total + countNew(program.ir);
+  return total;
 }
 
-function countNew(value: unknown): number {
-  if (value === "New") return 1;
-  if (Array.isArray(value)) return value.reduce((sum: number, item) => sum + countNew(item), 0);
-  if (!object(value)) return 0;
-  return Object.entries(value).reduce((sum, [key, item]) => sum + (key === "New" ? 1 : 0) + countNew(item), 0);
+/**
+ * The log a settlement's tail request and a resume's `log` both name: the drained
+ * query whose watermark was recorded first in this partition — the first-mounted
+ * drain, since a drain records its watermark when it first catches up — by the
+ * store's durable `order`, so the choice survives restarts and re-marks and never
+ * follows whichever page moved last (LLP 1012 §7, §8).
+ */
+export function tailWatermark(watermarks: WatermarkRecord[]): WatermarkRecord | undefined {
+  return [...watermarks].sort((a, b) =>
+    (a.order ?? Number.MAX_SAFE_INTEGER) - (b.order ?? Number.MAX_SAFE_INTEGER)
+    || a.updatedAt - b.updatedAt
+    || canonicalAnswerKey(a.op, a.args).localeCompare(canonicalAnswerKey(b.op, b.args)))[0];
 }
-
-/** The bound used when a program's certificate is not held: the engine's ordinary reservation. */
-export const FALLBACK_MAX_NEW_IDS = 1_024;
 
 export interface MountedQuery {
   op: string;
@@ -148,16 +156,22 @@ export class OfflineRuntime {
   /** Asset bytes beside the rows, under their lease (LLP 1012 §9); lane O4. */
   readonly bytes: ByteCache;
   readonly outbox: OutboxLedger;
-  /** The replay currently in flight, so `settled()` can wait on it. */
+  /** The replay currently in flight; the next drain queues behind it. Never rejects. */
   drainTail: Promise<void> = Promise.resolve();
+  /**
+   * The last drain's outcome, rejection kept: `settled()` awaits this so a
+   * non-retryable refusal that stopped the replay reaches the caller instead of
+   * resolving with intents still queued (LLP 1012 §7).
+   */
+  drainOutcome: Promise<void> = Promise.resolve();
   private partition?: string;
   private retention: Record<string, RetentionPolicy> = {};
   private cursors: Record<string, string> = {};
   private schema?: OfflineSchema;
-  private certificates: Record<string, number> = {};
   private facts?: ResumeFacts;
   private latestSeq = 0;
   private pendingGrant?: OutboxGrant;
+  private pendingBounds?: Record<string, number>;
   private standIn?: string;
   private tail: Promise<void> = Promise.resolve();
 
@@ -189,6 +203,7 @@ export class OfflineRuntime {
       this.bytes.bind(principal);
       await this.loadFacts();
       await this.flushGrant();
+      await this.flushBounds();
       this.outbox.notify();
     });
   }
@@ -202,6 +217,7 @@ export class OfflineRuntime {
       await this.store.unseal();
       await this.loadFacts();
       await this.flushGrant();
+      await this.flushBounds();
       this.outbox.notify();
     });
   }
@@ -224,10 +240,6 @@ export class OfflineRuntime {
   /** True when a resume request's `log` is an ordinary answer standing in for a drained log. */
   standInLog(log: { op: string; args: unknown }): boolean {
     return this.standIn !== undefined && this.standIn === canonicalAnswerKey(log.op, log.args);
-  }
-
-  maxNewIds(op: string): number {
-    return this.certificates[op] ?? FALLBACK_MAX_NEW_IDS;
   }
 
   async queuedIntents(): Promise<OutboxEntry[]> {
@@ -288,17 +300,26 @@ export class OfflineRuntime {
     return this.cursors[op] ?? "c";
   }
 
+  /**
+   * Records `/api/program`: the schema, and each certified op's write bound, which
+   * is persisted with the outbox so a cold start with the owner cut prices its
+   * slices from the certificate, never from a guess (LLP 1012 §7).
+   */
   program(value: unknown): void {
     if (!object(value)) return;
     const schema = value.schema;
     if (object(schema) && object(schema.tables)) this.schema = schema as OfflineSchema;
     if (!object(value.programs)) return;
-    const certificates: Record<string, number> = {};
+    const bounds: Record<string, number> = {};
     for (const [name, program] of Object.entries(value.programs)) {
       const bound = certificateMaxNewIds(program);
-      if (bound !== undefined) certificates[name] = bound;
+      if (bound !== undefined) bounds[name] = bound;
     }
-    this.certificates = certificates;
+    this.pendingBounds = bounds;
+    // The persist rides the outbox tail ahead of any enqueue issued after this
+    // call; a carrier failure leaves the bounds pending and the next enqueue
+    // refuses loudly with the bound unknown.
+    void this.flushBounds().catch(() => undefined);
   }
 
   async accept<Result>(op: string, args: unknown, raw: unknown): Promise<AcceptedDelivery<Result>> {
@@ -447,7 +468,9 @@ export class OfflineRuntime {
   ): Promise<ResumeRequestV1 | undefined> {
     if (this.partition === undefined || !this.facts) return undefined;
     const coverage = await this.store.coverage();
-    const watermark = coverage.watermarks.sort((a, b) => b.updatedAt - a.updatedAt)[0];
+    // The same chooser as the settlement tail (`tailWatermark`), so the log a
+    // resume asks for is the log a committed intent's rows are filed under.
+    const watermark = tailWatermark(coverage.watermarks);
     const cap = Math.max(0, Math.min(32, Number.isSafeInteger(adjustment.cap) ? adjustment.cap! : 32));
     const candidates = mounted.filter((query) => !query.drain
       && query.op !== watermark?.op
@@ -511,9 +534,21 @@ export class OfflineRuntime {
     }
   }
 
+  private async flushBounds(): Promise<void> {
+    const bounds = this.pendingBounds;
+    if (!bounds || this.partition === undefined) return;
+    this.pendingBounds = undefined;
+    try {
+      await this.outbox.recordBounds(bounds);
+    } catch (error) {
+      this.pendingBounds = bounds;
+      throw error;
+    }
+  }
+
   private async loadFacts(): Promise<void> {
     const coverage = await this.store.coverage();
-    const watermark = coverage.watermarks.sort((a, b) => b.updatedAt - a.updatedAt)[0];
+    const watermark = tailWatermark(coverage.watermarks);
     if (watermark?.generation && watermark.schemaHash && watermark.authEpoch !== undefined) {
       this.facts = {
         generation: watermark.generation,

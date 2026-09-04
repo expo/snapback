@@ -10,7 +10,7 @@ import {
   wireShape,
 } from "./client-wire.js";
 import { DeliveryEnvelopeDecodeError } from "./offline-protocol.js";
-import type { AcceptedDelivery, OfflineRuntime } from "./offline.js";
+import { tailWatermark, type AcceptedDelivery, type OfflineRuntime } from "./offline.js";
 import { replayEnvelope, type OutboxEntry } from "./store/outbox.js";
 import type { MutationResult, OutboxApi } from "./types.js";
 
@@ -82,7 +82,6 @@ export async function submitMutation<Result>(options: SubmitMutationOptions): Pr
       const entry = await runtime.outbox.enqueue({
         op: options.op,
         args: options.args,
-        maxNewIds: runtime.maxNewIds(options.op),
         issuedSeq: runtime.seq,
       });
       return { state: "queued", intent: entry.intent, ids: entry.ids };
@@ -120,6 +119,11 @@ export function drainOutbox(options: DrainOptions): Promise<{ stopped: boolean }
   const { runtime } = options;
   const run = runtime.drainTail.then(() => drainQueued(options));
   runtime.drainTail = run.then(() => undefined, () => undefined);
+  // The outcome keeps the rejection for `settled()`; the handler here only
+  // stops an unobserved refusal from surfacing as an unhandled rejection.
+  const outcome = run.then(() => undefined);
+  void outcome.catch(() => undefined);
+  runtime.drainOutcome = outcome;
   return run;
 }
 
@@ -152,7 +156,18 @@ async function drainQueued(options: DrainOptions): Promise<{ stopped: boolean }>
     }
     const result = wireReplayResponse(raw);
     if (result.state === "committed") {
-      const tail = await logTail(options).catch(() => undefined);
+      // @ref LLP 1012#7-writes-offline — a committed settlement lands with the
+      // rows the commit produced or not at all: when the tail cannot be fetched
+      // the intent stays queued and the drain stops; the retry is the same
+      // envelope, which the owner's ledger answers unexecuted, and the tail
+      // then joins the settlement swap.
+      let tail: Awaited<ReturnType<typeof logTail>>;
+      try {
+        tail = await logTail(options);
+      } catch (error) {
+        if (isSnapbackRefusal(error) && error.retryable) return { stopped: true };
+        throw error;
+      }
       await settle(options, entry, "committed", result, tail);
     } else {
       await settle(options, entry, "rejected", result);
@@ -179,11 +194,16 @@ async function settle(
 /**
  * The delivery log after the watermark, fetched right after a commit so the
  * committed intent and the rows it produced enter the store in one swap.
+ * The chooser is the rule, not the newest page: the tail is the drained query
+ * (`drain: true`) mounted first in this partition — the one whose watermark the
+ * store recorded first — and the resume request's `log` uses the same chooser
+ * (`tailWatermark`), so a second drained query never feeds the wrong page into
+ * the settlement swap (LLP 1012 §7).
  */
 async function logTail(options: DrainOptions) {
   const { runtime } = options;
   const coverage = await runtime.coverage();
-  const watermark = coverage?.watermarks.sort((a, b) => b.updatedAt - a.updatedAt)[0];
+  const watermark = coverage ? tailWatermark(coverage.watermarks) : undefined;
   if (!watermark) return undefined;
   const args = watermark.watermark === null
     ? watermark.args
@@ -228,6 +248,8 @@ export function createOutboxApi(
       return runtime ? runtime.outbox.subscribe(push) : () => undefined;
     },
     drain: async () => { await drain(); },
-    settled: async () => { await runtime?.drainTail; },
+    // Resolves when the replay emptied the queue or a retryable transport
+    // failure stopped it; rejects with the refusal that stopped it otherwise.
+    settled: async () => { await runtime?.drainOutcome; },
   };
 }

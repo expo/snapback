@@ -1032,14 +1032,22 @@ test("E_OFFLINE_RESET cold-drains a mounted drain from the null cursor", async (
     },
   });
   await client.ready;
-  const drain = client.subscribe(api.deliveries.inbox as any, { c: null }, () => undefined, { drain: true });
+  // The reset drain's page and watermark are committed before its caught-up
+  // event fires; tearing down on the request alone raced those carrier writes
+  // against `rm(root)` (ENOTEMPTY on the temp dir under load).
+  let caughtUpEvents = 0;
+  let sawResetSettled!: () => void;
+  const resetSettled = new Promise<void>((resolve) => { sawResetSettled = resolve; });
+  const drain = client.subscribe(api.deliveries.inbox as any, { c: null }, (event: any) => {
+    if (event.caughtUp === true && ++caughtUpEvents === 2) sawResetSettled();
+  }, { drain: true });
   await drain.until((value) => value.state === "complete" && value.caughtUp === true);
   await client.offline();
   await client.online();
   let resetTimer: ReturnType<typeof setTimeout> | undefined;
   try {
     await Promise.race([
-      resetDrain,
+      resetDrain.then(() => resetSettled),
       new Promise<never>((_resolve, reject) => {
         resetTimer = setTimeout(() => reject(new Error("reset drain did not start")), 1_000);
       }),
