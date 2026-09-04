@@ -4,7 +4,7 @@ interface ParsedEvent { id?: string; data: string }
 interface ErrorDecision<Event> { event?: Event; failure?: Error; retry: boolean }
 export interface ReconnectingSseOptions<Event> {
   open(lastEventId: string | undefined, signal: AbortSignal): Promise<Response>;
-  decode(event: ParsedEvent): Event;
+  decode(event: ParsedEvent): Event | Promise<Event>;
   bufferedTerminal?(event: ParsedEvent): Error | undefined;
   onError(error: unknown, hadDelivery: boolean): Promise<ErrorDecision<Event>> | ErrorDecision<Event>;
   onLoss(last: Event | undefined): Event | undefined;
@@ -116,6 +116,8 @@ export class ReconnectingSse<Event> implements Subscription<Event> {
   private lastEventId: string | undefined;
   private terminalFailure: Error | undefined;
   private closed = false;
+  private activeAttempt?: AbortController;
+  private retryNow?: () => void;
 
   constructor(private readonly options: ReconnectingSseOptions<Event>) {
     void this.run();
@@ -130,6 +132,13 @@ export class ReconnectingSse<Event> implements Subscription<Event> {
       waiter.reject(abortError());
     }
     this.waiters.clear();
+  }
+
+  /** Interrupt only the current attempt; the reconnecting subscription stays mounted. */
+  reconnect(): void {
+    if (this.closed) return;
+    this.activeAttempt?.abort();
+    this.retryNow?.();
   }
 
   until(predicate: (event: Event) => boolean, timeoutMs = 30_000): Promise<Event> {
@@ -190,6 +199,7 @@ export class ReconnectingSse<Event> implements Subscription<Event> {
     let lossReported = false;
     while (!this.closed) {
       const attempt = new AbortController();
+      this.activeAttempt = attempt;
       const closeAttempt = () => attempt.abort();
       this.controller.signal.addEventListener("abort", closeAttempt, { once: true });
       let idleTimer: ReturnType<typeof setTimeout> | undefined;
@@ -224,7 +234,7 @@ export class ReconnectingSse<Event> implements Subscription<Event> {
             continue;
           }
           if (parsed.id !== undefined) this.lastEventId = parsed.id;
-          const event = this.options.decode(parsed);
+          const event = await this.options.decode(parsed);
           this.deliver(event);
           hadDelivery = true;
           lossReported = false;
@@ -259,11 +269,17 @@ export class ReconnectingSse<Event> implements Subscription<Event> {
       } finally {
         if (idleTimer !== undefined) clearTimeout(idleTimer);
         this.controller.signal.removeEventListener("abort", closeAttempt);
+        if (this.activeAttempt === attempt) this.activeAttempt = undefined;
       }
       try {
-        await delay(backoff, this.controller.signal);
+        await Promise.race([
+          delay(backoff, this.controller.signal),
+          new Promise<void>((resolve) => { this.retryNow = resolve; }),
+        ]);
       } catch {
         return;
+      } finally {
+        this.retryNow = undefined;
       }
       backoff = Math.min(backoff * 2, 5_000);
     }

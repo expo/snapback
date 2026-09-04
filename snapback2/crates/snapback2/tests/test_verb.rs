@@ -310,6 +310,7 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
         "conversation metadata stays inside membership",
         "scoped roles reject non-admin and stale membership authority",
         "alice sends and reads back a JPEG photo and synthesized MP4 clip",
+        "offline held thread survives a cold restart",
     ] {
         let journey = check(&receipt, name);
         assert_eq!(journey["kind"], "journey", "{name}: {journey}");

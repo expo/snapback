@@ -1,4 +1,5 @@
 import type { Channel as ChannelRef, Op } from "./api.js";
+import type { RangeStoreFactory, RowRef, StoredRow } from "./store/range-store.js";
 
 // @ref LLP 1006#1-the-move — the phantom kind keeps the two closed asset records
 // nominal; these must stay identical to the package-root declarations the
@@ -39,11 +40,27 @@ export type QueryDenied = {
   seq: number;
   rule: string;
 };
-export type QueryResult<Result> =
+export type ServerQueryResult<Result> =
   | QueryComplete<Result>
   | QueryCapped<Result>
   | QueryPartial<Result>
   | QueryDenied;
+
+export type OfflineFacts = {
+  live: false;
+  connection: "offline";
+  stale: { since: number };
+  retained?: boolean;
+  caughtUp?: boolean;
+  watermark?: Cursor | null;
+};
+export type OfflineQueryResult<Result> =
+  | (QueryComplete<Result> & OfflineFacts)
+  | (QueryCapped<Result> & OfflineFacts)
+  | (QueryPartial<Result> & OfflineFacts)
+  | (QueryDenied & OfflineFacts)
+  | { state: "hydrating"; live: false; connection: "offline" };
+export type QueryResult<Result> = ServerQueryResult<Result> | OfflineQueryResult<Result>;
 
 export type MutationCommitted<Result> = { state: "committed"; seq: number; data: Result };
 export type MutationRejected = {
@@ -59,7 +76,7 @@ export type MutationRejected = {
 };
 export type MutationResult<Result> = MutationCommitted<Result> | MutationRejected;
 
-export type LiveQueryDelivery<Result> = QueryResult<Result> & { live: true };
+export type LiveQueryDelivery<Result> = ServerQueryResult<Result> & { live: true; caughtUp?: boolean; watermark?: Cursor | null };
 export type StaleDelivery<Result> = {
   state: "stale";
   live: false;
@@ -81,6 +98,8 @@ export type RefusedDelivery = {
 export type QueryRefusedDelivery = RefusedDelivery & { live: false };
 export type SubscriptionDelivery<Result> =
   | LiveQueryDelivery<Result>
+  | (ServerQueryResult<Result> & { live: false; caughtUp?: boolean; watermark?: Cursor | null })
+  | OfflineQueryResult<Result>
   | StaleDelivery<Result>
   | QueryRefusedDelivery;
 
@@ -110,12 +129,16 @@ export interface ChannelHandle<Payload = unknown> {
 }
 
 export interface ManifestOperation { kind: string; args: unknown; planHash: string }
+export interface ManifestTable { retain?: "until-revoked" | "delivered-history"; [key: string]: unknown }
 export interface Manifest {
   generation: string;
   programGeneration: string;
   ops: Record<string, ManifestOperation>;
   channels: Record<string, unknown>;
   auth: Record<string, unknown>;
+  schemaHash?: string;
+  tables?: Record<string, ManifestTable>;
+  schema?: { tables?: Record<string, ManifestTable>; [key: string]: unknown };
 }
 
 export type AssetRecord = ImageAsset | VideoAsset;
@@ -178,11 +201,22 @@ export interface AuthTokenStore {
   load(): string | null | undefined | Promise<string | null | undefined>;
   /** Persists a bearer, or clears custody with `null`. */
   save(token: string | null): void | Promise<void>;
+  /** Optional companion custody needed to reopen a per-principal offline partition before network I/O. */
+  loadPrincipal?(): string | null | undefined | Promise<string | null | undefined>;
+  savePrincipal?(principal: string | null): void | Promise<void>;
 }
 
 interface ClientLocationOptions {
   url: string;
   fetch?: typeof globalThis.fetch;
+  offline?: OfflineClientOptions;
+}
+
+export interface OfflineClientOptions {
+  store: RangeStoreFactory;
+  fenceDays?: number;
+  maxAssetBytes?: number;
+  onTombstone?: (row: StoredRow) => RowRef[];
 }
 
 /** A client has exactly one authority source: a dev persona or bearer custody. */
@@ -213,18 +247,25 @@ export interface SnapbackClient {
     ref: Op<Args, Result>,
     args: NoInfer<Args>,
     callback: (delivery: SubscriptionDelivery<Result>) => void,
+    options?: { drain?: boolean },
   ): Subscription<SubscriptionDelivery<Result>>;
   channel<Args, Payload = unknown>(ref: ChannelRef<Args, Payload>, args: NoInfer<Args>): ChannelHandle<Payload>;
   manifest(): Promise<Manifest>;
   subscribeStatus(callback: (snapshot: ClientSnapshot) => void): () => void;
+  /** Cut only this client's transport; the owner remains running. */
+  offline(): Promise<void>;
+  /** Restore transport and perform resume before new subscription opens. */
+  online(): Promise<void>;
+  /** Close and reopen this logical device on the same durable partition. */
+  restart(): Promise<SnapbackClient>;
   close(): void;
 }
 
 export type QueryView<Result> =
-  | (QueryComplete<Result> & { live: boolean })
-  | (QueryCapped<Result> & { live: boolean })
-  | (QueryPartial<Result> & { live: boolean })
-  | (QueryDenied & { live: boolean })
+  | (QueryComplete<Result> & { live: boolean; stale?: { since: number }; retained?: boolean; caughtUp?: boolean; watermark?: Cursor | null })
+  | (QueryCapped<Result> & { live: boolean; stale?: { since: number }; retained?: boolean; caughtUp?: boolean; watermark?: Cursor | null })
+  | (QueryPartial<Result> & { live: boolean; stale?: { since: number }; retained?: boolean; caughtUp?: boolean; watermark?: Cursor | null })
+  | (QueryDenied & { live: boolean; stale?: { since: number }; retained?: boolean; caughtUp?: boolean; watermark?: Cursor | null })
   | { state: "refused"; live: false; refusal: RefusalEnvelope }
   | { state: "stale"; live: false; data?: Result; seq?: number; since: number }
   | { state: "hydrating"; live: false };
@@ -259,21 +300,30 @@ export function reduceQueryState<Result>(
   const currentData = "data" in current ? current.data : undefined;
   const data = canonical(eventData) === canonical(currentData) ? currentData : eventData;
   const live = "live" in event ? event.live : false;
+  const facts = {
+    ...("stale" in event && event.stale !== undefined ? { stale: event.stale } : {}),
+    ...("retained" in event && event.retained !== undefined ? { retained: event.retained } : {}),
+    ...("caughtUp" in event && event.caughtUp !== undefined ? { caughtUp: event.caughtUp } : {}),
+    ...("watermark" in event && event.watermark !== undefined ? { watermark: event.watermark } : {}),
+  };
   let next: QueryView<Result>;
   switch (event.state) {
     case "complete":
-      next = { state: "complete", live, data: data as Result, seq: event.seq, next: event.next };
+      next = { state: "complete", live, data: data as Result, seq: event.seq, next: event.next, ...facts };
       break;
     case "capped":
-      next = { state: "capped", live, data: data as Result, seq: event.seq, next: event.next };
+      next = { state: "capped", live, data: data as Result, seq: event.seq, next: event.next, ...facts };
       break;
     case "partial":
       next = data === undefined
-        ? { state: "partial", live, seq: event.seq, reason: event.reason }
-        : { state: "partial", live, data: data as Result, seq: event.seq, reason: event.reason };
+        ? { state: "partial", live, seq: event.seq, reason: event.reason, ...facts }
+        : { state: "partial", live, data: data as Result, seq: event.seq, reason: event.reason, ...facts };
       break;
     case "denied":
-      next = { state: "denied", live, rule: event.rule, seq: event.seq };
+      next = { state: "denied", live, rule: event.rule, seq: event.seq, ...facts };
+      break;
+    case "hydrating":
+      next = { state: "hydrating", live: false };
       break;
     case "refused": {
       const refusal: RefusalEnvelope = {
