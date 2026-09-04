@@ -168,15 +168,15 @@ remains measured. The self-test proves both branches and the measured build
 times include this handling.
 
 The author-ruled quiet triplicate ran on an otherwise idle 10-core M4 host at
-initial one-minute loads 2.56, 3.37, and 3.36. Every scored step passed without
+initial one-minute loads 1.57, 4.30, and 3.19. Every scored step passed without
 changing either budget, and the executable inode remained stable through every
 run:
 
 | run | core tests | `doctor` first / second | project check | chat test |
 |---|---:|---:|---:|---:|
-| 1 | 14.02 s | 0.122 / 0.025 s | 0.427 s | 24.826 s |
-| 2 | 14.40 s | 0.125 / 0.026 s | 0.431 s | 24.890 s |
-| 3 | 14.79 s | 0.127 / 0.025 s | 0.429 s | 25.057 s |
+| 1 | 15.14 s | 0.122 / 0.027 s | 0.429 s | 24.893 s |
+| 2 | 15.18 s | 0.125 / 0.025 s | 0.439 s | 25.054 s |
+| 3 | 14.88 s | 0.127 / 0.026 s | 0.422 s | 25.230 s |
 
 The three generated records are the first canonical metrics under the corrected
 runner and are appended to `snapback2/metrics/loop.jsonl`.
