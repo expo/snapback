@@ -45,6 +45,7 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
     let rules = check(&receipt, "rules");
     assert_eq!(rules["verdict"], "pass", "{rules}");
     assert_eq!(rules["detail"]["tables"]["memberships"]["probes"], 16);
+    assert_eq!(rules["detail"]["tables"]["memberCounts"]["probes"], 8);
     assert_eq!(rules["detail"]["tables"]["messages"]["probes"], 8);
     assert_eq!(rules["detail"]["tables"]["notifications"]["probes"], 4);
     assert_eq!(rules["detail"]["expectedBy"], "engine");
@@ -322,6 +323,147 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
         scratch.is_empty(),
         "test left temporary stores behind: {scratch:?}"
     );
+}
+
+#[test]
+fn chat_delivery_log_caps_members_and_reaches_original_recipients() {
+    let project = Project::new();
+    let initialized = project.init("chat", "none");
+    assert!(
+        initialized.status.success(),
+        "init failed: {}{}",
+        String::from_utf8_lossy(&initialized.stdout),
+        String::from_utf8_lossy(&initialized.stderr)
+    );
+    let _owner = OwnerGuard::start(&project);
+    let run = |persona: &str, operation: &str, arguments: serde_json::Value| {
+        let arguments = arguments.to_string();
+        json_stdout(&project.run(&["run", operation, &arguments, "--as", persona, "--json"]))
+    };
+
+    let initial_members = (1..=48)
+        .map(|number| format!("dev:capacity-{number}"))
+        .collect::<Vec<_>>();
+    let capacity_group = run(
+        "alice",
+        "groups.groupCreate",
+        serde_json::json!({ "title": "Capacity", "members": initial_members }),
+    );
+    assert_eq!(capacity_group["state"], "committed", "{capacity_group}");
+    let capacity_id = capacity_group["data"]["id"].as_str().unwrap();
+    let fiftieth = run(
+        "alice",
+        "groups.memberAdd",
+        serde_json::json!({ "conversationId": capacity_id, "principal": "dev:capacity-49" }),
+    );
+    assert_eq!(fiftieth["state"], "committed", "{fiftieth}");
+    let fifty_first = run(
+        "alice",
+        "groups.memberAdd",
+        serde_json::json!({ "conversationId": capacity_id, "principal": "dev:capacity-50" }),
+    );
+    assert_eq!(fifty_first["state"], "rejected", "{fifty_first}");
+    assert_eq!(fifty_first["code"], "GROUP_FULL", "{fifty_first}");
+    let capacity_post = run(
+        "alice",
+        "deliveries.post",
+        serde_json::json!({ "conversationId": capacity_id, "body": "all fifty" }),
+    );
+    assert_eq!(capacity_post["state"], "committed", "{capacity_post}");
+    let capacity_message = capacity_post["data"]["id"].as_str().unwrap();
+
+    let recipient_group = run(
+        "alice",
+        "groups.groupCreate",
+        serde_json::json!({ "title": "Original recipients", "members": ["dev:recipient-charlie"] }),
+    );
+    assert_eq!(recipient_group["state"], "committed", "{recipient_group}");
+    let recipient_group_id = recipient_group["data"]["id"].as_str().unwrap();
+    let bob_membership = run(
+        "alice",
+        "groups.memberAdd",
+        serde_json::json!({ "conversationId": recipient_group_id, "principal": "dev:bob" }),
+    );
+    assert_eq!(bob_membership["state"], "committed", "{bob_membership}");
+    let bob_membership_id = bob_membership["data"]["id"].as_str().unwrap();
+    let edited_post = run(
+        "alice",
+        "deliveries.post",
+        serde_json::json!({ "conversationId": recipient_group_id, "body": "before edit" }),
+    );
+    assert_eq!(edited_post["state"], "committed", "{edited_post}");
+    let edited_message = edited_post["data"]["id"].as_str().unwrap();
+    let unsent_send = run(
+        "alice",
+        "messages.send",
+        serde_json::json!({
+            "conversationId": recipient_group_id,
+            "recipientId": "profile-bob",
+            "body": "before unsend"
+        }),
+    );
+    assert_eq!(unsent_send["state"], "committed", "{unsent_send}");
+    let unsent_message = unsent_send["data"]["id"].as_str().unwrap();
+    let left = run(
+        "bob",
+        "groups.memberLeave",
+        serde_json::json!({ "conversationId": recipient_group_id, "membershipId": bob_membership_id }),
+    );
+    assert_eq!(left["state"], "committed", "{left}");
+    let edited = run(
+        "alice",
+        "deliveries.edit",
+        serde_json::json!({ "messageId": edited_message, "body": "after edit", "baseBody": "before edit" }),
+    );
+    assert_eq!(edited["state"], "committed", "{edited}");
+    let unsent = run(
+        "alice",
+        "deliveries.unsend",
+        serde_json::json!({ "messageId": unsent_message }),
+    );
+    assert_eq!(unsent["state"], "committed", "{unsent}");
+
+    let all_deliveries = json_stdout(&project.run(&[
+        "data",
+        "deliveries",
+        "--as",
+        "alice",
+        "--limit",
+        "500",
+        "--json",
+    ]));
+    let rows = all_deliveries["data"].as_array().unwrap();
+    let count = |message: &str, kind: &str| {
+        rows.iter()
+            .filter(|row| row["messageId"] == message && row["kind"] == kind)
+            .count()
+    };
+    assert_eq!(count(capacity_message, "message"), 50, "{all_deliveries}");
+    assert_eq!(count(edited_message, "message"), 3, "{all_deliveries}");
+    assert_eq!(count(edited_message, "edit"), 3, "{all_deliveries}");
+    assert_eq!(count(unsent_message, "message"), 3, "{all_deliveries}");
+    assert_eq!(count(unsent_message, "removed"), 3, "{all_deliveries}");
+
+    for persona in ["alice", "bob", "recipient-charlie"] {
+        let inbox = run(
+            persona,
+            "deliveries.inbox",
+            serde_json::json!({ "c": null }),
+        );
+        let inbox_rows = inbox["data"].as_array().unwrap();
+        assert!(
+            inbox_rows
+                .iter()
+                .any(|row| { row["messageId"] == edited_message && row["kind"] == "edit" }),
+            "{persona} did not receive the edit after bob left: {inbox}"
+        );
+        assert!(
+            inbox_rows
+                .iter()
+                .any(|row| { row["messageId"] == unsent_message && row["kind"] == "removed" }),
+            "{persona} did not receive the removal after bob left: {inbox}"
+        );
+    }
 }
 
 #[test]

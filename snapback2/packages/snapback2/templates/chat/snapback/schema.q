@@ -78,8 +78,9 @@ table deliveries:
   at: time
   by byRecipientAt: recipient, at, id
   by byRecipientConversationAt: recipient, conversationId, at, id
+  by byMessageKindRecipient: messageId, kind, recipient, id
   immutable recipient, conversationId, messageId, kind, at
-  read <- .recipient = viewer
+  public 'delivery routing metadata is public; message bodies stay protected'
   insert <- exists memberships[.conversationId, viewer]
   update <- deny
   delete <- deny
@@ -127,3 +128,6 @@ channel typing(conversationId: conversations):
   publish <- exists memberships[conversationId, viewer]
   subscribe <- exists memberships[conversationId, viewer]
   ttl 4s
+
+maintain memberCounts = count memberships by conversationId:
+  read <- exists memberships[.conversationId, viewer]

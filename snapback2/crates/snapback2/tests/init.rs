@@ -60,7 +60,11 @@ fn assert_rendering(template: &str, chat: bool) {
             compiled["schema"]["tables"]["messages"]["retain"],
             "delivered-history"
         );
-        assert!(compiled["schema"]["tables"]["deliveries"].is_object());
+        assert_eq!(
+            compiled["schema"]["tables"]["deliveries"]["retain"],
+            "until-revoked"
+        );
+        assert!(compiled["schema"]["tables"]["memberCounts"].is_object());
         let operations = compiled["programs"]
             .as_array()
             .unwrap()

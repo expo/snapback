@@ -69,8 +69,7 @@ appear in an index. `immutable a, b` forbids changes to those columns. `public`
 accepts an optional reason string. An insert
 postcondition is `after insert <- exists table[...] [by index]`.
 
-`retain until-revoked` (the default) drops rows omitted by a fresh answer.
-`retain delivered-history` keeps them until explicit revocation.
+`retain delivered-history` keeps rows that went hidden; the default evicts them.
 
 Rules are `allow`, `deny`, `public`, `system`, `exists`, `created`, `and`,
 `or`, `not`, and `=`/`!=` over `viewer`, literals, `.field`, and channel
@@ -262,14 +261,15 @@ mutation send(conversationId: conversations, recipientId: profiles, body: text <
   recipient = profiles[recipientId] ! else RECIPIENT_UNKNOWN
   require exists memberships[conversationId, recipient.principal] else RECIPIENT_NOT_MEMBER
   row = insert messages { conversationId, authorId: viewer, body, at: now }
+  for m in memberships[conversationId] first 50 by byConversationPrincipal:
+    insert deliveries { recipient: m.principal, conversationId, messageId: row.id, kind: 'message', at: now }
   emit notify { to: recipient.principal, body }
   return { id: row.id }
 ```
 
-`then: recordNotified` resolves to `notifications.recordNotified` in the
-project operation map. `emit notify { … }` enters the normal durable outbox.
-Emitting in a query is refused as `E_EMIT_IN_QUERY`; the generated code site
-and rewrite map back to the `.q` statement.
+`then: recordNotified` resolves to `notifications.recordNotified`; `emit`
+enters the outbox. Queries refuse with `E_EMIT_IN_QUERY`; sites map to
+`.q`.
 
 ## Absence and bounds
 

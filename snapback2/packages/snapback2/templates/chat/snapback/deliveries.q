@@ -17,8 +17,8 @@ mutation post(conversationId: conversations, body: text <=4000):
 mutation unsend(messageId: messages):
   msg = messages[messageId] ! else NOT_FOUND
   require msg.authorId = viewer else NOT_AUTHOR
-  for m in memberships[msg.conversationId] first 50 by byConversationPrincipal:
-    insert deliveries { recipient: m.principal, conversationId: msg.conversationId, messageId, kind: 'removed', at: now }
+  for delivered in deliveries[messageId, 'message'] first 50 by byMessageKindRecipient:
+    insert deliveries { recipient: delivered.recipient, conversationId: msg.conversationId, messageId, kind: 'removed', at: now }
   delete messages[msg]
   return null
 
@@ -27,6 +27,6 @@ mutation edit(messageId: messages, body: text <=4000, baseBody: text <=4000):
   require msg.authorId = viewer else NOT_AUTHOR
   require msg.body = baseBody else CONFLICT
   update messages[msg] { body }
-  for m in memberships[msg.conversationId] first 50 by byConversationPrincipal:
-    insert deliveries { recipient: m.principal, conversationId: msg.conversationId, messageId, kind: 'edit', at: now }
+  for delivered in deliveries[messageId, 'message'] first 50 by byMessageKindRecipient:
+    insert deliveries { recipient: delivered.recipient, conversationId: msg.conversationId, messageId, kind: 'edit', at: now }
   return null
