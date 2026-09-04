@@ -7,6 +7,7 @@ import {
   type RangeStoreFactory,
 } from "./range-store.js";
 import type { ByteDelta } from "./byte-cache.js";
+import { projectState, unprojectState, type StateEntry as Entry } from "./projection.js";
 
 // @ref LLP 1012#4-the-range-store — the carrier holds exactly what `coverage()`
 // reads back: rows, answers (their receipts inside), the outbox, and the meta
@@ -19,8 +20,6 @@ const LEGACY_STORES = ["ranges", "absences", "verdicts"] as const;
 const BYTES_STORE = "bytes";
 const ALL_STORES = [...STORE_NAMES, BYTES_STORE];
 const DATABASE_VERSION = 3;
-type StoreName = typeof STORE_NAMES[number];
-type Entry = { key: string; value: unknown };
 
 interface WebLockLike { readonly name?: string }
 interface WebLocksLike {
@@ -84,43 +83,6 @@ function deleteDatabase(factory: IDBFactory, name: string): Promise<void> {
   });
 }
 
-function entries(record: Record<string, unknown>): Entry[] {
-  return Object.entries(record).map(([key, value]) => ({ key, value }));
-}
-
-function record(values: Entry[]): Record<string, any> {
-  return Object.fromEntries(values.map(({ key, value }) => [key, value]));
-}
-
-function projections(state: PersistedRangeState): Record<StoreName, Entry[]> {
-  return {
-    rows: entries(state.rows),
-    answers: entries(state.answers),
-    outbox: entries(state.outbox),
-    meta: [{
-      key: "state",
-      value: {
-        version: state.version,
-        sealed: state.sealed,
-        clock: state.clock,
-        watermarks: state.watermarks,
-        grants: state.grants,
-        ...(state.currentGrant === undefined ? {} : { currentGrant: state.currentGrant }),
-        overlay: state.overlay,
-        overlayMisses: state.overlayMisses,
-        bounds: state.bounds,
-        programs: state.programs,
-        ...(state.facts === undefined ? {} : { facts: state.facts }),
-        ...(state.superseded === undefined ? {} : { superseded: state.superseded }),
-        negative: state.negative,
-        rowSeq: state.rowSeq,
-        assets: state.assets,
-        viewed: state.viewed,
-      },
-    }],
-  };
-}
-
 class IndexedDbBackend implements RangeStoreBackend {
   readonly carrier = "IndexedDB";
   private database?: IDBDatabase;
@@ -152,29 +114,7 @@ class IndexedDbBackend implements RangeStoreBackend {
         requestResult(rowsRequest), requestResult(answersRequest), requestResult(outboxRequest), requestResult(metaRequest),
         transactionDone(transaction),
       ]);
-      if (!meta && rows.length === 0 && answers.length === 0 && outbox.length === 0) return undefined;
-      const value = meta?.value as Partial<PersistedRangeState> | undefined;
-      return {
-        version: 1,
-        sealed: value?.sealed === true,
-        clock: typeof value?.clock === "number" ? value.clock : 0,
-        rows: record(rows),
-        answers: record(answers),
-        watermarks: value?.watermarks ?? {},
-        outbox: record(outbox),
-        grants: value?.grants ?? {},
-        ...(typeof value?.currentGrant === "string" ? { currentGrant: value.currentGrant } : {}),
-        overlay: value?.overlay ?? {},
-        overlayMisses: value?.overlayMisses ?? {},
-        bounds: value?.bounds ?? {},
-        programs: value?.programs ?? {},
-        ...(value?.facts === undefined ? {} : { facts: value.facts }),
-        ...(value?.superseded === undefined ? {} : { superseded: value.superseded }),
-        negative: value?.negative ?? {},
-        rowSeq: value?.rowSeq ?? {},
-        assets: value?.assets ?? {},
-        viewed: value?.viewed ?? {},
-      };
+      return unprojectState({ rows, answers, outbox, meta: meta ? [meta] : [] });
     } catch (error) {
       await this.close();
       if (error instanceof OfflineStoreFailure) throw error;
@@ -191,7 +131,7 @@ class IndexedDbBackend implements RangeStoreBackend {
     const database = this.database;
     if (!database) throw new OfflineStoreFailure("E_OFFLINE_CARRIER", "IndexedDB carrier is not open");
     // All cloning/projection work is complete before the readwrite transaction opens.
-    const projected = projections(state);
+    const projected = projectState(state);
     await this.beforeReplace?.(state);
     const transaction = database.transaction(ALL_STORES, "readwrite");
     try {

@@ -2,10 +2,10 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Image, PixelRatio, View, type ImageProps, type ImageStyle, type LayoutChangeEvent, type StyleProp } from "react-native";
 import { VideoView, useVideoPlayer, type VideoViewProps } from "expo-video";
 import { SnapbackRefusal, isSnapbackRefusal } from "./client.js";
-import { useAssetUrl, useSnapbackClient, useSnapbackSnapshot } from "./react.js";
+import { useAssetUrl, useSnapbackClient, useSnapbackSnapshot } from "./react-core.js";
 import type { ImageAsset, VideoAsset } from "./types.js";
 
-export * from "./react.js";
+export * from "./react-core.js";
 
 export type AssetImageProps = Omit<ImageProps, "source"> & {
   asset: ImageAsset;

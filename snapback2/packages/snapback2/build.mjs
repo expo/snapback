@@ -19,10 +19,11 @@ await mkdir(dist, { recursive: true });
 const externalClient = {
   name: "external-client",
   setup(build) {
-    build.onResolve({ filter: /^\.\/client\.js$/ }, (args) =>
-      [resolve(here, "src/react.tsx"), resolve(here, "src/react-native.tsx")].includes(args.importer)
-        ? { path: "snapback2/client", external: true }
-        : undefined);
+    build.onResolve({ filter: /(?:^|\/)(?:client|react-core)\.js$/ }, (args) => {
+      const target = resolve(dirname(args.importer), args.path);
+      if (target === resolve(here, "src/react-core.js")) return { path: "snapback2/react-core", external: true };
+      if (target === resolve(here, "src/client.js")) return { path: "snapback2/client", external: true };
+    });
   },
 };
 
@@ -31,30 +32,37 @@ await build({
     index: resolve(here, "src/index.ts"),
     client: resolve(here, "src/client.ts"),
     react: resolve(here, "src/react.tsx"),
+    "react-core": resolve(here, "src/react-core.tsx"),
+    expo: resolve(here, "src/expo.ts"),
+    "expo/witness": resolve(here, "src/expo/witness.ts"),
     "react-native": resolve(here, "src/react-native.tsx"),
   },
   outdir: dist,
   outExtension: { ".js": ".mjs" },
+  sourcemap: true,
   bundle: true,
   format: "esm",
   minify: true,
   platform: "neutral",
   target: "es2022",
-  external: ["react", "react-native", "expo-file-system", "expo/fetch", "expo-video", "snapback2/client"],
+  external: ["react", "react-native", "expo-file-system", "expo/fetch", "expo-video", "expo-sqlite", "expo-secure-store", "snapback2/client", "snapback2/react-core"],
   plugins: [externalClient],
 });
 
 await build({
   entryPoints: {
     test: resolve(here, "src/test.ts"),
+    "sqlite-test": resolve(here, "tests/sqlite-exports.ts"),
     "test-runner": resolve(here, "src/test.ts"),
   },
   outdir: dist,
   outExtension: { ".js": ".mjs" },
+  sourcemap: true,
   bundle: true,
   format: "esm",
   platform: "node",
   target: "node20",
+  external: ["expo-file-system", "expo/fetch"],
 });
 
 await build({
@@ -63,6 +71,7 @@ await build({
   entryNames: "[name]",
   chunkNames: "compiler-core",
   outExtension: { ".js": ".mjs" },
+  sourcemap: true,
   bundle: true,
   format: "esm",
   minify: true,
@@ -80,6 +89,9 @@ const declarations = resolve(dist, ".declarations");
 const declarationProgram = ts.createProgram({
   rootNames: [
     resolve(here, "src/api.ts"),
+    resolve(here, "tests/sqlite-exports.ts"),
+    resolve(here, "src/expo.ts"),
+    resolve(here, "src/expo/witness.ts"),
     resolve(here, "src/assets.ts"),
     resolve(here, "src/client.ts"),
     resolve(here, "src/native-modules.d.ts"),

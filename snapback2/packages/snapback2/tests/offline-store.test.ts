@@ -9,6 +9,7 @@ import { SnapbackRefusal, api, browserTokenStore, createClient } from "../dist/c
 import { decodeDeliveryEnvelope } from "../dist/index.mjs";
 import { indexedDbRangeStore } from "../dist/react.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
+import { sqliteFactory } from "./sqlite-fixture.ts";
 import { FakeIndexedDb, FakeLocks } from "./fake-indexeddb.ts";
 
 const emptyReceipt = () => ({ ranges: [], absences: [], verdicts: [] });
@@ -120,10 +121,11 @@ async function exerciseSharedRows(factory: ReturnType<typeof fileRangeStore>): P
   await store.close?.();
 }
 
-test("RangeStore stores rows once and shares them across answers on both carriers", async () => {
+test("RangeStore stores rows once and shares them across answers on all three carriers", async () => {
   const root = await tempRoot();
   try {
     await exerciseSharedRows(fileRangeStore(root));
+    await exerciseSharedRows(sqliteFactory(join(root, "state.db")));
     const { factory } = indexedFactory();
     await exerciseSharedRows(factory as ReturnType<typeof fileRangeStore>);
   } finally { await rm(root, { recursive: true, force: true }); }
@@ -336,10 +338,11 @@ async function exerciseEvictions(store: any): Promise<void> {
   await store.close?.();
 }
 
-test("both carriers apply the four swap rules with until-revoked and delivered-history", async () => {
+test("all three carriers apply the four swap rules with until-revoked and delivered-history", async () => {
   const root = await tempRoot();
   try {
     await exerciseEvictions(fileRangeStore(root)());
+    await exerciseEvictions(sqliteFactory(join(root, "state.db"))());
     await exerciseEvictions(indexedFactory().factory());
   } finally { await rm(root, { recursive: true, force: true }); }
 });
@@ -531,7 +534,7 @@ test("shrunk arrays and denied answers emit the hidden signal", async () => {
 });
 
 test("seal survives a cold open, confirmed re-auth unseals, and wipe deletes the partition", async () => {
-  for (const make of [fileRangeStore(await tempRoot()), indexedFactory().factory]) {
+  for (const make of [fileRangeStore(await tempRoot()), indexedFactory().factory, sqliteFactory(join(await tempRoot(), "state.db"))]) {
     let store = make();
     await store.open("dev:alice");
     await store.commit({ deliveries: [{ op: "list", args: {}, state: "complete", data: [1], next: null, seq: 1 }] });

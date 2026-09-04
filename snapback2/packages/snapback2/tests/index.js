@@ -10,6 +10,8 @@ await import("./real-owner.test.ts");
 await import("./native-assets.test.ts");
 await import("./offline-protocol.test.ts");
 await import("./offline-store.test.ts");
+await import("./sqlite.test.ts");
+await import("./expo.test.ts");
 await import("./offline-bytes.test.ts");
 await import("./offline-view-once.test.ts");
 await import("./offline-resume-tail.test.ts");

@@ -8,11 +8,12 @@ import TestRenderer, { act } from "react-test-renderer";
 import { SnapbackRefusal, api, createClient } from "../dist/client.mjs";
 import { SnapbackProvider, indexedDbRangeStore, useMutation, useOutbox, useSnapbackClient } from "../dist/react.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
+import { sqliteFactory } from "./sqlite-fixture.ts";
 import { FakeIndexedDb, FakeLocks } from "./fake-indexeddb.ts";
 import { DAY, engineId, fakeOwner, seededStore } from "./fake-owner.ts";
 
 // @ref LLP 1012#7-writes-offline — the outbox contract, proven against a
-// replay-aware owner double on both carriers.
+// replay-aware owner double on all three carriers.
 
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -29,9 +30,11 @@ function indexedFactory() {
 async function carriers(): Promise<Array<{ name: string; factory: () => ReturnType<typeof fileRangeStore>; cleanup(): Promise<void> }>> {
   const root = await tempRoot();
   const indexed = indexedFactory();
+  const sqlRoot = await tempRoot();
   return [
     { name: "file", factory: () => fileRangeStore(root), cleanup: () => rm(root, { recursive: true, force: true }) },
     { name: "IndexedDB", factory: indexed, cleanup: async () => undefined },
+    { name: "SQLite", factory: () => sqliteFactory(join(sqlRoot, "state.db")), cleanup: () => rm(sqlRoot, { recursive: true, force: true }) },
   ];
 }
 

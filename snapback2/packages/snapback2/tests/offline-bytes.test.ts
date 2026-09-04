@@ -9,6 +9,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { SnapbackRefusal, api, createClient } from "../dist/client.mjs";
 import { AssetImage, AssetVideo, SnapbackProvider, indexedDbRangeStore } from "../dist/react.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
+import { sqliteFactory, sqliteKeys } from "./sqlite-fixture.ts";
 import { FakeIndexedDb, FakeLocks } from "./fake-indexeddb.ts";
 import { domEnvironment, until } from "./dom-environment.ts";
 
@@ -111,10 +112,16 @@ async function exerciseCache(store: any, carrierKeys: () => Promise<string[]>): 
   await store.close?.();
 }
 
-test("byte puts land only under a held row's lease, reads order the LRU, and the ceiling evicts least-recently-read on both carriers", async () => {
+test("byte puts land only under a held row's lease, reads order the LRU, and the ceiling evicts least-recently-read on all three carriers", async () => {
   const root = await tempRoot();
   try {
     await exerciseCache(fileRangeStore(root)(), () => fileKeys(root));
+    const sqlPath = join(root, "state.db");
+    await exerciseCache(sqliteFactory(sqlPath)(), () => sqliteKeys(sqlPath));
+    const sqlCold: any = sqliteFactory(sqlPath)();
+    await sqlCold.open("dev:alice");
+    assert.deepEqual([...(await sqlCold.readBytes(C, 8)).bytes], [3, 3, 3, 3]);
+    await sqlCold.close();
     const reopened: any = fileRangeStore(root)();
     await reopened.open("dev:alice");
     assert.deepEqual([...(await reopened.readBytes(A, 8)).bytes], [1, 1, 1, 1], "payloads survive a cold open");
@@ -191,6 +198,8 @@ test("bytes leave in the commit that evicts their row: absence, range hole, tomb
   const root = await tempRoot();
   try {
     await exercisePurge(fileRangeStore(root)(), () => fileKeys(root));
+    const sqlPath = join(root, "state.db");
+    await exercisePurge(sqliteFactory(sqlPath)(), () => sqliteKeys(sqlPath));
     await assert.rejects(stat(join(root, `${encodeURIComponent("dev:alice")}.bytes`)), "wipe removed the bytes directory");
     const { database, factory } = indexedFactory();
     await exercisePurge(factory(), async () => database.keys("snapback2:dev:alice", "bytes"));

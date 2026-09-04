@@ -25,6 +25,22 @@
     "./test": {
       "types": "./dist/test.d.ts",
       "import": "./dist/test.mjs"
+    },
+    "./react-core": {
+      "types": "./dist/react-core.d.ts",
+      "import": "./dist/react-core.mjs"
+    },
+    "./react-native": {
+      "types": "./dist/react-native.d.ts",
+      "import": "./dist/react-native.mjs"
+    },
+    "./expo": {
+      "types": "./dist/expo.d.ts",
+      "import": "./dist/expo.mjs"
+    },
+    "./expo/witness": {
+      "types": "./dist/expo/witness.d.ts",
+      "import": "./dist/expo/witness.mjs"
     }
   },
   "bin": {
@@ -47,7 +63,9 @@
     "expo-file-system": ">=19",
     "expo-video": ">=2",
     "react-native": ">=0.75",
-    "react": ">=18"
+    "react": ">=18",
+    "expo-sqlite": "^16",
+    "expo-secure-store": "^15"
   },
   "peerDependenciesMeta": {
     "expo": {
@@ -61,6 +79,12 @@
     },
     "react-native": {
       "optional": true
+    },
+    "expo-sqlite": {
+      "optional": true
+    },
+    "expo-secure-store": {
+      "optional": true
     }
   },
   "devDependencies": {
@@ -70,7 +94,10 @@
     "playwright-core": "1.55.1",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
-    "react-test-renderer": "^19.1.1"
+    "react-test-renderer": "^19.1.1",
+    "expo-sqlite": "^16",
+    "expo-secure-store": "^15",
+    "@types/node": "^24"
   },
   "optionalDependencies": {
     "snapback2-darwin-arm64": "0.0.1",
