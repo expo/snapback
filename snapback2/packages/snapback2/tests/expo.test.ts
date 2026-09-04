@@ -82,8 +82,11 @@ test("Expo driver scopes statements to the exclusive executor and normalizes nul
   };
   const driver = expoSqliteDriver("conformance.db");
   assert.equal(driver.identity, "expo-sqlite:file:///documents/SQLite/conformance.db");
-  assert.equal(driver.identity, expoSqliteDriver("/conformance.db").identity);
   assert.notEqual(driver.identity, expoSqliteDriver("separate.db").identity);
+  // Two spellings of one file must not earn two locks: a name is a plain basename or it is refused.
+  for (const alias of ["/conformance.db", "./conformance.db", "sub/../conformance.db", "..", ".hidden.db", "a\\b.db"]) {
+    assert.throws(() => expoSqliteDriver(alias), TypeError, `${alias} is not a plain database name`);
+  }
   assert.equal(await driver.get("missing"), undefined);
   assert.equal(await driver.transaction(async (tx) => {
     await tx.run("insert", [new Uint8Array([1])]);
