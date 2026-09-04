@@ -358,8 +358,8 @@ export async function performOfflineResume<Authority>(options: {
   const request = await options.runtime.resumeRequest([...options.mounted.values()], adjustment);
   if (!request) {
     // @ref LLP 1012#7-writes-offline — no resume can be built without facts (a
-    // login grant with nothing delivered yet), but the queue must never sit:
-    // the held grant replays it directly, and a missing grant settles loudly.
+    // login grant with nothing delivered yet). Within the fence the held grant
+    // replays directly; past it drain waits until a resume succeeds.
     if ((await options.runtime.queuedIntents()).length > 0) await drainOutbox(drainOptions(options));
     return;
   }
@@ -443,6 +443,7 @@ export async function performOfflineResume<Authority>(options: {
   } catch (error) {
     throw options.failure ? options.failure(error) : error;
   }
+  options.runtime.outbox.resumeSucceeded();
   await drainOutbox(drainOptions(options));
 }
 

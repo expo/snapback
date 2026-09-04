@@ -130,9 +130,9 @@ async function settledResult<Result>(entry: OutboxEntry, runtime: OfflineRuntime
     throw new SnapbackRefusal({
       code: "E_OFFLINE_INTENT_EXPIRED",
       family: "offline",
-      message: "the replay grant is past offline.fenceDays",
-      site: "client.outbox.enqueue",
-      rewrite: "resume online for a fresh grant, then send again",
+      message: "the owner refused this intent because its replay grant is unknown, foreign, or older than thirty days",
+      site: "client.outbox.replay",
+      rewrite: "dismiss this intent, resume online for a fresh grant, then send again",
       guide: "offline",
     });
   }
@@ -149,7 +149,8 @@ export interface DrainOptions {
 /**
  * Replays queued intents in order. A transport failure leaves the intent
  * queued and stops; a rejection, conflict, or refusal settles only that intent
- * and the drain continues; a grant past the fence settles `expired` locally.
+ * and the drain continues. Past the fence, replay waits for a successful
+ * resume; only the owner's `E_OFFLINE_INTENT_EXPIRED` refusal settles expired.
  */
 export function drainOutbox(options: DrainOptions): Promise<{ stopped: boolean }> {
   const { runtime } = options;
@@ -166,14 +167,11 @@ export function drainOutbox(options: DrainOptions): Promise<{ stopped: boolean }
 async function drainQueued(options: DrainOptions): Promise<{ stopped: boolean }> {
   const { runtime } = options;
   if (runtime.principal === undefined) return { stopped: false };
+  const currentGrant = await runtime.outbox.grant();
+  if (currentGrant && runtime.outbox.pastFence(currentGrant)) return { stopped: true };
   for (const queued of await runtime.outbox.queued()) {
     const entry = await runtime.store.outbox.get(queued.intent);
     if (!entry || entry.state !== "queued") continue;
-    const grant = await runtime.outbox.grantById(entry.grant);
-    if (!grant || runtime.outbox.pastFence(grant)) {
-      await settle(options, entry, "expired");
-      continue;
-    }
     let raw: unknown;
     try {
       raw = await options.json("/api/mutation", { method: "POST", body: JSON.stringify(replayEnvelope(entry)) });
@@ -290,15 +288,15 @@ export function createOutboxApi(
       return runtime ? runtime.outbox.subscribe(push) : () => undefined;
     },
     // @ref LLP 1012#7-writes-offline — with a partition open every write needs a
-    // grant before any request leaves; an app gates its send on this instead of
-    // retrying a refusal blindly. Answered after the client's own startup, so a
-    // partition about to open never reads as "no partition, plain bytes".
+    // grant before any request leaves; the fence disables prediction and replay,
+    // not enqueue, so an app may keep accepting writes while trust is stale.
+    // Answered after startup so an opening partition never reads as plain bytes.
     ready: async () => {
       await ready().catch(() => undefined);
       if (!runtime || runtime.principal === undefined) return true;
       try {
         const grant = await runtime.outbox.grant();
-        return grant !== undefined && !runtime.outbox.pastFence(grant);
+        return grant !== undefined;
       } catch (error) {
         if (error instanceof Error && /sealed/.test(error.message)) return false;
         throw error;

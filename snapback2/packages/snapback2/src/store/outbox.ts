@@ -14,9 +14,9 @@ import type {
 
 export const ENGINE_ID = /^s2id-([0-9a-f]{32})-([0-9a-f]{16})$/;
 
-export type OutboxRefusalCode = "E_OFFLINE_ID_BLOCK" | "E_OFFLINE_INTENT_EXPIRED";
+export type OutboxRefusalCode = "E_OFFLINE_ID_BLOCK";
 
-/** A local refusal at enqueue or replay time; the client maps it onto the offline family. */
+/** A local custody refusal at enqueue time; the client maps it onto the offline family. */
 export class OutboxRefusal extends Error {
   constructor(readonly code: OutboxRefusalCode, message: string, readonly site: string, readonly rewrite: string) {
     super(message);
@@ -92,6 +92,8 @@ export interface OutboxLedgerOptions {
 
 export class OutboxLedger {
   private readonly listeners = new Set<() => void>();
+  /** A successful resume renews trust without changing the server-minted grant's age. */
+  private resumedAt?: number;
   /**
    * Grant custody is one critical section: a read of the grant's cursor and the
    * swap that advances it never interleave with another enqueue or adoption, so
@@ -171,7 +173,12 @@ export class OutboxLedger {
   }
 
   pastFence(grant: Pick<OutboxGrant, "mintedAt">): boolean {
-    return this.options.now() - grant.mintedAt > this.options.fenceMs;
+    return this.options.now() - Math.max(grant.mintedAt, this.resumedAt ?? grant.mintedAt) > this.options.fenceMs;
+  }
+
+  /** The owner re-authorized this partition; old intents may now replay for the server to judge. */
+  resumeSucceeded(): void {
+    this.resumedAt = this.options.now();
   }
 
   // @ref LLP 1012#7-writes-offline — the first id names the intent; the rest
@@ -187,14 +194,6 @@ export class OutboxLedger {
           "this device holds no replay grant; log in, or drain a query online, before writing",
           "client.outbox.enqueue",
           "resume as this principal for a grant (a login, or a query with { drain: true } reaching its watermark), then send again",
-        );
-      }
-      if (this.pastFence(grant)) {
-        throw new OutboxRefusal(
-          "E_OFFLINE_INTENT_EXPIRED",
-          "the held replay grant is older than offline.fenceDays; resume before queuing writes",
-          "client.outbox.enqueue",
-          "resume as the grant's principal for a fresh grant, then enqueue a new intent",
         );
       }
       const maxNewIds = (await this.store.outbox.bounds())[input.op];
@@ -219,7 +218,9 @@ export class OutboxLedger {
       // @ref LLP 1012#7-writes-offline — the twin runs the mutation with the
       // slice as its `new` envelope, so the prediction and the commit mint the
       // same ids; the overlay and the trace land in the entry's own swap.
-      const prediction = predict === undefined ? undefined : await predict(ids);
+      // The fence bounds local trust, not custody: keep the write, but do not
+      // predict it until a successful resume has renewed trust in this runtime.
+      const prediction = predict === undefined || this.pastFence(grant) ? undefined : await predict(ids);
       const now = this.options.now();
       const entry: OutboxEntry = {
         intent: intentName(grant.id, grant.used),

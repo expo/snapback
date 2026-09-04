@@ -171,30 +171,71 @@ test("a rejection and a trace conflict settle only their own intent and the drai
   }
 });
 
-test("a grant past fenceDays refuses new intents and settles queued ones expired locally without sending", async () => {
-  const root = await tempRoot();
-  const owner = fakeOwner();
-  await seededStore(fileRangeStore(root));
-  const client = createClient({ url: "http://fence.test", as: "alice", fetch: owner.fetch, offline: { store: fileRangeStore(root), fenceDays: 2 } });
-  await client.ready;
-  await client.offline();
-  await client.mutation(api.deliveries.post as any, post("stale"));
-  const originalNow = Date.now;
-  Date.now = () => originalNow() + 3 * DAY;
-  try {
-    await assert.rejects(
-      () => client.mutation(api.deliveries.post as any, post("past the fence")),
-      (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_OFFLINE_INTENT_EXPIRED",
-    );
-    const mutations = owner.requests.filter((path) => path === "/api/mutation").length;
-    await client.outbox.drain();
-    assert.equal(owner.requests.filter((path) => path === "/api/mutation").length, mutations, "an expired intent is never sent");
+test("a three-day-old queue under fenceDays 1 waits for resume without prediction, then replays FIFO and commits on both carriers", async () => {
+  for (const carrier of await carriers()) {
+    const owner = fakeOwner();
+    await seededStore(carrier.factory());
+    const client = createClient({ url: "http://fence.test", as: "alice", fetch: owner.fetch, offline: { store: carrier.factory(), fenceDays: 1 } });
+    const originalNow = Date.now;
+    try {
+      await client.ready;
+      await client.offline();
+      await client.mutation(api.deliveries.post as any, post("three days old"));
+      assert.equal((await client.outbox.entries())[0]?.predicted, true, `${carrier.name}: prediction starts inside the fence`);
+      Date.now = () => originalNow() + 3 * DAY;
+      const pastFence = await client.mutation(api.deliveries.post as any, post("typed past the fence"));
+      assert.equal(pastFence.state, "queued", `${carrier.name}: the fence never refuses custody`);
+      const queued = await client.outbox.entries();
+      assert.equal(queued[1]?.predicted, undefined, `${carrier.name}: prediction is off past the fence`);
+      const mutations = owner.requests.filter((path) => path === "/api/mutation").length;
+      await client.outbox.drain();
+      assert.equal(owner.requests.filter((path) => path === "/api/mutation").length, mutations,
+        `${carrier.name}: drain sends nothing before a successful resume`);
+      assert.deepEqual((await client.outbox.entries()).map((entry) => entry.state), ["queued", "queued"]);
+      await client.online();
+      await client.outbox.settled();
+      assert.deepEqual(owner.executions.map((item) => (item.args as any).body), ["three days old", "typed past the fence"],
+        `${carrier.name}: the successful resume released every intent in FIFO order`);
+      assert.deepEqual((await client.outbox.entries()).map((entry) => entry.state), ["committed", "committed"]);
+    } finally {
+      Date.now = originalNow;
+      client.close();
+      await carrier.cleanup();
+    }
+  }
+});
+
+test("only the owner's E_OFFLINE_INTENT_EXPIRED refusal expires an intent and the drain continues on both carriers", async () => {
+  for (const carrier of await carriers()) {
+    const owner = fakeOwner({
+      refuse: (_intent, body) => body.args.body === "server expired"
+        ? { status: 409, envelope: {
+          code: "E_OFFLINE_INTENT_EXPIRED", family: "offline",
+          message: "the replay grant is older than thirty days",
+          rewrite: "resume for a fresh grant and send again", guide: "offline",
+        } }
+        : undefined,
+    });
+    await seededStore(carrier.factory());
+    const client = createClient({ url: "http://server-expiry.test", as: "alice", fetch: owner.fetch, offline: { store: carrier.factory() } });
+    await client.ready;
+    await client.offline();
+    await client.mutation(api.deliveries.post as any, post("server expired"));
+    await client.mutation(api.deliveries.post as any, post("after expiry"));
+    const before = owner.requests.filter((path) => path === "/api/mutation").length;
+    await client.online();
+    await client.outbox.settled();
     const entries = await client.outbox.entries();
-    assert.deepEqual(entries.map((entry) => entry.state), ["expired"]);
-  } finally {
-    Date.now = originalNow;
+    assert.deepEqual(entries.map((entry) => entry.state), ["expired", "committed"], carrier.name);
+    assert.equal((entries[0]?.response as any)?.code, "E_OFFLINE_INTENT_EXPIRED", `${carrier.name}: expiry came from the owner envelope`);
+    assert.equal(owner.requests.filter((path) => path === "/api/mutation").length - before, 2,
+      `${carrier.name}: both intents reached the owner`);
+    assert.deepEqual(owner.executions.map((item) => (item.args as any).body), ["after expiry"],
+      `${carrier.name}: refusal settled only its intent and drain continued`);
+    await client.outbox.dismiss(entries[0]!.intent);
+    assert.deepEqual((await client.outbox.entries()).map((entry) => entry.state), ["committed"], `${carrier.name}: expired remains dismissible`);
     client.close();
-    await rm(root, { recursive: true, force: true });
+    await carrier.cleanup();
   }
 });
 
