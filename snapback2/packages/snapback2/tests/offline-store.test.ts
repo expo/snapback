@@ -693,7 +693,12 @@ test("manifest retention is loaded before the first commit without an app manife
     url: "http://retention.test", as: "alice", offline: { store: fileRangeStore(root) },
     fetch: async (input) => {
       const metadata = metadataResponse(input);
-      if (metadata) return metadata;
+      if (metadata) {
+        const value = await metadata.json();
+        if (String(input).includes('/api/program?')) Object.assign(value, { generation: hit.generation, schemaHash: hit.schemaHash });
+        else value.programGeneration = hit.generation;
+        return new Response(JSON.stringify(value), { status: 200 });
+      }
       return new Response(JSON.stringify(reads++ === 0 ? hit : hidden), { status: 200 });
     },
   });
@@ -770,6 +775,9 @@ test("an auth-epoch mismatch cannot replace held coverage; a generation mismatch
   const client = createClient({
     url: "http://epoch.test", as: "alice", offline: { store: fileRangeStore(root) },
     fetch: async (input) => {
+      if (String(input).endsWith("/api/resume") && reads >= 3) {
+        throw new TypeError("the reset transport closed after the live delivery");
+      }
       const metadata = metadataResponse(input);
       if (metadata) return metadata;
       const value = envelope([["held", "wrong", "rotated"][reads] ?? "later"], String(reads + 1).repeat(64), reads + 1);
@@ -1098,6 +1106,7 @@ test("E_OFFLINE_RESET cold-drains a mounted drain from the null cursor", async (
         if (resumes === 1) return new Response(JSON.stringify({
           seq: 3, generation, schemaHash,
           authority: { principal: "dev:alice", authEpoch: 7 }, log: { unchanged: true }, mounted: [],
+          grant: { id: "s2id-00000000000000000000000000000001-0000000000000001", from: "s2id-00000000000000000000000000000001-0000000000000001", count: 8192, mintedAt: Date.now(), expiresAt: Date.now() + 86400000 },
         }), { status: 200 });
         return new Response(JSON.stringify({
           code: "E_OFFLINE_RESET", family: "offline", message: "generation moved",

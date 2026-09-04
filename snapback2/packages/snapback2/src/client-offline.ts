@@ -57,7 +57,7 @@ export function createOfflineRuntime(options: OfflineClientOptions | undefined):
 export function offlineRefusal(error: unknown, carrier: string): SnapbackRefusal {
   if (isSnapbackRefusal(error)) return error;
   const candidate = error && typeof error === "object" ? (error as { code?: unknown }).code : undefined;
-  if (candidate === "E_OFFLINE_ID_BLOCK" || candidate === "E_OFFLINE_INTENT_EXPIRED") {
+  if (candidate === "E_OFFLINE_ID_BLOCK") {
     const local = error as { message: string; site?: string; rewrite?: string };
     return new SnapbackRefusal({
       code: candidate,
@@ -125,9 +125,11 @@ export async function commitOffline(
   args: unknown,
   accepted: AcceptedDelivery<unknown>,
   failure: (error: unknown) => Error,
-): Promise<void> {
-  if (!runtime) return;
-  try { await runtime.commit(op, args, accepted); }
+  revision?: number,
+  current?: () => boolean,
+): Promise<boolean> {
+  if (!runtime) return false;
+  try { return await runtime.commit(op, args, accepted, revision, current); }
   catch (error) { throw failure(error); }
 }
 
@@ -139,6 +141,9 @@ export async function decodeOfflineSubscription<Result>(options: {
   shape(message: string): Error;
   failure(error: unknown): Error;
   observe?(): Promise<void>;
+  revision?: number;
+  current?: () => boolean;
+  superseded?(): void;
 }): Promise<LiveQueryDelivery<Result> | QueryRefusedDelivery> {
   const raw = sseObject(options.data, "subscription delivery");
   const accepted = await acceptOffline<Result>(options.runtime, options.op, options.args, raw, options.shape);
@@ -146,8 +151,9 @@ export async function decodeOfflineSubscription<Result>(options: {
     ? { ...wireQuery<Result>(accepted.result, "subscription delivery"), live: true as const }
     : wireSubscription<Result>(options.data);
   if (value.state !== "refused") {
-    await commitOffline(options.runtime, options.op, options.args, accepted, options.failure);
-    await options.observe?.();
+    const superseded = await commitOffline(options.runtime, options.op, options.args, accepted, options.failure, options.revision, options.current);
+    if (superseded) options.superseded?.();
+    if (!options.current || options.current()) await options.observe?.();
   }
   return value;
 }
@@ -215,11 +221,14 @@ export function createOfflineDrain<Args, Result>(options: {
       await options.ready?.catch(() => undefined);
       return options.runtime?.cursorArg(options.op) ?? "c";
     },
-    mark: async (watermark) => {
+    mark: async (watermark, current) => {
       if (!options.runtime) return;
+      const revision = options.runtime.coverageRevision;
       const tailArgs = { ...(options.args as Record<string, unknown>), [options.runtime.cursorArg(options.op)]: watermark };
       const held = await options.runtime.answer(options.op, tailArgs);
-      await options.runtime.markWatermark(options.op, options.args, watermark, held?.validator);
+      if (!current()) return;
+      await options.runtime.markWatermark(options.op, options.args, watermark, held?.validator, revision);
+      if (!current()) return;
       await options.observe?.();
       // @ref LLP 1012#7-writes-offline — the recipe's drain is where a device
       // earns its first grant, so a send after going offline has ids to pin.
@@ -343,6 +352,7 @@ function resumeAdjustment(error: RefusalLike): ResumeAdjustment {
 }
 
 export async function performOfflineResume<Authority>(options: {
+  signal?: AbortSignal;
   runtime: OfflineRuntime | undefined;
   mounted: Map<string, MountedQuery>;
   authority: Authority;
@@ -354,36 +364,73 @@ export async function performOfflineResume<Authority>(options: {
   subscriptions: Iterable<Subscription<unknown>>;
   /** Re-fetches `/api/program` for the live generation after `E_OFFLINE_RESET`. */
   reload?(authority: Authority): Promise<void>;
-}, adjustment: ResumeAdjustment = {}, retry = true): Promise<void> {
-  if (!options.runtime) return;
-  const request = await options.runtime.resumeRequest([...options.mounted.values()], adjustment);
+}, adjustment: ResumeAdjustment = {}, retry = true): Promise<boolean> {
+  const check = () => options.signal?.throwIfAborted();
+  check();
+  if (!options.runtime) return false;
+  const revision = options.runtime.coverageRevision;
+  const generation = options.runtime.outbox.generation;
+  let request = await options.runtime.resumeRequest([...options.mounted.values()], adjustment);
+  check();
   if (!request) {
     // @ref LLP 1012#7-writes-offline — no resume can be built without facts (a
     // login grant with nothing delivered yet), but the queue must never sit:
-    // the held grant replays it directly, and a missing grant settles loudly.
-    if ((await options.runtime.queuedIntents()).length > 0) await drainOutbox(drainOptions(options));
-    return;
+    // inside the fence the held grant replays it directly. Past the fence a
+    // login grant may precede every delivery: earn real authority facts
+    // through a named query, then use the owner's supported logless resume;
+    // metadata or a fresh consumption grant alone never opens the fence.
+    if ((await options.runtime.queuedIntents()).length === 0) return false;
+    check();
+    if (await options.runtime.outbox.fence() === "inside") {
+      check();
+      await drainOutbox(drainOptions(options));
+      check();
+      return false;
+    }
+    check();
+    const seed = await options.runtime.resumeSeed([...options.mounted.values()]);
+    check();
+    if (!seed) throw resumeUnavailable("no query with known arguments can establish resume facts");
+    const raw = await options.json("/api/query?receipt=1", {
+      method: "POST", body: JSON.stringify({ op: seed.op, args: seed.args }), signal: options.signal,
+    }, options.authority);
+    check();
+    const accepted = await acceptOffline(options.runtime, seed.op, seed.args, raw, options.shape);
+    check();
+    wireQuery(accepted.result);
+    await commitOffline(options.runtime, seed.op, seed.args, accepted, options.failure ?? ((error) => error as Error),
+      revision, () => !options.signal?.aborted);
+    check();
+    request = await options.runtime.resumeRequest([...options.mounted.values()], adjustment);
+    check();
+    if (!request) throw resumeUnavailable("the owner query did not deliver the facts required for resume");
   }
   const standIn = request.log !== undefined && options.runtime.standInLog(request.log);
+  const rebuild = async () => {
+    check();
+    await options.reload?.(options.authority);
+    check();
+    // A 409 authenticated request.authEpoch before checking the program; a
+    // successful probe below verifies the same epoch explicitly.
+    await options.runtime!.resetCoverage(request.authEpoch, options.signal);
+    check();
+    for (const subscription of [...options.subscriptions]) {
+      (subscription as Subscription<unknown> & { reset?: () => void }).reset?.();
+    }
+    return true;
+  };
   let value: unknown;
   try {
-    value = await options.json("/api/resume", { method: "POST", body: JSON.stringify(request) }, options.authority);
+    value = await options.json("/api/resume", { method: "POST", body: JSON.stringify(request), signal: options.signal }, options.authority);
+    check();
   } catch (error) {
+    check();
     const candidate = refusal(error);
-    if (candidate?.code === "E_OFFLINE_RESET") {
-      // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — drop
-      // coverage, keep the sealed outbox, fetch the live generation's program
-      // (the twin and the write bounds re-price from it), then drain and
-      // cold-drain: the queue never waits on the next write.
-      await options.runtime.resetCoverage();
-      await options.reload?.(options.authority);
-      for (const subscription of options.subscriptions) {
-        (subscription as Subscription<unknown> & { reset?: () => void }).reset?.();
-      }
-      if ((await options.runtime.queuedIntents()).length > 0) await drainOutbox(drainOptions(options));
-      return;
+    if (candidate?.code === "E_OFFLINE_RESET") return rebuild();
+    if (candidate?.status === 404) {
+      if ((await options.runtime.queuedIntents()).length > 0) throw error;
+      return false;
     }
-    if (candidate?.status === 404) return;
     if (candidate?.code === "E_OFFLINE_RESUME" && retry) {
       return performOfflineResume(options, resumeAdjustment(candidate), false);
     }
@@ -397,7 +444,11 @@ export async function performOfflineResume<Authority>(options: {
   if (authority.principal !== options.runtime.principal || authority.authEpoch !== request.authEpoch) {
     throw options.shape("resume response authority does not match the open partition");
   }
+  // A cold reopen mid-rebuild can already name the current program. A 200
+  // authenticates it, but the durable marker still requires the cold rebuild.
+  if (options.runtime.resetNeeded) return rebuild();
   if (options.bearerConfirmed) await options.runtime.reauthenticate(authority.principal as string);
+  check();
   if (!Array.isArray(response.mounted)) throw options.shape("resume response.mounted must be an array");
   const swaps: Array<{ op: string; args: unknown; accepted: AcceptedDelivery<unknown> }> = [];
   let watermark: { op: string; args: unknown; watermark: string | null; validator?: string } | undefined;
@@ -413,6 +464,7 @@ export async function performOfflineResume<Authority>(options: {
       ? request.log.args
       : { ...(request.log.args as Record<string, unknown>), [options.runtime.cursorArg(request.log.op)]: request.log.watermark };
     const accepted = await acceptOffline(options.runtime, request.log.op, tailArgs, delivery, options.shape);
+    check();
     swaps.push({ op: request.log.op, args: tailArgs, accepted });
     // A stand-in log (no drained query held) borrows an ordinary answer; it
     // must not leave a watermark behind and turn that answer into a drain.
@@ -433,21 +485,39 @@ export async function performOfflineResume<Authority>(options: {
       args: requested.args,
       accepted: await acceptOffline(options.runtime, requested.op, requested.args, item, options.shape),
     });
+    check();
   }
-  await options.runtime.commitMany(swaps, watermark);
+  if (!Number.isSafeInteger(response.seq) || Number(response.seq) < 0) {
+    throw options.shape("resume response.seq must be a non-negative safe integer");
+  }
+  await options.runtime.commitMany(swaps, watermark, undefined, revision, () => !options.signal?.aborted, Number(response.seq));
+  check();
   options.validated(options.authority);
-  // @ref LLP 1012#7-writes-offline — every successful resume returns a grant,
-  // and the outbox replays FIFO right after it.
+  // @ref LLP 1012#7-writes-offline — a resume may omit a replacement grant;
+  // successful re-authorization itself renews trust, then replay is FIFO.
   options.runtime.noteGrant(response);
   try {
     await options.runtime.adoptPendingGrant();
+    check();
   } catch (error) {
     throw options.failure ? options.failure(error) : error;
   }
+  if (!options.runtime.outbox.resumeSucceeded(generation)) return false;
   await drainOutbox(drainOptions(options));
+  check();
+  return false;
+}
+
+function resumeUnavailable(message: string): SnapbackRefusal {
+  return new SnapbackRefusal({
+    code: "E_OFFLINE_RESUME", family: "offline", message,
+    site: "client.online.resume", guide: "offline",
+    rewrite: "query an authorized operation online with receipt support, then call online() again; queued writes are kept",
+  });
 }
 
 function drainOptions<Authority>(options: {
+  signal?: AbortSignal;
   runtime: OfflineRuntime | undefined;
   authority: Authority;
   json(path: string, init: RequestInit, authority: Authority): Promise<unknown>;
@@ -456,6 +526,7 @@ function drainOptions<Authority>(options: {
 }): Parameters<typeof drainOutbox>[0] {
   return {
     runtime: options.runtime!,
+    signal: options.signal,
     json: (path, init) => options.json(path, init, options.authority),
     shape: options.shape,
     failure: options.failure ?? ((error) => (error instanceof Error ? error : new Error(String(error)))),

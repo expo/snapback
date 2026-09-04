@@ -14,9 +14,9 @@ import type {
 
 export const ENGINE_ID = /^s2id-([0-9a-f]{32})-([0-9a-f]{16})$/;
 
-export type OutboxRefusalCode = "E_OFFLINE_ID_BLOCK" | "E_OFFLINE_INTENT_EXPIRED";
+export type OutboxRefusalCode = "E_OFFLINE_ID_BLOCK";
 
-/** A local refusal at enqueue or replay time; the client maps it onto the offline family. */
+/** A local custody refusal at enqueue time; the client maps it onto the offline family. */
 export class OutboxRefusal extends Error {
   constructor(readonly code: OutboxRefusalCode, message: string, readonly site: string, readonly rewrite: string) {
     super(message);
@@ -92,24 +92,55 @@ export interface OutboxLedgerOptions {
 
 export class OutboxLedger {
   private readonly listeners = new Set<() => void>();
+  /** A successful resume renews trust without changing the server-minted grant's age. */
+  private resumedAt?: number;
+  /** Runtime lifecycle, advanced synchronously on open, seal, wipe, reset, or close. */
+  private trustGeneration = 0;
   /**
    * Grant custody is one critical section: a read of the grant's cursor and the
    * swap that advances it never interleave with another enqueue or adoption, so
    * two overlapping writes can never mint the same slice.
    */
   private tail: Promise<void> = Promise.resolve();
+  private fenceTimer?: ReturnType<typeof setTimeout>;
+  private fenceProbe = 0;
 
   constructor(private readonly store: RangeStore, private readonly options: OutboxLedgerOptions) {}
 
   subscribe(listener: () => void): () => void {
     this.listeners.add(listener);
-    return () => { this.listeners.delete(listener); };
+    this.armFence();
+    return () => {
+      this.listeners.delete(listener);
+      if (this.listeners.size === 0) this.close();
+    };
   }
 
   notify(): void {
+    this.armFence();
     for (const listener of [...this.listeners]) {
       try { listener(); } catch { /* observers cannot break custody */ }
     }
+  }
+
+  close(): void {
+    this.fenceProbe += 1;
+    clearTimeout(this.fenceTimer);
+  }
+
+  /** Readiness changes with time even when the outbox has no entries to push. */
+  private armFence(): void {
+    this.close();
+    if (!this.listeners.size) return;
+    const probe = this.fenceProbe;
+    void this.grant().then((grant) => {
+      if (probe !== this.fenceProbe || !grant) return;
+      const remaining = Math.min(grant.expiresAt, this.trustEndsAt(grant) + 1) - this.options.now();
+      if (remaining <= 0) return;
+      this.fenceTimer = setTimeout(() => this.notify(), Math.min(remaining, 2_147_483_647));
+      // A readiness observer must not keep a headless process alive for days.
+      (this.fenceTimer as { unref?: () => void }).unref?.();
+    }, () => undefined); // Sealed custody has no usable grant; ready() reports false.
   }
 
   entries(): Promise<OutboxEntry[]> {
@@ -134,6 +165,7 @@ export class OutboxLedger {
       const held = await this.grantById(grant.id);
       if (held) {
         await this.store.commit({ grants: { current: grant.id } });
+        this.notify();
         return;
       }
       const stale = (await this.store.outbox.grants())
@@ -158,7 +190,21 @@ export class OutboxLedger {
     for (const [op, bound] of Object.entries(bounds)) {
       if (!Number.isSafeInteger(bound) || bound < 0) throw new TypeError(`write bound for ${op} must be a non-negative integer`);
     }
-    return this.serial(() => this.store.commit({ bounds, ...(programs === undefined ? {} : { programs: programs as never }) }));
+    return this.serial(async () => {
+      await this.store.commit({ bounds, ...(programs === undefined ? {} : { programs: programs as never }) });
+      this.notify();
+    });
+  }
+
+  /** Grant-only without an op; with one, probes the exact slice enqueue would need. */
+  async ready(op?: string): Promise<boolean> {
+    const grant = await this.grant();
+    // The fence disables prediction and replay, not enqueue: a grant past it
+    // still answers ready (`fence()` reports the crossing); an expired one does not.
+    if (!grant || this.expired(grant)) return false;
+    if (op === undefined) return true;
+    const maxNewIds = (await this.store.outbox.bounds())[op];
+    return maxNewIds !== undefined && grant.used + 1 + maxNewIds <= grant.count;
   }
 
   /**
@@ -170,8 +216,65 @@ export class OutboxLedger {
     return this.serial(action);
   }
 
+  // @ref LLP 1012#7-writes-offline — the fence bounds trust, never custody: a
+  // grant older than fenceMs is past it unless this partition resumed
+  // successfully after the crossing. The grant's own expiry is a separate
+  // readiness fact (`expired`) that no resume renews.
   pastFence(grant: Pick<OutboxGrant, "mintedAt">): boolean {
-    return this.options.now() - grant.mintedAt > this.options.fenceMs;
+    const crossedAt = grant.mintedAt + this.options.fenceMs;
+    return this.options.now() > crossedAt && !this.resumedSince(crossedAt);
+  }
+
+  /** The server-minted grant's own lifetime; a resume renews fence trust, not the grant. */
+  expired(grant: Pick<OutboxGrant, "expiresAt">): boolean {
+    return this.options.now() >= grant.expiresAt;
+  }
+
+  /** When time alone next changes `fence()`: the crossing, or the lapse of a resume's renewed trust. */
+  private trustEndsAt(grant: Pick<OutboxGrant, "mintedAt">): number {
+    const crossedAt = grant.mintedAt + this.options.fenceMs;
+    return this.resumedAt !== undefined && this.resumedAt >= crossedAt ? this.resumedAt + this.options.fenceMs : crossedAt;
+  }
+
+  private resumedSince(at: number): boolean {
+    return this.resumedAt !== undefined && this.resumedAt >= at
+      && this.options.now() - this.resumedAt <= this.options.fenceMs;
+  }
+
+  /** Trust belongs to this open partition and session, never to the next one. */
+  resetTrust(): void {
+    this.trustGeneration += 1;
+    this.resumedAt = undefined;
+    this.notify();
+  }
+
+  /** Capture before a resume starts; this is independent of the program generation. */
+  get generation(): number { return this.trustGeneration; }
+
+  /** A newer consumption grant cannot authorize work queued under an older one. */
+  async canReplay(entry: OutboxEntry): Promise<boolean> {
+    if (entry.reason === "fence" && !this.resumedSince(entry.createdAt)) return false;
+    const grant = await this.grantById(entry.grant);
+    // Without the original grant's trust facts only a subsequent resume can
+    // authorize sending; the owner still judges the grant and the intent.
+    return grant ? !this.pastFence(grant) : this.resumedSince(entry.createdAt);
+  }
+
+  async fence(): Promise<"inside" | "past"> {
+    for (const entry of await this.queued()) {
+      if (!(await this.canReplay(entry))) return "past";
+    }
+    const grant = await this.grant();
+    return grant && this.pastFence(grant) ? "past" : "inside";
+  }
+
+  /** The owner re-authorized this partition; old intents may now replay for the server to judge. */
+  resumeSucceeded(generation: number): boolean {
+    // Grant persistence can finish after a seal has already invalidated trust.
+    if (generation !== this.trustGeneration) return false;
+    this.resumedAt = this.options.now();
+    this.notify();
+    return true;
   }
 
   // @ref LLP 1012#7-writes-offline — the first id names the intent; the rest
@@ -187,14 +290,6 @@ export class OutboxLedger {
           "this device holds no replay grant; log in, or drain a query online, before writing",
           "client.outbox.enqueue",
           "resume as this principal for a grant (a login, or a query with { drain: true } reaching its watermark), then send again",
-        );
-      }
-      if (this.pastFence(grant)) {
-        throw new OutboxRefusal(
-          "E_OFFLINE_INTENT_EXPIRED",
-          "the held replay grant is older than offline.fenceDays; resume before queuing writes",
-          "client.outbox.enqueue",
-          "resume as the grant's principal for a fresh grant, then enqueue a new intent",
         );
       }
       const maxNewIds = (await this.store.outbox.bounds())[input.op];
@@ -219,7 +314,10 @@ export class OutboxLedger {
       // @ref LLP 1012#7-writes-offline — the twin runs the mutation with the
       // slice as its `new` envelope, so the prediction and the commit mint the
       // same ids; the overlay and the trace land in the entry's own swap.
-      const prediction = predict === undefined ? undefined : await predict(ids);
+      // The fence bounds local trust, not custody: keep the write, but do not
+      // predict it until a successful resume has renewed trust in this runtime.
+      const pastFence = this.pastFence(grant);
+      const prediction = predict === undefined || pastFence ? undefined : await predict(ids);
       const now = this.options.now();
       const entry: OutboxEntry = {
         intent: intentName(grant.id, grant.used),
@@ -232,8 +330,11 @@ export class OutboxLedger {
         issuedSeq: input.issuedSeq,
         state: "queued",
         ...(prediction?.predicted ? { predicted: true } : {}),
+        ...(pastFence ? { predicted: false, reason: "fence" as const } : {}),
         ...(prediction?.predicted && prediction.omitted !== undefined && prediction.omitted.length > 0 ? { omitted: [...prediction.omitted] } : {}),
-        trace: prediction?.trace ?? input.trace ?? emptyTrace(),
+        // No trusted prediction means no trace OCC: the program's own
+        // requirements (for example baseBody = body) judge this write.
+        trace: pastFence ? emptyTrace() : prediction?.trace ?? input.trace ?? emptyTrace(),
         createdAt: now,
         updatedAt: now,
       };

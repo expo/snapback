@@ -853,6 +853,58 @@ fn store_open_refuses_digest_hybrids_without_blob_type_constraints() {
 }
 
 #[test]
+fn row_index_cleanup_seeks_the_row_on_new_and_reopened_stores() {
+    let path = temp_store("row-index-plan");
+    for reopened in [false, true] {
+        drop(Store::open(&path).unwrap());
+        let connection = rusqlite::Connection::open(&path).unwrap();
+        let plan = connection
+            .prepare(
+                "EXPLAIN QUERY PLAN DELETE FROM index_entries
+                 WHERE table_name = ?1 AND row_id = ?2",
+            )
+            .unwrap()
+            .query_map(["messages", "one-message"], |row| row.get::<_, String>(3))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert!(
+            plan.iter()
+                .any(|step| step.contains("table_name=? AND row_id=?")),
+            "row cleanup must seek both keys, not scan all of a table's entries: {plan:?}"
+        );
+        let lookup_plan = connection
+            .prepare(
+                "EXPLAIN QUERY PLAN
+                 SELECT r.data
+                 FROM index_entries ie
+                 JOIN rows r ON r.table_name = ie.table_name AND r.row_id = ie.row_id
+                 WHERE ie.table_name = ?1 AND ie.index_name = ?2 AND ie.c0 = ?3
+                 LIMIT 1",
+            )
+            .unwrap()
+            .query_map(["messages", "by_conversation", "one-conversation"], |row| {
+                row.get::<_, String>(3)
+            })
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert!(
+            lookup_plan.iter().any(|step| step
+                .contains("index_entries_lookup (table_name=? AND index_name=? AND c0=?)")),
+            "the row-cleanup index must not displace the hot point-read path: {lookup_plan:?}"
+        );
+        if !reopened {
+            // Existing stores also acquire the access path on their next open.
+            connection
+                .execute_batch("DROP INDEX index_entries_by_row")
+                .unwrap();
+        }
+    }
+    cleanup(&path);
+}
+
+#[test]
 fn commit_log_retains_exactly_the_latest_ten_thousand_mutations() {
     let mut runtime = Runtime::open(Store::memory().unwrap(), generation()).unwrap();
     runtime

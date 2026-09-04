@@ -1,0 +1,792 @@
+import assert from "node:assert/strict";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { execFileSync } from "node:child_process";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
+import { test } from "node:test";
+import { api, createClient } from "../dist/client.mjs";
+import { indexedDbRangeStore } from "../dist/react.mjs";
+import { fileRangeStore } from "../dist/test.mjs";
+import { FakeIndexedDb, FakeLocks } from "./fake-indexeddb.ts";
+
+const hex = (n: number) => String(n).repeat(64);
+const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status });
+const defer = () => { let resolve!: () => void; const promise = new Promise<void>((done) => { resolve = done; }); return { promise, resolve }; };
+const pause = () => new Promise((done) => setTimeout(done, 5));
+async function eventually(check: () => Promise<boolean> | boolean) {
+  for (let n = 0; n < 200; n++) { if (await check()) return; await pause(); }
+  assert.fail("condition did not settle");
+}
+
+async function fixture(carrier: "file" | "IndexedDB" = "file", bearer = false) {
+  const root = await mkdtemp(join(tmpdir(), "s2-reset-"));
+  const factory = carrier === "file" ? fileRangeStore(root)
+    : indexedDbRangeStore({ indexedDB: new FakeIndexedDb() as any, locks: new FakeLocks() as any });
+  let store: any;
+  const state = { generation: hex(1), schemaHash: hex(4), epoch: 1, seq: 7, principal: bearer ? "alice" : "dev:alice" };
+  const resumes: any[] = [], queries: any[] = [], streams: Array<{ headers: Headers; url: URL; controller: ReadableStreamDefaultController<Uint8Array> }> = [];
+  let resetCount = 0;
+  const hooks: {
+    resume?: () => Promise<Response | undefined>;
+    query?: (request: any) => Promise<Response | undefined>;
+    program?: (init?: RequestInit) => Promise<void>;
+    mutation?: (request: any) => Promise<Response | undefined>;
+    login?: () => Promise<Response>;
+  } = {};
+  const envelope = (request: any) => ({
+    protocol: 1, generation: state.generation, schemaHash: state.schemaHash, planHash: hex(5),
+    authority: { principal: state.principal, authEpoch: state.epoch }, state: "complete",
+    data: { generation: state.generation, epoch: state.epoch, row: { $row: { table: "messages", id: "one" } } },
+    next: null, seq: state.seq, rows: [{ table: "messages", id: "one", row: { id: "one", body: "same row" } }],
+    receipt: { ranges: [], absences: [], verdicts: [] }, validator: hex(6),
+  });
+  const fetch = async (input: any, init?: RequestInit): Promise<Response> => {
+    const url = new URL(String(input));
+    if (url.pathname === "/api/auth/me") return json({ viewer: state.principal, kind: "user" });
+    if (url.pathname === "/api/auth/login") {
+      state.principal = "bob";
+      return await hooks.login?.() ?? json({ viewer: "bob", token: "bob-token" });
+    }
+    if (url.pathname === "/api/auth/logout") return json({ ok: true });
+    if (url.pathname === "/api/manifest") return json({ generation: "schema", programGeneration: state.generation, ops: {}, channels: {}, auth: {} });
+    if (url.pathname === "/api/program") {
+      await hooks.program?.(init);
+      if (url.searchParams.get("generation") !== state.generation) return json({ code: "E_OP_UNKNOWN", family: "op", message: "not active", guide: "op/manifest" }, 404);
+      return json({ generation: state.generation, schemaHash: state.schemaHash, schema: { tables: {} }, programs: {} });
+    }
+    if (url.pathname === "/api/query") {
+      const request = JSON.parse(String(init?.body));
+      queries.push({ ...request, principal: state.principal });
+      return await hooks.query?.(request) ?? json(envelope(request));
+    }
+    if (url.pathname === "/api/mutation") {
+      const request = JSON.parse(String(init?.body));
+      return await hooks.mutation?.(request) ?? json({ state: "committed", seq: state.seq, data: null, intent: request.replay.intent });
+    }
+    if (url.pathname === "/api/resume") {
+      const body = JSON.parse(String(init?.body));
+      resumes.push(body);
+      const override = await hooks.resume?.();
+      if (override) return override;
+      if (body.authEpoch !== state.epoch) return json({ code: "E_AUTH_SESSION", family: "auth", message: "epoch expired", guide: "auth" }, 401);
+      if (body.generation !== state.generation || body.schemaHash !== state.schemaHash) {
+        resetCount++;
+        return json({ code: "E_OFFLINE_RESET", family: "offline", message: "successor", guide: "offline", generation: state.generation, schemaHash: state.schemaHash }, 409);
+      }
+      return json({ generation: state.generation, schemaHash: state.schemaHash, authority: { principal: state.principal, authEpoch: state.epoch }, seq: 7,
+        log: { unchanged: true }, mounted: body.mounted.map(() => ({ unchanged: true })) });
+    }
+    if (url.pathname === "/api/subscribe") return new Response(new ReadableStream<Uint8Array>({
+      start(controller) { streams.push({ headers: new Headers(init?.headers), url, controller }); },
+    }), { headers: { "content-type": "text/event-stream" } });
+    throw new Error(`unexpected ${url.pathname}`);
+  };
+  const create = (startOffline = false) => createClient({ url: "http://reset.test", ...(bearer ? { token: "alice-token" } : { as: "alice" }), fetch,
+    startOffline, offlinePrincipal: bearer ? "alice" : undefined,
+    offline: { store: () => (store = factory()) } } as any);
+  let client = create();
+  await client.ready;
+  await client.query(api.messages.first, {});
+  return { get client() { return client; }, get store() { return store; }, state, hooks, resumes, queries, streams, envelope,
+    async reopen(startOffline = false, beforeReady?: (reopened: typeof client) => void) {
+      client = create(startOffline); beforeReady?.(client); await client.ready; return client;
+    },
+    resets: () => resetCount,
+    async rebuilt(op = "messages.second", generation = state.generation) {
+      await eventually(async () => (await store.coverage()).facts?.generation === generation && !(await store.coverage()).superseded && (await store.answer(op, {}))?.data?.generation === generation);
+    },
+    async close() { hooks.resume = undefined; await client.close(); await pause(); await rm(root, { recursive: true, force: true }); },
+  };
+}
+
+for (const carrier of ["file", "IndexedDB"] as const) {
+  test(`${carrier}: query-only successor rebuilds overlapping rows at unchanged seq without a watermark`, async () => {
+    const f = await fixture(carrier);
+    try {
+      f.state.generation = hex(2);
+      const live: any = await f.client.query(api.messages.second, {});
+      assert.equal(live.data.generation, hex(2));
+      await f.rebuilt();
+      assert.equal(f.resets(), 1);
+      assert.deepEqual(f.resumes[0], { protocol: 1, generation: hex(1), schemaHash: hex(4), authEpoch: 1, mounted: [] });
+      assert.equal((await f.store.coverage()).rows[0].row.body, "same row");
+      // Sequence and negative-evidence guards still hold within the new coverage.
+      await f.store.commit({ deliveries: [{ op: "older", args: {}, state: "complete", seq: 6, data: null, rows: [{ table: "messages", id: "one", row: { id: "one", body: "old" } }] }] });
+      assert.equal((await f.store.coverage()).rows[0].row.body, "same row");
+      await f.client.offline();
+      assert.equal((await f.client.query(api.messages.second, {})).state, "complete");
+    } finally { await f.close(); }
+  });
+}
+
+test("concurrent G2 and G3 deliveries coalesce into one reset with only G3 answers held", async () => {
+  const f = await fixture();
+  const gate = defer();
+  try {
+    f.hooks.resume = async () => { await gate.promise; return undefined; };
+    f.state.generation = hex(2);
+    await f.client.query(api.messages.second, {}); // Must finish while reset is blocked.
+    await eventually(() => f.resumes.length === 1);
+    f.state.generation = hex(3);
+    f.state.schemaHash = hex(8);
+    await f.client.query(api.messages.third, {});
+    gate.resolve();
+    await f.rebuilt();
+    await f.rebuilt("messages.third");
+    assert.equal(f.resets(), 1);
+    assert.equal(f.resumes.length, 1);
+    assert.deepEqual((await f.store.coverage()).facts, { generation: hex(3), schemaHash: hex(8), authEpoch: 1 });
+    assert.equal((await f.store.answer("messages.second", {})).data.epoch, 1);
+    assert.equal(await f.store.answer("messages.first", {}), undefined);
+    assert.equal(f.queries.filter(q => q.op === "messages.second").length, 2, "the buffered G2 answer was re-issued under G3");
+  } finally { gate.resolve(); await f.close(); }
+});
+
+test("a predecessor response completing after reset is re-issued without reinstalling facts or resetting again", async () => {
+  const f = await fixture();
+  const gate = defer();
+  try {
+    const old = f.envelope({});
+    let first = true;
+    f.hooks.query = async (q) => {
+      if (q.op === "messages.late" && first) { first = false; await gate.promise; return json(old); }
+    };
+    const late = f.client.query(api.messages.late, {});
+    await eventually(() => f.queries.some(q => q.op === "messages.late"));
+    f.state.generation = hex(3);
+    await f.client.query(api.messages.second, {});
+    await f.rebuilt();
+    gate.resolve();
+    await late;
+    await f.rebuilt("messages.late");
+    assert.equal(f.resets(), 1);
+    assert.equal((await f.store.coverage()).superseded, undefined);
+  } finally { gate.resolve(); await f.close(); }
+});
+
+for (const kind of ["transport", "refusal"] as const) {
+  test(`${kind} reset failure preserves the live read and snapshot refusal; the next query retries`, async () => {
+    const f = await fixture();
+    const gate = defer();
+    try {
+      f.hooks.resume = async () => {
+        await gate.promise;
+        if (kind === "transport") throw new TypeError("transport cut");
+        return json({ code: "E_RESET_TEST", family: "offline", message: "resume refused", guide: "offline" }, 422);
+      };
+      f.state.generation = hex(2);
+      const live: any = await f.client.query(api.messages.second, {});
+      assert.equal(live.data.generation, hex(2), "live read did not await the blocked reset");
+      await eventually(() => f.resumes.length === 1);
+      const online = f.client.online();
+      await pause();
+      const concurrent: any = await f.client.query(api.messages.third, {});
+      assert.equal(concurrent.data.generation, hex(2), "even online() joining the reset cannot block a live query");
+      gate.resolve();
+      await assert.rejects(online);
+      assert.equal(f.client.snapshot.lastRefusal?.code, kind === "transport" ? "E_NETWORK" : "E_RESET_TEST");
+      assert.ok((await f.store.coverage()).superseded);
+      f.hooks.resume = undefined;
+      await f.client.query(api.messages.second, {});
+      await f.rebuilt();
+      assert.equal(f.resumes.length, 2, "the next query actually retried the reset");
+      assert.equal(f.client.snapshot.lastRefusal, undefined);
+    } finally { gate.resolve(); await f.close(); }
+  });
+}
+
+test("principal replacement clears pending reads and an in-flight reset cannot cross partitions", async () => {
+  const f = await fixture("file", true);
+  const gate = defer();
+  try {
+    f.hooks.resume = async () => { await gate.promise; return undefined; };
+    f.state.generation = hex(2);
+    await f.client.query(api.messages.second, {});
+    await eventually(() => f.resumes.length === 1);
+    await f.client.auth.login({ email: "bob", password: "password" });
+    gate.resolve();
+    await pause();
+    f.hooks.resume = undefined;
+    await f.client.query(api.messages.bob, {});
+    await f.client.online();
+    assert.equal(await f.store.answer("messages.second", {}), undefined);
+    assert.equal(await f.store.answer("messages.first", {}), undefined);
+    assert.ok(await f.store.answer("messages.bob", {}));
+    assert.equal(f.queries.filter(q => q.principal === "bob" && q.op === "messages.second").length, 0);
+  } finally { gate.resolve(); await f.close(); }
+});
+
+test("a mounted subscription cold-opens after supersession without Last-Event-ID or an old validator", async () => {
+  const f = await fixture();
+  let sub: any;
+  try {
+    await f.store.commit({ watermark: { op: "messages.log", args: { c: null }, watermark: "old-tail", validator: hex(6), updatedAt: 1 } });
+    sub = f.client.subscribe(api.messages.first, {}, () => undefined);
+    await eventually(() => f.streams.length === 1);
+    const emit = (stream: any, id: string) => stream.controller.enqueue(new TextEncoder().encode(`id: ${id}\ndata: ${JSON.stringify(f.envelope({}))}\n\n`));
+    emit(f.streams[0], "g1:7");
+    await sub.until((e: any) => e.data?.generation === hex(1), 1000);
+    f.state.generation = hex(2);
+    emit(f.streams[0], "g2:7");
+    await eventually(() => f.streams.length === 2);
+    assert.equal(f.streams[1].headers.get("Last-Event-ID"), null);
+    assert.equal(f.streams[1].url.searchParams.get("validator"), null);
+    assert.deepEqual(f.resumes[0].mounted, []);
+    assert.equal(f.resumes[0].log, undefined, "the old drained log validator cannot cross the superseded fence");
+    emit(f.streams[1], "g2:7");
+    await f.rebuilt("messages.first");
+    assert.equal(f.resets(), 1);
+  } finally { sub?.close(); await f.close(); }
+});
+
+test("tracked Snapback 2 source contains no literal NUL bytes", async () => {
+  const root = resolve(import.meta.dirname, "../../../..");
+  const paths = execFileSync("git", ["ls-files", "-z", "--", "snapback2"], { cwd: root }).toString().split("\u0000")
+    .filter(path => /\.(?:ts|tsx|js|jsx|mjs|cjs|rs|q|sh|py|json)$/.test(path));
+  const bad: string[] = [];
+  for (const path of paths) if ((await readFile(join(root, path))).includes(0)) bad.push(path);
+  assert.deepEqual(bad, [], "literal NULs hide source diffs as binary patches");
+});
+
+for (const page of ["initial", "subsequent"]) {
+  test(`a reset during the ${page} drain page cancels old cursors and leaves one tail`, async () => {
+    const f = await fixture();
+    const held = defer();
+    let sub: any;
+    try {
+      let requests = 0;
+      f.hooks.query = async (request) => {
+        if (request.op !== "messages.log") return;
+        requests++;
+        if (page === "subsequent" && requests === 1) return json({ ...f.envelope(request), next: "old-cursor" });
+        if (requests === (page === "initial" ? 1 : 2)) {
+          const old = { ...f.envelope(request), next: "obsolete-cursor" };
+          await held.promise;
+          return json(old);
+        }
+        return json(f.envelope(request));
+      };
+      sub = f.client.subscribe(api.messages.log, { c: null }, () => undefined, { drain: true });
+      await eventually(() => requests === (page === "initial" ? 1 : 2));
+      f.state.generation = hex(2);
+      await f.client.query(api.messages.second, {});
+      await f.rebuilt();
+      await eventually(() => f.streams.length === 1);
+      held.resolve();
+      await eventually(() => f.queries.filter(q => q.op === "messages.log").length >= 3);
+      await pause();
+      assert.equal(f.streams.length, 1, "only the surviving drain opened a tail");
+      assert.equal(f.queries.filter(q => q.args.c === "obsolete-cursor").length, 0, "the canceled page cannot advance its cursor");
+      const marks = (await f.store.coverage()).watermarks;
+      assert.equal(marks.length, 1);
+      assert.equal(marks[0].watermark, null, "the successor cold-drained from the root");
+      assert.equal(f.resets(), 1);
+    } finally { held.resolve(); sub?.close(); await f.close(); }
+  });
+}
+
+test("failed program reload keeps the durable reset marker and online retries the reset", async () => {
+  const f = await fixture();
+  try {
+    f.state.generation = hex(2);
+    f.hooks.program = async () => { throw new TypeError("program transport cut"); };
+    await f.client.query(api.messages.second, {});
+    await eventually(() => f.client.snapshot.lastRefusal?.code === "E_NETWORK");
+    assert.ok((await f.store.coverage()).superseded);
+    f.hooks.program = undefined;
+    await f.client.online();
+    await f.rebuilt();
+    assert.equal(f.resets(), 2, "the failed reload was retried, not merely remembered");
+  } finally { await f.close(); }
+});
+
+test("a terminal reset refusal seals custody while the completed live read stays successful", async () => {
+  const f = await fixture("file", true);
+  const gate = defer();
+  try {
+    f.hooks.resume = async () => {
+      await gate.promise;
+      return json({ code: "E_AUTH_SESSION", family: "auth", message: "expired", guide: "auth" }, 401);
+    };
+    f.state.generation = hex(2);
+    const live: any = await f.client.query(api.messages.second, {});
+    assert.equal(live.data.generation, hex(2));
+    gate.resolve();
+    await eventually(() => f.client.snapshot.lastRefusal?.code === "E_AUTH_SESSION");
+    await assert.rejects(f.store.outbox.grant(), /sealed/);
+    assert.equal(await f.client.outbox.ready(), false);
+  } finally { gate.resolve(); await f.close(); }
+});
+
+test("a second successor between manifest and program coalesces into the same reset", async () => {
+  const f = await fixture();
+  try {
+    f.state.generation = hex(2);
+    let loads = 0;
+    f.hooks.program = async () => { if (++loads === 1) f.state.generation = hex(3); };
+    await f.client.query(api.messages.second, {});
+    await f.rebuilt("messages.second", hex(3));
+    assert.equal(f.resets(), 1);
+    assert.equal(loads, 2);
+  } finally { await f.close(); }
+});
+
+test("a held-answer probe completing after supersession cannot send its old validator", async () => {
+  const f = await fixture();
+  const held = defer(), reset = defer();
+  try {
+    let probing = false;
+    const original = f.store.answer.bind(f.store);
+    f.store.answer = async (op: string, args: unknown) => {
+      const value = await original(op, args);
+      if (op === "messages.first" && !probing) { probing = true; await held.promise; }
+      return value;
+    };
+    const late = f.client.query(api.messages.first, {});
+    await eventually(() => probing);
+    f.state.generation = hex(2);
+    f.hooks.resume = async () => { await reset.promise; return undefined; };
+    await f.client.query(api.messages.second, {});
+    held.resolve();
+    await late;
+    assert.equal(f.queries.filter(q => q.op === "messages.first").at(-1)?.validator, undefined);
+    reset.resolve();
+    await f.rebuilt();
+  } finally { held.resolve(); reset.resolve(); await f.close(); }
+});
+
+for (const carrier of ["file", "IndexedDB"] as const) {
+  test(`${carrier}: reset drops G1 hidden evidence at N so a successor can disclose at the same N, while viewed custody survives`, async () => {
+    const f = await fixture(carrier);
+    try {
+      f.state.seq = 8;
+      f.hooks.query = async () => json({ ...f.envelope({}), rows: [], data: { generation: hex(1), epoch: 1, row: null } });
+      await f.client.query(api.messages.first, {});
+      assert.equal((await f.store.coverage()).rows.length, 0);
+      assert.deepEqual((await f.store.coverage()).evicted, [{ table: "messages", id: "one" }]);
+      await f.store.commit({ viewed: [{ table: "messages", id: "viewed" }] });
+      f.hooks.query = undefined;
+      f.state.generation = hex(2);
+      await f.client.query(api.messages.second, {});
+      await f.rebuilt();
+      assert.equal((await f.store.answer("messages.second", {})).data.row.body, "same row");
+      assert.deepEqual((await f.store.coverage()).viewed, [{ table: "messages", id: "viewed" }]);
+      // The negative guard still applies inside G2, even to a late equal-seq row.
+      await f.store.commit({ tombstones: [{ table: "messages", id: "one", seq: 9 }] });
+      await f.store.commit({ deliveries: [{ op: "late", args: {}, ...f.envelope({}), seq: 9 }] });
+      assert.equal((await f.store.coverage()).rows.length, 0);
+    } finally { await f.close(); }
+  });
+}
+
+test("a successor after program load and before the fresh query commits converges within the same flight", async () => {
+  const f = await fixture();
+  try {
+    f.state.generation = hex(2);
+    let reads = 0;
+    f.hooks.query = async q => {
+      if (q.op === "messages.second" && ++reads === 2) f.state.generation = hex(3);
+    };
+    const live: any = await f.client.query(api.messages.second, {});
+    assert.equal(live.data.generation, hex(2));
+    await f.rebuilt("messages.second", hex(3));
+    assert.equal(reads, 3);
+    assert.equal(f.resets(), 2);
+    assert.equal(f.client.snapshot.lastRefusal, undefined);
+  } finally { await f.close(); }
+});
+
+test("a mounted cold reopen discovering G3 during the fresh G2 query feeds the active reset flight", async () => {
+  const f = await fixture();
+  const gate = defer();
+  let sub: any;
+  try {
+    sub = f.client.subscribe(api.messages.first, {}, () => undefined);
+    await eventually(() => f.streams.length === 1);
+    let reads = 0;
+    f.hooks.query = async q => {
+      if (q.op === "messages.second" && ++reads === 2) {
+        const g2 = f.envelope(q);
+        await gate.promise;
+        return json(g2);
+      }
+    };
+    f.state.generation = hex(2);
+    await f.client.query(api.messages.second, {});
+    await eventually(() => reads === 2 && f.streams.length === 2);
+    const flight = (f.client as any).resumeFlight;
+    f.state.generation = hex(3);
+    f.streams[1].controller.enqueue(new TextEncoder().encode(`id: g3\ndata: ${JSON.stringify(f.envelope({}))}\n\n`));
+    await eventually(async () => (await f.store.coverage()).superseded?.generation === hex(3));
+    assert.equal((f.client as any).resumeFlight, flight);
+    gate.resolve();
+    await flight;
+    await f.rebuilt("messages.second", hex(3));
+    await f.rebuilt("messages.first", hex(3));
+    assert.equal(f.resets(), 2);
+    assert.equal(f.client.snapshot.lastRefusal, undefined);
+  } finally { gate.resolve(); sub?.close(); await f.close(); }
+});
+
+test("three fresh-query rotations record a durable refusal instead of reporting convergence", async () => {
+  const f = await fixture();
+  try {
+    f.state.generation = hex(2);
+    let reads = 0;
+    f.hooks.query = async () => { if (++reads > 1) f.state.generation = hex(reads + 1); };
+    await f.client.query(api.messages.second, {});
+    await eventually(() => f.client.snapshot.lastRefusal?.code === "E_OFFLINE_RESET");
+    assert.equal(reads, 4, "one live read and three bounded rebuild reads");
+    assert.ok((await f.store.coverage()).superseded);
+    f.hooks.query = undefined;
+    await f.client.online();
+    await f.rebuilt();
+  } finally { await f.close(); }
+});
+
+for (const carrier of ["file", "IndexedDB"] as const) {
+  test(`${carrier}: cold-start convergence exhaustion resolves ready and online retries on the same client`, async () => {
+    const f = await fixture(carrier);
+    let sub: any;
+    try {
+      await f.client.close();
+      f.state.generation = hex(2);
+      let reads = 0;
+      f.hooks.query = async () => { f.state.generation = hex(3 + reads++); };
+      const client = await f.reopen(false, client => {
+        sub = client.subscribe(api.messages.first, {}, () => undefined);
+      });
+      assert.equal(reads, 3, "the subscription mounted before ready participates in all three rebuild attempts");
+      assert.equal(client.snapshot.lastRefusal?.code, "E_OFFLINE_RESET");
+      assert.equal(client.snapshot.lastRefusal?.rewrite, "retry online() after the program stops rotating");
+      assert.equal((await f.store.coverage()).superseded.generation, hex(5));
+      assert.equal(await f.store.answer("messages.first", {}), undefined);
+      await client.offline();
+      assert.equal((await client.query(api.messages.first, {})).state, "hydrating");
+      f.hooks.query = undefined;
+      await client.online();
+      await f.rebuilt("messages.first", hex(5));
+      assert.equal(f.client, client, "recovery did not replace the client");
+      assert.equal((await client.query(api.messages.first, {})).state, "complete");
+      assert.equal(client.snapshot.lastRefusal, undefined);
+      await client.offline();
+      assert.equal((await client.query(api.messages.first, {})).state, "complete");
+    } finally { sub?.close(); await f.close(); }
+  });
+
+  test(`${carrier}: cancelled reset program adoption and settlement racing login with a grant cannot deadlock the ledger`, { timeout: 5000 }, async () => {
+    const f = await fixture(carrier, true);
+    const carrierGate = defer(), dismissStarted = defer(), adoptionQueued = defer(), openQueued = defer();
+    try {
+      const runtime = (f.client as any).offlineRuntime;
+      const id = "s2id-00000000000000000000000000000001-0000000000000001";
+      const grant = { id, from: id, count: 10, mintedAt: Date.now(), expiresAt: Date.now() + 100000, used: 0 };
+      await runtime.outbox.adopt(grant);
+      await runtime.outbox.recordBounds({ "messages.send": 0 });
+      const entry = await runtime.outbox.enqueue({ op: "messages.send", args: {}, issuedSeq: 7 });
+      await runtime.commitMany([], undefined, { put: [runtime.outbox.settle(entry, "rejected", { state: "rejected" })] });
+      const commit = f.store.commit.bind(f.store);
+      const cancelledWrites: any[] = [];
+      f.store.commit = async (swap: any) => {
+        if (swap.outbox?.remove?.includes(entry.intent)) { dismissStarted.resolve(); await carrierGate.promise; }
+        if (swap.programs) cancelledWrites.push(runtime.principal);
+        return commit(swap);
+      };
+      const program = runtime.program.bind(runtime);
+      runtime.program = (value: unknown, signal?: AbortSignal) => {
+        const run = program(value, signal);
+        if (signal) adoptionQueued.resolve();
+        return run;
+      };
+      const open = runtime.open.bind(runtime);
+      runtime.open = (principal: string) => {
+        const run = open(principal);
+        if (principal === "bob") openQueued.resolve();
+        return run;
+      };
+      f.hooks.login = async () => json({ viewer: "bob", token: "bob-token", grant: { ...grant, id: "bob-grant" } });
+      const dismiss = f.client.outbox.dismiss(entry.intent);
+      await dismissStarted.promise;
+      f.state.generation = hex(2);
+      await f.client.query(api.messages.second, {});
+      await adoptionQueued.promise;
+      const controller = (f.client as any).resumeController as AbortController;
+      const cancelled = assert.rejects((f.client as any).resumeFlight);
+      const settlement = runtime.commitMany([], undefined, { put: [runtime.outbox.settle(entry, "rejected")] },
+        runtime.coverageRevision, () => !controller.signal.aborted);
+      const login = f.client.auth.login({ email: "bob", password: "password" });
+      await openQueued.promise;
+      assert.equal(controller.signal.aborted, true);
+      carrierGate.resolve();
+      await Promise.all([dismiss, cancelled, settlement, login]);
+      assert.equal(runtime.principal, "bob");
+      assert.equal((await f.store.outbox.grant()).id, "bob-grant");
+      assert.deepEqual(await f.store.outbox.all(), []);
+      assert.deepEqual(cancelledWrites, ["bob"], "only the authenticated successor persists a program");
+      await f.client.close();
+    } finally { carrierGate.resolve(); await f.close(); }
+  });
+}
+
+for (const carrier of ["file", "IndexedDB"] as const) {
+  test(`${carrier}: an obsolete settlement tail stays queued and cannot supersede G3; retry settles atomically with G3 rows`, async () => {
+    const f = await fixture(carrier);
+    const tail = defer(), retry = defer();
+    try {
+      const runtime = (f.client as any).offlineRuntime;
+      f.state.generation = hex(2);
+      await f.client.query(api.messages.second, {});
+      await f.rebuilt();
+      await f.store.commit({ watermark: { op: "messages.log", args: {}, watermark: null, updatedAt: 1 } });
+      const id = "s2id-00000000000000000000000000000001-0000000000000001";
+      await runtime.outbox.adopt({ id, from: id, count: 10, mintedAt: Date.now(), expiresAt: Date.now() + 100000, used: 0 });
+      await runtime.outbox.recordBounds({ "messages.send": 0 });
+      const entry = await runtime.outbox.enqueue({ op: "messages.send", args: {}, issuedSeq: 7 });
+      const replays: any[] = [], swaps: any[] = [];
+      f.hooks.mutation = async request => { replays.push(request); if (replays.length === 2) await retry.promise; };
+      let fetching = false;
+      f.hooks.query = async q => {
+        if (q.op === "messages.log" && !fetching) {
+          fetching = true;
+          const old = f.envelope(q);
+          await tail.promise;
+          return json(old);
+        }
+      };
+      const original = f.store.commit.bind(f.store);
+      f.store.commit = async (swap: any) => { swaps.push(structuredClone(swap)); return original(swap); };
+      const drain = f.client.outbox.drain();
+      await eventually(() => fetching);
+      f.state.generation = hex(3);
+      await f.client.query(api.messages.third, {});
+      await eventually(async () => (await f.store.coverage()).facts?.generation === hex(3));
+      // A successor drain page restores the log before the byte-identical retry.
+      await f.store.commit({ watermark: { op: "messages.log", args: {}, watermark: null, updatedAt: 2 } });
+      tail.resolve();
+      await drain;
+      await eventually(() => replays.length === 2);
+      assert.equal((await f.store.outbox.get(entry.intent)).state, "queued");
+      assert.equal((await f.store.coverage()).facts.generation, hex(3));
+      assert.notEqual((await f.store.coverage()).superseded?.generation, hex(2));
+      retry.resolve();
+      await f.rebuilt("messages.third", hex(3));
+      await eventually(async () => (await f.store.outbox.get(entry.intent)).state === "committed");
+      assert.deepEqual(replays[1], replays[0]);
+      const settlements = swaps.filter(s => s.outbox?.put?.some((e: any) => e.state === "committed"));
+      assert.equal(settlements.length, 1);
+      assert.equal(settlements[0].deliveries[0].data.generation, hex(3));
+      assert.equal((await f.store.answer("messages.log", {})).data.generation, hex(3));
+    } finally { tail.resolve(); retry.resolve(); await f.close(); }
+  });
+}
+
+for (const action of ["login", "logout", "close"] as const) {
+  for (const stage of ["program reload", "fresh query"] as const) {
+    test(`${action} aborts a reset during ${stage} and late work never crosses custody`, async () => {
+      const f = await fixture("file", true);
+      const gate = defer();
+      try {
+        let blocked = false;
+        if (stage === "program reload") f.hooks.program = async () => {
+          if (!blocked) { blocked = true; await gate.promise; }
+        };
+        else {
+          let reads = 0;
+          f.hooks.query = async q => {
+            if (q.op === "messages.second" && ++reads === 2) {
+              const old = f.envelope(q); blocked = true; await gate.promise; return json(old);
+            }
+          };
+        }
+        f.state.generation = hex(2);
+        await f.client.query(api.messages.second, {});
+        await eventually(() => blocked);
+        const controller = (f.client as any).resumeController as AbortController;
+        const flight = (f.client as any).resumeFlight as Promise<void>;
+        const rejected = assert.rejects(flight);
+        if (action === "login") await f.client.auth.login({ email: "bob", password: "password" });
+        else if (action === "logout") await f.client.auth.logout();
+        else await f.client.close();
+        assert.equal(controller.signal.aborted, true);
+        let writes = 0;
+        const original = f.store.commit.bind(f.store);
+        f.store.commit = async (swap: any) => { writes++; return original(swap); };
+        gate.resolve();
+        await rejected;
+        assert.equal(writes, 0, "the aborted flight performed a carrier write after custody changed");
+        assert.equal(f.queries.filter(q => q.op === "messages.second" && q.principal === "bob").length, 0);
+        if (action === "login") {
+          await f.client.query(api.messages.bob, {});
+          assert.equal((await f.store.coverage()).facts.generation, hex(2));
+          assert.equal(await f.store.answer("messages.second", {}), undefined);
+        }
+      } finally { gate.resolve(); await f.close(); }
+    });
+  }
+}
+
+for (const carrier of ["file", "IndexedDB"] as const) {
+  test(`${carrier}: cold reopen mid-rebuild preserves the pending marker and reruns mounted coverage before clearing it`, async () => {
+    const f = await fixture(carrier);
+    const gate = defer();
+    let sub: any;
+    try {
+      let reads = 0;
+      f.hooks.query = async () => { if (++reads === 2) await gate.promise; };
+      f.state.generation = hex(2);
+      await f.client.query(api.messages.second, {});
+      await eventually(() => reads === 2);
+      const coverage = await f.store.coverage();
+      assert.equal(coverage.facts.generation, hex(2));
+      assert.equal(coverage.superseded.generation, hex(2));
+      await f.client.close();
+      await f.reopen(true);
+      assert.ok((await f.store.coverage()).superseded);
+      assert.equal((await f.client.query(api.messages.second, {})).state, "hydrating");
+      f.hooks.query = undefined;
+      gate.resolve();
+      sub = f.client.subscribe(api.messages.second, {}, () => undefined);
+      await f.client.online();
+      await f.rebuilt();
+      assert.equal(f.resumes.at(-1).generation, hex(2), "the cold pending marker rebuilds even after a 200 resume");
+    } finally { gate.resolve(); sub?.close(); await f.close(); }
+  });
+
+  test(`${carrier}: a failed program custody swap preserves the predecessor and refuses the reset until retry`, async () => {
+    const f = await fixture(carrier);
+    try {
+      const original = f.store.commit.bind(f.store);
+      let failed = false;
+      f.store.commit = async (swap: any) => {
+        if (!failed && swap.programs?.[hex(2)]) { failed = true; throw new Error("program custody write failed"); }
+        return original(swap);
+      };
+      f.state.generation = hex(2);
+      await f.client.query(api.messages.second, {});
+      await eventually(() => f.client.snapshot.lastRefusal?.message.includes("program custody write failed") === true);
+      assert.equal((await f.store.coverage()).facts.generation, hex(1));
+      assert.ok((await f.store.outbox.programs())[hex(1)]);
+      assert.ok(await f.store.answer("messages.first", {}), "coverage was not destroyed before custody persisted");
+      assert.ok((await f.store.coverage()).superseded);
+      await f.client.online();
+      await f.rebuilt();
+      await f.client.close();
+      await f.reopen(true);
+      assert.ok((await f.store.outbox.programs())[hex(2)]);
+      assert.equal((await f.client.query(api.messages.second, {})).state, "complete");
+    } finally { await f.close(); }
+  });
+}
+
+test("first facts after reset must match the epoch authenticated by the predecessor and reset probe", async () => {
+  const f = await fixture("file", true);
+  try {
+    f.state.generation = hex(2);
+    let reads = 0;
+    f.hooks.query = async q => {
+      if (++reads === 2) return json({ ...f.envelope(q), authority: { principal: "alice", authEpoch: 9 } });
+    };
+    await f.client.query(api.messages.second, {});
+    await eventually(() => f.client.snapshot.lastRefusal?.code === "E_OFFLINE_AUTHORITY");
+    assert.equal((await f.store.coverage()).facts.authEpoch, 1);
+    assert.ok((await f.store.coverage()).superseded);
+    assert.equal(await f.store.answer("messages.second", {}), undefined);
+    f.hooks.query = undefined;
+    await f.client.online();
+    await f.rebuilt();
+  } finally { await f.close(); }
+});
+
+test("an actual owner epoch transition refuses resume before generation and seals the old session", async () => {
+  const f = await fixture("file", true);
+  try {
+    f.state.generation = hex(2);
+    f.state.epoch = 9;
+    await f.store.commit({ watermark: { op: "messages.log", args: {}, watermark: null, updatedAt: 1 } });
+    await assert.rejects(f.client.online(), (e: any) => e.code === "E_AUTH_SESSION");
+    assert.equal(f.resets(), 0);
+    assert.equal(await f.client.outbox.ready(), false);
+    assert.equal(f.client.snapshot.principal, undefined);
+    await assert.rejects(f.store.outbox.grant(), /sealed/);
+  } finally { await f.close(); }
+});
+
+function emit(stream: { controller: ReadableStreamDefaultController<Uint8Array> }, value: unknown, id = "frame") {
+  stream.controller.enqueue(new TextEncoder().encode(`id: ${id}\ndata: ${JSON.stringify(value)}\n\n`));
+}
+
+test("reset clears a terminal subscription latch and cold-opens it again", async () => {
+  const f = await fixture();
+  let sub: any;
+  try {
+    sub = f.client.subscribe(api.messages.first, {}, () => undefined);
+    await eventually(() => f.streams.length === 1);
+    const refused = sub.until((e: any) => e.data?.generation === hex(2), 1000);
+    emit(f.streams[0], { state: "refused", code: "E_OP_UNKNOWN", family: "op", message: "replaced", guide: "op/manifest" });
+    await assert.rejects(refused, (e: any) => e.code === "E_OP_UNKNOWN");
+    await assert.rejects(sub.until(() => true), (e: any) => e.code === "E_OP_UNKNOWN");
+    sub.reset();
+    await eventually(() => f.streams.length === 2);
+    assert.equal(f.streams[1].headers.get("Last-Event-ID"), null);
+    emit(f.streams[1], f.envelope({}), "new-id");
+    assert.equal((await sub.until((e: any) => e.data?.generation === hex(1), 1000)).state, "complete");
+  } finally { sub?.close(); await f.close(); }
+});
+
+test("a frame decoding across reopen cannot commit or restore the predecessor event id", async () => {
+  const f = await fixture();
+  const gate = defer();
+  let sub: any;
+  try {
+    const runtime = (f.client as any).offlineRuntime;
+    const accept = runtime.accept.bind(runtime);
+    let decoding = false;
+    runtime.accept = async (op: string, args: unknown, raw: any) => {
+      if (raw.validator === hex(8)) { decoding = true; await gate.promise; }
+      return accept(op, args, raw);
+    };
+    sub = f.client.subscribe(api.messages.first, {}, () => undefined);
+    await eventually(() => f.streams.length === 1);
+    emit(f.streams[0], { ...f.envelope({}), seq: 8, validator: hex(8) }, "predecessor-id");
+    await eventually(() => decoding);
+    f.state.generation = hex(2);
+    await f.client.query(api.messages.second, {});
+    await f.rebuilt();
+    gate.resolve();
+    await eventually(() => f.streams.length === 2);
+    assert.equal((await f.store.answer("messages.first", {})).seq, 7, "the late seq-8 frame did not enter G2 coverage");
+    assert.equal((await f.store.coverage()).superseded, undefined);
+    assert.equal(f.streams[1].headers.get("Last-Event-ID"), null);
+    sub.reconnect();
+    await eventually(() => f.streams.length === 3);
+    assert.equal(f.streams[2].headers.get("Last-Event-ID"), null, "the subsequent reconnect carries no predecessor id either");
+    assert.equal(f.resets(), 1, "dropping an old frame does not schedule a reset");
+  } finally { gate.resolve(); sub?.close(); await f.close(); }
+});
+
+test("a terminal session frame already decoding across reset still retires the bearer and seals custody", async () => {
+  const f = await fixture("file", true);
+  const gate = defer();
+  let sub: any;
+  try {
+    const runtime = (f.client as any).offlineRuntime;
+    const accept = runtime.accept.bind(runtime);
+    let decoding = false;
+    runtime.accept = async (op: string, args: unknown, raw: any) => {
+      if (raw.code === "E_AUTH_SESSION") { decoding = true; await gate.promise; }
+      return accept(op, args, raw);
+    };
+    sub = f.client.subscribe(api.messages.first, {}, () => undefined);
+    await eventually(() => f.streams.length === 1);
+    emit(f.streams[0], { state: "refused", code: "E_AUTH_SESSION", family: "auth", message: "expired", guide: "auth" });
+    await eventually(() => decoding);
+    sub.reset();
+    await f.client.offline(); // No subsequent transport can rediscover the evidence.
+    gate.resolve();
+    await eventually(() => f.client.snapshot.lastRefusal?.code === "E_AUTH_SESSION");
+    assert.equal((f.client as any).currentToken, undefined);
+    assert.equal(await f.client.outbox.ready(), false);
+    await assert.rejects(f.store.outbox.grant(), /sealed/);
+    assert.equal(f.streams.length, 1);
+  } finally { gate.resolve(); sub?.close(); await f.close(); }
+});

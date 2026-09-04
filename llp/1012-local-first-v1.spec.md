@@ -582,7 +582,7 @@ and refuses `E_OFFLINE_ID_BLOCK` when it is spent; the drain replays one
 envelope per request after a resume; a transport failure keeps the intent
 `queued` and the retry is the same envelope; a rejection or a trace conflict
 settles only its own intent; a grant past the fence settled `expired` locally
-until the afternoon ruling (lane F removes that);
+until the afternoon ruling (lane F removed that; its record follows);
 a committed settlement lands in the same swap as the log tail; `useOutbox()`
 and `useMutation().pending` expose the queue; the provider creates its client
 once so StrictMode does not leak a lock holder. *Fix round 1:* the ledger's
@@ -601,6 +601,27 @@ is ruled (2026-09-04 afternoon):* the local expiry of intents whose grant is pas
 fence discarded writes the server would still accept for thirty days and would
 validate by trace; the client now replays after a successful resume and lets the
 server judge, keeping the fence for prediction and the `stale` label only (lane F).
+
+**Implementation record (lane F and its fix round, 2026-09-04).** Replay eligibility is
+per intent and per partition: an intent whose grant is past the fence, or that was
+enqueued past it, replays only after a successful resume of *its* partition since the
+fence was crossed; a fresh login grant never releases older queued work; missing trust
+waits, and nothing expires on the client's clock. The resume trust anchor is cleared on a
+partition change, seal, wipe, close, and coverage reset. A partition holding a grant and
+queued intents but no coverage facts recovers by a receipt query that supplies facts and
+then the owner's logless resume; when no query can supply them, `online()` refuses
+`E_OFFLINE_RESUME` and keeps the queue. `drain()` and `settled()` return
+`{ stopped: "fence" }` past the fence; `ready()` means a current grant (the fence does not
+gate it) and `useOutbox().fence` is `inside | past`, which the chat composer renders as
+"Queued until the next sync". An intent enqueued past the fence carries no trace and is
+marked unpredicted with `reason: "fence"`: the server commits it with no OCC (the O1b
+record's empty-trace rule), so past the fence the program's own `require`s — the recipe's
+compare-and-set `edit` — are the only conflict rule, which the real-owner journey proves
+(a stale past-fence edit is rejected by the program's `CONFLICT`). Empty-trace commits
+are therefore routine after a long absence, not rare; an app that needs stronger
+protection writes its `require`. The client still sends no `remaining`, so the real owner
+mints a grant on every resume; the grantless path is proven against a fake that omits the
+grant.
 
 **Failure shapes.** *Grant exhausted:* the client refuses at enqueue,
 `E_OFFLINE_ID_BLOCK`, and asks for a grant when online; no silent reuse.
@@ -647,6 +668,34 @@ reset is not self-triggered — the follow-ups ticket of 2026-09-04 records that
 `useOutbox().ready` and `useMutation().ready`; the chat composer is disabled with the
 reason until the inbox drain has earned a grant, and a refusal's rewrite is shown, never
 retried blindly.
+
+**The retirement rule as landed (lane T1, three review rounds, 2026-09-04).** A committed
+prediction retires in its swap on authoritative evidence — the arrival of a predicted
+non-deleted row, or a primary point absence or tombstone at or after its commit seq for a
+predicted id that no newer held row supersedes, including evidence saved while the intent was
+still queued — or, for predictions with non-deleted rows, on a non-empty held page of the
+selected log strictly beyond its persisted commit snapshot, reached through currently held
+next-links recorded at or after that seq; the chain's query identity uses the store's one
+canonical serializer, an ambiguous link or a cycle keeps only the proven prefix, and an
+evicted progress page re-anchors at the nearest surviving consumed position. Otherwise a
+proven forward mark of the selected log or a successful resume strictly after the commit
+consumes at most one miss per swap, with consumed positions and the snapshot's cursor name
+persisted across a reopen, and two misses remove the overlay and clear `predicted` while the
+replay entry stays `committed`. Residuals are filed in the overlay-retirement follow-ups
+ticket of 2026-09-04.
+
+**The supersession and reset rule as landed (lane T2, three review rounds, 2026-09-04).** Any
+delivery under a generation or schema other than the held program's is never installed: the
+caller still receives its live rows, but coverage is marked superseded and serves nothing
+until reset. Reset drops all coverage — rows, answers, watermarks, and generation-scoped
+negative evidence, never the outbox, its overlays, or viewed custody — adopts the live
+program's custody first, then rebuilds with fresh authenticated reads (a detached,
+cancellable flight; three rotations before a durable refusal), while every outbox
+settlement is fenced to its coverage revision so a stale tail stays queued and retries
+byte-identically; `ready()` and `ready(op)` are false on a sealed partition, React readiness
+is bound to client, authentication, and operation identity, and the fence boundary and grant
+expiry notify subscribers on a timer. Residuals are filed in the supersession follow-ups
+ticket of 2026-09-04.
 
 ## 8. The delivery envelope, the validator, and resume
 

@@ -39,7 +39,7 @@ nextest_config="$(pwd)/../.config/nextest.toml"
 
 echo "== blocking script self-test"; "$0" --self-test || status=1
 echo "== bundle the compiler worker + client (the owner tests load dist/)"; (cd packages/snapback2 && node build.mjs >/dev/null) || status=1
-echo "== package offline protocol + store + bytes + outbox + twin (non-owner)"; (cd packages/snapback2 && node --test --test-timeout=10000 tests/offline-protocol.test.ts tests/offline-store.test.ts tests/sqlite.test.ts tests/expo.test.ts tests/offline-bytes.test.ts tests/offline-view-once.test.ts tests/offline-resume-tail.test.ts tests/outbox.test.ts tests/outbox-custody.test.ts tests/twin.test.ts tests/chat-screens.test.ts) || status=1
+echo "== package offline protocol + store + bytes + outbox + twin (non-owner)"; (cd packages/snapback2 && node --test --test-timeout=10000 tests/offline-protocol.test.ts tests/offline-store.test.ts tests/sqlite.test.ts tests/expo.test.ts tests/offline-bytes.test.ts tests/offline-view-once.test.ts tests/offline-resume-tail.test.ts tests/outbox.test.ts tests/outbox-custody.test.ts tests/overlay-retirement.test.ts tests/twin.test.ts tests/supersession.test.ts tests/readiness.test.ts tests/chat-screens.test.ts) || status=1
 if nextest_path="$(command -v -- "$nextest_bin" 2>/dev/null)"; then
     echo "== cargo-nextest workspace tests (parallel, no fail-fast)"
     NEXTEST_TEST_THREADS="$rust_test_threads" \

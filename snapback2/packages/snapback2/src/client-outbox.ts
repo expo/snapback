@@ -13,6 +13,7 @@ import {
 import { DeliveryEnvelopeDecodeError } from "./offline-protocol.js";
 import { tailWatermark, type AcceptedDelivery, type OfflineRuntime } from "./offline.js";
 import { replayEnvelope, type OutboxEntry } from "./store/outbox.js";
+import { referenceName } from "./api.js";
 import type { MutationResult, OutboxApi } from "./types.js";
 
 /** Records the grant a login/guest response carries; the value passes through untouched. */
@@ -50,6 +51,7 @@ export function wireReplayResponse<Result>(value: unknown): MutationResult<Resul
 }
 
 type Transport = (path: string, init: RequestInit) => Promise<unknown>;
+type DrainResult = { stopped: boolean; reason?: "fence" };
 
 export interface SubmitMutationOptions {
   runtime: OfflineRuntime | undefined;
@@ -130,9 +132,9 @@ async function settledResult<Result>(entry: OutboxEntry, runtime: OfflineRuntime
     throw new SnapbackRefusal({
       code: "E_OFFLINE_INTENT_EXPIRED",
       family: "offline",
-      message: "the replay grant is past offline.fenceDays",
-      site: "client.outbox.enqueue",
-      rewrite: "resume online for a fresh grant, then send again",
+      message: "the owner refused this intent because its replay grant is unknown, foreign, or older than thirty days",
+      site: "client.outbox.replay",
+      rewrite: "dismiss this intent, resume online for a fresh grant, then send again",
       guide: "offline",
     });
   }
@@ -140,6 +142,7 @@ async function settledResult<Result>(entry: OutboxEntry, runtime: OfflineRuntime
 }
 
 export interface DrainOptions {
+  signal?: AbortSignal;
   runtime: OfflineRuntime;
   json: Transport;
   shape(message: string): Error;
@@ -149,31 +152,35 @@ export interface DrainOptions {
 /**
  * Replays queued intents in order. A transport failure leaves the intent
  * queued and stops; a rejection, conflict, or refusal settles only that intent
- * and the drain continues; a grant past the fence settles `expired` locally.
+ * and the drain continues. Past the fence, replay waits for a successful
+ * resume; only the owner's `E_OFFLINE_INTENT_EXPIRED` refusal settles expired.
  */
-export function drainOutbox(options: DrainOptions): Promise<{ stopped: boolean }> {
+export function drainOutbox(options: DrainOptions): Promise<DrainResult> {
   const { runtime } = options;
   const run = runtime.drainTail.then(() => drainQueued(options));
   runtime.drainTail = run.then(() => undefined, () => undefined);
   // The outcome keeps the rejection for `settled()`; the handler here only
   // stops an unobserved refusal from surfacing as an unhandled rejection.
-  const outcome = run.then(() => undefined);
+  const outcome = run.then((result) => result.reason === "fence" ? { stopped: "fence" as const } : undefined);
   void outcome.catch(() => undefined);
   runtime.drainOutcome = outcome;
   return run;
 }
 
-async function drainQueued(options: DrainOptions): Promise<{ stopped: boolean }> {
+async function drainQueued(options: DrainOptions): Promise<DrainResult> {
   const { runtime } = options;
+  options.signal?.throwIfAborted();
   if (runtime.principal === undefined) return { stopped: false };
   for (const queued of await runtime.outbox.queued()) {
+    options.signal?.throwIfAborted();
     const entry = await runtime.store.outbox.get(queued.intent);
+    options.signal?.throwIfAborted();
     if (!entry || entry.state !== "queued") continue;
-    const grant = await runtime.outbox.grantById(entry.grant);
-    if (!grant || runtime.outbox.pastFence(grant)) {
-      await settle(options, entry, "expired");
-      continue;
-    }
+    // @ref LLP 1012#7-writes-offline — the fence never discards a queued
+    // write: an intent neither its grant nor a later resume can vouch for
+    // stops the drain, and only the owner's refusal can expire it.
+    if (!(await runtime.outbox.canReplay(entry))) return { stopped: true, reason: "fence" };
+    options.signal?.throwIfAborted();
     let raw: unknown;
     try {
       raw = await options.json("/api/mutation", { method: "POST", body: JSON.stringify(replayEnvelope(entry)) });
@@ -190,6 +197,7 @@ async function drainQueued(options: DrainOptions): Promise<{ stopped: boolean }>
       }
       throw error;
     }
+    options.signal?.throwIfAborted();
     const result = wireReplayResponse(raw);
     if (result.state === "committed") {
       // @ref LLP 1012#7-writes-offline — a committed settlement lands with the
@@ -197,14 +205,17 @@ async function drainQueued(options: DrainOptions): Promise<{ stopped: boolean }>
       // the intent stays queued and the drain stops; the retry is the same
       // envelope, which the owner's ledger answers unexecuted, and the tail
       // then joins the settlement swap.
+      const revision = runtime.coverageRevision;
       let tail: Awaited<ReturnType<typeof logTail>>;
       try {
-        tail = await logTail(options);
+        tail = await logTail(options, revision);
       } catch (error) {
         if (isSnapbackRefusal(error) && error.retryable) return { stopped: true };
         throw error;
       }
-      await settle(options, entry, "committed", result, tail);
+      options.signal?.throwIfAborted();
+      if (revision !== runtime.coverageRevision) return { stopped: true };
+      if (!(await settle(options, entry, "committed", result, tail, revision))) return { stopped: true };
     } else {
       await settle(options, entry, "rejected", result);
     }
@@ -218,10 +229,15 @@ async function settle(
   state: "committed" | "rejected" | "expired",
   response?: unknown,
   tail?: { op: string; args: unknown; accepted: AcceptedDelivery<unknown> },
-): Promise<void> {
+  revision = options.runtime.coverageRevision,
+): Promise<boolean> {
   const settled = options.runtime.outbox.settle(entry, state, response);
   try {
-    await options.runtime.commitMany(tail ? [tail] : [], undefined, { put: [settled] });
+    options.signal?.throwIfAborted();
+    const superseded = await options.runtime.commitMany(tail ? [tail] : [], undefined, { put: [settled] }, revision,
+      () => !options.signal?.aborted);
+    options.signal?.throwIfAborted();
+    return !superseded && revision === options.runtime.coverageRevision;
   } catch (error) {
     throw options.failure(error);
   }
@@ -236,9 +252,11 @@ async function settle(
  * (`tailWatermark`), so a second drained query never feeds the wrong page into
  * the settlement swap (LLP 1012 §7).
  */
-async function logTail(options: DrainOptions) {
+async function logTail(options: DrainOptions, revision: number) {
   const { runtime } = options;
   const coverage = await runtime.coverage();
+  options.signal?.throwIfAborted();
+  if (revision !== runtime.coverageRevision) return undefined;
   const watermark = coverage ? tailWatermark(coverage.watermarks) : undefined;
   // No drained query, no tail: the intent settles `committed` with no rows in
   // its swap. That is the only way a queue held under a login grant with
@@ -246,14 +264,19 @@ async function logTail(options: DrainOptions) {
   // stays until the server's rows arrive, so it is not a stranded queue and
   // must not be "fixed" into one.
   if (!watermark) return undefined;
+  const cursor = watermark.cursorArg ?? runtime.cursorArg(watermark.op);
   const args = watermark.watermark === null
     ? watermark.args
-    : { ...(watermark.args as Record<string, unknown>), c: watermark.watermark };
+    : { ...(watermark.args as Record<string, unknown>), [cursor]: watermark.watermark };
   const held = await runtime.answer(watermark.op, args);
+  options.signal?.throwIfAborted();
+  if (revision !== runtime.coverageRevision) return undefined;
   const raw = await options.json("/api/query?receipt=1", {
     method: "POST",
     body: JSON.stringify(held?.validator ? { op: watermark.op, args, validator: held.validator } : { op: watermark.op, args }),
   });
+  options.signal?.throwIfAborted();
+  if (revision !== runtime.coverageRevision) return undefined;
   let accepted: AcceptedDelivery<unknown>;
   try {
     accepted = await runtime.accept(watermark.op, args, raw);
@@ -266,7 +289,7 @@ async function logTail(options: DrainOptions) {
 
 export function createOutboxApi(
   runtime: OfflineRuntime | undefined,
-  drain: () => Promise<{ stopped: boolean }>,
+  drain: () => Promise<DrainResult>,
   ready: () => Promise<void> = async () => undefined,
 ): OutboxApi {
   const entries = async (): Promise<OutboxEntry[]> => {
@@ -285,28 +308,50 @@ export function createOutboxApi(
       if (runtime && runtime.principal !== undefined) await runtime.outbox.dismiss(intent);
     },
     subscribe: (listener) => {
-      const push = () => { void entries().then(listener, () => undefined); };
+      let active = true;
+      let version = 0;
+      const push = () => {
+        const current = ++version;
+        const principal = runtime?.principal;
+        void entries().then((value) => {
+          if (active && current === version && principal === runtime?.principal) listener(value);
+        }, () => undefined);
+      };
       push();
-      return runtime ? runtime.outbox.subscribe(push) : () => undefined;
+      const unsubscribe = runtime?.outbox.subscribe(push);
+      return () => { active = false; unsubscribe?.(); };
     },
     // @ref LLP 1012#7-writes-offline — with a partition open every write needs a
-    // grant before any request leaves; an app gates its send on this instead of
-    // retrying a refusal blindly. Answered after the client's own startup, so a
-    // partition about to open never reads as "no partition, plain bytes".
-    ready: async () => {
+    // grant before any request leaves; the fence disables prediction and replay,
+    // not enqueue, so an app may keep accepting writes while trust is stale. The
+    // op form also checks its certified bound and remaining capacity. Answered
+    // after the client's own startup, so a partition about to open never reads
+    // as "no partition, plain bytes".
+    ready: async (op) => {
       await ready().catch(() => undefined);
       if (!runtime || runtime.principal === undefined) return true;
       try {
-        const grant = await runtime.outbox.grant();
-        return grant !== undefined && !runtime.outbox.pastFence(grant);
+        return await runtime.outbox.ready(op === undefined ? undefined : referenceName(op));
       } catch (error) {
         if (error instanceof Error && /sealed/.test(error.message)) return false;
         throw error;
       }
     },
-    drain: async () => { await drain(); },
-    // Resolves when the replay emptied the queue or a retryable transport
-    // failure stopped it; rejects with the refusal that stopped it otherwise.
-    settled: async () => { await runtime?.drainOutcome; },
+    fence: async () => {
+      await ready().catch(() => undefined);
+      if (!runtime || runtime.principal === undefined) return "inside";
+      try { return await runtime.outbox.fence(); }
+      catch (error) {
+        if (error instanceof Error && /sealed/.test(error.message)) return "past";
+        throw error;
+      }
+    },
+    drain: async () => {
+      const result = await drain();
+      return result.reason === "fence" ? { stopped: "fence" } : undefined;
+    },
+    // A fence stop is explicit even though custody remains queued. Other
+    // non-retryable refusals still reject; transport stops retain their behavior.
+    settled: async () => runtime?.drainOutcome,
   };
 }

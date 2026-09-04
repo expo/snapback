@@ -14,7 +14,7 @@ export { fileRangeStore };
 type TransportFault = { path: string; status: number };
 type JourneyDevice = SnapbackClient & {
   failNextResponse(path: string, status: number): void;
-  settled(): Promise<void>;
+  settled(): ReturnType<SnapbackClient["outbox"]["settled"]>;
 };
 type JourneyContext = {
   as(name: string, options?: {

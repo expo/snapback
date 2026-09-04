@@ -265,6 +265,8 @@ export type CreateClientOptions = ClientLocationOptions & (
 
 // @ref LLP 1012#7-writes-offline — the outbox is readable before the first
 // request, so a queued message is on screen at cold start.
+export type OutboxSettlement = void | { stopped: "fence" };
+
 export interface OutboxApi {
   /** Every durable intent of the open partition, FIFO; empty without a store. */
   entries(): Promise<OutboxEntry[]>;
@@ -273,19 +275,26 @@ export interface OutboxApi {
   /** Observes the outbox; called with the current entries at once and after every change. */
   subscribe(listener: (entries: OutboxEntry[]) => void): () => void;
   /**
-   * True when a write will not refuse `E_OFFLINE_ID_BLOCK` for want of a replay
-   * grant: no partition is open (today's bytes), or the open partition holds a
-   * grant inside the fence — minted by a login, a guest call, or the first drain
-   * reaching its watermark. Changes are observable through `subscribe` (LLP 1012 §7).
+   * Without an op, true when a write will not refuse `E_OFFLINE_ID_BLOCK` for
+   * want of a replay grant: no partition is open (today's bytes), or the open
+   * partition holds a current, unexpired grant — minted by a login, a guest
+   * call, or the first drain reaching its watermark. The fence gates replay and
+   * prediction, not this (see `fence`). With an op, also means this write would
+   * not refuse `E_OFFLINE_ID_BLOCK` for want of a known bound or capacity for
+   * `1 + maxNewIds`. Grant, bound, fence, and expiry changes are observable
+   * through `subscribe` even when the entries are unchanged (LLP 1012 §7).
    */
-  ready(): Promise<boolean>;
-  /** Replays queued intents FIFO now; resolves when the queue is empty or a transport failure stopped it. */
-  drain(): Promise<void>;
+  ready<Args = unknown, Result = unknown>(op?: Op<Args, Result>): Promise<boolean>;
+  /** Past means replay waits for this partition's successful resume; enqueue remains ready. */
+  fence(): Promise<"inside" | "past">;
+  /** Replays FIFO; a fence stop returns { stopped: "fence" } with the intents still queued. */
+  drain(): Promise<OutboxSettlement>;
   /**
    * Resolves once the in-flight replay, if any, emptied the queue or a retryable
-   * transport failure stopped it; rejects with the refusal that stopped it otherwise.
+   * transport failure stopped it; returns { stopped: "fence" } if resume is
+   * required, and rejects with a non-retryable refusal that stopped it.
    */
-  settled(): Promise<void>;
+  settled(): Promise<OutboxSettlement>;
 }
 
 export interface SnapbackClient {

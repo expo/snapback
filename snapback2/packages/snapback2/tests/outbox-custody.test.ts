@@ -246,9 +246,18 @@ test("settled() rejects with the non-retryable refusal that stopped the replay a
   await rm(root, { recursive: true, force: true });
 });
 
-test("the prediction overlay is dropped in the same swap as a rejected or an expired settlement", async () => {
+test("the prediction overlay is dropped in the same swap as a rejected or server-expired settlement", async () => {
   for (const carrier of await carriers()) {
-    const owner = fakeOwner({ reject: (_intent, body) => body.args.body === "rejected" });
+    const owner = fakeOwner({
+      reject: (_intent, body) => body.args.body === "rejected",
+      refuse: (_intent, body) => body.args.body === "server expired"
+        ? { status: 409, envelope: {
+          code: "E_OFFLINE_INTENT_EXPIRED", family: "offline",
+          message: "the replay grant is older than thirty days",
+          rewrite: "resume for a fresh grant and send again", guide: "offline",
+        } }
+        : undefined,
+    });
     await seededStore(carrier.factory());
     const held = capturing(carrier.factory());
     const client = createClient({ url: "http://overlay.test", as: "alice", fetch: owner.fetch, offline: { store: held.factory, fenceDays: 1 } });
@@ -265,28 +274,27 @@ test("the prediction overlay is dropped in the same swap as a rejected or an exp
     await client.outbox.settled();
     assert.equal((await client.outbox.entries())[0]?.state, "rejected", carrier.name);
     assert.deepEqual(await held.store().outbox.overlay(), {}, `${carrier.name}: the overlay left with the rejection`);
-    // online(): one swap adopts the grant, one settles; the overlay left in the settlement's own swap.
-    assert.equal(carrier.writes(), before + 2, `${carrier.name}: no extra swap dropped the overlay`);
+    // online(): one resume swap, one grant adoption, one settlement that also drops the overlay.
+    assert.equal(carrier.writes(), before + 3, `${carrier.name}: no extra swap dropped the overlay`);
 
     await client.offline();
-    const expiring = await client.mutation(api.deliveries.post as any, post("expiring"));
+    const expiring = await client.mutation(api.deliveries.post as any, post("server expired"));
     assert.equal(expiring.state, "queued");
     const expiringIntent = expiring.state === "queued" ? expiring.intent : "";
     await held.store().commit({ overlay: { put: predicted(expiringIntent) } });
     assert.deepEqual(Object.keys(await held.store().outbox.overlay()), [expiringIntent]);
-    const originalNow = Date.now;
-    Date.now = () => originalNow() + 2 * DAY;
-    try {
-      const requests = owner.requests.length;
-      const settling = carrier.writes();
-      await client.outbox.drain();
-      assert.equal(owner.requests.length, requests, `${carrier.name}: an expired intent is never sent`);
-      assert.equal((await client.outbox.entries())[1]?.state, "expired", carrier.name);
-      assert.deepEqual(await held.store().outbox.overlay(), {}, `${carrier.name}: the overlay left with the expiry`);
-      assert.equal(carrier.writes(), settling + 1, `${carrier.name}: the expiry and the overlay drop were one swap`);
-    } finally {
-      Date.now = originalNow;
-    }
+    const requests = owner.requests.filter((path) => path === "/api/mutation").length;
+    const settling = carrier.writes();
+    await client.online();
+    await client.outbox.settled();
+    assert.equal(owner.requests.filter((path) => path === "/api/mutation").length, requests + 1,
+      `${carrier.name}: the owner saw the intent it expired`);
+    assert.equal((await client.outbox.entries())[1]?.state, "expired", carrier.name);
+    assert.deepEqual(await held.store().outbox.overlay(), {}, `${carrier.name}: the overlay left with the server expiry`);
+    // online(): the resume's own record (the quiet-tail miss, lane T1), the grant adoption,
+    // and one settlement that also drops the overlay — the expiry and the drop are one swap.
+    assert.equal(carrier.writes(), settling + 3,
+      `${carrier.name}: resume record, grant adoption, and one atomic expiry and overlay-drop swap`);
     await client.close();
     await tick();
     await carrier.cleanup();
