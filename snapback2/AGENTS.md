@@ -1,7 +1,7 @@
 # Snapback 2 — agent command sheet
 
 Read this, then `rules/RULES.md` and `rules/NOT-DOING.md` at the repo root, then
-`llp/1000-snapback2.explainer.md`; the specs are LLP 1001 (engine), 1002 (loop), 1003 (effects).
+`llp/1000-snapback2.explainer.md`; the specs are LLP 1001 (engine), 1002 (loop), 1003 (effects), 1012 (local-first v1; Review, binds after the loop bar).
 
 ```
 cargo build                          # data plane + binary; no JS engine, no bootstrap

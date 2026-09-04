@@ -1,8 +1,11 @@
 # LLP 1009: Observability and analytics — the correction loop is the product
 
 **Type:** RFC
-**Status:** Draft — proposal, binds nothing (`rules/RULES.md`: only implemented
-specs bind, and a spec needs an implementer and a date; §6 has neither yet)
+**Status:** Shelved (author ruling 2026-09-04 — slid off the doing-list to pay
+for local-first v1, LLP 1012 §13 and `rules/NOT-DOING.md` §Moves; returns when
+the offline bar is met; nothing here is withdrawn). Was: Draft — proposal,
+binds nothing (`rules/RULES.md`: only implemented specs bind, and a spec needs
+an implementer and a date; §6 has neither yet)
 **Systems:** `snapback2/crates/snapback2` (`why`, `trace`, `logs`, `data`),
 `snapback2/crates/snapback2-core` (certificate, retention estimator),
 `snapback2/scripts/measure.mjs`, `benchmarks/`, `rules/NOT-DOING.md`

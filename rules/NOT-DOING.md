@@ -6,8 +6,9 @@ taking something off the doing-list in the same change.
 
 ## The bars that make this list derivable
 
-Two bars, named separately so one name never covers two objects (LLP 1007 §4a;
-the author delegated this ruling to the orchestrator on 2026-09-02):
+Three bars, named separately so one name never covers two objects (LLP 1007 §4a;
+the author delegated the first two to the orchestrator on 2026-09-02 and added
+the third on 2026-09-04, LLP 1012 §12):
 
 - **The loop bar.** A fresh agent, with only the installed package and the task,
   builds the reduced Clique M1–M3 (accounts, feed, realtime chat; React web; no
@@ -23,6 +24,12 @@ the author delegated this ruling to the orchestrator on 2026-09-02):
   own real-phone acceptance cannot pass without them. The offsetting item is
   non-media `file` columns, which LLP 1006 §13a designs and defers to a later
   slice. Until then the media and Expo slice stays on this list.
+- **The offline bar.** `benchmarks/briefs/social-messenger.md` M5 acceptance 5,
+  M6 acceptance 1 and 2, and LLP 1012 §10's physical process-kill witness,
+  green on the Expo iOS simulator and React web on a **published** package
+  (author ruling 2026-09-04, LLP 1012 §12). It starts when the loop bar is met
+  and runs alongside the capability bar's Expo arm, which shares the carrier.
+  Until then local-first v1 is specified, not built.
 
 ## Not building
 
@@ -44,8 +51,18 @@ the author delegated this ruling to the orchestrator on 2026-09-02):
 - **Media collections, push, cron, vector/search, hosted control planes, multi-region,
   federation.** Assets (typed intent), one `channel` kind, one `schedule` kind, one
   hosted target: that is the feature list until the bar is met.
-- **Offline beyond retention v1** (LLP 0329.014.007 F8). Hold sets, dependency-aware
-  outbox, delta resume come after the bar, if the benchmark asks for them.
+- **Offline beyond local-first v1** (LLP 1012, author rulings 2026-09-04). v1 is the
+  result cache over a durable per-principal range store, `until-revoked` and
+  `delivered-history` retention, digest-checked re-authorization at reconnect, a
+  FIFO outbox settled by OCC, local evaluation by the twin, and asset bytes under
+  the owning row's lease. Not built until a brief's number asks (LLP 1012 §11):
+  hold sets, the dependency-aware outbox, per-row delta resume with tombstones, a
+  local token index, per-field `unheld`, a store budget with eviction priority,
+  cancel/`asOf`, `purge-on-block`, `all-owned`, `merge` modes and `sequence`, any
+  at-rest encryption claim, and device-to-device sync.
+- **Observability and analytics beyond `why`, `trace`, `logs`, and `data`** (LLP
+  1009, shelved 2026-09-04). Slid off the doing-list to pay for local-first v1
+  (LLP 1012 §13); returns when the offline bar is met.
 - **A guide.** `snapback2 guide` serves the compiler's facts, a one-screen grammar, and
   about twelve recipes with CI-executed snippets. No million-word corpus, no embedded
   20 MB guide in the binary, no calendar freshness dates.
@@ -81,3 +98,9 @@ the author delegated this ruling to the orchestrator on 2026-09-02):
 
 Write one line naming what it unblocks, and take something off the doing-list in the same
 PR. If nothing can come off, the answer is no.
+
+## Moves
+
+- 2026-09-04 — **on:** local-first v1 (LLP 1012); unblocks the offline bar. **off:**
+  LLP 1009 observability and analytics (author ruling; returns when the offline bar
+  is met).

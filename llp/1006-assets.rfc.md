@@ -12,7 +12,9 @@ decode helper executable, §14a), `packages/compiler` (the column types),
 revisions (f)–(j) by Claude Fable 5.1 at the author's rulings, in session,
 2026-09-03
 **Date:** 2026-08-31
-**Revised:** 2026-09-04 (m — fix-round correction: finalized growth is
+**Revised:** 2026-09-04 (n — §9b, bytes on the device, cached under the owning
+row's lease; author ruling 2026-09-04 via LLP 1012 decision 7, built by its lane
+O4); 2026-09-04 (m — fix-round correction: finalized growth is
 durably reserved on the receiving ledger before blob publication; §9a
 deliberately adds bounded callback `enumerate(prefix, visitor)` as the fourth
 blob-store operation, and one sweep uses it for fork-aware reclaims, orphans,
@@ -947,6 +949,33 @@ definition." No whole-object buffer appears anywhere in the trait, so v1's
   sweep treats every ledger under `.snapback/` — live or fork — as a referrer,
   so restoring a fork never restores a row whose bytes are gone.
 
+### 9b. Bytes on the device (author ruling, 2026-09-04)
+
+**Cached under the owning row's lease, or not at all.** LLP 1012 (local-first
+v1) gives the client a durable per-principal range store; the asset client
+gets a `ByteCache` in the same partition. It stores the bytes a component
+actually fetched — the widths `<AssetImage>` and `<AssetVideo>` asked for
+under §8, never the stripped original — keyed `(assetId, width)`, and only
+for assets whose reference arrived in a receipt the store holds. A row's
+bytes leave the cache in the same generation swap that removes the row
+(eviction, a receipt absence, a `denied` range under `until-revoked`,
+sign-out; LLP 1012 §5), so the purge receipt covers bytes for free, and the
+fence does not touch them, exactly as it does not touch rows. One ceiling,
+`maxAssetBytes` (client option, default 256 MB), evicts least-recently-read
+by the owning row's recency; it is the only budget in v1, because bytes are
+large and rows are not. Rows whose delivery must be evaluated on every
+request — one-use delivery when it lands, anything under a fenced audit —
+refuse the cache at the row, and `<AssetImage>` on such a row renders from
+the network or not at all. This narrows LLP 0329.014.008 §4's
+`retain({ assets: { renditions } })` in one way: there is no declared
+rendition list, because ruling 2 says any width may be requested; the cache
+keeps what was fetched. What it keeps from that candidate is the whole point:
+Snapback 1's guide had to tell agents that its image cache was neither
+privacy- nor revocation-aware and not to call it retention; this one is
+both, by construction, and is retention. Lane O4 of LLP 1012 builds it with
+the Expo carrier; §10's components need no change beyond reading the cache
+before the network.
+
 ## 10. Clients
 
 React web first, Expo second (LLP 1000 decision 5); Exact 2 follows.
@@ -1602,6 +1631,10 @@ decisions:
     orientation preserved by a synthesized tag over a chunk walk, gated by an
     acceptance matrix with re-encode as the fallback (§4);
     `rules/NOT-DOING.md` amended to name HEIC and MOV and to defer `file`.
+12. **Asset bytes cache on the device under the owning row's lease** (2026-09-04,
+    via LLP 1012 decision 7; §9b): fetched widths only, purged in the same swap
+    as the row, one `maxAssetBytes` ceiling, refused where delivery must be
+    evaluated per request.
 
 ## Open questions (author)
 

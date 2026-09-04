@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2` (the binary: owner, server, verbs), `snapback2/packages/compiler` (project lowering, worker), `snapback2/packages/snapback2` (authoring runtime, client, React, test runner, shim), `snapback2/scripts/measure.mjs`
 **Author:** Claude Fable 5 (orchestrator) — implementers: codex gpt-5.6-sol, lanes B0 (compiler + authoring surface), B1 (owner + server + verbs), B2 (`init`, `test`, `why`, `trace`, `guide`), D (client + React + evaluator)
 **Date:** 2026-08-29
-**Revised:** 2026-09-03 (decision 1 amended: the LLP 1006 §14a media helper is the one child spawned besides the compiler worker); 2026-09-01
+**Revised:** 2026-09-04 (§9 points at LLP 1012 for the outbox and the store); 2026-09-03 (decision 1 amended: the LLP 1006 §14a media helper is the one child spawned besides the compiler worker); 2026-09-01
 **Related:** LLP 1000, LLP 1001 (the engine this serves), LLP 1003 (effects),
 LLP 0329.016 §5 (the design this implements verbatim where it can), LLP
 0329.016 §5.11 (the verb table — no verb exists without its row), LLP
@@ -655,7 +655,7 @@ ever the server's receipt; a transport failure (network, 5xx) leaves `last`
 untouched, sets `transport` (a `SnapbackRefusal`, `retryable: true`, cleared
 on the next successful run) and rejects `run()` — a 503 after a commit must
 never look like a rejection, since a retry could duplicate the write.
-`queued` is reserved for the offline outbox (deferred) and never claimed
+`queued` is reserved for the offline outbox (LLP 1012 §7, lane O2) and never claimed
 before it exists (review rulings 2026-08-30). Every 4xx envelope on `query()`/`mutation()`
 throws `SnapbackRefusal`; subscriptions deliver `refused`. **Transport status
 is not a query state**: hooks and the provider expose `connection: connected |
@@ -695,7 +695,8 @@ dispatched writes to settle; operations queued behind the barrier use only the
 successor authority. A locally suppressed response is never represented as a
 server `rejected` mutation because it may already have committed.
 
-There is no offline outbox or durable private-row snapshot in this slice, so
+There is no offline outbox or durable private-row snapshot in this slice (LLP
+1012 specifies both; this paragraph stands until its lanes land), so
 the client makes no claim about destroying or replay-fencing surfaces that do
 not exist. Its guarantee covers current in-memory transports, queued client
 calls, React cache identity, and the explicitly supplied token store.
