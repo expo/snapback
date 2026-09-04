@@ -44,6 +44,8 @@ test("enqueue consumes a grant slice of 1 + maxNewIds and refuses E_OFFLINE_ID_B
     const client = createClient({ url: "http://outbox.test", as: "alice", fetch: owner.fetch, offline: { store: carrier.factory() } });
     await client.ready;
     assert.equal(owner.grantsMinted(), 1, `${carrier.name}: cold start resumed and earned a grant`);
+    assert.equal(await client.outbox.ready(), true, `${carrier.name}: the grant itself is ready`);
+    assert.equal(await client.outbox.ready(api.deliveries.post as any), true, `${carrier.name}: the post slice fits initially`);
     await client.offline();
     const first = await client.mutation(api.deliveries.post as any, post("one"));
     assert.equal(first.state, "queued");
@@ -59,6 +61,8 @@ test("enqueue consumes a grant slice of 1 + maxNewIds and refuses E_OFFLINE_ID_B
     assert.equal(entries[1]!.ids[0], engineId(152));
     assert.deepEqual(entries[0]!.trace, { points: [], verdicts: [] }, "the twin's seam is left empty");
     assert.equal(first.state === "queued" && first.ids[0], engineId(100));
+    assert.equal(await client.outbox.ready(), true, `${carrier.name}: a spent-down grant remains present`);
+    assert.equal(await client.outbox.ready(api.deliveries.post as any), false, `${carrier.name}: the remaining six ids cannot hold this op's slice`);
     await assert.rejects(
       () => client.mutation(api.deliveries.post as any, post("three")),
       (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_OFFLINE_ID_BLOCK"
@@ -92,6 +96,41 @@ test("a fresh partition without a grant refuses offline writes loudly and earns 
   assert.equal(queued.state, "queued");
   drain.close();
   client.close();
+  await rm(root, { recursive: true, force: true });
+});
+
+test("a grant arriving without an outbox entry change flips useOutbox().ready", async () => {
+  const root = await tempRoot();
+  const owner = fakeOwner();
+  let client: any;
+  let outbox: any;
+  const observed: Array<[boolean, number]> = [];
+  function Harness() {
+    client = useSnapbackClient();
+    outbox = useOutbox();
+    observed.push([outbox.ready, outbox.entries.length]);
+    return null;
+  }
+  let renderer: TestRenderer.ReactTestRenderer;
+  await act(async () => {
+    renderer = TestRenderer.create(React.createElement(
+      SnapbackProvider,
+      { url: "http://grant-notify.test", as: "alice", fetch: owner.fetch, offline: { store: fileRangeStore(root) } },
+      React.createElement(Harness),
+    ));
+  });
+  await act(async () => { await client.ready; await new Promise((resolve) => setTimeout(resolve, 10)); });
+  assert.deepEqual([outbox.ready, outbox.entries.length], [false, 0], "no grant means not ready");
+  let drain: any;
+  await act(async () => {
+    drain = client.subscribe(api.deliveries.inbox as any, { c: null }, () => undefined, { drain: true });
+    await drain.until((value: any) => value.state === "complete" && value.caughtUp === true, 2_000);
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  });
+  assert.deepEqual([outbox.ready, outbox.entries.length], [true, 0], "the grant notification changed readiness without adding an entry");
+  assert.ok(observed.some(([ready, entries]) => ready && entries === 0), "React never observed the grant-only readiness change");
+  drain.close();
+  await act(async () => { renderer!.unmount(); });
   await rm(root, { recursive: true, force: true });
 });
 
@@ -314,6 +353,8 @@ test("a store with an open partition never sends plain bytes: no grant or no bou
   });
   await unbound.ready;
   assert.equal(owner.grantsMinted(), 1, "the resume minted a grant");
+  assert.equal(await unbound.outbox.ready(), true, "grant-only readiness does not promise a write bound");
+  assert.equal(await unbound.outbox.ready(api.deliveries.post as any), false, "the op form refuses readiness until its bound is recorded");
   await assert.rejects(
     () => unbound.mutation(api.deliveries.post as any, post("no bound")),
     (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_OFFLINE_ID_BLOCK" && /bound/.test(error.message),

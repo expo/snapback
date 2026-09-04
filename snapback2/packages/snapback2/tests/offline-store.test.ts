@@ -767,6 +767,9 @@ test("an auth-epoch mismatch cannot replace held coverage; a generation mismatch
   const client = createClient({
     url: "http://epoch.test", as: "alice", offline: { store: fileRangeStore(root) },
     fetch: async (input) => {
+      if (String(input).endsWith("/api/resume") && reads >= 3) {
+        throw new TypeError("the reset transport closed after the live delivery");
+      }
       const metadata = metadataResponse(input);
       if (metadata) return metadata;
       const value = envelope([["held", "wrong", "rotated"][reads] ?? "later"], String(reads + 1).repeat(64), reads + 1);

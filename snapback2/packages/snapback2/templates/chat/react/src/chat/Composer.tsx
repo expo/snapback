@@ -4,8 +4,8 @@ import { useMutation } from "snapback2/react";
 
 // @ref LLP 1012#7-writes-offline — `run()` resolves `queued` when the owner is
 // unreachable; the durable outbox, not this component, owns the message from then on.
-// A device with a store writes only under a replay grant, which the first drain
-// earns when it reaches its watermark: until then the send is disabled with the
+// A device with a store writes only when this op has a replay grant, a certified
+// bound, and enough ids for its slice: until then the send is disabled with the
 // reason shown, never retried blindly, and a refusal's rewrite is surfaced as the note.
 export function Composer({ conversationId, onNote }: { conversationId: string; onNote(note: string): void }) {
   const post = useMutation(api.deliveries.post);

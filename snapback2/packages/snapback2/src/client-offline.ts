@@ -124,9 +124,9 @@ export async function commitOffline(
   args: unknown,
   accepted: AcceptedDelivery<unknown>,
   failure: (error: unknown) => Error,
-): Promise<void> {
-  if (!runtime) return;
-  try { await runtime.commit(op, args, accepted); }
+): Promise<boolean> {
+  if (!runtime) return false;
+  try { return await runtime.commit(op, args, accepted); }
   catch (error) { throw failure(error); }
 }
 
@@ -138,6 +138,7 @@ export async function decodeOfflineSubscription<Result>(options: {
   shape(message: string): Error;
   failure(error: unknown): Error;
   observe?(): Promise<void>;
+  superseded?(accepted: AcceptedDelivery<Result>): Promise<void>;
 }): Promise<LiveQueryDelivery<Result> | QueryRefusedDelivery> {
   const raw = sseObject(options.data, "subscription delivery");
   const accepted = await acceptOffline<Result>(options.runtime, options.op, options.args, raw, options.shape);
@@ -145,7 +146,8 @@ export async function decodeOfflineSubscription<Result>(options: {
     ? { ...wireQuery<Result>(accepted.result, "subscription delivery"), live: true as const }
     : wireSubscription<Result>(options.data);
   if (value.state !== "refused") {
-    await commitOffline(options.runtime, options.op, options.args, accepted, options.failure);
+    const superseded = await commitOffline(options.runtime, options.op, options.args, accepted, options.failure);
+    if (superseded) await options.superseded?.(accepted);
     await options.observe?.();
   }
   return value;

@@ -134,6 +134,7 @@ export class OutboxLedger {
       const held = await this.grantById(grant.id);
       if (held) {
         await this.store.commit({ grants: { current: grant.id } });
+        this.notify();
         return;
       }
       const stale = (await this.store.outbox.grants())
@@ -158,7 +159,19 @@ export class OutboxLedger {
     for (const [op, bound] of Object.entries(bounds)) {
       if (!Number.isSafeInteger(bound) || bound < 0) throw new TypeError(`write bound for ${op} must be a non-negative integer`);
     }
-    return this.serial(() => this.store.commit({ bounds, ...(programs === undefined ? {} : { programs: programs as never }) }));
+    return this.serial(async () => {
+      await this.store.commit({ bounds, ...(programs === undefined ? {} : { programs: programs as never }) });
+      this.notify();
+    });
+  }
+
+  /** Grant-only without an op; with one, probes the exact slice enqueue would need. */
+  async ready(op?: string): Promise<boolean> {
+    const grant = await this.grant();
+    if (!grant || this.pastFence(grant)) return false;
+    if (op === undefined) return true;
+    const maxNewIds = (await this.store.outbox.bounds())[op];
+    return maxNewIds !== undefined && grant.used + 1 + maxNewIds <= grant.count;
   }
 
   /**

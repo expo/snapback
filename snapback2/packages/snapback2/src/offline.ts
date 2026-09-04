@@ -224,6 +224,9 @@ export class OfflineRuntime {
   /** The generation of the certified program this partition holds, if any. */
   get programGeneration(): string | undefined { return this.held?.generation; }
 
+  /** A live delivery rotated past the held coverage; only the reset resume may clear it. */
+  get resetNeeded(): boolean { return this.superseded !== undefined; }
+
   /** The twin's answer for a query, or `undefined` when it cannot run (no program, another generation). */
   async evaluate(op: string, args: unknown): Promise<LocalAnswer | undefined> {
     if (this.partition === undefined) return undefined;
@@ -418,16 +421,16 @@ export class OfflineRuntime {
     return { result, envelope };
   }
 
-  async commit(op: string, args: unknown, accepted: AcceptedDelivery<unknown>): Promise<void> {
-    await this.commitMany([{ op, args, accepted }]);
+  async commit(op: string, args: unknown, accepted: AcceptedDelivery<unknown>): Promise<boolean> {
+    return this.commitMany([{ op, args, accepted }]);
   }
 
   async commitMany(
     items: Array<{ op: string; args: unknown; accepted: AcceptedDelivery<unknown> }>,
     watermark?: Omit<WatermarkRecord, "generation" | "schemaHash" | "authEpoch" | "updatedAt">,
     outbox?: { put?: OutboxEntry[]; remove?: string[] },
-  ): Promise<void> {
-    if (items.length === 0 && !watermark && !outbox) return;
+  ): Promise<boolean> {
+    if (items.length === 0 && !watermark && !outbox) return false;
     // An outbox write shares the ledger's tail (one critical section for
     // every enqueue, adoption, bound, settlement, and prediction drop).
     const run = () => this.serial(async () => {
@@ -439,6 +442,7 @@ export class OfflineRuntime {
       const tombstones: StoreTombstone[] = [];
       let nextFacts = this.facts;
       let superseded = this.superseded;
+      let sawSupersession = false;
       for (const { op, args, accepted } of items) {
         const envelope = accepted.envelope;
         if (envelope && envelope.authority.principal !== this.partition) {
@@ -460,6 +464,7 @@ export class OfflineRuntime {
           // reset path drops the coverage and re-fetches the program.
           if (nextFacts && (envelope.generation !== nextFacts.generation || envelope.schemaHash !== nextFacts.schemaHash)) {
             superseded = { generation: envelope.generation, schemaHash: envelope.schemaHash, authEpoch: envelope.authority.authEpoch };
+            sawSupersession = true;
             continue;
           }
           // Another auth epoch under the same program is a local authority
@@ -514,8 +519,9 @@ export class OfflineRuntime {
       this.superseded = superseded;
       for (const item of [...deliveries, ...refreshes]) this.latestSeq = Math.max(this.latestSeq, item.seq);
       if (outbox) this.outbox.notify();
+      return sawSupersession;
     });
-    await (outbox ? this.outbox.write(run) : run());
+    return outbox ? this.outbox.write(run) : run();
   }
 
   async answer<Result>(op: string, args: unknown): Promise<HeldAnswer<Result> | undefined> {

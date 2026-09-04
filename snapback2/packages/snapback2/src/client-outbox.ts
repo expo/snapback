@@ -13,6 +13,7 @@ import {
 import { DeliveryEnvelopeDecodeError } from "./offline-protocol.js";
 import { tailWatermark, type AcceptedDelivery, type OfflineRuntime } from "./offline.js";
 import { replayEnvelope, type OutboxEntry } from "./store/outbox.js";
+import { referenceName } from "./api.js";
 import type { MutationResult, OutboxApi } from "./types.js";
 
 /** Records the grant a login/guest response carries; the value passes through untouched. */
@@ -290,15 +291,14 @@ export function createOutboxApi(
       return runtime ? runtime.outbox.subscribe(push) : () => undefined;
     },
     // @ref LLP 1012#7-writes-offline — with a partition open every write needs a
-    // grant before any request leaves; an app gates its send on this instead of
-    // retrying a refusal blindly. Answered after the client's own startup, so a
-    // partition about to open never reads as "no partition, plain bytes".
-    ready: async () => {
+    // grant before any request leaves; the op form also checks its certified
+    // bound and remaining capacity. Answered after the client's own startup, so
+    // a partition about to open never reads as "no partition, plain bytes".
+    ready: async (op) => {
       await ready().catch(() => undefined);
       if (!runtime || runtime.principal === undefined) return true;
       try {
-        const grant = await runtime.outbox.grant();
-        return grant !== undefined && !runtime.outbox.pastFence(grant);
+        return runtime.outbox.ready(op === undefined ? undefined : referenceName(op));
       } catch (error) {
         if (error instanceof Error && /sealed/.test(error.message)) return false;
         throw error;
