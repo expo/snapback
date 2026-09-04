@@ -239,6 +239,9 @@ test("the chat screens render the log, queue offline sends as pinned bubbles, se
   } finally {
     Date.now = originalNow;
     await act(async () => { reactRoot.unmount(); });
+    // The provider defers its close a tick; wait for the carrier to go quiet before
+    // the root is removed, or node:test sees activity after the test end.
+    await client.close();
     restore();
     await rm(root, { recursive: true, force: true });
   }
