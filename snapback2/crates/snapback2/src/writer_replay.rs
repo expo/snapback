@@ -78,6 +78,23 @@ impl State {
         }
     }
 
+    /// Replay one outbox intent under an already-resolved authority.
+    ///
+    /// The contract is principal binding plus a live session, and the two
+    /// halves are checked in different places on purpose. The session is the
+    /// mutation route's business: `resolve_authority` runs before this
+    /// function and a bearer whose session was logged out, expired, or fenced
+    /// is refused `E_AUTH_SESSION` there — before the ledger, the grant, or
+    /// the slice is consulted, so a dead session cannot even fetch a stored
+    /// terminal. The grant is bound to the *principal* (spec §7) and is not
+    /// consulted for a session or an auth epoch: it outlives the session that
+    /// minted it by design, so a fresh login of the same principal finishes
+    /// the outbox its previous session queued, and a stored terminal is keyed
+    /// by `(principal, intent)` for the same reason. Nothing here trusts a
+    /// grant or a ledger row on its own; every call arrives through a live
+    /// session of the principal the grant names.
+    // @ref LLP 1012#7-writes-offline — a grant is bound to the principal, not
+    // the session, so a fresh session for the same principal finishes its outbox.
     pub(super) fn execute_replayed_mutation(
         &mut self,
         op: &str,
