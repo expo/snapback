@@ -282,8 +282,10 @@ test("the prediction overlay is dropped in the same swap as a rejected or server
       `${carrier.name}: the owner saw the intent it expired`);
     assert.equal((await client.outbox.entries())[1]?.state, "expired", carrier.name);
     assert.deepEqual(await held.store().outbox.overlay(), {}, `${carrier.name}: the overlay left with the server expiry`);
-    assert.equal(carrier.writes(), settling + 2,
-      `${carrier.name}: resume grant adoption plus one atomic expiry and overlay-drop swap`);
+    // online(): the resume's own record (the quiet-tail miss, lane T1), the grant adoption,
+    // and one settlement that also drops the overlay — the expiry and the drop are one swap.
+    assert.equal(carrier.writes(), settling + 3,
+      `${carrier.name}: resume record, grant adoption, and one atomic expiry and overlay-drop swap`);
     client.close();
     await tick();
     await carrier.cleanup();
