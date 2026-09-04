@@ -31,6 +31,7 @@ async function fixture(carrier: "file" | "IndexedDB" = "file", bearer = false) {
     query?: (request: any) => Promise<Response | undefined>;
     program?: (init?: RequestInit) => Promise<void>;
     mutation?: (request: any) => Promise<Response | undefined>;
+    login?: () => Promise<Response>;
   } = {};
   const envelope = (request: any) => ({
     protocol: 1, generation: state.generation, schemaHash: state.schemaHash, planHash: hex(5),
@@ -44,7 +45,7 @@ async function fixture(carrier: "file" | "IndexedDB" = "file", bearer = false) {
     if (url.pathname === "/api/auth/me") return json({ viewer: state.principal, kind: "user" });
     if (url.pathname === "/api/auth/login") {
       state.principal = "bob";
-      return json({ viewer: "bob", token: "bob-token" });
+      return await hooks.login?.() ?? json({ viewer: "bob", token: "bob-token" });
     }
     if (url.pathname === "/api/auth/logout") return json({ ok: true });
     if (url.pathname === "/api/manifest") return json({ generation: "schema", programGeneration: state.generation, ops: {}, channels: {}, auth: {} });
@@ -87,7 +88,9 @@ async function fixture(carrier: "file" | "IndexedDB" = "file", bearer = false) {
   await client.ready;
   await client.query(api.messages.first, {});
   return { get client() { return client; }, get store() { return store; }, state, hooks, resumes, queries, streams, envelope,
-    async reopen(startOffline = false) { client = create(startOffline); await client.ready; return client; },
+    async reopen(startOffline = false, beforeReady?: (reopened: typeof client) => void) {
+      client = create(startOffline); beforeReady?.(client); await client.ready; return client;
+    },
     resets: () => resetCount,
     async rebuilt(op = "messages.second", generation = state.generation) {
       await eventually(async () => (await store.coverage()).facts?.generation === generation && !(await store.coverage()).superseded && (await store.answer(op, {}))?.data?.generation === generation);
@@ -440,6 +443,90 @@ test("three fresh-query rotations record a durable refusal instead of reporting 
     await f.rebuilt();
   } finally { await f.close(); }
 });
+
+for (const carrier of ["file", "IndexedDB"] as const) {
+  test(`${carrier}: cold-start convergence exhaustion resolves ready and online retries on the same client`, async () => {
+    const f = await fixture(carrier);
+    let sub: any;
+    try {
+      await f.client.close();
+      f.state.generation = hex(2);
+      let reads = 0;
+      f.hooks.query = async () => { f.state.generation = hex(3 + reads++); };
+      const client = await f.reopen(false, client => {
+        sub = client.subscribe(api.messages.first, {}, () => undefined);
+      });
+      assert.equal(reads, 3, "the subscription mounted before ready participates in all three rebuild attempts");
+      assert.equal(client.snapshot.lastRefusal?.code, "E_OFFLINE_RESET");
+      assert.equal(client.snapshot.lastRefusal?.rewrite, "retry online() after the program stops rotating");
+      assert.equal((await f.store.coverage()).superseded.generation, hex(5));
+      assert.equal(await f.store.answer("messages.first", {}), undefined);
+      await client.offline();
+      assert.equal((await client.query(api.messages.first, {})).state, "hydrating");
+      f.hooks.query = undefined;
+      await client.online();
+      await f.rebuilt("messages.first", hex(5));
+      assert.equal(f.client, client, "recovery did not replace the client");
+      assert.equal((await client.query(api.messages.first, {})).state, "complete");
+      assert.equal(client.snapshot.lastRefusal, undefined);
+      await client.offline();
+      assert.equal((await client.query(api.messages.first, {})).state, "complete");
+    } finally { sub?.close(); await f.close(); }
+  });
+
+  test(`${carrier}: cancelled reset program adoption and settlement racing login with a grant cannot deadlock the ledger`, { timeout: 5000 }, async () => {
+    const f = await fixture(carrier, true);
+    const carrierGate = defer(), dismissStarted = defer(), adoptionQueued = defer(), openQueued = defer();
+    try {
+      const runtime = (f.client as any).offlineRuntime;
+      const id = "s2id-00000000000000000000000000000001-0000000000000001";
+      const grant = { id, from: id, count: 10, mintedAt: Date.now(), expiresAt: Date.now() + 100000, used: 0 };
+      await runtime.outbox.adopt(grant);
+      await runtime.outbox.recordBounds({ "messages.send": 0 });
+      const entry = await runtime.outbox.enqueue({ op: "messages.send", args: {}, issuedSeq: 7 });
+      await runtime.commitMany([], undefined, { put: [runtime.outbox.settle(entry, "rejected", { state: "rejected" })] });
+      const commit = f.store.commit.bind(f.store);
+      const cancelledWrites: any[] = [];
+      f.store.commit = async (swap: any) => {
+        if (swap.outbox?.remove?.includes(entry.intent)) { dismissStarted.resolve(); await carrierGate.promise; }
+        if (swap.programs) cancelledWrites.push(runtime.principal);
+        return commit(swap);
+      };
+      const program = runtime.program.bind(runtime);
+      runtime.program = (value: unknown, signal?: AbortSignal) => {
+        const run = program(value, signal);
+        if (signal) adoptionQueued.resolve();
+        return run;
+      };
+      const open = runtime.open.bind(runtime);
+      runtime.open = (principal: string) => {
+        const run = open(principal);
+        if (principal === "bob") openQueued.resolve();
+        return run;
+      };
+      f.hooks.login = async () => json({ viewer: "bob", token: "bob-token", grant: { ...grant, id: "bob-grant" } });
+      const dismiss = f.client.outbox.dismiss(entry.intent);
+      await dismissStarted.promise;
+      f.state.generation = hex(2);
+      await f.client.query(api.messages.second, {});
+      await adoptionQueued.promise;
+      const controller = (f.client as any).resumeController as AbortController;
+      const cancelled = assert.rejects((f.client as any).resumeFlight);
+      const settlement = runtime.commitMany([], undefined, { put: [runtime.outbox.settle(entry, "rejected")] },
+        runtime.coverageRevision, () => !controller.signal.aborted);
+      const login = f.client.auth.login({ email: "bob", password: "password" });
+      await openQueued.promise;
+      assert.equal(controller.signal.aborted, true);
+      carrierGate.resolve();
+      await Promise.all([dismiss, cancelled, settlement, login]);
+      assert.equal(runtime.principal, "bob");
+      assert.equal((await f.store.outbox.grant()).id, "bob-grant");
+      assert.deepEqual(await f.store.outbox.all(), []);
+      assert.deepEqual(cancelledWrites, ["bob"], "only the authenticated successor persists a program");
+      await f.client.close();
+    } finally { carrierGate.resolve(); await f.close(); }
+  });
+}
 
 for (const carrier of ["file", "IndexedDB"] as const) {
   test(`${carrier}: an obsolete settlement tail stays queued and cannot supersede G3; retry settles atomically with G3 rows`, async () => {

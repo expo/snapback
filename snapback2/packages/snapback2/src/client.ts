@@ -1016,7 +1016,10 @@ class Client implements SnapbackClient {
       confirm: async (current) => wireAuthMe(await this.json("/api/auth/me", {}, current)).viewer,
       metadata: (current) => this.ensureOfflineMetadata(current),
       resume: (current) => this.performResume(current),
-      ignore: (error) => isSnapbackRefusal(error) && (error.retryable || error.code === "E_OFFLINE_RESUME"),
+      // A bounded rebuild refusal leaves durable work for online(); it must
+      // not permanently reject the restore barrier that online() itself awaits.
+      ignore: (error) => isSnapbackRefusal(error)
+        && (error.retryable || error.code === "E_OFFLINE_RESUME" || error.code === "E_OFFLINE_RESET"),
     });
   }
 

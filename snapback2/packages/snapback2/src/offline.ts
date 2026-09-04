@@ -382,19 +382,24 @@ export class OfflineRuntime {
       if (bound !== undefined) bounds[name] = bound;
     }
     const held = decodeHeldProgram(value);
-    await this.outbox.write(() => this.serial(async () => {
+    // Always acquire the runtime queue before the ledger, as open() does when
+    // adopting a login grant. Cancellation is checked at each queue boundary.
+    await this.serial(() => {
       signal?.throwIfAborted();
-      // Custody must succeed before a reset can erase the predecessor coverage.
-      if (this.partition !== undefined) {
-        await this.store.commit({ bounds, ...(held ? { programs: { [held.generation]: held } } : {}) });
+      return this.outbox.write(async () => {
         signal?.throwIfAborted();
-      } else {
-        this.pendingBounds = bounds;
-        this.pendingProgram = held;
-      }
-      if (held) { this.held = held; this.schema = held.schema; }
-      this.outbox.notify();
-    }));
+        // Custody must succeed before a reset can erase the predecessor coverage.
+        if (this.partition !== undefined) {
+          await this.store.commit({ bounds, ...(held ? { programs: { [held.generation]: held } } : {}) });
+          signal?.throwIfAborted();
+        } else {
+          this.pendingBounds = bounds;
+          this.pendingProgram = held;
+        }
+        if (held) { this.held = held; this.schema = held.schema; }
+        this.outbox.notify();
+      });
+    });
   }
 
   async accept<Result>(op: string, args: unknown, raw: unknown): Promise<AcceptedDelivery<Result>> {
@@ -448,9 +453,9 @@ export class OfflineRuntime {
     current?: () => boolean,
   ): Promise<boolean> {
     if (items.length === 0 && !watermark && !outbox) return false;
-    // An outbox write shares the ledger's tail (one critical section for
-    // every enqueue, adoption, bound, settlement, and prediction drop).
-    const run = () => this.serial(async () => {
+    // An outbox write shares the ledger's tail, acquired inside the runtime
+    // queue just like program and grant adoption.
+    const run = async () => {
       if ((current && !current()) || (revision !== undefined && revision !== this.coverageRevision)) return false;
       if (this.partition === undefined) {
         throw new OfflineAuthorityError("an offline partition must be opened before committing a delivery");
@@ -552,8 +557,8 @@ export class OfflineRuntime {
       for (const item of [...deliveries, ...refreshes]) this.latestSeq = Math.max(this.latestSeq, item.seq);
       if (outbox) this.outbox.notify();
       return sawSupersession;
-    });
-    return outbox ? this.outbox.write(run) : run();
+    };
+    return this.serial(() => outbox ? this.outbox.write(run) : run());
   }
 
   async answer<Result>(op: string, args: unknown): Promise<HeldAnswer<Result> | undefined> {
