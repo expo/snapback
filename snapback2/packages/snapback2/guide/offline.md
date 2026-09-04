@@ -1,22 +1,22 @@
 # Offline
 
-Offline storage is explicit: pass a durable carrier through the client's
-`offline.store` option (React web exports the IndexedDB carrier; journeys and
-Node tests export the file carrier from `snapback2/test`). `E_OFFLINE_CARRIER`
-means that carrier could not open; Snapback never substitutes memory. The store
-is partitioned by principal: a terminal session expiry seals it until that
-principal authenticates again; sign-out or another principal wipes it; one
-writer per principal (`E_OFFLINE_LOCK`). `offline.fenceDays` (1..30) bounds
-trust, not reading: past it the client stops predicting and replaying until a
-resume succeeds and labels views `stale`; held answers stay readable.
-`useQuery(op, args, { drain: true })` follows `next` to `null`, keeps the
-watermark, and watches the tail; `useOutbox()` lists queued intents.
-Asset bytes a component fetched (`<AssetImage>`, `<AssetVideo>`, `useAssetUrl`,
-`assetBlob`) are cached per partition under the owning row's lease, keyed
-`(assetId, width)`, and leave in the swap that evicts the row; `offline.maxAssetBytes`
-(default 256 MiB) is the LRU ceiling. `offline.viewOnce(table, row)` names rows that
-render once: a viewed row answers `null` offline, its bytes are never cached, and a
-second fetch refuses `E_ASSET_VIEWED`.
+`offline.store` names a durable carrier (IndexedDB on web, `fileRangeStore` in
+tests); `E_OFFLINE_CARRIER`: it could not open; memory is never substituted.
+The store is per principal: session expiry seals it until that principal
+returns; sign-out or another principal wipes it; one writer (`E_OFFLINE_LOCK`).
+`offline.fenceDays` (1..30) bounds trust, not reading: past it the client stops
+predicting and replaying until a resume succeeds and labels views `stale`.
+`useQuery(op, args, { drain: true })` follows `next` to `null` by the argument
+the manifest types `cursor` (`c` until it loads), keeps the watermark, watches
+the tail; `useOutbox()` lists queued intents. Fetched asset bytes (the asset
+components, `useAssetUrl`, `assetBlob`) are cached under the owning row's
+lease, keyed `(assetId, width)`, and leave with the row; `offline.maxAssetBytes`
+(256 MiB) is the ceiling, LRU by each entry's own last read (not the row's),
+persisted with the next swap. `offline.viewOnce(table, row)` names rows that
+render once (per row, not per asset): an image is viewed when fetched, a clip
+when played (`assetCache.markViewed`, never prefetched); a viewed row reads
+`null` held or live, its bytes are never cached, `useAssetUrl` mints no URL,
+`assetBlob` refuses `E_ASSET_VIEWED`.
 
 A client holds certified answers, never a replica. Ask for the envelope with
 `receipt: true` on `POST /api/query` or `receipt=1` on `/api/subscribe`:

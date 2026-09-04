@@ -10,6 +10,7 @@ import React, {
   type ReactNode,
 } from "react";
 import { createClient, isSnapbackRefusal, type SnapbackRefusal } from "./client.js";
+import { viewedAssetIds } from "./client-assets.js";
 export { indexedDbRangeStore } from "./store/indexeddb.js";
 import { referenceName, type Channel as ChannelRef, type Op } from "./api.js";
 import {
@@ -343,7 +344,9 @@ export function useAssetUrl(
   assetOrList: AssetRecord | readonly AssetRecord[] | null | undefined,
   options: AssetUrlOptions = {},
 ): AssetUrlValue {
-  const client = useSnapbackClient();
+  const { client, snapshot } = provider();
+  // A blob: URL belongs to one client identity on one partition: a new client or an
+  // auth transition (login, logout, expiry) re-runs the effect, which revokes and re-mints.
   const key = stableSerialize({
     assets: Array.isArray(assetOrList)
       ? assetOrList.map((asset) => asset.id)
@@ -351,6 +354,7 @@ export function useAssetUrl(
     width: options.width,
     carrier: options.carrier === true,
     download: options.download === true,
+    authGeneration: snapshot.authGeneration,
   });
   const stableAsset = useMemo(() => assetOrList, [key]);
   const identity = useMemo(() => ({ client, key }), [client, key]);
@@ -363,18 +367,21 @@ export function useAssetUrl(
       ? stableAsset
       : stableAsset == null ? [] : [stableAsset as AssetRecord];
     // @ref LLP 1012#9-asset-bytes-on-the-device — a rendition the byte cache holds
-    // answers as a blob: URL before any network URL or carrier is minted.
+    // answers as a blob: URL before any network URL or carrier is minted, and a viewed
+    // view-once row gets no URL at all: the guard is the one `assetBlob` applies.
     void (async () => {
       await client.ready;
-      const held = await Promise.all(list.map((asset) => client.assetCache?.get(asset.id, options.width ?? null)));
-      const network = held.some((blob) => blob === undefined)
-        ? Array.isArray(stableAsset)
-          ? await client.assetUrl(stableAsset, options)
-          : [await client.assetUrl(stableAsset as AssetRecord, options)]
-        : [];
-      const urls = list.map((_asset, index) => {
+      const cache = client.assetCache;
+      const objectUrls = typeof URL.createObjectURL === "function";
+      const held = await Promise.all(list.map((asset) => objectUrls ? cache?.get(asset.id, options.width ?? null) : undefined));
+      const missing = list.filter((_asset, index) => held[index] === undefined);
+      const viewed = await viewedAssetIds(cache, missing.map((asset) => asset.id));
+      const mintable = missing.filter((asset) => !viewed.has(asset.id));
+      const minted = mintable.length === 0 ? [] : await client.assetUrl(mintable, options);
+      const mintedById = new Map(mintable.map((asset, index) => [asset.id, minted[index]]));
+      const urls = list.map((asset, index) => {
         const blob = held[index];
-        if (!blob || typeof URL.createObjectURL !== "function") return network[index];
+        if (!blob) return mintedById.get(asset.id);
         const url = URL.createObjectURL(blob);
         created.push(url);
         return url;
@@ -424,7 +431,12 @@ export function AssetImage({ asset, width, height, style, ...props }: AssetImage
   const deliveryUrl = useAssetUrl(measured ? asset : null, { width: requestedWidth });
   const [blobUrl, setBlobUrl] = useState<string>();
   useEffect(() => {
-    if (!deliveryUrl || typeof URL.createObjectURL !== "function") return;
+    // No delivery URL (a viewed view-once row, or an identity change in flight) shows nothing:
+    // never a src that useAssetUrl already revoked.
+    if (!deliveryUrl || typeof URL.createObjectURL !== "function") {
+      setBlobUrl(undefined);
+      return;
+    }
     // A blob: URL is a held rendition from the byte cache; useAssetUrl owns its lifetime.
     if (deliveryUrl.startsWith("blob:")) {
       setBlobUrl(deliveryUrl);
@@ -463,12 +475,30 @@ export type AssetVideoProps = Omit<React.VideoHTMLAttributes<HTMLVideoElement>, 
 
 // @ref LLP 1006#10-clients — video streams directly with a carrier because a
 // native player/video element cannot send the session header or wait for a blob.
-export function AssetVideo({ asset, width, height, style, controls, ...props }: AssetVideoProps): React.ReactElement {
+export function AssetVideo({ asset, width, height, style, controls, onPlay, ...props }: AssetVideoProps): React.ReactElement {
   const { client, snapshot } = provider();
   const url = useAssetUrl(asset, { carrier: true });
-  const cacheable = client.assetCache !== undefined && url !== undefined && !url.startsWith("blob:");
-  // @ref LLP 1012#9-asset-bytes-on-the-device — the player streams from the carrier
-  // now; one tokenless fetch fills the byte cache so the next mount plays offline.
+  const cache = client.assetCache;
+  // @ref LLP 1012#9-asset-bytes-on-the-device — a view-once clip is never prefetched
+  // and counts as viewed when playback starts, never on mount; `once` is unknown
+  // until the store answers, and unknown fails closed (no prefetch, play marks).
+  const [once, setOnce] = useState<boolean>();
+  useEffect(() => {
+    if (!cache) {
+      setOnce(false);
+      return;
+    }
+    let active = true;
+    setOnce(undefined);
+    void client.ready
+      .then(() => cache.viewOnce(asset.id))
+      .then((value) => { if (active) setOnce(value); })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, [client, cache, asset.id]);
+  const cacheable = cache !== undefined && once === false && url !== undefined && !url.startsWith("blob:");
+  // The player streams from the carrier now; one tokenless fetch fills the byte
+  // cache so the next mount plays offline.
   useEffect(() => {
     if (!cacheable || snapshot.connection === "offline") return;
     const controller = new AbortController();
@@ -477,8 +507,13 @@ export function AssetVideo({ asset, width, height, style, controls, ...props }: 
       .catch(() => undefined);
     return () => controller.abort();
   }, [client, asset.id, cacheable]);
+  const handlePlay = useCallback((event: React.SyntheticEvent<HTMLVideoElement>) => {
+    onPlay?.(event);
+    if (cache && once !== false) void cache.markViewed(asset.id).catch(() => undefined);
+  }, [onPlay, cache, once, asset.id]);
   return <video
     {...props}
+    onPlay={handlePlay}
     controls={controls ?? true}
     src={url}
     width={width ?? asset.width}

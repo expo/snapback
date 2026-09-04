@@ -481,6 +481,7 @@ class Client implements SnapbackClient {
       args,
       callback,
       runtime: this.offlineRuntime,
+      ready: this.ready,
       mounted: this.mounted,
       query: (pageArgs: Args) => this.query(ref, pageArgs),
       subscribe: (tailArgs, onEvent) => this.subscribeRegular(ref, tailArgs, onEvent),

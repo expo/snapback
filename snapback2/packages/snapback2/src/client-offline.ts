@@ -169,6 +169,8 @@ export function createOfflineDrain<Args, Result>(options: {
   args: Args;
   callback: (delivery: SubscriptionDelivery<Result>) => void;
   runtime: OfflineRuntime | undefined;
+  /** Settles once the manifest was loaded or could not be: the cursor argument's name is known after it. */
+  ready?: Promise<void>;
   mounted: Map<string, MountedQuery>;
   query(pageArgs: Args): Promise<QueryResult<Result>>;
   subscribe(tailArgs: Args, callback: (delivery: SubscriptionDelivery<Result>) => void): Subscription<SubscriptionDelivery<Result>>;
@@ -181,9 +183,14 @@ export function createOfflineDrain<Args, Result>(options: {
     args: options.args,
     query: options.query,
     subscribe: options.subscribe,
+    // The cursor argument is named by the manifest's op descriptor (`c` until it is loaded).
+    cursor: async () => {
+      await options.ready?.catch(() => undefined);
+      return options.runtime?.cursorArg(options.op) ?? "c";
+    },
     mark: async (watermark) => {
       if (!options.runtime) return;
-      const tailArgs = { ...(options.args as Record<string, unknown>), c: watermark };
+      const tailArgs = { ...(options.args as Record<string, unknown>), [options.runtime.cursorArg(options.op)]: watermark };
       const held = await options.runtime.answer(options.op, tailArgs);
       await options.runtime.markWatermark(options.op, options.args, watermark, held?.validator);
       await options.observe?.();
@@ -348,10 +355,11 @@ export async function performOfflineResume<Authority>(options: {
     if (returned !== null && typeof returned !== "string") throw options.shape("resume response.log.watermark must be a string or null");
     // The server answers the log as the page after `watermark` (writer_resume log_args), so
     // it is held under that cursor's args; filing it under the base args would replace the
-    // drained first page with the tail — an empty one after a restart (LLP 1012 §8).
+    // drained first page with the tail — an empty one after a restart (LLP 1012 §8). The
+    // cursor argument is the one the manifest types `Cursor`, whatever its name.
     const tailArgs = request.log.watermark === null
       ? request.log.args
-      : { ...(request.log.args as Record<string, unknown>), c: request.log.watermark };
+      : { ...(request.log.args as Record<string, unknown>), [options.runtime.cursorArg(request.log.op)]: request.log.watermark };
     const accepted = await acceptOffline(options.runtime, request.log.op, tailArgs, delivery, options.shape);
     swaps.push({ op: request.log.op, args: tailArgs, accepted });
     watermark = {

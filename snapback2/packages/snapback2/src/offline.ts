@@ -11,6 +11,7 @@ import {
   type OfflineSchema,
   type RangeStore,
   type RetentionPolicy,
+  type RowRef,
   type StoreDelivery,
   type StoreRefresh,
   type StoreTombstone,
@@ -70,6 +71,43 @@ function object(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
+/** The argument the manifest types `Cursor` (or `Optional(Cursor)`), by name order as the server picks it. */
+function cursorArgument(args: unknown): string | undefined {
+  if (!object(args)) return undefined;
+  for (const name of Object.keys(args).sort()) {
+    const kind = args[name];
+    if (kind === "Cursor" || (object(kind) && kind.Optional === "Cursor")) return name;
+  }
+  return undefined;
+}
+
+function rowKey(ref: RowRef): string {
+  return `${ref.table}\u0000${ref.id}`;
+}
+
+/**
+ * Walks the envelope's reference form beside its expansion and nulls every `$row`
+ * that names a viewed view-once row, so a live frame or a fresh query never
+ * re-renders what `answer()` already hides (LLP 1012 §9).
+ */
+function nullViewed(reference: unknown, expanded: unknown, viewed: Set<string>): unknown {
+  if (!object(reference)) {
+    return Array.isArray(reference) && Array.isArray(expanded)
+      ? expanded.map((item, index) => nullViewed(reference[index], item, viewed))
+      : expanded;
+  }
+  const marker = reference.$row;
+  if (object(marker) && Object.keys(reference).length === 1) {
+    if (typeof marker.table === "string" && typeof marker.id === "string" && Object.keys(marker).length === 2) {
+      return viewed.has(rowKey({ table: marker.table, id: marker.id })) ? null : expanded;
+    }
+    if (object(marker.$value) && object(expanded)) return nullViewed(marker.$value, expanded, viewed);
+  }
+  if (!object(expanded)) return expanded;
+  return Object.fromEntries(Object.entries(expanded)
+    .map(([key, item]) => [key, nullViewed(reference[key], item, viewed)]));
+}
+
 function resumeWhichMatches(which: string | undefined, op: string, args: unknown): boolean {
   if (!which) return false;
   return which === op || which === canonicalAnswerKey(op, args);
@@ -83,6 +121,7 @@ export class OfflineRuntime {
   readonly bytes: ByteCache;
   private partition?: string;
   private retention: Record<string, RetentionPolicy> = {};
+  private cursors: Record<string, string> = {};
   private schema?: OfflineSchema;
   private facts?: ResumeFacts;
   private tail: Promise<void> = Promise.resolve();
@@ -101,6 +140,7 @@ export class OfflineRuntime {
       if (this.partition !== undefined && this.partition !== principal) await this.store.wipe(this.partition);
       await this.store.open(principal);
       this.partition = principal;
+      this.bytes.bind(principal);
       await this.loadFacts();
     });
   }
@@ -118,7 +158,10 @@ export class OfflineRuntime {
 
   async seal(): Promise<void> {
     if (this.partition === undefined) return;
-    await this.serial(() => this.store.seal());
+    await this.serial(async () => {
+      this.bytes.forget();
+      await this.store.seal();
+    });
   }
 
   async wipe(): Promise<void> {
@@ -127,12 +170,14 @@ export class OfflineRuntime {
       const partition = this.partition;
       this.partition = undefined;
       this.facts = undefined;
+      this.bytes.bind(undefined);
       await this.store.wipe(partition);
     });
   }
 
   async close(): Promise<void> {
     await this.tail;
+    this.bytes.forget();
     await this.store.close?.();
   }
 
@@ -145,7 +190,22 @@ export class OfflineRuntime {
       if (word === "until-revoked" || word === "delivered-history") retention[name] = word;
     }
     this.retention = retention;
+    const cursors: Record<string, string> = {};
+    for (const [name, operation] of Object.entries(value.ops ?? {})) {
+      const cursor = cursorArgument((operation as { args?: unknown } | undefined)?.args);
+      if (cursor !== undefined) cursors[name] = cursor;
+    }
+    this.cursors = cursors;
     if (value.schema?.tables) this.schema = value.schema as OfflineSchema;
+  }
+
+  /**
+   * The op's cursor argument as the manifest names it (the server keys the resume tail
+   * by that argument's type, never its name); `c`, the recipe's spelling, until the
+   * manifest is loaded.
+   */
+  cursorArg(op: string): string {
+    return this.cursors[op] ?? "c";
   }
 
   program(value: unknown): void {
@@ -184,7 +244,7 @@ export class OfflineRuntime {
     const envelope = decodeDeliveryEnvelope(raw);
     const result: AcceptedDelivery<Result>["result"] = {
       state: envelope.state,
-      ...(envelope.state === "denied" ? {} : { data: expandRows(envelope) as Result }),
+      ...(envelope.state === "denied" ? {} : { data: await this.expandUnviewed(envelope) as Result }),
       ...(envelope.state === "complete" || envelope.state === "capped" ? { next: envelope.next } : {}),
       seq: envelope.seq,
       ...(envelope.reason === undefined ? {} : { reason: envelope.reason }),
@@ -274,6 +334,15 @@ export class OfflineRuntime {
   async answer<Result>(op: string, args: unknown): Promise<HeldAnswer<Result> | undefined> {
     if (this.partition === undefined) return undefined;
     return this.store.answer<Result>(op, args);
+  }
+
+  /** The envelope's data with every viewed view-once row read as `null`, on the wire as in the store. */
+  private async expandUnviewed(envelope: DeliveryEnvelopeV1): Promise<unknown> {
+    const expanded = expandRows(envelope);
+    const store = this.store as Partial<{ viewedRows(): Promise<RowRef[]> }>;
+    if (this.partition === undefined || typeof store.viewedRows !== "function") return expanded;
+    const viewed = new Set((await store.viewedRows()).map(rowKey));
+    return viewed.size === 0 ? expanded : nullViewed(envelope.data, expanded, viewed);
   }
 
   async markWatermark(op: string, args: unknown, watermark: string | null, validator?: string): Promise<void> {

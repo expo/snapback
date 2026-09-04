@@ -2,7 +2,7 @@
 // network and filled after it; a viewed view-once row is refused before any byte moves.
 import { AssetInputError } from "./assets.js";
 import { SnapbackRefusal } from "./client-wire.js";
-import { ASSET_ID, type ByteCache } from "./store/byte-cache.js";
+import { ASSET_ID, type AssetCache, type ByteCache } from "./store/byte-cache.js";
 import type { RefusalEnvelope } from "./types.js";
 
 export interface AssetBlobTarget { url: string; assetId: string; width: number | null }
@@ -41,9 +41,24 @@ export function viewedRefusal(assetId: string): SnapbackRefusal {
 }
 
 /**
+ * The one viewed guard every byte path consults after the cache missed and before
+ * a URL is minted or a byte moves: the ids whose view-once row was already viewed
+ * on this partition. `assetBlob` refuses them; `useAssetUrl` mints no URL for them.
+ */
+export async function viewedAssetIds(cache: AssetCache | undefined, ids: readonly string[]): Promise<Set<string>> {
+  const viewed = new Set<string>();
+  if (!cache) return viewed;
+  await Promise.all(ids.map(async (id) => {
+    if (ASSET_ID.test(id) && await cache.viewed(id)) viewed.add(id);
+  }));
+  return viewed;
+}
+
+/**
  * Cache-first bytes for one asset rendition. Without a byte cache this is the
- * network fetch; with one, a viewed view-once row is refused, a held rendition is
- * answered without the network, and a fetched rendition is kept under its row's lease.
+ * network fetch; with one, a held rendition (or what this instance showed for a
+ * view-once row) is answered without the network, a viewed view-once row is refused
+ * before any byte moves, and a fetched rendition is kept under its row's lease.
  */
 export async function cachedAssetBlob(
   cache: ByteCache | undefined,
@@ -52,13 +67,13 @@ export async function cachedAssetBlob(
   record: (refusal: RefusalEnvelope) => void,
 ): Promise<Blob> {
   if (!cache || target.assetId === "") return network();
-  if (await cache.viewed(target.assetId)) {
+  const held = await cache.get(target.assetId, target.width);
+  if (held) return held;
+  if ((await viewedAssetIds(cache, [target.assetId])).size > 0) {
     const refusal = viewedRefusal(target.assetId);
     record(refusal.envelope);
     throw refusal;
   }
-  const held = await cache.get(target.assetId, target.width);
-  if (held) return held;
   const blob = await network();
   await cache.put(target.assetId, target.width, blob);
   return blob;

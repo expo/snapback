@@ -13,6 +13,8 @@ export interface DrainOptions<Args, Result> {
   subscribe(args: Args, callback: (event: SubscriptionDelivery<Result>) => void): Subscription<SubscriptionDelivery<Result>>;
   mark(watermark: Cursor | null): Promise<void>;
   onEvent(event: SubscriptionDelivery<Result>): void;
+  /** The cursor argument's name, resolved when a page is built (the manifest may still be loading); `c` by default. */
+  cursor?(): Promise<string> | string;
 }
 
 /** Follows a cursor to exhaustion, records its watermark, then watches the tail. */
@@ -21,6 +23,7 @@ export class DrainSubscription<Args, Result> implements Subscription<Subscriptio
   private tail?: Subscription<SubscriptionDelivery<Result>>;
   private last?: SubscriptionDelivery<Result>;
   private watermark: Cursor | null = null;
+  private cursorName = "c";
   private closed = false;
 
   constructor(private readonly options: DrainOptions<Args, Result>) {
@@ -68,7 +71,9 @@ export class DrainSubscription<Args, Result> implements Subscription<Subscriptio
   private async drain(start: Cursor | null): Promise<void> {
     let cursor = start;
     while (!this.closed) {
-      const args = { ...(this.options.args as Record<string, unknown>), c: cursor } as Args;
+      this.cursorName = (await this.options.cursor?.()) ?? "c";
+      if (this.closed) return;
+      const args = { ...(this.options.args as Record<string, unknown>), [this.cursorName]: cursor } as Args;
       const page = await this.options.query(args);
       if (page.state === "hydrating") {
         this.deliver(page);
@@ -93,7 +98,7 @@ export class DrainSubscription<Args, Result> implements Subscription<Subscriptio
 
   private watchTail(): void {
     if (this.closed) return;
-    const args = { ...(this.options.args as Record<string, unknown>), c: this.watermark } as Args;
+    const args = { ...(this.options.args as Record<string, unknown>), [this.cursorName]: this.watermark } as Args;
     this.tail = this.options.subscribe(args, (event) => {
       if (this.closed) return;
       if ((event.state === "complete" || event.state === "capped") && event.next !== null) {
