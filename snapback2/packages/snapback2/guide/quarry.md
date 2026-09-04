@@ -267,9 +267,8 @@ mutation send(conversationId: conversations, recipientId: profiles, body: text <
   return { id: row.id }
 ```
 
-`then: recordNotified` resolves to `notifications.recordNotified`; `emit`
-enters the outbox. Queries refuse with `E_EMIT_IN_QUERY`; sites map to
-`.q`.
+Edit/unsend target current members. Departed recipients evict unsent bodies by
+point absence on held-page revalidation, not tombstones (LLP 1012 §5).
 
 ## Absence and bounds
 

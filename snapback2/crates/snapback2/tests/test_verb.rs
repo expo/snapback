@@ -326,7 +326,7 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
 }
 
 #[test]
-fn chat_delivery_log_caps_members_and_reaches_original_recipients() {
+fn chat_delivery_log_caps_members_and_evicts_unsent_departed_body() {
     let project = Project::new();
     let initialized = project.init("chat", "none");
     assert!(
@@ -370,7 +370,12 @@ fn chat_delivery_log_caps_members_and_reaches_original_recipients() {
         serde_json::json!({ "conversationId": capacity_id, "body": "all fifty" }),
     );
     assert_eq!(capacity_post["state"], "committed", "{capacity_post}");
-    let capacity_message = capacity_post["data"]["id"].as_str().unwrap();
+    let capacity_seq = capacity_post["seq"].as_u64().unwrap().to_string();
+    let capacity_trace = json_stdout(&project.run(&["trace", &capacity_seq, "--json"]));
+    assert_eq!(
+        capacity_trace["commit"]["writes"]["deliveries"], 50,
+        "{capacity_trace}"
+    );
 
     let recipient_group = run(
         "alice",
@@ -423,28 +428,61 @@ fn chat_delivery_log_caps_members_and_reaches_original_recipients() {
     );
     assert_eq!(unsent["state"], "committed", "{unsent}");
 
-    let all_deliveries = json_stdout(&project.run(&[
+    let outsider_deliveries = json_stdout(&project.run(&[
         "data",
         "deliveries",
         "--as",
-        "alice",
+        "mallory",
         "--limit",
         "500",
         "--json",
     ]));
-    let rows = all_deliveries["data"].as_array().unwrap();
+    assert!(
+        outsider_deliveries["data"].as_array().unwrap().is_empty(),
+        "{outsider_deliveries}"
+    );
+
+    let visible_deliveries = ["alice", "bob", "recipient-charlie"]
+        .into_iter()
+        .flat_map(|persona| {
+            json_stdout(&project.run(&[
+                "data",
+                "deliveries",
+                "--as",
+                persona,
+                "--limit",
+                "500",
+                "--json",
+            ]))["data"]
+                .as_array()
+                .unwrap()
+                .clone()
+        })
+        .collect::<Vec<_>>();
     let count = |message: &str, kind: &str| {
-        rows.iter()
+        visible_deliveries
+            .iter()
             .filter(|row| row["messageId"] == message && row["kind"] == kind)
             .count()
     };
-    assert_eq!(count(capacity_message, "message"), 50, "{all_deliveries}");
-    assert_eq!(count(edited_message, "message"), 3, "{all_deliveries}");
-    assert_eq!(count(edited_message, "edit"), 3, "{all_deliveries}");
-    assert_eq!(count(unsent_message, "message"), 3, "{all_deliveries}");
-    assert_eq!(count(unsent_message, "removed"), 3, "{all_deliveries}");
+    assert_eq!(
+        count(edited_message, "message"),
+        3,
+        "{visible_deliveries:?}"
+    );
+    assert_eq!(count(edited_message, "edit"), 2, "{visible_deliveries:?}");
+    assert_eq!(
+        count(unsent_message, "message"),
+        3,
+        "{visible_deliveries:?}"
+    );
+    assert_eq!(
+        count(unsent_message, "removed"),
+        2,
+        "{visible_deliveries:?}"
+    );
 
-    for persona in ["alice", "bob", "recipient-charlie"] {
+    for persona in ["alice", "recipient-charlie"] {
         let inbox = run(
             persona,
             "deliveries.inbox",
@@ -464,6 +502,45 @@ fn chat_delivery_log_caps_members_and_reaches_original_recipients() {
             "{persona} did not receive the removal after bob left: {inbox}"
         );
     }
+
+    let bob_inbox = run("bob", "deliveries.inbox", serde_json::json!({ "c": null }));
+    let bob_rows = bob_inbox["data"].as_array().unwrap();
+    assert!(
+        bob_rows
+            .iter()
+            .any(|row| row["messageId"] == unsent_message && row["kind"] == "message"),
+        "bob lost the page that must revalidate the deleted body: {bob_inbox}"
+    );
+    assert!(
+        bob_rows.iter().all(|row| {
+            row["messageId"] != edited_message && row["messageId"] != unsent_message
+                || row["kind"] == "message"
+        }),
+        "departed bob received a post-departure delivery: {bob_inbox}"
+    );
+
+    let why = json_stdout(&project.run(&[
+        "why",
+        "deliveries.inbox",
+        r#"{"c":null}"#,
+        "--as",
+        "bob",
+        "--json",
+    ]));
+    let absences = why["authoritativeTrace"]["absences"].as_array().unwrap();
+    let absent_message = |message: &str| {
+        absences.iter().any(|absence| {
+            absence[0] == "messages" && absence[1] == "byId" && absence[2][0]["Id"] == message
+        })
+    };
+    assert!(
+        absent_message(unsent_message),
+        "bob's next page revalidation did not prove the unsent body absent: {why}"
+    );
+    assert!(
+        !absent_message(edited_message),
+        "a hidden edited body was incorrectly reported absent: {why}"
+    );
 }
 
 #[test]

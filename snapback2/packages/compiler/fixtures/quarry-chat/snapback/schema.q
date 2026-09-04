@@ -70,6 +70,7 @@ table messages:
   update <- .authorId = viewer
   delete <- .authorId = viewer
 
+-- @ref LLP 1012#3-the-model-on-one-page-and-the-program-shape — delivery metadata stays visible only to its recipient.
 table deliveries:
   recipient: principal
   conversationId: conversations
@@ -78,9 +79,8 @@ table deliveries:
   at: time
   by byRecipientAt: recipient, at, id
   by byRecipientConversationAt: recipient, conversationId, at, id
-  by byMessageKindRecipient: messageId, kind, recipient, id
   immutable recipient, conversationId, messageId, kind, at
-  public 'delivery routing metadata is public; message bodies stay protected'
+  read <- .recipient = viewer
   insert <- exists memberships[.conversationId, viewer]
   update <- deny
   delete <- deny

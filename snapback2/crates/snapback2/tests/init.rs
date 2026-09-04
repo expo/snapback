@@ -64,6 +64,15 @@ fn assert_rendering(template: &str, chat: bool) {
             compiled["schema"]["tables"]["deliveries"]["retain"],
             "until-revoked"
         );
+        assert_eq!(
+            compiled["schema"]["tables"]["deliveries"]["rules"]["read"],
+            serde_json::json!({ "Eq": [{ "Field": "recipient" }, "Viewer"] })
+        );
+        assert!(
+            compiled["schema"]["tables"]["deliveries"]["indexes"]
+                .get("byMessageKindRecipient")
+                .is_none()
+        );
         assert!(compiled["schema"]["tables"]["memberCounts"].is_object());
         let operations = compiled["programs"]
             .as_array()
