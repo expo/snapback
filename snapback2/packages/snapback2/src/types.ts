@@ -21,6 +21,18 @@ export interface RefusalEnvelope {
   guide: string;
 }
 
+/** Opt-in body fields for a query request that asks for local-first custody. */
+export interface QueryReceiptRequest {
+  readonly receipt: true;
+  readonly validator?: string;
+}
+
+/** Opt-in query fields for a subscription request that asks for local-first custody. */
+export interface SubscribeReceiptRequest {
+  readonly receipt: true;
+  readonly validator?: string;
+}
+
 export type QueryComplete<Result> = { state: "complete"; data: Result; seq: number; next: Cursor | null };
 export type QueryCapped<Result> = {
   state: "capped";

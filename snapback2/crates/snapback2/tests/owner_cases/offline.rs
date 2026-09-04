@@ -110,6 +110,10 @@ fn offline_query_program_and_subscribe_wire_contract() {
         manifest.body["programGeneration"]
     );
     assert_eq!(program.body["schemaHash"], manifest.body["generation"]);
+    assert!(program.body["schema"]["tables"].is_object());
+    let served_schema: snapback2_core::Schema =
+        serde_json::from_value(program.body["schema"].clone()).unwrap();
+    assert_eq!(served_schema.hash(), program.body["schemaHash"]);
     for (name, item) in program.body["programs"].as_object().unwrap() {
         assert_eq!(item["planHash"], manifest.body["ops"][name]["planHash"]);
         assert!(item.get("ir").is_some() && item.get("certificate").is_some());
@@ -129,6 +133,34 @@ fn offline_query_program_and_subscribe_wire_contract() {
                 .is_some_and(|value| !value.is_empty())
         );
     }
+    let no_generation = request(port, "GET", "/api/program", &[], json!({}));
+    assert_eq!(no_generation.status, 400);
+    assert!(
+        no_generation.body["message"]
+            .as_str()
+            .is_some_and(|message| message.contains("requires the generation query parameter"))
+    );
+
+    let mutation_subscribe = "/api/subscribe?op=messages.send&args=%7B%7D";
+    let mutation_without_receipt = request(
+        port,
+        "GET",
+        mutation_subscribe,
+        &[("X-Snapback-As", "alice")],
+        json!({}),
+    );
+    let mutation_with_receipt = request(
+        port,
+        "GET",
+        &format!("{mutation_subscribe}&receipt=1"),
+        &[("X-Snapback-As", "alice")],
+        json!({}),
+    );
+    assert_eq!(
+        mutation_with_receipt.status,
+        mutation_without_receipt.status
+    );
+    assert_eq!(mutation_with_receipt.body, mutation_without_receipt.body);
 
     let subscribe_path = "/api/subscribe?op=messages.thread&args=%7B%22conversationId%22%3A%22conversation-1%22%2C%22c%22%3Anull%7D";
     let mut ordinary_sub = Sse::open(port, subscribe_path, "alice");

@@ -633,23 +633,13 @@ fn visibility_probe_ceiling_covers_public_deny_system_subject_and_nested_rules()
                 "the self-cycle terminates after the visibility-mode lookup"
             );
         }
-        if name == "public-absence" {
-            assert!(
-                execution
-                    .receipt
-                    .absences
-                    .iter()
-                    .any(|(table, _, _)| table == "relationships")
-            );
-        }
-        if name == "subject-absence" {
-            assert!(
-                execution
-                    .receipt
-                    .verdicts
-                    .iter()
-                    .any(|verdict| !verdict.result)
-            );
+        if matches!(name, "public-absence" | "subject-absence") {
+            // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — a hidden point hit cannot retain even otherwise-public rule artifacts.
+            assert_eq!(execution.result, Value::Null);
+            assert!(execution.receipt.rows.is_empty());
+            assert!(execution.receipt.ranges.is_empty());
+            assert!(execution.receipt.absences.is_empty());
+            assert!(execution.receipt.verdicts.is_empty());
         }
     }
 }

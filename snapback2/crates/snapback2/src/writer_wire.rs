@@ -76,6 +76,7 @@ mod tests {
     fn execution(state: ExecutionState) -> Execution {
         Execution {
             result: Value::String("result".to_owned()),
+            result_provenance: Default::default(),
             trace: AuthoritativeTrace::default(),
             receipt: ClosureReceipt::default(),
             state,

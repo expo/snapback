@@ -2,6 +2,8 @@ type Descriptor = Readonly<Record<string, unknown>>;
 export {
   DeliveryEnvelopeDecodeError,
   decodeDeliveryEnvelope,
+  decodeDeliveryMessage,
+  deliveryRangeExtent,
   encodeDeliveryEnvelope,
   expandRows,
   toClosureReceipt,
@@ -9,10 +11,14 @@ export {
 export type {
   DeliveryAuthority,
   DeliveryEnvelopeV1,
+  DeliveryMessage,
   DeliveryRange,
+  DeliveryRangeExtent,
   DeliveryReceipt,
   DeliveryRow,
   DeliveryVerdict,
+  DeliveryUnchanged,
+  WireEscapedObject,
   EvaluatorClosureReceipt,
   WireRowReference,
   WireValue,

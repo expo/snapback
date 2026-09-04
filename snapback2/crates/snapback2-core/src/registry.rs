@@ -445,7 +445,6 @@ pub struct Runtime {
     #[cfg(test)]
     fail_after_then_commit: bool,
 }
-
 impl Runtime {
     pub fn open(mut store: Store, generation: Generation) -> Result<Self, SuccessorRefusal> {
         crate::engine::validate_schema(&generation.schema)
@@ -743,6 +742,7 @@ impl Runtime {
     fn then_rejection(&self, code: &str) -> Result<Execution, RuntimeError> {
         Ok(Execution {
             result: Value::Null,
+            result_provenance: Default::default(),
             trace: AuthoritativeTrace::default(),
             receipt: ClosureReceipt::default(),
             state: ExecutionState::Rejected {
@@ -753,7 +753,6 @@ impl Runtime {
             next: None,
         })
     }
-
     pub fn execute_adhoc(
         &mut self,
         program: &Program,
@@ -777,6 +776,7 @@ impl Runtime {
                 if let Some(code) = rejection_code(&error) {
                     Ok(Execution {
                         result: Value::Null,
+                        result_provenance: Default::default(),
                         trace: AuthoritativeTrace::default(),
                         receipt: ClosureReceipt::default(),
                         state: ExecutionState::Rejected {
@@ -1128,7 +1128,6 @@ fn collect_emits<'a>(statements: &'a [Stmt], effects: &mut Vec<&'a str>) {
         }
     }
 }
-
 #[cfg(test)]
 mod then_tests {
     use super::*;

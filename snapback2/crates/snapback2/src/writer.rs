@@ -43,7 +43,6 @@ use writer_ledger::{CommitLedger, LedgerDelivery};
 pub(crate) use writer_offline::OfflineOptions;
 pub use writer_sse::{SseReceiver, SseSender, queue as sse_queue};
 use writer_values::{channel_args, frame_digest, json_as_kind, operation_args};
-
 #[derive(Clone)]
 pub enum Identity {
     Bearer(String),
@@ -853,7 +852,7 @@ impl State {
                     op,
                     &context,
                     &execution,
-                );
+                )?;
                 return Ok(writer_offline::conditional_frame(
                     &full,
                     offline.validator.as_deref(),
@@ -889,17 +888,16 @@ impl State {
             .runtime_mut()
             .subscribe(&op, context.clone())
             .map_err(|error| Refusal::from_runtime(&error))?;
-        let full = if offline.receipt {
-            writer_offline::envelope_json(self.runtime().generation(), &op, &context, &execution)
+        let (full, terminal) = if offline.receipt {
+            writer_offline::envelope_frame(self.runtime().generation(), &op, &context, &execution)
         } else {
-            live_frame(Ok(&execution), execution.seq).0
+            live_frame(Ok(&execution), execution.seq)
         };
-        let data = if offline.receipt {
+        let data = if offline.receipt && !terminal {
             writer_offline::conditional_frame(&full, offline.validator.as_deref())
         } else {
             full.clone()
         };
-        let terminal = false;
         events
             .send_latest(SseEvent {
                 seq: Some(execution.seq),
@@ -1069,14 +1067,11 @@ impl State {
             {
                 Ok((runtime_id, execution)) => {
                     let (frame, terminal) = if client.offline {
-                        (
-                            writer_offline::envelope_json(
-                                self.runtime().generation(),
-                                &client.op,
-                                &client.context,
-                                &execution,
-                            ),
-                            false,
+                        writer_offline::envelope_frame(
+                            self.runtime().generation(),
+                            &client.op,
+                            &client.context,
+                            &execution,
                         )
                     } else {
                         live_frame(Ok(&execution), execution.seq)

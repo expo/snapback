@@ -3,9 +3,10 @@ use snapback2_core::engine::{
     AuthoritativeTrace, ClosureReceipt, ReceiptRange, RowRecord, Verdict,
 };
 use snapback2_core::{
-    Auth, Ceilings, ColumnType, DeliveryProjectionContext, Execution, ExecutionState, Expr,
-    Generation, Index, Order, Program, ProgramKind, ProjectJson, RuleExpr, Rules, Schema, Stmt,
-    StopReason, Table, Value, digest, object, project_delivery,
+    Actor, Auth, Bound, Builtin, Ceilings, Checker, ColumnType, Context, DeliveryProjectionContext,
+    Engine, Execution, ExecutionState, Expr, Generation, Index, KeyProvenance, Order, Program,
+    ProgramKind, ProjectJson, Read, ResultProvenance, RuleExpr, RuleTerm, Rules, Scan, Schema,
+    Stmt, StopReason, Table, Value, digest, object, project_delivery,
 };
 use std::collections::BTreeMap;
 use std::fs;
@@ -114,13 +115,88 @@ fn execution(
     next: Option<&str>,
     receipt: ClosureReceipt,
 ) -> Execution {
+    let result_provenance = match &result {
+        Value::Row(_) => {
+            receipt
+                .rows
+                .first()
+                .map_or(ResultProvenance::None, |row| ResultProvenance::Row {
+                    table: row.table.clone(),
+                    id: row.id.clone(),
+                })
+        }
+        Value::Array(values) => ResultProvenance::Array(
+            values
+                .iter()
+                .map(|value| {
+                    receipt.rows.iter().find(|row| &row.row == value).map_or(
+                        ResultProvenance::None,
+                        |row| ResultProvenance::Row {
+                            table: row.table.clone(),
+                            id: row.id.clone(),
+                        },
+                    )
+                })
+                .collect(),
+        ),
+        _ => ResultProvenance::None,
+    };
     Execution {
         result,
+        result_provenance,
         trace: AuthoritativeTrace::default(),
         receipt,
         state,
         seq: 17,
         next: next.map(ToOwned::to_owned),
+    }
+}
+
+fn public_receipt(
+    execution: &Execution,
+    envelope: &snapback2_core::DeliveryEnvelopeV1,
+) -> ClosureReceipt {
+    let find_row = |table: &str, id: &str| {
+        execution
+            .receipt
+            .rows
+            .iter()
+            .chain(
+                execution
+                    .receipt
+                    .ranges
+                    .iter()
+                    .filter_map(|range| range.halo.as_ref()),
+            )
+            .find(|row| row.table == table && row.id == id)
+            .cloned()
+            .unwrap()
+    };
+    ClosureReceipt {
+        schema_hash: execution.receipt.schema_hash.clone(),
+        rows: envelope
+            .rows
+            .iter()
+            .map(|row| find_row(&row.table, &row.id))
+            .collect(),
+        ranges: execution
+            .receipt
+            .ranges
+            .iter()
+            .cloned()
+            .map(|mut range| {
+                range.n2_key = None;
+                range
+            })
+            .collect(),
+        absences: execution
+            .receipt
+            .absences
+            .iter()
+            .filter(|(_, index, _)| index == "byId")
+            .cloned()
+            .collect(),
+        verdicts: execution.receipt.verdicts.clone(),
     }
 }
 
@@ -271,13 +347,16 @@ fn offline_golden_fixtures_match_rust_projection() {
                 principal: "alice",
                 auth_epoch: 9,
             },
-        );
+        )
+        .unwrap();
+        let receipt = public_receipt(&execution, &envelope);
         let envelope_bytes = format!("{}\n", serde_json::to_string(&envelope).unwrap());
         let closure_bytes = format!(
             "{}\n",
             serde_json::to_string(&json!({
                 "schema": schema,
-                "receipt": execution.receipt,
+                "receipt": receipt,
+                "receiptBytes": serde_json::to_string(&receipt).unwrap(),
             }))
             .unwrap()
         );
@@ -329,8 +408,542 @@ fn alternate_key_miss_is_not_projected_as_public_absence() {
             principal: "alice",
             auth_epoch: 9,
         },
-    );
+    )
+    .unwrap();
     assert!(envelope.receipt.absences.is_empty());
+}
+
+fn allow_rules() -> Rules {
+    Rules {
+        read: RuleExpr::Allow,
+        insert: RuleExpr::Allow,
+        update: RuleExpr::Allow,
+        delete: RuleExpr::Allow,
+    }
+}
+
+fn oracle_schema() -> Schema {
+    let messages = Table {
+        columns: BTreeMap::from([
+            ("id".to_owned(), ColumnType::Id),
+            ("owner".to_owned(), ColumnType::Principal),
+            ("at".to_owned(), ColumnType::Time),
+            ("body".to_owned(), ColumnType::Text { max: 256 }),
+        ]),
+        indexes: BTreeMap::from([
+            (
+                "byId".to_owned(),
+                Index {
+                    columns: vec!["id".to_owned()],
+                    unique: true,
+                },
+            ),
+            (
+                "byOwnerAt".to_owned(),
+                Index {
+                    columns: vec!["owner".to_owned(), "at".to_owned(), "id".to_owned()],
+                    unique: false,
+                },
+            ),
+            (
+                "byAt".to_owned(),
+                Index {
+                    columns: vec!["at".to_owned(), "id".to_owned()],
+                    unique: false,
+                },
+            ),
+            (
+                "byBody".to_owned(),
+                Index {
+                    columns: vec!["body".to_owned()],
+                    unique: true,
+                },
+            ),
+        ]),
+        rules: Rules {
+            read: RuleExpr::Eq(RuleTerm::Field("owner".to_owned()), RuleTerm::Viewer),
+            ..allow_rules()
+        },
+        constraints: Vec::new(),
+        retain: Default::default(),
+    };
+    let secrets = Table {
+        columns: BTreeMap::from([
+            ("id".to_owned(), ColumnType::Id),
+            ("slug".to_owned(), ColumnType::Text { max: 64 }),
+            (
+                "grantId".to_owned(),
+                ColumnType::Ref {
+                    table: "grants".to_owned(),
+                },
+            ),
+        ]),
+        indexes: BTreeMap::from([
+            (
+                "byId".to_owned(),
+                Index {
+                    columns: vec!["id".to_owned()],
+                    unique: true,
+                },
+            ),
+            (
+                "bySlug".to_owned(),
+                Index {
+                    columns: vec!["slug".to_owned()],
+                    unique: true,
+                },
+            ),
+        ]),
+        rules: Rules {
+            read: RuleExpr::Exists {
+                table: "grants".to_owned(),
+                index: "byId".to_owned(),
+                key: vec![RuleTerm::Field("grantId".to_owned())],
+                provenance: KeyProvenance::Shape,
+            },
+            ..allow_rules()
+        },
+        constraints: Vec::new(),
+        retain: Default::default(),
+    };
+    let grants = Table {
+        columns: BTreeMap::from([("id".to_owned(), ColumnType::Id)]),
+        indexes: BTreeMap::from([(
+            "byId".to_owned(),
+            Index {
+                columns: vec!["id".to_owned()],
+                unique: true,
+            },
+        )]),
+        rules: allow_rules(),
+        constraints: Vec::new(),
+        retain: Default::default(),
+    };
+    Schema {
+        tables: BTreeMap::from([
+            ("grants".to_owned(), grants),
+            ("messages".to_owned(), messages),
+            ("secrets".to_owned(), secrets),
+        ]),
+        ..Schema::default()
+    }
+}
+
+fn point_program(name: &str, table: &str, index: &str, key: Value) -> Program {
+    Program {
+        name: name.to_owned(),
+        kind: ProgramKind::Query,
+        args: BTreeMap::new(),
+        read_time_granularity_ms: None,
+        result_page_site: None,
+        body: vec![Stmt::Return(Expr::Get(Read {
+            site: format!("{name}.point"),
+            table: table.to_owned(),
+            index: index.to_owned(),
+            key: vec![Expr::Literal(key)],
+            provenance: KeyProvenance::Const,
+        }))],
+    }
+}
+
+fn scan_program(name: &str, index: &str, prefix: Vec<Value>, take: u32) -> Program {
+    let site = format!("{name}.range");
+    Program {
+        name: name.to_owned(),
+        kind: ProgramKind::Query,
+        args: BTreeMap::new(),
+        read_time_granularity_ms: None,
+        result_page_site: None,
+        body: vec![Stmt::Return(Expr::Scan(Scan {
+            site,
+            table: "messages".to_owned(),
+            index: index.to_owned(),
+            prefix: prefix.into_iter().map(Expr::Literal).collect(),
+            order: Order::Asc,
+            take: Bound::Literal(take),
+            after: None,
+            before: None,
+            range: None,
+            opaque_cursor: false,
+            merge_site: None,
+            provenance: KeyProvenance::Const,
+        }))],
+    }
+}
+
+fn execute_oracle(schema: &Schema, program: &Program) -> Execution {
+    let mut engine = Engine::memory(schema.clone()).unwrap();
+    for (id, owner, at, body) in [
+        ("message-1", "alice", 1, "hello"),
+        ("message-2", "alice", 2, "later"),
+        ("message-3", "bob", 3, "hidden"),
+    ] {
+        engine
+            .seed(
+                "messages",
+                object([
+                    ("id", Value::Id(id.to_owned())),
+                    ("owner", Value::Id(owner.to_owned())),
+                    ("at", Value::Int(at)),
+                    ("body", Value::String(body.to_owned())),
+                ]),
+            )
+            .unwrap();
+    }
+    engine
+        .seed(
+            "secrets",
+            object([
+                ("id", Value::Id("secret-1".to_owned())),
+                ("slug", Value::String("hidden-secret".to_owned())),
+                ("grantId", Value::Id("missing-grant".to_owned())),
+            ]),
+        )
+        .unwrap();
+    let certificate = Checker::new(schema, Ceilings::default())
+        .check(program)
+        .unwrap();
+    let mut context = Context::query(Actor::user("alice").unwrap(), BTreeMap::new());
+    context.auth_epoch = 9;
+    engine.execute(program, &certificate, context).unwrap()
+}
+
+fn write_or_assert_golden(name: &str, schema: &Schema, op: &str, execution: &Execution) {
+    let output = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../corpus/offline");
+    if std::env::var_os("UPDATE_OFFLINE_GOLDENS").is_some() {
+        fs::create_dir_all(&output).unwrap();
+    }
+    let args = BTreeMap::new();
+    let envelope = project_delivery(
+        execution,
+        &DeliveryProjectionContext {
+            op,
+            args: &args,
+            generation: &hash('d'),
+            schema_hash: &schema.hash(),
+            plan_hash: &hash('e'),
+            principal: "alice",
+            auth_epoch: 9,
+        },
+    )
+    .unwrap();
+    let receipt = public_receipt(execution, &envelope);
+    let envelope_bytes = format!("{}\n", serde_json::to_string(&envelope).unwrap());
+    let closure_bytes = format!(
+        "{}\n",
+        serde_json::to_string(&json!({
+            "schema": schema,
+            "receipt": receipt,
+            "receiptBytes": serde_json::to_string(&receipt).unwrap(),
+        }))
+        .unwrap()
+    );
+    let envelope_path = output.join(format!("envelope-{name}.json"));
+    let closure_path = output.join(format!("closure-{name}.json"));
+    if std::env::var_os("UPDATE_OFFLINE_GOLDENS").is_some() {
+        fs::write(&envelope_path, &envelope_bytes).unwrap();
+        fs::write(&closure_path, &closure_bytes).unwrap();
+    }
+    assert_eq!(fs::read_to_string(envelope_path).unwrap(), envelope_bytes);
+    assert_eq!(fs::read_to_string(closure_path).unwrap(), closure_bytes);
+}
+
+#[test]
+fn engine_executed_oracle_goldens_match_public_projection() {
+    let schema = oracle_schema();
+    let cases = [
+        (
+            "engine-point-miss-by-id",
+            point_program(
+                "messages.missingById",
+                "messages",
+                "byId",
+                Value::Id("missing".to_owned()),
+            ),
+        ),
+        (
+            "engine-hidden-point-alternate-key",
+            point_program(
+                "secrets.hiddenBySlug",
+                "secrets",
+                "bySlug",
+                Value::String("hidden-secret".to_owned()),
+            ),
+        ),
+        (
+            "engine-point-miss-alternate-key",
+            point_program(
+                "messages.missingByBody",
+                "messages",
+                "byBody",
+                Value::String("missing-body".to_owned()),
+            ),
+        ),
+        (
+            "engine-uniform-range-halo",
+            scan_program(
+                "messages.ownerPage",
+                "byOwnerAt",
+                vec![Value::Id("alice".to_owned())],
+                1,
+            ),
+        ),
+        (
+            "engine-uniform-range-exhausted",
+            scan_program(
+                "messages.ownerAll",
+                "byOwnerAt",
+                vec![Value::Id("alice".to_owned())],
+                2,
+            ),
+        ),
+        (
+            "engine-non-uniform-range",
+            scan_program("messages.all", "byAt", Vec::new(), 2),
+        ),
+    ];
+    for (name, program) in cases {
+        let execution = execute_oracle(&schema, &program);
+        if name == "engine-hidden-point-alternate-key" {
+            assert_eq!(execution.result, Value::Null);
+            assert!(execution.receipt.rows.is_empty());
+            assert!(execution.receipt.ranges.is_empty());
+            assert!(execution.receipt.absences.is_empty());
+            assert!(execution.receipt.verdicts.is_empty());
+        }
+        write_or_assert_golden(name, &schema, &program.name, &execution);
+    }
+}
+
+#[test]
+fn engine_result_provenance_distinguishes_identical_rows_from_two_tables() {
+    let table = Table {
+        columns: BTreeMap::from([
+            ("id".to_owned(), ColumnType::Id),
+            ("body".to_owned(), ColumnType::Text { max: 16 }),
+        ]),
+        indexes: BTreeMap::from([(
+            "byId".to_owned(),
+            Index {
+                columns: vec!["id".to_owned()],
+                unique: true,
+            },
+        )]),
+        rules: allow_rules(),
+        constraints: Vec::new(),
+        retain: Default::default(),
+    };
+    let schema = Schema {
+        tables: BTreeMap::from([
+            ("alpha".to_owned(), table.clone()),
+            ("beta".to_owned(), table),
+        ]),
+        ..Schema::default()
+    };
+    let get = |table: &str| {
+        Expr::Get(Read {
+            site: format!("{table}.point"),
+            table: table.to_owned(),
+            index: "byId".to_owned(),
+            key: vec![Expr::Literal(Value::Id("shared".to_owned()))],
+            provenance: KeyProvenance::Const,
+        })
+    };
+    let program = Program {
+        name: "identicalRows".to_owned(),
+        kind: ProgramKind::Query,
+        args: BTreeMap::new(),
+        read_time_granularity_ms: None,
+        result_page_site: None,
+        body: vec![Stmt::Return(Expr::Builtin {
+            builtin: Builtin::Concat,
+            args: vec![
+                Expr::Array(vec![get("alpha"), get("beta")]),
+                Expr::Array(Vec::new()),
+            ],
+        })],
+    };
+    let certificate = Checker::new(&schema, Ceilings::default())
+        .check(&program)
+        .unwrap();
+    let mut engine = Engine::memory(schema.clone()).unwrap();
+    let row = object([
+        ("id", Value::Id("shared".to_owned())),
+        ("body", Value::String("same".to_owned())),
+    ]);
+    engine.seed("alpha", row.clone()).unwrap();
+    engine.seed("beta", row).unwrap();
+    let execution = engine
+        .execute(
+            &program,
+            &certificate,
+            Context::query(Actor::user("alice").unwrap(), BTreeMap::new()),
+        )
+        .unwrap();
+    let args = BTreeMap::new();
+    let envelope = project_delivery(
+        &execution,
+        &DeliveryProjectionContext {
+            op: &program.name,
+            args: &args,
+            generation: &hash('d'),
+            schema_hash: &schema.hash(),
+            plan_hash: &hash('e'),
+            principal: "alice",
+            auth_epoch: 0,
+        },
+    )
+    .unwrap();
+    assert_eq!(
+        envelope.data,
+        json!([
+            { "$row": { "table": "alpha", "id": "shared" } },
+            { "$row": { "table": "beta", "id": "shared" } },
+        ])
+    );
+}
+
+fn all_types_schema() -> Schema {
+    Schema {
+        tables: BTreeMap::from([(
+            "allTypes".to_owned(),
+            Table {
+                columns: BTreeMap::from([
+                    ("id".to_owned(), ColumnType::Id),
+                    ("bytes".to_owned(), ColumnType::Bytes { max: 16 }),
+                    (
+                        "list".to_owned(),
+                        ColumnType::List {
+                            of: Box::new(ColumnType::Text { max: 16 }),
+                            max: 2,
+                        },
+                    ),
+                    ("image".to_owned(), ColumnType::Image { max: 10_000 }),
+                    ("video".to_owned(), ColumnType::Video { max: 10_000 }),
+                    ("json".to_owned(), ColumnType::Json { max_bytes: 256 }),
+                    ("decimal".to_owned(), ColumnType::Decimal { scale: 2 }),
+                    (
+                        "money".to_owned(),
+                        ColumnType::Money {
+                            currency: "USD".to_owned(),
+                            scale: 2,
+                        },
+                    ),
+                    (
+                        "enum".to_owned(),
+                        ColumnType::Enum {
+                            variants: vec!["one".to_owned(), "two".to_owned()],
+                        },
+                    ),
+                    (
+                        "optional".to_owned(),
+                        ColumnType::Optional(Box::new(ColumnType::Text { max: 16 })),
+                    ),
+                ]),
+                indexes: BTreeMap::from([(
+                    "byId".to_owned(),
+                    Index {
+                        columns: vec!["id".to_owned()],
+                        unique: true,
+                    },
+                )]),
+                rules: allow_rules(),
+                constraints: Vec::new(),
+                retain: Default::default(),
+            },
+        )]),
+        ..Schema::default()
+    }
+}
+
+#[test]
+fn every_column_kind_and_reserved_application_value_have_goldens() {
+    let schema = all_types_schema();
+    let image = Value::Map(BTreeMap::from([
+        ("id".to_owned(), Value::String("image-1".to_owned())),
+        ("width".to_owned(), Value::Int(640)),
+        ("height".to_owned(), Value::Int(480)),
+    ]));
+    let video = Value::Map(BTreeMap::from([
+        ("id".to_owned(), Value::String("video-1".to_owned())),
+        ("width".to_owned(), Value::Int(1920)),
+        ("height".to_owned(), Value::Int(1080)),
+        ("duration".to_owned(), Value::Int(9000)),
+    ]));
+    let row = RowRecord {
+        table: "allTypes".to_owned(),
+        id: "all-1".to_owned(),
+        row: object([
+            ("id", Value::Id("all-1".to_owned())),
+            ("bytes", Value::Bytes(vec![0, 255])),
+            (
+                "list",
+                Value::Array(vec![
+                    Value::String("a".to_owned()),
+                    Value::String("b".to_owned()),
+                ]),
+            ),
+            ("image", image),
+            ("video", video),
+            (
+                "json",
+                Value::Map(BTreeMap::from([
+                    ("enabled".to_owned(), Value::Bool(true)),
+                    (
+                        "values".to_owned(),
+                        Value::Array(vec![Value::Int(1), Value::Null]),
+                    ),
+                ])),
+            ),
+            ("decimal", Value::Int(1234)),
+            ("money", Value::Int(567)),
+            ("enum", Value::String("two".to_owned())),
+            ("optional", Value::Null),
+        ]),
+    };
+    let execution = Execution {
+        result: row.row.clone(),
+        result_provenance: ResultProvenance::Row {
+            table: row.table.clone(),
+            id: row.id.clone(),
+        },
+        trace: AuthoritativeTrace::default(),
+        receipt: ClosureReceipt {
+            schema_hash: Some(schema.hash()),
+            rows: vec![row],
+            ..ClosureReceipt::default()
+        },
+        state: ExecutionState::Complete,
+        seq: 17,
+        next: None,
+    };
+    write_or_assert_golden("every-column-kind", &schema, "allTypes.get", &execution);
+
+    let application_schema = Schema::default();
+    let application = Execution {
+        result: Value::Map(BTreeMap::from([(
+            "$row".to_owned(),
+            Value::Map(BTreeMap::from([
+                ("id".to_owned(), Value::String("literal".to_owned())),
+                ("table".to_owned(), Value::String("application".to_owned())),
+            ])),
+        )])),
+        result_provenance: ResultProvenance::None,
+        trace: AuthoritativeTrace::default(),
+        receipt: ClosureReceipt {
+            schema_hash: Some(application_schema.hash()),
+            ..ClosureReceipt::default()
+        },
+        state: ExecutionState::Complete,
+        seq: 17,
+        next: None,
+    };
+    write_or_assert_golden(
+        "application-row-reference-json",
+        &application_schema,
+        "json.literal",
+        &application,
+    );
 }
 
 #[test]
