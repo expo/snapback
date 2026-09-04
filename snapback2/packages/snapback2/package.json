@@ -50,15 +50,24 @@
     "react": ">=18"
   },
   "peerDependenciesMeta": {
-    "expo": { "optional": true },
-    "expo-file-system": { "optional": true },
-    "expo-video": { "optional": true },
-    "react-native": { "optional": true }
+    "expo": {
+      "optional": true
+    },
+    "expo-file-system": {
+      "optional": true
+    },
+    "expo-video": {
+      "optional": true
+    },
+    "react-native": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@types/react": "^19.1.12",
     "esbuild": "0.25.9",
     "jsdom": "^26.1.0",
+    "playwright-core": "1.55.1",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-test-renderer": "^19.1.1"

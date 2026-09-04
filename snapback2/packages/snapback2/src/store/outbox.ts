@@ -1,0 +1,226 @@
+// @ref LLP 1012#7-writes-offline — the outbox is durable custody of unsent
+// intents: each one owns a contiguous slice of a principal-bound replay grant,
+// so its ids are known before the server has seen it and a retry is the same
+// envelope. Settlement never deletes; `dismiss` is the app's choice.
+import type {
+  OutboxEntry,
+  OutboxGrant,
+  OutboxState,
+  OutboxTrace,
+  RangeStore,
+  StoreDelivery,
+} from "./range-store.js";
+
+export const ENGINE_ID = /^s2id-([0-9a-f]{32})-([0-9a-f]{16})$/;
+
+export type OutboxRefusalCode = "E_OFFLINE_ID_BLOCK" | "E_OFFLINE_INTENT_EXPIRED";
+
+/** A local refusal at enqueue or replay time; the client maps it onto the offline family. */
+export class OutboxRefusal extends Error {
+  constructor(readonly code: OutboxRefusalCode, message: string, readonly site: string, readonly rewrite: string) {
+    super(message);
+    this.name = "OutboxRefusal";
+  }
+}
+
+export function emptyTrace(): OutboxTrace {
+  return { points: [], verdicts: [] };
+}
+
+/** Reads `grant` off a login, guest, or resume response; anything malformed is ignored. */
+export function decodeGrant(value: unknown): OutboxGrant | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const grant = (value as { grant?: unknown }).grant;
+  if (!grant || typeof grant !== "object" || Array.isArray(grant)) return undefined;
+  const record = grant as Record<string, unknown>;
+  if (typeof record.id !== "string" || typeof record.from !== "string" || !ENGINE_ID.test(record.from)
+    || !Number.isSafeInteger(record.count) || Number(record.count) <= 0
+    || !Number.isSafeInteger(record.mintedAt) || !Number.isSafeInteger(record.expiresAt)) return undefined;
+  return {
+    id: record.id,
+    from: record.from,
+    count: record.count as number,
+    mintedAt: record.mintedAt as number,
+    expiresAt: record.expiresAt as number,
+    used: 0,
+  };
+}
+
+/** The engine ids `from + offset …`, spelled exactly as `Store::replay_slice_ids` spells them. */
+export function sliceIds(grant: Pick<OutboxGrant, "from" | "count">, offset: number, count: number): string[] {
+  const match = ENGINE_ID.exec(grant.from);
+  if (!match || count <= 0 || offset < 0 || offset + count > grant.count) return [];
+  const namespace = match[1]!;
+  const first = BigInt(`0x${match[2]!}`) + BigInt(offset);
+  const ids: string[] = [];
+  for (let index = 0; index < count; index += 1) {
+    ids.push(`s2id-${namespace}-${(first + BigInt(index)).toString(16).padStart(16, "0")}`);
+  }
+  return ids;
+}
+
+export function intentName(grant: string, offset: number): string {
+  return `${grant}:${offset}`;
+}
+
+export function settledEntry(entry: OutboxEntry, state: OutboxState, response: unknown, now: number): OutboxEntry {
+  const { response: _response, ...rest } = entry;
+  return { ...rest, state, ...(response === undefined ? {} : { response }), updatedAt: now };
+}
+
+export interface EnqueueInput {
+  op: string;
+  args: unknown;
+  /** Ids the certified program may mint; the slice is one intent id plus these. */
+  maxNewIds: number;
+  issuedSeq: number;
+  trace?: OutboxTrace;
+}
+
+export interface OutboxLedgerOptions {
+  now(): number;
+  fenceMs: number;
+}
+
+export class OutboxLedger {
+  private readonly listeners = new Set<() => void>();
+
+  constructor(private readonly store: RangeStore, private readonly options: OutboxLedgerOptions) {}
+
+  subscribe(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => { this.listeners.delete(listener); };
+  }
+
+  notify(): void {
+    for (const listener of [...this.listeners]) {
+      try { listener(); } catch { /* observers cannot break custody */ }
+    }
+  }
+
+  entries(): Promise<OutboxEntry[]> {
+    return this.store.outbox.all();
+  }
+
+  async queued(): Promise<OutboxEntry[]> {
+    return (await this.entries()).filter((entry) => entry.state === "queued");
+  }
+
+  grant(): Promise<OutboxGrant | undefined> {
+    return this.store.outbox.grant();
+  }
+
+  async grantById(id: string): Promise<OutboxGrant | undefined> {
+    return (await this.store.outbox.grants()).find((grant) => grant.id === id);
+  }
+
+  /** A fresh grant replaces the consumption target; older grants stay for the intents that name them. */
+  async adopt(grant: OutboxGrant): Promise<void> {
+    const held = await this.grantById(grant.id);
+    if (held) {
+      await this.store.commit({ grants: { current: grant.id } });
+      return;
+    }
+    const stale = (await this.store.outbox.grants())
+      .filter((item) => item.id !== grant.id)
+      .map((item) => item.id);
+    const queued = new Set((await this.queued()).map((entry) => entry.grant));
+    await this.store.commit({
+      grants: { put: [grant], current: grant.id, remove: stale.filter((id) => !queued.has(id)) },
+    });
+    this.notify();
+  }
+
+  pastFence(grant: Pick<OutboxGrant, "mintedAt">): boolean {
+    return this.options.now() - grant.mintedAt > this.options.fenceMs;
+  }
+
+  // @ref LLP 1012#7-writes-offline — the first id names the intent; the rest
+  // are the program's `new` envelope in order. No remaining ids is a refusal,
+  // never a silent reuse.
+  async enqueue(input: EnqueueInput): Promise<OutboxEntry> {
+    if (!Number.isSafeInteger(input.maxNewIds) || input.maxNewIds < 0) {
+      throw new TypeError("outbox enqueue requires a non-negative maxNewIds");
+    }
+    const grant = await this.grant();
+    if (!grant) {
+      throw new OutboxRefusal(
+        "E_OFFLINE_ID_BLOCK",
+        "this device holds no replay grant; log in or resume online before writing offline",
+        "client.outbox.enqueue",
+        "resume as this principal for a grant, then enqueue a new intent",
+      );
+    }
+    if (this.pastFence(grant)) {
+      throw new OutboxRefusal(
+        "E_OFFLINE_INTENT_EXPIRED",
+        "the held replay grant is older than offline.fenceDays; resume before queuing writes",
+        "client.outbox.enqueue",
+        "resume as the grant's principal for a fresh grant, then enqueue a new intent",
+      );
+    }
+    const count = 1 + input.maxNewIds;
+    if (grant.used + count > grant.count) {
+      throw new OutboxRefusal(
+        "E_OFFLINE_ID_BLOCK",
+        `the replay grant has ${grant.count - grant.used} ids left and this write needs ${count}`,
+        "client.outbox.enqueue",
+        "resume online for a fresh grant, then enqueue a new intent",
+      );
+    }
+    const now = this.options.now();
+    const entry: OutboxEntry = {
+      intent: intentName(grant.id, grant.used),
+      grant: grant.id,
+      offset: grant.used,
+      count,
+      ids: sliceIds(grant, grant.used, count),
+      op: input.op,
+      args: structuredClone(input.args),
+      issuedSeq: input.issuedSeq,
+      state: "queued",
+      trace: input.trace ?? emptyTrace(),
+      createdAt: now,
+      updatedAt: now,
+    };
+    await this.store.commit({
+      grants: { put: [{ ...grant, used: grant.used + count }] },
+      outbox: { put: [entry] },
+    });
+    this.notify();
+    return (await this.store.outbox.get(entry.intent)) ?? entry;
+  }
+
+  settle(entry: OutboxEntry, state: OutboxState, response?: unknown): OutboxEntry {
+    return settledEntry(entry, state, response, this.options.now());
+  }
+
+  /** Removes a settled entry; a queued intent is never dismissed. */
+  async dismiss(intent: string): Promise<void> {
+    const entry = await this.store.outbox.get(intent);
+    if (!entry || entry.state === "queued") return;
+    await this.store.commit({ outbox: { remove: [intent] } });
+    this.notify();
+  }
+}
+
+/** The replay envelope for one queued intent, byte-stable across retries. */
+export function replayEnvelope(entry: OutboxEntry): {
+  op: string;
+  args: unknown;
+  replay: { grant: string; offset: number; count: number; intent: string; trace: OutboxTrace };
+} {
+  return {
+    op: entry.op,
+    args: entry.args,
+    replay: {
+      grant: entry.grant,
+      offset: entry.offset,
+      count: entry.count,
+      intent: entry.intent,
+      trace: entry.trace ?? emptyTrace(),
+    },
+  };
+}
+
+export type { OutboxEntry, OutboxGrant, OutboxState, OutboxTrace, StoreDelivery };

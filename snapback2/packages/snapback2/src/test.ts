@@ -11,12 +11,17 @@ import { fileRangeStore } from "./store/file.js";
 
 export { fileRangeStore };
 
+type TransportFault = { path: string; status: number };
+type JourneyDevice = SnapbackClient & {
+  failNextResponse(path: string, status: number): void;
+  settled(): Promise<void>;
+};
 type JourneyContext = {
   as(name: string, options?: {
     store?: "file";
     onTombstone?: OfflineClientOptions["onTombstone"];
     viewOnce?: OfflineClientOptions["viewOnce"];
-  }): SnapbackClient;
+  }): JourneyDevice;
   tick(ms: number): Promise<Record<string, unknown>>;
   url: string;
 };
@@ -136,13 +141,39 @@ async function runEntry(): Promise<void> {
 }
 
 type QueryRecord = { ref: any; args: unknown; expected: unknown };
-type Device = { client: SnapbackClient; records: Map<string, QueryRecord>; durable: boolean };
+type Device = {
+  client: SnapbackClient;
+  records: Map<string, QueryRecord>;
+  durable: boolean;
+  faults: TransportFault[];
+};
 
 function queryBytes(value: unknown): string {
   return stableSerialize(value);
 }
 
-function wrapDevice(device: Device, clients: Set<SnapbackClient>): SnapbackClient {
+/**
+ * The device's transport. A registered fault lets the request reach the owner
+ * (so a commit happens), then discards the response and answers the status
+ * instead: LLP 1012 §10's "503 after the commit", injected without touching
+ * the owner.
+ */
+function faultingFetch(faults: TransportFault[]): typeof globalThis.fetch {
+  return async (input, init) => {
+    const response = await globalThis.fetch(input, init);
+    const path = new URL(String(input)).pathname;
+    const index = faults.findIndex((fault) => fault.path === path);
+    if (index < 0) return response;
+    const [fault] = faults.splice(index, 1);
+    await response.arrayBuffer().catch(() => undefined);
+    return new Response(JSON.stringify({ message: `injected HTTP ${fault!.status}` }), {
+      status: fault!.status,
+      headers: { "content-type": "application/json" },
+    });
+  };
+}
+
+function wrapDevice(device: Device, clients: Set<SnapbackClient>): JourneyDevice {
   return new Proxy(device.client, {
     get(target, property) {
       if (property === "restart") return async () => {
@@ -151,10 +182,14 @@ function wrapDevice(device: Device, clients: Set<SnapbackClient>): SnapbackClien
         clients.add(restarted);
         return wrapDevice(device, clients);
       };
+      if (property === "failNextResponse") return (path: string, status: number) => {
+        device.faults.push({ path, status });
+      };
+      if (property === "settled") return () => device.client.outbox.settled();
       const value = Reflect.get(target, property, target);
       return typeof value === "function" ? value.bind(target) : value;
     },
-  });
+  }) as JourneyDevice;
 }
 
 async function runOfflineDerived(devices: Set<Device>): Promise<number> {
@@ -198,10 +233,13 @@ async function runCheck(
         }
         if (options.store === "file" && !storeRoot) throw new Error("file journey store root was not supplied");
         const records = new Map<string, QueryRecord>();
+        const faults: TransportFault[] = [];
+        const fetch = faultingFetch(faults);
         const client = createClient(options.store === "file"
           ? {
               url,
               as: name,
+              fetch,
               offline: {
                 store: fileRangeStore(join(storeRoot!, name)),
                 onTombstone: options.onTombstone,
@@ -214,9 +252,9 @@ async function runCheck(
                 records.set(key, { ref, args, expected });
               },
             } as Parameters<typeof createClient>[0]
-          : { url, as: name });
+          : { url, as: name, fetch });
         clients.add(client);
-        const device = { client, records, durable: options.store === "file" };
+        const device = { client, records, durable: options.store === "file", faults };
         devices.add(device);
         return wrapDevice(device, clients);
       },

@@ -12,5 +12,7 @@ await import("./offline-protocol.test.ts");
 await import("./offline-store.test.ts");
 await import("./offline-bytes.test.ts");
 await import("./offline-resume-tail.test.ts");
+await import("./outbox.test.ts");
+await import("./chat-screens.test.ts");
 
 after(async () => owner.close());

@@ -1202,20 +1202,21 @@ test("useMutation exposes pending for exactly the in-flight interval", async () 
       React.createElement(Harness),
     ));
   });
-  assert.equal(current.pending, false);
+  assert.equal(current.inFlight, false);
+  assert.deepEqual(current.pending, []);
   assert.equal(current.last, undefined);
   let running!: Promise<unknown>;
   await act(async () => {
     running = current.run({ conversationId: "general", body: "hello" });
     await Promise.resolve();
   });
-  assert.equal(current.pending, true);
+  assert.equal(current.inFlight, true);
   assert.equal(current.last, undefined);
   await act(async () => {
     release!(fetchJson({ state: "committed", seq: 1, data: { id: "message-1" } }));
     await running;
   });
-  assert.equal(current.pending, false);
+  assert.equal(current.inFlight, false);
   assert.equal(current.last.state, "committed");
   await act(async () => { renderer!.unmount(); });
 });

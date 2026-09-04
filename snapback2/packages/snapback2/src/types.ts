@@ -1,6 +1,8 @@
 import type { Channel as ChannelRef, Op } from "./api.js";
 import type { AssetCache, ByteCacheEntry, ByteCacheStatus, ViewOncePredicate } from "./store/byte-cache.js";
-import type { RangeStoreFactory, RowRef, StoredRow } from "./store/range-store.js";
+import type { OutboxEntry, RangeStoreFactory, RowRef, StoredRow } from "./store/range-store.js";
+
+export type { OutboxEntry, OutboxGrant, OutboxState, OutboxTrace } from "./store/range-store.js";
 
 export type { AssetCache, ByteCacheEntry, ByteCacheStatus, ViewOncePredicate };
 
@@ -81,7 +83,7 @@ export type OfflineQueryResult<Result> =
   | { state: "hydrating"; live: false; connection: "offline" };
 export type QueryResult<Result> = ServerQueryResult<Result> | OfflineQueryResult<Result>;
 
-export type MutationCommitted<Result> = { state: "committed"; seq: number; data: Result };
+export type MutationCommitted<Result> = { state: "committed"; seq: number; data: Result; intent?: string };
 export type MutationRejected = {
   state: "rejected";
   code: string;
@@ -92,8 +94,13 @@ export type MutationRejected = {
   site?: string;
   rule?: string;
   guide: string;
+  /** `conflict` when trace validation rolled a replayed write back (LLP 1012 §7). */
+  reason?: string;
+  intent?: string;
 };
-export type MutationResult<Result> = MutationCommitted<Result> | MutationRejected;
+/** The write is durable in this device's outbox and will replay after the next resume. */
+export type MutationQueued = { state: "queued"; intent: string; ids: string[] };
+export type MutationResult<Result> = MutationCommitted<Result> | MutationRejected | MutationQueued;
 
 export type LiveQueryDelivery<Result> = ServerQueryResult<Result> & { live: true; caughtUp?: boolean; watermark?: Cursor | null };
 export type StaleDelivery<Result> = {
@@ -251,8 +258,24 @@ export type CreateClientOptions = ClientLocationOptions & (
   | { as?: never; token?: string; tokenStore?: AuthTokenStore }
 );
 
+// @ref LLP 1012#7-writes-offline — the outbox is readable before the first
+// request, so a queued message is on screen at cold start.
+export interface OutboxApi {
+  /** Every durable intent of the open partition, FIFO; empty without a store. */
+  entries(): Promise<OutboxEntry[]>;
+  /** Drops one settled entry; queued intents cannot be dismissed. */
+  dismiss(intent: string): Promise<void>;
+  /** Observes the outbox; called with the current entries at once and after every change. */
+  subscribe(listener: (entries: OutboxEntry[]) => void): () => void;
+  /** Replays queued intents FIFO now; resolves when the queue is empty or a transport failure stopped it. */
+  drain(): Promise<void>;
+  /** Resolves once the in-flight replay, if any, has stopped or emptied the queue. */
+  settled(): Promise<void>;
+}
+
 export interface SnapbackClient {
   readonly auth: AuthApi;
+  readonly outbox: OutboxApi;
   /** Settles only after explicit token restoration and any initial persistence. */
   readonly ready: Promise<void>;
   readonly snapshot: ClientSnapshot;

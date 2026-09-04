@@ -45,6 +45,47 @@ export function registerFinalGateChecks(test: RegisterTest, legacyLib: string): 
     );
   });
 
+  test("the chat template's React screens typecheck against the built package and the template's generated api.d.ts", async () => {
+    const packageRoot = resolve(crate, "packages/snapback2");
+    const template = resolve(packageRoot, "templates/chat");
+    const lowered = await lowerProject(template);
+    assert(lowered.ok, "the chat template did not compile for the React screen typecheck");
+    const buildDir = resolve(template, ".snapback/build");
+    await mkdir(buildDir, { recursive: true });
+    const apiDts = resolve(buildDir, "api.d.ts");
+    await Bun.write(apiDts, lowered.apiDts);
+    // main.tsx is the generic shell's entry (react-dom/client has no workspace
+    // declarations), exactly as the React template gate above skips it.
+    const screens = ["src/App.tsx", "src/chat/Thread.tsx", "src/chat/Composer.tsx", "src/chat/Search.tsx", "src/chat/Inbox.tsx", "src/chat/log.ts"]
+      .map((file) => resolve(template, "react", file));
+    const program = ts.createProgram({
+      rootNames: [...screens, apiDts],
+      options: {
+        baseUrl: packageRoot,
+        jsx: ts.JsxEmit.ReactJSX,
+        lib: ["lib.es2022.d.ts", "lib.dom.d.ts"],
+        module: ts.ModuleKind.ESNext,
+        moduleResolution: ts.ModuleResolutionKind.Bundler,
+        noEmit: true,
+        paths: {
+          snapback2: [resolve(packageRoot, "dist/index.d.ts")],
+          "snapback2/client": [resolve(packageRoot, "dist/client.d.ts")],
+          "snapback2/react": [resolve(packageRoot, "dist/react.d.ts")],
+        },
+        skipLibCheck: true,
+        strict: true,
+        target: ts.ScriptTarget.ES2022,
+        types: ["react"],
+      },
+    });
+    const diagnostics = ts.getPreEmitDiagnostics(program)
+      .filter((item) => screens.includes(item.file?.fileName ?? ""));
+    assert(
+      diagnostics.length === 0,
+      `chat React screens did not typecheck:\n${diagnostics.map((item) => `${item.file?.fileName}:${item.start}: ${ts.flattenDiagnosticMessageText(item.messageText, "\n")}`).join("\n")}`,
+    );
+  });
+
   test("guide validation reports every family and page failure before it fails", () => {
     const packageRoot = resolve(crate, "packages/snapback2");
     const checked = Bun.spawnSync({

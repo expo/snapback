@@ -1,5 +1,6 @@
-// A small IndexedDB + Web Locks double for the byte-cache tests: versioned
-// upgrades, per-transaction snapshots, and an injectable put failure per store.
+// In-memory IndexedDB + Web Locks stand-ins shared by the offline suites:
+// versioned upgrades, per-transaction snapshots, an injectable put failure
+// (per store, any store, or asynchronous abort), and inspection helpers.
 
 export type Entry = { key: string; value: unknown };
 type Stores = Map<string, Map<string, Entry>>;
@@ -18,7 +19,7 @@ export class FakeRequest<T> {
   }
 }
 
-class FakeObjectStore {
+export class FakeObjectStore {
   private readonly transaction: FakeTransaction;
   private readonly name: string;
 
@@ -34,6 +35,15 @@ class FakeObjectStore {
     if (factory.failNextPutIn === this.name) {
       factory.failNextPutIn = undefined;
       throw new Error(`injected put failure in ${this.name}`);
+    }
+    if (factory.failNextPut) {
+      factory.failNextPut = false;
+      throw new Error("injected put failure");
+    }
+    if (factory.abortNextPut) {
+      factory.abortNextPut = false;
+      this.transaction.abortWith(new Error("injected asynchronous put failure"));
+      return;
     }
     this.transaction.store(this.name).set(entry.key, structuredClone(entry));
   }
@@ -54,7 +64,7 @@ class FakeObjectStore {
   }
 }
 
-class FakeTransaction {
+export class FakeTransaction {
   readonly factory: FakeIndexedDb;
   oncomplete: (() => void) | null = null;
   onabort: (() => void) | null = null;
@@ -69,7 +79,11 @@ class FakeTransaction {
     this.factory = factory;
     this.database = database;
     this.mode = mode;
-    for (const [name, values] of database) this.local.set(name, new Map(values));
+    // Each transaction works on its own snapshot; a readwrite one replaces the
+    // database wholesale on completion and leaves nothing behind on abort.
+    for (const [name, values] of database) {
+      this.local.set(name, new Map([...values].map(([key, value]) => [key, structuredClone(value)])));
+    }
     setTimeout(() => this.finish(), 0);
   }
 
@@ -83,8 +97,12 @@ class FakeTransaction {
 
   abort(): void {
     if (this.aborted) return;
+    this.abortWith(new Error("transaction aborted"));
+  }
+
+  abortWith(error: Error): void {
     this.aborted = true;
-    this.error = new Error("transaction aborted");
+    this.error = error;
     queueMicrotask(() => this.onabort?.());
   }
 
@@ -98,15 +116,15 @@ class FakeTransaction {
   }
 }
 
-class FakeDatabase {
+export class FakeDatabase {
   readonly objectStoreNames: { contains(name: string): boolean };
-  private readonly factory: FakeIndexedDb;
-  private readonly stores: Stores;
+  readonly factory: FakeIndexedDb;
+  readonly stores: Stores;
 
   constructor(factory: FakeIndexedDb, stores: Stores) {
     this.factory = factory;
     this.stores = stores;
-    this.objectStoreNames = { contains: (name) => stores.has(name) };
+    this.objectStoreNames = { contains: (name: string) => stores.has(name) };
   }
 
   createObjectStore(name: string): void { this.stores.set(name, new Map()); }
@@ -121,6 +139,10 @@ class FakeDatabase {
 export class FakeIndexedDb {
   /** The next `put` into this object store throws, aborting its transaction. */
   failNextPutIn?: string;
+  /** The next `put` into any object store throws synchronously. */
+  failNextPut = false;
+  /** The next `put` aborts its transaction asynchronously instead of throwing. */
+  abortNextPut = false;
   private readonly databases = new Map<string, Stores>();
   private readonly versions = new Map<string, number>();
 
@@ -130,6 +152,7 @@ export class FakeIndexedDb {
       const stores = this.databases.get(name) ?? new Map<string, Map<string, Entry>>();
       this.databases.set(name, stores);
       request.result = new FakeDatabase(this, stores);
+      // A fresh database is version 0; a bump past the stored version upgrades it.
       if ((this.versions.get(name) ?? 0) < version) {
         this.versions.set(name, version);
         request.onupgradeneeded?.();

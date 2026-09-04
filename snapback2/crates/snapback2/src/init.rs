@@ -107,7 +107,11 @@ fn scaffold(root: &Path, template: &str, client: Client) -> Result<(), Refusal> 
     }
     copy_absent(&backend, &root.join("snapback"))?;
     if client == Client::React {
-        copy_absent(&templates.join("react"), root)?;
+        // A template ships its own screens when it has them; the generic
+        // React shell is the fallback (LLP 1012 lane O2c: the chat template).
+        let own = templates.join(template).join("react");
+        let react = if own.join("src").is_dir() { own } else { templates.join("react") };
+        copy_absent(&react, root)?;
     }
     update_agents(&root.join("AGENTS.md"))?;
     update_gitignore(&root.join(".gitignore"))?;

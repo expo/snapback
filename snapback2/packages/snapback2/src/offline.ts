@@ -4,11 +4,14 @@ import {
   expandRows,
   type DeliveryEnvelopeV1,
 } from "./offline-protocol.js";
+import { OutboxLedger, decodeGrant } from "./store/outbox.js";
 import {
   canonicalAnswerKey,
   type Coverage,
   type HeldAnswer,
   type OfflineSchema,
+  type OutboxEntry,
+  type OutboxGrant,
   type RangeStore,
   type RetentionPolicy,
   type StoreDelivery,
@@ -18,6 +21,31 @@ import {
 } from "./store/range-store.js";
 import { ByteCache } from "./store/byte-cache.js";
 import type { Manifest, OfflineClientOptions } from "./types.js";
+
+/** Ids a certified mutation can mint: its insert/upsert bounds plus explicit `new`s. */
+export function certificateMaxNewIds(program: unknown): number | undefined {
+  if (!object(program)) return undefined;
+  const certificate = program.certificate;
+  if (!object(certificate) || !Array.isArray(certificate.write_sites)) return undefined;
+  let total = 0;
+  for (const site of certificate.write_sites) {
+    if (!object(site)) continue;
+    if ((site.kind === "Insert" || site.kind === "Upsert") && Number.isSafeInteger(site.max_rows)) {
+      total += Number(site.max_rows);
+    }
+  }
+  return total + countNew(program.ir);
+}
+
+function countNew(value: unknown): number {
+  if (value === "New") return 1;
+  if (Array.isArray(value)) return value.reduce((sum: number, item) => sum + countNew(item), 0);
+  if (!object(value)) return 0;
+  return Object.entries(value).reduce((sum, [key, item]) => sum + (key === "New" ? 1 : 0) + countNew(item), 0);
+}
+
+/** The bound used when a program's certificate is not held: the engine's ordinary reservation. */
+export const FALLBACK_MAX_NEW_IDS = 1_024;
 
 export interface MountedQuery {
   op: string;
@@ -81,10 +109,17 @@ export class OfflineRuntime {
   readonly maxAssetBytes: number;
   /** Asset bytes beside the rows, under their lease (LLP 1012 §9); lane O4. */
   readonly bytes: ByteCache;
+  readonly outbox: OutboxLedger;
+  /** The replay currently in flight, so `settled()` can wait on it. */
+  drainTail: Promise<void> = Promise.resolve();
   private partition?: string;
   private retention: Record<string, RetentionPolicy> = {};
   private schema?: OfflineSchema;
+  private certificates: Record<string, number> = {};
   private facts?: ResumeFacts;
+  private latestSeq = 0;
+  private pendingGrant?: OutboxGrant;
+  private standIn?: string;
   private tail: Promise<void> = Promise.resolve();
 
   constructor(private readonly options: OfflineClientOptions) {
@@ -92,9 +127,16 @@ export class OfflineRuntime {
     this.fenceDays = options.fenceDays ?? 7;
     this.maxAssetBytes = options.maxAssetBytes ?? 256 * 1024 * 1024;
     this.bytes = new ByteCache(this.store, { maxAssetBytes: this.maxAssetBytes, viewOnce: options.viewOnce });
+    this.outbox = new OutboxLedger(this.store, {
+      now: () => Date.now(),
+      fenceMs: this.fenceDays * 24 * 60 * 60 * 1_000,
+    });
   }
 
   get principal(): string | undefined { return this.partition; }
+
+  /** The highest server seq this runtime has committed; what a queued intent was issued against. */
+  get seq(): number { return this.latestSeq; }
 
   async open(principal: string): Promise<void> {
     await this.serial(async () => {
@@ -102,6 +144,8 @@ export class OfflineRuntime {
       await this.store.open(principal);
       this.partition = principal;
       await this.loadFacts();
+      await this.flushGrant();
+      this.outbox.notify();
     });
   }
 
@@ -113,7 +157,38 @@ export class OfflineRuntime {
       }
       await this.store.unseal();
       await this.loadFacts();
+      await this.flushGrant();
+      this.outbox.notify();
     });
+  }
+
+  /**
+   * Records the `grant` a login, guest, or resume response carries. The
+   * partition may not be open yet (login opens it next), so the grant waits
+   * until the store for this principal is writable. Returns its input.
+   */
+  noteGrant<T>(value: T): T {
+    const grant = decodeGrant(value);
+    if (grant) this.pendingGrant = grant;
+    return value;
+  }
+
+  async adoptPendingGrant(): Promise<void> {
+    await this.serial(() => this.flushGrant());
+  }
+
+  /** True when a resume request's `log` is an ordinary answer standing in for a drained log. */
+  standInLog(log: { op: string; args: unknown }): boolean {
+    return this.standIn !== undefined && this.standIn === canonicalAnswerKey(log.op, log.args);
+  }
+
+  maxNewIds(op: string): number {
+    return this.certificates[op] ?? FALLBACK_MAX_NEW_IDS;
+  }
+
+  async queuedIntents(): Promise<OutboxEntry[]> {
+    if (this.partition === undefined) return [];
+    return this.outbox.queued();
   }
 
   async seal(): Promise<void> {
@@ -128,6 +203,7 @@ export class OfflineRuntime {
       this.partition = undefined;
       this.facts = undefined;
       await this.store.wipe(partition);
+      this.outbox.notify();
     });
   }
 
@@ -152,6 +228,13 @@ export class OfflineRuntime {
     if (!object(value)) return;
     const schema = value.schema;
     if (object(schema) && object(schema.tables)) this.schema = schema as OfflineSchema;
+    if (!object(value.programs)) return;
+    const certificates: Record<string, number> = {};
+    for (const [name, program] of Object.entries(value.programs)) {
+      const bound = certificateMaxNewIds(program);
+      if (bound !== undefined) certificates[name] = bound;
+    }
+    this.certificates = certificates;
   }
 
   async accept<Result>(op: string, args: unknown, raw: unknown): Promise<AcceptedDelivery<Result>> {
@@ -200,8 +283,9 @@ export class OfflineRuntime {
   async commitMany(
     items: Array<{ op: string; args: unknown; accepted: AcceptedDelivery<unknown> }>,
     watermark?: Omit<WatermarkRecord, "generation" | "schemaHash" | "authEpoch" | "updatedAt">,
+    outbox?: { put?: OutboxEntry[]; remove?: string[] },
   ): Promise<void> {
-    if (items.length === 0 && !watermark) return;
+    if (items.length === 0 && !watermark && !outbox) return;
     await this.serial(async () => {
       if (this.partition === undefined) {
         throw new OfflineAuthorityError("an offline partition must be opened before committing a delivery");
@@ -266,8 +350,11 @@ export class OfflineRuntime {
         retention: this.retention,
         schema: this.schema,
         ...(watermarkRecord ? { watermark: watermarkRecord } : {}),
+        ...(outbox ? { outbox } : {}),
       });
       this.facts = nextFacts;
+      for (const item of [...deliveries, ...refreshes]) this.latestSeq = Math.max(this.latestSeq, item.seq);
+      if (outbox) this.outbox.notify();
     });
   }
 
@@ -301,10 +388,18 @@ export class OfflineRuntime {
       typeof item.answer?.validator === "string");
     const omitLog = adjustment.which === "log"
       || (watermark !== undefined && resumeWhichMatches(adjustment.which, watermark.op, watermark.args));
+    // Without a drained log the owner still needs one member to answer, and the
+    // device still needs the grant a resume returns: the first held mounted
+    // answer stands in, with a null watermark, and leaves no watermark behind.
+    const standIn = !watermark && !omitLog ? mountedAnswers.shift() : undefined;
+    this.standIn = standIn ? canonicalAnswerKey(standIn.query.op, standIn.query.args) : undefined;
+    if (!watermark && !standIn) return undefined;
     return {
       protocol: 1,
       ...this.facts,
-      ...(!watermark || omitLog ? {} : {
+      ...(standIn ? {
+        log: { op: standIn.query.op, args: standIn.query.args, watermark: null, validator: standIn.answer.validator },
+      } : !watermark || omitLog ? {} : {
         log: {
           op: watermark.op,
           args: watermark.args,
@@ -329,6 +424,18 @@ export class OfflineRuntime {
 
   async coverage(): Promise<Coverage | undefined> {
     return this.partition === undefined ? undefined : this.store.coverage();
+  }
+
+  private async flushGrant(): Promise<void> {
+    const grant = this.pendingGrant;
+    if (!grant || this.partition === undefined) return;
+    this.pendingGrant = undefined;
+    try {
+      await this.outbox.adopt(grant);
+    } catch (error) {
+      this.pendingGrant = grant;
+      throw error;
+    }
   }
 
   private async loadFacts(): Promise<void> {
