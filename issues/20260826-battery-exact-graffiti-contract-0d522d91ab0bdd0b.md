@@ -13,12 +13,12 @@
 **Battery gate:** `exact-graffiti-contract`
 **Failure signature:** `sha256:0d522d91ab0bdd0bd768122b72f24eaedefc1cc8dfe6f6556bd4a465ea02bc2b`
 **First observed run:** `local.20260826T230829Z.fb14180ba761`
-**Last observed run:** `local.20260903T154459Z.afba645047a6`
-**Last processed run:** `local.20260903T154459Z.afba645047a6`
+**Last observed run:** `local.20260904T003052Z.cc497048cd8c`
+**Last processed run:** `local.20260904T003052Z.cc497048cd8c`
 **Detected at revision:** `fb14180ba761ee0cee2881d4889f4fffa981ae83`
-**Last observed revision:** `afba645047a6b7e59ac7ba3547cdfb4e23d6be77`
-**Consecutive red runs:** `3`
-**Escalation:** `pending (3/4)`
+**Last observed revision:** `cc497048cd8c7958b640479eb79ae068c93e56c4`
+**Consecutive red runs:** `4`
+**Escalation:** `AUTHOR_ESCALATION_REQUIRED`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
 ## Summary
@@ -43,3 +43,8 @@ bun demos/graffiti/tests/acceptance/contract.mjs
 
 Fix forward, rerun the complete battery, and let the next determinate pass close
 this signature. Four consecutive red observations require author escalation.
+
+## Author escalation
+
+This root-failure signature remained red for 4 consecutive scheduled
+battery runs. Escalate to the author (Charlie Cheever) before the next run.

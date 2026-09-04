@@ -10,11 +10,11 @@
 **Battery gate:** `rustfmt`
 **Failure signature:** `sha256:cbff075f9ab750855f067f117a4296d153741c158d591daa1f11a7438d6d86ad`
 **First observed run:** `local.20260829T051119Z.45ebcadce605`
-**Last observed run:** `local.20260903T154459Z.afba645047a6`
-**Last processed run:** `local.20260903T154459Z.afba645047a6`
+**Last observed run:** `local.20260904T003052Z.cc497048cd8c`
+**Last processed run:** `local.20260904T003052Z.cc497048cd8c`
 **Detected at revision:** `45ebcadce6052132fd6c69a0487b3c1258bda1f3`
-**Last observed revision:** `afba645047a6b7e59ac7ba3547cdfb4e23d6be77`
-**Consecutive red runs:** `16`
+**Last observed revision:** `cc497048cd8c7958b640479eb79ae068c93e56c4`
+**Consecutive red runs:** `17`
 **Escalation:** `AUTHOR_ESCALATION_REQUIRED`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 

@@ -13,11 +13,11 @@
 **Battery gate:** `deployment-identity`
 **Failure signature:** `sha256:1609d1a9e7acc55d6f260f6303aa8b5e12658f578164ac593341e4085889658e`
 **First observed run:** `local.20260824T075727Z.59ae1a00e1c4`
-**Last observed run:** `local.20260903T154459Z.afba645047a6`
-**Last processed run:** `local.20260903T154459Z.afba645047a6`
+**Last observed run:** `local.20260904T003052Z.cc497048cd8c`
+**Last processed run:** `local.20260904T003052Z.cc497048cd8c`
 **Detected at revision:** `59ae1a00e1c4cd2323b959586fcadb8395814686`
-**Last observed revision:** `afba645047a6b7e59ac7ba3547cdfb4e23d6be77`
-**Consecutive red runs:** `15`
+**Last observed revision:** `cc497048cd8c7958b640479eb79ae068c93e56c4`
+**Consecutive red runs:** `16`
 **Escalation:** `AUTHOR_ESCALATION_REQUIRED`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
