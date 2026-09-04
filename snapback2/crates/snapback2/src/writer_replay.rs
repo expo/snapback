@@ -111,7 +111,7 @@ impl State {
                 "the replay id slice overlaps an already settled intent",
             ));
         }
-        // @ref LLP 1002#9-the-client — a retry after a 503 returns the stored
+        // @ref LLP 1002#9-the-client-snapback2client-snapback2react-snapback2test — a retry after a 503 returns the stored
         // terminal without executing, so a commit never looks like a rejection.
         if let Some(stored) = self
             .runtime()
