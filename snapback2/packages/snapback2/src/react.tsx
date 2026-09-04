@@ -358,15 +358,37 @@ export function useAssetUrl(
   const value = resolved.identity === identity ? resolved.value : undefined;
   useEffect(() => {
     let active = true;
-    const request = Array.isArray(stableAsset)
-      ? client.assetUrl(stableAsset, options)
-      : client.assetUrl(stableAsset as AssetRecord | null | undefined, options);
-    void request
-      .then((next) => {
-        if (active) setResolved({ identity, value: next });
-      })
-      .catch(() => undefined);
-    return () => { active = false; };
+    const created: string[] = [];
+    const list: readonly AssetRecord[] = Array.isArray(stableAsset)
+      ? stableAsset
+      : stableAsset == null ? [] : [stableAsset as AssetRecord];
+    // @ref LLP 1012#9-asset-bytes-on-the-device — a rendition the byte cache holds
+    // answers as a blob: URL before any network URL or carrier is minted.
+    void (async () => {
+      await client.ready;
+      const held = await Promise.all(list.map((asset) => client.assetCache?.get(asset.id, options.width ?? null)));
+      const network = held.some((blob) => blob === undefined)
+        ? Array.isArray(stableAsset)
+          ? await client.assetUrl(stableAsset, options)
+          : [await client.assetUrl(stableAsset as AssetRecord, options)]
+        : [];
+      const urls = list.map((_asset, index) => {
+        const blob = held[index];
+        if (!blob || typeof URL.createObjectURL !== "function") return network[index];
+        const url = URL.createObjectURL(blob);
+        created.push(url);
+        return url;
+      });
+      if (!active) {
+        for (const url of created) URL.revokeObjectURL(url);
+        return;
+      }
+      setResolved({ identity, value: Array.isArray(stableAsset) ? urls as string[] : urls[0] });
+    })().catch(() => undefined);
+    return () => {
+      active = false;
+      for (const url of created) URL.revokeObjectURL(url);
+    };
   }, [identity, stableAsset, options.width, options.carrier, options.download]);
   return value;
 }
@@ -403,6 +425,11 @@ export function AssetImage({ asset, width, height, style, ...props }: AssetImage
   const [blobUrl, setBlobUrl] = useState<string>();
   useEffect(() => {
     if (!deliveryUrl || typeof URL.createObjectURL !== "function") return;
+    // A blob: URL is a held rendition from the byte cache; useAssetUrl owns its lifetime.
+    if (deliveryUrl.startsWith("blob:")) {
+      setBlobUrl(deliveryUrl);
+      return;
+    }
     let active = true;
     let created: string | undefined;
     const controller = new AbortController();
@@ -437,7 +464,19 @@ export type AssetVideoProps = Omit<React.VideoHTMLAttributes<HTMLVideoElement>, 
 // @ref LLP 1006#10-clients — video streams directly with a carrier because a
 // native player/video element cannot send the session header or wait for a blob.
 export function AssetVideo({ asset, width, height, style, controls, ...props }: AssetVideoProps): React.ReactElement {
+  const { client, snapshot } = provider();
   const url = useAssetUrl(asset, { carrier: true });
+  const cacheable = client.assetCache !== undefined && url !== undefined && !url.startsWith("blob:");
+  // @ref LLP 1012#9-asset-bytes-on-the-device — the player streams from the carrier
+  // now; one tokenless fetch fills the byte cache so the next mount plays offline.
+  useEffect(() => {
+    if (!cacheable || snapshot.connection === "offline") return;
+    const controller = new AbortController();
+    void client.assetUrl(asset)
+      .then((tokenless) => tokenless === undefined ? undefined : client.assetBlob(tokenless, { signal: controller.signal }))
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, [client, asset.id, cacheable]);
   return <video
     {...props}
     controls={controls ?? true}

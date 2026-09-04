@@ -1,5 +1,8 @@
 import type { Channel as ChannelRef, Op } from "./api.js";
+import type { AssetCache, ByteCacheEntry, ByteCacheStatus, ViewOncePredicate } from "./store/byte-cache.js";
 import type { RangeStoreFactory, RowRef, StoredRow } from "./store/range-store.js";
+
+export type { AssetCache, ByteCacheEntry, ByteCacheStatus, ViewOncePredicate };
 
 // @ref LLP 1006#1-the-move — the phantom kind keeps the two closed asset records
 // nominal; these must stay identical to the package-root declarations the
@@ -231,8 +234,15 @@ interface ClientLocationOptions {
 export interface OfflineClientOptions {
   store: RangeStoreFactory;
   fenceDays?: number;
+  /** Ceiling on cached asset bytes per partition, LRU by each rendition's own last read; default 256 MiB. */
   maxAssetBytes?: number;
   onTombstone?: (row: StoredRow) => RowRef[];
+  /**
+   * Names the rows whose media renders once: a viewed row is excluded from every
+   * later offline answer and its bytes are never cached (LLP 1012 §9). This stands
+   * in for LLP 1006's one-use delivery until that lands on the server.
+   */
+  viewOnce?: ViewOncePredicate;
 }
 
 /** A client has exactly one authority source: a dev persona or bearer custody. */
@@ -256,8 +266,10 @@ export interface SnapbackClient {
   assetUrl(assets: readonly AssetRecord[], options?: AssetUrlOptions): Promise<string[]>;
   /** Authentication headers for a native image source; carriers stay reserved for players/downloads. */
   assetHeaders(): Promise<Record<string, string>>;
-  /** Fetches a client-issued asset URL with the current header credential. */
+  /** Fetches a client-issued asset URL: the byte cache under the row's lease first, then the network with the header credential. */
   assetBlob(url: string, options?: { signal?: AbortSignal }): Promise<Blob>;
+  /** The partition's byte cache when the client has an offline store; components read it before the network. */
+  readonly assetCache: AssetCache | undefined;
   /** Delivers validated query receipt states with `live: true`; transport loss is client-made `stale`. */
   subscribe<Args, Result>(
     ref: Op<Args, Result>,

@@ -15,6 +15,7 @@ type JourneyContext = {
   as(name: string, options?: {
     store?: "file";
     onTombstone?: OfflineClientOptions["onTombstone"];
+    viewOnce?: OfflineClientOptions["viewOnce"];
   }): SnapbackClient;
   tick(ms: number): Promise<Record<string, unknown>>;
   url: string;
@@ -204,6 +205,7 @@ async function runCheck(
               offline: {
                 store: fileRangeStore(join(storeRoot!, name)),
                 onTombstone: options.onTombstone,
+                viewOnce: options.viewOnce,
               },
               // Test-only custody observer: unlike the public proxy, this sees
               // drain pages issued by the client's internal query path too.

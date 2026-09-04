@@ -11,6 +11,12 @@ trust, not reading: past it the client stops predicting and replaying until a
 resume succeeds and labels views `stale`; held answers stay readable.
 `useQuery(op, args, { drain: true })` follows `next` to `null`, keeps the
 watermark, and watches the tail; `useOutbox()` lists queued intents.
+Asset bytes a component fetched (`<AssetImage>`, `<AssetVideo>`, `useAssetUrl`,
+`assetBlob`) are cached per partition under the owning row's lease, keyed
+`(assetId, width)`, and leave in the swap that evicts the row; `offline.maxAssetBytes`
+(default 256 MiB) is the LRU ceiling. `offline.viewOnce(table, row)` names rows that
+render once: a viewed row answers `null` offline, its bytes are never cached, and a
+second fetch refuses `E_ASSET_VIEWED`.
 
 A client holds certified answers, never a replica. Ask for the envelope with
 `receipt: true` on `POST /api/query` or `receipt=1` on `/api/subscribe`:
@@ -54,5 +60,5 @@ an absence, and each rule verdict. At commit the server executes against
 current rows, then compares inside the same transaction; a moved point or
 verdict rolls the write back and answers `{ state: "rejected", reason:
 "conflict", site, intent }`. Ranges re-execute fresh and are never validated,
-so a fan-out uses the members at commit. It is `require msg.body = baseBody
-else CONFLICT`, made universal.
+so a fan-out uses the members at commit. It is `mutation edit(`'s `require
+msg.body = baseBody else CONFLICT`, made universal.
