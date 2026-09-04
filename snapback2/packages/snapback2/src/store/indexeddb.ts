@@ -96,7 +96,14 @@ function projections(state: PersistedRangeState): Record<StoreName, Entry[]> {
     outbox: entries(state.outbox),
     meta: [{
       key: "state",
-      value: { version: state.version, sealed: state.sealed, clock: state.clock, watermarks: state.watermarks },
+      value: {
+        version: state.version,
+        sealed: state.sealed,
+        clock: state.clock,
+        watermarks: state.watermarks,
+        negative: state.negative,
+        rowSeq: state.rowSeq,
+      },
     }],
   };
 }
@@ -141,6 +148,8 @@ class IndexedDbBackend implements RangeStoreBackend {
         answers: record(answers),
         watermarks: value?.watermarks ?? {},
         outbox: record(outbox),
+        negative: value?.negative ?? {},
+        rowSeq: value?.rowSeq ?? {},
       };
     } catch (error) {
       await this.close();

@@ -38,7 +38,10 @@ nextest_bin="${SNAPBACK_CARGO_NEXTEST_BIN:-cargo-nextest}"
 nextest_config="$(pwd)/../.config/nextest.toml"
 
 echo "== blocking script self-test"; "$0" --self-test || status=1
-echo "== bundle the compiler worker + client (the owner tests load dist/)"; (cd packages/snapback2 && node build.mjs >/dev/null) || status=1
+echo "== bundle the compiler worker + client and run offline package tests"
+(cd packages/snapback2 \
+    && node build.mjs >/dev/null \
+    && node --test tests/offline-protocol.test.ts tests/offline-store.test.ts) || status=1
 if nextest_path="$(command -v -- "$nextest_bin" 2>/dev/null)"; then
     echo "== cargo-nextest workspace tests (parallel, no fail-fast)"
     NEXTEST_TEST_THREADS="$rust_test_threads" \

@@ -1,13 +1,21 @@
 import { rm } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { createClient, stableSerialize, type SnapbackClient } from "./client.js";
+import {
+  createClient,
+  stableSerialize,
+  type OfflineClientOptions,
+  type SnapbackClient,
+} from "./client.js";
 import { fileRangeStore } from "./store/file.js";
 
 export { fileRangeStore };
 
 type JourneyContext = {
-  as(name: string, options?: { store?: "file" }): SnapbackClient;
+  as(name: string, options?: {
+    store?: "file";
+    onTombstone?: OfflineClientOptions["onTombstone"];
+  }): SnapbackClient;
   tick(ms: number): Promise<Record<string, unknown>>;
   url: string;
 };
@@ -130,24 +138,12 @@ type QueryRecord = { ref: any; args: unknown; expected: unknown };
 type Device = { client: SnapbackClient; records: Map<string, QueryRecord>; durable: boolean };
 
 function queryBytes(value: unknown): string {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return JSON.stringify(value);
-  const copy = { ...(value as Record<string, unknown>) };
-  for (const key of ["live", "connection", "stale", "retained", "caughtUp", "watermark"]) delete copy[key];
-  return stableSerialize(copy);
+  return stableSerialize(value);
 }
 
 function wrapDevice(device: Device, clients: Set<SnapbackClient>): SnapbackClient {
   return new Proxy(device.client, {
     get(target, property) {
-      if (property === "query") return async (ref: any, args: unknown) => {
-        const wasOnline = target.snapshot.connection !== "offline";
-        const result = await target.query(ref, args as never);
-        if (device.durable && wasOnline && result.state !== "hydrating") {
-          const key = `${String(ref?.op ?? ref)}:${JSON.stringify(args)}`;
-          device.records.set(key, { ref, args, expected: result });
-        }
-        return result;
-      };
       if (property === "restart") return async () => {
         const restarted = await target.restart();
         device.client = restarted;
@@ -200,11 +196,25 @@ async function runCheck(
           throw new TypeError("journey as(...).store must be 'file'");
         }
         if (options.store === "file" && !storeRoot) throw new Error("file journey store root was not supplied");
+        const records = new Map<string, QueryRecord>();
         const client = createClient(options.store === "file"
-          ? { url, as: name, offline: { store: fileRangeStore(join(storeRoot!, name)) } }
+          ? {
+              url,
+              as: name,
+              offline: {
+                store: fileRangeStore(join(storeRoot!, name)),
+                onTombstone: options.onTombstone,
+              },
+              // Test-only custody observer: unlike the public proxy, this sees
+              // drain pages issued by the client's internal query path too.
+              offlineReadObserver: (ref: any, args: unknown, expected: unknown) => {
+                const key = `${String(ref?.op ?? ref)}:${stableSerialize(args)}`;
+                records.set(key, { ref, args, expected });
+              },
+            } as Parameters<typeof createClient>[0]
           : { url, as: name });
         clients.add(client);
-        const device = { client, records: new Map<string, QueryRecord>(), durable: options.store === "file" };
+        const device = { client, records, durable: options.store === "file" };
         devices.add(device);
         return wrapDevice(device, clients);
       },

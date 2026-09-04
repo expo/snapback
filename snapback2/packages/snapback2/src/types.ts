@@ -20,6 +20,10 @@ export interface RefusalEnvelope {
   rule?: string;
   rewrite?: string;
   guide: string;
+  /** Offline resume detail identifying the request member that exceeded a cap. */
+  which?: string;
+  /** Offline resume detail limiting the next bounded request. */
+  cap?: number;
 }
 
 export type QueryComplete<Result> = { state: "complete"; data: Result; seq: number; next: Cursor | null };

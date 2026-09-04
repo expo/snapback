@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { SnapbackRefusal, api, browserTokenStore, createClient } from "../dist/client.mjs";
+import { decodeDeliveryEnvelope } from "../dist/index.mjs";
 import { indexedDbRangeStore } from "../dist/react.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
 
@@ -37,6 +38,11 @@ class FakeObjectStore {
     if (this.transaction.factory.failNextPut) {
       this.transaction.factory.failNextPut = false;
       throw new Error("injected put failure");
+    }
+    if (this.transaction.factory.abortNextPut) {
+      this.transaction.factory.abortNextPut = false;
+      this.transaction.abortWith(new Error("injected asynchronous put failure"));
+      return;
     }
     this.transaction.store(this.name).set(entry.key, structuredClone(entry));
   }
@@ -88,6 +94,11 @@ class FakeTransaction {
     this.aborted = true;
     queueMicrotask(() => this.onabort?.());
   }
+  abortWith(error: Error): void {
+    this.aborted = true;
+    this.error = error;
+    queueMicrotask(() => this.onabort?.());
+  }
   private finish(): void {
     if (this.aborted) return;
     if (this.mode === "readwrite") {
@@ -116,6 +127,7 @@ class FakeDatabase {
 
 class FakeIndexedDb {
   failNextPut = false;
+  abortNextPut = false;
   private readonly databases = new Map<string, Map<string, Map<string, Entry>>>();
   open(name: string): FakeRequest<FakeDatabase> {
     const request = new FakeRequest<FakeDatabase>();
@@ -148,7 +160,88 @@ class FakeLocks {
 
 const emptyReceipt = () => ({ ranges: [], absences: [], verdicts: [] });
 const row = (table: string, id: string, body = id) => ({ table, id, row: { id, body } });
-const ref = (table: string, id: string) => ({ $row: [table, id] });
+const ref = (table: string, id: string) => ({ $row: { table, id } });
+const generation = "d".repeat(64);
+const schemaHash = "e".repeat(64);
+const planHash = "f".repeat(64);
+
+async function golden(name: string): Promise<any> {
+  const text = await readFile(new URL(`../../../corpus/offline/${name}`, import.meta.url), "utf8");
+  return JSON.parse(text);
+}
+
+function deliveryFromEnvelope(op: string, args: unknown, value: any) {
+  const decoded = decodeDeliveryEnvelope(value);
+  return {
+    op,
+    args,
+    state: decoded.state,
+    data: decoded.data,
+    next: decoded.next,
+    seq: decoded.seq,
+    validator: decoded.validator,
+    rows: decoded.rows,
+    receipt: decoded.receipt,
+    ...(decoded.reason === undefined ? {} : { reason: decoded.reason }),
+    ...(decoded.rule === undefined ? {} : { rule: decoded.rule }),
+  };
+}
+
+const messageSchema = {
+  tables: { messages: { indexes: { byConversationAt: { columns: ["conversationId", "at", "id"] } } } },
+};
+
+function metadataResponse(input: RequestInfo | URL): Response | undefined {
+  const url = String(input);
+  if (url.endsWith("/api/manifest")) {
+    return new Response(JSON.stringify({
+      generation: "schema-generation",
+      programGeneration: generation,
+      ops: {},
+      channels: {},
+      auth: {},
+      tables: { messages: { retain: "delivered-history" } },
+    }), { status: 200 });
+  }
+  if (url.includes("/api/program?")) {
+    return new Response(JSON.stringify({
+      generation,
+      schemaHash,
+      programs: {},
+      schema: {
+        tables: {
+          messages: {
+            columns: { id: "Id", conversationId: { Ref: { table: "conversations" } }, at: "Time", body: { Text: { max: 4000 } } },
+            indexes: { byConvTime: { columns: ["conversationId", "at", "id"], unique: false }, byId: { columns: ["id"], unique: true } },
+            retain: "delivered-history",
+          },
+        },
+      },
+    }), { status: 200 });
+  }
+  return undefined;
+}
+
+const range = (overrides: Record<string, unknown> = {}) => ({
+  site: "thread.range",
+  table: "messages",
+  index: "byConvTime",
+  prefix: ["c1"],
+  order: "Asc",
+  take: 50,
+  after: null,
+  before: null,
+  gt: null,
+  gte: null,
+  lt: null,
+  lte: null,
+  ruleHash: "a".repeat(64),
+  rowIds: [] as string[],
+  stop: "Exhausted",
+  absence: false,
+  n2Key: null,
+  ...overrides,
+});
 
 async function tempRoot(): Promise<string> {
   return mkdtemp(join(tmpdir(), "snapback2-offline-"));
@@ -207,7 +300,17 @@ test("file and IndexedDB swaps are atomic when persistence fails", async () => {
   database.failNextPut = true;
   await assert.rejects(indexed.commit({ deliveries: [{ op: "list", args: {}, state: "complete", data: [2], next: null, seq: 2 }] }));
   assert.deepEqual((await indexed.answer("list", {}))?.data, [1]);
+  database.abortNextPut = true;
+  await assert.rejects(
+    indexed.commit({ deliveries: [{ op: "list", args: {}, state: "complete", data: [3], next: null, seq: 3 }] }),
+    /asynchronous put failure/,
+  );
+  assert.deepEqual((await indexed.answer("list", {}))?.data, [1]);
   await indexed.close?.();
+  const indexedReopened = factory();
+  await indexedReopened.open("dev:bob");
+  assert.deepEqual((await indexedReopened.answer("list", {}))?.data, [1]);
+  await indexedReopened.close?.();
   await rm(root, { recursive: true, force: true });
 });
 
@@ -254,10 +357,7 @@ test("a process killed between file write and rename leaves the previous snapsho
 
 async function exerciseEvictions(store: any): Promise<void> {
   await store.open("dev:alice");
-  const heldRange = {
-    site: "thread.range", table: "messages", index: "byConvTime", prefix: ["c1"], bounds: {},
-    rowIds: ["m1", "m2"], stop: "Exhausted", absence: false,
-  };
+  const heldRange = range({ rowIds: ["m1", "m2"] });
   await store.commit({ deliveries: [{
     op: "thread", args: { c: null }, state: "complete",
     data: [ref("messages", "m1"), ref("messages", "m2")], next: null, seq: 1,
@@ -271,22 +371,27 @@ async function exerciseEvictions(store: any): Promise<void> {
   }] });
   assert.deepEqual((await store.coverage()).rows.map((item) => item.id), ["m2"], "uniform-range hole evicts");
 
-  const limitedRange = {
-    site: "thread.limit", table: "messages", index: "byConvTime", prefix: ["c2"], bounds: {},
-    rowIds: ["m7", "m8", "m9"], stop: "Limit", absence: false,
-    rowKeys: { m7: [7], m8: [8], m9: [9] },
-  };
+  const limitedRange = range({
+    site: "thread.limit", prefix: ["c2"], rowIds: ["m7", "m8", "m9"], stop: "Limit",
+  });
   await store.commit({ deliveries: [{
     op: "limited", args: {}, state: "capped",
     data: [ref("messages", "m7"), ref("messages", "m8"), ref("messages", "m9")], next: "c9", seq: 2,
-    rows: [row("messages", "m7"), row("messages", "m8"), row("messages", "m9")],
+    rows: [
+      { table: "messages", id: "m7", row: { id: "m7", conversationId: "c2", at: 7 } },
+      { table: "messages", id: "m8", row: { id: "m8", conversationId: "c2", at: 8 } },
+      { table: "messages", id: "m9", row: { id: "m9", conversationId: "c2", at: 9 } },
+    ],
     receipt: { ranges: [limitedRange], absences: [], verdicts: [] },
   }] });
   await store.commit({ deliveries: [{
     op: "limited-fresh", args: {}, state: "capped", data: [ref("messages", "m7"), ref("messages", "m9")],
-    next: "c10", seq: 3, rows: [row("messages", "m7"), row("messages", "m9")],
+    next: "c10", seq: 3, rows: [
+      { table: "messages", id: "m7", row: { id: "m7", conversationId: "c2", at: 7 } },
+      { table: "messages", id: "m9", row: { id: "m9", conversationId: "c2", at: 9 } },
+    ],
     receipt: { ranges: [{ ...limitedRange, rowIds: ["m7", "m9"] }], absences: [], verdicts: [] },
-  }] });
+  }], schema: { tables: { messages: { indexes: { byConvTime: { columns: ["conversationId", "at", "id"] } } } } } });
   assert.equal((await store.coverage()).rows.some((item) => item.id === "m8"), false, "limited extent hole evicts");
 
   await store.commit({ deliveries: [{
@@ -302,7 +407,7 @@ async function exerciseEvictions(store: any): Promise<void> {
   await store.commit({ deliveries: [{
     op: "body4", args: {}, state: "complete", data: ref("messages", "m4"), next: null, seq: 5,
     rows: [row("messages", "m4")], receipt: emptyReceipt(),
-  }], tombstones: [{ table: "messages", id: "m4" }] });
+  }], tombstones: [{ table: "messages", id: "m4", seq: 5 }] });
   assert.equal((await store.coverage()).rows.some((item) => item.id === "m4"), false, "tombstone evicts");
 
   await store.commit({ deliveries: [{
@@ -337,15 +442,215 @@ test("both carriers apply the four swap rules with until-revoked and delivered-h
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
-test("seal hides a partition, reopening the same principal unseals it, and wipe deletes it", async () => {
+test("O1a golden ranges evict only holes inside Exhausted bounds and the returned Limit extent", async () => {
+  const root = await tempRoot();
+  const store = fileRangeStore(root)();
+  await store.open("alice");
+
+  const exhaustedHeld = await golden("envelope-uniform-range-halo.json");
+  exhaustedHeld.seq = 16;
+  exhaustedHeld.validator = "0".repeat(64);
+  exhaustedHeld.data = [
+    ref("messages", "message-1"),
+    ref("messages", "message-inside"),
+    ref("messages", "message-outside"),
+    ref("messages", "message-boundary"),
+  ];
+  exhaustedHeld.rows.push(
+    row("messages", "message-inside", "inside"),
+    { table: "messages", id: "message-outside", row: {
+      id: "message-outside", conversationId: "conversation-2", at: 1, body: "outside",
+    } },
+    { table: "messages", id: "message-boundary", row: {
+      id: "message-boundary", conversationId: "conversation-1", at: 0, body: "before cursor",
+    } },
+  );
+  exhaustedHeld.rows.at(-3).row.conversationId = "conversation-1";
+  exhaustedHeld.rows.at(-3).row.at = 3;
+  exhaustedHeld.receipt.ranges[0].after = [0, "message-boundary"];
+  exhaustedHeld.receipt.ranges[0].rowIds = [
+    "message-1", "message-inside", "message-outside", "message-boundary",
+  ];
+  await store.commit({ deliveries: [deliveryFromEnvelope("exhausted-held", {}, exhaustedHeld)] });
+  const exhaustedFresh = await golden("envelope-uniform-range-halo.json");
+  exhaustedFresh.receipt.ranges[0].after = [0, "message-boundary"];
+  await store.commit({
+    deliveries: [deliveryFromEnvelope("exhausted-fresh", {}, exhaustedFresh)],
+    schema: messageSchema,
+  });
+  const afterExhausted = (await store.coverage()).rows.map((item) => item.id);
+  assert.equal(afterExhausted.includes("message-inside"), false);
+  assert.equal(afterExhausted.includes("message-outside"), true, "a different prefix is outside Exhausted extent");
+  assert.equal(afterExhausted.includes("message-boundary"), true, "the exclusive after cursor bounds Exhausted extent");
+
+  const limitedHeld = await golden("envelope-capped-page-next.json");
+  limitedHeld.seq = 18;
+  limitedHeld.validator = "2".repeat(64);
+  limitedHeld.data = ["message-1", "message-2", "message-3", "message-4"]
+    .map((id) => ref("messages", id));
+  limitedHeld.rows.push(
+    { table: "messages", id: "message-3", row: { id: "message-3", conversationId: "conversation-1", at: 3 } },
+    { table: "messages", id: "message-4", row: { id: "message-4", conversationId: "conversation-1", at: 4 } },
+  );
+  limitedHeld.receipt.ranges[0].rowIds = ["message-1", "message-2", "message-3", "message-4"];
+  await store.commit({ deliveries: [deliveryFromEnvelope("limited-held", {}, limitedHeld)] });
+  const limitedFresh = await golden("envelope-capped-page-next.json");
+  limitedFresh.seq = 19;
+  limitedFresh.validator = "3".repeat(64);
+  limitedFresh.data = [ref("messages", "message-1"), ref("messages", "message-3")];
+  limitedFresh.rows.push({
+    table: "messages", id: "message-3",
+    row: { id: "message-3", conversationId: "conversation-1", at: 3 },
+  });
+  limitedFresh.receipt.ranges[0].rowIds = ["message-1", "message-3"];
+  delete limitedFresh.receipt.ranges[0].haloId;
+  await store.commit({
+    deliveries: [deliveryFromEnvelope("limited-fresh", {}, limitedFresh)],
+    schema: messageSchema,
+  });
+  const afterLimit = (await store.coverage()).rows.map((item) => item.id);
+  assert.equal(afterLimit.includes("message-2"), false, "a missing key between returned keys is evicted");
+  assert.equal(afterLimit.includes("message-4"), true, "a key after the last returned key is outside Limit extent");
+  await store.close?.();
+  await rm(root, { recursive: true, force: true });
+});
+
+test("the O1a whole-answer-null golden is hidden evidence and delivered-history restores it", async () => {
+  const root = await tempRoot();
+  const store = fileRangeStore(root)();
+  await store.open("alice");
+  const hit = await golden("envelope-point-hit.json");
+  hit.seq = 16;
+  await store.commit({ deliveries: [deliveryFromEnvelope("messages.alternate", {}, hit)] });
+  const hidden = await golden("envelope-hidden-point-alternate-key.json");
+  await store.commit({
+    deliveries: [deliveryFromEnvelope("messages.alternate", {}, hidden)],
+    retention: { messages: "delivered-history" },
+  });
+  const answer = await store.answer<any>("messages.alternate", {});
+  assert.equal(answer?.retained, true);
+  assert.equal(answer?.data.body, "hello");
+  await store.close?.();
+  await rm(root, { recursive: true, force: true });
+});
+
+test("sequence fences make absence, hidden, and tombstone evidence monotonic and deliveries idempotent", async () => {
+  const root = await tempRoot();
+  const store = fileRangeStore(root)();
+  await store.open("dev:alice");
+
+  await store.commit({ deliveries: [{
+    op: "absence-seed", args: {}, state: "complete", data: ref("messages", "a"), next: null, seq: 9,
+    rows: [row("messages", "a")], receipt: emptyReceipt(), deliveredAt: 1,
+  }] });
+  await store.commit({ deliveries: [{
+    op: "absence", args: {}, state: "complete", data: null, next: null, seq: 10,
+    receipt: { ranges: [], absences: [["messages", "byId", ["a"]]], verdicts: [] }, deliveredAt: 2,
+  }] });
+  await store.commit({ deliveries: [{
+    op: "absence-replay", args: {}, state: "complete", data: ref("messages", "a"), next: null, seq: 9,
+    rows: [row("messages", "a", "stale")], receipt: emptyReceipt(), deliveredAt: 3,
+  }] });
+  assert.equal((await store.coverage()).rows.some((item) => item.id === "a"), false);
+
+  await store.commit({ deliveries: [{
+    op: "hidden", args: {}, state: "complete", data: ref("messages", "h"), next: null, seq: 19,
+    rows: [row("messages", "h")], receipt: emptyReceipt(), deliveredAt: 4,
+  }] });
+  await store.commit({ deliveries: [{
+    op: "hidden", args: {}, state: "complete", data: null, next: null, seq: 20,
+    receipt: emptyReceipt(), deliveredAt: 5,
+  }] });
+  await store.commit({ deliveries: [{
+    op: "hidden", args: {}, state: "complete", data: ref("messages", "h"), next: null, seq: 19,
+    rows: [row("messages", "h", "stale")], receipt: emptyReceipt(), deliveredAt: 6,
+  }] });
+  assert.equal((await store.coverage()).rows.some((item) => item.id === "h"), false);
+
+  await store.commit({ deliveries: [{
+    op: "tombstone-seed", args: {}, state: "complete", data: ref("messages", "t"), next: null, seq: 29,
+    rows: [row("messages", "t")], receipt: emptyReceipt(), deliveredAt: 7,
+  }] });
+  await store.commit({ tombstones: [{ table: "messages", id: "t", seq: 30 }] });
+  await store.commit({ deliveries: [{
+    op: "tombstone-replay", args: {}, state: "complete", data: ref("messages", "t"), next: null, seq: 29,
+    rows: [row("messages", "t", "stale")], receipt: emptyReceipt(), deliveredAt: 8,
+  }] });
+  assert.equal((await store.coverage()).rows.some((item) => item.id === "t"), false);
+
+  const duplicate = {
+    op: "duplicate", args: {}, state: "complete" as const, data: [1], next: null, seq: 40,
+    receipt: emptyReceipt(), deliveredAt: 9,
+  };
+  await store.commit({ deliveries: [duplicate] });
+  const once = await store.answer("duplicate", {});
+  await store.commit({ deliveries: [duplicate] });
+  assert.deepEqual(await store.answer("duplicate", {}), once);
+  await assert.rejects(store.commit({ deliveries: [{ ...duplicate, data: [2] }] }), /conflicting deliveries/);
+  await store.commit({ deliveries: [{
+    op: "row-one", args: {}, state: "complete", data: ref("messages", "same-seq"), next: null, seq: 41,
+    rows: [row("messages", "same-seq", "one")], receipt: emptyReceipt(),
+  }] });
+  await assert.rejects(store.commit({ deliveries: [{
+    op: "row-two", args: {}, state: "complete", data: ref("messages", "same-seq"), next: null, seq: 41,
+    rows: [row("messages", "same-seq", "two")], receipt: emptyReceipt(),
+  }] }), /conflicting row/);
+  await assert.rejects(store.commit({ deliveries: [{
+    op: "bad-absence", args: {}, state: "complete", data: null, next: null, seq: 42,
+    receipt: { ranges: [], absences: [["messages", "byAlternate", ["same-seq"]]], verdicts: [] },
+  }] }), /primary byId absence/);
+  await store.close?.();
+  await rm(root, { recursive: true, force: true });
+});
+
+test("shrunk arrays and denied answers emit the hidden signal", async () => {
+  const root = await tempRoot();
+  const store = fileRangeStore(root)();
+  await store.open("dev:alice");
+  await store.commit({ deliveries: [{
+    op: "shrunk", args: {}, state: "complete", data: [ref("messages", "s1"), ref("messages", "s2")],
+    next: null, seq: 1, rows: [row("messages", "s1"), row("messages", "s2")], receipt: emptyReceipt(),
+  }] });
+  await store.commit({ deliveries: [{
+    op: "shrunk", args: {}, state: "complete", data: [ref("messages", "s1")], next: null, seq: 2,
+    rows: [row("messages", "s1")], receipt: emptyReceipt(),
+  }] });
+  assert.equal((await store.coverage()).rows.some((item) => item.id === "s2"), false);
+  await store.commit({ deliveries: [{
+    op: "denied", args: {}, state: "complete", data: ref("messages", "d1"), next: null, seq: 3,
+    rows: [row("messages", "d1")], receipt: emptyReceipt(),
+  }] });
+  await store.commit({ deliveries: [{
+    op: "denied", args: {}, state: "denied", seq: 4, rule: "messages.Read", receipt: emptyReceipt(),
+  }] });
+  assert.equal((await store.coverage()).rows.some((item) => item.id === "d1"), false);
+  await store.close?.();
+  await rm(root, { recursive: true, force: true });
+});
+
+test("seal survives a cold open, confirmed re-auth unseals, and wipe deletes the partition", async () => {
   for (const make of [fileRangeStore(await tempRoot()), indexedFactory().factory]) {
-    const store = make();
+    let store = make();
     await store.open("dev:alice");
     await store.commit({ deliveries: [{ op: "list", args: {}, state: "complete", data: [1], next: null, seq: 1 }] });
+    await store.outbox.put({ intent: "i1", ids: [], op: "send", args: { body: "secret" }, state: "queued", createdAt: 1, updatedAt: 1 });
     await store.seal();
     assert.equal(await store.answer("list", {}), undefined);
+    await assert.rejects(store.outbox.all(), /sealed/);
+    await assert.rejects(store.outbox.get("i1"), /sealed/);
+    await assert.rejects(store.outbox.remove("i1"), /sealed/);
+    await assert.rejects(store.outbox.put({
+      intent: "i2", ids: [], op: "send", args: {}, state: "queued", createdAt: 2, updatedAt: 2,
+    }), /sealed/);
+    await store.close?.();
+    store = make();
     await store.open("dev:alice");
+    assert.equal(await store.answer("list", {}), undefined, "cold open must not defeat the seal");
+    await store.unseal(); // the client calls this only after owner-confirmed authentication
     assert.deepEqual((await store.answer("list", {}))?.data, [1]);
+    const entries = await store.outbox.all();
+    entries[0]!.args = { body: "mutated copy" };
+    assert.deepEqual((await store.outbox.get("i1"))?.args, { body: "secret" });
     await store.wipe("dev:alice");
     await store.open("dev:alice");
     assert.equal(await store.answer("list", {}), undefined);
@@ -389,7 +694,7 @@ test("offline option shape and fenceDays bounds are TypeErrors", () => {
   );
 });
 
-test("browser token custody reopens the same principal partition on a cold offline start", async () => {
+test("a sealed cold start stays unreadable until auth.me confirms the same bearer principal", async () => {
   const root = await tempRoot();
   const values = new Map<string, string>();
   const tokenStore = browserTokenStore({
@@ -398,22 +703,169 @@ test("browser token custody reopens the same principal partition on a cold offli
     removeItem: (key) => { values.delete(key); },
   }, "auth");
   const fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+    const metadata = metadataResponse(input);
+    if (metadata) return metadata;
     if (String(input).endsWith("/api/auth/login")) {
       return new Response(JSON.stringify({ token: "token-1", viewer: "principal-1" }), { status: 200 });
     }
-    assert.equal(JSON.parse(String(init?.body)).receipt, 1);
+    if (String(input).endsWith("/api/auth/me")) {
+      return new Response(JSON.stringify({ viewer: "principal-1", kind: "user" }), { status: 200 });
+    }
+    assert.equal(new URL(String(input)).searchParams.get("receipt"), "1");
     return new Response(JSON.stringify({ state: "complete", data: ["held"], seq: 1, next: null }), { status: 200 });
   };
   const first = createClient({ url: "http://bearer.test", tokenStore, offline: { store: fileRangeStore(root) }, fetch });
   await first.auth.login({ email: "a@example.com", password: "password" });
   await first.query(api.messages.thread, { c: null });
   first.close();
+  const sealed = fileRangeStore(root)();
+  await sealed.open("principal-1");
+  await sealed.seal();
+  await sealed.close?.();
+  const unauthenticated = createClient({
+    url: "http://bearer.test",
+    tokenStore,
+    offline: { store: fileRangeStore(root) },
+    fetch: async () => { throw new Error("network down"); },
+  });
+  await unauthenticated.ready;
+  await unauthenticated.offline();
+  assert.equal((await unauthenticated.query<any, any>(api.messages.thread as any, { c: null })).state, "hydrating");
+  unauthenticated.close();
   const cold = createClient({ url: "http://bearer.test", tokenStore, offline: { store: fileRangeStore(root) }, fetch });
   await cold.ready;
   await cold.offline();
   const held = await cold.query<any, any>(api.messages.thread as any, { c: null });
   assert.deepEqual("data" in held ? held.data : undefined, ["held"]);
   cold.close();
+  await rm(root, { recursive: true, force: true });
+});
+
+test("an envelope cannot switch the open principal partition", async () => {
+  const root = await tempRoot();
+  const client = createClient({
+    url: "http://authority.test", as: "alice", offline: { store: fileRangeStore(root) },
+    fetch: async (input) => {
+      const metadata = metadataResponse(input);
+      if (metadata) return metadata;
+      const wrong = envelope(["secret"]);
+      wrong.authority.principal = "dev:bob";
+      return new Response(JSON.stringify(wrong), { status: 200 });
+    },
+  });
+  await client.ready;
+  await assert.rejects(client.query(api.messages.thread, {}), (error: unknown) =>
+    error instanceof SnapbackRefusal && error.code === "E_OFFLINE_RESET");
+  client.close();
+  for (const principal of ["dev:alice", "dev:bob"]) {
+    const inspect = fileRangeStore(root)();
+    await inspect.open(principal);
+    assert.equal(await inspect.answer("messages.thread", {}), undefined);
+    await inspect.close?.();
+  }
+  await rm(root, { recursive: true, force: true });
+});
+
+test("manifest retention is loaded before the first commit without an app manifest call", async () => {
+  const root = await tempRoot();
+  const hit = await golden("envelope-point-hit.json");
+  hit.authority.principal = "dev:alice";
+  hit.seq = 16;
+  const hidden = await golden("envelope-hidden-point-alternate-key.json");
+  hidden.authority.principal = "dev:alice";
+  let reads = 0;
+  const client = createClient({
+    url: "http://retention.test", as: "alice", offline: { store: fileRangeStore(root) },
+    fetch: async (input) => {
+      const metadata = metadataResponse(input);
+      if (metadata) return metadata;
+      return new Response(JSON.stringify(reads++ === 0 ? hit : hidden), { status: 200 });
+    },
+  });
+  await client.ready;
+  await client.query(api.messages.alternate as any, {});
+  await client.query(api.messages.alternate as any, {});
+  await client.offline();
+  const held = await client.query<any, any>(api.messages.alternate as any, {});
+  assert.equal("retained" in held && held.retained, true);
+  assert.equal("data" in held && held.data?.body, "hello");
+  client.close();
+  await rm(root, { recursive: true, force: true });
+});
+
+test("conditional unchanged branches before envelope decoding and refreshes the held seq", async () => {
+  const root = await tempRoot();
+  const validator = "7".repeat(64);
+  let reads = 0;
+  const client = createClient({
+    url: "http://conditional.test", as: "alice", offline: { store: fileRangeStore(root) },
+    fetch: async (input, init) => {
+      const metadata = metadataResponse(input);
+      if (metadata) return metadata;
+      const request = JSON.parse(String(init?.body));
+      if (reads++ === 0) return new Response(JSON.stringify(envelope(["held"], validator, 3)), { status: 200 });
+      assert.equal(request.validator, validator);
+      return new Response(JSON.stringify({ state: "unchanged", seq: 4, validator }), { status: 200 });
+    },
+  });
+  await client.ready;
+  await client.query(api.messages.thread, {});
+  const unchanged = await client.query<any, any>(api.messages.thread as any, {});
+  assert.equal(unchanged.seq, 4);
+  assert.deepEqual("data" in unchanged ? unchanged.data : undefined, ["held"]);
+  await client.offline();
+  assert.equal((await client.query<any, any>(api.messages.thread as any, {})).seq, 4);
+  client.close();
+  await rm(root, { recursive: true, force: true });
+});
+
+test("a subscription conditional unchanged frame reuses the held pooled answer", async () => {
+  const root = await tempRoot();
+  const validator = "9".repeat(64);
+  const client = createClient({
+    url: "http://conditional-sse.test", as: "alice", offline: { store: fileRangeStore(root) },
+    fetch: async (input) => {
+      const metadata = metadataResponse(input);
+      if (metadata) return metadata;
+      const url = String(input);
+      if (url.includes("/api/query")) return new Response(JSON.stringify(envelope(["held"], validator, 3)), { status: 200 });
+      assert.equal(new URL(url).searchParams.get("validator"), validator);
+      return sse({ state: "unchanged", seq: 4, validator });
+    },
+  });
+  await client.ready;
+  await client.query(api.messages.thread, {});
+  const sub = client.subscribe(api.messages.thread, {}, () => undefined);
+  const unchanged = await sub.until((item) => item.state === "complete", 1_000);
+  assert.equal(unchanged.live, true);
+  assert.equal(unchanged.seq, 4);
+  assert.deepEqual("data" in unchanged ? unchanged.data : undefined, ["held"]);
+  sub.close();
+  client.close();
+  await rm(root, { recursive: true, force: true });
+});
+
+test("generation and auth-epoch mismatches cannot replace held coverage", async () => {
+  const root = await tempRoot();
+  let reads = 0;
+  const client = createClient({
+    url: "http://epoch.test", as: "alice", offline: { store: fileRangeStore(root) },
+    fetch: async (input) => {
+      const metadata = metadataResponse(input);
+      if (metadata) return metadata;
+      const value = envelope([reads === 0 ? "held" : "wrong"], String(reads + 1).repeat(64), reads + 1);
+      if (reads++ > 0) value.authority.authEpoch = 8;
+      return new Response(JSON.stringify(value), { status: 200 });
+    },
+  });
+  await client.ready;
+  await client.query(api.messages.thread, {});
+  await assert.rejects(client.query(api.messages.thread, {}), (error: unknown) =>
+    error instanceof SnapbackRefusal && error.code === "E_OFFLINE_RESET");
+  await client.offline();
+  const held = await client.query<any, any>(api.messages.thread as any, {});
+  assert.deepEqual("data" in held ? held.data : undefined, ["held"]);
+  client.close();
   await rm(root, { recursive: true, force: true });
 });
 
@@ -426,7 +878,9 @@ test("held and unheld offline reads expose since and fenceDays never blocks read
     const client = createClient({
       url: "http://query.test", as: "alice", offline: { store: fileRangeStore(root), fenceDays: 1 },
       fetch: async (_input, init) => {
-        assert.equal(JSON.parse(String(init?.body)).receipt, 1);
+        const metadata = metadataResponse(_input);
+        if (metadata) return metadata;
+        assert.equal(new URL(String(_input)).searchParams.get("receipt"), "1");
         return new Response(JSON.stringify({ state: "complete", data: [{ id: "m1" }], seq: 1, next: null }), { status: 200 });
       },
     });
@@ -460,9 +914,15 @@ test("the client tombstone hook evicts the named body in the same delivery swap"
         && typeof item.row.messageId === "string"
         ? [{ table: "messages", id: item.row.messageId }] : [],
     },
-    fetch: async () => {
+    fetch: async (input) => {
+      const metadata = metadataResponse(input);
+      if (metadata) return metadata;
       call += 1;
-      const delivered = envelope(ref(call === 1 ? "messages" : "deliveries", call === 1 ? "m1" : "d1"), `v${call}`);
+      const delivered = envelope(
+        ref(call === 1 ? "messages" : "deliveries", call === 1 ? "m1" : "d1"),
+        String(call).repeat(64),
+        call,
+      );
       delivered.rows = call === 1
         ? [row("messages", "m1", "secret")]
         : [{ table: "deliveries", id: "d1", row: { id: "d1", kind: "removed", messageId: "m1" } }];
@@ -481,13 +941,13 @@ test("the client tombstone hook evicts the named body in the same delivery swap"
   await rm(root, { recursive: true, force: true });
 });
 
-test("the provisional delivery decoder rejects malformed custody facts", async () => {
+test("the frozen delivery decoder rejects malformed custody facts", async () => {
   const root = await tempRoot();
   const malformed: any = envelope([]);
   delete malformed.planHash;
   const client = createClient({
     url: "http://envelope.test", as: "alice", offline: { store: fileRangeStore(root) },
-    fetch: async () => new Response(JSON.stringify(malformed), { status: 200 }),
+    fetch: async (input) => metadataResponse(input) ?? new Response(JSON.stringify(malformed), { status: 200 }),
   });
   await assert.rejects(client.query(api.messages.thread, {}), (error: unknown) =>
     error instanceof SnapbackRefusal && error.code === "E_WIRE_SHAPE" && error.message.includes("planHash"));
@@ -514,16 +974,23 @@ test("drain true follows five pages, persists the watermark, and follows a new t
     url: "http://drain.test", as: "alice", offline: { store: fileRangeStore(root) },
     fetch: async (input, init) => {
       const url = String(input);
+      const metadata = metadataResponse(input);
+      if (metadata) return metadata;
       if (url.includes("/api/query")) {
         const args = JSON.parse(String(init?.body)).args;
         cursors.push(args.c);
         const next = nextByCursor.get(args.c);
-        return new Response(JSON.stringify({ state: next === null ? "complete" : "capped", data: [args.c], seq: cursors.length, next }), { status: 200 });
+        const page = envelope([args.c], String(cursors.length).repeat(64), cursors.length);
+        page.state = next === null ? "complete" : "capped";
+        page.next = next;
+        return new Response(JSON.stringify(page), { status: 200 });
       }
       subscriptions += 1;
-      return subscriptions === 1
-        ? sse({ state: "capped", data: ["tail"], seq: 10, next: "c5" })
-        : sse(undefined, true);
+      if (subscriptions !== 1) return sse(undefined, true);
+      const tail = envelope(["tail"], "a".repeat(64), 10);
+      tail.state = "capped";
+      tail.next = "c5";
+      return sse(tail);
     },
   });
   await client.ready;
@@ -536,7 +1003,9 @@ test("drain true follows five pages, persists the watermark, and follows a new t
   client.close();
   const inspect = fileRangeStore(root)();
   await inspect.open("dev:alice");
-  assert.equal((await inspect.coverage()).watermarks[0]?.watermark, "c5");
+  const watermark = (await inspect.coverage()).watermarks[0];
+  assert.equal(watermark?.watermark, "c5");
+  assert.equal(watermark?.validator, "6".repeat(64), "the base args carry the tail answer's validator");
   const heldDrain = await inspect.answer("deliveries.inbox", { c: null });
   assert.equal(heldDrain?.caughtUp, true);
   assert.equal(heldDrain?.watermark, "c5");
@@ -544,10 +1013,10 @@ test("drain true follows five pages, persists the watermark, and follows a new t
   await rm(root, { recursive: true, force: true });
 });
 
-function envelope(data: unknown, validator = "validator-1") {
+function envelope(data: unknown, validator = "1".repeat(64), seq = 3) {
   return {
-    protocol: 1, generation: "generation-1", schemaHash: "schema-1", planHash: "plan-1",
-    authority: { principal: "dev:alice", authEpoch: 7 }, state: "complete", data, next: null, seq: 3,
+    protocol: 1, generation, schemaHash, planHash,
+    authority: { principal: "dev:alice", authEpoch: 7 }, state: "complete", data, next: null, seq,
     rows: [], receipt: emptyReceipt(), validator,
   };
 }
@@ -558,11 +1027,11 @@ async function seededResumeStore(root: string): Promise<void> {
   await store.commit({
     deliveries: [{
       op: "deliveries.inbox", args: { c: null }, state: "complete", data: [], next: null, seq: 3,
-      validator: "validator-1", receipt: emptyReceipt(),
+      validator: "1".repeat(64), receipt: emptyReceipt(),
     }],
     watermark: {
-      op: "deliveries.inbox", args: { c: null }, watermark: "cursor-9", validator: "validator-1",
-      generation: "generation-1", schemaHash: "schema-1", authEpoch: 7, updatedAt: 10,
+      op: "deliveries.inbox", args: { c: null }, watermark: "cursor-9", validator: "1".repeat(64),
+      generation, schemaHash, authEpoch: 7, updatedAt: 10,
     },
   });
   await store.close?.();
@@ -577,13 +1046,15 @@ test("cold resume sends the bounded shape before subscribe and a 404 falls back 
     url: "http://resume.test", as: "alice", offline: { store: fileRangeStore(root) },
     fetch: async (input, init) => {
       const url = String(input);
+      const metadata = metadataResponse(input);
+      if (metadata) return metadata;
       if (url.endsWith("/api/resume")) {
         order.push("resume");
         request = JSON.parse(String(init?.body));
         return new Response(JSON.stringify({ code: "E_ROUTE", family: "op", message: "not found", guide: "op/reference" }), { status: 404 });
       }
       order.push("subscribe");
-      assert.equal(new URL(url).searchParams.get("validator"), "validator-1");
+      assert.equal(new URL(url).searchParams.get("validator"), "1".repeat(64));
       return sse(undefined, true);
     },
   });
@@ -592,12 +1063,59 @@ test("cold resume sends the bounded shape before subscribe and a 404 falls back 
   await new Promise((resolve) => setTimeout(resolve, 20));
   assert.deepEqual(order.slice(0, 2), ["resume", "subscribe"]);
   assert.deepEqual(request, {
-    protocol: 1, generation: "generation-1", schemaHash: "schema-1", authEpoch: 7,
-    log: { op: "deliveries.inbox", args: { c: null }, watermark: "cursor-9", validator: "validator-1" },
+    protocol: 1, generation, schemaHash, authEpoch: 7,
+    log: { op: "deliveries.inbox", args: { c: null }, watermark: "cursor-9", validator: "1".repeat(64) },
     mounted: [],
   });
   sub.close();
   client.close();
+  await rm(root, { recursive: true, force: true });
+});
+
+test("resume excludes its drain mount and atomically preserves a full log watermark and validator", async () => {
+  const root = await tempRoot();
+  await seededResumeStore(root);
+  let resumes = 0;
+  let reconnectRequest: any;
+  const client = createClient({
+    url: "http://resume-watermark.test", as: "alice", offline: { store: fileRangeStore(root) },
+    fetch: async (input, init) => {
+      const url = String(input);
+      const metadata = metadataResponse(input);
+      if (metadata) return metadata;
+      if (url.endsWith("/api/resume")) {
+        const request = JSON.parse(String(init?.body));
+        resumes += 1;
+        if (resumes === 1) return new Response(JSON.stringify({
+          seq: 3, generation, schemaHash,
+          authority: { principal: "dev:alice", authEpoch: 7 }, log: { unchanged: true }, mounted: [],
+        }), { status: 200 });
+        reconnectRequest = request;
+        return new Response(JSON.stringify({
+          seq: 5, generation, schemaHash,
+          authority: { principal: "dev:alice", authEpoch: 7 },
+          log: { ...envelope([], "8".repeat(64), 5), watermark: "cursor-10" },
+          mounted: [],
+        }), { status: 200 });
+      }
+      if (url.includes("/api/query")) return new Response(JSON.stringify(envelope([], "4".repeat(64), 4)), { status: 200 });
+      return sse(undefined, true);
+    },
+  });
+  await client.ready;
+  const drain = client.subscribe(api.deliveries.inbox as any, { c: null }, () => undefined, { drain: true });
+  await drain.until((value) => value.state === "complete" && value.caughtUp === true);
+  await client.offline();
+  await client.online();
+  assert.deepEqual(reconnectRequest.mounted, [], "the drained log is represented only by log");
+  drain.close();
+  client.close();
+  const inspect = fileRangeStore(root)();
+  await inspect.open("dev:alice");
+  const watermark = (await inspect.coverage()).watermarks.find((item) => item.op === "deliveries.inbox");
+  assert.equal(watermark?.watermark, "cursor-10");
+  assert.equal(watermark?.validator, "8".repeat(64));
+  await inspect.close?.();
   await rm(root, { recursive: true, force: true });
 });
 
@@ -610,7 +1128,7 @@ test("E_OFFLINE_RESET drops coverage but preserves the durable outbox slot", asy
   await store.close?.();
   const client = createClient({
     url: "http://reset.test", as: "alice", offline: { store: fileRangeStore(root) },
-    fetch: async () => new Response(JSON.stringify({
+    fetch: async (input) => metadataResponse(input) ?? new Response(JSON.stringify({
       code: "E_OFFLINE_RESET", family: "offline", message: "generation moved", rewrite: "cold drain", guide: "offline",
     }), { status: 409 }),
   });
@@ -636,10 +1154,12 @@ test("E_OFFLINE_RESET cold-drains a mounted drain from the null cursor", async (
     url: "http://reset-drain.test", as: "alice", offline: { store: fileRangeStore(root) },
     fetch: async (input, init) => {
       const url = String(input);
+      const metadata = metadataResponse(input);
+      if (metadata) return metadata;
       if (url.endsWith("/api/resume")) {
         resumes += 1;
         if (resumes === 1) return new Response(JSON.stringify({
-          seq: 3, generation: "generation-1", schemaHash: "schema-1",
+          seq: 3, generation, schemaHash,
           authority: { principal: "dev:alice", authEpoch: 7 }, log: { unchanged: true }, mounted: [],
         }), { status: 200 });
         return new Response(JSON.stringify({
@@ -678,31 +1198,72 @@ test("E_OFFLINE_RESET cold-drains a mounted drain from the null cursor", async (
   await rm(root, { recursive: true, force: true });
 });
 
-test("E_OFFLINE_RESUME drops the oldest unmounted answer and retries once", async () => {
+test("E_OFFLINE_RESUME honors which and cap and initial consecutive 413s do not wedge ready", async () => {
   const root = await tempRoot();
   await seededResumeStore(root);
   const store = fileRangeStore(root)();
   await store.open("dev:alice");
-  await store.commit({ deliveries: [{ op: "old", args: {}, state: "complete", data: ["old"], next: null, seq: 1 }] });
+  await store.commit({ deliveries: [{ op: "old.value", args: {}, state: "complete", data: ["old"], next: null, seq: 1 }] });
   await store.close?.();
   let resumes = 0;
+  const requests: any[] = [];
   const client = createClient({
     url: "http://resume-cap.test", as: "alice", offline: { store: fileRangeStore(root) },
-    fetch: async () => {
+    fetch: async (input, init) => {
+      const metadata = metadataResponse(input);
+      if (metadata) return metadata;
+      requests.push(JSON.parse(String(init?.body)));
       resumes += 1;
-      if (resumes === 1) return new Response(JSON.stringify({
-        code: "E_OFFLINE_RESUME", family: "offline", message: "too many", rewrite: "drop one", guide: "offline",
+      if (resumes <= 2) return new Response(JSON.stringify({
+        code: "E_OFFLINE_RESUME", family: "offline", message: "too many", which: "log", cap: 0,
+        rewrite: "re-subscribe the rest as ordinary reads", guide: "offline",
       }), { status: 413 });
       return new Response(JSON.stringify({
-        seq: 3, generation: "generation-1", schemaHash: "schema-1",
+        seq: 3, generation, schemaHash,
         authority: { principal: "dev:alice", authEpoch: 7 }, log: { unchanged: true }, mounted: [],
       }), { status: 200 });
     },
   });
   await client.ready;
   assert.equal(resumes, 2);
+  assert.ok(requests[0].log);
+  assert.equal(requests[1].log, undefined);
+  assert.deepEqual(requests[1].mounted, []);
   await client.offline();
-  assert.equal((await client.query(api.old.value as any, {})).state, "hydrating");
+  assert.equal((await client.query(api.old.value as any, {})).state, "complete");
+  await client.online();
+  assert.equal(resumes, 3, "ready settled and a later online call could resume");
+  client.close();
+  await rm(root, { recursive: true, force: true });
+});
+
+test("a second consecutive E_OFFLINE_RESUME settles online as a refusal and leaves the client usable", async () => {
+  const root = await tempRoot();
+  await seededResumeStore(root);
+  let resumes = 0;
+  const client = createClient({
+    url: "http://resume-refusal.test", as: "alice", offline: { store: fileRangeStore(root) },
+    fetch: async (input) => {
+      const metadata = metadataResponse(input);
+      if (metadata) return metadata;
+      resumes += 1;
+      if (resumes === 1) return new Response(JSON.stringify({
+        seq: 3, generation, schemaHash,
+        authority: { principal: "dev:alice", authEpoch: 7 }, log: { unchanged: true }, mounted: [],
+      }), { status: 200 });
+      return new Response(JSON.stringify({
+        code: "E_OFFLINE_RESUME", family: "offline", message: "still too large", which: "log", cap: 0,
+        rewrite: "re-subscribe the rest as ordinary reads", guide: "offline",
+      }), { status: 413 });
+    },
+  });
+  await client.ready;
+  await client.offline();
+  await assert.rejects(client.online(), (error: unknown) =>
+    error instanceof SnapbackRefusal && error.code === "E_OFFLINE_RESUME");
+  assert.equal(resumes, 3);
+  await client.offline();
+  assert.equal((await client.query(api.deliveries.inbox as any, { c: null })).state, "complete");
   client.close();
   await rm(root, { recursive: true, force: true });
 });
@@ -710,32 +1271,41 @@ test("E_OFFLINE_RESUME drops the oldest unmounted answer and retries once", asyn
 test("resume applies its mounted swap before online resolves", async () => {
   const root = await tempRoot();
   await seededResumeStore(root);
+  const seeded = fileRangeStore(root)();
+  await seeded.open("dev:alice");
+  await seeded.commit({ deliveries: [{
+    op: "messages.body", args: {}, state: "complete", data: ["old"], next: null, seq: 3,
+    validator: "3".repeat(64), receipt: emptyReceipt(),
+  }] });
+  await seeded.close?.();
   let resumes = 0;
   const client = createClient({
     url: "http://resume-swap.test", as: "alice", offline: { store: fileRangeStore(root) },
     fetch: async (input) => {
+      const metadata = metadataResponse(input);
+      if (metadata) return metadata;
       if (String(input).endsWith("/api/resume")) {
         resumes += 1;
         if (resumes === 1) return new Response(JSON.stringify({
-          seq: 3, generation: "generation-1", schemaHash: "schema-1",
+          seq: 3, generation, schemaHash,
           authority: { principal: "dev:alice", authEpoch: 7 }, log: { unchanged: true }, mounted: [],
         }), { status: 200 });
         return new Response(JSON.stringify({
-          seq: 4, generation: "generation-1", schemaHash: "schema-1",
+          seq: 4, generation, schemaHash,
           authority: { principal: "dev:alice", authEpoch: 7 }, log: { unchanged: true },
-          mounted: [envelope(["fresh"], "validator-2")],
+          mounted: [envelope(["fresh"], "2".repeat(64), 4)],
         }), { status: 200 });
       }
       return sse(undefined, true);
     },
   });
   await client.ready;
-  const sub = client.subscribe(api.deliveries.inbox as any, { c: null }, () => undefined);
+  const sub = client.subscribe(api.messages.body as any, {}, () => undefined);
   await new Promise((resolve) => setTimeout(resolve, 10));
   await client.offline();
   await client.online();
   await client.offline();
-  const held = await client.query<any, any>(api.deliveries.inbox as any, { c: null });
+  const held = await client.query<any, any>(api.messages.body as any, {});
   assert.deepEqual("data" in held ? held.data : undefined, ["fresh"]);
   sub.close();
   client.close();
