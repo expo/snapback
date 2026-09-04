@@ -1,6 +1,6 @@
 # snapback2 loop budget: core tests 38 s (budget 30 s) and first `doctor` sample 0.75 s (budget 0.5 s) at ee82e5aae
 
-**Filed:** 2026-09-04 · **Status:** open · **Class:** fix-forward (LLP 0189 D-1; RULES.md loop budgets)
+**Filed:** 2026-09-04 · **Resolved:** 2026-09-04 · **Status:** closed · **Class:** fix-forward (LLP 0189 D-1; RULES.md loop budgets)
 
 `node scripts/measure.mjs --check` on main at `ee82e5aae` (after the LLP 1006 asset lanes and
 the LLP 1012 local-first program both landed) fails two budget steps. Machine load was ~5
@@ -143,3 +143,40 @@ re-baselined only after three quiet measurements once the day's lanes finish; un
 step's red is known and this ticket stays open for that re-measure. The nine loaded-machine
 records the lane produced were not appended to `metrics/loop.jsonl` (they are in the table
 above); the first records under the new runner will be the quiet triplicate.
+
+## Resolution, 2026-09-04
+
+The landed `(table_name, row_id)` access path removed the repeated index-entry
+scan. The measured core step retains all executable tests through the canonical
+nextest runner and then runs all doctests; no test was moved, deleted, or
+skipped. The review's plan-stability gap is also closed: the regression test
+now proves both the cleanup seek and the existing `index_entries_lookup` point
+read on new and reopened stores.
+
+Quiet reproduction isolated the remaining first-`doctor` delay to measurement
+artifact identity. On macOS, each no-op Cargo build replaced
+`target/release/snapback2` with a new inode even when its SHA-256 was unchanged.
+The first execution of that replacement took 0.398–0.659 s while the next took
+0.023–0.031 s; `doctor` itself reported 55–58 ms. A generic `version` invocation
+paid the same first-execution delay, excluding doctor, store, compiler, and
+media work as its cause.
+
+The measurement runner now retains the prior executable inode after warm and
+mtime-only incremental builds only when the newly built bytes are identical.
+Changed output keeps Cargo's new artifact, so a real changed-binary launch cost
+remains measured. The self-test proves both branches and the measured build
+times include this handling.
+
+The author-ruled quiet triplicate ran on an otherwise idle 10-core M4 host at
+initial one-minute loads 2.56, 3.37, and 3.36. Every scored step passed without
+changing either budget, and the executable inode remained stable through every
+run:
+
+| run | core tests | `doctor` first / second | project check | chat test |
+|---|---:|---:|---:|---:|
+| 1 | 14.02 s | 0.122 / 0.025 s | 0.427 s | 24.826 s |
+| 2 | 14.40 s | 0.125 / 0.026 s | 0.431 s | 24.890 s |
+| 3 | 14.79 s | 0.127 / 0.025 s | 0.429 s | 25.057 s |
+
+The three generated records are the first canonical metrics under the corrected
+runner and are appended to `snapback2/metrics/loop.jsonl`.
