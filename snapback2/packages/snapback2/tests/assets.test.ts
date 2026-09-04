@@ -33,9 +33,10 @@ function json(value: unknown, status = 200): Response {
 function manifest(generation = "assets-v1", max = 16) {
   return {
     generation,
+    programGeneration: "program-test",
     ops: {
       "assets.send": {
-        kind: "mutation",
+        kind: "mutation", planHash: "plan-test",
         args: {
           photo: { Image: { max } },
           optional: { Optional: { Image: { max } } },
@@ -143,7 +144,8 @@ async function assertStructuredUriPasses(
     const path = new URL(String(input)).pathname;
     if (path === "/api/manifest") return json({
       generation: "structured-uri-v1",
-      ops: { [operation]: { kind: "mutation", args: descriptor } },
+      programGeneration: "program-test",
+      ops: { [operation]: { kind: "mutation", planHash: "plan-test", args: descriptor } },
       channels: {},
       auth: {},
     });
@@ -278,7 +280,8 @@ test("a browser File on a text argument refuses E_ASSET_TYPE with the argument p
     const path = new URL(String(input)).pathname;
     if (path === "/api/manifest") return json({
       generation: "links-v1",
-      ops: { "links.open": { kind: "mutation", args: { target: { Text: { max: 2048 } } } } },
+      programGeneration: "program-test",
+      ops: { "links.open": { kind: "mutation", planHash: "plan-test", args: { target: { Text: { max: 2048 } } } } },
       channels: {},
       auth: {},
     });
@@ -306,7 +309,8 @@ test("a native URI source on a text argument refuses E_ASSET_TYPE with the argum
     const path = new URL(String(input)).pathname;
     if (path === "/api/manifest") return json({
       generation: "links-v1",
-      ops: { "links.open": { kind: "mutation", args: { target: { Text: { max: 2048 } } } } },
+      programGeneration: "program-test",
+      ops: { "links.open": { kind: "mutation", planHash: "plan-test", args: { target: { Text: { max: 2048 } } } } },
       channels: {},
       auth: {},
     });
@@ -332,7 +336,8 @@ test("a native URI source on an integer argument refuses E_ASSET_TYPE with the a
     const path = new URL(String(input)).pathname;
     if (path === "/api/manifest") return json({
       generation: "links-v1",
-      ops: { "links.open": { kind: "mutation", args: { target: { Int: {} } } } },
+      programGeneration: "program-test",
+      ops: { "links.open": { kind: "mutation", planHash: "plan-test", args: { target: { Int: {} } } } },
       channels: {},
       auth: {},
     });
