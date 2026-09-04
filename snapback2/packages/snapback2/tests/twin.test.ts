@@ -606,9 +606,9 @@ test("a committed intent's overlay survives unrelated answers and an empty curre
       outbox: { put: [{ ...base, intent: "g:0", state: "queued", predicted: true }] }, overlay: { put: { "g:0": overlay } },
     });
     await store.commit({ outbox: { put: [committed] } });
-    await store.commit({ resumeSeq: 30 });
+    await store.commit({ resumeSeq: 31 });
     assert.ok((await store.outbox.overlay())["g:0"], "one resume keeps the overlay");
-    await store.commit({ resumeSeq: 30 });
+    await store.commit({ resumeSeq: 31 });
     assert.equal((await store.outbox.overlay())["g:0"], undefined, "the stranded overlay did not leave at the bound");
     const retired = (await store.outbox.get("g:0"))!;
     assert.equal(retired.state, "committed", "the entry itself stays until its rows arrive or the app dismisses it");

@@ -1,6 +1,7 @@
 // @ref LLP 1012#7-writes-offline — cursor identity is not order. Only held,
 // post-commit next links prove progress; explicit negatives settle deletions.
 import type { StoredAnswer, WatermarkRecord } from "./range-store.js";
+import { canonical } from "./canonical.js";
 
 export interface OverlayWatermark extends Pick<WatermarkRecord, "op" | "args" | "watermark"> {
   cursorArg: string;
@@ -11,12 +12,6 @@ export interface OverlayWatermark extends Pick<WatermarkRecord, "op" | "args" | 
 
 function object(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-function canonical(value: unknown): string {
-  if (Array.isArray(value)) return JSON.stringify(value.map(canonical));
-  if (!object(value)) return JSON.stringify(value);
-  return JSON.stringify(Object.keys(value).sort().map((key) => [key, canonical(value[key])]));
 }
 
 /** Each page keeps the name used when it was filed, including a pre-manifest c. */
@@ -37,24 +32,24 @@ export function pagePosition(page: Pick<StoredAnswer, "op" | "args" | "cursorArg
 
 /**
  * An ordered path starting at the commit snapshot, never inferred from a newer
- * seq or a different opaque string. A cycle, ambiguity, or missing link fails
- * closed. The caller supplies only non-empty pages whose result rows are held.
+ * seq or a different opaque string. A cycle, ambiguity, or missing link ends
+ * the proven prefix. The caller supplies only non-empty, intact held pages.
  */
 export function cursorChain(pages: StoredAnswer[], mark: OverlayWatermark, committedSeq: number): string[] {
-  const links = new Map<string | null, string>();
+  const links = new Map<string | null, string | null>();
   for (const page of pages) {
-    if (page.seq < committedSeq || typeof page.next !== "string") continue;
+    if ((page.nextSeq ?? page.seq) < committedSeq || typeof page.next !== "string") continue;
     const position = pagePosition(page, mark);
     if (position === undefined) continue;
-    if (links.has(position) && links.get(position) !== page.next) return [];
-    links.set(position, page.next);
+    // Conflicting links quarantine only this position, including off-path ones.
+    links.set(position, links.has(position) && links.get(position) !== page.next ? null : page.next);
   }
   const seen = new Set<string | null>([mark.watermark]);
   const chain: string[] = [];
   let position = mark.watermark;
   while (links.has(position)) {
-    const next = links.get(position)!;
-    if (seen.has(next)) return [];
+    const next = links.get(position);
+    if (next == null || seen.has(next)) break;
     seen.add(next);
     chain.push(next);
     position = next;
@@ -68,8 +63,13 @@ export function advanceOverlay(mark: OverlayWatermark, tail: WatermarkRecord | u
     ? { ...tail.args, [tail.cursorArg ?? mark.cursorArg]: tail.watermark } : tail.args }, mark) === undefined) return false;
   if (typeof tail.watermark !== "string" || (mark.consumed ?? []).includes(tail.watermark)) return false;
   const at = chain.indexOf(tail.watermark);
+  if (mark.progress !== undefined && !chain.includes(mark.progress)) {
+    // A page can grow or be evicted. Re-anchor at the nearest surviving consumed
+    // position (or the snapshot root), without forgetting what already counted.
+    mark.progress = [...(mark.consumed ?? [])].reverse().find((position) => chain.includes(position));
+  }
   const previous = mark.progress === undefined ? -1 : chain.indexOf(mark.progress);
-  if (at < 0 || (mark.progress !== undefined && previous < 0) || at <= previous) return false;
+  if (at < 0 || at <= previous) return false;
   mark.progress = tail.watermark;
   mark.consumed = [...new Set([...(mark.consumed ?? []), ...chain.slice(0, at + 1)])];
   return true;

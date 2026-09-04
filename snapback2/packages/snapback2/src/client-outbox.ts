@@ -244,7 +244,7 @@ async function logTail(options: DrainOptions) {
   // stays until the server's rows arrive, so it is not a stranded queue and
   // must not be "fixed" into one.
   if (!watermark) return undefined;
-  const cursor = runtime.cursorArg(watermark.op);
+  const cursor = watermark.cursorArg ?? runtime.cursorArg(watermark.op);
   const args = watermark.watermark === null
     ? watermark.args
     : { ...(watermark.args as Record<string, unknown>), [cursor]: watermark.watermark };

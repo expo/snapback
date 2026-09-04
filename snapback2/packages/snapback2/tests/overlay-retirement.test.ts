@@ -121,7 +121,7 @@ test("only proven forward marks of the tail chooser consume patience; duplicate 
       await store.close?.();
       store = create();
       await store.open(partition);
-      await store.commit({ resumeSeq: 30 });
+      await store.commit({ resumeSeq: 31 });
       assert.equal((await store.outbox.overlay())[item.intent], undefined, `${name}: one proven advance and one resume retire the overlay`);
       assert.equal((await store.outbox.get(item.intent))?.predicted, undefined, `${name}: bound retirement clears predicted`);
     } finally {
@@ -200,6 +200,227 @@ async function assertRetired(store: Store, intent: string, label: string): Promi
   assert.equal(entry?.predicted, undefined, `${label}: prediction flag cleared`);
 }
 
+for (const kind of ["primary absence", "tombstone", "predicted deletion", "conditional refresh"] as const) {
+  test(`queued ${kind} survives duplicate delivery and cold reopen until settlement on both carriers`, async () => {
+    await carriers(async (name, create) => {
+      let store = create();
+      const partition = `${name}:queued-${kind}`;
+      const item = prediction(`${name}-${kind}`);
+      if (kind === "predicted deletion") Object.assign(item.overlay[0]!, { removed: true });
+      const absence = {
+        ...page("messages.byId", { id: item.id }, kind === "conditional refresh" ? 29 : 31, []),
+        validator: "absence", data: null,
+        receipt: { ...receipt(), absences: [["messages", "byId", [item.id]]] as Array<[string, string, unknown[]]> },
+      };
+      try {
+        await store.open(partition);
+        await store.commit({ outbox: { put: [item.queued] }, overlay: { put: { [item.intent]: item.overlay } } });
+        const negative = kind === "tombstone"
+          ? { tombstones: [{ table: "messages", id: item.id, seq: 31 }] }
+          : { deliveries: [absence] };
+        await store.commit(negative);
+        store = await reopen(store, create, partition);
+        await store.commit(negative); // Deduplicated receipt must not erase provenance.
+        if (kind === "conditional refresh") {
+          await store.commit({ refreshes: [{ op: absence.op, args: absence.args, seq: 31, validator: "absence" }] });
+        }
+        assert.equal((await store.outbox.get(item.intent))?.state, "queued");
+        store = await reopen(store, create, partition);
+        if (kind === "tombstone") await store.commit({ resetCoverage: true });
+        // No negative or tail in this swap: only the delayed terminal response.
+        await store.commit({ outbox: { put: [item.committed] } });
+        await assertRetired(store, item.intent, name);
+        assert.equal((await store.coverage()).rows.some((held) => held.id === item.id), false);
+        store = await reopen(store, create, partition);
+        await assertRetired(store, item.intent, `${name}: durable retirement`);
+      } finally { await store.close?.(); }
+    });
+  });
+}
+
+test("a conditional primary absence refreshed after settlement retires at its validated seq on both carriers", async () => {
+  await carriers(async (name, create) => {
+    let store = create();
+    const partition = `${name}:settled-refresh`;
+    const item = prediction(`${name}-settled-refresh`);
+    try {
+      await store.open(partition);
+      await store.commit({ outbox: { put: [item.queued] }, overlay: { put: { [item.intent]: item.overlay } }, deliveries: [{
+        ...page("messages.byId", { id: item.id }, 29, []), data: null, validator: "absent",
+        receipt: { ...receipt(), absences: [["messages", "byId", [item.id]]] },
+      }] });
+      await store.commit({ outbox: { put: [item.committed] } });
+      assert.ok((await store.outbox.overlay())[item.intent], "pre-commit absence cannot confirm this commit");
+      store = await reopen(store, create, partition);
+      await store.commit({ refreshes: [{ op: "messages.byId", args: { id: item.id }, validator: "absent", seq: 31 }] });
+      await assertRetired(store, item.intent, name);
+    } finally { await store.close?.(); }
+  });
+});
+
+test("a queued hidden-row eviction is not durable authoritative negative evidence on both carriers", async () => {
+  await carriers(async (name, create) => {
+    let store = create();
+    const item = prediction(`${name}-hidden-queued`);
+    const partition = `${name}:hidden-queued`;
+    try {
+      await store.open(partition);
+      await store.commit({ outbox: { put: [item.queued] }, overlay: { put: { [item.intent]: item.overlay } },
+        deliveries: [page("messages.bySlug", { slug: "private" }, 29, [row("messages", item.id)])] });
+      await store.commit({ deliveries: [{ ...page("messages.bySlug", { slug: "private" }, 31, []), data: null }] });
+      store = await reopen(store, create, partition);
+      await store.commit({ outbox: { put: [item.committed] } });
+      assert.ok((await store.outbox.overlay())[item.intent], `${name}: hidden eviction cannot settle a prediction`);
+    } finally { await store.close?.(); }
+  });
+});
+
+test("object and array arguments, including object-entry arrays, cannot supply another query's chain on both carriers", async () => {
+  await carriers(async (name, create) => {
+    for (const [selected, foreign] of [[{}, []], [{ a: 1 }, [["a", 1]]], [{ a: "1" }, [["a", "1"]]]]) {
+      const store = create();
+      const item = prediction(`${name}-${JSON.stringify(selected)}`);
+      const mark = (watermark: string) => ({ op: "deliveries.inbox", args: { c: null, filter: selected }, cursorArg: "c", watermark, updatedAt: 1 });
+      try {
+        await seed(store, `${name}:${JSON.stringify(selected)}`, item, mark("a"));
+        await store.commit({ deliveries: [
+          page("deliveries.inbox", { c: "a", filter: foreign }, 30, [row("deliveries", "foreign-link")], "b"),
+          page("deliveries.inbox", { c: "b", filter: foreign }, 30, [row("deliveries", "foreign-page")], "c"),
+        ], watermark: mark("b") });
+        await store.commit({ watermark: mark("c") });
+        assert.ok((await store.outbox.overlay())[item.intent], `${name}: foreign arguments prove neither arrival nor progress`);
+        await store.commit({ resumeSeq: 31 });
+        assert.ok((await store.outbox.overlay())[item.intent], `${name}: neither foreign mark consumed patience`);
+      } finally { await store.close?.(); }
+    }
+  });
+});
+
+test("an ambiguous link preserves the proven prefix but cannot advance beyond it on both carriers", async () => {
+  await carriers(async (name, create) => {
+    const store = create();
+    const item = prediction(`${name}-ambiguous`);
+    Object.assign(item.overlay[0]!, { removed: true }); // Only negatives or misses can retire.
+    const mark = (watermark: string) => ({ op: "deliveries.inbox", args: { c: null }, cursorArg: "c", watermark, updatedAt: 1 });
+    try {
+      await seed(store, `${name}:ambiguous`, item, mark("a"));
+      await store.commit({ deliveries: [
+        { ...page("deliveries.inbox", { c: "a" }, 30, [row("deliveries", "a")], "b"), cursorArg: "c" },
+        { ...page("deliveries.inbox", { c: "b" }, 30, [row("deliveries", "b")], "c"), cursorArg: "c" },
+        { ...page("deliveries.inbox", { after: "b" }, 30, [row("deliveries", "alias")], "d"), cursorArg: "after" },
+      ] });
+      for (const position of ["c", "d", "c"]) await store.commit({ watermark: mark(position) });
+      assert.ok((await store.outbox.overlay())[item.intent], "an ambiguous continuation supplies no progress");
+      await store.commit({ watermark: mark("b") });
+      assert.ok((await store.outbox.overlay())[item.intent], "the proven prefix consumes exactly one miss");
+      await store.commit({ resumeSeq: 31 });
+      await assertRetired(store, item.intent, name);
+    } finally { await store.close?.(); }
+  });
+});
+
+test("evicting the progress page re-anchors at surviving consumed positions on both carriers", async () => {
+  await carriers(async (name, create) => {
+    let store = create();
+    const partition = `${name}:evicted-progress`;
+    const item = prediction(`${name}-evicted-progress`);
+    Object.assign(item.overlay[0]!, { removed: true });
+    const mark = (watermark: string) => ({ op: "deliveries.inbox", args: { c: null }, cursorArg: "c", watermark, updatedAt: 1 });
+    try {
+      await seed(store, partition, item, mark("a"));
+      await store.commit({ deliveries: [
+        page("deliveries.inbox", { c: "a" }, 30, [row("deliveries", "a")], "b"),
+        page("deliveries.inbox", { c: "b" }, 30, [row("deliveries", "b")], "c"),
+      ], watermark: mark("c") });
+      await store.commit({ dropAnswers: ['deliveries.inbox\u0000{"c":"b"}'] });
+      store = await reopen(store, create, partition);
+      await store.commit({ deliveries: [page("deliveries.inbox", { c: "b" }, 31, [row("deliveries", "new-b")], "d")] });
+      await store.commit({ watermark: mark("b") });
+      assert.ok((await store.outbox.overlay())[item.intent], "the surviving consumed prefix cannot count again");
+      await store.commit({ watermark: mark("d") });
+      await assertRetired(store, item.intent, name);
+    } finally { await store.close?.(); }
+  });
+});
+
+test("consumed progress survives cold reopen and a repeated position never double-counts on both carriers", async () => {
+  await carriers(async (name, create) => {
+    let store = create();
+    const partition = `${name}:consumed`;
+    const item = prediction(`${name}-consumed`);
+    const mark = (watermark: string) => ({ op: "deliveries.inbox", args: { c: null }, cursorArg: "c", watermark, updatedAt: 1 });
+    try {
+      await seed(store, partition, item, mark("a"));
+      const link = page("deliveries.inbox", { c: "a" }, 30, [row("deliveries", "link")], "b");
+      await store.commit({ deliveries: [link], watermark: mark("b") });
+      store = await reopen(store, create, partition);
+      for (const watermark of ["b", "a", "b"]) await store.commit({ deliveries: [link], watermark: mark(watermark) });
+      assert.ok((await store.outbox.overlay())[item.intent], "one consumed position remains one miss after reopen");
+      await store.commit({ resumeSeq: 31 });
+      await assertRetired(store, item.intent, name);
+    } finally { await store.close?.(); }
+  });
+});
+
+test("a re-served page replaces its next link and conditional refresh cannot renew a pre-commit link on both carriers", async () => {
+  await carriers(async (name, create) => {
+    let store = create();
+    const partition = `${name}:link-seq`;
+    const item = prediction(`${name}-link-seq`);
+    const mark = (watermark: string) => ({ op: "deliveries.inbox", args: { c: null }, cursorArg: "c", watermark, updatedAt: 1 });
+    try {
+      await seed(store, partition, item, mark("a"));
+      await store.commit({ deliveries: [{ ...page("deliveries.inbox", { c: "a" }, 29, [row("deliveries", "link")], "b"), validator: "old" }] });
+      await store.commit({ refreshes: [{ op: "deliveries.inbox", args: { c: "a" }, seq: 31, validator: "old" }] });
+      store = await reopen(store, create, partition);
+      await store.commit({ deliveries: [page("deliveries.inbox", { c: "b" }, 31, [row("deliveries", "not-proven")])], watermark: mark("b") });
+      assert.ok((await store.outbox.overlay())[item.intent], "a refreshed answer seq cannot promote an old next link");
+      await store.commit({ dropAnswers: ['deliveries.inbox\u0000{"c":"b"}'] });
+      await store.commit({ deliveries: [page("deliveries.inbox", { c: "a" }, 32, [row("deliveries", "link")], "b")] });
+      // The page grew: a -> c replaces an eligible post-commit a -> b link.
+      await store.commit({ deliveries: [page("deliveries.inbox", { c: "a" }, 33, [row("deliveries", "link")], "c")] });
+      await store.commit({ deliveries: [page("deliveries.inbox", { c: "b" }, 33, [row("deliveries", "old-page")])], watermark: mark("b") });
+      assert.ok((await store.outbox.overlay())[item.intent], "the old continuation no longer supplies a link or arrival");
+      await store.commit({ deliveries: [page("deliveries.inbox", { c: "c" }, 33, [row("deliveries", "current-page")])] });
+      await assertRetired(store, item.intent, name);
+    } finally { await store.close?.(); }
+  });
+});
+
+test("nonempty scalar projections use held closure rows to prove tail progress on both carriers", async () => {
+  await carriers(async (name, create) => {
+    const store = create();
+    const item = prediction(`${name}-projected`);
+    const projected = (position: string, next: string | null) => ({
+      ...page("deliveries.inbox", { c: position }, 31, [row("deliveries", position)], next), data: [position],
+    });
+    try {
+      await seed(store, `${name}:projected`, item, { op: "deliveries.inbox", args: { c: null }, cursorArg: "c", watermark: "a", updatedAt: 1 });
+      await store.commit({ deliveries: [projected("a", "b")] });
+      assert.ok((await store.outbox.overlay())[item.intent], "the snapshot's own projected page is not past it");
+      await store.commit({ deliveries: [projected("b", null)] });
+      await assertRetired(store, item.intent, name);
+    } finally { await store.close?.(); }
+  });
+});
+
+test("a denied delivered-history answer cannot confirm arrival of a committed edit on both carriers", async () => {
+  await carriers(async (name, create) => {
+    const store = create();
+    const item = prediction(`${name}-retained`);
+    try {
+      await seed(store, `${name}:retained`, item, { op: "deliveries.inbox", args: { c: null }, cursorArg: "c", watermark: "a", updatedAt: 1 });
+      await store.commit({ deliveries: [page("messages.byId", { id: item.id }, 29, [row("messages", item.id)])] });
+      await store.commit({ retention: { messages: "delivered-history" }, deliveries: [{
+        ...page("messages.byId", { id: item.id }, 31, []), state: "denied", data: undefined,
+      }] });
+      assert.ok((await store.outbox.overlay())[item.intent], "retained stale content is not an authoritative arrival");
+      await store.commit({ deliveries: [page("messages.byId", { id: item.id }, 32, [row("messages", item.id)])] });
+      await assertRetired(store, item.intent, name);
+    } finally { await store.close?.(); }
+  });
+});
+
 test("a 60-row resume followed by a 50-row-page remount cannot count the backward mark or duplicate delivery as progress on both carriers", async () => {
   await carriers(async (name, create) => {
     let store = create();
@@ -226,11 +447,12 @@ test("a 60-row resume followed by a 50-row-page remount cannot count the backwar
   });
 });
 
-test("a missing or pre-commit link and a chain using the same cursor string twice fail closed on both carriers", async () => {
+test("missing and pre-commit links prove nothing; a cycle keeps only its proven prefix on both carriers", async () => {
   await carriers(async (name, create) => {
     let store = create();
     const partition = `${name}:chain`;
     const item = prediction(`${name}-chain`);
+    Object.assign(item.overlay[0]!, { removed: true }); // Isolate progress from positive arrival.
     const mark = (watermark: string) => ({ op: "deliveries.inbox", args: { c: null }, cursorArg: "c", watermark, updatedAt: 1 });
     try {
       await seed(store, partition, item, mark("a"));
@@ -245,9 +467,12 @@ test("a missing or pre-commit link and a chain using the same cursor string twic
       ], watermark: mark("a") });
       store = await reopen(store, create, partition);
       await store.commit({ watermark: mark("b") });
-      assert.ok((await store.outbox.overlay())[item.intent], `${name}: a repeated cursor cycle has no ordered path`);
-      await store.commit({ deliveries: [page("deliveries.inbox", { c: "b" }, 32, [row("deliveries", "second")])] });
-      await assertRetired(store, item.intent, `${name}: a fresh acyclic chain supplies the missing proof`);
+      assert.ok((await store.outbox.overlay())[item.intent], `${name}: the cycle's proven a -> b prefix consumes one miss`);
+      await store.commit({ watermark: mark("a") });
+      await store.commit({ watermark: mark("b") });
+      assert.ok((await store.outbox.overlay())[item.intent], `${name}: wrapping or repeating never consumes another miss`);
+      await store.commit({ resumeSeq: 31 });
+      await assertRetired(store, item.intent, `${name}: the prefix was kept before the cycle`);
     } finally { await store.close?.(); }
   });
 });
@@ -327,6 +552,10 @@ test("empty answers and hidden alternate-key lookups are not authoritative absen
       await store.commit({ resumeSeq: 30 });
       assert.ok((await store.outbox.overlay())[item.intent], `${name}: old resume did not count`);
       await store.commit({ resumeSeq: 30 });
+      assert.ok((await store.outbox.overlay())[item.intent], `${name}: repeated commit-seq resumes do not count`);
+      await store.commit({ resumeSeq: 31 });
+      assert.ok((await store.outbox.overlay())[item.intent], `${name}: one strictly post-commit resume`);
+      await store.commit({ resumeSeq: 31 });
       await assertRetired(store, item.intent, name);
     } finally { await store.close?.(); }
   });
@@ -339,17 +568,23 @@ test("resetCoverage rebases the snapshot and patience for a new tail op and curs
     const item = prediction(`${name}-reset`);
     try {
       await seed(store, partition, item, { op: "deliveries.inbox", args: { c: null }, cursorArg: "c", watermark: "old", updatedAt: 1 });
-      await store.commit({ resumeSeq: 30 });
+      await store.commit({ resumeSeq: 31 });
       await store.commit({ resetCoverage: true });
       store = await reopen(store, create, partition);
-      await store.commit({ resumeSeq: 30 });
-      assert.ok((await store.outbox.overlay())[item.intent], `${name}: pre-reset patience was cleared`);
       // A cold drain establishes the new query's root -> last-page link.
       await store.commit({ deliveries: [
         { ...page("deliveries.newInbox", { after: null }, 31, [row("deliveries", "new-root")], "new-last"), cursorArg: "after" },
         { ...page("deliveries.newInbox", { after: "new-last" }, 31, [row("deliveries", "new-last")]), cursorArg: "after" },
       ], watermark: { op: "deliveries.newInbox", args: { after: null }, cursorArg: "after", watermark: "new-last", updatedAt: 2 } });
-      await assertRetired(store, item.intent, `${name}: first drain under the new name is judged`);
+      assert.ok((await store.outbox.overlay())[item.intent], `${name}: the first continuation is the new snapshot head, not past it`);
+      store = await reopen(store, create, partition);
+      await store.commit({ resumeSeq: 31 });
+      assert.ok((await store.outbox.overlay())[item.intent], `${name}: pre-reset patience was cleared`);
+      await store.commit({ deliveries: [
+        { ...page("deliveries.newInbox", { after: "new-last" }, 32, [row("deliveries", "link")], "later"), cursorArg: "after" },
+        { ...page("deliveries.newInbox", { after: "later" }, 32, [row("deliveries", "later")]), cursorArg: "after" },
+      ] });
+      await assertRetired(store, item.intent, `${name}: a page strictly beyond the new head retires`);
       store = await reopen(store, create, partition);
       await assertRetired(store, item.intent, `${name}: reset retirement persists`);
     } finally { await store.close?.(); }
@@ -360,7 +595,7 @@ const generation = "d".repeat(64);
 const schemaHash = "e".repeat(64);
 const planHash = "f".repeat(64);
 
-function resumeFetch(cursor: string, log: unknown, observed?: (request: any) => void): typeof fetch {
+function resumeFetch(cursor: string, log: unknown, observed?: (request: any) => void, seq = 31): typeof fetch {
   return async (input, init) => {
     const path = new URL(String(input)).pathname;
     const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status });
@@ -371,13 +606,13 @@ function resumeFetch(cursor: string, log: unknown, observed?: (request: any) => 
     if (path === "/api/program") return json({ code: "E_ROUTE", family: "op", message: "not found", guide: "op/reference" }, 404);
     if (path === "/api/resume") {
       observed?.(JSON.parse(String(init?.body)));
-      return json({ seq: 30, generation, schemaHash, authority: { principal: "dev:alice", authEpoch: 7 }, log, mounted: [] });
+      return json({ seq, generation, schemaHash, authority: { principal: "dev:alice", authEpoch: 7 }, log, mounted: [] });
     }
     throw new Error(`unexpected request ${path}`);
   };
 }
 
-test("an unchanged quiet-tail resume consumes one miss even at the same seq across two cold clients on both carriers", async () => {
+test("unchanged quiet-tail resumes strictly past commit consume one miss across each cold client on both carriers", async () => {
   await carriers(async (name, create) => {
     let store = create();
     const item = prediction(`${name}-quiet`);
@@ -407,7 +642,34 @@ test("an unchanged quiet-tail resume consumes one miss even at the same seq acro
   });
 });
 
-test("a pre-manifest c snapshot survives reopening with an after manifest and compares pages by their recorded cursor name on both carriers", async () => {
+test("repeated online resumes at the commit seq do not consume misses in one session on both carriers", async () => {
+  await carriers(async (name, create) => {
+    let store = create();
+    const item = prediction(`${name}-same-seq`);
+    let seq = 30;
+    let resumes = 0;
+    await seed(store, "dev:alice", item, { op: "deliveries.inbox", args: { c: null }, cursorArg: "c", watermark: "quiet", updatedAt: 1 });
+    await store.commit({ facts: { generation, schemaHash, authEpoch: 7 } });
+    await store.close?.();
+    const client = createClient({ url: "http://same-seq.test", as: "alice", offline: { store: () => (store = create()) },
+      fetch: (input, init) => resumeFetch("c", { unchanged: true }, () => resumes++, seq)(input, init),
+    });
+    try {
+      await client.ready;
+      await client.online();
+      await client.online();
+      assert.ok(resumes >= 3, "each online call performed a resume");
+      assert.ok((await store.outbox.overlay())[item.intent], `${name}: repeated commit-seq resumes leave prediction intact`);
+      seq = 31;
+      await client.online();
+      assert.ok((await store.outbox.overlay())[item.intent], `${name}: first strictly post-commit resume is one miss`);
+      await client.online();
+      await assertRetired(store, item.intent, `${name}: two qualifying resumes in the same session`);
+    } finally { await client.close(); }
+  });
+});
+
+test("a pre-manifest c snapshot needs fresh correctly named links after reopening with an after manifest on both carriers", async () => {
   await carriers(async (name, create) => {
     let store = create();
     const item = prediction(`${name}-fallback`);
@@ -419,7 +681,7 @@ test("a pre-manifest c snapshot survives reopening with an after manifest and co
         op: "deliveries.inbox", args: { after: null }, watermark: "middle", updatedAt: 2,
       } });
       await store.commit({ deliveries: [{
-        ...page("deliveries.inbox", { after: null, c: "start" }, 30, [row("deliveries", "link")], "middle"), cursorArg: "c",
+        ...page("deliveries.inbox", { after: "start" }, 30, [row("deliveries", "link")], "middle"), cursorArg: "c",
       }] });
       await store.close?.();
       let request: any;
@@ -429,7 +691,7 @@ test("a pre-manifest c snapshot survives reopening with an after manifest and co
           protocol: 1, generation, schemaHash, planHash, authority: { principal: "dev:alice", authEpoch: 7 },
           state: "complete", data: [ref(held.table, held.id)], rows: [held], receipt: receipt(),
           seq: 30, next: null, validator: "1".repeat(64), watermark: "middle",
-        }, (value) => { request = value; }),
+        }, (value) => { request = value; }, 30),
       });
       try { await client.ready; } finally { await client.close(); }
       assert.deepEqual(request.log.args, { after: null });
@@ -439,7 +701,11 @@ test("a pre-manifest c snapshot survives reopening with an after manifest and co
       assert.equal(await store.answer("deliveries.inbox", { after: null, c: "middle" }), undefined);
       // Exactly one resume and no proven re-mark: the two-miss bound cannot
       // conceal a lost cursor name or a snapshot rebuilt at the current tail.
-      await assertRetired(store, item.intent, name);
+      assert.ok((await store.outbox.overlay())[item.intent], `${name}: an unknown cursor name is not an ordered link`);
+      await store.commit({ deliveries: [{
+        ...page("deliveries.inbox", { after: "start" }, 31, [row("deliveries", "link")], "middle"), cursorArg: "after",
+      }] });
+      await assertRetired(store, item.intent, `${name}: a fresh engine-valid link uses the persisted snapshot`);
     } finally { await store.close?.(); }
   });
 });
