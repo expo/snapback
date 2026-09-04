@@ -11,7 +11,7 @@ export interface DrainOptions<Args, Result> {
   args: Args;
   query(args: Args): Promise<QueryResult<Result>>;
   subscribe(args: Args, callback: (event: SubscriptionDelivery<Result>) => void): Subscription<SubscriptionDelivery<Result>>;
-  mark(watermark: Cursor | null): Promise<void>;
+  mark(watermark: Cursor | null, current: () => boolean): Promise<void>;
   onEvent(event: SubscriptionDelivery<Result>): void;
   /** The cursor argument's name, resolved when a page is built (the manifest may still be loading); `c` by default. */
   cursor?(): Promise<string> | string;
@@ -25,9 +25,10 @@ export class DrainSubscription<Args, Result> implements Subscription<Subscriptio
   private watermark: Cursor | null = null;
   private cursorName = "c";
   private closed = false;
+  private generation = 0;
 
   constructor(private readonly options: DrainOptions<Args, Result>) {
-    void this.drain(null).catch((error) => this.fail(error));
+    this.start(null);
   }
 
   close(): void {
@@ -45,7 +46,8 @@ export class DrainSubscription<Args, Result> implements Subscription<Subscriptio
     this.tail?.close();
     this.tail = undefined;
     this.watermark = null;
-    void this.drain(null).catch((error) => this.fail(error));
+    this.last = undefined;
+    this.start(null);
   }
 
   until(
@@ -68,13 +70,23 @@ export class DrainSubscription<Args, Result> implements Subscription<Subscriptio
     });
   }
 
-  private async drain(start: Cursor | null): Promise<void> {
+  private start(cursor: Cursor | null): void {
+    const generation = ++this.generation;
+    void this.drain(cursor, generation).catch((error) => {
+      if (this.current(generation)) this.fail(error);
+    });
+  }
+
+  private current(generation: number): boolean { return !this.closed && generation === this.generation; }
+
+  private async drain(start: Cursor | null, generation: number): Promise<void> {
     let cursor = start;
-    while (!this.closed) {
+    while (this.current(generation)) {
       this.cursorName = (await this.options.cursor?.()) ?? "c";
-      if (this.closed) return;
+      if (!this.current(generation)) return;
       const args = { ...(this.options.args as Record<string, unknown>), [this.cursorName]: cursor } as Args;
       const page = await this.options.query(args);
+      if (!this.current(generation)) return;
       if (page.state === "hydrating") {
         this.deliver(page);
         return;
@@ -89,24 +101,26 @@ export class DrainSubscription<Args, Result> implements Subscription<Subscriptio
         cursor = page.next;
         continue;
       }
-      await this.options.mark(this.watermark);
+      await this.options.mark(this.watermark, () => this.current(generation));
+      if (!this.current(generation)) return;
       this.deliver({ ...page, live: false, caughtUp: true, watermark: this.watermark });
-      this.watchTail();
+      this.watchTail(generation);
       return;
     }
   }
 
-  private watchTail(): void {
-    if (this.closed) return;
+  private watchTail(generation: number): void {
+    if (!this.current(generation)) return;
+    this.tail?.close();
     const args = { ...(this.options.args as Record<string, unknown>), [this.cursorName]: this.watermark } as Args;
     this.tail = this.options.subscribe(args, (event) => {
-      if (this.closed) return;
+      if (!this.current(generation)) return;
       if ((event.state === "complete" || event.state === "capped") && event.next !== null) {
         this.watermark = event.next;
         this.deliver({ ...event, caughtUp: false, watermark: this.watermark });
         this.tail?.close();
         this.tail = undefined;
-        void this.drain(this.watermark).catch((error) => this.fail(error));
+        this.start(this.watermark);
         return;
       }
       if (event.state === "complete" || event.state === "capped") {

@@ -46,7 +46,7 @@ import {
   wireShape,
   wireSubscription,
 } from "./client-wire.js";
-import { type AcceptedDelivery, type OfflineRuntime, type MountedQuery } from "./offline.js";
+import { type OfflineRuntime, type MountedQuery } from "./offline.js";
 import { ReconnectingSse } from "./sse.js";
 import { stableSerialize } from "./types.js";
 import type {
@@ -128,10 +128,10 @@ class Client implements SnapbackClient {
   private readonly mounted = new Map<string, MountedQuery>();
   private offlineMetadataLoaded = false;
   private resumeTail: Promise<void> = Promise.resolve();
-  private supersessionTail: Promise<void> = Promise.resolve();
-  private readonly supersessionDeliveries = new Map<string, {
-    op: string; args: unknown; accepted: AcceptedDelivery<unknown>;
-  }>();
+  private resumeFlight?: Promise<void>;
+  private resetRefusal?: RefusalEnvelope;
+  // Pending reads, never buffered authority-bearing responses. Custody is per principal.
+  private readonly supersessionQueries = new Map<string, { principal: string; op: string; args: unknown }>();
   private forcedOffline = false;
   private currentToken?: string;
   private currentPrincipal?: Principal;
@@ -190,26 +190,28 @@ class Client implements SnapbackClient {
   }
 
   async query<Args, Result>(ref: Op<Args, Result>, args: Args): Promise<QueryResult<Result>> {
-    const authority = await this.operationAuthority();
+    const authority = await this.operationAuthority(false);
     const op = referenceName(ref);
     if (this.forcedOffline) {
       this.patchSnapshot({ connection: "offline" });
       return answerOffline(this.offlineRuntime, op, args, (error) => this.offlineRefusal(error));
     }
     await this.ensureOfflineMetadata(authority);
+    this.scheduleSupersessionReset(authority);
     let backoff = 50;
     for (let attempt = 1; ; attempt += 1) {
       try {
         const held = await this.offlineRuntime?.answer(op, args);
+        const revision = this.offlineRuntime?.coverageRevision;
         const raw = await this.json(this.offlineRuntime ? "/api/query?receipt=1" : "/api/query", {
           method: "POST",
           body: JSON.stringify(this.offlineRuntime && held?.validator ? { op, args, validator: held.validator } : { op, args }),
         }, authority);
         const accepted = await acceptOffline<Result>(this.offlineRuntime, op, args, raw, wireShape);
         const result = wireQuery<Result>(accepted.result);
-        const superseded = await commitOffline(this.offlineRuntime, op, args, accepted, (error) => this.offlineRefusal(error));
+        const superseded = await commitOffline(this.offlineRuntime, op, args, accepted, (error) => this.offlineRefusal(error), revision);
         this.validated(authority);
-        if (superseded) await this.scheduleSupersessionReset(authority, { op, args, accepted });
+        if (superseded) this.scheduleSupersessionReset(authority, { op, args });
         if (this.offlineRuntime && this.createOptions.offlineReadObserver) {
           const held = await answerOffline<Result>(
             this.offlineRuntime,
@@ -351,10 +353,12 @@ class Client implements SnapbackClient {
     const mountedKey = `${op}\u0000${stableSerialize(args)}`;
     this.mounted.set(mountedKey, { op, args, drain: false });
     let lastPair: { seq: number; data?: Result } | undefined;
+    let revision: number | undefined;
     let authority: Authority | undefined;
     let subscription: Subscription<SubscriptionDelivery<Result>>;
     const finish = (value: LiveQueryDelivery<Result> | QueryRefusedDelivery) => {
-      lastPair = settleSubscription(value, () => this.ensureAuthority(authority), (patch) => this.patchSnapshot(patch));
+      lastPair = settleSubscription(value, () => this.ensureAuthority(authority), (patch) =>
+        this.patchSnapshot({ ...patch, lastRefusal: patch.lastRefusal ?? this.resetRefusal }));
       return value;
     };
     subscription = new ReconnectingSse<SubscriptionDelivery<Result>>({
@@ -362,7 +366,8 @@ class Client implements SnapbackClient {
         authority ??= await this.operationAuthority();
         if (this.forcedOffline) throw offlineNetworkRefusal();
         await this.ensureOfflineMetadata(authority);
-        if (this.supersessionDeliveries.size > 0) await this.scheduleSupersessionReset(authority);
+        this.scheduleSupersessionReset(authority);
+        revision = this.offlineRuntime?.coverageRevision;
         const held = await this.offlineRuntime?.answer(op, args);
         let path = `/api/subscribe?op=${encodeURIComponent(op)}&args=${encodeURIComponent(JSON.stringify(args))}`;
         if (this.offlineRuntime) path += "&receipt=1";
@@ -374,7 +379,8 @@ class Client implements SnapbackClient {
         return decodeOfflineSubscription<Result>({
           runtime: this.offlineRuntime, op, args, data, shape: wireShape,
           failure: (error) => this.offlineRefusal(error),
-          superseded: (accepted) => this.scheduleSupersessionReset(authority!, { op, args, accepted }),
+          revision,
+          superseded: () => this.scheduleSupersessionReset(authority!, { op, args }),
           observe: this.createOptions.offlineReadObserver
             ? async () => this.createOptions.offlineReadObserver!(
                 ref,
@@ -727,11 +733,14 @@ class Client implements SnapbackClient {
    * `GET /api/program`: the twin's custody and the write bounds. `force`
    * reloads after `E_OFFLINE_RESET`, whose generation the held program predates.
    */
-  private async ensureOfflineMetadata(authority: Authority, force = false): Promise<void> {
+  private async ensureOfflineMetadata(authority: Authority, force = false, retry = true): Promise<void> {
     if (!this.offlineRuntime || (this.offlineMetadataLoaded && !force)) return;
     let manifest: Manifest;
     // Unreachable at cold start: held answers and the outbox still serve; the metadata loads on the next reach.
-    try { manifest = await this.manifestFor(authority); } catch (error) { if (isSnapbackRefusal(error) && error.retryable) return; throw error; }
+    try { manifest = await this.manifestFor(authority); } catch (error) {
+      if (!force && isSnapbackRefusal(error) && error.retryable) return;
+      throw error;
+    }
     if (this.offlineRuntime.programGeneration !== manifest.programGeneration || force) {
       try {
         const program = await this.json(
@@ -742,6 +751,12 @@ class Client implements SnapbackClient {
         this.offlineRuntime.program(program);
       } catch (error) {
         if (!isSnapbackRefusal(error) || error.status !== 404) throw error;
+        if (force) {
+          // The owner can advance between manifest and program. Coalesce that
+          // successor into this reset; repeated churn keeps the reset pending.
+          if (retry) return this.ensureOfflineMetadata(authority, true, false);
+          throw error;
+        }
       }
     }
     this.offlineMetadataLoaded = true;
@@ -1003,7 +1018,10 @@ class Client implements SnapbackClient {
       await this.offlineRuntime.open(principal);
       if (authenticated) await this.offlineRuntime.reauthenticate(principal);
       this.currentPrincipal = principal;
-      if (changed) this.offlineMetadataLoaded = false;
+      if (changed) {
+        this.supersessionQueries.clear();
+        this.offlineMetadataLoaded = false;
+      }
     } catch (error) {
       throw this.offlineRefusal(error);
     }
@@ -1017,44 +1035,46 @@ class Client implements SnapbackClient {
 
   private async wipeOffline(): Promise<void> {
     if (!this.offlineRuntime) return;
+    this.supersessionQueries.clear();
     try { await this.offlineRuntime.wipe(); this.currentPrincipal = undefined; }
     catch (error) { throw this.offlineRefusal(error); }
   }
 
-  /**
-   * Coalesces rotation deliveries behind one old-facts resume. A reachable
-   * owner resets immediately; a retryable transport failure leaves the live
-   * deliveries queued for the next online()/subscription reconnect.
-   */
-  private scheduleSupersessionReset(
-    authority: Authority,
-    item?: { op: string; args: unknown; accepted: AcceptedDelivery<unknown> },
-  ): Promise<void> {
-    if (item) this.supersessionDeliveries.set(`${item.op}\u0000${stableSerialize(item.args)}`, item);
-    if (this.forcedOffline || this.supersessionDeliveries.size === 0) return Promise.resolve();
-    const run = this.supersessionTail.then(async () => {
-      if (this.forcedOffline || this.supersessionDeliveries.size === 0) return;
-      try {
-        await this.performResume(authority);
-      } catch (error) {
-        if (isSnapbackRefusal(error) && error.retryable) return;
-        throw error;
+  /** A live read never waits for reset. online() joins it and reports its outcome. */
+  private scheduleSupersessionReset(authority: Authority, item?: { op: string; args: unknown }): void {
+    const principal = this.offlineRuntime?.principal;
+    if (!this.authorityCurrent(authority) || principal === undefined) return;
+    if (item) this.supersessionQueries.set(`${principal}\u0000${item.op}\u0000${stableSerialize(item.args)}`, { principal, ...item });
+    if (this.forcedOffline || (!this.offlineRuntime?.resetNeeded && this.supersessionQueries.size === 0)) return;
+    // The rejection is retained on the snapshot; the next opportunity retries.
+    void this.performResume(authority).catch(() => undefined);
+  }
+
+  private performResume(authority: Authority): Promise<void> {
+    if (!this.offlineRuntime || this.forcedOffline) return Promise.resolve();
+    if (this.resumeFlight) return this.resumeFlight;
+    const run = this.resumeOffline(authority).then(() => {
+      this.ensureAuthority(authority);
+      this.resetRefusal = undefined;
+      this.validated(authority);
+    }, (error) => {
+      if (this.authorityCurrent(authority)) {
+        const refusal = this.offlineRefusal(error);
+        this.resetRefusal = refusal.envelope;
       }
+      throw error;
     });
-    this.supersessionTail = run.then(() => undefined, () => undefined);
+    this.resumeFlight = run;
+    void run.finally(() => { if (this.resumeFlight === run) this.resumeFlight = undefined; }).catch(() => undefined);
     return run;
   }
 
-  private async performResume(authority: Authority): Promise<void> {
-    if (!this.offlineRuntime || this.forcedOffline) return;
+  private async resumeOffline(authority: Authority): Promise<void> {
+    const runtime = this.offlineRuntime!;
     await this.ensureOfflineMetadata(authority);
-    const mounted = new Map(this.mounted);
-    for (const item of this.supersessionDeliveries.values()) {
-      mounted.set(`${item.op}\u0000${stableSerialize(item.args)}`, { op: item.op, args: item.args, drain: false });
-    }
     await performOfflineResume({
-      runtime: this.offlineRuntime,
-      mounted,
+      runtime,
+      mounted: this.mounted,
       authority,
       bearerConfirmed: authority.token !== undefined,
       json: (path, init, current) => this.json(path, init, current),
@@ -1064,10 +1084,27 @@ class Client implements SnapbackClient {
       subscriptions: this.subscriptions,
       reload: (current) => this.ensureOfflineMetadata(current, true),
     });
-    if (this.offlineRuntime.resetNeeded || this.supersessionDeliveries.size === 0) return;
-    const pending = [...this.supersessionDeliveries.entries()];
-    const superseded = await this.offlineRuntime.commitMany(pending.map(([, item]) => item));
-    if (!superseded) for (const [key] of pending) this.supersessionDeliveries.delete(key);
+    if (runtime.resetNeeded) return;
+    // Do not replay buffered envelopes: /api/program does not reauthorize them.
+    // Trust the authenticated owner on a NEW query to establish the current epoch;
+    // commit also checks the held program and, once set, that epoch. A response
+    // from before the coverage reset is fenced by its revision and re-issued.
+    for (const [key, item] of this.supersessionQueries) {
+      this.ensureAuthority(authority);
+      if (item.principal !== runtime.principal) { this.supersessionQueries.delete(key); continue; }
+      const revision = runtime.coverageRevision;
+      const raw = await this.json("/api/query?receipt=1", {
+        method: "POST", body: JSON.stringify({ op: item.op, args: item.args }),
+      }, authority);
+      const accepted = await acceptOffline(runtime, item.op, item.args, raw, wireShape);
+      wireQuery(accepted.result);
+      this.ensureAuthority(authority);
+      const superseded = await commitOffline(runtime, item.op, item.args, accepted, (error) => this.offlineRefusal(error), revision);
+      if (superseded) return;
+      // A simultaneous delivery may have queued this key again. The new read
+      // covers it if its program is still current; keep a later request otherwise.
+      if (this.supersessionQueries.get(key) === item) this.supersessionQueries.delete(key);
+    }
   }
 
   private async drainNow(): Promise<{ stopped: boolean }> {
@@ -1093,18 +1130,17 @@ class Client implements SnapbackClient {
   validated(authority: Authority | undefined): void {
     if (authority !== undefined) this.ensureAuthority(authority);
     else this.ensureOpen();
-    this.patchSnapshot({ connection: "connected", lastRefusal: undefined });
+    this.patchSnapshot({ connection: "connected", lastRefusal: this.resetRefusal });
   }
 
-  private async operationAuthority(): Promise<Authority> {
+  private async operationAuthority(waitForResume = true): Promise<Authority> {
     await this.ready;
     while (true) {
       const transition = this.transitionTail;
       await transition;
       if (transition === this.transitionTail) break;
     }
-    await this.resumeTail;
-    await this.supersessionTail;
+    if (waitForResume) await this.resumeTail;
     this.ensureOpen();
     return {
       authGeneration: this.authGeneration,
@@ -1120,6 +1156,9 @@ class Client implements SnapbackClient {
     except?: Subscription<unknown>,
   ): Promise<T> {
     this.operationFence += 1;
+    this.supersessionQueries.clear();
+    this.resumeFlight = undefined;
+    this.resetRefusal = undefined;
     this.closeTransports(except);
     const run = this.transitionTail.then(async () => {
       await this.ready;

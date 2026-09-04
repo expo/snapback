@@ -122,7 +122,8 @@ export class Twin {
       if (!(error instanceof EvalError)) throw error;
       if (error.trace && error.partialSites?.length) return partial(error.partialSites, error.trace);
       if (error.code === "E_REQUIRE") return { state: "denied", rule: error.authoredCode ?? error.code, ...base };
-      return undefined;
+      // A covered execution failure is not missing coverage.
+      throw error;
     }
   }
 
@@ -148,6 +149,9 @@ export class Twin {
     try {
       local = hydrated.store.applyMutation(ir, context);
     } catch (error) {
+      // A typed local mutation refusal (including an unsupported local IR or
+      // schema) does not reject the intent: the server still judges it (§7).
+      // Unexpected JS errors propagate; they cannot enqueue an empty trace.
       if (!(error instanceof EvalError)) throw error;
       return {
         ...none,

@@ -16,6 +16,8 @@ await import("./offline-resume-tail.test.ts");
 await import("./outbox.test.ts");
 await import("./outbox-custody.test.ts");
 await import("./twin.test.ts");
+await import("./supersession.test.ts");
+await import("./readiness.test.ts");
 await import("./chat-screens.test.ts");
 
 after(async () => owner.close());

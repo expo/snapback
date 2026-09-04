@@ -98,18 +98,45 @@ export class OutboxLedger {
    * two overlapping writes can never mint the same slice.
    */
   private tail: Promise<void> = Promise.resolve();
+  private fenceTimer?: ReturnType<typeof setTimeout>;
+  private fenceProbe = 0;
 
   constructor(private readonly store: RangeStore, private readonly options: OutboxLedgerOptions) {}
 
   subscribe(listener: () => void): () => void {
     this.listeners.add(listener);
-    return () => { this.listeners.delete(listener); };
+    this.armFence();
+    return () => {
+      this.listeners.delete(listener);
+      if (this.listeners.size === 0) this.close();
+    };
   }
 
   notify(): void {
+    this.armFence();
     for (const listener of [...this.listeners]) {
       try { listener(); } catch { /* observers cannot break custody */ }
     }
+  }
+
+  close(): void {
+    this.fenceProbe += 1;
+    clearTimeout(this.fenceTimer);
+  }
+
+  /** Readiness changes with time even when the outbox has no entries to push. */
+  private armFence(): void {
+    this.close();
+    if (!this.listeners.size) return;
+    const probe = this.fenceProbe;
+    void this.grant().then((grant) => {
+      if (probe !== this.fenceProbe || !grant) return;
+      const remaining = Math.min(grant.expiresAt, grant.mintedAt + this.options.fenceMs + 1) - this.options.now();
+      if (remaining <= 0) return;
+      this.fenceTimer = setTimeout(() => this.notify(), Math.min(remaining, 2_147_483_647));
+      // A readiness observer must not keep a headless process alive for days.
+      (this.fenceTimer as { unref?: () => void }).unref?.();
+    }, () => undefined); // Sealed custody has no usable grant; ready() reports false.
   }
 
   entries(): Promise<OutboxEntry[]> {
@@ -183,8 +210,9 @@ export class OutboxLedger {
     return this.serial(action);
   }
 
-  pastFence(grant: Pick<OutboxGrant, "mintedAt">): boolean {
-    return this.options.now() - grant.mintedAt > this.options.fenceMs;
+  pastFence(grant: Pick<OutboxGrant, "mintedAt"> & { expiresAt?: number }): boolean {
+    const now = this.options.now();
+    return now - grant.mintedAt > this.options.fenceMs || (grant.expiresAt !== undefined && now >= grant.expiresAt);
   }
 
   // @ref LLP 1012#7-writes-offline — the first id names the intent; the rest

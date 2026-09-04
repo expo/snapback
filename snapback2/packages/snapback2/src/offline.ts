@@ -198,6 +198,8 @@ export class OfflineRuntime {
   private held?: HeldProgram;
   private standIn?: string;
   private tail: Promise<void> = Promise.resolve();
+  /** Fences deliveries already in flight when coverage or principal is replaced. */
+  coverageRevision = 0;
 
   constructor(private readonly options: OfflineClientOptions) {
     this.store = options.store();
@@ -248,6 +250,11 @@ export class OfflineRuntime {
     if (this.partition !== undefined && this.partition !== principal) this.bytes.forget();
     await this.serial(async () => {
       if (this.partition !== undefined && this.partition !== principal) await this.store.wipe(this.partition);
+      if (this.partition !== principal) {
+        this.coverageRevision += 1;
+        this.facts = this.superseded = this.held = undefined;
+        this.latestSeq = 0;
+      }
       await this.store.open(principal);
       this.partition = principal;
       this.bytes.bind(principal);
@@ -304,6 +311,7 @@ export class OfflineRuntime {
     await this.serial(async () => {
       this.bytes.forget();
       await this.store.seal();
+      this.outbox.notify();
     });
   }
 
@@ -311,6 +319,7 @@ export class OfflineRuntime {
     await this.serial(async () => {
       if (this.partition === undefined) return;
       const partition = this.partition;
+      this.coverageRevision += 1;
       this.partition = undefined;
       this.facts = undefined;
       this.superseded = undefined;
@@ -323,6 +332,7 @@ export class OfflineRuntime {
 
   async close(): Promise<void> {
     await this.tail;
+    this.outbox.close();
     this.bytes.forget();
     await this.store.close?.();
   }
@@ -421,19 +431,21 @@ export class OfflineRuntime {
     return { result, envelope };
   }
 
-  async commit(op: string, args: unknown, accepted: AcceptedDelivery<unknown>): Promise<boolean> {
-    return this.commitMany([{ op, args, accepted }]);
+  async commit(op: string, args: unknown, accepted: AcceptedDelivery<unknown>, revision = this.coverageRevision): Promise<boolean> {
+    return this.commitMany([{ op, args, accepted }], undefined, undefined, revision);
   }
 
   async commitMany(
     items: Array<{ op: string; args: unknown; accepted: AcceptedDelivery<unknown> }>,
     watermark?: Omit<WatermarkRecord, "generation" | "schemaHash" | "authEpoch" | "updatedAt">,
     outbox?: { put?: OutboxEntry[]; remove?: string[] },
+    revision?: number,
   ): Promise<boolean> {
     if (items.length === 0 && !watermark && !outbox) return false;
     // An outbox write shares the ledger's tail (one critical section for
     // every enqueue, adoption, bound, settlement, and prediction drop).
     const run = () => this.serial(async () => {
+      if (revision !== undefined && revision !== this.coverageRevision) return true;
       if (this.partition === undefined) {
         throw new OfflineAuthorityError("an offline partition must be opened before committing a delivery");
       }
@@ -455,6 +467,12 @@ export class OfflineRuntime {
           continue;
         }
         if (envelope) {
+          // The authenticated fresh response establishes the epoch, but never
+          // installs coverage under a program different from the one just loaded.
+          if (!nextFacts && this.held) nextFacts = {
+            generation: this.held.generation, schemaHash: this.held.schemaHash,
+            authEpoch: envelope.authority.authEpoch,
+          };
           // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — a
           // rotation: the server now runs another generation or schema. The
           // delivery is not held (one generation per partition), the caller
@@ -527,8 +545,16 @@ export class OfflineRuntime {
   async answer<Result>(op: string, args: unknown): Promise<HeldAnswer<Result> | undefined> {
     // Superseded coverage answers nothing: not served offline, and its validators
     // are never sent, so a conditional `unchanged` cannot carry a stale answer forward.
-    if (this.partition === undefined || this.superseded !== undefined) return undefined;
-    return this.store.answer<Result>(op, args);
+    if (!this.coverageCurrent()) return undefined;
+    const revision = this.coverageRevision;
+    const answer = await this.store.answer<Result>(op, args);
+    return revision === this.coverageRevision && this.coverageCurrent() ? answer : undefined;
+  }
+
+  private coverageCurrent(): boolean {
+    return this.partition !== undefined && this.superseded === undefined
+      && (!this.facts || !this.held || (this.facts.generation === this.held.generation
+        && this.facts.schemaHash === this.held.schemaHash));
   }
 
   /** The envelope's data with every viewed view-once row read as `null`, on the wire as in the store. */
@@ -540,9 +566,9 @@ export class OfflineRuntime {
     return viewed.size === 0 ? expanded : nullViewed(envelope.data, expanded, viewed);
   }
 
-  async markWatermark(op: string, args: unknown, watermark: string | null, validator?: string): Promise<void> {
+  async markWatermark(op: string, args: unknown, watermark: string | null, validator?: string, revision = this.coverageRevision): Promise<void> {
     if (this.partition === undefined) return;
-    await this.commitMany([], { op, args, watermark, ...(validator === undefined ? {} : { validator }) });
+    await this.commitMany([], { op, args, watermark, ...(validator === undefined ? {} : { validator }) }, undefined, revision);
   }
 
   async resumeRequest(
@@ -550,6 +576,9 @@ export class OfflineRuntime {
     adjustment: ResumeAdjustment = {},
   ): Promise<ResumeRequestV1 | undefined> {
     if (this.partition === undefined || !this.facts) return undefined;
+    // The owner checks authority and generation before processing queries. A
+    // reset probe needs only old facts, never old validators or a drained log.
+    if (!this.coverageCurrent()) return { protocol: 1, ...this.facts, mounted: [] };
     const coverage = await this.store.coverage();
     // The same chooser as the settlement tail (`tailWatermark`), so the log a
     // resume asks for is the log a committed intent's rows are filed under.
@@ -562,9 +591,12 @@ export class OfflineRuntime {
     if (indexedWhich !== undefined) candidates.splice(Number(indexedWhich), 1);
     const mountedAnswers = (await Promise.all(candidates.slice(0, cap).map(async (query) => ({
       query,
-      answer: await this.store.answer(query.op, query.args),
+      answer: await this.answer(query.op, query.args),
     })))).filter((item): item is { query: MountedQuery; answer: HeldAnswer & { validator: string } } =>
       typeof item.answer?.validator === "string");
+    // A delivery can supersede coverage while the carrier reads are in flight.
+    if (!this.facts) return undefined;
+    if (!this.coverageCurrent()) return { protocol: 1, ...this.facts, mounted: [] };
     const omitLog = adjustment.which === "log"
       || (watermark !== undefined && resumeWhichMatches(adjustment.which, watermark.op, watermark.args));
     // Without a drained log the owner still needs one member to answer, and the
@@ -597,6 +629,7 @@ export class OfflineRuntime {
   async resetCoverage(): Promise<void> {
     if (this.partition !== undefined) await this.serial(async () => {
       await this.store.commit({ resetCoverage: true });
+      this.coverageRevision += 1;
       this.facts = undefined;
       this.superseded = undefined;
     });

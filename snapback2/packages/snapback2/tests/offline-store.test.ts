@@ -690,7 +690,12 @@ test("manifest retention is loaded before the first commit without an app manife
     url: "http://retention.test", as: "alice", offline: { store: fileRangeStore(root) },
     fetch: async (input) => {
       const metadata = metadataResponse(input);
-      if (metadata) return metadata;
+      if (metadata) {
+        const value = await metadata.json();
+        if (String(input).includes('/api/program?')) Object.assign(value, { generation: hit.generation, schemaHash: hit.schemaHash });
+        else value.programGeneration = hit.generation;
+        return new Response(JSON.stringify(value), { status: 200 });
+      }
       return new Response(JSON.stringify(reads++ === 0 ? hit : hidden), { status: 200 });
     },
   });

@@ -118,6 +118,7 @@ export class ReconnectingSse<Event> implements Subscription<Event> {
   private closed = false;
   private activeAttempt?: AbortController;
   private retryNow?: () => void;
+  private resets = 0;
 
   constructor(private readonly options: ReconnectingSseOptions<Event>) {
     void this.run();
@@ -139,6 +140,14 @@ export class ReconnectingSse<Event> implements Subscription<Event> {
     if (this.closed) return;
     this.activeAttempt?.abort();
     this.retryNow?.();
+  }
+
+  /** A successor starts a new stream, with no predecessor event id or answer. */
+  reset(): void {
+    this.resets += 1;
+    this.lastEventId = undefined;
+    this.last = undefined;
+    this.reconnect();
   }
 
   until(predicate: (event: Event) => boolean, timeoutMs = 30_000): Promise<Event> {
@@ -198,6 +207,7 @@ export class ReconnectingSse<Event> implements Subscription<Event> {
     let hadDelivery = false;
     let lossReported = false;
     while (!this.closed) {
+      const reset = this.resets;
       const attempt = new AbortController();
       this.activeAttempt = attempt;
       const closeAttempt = () => attempt.abort();
@@ -235,6 +245,7 @@ export class ReconnectingSse<Event> implements Subscription<Event> {
           }
           if (parsed.id !== undefined) this.lastEventId = parsed.id;
           const event = await this.options.decode(parsed);
+          if (this.closed || reset !== this.resets) continue;
           this.deliver(event);
           hadDelivery = true;
           lossReported = false;
@@ -246,13 +257,14 @@ export class ReconnectingSse<Event> implements Subscription<Event> {
           }
         }
         if (this.closed) return;
-        if (!lossReported) {
+        if (reset === this.resets && !lossReported) {
           const loss = this.options.onLoss(this.last);
           if (loss !== undefined) this.deliver(loss);
           lossReported = true;
         }
       } catch (error) {
         if (this.closed || this.controller.signal.aborted) return;
+        if (reset !== this.resets) continue;
         const failure = idle
           ? new Error("SSE stream idle for 30000 ms")
           : error;
@@ -271,6 +283,7 @@ export class ReconnectingSse<Event> implements Subscription<Event> {
         this.controller.signal.removeEventListener("abort", closeAttempt);
         if (this.activeAttempt === attempt) this.activeAttempt = undefined;
       }
+      if (reset !== this.resets) continue;
       try {
         await Promise.race([
           delay(backoff, this.controller.signal),

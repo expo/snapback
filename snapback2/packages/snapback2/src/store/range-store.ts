@@ -814,6 +814,9 @@ export class PersistentRangeStore implements RangeStore {
     if (state.sealed) throw new OfflineStoreFailure("E_OFFLINE_CARRIER", "range store is sealed");
     if (swap.resetCoverage) {
       state.rows = {};
+      // Sequence guards belong to this generation's coverage, just like rows.
+      // A query-only successor can deliver the same row at the same data seq.
+      state.rowSeq = {};
       state.answers = {};
       state.watermarks = {};
       delete state.facts;

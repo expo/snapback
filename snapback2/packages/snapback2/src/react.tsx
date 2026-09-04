@@ -259,12 +259,23 @@ export interface UseOutboxResult {
 function useOutboxState(op?: Op<any, any>): UseOutboxResult {
   const { client, snapshot } = provider();
   const operation = op === undefined ? undefined : referenceName(op);
-  const [state, setState] = useState<{ entries: OutboxEntry[]; ready: boolean }>({ entries: [], ready: false });
-  useEffect(() => client.outbox.subscribe((entries) => {
-    void client.outbox.ready(op).then((ready) => setState({ entries, ready }), () => setState({ entries, ready: false }));
-  }), [client, snapshot.authGeneration, operation]);
+  const identity = useMemo(() => ({}), [client, snapshot.authGeneration, operation]);
+  const [state, setState] = useState<{ identity?: object; entries: OutboxEntry[]; ready: boolean }>({ entries: [], ready: false });
+  useEffect(() => {
+    let active = true;
+    let probe = 0;
+    const unsubscribe = client.outbox.subscribe((entries) => {
+      const current = ++probe;
+      const publish = (ready: boolean) => {
+        if (active && current === probe) setState({ identity, entries, ready });
+      };
+      void client.outbox.ready(op).then(publish, () => publish(false));
+    });
+    return () => { active = false; unsubscribe(); };
+  }, [identity]);
   const dismiss = useCallback((intent: string) => client.outbox.dismiss(intent), [client]);
-  return useMemo(() => ({ entries: state.entries, ready: state.ready, dismiss }), [state, dismiss]);
+  return useMemo(() => ({ entries: state.identity === identity ? state.entries : [],
+    ready: state.identity === identity && state.ready, dismiss }), [state, identity, dismiss]);
 }
 
 export function useOutbox(): UseOutboxResult {

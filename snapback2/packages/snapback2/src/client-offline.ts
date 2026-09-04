@@ -124,9 +124,10 @@ export async function commitOffline(
   args: unknown,
   accepted: AcceptedDelivery<unknown>,
   failure: (error: unknown) => Error,
+  revision?: number,
 ): Promise<boolean> {
   if (!runtime) return false;
-  try { return await runtime.commit(op, args, accepted); }
+  try { return await runtime.commit(op, args, accepted, revision); }
   catch (error) { throw failure(error); }
 }
 
@@ -138,7 +139,8 @@ export async function decodeOfflineSubscription<Result>(options: {
   shape(message: string): Error;
   failure(error: unknown): Error;
   observe?(): Promise<void>;
-  superseded?(accepted: AcceptedDelivery<Result>): Promise<void>;
+  revision?: number;
+  superseded?(): void;
 }): Promise<LiveQueryDelivery<Result> | QueryRefusedDelivery> {
   const raw = sseObject(options.data, "subscription delivery");
   const accepted = await acceptOffline<Result>(options.runtime, options.op, options.args, raw, options.shape);
@@ -146,8 +148,8 @@ export async function decodeOfflineSubscription<Result>(options: {
     ? { ...wireQuery<Result>(accepted.result, "subscription delivery"), live: true as const }
     : wireSubscription<Result>(options.data);
   if (value.state !== "refused") {
-    const superseded = await commitOffline(options.runtime, options.op, options.args, accepted, options.failure);
-    if (superseded) await options.superseded?.(accepted);
+    const superseded = await commitOffline(options.runtime, options.op, options.args, accepted, options.failure, options.revision);
+    if (superseded) options.superseded?.();
     await options.observe?.();
   }
   return value;
@@ -216,11 +218,14 @@ export function createOfflineDrain<Args, Result>(options: {
       await options.ready?.catch(() => undefined);
       return options.runtime?.cursorArg(options.op) ?? "c";
     },
-    mark: async (watermark) => {
+    mark: async (watermark, current) => {
       if (!options.runtime) return;
+      const revision = options.runtime.coverageRevision;
       const tailArgs = { ...(options.args as Record<string, unknown>), [options.runtime.cursorArg(options.op)]: watermark };
       const held = await options.runtime.answer(options.op, tailArgs);
-      await options.runtime.markWatermark(options.op, options.args, watermark, held?.validator);
+      if (!current()) return;
+      await options.runtime.markWatermark(options.op, options.args, watermark, held?.validator, revision);
+      if (!current()) return;
       await options.observe?.();
       // @ref LLP 1012#7-writes-offline — the recipe's drain is where a device
       // earns its first grant, so a send after going offline has ids to pin.
@@ -376,9 +381,12 @@ export async function performOfflineResume<Authority>(options: {
       // coverage, keep the sealed outbox, fetch the live generation's program
       // (the twin and the write bounds re-price from it), then drain and
       // cold-drain: the queue never waits on the next write.
-      await options.runtime.resetCoverage();
+      // Keep the durable reset marker until metadata succeeds, so a failed
+      // reload is actually retried on the next online opportunity.
       await options.reload?.(options.authority);
-      for (const subscription of options.subscriptions) {
+      options.validated(options.authority);
+      await options.runtime.resetCoverage();
+      for (const subscription of [...options.subscriptions]) {
         (subscription as Subscription<unknown> & { reset?: () => void }).reset?.();
       }
       if ((await options.runtime.queuedIntents()).length > 0) await drainOutbox(drainOptions(options));

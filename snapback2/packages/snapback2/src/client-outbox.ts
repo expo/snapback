@@ -286,9 +286,18 @@ export function createOutboxApi(
       if (runtime && runtime.principal !== undefined) await runtime.outbox.dismiss(intent);
     },
     subscribe: (listener) => {
-      const push = () => { void entries().then(listener, () => undefined); };
+      let active = true;
+      let version = 0;
+      const push = () => {
+        const current = ++version;
+        const principal = runtime?.principal;
+        void entries().then((value) => {
+          if (active && current === version && principal === runtime?.principal) listener(value);
+        }, () => undefined);
+      };
       push();
-      return runtime ? runtime.outbox.subscribe(push) : () => undefined;
+      const unsubscribe = runtime?.outbox.subscribe(push);
+      return () => { active = false; unsubscribe?.(); };
     },
     // @ref LLP 1012#7-writes-offline — with a partition open every write needs a
     // grant before any request leaves; the op form also checks its certified
@@ -298,7 +307,7 @@ export function createOutboxApi(
       await ready().catch(() => undefined);
       if (!runtime || runtime.principal === undefined) return true;
       try {
-        return runtime.outbox.ready(op === undefined ? undefined : referenceName(op));
+        return await runtime.outbox.ready(op === undefined ? undefined : referenceName(op));
       } catch (error) {
         if (error instanceof Error && /sealed/.test(error.message)) return false;
         throw error;
