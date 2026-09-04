@@ -669,6 +669,21 @@ reset is not self-triggered — the follow-ups ticket of 2026-09-04 records that
 reason until the inbox drain has earned a grant, and a refusal's rewrite is shown, never
 retried blindly.
 
+**The retirement rule as landed (lane T1, three review rounds, 2026-09-04).** A committed
+prediction retires in its swap on authoritative evidence — the arrival of a predicted
+non-deleted row, or a primary point absence or tombstone at or after its commit seq for a
+predicted id that no newer held row supersedes, including evidence saved while the intent was
+still queued — or, for predictions with non-deleted rows, on a non-empty held page of the
+selected log strictly beyond its persisted commit snapshot, reached through currently held
+next-links recorded at or after that seq; the chain's query identity uses the store's one
+canonical serializer, an ambiguous link or a cycle keeps only the proven prefix, and an
+evicted progress page re-anchors at the nearest surviving consumed position. Otherwise a
+proven forward mark of the selected log or a successful resume strictly after the commit
+consumes at most one miss per swap, with consumed positions and the snapshot's cursor name
+persisted across a reopen, and two misses remove the overlay and clear `predicted` while the
+replay entry stays `committed`. Residuals are filed in the overlay-retirement follow-ups
+ticket of 2026-09-04.
+
 ## 8. The delivery envelope, the validator, and resume
 
 **The frozen envelope (lane O1's first landing; O2 starts against it).**
