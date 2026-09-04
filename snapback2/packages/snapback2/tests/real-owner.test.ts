@@ -22,6 +22,7 @@ test("the package suite is pointed at a checked real owner", async (context) => 
   const manifestResponse = await fetch(`${owner.url}/api/manifest`);
   assert.equal(manifestResponse.ok, true);
   const manifest = await manifestResponse.json();
+  // `tables` carries each table's retain word per generation (LLP 1012 §5, lane O1b).
   assert.deepEqual(Object.keys(manifest).sort(), ["auth", "channels", "generation", "ops", "programGeneration", "tables"]);
   const preflight = await fetch(`${owner.url}/api/query`, {
     method: "OPTIONS",

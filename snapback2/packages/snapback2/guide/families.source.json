@@ -421,6 +421,12 @@
   },
   {
     "family": "offline",
+    "code": "E_ASSET_VIEWED",
+    "wrong": "client.assetBlob(url) // for a view-once row this device already viewed",
+    "right": "render a view-once row once; a viewed row answers null offline and fetches nothing"
+  },
+  {
+    "family": "offline",
     "code": "E_OFFLINE_ID_BLOCK",
     "wrong": "replay: { grant, offset: 8191, count: 2, intent: `${grant}:8191` }",
     "right": "replay: { grant, offset: unusedOffset, count: 1 + maxNewIds, intent: `${grant}:${unusedOffset}` }"

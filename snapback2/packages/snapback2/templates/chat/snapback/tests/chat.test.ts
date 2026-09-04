@@ -1,4 +1,4 @@
-import { api } from "snapback2/client";
+import { api, type ImageAsset } from "snapback2/client";
 import { journey } from "snapback2/test";
 
 function bytes(...parts: Uint8Array[]): Uint8Array {
@@ -50,6 +50,16 @@ function synthesizedMp4(): Uint8Array {
   hdlrPayload.set(ascii("vide"), 8);
   const track = atom("trak", atom("tkhd", tkhdPayload), atom("mdia", atom("hdlr", hdlrPayload)));
   return bytes(ftyp, atom("moov", atom("mvhd", mvhdPayload), track));
+}
+
+// The template's smallest valid JPEG: one baseline MCU, advertised as 8×8.
+function fixtureJpeg(): Uint8Array {
+  const jpeg = Uint8Array.from(atob("/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAACAAIDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDzSiiiv18+FP/Z"), (value) => value.charCodeAt(0));
+  const validJpeg = bytes(jpeg.slice(0, 155), new Uint8Array([40, 40, 40]), jpeg.slice(155));
+  // The encoded fixture is one baseline MCU; advertise its padded 8×8 display extent.
+  validJpeg[164] = 8;
+  validJpeg[166] = 8;
+  return validJpeg;
 }
 
 journey("alice sends bob a message", async ({ as }) => {
@@ -110,11 +120,7 @@ journey("alice sends and reads back a JPEG photo and synthesized MP4 clip", asyn
   const alice = as("alice");
   const charlie = as("charlie");
   try {
-    const jpeg = Uint8Array.from(atob("/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAACAAIDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDzSiiiv18+FP/Z"), (value) => value.charCodeAt(0));
-    const validJpeg = bytes(jpeg.slice(0, 155), new Uint8Array([40, 40, 40]), jpeg.slice(155));
-    // The encoded fixture is one baseline MCU; advertise its padded 8×8 display extent.
-    validJpeg[164] = 8;
-    validJpeg[166] = 8;
+    const validJpeg = fixtureJpeg();
     const photoSent = await alice.mutation(api.messages.sendPhoto, {
       conversationId: "conversation-1",
       photo: {
@@ -439,5 +445,91 @@ journey("offline drain removes an unsent body and survives a cold restart", asyn
   }
   if (JSON.stringify(held.data).includes("Welcome")) {
     throw new Error("unsent message body survived in the cold held inbox");
+  }
+});
+
+// @ref LLP 1012#9-asset-bytes-on-the-device — bytes render offline under the row's
+// lease, a viewed view-once photo never renders again, and an unsent row's bytes
+// leave with the row on resume (lane O4, the web half of §10's witness).
+journey("viewed photos render from the byte cache offline; a view-once photo and an unsent row do not", async ({ as }) => {
+  let viewOnceId: string | undefined;
+  const alice = as("alice", {
+    store: "file",
+    onTombstone: (item) => item.table === "deliveries"
+      && (item.row.kind === "removed" || item.row.kind === "expired")
+      && typeof item.row.messageId === "string"
+      ? [{ table: "messages", id: item.row.messageId }]
+      : [],
+    viewOnce: (table, row) => table === "messages" && row.id === viewOnceId,
+  });
+  const owner = as("alice");
+  try {
+    const validJpeg = fixtureJpeg();
+    const sent: Array<{ id: string; photo: ImageAsset }> = [];
+    for (let index = 0; index < 3; index += 1) {
+      const result = await owner.mutation(api.messages.sendPhoto, {
+        conversationId: "conversation-1",
+        photo: {
+          uri: `data:image/jpeg;base64,${base64(validJpeg)}`,
+          fileSize: validJpeg.byteLength,
+          mimeType: "image/jpeg",
+        },
+      });
+      if (result.state !== "committed") throw new Error(`photo ${index} send was ${result.state}`);
+      if (!result.data.photo) throw new Error(`photo ${index} record was absent`);
+      sent.push({ id: result.data.id, photo: result.data.photo });
+    }
+    viewOnceId = sent[2]!.id;
+    const thread = alice.subscribe(api.messages.thread, { conversationId: "conversation-1", c: null }, () => undefined);
+    await thread.until((delivery) => (delivery.state === "complete" || delivery.state === "capped")
+      && "data" in delivery
+      && Array.isArray(delivery.data)
+      && sent.every((message) => delivery.data.some((row: { id?: string }) => row?.id === message.id)));
+    thread.close();
+    const urls: string[] = [];
+    for (const message of sent) {
+      const url = await alice.assetUrl(message.photo, { width: message.photo.width });
+      if (!url) throw new Error("photo delivery URL was absent");
+      // Viewing fills the byte cache; the third row is view-once and is marked viewed instead.
+      if ((await alice.assetBlob(url)).size === 0) throw new Error("photo delivery was empty");
+      urls.push(url);
+    }
+    await alice.offline();
+    const cold = await alice.restart();
+    for (const url of urls.slice(0, 2)) {
+      if ((await cold.assetBlob(url)).size === 0) throw new Error("a viewed photo did not render from the byte cache offline");
+    }
+    let viewedRefused = false;
+    try {
+      await cold.assetBlob(urls[2]!);
+    } catch (error) {
+      viewedRefused = (error as { code?: string }).code === "E_ASSET_VIEWED";
+    }
+    if (!viewedRefused) throw new Error("a viewed view-once photo rendered again after the restart");
+    const held = await cold.query(api.messages.thread, { conversationId: "conversation-1", c: null });
+    if (!("data" in held) || !Array.isArray(held.data) || held.data.some((row: { id?: string } | null) => row?.id === viewOnceId)) {
+      throw new Error("a viewed view-once row survived in the held thread");
+    }
+    const mounted = cold.subscribe(api.messages.thread, { conversationId: "conversation-1", c: null }, () => undefined);
+    await mounted.until((delivery) => "data" in delivery && Array.isArray(delivery.data));
+    const unsent = await owner.mutation(api.deliveries.unsend, { messageId: sent[0]!.id });
+    if (unsent.state !== "committed") throw new Error(`unsend was ${unsent.state}`);
+    await cold.online();
+    await mounted.until((delivery) => delivery.live === true
+      && "data" in delivery
+      && Array.isArray(delivery.data)
+      && !delivery.data.some((row: { id?: string } | null) => row?.id === sent[0]!.id));
+    mounted.close();
+    await cold.offline();
+    let gone = false;
+    try {
+      await cold.assetBlob(urls[0]!);
+    } catch (error) {
+      gone = (error as { code?: string }).code === "E_NETWORK";
+    }
+    if (!gone) throw new Error("an unsent row's bytes survived the resume");
+    if ((await cold.assetBlob(urls[1]!)).size === 0) throw new Error("the kept photo lost its bytes on resume");
+  } finally {
+    owner.close();
   }
 });

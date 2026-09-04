@@ -16,6 +16,7 @@ import {
   type StoreTombstone,
   type WatermarkRecord,
 } from "./store/range-store.js";
+import { ByteCache } from "./store/byte-cache.js";
 import type { Manifest, OfflineClientOptions } from "./types.js";
 
 export interface MountedQuery {
@@ -78,6 +79,8 @@ export class OfflineRuntime {
   readonly store: RangeStore;
   readonly fenceDays: number;
   readonly maxAssetBytes: number;
+  /** Asset bytes beside the rows, under their lease (LLP 1012 §9); lane O4. */
+  readonly bytes: ByteCache;
   private partition?: string;
   private retention: Record<string, RetentionPolicy> = {};
   private schema?: OfflineSchema;
@@ -88,6 +91,7 @@ export class OfflineRuntime {
     this.store = options.store();
     this.fenceDays = options.fenceDays ?? 7;
     this.maxAssetBytes = options.maxAssetBytes ?? 256 * 1024 * 1024;
+    this.bytes = new ByteCache(this.store, { maxAssetBytes: this.maxAssetBytes, viewOnce: options.viewOnce });
   }
 
   get principal(): string | undefined { return this.partition; }

@@ -1,5 +1,18 @@
 // @ref LLP 1012#4-the-range-store — every carrier persists the same per-principal answer/range model.
 // @ref LLP 1012#5-retention-revocation-and-the-fence — eviction is decided once over a complete swap.
+// @ref LLP 1012#9-asset-bytes-on-the-device — asset bytes leave in the same commit as the row whose lease held them.
+
+import {
+  applyByteSwap,
+  assetIdsIn,
+  byteKey,
+  leasedAssets,
+  type ByteCacheEntry,
+  type ByteCacheStatus,
+  type ByteDelta,
+  type ByteSwapRequest,
+  type ViewedRecord,
+} from "./byte-cache.js";
 
 export type PrincipalPartition = string;
 export type RetentionPolicy = "until-revoked" | "delivered-history";
@@ -74,6 +87,8 @@ export interface Coverage {
   absences: Receipt["absences"];
   verdicts: unknown[];
   watermarks: WatermarkRecord[];
+  /** View-once rows already viewed on this partition; a replay must not render them (LLP 1012 §9). */
+  viewed?: RowRef[];
 }
 
 export type OutboxState = "queued" | "committed" | "rejected" | "expired";
@@ -137,6 +152,10 @@ export interface StoreSwap {
   resetCoverage?: boolean;
   dropAnswers?: string[];
   outbox?: { put?: OutboxEntry[]; remove?: string[] };
+  /** Byte-cache puts and read touches; they land in the same carrier transaction as the rows. */
+  bytes?: ByteSwapRequest;
+  /** View-once rows viewed now: excluded from every later answer, their bytes never cached. */
+  viewed?: RowRef[];
 }
 
 export interface RangeStore {
@@ -173,20 +192,27 @@ export interface PersistedRangeState {
   outbox: Record<string, OutboxEntry>;
   negative: Record<string, number>;
   rowSeq: Record<string, number>;
+  /** The byte-cache index; payloads live beside the state in the carrier, keyed by `byteKey`. */
+  assets: Record<string, ByteCacheEntry>;
+  viewed: Record<string, ViewedRecord>;
 }
 
 export interface RangeStoreBackend {
   readonly carrier: string;
   open(partition: PrincipalPartition): Promise<PersistedRangeState | undefined>;
-  replace(state: PersistedRangeState): Promise<void>;
+  /** One carrier transaction: the state, plus the byte payloads to write and the keys to drop. */
+  replace(state: PersistedRangeState, bytes: ByteDelta): Promise<void>;
+  readBytes?(key: string): Promise<Uint8Array | undefined>;
   wipe(partition: PrincipalPartition): Promise<void>;
   close(): Promise<void> | void;
 }
 
+const NO_BYTES: ByteDelta = { put: [], remove: [] };
+
 function emptyState(): PersistedRangeState {
   return {
     version: 1, sealed: false, clock: 0, rows: {}, answers: {}, watermarks: {}, outbox: {},
-    negative: {}, rowSeq: {},
+    negative: {}, rowSeq: {}, assets: {}, viewed: {},
   };
 }
 
@@ -208,6 +234,11 @@ export function canonicalAnswerKey(op: string, args: unknown): string {
 
 function rowKey(ref: RowRef): string {
   return `${ref.table}\u0000${ref.id}`;
+}
+
+function viewedRef(key: string): RowRef {
+  const at = key.indexOf(String.fromCharCode(0));
+  return { table: key.slice(0, at), id: key.slice(at + 1) };
 }
 
 function recordEviction(evictions: Map<string, StoreTombstone>, eviction: StoreTombstone): void {
@@ -239,13 +270,13 @@ function collectRefs(value: unknown, refs = new Map<string, RowRef>()): RowRef[]
   return [...refs.values()];
 }
 
-function expand(value: unknown, rows: Record<string, StoredRow>): unknown {
+function expand(value: unknown, rows: Record<string, StoredRow>, viewed?: Record<string, unknown>): unknown {
   const ref = asRowRef(value);
-  if (ref) return rows[rowKey(ref)]?.row ?? null;
-  if (Array.isArray(value)) return value.map((item) => expand(item, rows));
+  if (ref) return viewed?.[rowKey(ref)] ? null : rows[rowKey(ref)]?.row ?? null;
+  if (Array.isArray(value)) return value.map((item) => expand(item, rows, viewed));
   if (!value || typeof value !== "object") return value;
   return Object.fromEntries(Object.entries(value as Record<string, unknown>)
-    .map(([key, item]) => [key, expand(item, rows)]));
+    .map(([key, item]) => [key, expand(item, rows, viewed)]));
 }
 
 function hiddenRefs(before: unknown, after: unknown, output = new Map<string, RowRef>()): RowRef[] {
@@ -389,6 +420,8 @@ function normalizeState(value: PersistedRangeState | undefined): PersistedRangeS
     outbox: value.outbox ?? {},
     negative: value.negative ?? {},
     rowSeq: value.rowSeq ?? {},
+    assets: value.assets ?? {},
+    viewed: value.viewed ?? {},
   };
 }
 
@@ -430,7 +463,7 @@ export class PersistentRangeStore implements RangeStore {
       this.ensureOpen();
       if (!this.state.sealed) return;
       const next = { ...clone(this.state), sealed: false };
-      await this.backend.replace(next);
+      await this.backend.replace(next, NO_BYTES);
       this.state = next;
     });
   }
@@ -439,7 +472,7 @@ export class PersistentRangeStore implements RangeStore {
     await this.enqueue(async () => {
       this.ensureOpen();
       const next = { ...clone(this.state), sealed: true };
-      await this.backend.replace(next);
+      await this.backend.replace(next, NO_BYTES);
       this.state = next;
     });
   }
@@ -464,7 +497,8 @@ export class PersistentRangeStore implements RangeStore {
       const { refs: _refs, order: _order, fingerprint: _fingerprint, data, ...answer } = clone(stored);
       return {
         ...answer,
-        ...(data === undefined ? {} : { data: expand(data, this.state.rows) as Result }),
+        // A viewed view-once row reads as absent: the view was its one delivery (LLP 1012 §9).
+        ...(data === undefined ? {} : { data: expand(data, this.state.rows, this.state.viewed) as Result }),
         ...(watermark === undefined ? {} : { caughtUp: true, watermark: watermark.watermark }),
       };
     });
@@ -472,7 +506,7 @@ export class PersistentRangeStore implements RangeStore {
 
   async coverage(): Promise<Coverage> {
     return this.read(() => {
-      if (this.state.sealed) return { rows: [], ranges: [], absences: [], verdicts: [], watermarks: [] };
+      if (this.state.sealed) return { rows: [], ranges: [], absences: [], verdicts: [], watermarks: [], viewed: [] };
       const ranges = new Map<string, ReceiptRange>();
       const absences = new Map<string, Receipt["absences"][number]>();
       const verdicts = new Map<string, unknown>();
@@ -491,6 +525,7 @@ export class PersistentRangeStore implements RangeStore {
         absences: [...absences.values()],
         verdicts: [...verdicts.values()],
         watermarks: clone(Object.values(this.state.watermarks)),
+        viewed: Object.keys(this.state.viewed).map(viewedRef),
       };
     });
   }
@@ -498,10 +533,49 @@ export class PersistentRangeStore implements RangeStore {
   async commit(swap: StoreSwap): Promise<void> {
     await this.enqueue(async () => {
       this.ensureOpen();
-      const next = this.applySwap(clone(this.state), clone(swap));
-      await this.backend.replace(next);
+      // Byte payloads are not cloned: they can be megabytes and the swap never mutates them.
+      const { bytes, ...rest } = swap;
+      const delta: ByteDelta = { put: [], remove: [] };
+      const next = this.applySwap(clone(this.state), { ...clone(rest), ...(bytes === undefined ? {} : { bytes }) }, delta);
+      await this.backend.replace(next, delta);
       this.state = next;
     });
+  }
+
+  /** The cached rendition for an asset at a width; nothing when unheld, sealed, or the payload is gone. */
+  async readBytes(assetId: string, width: number | null): Promise<{ bytes: Uint8Array; type: string } | undefined> {
+    return this.read(async () => {
+      if (this.state.sealed) return undefined;
+      const key = byteKey(assetId, width);
+      const entry = this.state.assets[key];
+      if (!entry) return undefined;
+      const bytes = await this.backend.readBytes?.(key);
+      return bytes && bytes.byteLength === entry.size ? { bytes, type: entry.type } : undefined;
+    });
+  }
+
+  async bytes(): Promise<ByteCacheStatus> {
+    return this.read(() => {
+      if (this.state.sealed) return { entries: [], totalBytes: 0, viewed: [] };
+      const entries = clone(Object.values(this.state.assets));
+      return {
+        entries,
+        totalBytes: entries.reduce((sum, entry) => sum + entry.size, 0),
+        viewed: Object.keys(this.state.viewed).map(viewedRef),
+      };
+    });
+  }
+
+  /** Held rows whose values carry this asset record: the lease under which its bytes may be cached. */
+  async rowsReferencing(assetId: string): Promise<StoredRow[]> {
+    return this.read(() => this.state.sealed
+      ? []
+      : clone(Object.values(this.state.rows).filter((row) => assetIdsIn(row.row).has(assetId))));
+  }
+
+  async viewedAsset(assetId: string): Promise<boolean> {
+    return this.read(() => !this.state.sealed
+      && Object.values(this.state.viewed).some((record) => record.assets.includes(assetId)));
   }
 
   async close(): Promise<void> {
@@ -512,7 +586,7 @@ export class PersistentRangeStore implements RangeStore {
     });
   }
 
-  private applySwap(state: PersistedRangeState, swap: StoreSwap): PersistedRangeState {
+  private applySwap(state: PersistedRangeState, swap: StoreSwap, bytes: ByteDelta): PersistedRangeState {
     if (state.sealed) throw new OfflineStoreFailure("E_OFFLINE_CARRIER", "range store is sealed");
     if (swap.resetCoverage) {
       state.rows = {};
@@ -682,6 +756,11 @@ export class PersistentRangeStore implements RangeStore {
       delete state.rows[key];
       delete state.rowSeq[key];
     }
+
+    // Bytes join the swap by row lease: whatever left `state.rows` above takes its bytes with it.
+    const byteDelta = applyByteSwap(state, swap, leasedAssets(Object.values(state.rows), Object.values(state.answers)));
+    bytes.put.push(...byteDelta.put);
+    bytes.remove.push(...byteDelta.remove);
 
     if (swap.watermark) state.watermarks[canonicalAnswerKey(swap.watermark.op, swap.watermark.args)] = clone(swap.watermark);
     for (const intent of swap.outbox?.remove ?? []) delete state.outbox[intent];

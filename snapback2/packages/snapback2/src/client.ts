@@ -32,6 +32,7 @@ import {
   settleSubscription,
   validateOfflineOptions,
 } from "./client-offline.js";
+import { assetBlobTarget, cachedAssetBlob, type AssetBlobTarget } from "./client-assets.js";
 import {
   SnapbackRefusal,
   copyRefusal,
@@ -355,24 +356,20 @@ class Client implements SnapbackClient {
 
   async assetBlob(url: string, options: { signal?: AbortSignal } = {}): Promise<Blob> {
     const authority = await this.operationAuthority();
-    let parsed: URL;
-    try {
-      parsed = new URL(url);
-    } catch {
-      throw this.assetInput(new AssetInputError("E_ASSET_TYPE", "asset blob URL must be absolute"));
-    }
-    const base = new URL(this.url);
-    if (parsed.origin !== base.origin || !parsed.pathname.startsWith("/api/asset/") || parsed.searchParams.has("s")) {
-      throw this.assetInput(new AssetInputError(
-        "E_ASSET_TYPE",
-        "asset blob fetch requires a tokenless URL issued by this client",
-      ));
-    }
-    const headers = this.headers(authority);
-    headers.set("Accept", "*/*");
-    const response = await this.fetchResponse(url, { headers, signal: options.signal }, authority);
-    this.validated(authority);
-    return response.blob();
+    let target: AssetBlobTarget;
+    try { target = assetBlobTarget(this.url, url); } catch (error) { throw this.assetInput(error); }
+    return cachedAssetBlob(this.offlineRuntime?.bytes, target, async () => {
+      if (this.forcedOffline) throw offlineNetworkRefusal();
+      const headers = this.headers(authority);
+      headers.set("Accept", "*/*");
+      const response = await this.fetchResponse(url, { headers, signal: options.signal }, authority);
+      this.validated(authority);
+      return response.blob();
+    }, (refusal) => this.recordRefusal(refusal));
+  }
+
+  get assetCache(): OfflineRuntime["bytes"] | undefined {
+    return this.offlineRuntime?.bytes;
   }
 
   subscribe<Args, Result>(

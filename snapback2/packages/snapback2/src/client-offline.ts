@@ -43,6 +43,9 @@ export function validateOfflineOptions(options: OfflineClientOptions | undefined
     && (!Number.isSafeInteger(options.maxAssetBytes) || options.maxAssetBytes < 1)) {
     throw new TypeError("createClient offline.maxAssetBytes must be a positive safe integer");
   }
+  if (options.viewOnce !== undefined && typeof options.viewOnce !== "function") {
+    throw new TypeError("createClient offline.viewOnce must be a (table, row) => boolean predicate");
+  }
 }
 
 export function createOfflineRuntime(options: OfflineClientOptions | undefined): OfflineRuntime | undefined {
@@ -343,8 +346,9 @@ export async function performOfflineResume<Authority>(options: {
     && (response.log as Record<string, unknown>).unchanged !== true && request.log) {
     const { watermark: returned, ...delivery } = response.log as Record<string, unknown>;
     if (returned !== null && typeof returned !== "string") throw options.shape("resume response.log.watermark must be a string or null");
-    // The server evaluated the log after the request's watermark, so the page it returned
-    // belongs under the tail key, not under the base page's key at the same seq.
+    // The server answers the log as the page after `watermark` (writer_resume log_args), so
+    // it is held under that cursor's args; filing it under the base args would replace the
+    // drained first page with the tail — an empty one after a restart (LLP 1012 §8).
     const tailArgs = request.log.watermark === null
       ? request.log.args
       : { ...(request.log.args as Record<string, unknown>), c: request.log.watermark };
