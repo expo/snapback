@@ -20,3 +20,6 @@
 5. **A full delivery at a conditionally refreshed sequence is still falsely rejected as
    conflicting** (astra 3): the conditional-refresh seq advance must not make a later full
    delivery at that seq a "conflicting row".
+6. **Non-array object projections cannot prove a tail page** (grok r3 M3): array scalars count
+   as page evidence, but an object projection with no `$row` in `data` still cannot; either
+   count its rows through the receipt or record that a drained log must page as an array.
