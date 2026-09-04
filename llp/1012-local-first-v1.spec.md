@@ -582,7 +582,7 @@ and refuses `E_OFFLINE_ID_BLOCK` when it is spent; the drain replays one
 envelope per request after a resume; a transport failure keeps the intent
 `queued` and the retry is the same envelope; a rejection or a trace conflict
 settles only its own intent; a grant past the fence settled `expired` locally
-until the afternoon ruling (lane F removes that);
+until the afternoon ruling (lane F removed that; its record follows);
 a committed settlement lands in the same swap as the log tail; `useOutbox()`
 and `useMutation().pending` expose the queue; the provider creates its client
 once so StrictMode does not leak a lock holder. *Fix round 1:* the ledger's
@@ -601,6 +601,27 @@ is ruled (2026-09-04 afternoon):* the local expiry of intents whose grant is pas
 fence discarded writes the server would still accept for thirty days and would
 validate by trace; the client now replays after a successful resume and lets the
 server judge, keeping the fence for prediction and the `stale` label only (lane F).
+
+**Implementation record (lane F and its fix round, 2026-09-04).** Replay eligibility is
+per intent and per partition: an intent whose grant is past the fence, or that was
+enqueued past it, replays only after a successful resume of *its* partition since the
+fence was crossed; a fresh login grant never releases older queued work; missing trust
+waits, and nothing expires on the client's clock. The resume trust anchor is cleared on a
+partition change, seal, wipe, close, and coverage reset. A partition holding a grant and
+queued intents but no coverage facts recovers by a receipt query that supplies facts and
+then the owner's logless resume; when no query can supply them, `online()` refuses
+`E_OFFLINE_RESUME` and keeps the queue. `drain()` and `settled()` return
+`{ stopped: "fence" }` past the fence; `ready()` means a current grant (the fence does not
+gate it) and `useOutbox().fence` is `inside | past`, which the chat composer renders as
+"Queued until the next sync". An intent enqueued past the fence carries no trace and is
+marked unpredicted with `reason: "fence"`: the server commits it with no OCC (the O1b
+record's empty-trace rule), so past the fence the program's own `require`s — the recipe's
+compare-and-set `edit` — are the only conflict rule, which the real-owner journey proves
+(a stale past-fence edit is rejected by the program's `CONFLICT`). Empty-trace commits
+are therefore routine after a long absence, not rare; an app that needs stronger
+protection writes its `require`. The client still sends no `remaining`, so the real owner
+mints a grant on every resume; the grantless path is proven against a fake that omits the
+grant.
 
 **Failure shapes.** *Grant exhausted:* the client refuses at enqueue,
 `E_OFFLINE_ID_BLOCK`, and asks for a grant when online; no silent reuse.
