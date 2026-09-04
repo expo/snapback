@@ -5,7 +5,7 @@
 **Systems:** `snapback2/packages/snapback2` (client, React, the range-store carriers, the `chat` template, the recipes, the journey primitives), `snapback2/packages/compiler` (the certificate's retention line if ruling 8 stands), `snapback2/crates/snapback2` (the wire: the frozen delivery envelope, `/api/resume`, the replay envelope, grants), `snapback2/crates/snapback2-core` (`_client_intents`, grants, the public receipt projection; `ClientStore` as the reference replay), LLP 1006's asset client (the device byte cache), `rules/NOT-DOING.md`
 **Author:** Claude Fable 5.1, at the author's direction and rulings, 2026-09-04
 **Date:** 2026-09-04
-**Revised:** 2026-09-04 (e — implementation record, lane O1b: grants are minted on every login, guest, and resume because the server cannot see the client's remaining count (§7); a trace conflict takes precedence over a program rejection, so a member removed while offline settles `conflict` rather than the program's own refusal (§7); the point digest is over the canonical wire row, which is what the pool carries (§7); an empty trace commits without a conflict check, which is the client's spelling until the twin lands (§7)); 2026-09-04 (d — implementation record, lanes O1a/O1c: the validator covers the row pool, `args`, `reason`, and `rule` (§8); row references carry engine provenance and application values are escaped (§8); `n2Key` is not on the wire; `GET /api/program` returns the schema; the recipe's tombstones reach current members and a departed member's copy is evicted by point absence, because the engine's uniformity analysis collects both arms of an `or` and Quarry cannot build a list from a range (§3); the membership cap is a maintained count (§3)); 2026-09-04 (c — the author's principle applied: the twin is the client from the start and stored-answer replay is its covered case (§6); intents carry the twin's trace and the server validates point reads and verdicts at commit (§7); the retention word ships as ruled, on the table whose rows can hide, with its twin-side meaning (§5); the bar gains one acceptance only the twin can pass (§12); lanes collapse to O1, O2, O4; (b)'s Q1–Q3 closed); 2026-09-04 (b — the panel's designs folded: positive-fact purge (tombstone rows, point absences, uniform-extent holes; no engine change), a frozen delivery envelope with one server-minted validator, resume as one owner action over the log's watermark plus mounted queries, a replay grant with an intent ledger for exactly-once, the corrected and certified recipe (page 50, `*`, a second log index for threads, compare-and-set edits), seal-not-wipe on session expiry, Web Locks across tabs, the journey primitives, the split witness, lane O3 off the bar's path pending ruling; §16 records who found what)
+**Revised:** 2026-09-04 (f — implementation record, lanes O1b fix rounds 1–2, O2c, O4-web and its fix round, and the integration seams: grants are minted only when the request's `remaining` is absent or below 1,024 (§7, §8); the resume log op must be a certified ascending cursor page of at most 50 rows and its envelope counts against the 1 MiB budget (§8); the intent ledger is consulted before any grant check (§7); a replayed intent that rolls back on missing authority is stored as its partial terminal (§7); on the rejected path the compare set is every traced point plus every verdict a reached or probed rule check derived on a disclosed row, unreached verdicts re-derive only through the read rule, and the rule inputs a hidden candidate minted are excluded on both paths (§7); the verdict `inputsDigest` is `sha256(canonical([table, index, key]))` over wire values (§7); a replay needs a live session and the grant outlives the session (§7); the outbox's grant slice is `1 + maxNewIds` from the op's certificate, a transport failure keeps the intent queued and the retry is the same envelope, and a committed settlement lands in the same swap as the log tail (§7); `close()` resolves when the carrier is quiet (§6); asset bytes are keyed `(assetId, width|null)`, evicted least-recently-read by each entry's own stamp under the store's logical clock, and a view-once row is tracked per `(table, id)` in a durable viewed set, marked at the first byte fetch for an image and at play for a clip, read `null` on every path and excluded from coverage (§9); `E_ASSET_VIEWED` and `E_OFFLINE_CONFLICT` join the `offline` family (§15); `messages.send` stays in the template beside `deliveries.post` because a fixture pin holds `messages.q` byte-equal (§3); one open question for the author, the fence's local expiry of queued intents (§7)); 2026-09-04 (e — implementation record, lane O1b: grants are minted on every login, guest, and resume because the server cannot see the client's remaining count (§7); a trace conflict takes precedence over a program rejection, so a member removed while offline settles `conflict` rather than the program's own refusal (§7); the point digest is over the canonical wire row, which is what the pool carries (§7); an empty trace commits without a conflict check, which is the client's spelling until the twin lands (§7)); 2026-09-04 (d — implementation record, lanes O1a/O1c: the validator covers the row pool, `args`, `reason`, and `rule` (§8); row references carry engine provenance and application values are escaped (§8); `n2Key` is not on the wire; `GET /api/program` returns the schema; the recipe's tombstones reach current members and a departed member's copy is evicted by point absence, because the engine's uniformity analysis collects both arms of an `or` and Quarry cannot build a list from a range (§3); the membership cap is a maintained count (§3)); 2026-09-04 (c — the author's principle applied: the twin is the client from the start and stored-answer replay is its covered case (§6); intents carry the twin's trace and the server validates point reads and verdicts at commit (§7); the retention word ships as ruled, on the table whose rows can hide, with its twin-side meaning (§5); the bar gains one acceptance only the twin can pass (§12); lanes collapse to O1, O2, O4; (b)'s Q1–Q3 closed); 2026-09-04 (b — the panel's designs folded: positive-fact purge (tombstone rows, point absences, uniform-extent holes; no engine change), a frozen delivery envelope with one server-minted validator, resume as one owner action over the log's watermark plus mounted queries, a replay grant with an intent ledger for exactly-once, the corrected and certified recipe (page 50, `*`, a second log index for threads, compare-and-set edits), seal-not-wipe on session expiry, Web Locks across tabs, the journey primitives, the split witness, lane O3 off the bar's path pending ruling; §16 records who found what)
 **Related:** LLP 0329.014.004 §5 dimension F and §7 (the contract this implements), LLP 0329.014.007 F8 and F11 (the assessment; "not a replica"), LLP 0329.014.008 (the eight candidates — §11 says which this takes and which wait), LLP 1001 (engine: `ClientStore`, `new_ids`, receipts, absences, `_sessions`), LLP 1002 §4 (wire) and §9 (client states; `queued` reserved), LLP 1006 §9b (bytes on the device), LLP 1007 §4a (the two-bar pattern), LLP 1009 (shelved by the trade, §13), `benchmarks/briefs/social-messenger.md` M5–M6, `issues/20260830-snapback2-wire-evaluator-into-public-client.md`, `issues/20260806-expo-file-carrier-process-kill-witness.md`, `guide/sync/offline-and-retention.md` (Snapback 1's four mechanisms — what not to rebuild), `rules/NOT-DOING.md`, the panel record `llp/reviews/1012-local-first-v1.*`
 
 ## Summary
@@ -246,7 +246,9 @@ is never public (orchestrator ruling; a public log discloses membership and
 activity). The membership cap is `maintain memberCounts` plus a `require` in
 `memberAdd`, refusing the 51st member `GROUP_FULL`. Both language limits are
 filed as tickets and would let the recipe return to the original-recipient
-fan-out.
+fan-out. *Lane O2c:* `messages.send` stays in the template beside
+`deliveries.post` because a compiler fixture pin holds the template's
+`messages.q` byte-equal; the journeys and the screens post through the log.
 
 **The drain policy.** `useQuery(api.inbox, { c: null }, { drain: true })`
 follows `next` to `null`, holds every page, persists the last complete page's
@@ -509,9 +511,10 @@ read is uncovered the intent is `queued` without `predicted` and the app
 renders it from `args` through `useOutbox()`; the recipe's drained prefix
 makes that rare for the messenger.
 
-**Implementation record (lane O1b, 2026-09-04).** Grants are minted on every
-login, guest, and resume, not only when the client's remaining ids are low: the
-server cannot see that count, and the request shapes are closed. A trace
+**Implementation record (lane O1b, 2026-09-04).** Grants are minted when the
+request's optional `remaining` (the client's count of unused ids) is absent or
+below 1,024; a client that omits it gets a grant on every resume, so the client
+sends it. A trace
 conflict takes precedence over a program rejection: when a member removed
 while offline replays a send, the `require` fails before any verdict, and the
 honest answer is `conflict`, not the program's `NOT_MEMBER`. Point digests are
@@ -519,7 +522,37 @@ SHA-256 over the canonical wire row, the form the pool carries. An intent with
 an empty trace commits against current rows with no conflict check; that is
 the outbox's spelling until the twin produces traces. The resume's log page is
 filed by the client under the tail key (the page the server evaluated after the
-watermark), never under the base page's key.
+watermark), never under the base page's key. *Fix rounds 1–2:* the intent
+ledger is consulted before any grant check, so a stored terminal answers a
+byte-identical retry even after its grant is spent; a replayed intent that rolls
+back on missing authority is stored as its partial terminal; on the rejected path
+the server compares every traced point, probing unreached points through the
+table's read rule as the replaying principal, and every verdict a reached or
+probed rule check derived on a disclosed row, and it skips a traced verdict no
+disclosed rule check derived (a hidden or absent row settle byte-identically);
+the rule inputs minted while a candidate turned out hidden are recorded at
+rollback and excluded from the compare set on both paths, so a hidden hit can
+no longer vouch for a verdict on the committed path; conflict precedence is
+independent of `require` order; the verdict `inputsDigest` is
+`sha256(canonical([table, index, key]))` over wire values, computable from the
+envelope; a replay needs a live session (`E_AUTH_SESSION` before the ledger,
+the grant, or the slice) and the grant, bound to the principal only, outlives
+the session so a fresh login finishes the outbox.
+
+**Implementation record (lane O2c, 2026-09-04).** Intents are durable in the
+range store on both carriers with their grants, a FIFO order, and the twin's
+overlay seam; enqueue consumes a slice of `1 + maxNewIds` from the current grant
+and refuses `E_OFFLINE_ID_BLOCK` when it is spent; the drain replays one
+envelope per request after a resume; a transport failure keeps the intent
+`queued` and the retry is the same envelope; a rejection or a trace conflict
+settles only its own intent; a grant past the fence settles `expired` locally;
+a committed settlement lands in the same swap as the log tail; `useOutbox()`
+and `useMutation().pending` expose the queue; the provider creates its client
+once so StrictMode does not leak a lock holder. *Open question for the author
+(f):* the local expiry of intents whose grant is past the fence discards writes
+the server would still accept for thirty days and would validate by trace; the
+alternative is to replay after a successful resume and let the server judge,
+keeping the fence for prediction and the `stale` label only.
 
 **Failure shapes.** *Grant exhausted:* the client refuses at enqueue,
 `E_OFFLINE_ID_BLOCK`, and asks for a grant when online; no silent reuse.
@@ -633,6 +666,23 @@ local `viewed` set consulted before `answer()` returns it and before any
 byte is fetched, so an offline cold start cannot re-render it; when LLP 1006's
 one-use delivery lands, such rows also refuse the cache at the row.
 
+**Implementation record (lane O4-web and its fix round, 2026-09-04).** Bytes are
+keyed `(assetId, width|null)` and evicted least-recently-read by each entry's own
+stamp under the store's logical clock; a read stamps in memory and the next swap
+persists the order (a close before a swap loses order, never bytes). View-once is
+per `(table, id)` in a durable viewed set: an image is viewed when its bytes are
+fetched, a clip when it plays (`assetCache.markViewed`), never prefetched; a
+viewed row reads `null` held, conditional, live, or fresh, is excluded from
+`coverage()` as a `byId` absence beside the `viewed` list, its bytes are never
+cached, `useAssetUrl` mints no URL, and `assetBlob` refuses `E_ASSET_VIEWED`. An
+ordinary row sharing the asset id keeps its lease. The session allowance that
+lets the viewing instance keep showing a clip is keyed by partition, cleared on
+seal, wipe, and principal change, and served only while the row is held. The
+drain and the resume tail key the cursor by the argument the manifest types
+`Cursor` (`c` until the manifest loads). The file carrier is an ordered write
+(payloads, the state rename, the removals) plus a sweep on open; IndexedDB is
+the one-transaction carrier.
+
 ## 10. Carriers, the fast loop, and the witness
 
 **The journey primitive** (`snapback2 test`, lane O2): the agent's
@@ -739,8 +789,16 @@ receipt module, the package tests in the gate; three rounds. Lane O2a landed at
 four eviction rules, seal and wipe, Web Locks, `drain: true`, the resume client, the
 journey primitives, the client split under the cap; two rounds. The codex account hit
 its usage limit at 06:02 during the second rounds of O1a and O2a and twelve minutes
-into O1b; those two rounds were verified and landed on grok and Muse alone. O1b, O2c,
-O2b, and O4 are pending the author's roster decision.
+into O1b; those two rounds were verified and landed on grok and Muse alone. From 06:50
+Claude Fable subagents implemented and grok + Muse reviewed. Lane O1b landed at
+`37281c059` (landing 3): resume, grants, the replay envelope, trace validation, the
+intent ledger, `retain` on the manifest and certificate. Landing 4 (2026-09-04, the
+commit carrying this revision): O1b fix rounds 1–2 (three review rounds), O2c (the
+outbox, grants on the client, the chat template's screens, the browser witness in
+headless Chrome; one review round plus a fix round), O4-web (byte cache under the row
+lease, view-once; two rounds), and the integration seams (`close()` resolves when the
+carrier is quiet; the guide page at 4,091 of 4,096 bytes). O2b (the twin) is next on
+this head; the Expo carrier and the simulator witness wait for the Expo arm.
 
 ## 13. The trade
 
@@ -758,7 +816,9 @@ it, so every deferral in §11 carries a number:
 
 - store bytes, Clique at ten thousand messages across fifty conversations;
 - reconnect bytes, executions, and owner time, fifty conversations after one
-  hour with two hundred new messages in five, unchanged versus changed;
+  hour with two hundred new messages in five, unchanged versus changed (the
+  owner's `executions` counter on `/control/status` exists since O1b; the Clique
+  number is recorded when O2b's journey runs);
 - cold replay time to first inbox paint from the store, web and simulator;
 - envelope bytes per `thread` frame with and without `receipt=1`, before and
   after the row pool;
@@ -770,8 +830,10 @@ it, so every deferral in §11 carries a number:
 Runtime, family `offline`, each with a site, a rewrite, and the page
 `snapback2 guide offline`: `E_OFFLINE_CARRIER`, `E_OFFLINE_LOCK`,
 `E_OFFLINE_RESET`, `E_OFFLINE_RESUME`, `E_OFFLINE_INTENT_EXPIRED`,
-`E_OFFLINE_INTENT_REUSE`, `E_OFFLINE_ID_BLOCK`; a conflict is a mutation
-state (`rejected`, `reason: 'conflict'`, with the site), not a code.
+`E_OFFLINE_INTENT_REUSE`, `E_OFFLINE_ID_BLOCK`, `E_OFFLINE_CONFLICT` (the
+refusal a `run()` throws when its intent settles `conflict`), `E_ASSET_VIEWED`
+(a byte path asked for a viewed view-once row); a conflict is a mutation
+state (`rejected`, `reason: 'conflict'`, with the site) on the wire, not a code.
 Check-time, family `quarry`: `E_QUARRY_RETAIN`. A bad client option is a
 `TypeError`, as today.
 
