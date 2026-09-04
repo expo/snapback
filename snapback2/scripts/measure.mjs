@@ -136,6 +136,7 @@ function coreTests(runStep = run) {
 
 function preserveUnchangedExecutable(executable, operation, platform = process.platform) {
   if (platform !== "darwin" || !existsSync(executable)) return operation();
+  const started = performance.now();
   const suffix = `.measure-${process.pid}-${Date.now()}`;
   const preserved = `${executable}${suffix}-preserved`;
   const replacement = `${executable}${suffix}-replacement`;
@@ -147,17 +148,15 @@ function preserveUnchangedExecutable(executable, operation, platform = process.p
   let result;
   try {
     result = operation();
-    if (result.status !== 0 || !existsSync(executable)
-      || !readFileSync(executable).equals(readFileSync(preserved))) {
-      return result;
+    if (result.status === 0 && existsSync(executable)
+      && readFileSync(executable).equals(readFileSync(preserved))) {
+      // A no-op Cargo build replaces this path with byte-identical output on
+      // macOS. Keep the prior inode so first-exec policy work is not charged to
+      // doctor. Changed output keeps Cargo's new inode and its real launch cost.
+      renameSync(executable, replacement);
+      renameSync(preserved, executable);
+      rmSync(replacement, { force: true });
     }
-    // A no-op Cargo build replaces this path with byte-identical output on
-    // macOS. Keep the prior inode so first-exec policy work is not charged to
-    // doctor. Changed output keeps Cargo's new inode and its real launch cost.
-    renameSync(executable, replacement);
-    renameSync(preserved, executable);
-    rmSync(replacement, { force: true });
-    return result;
   } finally {
     rmSync(preserved, { force: true });
     if (!existsSync(executable) && existsSync(replacement)) {
@@ -166,6 +165,10 @@ function preserveUnchangedExecutable(executable, operation, platform = process.p
       rmSync(replacement, { force: true });
     }
   }
+  return {
+    ...result,
+    seconds: (performance.now() - started) / 1000,
+  };
 }
 
 function main() {
