@@ -187,6 +187,7 @@ impl State {
             "seq": self.runtime().store().commit_seq().map_err(|error| Refusal::from_runtime(&error))?,
             "subscriptions": self.live.len(),
             "channelSubscriptions": self.channels.len(),
+            "executions": self.runtime().executions(),
             "effects": writer_effects::EffectsStatus {
                 engine: writer_effects::effects_engine().to_owned(),
                 queued: outbox.queued,
@@ -202,6 +203,14 @@ impl State {
     }
 
     pub(super) fn manifest(&self) -> Json {
+        let tables = self
+            .runtime()
+            .generation()
+            .schema()
+            .tables
+            .iter()
+            .map(|(name, table)| (name.clone(), json!({ "retain": table.retain })))
+            .collect::<Map<_, _>>();
         let ops = self
             .runtime()
             .generation()
@@ -222,6 +231,7 @@ impl State {
         json!({
             "generation": self.runtime().generation().hash(),
             "programGeneration": self.runtime().generation().program_hash(),
+            "tables": tables,
             "ops": ops,
             "channels": self.runtime().generation().schema().channels,
             "auth": self.runtime().generation().schema().auth,

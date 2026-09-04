@@ -65,6 +65,10 @@ pub struct PointTrace {
     pub key: Vec<Value>,
     pub examined: bool,
     pub visible: bool,
+    /// Digest of the row image observed at this point read, or `None` for an
+    /// authoritative absence. Captured before any later statement writes it.
+    #[serde(default)]
+    pub digest: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

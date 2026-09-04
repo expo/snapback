@@ -18,6 +18,9 @@ use crate::value::{Value, digest};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
+#[path = "registry_offline.rs"]
+mod registry_offline;
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EffectDecl {
@@ -442,6 +445,7 @@ pub struct Runtime {
     pub(crate) engine: Engine,
     pub(crate) generation: Generation,
     pub(crate) subs: Subscriptions,
+    pub(crate) executions: u64,
     #[cfg(test)]
     fail_after_then_commit: bool,
 }
@@ -504,12 +508,14 @@ impl Runtime {
             engine,
             generation,
             subs: Subscriptions::default(),
+            executions: 0,
             #[cfg(test)]
             fail_after_then_commit: false,
         })
     }
 
     pub fn execute(&mut self, op: &str, context: Context) -> Result<Execution, RuntimeError> {
+        self.executions = self.executions.saturating_add(1);
         let (program, certificate) = self
             .generation
             .programs

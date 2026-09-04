@@ -944,6 +944,7 @@ impl<'a> Runner<'a> {
                 key,
                 examined: true,
                 visible,
+                digest: Some(crate::offline::row_digest(&row)),
             });
             if visible {
                 self.record_row(&read.table, &id, &row, true);
@@ -970,6 +971,7 @@ impl<'a> Runner<'a> {
                 key: key.clone(),
                 examined: false,
                 visible: false,
+                digest: None,
             });
             let absence = (read.table.clone(), read.index.clone(), key);
             self.trace.absences.push(absence.clone());

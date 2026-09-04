@@ -3,6 +3,10 @@ use super::*;
 
 #[cfg(not(feature = "hermes"))]
 mod offline;
+#[cfg(not(feature = "hermes"))]
+mod offline_replay;
+#[cfg(not(feature = "hermes"))]
+mod offline_resume;
 
 #[test]
 fn quarry_source_watch_applies_a_successor() {

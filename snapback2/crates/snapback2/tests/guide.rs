@@ -92,6 +92,50 @@ fn quarry_grammar_and_refusal_guides_ship_without_double_fences() {
 }
 
 #[test]
+fn offline_guide_page_is_under_four_kilobytes_and_its_codes_have_pages() {
+    let project = Project::new();
+    let output = project.run(&["guide", "offline", "--json"]);
+    assert!(output.status.success());
+    let page = json_stdout(&output);
+    let content = page["content"].as_str().unwrap();
+    assert!(content.len() <= 4_096, "offline guide is {} bytes", content.len());
+    for needle in [
+        "receipt",
+        "/api/resume",
+        "grant",
+        "replay",
+        "conflict",
+        "fenceDays",
+        "mutation edit(",
+        "E_OFFLINE_RESET",
+        "E_OFFLINE_RESUME",
+        "E_OFFLINE_INTENT_EXPIRED",
+        "E_OFFLINE_INTENT_REUSE",
+        "E_OFFLINE_ID_BLOCK",
+    ] {
+        assert!(content.contains(needle), "offline guide lacks {needle}");
+    }
+    for code in [
+        "E_OFFLINE_RESET",
+        "E_OFFLINE_RESUME",
+        "E_OFFLINE_INTENT_EXPIRED",
+        "E_OFFLINE_INTENT_REUSE",
+        "E_OFFLINE_ID_BLOCK",
+    ] {
+        let refusal = project.run(&["guide", code]);
+        let text = String::from_utf8_lossy(&refusal.stdout);
+        assert!(refusal.status.success(), "{code}: {text}");
+        assert!(text.contains("Family: `offline`"), "{code}: {text}");
+    }
+    let listed = project.run(&["guide", "does-not-exist", "--json"]);
+    assert!(
+        json_stdout(&listed)["message"]
+            .as_str()
+            .is_some_and(|message| message.contains("offline"))
+    );
+}
+
+#[test]
 fn app_guide_refuses_missing_certificates_and_failed_seed_facts_as_stale() {
     let project = Project::new();
     let initialized = project.init("todos", "none");

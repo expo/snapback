@@ -16,6 +16,7 @@ const RECIPES: &[&str] = &[
     "auth",
     "live-query",
     "effects",
+    "offline",
     "personas",
     "quarry",
     "testing",

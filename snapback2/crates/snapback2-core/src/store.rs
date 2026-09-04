@@ -3,6 +3,9 @@
 
 use crate::engine::RuntimeError;
 use crate::identity::SYSTEM_PRINCIPAL_ID;
+use crate::offline::{
+    REPLAY_GRANT_COUNT, REPLAY_GRANT_LIFETIME_MS, ReplayCommit, ReplayGrant, StoredClientIntent,
+};
 use crate::registry::EffectDecl;
 use crate::value::Value;
 use rusqlite::backup::Backup;
@@ -216,6 +219,36 @@ impl Store {
                 window_start INTEGER NOT NULL,
                 attempts INTEGER NOT NULL
              );
+             CREATE TABLE IF NOT EXISTS _grants (
+                id TEXT PRIMARY KEY,
+                principal TEXT NOT NULL,
+                [from] TEXT NOT NULL,
+                count INTEGER NOT NULL CHECK(count > 0),
+                minted_at INTEGER NOT NULL,
+                expires_at INTEGER NOT NULL
+             );
+             CREATE INDEX IF NOT EXISTS _grants_principal_expiry
+                ON _grants(principal, expires_at);
+             CREATE TABLE IF NOT EXISTS _client_intents (
+                principal TEXT NOT NULL,
+                intent TEXT NOT NULL,
+                request_digest TEXT NOT NULL,
+                response TEXT NOT NULL,
+                seq INTEGER NOT NULL,
+                at INTEGER NOT NULL,
+                PRIMARY KEY (principal, intent)
+             );
+             CREATE INDEX IF NOT EXISTS _client_intents_at ON _client_intents(at);
+             CREATE TABLE IF NOT EXISTS _grant_slices (
+                grant_id TEXT NOT NULL,
+                principal TEXT NOT NULL,
+                intent TEXT NOT NULL,
+                offset INTEGER NOT NULL,
+                count INTEGER NOT NULL CHECK(count > 0),
+                PRIMARY KEY (grant_id, intent)
+             );
+             CREATE INDEX IF NOT EXISTS _grant_slices_extent
+                ON _grant_slices(grant_id, offset, count);
              CREATE TABLE IF NOT EXISTS _assets (
                 id TEXT PRIMARY KEY,
                 state TEXT NOT NULL CHECK(state IN ('receiving', 'ready', 'failed')),
@@ -293,78 +326,187 @@ impl Store {
     // process death can create gaps but can never make an exposed id reusable.
     pub(crate) fn reserve_new_ids(&mut self) -> Result<VecDeque<String>, RuntimeError> {
         let transaction = self.conn.transaction()?;
-        let namespace = transaction
-            .query_row(
-                "SELECT value FROM _meta WHERE key = ?1",
-                [ID_NAMESPACE_KEY],
-                |row| row.get::<_, String>(0),
-            )
-            .optional()?;
-        let encoded_high_water = transaction
-            .query_row(
-                "SELECT value FROM _meta WHERE key = ?1",
-                [ID_HIGH_WATER_KEY],
-                |row| row.get::<_, String>(0),
-            )
-            .optional()?;
-
-        let (namespace, high_water) = match (namespace, encoded_high_water) {
-            (None, None) => {
-                transaction.execute(
-                    "INSERT INTO _meta(key, value)
-                     VALUES (?1, lower(hex(randomblob(16))))",
-                    [ID_NAMESPACE_KEY],
-                )?;
-                transaction.execute(
-                    "INSERT INTO _meta(key, value) VALUES (?1, '0')",
-                    [ID_HIGH_WATER_KEY],
-                )?;
-                let namespace = transaction.query_row(
-                    "SELECT value FROM _meta WHERE key = ?1",
-                    [ID_NAMESPACE_KEY],
-                    |row| row.get::<_, String>(0),
-                )?;
-                (namespace, 0)
-            }
-            (Some(namespace), Some(encoded)) => {
-                let high_water =
-                    encoded
-                        .parse::<u64>()
-                        .map_err(|_| RuntimeError::StoreVersion {
-                            detail: "id allocator high-water is not an unsigned integer".to_owned(),
-                        })?;
-                (namespace, high_water)
-            }
-            _ => {
-                return Err(RuntimeError::StoreVersion {
-                    detail: "id allocator namespace/high-water metadata is incomplete".to_owned(),
-                });
-            }
-        };
-        if !valid_id_namespace(&namespace) {
-            return Err(RuntimeError::StoreVersion {
-                detail: "id allocator namespace is malformed".to_owned(),
-            });
-        }
-        let reserved_through = high_water.checked_add(NEW_ID_BLOCK_SIZE).ok_or_else(|| {
-            RuntimeError::StoreVersion {
-                detail: "id allocator high-water is exhausted".to_owned(),
-            }
-        })?;
-        if transaction.execute(
-            "UPDATE _meta SET value = ?2 WHERE key = ?1",
-            params![ID_HIGH_WATER_KEY, reserved_through.to_string()],
-        )? != 1
-        {
-            return Err(RuntimeError::StoreVersion {
-                detail: "id allocator high-water disappeared during reservation".to_owned(),
-            });
-        }
+        let ids = reserve_id_range(&transaction, NEW_ID_BLOCK_SIZE)?;
         transaction.commit()?;
+        Ok(ids)
+    }
 
-        Ok(((high_water + 1)..=reserved_through)
-            .map(|sequence| format!("s2id-{namespace}-{sequence:016x}"))
-            .collect())
+    /// Mint one principal-bound replay grant from the same durable allocator
+    /// ordinary mutations use. The allocator reservation and grant row commit
+    /// together, so no granted id can later be reserved by the owner.
+    // @ref LLP 1012#7-writes-offline — replay grants reserve engine-format ids
+    // before a client may expose them.
+    pub(crate) fn mint_replay_grant(
+        &mut self,
+        principal: &str,
+        now: i64,
+    ) -> Result<ReplayGrant, RuntimeError> {
+        let transaction = self.conn.transaction()?;
+        let ids = reserve_id_range(&transaction, u64::from(REPLAY_GRANT_COUNT))?;
+        let from_id = ids.front().cloned().expect("grant count is positive");
+        let grant = ReplayGrant {
+            id: from_id.clone(),
+            from_id,
+            count: REPLAY_GRANT_COUNT,
+            minted_at: now,
+            expires_at: now.saturating_add(REPLAY_GRANT_LIFETIME_MS),
+        };
+        transaction.execute(
+            "INSERT INTO _grants(id, principal, \"from\", count, minted_at, expires_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![
+                grant.id,
+                principal,
+                grant.from_id,
+                i64::from(grant.count),
+                grant.minted_at,
+                grant.expires_at,
+            ],
+        )?;
+        transaction.commit()?;
+        Ok(grant)
+    }
+
+    pub fn replay_grant(&self, id: &str) -> Result<Option<(String, ReplayGrant)>, RuntimeError> {
+        self.conn
+            .query_row(
+                "SELECT principal, id, \"from\", count, minted_at, expires_at
+                 FROM _grants WHERE id = ?1",
+                [id],
+                |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        ReplayGrant {
+                            id: row.get(1)?,
+                            from_id: row.get(2)?,
+                            count: row.get::<_, i64>(3)?.max(0) as u32,
+                            minted_at: row.get(4)?,
+                            expires_at: row.get(5)?,
+                        },
+                    ))
+                },
+            )
+            .optional()
+            .map_err(Into::into)
+    }
+
+    pub fn stored_client_intent(
+        &self,
+        principal: &str,
+        intent: &str,
+    ) -> Result<Option<StoredClientIntent>, RuntimeError> {
+        self.conn
+            .query_row(
+                "SELECT request_digest, response, seq, at
+                 FROM _client_intents WHERE principal = ?1 AND intent = ?2",
+                params![principal, intent],
+                |row| {
+                    let response = row.get::<_, String>(1)?;
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        response,
+                        row.get::<_, i64>(2)?,
+                        row.get::<_, i64>(3)?,
+                    ))
+                },
+            )
+            .optional()?
+            .map(|(request_digest, response, seq, at)| {
+                Ok(StoredClientIntent {
+                    request_digest,
+                    response: serde_json::from_str(&response).map_err(|error| {
+                        RuntimeError::Serialization(error.to_string())
+                    })?,
+                    seq: seq.max(0) as u64,
+                    at,
+                })
+            })
+            .transpose()
+    }
+
+    pub fn replay_slice_is_unused(
+        &self,
+        grant: &str,
+        intent: &str,
+        offset: u32,
+        count: u32,
+    ) -> Result<bool, RuntimeError> {
+        let end = u64::from(offset) + u64::from(count);
+        let overlaps: i64 = self.conn.query_row(
+            "SELECT COUNT(*) FROM _grant_slices
+             WHERE grant_id = ?1 AND intent <> ?2
+               AND offset < ?4 AND ?3 < offset + count",
+            params![grant, intent, i64::from(offset), end as i64],
+            |row| row.get(0),
+        )?;
+        Ok(overlaps == 0)
+    }
+
+    pub fn replay_slice_ids(
+        grant: &ReplayGrant,
+        offset: u32,
+        count: u32,
+    ) -> Option<VecDeque<String>> {
+        let end = offset.checked_add(count)?;
+        if count == 0 || end > grant.count {
+            return None;
+        }
+        let (namespace, first) = parse_engine_id(&grant.from_id)?;
+        let start = first.checked_add(u64::from(offset))?;
+        let through = start.checked_add(u64::from(count) - 1)?;
+        Some(
+            (start..=through)
+                .map(|sequence| format!("s2id-{namespace}-{sequence:016x}"))
+                .collect(),
+        )
+    }
+
+    pub(crate) fn record_replay_terminal(
+        transaction: &rusqlite::Transaction<'_>,
+        principal: &str,
+        replay: &ReplayCommit,
+        response: &serde_json::Value,
+        seq: u64,
+    ) -> Result<(), RuntimeError> {
+        transaction.execute(
+            "INSERT INTO _grant_slices(grant_id, principal, intent, offset, count)
+             VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![
+                replay.grant,
+                principal,
+                replay.intent,
+                i64::from(replay.offset),
+                i64::from(replay.count),
+            ],
+        )?;
+        transaction.execute(
+            "INSERT INTO _client_intents(principal, intent, request_digest, response, seq, at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![
+                principal,
+                replay.intent,
+                replay.request_digest,
+                serde_json::to_string(response)
+                    .map_err(|error| RuntimeError::Serialization(error.to_string()))?,
+                seq as i64,
+                replay.at,
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub(crate) fn sweep_offline(&self, now: i64) -> Result<(), RuntimeError> {
+        let cutoff = now.saturating_sub(REPLAY_GRANT_LIFETIME_MS);
+        let transaction = self.conn.unchecked_transaction()?;
+        transaction.execute(
+            "DELETE FROM _grant_slices WHERE grant_id IN
+                (SELECT id FROM _grants WHERE expires_at <= ?1)",
+            [now],
+        )?;
+        transaction.execute("DELETE FROM _grants WHERE expires_at <= ?1", [now])?;
+        transaction.execute("DELETE FROM _client_intents WHERE at <= ?1", [cutoff])?;
+        transaction.commit()?;
+        Ok(())
     }
 
     pub fn commit_seq(&self) -> Result<u64, RuntimeError> {
@@ -677,7 +819,10 @@ impl Store {
             "DELETE FROM index_entries;
              DELETE FROM rows;
              DELETE FROM _commits;
-             DELETE FROM _outbox;",
+             DELETE FROM _outbox;
+             DELETE FROM _grant_slices;
+             DELETE FROM _client_intents;
+             DELETE FROM _grants;",
         )?;
         transaction.commit()?;
         Ok(asset_ids)
@@ -970,6 +1115,88 @@ fn ensure_column(
         ))?;
     }
     Ok(())
+}
+
+fn reserve_id_range(
+    transaction: &rusqlite::Transaction<'_>,
+    count: u64,
+) -> Result<VecDeque<String>, RuntimeError> {
+    let namespace = transaction
+        .query_row(
+            "SELECT value FROM _meta WHERE key = ?1",
+            [ID_NAMESPACE_KEY],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()?;
+    let encoded_high_water = transaction
+        .query_row(
+            "SELECT value FROM _meta WHERE key = ?1",
+            [ID_HIGH_WATER_KEY],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()?;
+    let (namespace, high_water) = match (namespace, encoded_high_water) {
+        (None, None) => {
+            transaction.execute(
+                "INSERT INTO _meta(key, value) VALUES (?1, lower(hex(randomblob(16))))",
+                [ID_NAMESPACE_KEY],
+            )?;
+            transaction.execute(
+                "INSERT INTO _meta(key, value) VALUES (?1, '0')",
+                [ID_HIGH_WATER_KEY],
+            )?;
+            let namespace = transaction.query_row(
+                "SELECT value FROM _meta WHERE key = ?1",
+                [ID_NAMESPACE_KEY],
+                |row| row.get::<_, String>(0),
+            )?;
+            (namespace, 0)
+        }
+        (Some(namespace), Some(encoded)) => {
+            let high_water = encoded
+                .parse::<u64>()
+                .map_err(|_| RuntimeError::StoreVersion {
+                    detail: "id allocator high-water is not an unsigned integer".to_owned(),
+                })?;
+            (namespace, high_water)
+        }
+        _ => {
+            return Err(RuntimeError::StoreVersion {
+                detail: "id allocator namespace/high-water metadata is incomplete".to_owned(),
+            });
+        }
+    };
+    if !valid_id_namespace(&namespace) {
+        return Err(RuntimeError::StoreVersion {
+            detail: "id allocator namespace is malformed".to_owned(),
+        });
+    }
+    let reserved_through = high_water
+        .checked_add(count)
+        .ok_or_else(|| RuntimeError::StoreVersion {
+            detail: "id allocator high-water is exhausted".to_owned(),
+        })?;
+    if transaction.execute(
+        "UPDATE _meta SET value = ?2 WHERE key = ?1",
+        params![ID_HIGH_WATER_KEY, reserved_through.to_string()],
+    )? != 1
+    {
+        return Err(RuntimeError::StoreVersion {
+            detail: "id allocator high-water disappeared during reservation".to_owned(),
+        });
+    }
+    Ok(((high_water + 1)..=reserved_through)
+        .map(|sequence| format!("s2id-{namespace}-{sequence:016x}"))
+        .collect())
+}
+
+fn parse_engine_id(id: &str) -> Option<(&str, u64)> {
+    let (namespace, sequence) = id.strip_prefix("s2id-")?.rsplit_once('-')?;
+    valid_id_namespace(namespace)
+        .then(|| u64::from_str_radix(sequence, 16).ok())
+        .flatten()
+        .filter(|_| sequence.len() == 16)
+        .map(|sequence| (namespace, sequence))
 }
 
 fn valid_id_namespace(namespace: &str) -> bool {
