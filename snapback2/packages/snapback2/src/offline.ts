@@ -447,8 +447,9 @@ export class OfflineRuntime {
     items: Array<{ op: string; args: unknown; accepted: AcceptedDelivery<unknown> }>,
     watermark?: Omit<WatermarkRecord, "generation" | "schemaHash" | "authEpoch" | "updatedAt">,
     outbox?: { put?: OutboxEntry[]; remove?: string[] },
+    resumeSeq?: number,
   ): Promise<void> {
-    if (items.length === 0 && !watermark && !outbox) return;
+    if (items.length === 0 && !watermark && !outbox && resumeSeq === undefined) return;
     // An outbox write shares the ledger's tail (one critical section for
     // every enqueue, adoption, bound, settlement, and prediction drop).
     const run = () => this.serial(async () => {
@@ -496,6 +497,7 @@ export class OfflineRuntime {
         }
         const source = envelope ?? accepted.result;
         deliveries.push({
+          cursorArg: this.cursorArg(op),
           op,
           args,
           state: source.state,
@@ -529,13 +531,15 @@ export class OfflineRuntime {
         schema: this.schema,
         ...(watermarkRecord ? { watermark: watermarkRecord } : {}),
         ...(outbox ? { outbox } : {}),
+        ...(resumeSeq === undefined ? {} : { resumeSeq }),
         ...(nextFacts && nextFacts !== this.facts ? { facts: nextFacts } : {}),
         ...(superseded && superseded !== this.superseded ? { superseded } : {}),
       });
       this.facts = nextFacts;
       this.superseded = superseded;
       for (const item of [...deliveries, ...refreshes]) this.latestSeq = Math.max(this.latestSeq, item.seq);
-      if (outbox) this.outbox.notify();
+      // A delivery or unchanged resume can clear a committed entry's predicted flag.
+      this.outbox.notify();
     });
     await (outbox ? this.outbox.write(run) : run());
   }

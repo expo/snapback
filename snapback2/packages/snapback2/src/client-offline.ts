@@ -450,7 +450,10 @@ export async function performOfflineResume<Authority>(options: {
       accepted: await acceptOffline(options.runtime, requested.op, requested.args, item, options.shape),
     });
   }
-  await options.runtime.commitMany(swaps, watermark);
+  if (!Number.isSafeInteger(response.seq) || Number(response.seq) < 0) {
+    throw options.shape("resume response.seq must be a non-negative safe integer");
+  }
+  await options.runtime.commitMany(swaps, watermark, undefined, Number(response.seq));
   options.validated(options.authority);
   // @ref LLP 1012#7-writes-offline — a resume may omit a replacement grant;
   // successful re-authorization itself renews trust, then replay is FIFO.

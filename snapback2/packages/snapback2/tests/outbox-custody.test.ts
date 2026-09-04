@@ -265,8 +265,8 @@ test("the prediction overlay is dropped in the same swap as a rejected or server
     await client.outbox.settled();
     assert.equal((await client.outbox.entries())[0]?.state, "rejected", carrier.name);
     assert.deepEqual(await held.store().outbox.overlay(), {}, `${carrier.name}: the overlay left with the rejection`);
-    // online(): one swap adopts the grant, one settles; the overlay left in the settlement's own swap.
-    assert.equal(carrier.writes(), before + 2, `${carrier.name}: no extra swap dropped the overlay`);
+    // online(): one resume swap, one grant adoption, one settlement that also drops the overlay.
+    assert.equal(carrier.writes(), before + 3, `${carrier.name}: no extra swap dropped the overlay`);
 
     await client.offline();
     const expiring = await client.mutation(api.deliveries.post as any, post("server expired"));

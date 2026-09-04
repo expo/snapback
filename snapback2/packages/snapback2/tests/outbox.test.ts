@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -747,12 +747,16 @@ test("a committed settlement lands in the same swap as the log tail rows, or not
   const root = await tempRoot();
   const owner = fakeOwner();
   await seededStore(fileRangeStore(root));
-  let failAt = -1;
+  let failSettlement = false;
   let writes = 0;
   const store = fileRangeStore(root, {
-    beforeRename: () => {
+    beforeRename: async (temporary) => {
       writes += 1;
-      if (writes === failAt) throw new Error("disk full");
+      const pending = JSON.parse(await readFile(temporary, "utf8"));
+      if (failSettlement && Object.values(pending.outbox).some((entry: any) => entry.state === "committed")) {
+        failSettlement = false;
+        throw new Error("disk full");
+      }
     },
   });
   const client = createClient({ url: "http://atomic.test", as: "alice", fetch: owner.fetch, offline: { store } });
@@ -761,8 +765,8 @@ test("a committed settlement lands in the same swap as the log tail rows, or not
   const queued = await client.mutation(api.deliveries.post as any, post("atomic"));
   assert.equal(queued.state, "queued");
   const pinned = queued.state === "queued" ? queued.ids[0]! : "";
-  // online(): write 1 adopts the resume's grant, write 2 is the settlement swap.
-  failAt = writes + 2;
+  // Target the settlement, after the resume event and grant adoption writes.
+  failSettlement = true;
   await assert.rejects(() => client.online(), (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_OFFLINE_CARRIER");
   assert.equal(owner.executions.length, 1, "the owner committed before the local swap failed");
   const inspect = fileRangeStore(root)();
