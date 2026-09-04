@@ -69,8 +69,7 @@ appear in an index. `immutable a, b` forbids changes to those columns. `public`
 accepts an optional reason string. An insert
 postcondition is `after insert <- exists table[...] [by index]`.
 
-`retain until-revoked` (the default) drops rows omitted by a fresh answer.
-`retain delivered-history` keeps them until explicit revocation.
+`retain delivered-history` keeps rows that went hidden; the default evicts them.
 
 Rules are `allow`, `deny`, `public`, `system`, `exists`, `created`, `and`,
 `or`, `not`, and `=`/`!=` over `viewer`, literals, `.field`, and channel
