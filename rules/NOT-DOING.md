@@ -25,9 +25,12 @@ the third on 2026-09-04, LLP 1012 §12):
   non-media `file` columns, which LLP 1006 §13a designs and defers to a later
   slice. Until then the media and Expo slice stays on this list.
 - **The offline bar.** `benchmarks/briefs/social-messenger.md` M5 acceptance 5,
-  M6 acceptance 1 and 2, and LLP 1012 §10's physical process-kill witness,
+  M6 acceptance 1 and 2, LLP 1012 §10's physical process-kill witness, and
+  one acceptance only the client twin can pass (a never-opened chat renders
+  offline through its query; an offline send is predicted into that thread),
   green on the Expo iOS simulator and React web on a **published** package
-  (author ruling 2026-09-04, LLP 1012 §12). It starts when the loop bar is met
+  (author ruling 2026-09-04, LLP 1012 §12; the twin acceptance from the
+  author's principle the same day: go straight to the ideal, no staging). It starts when the loop bar is met
   and runs alongside the capability bar's Expo arm, which shares the carrier.
   Until then local-first v1 is specified, not built.
 

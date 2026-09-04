@@ -1,11 +1,11 @@
 # LLP 1012: Local-first v1 — the client store, the outbox, retention, and the offline bar
 
 **Type:** Spec
-**Status:** Review (revision (b), after a six-panelist round-1 review and a five-panelist round-2 design round on 2026-09-04, both folded; three questions in §"Open questions (author)" amend rulings and wait for the author; per `rules/RULES.md` it binds lane by lane as each lane's code lands, and nothing in it binds before the loop bar is met)
+**Status:** Review (revision (c): the author's principle of 2026-09-04, "go as straight as possible to the ideal thing", closed revision (b)'s three questions — no staging, the twin is the client, trace-validated OCC in v1, ruling 8 stands; one scheduling question remains in §"Open questions (author)"; per `rules/RULES.md` it binds lane by lane as each lane's code lands)
 **Systems:** `snapback2/packages/snapback2` (client, React, the range-store carriers, the `chat` template, the recipes, the journey primitives), `snapback2/packages/compiler` (the certificate's retention line if ruling 8 stands), `snapback2/crates/snapback2` (the wire: the frozen delivery envelope, `/api/resume`, the replay envelope, grants), `snapback2/crates/snapback2-core` (`_client_intents`, grants, the public receipt projection; `ClientStore` as the reference replay), LLP 1006's asset client (the device byte cache), `rules/NOT-DOING.md`
 **Author:** Claude Fable 5.1, at the author's direction and rulings, 2026-09-04
 **Date:** 2026-09-04
-**Revised:** 2026-09-04 (b — the panel's designs folded: positive-fact purge (tombstone rows, point absences, uniform-extent holes; no engine change), a frozen delivery envelope with one server-minted validator, resume as one owner action over the log's watermark plus mounted queries, a replay grant with an intent ledger for exactly-once, the corrected and certified recipe (page 50, `*`, a second log index for threads, compare-and-set edits), seal-not-wipe on session expiry, Web Locks across tabs, the journey primitives, the split witness, lane O3 off the bar's path pending ruling; §16 records who found what)
+**Revised:** 2026-09-04 (c — the author's principle applied: the twin is the client from the start and stored-answer replay is its covered case (§6); intents carry the twin's trace and the server validates point reads and verdicts at commit (§7); the retention word ships as ruled, on the table whose rows can hide, with its twin-side meaning (§5); the bar gains one acceptance only the twin can pass (§12); lanes collapse to O1, O2, O4; (b)'s Q1–Q3 closed); 2026-09-04 (b — the panel's designs folded: positive-fact purge (tombstone rows, point absences, uniform-extent holes; no engine change), a frozen delivery envelope with one server-minted validator, resume as one owner action over the log's watermark plus mounted queries, a replay grant with an intent ledger for exactly-once, the corrected and certified recipe (page 50, `*`, a second log index for threads, compare-and-set edits), seal-not-wipe on session expiry, Web Locks across tabs, the journey primitives, the split witness, lane O3 off the bar's path pending ruling; §16 records who found what)
 **Related:** LLP 0329.014.004 §5 dimension F and §7 (the contract this implements), LLP 0329.014.007 F8 and F11 (the assessment; "not a replica"), LLP 0329.014.008 (the eight candidates — §11 says which this takes and which wait), LLP 1001 (engine: `ClientStore`, `new_ids`, receipts, absences, `_sessions`), LLP 1002 §4 (wire) and §9 (client states; `queued` reserved), LLP 1006 §9b (bytes on the device), LLP 1007 §4a (the two-bar pattern), LLP 1009 (shelved by the trade, §13), `benchmarks/briefs/social-messenger.md` M5–M6, `issues/20260830-snapback2-wire-evaluator-into-public-client.md`, `issues/20260806-expo-file-carrier-process-kill-witness.md`, `guide/sync/offline-and-retention.md` (Snapback 1's four mechanisms — what not to rebuild), `rules/NOT-DOING.md`, the panel record `llp/reviews/1012-local-first-v1.*`
 
 ## Summary
@@ -26,11 +26,14 @@ shared by every answer that holds them. "Every message on the phone" is a
 followed at its tail (§3). A phone learns that a message is gone from
 **positive facts only** — a delete row in the log, a point absence in a fresh
 receipt, or a hole in a fresh certified-uniform range — never from silence
-(§5). Reads offline replay stored answers (lane O2); search is the app's
-filter over held rows; a pending send renders from its own arguments. Writes
-offline go to a **FIFO outbox** under a **replay grant**, and the server keeps
-the terminal response per intent, so a retry after a lost response is
-exactly-once (§7). Reconnect is **one owner action**: the log's tail after its
+(§5). The twin is the client: every named query replays on the phone over
+held rows, exact where covered and `partial` where not, and a stored
+answer is the case where everything is covered; a queued send is
+predicted into the thread it belongs to; search is the app's filter over
+held rows. Writes
+offline go to a **FIFO outbox** under a **replay grant**; each intent carries
+the twin's trace and the server validates it at commit, so a stale edit is
+`rejected: conflict` and a lost response replays exactly-once (§7). Reconnect is **one owner action**: the log's tail after its
 watermark, then each mounted query checked against a **server-minted
 validator** the client only echoes (§8). The fence `maxOfflineAge` bounds
 **trust**, never **reading**. Asset bytes cache under the owning row (LLP 1006
@@ -98,13 +101,17 @@ marked below and put as questions in §"Open questions (author)".
    shape, published as a recipe and adopted by the `chat` template. (§3)
 3. **Offline reads are staged.** Lane O2 builds the range store,
    stored-answer replay, and the outbox; lane O3 wires the twin for local
-   evaluation and prediction. *(b) proposes: O3 is a lane but not on the
-   offline bar's path — §"Open questions" Q3.*
+   evaluation and prediction. *(c) ruled by the author's principle of
+   2026-09-04, "go as straight as possible to the ideal thing": no
+   staging. The twin is the client from the start; a stored answer is
+   the case where every read is covered (§6).*
 4. **Offline writes.** A durable FIFO outbox per device; replay after resume;
    each intent settles on its own; the server's OCC is the only conflict
    rule; `predicted` when the twin's reads are covered, else the app renders
    the intent from its arguments; intents older than the fence expire.
-   *(b) gives "OCC" its v1 meaning — §7 and Q2.*
+   *(c): the design's trace-validated OCC ships in v1 — the intent carries
+   the twin's trace; point reads and verdicts are validated at commit;
+   ranges re-execute (§7).*
 5. **Reconnect is watermark resume on ordered ranges plus full re-delivery
    elsewhere; general delta resume deferred.** Refined in §8: the log's
    watermark plus a validator check of mounted queries, in one owner action.
@@ -112,8 +119,8 @@ marked below and put as questions in §"Open questions (author)".
    messages". Online search is a separate engine item. (§6)
 7. **Asset bytes cache under the owning row's lease**, LLP 1006 §9b, lane O4.
 8. **Two retention policies ship:** `until-revoked` (default) and
-   `delivered-history`. *(b) proposes shipping no retention word in v1 —
-   §5 and Q1.*
+   `delivered-history`. *(c): ruling 8 stands; the word ships now, on the table whose rows
+   can hide, with its twin-side meaning (§5).*
 9. **No store budget in v1.** Measure the store at ten thousand messages.
 10. **Carriers:** IndexedDB on the web, expo-sqlite on Expo, one interface,
     per-principal partition, wipe on sign-out, **no encryption claim**. The
@@ -248,7 +255,7 @@ interface RangeStore {
   wipe(partition: PrincipalId): Promise<void>      // sign-out, principal replacement
   answer(op, args): Promise<Held | undefined>      // result + validator + receipt + seq + deliveredAt
   commit(swap: Swap): Promise<void>                // one carrier transaction: rows, answers, receipts, evictions, outbox settlements, watermark
-  coverage(): Promise<Coverage>                    // lane O3: rows, ranges, absences, verdicts — the twin's hydration input
+  coverage(): Promise<Coverage>                    // rows, ranges, absences, verdicts — the twin's hydration input
   outbox: OutboxStore                              // §7
 }
 ```
@@ -305,26 +312,32 @@ absence" arm could never fire for a row inside a range (§1).
    append-only log's prefix.
 3. **A tombstone evicts.** A fresh log row of kind `removed` or `expired`
    evicts the body it names, before rule 1 proves it.
-4. **Hidden keeps.** A fresh authorized answer in which a held row's slot
-   became `null` with no absence, or a fresh `denied` state for a held
-   answer, is the *hidden* signal: the viewer once received the row and may
-   no longer see it on the server. **v1 keeps the row** and marks the answer
-   `retained: true` — a delivered fact re-shown, not an invention. A row that
-   no answer holds after the swap leaves the store.
+4. **Hidden keeps or evicts, by the table's word.** A fresh authorized
+   answer in which a held row's slot became `null` with no absence, or a
+   fresh `denied` state for a held answer, is the *hidden* signal: the
+   viewer once received the row and may no longer see it on the server.
+   Under `retain until-revoked`, the default, the row is evicted. Under
+   `retain delivered-history` the row is kept, the answer is marked
+   `retained: true`, and the twin treats a held row of that table as
+   readable — delivery was the authorization — so the kept row renders
+   under local evaluation too. A row that no answer holds after the swap
+   leaves the store.
 
-**On the word `retain`.** Every panelist agreed on rules 1–3. Rule 4 is the
-only policy question, and in the messenger the brief's answer is "keep": a
-removed member keeps what was delivered. Revision (b) therefore proposes
-shipping **no retention word in v1** — rules 1–4 universal, no Quarry line,
-no certificate field, no diagnostic — and adding `retain revoked` (hidden
-evicts) as one table line and one swap rule when a brief needs revoked access
-to go dark on sync. This amends ruling 8 and is **Q1** for the author. If
-ruling 8 stands, the fallback is the panel's other convergent placement: the
-word lives on the log only, as `retain delivered-history` (one lexer token),
-meaning "a denied range keeps its claims; holes and absences still evict",
-with `messages` left at the default; `E_QUARRY_RETAIN` in the `quarry`
-family; the policy carried once per generation in `/api/manifest`, never per
-range.
+**The word `retain`, as ruled.** Ruling 8 stands under the author's
+principle: the ideal is a per-table policy for the hidden case, so it ships
+now rather than later. `retain until-revoked` is the default and needs no
+line; `retain delivered-history` is the other word; both are one lexer
+token; anything else refuses `E_QUARRY_RETAIN`, family `quarry`, with a
+rewrite naming the two. The word goes on the table whose rows can go hidden
+— in the messenger that is `messages`, and the template carries the line
+there — because a per-recipient log whose rule is "recipient equals viewer"
+on an immutable column can never hide a row, so the word on the log would be
+a no-op. The certificate records the policy per table and `/api/manifest`
+carries it once per generation; the receipt never echoes it per range. The
+recipe in §3 was certified before the grammar existed; lane O1 adds the
+keyword and the template's `messages` table gains `retain delivered-history`
+in the same landing. Every panelist agreed on rules 1–3; rule 4's two
+behaviors are exactly the two words.
 
 **Disappearing messages** are the server refusing expired content plus the
 client purging on sync: `purgeExpired` deletes the body and writes the
@@ -334,7 +347,7 @@ dependency (§12).
 
 **The fence.** `maxOfflineAge` is a client option, `offline: { fenceDays: 7 }`,
 bounded to 1..30; a bad value is a `TypeError` like every other bad option.
-It bounds **trust**: past it, the client does not predict (lane O3), does not
+It bounds **trust**: past it, the client does not predict, does not
 replay the outbox before a resume has succeeded, and labels every view
 `stale` with `since`. It never makes a held row unreadable. The server's own
 rule needs no client clock: an intent under a **grant** minted more than
@@ -344,13 +357,32 @@ section.
 
 ## 6. Reads offline
 
-**Lane O2 — stored-answer replay.** `useQuery(op, args)` with the backend
-unreachable resolves to the held answer: state as delivered (`complete`,
-`capped`, `partial`, `denied`), `live: false`, `connection: 'offline'`,
-`stale: { since }`, and `retained: true` when §5 rule 4 kept it. A query the
-store has never held is `hydrating` with `connection: 'offline'`, exactly as
-today. Pages are held per `(op, args)`, so a drained log replays page by
-page, and a thread opened online opens offline.
+**The twin is the client.** `useQuery(op, args)` with the backend
+unreachable runs the certified program through the twin
+(`snapback2-evaluator`) hydrated from `coverage()`: rows, ranges, absences,
+and verdicts. A read inside coverage is exact; a read outside is `partial`
+at that site with `reason: 'never-held' | 'evicted' | 'computed-key'`. The
+view carries `live: false`, `connection: 'offline'`, `stale: { since }`, and
+`retained: true` when §5 rule 4 kept a row. A query whose every read is
+covered replays exactly, which is what a stored answer is — the covered
+case, not a separate mechanism. A query the store cannot cover at all is
+`hydrating` with `connection: 'offline'`, exactly as today. The evaluator
+ticket's "done when" list is lane O2's acceptance verbatim: the certified
+program and certificate on the wire (§8), receipt custody, successor and
+auth-epoch fences, canonical hashing, and the five outcome classes proven
+against the server.
+
+**The coverage rule that makes "everything on the phone" exact.** A
+certified-uniform prefix range drained to `next: null` is the viewer's whole
+partition for that prefix, proven by receipt. The twin therefore treats a
+fully drained uniform prefix as covering **every named query over that
+prefix on any index**. That is why `thread(conversationId)`, which reads
+the log on a different index than the drain, replays exactly for a chat the
+viewer never opened online, and why a queued send appears inside that
+thread's result, in order, as `predicted`. It is not a relational replica
+in the design's sense: only named programs, only the viewer's own
+partition, completeness proven rather than assumed — the design's own
+`replica` notion for owner partitions, reached from the log.
 
 **`drain: true`.** One subscription option (§3). It exposes `{ caughtUp,
 watermark }` beside the view. Offline, `caughtUp` means the last online
@@ -359,21 +391,12 @@ read surface in v1; a `useDrain` hook is the same thing with a second name
 and is not added.
 
 **Search offline.** A search op is a named query; a new term has no held
-answer. The recipe: the app filters the held log rows in JavaScript and
-labels the result "in downloaded messages". At messenger scale this is
-milliseconds, and it stops finding a body the moment §5 evicts it. When the
-engine gains a text index for online search, LLP 0329.014.008 §6's `held`
-completeness label is the follow-on; not v1.
-
-**Lane O3 — local evaluation.** The twin (`snapback2-evaluator`) hydrates
-from `coverage()` and re-runs a certified program over held rows; a read
-inside coverage is exact, a read outside is `partial` at that site with
-`reason: 'never-held' | 'evicted' | 'computed-key'`; a queued intent whose
-reads are covered becomes `predicted` (§7). The evaluator ticket's "done
-when" list is the lane's acceptance verbatim. **The offline bar does not
-need this lane:** cold-start reads are held answers, search is the app's
-filter, pending renders from arguments. Revision (b) proposes it as a lane
-that starts after the bar (Q3).
+answer and the engine has no text index, so the twin cannot replay it. The
+recipe: the app filters the held log rows in JavaScript and labels the
+result "in downloaded messages". At messenger scale this is milliseconds,
+and it stops finding a body the moment §5 evicts it. When the engine gains a
+text index, LLP 0329.014.008 §6's `held` completeness label is the
+follow-on.
 
 ## 7. Writes offline
 
@@ -381,7 +404,7 @@ that starts after the bar (Q3).
 after a transport failure with the fence's trust intact, appends an intent to
 the partition's durable outbox and resolves `last: { state: 'queued', intent }`.
 The state machine is `queued → committed | rejected | expired`, with
-`predicted` an orthogonal flag on `queued` (lane O3). `useOutbox()` returns
+`predicted` an orthogonal flag on `queued`. `useOutbox()` returns
 the durable entries `[{ intent, ids, op, args, state, refusal? }]` with
 `dismiss(intent)` for settled ones; the `chat` template renders a pending
 bubble from `args`, keyed by the intent, labeled "Sending…", **with no time**
@@ -410,7 +433,7 @@ reference a parent's ids before the server has seen either.
 
 ```
 POST /api/mutation
-{ op, args, replay: { grant, offset, count, intent: "<grant>:<offset>" } }
+{ op, args, replay: { grant, offset, count, intent: "<grant>:<offset>", trace } }
 → { state: "committed", seq, data, intent } | { state: "rejected", …, intent }
 ```
 
@@ -438,23 +461,36 @@ drain continues. An intent whose grant is past the fence at replay time
 settles `expired` locally without being sent, and the server's thirty-day
 rule is the backstop.
 
-**What the server checks: the meaning of "OCC" in v1 (Q2).** There is no
-base-version comparison in the engine (§1) and revision (b) adds none. A
-replayed intent is applied by executing it **against current rows under
-current authority, rules, and constraints**; the only conflict rule is the
-mutation's own `require`. Sends are inserts and never conflict. Reactions,
-when they land, are idempotent set-shaped mutations. An edit carries the
-value it was based on — the recipe's `require msg.body = baseBody else
-CONFLICT` — and comes back `rejected` when someone else edited first. This
-gives ruling 4's word its honest v1 meaning without a fictional mechanism;
-the design's per-table `merge: occ` and trace-validated intents remain
-deferred (§11). The recorded alternative, from the panel: refuse to queue any
-mutation whose write sites include an update or delete
-(`E_OFFLINE_REPLAY_UNSAFE`, "reconnect, or model this action as an
-immutable event"), inferred from the certificate. Revision (b) keeps that as
-a **diagnostic** an agent sees at `check` — "this mutation updates a row and
-carries no base value" — not a refusal, because the brief queues reactions
-offline.
+**What the server checks: trace-validated OCC, the design's answer, in v1.**
+At enqueue the twin runs the mutation over held rows and records its
+**trace**: every point read with the digest of the row it saw or the
+absence it relied on, and every rule verdict with its inputs digest. The
+intent carries that trace. At commit the server executes the mutation
+against current rows under current authority — and then compares: each
+point read in the trace must still yield the same row digest or the same
+absence, and each verdict must still hold. Any mismatch settles the intent
+`rejected` with `reason: 'conflict'` and the site that moved, which the
+bubble shows as "Not sent, the message changed". Ranges are **not**
+validated; they re-execute fresh at commit, because a fan-out that reads the
+group's members should use the members at commit, and validating the range
+would reject a send because someone joined. Inserts have nothing to
+validate beyond their constraints. This is exactly the compare an author
+would write by hand (`require msg.body = baseBody`), made universal and
+impossible to forget, with no version numbers, no commit-log scan, and no
+horizon problem: the comparison is against what the client actually read.
+An app-authored `require` remains the way to express stricter or custom
+semantics. The design's per-table `merge: lww | append` policies for
+collaborative fields stay deferred (§11); a table that wants last-writer-wins
+today simply does not read the row it overwrites.
+
+**Prediction.** On enqueue the write's rows enter the store as an overlay —
+visible to local evaluation, excluded from validators, keyed by the intent —
+discarded when the intent settles: replaced by the server's rows on
+`committed`, dropped on `rejected` or `expired`. The twin consumes the same
+`new` envelope, so a prediction and its commit mint the same ids. Where a
+read is uncovered the intent is `queued` without `predicted` and the app
+renders it from `args` through `useOutbox()`; the recipe's drained prefix
+makes that rare for the messenger.
 
 **Failure shapes.** *Grant exhausted:* the client refuses at enqueue,
 `E_OFFLINE_ID_BLOCK`, and asks for a grant when online; no silent reuse.
@@ -464,12 +500,6 @@ grants, two FIFO queues, arrival order between them. *Parent rejected:* the
 child references a pinned id that names nothing; its own `ref` lookup or
 `require` refuses on current rows; the child settles `rejected` with the
 ordinary envelope; no cascade in v1 and both bubbles are shown.
-
-**Prediction (lane O3).** On enqueue the twin runs the mutation over held
-rows; if every read is covered the write's rows enter the store as an
-overlay — visible to local evaluation, excluded from validators, discarded
-when the intent settles. The twin consumes the same `new` envelope, so a
-prediction and its commit mint the same ids.
 
 ## 8. The delivery envelope, the validator, and resume
 
@@ -497,7 +527,12 @@ type DeliveryEnvelopeV1 = {
 ```
 
 Rows appear once, in the pool; `data` and the receipt reference them by
-`(table, id)`, and the client expands before exposing `data`. Point absences
+`(table, id)`, and the client expands before exposing `data`. The certified
+program and its certificate travel with the generation: `/api/manifest`
+gains, per generation, each op's IR and certificate digest, and
+`GET /api/program?generation=` serves them once, cached forever by hash —
+the custody the evaluator ticket names, without which the twin has nothing
+to run. Point absences
 leave the server **only for the primary index**, so `receipt=1` cannot tell a
 hidden alternate-key row from a missing one — the oracle LLP 1011 closed for
 writes stays closed. Clients that do not ask see today's bytes unchanged.
@@ -619,11 +654,10 @@ ships qualified on the simulator, or it does not ship.
 | 6. Local token index | the engine has no text index; app-side filter is honest at scale | online search lands |
 | 7. Store budget and priority | messengers keep everything; §14 measures | the measurement or a device quota complaint |
 | 8. Cancel queued; `asOf` | unsend-while-offline is an app-level `unsend` intent | a brief asks |
-| `retain revoked`, `purge-on-block`, `all-owned` | hidden keeps in v1 (§5, Q1); blocking is out of the brief | a brief needs revoked access to go dark |
-| `merge` modes, `sequence`, trace-validated OCC | `require` on a base value is the messenger's honest answer (§7, Q2) | collaborative editing |
-| Append-only-only offline queueing | the brief queues reactions | kept as a `check` diagnostic, not a refusal |
+| `purge-on-block`, `all-owned` | the two words of ruling 8 ship; blocking is out of the brief | a brief asks |
+| Trace-validated OCC | **taken** for point reads and verdicts (§7) | — |
+| `merge: lww \| append`, `sequence` | a table that wants last-writer-wins does not read the row it overwrites | collaborative editing |
 | Encryption at rest | no honest claim on the web; OS at-rest on iOS | the Expo arm chooses SQLCipher |
-| Lane O3 on the bar's path | held answers, an app filter, and args-rendered pending meet the bar | a measured app needs a new named query offline (Q3) |
 | Device-to-device sync | server authority makes multi-device free | never, by design |
 
 ## 12. The offline bar, and the lanes
@@ -631,8 +665,11 @@ ships qualified on the simulator, or it does not ship.
 **The offline bar** (the third bar; `rules/NOT-DOING.md`). A fresh agent, with
 the installed package and `benchmarks/briefs/social-messenger.md`, has **M5
 acceptance 5**, **M6 acceptance 1**, and **M6 acceptance 2** green on the
-Expo iOS simulator and React web, plus §10's witness, on a **published**
-package. It starts when the loop bar is met, and it runs alongside the
+Expo iOS simulator and React web, plus §10's witness, plus **one acceptance
+only the twin can pass** (author's principle, 2026-09-04): offline, a
+conversation the viewer never opened online renders from the drained log
+through the `thread` query, and a message sent offline appears inside that
+thread's result as `predicted`, in order — all on a **published** package. It starts when the loop bar is met, and it runs alongside the
 capability bar's Expo arm, which shares the carrier.
 
 Implementer for every lane: **codex gpt-5.6-sol (xhigh)** under the standing
@@ -641,15 +678,13 @@ on a published package; dates are targets, and a lane that slips returns here.
 
 | Lane | Content | Systems | Target |
 |---|---|---|---|
-| O1 | **First landing, types only:** `DeliveryEnvelopeV1`, the row pool, the primary-index absence projection, the validator, mirrored in TypeScript with golden fixtures that round-trip byte-identically — **O2 starts here.** Then: `receipt=1` and `validator` on query and subscribe; `POST /api/resume` with its caps and order; grants, the replay envelope, `_client_intents`, injection through `Context.new_ids`; the certified-program generation on the wire; the `offline` runtime diagnostics with their page; the recipe's `check` output pasted into §3; (if ruling 8 stands) `retain` in Quarry and the manifest | `snapback2-core`, `snapback2`, `packages/compiler` | T+10 |
-| O2 | `RangeStore` + IndexedDB and Node carriers; stored-answer replay; §5's four rules; the outbox, grants, FIFO drain, `queued`/`expired`; `useOutbox`, `drain: true`, the pending bubble; Web Locks; seal/wipe; the journey primitives and the `offline` derived check; the `chat` template adopts the recipe; the browser witness | `packages/snapback2` | T+12 |
+| O1 | **First landing, types only:** `DeliveryEnvelopeV1`, the row pool, the primary-index absence projection, the validator, mirrored in TypeScript with golden fixtures that round-trip byte-identically — **O2 starts here.** Then: `receipt=1` and `validator` on query and subscribe; the program and certificate served per generation; `POST /api/resume` with its caps and order; grants, the replay envelope with the trace, trace validation at commit, `_client_intents`, injection through `Context.new_ids`; `retain` in Quarry, the certificate, and the manifest; the `offline` runtime diagnostics with their page; the recipe's `check` output pasted into §3 | `snapback2-core`, `snapback2`, `packages/compiler` | T+12 |
+| O2 | `RangeStore` + IndexedDB and Node carriers; the twin hydrated from `coverage()`, the drained-prefix coverage rule, local evaluation, `partial` reasons; the outbox, grants, traces, the prediction overlay, FIFO drain, `queued`/`expired`; `useOutbox`, `drain: true`, the pending bubble; §5's four rules with the word's two behaviors; Web Locks; seal/wipe; the journey primitives and the `offline` derived check; the `chat` template adopts the recipe with `retain delivered-history` on `messages`; the browser witness; the evaluator ticket closed | `packages/snapback2`, `packages/evaluator` | T+16 |
 | O4 | `ByteCache` by row lease (LLP 1006 §9b); the view-once `viewed` set; the expo-sqlite carrier qualified on the simulator; the simulator witness | `packages/snapback2`, the Expo package | with the Expo arm |
-| O3 | the twin hydrated from `coverage()`: local evaluation, the prediction overlay, `partial` reasons; the evaluator ticket closed | `packages/evaluator`, `packages/snapback2` | after the bar (Q3) |
 
 Dependencies outside these lanes, named so they have an owner: the
-`purgeExpired` recipe mutation (M5 acceptance 1); the certified program's
-wire custody for O3 (`/api/manifest` carries op kinds only today); LLP
-1006's one-use delivery for the row-level cache refusal.
+`purgeExpired` recipe mutation (M5 acceptance 1); LLP 1006's one-use
+delivery for the row-level cache refusal.
 
 Each lane lands under two-family blind review (LLP 0005), and the spec's
 status moves to **Implemented** lane by lane in a record appended here.
@@ -675,16 +710,16 @@ it, so every deferral in §11 carries a number:
 - envelope bytes per `thread` frame with and without `receipt=1`, before and
   after the row pool;
 - the witness's pass, dated, per carrier;
-- (with O3) the twin's gzip size in the shipped bundle.
+- the twin's gzip size in the shipped bundle, against NOT-DOING's number.
 
 ## 15. Diagnostics
 
 Runtime, family `offline`, each with a site, a rewrite, and the page
 `snapback2 guide offline`: `E_OFFLINE_CARRIER`, `E_OFFLINE_LOCK`,
 `E_OFFLINE_RESET`, `E_OFFLINE_RESUME`, `E_OFFLINE_INTENT_EXPIRED`,
-`E_OFFLINE_INTENT_REUSE`, `E_OFFLINE_ID_BLOCK`. Check-time, family `quarry`:
-`E_QUARRY_RETAIN` only if ruling 8 stands (Q1), and the "update without a
-base value" note of §7 as a warning, not a refusal. A bad client option is a
+`E_OFFLINE_INTENT_REUSE`, `E_OFFLINE_ID_BLOCK`; a conflict is a mutation
+state (`rejected`, `reason: 'conflict'`, with the site), not a code.
+Check-time, family `quarry`: `E_QUARRY_RETAIN`. A bad client option is a
 `TypeError`, as today.
 
 ## 16. The panel record
@@ -712,28 +747,18 @@ This spec does not claim offline works until the witness in §10 is green on
 a published package. It does not change the wire for clients that do not ask
 for the envelope. It does not reopen the replica question, the WASM question,
 or the one-language ruling. It does not add a scheduler, a tombstone service,
-a base-version OCC, or a second id form.
+row version numbers, or a second id form.
 
 ## Open questions (author)
 
-Three, each amending one ruling of §2; each has the panel's recommendation
-and the fallback spelled so a one-sentence ruling suffices.
+One, on schedule rather than design. Ruling 12 says the build starts when the
+loop bar is met. Under the author's principle of going straight to the ideal
+in a fast-moving moment, the orchestrator recommends starting **lane O1 now**:
+it is server-side Rust and compiler work that does not compete with the loop
+bar's client-facing lanes, and its first landing — the frozen envelope — is
+what everything else waits on. O2 and O4 keep their dates from `T`. This
+changes ruling 12's start and is the author's to make.
 
-- **Q1 (ruling 8).** Ship **no retention word in v1**: §5's four rules
-  universal, "absence, hole, or tombstone evicts; hidden keeps", and
-  `retain revoked` later when a brief needs revoked access to go dark.
-  Recommended by three of five panelists and the orchestrator; it removes a
-  Quarry line, a certificate field, a manifest field, a diagnostic, and the
-  question of what a kept row means to the twin. Fallback: keep the two
-  words, placed on the log only, as §5 spells.
-- **Q2 (ruling 4).** "OCC" in v1 means: a replayed intent executes against
-  current rows under current authority; the only conflict rule is the
-  mutation's own `require`; the recipe shows the compare form for edits.
-  Recommended by two panelists and the orchestrator; the engine has no
-  base-version comparison and revision (b) adds none. Fallback: refuse to
-  queue update and delete mutations offline (`E_OFFLINE_REPLAY_UNSAFE`),
-  which the brief's offline reactions would not survive.
-- **Q3 (rulings 3 and 12).** Lane O3 is a lane, not a condition of the
-  offline bar: O1 → O2 → O4 is the bar; O3 starts when a measured app needs
-  a new named query offline or args-rendered pending proves inadequate.
-  Recommended by five of five. Fallback: O3 stays in the bar at T+17.
+The three questions of revision (b) are closed by the author's principle:
+ruling 8 stands (§5); trace-validated OCC ships (§7); the twin is the client
+and the bar has an acceptance only it can pass (§6, §12).
