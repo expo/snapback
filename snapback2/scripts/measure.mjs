@@ -158,7 +158,10 @@ function preserveUnchangedExecutable(executable, operation, platform = process.p
       rmSync(replacement, { force: true });
     }
   } finally {
-    if (!existsSync(executable)) {
+    if (result?.status !== 0 && existsSync(preserved)) {
+      rmSync(executable, { force: true });
+      renameSync(preserved, executable);
+    } else if (!existsSync(executable)) {
       if (existsSync(replacement)) {
         renameSync(replacement, executable);
       } else if (existsSync(preserved)) {
@@ -384,6 +387,7 @@ function selfTest() {
   const recoverableInode = statSync(artifact).ino;
   const failedBuild = preserveUnchangedExecutable(artifact, () => {
     rmSync(artifact);
+    writeFileSync(artifact, "failed output");
     return { status: 1, stdout: "", stderr: "build failed" };
   }, "darwin");
   assert.equal(failedBuild.status, 1);
