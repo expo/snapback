@@ -239,7 +239,6 @@ const range = (overrides: Record<string, unknown> = {}) => ({
   rowIds: [] as string[],
   stop: "Exhausted",
   absence: false,
-  n2Key: null,
   ...overrides,
 });
 
