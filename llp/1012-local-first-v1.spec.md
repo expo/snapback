@@ -5,7 +5,7 @@
 **Systems:** `snapback2/packages/snapback2` (client, React, the range-store carriers, the `chat` template, the recipes, the journey primitives), `snapback2/packages/compiler` (the certificate's retention line if ruling 8 stands), `snapback2/crates/snapback2` (the wire: the frozen delivery envelope, `/api/resume`, the replay envelope, grants), `snapback2/crates/snapback2-core` (`_client_intents`, grants, the public receipt projection; `ClientStore` as the reference replay), LLP 1006's asset client (the device byte cache), `rules/NOT-DOING.md`
 **Author:** Claude Fable 5.1, at the author's direction and rulings, 2026-09-04
 **Date:** 2026-09-04
-**Revised:** 2026-09-04 (c — the author's principle applied: the twin is the client from the start and stored-answer replay is its covered case (§6); intents carry the twin's trace and the server validates point reads and verdicts at commit (§7); the retention word ships as ruled, on the table whose rows can hide, with its twin-side meaning (§5); the bar gains one acceptance only the twin can pass (§12); lanes collapse to O1, O2, O4; (b)'s Q1–Q3 closed); 2026-09-04 (b — the panel's designs folded: positive-fact purge (tombstone rows, point absences, uniform-extent holes; no engine change), a frozen delivery envelope with one server-minted validator, resume as one owner action over the log's watermark plus mounted queries, a replay grant with an intent ledger for exactly-once, the corrected and certified recipe (page 50, `*`, a second log index for threads, compare-and-set edits), seal-not-wipe on session expiry, Web Locks across tabs, the journey primitives, the split witness, lane O3 off the bar's path pending ruling; §16 records who found what)
+**Revised:** 2026-09-04 (d — implementation record, lanes O1a/O1c: the validator covers the row pool, `args`, `reason`, and `rule` (§8); row references carry engine provenance and application values are escaped (§8); `n2Key` is not on the wire; `GET /api/program` returns the schema; the recipe's tombstones reach current members and a departed member's copy is evicted by point absence, because the engine's uniformity analysis collects both arms of an `or` and Quarry cannot build a list from a range (§3); the membership cap is a maintained count (§3)); 2026-09-04 (c — the author's principle applied: the twin is the client from the start and stored-answer replay is its covered case (§6); intents carry the twin's trace and the server validates point reads and verdicts at commit (§7); the retention word ships as ruled, on the table whose rows can hide, with its twin-side meaning (§5); the bar gains one acceptance only the twin can pass (§12); lanes collapse to O1, O2, O4; (b)'s Q1–Q3 closed); 2026-09-04 (b — the panel's designs folded: positive-fact purge (tombstone rows, point absences, uniform-extent holes; no engine change), a frozen delivery envelope with one server-minted validator, resume as one owner action over the log's watermark plus mounted queries, a replay grant with an intent ledger for exactly-once, the corrected and certified recipe (page 50, `*`, a second log index for threads, compare-and-set edits), seal-not-wipe on session expiry, Web Locks across tabs, the journey primitives, the split witness, lane O3 off the bar's path pending ruling; §16 records who found what)
 **Related:** LLP 0329.014.004 §5 dimension F and §7 (the contract this implements), LLP 0329.014.007 F8 and F11 (the assessment; "not a replica"), LLP 0329.014.008 (the eight candidates — §11 says which this takes and which wait), LLP 1001 (engine: `ClientStore`, `new_ids`, receipts, absences, `_sessions`), LLP 1002 §4 (wire) and §9 (client states; `queued` reserved), LLP 1006 §9b (bytes on the device), LLP 1007 §4a (the two-bar pattern), LLP 1009 (shelved by the trade, §13), `benchmarks/briefs/social-messenger.md` M5–M6, `issues/20260830-snapback2-wire-evaluator-into-public-client.md`, `issues/20260806-expo-file-carrier-process-kill-witness.md`, `guide/sync/offline-and-retention.md` (Snapback 1's four mechanisms — what not to rebuild), `rules/NOT-DOING.md`, the panel record `llp/reviews/1012-local-first-v1.*`
 
 ## Summary
@@ -230,6 +230,23 @@ own (§1). That mutation is a recipe dependency of M5 acceptance 1, named in
 §12, not an engine change. **Leaving a group** writes nothing: the log rows
 stay, the body's point read becomes hidden rather than absent, and §5 says
 what hidden does.
+
+**Implementation record (lane O1c, 2026-09-04).** Tombstone and edit rows
+reach the conversation's *current* members, not every original recipient. Two
+private spellings were tried and refused by the language as it exists: a
+`sender` column in the fan-out index's prefix with `read <- .recipient = viewer
+or .sender = viewer` fails certification because the uniformity analysis
+collects every field in both arms of an `or` (`E_STRUCTURAL_COUNT`), and a
+`recipients` list on the message row cannot be built because Quarry has no way
+to make a list from a range read. The only spelling that certified *and* kept
+the log private fans out over current members. A departed member's copy of an
+unsent body is therefore evicted by §5 rule 1, the point absence its inbox page
+records when that page next revalidates, not by a tombstone. The delivery log
+is never public (orchestrator ruling; a public log discloses membership and
+activity). The membership cap is `maintain memberCounts` plus a `require` in
+`memberAdd`, refusing the 51st member `GROUP_FULL`. Both language limits are
+filed as tickets and would let the recipe return to the original-recipient
+fan-out.
 
 **The drain policy.** `useQuery(api.inbox, { c: null }, { drain: true })`
 follows `next` to `null`, holds every page, persists the last complete page's
@@ -527,19 +544,29 @@ type DeliveryEnvelopeV1 = {
 ```
 
 Rows appear once, in the pool; `data` and the receipt reference them by
-`(table, id)`, and the client expands before exposing `data`. The certified
+`(table, id)` through engine-tracked provenance — never by body equality, so two
+identical rows in two tables keep their identities — and an application value
+that happens to be shaped like a reference is escaped as
+`{ "$row": { "$value": … } }`; the client expands before exposing `data`.
+`n2Key` is not on the wire. A hidden point *hit* discards the receipt
+artifacts its rule check recorded, as a hidden range candidate already did. The certified
 program and its certificate travel with the generation: `/api/manifest`
-gains, per generation, each op's IR and certificate digest, and
-`GET /api/program?generation=` serves them once, cached forever by hash —
-the custody the evaluator ticket names, without which the twin has nothing
-to run. Point absences
+gains `programGeneration` and each op's `planHash`, and
+`GET /api/program?generation=` serves `{ generation, schemaHash, schema,
+programs }` once, cached forever by hash — the custody the evaluator ticket
+names, and the schema the client needs to re-tag rows and derive index keys.
+It must sit behind a session like every other read (lane O1b): the schema
+carries the rules. Point absences
 leave the server **only for the primary index**, so `receipt=1` cannot tell a
 hidden alternate-key row from a missing one — the oracle LLP 1011 closed for
 writes stays closed. Clients that do not ask see today's bytes unchanged.
 
-**The validator** is `sha256(canonical({ op, args, state, data, next, receipt,
-generation, schemaHash, planHash, principal, authEpoch }))`, minted by the
-server, excluding `seq`. It is HTTP's strong validator by another name: an
+**The validator** is `sha256(canonical({ op, args, state, data, rows, next,
+reason, rule, receipt, generation, schemaHash, planHash, principal, authEpoch }))`,
+minted by the server, excluding `seq`. The row pool is in it (implementation
+record, lane O1a: halo and rule-input bodies are delivered content, so a pool
+edit with stable ids must move the validator), and so are a `partial` reason
+and a `denied` rule. It is HTTP's strong validator by another name: an
 unrelated commit changes `seq` and not the validator; any change to data,
 completeness, cursor, coverage, program, schema, principal, or auth epoch
 forces a full delivery. It replaces both existing digests for this purpose
