@@ -99,7 +99,9 @@ function evaluatorCase(schema: any, program: any): CorpusCase {
     certificate: {
       value_model_version: CURRENT_VALUE_MODEL_VERSION,
       plan_hash: sha256(JSON.stringify(program)),
-      schema_hash: sha256(JSON.stringify(schema)),
+      // The schema's identity is serde's struct order with every default field
+      // present (`retain`), the form the evaluator hashes for served and corpus schemas alike.
+      schema_hash: sha256(canonicalSchemaJson(schema)),
     },
     context: context(),
     receipt: emptyReceipt,

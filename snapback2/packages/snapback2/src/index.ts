@@ -8,6 +8,7 @@ export {
   expandRows,
   toClosureReceipt,
 } from "./offline-protocol.js";
+export { closureFromCoverage } from "./twin-hydrate.js";
 export type {
   DeliveryAuthority,
   DeliveryEnvelopeV1,

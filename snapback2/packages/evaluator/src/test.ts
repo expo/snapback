@@ -6,8 +6,10 @@ import {
   compareExpected,
   evaluateCase,
   hydrateCase,
+  rowDigest,
   scopedRuleHash,
   sha256,
+  wireJson,
   type ClosureReceipt,
   type Context,
   type CorpusCase,
@@ -668,6 +670,149 @@ const expectCode = (run: () => unknown, code: string, label: string) => {
       `${kind} Require used ${outcome.localState}`,
     );
   }
+}
+
+
+// @ref LLP 1012#6-reads-offline — the twin's coverage rule: a drained uniform
+// prefix covers every named query over that prefix on any index of the table.
+{
+  const viewer = { Id: "viewer" } as Value;
+  const logSchema = {
+    tables: {
+      deliveries: {
+        columns: { id: "Id", recipient: "Principal", conversationId: "Id", messageId: "Id", at: "Time" },
+        indexes: {
+          byId: { columns: ["id"], unique: true },
+          byRecipientAt: { columns: ["recipient", "at", "id"], unique: false },
+          byRecipientConversationAt: { columns: ["recipient", "conversationId", "at", "id"], unique: false },
+        },
+        rules: { read: { Eq: [{ Field: "recipient" }, "Viewer"] }, insert: "Deny", update: "Deny", delete: "Deny" },
+        constraints: [],
+      },
+      messages: {
+        columns: { id: "Id", conversationId: "Id", body: { Text: { max: 100 } } },
+        indexes: { byId: { columns: ["id"], unique: true } },
+        rules: {
+          read: { Exists: { table: "memberships", index: "byConversationPrincipal", key: [{ Field: "conversationId" }, "Viewer"], provenance: "Shape" } },
+          insert: "Deny", update: "Deny", delete: "Deny",
+        },
+        constraints: [],
+      },
+      memberships: {
+        columns: { id: "Id", conversationId: "Id", principal: "Principal" },
+        indexes: { byId: { columns: ["id"], unique: true }, byConversationPrincipal: { columns: ["conversationId", "principal"], unique: true } },
+        rules: {
+          read: { Exists: { table: "memberships", index: "byConversationPrincipal", key: [{ Field: "conversationId" }, "Viewer"], provenance: "Shape" } },
+          insert: "Deny", update: "Deny", delete: "Deny",
+        },
+        constraints: [],
+      },
+    },
+    maintains: [],
+  };
+  const delivery = (id: string, conversation: string, message: string, at: number): Value =>
+    ({ Row: { id: { Id: id }, recipient: viewer, conversationId: { Id: conversation }, messageId: { Id: message }, at: { Int: at } } });
+  const readRule = scopedRuleHash(logSchema, logSchema.tables.deliveries.rules.read);
+  const page = (site: string, index: string, prefix: Value[], order: "Asc" | "Desc", after: Value | null, rowIds: string[], stop: "Limit" | "Exhausted") => ({
+    site, table: "deliveries", index, prefix, order, take: 2, after, before: null, gt: null, gte: null, lt: null, lte: null,
+    rule_hash: readRule, row_ids: rowIds, stop, absence: false, halo: null, n2_key: null,
+  });
+  const rows = [
+    { table: "deliveries", id: "d1", row: delivery("d1", "c1", "m1", 1) },
+    { table: "deliveries", id: "d2", row: delivery("d2", "c2", "m2", 2) },
+    { table: "deliveries", id: "d3", row: delivery("d3", "c1", "m3", 3) },
+    { table: "messages", id: "m1", row: { Row: { id: { Id: "m1" }, conversationId: { Id: "c1" }, body: { String: "one" } } } as Value },
+    { table: "messages", id: "m3", row: { Row: { id: { Id: "m3" }, conversationId: { Id: "c1" }, body: { String: "three" } } } as Value },
+    { table: "memberships", id: "mem1", row: { Row: { id: { Id: "mem1" }, conversationId: { Id: "c1" }, principal: viewer } } as Value },
+  ];
+  const drainedReceipt = (secondAfter: Value | null): ClosureReceipt => ({
+    schema_hash: sha256(canonicalSchemaJson(logSchema)),
+    rows,
+    ranges: [
+      page("inbox.0", "byRecipientAt", [viewer], "Asc", null, ["d1", "d2"], "Limit"),
+      page("inbox.0", "byRecipientAt", [viewer], "Asc", secondAfter, ["d3"], "Exhausted"),
+    ],
+    absences: [],
+    verdicts: [],
+  });
+  const thread = {
+    name: "thread", kind: "Query", args: { conversationId: "Id" }, read_time_granularity_ms: null,
+    body: [
+      { Require: { code: "MEMBERSHIP_REQUIRED", condition: { Exists: { site: "thread.0", table: "memberships", index: "byConversationPrincipal", key: [{ Variable: "conversationId" }, { Input: "Viewer" }], provenance: "Shape" } } } },
+      { Const: { name: "page", value: { Scan: { site: "thread.1", table: "deliveries", index: "byRecipientConversationAt", prefix: [{ Input: "Viewer" }, { Variable: "conversationId" }], order: "Desc", take: { Literal: 50 }, after: null, before: null, range: null, merge_site: null, opaque_cursor: false, provenance: "Shape" } } } },
+      { Const: { name: "rows", value: { Array: [] } } },
+      { For: { binding: "row", domain: { DerivedArray: { value: { Variable: "page" }, max: 50 } }, body: [
+        { Push: { target: "rows", value: { Object: { id: { Field: { base: { Variable: "row" }, name: "id" } }, message: { Get: { site: "thread.2", table: "messages", index: "byId", key: [{ Field: { base: { Variable: "row" }, name: "messageId" } }], provenance: "Shape" } } } } } },
+      ] } },
+      { Return: { Variable: "rows" } },
+    ],
+  };
+  const threadContext = (conversation: string): Context => ({
+    viewer: "viewer", principal_kind: "user", auth_epoch: 1, args: { conversationId: { Id: conversation } }, now: null, new_ids: [], read_time: null,
+  });
+  // The chain: page two's `after` is page one's last returned suffix.
+  const chained = new ClientStore(logSchema, drainedReceipt({ Array: [{ Int: 2 }, { Id: "d2" }] }));
+  const replay = chained.reexecute(thread, threadContext("c1"));
+  assert(replay.state === "fresh", `drained prefix did not cover the thread: ${replay.partialSites.join(",")}`);
+  assert(
+    canonicalValue(replay.execution.result) === canonicalValue({ Array: [
+      { Row: { id: { Id: "d3" }, message: rows[4]!.row } },
+      { Row: { id: { Id: "d1" }, message: rows[3]!.row } },
+    ] }),
+    `drained thread replayed ${canonicalValue(replay.execution.result)}`,
+  );
+  let neverHeld: unknown;
+  try { chained.reexecute(thread, threadContext("c3")); } catch (error) { neverHeld = error; }
+  assert(
+    neverHeld instanceof Error && neverHeld.message.startsWith("E_REQUIRE:")
+      && JSON.stringify((neverHeld as { partialSites?: string[] }).partialSites) === JSON.stringify(["thread.0"]),
+    "a require over a membership never held did not name the uncovered site on the refusal",
+  );
+  // A broken chain (page two names a cursor page one never returned) covers nothing beyond its own pages.
+  const broken = new ClientStore(logSchema, drainedReceipt({ Array: [{ Int: 9 }, { Id: "d9" }] }));
+  const uncovered = broken.reexecute(thread, threadContext("c1"));
+  assert(uncovered.state === "partial" && uncovered.partialSites.includes("thread.1"), "a broken drain chain covered a thread");
+  // The trace: every point read carries its index, key, and the wire digest it saw; a hidden hit reads as an absence.
+  const points = replay.execution.trace.points;
+  const membershipPoint = points.find((point) => point.site === "thread.0");
+  assert(membershipPoint !== undefined && membershipPoint.index === "byConversationPrincipal", "point trace lacks the index");
+  assert(canonicalValue({ Array: membershipPoint.key }) === canonicalValue({ Array: [{ Id: "c1" }, viewer] }), "point trace lacks the key");
+  assert(membershipPoint.digest === rowDigest(rows[5]!.row), "point digest is not the canonical wire row digest");
+  assert(rowDigest(rows[5]!.row) === sha256(JSON.stringify(wireJson(rows[5]!.row))), "rowDigest is not sha256 of the wire row");
+  const messagePoints = points.filter((point) => point.site === "thread.2");
+  assert(messagePoints.length === 2 && messagePoints.every((point) => point.digest !== null), "message points lack digests");
+  const messageRule = scopedRuleHash(logSchema, logSchema.tables.messages.rules.read);
+  const inputsDigest = sha256(JSON.stringify(["memberships", "byConversationPrincipal", ["c1", "viewer"]]));
+  assert(
+    replay.execution.trace.verdicts.some((verdict) => verdict.rule_hash === messageRule && verdict.inputs_digest === inputsDigest && verdict.result === true),
+    "the disclosed read rule's verdict was not traced",
+  );
+  // The memberships read rule is the same expression, so its verdict is the same (rule, inputs) fact, traced once.
+  assert(replay.execution.trace.verdicts.length === 1, `traced verdicts: ${JSON.stringify(replay.execution.trace.verdicts)}`);
+  // Hidden: without the membership the message read is an absence-shaped point and no verdict is traced.
+  const hiddenStore = new ClientStore(logSchema, { ...drainedReceipt({ Array: [{ Int: 2 }, { Id: "d2" }] }), rows: rows.filter((row) => row.table !== "memberships") });
+  const read = { name: "read", kind: "Query", args: {}, read_time_granularity_ms: null, body: [{ Return: { Get: { site: "read.0", table: "messages", index: "byId", key: [{ Literal: { Id: "m1" } }], provenance: "Const" } } }] };
+  const hidden = hiddenStore.reexecute(read, threadContext("c1"));
+  assert(hidden.execution.result === "Null" && hidden.execution.trace.points[0]!.digest === null, "a hidden hit did not trace as an absence");
+  assert(hidden.execution.trace.verdicts.length === 0, "a failed rule check left verdicts on the trace");
+  // `retain delivered-history`: a held row of a readable table renders without its rule.
+  const retained = new ClientStore(logSchema, { ...drainedReceipt(null), rows: rows.filter((row) => row.table !== "memberships") }, { readable: ["messages"] });
+  const kept = retained.reexecute(read, threadContext("c1"));
+  assert(canonicalValue(kept.execution.result) === canonicalValue(rows[3]!.row), "a retained row did not render under local evaluation");
+  // Writes: a mutation's final row images, deletes as null.
+  const writerSchema = { tables: { notes: table({ id: "Id", body: { Text: { max: 10 } } }) }, maintains: [] };
+  const writer = new ClientStore(writerSchema, emptyReceipt());
+  const written = writer.applyMutation(mutation([
+    { Insert: { table: "notes", row: literal({ Row: { id: { Id: "n1" }, body: { String: "a" } } }) } },
+    { Insert: { table: "notes", row: literal({ Row: { id: { Id: "n2" }, body: { String: "b" } } }) } },
+    { Delete: { table: "notes", key: literal({ Id: "n2" }) } },
+  ]), context());
+  assert(written.state === "predicted", "write set mutation was not predicted");
+  assert(
+    JSON.stringify(written.execution.writes.map((write) => [write.table, write.id, write.row === null ? null : canonicalValue(write.row)]))
+      === JSON.stringify([["notes", "n1", canonicalValue({ Row: { id: { Id: "n1" }, body: { String: "a" } } })], ["notes", "n2", null]]),
+    `write set was ${JSON.stringify(written.execution.writes)}`,
+  );
 }
 
 console.log(

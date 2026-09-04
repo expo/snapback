@@ -162,6 +162,9 @@ export function settleSubscription<Result>(
     : "data" in value ? { seq: value.seq, data: value.data } : { seq: value.seq };
 }
 
+// @ref LLP 1012#6-reads-offline — the twin is the client: a read with the
+// backend unreachable runs the certified program over coverage; a retained
+// answer (§5 rule 4) is served as held, since its rows are what the swap kept.
 export async function answerOffline<Result>(
   runtime: OfflineRuntime | undefined,
   op: string,
@@ -169,7 +172,9 @@ export async function answerOffline<Result>(
   failure: (error: unknown) => Error,
 ): Promise<QueryResult<Result>> {
   try {
-    return offlineView(await runtime?.answer<Result>(op, args)) as QueryResult<Result>;
+    const held = await runtime?.answer<Result>(op, args);
+    const local = held?.retained ? undefined : await runtime?.evaluate(op, args);
+    return offlineView(held, local) as QueryResult<Result>;
   } catch (error) {
     throw failure(error);
   }
@@ -256,8 +261,12 @@ export async function goOnline<Authority>(options: {
   const authority = await options.authority();
   const run = options.resume(authority);
   options.setResume(run.then(() => undefined, () => undefined));
-  await run;
-  options.reconnect();
+  try {
+    await run;
+  } finally {
+    // A rejected resume or drain must not leave the transport closed.
+    options.reconnect();
+  }
 }
 
 export async function restartOffline(options: {
@@ -335,6 +344,8 @@ export async function performOfflineResume<Authority>(options: {
   shape(message: string): Error;
   failure?(error: unknown): Error;
   subscriptions: Iterable<Subscription<unknown>>;
+  /** Re-fetches `/api/program` for the live generation after `E_OFFLINE_RESET`. */
+  reload?(authority: Authority): Promise<void>;
 }, adjustment: ResumeAdjustment = {}, retry = true): Promise<void> {
   if (!options.runtime) return;
   const request = await options.runtime.resumeRequest([...options.mounted.values()], adjustment);
@@ -352,10 +363,16 @@ export async function performOfflineResume<Authority>(options: {
   } catch (error) {
     const candidate = refusal(error);
     if (candidate?.code === "E_OFFLINE_RESET") {
+      // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — drop
+      // coverage, keep the sealed outbox, fetch the live generation's program
+      // (the twin and the write bounds re-price from it), then drain and
+      // cold-drain: the queue never waits on the next write.
       await options.runtime.resetCoverage();
+      await options.reload?.(options.authority);
       for (const subscription of options.subscriptions) {
         (subscription as Subscription<unknown> & { reset?: () => void }).reset?.();
       }
+      if ((await options.runtime.queuedIntents()).length > 0) await drainOutbox(drainOptions(options));
       return;
     }
     if (candidate?.status === 404) return;

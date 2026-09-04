@@ -1,20 +1,5 @@
 import { api, referenceName, type Api, type ApiProxy, type Channel as ChannelRef, type Op } from "./api.js";
-import {
-  AssetInputError,
-  assetPath,
-  assetRecord,
-  expoUploadFetch,
-  isBlobLike,
-  isBrowserFile,
-  isNativeAssetSource,
-  mayNeedAssetPlanning,
-  planAssetArguments,
-  prepareAssetSource,
-  preparedBody,
-  substituteAssetRecords,
-  withProgress,
-  type PreparedAssetSource,
-} from "./assets.js";
+import { AssetInputError, mayNeedAssetPlanning, planAssetArguments, substituteAssetRecords } from "./assets.js";
 import { captureGrant, createOutboxApi, drainOutbox, submitMutation } from "./client-outbox.js";
 import {
   acceptOffline,
@@ -33,7 +18,15 @@ import {
   settleSubscription,
   validateOfflineOptions,
 } from "./client-offline.js";
-import { assetBlobTarget, cachedAssetBlob, type AssetBlobTarget } from "./client-assets.js";
+import {
+  assetBlobFor,
+  assetHeadersFor,
+  assetInput,
+  assetUrlFor,
+  uploadAsset,
+  uploadPrepared,
+  type Authority,
+} from "./client-upload.js";
 import {
   SnapbackRefusal,
   copyRefusal,
@@ -43,7 +36,6 @@ import {
   responseRefusal,
   sseObject,
   terminalSessionEnvelope,
-  wireAssetSession,
   wireAuthMe,
   wireAuthSession,
   wireChannelDelivery,
@@ -94,22 +86,21 @@ export type { Api, ApiProxy, ChannelRef as Channel, Op };
 export * from "./types.js";
 export type {
   Coverage,
+  CoverageFacts,
   HeldAnswer,
+  HeldOperation,
+  HeldProgram,
   OutboxEntry,
   OutboxStore,
+  OverlayRow,
   RangeStore,
   RangeStoreFactory,
   Receipt,
   ReceiptRange,
   StoreSwap,
 } from "./store/range-store.js";
-
-interface Authority {
-  authGeneration: number;
-  custodyGeneration: number;
-  fence: number;
-  token?: string;
-}
+export type { LocalAnswer, Prediction } from "./twin.js";
+export type { PartialReason, PartialSite } from "./twin-hydrate.js";
 
 type SessionExpiration =
   | { cleared: false }
@@ -127,11 +118,11 @@ class Client implements SnapbackClient {
   readonly auth;
   readonly outbox: OutboxApi;
   readonly ready: Promise<void>;
-  private readonly url: string;
-  private readonly fetchImpl: typeof globalThis.fetch;
-  private readonly customFetch: boolean;
+  readonly url: string;
+  readonly fetchImpl: typeof globalThis.fetch;
+  readonly customFetch: boolean;
   private readonly tokenStore?: AuthTokenStore;
-  private readonly persona?: string;
+  readonly persona?: string;
   private readonly createOptions: InternalClientOptions;
   private readonly offlineRuntime?: OfflineRuntime;
   private readonly mounted = new Map<string, MountedQuery>();
@@ -149,7 +140,7 @@ class Client implements SnapbackClient {
   private readonly statusListeners = new Set<(snapshot: ClientSnapshot) => void>();
   private readonly subscriptions = new Set<Subscription<unknown>>();
   private readonly writes = new Set<Promise<unknown>>();
-  private carrier?: {
+  carrier?: {
     token: string;
     expiresAt: number;
     authGeneration: number;
@@ -255,21 +246,21 @@ class Client implements SnapbackClient {
           const descriptorManifest = await this.manifestFor(authority);
           const descriptor = descriptorManifest.ops[operation]?.args;
           if (descriptor === undefined) {
-            throw this.assetInput(new AssetInputError(
+            throw assetInput(this, new AssetInputError(
               "E_ASSET_TYPE",
               `manifest generation ${descriptorManifest.generation} has no argument descriptor for ${operation}`,
             ));
           }
           const placements = await planAssetArguments(args, descriptor)
-            .catch((error) => { throw this.assetInput(error); });
+            .catch((error) => { throw assetInput(this, error); });
           if (placements.length > 0) {
             const records: AssetRecord[] = [];
             for (const placement of placements) {
-              records.push(await this.uploadPrepared(placement.prepared, {}, authority));
+              records.push(await uploadPrepared(this, placement.prepared, {}, authority));
             }
             const current = await this.manifestFor(authority);
             if (current.generation !== descriptorManifest.generation) {
-              throw this.assetInput(new AssetInputError(
+              throw assetInput(this, new AssetInputError(
                 "E_ASSET_NOT_READY",
                 `descriptor generation changed from ${descriptorManifest.generation} to ${current.generation} during asset upload`,
               ));
@@ -310,11 +301,7 @@ class Client implements SnapbackClient {
   upload(source: AssetUploadSource, options?: AssetUploadOptions): Promise<AssetRecord>;
   async upload(source: AssetUploadSource, options: AssetUploadOptions = {}): Promise<AssetRecord> {
     const authority = await this.operationAuthority();
-    return this.trackWrite(async () => {
-      const prepared = await prepareAssetSource(source)
-        .catch((error) => { throw this.assetInput(error); });
-      return this.uploadPrepared(prepared, options, authority);
-    });
+    return this.trackWrite(() => uploadAsset(this, source, options, authority));
   }
 
   async assetUrl(asset: AssetRecord | null | undefined, options?: AssetUrlOptions): Promise<string | undefined>;
@@ -324,52 +311,16 @@ class Client implements SnapbackClient {
     options: AssetUrlOptions = {},
   ): Promise<string | string[] | undefined> {
     const authority = await this.operationAuthority();
-    const records = Array.isArray(assetOrList)
-      ? assetOrList
-      : assetOrList == null ? [] : [assetOrList as AssetRecord];
-    const wantsCarrier = options.carrier === true || options.download === true;
-    if (wantsCarrier && records.some((asset) => !("duration" in asset))) {
-      throw this.assetInput(new AssetInputError(
-        "E_ASSET_CARRIER_IMAGE",
-        "image asset URLs never carry a session token; fetch the URL with assetHeaders or assetBlob",
-      ));
-    }
-    let carrier: string | undefined;
-    if (wantsCarrier && records.length > 0 && (authority.token !== undefined || this.persona !== undefined)) {
-      carrier = await this.assetCarrier(authority);
-    }
-    try {
-      if (Array.isArray(assetOrList)) {
-        return assetOrList.map((asset) => assetPath(this.url, asset, options.width, carrier));
-      }
-      return assetOrList == null
-        ? undefined
-        : assetPath(this.url, assetOrList as AssetRecord, options.width, carrier);
-    } catch (error) {
-      throw this.assetInput(error);
-    }
+    return assetUrlFor(this, assetOrList, options, authority);
   }
 
   async assetHeaders(): Promise<Record<string, string>> {
-    const authority = await this.operationAuthority();
-    const headers: Record<string, string> = {};
-    if (authority.token) headers.Authorization = `Bearer ${authority.token}`;
-    if (this.persona) headers["X-Snapback-As"] = this.persona;
-    return headers;
+    return assetHeadersFor(this, await this.operationAuthority());
   }
 
   async assetBlob(url: string, options: { signal?: AbortSignal } = {}): Promise<Blob> {
     const authority = await this.operationAuthority();
-    let target: AssetBlobTarget;
-    try { target = assetBlobTarget(this.url, url); } catch (error) { throw this.assetInput(error); }
-    return cachedAssetBlob(this.offlineRuntime?.bytes, target, async () => {
-      if (this.forcedOffline) throw offlineNetworkRefusal();
-      const headers = this.headers(authority);
-      headers.set("Accept", "*/*");
-      const response = await this.fetchResponse(url, { headers, signal: options.signal }, authority);
-      this.validated(authority);
-      return response.blob();
-    }, (refusal) => this.recordRefusal(refusal));
+    return assetBlobFor(this, this.offlineRuntime?.bytes, this.forcedOffline, url, options, authority);
   }
 
   get assetCache(): OfflineRuntime["bytes"] | undefined {
@@ -669,6 +620,17 @@ class Client implements SnapbackClient {
       await this.openOffline(session.viewer, true);
       await this.installToken(session.token);
       this.ensureOpen();
+      // The program lands with the grant, so "log in, go offline, write" prices and predicts from custody.
+      try {
+        await this.ensureOfflineMetadata({
+          authGeneration: this.authGeneration,
+          custodyGeneration: this.custodyGeneration,
+          fence: this.operationFence,
+          token: this.currentToken,
+        });
+      } catch (error) {
+        if (!isSnapbackRefusal(error) || !error.retryable) throw error;
+      }
       this.validated(undefined);
       return session;
     });
@@ -734,7 +696,7 @@ class Client implements SnapbackClient {
     this.publishAuthSnapshot();
   }
 
-  private headers(authority: Authority, stream = false, hasBody = false): Headers {
+  headers(authority: Authority, stream = false, hasBody = false): Headers {
     const headers = new Headers();
     headers.set("Accept", stream ? "text/event-stream" : "application/json");
     if (hasBody) headers.set("Content-Type", "application/json");
@@ -748,209 +710,49 @@ class Client implements SnapbackClient {
     this.validated(authority);
     this.patchSnapshot({ generation: value.generation });
     this.offlineRuntime?.manifest(value);
+    // A generation change re-fetches the program on the next read (LLP 1012 §8).
+    if (this.offlineRuntime && this.offlineRuntime.programGeneration !== value.programGeneration) this.offlineMetadataLoaded = false;
     return value;
   }
 
-  private async ensureOfflineMetadata(authority: Authority): Promise<void> {
-    if (!this.offlineRuntime || this.offlineMetadataLoaded) return;
+  /**
+   * The manifest and, when the partition holds none for the live generation,
+   * `GET /api/program`: the twin's custody and the write bounds. `force`
+   * reloads after `E_OFFLINE_RESET`, whose generation the held program predates.
+   */
+  private async ensureOfflineMetadata(authority: Authority, force = false): Promise<void> {
+    if (!this.offlineRuntime || (this.offlineMetadataLoaded && !force)) return;
     let manifest: Manifest;
     // Unreachable at cold start: held answers and the outbox still serve; the metadata loads on the next reach.
     try { manifest = await this.manifestFor(authority); } catch (error) { if (isSnapbackRefusal(error) && error.retryable) return; throw error; }
-    try {
-      const program = await this.json(
-        `/api/program?generation=${encodeURIComponent(manifest.programGeneration)}`,
-        {},
-        authority,
-      );
-      this.offlineRuntime.program(program);
-    } catch (error) {
-      if (!isSnapbackRefusal(error) || error.status !== 404) throw error;
+    if (this.offlineRuntime.programGeneration !== manifest.programGeneration || force) {
+      try {
+        const program = await this.json(
+          `/api/program?generation=${encodeURIComponent(manifest.programGeneration)}`,
+          {},
+          authority,
+        );
+        this.offlineRuntime.program(program);
+      } catch (error) {
+        if (!isSnapbackRefusal(error) || error.status !== 404) throw error;
+      }
     }
     this.offlineMetadataLoaded = true;
   }
 
-  private async uploadPrepared(
-    prepared: PreparedAssetSource,
-    options: AssetUploadOptions,
-    authority: Authority,
-  ): Promise<AssetRecord> {
-    this.ensureAuthority(authority);
-    let response: Response;
-    if (options.onProgress && isBrowserFile(prepared.source) && !this.customFetch
-      && typeof XMLHttpRequest === "function") {
-      response = await this.xhrUpload(prepared.source, prepared.bytes, options, authority);
-    } else {
-      let body;
-      try {
-        body = await preparedBody(prepared);
-      } catch (error) {
-        throw this.assetInput(error);
-      }
-      const headers = this.headers(authority);
-      headers.set("Content-Length", String(prepared.bytes));
-      const nativeExpoFile = isNativeAssetSource(prepared.source)
-        && !/^(?:data|https?):/i.test(prepared.source.uri)
-        && isBlobLike(body);
-      if (nativeExpoFile) {
-        let nativeFetch: typeof globalThis.fetch;
-        try {
-          nativeFetch = await expoUploadFetch();
-        } catch (error) {
-          throw this.assetInput(error);
-        }
-        options.onProgress?.({ loaded: 0, total: prepared.bytes });
-        response = await this.fetchResponse(`${this.url}/api/upload`, {
-          method: "POST",
-          headers,
-          body: body as unknown as BodyInit,
-        }, authority, nativeFetch);
-        options.onProgress?.({ loaded: prepared.bytes, total: prepared.bytes });
-      } else {
-        body = withProgress(body, prepared.bytes, options);
-        const stream = !isBlobLike(body);
-        response = await this.fetchResponse(`${this.url}/api/upload`, {
-          method: "POST",
-          headers,
-          body: body as unknown as BodyInit,
-          ...(stream ? { duplex: "half" } as RequestInit : {}),
-        }, authority);
-      }
-    }
-    let value: unknown;
-    try {
-      value = await response.json();
-    } catch {
-      throw this.assetInput(new AssetInputError("E_ASSET_TYPE", "upload response must contain valid JSON"));
-    }
-    try {
-      const record = assetRecord(value);
-      const produced = Object.hasOwn(record, "duration") ? "video" : "image";
-      if (options.kind && options.kind !== produced) {
-        throw new AssetInputError("E_ASSET_TYPE", `upload produced ${produced === "image" ? "an image" : "a video"} asset but kind ${options.kind} was requested`);
-      }
-      this.validated(authority);
-      return record;
-    } catch (error) {
-      throw this.assetInput(error);
-    }
-  }
-
-  private xhrUpload(
-    file: File | Blob,
-    bytes: number,
-    options: AssetUploadOptions,
-    authority: Authority,
-  ): Promise<Response> {
-    return new Promise<Response>((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      xhr.open("POST", `${this.url}/api/upload`);
-      for (const [name, value] of this.headers(authority)) xhr.setRequestHeader(name, value);
-      options.onProgress?.({ loaded: 0, total: bytes });
-      xhr.upload.onprogress = (event) => options.onProgress?.({
-        loaded: Math.min(bytes, event.loaded),
-        total: bytes,
-      });
-      xhr.onerror = () => reject(this.networkRefusal("asset upload failed"));
-      xhr.onabort = () => reject(this.networkRefusal("asset upload was aborted"));
-      xhr.onload = () => {
-        try {
-          this.ensureAuthority(authority);
-          options.onProgress?.({ loaded: bytes, total: bytes });
-          resolve(new Response(xhr.responseText, {
-            status: xhr.status,
-            headers: { "Content-Type": xhr.getResponseHeader("Content-Type") ?? "application/json" },
-          }));
-        } catch (error) {
-          reject(error);
-        }
-      };
-      xhr.send(file);
-    }).then(async (response) => {
-      if (response.ok) return response;
-      if (response.status >= 400 && response.status < 500) {
-        const refusal = await responseRefusal(response);
-        this.recordRefusal(refusal.envelope);
-        throw refusal;
-      }
-      throw this.transportRefusal(`/api/upload returned HTTP ${response.status}`);
-    });
-  }
-
-  private async fetchResponse(
-    url: string,
-    init: RequestInit,
-    authority: Authority,
-    fetchImpl: typeof globalThis.fetch = this.fetchImpl,
-  ): Promise<Response> {
-    let response: Response;
-    try {
-      response = await fetchImpl(url, init);
-    } catch (error) {
-      this.ensureAuthority(authority);
-      throw this.networkRefusal(error instanceof Error ? error.message : String(error));
-    }
-    this.ensureAuthority(authority);
-    if (response.ok) return response;
-    if (response.status >= 400 && response.status < 500) {
-      const refusal = await responseRefusal(response);
-      this.recordRefusal(refusal.envelope);
-      throw refusal;
-    }
-    throw this.transportRefusal(`${new URL(url).pathname} returned HTTP ${response.status}`);
-  }
-
-  private async assetCarrier(authority: Authority): Promise<string> {
-    const refreshBefore = Date.now() + 60_000;
-    if (this.carrier
-      && this.carrier.authGeneration === authority.authGeneration
-      && this.carrier.custodyGeneration === authority.custodyGeneration
-      && this.carrier.fence === authority.fence
-      && this.carrier.expiresAt > refreshBefore) return this.carrier.token;
-    const carrier = wireAssetSession(await this.json(
-      "/api/auth/asset-session",
-      { method: "POST", body: JSON.stringify({}) },
-      authority,
-    ));
-    this.ensureAuthority(authority);
-    this.carrier = {
-      token: carrier.token,
-      expiresAt: carrier.expiresAt,
-      authGeneration: authority.authGeneration,
-      custodyGeneration: authority.custodyGeneration,
-      fence: authority.fence,
-    };
-    return carrier.token;
-  }
-
-  private assetInput(error: unknown): SnapbackRefusal {
-    if (isSnapbackRefusal(error)) return error;
-    const input = error instanceof AssetInputError
-      ? error
-      : new AssetInputError("E_ASSET_TYPE", error instanceof Error ? error.message : String(error));
-    const refusal = new SnapbackRefusal({
-      code: input.code,
-      family: "input",
-      message: input.message,
-      rewrite: "pass a File or { uri, size?/fileSize?, type?/mimeType? } only to a matching manifest asset argument",
-      guide: "assets/client",
-    });
-    this.recordRefusal(refusal.envelope);
-    return refusal;
-  }
-
-  private networkRefusal(message: string): SnapbackRefusal {
+  networkRefusal(message: string): SnapbackRefusal {
     const refusal = new SnapbackRefusal(fallbackRefusal("E_NETWORK", message), true);
     this.patchSnapshot({ connection: this.transportFailureState(), lastRefusal: refusal.envelope });
     return refusal;
   }
 
-  private transportRefusal(message: string): SnapbackRefusal {
+  transportRefusal(message: string): SnapbackRefusal {
     const refusal = new SnapbackRefusal(fallbackRefusal("E_TRANSPORT", message), true);
     this.patchSnapshot({ connection: this.transportFailureState(), lastRefusal: refusal.envelope });
     return refusal;
   }
 
-  private async json(
+  async json(
     path: string,
     init: RequestInit,
     authority: Authority,
@@ -1225,6 +1027,7 @@ class Client implements SnapbackClient {
       shape: wireShape,
       failure: (error) => this.offlineRefusal(error),
       subscriptions: this.subscriptions,
+      reload: (current) => this.ensureOfflineMetadata(current, true),
     });
   }
 
@@ -1244,11 +1047,11 @@ class Client implements SnapbackClient {
     return refusal;
   }
 
-  private recordRefusal(envelope: RefusalEnvelope): void {
+  recordRefusal(envelope: RefusalEnvelope): void {
     this.patchSnapshot({ lastRefusal: envelope });
   }
 
-  private validated(authority: Authority | undefined): void {
+  validated(authority: Authority | undefined): void {
     if (authority !== undefined) this.ensureAuthority(authority);
     else this.ensureOpen();
     this.patchSnapshot({ connection: "connected", lastRefusal: undefined });
@@ -1434,7 +1237,7 @@ class Client implements SnapbackClient {
       && authority.token === this.currentToken;
   }
 
-  private ensureAuthority(authority: Authority | undefined): asserts authority is Authority {
+  ensureAuthority(authority: Authority | undefined): asserts authority is Authority {
     if (!this.authorityCurrent(authority)) {
       throw this.supersededRefusal();
     }

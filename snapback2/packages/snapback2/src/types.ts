@@ -74,6 +74,11 @@ export type OfflineFacts = {
   retained?: boolean;
   caughtUp?: boolean;
   watermark?: Cursor | null;
+  /** Queued intents whose predicted rows are inside `data`, in order (the twin, LLP 1012 §7). */
+  predicted?: string[];
+  /** A local `partial`: the uncovered site and every uncovered site with its reason. */
+  site?: string;
+  sites?: Array<{ site: string; reason: "never-held" | "evicted" | "computed-key" }>;
 };
 export type OfflineQueryResult<Result> =
   | (QueryComplete<Result> & OfflineFacts)
@@ -316,11 +321,12 @@ export interface SnapbackClient {
   close(): Promise<void>;
 }
 
+type ViewFacts = { live: boolean; stale?: { since: number }; retained?: boolean; caughtUp?: boolean; watermark?: Cursor | null; predicted?: string[] };
 export type QueryView<Result> =
-  | (QueryComplete<Result> & { live: boolean; stale?: { since: number }; retained?: boolean; caughtUp?: boolean; watermark?: Cursor | null })
-  | (QueryCapped<Result> & { live: boolean; stale?: { since: number }; retained?: boolean; caughtUp?: boolean; watermark?: Cursor | null })
-  | (QueryPartial<Result> & { live: boolean; stale?: { since: number }; retained?: boolean; caughtUp?: boolean; watermark?: Cursor | null })
-  | (QueryDenied & { live: boolean; stale?: { since: number }; retained?: boolean; caughtUp?: boolean; watermark?: Cursor | null })
+  | (QueryComplete<Result> & ViewFacts)
+  | (QueryCapped<Result> & ViewFacts)
+  | (QueryPartial<Result> & ViewFacts)
+  | (QueryDenied & ViewFacts)
   | { state: "refused"; live: false; refusal: RefusalEnvelope }
   | { state: "stale"; live: false; data?: Result; seq?: number; since: number }
   | { state: "hydrating"; live: false };
@@ -360,6 +366,7 @@ export function reduceQueryState<Result>(
     ...("retained" in event && event.retained !== undefined ? { retained: event.retained } : {}),
     ...("caughtUp" in event && event.caughtUp !== undefined ? { caughtUp: event.caughtUp } : {}),
     ...("watermark" in event && event.watermark !== undefined ? { watermark: event.watermark } : {}),
+    ...("predicted" in event && event.predicted !== undefined ? { predicted: event.predicted } : {}),
   };
   let next: QueryView<Result>;
   switch (event.state) {

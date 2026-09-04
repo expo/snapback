@@ -240,7 +240,7 @@ test("a committed settlement lands in the same swap as the log tail rows, or not
   await rm(root, { recursive: true, force: true });
 });
 
-test("online writes with an empty outbox keep today's bytes; a transport failure enqueues; a queued outbox keeps FIFO", async () => {
+test("online writes carry the replay envelope under custody and today's bytes without; a transport failure enqueues; a queued outbox keeps FIFO", async () => {
   const root = await tempRoot();
   let dead = false;
   const owner = fakeOwner({ dead: () => dead });
@@ -256,18 +256,41 @@ test("online writes with an empty outbox keep today's bytes; a transport failure
     },
   });
   await spying.ready;
+  // @ref LLP 1012#7-writes-offline — with a grant and a bound every write is
+  // a durable intent replayed under the envelope, online too: the ledger makes
+  // the online path exactly-once, and the settled entry leaves the queue.
   const online = await spying.mutation(api.deliveries.post as any, post("plain"));
   assert.equal(online.state, "committed");
-  assert.equal(bodies[0], JSON.stringify({ op: "deliveries.post", args: post("plain") }), "no replay envelope online");
+  const sent = JSON.parse(bodies[0]!);
+  assert.equal(sent.replay?.intent, online.state === "committed" ? online.intent : undefined, "an online write under custody carries the replay envelope");
+  assert.deepEqual(sent.replay.trace, { points: [], verdicts: [] });
+  assert.deepEqual(owner.executions.map((item) => (item.args as any).body), ["plain"]);
+  assert.deepEqual(await spying.outbox.entries(), [], "an online write that settled in its own call is retired from the queue");
   spying.close();
+  // Without custody (a fresh partition that never earned a grant) the bytes are today's.
+  const plainRoot = await tempRoot();
+  const plainBodies: string[] = [];
+  const plain = createClient({
+    url: "http://bytes.test", as: "alice", offline: { store: fileRangeStore(plainRoot) },
+    fetch: async (input, init) => {
+      if (new URL(String(input)).pathname === "/api/mutation") plainBodies.push(String(init?.body));
+      return owner.fetch(input, init);
+    },
+  });
+  await plain.ready;
+  assert.equal((await plain.mutation(api.deliveries.post as any, post("no custody"))).state, "committed");
+  assert.equal(plainBodies[0], JSON.stringify({ op: "deliveries.post", args: post("no custody") }), "no custody, no envelope");
+  plain.close();
+  await rm(plainRoot, { recursive: true, force: true });
   dead = true;
   const queued = await client.mutation(api.deliveries.post as any, post("after failure"));
   assert.equal(queued.state, "queued", "a network failure enqueues instead of throwing");
   dead = false;
   const behind = await client.mutation(api.deliveries.post as any, post("behind"));
-  assert.equal(behind.state, "committed", "the queued intent drained first, then the new write took the plain path");
-  assert.deepEqual(owner.executions.map((item) => (item.args as any).body), ["after failure"]);
-  assert.deepEqual((await client.outbox.entries()).map((entry) => entry.state), ["committed"]);
+  assert.equal(behind.state, "committed", "the queued intent drained first, then the new write settled in its own call");
+  // The plain write never entered the ledger; the three under custody did, in order.
+  assert.deepEqual(owner.executions.map((item) => (item.args as any).body), ["plain", "after failure", "behind"]);
+  assert.deepEqual((await client.outbox.entries()).map((entry) => [entry.state, (entry.args as any).body]), [["committed", "after failure"]]);
   client.close();
   await rm(root, { recursive: true, force: true });
 });

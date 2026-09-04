@@ -300,7 +300,7 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
             .iter()
             .filter(|check| check["kind"] == "journey")
             .count(),
-        12
+        13
     );
     for name in [
         "alice posts to the room and a non-member cannot",
@@ -315,6 +315,7 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
         "viewed photos render from the byte cache offline; a view-once photo and an unsent row do not",
         "offline sends queue, survive a restart, replay in order, and a 503 after a commit is exactly once",
         "an edit queued offline against a row the owner then edits settles as a conflict",
+        "a never-opened chat renders offline from the drained log and an offline send is predicted into it in order",
     ] {
         let journey = check(&receipt, name);
         assert_eq!(journey["kind"], "journey", "{name}: {journey}");

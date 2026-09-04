@@ -2,6 +2,7 @@
 // durable intents; replay is FIFO, one envelope per request, and a settlement
 // lands in the same swap as the rows the commit produced.
 import {
+  SnapbackRefusal,
   isSnapbackRefusal,
   wireMutation,
   wireObject,
@@ -66,9 +67,13 @@ function transportFailure(error: unknown): boolean {
 }
 
 /**
- * Online with an empty outbox the write takes today's path unchanged. Offline,
- * behind queued intents that a drain could not clear, or after a retryable
- * transport failure, it is enqueued and resolves `queued`.
+ * A client with no store, or a partition with no custody yet (no grant or no
+ * bound), sends today's bytes. With custody every write carries the replay
+ * envelope, online or not: the twin runs it locally for its ids and trace, the
+ * intent is durable before the request, and the server's ledger makes the
+ * online path exactly-once too — a 503 after a commit can no longer double-send
+ * (LLP 1002 §9, LLP 1012 §7). Offline, behind queued intents a drain could not
+ * clear, or after a transport failure, the write resolves `queued`.
  */
 export async function submitMutation<Result>(options: SubmitMutationOptions): Promise<MutationResult<Result>> {
   const { runtime } = options;
@@ -77,30 +82,70 @@ export async function submitMutation<Result>(options: SubmitMutationOptions): Pr
     body: JSON.stringify({ op: options.op, args: options.args }),
   }));
   if (!runtime || runtime.principal === undefined) return plain();
-  const enqueue = async (): Promise<MutationResult<Result>> => {
+  const enqueue = async (): Promise<OutboxEntry> => {
     try {
-      const entry = await runtime.outbox.enqueue({
-        op: options.op,
-        args: options.args,
-        issuedSeq: runtime.seq,
-      });
-      return { state: "queued", intent: entry.intent, ids: entry.ids };
+      return await runtime.outbox.enqueue(
+        { op: options.op, args: options.args, issuedSeq: runtime.seq },
+        (ids) => runtime.predict(options.op, options.args, ids),
+      );
     } catch (error) {
       throw options.failure(error);
     }
   };
-  if (options.offline) return enqueue();
+  const queued = (entry: OutboxEntry): MutationResult<Result> => ({ state: "queued", intent: entry.intent, ids: entry.ids });
+  if (options.offline) return queued(await enqueue());
   if ((await runtime.queuedIntents()).length > 0) {
-    // FIFO: an intent issued behind queued ones must not overtake them.
-    const { stopped } = await options.drain();
-    if (stopped) return enqueue();
+    // FIFO: an intent issued behind queued ones must not overtake them. An
+    // older intent's refusal is its own: it reaches `settled()` and
+    // `useOutbox()`, never this call, which queues behind it.
+    let stopped = true;
+    try {
+      ({ stopped } = await options.drain());
+    } catch {
+      stopped = true;
+    }
+    if (stopped) return queued(await enqueue());
   }
+  if (!(await runtime.outbox.canEnqueue(options.op))) {
+    try {
+      return await plain();
+    } catch (error) {
+      if (transportFailure(error)) return queued(await enqueue());
+      throw error;
+    }
+  }
+  const entry = await enqueue();
+  let stopped: boolean;
   try {
-    return await plain();
+    ({ stopped } = await options.drain());
   } catch (error) {
-    if (transportFailure(error)) return enqueue();
+    // A refusal that stopped the replay belongs to the intent that drew it;
+    // this one is durable and reports through its entry.
+    const own = await runtime.store.outbox.get(entry.intent);
+    if (own && own.state !== "queued") return settledResult<Result>(own, runtime);
     throw error;
   }
+  const settled = await runtime.store.outbox.get(entry.intent);
+  // A transport failure mid-drain leaves the intent queued: the retry is the same envelope.
+  if (!settled || settled.state === "queued") return queued(entry);
+  void stopped;
+  return settledResult<Result>(settled, runtime);
+}
+
+/** An online write that settled in its own call: the terminal answer, with the entry retired from the queue. */
+async function settledResult<Result>(entry: OutboxEntry, runtime: OfflineRuntime): Promise<MutationResult<Result>> {
+  await runtime.outbox.dismiss(entry.intent);
+  if (entry.state === "expired") {
+    throw new SnapbackRefusal({
+      code: "E_OFFLINE_INTENT_EXPIRED",
+      family: "offline",
+      message: "the replay grant is past offline.fenceDays",
+      site: "client.outbox.enqueue",
+      rewrite: "resume online for a fresh grant, then send again",
+      guide: "offline",
+    });
+  }
+  return entry.response as MutationResult<Result>;
 }
 
 export interface DrainOptions {
@@ -204,6 +249,11 @@ async function logTail(options: DrainOptions) {
   const { runtime } = options;
   const coverage = await runtime.coverage();
   const watermark = coverage ? tailWatermark(coverage.watermarks) : undefined;
+  // No drained query, no tail: the intent settles `committed` with no rows in
+  // its swap. That is the only way a queue held under a login grant with
+  // nothing delivered can progress (LLP 1012 §7); the prediction overlay
+  // stays until the server's rows arrive, so it is not a stranded queue and
+  // must not be "fixed" into one.
   if (!watermark) return undefined;
   const args = watermark.watermark === null
     ? watermark.args

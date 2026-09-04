@@ -6,16 +6,18 @@ expiry seals it until they return; sign-out or another principal wipes it;
 one writer (`E_OFFLINE_LOCK`). `offline.fenceDays` (1..30) bounds trust, not
 reading: past it no predicting or replay until a resume succeeds; held
 answers read `stale`. `useQuery(op, args, { drain: true })` drains to `null`
-by the argument the manifest types `Cursor` (`c` until it loads), keeps the
-watermark, watches the tail. Offline, `run()` resolves `{ state: "queued",
-intent, ids }`, durable, replayed FIFO at the next resume; `useOutbox()` is
-`{ entries, dismiss }`, `client.outbox.drain()` replays now. Asset bytes cache
-under their row's lease, keyed `(assetId, width)`, and leave with it; `offline.maxAssetBytes`
-(256 MiB) caps an LRU by each entry's last read, persisted at the next swap.
-`offline.viewOnce(table, row)` marks rows (not assets) that render once: an
-image when fetched, a clip when played (`assetCache.markViewed`, never
-prefetched); viewed, the row reads `null` held or live, never caches,
-`useAssetUrl` mints no URL, `assetBlob` refuses `E_ASSET_VIEWED`.
+by the `Cursor` argument (`c` until the manifest loads), keeps the watermark,
+watches the tail. Offline, `run()` resolves `{ state: "queued", intent, ids }`,
+durable, replayed FIFO at the next resume; `useOutbox()` is `{ entries,
+dismiss }`, `client.outbox.drain()` replays now. The twin runs the certified
+program on held rows: a covered read is exact, else `partial` with `reason`;
+a queued send is predicted into its thread. Asset bytes cache under their
+row's lease, keyed `(assetId, width)`, and leave with it;
+`offline.maxAssetBytes` (256 MiB) caps an LRU by last read, saved at the next
+swap. `offline.viewOnce(table, row)` marks rows that render once: an image
+when fetched, a clip when played (`assetCache.markViewed`, never prefetched);
+viewed, the row reads `null`, never caches, `useAssetUrl` mints no URL,
+`assetBlob` refuses `E_ASSET_VIEWED`.
 
 Certified answers: `receipt: true` on `POST /api/query` or
 `receipt=1` on `/api/subscribe` returns `{ protocol: 1, generation,
@@ -30,22 +32,22 @@ seq, validator }`. `GET /api/program?generation=`: IR, certificates, schema;
 `POST /api/resume { protocol: 1, generation, schemaHash, authEpoch, remaining?,
 log?: { op, args, watermark, validator }, mounted: [{ op, args, validator }] }`
 is one owner action: the log tail after `watermark` (`{ unchanged: true }`
-when nothing changed, else an envelope and new `watermark`), then mounted
-queries, to 1 MiB (`more` if the log alone exceeds it). The log op pages
-ascending, `after c first <=50`; mounted caps at 32 (`E_OFFLINE_RESUME` 413,
-`which`). New program or schema: `E_OFFLINE_RESET` (409) with the live
-`{ generation, schemaHash }`; drop held coverage, keep the outbox, fetch
-`/api/program`, cold-drain. Stale `authEpoch`: `E_AUTH_SESSION`.
+if nothing changed, else an envelope and new `watermark`), then mounted
+queries, to 1 MiB (`more` past it). The log op pages ascending, `after c
+first <=50`; mounted caps at 32 (`E_OFFLINE_RESUME` 413, `which`). New
+program or schema: `E_OFFLINE_RESET` (409) with the live `{ generation,
+schemaHash }`; drop held coverage, keep the outbox, fetch `/api/program`,
+cold-drain. Stale `authEpoch`: `E_AUTH_SESSION`.
 
 ## Grants
 
 Login, guest, resume return `grant: { id, from, count: 8192, mintedAt,
-expiresAt }` (principal-bound, server time, 30 days) if `remaining`, the
-client's unused ids, is absent or under 1024. `POST /api/mutation { op, args,
-replay: { grant, offset, count, intent: "<grant>:<offset>", trace } }` injects
-ids `from + offset …` as the program's `new` envelope. Refusals:
-`E_OFFLINE_INTENT_EXPIRED` (grant unknown, foreign, or expired),
-`E_OFFLINE_ID_BLOCK` (slice outside the grant or already settled),
+expiresAt }` (principal-bound, 30 days) if `remaining`, the client's unused
+ids, is absent or under 1024. `POST /api/mutation { op, args, replay: {
+grant, offset, count, intent: "<grant>:<offset>", trace } }` injects ids
+`from + offset …` as the `new` envelope. Refusals:
+`E_OFFLINE_INTENT_EXPIRED` (unknown, foreign, or expired grant),
+`E_OFFLINE_ID_BLOCK` (slice outside the grant or settled),
 `E_OFFLINE_INTENT_REUSE` (same intent, other bytes). Same bytes twice get the
 stored response; a post-commit 503 never double-sends.
 
@@ -53,12 +55,12 @@ stored response; a post-commit 503 never double-sends.
 
 `trace: { points: [{ table, index, key, digest }], verdicts: [{ ruleHash,
 inputsDigest, result }] }` is the read set at queue time: each point's row
-digest (SHA-256 of the canonical wire row; `null` if absent), each rule
-verdict, `inputsDigest` = SHA-256 of the wire-form JSON `[table, index, key]`.
-At commit the server executes on current rows, then compares in the
-transaction; a moved point or verdict rolls back: `{ state: "rejected",
-reason: "conflict", site, intent }` (`E_OFFLINE_CONFLICT`). Ranges re-execute,
-never validated: a fan-out uses members at commit. The compare-and-set edit:
+digest (SHA-256 of the canonical wire row, `null` if absent), each verdict's
+`inputsDigest` (SHA-256 of wire `[table, index, key]`). At commit the server
+executes on current rows and compares; a moved point or verdict rolls back:
+`{ state: "rejected", reason: "conflict", site, intent }`
+(`E_OFFLINE_CONFLICT`). Ranges re-execute unvalidated: a fan-out uses members
+at commit. The compare-and-set edit:
 
 ```q
 mutation edit(messageId: messages, body: text <=4000, baseBody: text <=4000):

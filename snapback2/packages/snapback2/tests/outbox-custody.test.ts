@@ -188,7 +188,14 @@ test("the settlement tail and the resume log both name the first-mounted drained
     assert.equal(resumes[1].log?.op, "deliveries.inbox", `${carrier.name}: the next resume names the same log`);
     thread.close();
     inbox.close();
-    client.close();
+    // Across restart() and a cold start the chooser reads the durable order, never the newest page.
+    const cold = await client.restart();
+    await cold.ready;
+    await tick(50);
+    assert.equal(resumes.length, 3, `${carrier.name}: the cold start resumed`);
+    assert.deepEqual({ op: resumes[2].log?.op, args: resumes[2].log?.args }, { op: "deliveries.inbox", args: { c: null } },
+      `${carrier.name}: the restarted client's resume names the first-mounted drain`);
+    await cold.close();
     await tick();
     await carrier.cleanup();
   }
@@ -347,10 +354,14 @@ test("SnapbackProvider constructs exactly one client across StrictMode's double 
   function Parent() {
     const [pass, setPass] = useState(0);
     rerender = setPass;
-    // A new `offline` object every render: identity must compare the store and the values, not the reference.
+    // A new `offline` object with new inline closures every render: identity compares the store and the
+    // numbers; the callbacks are read through a ref, never compared, so they cannot construct a client.
     return React.createElement(
       SnapbackProvider,
-      { url: "http://one-client.test", as: "alice", fetch: owner.fetch, offline: { store: held.factory, fenceDays: 3 } },
+      {
+        url: "http://one-client.test", as: "alice", fetch: owner.fetch,
+        offline: { store: held.factory, fenceDays: 3, onTombstone: () => [], viewOnce: () => false },
+      },
       React.createElement(Harness, { key: pass }),
     );
   }
@@ -364,7 +375,7 @@ test("SnapbackProvider constructs exactly one client across StrictMode's double 
   assert.notEqual(client.snapshot.lastRefusal?.code, "E_OFFLINE_LOCK");
   await act(async () => { rerender(1); });
   await act(async () => { rerender(2); await tick(); });
-  assert.equal(held.constructed(), 1, "a parent re-render with an inline offline object constructs no new client");
+  assert.equal(held.constructed(), 1, "a parent re-render with an inline offline object and inline callbacks constructs no new client");
   assert.equal(client, first, "the same client instance serves the re-rendered tree");
   const answer = await client.query(api.deliveries.inbox as any, { c: null });
   assert.equal(answer.state, "complete", "the surviving client is open and serving");

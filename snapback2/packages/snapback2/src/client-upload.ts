@@ -1,0 +1,301 @@
+// The asset arm of the client — uploads, delivery URLs, header credentials,
+// and the byte fetch — as functions over the small host surface the client
+// exposes, so `client.ts` stays under the file cap without changing behavior.
+import {
+  AssetInputError,
+  assetPath,
+  assetRecord,
+  expoUploadFetch,
+  isBlobLike,
+  isBrowserFile,
+  isNativeAssetSource,
+  prepareAssetSource,
+  preparedBody,
+  withProgress,
+  type PreparedAssetSource,
+} from "./assets.js";
+import { assetBlobTarget, cachedAssetBlob, type AssetBlobTarget } from "./client-assets.js";
+import { offlineNetworkRefusal } from "./client-offline.js";
+import { SnapbackRefusal, isSnapbackRefusal, responseRefusal, wireAssetSession } from "./client-wire.js";
+import type { ByteCache } from "./store/byte-cache.js";
+import type {
+  AssetRecord,
+  AssetUploadOptions,
+  AssetUploadSource,
+  AssetUrlOptions,
+  RefusalEnvelope,
+} from "./types.js";
+
+/** The authority snapshot every request is fenced by (LLP 1002 §9). */
+export interface Authority {
+  authGeneration: number;
+  custodyGeneration: number;
+  fence: number;
+  token?: string;
+}
+
+export interface CarrierSession {
+  token: string;
+  expiresAt: number;
+  authGeneration: number;
+  custodyGeneration: number;
+  fence: number;
+}
+
+/** What the client lends the asset arm; the class satisfies it structurally. */
+export interface UploadHost {
+  readonly url: string;
+  readonly persona?: string;
+  readonly fetchImpl: typeof globalThis.fetch;
+  readonly customFetch: boolean;
+  carrier?: CarrierSession;
+  headers(authority: Authority, stream?: boolean, hasBody?: boolean): Headers;
+  json(path: string, init: RequestInit, authority: Authority): Promise<unknown>;
+  ensureAuthority(authority: Authority | undefined): asserts authority is Authority;
+  recordRefusal(envelope: RefusalEnvelope): void;
+  validated(authority: Authority | undefined): void;
+  networkRefusal(message: string): SnapbackRefusal;
+  transportRefusal(message: string): SnapbackRefusal;
+}
+
+export async function uploadAsset(
+  host: UploadHost,
+  source: AssetUploadSource,
+  options: AssetUploadOptions,
+  authority: Authority,
+): Promise<AssetRecord> {
+  const prepared = await prepareAssetSource(source)
+    .catch((error) => { throw assetInput(host, error); });
+  return uploadPrepared(host, prepared, options, authority);
+}
+
+export async function assetUrlFor(
+  host: UploadHost,
+  assetOrList: AssetRecord | readonly AssetRecord[] | null | undefined,
+  options: AssetUrlOptions,
+  authority: Authority,
+): Promise<string | string[] | undefined> {
+  const records = Array.isArray(assetOrList)
+    ? assetOrList
+    : assetOrList == null ? [] : [assetOrList as AssetRecord];
+  const wantsCarrier = options.carrier === true || options.download === true;
+  if (wantsCarrier && records.some((asset) => !("duration" in asset))) {
+    throw assetInput(host, new AssetInputError(
+      "E_ASSET_CARRIER_IMAGE",
+      "image asset URLs never carry a session token; fetch the URL with assetHeaders or assetBlob",
+    ));
+  }
+  let carrier: string | undefined;
+  if (wantsCarrier && records.length > 0 && (authority.token !== undefined || host.persona !== undefined)) {
+    carrier = await assetCarrier(host, authority);
+  }
+  try {
+    if (Array.isArray(assetOrList)) {
+      return assetOrList.map((asset) => assetPath(host.url, asset, options.width, carrier));
+    }
+    return assetOrList == null
+      ? undefined
+      : assetPath(host.url, assetOrList as AssetRecord, options.width, carrier);
+  } catch (error) {
+    throw assetInput(host, error);
+  }
+}
+
+export function assetHeadersFor(host: UploadHost, authority: Authority): Record<string, string> {
+  const headers: Record<string, string> = {};
+  if (authority.token) headers.Authorization = `Bearer ${authority.token}`;
+  if (host.persona) headers["X-Snapback-As"] = host.persona;
+  return headers;
+}
+
+export async function assetBlobFor(
+  host: UploadHost,
+  bytes: ByteCache | undefined,
+  offline: boolean,
+  url: string,
+  options: { signal?: AbortSignal },
+  authority: Authority,
+): Promise<Blob> {
+  let target: AssetBlobTarget;
+  try { target = assetBlobTarget(host.url, url); } catch (error) { throw assetInput(host, error); }
+  return cachedAssetBlob(bytes, target, async () => {
+    if (offline) throw offlineNetworkRefusal();
+    const headers = host.headers(authority);
+    headers.set("Accept", "*/*");
+    const response = await fetchResponse(host, url, { headers, signal: options.signal }, authority);
+    host.validated(authority);
+    return response.blob();
+  }, (refusal) => host.recordRefusal(refusal));
+}
+
+export async function uploadPrepared(
+  host: UploadHost,
+  prepared: PreparedAssetSource,
+  options: AssetUploadOptions,
+  authority: Authority,
+): Promise<AssetRecord> {
+  host.ensureAuthority(authority);
+  let response: Response;
+  if (options.onProgress && isBrowserFile(prepared.source) && !host.customFetch
+    && typeof XMLHttpRequest === "function") {
+    response = await xhrUpload(host, prepared.source, prepared.bytes, options, authority);
+  } else {
+    let body;
+    try {
+      body = await preparedBody(prepared);
+    } catch (error) {
+      throw assetInput(host, error);
+    }
+    const headers = host.headers(authority);
+    headers.set("Content-Length", String(prepared.bytes));
+    const nativeExpoFile = isNativeAssetSource(prepared.source)
+      && !/^(?:data|https?):/i.test(prepared.source.uri)
+      && isBlobLike(body);
+    if (nativeExpoFile) {
+      let nativeFetch: typeof globalThis.fetch;
+      try {
+        nativeFetch = await expoUploadFetch();
+      } catch (error) {
+        throw assetInput(host, error);
+      }
+      options.onProgress?.({ loaded: 0, total: prepared.bytes });
+      response = await fetchResponse(host, `${host.url}/api/upload`, {
+        method: "POST",
+        headers,
+        body: body as unknown as BodyInit,
+      }, authority, nativeFetch);
+      options.onProgress?.({ loaded: prepared.bytes, total: prepared.bytes });
+    } else {
+      body = withProgress(body, prepared.bytes, options);
+      const stream = !isBlobLike(body);
+      response = await fetchResponse(host, `${host.url}/api/upload`, {
+        method: "POST",
+        headers,
+        body: body as unknown as BodyInit,
+        ...(stream ? { duplex: "half" } as RequestInit : {}),
+      }, authority);
+    }
+  }
+  let value: unknown;
+  try {
+    value = await response.json();
+  } catch {
+    throw assetInput(host, new AssetInputError("E_ASSET_TYPE", "upload response must contain valid JSON"));
+  }
+  try {
+    const record = assetRecord(value);
+    const produced = Object.hasOwn(record, "duration") ? "video" : "image";
+    if (options.kind && options.kind !== produced) {
+      throw new AssetInputError("E_ASSET_TYPE", `upload produced ${produced === "image" ? "an image" : "a video"} asset but kind ${options.kind} was requested`);
+    }
+    host.validated(authority);
+    return record;
+  } catch (error) {
+    throw assetInput(host, error);
+  }
+}
+
+function xhrUpload(
+  host: UploadHost,
+  file: File | Blob,
+  bytes: number,
+  options: AssetUploadOptions,
+  authority: Authority,
+): Promise<Response> {
+  return new Promise<Response>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${host.url}/api/upload`);
+    for (const [name, value] of host.headers(authority)) xhr.setRequestHeader(name, value);
+    options.onProgress?.({ loaded: 0, total: bytes });
+    xhr.upload.onprogress = (event) => options.onProgress?.({
+      loaded: Math.min(bytes, event.loaded),
+      total: bytes,
+    });
+    xhr.onerror = () => reject(host.networkRefusal("asset upload failed"));
+    xhr.onabort = () => reject(host.networkRefusal("asset upload was aborted"));
+    xhr.onload = () => {
+      try {
+        host.ensureAuthority(authority);
+        options.onProgress?.({ loaded: bytes, total: bytes });
+        resolve(new Response(xhr.responseText, {
+          status: xhr.status,
+          headers: { "Content-Type": xhr.getResponseHeader("Content-Type") ?? "application/json" },
+        }));
+      } catch (error) {
+        reject(error);
+      }
+    };
+    xhr.send(file);
+  }).then(async (response) => {
+    if (response.ok) return response;
+    if (response.status >= 400 && response.status < 500) {
+      const refusal = await responseRefusal(response);
+      host.recordRefusal(refusal.envelope);
+      throw refusal;
+    }
+    throw host.transportRefusal(`/api/upload returned HTTP ${response.status}`);
+  });
+}
+
+async function fetchResponse(
+  host: UploadHost,
+  url: string,
+  init: RequestInit,
+  authority: Authority,
+  fetchImpl: typeof globalThis.fetch = host.fetchImpl,
+): Promise<Response> {
+  let response: Response;
+  try {
+    response = await fetchImpl(url, init);
+  } catch (error) {
+    host.ensureAuthority(authority);
+    throw host.networkRefusal(error instanceof Error ? error.message : String(error));
+  }
+  host.ensureAuthority(authority);
+  if (response.ok) return response;
+  if (response.status >= 400 && response.status < 500) {
+    const refusal = await responseRefusal(response);
+    host.recordRefusal(refusal.envelope);
+    throw refusal;
+  }
+  throw host.transportRefusal(`${new URL(url).pathname} returned HTTP ${response.status}`);
+}
+
+async function assetCarrier(host: UploadHost, authority: Authority): Promise<string> {
+  const refreshBefore = Date.now() + 60_000;
+  if (host.carrier
+    && host.carrier.authGeneration === authority.authGeneration
+    && host.carrier.custodyGeneration === authority.custodyGeneration
+    && host.carrier.fence === authority.fence
+    && host.carrier.expiresAt > refreshBefore) return host.carrier.token;
+  const carrier = wireAssetSession(await host.json(
+    "/api/auth/asset-session",
+    { method: "POST", body: JSON.stringify({}) },
+    authority,
+  ));
+  host.ensureAuthority(authority);
+  host.carrier = {
+    token: carrier.token,
+    expiresAt: carrier.expiresAt,
+    authGeneration: authority.authGeneration,
+    custodyGeneration: authority.custodyGeneration,
+    fence: authority.fence,
+  };
+  return carrier.token;
+}
+
+export function assetInput(host: UploadHost, error: unknown): SnapbackRefusal {
+  if (isSnapbackRefusal(error)) return error;
+  const input = error instanceof AssetInputError
+    ? error
+    : new AssetInputError("E_ASSET_TYPE", error instanceof Error ? error.message : String(error));
+  const refusal = new SnapbackRefusal({
+    code: input.code,
+    family: "input",
+    message: input.message,
+    rewrite: "pass a File or { uri, size?/fileSize?, type?/mimeType? } only to a matching manifest asset argument",
+    guide: "assets/client",
+  });
+  host.recordRefusal(refusal.envelope);
+  return refusal;
+}

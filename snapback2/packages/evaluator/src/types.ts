@@ -108,6 +108,8 @@ export interface TraceRange {
   site: string;
   table: string;
   index: string;
+  /** The IR node's provenance (`Arg`, `Viewer`, `Const`, `Shape`, …): where its prefix came from. */
+  provenance?: string;
   prefix: Value[];
   order: "Asc" | "Desc";
   take: number;
@@ -127,11 +129,27 @@ export interface TraceAbsence {
   table: string;
   index: string;
   key: Value[];
+  provenance?: string;
 }
 
+// @ref LLP 1012#7-writes-offline — every point read with the digest of the row
+// it saw (SHA-256 over the canonical wire row, the form the pool carries) or
+// `null` for the absence it relied on; a hidden hit reads as an absence, as the
+// server's compare treats it.
 export interface TracePoint {
   site: string;
   table: string;
+  index: string;
+  key: Value[];
+  digest: string | null;
+  provenance?: string;
+}
+
+/** A rule verdict this run derived on a row it could read, keyed as the server keys its rule inputs. */
+export interface TraceVerdict {
+  rule_hash: string;
+  inputs_digest: string;
+  result: boolean;
 }
 
 export interface Trace {
@@ -139,16 +157,29 @@ export interface Trace {
   absences: TraceAbsence[];
   points: TracePoint[];
   merges: Array<{ site: string; deduplicated_union_len: number; last_returned_suffix: Value[] | null }>;
+  verdicts: TraceVerdict[];
+}
+
+/** One row a mutation left behind: its final image, or `null` when it deleted the row. */
+export interface TraceWrite {
+  table: string;
+  id: string;
+  row: Value | null;
 }
 
 export interface Execution {
   result: Value;
   trace: Trace;
   next: string | null;
+  writes: TraceWrite[];
 }
 
 export interface LocalExecution {
   state: "fresh" | "predicted" | "partial";
   partialSites: string[];
   execution: Execution;
+  /** A predicted mutation's reads outside coverage (ranges evaluated over held rows, unheld absences), judged before its writes. */
+  uncoveredSites?: string[];
+  /** A partial mutation's `missing-authority` causes: unheld engine-owned aggregate targets versus everything else. */
+  authorityMisses?: { maintainTargets: string[]; other: number };
 }

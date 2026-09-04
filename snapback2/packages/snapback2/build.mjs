@@ -76,6 +76,7 @@ await cp(resolve(here, "../compiler/lib.d.ts"), resolve(dist, "index.d.ts"));
 await cp(resolve(here, "../compiler/subset-lib.d.ts"), resolve(dist, "compiler-lib.d.ts"));
 await cp(resolve(here, "types/test.d.ts"), resolve(dist, "test.d.ts"));
 
+const declarations = resolve(dist, ".declarations");
 const declarationProgram = ts.createProgram({
   rootNames: [
     resolve(here, "src/api.ts"),
@@ -96,8 +97,11 @@ const declarationProgram = ts.createProgram({
     lib: ["lib.es2022.d.ts", "lib.dom.d.ts", "lib.dom.iterable.d.ts"],
     module: ts.ModuleKind.ESNext,
     moduleResolution: ts.ModuleResolutionKind.Bundler,
-    outDir: dist,
-    rootDir: resolve(here, "src"),
+    outDir: declarations,
+    // The twin imports the evaluator's sources (one evaluator locus, LLP 1002 §9),
+    // so declarations root at `packages/` and this package's own are moved into dist.
+    rootDir: resolve(here, ".."),
+    resolveJsonModule: true,
     skipLibCheck: true,
     strict: true,
     target: ts.ScriptTarget.ES2022,
@@ -113,6 +117,8 @@ if (diagnostics.length > 0) {
 }
 const emitted = declarationProgram.emit();
 if (emitted.emitSkipped) throw new Error("TypeScript skipped client declaration emit");
+await cp(resolve(declarations, "snapback2/src"), dist, { recursive: true });
+await rm(declarations, { recursive: true, force: true });
 await mergeOfflineProtocolDeclarations();
 
 const guideSource = resolve(here, "guide");

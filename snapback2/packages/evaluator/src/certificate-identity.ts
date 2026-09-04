@@ -10,47 +10,72 @@ export function canonicalProgramJson(program: any): string {
   });
 }
 
+// @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — schema and
+// rule identity mirror serde's struct-field order and skip rules exactly, so
+// the hash is the same whether the schema arrived in struct order (the
+// corpus) or through a sorted `serde_json::Value` (`GET /api/program`).
 export function canonicalSchemaJson(schema: any): string {
-  return JSON.stringify({
-    ...schema,
+  const canonical: Record<string, any> = {
     tables: sortedMap(schema.tables ?? {}, normalizeTable),
     maintains: (schema.maintains ?? []).map(normalizeMaintain),
-    channels: schema.channels === undefined
-      ? undefined
-      : sortedMap(schema.channels, normalizeChannel),
-  });
+  };
+  if (schema.channels !== undefined && Object.keys(schema.channels).length > 0) {
+    canonical.channels = sortedMap(schema.channels, normalizeChannel);
+  }
+  if (schema.auth !== undefined && (schema.auth.password || schema.auth.guests)) {
+    canonical.auth = { password: schema.auth.password, guests: schema.auth.guests };
+  }
+  if (schema.effects !== undefined && schema.effects.length > 0) canonical.effects = schema.effects;
+  return JSON.stringify(canonical);
+}
+
+/** A rule in serde's field order: what `Schema::rule_hash` serializes beside the schema hash. */
+export function canonicalRuleJson(rule: any): string {
+  return JSON.stringify(normalizeRule(rule));
 }
 
 function normalizeMaintain(maintain: any): any {
   return {
-    ...maintain,
-    readable: maintain.readable === null ? null : normalizeRule(maintain.readable),
+    kind: normalizeMaintainKind(maintain.kind),
+    source: maintain.source,
+    by: maintain.by,
+    target: maintain.target,
+    readable: maintain.readable === null || maintain.readable === undefined ? null : normalizeRule(maintain.readable),
   };
+}
+
+function normalizeMaintainKind(kind: any): any {
+  if (typeof kind !== "object" || kind === null) return kind;
+  const [tag, data] = tagged(kind);
+  return tag === "Sum" ? { Sum: { of: data.of } } : kind;
 }
 
 function normalizeTable(table: any): any {
   return {
-    ...table,
     columns: sortedMap(table.columns ?? {}, normalizeColumnType),
-    indexes: sortedMap(table.indexes ?? {}, (index) => index),
+    indexes: sortedMap(table.indexes ?? {}, normalizeIndex),
     rules: normalizeRules(table.rules),
     constraints: (table.constraints ?? []).map(normalizeConstraint),
+    retain: table.retain ?? "until-revoked",
   };
+}
+
+function normalizeIndex(index: any): any {
+  return { columns: index?.columns, unique: index?.unique };
 }
 
 function normalizeChannel(channel: any): any {
   return {
-    ...channel,
     args: sortedMap(channel.args ?? {}, normalizeArgType),
     publish: normalizeRule(channel.publish),
     subscribe: normalizeRule(channel.subscribe),
+    ttl_ms: channel.ttl_ms,
   };
 }
 
 function normalizeRules(rules: any): any {
-  if (rules === undefined) return rules;
+  if (rules === undefined || rules === null) return rules;
   return {
-    ...rules,
     read: normalizeRule(rules.read),
     insert: normalizeRule(rules.insert),
     update: normalizeRule(rules.update),
@@ -58,8 +83,8 @@ function normalizeRules(rules: any): any {
   };
 }
 
-function normalizeRule(rule: any): any {
-  if (typeof rule === "string") return rule;
+export function normalizeRule(rule: any): any {
+  if (typeof rule !== "object" || rule === null) return rule;
   const [kind, data] = tagged(rule);
   switch (kind) {
     case "Eq":
@@ -71,38 +96,72 @@ function normalizeRule(rule: any): any {
     case "Not":
       return { [kind]: normalizeRule(data) };
     case "Exists":
-      return { [kind]: { ...data, key: data.key.map(normalizeRuleTerm) } };
+    case "Created":
+      return { [kind]: {
+        table: data.table,
+        index: data.index,
+        key: data.key.map(normalizeRuleTerm),
+        provenance: data.provenance,
+      } };
+    case "Public":
+      return { Public: { reason: data.reason } };
     default:
       return rule;
   }
 }
 
 function normalizeRuleTerm(term: any): any {
-  if (typeof term === "string") return term;
+  if (typeof term !== "object" || term === null) return term;
   const [kind, data] = tagged(term);
   return kind === "Literal" ? { Literal: normalizeValue(data) } : term;
 }
 
 function normalizeConstraint(constraint: any): any {
-  return constraint;
+  if (typeof constraint !== "object" || constraint === null) return constraint;
+  const [kind, data] = tagged(constraint);
+  switch (kind) {
+    case "Unique": return { Unique: { index: data.index } };
+    case "Cap": return { Cap: { by: data.by, max: data.max } };
+    case "Immutable": return { Immutable: { fields: data.fields } };
+    case "Text": return { Text: {
+      field: data.field,
+      min: data.min ?? 0,
+      ...(data.format === undefined || data.format === null ? {} : { format: data.format }),
+    } };
+    case "FinalExistsOnInsert": return { FinalExistsOnInsert: {
+      table: data.table,
+      index: data.index,
+      key: data.key.map(normalizeRuleTerm),
+    } };
+    default: return constraint;
+  }
 }
 
 function normalizeColumnType(column: any): any {
-  if (typeof column === "string") return column;
+  if (typeof column !== "object" || column === null) return column;
   const [kind, data] = tagged(column);
   if (kind === "Optional") return { Optional: normalizeColumnType(data) };
-  if (kind === "List") return { List: { ...data, of: normalizeColumnType(data.of) } };
-  return column;
+  if (kind === "List") return { List: { of: normalizeColumnType(data.of), max: data.max } };
+  if (["Text", "Bytes", "Image", "Video"].includes(kind)) return { [kind]: { max: data.max } };
+  if (kind === "Enum") return { Enum: { variants: data.variants } };
+  if (kind === "Decimal") return { Decimal: { scale: data.scale } };
+  if (kind === "Money") return { Money: { currency: data.currency, scale: data.scale } };
+  if (kind === "Ref") return { Ref: { table: data.table } };
+  if (kind === "Json") return { Json: { max_bytes: data.max_bytes } };
+  return { [kind]: data };
 }
 
 function normalizeArgType(arg: any): any {
-  if (typeof arg === "string") return arg;
+  if (typeof arg !== "object" || arg === null) return arg;
   const [kind, data] = tagged(arg);
   if (kind === "Optional") return { Optional: normalizeArgType(data) };
-  if (kind === "List" && data.of !== null && data.of !== undefined) {
-    return { List: { ...data, of: normalizeArgType(data.of) } };
+  if (kind === "List") {
+    return { List: {
+      ...(data.of === null || data.of === undefined ? {} : { of: normalizeArgType(data.of) }),
+      max: data.max,
+    } };
   }
-  return arg;
+  return normalizeColumnType(arg);
 }
 
 function normalizeStatement(statement: any): any {

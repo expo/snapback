@@ -199,6 +199,16 @@ async function runOfflineDerived(devices: Set<Device>): Promise<number> {
   if (durable.length === 0) return 0;
   for (const device of durable) {
     if (device.records.size === 0) continue;
+    // @ref LLP 1012#6-reads-offline — the twin evaluates over the coverage the
+    // device holds now, which the drain's tail and later pages may have grown
+    // since a query was first recorded; the expectation is the last online
+    // answer, so each recorded query is read online once more before the
+    // transport is cut, and the offline replay must match it byte for byte.
+    if (device.client.snapshot.connection !== "offline") {
+      for (const { ref, args } of [...device.records.values()]) {
+        await device.client.query(ref, args as never).catch(() => undefined);
+      }
+    }
     await device.client.offline();
     for (const { ref, args, expected } of device.records.values()) {
       const replayed = await device.client.query(ref, args as never);

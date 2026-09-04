@@ -88,6 +88,32 @@ export interface WatermarkRecord {
   order?: number;
 }
 
+/** The generation and authority every held envelope of a partition was delivered under. */
+export interface CoverageFacts {
+  generation: string;
+  schemaHash: string;
+  authEpoch: number;
+}
+
+/** One certified operation as `GET /api/program` serves it: the IR the twin runs and its certificate. */
+export interface HeldOperation {
+  kind: "query" | "mutation";
+  planHash: string;
+  ir: unknown;
+  certificate: unknown;
+}
+
+// @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — the program
+// custody the evaluator ticket names: the certified IR, certificates, and the
+// schema of one generation, held in the partition so a cold start with the
+// network cut still evaluates and prices from the certificate.
+export interface HeldProgram {
+  generation: string;
+  schemaHash: string;
+  schema: OfflineSchema & Record<string, unknown>;
+  programs: Record<string, HeldOperation>;
+}
+
 export interface Coverage {
   rows: StoredRow[];
   ranges: ReceiptRange[];
@@ -99,11 +125,20 @@ export interface Coverage {
    * `absences` as a `byId` point, and named here so a replay never renders them (LLP 1012 §9).
    */
   viewed?: RowRef[];
+  /** Rows a swap evicted (LLP 1012 §5): the twin reports a read of one as `evicted`, not `never-held`. */
+  evicted?: RowRef[];
+  /** The generation and auth epoch the held coverage was delivered under; absent when nothing is held. */
+  facts?: CoverageFacts;
+  /** The newest delivery's time: what an answer the twin computes reports as `stale.since`. */
+  deliveredAt?: number;
 }
 
 export type OutboxState = "queued" | "committed" | "rejected" | "expired";
-/** The seam lane O2b fills: what the twin read when the intent was queued. */
-export interface OutboxTrace { points: unknown[]; verdicts: unknown[] }
+/** What the twin read when the intent was queued: the replay envelope's `trace` (LLP 1012 §7). */
+export interface OutboxTrace {
+  points: Array<{ table: string; index: string; key: unknown[]; digest: string | null }>;
+  verdicts: Array<{ ruleHash: string; inputsDigest: string; result: boolean }>;
+}
 // @ref LLP 1012#7-writes-offline — one durable intent: its pinned id slice, its
 // bytes, and its terminal response, so a retry is the same envelope.
 export interface OutboxEntry {
@@ -146,9 +181,14 @@ export interface OutboxStore {
   grants(): Promise<OutboxGrant[]>;
   /** Each op's persisted write bound (`maxNewIds`); an enqueue refuses without one. */
   bounds(): Promise<Record<string, number>>;
-  /** The prediction overlay by intent (lane O2b fills it); read here to prove it is dropped on settlement. */
-  overlay(): Promise<Record<string, StoredRow[]>>;
+  /** The prediction overlay by intent: the rows a queued intent's local run wrote, `removed` for a delete. */
+  overlay(): Promise<Record<string, OverlayRow[]>>;
+  /** The certified programs held for this partition, keyed by generation. */
+  programs(): Promise<Record<string, HeldProgram>>;
 }
+
+/** A predicted row: the write's final image, or a `removed` marker for a row the intent deletes. */
+export interface OverlayRow extends StoredRow { removed?: true }
 
 export interface StoreDelivery {
   op: string;
@@ -202,8 +242,12 @@ export interface StoreSwap {
   viewed?: RowRef[];
   /** `current` names the grant new intents consume; `null` clears it. */
   grants?: { put?: OutboxGrant[]; current?: string | null; remove?: string[] };
-  /** Predicted rows keyed by intent (lane O2b fills); never consulted by answers here. */
-  overlay?: { put?: Record<string, StoredRow[]>; remove?: string[] };
+  /** Predicted rows keyed by intent; visible to the twin's local evaluation, never to `answer()` (LLP 1012 §7). */
+  overlay?: { put?: Record<string, OverlayRow[]>; remove?: string[] };
+  /** The certified programs, replaced whole (one generation is held at a time); custody like the outbox. */
+  programs?: Record<string, HeldProgram>;
+  /** The facts the swap's envelopes were delivered under; cleared by `resetCoverage`. */
+  facts?: CoverageFacts;
   /**
    * The program's write bounds, replaced whole: what `/api/program` certified each op may
    * mint. Custody like the outbox — a coverage reset never touches it (LLP 1012 §7).
@@ -245,8 +289,10 @@ export interface PersistedRangeState {
   outbox: Record<string, OutboxEntry>;
   grants: Record<string, OutboxGrant>;
   currentGrant?: string;
-  overlay: Record<string, StoredRow[]>;
+  overlay: Record<string, OverlayRow[]>;
   bounds: Record<string, number>;
+  programs: Record<string, HeldProgram>;
+  facts?: CoverageFacts;
   negative: Record<string, number>;
   rowSeq: Record<string, number>;
   /** The byte-cache index; payloads live beside the state in the carrier, keyed by `byteKey`. */
@@ -269,7 +315,7 @@ const NO_BYTES: ByteDelta = { put: [], remove: [] };
 function emptyState(): PersistedRangeState {
   return {
     version: 1, sealed: false, clock: 0, rows: {}, answers: {}, watermarks: {}, outbox: {},
-    grants: {}, overlay: {}, bounds: {}, negative: {}, rowSeq: {}, assets: {}, viewed: {},
+    grants: {}, overlay: {}, bounds: {}, programs: {}, negative: {}, rowSeq: {}, assets: {}, viewed: {},
   };
 }
 
@@ -478,6 +524,7 @@ function normalizeState(value: PersistedRangeState | undefined): PersistedRangeS
     grants: value.grants ?? {},
     overlay: value.overlay ?? {},
     bounds: value.bounds ?? {},
+    programs: value.programs ?? {},
     negative: value.negative ?? {},
     rowSeq: value.rowSeq ?? {},
     assets: value.assets ?? {},
@@ -523,6 +570,10 @@ export class PersistentRangeStore implements RangeStore {
     overlay: async () => this.read(() => {
       this.ensureUnsealed();
       return clone(this.state.overlay);
+    }),
+    programs: async () => this.read(() => {
+      this.ensureUnsealed();
+      return clone(this.state.programs);
     }),
   };
 
@@ -588,7 +639,7 @@ export class PersistentRangeStore implements RangeStore {
 
   async coverage(): Promise<Coverage> {
     return this.read(() => {
-      if (this.state.sealed) return { rows: [], ranges: [], absences: [], verdicts: [], watermarks: [], viewed: [] };
+      if (this.state.sealed) return { rows: [], ranges: [], absences: [], verdicts: [], watermarks: [], viewed: [], evicted: [] };
       const ranges = new Map<string, ReceiptRange>();
       const absences = new Map<string, Receipt["absences"][number]>();
       const verdicts = new Map<string, unknown>();
@@ -607,6 +658,10 @@ export class PersistentRangeStore implements RangeStore {
         const absence: Receipt["absences"][number] = [ref.table, "byId", [ref.id]];
         absences.set(canonical(absence), absence);
       }
+      let deliveredAt: number | undefined;
+      for (const answer of Object.values(this.state.answers)) {
+        if (deliveredAt === undefined || answer.deliveredAt > deliveredAt) deliveredAt = answer.deliveredAt;
+      }
       return {
         rows: clone(Object.entries(this.state.rows).filter(([key]) => !this.state.viewed[key]).map(([, row]) => row)),
         ranges: [...ranges.values()],
@@ -614,6 +669,9 @@ export class PersistentRangeStore implements RangeStore {
         verdicts: [...verdicts.values()],
         watermarks: clone(Object.values(this.state.watermarks)),
         viewed,
+        evicted: Object.keys(this.state.negative).map(viewedRef),
+        ...(this.state.facts === undefined ? {} : { facts: clone(this.state.facts) }),
+        ...(deliveredAt === undefined ? {} : { deliveredAt }),
       };
     });
   }
@@ -699,7 +757,9 @@ export class PersistentRangeStore implements RangeStore {
       state.rows = {};
       state.answers = {};
       state.watermarks = {};
+      delete state.facts;
     }
+    if (swap.facts) state.facts = clone(swap.facts);
     for (const key of swap.dropAnswers ?? []) delete state.answers[key];
     for (const refresh of swap.refreshes ?? []) {
       const answer = state.answers[canonicalAnswerKey(refresh.op, refresh.args)];
@@ -777,6 +837,12 @@ export class PersistentRangeStore implements RangeStore {
         for (const id of [...range.rowIds, ...(range.haloId ? [range.haloId] : [])]) {
           if (!refs.some((ref) => ref.table === range.table && ref.id === id)) refs.push({ table: range.table, id });
         }
+      }
+      // The pool is the answer's closure: halo and rule-input bodies (the
+      // membership a message's read rule probed) are delivered content the
+      // twin evaluates over, so an answer keeps every row it was delivered with.
+      for (const pooled of delivery.rows ?? []) {
+        if (!refs.some((ref) => ref.table === pooled.table && ref.id === pooled.id)) refs.push({ table: pooled.table, id: pooled.id });
       }
       const stored: StoredAnswer = {
         op: delivery.op,
@@ -885,12 +951,9 @@ export class PersistentRangeStore implements RangeStore {
       if (typeof entry.intent !== "string" || entry.intent.length === 0) throw new TypeError("outbox entry needs an intent");
       const order = state.outbox[entry.intent]?.order ?? entry.order ?? ++state.clock;
       state.outbox[entry.intent] = { ...clone(entry), order };
-      // @ref LLP 1012#7-writes-offline — a prediction is discarded when its intent
-      // settles: replaced by the server's rows on `committed`, dropped on
-      // `rejected` or `expired`, in the same swap as the terminal entry.
-      if (entry.state !== "queued") delete state.overlay[entry.intent];
     }
     if (swap.bounds) state.bounds = clone(swap.bounds);
+    if (swap.programs) state.programs = clone(swap.programs);
     for (const id of swap.grants?.remove ?? []) {
       delete state.grants[id];
       if (state.currentGrant === id) delete state.currentGrant;
@@ -903,6 +966,28 @@ export class PersistentRangeStore implements RangeStore {
     }
     for (const intent of swap.overlay?.remove ?? []) delete state.overlay[intent];
     for (const [intent, rows] of Object.entries(swap.overlay?.put ?? {})) state.overlay[intent] = clone(rows);
+    // @ref LLP 1012#7-writes-offline — a prediction is discarded when its intent
+    // settles: dropped on `rejected` or `expired`, and on `committed` once the
+    // server's rows have replaced it — that is, once the store holds a delivery
+    // at or past the commit's `seq` (the settlement's log tail, or any later
+    // page); a commit with no rows in its swap (no drained log to fetch a tail
+    // from) keeps the overlay until one lands. The server's rows are matched
+    // by seq, not by id: a fan-out evaluated over held rows only mints the
+    // viewer's own log row under another pinned id than the server does.
+    // Decided last, over the swap's final state, so a settlement that also
+    // carries a prediction can never resurrect what it settled.
+    let deliveredSeq = -1;
+    for (const answer of Object.values(state.answers)) deliveredSeq = Math.max(deliveredSeq, answer.seq);
+    for (const intent of Object.keys(state.overlay)) {
+      const entry = state.outbox[intent];
+      if (entry === undefined || entry.state === "rejected" || entry.state === "expired") {
+        delete state.overlay[intent];
+        continue;
+      }
+      if (entry.state !== "committed") continue;
+      const committedSeq = (entry.response as { seq?: unknown } | undefined)?.seq;
+      if (!Number.isSafeInteger(committedSeq) || deliveredSeq >= Number(committedSeq)) delete state.overlay[intent];
+    }
     return state;
   }
 

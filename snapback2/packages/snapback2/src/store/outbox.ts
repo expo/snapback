@@ -7,6 +7,7 @@ import type {
   OutboxGrant,
   OutboxState,
   OutboxTrace,
+  OverlayRow,
   RangeStore,
   StoreDelivery,
 } from "./range-store.js";
@@ -75,6 +76,13 @@ export interface EnqueueInput {
   trace?: OutboxTrace;
 }
 
+/** The twin's run over held rows for the slice it was handed: the overlay and the trace land with the entry. */
+export interface EnqueuePrediction {
+  predicted: boolean;
+  overlay: OverlayRow[];
+  trace: OutboxTrace;
+}
+
 export interface OutboxLedgerOptions {
   now(): number;
   fenceMs: number;
@@ -140,13 +148,32 @@ export class OutboxLedger {
   /**
    * Persists the program's write bounds (each op's `maxNewIds`) beside the grants,
    * on the same tail as enqueue, so an enqueue issued after the program loaded
-   * always sees the bound it certified.
+   * always sees the bound it certified. The certified program itself rides the
+   * same swap when given, so a cold start with the network cut evaluates and
+   * prices from custody, never from a fallback (LLP 1012 §7, §8).
    */
-  recordBounds(bounds: Record<string, number>): Promise<void> {
+  recordBounds(bounds: Record<string, number>, programs?: Record<string, unknown>): Promise<void> {
     for (const [op, bound] of Object.entries(bounds)) {
       if (!Number.isSafeInteger(bound) || bound < 0) throw new TypeError(`write bound for ${op} must be a non-negative integer`);
     }
-    return this.serial(() => this.store.commit({ bounds }));
+    return this.serial(() => this.store.commit({ bounds, ...(programs === undefined ? {} : { programs: programs as never }) }));
+  }
+
+  /**
+   * Every outbox write shares this tail: enqueue, adoption, bounds, dismiss,
+   * and — through the runtime — settlements and the predictions they drop, so
+   * a settlement never interleaves with the enqueue that reads the grant.
+   */
+  write<T>(action: () => Promise<T>): Promise<T> {
+    return this.serial(action);
+  }
+
+  /** Whether custody can price a slice for `op` now: a current grant inside the fence with a known bound and ids left. */
+  async canEnqueue(op: string): Promise<boolean> {
+    const grant = await this.grant();
+    if (!grant || this.pastFence(grant)) return false;
+    const bound = (await this.store.outbox.bounds())[op];
+    return bound !== undefined && grant.used + 1 + bound <= grant.count;
   }
 
   pastFence(grant: Pick<OutboxGrant, "mintedAt">): boolean {
@@ -157,7 +184,7 @@ export class OutboxLedger {
   // are the program's `new` envelope in order, as many as the certificate's
   // persisted write bound allows. No bound, or no remaining ids, is a refusal,
   // never a silent reuse or a guessed reservation.
-  enqueue(input: EnqueueInput): Promise<OutboxEntry> {
+  enqueue(input: EnqueueInput, predict?: (ids: string[]) => Promise<EnqueuePrediction>): Promise<OutboxEntry> {
     return this.serial(async () => {
       const grant = await this.grant();
       if (!grant) {
@@ -194,24 +221,31 @@ export class OutboxLedger {
           "resume online for a fresh grant, then enqueue a new intent",
         );
       }
+      const ids = sliceIds(grant, grant.used, count);
+      // @ref LLP 1012#7-writes-offline — the twin runs the mutation with the
+      // slice as its `new` envelope, so the prediction and the commit mint the
+      // same ids; the overlay and the trace land in the entry's own swap.
+      const prediction = predict === undefined ? undefined : await predict(ids);
       const now = this.options.now();
       const entry: OutboxEntry = {
         intent: intentName(grant.id, grant.used),
         grant: grant.id,
         offset: grant.used,
         count,
-        ids: sliceIds(grant, grant.used, count),
+        ids,
         op: input.op,
         args: structuredClone(input.args),
         issuedSeq: input.issuedSeq,
         state: "queued",
-        trace: input.trace ?? emptyTrace(),
+        ...(prediction?.predicted ? { predicted: true } : {}),
+        trace: prediction?.trace ?? input.trace ?? emptyTrace(),
         createdAt: now,
         updatedAt: now,
       };
       await this.store.commit({
         grants: { put: [{ ...grant, used: grant.used + count }] },
         outbox: { put: [entry] },
+        ...(prediction?.predicted ? { overlay: { put: { [entry.intent]: prediction.overlay } } } : {}),
       });
       this.notify();
       return (await this.store.outbox.get(entry.intent)) ?? entry;

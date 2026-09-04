@@ -97,7 +97,7 @@ export interface DeliveryUnchanged {
 
 export type DeliveryMessage = DeliveryEnvelopeV1 | DeliveryUnchanged;
 
-type TaggedValue =
+export type TaggedValue =
   | "Null"
   | { Bool: boolean }
   | { Int: number }
@@ -444,6 +444,26 @@ function receipt(value: unknown, pool: Set<string>, authority: DeliveryAuthority
   });
 }
 
+/** Tag one pooled wire row by its table's declared column types (the evaluator's private form). */
+export function tagWireRow(schema: any, table: string, row: Record<string, WireValue>): TaggedValue {
+  return tagRow(schema, table, row);
+}
+
+/** Tag index key values (a prefix, a key, or a cursor position) by the index's column types from `offset`. */
+export function tagWireIndexValues(schema: any, table: string, index: string, values: WireValue[], offset = 0): TaggedValue[] {
+  return tagIndexValues(schema, table, index, values, offset);
+}
+
+/** Tag a range boundary (`after`, `before`, `gt`, …): an array is a position after the prefix, a scalar its first column. */
+export function tagWireBoundary(schema: any, range: Pick<DeliveryRange, "table" | "index" | "prefix">, value: WireValue | null): TaggedValue | null {
+  return tagBoundary(schema, range as DeliveryRange, value);
+}
+
+/** Tag one wire value by a declared column or argument descriptor. */
+export function tagWireValue(descriptor: unknown, value: WireValue, path: string): TaggedValue {
+  return tagTyped(descriptor, value, path);
+}
+
 function tagRow(schema: any, table: string, row: Record<string, WireValue>): TaggedValue {
   const columns = schema?.tables?.[table]?.columns;
   if (!plain(columns)) fail(`schema.tables.${table}.columns`, "is missing");
@@ -507,8 +527,20 @@ function tagTyped(descriptor: any, value: WireValue, path: string): TaggedValue 
       tagAssetField(fields[key as keyof typeof fields], item, `${path}.${key}`),
     ])) };
   }
-  if (plain(descriptor) && "Json" in descriptor) return tagGeneric(value);
+  // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — tag by
+  // the declared column type only: a `json` value shaped `{ "Bytes": "…" }` is
+  // application data, never the byte variant (O1a review).
+  if (plain(descriptor) && "Json" in descriptor) return tagJson(value);
   fail(path, "has an unsupported schema descriptor");
+}
+
+function tagJson(value: WireValue): TaggedValue {
+  if (value === null) return "Null";
+  if (typeof value === "boolean") return { Bool: value };
+  if (typeof value === "number") return { Int: value };
+  if (typeof value === "string") return { String: value };
+  if (Array.isArray(value)) return { Array: value.map(tagJson) };
+  return { Map: Object.fromEntries(Object.entries(value).map(([key, item]) => [key, tagJson(item)])) };
 }
 
 const ASSET_RECORD_FIELDS = {
@@ -523,16 +555,6 @@ function tagAssetField(descriptor: "String" | "Int", value: WireValue, path: str
   }
   uintOrSigned(value, path);
   return { Int: value as number };
-}
-
-function tagGeneric(value: WireValue): TaggedValue {
-  if (value === null) return "Null";
-  if (typeof value === "boolean") return { Bool: value };
-  if (typeof value === "number") return { Int: value };
-  if (typeof value === "string") return { String: value };
-  if (Array.isArray(value)) return { Array: value.map(tagGeneric) };
-  if (plain(value) && Object.keys(value).length === 1 && "Bytes" in value && typeof value.Bytes === "string") return { Bytes: value.Bytes };
-  return { Map: Object.fromEntries(Object.entries(value).map(([key, item]) => [key, tagGeneric(item)])) };
 }
 
 function indexColumns(schema: any, table: string, index: string): string[] {

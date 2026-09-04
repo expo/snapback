@@ -54,19 +54,29 @@ export type SnapbackProviderProps = CreateClientOptions & {
 };
 
 /**
- * The offline options by value: the carrier factory and each callback by
- * identity, the numbers by value. A parent that renders an inline
- * `offline={{ store }}` allocates a new object every render; that must not
- * allocate a new lock-holding client.
+ * The offline options by value: the carrier factory by identity, the numbers
+ * by value. A parent that renders an inline `offline={{ store, onTombstone:
+ * (row) => … }}` allocates a new object and new closures every render; that
+ * must not allocate a new lock-holding client, so the callbacks are read
+ * through a ref the runtime calls into (`throughRef`) and never compared.
  */
 function sameOffline(left: OfflineClientOptions | undefined, right: OfflineClientOptions | undefined): boolean {
   if (left === right) return true;
   if (!left || !right) return false;
   return left.store === right.store
     && left.fenceDays === right.fenceDays
-    && left.maxAssetBytes === right.maxAssetBytes
-    && left.onTombstone === right.onTombstone
-    && left.viewOnce === right.viewOnce;
+    && left.maxAssetBytes === right.maxAssetBytes;
+}
+
+/** The options the client is created with: stable wrappers that call the latest callbacks the parent rendered. */
+function throughRef(latest: { current: OfflineClientOptions | undefined }, options: OfflineClientOptions): OfflineClientOptions {
+  return {
+    store: options.store,
+    ...(options.fenceDays === undefined ? {} : { fenceDays: options.fenceDays }),
+    ...(options.maxAssetBytes === undefined ? {} : { maxAssetBytes: options.maxAssetBytes }),
+    onTombstone: (row) => latest.current?.onTombstone?.(row) ?? [],
+    viewOnce: (table, row) => latest.current?.viewOnce?.(table, row) ?? false,
+  };
 }
 
 // @ref LLP 1002#9-the-client-snapback2client-snapback2react-snapback2test — React web is the first arm over the shared headless client.
@@ -80,14 +90,17 @@ export function SnapbackProvider({ url, as, token, tokenStore, fetch, offline, c
   // would leak a lock-holding client; a ref survives the re-render untouched,
   // and the identity compares `offline` by its values, not its reference.
   const identity = [url, as, token, tokenStore, fetch] as const;
+  const latestOffline = useRef<OfflineClientOptions | undefined>(offline);
+  latestOffline.current = offline;
   const held = useRef<{ identity: readonly unknown[]; offline: OfflineClientOptions | undefined; client: SnapbackClient }>(undefined);
   if (!held.current
     || held.current.identity.some((item, index) => item !== identity[index])
     || !sameOffline(held.current.offline, offline)) {
+    const stable = offline === undefined ? undefined : throughRef(latestOffline, offline);
     held.current = {
       identity,
       offline,
-      client: createClient(as !== undefined ? { url, as, fetch, offline } : { url, token, tokenStore, fetch, offline }),
+      client: createClient(as !== undefined ? { url, as, fetch, offline: stable } : { url, token, tokenStore, fetch, offline: stable }),
     };
   }
   const client = held.current.client;

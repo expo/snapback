@@ -81,11 +81,22 @@ export function threadBubbles(rows: readonly LogRow[], entries: readonly OutboxE
   const edits = new Map(entries.map((entry) => [editArgs(entry)?.messageId, entry] as const).filter(([id]) => id !== undefined));
   const seen = new Set<string>();
   const bubbles: Bubble[] = [];
+  // @ref LLP 1012#7-writes-offline — a queued send the twin predicted is inside
+  // the log's rows under its pinned id; it is still the pending bubble, with
+  // `args.body` and "Sending…" and no time, until the server's row settles it.
+  const pending = new Map(entries
+    .filter((entry) => entry.state === "queued" && postArgs(entry) !== undefined)
+    .map((entry) => [entry.ids[0] ?? entry.intent, entry] as const));
   // The log's thread page is newest-first (`last 50`); a thread reads oldest-first.
   const chronological = [...rows].sort((a, b) => a.at - b.at || (a.messageId < b.messageId ? -1 : a.messageId > b.messageId ? 1 : 0));
   for (const row of chronological) {
     if (row.kind !== "message" || !row.message || hidden.has(row.messageId) || seen.has(row.messageId)) continue;
     seen.add(row.messageId);
+    const predicted = pending.get(row.messageId);
+    if (predicted) {
+      bubbles.push({ key: row.messageId, kind: "pending", entry: predicted, body: postArgs(predicted)!.body });
+      continue;
+    }
     const edit = edits.get(row.messageId);
     bubbles.push({ key: row.messageId, kind: "row", message: row.message, at: row.at, ...(edit ? { edit } : {}) });
   }

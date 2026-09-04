@@ -1,5 +1,5 @@
 import coreIrContract from "../../../crates/snapback2-core/ir-contract.json" with { type: "json" };
-import { canonicalSchemaJson } from "./certificate-identity";
+import { canonicalRuleJson, canonicalSchemaJson } from "./certificate-identity";
 import { EvalError } from "./errors";
 import { sha256, utf8Length } from "./hash";
 import { cursorSuffix, decodeCursor, decodeCursorFor } from "./cursor";
@@ -194,8 +194,15 @@ export function wireJson(value: Value): unknown {
   }
 }
 
+/** The digest a replay trace carries for a point read: SHA-256 over the canonical
+ * wire row, exactly `snapback2-core`'s `row_digest` (`offline.rs`). */
+export function rowDigest(row: Value): string {
+  return sha256(JSON.stringify(wireJson(row)));
+}
+
+/** `Schema::rule_hash`: the schema hash beside the rule in serde's field order. */
 export function scopedRuleHash(schema: any, rule: any): string {
-  return sha256(JSON.stringify([sha256(canonicalSchemaJson(schema)), rule]));
+  return sha256(`[${JSON.stringify(sha256(canonicalSchemaJson(schema)))},${canonicalRuleJson(rule)}]`);
 }
 
 export function kindOf(value: Value): string {

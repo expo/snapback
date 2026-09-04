@@ -8,7 +8,10 @@ import { OutboxLedger, decodeGrant } from "./store/outbox.js";
 import {
   canonicalAnswerKey,
   type Coverage,
+  type CoverageFacts,
   type HeldAnswer,
+  type HeldOperation,
+  type HeldProgram,
   type OfflineSchema,
   type OutboxEntry,
   type OutboxGrant,
@@ -21,6 +24,7 @@ import {
   type WatermarkRecord,
 } from "./store/range-store.js";
 import { ByteCache } from "./store/byte-cache.js";
+import { Twin, type LocalAnswer, type Prediction } from "./twin.js";
 import type { Manifest, OfflineClientOptions } from "./types.js";
 
 /**
@@ -89,10 +93,27 @@ export interface AcceptedDelivery<Result> {
   refresh?: StoreRefresh;
 }
 
-interface ResumeFacts {
-  generation: string;
-  schemaHash: string;
-  authEpoch: number;
+type ResumeFacts = CoverageFacts;
+
+/**
+ * `GET /api/program` as custody: the shape the twin holds per generation.
+ * Anything malformed is refused here rather than evaluated later.
+ */
+export function decodeHeldProgram(value: unknown): HeldProgram | undefined {
+  if (!object(value)) return undefined;
+  const { generation, schemaHash, schema, programs } = value;
+  if (typeof generation !== "string" || typeof schemaHash !== "string" || !object(schema) || !object(schema.tables) || !object(programs)) {
+    return undefined;
+  }
+  const held: Record<string, HeldOperation> = {};
+  for (const [name, entry] of Object.entries(programs)) {
+    if (!object(entry) || (entry.kind !== "query" && entry.kind !== "mutation")) continue;
+    if (typeof entry.planHash !== "string" || !object(entry.ir) || !object(entry.certificate)) continue;
+    // The payload binds each op to one certificate: the plan hashes must agree.
+    if (entry.certificate.plan_hash !== entry.planHash) continue;
+    held[name] = { kind: entry.kind, planHash: entry.planHash, ir: entry.ir, certificate: entry.certificate };
+  }
+  return { generation, schemaHash, schema: schema as HeldProgram["schema"], programs: held };
 }
 
 export class OfflineAuthorityError extends Error {
@@ -164,6 +185,8 @@ export class OfflineRuntime {
    * resolving with intents still queued (LLP 1012 §7).
    */
   drainOutcome: Promise<void> = Promise.resolve();
+  /** The twin: the certified program over this partition's coverage (LLP 1012 §6, §7). */
+  readonly twin: Twin;
   private partition?: string;
   private retention: Record<string, RetentionPolicy> = {};
   private cursors: Record<string, string> = {};
@@ -172,6 +195,8 @@ export class OfflineRuntime {
   private latestSeq = 0;
   private pendingGrant?: OutboxGrant;
   private pendingBounds?: Record<string, number>;
+  private pendingProgram?: HeldProgram;
+  private held?: HeldProgram;
   private standIn?: string;
   private tail: Promise<void> = Promise.resolve();
 
@@ -184,9 +209,32 @@ export class OfflineRuntime {
       now: () => Date.now(),
       fenceMs: this.fenceDays * 24 * 60 * 60 * 1_000,
     });
+    this.twin = new Twin({
+      program: () => this.held,
+      coverage: () => this.coverage(),
+      overlay: () => this.store.outbox.overlay(),
+      entries: () => this.outbox.entries(),
+      principal: () => this.partition,
+      now: () => Date.now(),
+      seq: () => this.latestSeq,
+    });
   }
 
   get principal(): string | undefined { return this.partition; }
+
+  /** The generation of the certified program this partition holds, if any. */
+  get programGeneration(): string | undefined { return this.held?.generation; }
+
+  /** The twin's answer for a query, or `undefined` when it cannot run (no program, another generation). */
+  async evaluate(op: string, args: unknown): Promise<LocalAnswer | undefined> {
+    if (this.partition === undefined) return undefined;
+    return this.twin.evaluate(op, args);
+  }
+
+  /** The twin's run of a mutation over held rows with the intent's pinned ids. */
+  async predict(op: string, args: unknown, ids: string[]): Promise<Prediction> {
+    return this.twin.predict(op, args, ids);
+  }
 
   /** The highest server seq this runtime has committed; what a queued intent was issued against. */
   get seq(): number { return this.latestSeq; }
@@ -202,6 +250,7 @@ export class OfflineRuntime {
       this.partition = principal;
       this.bytes.bind(principal);
       await this.loadFacts();
+      await this.loadProgram();
       await this.flushGrant();
       await this.flushBounds();
       this.outbox.notify();
@@ -216,6 +265,7 @@ export class OfflineRuntime {
       }
       await this.store.unseal();
       await this.loadFacts();
+      await this.loadProgram();
       await this.flushGrant();
       await this.flushBounds();
       this.outbox.notify();
@@ -261,6 +311,7 @@ export class OfflineRuntime {
       const partition = this.partition;
       this.partition = undefined;
       this.facts = undefined;
+      this.held = undefined;
       this.bytes.bind(undefined);
       await this.store.wipe(partition);
       this.outbox.notify();
@@ -301,9 +352,10 @@ export class OfflineRuntime {
   }
 
   /**
-   * Records `/api/program`: the schema, and each certified op's write bound, which
-   * is persisted with the outbox so a cold start with the owner cut prices its
-   * slices from the certificate, never from a guess (LLP 1012 §7).
+   * Records `/api/program`: the schema, the certified program held for the twin
+   * keyed by its generation, and each op's write bound — persisted together
+   * with the outbox so a cold start with the owner cut evaluates and prices its
+   * slices from the certificate, never from a guess (LLP 1012 §7, §8).
    */
   program(value: unknown): void {
     if (!object(value)) return;
@@ -316,6 +368,11 @@ export class OfflineRuntime {
       if (bound !== undefined) bounds[name] = bound;
     }
     this.pendingBounds = bounds;
+    const held = decodeHeldProgram(value);
+    if (held) {
+      this.held = held;
+      this.pendingProgram = held;
+    }
     // The persist rides the outbox tail ahead of any enqueue issued after this
     // call; a carrier failure leaves the bounds pending and the next enqueue
     // refuses loudly with the bound unknown.
@@ -371,7 +428,9 @@ export class OfflineRuntime {
     outbox?: { put?: OutboxEntry[]; remove?: string[] },
   ): Promise<void> {
     if (items.length === 0 && !watermark && !outbox) return;
-    await this.serial(async () => {
+    // An outbox write shares the ledger's tail (one critical section for
+    // every enqueue, adoption, bound, settlement, and prediction drop).
+    const run = () => this.serial(async () => {
       if (this.partition === undefined) {
         throw new OfflineAuthorityError("an offline partition must be opened before committing a delivery");
       }
@@ -436,11 +495,13 @@ export class OfflineRuntime {
         schema: this.schema,
         ...(watermarkRecord ? { watermark: watermarkRecord } : {}),
         ...(outbox ? { outbox } : {}),
+        ...(nextFacts && nextFacts !== this.facts ? { facts: nextFacts } : {}),
       });
       this.facts = nextFacts;
       for (const item of [...deliveries, ...refreshes]) this.latestSeq = Math.max(this.latestSeq, item.seq);
       if (outbox) this.outbox.notify();
     });
+    await (outbox ? this.outbox.write(run) : run());
   }
 
   async answer<Result>(op: string, args: unknown): Promise<HeldAnswer<Result> | undefined> {
@@ -537,17 +598,34 @@ export class OfflineRuntime {
   private async flushBounds(): Promise<void> {
     const bounds = this.pendingBounds;
     if (!bounds || this.partition === undefined) return;
+    const program = this.pendingProgram;
     this.pendingBounds = undefined;
+    this.pendingProgram = undefined;
     try {
-      await this.outbox.recordBounds(bounds);
+      // One generation is held at a time: the program replaces its predecessor whole.
+      await this.outbox.recordBounds(bounds, program === undefined ? undefined : { [program.generation]: program });
     } catch (error) {
       this.pendingBounds = bounds;
+      this.pendingProgram = program;
       throw error;
     }
   }
 
+  private async loadProgram(): Promise<void> {
+    let programs: Record<string, HeldProgram>;
+    // Custody like the outbox: sealed with it, read again on unseal.
+    try { programs = await this.store.outbox.programs(); } catch { return; }
+    const held = Object.values(programs)[0];
+    if (held) this.held = held;
+    if (held && this.schema === undefined) this.schema = held.schema;
+  }
+
   private async loadFacts(): Promise<void> {
     const coverage = await this.store.coverage();
+    if (coverage.facts) {
+      this.facts = coverage.facts;
+      return;
+    }
     const watermark = tailWatermark(coverage.watermarks);
     if (watermark?.generation && watermark.schemaHash && watermark.authEpoch !== undefined) {
       this.facts = {
@@ -565,20 +643,44 @@ export class OfflineRuntime {
   }
 }
 
-export function offlineView<Result>(held: HeldAnswer<Result> | undefined): any {
-  if (!held) return { state: "hydrating", live: false, connection: "offline" };
-  const {
-    op: _op,
-    args: _args,
-    receipt: _receipt,
-    validator: _validator,
-    deliveredAt,
-    ...answer
-  } = held;
+/**
+ * The offline view of a query: the twin's local answer when it ran and is at
+ * least as exact as the held one, else the held answer, else `hydrating`. A
+ * held answer's facts (`seq`, `since`, the drain's watermark, `retained`) stay
+ * with the twin's data: the stored answer is the covered case, not a second
+ * mechanism (LLP 1012 §6).
+ */
+export function offlineView<Result>(held: HeldAnswer<Result> | undefined, local?: LocalAnswer): any {
+  const exactHeld = held !== undefined && (held.state === "complete" || held.state === "capped");
+  const useLocal = local !== undefined && !(local.state === "partial" && exactHeld) && !held?.retained;
+  if (!useLocal) {
+    if (!held) return { state: "hydrating", live: false, connection: "offline" };
+    const {
+      op: _op,
+      args: _args,
+      receipt: _receipt,
+      validator: _validator,
+      deliveredAt,
+      ...answer
+    } = held;
+    return {
+      ...answer,
+      live: false,
+      connection: "offline",
+      stale: { since: deliveredAt },
+    };
+  }
+  const { since, ...answer } = local;
+  const facts = held === undefined ? {} : {
+    seq: held.seq,
+    ...(held.caughtUp === undefined ? {} : { caughtUp: held.caughtUp }),
+    ...(held.watermark === undefined ? {} : { watermark: held.watermark }),
+  };
   return {
     ...answer,
+    ...facts,
     live: false,
     connection: "offline",
-    stale: { since: deliveredAt },
+    stale: { since: held?.deliveredAt ?? since ?? Date.now() },
   };
 }

@@ -584,10 +584,23 @@ journey("an edit queued offline against a row the owner then edits settles as a 
   await drain.until((value) => (value.state === "complete" || value.state === "capped") && value.caughtUp === true);
   const posted = await alice.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "original" });
   if (posted.state !== "committed") throw new Error(`post was ${posted.state}`);
-  await drain.until((value) => "data" in value && bodies(value.data).includes("original"));
+  const second = await alice.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "left alone" });
+  if (second.state !== "committed") throw new Error(`second post was ${second.state}`);
+  await drain.until((value) => "data" in value && bodies(value.data).includes("original") && bodies(value.data).includes("left alone"));
   await alice.offline();
   const edit = await alice.mutation(api.deliveries.edit, { messageId: posted.data.id, body: "mine", baseBody: "original" });
   if (edit.state !== "queued") throw new Error(`offline edit was ${edit.state}`);
+  // A second message nobody else touches: the same edit with a trace that still holds commits.
+  const untouched = await alice.mutation(api.deliveries.edit, { messageId: second.data.id, body: "left alone, edited", baseBody: "left alone" });
+  if (untouched.state !== "queued") throw new Error(`the second offline edit was ${untouched.state}`);
+  const queued = await alice.outbox.entries();
+  for (const item of queued) {
+    // @ref LLP 1012#7-writes-offline — the twin traced the row it read: the point with the wire digest.
+    const point = item.trace?.points.find((candidate) => candidate.table === "messages" && candidate.index === "byId");
+    if (item.predicted !== true || !point || !/^[0-9a-f]{64}$/.test(point.digest ?? "")) {
+      throw new Error(`the offline edit was queued without its trace: ${JSON.stringify(item.trace)}`);
+    }
+  }
   const owner = as("alice");
   const theirs = await owner.mutation(api.deliveries.edit, { messageId: posted.data.id, body: "theirs", baseBody: "original" });
   if (theirs.state !== "committed") throw new Error(`the owner's edit was ${theirs.state}`);
@@ -596,14 +609,58 @@ journey("an edit queued offline against a row the owner then edits settles as a 
   await alice.settled();
   const entry = (await alice.outbox.entries()).find((item) => item.intent === edit.intent);
   if (entry?.state !== "rejected") throw new Error(`the stale edit settled as ${entry?.state}`);
-  const response = entry.response as { code?: string; reason?: string };
-  if (response.code !== "CONFLICT" && response.reason !== "conflict") {
+  const response = entry.response as { code?: string; reason?: string; site?: string };
+  // Trace validation names the moved read before the program's own `CONFLICT` can (LLP 1012 §7).
+  if (response.reason !== "conflict" || response.code !== "E_OFFLINE_CONFLICT" || typeof response.site !== "string") {
     throw new Error(`the stale edit was refused for another reason: ${JSON.stringify(response)}`);
   }
+  const matching = (await alice.outbox.entries()).find((item) => item.intent === untouched.intent);
+  if (matching?.state !== "committed") throw new Error(`the matching edit settled as ${matching?.state}: ${JSON.stringify(matching?.response)}`);
   await drain.until((value) => "data" in value && bodies(value.data).includes("theirs"));
   const thread = await alice.query(api.deliveries.thread, { conversationId: "conversation-1", c: null });
   if (!("data" in thread) || !bodies(thread.data).includes("theirs") || bodies(thread.data).includes("mine")) {
     throw new Error("the conflict did not leave the owner's edit in place");
   }
   drain.close();
+});
+
+// @ref LLP 1012#6-reads-offline — the acceptance only the twin can pass: a
+// conversation the viewer never opened online renders from the drained log
+// through `thread`, and a send queued offline appears inside that thread's
+// result as predicted, in order, then settles under the same pinned id.
+journey("a never-opened chat renders offline from the drained log and an offline send is predicted into it in order", async ({ as }) => {
+  const bob = as("bob", { store: "file", onTombstone: tombstones });
+  const drain = bob.subscribe(api.deliveries.inbox, { c: null }, () => undefined, { drain: true });
+  await drain.until((value) => (value.state === "complete" || value.state === "capped") && value.caughtUp === true);
+  drain.close();
+  await bob.offline();
+  const local = await bob.query(api.deliveries.thread, { conversationId: "conversation-1", c: null });
+  if (local.state !== "complete" || !("connection" in local) || local.connection !== "offline" || !Array.isArray(local.data)) {
+    throw new Error(`the never-opened thread was ${local.state} offline${"reason" in local ? ` (${String(local.reason)})` : ""}`);
+  }
+  const sent = await bob.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "from the train" });
+  if (sent.state !== "queued") throw new Error(`offline send was ${sent.state}`);
+  const [entry] = await bob.outbox.entries();
+  if (entry?.predicted !== true) throw new Error("the send was queued without a prediction");
+  if (!entry.trace?.points.some((point) => point.table === "memberships" && typeof point.digest === "string")) {
+    throw new Error(`the trace lacks the membership read: ${JSON.stringify(entry.trace)}`);
+  }
+  const predicted = await bob.query(api.deliveries.thread, { conversationId: "conversation-1", c: null });
+  if (!("data" in predicted) || !Array.isArray(predicted.data)) throw new Error("the predicted thread did not return rows");
+  // `last 50` pages newest-first: the queued send leads.
+  if (predicted.data[0]?.message?.id !== sent.ids[0] || predicted.data[0]?.message?.body !== "from the train") {
+    throw new Error(`the queued send is not inside the thread in order: ${JSON.stringify(bodies(predicted.data))}`);
+  }
+  if (!("predicted" in predicted) || !predicted.predicted?.includes(sent.intent)) throw new Error("the thread did not mark the send predicted");
+  await bob.online();
+  await bob.settled();
+  const settled = (await bob.outbox.entries()).find((item) => item.intent === sent.intent);
+  if (settled?.state !== "committed") throw new Error(`the predicted send settled as ${settled?.state}: ${JSON.stringify(settled?.response)}`);
+  const online = await bob.query(api.deliveries.thread, { conversationId: "conversation-1", c: null });
+  if (!("data" in online) || !Array.isArray(online.data)) throw new Error("the online thread did not return rows");
+  if (online.data[0]?.message?.id !== sent.ids[0]) throw new Error("the server row does not carry the pinned id the prediction used");
+  // The offline replay before the send was the server's answer: same rows in the same order, the send aside.
+  const replayed = JSON.stringify(local.data.map((row: LogRow) => [row.messageId, row.message?.body]));
+  const served = JSON.stringify(online.data.slice(1).map((row: LogRow) => [row.messageId, row.message?.body]));
+  if (replayed !== served) throw new Error(`the offline thread differed from the server's: ${replayed} vs ${served}`);
 });
