@@ -7,6 +7,7 @@ import {
   assetIdsIn,
   byteKey,
   leasedAssets,
+  viewedOnlyAssets,
   type ByteCacheEntry,
   type ByteCacheStatus,
   type ByteDelta,
@@ -87,7 +88,10 @@ export interface Coverage {
   absences: Receipt["absences"];
   verdicts: unknown[];
   watermarks: WatermarkRecord[];
-  /** View-once rows already viewed on this partition; a replay must not render them (LLP 1012 §9). */
+  /**
+   * View-once rows already viewed on this partition: absent from `rows`, listed under
+   * `absences` as a `byId` point, and named here so a replay never renders them (LLP 1012 §9).
+   */
   viewed?: RowRef[];
 }
 
@@ -178,7 +182,11 @@ export interface StoreSwap {
   resetCoverage?: boolean;
   dropAnswers?: string[];
   outbox?: { put?: OutboxEntry[]; remove?: string[] };
-  /** Byte-cache puts and read touches; they land in the same carrier transaction as the rows. */
+  /**
+   * Byte-cache puts and read touches; they land in the same swap as the rows: one
+   * readwrite transaction on IndexedDB, an ordered payload write + state rename with
+   * a sweep on open for the Node file carrier.
+   */
   bytes?: ByteSwapRequest;
   /** View-once rows viewed now: excluded from every later answer, their bytes never cached. */
   viewed?: RowRef[];
@@ -568,13 +576,19 @@ export class PersistentRangeStore implements RangeStore {
         for (const absence of answer.receipt?.absences ?? []) absences.set(canonical(absence), clone(absence));
         for (const verdict of answer.receipt?.verdicts ?? []) verdicts.set(canonical(verdict), clone(verdict));
       }
+      // A viewed view-once row is absent to the twin: not a row, and a byId absence (LLP 1012 §9).
+      const viewed = Object.keys(this.state.viewed).map(viewedRef);
+      for (const ref of viewed) {
+        const absence: Receipt["absences"][number] = [ref.table, "byId", [ref.id]];
+        absences.set(canonical(absence), absence);
+      }
       return {
-        rows: clone(Object.values(this.state.rows)),
+        rows: clone(Object.entries(this.state.rows).filter(([key]) => !this.state.viewed[key]).map(([, row]) => row)),
         ranges: [...ranges.values()],
         absences: [...absences.values()],
         verdicts: [...verdicts.values()],
         watermarks: clone(Object.values(this.state.watermarks)),
-        viewed: Object.keys(this.state.viewed).map(viewedRef),
+        viewed,
       };
     });
   }
@@ -622,9 +636,28 @@ export class PersistentRangeStore implements RangeStore {
       : clone(Object.values(this.state.rows).filter((row) => assetIdsIn(row.row).has(assetId))));
   }
 
+  /** True while every held row carrying this asset is a viewed view-once row (per row, LLP 1012 §9). */
   async viewedAsset(assetId: string): Promise<boolean> {
-    return this.read(() => !this.state.sealed
-      && Object.values(this.state.viewed).some((record) => record.assets.includes(assetId)));
+    return this.read(() => !this.state.sealed && viewedOnlyAssets(this.state).has(assetId));
+  }
+
+  /** The viewed view-once rows; a live frame nulls them exactly as a held answer does. */
+  async viewedRows(): Promise<RowRef[]> {
+    return this.read(() => this.state.sealed ? [] : Object.keys(this.state.viewed).map(viewedRef));
+  }
+
+  /**
+   * LRU read stamps, coalesced per swap: a read stamps the entry in memory and the next
+   * swap's `replace` persists it, so a read never rewrites the carrier (LLP 1012 §9).
+   */
+  async touchBytes(keys: string[]): Promise<void> {
+    await this.enqueue(async () => {
+      if (this.partition === undefined || this.state.sealed) return;
+      for (const key of keys) {
+        const entry = this.state.assets[key];
+        if (entry) entry.lastRead = ++this.state.clock;
+      }
+    });
   }
 
   async close(): Promise<void> {

@@ -41,9 +41,11 @@ class FileBackend implements RangeStoreBackend {
   }
 
   // @ref LLP 1012#9-asset-bytes-on-the-device — the index in the state file is the
-  // authority over bytes: payloads are written before the rename that publishes
-  // them and dropped after the rename that forgets them, so a crash leaves only
-  // garbage the next open sweeps, never a served byte without its row.
+  // authority over bytes. This carrier has no transaction: it is an ordered write
+  // (payloads first, then the state file's rename, then the removals) plus a sweep
+  // on open. A crash leaves only garbage the next open sweeps, never a served byte
+  // without its row; a removed payload may outlive its row on disk until the delete
+  // after the rename or the next open. IndexedDB is the carrier with one transaction.
   async replace(state: PersistedRangeState, bytes: ByteDelta): Promise<void> {
     if (!this.path) throw new OfflineStoreFailure("E_OFFLINE_CARRIER", "Node file carrier is not open");
     const temporary = `${this.path}.tmp-${process.pid}-${++this.writeNumber}`;

@@ -1,18 +1,16 @@
 // Lane O4-web: asset bytes under the row's lease, view-once at view time (LLP 1012 §9, LLP 1006 §9b).
 import assert from "node:assert/strict";
-import { mkdtemp, readdir, rm, stat } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { JSDOM } from "jsdom";
 import { SnapbackRefusal, api, createClient } from "../dist/client.mjs";
 import { AssetImage, AssetVideo, SnapbackProvider, indexedDbRangeStore } from "../dist/react.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
 import { FakeIndexedDb, FakeLocks } from "./fake-indexeddb.ts";
-
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+import { domEnvironment, until } from "./dom-environment.ts";
 
 const A = "s2id-00000000000000000000000000000006-0000000000000001";
 const B = "s2id-00000000000000000000000000000006-0000000000000002";
@@ -352,35 +350,65 @@ test("the IndexedDB carrier upgrades a version-1 database, keeps payloads in the
   await store.close?.();
 });
 
+test("a cache read stamps the LRU in memory without rewriting the carrier; the next swap persists the order", async () => {
+  const root = await tempRoot();
+  try {
+    const statePath = join(root, `${encodeURIComponent("dev:alice")}.json`);
+    const store: any = fileRangeStore(root)();
+    await store.open("dev:alice");
+    await store.commit({ deliveries: [{
+      op: "thread", args: {}, state: "complete",
+      data: [ref("messages", "m1"), ref("messages", "m2"), ref("messages", "m3")], next: null, seq: 1,
+      rows: [messageRow("m1", A), messageRow("m2", B), messageRow("m3", C)], receipt: emptyReceipt(),
+    }] });
+    const ceiling = 10;
+    await store.commit({ bytes: { put: [put(A, 8, 4, 1)], ceiling } });
+    await store.commit({ bytes: { put: [put(B, 8, 4, 2)], ceiling } });
+    const before = await readFile(statePath, "utf8");
+    await store.touchBytes([key(A, 8)]);
+    await store.touchBytes([key(A, 8)]);
+    assert.equal(await readFile(statePath, "utf8"), before, "a read stamp never rewrites the carrier");
+    await store.commit({ bytes: { put: [put(C, 8, 4, 3)], ceiling } });
+    assert.deepEqual((await store.bytes()).entries.map((entry: any) => entry.assetId).sort(), [A, C], "the ceiling evicted B: A's in-memory stamp counted");
+    await store.close?.();
+    const cold: any = fileRangeStore(root)();
+    await cold.open("dev:alice");
+    const entries = (await cold.bytes()).entries;
+    assert.ok(entries.find((entry: any) => entry.assetId === A).lastRead < entries.find((entry: any) => entry.assetId === C).lastRead, "the swap persisted the stamps");
+    await cold.close?.();
+
+    // The client's read path: cache hits touch in memory only.
+    let assetFetches = 0;
+    const client = createClient({
+      url: "http://touch.test", as: "alice", offline: { store: fileRangeStore(root) },
+      fetch: async (input) => {
+        const url = new URL(String(input));
+        const metadata = metadataResponse(url);
+        if (metadata) return metadata;
+        if (url.pathname.startsWith("/api/asset/")) {
+          assetFetches += 1;
+          return new Response(bytesOf(4, 7), { status: 200, headers: { "Content-Type": "image/jpeg" } });
+        }
+        if (url.pathname === "/api/query") return new Response(JSON.stringify(envelope([ref("messages", "m1")], [messageRow("m1", A)])), { status: 200 });
+        throw new Error(`unexpected path ${url.pathname}`);
+      },
+    });
+    await client.ready;
+    await client.query(api.messages.thread, { conversationId: "c1", c: null });
+    const url = (await client.assetUrl(photo(A) as any, { width: 16 }))!;
+    await client.assetBlob(url);
+    assert.equal(assetFetches, 1);
+    const written = await readFile(statePath, "utf8");
+    for (let read = 0; read < 3; read += 1) assert.equal((await client.assetBlob(url)).size, 4);
+    assert.equal(assetFetches, 1, "served from the cache");
+    assert.equal(await readFile(statePath, "utf8"), written, "three cache hits wrote nothing");
+    client.close();
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
 test("AssetImage, AssetVideo, and useAssetUrl render held renditions from the byte cache offline without the network", async () => {
   const root = await tempRoot();
-  const dom = new JSDOM('<!doctype html><html><body><div id="root"></div></body></html>', { url: "http://assets.test/" });
-  const saved = new Map<string, PropertyDescriptor | undefined>();
-  for (const [name, value] of [
-    ["window", dom.window],
-    ["document", dom.window.document],
-    ["HTMLElement", dom.window.HTMLElement],
-    ["HTMLImageElement", dom.window.HTMLImageElement],
-    ["navigator", dom.window.navigator],
-  ] as const) {
-    saved.set(name, Object.getOwnPropertyDescriptor(globalThis, name));
-    Object.defineProperty(globalThis, name, { configurable: true, writable: true, value });
-  }
-  saved.set("ResizeObserver", Object.getOwnPropertyDescriptor(globalThis, "ResizeObserver"));
-  class TestResizeObserver {
-    private readonly callback: ResizeObserverCallback;
-    constructor(callback: ResizeObserverCallback) { this.callback = callback; }
-    observe(): void { this.callback([{ contentRect: { width: 120 } } as ResizeObserverEntry], this as unknown as ResizeObserver); }
-    disconnect(): void {}
-    unobserve(): void {}
-  }
-  Object.defineProperty(globalThis, "ResizeObserver", { configurable: true, value: TestResizeObserver });
-  Object.defineProperty(dom.window, "devicePixelRatio", { configurable: true, value: 2 });
-  const originalCreate = URL.createObjectURL;
-  const originalRevoke = URL.revokeObjectURL;
-  let objectUrls = 0;
-  URL.createObjectURL = () => `blob:test-${++objectUrls}`;
-  URL.revokeObjectURL = () => undefined;
+  const env = domEnvironment();
   const assetFetches: string[] = [];
   let carrierCalls = 0;
   let phase: "online" | "offline" = "online";
@@ -416,18 +444,10 @@ test("AssetImage, AssetVideo, and useAssetUrl render held renditions from the by
       React.createElement(AssetVideo, { asset: clip(V) as any, "aria-label": "clip" }),
     );
   }
-  const render = async (root: Root) => {
-    await act(async () => {
-      root.render(React.createElement(
-        SnapbackProvider,
-        { url: "http://assets.test", as: "alice", fetch, offline: { store: fileRangeStore(root as never) } } as any,
-        React.createElement(Harness),
-      ));
-    });
-  };
+  const document = env.dom.window.document;
   let reactRoot: Root | undefined;
   try {
-    reactRoot = createRoot(dom.window.document.getElementById("root")!);
+    reactRoot = createRoot(document.getElementById("root")!);
     await act(async () => {
       reactRoot!.render(React.createElement(
         SnapbackProvider,
@@ -435,14 +455,14 @@ test("AssetImage, AssetVideo, and useAssetUrl render held renditions from the by
         React.createElement(Harness),
       ));
     });
-    for (let attempt = 0; attempt < 40 && (!dom.window.document.querySelector("img")?.getAttribute("src") || assetFetches.length < 2); attempt += 1) {
-      await act(async () => { await new Promise((resolve) => setTimeout(resolve, 10)); });
-    }
+    assert.ok(await until(() => Boolean(document.querySelector("img")?.getAttribute("src")) && assetFetches.length >= 2));
     assert.deepEqual(assetFetches.sort(), [`/api/asset/${A}?w=240`, `/api/asset/${V}`], "the image at its width and the clip once, tokenless");
-    assert.equal(dom.window.document.querySelector("video")!.src, `http://assets.test/api/asset/${V}?s=dom-carrier`, "online, the player streams from the carrier");
+    assert.equal(document.querySelector("video")!.src, `http://assets.test/api/asset/${V}?s=dom-carrier`, "online, the player streams from the carrier");
     assert.ok(carrierCalls >= 1);
+    const shown = document.querySelector("img")!.getAttribute("src")!;
     await act(async () => reactRoot!.unmount());
     reactRoot = undefined;
+    assert.ok(env.revoked.includes(shown), "unmount revoked the image's blob: URL");
     for (let attempt = 0; attempt < 20; attempt += 1) {
       const inspect: any = fileRangeStore(root)();
       await inspect.open("dev:alice");
@@ -454,8 +474,7 @@ test("AssetImage, AssetVideo, and useAssetUrl render held renditions from the by
     phase = "offline";
     const fetchesBefore = assetFetches.length;
     const carriersBefore = carrierCalls;
-    reactRoot = createRoot(dom.window.document.getElementById("root")!);
-    void render;
+    reactRoot = createRoot(document.getElementById("root")!);
     await act(async () => {
       reactRoot!.render(React.createElement(
         SnapbackProvider,
@@ -463,24 +482,16 @@ test("AssetImage, AssetVideo, and useAssetUrl render held renditions from the by
         React.createElement(Harness),
       ));
     });
-    for (let attempt = 0; attempt < 40 && !(dom.window.document.querySelector("video")?.src ?? "").startsWith("blob:"); attempt += 1) {
-      await act(async () => { await new Promise((resolve) => setTimeout(resolve, 10)); });
-    }
-    const img = dom.window.document.querySelector("img")!;
-    const player = dom.window.document.querySelector("video")!;
+    assert.ok(await until(() => (document.querySelector("video")?.src ?? "").startsWith("blob:")));
+    const img = document.querySelector("img")!;
+    const player = document.querySelector("video")!;
     assert.match(img.getAttribute("src") ?? "", /^blob:test-/, "the image renders from the byte cache");
     assert.match(player.src, /^blob:test-/, "the clip plays from the byte cache");
     assert.equal(assetFetches.length, fetchesBefore, "no asset fetch offline");
     assert.equal(carrierCalls, carriersBefore, "no carrier minted for a held clip");
   } finally {
     if (reactRoot) await act(async () => reactRoot!.unmount());
-    URL.createObjectURL = originalCreate;
-    URL.revokeObjectURL = originalRevoke;
-    for (const [name, descriptor] of saved) {
-      if (descriptor) Object.defineProperty(globalThis, name, descriptor);
-      else Reflect.deleteProperty(globalThis, name);
-    }
-    dom.window.close();
+    env.restore();
     await rm(root, { recursive: true, force: true });
   }
 });
