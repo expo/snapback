@@ -684,6 +684,19 @@ persisted across a reopen, and two misses remove the overlay and clear `predicte
 replay entry stays `committed`. Residuals are filed in the overlay-retirement follow-ups
 ticket of 2026-09-04.
 
+**The supersession and reset rule as landed (lane T2, three review rounds, 2026-09-04).** Any
+delivery under a generation or schema other than the held program's is never installed: the
+caller still receives its live rows, but coverage is marked superseded and serves nothing
+until reset. Reset drops all coverage — rows, answers, watermarks, and generation-scoped
+negative evidence, never the outbox, its overlays, or viewed custody — adopts the live
+program's custody first, then rebuilds with fresh authenticated reads (a detached,
+cancellable flight; three rotations before a durable refusal), while every outbox
+settlement is fenced to its coverage revision so a stale tail stays queued and retries
+byte-identically; `ready()` and `ready(op)` are false on a sealed partition, React readiness
+is bound to client, authentication, and operation identity, and the fence boundary and grant
+expiry notify subscribers on a timer. Residuals are filed in the supersession follow-ups
+ticket of 2026-09-04.
+
 ## 8. The delivery envelope, the validator, and resume
 
 **The frozen envelope (lane O1's first landing; O2 starts against it).**
