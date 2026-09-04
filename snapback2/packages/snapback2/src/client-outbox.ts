@@ -1,6 +1,7 @@
 // @ref LLP 1012#7-writes-offline — writes that cannot reach the owner become
 // durable intents; replay is FIFO, one envelope per request, and a settlement
 // lands in the same swap as the rows the commit produced.
+import { throwIfAborted } from "./client-wire.js";
 import {
   SnapbackRefusal,
   isSnapbackRefusal,
@@ -169,18 +170,18 @@ export function drainOutbox(options: DrainOptions): Promise<DrainResult> {
 
 async function drainQueued(options: DrainOptions): Promise<DrainResult> {
   const { runtime } = options;
-  options.signal?.throwIfAborted();
+  throwIfAborted(options.signal);
   if (runtime.principal === undefined) return { stopped: false };
   for (const queued of await runtime.outbox.queued()) {
-    options.signal?.throwIfAborted();
+    throwIfAborted(options.signal);
     const entry = await runtime.store.outbox.get(queued.intent);
-    options.signal?.throwIfAborted();
+    throwIfAborted(options.signal);
     if (!entry || entry.state !== "queued") continue;
     // @ref LLP 1012#7-writes-offline — the fence never discards a queued
     // write: an intent neither its grant nor a later resume can vouch for
     // stops the drain, and only the owner's refusal can expire it.
     if (!(await runtime.outbox.canReplay(entry))) return { stopped: true, reason: "fence" };
-    options.signal?.throwIfAborted();
+    throwIfAborted(options.signal);
     let raw: unknown;
     try {
       raw = await options.json("/api/mutation", { method: "POST", body: JSON.stringify(replayEnvelope(entry)) });
@@ -197,7 +198,7 @@ async function drainQueued(options: DrainOptions): Promise<DrainResult> {
       }
       throw error;
     }
-    options.signal?.throwIfAborted();
+    throwIfAborted(options.signal);
     const result = wireReplayResponse(raw);
     if (result.state === "committed") {
       // @ref LLP 1012#7-writes-offline — a committed settlement lands with the
@@ -213,7 +214,7 @@ async function drainQueued(options: DrainOptions): Promise<DrainResult> {
         if (isSnapbackRefusal(error) && error.retryable) return { stopped: true };
         throw error;
       }
-      options.signal?.throwIfAborted();
+      throwIfAborted(options.signal);
       if (revision !== runtime.coverageRevision) return { stopped: true };
       if (!(await settle(options, entry, "committed", result, tail, revision))) return { stopped: true };
     } else {
@@ -233,10 +234,10 @@ async function settle(
 ): Promise<boolean> {
   const settled = options.runtime.outbox.settle(entry, state, response);
   try {
-    options.signal?.throwIfAborted();
+    throwIfAborted(options.signal);
     const superseded = await options.runtime.commitMany(tail ? [tail] : [], undefined, { put: [settled] }, revision,
       () => !options.signal?.aborted);
-    options.signal?.throwIfAborted();
+    throwIfAborted(options.signal);
     return !superseded && revision === options.runtime.coverageRevision;
   } catch (error) {
     throw options.failure(error);
@@ -255,7 +256,7 @@ async function settle(
 async function logTail(options: DrainOptions, revision: number) {
   const { runtime } = options;
   const coverage = await runtime.coverage();
-  options.signal?.throwIfAborted();
+  throwIfAborted(options.signal);
   if (revision !== runtime.coverageRevision) return undefined;
   const watermark = coverage ? tailWatermark(coverage.watermarks) : undefined;
   // No drained query, no tail: the intent settles `committed` with no rows in
@@ -269,13 +270,13 @@ async function logTail(options: DrainOptions, revision: number) {
     ? watermark.args
     : { ...(watermark.args as Record<string, unknown>), [cursor]: watermark.watermark };
   const held = await runtime.answer(watermark.op, args);
-  options.signal?.throwIfAborted();
+  throwIfAborted(options.signal);
   if (revision !== runtime.coverageRevision) return undefined;
   const raw = await options.json("/api/query?receipt=1", {
     method: "POST",
     body: JSON.stringify(held?.validator ? { op: watermark.op, args, validator: held.validator } : { op: watermark.op, args }),
   });
-  options.signal?.throwIfAborted();
+  throwIfAborted(options.signal);
   if (revision !== runtime.coverageRevision) return undefined;
   let accepted: AcceptedDelivery<unknown>;
   try {

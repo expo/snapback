@@ -297,3 +297,16 @@ export function sseObject(data: string, surface: string): Record<string, unknown
     throw wireShape(`${surface} must contain valid JSON`);
   }
 }
+
+/**
+ * `AbortSignal.prototype.throwIfAborted` does not exist on React Native's AbortSignal
+ * (Hermes, RN 0.81 / Expo SDK 54), so every abort check goes through this helper.
+ */
+export function throwIfAborted(signal?: AbortSignal | null): void {
+  if (!signal?.aborted) return;
+  const reason: unknown = (signal as { reason?: unknown }).reason;
+  if (reason instanceof Error) throw reason;
+  const error = new Error(typeof reason === "string" ? reason : "The operation was aborted");
+  error.name = "AbortError";
+  throw error;
+}

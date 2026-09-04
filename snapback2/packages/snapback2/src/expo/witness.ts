@@ -87,7 +87,7 @@ export function witnessControl(source: SnapbackClient | WitnessApplication, url:
           const result = await run(request.verb, request.args ?? {});
           send({ id, ok: true, result });
         } catch (error) {
-          send({ id, ok: false, error: isSnapbackRefusal(error) ? error.envelope : { message: String(error) } });
+          send({ id, ok: false, error: isSnapbackRefusal(error) ? error.envelope : { message: String(error), stack: error instanceof Error ? error.stack : undefined } });
         }
       })();
     };

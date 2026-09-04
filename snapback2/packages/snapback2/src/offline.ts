@@ -1,3 +1,4 @@
+import { throwIfAborted } from "./client-wire.js";
 import {
   DeliveryEnvelopeDecodeError,
   decodeDeliveryEnvelope,
@@ -395,7 +396,7 @@ export class OfflineRuntime {
    * slices from the certificate, never from a guess (LLP 1012 §7, §8).
    */
   async program(value: unknown, signal?: AbortSignal): Promise<void> {
-    signal?.throwIfAborted();
+    throwIfAborted(signal);
     if (!object(value) || !object(value.programs)) return;
     const bounds: Record<string, number> = {};
     for (const [name, program] of Object.entries(value.programs)) {
@@ -406,13 +407,13 @@ export class OfflineRuntime {
     // Always acquire the runtime queue before the ledger, as open() does when
     // adopting a login grant. Cancellation is checked at each queue boundary.
     await this.serial(() => {
-      signal?.throwIfAborted();
+      throwIfAborted(signal);
       return this.outbox.write(async () => {
-        signal?.throwIfAborted();
+        throwIfAborted(signal);
         // Custody must succeed before a reset can erase the predecessor coverage.
         if (this.partition !== undefined) {
           await this.store.commit({ bounds, ...(held ? { programs: { [held.generation]: held } } : {}) });
-          signal?.throwIfAborted();
+          throwIfAborted(signal);
         } else {
           this.pendingBounds = bounds;
           this.pendingProgram = held;
@@ -678,7 +679,7 @@ export class OfflineRuntime {
     // The fence's trust anchor belongs to the coverage being replaced.
     this.outbox.resetTrust();
     if (this.partition !== undefined) await this.serial(async () => {
-      signal?.throwIfAborted();
+      throwIfAborted(signal);
       const epoch = authEpoch ?? this.sessionEpoch ?? this.facts?.authEpoch;
       const facts = this.held && epoch !== undefined ? {
         generation: this.held.generation, schemaHash: this.held.schemaHash, authEpoch: epoch,
@@ -698,7 +699,7 @@ export class OfflineRuntime {
   /** Clear only the rebuild we completed, never a successor discovered during it. */
   async completeReset(revision: number, signal?: AbortSignal): Promise<boolean> {
     return this.serial(async () => {
-      signal?.throwIfAborted();
+      throwIfAborted(signal);
       if (revision !== this.coverageRevision) return false;
       if (!this.superseded) return true;
       if (!this.facts || !this.held || this.facts.generation !== this.held.generation

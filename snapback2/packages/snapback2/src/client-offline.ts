@@ -1,4 +1,5 @@
 // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — offline transport coordination is isolated from auth custody and asset methods.
+import { throwIfAborted } from "./client-wire.js";
 import { drainOutbox } from "./client-outbox.js";
 import { DrainSubscription } from "./drain.js";
 import { DeliveryEnvelopeDecodeError } from "./offline-protocol.js";
@@ -365,7 +366,7 @@ export async function performOfflineResume<Authority>(options: {
   /** Re-fetches `/api/program` for the live generation after `E_OFFLINE_RESET`. */
   reload?(authority: Authority): Promise<void>;
 }, adjustment: ResumeAdjustment = {}, retry = true): Promise<boolean> {
-  const check = () => options.signal?.throwIfAborted();
+  const check = () => throwIfAborted(options.signal);
   check();
   if (!options.runtime) return false;
   const revision = options.runtime.coverageRevision;

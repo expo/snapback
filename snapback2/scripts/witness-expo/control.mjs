@@ -20,7 +20,7 @@ export async function controlServer(port) {
       if (!request) return;
       pending.delete(value.id); clearTimeout(request.timer);
       if (value.ok) request.resolve(value.result);
-      else request.reject(Object.assign(new Error(value.error?.message ?? "witness command failed"), { envelope: value.error }));
+      else request.reject(Object.assign(new Error((value.error?.message ?? "witness command failed") + (value.error?.stack ? `\n${value.error.stack}` : "")), { envelope: value.error }));
     });
     socket.on("close", () => {
       for (const [id, request] of pending) { clearTimeout(request.timer); request.reject(new Error("app disconnected")); pending.delete(id); }

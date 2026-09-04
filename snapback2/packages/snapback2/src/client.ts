@@ -1,3 +1,4 @@
+import { throwIfAborted } from "./client-wire.js";
 import { api, referenceName, type Api, type ApiProxy, type Channel as ChannelRef, type Op } from "./api.js";
 import { AssetInputError, mayNeedAssetPlanning, planAssetArguments, substituteAssetRecords } from "./assets.js";
 import { captureGrant, createOutboxApi, drainOutbox, submitMutation } from "./client-outbox.js";
@@ -720,9 +721,9 @@ class Client implements SnapbackClient {
   }
 
   private async manifestFor(authority: Authority, signal?: AbortSignal): Promise<Manifest> {
-    signal?.throwIfAborted();
+    throwIfAborted(signal);
     const value = wireManifest(await this.json("/api/manifest", { signal }, authority));
-    signal?.throwIfAborted();
+    throwIfAborted(signal);
     this.validated(authority);
     this.patchSnapshot({ generation: value.generation });
     this.offlineRuntime?.manifest(value);
@@ -737,11 +738,11 @@ class Client implements SnapbackClient {
    * reloads after `E_OFFLINE_RESET`, whose generation the held program predates.
    */
   private async ensureOfflineMetadata(authority: Authority, force = false, retry = true, signal?: AbortSignal): Promise<void> {
-    signal?.throwIfAborted();
+    throwIfAborted(signal);
     if (!this.offlineRuntime || (this.offlineMetadataLoaded && !force)) return;
     let manifest: Manifest;
     // Unreachable at cold start: held answers and the outbox still serve; the metadata loads on the next reach.
-    try { manifest = await this.manifestFor(authority, signal); signal?.throwIfAborted(); } catch (error) {
+    try { manifest = await this.manifestFor(authority, signal); throwIfAborted(signal); } catch (error) {
       if (!force && isSnapbackRefusal(error) && error.retryable) return;
       throw error;
     }
@@ -752,9 +753,9 @@ class Client implements SnapbackClient {
           { signal },
           authority,
         );
-        signal?.throwIfAborted();
+        throwIfAborted(signal);
         await this.offlineRuntime.program(program, signal);
-        signal?.throwIfAborted();
+        throwIfAborted(signal);
       } catch (error) {
         if (!isSnapbackRefusal(error) || error.status !== 404) throw error;
         if (force) {
@@ -914,7 +915,7 @@ class Client implements SnapbackClient {
         );
       }
       this.ensureAuthority(authority);
-      signal.throwIfAborted();
+      throwIfAborted(signal);
       this.patchSnapshot({ connection: "connected" });
       return response;
     } catch (error) {
@@ -1066,7 +1067,7 @@ class Client implements SnapbackClient {
     const controller = new AbortController();
     this.resumeController = controller;
     const run = this.resumeOffline(authority, controller.signal).then(() => {
-      controller.signal.throwIfAborted();
+      throwIfAborted(controller.signal);
       this.ensureAuthority(authority);
       this.resetRefusal = undefined;
       this.validated(authority);
@@ -1099,7 +1100,7 @@ class Client implements SnapbackClient {
 
   private async resumeOffline(authority: Authority, signal: AbortSignal): Promise<void> {
     const runtime = this.offlineRuntime!;
-    const check = () => { signal.throwIfAborted(); this.ensureAuthority(authority); };
+    const check = () => { throwIfAborted(signal); this.ensureAuthority(authority); };
     const json = async (path: string, init: RequestInit) => {
       check();
       const value = await this.json(path, { ...init, signal }, authority);
