@@ -83,6 +83,7 @@ const declarationProgram = ts.createProgram({
     resolve(here, "src/client.ts"),
     resolve(here, "src/native-modules.d.ts"),
     resolve(here, "src/react-native.tsx"),
+    resolve(here, "src/offline-protocol.ts"),
     resolve(here, "src/react.tsx"),
     resolve(here, "src/sse.ts"),
     resolve(here, "src/types.ts"),
@@ -112,6 +113,7 @@ if (diagnostics.length > 0) {
 }
 const emitted = declarationProgram.emit();
 if (emitted.emitSkipped) throw new Error("TypeScript skipped client declaration emit");
+await mergeOfflineProtocolDeclarations();
 
 const guideSource = resolve(here, "guide");
 const guide = resolve(dist, "guide");
@@ -198,6 +200,21 @@ if (process.argv.includes("--self-test")) {
 }
 } finally {
   if (packageBuildToken) await releasePackageBuildLock(packageBuildToken);
+}
+
+async function mergeOfflineProtocolDeclarations() {
+  const indexPath = resolve(dist, "index.d.ts");
+  const offlinePath = resolve(dist, "offline-protocol.d.ts");
+  const [indexDeclarations, offlineDeclarations] = await Promise.all([
+    readFile(indexPath, "utf8"),
+    readFile(offlinePath, "utf8"),
+  ]);
+  const closingBrace = indexDeclarations.lastIndexOf("\n}");
+  if (closingBrace < 0) throw new Error("compiler/lib.d.ts lost its ambient snapback2 module");
+  await writeFile(
+    indexPath,
+    `${indexDeclarations.slice(0, closingBrace)}\n\n${offlineDeclarations.trim()}\n${indexDeclarations.slice(closingBrace)}`,
+  );
 }
 
 async function acquirePackageBuildLock() {

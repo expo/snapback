@@ -1,6 +1,9 @@
 use super::owner_support::*;
 use super::*;
 
+#[cfg(not(feature = "hermes"))]
+mod offline;
+
 #[test]
 fn quarry_source_watch_applies_a_successor() {
     let root = temp_root();

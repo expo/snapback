@@ -27,6 +27,7 @@ test("status listener exceptions cannot leak registration or break peers", async
     url: "http://wire.test",
     fetch: async () => fetchJson({
       generation: `g${++generation}`,
+      programGeneration: `pg${generation}`,
       ops: {},
       channels: {},
       auth: {},
@@ -66,7 +67,7 @@ test("useMutation treats malformed successful bodies as ambiguous transport", as
   const fetch = async (input: string | URL | Request) => {
     const path = new URL(String(input)).pathname;
     if (path === "/api/manifest") {
-      return fetchJson({ generation: "test", ops: {}, channels: {}, auth: {} });
+      return fetchJson({ generation: "test", programGeneration: "program", ops: {}, channels: {}, auth: {} });
     }
     attempts += 1;
     if (attempts === 1) {
@@ -121,7 +122,7 @@ test("useAuth ignores stale me responses after logout and client replacement", a
   const logoutFetch = async (input: string | URL | Request) => {
     const path = new URL(String(input)).pathname;
     if (path === "/api/manifest") {
-      return fetchJson({ generation: "old", ops: {}, channels: {}, auth: {} });
+      return fetchJson({ generation: "old", programGeneration: "old-program", ops: {}, channels: {}, auth: {} });
     }
     if (path === "/api/auth/logout") return fetchJson({ ok: true });
     if (path === "/api/auth/me") {
@@ -161,14 +162,14 @@ test("useAuth ignores stale me responses after logout and client replacement", a
   const oldFetch = async (input: string | URL | Request) => {
     const path = new URL(String(input)).pathname;
     if (path === "/api/manifest") {
-      return fetchJson({ generation: "old", ops: {}, channels: {}, auth: {} });
+      return fetchJson({ generation: "old", programGeneration: "old-program", ops: {}, channels: {}, auth: {} });
     }
     return await new Promise<Response>((resolve) => { releaseOldClient = resolve; });
   };
   const newFetch = async (input: string | URL | Request) => {
     const path = new URL(String(input)).pathname;
     if (path === "/api/manifest") {
-      return fetchJson({ generation: "new", ops: {}, channels: {}, auth: {} });
+      return fetchJson({ generation: "new", programGeneration: "new-program", ops: {}, channels: {}, auth: {} });
     }
     if (path === "/api/auth/me") return fetchJson({ viewer: "new-viewer", kind: "user" });
     throw new Error(`unexpected route ${path}`);

@@ -1,4 +1,22 @@
 type Descriptor = Readonly<Record<string, unknown>>;
+export {
+  DeliveryEnvelopeDecodeError,
+  decodeDeliveryEnvelope,
+  encodeDeliveryEnvelope,
+  expandRows,
+  toClosureReceipt,
+} from "./offline-protocol.js";
+export type {
+  DeliveryAuthority,
+  DeliveryEnvelopeV1,
+  DeliveryRange,
+  DeliveryReceipt,
+  DeliveryRow,
+  DeliveryVerdict,
+  EvaluatorClosureReceipt,
+  WireRowReference,
+  WireValue,
+} from "./offline-protocol.js";
 /** Server-minted authority subject; deliberately distinct from application row IDs. */
 export type Principal = string & { readonly __snapbackPrincipal: "Principal" };
 export type Cursor = string & { readonly __snapbackCursor: "Cursor" };

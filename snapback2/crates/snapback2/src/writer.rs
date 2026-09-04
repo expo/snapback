@@ -30,6 +30,8 @@ mod writer_auth;
 mod writer_effects;
 #[path = "writer_ledger.rs"]
 mod writer_ledger;
+#[path = "writer_offline.rs"]
+mod writer_offline;
 #[path = "writer_sse.rs"]
 mod writer_sse;
 #[path = "writer_values.rs"]
@@ -38,6 +40,7 @@ mod writer_values;
 use writer_assets::asset_record;
 use writer_auth::{SessionFence, actor};
 use writer_ledger::{CommitLedger, LedgerDelivery};
+pub(crate) use writer_offline::OfflineOptions;
 pub use writer_sse::{SseReceiver, SseSender, queue as sse_queue};
 use writer_values::{channel_args, frame_digest, json_as_kind, operation_args};
 
@@ -86,12 +89,14 @@ impl OwnerHandle {
         op: String,
         args: Json,
         identity: Identity,
+        offline: OfflineOptions,
         events: SseSender,
     ) -> Result<Json, Refusal> {
         self.call(Action::Subscribe {
             op,
             args,
             identity,
+            offline,
             events,
         })
     }
@@ -105,16 +110,21 @@ impl OwnerHandle {
 pub enum Action {
     Status,
     Manifest,
+    Program {
+        generation: String,
+    },
     Execute {
         op: String,
         args: Json,
         identity: Identity,
         expected: Option<ProgramKind>,
+        offline: OfflineOptions,
     },
     Subscribe {
         op: String,
         args: Json,
         identity: Identity,
+        offline: OfflineOptions,
         events: SseSender,
     },
     Unsubscribe {
@@ -280,6 +290,7 @@ struct LiveClient {
     op: String,
     context: Context,
     session: Option<SessionFence>,
+    offline: bool,
     last_frame: Json,
     events: SseSender,
 }
@@ -449,18 +460,23 @@ impl State {
         match action {
             Action::Status => self.status(),
             Action::Manifest => Ok(self.manifest()),
+            Action::Program { generation } => {
+                writer_offline::program(self.runtime().generation(), &generation)
+            }
             Action::Execute {
                 op,
                 args,
                 identity,
                 expected,
-            } => self.execute(&op, args, identity, expected),
+                offline,
+            } => self.execute(&op, args, identity, expected, offline),
             Action::Subscribe {
                 op,
                 args,
                 identity,
+                offline,
                 events,
-            } => self.subscribe(op, args, identity, events),
+            } => self.subscribe(op, args, identity, offline, events),
             Action::Unsubscribe { id } => {
                 if let Some(client) = self.live.remove(&id) {
                     self.runtime_mut().unsubscribe(client.runtime_id);
@@ -795,6 +811,7 @@ impl State {
         args: Json,
         identity: Identity,
         expected: Option<ProgramKind>,
+        offline: OfflineOptions,
     ) -> Result<Json, Refusal> {
         let kind = self
             .runtime()
@@ -826,9 +843,23 @@ impl State {
             self.execute_mutation(op, context)?
         } else {
             let context = self.context(&authority, op, args)?;
-            self.runtime_mut()
-                .execute(op, context)
-                .map_err(|error| Refusal::from_runtime(&error))?
+            let execution = self
+                .runtime_mut()
+                .execute(op, context.clone())
+                .map_err(|error| Refusal::from_runtime(&error))?;
+            if offline.receipt {
+                let full = writer_offline::envelope_json(
+                    self.runtime().generation(),
+                    op,
+                    &context,
+                    &execution,
+                );
+                return Ok(writer_offline::conditional_frame(
+                    &full,
+                    offline.validator.as_deref(),
+                ));
+            }
+            execution
         };
         Ok(execution_json(&execution))
     }
@@ -849,6 +880,7 @@ impl State {
         op: String,
         args: Json,
         identity: Identity,
+        offline: OfflineOptions,
         events: SseSender,
     ) -> Result<Json, Refusal> {
         let authority = self.resolve_authority(identity)?;
@@ -857,7 +889,17 @@ impl State {
             .runtime_mut()
             .subscribe(&op, context.clone())
             .map_err(|error| Refusal::from_runtime(&error))?;
-        let (data, terminal) = live_frame(Ok(&execution), execution.seq);
+        let full = if offline.receipt {
+            writer_offline::envelope_json(self.runtime().generation(), &op, &context, &execution)
+        } else {
+            live_frame(Ok(&execution), execution.seq).0
+        };
+        let data = if offline.receipt {
+            writer_offline::conditional_frame(&full, offline.validator.as_deref())
+        } else {
+            full.clone()
+        };
+        let terminal = false;
         events
             .send_latest(SseEvent {
                 seq: Some(execution.seq),
@@ -872,7 +914,8 @@ impl State {
                 op,
                 context,
                 session: authority.session,
-                last_frame: data,
+                offline: offline.receipt,
+                last_frame: full,
                 events,
             },
         );
@@ -1025,7 +1068,19 @@ impl State {
                 .subscribe(&client.op, client.context.clone())
             {
                 Ok((runtime_id, execution)) => {
-                    let (frame, terminal) = live_frame(Ok(&execution), execution.seq);
+                    let (frame, terminal) = if client.offline {
+                        (
+                            writer_offline::envelope_json(
+                                self.runtime().generation(),
+                                &client.op,
+                                &client.context,
+                                &execution,
+                            ),
+                            false,
+                        )
+                    } else {
+                        live_frame(Ok(&execution), execution.seq)
+                    };
                     let changed = frame_digest(&frame) != frame_digest(&client.last_frame);
                     client.runtime_id = runtime_id;
                     client.last_frame = frame.clone();

@@ -43,6 +43,8 @@ pub struct Generation {
     schema: Schema,
     programs: BTreeMap<String, (Program, Certificate)>,
     #[serde(skip_serializing)]
+    program_hash: String,
+    #[serde(skip_serializing)]
     table_read_certificates: BTreeMap<String, RuleCertificate>,
     channel_certificates: BTreeMap<String, ChannelCertificates>,
     effects: BTreeMap<String, EffectDecl>,
@@ -89,6 +91,14 @@ impl Generation {
     /// The generation identity is always derived from its certified schema.
     pub fn hash(&self) -> String {
         self.schema.hash()
+    }
+
+    /// Identity of the schema plus every certified operation. This is kept
+    /// separate from `hash()`, whose schema-only value is a durable successor
+    /// fence already persisted by existing stores.
+    // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — offline custody binds answers to the exact certified program set, not only the schema.
+    pub fn program_hash(&self) -> &str {
+        &self.program_hash
     }
 
     pub fn schema(&self) -> &Schema {
@@ -409,9 +419,15 @@ impl Generation {
         }
 
         if errors.is_empty() {
+            let certified_programs = programs
+                .iter()
+                .map(|(name, (program, certificate))| (name, program, digest(certificate)))
+                .collect::<Vec<_>>();
+            let program_hash = digest(&(schema.hash(), certified_programs));
             Ok(Self {
                 schema,
                 programs,
+                program_hash,
                 table_read_certificates,
                 channel_certificates,
                 effects,

@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Value as Json, json};
-use snapback2_core::{IdentityError, RuntimeError, SuccessorRefusal, Value, encode_bytes_hex};
+use snapback2_core::{IdentityError, RuntimeError, SuccessorRefusal, Value};
 use std::collections::BTreeMap;
 
 pub(crate) fn certification_family_guide(code: &str) -> (&'static str, &'static str) {
@@ -175,20 +175,7 @@ impl Refusal {
 }
 
 pub fn value_to_json(value: &Value) -> Json {
-    match value {
-        Value::Null => Json::Null,
-        Value::Bool(value) => Json::Bool(*value),
-        Value::Int(value) => Json::Number((*value).into()),
-        Value::String(value) | Value::Id(value) => Json::String(value.clone()),
-        Value::Bytes(value) => json!({ "Bytes": encode_bytes_hex(value) }),
-        Value::Row(values) | Value::Map(values) => Json::Object(
-            values
-                .iter()
-                .map(|(key, value)| (key.clone(), value_to_json(value)))
-                .collect(),
-        ),
-        Value::Array(values) => Json::Array(values.iter().map(value_to_json).collect()),
-    }
+    snapback2_core::value_to_wire_json(value)
 }
 
 pub fn json_to_value(value: &Json) -> Result<Value, Refusal> {
