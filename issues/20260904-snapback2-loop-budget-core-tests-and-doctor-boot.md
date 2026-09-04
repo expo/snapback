@@ -120,3 +120,17 @@ asset-fixture correction exited 1 (283.58 s under load); its entire affected
 package step was rerun after the correction. `bun src/test.ts` in the touched
 package exits 0. `./ref-check --verbose` is clean: 405 LLP docs, 7,497 refs,
 15,442 files, 0 errors, 0 unchecked. The compiler F9 check passed here.
+
+## Review notes on the landed index (grok, Muse, astra; 2026-09-04 afternoon)
+
+- `CREATE INDEX IF NOT EXISTS index_entries_by_row` runs on every open inside the store's
+  exclusive open transaction, so the first open of an existing populated store pays the index
+  build under the lock (a one-time migration cost per store; measure it at Clique scale before
+  the offline bar's cold-start number is recorded).
+- No test proves the other query plans stayed put after the index; the SQL-plan regression
+  test covers the paths it names only. Add plan assertions for the cleanup path and one hot
+  read.
+- Write amplification on every commit is real and accepted for the 10 k-message win.
+- The `measure.mjs` change (the core step through nextest + doctests instead of serial
+  `cargo test -p snapback2-core`) changes the ruler; it stays on branch `s2/loop-budget`
+  until the author rules, and any re-baseline follows three quiet measurements.
