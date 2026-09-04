@@ -5,7 +5,9 @@ use crate::asset_http::{MediaJobs, handle_asset_delivery, handle_upload};
 use crate::blob_store::{BlobStore, LocalStaging};
 use crate::control;
 use crate::protocol::{Refusal, refusal_json};
-use crate::writer::{Action, Identity, OwnerHandle, SseEvent, SseReceiver, sse_queue};
+use crate::writer::{
+    Action, Identity, OfflineOptions, OwnerHandle, SseEvent, SseReceiver, sse_queue,
+};
 use serde_json::{Value as Json, json};
 use std::collections::BTreeMap;
 use std::io::{Read, Write};
@@ -357,6 +359,14 @@ fn handle(mut request: Request, context: Context) {
             Err(error) => respond_refusal(request, 500, error, &context.mode),
         },
         ("GET", "/api/manifest") => call_json(request, &context, Action::Manifest, 200),
+        ("GET", "/api/program") => call_json(
+            request,
+            &context,
+            Action::Program {
+                generation: query.get("generation").unwrap_or_default().to_owned(),
+            },
+            200,
+        ),
         ("POST", "/api/auth/signup") => call_json(
             request,
             &context,
@@ -396,6 +406,7 @@ fn handle(mut request: Request, context: Context) {
                 args: body.get("args").cloned().unwrap_or_else(|| json!({})),
                 identity,
                 expected: Some(snapback2_core::ProgramKind::Query),
+                offline: offline_options(&body, &query),
             },
             200,
         ),
@@ -407,6 +418,7 @@ fn handle(mut request: Request, context: Context) {
                 args: body.get("args").cloned().unwrap_or_else(|| json!({})),
                 identity,
                 expected: Some(snapback2_core::ProgramKind::Mutation),
+                offline: OfflineOptions::default(),
             },
             200,
         ),
@@ -420,7 +432,10 @@ fn handle(mut request: Request, context: Context) {
                 }
             };
             let (tx, rx) = sse_queue();
-            match context.handle.subscribe(op, args, identity, tx) {
+            match context
+                .handle
+                .subscribe(op, args, identity, offline_options(&body, &query), tx)
+            {
                 Ok(meta) => {
                     let id = meta.get("id").and_then(Json::as_u64).unwrap_or(0);
                     respond_sse(
@@ -495,6 +510,9 @@ fn call_json(request: Request, context: &Context, action: Action, ok_status: u16
 pub(crate) fn respond_json(request: Request, status: u16, value: Json, mode: &str) {
     let mut headers = vec![content_type("application/json")];
     decorate_asset_response_headers(request.url(), &mut headers);
+    if status == 200 && request.url().split('?').next() == Some("/api/program") {
+        headers.push(header_value("Cache-Control", "public, immutable"));
+    }
     let mut response =
         Response::from_string(serde_json::to_string(&value).unwrap_or_else(|_| "{}".to_owned()))
             .with_status_code(StatusCode(status));
@@ -702,6 +720,18 @@ fn string_field(value: &Json, name: &str) -> String {
         .and_then(Json::as_str)
         .unwrap_or_default()
         .to_owned()
+}
+
+fn offline_options(body: &Json, query: &Query) -> OfflineOptions {
+    OfflineOptions {
+        receipt: body.get("receipt").and_then(Json::as_bool) == Some(true)
+            || query.get("receipt") == Some("1"),
+        validator: body
+            .get("validator")
+            .and_then(Json::as_str)
+            .or_else(|| query.get("validator"))
+            .map(ToOwned::to_owned),
+    }
 }
 
 pub(crate) fn refusal_status(refusal: &Refusal) -> u16 {

@@ -208,18 +208,20 @@ impl State {
             .programs()
             .iter()
             .filter(|(name, _)| !name.starts_with("__owner."))
-            .map(|(name, (program, _))| {
+            .map(|(name, (program, certificate))| {
                 (
                     name.clone(),
                     json!({
                         "kind": match program.kind { ProgramKind::Query => "query", ProgramKind::Mutation => "mutation" },
                         "args": program.args,
+                        "planHash": certificate.plan_hash,
                     }),
                 )
             })
             .collect::<Map<_, _>>();
         json!({
             "generation": self.runtime().generation().hash(),
+            "programGeneration": self.runtime().generation().program_hash(),
             "ops": ops,
             "channels": self.runtime().generation().schema().channels,
             "auth": self.runtime().generation().schema().auth,

@@ -1253,7 +1253,7 @@ test("React query identity moves to a hydrating auth-generation partition", asyn
   const fetch = async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
     const path = pathOf(input);
     if (path === "/api/manifest") {
-      return json({ generation: "g1", ops: {}, channels: {}, auth: {} });
+      return json({ generation: "g1", programGeneration: "pg1", ops: {}, channels: {}, auth: {} });
     }
     if (path === "/api/auth/me") {
       const viewer = bearer(init) === "Bearer new-token" ? "principal-new" : "principal-old";

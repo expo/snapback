@@ -102,9 +102,10 @@ export interface ChannelHandle<Payload = unknown> {
   subscribe(callback: (event: ChannelDelivery<Payload>) => void): Subscription<ChannelDelivery<Payload>>;
 }
 
-export interface ManifestOperation { kind: string; args: unknown }
+export interface ManifestOperation { kind: string; args: unknown; planHash: string }
 export interface Manifest {
   generation: string;
+  programGeneration: string;
   ops: Record<string, ManifestOperation>;
   channels: Record<string, unknown>;
   auth: Record<string, unknown>;

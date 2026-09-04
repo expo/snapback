@@ -10,6 +10,8 @@ use std::time::Duration;
 pub(super) struct Response {
     pub(super) status: u16,
     pub(super) body: Value,
+    pub(super) body_bytes: Vec<u8>,
+    pub(super) headers: String,
 }
 
 pub(super) fn request(
@@ -47,7 +49,7 @@ pub(super) fn request(
         .windows(4)
         .position(|window| window == b"\r\n\r\n")
         .unwrap();
-    let head = String::from_utf8_lossy(&bytes[..split]);
+    let head = String::from_utf8_lossy(&bytes[..split]).into_owned();
     let status = head
         .lines()
         .next()
@@ -57,8 +59,51 @@ pub(super) fn request(
         .unwrap()
         .parse()
         .unwrap();
-    let body = serde_json::from_slice(&bytes[split + 4..]).unwrap();
-    Response { status, body }
+    let wire_body = &bytes[split + 4..];
+    let body_bytes = if head
+        .lines()
+        .any(|line| line.eq_ignore_ascii_case("Transfer-Encoding: chunked"))
+    {
+        decode_chunked(wire_body)
+    } else {
+        wire_body.to_vec()
+    };
+    let body = serde_json::from_slice(&body_bytes).unwrap_or_else(|error| {
+        panic!(
+            "{method} {path}: response body is not one JSON value: {error}; body={}",
+            String::from_utf8_lossy(&body_bytes),
+        )
+    });
+    Response {
+        status,
+        body,
+        body_bytes,
+        headers: head,
+    }
+}
+
+fn decode_chunked(bytes: &[u8]) -> Vec<u8> {
+    let mut cursor = 0;
+    let mut decoded = Vec::new();
+    loop {
+        let line_end = bytes[cursor..]
+            .windows(2)
+            .position(|window| window == b"\r\n")
+            .map(|offset| cursor + offset)
+            .unwrap();
+        let size =
+            usize::from_str_radix(std::str::from_utf8(&bytes[cursor..line_end]).unwrap(), 16)
+                .unwrap();
+        cursor = line_end + 2;
+        if size == 0 {
+            break;
+        }
+        decoded.extend_from_slice(&bytes[cursor..cursor + size]);
+        cursor += size;
+        assert_eq!(&bytes[cursor..cursor + 2], b"\r\n");
+        cursor += 2;
+    }
+    decoded
 }
 
 pub(super) fn status(port: u16, secret: &str) -> Value {
@@ -119,6 +164,10 @@ impl Sse {
     }
 
     pub(super) fn event(&mut self) -> Value {
+        serde_json::from_str(&self.event_text()).unwrap()
+    }
+
+    pub(super) fn event_text(&mut self) -> String {
         loop {
             let mut size = String::new();
             self.reader.read_line(&mut size).unwrap();
@@ -134,7 +183,7 @@ impl Sse {
                 .find_map(|line| line.strip_prefix("id: "))
                 .and_then(|value| value.parse().ok());
             if let Some(data) = text.lines().find_map(|line| line.strip_prefix("data: ")) {
-                return serde_json::from_str(data).unwrap();
+                return data.to_owned();
             }
         }
     }

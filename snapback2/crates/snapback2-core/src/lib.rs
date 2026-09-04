@@ -13,6 +13,7 @@ mod growth;
 pub mod identity;
 pub mod ir;
 pub mod live;
+pub mod offline;
 pub mod principal;
 pub mod programs;
 pub mod registry;
@@ -47,6 +48,11 @@ pub use identity::{
 };
 pub use ir::*;
 pub use live::{Delivery, SubscriptionId, SubscriptionInfo, Subscriptions};
+pub use offline::{
+    DELIVERY_PROTOCOL_V1, DeliveryAuthority, DeliveryEnvelopeV1, DeliveryProjectionContext,
+    DeliveryRange, DeliveryReceipt, DeliveryRow, DeliveryState, DeliveryVerdict,
+    project as project_delivery, value_to_wire_json,
+};
 pub use principal::PrincipalId;
 pub use programs::*;
 pub use registry::{

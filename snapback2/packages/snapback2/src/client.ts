@@ -259,10 +259,12 @@ function wireManifest(value: unknown): Manifest {
   for (const [name, operation] of Object.entries(ops)) {
     const item = wireObject(operation, `${surface}.ops.${name}`);
     stringField(item, "kind", `${surface}.ops.${name}`);
+    stringField(item, "planHash", `${surface}.ops.${name}`);
     present(item, "args", `${surface}.ops.${name}`);
   }
   return {
     generation: stringField(record, "generation", surface),
+    programGeneration: stringField(record, "programGeneration", surface),
     ops: ops as unknown as Manifest["ops"],
     channels: wireObject(present(record, "channels", surface), `${surface}.channels`),
     auth: wireObject(present(record, "auth", surface), `${surface}.auth`),

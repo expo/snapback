@@ -261,7 +261,8 @@ class MockOwner {
     if (request.method === "GET" && parsed.pathname === "/api/manifest") {
       json(response, 200, {
         generation: "mock-generation",
-        ops: { "messages.thread": { kind: "query", args: { conversationId: "id" } } },
+        programGeneration: "mock-program-generation",
+        ops: { "messages.thread": { kind: "query", args: { conversationId: "id" }, planHash: "mock-plan" } },
         channels: { typing: { args: { conversationId: "id" } } },
         auth: { password: true, guests: true },
       });
@@ -583,7 +584,7 @@ test("every HTTP wire state validates its state-specific required fields", async
 
   const manifest = createClient({
     url: "http://wire.test",
-    fetch: async () => fetchJson({ generation: "test", ops: {}, auth: {} }),
+    fetch: async () => fetchJson({ generation: "test", programGeneration: "program", ops: {}, auth: {} }),
   });
   await assert.rejects(() => manifest.manifest(), (error: unknown) => isWireShape(error, "channels"));
   manifest.close();
@@ -620,7 +621,7 @@ test("bodyless GETs omit Content-Type", async () => {
       seen.set(path, new Headers(init?.headers).get("Content-Type"));
       if (path === "/api/auth/me") return fetchJson({ viewer: "alice", kind: "user" });
       if (path === "/api/manifest") {
-        return fetchJson({ generation: "test", ops: {}, channels: {}, auth: {} });
+        return fetchJson({ generation: "test", programGeneration: "program", ops: {}, channels: {}, auth: {} });
       }
       if (path === "/api/subscribe") {
         return fetchSse({ state: "complete", data: [], seq: 1, next: null });
@@ -1185,7 +1186,7 @@ test("useMutation exposes pending for exactly the in-flight interval", async () 
   const fetch = async (input: string | URL | Request) => {
     const path = new URL(String(input)).pathname;
     if (path === "/api/manifest") {
-      return fetchJson({ generation: "test", ops: {}, channels: {}, auth: {} });
+      return fetchJson({ generation: "test", programGeneration: "program", ops: {}, channels: {}, auth: {} });
     }
     return await new Promise<Response>((resolve) => { release = resolve; });
   };
@@ -1225,7 +1226,7 @@ test("useMutation keeps the last server receipt separate from transport failure"
   const fetch = async (input: string | URL | Request) => {
     const path = new URL(String(input)).pathname;
     if (path === "/api/manifest") {
-      return fetchJson({ generation: "test", ops: {}, channels: {}, auth: {} });
+      return fetchJson({ generation: "test", programGeneration: "program", ops: {}, channels: {}, auth: {} });
     }
     mutationAttempts += 1;
     if (mutationAttempts === 1) {
@@ -1285,7 +1286,7 @@ test("useQuery renders hydrating immediately when its identity changes", async (
   const fetch = async (input: string | URL | Request) => {
     const parsed = new URL(String(input));
     if (parsed.pathname === "/api/manifest") {
-      return fetchJson({ generation: "test", ops: {}, channels: {}, auth: {} });
+      return fetchJson({ generation: "test", programGeneration: "program", ops: {}, channels: {}, auth: {} });
     }
     if (parsed.pathname === "/api/subscribe") {
       const op = parsed.searchParams.get("op") ?? "missing";
@@ -1322,7 +1323,7 @@ test("non-live useQuery keeps hydrating across a network failure, reports connec
   const fetch = async (input: string | URL | Request) => {
     const path = new URL(String(input)).pathname;
     if (path === "/api/manifest") {
-      return fetchJson({ generation: "test", ops: {}, channels: {}, auth: {} });
+      return fetchJson({ generation: "test", programGeneration: "program", ops: {}, channels: {}, auth: {} });
     }
     if (path === "/api/query") {
       queryAttempts += 1;
@@ -1364,7 +1365,7 @@ test("separately bundled client and React entry points share generated API refer
   let operation: string | undefined;
   const fetch = async (input: string | URL | Request, init?: RequestInit) => {
     const path = new URL(String(input)).pathname;
-    if (path === "/api/manifest") return fetchJson({ generation: "test", ops: {}, channels: {}, auth: {} });
+    if (path === "/api/manifest") return fetchJson({ generation: "test", programGeneration: "program", ops: {}, channels: {}, auth: {} });
     operation = JSON.parse(String(init?.body)).op;
     return fetchJson({ state: "complete", seq: 1, data: [], next: null });
   };
@@ -1391,7 +1392,7 @@ test("React transport refusals use the client entry point class", async () => {
   let hook: any;
   const fetch = async (input: string | URL | Request) => {
     const path = new URL(String(input)).pathname;
-    if (path === "/api/manifest") return fetchJson({ generation: "test", ops: {}, channels: {}, auth: {} });
+    if (path === "/api/manifest") return fetchJson({ generation: "test", programGeneration: "program", ops: {}, channels: {}, auth: {} });
     return fetchJson({ message: "upstream failed" }, 503);
   };
   function Harness() {
