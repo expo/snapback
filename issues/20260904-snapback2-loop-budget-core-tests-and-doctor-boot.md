@@ -134,3 +134,12 @@ package exits 0. `./ref-check --verbose` is clean: 405 LLP docs, 7,497 refs,
 - The `measure.mjs` change (the core step through nextest + doctests instead of serial
   `cargo test -p snapback2-core`) changes the ruler; it stays on branch `s2/loop-budget`
   until the author rules, and any re-baseline follows three quiet measurements.
+
+## Author ruling (2026-09-04 afternoon)
+
+The core-test step is measured through nextest (parallel, the gate's own runner) plus the
+doctests, with compilation still timed — "yes, this is fine for now". The 30 s budget is
+re-baselined only after three quiet measurements once the day's lanes finish; until then the
+step's red is known and this ticket stays open for that re-measure. The nine loaded-machine
+records the lane produced were not appended to `metrics/loop.jsonl` (they are in the table
+above); the first records under the new runner will be the quiet triplicate.

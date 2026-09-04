@@ -108,6 +108,29 @@ function testVerdict(result, allowChatBlocked) {
 
 const failedSummary = (failedSteps) => `failed steps: ${[...failedSteps].join(", ")}`;
 
+function coreTests(runStep = run) {
+  // Match test.sh's runner and concurrency; keep every core target and doctest.
+  // Cargo's libtest driver runs the separate integration binaries serially.
+  const started = performance.now();
+  const threads = process.env.SNAPBACK_RUST_TEST_THREADS ?? "8";
+  const results = [
+    runStep(process.env.SNAPBACK_CARGO_NEXTEST_BIN ?? "cargo-nextest", [
+      "nextest", "run", "--config-file", resolve(root, "../.config/nextest.toml"),
+      "--profile", "local-proof", "-p", "snapback2-core", "--no-fail-fast",
+    ], { env: { ...process.env, NEXTEST_TEST_THREADS: threads } }),
+    runStep("cargo", [
+      "test", "-q", "-p", "snapback2-core", "--doc", "--no-fail-fast",
+      "--", "--test-threads", threads,
+    ]),
+  ];
+  return {
+    seconds: (performance.now() - started) / 1000,
+    status: results.every((result) => result.status === 0) ? 0 : 1,
+    stdout: results.map((result) => result.stdout).join("\n"),
+    stderr: results.map((result) => result.stderr).join("\n"),
+  };
+}
+
 function main() {
   const failedSteps = new Set();
   const record = {
@@ -115,7 +138,8 @@ function main() {
     sha: run("git", ["rev-parse", "--short", "HEAD"]).stdout.trim(),
     steps: {},
   };
-  const buildArgs = ["build", "-q", "--release"];
+  // The chat template's image columns require the sibling media helper at boot.
+  const buildArgs = ["build", "-q", "--release", "-p", "snapback2", "-p", "snapback2-media"];
 
   if (args.has("--cold")) {
     recordStep(record, failedSteps, "cold_build_s", () => {
@@ -175,8 +199,7 @@ function main() {
     return run("cargo", buildArgs);
   }, 2, (result) => `incremental build failed\n${result.stderr ?? ""}`);
 
-  const coreTest = recordStep(record, failedSteps, "core_test_s",
-    () => run("cargo", ["test", "-q", "-p", "snapback2-core"]), 2,
+  const coreTest = recordStep(record, failedSteps, "core_test_s", coreTests, 2,
     (result) => `core tests failed\n${result.stdout ?? ""}\n${result.stderr ?? ""}`);
 
   const req = JSON.stringify({ programs: [], schemaMode: "spike" });
@@ -301,6 +324,16 @@ function main() {
 }
 
 function selfTest() {
+  const coreCommands = [];
+  const core = coreTests((command, argv) => {
+    coreCommands.push([command, argv]);
+    return { status: coreCommands.length === 1 ? 1 : 0, stdout: "", stderr: "" };
+  });
+  assert.equal(core.status, 1);
+  assert.equal(coreCommands.length, 2, "doctests still run after executable tests fail");
+  assert.ok(coreCommands[0][1].includes("--no-fail-fast"));
+  assert.ok(coreCommands[1][1].includes("--no-fail-fast"));
+  assert.ok(coreCommands[1][1].includes("--doc"));
   const record = { steps: {} };
   const failures = new Set();
   const originalExitCode = process.exitCode;
