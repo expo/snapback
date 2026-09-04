@@ -234,7 +234,7 @@ function main() {
   const incremental = recordStep(record, failedSteps, "incremental_build_s", () => {
     const now = new Date();
     utimesSync(touched, now, now);
-    return run("cargo", buildArgs);
+    return preserveUnchangedExecutable(bin, () => run("cargo", buildArgs));
   }, 2, (result) => `incremental build failed\n${result.stderr ?? ""}`);
 
   const coreTest = recordStep(record, failedSteps, "core_test_s", coreTests, 2,
