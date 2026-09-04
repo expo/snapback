@@ -1,6 +1,8 @@
 use snapback2_core::*;
 use std::collections::{BTreeMap, VecDeque};
 
+#[path = "assets/reclaim.rs"]
+mod reclaim;
 #[path = "assets/release_clock.rs"]
 mod release_clock;
 
@@ -114,6 +116,7 @@ fn asset_id(value: &Value) -> String {
 
 fn image(runtime: &mut Runtime, actor: &Actor, bytes: u64, width: i64, height: i64) -> Value {
     let id = runtime.begin_asset(AssetKind::Image, actor, 0).unwrap();
+    runtime.reserve_asset_finalized_bytes(&id, bytes).unwrap();
     runtime
         .mark_asset_ready(
             &id,
@@ -142,6 +145,7 @@ fn video(
     duration: i64,
 ) -> Value {
     let id = runtime.begin_asset(AssetKind::Video, actor, 0).unwrap();
+    runtime.reserve_asset_finalized_bytes(&id, bytes).unwrap();
     runtime
         .mark_asset_ready(
             &id,
@@ -956,6 +960,11 @@ fn delivery_uses_locator_cell_and_certified_read_rule() {
             .code(),
         "E_ASSET_NOT_READY"
     );
+    assert_eq!(
+        runtime.public_asset_delivery(&id).unwrap_err().code(),
+        "E_ASSET_NOT_READY",
+        "credential-free delivery must not manufacture a viewer for a private row"
+    );
 }
 
 #[test]
@@ -1134,133 +1143,6 @@ fn table_drop_and_asset_type_change_release_locators() {
             .unwrap()
             .unwrap()
             .locator
-            .is_none()
-    );
-}
-
-#[test]
-fn reclamation_grace_starts_when_a_long_claim_is_released() {
-    const YEAR_MS: i64 = 365 * 24 * 60 * 60 * 1_000;
-    let generation = generation(
-        schema_with(table_with("photo", ColumnType::Image { max: 1_000 })),
-        vec![
-            insert_program("photo", ArgType::Image { max: 1_000 }),
-            replace_program("photo", ArgType::Image { max: 1_000 }),
-        ],
-    );
-    let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
-    let alice = user("alice");
-    let old = image(&mut runtime, &alice, 50, 10, 20);
-    let replacement = image(&mut runtime, &alice, 50, 10, 20);
-    let old_id = asset_id(&old);
-    runtime
-        .execute(
-            "media.insert",
-            Context::mutation(alice.clone(), args("row-1", old)),
-        )
-        .unwrap();
-    let mut replace = Context::mutation(alice, args("row-1", replacement));
-    replace.now = Some(YEAR_MS);
-    runtime.execute("media.replace", replace).unwrap();
-    assert_eq!(
-        runtime.store().asset(&old_id).unwrap().unwrap().released_at,
-        Some(YEAR_MS)
-    );
-    assert!(
-        runtime
-            .reclaim_assets(YEAR_MS + ASSET_RECLAIM_GRACE_MS - 1)
-            .unwrap()
-            .is_empty()
-    );
-    assert_eq!(
-        runtime
-            .reclaim_assets(YEAR_MS + ASSET_RECLAIM_GRACE_MS)
-            .unwrap(),
-        vec![old_id]
-    );
-}
-
-#[test]
-fn destructive_successor_reset_and_reclaim_release_engine_owned_assets() {
-    let table = table_with("photo", ColumnType::Image { max: 1_000 });
-    let base = generation(
-        schema_with(table),
-        vec![insert_program("photo", ArgType::Image { max: 1_000 })],
-    );
-    let mut runtime = Runtime::open(Store::memory().unwrap(), base).unwrap();
-    let alice = user("alice");
-    let photo = image(&mut runtime, &alice, 50, 10, 20);
-    let id = asset_id(&photo);
-    runtime
-        .execute(
-            "media.insert",
-            Context::mutation(alice.clone(), args("row-1", photo)),
-        )
-        .unwrap();
-
-    let next = generation(
-        Schema {
-            tables: BTreeMap::from([(
-                "media".to_owned(),
-                public_table(
-                    BTreeMap::from([("id".to_owned(), ColumnType::Id)]),
-                    BTreeMap::from([(
-                        "byId".to_owned(),
-                        Index {
-                            columns: vec!["id".to_owned()],
-                            unique: true,
-                        },
-                    )]),
-                ),
-            )]),
-            ..Schema::default()
-        },
-        Vec::new(),
-    );
-    runtime
-        .apply_migration(
-            next,
-            &MigrationPlan {
-                drops: vec![Drop::Column {
-                    table: "media".to_owned(),
-                    name: "photo".to_owned(),
-                }],
-            },
-            10,
-        )
-        .unwrap();
-    assert!(
-        runtime
-            .store()
-            .asset(&id)
-            .unwrap()
-            .unwrap()
-            .locator
-            .is_none()
-    );
-
-    let unclaimed = image(&mut runtime, &alice, 10, 1, 1);
-    let unclaimed_id = asset_id(&unclaimed);
-    assert!(
-        runtime
-            .reclaim_assets(ASSET_RECLAIM_GRACE_MS - 1)
-            .unwrap()
-            .is_empty()
-    );
-    let reclaimed = runtime.reclaim_assets(ASSET_RECLAIM_GRACE_MS).unwrap();
-    assert!(!reclaimed.contains(&id));
-    assert_eq!(reclaimed, vec![unclaimed_id]);
-    assert_eq!(runtime.reclaim_assets(i64::MAX).unwrap(), vec![id]);
-
-    let reset_asset = image(&mut runtime, &alice, 10, 1, 1);
-    let reset_id = asset_id(&reset_asset);
-    let reset = runtime.reset_and_seed(&[]).unwrap();
-    assert_eq!(reset.asset_ids, vec![reset_id]);
-    assert!(
-        runtime
-            .store()
-            .asset(&reset.asset_ids[0])
-            .unwrap()
             .is_none()
     );
 }

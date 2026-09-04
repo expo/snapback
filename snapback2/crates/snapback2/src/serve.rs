@@ -1,6 +1,8 @@
 //! Small synchronous HTTP/1.1 + chunked SSE server.
 // @ref LLP 1002#4-the-wire — JSON states and SSE deliveries are the public protocol.
 
+use crate::asset_http::{MediaJobs, handle_asset_delivery, handle_upload};
+use crate::blob_store::{BlobStore, LocalStaging};
 use crate::control;
 use crate::protocol::{Refusal, refusal_json};
 use crate::writer::{Action, Identity, OwnerHandle, SseEvent, SseReceiver, sse_queue};
@@ -19,8 +21,9 @@ const DEV_CORS_ALLOWED_HEADERS: &str = "Authorization, Content-Type, X-Snapback-
 const MAX_HTTP_WORKERS: usize = 64;
 const RESERVED_CONTROL_WORKERS: usize = 4;
 const RESERVED_JSON_WORKERS: usize = 8;
+const MAX_UPLOAD_WORKERS: usize = 4;
 const MAX_NON_CONTROL_WORKERS: usize = MAX_HTTP_WORKERS - RESERVED_CONTROL_WORKERS;
-const MAX_SSE_WORKERS: usize = MAX_NON_CONTROL_WORKERS - RESERVED_JSON_WORKERS;
+const MAX_SSE_WORKERS: usize = MAX_NON_CONTROL_WORKERS - RESERVED_JSON_WORKERS - MAX_UPLOAD_WORKERS;
 
 pub struct BoundServer {
     server: Arc<Server>,
@@ -35,6 +38,9 @@ pub struct Context {
     pub mode: String,
     pub url: String,
     pub stop: Arc<AtomicBool>,
+    pub blobs: Arc<dyn BlobStore>,
+    pub staging: Arc<LocalStaging>,
+    pub media_jobs: MediaJobs,
 }
 
 #[derive(Clone, Default)]
@@ -140,6 +146,7 @@ impl BoundServer {
 enum WorkerClass {
     Json,
     Sse,
+    Upload,
     Control,
 }
 
@@ -149,6 +156,8 @@ impl WorkerClass {
         let path = percent_decode(raw_path);
         if path.starts_with("/control/") {
             Self::Control
+        } else if path == "/api/upload" {
+            Self::Upload
         } else if path == "/api/subscribe"
             || (path.starts_with("/api/channel/") && path.ends_with("/subscribe"))
         {
@@ -162,6 +171,7 @@ impl WorkerClass {
         match self {
             Self::Json => "JSON HTTP",
             Self::Sse => "SSE",
+            Self::Upload => "asset upload",
             Self::Control => "control HTTP",
         }
     }
@@ -173,6 +183,7 @@ struct WorkerCounts {
     json: usize,
     sse: usize,
     control: usize,
+    upload: usize,
 }
 
 #[derive(Clone, Default)]
@@ -181,10 +192,11 @@ struct WorkerPools(Arc<Mutex<WorkerCounts>>);
 impl WorkerPools {
     fn acquire(&self, class: WorkerClass) -> Option<HttpWorker> {
         let mut counts = self.0.lock().expect("HTTP worker count lock");
-        let non_control = counts.json + counts.sse;
+        let non_control = counts.json + counts.sse + counts.upload;
         if counts.total >= MAX_HTTP_WORKERS
             || (class != WorkerClass::Control && non_control >= MAX_NON_CONTROL_WORKERS)
             || (class == WorkerClass::Sse && counts.sse >= MAX_SSE_WORKERS)
+            || (class == WorkerClass::Upload && counts.upload >= MAX_UPLOAD_WORKERS)
         {
             return None;
         }
@@ -192,6 +204,7 @@ impl WorkerPools {
         match class {
             WorkerClass::Json => counts.json += 1,
             WorkerClass::Sse => counts.sse += 1,
+            WorkerClass::Upload => counts.upload += 1,
             WorkerClass::Control => counts.control += 1,
         }
         drop(counts);
@@ -214,6 +227,7 @@ impl Drop for HttpWorker {
         match self.class {
             WorkerClass::Json => counts.json -= 1,
             WorkerClass::Sse => counts.sse -= 1,
+            WorkerClass::Upload => counts.upload -= 1,
             WorkerClass::Control => counts.control -= 1,
         }
     }
@@ -221,8 +235,8 @@ impl Drop for HttpWorker {
 
 fn handle(mut request: Request, context: Context) {
     let method = method_name(request.method());
-    let raw_url = request.url().to_owned();
-    let (path, query) = split_url(&raw_url);
+    let request_url = request.url().to_owned();
+    let (path, query) = split_url(&request_url);
     // @ref LLP 1002#9-the-client-snapback2client-snapback2react-snapback2test — persona and bearer are mutually exclusive authority sources at the raw wire too.
     if header(&request, "X-Snapback-As").is_some() && bearer(&request).is_some() {
         respond_refusal(
@@ -304,6 +318,18 @@ fn handle(mut request: Request, context: Context) {
         return;
     }
 
+    // @ref LLP 1006#5-upload-one-post — upload branches before the 1 MiB UTF-8
+    // JSON reader and runs in its own bounded worker class.
+    if method == "POST" && path == "/api/upload" {
+        let identity = request_identity(&request);
+        handle_upload(request, &context, identity);
+        return;
+    }
+    if method == "GET" && path.starts_with("/api/asset/") {
+        handle_asset_delivery(request, &context, &path, &query);
+        return;
+    }
+
     let body = match read_body(&mut request) {
         Ok(body) => body,
         Err(error) => {
@@ -359,6 +385,9 @@ fn handle(mut request: Request, context: Context) {
             200,
         ),
         ("GET", "/api/auth/me") => call_json(request, &context, Action::Me { identity }, 200),
+        ("POST", "/api/auth/asset-session") => {
+            call_json(request, &context, Action::AssetSession { identity }, 200)
+        }
         ("POST", "/api/query") => call_json(
             request,
             &context,
@@ -463,11 +492,15 @@ fn call_json(request: Request, context: &Context, action: Action, ok_status: u16
     }
 }
 
-fn respond_json(request: Request, status: u16, value: Json, mode: &str) {
+pub(crate) fn respond_json(request: Request, status: u16, value: Json, mode: &str) {
+    let mut headers = vec![content_type("application/json")];
+    decorate_asset_response_headers(request.url(), &mut headers);
     let mut response =
         Response::from_string(serde_json::to_string(&value).unwrap_or_else(|_| "{}".to_owned()))
-            .with_status_code(StatusCode(status))
-            .with_header(content_type("application/json"));
+            .with_status_code(StatusCode(status));
+    for header in headers {
+        response.add_header(header);
+    }
     if mode == "dev" {
         response.add_header(header_value("Access-Control-Allow-Origin", "*"));
         response.add_header(header_value(
@@ -482,7 +515,7 @@ fn respond_json(request: Request, status: u16, value: Json, mode: &str) {
     let _ = request.respond(response);
 }
 
-fn respond_refusal(request: Request, status: u16, mut refusal: Refusal, mode: &str) {
+pub(crate) fn respond_refusal(request: Request, status: u16, mut refusal: Refusal, mode: &str) {
     if mode == "serve" && refusal.code == "E_AUTH_REQUIRED" {
         refusal.rewrite = Some("send Authorization: Bearer <token>".to_owned());
     }
@@ -557,7 +590,7 @@ enum DropAction {
     Channel(u64),
 }
 
-fn request_identity(request: &Request) -> Identity {
+pub(crate) fn request_identity(request: &Request) -> Identity {
     if let Some(persona) = header(request, "X-Snapback-As") {
         Identity::Persona(persona)
     } else if let Some(token) = bearer(request) {
@@ -567,13 +600,13 @@ fn request_identity(request: &Request) -> Identity {
     }
 }
 
-fn bearer(request: &Request) -> Option<String> {
+pub(crate) fn bearer(request: &Request) -> Option<String> {
     header(request, "Authorization")?
         .strip_prefix("Bearer ")
         .map(ToOwned::to_owned)
 }
 
-fn header(request: &Request, name: &str) -> Option<String> {
+pub(crate) fn header(request: &Request, name: &str) -> Option<String> {
     request
         .headers()
         .iter()
@@ -671,7 +704,7 @@ fn string_field(value: &Json, name: &str) -> String {
         .to_owned()
 }
 
-fn refusal_status(refusal: &Refusal) -> u16 {
+pub(crate) fn refusal_status(refusal: &Refusal) -> u16 {
     if refusal.code == "E_AUTH_REQUIRED" || refusal.code == "E_AUTH_SESSION" {
         401
     } else if refusal.family == "auth" || refusal.family == "rule" {
@@ -710,8 +743,37 @@ fn content_type(value: &str) -> Header {
     header_value("Content-Type", value)
 }
 
-fn header_value(name: &str, value: &str) -> Header {
+pub(crate) fn header_value(name: &str, value: &str) -> Header {
     Header::from_bytes(name.as_bytes(), value.as_bytes()).expect("static HTTP header")
+}
+
+/// Apply the asset-route privacy envelope from the untouched request target,
+/// including refusals produced before route dispatch.
+// @ref LLP 1006#2b-the-session-carrier-author-ruling-2026-09-03 — carrier
+// presence, not dispatch progress, makes every asset response no-store/no-referrer.
+pub(crate) fn decorate_asset_response_headers(raw_url: &str, headers: &mut Vec<Header>) {
+    let raw_path = raw_url.split_once('?').map_or(raw_url, |(path, _)| path);
+    if !percent_decode(raw_path).starts_with("/api/asset/") {
+        return;
+    }
+    set_header(headers, "Referrer-Policy", "no-referrer");
+    if query_has_name(raw_url, "s") {
+        set_header(headers, "Cache-Control", "no-store");
+    }
+}
+
+fn query_has_name(raw_url: &str, expected: &str) -> bool {
+    raw_url.split_once('?').is_some_and(|(_, query)| {
+        query.split('&').any(|pair| {
+            let name = pair.split_once('=').map_or(pair, |(name, _)| name);
+            percent_decode(name) == expected
+        })
+    })
+}
+
+fn set_header(headers: &mut Vec<Header>, name: &str, value: &str) {
+    headers.retain(|header| !header.field.to_string().eq_ignore_ascii_case(name));
+    headers.push(header_value(name, value));
 }
 
 fn fatal_server(stage: &str, error: impl std::fmt::Display) -> Refusal {
@@ -747,6 +809,10 @@ mod tests {
             .map(|_| pools.acquire(WorkerClass::Sse).unwrap())
             .collect::<Vec<_>>();
         assert!(pools.acquire(WorkerClass::Sse).is_none());
+        let uploads = (0..MAX_UPLOAD_WORKERS)
+            .map(|_| pools.acquire(WorkerClass::Upload).unwrap())
+            .collect::<Vec<_>>();
+        assert!(pools.acquire(WorkerClass::Upload).is_none());
         let json = (0..RESERVED_JSON_WORKERS)
             .map(|_| pools.acquire(WorkerClass::Json).unwrap())
             .collect::<Vec<_>>();
@@ -755,11 +821,12 @@ mod tests {
             .map(|_| pools.acquire(WorkerClass::Control).unwrap())
             .collect::<Vec<_>>();
         assert!(pools.acquire(WorkerClass::Control).is_none());
-        drop((sse, json, control));
+        drop((sse, uploads, json, control));
         let counts = pools.0.lock().unwrap();
         assert_eq!(counts.total, 0);
         assert_eq!(counts.json, 0);
         assert_eq!(counts.sse, 0);
+        assert_eq!(counts.upload, 0);
         assert_eq!(counts.control, 0);
         drop(counts);
         assert_eq!(
@@ -783,5 +850,29 @@ mod tests {
             WorkerClass::Control
         );
         assert_eq!(WorkerClass::for_url("/api/query"), WorkerClass::Json);
+        assert_eq!(WorkerClass::for_url("/api/upload"), WorkerClass::Upload);
+    }
+
+    #[test]
+    fn asset_response_privacy_is_derived_from_the_original_request_target() {
+        let mut headers = vec![header_value("Cache-Control", "public, immutable")];
+        decorate_asset_response_headers("/api/asset/bad/path?s=secret", &mut headers);
+        let values = headers
+            .iter()
+            .map(|header| {
+                (
+                    header.field.to_string().to_ascii_lowercase(),
+                    header.value.as_str().to_owned(),
+                )
+            })
+            .collect::<BTreeMap<_, _>>();
+        assert_eq!(
+            values.get("cache-control").map(String::as_str),
+            Some("no-store")
+        );
+        assert_eq!(
+            values.get("referrer-policy").map(String::as_str),
+            Some("no-referrer")
+        );
     }
 }

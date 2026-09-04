@@ -11,6 +11,24 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
 pub const ASSET_RECLAIM_GRACE_MS: i64 = 24 * 60 * 60 * 1_000;
+pub const STAGING_PER_PRINCIPAL_BYTES: u64 = 256 * 1024 * 1024;
+pub const STAGING_PER_PRINCIPAL_OBJECTS: u32 = 20;
+pub const STAGING_GLOBAL_BYTES: u64 = 512 * 1024 * 1024;
+pub const STAGING_GLOBAL_OBJECTS: u32 = 40;
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AssetStagingUsage {
+    pub bytes: u64,
+    pub objects: u32,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AssetStagingSnapshot {
+    pub global: AssetStagingUsage,
+    pub creator: AssetStagingUsage,
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -65,6 +83,8 @@ pub struct AssetLedgerRow {
     pub created_by: String,
     pub created_at: i64,
     pub released_at: Option<i64>,
+    pub staged_bytes: u64,
+    pub reclaiming: bool,
     pub locator: Option<AssetLocator>,
 }
 
@@ -89,11 +109,26 @@ impl Store {
         created_by: &str,
         created_at: i64,
     ) -> Result<String, RuntimeError> {
+        self.begin_asset_charged(kind, created_by, created_at, 0)
+    }
+
+    /// Reserve unlocated byte and object custody in the durable ledger before
+    /// the upload body can outlive the request that created it. Like
+    /// `begin_asset`, the raw string-principal mint stays crate-private;
+    /// `Runtime::begin_asset_charged` is the typed-actor entry.
+    pub(crate) fn begin_asset_charged(
+        &mut self,
+        kind: AssetKind,
+        created_by: &str,
+        created_at: i64,
+        staged_bytes: u64,
+    ) -> Result<String, RuntimeError> {
+        self.enforce_staging_caps(created_by, staged_bytes)?;
         let id = self
             .reserve_new_ids()?
             .pop_front()
             .expect("the fixed allocator block is non-empty");
-        self.asset_create_receiving(&id, kind, created_by, created_at)?;
+        self.asset_create_receiving(&id, kind, created_by, created_at, staged_bytes)?;
         Ok(id)
     }
 
@@ -103,6 +138,7 @@ impl Store {
         kind: AssetKind,
         created_by: &str,
         created_at: i64,
+        staged_bytes: u64,
     ) -> Result<(), RuntimeError> {
         if !is_engine_id(id) || created_by.is_empty() || created_by == SYSTEM_PRINCIPAL_ID.as_str()
         {
@@ -113,10 +149,142 @@ impl Store {
         self.conn.execute(
             "INSERT INTO _assets(
                 id, state, kind, type, bytes, width, height, duration,
-                created_by, created_at, released_at, locator_table, locator_row, locator_column
-             ) VALUES (?1, 'receiving', ?2, NULL, NULL, NULL, NULL, NULL, ?3, ?4, NULL, NULL, NULL, NULL)",
-            params![id, kind.as_str(), created_by, created_at],
+                created_by, created_at, released_at, staged_bytes, reclaiming,
+                locator_table, locator_row, locator_column
+             ) VALUES (?1, 'receiving', ?2, NULL, NULL, NULL, NULL, NULL,
+                       ?3, ?4, NULL, ?5, 0, NULL, NULL, NULL)",
+            params![
+                id,
+                kind.as_str(),
+                created_by,
+                created_at,
+                i64::try_from(staged_bytes).map_err(|_| RuntimeError::AssetTooLarge(
+                    "asset staging byte count exceeds SQLite integer storage".to_owned()
+                ))?,
+            ],
         )?;
+        Ok(())
+    }
+
+    fn enforce_staging_caps(&self, created_by: &str, bytes: u64) -> Result<(), RuntimeError> {
+        let usage = self.asset_staging_usage(created_by)?;
+        if bytes > STAGING_PER_PRINCIPAL_BYTES.saturating_sub(usage.creator.bytes)
+            || usage.creator.objects >= STAGING_PER_PRINCIPAL_OBJECTS
+        {
+            return Err(RuntimeError::AssetTooLarge(format!(
+                "principal {created_by} has reached the {STAGING_PER_PRINCIPAL_BYTES} byte or {STAGING_PER_PRINCIPAL_OBJECTS} object staging ceiling"
+            )));
+        }
+        if bytes > STAGING_GLOBAL_BYTES.saturating_sub(usage.global.bytes)
+            || usage.global.objects >= STAGING_GLOBAL_OBJECTS
+        {
+            return Err(RuntimeError::AssetTooLarge(format!(
+                "the owner has reached the {STAGING_GLOBAL_BYTES} byte or {STAGING_GLOBAL_OBJECTS} object staging ceiling"
+            )));
+        }
+        Ok(())
+    }
+
+    /// Recomputed from durable rows on every call, so restart has no separate
+    /// accounting state to rebuild or trust.
+    pub fn asset_staging_usage(
+        &self,
+        created_by: &str,
+    ) -> Result<AssetStagingSnapshot, RuntimeError> {
+        fn usage(
+            connection: &Connection,
+            creator: Option<&str>,
+        ) -> Result<AssetStagingUsage, RuntimeError> {
+            let (bytes, objects): (i64, i64) = if let Some(creator) = creator {
+                connection.query_row(
+                    "SELECT COALESCE(SUM(MAX(staged_bytes, COALESCE(bytes, 0))), 0), COUNT(*)
+                     FROM _assets
+                     WHERE reclaiming = 0 AND locator_table IS NULL
+                       AND state IN ('receiving', 'ready') AND created_by = ?1",
+                    [creator],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )?
+            } else {
+                connection.query_row(
+                    "SELECT COALESCE(SUM(MAX(staged_bytes, COALESCE(bytes, 0))), 0), COUNT(*)
+                     FROM _assets
+                     WHERE reclaiming = 0 AND locator_table IS NULL
+                       AND state IN ('receiving', 'ready')",
+                    [],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )?
+            };
+            Ok(AssetStagingUsage {
+                bytes: u64::try_from(bytes).map_err(|_| {
+                    RuntimeError::Serialization("asset staging byte total is negative".to_owned())
+                })?,
+                objects: u32::try_from(objects).map_err(|_| {
+                    RuntimeError::Serialization("asset staging object total exceeds u32".to_owned())
+                })?,
+            })
+        }
+        Ok(AssetStagingSnapshot {
+            global: usage(&self.conn, None)?,
+            creator: usage(&self.conn, Some(created_by))?,
+        })
+    }
+
+    /// Durably charge finalized growth while the row is still receiving, so
+    /// publication can never get ahead of quota reconstruction after restart.
+    pub fn asset_reserve_finalized_bytes(
+        &mut self,
+        id: &str,
+        bytes: u64,
+    ) -> Result<(), RuntimeError> {
+        if bytes == 0 {
+            return Err(RuntimeError::AssetType(
+                "finalized asset bytes must be positive".to_owned(),
+            ));
+        }
+        let row = self
+            .asset(id)?
+            .filter(|row| row.state == AssetState::Receiving && !row.reclaiming)
+            .ok_or_else(|| {
+                RuntimeError::AssetNotReady(format!("asset {id} is missing or is not receiving"))
+            })?;
+        if let Some(reserved) = row.bytes {
+            if reserved == bytes {
+                return Ok(());
+            }
+            return Err(RuntimeError::AssetType(format!(
+                "asset {id} already reserved {reserved} finalized bytes"
+            )));
+        }
+        let growth = bytes.saturating_sub(row.staged_bytes);
+        if growth > 0 {
+            let usage = self.asset_staging_usage(&row.created_by)?;
+            if growth > STAGING_PER_PRINCIPAL_BYTES.saturating_sub(usage.creator.bytes) {
+                return Err(RuntimeError::AssetTooLarge(format!(
+                    "principal {} finalized bytes exceed the {STAGING_PER_PRINCIPAL_BYTES} byte staging ceiling",
+                    row.created_by
+                )));
+            }
+            if growth > STAGING_GLOBAL_BYTES.saturating_sub(usage.global.bytes) {
+                return Err(RuntimeError::AssetTooLarge(format!(
+                    "finalized bytes exceed the owner {STAGING_GLOBAL_BYTES} byte staging ceiling"
+                )));
+            }
+        }
+        let bytes = i64::try_from(bytes).map_err(|_| {
+            RuntimeError::AssetTooLarge(format!(
+                "asset {id} byte count exceeds SQLite integer storage"
+            ))
+        })?;
+        let changed = self.conn.execute(
+            "UPDATE _assets SET bytes = ?2
+             WHERE id = ?1 AND state = 'receiving' AND reclaiming = 0 AND bytes IS NULL",
+            params![id, bytes],
+        )?;
+        if changed != 1 {
+            return Err(RuntimeError::AssetNotReady(format!(
+                "asset {id} is missing or is not receiving"
+            )));
+        }
         Ok(())
     }
 
@@ -125,20 +293,31 @@ impl Store {
         id: &str,
         facts: &AssetReadyFacts,
     ) -> Result<(), RuntimeError> {
-        validate_ready_facts(facts, self.asset(id)?.map(|row| row.kind))?;
+        let row = self
+            .asset(id)?
+            .filter(|row| row.state == AssetState::Receiving && !row.reclaiming)
+            .ok_or_else(|| {
+                RuntimeError::AssetNotReady(format!("asset {id} is missing or is not receiving"))
+            })?;
+        validate_ready_facts(facts, Some(row.kind))?;
+        if row.bytes != Some(facts.bytes) {
+            return Err(RuntimeError::AssetNotReady(format!(
+                "asset {id} finalized bytes were not durably reserved before publication"
+            )));
+        }
         let changed = self.conn.execute(
-            "UPDATE _assets SET state = 'ready', type = ?2, bytes = ?3,
-                    width = ?4, height = ?5, duration = ?6
-             WHERE id = ?1 AND state = 'receiving'",
+            "UPDATE _assets SET state = 'ready', type = ?2,
+                    width = ?3, height = ?4, duration = ?5
+             WHERE id = ?1 AND state = 'receiving' AND reclaiming = 0 AND bytes = ?6",
             params![
                 id,
                 facts.media_type,
-                i64::try_from(facts.bytes).map_err(|_| RuntimeError::AssetTooLarge(format!(
-                    "asset {id} byte count exceeds SQLite integer storage"
-                )))?,
                 facts.width,
                 facts.height,
                 facts.duration,
+                i64::try_from(facts.bytes).map_err(|_| RuntimeError::AssetTooLarge(format!(
+                    "asset {id} byte count exceeds SQLite integer storage"
+                )))?,
             ],
         )?;
         if changed != 1 {
@@ -166,6 +345,13 @@ impl Store {
         asset_row(&self.conn, id)
     }
 
+    pub fn asset_ids(&self) -> Result<Vec<String>, RuntimeError> {
+        let mut statement = self.conn.prepare("SELECT id FROM _assets ORDER BY id")?;
+        Ok(statement
+            .query_map([], |row| row.get::<_, String>(0))?
+            .collect::<Result<Vec<_>, _>>()?)
+    }
+
     // @ref LLP 1006#9-lifecycle-finalize-off-the-writer-and-reclamation — unclaimed rows age out without scanning application tables.
     pub fn reclaim(&mut self, now: i64) -> Result<Vec<String>, RuntimeError> {
         let cutoff = now.saturating_sub(ASSET_RECLAIM_GRACE_MS);
@@ -174,21 +360,40 @@ impl Store {
             let mut statement = transaction.prepare(
                 "SELECT id FROM _assets
                  WHERE locator_table IS NULL
-                   AND MAX(created_at, COALESCE(released_at, created_at)) <= ?1
+                   AND (reclaiming = 1
+                        OR MAX(created_at, COALESCE(released_at, created_at)) <= ?1)
                  ORDER BY id",
             )?;
             statement
                 .query_map([cutoff], |row| row.get::<_, String>(0))?
                 .collect::<Result<Vec<_>, _>>()?
         };
+        // The row survives as a `reclaiming` tombstone until the server's
+        // fork-aware blob deletion succeeds and `finish_asset_reclaims` runs,
+        // so a crash between the two cannot orphan bytes.
         for id in &ids {
-            transaction.execute("DELETE FROM _assets WHERE id = ?1", [id])?;
+            transaction.execute(
+                "UPDATE _assets SET reclaiming = 1 WHERE id = ?1 AND locator_table IS NULL",
+                [id],
+            )?;
         }
         transaction.commit()?;
         // Blob bytes are server-owned. Fork snapshots share immutable blobs,
         // so the server must treat every live/fork ledger as a referrer before
         // deleting any id returned here (LLP 1006 §9a).
         Ok(ids)
+    }
+
+    pub fn finish_asset_reclaims(&mut self, ids: &[String]) -> Result<(), RuntimeError> {
+        let transaction = self.conn.transaction()?;
+        for id in ids {
+            transaction.execute(
+                "DELETE FROM _assets WHERE id = ?1 AND reclaiming = 1 AND locator_table IS NULL",
+                [id],
+            )?;
+        }
+        transaction.commit()?;
+        Ok(())
     }
 }
 
@@ -204,7 +409,7 @@ pub(crate) fn validate_asset_use(
             asset.record.id
         )));
     };
-    if row.state != AssetState::Ready {
+    if row.state != AssetState::Ready || row.reclaiming {
         return Err(RuntimeError::AssetNotReady(format!(
             "asset {} is missing or not ready",
             asset.record.id
@@ -237,6 +442,7 @@ pub(crate) fn validate_asset_use(
 }
 
 // @ref LLP 1006#2a-one-asset-one-home-author-ruling-2026-09-01 — release old-only ids and claim new-only ids once per cell, preserving same-cell list edits.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn reconcile_row_assets(
     transaction: &Transaction<'_>,
     schema: &Schema,
@@ -350,7 +556,13 @@ pub(crate) fn clear_assets(transaction: &Transaction<'_>) -> Result<Vec<String>,
             .query_map([], |row| row.get::<_, String>(0))?
             .collect::<Result<Vec<_>, _>>()?
     };
-    transaction.execute("DELETE FROM _assets", [])?;
+    // Reset releases every row into the `reclaiming` tombstone state; the
+    // server deletes the bytes and finishes the reclaim (LLP 1006 §9a).
+    transaction.execute(
+        "UPDATE _assets SET reclaiming = 1,
+            locator_table = NULL, locator_row = NULL, locator_column = NULL",
+        [],
+    )?;
     Ok(ids)
 }
 
@@ -360,7 +572,7 @@ pub(crate) fn delivery_row(
 ) -> Result<AssetLedgerRow, RuntimeError> {
     let unavailable = || RuntimeError::AssetNotReady("asset is unavailable".to_owned());
     let row = asset_row(connection, id)?.ok_or_else(unavailable)?;
-    if row.state != AssetState::Ready || row.locator.is_none() {
+    if row.state != AssetState::Ready || row.reclaiming || row.locator.is_none() {
         return Err(unavailable());
     }
     Ok(row)
@@ -443,6 +655,8 @@ fn asset_row(connection: &Connection, id: &str) -> Result<Option<AssetLedgerRow>
         String,
         i64,
         Option<i64>,
+        i64,
+        i64,
         Option<String>,
         Option<String>,
         Option<String>,
@@ -450,7 +664,8 @@ fn asset_row(connection: &Connection, id: &str) -> Result<Option<AssetLedgerRow>
     let raw = connection
         .query_row(
             "SELECT id, state, kind, type, bytes, width, height, duration,
-                    created_by, created_at, released_at, locator_table, locator_row, locator_column
+                    created_by, created_at, released_at, staged_bytes, reclaiming,
+                    locator_table, locator_row, locator_column
              FROM _assets WHERE id = ?1",
             [id],
             |row| {
@@ -469,6 +684,8 @@ fn asset_row(connection: &Connection, id: &str) -> Result<Option<AssetLedgerRow>
                     row.get(11)?,
                     row.get(12)?,
                     row.get(13)?,
+                    row.get(14)?,
+                    row.get(15)?,
                 ))
             },
         )
@@ -486,6 +703,8 @@ fn asset_row(connection: &Connection, id: &str) -> Result<Option<AssetLedgerRow>
             created_by,
             created_at,
             released_at,
+            staged_bytes,
+            reclaiming,
             locator_table,
             locator_row,
             locator_column,
@@ -503,6 +722,9 @@ fn asset_row(connection: &Connection, id: &str) -> Result<Option<AssetLedgerRow>
                 })
             })
             .transpose()?;
+        let staged_bytes = u64::try_from(staged_bytes).map_err(|_| {
+            RuntimeError::Serialization(format!("asset {id} has negative staged byte count"))
+        })?;
         let locator = match (locator_table, locator_row, locator_column) {
             (None, None, None) => None,
             (Some(table), Some(row), Some(column)) => Some(AssetLocator { table, row, column }),
@@ -524,6 +746,8 @@ fn asset_row(connection: &Connection, id: &str) -> Result<Option<AssetLedgerRow>
             created_by,
             created_at,
             released_at,
+            staged_bytes,
+            reclaiming: reclaiming != 0,
             locator,
         })
     })
@@ -542,6 +766,7 @@ mod tests {
                 "s2id-00000000000000000000000000000001-0000000000000001",
                 AssetKind::Image,
                 SYSTEM_PRINCIPAL_ID.as_str(),
+                0,
                 0,
             )
             .unwrap_err();

@@ -3,13 +3,18 @@
 // Refusals intentionally retain the complete structured repair envelope at call boundaries.
 #![allow(clippy::result_large_err)]
 
+mod asset_gc;
+mod asset_http;
+mod blob_store;
 mod check;
 mod client;
 mod control;
 mod doctor;
 mod effects;
 mod guide;
+mod image_walk;
 mod init;
+mod media_helper;
 mod owner;
 mod project;
 mod protocol;

@@ -380,6 +380,11 @@ pub struct Engine {
     rule_authority: RuleAuthority,
 }
 
+enum AssetDeliveryAuthority {
+    Authenticated(Context),
+    Public,
+}
+
 impl Engine {
     pub fn new(store: Store, schema: Schema) -> Result<Self, RuntimeError> {
         validate_schema(&schema).map_err(first_schema_error)?;
@@ -463,6 +468,31 @@ impl Engine {
         context: Context,
         certificates: &BTreeMap<String, RuleCertificate>,
     ) -> Result<crate::assets_ledger::AssetDelivery, RuntimeError> {
+        self.asset_delivery_inner(
+            id,
+            AssetDeliveryAuthority::Authenticated(context),
+            certificates,
+        )
+    }
+
+    /// Resolve only an explicitly `public(reason)` asset without manufacturing an
+    /// authenticated viewer for a credential-free HTTP request.
+    // @ref LLP 1006#2-authority-delivery-is-by-the-row-that-holds-it — public bytes use the same
+    // certified table read rule while credential-free delivery stays anonymous.
+    pub(crate) fn public_asset_delivery(
+        &mut self,
+        id: &str,
+        certificates: &BTreeMap<String, RuleCertificate>,
+    ) -> Result<crate::assets_ledger::AssetDelivery, RuntimeError> {
+        self.asset_delivery_inner(id, AssetDeliveryAuthority::Public, certificates)
+    }
+
+    fn asset_delivery_inner(
+        &mut self,
+        id: &str,
+        authority: AssetDeliveryAuthority,
+        certificates: &BTreeMap<String, RuleCertificate>,
+    ) -> Result<crate::assets_ledger::AssetDelivery, RuntimeError> {
         let transaction = self.store.conn.transaction()?;
         let ledger = crate::assets_ledger::delivery_row(&transaction, id)?;
         let locator = ledger.locator.clone().ok_or_else(asset_unavailable)?;
@@ -481,36 +511,58 @@ impl Engine {
                 "asset delivery rule certificate mismatch".to_owned(),
             ));
         }
-        let seq = transaction
-            .query_row("SELECT COALESCE(MAX(seq), 0) FROM _commits", [], |row| {
-                row.get::<_, i64>(0)
-            })?
-            .max(0) as u64;
-        let mut runner = Runner::probe(
-            &transaction,
-            &self.schema,
-            context,
-            &self.verdicts,
-            &self.authority_absences,
-            RuleAuthority::StoreAuthoritative,
-            seq,
-            Some(certificate),
-        );
-        let row = runner
-            .fetch_id(&locator.table, &locator.row)
-            .map_err(|error| match error {
-                RuntimeError::Schema(_) | RuntimeError::Value(_) => asset_unavailable(),
-                error => error,
-            })?
-            .ok_or_else(asset_unavailable)?;
-        if !crate::assets_ledger::locator_cell_matches(&self.schema, &row, &locator, &ledger)
-            || !runner.check_rule(&locator.table, Effect::Read, None, &row)?
-        {
+        let public = rule.is_public();
+        let row = match authority {
+            AssetDeliveryAuthority::Authenticated(context) => {
+                let seq = transaction
+                    .query_row("SELECT COALESCE(MAX(seq), 0) FROM _commits", [], |row| {
+                        row.get::<_, i64>(0)
+                    })?
+                    .max(0) as u64;
+                let mut runner = Runner::probe(
+                    &transaction,
+                    &self.schema,
+                    context,
+                    &self.verdicts,
+                    &self.authority_absences,
+                    RuleAuthority::StoreAuthoritative,
+                    seq,
+                    Some(certificate),
+                );
+                let row = runner
+                    .fetch_id(&locator.table, &locator.row)
+                    .map_err(|error| match error {
+                        RuntimeError::Schema(_) | RuntimeError::Value(_) => asset_unavailable(),
+                        error => error,
+                    })?
+                    .ok_or_else(asset_unavailable)?;
+                if !runner.check_rule(&locator.table, Effect::Read, None, &row)? {
+                    return Err(asset_unavailable());
+                }
+                runner.assert_rule_bounds()?;
+                row
+            }
+            AssetDeliveryAuthority::Public => {
+                if !public {
+                    return Err(asset_unavailable());
+                }
+                let index = table.index("byId").ok_or_else(asset_unavailable)?;
+                let mut row = lookup_indexed(
+                    &transaction,
+                    &locator.table,
+                    "byId",
+                    index,
+                    &[Value::Id(locator.row.clone())],
+                )?
+                .ok_or_else(asset_unavailable)?;
+                materialize_optional_fields(&mut row, table);
+                row
+            }
+        };
+        if !crate::assets_ledger::locator_cell_matches(&self.schema, &row, &locator, &ledger) {
             return Err(asset_unavailable());
         }
-        runner.assert_rule_bounds()?;
-        drop(runner);
-        let delivery = crate::assets_ledger::ready_delivery(ledger, rule.is_public())?;
+        let delivery = crate::assets_ledger::ready_delivery(ledger, public)?;
         transaction.commit()?;
         Ok(delivery)
     }
@@ -540,6 +592,7 @@ impl Engine {
     /// in the same outer transaction. A program rejection rolls its writes
     /// back to the savepoint, then commits only the `sent` settlement.
     // @ref LLP 1003#2-the-outbox-lifecycle — attempted `then` writes and every settlement share one transaction.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn execute_then(
         &mut self,
         program: &Program,

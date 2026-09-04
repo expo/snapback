@@ -12,7 +12,13 @@ decode helper executable, §14a), `packages/compiler` (the column types),
 revisions (f)–(j) by Claude Fable 5.1 at the author's rulings, in session,
 2026-09-03
 **Date:** 2026-08-31
-**Revised:** 2026-09-03 (l — engine-core review correction: an affine asset's
+**Revised:** 2026-09-04 (m — fix-round correction: finalized growth is
+durably reserved on the receiving ledger before blob publication; §9a
+deliberately adds bounded callback `enumerate(prefix, visitor)` as the fourth
+blob-store operation, and one sweep uses it for fork-aware reclaims, orphans,
+and stale publish temporaries; recognized Adobe APP14 survives JPEG stripping;
+the accepted macOS direct-child RSS-watchdog limit is recorded (§4, §8, §9a,
+§14a)); 2026-09-03 (l — engine-core review correction: an affine asset's
 reclamation grace begins when its locator is released, while a never-referenced
 upload still ages from creation (§9)); 2026-09-03 (k — lane B3 publication source-builds and statically
 links a pinned decoder-only libheif → libde265 closure at the helper's derived
@@ -557,7 +563,9 @@ the decision rather than mandating it.
   then **synthesizes a fresh, minimal orientation-only tag** from the value it
   read; nothing from the original container survives. The record's `width`
   and `height` are computed *after* orientation; derived widths (§8) bake the
-  transform when they decode. The pixel data and color profile are untouched,
+  transform when they decode. A JPEG also retains only the fixed 12-byte
+  `Adobe` APP14 segment whose transform selector is required to render
+  CMYK/YCCK pixels correctly. The pixel data and color profile are untouched,
   so the stored original is the uploader's image, oriented, and admission
   stays a walk rather than a decode — the upload clock the paved call blocks
   on never waits for a 12 MP re-encode. **Gated by an acceptance matrix:**
@@ -770,6 +778,8 @@ GET /api/asset/as_123?w=847     a derived width
 bytes are served — and video has no poster frame or thumbnail (§13). A
 derived width is encoded as JPEG, or PNG when the source has alpha, with the
 orientation baked in (§4); the stored original keeps its own format.
+The macOS RSS watchdog samples only the direct helper; this is accepted because
+the helper is our own static binary and does not fork.
 
 **Any width is a valid request.** The server snaps it up to the next internal
 rung and serves that, so the delivered image is as large as asked and looks
@@ -873,16 +883,23 @@ wipe leaves orphans that are never reclaimed *and* undetectable
 
 **Locally, beside the store; hosted, in an S3-compatible bucket; delivered
 through the server in both cases.** One trait, streaming-first, three
-operations — put a stream and get back a key, get a key with an optional byte
-range as a stream, delete a key — and no whole-object buffer anywhere in its
-signature, so v1's `read → Vec → put` debt (LLP 1005 §9) cannot be written
-against it.
+publication operations — put a stream and get back a key, get a key with an
+optional byte range as a stream, delete a key — plus the sweep's deliberate
+fourth operation, bounded callback `enumerate(prefix, visitor)`. Enumeration
+never returns an unbounded key vector: the sweep builds the live/fork referrer
+set once and visits the directory once for reclaims, orphans, and stale publish
+temporaries. This is revision (m), 2026-09-04, and is the enumeration primitive
+already implied by "a key in the directory and in no ledger is garbage by
+definition." No whole-object buffer appears anywhere in the trait, so v1's
+`read → Vec → put` debt (LLP 1005 §9) cannot be written against it.
 
 - **Keys are asset ids** (author decision, 2026-09-03, on the second panel's
-  split). The ledger row is written first, in `receiving`, then the blob is
-  put under the asset's id, then the row flips to `ready` — so every key is
+  split). The ledger row is written first, in `receiving`; finalize then
+  durably records its byte size on that receiving row (including any
+  normalization growth), the blob is put under the asset's id, and only then
+  does the row flip to `ready` — so every key and its full quota charge are
   known to the ledger before the blob exists, and a crash can never orphan a
-  key the sweep cannot see. A derived width is keyed by id and rung. Blobs
+  key or undercount surviving bytes. A derived width is keyed by id and rung. Blobs
   are immutable. Revision (g) chose content addresses for deduplication and
   cheap forks; the panel showed that immutable ids give the same fork sharing,
   that a content address cannot be known until the stored bytes are hashed
@@ -900,7 +917,9 @@ against it.
   `.snapback/staging/` beside `.snapback/store.sqlite`, inside the owner-only
   directory the owner already enforces. Staging is always local disk: the
   request streams into it and finalize reads from it. The staging caps (§14)
-  are enforced there.
+  are enforced there. The single blob enumeration skips active/fresh publish
+  temporaries and deletes untracked publish temporaries older than five minutes;
+  startup may delete all of them because no put is then in flight.
 - **Hosted**: an S3-compatible bucket — S3, R2, Tigris — with the same keys,
   landing with the hosted target (LLP 1002), which does not exist yet. Slice 1
   ships the filesystem implementation only; the trait is what makes the

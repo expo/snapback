@@ -1,24 +1,26 @@
 //! The one thread that owns `Runtime` and every store operation.
 // @ref LLP 1002#5-the-owner — HTTP threads send work here; no second store opener exists.
 
+use crate::blob_store::{BlobStore, LocalStaging};
 use crate::owner::OwnerInfo;
 use crate::project::{CompiledProject, SeedData, StagedBuildCache};
-use crate::protocol::{Refusal, json_to_value};
+use crate::protocol::Refusal;
 use crate::writer_util::{owner_gone, unix_millis};
 use crate::writer_wire::{execution_json, live_frame, refusal_frame};
 use serde_json::{Value as Json, json};
 use snapback2_core::{
-    Actor, ArgType, Bound, Ceilings, ChannelSide, ChannelVerdict, ColumnType, Context, Execution,
-    ExecutionState, Expr, Generation, KeyProvenance, MigrationPlan, Order, Principal, Program,
-    ProgramKind, Runtime, Scan, Stmt, Value, max_certified_page_rows,
+    Actor, ArgType, AssetKind, AssetReadyFacts, Bound, Ceilings, ChannelSide, ChannelVerdict,
+    Context, Execution, ExecutionState, Expr, Generation, KeyProvenance, MigrationPlan, Order,
+    Program, ProgramKind, Runtime, Scan, Stmt, Value, max_certified_page_rows,
 };
-use std::collections::{BTreeMap, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::fmt;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender, SyncSender};
 use std::thread;
+use std::time::{Duration, Instant};
 
 #[path = "writer_assets.rs"]
 mod writer_assets;
@@ -30,15 +32,20 @@ mod writer_effects;
 mod writer_ledger;
 #[path = "writer_sse.rs"]
 mod writer_sse;
+#[path = "writer_values.rs"]
+mod writer_values;
 
-use writer_auth::SessionFence;
+use writer_assets::asset_record;
+use writer_auth::{SessionFence, actor};
 use writer_ledger::{CommitLedger, LedgerDelivery};
 pub use writer_sse::{SseReceiver, SseSender, queue as sse_queue};
+use writer_values::{channel_args, frame_digest, json_as_kind, operation_args};
 
 #[derive(Clone)]
 pub enum Identity {
     Bearer(String),
     Persona(String),
+    Carrier(String),
     Anonymous,
 }
 
@@ -47,6 +54,7 @@ impl fmt::Debug for Identity {
         match self {
             Self::Bearer(_) => formatter.write_str("Bearer(<redacted>)"),
             Self::Persona(name) => formatter.debug_tuple("Persona").field(name).finish(),
+            Self::Carrier(_) => formatter.write_str("Carrier(<redacted>)"),
             Self::Anonymous => formatter.write_str("Anonymous"),
         }
     }
@@ -93,7 +101,6 @@ impl OwnerHandle {
     }
 }
 
-// Apply carries a whole certified successor so the writer remains the sole Runtime owner.
 #[allow(clippy::large_enum_variant)]
 pub enum Action {
     Status,
@@ -165,9 +172,33 @@ pub enum Action {
         path: PathBuf,
     },
     Reset,
-    #[allow(dead_code)] // Constructed by Lane B's reclamation sweep when that lane is integrated.
+    // The periodic sweep reclaims in place; this variant is the owner's
+    // on-demand reclamation entry point and is exercised by tests.
+    #[allow(dead_code)]
     ReclaimAssets,
-    #[allow(dead_code)] // Constructed by Lane B's asset route when that lane is integrated.
+    AssetUploadAuthorize {
+        bytes: u64,
+        identity: Identity,
+    },
+    AssetUploadBegin {
+        kind: AssetKind,
+        bytes: u64,
+        identity: Identity,
+    },
+    AssetUploadReserve {
+        id: String,
+        bytes: u64,
+    },
+    AssetUploadReady {
+        id: String,
+        facts: AssetReadyFacts,
+    },
+    AssetUploadFailed {
+        id: String,
+    },
+    AssetSession {
+        identity: Identity,
+    },
     AssetDelivery {
         id: String,
         identity: Identity,
@@ -280,8 +311,16 @@ struct State {
     owner: OwnerInfo,
     exited: bool,
     effects_wake: Option<SyncSender<()>>,
+    asset_carriers: BTreeMap<String, writer_auth::AssetCarrier>,
+    blobs: Arc<dyn BlobStore>,
+    staging: Arc<LocalStaging>,
+    pending_asset_deletes: BTreeSet<String>,
+    next_asset_sweep: Instant,
 }
 
+const ASSET_SWEEP_INTERVAL: Duration = Duration::from_secs(60);
+
+#[allow(clippy::too_many_arguments)]
 pub fn spawn_writer(
     runtime: Runtime,
     compiled: CompiledProject,
@@ -291,6 +330,8 @@ pub fn spawn_writer(
     restarted_through_seq: u64,
     stop: Arc<AtomicBool>,
     owner: OwnerInfo,
+    blobs: Arc<dyn BlobStore>,
+    staging: Arc<LocalStaging>,
 ) -> Result<OwnerHandle, Refusal> {
     let (tx, rx) = mpsc::channel();
     let handle = OwnerHandle { tx };
@@ -315,6 +356,11 @@ pub fn spawn_writer(
                     owner,
                     exited: false,
                     effects_wake: None,
+                    asset_carriers: BTreeMap::new(),
+                    blobs,
+                    staging,
+                    pending_asset_deletes: BTreeSet::new(),
+                    next_asset_sweep: Instant::now() + ASSET_SWEEP_INTERVAL,
                 },
                 rx,
             )
@@ -342,10 +388,27 @@ pub fn apply_seed(runtime: &mut Runtime, rows: &[(String, Value)]) -> Result<u64
 }
 
 fn run_writer(mut state: State, rx: Receiver<Request>) {
+    if let Err(error) = state.sweep_assets_on_boot() {
+        crate::watch::log(
+            &state.root,
+            json!({ "exited": "asset startup sweep failed", "refusal": error }),
+        );
+        state.stop.store(true, AtomicOrdering::SeqCst);
+        return;
+    }
     loop {
+        if let Err(error) = state.sweep_assets_if_due() {
+            crate::watch::log(
+                &state.root,
+                json!({ "exited": "asset reclamation failed", "refusal": error }),
+            );
+            state.stop.store(true, AtomicOrdering::SeqCst);
+            break;
+        }
         let timeout = match state
             .sweep_expired_sessions()
             .and_then(|()| state.auth_poll_timeout())
+            .map(|timeout| timeout.min(state.asset_poll_timeout()))
         {
             Ok(timeout) => timeout,
             Err(error) => {
@@ -521,6 +584,33 @@ impl State {
             }
             Action::Reset => self.reset(),
             Action::ReclaimAssets => self.reclaim_assets(),
+            Action::AssetUploadAuthorize { bytes, identity } => {
+                self.asset_upload_authorize(bytes, identity)
+            }
+            Action::AssetUploadBegin {
+                kind,
+                bytes,
+                identity,
+            } => self.asset_upload_begin(kind, bytes, identity),
+            Action::AssetUploadReserve { id, bytes } => {
+                self.runtime_mut()
+                    .reserve_asset_finalized_bytes(&id, bytes)
+                    .map_err(|error| Refusal::from_runtime(&error))?;
+                Ok(json!({ "ok": true }))
+            }
+            Action::AssetUploadReady { id, facts } => {
+                self.runtime_mut()
+                    .mark_asset_ready(&id, &facts)
+                    .map_err(|error| Refusal::from_runtime(&error))?;
+                Ok(asset_record(&id, &facts))
+            }
+            Action::AssetUploadFailed { id } => {
+                self.runtime_mut()
+                    .mark_asset_failed(&id)
+                    .map_err(|error| Refusal::from_runtime(&error))?;
+                Ok(json!({ "ok": true }))
+            }
+            Action::AssetSession { identity } => self.mint_asset_carrier(identity),
             Action::AssetDelivery { id, identity } => self.asset_delivery(&id, identity),
             Action::Data {
                 table,
@@ -562,6 +652,7 @@ impl State {
                 }
                 self.clock_offset_ms = self.clock_offset_ms.saturating_add(advance_ms);
                 self.sweep_expired_sessions()?;
+                self.sweep_assets_now()?;
                 let subscriptions = self.live.keys().copied().collect::<Vec<_>>();
                 let _ = self.rerun_live(&subscriptions, false);
                 Ok(json!({ "ok": true, "offsetMs": self.clock_offset_ms }))
@@ -1035,6 +1126,7 @@ impl State {
         seed: Option<SeedData>,
         cache: Option<StagedBuildCache>,
     ) -> Result<Json, Refusal> {
+        crate::media_helper::require_for_generation(&compiled.generation)?;
         let report = if let Some(plan) = migration {
             let released_at = self.now();
             self.runtime_mut()
@@ -1236,210 +1328,6 @@ impl State {
     }
 }
 
-fn actor(principal: &Principal) -> Result<Actor, Refusal> {
-    Actor::try_from(principal).map_err(|error| {
-        Refusal::new(
-            "E_AUTH_RESERVED",
-            "auth",
-            error.to_string(),
-            "authenticate as a user, guest, or development persona",
-            "auth/identity",
-        )
-    })
-}
-
 #[cfg(test)]
 #[path = "writer_effects_tests.rs"]
 mod effects_tests;
-
-fn operation_args(
-    generation: &Generation,
-    op: &str,
-    args: &Json,
-) -> Result<BTreeMap<String, Value>, Refusal> {
-    let program = &generation
-        .programs()
-        .get(op)
-        .ok_or_else(|| {
-            Refusal::new(
-                "E_OP_UNKNOWN",
-                "op",
-                format!("unknown operation {op}"),
-                "use /api/manifest",
-                "op/manifest",
-            )
-        })?
-        .0;
-    let object = args.as_object().ok_or_else(|| {
-        Refusal::input(
-            "operation args must be a JSON object",
-            "pass {} when there are no args",
-        )
-    })?;
-    let unknown: Vec<_> = object
-        .keys()
-        .filter(|key| !program.args.contains_key(*key))
-        .cloned()
-        .collect();
-    if !unknown.is_empty() {
-        return Err(Refusal::input(
-            format!("unknown operation args: {}", unknown.join(", ")),
-            "remove args not declared by the operation",
-        ));
-    }
-    let mut values = BTreeMap::new();
-    for (name, kind) in &program.args {
-        let Some(value) = object.get(name) else {
-            if matches!(kind, ArgType::Optional(_)) {
-                values.insert(name.clone(), Value::Null);
-            }
-            continue;
-        };
-        values.insert(name.clone(), json_as_arg(value, kind)?);
-    }
-    Ok(values)
-}
-
-fn frame_digest(frame: &Json) -> String {
-    let mut value = frame.clone();
-    if let Some(object) = value.as_object_mut() {
-        object.remove("seq");
-    }
-    serde_json::to_string(&value).unwrap_or_default()
-}
-
-fn channel_args(
-    generation: &Generation,
-    name: &str,
-    args: &Json,
-) -> Result<BTreeMap<String, Value>, Refusal> {
-    let channel = generation.schema().channels.get(name).ok_or_else(|| {
-        Refusal::new(
-            "E_OP_CHANNEL_UNKNOWN",
-            "op",
-            format!("unknown channel {name}"),
-            "use a channel listed by /api/manifest",
-            "op/channels",
-        )
-    })?;
-    let object = args.as_object().ok_or_else(|| {
-        Refusal::input(
-            "channel args must be a JSON object",
-            "pass {\"arg\": value}",
-        )
-    })?;
-    channel
-        .args
-        .iter()
-        .map(|(name, kind)| {
-            let value = match object.get(name) {
-                Some(value) => json_as_arg(value, kind)?,
-                None if matches!(kind, ArgType::Optional(_)) => Value::Null,
-                None => {
-                    return Err(Refusal::input(
-                        format!("channel is missing arg {name}"),
-                        "pass every required channel arg",
-                    ));
-                }
-            };
-            Ok((name.clone(), value))
-        })
-        .collect()
-}
-
-fn json_as_arg(value: &Json, kind: &ArgType) -> Result<Value, Refusal> {
-    match kind {
-        ArgType::Cursor => value
-            .as_str()
-            .map(|value| Value::String(value.to_owned()))
-            .ok_or_else(|| {
-                Refusal::input(
-                    "cursor arguments must be strings",
-                    "pass a returned next token",
-                )
-            }),
-        ArgType::Optional(_) if value.is_null() => Ok(Value::Null),
-        ArgType::Optional(inner) => json_as_arg(value, inner),
-        ArgType::Id | ArgType::Principal | ArgType::Ref { .. } => value
-            .as_str()
-            .map(|value| Value::Id(value.to_owned()))
-            .ok_or_else(|| Refusal::input("id arguments must be strings", "pass a string id")),
-        ArgType::List { of, .. } => value
-            .as_array()
-            .ok_or_else(|| Refusal::input("list arguments must be arrays", "pass a JSON array"))?
-            .iter()
-            .map(|value| match of {
-                Some(of) => json_as_arg(value, of),
-                None => json_to_value(value),
-            })
-            .collect::<Result<Vec<_>, _>>()
-            .map(Value::Array),
-        ArgType::Int | ArgType::Time | ArgType::Decimal { .. } | ArgType::Money { .. } => value
-            .as_i64()
-            .map(Value::Int)
-            .ok_or_else(|| Refusal::input("numeric arguments must be integers", "pass an integer")),
-        ArgType::Text { .. } | ArgType::Enum { .. } => value
-            .as_str()
-            .map(|value| Value::String(value.to_owned()))
-            .ok_or_else(|| {
-                Refusal::input("text and enum arguments must be strings", "pass a string")
-            }),
-        ArgType::Bytes { .. } => json_as_bytes(value, "bytes arguments"),
-        ArgType::Image { .. } | ArgType::Video { .. } => json_to_value(value),
-        ArgType::Bool => value.as_bool().map(Value::Bool).ok_or_else(|| {
-            Refusal::input("boolean arguments must be true or false", "pass a boolean")
-        }),
-        ArgType::Json { .. } | ArgType::Scalar => json_to_value(value),
-    }
-}
-
-fn json_as_kind(value: &Json, kind: &ColumnType) -> Result<Value, Refusal> {
-    match kind {
-        ColumnType::Optional(inner) => {
-            if value.is_null() {
-                Ok(Value::Null)
-            } else {
-                json_as_kind(value, inner)
-            }
-        }
-        ColumnType::Id | ColumnType::Principal | ColumnType::Ref { .. } => value
-            .as_str()
-            .map(|value| Value::Id(value.to_owned()))
-            .ok_or_else(|| Refusal::input("id index values must be strings", "pass a string id")),
-        ColumnType::Text { .. } | ColumnType::Enum { .. } => value
-            .as_str()
-            .map(|value| Value::String(value.to_owned()))
-            .ok_or_else(|| Refusal::input("text index values must be strings", "pass a string")),
-        ColumnType::Bytes { .. } => json_as_bytes(value, "bytes index values"),
-        ColumnType::Image { .. } | ColumnType::Video { .. } => json_to_value(value),
-        ColumnType::Int
-        | ColumnType::Time
-        | ColumnType::Decimal { .. }
-        | ColumnType::Money { .. } => value.as_i64().map(Value::Int).ok_or_else(|| {
-            Refusal::input("numeric index values must be integers", "pass an integer")
-        }),
-        ColumnType::Bool => value.as_bool().map(Value::Bool).ok_or_else(|| {
-            Refusal::input(
-                "boolean index values must be true or false",
-                "pass a boolean",
-            )
-        }),
-        ColumnType::Json { .. } | ColumnType::List { .. } => json_to_value(value),
-    }
-}
-
-fn json_as_bytes(value: &Json, label: &str) -> Result<Value, Refusal> {
-    let bytes = value
-        .as_object()
-        .filter(|object| object.len() == 1)
-        .and_then(|object| object.get("Bytes"))
-        .and_then(Json::as_str)
-        .and_then(snapback2_core::decode_bytes_hex)
-        .ok_or_else(|| {
-            Refusal::input(
-                format!("{label} must use {{\"Bytes\":\"lowercase-base16\"}}"),
-                "pass canonical lowercase even-length base16",
-            )
-        })?;
-    Ok(Value::Bytes(bytes))
-}

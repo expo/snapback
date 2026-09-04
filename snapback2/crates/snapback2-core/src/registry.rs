@@ -523,6 +523,39 @@ impl Runtime {
             .begin_asset(kind, actor.id(), created_at)
     }
 
+    pub fn begin_asset_charged(
+        &mut self,
+        kind: crate::AssetKind,
+        actor: &crate::Actor,
+        created_at: i64,
+        staged_bytes: u64,
+    ) -> Result<String, RuntimeError> {
+        self.engine
+            .store_mut()
+            .begin_asset_charged(kind, actor.id(), created_at, staged_bytes)
+    }
+
+    pub fn asset_staging_usage(
+        &self,
+        actor: &crate::Actor,
+    ) -> Result<crate::AssetStagingSnapshot, RuntimeError> {
+        self.engine.store().asset_staging_usage(actor.id())
+    }
+
+    pub fn asset_ids(&self) -> Result<Vec<String>, RuntimeError> {
+        self.engine.store().asset_ids()
+    }
+
+    pub fn reserve_asset_finalized_bytes(
+        &mut self,
+        id: &str,
+        bytes: u64,
+    ) -> Result<(), RuntimeError> {
+        self.engine
+            .store_mut()
+            .asset_reserve_finalized_bytes(id, bytes)
+    }
+
     pub fn mark_asset_ready(
         &mut self,
         id: &str,
@@ -548,8 +581,24 @@ impl Runtime {
             .asset_delivery(id, context, &self.generation.table_read_certificates)
     }
 
+    /// Credential-free delivery is intentionally narrower than authenticated
+    /// delivery: only a table authored as `public(reason)` may pass.
+    // @ref LLP 1006#2-authority-delivery-is-by-the-row-that-holds-it — tokenless public delivery
+    // still validates the generated read certificate and the current row.
+    pub fn public_asset_delivery(
+        &mut self,
+        id: &str,
+    ) -> Result<crate::assets_ledger::AssetDelivery, RuntimeError> {
+        self.engine
+            .public_asset_delivery(id, &self.generation.table_read_certificates)
+    }
+
     pub fn reclaim_assets(&mut self, now: i64) -> Result<Vec<String>, RuntimeError> {
         self.engine.store_mut().reclaim(now)
+    }
+
+    pub fn finish_asset_reclaims(&mut self, ids: &[String]) -> Result<(), RuntimeError> {
+        self.engine.store_mut().finish_asset_reclaims(ids)
     }
 
     /// Execute an effect's `then` mutation and settle its durable outbox row
@@ -565,7 +614,7 @@ impl Runtime {
         outbox_id: &str,
     ) -> Result<Execution, RuntimeError> {
         let Some((program, certificate)) = self.bound_then_target(op, outbox_id)? else {
-            return Ok(self.then_rejection("E_EFFECT_THEN_CHANGED")?);
+            return self.then_rejection("E_EFFECT_THEN_CHANGED");
         };
 
         // The durable then binding is the capability: public callers can
@@ -706,7 +755,7 @@ impl Runtime {
         certificate: &Certificate,
         context: Context,
     ) -> Result<Execution, RuntimeError> {
-        match self.engine.execute(&program, &certificate, context) {
+        match self.engine.execute(program, certificate, context) {
             Ok(execution) => Ok(execution),
             Err(error) if program.kind == ProgramKind::Mutation => {
                 if let Some(code) = rejection_code(&error) {

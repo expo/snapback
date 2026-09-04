@@ -1,6 +1,7 @@
 //! `snapback2 dev`: compile, certify, own the store, serve, watch, and stop.
 // @ref LLP 1002#5-the-owner — this process is the only store owner.
 
+use crate::blob_store::{BlobStore, FileBlobStore, LocalStaging};
 use crate::client;
 use crate::project::{CompilerWorker, locate_root, seed_rows, write_build_cache};
 use crate::protocol::Refusal;
@@ -155,6 +156,7 @@ fn foreground(root: PathBuf, options: &DevOptions) -> Result<(), Refusal> {
     secure_owner_directory(&root)?;
     let mut compiler = CompilerWorker::spawn()?;
     let compiled = compiler.compile(&root).map_err(first)?;
+    crate::media_helper::require_for_generation(&compiled.generation)?;
     let seed = compiler.seed(&root).map_err(first)?;
     write_build_cache(&root, &compiled)?;
     let rows = seed_rows(&seed, &compiled)?;
@@ -187,6 +189,10 @@ fn foreground(root: PathBuf, options: &DevOptions) -> Result<(), Refusal> {
     install_signal_exit(root.clone(), stop.clone());
     let secret = random_secret()?;
     let url = format!("http://127.0.0.1:{}", server.port);
+    // Store::open has established owner exclusivity before byte-custody startup
+    // cleanup is allowed to remove crash-left temporaries.
+    let blobs: Arc<dyn BlobStore> = Arc::new(FileBlobStore::open(&root)?);
+    let staging = Arc::new(LocalStaging::open(&root)?);
     let info = OwnerInfo {
         pid: std::process::id(),
         port: server.port,
@@ -206,6 +212,8 @@ fn foreground(root: PathBuf, options: &DevOptions) -> Result<(), Refusal> {
         restarted_through_seq,
         stop.clone(),
         info.clone(),
+        blobs.clone(),
+        staging.clone(),
     )?;
     let _effects = crate::effects::spawn(handle.clone());
     handle.call(Action::PublishOwner)?;
@@ -239,6 +247,9 @@ fn foreground(root: PathBuf, options: &DevOptions) -> Result<(), Refusal> {
         mode,
         url,
         stop: stop.clone(),
+        blobs,
+        staging,
+        media_jobs: Default::default(),
     });
     stop.store(true, Ordering::SeqCst);
     if watcher.join().is_err() {
@@ -451,19 +462,19 @@ fn control_command(
     match client::control(&info, method, path, body) {
         Ok(response) => {
             if response.status < 400 {
-                if path == "/control/stop" {
-                    if !wait_for_owner_exit(root, &info, Duration::from_secs(2)) {
-                        return print_refusal(
-                            Refusal::owner(
-                                "E_OWNER_STOP_TIMEOUT",
-                                format!("owner pid {} is still alive after 2 seconds", info.pid),
-                                "inspect .snapback/log.jsonl, then retry snapback2 dev --stop",
-                            )
-                            .with_detail("pid", json!(info.pid)),
-                            json_output,
-                            1,
-                        );
-                    }
+                if path == "/control/stop"
+                    && !wait_for_owner_exit(root, &info, Duration::from_secs(2))
+                {
+                    return print_refusal(
+                        Refusal::owner(
+                            "E_OWNER_STOP_TIMEOUT",
+                            format!("owner pid {} is still alive after 2 seconds", info.pid),
+                            "inspect .snapback/log.jsonl, then retry snapback2 dev --stop",
+                        )
+                        .with_detail("pid", json!(info.pid)),
+                        json_output,
+                        1,
+                    );
                 }
                 print_control_body(&response.body);
                 ExitCode::SUCCESS
@@ -796,6 +807,7 @@ fn unix_millis() -> i64 {
 }
 
 #[cfg(test)]
+#[allow(clippy::items_after_test_module)]
 mod tests {
     use super::*;
 

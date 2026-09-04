@@ -1621,7 +1621,9 @@ name = "snapback2"
 version = "0.0.1"
 dependencies = [
  "getrandom",
+ "image",
  "libc",
+ "rusqlite",
  "serde",
  "serde_json",
  "snapback2-core",

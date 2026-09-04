@@ -37,6 +37,7 @@ fn delivery_refuses_when_the_located_cell_no_longer_contains_the_asset_id() {
     let actor = Actor::user("alice").unwrap();
     let mut store = Store::memory().unwrap();
     let id = store.begin_asset(AssetKind::Image, actor.id(), 0).unwrap();
+    store.asset_reserve_finalized_bytes(&id, 50).unwrap();
     store
         .asset_mark_ready(
             &id,

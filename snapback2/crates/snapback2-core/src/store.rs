@@ -228,6 +228,8 @@ impl Store {
                 created_by TEXT NOT NULL,
                 created_at INTEGER NOT NULL,
                 released_at INTEGER,
+                staged_bytes INTEGER NOT NULL DEFAULT 0 CHECK(staged_bytes >= 0),
+                reclaiming INTEGER NOT NULL DEFAULT 0 CHECK(reclaiming IN (0, 1)),
                 locator_table TEXT,
                 locator_row TEXT,
                 locator_column TEXT,
@@ -240,6 +242,18 @@ impl Store {
         ensure_column(connection, "_outbox", "then_op", "TEXT")?;
         ensure_column(connection, "_outbox", "generation", "TEXT")?;
         ensure_column(connection, "_assets", "released_at", "INTEGER")?;
+        ensure_column(
+            connection,
+            "_assets",
+            "staged_bytes",
+            "INTEGER NOT NULL DEFAULT 0 CHECK(staged_bytes >= 0)",
+        )?;
+        ensure_column(
+            connection,
+            "_assets",
+            "reclaiming",
+            "INTEGER NOT NULL DEFAULT 0 CHECK(reclaiming IN (0, 1))",
+        )?;
         let now = unix_millis();
         connection.execute(
             "INSERT OR IGNORE INTO _meta(key, value) VALUES ('created_at', ?1)",

@@ -44,6 +44,10 @@ pub fn run(json: bool) -> ExitCode {
         Err(error) => (None, Some(error)),
     };
     let owner = owner_state();
+    let media = media_proof();
+    if let Err(error) = &media {
+        refused.push(format!("media helper: {}: {}", error.code, error.message));
+    }
     let live_queued = owner
         .as_ref()
         .and_then(|owner| owner.pointer("/effects/queued"))
@@ -77,6 +81,11 @@ pub fn run(json: bool) -> ExitCode {
                 "effects": effects,
                 "effectsQueued": queued,
                 "owner": owner,
+                "media": match &media {
+                    Ok(Some(capabilities)) => serde_json::json!({ "required": true, "capabilities": capabilities }),
+                    Ok(None) => serde_json::json!({ "required": false }),
+                    Err(error) => serde_json::to_value(error).unwrap_or(serde_json::Value::Null),
+                },
                 "elapsedMs": elapsed_ms,
             })
         );
@@ -102,6 +111,14 @@ pub fn run(json: bool) -> ExitCode {
         } else {
             println!("effects: {effects}");
         }
+        match media {
+            Ok(Some(capabilities)) => println!(
+                "media: ready · images={} · heic={}",
+                capabilities.images, capabilities.heic
+            ),
+            Ok(None) => println!("media: not required by cached project"),
+            Err(error) => println!("media: refused {}: {}", error.code, error.message),
+        }
         if let Some(owner) = owner {
             println!("owner: {owner}");
         } else {
@@ -113,6 +130,13 @@ pub fn run(json: bool) -> ExitCode {
     } else {
         ExitCode::FAILURE
     }
+}
+
+fn media_proof() -> Result<Option<crate::media_helper::Capabilities>, crate::protocol::Refusal> {
+    let Ok(root) = crate::project::locate_root(None) else {
+        return Ok(None);
+    };
+    crate::media_helper::require_for_cached_project(&root)
 }
 
 fn compiler_proof() -> Result<PathBuf, String> {

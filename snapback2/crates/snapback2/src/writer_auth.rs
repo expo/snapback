@@ -6,11 +6,25 @@ use snapback2_core::{IdentityError, Principal, SessionAuthority};
 use std::time::Duration;
 
 const MAX_SESSION_POLL: Duration = Duration::from_secs(1);
+pub(super) const ASSET_CARRIER_LIFETIME_MS: i64 = 30 * 60 * 1_000;
+
+pub(super) fn actor(principal: &Principal) -> Result<Actor, Refusal> {
+    Actor::try_from(principal).map_err(|error| {
+        Refusal::new(
+            "E_AUTH_RESERVED",
+            "auth",
+            error.to_string(),
+            "authenticate as a user, guest, or development persona",
+            "auth/identity",
+        )
+    })
+}
 
 #[derive(Clone)]
 pub(super) struct ResolvedAuthority {
     pub(super) principal: Principal,
     pub(super) session: Option<SessionFence>,
+    session_expires_at: Option<i64>,
 }
 
 impl ResolvedAuthority {
@@ -22,6 +36,7 @@ impl ResolvedAuthority {
         Self {
             principal: authority.principal,
             session: Some(session),
+            session_expires_at: Some(authority.expires_at),
         }
     }
 
@@ -29,6 +44,7 @@ impl ResolvedAuthority {
         Self {
             principal,
             session: None,
+            session_expires_at: None,
         }
     }
 
@@ -43,6 +59,12 @@ impl ResolvedAuthority {
 pub(super) struct SessionFence {
     principal: String,
     auth_epoch: u64,
+}
+
+#[derive(Clone)]
+pub(super) struct AssetCarrier {
+    authority: ResolvedAuthority,
+    expires_at: i64,
 }
 
 impl SessionFence {
@@ -93,6 +115,13 @@ impl State {
                     .map(ResolvedAuthority::persona)
                     .map_err(|error| Refusal::from_identity(&error))
             }
+            Identity::Carrier(_) => Err(Refusal::new(
+                "E_AUTH_AMBIGUOUS",
+                "auth",
+                "an asset session carrier is valid only on the asset delivery route",
+                "send the carrier as ?s= on GET /api/asset/<id>",
+                "auth/asset-session",
+            )),
             Identity::Anonymous => Err(Refusal::new(
                 "E_AUTH_REQUIRED",
                 "auth",
@@ -176,6 +205,13 @@ impl State {
     }
 
     pub(super) fn fence_session(&mut self, authority: &SessionAuthority) {
+        self.asset_carriers.retain(|_, carrier| {
+            !carrier
+                .authority
+                .session
+                .as_ref()
+                .is_some_and(|session| session.matches(authority))
+        });
         let seq = self.runtime().store().commit_seq().unwrap_or_default();
         let live_ids = self
             .live
@@ -212,6 +248,64 @@ impl State {
             }
         }
     }
+
+    // @ref LLP 1006#2b-the-session-carrier-author-ruling-2026-09-03 — the
+    // opaque in-memory carrier reproduces the exact persona or bearer authority,
+    // expires within thirty minutes, and never outlives its bearer epoch.
+    pub(super) fn mint_asset_carrier(&mut self, identity: Identity) -> Result<Json, Refusal> {
+        let authority = self.resolve_authority(identity)?;
+        let now = self.now();
+        let expires_at = authority
+            .session_expires_at
+            .unwrap_or(i64::MAX)
+            .min(now.saturating_add(ASSET_CARRIER_LIFETIME_MS));
+        let token = random_carrier()?;
+        self.asset_carriers.insert(
+            token.clone(),
+            AssetCarrier {
+                authority,
+                expires_at,
+            },
+        );
+        Ok(json!({ "token": token, "expiresAt": expires_at }))
+    }
+
+    pub(super) fn resolve_asset_carrier(
+        &mut self,
+        token: &str,
+    ) -> Result<Option<ResolvedAuthority>, Refusal> {
+        let now = self.now();
+        self.sweep_expired_sessions_at(now)?;
+        self.asset_carriers
+            .retain(|_, carrier| carrier.expires_at > now);
+        Ok(self
+            .asset_carriers
+            .get(token)
+            .map(|carrier| carrier.authority.clone()))
+    }
+}
+
+fn random_carrier() -> Result<String, Refusal> {
+    let mut bytes = [0_u8; 32];
+    getrandom::fill(&mut bytes).map_err(|error| {
+        Refusal::new(
+            "E_ASSET_NOT_READY",
+            "input",
+            format!("cannot mint an asset session carrier: {error}"),
+            "retry after restoring operating-system randomness",
+            "auth/asset-session",
+        )
+    })?;
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    Ok(bytes
+        .iter()
+        .flat_map(|byte| {
+            [
+                HEX[usize::from(byte >> 4)] as char,
+                HEX[usize::from(byte & 0x0f)] as char,
+            ]
+        })
+        .collect())
 }
 
 fn send_session_terminal(events: &SseSender, seq: u64) {
@@ -285,6 +379,15 @@ mod tests {
         let sibling_authority = runtime
             .authenticate(&sibling.token, first.expires_at - 1)
             .unwrap();
+        let asset_root = std::env::temp_dir().join(format!(
+            "snapback2-writer-auth-{}-{}",
+            std::process::id(),
+            issued_at
+        ));
+        std::fs::create_dir_all(asset_root.join(".snapback")).unwrap();
+        let blobs: Arc<dyn crate::blob_store::BlobStore> =
+            Arc::new(crate::blob_store::FileBlobStore::open(&asset_root).unwrap());
+        let staging = Arc::new(crate::blob_store::LocalStaging::open(&asset_root).unwrap());
         let mut state = State {
             runtime: Some(runtime),
             compiled: CompiledProject {
@@ -295,7 +398,7 @@ mod tests {
                 quarry: Vec::new(),
             },
             seed: SeedData::default(),
-            root: PathBuf::new(),
+            root: asset_root.clone(),
             mode: "dev".to_owned(),
             phase: json!("ready"),
             live: BTreeMap::from([
@@ -371,6 +474,11 @@ mod tests {
             },
             exited: false,
             effects_wake: None,
+            asset_carriers: BTreeMap::new(),
+            blobs,
+            staging,
+            pending_asset_deletes: BTreeSet::new(),
+            next_asset_sweep: Instant::now() + ASSET_SWEEP_INTERVAL,
         };
 
         for events in [
@@ -413,5 +521,6 @@ mod tests {
             .resolve_authority(Identity::Bearer(sibling.token))
             .unwrap();
         assert_eq!(retained.session.unwrap().auth_epoch, sibling.auth_epoch);
+        std::fs::remove_dir_all(asset_root).unwrap();
     }
 }
