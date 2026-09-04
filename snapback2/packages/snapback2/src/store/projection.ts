@@ -1,4 +1,4 @@
-import { emptyState, type PersistedRangeState } from "./range-store.js";
+import { emptyState, jsonState, type PersistedRangeState } from "./range-store.js";
 
 export type StateEntry = { key: string; value: unknown };
 export type StateProjection = Record<"rows" | "answers" | "outbox" | "meta", StateEntry[]>;
@@ -8,7 +8,7 @@ export type StateProjection = Record<"rows" | "answers" | "outbox" | "meta", Sta
 export function projectState(state: PersistedRangeState): StateProjection {
   // State has the JSON wire form on every carrier: omit undefined object fields,
   // preserve null, and turn undefined array slots into null. Bytes travel separately.
-  const { rows = {}, answers = {}, outbox = {}, ...meta } = JSON.parse(JSON.stringify(state)) as PersistedRangeState;
+  const { rows = {}, answers = {}, outbox = {}, ...meta } = jsonState(state);
   const entries = (value: object) => Object.entries(value).map(([key, value]) => ({ key, value }));
   return { rows: entries(rows), answers: entries(answers), outbox: entries(outbox), meta: [{ key: "state", value: meta }] };
 }

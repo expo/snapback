@@ -352,7 +352,7 @@ function canonical(value: unknown): string {
 }
 
 export function canonicalAnswerKey(op: string, args: unknown): string {
-  return `${op}\u0000${canonical(args)}`;
+  return `${op}\u0000${canonical(args === undefined ? args : jsonState(args))}`;
 }
 
 function rowKey(ref: RowRef): string {
@@ -532,8 +532,14 @@ function inFreshExtent(
   return compareKey(key, first) >= 0 && compareKey(key, last) <= 0;
 }
 
+/** One JSON form for warm state and every carrier: omit undefined fields, preserve null. */
+export function jsonState<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
 function normalizeState(value: PersistedRangeState | undefined): PersistedRangeState {
   if (!value) return emptyState();
+  value = jsonState(value);
   if (value.version !== 1 || typeof value.rows !== "object" || typeof value.answers !== "object") {
     throw new OfflineStoreFailure("E_OFFLINE_CARRIER", "range store contains an unsupported format");
   }
@@ -741,7 +747,8 @@ export class PersistentRangeStore implements RangeStore {
       // Byte payloads are not cloned: they can be megabytes and the swap never mutates them.
       const { bytes, ...rest } = swap;
       const delta: ByteDelta = { put: [], remove: [] };
-      const next = this.applySwap(clone(this.state), { ...clone(rest), ...(bytes === undefined ? {} : { bytes }) }, delta);
+      // Normalize before deriving answer keys/fingerprints, then normalize the state we publish.
+      const next = normalizeState(this.applySwap(clone(this.state), { ...jsonState(rest), ...(bytes === undefined ? {} : { bytes }) }, delta));
       await this.backend.replace(next, delta);
       this.state = next;
     });

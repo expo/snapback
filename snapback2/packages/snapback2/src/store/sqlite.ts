@@ -52,8 +52,15 @@ export class SqliteBackend implements RangeStoreBackend {
     await this.close();
     return this.guard(async () => {
       const driver = typeof this.source === "function" ? await this.source() : this.source;
-      this.locks = this.options.locks ?? inProcessLocks(driver.identity ?? this.source);
-      try { this.release = await acquireStoreLock(this.locks, partition); }
+      try {
+        const identity = driver.identity;
+        if (typeof identity !== "string" || !identity.trim()) {
+          throw new OfflineStoreFailure("E_OFFLINE_CARRIER", "driver has no database identity",
+            "supply a stable database identity on the SQLite driver");
+        }
+        this.locks = this.options.locks ?? inProcessLocks(identity);
+        this.release = await acquireStoreLock(this.locks, partition);
+      }
       catch (error) {
         // A factory may open eagerly; a refused client owns that fresh connection.
         // A caller-supplied driver may belong to the client holding the lock.

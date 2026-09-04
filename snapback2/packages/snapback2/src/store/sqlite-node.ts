@@ -1,10 +1,12 @@
 import { DatabaseSync } from "node:sqlite";
-import { resolve } from "node:path";
+import { realpathSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 import { driverQueue, type SqliteDriver, type SqliteExecutor } from "./sqlite-driver.js";
 
 /** Test-only Node 24 driver. Opening is lazy so carrier failures use E_OFFLINE_CARRIER. */
 export function nodeSqliteDriver(path: string): SqliteDriver {
   let database: DatabaseSync | undefined;
+  let identity: string | undefined;
   const db = () => database ??= new DatabaseSync(path);
   const queue = driverQueue();
   const executor: SqliteExecutor = {
@@ -13,7 +15,11 @@ export function nodeSqliteDriver(path: string): SqliteDriver {
     async all<T>(sql: string, params = []) { return db().prepare(sql).all(...params) as T[]; },
   };
   return {
-    identity: `sqlite:${resolve(path)}`,
+    get identity() {
+      db(); // Resolve after open creates the file; symlinks must share ownership.
+      return identity ??= path === ":memory:" || path === ""
+        ? `sqlite:temporary:${randomUUID()}` : `sqlite:${realpathSync(path)}`;
+    },
     run: (sql, params) => queue(() => executor.run(sql, params)),
     get: (sql, params) => queue(() => executor.get(sql, params)),
     all: (sql, params) => queue(() => executor.all(sql, params)),
@@ -27,7 +33,7 @@ export function nodeSqliteDriver(path: string): SqliteDriver {
         db().exec("COMMIT");
         return result;
       } catch (error) {
-        db().exec("ROLLBACK");
+        try { db().exec("ROLLBACK"); } catch { /* Preserve the body/COMMIT failure. */ }
         throw error;
       }
     }),

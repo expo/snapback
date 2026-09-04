@@ -6,6 +6,7 @@ export interface StoreLocks {
 
 // @ref LLP 1013#4-locks-the-token-store-and-the-partition — a global symbol
 // keeps the one-writer table shared even across separately emitted bundles.
+// Deliberate pre-publication rename from snapback2.offline.locks for the new scoped value shape.
 const key = Symbol.for("snapback2.offline.storeLocks");
 type LockScope = string | object;
 const scopes = ((globalThis as Record<PropertyKey, unknown>)[key] ??= new Map()) as Map<LockScope, Map<string, object>>;

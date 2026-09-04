@@ -3,6 +3,7 @@ import { readFile, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createRequire, register } from "node:module";
+import { DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
 import React, { act } from "react";
 import TestRenderer from "react-test-renderer";
@@ -80,6 +81,9 @@ test("Expo driver scopes statements to the exclusive executor and normalizes nul
       async withExclusiveTransactionAsync(body) { calls.push("begin"); await body(connection("tx")); calls.push("commit"); } };
   };
   const driver = expoSqliteDriver("conformance.db");
+  assert.equal(driver.identity, "expo-sqlite:file:///documents/SQLite/conformance.db");
+  assert.equal(driver.identity, expoSqliteDriver("/conformance.db").identity);
+  assert.notEqual(driver.identity, expoSqliteDriver("separate.db").identity);
   assert.equal(await driver.get("missing"), undefined);
   assert.equal(await driver.transaction(async (tx) => {
     await tx.run("insert", [new Uint8Array([1])]);
@@ -89,6 +93,47 @@ test("Expo driver scopes statements to the exclusive executor and normalizes nul
   }), 7);
   await driver.close();
   assert.deepEqual(calls, ["outer.get", "begin", "tx.run", "tx.get", "tx.all", "commit", "close"]);
+});
+
+test("Expo COMMIT failure rolls back its exclusive connection and the next queued transaction succeeds", async () => {
+  const root = await mkdtemp(join(tmpdir(), "s2-expo-commit-"));
+  const path = join(root, "commit.db");
+  const outer = new DatabaseSync(path);
+  const failure = new Error("Expo commit failed once");
+  const calls: string[] = [];
+  let failCommit = true;
+  const connection = (database: DatabaseSync) => ({
+    async runAsync(sql, params) { database.prepare(sql).run(...params); },
+    async getFirstAsync(sql, params) { return database.prepare(sql).get(...params) ?? null; },
+    async getAllAsync(sql, params) { return database.prepare(sql).all(...params); },
+  });
+  (globalThis as any).__snapbackExpoSqlite = async () => ({ ...connection(outer),
+    async execAsync(sql) { outer.exec(sql); },
+    async closeAsync() { outer.close(); },
+    // SDK 54 owns BEGIN/COMMIT/ROLLBACK and closes the exclusive connection in finally.
+    async withExclusiveTransactionAsync(body) {
+      const tx = new DatabaseSync(path);
+      try {
+        calls.push("begin"); tx.exec("BEGIN");
+        await body(connection(tx));
+        calls.push("commit");
+        if (failCommit) { failCommit = false; throw failure; }
+        tx.exec("COMMIT");
+      } catch (error) {
+        calls.push("rollback"); tx.exec("ROLLBACK"); throw error;
+      } finally { calls.push("close"); tx.close(); }
+    },
+  });
+  const driver = expoSqliteDriver("commit.db");
+  try {
+    await driver.exec("CREATE TABLE attempts (value INTEGER)");
+    const failed = driver.transaction((tx) => tx.run("INSERT INTO attempts VALUES (1)"));
+    const next = driver.transaction((tx) => tx.run("INSERT INTO attempts VALUES (2)"));
+    await assert.rejects(failed, (error) => error === failure);
+    await next;
+    assert.deepEqual((await driver.all<{ value: number }>("SELECT value FROM attempts")).map((row) => row.value), [2]);
+    assert.deepEqual(calls, ["begin", "commit", "rollback", "close", "begin", "commit", "close"]);
+  } finally { await driver.close(); await rm(root, { recursive: true, force: true }); }
 });
 
 test("built native entries exclude node and IndexedDB, share react-core, and ship source maps", async () => {
@@ -118,6 +163,20 @@ test("emitted web declarations exclude node modules and SQLite test exports", as
     assert.doesNotMatch(source, /node:|sqlite-exports|native-modules/);
   }
   await assert.rejects(readFile(new URL("../dist/store/sqlite-node.d.ts", import.meta.url)), { code: "ENOENT" });
+});
+
+test("compiler source imports no Expo fetch or filesystem modules covered by its path stubs", async () => {
+  const ts = createRequire(import.meta.url)("typescript");
+  const root = new URL("../../compiler/src/", import.meta.url).pathname;
+  const sources = ts.sys.readDirectory(root, [".ts", ".tsx", ".js", ".jsx"]);
+  assert.ok(sources.length > 0);
+  // Compiler mappings exist only for transitive client files; they must never type-check compiler imports.
+  for (const path of sources) {
+    const { importedFiles } = ts.preProcessFile(await readFile(path, "utf8"), true, true);
+    for (const imported of importedFiles) {
+      assert.ok(!["expo/fetch", "expo-file-system"].includes(imported.fileName), `${path}: ${imported.fileName}`);
+    }
+  }
 });
 
 test("native development dependencies match Expo SDK 54 and use real expo-sqlite declarations", async () => {

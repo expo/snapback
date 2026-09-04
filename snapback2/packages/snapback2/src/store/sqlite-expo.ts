@@ -1,4 +1,4 @@
-import { openDatabaseAsync, type SQLiteDatabase } from "expo-sqlite";
+import { defaultDatabaseDirectory, openDatabaseAsync, type SQLiteDatabase } from "expo-sqlite";
 import { driverQueue, type SqliteDriver, type SqliteExecutor } from "./sqlite-driver.js";
 
 function executor(database: SQLiteDatabase): SqliteExecutor {
@@ -15,13 +15,14 @@ export function expoSqliteDriver(name = "snapback2.db"): SqliteDriver {
   const db = () => database ??= openDatabaseAsync(name, { useNewConnection: true });
   const queue = driverQueue();
   return {
-    identity: `expo-sqlite:${name}`,
+    identity: `expo-sqlite:${defaultDatabaseDirectory.replace(/\/*$/, "")}/${name.replace(/^\/+/, "")}`,
     run: (sql, params) => queue(async () => executor(await db()).run(sql, params)),
     get: (sql, params) => queue(async () => executor(await db()).get(sql, params)),
     all: (sql, params) => queue(async () => executor(await db()).all(sql, params)),
     exec: (sql) => queue(async () => (await db()).execAsync(sql)),
     // @ref LLP 1013#3-the-sqlite-carrier — Expo owns BEGIN/COMMIT on a separate
     // connection. Every statement uses that connection, never the outer handle.
+    // Its COMMIT failure rolls back and closes that connection; the outer handle stays usable.
     transaction: <T>(body: (tx: SqliteExecutor) => Promise<T>) => queue(async () => {
       let result!: T;
       await (await db()).withExclusiveTransactionAsync(async (transaction) => {

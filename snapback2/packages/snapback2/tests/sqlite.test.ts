@@ -1,14 +1,16 @@
 import assert from "node:assert/strict";
 import { fork } from "node:child_process";
 import { once } from "node:events";
-import { mkdtemp, rm, stat } from "node:fs/promises";
+import { mkdtemp, rm, stat, symlink } from "node:fs/promises";
+import { DatabaseSync } from "node:sqlite";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { createClient, SnapbackRefusal } from "../dist/client.mjs";
+import { closureFromCoverage } from "../dist/index.mjs";
 import { indexedDbRangeStore } from "../dist/react.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
-import { nodeSqliteDriver, SqliteBackend, inProcessLocks, projectState, unprojectState,
+import { nodeSqliteDriver, sqliteRangeStore, SqliteBackend, inProcessLocks, projectState, unprojectState,
   runSqliteDriverConformance, sqliteState, fixtureAsset } from "../dist/sqlite-test.mjs";
 import { FakeIndexedDb, FakeLocks } from "./fake-indexeddb.ts";
 import { sqliteFactory } from "./sqlite-fixture.ts";
@@ -103,6 +105,78 @@ test("IndexedDB rows without meta survive open with version 1 and default maps o
   } finally { await indexed.close(); await sqlite.close(); await raw.close(); await file.close(); await rm(root, { recursive: true, force: true }); }
 });
 
+test("warm and reopened coverage, answers, and twin hydration agree on undefined and null on all three carriers", async () => {
+  const root = await temporary();
+  const factories = [fileRangeStore(root),
+    indexedDbRangeStore({ indexedDB: new FakeIndexedDb() as any, locks: new FakeLocks() }),
+    sqliteFactory(join(root, "warm.db"))];
+  const schema = { tables: { messages: { columns: {
+    id: "Id", body: { Text: { max: 100 } }, omitted: { Optional: { Text: { max: 100 } } },
+    explicit: { Optional: { Text: { max: 100 } } },
+  }, indexes: { byId: { columns: ["id"] } } } } };
+  const delivery = { op: "thread", args: { nested: { omitted: undefined, explicit: null } },
+    seq: 1, state: "complete", validator: "v", next: null, reason: undefined, deliveredAt: 100,
+    data: { $row: { table: "messages", id: "m1" } },
+    rows: [{ table: "messages", id: "m1", row: { id: "m1", body: "hello", omitted: undefined, explicit: null } }],
+    receipt: { ranges: [], absences: [], verdicts: [] } };
+  try {
+    for (const factory of factories) {
+      const store = factory();
+      const reopened = factory();
+      try {
+        await store.open("warm");
+        await store.commit({ deliveries: [delivery] });
+        const warm = await store.coverage();
+        assert.equal(Object.hasOwn(warm.rows[0].row, "omitted"), false, factory.carrier);
+        assert.equal(warm.rows[0].row.explicit, null);
+        const answer = await store.answer(delivery.op, delivery.args);
+        assert.ok(answer);
+        assert.equal(Object.hasOwn(answer, "reason"), false);
+        const hydrated = closureFromCoverage(warm, schema);
+        assert.equal(hydrated.rows.length, 1);
+        await store.close();
+        await reopened.open("warm");
+        const cold = await reopened.coverage();
+        assert.deepEqual(cold, warm, factory.carrier);
+        assert.deepEqual(closureFromCoverage(cold, schema), hydrated, factory.carrier);
+        assert.deepEqual(await reopened.answer(delivery.op, delivery.args), answer);
+        assert.deepEqual(await reopened.answer(delivery.op, JSON.parse(JSON.stringify(delivery.args))), answer);
+        // The same JSON delivery is idempotent even if its first input carried undefined.
+        await reopened.commit({ deliveries: [JSON.parse(JSON.stringify(delivery))] });
+        assert.deepEqual(await reopened.coverage(), warm);
+      } finally { await store.close(); await reopened.close(); }
+    }
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test("Node COMMIT failure rolls back, preserves the original error, and the next queued BEGIN succeeds", async (t) => {
+  const root = await temporary();
+  const driver = nodeSqliteDriver(join(root, "commit.db"));
+  const exec = DatabaseSync.prototype.exec;
+  const failure = new Error("commit failed once");
+  let failCommit = true;
+  let failRollback = false;
+  const calls: string[] = [];
+  t.mock.method(DatabaseSync.prototype, "exec", function (sql: string) {
+    calls.push(sql);
+    if (sql === "COMMIT" && failCommit) { failCommit = false; throw failure; }
+    exec.call(this, sql);
+    if (sql === "ROLLBACK" && failRollback) throw new Error("rollback cleanup failed");
+  });
+  try {
+    await driver.exec("CREATE TABLE attempts (value INTEGER)");
+    const failed = driver.transaction((tx) => tx.run("INSERT INTO attempts VALUES (1)"));
+    const next = driver.transaction((tx) => tx.run("INSERT INTO attempts VALUES (2)"));
+    await assert.rejects(failed, (error) => error === failure);
+    await next;
+    assert.deepEqual((await driver.all<{ value: number }>("SELECT value FROM attempts")).map((row) => row.value), [2]);
+    assert.deepEqual(calls.slice(1), ["BEGIN IMMEDIATE", "COMMIT", "ROLLBACK", "BEGIN IMMEDIATE", "COMMIT"]);
+    failCommit = true;
+    failRollback = true;
+    await assert.rejects(driver.transaction((tx) => tx.run("INSERT INTO attempts VALUES (3)")), (error) => error === failure);
+  } finally { await driver.close(); await rm(root, { recursive: true, force: true }); }
+});
+
 test("SQLite replace rolls state and byte deltas back when beforeCommit throws", async () => {
   const root = await temporary();
   let reject = false;
@@ -184,6 +258,67 @@ test("in-process locks scope one partition to its database across separate facto
     await second.commit({ bounds: { second: 2 } });
     assert.deepEqual(await second.outbox.bounds(), { second: 2 });
   } finally { await first.close(); await duplicate.close(); await second.close(); await file.close(); await rm(root, { recursive: true, force: true }); }
+});
+
+test("custom factories share database identity locks while distinct databases do not conflict", async () => {
+  const root = await temporary();
+  const custom = (path: string) => () => {
+    const driver = nodeSqliteDriver(path);
+    return { ...driver, identity: driver.identity };
+  };
+  const source = custom(join(root, "same.db"));
+  const otherSource = custom(join(root, "same.db"));
+  assert.notEqual(source, otherSource);
+  const first = sqliteRangeStore(source)(), duplicate = sqliteRangeStore(otherSource)();
+  const separate = sqliteRangeStore(custom(join(root, "separate.db")))();
+  try {
+    await first.open("alice");
+    await separate.open("alice");
+    await first.commit({ bounds: { first: 1 } });
+    await separate.commit({ bounds: { separate: 2 } });
+    await assert.rejects(duplicate.open("alice"), (error: any) => error.code === "E_OFFLINE_LOCK");
+    await duplicate.close();
+    await first.close();
+    await duplicate.open("alice");
+    assert.deepEqual(await duplicate.outbox.bounds(), { first: 1 });
+    assert.deepEqual(await separate.outbox.bounds(), { separate: 2 });
+  } finally { await first.close(); await duplicate.close(); await separate.close(); await rm(root, { recursive: true, force: true }); }
+});
+
+test("Node realpath identity collapses a symlink and uses the deliberate scoped lock symbol", async () => {
+  const root = await temporary();
+  const path = join(root, "real.db"), alias = join(root, "alias.db");
+  const driver = nodeSqliteDriver(path);
+  const first = sqliteRangeStore(driver)(), duplicate = sqliteFactory(alias)();
+  const aliasDriver = nodeSqliteDriver(alias);
+  try {
+    await first.open("alice");
+    await symlink(path, alias);
+    assert.equal(driver.identity, aliasDriver.identity);
+    const scopes = (globalThis as any)[Symbol.for("snapback2.offline.storeLocks")];
+    assert.ok(scopes.get(driver.identity).has("snapback2:alice"));
+    await assert.rejects(duplicate.open("alice"), (error: any) => error.code === "E_OFFLINE_LOCK");
+    await first.close();
+    assert.equal(scopes.has(driver.identity), false);
+    await duplicate.open("alice");
+  } finally { await first.close(); await duplicate.close(); await driver.close(); await aliasDriver.close(); await rm(root, { recursive: true, force: true }); }
+});
+
+test("SQLite refuses an identity-less custom driver before reading or writing the database", async () => {
+  let closed = 0;
+  const factory = sqliteRangeStore(() => ({
+    async close() { closed++; },
+    async get() { assert.fail("identity must be checked before reading"); },
+    async exec() { assert.fail("identity must be checked before writing"); },
+  }));
+  const client = createClient({ url: "http://identity.test", as: "alice", offline: { store: factory } });
+  try {
+    await assert.rejects(client.ready, (error: any) => error instanceof SnapbackRefusal
+      && error.code === "E_OFFLINE_CARRIER" && /driver has no database identity/.test(error.message)
+      && error.envelope.family === "offline" && error.envelope.guide === "offline"
+      && /database identity/.test(error.envelope.rewrite));
+    assert.equal(closed, 1);
+  } finally { await client.close(); }
 });
 
 test("SQLite refuses unopenable files, a journal mismatch, and competing writes as E_OFFLINE_CARRIER", async () => {

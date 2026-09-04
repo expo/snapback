@@ -7,8 +7,8 @@ export interface SqliteExecutor {
 }
 
 export interface SqliteDriver extends SqliteExecutor {
-  /** Stable database identity for per-store ownership; custom drivers may use factory identity. */
-  readonly identity?: string;
+  /** Stable identity of the database, shared by every connection/factory opening it. */
+  readonly identity: string;
   exec(sql: string): Promise<void>;
   /** All statements in body must use tx. Commit only after its promise resolves. */
   transaction<T>(body: (tx: SqliteExecutor) => Promise<T>): Promise<T>;
