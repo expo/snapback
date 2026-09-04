@@ -16,7 +16,21 @@ pub(super) enum Flow {
     Next,
     Break,
     Continue,
-    Return(Value),
+    Return(Value, ResultProvenance),
+}
+
+struct TrackedValue {
+    value: Value,
+    provenance: ResultProvenance,
+}
+
+impl TrackedValue {
+    fn plain(value: Value) -> Self {
+        Self {
+            value,
+            provenance: ResultProvenance::None,
+        }
+    }
 }
 
 pub(super) struct Runner<'a> {
@@ -26,6 +40,7 @@ pub(super) struct Runner<'a> {
     pub(super) rule_certificate: Option<&'a RuleCertificate>,
     pub(super) context: Context,
     pub(super) env: BTreeMap<String, Value>,
+    pub(super) env_provenance: BTreeMap<String, ResultProvenance>,
     pub(super) consts: BTreeSet<String>,
     pub(super) trace: AuthoritativeTrace,
     pub(super) receipt: ClosureReceipt,
@@ -68,6 +83,7 @@ impl<'a> Runner<'a> {
             rule_certificate: None,
             context,
             env,
+            env_provenance: BTreeMap::new(),
             consts: BTreeSet::new(),
             trace: AuthoritativeTrace::default(),
             receipt: ClosureReceipt {
@@ -106,6 +122,7 @@ impl<'a> Runner<'a> {
             rule_certificate,
             context,
             env,
+            env_provenance: BTreeMap::new(),
             consts: BTreeSet::new(),
             trace: AuthoritativeTrace::default(),
             receipt: ClosureReceipt {
@@ -131,14 +148,16 @@ impl<'a> Runner<'a> {
             self.step(1)?;
             let flow = match statement {
                 Stmt::Const { name, value } => {
-                    let value = self.expr(value)?;
-                    self.env.insert(name.clone(), value);
+                    let tracked = self.expr_tracked(value)?;
+                    self.env.insert(name.clone(), tracked.value);
+                    self.env_provenance.insert(name.clone(), tracked.provenance);
                     self.consts.insert(name.clone());
                     Flow::Next
                 }
                 Stmt::Let { name, value } => {
-                    let value = self.expr(value)?;
-                    self.env.insert(name.clone(), value);
+                    let tracked = self.expr_tracked(value)?;
+                    self.env.insert(name.clone(), tracked.value);
+                    self.env_provenance.insert(name.clone(), tracked.provenance);
                     Flow::Next
                 }
                 Stmt::Assign { name, value } => {
@@ -147,18 +166,38 @@ impl<'a> Runner<'a> {
                             "cannot assign to const binding {name}"
                         )));
                     }
-                    let value = self.expr(value)?;
-                    self.env.insert(name.clone(), value);
+                    let tracked = self.expr_tracked(value)?;
+                    self.env.insert(name.clone(), tracked.value);
+                    self.env_provenance.insert(name.clone(), tracked.provenance);
                     Flow::Next
                 }
                 Stmt::Push { target, value } => {
-                    let value = self.expr(value)?;
-                    let target = self
+                    let tracked = self.expr_tracked(value)?;
+                    let target_value = self
                         .env
                         .get_mut(target)
                         .ok_or_else(|| RuntimeError::Input(format!("unknown variable {target}")))?;
-                    match target {
-                        Value::Array(values) => values.push(value),
+                    match target_value {
+                        Value::Array(values) => {
+                            let prior_len = values.len();
+                            values.push(tracked.value);
+                            let provenance = self
+                                .env_provenance
+                                .entry(target.clone())
+                                .or_insert_with(|| {
+                                    ResultProvenance::Array(vec![ResultProvenance::None; prior_len])
+                                });
+                            match provenance {
+                                ResultProvenance::Array(values) => values.push(tracked.provenance),
+                                other => {
+                                    *other = ResultProvenance::Array(
+                                        std::iter::repeat_n(ResultProvenance::None, prior_len)
+                                            .chain([tracked.provenance])
+                                            .collect(),
+                                    );
+                                }
+                            }
+                        }
                         other => {
                             return Err(ValueError::Type {
                                 expected: "array",
@@ -188,12 +227,14 @@ impl<'a> Runner<'a> {
                 } => {
                     let values = self.domain(domain)?;
                     let mut result = Flow::Next;
-                    for value in values {
-                        self.env.insert(binding.clone(), value);
+                    for tracked in values {
+                        self.env.insert(binding.clone(), tracked.value);
+                        self.env_provenance
+                            .insert(binding.clone(), tracked.provenance);
                         match self.statements(body)? {
                             Flow::Next | Flow::Continue => {}
                             Flow::Break => break,
-                            returned @ Flow::Return(_) => {
+                            returned @ Flow::Return(..) => {
                                 result = returned;
                                 break;
                             }
@@ -234,7 +275,10 @@ impl<'a> Runner<'a> {
                     self.emit(effect, payload)?;
                     Flow::Next
                 }
-                Stmt::Return(value) => Flow::Return(self.expr(value)?),
+                Stmt::Return(value) => {
+                    let tracked = self.expr_tracked(value)?;
+                    Flow::Return(tracked.value, tracked.provenance)
+                }
                 Stmt::Break => Flow::Break,
                 Stmt::Continue => Flow::Continue,
             };
@@ -245,19 +289,16 @@ impl<'a> Runner<'a> {
         Ok(Flow::Next)
     }
 
-    pub(super) fn domain(&mut self, domain: &LoopDomain) -> Result<Vec<Value>, RuntimeError> {
+    fn domain(&mut self, domain: &LoopDomain) -> Result<Vec<TrackedValue>, RuntimeError> {
         match domain {
-            LoopDomain::Page(scan) => self
-                .scan(scan)?
-                .as_array()
-                .map(ToOwned::to_owned)
-                .map_err(Into::into),
+            LoopDomain::Page(scan) => self.scan_tracked(scan),
             LoopDomain::LiteralRange {
                 start,
                 end_exclusive,
             } => (*start..*end_exclusive)
                 .map(|value| Value::int(value as i128))
                 .collect::<Result<Vec<_>, _>>()
+                .map(|values| values.into_iter().map(TrackedValue::plain).collect())
                 .map_err(Into::into),
             LoopDomain::ArgList { name, max } => {
                 let values = self
@@ -269,20 +310,31 @@ impl<'a> Runner<'a> {
                 if values.len() > *max as usize {
                     return Err(RuntimeError::Fanout);
                 }
-                Ok(values)
+                Ok(values.into_iter().map(TrackedValue::plain).collect())
             }
             LoopDomain::DerivedArray { value, max, .. } => {
-                let values = self.expr(value)?.as_array()?.to_vec();
+                let tracked = self.expr_tracked(value)?;
+                let values = tracked.value.as_array()?.to_vec();
                 if values.len() > *max as usize {
                     return Err(RuntimeError::Fanout);
                 }
-                Ok(values)
+                let provenance = match tracked.provenance {
+                    ResultProvenance::Array(provenance) if provenance.len() == values.len() => {
+                        provenance
+                    }
+                    _ => vec![ResultProvenance::None; values.len()],
+                };
+                Ok(values
+                    .into_iter()
+                    .zip(provenance)
+                    .map(|(value, provenance)| TrackedValue { value, provenance })
+                    .collect())
             }
             LoopDomain::Recurse(recurse) => self.recurse(recurse),
         }
     }
 
-    pub(super) fn recurse(&mut self, recurse: &Recurse) -> Result<Vec<Value>, RuntimeError> {
+    fn recurse(&mut self, recurse: &Recurse) -> Result<Vec<TrackedValue>, RuntimeError> {
         let seed = self.expr(&recurse.seed)?;
         let mut queue = VecDeque::from([(seed, 0_u32)]);
         let mut visited = BTreeSet::new();
@@ -298,11 +350,11 @@ impl<'a> Runner<'a> {
                 key: vec![Expr::Literal(key)],
                 provenance: recurse.provenance,
             };
-            let row = self.get(&read)?;
-            if row == Value::Null {
+            let row = self.get_tracked(&read)?;
+            if row.value == Value::Null {
                 continue;
             }
-            let next = row.field(&recurse.next_field)?.clone();
+            let next = row.value.field(&recurse.next_field)?.clone();
             rows.push(row);
             match next {
                 Value::Null => {}
@@ -321,44 +373,82 @@ impl<'a> Runner<'a> {
     }
 
     pub(super) fn expr(&mut self, expression: &Expr) -> Result<Value, RuntimeError> {
+        self.expr_tracked(expression).map(|tracked| tracked.value)
+    }
+
+    fn expr_tracked(&mut self, expression: &Expr) -> Result<TrackedValue, RuntimeError> {
         self.step(1)?;
         match expression {
-            Expr::Literal(value) => Ok(value.clone()),
+            Expr::Literal(value) => Ok(TrackedValue::plain(value.clone())),
             Expr::Variable(name) => self
                 .env
                 .get(name)
                 .cloned()
+                .map(|value| TrackedValue {
+                    value,
+                    provenance: self.env_provenance.get(name).cloned().unwrap_or_default(),
+                })
                 .ok_or_else(|| RuntimeError::Input(format!("unknown variable {name}"))),
-            Expr::Input(input) => self.input(*input),
-            Expr::Field { base, name } => Ok(self.expr(base)?.field(name)?.clone()),
-            Expr::Array(values) => Ok(Value::Array(
-                values
+            Expr::Input(input) => self.input(*input).map(TrackedValue::plain),
+            Expr::Field { base, name } => {
+                let tracked = self.expr_tracked(base)?;
+                let value = tracked.value.field(name)?.clone();
+                let provenance = match tracked.provenance {
+                    ResultProvenance::Object(mut values) => values.remove(name).unwrap_or_default(),
+                    _ => ResultProvenance::None,
+                };
+                Ok(TrackedValue { value, provenance })
+            }
+            Expr::Array(values) => {
+                let tracked = values
                     .iter()
-                    .map(|value| self.expr(value))
-                    .collect::<Result<Vec<_>, _>>()?,
-            )),
-            Expr::Object(values) => Ok(Value::Row(
-                values
+                    .map(|value| self.expr_tracked(value))
+                    .collect::<Result<Vec<_>, _>>()?;
+                Ok(TrackedValue {
+                    value: Value::Array(tracked.iter().map(|item| item.value.clone()).collect()),
+                    provenance: ResultProvenance::Array(
+                        tracked.into_iter().map(|item| item.provenance).collect(),
+                    ),
+                })
+            }
+            Expr::Object(values) => {
+                let tracked = values
                     .iter()
-                    .map(|(key, value)| Ok((key.clone(), self.expr(value)?)))
-                    .collect::<Result<_, RuntimeError>>()?,
-            )),
+                    .map(|(key, value)| Ok((key.clone(), self.expr_tracked(value)?)))
+                    .collect::<Result<BTreeMap<_, _>, RuntimeError>>()?;
+                Ok(TrackedValue {
+                    value: Value::Row(
+                        tracked
+                            .iter()
+                            .map(|(key, item)| (key.clone(), item.value.clone()))
+                            .collect(),
+                    ),
+                    provenance: ResultProvenance::Object(
+                        tracked
+                            .into_iter()
+                            .map(|(key, item)| (key, item.provenance))
+                            .collect(),
+                    ),
+                })
+            }
             Expr::Binary { op, left, right } => {
                 let left = self.expr(left)?;
                 if *op == BinaryOp::And && !left.as_bool()? {
-                    return Ok(Value::Bool(false));
+                    return Ok(TrackedValue::plain(Value::Bool(false)));
                 }
                 if *op == BinaryOp::Or && left.as_bool()? {
-                    return Ok(Value::Bool(true));
+                    return Ok(TrackedValue::plain(Value::Bool(true)));
                 }
                 let right = self.expr(right)?;
-                self.binary(*op, left, right)
+                self.binary(*op, left, right).map(TrackedValue::plain)
             }
             Expr::Unary { op, value } => {
                 let value = self.expr(value)?;
                 match op {
-                    UnaryOp::Not => Ok(Value::Bool(!value.as_bool()?)),
-                    UnaryOp::Neg => Value::int(-(value.as_int()? as i128)).map_err(Into::into),
+                    UnaryOp::Not => Ok(TrackedValue::plain(Value::Bool(!value.as_bool()?))),
+                    UnaryOp::Neg => Value::int(-(value.as_int()? as i128))
+                        .map(TrackedValue::plain)
+                        .map_err(Into::into),
                 }
             }
             Expr::Builtin { builtin, args } => {
@@ -371,13 +461,183 @@ impl<'a> Runner<'a> {
                 }
                 let args = args
                     .iter()
-                    .map(|value| self.expr(value))
+                    .map(|value| self.expr_tracked(value))
                     .collect::<Result<Vec<_>, _>>()?;
-                self.builtin(builtin, args)
+                self.builtin_tracked(builtin, args)
             }
-            Expr::Get(read) => self.get(read),
-            Expr::Exists(read) => Ok(Value::Bool(self.get(read)? != Value::Null)),
-            Expr::Scan(scan) => self.scan(scan),
+            Expr::Get(read) => self.get_tracked(read),
+            Expr::Exists(read) => Ok(TrackedValue::plain(Value::Bool(
+                self.get_tracked(read)?.value != Value::Null,
+            ))),
+            Expr::Scan(scan) => {
+                let values = self.scan_tracked(scan)?;
+                Ok(TrackedValue {
+                    value: Value::Array(values.iter().map(|item| item.value.clone()).collect()),
+                    provenance: ResultProvenance::Array(
+                        values.into_iter().map(|item| item.provenance).collect(),
+                    ),
+                })
+            }
+        }
+    }
+
+    fn builtin_tracked(
+        &mut self,
+        builtin: &Builtin,
+        mut args: Vec<TrackedValue>,
+    ) -> Result<TrackedValue, RuntimeError> {
+        match builtin {
+            Builtin::Slice => {
+                let source = args.remove(0);
+                let start = args.remove(0).value.as_int()?.max(0) as usize;
+                let end = args.remove(0).value.as_int()?.max(0) as usize;
+                let length = end.saturating_sub(start);
+                match source.value {
+                    Value::Array(values) => {
+                        let provenance = aligned_provenance(source.provenance, values.len());
+                        Ok(TrackedValue {
+                            value: Value::Array(
+                                values.into_iter().skip(start).take(length).collect(),
+                            ),
+                            provenance: ResultProvenance::Array(
+                                provenance.into_iter().skip(start).take(length).collect(),
+                            ),
+                        })
+                    }
+                    Value::String(value) => Ok(TrackedValue::plain(Value::String(
+                        value.chars().skip(start).take(length).collect(),
+                    ))),
+                    other => Err(ValueError::Type {
+                        expected: "array or string",
+                        actual: other.kind(),
+                    }
+                    .into()),
+                }
+            }
+            Builtin::Concat => {
+                let left = args.remove(0);
+                let right = args.remove(0);
+                match (left.value, right.value) {
+                    (left @ Value::String(_), right) | (left, right @ Value::String(_)) => {
+                        Ok(TrackedValue::plain(Value::String(format!(
+                            "{}{}",
+                            concat_text(&left),
+                            concat_text(&right)
+                        ))))
+                    }
+                    (Value::Id(left), Value::Id(right)) => {
+                        Ok(TrackedValue::plain(Value::Id(canonical_json(&[
+                            Value::Id(left),
+                            Value::Id(right),
+                        ]))))
+                    }
+                    (Value::Array(mut left_values), Value::Array(right_values)) => {
+                        let mut provenance = aligned_provenance(left.provenance, left_values.len());
+                        provenance.extend(aligned_provenance(right.provenance, right_values.len()));
+                        left_values.extend(right_values);
+                        Ok(TrackedValue {
+                            value: Value::Array(left_values),
+                            provenance: ResultProvenance::Array(provenance),
+                        })
+                    }
+                    (left, _) => Err(ValueError::Type {
+                        expected: "matching strings or arrays",
+                        actual: left.kind(),
+                    }
+                    .into()),
+                }
+            }
+            Builtin::Min | Builtin::Max => {
+                let left = args.remove(0);
+                let right = args.remove(0);
+                let choose_left = if matches!(builtin, Builtin::Min) {
+                    left.value.total_cmp(&right.value) != Ordering::Greater
+                } else {
+                    left.value.total_cmp(&right.value) != Ordering::Less
+                };
+                Ok(if choose_left { left } else { right })
+            }
+            Builtin::Sort { keys } => {
+                let source = args.remove(0);
+                let values = source.value.as_array()?.to_vec();
+                let provenance = aligned_provenance(source.provenance, values.len());
+                let mut tracked = values.into_iter().zip(provenance).collect::<Vec<_>>();
+                for (value, _) in &tracked {
+                    for key in keys {
+                        value.field(&key.field)?;
+                    }
+                }
+                tracked.sort_by(|(left, _), (right, _)| {
+                    keys.iter()
+                        .find_map(|key| {
+                            let mut order = left
+                                .field(&key.field)
+                                .expect("sort keys were validated")
+                                .total_cmp(
+                                    right.field(&key.field).expect("sort keys were validated"),
+                                );
+                            if key.order == Order::Desc {
+                                order = order.reverse();
+                            }
+                            (order != Ordering::Equal).then_some(order)
+                        })
+                        .unwrap_or(Ordering::Equal)
+                });
+                let (values, provenance): (Vec<_>, Vec<_>) = tracked.into_iter().unzip();
+                Ok(TrackedValue {
+                    value: Value::Array(values),
+                    provenance: ResultProvenance::Array(provenance),
+                })
+            }
+            Builtin::DedupeById { site, .. } => {
+                let source = args.remove(0);
+                let values = source.value.as_array()?.to_vec();
+                let provenance = aligned_provenance(source.provenance, values.len());
+                let mut seen = BTreeSet::new();
+                let mut deduplicated = Vec::new();
+                for (value, provenance) in values.into_iter().zip(provenance) {
+                    let id = value.field("id")?.as_str()?.to_owned();
+                    if seen.insert(id) {
+                        deduplicated.push((value, provenance));
+                    }
+                }
+                let last_returned_suffix = self
+                    .certificate
+                    .and_then(|certificate| certificate.result_page_site.as_ref())
+                    .filter(|page| page.merge && page.site == *site)
+                    .and_then(|page| {
+                        let take = self
+                            .certificate
+                            .and_then(|certificate| {
+                                certificate
+                                    .merge_sites
+                                    .iter()
+                                    .find(|entry| entry.site == *site)
+                            })
+                            .map(|entry| entry.take as usize)?;
+                        let row = &deduplicated.iter().take(take).last()?.0;
+                        page.suffix
+                            .iter()
+                            .map(|column| row.field(&column.name).cloned().ok())
+                            .collect::<Option<Vec<_>>>()
+                    });
+                self.trace.merges.push(MergeTrace {
+                    site: site.clone(),
+                    deduplicated_union_len: deduplicated.len() as u64,
+                    last_returned_suffix,
+                });
+                let (values, provenance): (Vec<_>, Vec<_>) = deduplicated.into_iter().unzip();
+                Ok(TrackedValue {
+                    value: Value::Array(values),
+                    provenance: ResultProvenance::Array(provenance),
+                })
+            }
+            _ => self
+                .builtin(
+                    builtin,
+                    args.into_iter().map(|tracked| tracked.value).collect(),
+                )
+                .map(TrackedValue::plain),
         }
     }
 
@@ -649,7 +909,7 @@ impl<'a> Runner<'a> {
         }
     }
 
-    pub(super) fn get(&mut self, read: &Read) -> Result<Value, RuntimeError> {
+    fn get_tracked(&mut self, read: &Read) -> Result<TrackedValue, RuntimeError> {
         let key = read
             .key
             .iter()
@@ -659,6 +919,12 @@ impl<'a> Runner<'a> {
         if let Some(row) = found {
             self.trace.examined += 1;
             let id = row.field("id")?.as_str()?.to_owned();
+            let receipt_lengths = (
+                self.receipt.rows.len(),
+                self.receipt.ranges.len(),
+                self.receipt.absences.len(),
+                self.receipt.verdicts.len(),
+            );
             let visible = self.check_rule(&read.table, Effect::Read, None, &row)?;
             self.trace.points.push(PointTrace {
                 site: read.site.clone(),
@@ -670,9 +936,23 @@ impl<'a> Runner<'a> {
             });
             if visible {
                 self.record_row(&read.table, &id, &row, true);
-                Ok(row)
+                Ok(TrackedValue {
+                    value: row,
+                    provenance: ResultProvenance::Row {
+                        table: read.table.clone(),
+                        id,
+                    },
+                })
             } else {
-                Ok(Value::Null)
+                // A hidden point candidate is authoritative trace only. Rule
+                // evaluation may have learned public rows, absences, ranges,
+                // or verdicts; shipping any of them would distinguish the
+                // hidden hit from an alternate-key miss.
+                self.receipt.rows.truncate(receipt_lengths.0);
+                self.receipt.ranges.truncate(receipt_lengths.1);
+                self.receipt.absences.truncate(receipt_lengths.2);
+                self.receipt.verdicts.truncate(receipt_lengths.3);
+                Ok(TrackedValue::plain(Value::Null))
             }
         } else {
             self.trace.points.push(PointTrace {
@@ -686,11 +966,11 @@ impl<'a> Runner<'a> {
             let absence = (read.table.clone(), read.index.clone(), key);
             self.trace.absences.push(absence.clone());
             self.receipt.absences.push(absence);
-            Ok(Value::Null)
+            Ok(TrackedValue::plain(Value::Null))
         }
     }
 
-    pub(super) fn scan(&mut self, scan: &Scan) -> Result<Value, RuntimeError> {
+    fn scan_tracked(&mut self, scan: &Scan) -> Result<Vec<TrackedValue>, RuntimeError> {
         let prefix = scan
             .prefix
             .iter()
@@ -999,14 +1279,24 @@ impl<'a> Runner<'a> {
                 lt: evaluated_range.as_ref().and_then(|range| range.lt.clone()),
                 lte: evaluated_range.and_then(|range| range.lte),
                 rule_hash,
-                row_ids: returned_ids,
+                row_ids: returned_ids.clone(),
                 stop,
                 absence: returned.is_empty(),
                 halo,
                 n2_key,
             });
         }
-        Ok(Value::Array(returned))
+        Ok(returned
+            .into_iter()
+            .zip(returned_ids)
+            .map(|(value, id)| TrackedValue {
+                value,
+                provenance: ResultProvenance::Row {
+                    table: scan.table.clone(),
+                    id,
+                },
+            })
+            .collect())
     }
 
     pub(super) fn eval_range(&mut self, range: &Range) -> Result<EvaluatedRange, RuntimeError> {
@@ -1032,6 +1322,13 @@ impl<'a> Runner<'a> {
                 .map(|value| self.expr(value))
                 .transpose()?,
         })
+    }
+}
+
+fn aligned_provenance(provenance: ResultProvenance, length: usize) -> Vec<ResultProvenance> {
+    match provenance {
+        ResultProvenance::Array(values) if values.len() == length => values,
+        _ => vec![ResultProvenance::None; length],
     }
 }
 

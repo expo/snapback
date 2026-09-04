@@ -1,6 +1,10 @@
 // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — this is the strict public mirror of the frozen server envelope.
 
+import { schemaDigest } from "./offline-schema.js";
+
+/** Exact pooled-row reference spelling. Application objects with `$row` are escaped on the wire. */
 export type WireRowReference = { $row: { table: string; id: string } };
+export type WireEscapedObject = { $row: { $value: Record<string, WireValue> } };
 export type WireValue =
   | null
   | boolean
@@ -8,7 +12,8 @@ export type WireValue =
   | string
   | WireValue[]
   | { [key: string]: WireValue }
-  | WireRowReference;
+  | WireRowReference
+  | WireEscapedObject;
 
 export interface DeliveryRow {
   table: string;
@@ -34,7 +39,6 @@ export interface DeliveryRange {
   stop: "Limit" | "Exhausted";
   absence: boolean;
   haloId?: string;
-  n2Key: WireValue[] | null;
 }
 
 export interface DeliveryVerdict {
@@ -73,6 +77,14 @@ export interface DeliveryEnvelopeV1 {
   validator: string;
 }
 
+export interface DeliveryUnchanged {
+  state: "unchanged";
+  seq: number;
+  validator: string;
+}
+
+export type DeliveryMessage = DeliveryEnvelopeV1 | DeliveryUnchanged;
+
 type TaggedValue =
   | "Null"
   | { Bool: boolean }
@@ -105,7 +117,7 @@ export interface EvaluatorClosureReceipt {
     stop: "Limit" | "Exhausted";
     absence: boolean;
     halo: { table: string; id: string; row: TaggedValue } | null;
-    n2_key: TaggedValue[] | null;
+    n2_key: null;
   }>;
   absences: Array<[string, string, TaggedValue[]]>;
   verdicts: Array<{
@@ -158,10 +170,21 @@ export function decodeDeliveryEnvelope(json: unknown): DeliveryEnvelopeV1 {
     if (pool.has(key)) fail(`$.rows[${index}]`, "duplicates a pooled row");
     pool.add(key);
   });
-  receipt(json.receipt, pool);
+  receipt(json.receipt, pool, json.authority as DeliveryAuthority);
   validateReferences(json.data, pool, "$.data");
   digest(json.validator, "$.validator");
   return json as DeliveryEnvelopeV1;
+}
+
+/** Decode either a full authority envelope or a conditional `unchanged` marker. */
+export function decodeDeliveryMessage(json: unknown): DeliveryMessage {
+  if (plain(json) && json.state === "unchanged") {
+    object(json, "$", ["state", "seq", "validator"]);
+    uint(json.seq, "$.seq");
+    digest(json.validator, "$.validator");
+    return json as unknown as DeliveryUnchanged;
+  }
+  return decodeDeliveryEnvelope(json);
 }
 
 export function encodeDeliveryEnvelope(envelope: DeliveryEnvelopeV1): string {
@@ -206,7 +229,6 @@ export function encodeDeliveryEnvelope(envelope: DeliveryEnvelopeV1): string {
         absence: range.absence,
       };
       if (range.haloId !== undefined) item.haloId = range.haloId;
-      item.n2Key = range.n2Key === null ? null : range.n2Key.map(canonicalWire);
       return item;
     }),
     absences: decoded.receipt.absences.map(([table, index, key]) => [
@@ -235,6 +257,11 @@ export function expandRows(envelope: DeliveryEnvelopeV1): WireValue {
       if (row === undefined) fail("$.data", `references missing row ${value.$row.table}/${value.$row.id}`);
       return clone(row);
     }
+    if (escapedObject(value)) {
+      return Object.fromEntries(
+        Object.entries(value.$row.$value).map(([key, item]) => [key, expand(item)]),
+      );
+    }
     if (Array.isArray(value)) return value.map(expand);
     if (plain(value)) return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, expand(item)]));
     return value;
@@ -245,6 +272,15 @@ export function expandRows(envelope: DeliveryEnvelopeV1): WireValue {
 /** Rebuild the evaluator's externally-tagged private receipt from the public pool. */
 export function toClosureReceipt(envelope: DeliveryEnvelopeV1, schema: any): EvaluatorClosureReceipt {
   const decoded = decodeDeliveryEnvelope(envelope);
+  let actualSchemaHash: string;
+  try {
+    actualSchemaHash = schemaDigest(schema);
+  } catch (error) {
+    fail("schema", error instanceof Error ? error.message : String(error));
+  }
+  if (actualSchemaHash !== decoded.schemaHash) {
+    fail("schema", `hash ${actualSchemaHash} does not match envelope schemaHash ${decoded.schemaHash}`);
+  }
   const taggedRows = new Map<string, { table: string; id: string; row: TaggedValue }>();
   for (const row of decoded.rows) {
     const tagged = { table: row.table, id: row.id, row: tagRow(schema, row.table, row.row) };
@@ -271,9 +307,7 @@ export function toClosureReceipt(envelope: DeliveryEnvelopeV1, schema: any): Eva
       ? null
       : clone(taggedRows.get(poolKey(range.table, range.haloId))
         ?? fail(`$.receipt.ranges[${range.site}].haloId`, "references a missing pooled row")),
-    n2_key: range.n2Key === null
-      ? null
-      : tagIndexValues(schema, range.table, range.index, range.n2Key, 0),
+    n2_key: null,
   }));
   return {
     schema_hash: decoded.schemaHash,
@@ -294,14 +328,65 @@ export function toClosureReceipt(envelope: DeliveryEnvelopeV1, schema: any): Eva
   };
 }
 
-function receipt(value: unknown, pool: Set<string>): void {
+export type DeliveryRangeExtent =
+  | { stop: "Limit"; firstKey: WireValue[]; lastKey: WireValue[]; presentIds: string[] }
+  | {
+    stop: "Exhausted";
+    prefix: WireValue[];
+    bounds: Pick<DeliveryRange, "after" | "before" | "gt" | "gte" | "lt" | "lte">;
+    presentIds: string[];
+  };
+
+/** Derive the rule-2 range extent solely from a delivery and its generation schema. */
+export function deliveryRangeExtent(
+  envelope: DeliveryEnvelopeV1,
+  schema: any,
+  range: DeliveryRange,
+): DeliveryRangeExtent {
+  const decoded = decodeDeliveryEnvelope(envelope);
+  const selected = decoded.receipt.ranges.find((candidate) => candidate === range)
+    ?? decoded.receipt.ranges.find((candidate) => candidate.site === range.site);
+  if (!selected) fail("$.receipt.ranges", `does not contain site ${range.site}`);
+  const presentIds = selected.haloId === undefined
+    ? [...selected.rowIds]
+    : [...selected.rowIds, selected.haloId];
+  if (selected.stop === "Exhausted") {
+    return {
+      stop: "Exhausted",
+      prefix: clone(selected.prefix),
+      bounds: {
+        after: clone(selected.after), before: clone(selected.before),
+        gt: clone(selected.gt), gte: clone(selected.gte),
+        lt: clone(selected.lt), lte: clone(selected.lte),
+      },
+      presentIds,
+    };
+  }
+  if (selected.rowIds.length === 0) fail(`$.receipt.ranges[${selected.site}].rowIds`, "Limit extent needs a returned row");
+  const rows = new Map(decoded.rows.map((row) => [poolKey(row.table, row.id), row]));
+  const key = (id: string): WireValue[] => {
+    const row = rows.get(poolKey(selected.table, id))!;
+    return indexColumns(schema, selected.table, selected.index).map((column) => {
+      if (!(column in row.row)) fail(`$.rows.${selected.table}/${id}.${column}`, "is required by the range index");
+      return clone(row.row[column]!);
+    });
+  };
+  return {
+    stop: "Limit",
+    firstKey: key(selected.rowIds[0]!),
+    lastKey: key(selected.rowIds[selected.rowIds.length - 1]!),
+    presentIds,
+  };
+}
+
+function receipt(value: unknown, pool: Set<string>, authority: DeliveryAuthority): void {
   object(value, "$.receipt", ["ranges", "absences", "verdicts"]);
   array(value.ranges, "$.receipt.ranges");
   value.ranges.forEach((range: unknown, index: number) => {
     const path = `$.receipt.ranges[${index}]`;
     object(range, path, [
       "site", "table", "index", "prefix", "order", "take", "after", "before",
-      "gt", "gte", "lt", "lte", "ruleHash", "rowIds", "stop", "absence", "n2Key",
+      "gt", "gte", "lt", "lte", "ruleHash", "rowIds", "stop", "absence",
     ], ["haloId"]);
     for (const name of ["site", "table", "index", "ruleHash"] as const) string(range[name], `${path}.${name}`);
     digest(range.ruleHash, `${path}.ruleHash`);
@@ -310,16 +395,19 @@ function receipt(value: unknown, pool: Set<string>): void {
     uint(range.take, `${path}.take`);
     for (const name of ["after", "before", "gt", "gte", "lt", "lte"] as const)
       if (range[name] !== null) wire(range[name], `${path}.${name}`);
-    array(range.rowIds, `${path}.rowIds`); range.rowIds.forEach((id: unknown, at: number) => string(id, `${path}.rowIds[${at}]`));
+    array(range.rowIds, `${path}.rowIds`);
+    const rowIds = new Set<string>();
+    range.rowIds.forEach((id: unknown, at: number) => {
+      string(id, `${path}.rowIds[${at}]`);
+      if (rowIds.has(id)) fail(`${path}.rowIds[${at}]`, "duplicates a row id");
+      rowIds.add(id);
+      if (!pool.has(poolKey(range.table, id))) fail(`${path}.rowIds[${at}]`, "references a missing same-table pooled row");
+    });
     if (!["Limit", "Exhausted"].includes(String(range.stop))) fail(`${path}.stop`, "expected Limit or Exhausted");
     boolean(range.absence, `${path}.absence`);
     if (range.haloId !== undefined) {
       string(range.haloId, `${path}.haloId`);
       if (!pool.has(poolKey(range.table, range.haloId))) fail(`${path}.haloId`, "references a missing pooled row");
-    }
-    if (range.n2Key !== null) {
-      array(range.n2Key, `${path}.n2Key`);
-      range.n2Key.forEach((item: unknown, at: number) => wire(item, `${path}.n2Key[${at}]`));
     }
   });
   array(value.absences, "$.receipt.absences");
@@ -340,6 +428,8 @@ function receipt(value: unknown, pool: Set<string>): void {
     string(verdict.principal, `${path}.principal`);
     uint(verdict.authEpoch, `${path}.authEpoch`);
     boolean(verdict.result, `${path}.result`);
+    if (verdict.principal !== authority.principal) fail(`${path}.principal`, "does not match envelope authority");
+    if (verdict.authEpoch !== authority.authEpoch) fail(`${path}.authEpoch`, "does not match envelope authority");
   });
 }
 
@@ -427,8 +517,17 @@ function validateReferences(value: unknown, pool: Set<string>, path: string): vo
     if (!pool.has(poolKey(value.$row.table, value.$row.id))) fail(path, "references a missing pooled row");
     return;
   }
+  if (escapedObject(value)) {
+    for (const [key, item] of Object.entries(value.$row.$value)) {
+      validateReferences(item, pool, `${path}.$row.$value.${key}`);
+    }
+    return;
+  }
   if (Array.isArray(value)) value.forEach((item, index) => validateReferences(item, pool, `${path}[${index}]`));
-  else if (plain(value)) for (const [key, item] of Object.entries(value)) validateReferences(item, pool, `${path}.${key}`);
+  else if (plain(value)) {
+    if ("$row" in value) fail(path, "has a malformed reserved $row value");
+    for (const [key, item] of Object.entries(value)) validateReferences(item, pool, `${path}.${key}`);
+  }
 }
 
 function canonicalWire(value: WireValue): WireValue {
@@ -447,7 +546,6 @@ function wire(value: unknown, path: string): void {
   if (typeof value === "number") { uintOrSigned(value, path); return; }
   if (Array.isArray(value)) { value.forEach((item, index) => wire(item, `${path}[${index}]`)); return; }
   object(value, path, [], [], true);
-  if ("$row" in value && !rowReference(value)) fail(path, "has a malformed $row reference");
   for (const [key, item] of Object.entries(value)) wire(item, `${path}.${key}`);
 }
 
@@ -455,6 +553,11 @@ function rowReference(value: unknown): value is WireRowReference {
   return plain(value) && Object.keys(value).length === 1 && plain(value.$row)
     && Object.keys(value.$row).sort().join(",") === "id,table"
     && typeof value.$row.table === "string" && typeof value.$row.id === "string";
+}
+
+function escapedObject(value: unknown): value is WireEscapedObject {
+  return plain(value) && Object.keys(value).length === 1 && plain(value.$row)
+    && Object.keys(value.$row).length === 1 && plain(value.$row.$value);
 }
 
 function object(value: any, path: string, required: string[], optional: string[] = [], open = false): asserts value is Record<string, any> {

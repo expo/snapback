@@ -1,13 +1,18 @@
 //! Public local-first delivery projection.
 // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — clients receive one frozen, authority-bound projection instead of the private closure receipt.
 
-use crate::engine::{Execution, ExecutionState, ReceiptRange, RowRecord, Verdict};
-use crate::value::{Value, canonical_json, digest};
+use crate::engine::{
+    Execution, ExecutionState, ReceiptRange, ResultProvenance, RowRecord, Verdict,
+};
+use crate::value::{Value, digest};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value as Json, json};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
+use std::fmt;
 
 pub const DELIVERY_PROTOCOL_V1: u8 = 1;
+const ROW_REFERENCE_KEY: &str = "$row";
+const ROW_ESCAPE_KEY: &str = "$value";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -53,7 +58,6 @@ pub struct DeliveryRange {
     pub absence: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub halo_id: Option<String>,
-    pub n2_key: Option<Vec<Json>>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -110,8 +114,11 @@ struct ValidatorPayload<'a> {
     op: &'a str,
     args: &'a BTreeMap<String, Value>,
     state: &'a DeliveryState,
+    reason: &'a Option<String>,
+    rule: &'a Option<String>,
     data: &'a Json,
     next: &'a Option<String>,
+    rows: &'a [DeliveryRow],
     receipt: &'a DeliveryReceipt,
     generation: &'a str,
     schema_hash: &'a str,
@@ -120,25 +127,50 @@ struct ValidatorPayload<'a> {
     auth_epoch: u64,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum DeliveryProjectionError {
+    NonQueryState,
+    MissingPooledRow { table: String, id: String },
+}
+
+impl fmt::Display for DeliveryProjectionError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::NonQueryState => {
+                formatter.write_str("delivery envelopes are defined only for query executions")
+            }
+            Self::MissingPooledRow { table, id } => {
+                write!(
+                    formatter,
+                    "result references missing pooled row {table}/{id}"
+                )
+            }
+        }
+    }
+}
+
+impl std::error::Error for DeliveryProjectionError {}
+
 /// Project an engine execution into the frozen public v1 delivery envelope.
 pub fn project(
     execution: &Execution,
     context: &DeliveryProjectionContext<'_>,
-) -> DeliveryEnvelopeV1 {
+) -> Result<DeliveryEnvelopeV1, DeliveryProjectionError> {
+    let state = delivery_state(&execution.state)?;
+    let reason = match &execution.state {
+        ExecutionState::Partial { reason } => Some(reason.clone()),
+        _ => None,
+    };
+    let rule = match &execution.state {
+        ExecutionState::Denied { rule } => Some(rule.clone()),
+        _ => None,
+    };
     let rows = row_pool(execution);
-    let mut row_refs = BTreeMap::new();
-    for row in execution.receipt.rows.iter().chain(
-        execution
-            .receipt
-            .ranges
-            .iter()
-            .filter_map(|range| range.halo.as_ref()),
-    ) {
-        row_refs
-            .entry(canonical_json(&row.row))
-            .or_insert_with(|| (row.table.clone(), row.id.clone()));
-    }
-    let data = pooled_value(&execution.result, &row_refs);
+    let pool = rows
+        .iter()
+        .map(|row| (row.table.clone(), row.id.clone()))
+        .collect::<BTreeSet<_>>();
+    let data = pooled_value(&execution.result, &execution.result_provenance, &pool)?;
     let receipt = DeliveryReceipt {
         ranges: execution
             .receipt
@@ -167,7 +199,6 @@ pub fn project(
             .map(delivery_verdict)
             .collect(),
     };
-    let state = delivery_state(&execution.state);
     // The validator's logical data is the expanded answer. The envelope's data
     // uses row references, but hashing only those references would miss a body
     // change whose (table, id) is stable.
@@ -176,8 +207,11 @@ pub fn project(
         op: context.op,
         args: context.args,
         state: &state,
+        reason: &reason,
+        rule: &rule,
         data: &validator_data,
         next: &execution.next,
+        rows: &rows,
         receipt: &receipt,
         generation: context.generation,
         schema_hash: context.schema_hash,
@@ -185,7 +219,7 @@ pub fn project(
         principal: context.principal,
         auth_epoch: context.auth_epoch,
     });
-    DeliveryEnvelopeV1 {
+    Ok(DeliveryEnvelopeV1 {
         protocol: DELIVERY_PROTOCOL_V1,
         generation: context.generation.to_owned(),
         schema_hash: context.schema_hash.to_owned(),
@@ -195,31 +229,25 @@ pub fn project(
             auth_epoch: context.auth_epoch,
         },
         state,
-        reason: match &execution.state {
-            ExecutionState::Partial { reason } => Some(reason.clone()),
-            _ => None,
-        },
-        rule: match &execution.state {
-            ExecutionState::Denied { rule } => Some(rule.clone()),
-            _ => None,
-        },
+        reason,
+        rule,
         data,
         next: execution.next.clone(),
         seq: execution.seq,
         rows,
         receipt,
         validator,
-    }
+    })
 }
 
-fn delivery_state(state: &ExecutionState) -> DeliveryState {
+fn delivery_state(state: &ExecutionState) -> Result<DeliveryState, DeliveryProjectionError> {
     match state {
-        ExecutionState::Complete => DeliveryState::Complete,
-        ExecutionState::Capped => DeliveryState::Capped,
-        ExecutionState::Partial { .. } => DeliveryState::Partial,
-        ExecutionState::Denied { .. } => DeliveryState::Denied,
+        ExecutionState::Complete => Ok(DeliveryState::Complete),
+        ExecutionState::Capped => Ok(DeliveryState::Capped),
+        ExecutionState::Partial { .. } => Ok(DeliveryState::Partial),
+        ExecutionState::Denied { .. } => Ok(DeliveryState::Denied),
         ExecutionState::Committed { .. } | ExecutionState::Rejected { .. } => {
-            panic!("delivery envelopes are defined only for query executions")
+            Err(DeliveryProjectionError::NonQueryState)
         }
     }
 }
@@ -245,31 +273,83 @@ fn row_pool(execution: &Execution) -> Vec<DeliveryRow> {
         .collect()
 }
 
-fn pooled_value(value: &Value, rows: &BTreeMap<String, (String, String)>) -> Json {
-    if matches!(value, Value::Row(_))
-        && let Some((table, id)) = rows.get(&canonical_json(value))
-    {
-        return json!({ "$row": { "table": table, "id": id } });
+fn pooled_value(
+    value: &Value,
+    provenance: &ResultProvenance,
+    rows: &BTreeSet<(String, String)>,
+) -> Result<Json, DeliveryProjectionError> {
+    if let ResultProvenance::Row { table, id } = provenance {
+        if !rows.contains(&(table.clone(), id.clone())) {
+            return Err(DeliveryProjectionError::MissingPooledRow {
+                table: table.clone(),
+                id: id.clone(),
+            });
+        }
+        let reference = Map::from_iter([
+            ("table".to_owned(), Json::String(table.clone())),
+            ("id".to_owned(), Json::String(id.clone())),
+        ]);
+        return Ok(Json::Object(Map::from_iter([(
+            ROW_REFERENCE_KEY.to_owned(),
+            Json::Object(reference),
+        )])));
     }
-    match value {
+    Ok(match value {
         Value::Null => Json::Null,
         Value::Bool(value) => Json::Bool(*value),
         Value::Int(value) => Json::Number((*value).into()),
         Value::String(value) | Value::Id(value) => Json::String(value.clone()),
         Value::Bytes(value) => json!({ "Bytes": crate::encode_bytes_hex(value) }),
-        Value::Row(values) | Value::Map(values) => Json::Object(
-            values
+        Value::Row(values) | Value::Map(values) => {
+            let provenance = match provenance {
+                ResultProvenance::Object(values) => Some(values),
+                _ => None,
+            };
+            let object = values
                 .iter()
-                .map(|(key, value)| (key.clone(), pooled_value(value, rows)))
-                .collect(),
-        ),
-        Value::Array(values) => Json::Array(
-            values
-                .iter()
-                .map(|value| pooled_value(value, rows))
-                .collect(),
-        ),
-    }
+                .map(|(key, value)| {
+                    let provenance = provenance
+                        .and_then(|values| values.get(key))
+                        .unwrap_or(&ResultProvenance::None);
+                    Ok((key.clone(), pooled_value(value, provenance, rows)?))
+                })
+                .collect::<Result<Map<_, _>, DeliveryProjectionError>>()?;
+            if object.contains_key(ROW_REFERENCE_KEY) {
+                Json::Object(Map::from_iter([(
+                    ROW_REFERENCE_KEY.to_owned(),
+                    Json::Object(Map::from_iter([(
+                        ROW_ESCAPE_KEY.to_owned(),
+                        Json::Object(object),
+                    )])),
+                )]))
+            } else {
+                Json::Object(object)
+            }
+        }
+        Value::Array(values) => {
+            let provenance = match provenance {
+                ResultProvenance::Array(provenance) if provenance.len() == values.len() => {
+                    Some(provenance)
+                }
+                _ => None,
+            };
+            Json::Array(
+                values
+                    .iter()
+                    .enumerate()
+                    .map(|(index, value)| {
+                        pooled_value(
+                            value,
+                            provenance
+                                .and_then(|values| values.get(index))
+                                .unwrap_or(&ResultProvenance::None),
+                            rows,
+                        )
+                    })
+                    .collect::<Result<Vec<_>, _>>()?,
+            )
+        }
+    })
 }
 
 fn delivery_range(range: &ReceiptRange) -> DeliveryRange {
@@ -291,10 +371,6 @@ fn delivery_range(range: &ReceiptRange) -> DeliveryRange {
         stop: range.stop,
         absence: range.absence,
         halo_id: range.halo.as_ref().map(|row| row.id.clone()),
-        n2_key: range
-            .n2_key
-            .as_ref()
-            .map(|key| key.iter().map(value_to_wire_json).collect()),
     }
 }
 
@@ -375,6 +451,10 @@ mod tests {
         let first = row("message-1", "hello");
         Execution {
             result: Value::Array(vec![first.row]),
+            result_provenance: ResultProvenance::Array(vec![ResultProvenance::Row {
+                table: "messages".to_owned(),
+                id: "message-1".to_owned(),
+            }]),
             trace: AuthoritativeTrace::default(),
             receipt,
             state: ExecutionState::Complete,
@@ -405,6 +485,7 @@ mod tests {
                 auth_epoch: epoch,
             },
         )
+        .unwrap()
     }
 
     #[test]
@@ -489,7 +570,7 @@ mod tests {
         let base_receipt = ClosureReceipt {
             schema_hash: Some(hash('b')),
             rows: vec![row("message-1", "hello")],
-            ranges: vec![range(None)],
+            ranges: vec![range(Some(row("message-2", "later")))],
             absences: Vec::new(),
             verdicts: vec![Verdict {
                 rule_hash: hash('e'),
@@ -528,6 +609,14 @@ mod tests {
         );
 
         changed = base_execution.clone();
+        changed.receipt.ranges[0].halo.as_mut().unwrap().row = row("message-2", "changed").row;
+        assert_ne!(
+            project_test(&changed, &hash('d'), "alice", 3).validator,
+            base,
+            "the canonical pool, including a halo body, is validator content"
+        );
+
+        changed = base_execution.clone();
         changed.next = Some("cursor".to_owned());
         assert_ne!(
             project_test(&changed, &hash('d'), "alice", 3).validator,
@@ -544,6 +633,144 @@ mod tests {
         assert_ne!(
             project_test(&base_execution, &hash('d'), "alice", 4).validator,
             base
+        );
+
+        let changed_args = BTreeMap::from([(
+            "conversationId".to_owned(),
+            Value::Id("conversation-2".to_owned()),
+        )]);
+        let changed_args_validator = project(
+            &base_execution,
+            &DeliveryProjectionContext {
+                op: "messages.thread",
+                args: &changed_args,
+                generation: &hash('d'),
+                schema_hash: &hash('b'),
+                plan_hash: &hash('c'),
+                principal: "alice",
+                auth_epoch: 3,
+            },
+        )
+        .unwrap()
+        .validator;
+        assert_ne!(changed_args_validator, base);
+
+        let mut partial_a = base_execution.clone();
+        partial_a.result = Value::Null;
+        partial_a.result_provenance = ResultProvenance::None;
+        partial_a.state = ExecutionState::Partial {
+            reason: "never-held".to_owned(),
+        };
+        let mut partial_b = partial_a.clone();
+        partial_b.state = ExecutionState::Partial {
+            reason: "evicted".to_owned(),
+        };
+        assert_ne!(
+            project_test(&partial_a, &hash('d'), "alice", 3).validator,
+            project_test(&partial_b, &hash('d'), "alice", 3).validator,
+        );
+
+        let mut denied_a = partial_a;
+        denied_a.state = ExecutionState::Denied {
+            rule: "messages.Read".to_owned(),
+        };
+        let mut denied_b = denied_a.clone();
+        denied_b.state = ExecutionState::Denied {
+            rule: "memberships.Read".to_owned(),
+        };
+        assert_ne!(
+            project_test(&denied_a, &hash('d'), "alice", 3).validator,
+            project_test(&denied_b, &hash('d'), "alice", 3).validator,
+        );
+    }
+
+    #[test]
+    fn projection_uses_row_provenance_and_escapes_application_row_shapes() {
+        let body = object([
+            ("body", Value::String("same".to_owned())),
+            ("id", Value::Id("shared".to_owned())),
+        ]);
+        let execution = Execution {
+            result: Value::Array(vec![body.clone(), body.clone()]),
+            result_provenance: ResultProvenance::Array(vec![
+                ResultProvenance::Row {
+                    table: "alpha".to_owned(),
+                    id: "shared".to_owned(),
+                },
+                ResultProvenance::Row {
+                    table: "beta".to_owned(),
+                    id: "shared".to_owned(),
+                },
+            ]),
+            trace: AuthoritativeTrace::default(),
+            receipt: ClosureReceipt {
+                rows: vec![
+                    RowRecord {
+                        table: "alpha".to_owned(),
+                        id: "shared".to_owned(),
+                        row: body.clone(),
+                    },
+                    RowRecord {
+                        table: "beta".to_owned(),
+                        id: "shared".to_owned(),
+                        row: body,
+                    },
+                ],
+                ..ClosureReceipt::default()
+            },
+            state: ExecutionState::Complete,
+            seq: 1,
+            next: None,
+        };
+        let envelope = project_test(&execution, &hash('d'), "alice", 3);
+        assert_eq!(
+            envelope.data,
+            json!([
+                { "$row": { "table": "alpha", "id": "shared" } },
+                { "$row": { "table": "beta", "id": "shared" } },
+            ])
+        );
+
+        let application = Execution {
+            result: Value::Map(BTreeMap::from([(
+                "$row".to_owned(),
+                Value::Map(BTreeMap::from([
+                    ("id".to_owned(), Value::String("literal".to_owned())),
+                    ("table".to_owned(), Value::String("application".to_owned())),
+                ])),
+            )])),
+            result_provenance: ResultProvenance::None,
+            trace: AuthoritativeTrace::default(),
+            receipt: ClosureReceipt::default(),
+            state: ExecutionState::Complete,
+            seq: 1,
+            next: None,
+        };
+        assert_eq!(
+            project_test(&application, &hash('d'), "alice", 3).data,
+            json!({ "$row": { "$value": { "$row": { "id": "literal", "table": "application" } } } })
+        );
+    }
+
+    #[test]
+    fn projection_refuses_mutation_states_without_panicking() {
+        let mut execution = execution(ClosureReceipt::default());
+        execution.state = ExecutionState::Committed { seq: 8 };
+        let args = BTreeMap::new();
+        assert_eq!(
+            project(
+                &execution,
+                &DeliveryProjectionContext {
+                    op: "messages.send",
+                    args: &args,
+                    generation: &hash('d'),
+                    schema_hash: &hash('b'),
+                    plan_hash: &hash('c'),
+                    principal: "alice",
+                    auth_epoch: 3,
+                },
+            ),
+            Err(DeliveryProjectionError::NonQueryState)
         );
     }
 }

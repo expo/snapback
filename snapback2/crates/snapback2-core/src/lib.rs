@@ -39,8 +39,8 @@ pub use cursor::{
     CursorColumn, CursorError, CursorPosition, decode_cursor, decode_cursor_for, encode_cursor,
 };
 pub use engine::{
-    AuthoritativeTrace, Context, Engine, Execution, ExecutionState, PointTrace, RuleInputTrace,
-    RuntimeError, StopReason, validate_schema,
+    AuthoritativeTrace, Context, Engine, Execution, ExecutionState, PointTrace, ResultProvenance,
+    RuleInputTrace, RuntimeError, StopReason, validate_schema,
 };
 pub use identity::{
     Actor, ActorError, CURRENT_VALUE_MODEL_VERSION, IR_CONTRACT_JSON, IdentityError, Principal,
@@ -50,8 +50,8 @@ pub use ir::*;
 pub use live::{Delivery, SubscriptionId, SubscriptionInfo, Subscriptions};
 pub use offline::{
     DELIVERY_PROTOCOL_V1, DeliveryAuthority, DeliveryEnvelopeV1, DeliveryProjectionContext,
-    DeliveryRange, DeliveryReceipt, DeliveryRow, DeliveryState, DeliveryVerdict,
-    project as project_delivery, value_to_wire_json,
+    DeliveryProjectionError, DeliveryRange, DeliveryReceipt, DeliveryRow, DeliveryState,
+    DeliveryVerdict, project as project_delivery, value_to_wire_json,
 };
 pub use principal::PrincipalId;
 pub use programs::*;

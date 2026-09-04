@@ -2,7 +2,7 @@
 // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — projection and validator comparison happen after authoritative execution on the sole owner.
 
 use super::*;
-use snapback2_core::{DeliveryProjectionContext, project_delivery};
+use snapback2_core::{DeliveryProjectionContext, DeliveryProjectionError, project_delivery};
 
 #[derive(Clone, Debug, Default)]
 pub(crate) struct OfflineOptions {
@@ -15,14 +15,14 @@ pub(super) fn envelope_json(
     op: &str,
     context: &Context,
     execution: &Execution,
-) -> Json {
+) -> Result<Json, Refusal> {
     let (_, certificate) = generation
         .programs()
         .get(op)
         .expect("execution operation belongs to active generation");
     let program_generation = generation.program_hash();
     let schema_hash = generation.schema().hash();
-    serde_json::to_value(project_delivery(
+    let envelope = project_delivery(
         execution,
         &DeliveryProjectionContext {
             op,
@@ -33,8 +33,25 @@ pub(super) fn envelope_json(
             principal: context.viewer(),
             auth_epoch: context.auth_epoch,
         },
-    ))
-    .expect("delivery envelope is serializable")
+    )
+    .map_err(projection_refusal)?;
+    Ok(serde_json::to_value(envelope).expect("delivery envelope is serializable"))
+}
+
+pub(super) fn envelope_frame(
+    generation: &Generation,
+    op: &str,
+    context: &Context,
+    execution: &Execution,
+) -> (Json, bool) {
+    let (legacy, terminal) = live_frame(Ok(execution), execution.seq);
+    if terminal {
+        return (legacy, terminal);
+    }
+    match envelope_json(generation, op, context, execution) {
+        Ok(envelope) => (envelope, false),
+        Err(refusal) => refusal_frame(refusal, execution.seq),
+    }
 }
 
 pub(super) fn conditional_frame(full: &Json, validator: Option<&str>) -> Json {
@@ -54,6 +71,15 @@ pub(super) fn conditional_frame(full: &Json, validator: Option<&str>) -> Json {
 }
 
 pub(super) fn program(generation: &Generation, requested: &str) -> Result<Json, Refusal> {
+    if requested.is_empty() {
+        return Err(Refusal::new(
+            "E_INPUT",
+            "input",
+            "GET /api/program requires the generation query parameter",
+            "read programGeneration from /api/manifest and pass ?generation=<programGeneration>",
+            "input/runtime",
+        ));
+    }
     let current = generation.program_hash();
     if requested != current {
         return Err(Refusal::new(
@@ -86,6 +112,26 @@ pub(super) fn program(generation: &Generation, requested: &str) -> Result<Json, 
     Ok(json!({
         "generation": current,
         "schemaHash": generation.schema().hash(),
+        "schema": generation.schema(),
         "programs": programs,
     }))
+}
+
+fn projection_refusal(error: DeliveryProjectionError) -> Refusal {
+    match error {
+        DeliveryProjectionError::NonQueryState => Refusal::new(
+            "E_OP_KIND",
+            "op",
+            "a subscription query produced a mutation state",
+            "subscribe only to query operations",
+            "op/kind",
+        ),
+        DeliveryProjectionError::MissingPooledRow { .. } => Refusal::new(
+            "E_TRACE_SUBSET",
+            "bound",
+            error.to_string(),
+            "inspect the query receipt and result row provenance",
+            "bound/runtime",
+        ),
+    }
 }

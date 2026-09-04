@@ -235,6 +235,8 @@ pub struct ClosureReceipt {
 #[serde(rename_all = "camelCase")]
 pub struct Execution {
     pub result: Value,
+    #[serde(skip)]
+    pub result_provenance: ResultProvenance,
     pub trace: AuthoritativeTrace,
     pub receipt: ClosureReceipt,
     pub state: ExecutionState,
@@ -664,6 +666,7 @@ impl Engine {
         transaction.commit()?;
         Ok(Execution {
             result: Value::Null,
+            result_provenance: ResultProvenance::None,
             trace: AuthoritativeTrace::default(),
             receipt: ClosureReceipt::default(),
             state: ExecutionState::Rejected {
@@ -678,6 +681,7 @@ impl Engine {
     fn empty_execution(&self, state: ExecutionState) -> Result<Execution, RuntimeError> {
         Ok(Execution {
             result: Value::Null,
+            result_provenance: ResultProvenance::None,
             trace: AuthoritativeTrace::default(),
             receipt: ClosureReceipt::default(),
             state,
@@ -774,6 +778,7 @@ impl Engine {
             transaction.rollback()?;
             return Ok(Execution {
                 result: Value::Null,
+                result_provenance: ResultProvenance::None,
                 trace,
                 receipt,
                 state: ExecutionState::Partial {
@@ -801,6 +806,7 @@ impl Engine {
                 };
                 let execution = Execution {
                     result: Value::Null,
+                    result_provenance: ResultProvenance::None,
                     trace: runner.trace,
                     receipt: runner.receipt,
                     state,
@@ -827,6 +833,7 @@ impl Engine {
                 transaction.commit()?;
                 return Ok(Execution {
                     result: Value::Null,
+                    result_provenance: ResultProvenance::None,
                     trace: AuthoritativeTrace::default(),
                     receipt: ClosureReceipt::default(),
                     state: ExecutionState::Rejected {
@@ -839,9 +846,9 @@ impl Engine {
             }
             Err(error) => return Err(error),
         };
-        let result = match flow {
-            Flow::Return(value) => value,
-            _ => Value::Null,
+        let (result, result_provenance) = match flow {
+            Flow::Return(value, provenance) => (value, provenance),
+            _ => (Value::Null, ResultProvenance::None),
         };
         if program.kind == ProgramKind::Query {
             runner.assert_bounds()?;
@@ -856,6 +863,7 @@ impl Engine {
         let next = next_cursor(&state, &runner.trace, certificate)?;
         let execution = Execution {
             result,
+            result_provenance,
             trace: runner.trace,
             receipt: runner.receipt,
             state,
@@ -934,13 +942,14 @@ impl Engine {
         );
         let flow = runner.statements(&program.body)?;
         runner.check_final_constraints()?;
-        let result = match flow {
-            Flow::Return(value) => value,
-            _ => Value::Null,
+        let (result, result_provenance) = match flow {
+            Flow::Return(value, provenance) => (value, provenance),
+            _ => (Value::Null, ResultProvenance::None),
         };
         runner.assert_bounds()?;
         let execution = Execution {
             result,
+            result_provenance,
             trace: runner.trace,
             receipt: runner.receipt,
             state: ExecutionState::Committed { seq },
@@ -1590,8 +1599,11 @@ fn first_schema_error(errors: Vec<RuntimeError>) -> RuntimeError {
 #[cfg(test)]
 mod delivery_tests;
 mod index;
+mod provenance;
 mod runner;
 mod runner_ops;
+
+pub use provenance::ResultProvenance;
 
 #[allow(unused_imports)]
 use index::{EvaluatedRange, delete_index_row, lookup_indexed, row_ids, scan_indexed};
