@@ -630,7 +630,10 @@ miss, and at two misses the overlay is dropped and the entry's `predicted` retir
 bubble neither vanishes on an unrelated delivery nor leaks. A delivery under another
 generation or schema is not refused and not held: it records `superseded`, the online
 caller gets the live answer, no held validator leaves the device, and offline reads are
-`hydrating` until the next resume's `E_OFFLINE_RESET` runs the reset path.
+`hydrating` until the next resume's `E_OFFLINE_RESET` runs the reset path (when the
+generation and the auth epoch both differ, supersession wins over the epoch refusal; the
+reset is not self-triggered — the follow-ups ticket of 2026-09-04 records that and the
+`ready()` and catch-all residuals of the third review round).
 `client.outbox.ready()` (a current grant inside the fence, or no partition) is exposed as
 `useOutbox().ready` and `useMutation().ready`; the chat composer is disabled with the
 reason until the inbox drain has earned a grant, and a refusal's rewrite is shown, never
