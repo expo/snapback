@@ -149,6 +149,14 @@
     "program": "opaque-cursor-capped-next-token",
     "plan_hash": "d18a80c9e4be34935ffb6fb83d547f0188894d792676ef196e8d187a1322514a",
     "schema_hash": "f7c842236978e842a20695dbea23d49d1277bd8bdbc0c342ee6422331cb188f8",
+    "tables": {
+      "follows": {
+        "retain": "until-revoked"
+      },
+      "posts": {
+        "retain": "until-revoked"
+      }
+    },
     "rule_hashes": {
       "posts.read": "fd79905c6b2537749a4f00979344bce28f421b3d1fee4a30a4fbf41e3fc8f8a6"
     },

@@ -104,6 +104,11 @@
     "program": "writeAlternateKeyMissing",
     "plan_hash": "669e764e7c2e8f712f64f2e23fb48afb223f2a13ca39891cfda3a6b4343bd9ce",
     "schema_hash": "4bc115040b8aa9b833722b0347cd4970512e7fabac6d3a1adb4409b5d0f54a27",
+    "tables": {
+      "items": {
+        "retain": "until-revoked"
+      }
+    },
     "rule_hashes": {
       "items.read": "adc9164b6df182ca3e77ad82007be434987f3cd5176291c8fd13e30d9f8193bf"
     },

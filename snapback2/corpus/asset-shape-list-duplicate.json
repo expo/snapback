@@ -35,6 +35,7 @@
     "program": "asset-shape-list-duplicate",
     "plan_hash": "409a4206ef9a55dc69397dcb4933937290b513b28cb05f2304a9edf50b9c3aaf",
     "schema_hash": "a972c6d6451f5422ac5352a87aa4dfaf6a9212f76528529d394e6be5bf4c04d8",
+    "tables": {},
     "rule_hashes": {},
     "evaluator_version": "bounded-spike-rust-1",
     "value_model_version": "i53-codepoint-bytes-v2",

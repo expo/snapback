@@ -25,7 +25,7 @@ struct TrackedValue {
 }
 
 #[derive(Clone, Copy)]
-struct CandidateCheckpoint {
+pub(super) struct CandidateCheckpoint {
     rows: usize,
     ranges: usize,
     absences: usize,
@@ -1293,7 +1293,7 @@ impl<'a> Runner<'a> {
             .collect())
     }
 
-    fn candidate_checkpoint(&self) -> CandidateCheckpoint {
+    pub(super) fn candidate_checkpoint(&self) -> CandidateCheckpoint {
         CandidateCheckpoint {
             rows: self.receipt.rows.len(),
             ranges: self.receipt.ranges.len(),
@@ -1304,7 +1304,7 @@ impl<'a> Runner<'a> {
         }
     }
 
-    fn rollback_candidate(&mut self, checkpoint: CandidateCheckpoint) {
+    pub(super) fn rollback_candidate(&mut self, checkpoint: CandidateCheckpoint) {
         self.receipt.rows.truncate(checkpoint.rows);
         self.receipt.ranges.truncate(checkpoint.ranges);
         self.receipt.absences.truncate(checkpoint.absences);

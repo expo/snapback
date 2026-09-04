@@ -106,6 +106,11 @@
     "program": "named-text-valid-profile",
     "plan_hash": "3e7b30c5c88444a06ab55448bcedbba58da023c9c44840bf37d105536bd04401",
     "schema_hash": "be60184b064420f0ebe7ce9813d0af3201a6ab20513c93a228285863be8a4abf",
+    "tables": {
+      "profiles": {
+        "retain": "until-revoked"
+      }
+    },
     "rule_hashes": {
       "profiles.insert": "cf99f4afac7908eb8ceea338816a818471914e05b1f3ab0dad22776b84eed8c3"
     },

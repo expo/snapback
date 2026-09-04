@@ -30,6 +30,7 @@
     "program": "asset-shape-wrong-dimension-type",
     "plan_hash": "ac512e4a57cce5e187aca050e4a3e7ff3a8b4ee54a26e237658f1b9b9f0838d5",
     "schema_hash": "a972c6d6451f5422ac5352a87aa4dfaf6a9212f76528529d394e6be5bf4c04d8",
+    "tables": {},
     "rule_hashes": {},
     "evaluator_version": "bounded-spike-rust-1",
     "value_model_version": "i53-codepoint-bytes-v2",

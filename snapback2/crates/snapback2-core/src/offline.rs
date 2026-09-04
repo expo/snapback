@@ -12,6 +12,9 @@ use std::fmt;
 
 pub const REPLAY_GRANT_COUNT: u32 = 8_192;
 pub const REPLAY_GRANT_LIFETIME_MS: i64 = 30 * 24 * 60 * 60 * 1_000;
+/// A client with fewer unused pinned ids than this is minted a fresh grant by
+/// login, guest, and resume; one with more is not.
+pub const REPLAY_GRANT_LOW_WATERMARK: u64 = 1_024;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -93,7 +96,22 @@ pub fn replay_mutation_response(execution: &Execution, intent: &str) -> Json {
                 "guide": format!("{family}/runtime"),
             })
         }
-        _ => panic!("replay response requires a terminal mutation execution"),
+        // A replayed mutation that rolled back for want of authority settles
+        // as that state: the ledger records it so a retry is exactly-once.
+        ExecutionState::Partial { reason } => json!({
+            "state": "partial",
+            "reason": reason,
+        }),
+        ExecutionState::Complete | ExecutionState::Capped | ExecutionState::Denied { .. } => {
+            json!({
+                "state": "rejected",
+                "code": "E_OP_KIND",
+                "family": "op",
+                "message": "a replayed mutation produced a query state",
+                "rewrite": "replay only mutation operations",
+                "guide": "op/kind",
+            })
+        }
     };
     response
         .as_object_mut()
@@ -123,6 +141,27 @@ fn rejection_family(code: &str) -> &'static str {
 // actually read, keyed by the same bytes the pool carried.
 pub fn row_digest(row: &Value) -> String {
     digest(&value_to_wire_json(row))
+}
+
+/// The digest a rule verdict carries for its pinned inputs, on the receipt
+/// (`pinnedInputsDigest`) and in a replay trace (`inputsDigest`):
+/// `sha256(canonical([table, index, key]))` with every key value in wire
+/// encoding — ids and text as strings, integers as numbers, `null` as null,
+/// bytes as `{ "Bytes": hex }` — so a client can compute it from the schema
+/// and the wire values it holds, with no engine-internal tagging. A
+/// transaction-local created-row probe prefixes the array with `"created"`.
+// @ref LLP 1012#7-writes-offline — the verdict inputs digest is a wire fact,
+// defined once here and mirrored by the evaluator and the protocol types.
+pub fn rule_inputs_digest(table: &str, index: &str, key: &[Value]) -> String {
+    digest(&(table, index, wire_key(key)))
+}
+
+pub fn created_inputs_digest(table: &str, index: &str, key: &[Value]) -> String {
+    digest(&("created", table, index, wire_key(key)))
+}
+
+fn wire_key(key: &[Value]) -> Vec<Json> {
+    key.iter().map(value_to_wire_json).collect()
 }
 
 pub const DELIVERY_PROTOCOL_V1: u8 = 1;

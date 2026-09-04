@@ -52,9 +52,10 @@ pub use live::{Delivery, SubscriptionId, SubscriptionInfo, Subscriptions};
 pub use offline::{
     DELIVERY_PROTOCOL_V1, DeliveryAuthority, DeliveryEnvelopeV1, DeliveryProjectionContext,
     DeliveryProjectionError, DeliveryRange, DeliveryReceipt, DeliveryRow, DeliveryState,
-    DeliveryVerdict, REPLAY_GRANT_COUNT, REPLAY_GRANT_LIFETIME_MS, ReplayCommit, ReplayGrant,
-    ReplayTrace, ReplayTracePoint, ReplayTraceVerdict, StoredClientIntent,
-    project as project_delivery, replay_mutation_response, row_digest, value_to_wire_json,
+    DeliveryVerdict, REPLAY_GRANT_COUNT, REPLAY_GRANT_LIFETIME_MS, REPLAY_GRANT_LOW_WATERMARK,
+    ReplayCommit, ReplayGrant, ReplayTrace, ReplayTracePoint, ReplayTraceVerdict,
+    StoredClientIntent, created_inputs_digest, project as project_delivery,
+    replay_mutation_response, row_digest, rule_inputs_digest, value_to_wire_json,
 };
 pub use principal::PrincipalId;
 pub use programs::*;

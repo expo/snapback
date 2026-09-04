@@ -160,6 +160,17 @@
     "program": "actions.afterRevoke",
     "plan_hash": "9d7f8c459fb6622403a4900fdcba166ee9b99825def1f93df6307dc8dc39c473",
     "schema_hash": "bd7dedaae4101a6144d0476581d375747afe34d853845c137ce3e1beecde4913",
+    "tables": {
+      "actions": {
+        "retain": "until-revoked"
+      },
+      "docs": {
+        "retain": "until-revoked"
+      },
+      "grants": {
+        "retain": "until-revoked"
+      }
+    },
     "rule_hashes": {
       "actions.insert": "a44720d99f2fd96f1fbdc74f06d666f740fb29a3041f2b096a71bc47f7545b7f",
       "docs.read": "a44720d99f2fd96f1fbdc74f06d666f740fb29a3041f2b096a71bc47f7545b7f",

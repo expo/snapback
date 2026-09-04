@@ -149,6 +149,14 @@
     "program": "opaque-cursor-wrong-index-refused",
     "plan_hash": "f5c97ad94ef85427338a5ca1c539b266824741621e0a01c9f58cb5225ba1ef16",
     "schema_hash": "f7c842236978e842a20695dbea23d49d1277bd8bdbc0c342ee6422331cb188f8",
+    "tables": {
+      "follows": {
+        "retain": "until-revoked"
+      },
+      "posts": {
+        "retain": "until-revoked"
+      }
+    },
     "rule_hashes": {
       "posts.read": "fd79905c6b2537749a4f00979344bce28f421b3d1fee4a30a4fbf41e3fc8f8a6"
     },

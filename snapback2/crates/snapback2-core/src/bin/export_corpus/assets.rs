@@ -925,6 +925,8 @@ fn assert_authority_refusal(
 
 fn ready(runtime: &mut Runtime, kind: AssetKind, actor: &Actor, bytes: u64) -> String {
     let id = runtime.begin_asset(kind, actor, 0).unwrap();
+    // Publication requires the finalized byte count reserved first (LLP 1006 §6).
+    runtime.reserve_asset_finalized_bytes(&id, bytes).unwrap();
     runtime
         .mark_asset_ready(
             &id,
@@ -1070,6 +1072,7 @@ fn forged_first_require_case() -> CorpusCase {
     let mut runtime = Runtime::open(store, generation).unwrap();
     let actor = Actor::user("u1").unwrap();
     let id = runtime.begin_asset(AssetKind::Video, &actor, 0).unwrap();
+    runtime.reserve_asset_finalized_bytes(&id, 100).unwrap();
     runtime
         .mark_asset_ready(
             &id,

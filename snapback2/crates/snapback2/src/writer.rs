@@ -161,8 +161,11 @@ pub enum Action {
     Login {
         email: String,
         password: String,
+        remaining: Option<Json>,
     },
-    Guest,
+    Guest {
+        remaining: Option<Json>,
+    },
     Logout {
         token: String,
     },
@@ -395,6 +398,15 @@ pub fn spawn_writer(
     Ok(handle)
 }
 
+/// A login or guest answer: the session, plus a grant only when one was minted.
+fn session_json(token: &str, viewer: &str, grant: Option<snapback2_core::ReplayGrant>) -> Json {
+    let mut response = json!({ "token": token, "viewer": viewer });
+    if let Some(grant) = grant {
+        response["grant"] = json!(grant);
+    }
+    response
+}
+
 pub fn apply_seed(runtime: &mut Runtime, rows: &[(String, Value)]) -> Result<u64, Refusal> {
     if rows.is_empty() {
         return runtime
@@ -522,23 +534,27 @@ impl State {
                     .map_err(|error| Refusal::from_identity(&error))?;
                 Ok(json!({ "token": session.token, "viewer": session.principal.id }))
             }
-            Action::Login { email, password } => {
+            Action::Login {
+                email,
+                password,
+                remaining,
+            } => {
                 let now = self.now();
                 let session = self
                     .runtime_mut()
                     .login(&email, &password, now)
                     .map_err(|error| Refusal::from_identity(&error))?;
-                let grant = self.mint_replay_grant(session.principal.id.as_str())?;
-                Ok(json!({ "token": session.token, "viewer": session.principal.id, "grant": grant }))
+                let grant = self.grant_if_low(session.principal.id.as_str(), remaining.as_ref())?;
+                Ok(session_json(&session.token, session.principal.id.as_str(), grant))
             }
-            Action::Guest => {
+            Action::Guest { remaining } => {
                 let now = self.now();
                 let session = self
                     .runtime_mut()
                     .guest(now)
                     .map_err(|error| Refusal::from_identity(&error))?;
-                let grant = self.mint_replay_grant(session.principal.id.as_str())?;
-                Ok(json!({ "token": session.token, "viewer": session.principal.id, "grant": grant }))
+                let grant = self.grant_if_low(session.principal.id.as_str(), remaining.as_ref())?;
+                Ok(session_json(&session.token, session.principal.id.as_str(), grant))
             }
             Action::Logout { token } => {
                 let now = self.now();

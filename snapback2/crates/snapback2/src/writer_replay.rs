@@ -6,8 +6,8 @@ use super::*;
 use super::writer_auth::ResolvedAuthority;
 use serde::{Deserialize, Serialize};
 use snapback2_core::{
-    ReplayCommit, ReplayGrant, ReplayTrace, ReplayTracePoint, ReplayTraceVerdict,
-    REPLAY_GRANT_LIFETIME_MS, replay_mutation_response,
+    REPLAY_GRANT_LIFETIME_MS, REPLAY_GRANT_LOW_WATERMARK, ReplayCommit, ReplayGrant, ReplayTrace,
+    ReplayTracePoint, ReplayTraceVerdict, replay_mutation_response,
 };
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -52,6 +52,32 @@ impl State {
             .map_err(|error| Refusal::from_runtime(&error))
     }
 
+    /// Mint a grant only when the client's unused pinned ids are low.
+    /// `remaining` is the client's own count; absent or `null` means it
+    /// holds none, and a count at or above the low watermark mints nothing.
+    // @ref LLP 1012#7-writes-offline — a grant is returned when the client's
+    // remaining ids are low, never on every reconnect.
+    pub(super) fn grant_if_low(
+        &mut self,
+        principal: &str,
+        remaining: Option<&Json>,
+    ) -> Result<Option<ReplayGrant>, Refusal> {
+        let remaining = match remaining {
+            None | Some(Json::Null) => None,
+            Some(value) => Some(value.as_u64().ok_or_else(|| {
+                Refusal::input(
+                    "remaining must be a non-negative integer",
+                    "send remaining as the count of unused pinned ids, or omit it",
+                )
+            })?),
+        };
+        if remaining.is_none_or(|count| count < REPLAY_GRANT_LOW_WATERMARK) {
+            Ok(Some(self.mint_replay_grant(principal)?))
+        } else {
+            Ok(None)
+        }
+    }
+
     pub(super) fn execute_replayed_mutation(
         &mut self,
         op: &str,
@@ -69,6 +95,24 @@ impl State {
         let request_digest = snapback2_core::digest(&(op, &args, &wire));
         let now = self.now();
         let principal = authority.principal.id.as_str();
+        // @ref LLP 1002#9-the-client-snapback2client-snapback2react-snapback2test — a retry after a 503 returns the stored
+        // terminal without executing, so a commit never looks like a rejection.
+        // The ledger is consulted before any grant check: an identical retry is
+        // exactly-once even after its grant expired or was swept.
+        if let Some(stored) = self
+            .runtime()
+            .store()
+            .stored_client_intent(principal, &wire.intent)
+            .map_err(|error| Refusal::from_runtime(&error))?
+        {
+            if stored.request_digest == request_digest {
+                return Ok(stored.response);
+            }
+            return Err(Refusal::offline(
+                "E_OFFLINE_INTENT_REUSE",
+                "the replay intent was already settled for different request bytes",
+            ));
+        }
         let stored_grant = self
             .runtime()
             .store()
@@ -111,23 +155,6 @@ impl State {
                 "the replay id slice overlaps an already settled intent",
             ));
         }
-        // @ref LLP 1002#9-the-client-snapback2client-snapback2react-snapback2test — a retry after a 503 returns the stored
-        // terminal without executing, so a commit never looks like a rejection.
-        if let Some(stored) = self
-            .runtime()
-            .store()
-            .stored_client_intent(principal, &wire.intent)
-            .map_err(|error| Refusal::from_runtime(&error))?
-        {
-            if stored.request_digest == request_digest {
-                return Ok(stored.response);
-            }
-            return Err(Refusal::offline(
-                "E_OFFLINE_INTENT_REUSE",
-                "the replay intent was already settled for different request bytes",
-            ));
-        }
-
         let mut context = self.context(authority, op, args)?;
         // The grant's reserved ids replace the ordinary 1,024-id reservation.
         context.new_ids = ids;

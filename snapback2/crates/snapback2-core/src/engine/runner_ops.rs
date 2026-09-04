@@ -763,7 +763,7 @@ impl<'a> Runner<'a> {
                     .iter()
                     .map(|term| self.rule_term(term, old, next))
                     .collect::<Result<Vec<_>, _>>()?;
-                let pinned_inputs_digest = digest(&(table, index, &key));
+                let pinned_inputs_digest = crate::offline::rule_inputs_digest(table, index, &key);
                 let memo_key = format!("{rule_hash}:{pinned_inputs_digest}");
                 if let Some(result) = self.rule_memo.get(&memo_key) {
                     return Ok(*result);
@@ -832,7 +832,7 @@ impl<'a> Runner<'a> {
                     .iter()
                     .map(|term| self.rule_term(term, old, next))
                     .collect::<Result<Vec<_>, _>>()?;
-                let pinned_inputs_digest = digest(&("created", table, index, &key));
+                let pinned_inputs_digest = crate::offline::created_inputs_digest(table, index, &key);
                 let encoded_key = canonical_json(&key);
                 let result = self.created_points.iter().any(
                     |(created_table, created_index, created_key, _)| {
@@ -923,7 +923,7 @@ impl<'a> Runner<'a> {
                     .iter()
                     .map(|term| self.rule_term(term, None, row))
                     .collect::<Result<Vec<_>, _>>()?;
-                let pinned_inputs_digest = digest(&(table, index, &key));
+                let pinned_inputs_digest = crate::offline::rule_inputs_digest(table, index, &key);
                 let memo_key = format!("{rule_hash}:{pinned_inputs_digest}");
                 if let Some(result) = self.visibility_memo.get(&memo_key) {
                     return Ok(*result);

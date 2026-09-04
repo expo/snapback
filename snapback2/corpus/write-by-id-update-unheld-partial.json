@@ -87,6 +87,11 @@
     "program": "writeByIdUpdateUnheld",
     "plan_hash": "df727b2801e8f3a0e8bc689a47cf5ea556ac3b706b77383eff6297751be1b544",
     "schema_hash": "4bc115040b8aa9b833722b0347cd4970512e7fabac6d3a1adb4409b5d0f54a27",
+    "tables": {
+      "items": {
+        "retain": "until-revoked"
+      }
+    },
     "rule_hashes": {
       "items.update": "adc9164b6df182ca3e77ad82007be434987f3cd5176291c8fd13e30d9f8193bf"
     },

@@ -92,6 +92,11 @@
     "program": "bytesInsert",
     "plan_hash": "b0627f7f08034868e5ff3bf25e26e0f3660cc221b48ca150bd24c37f18555a3c",
     "schema_hash": "2b7fe1d7c7a8e76299b9ff2fd8be4c824ec613c7b7b00828247c71a0206e302a",
+    "tables": {
+      "blobs": {
+        "retain": "until-revoked"
+      }
+    },
     "rule_hashes": {
       "blobs.insert": "c6d31cd35aef4735bd9646f89c3b985272d2069e7ce9f506c84cb8d76266d0ff"
     },

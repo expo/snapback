@@ -198,6 +198,14 @@
     "program": "memberships.promote",
     "plan_hash": "5163414006746669c6b59ed496888405d674f29f3b6bce1494988bf06b702b65",
     "schema_hash": "2ad71c2d6bd133ed183097730c44edfb2afc2dfdbc75d8df8321c8db202899fc",
+    "tables": {
+      "groups": {
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "retain": "until-revoked"
+      }
+    },
     "rule_hashes": {
       "memberships.update": "9a0acf66b1534561fc9b9ed91788a0e8fc2fff31fab3d54d65d8fd9f2bb8bb15"
     },

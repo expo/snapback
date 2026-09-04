@@ -133,6 +133,11 @@
     "program": "emitAfterInsert",
     "plan_hash": "abb93e536653fa78c697cc285428921b18224a0618082965f39afcd03ecff06c",
     "schema_hash": "2179352cc2000b5efca6aa775c6c1767366012e5482a715e3b9331ace6054c8c",
+    "tables": {
+      "events": {
+        "retain": "until-revoked"
+      }
+    },
     "rule_hashes": {
       "events.insert": "833a1d680f3c85fa659ee818e86bccc18245827011c38e359e5a15e4a1512e98"
     },

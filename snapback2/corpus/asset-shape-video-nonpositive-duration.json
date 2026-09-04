@@ -30,6 +30,7 @@
     "program": "asset-shape-video-nonpositive-duration",
     "plan_hash": "d9000965e8a6657d53f356e71077f42989b0657ff10dedfb0270a8063ee69c08",
     "schema_hash": "a972c6d6451f5422ac5352a87aa4dfaf6a9212f76528529d394e6be5bf4c04d8",
+    "tables": {},
     "rule_hashes": {},
     "evaluator_version": "bounded-spike-rust-1",
     "value_model_version": "i53-codepoint-bytes-v2",

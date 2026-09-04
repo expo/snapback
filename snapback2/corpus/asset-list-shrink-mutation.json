@@ -99,6 +99,11 @@
     "program": "media.shrinkList",
     "plan_hash": "1d0a7bf9ad211eb36fd58e7547fa9ecc026feb4d2f809ed21b65e23904c64af6",
     "schema_hash": "1d81a58fb8b8203ac25dd674eb1a0eb933adb45286f096c4698f472a5779e887",
+    "tables": {
+      "media": {
+        "retain": "until-revoked"
+      }
+    },
     "rule_hashes": {
       "media.update": "eee946c8bc15049ca7b7f82d06c2178c3e462a2fd48846cd56a4aad2575fef00"
     },

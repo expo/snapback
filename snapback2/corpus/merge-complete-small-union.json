@@ -224,6 +224,14 @@
     "program": "merge.complete",
     "plan_hash": "d189d73a0bf048484914c6ed0c0a9732da8f711315fe9822687c1d3b7c37654c",
     "schema_hash": "f7c842236978e842a20695dbea23d49d1277bd8bdbc0c342ee6422331cb188f8",
+    "tables": {
+      "follows": {
+        "retain": "until-revoked"
+      },
+      "posts": {
+        "retain": "until-revoked"
+      }
+    },
     "rule_hashes": {
       "posts.read": "fd79905c6b2537749a4f00979344bce28f421b3d1fee4a30a4fbf41e3fc8f8a6"
     },

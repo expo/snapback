@@ -87,6 +87,11 @@
     "program": "writeByIdUpdateMissing",
     "plan_hash": "ad771c739e352fbde0fdfe9cfa60d5d1f4429f69d3788c2bbb054a4fce3f4bb8",
     "schema_hash": "4bc115040b8aa9b833722b0347cd4970512e7fabac6d3a1adb4409b5d0f54a27",
+    "tables": {
+      "items": {
+        "retain": "until-revoked"
+      }
+    },
     "rule_hashes": {
       "items.update": "adc9164b6df182ca3e77ad82007be434987f3cd5176291c8fd13e30d9f8193bf"
     },

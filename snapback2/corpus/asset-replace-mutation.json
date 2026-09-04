@@ -89,6 +89,11 @@
     "program": "media.replaceImage",
     "plan_hash": "283bcd4c022e07668b65086d566f1a018d7e8296f6440772b007d39f8d8f96c6",
     "schema_hash": "41a3b7ce72f04841ad8bfc275facca90679fe242bb64ec6f1f604e2f68169f84",
+    "tables": {
+      "media": {
+        "retain": "until-revoked"
+      }
+    },
     "rule_hashes": {
       "media.update": "697120674f17c7a901edf09dc2a35a9be6684db940084dfb7120f113efa9463b"
     },

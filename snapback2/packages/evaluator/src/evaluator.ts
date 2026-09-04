@@ -38,7 +38,7 @@ import {
   validateWriteRow,
   valueText,
   valuesEqual,
-  variant,
+  variant, wireJson,
 } from "./value-runtime";
 import type {
   ActualResult,
@@ -1227,7 +1227,7 @@ class Runner {
       case "Exists": {
         // @ref LLP 1002#9-the-client-snapback2client-snapback2react-snapback2test — absence and authorization are authority-only.
         const key = data.key.map((term: any) => this.ruleTerm(term, old, next));
-        const pinnedDigest = sha256(JSON.stringify([data.table, data.index, key]));
+        const pinnedDigest = sha256(JSON.stringify([data.table, data.index, key.map(wireJson)])); // wire fact, LLP 1012 §7
         const memoKey = `${ruleHash}:${pinnedDigest}`;
         const memoized = this.ruleMemo.get(memoKey);
         if (memoized !== undefined) return memoized;

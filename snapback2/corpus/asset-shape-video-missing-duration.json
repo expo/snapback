@@ -30,6 +30,7 @@
     "program": "asset-shape-video-missing-duration",
     "plan_hash": "da4f82ee050d725a23d76aa2fd3d0b51f7832606b034a0bfc3ce66ce669223c0",
     "schema_hash": "a972c6d6451f5422ac5352a87aa4dfaf6a9212f76528529d394e6be5bf4c04d8",
+    "tables": {},
     "rule_hashes": {},
     "evaluator_version": "bounded-spike-rust-1",
     "value_model_version": "i53-codepoint-bytes-v2",

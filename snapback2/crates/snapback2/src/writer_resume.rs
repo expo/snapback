@@ -6,10 +6,13 @@
 use super::*;
 use super::writer_auth::ResolvedAuthority;
 use serde::Deserialize;
-use snapback2_core::{CursorPosition, encode_cursor};
+use snapback2_core::{CursorPosition, Order, encode_cursor};
 
 const MAX_MOUNTED: usize = 32;
 const MAX_RESUME_BYTES: usize = 1_048_576;
+/// The log tail is `after watermark first 50`: a certified ascending page of
+/// at most this many rows, keyed by a cursor argument.
+const MAX_LOG_PAGE: u64 = 50;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -18,8 +21,13 @@ struct ResumeRequest {
     generation: String,
     schema_hash: String,
     auth_epoch: u64,
-    log: ResumeLog,
+    /// The drained range, once. A client that has drained nothing sends no log.
+    #[serde(default)]
+    log: Option<ResumeLog>,
     mounted: Vec<ResumeMounted>,
+    /// The client's count of unused pinned ids; absent means it holds none.
+    #[serde(default)]
+    remaining: Option<Json>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -28,6 +36,7 @@ struct ResumeLog {
     op: String,
     args: Json,
     watermark: Option<String>,
+    #[serde(default)]
     validator: String,
 }
 
@@ -81,38 +90,55 @@ impl State {
             .with_detail("which", json!("mounted"))
             .with_detail("cap", json!(MAX_MOUNTED)));
         }
+        let log_args = match &request.log {
+            Some(held) => Some(self.log_page(&held.op, held.args.clone(), held.watermark.as_deref())?),
+            None => None,
+        };
 
-        // The request has no client-grant cursor. Treat reconnect as the low
-        // watermark and mint a disjoint principal-bound grant every time.
-        let grant = self.mint_replay_grant(authority.principal.id.as_str())?;
-        let (log, _) = self.resume_log(&request.log, &authority)?;
+        let grant = self.grant_if_low(authority.principal.id.as_str(), request.remaining.as_ref())?;
+        let log = match (&request.log, log_args) {
+            (Some(held), Some(args)) => self.resume_log(held, args, &authority)?,
+            _ => Json::Null,
+        };
         let mut mounted = Vec::new();
         let mut more = None;
-        for (index, held) in request.mounted.iter().enumerate() {
-            let delivery = self.resume_mounted(held, &authority)?;
-            let mut candidate = resume_response(
-                self,
-                &authority,
-                &current_generation,
-                &current_schema_hash,
-                &log,
-                &mounted,
-                &grant,
-                None,
-            )?;
-            candidate["mounted"]
-                .as_array_mut()
-                .expect("resume mounted array")
-                .push(delivery.clone());
-            if serde_json::to_vec(&candidate)
-                .map_err(serialization_refusal)?
-                .len()
-                > MAX_RESUME_BYTES
-            {
-                more = Some(request.mounted.len() - index);
-                break;
+        let log_alone = resume_response(
+            self,
+            &authority,
+            &current_generation,
+            &current_schema_hash,
+            &log,
+            &mounted,
+            grant.as_ref(),
+            None,
+        )?;
+        // The log page is measured against the same budget as the mounted
+        // answers; when it alone exceeds it, every mounted query waits.
+        if byte_length(&log_alone)? > MAX_RESUME_BYTES {
+            more = Some(request.mounted.len());
+        } else {
+            for (index, held) in request.mounted.iter().enumerate() {
+                let delivery = self.resume_mounted(held, &authority)?;
+                let mut candidate = resume_response(
+                    self,
+                    &authority,
+                    &current_generation,
+                    &current_schema_hash,
+                    &log,
+                    &mounted,
+                    grant.as_ref(),
+                    None,
+                )?;
+                candidate["mounted"]
+                    .as_array_mut()
+                    .expect("resume mounted array")
+                    .push(delivery.clone());
+                if byte_length(&candidate)? > MAX_RESUME_BYTES {
+                    more = Some(request.mounted.len() - index);
+                    break;
+                }
+                mounted.push(delivery);
             }
-            mounted.push(delivery);
         }
         resume_response(
             self,
@@ -121,7 +147,7 @@ impl State {
             &current_schema_hash,
             &log,
             &mounted,
-            &grant,
+            grant.as_ref(),
             more,
         )
     }
@@ -129,9 +155,9 @@ impl State {
     fn resume_log(
         &mut self,
         held: &ResumeLog,
+        args: Json,
         authority: &ResolvedAuthority,
-    ) -> Result<(Json, Execution), Refusal> {
-        let args = self.log_args(&held.op, held.args.clone(), held.watermark.as_deref())?;
+    ) -> Result<Json, Refusal> {
         let context = self.context(authority, &held.op, args)?;
         let execution = self.execute_resume_query(&held.op, context.clone())?;
         let full = writer_offline::envelope_json(
@@ -142,23 +168,21 @@ impl State {
         )?;
         let current_validator = full["validator"].as_str().unwrap_or_default();
         let empty_tail = matches!(&execution.result, Value::Array(values) if values.is_empty());
-        let response = if empty_tail && current_validator == held.validator {
-            json!({ "unchanged": true })
-        } else {
-            let watermark = self
-                .delivery_watermark(&held.op, &execution)?
-                .or_else(|| held.watermark.clone());
-            let mut response = full;
-            response
-                .as_object_mut()
-                .expect("delivery envelope is an object")
-                .insert(
-                    "watermark".to_owned(),
-                    watermark.map_or(Json::Null, Json::String),
-                );
-            response
-        };
-        Ok((response, execution))
+        if empty_tail && current_validator == held.validator {
+            return Ok(json!({ "unchanged": true }));
+        }
+        let watermark = self
+            .delivery_watermark(&held.op, &execution)?
+            .or_else(|| held.watermark.clone());
+        let mut response = full;
+        response
+            .as_object_mut()
+            .expect("delivery envelope is an object")
+            .insert(
+                "watermark".to_owned(),
+                watermark.map_or(Json::Null, Json::String),
+            );
+        Ok(response)
     }
 
     fn resume_mounted(
@@ -193,15 +217,7 @@ impl State {
             .programs()
             .get(op)
             .map(|entry| entry.0.kind)
-            .ok_or_else(|| {
-                Refusal::new(
-                    "E_OP_UNKNOWN",
-                    "op",
-                    format!("unknown operation {op}"),
-                    "use a query listed by /api/manifest",
-                    "op/manifest",
-                )
-            })?;
+            .ok_or_else(|| unknown_op(op))?;
         if kind != ProgramKind::Query {
             return Err(Refusal::new(
                 "E_OP_KIND",
@@ -216,46 +232,63 @@ impl State {
             .map_err(|error| Refusal::from_runtime(&error))
     }
 
-    fn log_args(
-        &self,
-        op: &str,
-        mut args: Json,
-        watermark: Option<&str>,
-    ) -> Result<Json, Refusal> {
-        let program = &self
+    /// The log op must be the drained range: a certified ascending page of at
+    /// most `MAX_LOG_PAGE` rows with a cursor argument, which the watermark
+    /// fills. Page size is certified, never requested, so the tail is
+    /// `after watermark first ≤ 50` whatever the request's args say.
+    // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — the
+    // server runs the log's tail `after watermark first 50`.
+    fn log_page(&self, op: &str, mut args: Json, watermark: Option<&str>) -> Result<Json, Refusal> {
+        let (program, certificate) = self
             .runtime()
             .generation()
             .programs()
             .get(op)
-            .ok_or_else(|| {
-                Refusal::new(
-                    "E_OP_UNKNOWN",
-                    "op",
-                    format!("unknown operation {op}"),
-                    "use a query listed by /api/manifest",
-                    "op/manifest",
-                )
-            })?
-            .0;
+            .ok_or_else(|| unknown_op(op))?;
         let cursor = program.args.iter().find_map(|(name, kind)| {
             (matches!(kind, ArgType::Cursor)
                 || matches!(kind, ArgType::Optional(boxed) if matches!(boxed.as_ref(), ArgType::Cursor)))
             .then(|| name.clone())
         });
-        let Some(cursor) = cursor else {
-            if watermark.is_none() {
-                return Ok(args);
-            }
-            return Err(Refusal::input(
-                format!("resume log operation {op} has no cursor argument"),
-                "use the drained delivery-log query as the resume log",
-            ));
+        let page = certificate.result_page_site.as_ref();
+        let take = page.and_then(|page| {
+            certificate
+                .read_sites
+                .iter()
+                .find(|site| site.site == page.site)
+                .map(|site| site.take)
+                .or_else(|| {
+                    certificate
+                        .merge_sites
+                        .iter()
+                        .find(|site| site.site == page.site)
+                        .map(|site| site.take)
+                })
+        });
+        let shape = match (page, take, &cursor) {
+            (Some(page), Some(take), Some(_)) if page.order == Order::Asc && take <= MAX_LOG_PAGE => Ok(()),
+            (None, _, _) => Err("returns no page"),
+            (_, _, None) => Err("has no cursor argument"),
+            (Some(page), _, _) if page.order != Order::Asc => Err("pages backwards (last N)"),
+            _ => Err("pages more than 50 rows"),
         };
+        if let Err(reason) = shape {
+            return Err(Refusal::new(
+                "E_OFFLINE_RESUME",
+                "offline",
+                format!("resume log operation {op} {reason}; the log is an ascending page of at most {MAX_LOG_PAGE} rows after a cursor"),
+                "use the drained delivery log (after c first 50) as the resume log, or omit log",
+                "offline",
+            )
+            .with_site("/api/resume.log")
+            .with_detail("which", json!("log"))
+            .with_detail("cap", json!(MAX_LOG_PAGE)));
+        }
         let object = args.as_object_mut().ok_or_else(|| {
             Refusal::input("resume log args must be an object", "pass the query's named args")
         })?;
         object.insert(
-            cursor,
+            cursor.expect("checked above"),
             watermark.map_or(Json::Null, |value| Json::String(value.to_owned())),
         );
         Ok(args)
@@ -318,6 +351,17 @@ impl State {
     }
 }
 
+fn unknown_op(op: &str) -> Refusal {
+    Refusal::new(
+        "E_OP_UNKNOWN",
+        "op",
+        format!("unknown operation {op}"),
+        "use a query listed by /api/manifest",
+        "op/manifest",
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
 fn resume_response(
     state: &State,
     authority: &ResolvedAuthority,
@@ -325,7 +369,7 @@ fn resume_response(
     schema_hash: &str,
     log: &Json,
     mounted: &[Json],
-    grant: &snapback2_core::ReplayGrant,
+    grant: Option<&snapback2_core::ReplayGrant>,
     more: Option<usize>,
 ) -> Result<Json, Refusal> {
     let seq = state
@@ -343,17 +387,23 @@ fn resume_response(
         },
         "log": log,
         "mounted": mounted,
-        "grant": grant,
     });
+    let object = response
+        .as_object_mut()
+        .expect("resume response is an object");
+    if let Some(grant) = grant {
+        object.insert("grant".to_owned(), json!(grant));
+    }
     if let Some(more) = more {
-        response
-            .as_object_mut()
-            .expect("resume response is an object")
-            .insert("more".to_owned(), json!(more));
+        object.insert("more".to_owned(), json!(more));
     }
     Ok(response)
 }
 
-fn serialization_refusal(error: serde_json::Error) -> Refusal {
-    Refusal::from_runtime(&snapback2_core::RuntimeError::Serialization(error.to_string()))
+fn byte_length(value: &Json) -> Result<usize, Refusal> {
+    serde_json::to_vec(value)
+        .map(|bytes| bytes.len())
+        .map_err(|error| {
+            Refusal::from_runtime(&snapback2_core::RuntimeError::Serialization(error.to_string()))
+        })
 }

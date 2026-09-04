@@ -90,6 +90,11 @@
     "program": "media.authoritativeInsert",
     "plan_hash": "f19b2e5ff2a28be8b47ba477b54ec634a3a9a5bee83e0775aa372995088aca3d",
     "schema_hash": "a39c8133d151b1bdb32819ecc420fc4f452a6f9971c6f5c2d74e4fd4afe3be13",
+    "tables": {
+      "media": {
+        "retain": "until-revoked"
+      }
+    },
     "rule_hashes": {
       "media.insert": "290ce6f54214aa85e29d0f00575b47caeb048a79c9b94a927b5f8059466bc216"
     },

@@ -174,6 +174,17 @@
     "program": "actions.afterGrant",
     "plan_hash": "32cb3da9d658d32a1065354a36f8e9a512d7d0be8d008ecc3f37c1c5ea39f2fb",
     "schema_hash": "bd7dedaae4101a6144d0476581d375747afe34d853845c137ce3e1beecde4913",
+    "tables": {
+      "actions": {
+        "retain": "until-revoked"
+      },
+      "docs": {
+        "retain": "until-revoked"
+      },
+      "grants": {
+        "retain": "until-revoked"
+      }
+    },
     "rule_hashes": {
       "actions.insert": "a44720d99f2fd96f1fbdc74f06d666f740fb29a3041f2b096a71bc47f7545b7f",
       "docs.read": "a44720d99f2fd96f1fbdc74f06d666f740fb29a3041f2b096a71bc47f7545b7f",

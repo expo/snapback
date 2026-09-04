@@ -867,7 +867,7 @@ fn hidden_authority_case(name: &str, authority: HiddenAuthority) -> CorpusCase {
     let key = vec![id("u1")];
     let mut verdict = Verdict {
         rule_hash: schema.rule_hash(&outer_rule),
-        pinned_inputs_digest: digest(&("entitlements", "byUser", &key)),
+        pinned_inputs_digest: rule_inputs_digest("entitlements", "byUser", &key),
         principal: "u1".to_owned(),
         auth_epoch: 1,
         result: true,

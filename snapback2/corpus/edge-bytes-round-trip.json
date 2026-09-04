@@ -88,6 +88,11 @@
     "program": "bytesRoundTrip",
     "plan_hash": "1ede43c6fc5b6453dc309cf137606e0e019749974f2eb9e6038caf128de7ec60",
     "schema_hash": "2b7fe1d7c7a8e76299b9ff2fd8be4c824ec613c7b7b00828247c71a0206e302a",
+    "tables": {
+      "blobs": {
+        "retain": "until-revoked"
+      }
+    },
     "rule_hashes": {
       "blobs.read": "c6d31cd35aef4735bd9646f89c3b985272d2069e7ce9f506c84cb8d76266d0ff"
     },

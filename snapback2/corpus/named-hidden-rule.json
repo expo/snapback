@@ -961,6 +961,59 @@
     "program": "hiddenRuleDocument",
     "plan_hash": "dbe16017ab622ab13249595d3517a0018b41b33e7263f43f10d60b98b5782dfa",
     "schema_hash": "47a69e759777a52a0c713eb045039770fa7a4f2ff09ce7e525690348d01897dd",
+    "tables": {
+      "accounts": {
+        "retain": "until-revoked"
+      },
+      "cardCounts": {
+        "retain": "until-revoked"
+      },
+      "cards": {
+        "retain": "until-revoked"
+      },
+      "columns": {
+        "retain": "until-revoked"
+      },
+      "conversations": {
+        "retain": "until-revoked"
+      },
+      "dmKeys": {
+        "retain": "until-revoked"
+      },
+      "entitlements": {
+        "retain": "until-revoked"
+      },
+      "expenses": {
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "retain": "until-revoked"
+      },
+      "messages": {
+        "retain": "until-revoked"
+      },
+      "owed": {
+        "retain": "until-revoked"
+      },
+      "secretDocs": {
+        "retain": "until-revoked"
+      },
+      "shares": {
+        "retain": "until-revoked"
+      },
+      "unreads": {
+        "retain": "until-revoked"
+      },
+      "users": {
+        "retain": "until-revoked"
+      },
+      "waitCounts": {
+        "retain": "until-revoked"
+      },
+      "waitlist": {
+        "retain": "until-revoked"
+      }
+    },
     "rule_hashes": {
       "secretDocs.read": "4c6221e0922e46dc0efe0b8d59ec03b42a104894a840e2ac14845df99ead061a"
     },
@@ -1052,7 +1105,7 @@
     "verdicts": [
       {
         "rule_hash": "4c6221e0922e46dc0efe0b8d59ec03b42a104894a840e2ac14845df99ead061a",
-        "pinned_inputs_digest": "072c09ccd2600a00568c6f7fb70f5b1830f0faceb9ebb6dbdcbdb378c5f9c5f8",
+        "pinned_inputs_digest": "dc02e3c8f0fb7131c9e5e0f653a9740adc2bbb65f5f71913f3dc5bf4f33fa63e",
         "principal": "u1",
         "auth_epoch": 1,
         "result": true

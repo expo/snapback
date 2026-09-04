@@ -237,6 +237,14 @@
     "program": "opaque-cursor-merge-capped-token",
     "plan_hash": "d01da20b0eb2eea2d76b9ef468763392adb50d44246511cee7d664bcd6646f05",
     "schema_hash": "f7c842236978e842a20695dbea23d49d1277bd8bdbc0c342ee6422331cb188f8",
+    "tables": {
+      "follows": {
+        "retain": "until-revoked"
+      },
+      "posts": {
+        "retain": "until-revoked"
+      }
+    },
     "rule_hashes": {
       "posts.read": "fd79905c6b2537749a4f00979344bce28f421b3d1fee4a30a4fbf41e3fc8f8a6"
     },
