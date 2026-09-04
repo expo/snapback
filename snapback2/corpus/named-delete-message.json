@@ -954,6 +954,59 @@
     "program": "deleteMessage",
     "plan_hash": "5edacacac896fd9d19e8abe5588a1d4a49aeabbe2a24c16c16451f59d4969630",
     "schema_hash": "47a69e759777a52a0c713eb045039770fa7a4f2ff09ce7e525690348d01897dd",
+    "tables": {
+      "accounts": {
+        "retain": "until-revoked"
+      },
+      "cardCounts": {
+        "retain": "until-revoked"
+      },
+      "cards": {
+        "retain": "until-revoked"
+      },
+      "columns": {
+        "retain": "until-revoked"
+      },
+      "conversations": {
+        "retain": "until-revoked"
+      },
+      "dmKeys": {
+        "retain": "until-revoked"
+      },
+      "entitlements": {
+        "retain": "until-revoked"
+      },
+      "expenses": {
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "retain": "until-revoked"
+      },
+      "messages": {
+        "retain": "until-revoked"
+      },
+      "owed": {
+        "retain": "until-revoked"
+      },
+      "secretDocs": {
+        "retain": "until-revoked"
+      },
+      "shares": {
+        "retain": "until-revoked"
+      },
+      "unreads": {
+        "retain": "until-revoked"
+      },
+      "users": {
+        "retain": "until-revoked"
+      },
+      "waitCounts": {
+        "retain": "until-revoked"
+      },
+      "waitlist": {
+        "retain": "until-revoked"
+      }
+    },
     "rule_hashes": {
       "messages.delete": "7679baf490c9c97a7033467f8c0c023384b5ce9c00d0b86944900c62af22e272"
     },

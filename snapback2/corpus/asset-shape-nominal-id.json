@@ -30,6 +30,7 @@
     "program": "asset-shape-nominal-id",
     "plan_hash": "57076105134d4f259015a3d4afa86f7327bba3df33ec50f80f9d2cfce8d84ab7",
     "schema_hash": "a972c6d6451f5422ac5352a87aa4dfaf6a9212f76528529d394e6be5bf4c04d8",
+    "tables": {},
     "rule_hashes": {},
     "evaluator_version": "bounded-spike-rust-1",
     "value_model_version": "i53-codepoint-bytes-v2",

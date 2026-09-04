@@ -43,6 +43,18 @@ export interface DeliveryRange {
 
 export interface DeliveryVerdict {
   ruleHash: string;
+  /**
+   * The verdict's pinned inputs, digested as a wire fact:
+   * `sha256(canonical([table, index, key]))` — the JSON array of the rule
+   * input's table name, index name, and key values in wire encoding (ids and
+   * text as strings, integers as numbers, null as null, bytes as
+   * `{ "Bytes": hex }`), serialized with sorted object keys and no whitespace.
+   * A twin evaluating a rule computes it from the schema and the wire values it
+   * holds and looks the verdict up by `ruleHash` plus this digest; a replay
+   * trace's `inputsDigest` is the same value. A transaction-local created-row
+   * probe prefixes the array with `"created"`. Defined once in
+   * `snapback2-core/src/offline.rs` (`rule_inputs_digest`).
+   */
   pinnedInputsDigest: string;
   principal: string;
   authEpoch: number;

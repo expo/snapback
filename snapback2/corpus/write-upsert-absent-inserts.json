@@ -92,6 +92,11 @@
     "program": "writeUpsertAbsentInserts",
     "plan_hash": "43e0ebae2ab6794850eeb84ca7b34743c085d4fc2a5159208fdce1c24eed3a7d",
     "schema_hash": "4bc115040b8aa9b833722b0347cd4970512e7fabac6d3a1adb4409b5d0f54a27",
+    "tables": {
+      "items": {
+        "retain": "until-revoked"
+      }
+    },
     "rule_hashes": {
       "items.insert": "adc9164b6df182ca3e77ad82007be434987f3cd5176291c8fd13e30d9f8193bf",
       "items.update": "adc9164b6df182ca3e77ad82007be434987f3cd5176291c8fd13e30d9f8193bf"

@@ -93,6 +93,11 @@
     "program": "media.clearImage",
     "plan_hash": "286932b8cb92c86a21f06b1670083078a62e7b6a509d52e98348ab9ed6a12675",
     "schema_hash": "0ddd6fe336df84b3c391ed09517b0a96fa7f0363f0e2b2ebbff17920cbaa6b5a",
+    "tables": {
+      "media": {
+        "retain": "until-revoked"
+      }
+    },
     "rule_hashes": {
       "media.update": "54e04709fd3d815ebcc14791efdcc8d00e12e1b1ce605f364c4bcaaf32d14078"
     },

@@ -30,6 +30,7 @@
     "program": "asset-shape-malformed-id",
     "plan_hash": "b4aa47bcba9aee5349a6da9407b5e4125dd4977fea2e33dc98331abce1591560",
     "schema_hash": "a972c6d6451f5422ac5352a87aa4dfaf6a9212f76528529d394e6be5bf4c04d8",
+    "tables": {},
     "rule_hashes": {},
     "evaluator_version": "bounded-spike-rust-1",
     "value_model_version": "i53-codepoint-bytes-v2",

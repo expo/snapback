@@ -156,6 +156,14 @@
     "program": "opaque-cursor-empty-capped-next-null",
     "plan_hash": "b64f80c2e20eee6e03fd94d54413a48703a812c3537d758845bb63f403a33cab",
     "schema_hash": "44c6957456dcabaa83753fc0fa1c1c43299591e6abd79d911808b406f8f75777",
+    "tables": {
+      "follows": {
+        "retain": "until-revoked"
+      },
+      "posts": {
+        "retain": "until-revoked"
+      }
+    },
     "rule_hashes": {
       "posts.read": "3d2a1636caedd2991ec8e604d56f45bc444494d5aa1c032b1d40f6b6b3e9f04b"
     },

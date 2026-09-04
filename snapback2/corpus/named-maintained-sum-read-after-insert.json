@@ -144,6 +144,14 @@
     "program": "ledger.insertAndReadBalance",
     "plan_hash": "b91a127a830e0586b8195525e1677584b4af71f425a846bc6ff875815dd8f6de",
     "schema_hash": "8a2605617c230271c89200e4454c8856a0f31b12c84e38c974532fb401de6170",
+    "tables": {
+      "balances": {
+        "retain": "until-revoked"
+      },
+      "ledger": {
+        "retain": "until-revoked"
+      }
+    },
     "rule_hashes": {
       "balances.read": "6a3546c4495ba78170d882b2875e91a9b6c1a7924b697dd8d2d04ea27b6e576f",
       "ledger.insert": "d66c70dc10a87ebcadd5ff7b90cd5875721eab2869dd7c3ac5d79d2f33a47e2a"

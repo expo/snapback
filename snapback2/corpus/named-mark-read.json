@@ -973,6 +973,59 @@
     "program": "markRead",
     "plan_hash": "c3400ad9350d5421fd746d8d2d3bd6181723fc7f23428d2630af097b6200039b",
     "schema_hash": "47a69e759777a52a0c713eb045039770fa7a4f2ff09ce7e525690348d01897dd",
+    "tables": {
+      "accounts": {
+        "retain": "until-revoked"
+      },
+      "cardCounts": {
+        "retain": "until-revoked"
+      },
+      "cards": {
+        "retain": "until-revoked"
+      },
+      "columns": {
+        "retain": "until-revoked"
+      },
+      "conversations": {
+        "retain": "until-revoked"
+      },
+      "dmKeys": {
+        "retain": "until-revoked"
+      },
+      "entitlements": {
+        "retain": "until-revoked"
+      },
+      "expenses": {
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "retain": "until-revoked"
+      },
+      "messages": {
+        "retain": "until-revoked"
+      },
+      "owed": {
+        "retain": "until-revoked"
+      },
+      "secretDocs": {
+        "retain": "until-revoked"
+      },
+      "shares": {
+        "retain": "until-revoked"
+      },
+      "unreads": {
+        "retain": "until-revoked"
+      },
+      "users": {
+        "retain": "until-revoked"
+      },
+      "waitCounts": {
+        "retain": "until-revoked"
+      },
+      "waitlist": {
+        "retain": "until-revoked"
+      }
+    },
     "rule_hashes": {
       "memberships.update": "4dc6746a5e58ac5fe7103d7cecf6aeba25f21e93d4d2084488b653dfef569cda"
     },

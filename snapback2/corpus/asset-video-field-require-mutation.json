@@ -114,6 +114,11 @@
     "program": "asset.forgedFirstRequire",
     "plan_hash": "9d8824d6a35f1120992ba9d5483b047454c92c9afd9f8318fa999314e192deed",
     "schema_hash": "9c3dff45212399a85e79a732801969b78bfa03143c48827b3783ecba0d7be7b2",
+    "tables": {
+      "events": {
+        "retain": "until-revoked"
+      }
+    },
     "rule_hashes": {
       "events.insert": "145c3060610da095050a505c3c63b114def40beaaa6163026cd5893fa51fe62f"
     },

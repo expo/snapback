@@ -104,6 +104,11 @@
     "program": "named-text-empty-display",
     "plan_hash": "26f9ce87e710581b0a79f5afb9293239725c98b5e797b28520a2566799e350fc",
     "schema_hash": "be60184b064420f0ebe7ce9813d0af3201a6ab20513c93a228285863be8a4abf",
+    "tables": {
+      "profiles": {
+        "retain": "until-revoked"
+      }
+    },
     "rule_hashes": {
       "profiles.insert": "cf99f4afac7908eb8ceea338816a818471914e05b1f3ab0dad22776b84eed8c3"
     },

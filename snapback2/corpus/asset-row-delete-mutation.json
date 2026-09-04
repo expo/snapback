@@ -72,6 +72,11 @@
     "program": "media.deleteForSuccessorWitness",
     "plan_hash": "38e5d27d721d9720fd0955820ab633862ccd6551479b4d5388499b76b3ff4f82",
     "schema_hash": "41a3b7ce72f04841ad8bfc275facca90679fe242bb64ec6f1f604e2f68169f84",
+    "tables": {
+      "media": {
+        "retain": "until-revoked"
+      }
+    },
     "rule_hashes": {
       "media.delete": "697120674f17c7a901edf09dc2a35a9be6684db940084dfb7120f113efa9463b"
     },

@@ -1,7 +1,7 @@
 //! Lane O1b (LLP 1012 §7): replay grants, the replay envelope, the intent
 //! ledger, and trace-validated commits.
 
-use super::offline_resume::{boot, generation_pair, resume_body, thread_args};
+use super::offline_resume::{append_source, boot, generation_pair, resume_body, thread_args};
 use super::*;
 use crate::owner_wire::Response;
 
@@ -12,15 +12,10 @@ fn persona(name: &'static str) -> [(&'static str, &'static str); 1] {
     [("X-Snapback-As", name)]
 }
 
-/// A resume with a trivial log, used only for the grant it returns.
+/// A resume with no log and nothing mounted, used only for the grant it returns.
 fn resume_grant(port: u16, headers: &[(&str, &str)]) -> Value {
     let (generation, schema_hash) = generation_pair(port);
-    let body = resume_body(
-        &generation,
-        &schema_hash,
-        json!({ "op": "profiles.mine", "args": {}, "watermark": null, "validator": "" }),
-        json!([]),
-    );
+    let body = resume_body(&generation, &schema_hash, Value::Null, json!([]));
     let response = request(port, "POST", "/api/resume", headers, body);
     assert_eq!(response.status, 200, "{}", response.body);
     response.body["grant"].clone()
@@ -524,5 +519,145 @@ mutation edit(messageId: messages, body: text <=4000, baseBody: text <=4000):
     assert_eq!(untraced.body["code"], "NOT_MEMBER", "without a trace the ordinary rejection stands");
 
     stop_owner(port, &secret, &mut owner, "offline trace validation complete");
+    fs::remove_dir_all(root).unwrap();
+}
+
+/// Fix round 1, item 1: the intent ledger is consulted before any grant
+/// check, so an identical retry is exactly-once even after its grant expired
+/// and was swept — while a new intent on that grant is refused as expired.
+#[test]
+fn offline_replay_identical_retry_after_grant_expiry_returns_the_stored_terminal() {
+    let (root, mut owner, port, secret) = boot(|_| {});
+    let alice = persona("alice");
+    let grant = resume_grant(port, &alice);
+    let ten_days = 10 * 24 * 60 * 60 * 1_000;
+    let advance = |ms: i64| {
+        let advanced = request(
+            port,
+            "POST",
+            "/control/clock",
+            &[("X-Snapback-Control", &secret)],
+            json!({ "advanceMs": ms }),
+        );
+        assert_eq!(advanced.status, 200, "{}", advanced.body);
+    };
+    advance(ten_days);
+    let args = send_args("profile-bob", "before the fence");
+    let first = mutation(port, &alice, "messages.send", args.clone(), envelope(&grant, 0, 8, empty_trace()));
+    assert_eq!(first.body["state"], "committed", "{}", first.body);
+    let before = thread_bodies(port, &alice).len();
+
+    // The grant is now past thirty days by server time and swept; the intent
+    // (ten days younger) is not.
+    advance(THIRTY_DAYS_MS - ten_days + 1_000);
+    let seq = status(port, &secret)["seq"].as_u64().unwrap();
+    let executions = status(port, &secret)["executions"].as_u64().unwrap();
+    let retry = mutation(port, &alice, "messages.send", args.clone(), envelope(&grant, 0, 8, empty_trace()));
+    assert_eq!(retry.status, 200, "{}", retry.body);
+    assert_eq!(retry.body_bytes, first.body_bytes, "the stored terminal, byte for byte");
+    assert_eq!(status(port, &secret)["seq"], seq, "nothing executed");
+    assert_eq!(status(port, &secret)["executions"], executions);
+    assert_eq!(thread_bodies(port, &alice).len(), before, "one row");
+    let reuse = mutation(port, &alice, "messages.send", send_args("profile-bob", "other bytes"), envelope(&grant, 0, 8, empty_trace()));
+    assert_eq!(reuse.body["code"], "E_OFFLINE_INTENT_REUSE", "the ledger outranks the grant: {}", reuse.body);
+    let fresh = mutation(port, &alice, "messages.send", send_args("profile-bob", "after the fence"), envelope(&grant, 8, 8, empty_trace()));
+    assert_eq!(fresh.status, 400, "{}", fresh.body);
+    assert_eq!(fresh.body["code"], "E_OFFLINE_INTENT_EXPIRED");
+    stop_owner(port, &secret, &mut owner, "offline retry after expiry complete");
+    fs::remove_dir_all(root).unwrap();
+}
+
+/// Fix round 1, item 5: a traced point that moved is a conflict whether the
+/// program's `require` fails before or after the read that would have seen
+/// it — the rejected path probes every traced point the program never
+/// reached — and a rejection whose reads all still hold keeps its own code.
+#[test]
+fn offline_replay_conflict_precedence_is_independent_of_require_order() {
+    let (root, mut owner, port, secret) = boot(|root| {
+        append_source(
+            root,
+            "snapback/messages.q",
+            r#"
+mutation edit(messageId: messages, body: text <=4000, baseBody: text <=4000):
+  msg = messages[messageId] ! else NOT_FOUND
+  require msg.authorId = viewer else NOT_AUTHOR
+  require msg.body = baseBody else CONFLICT
+  update messages[msg] { body }
+  return null
+
+mutation guarded(messageId: messages, other: messages, body: text <=4000, expected: text <=4000):
+  msg = messages[messageId] ! else NOT_FOUND
+  require msg.body = expected else STALE
+  peer = messages[other] ! else NOT_FOUND
+  update messages[msg] { body }
+  return { peer: peer.id }
+
+mutation unguarded(messageId: messages, other: messages, body: text <=4000, expected: text <=4000):
+  msg = messages[messageId] ! else NOT_FOUND
+  peer = messages[other] ! else NOT_FOUND
+  require msg.body = expected else STALE
+  update messages[msg] { body }
+  return { peer: peer.id }
+"#,
+        );
+    });
+    let alice = persona("alice");
+    let grant = resume_grant(port, &alice);
+    let sent = mutation(port, &alice, "messages.send", send_args("profile-bob", "peer"), Value::Null);
+    assert_eq!(sent.body["state"], "committed", "{}", sent.body);
+    let peer = sent.body["data"]["id"].as_str().unwrap().to_owned();
+    let welcome = pool_digest(port, &alice, "messages", "message-1");
+    let peer_held = pool_digest(port, &alice, "messages", &peer);
+    // The peer moves under the client after it traced both rows.
+    let moved = mutation(
+        port,
+        &alice,
+        "messages.edit",
+        json!({ "messageId": peer, "body": "peer v2", "baseBody": "peer" }),
+        Value::Null,
+    );
+    assert_eq!(moved.body["state"], "committed", "{}", moved.body);
+    let trace = |peer_digest: &str| {
+        json!({
+            "points": [
+                { "table": "messages", "index": "byId", "key": ["message-1"], "digest": welcome },
+                { "table": "messages", "index": "byId", "key": [peer], "digest": peer_digest },
+            ],
+            "verdicts": [],
+        })
+    };
+    let args = json!({ "messageId": "message-1", "other": peer, "body": "changed", "expected": "not the body" });
+    let body_of = || {
+        thread_bodies(port, &alice)
+            .into_iter()
+            .find(|(id, _)| id == "message-1")
+            .unwrap()
+            .1
+    };
+    let seq = status(port, &secret)["seq"].as_u64().unwrap();
+    for (label, op, offset) in [("require before the moved read", "messages.guarded", 0), ("require after it", "messages.unguarded", 8)] {
+        let settled = mutation(port, &alice, op, args.clone(), envelope(&grant, offset, 8, trace(&peer_held)));
+        assert_eq!(settled.status, 200, "{label}: {}", settled.body);
+        assert_eq!(settled.body["state"], "rejected", "{label}: {}", settled.body);
+        assert_eq!(settled.body["reason"], "conflict", "{label}: {}", settled.body);
+        assert!(settled.body.get("code").is_none(), "{label}: a conflict is a state, not a code");
+        assert!(
+            settled.body["site"].as_str().is_some_and(|site| site.starts_with("messages.")),
+            "{label}: {}",
+            settled.body
+        );
+    }
+    assert_eq!(body_of(), "Welcome", "a conflicting program writes nothing");
+    assert_eq!(status(port, &secret)["seq"], seq);
+
+    // With the peer's current digest nothing has moved, so the program's own
+    // rejection stands on either shape.
+    let peer_current = pool_digest(port, &alice, "messages", &peer);
+    for (op, offset) in [("messages.guarded", 16), ("messages.unguarded", 24)] {
+        let stale = mutation(port, &alice, op, args.clone(), envelope(&grant, offset, 8, trace(&peer_current)));
+        assert_eq!(stale.body["state"], "rejected", "{op}: {}", stale.body);
+        assert_eq!(stale.body["code"], "STALE", "{op}: {}", stale.body);
+    }
+    stop_owner(port, &secret, &mut owner, "offline conflict precedence complete");
     fs::remove_dir_all(root).unwrap();
 }

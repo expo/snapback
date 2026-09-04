@@ -195,6 +195,14 @@
     "program": "groups.claimPreexisting",
     "plan_hash": "3fcdad66a1d0bd8cb44b9f57caba1aa7489001dcb0cf2b951950da21ce8eff74",
     "schema_hash": "2ad71c2d6bd133ed183097730c44edfb2afc2dfdbc75d8df8321c8db202899fc",
+    "tables": {
+      "groups": {
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "retain": "until-revoked"
+      }
+    },
     "rule_hashes": {
       "memberships.insert": "e5311a4ffe4d5103356605a9343e86318e47c64d08e40b202530dc1bb69761f3"
     },

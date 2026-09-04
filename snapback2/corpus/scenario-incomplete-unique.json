@@ -85,6 +85,11 @@
     "program": "items.insert",
     "plan_hash": "3b3bade9a7870cc839fd8ee33ab6373e932c38bf68ceed072b5a9b70e6bed3e2",
     "schema_hash": "365f3677385033435a366659e82ca57365601c4c40d3cd95bab294e80a4a0b70",
+    "tables": {
+      "items": {
+        "retain": "until-revoked"
+      }
+    },
     "rule_hashes": {
       "items.insert": "8403e8da08d3460773e72767be98a05f34b9c5428d3b9a1f39bd231489c566b1"
     },

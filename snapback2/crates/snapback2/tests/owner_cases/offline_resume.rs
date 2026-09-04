@@ -11,20 +11,35 @@ const RESUME_BYTE_CAP: usize = 1_048_576;
 pub(super) fn boot(edit_sources: impl FnOnce(&Path)) -> (PathBuf, ChildGuard, u16, String) {
     let root = temp_root();
     copy_tree(&fixture().join("snapback"), &root.join("snapback"));
+    // The resume log is an ascending `after c first 50` page (LLP 1012 §8);
+    // the fixture's thread pages backwards, so every offline test gets one.
+    append_source(&root, "snapback/messages.q", LOG_QUERY);
     edit_sources(&root);
     let compiler = compiler(&root);
     let mut owner = ChildGuard::spawn(env!("CARGO_BIN_EXE_snapback2"), &compiler, &root);
-    let port = owner
-        .ready_line()
+    let ready = owner.ready_line();
+    let port = ready
         .trim()
         .strip_prefix("SNAPBACK_URL=http://127.0.0.1:")
-        .unwrap()
+        .unwrap_or_else(|| panic!("the owner did not become ready: {ready:?}"))
         .parse()
         .unwrap();
     let owner_json: Value =
         serde_json::from_slice(&fs::read(root.join(".snapback/owner.json")).unwrap()).unwrap();
     let secret = owner_json["secret"].as_str().unwrap().to_owned();
     (root, owner, port, secret)
+}
+
+pub(super) const LOG_QUERY: &str = r#"
+query log(conversationId: conversations, c: cursor ?):
+  require exists memberships[conversationId, viewer] else MEMBERSHIP_REQUIRED
+  return messages[conversationId] after c first 50
+"#;
+
+pub(super) fn append_source(root: &Path, relative: &str, source: &str) {
+    let path = root.join(relative);
+    let existing = fs::read_to_string(&path).unwrap_or_default();
+    fs::write(path, existing + source).unwrap();
 }
 
 pub(super) fn thread_args(conversation: &str) -> Value {
@@ -78,7 +93,7 @@ fn offline_resume_first_page_unchanged_caps_reset_and_stale_epoch() {
             &generation,
             &schema_hash,
             json!({
-                "op": "messages.thread",
+                "op": "messages.log",
                 "args": thread_args("conversation-1"),
                 "watermark": null,
                 "validator": "",
@@ -127,7 +142,7 @@ fn offline_resume_first_page_unchanged_caps_reset_and_stale_epoch() {
         "/api/query",
         &alice,
         json!({
-            "op": "messages.thread",
+            "op": "messages.log",
             "args": { "conversationId": "conversation-1", "c": watermark },
             "receipt": true,
         }),
@@ -146,7 +161,7 @@ fn offline_resume_first_page_unchanged_caps_reset_and_stale_epoch() {
             &generation,
             &schema_hash,
             json!({
-                "op": "messages.thread",
+                "op": "messages.log",
                 "args": thread_args("conversation-1"),
                 "watermark": watermark,
                 "validator": tail_validator,
@@ -186,7 +201,7 @@ fn offline_resume_first_page_unchanged_caps_reset_and_stale_epoch() {
             &generation,
             &schema_hash,
             json!({
-                "op": "messages.thread",
+                "op": "messages.log",
                 "args": thread_args("conversation-1"),
                 "watermark": null,
                 "validator": "",
@@ -228,7 +243,7 @@ fn offline_resume_first_page_unchanged_caps_reset_and_stale_epoch() {
                 &stale_generation,
                 &stale_schema,
                 json!({
-                    "op": "messages.thread",
+                    "op": "messages.log",
                     "args": thread_args("conversation-1"),
                     "watermark": null,
                     "validator": "",
@@ -271,12 +286,7 @@ fn offline_resume_first_page_unchanged_caps_reset_and_stale_epoch() {
     );
     let epoch = envelope.body["authority"]["authEpoch"].as_u64().unwrap();
     assert!(epoch > 1, "{}", envelope.body);
-    let mut stale = resume_body(
-        &generation,
-        &schema_hash,
-        json!({ "op": "profiles.mine", "args": {}, "watermark": null, "validator": "" }),
-        json!([]),
-    );
+    let mut stale = resume_body(&generation, &schema_hash, Value::Null, json!([]));
     stale["authEpoch"] = json!(epoch - 1);
     let refused = request(port, "POST", "/api/resume", &bearer, stale.clone());
     assert_eq!(refused.status, 401, "{}", refused.body);
@@ -286,7 +296,7 @@ fn offline_resume_first_page_unchanged_caps_reset_and_stale_epoch() {
     let current = request(port, "POST", "/api/resume", &bearer, stale);
     assert_eq!(current.status, 200, "{}", current.body);
     assert_eq!(current.body["authority"]["authEpoch"], epoch);
-    assert_eq!(current.body["log"]["watermark"], Value::Null);
+    assert!(current.body["log"].is_null(), "no log was sent: {}", current.body);
 
     let wrong_protocol = request(
         port,
@@ -294,7 +304,7 @@ fn offline_resume_first_page_unchanged_caps_reset_and_stale_epoch() {
         "/api/resume",
         &alice,
         json!({ "protocol": 2, "generation": generation, "schemaHash": schema_hash, "authEpoch": 0,
-                "log": { "op": "profiles.mine", "args": {}, "watermark": null, "validator": "" }, "mounted": [] }),
+                "log": null, "mounted": [] }),
     );
     assert_eq!(wrong_protocol.status, 400, "{}", wrong_protocol.body);
 
@@ -333,7 +343,7 @@ fn offline_resume_stops_at_one_mib_of_output_with_more() {
             &generation,
             &schema_hash,
             json!({
-                "op": "messages.thread",
+                "op": "messages.log",
                 "args": thread_args("conversation-1"),
                 "watermark": null,
                 "validator": "",
@@ -408,5 +418,205 @@ fn offline_manifest_and_certificate_carry_retain() {
         assert!(range.get("retain").is_none(), "{range}");
     }
     stop_owner(port, &secret, &mut owner, "retain exposure complete");
+    fs::remove_dir_all(root).unwrap();
+}
+
+/// Fix round 1, item 2: the log is the certified ascending page — `after c
+/// first <= 50` — never a backwards or unpaged query, and its bytes count
+/// against the same 1 MiB budget as the mounted answers: when the log alone
+/// exceeds it, `more` names every mounted query and none of them executes.
+#[test]
+fn offline_resume_log_is_the_ascending_page_measured_against_the_budget() {
+    let (root, mut owner, port, secret) = boot(|root| {
+        append_source(
+            root,
+            "snapback/schema.q",
+            r#"
+table notes:
+  owner: principal
+  body: text <=5100
+  at: time
+  by byOwnerAt: owner, at, id
+  read <- .owner = viewer
+  insert <- .owner = viewer
+  update <- deny
+  delete <- deny
+"#,
+        );
+        append_source(
+            root,
+            "snapback/notes.q",
+            r#"query log(c: cursor ?):
+  return notes[viewer] after c first 50 by byOwnerAt
+
+mutation put(body: text <=5100):
+  row = insert notes { owner: viewer, body, at: now }
+  return { id: row.id }
+"#,
+        );
+        append_source(
+            root,
+            "snapback/messages.q",
+            r#"
+query members(conversationId: conversations, c: cursor ?):
+  return memberships[conversationId] after c first 60 by byConversationPrincipal
+"#,
+        );
+        let seed = root.join("snapback/seed.ts");
+        let source = fs::read_to_string(&seed)
+            .unwrap()
+            .replace("    messageCounts: [],", "    notes: [],\n    messageCounts: [],");
+        fs::write(seed, source).unwrap();
+    });
+    let (generation, schema_hash) = generation_pair(port);
+    let alice = [("X-Snapback-As", "alice")];
+
+    // A backwards page, an unpaged query, and a page over 50 rows are refused
+    // as the log before anything executes.
+    for (label, op, args) in [
+        ("last 50", "messages.thread", thread_args("conversation-1")),
+        ("no page", "profiles.mine", json!({})),
+        ("first 60", "messages.members", thread_args("conversation-1")),
+    ] {
+        let executions_before = status(port, &secret)["executions"].as_u64().unwrap();
+        let refused = request(
+            port,
+            "POST",
+            "/api/resume",
+            &alice,
+            resume_body(
+                &generation,
+                &schema_hash,
+                json!({ "op": op, "args": args, "watermark": null, "validator": "" }),
+                json!([{ "op": "messages.summary", "args": { "conversationId": "conversation-1" }, "validator": "" }]),
+            ),
+        );
+        assert_eq!(refused.status, 413, "{label}: {}", refused.body);
+        assert_eq!(refused.body["code"], "E_OFFLINE_RESUME", "{label}");
+        assert_eq!(refused.body["which"], "log", "{label}");
+        assert_eq!(refused.body["cap"], 50, "{label}");
+        assert_eq!(refused.body["site"], "/api/resume.log", "{label}");
+        assert!(
+            refused.body["rewrite"].as_str().is_some_and(|rewrite| rewrite.contains("first 50")),
+            "{label}: {}",
+            refused.body
+        );
+        assert_eq!(
+            status(port, &secret)["executions"].as_u64().unwrap(),
+            executions_before,
+            "{label}: a refused log executes nothing"
+        );
+    }
+
+    // Fifty-two notes of 5,100 four-byte characters: each row is priced at
+    // its certified maximum, so the page certifies under the 1 MiB output
+    // ceiling while its envelope (pool, halo, references) crosses the resume
+    // budget on its own.
+    let body = "\u{1F600}".repeat(5_100);
+    for _ in 0..52 {
+        let put = request(
+            port,
+            "POST",
+            "/api/mutation",
+            &alice,
+            json!({ "op": "notes.put", "args": { "body": body } }),
+        );
+        assert_eq!(put.body["state"], "committed", "{}", put.body);
+    }
+    let executions_before = status(port, &secret)["executions"].as_u64().unwrap();
+    let response = request(
+        port,
+        "POST",
+        "/api/resume",
+        &alice,
+        resume_body(
+            &generation,
+            &schema_hash,
+            json!({ "op": "notes.log", "args": { "c": null }, "watermark": null, "validator": "" }),
+            json!([{ "op": "messages.summary", "args": { "conversationId": "conversation-1" }, "validator": "" }]),
+        ),
+    );
+    assert_eq!(response.status, 200, "{}", response.body["code"]);
+    assert_eq!(response.body["log"]["data"].as_array().unwrap().len(), 50);
+    assert_eq!(
+        response.body["log"]["rows"].as_array().unwrap().len(),
+        51,
+        "the pool carries the page and its halo"
+    );
+    assert!(
+        response.body_bytes.len() > RESUME_BYTE_CAP,
+        "the log alone was only {} bytes",
+        response.body_bytes.len()
+    );
+    assert_eq!(response.body["more"], 1, "{}", response.body["more"]);
+    assert_eq!(response.body["mounted"], json!([]));
+    assert_eq!(
+        status(port, &secret)["executions"].as_u64().unwrap() - executions_before,
+        1,
+        "a log over the budget executes no mounted query"
+    );
+    stop_owner(port, &secret, &mut owner, "offline resume log budget complete");
+    fs::remove_dir_all(root).unwrap();
+}
+
+/// Fix round 1, item 3: a grant is minted only when the client's unused ids
+/// are low — `remaining` absent or below 1,024 — on resume, login, and guest.
+#[test]
+fn offline_grants_are_minted_only_when_remaining_ids_are_low() {
+    let (root, mut owner, port, secret) = boot(|_| {});
+    let (generation, schema_hash) = generation_pair(port);
+    let alice = [("X-Snapback-As", "alice")];
+    let resume_with = |remaining: Value| {
+        let mut body = resume_body(&generation, &schema_hash, Value::Null, json!([]));
+        if !remaining.is_null() {
+            body["remaining"] = remaining;
+        }
+        request(port, "POST", "/api/resume", &alice, body)
+    };
+    let plenty = resume_with(json!(5_000));
+    assert_eq!(plenty.status, 200, "{}", plenty.body);
+    assert!(plenty.body.get("grant").is_none(), "{}", plenty.body);
+    let exact = resume_with(json!(1_024));
+    assert!(exact.body.get("grant").is_none(), "{}", exact.body);
+    let low = resume_with(json!(1_023));
+    assert_eq!(low.body["grant"]["count"], 8_192, "{}", low.body);
+    let absent = resume_with(Value::Null);
+    assert_eq!(absent.body["grant"]["count"], 8_192, "{}", absent.body);
+    let malformed = resume_with(json!("many"));
+    assert_eq!(malformed.status, 400, "{}", malformed.body);
+    assert_eq!(malformed.body["code"], "E_INPUT");
+
+    let signup = request(
+        port,
+        "POST",
+        "/api/auth/signup",
+        &[],
+        json!({ "email": "remaining@example.com", "password": "correct horse" }),
+    );
+    assert_eq!(signup.status, 200, "{}", signup.body);
+    let stocked = request(
+        port,
+        "POST",
+        "/api/auth/login",
+        &[],
+        json!({ "email": "remaining@example.com", "password": "correct horse", "remaining": 5_000 }),
+    );
+    assert_eq!(stocked.status, 200, "{}", stocked.body);
+    assert!(stocked.body["token"].is_string());
+    assert!(stocked.body.get("grant").is_none(), "{}", stocked.body);
+    let empty = request(
+        port,
+        "POST",
+        "/api/auth/login",
+        &[],
+        json!({ "email": "remaining@example.com", "password": "correct horse" }),
+    );
+    assert_eq!(empty.body["grant"]["count"], 8_192, "{}", empty.body);
+    let guest_stocked = request(port, "POST", "/api/auth/guest", &[], json!({ "remaining": 4_096 }));
+    assert_eq!(guest_stocked.status, 200, "{}", guest_stocked.body);
+    assert!(guest_stocked.body.get("grant").is_none(), "{}", guest_stocked.body);
+    let guest_low = request(port, "POST", "/api/auth/guest", &[], json!({ "remaining": 0 }));
+    assert_eq!(guest_low.body["grant"]["count"], 8_192, "{}", guest_low.body);
+    stop_owner(port, &secret, &mut owner, "offline grant watermark complete");
     fs::remove_dir_all(root).unwrap();
 }

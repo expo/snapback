@@ -103,6 +103,14 @@
     "program": "events.record",
     "plan_hash": "369d675ad71f563da2e153169b3b2932692520dde6e1445b3ca5792d2956b8b9",
     "schema_hash": "c794169cfb9c143b4bc8a24dbab4e2d3eecfe0501b9e752385cd8690baeb801e",
+    "tables": {
+      "counts": {
+        "retain": "until-revoked"
+      },
+      "events": {
+        "retain": "until-revoked"
+      }
+    },
     "rule_hashes": {
       "events.insert": "4a8845a18b58e1f721c120836f2b45bce9b65920f937a8e869e515efa4c726f4"
     },

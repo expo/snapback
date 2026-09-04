@@ -177,6 +177,23 @@ export function variant(value: any): [string, any] {
   return [keys[0], value[keys[0]]];
 }
 
+/** The wire encoding of an IR value — ids and text as strings, integers as
+ * numbers, null as null, bytes as `{ Bytes: hex }`, rows and maps as objects,
+ * arrays as arrays — the form the delivery envelope carries
+ * (`offline.rs` `value_to_wire_json`). Verdict inputs are digested in it. */
+export function wireJson(value: Value): unknown {
+  const [kind, data] = variant(value);
+  switch (kind) {
+    case "Null": return null;
+    case "Bool": case "Int": case "String": case "Id": return data;
+    case "Bytes": return { Bytes: data };
+    case "Row": case "Map":
+      return Object.fromEntries(Object.keys(data).sort(compareCodepoints).map((key) => [key, wireJson(data[key])]));
+    case "Array": return data.map(wireJson);
+    default: throw new EvalError("E_INPUT", `unsupported value kind ${kind}`);
+  }
+}
+
 export function scopedRuleHash(schema: any, rule: any): string {
   return sha256(JSON.stringify([sha256(canonicalSchemaJson(schema)), rule]));
 }

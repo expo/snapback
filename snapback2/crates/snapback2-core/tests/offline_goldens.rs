@@ -7,7 +7,7 @@ use snapback2_core::{
     DeliveryProjectionContext, Engine, Execution, ExecutionState, Expr, Generation, Index,
     KeyProvenance, Order, Program, ProgramKind, ProjectJson, Read, ResultProvenance, RuleExpr,
     RuleTerm, Rules, Scan, Schema, Stmt, StopReason, Table, Value, digest, object,
-    project_delivery,
+    project_delivery, rule_inputs_digest, value_to_wire_json,
 };
 use std::collections::BTreeMap;
 use std::fs;
@@ -201,6 +201,31 @@ fn public_receipt(
     }
 }
 
+/// The pinned inputs of the denied-query golden's one verdict: the table,
+/// index, and key a twin would digest to look the verdict up.
+const DENIED_INPUTS: (&str, &str) = ("memberships", "byConversationPrincipal");
+
+fn denied_key() -> Vec<Value> {
+    vec![
+        Value::Id("conversation-1".to_owned()),
+        Value::Id("alice".to_owned()),
+    ]
+}
+
+/// The verdict inputs written beside each golden so the TypeScript side can
+/// recompute every `pinnedInputsDigest` from wire values.
+fn verdict_inputs(name: &str) -> Vec<serde_json::Value> {
+    match name {
+        "denied-query" => vec![json!({
+            "ruleHash": hash('b'),
+            "table": DENIED_INPUTS.0,
+            "index": DENIED_INPUTS.1,
+            "key": denied_key().iter().map(value_to_wire_json).collect::<Vec<_>>(),
+        })],
+        _ => Vec::new(),
+    }
+}
+
 fn cases(schema_hash: &str) -> Vec<(&'static str, Execution)> {
     let first = row("message-1", 1, "hello");
     let second = row("message-2", 2, "later");
@@ -293,7 +318,11 @@ fn cases(schema_hash: &str) -> Vec<(&'static str, Execution)> {
                     schema_hash: Some(schema_hash.to_owned()),
                     verdicts: vec![Verdict {
                         rule_hash: hash('b'),
-                        pinned_inputs_digest: hash('c'),
+                        pinned_inputs_digest: rule_inputs_digest(
+                            DENIED_INPUTS.0,
+                            DENIED_INPUTS.1,
+                            &denied_key(),
+                        ),
                         principal: "alice".to_owned(),
                         auth_epoch: 9,
                         result: false,
@@ -358,6 +387,7 @@ fn offline_golden_fixtures_match_rust_projection() {
                 "schema": schema,
                 "receipt": receipt,
                 "receiptBytes": serde_json::to_string(&receipt).unwrap(),
+                "verdictInputs": verdict_inputs(name),
             }))
             .unwrap()
         );

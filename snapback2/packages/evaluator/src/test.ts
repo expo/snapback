@@ -139,7 +139,7 @@ function derivedRuleInput(
   if (authority !== "none") {
     const verdict = {
       rule_hash: scopedRuleHash(schema, docsRead),
-      pinned_inputs_digest: sha256(JSON.stringify(["grants", "byPrincipal", [{ Id: "viewer" }]])),
+      pinned_inputs_digest: sha256(JSON.stringify(["grants", "byPrincipal", ["viewer"]])),
       principal: "viewer",
       auth_epoch: 1,
       result: true,
@@ -305,7 +305,7 @@ const outerRule = predecessor.schema.tables.secretDocs.rules.read;
 const predecessorHash = scopedRuleHash(predecessor.schema, outerRule);
 predecessor.receipt.verdicts = [{
   rule_hash: predecessorHash,
-  pinned_inputs_digest: sha256(JSON.stringify(["entitlements", "byUser", [{ Id: "u1" }]])),
+  pinned_inputs_digest: sha256(JSON.stringify(["entitlements", "byUser", ["u1"]])),
   principal: "u1",
   auth_epoch: 1,
   result: true,

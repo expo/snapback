@@ -383,10 +383,18 @@ fn handle(mut request: Request, context: Context) {
             Action::Login {
                 email: string_field(&body, "email"),
                 password: string_field(&body, "password"),
+                remaining: body.get("remaining").cloned(),
             },
             200,
         ),
-        ("POST", "/api/auth/guest") => call_json(request, &context, Action::Guest, 200),
+        ("POST", "/api/auth/guest") => call_json(
+            request,
+            &context,
+            Action::Guest {
+                remaining: body.get("remaining").cloned(),
+            },
+            200,
+        ),
         ("POST", "/api/auth/logout") => call_json(
             request,
             &context,

@@ -222,6 +222,14 @@
     "program": "groups.deleteCreatorSeat",
     "plan_hash": "60197c46afbf98385af520a4d1e032bbd20d57c1f58362069ad874b27e2a9af0",
     "schema_hash": "2ad71c2d6bd133ed183097730c44edfb2afc2dfdbc75d8df8321c8db202899fc",
+    "tables": {
+      "groups": {
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "retain": "until-revoked"
+      }
+    },
     "rule_hashes": {
       "groups.insert": "95377ccfd58e9cc0a6dba7cae1c7269bc0276e199e79f404699a6e4d2cb716d9",
       "memberships.delete": "95377ccfd58e9cc0a6dba7cae1c7269bc0276e199e79f404699a6e4d2cb716d9",

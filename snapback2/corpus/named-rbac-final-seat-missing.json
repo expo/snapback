@@ -189,6 +189,14 @@
     "program": "groups.missingCreatorSeat",
     "plan_hash": "aa15b7863642d61578340e4683d73566954e80ebba1a51f6802041fe6e1ceadf",
     "schema_hash": "2ad71c2d6bd133ed183097730c44edfb2afc2dfdbc75d8df8321c8db202899fc",
+    "tables": {
+      "groups": {
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "retain": "until-revoked"
+      }
+    },
     "rule_hashes": {
       "groups.insert": "95377ccfd58e9cc0a6dba7cae1c7269bc0276e199e79f404699a6e4d2cb716d9"
     },

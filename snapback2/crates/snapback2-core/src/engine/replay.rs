@@ -3,7 +3,9 @@
 // application commit, id-slice claim, and intent response share one transaction.
 
 use super::*;
-use crate::offline::{ReplayCommit, ReplayTrace, replay_mutation_response};
+use crate::offline::{
+    ReplayCommit, ReplayTrace, replay_mutation_response, row_digest, rule_inputs_digest,
+};
 
 /// The mutation state a moved trace settles as: a state, not a refusal code.
 pub const CONFLICT_CODE: &str = "conflict";
@@ -43,6 +45,200 @@ fn rollback_savepoint(transaction: &Transaction<'_>) -> Result<(), RuntimeError>
     Ok(())
 }
 
+/// What a replayed program left behind, taken out of its runner so the
+/// transaction it borrowed can be settled.
+pub(super) struct ReplayRun {
+    attempted: Result<Flow, RuntimeError>,
+    missing_authority: bool,
+    trace: AuthoritativeTrace,
+    receipt: ClosureReceipt,
+}
+
+/// Take the run out of its runner. A program that stopped early — a rejection,
+/// or a read that needed authority this engine does not hold — has its writes
+/// rolled back to the replay savepoint here. On the rejected path every traced
+/// point and verdict the program did not reach is then read against the rows
+/// as they stand, so the conflict compare covers the whole trace whatever
+/// order the program's `require`s sit in.
+pub(super) fn finish_run(
+    mut runner: Runner<'_>,
+    attempted: Result<Flow, RuntimeError>,
+    replay: &ReplayCommit,
+) -> Result<ReplayRun, RuntimeError> {
+    let missing_authority = runner.missing_authority;
+    if missing_authority {
+        runner.assert_bounds()?;
+        rollback_savepoint(runner.tx)?;
+    } else if let Err(error) = &attempted
+        && mutation_rejection_code(error).is_some()
+    {
+        rollback_savepoint(runner.tx)?;
+        probe_unreached(&mut runner, &replay.trace)?;
+    }
+    Ok(ReplayRun {
+        attempted,
+        missing_authority,
+        trace: std::mem::take(&mut runner.trace),
+        receipt: std::mem::take(&mut runner.receipt),
+    })
+}
+
+/// Settle a replayed mutation: the Partial and rejected states are recorded as
+/// the intent's terminal with the writes already discarded; a run that reached
+/// its end is validated and committed by [`settle_after_run`]. One commit
+/// either way.
+#[allow(clippy::too_many_arguments)]
+pub(super) fn settle(
+    transaction: Transaction<'_>,
+    principal: &str,
+    replay: &ReplayCommit,
+    run: ReplayRun,
+    program: &Program,
+    kind: &str,
+    commit_at: i64,
+    current_seq: u64,
+    seq: u64,
+) -> Result<Execution, RuntimeError> {
+    let ReplayRun {
+        attempted,
+        missing_authority,
+        trace,
+        receipt,
+    } = run;
+    if missing_authority {
+        // @ref LLP 1012#7-writes-offline — a rollback for missing authority
+        // still settles through the ledger, never around it.
+        let state = ExecutionState::Partial {
+            reason: MISSING_AUTHORITY_LABEL.to_owned(),
+        };
+        return settle_early(transaction, principal, replay, trace, receipt, state, current_seq);
+    }
+    let flow = match attempted {
+        Ok(flow) => flow,
+        Err(error) => {
+            let Some(code) = mutation_rejection_code(&error).map(str::to_owned) else {
+                return Err(error);
+            };
+            // A rejection whose reads moved is the conflict the client should
+            // see, because its twin passed the same program over the rows it
+            // held; the compare is complete because `finish_run` probed every
+            // traced point and every recoverable verdict the run did not reach.
+            let state = match conflict_site(&replay.trace, &trace, false) {
+                Some(site) => ExecutionState::Rejected {
+                    code: CONFLICT_CODE.to_owned(),
+                    message: site,
+                },
+                None => ExecutionState::Rejected {
+                    code,
+                    message: error.to_string(),
+                },
+            };
+            return settle_early(transaction, principal, replay, trace, receipt, state, current_seq);
+        }
+    };
+    let (result, result_provenance) = match flow {
+        Flow::Return(value, provenance) => (value, provenance),
+        _ => (Value::Null, ResultProvenance::None),
+    };
+    let execution = Execution {
+        result,
+        result_provenance,
+        trace,
+        receipt,
+        state: ExecutionState::Committed { seq },
+        seq,
+        next: None,
+    };
+    settle_after_run(transaction, principal, replay, execution, program, kind, commit_at, current_seq)
+}
+
+fn same_point(actual: &PointTrace, table: &str, index: &str, key: &[Value]) -> bool {
+    actual.table == table && actual.index == index && actual.key == key
+}
+
+/// Read every traced point and verdict this run did not reach, against the
+/// rows as they stand with the program's own writes rolled back. Points go
+/// through the table's read rule so a hidden hit validates as an absence
+/// exactly as a program read would; a verdict is re-derived only when its
+/// inputs can be recovered from a traced or read point, since the digest
+/// alone names no row.
+fn probe_unreached(runner: &mut Runner<'_>, expected: &ReplayTrace) -> Result<(), RuntimeError> {
+    let unread = expected
+        .points
+        .iter()
+        .filter(|point| {
+            !runner
+                .trace
+                .points
+                .iter()
+                .any(|actual| same_point(actual, &point.table, &point.index, &point.key))
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+    for point in unread {
+        let found = runner.lookup_raw(&point.table, &point.index, &point.key)?;
+        let (examined, visible, digest) = match &found {
+            Some(row) => {
+                let checkpoint = runner.candidate_checkpoint();
+                let visible = runner.check_rule(&point.table, Effect::Read, None, row)?;
+                if !visible {
+                    runner.rollback_candidate(checkpoint);
+                }
+                (true, visible, Some(row_digest(row)))
+            }
+            None => (false, false, None),
+        };
+        runner.trace.points.push(PointTrace {
+            site: format!("{}.{}", point.table, point.index),
+            table: point.table,
+            index: point.index,
+            key: point.key,
+            examined,
+            visible,
+            digest,
+        });
+    }
+    let inputs = expected
+        .points
+        .iter()
+        .map(|point| (point.table.clone(), point.index.clone(), point.key.clone()))
+        .chain(
+            runner
+                .trace
+                .points
+                .iter()
+                .map(|point| (point.table.clone(), point.index.clone(), point.key.clone())),
+        )
+        .collect::<Vec<_>>();
+    for verdict in &expected.verdicts {
+        let evaluated = runner.trace.rule_inputs.iter().any(|actual| {
+            actual.rule_hash == verdict.rule_hash
+                && actual.pinned_inputs_digest == verdict.inputs_digest
+        });
+        if evaluated {
+            continue;
+        }
+        let Some((table, index, key)) = inputs
+            .iter()
+            .find(|(table, index, key)| rule_inputs_digest(table, index, key) == verdict.inputs_digest)
+            .cloned()
+        else {
+            continue;
+        };
+        let result = runner.lookup_raw(&table, &index, &key)?.is_some();
+        runner.trace.rule_inputs.push(RuleInputTrace {
+            rule_hash: verdict.rule_hash.clone(),
+            table,
+            index,
+            key,
+            result,
+            hidden: true,
+            pinned_inputs_digest: verdict.inputs_digest.clone(),
+        });
+    }
+    Ok(())
+}
+
 /// What this execution actually read at a point. A hidden hit yields `null`
 /// to the program exactly as an absence does, so it validates as one and the
 /// hidden row's digest never influences a client-visible outcome.
@@ -58,17 +254,19 @@ fn observed_digest(point: &PointTrace) -> Option<&str> {
 /// execution read, as the site that moved. Ranges are never compared.
 ///
 /// `strict` is the committed path: a traced point or verdict this execution
-/// did not evaluate is itself a mismatch. The rejected path is lenient — the
-/// program stopped early, so only the reads it reached are compared.
+/// did not evaluate is itself a mismatch. The rejected path arrives with
+/// every traced point probed (`finish_run`), so only a verdict whose inputs
+/// could not be recovered is skipped there.
 pub(super) fn conflict_site(
     expected: &ReplayTrace,
     authoritative: &AuthoritativeTrace,
     strict: bool,
 ) -> Option<String> {
     for point in &expected.points {
-        let current = authoritative.points.iter().find(|actual| {
-            actual.table == point.table && actual.index == point.index && actual.key == point.key
-        });
+        let current = authoritative
+            .points
+            .iter()
+            .find(|actual| same_point(actual, &point.table, &point.index, &point.key));
         match current {
             Some(actual) if observed_digest(actual) == point.digest.as_deref() => {}
             Some(actual) => return Some(actual.site.clone()),
@@ -98,28 +296,18 @@ pub(super) fn conflict_site(
     None
 }
 
-/// A program rejection under replay. The trace is compared first: a rejection
-/// whose reads moved is the conflict the client should see, because its twin
-/// passed the same program over the rows it held. Either way the terminal is
-/// recorded and the mutation's writes are discarded in the same commit.
-pub(super) fn settle_rejected(
+/// A replayed program that stopped early. Its writes were already rolled back
+/// to the replay savepoint; the terminal is recorded and the transaction
+/// commits so the ledger row and the id-slice claim survive.
+fn settle_early(
     transaction: Transaction<'_>,
     principal: &str,
     replay: &ReplayCommit,
     trace: AuthoritativeTrace,
     receipt: ClosureReceipt,
-    code: String,
-    message: String,
+    state: ExecutionState,
     current_seq: u64,
 ) -> Result<Execution, RuntimeError> {
-    rollback_savepoint(&transaction)?;
-    let state = match conflict_site(&replay.trace, &trace, false) {
-        Some(site) => ExecutionState::Rejected {
-            code: CONFLICT_CODE.to_owned(),
-            message: site,
-        },
-        None => ExecutionState::Rejected { code, message },
-    };
     let execution = Execution {
         result: Value::Null,
         result_provenance: ResultProvenance::None,
@@ -139,7 +327,7 @@ pub(super) fn settle_rejected(
 /// the id-slice claim, and the intent response, or roll the writes back and
 /// record the conflict — one commit either way.
 #[allow(clippy::too_many_arguments)]
-pub(super) fn settle_after_run(
+fn settle_after_run(
     transaction: Transaction<'_>,
     principal: &str,
     replay: &ReplayCommit,
@@ -195,7 +383,10 @@ fn record_terminal(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::certificate::{Ceilings, Checker};
     use crate::offline::{ReplayTracePoint, ReplayTraceVerdict};
+    use crate::programs::spike_schema;
+    use serde_json::json;
 
     fn point(site: &str, visible: bool, digest: Option<String>) -> PointTrace {
         PointTrace {
@@ -330,5 +521,81 @@ mod tests {
             Some("messages.byId")
         );
         assert_eq!(conflict_site(&expected, &actual, false), None);
+    }
+
+    /// A replayed insert whose rule needs a verdict this engine does not hold
+    /// (receipt-only authority, empty receipt) rolls back as `partial` and is
+    /// still settled through the ledger: the terminal is stored, the slice is
+    /// spent, and nothing was written.
+    #[test]
+    fn missing_authority_settles_through_the_ledger_as_partial() {
+        let mut schema = spike_schema();
+        let hidden = schema.tables["secretDocs"].rules.read.clone();
+        schema.tables.get_mut("secretDocs").unwrap().rules.insert = hidden;
+        let program = Program {
+            name: "stageSecret".to_owned(),
+            kind: ProgramKind::Mutation,
+            args: BTreeMap::new(),
+            read_time_granularity_ms: None,
+            result_page_site: None,
+            body: vec![Stmt::Insert {
+                table: "secretDocs".to_owned(),
+                row: Expr::Literal(object([
+                    ("id", Value::Id("doc2".to_owned())),
+                    ("title", Value::String("Blocked".to_owned())),
+                ])),
+            }],
+        };
+        let certificate = Checker::new(&schema, Ceilings::default())
+            .check(&program)
+            .unwrap();
+        let mut engine = Engine::memory(schema).unwrap();
+        engine.install_receipt_authority(&ClosureReceipt::default());
+        let replay = ReplayCommit {
+            grant: "grant-1".to_owned(),
+            offset: 0,
+            count: 1,
+            intent: "grant-1:0".to_owned(),
+            request_digest: "d".repeat(64),
+            trace: ReplayTrace::default(),
+            at: 5,
+        };
+        let context = Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new());
+        let execution = engine
+            .execute_replay(&program, &certificate, context, &replay)
+            .unwrap();
+        assert_eq!(
+            execution.state,
+            ExecutionState::Partial {
+                reason: MISSING_AUTHORITY_LABEL.to_owned()
+            }
+        );
+        let stored = engine
+            .store()
+            .stored_client_intent("u1", "grant-1:0")
+            .unwrap()
+            .expect("the partial terminal is in the ledger");
+        assert_eq!(stored.request_digest, "d".repeat(64));
+        assert_eq!(
+            stored.response,
+            json!({ "state": "partial", "reason": "missing-authority", "intent": "grant-1:0" })
+        );
+        assert!(
+            !engine
+                .store()
+                .replay_slice_is_unused("grant-1", "another", 0, 1)
+                .unwrap(),
+            "the slice is spent with the terminal"
+        );
+        let written: i64 = engine
+            .store()
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM rows WHERE table_name = 'secretDocs'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(written, 0, "a partial replay writes nothing");
     }
 }

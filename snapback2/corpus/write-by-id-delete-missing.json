@@ -78,6 +78,11 @@
     "program": "writeByIdDeleteMissing",
     "plan_hash": "45cb6139b4006949d8a56ff9a7686697f140ce8e0190f0adb1153d6fc644ab6f",
     "schema_hash": "4bc115040b8aa9b833722b0347cd4970512e7fabac6d3a1adb4409b5d0f54a27",
+    "tables": {
+      "items": {
+        "retain": "until-revoked"
+      }
+    },
     "rule_hashes": {
       "items.delete": "adc9164b6df182ca3e77ad82007be434987f3cd5176291c8fd13e30d9f8193bf"
     },

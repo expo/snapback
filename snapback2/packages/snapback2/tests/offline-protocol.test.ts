@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -205,4 +206,36 @@ test("offline protocol values and types are exported from the package index", as
   } finally {
     await rm(root, { recursive: true, force: true });
   }
+});
+
+/** Sorted-key, whitespace-free JSON: the canonical form the Rust digest hashes. */
+function canonical(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
+  if (value !== null && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    return `{${Object.keys(record).sort().map((key) => `${JSON.stringify(key)}:${canonical(record[key])}`).join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+test("verdict inputs digest is sha256(canonical([table, index, key])) over wire values and matches the Rust goldens", async () => {
+  const files = (await readdir(corpus)).filter((name) => name.startsWith("envelope-")).sort();
+  let checked = 0;
+  for (const file of files) {
+    const envelope = decodeDeliveryEnvelope(JSON.parse(await readFile(resolve(corpus, file), "utf8")));
+    const companion = JSON.parse(await readFile(resolve(corpus, file.replace("envelope-", "closure-")), "utf8"));
+    const inputs: Array<{ ruleHash: string; table: string; index: string; key: unknown[] }> = companion.verdictInputs ?? [];
+    assert.equal(inputs.length, envelope.receipt.verdicts.length, `${file} carries the inputs of every verdict`);
+    for (const [index, verdict] of envelope.receipt.verdicts.entries()) {
+      const input = inputs[index]!;
+      assert.equal(verdict.ruleHash, input.ruleHash, `${file} verdict ${index} rule`);
+      const digest = createHash("sha256")
+        .update(canonical([input.table, input.index, input.key]))
+        .digest("hex");
+      assert.equal(verdict.pinnedInputsDigest, digest, `${file} verdict ${index} inputs digest`);
+      assert.match(digest, /^[0-9a-f]{64}$/);
+      checked += 1;
+    }
+  }
+  assert.ok(checked >= 1, "at least one golden carries a verdict");
 });

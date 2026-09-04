@@ -602,6 +602,22 @@ impl Engine {
         {
             attempted = Err(error);
         }
+        if let Some(replay) = replay {
+            // @ref LLP 1012#7-writes-offline — every replayed outcome settles in replay.rs.
+            let kind = commit_kind.unwrap_or(if is_system { "system" } else { "mutation" });
+            let run = replay::finish_run(runner, attempted, replay)?;
+            return replay::settle(
+                transaction,
+                principal.as_str(),
+                replay,
+                run,
+                program,
+                kind,
+                commit_at,
+                current_seq,
+                seq,
+            );
+        }
         if program.kind == ProgramKind::Mutation && runner.missing_authority {
             runner.assert_bounds()?;
             let trace = std::mem::take(&mut runner.trace);
@@ -676,24 +692,6 @@ impl Engine {
                     next: None,
                 });
             }
-            Err(error) if program.kind == ProgramKind::Mutation && replay.is_some() => {
-                let Some(code) = mutation_rejection_code(&error).map(str::to_owned) else {
-                    return Err(error);
-                };
-                let trace = std::mem::take(&mut runner.trace);
-                let receipt = std::mem::take(&mut runner.receipt);
-                drop(runner);
-                return replay::settle_rejected(
-                    transaction,
-                    principal.as_str(),
-                    replay.expect("checked above"),
-                    trace,
-                    receipt,
-                    code,
-                    error.to_string(),
-                    current_seq,
-                );
-            }
             Err(error) => return Err(error),
         };
         let (result, result_provenance) = match flow {
@@ -720,19 +718,6 @@ impl Engine {
             seq,
             next,
         };
-        if let Some(replay) = replay {
-            let kind = commit_kind.unwrap_or(if is_system { "system" } else { "mutation" });
-            return replay::settle_after_run(
-                transaction,
-                principal.as_str(),
-                replay,
-                execution,
-                program,
-                kind,
-                commit_at,
-                current_seq,
-            );
-        }
         if program.kind == ProgramKind::Mutation {
             // @ref LLP 1001#2-what-a-commit-records — data, outbox, and commit record are atomic.
             let kind = commit_kind.unwrap_or(if is_system { "system" } else { "mutation" });
