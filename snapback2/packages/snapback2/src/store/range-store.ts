@@ -24,7 +24,6 @@ export interface ReceiptRange {
   stop: "Limit" | "Exhausted";
   absence: boolean;
   haloId?: string;
-  n2Key: unknown[] | null;
   ruleHash: string;
 }
 
