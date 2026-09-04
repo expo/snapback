@@ -16,3 +16,11 @@
    fire-and-forget.
 3. LRU touches are stamped in memory and persisted with the next swap; a clean close before
    a swap loses the order (never bytes). The Expo carrier should persist or coalesce on close.
+4. (grok round 2, M4) `useAssetUrl` is a mint-time check: two mounted players of the same
+   unviewed clip both hold carrier URLs, and `markViewed` from one does not darken the
+   other until unmount or identity change. Do not copy "any sibling marks viewed → all go
+   dark" into Expo without a live revocation keyed on `viewed`.
+5. (grok round 2, M5) A bearer client with no principal resolves `ready` before metadata,
+   so a drain of an `after`-cursor log mounted before the first authenticated query files
+   under `c`. Recipe ops are named `c`; a custom cursor name on a bearer drain needs the
+   manifest awaited, not `ready`.
