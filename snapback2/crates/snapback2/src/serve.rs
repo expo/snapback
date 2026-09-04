@@ -407,6 +407,7 @@ fn handle(mut request: Request, context: Context) {
                 identity,
                 expected: Some(snapback2_core::ProgramKind::Query),
                 offline: offline_options(&body, &query),
+                replay: None,
             },
             200,
         ),
@@ -419,7 +420,15 @@ fn handle(mut request: Request, context: Context) {
                 identity,
                 expected: Some(snapback2_core::ProgramKind::Mutation),
                 offline: OfflineOptions::default(),
+                // A client that sends `replay: null` is a client without a store.
+                replay: body.get("replay").filter(|value| !value.is_null()).cloned(),
             },
+            200,
+        ),
+        ("POST", "/api/resume") => call_json(
+            request,
+            &context,
+            Action::Resume { body, identity },
             200,
         ),
         ("GET", "/api/subscribe") => {
@@ -735,7 +744,11 @@ fn offline_options(body: &Json, query: &Query) -> OfflineOptions {
 }
 
 pub(crate) fn refusal_status(refusal: &Refusal) -> u16 {
-    if refusal.code == "E_AUTH_REQUIRED" || refusal.code == "E_AUTH_SESSION" {
+    if refusal.code == "E_OFFLINE_RESET" {
+        409
+    } else if refusal.code == "E_OFFLINE_RESUME" {
+        413
+    } else if refusal.code == "E_AUTH_REQUIRED" || refusal.code == "E_AUTH_SESSION" {
         401
     } else if refusal.family == "auth" || refusal.family == "rule" {
         403

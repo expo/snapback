@@ -48,7 +48,7 @@ impl ResolvedAuthority {
         }
     }
 
-    fn auth_epoch(&self) -> u64 {
+    pub(super) fn auth_epoch(&self) -> u64 {
         self.session
             .as_ref()
             .map_or(0, |session| session.auth_epoch)
@@ -172,6 +172,17 @@ impl State {
     pub(super) fn sweep_expired_sessions(&mut self) -> Result<(), Refusal> {
         let now = self.now();
         self.sweep_expired_sessions_at(now)
+    }
+
+    /// Age out replay grants and intents past thirty days. Runs after every
+    /// commit and on each development clock advance, not on every request:
+    /// a replay under an expired grant is refused by its own timestamps.
+    // @ref LLP 1012#7-writes-offline — the ledger is swept after thirty days by the same sweep that ages grants.
+    pub(super) fn sweep_offline_now(&mut self) -> Result<(), Refusal> {
+        let now = self.now();
+        self.runtime()
+            .sweep_offline(now)
+            .map_err(|error| Refusal::from_runtime(&error))
     }
 
     pub(super) fn sweep_expired_sessions_at(&mut self, now: i64) -> Result<(), Refusal> {

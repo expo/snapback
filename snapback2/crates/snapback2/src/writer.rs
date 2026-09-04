@@ -32,6 +32,10 @@ mod writer_effects;
 mod writer_ledger;
 #[path = "writer_offline.rs"]
 mod writer_offline;
+#[path = "writer_replay.rs"]
+mod writer_replay;
+#[path = "writer_resume.rs"]
+mod writer_resume;
 #[path = "writer_sse.rs"]
 mod writer_sse;
 #[path = "writer_values.rs"]
@@ -118,6 +122,11 @@ pub enum Action {
         identity: Identity,
         expected: Option<ProgramKind>,
         offline: OfflineOptions,
+        replay: Option<Json>,
+    },
+    Resume {
+        body: Json,
+        identity: Identity,
     },
     Subscribe {
         op: String,
@@ -468,7 +477,9 @@ impl State {
                 identity,
                 expected,
                 offline,
-            } => self.execute(&op, args, identity, expected, offline),
+                replay,
+            } => self.execute(&op, args, identity, expected, offline, replay),
+            Action::Resume { body, identity } => self.resume(body, identity),
             Action::Subscribe {
                 op,
                 args,
@@ -512,7 +523,8 @@ impl State {
                     .runtime_mut()
                     .login(&email, &password, now)
                     .map_err(|error| Refusal::from_identity(&error))?;
-                Ok(json!({ "token": session.token, "viewer": session.principal.id }))
+                let grant = self.mint_replay_grant(session.principal.id.as_str())?;
+                Ok(json!({ "token": session.token, "viewer": session.principal.id, "grant": grant }))
             }
             Action::Guest => {
                 let now = self.now();
@@ -520,7 +532,8 @@ impl State {
                     .runtime_mut()
                     .guest(now)
                     .map_err(|error| Refusal::from_identity(&error))?;
-                Ok(json!({ "token": session.token, "viewer": session.principal.id }))
+                let grant = self.mint_replay_grant(session.principal.id.as_str())?;
+                Ok(json!({ "token": session.token, "viewer": session.principal.id, "grant": grant }))
             }
             Action::Logout { token } => {
                 let now = self.now();
@@ -667,6 +680,7 @@ impl State {
                 }
                 self.clock_offset_ms = self.clock_offset_ms.saturating_add(advance_ms);
                 self.sweep_expired_sessions()?;
+                self.sweep_offline_now()?;
                 self.sweep_assets_now()?;
                 let subscriptions = self.live.keys().copied().collect::<Vec<_>>();
                 let _ = self.rerun_live(&subscriptions, false);
@@ -811,6 +825,7 @@ impl State {
         identity: Identity,
         expected: Option<ProgramKind>,
         offline: OfflineOptions,
+        replay: Option<Json>,
     ) -> Result<Json, Refusal> {
         let kind = self
             .runtime()
@@ -838,6 +853,9 @@ impl State {
         }
         let authority = self.resolve_authority(identity)?;
         let execution = if kind == ProgramKind::Mutation {
+            if let Some(replay) = replay {
+                return self.execute_replayed_mutation(op, args, &authority, replay);
+            }
             let context = self.mutation_context(&authority, op, args)?;
             self.execute_mutation(op, context)?
         } else {
@@ -1015,6 +1033,7 @@ impl State {
 
     fn after_commit(&mut self, seq: u64) -> Result<(), Refusal> {
         self.sweep_expired_sessions()?;
+        self.sweep_offline_now()?;
         let commit = self
             .runtime()
             .store()

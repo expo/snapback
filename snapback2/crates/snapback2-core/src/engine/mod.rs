@@ -142,6 +142,10 @@ pub struct PointTrace {
     pub key: Vec<Value>,
     pub examined: bool,
     pub visible: bool,
+    /// Digest of the row image observed at this point read, or `None` for an
+    /// authoritative absence. Captured before any later statement writes it.
+    #[serde(default)]
+    pub digest: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -616,7 +620,7 @@ impl Engine {
             };
             return self.settle_rejected_then(outbox_id, code, &error.to_string());
         }
-        self.execute_with_kind_inner(program, certificate, context, None, Some(outbox_id))
+        self.execute_with_kind_inner(program, certificate, context, None, Some(outbox_id), None)
     }
 
     /// Execute author-declared seed data with engine authority. Keeping this
@@ -697,7 +701,7 @@ impl Engine {
         context: Context,
         commit_kind: Option<&str>,
     ) -> Result<Execution, RuntimeError> {
-        self.execute_with_kind_inner(program, certificate, context, commit_kind, None)
+        self.execute_with_kind_inner(program, certificate, context, commit_kind, None, None)
     }
 
     fn execute_with_kind_inner(
@@ -707,6 +711,7 @@ impl Engine {
         context: Context,
         commit_kind: Option<&str>,
         then_outbox_id: Option<&str>,
+        replay: Option<&crate::offline::ReplayCommit>,
     ) -> Result<Execution, RuntimeError> {
         if certificate.value_model_version != CURRENT_VALUE_MODEL_VERSION.as_str() {
             return Err(RuntimeError::TraceSubset(format!(
@@ -738,6 +743,9 @@ impl Engine {
         let transaction = self.store.conn.transaction()?;
         if then_outbox_id.is_some() {
             transaction.execute_batch("SAVEPOINT snapback2_effect_then")?;
+        }
+        if replay.is_some() {
+            replay::open_savepoint(&transaction)?;
         }
         // @ref LLP 1006#6-the-write-validated-not-stamped — authoritative asset facts are checked inside the mutation transaction before its first statement.
         let entry_validation = if program.kind == ProgramKind::Mutation
@@ -844,6 +852,24 @@ impl Engine {
                     next: None,
                 });
             }
+            Err(error) if program.kind == ProgramKind::Mutation && replay.is_some() => {
+                let Some(code) = mutation_rejection_code(&error).map(str::to_owned) else {
+                    return Err(error);
+                };
+                let trace = std::mem::take(&mut runner.trace);
+                let receipt = std::mem::take(&mut runner.receipt);
+                drop(runner);
+                return replay::settle_rejected(
+                    transaction,
+                    principal.as_str(),
+                    replay.expect("checked above"),
+                    trace,
+                    receipt,
+                    code,
+                    error.to_string(),
+                    current_seq,
+                );
+            }
             Err(error) => return Err(error),
         };
         let (result, result_provenance) = match flow {
@@ -870,6 +896,19 @@ impl Engine {
             seq,
             next,
         };
+        if let Some(replay) = replay {
+            let kind = commit_kind.unwrap_or(if is_system { "system" } else { "mutation" });
+            return replay::settle_after_run(
+                transaction,
+                principal.as_str(),
+                replay,
+                execution,
+                program,
+                kind,
+                commit_at,
+                current_seq,
+            );
+        }
         if program.kind == ProgramKind::Mutation {
             // @ref LLP 1001#2-what-a-commit-records — data, outbox, and commit record are atomic.
             let kind = commit_kind.unwrap_or(if is_system { "system" } else { "mutation" });
@@ -877,7 +916,7 @@ impl Engine {
                 seq,
                 at: commit_at,
                 program: program.name.clone(),
-                principal: principal.into_inner(),
+                principal: principal.as_str().to_owned(),
                 kind: kind.to_owned(),
                 touched: execution.trace.touched.clone(),
                 writes: execution.trace.writes.clone(),
@@ -927,7 +966,10 @@ impl Engine {
             "DELETE FROM index_entries;
              DELETE FROM rows;
              DELETE FROM _commits;
-             DELETE FROM _outbox;",
+             DELETE FROM _outbox;
+             DELETE FROM _grant_slices;
+             DELETE FROM _client_intents;
+             DELETE FROM _grants;",
         )?;
         let seq = 1;
         let mut runner = Runner::new(
@@ -1600,6 +1642,7 @@ fn first_schema_error(errors: Vec<RuntimeError>) -> RuntimeError {
 mod delivery_tests;
 mod index;
 mod provenance;
+mod replay;
 mod runner;
 mod runner_ops;
 

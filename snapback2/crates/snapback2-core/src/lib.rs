@@ -31,8 +31,9 @@ pub use assets_ledger::{
     STAGING_GLOBAL_OBJECTS, STAGING_PER_PRINCIPAL_BYTES, STAGING_PER_PRINCIPAL_OBJECTS,
 };
 pub use certificate::{
-    Ceilings, Certificate, CheckError, Checker, Completeness, PredictionMode, ReadSite,
-    RuleCertificate, WriteKind, WriteSite, declared_serialized_row_max, max_certified_page_rows,
+    Ceilings, Certificate, CertificateTable, CheckError, Checker, Completeness, PredictionMode,
+    ReadSite, RuleCertificate, WriteKind, WriteSite, declared_serialized_row_max,
+    max_certified_page_rows,
 };
 pub use client::{ClientStore, LocalState};
 pub use cursor::{
@@ -51,7 +52,9 @@ pub use live::{Delivery, SubscriptionId, SubscriptionInfo, Subscriptions};
 pub use offline::{
     DELIVERY_PROTOCOL_V1, DeliveryAuthority, DeliveryEnvelopeV1, DeliveryProjectionContext,
     DeliveryProjectionError, DeliveryRange, DeliveryReceipt, DeliveryRow, DeliveryState,
-    DeliveryVerdict, project as project_delivery, value_to_wire_json,
+    DeliveryVerdict, REPLAY_GRANT_COUNT, REPLAY_GRANT_LIFETIME_MS, ReplayCommit, ReplayGrant,
+    ReplayTrace, ReplayTracePoint, ReplayTraceVerdict, StoredClientIntent,
+    project as project_delivery, replay_mutation_response, row_digest, value_to_wire_json,
 };
 pub use principal::PrincipalId;
 pub use programs::*;

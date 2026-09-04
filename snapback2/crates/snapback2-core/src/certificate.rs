@@ -5,7 +5,7 @@ use crate::growth::geometric_sum;
 use crate::identity::CURRENT_VALUE_MODEL_VERSION;
 use crate::ir::*;
 use crate::retention::RetentionEstimator;
-use crate::schema::{Constraint, MaintainKind, RuleExpr, Schema};
+use crate::schema::{Constraint, MaintainKind, RetentionPolicy, RuleExpr, Schema};
 use crate::value::digest;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
@@ -48,6 +48,10 @@ pub struct Certificate {
     pub program: String,
     pub plan_hash: String,
     pub schema_hash: String,
+    /// Client-side hidden-row policy, recorded once per table in the
+    /// certified program custody rather than repeated in delivery receipts.
+    #[serde(default)]
+    pub tables: BTreeMap<String, CertificateTable>,
     pub rule_hashes: BTreeMap<String, String>,
     pub evaluator_version: String,
     pub value_model_version: String,
@@ -75,6 +79,11 @@ pub struct Certificate {
     pub indexes_required: Vec<String>,
     pub disclosures: Vec<String>,
     pub bound_product: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CertificateTable {
+    pub retain: RetentionPolicy,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -508,6 +517,19 @@ impl<'a> Checker<'a> {
             program: program.name.clone(),
             plan_hash: digest(program),
             schema_hash: self.schema.hash(),
+            tables: self
+                .schema
+                .tables
+                .iter()
+                .map(|(name, table)| {
+                    (
+                        name.clone(),
+                        CertificateTable {
+                            retain: table.retain,
+                        },
+                    )
+                })
+                .collect(),
             rule_hashes,
             evaluator_version: "bounded-spike-rust-1".to_owned(),
             value_model_version: CURRENT_VALUE_MODEL_VERSION.to_string(),

@@ -71,6 +71,14 @@ impl Refusal {
         Self::new("E_INPUT", "input", message, rewrite, "input/json")
     }
 
+    /// The runtime `offline` family (LLP 1012 §15): every code carries its
+    /// site and rewrite here, and `snapback2 guide offline` is their page.
+    // @ref LLP 1012#15-diagnostics — a conflict is a mutation state, never one of these codes.
+    pub fn offline(code: &str, message: impl Into<String>) -> Self {
+        let (site, rewrite) = offline_site_and_rewrite(code);
+        Self::new(code, "offline", message, rewrite, "offline").with_site(site)
+    }
+
     pub fn with_site(mut self, site: impl Into<String>) -> Self {
         self.site = Some(site.into());
         self
@@ -174,6 +182,41 @@ impl Refusal {
     }
 }
 
+#[cfg(test)]
+const OFFLINE_CODES: [&str; 5] = [
+    "E_OFFLINE_RESET",
+    "E_OFFLINE_RESUME",
+    "E_OFFLINE_INTENT_EXPIRED",
+    "E_OFFLINE_INTENT_REUSE",
+    "E_OFFLINE_ID_BLOCK",
+];
+
+fn offline_site_and_rewrite(code: &str) -> (&'static str, &'static str) {
+    match code {
+        "E_OFFLINE_RESET" => (
+            "/api/resume.generation",
+            "drop held coverage, keep the sealed outbox, fetch /api/program for the returned generation, and cold-drain",
+        ),
+        "E_OFFLINE_RESUME" => (
+            "/api/resume.mounted",
+            "re-subscribe the rest as ordinary reads",
+        ),
+        "E_OFFLINE_INTENT_EXPIRED" => (
+            "/api/mutation.replay.grant",
+            "resume as the grant's principal for a fresh grant, then enqueue a new intent",
+        ),
+        "E_OFFLINE_INTENT_REUSE" => (
+            "/api/mutation.replay.intent",
+            "retry an intent only with its original op, args, id slice, and trace; use a new slice for new bytes",
+        ),
+        "E_OFFLINE_ID_BLOCK" => (
+            "/api/mutation.replay.offset",
+            "consume an unused contiguous slice inside the grant and name the intent <grant>:<offset>",
+        ),
+        _ => panic!("{code} is not an offline diagnostic"),
+    }
+}
+
 pub fn value_to_json(value: &Value) -> Json {
     snapback2_core::value_to_wire_json(value)
 }
@@ -217,6 +260,30 @@ pub fn refusal_json(refusal: &Refusal) -> Json {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn every_offline_code_has_a_family_a_site_a_rewrite_and_the_guide_page() {
+        for code in OFFLINE_CODES {
+            let refusal = Refusal::offline(code, "why");
+            assert_eq!(refusal.code, code);
+            assert_eq!(refusal.family, "offline");
+            assert_eq!(refusal.guide, "offline");
+            assert!(refusal.site.as_deref().is_some_and(|site| site.starts_with("/api/")));
+            assert!(refusal.rewrite.as_deref().is_some_and(|rewrite| !rewrite.is_empty()));
+        }
+        let families: Json = serde_json::from_str(include_str!(
+            "../../../packages/snapback2/guide/families.source.json"
+        ))
+        .unwrap();
+        for code in OFFLINE_CODES {
+            assert!(
+                families.as_array().unwrap().iter().any(|entry| {
+                    entry["code"] == code && entry["family"] == "offline"
+                }),
+                "{code} is missing from guide/families.source.json"
+            );
+        }
+    }
 
     #[test]
     fn stale_store_version_names_the_recoverable_dev_reset() {

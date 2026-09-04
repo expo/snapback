@@ -10,6 +10,121 @@ use serde_json::{Map, Value as Json, json};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
+pub const REPLAY_GRANT_COUNT: u32 = 8_192;
+pub const REPLAY_GRANT_LIFETIME_MS: i64 = 30 * 24 * 60 * 60 * 1_000;
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReplayGrant {
+    pub id: String,
+    #[serde(rename = "from")]
+    pub from_id: String,
+    pub count: u32,
+    pub minted_at: i64,
+    pub expires_at: i64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct StoredClientIntent {
+    pub request_digest: String,
+    pub response: Json,
+    pub seq: u64,
+    pub at: i64,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ReplayTrace {
+    pub points: Vec<ReplayTracePoint>,
+    pub verdicts: Vec<ReplayTraceVerdict>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ReplayTracePoint {
+    pub table: String,
+    pub index: String,
+    pub key: Vec<Value>,
+    pub digest: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ReplayTraceVerdict {
+    pub rule_hash: String,
+    pub inputs_digest: String,
+    pub result: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ReplayCommit {
+    pub grant: String,
+    pub offset: u32,
+    pub count: u32,
+    pub intent: String,
+    pub request_digest: String,
+    pub trace: ReplayTrace,
+    pub at: i64,
+}
+
+/// The exact terminal mutation object persisted for replay deduplication.
+// @ref LLP 1012#7-writes-offline — the intent ledger stores the same terminal
+// object returned on the wire, including typed rejections and conflicts.
+pub fn replay_mutation_response(execution: &Execution, intent: &str) -> Json {
+    let mut response = match &execution.state {
+        ExecutionState::Committed { seq } => json!({
+            "state": "committed",
+            "seq": seq,
+            "data": value_to_wire_json(&execution.result),
+        }),
+        ExecutionState::Rejected { code, message } if code == "conflict" => json!({
+            "state": "rejected",
+            "reason": "conflict",
+            "site": message,
+        }),
+        ExecutionState::Rejected { code, message } => {
+            let family = rejection_family(code);
+            json!({
+                "state": "rejected",
+                "code": code,
+                "family": family,
+                "message": message,
+                "rewrite": "fix the rejected mutation input and retry",
+                "guide": format!("{family}/runtime"),
+            })
+        }
+        _ => panic!("replay response requires a terminal mutation execution"),
+    };
+    response
+        .as_object_mut()
+        .expect("mutation response is an object")
+        .insert("intent".to_owned(), Json::String(intent.to_owned()));
+    response
+}
+
+fn rejection_family(code: &str) -> &'static str {
+    if code.starts_with("E_RULE") {
+        "rule"
+    } else if code.starts_with("E_BOUND")
+        || matches!(code, "E_FANOUT" | "E_STEPS" | "E_TRACE_SUBSET")
+    {
+        "bound"
+    } else if code.starts_with("E_CONSTRAINT") {
+        "schema"
+    } else {
+        "input"
+    }
+}
+
+/// The digest a replay trace carries for a point read: SHA-256 over the
+/// canonical JSON of the row in wire encoding, exactly the form the envelope's
+/// row pool delivers, so a client can recompute it from held rows.
+// @ref LLP 1012#7-writes-offline — trace validation compares what the client
+// actually read, keyed by the same bytes the pool carried.
+pub fn row_digest(row: &Value) -> String {
+    digest(&value_to_wire_json(row))
+}
+
 pub const DELIVERY_PROTOCOL_V1: u8 = 1;
 const ROW_REFERENCE_KEY: &str = "$row";
 const ROW_ESCAPE_KEY: &str = "$value";

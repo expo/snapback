@@ -382,5 +382,35 @@
     "code": "E_ARGS_ID_TEXT",
     "wrong": "const pair = leftId + \":\" + rightId",
     "right": "db.get(dmPairs.byPair, [leftId, rightId])"
+  },
+  {
+    "family": "offline",
+    "code": "E_OFFLINE_RESET",
+    "wrong": "client.resume({ generation: heldGeneration }) // after the program changed",
+    "right": "on 409 drop held coverage, keep the outbox, fetch /api/program?generation=<returned>, cold-drain"
+  },
+  {
+    "family": "offline",
+    "code": "E_OFFLINE_RESUME",
+    "wrong": "client.resume({ mounted: fortyQueries })",
+    "right": "client.resume({ mounted: first32 }) // re-subscribe the rest as ordinary reads"
+  },
+  {
+    "family": "offline",
+    "code": "E_OFFLINE_INTENT_EXPIRED",
+    "wrong": "replay: { grant: thirtyOneDayOldGrant, offset: 0, count: 2, intent }",
+    "right": "resume first; replay under the grant it returns"
+  },
+  {
+    "family": "offline",
+    "code": "E_OFFLINE_INTENT_REUSE",
+    "wrong": "replay: { intent: settledIntent, ... } // with different args",
+    "right": "new bytes take a new slice and a new intent; retry only the original bytes"
+  },
+  {
+    "family": "offline",
+    "code": "E_OFFLINE_ID_BLOCK",
+    "wrong": "replay: { grant, offset: 8191, count: 2, intent: `${grant}:8191` }",
+    "right": "replay: { grant, offset: unusedOffset, count: 1 + maxNewIds, intent: `${grant}:${unusedOffset}` }"
   }
 ]

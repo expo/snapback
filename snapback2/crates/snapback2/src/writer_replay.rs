@@ -1,0 +1,236 @@
+//! Replay-envelope parsing, grant checks, and pinned-id execution.
+// @ref LLP 1012#7-writes-offline — only a current principal-bound grant may
+// inject ids, and the terminal response is deduplicated by intent.
+
+use super::*;
+use super::writer_auth::ResolvedAuthority;
+use serde::{Deserialize, Serialize};
+use snapback2_core::{
+    ReplayCommit, ReplayGrant, ReplayTrace, ReplayTracePoint, ReplayTraceVerdict,
+    REPLAY_GRANT_LIFETIME_MS, replay_mutation_response,
+};
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ReplayEnvelope {
+    grant: String,
+    offset: u32,
+    count: u32,
+    intent: String,
+    trace: ReplayTraceWire,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ReplayTraceWire {
+    points: Vec<ReplayPointWire>,
+    verdicts: Vec<ReplayVerdictWire>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ReplayPointWire {
+    table: String,
+    index: String,
+    key: Vec<Json>,
+    digest: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ReplayVerdictWire {
+    rule_hash: String,
+    inputs_digest: String,
+    result: bool,
+}
+
+impl State {
+    pub(super) fn mint_replay_grant(&mut self, principal: &str) -> Result<ReplayGrant, Refusal> {
+        let now = self.now();
+        self.runtime_mut()
+            .mint_replay_grant(principal, now)
+            .map_err(|error| Refusal::from_runtime(&error))
+    }
+
+    pub(super) fn execute_replayed_mutation(
+        &mut self,
+        op: &str,
+        args: Json,
+        authority: &ResolvedAuthority,
+        replay_json: Json,
+    ) -> Result<Json, Refusal> {
+        let wire: ReplayEnvelope = serde_json::from_value(replay_json).map_err(|error| {
+            Refusal::input(
+                format!("invalid replay envelope: {error}"),
+                "send replay { grant, offset, count, intent, trace: { points, verdicts } }",
+            )
+        })?;
+        let trace = self.decode_replay_trace(&wire.trace)?;
+        let request_digest = snapback2_core::digest(&(op, &args, &wire));
+        let now = self.now();
+        let principal = authority.principal.id.as_str();
+        let stored_grant = self
+            .runtime()
+            .store()
+            .replay_grant(&wire.grant)
+            .map_err(|error| Refusal::from_runtime(&error))?;
+        // @ref LLP 1012#5-retention-revocation-and-the-fence — the server's
+        // fence is thirty days by its own clock; no client clock is consulted.
+        let Some((grant_principal, grant)) = stored_grant else {
+            return Err(Refusal::offline(
+                "E_OFFLINE_INTENT_EXPIRED",
+                "the replay grant is unknown or has expired",
+            ));
+        };
+        if grant_principal != principal
+            || now >= grant.expires_at
+            || now.saturating_sub(grant.minted_at) >= REPLAY_GRANT_LIFETIME_MS
+        {
+            return Err(Refusal::offline(
+                "E_OFFLINE_INTENT_EXPIRED",
+                "the replay grant does not belong to this principal or is older than 30 days",
+            ));
+        }
+        let expected_intent = format!("{}:{}", wire.grant, wire.offset);
+        let ids = snapback2_core::Store::replay_slice_ids(&grant, wire.offset, wire.count)
+            .filter(|_| wire.intent == expected_intent)
+            .ok_or_else(|| {
+                Refusal::offline(
+                    "E_OFFLINE_ID_BLOCK",
+                    "the replay id slice is empty, outside its grant, or names the wrong intent",
+                )
+            })?;
+        if !self
+            .runtime()
+            .store()
+            .replay_slice_is_unused(&wire.grant, &wire.intent, wire.offset, wire.count)
+            .map_err(|error| Refusal::from_runtime(&error))?
+        {
+            return Err(Refusal::offline(
+                "E_OFFLINE_ID_BLOCK",
+                "the replay id slice overlaps an already settled intent",
+            ));
+        }
+        // @ref LLP 1002#9-the-client — a retry after a 503 returns the stored
+        // terminal without executing, so a commit never looks like a rejection.
+        if let Some(stored) = self
+            .runtime()
+            .store()
+            .stored_client_intent(principal, &wire.intent)
+            .map_err(|error| Refusal::from_runtime(&error))?
+        {
+            if stored.request_digest == request_digest {
+                return Ok(stored.response);
+            }
+            return Err(Refusal::offline(
+                "E_OFFLINE_INTENT_REUSE",
+                "the replay intent was already settled for different request bytes",
+            ));
+        }
+
+        let mut context = self.context(authority, op, args)?;
+        // The grant's reserved ids replace the ordinary 1,024-id reservation.
+        context.new_ids = ids;
+        let replay = ReplayCommit {
+            grant: wire.grant,
+            offset: wire.offset,
+            count: wire.count,
+            intent: wire.intent.clone(),
+            request_digest,
+            trace,
+            at: now,
+        };
+        let execution = self
+            .runtime_mut()
+            .execute_replay(op, context, &replay)
+            .map_err(|error| Refusal::from_runtime(&error))?;
+        if matches!(execution.state, ExecutionState::Committed { .. }) {
+            self.after_commit(execution.seq)?;
+        }
+        Ok(replay_mutation_response(&execution, &wire.intent))
+    }
+
+    fn decode_replay_trace(&self, trace: &ReplayTraceWire) -> Result<ReplayTrace, Refusal> {
+        let schema = self.runtime().generation().schema();
+        let points = trace
+            .points
+            .iter()
+            .map(|point| {
+                if let Some(value) = &point.digest {
+                    require_digest(value, "point digest")?;
+                }
+                let table = schema.table(&point.table).ok_or_else(|| {
+                    Refusal::input(
+                        format!("replay trace names unknown table {}", point.table),
+                        "send trace points emitted by the certified client twin",
+                    )
+                })?;
+                let index = table.index(&point.index).ok_or_else(|| {
+                    Refusal::input(
+                        format!(
+                            "replay trace names unknown index {}.{}",
+                            point.table, point.index
+                        ),
+                        "send trace points emitted by the certified client twin",
+                    )
+                })?;
+                if point.key.len() != index.columns.len() {
+                    return Err(Refusal::input(
+                        format!(
+                            "replay point {}.{} key has {} values, expected {}",
+                            point.table,
+                            point.index,
+                            point.key.len(),
+                            index.columns.len()
+                        ),
+                        "send the complete point key emitted by the certified client twin",
+                    ));
+                }
+                let key = point
+                    .key
+                    .iter()
+                    .zip(&index.columns)
+                    .map(|(value, column)| {
+                        let kind = table.columns.get(column).expect("certified index column");
+                        writer_values::json_as_kind(value, kind)
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+                Ok(ReplayTracePoint {
+                    table: point.table.clone(),
+                    index: point.index.clone(),
+                    key,
+                    digest: point.digest.clone(),
+                })
+            })
+            .collect::<Result<Vec<_>, Refusal>>()?;
+        let verdicts = trace
+            .verdicts
+            .iter()
+            .map(|verdict| {
+                require_digest(&verdict.rule_hash, "verdict ruleHash")?;
+                require_digest(&verdict.inputs_digest, "verdict inputsDigest")?;
+                Ok(ReplayTraceVerdict {
+                    rule_hash: verdict.rule_hash.clone(),
+                    inputs_digest: verdict.inputs_digest.clone(),
+                    result: verdict.result,
+                })
+            })
+            .collect::<Result<Vec<_>, Refusal>>()?;
+        Ok(ReplayTrace { points, verdicts })
+    }
+}
+
+fn require_digest(value: &str, label: &str) -> Result<(), Refusal> {
+    if value.len() == 64
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    {
+        Ok(())
+    } else {
+        Err(Refusal::input(
+            format!("replay {label} must be a lowercase SHA-256 digest"),
+            "send the trace emitted by the certified client twin",
+        ))
+    }
+}
