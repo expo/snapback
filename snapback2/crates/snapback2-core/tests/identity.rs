@@ -94,13 +94,8 @@ fn password_guest_persona_and_session_contracts_are_persistent_and_typed() {
     assert_ne!(second_persona.token, persona.token);
     assert!(second_persona.auth_epoch > persona.auth_epoch);
     assert!(persona.expires_at < i64::MAX);
-    let reserved_name = runtime.persona("system", 32).unwrap();
-    assert_eq!(reserved_name.principal.id.as_str(), "dev:system");
-    assert_ne!(
-        reserved_name.principal.id.as_str(),
-        SYSTEM_PRINCIPAL_ID.as_str()
-    );
-    assert!(Actor::try_from(&reserved_name.principal).is_ok());
+    assert!(matches!(runtime.persona("system", 32), Err(IdentityError::ReservedSystem)));
+    assert!(matches!(runtime.ensure_persona("system", 32), Err(IdentityError::ReservedSystem)));
 
     runtime.apply_successor(generation(true, true)).unwrap();
     let guest = runtime.guest(40).unwrap();

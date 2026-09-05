@@ -200,7 +200,7 @@ fn rejected_then_is_sent_with_error_across_an_unchanged_effect_declaration() {
 }
 
 #[test]
-fn rule_denied_then_is_rejected_and_settled_sent_in_the_same_transaction() {
+fn deny_ruled_then_commits_and_settles_sent_in_the_same_transaction() {
     let source = "async () => ({ providerId: 'denied' })";
     let mut runtime = Runtime::open(
         Store::memory().unwrap(),
@@ -210,26 +210,16 @@ fn rule_denied_then_is_rejected_and_settled_sent_in_the_same_transaction() {
     leave_then_pending(&mut runtime);
 
     let execution = execute_then(&mut runtime).unwrap();
-
-    assert!(matches!(
-        execution.state,
-        ExecutionState::Rejected { ref code, .. } if code == "E_RULE"
-    ));
+    assert!(matches!(execution.state, ExecutionState::Committed { .. }));
+    assert_eq!(execution.trace.writes["notifications"], 1);
+    assert_eq!(execution.receipt, Default::default());
     let row = runtime.store().outbox_get("outbox-1").unwrap().unwrap();
     assert_eq!(row.state, "sent");
-    assert!(
-        row.last_error
-            .as_deref()
-            .is_some_and(|error| error.contains("E_RULE")),
-        "the rejected then must remain visible on its outbox trace row"
-    );
-    let listed = runtime
-        .execute(
-            "notifications.list",
-            Context::query(Actor::user("u1").unwrap(), BTreeMap::new()),
-        )
-        .unwrap();
-    assert!(listed.result.as_array().unwrap().is_empty());
+    assert_eq!(row.last_error, None);
+    let commit = runtime.store().commits_since(execution.seq - 1, 1).unwrap().remove(0);
+    assert_eq!(commit.kind, "system");
+    assert_eq!(commit.writes["notifications"], 1);
+
 }
 
 #[test]

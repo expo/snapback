@@ -1,4 +1,4 @@
-import type { QuarryCode, QuarryDiagnostic, Site } from "./ast";
+import type { Expr, QuarryCode, QuarryDiagnostic, Site } from "./ast";
 
 export class QuarryError extends Error {
   readonly diagnostic: QuarryDiagnostic;
@@ -63,4 +63,19 @@ function guideFor(code: QuarryCode): string {
   if (code === "E_QUARRY_TYPE") return "quarry/types";
   if (code === "E_QUARRY_RETAIN") return "quarry/grammar";
   return "quarry/names";
+}
+
+// @ref LLP 1016#d1--the-system-principal-is-the-stores-owner — removed rule word; no compatibility grant.
+export function currentRule(expr: Expr): Expr {
+  if (expr.kind === "name" && expr.name === "system") {
+    throw new QuarryError(expr.site, "the system principal never consults rules; `deny` is what this meant", "E_QUARRY_UNSUPPORTED", "deny");
+  }
+  if (expr.kind === "unary") currentRule(expr.value);
+  if (expr.kind === "binary") {
+    currentRule(expr.left); currentRule(expr.right);
+  }
+  if (expr.kind === "member") currentRule(expr.base);
+  if (expr.kind === "exists" || expr.kind === "created") currentRule(expr.read);
+  if (expr.kind === "read") for (const key of expr.keys) currentRule(key.value);
+  return expr;
 }

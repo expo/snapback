@@ -170,7 +170,7 @@ impl Generation {
                         site: None,
                         code: "E_SCHEMA_RESERVED".to_owned(),
                         message: format!("rule reads reserved table {reserved}"),
-                        rewrite: "use rule.system() or an application-owned relation in rules"
+                        rewrite: "use deny for owner-only writes, or an application-owned relation in viewer rules"
                             .to_owned(),
                     },
                 ));
@@ -639,7 +639,7 @@ impl Runtime {
 
     /// Execute an effect's `then` mutation and settle its durable outbox row
     /// in the mutation's own SQLite transaction.
-    // @ref LLP 1003#2-the-outbox-lifecycle — `then` and `then_pending` → `sent` are one transaction.
+    // @ref LLP 1016#d1--the-system-principal-is-the-stores-owner — `then` skips viewer rules; its writes and outbox settlement remain one transaction.
     pub fn execute_then(
         &mut self,
         op: &str,
@@ -1497,3 +1497,7 @@ mod tests {
         assert_eq!(admitted, BTreeSet::from(["ghost", "seed"]));
     }
 }
+
+#[path = "registry_operator.rs"]
+mod operator;
+pub use operator::OperatorId;

@@ -90,6 +90,22 @@ pub fn run(args: &[String]) -> ExitCode {
         Ok(value) => value,
         Err(error) => return refused(error, options.has("--json"), 1),
     };
+    if persona == "system" {
+        return match client::control(
+            &owner,
+            "POST",
+            "/control/execute",
+            json!({ "op": op, "args": args_json, "as": "system" }),
+        ) {
+            Ok(response) => {
+                let rejected =
+                    response.body.get("state").and_then(Json::as_str) == Some("rejected");
+                let code = print_response(response.status, response.body, options.has("--json"));
+                if rejected { ExitCode::from(1) } else { code }
+            }
+            Err(error) => refused(error, options.has("--json"), 1),
+        };
+    }
     let manifest = match client::api(&owner, "GET", "/api/manifest", &[], json!({})) {
         Ok(response) if response.status < 400 => response.body,
         Ok(response) => {

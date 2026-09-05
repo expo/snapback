@@ -16,7 +16,8 @@ export type QuarryVirtualModule = {
   source: string;
   authored: string;
   authoredSource: string;
-  lineMap: Array<SourceSite | undefined>;
+  authoredSources: Map<string, string>;
+  lineMap: Array<Site | undefined>;
 };
 export type QuarryCompileResult =
   | { ok: true; schema: QuarryVirtualModule; modules: QuarryVirtualModule[] }
@@ -58,7 +59,7 @@ export function compileQuarry(inputs: QuarryInput[]): QuarryCompileResult {
     diagnostics.push(caughtDiagnostic(error, schemaDocument.file));
   }
   const moduleSources = new Map<string, string>();
-  for (const document of documents.filter((item) => basename(item.file) !== "schema.q")) {
+  for (const document of documents.filter((item) => item.programs.length > 0)) {
     let valid = true;
     for (const program of document.programs) {
       try {
@@ -72,12 +73,13 @@ export function compileQuarry(inputs: QuarryInput[]): QuarryCompileResult {
   }
   if (diagnostics.length > 0) return { ok: false, diagnostics: diagnostics.map(frontend) };
 
-  const schema = virtualModule(schemaInput.path.replace(/\.q$/, ".ts"), schemaDocument.file, schemaSource, schemaInput.source);
+  const authoredSources = new Map(inputs.map((input) => [input.fileName, input.source]));
+  const schema = virtualModule(schemaInput.path.replace(/\.q$/, ".ts"), schemaDocument.file, schemaSource, schemaInput.source, authoredSources);
   const modules = documents
-    .filter((document) => basename(document.file) !== "schema.q")
+    .filter((document) => document.programs.length > 0)
     .map((document) => {
       const input = inputs.find((item) => item.fileName === document.file)!;
-      return virtualModule(input.path.replace(/\.q$/, ".ts"), document.file, moduleSources.get(document.file)!, input.source);
+      return virtualModule(input.path.replace(/\.q$/, ".ts"), document.file, moduleSources.get(document.file)!, input.source, authoredSources);
     });
   return { ok: true, schema, modules };
 }
@@ -90,15 +92,18 @@ export function remapVirtualDiagnostic(
   const site = parseSite(diagnostic.site);
   const authored = site && mapGeneratedLine(virtual, site.line);
   if (!authored) return diagnostic;
+  const authoredSource = virtual.authoredSources.get(authored.file) ?? virtual.authoredSource;
+  const message = generatedTypeError ? `in code generated from ${authored.file}: ${diagnostic.message}` : diagnostic.message;
+  const use = authored.expandedFrom;
   return {
     ...diagnostic,
     site: `${authored.file}:${authored.line}:${authored.col}`,
-    message: generatedTypeError ? `in code generated from ${authored.file}: ${diagnostic.message}` : diagnostic.message,
+    message: use ? `${message} (from a named shape used at ${use.file}:${use.line}:${use.col})` : message,
     rewrite: diagnostic.code === "E_DECIMAL_SCALE"
-      ? quarryDecimalRewrite(virtual.authoredSource, authored.line, diagnostic.message)
+      ? quarryDecimalRewrite(authoredSource, authored.line, diagnostic.message)
       : generatedTypeError && diagnostic.message.includes("undefined")
         ? "add ! else CODE to assert the possibly absent Quarry value before using it here"
-        : virtual.authoredSource,
+        : authoredSource,
   };
 }
 
@@ -121,15 +126,16 @@ function placementDiagnostics(documents: Document[]): QuarryDiagnostic[] {
     const declarationSite = document.tables[0]?.site ?? document.maintains[0]?.site ?? document.channels[0]?.site
       ?? (document.identity ? { file: document.file, line: 1, col: 1 } : undefined);
     if (!isSchema && declarationSite) diagnostics.push(placement(document.file, declarationSite.line, declarationSite.col, "tables, maintains, channels, and use identity belong in schema.q", "move this declaration to snapback/schema.q"));
-    if (isSchema && document.shapes.length > 0) {
-      const site = document.shapes[0]!.site;
+    if (isSchema && (document.shapes.length > 0 || document.shapeImports.length > 0)) {
+      const site = (document.shapes[0] ?? document.shapeImports[0])!.site;
       diagnostics.push(placement(document.file, site.line, site.col, "shape declarations belong in an operations .q module, not schema.q", "move this shape declaration to snapback/<module>.q"));
     }
     if (isSchema && (document.programs.length > 0 || document.effects.length > 0)) {
       const site = document.programs[0]?.site ?? document.effects[0]!.site;
       diagnostics.push(placement(document.file, site.line, site.col, "schema.q holds declarations only; query, mutation, and effect declarations belong in a program module", "move this declaration to snapback/<module>.q"));
     }
-    if (!isSchema && document.programs.length === 0) diagnostics.push(placement(document.file, 1, 1, `${basename(document.file)} must declare at least one query or mutation`, "add a query or mutation, or remove the empty module"));
+    if (!isSchema && document.programs.length === 0 && document.shapes.length === 0 && document.shapeImports.length === 0) diagnostics.push(placement(document.file, 1, 1, `${basename(document.file)} must declare at least one query, mutation, or shape`, "add a query, mutation, or shape, or remove the empty module"));
+    if (!isSchema && document.programs.length === 0 && document.effects.length > 0) diagnostics.push(placement(document.file, document.effects[0]!.site.line, document.effects[0]!.site.col, "effect imports need a query or mutation in this module", "move this effect import to the mutation module that emits it"));
     const stem = basename(document.file).slice(0, -2);
     if (!/^[A-Za-z_$][A-Za-z0-9_$-]*$/.test(stem)) diagnostics.push(placement(document.file, 1, 1, `file stem ${stem} cannot become an API namespace`, "rename the module to an identifier-like stem"));
   }
@@ -189,15 +195,19 @@ function containsAsset(type: ScalarType): boolean {
   return type.kind === "list" && containsAsset(type.item);
 }
 
-function virtualModule(path: string, authored: string, source: string, authoredSource: string): QuarryVirtualModule {
-  const lineMap: Array<SourceSite | undefined> = [];
-  let previous: SourceSite | undefined;
+function virtualModule(path: string, authored: string, source: string, authoredSource: string, authoredSources: Map<string, string>): QuarryVirtualModule {
+  const lineMap: Array<Site | undefined> = [];
+  let previous: Site | undefined;
   for (const line of source.split("\n")) {
     const match = line.match(/\/\/ q:(.+):(\d+):(\d+)\s*$/);
-    if (match) previous = { file: match[1]!, line: Number(match[2]), col: Number(match[3]) };
+    if (match) {
+      previous = { file: match[1]!, line: Number(match[2]), col: Number(match[3]) };
+      const use = line.match(/\/\* q-use:(.+):(\d+):(\d+) \*\//);
+      if (use) previous.expandedFrom = { file: use[1]!, line: Number(use[2]), col: Number(use[3]) };
+    }
     lineMap.push(previous);
   }
-  return { path, fileName: path, source, authored, authoredSource, lineMap };
+  return { path, fileName: path, source, authored, authoredSource, authoredSources, lineMap };
 }
 
 function frontend(item: QuarryDiagnostic): FrontendDiagnostic {
@@ -206,7 +216,8 @@ function frontend(item: QuarryDiagnostic): FrontendDiagnostic {
     family: item.code === "E_SCHEMA_CONSTRAINT" ? "schema" : "quarry",
     message: item.message,
     site: `${item.file}:${item.line}:${item.col}`,
-    rewrite: `-- ${item.rewrite.replace(/\n/g, " ")}`,
+    rewrite: item.code === "E_QUARRY_UNSUPPORTED" && item.rewrite === "deny"
+      ? "deny" : `-- ${item.rewrite.replace(/\n/g, " ")}`,
     guide: item.guide,
   };
 }
@@ -234,7 +245,7 @@ function parseSite(site: string): SourceSite | undefined {
   return match ? { file: match[1]!, line: Number(match[2]), col: Number(match[3]) } : undefined;
 }
 
-function mapGeneratedLine(module: QuarryVirtualModule, line: number): SourceSite | undefined {
+function mapGeneratedLine(module: QuarryVirtualModule, line: number): Site | undefined {
   for (let offset = Math.min(line - 1, module.lineMap.length - 1); offset >= 0; offset -= 1) {
     const mapped = module.lineMap[offset];
     if (mapped) return mapped;

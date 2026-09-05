@@ -250,8 +250,7 @@
     "args": {},
     "now": 0,
     "new_ids": [],
-    "read_time": null,
-    "seed_write": false
+    "read_time": null
   },
   "receipt": {
     "rows": [],

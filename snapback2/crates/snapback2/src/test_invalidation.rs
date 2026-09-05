@@ -1403,6 +1403,7 @@ mod tests {
             pinned_inputs_digest: "pinned".to_owned(),
         });
         let touched = |principal: &str| CommitRecord {
+            by: None,
             seq: 2,
             at: 1,
             program: "groups.memberAdd".to_owned(),

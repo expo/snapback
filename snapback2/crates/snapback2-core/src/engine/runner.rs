@@ -168,6 +168,25 @@ impl<'a> Runner<'a> {
 
     pub(super) fn statements(&mut self, statements: &[Stmt]) -> Result<Flow, RuntimeError> {
         for statement in statements {
+            // @ref LLP 1016#d6--the-operator-seat-ad-hoc-programs-and-rehearsal — preserve the attempted write site even when validation refuses before a row is touched.
+            if self.context.operator_by.is_some() {
+                use crate::certificate::{WriteKind, WriteSite};
+                let site = match statement {
+                    Stmt::Insert { table, .. } => Some((table.as_str(), WriteKind::Insert)),
+                    Stmt::Update { table, .. } => Some((table.as_str(), WriteKind::Update)),
+                    Stmt::Upsert { table, .. } => Some((table.as_str(), WriteKind::Upsert)),
+                    Stmt::Delete { table, .. } => Some((table.as_str(), WriteKind::Delete)),
+                    Stmt::Emit { .. } => Some(("_outbox", WriteKind::Emit)),
+                    _ => None,
+                };
+                if let Some((table, kind)) = site {
+                    self.trace.last_write_attempt = Some(WriteSite {
+                        table: table.into(),
+                        kind,
+                        max_rows: 1,
+                    });
+                }
+            }
             self.step(1)?;
             let flow = match statement {
                 Stmt::Const { name, value } => {
@@ -1056,8 +1075,11 @@ impl<'a> Runner<'a> {
             .ok_or_else(|| {
                 RuntimeError::TraceSubset(format!("undeclared read site {}", scan.site))
             })?;
-        let uniform = read_site.hoist;
-        let always_visible = matches!(table.rules.read, RuleExpr::Public { .. } | RuleExpr::Allow);
+        // @ref LLP 1016#d1--the-system-principal-is-the-stores-owner — owner ranges never filter or spend rule probes; ordinary trace bounds still apply.
+        let system = self.context.viewer.is_system();
+        let uniform = system || read_site.hoist;
+        let always_visible =
+            system || matches!(table.rules.read, RuleExpr::Public { .. } | RuleExpr::Allow);
         let take = match &scan.take {
             Bound::Literal(value) => *value as usize,
             Bound::Arg { name, max } => {

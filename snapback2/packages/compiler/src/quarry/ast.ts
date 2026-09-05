@@ -1,6 +1,6 @@
 import type { RetentionPolicy } from "../ir";
 
-export type Site = { file: string; line: number; col: number; expandedFrom?: Site };
+export type Site = { file: string; line: number; col: number; expandedFrom?: Site; expansionId?: number };
 
 export type ScalarType =
   | { kind: "cursor"; optional: boolean }
@@ -29,6 +29,7 @@ export type ShapeField =
   | { kind: "field"; name: string; value: Expr; site: Site };
 
 export type ShapeDecl = { name: string; fields: ShapeField[]; site: Site };
+export type ShapeImport = { name: string; module: string; site: Site };
 
 export type Expr =
   | { kind: "name"; name: string; site: Site }
@@ -129,6 +130,7 @@ export type Document = {
   channels: ChannelDecl[];
   effects: EffectDecl[];
   shapes: ShapeDecl[];
+  shapeImports: ShapeImport[];
   programs: ProgramDecl[];
 };
 

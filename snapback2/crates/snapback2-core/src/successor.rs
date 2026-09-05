@@ -62,6 +62,8 @@ pub struct SuccessorRefusal {
     pub plan: MigrationPlan,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub conflicts: Vec<UniqueConflict>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub narrowings: Vec<NarrowingConflict>,
 }
 
 impl SuccessorRefusal {
@@ -73,6 +75,7 @@ impl SuccessorRefusal {
             plan,
             conflicts: Vec::new(),
             cap_conflicts: Vec::new(),
+            narrowings: Vec::new(),
         }
     }
 
@@ -84,6 +87,7 @@ impl SuccessorRefusal {
             plan: MigrationPlan::default(),
             conflicts: Vec::new(),
             cap_conflicts: Vec::new(),
+            narrowings: Vec::new(),
         }
     }
 
@@ -94,11 +98,12 @@ impl SuccessorRefusal {
                 "successor leaves required column {table}.{column} absent on stored rows"
             ),
             rewrite: format!(
-                "wrap {table}.{column} in t.optional(...) or add it to an empty table"
+                "declare {table}.{column} as T?, apply; fill it with an operator mutation (`run fill_{table}_{column} --as system`; a job once J1b lands); then declare T and apply again"
             ),
             plan: MigrationPlan::default(),
             conflicts: Vec::new(),
             cap_conflicts: Vec::new(),
+            narrowings: Vec::new(),
         }
     }
 
@@ -117,6 +122,7 @@ impl SuccessorRefusal {
             plan: MigrationPlan::default(),
             conflicts,
             cap_conflicts: Vec::new(),
+            narrowings: Vec::new(),
         }
     }
 
@@ -128,6 +134,7 @@ impl SuccessorRefusal {
             plan: MigrationPlan::default(),
             conflicts: Vec::new(),
             cap_conflicts: Vec::new(),
+            narrowings: Vec::new(),
         }
     }
 }
@@ -168,12 +175,16 @@ pub(crate) fn plan(
                     table: table_name.clone(),
                     name: column.clone(),
                 }),
-                Some(next_type) if next_type != column_type => drops.push(Drop::TypeChange {
-                    table: table_name.clone(),
-                    column: column.clone(),
-                    from: column_type.clone(),
-                    to: next_type.clone(),
-                }),
+                Some(next_type)
+                    if next_type != column_type && !is_narrowing(column_type, next_type) =>
+                {
+                    drops.push(Drop::TypeChange {
+                        table: table_name.clone(),
+                        column: column.clone(),
+                        from: column_type.clone(),
+                        to: next_type.clone(),
+                    })
+                }
                 Some(_) => {}
             }
         }
@@ -211,6 +222,9 @@ pub(crate) fn additive_refusal(
     next: &Schema,
 ) -> Result<Option<SuccessorRefusal>, RuntimeError> {
     let rebuilt_targets = maintained_targets_requiring_rebuild(current, next);
+    if let Some(refusal) = narrowing_refusal(connection, current, next)? {
+        return Ok(Some(refusal));
+    }
     for (table_name, current_table) in &current.tables {
         let Some(next_table) = next.tables.get(table_name) else {
             continue;
@@ -222,7 +236,9 @@ pub(crate) fn additive_refusal(
             current_table
                 .columns
                 .get(*column)
-                .is_none_or(|current_kind| current_kind != *kind)
+                .is_none_or(|current_kind| {
+                    current_kind != *kind && !is_narrowing(current_kind, kind)
+                })
                 && !matches!(kind, ColumnType::Optional(_))
         });
         if let Some((column, _)) = absent_required {
@@ -353,7 +369,10 @@ pub(crate) fn validate_stored_rows(
             .filter(|(column, kind)| {
                 match current_table.and_then(|table| table.columns.get(*column)) {
                     None => true,
-                    Some(current_kind) => current_kind != *kind && contains_id_or_ref(kind),
+                    Some(current_kind) => {
+                        current_kind != *kind
+                            && (contains_id_or_ref(kind) || is_narrowing(current_kind, kind))
+                    }
                 }
             })
             .collect::<Vec<_>>();
@@ -757,3 +776,7 @@ fn projected_backfill_rows(
 #[path = "successor/caps.rs"]
 mod caps;
 pub use caps::CapConflict;
+#[path = "successor_narrowing.rs"]
+mod narrowing;
+pub use narrowing::NarrowingConflict;
+use narrowing::{is_narrowing, narrowing_refusal};

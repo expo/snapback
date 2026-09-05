@@ -70,6 +70,8 @@ names (LLP 1001 §9).
 
 ## 2. The outbox lifecycle
 
+**Amendment 2026-09-05 (LLP 1016 D1, J1a):** `then` now skips viewer rules as the store owner; constraints and atomic settlement still bind, and bookkeeping tables use `deny` (supersedes the ordinary-rules / `rule.system()` sentence below).
+
 `_outbox` (LLP 1001 §1) rows move through:
 
 ```

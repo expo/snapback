@@ -124,8 +124,7 @@
     "new_ids": [
       "note-1"
     ],
-    "read_time": null,
-    "seed_write": false
+    "read_time": null
   },
   "receipt": {
     "schema_hash": "94cf796440e8c6bf79bb35c4cb77eae1272909f86e200248c8844405e598df6a",

@@ -674,9 +674,8 @@ impl<'a> Runner<'a> {
         old: Option<&Value>,
         next: &Value,
     ) -> Result<bool, RuntimeError> {
-        // @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — seed rows
-        // are engine-owned; user rules do not bind them, while write validation below does.
-        if self.context.seed_write {
+        // @ref LLP 1016#d1--the-system-principal-is-the-stores-owner — only viewer rules are bypassed; row validation, constraints, and trace accounting still run.
+        if self.context.viewer.is_system() {
             return Ok(true);
         }
         let table = self

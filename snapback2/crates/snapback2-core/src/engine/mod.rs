@@ -22,8 +22,8 @@ pub struct Context {
     pub now: Option<i64>,
     pub new_ids: VecDeque<String>,
     pub read_time: Option<i64>,
-    #[serde(default)]
-    pub(crate) seed_write: bool,
+    #[serde(skip)]
+    operator_by: Option<String>,
 }
 
 impl Context {
@@ -36,7 +36,7 @@ impl Context {
             now: None,
             new_ids: VecDeque::new(),
             read_time: None,
-            seed_write: false,
+            operator_by: None,
         }
     }
 
@@ -66,7 +66,7 @@ impl Context {
             now: Some(0),
             new_ids: VecDeque::new(),
             read_time: None,
-            seed_write: false,
+            operator_by: None,
         }
     }
 }
@@ -424,7 +424,7 @@ impl Engine {
     /// Run an effect bookkeeping mutation and settle its durable outbox row
     /// in the same outer transaction. A program rejection rolls its writes
     /// back to the savepoint, then commits only the `sent` settlement.
-    // @ref LLP 1003#2-the-outbox-lifecycle — attempted `then` writes and every settlement share one transaction.
+    // @ref LLP 1016#d1--the-system-principal-is-the-stores-owner — `then` skips viewer rules; constraints and atomic outbox settlement still bind.
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn execute_then(
         &mut self,
@@ -461,7 +461,6 @@ impl Engine {
     ) -> Result<Execution, RuntimeError> {
         let mut context = Context::system();
         context.now = Some(now);
-        context.seed_write = true;
         self.execute_with_kind(program, certificate, context, Some("seed"))
     }
 
@@ -473,7 +472,6 @@ impl Engine {
     ) -> Result<(Execution, Vec<String>), RuntimeError> {
         let mut context = Context::system();
         context.now = Some(now);
-        context.seed_write = true;
         self.reset_and_execute(program, certificate, context, Some("seed"))
     }
 
@@ -560,6 +558,7 @@ impl Engine {
         }
         let principal = context.viewer.clone();
         let is_system = context.viewer.is_system();
+        let operator_by = context.operator_by.clone();
         let commit_at = context.now.unwrap_or_else(unix_millis);
         let current_seq = self.store.commit_seq()?;
         let seq = if program.kind == ProgramKind::Mutation {
@@ -659,7 +658,11 @@ impl Engine {
                     result: Value::Null,
                     result_provenance: ResultProvenance::None,
                     trace: runner.trace,
-                    receipt: runner.receipt,
+                    receipt: if is_system {
+                        ClosureReceipt::default()
+                    } else {
+                        runner.receipt
+                    },
                     state,
                     seq,
                     next: None,
@@ -695,6 +698,27 @@ impl Engine {
                     next: None,
                 });
             }
+            // @ref LLP 1016#d1--the-system-principal-is-the-stores-owner — rejected operator work keeps the attempted trace while every tentative write rolls back.
+            Err(error) if commit_kind == Some("operator") => {
+                let Some(code) = mutation_rejection_code(&error) else {
+                    return Err(error);
+                };
+                let trace = std::mem::take(&mut runner.trace);
+                drop(runner);
+                transaction.rollback()?;
+                return Ok(Execution {
+                    result: Value::Null,
+                    result_provenance: ResultProvenance::None,
+                    trace,
+                    receipt: ClosureReceipt::default(),
+                    state: ExecutionState::Rejected {
+                        code: code.to_owned(),
+                        message: error.to_string(),
+                    },
+                    seq: current_seq,
+                    next: None,
+                });
+            }
             Err(error) => return Err(error),
         };
         let (result, result_provenance) = match flow {
@@ -709,14 +733,18 @@ impl Engine {
                 reason: MISSING_AUTHORITY_LABEL.to_owned(),
             },
             (false, ProgramKind::Mutation) => ExecutionState::Committed { seq },
-            (false, ProgramKind::Query) => query_state(&runner.trace, certificate),
+            (false, ProgramKind::Query) => query_state(&runner.trace, certificate, is_system),
         };
         let next = next_cursor(&state, &runner.trace, certificate)?;
         let execution = Execution {
             result,
             result_provenance,
             trace: runner.trace,
-            receipt: runner.receipt,
+            receipt: if is_system {
+                ClosureReceipt::default()
+            } else {
+                runner.receipt
+            },
             state,
             seq,
             next,
@@ -730,6 +758,7 @@ impl Engine {
                 program: program.name.clone(),
                 principal: principal.as_str().to_owned(),
                 kind: kind.to_owned(),
+                by: operator_by,
                 touched: execution.trace.touched.clone(),
                 writes: execution.trace.writes.clone(),
                 emits: execution.trace.emits.len() as u64,
@@ -771,6 +800,7 @@ impl Engine {
         }
         let principal = context.viewer.clone();
         let is_system = context.viewer.is_system();
+        let operator_by = context.operator_by.clone();
         let commit_at = context.now.unwrap_or_else(unix_millis);
         let transaction = self.store.conn.transaction()?;
         let asset_ids = crate::assets_ledger::clear_assets(&transaction)?;
@@ -805,7 +835,11 @@ impl Engine {
             result,
             result_provenance,
             trace: runner.trace,
-            receipt: runner.receipt,
+            receipt: if is_system {
+                ClosureReceipt::default()
+            } else {
+                runner.receipt
+            },
             state: ExecutionState::Committed { seq },
             seq,
             next: None,
@@ -820,6 +854,7 @@ impl Engine {
                 program: program.name.clone(),
                 principal: principal.into_inner(),
                 kind: kind.to_owned(),
+                by: operator_by,
                 touched: execution.trace.touched.clone(),
                 writes: execution.trace.writes.clone(),
                 emits: execution.trace.emits.len() as u64,
@@ -1244,89 +1279,6 @@ pub(crate) fn value_contains_reserved_principal(value: &Value) -> bool {
     }
 }
 
-fn query_state(trace: &AuthoritativeTrace, certificate: &Certificate) -> ExecutionState {
-    // @ref LLP 1001#3-read-and-write-states-no-silent-states — completeness is
-    // trace-derived, but only a certificate with uniform range rules may claim it.
-    if certificate.completeness == crate::certificate::Completeness::Capped
-        || trace.ranges.iter().any(|range| {
-            range.stop == StopReason::Limit
-                || certificate
-                    .read_sites
-                    .iter()
-                    .find(|site| site.site == range.site)
-                    .is_none_or(|site| !site.hoist)
-        })
-        || certificate.merge_sites.iter().any(|site| {
-            let union_too_large = trace
-                .merges
-                .iter()
-                .find(|entry| entry.site == site.site)
-                .is_none_or(|entry| entry.deduplicated_union_len > site.take);
-            let lane_limited = trace.ranges.iter().any(|range| {
-                site.lane_sites.contains(&range.site) && range.stop != StopReason::Exhausted
-            });
-            union_too_large || lane_limited
-        })
-    {
-        return ExecutionState::Capped;
-    }
-    ExecutionState::Complete
-}
-
-fn next_cursor(
-    state: &ExecutionState,
-    trace: &AuthoritativeTrace,
-    certificate: &Certificate,
-) -> Result<Option<String>, RuntimeError> {
-    if !matches!(state, ExecutionState::Capped) {
-        return Ok(None);
-    }
-    let Some(page) = &certificate.result_page_site else {
-        return Ok(None);
-    };
-    let values = if page.merge {
-        trace
-            .merges
-            .iter()
-            .rev()
-            .find(|entry| entry.site == page.site)
-            .and_then(|entry| entry.last_returned_suffix.clone())
-    } else {
-        let Some(row_id) = trace
-            .ranges
-            .iter()
-            .rev()
-            .find(|range| range.site == page.site)
-            .and_then(|range| range.returned_ids.last())
-        else {
-            return Ok(None);
-        };
-        trace
-            .rows
-            .iter()
-            .rev()
-            .find(|row| row.table == page.table && &row.id == row_id)
-            .and_then(|row| {
-                page.suffix
-                    .iter()
-                    .map(|column| row.row.field(&column.name).cloned().ok())
-                    .collect::<Option<Vec<_>>>()
-            })
-    };
-    let Some(values) = values else {
-        return Ok(None);
-    };
-    encode_cursor(&CursorPosition {
-        table: page.table.clone(),
-        index: page.index.clone(),
-        order: page.order,
-        suffix: page.suffix.clone(),
-        values,
-    })
-    .map(Some)
-    .map_err(|error| RuntimeError::Serialization(error.to_string()))
-}
-
 pub(crate) fn is_sqlite_constraint(error: &RuntimeError) -> bool {
     matches!(
         error,
@@ -1359,34 +1311,6 @@ pub(crate) fn mutation_rejection_code(error: &RuntimeError) -> Option<&str> {
         }
         _ => None,
     }
-}
-
-pub(crate) fn append_commit(
-    transaction: &Transaction<'_>,
-    record: &CommitRecord,
-) -> Result<(), RuntimeError> {
-    transaction.execute(
-        "INSERT INTO _commits(seq, at, program, principal, kind, touched, writes, emits)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-        params![
-            record.seq as i64,
-            record.at,
-            record.program,
-            record.principal,
-            record.kind,
-            serde_json::to_string(&record.touched)
-                .map_err(|error| RuntimeError::Serialization(error.to_string()))?,
-            serde_json::to_string(&record.writes)
-                .map_err(|error| RuntimeError::Serialization(error.to_string()))?,
-            record.emits as i64,
-        ],
-    )?;
-    transaction.execute(
-        "DELETE FROM _commits
-         WHERE seq <= (SELECT COALESCE(MAX(seq), 0) - 10000 FROM _commits)",
-        [],
-    )?;
-    Ok(())
 }
 
 pub fn validate_schema(schema: &Schema) -> Result<(), Vec<RuntimeError>> {
@@ -1483,3 +1407,7 @@ pub(crate) use index::{
 };
 #[allow(unused_imports)]
 use runner::{Flow, Runner};
+
+mod execution_record;
+mod operator;
+use execution_record::{append_commit, next_cursor, query_state};

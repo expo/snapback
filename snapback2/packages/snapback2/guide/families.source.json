@@ -467,5 +467,21 @@
     "wrong": "for m in memberships[conversationId] first 50 by byConversationPrincipal:",
     "right": "cap 50 by conversationId",
     "language": "q"
+  },
+  {
+    "family": "operator",
+    "code": "E_OPERATOR_REQUIRED",
+    "site": "--as system",
+    "guide": "operator/seat",
+    "wrong": "run repair --as system against serve or /api/*",
+    "right": "run it locally against `dev`, or with an `admin` token once `serve`-mode tokens exist"
+  },
+  {
+    "family": "successor",
+    "code": "E_SUCCESSOR_NARROWING",
+    "site": "table.column",
+    "guide": "successor/migrations",
+    "wrong": "apply a required column while stored rows are null",
+    "right": "keep T?, apply, fill through an operator mutation (job in J1b), then declare T and apply again"
   }
 ]

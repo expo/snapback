@@ -1,10 +1,11 @@
 # LLP 1016: The administrative plane — jobs, schedules, and the operator seat for bounded data programs
 
 **Type:** RFC
-**Status:** Draft — revision (a), after the three-family panel of 2026-09-05
-(§12). A proposal: it binds nothing (`rules/RULES.md`: only implemented
-specs bind, and a spec needs an implementer and a date; §10 has neither
-yet). Sequenced entirely after the loop bar by `rules/NOT-DOING.md`.
+**Status:** Draft — revision (a) with the five decisions ruled and an
+implementer and dates (§9, §10); **in implementation** since 2026-09-05
+(author ruling: implement now, ahead of the loop bar; the trade is in
+`rules/NOT-DOING.md` §Moves). Binds lane by lane as each lands
+(`rules/RULES.md`: only implemented specs bind).
 **Systems:** `snapback2/packages/compiler` (the Quarry front end: `job`,
 `chunk`, `schedule … at`, `schedule … every`; the `system` rule word
 removed), `snapback2/crates/snapback2-core` (the operator execution
@@ -21,7 +22,7 @@ session, on a criticism made by a separate reviewing session the same day;
 revision (a) written at the author's instruction to take the panel's
 feedback into account with the orchestrator's own judgement
 **Date:** 2026-09-05
-**Revised:** 2026-09-05 (a — the panel folded: one authority model for the
+**Revised:** 2026-09-05 (a.1 — the five decisions ruled, the author having delegated them to the orchestrator; implementer, lanes, and dates written; the loop-bar sequencing overridden by author ruling); 2026-09-05 (a — the panel folded: one authority model for the
 system principal and the `system` rule word deleted; the job is a sequence
 of sweeps over immutable keys under a captured upper key, with cursor and
 progress as certified engine writes; narrowing moved to successor
@@ -714,51 +715,70 @@ it, with a budget `scripts/measure.mjs --check` can hold:
 | `check` on the chat fixture with two jobs and two schedules | under the 1 s product latency |
 | bytes added to the binary | recorded, no budget |
 
-## 9. Author decisions
+## 9. Author decisions — ruled 2026-09-05
 
-Five, each with the orchestrator's position taken in the text and the
-alternative named.
+The author delegated all five to the orchestrator on 2026-09-05 ("make the
+best decisions you can on the five decisions and implement this"). Each is
+ruled as the text already takes it; the alternative stays recorded so a veto
+has a name.
 
-1. **The authority model (D1).** Taken: the system principal is the owner —
+1. **The authority model (D1).** Ruled: the system principal is the owner —
    total reads, constraints bind, viewer rules do not apply, the `system`
    rule word deleted. Alternative (astra, Muse): jobs under the tables'
    rules with a conservative three-valued proof, plus system visibility for
    reads only. Veto restores the word and the proof and adds `or system`
    grants per table.
-2. **The word `every` (D5).** Taken: `every <Nm|Nh|Nd>` is one duration on
+2. **The word `every` (D5).** Ruled: `every <Nm|Nh|Nd>` is one duration on
    the one schedule kind and is inside `rules/NOT-DOING.md`'s line, which
    forbids a cron *service*; the benchmark's M8 needs it. Alternative:
    period timers exist only as a system-owned row the app re-arms with its
    own mutation — the same mechanism with the sugar removed. Veto removes
    the word, not the mechanism.
-3. **Hosted ad hoc programs (D6).** Taken: yes, under an `admin` token over
-   TLS, persisted, size-capped, off MCP; the panel was 2–1. Alternative
+3. **Hosted ad hoc programs (D6).** Ruled: yes, under an `admin` token over
+   TLS, persisted, size-capped, off MCP; the panel was 2–1. Until LLP 1015
+   H0 lands token admission, `POST /control/run` admits the loopback control
+   secret only, like every other route. Alternative
    (grok): local `--file` only. Veto deletes `POST /control/run`.
-4. **What comes off the doing-list (§1).** Taken as the trade: the `system`
+4. **What comes off the doing-list (§1).** Ruled as the trade: the `system`
    rule word, the client-invoked purge recipe, the `fork` CLI adapter, and
    `persona create`. The author adds the lines to `rules/NOT-DOING.md` when
    commissioning; the honest note is that these are small, and the real
    payment is what §12 lists as cut from the first draft.
-5. **Rename (D4).** Taken: no rename operation; add, fill, drop. Reopen
+5. **Rename (D4).** Ruled: no rename operation; add, fill, drop. Reopen
    when a brief's migration count makes three steps a measured cost.
 
-Sequencing is not a decision: everything here waits for the loop bar.
-The first draft asked for a lane before it; the panel showed the narrowing
-change is not `check`-only and that M7 does not need it.
+**Sequencing (author ruling 2026-09-05): implement now.** The loop-bar
+sequencing of revision (a) is overridden by the author's instruction to
+implement; `rules/NOT-DOING.md` §Moves records what unblocks and what comes
+off. The panel's point stands as a fact, not a gate: the narrowing change
+is not `check`-only, and M7 does not need it.
 
 ## 10. Lanes
 
-Implementer and date: **none** — a proposal until written here. When
-commissioned, three lanes in order, each behind `scripts/test.sh` and the
-measured loop:
+Implementer: **codex `gpt-6-astra` (xhigh)** per the standing roster,
+orchestrated, reviewed by two blind families, and landed by Claude Fable
+5.1. Dates are targets; a lane that slips returns here. Four lanes (J1 is
+split in two so each codex run stays small), each behind `scripts/test.sh`
+and the measured loop:
 
-- **J1 — the seat and the sweep.** D1 (system visibility, the operator
-  entry, the `system` word deleted, the template's two rules to `deny`, LLP
-  1003's `then` under the new model), D2 and D3 (`job`/`chunk`, `_jobs`,
-  the engine writes, the turn policy), D4 (narrowing at application, the
-  pasted fill), `run --file/--wait/--plan/--cancel/--resume`, `trace <job>`,
-  the `job` recipe, the `fork` adapter and `persona create` deleted, LLP
-  1015 D1 amended. **First demonstrations:** a crash-resumable fill during
+| Lane | Worktree | Target |
+| --- | --- | --- |
+| J1a — the seat and narrowing | `~/projects/snapback-s2-c`, `s2/admin-plane` | 2026-09-05 |
+| J1b — jobs | `~/projects/snapback-s2-pay`, `s2/admin-jobs` (from J1a's tip) | 2026-09-06 |
+| J2 — schedules | `~/projects/snapback-s2v`, `s2/admin-schedules` (from J1b) | 2026-09-06 |
+| J3 — rehearsal and routes | `~/projects/snapback-s2`, `s2/admin-rehearsal` (from J1b) | 2026-09-06 |
+
+
+- **J1a — the seat and narrowing.** D1 (system visibility, the operator
+  entry, `--as system` on `run`/`data`/`why`, the `system` word deleted,
+  the template's two rules to `deny`, LLP 1003's `then` under the new
+  model, `_commits.kind = operator`) and D4 (narrowing at application, the
+  pasted fill, the three-step rewrite).
+- **J1b — jobs.** D2 and D3 (`job`/`chunk`, `_jobs`, the engine writes,
+  the turn policy), `run <job>`, `run --file`, `--wait/--plan/--cancel/--resume`,
+  `trace <job>`, `/control/jobs*`, the `job` recipe, `immutable` on the
+  template's `messages`, the `fork` adapter and `persona create` deleted,
+  LLP 1015 D1 amended. **First demonstrations:** a crash-resumable fill during
   continuous chat sends, measured as whole turns; the same fill parked by a
   constraint and resumed.
 - **J2 — schedules.** D5 (`_timers`, `at`, `every`, job targets, occurrence
@@ -830,3 +850,81 @@ membership-gated table.
 **Proposed next step:** a short blind READY check on this revision from two
 families, then the author's rulings on §9, then commissioning after the
 loop bar.
+
+
+**Implementation record — J1a (2026-09-05, codex gpt-6-astra; worktree
+implementation, orchestrator landing pending).** D1 now skips viewer rules
+for system point/range/merge/maintained reads and writes; exhaustion determines
+owner completeness, constraints and trace containment still bind, and the
+system receives no receipt. Proofs: `snapback2/crates/snapback2-core/tests/operator.rs:225`
+(range), `:248` (point), `:260` (deny insert, maintains, trace and ledger),
+`:306` (immutable/unique/update/delete), and
+`snapback2/crates/snapback2-core/src/engine/operator.rs:44` (containment and appendOnly).
+The word is deleted from parser, lowering, runtime, guides, and both chat
+fixtures (`snapback2/packages/compiler/src/quarry-checks.ts:28`); `then`
+writes deny-ruled bookkeeping and settles atomically
+(`snapback2/crates/snapback2/tests/owner_cases/effects.rs:51`). The declared
+operator entry and `--as system` on run/data/why use the secret-protected
+`POST /control/execute`, `/control/data`, and `/control/why`; mutations add
+`_commits.by` and `kind: operator`, reads log op/by, and why reports
+`system-visible` (`snapback2/crates/snapback2/tests/owner_cases/operator.rs:113`,
+`:333`; remote admission: `snapback2/crates/snapback2/src/control.rs:331`).
+D4 admits only outer optional removal with no null/absent rows and otherwise
+returns the count, ten-ID sample and fill skeleton through apply/migrate,
+status and watcher; tests: `snapback2/crates/snapback2-core/tests/successor_narrowing.rs:77`,
+`:99`, `:132`, and `snapback2/crates/snapback2/tests/owner_cases/operator.rs:253`,
+`:351`. Deviations: the new declared-op adapter is `/control/execute` because
+`/control/run` belongs to J3; by defaults to the owner's OS username as validated ledger text (control callers
+may supply by); operator admission never creates a persona. Contrary to the lane brief's
+wire premise, `system` previously named the ordinary `dev:system` persona;
+it is now explicitly refused on `/api/*` and cannot become a persona.
+Ordinary mutation certification still refuses writes derived from a non-uniform
+scan (`certificate_policy.rs:327`); today's fill proof uses declared
+explicit-key operator mutations, leaving system sweep certification to J1b.
+The pasted job rewrite remains prose until that lane. The query-only
+`read_operator` data adapter uses `Checker::check` with default ceilings rather
+than `Generation::certify`; J3's ad hoc path must still match declared admission.
+`Optional(Optional(T)) → Optional(T)` deliberately remains `TypeChange`,
+stricter than D4's `T? → T`; J1b must preserve that boundary. A multi-column
+narrowing refusal reports every null column in `narrowings`, each with its count,
+ten-ID sample, and fill rewrite; the wire's primary site is the first conflict.
+No corpus case carries a system rule. Fix round 1 regenerated the corpus to
+remove serialized `seed_write` after deleting that dead context field; existing
+execution outputs remain unchanged.
+LLP 1001 §4 and LLP 1003 §2 carry dated amendments; no diagnostic code beyond
+§7's existing rows was added.
+
+Verification for this record: final `snapback2/scripts/test.sh` ran 529 Rust
+tests (527 passed), 301 package tests (all passed), 162 evaluator corpus
+cases (all passed), 305 compiler checks (all passed), and doctests (passed).
+Its exit is **1**, solely on the existing `dev --stop` owner tests at
+`snapback2/crates/snapback2/tests/owner.rs:706` and
+`snapback2/crates/snapback2/tests/owner_cases/wire_lifecycle.rs:540`: this
+sandbox denies the `ps` subprocess used by `owner.rs:751` to recognize an
+unreaped exited child. The orchestrator must rerun the gate outside that
+restriction before landing. Caps and ref-check pass; `check` on the chat
+fixture measured 0.526 s wall time (155.87 ms compiler), below one second.
+
+**J1a fix round 1 (2026-09-05).** The removed rule word refuses in equality
+operands and exists/created keys as well as Boolean expressions. Operator `by`
+is validated with the control name validator, and `system` remains reserved.
+Control admission checks loopback before secrets, headers, or bodies. Successful
+operator reads alone are logged. Rejected operator mutations retain their runner
+trace and last attempted write site in the owner log and in `trace latest` until
+a later commit or owner restart; explicit sequence tracing still selects a commit.
+The ordinary viewer mutation wrapper also discards rejection traces in the
+current code (`registry.rs`, `execute_certified`); this fix changes the operator
+path only. `read_operator` remains query-only with the admission distinction above.
+Malformed stored rows encountered during narrowing use `E_SUCCESSOR_ROW_INVALID`.
+`E_ARGS_NAME` has family `args`, site `by`, a valid-name rewrite, and the shipped
+`operator` guide page. Fix-round regression proofs are in the existing core
+`operator.rs` and `successor_narrowing.rs`, owner `owner_cases/operator.rs`,
+`serve.rs` admission tests, and compiler `quarry-checks.ts`.
+
+Fix-round verification: `snapback2/scripts/test.sh` exited 1 with 544 Rust tests
+(542 passed), 301 package tests (all passed), 162 evaluator cases (all passed),
+312 compiler checks (all passed), and passing doctests. The only reds are the
+same two owner-stop tests recorded above; this run directly confirmed `ps` is
+denied by the sandbox. Every new fix-round regression passed. Caps passed; an
+unloaded chat-fixture `check` took 0.542 s wall (154.39 ms compiler). The
+orchestrator must rerun the complete gate outside the `ps` restriction.

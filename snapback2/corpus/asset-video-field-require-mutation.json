@@ -180,8 +180,7 @@
     "new_ids": [
       "outbox-1"
     ],
-    "read_time": null,
-    "seed_write": false
+    "read_time": null
   },
   "receipt": {
     "schema_hash": "9c3dff45212399a85e79a732801969b78bfa03143c48827b3783ecba0d7be7b2",

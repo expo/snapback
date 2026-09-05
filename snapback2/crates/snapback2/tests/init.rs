@@ -476,7 +476,7 @@ fn quarry_clique_sends_a_dm_and_pages_feed_with_an_opaque_cursor() {
     std::fs::remove_dir_all(project.path.join("snapback/tests")).unwrap();
     let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../packages/compiler/fixtures/quarry-clique/snapback");
-    for file in ["schema.q", "chat.q", "social.q"] {
+    for file in ["schema.q", "cards.q", "chat.q", "social.q"] {
         std::fs::copy(fixture.join(file), project.path.join("snapback").join(file)).unwrap();
     }
 

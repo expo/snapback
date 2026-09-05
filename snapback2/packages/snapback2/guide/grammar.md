@@ -15,13 +15,11 @@ table todos:
 ```
 
 Schema uses `use identity [password|guests]`, `table`, `maintain`, and `channel`.
-Tables hold columns, indexes, invariants (`unique`, `immutable`, `cap N
-by cols` — table-block words, not column names), rules, `after insert <-
-exists`, and optionally `retain until-revoked` or `retain delivered-history`
-(default: the former). Absences, uniform-range holes, and tombstones evict under
-both. Only hidden rows differ: the default evicts; `delivered-history` keeps.
-Put the word on the table whose rows can hide. A per-recipient log with immutable
-`.recipient = viewer` never hides, so needs no word. `.` is the row. Maintains
+Tables hold columns, indexes, invariants (`unique`, `immutable`, `cap N by
+cols` — table-block words, not column names), rules, `after insert <- exists`,
+and `retain until-revoked` (default) or `retain delivered-history`.
+Only hidden rows differ: the default evicts; delivered history keeps.
+Absences, uniform-range holes, and tombstones always evict. `.` is the row. Maintains
 count/sum by fields. Channels declare `publish`, `subscribe`, and `ttl Ns`.
 
 Types: `principal`, `id`, table references, `int`, `time`, `bool`,
@@ -34,8 +32,9 @@ query list():
   return todos[viewer] first 50
 ```
 
-Programs are `effect name from module`, `query`, or `mutation`.
+Programs: `effect name from module`, `query`, or `mutation`.
 `shape name = { fields }` applies to a row/page/read or splices as `...name`.
+`shape name from module` imports it; shape-only modules export no operations.
 Statements include bindings, `return`, `require`, `if/else`, bounded `for`,
 `match`, and `emit`; expressions include
 objects, arrays, reads/shapes, `exists`, `#maintain[key]`, four word writes,
@@ -48,6 +47,7 @@ first|last N [by index]`; point reads may use `by index`.
 pageable merge index ends in `id`.
 Equality is total; ordered comparisons need nonoptional operands or direct
 `if x != null:` narrowing. `where` refuses with index/read rewrites. Upserts
-cannot spell `id`. Decimal/money seeds are
+cannot spell `id`. Consumed update/upsert yields a read-visible row or absence;
+ignored writes add no result read. Decimal/money seeds are
 whole units; wire arguments remain minor units. `sorted` is
 `(lo, hi) = sorted(a, b)`. `shape`, `fn`, and `cursor` are reserved bindings.

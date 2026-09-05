@@ -200,8 +200,8 @@ export const notifications = table({
   rules: {
     read: rule.deny(),
     // @ref LLP 1003#2-the-outbox-lifecycle — effect continuations re-enter as system.
-    insert: rule.system(),
-    update: rule.system(),
+    insert: rule.deny(),
+    update: rule.deny(),
     delete: rule.deny(),
   },
   constraints: [{ unique: "byOutbox" }],

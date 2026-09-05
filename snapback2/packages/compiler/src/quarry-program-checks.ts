@@ -1,7 +1,8 @@
+import { deepStrictEqual } from "node:assert";
 import { readFileSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import { ClientStore, type ClosureReceipt, type Context } from "../../evaluator/src/evaluator";
+import { canonicalValue, ClientStore, scopedRuleHash, type ClosureReceipt, type Context, type Value } from "../../evaluator/src/evaluator";
 import type { Program } from "./ir";
 import { lowerProject } from "./project";
 import { rustCheck } from "./rust-check";
@@ -308,6 +309,145 @@ mutation direct(id: secrets, label: text <=40):
       `update id retained platform leakage: ${JSON.stringify(lowered)}`);
   });
 
+  test("Quarry consumed updates and upserts return authorized row snapshots with one evaluation", async () => {
+    const schema = `table rows:
+  owner: principal
+  label: text <=40
+  count: int
+  token: id
+  at: time
+  visible: bool
+  unique byOwner: owner
+  read <- .visible = true
+  insert <- allow
+  update <- allow
+
+table locked:
+  label: text <=40
+  read <- allow
+  update <- deny
+`;
+    const module = `mutation direct(id: rows):
+  row = update rows[id] { label: 'changed', token: new, at: now }
+  return row
+
+mutation indexed(owner: principal):
+  return update rows[owner] { label: 'changed', token: new, at: now }
+
+mutation focal(id: rows):
+  update rows[id] { count: .count + 1 }
+
+mutation ensure(id: rows, owner: principal):
+  return upsert rows[id] { owner, label: 'ensured', count: (.count ?? 0) + 1, token: new, at: now, visible: true }
+
+mutation ensureMinted(owner: principal):
+  return upsert rows[new] { owner, label: 'ensured', count: 1, token: new, at: now, visible: true }
+
+mutation ensureIndexed(owner: principal):
+  return upsert rows[owner] { label: 'ensured', count: (.count ?? 0) + 1, token: new, at: now, visible: true }
+
+mutation snapshots(id: rows):
+  return { first: update rows[id] { count: 1 }, second: update rows[id] { count: 2 } }
+
+mutation revoke(id: rows):
+  return update rows[id] { visible: false }
+
+mutation revokeIndexed(owner: principal):
+  return upsert rows[owner] { label: 'revoked', count: 1, token: new, at: now, visible: false }
+
+mutation blind(id: rows):
+  update rows[id] { label: 'blind write' }
+  return true
+
+mutation denied(id: locked):
+  return update locked[id] { label: 'forbidden' }
+`;
+    await withProject({ "snapback/schema.q": schema, "snapback/writes.q": module }, async (root) => {
+      const lowered = await lowerProject(root);
+      assert(lowered.ok, `write results refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
+      const checked = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema);
+      assert(checked.every((item) => !item.error), `write results did not certify: ${JSON.stringify(checked)}`);
+      assert(!deepKey(operation(lowered.project.programs, "writes.blind").body, "Get"),
+        "discarded write gained a read-authority requirement");
+      assert(lowered.apiDts.includes("RowsRow | null"),
+        `write-result API lost its nullable row type: ${lowered.apiDts}`);
+      const row: Value = { Row: {
+        id: { Id: "row-1" }, owner: { Id: "owner-1" }, label: { String: "original" },
+        count: { Int: 7 }, token: { Id: "original-token" }, at: { Int: 1 }, visible: { Bool: true },
+      } };
+      const receipt: ClosureReceipt = {
+        schema_hash: checked[0]!.certificate!.schema_hash as string,
+        rows: [
+          { table: "rows", id: "row-1", row },
+          { table: "locked", id: "locked-1", row: { Row: { id: { Id: "locked-1" }, label: { String: "original" } } } },
+        ],
+        ranges: [], verdicts: [],
+        absences: [["rows", "byId", [{ Id: "inserted-id" }]], ["rows", "byOwner", [{ Id: "owner-2" }]]],
+      };
+      const context = (args: Context["args"], newIds = ["minted-token"]): Context => ({
+        viewer: "viewer-1", principal_kind: "user", auth_epoch: 1, args,
+        now: 23, read_time: 19, new_ids: newIds,
+      });
+      for (const [name, args] of [
+        ["direct", { id: { Id: "row-1" } }], ["indexed", { owner: { Id: "owner-1" } }],
+      ] as const) {
+        const store = new ClientStore(lowered.project.schema, receipt);
+        const result = store.applyMutation(operation(lowered.project.programs, `writes.${name}`), context(args));
+        const expected: Value = { Row: { ...row.Row, label: { String: "changed" }, token: { Id: "minted-token" }, at: { Int: 23 } } };
+        assert(result.state === "predicted" && canonicalValue(result.execution.result) === canonicalValue(expected),
+          `${name} did not return its stored image: ${JSON.stringify(result)}`);
+        assert(canonicalValue(store.rows("rows")[0]!) === canonicalValue(expected), `${name} returned a different row from storage`);
+      }
+      const focal = new ClientStore(lowered.project.schema, receipt)
+        .applyMutation(operation(lowered.project.programs, "writes.focal"), context({ id: { Id: "row-1" } }, []));
+      assert(focal.execution.result !== "Null" && "Row" in focal.execution.result
+        && JSON.stringify(focal.execution.result.Row.count) === '{"Int":8}', "implicit focal update lost its returned image");
+      for (const [name, args, newIds, expectedId, expectedCount] of [
+        ["ensure", { id: { Id: "row-1" }, owner: { Id: "owner-1" } }, ["minted-token"], "row-1", 8],
+        ["ensure", { id: { Id: "inserted-id" }, owner: { Id: "owner-2" } }, ["minted-token"], "inserted-id", 1],
+        ["ensureMinted", { owner: { Id: "owner-2" } }, ["inserted-id", "minted-token"], "inserted-id", 1],
+        ["ensureIndexed", { owner: { Id: "owner-1" } }, ["minted-token"], "row-1", 8],
+        ["ensureIndexed", { owner: { Id: "owner-2" } }, ["minted-token", "inserted-id"], "inserted-id", 1],
+      ] as Array<[string, Context["args"], string[], string, number]>) {
+        const store = new ClientStore(lowered.project.schema, receipt);
+        const result = store.applyMutation(operation(lowered.project.programs, `writes.${name}`), context(args, newIds));
+        const actual = result.execution.result;
+        assert(result.state === "predicted" && actual !== "Null" && "Row" in actual,
+          `${name} did not return a readable upsert row: ${JSON.stringify(result)}`);
+        assert(JSON.stringify(actual.Row.id) === JSON.stringify({ Id: expectedId })
+          && JSON.stringify(actual.Row.token) === '{"Id":"minted-token"}'
+          && JSON.stringify(actual.Row.count) === JSON.stringify({ Int: expectedCount }),
+        `${name} re-evaluated identity/fields or lost its branch: ${JSON.stringify(actual)}`);
+        assert(store.rows("rows").some((stored) => JSON.stringify(stored) === JSON.stringify(actual)),
+          `${name} returned an image absent from storage`);
+      }
+      const snapshots = new ClientStore(lowered.project.schema, receipt)
+        .applyMutation(operation(lowered.project.programs, "writes.snapshots"), context({ id: { Id: "row-1" } }, []));
+      const snapshot = snapshots.execution.result as { Row: { first: { Row: { count: Value } }; second: { Row: { count: Value } } } };
+      assert(JSON.stringify(snapshot.Row.first.Row.count) === '{"Int":1}'
+        && JSON.stringify(snapshot.Row.second.Row.count) === '{"Int":2}',
+      `a later sibling write changed an earlier result snapshot: ${JSON.stringify(snapshots)}`);
+      for (const [name, args] of [
+        ["revoke", { id: { Id: "row-1" } }], ["revokeIndexed", { owner: { Id: "owner-1" } }],
+      ] as const) {
+        const store = new ClientStore(lowered.project.schema, receipt);
+        const revoked = store.applyMutation(operation(lowered.project.programs, `writes.${name}`), context(args));
+        assert(revoked.state === "predicted" && revoked.execution.result === "Null", `${name} exposed a revoked row`);
+        const blind = store.applyMutation(operation(lowered.project.programs, "writes.blind"), context({ id: { Id: "row-1" } }, []));
+        assert(blind.state === "predicted" && JSON.stringify(blind.execution.result) === '{"Bool":true}',
+          "unreadable row lost its independent write authority");
+        const consumed = store.applyMutation(operation(lowered.project.programs, "writes.direct"), context({ id: { Id: "row-1" } }));
+        assert(consumed.state === "predicted" && consumed.execution.result === "Null", "consumed write exposed an unreadable row");
+      }
+      const locked = new ClientStore(lowered.project.schema, receipt);
+      let denied = "";
+      try { locked.applyMutation(operation(lowered.project.programs, "writes.denied"), context({ id: { Id: "locked-1" } }, [])); }
+      catch (error) { denied = (error as { code: string }).code; }
+      assert(denied === "E_RULE" && JSON.stringify(locked.rows("locked")[0]).includes('"original"'),
+        "consuming an update bypassed its write rule or committed a refused write");
+    });
+  });
+
   test("Quarry maps platform refusals and operation source sites back to .q", async () => {
     const qSchema = readFileSync(resolve(fixtures, "quarry-chat/snapback/schema.q"), "utf8");
     const effect = readFileSync(resolve(fixtures, "quarry-chat/snapback/delivery.ts"), "utf8");
@@ -435,6 +575,46 @@ query different(left: rows, right: rows):
       `optional ordered comparison lost its exact rewrite/site: ${JSON.stringify(result)}`);
   });
 
+  test("Quarry null equality works in either operand position without weakening nominal types", async () => {
+    const types: Array<[string, string, Value]> = [
+      ["amount", "money USD", { Int: 250 }], ["at", "time", { Int: 12 }],
+      ["actor", "principal", { Id: "viewer-1" }], ["row", "rows", { Id: "row-1" }],
+      ["enabled", "bool", { Bool: false }],
+    ];
+    const schema = "table rows:\n  value: int ?\n  public\n";
+    const module = types.map(([name, type]) => `query ${name}(value: ${type} ?):
+  return { left: null = value, right: value = null, different: null != value, self: value = value }
+`).join("\n");
+    await withProject({ "snapback/schema.q": schema, "snapback/absence.q": module }, async (root) => {
+      const lowered = await lowerProject(root);
+      assert(lowered.ok, `symmetric null equality refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
+      assert(rustCheck(lowered.project.programs, "synthetic", lowered.project.schema).every((item) => !item.error),
+        "symmetric null equality did not certify");
+      const store = new ClientStore(lowered.project.schema, { rows: [], ranges: [], absences: [], verdicts: [] });
+      for (const [name, , present] of types) {
+        for (const value of ["Null", present] as const) {
+          const absent = value === "Null";
+          const execution = store.reexecute(operation(lowered.project.programs, `absence.${name}`), {
+            viewer: "viewer-1", principal_kind: "user", auth_epoch: 1,
+            args: { value }, now: 1, new_ids: [], read_time: 1,
+          }).execution;
+          const expected: Value = { Row: {
+            left: { Bool: absent }, right: { Bool: absent }, different: { Bool: !absent }, self: { Bool: true },
+          } };
+          assert(canonicalValue(execution.result) === canonicalValue(expected),
+            `${name} null equality was not symmetric/reflexive: ${JSON.stringify(execution.result)}`);
+        }
+      }
+    });
+    for (const [left, right] of [["money USD ?", "money EUR ?"], ["principal ?", "rows ?"]]) {
+      const result = await withProject({
+        "snapback/schema.q": schema,
+        "snapback/bad.q": `query bad(left: ${left}, right: ${right}):\n  return left = right\n`,
+      }, (root) => lowerProject(root));
+      assert(!result.ok, `optional equality admitted mismatched nominal ${left} and ${right}`);
+    }
+  });
+
   test("Quarry if presence tests narrow only the then-branch binding identity", async () => {
     const schema = "table members:\n  lastReadAt: time ?\n  public\n";
     const watermark = `query reached(id: members, upTo: time):
@@ -543,6 +723,88 @@ query direct(value: time ?, upTo: time):
         && refusal.rewrite.includes("table invariant (after insert <- exists ...)")
         && refusal.rewrite.includes("merge for a fan-in feed"),
       `${name} where lost its honest refusal: ${JSON.stringify(fallback)}`);
+    }
+  });
+
+  test("Quarry filter repairs preserve named keys, ordering, and pageable result provenance", async () => {
+    const schema = `table posts:
+  author: principal
+  visible: bool
+  at: time
+  rank: int
+  by byAuthorAt: author, at, id
+  by byWrongOrder: author, visible, rank, id
+  public
+`;
+    const read = "posts[author = viewer] after c first 2 by byAuthorAt where true = .visible";
+    const source = `query page(c: cursor ?):\n  rows = ${read}\n  return rows { id, at }\n`;
+    const result = compileInline([
+      { fileName: "snapback/schema.q", source: schema },
+      { fileName: "snapback/feed.q", source },
+    ]);
+    assert(!result.ok, "where must still refuse before execution");
+    const schemaRepair = result.diagnostics.find((item) => item.site.startsWith("snapback/schema.q:"));
+    const readRepair = result.diagnostics.find((item) => item.site.startsWith("snapback/feed.q:"));
+    assert(schemaRepair && readRepair, `filter lost its paired repair: ${diagnosticsText(result.diagnostics)}`);
+    const repairedSchema = `${schema}  ${schemaRepair.rewrite.slice(3)}\n`;
+    const repairedSource = source.replace(read, readRepair.rewrite.slice(3));
+    await withProject({ "snapback/schema.q": repairedSchema, "snapback/feed.q": repairedSource }, async (root) => {
+      const lowered = await lowerProject(root);
+      assert(lowered.ok, `applying both repairs did not compile: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
+      const program = operation(lowered.project.programs, "feed.page");
+      const checked = rustCheck([program], "synthetic", lowered.project.schema)[0]!;
+      assert(!checked.error && program.result_page_site,
+        `repaired projection lost certification or continuation: ${JSON.stringify(checked)}`);
+      const receipt: ClosureReceipt = {
+        rows: [
+          ["first", 1, 9, true], ["hidden", 2, 0, false], ["second", 3, 2, true], ["third", 4, 1, true],
+        ].map(([id, at, rank, visible]) => ({ table: "posts", id: String(id), row: { Row: {
+          id: { Id: String(id) }, author: { Id: "viewer-1" }, at: { Int: Number(at) },
+          rank: { Int: Number(rank) }, visible: { Bool: Boolean(visible) },
+        } } })),
+        ranges: [], absences: [], verdicts: [],
+      };
+      const context: Context = { viewer: "viewer-1", principal_kind: "user", auth_epoch: 1,
+        args: { c: "Null" }, now: 1, new_ids: [], read_time: 1 };
+      receipt.ranges.push({ site: "drain.posts", table: "posts", index: "byId", prefix: [],
+        order: "Asc", take: 5, after: null, before: null, gt: null, gte: null, lt: null, lte: null,
+        rule_hash: scopedRuleHash(lowered.project.schema, (lowered.project.schema.tables as any).posts.rules.read),
+        row_ids: receipt.rows.map((row) => row.id), stop: "Exhausted", absence: false, halo: null, n2_key: null });
+      const execution = new ClientStore(lowered.project.schema, receipt).reexecute(program, context, checked.certificate).execution;
+      deepStrictEqual(execution.result, { Array: [
+        { Row: { id: { Id: "first" }, at: { Int: 1 } } },
+        { Row: { id: { Id: "second" }, at: { Int: 3 } } },
+      ] }, "repair changed the requested at order or failed to fill the page");
+      assert(execution.next, "repaired shaped page did not mint a continuation");
+      context.args.c = { String: execution.next };
+      const next = new ClientStore(lowered.project.schema, receipt).reexecute(program, context, checked.certificate).execution;
+      deepStrictEqual(next.result, { Array: [
+        { Row: { id: { Id: "third" }, at: { Int: 4 } } },
+      ] }, "repaired continuation skipped or repeated rows");
+    });
+  });
+
+  test("Quarry filter repairs do not hoist row work or suggest non-scalar indexes", () => {
+    const schema = `table accounts:
+  owner: principal
+  public
+
+table posts:
+  author: principal
+  photo: image <=1000
+  visible: bool
+  at: time
+  by byAuthorAt: author, at, id
+  public
+`;
+    for (const predicate of [".author = .author", ".author = new", ".author = posts['other']!.author", ".author = account.owner", ".photo = photo", ".id = id"]) {
+      const result = compileInline([
+        { fileName: "snapback/schema.q", source: schema },
+        { fileName: "snapback/feed.q", source: `query page(photo: image <=1000, account: accounts, id: posts, c: cursor ?):\n  return posts[viewer] after c first 2 by byAuthorAt where ${predicate}\n` },
+      ]);
+      assert(!result.ok && result.diagnostics.length === 1
+        && result.diagnostics[0]!.rewrite.includes("index whose prefix pins the predicate"),
+      `${predicate} received an unsafe prefix repair: ${JSON.stringify(result)}`);
     }
   });
 

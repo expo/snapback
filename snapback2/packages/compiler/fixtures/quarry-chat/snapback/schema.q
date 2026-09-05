@@ -121,8 +121,8 @@ table notifications:
   providerId: text <=200
   unique byOutbox: outboxId
   read <- deny
-  insert <- system
-  update <- system
+  insert <- deny
+  update <- deny
   delete <- deny
 
 maintain messageCounts = count messages by conversationId:

@@ -366,6 +366,7 @@ fn settle_after_run(
         program: program.name.clone(),
         principal: principal.to_owned(),
         kind: kind.to_owned(),
+        by: None,
         touched: execution.trace.touched.clone(),
         writes: execution.trace.writes.clone(),
         emits: execution.trace.emits.len() as u64,

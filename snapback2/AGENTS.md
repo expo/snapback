@@ -20,7 +20,7 @@ scripts/hermes test -p snapback2-effects   # the engine proof (Ibex 2 + vanilla 
 Using the product from a project (the shim sets `SNAPBACK2_COMPILER`):
 `snapback2 init [dir] [--template todos|chat] [--client react|expo|none] [--json]` (Expo requires chat; Quarry `snapback/*.q`),
 `snapback2 dev` (prints `SNAPBACK_URL=…`, detaches, attaches if running, `--stop`/`--status`),
-`snapback2 check`, `run <op> [args] --as alice`, `test`, `why`, `trace latest`, `data`, `logs`,
+`snapback2 check`, `run <op> [args] --as alice|system`, `test`, `why [--as system]`, `trace latest`, `data [--as system]`, `logs`,
 `persona`, `fork`/`reset`, `guide`.
 
 Gotchas you cannot derive from the code:

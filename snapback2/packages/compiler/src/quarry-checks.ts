@@ -25,6 +25,26 @@ import ts from "typescript";
 
 export function registerQuarryChecks(test: Test, frontend: string): void {
   const fixtures = resolve(frontend, "fixtures");
+  test("removed system rule refuses in the parser with a deny rewrite", () => {
+    for (const rule of [
+      "system", "allow or system", "not system", "(deny or system)",
+      "viewer = system", "system != viewer", "viewer != (system)", "(system) = viewer",
+      "exists records[system]", "exists records[id = (system)]",
+      "created records[system]", "created records[id = (system)]",
+    ]) {
+      const parsed = parseDocument("snapback/schema.q", `table records:\n  value: int\n  insert <- ${rule}\n`);
+      const refusal = parsed.diagnostics.find((item) => item.code === "E_QUARRY_UNSUPPORTED");
+      assert(refusal?.rewrite === "deny", JSON.stringify(parsed.diagnostics));
+      assert(refusal?.message === "the system principal never consults rules; `deny` is what this meant", JSON.stringify(refusal));
+      assert(refusal?.line === 3 && Boolean(refusal.guide), JSON.stringify(refusal));
+      const compiled = compileInline([
+        { fileName: "snapback/schema.q", source: `table records:\n  value: int\n  insert <- ${rule}\n` },
+      ]);
+      assert(!compiled.ok && compiled.diagnostics.some((item) => item.code === "E_QUARRY_UNSUPPORTED" && item.rewrite === "deny" && item.family === "quarry"), JSON.stringify(compiled));
+
+    }
+  });
+
   test("Quarry todos and full surface lower in memory and certify", async () => {
     for (const [name, count] of [["quarry-todos", 2], ["quarry-surface", 26]] as const) {
       const lowered = await lowerProject(resolve(fixtures, name));
@@ -148,6 +168,127 @@ query nested(id: posts):
       assert(!result.ok && result.diagnostics.some((item) => item.code === "E_QUARRY_UNKNOWN" && item.message.includes("reserved")),
         `${keyword} was not reserved as a binding: ${JSON.stringify(result)}`);
     }
+  });
+
+  test("Quarry imported shapes share lexical projections, unique temporaries, and page provenance", async () => {
+    const files = {
+      "snapback/schema.q": `table profiles:
+  displayName: text <=80
+  handle: text <=40
+  friend: profiles ?
+  by byDisplayName: displayName, id
+  public
+`,
+      "snapback/cards.q": `shape card = { displayName }
+shape profileCard = { ...card, friend: .friend card, current: viewer }
+`,
+      "snapback/exports.q": "shape profileCard from cards\n",
+      "snapback/ops.q": `shape profileCard from exports
+shape card = { handle }
+query pair(id: profiles, viewer: principal):
+  row = profiles[id]! else MISSING
+  first = row profileCard
+  second = row profileCard
+  return { first, second }
+query page(c: cursor ?):
+  return profiles[] after c first 2 by byDisplayName profileCard
+`,
+    };
+    const compiled = compileInline(Object.entries(files).map(([fileName, source]) => ({ fileName, source })));
+    assert(compiled.ok, `imported shapes refused: ${compiled.ok ? "" : diagnosticsText(compiled.diagnostics)}`);
+    assert(compiled.modules.length === 1 && compiled.modules[0]!.authored === "snapback/ops.q",
+      "shape-only modules created phantom API modules");
+    await withProject(files, async (root) => {
+      const lowered = await lowerProject(root);
+      assert(lowered.ok, `cross-file/repeated shapes did not lower: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
+      assert(lowered.project.programs.length === 2 && !lowered.apiDts.includes('readonly cards:'),
+        "shape-only modules generated API operations");
+      assert(compiled.modules[0]!.lineMap.some((site) => site?.file === "snapback/cards.q"),
+        "imported reads lost their definition source sites");
+      assert(operation(lowered.project.programs, "ops.page").result_page_site,
+        "imported page projection lost cursor provenance");
+      const checked = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema);
+      assert(checked.every((item) => !item.error), `imported shapes did not certify: ${JSON.stringify(checked)}`);
+      const store = new ClientStore(lowered.project.schema, {
+        rows: [
+          { table: "profiles", id: "one", row: { Row: {
+            id: { Id: "one" }, displayName: { String: "Alice" }, handle: { String: "alice" }, friend: { Id: "two" },
+          } } },
+          { table: "profiles", id: "two", row: { Row: {
+            id: { Id: "two" }, displayName: { String: "Bob" }, handle: { String: "bob" },
+          } } },
+        ], ranges: [], absences: [], verdicts: [],
+      });
+      const actual = store.reexecute(operation(lowered.project.programs, "ops.pair"), {
+        viewer: "actual-viewer", principal_kind: "user", auth_epoch: 1,
+        args: { id: { Id: "one" }, viewer: { Id: "argument-viewer" } }, now: 1, new_ids: [], read_time: 1,
+      }).execution.result;
+      const projected = { Row: {
+        current: { Id: "actual-viewer" }, displayName: { String: "Alice" }, friend: { Row: { displayName: { String: "Bob" } } },
+      } };
+      assert(JSON.stringify(actual) === JSON.stringify({ Row: { first: projected, second: projected } }),
+        `imported shapes captured a caller binding/shape or reused a temporary: ${JSON.stringify(actual)}`);
+    });
+  });
+
+  test("Quarry imported-shape lowering refusals rewrite the definition and identify its caller", async () => {
+    await withProject({
+      "snapback/schema.q": "table accounts:\n  amount: money USD\n  public\n",
+      "snapback/cards.q": "shape card = { total: .amount + 0.001 }\n",
+      "snapback/ops.q": "shape card from cards\nquery one(id: accounts):\n  return accounts[id] card\n",
+    }, async (root) => {
+      const result = await lowerProject(root);
+      const refusal = !result.ok && result.diagnostics.find((item) => item.code === "E_DECIMAL_SCALE");
+      assert(refusal && refusal.site === "snapback/cards.q:1:16"
+        && refusal.rewrite.startsWith("shape card = { total: .amount + 0.001 }")
+        && refusal.message.includes("used at snapback/ops.q:3:"),
+      `lowering refusal did not point to the imported source: ${JSON.stringify(result)}`);
+    });
+  });
+
+  test("Quarry shape imports refuse missing declarations, cycles, captures, and expansion blowups", () => {
+    const schema = "table profiles:\n  displayName: text <=80\n  public\n";
+    const compile = (files: Record<string, string>) => compileInline([
+      { fileName: "snapback/schema.q", source: schema },
+      ...Object.entries(files).map(([fileName, source]) => ({ fileName, source })),
+    ]);
+    const cases: Array<[string, Record<string, string>, string]> = [
+      ["missing module", { "snapback/ops.q": "shape card from missing\n" }, "unknown shape module missing"],
+      ["missing export", { "snapback/cards.q": "shape other = { displayName }\n", "snapback/ops.q": "shape card from cards\n" }, "unknown shape card"],
+      ["duplicate import", { "snapback/cards.q": "shape card = { displayName }\n", "snapback/ops.q": "shape card from cards\nshape card = { displayName }\n" }, "duplicate shape card"],
+      ["import cycle", { "snapback/a.q": "shape card from b\n", "snapback/b.q": "shape card from a\n" }, "shape import cycle"],
+      ["projection cycle", { "snapback/a.q": "shape b from b\nshape a = { ...b }\n", "snapback/b.q": "shape a from a\nshape b = { ...a }\n" }, "shape cycle"],
+      ["direct capture", { "snapback/cards.q": "shape card = { label: argument }\n", "snapback/ops.q": "shape card from cards\nquery one(id: profiles, argument: text <=80):\n  return profiles[id] card\n" }, "cannot capture operation name argument"],
+      ["object shorthand capture", { "snapback/cards.q": "shape card = { nested: { argument } }\n" }, "cannot capture operation name argument"],
+      ["nonimported use", { "snapback/cards.q": "shape card = { displayName }\n", "snapback/ops.q": "query one(id: profiles):\n  return profiles[id] card\n" }, "unknown shape card in snapback/ops.q"],
+    ];
+    for (const [label, files, message] of cases) {
+      const result = compile(files);
+      assert(!result.ok && result.diagnostics.some((item) => item.message.includes(message)
+        && item.site.startsWith("snapback/") && item.rewrite.length > 10 && item.guide.startsWith("quarry/")),
+        `${label} was not a sited actionable refusal: ${JSON.stringify(result)}`);
+    }
+    for (const leaf of ["displayName", ""]) {
+      const declarations = Array.from({ length: 7 }, (_, level) =>
+        `shape s${level} = { ${level === 6 ? leaf : Array.from({ length: 8 }, () => `...s${level + 1}`).join(", ")} }`).join("\n");
+      const result = compile({ "snapback/cards.q": `${declarations}\n` });
+      assert(!result.ok && result.diagnostics.some((item) => item.message.includes("4096 syntax nodes")),
+        `wide ${leaf ? "field" : "empty"} expansion escaped its budget: ${JSON.stringify(result)}`);
+    }
+    const mismatch = compile({
+      "snapback/cards.q": "shape card = { missing }\n",
+      "snapback/ops.q": "shape card from cards\nquery one(id: profiles):\n  return profiles[id] card\n",
+    });
+    assert(!mismatch.ok && mismatch.diagnostics.some((item) => item.site === "snapback/cards.q:1:16"
+      && item.message.includes("used at snapback/ops.q:3:")),
+      `cross-file field refusal lost the definition or use site: ${JSON.stringify(mismatch)}`);
+    const inferredContext = compileInline([
+      { fileName: "snapback/schema.q", source: "table profiles:\n  principal: principal\n  unique byPrincipal: principal\n  public\n" },
+      { fileName: "snapback/cards.q", source: "shape card = { current: profiles[viewer] { principal } }\n" },
+      { fileName: "snapback/ops.q", source: "shape card from cards\nquery one(id: profiles, viewer: text <=80):\n  return profiles[id] card\n" },
+    ]);
+    assert(inferredContext.ok && inferredContext.modules[0]!.source.includes('db.get(profiles.byPrincipal, [ctx.viewer])'),
+      `shape context inference captured the caller argument type: ${JSON.stringify(inferredContext)}`);
   });
 
   test("Quarry accepts word writes and refuses every write sigil with the word forms", () => {

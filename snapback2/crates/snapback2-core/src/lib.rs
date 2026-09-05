@@ -61,8 +61,8 @@ pub use offline::{
 pub use principal::PrincipalId;
 pub use programs::*;
 pub use registry::{
-    ChannelCertificates, ChannelSide, ChannelVerdict, EffectDecl, Generation, ProjectJson,
-    ResetResult, RowRuleVerdict, Runtime,
+    ChannelCertificates, ChannelSide, ChannelVerdict, EffectDecl, Generation, OperatorId,
+    ProjectJson, ResetResult, RowRuleVerdict, Runtime,
 };
 pub use schema::*;
 pub use store::{CommitRecord, OutboxCounts, OutboxRow, Store, TouchedKey};

@@ -1076,8 +1076,7 @@
     },
     "now": null,
     "new_ids": [],
-    "read_time": null,
-    "seed_write": false
+    "read_time": null
   },
   "receipt": {
     "schema_hash": "c9ff98f6c1db7afd399b6181ae926c385424054c5780b2387064de2914362c81",

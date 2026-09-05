@@ -158,6 +158,7 @@ impl Refusal {
 
     pub fn from_identity(error: &IdentityError) -> Self {
         let code = match error {
+            IdentityError::ReservedSystem => "E_AUTH_RESERVED",
             IdentityError::EmailTaken => "E_AUTH_EMAIL_TAKEN",
             IdentityError::PasswordWeak => "E_AUTH_PASSWORD_WEAK",
             IdentityError::Invalid => "E_AUTH_INVALID",
@@ -167,6 +168,9 @@ impl Refusal {
             IdentityError::Crypto(_) => "E_AUTH_CRYPTO",
         };
         let rewrite = match error {
+            IdentityError::ReservedSystem => {
+                "use --as system on run, data, or why against the local dev owner"
+            }
             IdentityError::PasswordWeak => "use a password containing at least 8 characters",
             IdentityError::GuestsOff => "sign up or enable guests in the project's snapback/schema",
             IdentityError::Session => "log in again and send Authorization: Bearer <token>",
@@ -175,8 +179,19 @@ impl Refusal {
         Self::new(code, "auth", error.to_string(), rewrite, "auth/identity")
     }
 
-    pub fn from_successor(error: &SuccessorRefusal) -> Self {
+    pub fn operator_required() -> Self {
         Self::new(
+            "E_OPERATOR_REQUIRED",
+            "operator",
+            "the operator seat requires a local dev control route",
+            "run it locally against `dev`, or with an `admin` token once `serve`-mode tokens exist",
+            "operator/seat",
+        )
+        .with_site("--as system")
+    }
+
+    pub fn from_successor(error: &SuccessorRefusal) -> Self {
+        let mut refusal = Self::new(
             &error.code,
             "successor",
             &error.message,
@@ -194,7 +209,17 @@ impl Refusal {
         .with_detail(
             "capConflicts",
             serde_json::to_value(&error.cap_conflicts).unwrap_or(Json::Array(Vec::new())),
-        )
+        );
+        if let Some(narrowing) = error.narrowings.first() {
+            refusal = refusal
+                .with_site(format!("{}.{}", narrowing.table, narrowing.column))
+                .with_detail("table", json!(narrowing.table))
+                .with_detail("column", json!(narrowing.column))
+                .with_detail("nullRows", json!(narrowing.null_rows))
+                .with_detail("sample", json!(narrowing.sample))
+                .with_detail("narrowings", json!(error.narrowings));
+        }
+        refusal
     }
 }
 

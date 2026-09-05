@@ -32,8 +32,8 @@ function repair(read: Extract<Expr, { kind: "read" }>, catalog: TableCatalog): Q
   const predicateValues: Expr[] = [];
   const seen = new Map<string, string>();
   for (const term of terms) {
-    const column = info.columns.get(term.column);
-    if (!column || !indexable(column)) return [fallback(intent.site)];
+    const column = term.column === "id" ? { kind: "id", optional: false } as const : info.columns.get(term.column);
+    if (!column || !indexable(column) || !stableValue(term.value)) return [fallback(intent.site)];
     const rendered = quarryExpression(term.value);
     const prior = seen.get(term.column);
     if (prior !== undefined) {
@@ -50,8 +50,16 @@ function repair(read: Extract<Expr, { kind: "read" }>, catalog: TableCatalog): Q
     predicateValues.push(term.value);
   }
   const leading = [...prefixColumns, ...predicateColumns];
+  // Pinning a predicate column removes it from the varying order. An index
+  // with the same prefix but a different suffix would silently reorder the feed.
+  const predicateSet = new Set(predicateColumns);
+  const columns = [...leading, ...suffixColumns.filter((column) => !predicateSet.has(column))];
+  if (!base.unique && columns.at(-1) !== "id" && !columns.includes("id")) columns.push("id");
+  if (!base.unique && columns.at(-1) !== "id") return [fallback(intent.site)];
+  if (columns.length > 8 || (read.range.cursor && columns.length === leading.length)) return [fallback(intent.site)];
   const compatible = info.indexes.find((index) => total(index)
-    && leading.every((column, offset) => index.columns[offset] === column));
+    && columns.length === index.columns.length
+    && columns.every((column, offset) => index.columns[offset] === column));
   let selected: IndexDecl;
   let indexLine: string;
   let schemaMessage: string;
@@ -60,11 +68,7 @@ function repair(read: Extract<Expr, { kind: "read" }>, catalog: TableCatalog): Q
     indexLine = renderIndex(compatible);
     schemaMessage = `where repair reuses ${read.table}.${compatible.name} for the read at ${siteText(intent.site)}`;
   } else {
-    const predicateSet = new Set(predicateColumns);
-    const columns = [...leading, ...suffixColumns.filter((column) => !predicateSet.has(column))];
     const unique = base.unique;
-    if (!unique && columns.at(-1) !== "id") columns.push("id");
-    if (columns.length > 8) return [fallback(intent.site)];
     const name = collisionFreeName(columns, info.indexes);
     selected = { name, columns, unique, site: base.site };
     indexLine = renderIndex(selected);
@@ -75,7 +79,10 @@ function repair(read: Extract<Expr, { kind: "read" }>, catalog: TableCatalog): Q
     ...read,
     keys: [
       ...read.keys,
-      ...predicateValues.map((value) => ({ value, site: value.site })),
+      ...predicateValues.map((value, offset) => ({
+        ...(read.keys.some((key) => key.column !== undefined) ? { column: predicateColumns[offset]! } : {}),
+        value, site: value.site,
+      })),
     ],
     index: selected.name,
     range: { ...read.range!, where: undefined },
@@ -87,10 +94,11 @@ function repair(read: Extract<Expr, { kind: "read" }>, catalog: TableCatalog): Q
 }
 
 function baseIndex(read: Extract<Expr, { kind: "read" }>, indexes: IndexDecl[]): IndexDecl | undefined {
-  if (read.index) return indexes.find((index) => index.name === read.index
-    && read.keys.every((key, offset) => key.column === undefined || key.column === index.columns[offset]));
   const named = read.keys.some((key) => key.column !== undefined);
   if (named && read.keys.some((key) => key.column === undefined)) return undefined;
+  if (read.index) return indexes.find((index) => index.name === read.index
+    && read.keys.length <= index.columns.length
+    && read.keys.every((key, offset) => key.column === undefined || key.column === index.columns[offset]));
   const candidates = indexes.filter((index) => index.name !== "byId" && index.columns.length > read.keys.length
     && (!named || read.keys.every((key, offset) => key.column === index.columns[offset])));
   return candidates.length === 1 ? candidates[0] : undefined;
@@ -102,13 +110,27 @@ function equalityTerms(expr: Expr): Array<{ column: string; value: Expr }> | und
     const right = equalityTerms(expr.right);
     return left && right ? [...left, ...right] : undefined;
   }
-  if (expr.kind !== "binary" || expr.op !== "=" || expr.left.kind !== "member" || expr.left.base.kind !== "focal") return undefined;
-  return [{ column: expr.left.name, value: expr.right }];
+  if (expr.kind !== "binary" || expr.op !== "=") return undefined;
+  if (expr.left.kind === "member" && expr.left.base.kind === "focal") return [{ column: expr.left.name, value: expr.right }];
+  if (expr.right.kind === "member" && expr.right.base.kind === "focal") return [{ column: expr.right.name, value: expr.left }];
+  return undefined;
 }
 
 function indexable(type: ScalarType): boolean {
-  const value = type.kind === "list" ? type.item : type;
-  return type.kind !== "list" && value.kind !== "json";
+  return !["list", "json", "image", "video", "cursor"].includes(type.kind);
+}
+
+// A prefix is evaluated once before scanning. Do not move a per-row read,
+// assertion, ID allocation, or focal reference into that position.
+function stableValue(expr: Expr): boolean {
+  if (expr.kind === "literal") return true;
+  if (expr.kind === "name") return expr.name !== "new";
+  // Even a non-focal member can auto-dereference a typed table reference.
+  // Bind that value before the scan if it should be a constant prefix.
+  if (expr.kind === "unary") return stableValue(expr.value);
+  if (expr.kind === "binary") return stableValue(expr.left) && stableValue(expr.right);
+  if (expr.kind === "call" && (expr.name === "min" || expr.name === "max")) return expr.args.every(stableValue);
+  return false;
 }
 
 function total(index: IndexDecl): boolean { return index.unique || index.columns.at(-1) === "id"; }

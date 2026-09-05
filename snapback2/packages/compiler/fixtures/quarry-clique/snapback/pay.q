@@ -1,4 +1,4 @@
-shape authorCard = { displayName, handle }
+shape authorCard from cards
 
 mutation sendMoney(to: users, amount: money USD, note: text <=140 ?):
   require amount > 0 else NOT_POSITIVE

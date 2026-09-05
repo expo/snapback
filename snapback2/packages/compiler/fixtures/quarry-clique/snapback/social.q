@@ -1,6 +1,7 @@
 -- Clique profiles, posts, feeds, follows, and likes regression surface.
 
-shape authorCard = { displayName, handle }
+shape authorCard from cards
+shape feedCard from cards
 
 mutation createProfile(displayName: text <=50, handle: text <=20):
   return insert users { principal: viewer, displayName, handle, followerCount: 0, followingCount: 0 }
@@ -81,28 +82,14 @@ mutation toggleFollow(u: users):
       return true
 
 query globalFeed(c: cursor ?):
-  return feedItems[] after c first 20 by byOrd {
-    id, kind, at, ord, actor, post,
-    reposter: users[principal = .actor] authorCard,
-    item: .post {
-      id, author, body, parent, at, likeCount, replyCount, repostCount,
-      authorProfile: users[principal = .author] authorCard,
-    },
-  }
+  return feedItems[] after c first 20 by byOrd feedCard
 
 -- The Following feed merges the viewer's lane with up to 50 followed actors.
 query followingFeed(c: cursor ?):
   page = merge feedItems after c first 20 by byActorOrd:
     [viewer]
     [f.followed] for f in follows[viewer] first 50 by byFollower
-  return page {
-    id, kind, at, ord, actor, post,
-    reposter: users[principal = .actor] authorCard,
-    item: .post {
-      id, author, body, parent, at, likeCount, replyCount, repostCount,
-      authorProfile: users[principal = .author] authorCard,
-    },
-  }
+  return page feedCard
 
 query thread(p: posts):
   post = posts[p]! else POST_NOT_FOUND

@@ -120,8 +120,7 @@
     },
     "now": 0,
     "new_ids": [],
-    "read_time": null,
-    "seed_write": false
+    "read_time": null
   },
   "receipt": {
     "schema_hash": "41a3b7ce72f04841ad8bfc275facca90679fe242bb64ec6f1f604e2f68169f84",

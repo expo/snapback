@@ -108,7 +108,7 @@ fn clique_pay_runs_exact_money_sends_splits_settlement_and_privacy() {
 
     let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../packages/compiler/fixtures/quarry-clique/snapback");
-    for file in ["schema.q", "chat.q", "social.q", "pay.q"] {
+    for file in ["schema.q", "cards.q", "chat.q", "social.q", "pay.q"] {
         std::fs::copy(fixture.join(file), project.path.join("snapback").join(file)).unwrap();
     }
     std::fs::copy(

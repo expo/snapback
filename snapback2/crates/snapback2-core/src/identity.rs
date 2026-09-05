@@ -151,6 +151,8 @@ pub enum IdentityError {
     EmailTaken,
     #[error("E_AUTH_PASSWORD_WEAK: password must contain at least 8 characters")]
     PasswordWeak,
+    #[error("E_AUTH_RESERVED: system is the owner, not a development persona")]
+    ReservedSystem,
     #[error("E_AUTH_INVALID: invalid email or password")]
     Invalid,
     #[error("E_AUTH_GUESTS_OFF: guest authentication is disabled")]
@@ -274,6 +276,9 @@ impl Runtime {
     }
 
     pub fn ensure_persona(&mut self, name: &str, now: i64) -> Result<Principal, IdentityError> {
+        if name == SYSTEM_PRINCIPAL_ID.as_str() {
+            return Err(IdentityError::ReservedSystem);
+        }
         if name.is_empty() {
             return Err(IdentityError::Invalid);
         }

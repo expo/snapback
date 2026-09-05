@@ -122,6 +122,7 @@ impl State {
                 "send the carrier as ?s= on GET /api/asset/<id>",
                 "auth/asset-session",
             )),
+            Identity::Operator { .. } => Err(Refusal::operator_required()),
             Identity::Anonymous => Err(Refusal::new(
                 "E_AUTH_REQUIRED",
                 "auth",
@@ -471,6 +472,7 @@ mod tests {
                 ),
             ]),
             ledger: VecDeque::new(),
+            operator_rejection: None,
             next_channel: 3,
             clock_offset_ms: 0,
             restarted_through_seq: 0,

@@ -21,7 +21,9 @@ ultra, grok-4.6 at xhigh), `llp/reviews/1011-quarry-ergonomics.*`
 **Implementer:** codex gpt-5.6-sol (xhigh), lane `s2/quarry-ergo`
 (`~/projects/snapback-s2`), orchestrated and landed by Claude Fable 5.1
 **Date:** 2026-09-03
-**Revised:** 2026-09-03 (c — implemented: §8 records the two lane commits
+**Revised:** 2026-09-05 (d — Codex implements imported shapes, read-authorized
+write results, and order-preserving filter repairs under the author's request
+to advance Quarry); 2026-09-03 (c — implemented: §8 records the two lane commits
 and the one re-pinned expectation); 2026-09-03 (b — after the panel: `fn` deferred and `shape` kept;
 B1 gains the corrected mint rule, page provenance through shapes, a typed
 site-free token, the merge anchor and the end-in-`id` rule, `data --after`,
@@ -208,6 +210,19 @@ query thread(conversationId: conversations, c: cursor ?):
 **Cost.** Parser, the expansion pass, printer, guide, tests for cycles and
 depth. No platform change.
 
+### Shape imports and hygiene (2026-09-05)
+
+`shape card from cards` imports the named projection from `cards.q`. A module
+may contain only shapes/imports; it creates no operation or generated API
+namespace. Names remain module-local, including nested shape dependencies in
+the definition. Imports can re-export, but cycles refuse across module
+boundaries. Definitions may use the focal row, context built-ins, and their
+own bounded merge binders; they never capture caller arguments or locals.
+Expanded instances receive distinct temporaries while retaining definition
+and use sites. The depth-8 limit is joined by a 4,096-node expansion bound so
+a broad acyclic shape cannot explode the compilation work. The Clique fixture
+shares its author and feed cards across modules as executed coverage.
+
 ## B3. One missing-row rule; no `id` in an upsert row
 
 **Today.** Four stories. A by-id `delete` of a missing row is a no-op with a
@@ -254,6 +269,20 @@ key-spelling sentence.
 **Cost.** Two engine primitives, the twin, corpus cases for each write form
 on a missing row, the compiler's upsert branch and focal-update code, the
 guide.
+
+### Consumed write results (2026-09-05)
+
+An update or upsert used as a value, including a body's implicit return,
+performs an immediate post-write `Get` by its once-evaluated intrinsic id.
+The value is a snapshot of the row if its read rule admits the caller, else
+absence. A self-revoking write can commit and return absence; asserting the
+result with `! else CODE` instead rolls the mutation back. Returning a result
+never grants read authority merely because write authority was granted.
+An ignored write statement adds no read, preserving write-only operations.
+The existing IR and certificate account for the consumed form's extra read;
+there is no new engine write primitive. Insert keeps its authored-row result;
+delete remains effect-only. The strict `NOT_FOUND` missing-write contract is
+unchanged. This implements the result ergonomics deferred by LLP 1010 §0.
 
 ## B4. Narrowing on `if x != null:`
 
@@ -325,6 +354,16 @@ already uses.
 
 **Cost.** Parser intent, one analyzer, tests for the conjunction, the reuse
 case, and each fallback.
+
+**Repair correctness (2026-09-05).** Equality terms may put the focal column
+on either side. Rewrites preserve all-named or all-positional keys and the
+original varying suffix order after pinning predicate columns. An existing
+index is reusable only when its full column order matches that derivation;
+a matching prefix alone is insufficient. Row-dependent expressions, reads,
+assertions, fresh IDs, and non-scalar asset/list predicates keep the honest
+fallback instead of being hoisted into a prefix. Repaired paged projections
+are compiled, certified, and executed through two pages in the regression
+suite. A caller discards any old token when changing the index.
 
 ## 6a. Cleanup
 

@@ -59,6 +59,9 @@ pub fn run(args: &[String]) -> ExitCode {
 }
 
 fn enrich(trace: Json) -> Json {
+    if trace["kind"] == "operator" && trace["result"]["state"] == "rejected" {
+        return trace;
+    }
     let commit = trace.get("commit").cloned().unwrap_or(Json::Null);
     let program = commit
         .get("program")

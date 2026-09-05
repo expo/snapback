@@ -8,8 +8,8 @@ does not place generated files in `snapback/`. `snapback2 check` writes an inspe
 ## Project
 
 A project has one schema, `snapback/schema.q`. Declarations (`use identity`,
-tables, maintains, channels) belong only there; every other `.q` file contains
-at least one query or mutation and its stem is the API namespace. Thus
+tables, maintains, channels) belong only there. Other `.q` files declare
+operations or reusable shapes; operation stems are API namespaces. Thus
 `snapback/messages.q` exports `api.messages.thread`.
 
 TypeScript under `snapback/` is limited to `seed.ts`, `tests/*.test.ts`, and
@@ -73,7 +73,7 @@ postcondition is `after insert <- exists table[...] [by index]`.
 
 `retain delivered-history` keeps rows that went hidden; the default evicts them.
 
-Rules are `allow`, `deny`, `public`, `system`, `exists`, `created`, `and`,
+Rules are `allow`, `deny`, `public`, `exists`, `created`, `and`,
 `or`, `not`, and `=`/`!=` over `viewer`, literals, `.field`, and channel
 arguments. `created` is insert-only. Table rules omit a binder (`read <- …`);
 `.` is the row, or the candidate image for update. Only `update (old, next)`
@@ -116,10 +116,13 @@ need a complete unique key. Range order is `[after cursor] first|last N
 bare fields, or `name: expression`; nested work stays bounded. Byte ceilings
 bound canonical JSON: a shape is priced by the fields it selects and `*` by
 every column at its declared maximum (text at `4·max + 16` bytes), so focused
-shapes certify larger pages. An operations module may declare
+shapes certify larger pages. A module may declare
 `shape card = { fields }`, use `row card`, `page card`, or a named shape as a
-field value, and splice it with `...card`; expansion keeps definition sites,
-refuses cycles, and is capped at depth 8.
+field value, and splice it with `...card`. `shape card from cards` imports
+from `cards.q`; shape-only modules add no API operations. Nested shapes resolve
+in their defining module. Shapes use the focal row and context built-ins, never
+caller arguments or locals. Expansion retains definition sites, refuses cycles,
+and is bounded by depth 8 and 4,096 expanded nodes.
 
 A pageable query declares `c: cursor ?` and reads `after c`; absent means page
 one. `complete` and `capped` results carry `next`, either a server-minted opaque
@@ -185,9 +188,13 @@ Key expressions are evaluated once. An upsert injects omitted key columns from
 them; a row or patch may spell a key column only with the same expression as
 the key, otherwise `E_QUARRY_TYPE` at that field with a drop-field rewrite. An
 upsert row may not spell `id`: by-id derives it from the key; alternate-key
-keeps a present row's id or mints one on the absent insert branch. Insert yields the inserted row;
-update, upsert, and delete yield no value. Each inserted row expression is
-evaluated once, including inline `new`.
+keeps a present row's id or mints one on the absent insert branch. Insert yields
+the inserted row. Binding or returning an update/upsert reads its result once,
+immediately after the write: a row snapshot, or absence if its read rule denies
+the caller (including self-revocation). Use `! else CODE` to require that view;
+its refusal rolls back the mutation. Ignored update/upsert statements add no
+result read. Delete yields no value. Keys, row expressions, and inline `new`
+are evaluated once. A body's final write expression is an implicit return.
 
 ## Effects
 
@@ -207,40 +214,10 @@ mutation recordNotified(outboxId: id, effect: text <=100, result: json <=1000):
   return true
 ```
 
-`snapback/delivery.ts`:
-
-```ts
-import { effect } from "snapback2";
-import { recordNotified } from "./notifications";
-import { notifications } from "./schema";
-
-const baseHeaders = { accept: "application/json" };
-const requestDefaults = {
-  method: "POST",
-  headers: { ...baseHeaders, "content-type": "application/json" },
-};
-
-export const notify = effect({
-  grants: ["https://api.example.com"],
-  run: async (payload: { to: string; body: string }, { fetch, meta }) => {
-    function identity(value: string) { return value; }
-    const formatter = { format(value: string) { return identity(value); } };
-    const body = [payload.body].map(function keep(value) { return formatter.format(value); })[0];
-    try {
-      const response = await fetch("https://api.example.com/send", {
-        method: requestDefaults.method,
-        headers: { ...requestDefaults.headers, "idempotency-key": meta.id },
-        body: JSON.stringify({ ...payload, body }),
-      });
-      if (!response.ok) throw new Error(`provider ${response.status}`);
-      return { providerId: (await response.json()).id as string };
-    } catch (error) {
-      throw error;
-    }
-  },
-  then: recordNotified,
-});
-```
+`snapback/delivery.ts` imports `recordNotified` from `./notifications` and
+exports `notify = effect({ grants, run, then: recordNotified })`. The `run`
+body performs I/O using its granted `fetch`; `meta.id` is its idempotency key.
+See `snapback2 guide effects` for the executable TypeScript recipe.
 
 `snapback/messages.q`:
 
@@ -301,8 +278,9 @@ The following are refused with `E_QUARRY_UNSUPPORTED`: `schedule`, `where`,
 mutation instead of a schedule; explicit bounded arguments instead of
 device/oblivious state; bounded `for`/`walk` instead of while/recursion. An
 equality-conjunction `where` over indexable columns returns two repairs: the
-schema index line and the indexed prefix read; other predicates name the
+schema index line and the indexed prefix read. Repairs preserve named keys and
+the remaining sort order; row-dependent expressions stay refused. After changing
+an index, restart pagination with an absent cursor. Other predicates name the
 index, invariant (`after insert <- exists …`), or `merge` alternatives.
 
 Writes through a non-unique or incomplete key are index-selection refusals.
-

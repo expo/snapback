@@ -74,5 +74,6 @@ pub(super) fn validate_caps(
         plan: MigrationPlan::default(),
         conflicts: Vec::new(),
         cap_conflicts: conflicts,
+        narrowings: Vec::new(),
     }))
 }

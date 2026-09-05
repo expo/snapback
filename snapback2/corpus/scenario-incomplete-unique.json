@@ -136,8 +136,7 @@
     "new_ids": [
       "local-item"
     ],
-    "read_time": null,
-    "seed_write": false
+    "read_time": null
   },
   "receipt": {
     "schema_hash": "365f3677385033435a366659e82ca57365601c4c40d3cd95bab294e80a4a0b70",

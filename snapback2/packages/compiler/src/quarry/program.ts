@@ -118,7 +118,7 @@ function emitStatement(statement: Stmt, env: Environment, writer: Writer, comple
       env.bindings.set(statement.names[1]!, { code: statement.names[1]!, type: right.type });
     } else {
       const value = emitExpr(statement.value, env, writer);
-      if (value.effectOnly) refuse(statement.site, "update/upsert/delete do not yield a value; bind a following point read instead");
+      if (value.effectOnly) refuse(statement.site, "delete does not yield a value; return a confirmation value after the write");
       const name = statement.names[0]!;
       writer.statement(`const ${name} = ${value.code};`, statement.site);
       env.bindings.set(name, { code: name, type: value.type });
@@ -146,7 +146,7 @@ function emitStatement(statement: Stmt, env: Environment, writer: Writer, comple
     return;
   }
   if (statement.kind === "expr") {
-    const value = emitExpr(statement.value, env, writer);
+    const value = emitExpr(statement.value, env, writer, !!completion);
     if (completion) {
       const code = value.effectOnly ? "null" : value.code;
       if (completion.kind === "return") writer.statement(`return ${code};`, statement.site);
@@ -237,7 +237,7 @@ function finishNull(completion: Completion | undefined, writer: Writer, site: Si
   else writer.statement(`${completion.name} = null;`, site);
 }
 
-function emitExpr(expr: Expr, env: Environment, writer: Writer): Emitted {
+function emitExpr(expr: Expr, env: Environment, writer: Writer, resultUsed = true): Emitted {
   if (expr.kind === "literal") return { code: literalCode(expr), type: literalType(expr) };
   if (expr.kind === "name") return emitName(expr.name, expr.site, env);
   if (expr.kind === "focal") {
@@ -313,11 +313,11 @@ function emitExpr(expr: Expr, env: Environment, writer: Writer): Emitted {
       type: { kind: "sequence", item: { kind: "row", table: expr.table, nullable: false }, max: expr.depth + 1 },
     };
   }
-  return emitWrite(expr, env, writer);
+  return emitWrite(expr, env, writer, resultUsed);
 }
 
 function emitName(name: string, site: Site, env: Environment): Emitted {
-  const binding = env.bindings.get(name);
+  const binding = site.expandedFrom && ["viewer", "now", "commit", "new"].includes(name) ? undefined : env.bindings.get(name);
   if (binding) return { ...binding, type: binding.narrowedType ?? binding.type };
   if (name === "viewer") return { code: "ctx.viewer", type: { kind: "principal", optional: false } };
   if (name === "now") return { code: "ctx.now()", type: { kind: "time", optional: false } };
@@ -339,11 +339,13 @@ function emitBinary(expr: Extract<Expr, { kind: "binary" }>, env: Environment, w
   // @ref LLP 1010#a2-total-equality--program-only — program equality is total;
   // only ordered comparison requires present operands.
   if (["=", "!=", "<", "<=", ">", ">="].includes(expr.op)) {
-    if ((expr.op === "=" || expr.op === "!=") && expr.right.kind === "literal" && expr.right.value === null) {
+    const leftNull = expr.left.kind === "literal" && expr.left.value === null;
+    const rightNull = expr.right.kind === "literal" && expr.right.value === null;
+    if ((expr.op === "=" || expr.op === "!=") && (leftNull || rightNull)) {
       // @ref LLP 1011#b4-narrowing-on-if-x--null — loose null equality is
       // intentional here: optional arguments arrive as undefined, and the
       // generated TypeScript control flow must narrow without an assertion.
-      return { code: `(${left.code} ${expr.op === "=" ? "==" : "!="} null)`, type: boolType() };
+      return { code: `(${leftNull ? right.code : left.code} ${expr.op === "=" ? "==" : "!="} null)`, type: boolType() };
     }
     refuseFractionalInt(expr, left.type, right.type);
     const branded = brandedType(left.type) ?? brandedType(right.type);
@@ -786,7 +788,11 @@ function shapeObject(fields: ShapeField[], focal: Binding, env: Environment, wri
         refuse(field.site, `shape ${field.name} was not expanded`);
       } else {
         const value = emitExpr(field.value, env, writer);
-        properties.push(`${property(field.name)}: ${value.code}`);
+        if (field.site.expandedFrom) {
+          const projected = temporary("shapeField", field.site);
+          writer.statement(`const ${projected} = ${value.code};`, field.site);
+          properties.push(`${property(field.name)}: ${projected}`);
+        } else properties.push(`${property(field.name)}: ${value.code}`);
         types.set(field.name, value.type);
       }
     }
@@ -796,7 +802,7 @@ function shapeObject(fields: ShapeField[], focal: Binding, env: Environment, wri
   }
 }
 
-function emitWrite(expr: Extract<Expr, { kind: "write" }>, env: Environment, writer: Writer): Emitted {
+function emitWrite(expr: Extract<Expr, { kind: "write" }>, env: Environment, writer: Writer, resultUsed: boolean): Emitted {
   const info = env.catalog.get(expr.table);
   if (!info) refuse(expr.site, `unknown table ${expr.table}`);
   if (expr.op === "insert") {
@@ -814,7 +820,7 @@ function emitWrite(expr: Extract<Expr, { kind: "write" }>, env: Environment, wri
   });
   const addressedFields = new Map(index.columns.map((column, offset) => [column, keys[offset]!.code]));
   if (index.name !== "byId" || keys.length !== 1) {
-    return emitIndexedWrite(expr, env, writer, info.columns, index, keys);
+    return emitIndexedWrite(expr, env, writer, info.columns, index, keys, resultUsed);
   }
   const key = keys[0]!;
   if (expr.op === "delete") {
@@ -828,7 +834,7 @@ function emitWrite(expr: Extract<Expr, { kind: "write" }>, env: Environment, wri
   if (!usesFocal && expr.op !== "upsert") {
     const fields = emitFields(writeFields, env, writer, info.columns);
     writer.statement(`db.${expr.op}(${expr.table}, ${key.code}, { ${fields.join(", ")} });`, expr.site);
-    return { code: "null", type: { kind: "unknown" }, effectOnly: true };
+    return writeResult(expr, key.code, resultUsed, writer);
   }
 
   const prior = env.focal;
@@ -851,7 +857,17 @@ function emitWrite(expr: Extract<Expr, { kind: "write" }>, env: Environment, wri
   } finally {
     env.focal = prior;
   }
-  return { code: "null", type: { kind: "unknown" }, effectOnly: true };
+  return writeResult(expr, key.code, resultUsed, writer);
+}
+
+// @ref LLP 1011#b3-one-missing-row-rule-no-id-in-an-upsert-row — write
+// authority is independent of read authority. Only consuming a write adds a
+// post-read, which can be absent after a successful write that revokes access.
+function writeResult(expr: Extract<Expr, { kind: "write" }>, key: string, resultUsed: boolean, writer: Writer): Emitted {
+  if (!resultUsed) return { code: "null", type: { kind: "unknown" }, effectOnly: true };
+  const result = temporary("written", expr.site);
+  writer.statement(`const ${result} = db.get(${expr.table}, ${key});`, expr.site);
+  return { code: result, type: { kind: "row", table: expr.table, nullable: true } };
 }
 
 // @ref LLP 1001#1-store-storers — the engine's write address remains the
@@ -864,6 +880,7 @@ function emitIndexedWrite(
   columns: Map<string, ScalarType>,
   index: IndexDecl,
   keys: Emitted[],
+  resultUsed: boolean,
 ): Emitted {
   const row = temporary("writeRow", expr.site);
   writer.statement(`const ${row} = db.get(${expr.table}.${index.name}, [${keys.map((key) => key.code).join(", ")}]);`, expr.site);
@@ -888,16 +905,16 @@ function emitIndexedWrite(
     } finally {
       env.focal = prior;
     }
-    return { code: "null", type: { kind: "unknown" }, effectOnly: true };
+    return writeResult(expr, `${row}!.id`, resultUsed, writer);
   }
 
   const prior = env.focal;
   env.focal = { code: row, type: { kind: "row", table: expr.table, nullable: true } };
+  const key = temporary("upsertKey", expr.site);
   try {
     // @ref LLP 1011#b3-one-missing-row-rule-no-id-in-an-upsert-row — alternate
     // upsert preserves a present identity and mints only on its absent branch.
     const sourceFields = expr.fields;
-    const key = temporary("upsertKey", expr.site);
     const fields = emitEvaluatedFieldEntries(sourceFields, env, writer, columns, addressedFields);
     const authoredNames = new Set(sourceFields.map((field) => field.name));
     const injected = index.columns.flatMap((column, offset) =>
@@ -911,7 +928,7 @@ function emitIndexedWrite(
   } finally {
     env.focal = prior;
   }
-  return { code: "null", type: { kind: "unknown" }, effectOnly: true };
+  return writeResult(expr, key, resultUsed, writer);
 }
 
 function emitFields(
@@ -1155,7 +1172,8 @@ function assetShapeName(shape: AssetShape): string {
 
 function inferExpr(expr: Expr, env: Environment): ScalarType | undefined {
   if (expr.kind === "name") {
-    const binding = env.bindings.get(expr.name)?.type;
+    const binding = expr.site.expandedFrom && ["viewer", "now", "commit", "new"].includes(expr.name)
+      ? undefined : env.bindings.get(expr.name)?.type;
     if (binding && isScalar(binding)) return binding;
     if (binding?.kind === "row") return { kind: "ref", table: binding.table, optional: binding.nullable };
     if (expr.name === "viewer") return { kind: "principal", optional: false };
@@ -1313,7 +1331,7 @@ function refuseFractionalInt(expr: Extract<Expr, { kind: "binary" }>, left: Valu
 function literalNumber(expr: Expr | undefined): number | undefined { return expr?.kind === "literal" && typeof expr.value === "number" ? expr.value : undefined; }
 function property(value: string): string { return /^[A-Za-z_$][\w$]*$/.test(value) ? value : JSON.stringify(value); }
 function title(value: string): string { return value.length === 0 ? value : value[0]!.toUpperCase() + value.slice(1); }
-function temporary(kind: string, site: Site): string { return `__q_${kind}_${site.line}_${site.col}`; }
+function temporary(kind: string, site: Site): string { return `__q_${kind}_${site.line}_${site.col}${site.expansionId === undefined ? "" : `_s${site.expansionId}`}`; }
 function formatSite(site: Site): string { return `${site.file}:${site.line}:${site.col}`; }
 
 function mentionsFocal(expr: Expr): boolean {
