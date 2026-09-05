@@ -15,6 +15,7 @@ import type {
   ScalarType,
   ShapeDecl,
   ShapeField,
+  ShapeImport,
   Site,
   Stmt,
   TableDecl,
@@ -49,6 +50,7 @@ class Parser {
   private readonly channels: ChannelDecl[] = [];
   private readonly effects: Array<{ name: string; module: string; site: Site }> = [];
   private readonly shapes: ShapeDecl[] = [];
+  private readonly shapeImports: ShapeImport[] = [];
   private readonly programs: ProgramDecl[] = [];
   private identity: Document["identity"];
 
@@ -66,7 +68,7 @@ class Parser {
         else if (this.at("channel")) this.channels.push(this.parseChannel());
         else if (this.at("query") || this.at("mutation")) this.programs.push(this.parseProgram());
         else if (this.at("effect")) this.effects.push(this.parseEffect());
-        else if (this.at("shape")) this.shapes.push(this.parseShapeDeclaration());
+        else if (this.at("shape")) this.parseShapeDeclaration();
         else if (this.at("fn") || this.at("cursor")) unsupported(token, token.value, `${token.value} is reserved for a future Quarry form; rename this declaration`);
         else if (this.at("schedule")) unsupported(token, "schedule", "perform the bounded work in a named mutation invoked by the caller");
         else if (this.at("index") || this.at("unique")) syntax(token, "top-level indexes are invalid; place by/unique inside the table block", "move the index line into its table block");
@@ -85,6 +87,7 @@ class Parser {
       channels: this.channels,
       effects: this.effects,
       shapes: this.shapes,
+      shapeImports: this.shapeImports,
       programs: this.programs,
     };
   }
@@ -333,15 +336,21 @@ class Parser {
     return { kind, name, args, body, site: kindToken };
   }
 
-  private parseShapeDeclaration(): ShapeDecl {
+  private parseShapeDeclaration(): void {
     const site = this.take("shape");
     const name = this.generatedBinding("shape");
+    if (this.maybe("from")) {
+      const module = this.word().value;
+      this.newline();
+      this.shapeImports.push({ name, module, site });
+      return;
+    }
     this.take("=");
     this.take("{");
     const fields = this.parseShapeFields();
     this.take("}");
     this.newline();
-    return { name, fields, site };
+    this.shapes.push({ name, fields, site });
   }
 
   private generatedBinding(kind: "table" | "channel" | "effect" | "operation" | "merge lane" | "shape" | "argument" | "local" | "loop" | "match" | "rule"): string {

@@ -1,6 +1,6 @@
 -- Clique messaging regression surface: DMs, groups, messages, and receipts.
 
-shape authorCard = { displayName, handle }
+shape authorCard from cards
 
 mutation startDm(other: users):
   peer = users[other]! else USER_NOT_FOUND
