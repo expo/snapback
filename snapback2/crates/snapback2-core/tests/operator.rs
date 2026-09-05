@@ -357,7 +357,9 @@ fn operator_sweep_baseline_nonuniform_range_fill_refuses_ordinary_certification(
     let viewer_refusal = Checker::new(&project.schema, Ceilings::default())
         .check(&fill)
         .unwrap_err();
-    assert_eq!(viewer_refusal.code, "E_STRUCTURAL_COUNT");
+    // @ref LLP 1017#32-the-rule — a mutation looping over an uncapped page refuses as a
+    // fan-out first; the count refusal it also earns is second.
+    assert_eq!(viewer_refusal.code, "E_STRUCTURAL_FANOUT");
     project.programs = vec![fill];
     let operator_refusals = Generation::certify(&project, Ceilings::default()).unwrap_err();
     assert!(
