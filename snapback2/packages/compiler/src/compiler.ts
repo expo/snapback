@@ -963,7 +963,7 @@ function lowerValue(node: ts.Expression, env: Environment, hint?: string): Lower
       ], expression: { Variable: rowName } };
     }
     if (ts.isIdentifier(value.expression) && value.expression.text === "mergeByIndex") {
-      return lowerMergeByIndex(value, env, hint, lowerValue, lowerExpr);
+      return lowerMergeByIndex(value, env, hint, lowerValue, lowerBlockCallback);
     }
     if (ts.isIdentifier(value.expression) && ["top", "mergeByTime", "intersectById"].includes(value.expression.text)) {
       return lowerCollectionBuiltin(value.expression.text, value, env, hint);

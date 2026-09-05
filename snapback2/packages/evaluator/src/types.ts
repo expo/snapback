@@ -157,6 +157,9 @@ export interface TraceVerdict {
 }
 
 export interface Trace {
+  examined?: number;
+  steps?: number;
+  rule_probes?: number;
   ranges: TraceRange[];
   absences: TraceAbsence[];
   points: TracePoint[];

@@ -317,6 +317,11 @@ function normalizeExpression(expression: any): any {
       return { [kind]: normalizeRead(data) };
     case "Scan":
       return { Scan: normalizeScan(data) };
+    case "Merge":
+      return { Merge: { ...data, lanes: data.lanes.map(({ setup, ...lane }: any) => ({ ...lane,
+        ...(setup?.length ? { setup: setup.map(normalizeStatement) } : {}),
+        scan: normalizeScan(lane.scan), source: lane.source === null ? null : normalizeScan(lane.source),
+      })) } };
     default:
       return expression;
   }

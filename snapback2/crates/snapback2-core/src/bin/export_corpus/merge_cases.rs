@@ -2,6 +2,7 @@ use super::*;
 
 pub(super) fn add_merge_and_opaque_cursor_cases(cases: &mut Vec<CorpusCase>) {
     add_merge_cases(cases);
+    add_lazy_merge_cases(cases);
     add_opaque_cursor_cases(cases);
 }
 
@@ -427,43 +428,24 @@ fn lane_scan(
 }
 
 fn merged(site: &str, lanes: Vec<Expr>, take: u32) -> Expr {
-    let union = lanes
-        .into_iter()
-        .reduce(|left, right| Expr::Builtin {
-            builtin: Builtin::Concat,
-            args: vec![left, right],
-        })
-        .unwrap_or_else(|| Expr::Array(Vec::new()));
-    let sorted = Expr::Builtin {
-        builtin: Builtin::Sort {
-            keys: vec![
-                SortKey {
-                    field: "at".to_owned(),
-                    order: Order::Asc,
-                },
-                SortKey {
-                    field: "id".to_owned(),
-                    order: Order::Asc,
-                },
-            ],
-        },
-        args: vec![union],
-    };
-    let deduped = Expr::Builtin {
-        builtin: Builtin::DedupeById {
-            site: site.to_owned(),
-            table: "posts".to_owned(),
-        },
-        args: vec![sorted],
-    };
-    Expr::Builtin {
-        builtin: Builtin::Slice,
-        args: vec![
-            deduped,
-            Expr::Literal(Value::Int(0)),
-            Expr::Literal(Value::Int(i64::from(take))),
-        ],
-    }
+    Expr::Merge(Merge {
+        site: site.to_owned(),
+        lanes: lanes
+            .into_iter()
+            .map(|lane| {
+                let Expr::Scan(scan) = lane else {
+                    panic!("merge lane must be a scan")
+                };
+                assert_eq!(scan.take.maximum(), u64::from(take));
+                MergeLane {
+                    setup: Vec::new(),
+                    scan,
+                    source: None,
+                    binding: String::new(),
+                }
+            })
+            .collect(),
+    })
 }
 
 fn merge_program(name: &str, site: &str, lanes: Vec<Expr>, take: u32) -> Program {
@@ -516,25 +498,15 @@ fn for_lane_limit_case(schema: Schema) -> CorpusCase {
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
         result_page_site: None,
-        body: vec![
-            Stmt::Let {
-                name: "union".to_owned(),
-                value: Expr::Array(Vec::new()),
-            },
-            Stmt::For {
-                binding: "follow".to_owned(),
-                domain: LoopDomain::Page(domain),
-                body: vec![Stmt::For {
-                    binding: "post".to_owned(),
-                    domain: LoopDomain::Page(lane),
-                    body: vec![Stmt::Push {
-                        target: "union".to_owned(),
-                        value: var("post"),
-                    }],
-                }],
-            },
-            Stmt::Return(merged(site, vec![var("union")], 3)),
-        ],
+        body: vec![Stmt::Return(Expr::Merge(Merge {
+            site: site.into(),
+            lanes: vec![MergeLane {
+                setup: Vec::new(),
+                scan: lane,
+                source: Some(domain),
+                binding: "follow".into(),
+            }],
+        }))],
     };
     let rows = vec![
         post("a1", "u2", 1),
@@ -711,6 +683,25 @@ fn frozen_query(
     }
     let execution = authoritative(&mut engine, &schema, &program, context.clone());
     assert_eq!(execution.state, expected_state, "{name} state");
+    let certificate = Checker::new(&schema, Ceilings::default())
+        .check(&program)
+        .unwrap();
+    assert!(
+        execution.trace.examined <= certificate.max_examined,
+        "{name} examined"
+    );
+    assert!(
+        execution.trace.examined <= certificate.max_index_entries,
+        "{name} index entries"
+    );
+    assert!(
+        execution.trace.steps <= certificate.max_steps,
+        "{name} steps"
+    );
+    assert!(
+        execution.trace.rule_probes <= certificate.max_rule_probes,
+        "{name} rule probes"
+    );
     let result = execution.result.clone();
     let case = case_from_parts(
         name,
@@ -751,4 +742,171 @@ fn page_row_ids(value: Option<&Value>) -> Vec<&str> {
             .collect(),
         other => panic!("expected pages, got {other:?}"),
     }
+}
+
+fn add_lazy_merge_cases(cases: &mut Vec<CorpusCase>) {
+    let schema = merge_schema();
+    let make = |site: &str, take| {
+        merge_program(
+            site,
+            site,
+            ["u1", "u2", "empty"]
+                .into_iter()
+                .enumerate()
+                .map(|(n, author)| {
+                    lane_scan(&format!("{site}.{n}"), literal_id(author), take, None, site)
+                })
+                .collect(),
+            take,
+        )
+    };
+    let tied = vec![
+        post("a", "u1", 1),
+        post("c", "u1", 1),
+        post("b", "u2", 1),
+        post("d", "u2", 2),
+    ];
+    let case = frozen_query(
+        "merge-ties-and-empty-lane",
+        schema.clone(),
+        tied,
+        make("merge.ties", 2),
+        query_context([]),
+        ExecutionState::Capped,
+    );
+    assert_eq!(row_ids(case.expected.local_result.as_ref()), ["a", "b"]);
+    cases.push(case);
+
+    let mut large = for_lane_limit_case(schema.clone()).program;
+    large.name = "merge.large".into();
+    let Stmt::Return(Expr::Merge(merge)) = &mut large.body[0] else {
+        unreachable!()
+    };
+    merge.lanes[0].source.as_mut().unwrap().take = Bound::Literal(500);
+    merge.lanes[0].scan.take = Bound::Literal(20);
+    let mut own = merge.lanes[0].clone();
+    own.scan.site = "merge.large.self".into();
+    own.scan.prefix = vec![Expr::Input(Input::Viewer)];
+    own.source = None;
+    own.binding.clear();
+    merge.lanes.insert(0, own);
+    let mut rows = vec![post("own", "u1", 1)];
+    for n in 0..500 {
+        let author = format!("actor{n:04}");
+        rows.push((
+            "follows",
+            row([
+                ("id", id(&format!("f{n:04}"))),
+                ("follower", id("u1")),
+                ("followed", id(&author)),
+                ("at", Value::Int(n)),
+            ]),
+        ));
+        rows.push(post(&format!("p{n:04}"), &author, n % 37));
+    }
+    let large = frozen_query(
+        "merge-500-lanes-take-20",
+        schema.clone(),
+        rows,
+        large,
+        query_context([]),
+        ExecutionState::Capped,
+    );
+    assert_eq!(large.certificate.as_ref().unwrap().max_examined, 1025);
+    assert_eq!(
+        large.certificate.as_ref().unwrap().merge_sites[0].max_lanes,
+        501
+    );
+    cases.push(large);
+
+    let mut hidden_schema = schema;
+    hidden_schema
+        .tables
+        .get_mut("posts")
+        .unwrap()
+        .columns
+        .insert("visible".into(), ColumnType::Bool);
+    hidden_schema.tables.get_mut("posts").unwrap().rules.read = RuleExpr::Eq(
+        RuleTerm::Field("visible".into()),
+        RuleTerm::Literal(Value::Bool(true)),
+    );
+    let visible_post = |id: &str, author: &str, visible: bool| {
+        let (table, mut value) = post(id, author, 1);
+        if let Value::Row(fields) | Value::Map(fields) = &mut value {
+            fields.insert("visible".into(), Value::Bool(visible));
+        }
+        (table, value)
+    };
+    let mut hidden_program = make("merge.hidden", 2);
+    hidden_program
+        .args
+        .insert("c".into(), ArgType::Optional(Box::new(ArgType::Cursor)));
+    hidden_program.result_page_site = Some("merge.hidden".into());
+    let Stmt::Return(Expr::Merge(merge)) = &mut hidden_program.body[0] else {
+        unreachable!()
+    };
+    for lane in &mut merge.lanes {
+        lane.scan.after = Some(Box::new(var("c")));
+        lane.scan.opaque_cursor = true;
+    }
+    let before = vec![
+        visible_post("hidden", "u1", false),
+        visible_post("a", "u1", true),
+        visible_post("b", "u2", true),
+        visible_post("c", "u2", true),
+    ];
+    let first_context = query_context([("c", Value::Null)]);
+    let first = execute_seeded(
+        &hidden_schema,
+        &before,
+        &hidden_program,
+        first_context.clone(),
+    );
+    assert_eq!(row_ids(Some(&first.result)), ["a", "b"]);
+    assert!(!first.receipt.rows.iter().any(|row| row.id == "hidden"));
+    let token = first.next.clone().unwrap();
+    cases.push(case_from_parts(
+        "merge-hidden-candidates-capped",
+        "merge",
+        hidden_schema.clone(),
+        hidden_program.clone(),
+        first_context,
+        first.receipt,
+        vec![],
+        None,
+        None,
+    ));
+    // The remaining row loses visibility before the next page; the old cursor grants no authority.
+    let revoked = vec![
+        visible_post("hidden", "u1", false),
+        visible_post("a", "u1", true),
+        visible_post("b", "u2", true),
+        visible_post("c", "u2", false),
+    ];
+    let second_context = query_context([("c", Value::String(token))]);
+    let second = execute_seeded(
+        &hidden_schema,
+        &revoked,
+        &hidden_program,
+        second_context.clone(),
+    );
+    assert!(row_ids(Some(&second.result)).is_empty());
+    assert!(
+        second
+            .trace
+            .ranges
+            .iter()
+            .any(|r| r.examined_ids.iter().any(|id| id == "c"))
+    );
+    cases.push(case_from_parts(
+        "merge-revocation-between-pages",
+        "merge",
+        hidden_schema,
+        hidden_program,
+        second_context,
+        second.receipt,
+        vec![],
+        None,
+        None,
+    ));
 }

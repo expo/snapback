@@ -123,109 +123,64 @@
     "body": [
       {
         "Return": {
-          "Builtin": {
-            "builtin": "Slice",
-            "args": [
+          "Merge": {
+            "site": "opaque-cursor-merge-capped-token",
+            "lanes": [
               {
-                "Builtin": {
-                  "builtin": {
-                    "DedupeById": {
-                      "site": "opaque-cursor-merge-capped-token",
-                      "table": "posts"
-                    }
-                  },
-                  "args": [
+                "scan": {
+                  "site": "opaque-cursor-merge-capped-token.a",
+                  "table": "posts",
+                  "index": "byAuthorAt",
+                  "prefix": [
                     {
-                      "Builtin": {
-                        "builtin": {
-                          "Sort": {
-                            "keys": [
-                              {
-                                "field": "at",
-                                "order": "Asc"
-                              },
-                              {
-                                "field": "id",
-                                "order": "Asc"
-                              }
-                            ]
-                          }
-                        },
-                        "args": [
-                          {
-                            "Builtin": {
-                              "builtin": "Concat",
-                              "args": [
-                                {
-                                  "Scan": {
-                                    "site": "opaque-cursor-merge-capped-token.a",
-                                    "table": "posts",
-                                    "index": "byAuthorAt",
-                                    "prefix": [
-                                      {
-                                        "Literal": {
-                                          "Id": "u1"
-                                        }
-                                      }
-                                    ],
-                                    "order": "Asc",
-                                    "take": {
-                                      "Literal": 2
-                                    },
-                                    "after": {
-                                      "Variable": "c"
-                                    },
-                                    "before": null,
-                                    "range": null,
-                                    "opaque_cursor": true,
-                                    "merge_site": "opaque-cursor-merge-capped-token",
-                                    "provenance": "Arg"
-                                  }
-                                },
-                                {
-                                  "Scan": {
-                                    "site": "opaque-cursor-merge-capped-token.b",
-                                    "table": "posts",
-                                    "index": "byAuthorAt",
-                                    "prefix": [
-                                      {
-                                        "Literal": {
-                                          "Id": "u2"
-                                        }
-                                      }
-                                    ],
-                                    "order": "Asc",
-                                    "take": {
-                                      "Literal": 2
-                                    },
-                                    "after": {
-                                      "Variable": "c"
-                                    },
-                                    "before": null,
-                                    "range": null,
-                                    "opaque_cursor": true,
-                                    "merge_site": "opaque-cursor-merge-capped-token",
-                                    "provenance": "Arg"
-                                  }
-                                }
-                              ]
-                            }
-                          }
-                        ]
+                      "Literal": {
+                        "Id": "u1"
                       }
                     }
-                  ]
-                }
+                  ],
+                  "order": "Asc",
+                  "take": {
+                    "Literal": 2
+                  },
+                  "after": {
+                    "Variable": "c"
+                  },
+                  "before": null,
+                  "range": null,
+                  "opaque_cursor": true,
+                  "merge_site": "opaque-cursor-merge-capped-token",
+                  "provenance": "Arg"
+                },
+                "source": null,
+                "binding": ""
               },
               {
-                "Literal": {
-                  "Int": 0
-                }
-              },
-              {
-                "Literal": {
-                  "Int": 2
-                }
+                "scan": {
+                  "site": "opaque-cursor-merge-capped-token.b",
+                  "table": "posts",
+                  "index": "byAuthorAt",
+                  "prefix": [
+                    {
+                      "Literal": {
+                        "Id": "u2"
+                      }
+                    }
+                  ],
+                  "order": "Asc",
+                  "take": {
+                    "Literal": 2
+                  },
+                  "after": {
+                    "Variable": "c"
+                  },
+                  "before": null,
+                  "range": null,
+                  "opaque_cursor": true,
+                  "merge_site": "opaque-cursor-merge-capped-token",
+                  "provenance": "Arg"
+                },
+                "source": null,
+                "binding": ""
               }
             ]
           }
@@ -235,7 +190,7 @@
   },
   "certificate": {
     "program": "opaque-cursor-merge-capped-token",
-    "plan_hash": "d01da20b0eb2eea2d76b9ef468763392adb50d44246511cee7d664bcd6646f05",
+    "plan_hash": "1a9c372b55533965e742f282e297a08d9789aff4cebc29b8b1b3ad81ff512e0a",
     "schema_hash": "f7c842236978e842a20695dbea23d49d1277bd8bdbc0c342ee6422331cb188f8",
     "tables": {
       "follows": {
@@ -281,7 +236,9 @@
           "opaque-cursor-merge-capped-token.a",
           "opaque-cursor-merge-capped-token.b"
         ],
-        "take": 2
+        "take": 2,
+        "max_lanes": 2,
+        "uniform": true
       }
     ],
     "result_page_site": {
@@ -304,13 +261,13 @@
     "write_sites": [],
     "maintained_amplification": 0,
     "constraint_checks": [],
-    "max_examined": 8,
-    "max_index_entries": 8,
+    "max_examined": 6,
+    "max_index_entries": 6,
     "max_rule_probes": 0,
-    "max_steps": 53,
-    "max_heap_bytes": 1696,
+    "max_steps": 96,
+    "max_heap_bytes": 3072,
     "max_output_bytes": 718,
-    "max_closure_bytes": 1408,
+    "max_closure_bytes": 704,
     "completeness": "Page",
     "prediction_sites": [],
     "read_time_granularity_ms": null,
@@ -319,7 +276,7 @@
       "posts.byAuthorAt"
     ],
     "disclosures": [],
-    "bound_product": "merge opaque-cursor-merge-capped-token: 1 lanes × (2 + 2) at opaque-cursor-merge-capped-token.a on posts = 4 + merge opaque-cursor-merge-capped-token: 1 lanes × (2 + 2) at opaque-cursor-merge-capped-token.b on posts = 4"
+    "bound_product": "merge opaque-cursor-merge-capped-token: 2 lanes heads + 2 advances + 2 lookahead × 1 calls (opaque-cursor-merge-capped-token.a × 1; opaque-cursor-merge-capped-token.b × 1) = 6"
   },
   "context": {
     "viewer": "u1",
@@ -424,12 +381,27 @@
         "lte": null,
         "rule_hash": "fd79905c6b2537749a4f00979344bce28f421b3d1fee4a30a4fbf41e3fc8f8a6",
         "row_ids": [
-          "a1",
-          "a3"
+          "a1"
         ],
-        "stop": "Exhausted",
+        "stop": "Limit",
         "absence": false,
-        "halo": null,
+        "halo": {
+          "table": "posts",
+          "id": "a3",
+          "row": {
+            "Row": {
+              "at": {
+                "Int": 3
+              },
+              "author": {
+                "Id": "u1"
+              },
+              "id": {
+                "Id": "a3"
+              }
+            }
+          }
+        },
         "n2_key": null
       },
       {
@@ -451,12 +423,27 @@
         "lte": null,
         "rule_hash": "fd79905c6b2537749a4f00979344bce28f421b3d1fee4a30a4fbf41e3fc8f8a6",
         "row_ids": [
-          "b2",
-          "b4"
+          "b2"
         ],
-        "stop": "Exhausted",
+        "stop": "Limit",
         "absence": false,
-        "halo": null,
+        "halo": {
+          "table": "posts",
+          "id": "b4",
+          "row": {
+            "Row": {
+              "at": {
+                "Int": 4
+              },
+              "author": {
+                "Id": "u2"
+              },
+              "id": {
+                "Id": "b4"
+              }
+            }
+          }
+        },
         "n2_key": null
       }
     ],
@@ -503,10 +490,10 @@
     "digest": "825576cf53daac31ac3b88e9cdc4028c4404e16f44bd4756553070384ab15827",
     "rangeStops": {
       "opaque-cursor-merge-capped-token.a": [
-        "exhausted"
+        "limit"
       ],
       "opaque-cursor-merge-capped-token.b": [
-        "exhausted"
+        "limit"
       ]
     },
     "evictedRows": null,

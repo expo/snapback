@@ -29,7 +29,7 @@ table posts:
 "#,
             r#"query feed():
   page = merge posts last 20 by byAuthorTime:
-    [f.followed] for f in follows[viewer] first 500 by byFollower
+    [f.followed] for f in follows[viewer] first 6000 by byFollower
   return page
 "#,
             "E_BOUND",
@@ -233,7 +233,7 @@ table posts:
         root.join("snapback/feed.q"),
         r#"query feed():
   page = merge posts last 20 by byAuthorTime:
-    [f.followed] for f in follows[viewer] first 500 by byFollower
+    [f.followed] for f in follows[viewer] first 6000 by byFollower
   return page
 "#,
     )
@@ -256,7 +256,7 @@ table posts:
     assert!(
         examined
             .message
-            .contains("product: merge snapback/feed.q:2:10: 500 lanes × (20 + 2)"),
+            .contains("merge snapback/feed.q:2:10: 6000 lanes heads"),
         "{examined:?}"
     );
     assert!(
@@ -268,7 +268,7 @@ table posts:
     assert!(
         output
             .message
-            .contains("product: merge snapback/feed.q:2:10: posts first 20 after merge ×"),
+            .contains("product: merge snapback/feed.q:2:10: emitted page"),
         "{output:?}"
     );
     assert!(!output.message.contains("10000 repetitions"), "{output:?}");
@@ -286,6 +286,140 @@ table posts:
             .contains("widest nested collection")
     );
     assert_ne!(examined.rewrite, output.rewrite);
+    drop(worker);
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn quarry_following_twenty_with_five_hundred_follows_certifies_and_runs_with_card_reads() {
+    use snapback2_core::{Actor, Context, Engine, object};
+    let root = std::env::temp_dir().join(format!("snapback2-following-500-{}", std::process::id()));
+    fs::create_dir_all(root.join("snapback")).unwrap();
+    fs::write(
+        root.join("snapback/schema.q"),
+        r#"table follows:
+  follower: principal
+  followed: principal
+  unique byPair: follower, followed
+  public
+
+table profiles:
+  principal: principal
+  name: text <=40
+  unique byPrincipal: principal
+  public
+
+table posts:
+  author: principal
+  text: text <=500
+  parent: posts ?
+  at: time
+  by byParent: parent, at, id
+  public
+
+table entries:
+  author: principal
+  post: posts
+  repost: bool
+  at: time
+  unique byAuthorPost: author, post
+  by byAuthorTime: author, at, id
+  public
+
+table likes:
+  author: principal
+  post: posts
+  unique byPair: author, post
+  public
+
+maintain likeCounts = count likes by post:
+  read <- allow
+maintain entryCounts = count entries by post:
+  read <- allow
+maintain replyCounts = count posts by parent:
+  read <- allow
+"#,
+    )
+    .unwrap();
+    fs::write(root.join("snapback/posts.q"), r#"shape postCard = { *, authorProfile: profiles[.author], likes: #likeCounts[.id], entries: #entryCounts[.id], replies: #replyCounts[.id], liked: exists likes[viewer, .id], reposted: exists entries[viewer, .id] }
+shape entryCard = { id, author, post, repost, at, actor: profiles[.author], content: posts[.post] postCard }
+query following(c: cursor ?):
+  page = merge entries after c last 20 by byAuthorTime:
+    [viewer]
+    [f.followed] for f in follows[viewer] first 500 by byPair
+  return page entryCard
+"#).unwrap();
+    let compiler = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../packages/snapback2/dist/compiler.mjs");
+    let mut worker = CompilerWorker::spawn_path(compiler).unwrap();
+    let compiled = worker.compile(&root).unwrap();
+    let (program, certificate) = &compiled.generation.programs()["posts.following"];
+    assert_eq!(certificate.max_examined, 502 + 501 + 22 + 160);
+    let mut engine = Engine::memory(compiled.project.schema.clone()).unwrap();
+    for n in 0..500 {
+        let author = Value::Id(format!("actor{n:04}"));
+        let post = Value::Id(format!("post{n:04}"));
+        engine
+            .seed(
+                "follows",
+                object([
+                    ("id", Value::Id(format!("f{n:04}"))),
+                    ("follower", Value::Id("viewer".into())),
+                    ("followed", author.clone()),
+                ]),
+            )
+            .unwrap();
+        engine
+            .seed(
+                "profiles",
+                object([
+                    ("id", Value::Id(format!("profile{n:04}"))),
+                    ("principal", author.clone()),
+                    ("name", Value::String("Actor".into())),
+                ]),
+            )
+            .unwrap();
+        engine
+            .seed(
+                "posts",
+                object([
+                    ("id", post.clone()),
+                    ("author", author.clone()),
+                    ("text", Value::String("Following feed".into())),
+                    ("at", Value::Int(n)),
+                ]),
+            )
+            .unwrap();
+        engine
+            .seed(
+                "entries",
+                object([
+                    ("id", Value::Id(format!("e{n:04}"))),
+                    ("author", author),
+                    ("post", post),
+                    ("repost", Value::Bool(false)),
+                    ("at", Value::Int(n)),
+                ]),
+            )
+            .unwrap();
+    }
+    let execution = engine
+        .execute(
+            program,
+            certificate,
+            Context::query(
+                Actor::new("viewer", "user").unwrap(),
+                BTreeMap::from([("c".into(), Value::Null)]),
+            ),
+        )
+        .unwrap();
+    let rows = execution.result.as_array().unwrap();
+    assert_eq!(rows.len(), 20);
+    assert_eq!(rows[0].field("id").unwrap(), &Value::Id("e0499".into()));
+    assert_eq!(rows[19].field("id").unwrap(), &Value::Id("e0480".into()));
+    assert!(execution.trace.examined <= certificate.max_examined);
+    assert!(execution.trace.steps <= certificate.max_steps);
+    assert!(execution.next.is_some());
     drop(worker);
     fs::remove_dir_all(root).unwrap();
 }

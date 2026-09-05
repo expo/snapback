@@ -118,101 +118,56 @@
     "body": [
       {
         "Return": {
-          "Builtin": {
-            "builtin": "Slice",
-            "args": [
+          "Merge": {
+            "site": "merge.complete",
+            "lanes": [
               {
-                "Builtin": {
-                  "builtin": {
-                    "DedupeById": {
-                      "site": "merge.complete",
-                      "table": "posts"
-                    }
-                  },
-                  "args": [
+                "scan": {
+                  "site": "merge.complete.self",
+                  "table": "posts",
+                  "index": "byAuthorAt",
+                  "prefix": [
                     {
-                      "Builtin": {
-                        "builtin": {
-                          "Sort": {
-                            "keys": [
-                              {
-                                "field": "at",
-                                "order": "Asc"
-                              },
-                              {
-                                "field": "id",
-                                "order": "Asc"
-                              }
-                            ]
-                          }
-                        },
-                        "args": [
-                          {
-                            "Builtin": {
-                              "builtin": "Concat",
-                              "args": [
-                                {
-                                  "Scan": {
-                                    "site": "merge.complete.self",
-                                    "table": "posts",
-                                    "index": "byAuthorAt",
-                                    "prefix": [
-                                      {
-                                        "Input": "Viewer"
-                                      }
-                                    ],
-                                    "order": "Asc",
-                                    "take": {
-                                      "Literal": 3
-                                    },
-                                    "after": null,
-                                    "before": null,
-                                    "range": null,
-                                    "merge_site": "merge.complete",
-                                    "provenance": "Const"
-                                  }
-                                },
-                                {
-                                  "Scan": {
-                                    "site": "merge.complete.peer",
-                                    "table": "posts",
-                                    "index": "byAuthorAt",
-                                    "prefix": [
-                                      {
-                                        "Literal": {
-                                          "Id": "u2"
-                                        }
-                                      }
-                                    ],
-                                    "order": "Asc",
-                                    "take": {
-                                      "Literal": 3
-                                    },
-                                    "after": null,
-                                    "before": null,
-                                    "range": null,
-                                    "merge_site": "merge.complete",
-                                    "provenance": "Const"
-                                  }
-                                }
-                              ]
-                            }
-                          }
-                        ]
+                      "Input": "Viewer"
+                    }
+                  ],
+                  "order": "Asc",
+                  "take": {
+                    "Literal": 3
+                  },
+                  "after": null,
+                  "before": null,
+                  "range": null,
+                  "merge_site": "merge.complete",
+                  "provenance": "Const"
+                },
+                "source": null,
+                "binding": ""
+              },
+              {
+                "scan": {
+                  "site": "merge.complete.peer",
+                  "table": "posts",
+                  "index": "byAuthorAt",
+                  "prefix": [
+                    {
+                      "Literal": {
+                        "Id": "u2"
                       }
                     }
-                  ]
-                }
-              },
-              {
-                "Literal": {
-                  "Int": 0
-                }
-              },
-              {
-                "Literal": {
-                  "Int": 3
-                }
+                  ],
+                  "order": "Asc",
+                  "take": {
+                    "Literal": 3
+                  },
+                  "after": null,
+                  "before": null,
+                  "range": null,
+                  "merge_site": "merge.complete",
+                  "provenance": "Const"
+                },
+                "source": null,
+                "binding": ""
               }
             ]
           }
@@ -222,7 +177,7 @@
   },
   "certificate": {
     "program": "merge.complete",
-    "plan_hash": "d189d73a0bf048484914c6ed0c0a9732da8f711315fe9822687c1d3b7c37654c",
+    "plan_hash": "a0522e14d696b5c65d469fdaee027ccb4124b4a063e1e79d53a19d31cced07b5",
     "schema_hash": "f7c842236978e842a20695dbea23d49d1277bd8bdbc0c342ee6422331cb188f8",
     "tables": {
       "follows": {
@@ -268,19 +223,21 @@
           "merge.complete.peer",
           "merge.complete.self"
         ],
-        "take": 3
+        "take": 3,
+        "max_lanes": 2,
+        "uniform": true
       }
     ],
     "write_sites": [],
     "maintained_amplification": 0,
     "constraint_checks": [],
-    "max_examined": 10,
-    "max_index_entries": 10,
+    "max_examined": 7,
+    "max_index_entries": 7,
     "max_rule_probes": 0,
-    "max_steps": 61,
-    "max_heap_bytes": 1952,
+    "max_steps": 109,
+    "max_heap_bytes": 3488,
     "max_output_bytes": 1071,
-    "max_closure_bytes": 2112,
+    "max_closure_bytes": 1056,
     "completeness": "Page",
     "prediction_sites": [],
     "read_time_granularity_ms": null,
@@ -289,7 +246,7 @@
       "posts.byAuthorAt"
     ],
     "disclosures": [],
-    "bound_product": "merge merge.complete: 1 lanes × (3 + 2) at merge.complete.peer on posts = 5 + merge merge.complete: 1 lanes × (3 + 2) at merge.complete.self on posts = 5"
+    "bound_product": "merge merge.complete: 2 lanes heads + 3 advances + 2 lookahead × 1 calls (merge.complete.self × 1; merge.complete.peer × 1) = 7"
   },
   "context": {
     "viewer": "u1",

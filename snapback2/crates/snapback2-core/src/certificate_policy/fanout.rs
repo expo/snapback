@@ -143,6 +143,9 @@ struct Flow<'a> {
 impl Flow<'_> {
     fn expr(&self, expr: &Expr) -> Origin {
         match expr {
+            Expr::Merge(merge) => {
+                Origin::Merge(merge.lanes.iter().map(|lane| lane.scan.clone()).collect())
+            }
             Expr::Scan(scan) if scan.merge_site.is_some() => Origin::Merge(vec![scan.clone()]),
             Expr::Scan(scan) => Origin::Page(scan.clone()),
             Expr::Variable(name) => self
@@ -152,10 +155,6 @@ impl Flow<'_> {
                 .unwrap_or(Origin::Unknown(Vec::new())),
             Expr::Array(values) if values.is_empty() => Origin::Empty,
             Expr::Literal(Value::Array(values)) if values.is_empty() => Origin::Empty,
-            Expr::Builtin {
-                builtin: Builtin::DedupeById { .. },
-                args,
-            } => Origin::Merge(args.iter().flat_map(|a| self.expr(a).scans()).collect()),
             Expr::Builtin { args, .. } | Expr::Array(args) => args
                 .iter()
                 .fold(Origin::Other, |origin, arg| origin.join(self.expr(arg)))

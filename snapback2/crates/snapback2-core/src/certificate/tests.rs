@@ -69,23 +69,36 @@ fn merge_refusal_names_lanes_discovery_and_structural_repairs() {
     let schema = schema();
     let mut lane = scan("messages", 20);
     lane.merge_site = Some("feed.merge".into());
-    let p = program(vec![Stmt::For {
-        binding: "f".into(),
-        domain: LoopDomain::Page(scan("follows", 500)),
-        body: vec![Stmt::Let {
-            name: "page".into(),
-            value: Expr::Scan(lane),
+    let p = program(vec![Stmt::Return(Expr::Merge(Merge {
+        site: "feed.merge".into(),
+        lanes: vec![MergeLane {
+            setup: Vec::new(),
+            scan: lane,
+            source: Some(scan("follows", 500)),
+            binding: "f".into(),
         }],
-    }]);
-    let errors = Checker::new(&schema, Ceilings::default())
-        .check_all(&p)
-        .unwrap_err();
+    }))]);
+    let certificate = Checker::new(&schema, Ceilings::default())
+        .check(&p)
+        .unwrap();
+    assert_eq!(certificate.max_examined, 1024);
+    assert_eq!(certificate.merge_sites[0].max_lanes, 500);
+    let errors = Checker::new(
+        &schema,
+        Ceilings {
+            examined: 1000,
+            index_entries: 1000,
+            ..Ceilings::default()
+        },
+    )
+    .check_all(&p)
+    .unwrap_err();
     for meter in ["examined entries", "index entries"] {
         let error = errors
             .iter()
             .find(|e| e.message.starts_with(meter))
             .unwrap();
-        assert!(error.message.contains("500 lanes × (20 + 2)"), "{error}");
+        assert!(error.message.contains("500 lanes heads"), "{error}");
         assert!(
             error
                 .message
@@ -243,7 +256,15 @@ fn output_merge_scan_names_the_structural_repair() {
     let mut lane = scan("messages", 500);
     lane.merge_site = Some("wide.merge".into());
     let errors = Checker::new(&schema, Ceilings::default())
-        .check_all(&program(vec![Stmt::Return(Expr::Scan(lane))]))
+        .check_all(&program(vec![Stmt::Return(Expr::Merge(Merge {
+            site: "wide.merge".into(),
+            lanes: vec![MergeLane {
+                setup: Vec::new(),
+                scan: lane,
+                source: None,
+                binding: String::new(),
+            }],
+        }))]))
         .unwrap_err();
     let error = errors
         .iter()
@@ -260,25 +281,21 @@ fn simultaneous_merge_work_and_output_refusals_keep_their_own_products() {
     let schema = schema();
     let mut lane = scan("messages", 20);
     lane.merge_site = Some("feed.merge".into());
-    let p = program(vec![
-        Stmt::Let {
-            name: "result".into(),
-            value: Expr::Array(vec![]),
-        },
-        Stmt::For {
+    let p = program(vec![Stmt::Return(Expr::Merge(Merge {
+        site: "feed.merge".into(),
+        lanes: vec![MergeLane {
+            setup: Vec::new(),
+            scan: lane,
+            source: Some(scan("follows", 500)),
             binding: "f".into(),
-            domain: LoopDomain::Page(scan("follows", 500)),
-            body: vec![Stmt::Push {
-                target: "result".into(),
-                value: Expr::Scan(lane),
-            }],
-        },
-        Stmt::Return(crate::var("result")),
-    ]);
+        }],
+    }))]);
     // Isolate these two meters; the default ceilings also refuse index/closure bytes.
     let errors = Checker::new(
         &schema,
         Ceilings {
+            examined: 1000,
+            output_bytes: 80_000,
             index_entries: u64::MAX,
             closure_bytes: u64::MAX,
             ..Ceilings::default()
@@ -298,11 +315,16 @@ fn simultaneous_merge_work_and_output_refusals_keep_their_own_products() {
     assert!(
         examined
             .message
-            .contains("product: merge feed.merge: 500 lanes × (20 + 2)"),
+            .contains("merge feed.merge: 500 lanes heads"),
         "{examined}"
     );
     assert!(!examined.message.contains("row width"));
-    assert!(output.message.contains("product: result ["), "{output}");
+    assert!(
+        output
+            .message
+            .contains("product: merge feed.merge: emitted page"),
+        "{output}"
+    );
     assert!(
         output.message.contains("messages row width [messages.body"),
         "{output}"
@@ -357,4 +379,46 @@ fn nonuniform_budget_filler_has_a_uniformity_repair() {
         assert!(error.rewrite.contains("prefix"), "{error}");
         assert!(!error.rewrite.contains("rule-probe"), "{error}");
     }
+}
+
+#[test]
+fn retained_merge_page_keeps_the_structural_closure_repair() {
+    let schema = schema();
+    let mut lane = scan("messages", 1100);
+    lane.merge_site = Some("retained.merge".into());
+    let p = program(vec![
+        Stmt::Let {
+            name: "page".into(),
+            value: Expr::Merge(Merge {
+                site: "retained.merge".into(),
+                lanes: vec![MergeLane {
+                    setup: vec![],
+                    scan: lane,
+                    source: None,
+                    binding: String::new(),
+                }],
+            }),
+        },
+        Stmt::Return(Expr::Builtin {
+            builtin: Builtin::Count,
+            args: vec![crate::var("page")],
+        }),
+    ]);
+    let errors = Checker::new(&schema, Ceilings::default())
+        .check_all(&p)
+        .unwrap_err();
+    let closure = errors
+        .iter()
+        .find(|e| e.message.starts_with("closure bytes"))
+        .unwrap();
+    assert!(
+        closure
+            .message
+            .contains("merge retained.merge: emitted page"),
+        "{closure}"
+    );
+    assert!(
+        closure.rewrite.starts_with("structural repair"),
+        "{closure}"
+    );
 }

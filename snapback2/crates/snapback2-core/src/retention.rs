@@ -707,7 +707,7 @@ impl<'a> RetentionEstimator<'a> {
                             true,
                         )
                     }
-                    Builtin::Sort { .. } | Builtin::DedupeById { .. } => (first.0, first.1, true),
+                    Builtin::Sort { .. } => (first.0, first.1, true),
                     Builtin::Concat => {
                         let (flow, length) = flows.fold(
                             (first.0, first.1),
@@ -756,6 +756,16 @@ impl<'a> RetentionEstimator<'a> {
                 .fixed_width(),
                 None,
                 false,
+            ),
+            Expr::Merge(merge) => (
+                Flow::row(
+                    &merge.site,
+                    merge.table(),
+                    declared_serialized_row_max(self.schema, merge.table()),
+                    merge.take(),
+                ),
+                Some(merge.take()),
+                true,
             ),
             Expr::Scan(scan) => {
                 let count = scan.take.maximum();
@@ -846,10 +856,7 @@ impl<'a> RetentionEstimator<'a> {
                 .and_then(|binding| binding.table.clone()),
             Expr::Get(read) => Some(read.table.clone()),
             Expr::Scan(scan) => Some(scan.table.clone()),
-            Expr::Builtin {
-                builtin: Builtin::DedupeById { table, .. },
-                ..
-            } => Some(table.clone()),
+            Expr::Merge(merge) => Some(merge.table().to_owned()),
             Expr::Builtin {
                 builtin: Builtin::Slice | Builtin::Sort { .. },
                 args,

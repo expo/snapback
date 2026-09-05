@@ -20,6 +20,12 @@ pub(super) fn resolve_result_page_site(
                 values.values().for_each(|value| visit_expr(value, scans));
             }
             Expr::Scan(scan) => scans.push(scan),
+            Expr::Merge(merge) => {
+                for lane in &merge.lanes {
+                    scans.extend(lane.source.as_ref());
+                    scans.push(&lane.scan);
+                }
+            }
             Expr::Literal(_)
             | Expr::Variable(_)
             | Expr::Input(_)

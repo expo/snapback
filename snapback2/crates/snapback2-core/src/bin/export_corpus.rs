@@ -145,6 +145,11 @@ fn main() {
     for case in &cases {
         let path = output.join(format!("{}.json", case.name));
         let encoded = serde_json::to_string_pretty(case).expect("serialize corpus case");
+        let encoded = if encoded.lines().count() > 1500 {
+            serde_json::to_string(case).expect("serialize compact corpus case")
+        } else {
+            encoded
+        };
         fs::write(path, format!("{encoded}\n")).expect("write corpus case");
     }
     let manifest = serde_json::to_string(&cases).expect("serialize corpus manifest");

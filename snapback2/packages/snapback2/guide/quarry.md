@@ -137,11 +137,13 @@ unique); `after` follows scan order.
 `merge table [after cursor] first|last N by index:` fan-ins one or more
 lanes with named or positional `[prefix keys]`, optionally `for name in` a bounded
 range read. Prefixes must have equal widths and types, leave an index suffix,
-and not be structurally identical. Quarry scans every lane at N, concatenates,
-sorts by the shared suffix, deduplicates intrinsic `id` keeping the first row,
-then returns the first N as a page. Shapes, `for`, and `count` work as for a
-range page; an unshaped API result uses the table's row type. A pageable merge
-index ends in `id`; its shared cursor is applied unchanged to every lane.
+and not be structurally identical. Runtime duplicate prefixes collapse to one
+lane. A heap lazily merges SQLite streams by their shared suffix, deduplicates
+intrinsic `id`, and returns N rows. Uniform lanes cost at most L heads + N
+advances + 2 lookahead, plus lane discovery; non-uniform lanes keep conservative
+per-lane reserves. Retention prices the emitted page. Shapes, `for`, and `count`
+work as for range pages. A pageable index ends in `id`; one shared cursor
+applies unchanged to every lane.
 
 ```q
 query followingFeed(c: cursor ?):
@@ -151,9 +153,7 @@ query followingFeed(c: cursor ?):
   return page { post: ., author: profiles[.author] authorCard }
 ```
 
-This recipe admits at most 50 follow rows. The query reports `capped` when that
-domain hits its limit; it does not meet a product that must cover larger follow
-graphs. A merge is `complete` only when every member lane scan exhausted and
+This recipe admits 50 follows; exceeding that limit reports `capped`. A merge is `complete` only when every member lane scan exhausted and
 the deduplicated union had at most N rows; otherwise it is `capped`.
 
 Statements are expression bindings, tuple bindings from `sorted`, `return`,

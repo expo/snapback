@@ -56,6 +56,16 @@ for (const testCase of cases) {
   assert(differences.length === 0, `${testCase.name}: ${differences.join("; ")}`);
 }
 
+// Every merge corpus replay must stay under the same certified meters as the engine.
+for (const testCase of cases.filter((c) => JSON.stringify(c.program).includes('"Merge"'))) {
+  const certificate = testCase.certificate as any;
+  const replay = new ClientStore(testCase.schema, testCase.receipt)
+    .reexecute(testCase.program, testCase.context, certificate);
+  assert((replay.execution.trace.examined ?? 0) <= certificate.max_examined, `${testCase.name}: merge examined bound`);
+  assert((replay.execution.trace.examined ?? 0) <= certificate.max_index_entries, `${testCase.name}: merge index bound`);
+  assert((replay.execution.trace.steps ?? 0) <= certificate.max_steps, `${testCase.name}: heap steps bound`);
+}
+
 const cursorPageTwo = cases.find((testCase) => testCase.name === "opaque-cursor-page-two-no-overlap");
 assert(cursorPageTwo !== undefined, "opaque cursor page-two case is absent from the corpus");
 const boundCursor = JSON.parse(JSON.stringify(cursorPageTwo)) as CorpusCase;

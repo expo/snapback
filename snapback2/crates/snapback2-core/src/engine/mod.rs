@@ -1083,6 +1083,16 @@ fn validate_cursor_tokens(
                 Ok(())
             }
             Expr::Scan(value) => scan(schema, value, values),
+            Expr::Merge(merge) => {
+                for lane in &merge.lanes {
+                    body(schema, &lane.setup, &mut values.clone())?;
+                    if let Some(source) = &lane.source {
+                        scan(schema, source, values)?;
+                    }
+                    scan(schema, &lane.scan, values)?;
+                }
+                Ok(())
+            }
             Expr::Literal(_)
             | Expr::Variable(_)
             | Expr::Input(_)
@@ -1409,11 +1419,13 @@ mod cap_tests;
 #[cfg(test)]
 mod delivery_tests;
 mod index;
+mod merge;
 mod provenance;
 mod receipt;
 mod replay;
 mod runner;
 mod runner_ops;
+mod scan;
 
 pub use provenance::ResultProvenance;
 pub use receipt::{

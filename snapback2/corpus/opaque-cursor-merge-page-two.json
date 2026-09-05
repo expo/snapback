@@ -123,109 +123,64 @@
     "body": [
       {
         "Return": {
-          "Builtin": {
-            "builtin": "Slice",
-            "args": [
+          "Merge": {
+            "site": "opaque-cursor-merge-page-two",
+            "lanes": [
               {
-                "Builtin": {
-                  "builtin": {
-                    "DedupeById": {
-                      "site": "opaque-cursor-merge-page-two",
-                      "table": "posts"
-                    }
-                  },
-                  "args": [
+                "scan": {
+                  "site": "opaque-cursor-merge-page-two.a",
+                  "table": "posts",
+                  "index": "byAuthorAt",
+                  "prefix": [
                     {
-                      "Builtin": {
-                        "builtin": {
-                          "Sort": {
-                            "keys": [
-                              {
-                                "field": "at",
-                                "order": "Asc"
-                              },
-                              {
-                                "field": "id",
-                                "order": "Asc"
-                              }
-                            ]
-                          }
-                        },
-                        "args": [
-                          {
-                            "Builtin": {
-                              "builtin": "Concat",
-                              "args": [
-                                {
-                                  "Scan": {
-                                    "site": "opaque-cursor-merge-page-two.a",
-                                    "table": "posts",
-                                    "index": "byAuthorAt",
-                                    "prefix": [
-                                      {
-                                        "Literal": {
-                                          "Id": "u1"
-                                        }
-                                      }
-                                    ],
-                                    "order": "Asc",
-                                    "take": {
-                                      "Literal": 2
-                                    },
-                                    "after": {
-                                      "Variable": "c"
-                                    },
-                                    "before": null,
-                                    "range": null,
-                                    "opaque_cursor": true,
-                                    "merge_site": "opaque-cursor-merge-page-two",
-                                    "provenance": "Arg"
-                                  }
-                                },
-                                {
-                                  "Scan": {
-                                    "site": "opaque-cursor-merge-page-two.b",
-                                    "table": "posts",
-                                    "index": "byAuthorAt",
-                                    "prefix": [
-                                      {
-                                        "Literal": {
-                                          "Id": "u2"
-                                        }
-                                      }
-                                    ],
-                                    "order": "Asc",
-                                    "take": {
-                                      "Literal": 2
-                                    },
-                                    "after": {
-                                      "Variable": "c"
-                                    },
-                                    "before": null,
-                                    "range": null,
-                                    "opaque_cursor": true,
-                                    "merge_site": "opaque-cursor-merge-page-two",
-                                    "provenance": "Arg"
-                                  }
-                                }
-                              ]
-                            }
-                          }
-                        ]
+                      "Literal": {
+                        "Id": "u1"
                       }
                     }
-                  ]
-                }
+                  ],
+                  "order": "Asc",
+                  "take": {
+                    "Literal": 2
+                  },
+                  "after": {
+                    "Variable": "c"
+                  },
+                  "before": null,
+                  "range": null,
+                  "opaque_cursor": true,
+                  "merge_site": "opaque-cursor-merge-page-two",
+                  "provenance": "Arg"
+                },
+                "source": null,
+                "binding": ""
               },
               {
-                "Literal": {
-                  "Int": 0
-                }
-              },
-              {
-                "Literal": {
-                  "Int": 2
-                }
+                "scan": {
+                  "site": "opaque-cursor-merge-page-two.b",
+                  "table": "posts",
+                  "index": "byAuthorAt",
+                  "prefix": [
+                    {
+                      "Literal": {
+                        "Id": "u2"
+                      }
+                    }
+                  ],
+                  "order": "Asc",
+                  "take": {
+                    "Literal": 2
+                  },
+                  "after": {
+                    "Variable": "c"
+                  },
+                  "before": null,
+                  "range": null,
+                  "opaque_cursor": true,
+                  "merge_site": "opaque-cursor-merge-page-two",
+                  "provenance": "Arg"
+                },
+                "source": null,
+                "binding": ""
               }
             ]
           }
@@ -235,7 +190,7 @@
   },
   "certificate": {
     "program": "opaque-cursor-merge-page-two",
-    "plan_hash": "45493ecfca0da5592e1866cdf248b5d8bf357907107a07cd570b08123113b612",
+    "plan_hash": "9aa0128d31a98ac662f351af00bac946c07d87a8c39311b3ef79ba1c1a1e5ae3",
     "schema_hash": "f7c842236978e842a20695dbea23d49d1277bd8bdbc0c342ee6422331cb188f8",
     "tables": {
       "follows": {
@@ -281,7 +236,9 @@
           "opaque-cursor-merge-page-two.a",
           "opaque-cursor-merge-page-two.b"
         ],
-        "take": 2
+        "take": 2,
+        "max_lanes": 2,
+        "uniform": true
       }
     ],
     "result_page_site": {
@@ -304,13 +261,13 @@
     "write_sites": [],
     "maintained_amplification": 0,
     "constraint_checks": [],
-    "max_examined": 8,
-    "max_index_entries": 8,
+    "max_examined": 6,
+    "max_index_entries": 6,
     "max_rule_probes": 0,
-    "max_steps": 53,
-    "max_heap_bytes": 1696,
+    "max_steps": 96,
+    "max_heap_bytes": 3072,
     "max_output_bytes": 718,
-    "max_closure_bytes": 1408,
+    "max_closure_bytes": 704,
     "completeness": "Page",
     "prediction_sites": [],
     "read_time_granularity_ms": null,
@@ -319,7 +276,7 @@
       "posts.byAuthorAt"
     ],
     "disclosures": [],
-    "bound_product": "merge opaque-cursor-merge-page-two: 1 lanes × (2 + 2) at opaque-cursor-merge-page-two.a on posts = 4 + merge opaque-cursor-merge-page-two: 1 lanes × (2 + 2) at opaque-cursor-merge-page-two.b on posts = 4"
+    "bound_product": "merge opaque-cursor-merge-page-two: 2 lanes heads + 2 advances + 2 lookahead × 1 calls (opaque-cursor-merge-page-two.a × 1; opaque-cursor-merge-page-two.b × 1) = 6"
   },
   "context": {
     "viewer": "u1",

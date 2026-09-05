@@ -282,10 +282,7 @@ impl CompletenessFlow<'_, '_> {
             Expr::Builtin { builtin, args } => {
                 let fact = self.exprs(args);
                 match builtin {
-                    Builtin::Slice
-                    | Builtin::Concat
-                    | Builtin::Sort { .. }
-                    | Builtin::DedupeById { .. } => fact,
+                    Builtin::Slice | Builtin::Concat | Builtin::Sort { .. } => fact,
                     Builtin::Len
                     | Builtin::Min
                     | Builtin::Max
@@ -300,6 +297,16 @@ impl CompletenessFlow<'_, '_> {
                 }
             }
             Expr::Scan(scan) => self.scan_fact(scan),
+            Expr::Merge(merge) => {
+                let mut fact = Fact::default();
+                for lane in &merge.lanes {
+                    if let Some(source) = &lane.source {
+                        fact.merge(self.scan_fact(source));
+                    }
+                    fact.merge(self.scan_fact(&lane.scan));
+                }
+                fact
+            }
             Expr::Get(read) | Expr::Exists(read) => self.exprs(&read.key),
             Expr::Literal(_) | Expr::Input(_) => Fact::default(),
         }
@@ -672,6 +679,18 @@ fn validate_expr(
             validate_read(checker, &read.table, &read.index, errors);
             validate_point_key_arity(checker, read, errors);
         }
+        Expr::Merge(merge) => {
+            for lane in &merge.lanes {
+                validate_statements(
+                    checker,
+                    program,
+                    &lane.setup,
+                    errors,
+                    sites,
+                    &mut bindings.clone(),
+                );
+            }
+        }
         Expr::Scan(scan) => {
             register_site(sites, errors, &scan.site, ReadSiteShape::range(scan));
             validate_read(checker, &scan.table, &scan.index, errors);
@@ -1021,7 +1040,7 @@ fn static_expression_fact(
                     of: Box::new(StaticType::Unknown),
                     len: None,
                 },
-                Builtin::Sort { .. } | Builtin::DedupeById { .. } => facts
+                Builtin::Sort { .. } => facts
                     .first()
                     .map(|fact| fact.kind.clone())
                     .unwrap_or(StaticType::Unknown),
@@ -1051,6 +1070,10 @@ fn static_expression_fact(
                 invalid_id_arithmetic,
             }
         }
+        Expr::Merge(merge) => StaticFact::plain(StaticType::List {
+            of: Box::new(StaticType::Row(merge.table().to_owned())),
+            len: Some(merge.take() as usize),
+        }),
         Expr::Get(read) => StaticFact::plain(StaticType::Row(read.table.clone())),
         Expr::Scan(scan) => StaticFact::plain(StaticType::List {
             of: Box::new(StaticType::Row(scan.table.clone())),
@@ -1390,6 +1413,17 @@ fn walk_expr(expression: &Expr, visit: &mut impl FnMut(&Expr)) {
                 .into_iter()
                 .flatten()
                 .for_each(|value| walk_expr(value, visit));
+            }
+        }
+        Expr::Merge(merge) => {
+            for lane in &merge.lanes {
+                for stmt in &lane.setup {
+                    visit_statement_exprs(stmt, visit);
+                }
+                if let Some(source) = &lane.source {
+                    walk_expr(&Expr::Scan(source.clone()), visit);
+                }
+                walk_expr(&Expr::Scan(lane.scan.clone()), visit);
             }
         }
         Expr::Literal(_) | Expr::Variable(_) | Expr::Input(_) => {}

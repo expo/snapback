@@ -17,7 +17,7 @@ grok-4.6 at xhigh), `llp/reviews/1010-quarry-language-amendments.*`
 **Implementer:** codex gpt-5.6-sol (xhigh), lane `s2/quarry-amend`
 (`~/projects/snapback-s2`), orchestrated and landed by Claude Fable 5.1
 **Date:** 2026-09-03
-**Revised:** 2026-09-05 (time arithmetic and divmod tuple rules implemented by GPT-6 Astra, Clique L2); 2026-09-03 (d — A6's optional cursor group was replaced by LLP
+**Revised:** 2026-09-05 (Clique L10 — lazy merge implemented by GPT-6 Astra); 2026-09-05 (time arithmetic and divmod tuple rules implemented by GPT-6 Astra, Clique L2); 2026-09-03 (d — A6's optional cursor group was replaced by LLP
 1011 B1's opaque, forward-only cursor); 2026-09-03 (c — implemented: §8 records the two landing commits
 and the one departure from the brief, the guide budget); 2026-09-03 (b — after the panel: bounds-first withdrawn; A2
 restated as program-only because rules and the IR already compare totally;
@@ -62,7 +62,8 @@ Withdrawn from revision (a): bounds-first (nothing deleted, benefit imagined);
 the viewer-syntax starvation heuristic (aliases evade it); a seventh
 `E_QUARRY_*` code; "`where` erases the `capped` state" (the inner scan's
 `Limit` already sets it); a persisted self-follow (the brief forbids it); a
-new IR primitive for merge (`Concat`, `Sort`, `Slice` exist). Deferred:
+new IR primitive for merge (the initial A5 used existing collection ops;
+Clique L10 later replaces that lowering). Deferred:
 `insertIfAbsent` (a platform write; ticket
 `issues/20260903-snapback2-insert-if-absent.md`) and flow-sensitive narrowing
 (revisit on authored evidence).
@@ -325,35 +326,33 @@ query followingFeed(c: cursor ?):
   same suffix — for `byAuthorTime: author, at, id` the suffix is `(at,
   id)`. An empty block refuses. Two lanes with the same prefix expression
   refuse at certify time (`E_QUARRY_TYPE`, drop-lane rewrite).
-- **Semantics.** Each lane is scanned with the merge's order, take N, and
-  cursor; the results are concatenated, sorted by the shared suffix in the
-  merge's order, **deduplicated by intrinsic `id`** (first in suffix order
-  wins — statically distinct prefixes can still overlap at runtime), and
-  cut to N. The own-posts lane is explicit, `[viewer]`, because the brief
-  makes self-membership implicit and forbids a persisted self-follow
-  (`social-messenger.md:91–95`).
+- **Semantics (Clique L10, 2026-09-05).** Runtime duplicate prefixes
+  collapse to one stream. Each lane has a SQLite prepared cursor with the
+  header's order and cursor. A heap emits the least/greatest shared suffix,
+  deduplicates intrinsic `id` on emission, then advances that lane only. Stop
+  after N plus two lookahead rows; return the first N. The own-posts lane
+  stays explicit as `[viewer]`. This is the true top-N of the sorted streams.
 - **Pagination.** Every lane shares one total suffix order, so the opaque
   `next` token minted from the last returned merged row, applied to every
   lane on the next call, gives no duplicates and no gaps (the ordinary cursor semantics of
   `guide/quarry.md` §Programs, on every lane at once). This meets M2 item 8
   and the diagnostic brief's item 7 (infinite scroll, 20 per page, both
   tabs). No frontier vector.
-- **Lowering.** K certified scans, then the existing `Concat`, multi-key
-  `Sort` on the suffix columns, a dedupe, and `Slice` (`ir.rs:212–239`;
-  `mergeByTime` already composes three of the four, `compiler.ts:969–998`).
-  No new IR opcode, hence no new evaluator-twin obligation beyond the dedupe.
-- **Completeness (the panel's correction).** "Complete iff every lane is
-  complete" is false when every lane exhausts but their union exceeds N:
-  `Slice` truncates with no trace. The certificate gains a **merge site**
-  that groups its lane range sites and N; `query_state` reports `complete`
-  only when every member range stopped `Exhausted` and the deduplicated
-  union has at most N rows, else `capped`. The lane-list scan's own `Limit`
-  caps the query through the existing rule.
-- **Cost, honestly.** Each scan's examined bound is its take plus the
-  engine's reserve of two (`certificate.rs:928–946`). For the template:
-  the lane-list scan (50 → 52) plus 51 lanes × 22 = **1,174** examined for
-  N = 20, before the shaped point reads. Revision (a)'s 50-lane, N = 50
-  example is 2,704, not 2,500.
+- **Lowering (Clique L10).** `Expr::Merge` carries bounded lane sources
+  and scans through certification, execution, retention, and the evaluator
+  twin. The eager `Concat`/`Sort`/`DedupeById`/`Slice` merge composition and
+  `DedupeById` opcode are deleted.
+- **Completeness.** A merge site groups the member range sites and N, and
+  records maximum lanes and uniformity. `MergeTrace` retains union length
+  and last returned suffix; union length is observed up to N+2. `complete`
+  requires all streams exhausted and union length at most N. An unfinished
+  lane or a truncated lane-discovery scan makes the result `capped`.
+- **Cost (Clique L10).** Uniform distinct prefixes cost L heads + N advances
+  + 2 lookahead, plus lane discovery and shaped reads. The template now costs
+  52 + 51 + 20 + 2 = **125** before shaped reads; a self lane and 500 follows
+  cost 502 + 501 + 20 + 2 = **1,025**. Non-uniform lanes keep conservative
+  per-lane accounting; ceilings are unchanged. Heap comparisons/advances
+  consume runtime steps. Retention prices the emitted page, not L×N rows.
 - **The capped lane list.** `follows[viewer] first 50` omits the 51st
   followee and the query reports `capped`. The certificate and the guide's
   recipe say so, with the number, and say that it does not meet the later

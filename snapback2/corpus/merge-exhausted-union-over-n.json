@@ -118,103 +118,58 @@
     "body": [
       {
         "Return": {
-          "Builtin": {
-            "builtin": "Slice",
-            "args": [
+          "Merge": {
+            "site": "merge.over",
+            "lanes": [
               {
-                "Builtin": {
-                  "builtin": {
-                    "DedupeById": {
-                      "site": "merge.over",
-                      "table": "posts"
-                    }
-                  },
-                  "args": [
+                "scan": {
+                  "site": "merge.over.self",
+                  "table": "posts",
+                  "index": "byAuthorAt",
+                  "prefix": [
                     {
-                      "Builtin": {
-                        "builtin": {
-                          "Sort": {
-                            "keys": [
-                              {
-                                "field": "at",
-                                "order": "Asc"
-                              },
-                              {
-                                "field": "id",
-                                "order": "Asc"
-                              }
-                            ]
-                          }
-                        },
-                        "args": [
-                          {
-                            "Builtin": {
-                              "builtin": "Concat",
-                              "args": [
-                                {
-                                  "Scan": {
-                                    "site": "merge.over.self",
-                                    "table": "posts",
-                                    "index": "byAuthorAt",
-                                    "prefix": [
-                                      {
-                                        "Literal": {
-                                          "Id": "u1"
-                                        }
-                                      }
-                                    ],
-                                    "order": "Asc",
-                                    "take": {
-                                      "Literal": 2
-                                    },
-                                    "after": null,
-                                    "before": null,
-                                    "range": null,
-                                    "merge_site": "merge.over",
-                                    "provenance": "Const"
-                                  }
-                                },
-                                {
-                                  "Scan": {
-                                    "site": "merge.over.peer",
-                                    "table": "posts",
-                                    "index": "byAuthorAt",
-                                    "prefix": [
-                                      {
-                                        "Literal": {
-                                          "Id": "u2"
-                                        }
-                                      }
-                                    ],
-                                    "order": "Asc",
-                                    "take": {
-                                      "Literal": 2
-                                    },
-                                    "after": null,
-                                    "before": null,
-                                    "range": null,
-                                    "merge_site": "merge.over",
-                                    "provenance": "Const"
-                                  }
-                                }
-                              ]
-                            }
-                          }
-                        ]
+                      "Literal": {
+                        "Id": "u1"
                       }
                     }
-                  ]
-                }
+                  ],
+                  "order": "Asc",
+                  "take": {
+                    "Literal": 2
+                  },
+                  "after": null,
+                  "before": null,
+                  "range": null,
+                  "merge_site": "merge.over",
+                  "provenance": "Const"
+                },
+                "source": null,
+                "binding": ""
               },
               {
-                "Literal": {
-                  "Int": 0
-                }
-              },
-              {
-                "Literal": {
-                  "Int": 2
-                }
+                "scan": {
+                  "site": "merge.over.peer",
+                  "table": "posts",
+                  "index": "byAuthorAt",
+                  "prefix": [
+                    {
+                      "Literal": {
+                        "Id": "u2"
+                      }
+                    }
+                  ],
+                  "order": "Asc",
+                  "take": {
+                    "Literal": 2
+                  },
+                  "after": null,
+                  "before": null,
+                  "range": null,
+                  "merge_site": "merge.over",
+                  "provenance": "Const"
+                },
+                "source": null,
+                "binding": ""
               }
             ]
           }
@@ -224,7 +179,7 @@
   },
   "certificate": {
     "program": "merge.over",
-    "plan_hash": "23327b790f226d7c6d427fe8b4bfd00360606f9daafab1a69b0b978e2cca0fbd",
+    "plan_hash": "10ecaf4ddc464dabc950330e5fe96499dd15faa5197a31685c168e741a690a6c",
     "schema_hash": "f7c842236978e842a20695dbea23d49d1277bd8bdbc0c342ee6422331cb188f8",
     "tables": {
       "follows": {
@@ -270,19 +225,21 @@
           "merge.over.peer",
           "merge.over.self"
         ],
-        "take": 2
+        "take": 2,
+        "max_lanes": 2,
+        "uniform": true
       }
     ],
     "write_sites": [],
     "maintained_amplification": 0,
     "constraint_checks": [],
-    "max_examined": 8,
-    "max_index_entries": 8,
+    "max_examined": 6,
+    "max_index_entries": 6,
     "max_rule_probes": 0,
-    "max_steps": 51,
-    "max_heap_bytes": 1632,
+    "max_steps": 94,
+    "max_heap_bytes": 3008,
     "max_output_bytes": 718,
-    "max_closure_bytes": 1408,
+    "max_closure_bytes": 704,
     "completeness": "Page",
     "prediction_sites": [],
     "read_time_granularity_ms": null,
@@ -291,7 +248,7 @@
       "posts.byAuthorAt"
     ],
     "disclosures": [],
-    "bound_product": "merge merge.over: 1 lanes × (2 + 2) at merge.over.peer on posts = 4 + merge merge.over: 1 lanes × (2 + 2) at merge.over.self on posts = 4"
+    "bound_product": "merge merge.over: 2 lanes heads + 2 advances + 2 lookahead × 1 calls (merge.over.self × 1; merge.over.peer × 1) = 6"
   },
   "context": {
     "viewer": "u1",
@@ -394,12 +351,27 @@
         "lte": null,
         "rule_hash": "fd79905c6b2537749a4f00979344bce28f421b3d1fee4a30a4fbf41e3fc8f8a6",
         "row_ids": [
-          "a1",
-          "a3"
+          "a1"
         ],
-        "stop": "Exhausted",
+        "stop": "Limit",
         "absence": false,
-        "halo": null,
+        "halo": {
+          "table": "posts",
+          "id": "a3",
+          "row": {
+            "Row": {
+              "at": {
+                "Int": 3
+              },
+              "author": {
+                "Id": "u1"
+              },
+              "id": {
+                "Id": "a3"
+              }
+            }
+          }
+        },
         "n2_key": null
       },
       {
@@ -421,12 +393,27 @@
         "lte": null,
         "rule_hash": "fd79905c6b2537749a4f00979344bce28f421b3d1fee4a30a4fbf41e3fc8f8a6",
         "row_ids": [
-          "b2",
-          "b4"
+          "b2"
         ],
-        "stop": "Exhausted",
+        "stop": "Limit",
         "absence": false,
-        "halo": null,
+        "halo": {
+          "table": "posts",
+          "id": "b4",
+          "row": {
+            "Row": {
+              "at": {
+                "Int": 4
+              },
+              "author": {
+                "Id": "u2"
+              },
+              "id": {
+                "Id": "b4"
+              }
+            }
+          }
+        },
         "n2_key": null
       }
     ],
@@ -473,10 +460,10 @@
     "digest": "825576cf53daac31ac3b88e9cdc4028c4404e16f44bd4756553070384ab15827",
     "rangeStops": {
       "merge.over.peer": [
-        "exhausted"
+        "limit"
       ],
       "merge.over.self": [
-        "exhausted"
+        "limit"
       ]
     },
     "evictedRows": null,
