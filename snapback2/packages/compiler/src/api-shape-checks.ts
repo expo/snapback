@@ -329,7 +329,7 @@ function operationResult(apiDts: string, operation: string): string | undefined 
 async function withCliqueJourney<T>(fixtures: string, snapbackTypes: string, journey: string, run: (root: string) => Promise<T>): Promise<T> {
   const root = await mkdtemp(join(tmpdir(), "snapback2-api-shapes-"));
   try {
-    for (const name of ["schema.q", "pay.q", "social.q", "chat.q"]) {
+    for (const name of ["schema.q", "cards.q", "pay.q", "social.q", "chat.q"]) {
       const path = join(root, "snapback", name);
       await mkdir(dirname(path), { recursive: true });
       await writeFile(path, await readFile(resolve(fixtures, "quarry-clique/snapback", name), "utf8"));
