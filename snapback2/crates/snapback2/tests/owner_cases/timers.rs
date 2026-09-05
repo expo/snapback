@@ -541,9 +541,12 @@ fn measure_row_timer_lateness_p99_while_the_owner_serves_sends() {
         .collect::<Vec<_>>();
     wait_for(Duration::from_secs(20), || {
         let timers = control(port, &secret, "GET", "/control/timers", json!({}));
-        per_schedule(&timers, "expireMessage")
-            .is_none()
-            .then_some(())
+        // Declared schedules are listed at zero since the J2 fix round; "drained"
+        // means no rows and nothing due, not absence from the listing.
+        per_schedule(&timers, "expireMessage").and_then(|schedule| {
+            (schedule["count"].as_i64() == Some(0) && schedule["due"].as_i64() == Some(0))
+                .then_some(())
+        })
     });
     finished.store(true, std::sync::atomic::Ordering::Relaxed);
     let sends = senders.into_iter().map(|s| s.join().unwrap()).sum::<u64>();

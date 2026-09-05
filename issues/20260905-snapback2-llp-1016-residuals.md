@@ -46,4 +46,10 @@ the last rounds left, each small; the next lane that touches the named file take
 - Minor: `@ref` anchors on the two-site comment, `normalizeSchedule`, and `timers_summary`;
   §7's `E_SCHEDULE_TARGET` row should mention the duplicate-name rewrite; the receipt unit test
   gains a non-object `schedules` case (fails closed by `is_object`).
+- From grok's J2 fix-round review: `/api/manifest` still lists schedule targets (`writer_ledger.rs`
+  filters only `__owner.*`) although `/api/*` refuses them and `api.d.ts` omits them — filter them
+  from the manifest too; `E_OPERATOR_REQUIRED`'s catalog row pages `operator/seat` while the
+  schedule-target refusal pages `schedule`; `attach_schedule_receipt` accepts an empty object (add
+  the `{ fired, late, rejected }` shape check); the declaration-site hash test is struct-level, not
+  two compiled projects; `guide.rs` `RECIPES` still lists `offline` twice.
 
