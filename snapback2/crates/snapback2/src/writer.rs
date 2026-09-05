@@ -238,6 +238,7 @@ pub enum Action {
         op: String,
         args: Json,
         identity: Identity,
+        query_only: bool,
     },
     Trace {
         seq: Option<u64>,
@@ -670,7 +671,12 @@ impl State {
                 identity,
             } => self.data(table, index, prefix, after, limit, identity),
             Action::RuleVerdicts(table, identity) => self.rule_verdicts(table, identity),
-            Action::Why { op, args, identity } => self.why(op, args, identity),
+            Action::Why {
+                op,
+                args,
+                identity,
+                query_only,
+            } => self.why(op, args, identity, query_only),
             Action::Trace { seq } => self.trace(seq),
             Action::Commits { since, limit } => Ok(serde_json::to_value(
                 self.runtime()

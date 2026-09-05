@@ -136,6 +136,10 @@ pub fn route(
                 .unwrap_or_default()
                 .to_owned(),
             args: body.get("args").cloned().unwrap_or_else(|| json!({})),
+            query_only: body
+                .get("queryOnly")
+                .and_then(Json::as_bool)
+                .unwrap_or(false),
             identity: Identity::Persona(
                 body.get("as")
                     .and_then(Json::as_str)

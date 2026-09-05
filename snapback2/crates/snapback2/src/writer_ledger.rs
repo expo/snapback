@@ -26,6 +26,7 @@ impl State {
         op: String,
         args: Json,
         identity: Identity,
+        query_only: bool,
     ) -> Result<Json, Refusal> {
         let authority = self.resolve_authority(identity)?;
         let kind = self
@@ -43,6 +44,17 @@ impl State {
                     "op/manifest",
                 )
             })?;
+        // The CLI is read-only even across a hot successor; the protected
+        // harness still executes mutations to harvest authoritative replay traces.
+        if query_only && kind != ProgramKind::Query {
+            return Err(Refusal::new(
+                "E_OP_KIND",
+                "op",
+                "why only executes queries; a mutation would change stored data",
+                "use a query containing the same lookup, then run snapback2 why <query> --as <persona>; see snapback2 guide auth",
+                "auth",
+            ).with_site(op));
+        }
         let context = if kind == ProgramKind::Mutation {
             self.mutation_context(&authority, &op, args)?
         } else {

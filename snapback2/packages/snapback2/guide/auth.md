@@ -1,98 +1,89 @@
-# Auth
+# Auth and mutation reads
 
-Authentication is always enabled. Declare the admitted first-party flows on
-the schema; use personas only while the owner is in development mode.
+Authentication is always enabled. In `snapback/schema.q`:
 
-```ts
-  auth: { password: true, guests: true },
+```q
+use identity
 ```
 
-Clients use `client.auth.signup`, `login`, `guest`, `logout`, and `me`.
-Production refuses `as`; a journey can use `as("alice")` without inventing a
-token or weakening the schema. For relaunches, pass `tokenStore` and await
-`client.ready`. Snapback never selects browser persistence:
-`browserTokenStore(storage, backendSpecificKey)` is explicit and XSS-sensitive.
-The dev-only `as` cannot be combined with `token` or `tokenStore`; they are
-exclusive authority sources, and persona clients cannot run bearer-session
-transitions.
+This enables password and guest flows; select just one with `use identity
+password` or `use identity guests`. Clients use `client.auth.signup`, `login`,
+`guest`, `logout`, and `me`. For relaunches, pass `tokenStore` and await
+`client.ready`; browser persistence is explicit through
+`browserTokenStore(storage, backendSpecificKey)`. Dev personas (`--as alice`)
+cannot be combined with tokens or bearer-session transitions. Production
+refuses personas. Logout and expiry fence that session, including live queries
+and channels, without signing out other sessions for the same principal.
 
-Keep authority separate from the profile row. Its immutable, unique `principal`
-aligns it with `ctx.viewer`. The `avatarUrl` below is an external URL, not an
-upload; managed media is `avatar: image <=5000000 ?` in Quarry:
+Keep authority separate from product profiles. Use nominal `principal` for
+creator, membership, and author fields, and derive the acting value from
+`viewer`. A profile reference is for product data; it is not a principal.
+Never copy login email from the protected identity store into a public row.
+For example, the chat template's `snapback/schema.q` contains:
 
-```ts
-export const profiles = table({
-  columns: {
-    principal: t.principal(),
-    displayName: t.text(50),
-    handle: t.text(20),
-    avatarUrl: t.optional(t.text(2048)),
-    bio: t.text(200),
-    location: t.text(50),
-    link: t.optional(t.text(2048)),
-  },
-  indexes: {
-    byPrincipal: { columns: ["principal"], unique: true },
-    byHandle: { columns: ["handle"], unique: true },
-  },
-  rules: {
-    read: rule.public("profiles are public"),
-    insert: rule.viewerIs("principal"),
-    update: rule.viewerIs("principal"),
-    delete: rule.deny(),
-  },
-  constraints: [
-    { unique: "byPrincipal" },
-    { unique: "byHandle" },
-    { immutable: ["principal"] },
-    { text: { field: "displayName", min: 1 } },
-    { text: { field: "handle", min: 3, format: "handle" } },
-    { text: { field: "avatarUrl", format: "url" } },
-    { text: { field: "link", format: "url" } },
-  ],
-});
+```q
+table profiles:
+  principal: principal
+  displayName: text 1..50
+  handle: text 3..20 format handle
+  avatarUrl: text <=2048 format url ?
+  bio: text <=200
+  location: text <=50
+  link: text <=2048 format url ?
+  unique byPrincipal: principal
+  unique byHandle: handle
+  immutable principal
+  public 'profiles are public'
+  insert <- .principal = viewer
+  update <- .principal = viewer
+  delete <- deny
 ```
 
-Use a profile ref when an operation targets product profile data. Use
-`Principal` for creator, membership, author, and other authority axes, and
-derive the acting value from `ctx.viewer`. Keep login email in Snapback's
-protected identity store; do not copy it into a public profile row.
+## A write permission does not grant a read
 
-Every successful login, signup, guest flow, or `persona create` call returns a
-fresh finite session. Logout and expiry fence that exact session, including its
-live queries and channels, without signing out a second session for the same
-Principal. Snapback stores only a domain-separated digest of the bearer token.
+Every program lookup obeys the caller's table `read` rule, including lookups
+inside mutations. An unreadable point lookup returns absence just like a
+missing row; `! else CODE` rejects both with the same code. Program `exists`
+also checks readable rows. An admin update/delete rule does not elevate these
+reads. Do not treat absence as proof that no row exists, or add a duplicate
+roster to work around a read policy.
 
-Model follows as ordinary rows with nominal `follower` and `followed`
-Principals. A Following query may consult that row; a Global post rule must
-not. Removing a follow then changes product selection without revoking a
-globally readable post. Add a closed role only when a scoped relationship
-really grants different authority.
+For group administration, start with `snapback2 init --template chat`. Its
+membership roster is readable to current members of that same conversation:
 
-For a group, make the scope row and creator-admin seat atomic with the
-conversation's `finalExistsOnInsert` constraint. Membership insertion then has
-two lanes: current admin, or the creator's own admin seat when `rule.created`
-proves that conversation was inserted earlier in this transaction. It never
-admits a matching older conversation. Bind promotion to the old scope and the
-one allowed transition:
-
-```ts
-    update: rule.and(
-      rule.exists(memberships, "byConversationPrincipalRole", [
-        rule.oldField("conversationId"),
-        rule.viewer,
-        rule.literal("admin"),
-      ]),
-      rule.eq(rule.oldField("conversationId"), rule.nextField("conversationId")),
-      rule.eq(rule.oldField("principal"), rule.nextField("principal")),
-      rule.eq(rule.oldField("role"), rule.literal("member")),
-      rule.eq(rule.nextField("role"), rule.literal("admin")),
-    ),
+```q
+  read <- exists memberships[.conversationId, viewer]
 ```
 
-The template's `groups.groupCreate`, `memberAdd`, `memberPromote`,
-`memberRemove`, and `memberLeave` are canonical. Creation admits 2–50 people;
-self-reseating is refused; admins add/promote/remove; anyone leaves. There is no
-last-admin invariant: the remaining group may become adminless. Operations
-name intrinsic membership row ids, so remove/re-add cannot retarget an old
-operation.
+An owner-only rule (`read <- .principal = viewer`) would hide another person's
+seat from an admin. Choose the roster's read audience intentionally; if only
+admins should see other seats, admit self reads plus the current scoped admin
+membership. Never make private roster rows public merely to unblock a write.
+Table write rules independently enforce admin authority, immutable scope and
+principal, and the member-to-admin transition. The template's promotion is:
+
+```q
+mutation memberPromote(conversationId: conversations, membershipId: memberships):
+  require exists memberships[conversationId, viewer, 'admin'] else ADMIN_REQUIRED
+  membership = memberships[membershipId] ! else MEMBERSHIP_REQUIRED
+  require membership.conversationId = conversationId else MEMBERSHIP_SCOPE_REQUIRED
+  require membership.role = 'member' else MEMBER_REQUIRED
+  update memberships[membership] { role: 'admin' }
+  return null
+```
+
+`groupCreate` atomically inserts the conversation and creator-admin seat. The
+conversation's `after insert` constraint requires that seat; `created` admits
+only the creator's bootstrap in that transaction. `memberAdd`, `memberRemove`,
+and `memberLeave` complete the pattern. Intrinsic membership ids prevent a
+remove/re-add from retargeting an old request. There is no last-admin invariant.
+
+## Diagnose an unexpected absence
+
+Use a query containing the same lookup, then run
+`snapback2 why <query> '<args-json>' --as alice --json`. `why` refuses mutations
+with `E_OP_KIND` before execution. Its local, owner-protected
+`rowVerdicts` and `diagnostics` explain denied read sites and point here.
+Compare the intended viewer's result with a member/admin persona. A genuinely
+missing row has no denied-row diagnostic. These details are development
+inspection; ordinary query/mutation responses do not gain a hidden-row hint.

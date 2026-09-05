@@ -59,7 +59,7 @@ pub fn run(args: &[String]) -> ExitCode {
         &attached,
         "POST",
         "/control/why",
-        json!({ "op": positional[1], "args": arguments, "as": persona }),
+        json!({ "op": positional[1], "args": arguments, "as": persona, "queryOnly": true }),
     ) {
         Ok(response) if response.status < 400 => response.body,
         Ok(response) => {
@@ -159,6 +159,27 @@ fn enrich(op: &str, response: Json, latest: Json, certificate: Certificate) -> J
             }
         }
     }
+    // @ref LLP 1002#8-why-trace-guide — denied-read details stay in local owner diagnostics.
+    // In particular, never attach this existence-sensitive hint to execution_json.
+    let diagnostics = verdicts
+        .iter()
+        .filter(|verdict| verdict["verdict"] == "deny")
+        .map(|verdict| {
+            let site = verdict["site"].clone();
+            let diagnostic = json!({
+                "code": "E_RULE",
+                "family": "rule",
+                "site": site,
+                "table": verdict["table"],
+                "message": "The table read rule denied this lookup. Reads inside mutations use the same viewer authority; write permission does not grant read permission.",
+                "rewrite": "Inspect the table read rule for this persona. For group administration, admit the intended scoped roster audience and keep admin checks on writes; run snapback2 guide auth.",
+                "guide": "auth",
+            });
+            (site.to_string(), diagnostic)
+        })
+        .collect::<BTreeMap<_, _>>()
+        .into_values()
+        .collect::<Vec<_>>();
     let invalidated = latest
         .get("invalidated")
         .and_then(Json::as_array)
@@ -186,6 +207,7 @@ fn enrich(op: &str, response: Json, latest: Json, certificate: Certificate) -> J
         response.get("result").cloned().unwrap_or(Json::Null),
     );
     output.insert("rowVerdicts".to_owned(), Json::Array(verdicts));
+    output.insert("diagnostics".to_owned(), Json::Array(diagnostics));
     output.insert(
         "ruleInputs".to_owned(),
         trace

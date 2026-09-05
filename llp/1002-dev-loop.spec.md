@@ -612,6 +612,16 @@ verdict: "pass" | "fail" | "blocked", ms, detail }], arms: ["headless"], verdict
   examined against the certificate's (take, examined, hoisted); and, if a live
   subscription for that op+args exists, its last delivery `seq` and whether
   the latest commit touched it.
+  Denied read sites also carry local `E_RULE` diagnostics with a site,
+  rewrite, and `auth` recipe pointer: mutation lookups obey the same read
+  authority, and write permission does not elevate them. These diagnostics
+  never enter served execution envelopes; hidden and missing point reads
+  retain the same ordinary result. To inspect a mutation lookup without
+  writes, use a query containing that lookup. `why` refuses mutation names
+  with `E_OP_KIND` before execution: the CLI sends `queryOnly: true`, checked
+  against the active operation by the owner, so hot successors cannot turn
+  inspection into a write. The protected `/control/why` harness retains its
+  mutation execution for collecting authoritative offline-replay traces.
 - `trace <seq>`: the commit record (program, principal, writes, touched
   keys), the outbox rows it emitted and their real states, and the
   subscriptions it invalidated with their delivery seqs — intent → commit →

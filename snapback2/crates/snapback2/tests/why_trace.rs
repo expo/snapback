@@ -186,3 +186,175 @@ fn why_refuses_missing_corrupt_and_incomplete_certificates_as_stale() {
         fs::write(&certificate_path, &valid).unwrap();
     }
 }
+
+#[test]
+fn auth_recipe_executes_scoped_admin_reads_and_diagnoses_owner_only_absence() {
+    for scoped_roster in [false, true] {
+        let project = Project::new();
+        assert!(project.init("chat", "none").status.success());
+        let guide = json_stdout(&project.run(&["guide", "auth", "--json"]));
+        let content = guide["content"].as_str().unwrap();
+        assert!(content.len() <= 4_096);
+        assert!(!content.contains("```ts"));
+        let snippets = content
+            .split("```q\n")
+            .skip(1)
+            .map(|part| part.split("\n```").next().unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(snippets.len(), 4);
+
+        let schema_path = project.path.join("snapback/schema.q");
+        let schema = fs::read_to_string(&schema_path).unwrap();
+        let rest = schema.split("table conversations:").nth(1).unwrap();
+        let mut schema = format!(
+            "{}\n\n{}\n\ntable conversations:{}",
+            snippets[0], snippets[1], rest
+        );
+        let membership_start = schema.find("table memberships:").unwrap();
+        let membership_end = schema.find("table messages:").unwrap();
+        let membership = schema[membership_start..membership_end].to_owned();
+        assert!(membership.contains(snippets[2]));
+        let read_rule = if scoped_roster {
+            snippets[2]
+        } else {
+            "  read <- .principal = viewer"
+        };
+        schema.replace_range(
+            membership_start..membership_end,
+            &membership.replace(snippets[2], read_rule),
+        );
+        fs::write(&schema_path, schema).unwrap();
+        // Compile and execute the shipped promotion snippet, not a copied fixture.
+        fs::write(project.path.join("snapback/groups.q"), format!(
+            "{}\n\nquery inspectMembership(membershipId: memberships):\n  return memberships[membershipId]\n", snippets[3]
+        )).unwrap();
+        // This fixture changes roster visibility; remove unrelated delivery fanout
+        // operations that require the template's uniform roster read policy.
+        fs::remove_file(project.path.join("snapback/messages.q")).unwrap();
+        fs::remove_file(project.path.join("snapback/deliveries.q")).unwrap();
+        fs::remove_dir_all(project.path.join("snapback/tests")).unwrap();
+        let checked = project.run(&["check", "--json"]);
+        assert!(
+            checked.status.success(),
+            "{}{}",
+            String::from_utf8_lossy(&checked.stdout),
+            String::from_utf8_lossy(&checked.stderr)
+        );
+        let _owner = OwnerGuard::start(&project);
+        let run = |op: &str, args: &str, persona: &str| {
+            json_stdout(&project.run(&["run", op, args, "--as", persona, "--json"]))
+        };
+        let bob_args = r#"{"conversationId":"conversation-1","membershipId":"membership-2"}"#;
+        let ordinary = run(
+            "groups.inspectMembership",
+            r#"{"membershipId":"membership-2"}"#,
+            "alice",
+        );
+        let why = json_stdout(&project.run(&[
+            "why",
+            "groups.inspectMembership",
+            r#"{"membershipId":"membership-2"}"#,
+            "--as",
+            "alice",
+            "--json",
+        ]));
+        let mutation_why = project.run(&[
+            "why",
+            "groups.memberPromote",
+            bob_args,
+            "--as",
+            "alice",
+            "--json",
+        ]);
+        assert_eq!(mutation_why.status.code(), Some(1));
+        let refusal = json_stdout(&mutation_why);
+        assert_eq!(refusal["code"], "E_OP_KIND");
+        assert_eq!(refusal["family"], "op");
+        assert_eq!(refusal["site"], "groups.memberPromote");
+        assert_eq!(refusal["guide"], "auth");
+        let after_why = run(
+            "groups.inspectMembership",
+            r#"{"membershipId":"membership-2"}"#,
+            "alice",
+        );
+        assert_eq!(
+            after_why, ordinary,
+            "why must not mutate rows or advance commit seq"
+        );
+        let promoted = run("groups.memberPromote", bob_args, "alice");
+        if scoped_roster {
+            assert_eq!(ordinary["data"]["principal"], "dev:bob");
+            assert!(why["diagnostics"].as_array().unwrap().is_empty());
+            assert_eq!(promoted["state"], "committed", "{promoted}");
+            let bob = run(
+                "groups.inspectMembership",
+                r#"{"membershipId":"membership-2"}"#,
+                "alice",
+            );
+            assert_eq!(bob["data"]["role"], "admin");
+            let cross_scope = run(
+                "groups.memberPromote",
+                r#"{"conversationId":"conversation-1","membershipId":"membership-4"}"#,
+                "alice",
+            );
+            assert_eq!(cross_scope["code"], "MEMBERSHIP_SCOPE_REQUIRED");
+            let outsider = run("groups.memberPromote", bob_args, "charlie");
+            assert_eq!(outsider["code"], "ADMIN_REQUIRED");
+        } else {
+            let missing = run(
+                "groups.inspectMembership",
+                r#"{"membershipId":"absent"}"#,
+                "alice",
+            );
+            assert_eq!(
+                ordinary, missing,
+                "ordinary reads must not reveal hidden-row existence"
+            );
+            assert_eq!(promoted["code"], "MEMBERSHIP_REQUIRED", "{promoted}");
+            let missing = run(
+                "groups.memberPromote",
+                r#"{"conversationId":"conversation-1","membershipId":"absent"}"#,
+                "alice",
+            );
+            assert_eq!(
+                promoted, missing,
+                "mutation refusals must not reveal hidden-row existence"
+            );
+            assert!(promoted.get("diagnostics").is_none());
+            let diagnostic = &why["diagnostics"][0];
+            assert_eq!(diagnostic["code"], "E_RULE");
+            assert_eq!(diagnostic["family"], "rule");
+            assert_eq!(diagnostic["guide"], "auth");
+            assert_eq!(diagnostic["table"], "memberships");
+            assert!(
+                diagnostic["site"]
+                    .as_str()
+                    .is_some_and(|site| !site.is_empty())
+            );
+            assert!(
+                diagnostic["rewrite"]
+                    .as_str()
+                    .unwrap()
+                    .contains("snapback2 guide auth")
+            );
+            let missing_why = json_stdout(&project.run(&[
+                "why",
+                "groups.inspectMembership",
+                r#"{"membershipId":"absent"}"#,
+                "--as",
+                "alice",
+                "--json",
+            ]));
+            assert!(missing_why["diagnostics"].as_array().unwrap().is_empty());
+            let bob = run(
+                "groups.inspectMembership",
+                r#"{"membershipId":"membership-2"}"#,
+                "bob",
+            );
+            assert_eq!(
+                bob["data"]["role"], "member",
+                "failed promotion must not write"
+            );
+        }
+    }
+}
