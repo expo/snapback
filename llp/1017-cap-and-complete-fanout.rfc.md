@@ -601,6 +601,10 @@ rather than refusing, and that bounded traversal is its authored contract.
   `c48328c11` on 2026-09-05 at 16:20Z (`node scripts/publish.mjs`: engine
   6.8 MB, media helper 2.1 MB, 199.8 s; consumer smoke, both templates, and
   the installed React live round trip passed inside the publish).
+- Published again as `snapback2@0.0.4` and `snapback2-darwin-arm64@0.0.4`
+  from `25133cc4e` at 16:25Z the same day, at the author's request, so the
+  package carries what landed on main after 0.0.3 (LLP 1016's J2 review
+  residuals). The Clique full run pins 0.0.4.
 
 ## 8. Panel record
 

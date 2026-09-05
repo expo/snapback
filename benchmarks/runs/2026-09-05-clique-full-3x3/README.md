@@ -11,7 +11,7 @@ with no product skips. Environment facts are in the run root's
 `instrument/ENVIRONMENT.md` overlay (macOS arm64 M5 Max; iOS simulators available;
 no docker; three lanes share the machine per wave).
 
-**Snapback 2:** the published `snapback2@0.0.3` (npm; LLP 1017 landed as
+**Snapback 2:** the published `snapback2@0.0.4` (npm; LLP 1017 landed as
 `c48328c11`), never the source repository. **Convex:** `convex@1.45.0`,
 anonymous/local. **Supabase:** `@supabase/supabase-js@2.112.4` against the hosted
 `clique-pilot` project with per-wave namespace prefixes.
