@@ -1,7 +1,7 @@
 # snapback2 test wedges at ~98% CPU when seeds populate rule-restricted tables
 
 **Opened:** 2026-08-31 · **Systems:** snapback2 test runner
-**Status:** reported by the Quarry benchmark lane (9+ min spin, killed); not independently re-verified.
+**Status:** Resolved 2026-09-05 — bounded verification qualified on current Clique-shaped seeds; exact historical seed was not retained.
 
 With seed rows present in rule-restricted tables, `snapback2 test` spun at
 ~98% CPU for 9+ minutes and had to be killed. Likely the derived battery
@@ -26,6 +26,7 @@ and all three named authorization proofs. It passed every derived check with
 37 invalidation attempts; debug elapsed was 30.264 s while four integration
 tests ran concurrently. All 22 integration tests passed in 35.32 s. A larger
 242-message version also passed all semantic checks, but debug elapsed under
-shared-machine load was 59–63 s. Production-package timing remains for the
-integration lane before closing this issue; these are diagnostic/regression
-runs, not the fresh-agent Clique benchmark.
+shared-machine load was 59–63 s. The integrated production-profile binary completed that 242-message seed in
+29.195 s, with every check passing (rules 579 ms, invalidation 14,998 ms,
+replay 3,466 ms). The full workspace test suite was running concurrently.
+These are diagnostic/regression runs, not the fresh-agent Clique benchmark.
