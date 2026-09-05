@@ -53,7 +53,10 @@ the third on 2026-09-04, LLP 1012 §12):
   Kotlin, no Dart until the three are green on the bar.
 - **Media collections, push, cron, vector/search, hosted control planes, multi-region,
   federation.** Assets (typed intent), one `channel` kind, one `schedule` kind, one
-  hosted target: that is the feature list until the bar is met.
+  hosted target: that is the feature list until the bar is met. Exception (author ruling 2026-09-05, LLP 1015 §7, §8.7): lane H0 of the
+  control plane — `deploy` to a directory, the release ledger, snapshots, `rollback`,
+  `secret`, and token admission in `serve` mode; no provider, no registry — may start
+  before the loop bar. The hosted lanes H1–H3 still wait for it and for LLP 1015 §11.
 - **Offline beyond local-first v1** (LLP 1012, author rulings 2026-09-04). v1 is the
   result cache over a durable per-principal range store, `until-revoked` and
   `delivered-history` retention, digest-checked re-authorization at reconnect, a
@@ -114,3 +117,7 @@ PR. If nothing can come off, the answer is no.
 - 2026-09-04 — **on:** local-first v1 (LLP 1012); unblocks the offline bar. **off:**
   LLP 1009 observability and analytics (author ruling; returns when the offline bar
   is met).
+- 2026-09-05 — **on:** the control-plane contract, lane H0 (LLP 1015 §7); unblocks a
+  backup/export story and the static-stability test before any hosted target exists.
+  **off:** the browser admin console (author ruling; a user-focused console comes after
+  the hosted version, on the same `/control/*` routes).

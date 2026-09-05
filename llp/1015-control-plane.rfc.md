@@ -8,7 +8,9 @@ neither yet). Sequenced after the loop bar by `rules/NOT-DOING.md`
 multi-region, federation … one hosted target: that is the feature list
 until the bar is met"). This RFC is the design for that one hosted target's
 control plane, written so that when the bar is met the three empty rows of
-the verb table have a spec to implement.
+the verb table have a spec to implement. Author rulings of 2026-09-05 (§8)
+let lane H0 start before the bar and name Cloudflare the preferred substrate,
+gated on the §11 experiments.
 **Systems:** `snapback2/crates/snapback2` (`deploy`, `rollback`, `secret`;
 `dev --serve`; `/control/*` in `src/control.rs`, `src/serve.rs`, `src/owner.rs`),
 `snapback2/crates/snapback2-core` (store snapshot, `_releases`, `_tokens`,
@@ -18,7 +20,9 @@ Snapback 2 project `snapback2/registry/` (the registry app), `rules/NOT-DOING.md
 **Author:** Claude Fable 5.1, commissioned by Charlie Cheever 2026-09-05 in
 session
 **Date:** 2026-09-05
-**Revised:** 2026-09-05
+**Revised:** 2026-09-05 (a — author rulings folded: §8 answered; §5 provider
+ruling; §7 H0 before the bar; §11 experiments added; D2, D10, D12, D13 and §1
+amended); 2026-09-05 (initial)
 **Related:** **LLP 1014** (the evidence this answers; §7 items are cited as
 "1014 §7.n"), LLP 1000, LLP 1002 §1 (decision 6: `serve` mode; decision 5:
 fifteen verbs) §4 (the wire) §5 (the owner), LLP 1003 (effects and grants),
@@ -70,6 +74,13 @@ adapters or hosting profiles, no lifecycle engine, no org/team model, no
 target-neutral contract. The design is one new project, three verbs, seven
 routes, three store tables, and no new check.
 
+The author's rulings of 2026-09-05 are folded in (§8): Cloudflare is the
+preferred substrate if the §11 experiments pass, with Fly Machines as the
+control arm; the claim identity is the Expo account and EAS's account,
+organization, and project model flows into the hosted version; `run --env
+production` exists; the browser console is deferred, not refused; and lane H0
+may start before the loop bar.
+
 ## 1. What this RFC is counterweighted by
 
 `rules/RULES.md`: moving something onto the doing-list takes something off.
@@ -80,11 +91,11 @@ evidenced by LLP 1014:
 
 | Not building | Why (LLP 1014) |
 | --- | --- |
-| **A browser admin console.** | 4 of 126 Snapback 1 diaries mention it; 110 `ADMIN` codes; the products whose dashboard drifts from their CLI are the ones with a separate console (§3.3, F7). The verbs are the console. |
+| **A browser admin console, in this RFC.** | 4 of 126 Snapback 1 diaries mention it; 110 `ADMIN` codes; the products whose dashboard drifts from their CLI are the ones with a separate console (§3.3, F7). The verbs are the console. The author will build a user-focused console later, on the same routes; the agentic API comes first (ruling 2026-09-05). |
 | **A control catalog, an operation registry, or a second projection of the control routes** (`AdminClient`, host-ops envelope, generated MCP config). | LLP 0184's catalog drifted within days (§3.4 cause 3). One table in `control.rs`; MCP later reads it. |
 | **Adapters, hosting profiles, target descriptors, a target-neutral lifecycle engine.** | Two half-adapters and ten interfaces for zero served apps (§3.4 cause 4). One target, one provision effect. |
 | **Leases, fences, a supervisor, `ambiguous` operation states.** | The owner is exclusive by construction (`E_STORE_OWNED`); a deploy is a successor applied by the one process that can apply it (§3.4 cause 1). |
-| **An organization or team model.** | Until two humans share one app there is nothing to model. A token is the unit of sharing. |
+| **An organization or team model of our own.** | The hosted version uses EAS's account, organization, and project model (ruling 2026-09-05; D12). A token is the unit of sharing between machines. |
 | **Keypair-bound grants, device flows, consent compilers (LLP 0150).** | The field's weaker shape — an opaque token with scope and expiry — is what agents use today (F3). v2 direction, recorded in §8. |
 | **Multi-region, HA, autoscaling, zero-downtime activation.** | Already on the list; restated so `deploy`'s receipt can say "bounded downtime" honestly, as LLP 0072 did. |
 | **Provider credentials in the CLI.** | The CLI holds Snapback tokens only; the registry holds the provider credential (F3; LLP 0072's plane boundary). |
@@ -152,6 +163,10 @@ agents. A token is self-describing (D6), so CI needs exactly one variable.
 Two clones with two bindings are two apps; one binding shared through the
 token is one app. Evidence: 1014 §7.2, F1; the field's binding files (§2 of
 1014).
+
+In the hosted version the tenant is EAS's: at claim time an app is bound to
+an EAS project under an EAS account (D12), the registry stores those ids,
+and it owns no account, organization, or team table of its own.
 
 ### D3 — Environments: `production` and previews
 
@@ -298,7 +313,8 @@ token for reads and an `admin` token for `run` of a mutation, are capped
 like every other read, and append a ledger row `{ kind: "operator", op,
 token, at }` so the trace answers "who read this." Evidence: 1014 F8c (the
 guarantee must live below the model — here in the owner's admission, not in
-a tool description); LLP 1002 §8.
+a tool description); LLP 1002 §8. Ruled 2026-09-05: `run --env production`
+exists, `admin` only, ledgered (§8.4).
 
 ### D11 — Static stability is a test
 
@@ -312,22 +328,29 @@ test in `scripts/test.sh`'s budget: start an owner in `serve` mode with a
 registry URL that refuses connections, run the corpus's chat journey, deploy
 a release to it, roll it back. Evidence: 1014 §7.7, F6 (AWS REL11-BP04).
 
-### D12 — Identity for the claim is one effect, chosen by the author
+### D12 — Identity for the claim is the Expo account (ruled 2026-09-05)
 
-The claim URL lands on the registry's own login (Snapback 2's shipped auth:
-signup, login, guest — LLP 1001), which is enough for "a human proved an
-email." If the product ships under Expo, the login becomes an Expo OAuth
-effect and the account object becomes the Expo account (LLP 0103's ruling
-for Snapback 1); nothing else in this RFC changes. Recommendation: native
-login for the first slice, because it runs today. Decision recorded in §8.
+This is an EAS product. The claim URL is an Expo login; claiming binds the
+app to an EAS project under the claimer's EAS account, and from then on the
+EAS account, organization, and project model is the tenant model of the
+hosted version (LLP 0103's posture, carried over). Concretely: who may mint
+an `admin` token for an environment is "a member of the owning EAS account
+whose EAS role allows it"; the registry stores EAS ids and never its own
+membership; billing, if any, is EAS's. Snapback 2's own signup/login (LLP
+1001) is used only where there is no registry — the local `serve`-mode
+contract tests of lane H0 — and by the registry's effects to talk to Expo.
+Evidence: 1014 §4.2 and §4.10 (a project *is* the cloud provider's project),
+LLP 0103.
 
-### D13 — No browser console; the verbs are the console
+### D13 — No browser console in this RFC; the verbs are the console
 
 There is no `status` verb: `dev --status` is the local spelling and
 `deploy --status --env production` prints `/control/status` for a hosted
 environment, meters and release included. A human who wants to look at
 production data runs `snapback2 data --env production todos --json`.
-Evidence: 1014 §7.9, F7, §3.3.
+Evidence: 1014 §7.9, F7, §3.3. Ruling 2026-09-05: a user-focused console
+comes later, after the hosted version; it reads the same `/control/*` table
+and adds no route a verb does not have.
 
 ### D14 — Export is deploying to a directory
 
@@ -422,16 +445,19 @@ secret). The provider credential is one secret of the registry app, set with
 target as an ordinary environment of an ordinary app named `registry`, and
 deploys with `snapback2 deploy`.
 
-**Provider recommendation (author decision §8.1):** Fly Machines. One
-Machine plus one volume per environment maps one-to-one onto the owner's
-exclusivity (`E_STORE_OWNED`); the Machines API creates in seconds and is a
-plain REST surface an effect can call; Snapback 1 retained working Fly
-observation and backup primitives (LLP 0111); Sprites are a plausible
-substrate for previews later. The alternative on the table is Cloudflare
-(Workers for Platforms plus Durable Object SQLite, LLP 0103), which would
-require the engine to run inside a Worker and is therefore a port, not a
-target. A container host that the author prefers changes only the
-`provision` effect.
+**Provider (author ruling 2026-09-05):** Cloudflare is the preferred
+substrate — EAS Hosting already runs on Cloudflare Workers for Platforms with
+a commercial agreement in place (LLP 0103) — *provided* the §11 experiments
+show the engine can run there within the bars and without a port that
+`rules/NOT-DOING.md` forbids. Fly Machines is the control arm of those
+experiments and the fallback: one Machine plus one volume per environment
+maps one-to-one onto the owner's exclusivity (`E_STORE_OWNED`), the Machines
+API creates in seconds, and Snapback 1 retained working Fly observation and
+backup primitives (LLP 0111). Whichever wins changes only the `provision`
+effect. On Cloudflare with EAS, the registry shrinks: accounts, projects,
+billing, the dashboard, and request logs are EAS's; the registry keeps only
+the environment-to-instance mapping, control secrets, token re-issue, and
+reaping.
 
 ## 6. Measurements to record
 
@@ -452,9 +478,10 @@ it (LLP 1012 §14's precedent), and each carries a budget that
 
 ## 7. Sequencing and the trade
 
-`rules/NOT-DOING.md` sequences hosted work after the loop bar. When the bar
-is met on a published package, this RFC proposes four lanes, in order, each
-landing behind `scripts/test.sh` and the measured loop:
+Author ruling 2026-09-05 (§8.7): lane H0 may start before the loop bar; it
+needs no provider and no registry, and `rules/NOT-DOING.md` §Moves records
+the trade. H1 onward wait for the bar and for the §11 experiments. Four
+lanes, in order, each landing behind `scripts/test.sh` and the measured loop:
 
 - **H0 — the contract, no provider.** `deploy --target dir:`, the release
   bundle and `_releases` ledger, `snapshot`, `rollback` with the discard
@@ -470,29 +497,41 @@ landing behind `scripts/test.sh` and the measured loop:
 - **H3 — tokens for agents, and MCP.** `deploy --token`, the `read`
   capability's defaults, the MCP projection of the `read` rows.
 
-What comes off the doing-list to pay for the registry deployable is in §1.
-Nothing in this RFC moves the media/Expo slice, LLP 1009, or LLP 1012.
+What comes off the doing-list to pay for the registry deployable is in §1;
+the offsetting item for starting H0 early is the browser admin console,
+deferred until after the hosted version (§1, §8). Nothing in this RFC moves
+the media/Expo slice, LLP 1009, or LLP 1012.
 
-## 8. Open author decisions
+## 8. Author decisions — rulings of 2026-09-05
 
-1. **The hosted provider.** Recommendation in §5: Fly Machines. The
-   `provision` effect is the only thing that changes with the answer.
-2. **Claim identity.** Native login (runs today) or Expo account (LLP 0103's
-   posture, if the product ships under EAS). Recommendation: native for H1;
-   Expo when the product is Expo's.
-3. **The permanent caps** (D9): store bytes, egress per day, effect calls per
-   day, subscribers. The temporary caps in D8 are proposed numbers.
-4. **Whether `run --env production` exists at all** (D10). It is the field's
-   "function runner"; it is also a mutation as the system principal against
-   live data. Recommendation: exists, `admin` only, ledgered.
-5. **Whether `--preview --from production` copies secrets.** Recommendation:
-   never (Heroku's review apps; Snapback 1's scrubbed forks); the refusal
-   names them.
-6. **Token default expiries** (D6). Recommendation: 24 h / 30 d / 30 d.
-7. **Whether H0 may start before the loop bar**, since it needs no provider
-   and adds no hosted control plane. `NOT-DOING.md` says no; the author may
-   rule otherwise by writing one line naming what it unblocks and taking
-   something off.
+Asked in the first revision; answered by the author the same day in session.
+
+1. **The hosted provider.** Ruled: Cloudflare is the natural preference —
+   EAS is already on Cloudflare with a deal in place — but "maybe it's too
+   gnarly"; run experiments first. §5 and §11 carry the ruling. Fly Machines
+   is the control arm and the fallback.
+2. **Claim identity.** Ruled: the Expo account, once they want to claim it;
+   this is an EAS product. D12 rewritten. The EAS organization, team, and
+   project model flows into the hosted version; the registry owns none of
+   its own.
+3. **The permanent caps** (D9). Ruled: the proposed numbers are reasonable
+   to start (store 1 GB, egress 10 GB/day, 100,000 effect calls/day, 1,000
+   subscribers; temporary apps 100 MB / 1 GB / 10,000 / 100). *Preview
+   lifetime* means the TTL after which a preview environment is destroyed:
+   72 h by default, renewed by redeploying, 14 d maximum (D3).
+4. **`run --env production`.** Ruled: yes. `admin` only, every use
+   ledgered (D10).
+5. **Previews copying secrets.** Not answered; the recommendation stands as
+   the default: never (D7, D3). Veto any time.
+6. **Token default expiries** (D6). Ruled: reasonable — read 24 h, deploy
+   30 d, admin 30 d with a 90 d maximum.
+7. **H0 before the loop bar.** Ruled: yes. `rules/NOT-DOING.md` records the
+   exception and the trade; §7 sequences it.
+
+Also ruled: no browser console *for now* — "a user focused admin console
+later; focus on the agentic API" (D13, §1); the registry as a Snapback 2 app
+is accepted with reservation ("seems ok i guess"), so §11's EAS study also
+asks how much of it EAS already is.
 
 ## 9. Implementer and date
 
@@ -506,3 +545,39 @@ proposes the lines of §1 for the author to add when H0 is commissioned), does
 not choose the provider or the claim identity, does not claim any hosted
 readiness, security posture, or availability, and does not revive any Snapback
 1 control-plane document. It does not specify billing; there is none in v1.
+
+## 11. The Cloudflare feasibility experiments (ruling 2026-09-05)
+
+The author prefers Cloudflare and asked for experiments before committing.
+The engine is a Rust binary that owns one SQLite file exclusively (WAL,
+`E_STORE_OWNED`, successors applied in place). What Cloudflare offers today,
+read on 2026-09-05: **Containers** with ephemeral disk ("when a Container
+instance goes to sleep, the next time it is started it will have a fresh
+disk"; disk snapshots "coming soon"; FUSE to R2 possible; cold start 1–3 s;
+`sleepAfter` idle sleep; the February 2026 limit increase), **Durable
+Objects with SQLite** (10 GB per object on the paid plan, point-in-time
+recovery, GA April 2025), **R2** (S3-compatible), and **Workers for
+Platforms** (dispatch namespaces with per-tenant limits, the substrate EAS
+Hosting already uses). Three arms and one study:
+
+| Arm | What runs | What is measured |
+| --- | --- | --- |
+| **A — Container + R2** | the unmodified binary in a Container behind its Durable Object; on wake, restore the store from R2; while awake, replicate WAL segments to R2 (Litestream-shaped; Snapback 1's lane in `guide/operating/replication.md` is the prior art); the DO forwards the wire | cold start to first successful query; restore time at 10 / 100 / 1,000 MB; write latency with replication on; RPO (replication lag at the moment of sleep); idle cost per app; whether `sleepAfter` cooperates with open SSE subscriptions |
+| **B — Durable-Object-native** | `snapback2-core` compiled to wasm32 with a storage trait over the DO's synchronous `storage.sql`; the wire served by the DO | first a paper measure: every rusqlite touch point and every WAL/transaction assumption in `Store`, the successor rebuilds, and `_meta/_commits/_outbox`; then, only if that count is small, the 106-case corpus inside a DO; CPU ms per query against native; port size in lines. This arm collides with `rules/NOT-DOING.md` "WASM anywhere"; the author would have to move that line |
+| **C — Fly Machines (control)** | the unmodified binary on one Machine with one volume | the same measures as A, so A's numbers have a comparison |
+| **S-EAS (paper)** | how an app becomes an EAS project; the `expo.app` subdomain and preview-URL shape; whether `snapback2 deploy` calls EAS's deployment API or the registry; which registry tables EAS already is (accounts, projects, billing, dashboard, logs) | the registry's remaining scope, and the D8 claim flow's exact steps under Expo login |
+
+**Pass bars.** Cold start to first successful query ≤ 3 s; warm query p50
+over the wire ≤ 25 ms from the same region; restore of a 100 MB store ≤
+10 s; RPO ≤ 1 s, or every mutation acknowledged only after its durable
+write; the corpus chat journey green over the wire. Arm B additionally: the
+port ≤ 1,500 new lines and the corpus 106 of 106.
+
+**Decision rule.** If A meets the bars, Cloudflare Containers is the
+substrate and `provision` is a Container-plus-DO effect. If A fails and B
+meets them, the author rules on the WASM line. If both fail, Fly.
+
+**Budget and record.** Three lane-days for A, one for B's paper measure,
+one for C, one for S-EAS. Results land as lines in `snapback2/metrics/` and
+as a dated amendment to §5 of this document. Owner: unassigned; this is not
+a spec until it has one.
