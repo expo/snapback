@@ -15,6 +15,9 @@ cannot be combined with tokens or bearer-session transitions. Production
 refuses personas. Logout and expiry fence that session, including live queries
 and channels, without signing out other sessions for the same principal.
 
+Logins have no rate limit. Wrong passwords and unknown emails both return
+`E_AUTH_INVALID`; login failure does not mean an account is missing.
+
 Session and `me` responses carry `authEpoch`. Same-principal re-login fences
 old replies, revalidates held coverage, and keeps queued writes.
 Built-in token stores bind the saved principal to its token. Custom stores
@@ -59,12 +62,10 @@ membership roster is readable to current members of that same conversation:
   read <- exists memberships[.conversationId, viewer]
 ```
 
-An owner-only rule (`read <- .principal = viewer`) would hide another person's
-seat from an admin. Choose the roster's read audience intentionally; if only
-admins should see other seats, admit self reads plus the current scoped admin
-membership. Never make private roster rows public merely to unblock a write.
+`read <- .principal = viewer` hides other seats from an admin. If only
+admins should see other seats, admit self reads plus the scoped admin membership. Never make private roster rows public merely to unblock a write.
 Table write rules independently enforce admin authority, immutable scope and
-principal, and the member-to-admin transition. The template's promotion is:
+principal, and the member-to-admin transition. Promotion:
 
 ```q
 mutation memberPromote(conversationId: conversations, membershipId: memberships):

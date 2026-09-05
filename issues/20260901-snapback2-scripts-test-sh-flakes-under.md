@@ -28,3 +28,15 @@ reached its overall 2,000 ms ceiling before reaching the expected output-drain
 timeout. A production build/large-seed qualification ran concurrently. A
 quiet targeted rerun passed (1/1, 2.01 s). This is recorded as a timing-sensitive
 suite failure and successful targeted retry, not an all-green `test.sh` run.
+
+## Login-throttling removal verification — 2026-09-05
+
+The removal's final broad run passed 506/507 Rust tests and 295/296 client
+tests. The media-helper output-drain test above hit its same 2,000 ms ceiling;
+its separate rerun passed in 2.01 s. The local-data recovery test `real
+sessions change epochs across re-login, seal and cold auth; custom cursor
+custody drains offline on every carrier` exceeded the script's 10-second
+limit. It also timed out in the unchanged `7bcff554e` worktree. A separate
+run against the removal, with a 60-second allowance, passed in 7.774 s.
+The focused identity/store tests passed 18/18. These are separate passing
+checks, not a claim that the complete script passed.

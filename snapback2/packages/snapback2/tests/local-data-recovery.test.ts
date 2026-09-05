@@ -158,7 +158,7 @@ test("real sessions change epochs across re-login, seal and cold auth; custom cu
     client = createClient({ url: owner.url, fetch: transport, offline: { store: factory } }); clients.push(client);
     const first = await client.auth.signup(account);
     // Signup carries no grant; a completed drain earns it without using an
-    // extra password login in the owner's per-email throttle window.
+    // extra password login while testing token restoration.
     const initialDrain = client.subscribe(api.recovery.page as any, { nextPage: null }, () => {}, { drain: true });
     await initialDrain.until(caughtUp, 2_000);
     initialDrain.close();

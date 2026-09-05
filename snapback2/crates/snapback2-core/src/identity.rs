@@ -28,13 +28,6 @@ pub static SYSTEM_PRINCIPAL_ID: LazyLock<String> = LazyLock::new(|| {
 // @ref LLP 1001#6-identity-identityrs — bearer bytes leave identity only once;
 // persistence and lookup use a domain-separated digest plus a durable epoch.
 const SESSION_TOKEN_DOMAIN: &[u8] = b"snapback2-session-token-v1\0";
-const LOGIN_GLOBAL_BUCKET_DOMAIN: &[u8] = b"snapback2-login-throttle-global-v1\0";
-const LOGIN_EMAIL_BUCKET_DOMAIN: &[u8] = b"snapback2-login-throttle-email-v1\0";
-// Deliberately small fixed v0 limits keep the password-guess fence testable
-// without app configuration. Both buckets reset at the exact window boundary.
-const LOGIN_THROTTLE_WINDOW_MILLIS: i64 = 60_000;
-const LOGIN_GLOBAL_ATTEMPTS: u32 = 8;
-const LOGIN_EMAIL_ATTEMPTS: u32 = 3;
 pub static CURRENT_VALUE_MODEL_VERSION: LazyLock<String> = LazyLock::new(|| {
     serde_json::from_str::<serde_json::Value>(IR_CONTRACT_JSON)
         .expect("snapback2-core IR contract must be valid JSON")
@@ -58,17 +51,6 @@ std::thread_local! {
 #[doc(hidden)]
 pub fn password_verification_calls() -> u64 {
     PASSWORD_VERIFICATION_CALLS.with(|calls| calls.get())
-}
-
-/// Debug-only test hook for the fixed durable login-throttle policy.
-#[cfg(debug_assertions)]
-#[doc(hidden)]
-pub fn login_throttle_policy() -> (u32, u32, i64) {
-    (
-        LOGIN_GLOBAL_ATTEMPTS,
-        LOGIN_EMAIL_ATTEMPTS,
-        LOGIN_THROTTLE_WINDOW_MILLIS,
-    )
 }
 
 /// An authenticated application actor. Construction rejects the reserved
@@ -237,9 +219,6 @@ impl Runtime {
             return Err(IdentityError::Invalid);
         }
         let email = normalize_email(email);
-        if !consume_login_attempt(&self.engine.store().conn, &email, now)? {
-            return Err(IdentityError::Invalid);
-        }
         let credential: Option<(String, String)> = self
             .engine
             .store()
@@ -507,56 +486,6 @@ fn positive_epoch(epoch: i64) -> rusqlite::Result<u64> {
         .ok()
         .filter(|epoch| *epoch > 0)
         .ok_or_else(|| rusqlite::Error::IntegralValueOutOfRange(0, epoch))
-}
-
-fn consume_login_attempt(
-    connection: &rusqlite::Connection,
-    canonical_email: &str,
-    now: i64,
-) -> Result<bool, IdentityError> {
-    // The short transaction ends before either the real or dummy Argon2 check.
-    let global = digest_with_domain(LOGIN_GLOBAL_BUCKET_DOMAIN, &[]);
-    let email = digest_with_domain(LOGIN_EMAIL_BUCKET_DOMAIN, canonical_email.as_bytes());
-    let transaction = connection.unchecked_transaction()?;
-    let global_allowed =
-        consume_throttle_bucket(&transaction, &global, LOGIN_GLOBAL_ATTEMPTS, now)?;
-    let email_allowed = consume_throttle_bucket(&transaction, &email, LOGIN_EMAIL_ATTEMPTS, now)?;
-    transaction.commit()?;
-    Ok(global_allowed && email_allowed)
-}
-
-fn consume_throttle_bucket(
-    transaction: &rusqlite::Transaction<'_>,
-    digest: &[u8; 32],
-    limit: u32,
-    now: i64,
-) -> Result<bool, rusqlite::Error> {
-    let current = transaction
-        .query_row(
-            "SELECT window_start, attempts FROM _auth_throttle WHERE bucket_digest = ?1",
-            [&digest[..]],
-            |row| Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?)),
-        )
-        .optional()?;
-    let (window_start, attempts) = current.unwrap_or((now, 0));
-    let reset = now >= window_start.saturating_add(LOGIN_THROTTLE_WINDOW_MILLIS);
-    let window_start = if reset { now } else { window_start };
-    let attempts = if reset { 0 } else { attempts.max(0) };
-    let allowed = attempts < i64::from(limit);
-    let attempts = if allowed {
-        attempts.saturating_add(1)
-    } else {
-        attempts
-    };
-    transaction.execute(
-        "INSERT INTO _auth_throttle(bucket_digest, window_start, attempts)
-         VALUES (?1, ?2, ?3)
-         ON CONFLICT(bucket_digest) DO UPDATE SET
-            window_start = excluded.window_start,
-            attempts = excluded.attempts",
-        params![&digest[..], window_start, attempts],
-    )?;
-    Ok(allowed)
 }
 
 fn load_principal(

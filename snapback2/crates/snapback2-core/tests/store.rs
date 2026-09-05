@@ -807,49 +807,31 @@ fn store_open_refuses_plaintext_and_unknown_session_shapes_without_publishing_ow
 
 #[test]
 fn store_open_refuses_digest_hybrids_without_blob_type_constraints() {
-    for (label, session_check, throttle_check) in [
-        (
-            "session-digest-hybrid",
-            "CHECK(length(token_digest) = 32)",
-            "CHECK(typeof(bucket_digest) = 'blob' AND length(bucket_digest) = 32)",
-        ),
-        (
-            "throttle-digest-hybrid",
-            "CHECK(typeof(token_digest) = 'blob' AND length(token_digest) = 32)",
-            "CHECK(length(bucket_digest) = 32)",
-        ),
-    ] {
-        let path = temp_store(label);
-        let connection = rusqlite::Connection::open(&path).unwrap();
-        connection
-            .execute_batch(&format!(
-                "CREATE TABLE _meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
-                 INSERT INTO _meta(key, value) VALUES ('store_version', '2');
-                 CREATE TABLE _sessions (
-                    auth_epoch INTEGER PRIMARY KEY AUTOINCREMENT,
-                    token_digest BLOB NOT NULL UNIQUE {session_check},
-                    principal TEXT NOT NULL,
-                    kind TEXT NOT NULL,
-                    created_at INTEGER NOT NULL,
-                    expires_at INTEGER NOT NULL
-                 );
-                 CREATE TABLE _auth_throttle (
-                    bucket_digest BLOB PRIMARY KEY NOT NULL {throttle_check},
-                    window_start INTEGER NOT NULL,
-                    attempts INTEGER NOT NULL
-                 );"
-            ))
-            .unwrap();
-        drop(connection);
+    let path = temp_store("session-digest-hybrid");
+    let connection = rusqlite::Connection::open(&path).unwrap();
+    connection
+        .execute_batch(
+            "CREATE TABLE _meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+             INSERT INTO _meta(key, value) VALUES ('store_version', '2');
+             CREATE TABLE _sessions (
+                auth_epoch INTEGER PRIMARY KEY AUTOINCREMENT,
+                token_digest BLOB NOT NULL UNIQUE CHECK(length(token_digest) = 32),
+                principal TEXT NOT NULL,
+                kind TEXT NOT NULL,
+                created_at INTEGER NOT NULL,
+                expires_at INTEGER NOT NULL
+             );",
+        )
+        .unwrap();
+    drop(connection);
 
-        let error = match Store::open(&path) {
-            Ok(_) => panic!("digest hybrid unexpectedly opened"),
-            Err(error) => error,
-        };
-        assert_eq!(error.code(), "E_STORE_VERSION");
-        assert!(error.to_string().contains("reset the development store"));
-        cleanup(&path);
-    }
+    let error = match Store::open(&path) {
+        Ok(_) => panic!("digest hybrid unexpectedly opened"),
+        Err(error) => error,
+    };
+    assert_eq!(error.code(), "E_STORE_VERSION");
+    assert!(error.to_string().contains("reset the development store"));
+    cleanup(&path);
 }
 
 #[test]

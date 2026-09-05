@@ -216,12 +216,6 @@ impl Store {
                 created_at INTEGER NOT NULL,
                 expires_at INTEGER NOT NULL
              );
-             CREATE TABLE IF NOT EXISTS _auth_throttle (
-                bucket_digest BLOB PRIMARY KEY NOT NULL
-                    CHECK(typeof(bucket_digest) = 'blob' AND length(bucket_digest) = 32),
-                window_start INTEGER NOT NULL,
-                attempts INTEGER NOT NULL
-             );
              CREATE TABLE IF NOT EXISTS _grants (
                 id TEXT PRIMARY KEY,
                 principal TEXT NOT NULL,
@@ -996,29 +990,6 @@ fn inspect_store_format(connection: &Connection) -> rusqlite::Result<ExistingSto
         )));
     }
 
-    let expected_throttle = [
-        ("bucket_digest", "BLOB", true, 1),
-        ("window_start", "INTEGER", true, 0),
-        ("attempts", "INTEGER", true, 0),
-    ];
-    if !columns_match(connection, "_auth_throttle", &expected_throttle)? {
-        return Ok(ExistingStoreFormat::Incompatible(
-            "existing store has no canonical authentication throttle".to_owned(),
-        ));
-    }
-    let throttle_sql = table_sql(connection, "_auth_throttle")?
-        .unwrap_or_default()
-        .chars()
-        .filter(|character| !character.is_ascii_whitespace())
-        .collect::<String>()
-        .to_ascii_uppercase();
-    if !throttle_sql.contains("TYPEOF(BUCKET_DIGEST)='BLOB'")
-        || !throttle_sql.contains("LENGTH(BUCKET_DIGEST)=32")
-    {
-        return Ok(ExistingStoreFormat::Incompatible(
-            "authentication throttle digest constraint is missing".to_owned(),
-        ));
-    }
     Ok(ExistingStoreFormat::Canonical)
 }
 

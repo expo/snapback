@@ -314,119 +314,47 @@ fn ensure_persona_is_session_free_and_persona_issues_fresh_finite_bearers() {
 }
 
 #[test]
-fn login_throttle_is_pre_kdf_canonical_durable_and_response_indistinguishable() {
+fn repeated_logins_and_invalid_credentials_do_not_limit_later_logins() {
     let path = temp_path();
-    let throttle_snapshot = temp_path();
-    let (global_limit, email_limit, window) = snapback2_core::identity::login_throttle_policy();
-    let start = 5_000;
+    let emails = [
+        "alice@example.com",
+        "bob@example.com",
+        "charlie@example.com",
+    ];
+    let password = "long enough password";
+    let now = 5_000;
     {
         let mut runtime =
             Runtime::open(Store::open(&path).unwrap(), generation(true, false)).unwrap();
-        runtime
-            .signup("known@example.com", "long enough password", 1)
-            .unwrap();
-        for _ in 0..email_limit {
+        for email in emails {
+            runtime.signup(email, password, now).unwrap();
+        }
+        // Four three-user seed/acceptance rounds at one instant exceed both
+        // former limits: three per email and eight globally per minute.
+        for _ in 0..4 {
+            for email in emails {
+                let session = runtime.login(email, password, now).unwrap();
+                runtime.authenticate(&session.token, now).unwrap();
+                runtime.logout(&session.token, now).unwrap();
+            }
+        }
+        for email in [emails[0], "unknown@example.com"] {
             let before = snapback2_core::identity::password_verification_calls();
             assert!(matches!(
-                runtime.login(" KNOWN@EXAMPLE.COM ", "wrong password", start),
+                runtime.login(email, "wrong password", now),
                 Err(IdentityError::Invalid)
             ));
             assert_eq!(
                 snapback2_core::identity::password_verification_calls() - before,
-                1
+                1,
+                "known and unknown emails still perform password verification"
             );
         }
-        let before = snapback2_core::identity::password_verification_calls();
-        assert!(matches!(
-            runtime.login("known@example.com", "wrong password", start),
-            Err(IdentityError::Invalid)
-        ));
-        assert_eq!(
-            snapback2_core::identity::password_verification_calls() - before,
-            0,
-            "a refused pre-KDF bucket must not run Argon2"
-        );
-        runtime.store().snapshot_to(&throttle_snapshot).unwrap();
     }
-
-    let connection = rusqlite::Connection::open(&throttle_snapshot).unwrap();
-    let mut statement = connection
-        .prepare("SELECT bucket_digest FROM _auth_throttle ORDER BY bucket_digest")
-        .unwrap();
-    let digests = statement
-        .query_map([], |row| row.get::<_, Vec<u8>>(0))
-        .unwrap()
-        .collect::<Result<Vec<_>, _>>()
-        .unwrap();
-    let mut canonical_email_digest = Sha256::new();
-    canonical_email_digest.update(b"snapback2-login-throttle-email-v1\0");
-    canonical_email_digest.update(b"known@example.com");
-    assert_eq!(digests.len(), 2, "one global and one email bucket");
-    assert!(
-        digests
-            .iter()
-            .all(|digest| digest.len() == 32 && digest != b"known@example.com")
-    );
-    assert!(digests.contains(&canonical_email_digest.finalize().to_vec()));
-    drop(statement);
-    drop(connection);
-
     let mut runtime = Runtime::open(Store::open(&path).unwrap(), generation(true, false)).unwrap();
-    let before = snapback2_core::identity::password_verification_calls();
-    assert!(matches!(
-        runtime.login("known@example.com", "wrong password", start + 1),
-        Err(IdentityError::Invalid)
-    ));
-    assert_eq!(
-        snapback2_core::identity::password_verification_calls() - before,
-        0,
-        "the email bucket must survive reopen"
-    );
-    let before = snapback2_core::identity::password_verification_calls();
-    assert!(matches!(
-        runtime.login("known@example.com", "wrong password", start + window),
-        Err(IdentityError::Invalid)
-    ));
-    assert_eq!(
-        snapback2_core::identity::password_verification_calls() - before,
-        1,
-        "the fixed window resets at its exact boundary"
-    );
+    runtime.login(" ALICE@EXAMPLE.COM ", password, now).unwrap();
     drop(runtime);
     cleanup(&path);
-    cleanup(&throttle_snapshot);
-
-    let mut runtime = Runtime::open(Store::memory().unwrap(), generation(true, false)).unwrap();
-    runtime
-        .signup("global-known@example.com", "long enough password", 1)
-        .unwrap();
-    for attempt in 0..global_limit {
-        let email = if attempt == 0 {
-            "global-known@example.com".to_owned()
-        } else {
-            format!("unknown-{attempt}@example.com")
-        };
-        let before = snapback2_core::identity::password_verification_calls();
-        assert!(matches!(
-            runtime.login(&email, "wrong password", start),
-            Err(IdentityError::Invalid)
-        ));
-        assert_eq!(
-            snapback2_core::identity::password_verification_calls() - before,
-            1
-        );
-    }
-    for email in ["global-known@example.com", "another-unknown@example.com"] {
-        let before = snapback2_core::identity::password_verification_calls();
-        assert!(matches!(
-            runtime.login(email, "wrong password", start),
-            Err(IdentityError::Invalid)
-        ));
-        assert_eq!(
-            snapback2_core::identity::password_verification_calls() - before,
-            0
-        );
-    }
 }
 
 #[test]
