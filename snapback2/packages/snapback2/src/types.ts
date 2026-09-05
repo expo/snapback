@@ -140,8 +140,8 @@ export interface Subscription<Event> {
   until(predicate: (event: Event) => boolean, timeoutMs?: number): Promise<Event>;
 }
 
-export interface AuthSession { token: string; viewer: Principal }
-export interface AuthMe { viewer: Principal; kind: string }
+export interface AuthSession { token: string; viewer: Principal; authEpoch?: number }
+export interface AuthMe { viewer: Principal; kind: string; authEpoch?: number }
 export interface AuthApi {
   signup(input: { email: string; password: string }): Promise<AuthSession>;
   login(input: { email: string; password: string }): Promise<AuthSession>;
@@ -233,9 +233,11 @@ export interface AuthTokenStore {
   load(): string | null | undefined | Promise<string | null | undefined>;
   /** Persists a bearer, or clears custody with `null`. */
   save(token: string | null): void | Promise<void>;
-  /** Optional companion custody needed to reopen a per-principal offline partition before network I/O. */
+  /** Optional token-bound custody for safe retained reads before network authentication. */
+  loadPrincipalBinding?(): { token: string; principal: string } | null | undefined | Promise<{ token: string; principal: string } | null | undefined>;
+  /** Legacy advisory principal; early reads require loadPrincipalBinding instead. */
   loadPrincipal?(): string | null | undefined | Promise<string | null | undefined>;
-  savePrincipal?(principal: string | null): void | Promise<void>;
+  savePrincipal?(principal: string | null, token?: string): void | Promise<void>;
 }
 
 interface ClientLocationOptions {
@@ -266,7 +268,16 @@ export type CreateClientOptions = ClientLocationOptions & (
 
 // @ref LLP 1012#7-writes-offline — the outbox is readable before the first
 // request, so a queued message is on screen at cold start.
-export type OutboxSettlement = void | { stopped: "fence" };
+export type OutboxSettlement = { stopped: false | "fence" | "transport" | "authority" | "offline" | "pending"; remaining: number };
+
+export interface OutboxStatus {
+  ready: boolean;
+  reason: "ready" | "sealed" | "grant-missing" | "grant-expired" | "ids-exhausted" | "program-missing";
+  action: "none" | "login" | "resume" | "load-program";
+  /** Number of queued intents; settled entries are excluded. */
+  remaining: number;
+  fence: "inside" | "past";
+}
 
 export interface OutboxApi {
   /** Every durable intent of the open partition, FIFO; empty without a store. */
@@ -286,14 +297,16 @@ export interface OutboxApi {
    * through `subscribe` even when the entries are unchanged (LLP 1012 §7).
    */
   ready<Args = unknown, Result = unknown>(op?: Op<Args, Result>): Promise<boolean>;
+  /** Actionable admission state, using the same checks as enqueue. */
+  status<Args = unknown, Result = unknown>(op?: Op<Args, Result>): Promise<OutboxStatus>;
   /** Past means replay waits for this partition's successful resume; enqueue remains ready. */
   fence(): Promise<"inside" | "past">;
-  /** Replays FIFO; a fence stop returns { stopped: "fence" } with the intents still queued. */
+  /** Replays FIFO; reports the stop reason and queued count without discarding work. */
   drain(): Promise<OutboxSettlement>;
   /**
    * Resolves once the in-flight replay, if any, emptied the queue or a retryable
-   * transport failure stopped it; returns { stopped: "fence" } if resume is
-   * required, and rejects with a non-retryable refusal that stopped it.
+   * transport failure stopped it; returns the stop reason and queued count,
+   * and rejects with a non-retryable refusal that stopped it.
    */
   settled(): Promise<OutboxSettlement>;
 }

@@ -53,7 +53,8 @@ export function editArgs(entry: OutboxEntry): EditArgs | undefined {
 /** The label a settled or queued intent shows; never a client clock. */
 export function intentLabel(entry: OutboxEntry): string {
   switch (entry.state) {
-    case "queued": return entry.reason === "fence" ? "Will be checked by the server" : "Sending…";
+    case "queued": return entry.reason === "fence" ? "Will be checked by the server"
+      : entry.predicted ? "Sending… · Preview" : "Sending… · Awaiting confirmation";
     case "committed": return "Sent";
     case "expired": return "Expired";
     case "rejected": {

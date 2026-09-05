@@ -1,6 +1,6 @@
 # P1 Snapback 2: cold offline drains with a custom cursor repeat page one
 
-**Status:** Open
+**Status:** Closed
 **Priority:** P1
 **Systems:** offline program restoration and DrainSubscription
 **Date:** 2026-09-05
@@ -61,3 +61,19 @@ The package was rebuilt before verification. Existing selected client/carrier
 suites passed 251/251 and Rust offline/replay/retention tests passed 37/37.
 The new review reproductions expose gaps in that coverage. This ticket is
 self-contained; temporary review artifacts are not required to implement it.
+
+## Resolution — 2026-09-05
+
+The runtime derives cursor descriptors lazily from held program IR after
+reopen. Both page traversal and the live tail detect repeated cursors and
+refuse instead of looping. Offline traversal leaves the server watermark
+unchanged. Drains still wait for startup when online, while covered local
+reads can proceed independently.
+
+Real-owner regression coverage drains a non-c cursor on file, IndexedDB,
+and SQLite carriers, reopens offline, and verifies rows, completion, and
+preservation of the actual persisted watermark.
+
+The complete package run passed 364 tests with one existing skipped
+process-control placeholder; no package tests failed. The implementation,
+regressions, and guide/LLP updates ship together with this ticket closure.

@@ -28,6 +28,7 @@ import {
   type MutationResult,
   type OfflineClientOptions,
   type OutboxEntry,
+  type OutboxStatus,
   type Principal,
   type QueryHookResult,
   type QueryMachineEvent,
@@ -247,6 +248,7 @@ export interface UseMutationResult<Args, Result> {
    * send on it rather than retrying the refusal (LLP 1012 §7).
    */
   ready: boolean;
+  status: OutboxStatus;
   last: MutationResult<Result> | undefined;
   transport: SnapbackRefusal | undefined;
 }
@@ -256,6 +258,7 @@ export interface UseOutboxResult {
   entries: OutboxEntry[];
   /** Grant-present readiness (`client.outbox.ready()`): no particular write bound is implied, and the fence does not gate it. */
   ready: boolean;
+  status: OutboxStatus;
   /** Past means queued until this partition resumes; accepting writes remains enabled. */
   fence: "inside" | "past";
   dismiss(intent: string): Promise<void>;
@@ -267,24 +270,25 @@ function useOutboxState(op?: Op<any, any>): UseOutboxResult {
   const { client, snapshot } = provider();
   const operation = op === undefined ? undefined : referenceName(op);
   const identity = useMemo(() => ({}), [client, snapshot.authGeneration, operation]);
-  const [state, setState] = useState<{ identity?: object; entries: OutboxEntry[]; ready: boolean; fence: "inside" | "past" }>({ entries: [], ready: false, fence: "inside" });
+  const initial: OutboxStatus = { ready: false, reason: "grant-missing", action: "resume", remaining: 0, fence: "inside" };
+  const [state, setState] = useState<{ identity?: object; entries: OutboxEntry[]; status: OutboxStatus }>({ entries: [], status: initial });
   useEffect(() => {
     let active = true;
     let probe = 0;
     const unsubscribe = client.outbox.subscribe((entries) => {
       const current = ++probe;
-      const publish = (ready: boolean, fence: "inside" | "past") => {
-        if (active && current === probe) setState({ identity, entries, ready, fence });
+      const publish = (status: OutboxStatus) => {
+        if (active && current === probe) setState({ identity, entries, status });
       };
-      void Promise.all([client.outbox.ready(op), client.outbox.fence()])
-        .then(([ready, fence]) => publish(ready, fence), () => publish(false, "past"));
+      void client.outbox.status(op).then(publish, () => publish({ ...initial, reason: "sealed", action: "login", fence: "past" }));
     });
     return () => { active = false; unsubscribe(); };
   }, [identity]);
   const dismiss = useCallback((intent: string) => client.outbox.dismiss(intent), [client]);
   return useMemo(() => ({ entries: state.identity === identity ? state.entries : [],
-    ready: state.identity === identity && state.ready,
-    fence: state.identity === identity ? state.fence : "inside", dismiss }), [state, identity, dismiss]);
+    ready: state.identity === identity && state.status.ready,
+    status: state.identity === identity ? state.status : initial,
+    fence: state.identity === identity ? state.status.fence : "inside", dismiss }), [state, identity, dismiss]);
 }
 
 export function useOutbox(): UseOutboxResult {
@@ -297,7 +301,7 @@ export function useMutation<Args, Result>(ref: Op<Args, Result>): UseMutationRes
   const identity = useMemo(() => ({ client, generation: snapshot.authGeneration, operation }), [client, snapshot.authGeneration, operation]);
   const activeIdentity = useRef(identity);
   activeIdentity.current = identity;
-  const { entries, ready } = useOutboxState(ref);
+  const { entries, ready, status } = useOutboxState(ref);
   const pending = useMemo(
     () => entries.filter((entry) => entry.op === operation && entry.state === "queued"),
     [entries, operation],
@@ -339,8 +343,8 @@ export function useMutation<Args, Result>(ref: Op<Args, Result>): UseMutationRes
     }
   }, [identity]);
   return useMemo(
-    () => ({ run, inFlight: visible.pending > 0, pending, ready, last: visible.last, transport: visible.transport }),
-    [run, visible.pending, pending, ready, visible.last, visible.transport],
+    () => ({ run, inFlight: visible.pending > 0, pending, ready, status, last: visible.last, transport: visible.transport }),
+    [run, visible.pending, pending, ready, status, visible.last, visible.transport],
   );
 }
 

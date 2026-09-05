@@ -120,7 +120,7 @@ test("a resume whose grant persistence crosses a seal cannot restore trust; the 
 
       await client.auth.login({ email: "alice@example.com", password: "pw" });
       assert.equal(await client.outbox.fence(), "past", `${carrier.name}: no pre-seal anchor survived`);
-      assert.deepEqual(await client.outbox.drain(), { stopped: "fence" });
+      assert.equal((await client.outbox.drain()).stopped, "fence");
       assert.equal(mutations, 0, `${carrier.name}: login did not release the old queue`);
       assert.equal((await client.outbox.entries())[0]?.state, "queued");
       await client.online();
@@ -267,8 +267,8 @@ test("live transport and a fresh login grant cannot release old intents; a grant
       await assert.rejects(client.online(), (error: any) => error.code === "E_NETWORK" || error.retryable);
       // online() restored transport before its failed resume. Mutations would
       // reach this spy if the fence guard were removed.
-      assert.deepEqual(await client.outbox.drain(), { stopped: "fence" });
-      assert.deepEqual(await client.outbox.settled(), { stopped: "fence" });
+      assert.equal((await client.outbox.drain()).stopped, "fence");
+      assert.equal((await client.outbox.settled()).stopped, "fence");
       assert.equal(mutations, 0, `${carrier.name}: live transport cannot bypass the failed resume`);
       await client.auth.login({ email: "alice@example.com", password: "pw" });
       assert.equal(await client.outbox.ready(), true);
@@ -278,7 +278,7 @@ test("live transport and a fresh login grant cannot release old intents; a grant
       assert.deepEqual((await client.outbox.entries()).map((entry) => entry.state), ["queued", "queued"]);
       failResume = false;
       await client.online();
-      assert.equal(await client.outbox.settled(), undefined);
+      assert.deepEqual(await client.outbox.settled(), { stopped: false, remaining: 0 });
       assert.deepEqual(owner.executions.map((entry) => (entry.args as any).body), ["old grant", "past fence"]);
       assert.equal(await client.outbox.fence(), "inside");
 
@@ -295,7 +295,7 @@ test("live transport and a fresh login grant cannot release old intents; a grant
       client = await client.restart();
       await assert.rejects(client.online());
       const before = mutations;
-      assert.deepEqual(await client.outbox.drain(), { stopped: "fence" });
+      assert.equal((await client.outbox.drain()).stopped, "fence");
       assert.equal(mutations, before, `${carrier.name}: restart discarded the old runtime's trust`);
       await client.mutation(api.deliveries.post as any, post("after restart"));
       assert.equal((await client.outbox.entries()).at(-1)?.predicted, false);
@@ -361,7 +361,7 @@ test("partition change, seal, and wipe never inherit a successful resume for dra
       await client.query(api.deliveries.inbox as any, { c: null });
       await client.mutation(api.deliveries.post as any, post("Bob before resume"));
       assert.equal((await client.outbox.entries()).at(-1)?.predicted, false);
-      assert.deepEqual(await client.outbox.drain(), { stopped: "fence" });
+      assert.equal((await client.outbox.drain()).stopped, "fence");
       assert.equal(mutations, 0, `${carrier.name}: Alice's resume authorized no Bob writes`);
       assert.equal(resumes, 1);
       await client.online();
@@ -379,7 +379,7 @@ test("partition change, seal, and wipe never inherit a successful resume for dra
         const before = mutations;
         await client.mutation(api.deliveries.post as any, post(`after ${boundary}`));
         assert.equal((await client.outbox.entries()).at(-1)?.predicted, false, `${carrier.name}: ${boundary} cleared prediction trust`);
-        assert.deepEqual(await client.outbox.drain(), { stopped: "fence" });
+        assert.equal((await client.outbox.drain()).stopped, "fence");
         assert.equal(mutations, before, `${carrier.name}: ${boundary} cleared replay trust`);
         await client.online();
         assert.equal((await client.outbox.entries()).at(-1)?.state, "committed");
@@ -493,7 +493,7 @@ test("missing grant trust waits for resume and the client clock never expires an
       Date.now = () => mintedAt + 40 * DAY;
       const [entry] = await client.outbox.entries();
       await store!.commit({ grants: { current: null, remove: [entry!.grant] } });
-      assert.deepEqual(await client.outbox.drain(), { stopped: "fence" }, "missing trust is not permission to send");
+      assert.equal((await client.outbox.drain()).stopped, "fence", "missing trust is not permission to send");
       assert.equal((await client.outbox.entries())[0]?.state, "queued");
       await client.online();
       assert.equal((await client.outbox.entries())[0]?.state, "committed", "server acceptance wins even forty days ahead on the client clock");
@@ -813,7 +813,7 @@ test("a committed settlement lands in the same swap as the log tail rows, or not
   const pinned = queued.state === "queued" ? queued.ids[0]! : "";
   // Target the settlement, after the resume event and grant adoption writes.
   failSettlement = true;
-  await assert.rejects(() => client.online(), (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_OFFLINE_CARRIER");
+  await assert.rejects(() => client.online(), (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_OFFLINE_STATE");
   assert.equal(owner.executions.length, 1, "the owner committed before the local swap failed");
   const inspect = fileRangeStore(root)();
   await inspect.open("dev:alice");

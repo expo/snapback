@@ -108,14 +108,14 @@ impl State {
                 "send replay { grant, offset, count, intent, trace: { points, verdicts } }",
             )
         })?;
-        let trace = self.decode_replay_trace(&wire.trace)?;
         let request_digest = snapback2_core::digest(&(op, &args, &wire));
         let now = self.now();
         let principal = authority.principal.id.as_str();
         // @ref LLP 1002#9-the-client-snapback2client-snapback2react-snapback2test — a retry after a 503 returns the stored
         // terminal without executing, so a commit never looks like a rejection.
-        // The ledger is consulted before any grant check: an identical retry is
-        // exactly-once even after its grant expired or was swept.
+        // The stable wire digest uses no current program/schema information.
+        // Consult the ledger before program, trace, or grant validation: an
+        // identical retry stays exactly-once across successors and spent grants.
         if let Some(stored) = self
             .runtime()
             .store()
@@ -130,6 +130,8 @@ impl State {
                 "the replay intent was already settled for different request bytes",
             ));
         }
+        self.operation_kind(op, Some(ProgramKind::Mutation))?;
+        let trace = self.decode_replay_trace(&wire.trace)?;
         let stored_grant = self
             .runtime()
             .store()

@@ -8,6 +8,8 @@ mod offline;
 #[cfg(not(feature = "hermes"))]
 mod offline_replay;
 #[cfg(not(feature = "hermes"))]
+mod offline_replay_successor;
+#[cfg(not(feature = "hermes"))]
 mod offline_resume;
 #[cfg(not(feature = "hermes"))]
 mod wire_lifecycle;

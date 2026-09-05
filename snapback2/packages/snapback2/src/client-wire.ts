@@ -216,15 +216,21 @@ export function terminalSessionEnvelope(value: unknown): RefusalEnvelope | undef
   return isTerminalSession(refusal) ? refusal : undefined;
 }
 
+function authEpoch(record: Record<string, unknown>, surface: string): { authEpoch?: number } {
+  if (record.authEpoch === undefined) return {};
+  if (!Number.isSafeInteger(record.authEpoch) || Number(record.authEpoch) < 0) throw wireShape(`${surface}.authEpoch must be a non-negative safe integer`);
+  return { authEpoch: Number(record.authEpoch) };
+}
+
 export function wireAuthSession(value: unknown, surface: string): AuthSession {
   const record = wireObject(value, surface);
-  return { token: stringField(record, "token", surface), viewer: stringField(record, "viewer", surface) as Principal };
+  return { token: stringField(record, "token", surface), viewer: stringField(record, "viewer", surface) as Principal, ...authEpoch(record, surface) };
 }
 
 export function wireAuthMe(value: unknown): AuthMe {
   const surface = "auth me response";
   const record = wireObject(value, surface);
-  return { viewer: stringField(record, "viewer", surface) as Principal, kind: stringField(record, "kind", surface) };
+  return { viewer: stringField(record, "viewer", surface) as Principal, kind: stringField(record, "kind", surface), ...authEpoch(record, surface) };
 }
 
 export function wireLogout(value: unknown): { ok: boolean } {

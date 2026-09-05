@@ -1,5 +1,15 @@
 import type { AuthTokenStore } from "./types.js";
 
+/** A principal is useful before authentication only alongside the bearer that established it. */
+export function decodePrincipalBinding(value: string | null): { token: string; principal: string } | null {
+  if (value === null) return null;
+  try {
+    const binding = JSON.parse(value);
+    return binding && typeof binding.token === "string" && typeof binding.principal === "string"
+      ? { token: binding.token, principal: binding.principal } : null;
+  } catch { return null; }
+}
+
 /** Adapts explicitly supplied browser storage; the client never selects storage itself. */
 export function browserTokenStore(
   storage: Pick<Storage, "getItem" | "setItem" | "removeItem">,
@@ -16,10 +26,12 @@ export function browserTokenStore(
       if (token === null) storage.removeItem(key);
       else storage.setItem(key, token);
     },
-    loadPrincipal: () => storage.getItem(`${key}:principal`),
-    savePrincipal: (principal) => {
-      if (principal === null) storage.removeItem(`${key}:principal`);
-      else storage.setItem(`${key}:principal`, principal);
+    loadPrincipal: () => decodePrincipalBinding(storage.getItem(`${key}:principal`))?.principal ?? null,
+    loadPrincipalBinding: () => decodePrincipalBinding(storage.getItem(`${key}:principal`)),
+    savePrincipal: (principal, token) => {
+      const boundToken = token ?? storage.getItem(key);
+      if (principal === null || boundToken === null) storage.removeItem(`${key}:principal`);
+      else storage.setItem(`${key}:principal`, JSON.stringify({ token: boundToken, principal }));
     },
   };
 }

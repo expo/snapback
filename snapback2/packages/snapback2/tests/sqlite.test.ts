@@ -85,6 +85,7 @@ test("IndexedDB rows without meta survive open with version 1 and default maps o
     await sqlite.replace(state, noBytes);
     await sqlite.close();
     await raw.run("DELETE FROM state");
+    await raw.run("DELETE FROM metadata");
     await raw.run("DELETE FROM answers");
     await raw.run("DELETE FROM outbox");
     await raw.close();

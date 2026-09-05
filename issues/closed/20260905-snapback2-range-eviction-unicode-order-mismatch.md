@@ -1,6 +1,6 @@
 # P2 Snapback 2: range eviction compares strings in UTF-16 order
 
-**Status:** Open
+**Status:** Closed
 **Priority:** P2
 **Systems:** client range-store index extent comparison
 **Date:** 2026-09-05
@@ -45,3 +45,16 @@ The package was rebuilt before verification. Existing selected client/carrier
 suites passed 251/251 and Rust offline/replay/retention tests passed 37/37.
 The new review reproductions expose gaps in that coverage. This ticket is
 self-contained; temporary review artifacts are not required to implement it.
+
+## Resolution — 2026-09-05
+
+Eviction now tags index values using their schema and reuses the evaluator's
+comparator for complete index tuples. It no longer applies JavaScript string
+ordering to engine index extents.
+
+The original supplementary-character reproduction passes. Carrier regression
+coverage also verifies Bytes and optional values against engine ordering.
+
+The complete package run passed 364 tests with one existing skipped
+process-control placeholder; no package tests failed. The implementation,
+regressions, and guide/LLP updates ship together with this ticket closure.

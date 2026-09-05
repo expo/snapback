@@ -1,6 +1,6 @@
 # P1 Snapback 2: shrinking a query array evicts a row in the new delivery
 
-**Status:** Open
+**Status:** Closed
 **Priority:** P1
 **Systems:** client range-store hidden-row detection and eviction
 **Date:** 2026-09-05
@@ -47,3 +47,17 @@ The package was rebuilt before verification. Existing selected client/carrier
 suites passed 251/251 and Rust offline/replay/retention tests passed 37/37.
 The new review reproductions expose gaps in that coverage. This ticket is
 self-contained; temporary review artifacts are not required to implement it.
+
+## Resolution — 2026-09-05
+
+Hidden-row detection distinguishes a shortened array from a null at a
+stable slot and protects identities present elsewhere in the fresh delivery.
+Receipt extents still determine authoritative membership holes; explicit
+absences, tombstones, and genuine denied/null revocations remain effective.
+
+Verified by the original [a,b,c] to [b,c] reproduction and carrier tests for
+shortening, middle deletion, reordering, hidden slots, and other held answers.
+
+The complete package run passed 364 tests with one existing skipped
+process-control placeholder; no package tests failed. The implementation,
+regressions, and guide/LLP updates ship together with this ticket closure.

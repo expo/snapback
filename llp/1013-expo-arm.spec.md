@@ -5,7 +5,7 @@
 **Systems:** `snapback2/packages/snapback2` (the `expo` and `react-native` entries, the sqlite carrier and its two drivers, the native byte bridge, the witness client), `snapback2/templates/chat` (the Expo app), `snapback2/scripts` (the simulator witness harness), `snapback2/metrics`
 **Author:** Claude Fable 5.1, at the author's direction ("do Expo arm next", 2026-09-04 afternoon)
 **Date:** 2026-09-04
-**Revised:** 2026-09-04 (e — reconciled to lane E1 as landed: every sqlite driver carries a stable database identity (Node: the real path after open; Expo: the default directory plus a plain basename, path-like names refused) and the lock is per database and partition (§2 decisions 2 and 4, §3, §4); `open()` of a store with rows but no meta default-fills the meta record on every carrier (§3); persisted and in-memory state share one JSON wire form — `undefined` dropped, `null` kept (§3); a `COMMIT` failure rolls back and never poisons the connection (§3); the process-wide lock symbol was renamed before publication (§4); the residuals are in `issues/20260904-snapback2-expo-carrier-followups.md`); 2026-09-04 (d — the round-3 fold, all E2-scoped: native files are derivatives never evidence of permission (validated against partition, seal, viewed state, and lease before serving; view-once media never on disk; orphans swept on startup; mounted consumers invalidated on custody change) and the native screens use the byte paths, never a Blob; the shared reducers are packaged and scaffolded (`shared/` beside `react/` and `expo/`, copied by `build.mjs`, placed by `init`); the simulator kill is a host `kill -9` of the app's pid with the barrier promise never resolving on socket close, the transport cut persisted in the container before relaunch, the client constructed only after the control connection, mixture asserted across every store, and the predicted send asserted inside the thread query's result); 2026-09-04 (c — the round-2 fold: keys are JSON in one `key` column and the byte table has no `type` column (the MIME lives in the state's asset record); Expo's exclusive transaction issues plain `BEGIN` on its own connection and the write lock follows the first DML, while the Node driver issues `BEGIN IMMEDIATE` itself; `createExpoClient` defaults `fetch` to `expo/fetch` so SSE streams, and never supplies a token store beside `as`; the hooks' context is one emitted module shared by every entry, verified against the built bundles; the witness client is a dev subpath, its URL is baked at Metro time and read in the template, the simulator kill proves an open-transaction window and the Node `kill -9` proves atomicity; `structuredClone` is Expo's runtime, not bare Hermes; `expo export` emits Hermes bytecode and the package build emits source maps for attribution; peers pinned to the SDK 54 lines); 2026-09-04 (b — every blocking error of the three round-1 reviews (`llp/reviews/1013-expo-arm.r1.*` once copied; the orchestrator's `reviews/1013-r1-{astra,grok,muse}.md`) folded: keys are encoded, the driver owns the transaction and passes an executor, the witness channel connects outward from the app, the native components get a byte bridge, the entry is a real subpath and the hooks are split from the carriers, the token keys are SecureStore-legal, the never-opened chat renders through the twin, the schema persists everything the IndexedDB carrier persists, bytes are written by delta not by rewrite, the Hermes size is measured on a real build) (f — 2026-09-05: E2 as landed — the witness record, the drain rule, decision 7 amended by the device, the fix-round deviations)
+**Revised:** 2026-09-05 (measured incremental state writes and split metadata; carrier atomicity preserved); 2026-09-04 (e — reconciled to lane E1 as landed: every sqlite driver carries a stable database identity (Node: the real path after open; Expo: the default directory plus a plain basename, path-like names refused) and the lock is per database and partition (§2 decisions 2 and 4, §3, §4); `open()` of a store with rows but no meta default-fills the meta record on every carrier (§3); persisted and in-memory state share one JSON wire form — `undefined` dropped, `null` kept (§3); a `COMMIT` failure rolls back and never poisons the connection (§3); the process-wide lock symbol was renamed before publication (§4); the residuals are in `issues/20260904-snapback2-expo-carrier-followups.md`); 2026-09-04 (d — the round-3 fold, all E2-scoped: native files are derivatives never evidence of permission (validated against partition, seal, viewed state, and lease before serving; view-once media never on disk; orphans swept on startup; mounted consumers invalidated on custody change) and the native screens use the byte paths, never a Blob; the shared reducers are packaged and scaffolded (`shared/` beside `react/` and `expo/`, copied by `build.mjs`, placed by `init`); the simulator kill is a host `kill -9` of the app's pid with the barrier promise never resolving on socket close, the transport cut persisted in the container before relaunch, the client constructed only after the control connection, mixture asserted across every store, and the predicted send asserted inside the thread query's result); 2026-09-04 (c — the round-2 fold: keys are JSON in one `key` column and the byte table has no `type` column (the MIME lives in the state's asset record); Expo's exclusive transaction issues plain `BEGIN` on its own connection and the write lock follows the first DML, while the Node driver issues `BEGIN IMMEDIATE` itself; `createExpoClient` defaults `fetch` to `expo/fetch` so SSE streams, and never supplies a token store beside `as`; the hooks' context is one emitted module shared by every entry, verified against the built bundles; the witness client is a dev subpath, its URL is baked at Metro time and read in the template, the simulator kill proves an open-transaction window and the Node `kill -9` proves atomicity; `structuredClone` is Expo's runtime, not bare Hermes; `expo export` emits Hermes bytecode and the package build emits source maps for attribution; peers pinned to the SDK 54 lines); 2026-09-04 (b — every blocking error of the three round-1 reviews (`llp/reviews/1013-expo-arm.r1.*` once copied; the orchestrator's `reviews/1013-r1-{astra,grok,muse}.md`) folded: keys are encoded, the driver owns the transaction and passes an executor, the witness channel connects outward from the app, the native components get a byte bridge, the entry is a real subpath and the hooks are split from the carriers, the token keys are SecureStore-legal, the never-opened chat renders through the twin, the schema persists everything the IndexedDB carrier persists, bytes are written by delta not by rewrite, the Hermes size is measured on a real build) (f — 2026-09-05: E2 as landed — the witness record, the drain rule, decision 7 amended by the device, the fix-round deviations)
 **Related:** LLP 1012 (local-first v1: the store, the outbox, the twin, §10's witness split by lane, §12's offline bar), LLP 1006 (assets; lane D's React Native components), LLP 1007 §4a (the loop bar and the capability bar), LLP 0329.016 (the dev loop), `rules/NOT-DOING.md` (client arms in order: React web, Expo, Exact 2), `benchmarks/briefs/social-messenger.md` (the capability bar: Expo on iOS, Android, and web)
 
 ## Summary
@@ -82,11 +82,10 @@ author may veto any at the review.
    `replace` runs inside `withExclusiveTransactionAsync`, which opens its own connection and
    issues a plain `BEGIN` (the write lock is taken by the first DML statement, so every
    statement in the body runs on that connection and the first write serializes concurrent
-   writers), rewrites the projected state tables for the partition (`clear` + insert, as
-   IndexedDB does), and applies the byte delta (insert the puts, delete the removes) in the
-   same transaction. Bytes are never rewritten wholesale: the state tables are small, the
-   byte table is up to `maxAssetBytes`. The §14 swap-time measurement at Clique scale decides
-   whether the state write must become a diff. (sqlite: 90%; state rewrite + byte delta: 85%.)
+   writers), writes changed projected records and metadata fields for the partition, and
+   applies the byte delta in the same transaction. Neither unchanged history nor bytes are
+   rewritten for an outbox-only update. The initial implementation rewrote state wholesale;
+   the 2026-09-05 review measurement in §14 justified incremental state writes.
 2. **The carrier is written against a driver interface whose transaction passes an executor,
    and the driver owns the transaction.** `SqliteDriver.transaction(body: (tx) => Promise<T>)`
    — every statement inside the body runs on `tx`, never on the outer handle, because
@@ -241,7 +240,8 @@ Schema, one database file per app (`snapback2.db` under the app's document direc
 partition as a column so `wipe` is one `DELETE` per table:
 
 ```sql
-CREATE TABLE IF NOT EXISTS state   (partition TEXT NOT NULL PRIMARY KEY, value TEXT NOT NULL);         -- meta: everything not below
+CREATE TABLE IF NOT EXISTS state   (partition TEXT NOT NULL PRIMARY KEY, value TEXT NOT NULL);         -- scalar metadata header
+CREATE TABLE IF NOT EXISTS metadata (partition TEXT NOT NULL, key TEXT NOT NULL, value TEXT NOT NULL, PRIMARY KEY (partition, key));
 CREATE TABLE IF NOT EXISTS rows    (partition TEXT NOT NULL, key TEXT NOT NULL, value TEXT NOT NULL, PRIMARY KEY (partition, key));
 CREATE TABLE IF NOT EXISTS answers (partition TEXT NOT NULL, key TEXT NOT NULL, value TEXT NOT NULL, PRIMARY KEY (partition, key));
 CREATE TABLE IF NOT EXISTS outbox  (partition TEXT NOT NULL, key TEXT NOT NULL, value TEXT NOT NULL, PRIMARY KEY (partition, key));
@@ -251,11 +251,12 @@ CREATE TABLE IF NOT EXISTS bytes   (partition TEXT NOT NULL, key TEXT NOT NULL, 
 `key` is the JSON encoding of the tuple the state uses (decision 3); the byte table has no
 type column because `ByteDelta.put` carries `{ key, bytes }` and the MIME type lives in the
 state's asset record, as in the IndexedDB carrier; `state.value` is the same
-`meta` record the IndexedDB carrier writes (watermarks, grants, overlay, overlay misses,
-bounds, programs, facts, viewed, clock, sealed, version, and whatever the store adds later —
-the projection function is shared with the IndexedDB carrier, moved to `store/projection.ts`,
-so the two cannot drift, and a test asserts every field of `PersistedRangeState` survives a
-round trip on all three carriers).
+scalar header the IndexedDB carrier writes. Object/array metadata fields (watermarks,
+grants, overlay, bounds, programs, facts, viewed, and future state fields) are separate
+records in SQLite's `metadata` table and IndexedDB's `meta` store. This prevents a clock
+update from rewriting all row sequence guards or the held program. The shared projection
+in `store/projection.ts` keeps the carriers aligned; a test asserts every field of
+`PersistedRangeState` survives a round trip on all three carriers.
 
 The projection is one module (`store/projection.ts`) shared by the IndexedDB and sqlite
 carriers; it defines the wire form of the state — `undefined` fields dropped, `null` kept — and
@@ -263,12 +264,15 @@ the store keeps its in-memory state in that same form, so a warm store and a reo
 agree; a store whose rows exist without a meta record is opened with a default-filled meta on
 every carrier.
 
-`replace(state, bytes)`: `driver.transaction(async (tx) => { delete the partition's rows from
-state/rows/answers/outbox; insert the projections; insert bytes.put; delete bytes.remove; await
-beforeCommit?.() })` — every statement on `tx`; on Expo the first `DELETE` takes the write
-lock. `open(partition)`: read the four tables back through the shared
+`replace(state, bytes, previous?)`: compute changed projections, then apply only their puts
+and removals plus the byte delta inside `driver.transaction`; await `beforeCommit?.()`
+before committing. The projection cache advances only after commit succeeds. The store
+passes its immutable previous state, so shared unchanged history requires neither cloning
+nor serialization for a custody-only swap; direct backend callers may omit that hint and
+receive the same atomic result. Every statement runs on `tx`; on Expo the first DML takes
+the write lock. `open(partition)`: read the five state tables back through the shared
 un-projection; `undefined` when `state` has no row. `readBytes(key)`: one `SELECT`. `wipe`:
-five `DELETE`s in one transaction. `close()`: close the database. On open the carrier runs
+six `DELETE`s in one transaction. `close()`: close the database. On open the carrier runs
 `PRAGMA journal_mode=WAL` and compares the returned mode (the pragma returns a row, it does
 not throw); a mismatch, an unopenable file, or `SQLITE_BUSY` on the exclusive transaction
 refuses `E_OFFLINE_CARRIER` with the driver's message; memory is never substituted (LLP 1012
@@ -458,15 +462,26 @@ everything else is LLP 1012 §15.
 
 - store bytes on the phone, Clique at ten thousand messages across fifty conversations (the
   sqlite file size);
-- swap time on the simulator at that size, state rewrite versus the diff decision 1 defers;
+- swap time on the simulator at that size, including incremental state writes;
 - cold replay time to first inbox paint on the simulator;
 - the Hermes bundle's size and the client's and twin's share (§8);
 - the witness's pass, dated, per platform: iOS simulator 2026-09-05 (run 12, all ten steps);
   Android none; web none.
 
+**Desktop review workload (2026-09-05).** Hold 1,000 / 5,000 / 10,000 messages
+with 500-character bodies in 50-row answers, then enqueue three small entries without
+changing history. Before the fix the three 10,000-row updates took 195 / 204 / 209 ms
+and the last inserted 10,204 records. After the fix every update inserts two records
+(one outbox entry and the scalar header), with no history deletes or inserts. The
+ordinary store path, passing its immutable previous state, took under 0.5 ms for every
+sample at all three sizes. The original instrumentation wrapper, which omits that hint,
+still took only 7 / 6 / 6 ms at 10,000 rows. Serialized state at that size fell from
+13,326,555 to 6,934,932 bytes after replacing body fingerprints with digests. These are
+desktop Node SQLite measurements, not physical flash-write volume or phone latency.
+
 ## 15. Not doing
 
 Android and web runs of the Expo app (the capability bar's), multi-process arbitration on one
-partition (unsupported in v1, refused loudly), a diffing state write (measured first),
+partition (unsupported in v1, refused loudly),
 `react-native-web`, push, background fetch, native view-once video playback in v1 (refused
 up front; the path is the ruling decision 7 names), and anything LLP 1012 §11 already lists.

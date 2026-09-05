@@ -1,4 +1,5 @@
 import * as SecureStore from "expo-secure-store";
+import { decodePrincipalBinding } from "../token-store.js";
 import type { AuthTokenStore } from "../types.js";
 
 export interface SecureStoreAdapter {
@@ -42,5 +43,11 @@ export function expoSecureTokenStore(name = "default", adapter: SecureStoreAdapt
     }
   });
   return { load: () => load("token"), save: (value) => save("token", value),
-    loadPrincipal: () => load("principal"), savePrincipal: (value) => save("principal", value) };
+    loadPrincipal: async () => decodePrincipalBinding(await load("principal"))?.principal ?? null,
+    loadPrincipalBinding: async () => decodePrincipalBinding(await load("principal")),
+    savePrincipal: async (principal, token) => {
+      const boundToken = token ?? await load("token");
+      await save("principal", principal === null || boundToken === null ? null : JSON.stringify({ token: boundToken, principal }));
+    } };
+
 }

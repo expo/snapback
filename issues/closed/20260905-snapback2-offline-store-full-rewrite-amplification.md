@@ -1,6 +1,6 @@
 # P2 Snapback 2: a small outbox update rewrites all retained history
 
-**Status:** Open
+**Status:** Closed
 **Priority:** P2
 **Systems:** range-store commit, SQLite and IndexedDB persistence
 **Date:** 2026-09-05
@@ -53,3 +53,25 @@ The package was rebuilt before verification. Existing selected client/carrier
 suites passed 251/251 and Rust offline/replay/retention tests passed 37/37.
 The new review reproductions expose gaps in that coverage. This ticket is
 self-contained; temporary review artifacts are not required to implement it.
+
+## Resolution — 2026-09-05
+
+SQLite and IndexedDB write changed rows, answers, outbox records, and
+metadata fields in the same atomic transaction as byte changes. SQLite has
+a metadata table for independently changing fields; the scalar header remains
+small. Custody-only swaps share unchanged immutable history, and projection
+caches advance only after successful commit.
+
+The documented 1k/5k/10k workload now writes exactly two records per enqueue
+(one outbox entry and the scalar header), with no history inserts/deletes.
+Ordinary updates measured below 0.5 ms for all nine desktop samples; the
+original instrumentation omitting the previous-state hint measured 7/6/6 ms
+at 10k rows, versus 195/204/209 ms before. LLP 1013 records the method and
+scope. These are desktop measurements, not phone-latency claims.
+
+Carrier parity, rollback/SIGKILL, legacy normalization, and returned-data
+immutability regressions pass.
+
+The complete package run passed 364 tests with one existing skipped
+process-control placeholder; no package tests failed. The implementation,
+regressions, and guide/LLP updates ship together with this ticket closure.

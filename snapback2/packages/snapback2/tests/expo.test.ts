@@ -7,7 +7,7 @@ import { DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
 import React, { act } from "react";
 import TestRenderer from "react-test-renderer";
-import { api, createClient, SnapbackRefusal } from "../dist/client.mjs";
+import { api, browserTokenStore, createClient, SnapbackRefusal } from "../dist/client.mjs";
 import { nodeSqliteDriver } from "../dist/sqlite-test.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
 import { fakeOwner } from "./fake-owner.ts";
@@ -236,9 +236,10 @@ test("replacing a supplied client clears authentication, mutations, and outbox r
   let delayAlice = false;
   let emitAlice!: (entries: any[]) => void;
   alice.outbox.subscribe = (callback) => { emitAlice = callback; callback([{ intent: "alice", op: "send", state: "queued" }]); return () => undefined; };
-  alice.outbox.ready = () => delayAlice ? aliceReady.promise : Promise.resolve(true);
+  const readiness = (ready: boolean) => ({ ready, reason: "ready" as const, action: "none" as const, remaining: 1, fence: "inside" as const });
+  alice.outbox.status = () => (delayAlice ? aliceReady.promise : Promise.resolve(true)).then(readiness);
   bob.outbox.subscribe = (callback) => { callback([{ intent: "bob", op: "send", state: "queued" }]); return () => undefined; };
-  bob.outbox.ready = () => bobReady.promise;
+  bob.outbox.status = () => bobReady.promise.then(readiness);
   const transport = new SnapbackRefusal({ code: "E_TRANSPORT", family: "owner", message: "alice transport", guide: "owner" }, true);
   alice.mutation = async (_ref, args: any) => {
     if (args.stage === "last") return { state: "committed", seq: 1, data: "alice" };
@@ -372,4 +373,26 @@ test("createExpoClient defaults to the SQLite carrier and refuses a native open 
     assert.equal(opened, "snapback2.db");
     assert.equal(fake.reads.length, 0);
   } finally { await client.close(); }
+});
+
+test("browser and SecureStore principal records retain the authenticating token across a stale writer", async () => {
+  const values = new Map<string, string>();
+  const storage = { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => { values.set(key, value); }, removeItem: (key: string) => { values.delete(key); } };
+  const secure = secureFake();
+  for (const factory of [() => browserTokenStore(storage, "binding"), () => expoSecureTokenStore("binding", secure)]) {
+    const first = factory();
+    await first.save("token-a");
+    await first.savePrincipal("alice", "token-a");
+    const second = factory();
+    await second.savePrincipal(null);
+    await second.save("token-b");
+    // A late auth/me from the first instance must keep A's binding, even
+    // though B's bearer already occupies the other persisted key.
+    await first.savePrincipal("alice", "token-a");
+    const cold = factory();
+    assert.equal(await cold.load(), "token-b");
+    assert.deepEqual(await cold.loadPrincipalBinding(), { token: "token-a", principal: "alice" });
+    await cold.savePrincipal("bob", "token-b");
+    assert.deepEqual(await factory().loadPrincipalBinding(), { token: "token-b", principal: "bob" });
+  }
 });

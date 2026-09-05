@@ -1,6 +1,6 @@
 # P1 Snapback 2: purging a row leaves its body in persisted answers
 
-**Status:** Open
+**Status:** Closed
 **Priority:** P1
 **Systems:** client range-store eviction and persistence; all carriers
 **Date:** 2026-09-05
@@ -56,3 +56,18 @@ The package was rebuilt before verification. Existing selected client/carrier
 suites passed 251/251 and Rust offline/replay/retention tests passed 37/37.
 The new review reproductions expose gaps in that coverage. This ticket is
 self-contained; temporary review artifacts are not required to implement it.
+
+## Resolution — 2026-09-05
+
+Delivery fingerprints now store SHA-256 digests, including normalization of
+older snapshots. Purges scrub derived answer literals as well as pooled rows;
+other still-held row references remain usable. Sanitized legacy fingerprints
+persist on the next swap even when it changes only metadata. Current logical
+state no longer keeps the purged body in either location.
+
+Verified by the original privacy reproductions and carrier regressions in
+`store-review.test.ts`, including reopen and immutable returned-row behavior.
+
+The complete package run passed 364 tests with one existing skipped
+process-control placeholder; no package tests failed. The implementation,
+regressions, and guide/LLP updates ship together with this ticket closure.

@@ -399,9 +399,16 @@ pub fn spawn_writer(
     Ok(handle)
 }
 
-/// A login or guest answer: the session, plus a grant only when one was minted.
-fn session_json(token: &str, viewer: &str, grant: Option<snapback2_core::ReplayGrant>) -> Json {
-    let mut response = json!({ "token": token, "viewer": viewer });
+/// Authenticated session facts, plus a grant only when one was minted.
+// @ref LLP 1012#4-the-range-store — same-principal reauthentication must use the
+// fresh session epoch to reopen its sealed partition.
+fn session_json(
+    token: &str,
+    viewer: &str,
+    auth_epoch: u64,
+    grant: Option<snapback2_core::ReplayGrant>,
+) -> Json {
+    let mut response = json!({ "token": token, "viewer": viewer, "authEpoch": auth_epoch });
     if let Some(grant) = grant {
         response["grant"] = json!(grant);
     }
@@ -533,7 +540,12 @@ impl State {
                     .runtime_mut()
                     .signup(&email, &password, now)
                     .map_err(|error| Refusal::from_identity(&error))?;
-                Ok(json!({ "token": session.token, "viewer": session.principal.id }))
+                Ok(session_json(
+                    &session.token,
+                    session.principal.id.as_str(),
+                    session.auth_epoch,
+                    None,
+                ))
             }
             Action::Login {
                 email,
@@ -546,7 +558,12 @@ impl State {
                     .login(&email, &password, now)
                     .map_err(|error| Refusal::from_identity(&error))?;
                 let grant = self.grant_if_low(session.principal.id.as_str(), remaining.as_ref())?;
-                Ok(session_json(&session.token, session.principal.id.as_str(), grant))
+                Ok(session_json(
+                    &session.token,
+                    session.principal.id.as_str(),
+                    session.auth_epoch,
+                    grant,
+                ))
             }
             Action::Guest { remaining } => {
                 let now = self.now();
@@ -555,7 +572,12 @@ impl State {
                     .guest(now)
                     .map_err(|error| Refusal::from_identity(&error))?;
                 let grant = self.grant_if_low(session.principal.id.as_str(), remaining.as_ref())?;
-                Ok(session_json(&session.token, session.principal.id.as_str(), grant))
+                Ok(session_json(
+                    &session.token,
+                    session.principal.id.as_str(),
+                    session.auth_epoch,
+                    grant,
+                ))
             }
             Action::Logout { token } => {
                 let now = self.now();
@@ -574,6 +596,7 @@ impl State {
                 Ok(json!({
                     "viewer": authority.principal.id,
                     "kind": authority.principal.kind,
+                    "authEpoch": authority.auth_epoch(),
                 }))
             }
             Action::Personas => {
@@ -854,6 +877,46 @@ impl State {
         offline: OfflineOptions,
         replay: Option<Json>,
     ) -> Result<Json, Refusal> {
+        // Only the mutation route accepts replay. Resolve its live authority
+        // before consulting the ledger; a terminal belongs to the principal
+        // even when a successor removed or changed the original program.
+        if let Some(replay) = replay {
+            let authority = self.resolve_authority(identity)?;
+            return self.execute_replayed_mutation(op, args, &authority, replay);
+        }
+        let kind = self.operation_kind(op, expected)?;
+        let authority = self.resolve_authority(identity)?;
+        let execution = if kind == ProgramKind::Mutation {
+            let context = self.mutation_context(&authority, op, args)?;
+            self.execute_mutation(op, context)?
+        } else {
+            let context = self.context(&authority, op, args)?;
+            let execution = self
+                .runtime_mut()
+                .execute(op, context.clone())
+                .map_err(|error| Refusal::from_runtime(&error))?;
+            if offline.receipt {
+                let full = writer_offline::envelope_json(
+                    self.runtime().generation(),
+                    op,
+                    &context,
+                    &execution,
+                )?;
+                return Ok(writer_offline::conditional_frame(
+                    &full,
+                    offline.validator.as_deref(),
+                ));
+            }
+            execution
+        };
+        Ok(execution_json(&execution))
+    }
+
+    fn operation_kind(
+        &self,
+        op: &str,
+        expected: Option<ProgramKind>,
+    ) -> Result<ProgramKind, Refusal> {
         let kind = self
             .runtime()
             .generation()
@@ -878,34 +941,7 @@ impl State {
                 "op/kind",
             ));
         }
-        let authority = self.resolve_authority(identity)?;
-        let execution = if kind == ProgramKind::Mutation {
-            if let Some(replay) = replay {
-                return self.execute_replayed_mutation(op, args, &authority, replay);
-            }
-            let context = self.mutation_context(&authority, op, args)?;
-            self.execute_mutation(op, context)?
-        } else {
-            let context = self.context(&authority, op, args)?;
-            let execution = self
-                .runtime_mut()
-                .execute(op, context.clone())
-                .map_err(|error| Refusal::from_runtime(&error))?;
-            if offline.receipt {
-                let full = writer_offline::envelope_json(
-                    self.runtime().generation(),
-                    op,
-                    &context,
-                    &execution,
-                )?;
-                return Ok(writer_offline::conditional_frame(
-                    &full,
-                    offline.validator.as_deref(),
-                ));
-            }
-            execution
-        };
-        Ok(execution_json(&execution))
+        Ok(kind)
     }
 
     fn execute_mutation(&mut self, op: &str, context: Context) -> Result<Execution, Refusal> {

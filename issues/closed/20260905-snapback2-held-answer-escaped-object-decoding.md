@@ -1,6 +1,6 @@
 # P3 Snapback 2: held-answer expansion does not honor wire object escapes
 
-**Status:** Open
+**Status:** Closed
 **Priority:** P3
 **Systems:** range-store reference traversal and delivery protocol
 **Date:** 2026-09-05
@@ -49,3 +49,17 @@ The package was rebuilt before verification. Existing selected client/carrier
 suites passed 251/251 and Rust offline/replay/retention tests passed 37/37.
 The new review reproductions expose gaps in that coverage. This ticket is
 self-contained; temporary review artifacts are not required to implement it.
+
+## Resolution — 2026-09-05
+
+Network expansion, held-answer expansion, and reference collection now use
+the same escape-aware traversal. Escaped application literals survive
+persistence without becoming false row references. Purge traversal preserves
+the escape spelling while invalidating dependent content.
+
+The original protocol reproduction and three-carrier reopen/viewing/eviction
+regressions pass.
+
+The complete package run passed 364 tests with one existing skipped
+process-control placeholder; no package tests failed. The implementation,
+regressions, and guide/LLP updates ship together with this ticket closure.

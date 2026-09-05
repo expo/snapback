@@ -182,7 +182,7 @@ export class OfflineRuntime {
    * non-retryable refusal that stopped the replay reaches the caller instead of
    * resolving with intents still queued (LLP 1012 §7).
    */
-  drainOutcome: Promise<OutboxSettlement> = Promise.resolve();
+  drainOutcome: Promise<OutboxSettlement> = Promise.resolve({ stopped: false, remaining: 0 });
   /** The twin: the certified program over this partition's coverage (LLP 1012 §6, §7). */
   readonly twin: Twin;
   private partition?: string;
@@ -259,7 +259,7 @@ export class OfflineRuntime {
         this.superseded = undefined;
         this.held = undefined;
         this.standIn = undefined;
-        this.drainOutcome = Promise.resolve();
+        this.drainOutcome = Promise.resolve({ stopped: false, remaining: 0 });
       }
       if (this.partition !== undefined && this.partition !== principal) await this.store.wipe(this.partition);
       if (this.partition !== principal) {
@@ -267,6 +267,8 @@ export class OfflineRuntime {
         this.facts = this.superseded = this.held = undefined;
         this.latestSeq = 0;
         this.sessionEpoch = undefined;
+        this.cursors = {};
+        this.schema = undefined;
       }
       await this.store.open(principal);
       if (authenticated) await this.store.unseal();
@@ -281,13 +283,27 @@ export class OfflineRuntime {
   }
 
   /** Called only after the owner authenticated this exact principal. */
-  async reauthenticate(principal: string): Promise<void> {
+  async reauthenticate(principal: string, authEpoch?: number): Promise<void> {
+    const changed = authEpoch !== undefined && authEpoch !== this.sessionEpoch;
+    // A new session invalidates requests already in flight before custody awaits.
+    if (changed) { this.coverageRevision += 1; this.outbox.resetTrust(); }
     await this.serial(async () => {
       if (this.partition !== principal) {
         throw new OfflineAuthorityError(`authenticated principal ${principal} does not match the open offline partition`);
       }
       await this.store.unseal();
       await this.loadFacts();
+      if (authEpoch !== undefined) {
+        // @ref LLP 1012#4-the-range-store — same-principal leases and unsent
+        // intents survive login; the new authenticated epoch revalidates their
+        // old validators on resume, without treating old deliveries as current.
+        if (this.facts && this.facts.authEpoch !== authEpoch) {
+          const facts = { ...this.facts, authEpoch };
+          await this.store.commit({ facts });
+          this.facts = facts;
+        }
+        this.sessionEpoch = authEpoch;
+      }
       await this.loadProgram();
       await this.flushGrant();
       await this.flushBounds();
@@ -386,7 +402,8 @@ export class OfflineRuntime {
    * manifest is loaded.
    */
   cursorArg(op: string): string {
-    return this.cursors[op] ?? "c";
+    const ir = this.held?.programs[op]?.ir;
+    return this.cursors[op] ?? cursorArgument(object(ir) ? ir.args : undefined) ?? "c";
   }
 
   /**
@@ -418,7 +435,7 @@ export class OfflineRuntime {
           this.pendingBounds = bounds;
           this.pendingProgram = held;
         }
-        if (held) { this.held = held; this.schema = held.schema; }
+        if (held) this.restoreProgram(held);
         this.outbox.notify();
       });
     });
@@ -767,8 +784,14 @@ export class OfflineRuntime {
     // Custody like the outbox: sealed with it, read again on unseal.
     try { programs = await this.store.outbox.programs(); } catch { return; }
     const held = Object.values(programs)[0];
-    if (held) this.held = held;
-    if (held && this.schema === undefined) this.schema = held.schema;
+    if (held) this.restoreProgram(held);
+  }
+
+  private restoreProgram(held: HeldProgram): void {
+    this.held = held;
+    this.schema = held.schema;
+    // Cursor names are derived lazily from this custody by cursorArg(), so
+    // opening a store never evaluates an unrelated operation's arguments.
   }
 
   private async loadFacts(): Promise<void> {

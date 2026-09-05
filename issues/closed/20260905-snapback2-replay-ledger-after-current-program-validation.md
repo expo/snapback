@@ -1,6 +1,6 @@
 # P1 Snapback 2: removing an operation prevents retrying its committed intent
 
-**Status:** Open
+**Status:** Closed
 **Priority:** P1
 **Systems:** owner mutation dispatch, replay decoding and intent ledger
 **Date:** 2026-09-05
@@ -70,3 +70,18 @@ The package was rebuilt before verification. Existing selected client/carrier
 suites passed 251/251 and Rust offline/replay/retention tests passed 37/37.
 The new review reproductions expose gaps in that coverage. This ticket is
 self-contained; temporary review artifacts are not required to implement it.
+
+## Resolution — 2026-09-05
+
+Mutation dispatch authenticates the live session, fingerprints the stable
+replay envelope, and consults the intent ledger before current operation,
+kind, or schema-dependent trace validation. New intents still undergo all
+current validation. Different bytes still refuse E_OFFLINE_INTENT_REUSE.
+
+The 11 passing replay owner tests include committed and rejected terminals
+across operation removal, kind changes, trace key/index/table changes, and
+fresh, foreign, or dead sessions.
+
+The complete package run passed 364 tests with one existing skipped
+process-control placeholder; no package tests failed. The implementation,
+regressions, and guide/LLP updates ship together with this ticket closure.

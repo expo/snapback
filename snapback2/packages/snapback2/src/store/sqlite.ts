@@ -4,7 +4,7 @@ import {
 } from "./range-store.js";
 import type { ByteDelta } from "./byte-cache.js";
 import { acquireStoreLock, inProcessLocks, type StoreLocks } from "./locks.js";
-import { decodeStateKey, encodeStateKey, projectState, unprojectState, type StateEntry } from "./projection.js";
+import { decodeStateKey, encodeStateKey, ProjectionCache, unprojectState, type StateEntry } from "./projection.js";
 import type { SqliteDriver } from "./sqlite-driver.js";
 
 export type { SqliteDriver, SqliteExecutor, SqliteParams } from "./sqlite-driver.js";
@@ -16,10 +16,11 @@ export interface SqliteRangeStoreOptions {
   beforeCommit?: (state: PersistedRangeState, bytes: ByteDelta) => void | Promise<void>;
 }
 
-const STATE_TABLES = ["state", "rows", "answers", "outbox"] as const;
+const STATE_TABLES = ["state", "metadata", "rows", "answers", "outbox"] as const;
 const TABLES = [...STATE_TABLES, "bytes"] as const;
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS state (partition TEXT NOT NULL PRIMARY KEY, value TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS metadata (partition TEXT NOT NULL, key TEXT NOT NULL, value TEXT NOT NULL, PRIMARY KEY (partition, key));
 CREATE TABLE IF NOT EXISTS rows (partition TEXT NOT NULL, key TEXT NOT NULL, value TEXT NOT NULL, PRIMARY KEY (partition, key));
 CREATE TABLE IF NOT EXISTS answers (partition TEXT NOT NULL, key TEXT NOT NULL, value TEXT NOT NULL, PRIMARY KEY (partition, key));
 CREATE TABLE IF NOT EXISTS outbox (partition TEXT NOT NULL, key TEXT NOT NULL, value TEXT NOT NULL, PRIMARY KEY (partition, key));
@@ -27,13 +28,14 @@ CREATE TABLE IF NOT EXISTS bytes (partition TEXT NOT NULL, key TEXT NOT NULL, va
 `;
 type DriverSource = SqliteDriver | (() => SqliteDriver | Promise<SqliteDriver>);
 
-/** Public backend seam: byte deltas share replace's transaction; wipe deletes all five tables. */
+/** Public backend seam: state and byte deltas share one transaction. */
 export class SqliteBackend implements RangeStoreBackend {
   readonly carrier = "SQLite";
   private driver?: SqliteDriver;
   private partition?: string;
   private release?: () => Promise<void>;
   private locks?: StoreLocks;
+  private readonly projection = new ProjectionCache();
 
   constructor(private readonly source: DriverSource, private readonly options: SqliteRangeStoreOptions = {}) {}
 
@@ -75,11 +77,13 @@ export class SqliteBackend implements RangeStoreBackend {
         await this.driver.exec(SCHEMA);
         return await this.driver.transaction(async (tx) => {
           const meta = await tx.get<{ value: string }>("SELECT value FROM state WHERE partition = ?", [partition]);
-          const read = async (table: "rows" | "answers" | "outbox"): Promise<StateEntry[]> =>
+          const read = async (table: "rows" | "answers" | "outbox" | "metadata"): Promise<StateEntry[]> =>
             (await tx.all<{ key: string; value: string }>(`SELECT key, value FROM ${table} WHERE partition = ?`, [partition]))
               .map(({ key, value }) => ({ key: decodeStateKey(key), value: JSON.parse(value) }));
-          return unprojectState({ rows: await read("rows"), answers: await read("answers"), outbox: await read("outbox"),
-            meta: meta ? [{ key: "state", value: JSON.parse(meta.value) }] : [] });
+          const projected = { rows: await read("rows"), answers: await read("answers"), outbox: await read("outbox"),
+            meta: [...(meta ? [{ key: "state", value: JSON.parse(meta.value) }] : []), ...await read("metadata")] };
+          this.projection.reset(projected);
+          return unprojectState(projected);
         });
       } catch (error) {
         await this.close().catch(() => undefined);
@@ -88,20 +92,28 @@ export class SqliteBackend implements RangeStoreBackend {
     });
   }
 
-  // @ref LLP 1013#3-the-sqlite-carrier — state rewrite plus byte delta in one
-  // transaction; the byte table is never rewritten wholesale and has no MIME column.
-  async replace(state: PersistedRangeState, bytes: ByteDelta): Promise<void> {
+  // @ref LLP 1013#3-the-sqlite-carrier — only changed state entries and byte
+  // payloads are written, with one atomic transaction and a post-commit cache.
+  async replace(state: PersistedRangeState, bytes: ByteDelta, previous?: PersistedRangeState): Promise<void> {
     return this.guard(async () => {
       if (!this.driver || this.partition === undefined) throw new Error("not open");
       const partition = this.partition;
-      const projected = projectState(state);
+      const { delta, committed } = this.projection.prepare(state, previous);
       await this.driver.transaction(async (tx) => {
-        for (const table of STATE_TABLES) await tx.run(`DELETE FROM ${table} WHERE partition = ?`, [partition]);
-        await tx.run("INSERT INTO state (partition, value) VALUES (?, ?)", [partition, JSON.stringify(projected.meta[0].value)]);
-        for (const table of ["rows", "answers", "outbox"] as const) {
-          for (const { key, value } of projected[table]) {
-            await tx.run(`INSERT INTO ${table} (partition, key, value) VALUES (?, ?, ?)`,
-              [partition, encodeStateKey(key, table !== "outbox"), JSON.stringify(value)]);
+        for (const name of ["rows", "answers", "outbox", "meta"] as const) {
+          const table = name === "meta" ? "metadata" : name;
+          for (const key of delta[name].remove) {
+            if (name === "meta" && key === "state") await tx.run("DELETE FROM state WHERE partition = ?", [partition]);
+            else await tx.run(`DELETE FROM ${table} WHERE partition = ? AND key = ?`,
+              [partition, encodeStateKey(key, name === "rows" || name === "answers")]);
+          }
+          for (const { key, value } of delta[name].put) {
+            if (name === "meta" && key === "state") {
+              await tx.run("INSERT OR REPLACE INTO state (partition, value) VALUES (?, ?)", [partition, JSON.stringify(value)]);
+            } else {
+              await tx.run(`INSERT OR REPLACE INTO ${table} (partition, key, value) VALUES (?, ?, ?)`,
+                [partition, encodeStateKey(key, name === "rows" || name === "answers"), JSON.stringify(value)]);
+            }
           }
         }
         for (const item of bytes.put) {
@@ -111,6 +123,7 @@ export class SqliteBackend implements RangeStoreBackend {
         for (const key of bytes.remove) await tx.run("DELETE FROM bytes WHERE partition = ? AND key = ?", [partition, encodeStateKey(key, false)]);
         await this.options.beforeCommit?.(state, bytes);
       });
+      committed();
     });
   }
 
@@ -151,6 +164,7 @@ export class SqliteBackend implements RangeStoreBackend {
     this.driver = undefined;
     this.partition = undefined;
     this.release = undefined;
+    this.projection.reset();
     try { if (driver) await this.guard(() => driver.close()); }
     finally { await release?.(); }
   }

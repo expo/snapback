@@ -2,7 +2,7 @@ import type { AssetFetchOptions } from "./store/byte-cache.js";
 import { throwIfAborted } from "./client-wire.js";
 import { api, referenceName, type Api, type ApiProxy, type Channel as ChannelRef, type Op } from "./api.js";
 import { AssetInputError, mayNeedAssetPlanning, planAssetArguments, substituteAssetRecords } from "./assets.js";
-import { captureGrant, createOutboxApi, drainOutbox, submitMutation } from "./client-outbox.js";
+import { captureGrant, createOutboxApi, drainOutbox, submitMutation, type DrainResult } from "./client-outbox.js";
 import {
   acceptOffline,
   answerOffline,
@@ -120,6 +120,9 @@ class Client implements SnapbackClient {
   readonly auth;
   readonly outbox: OutboxApi;
   readonly ready: Promise<void>;
+  private readonly localReady: Promise<void>;
+  private readonly startupController = new AbortController();
+  private startupComplete = false;
   readonly url: string;
   readonly fetchImpl: typeof globalThis.fetch;
   readonly customFetch: boolean;
@@ -177,7 +180,7 @@ class Client implements SnapbackClient {
     } catch (error) {
       throw this.offlineRefusal(error);
     }
-    this.outbox = createOutboxApi(this.offlineRuntime, () => this.drainNow(), () => this.ready);
+    this.outbox = createOutboxApi(this.offlineRuntime, () => this.drainNow(), () => this.localReady, () => this.forcedOffline);
     this.auth = {
       signup: (input: { email: string; password: string }) => this.session("/api/auth/signup", input),
       login: (input: { email: string; password: string }) => this.session("/api/auth/login", input),
@@ -185,7 +188,12 @@ class Client implements SnapbackClient {
       logout: () => this.logout(),
       me: () => this.me(),
     };
-    this.ready = this.hydrate(options.token).then(() => this.initializeOffline());
+    this.localReady = this.hydrate(options.token).then(async () => {
+      const principal = this.persona === undefined ? options.offlinePrincipal ?? this.currentPrincipal : `dev:${this.persona}` as Principal;
+      if (principal) await this.openOffline(principal);
+    });
+    this.ready = this.localReady.then(() => this.initializeOffline()).finally(() => { this.startupComplete = true; });
+    void this.ready.catch(() => undefined);
   }
 
   get snapshot(): ClientSnapshot {
@@ -193,8 +201,14 @@ class Client implements SnapbackClient {
   }
 
   async query<Args, Result>(ref: Op<Args, Result>, args: Args): Promise<QueryResult<Result>> {
-    const authority = await this.operationAuthority(false);
+    await this.localReady;
+    this.ensureOpen();
     const op = referenceName(ref);
+    if (!this.startupComplete && this.offlineRuntime?.principal !== undefined) {
+      const held = await answerOffline(this.offlineRuntime, op, args, (error) => this.offlineRefusal(error, "client.query.local"));
+      if (held.state !== "hydrating") return held as QueryResult<Result>;
+    }
+    const authority = await this.operationAuthority(false);
     if (this.forcedOffline) {
       this.patchSnapshot({ connection: "offline" });
       return answerOffline(this.offlineRuntime, op, args, (error) => this.offlineRefusal(error));
@@ -212,7 +226,7 @@ class Client implements SnapbackClient {
         }, authority);
         const accepted = await acceptOffline<Result>(this.offlineRuntime, op, args, raw, wireShape);
         const result = wireQuery<Result>(accepted.result);
-        const superseded = await commitOffline(this.offlineRuntime, op, args, accepted, (error) => this.offlineRefusal(error), revision);
+        const superseded = await commitOffline(this.offlineRuntime, op, args, accepted, (error) => this.offlineRefusal(error, "client.query.commit"), revision);
         this.validated(authority);
         if (superseded || revision !== this.offlineRuntime?.coverageRevision) this.scheduleSupersessionReset(authority, { op, args });
         if (this.offlineRuntime && this.createOptions.offlineReadObserver) {
@@ -543,8 +557,11 @@ class Client implements SnapbackClient {
   }
 
   async offline(): Promise<void> {
+    this.forcedOffline = true;
+    this.startupController.abort();
+    this.abortResume();
     return goOffline({
-      ready: this.ready,
+      ready: this.localReady,
       ensureOpen: () => this.ensureOpen(),
       force: (value) => { this.forcedOffline = value; },
       connection: (value) => { this.patchSnapshot({ connection: value }); },
@@ -605,6 +622,7 @@ class Client implements SnapbackClient {
   close(): Promise<void> {
     if (this.closed) return this.closing;
     this.closed = true;
+    this.startupController.abort();
     this.abortResume();
     this.operationFence += 1;
     this.closeTransports();
@@ -632,7 +650,7 @@ class Client implements SnapbackClient {
         captureGrant(this.offlineRuntime, await this.json(path, { method: "POST", body: JSON.stringify(input) }, authority, false, false)),
         `${path.slice("/api/".length)} response`,
       );
-      await this.openOffline(session.viewer, true);
+      await this.openOffline(session.viewer, true, session.authEpoch);
       await this.installToken(session.token);
       this.ensureOpen();
       // The program lands with the grant, so "log in, go offline, write" prices and predicts from custody.
@@ -681,7 +699,8 @@ class Client implements SnapbackClient {
   private async me(): Promise<AuthMe> {
     const authority = await this.operationAuthority();
     const result = wireAuthMe(await this.json("/api/auth/me", {}, authority));
-    await this.openOffline(result.viewer, true);
+    await this.openOffline(result.viewer, true, result.authEpoch);
+    await this.saveConfirmedPrincipal(result.viewer, authority);
     this.validated(authority);
     return result;
   }
@@ -689,13 +708,14 @@ class Client implements SnapbackClient {
   private async hydrate(explicitToken: string | undefined): Promise<void> {
     let token = explicitToken;
     let principal: string | null | undefined;
-    if (token === undefined && this.tokenStore) {
+    if (this.tokenStore) {
       try {
-        const [storedToken, storedPrincipal] = await Promise.all([
-          this.tokenStore.load(), this.tokenStore.loadPrincipal?.(),
-        ]);
+        const storedToken = token ?? await this.tokenStore.load();
+        const binding = await this.tokenStore.loadPrincipalBinding?.();
         token = storedToken ?? undefined;
-        principal = storedPrincipal;
+        // A companion record names the bearer that authenticated its principal;
+        // mixed snapshots and obsolete writers cannot assign another identity.
+        principal = binding && binding.token === token ? binding.principal : undefined;
       } catch (error) {
         throw this.storageRefusal("load", error);
       }
@@ -703,7 +723,14 @@ class Client implements SnapbackClient {
     if (token !== undefined && (typeof token !== "string" || token.length === 0)) {
       throw this.storageRefusal("load", new TypeError("stored token must be a non-empty string or null"));
     }
-    if (explicitToken !== undefined) await this.saveToken(token!);
+    if (explicitToken !== undefined) {
+      await this.saveToken(token!);
+      // The same bearer may reuse its authenticated binding while offline.
+      if (principal) {
+        try { await this.tokenStore?.savePrincipal?.(principal, token); }
+        catch (error) { throw this.storageRefusal("save principal", error); }
+      }
+    }
     if (this.closed) return;
     this.currentToken = token;
     if (token !== undefined && principal) this.currentPrincipal = principal as Principal;
@@ -1010,37 +1037,40 @@ class Client implements SnapbackClient {
         : `dev:${this.persona}` as Principal,
       bearer: this.persona === undefined && this.currentToken !== undefined,
       authority,
-      open: (principal, authenticated) => this.openOffline(principal, authenticated),
-      confirm: async (current) => wireAuthMe(await this.json("/api/auth/me", {}, current)).viewer,
-      metadata: (current) => this.ensureOfflineMetadata(current),
+      open: async (principal, authenticated, epoch) => {
+        await this.openOffline(principal, authenticated, epoch);
+        if (authenticated) await this.saveConfirmedPrincipal(principal, authority);
+      },
+      confirm: async (current) => wireAuthMe(await this.json("/api/auth/me", { signal: this.startupController.signal }, current)),
+      metadata: (current) => this.ensureOfflineMetadata(current, false, true, this.startupController.signal),
       resume: (current) => this.performResume(current),
       // A bounded rebuild refusal leaves durable work for online(); it must
       // not permanently reject the restore barrier that online() itself awaits.
-      ignore: (error) => isSnapbackRefusal(error)
-        && (error.retryable || error.code === "E_OFFLINE_RESUME" || error.code === "E_OFFLINE_RESET"),
+      ignore: (error) => (this.forcedOffline && this.startupController.signal.aborted) || (isSnapbackRefusal(error)
+        && (error.retryable || error.code === "E_OFFLINE_RESUME" || error.code === "E_OFFLINE_RESET")),
     });
   }
 
-  private async openOffline(principal: Principal, authenticated = false): Promise<void> {
+  private async openOffline(principal: Principal, authenticated = false, authEpoch?: number): Promise<void> {
     if (!this.offlineRuntime) return;
     try {
       const changed = this.offlineRuntime.principal !== principal;
       await this.offlineRuntime.open(principal, authenticated);
-      if (authenticated) await this.offlineRuntime.reauthenticate(principal);
+      if (authenticated) await this.offlineRuntime.reauthenticate(principal, authEpoch);
       this.currentPrincipal = principal;
       if (changed) {
         this.supersessionQueries.clear();
         this.offlineMetadataLoaded = false;
       }
     } catch (error) {
-      throw this.offlineRefusal(error);
+      throw this.offlineRefusal(error, "RangeStore.open");
     }
   }
 
   private async sealOffline(): Promise<void> {
     if (!this.offlineRuntime) return;
     try { await this.offlineRuntime.seal(); }
-    catch (error) { throw this.offlineRefusal(error); }
+    catch (error) { throw this.offlineRefusal(error, "RangeStore.seal"); }
   }
 
   private async wipeOffline(): Promise<void> {
@@ -1048,7 +1078,7 @@ class Client implements SnapbackClient {
     this.abortResume();
     this.supersessionQueries.clear();
     try { await this.offlineRuntime.wipe(); this.currentPrincipal = undefined; }
-    catch (error) { throw this.offlineRefusal(error); }
+    catch (error) { throw this.offlineRefusal(error, "RangeStore.wipe"); }
   }
 
   /** A live read never waits for reset. online() joins it and reports its outcome. */
@@ -1169,18 +1199,25 @@ class Client implements SnapbackClient {
     });
   }
 
-  private async drainNow(): Promise<{ stopped: boolean; reason?: "fence" }> {
+  private async drainNow(): Promise<DrainResult> {
+    await this.localReady;
+    if (this.forcedOffline) {
+      const remaining = (await this.offlineRuntime?.queuedIntents())?.length ?? 0;
+      const reason = await this.offlineRuntime?.outbox.fence() === "past" ? "fence" : "offline";
+      if (this.offlineRuntime) this.offlineRuntime.drainOutcome = Promise.resolve({ stopped: reason, remaining });
+      return { stopped: true, reason, remaining };
+    }
     const authority = await this.operationAuthority();
-    if (!this.offlineRuntime) return { stopped: false };
+    if (!this.offlineRuntime) return { stopped: false, remaining: 0 };
     return drainOutbox({ runtime: this.offlineRuntime, json: (path, init) => this.json(path, init, authority),
-      shape: wireShape, failure: (error) => this.offlineRefusal(error) });
+      shape: wireShape, failure: (error) => this.offlineRefusal(error, "client.outbox.drain") });
   }
 
-  private offlineRefusal(error: unknown): SnapbackRefusal {
+  private offlineRefusal(error: unknown, site = "client.offline"): SnapbackRefusal {
     const carrier = this.createOptions?.offline?.store.carrier
       ?? this.createOptions?.offline?.store.name
       ?? "configured";
-    const refusal = makeOfflineRefusal(error, carrier);
+    const refusal = makeOfflineRefusal(error, carrier, site);
     this.recordRefusal(refusal.envelope);
     return refusal;
   }
@@ -1277,7 +1314,7 @@ class Client implements SnapbackClient {
     await this.custody(async () => {
       this.ensureOpen();
       await this.saveToken(token);
-      await this.tokenStore?.savePrincipal?.(this.currentPrincipal ?? null);
+      await this.tokenStore?.savePrincipal?.(this.currentPrincipal ?? null, token);
       // Commit replacement custody only after durable persistence succeeds,
       // but before close can prevent its in-memory installation. Predecessor
       // evidence may clear a failed save; it cannot erase a completed one.
@@ -1295,9 +1332,25 @@ class Client implements SnapbackClient {
     return run;
   }
 
+  private async saveConfirmedPrincipal(principal: Principal, authority: Authority): Promise<void> {
+    if (!authority.token || !this.tokenStore?.savePrincipal) return;
+    await this.custody(async () => {
+      this.ensureAuthority(authority);
+      try { await this.tokenStore!.savePrincipal!(principal, authority.token); }
+      catch (error) { throw this.storageRefusal("save principal", error); }
+      this.ensureAuthority(authority);
+    });
+  }
+
   private async saveToken(token: string): Promise<void> {
     if (!this.tokenStore) return;
     try {
+      // Token and principal may use separate carrier keys. Clear the binding
+      // first so a crash can never pair a replacement bearer with old history.
+      if (this.tokenStore.loadPrincipalBinding && !this.tokenStore.savePrincipal) {
+        throw new TypeError("tokenStore.loadPrincipalBinding requires savePrincipal for safe token replacement");
+      }
+      await this.tokenStore.savePrincipal?.(null);
       await this.tokenStore.save(token);
     } catch (error) {
       throw this.storageRefusal("save", error);

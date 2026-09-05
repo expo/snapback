@@ -17,6 +17,10 @@ import {
 
 import { advanceOverlay, cursorChain, pagePosition, type OverlayWatermark } from "./overlay-retirement.js";
 import { canonical } from "./canonical.js";
+import { sha256 } from "../../../evaluator/src/hash.js";
+import { totalCompare } from "../../../evaluator/src/value-runtime.js";
+import { tagWireValue, type TaggedValue, type WireValue } from "../offline-protocol.js";
+import { asRowRef, collectRefs, escapedFields, mapRowValues, purgeAnswerData } from "./row-values.js";
 
 export type PrincipalPartition = string;
 export type RetentionPolicy = "until-revoked" | "delivered-history";
@@ -342,7 +346,7 @@ export interface RangeStoreBackend {
   readonly carrier: string;
   open(partition: PrincipalPartition): Promise<PersistedRangeState | undefined>;
   /** One carrier transaction: the state, plus the byte payloads to write and the keys to drop. */
-  replace(state: PersistedRangeState, bytes: ByteDelta): Promise<void>;
+  replace(state: PersistedRangeState, bytes: ByteDelta, previous?: PersistedRangeState): Promise<void>;
   readBytes?(key: string): Promise<Uint8Array | undefined>;
   wipe(partition: PrincipalPartition): Promise<void>;
   close(): Promise<void> | void;
@@ -383,33 +387,8 @@ export function rowReference(table: string, id: string): { $row: RowRef } {
   return { $row: { table, id } };
 }
 
-function asRowRef(value: unknown): RowRef | undefined {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
-  const marker = (value as { $row?: unknown }).$row;
-  return marker !== null && typeof marker === "object" && !Array.isArray(marker)
-    && Object.keys(marker).sort().join(",") === "id,table"
-    && typeof (marker as RowRef).table === "string" && typeof (marker as RowRef).id === "string"
-    ? { table: (marker as RowRef).table, id: (marker as RowRef).id }
-    : undefined;
-}
-
-function collectRefs(value: unknown, refs = new Map<string, RowRef>()): RowRef[] {
-  const ref = asRowRef(value);
-  if (ref) refs.set(rowKey(ref), ref);
-  else if (Array.isArray(value)) for (const item of value) collectRefs(item, refs);
-  else if (value && typeof value === "object") {
-    for (const item of Object.values(value as Record<string, unknown>)) collectRefs(item, refs);
-  }
-  return [...refs.values()];
-}
-
 function expand(value: unknown, rows: Record<string, StoredRow>, viewed?: Record<string, unknown>): unknown {
-  const ref = asRowRef(value);
-  if (ref) return viewed?.[rowKey(ref)] ? null : rows[rowKey(ref)]?.row ?? null;
-  if (Array.isArray(value)) return value.map((item) => expand(item, rows, viewed));
-  if (!value || typeof value !== "object") return value;
-  return Object.fromEntries(Object.entries(value as Record<string, unknown>)
-    .map(([key, item]) => [key, expand(item, rows, viewed)]));
+  return mapRowValues(value, (ref) => viewed?.[rowKey(ref)] ? null : clone(rows[rowKey(ref)]?.row ?? null));
 }
 
 function hiddenRefs(before: unknown, after: unknown, output = new Map<string, RowRef>()): RowRef[] {
@@ -417,11 +396,12 @@ function hiddenRefs(before: unknown, after: unknown, output = new Map<string, Ro
     for (const ref of collectRefs(before)) output.set(rowKey(ref), ref);
     return [...output.values()];
   }
-  const ref = asRowRef(before);
-  if (ref && after === null) output.set(rowKey(ref), ref);
-  else if (Array.isArray(before) && Array.isArray(after)) {
-    for (let index = 0; index < before.length; index += 1) {
-      hiddenRefs(before[index], index < after.length ? after[index] : undefined, output);
+  if (asRowRef(before)) return [...output.values()];
+  before = escapedFields(before) ?? before;
+  after = escapedFields(after) ?? after;
+  if (Array.isArray(before) && Array.isArray(after)) {
+    for (let index = 0; index < Math.min(before.length, after.length); index += 1) {
+      hiddenRefs(before[index], after[index], output);
     }
   } else if (before && after && typeof before === "object" && typeof after === "object"
     && !Array.isArray(before) && !Array.isArray(after)) {
@@ -475,17 +455,11 @@ function sameRange(left: ReceiptRange, right: ReceiptRange): boolean {
     && left.ruleHash === right.ruleHash;
 }
 
-function compareValue(left: unknown, right: unknown): number {
-  if (left === right) return 0;
-  if (typeof left === "number" && typeof right === "number") return left < right ? -1 : 1;
-  if (typeof left === "string" && typeof right === "string") return left < right ? -1 : 1;
-  if (typeof left === "boolean" && typeof right === "boolean") return left ? 1 : -1;
-  const a = canonical(left);
-  const b = canonical(right);
-  return a < b ? -1 : a > b ? 1 : 0;
+function compareValue(left: TaggedValue, right: TaggedValue): number {
+  return totalCompare(left, right);
 }
 
-function compareKey(left: unknown[], right: unknown[]): number {
+function compareKey(left: TaggedValue[], right: TaggedValue[]): number {
   for (let index = 0; index < Math.min(left.length, right.length); index += 1) {
     const order = compareValue(left[index], right[index]);
     if (order !== 0) return order;
@@ -493,11 +467,24 @@ function compareKey(left: unknown[], right: unknown[]): number {
   return left.length - right.length;
 }
 
-function indexKey(schema: OfflineSchema | undefined, range: ReceiptRange, row: StoredRow | undefined): unknown[] | undefined {
+function tagKey(schema: OfflineSchema | undefined, range: ReceiptRange, values: unknown[], offset = 0): TaggedValue[] {
+  const table = schema?.tables?.[range.table];
+  const columns = table?.indexes?.[range.index]?.columns;
+  return values.map((value, at) => {
+    const descriptor = table?.columns?.[columns?.[offset + at] ?? ""];
+    // Handwritten harness schemas may omit column descriptors. The wire's scalar
+    // values still have the same order; a real held schema always supplies types.
+    const fallback = typeof value === "string" ? { Text: {} } : typeof value === "number" ? "Int"
+      : typeof value === "boolean" ? "Bool" : { Json: {} };
+    return tagWireValue(descriptor ?? fallback, value as WireValue, `${range.table}.${range.index}[${offset + at}]`);
+  });
+}
+
+function indexKey(schema: OfflineSchema | undefined, range: ReceiptRange, row: StoredRow | undefined): TaggedValue[] | undefined {
   const columns = schema?.tables?.[range.table]?.indexes?.[range.index]?.columns;
   if (!row || !Array.isArray(columns) || !columns.every((item) => typeof item === "string")) return undefined;
-  const key = columns.map((column) => row.row[column]);
-  return key.some((item) => item === undefined) ? undefined : key;
+  // Missing optional columns have the engine's Null value, just like explicit null.
+  return tagKey(schema, range, columns.map((column) => row.row[column] ?? null));
 }
 
 function cursorKey(value: unknown, width: number): unknown[] | undefined {
@@ -506,19 +493,20 @@ function cursorKey(value: unknown, width: number): unknown[] | undefined {
   return width === 1 ? [value] : undefined;
 }
 
-function insidePrefixBounds(key: unknown[], range: ReceiptRange): boolean {
+function insidePrefixBounds(key: TaggedValue[], range: ReceiptRange, schema: OfflineSchema | undefined): boolean {
   if (key.length < range.prefix.length
-    || compareKey(key.slice(0, range.prefix.length), range.prefix) !== 0) return false;
+    || compareKey(key.slice(0, range.prefix.length), tagKey(schema, range, range.prefix)) !== 0) return false;
   const suffix = key.slice(range.prefix.length);
   const after = cursorKey(range.after, suffix.length);
   const before = cursorKey(range.before, suffix.length);
-  if (after && (range.order === "Asc" ? compareKey(suffix, after) <= 0 : compareKey(suffix, after) >= 0)) return false;
-  if (before && (range.order === "Asc" ? compareKey(suffix, before) >= 0 : compareKey(suffix, before) <= 0)) return false;
-  const first = suffix[0];
-  if (range.gt !== null && range.gt !== undefined && compareValue(first, range.gt) <= 0) return false;
-  if (range.gte !== null && range.gte !== undefined && compareValue(first, range.gte) < 0) return false;
-  if (range.lt !== null && range.lt !== undefined && compareValue(first, range.lt) >= 0) return false;
-  if (range.lte !== null && range.lte !== undefined && compareValue(first, range.lte) > 0) return false;
+  const compareSuffix = (bound: unknown[]) => compareKey(suffix, tagKey(schema, range, bound, range.prefix.length));
+  if (after && (range.order === "Asc" ? compareSuffix(after) <= 0 : compareSuffix(after) >= 0)) return false;
+  if (before && (range.order === "Asc" ? compareSuffix(before) >= 0 : compareSuffix(before) <= 0)) return false;
+  for (const [kind, value] of [["gt", range.gt], ["gte", range.gte], ["lt", range.lt], ["lte", range.lte]] as const) {
+    if (value === null || value === undefined) continue;
+    const order = compareValue(suffix[0]!, tagKey(schema, range, [value], range.prefix.length)[0]!);
+    if (kind === "gt" ? order <= 0 : kind === "gte" ? order < 0 : kind === "lt" ? order >= 0 : order > 0) return false;
+  }
   return true;
 }
 
@@ -531,11 +519,11 @@ function inFreshExtent(
 ): boolean {
   const key = indexKey(schema, held, rows[rowKey({ table: held.table, id })]);
   if (!key) return fresh.stop === "Exhausted";
-  if (!insidePrefixBounds(key, fresh)) return false;
+  if (!insidePrefixBounds(key, fresh, schema)) return false;
   if (fresh.stop === "Exhausted") return true;
   const presentKeys = fresh.rowIds
     .map((rowId) => indexKey(schema, fresh, rows[rowKey({ table: fresh.table, id: rowId })]))
-    .filter(Array.isArray) as unknown[][];
+    .filter(Array.isArray) as TaggedValue[][];
   if (presentKeys.length === 0) return false;
   const first = presentKeys.reduce((a, b) => compareKey(a, b) <= 0 ? a : b);
   const last = presentKeys.reduce((a, b) => compareKey(a, b) >= 0 ? a : b);
@@ -552,6 +540,11 @@ function normalizeState(value: PersistedRangeState | undefined): PersistedRangeS
   value = jsonState(value);
   if (value.version !== 1 || typeof value.rows !== "object" || typeof value.answers !== "object") {
     throw new OfflineStoreFailure("E_OFFLINE_CARRIER", "range store contains an unsupported format");
+  }
+  // Older snapshots used the canonical delivery itself as the fingerprint.
+  // Hash that value before any subsequent persistence can retain its row bodies.
+  for (const answer of Object.values(value.answers)) {
+    if (answer.fingerprint && !/^[0-9a-f]{64}$/.test(answer.fingerprint)) answer.fingerprint = sha256(answer.fingerprint);
   }
   return {
     ...value,
@@ -593,9 +586,15 @@ function outboxOrder(entries: Record<string, OutboxEntry>): OutboxEntry[] {
     (a.order ?? a.createdAt) - (b.order ?? b.createdAt) || a.createdAt - b.createdAt || (a.intent < b.intent ? -1 : 1));
 }
 
+function changesCoverage(swap: StoreSwap): boolean {
+  return !!(swap.resetCoverage || swap.deliveries?.length || swap.refreshes?.length || swap.tombstones?.length
+    || swap.dropAnswers?.length || swap.bytes || swap.viewed?.length);
+}
+
 /** Shared swap engine; carrier subclasses only provide the atomic replace. */
 export class PersistentRangeStore implements RangeStore {
   private state = emptyState();
+  private persisted?: PersistedRangeState;
   private partition?: PrincipalPartition;
   private tail: Promise<void> = Promise.resolve();
 
@@ -643,7 +642,13 @@ export class PersistentRangeStore implements RangeStore {
       if (this.partition === partition) return;
       if (this.partition !== undefined && this.partition !== partition) await this.backend.close();
       this.partition = partition;
-      this.state = normalizeState(await this.backend.open(partition));
+      const loaded = await this.backend.open(partition);
+      const rawFingerprints = loaded && Object.values(loaded.answers).some((answer) =>
+        answer.fingerprint && !/^[0-9a-f]{64}$/.test(answer.fingerprint));
+      this.state = normalizeState(loaded);
+      // Normalizing a legacy fingerprint changes persisted content. Keep the
+      // original baseline until the next successful swap writes those digests.
+      this.persisted = rawFingerprints ? loaded : this.state;
     });
   }
 
@@ -651,18 +656,18 @@ export class PersistentRangeStore implements RangeStore {
     await this.enqueue(async () => {
       this.ensureOpen();
       if (!this.state.sealed) return;
-      const next = { ...clone(this.state), sealed: false };
-      await this.backend.replace(next, NO_BYTES);
-      this.state = next;
+      const next = { ...this.state, sealed: false };
+      await this.backend.replace(next, NO_BYTES, this.persisted);
+      this.state = this.persisted = next;
     });
   }
 
   async seal(): Promise<void> {
     await this.enqueue(async () => {
       this.ensureOpen();
-      const next = { ...clone(this.state), sealed: true };
-      await this.backend.replace(next, NO_BYTES);
-      this.state = next;
+      const next = { ...this.state, sealed: true };
+      await this.backend.replace(next, NO_BYTES, this.persisted);
+      this.state = this.persisted = next;
     });
   }
 
@@ -672,6 +677,7 @@ export class PersistentRangeStore implements RangeStore {
       if (this.partition === partition) {
         this.partition = undefined;
         this.state = emptyState();
+        this.persisted = undefined;
       }
     });
   }
@@ -740,9 +746,21 @@ export class PersistentRangeStore implements RangeStore {
       const { bytes, ...rest } = swap;
       const delta: ByteDelta = { put: [], remove: [] };
       // Normalize before deriving answer keys/fingerprints, then normalize the state we publish.
-      const next = normalizeState(this.applySwap(clone(this.state), { ...jsonState(rest), ...(bytes === undefined ? {} : { bytes }) }, delta));
-      await this.backend.replace(next, delta);
-      this.state = next;
+      const normalized = { ...jsonState(rest), ...(bytes === undefined ? {} : { bytes }) };
+      const coverage = changesCoverage(normalized);
+      // Custody-only swaps never walk or clone retained rows, answers, or programs.
+      // The few mutable custody maps are copied before applySwap can edit them.
+      const draft = coverage ? clone(this.state) : {
+        ...this.state,
+        ...jsonState({ outbox: this.state.outbox, grants: this.state.grants,
+          overlay: this.state.overlay, overlayMisses: this.state.overlayMisses,
+          overlayWatermarks: this.state.overlayWatermarks, overlayNegatives: this.state.overlayNegatives,
+          watermarks: this.state.watermarks }),
+      };
+      const applied = this.applySwap(draft, normalized, delta);
+      const next = coverage ? normalizeState(applied) : applied;
+      await this.backend.replace(next, delta, this.persisted);
+      this.state = this.persisted = next;
     });
   }
 
@@ -794,10 +812,13 @@ export class PersistentRangeStore implements RangeStore {
   async touchBytes(keys: string[]): Promise<void> {
     await this.enqueue(async () => {
       if (this.partition === undefined || this.state.sealed) return;
+      const assets = { ...this.state.assets };
+      let clock = this.state.clock;
       for (const key of keys) {
-        const entry = this.state.assets[key];
-        if (entry) entry.lastRead = ++this.state.clock;
+        const entry = assets[key];
+        if (entry) assets[key] = { ...entry, lastRead: ++clock };
       }
+      this.state = { ...this.state, assets, clock };
     });
   }
 
@@ -805,227 +826,31 @@ export class PersistentRangeStore implements RangeStore {
     await this.enqueue(async () => {
       this.partition = undefined;
       this.state = emptyState();
+      this.persisted = undefined;
       await this.backend.close();
     });
   }
 
   private applySwap(state: PersistedRangeState, swap: StoreSwap, bytes: ByteDelta): PersistedRangeState {
     if (state.sealed) throw new OfflineStoreFailure("E_OFFLINE_CARRIER", "range store is sealed");
-    if (swap.resetCoverage) {
-      state.rows = {};
-      // Sequence guards belong to this generation's coverage, just like rows.
-      // A query-only successor can deliver the same row at the same data seq.
-      state.rowSeq = {};
-      state.negative = {};
-      state.answers = {};
-      state.watermarks = {};
-      // These describe coverage, unlike the overlay and its replay entry.
-      state.overlayWatermarks = Object.fromEntries(Object.keys(state.overlay).map((intent) => [intent, null]));
-      state.overlayMisses = {};
-      delete state.facts;
-    }
-    if (swap.superseded === null) delete state.superseded;
     if (swap.resumeSeq !== undefined && (!Number.isSafeInteger(swap.resumeSeq) || swap.resumeSeq < 0)) {
       throw new TypeError("store resume seq must be a non-negative safe integer");
     }
+    if (swap.facts && state.facts && swap.facts.authEpoch !== state.facts.authEpoch) {
+      // @ref LLP 1012#4-the-range-store — owner-confirmed reauthentication
+      // preserves history, but epoch-bound validators/cursors make the next
+      // delivery new even when its data sequence has not changed. The old
+      // validator still goes to resume; the next full answer establishes the
+      // new epoch's duplicate guard. No guard is relaxed within an epoch.
+      state.answers = Object.fromEntries(Object.entries(state.answers).map(([key, answer]) => {
+        const { fingerprint: _fingerprint, ...held } = answer;
+        return [key, held];
+      }));
+    }
+    const authoritativeNegatives = changesCoverage(swap) ? this.applyCoverage(state, swap, bytes) : new Map<string, { seq: number; source: "absence" | "tombstone" }>();
     if (swap.facts) state.facts = clone(swap.facts);
-    if (swap.superseded) state.superseded = clone(swap.superseded);
-    const explicitEvictions = new Map<string, StoreTombstone>();
-    // Keep provenance distinct from hidden-row and extent evictions. These facts
-    // join each matching overlay below, even while its response is still queued.
-    const authoritativeNegatives = new Map<string, { seq: number; source: "absence" | "tombstone" }>();
-    const recordNegative = (ref: StoreTombstone, source: "absence" | "tombstone") => {
-      const key = rowKey(ref);
-      if ((authoritativeNegatives.get(key)?.seq ?? -1) <= ref.seq) {
-        authoritativeNegatives.set(key, { seq: ref.seq, source });
-      }
-      recordEviction(explicitEvictions, ref);
-    };
-    const recordAbsences = (answer: Pick<StoredAnswer, "receipt" | "seq">) => {
-      for (const [table, index, key] of answer.receipt?.absences ?? []) {
-        if (index !== "byId" || key.length !== 1) {
-          throw new TypeError("store receipts may evict only a primary byId absence");
-        }
-        if (typeof key[0] === "string") recordNegative({ table, id: key[0], seq: answer.seq }, "absence");
-      }
-    };
-    for (const key of swap.dropAnswers ?? []) delete state.answers[key];
-    for (const refresh of swap.refreshes ?? []) {
-      const answer = state.answers[canonicalAnswerKey(refresh.op, refresh.args)];
-      if (!answer || refresh.seq < answer.seq) continue;
-      if (answer.validator !== undefined && answer.validator !== refresh.validator) {
-        throw new TypeError(`conditional validator changed for ${refresh.op}`);
-      }
-      if (refresh.seq === answer.seq) continue;
-      answer.nextSeq ??= answer.seq;
-      answer.seq = refresh.seq;
-      answer.validator = refresh.validator;
-      answer.deliveredAt = refresh.deliveredAt ?? Date.now();
-      answer.order = ++state.clock;
-      recordAbsences(answer);
-    }
-    const before = clone(state.answers);
-    const freshRanges: Array<{ range: ReceiptRange; seq: number }> = [];
-    for (const ref of swap.tombstones ?? []) {
-      recordNegative(ref, "tombstone");
-    }
-    for (const delivery of swap.deliveries ?? []) {
-      if (!Number.isSafeInteger(delivery.seq) || delivery.seq < 0) {
-        throw new TypeError("store delivery seq must be a non-negative safe integer");
-      }
-      const key = canonicalAnswerKey(delivery.op, delivery.args);
-      const old = before[key];
-      const fingerprint = canonical({
-        op: delivery.op, args: delivery.args, state: delivery.state, data: delivery.data,
-        next: delivery.next, seq: delivery.seq, validator: delivery.validator,
-        receipt: delivery.receipt, rows: delivery.rows, reason: delivery.reason, rule: delivery.rule,
-      });
-      if (old && delivery.seq < old.seq) continue;
-      if (old && delivery.seq === old.seq) {
-        if (old.fingerprint === fingerprint) continue;
-        throw new TypeError(`conflicting deliveries for ${delivery.op} at seq ${delivery.seq}`);
-      }
-      for (const row of delivery.rows ?? []) {
-        if (!row.table || !row.id || !row.row || typeof row.row !== "object") {
-          throw new TypeError("store delivery row is malformed");
-        }
-        const storageKey = rowKey(row);
-        if ((state.negative[storageKey] ?? -1) >= delivery.seq) {
-          recordEviction(explicitEvictions, { table: row.table, id: row.id, seq: state.negative[storageKey]! });
-          continue;
-        }
-        if (state.rowSeq[storageKey] === delivery.seq
-          && canonical(state.rows[storageKey]) !== canonical(row)) {
-          throw new TypeError(`conflicting row ${row.table}/${row.id} at seq ${delivery.seq}`);
-        }
-        if ((state.rowSeq[storageKey] ?? -1) > delivery.seq) continue;
-        state.rows[storageKey] = clone(row);
-        state.rowSeq[storageKey] = delivery.seq;
-      }
-      let data = clone(delivery.data);
-      let answerState = delivery.state;
-      let retained = false;
-      const hidden = delivery.state === "denied" && old
-        ? old.refs
-        : old ? hiddenRefs(old.data, data) : [];
-      const retainedRefs = new Set<string>();
-      for (const ref of hidden) {
-        if ((swap.retention?.[ref.table] ?? "until-revoked") === "delivered-history") {
-          retainedRefs.add(rowKey(ref));
-          retained = true;
-        } else recordEviction(explicitEvictions, { ...ref, seq: delivery.seq });
-      }
-      if (delivery.state === "denied" && old && retainedRefs.size > 0) {
-        data = clone(old.data);
-        answerState = old.state;
-      } else if (old && retainedRefs.size > 0) {
-        data = restoreRetained(old.data, data, retainedRefs);
-      }
-      const refs = collectRefs(data);
-      for (const range of delivery.receipt?.ranges ?? []) {
-        for (const id of [...range.rowIds, ...(range.haloId ? [range.haloId] : [])]) {
-          if (!refs.some((ref) => ref.table === range.table && ref.id === id)) refs.push({ table: range.table, id });
-        }
-      }
-      // The pool is the answer's closure: halo and rule-input bodies (the
-      // membership a message's read rule probed) are delivered content the
-      // twin evaluates over, so an answer keeps every row it was delivered with.
-      for (const pooled of delivery.rows ?? []) {
-        if (!refs.some((ref) => ref.table === pooled.table && ref.id === pooled.id)) refs.push({ table: pooled.table, id: pooled.id });
-      }
-      const stored: StoredAnswer = {
-        op: delivery.op,
-        ...(delivery.cursorArg === undefined ? {} : { cursorArg: delivery.cursorArg }),
-        args: clone(delivery.args),
-        state: answerState,
-        ...(data === undefined ? {} : { data }),
-        ...(delivery.next === undefined ? {} : { next: delivery.next }),
-        nextSeq: delivery.seq,
-        seq: delivery.seq,
-        ...(delivery.validator === undefined ? {} : { validator: delivery.validator }),
-        ...(delivery.receipt === undefined ? {} : { receipt: clone(delivery.receipt) }),
-        deliveredAt: delivery.deliveredAt ?? Date.now(),
-        ...(retained ? { retained: true } : {}),
-        ...(delivery.reason === undefined ? {} : { reason: delivery.reason }),
-        ...(delivery.rule === undefined ? {} : { rule: delivery.rule }),
-        refs,
-        order: ++state.clock,
-        fingerprint,
-      };
-      state.answers[key] = stored;
-      freshRanges.push(...(delivery.receipt?.ranges ?? []).map((range) => ({ range, seq: delivery.seq })));
-      recordAbsences(stored);
-    }
-
-    const heldRanges = Object.values(before).flatMap((answer) => answer.receipt?.ranges ?? []);
-    for (const held of heldRanges) {
-      const matching = freshRanges.filter(({ range: fresh }) => sameRange(held, fresh));
-      if (matching.length === 0) continue;
-      const present = new Set(matching.flatMap(({ range: fresh }) => [
-        ...fresh.rowIds,
-        ...(fresh.haloId ? [fresh.haloId] : []),
-      ]));
-      for (const id of held.rowIds) {
-        if (present.has(id)) continue;
-        const seq = matching
-          .filter(({ range: fresh }) => inFreshExtent(id, held, fresh, state.rows, swap.schema))
-          .reduce((latest, item) => Math.max(latest, item.seq), -1);
-        if (seq >= 0) recordEviction(explicitEvictions, { table: held.table, id, seq });
-      }
-    }
-
-    const appliedEvictions = new Set<string>();
-    for (const [key, eviction] of explicitEvictions) {
-      if ((state.negative[key] ?? -1) > eviction.seq) continue;
-      if ((state.rowSeq[key] ?? -1) > eviction.seq) continue;
-      state.negative[key] = eviction.seq;
-      appliedEvictions.add(key);
-      delete state.rows[key];
-      delete state.rowSeq[key];
-      for (const answer of Object.values(state.answers)) {
-        for (const range of answer.receipt?.ranges ?? []) {
-          if (range.table !== eviction.table) continue;
-          const id = eviction.id;
-          if (range.rowIds.includes(id)) {
-            range.rowIds = range.rowIds.filter((rowId) => rowId !== id);
-            // The page remembers what it lost: an interior eviction leaves a hole
-            // the twin must not paper over with "complete" (LLP 1012 §6).
-            range.evictedIds = [...(range.evictedIds ?? []), id];
-          }
-          if (range.haloId === id) delete range.haloId;
-        }
-        if (!answer.refs.some((ref) => rowKey(ref) === key)) continue;
-        answer.refs = answer.refs.filter((ref) => rowKey(ref) !== key);
-        if (!answer.retained && answer.state !== "denied") {
-          answer.state = "partial";
-          answer.reason = "evicted";
-          delete answer.next;
-        }
-      }
-    }
-
-    for (const answer of Object.values(state.answers)) {
-      if (!answer.receipt) continue;
-      answer.receipt.absences = answer.receipt.absences.filter(([table, index, key]) => {
-        const id = index === "byId" && key.length === 1 ? key[0] : undefined;
-        const storageKey = typeof id === "string" ? rowKey({ table, id }) : undefined;
-        return storageKey === undefined || (state.rowSeq[storageKey] ?? -1) < 0 || appliedEvictions.has(storageKey);
-      });
-    }
-
-    const referenced = new Set(Object.values(state.answers).flatMap((answer) => answer.refs.map(rowKey)));
-    // Every pooled row joins its answer's refs above, so nothing arrives unused;
-    // a row leaves here when no answer references it any more — its answer was
-    // dropped, or replaced by a delivery whose closure no longer pools it.
-    for (const key of Object.keys(state.rows)) if (!referenced.has(key)) {
-      delete state.rows[key];
-      delete state.rowSeq[key];
-    }
-
-    // Bytes join the swap by row lease: whatever left `state.rows` above takes its bytes with it.
-    const byteDelta = applyByteSwap(state, swap, leasedAssets(Object.values(state.rows), Object.values(state.answers)));
-    bytes.put.push(...byteDelta.put);
-    bytes.remove.push(...byteDelta.remove);
+    if (swap.superseded === null) delete state.superseded;
+    else if (swap.superseded) state.superseded = clone(swap.superseded);
 
     const previousTail = tailWatermark(Object.values(state.watermarks));
     if (swap.watermark) {
@@ -1162,6 +987,225 @@ export class PersistentRangeStore implements RangeStore {
       delete entry.predicted;
     }
     return state;
+  }
+
+  private applyCoverage(state: PersistedRangeState, swap: StoreSwap, bytes: ByteDelta) {
+    if (swap.resetCoverage) {
+      state.rows = {};
+      // Sequence guards belong to this generation's coverage, just like rows.
+      // A query-only successor can deliver the same row at the same data seq.
+      state.rowSeq = {};
+      state.negative = {};
+      state.answers = {};
+      state.watermarks = {};
+      // These describe coverage, unlike the overlay and its replay entry.
+      state.overlayWatermarks = Object.fromEntries(Object.keys(state.overlay).map((intent) => [intent, null]));
+      state.overlayMisses = {};
+      delete state.facts;
+    }
+    const explicitEvictions = new Map<string, StoreTombstone>();
+    // Keep provenance distinct from hidden-row and extent evictions. These facts
+    // join each matching overlay below, even while its response is still queued.
+    const authoritativeNegatives = new Map<string, { seq: number; source: "absence" | "tombstone" }>();
+    const recordNegative = (ref: StoreTombstone, source: "absence" | "tombstone") => {
+      const key = rowKey(ref);
+      if ((authoritativeNegatives.get(key)?.seq ?? -1) <= ref.seq) {
+        authoritativeNegatives.set(key, { seq: ref.seq, source });
+      }
+      recordEviction(explicitEvictions, ref);
+    };
+    const recordAbsences = (answer: Pick<StoredAnswer, "receipt" | "seq">) => {
+      for (const [table, index, key] of answer.receipt?.absences ?? []) {
+        if (index !== "byId" || key.length !== 1) {
+          throw new TypeError("store receipts may evict only a primary byId absence");
+        }
+        if (typeof key[0] === "string") recordNegative({ table, id: key[0], seq: answer.seq }, "absence");
+      }
+    };
+    for (const key of swap.dropAnswers ?? []) delete state.answers[key];
+    for (const refresh of swap.refreshes ?? []) {
+      const answer = state.answers[canonicalAnswerKey(refresh.op, refresh.args)];
+      if (!answer || refresh.seq < answer.seq) continue;
+      if (answer.validator !== undefined && answer.validator !== refresh.validator) {
+        throw new TypeError(`conditional validator changed for ${refresh.op}`);
+      }
+      if (refresh.seq === answer.seq) continue;
+      answer.nextSeq ??= answer.seq;
+      answer.seq = refresh.seq;
+      answer.validator = refresh.validator;
+      answer.deliveredAt = refresh.deliveredAt ?? Date.now();
+      answer.order = ++state.clock;
+      recordAbsences(answer);
+    }
+    const before = clone(state.answers);
+    const freshRanges: Array<{ range: ReceiptRange; seq: number }> = [];
+    for (const ref of swap.tombstones ?? []) {
+      recordNegative(ref, "tombstone");
+    }
+    for (const delivery of swap.deliveries ?? []) {
+      if (!Number.isSafeInteger(delivery.seq) || delivery.seq < 0) {
+        throw new TypeError("store delivery seq must be a non-negative safe integer");
+      }
+      const key = canonicalAnswerKey(delivery.op, delivery.args);
+      const old = before[key];
+      const fingerprint = sha256(canonical({
+        op: delivery.op, args: delivery.args, state: delivery.state, data: delivery.data,
+        next: delivery.next, seq: delivery.seq, validator: delivery.validator,
+        receipt: delivery.receipt, rows: delivery.rows, reason: delivery.reason, rule: delivery.rule,
+      }));
+      if (old && delivery.seq < old.seq) continue;
+      if (old && delivery.seq === old.seq && old.fingerprint !== undefined) {
+        if (old.fingerprint === fingerprint) continue;
+        throw new TypeError(`conflicting deliveries for ${delivery.op} at seq ${delivery.seq}`);
+      }
+      for (const row of delivery.rows ?? []) {
+        if (!row.table || !row.id || !row.row || typeof row.row !== "object") {
+          throw new TypeError("store delivery row is malformed");
+        }
+        const storageKey = rowKey(row);
+        if ((state.negative[storageKey] ?? -1) >= delivery.seq) {
+          recordEviction(explicitEvictions, { table: row.table, id: row.id, seq: state.negative[storageKey]! });
+          continue;
+        }
+        if (state.rowSeq[storageKey] === delivery.seq
+          && canonical(state.rows[storageKey]) !== canonical(row)) {
+          throw new TypeError(`conflicting row ${row.table}/${row.id} at seq ${delivery.seq}`);
+        }
+        if ((state.rowSeq[storageKey] ?? -1) > delivery.seq) continue;
+        state.rows[storageKey] = clone(row);
+        state.rowSeq[storageKey] = delivery.seq;
+      }
+      let data = clone(delivery.data);
+      let answerState = delivery.state;
+      let retained = false;
+      const hidden = delivery.state === "denied" && old
+        ? old.refs
+        : old ? hiddenRefs(old.data, data) : [];
+      // Moving a row within an array or into another fresh slot is not a
+      // revocation. Array truncation itself has no stable slot; receipts prove holes.
+      const present = new Set([...collectRefs(data), ...(delivery.rows ?? [])].map(rowKey));
+      const retainedRefs = new Set<string>();
+      for (const ref of hidden) {
+        if (present.has(rowKey(ref))) continue;
+        if ((swap.retention?.[ref.table] ?? "until-revoked") === "delivered-history") {
+          retainedRefs.add(rowKey(ref));
+          retained = true;
+        } else recordEviction(explicitEvictions, { ...ref, seq: delivery.seq });
+      }
+      if (delivery.state === "denied" && old && retainedRefs.size > 0) {
+        data = clone(old.data);
+        answerState = old.state;
+      } else if (old && retainedRefs.size > 0) {
+        data = restoreRetained(old.data, data, retainedRefs);
+      }
+      const refs = collectRefs(data);
+      for (const range of delivery.receipt?.ranges ?? []) {
+        for (const id of [...range.rowIds, ...(range.haloId ? [range.haloId] : [])]) {
+          if (!refs.some((ref) => ref.table === range.table && ref.id === id)) refs.push({ table: range.table, id });
+        }
+      }
+      // The pool is the answer's closure: halo and rule-input bodies (the
+      // membership a message's read rule probed) are delivered content the
+      // twin evaluates over, so an answer keeps every row it was delivered with.
+      for (const pooled of delivery.rows ?? []) {
+        if (!refs.some((ref) => ref.table === pooled.table && ref.id === pooled.id)) refs.push({ table: pooled.table, id: pooled.id });
+      }
+      const stored: StoredAnswer = {
+        op: delivery.op,
+        ...(delivery.cursorArg === undefined ? {} : { cursorArg: delivery.cursorArg }),
+        args: clone(delivery.args),
+        state: answerState,
+        ...(data === undefined ? {} : { data }),
+        ...(delivery.next === undefined ? {} : { next: delivery.next }),
+        nextSeq: delivery.seq,
+        seq: delivery.seq,
+        ...(delivery.validator === undefined ? {} : { validator: delivery.validator }),
+        ...(delivery.receipt === undefined ? {} : { receipt: clone(delivery.receipt) }),
+        deliveredAt: delivery.deliveredAt ?? Date.now(),
+        ...(retained ? { retained: true } : {}),
+        ...(delivery.reason === undefined ? {} : { reason: delivery.reason }),
+        ...(delivery.rule === undefined ? {} : { rule: delivery.rule }),
+        refs,
+        order: ++state.clock,
+        fingerprint,
+      };
+      state.answers[key] = stored;
+      freshRanges.push(...(delivery.receipt?.ranges ?? []).map((range) => ({ range, seq: delivery.seq })));
+      recordAbsences(stored);
+    }
+
+    const heldRanges = Object.values(before).flatMap((answer) => answer.receipt?.ranges ?? []);
+    for (const held of heldRanges) {
+      const matching = freshRanges.filter(({ range: fresh }) => sameRange(held, fresh));
+      if (matching.length === 0) continue;
+      const present = new Set(matching.flatMap(({ range: fresh }) => [
+        ...fresh.rowIds,
+        ...(fresh.haloId ? [fresh.haloId] : []),
+      ]));
+      for (const id of held.rowIds) {
+        if (present.has(id)) continue;
+        const seq = matching
+          .filter(({ range: fresh }) => inFreshExtent(id, held, fresh, state.rows, swap.schema))
+          .reduce((latest, item) => Math.max(latest, item.seq), -1);
+        if (seq >= 0) recordEviction(explicitEvictions, { table: held.table, id, seq });
+      }
+    }
+
+    const appliedEvictions = new Set<string>();
+    for (const [key, eviction] of explicitEvictions) {
+      if ((state.negative[key] ?? -1) > eviction.seq) continue;
+      if ((state.rowSeq[key] ?? -1) > eviction.seq) continue;
+      state.negative[key] = eviction.seq;
+      appliedEvictions.add(key);
+      delete state.rows[key];
+      delete state.rowSeq[key];
+      for (const answer of Object.values(state.answers)) {
+        for (const range of answer.receipt?.ranges ?? []) {
+          if (range.table !== eviction.table) continue;
+          const id = eviction.id;
+          if (range.rowIds.includes(id)) {
+            range.rowIds = range.rowIds.filter((rowId) => rowId !== id);
+            // The page remembers what it lost: an interior eviction leaves a hole
+            // the twin must not paper over with "complete" (LLP 1012 §6).
+            range.evictedIds = [...(range.evictedIds ?? []), id];
+          }
+          if (range.haloId === id) delete range.haloId;
+        }
+        if (!answer.refs.some((ref) => rowKey(ref) === key)) continue;
+        answer.refs = answer.refs.filter((ref) => rowKey(ref) !== key);
+        if (answer.data !== undefined) answer.data = purgeAnswerData(answer.data, eviction);
+        if (!answer.retained && answer.state !== "denied") {
+          answer.state = "partial";
+          answer.reason = "evicted";
+          delete answer.next;
+        }
+      }
+    }
+
+    for (const answer of Object.values(state.answers)) {
+      if (!answer.receipt) continue;
+      answer.receipt.absences = answer.receipt.absences.filter(([table, index, key]) => {
+        const id = index === "byId" && key.length === 1 ? key[0] : undefined;
+        const storageKey = typeof id === "string" ? rowKey({ table, id }) : undefined;
+        return storageKey === undefined || (state.rowSeq[storageKey] ?? -1) < 0 || appliedEvictions.has(storageKey);
+      });
+    }
+
+    const referenced = new Set(Object.values(state.answers).flatMap((answer) => answer.refs.map(rowKey)));
+    // Every pooled row joins its answer's refs above, so nothing arrives unused;
+    // a row leaves here when no answer references it any more — its answer was
+    // dropped, or replaced by a delivery whose closure no longer pools it.
+    for (const key of Object.keys(state.rows)) if (!referenced.has(key)) {
+      delete state.rows[key];
+      delete state.rowSeq[key];
+    }
+
+    // Bytes join the swap by row lease: whatever left `state.rows` above takes its bytes with it.
+    const byteDelta = applyByteSwap(state, swap, leasedAssets(Object.values(state.rows), Object.values(state.answers)));
+    bytes.put.push(...byteDelta.put);
+    bytes.remove.push(...byteDelta.remove);
+
+    return authoritativeNegatives;
   }
 
   private ensureOpen(): void {

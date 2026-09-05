@@ -133,7 +133,8 @@ test("the chat screens render the log, queue offline sends as pinned bubbles, se
         React.createElement(App),
       ));
     });
-    await waitFor(() => /log downloaded/.test(text(document.querySelector("[role=status][data-connection]"))), "the inbox drain");
+    await waitFor(() => /log downloaded/.test(text(document.querySelector("[role=status][data-connection]")))
+      && document.querySelectorAll("nav[aria-label=Inbox] li").length === 2, "the current inbox drain");
     const inboxItems = [...document.querySelectorAll("nav[aria-label=Inbox] li")].map((item) => item.getAttribute("data-conversation"));
     assert.deepEqual(inboxItems, ["conversation-1", "conversation-2"], "the inbox lists every conversation in the held log");
 
@@ -160,7 +161,9 @@ test("the chat screens render the log, queue offline sends as pinned bubbles, se
     assert.match(text(document.querySelector("form[aria-label=Composer] small")), /1 queued/);
     assert.match(text(document.querySelector("[role=alert]")), /Queued/);
 
-    await act(async () => { await client.online(); await client.outbox.settled(); });
+    const retry = [...document.querySelectorAll<HTMLButtonElement>("form[aria-label=Composer] button")].find((button) => text(button) === "Sync now");
+    assert.ok(retry, "queued sends expose a recovery action");
+    await act(async () => { retry.click(); });
     await waitFor(() => document.querySelector(`li[data-message="${pinned}"]`)?.getAttribute("data-state") === "row"
       && document.querySelector("li[data-state=committed]") === null, "the settled bubble");
     const settledBubble = document.querySelector(`li[data-message="${pinned}"]`)!;
@@ -284,18 +287,49 @@ test("the composer is disabled until the inbox drain catches up and the first gr
     const drain = client.subscribe(api.deliveries.inbox, { c: null }, () => undefined, { drain: true });
     await waitFor(() => document.querySelector("li[data-message=message-1]") !== null, "the thread");
     const send = () => document.querySelector<HTMLButtonElement>("form[aria-label=Composer] button[type=submit]")!;
+    await type(document.querySelector<HTMLInputElement>("form[aria-label=Composer] input")!, "a draft before downloading");
     assert.equal(send().disabled, true, "send is enabled before a grant exists");
-    assert.match(text(document.querySelector("form[aria-label=Composer] small[data-waiting=grant]")), /log has downloaded/);
+    assert.match(text(document.querySelector("form[aria-label=Composer] small[data-waiting=grant-missing]")), /Connect to enable sending/);
     assert.equal(owner.grantsMinted(), 0, "no grant was minted while the drain waited");
     await assert.rejects(client.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "too early" }), (error: any) =>
       error.code === "E_OFFLINE_ID_BLOCK" && /drain/.test(error.envelope.rewrite), "a write before the grant is refused with the rewrite the composer would surface");
     release();
     await waitFor(() => !send().disabled, "the grant");
     assert.equal(owner.grantsMinted(), 1, "the drain reaching its watermark minted the first grant");
-    assert.equal(document.querySelector("form[aria-label=Composer] small[data-waiting=grant]"), null, "the reason left with the grant");
+    assert.equal(document.querySelector("form[aria-label=Composer] small[data-waiting=grant-missing]"), null, "the reason left with the grant");
     drain.close();
   } finally {
     await act(async () => { reactRoot.unmount(); });
+    restore();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("a refused send keeps the draft and shows the recovery advice", async () => {
+  const restore = installDom();
+  const root = await mkdtemp(join(tmpdir(), "snapback2-screens-draft-"));
+  const owner = fakeOwner({ seed: true, reject: () => true });
+  await seededStore(fileRangeStore(root));
+  let client: any;
+  function Probe() { client = useSnapbackClient(); return null; }
+  const reactRoot = createRoot(document.getElementById("root")!);
+  try {
+    await act(async () => {
+      reactRoot.render(React.createElement(SnapbackProvider,
+        { url: "http://draft.test", as: "alice", fetch: owner.fetch, offline: { store: fileRangeStore(root) } },
+        React.createElement(Probe), React.createElement(App)));
+    });
+    await waitFor(() => document.querySelector("nav[aria-label=Inbox] li[data-conversation=conversation-1] button") !== null, "the inbox");
+    await act(async () => { document.querySelector<HTMLButtonElement>("nav[aria-label=Inbox] li[data-conversation=conversation-1] button")!.click(); });
+    const input = document.querySelector<HTMLInputElement>("form[aria-label=Composer] input")!;
+    await type(input, "keep this draft");
+    await waitFor(() => !document.querySelector<HTMLButtonElement>("form[aria-label=Composer] button[type=submit]")!.disabled, "sending readiness");
+    await act(async () => { document.querySelector<HTMLFormElement>("form[aria-label=Composer]")!.requestSubmit(); });
+    await waitFor(() => /fix the rejected mutation input/.test(text(document.querySelector("[role=alert]"))), "the refusal advice");
+    assert.equal(input.value, "keep this draft", "the server refusal must not discard unsent text");
+  } finally {
+    await act(async () => { reactRoot.unmount(); });
+    await client?.close();
     restore();
     await rm(root, { recursive: true, force: true });
   }

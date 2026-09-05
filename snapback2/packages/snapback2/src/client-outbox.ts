@@ -15,7 +15,7 @@ import { DeliveryEnvelopeDecodeError } from "./offline-protocol.js";
 import { tailWatermark, type AcceptedDelivery, type OfflineRuntime } from "./offline.js";
 import { replayEnvelope, type OutboxEntry } from "./store/outbox.js";
 import { referenceName } from "./api.js";
-import type { MutationResult, OutboxApi } from "./types.js";
+import type { MutationResult, OutboxApi, OutboxSettlement, OutboxStatus } from "./types.js";
 
 /** Records the grant a login/guest response carries; the value passes through untouched. */
 export function captureGrant<T>(runtime: OfflineRuntime | undefined, value: T): T {
@@ -52,7 +52,7 @@ export function wireReplayResponse<Result>(value: unknown): MutationResult<Resul
 }
 
 type Transport = (path: string, init: RequestInit) => Promise<unknown>;
-type DrainResult = { stopped: boolean; reason?: "fence" };
+export type DrainResult = { stopped: boolean; reason?: Exclude<OutboxSettlement["stopped"], false>; remaining: number };
 
 export interface SubmitMutationOptions {
   runtime: OfflineRuntime | undefined;
@@ -162,7 +162,7 @@ export function drainOutbox(options: DrainOptions): Promise<DrainResult> {
   runtime.drainTail = run.then(() => undefined, () => undefined);
   // The outcome keeps the rejection for `settled()`; the handler here only
   // stops an unobserved refusal from surfacing as an unhandled rejection.
-  const outcome = run.then((result) => result.reason === "fence" ? { stopped: "fence" as const } : undefined);
+  const outcome = run.then(settlement);
   void outcome.catch(() => undefined);
   runtime.drainOutcome = outcome;
   return run;
@@ -171,7 +171,9 @@ export function drainOutbox(options: DrainOptions): Promise<DrainResult> {
 async function drainQueued(options: DrainOptions): Promise<DrainResult> {
   const { runtime } = options;
   throwIfAborted(options.signal);
-  if (runtime.principal === undefined) return { stopped: false };
+  const finish = async (reason?: DrainResult["reason"]): Promise<DrainResult> =>
+    ({ stopped: reason !== undefined, ...(reason ? { reason } : {}), remaining: runtime.principal === undefined ? 0 : (await runtime.outbox.queued()).length });
+  if (runtime.principal === undefined) return finish();
   for (const queued of await runtime.outbox.queued()) {
     throwIfAborted(options.signal);
     const entry = await runtime.store.outbox.get(queued.intent);
@@ -180,13 +182,13 @@ async function drainQueued(options: DrainOptions): Promise<DrainResult> {
     // @ref LLP 1012#7-writes-offline — the fence never discards a queued
     // write: an intent neither its grant nor a later resume can vouch for
     // stops the drain, and only the owner's refusal can expire it.
-    if (!(await runtime.outbox.canReplay(entry))) return { stopped: true, reason: "fence" };
+    if (!(await runtime.outbox.canReplay(entry))) return finish("fence");
     throwIfAborted(options.signal);
     let raw: unknown;
     try {
       raw = await options.json("/api/mutation", { method: "POST", body: JSON.stringify(replayEnvelope(entry)) });
     } catch (error) {
-      if (isSnapbackRefusal(error) && error.retryable) return { stopped: true };
+      if (isSnapbackRefusal(error) && error.retryable) return finish("transport");
       if (isSnapbackRefusal(error) && error.envelope.family === "offline") {
         await settle(
           options,
@@ -211,17 +213,21 @@ async function drainQueued(options: DrainOptions): Promise<DrainResult> {
       try {
         tail = await logTail(options, revision);
       } catch (error) {
-        if (isSnapbackRefusal(error) && error.retryable) return { stopped: true };
+        if (isSnapbackRefusal(error) && error.retryable) return finish("transport");
         throw error;
       }
       throwIfAborted(options.signal);
-      if (revision !== runtime.coverageRevision) return { stopped: true };
-      if (!(await settle(options, entry, "committed", result, tail, revision))) return { stopped: true };
+      if (revision !== runtime.coverageRevision) return finish("authority");
+      if (!(await settle(options, entry, "committed", result, tail, revision))) return finish("authority");
     } else {
       await settle(options, entry, "rejected", result);
     }
   }
-  return { stopped: false };
+  return finish();
+}
+
+function settlement(result: DrainResult): OutboxSettlement {
+  return { stopped: result.reason ?? false, remaining: result.remaining };
 }
 
 async function settle(
@@ -292,6 +298,7 @@ export function createOutboxApi(
   runtime: OfflineRuntime | undefined,
   drain: () => Promise<DrainResult>,
   ready: () => Promise<void> = async () => undefined,
+  offline: () => boolean = () => false,
 ): OutboxApi {
   const entries = async (): Promise<OutboxEntry[]> => {
     if (!runtime || runtime.principal === undefined) return [];
@@ -303,8 +310,18 @@ export function createOutboxApi(
       throw error;
     }
   };
+  const status = async (op?: import("./api.js").Op<any, any>): Promise<OutboxStatus> => {
+    await ready().catch(() => undefined);
+    if (!runtime || runtime.principal === undefined) return { ready: true, reason: "ready", action: "none", remaining: 0, fence: "inside" };
+    try { return await runtime.outbox.status(op === undefined ? undefined : referenceName(op)); }
+    catch (error) {
+      if (error instanceof Error && /sealed/.test(error.message)) return { ready: false, reason: "sealed", action: "login", remaining: 0, fence: "past" };
+      throw error;
+    }
+  };
   return {
     entries,
+    status,
     dismiss: async (intent) => {
       if (runtime && runtime.principal !== undefined) await runtime.outbox.dismiss(intent);
     },
@@ -328,16 +345,7 @@ export function createOutboxApi(
     // op form also checks its certified bound and remaining capacity. Answered
     // after the client's own startup, so a partition about to open never reads
     // as "no partition, plain bytes".
-    ready: async (op) => {
-      await ready().catch(() => undefined);
-      if (!runtime || runtime.principal === undefined) return true;
-      try {
-        return await runtime.outbox.ready(op === undefined ? undefined : referenceName(op));
-      } catch (error) {
-        if (error instanceof Error && /sealed/.test(error.message)) return false;
-        throw error;
-      }
-    },
+    ready: async (op) => (await status(op)).ready,
     fence: async () => {
       await ready().catch(() => undefined);
       if (!runtime || runtime.principal === undefined) return "inside";
@@ -349,10 +357,28 @@ export function createOutboxApi(
     },
     drain: async () => {
       const result = await drain();
-      return result.reason === "fence" ? { stopped: "fence" } : undefined;
+      return settlement(result);
     },
     // A fence stop is explicit even though custody remains queued. Other
     // non-retryable refusals still reject; transport stops retain their behavior.
-    settled: async () => runtime?.drainOutcome,
+    settled: async () => {
+      await ready();
+      await runtime?.drainTail;
+      if (!runtime || runtime.principal === undefined) return { stopped: false, remaining: 0 };
+      const result = await runtime.drainOutcome;
+      let remaining: number;
+      try { remaining = (await runtime.outbox.queued()).length; }
+      catch (error) {
+        if (error instanceof Error && /sealed|not open|closed/.test(error.message)) throw new SnapbackRefusal({
+          code: "E_OFFLINE_LIFECYCLE", family: "offline", guide: "offline", site: "client.outbox.settled",
+          message: "outbox settlement is unavailable while this partition is sealed or closed",
+          rewrite: "authenticate the same account or reopen the client; queued writes are kept",
+        });
+        throw error;
+      }
+      if (remaining === 0) return { stopped: false, remaining };
+      if (await runtime.outbox.fence() === "past") return { stopped: "fence", remaining };
+      return { stopped: offline() ? "offline" : result.stopped || "pending", remaining };
+    },
   };
 }

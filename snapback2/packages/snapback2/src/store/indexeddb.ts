@@ -7,7 +7,7 @@ import {
   type RangeStoreFactory,
 } from "./range-store.js";
 import type { ByteDelta } from "./byte-cache.js";
-import { projectState, unprojectState, type StateEntry as Entry } from "./projection.js";
+import { ProjectionCache, unprojectState, type StateEntry as Entry } from "./projection.js";
 
 // @ref LLP 1012#4-the-range-store — the carrier holds exactly what `coverage()`
 // reads back: rows, answers (their receipts inside), the outbox, and the meta
@@ -88,6 +88,7 @@ class IndexedDbBackend implements RangeStoreBackend {
   private database?: IDBDatabase;
   private databaseName?: string;
   private releaseLock?: () => void;
+  private readonly projection = new ProjectionCache();
 
   constructor(
     private readonly factory: IDBFactory,
@@ -109,12 +110,14 @@ class IndexedDbBackend implements RangeStoreBackend {
       const rowsRequest = transaction.objectStore("rows").getAll() as IDBRequest<Entry[]>;
       const answersRequest = transaction.objectStore("answers").getAll() as IDBRequest<Entry[]>;
       const outboxRequest = transaction.objectStore("outbox").getAll() as IDBRequest<Entry[]>;
-      const metaRequest = transaction.objectStore("meta").get("state") as IDBRequest<Entry | undefined>;
+      const metaRequest = transaction.objectStore("meta").getAll() as IDBRequest<Entry[]>;
       const [rows, answers, outbox, meta] = await Promise.all([
         requestResult(rowsRequest), requestResult(answersRequest), requestResult(outboxRequest), requestResult(metaRequest),
         transactionDone(transaction),
       ]);
-      return unprojectState({ rows, answers, outbox, meta: meta ? [meta] : [] });
+      const projected = { rows, answers, outbox, meta };
+      this.projection.reset(projected);
+      return unprojectState(projected);
     } catch (error) {
       await this.close();
       if (error instanceof OfflineStoreFailure) throw error;
@@ -127,18 +130,18 @@ class IndexedDbBackend implements RangeStoreBackend {
 
   // @ref LLP 1012#4-the-range-store — one readwrite transaction spans the state
   // stores and the byte payloads, so a row and its bytes leave together or not at all.
-  async replace(state: PersistedRangeState, bytes: ByteDelta): Promise<void> {
+  async replace(state: PersistedRangeState, bytes: ByteDelta, previous?: PersistedRangeState): Promise<void> {
     const database = this.database;
     if (!database) throw new OfflineStoreFailure("E_OFFLINE_CARRIER", "IndexedDB carrier is not open");
     // All cloning/projection work is complete before the readwrite transaction opens.
-    const projected = projectState(state);
+    const { delta, committed } = this.projection.prepare(state, previous);
     await this.beforeReplace?.(state);
     const transaction = database.transaction(ALL_STORES, "readwrite");
     try {
       for (const name of STORE_NAMES) {
         const store = transaction.objectStore(name);
-        store.clear();
-        for (const value of projected[name]) store.put(value);
+        for (const key of delta[name].remove) store.delete(key);
+        for (const value of delta[name].put) store.put(value);
       }
       if (bytes.remove.length > 0 || bytes.put.length > 0) {
         const store = transaction.objectStore(BYTES_STORE);
@@ -150,6 +153,7 @@ class IndexedDbBackend implements RangeStoreBackend {
       throw error;
     }
     await transactionDone(transaction);
+    committed();
   }
 
   async readBytes(key: string): Promise<Uint8Array | undefined> {
@@ -174,6 +178,7 @@ class IndexedDbBackend implements RangeStoreBackend {
     this.database?.close();
     this.database = undefined;
     this.databaseName = undefined;
+    this.projection.reset();
     this.releaseLock?.();
     this.releaseLock = undefined;
   }

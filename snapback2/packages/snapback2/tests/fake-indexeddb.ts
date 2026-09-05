@@ -28,10 +28,14 @@ export class FakeObjectStore {
     this.name = name;
   }
 
-  clear(): void { this.transaction.store(this.name).clear(); }
+  clear(): void {
+    this.transaction.factory.writes.push({ store: this.name, action: "clear" });
+    this.transaction.store(this.name).clear();
+  }
 
   put(entry: Entry): void {
     const factory = this.transaction.factory;
+    factory.writes.push({ store: this.name, action: "put", key: entry.key });
     if (factory.failNextPutIn === this.name) {
       factory.failNextPutIn = undefined;
       throw new Error(`injected put failure in ${this.name}`);
@@ -48,7 +52,10 @@ export class FakeObjectStore {
     this.transaction.store(this.name).set(entry.key, structuredClone(entry));
   }
 
-  delete(key: string): void { this.transaction.store(this.name).delete(key); }
+  delete(key: string): void {
+    this.transaction.factory.writes.push({ store: this.name, action: "delete", key });
+    this.transaction.store(this.name).delete(key);
+  }
 
   getAll(): FakeRequest<Entry[]> {
     const request = new FakeRequest<Entry[]>();
@@ -139,6 +146,7 @@ export class FakeDatabase {
 }
 
 export class FakeIndexedDb {
+  readonly writes: Array<{ store: string; action: "put" | "delete" | "clear"; key?: string }> = [];
   /** The next `put` into this object store throws, aborting its transaction. */
   failNextPutIn?: string;
   /** The next `put` into any object store throws synchronously. */

@@ -55,7 +55,7 @@ export function createOfflineRuntime(options: OfflineClientOptions | undefined):
   return options ? new OfflineRuntime(options) : undefined;
 }
 
-export function offlineRefusal(error: unknown, carrier: string): SnapbackRefusal {
+export function offlineRefusal(error: unknown, carrier: string, site = "client.offline"): SnapbackRefusal {
   if (isSnapbackRefusal(error)) return error;
   const candidate = error && typeof error === "object" ? (error as { code?: unknown }).code : undefined;
   if (candidate === "E_OFFLINE_ID_BLOCK") {
@@ -79,18 +79,23 @@ export function offlineRefusal(error: unknown, carrier: string): SnapbackRefusal
       guide: "offline",
     });
   }
-  const code = candidate === "E_OFFLINE_LOCK" || candidate === "E_OFFLINE_CARRIER" ? candidate : "E_OFFLINE_CARRIER";
-  const carrierRewrite = (error as { rewrite?: unknown } | undefined)?.rewrite;
-  const rewrite = typeof carrierRewrite === "string" ? carrierRewrite : code === "E_OFFLINE_LOCK"
-    ? (carrier === "SQLite" ? "this account is open in another client; close it and try again" : "this account is open in another tab")
-    : `install or configure the ${carrier} carrier`;
+  const message = error instanceof Error ? error.message : String(error);
+  const supplied = error as { site?: string; rewrite?: string } | undefined;
+  const lifecycle = /sealed|not open|closed|partition must be/.test(message);
+  const corrupt = error instanceof SyntaxError || /unsupported format|corrupt|persisted state/.test(message);
+  const delivery = /conflicting (deliveries|row)|conditional validator|store (delivery|receipt|resume)/.test(message);
+  const code = lifecycle ? "E_OFFLINE_LIFECYCLE" : corrupt ? "E_OFFLINE_STATE" : delivery ? "E_OFFLINE_DELIVERY"
+    : candidate === "E_OFFLINE_LOCK" || candidate === "E_OFFLINE_CARRIER" ? candidate
+    : site === "RangeStore.open" ? "E_OFFLINE_CARRIER" : "E_OFFLINE_STATE";
+  const rewrite = supplied?.rewrite ?? (lifecycle
+    ? "authenticate the same account to unseal its data, or reopen the client if it is closed; queued writes are kept"
+    : corrupt ? "preserve this partition for recovery; inspect its persisted state before resetting it, since a reset discards queued writes"
+    : delivery ? "keep the current coverage and retry an authenticated query; inspect the delivery consistency error if it repeats"
+    : code === "E_OFFLINE_LOCK" ? (carrier === "SQLite" ? "this account is open in another client; close it and try again" : "this account is open in another tab")
+    : code === "E_OFFLINE_CARRIER" ? `install or configure the ${carrier} carrier`
+    : "retry this local operation; preserve queued writes and inspect the reported state error if it repeats");
   return new SnapbackRefusal({
-    code,
-    family: "offline",
-    message: error instanceof Error ? error.message : String(error),
-    site: "RangeStore.open",
-    rewrite,
-    guide: "offline",
+    code, family: "offline", message, site: supplied?.site ?? site, rewrite, guide: "offline",
   });
 }
 
@@ -255,9 +260,10 @@ export async function goOffline(options: {
   connection(value: "offline" | "reconnecting"): void;
   reconnect(): void;
 }): Promise<void> {
-  await options.ready;
   options.ensureOpen();
   options.force(true);
+  await options.ready;
+  options.ensureOpen();
   options.connection("offline");
   options.reconnect();
 }
@@ -308,8 +314,8 @@ export async function initializeOfflineClient<Principal, Authority>(options: {
   principal?: Principal;
   bearer: boolean;
   authority: Authority;
-  open(principal: Principal, authenticated?: boolean): Promise<void>;
-  confirm(authority: Authority): Promise<Principal>;
+  open(principal: Principal, authenticated?: boolean, authEpoch?: number): Promise<void>;
+  confirm(authority: Authority): Promise<{ viewer: Principal; authEpoch?: number }>;
   metadata(authority: Authority): Promise<void>;
   resume(authority: Authority): Promise<void>;
   ignore(error: unknown): boolean;
@@ -318,8 +324,9 @@ export async function initializeOfflineClient<Principal, Authority>(options: {
   if (principal) await options.open(principal);
   try {
     if (options.bearer) {
-      principal = await options.confirm(options.authority);
-      await options.open(principal, true);
+      const confirmed = await options.confirm(options.authority);
+      principal = confirmed.viewer;
+      await options.open(principal, true, confirmed.authEpoch);
     }
     if (!principal) return;
     await options.metadata(options.authority);

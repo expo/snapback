@@ -15,11 +15,15 @@ cannot be combined with tokens or bearer-session transitions. Production
 refuses personas. Logout and expiry fence that session, including live queries
 and channels, without signing out other sessions for the same principal.
 
-Keep authority separate from product profiles. Use nominal `principal` for
-creator, membership, and author fields, and derive the acting value from
-`viewer`. A profile reference is for product data; it is not a principal.
-Never copy login email from the protected identity store into a public row.
-For example, the chat template's `snapback/schema.q` contains:
+Session and `me` responses carry `authEpoch`. Same-principal re-login fences
+old replies, revalidates held coverage, and keeps queued writes.
+Built-in token stores bind the saved principal to its token. Custom stores
+need `loadPrincipalBinding()` and `savePrincipal(principal, token)` for cold
+offline reads; unbound principal hints wait for owner authentication.
+
+Use nominal `principal` for creator, membership, and author fields and derive
+the acting value from `viewer`. A profile reference is not a principal.
+Never copy protected login email into a public row. The chat schema contains:
 
 ```q
 table profiles:
@@ -80,10 +84,7 @@ remove/re-add from retargeting an old request. There is no last-admin invariant.
 
 ## Diagnose an unexpected absence
 
-Use a query containing the same lookup, then run
-`snapback2 why <query> '<args-json>' --as alice --json`. `why` refuses mutations
-with `E_OP_KIND` before execution. Its local, owner-protected
-`rowVerdicts` and `diagnostics` explain denied read sites and point here.
-Compare the intended viewer's result with a member/admin persona. A genuinely
-missing row has no denied-row diagnostic. These details are development
-inspection; ordinary query/mutation responses do not gain a hidden-row hint.
+Run `snapback2 why <query> '<args-json>' --as alice --json` for the same lookup.
+`why` refuses mutations (`E_OP_KIND`). Its owner-protected `rowVerdicts` and
+`diagnostics` explain denied reads; missing rows have no denial diagnostic.
+These are development details; ordinary responses reveal no hidden-row hint.

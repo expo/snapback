@@ -2,6 +2,7 @@
 // intents: each one owns a contiguous slice of a principal-bound replay grant,
 // so its ids are known before the server has seen it and a retry is the same
 // envelope. Settlement never deletes; `dismiss` is the app's choice.
+import type { OutboxStatus } from "../types.js";
 import type {
   OutboxEntry,
   OutboxGrant,
@@ -135,8 +136,10 @@ export class OutboxLedger {
     const probe = this.fenceProbe;
     void this.grant().then((grant) => {
       if (probe !== this.fenceProbe || !grant) return;
-      const remaining = Math.min(grant.expiresAt, this.trustEndsAt(grant) + 1) - this.options.now();
-      if (remaining <= 0) return;
+      const now = this.options.now();
+      if (grant.expiresAt <= now) return;
+      const deadlines = [grant.expiresAt, this.trustEndsAt(grant) + 1].filter((at) => at > now);
+      const remaining = Math.min(...deadlines) - now;
       this.fenceTimer = setTimeout(() => this.notify(), Math.min(remaining, 2_147_483_647));
       // A readiness observer must not keep a headless process alive for days.
       (this.fenceTimer as { unref?: () => void }).unref?.();
@@ -196,15 +199,23 @@ export class OutboxLedger {
     });
   }
 
-  /** Grant-only without an op; with one, probes the exact slice enqueue would need. */
-  async ready(op?: string): Promise<boolean> {
+  /** The same admission checks enqueue applies, without consuming a slice. */
+  async status(op?: string): Promise<OutboxStatus> {
     const grant = await this.grant();
-    // The fence disables prediction and replay, not enqueue: a grant past it
-    // still answers ready (`fence()` reports the crossing); an expired one does not.
-    if (!grant || this.expired(grant)) return false;
-    if (op === undefined) return true;
-    const maxNewIds = (await this.store.outbox.bounds())[op];
-    return maxNewIds !== undefined && grant.used + 1 + maxNewIds <= grant.count;
+    const remaining = (await this.queued()).length;
+    const fence = await this.fence();
+    const state = (reason: OutboxStatus["reason"], action: OutboxStatus["action"]): OutboxStatus =>
+      ({ ready: reason === "ready", reason, action, remaining, fence });
+    if (!grant) return state("grant-missing", "resume");
+    if (this.expired(grant)) return state("grant-expired", "resume");
+    const bound = op === undefined ? 0 : (await this.store.outbox.bounds())[op];
+    if (bound === undefined) return state("program-missing", "load-program");
+    if (grant.used + 1 + bound > grant.count) return state("ids-exhausted", "resume");
+    return state("ready", "none");
+  }
+
+  async ready(op?: string): Promise<boolean> {
+    return (await this.status(op)).ready;
   }
 
   /**
@@ -290,6 +301,12 @@ export class OutboxLedger {
           "this device holds no replay grant; log in, or drain a query online, before writing",
           "client.outbox.enqueue",
           "resume as this principal for a grant (a login, or a query with { drain: true } reaching its watermark), then send again",
+        );
+      }
+      if (this.expired(grant)) {
+        throw new OutboxRefusal(
+          "E_OFFLINE_ID_BLOCK", "this device's replay grant has expired; existing queued writes are kept",
+          "client.outbox.enqueue", "resume online for a fresh grant, then enqueue a new intent",
         );
       }
       const maxNewIds = (await this.store.outbox.bounds())[input.op];

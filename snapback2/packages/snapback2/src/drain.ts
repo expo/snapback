@@ -1,3 +1,4 @@
+import { SnapbackRefusal } from "./client-wire.js";
 import type { Cursor, QueryResult, Subscription, SubscriptionDelivery } from "./types.js";
 
 interface Waiter<Event> {
@@ -82,6 +83,7 @@ export class DrainSubscription<Args, Result> implements Subscription<Subscriptio
 
   private async drain(start: Cursor | null, generation: number): Promise<void> {
     let cursor = start;
+    const seen = new Set<string>(start === null ? [] : [start]);
     // @ref LLP 1012#6-reads-offline — a drain answered from the store keeps the
     // watermark the last online drain or resume persisted: the twin mints its
     // own page cursors, so a chain followed offline says nothing about the
@@ -108,6 +110,10 @@ export class DrainSubscription<Args, Result> implements Subscription<Subscriptio
         if (held === undefined && typeof facts.watermark === "string") held = facts.watermark;
       }
       if (page.next !== null) {
+        if (seen.has(page.next)) {
+          throw this.repeatedCursor();
+        }
+        seen.add(page.next);
         this.watermark = page.next;
         this.deliver({ ...page, live: false, caughtUp: false, watermark: this.watermark });
         cursor = page.next;
@@ -122,6 +128,17 @@ export class DrainSubscription<Args, Result> implements Subscription<Subscriptio
     }
   }
 
+  private repeatedCursor(): SnapbackRefusal {
+    const refusal = new SnapbackRefusal({
+      code: "E_OFFLINE_RESUME", family: "offline", guide: "offline",
+      message: "query drain returned a cursor it already followed",
+      site: "client.subscribe.drain",
+      rewrite: "reconnect to refresh this query and its cursor metadata; the saved watermark is unchanged",
+    });
+    this.deliver({ state: "refused", live: false, ...refusal.envelope });
+    return refusal;
+  }
+
   private watchTail(generation: number): void {
     if (!this.current(generation)) return;
     this.tail?.close();
@@ -129,6 +146,11 @@ export class DrainSubscription<Args, Result> implements Subscription<Subscriptio
     this.tail = this.options.subscribe(args, (event) => {
       if (!this.current(generation)) return;
       if ((event.state === "complete" || event.state === "capped") && event.next !== null) {
+        if (event.next === this.watermark) {
+          this.tail?.close();
+          this.fail(this.repeatedCursor());
+          return;
+        }
         this.watermark = event.next;
         this.deliver({ ...event, caughtUp: false, watermark: this.watermark });
         this.tail?.close();

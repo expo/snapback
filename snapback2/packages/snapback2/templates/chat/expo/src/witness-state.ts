@@ -39,7 +39,7 @@ export async function databaseState(): Promise<Record<string, unknown>> {
   const driver = expoSqliteDriver(DATABASE);
   const result: Record<string, unknown> = {};
   try {
-    for (const table of ["state", "rows", "answers", "outbox", "bytes"]) {
+    for (const table of ["state", "metadata", "rows", "answers", "outbox", "bytes"]) {
       const rows = await driver.all<Record<string, unknown>>(`SELECT * FROM ${table} ORDER BY partition${table === "state" ? "" : ", key"}`);
       result[table] = rows.map((row) => Object.fromEntries(Object.entries(row).map(([key, value]) =>
         [key, value instanceof Uint8Array ? Array.from(value) : value])));

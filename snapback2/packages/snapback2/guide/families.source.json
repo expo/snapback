@@ -375,7 +375,25 @@
     "family": "offline",
     "code": "E_OFFLINE_CARRIER",
     "wrong": "createClient({ offline: { store: unavailableCarrier } })",
-    "right": "configure the IndexedDB web carrier or Node file test carrier"
+    "right": "configure the IndexedDB web carrier, Expo SQLite carrier, or Node file test carrier"
+  },
+  {
+    "family": "offline",
+    "code": "E_OFFLINE_STATE",
+    "wrong": "discard a partition after a persisted-state decoding failure",
+    "right": "preserve queued writes and inspect the state named by the refusal before resetting it"
+  },
+  {
+    "family": "offline",
+    "code": "E_OFFLINE_DELIVERY",
+    "wrong": "install a conflicting delivery or treat it as a missing carrier",
+    "right": "keep the current coverage and retry an authenticated query; inspect a repeated consistency failure"
+  },
+  {
+    "family": "offline",
+    "code": "E_OFFLINE_LIFECYCLE",
+    "wrong": "read or write a sealed, closed, or unopened partition",
+    "right": "authenticate the same account to unseal its data, or reopen the client; keep queued writes"
   },
   {
     "family": "offline",
@@ -411,7 +429,7 @@
     "family": "offline",
     "code": "E_OFFLINE_INTENT_EXPIRED",
     "wrong": "replay: { grant: thirtyOneDayOldGrant, offset: 0, count: 2, intent }",
-    "right": "resume first; replay under the grant it returns"
+    "right": "keep queued replay bytes unchanged; after the server settles an expired intent, resume and create a new intent"
   },
   {
     "family": "offline",

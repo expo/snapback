@@ -1,6 +1,6 @@
 # P2 Snapback 2: make local-data recovery states and diagnostics actionable
 
-**Status:** Open
+**Status:** Closed
 **Priority:** P2
 **Systems:** client outbox API, recovery, diagnostics and pending UI
 **Date:** 2026-09-05
@@ -62,3 +62,31 @@ The package was rebuilt before verification. Existing selected client/carrier
 suites passed 251/251 and Rust offline/replay/retention tests passed 37/37.
 The new review reproductions expose gaps in that coverage. This ticket is
 self-contained; temporary review artifacts are not required to implement it.
+
+## Resolution — 2026-09-05
+
+All four recovery areas now have concrete behavior:
+
+- drain/settled return an explicit stop reason and queued count, including
+  offline, pending, transport, authority, and fence pauses; false means drained.
+  Cold settlement waits for local custody, and sealed/closed access refuses.
+- State, delivery, lifecycle, and carrier failures have distinct diagnostics
+  with an operation and recovery advice.
+- Outbox and mutation hooks expose readiness reasons/actions; expired grants
+  disable new admission consistently and notify after a prior fence crossing.
+  Both chat composers show recovery status, offer Sync now, label previews,
+  and keep drafts when sending is refused.
+- Covered local reads and offline() can escape stalled startup. Early account
+  access requires a token-bound principal record; built-in browser/Expo stores
+  provide it, and unbound custom hints await authentication. Authenticated
+  startup and same-token offline restart preserve durable binding safely.
+
+Recovery remains explicit through online()/drain(); subscription reconnect
+alone does not promise replay. This choice is documented in the guide.
+Focused tests cover transport stops, retry, expiry timers, stalled startup,
+cold queues, client/operation replacement races, token replacement and stale
+external writers, and the chat recovery/draft behavior.
+
+The complete package run passed 364 tests with one existing skipped
+process-control placeholder; no package tests failed. The implementation,
+regressions, and guide/LLP updates ship together with this ticket closure.

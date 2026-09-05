@@ -1,6 +1,7 @@
 // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — this is the strict public mirror of the frozen server envelope.
 
 import { schemaDigest } from "./offline-schema.js";
+import { mapRowValues } from "./store/row-values.js";
 
 /** Exact pooled-row reference spelling. Application objects with `$row` are escaped on the wire. */
 export type WireRowReference = { $row: { table: string; id: string } };
@@ -264,22 +265,11 @@ export function encodeDeliveryEnvelope(envelope: DeliveryEnvelopeV1): string {
 export function expandRows(envelope: DeliveryEnvelopeV1): WireValue {
   const decoded = decodeDeliveryEnvelope(envelope);
   const rows = new Map(decoded.rows.map((row) => [poolKey(row.table, row.id), row.row]));
-  const expand = (value: WireValue): WireValue => {
-    if (rowReference(value)) {
-      const row = rows.get(poolKey(value.$row.table, value.$row.id));
-      if (row === undefined) fail("$.data", `references missing row ${value.$row.table}/${value.$row.id}`);
-      return clone(row);
-    }
-    if (escapedObject(value)) {
-      return Object.fromEntries(
-        Object.entries(value.$row.$value).map(([key, item]) => [key, expand(item)]),
-      );
-    }
-    if (Array.isArray(value)) return value.map(expand);
-    if (plain(value)) return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, expand(item)]));
-    return value;
-  };
-  return expand(decoded.data);
+  return mapRowValues(decoded.data, (ref) => {
+    const row = rows.get(poolKey(ref.table, ref.id));
+    if (row === undefined) fail("$.data", `references missing row ${ref.table}/${ref.id}`);
+    return clone(row);
+  }) as WireValue;
 }
 
 /** Rebuild the evaluator's externally-tagged private receipt from the public pool. */
