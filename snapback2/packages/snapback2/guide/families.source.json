@@ -320,8 +320,8 @@
   {
     "family": "quarry",
     "code": "E_QUARRY_UNKNOWN",
-    "wrong": "```q\nquery one(id: items):\n  return missing[id]\n```",
-    "right": "```q\nquery one(id: items):\n  return items[id]\n```"
+    "wrong": "```q\nquery one(key: text <=20):\n  return settings[id = key]\n```",
+    "right": "```q\nquery one(key: text <=20):\n  return settings[key = key]\n```"
   },
   {
     "family": "quarry",

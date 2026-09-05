@@ -24,7 +24,7 @@ import type {
 import type { QuarryDiagnostic } from "./ast";
 import { QuarryError, currentRule, refuse, retention, syntax, unsupported } from "./diagnostics";
 import { lex, type Token, type TokenKind } from "./lexer";
-import { quarryExpression } from "./program";
+import { quarryExpression } from "./print";
 
 const RESERVED_BINDINGS = new Set([
   "arguments", "await", "break", "case", "catch", "class", "const", "continue", "debugger", "default", "delete", "do",

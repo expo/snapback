@@ -7,7 +7,7 @@ import { rustCheck } from "./rust-check";
 import { compileQuarry } from "./quarry/index";
 import { expandDocuments } from "./quarry/expand";
 import { parseDocument } from "./quarry/parser";
-import { quarryExpression, quarryShapeDeclaration } from "./quarry/program";
+import { quarryExpression, quarryShapeDeclaration } from "./quarry/print";
 import {
   assert,
   compileFixture,

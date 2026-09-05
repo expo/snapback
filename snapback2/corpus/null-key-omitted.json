@@ -1,0 +1,358 @@
+{
+  "corpusVersion": 1,
+  "name": "null-key-omitted",
+  "category": "named",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "counts": {
+        "columns": {
+          "__proto__": {
+            "Optional": "Id"
+          },
+          "id": "Id",
+          "toString": {
+            "Optional": "Id"
+          },
+          "value": "Int"
+        },
+        "indexes": {
+          "byGroup": {
+            "columns": [
+              "__proto__",
+              "toString"
+            ],
+            "unique": true
+          },
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "assert the materialized Null group"
+            }
+          },
+          "insert": "Deny",
+          "update": "Deny",
+          "delete": "Deny"
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      },
+      "events": {
+        "columns": {
+          "__proto__": {
+            "Optional": "Id"
+          },
+          "id": "Id",
+          "toString": {
+            "Optional": "Id"
+          }
+        },
+        "indexes": {
+          "byBucket": {
+            "columns": [
+              "__proto__",
+              "toString"
+            ],
+            "unique": true
+          },
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "frozen optional maintain fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "frozen optional maintain fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "frozen optional maintain fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "frozen optional maintain fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      }
+    },
+    "maintains": [
+      {
+        "kind": "Count",
+        "source": "events",
+        "by": [
+          "__proto__",
+          "toString"
+        ],
+        "target": "counts",
+        "readable": null
+      }
+    ]
+  },
+  "program": {
+    "name": "events.recordWithoutBucket",
+    "kind": "Mutation",
+    "args": {},
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Insert": {
+          "table": "events",
+          "row": {
+            "Literal": {
+              "Row": {
+                "id": {
+                  "Id": "event-optional"
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "Return": {
+          "Object": {
+            "exists": {
+              "Exists": {
+                "site": "null.exists",
+                "table": "events",
+                "index": "byBucket",
+                "key": [
+                  {
+                    "Literal": "Null"
+                  },
+                  {
+                    "Literal": "Null"
+                  }
+                ],
+                "provenance": "Const"
+              }
+            },
+            "group": {
+              "Get": {
+                "site": "null.count",
+                "table": "counts",
+                "index": "byGroup",
+                "key": [
+                  {
+                    "Literal": "Null"
+                  },
+                  {
+                    "Literal": "Null"
+                  }
+                ],
+                "provenance": "Const"
+              }
+            },
+            "row": {
+              "Get": {
+                "site": "null.row",
+                "table": "events",
+                "index": "byBucket",
+                "key": [
+                  {
+                    "Literal": "Null"
+                  },
+                  {
+                    "Literal": "Null"
+                  }
+                ],
+                "provenance": "Const"
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "events.recordWithoutBucket",
+    "plan_hash": "4a03061f4c23d9b49d8cbe95cbd349c1ed9ddac9d4bfa86f7a12e911c79be349",
+    "schema_hash": "72c413e11bad197627d1eeb60f090186b7fa90e3f63bd39b0958d7781cfefbb0",
+    "tables": {
+      "counts": {
+        "retain": "until-revoked"
+      },
+      "events": {
+        "retain": "until-revoked"
+      }
+    },
+    "rule_hashes": {
+      "counts.read": "8ab985e4267dc2258bca35609ad5fe6c52dfdead792a2369aaeb0d69011230b5",
+      "events.insert": "5dc8c428bfb875626830fd816880033e12bf935c0eb28ebd6aaacfb5762edba2",
+      "events.read": "5dc8c428bfb875626830fd816880033e12bf935c0eb28ebd6aaacfb5762edba2"
+    },
+    "evaluator_version": "bounded-spike-rust-1",
+    "value_model_version": "i53-codepoint-bytes-v2",
+    "read_sites": [
+      {
+        "site": "null.count",
+        "table": "counts",
+        "index": "byGroup",
+        "prefix_template": "Const",
+        "take": 1,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 0,
+        "hoist": false,
+        "complete": false
+      },
+      {
+        "site": "null.exists",
+        "table": "events",
+        "index": "byBucket",
+        "prefix_template": "Const",
+        "take": 1,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 0,
+        "hoist": false,
+        "complete": false
+      },
+      {
+        "site": "null.row",
+        "table": "events",
+        "index": "byBucket",
+        "prefix_template": "Const",
+        "take": 1,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 0,
+        "hoist": false,
+        "complete": false
+      }
+    ],
+    "write_sites": [
+      {
+        "table": "events",
+        "kind": "Insert",
+        "max_rows": 1
+      }
+    ],
+    "maintained_amplification": 1,
+    "maintained_writes": {
+      "counts": 1
+    },
+    "constraint_checks": [
+      "counts:Unique(byGroup)",
+      "counts:Unique(byId)",
+      "events:Unique(byBucket)",
+      "events:Unique(byId)"
+    ],
+    "max_examined": 3,
+    "max_index_entries": 3,
+    "max_rule_probes": 0,
+    "max_steps": 30,
+    "max_heap_bytes": 960,
+    "max_output_bytes": 1039,
+    "max_closure_bytes": 987,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [
+      "counts.byGroup",
+      "events.byBucket"
+    ],
+    "disclosures": [],
+    "bound_product": "null.exists take 1 = 1"
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {},
+    "now": 0,
+    "new_ids": [],
+    "read_time": null
+  },
+  "receipt": {
+    "schema_hash": "72c413e11bad197627d1eeb60f090186b7fa90e3f63bd39b0958d7781cfefbb0",
+    "rows": [
+      {
+        "table": "counts",
+        "id": "[\"Null\",\"Null\"]",
+        "row": {
+          "Row": {
+            "__proto__": "Null",
+            "id": {
+              "Id": "[\"Null\",\"Null\"]"
+            },
+            "toString": "Null",
+            "value": {
+              "Int": 0
+            }
+          }
+        }
+      }
+    ],
+    "ranges": [],
+    "absences": [
+      [
+        "events",
+        "byBucket",
+        [
+          "Null",
+          "Null"
+        ]
+      ]
+    ],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": {
+      "Row": {
+        "exists": {
+          "Bool": true
+        },
+        "group": {
+          "Row": {
+            "__proto__": "Null",
+            "id": {
+              "Id": "[\"Null\",\"Null\"]"
+            },
+            "toString": "Null",
+            "value": {
+              "Int": 1
+            }
+          }
+        },
+        "row": {
+          "Row": {
+            "__proto__": "Null",
+            "id": {
+              "Id": "event-optional"
+            },
+            "toString": "Null"
+          }
+        }
+      }
+    },
+    "errorCode": null,
+    "localState": "predicted",
+    "partialSites": [],
+    "canonicalResult": "{\"Row\":{\"exists\":{\"Bool\":true},\"group\":{\"Row\":{\"__proto__\":\"Null\",\"id\":{\"Id\":\"[\\\"Null\\\",\\\"Null\\\"]\"},\"toString\":\"Null\",\"value\":{\"Int\":1}}},\"row\":{\"Row\":{\"__proto__\":\"Null\",\"id\":{\"Id\":\"event-optional\"},\"toString\":\"Null\"}}}}",
+    "digest": "97a20c2334b246896e76ab000cc9689c50b7509a239274e6a4479293c5ffe1f9",
+    "rangeStops": {},
+    "evictedRows": null,
+    "next": null
+  }
+}

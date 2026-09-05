@@ -5,7 +5,7 @@ import { boundedDiagnostics, diagnostic, refuse, Refusal } from "./diagnostics";
 import {
   allocateReadSite, cloneEnvironment, containsRead, enterLexicalScope,
   loopDomainMaximum, lowerArrayMethod, lowerCollectionDomain,
-  lowerDomain, lowerExpr, lowerKey, lowerOptionalPropertyChain, lowerPatch, lowerPropertyValue,
+  lowerCallValue, lowerDomain, lowerExpr, lowerKey, lowerOptionalPropertyChain, lowerPropertyValue,
   lowerSortExpression, reserveWriteSite, tableReference,
 } from "./lower/expr";
 import { knownObjectFields, nullableReadSpread, nullableSpreadRefusal, rowCollectionFields } from "./lower/object-shape";
@@ -610,10 +610,9 @@ function lowerDbStatement(method: string, call: ts.CallExpression, env: Environm
       refuse(env, "E_SCHEMA_ID_RESERVED", row, "update patches cannot contain id", "remove id from the update patch");
     }
     reserveWriteSite(env);
-    // The write call itself owns the first ordinal; its operands then lower in
-    // authored order (key before patch/row), including any nested reads.
-    const loweredKey = lowerExpr(key, env);
-    const lowered = lowerPatch(row, env);
+    // The write owns the first ordinal; operands lower in authored order (key before patch/row).
+    const { statements: keyStatements, expression: loweredKey } = lowerValue(key, env);
+    const { statements: rowStatements, expression: lowered } = lowerValue(row, env);
     if (method === "upsert" && upsertIdentityMatches(
       loweredKey,
       lowered,
@@ -627,9 +626,9 @@ function lowerDbStatement(method: string, call: ts.CallExpression, env: Environm
         "const rowId = ctx.newId(); db.upsert(table, rowId, { ...row, id: rowId })",
       );
     }
-    return method === "update"
-      ? [{ Update: { table, key: loweredKey, patch: lowered } }]
-      : [{ Upsert: { table, key: loweredKey, row: lowered } }];
+    return [...keyStatements, ...rowStatements, method === "update"
+      ? { Update: { table, key: loweredKey, patch: lowered } }
+      : { Upsert: { table, key: loweredKey, row: lowered } }];
   }
   refuse(env, "E_OPAQUE", call, `db.${method} is not part of the S1 IR`);
 }
@@ -970,6 +969,7 @@ function lowerValue(node: ts.Expression, env: Environment, hint?: string): Lower
     if (ts.isIdentifier(value.expression) && ["top", "mergeByTime", "intersectById"].includes(value.expression.text)) {
       return lowerCollectionBuiltin(value.expression.text, value, env, hint);
     }
+    return lowerCallValue(value, env, lowerValue, hint);
   }
   return { statements: [], expression: lowerExpr(value, env, hint) };
 }

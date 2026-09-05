@@ -223,8 +223,8 @@ function frontend(item: QuarryDiagnostic): FrontendDiagnostic {
     family: item.code === "E_SCHEMA_CONSTRAINT" ? "schema" : item.code.startsWith("E_SCHEDULE_") ? "schedule" : "quarry",
     message: item.message,
     site: `${item.file}:${item.line}:${item.col}`,
-    rewrite: item.code === "E_QUARRY_UNSUPPORTED" && item.rewrite === "deny"
-      ? "deny" : `-- ${item.rewrite.replace(/\n/g, " ")}`,
+    rewrite: item.executableRewrite || item.code === "E_QUARRY_UNSUPPORTED" && item.rewrite === "deny"
+      ? item.rewrite : `-- ${item.rewrite.replace(/\n/g, " ")}`,
     guide: item.guide,
   };
 }

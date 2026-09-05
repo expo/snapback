@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2` (the binary: owner, server, verbs), `snapback2/packages/compiler` (project lowering, worker), `snapback2/packages/snapback2` (authoring runtime, client, React, test runner, shim), `snapback2/scripts/measure.mjs`
 **Author:** Claude Fable 5 (orchestrator) — implementers: codex gpt-5.6-sol, lanes B0 (compiler + authoring surface), B1 (owner + server + verbs), B2 (`init`, `test`, `why`, `trace`, `guide`), D (client + React + evaluator)
 **Date:** 2026-08-29
-**Revised:** 2026-09-05 (shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
+**Revised:** 2026-09-05 (catalog naming rewrites, Clique L2; shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
 **Related:** LLP 1000, LLP 1001 (the engine this serves), LLP 1003 (effects),
 LLP 0329.016 §5 (the design this implements verbatim where it can), LLP
 0329.016 §5.11 (the verb table — no verb exists without its row), LLP
@@ -347,6 +347,12 @@ compiler's own tests need no spawn. The binary's IR-file form is
 `snapback2 check --ir <project.json>` (stdin when omitted) — `--project` on
 the binary always means the §6 verb over a project directory. The compiler is bundled by esbuild into
 `packages/snapback2/dist/compiler.mjs` and runs under Node ≥ 20 (no `Bun.*`).
+
+Quarry naming refusals derive candidate indexes, key columns, and nominal types
+from the catalog. A wrong key reports expected and actual types. An unambiguous
+replacement expression survives the Quarry diagnostic remap as executable
+`rewrite` text; guidance without a concrete edit remains a comment (Clique L2,
+GPT-6 Astra, 2026-09-05).
 
 `api.d.ts` (written to `.snapback/build/api.d.ts`, never committed) augments
 the client's `Api` interface with every op's arg and result types, inferred

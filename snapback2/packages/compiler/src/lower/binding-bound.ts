@@ -2,6 +2,7 @@ import ts from "typescript";
 import type { Environment, ProvenanceOrigin, VariableInfo } from "../compiler";
 import {
   callName,
+  contextualNodeKey,
   collectionConstructor,
   expressionProperty,
   isFunctionLike,
@@ -11,6 +12,7 @@ import {
 } from "../syntax";
 import { selectExpressionMember } from "./collection-origins";
 import { expandHelper } from "./helper-expansion";
+import { requiredType } from "../authored-types";
 import { guardedWalk } from "./recursion";
 
 export function operationArgumentList(
@@ -53,6 +55,9 @@ function staticBoundInner(node: ts.Expression, env: Environment): number | undef
       const bounds = selected.origins.map((origin) => originBound(origin, staticBound));
       if (bounds.every((bound): bound is number => bound !== undefined)) return Math.max(...bounds);
     }
+    // Prefer mutation-aware collection origins; schema field maxima survive nullable shapes in the type plan.
+    const authored = requiredType(env.expressionTypes.get(contextualNodeKey(env.literalContext, value, env.sourceFile)));
+    if (authored.kind === "list" && authored.max !== undefined) return authored.max;
   }
   if (ts.isArrayLiteralExpression(value)) {
     let total = 0;
@@ -64,6 +69,11 @@ function staticBoundInner(node: ts.Expression, env: Environment): number | undef
       } else total += 1;
     }
     return total;
+  }
+  if (ts.isBinaryExpression(value) && value.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken) {
+    const left = staticBound(value.left, env);
+    const right = staticBound(value.right, env);
+    return left === undefined || right === undefined ? undefined : Math.max(left, right);
   }
   if (ts.isConditionalExpression(value)) {
     const whenTrue = staticBound(value.whenTrue, env);

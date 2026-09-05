@@ -123,6 +123,7 @@ fn main() {
     write_cases::add_write_cases(&mut cases);
     client_scenarios::add_client_scenarios(&mut cases);
     add_value_edges(&mut cases);
+    add_time_arithmetic_case(&mut cases);
     visibility_cases::add_visibility_cases(&mut cases);
     cap_cases::add_cap_cases(&mut cases);
     bytes_cases::add_bytes_cases(&mut cases);
@@ -1116,6 +1117,77 @@ fn authoritative(
     engine
         .execute(program, &certificate, context)
         .expect("authoritative execution")
+}
+
+// @ref LLP 1010#time-arithmetic — time is integer milliseconds on the wire and in both evaluators.
+fn add_time_arithmetic_case(cases: &mut Vec<CorpusCase>) {
+    let split = |value| Expr::Builtin {
+        builtin: Builtin::Divmod {
+            remainder_sink: "lexicographic-id".to_owned(),
+        },
+        args: vec![value, Expr::Literal(Value::Int(86_400_000))],
+    };
+    let expression = Expr::Object(BTreeMap::from([
+        (
+            "elapsed".to_owned(),
+            split(Expr::Binary {
+                op: BinaryOp::Sub,
+                left: Box::new(Expr::Input(Input::Now)),
+                right: Box::new(Expr::Variable("t".to_owned())),
+            }),
+        ),
+        ("epoch".to_owned(), split(Expr::Input(Input::Now))),
+    ]));
+    let args = BTreeMap::from([("t".to_owned(), Value::Int(86_400_000))]);
+    let mut program = pure_program("time-difference-divmod", expression, &args);
+    program.args.insert("t".to_owned(), ArgType::Time);
+    program.kind = ProgramKind::Mutation;
+    let mut context = Context::mutation(Actor::user("u1").unwrap(), args);
+    context.now = Some(172_800_007);
+    let case = case_from_parts(
+        "time-difference-divmod",
+        "edge",
+        spike_schema(),
+        program,
+        context,
+        ClosureReceipt::default(),
+        Vec::new(),
+        None,
+        None,
+    );
+    let authoritative = Engine::memory(case.schema.clone())
+        .unwrap()
+        .execute(
+            &case.program,
+            case.certificate.as_ref().unwrap(),
+            case.context.clone(),
+        )
+        .unwrap();
+    assert_eq!(
+        case.expected.local_result.as_ref(),
+        Some(&authoritative.result)
+    );
+    assert_eq!(
+        case.expected
+            .local_result
+            .as_ref()
+            .unwrap()
+            .field("elapsed")
+            .unwrap()
+            .field("quotient"),
+        Ok(&Value::Int(1))
+    );
+    assert_eq!(
+        case.expected
+            .local_result
+            .as_ref()
+            .unwrap()
+            .field("elapsed")
+            .unwrap()
+            .field("remainder"),
+        Ok(&Value::Int(7))
+    );
+    cases.push(case);
 }
 
 fn pure_case(name: &str, expression: Expr) -> CorpusCase {

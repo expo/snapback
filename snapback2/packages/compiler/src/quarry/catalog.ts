@@ -1,4 +1,5 @@
 import type { Document, Expr, IndexDecl, KeyPart, ScalarType, Site, TableCatalog, TableDecl } from "./ast";
+import { quarryExpression } from "./print";
 import { QuarryError, ambiguous, refuse, typeError } from "./diagnostics";
 
 export function buildCatalog(documents: Document[]): TableCatalog {
@@ -170,10 +171,10 @@ export function selectIndex(
   site: Site,
 ): IndexDecl {
   const info = catalog.get(table);
-  if (!info) refuse(site, `unknown table ${table}`);
+  if (!info) refuse(site, `unknown table ${table}`, `available tables: ${[...catalog.keys()].join(", ")}`);
   if (explicit) {
     const selected = info.indexes.find((index) => index.name === explicit);
-    if (!selected) refuse(site, `table ${table} has no index ${explicit}`);
+    if (!selected) refuse(site, `table ${table} has no index ${explicit}`, indexGuidance(info.declaration, info.indexes));
     validateIndexKeys(info.declaration, selected, keys, mode, infer, site);
     return selected;
   }
@@ -184,7 +185,7 @@ export function selectIndex(
     if (mode === "point" && (!index.unique || index.columns.length !== keys.length)) return false;
     if ((mode === "range" || mode === "exists") && index.columns.length < keys.length) return false;
     if (named) return keys.every((key, offset) => index.columns[offset] === key.column);
-    return keys.every((key, offset) => compatible(infer(key.value), columnType(info.declaration, index.columns[offset]!)));
+    return keys.every((key, offset) => keyCompatible(key.value, infer(key.value), columnType(info.declaration, index.columns[offset]!)));
   });
   if (mode === "point" && keys.length === 1 && !named) {
     const type = infer(keys[0]!.value);
@@ -197,12 +198,19 @@ export function selectIndex(
   }
   if (candidates.length === 0) {
     const spelling = keys.map((key) => key.column ?? "?").join(", ");
-    refuse(site, `no ${mode === "point" ? "unique index" : "ordering"} on ${table} matches [${spelling}]; name the columns/index or add one`);
+    const eligible = info.indexes.filter((index) => mode !== "point" || index.unique);
+    const requiredNull = eligible.flatMap((index) => keys.flatMap((key, offset) => {
+      const column = index.columns[offset];
+      return column && (!key.column || key.column === column) && key.value.kind === "literal" && key.value.value === null
+        && !columnType(info.declaration, column).optional ? [`${table}.${index.name}.${column} is required; null needs an optional key column`] : [];
+    }));
+    refuse(site, `no ${mode === "point" ? "unique index" : "ordering"} on ${table} matches [${spelling}]; name the columns/index or add one`,
+      [...requiredNull, indexGuidance(info.declaration, eligible)].join("; "));
   }
   if (candidates.length > 1) ambiguous(
     site,
     `index selection for ${table}[...] is ambiguous (${candidates.map((item) => item.name).join(", ")}); name it with by <index>`,
-    `${table}[${keys.map((key) => key.value.kind === "name" ? key.value.name : "key").join(", ")}] by ${candidates[0]!.name}`,
+    `${indexGuidance(info.declaration, candidates)}; select with by <index>`,
   );
   const selected = candidates[0]!;
   validateIndexKeys(info.declaration, selected, keys, mode, infer, site);
@@ -227,8 +235,16 @@ function validateIndexKeys(
     if (expected.kind === "int" && fractionalNumericLiteral(key.value)) {
       typeError(key.value.site, "int positions take integer literals", "use an integer literal for this int index key");
     }
-    if (actual && !compatible(actual, expected)) {
-      refuse(key.value.site, `${table.name}.${index.name} expects ${typeName(expected)} for ${column}, got ${typeName(actual)}`);
+    if (!keyCompatible(key.value, actual, expected)) {
+      const received = key.value.kind === "literal" && key.value.value === null ? "null" : actual ? typeName(actual) : "unknown";
+      const required = received === "null" && !expected.optional ? `; ${column} is required` : "";
+      const alternatives = table.indexes.filter((candidate) => candidate.unique && candidate.columns.length === keys.length
+        && keys.every((part, i) => keyCompatible(part.value, infer(part.value), columnType(table, candidate.columns[i]!))));
+      const replacement = mode === "point" && alternatives.length === 1 ? alternatives[0] : undefined;
+      const rewrite = replacement
+        ? `${table.name}[${keys.map((part, i) => `${replacement.columns[i]} = ${quarryExpression(part.value)}`).join(", ")}]`
+        : `${table.name}.${index.name}.${column} requires ${typeName(expected)}; received ${received}${required}; ${indexGuidance(table, [index])}`;
+      refuse(key.value.site, `${table.name}.${index.name} expects ${typeName(expected)} for ${column}, got ${received}${required}`, rewrite, !!replacement);
     }
   }
 }
@@ -241,6 +257,20 @@ function fractionalNumericLiteral(expr: Expr): boolean {
 function columnType(table: TableDecl, name: string): ScalarType {
   if (name === "id") return { kind: "ref", table: table.name, optional: false };
   return table.columns.find((column) => column.name === name)?.type ?? { kind: "int", optional: false };
+}
+
+export function idLiteral(expr: Expr, expected: ScalarType): boolean {
+  return (expected.kind === "ref" || expected.kind === "id")
+    && expr.kind === "literal" && typeof expr.value === "string" && expr.value.length > 0;
+}
+
+export function keyCompatible(expr: Expr, actual: ScalarType | undefined, expected: ScalarType): boolean {
+  if (expr.kind === "literal" && expr.value === null) return expected.optional;
+  return idLiteral(expr, expected) || compatible(actual, expected);
+}
+
+function indexGuidance(table: TableDecl, indexes: IndexDecl[]): string {
+  return `candidate indexes: ${indexes.map((index) => `${table.name}.${index.name} (${index.columns.map((column) => `${column}: ${typeName(columnType(table, column))}`).join(", ")})`).join("; ")}`;
 }
 
 function compatible(actual: ScalarType | undefined, expected: ScalarType): boolean {
@@ -260,8 +290,10 @@ function compatible(actual: ScalarType | undefined, expected: ScalarType): boole
 }
 
 function typeName(type: ScalarType): string {
+  if (type.optional) return `${typeName({ ...type, optional: false })} ?`;
   if (type.kind === "ref") return `reference to ${type.table}`;
-  if (type.kind === "list") return "list";
+  if (type.kind === "list") return `[${typeName(type.item)}] <=${type.max}`;
+  if (type.kind === "text") return type.min === undefined ? `text <=${type.max}` : `text ${type.min}..${type.max}`;
   if (type.kind === "decimal") return `decimal ${type.scale}`;
   if (type.kind === "money") return `money ${type.currency} ${type.scale}`;
   return type.kind;
