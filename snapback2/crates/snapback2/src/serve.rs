@@ -241,10 +241,35 @@ impl Drop for HttpWorker {
     }
 }
 
+// Admission precedes persona checks and body reads: remote callers learn only the loopback refusal.
+fn control_admission(request: &Request, secret: &str) -> Result<(), Refusal> {
+    if !is_loopback(request.remote_addr().map(SocketAddr::ip)) {
+        return Err(Refusal::owner(
+            "E_OWNER_CONTROL_REMOTE",
+            "control routes are loopback only",
+            "call the owner from the local machine",
+        ));
+    }
+    if header(request, "X-Snapback-Control").as_deref() != Some(secret) {
+        return Err(Refusal::owner(
+            "E_OWNER_CONTROL_SECRET",
+            "invalid owner control secret",
+            "read X-Snapback-Control from .snapback/owner.json",
+        ));
+    }
+    Ok(())
+}
+
 fn handle(mut request: Request, context: Context, streams: live::Streams) {
     let method = method_name(request.method());
     let request_url = request.url().to_owned();
     let (path, query) = split_url(&request_url);
+    if path.starts_with("/control/")
+        && let Err(refusal) = control_admission(&request, &context.secret)
+    {
+        respond_refusal(request, 403, refusal, &context.mode);
+        return;
+    }
     // @ref LLP 1002#9-the-client-snapback2client-snapback2react-snapback2test — persona and bearer are mutually exclusive authority sources at the raw wire too.
     if header(&request, "X-Snapback-As").is_some() && bearer(&request).is_some() {
         respond_refusal(
@@ -261,6 +286,7 @@ fn handle(mut request: Request, context: Context, streams: live::Streams) {
         );
         return;
     }
+    // The header always selects a viewer; control-route operator authority travels in the body.
     if header(&request, "X-Snapback-As").as_deref() == Some("system") {
         respond_refusal(request, 403, Refusal::operator_required(), &context.mode);
         return;
@@ -285,19 +311,6 @@ fn handle(mut request: Request, context: Context, streams: live::Streams) {
         return;
     }
     if path.starts_with("/control/") {
-        if header(&request, "X-Snapback-Control").as_deref() != Some(&context.secret) {
-            respond_refusal(
-                request,
-                403,
-                Refusal::owner(
-                    "E_OWNER_CONTROL_SECRET",
-                    "invalid owner control secret",
-                    "read X-Snapback-Control from .snapback/owner.json",
-                ),
-                &context.mode,
-            );
-            return;
-        }
         let body = match read_body(&mut request) {
             Ok(body) => body,
             Err(error) => {
@@ -315,19 +328,6 @@ fn handle(mut request: Request, context: Context, streams: live::Streams) {
             return;
         }
 
-        if !is_loopback(request.remote_addr().map(SocketAddr::ip)) {
-            respond_refusal(
-                request,
-                403,
-                Refusal::owner(
-                    "E_OWNER_CONTROL_REMOTE",
-                    "control routes are loopback only",
-                    "call the owner from the local machine",
-                ),
-                &context.mode,
-            );
-            return;
-        }
         let control_context = control::Context {
             handle: context.handle.clone(),
             root: context.root.clone(),
@@ -867,6 +867,32 @@ fn fatal_server(stage: &str, error: impl std::fmt::Display) -> Refusal {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn remote_control_refuses_before_secret_operator_or_body_validation() {
+        for secret in [None, Some("wrong"), Some("correct")] {
+            for body in ["{invalid json", r#"{"as":"system"}"#] {
+                let mut request = tiny_http::TestRequest::new()
+                    .with_remote_addr("192.0.2.1:1234".parse().unwrap())
+                    .with_method(Method::Post)
+                    .with_path("/control/execute")
+                    .with_body(body);
+                if let Some(secret) = secret {
+                    request = request.with_header(header_value("X-Snapback-Control", secret));
+                }
+                let mut request: Request = request.into();
+                let refusal = control_admission(&request, "correct").unwrap_err();
+                let envelope = refusal_json(&refusal);
+                assert_eq!(envelope["code"], "E_OWNER_CONTROL_REMOTE");
+                assert_eq!(envelope["family"], "owner");
+                assert!(envelope["rewrite"].as_str().is_some_and(|s| !s.is_empty()));
+                assert!(envelope["guide"].as_str().is_some_and(|s| !s.is_empty()));
+                let mut unread = String::new();
+                request.as_reader().read_to_string(&mut unread).unwrap();
+                assert_eq!(unread, body, "admission consumed the body");
+            }
+        }
+    }
 
     #[test]
     fn fatal_server_failures_have_the_owner_fatal_type_and_cause() {

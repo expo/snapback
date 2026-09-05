@@ -874,15 +874,23 @@ returns the count, ten-ID sample and fill skeleton through apply/migrate,
 status and watcher; tests: `snapback2/crates/snapback2-core/tests/successor_narrowing.rs:77`,
 `:99`, `:132`, and `snapback2/crates/snapback2/tests/owner_cases/operator.rs:253`,
 `:351`. Deviations: the new declared-op adapter is `/control/execute` because
-`/control/run` belongs to J3; by defaults to the owner's OS username as a dev
-persona name (control callers may supply by). Contrary to the lane brief's
+`/control/run` belongs to J3; by defaults to the owner's OS username as validated ledger text (control callers
+may supply by); operator admission never creates a persona. Contrary to the lane brief's
 wire premise, `system` previously named the ordinary `dev:system` persona;
 it is now explicitly refused on `/api/*` and cannot become a persona.
 Ordinary mutation certification still refuses writes derived from a non-uniform
 scan (`certificate_policy.rs:327`); today's fill proof uses declared
 explicit-key operator mutations, leaving system sweep certification to J1b.
-The pasted job rewrite remains prose until that lane. No corpus case carries
-a system rule; existing corpus outputs are unchanged and were not regenerated.
+The pasted job rewrite remains prose until that lane. The query-only
+`read_operator` data adapter uses `Checker::check` with default ceilings rather
+than `Generation::certify`; J3's ad hoc path must still match declared admission.
+`Optional(Optional(T)) → Optional(T)` deliberately remains `TypeChange`,
+stricter than D4's `T? → T`; J1b must preserve that boundary. A multi-column
+narrowing refusal reports every null column in `narrowings`, each with its count,
+ten-ID sample, and fill rewrite; the wire's primary site is the first conflict.
+No corpus case carries a system rule. Fix round 1 regenerated the corpus to
+remove serialized `seed_write` after deleting that dead context field; existing
+execution outputs remain unchanged.
 LLP 1001 §4 and LLP 1003 §2 carry dated amendments; no diagnostic code beyond
 §7's existing rows was added.
 
@@ -896,3 +904,27 @@ sandbox denies the `ps` subprocess used by `owner.rs:751` to recognize an
 unreaped exited child. The orchestrator must rerun the gate outside that
 restriction before landing. Caps and ref-check pass; `check` on the chat
 fixture measured 0.526 s wall time (155.87 ms compiler), below one second.
+
+**J1a fix round 1 (2026-09-05).** The removed rule word refuses in equality
+operands and exists/created keys as well as Boolean expressions. Operator `by`
+is validated with the control name validator, and `system` remains reserved.
+Control admission checks loopback before secrets, headers, or bodies. Successful
+operator reads alone are logged. Rejected operator mutations retain their runner
+trace and last attempted write site in the owner log and in `trace latest` until
+a later commit or owner restart; explicit sequence tracing still selects a commit.
+The ordinary viewer mutation wrapper also discards rejection traces in the
+current code (`registry.rs`, `execute_certified`); this fix changes the operator
+path only. `read_operator` remains query-only with the admission distinction above.
+Malformed stored rows encountered during narrowing use `E_SUCCESSOR_ROW_INVALID`.
+`E_ARGS_NAME` has family `args`, site `by`, a valid-name rewrite, and the shipped
+`operator` guide page. Fix-round regression proofs are in the existing core
+`operator.rs` and `successor_narrowing.rs`, owner `owner_cases/operator.rs`,
+`serve.rs` admission tests, and compiler `quarry-checks.ts`.
+
+Fix-round verification: `snapback2/scripts/test.sh` exited 1 with 544 Rust tests
+(542 passed), 301 package tests (all passed), 162 evaluator cases (all passed),
+312 compiler checks (all passed), and passing doctests. The only reds are the
+same two owner-stop tests recorded above; this run directly confirmed `ps` is
+denied by the sandbox. Every new fix-round regression passed. Caps passed; an
+unloaded chat-fixture `check` took 0.542 s wall (154.39 ms compiler). The
+orchestrator must rerun the complete gate outside the `ps` restriction.

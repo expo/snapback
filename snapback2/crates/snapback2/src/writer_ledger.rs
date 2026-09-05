@@ -125,6 +125,13 @@ impl State {
             .store()
             .commit_seq()
             .map_err(|error| Refusal::from_runtime(&error))?;
+        // @ref LLP 1016#d6--the-operator-seat-ad-hoc-programs-and-rehearsal — a refusal has no commit; retain its attempted trace until another commit supersedes it.
+        if seq.is_none()
+            && let Some(rejected) = &self.operator_rejection
+            && rejected["seq"].as_u64() == Some(latest)
+        {
+            return Ok(rejected.clone());
+        }
         let wanted = seq.unwrap_or(latest);
         let commit = self
             .runtime()

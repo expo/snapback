@@ -31,6 +31,7 @@ impl State {
         self.live.clear();
         self.channels.clear();
         self.ledger.clear();
+        self.operator_rejection = None;
         self.wake_effects();
         // Core returns the cleared ids and the owner still sees them; the
         // fork-aware sweep — never a blob wipe — deletes the bytes
@@ -314,6 +315,7 @@ mod tests {
             live: BTreeMap::new(),
             channels: BTreeMap::new(),
             ledger: VecDeque::new(),
+            operator_rejection: None,
             next_channel: 0,
             clock_offset_ms: 0,
             restarted_through_seq: 0,

@@ -22,8 +22,6 @@ pub struct Context {
     pub now: Option<i64>,
     pub new_ids: VecDeque<String>,
     pub read_time: Option<i64>,
-    #[serde(default)]
-    pub(crate) seed_write: bool,
     #[serde(skip)]
     operator_by: Option<String>,
 }
@@ -38,7 +36,6 @@ impl Context {
             now: None,
             new_ids: VecDeque::new(),
             read_time: None,
-            seed_write: false,
             operator_by: None,
         }
     }
@@ -69,7 +66,6 @@ impl Context {
             now: Some(0),
             new_ids: VecDeque::new(),
             read_time: None,
-            seed_write: false,
             operator_by: None,
         }
     }
@@ -462,7 +458,6 @@ impl Engine {
     ) -> Result<Execution, RuntimeError> {
         let mut context = Context::system();
         context.now = Some(now);
-        context.seed_write = true;
         self.execute_with_kind(program, certificate, context, Some("seed"))
     }
 
@@ -474,7 +469,6 @@ impl Engine {
     ) -> Result<(Execution, Vec<String>), RuntimeError> {
         let mut context = Context::system();
         context.now = Some(now);
-        context.seed_write = true;
         self.reset_and_execute(program, certificate, context, Some("seed"))
     }
 
@@ -692,6 +686,27 @@ impl Engine {
                     result: Value::Null,
                     result_provenance: ResultProvenance::None,
                     trace: AuthoritativeTrace::default(),
+                    receipt: ClosureReceipt::default(),
+                    state: ExecutionState::Rejected {
+                        code: code.to_owned(),
+                        message: error.to_string(),
+                    },
+                    seq: current_seq,
+                    next: None,
+                });
+            }
+            // @ref LLP 1016#d1--the-system-principal-is-the-stores-owner — rejected operator work keeps the attempted trace while every tentative write rolls back.
+            Err(error) if commit_kind == Some("operator") => {
+                let Some(code) = mutation_rejection_code(&error) else {
+                    return Err(error);
+                };
+                let trace = std::mem::take(&mut runner.trace);
+                drop(runner);
+                transaction.rollback()?;
+                return Ok(Execution {
+                    result: Value::Null,
+                    result_provenance: ResultProvenance::None,
+                    trace,
                     receipt: ClosureReceipt::default(),
                     state: ExecutionState::Rejected {
                         code: code.to_owned(),

@@ -1,6 +1,6 @@
 use super::*;
 
-/// Control-plane attribution, a dev persona name today and a token id later.
+/// Control-plane ledger attribution, a validated operator name today and a token id later.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct OperatorId(pub String);
 

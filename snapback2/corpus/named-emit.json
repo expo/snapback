@@ -195,8 +195,7 @@
       "named-emit-outbox",
       "named-emit-followup"
     ],
-    "read_time": null,
-    "seed_write": false
+    "read_time": null
   },
   "receipt": {
     "schema_hash": "2179352cc2000b5efca6aa775c6c1767366012e5482a715e3b9331ace6054c8c",

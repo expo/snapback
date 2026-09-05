@@ -231,18 +231,17 @@ fn control_identity(body: &Json) -> Identity {
     let name = body.get("as").and_then(Json::as_str).unwrap_or_default();
     if name == "system" {
         Identity::Operator {
-            by: body
-                .get("by")
-                .and_then(Json::as_str)
-                .map(str::to_owned)
-                .unwrap_or_else(|| std::env::var("USER").unwrap_or_else(|_| "operator".to_owned())),
+            by: match body.get("by") {
+                Some(value) => value.as_str().unwrap_or_default().to_owned(),
+                None => std::env::var("USER").unwrap_or_else(|_| "operator".to_owned()),
+            },
         }
     } else {
         Identity::Persona(name.to_owned())
     }
 }
 
-fn valid_name(name: &str) -> bool {
+pub(crate) fn valid_name(name: &str) -> bool {
     !name.is_empty()
         && name.len() <= 80
         && name

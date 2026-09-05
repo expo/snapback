@@ -8,15 +8,29 @@ pub(super) fn operator_json(execution: &Execution) -> Json {
 }
 
 impl State {
-    // @ref LLP 1016#d6--the-operator-seat-ad-hoc-programs-and-rehearsal — the local control secret admits the seat; a dev persona name attributes it, never impersonates system.
-    pub(super) fn require_operator(&mut self, by: &str) -> Result<(), Refusal> {
+    // @ref LLP 1016#d6--the-operator-seat-ad-hoc-programs-and-rehearsal — attribution is ledger text only; admitting the seat never creates a principal or receipt.
+    pub(super) fn require_operator(&self, by: &str) -> Result<(), Refusal> {
         if self.mode != "dev" {
             return Err(Refusal::operator_required());
         }
-        let now = self.now();
-        self.runtime_mut()
-            .ensure_persona(by, now)
-            .map_err(|error| Refusal::from_identity(&error))?;
+        if by == "system" {
+            let mut refusal =
+                Refusal::from_identity(&snapback2_core::IdentityError::ReservedSystem)
+                    .with_site("by");
+            refusal.rewrite =
+                Some("set by to the operator's name, such as operator-alice".to_owned());
+            return Err(refusal);
+        }
+        if !crate::control::valid_name(by) {
+            return Err(Refusal::new(
+                "E_ARGS_NAME",
+                "args",
+                "operator by must be 1..80 letters, numbers, dashes, or underscores",
+                "set by to a name such as operator-alice",
+                "operator",
+            )
+            .with_site("by"));
+        }
         Ok(())
     }
 
@@ -40,16 +54,28 @@ impl State {
         let kind = self.operation_kind(op, None)?;
         let values = operation_args(self.runtime().generation(), op, &args)?;
         let now = self.now();
-        let result = self
+        let execution = self
             .runtime_mut()
             .execute_operator_at(op, values, OperatorId(by.clone()), now)
-            .map_err(|error| Refusal::from_runtime(&error));
-        if kind == ProgramKind::Query {
+            .map_err(|error| Refusal::from_runtime(&error))?;
+        if kind == ProgramKind::Query
+            && matches!(
+                execution.state,
+                ExecutionState::Complete | ExecutionState::Capped
+            )
+        {
             self.log_operator_read(op, &by);
         }
-        let execution = result?;
         if matches!(execution.state, ExecutionState::Committed { .. }) {
             self.after_commit(execution.seq)?;
+        }
+        if matches!(execution.state, ExecutionState::Rejected { .. }) {
+            let rejected = json!({
+                "kind": "operator", "op": op, "by": by, "at": now, "seq": execution.seq,
+                "principal": "system", "result": operator_json(&execution), "trace": execution.trace,
+            });
+            crate::watch::log(&self.root, rejected.clone());
+            self.operator_rejection = Some(rejected);
         }
         Ok(execution)
     }
@@ -61,7 +87,6 @@ impl State {
         by: String,
         query_only: bool,
     ) -> Result<Json, Refusal> {
-        self.require_operator(&by)?;
         self.operation_kind(&op, query_only.then_some(ProgramKind::Query))?;
         let execution = self.operator_execution(&op, args, by.clone())?;
         let certificate = &self.runtime().generation().programs()[&op].1;

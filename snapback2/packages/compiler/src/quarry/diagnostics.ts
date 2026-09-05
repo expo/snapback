@@ -71,8 +71,11 @@ export function currentRule(expr: Expr): Expr {
     throw new QuarryError(expr.site, "the system principal never consults rules; `deny` is what this meant", "E_QUARRY_UNSUPPORTED", "deny");
   }
   if (expr.kind === "unary") currentRule(expr.value);
-  if (expr.kind === "binary" && (expr.op === "and" || expr.op === "or")) {
+  if (expr.kind === "binary") {
     currentRule(expr.left); currentRule(expr.right);
   }
+  if (expr.kind === "member") currentRule(expr.base);
+  if (expr.kind === "exists" || expr.kind === "created") currentRule(expr.read);
+  if (expr.kind === "read") for (const key of expr.keys) currentRule(key.value);
   return expr;
 }

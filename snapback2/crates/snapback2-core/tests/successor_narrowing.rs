@@ -108,7 +108,7 @@ fn narrowing_refuses_null_and_absent_rows_with_total_count_and_ten_id_sample_ato
         .unwrap_err();
     assert_eq!(error.code, "E_SUCCESSOR_NARROWING");
     assert!(error.plan.drops.is_empty());
-    let detail = error.narrowing.as_ref().unwrap();
+    let detail = error.narrowings.first().unwrap();
     assert_eq!(detail.table, "items");
     assert_eq!(detail.column, "value");
     assert_eq!(detail.null_rows, 12);
@@ -118,7 +118,10 @@ fn narrowing_refuses_null_and_absent_rows_with_total_count_and_ten_id_sample_ato
     );
     assert!(error.rewrite.contains("job fill_items_value:\n  chunk p in items first 100 by byId:\n    update items[p.id] { value: p.value ?? <value> }"));
     assert!(error.message.contains("operator mutation"));
-    assert_eq!(serde_json::to_value(&error).unwrap()["nullRows"], 12);
+    assert_eq!(
+        serde_json::to_value(&error).unwrap()["narrowings"][0]["nullRows"],
+        12
+    );
     assert_eq!(runtime.generation().hash(), old_generation);
     assert_eq!(read_values(&mut runtime), before);
     let migration = runtime
@@ -167,4 +170,74 @@ fn outer_optional_list_narrows_but_nested_optional_and_retypes_stay_type_changes
             matches!(&refusal.plan.drops[..], [Drop::TypeChange { from: f, to: t, .. }] if f == &from && t == &to)
         );
     }
+}
+
+#[test]
+fn narrowing_reports_every_null_column_with_its_count_sample_and_fill() {
+    let mut project = ProjectJson {
+        version: 1,
+        auth: Auth::default(),
+        effects: vec![],
+        programs: vec![],
+        schema: generation(optional(ColumnType::Int)).schema().clone(),
+    };
+    project
+        .schema
+        .tables
+        .get_mut("items")
+        .unwrap()
+        .columns
+        .insert("other".into(), optional(ColumnType::Int));
+    let mut runtime = Runtime::open(
+        Store::memory().unwrap(),
+        Generation::certify(&project, Ceilings::default()).unwrap(),
+    )
+    .unwrap();
+    runtime
+        .seed(&[
+            (
+                "items".into(),
+                object([
+                    ("id", Value::Id("a".into())),
+                    ("value", Value::Null),
+                    ("other", Value::Int(3)),
+                ]),
+            ),
+            (
+                "items".into(),
+                object([("id", Value::Id("b".into())), ("value", Value::Null)]),
+            ),
+        ])
+        .unwrap();
+    let before = runtime.generation().hash();
+    for column in ["value", "other"] {
+        project
+            .schema
+            .tables
+            .get_mut("items")
+            .unwrap()
+            .columns
+            .insert(column.into(), ColumnType::Int);
+    }
+    let refusal = runtime
+        .apply_successor(Generation::certify(&project, Ceilings::default()).unwrap())
+        .unwrap_err();
+    assert_eq!(refusal.code, "E_SUCCESSOR_NARROWING");
+    assert_eq!(refusal.narrowings.len(), 2);
+    for (column, count, sample) in [("other", 1, vec!["b"]), ("value", 2, vec!["a", "b"])] {
+        let detail = refusal
+            .narrowings
+            .iter()
+            .find(|c| c.column == column)
+            .unwrap();
+        assert_eq!(detail.null_rows, count);
+        assert_eq!(detail.sample, sample);
+        assert!(refusal.message.contains(&format!("items.{column}")));
+        assert!(
+            refusal
+                .rewrite
+                .contains(&format!("job fill_items_{column}:"))
+        );
+    }
+    assert_eq!(runtime.generation().hash(), before);
 }

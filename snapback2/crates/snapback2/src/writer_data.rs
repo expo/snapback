@@ -131,12 +131,12 @@ impl State {
         let execution = if let Identity::Operator { by } = identity {
             self.require_operator(&by)?;
             let now = self.now();
-            let result = self
+            let execution = self
                 .runtime_mut()
                 .read_operator(&program, args, snapback2_core::OperatorId(by.clone()), now)
-                .map_err(|error| Refusal::from_runtime(&error));
+                .map_err(|error| Refusal::from_runtime(&error))?;
             self.log_operator_read(&program.name, &by);
-            result?
+            execution
         } else {
             let authority = self.resolve_authority(identity)?;
             let context = self.execution_context(&authority, args)?;

@@ -60,8 +60,8 @@ pub struct SuccessorRefusal {
     pub plan: MigrationPlan,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub conflicts: Vec<UniqueConflict>,
-    #[serde(flatten)]
-    pub narrowing: Option<NarrowingConflict>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub narrowings: Vec<NarrowingConflict>,
 }
 
 impl SuccessorRefusal {
@@ -72,7 +72,7 @@ impl SuccessorRefusal {
             rewrite: "apply exactly the returned migration plan".to_owned(),
             plan,
             conflicts: Vec::new(),
-            narrowing: None,
+            narrowings: Vec::new(),
         }
     }
 
@@ -83,7 +83,7 @@ impl SuccessorRefusal {
             rewrite: "repair the store error and retry the successor".to_owned(),
             plan: MigrationPlan::default(),
             conflicts: Vec::new(),
-            narrowing: None,
+            narrowings: Vec::new(),
         }
     }
 
@@ -98,7 +98,7 @@ impl SuccessorRefusal {
             ),
             plan: MigrationPlan::default(),
             conflicts: Vec::new(),
-            narrowing: None,
+            narrowings: Vec::new(),
         }
     }
 
@@ -116,7 +116,7 @@ impl SuccessorRefusal {
             rewrite: "make the index non-unique or fix the rows".to_owned(),
             plan: MigrationPlan::default(),
             conflicts,
-            narrowing: None,
+            narrowings: Vec::new(),
         }
     }
 
@@ -127,7 +127,7 @@ impl SuccessorRefusal {
             rewrite: format!("repair or remove stored row {table}.{row}, then retry the successor"),
             plan: MigrationPlan::default(),
             conflicts: Vec::new(),
-            narrowing: None,
+            narrowings: Vec::new(),
         }
     }
 }

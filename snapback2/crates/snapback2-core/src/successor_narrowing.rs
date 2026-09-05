@@ -20,6 +20,7 @@ pub(super) fn narrowing_refusal(
     current: &Schema,
     next: &Schema,
 ) -> Result<Option<SuccessorRefusal>, RuntimeError> {
+    let mut conflicts = Vec::new();
     for (table, previous) in &current.tables {
         let Some(successor) = next.tables.get(table) else {
             continue;
@@ -41,9 +42,19 @@ pub(super) fn narrowing_refusal(
             })?;
             for row in rows {
                 let (id, data) = row?;
-                let value: Value = serde_json::from_str(&data)
-                    .map_err(|error| RuntimeError::Serialization(error.to_string()))?;
-                if matches!(value.as_object()?.get(column), None | Some(Value::Null)) {
+                let value: Value = match serde_json::from_str(&data) {
+                    Ok(value) => value,
+                    Err(error) => {
+                        return Ok(Some(SuccessorRefusal::invalid_row(table, &id, error)));
+                    }
+                };
+                let object = match value.as_object() {
+                    Ok(object) => object,
+                    Err(error) => {
+                        return Ok(Some(SuccessorRefusal::invalid_row(table, &id, error)));
+                    }
+                };
+                if matches!(object.get(column), None | Some(Value::Null)) {
                     null_rows += 1;
                     if sample.len() < 10 {
                         sample.push(id);
@@ -51,25 +62,87 @@ pub(super) fn narrowing_refusal(
                 }
             }
             if null_rows > 0 {
-                return Ok(Some(SuccessorRefusal {
-                    code: "E_SUCCESSOR_NARROWING".to_owned(),
-                    message: format!(
-                        "{table}.{column} cannot become required: {null_rows} stored rows are null or absent; the fill-job rewrite is prose until J1b installs job grammar; use an operator mutation today"
-                    ),
-                    rewrite: format!(
-                        "keep {table}.{column} optional and apply, then fill it:\njob fill_{table}_{column}:\n  chunk p in {table} first 100 by byId:\n    update {table}[p.id] {{ {column}: p.{column} ?? <value> }}\nthen declare it required and apply again"
-                    ),
-                    plan: MigrationPlan::default(),
-                    conflicts: Vec::new(),
-                    narrowing: Some(NarrowingConflict {
-                        table: table.clone(),
-                        column: column.clone(),
-                        null_rows,
-                        sample,
-                    }),
-                }));
+                conflicts.push(NarrowingConflict {
+                    table: table.clone(),
+                    column: column.clone(),
+                    null_rows,
+                    sample,
+                });
             }
         }
     }
-    Ok(None)
+    if conflicts.is_empty() {
+        return Ok(None);
+    }
+    let message = conflicts
+        .iter()
+        .map(|c| {
+            format!(
+                "{}.{} cannot become required: {} stored rows are null or absent",
+                c.table, c.column, c.null_rows
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("; ");
+    let rewrite = conflicts.iter().map(|c| {
+        let (table, column) = (&c.table, &c.column);
+        format!("keep {table}.{column} optional and apply, then fill it:\njob fill_{table}_{column}:\n  chunk p in {table} first 100 by byId:\n    update {table}[p.id] {{ {column}: p.{column} ?? <value> }}\nthen declare it required and apply again")
+    }).collect::<Vec<_>>().join("\n\n");
+    Ok(Some(SuccessorRefusal {
+        code: "E_SUCCESSOR_NARROWING".to_owned(),
+        message: format!(
+            "{message}; the fill-job rewrite is prose until J1b installs job grammar; use an operator mutation today"
+        ),
+        rewrite,
+        plan: MigrationPlan::default(),
+        conflicts: Vec::new(),
+        narrowings: conflicts,
+    }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{Store, public_table};
+
+    #[test]
+    fn narrowing_malformed_stored_row_has_the_successor_row_invalid_refusal() {
+        let store = Store::memory().unwrap();
+        let mut current = Schema::default();
+        current.tables.insert(
+            "items".into(),
+            public_table(
+                BTreeMap::from([
+                    ("id".into(), ColumnType::Id),
+                    (
+                        "value".into(),
+                        ColumnType::Optional(Box::new(ColumnType::Int)),
+                    ),
+                ]),
+                BTreeMap::new(),
+            ),
+        );
+        let mut next = current.clone();
+        next.tables
+            .get_mut("items")
+            .unwrap()
+            .columns
+            .insert("value".into(), ColumnType::Int);
+        for data in [
+            "not-json".to_owned(),
+            crate::value::canonical_json(&Value::Int(7)),
+        ] {
+            store.conn.execute("INSERT OR REPLACE INTO rows(table_name, row_id, data) VALUES ('items', 'bad', ?1)", [data]).unwrap();
+            let refusal = narrowing_refusal(&store.conn, &current, &next)
+                .unwrap()
+                .unwrap();
+            assert_eq!(refusal.code, "E_SUCCESSOR_ROW_INVALID");
+            assert!(refusal.message.contains("items.bad"));
+            assert!(
+                refusal
+                    .rewrite
+                    .contains("repair or remove stored row items.bad")
+            );
+        }
+    }
 }

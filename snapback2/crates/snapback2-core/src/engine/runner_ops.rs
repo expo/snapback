@@ -682,7 +682,7 @@ impl<'a> Runner<'a> {
         old: Option<&Value>,
         next: &Value,
     ) -> Result<bool, RuntimeError> {
-        // @ref LLP 1016#d1--the-system-principal-is-the-stores-owner — the owner skips all viewer rules, never write validation or trace accounting.
+        // @ref LLP 1016#d1--the-system-principal-is-the-stores-owner — only viewer rules are bypassed; row validation, constraints, and trace accounting still run.
         if self.context.viewer.is_system() {
             return Ok(true);
         }

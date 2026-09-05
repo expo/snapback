@@ -159,7 +159,9 @@ impl Refusal {
             IdentityError::Crypto(_) => "E_AUTH_CRYPTO",
         };
         let rewrite = match error {
-            IdentityError::ReservedSystem => "use --as system on run, data, or why against the local dev owner",
+            IdentityError::ReservedSystem => {
+                "use --as system on run, data, or why against the local dev owner"
+            }
             IdentityError::PasswordWeak => "use a password containing at least 8 characters",
             IdentityError::GuestsOff => "sign up or enable guests in the project's snapback/schema",
             IdentityError::Session => "log in again and send Authorization: Bearer <token>",
@@ -195,13 +197,14 @@ impl Refusal {
             "conflicts",
             serde_json::to_value(&error.conflicts).unwrap_or(Json::Array(Vec::new())),
         );
-        if let Some(narrowing) = &error.narrowing {
+        if let Some(narrowing) = error.narrowings.first() {
             refusal = refusal
                 .with_site(format!("{}.{}", narrowing.table, narrowing.column))
                 .with_detail("table", json!(narrowing.table))
                 .with_detail("column", json!(narrowing.column))
                 .with_detail("nullRows", json!(narrowing.null_rows))
-                .with_detail("sample", json!(narrowing.sample));
+                .with_detail("sample", json!(narrowing.sample))
+                .with_detail("narrowings", json!(error.narrowings));
         }
         refusal
     }

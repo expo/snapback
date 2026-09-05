@@ -1234,8 +1234,7 @@
     },
     "now": null,
     "new_ids": [],
-    "read_time": null,
-    "seed_write": false
+    "read_time": null
   },
   "receipt": {
     "schema_hash": "47a69e759777a52a0c713eb045039770fa7a4f2ff09ce7e525690348d01897dd",
@@ -1530,8 +1529,7 @@
         "new_ids": [
           "local-send"
         ],
-        "read_time": null,
-        "seed_write": false
+        "read_time": null
       },
       "expectedState": "predicted"
     },
@@ -1565,8 +1563,7 @@
         },
         "now": 0,
         "new_ids": [],
-        "read_time": null,
-        "seed_write": false
+        "read_time": null
       },
       "expectedState": "predicted"
     },
@@ -1600,8 +1597,7 @@
         },
         "now": 0,
         "new_ids": [],
-        "read_time": null,
-        "seed_write": false
+        "read_time": null
       },
       "expectedState": "predicted"
     }

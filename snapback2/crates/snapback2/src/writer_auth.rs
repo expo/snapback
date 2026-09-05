@@ -472,6 +472,7 @@ mod tests {
                 ),
             ]),
             ledger: VecDeque::new(),
+            operator_rejection: None,
             next_channel: 3,
             clock_offset_ms: 0,
             restarted_through_seq: 0,

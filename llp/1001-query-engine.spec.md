@@ -122,7 +122,8 @@ pub struct CommitRecord { pub seq: u64, pub at: i64, pub program: String, pub pr
 ```
 
 Operator mutations (LLP 1016 D1/D6, implemented J1a 2026-09-05) record
-`kind: "operator"` and `by`, a dev persona name today and a token id later.
+`kind: "operator"` and `by`, a validated operator name today and a token id later;
+attribution is ledger text and never creates a principal.
 Operator reads record their op and attribution in the owner log; they do
 not append a commit. Queries record nothing in `_commits`. `seq` is the store's version: every result, receipt,
 and delivery carries the `seq` it was computed at.

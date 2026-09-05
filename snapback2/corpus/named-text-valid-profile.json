@@ -153,8 +153,7 @@
     "args": {},
     "now": 0,
     "new_ids": [],
-    "read_time": null,
-    "seed_write": false
+    "read_time": null
   },
   "receipt": {
     "schema_hash": "be60184b064420f0ebe7ce9813d0af3201a6ab20513c93a228285863be8a4abf",

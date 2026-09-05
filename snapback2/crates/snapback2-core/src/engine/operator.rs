@@ -89,6 +89,11 @@ mod tests {
         assert!(
             matches!(rejected.state, ExecutionState::Rejected { ref code, .. } if code == "bound")
         );
+        assert_eq!(rejected.trace.writes["records"], 1);
+        assert_eq!(
+            rejected.trace.last_write_attempt.as_ref().unwrap().table,
+            "records"
+        );
         assert_eq!(engine.store().commit_seq().unwrap(), 0);
         assert!(engine.rows("records").unwrap().is_empty());
         let accepted = engine

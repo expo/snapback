@@ -26,7 +26,12 @@ import ts from "typescript";
 export function registerQuarryChecks(test: Test, frontend: string): void {
   const fixtures = resolve(frontend, "fixtures");
   test("removed system rule refuses in the parser with a deny rewrite", () => {
-    for (const rule of ["system", "allow or system", "not system", "(deny or system)"]) {
+    for (const rule of [
+      "system", "allow or system", "not system", "(deny or system)",
+      "viewer = system", "system != viewer", "viewer != (system)", "(system) = viewer",
+      "exists records[system]", "exists records[id = (system)]",
+      "created records[system]", "created records[id = (system)]",
+    ]) {
       const parsed = parseDocument("snapback/schema.q", `table records:\n  value: int\n  insert <- ${rule}\n`);
       const refusal = parsed.diagnostics.find((item) => item.code === "E_QUARRY_UNSUPPORTED");
       assert(refusal?.rewrite === "deny", JSON.stringify(parsed.diagnostics));

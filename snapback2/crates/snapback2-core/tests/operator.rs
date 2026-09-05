@@ -51,7 +51,7 @@ fn scan(index: &str, prefix: Vec<Expr>, take: u32) -> Expr {
         provenance: KeyProvenance::Const,
     })
 }
-fn fixture() -> Runtime {
+fn fixture_project() -> ProjectJson {
     let mut items = table(&[
         ("id", ColumnType::Id),
         ("scope", ColumnType::Id),
@@ -126,7 +126,7 @@ fn fixture() -> Runtime {
             }],
         )
     };
-    let project = ProjectJson {
+    ProjectJson {
         version: 1,
         auth: Auth::default(),
         effects: vec![],
@@ -190,7 +190,10 @@ fn fixture() -> Runtime {
                 }],
             ),
         ],
-    };
+    }
+}
+fn fixture() -> Runtime {
+    let project = fixture_project();
     let generation = Generation::certify(&project, Ceilings::default()).unwrap();
     let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
     runtime
@@ -314,6 +317,10 @@ fn system_immutable_and_unique_reject_but_rule_denied_update_and_delete_commit()
             execution.state
         );
         assert_eq!(runtime.store().commit_seq().unwrap(), seq);
+        assert!(execution.trace.steps > 0);
+        let attempt = execution.trace.last_write_attempt.as_ref().unwrap();
+        assert_eq!(attempt.table, "items");
+        assert_eq!(attempt.kind, WriteKind::Update);
         assert_eq!(operator(&mut runtime, "point").result, item("i1", "first"));
     }
     for op in ["update", "delete"] {
@@ -323,4 +330,196 @@ fn system_immutable_and_unique_reject_but_rule_denied_update_and_delete_commit()
         ));
     }
     assert_eq!(operator(&mut runtime, "point").result, Value::Null);
+}
+
+#[test]
+fn operator_sweep_baseline_nonuniform_range_fill_refuses_ordinary_certification() {
+    let mut project = fixture_project();
+    let Expr::Scan(range) = scan("byId", vec![], 10) else {
+        unreachable!()
+    };
+    let fill = program(
+        "operator_sweep_baseline",
+        ProgramKind::Mutation,
+        vec![Stmt::For {
+            binding: "row".into(),
+            domain: LoopDomain::Page(range),
+            body: vec![Stmt::Update {
+                table: "items".into(),
+                key: Expr::Field {
+                    base: Box::new(Expr::Variable("row".into())),
+                    name: "id".into(),
+                },
+                patch: Expr::Literal(object([("label", Value::String("filled".into()))])),
+            }],
+        }],
+    );
+    let viewer_refusal = Checker::new(&project.schema, Ceilings::default())
+        .check(&fill)
+        .unwrap_err();
+    assert_eq!(viewer_refusal.code, "E_STRUCTURAL_COUNT");
+    project.programs = vec![fill];
+    let operator_refusals = Generation::certify(&project, Ceilings::default()).unwrap_err();
+    assert!(
+        operator_refusals
+            .iter()
+            .any(|(op, error)| op == "operator_sweep_baseline" && error == &viewer_refusal)
+    );
+}
+
+#[test]
+fn operator_sweep_baseline_explicit_key_fill_certifies_and_commits_on_same_nonuniform_table() {
+    let mut runtime = fixture();
+    let (program, _) = &runtime.generation().programs()["update"];
+    Checker::new(runtime.generation().schema(), Ceilings::default())
+        .check(program)
+        .unwrap();
+    let before = runtime.store().commit_seq().unwrap();
+    let filled = operator(&mut runtime, "update");
+    assert_eq!(filled.state, ExecutionState::Committed { seq: before + 1 });
+    assert_eq!(filled.trace.writes["items"], 1);
+    assert_eq!(
+        operator(&mut runtime, "point").result,
+        item("i1", "changed")
+    );
+}
+
+#[test]
+fn viewer_still_probes_exists_and_transaction_local_created_rules() {
+    let mut project = fixture_project();
+    project.schema.tables.get_mut("items").unwrap().rules.insert = RuleExpr::Created {
+        table: "memberships".into(),
+        index: "byScopePrincipal".into(),
+        key: vec![RuleTerm::Field("scope".into()), RuleTerm::Viewer],
+        provenance: KeyProvenance::Shape,
+    };
+    let insert = project
+        .programs
+        .iter()
+        .find(|p| p.name == "insert")
+        .unwrap()
+        .body
+        .clone();
+    let mut body = vec![Stmt::Insert {
+        table: "memberships".into(),
+        row: Expr::Literal(object([
+            ("id", Value::Id("member".into())),
+            ("scope", Value::Id("s1".into())),
+            ("principal", Value::Id("alice".into())),
+        ])),
+    }];
+    body.extend(insert);
+    project
+        .programs
+        .push(program("created", ProgramKind::Mutation, body));
+    let mut runtime = Runtime::open(
+        Store::memory().unwrap(),
+        Generation::certify(&project, Ceilings::default()).unwrap(),
+    )
+    .unwrap();
+    assert!(matches!(
+        viewer(&mut runtime, "insert").state,
+        ExecutionState::Rejected { .. }
+    ));
+    let created = viewer(&mut runtime, "created");
+    assert!(
+        matches!(created.state, ExecutionState::Committed { .. }),
+        "{created:?}"
+    );
+    assert!(created.trace.rule_probes > 0);
+    assert!(!created.trace.rule_inputs.is_empty());
+    let visible = viewer(&mut runtime, "all");
+    assert_eq!(visible.result.as_array().unwrap().len(), 1);
+    assert!(visible.trace.rule_probes > 0);
+    assert!(!visible.trace.rule_inputs.is_empty());
+    // An existing membership is insufficient for Created: it must be inserted in this transaction.
+    let refused = viewer(&mut runtime, "insert");
+    assert!(matches!(refused.state, ExecutionState::Rejected { ref code, .. } if code == "E_RULE"));
+}
+
+#[test]
+fn system_insert_still_binds_final_exists_postcondition() {
+    let mut project = fixture_project();
+    project
+        .schema
+        .tables
+        .get_mut("items")
+        .unwrap()
+        .constraints
+        .push(Constraint::FinalExistsOnInsert {
+            table: "memberships".into(),
+            index: "byId".into(),
+            key: vec![RuleTerm::Field("scope".into())],
+        });
+    let mut runtime = Runtime::open(
+        Store::memory().unwrap(),
+        Generation::certify(&project, Ceilings::default()).unwrap(),
+    )
+    .unwrap();
+    let failed = operator(&mut runtime, "insert");
+    assert!(
+        matches!(failed.state, ExecutionState::Rejected { ref code, .. } if code == "E_CONSTRAINT"),
+        "{failed:?}"
+    );
+    assert_eq!(runtime.store().commit_seq().unwrap(), 0);
+    runtime
+        .seed(&[(
+            "memberships".into(),
+            object([
+                ("id", Value::Id("s1".into())),
+                ("scope", Value::Id("s1".into())),
+                ("principal", Value::Id("alice".into())),
+            ]),
+        )])
+        .unwrap();
+    let inserted = operator(&mut runtime, "insert");
+    assert!(
+        matches!(inserted.state, ExecutionState::Committed { .. }),
+        "{inserted:?}"
+    );
+    assert!(
+        inserted
+            .trace
+            .constraint_inputs
+            .iter()
+            .any(|input| input.table == "memberships")
+    );
+}
+
+#[test]
+fn system_range_exhausts_examined_ceiling_and_reports_capped() {
+    let mut project = fixture_project();
+    project.programs = vec![program(
+        "ceiling",
+        ProgramKind::Query,
+        vec![Stmt::Return(scan("byId", vec![], 3))],
+    )];
+    let generation = Generation::certify(
+        &project,
+        Ceilings {
+            examined: 5,
+            ..Ceilings::default()
+        },
+    )
+    .unwrap();
+    assert_eq!(generation.programs()["ceiling"].1.max_examined, 5);
+    let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
+    runtime
+        .seed(
+            &(0..7)
+                .map(|i| {
+                    (
+                        "items".into(),
+                        item(&format!("i{i}"), &format!("label-{i}")),
+                    )
+                })
+                .collect::<Vec<_>>(),
+        )
+        .unwrap();
+    let execution = operator(&mut runtime, "ceiling");
+    assert_eq!(execution.state, ExecutionState::Capped);
+    assert_eq!(execution.trace.examined, 5);
+    assert_eq!(execution.trace.rule_probes, 0);
+    assert_eq!(execution.trace.ranges[0].stop, StopReason::Limit);
+    assert_eq!(execution.result.as_array().unwrap().len(), 3);
 }

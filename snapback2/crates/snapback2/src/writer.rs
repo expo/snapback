@@ -334,6 +334,7 @@ struct State {
     live: BTreeMap<u64, LiveClient>,
     channels: BTreeMap<u64, ChannelClient>,
     ledger: VecDeque<CommitLedger>,
+    operator_rejection: Option<Json>,
     next_channel: u64,
     clock_offset_ms: i64,
     restarted_through_seq: u64,
@@ -379,6 +380,7 @@ pub fn spawn_writer(
                     live: BTreeMap::new(),
                     channels: BTreeMap::new(),
                     ledger: VecDeque::new(),
+                    operator_rejection: None,
                     next_channel: 0,
                     clock_offset_ms: 0,
                     restarted_through_seq,
@@ -1114,6 +1116,7 @@ impl State {
     }
 
     fn after_commit(&mut self, seq: u64) -> Result<(), Refusal> {
+        self.operator_rejection = None;
         self.sweep_expired_sessions()?;
         self.sweep_offline_now()?;
         let commit = self

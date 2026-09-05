@@ -13,6 +13,7 @@ fn boot(serve: bool) -> (PathBuf, PathBuf, ChildGuard, u16, String) {
 table adminNotes:
   conversationId: conversations
   note: text <=40 ?
+  legacy: int ?
   read <- exists memberships[.conversationId, viewer]
   insert <- deny
   update <- deny
@@ -22,6 +23,17 @@ table adminNotes:
     .unwrap();
     fs::write(root.join("snapback/admin.q"), r#"mutation bookkeep():
   insert notifications { outboxId: 'operator-outbox', effect: 'repair', providerId: 'operator-provider' }
+  return true
+
+mutation breakImmutable(id: profiles, principal: principal):
+  update profiles[id] { principal }
+  return true
+
+query pagedNotes(c: cursor ?):
+  return adminNotes[] after c first 20 by byId
+
+query deniedRead():
+  require false else OPERATOR_READ_REFUSED
   return true
 
 query notes():
@@ -391,5 +403,320 @@ fn operator_narrowing_watcher_keeps_previous_generation_and_reports_the_store_re
             .contains("E_SUCCESSOR_NARROWING")
     );
     stop_owner(port, &secret, &mut owner, "watcher narrowing complete");
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn operator_explicit_by_reaches_commit_trace_and_log_without_minting_a_persona() {
+    let (root, _, mut owner, port, secret) = boot(false);
+    let headers = [("X-Snapback-Control", secret.as_str())];
+    let by = "repair-operator_42";
+    let before = status(port, &secret)["personas"].clone();
+    let read = request(
+        port,
+        "POST",
+        "/control/execute",
+        &headers,
+        json!({ "op": "admin.notes", "as": "system", "by": by }),
+    );
+    assert_eq!(read.status, 200, "{}", read.body);
+    assert_eq!(read.body["data"].as_array().unwrap().len(), 2);
+    assert_eq!(status(port, &secret)["personas"], before);
+    let write = request(
+        port,
+        "POST",
+        "/control/execute",
+        &headers,
+        json!({ "op": "admin.fill", "args": { "id": "admin-1" }, "as": "system", "by": by }),
+    );
+    assert_eq!(write.body["state"], "committed", "{}", write.body);
+    let trace = request(port, "GET", "/control/trace", &headers, json!({}));
+    assert_eq!(trace.body["commit"]["by"], by);
+    assert_eq!(trace.body["commit"]["kind"], "operator");
+    assert_eq!(status(port, &secret)["personas"], before);
+    let logs = request(port, "GET", "/control/logs", &headers, json!({}));
+    assert!(
+        logs.body["lines"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|line| line["kind"] == "operator"
+                && line["action"] == "read"
+                && line["op"] == "admin.notes"
+                && line["by"] == by)
+    );
+    stop_owner(port, &secret, &mut owner, "explicit attribution complete");
+    let db = rusqlite::Connection::open(root.join(".snapback/store.sqlite")).unwrap();
+    let count: i64 = db
+        .query_row(
+            "SELECT count(*) FROM _principals WHERE name = ?1 OR id = ?2",
+            [by, &format!("dev:{by}")],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(count, 0, "operator attribution minted a persona");
+    let recorded: String = db
+        .query_row(
+            "SELECT by FROM _commits WHERE seq = ?1",
+            [write.body["seq"].as_u64().unwrap()],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(recorded, by);
+    drop(db);
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn operator_by_rejects_reserved_and_invalid_names_through_every_control_adapter() {
+    let (root, _, mut owner, port, secret) = boot(false);
+    let headers = [("X-Snapback-Control", secret.as_str())];
+    let before = status(port, &secret);
+    for by in [
+        json!("system"),
+        json!(""),
+        json!("bad/name"),
+        json!("with space"),
+        json!("é"),
+        json!("a".repeat(81)),
+        json!(7),
+        Value::Null,
+    ] {
+        for (route, mut body) in [
+            (
+                "/control/execute",
+                json!({ "op": "admin.fill", "args": { "id": "admin-1" } }),
+            ),
+            ("/control/why", json!({ "op": "admin.notes" })),
+            ("/control/data", json!({ "table": "adminNotes" })),
+        ] {
+            body["as"] = json!("system");
+            body["by"] = by.clone();
+            let refusal = request(port, "POST", route, &headers, body);
+            assert_eq!(refusal.status, 400, "{}", refusal.body);
+            let (code, family) = if by == "system" {
+                ("E_AUTH_RESERVED", "auth")
+            } else {
+                ("E_ARGS_NAME", "args")
+            };
+            assert_eq!(refusal.body["code"], code, "{}", refusal.body);
+            assert_eq!(refusal.body["family"], family);
+            assert!(
+                refusal.body["rewrite"]
+                    .as_str()
+                    .is_some_and(|s| !s.is_empty())
+            );
+            assert!(
+                refusal.body["guide"]
+                    .as_str()
+                    .is_some_and(|s| !s.is_empty())
+            );
+            if family == "args" {
+                assert_eq!(refusal.body["site"], "by");
+            }
+        }
+    }
+    assert_eq!(status(port, &secret)["seq"], before["seq"]);
+    assert_eq!(status(port, &secret)["personas"], before["personas"]);
+    stop_owner(port, &secret, &mut owner, "invalid attribution complete");
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn destructive_apply_refusal_is_preserved_in_owner_status_and_log() {
+    let (root, _, mut owner, port, secret) = boot(false);
+    let mut project: ProjectJson =
+        serde_json::from_slice(&fs::read(root.join(".snapback/build/project.json")).unwrap())
+            .unwrap();
+    project
+        .schema
+        .tables
+        .get_mut("adminNotes")
+        .unwrap()
+        .columns
+        .remove("legacy");
+    let headers = [("X-Snapback-Control", secret.as_str())];
+    let before = status(port, &secret);
+    let refusal = request(
+        port,
+        "POST",
+        "/control/apply",
+        &headers,
+        json!({ "project": project }),
+    );
+    assert_eq!(refusal.status, 400, "{}", refusal.body);
+    assert_eq!(refusal.body["code"], "E_SUCCESSOR_DESTRUCTIVE");
+    assert!(!refusal.body["plan"]["drops"].as_array().unwrap().is_empty());
+    let after = status(port, &secret);
+    assert_eq!(after["status"]["state"], "refused");
+    assert_eq!(after["status"]["refused"][0], refusal.body);
+    assert_eq!(after["generation"], before["generation"]);
+    assert_eq!(after["seq"], before["seq"]);
+    assert!(
+        fs::read_to_string(root.join(".snapback/log.jsonl"))
+            .unwrap()
+            .lines()
+            .filter_map(|line| serde_json::from_str::<Value>(line).ok())
+            .any(|line| line["state"] == "refused" && line["refused"][0] == refusal.body)
+    );
+    stop_owner(port, &secret, &mut owner, "destructive refusal complete");
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn operator_read_logs_only_successful_execution_on_run_why_and_data() {
+    let (root, _, mut owner, port, secret) = boot(false);
+    let headers = [("X-Snapback-Control", secret.as_str())];
+    for route in ["/control/execute", "/control/why", "/control/data"] {
+        let refused = request(
+            port,
+            "POST",
+            route,
+            &headers,
+            json!({
+                "op": "admin.pagedNotes", "table": "adminNotes", "args": { "c": "bad-cursor" },
+                "after": "bad-cursor", "as": "system", "by": "failed-reader",
+            }),
+        );
+        assert_eq!(refused.status, 400, "{}", refused.body);
+        assert_eq!(refused.body["code"], "E_INPUT");
+        let accepted = request(
+            port,
+            "POST",
+            route,
+            &headers,
+            json!({
+                "op": "admin.notes", "table": "adminNotes", "as": "system", "by": "successful-reader",
+            }),
+        );
+        assert_eq!(accepted.status, 200, "{}", accepted.body);
+    }
+    let denied = request(
+        port,
+        "POST",
+        "/control/execute",
+        &headers,
+        json!({ "op": "admin.deniedRead", "as": "system", "by": "failed-reader" }),
+    );
+    assert_eq!(denied.body["state"], "denied");
+    let records = fs::read_to_string(root.join(".snapback/log.jsonl"))
+        .unwrap()
+        .lines()
+        .filter_map(|line| serde_json::from_str::<Value>(line).ok())
+        .collect::<Vec<_>>();
+    assert!(
+        !records
+            .iter()
+            .any(|line| line["action"] == "read" && line["by"] == "failed-reader")
+    );
+    assert_eq!(
+        records
+            .iter()
+            .filter(|line| line["action"] == "read" && line["by"] == "successful-reader")
+            .count(),
+        3
+    );
+    stop_owner(port, &secret, &mut owner, "read logging complete");
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn rejected_operator_update_retains_attempted_write_in_trace_latest_and_log() {
+    let (root, compiler, mut owner, port, secret) = boot(false);
+    let headers = [("X-Snapback-Control", secret.as_str())];
+    let before = status(port, &secret)["seq"].clone();
+    let rejected = request(
+        port,
+        "POST",
+        "/control/execute",
+        &headers,
+        json!({
+            "op": "admin.breakImmutable", "args": { "id": "profile-alice", "principal": "dev:bob" },
+            "as": "system", "by": "repair-author",
+        }),
+    );
+    assert_eq!(rejected.body["state"], "rejected", "{}", rejected.body);
+    assert_eq!(rejected.body["code"], "E_CONSTRAINT");
+    let (code, trace) = cli(&root, &compiler, &["trace", "latest"]);
+    assert_eq!(code, 0, "{trace}");
+    assert_eq!(trace["by"], "repair-author");
+    assert_eq!(trace["op"], "admin.breakImmutable");
+    assert_eq!(trace["result"]["code"], "E_CONSTRAINT");
+    assert_eq!(trace["trace"]["last_write_attempt"]["table"], "profiles");
+    assert_eq!(trace["trace"]["last_write_attempt"]["kind"], "Update");
+    assert!(trace["trace"]["steps"].as_u64().unwrap() > 0);
+    assert_eq!(status(port, &secret)["seq"], before);
+    let committed = request(
+        port,
+        "GET",
+        &format!("/control/trace?seq={}", before.as_u64().unwrap()),
+        &headers,
+        json!({}),
+    );
+    assert_eq!(committed.body["commit"]["seq"], before);
+    assert!(
+        fs::read_to_string(root.join(".snapback/log.jsonl"))
+            .unwrap()
+            .lines()
+            .filter_map(|line| serde_json::from_str::<Value>(line).ok())
+            .any(|line| line == trace)
+    );
+    let fill = request(
+        port,
+        "POST",
+        "/control/execute",
+        &headers,
+        json!({ "op": "admin.fill", "args": { "id": "admin-1" }, "as": "system" }),
+    );
+    let latest = request(port, "GET", "/control/trace", &headers, json!({}));
+    assert_eq!(latest.body["commit"]["seq"], fill.body["seq"]);
+    stop_owner(port, &secret, &mut owner, "rejection trace complete");
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn query_and_sse_subscription_refuse_the_system_persona_header() {
+    let (root, _, mut owner, port, secret) = boot(false);
+    for (method, route) in [
+        ("POST", "/api/query"),
+        ("GET", "/api/subscribe?op=admin.notes&args=%7B%7D"),
+    ] {
+        let refusal = request(
+            port,
+            method,
+            route,
+            &[("X-Snapback-As", "system")],
+            json!({ "op": "admin.notes" }),
+        );
+        assert_eq!(refusal.status, 403, "{}", refusal.body);
+        assert_eq!(refusal.body["code"], "E_OPERATOR_REQUIRED");
+        assert_eq!(refusal.body["family"], "operator");
+        assert_eq!(refusal.body["site"], "--as system");
+        assert!(
+            refusal.body["rewrite"]
+                .as_str()
+                .is_some_and(|s| !s.is_empty())
+        );
+        assert_eq!(refusal.body["guide"], "operator/seat");
+    }
+    stop_owner(
+        port,
+        &secret,
+        &mut owner,
+        "query subscription seat refusal complete",
+    );
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn data_cli_persona_is_empty_where_system_sees_the_gated_rows() {
+    let (root, compiler, mut owner, port, secret) = boot(false);
+    let (code, viewer) = cli(&root, &compiler, &["data", "adminNotes", "--as", "charlie"]);
+    assert_eq!(code, 0, "{viewer}");
+    assert!(viewer["data"].as_array().unwrap().is_empty());
+    let (code, system) = cli(&root, &compiler, &["data", "adminNotes", "--as", "system"]);
+    assert_eq!(code, 0, "{system}");
+    assert_eq!(system["data"].as_array().unwrap().len(), 2);
+    stop_owner(port, &secret, &mut owner, "data visibility complete");
     fs::remove_dir_all(root).unwrap();
 }
