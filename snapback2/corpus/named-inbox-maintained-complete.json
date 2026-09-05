@@ -1118,7 +1118,7 @@
     "disclosures": [
       "E_DISCLOSURE: count waitlist summarized into waitCounts"
     ],
-    "bound_product": "inboxComplete.memberships take 50 = 50"
+    "bound_product": "inboxComplete.memberships take 50 (+2 reserve) × 1 calls on memberships = 52 + inboxComplete.unreadMaintained point read on unreads × 50 calls (calls from inboxComplete.memberships take 50) = 50"
   },
   "context": {
     "viewer": "u1",

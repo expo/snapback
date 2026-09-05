@@ -1146,7 +1146,7 @@
     "disclosures": [
       "E_DISCLOSURE: count waitlist summarized into waitCounts"
     ],
-    "bound_product": "cursor-asc-after-duplicate-tie.first take 1 = 1"
+    "bound_product": "cursor-asc-after-duplicate-tie.first take 1 (+2 reserve) × 1 calls on messages = 3 + cursor-asc-after-duplicate-tie.second take 1 (+2 reserve) × 1 calls on messages = 3"
   },
   "context": {
     "viewer": "u1",

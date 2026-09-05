@@ -2,6 +2,7 @@
 // @ref LLP 1017#22-the-semantics-the-engines-unchanged — omitted optional fields join null.
 
 use crate::certificate::{CheckError, WriteKind};
+use crate::ir::Expr;
 use crate::schema::{Constraint, Index, Schema, Table};
 use crate::value::Value;
 use std::collections::BTreeSet;
@@ -22,22 +23,35 @@ pub(crate) fn enforcement_index<'a>(
         .find(|(_, index)| index.columns.starts_with(by))
 }
 
-pub(crate) fn write_reserve(schema: &Schema, table: &str, kind: WriteKind) -> u64 {
-    if !matches!(
-        kind,
-        WriteKind::Insert | WriteKind::Update | WriteKind::Upsert
-    ) {
-        return 0;
-    }
-    schema.table(table).map_or(0, |table| {
-        table.constraints.iter().fold(0_u64, |sum, constraint| {
-            if let Constraint::Cap { max, .. } = constraint {
-                sum.saturating_add(u64::from(*max))
-            } else {
-                sum
-            }
+// @ref LLP 1017#24-metering — only patches that may move a group need its probe.
+pub(crate) fn write_caps<'a>(
+    schema: &'a Schema,
+    table: &str,
+    kind: WriteKind,
+    patch: Option<&Expr>,
+) -> Vec<(&'a [String], u32)> {
+    schema
+        .table(table)
+        .into_iter()
+        .flat_map(|table| &table.constraints)
+        .filter_map(|constraint| {
+            let Constraint::Cap { by, max } = constraint else {
+                return None;
+            };
+            let probes = match kind {
+                WriteKind::Insert | WriteKind::Upsert => true,
+                WriteKind::Update => by.iter().any(|column| match patch {
+                    Some(Expr::Object(fields)) => fields.contains_key(column),
+                    Some(Expr::Literal(Value::Row(fields) | Value::Map(fields))) => {
+                        fields.contains_key(column)
+                    }
+                    _ => true,
+                }),
+                WriteKind::Delete | WriteKind::Emit => false,
+            };
+            probes.then_some((by.as_slice(), *max))
         })
-    })
+        .collect()
 }
 
 pub(crate) fn schema_errors(schema: &Schema) -> Vec<(String, CheckError)> {

@@ -13,12 +13,12 @@
 **Battery gate:** `fork-parallel-dispositions`
 **Failure signature:** `sha256:03f88bfebb6bf18feb1e105cbde624462bdccd230cb4500062c4bdbef0896477`
 **First observed run:** `local.20260824T022619Z.88476b032428`
-**Last observed run:** `local.20260905T112905Z.e32b5b7d5d32`
-**Last processed run:** `local.20260905T112905Z.e32b5b7d5d32`
+**Last observed run:** `local.20260905T203247Z.810fbda46e64`
+**Last processed run:** `local.20260905T203247Z.810fbda46e64`
 **Detected at revision:** `88476b0324286a5c8bde4b0c1d877ae542cf96e7`
-**Last observed revision:** `e32b5b7d5d32cb4dc1735e4598fbdb86639d362f`
-**Consecutive red runs:** `1`
-**Escalation:** `pending (1/4)`
+**Last observed revision:** `810fbda46e64ae6865094ccc9e578b1d5781caf5`
+**Consecutive red runs:** `2`
+**Escalation:** `pending (2/4)`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
 ## Summary

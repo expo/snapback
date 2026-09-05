@@ -3,7 +3,7 @@ use crate::bounds::{
     declared_serialized_column_max,
 };
 use crate::collection_rewrite::{
-    CollectionRewrite, OutputAssignmentPrice, OutputBound, OutputEstimate, OutputEstimator,
+    ByteShape, OutputAssignmentPrice, OutputBound, OutputEstimate, OutputEstimator,
 };
 use crate::growth::{
     ProvenanceBinding, assignment_growth, collection_price_from,
@@ -20,8 +20,7 @@ impl<'a> OutputEstimator<'a> {
             schema,
             max_result: canonical_json(&Value::Null).len() as u64,
             next_identity: program.args.len() as u64 + 1,
-            args: program.args.keys().cloned().collect(),
-            rewrite: None,
+            shape: ByteShape::leaf(4, "null value"),
         };
         let mut next_identity = 1_u64;
         let mut variables = program
@@ -41,7 +40,7 @@ impl<'a> OutputEstimator<'a> {
                             identity,
                             crate::growth::ProvenanceExpression::argument(),
                         ),
-                        rewrite: None,
+                        shape: ByteShape::leaf(argument_max(argument), format!("argument {name}")),
                         value: Expr::Variable(name.clone()),
                     },
                 )
@@ -50,7 +49,7 @@ impl<'a> OutputEstimator<'a> {
         estimator.statements(&program.body, &mut variables, 1, 0, &mut Vec::new());
         OutputEstimate {
             bytes: estimator.max_result,
-            rewrite: estimator.rewrite,
+            shape: estimator.shape,
         }
     }
 
@@ -75,7 +74,7 @@ impl<'a> OutputEstimator<'a> {
                     let collection =
                         collection_price_from(value, variables, |bound| bound.collection);
                     let table = self.expression_table(value, variables);
-                    let rewrite = self.expression_rewrite(value, variables);
+                    let shape = self.expression_shape(value, variables);
                     let identity = take_identity(&mut self.next_identity);
                     variables.insert(
                         name.clone(),
@@ -85,7 +84,7 @@ impl<'a> OutputEstimator<'a> {
                             collection,
                             table,
                             provenance: ProvenanceBinding::new(identity, provenance),
-                            rewrite,
+                            shape,
                             value: value.clone(),
                         },
                     );
@@ -106,18 +105,11 @@ impl<'a> OutputEstimator<'a> {
                                 bound.collection
                             }),
                             table: self.expression_table(value, variables),
-                            rewrite: self.expression_rewrite(value, variables),
+                            shape: self.expression_shape(value, variables),
                         },
                     );
                     let (provenance, growth, price) = assignment.into_parts();
                     if let Some(growth) = growth.filter(|_| price.collection) {
-                        let rewrite = CollectionRewrite::for_assignment(
-                            self.args.clone(),
-                            loops,
-                            name,
-                            value,
-                            variables,
-                        );
                         let current = variables.get_mut(name).expect("growth target exists");
                         let mut added = price
                             .bytes
@@ -142,7 +134,15 @@ impl<'a> OutputEstimator<'a> {
                         current.collection = true;
                         current.table = None;
                         current.provenance = current.provenance.assigned(provenance);
-                        current.rewrite = Some((current.bytes, rewrite));
+                        current.shape = ByteShape::repeated(
+                            current.bytes,
+                            format!(
+                                "{name} collection growth over {} repetitions",
+                                growth.repetitions
+                            ),
+                            growth.repetitions,
+                            price.shape,
+                        );
                         current.value = value.clone();
                     } else {
                         let identity = variables
@@ -161,22 +161,25 @@ impl<'a> OutputEstimator<'a> {
                                 collection: price.collection,
                                 table: price.table,
                                 provenance: assigned,
-                                rewrite: price.rewrite,
+                                shape: price.shape,
                                 value: value.clone(),
                             },
                         );
                     }
                 }
                 Stmt::Push { target, value } => {
-                    let rewrite = (!loops.is_empty()).then(|| {
-                        CollectionRewrite::for_push(
-                            self.args.clone(),
-                            loops,
-                            target,
-                            value,
-                            variables,
-                        )
-                    });
+                    let shape = self.expression_shape(value, variables);
+                    let label = loops
+                        .last()
+                        .map(|(_, domain)| match domain {
+                            LoopDomain::Page(scan) => crate::collection_rewrite::scan_label(scan),
+                            LoopDomain::DerivedArray { value, .. } => {
+                                self.expression_shape(value, variables).collection_label()
+                            }
+                            LoopDomain::ArgList { name, .. } => format!("argument {name}"),
+                            _ => "bounded loop".into(),
+                        })
+                        .unwrap_or_else(|| target.clone());
                     let element = self.expression(value, variables).saturating_add(1);
                     let current = variables.entry(target.clone()).or_insert(OutputBound {
                         bytes: CANONICAL_ARRAY_BASE_BYTES,
@@ -187,7 +190,7 @@ impl<'a> OutputEstimator<'a> {
                             take_identity(&mut self.next_identity),
                             crate::growth::ProvenanceExpression::iteration(true, iteration),
                         ),
-                        rewrite: None,
+                        shape: ByteShape::leaf(CANONICAL_ARRAY_BASE_BYTES, "array framing"),
                         value: Expr::Array(Vec::new()),
                     });
                     let repetitions = calls
@@ -198,9 +201,21 @@ impl<'a> OutputEstimator<'a> {
                         .saturating_add(repetitions.saturating_mul(element));
                     current.collection = true;
                     current.table = None;
-                    if let Some(rewrite) = rewrite {
-                        current.rewrite = Some((current.bytes, rewrite));
-                    }
+                    let added = ByteShape::repeated(
+                        repetitions.saturating_mul(element),
+                        format!("{label} ({repetitions} repetitions)"),
+                        repetitions,
+                        shape,
+                    );
+                    current.shape = ByteShape::group(
+                        current.bytes,
+                        if target.starts_with("__q") {
+                            "collection"
+                        } else {
+                            target
+                        },
+                        vec![current.shape.clone(), added],
+                    );
                 }
                 Stmt::If {
                     then_body,
@@ -240,6 +255,10 @@ impl<'a> OutputEstimator<'a> {
                                 domain,
                                 LoopDomain::Page(_) | LoopDomain::Recurse(_)
                             ),
+                            shape: table
+                                .as_ref()
+                                .map(|t| self.row_shape(t))
+                                .unwrap_or_else(|| ByteShape::leaf(element, binding)),
                             table,
                             provenance: ProvenanceBinding::new(
                                 take_identity(&mut self.next_identity),
@@ -248,7 +267,6 @@ impl<'a> OutputEstimator<'a> {
                                     nested_iteration,
                                 ),
                             ),
-                            rewrite: None,
                             value: Expr::Variable(binding.clone()),
                         },
                     );
@@ -262,7 +280,7 @@ impl<'a> OutputEstimator<'a> {
                     let bytes = self.expression(value, variables);
                     if bytes > self.max_result {
                         self.max_result = bytes;
-                        self.rewrite = self.expression_rewrite(value, variables);
+                        self.shape = self.expression_shape(value, variables);
                     }
                 }
                 Stmt::Require { .. }
@@ -393,7 +411,7 @@ impl<'a> OutputEstimator<'a> {
         CANONICAL_ARRAY_BASE_BYTES.saturating_add(count.saturating_mul(element.saturating_add(1)))
     }
 
-    fn expression_table(
+    pub(crate) fn expression_table(
         &self,
         expression: &Expr,
         variables: &BTreeMap<String, OutputBound>,

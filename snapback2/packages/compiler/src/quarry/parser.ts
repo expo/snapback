@@ -24,7 +24,7 @@ import type {
 import type { QuarryDiagnostic } from "./ast";
 import { QuarryError, currentRule, refuse, retention, syntax, unsupported } from "./diagnostics";
 import { lex, type Token, type TokenKind } from "./lexer";
-import { quarryExpression } from "./program";
+import { quarryExpression } from "./print";
 
 const RESERVED_BINDINGS = new Set([
   "arguments", "await", "break", "case", "catch", "class", "const", "continue", "debugger", "default", "delete", "do",
@@ -898,13 +898,10 @@ class Parser {
     while (!this.atKind("dedent") && !this.atKind("eof")) {
       this.skipNewlines();
       if (this.atKind("dedent")) break;
-      const laneSite = this.take("[");
-      const prefix: Expr[] = [];
-      while (!this.at("]")) {
-        prefix.push(this.expression(0, new Set([",", "]"])));
-        if (!this.maybe(",")) break;
-      }
-      this.take("]");
+      const laneSite = this.peek();
+      const keys = this.parseRead(table, laneSite).keys;
+      const prefix = keys.map(key => key.value);
+      const columns = keys.some(key => key.column !== undefined) ? keys.map(key => key.column) : undefined;
       let loop: MergeLane["loop"];
       if (this.maybe("for")) {
         const name = this.generatedBinding("merge lane");
@@ -916,7 +913,7 @@ class Parser {
         loop = { name, domain };
       }
       this.newline();
-      lanes.push({ prefix, ...(loop ? { loop } : {}), site: laneSite });
+      lanes.push({ prefix, ...(columns ? { columns } : {}), ...(loop ? { loop } : {}), site: laneSite });
     }
     this.takeKind("dedent");
     if (lanes.length === 0) syntax(site, "merge requires at least one lane", `[viewer]`);

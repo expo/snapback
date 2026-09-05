@@ -11,7 +11,11 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use thiserror::Error;
 
+mod diagnostic;
 mod output;
+mod page;
+use diagnostic::{Cost, WorkTerms};
+use page::resolve_result_page_site;
 
 // Heap is calibrated; output/closure use declared maxima. These are admission bounds, not allocator/serializer proofs.
 const HEAP_BYTES_PER_STEP: u64 = 32;
@@ -203,7 +207,11 @@ pub struct Checker<'a> {
 
 impl<'a> Checker<'a> {
     pub fn new(schema: &'a Schema, ceilings: Ceilings) -> Self {
-        Self { schema, ceilings, job_chunk: false }
+        Self {
+            schema,
+            ceilings,
+            job_chunk: false,
+        }
     }
 
     // @ref LLP 1017#35-what-has-no-spelling-after-this-and-where-it-goes — a job's chunk loop is the represented continuation the fan-out rule defers to.
@@ -354,11 +362,33 @@ impl<'a> Checker<'a> {
         let max_heap_bytes = max_steps.saturating_mul(HEAP_BYTES_PER_STEP);
         let output = OutputEstimator::estimate(self.schema, program);
         let max_output_bytes = output.bytes;
-        let max_closure_bytes = RetentionEstimator::estimate(self.schema, program);
-        let collection_rewrite = output
-            .rewrite
-            .as_ref()
-            .map(|(bytes, rewrite)| (*bytes, rewrite.render()));
+        let mut closure = RetentionEstimator::estimate(self.schema, program);
+        for child in &mut closure.children {
+            for read in summary.reads.values() {
+                if child.label.contains(&format!(" at {}:", read.site)) {
+                    let merge = analyzer
+                        .merge_sites
+                        .values()
+                        .find(|m| m.lane_sites.contains(&read.site));
+                    let source = merge
+                        .map(|m| {
+                            format!(
+                                "merge {}: {} lanes × {} rows",
+                                m.site, read.max_calls, read.take
+                            )
+                        })
+                        .unwrap_or_else(|| {
+                            format!(
+                                "{} take {} × {} calls",
+                                read.site, read.take, read.max_calls
+                            )
+                        });
+                    child.label = format!("{source}; {}", child.label);
+                    break;
+                }
+            }
+        }
+        let max_closure_bytes = closure.bytes;
         let mut bound_errors = Vec::new();
         for (name, actual, ceiling) in [
             ("examined entries", max_examined, self.ceilings.examined),
@@ -377,9 +407,17 @@ impl<'a> Checker<'a> {
                 self.ceilings.closure_bytes,
             ),
         ] {
-            if let Err(error) =
-                self.check_ceiling(name, actual, ceiling, &summary, collection_rewrite.as_ref())
-            {
+            if let Err(error) = self.check_ceiling(
+                name,
+                actual,
+                ceiling,
+                &summary,
+                match name {
+                    "output bytes" => Some(&output.shape),
+                    "closure bytes" => Some(&closure),
+                    _ => None,
+                },
+            ) {
                 bound_errors.push(error);
             }
         }
@@ -392,9 +430,16 @@ impl<'a> Checker<'a> {
                     max_writes,
                     self.ceilings.write_rows,
                     summary
-                        .product
-                        .clone()
-                        .unwrap_or_else(|| "sequential writes".to_owned())
+                        .writes
+                        .iter()
+                        .map(|w| format!("{} {:?} × {}", w.table, w.kind, w.max_rows))
+                        .chain(
+                            maintained_writes
+                                .iter()
+                                .map(|(table, n)| format!("{table} maintained applications × {n}"))
+                        )
+                        .collect::<Vec<_>>()
+                        .join(" + ")
                 ),
                 rewrite: "reduce the bounded fan-out or use an explicit maintained projection"
                     .to_owned(),
@@ -603,7 +648,7 @@ impl<'a> Checker<'a> {
             halo_rows: 1,
             indexes_required,
             disclosures,
-            bound_product: summary.product,
+            bound_product: summary.costs.product(),
         })
     }
 
@@ -641,39 +686,6 @@ impl<'a> Checker<'a> {
         }
         Ok(certificate)
     }
-
-    fn check_ceiling(
-        &self,
-        name: &str,
-        actual: u64,
-        ceiling: u64,
-        summary: &Summary,
-        collection_rewrite: Option<&(u64, String)>,
-    ) -> Result<(), CheckError> {
-        if actual <= ceiling {
-            return Ok(());
-        }
-        let code = if name == "steps" {
-            "E_STEPS"
-        } else {
-            "E_BOUND"
-        };
-        let product = summary.product.as_deref().unwrap_or("sequential sites");
-        let rewrite = if matches!(name, "output bytes" | "closure bytes") {
-            collection_rewrite
-                .filter(|(bytes, _)| *bytes > ceiling)
-                .map(|(_, rewrite)| rewrite.clone())
-                .unwrap_or_else(|| "return null;".to_owned())
-        } else {
-            "replace the nested population scan with maintain.count/sum (or reduce a declared bound)".to_owned()
-        };
-        Err(CheckError {
-            site: None,
-            code: code.to_owned(),
-            message: format!("{name} {actual} exceeds ceiling {ceiling}; product: {product}"),
-            rewrite,
-        })
-    }
 }
 
 #[derive(Clone, Default)]
@@ -684,9 +696,8 @@ struct Summary {
     index_entries: u64,
     rule_probes: u64,
     steps: u64,
-    product_value: u64,
-    product: Option<String>,
     nonuniform_range: bool,
+    costs: WorkTerms,
 }
 
 impl Summary {
@@ -708,20 +719,26 @@ impl Summary {
                 })
                 .or_insert(site);
         }
+        self.costs.add(other.costs);
         self.writes.extend(other.writes);
         self.examined = self.examined.saturating_add(other.examined);
         self.index_entries = self.index_entries.saturating_add(other.index_entries);
         self.rule_probes = self.rule_probes.saturating_add(other.rule_probes);
         self.steps = self.steps.saturating_add(other.steps);
         self.nonuniform_range |= other.nonuniform_range;
-        if other.product_value > self.product_value {
-            self.product_value = other.product_value;
-            self.product = other.product;
-        }
         self
     }
 
     fn branch(mut self, other: Self) -> Self {
+        self.costs.branch(
+            &other.costs,
+            [
+                self.examined < other.examined,
+                self.index_entries < other.index_entries,
+                self.rule_probes < other.rule_probes,
+                self.steps < other.steps,
+            ],
+        );
         for (name, site) in other.reads {
             self.reads
                 .entry(name)
@@ -754,10 +771,6 @@ impl Summary {
         self.rule_probes = self.rule_probes.max(other.rule_probes);
         self.steps = self.steps.max(other.steps);
         self.nonuniform_range |= other.nonuniform_range;
-        if other.product_value > self.product_value {
-            self.product_value = other.product_value;
-            self.product = other.product;
-        }
         self
     }
 }
@@ -775,157 +788,6 @@ fn sum_write_sites(writes: Vec<WriteSite>) -> Vec<WriteSite> {
         }
     }
     totals
-}
-
-fn resolve_result_page_site(
-    schema: &Schema,
-    statements: &[Stmt],
-    declared: &str,
-) -> Result<ResultPageSite, Vec<CheckError>> {
-    fn visit_expr<'a>(expression: &'a Expr, scans: &mut Vec<&'a Scan>) {
-        match expression {
-            Expr::Field { base, .. } | Expr::Unary { value: base, .. } => visit_expr(base, scans),
-            Expr::Binary { left, right, .. } => {
-                visit_expr(left, scans);
-                visit_expr(right, scans);
-            }
-            Expr::Array(values) | Expr::Builtin { args: values, .. } => {
-                values.iter().for_each(|value| visit_expr(value, scans));
-            }
-            Expr::Object(values) => {
-                values.values().for_each(|value| visit_expr(value, scans));
-            }
-            Expr::Scan(scan) => scans.push(scan),
-            Expr::Literal(_)
-            | Expr::Variable(_)
-            | Expr::Input(_)
-            | Expr::Get(_)
-            | Expr::Exists(_) => {}
-        }
-    }
-    fn visit_statements<'a>(statements: &'a [Stmt], scans: &mut Vec<&'a Scan>) {
-        for statement in statements {
-            match statement {
-                Stmt::Const { value, .. }
-                | Stmt::Let { value, .. }
-                | Stmt::Assign { value, .. }
-                | Stmt::Push { value, .. }
-                | Stmt::Return(value)
-                | Stmt::Require {
-                    condition: value, ..
-                }
-                | Stmt::Insert { row: value, .. }
-                | Stmt::Delete { key: value, .. }
-                | Stmt::Emit { payload: value, .. } => visit_expr(value, scans),
-                Stmt::Update { key, patch, .. } => {
-                    visit_expr(key, scans);
-                    visit_expr(patch, scans);
-                }
-                Stmt::Upsert { key, row, .. } => {
-                    visit_expr(key, scans);
-                    visit_expr(row, scans);
-                }
-                Stmt::If {
-                    condition,
-                    then_body,
-                    else_body,
-                } => {
-                    visit_expr(condition, scans);
-                    visit_statements(then_body, scans);
-                    visit_statements(else_body, scans);
-                }
-                Stmt::For { domain, body, .. } => {
-                    match domain {
-                        LoopDomain::Page(scan) => scans.push(scan),
-                        LoopDomain::DerivedArray { value, .. } => visit_expr(value, scans),
-                        LoopDomain::Recurse(recurse) => visit_expr(&recurse.seed, scans),
-                        LoopDomain::LiteralRange { .. } | LoopDomain::ArgList { .. } => {}
-                    }
-                    visit_statements(body, scans);
-                }
-                Stmt::Break | Stmt::Continue => {}
-            }
-        }
-    }
-
-    let mut scans = Vec::new();
-    visit_statements(statements, &mut scans);
-    let matching = scans
-        .into_iter()
-        .filter(|scan| scan.site == declared || scan.merge_site.as_deref() == Some(declared))
-        .collect::<Vec<_>>();
-    let Some(first) = matching.first() else {
-        return Err(vec![CheckError {
-            site: None,
-            code: "E_TRACE_SUBSET".to_owned(),
-            message: format!("declared result-page site {declared} is not a scan or merge"),
-            rewrite:
-                "recompile the operation so its result-page site names the returned scan or merge"
-                    .to_owned(),
-        }]);
-    };
-    let merge = first.merge_site.as_deref() == Some(declared);
-    let Some(table) = schema.table(&first.table) else {
-        return Err(vec![CheckError {
-            site: None,
-            code: "E_SCHEMA".to_owned(),
-            message: format!(
-                "result-page site {declared} names missing table {}",
-                first.table
-            ),
-            rewrite: "use a declared table for the result page".to_owned(),
-        }]);
-    };
-    let Some(index) = table.index(&first.index) else {
-        return Err(vec![CheckError {
-            site: None,
-            code: "E_SCHEMA".to_owned(),
-            message: format!(
-                "result-page site {declared} names missing index {}.{}",
-                first.table, first.index
-            ),
-            rewrite: "use a declared index for the result page".to_owned(),
-        }]);
-    };
-    let suffix = index.columns[first.prefix.len()..]
-        .iter()
-        .filter_map(|name| {
-            table.columns.get(name).cloned().map(|kind| CursorColumn {
-                name: name.clone(),
-                kind,
-            })
-        })
-        .collect::<Vec<_>>();
-    let page = ResultPageSite {
-        site: declared.to_owned(),
-        table: first.table.clone(),
-        index: first.index.clone(),
-        order: first.order,
-        suffix,
-        merge,
-    };
-    let consistent = matching.iter().all(|scan| {
-        scan.table == page.table
-            && scan.index == page.index
-            && scan.order == page.order
-            && scan.prefix.len() + page.suffix.len() == index.columns.len()
-            && (scan.merge_site.as_deref() == Some(declared)) == merge
-    });
-    if !consistent
-        || page.suffix.is_empty()
-        || page.suffix.len() + first.prefix.len() != index.columns.len()
-    {
-        return Err(vec![CheckError {
-            site: None,
-            code: "E_TRACE_SUBSET".to_owned(),
-            message: format!(
-                "result-page site {declared} does not identify one consistent index suffix"
-            ),
-            rewrite: "return one scan or merge with one table, index, order, and prefix width"
-                .to_owned(),
-        }]);
-    }
-    Ok(page)
 }
 
 struct Analyzer<'a> {
@@ -981,30 +843,33 @@ impl<'a> Analyzer<'a> {
                     Stmt::Insert { table, row } => self.expr(row, calls, factors)?.add(self.write(
                         table,
                         WriteKind::Insert,
+                        None,
                         calls,
                         factors,
                     )),
                     Stmt::Update { table, key, patch } => self
                         .expr(key, calls, factors)?
                         .add(self.expr(patch, calls, factors)?)
-                        .add(self.write(table, WriteKind::Update, calls, factors)),
+                        .add(self.write(table, WriteKind::Update, Some(patch), calls, factors)),
                     Stmt::Upsert { table, key, row } => self
                         .expr(key, calls, factors)?
                         .add(self.expr(row, calls, factors)?)
-                        .add(self.write(table, WriteKind::Upsert, calls, factors)),
+                        .add(self.write(table, WriteKind::Upsert, None, calls, factors)),
                     Stmt::Delete { table, key } => self.expr(key, calls, factors)?.add(self.write(
                         table,
                         WriteKind::Delete,
+                        None,
                         calls,
                         factors,
                     )),
                     Stmt::Emit { payload, .. } => self
                         .expr(payload, calls, factors)?
-                        .add(self.write("_outbox", WriteKind::Emit, calls, factors)),
+                        .add(self.write("_outbox", WriteKind::Emit, None, calls, factors)),
                     Stmt::Break | Stmt::Continue => Summary::default(),
                 };
             summary = summary.add(next);
             summary.steps = summary.steps.saturating_add(calls);
+            summary.costs.step(calls, "statements", factors);
         }
         Ok(summary)
     }
@@ -1118,6 +983,7 @@ impl<'a> Analyzer<'a> {
             Expr::Literal(_) | Expr::Variable(_) | Expr::Input(_) => {}
         }
         summary.steps = summary.steps.saturating_add(calls);
+        summary.costs.step(calls, "expressions", factors);
         Ok(summary)
     }
 
@@ -1153,7 +1019,13 @@ impl<'a> Analyzer<'a> {
             .rule_probes
             .saturating_add(calls.saturating_mul(self.table_read_rule_probe_bound(&read.table)));
         summary.steps = summary.steps.saturating_add(calls.saturating_mul(4));
-        set_product(&mut summary, factors, (&read.site, 1));
+        summary.costs.read(read, calls, factors);
+        summary.costs.probes(
+            &read.site,
+            calls,
+            self.table_read_rule_probe_bound(&read.table),
+            factors,
+        );
         Ok(summary)
     }
 
@@ -1241,7 +1113,13 @@ impl<'a> Analyzer<'a> {
         if !hoist {
             self.completeness = Completeness::Capped;
         }
-        set_product(&mut summary, factors, (&scan.site, take));
+        summary.costs.scan(Cost::range(scan, calls, factors));
+        summary.costs.probes(
+            &scan.site,
+            if hoist { calls } else { scan_examined },
+            probe_bound,
+            factors,
+        );
         Ok(summary)
     }
 
@@ -1341,15 +1219,21 @@ impl<'a> Analyzer<'a> {
         &self,
         table: &str,
         kind: WriteKind,
+        patch: Option<&Expr>,
         calls: u64,
         factors: &[(String, u64)],
     ) -> Summary {
         let mut summary = write_summary(table, kind, calls, factors);
-        // @ref LLP 1017#24-metering — each writer reserves every cap's bounded probe.
-        let cap_rows = crate::cap::write_reserve(self.schema, table, kind).saturating_mul(calls);
-        summary.examined = summary.examined.saturating_add(cap_rows);
-        summary.index_entries = summary.index_entries.saturating_add(cap_rows);
-        summary.steps = summary.steps.saturating_add(cap_rows.saturating_mul(5));
+        // @ref LLP 1017#24-metering — reserve only probes a writer may perform.
+        for (by, max) in crate::cap::write_caps(self.schema, table, kind, patch) {
+            let rows = u64::from(max).saturating_mul(calls);
+            summary.examined = summary.examined.saturating_add(rows);
+            summary.index_entries = summary.index_entries.saturating_add(rows);
+            summary.steps = summary.steps.saturating_add(rows.saturating_mul(5));
+            summary
+                .costs
+                .scan(Cost::cap(table, by, max, calls, factors));
+        }
         let probe_multiplier = self.write_rule_probe_bound(table, kind);
         let maintained_final_probes = self
             .schema
@@ -1371,6 +1255,12 @@ impl<'a> Analyzer<'a> {
         let probe_multiplier = probe_multiplier
             .saturating_add(maintained_final_probes.saturating_mul(kind.maintained_applications()));
         summary.rule_probes = calls.saturating_mul(probe_multiplier);
+        summary.costs.probes(
+            &format!("{table} {kind:?} rules/final constraints"),
+            calls,
+            probe_multiplier,
+            factors,
+        );
         summary
     }
 }
@@ -1383,10 +1273,9 @@ fn write_summary(table: &str, kind: WriteKind, calls: u64, factors: &[(String, u
         max_rows: calls,
     });
     summary.steps = calls.saturating_mul(5);
-    if let Some((label, value)) = factors.last() {
-        summary.product_value = calls;
-        summary.product = Some(format!("{label} {value}"));
-    }
+    summary
+        .costs
+        .step(summary.steps, &format!("{table} {kind:?} writes"), factors);
     summary
 }
 
@@ -1429,15 +1318,5 @@ fn collect_rule_indexes(
     }
 }
 
-fn set_product(summary: &mut Summary, factors: &[(String, u64)], current: (&str, u64)) {
-    let value = factors.iter().fold(current.1, |total, (_, factor)| {
-        total.saturating_mul(*factor)
-    });
-    let mut labels: Vec<_> = factors
-        .iter()
-        .map(|(label, factor)| format!("{label} {factor}"))
-        .collect();
-    labels.push(format!("{} take {}", current.0, current.1));
-    summary.product_value = value;
-    summary.product = Some(format!("{} = {value}", labels.join(" × ")));
-}
+#[cfg(test)]
+mod tests;

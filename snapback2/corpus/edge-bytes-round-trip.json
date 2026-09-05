@@ -129,7 +129,7 @@
       "blobs.byPayload"
     ],
     "disclosures": [],
-    "bound_product": "bytesRoundTrip.blobs take 10 = 10"
+    "bound_product": "bytesRoundTrip.blobs take 10 (+2 reserve) × 1 calls on blobs = 12"
   },
   "context": {
     "viewer": "u1",

@@ -15,12 +15,14 @@ import { registerPackageRegressionChecks } from "./package-regression-checks";
 import { rustCheck } from "./rust-check";
 import { registerRuleTransitionChecks } from "./rule-transitions-checks";
 import { registerQuarryChecks } from "./quarry-checks";
+import { registerQuarryLanguageChecks } from "./quarry-language-checks";
 import { registerQuarryMoneyChecks } from "./quarry-money-checks";
 import { registerRuntimeRedChecks } from "./runtime-red-checks";
 import { registerCursorIdentityChecks } from "./cursor-identity-checks";
 import { registerApiShapeChecks } from "./api-shape-checks";
 import { registerQuarryFanoutChecks } from "./quarry-fanout-checks";
 import { registerRetentionChecks } from "./retention-checks";
+import { registerEffectLanguageChecks } from "./test-effects";
 import { decimal } from "../../snapback2/src/index";
 import type { Principal } from "../../snapback2/src/index";
 import type { Op } from "../../snapback2/src/api";
@@ -42,9 +44,11 @@ const test = (name: string, run: Check["run"]) => checks.push({ name, run });
 registerRuleTransitionChecks(test, libText);
 registerQuarryChecks(test, frontend);
 registerQuarryMoneyChecks(test, frontend);
+registerQuarryLanguageChecks(test, frontend);
 registerApiShapeChecks(test, frontend);
 registerRetentionChecks(test);
 registerQuarryFanoutChecks(test, frontend);
+registerEffectLanguageChecks(test, withProject, frontend, libText);
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -430,7 +434,7 @@ test("authored collected capped pages may return but cannot be inserted", () => 
     `inserting ${name} did not keep the paved refusal: ${JSON.stringify(inserted)}`);
   }
 });
-test("loop collection refusals paste per-family rewrites that lower and certify", () => {
+test("loop collection refusals name bounds and fields without replacing the result", () => {
   const tables = new Map<string, TableInfo>([["items", {
     name: "items",
     private: false,
@@ -458,7 +462,7 @@ test("loop collection refusals paste per-family rewrites that lower and certify"
         for (const item of range(0, 7000)) result = [...result, args.value];
         return result;`,
       estimate: "output bytes 28203012 exceeds ceiling",
-      rewrite: "result = [args.value]",
+      field: "argument value",
     },
     {
       name: "helper-argument",
@@ -468,7 +472,7 @@ test("loop collection refusals paste per-family rewrites that lower and certify"
         for (const item of range(0, 7000)) result = append(result, args.value);
         return result;`,
       estimate: "output bytes 28203012 exceeds ceiling",
-      rewrite: "result = [args.value]",
+      field: "argument value",
     },
     {
       name: "temporary-alias",
@@ -480,7 +484,7 @@ test("loop collection refusals paste per-family rewrites that lower and certify"
         }
         return result;`,
       estimate: "output bytes ",
-      rewrite: "result = [item]",
+      field: "items.body",
     },
     {
       name: "page-binding-push",
@@ -493,7 +497,7 @@ test("loop collection refusals paste per-family rewrites that lower and certify"
         }
         return result;`,
       estimate: "output bytes ",
-      rewrite: "result = [{ body: item.body, id: item.id }]",
+      field: "items.body",
     },
     {
       name: "duplicate-prior",
@@ -502,7 +506,7 @@ test("loop collection refusals paste per-family rewrites that lower and certify"
         for (const item of range(0, 20)) result = [...result, ...result, item];
         return result;`,
       estimate: "output bytes ",
-      rewrite: "result = [item]",
+      field: "item",
     },
     {
       name: "object-chain",
@@ -511,7 +515,7 @@ test("loop collection refusals paste per-family rewrites that lower and certify"
         for (const item of db.scan(items.byId, [], { take: 7000 })) result = { previous: result, item };
         return result;`,
       estimate: "output bytes ",
-      rewrite: "result = { item: item }",
+      field: "items.body",
     },
     {
       name: "reset-rebuild",
@@ -524,7 +528,7 @@ test("loop collection refusals paste per-family rewrites that lower and certify"
         }
         return result;`,
       estimate: "output bytes 28203012 exceeds ceiling",
-      rewrite: "result = [args.value]",
+      field: "argument value",
     },
     {
       name: "json-seeded-recursive-wrapper",
@@ -533,7 +537,7 @@ test("loop collection refusals paste per-family rewrites that lower and certify"
         for (const item of range(0, 7000)) result = [result, args.value];
         return result;`,
       estimate: "output bytes 7211016 exceeds ceiling",
-      rewrite: "result = [args.value]",
+      field: "argument value",
     },
   ];
 
@@ -546,16 +550,12 @@ test("loop collection refusals paste per-family rewrites that lower and certify"
     const refusal = rustCheck(lowered.programs, "synthetic", schema)[0]?.error;
     assert(refusal?.code === "E_BOUND" && refusal.message.startsWith(item.estimate),
       `${item.name} was not refused at honest output magnitude: ${JSON.stringify(refusal)}`);
-    assert(refusal.rewrite.includes(item.rewrite),
-      `${item.name} rewrite did not use the refusing site's bindings: ${refusal.rewrite}`);
+    assert(refusal.rewrite.includes("widest nested collection")
+      && refusal.rewrite.includes(item.field)
+      && !refusal.rewrite.includes("return null")
+      && !refusal.rewrite.includes("let result ="),
+      `${item.name} repair did not name its actual width or replaced the result: ${refusal.rewrite}`);
 
-    const fixedSource = `import { query, range, t } from "snapback2";
-      export const fixed = query(${item.args}, ({ db, args }) => { ${refusal.rewrite} });`;
-    const fixed = lowerSource(fixedSource, `fixed-${item.name}.ts`, undefined, { tables });
-    assert(fixed.ok, `${item.name} pasted rewrite did not lower: ${fixed.ok ? "" : fixed.diagnostics.map((diagnostic) => `${diagnostic.code}: ${diagnostic.message}`).join("; ")}\n${refusal.rewrite}`);
-    const certified = rustCheck(fixed.programs, "synthetic", schema);
-    assert(certified.every((result) => result.error === null),
-      `${item.name} pasted rewrite did not certify: ${JSON.stringify(certified)}\n${refusal.rewrite}`);
   }
 
   const decoySource = `import { query, range, t } from "snapback2";
@@ -570,8 +570,8 @@ test("loop collection refusals paste per-family rewrites that lower and certify"
   assert(decoy.ok, `two-site fixture did not lower: ${decoy.ok ? "" : decoy.diagnostics.map((diagnostic) => diagnostic.message).join("; ")}`);
   const decoyRefusal = rustCheck(decoy.programs, "synthetic", schema)[0]?.error;
   assert(decoyRefusal?.message.startsWith("output bytes 28203012 exceeds ceiling")
-    && decoyRefusal.rewrite.includes("let result = []")
-    && decoyRefusal.rewrite.includes("range(0, 7000)")
+    && decoyRefusal.rewrite.includes("argument value")
+    && decoyRefusal.rewrite.includes("7000")
     && !decoyRefusal.rewrite.includes("decoy"),
     `two-site refusal did not name the 7,000-iteration result site: ${JSON.stringify(decoyRefusal)}`);
 });
@@ -843,7 +843,7 @@ test("effect globals are available with the one-parameter run form", async () =>
         const response = await fetch("https://api.example.com/send");
         console.log(JSON.stringify(payload), Math.max(1, 2), Date.now(), new URL("https://api.example.com").origin,
           new TextEncoder().encode(payload.value), new TextDecoder().decode(), btoa("x"), atob("eA=="),
-          Promise.resolve(1), new Error("x").message, crypto.randomUUID());
+          Promise.resolve(1), new Error("x").message, meta.attempt);
         setTimeout(() => {}, 0);
         return { ok: response.ok, id: meta.id };
       } });`,

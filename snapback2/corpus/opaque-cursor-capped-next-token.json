@@ -210,7 +210,7 @@
       "posts.byAt"
     ],
     "disclosures": [],
-    "bound_product": "opaque-cursor-capped-next-token take 2 = 2"
+    "bound_product": "opaque-cursor-capped-next-token take 2 (+2 reserve) × 1 calls on posts = 4"
   },
   "context": {
     "viewer": "u1",

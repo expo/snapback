@@ -13,15 +13,20 @@ export function typeDiagnosticSite(node: ts.Node, file: string): TypeDiagnosticS
   if (file === "schema.ts" || file.endsWith("/schema.ts")) {
     return { code: "E_SCHEMA_INVALID", family: "schema", guide: "schema/project" };
   }
+  // A local declaration inside run is still an effect site.
+  let effect: ts.Node | undefined = node;
+  while (effect) {
+    if (ts.isCallExpression(effect) && callLeaf(effect) === "effect") {
+      const property = ancestor(node, ts.isPropertyAssignment);
+      return property && propertyName(property.name) === "then"
+        ? { code: "E_EFFECT_THEN_ARGS", family: "effect", guide: "effects/authoring" }
+        : { code: "E_EFFECT_TYPE", family: "effect", guide: "effects/authoring" };
+    }
+    effect = effect.parent;
+  }
   const declaration = ancestor(node, ts.isVariableDeclaration);
   const call = declaration?.initializer && unwrapCall(declaration.initializer);
   const kind = call && callLeaf(call);
-  if (kind === "effect") {
-    const property = ancestor(node, ts.isPropertyAssignment);
-    return property && propertyName(property.name) === "then"
-      ? { code: "E_EFFECT_THEN_ARGS", family: "effect", guide: "effects/authoring" }
-      : { code: "E_EFFECT_TYPE", family: "effect", guide: "effects/authoring" };
-  }
   if (call && (kind === "query" || kind === "mutation")) {
     const args = call.arguments[0];
     if (args && node.getStart() >= args.getStart() && node.getEnd() <= args.getEnd()) {

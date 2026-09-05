@@ -84,6 +84,20 @@ await build({
 
 await cp(resolve(here, "../compiler/lib.d.ts"), resolve(dist, "index.d.ts"));
 await cp(resolve(here, "../compiler/subset-lib.d.ts"), resolve(dist, "compiler-lib.d.ts"));
+// @ref LLP 1003#1-authoring — effect libraries are packaged at build time; check never reads TypeScript's installed lib files.
+const effectLibs = new Map();
+const tsLibDirectory = dirname(ts.getDefaultLibFilePath({ target: ts.ScriptTarget.ES2020 }));
+async function collectEffectLib(name) {
+  if (effectLibs.has(name)) return;
+  const source = await readFile(resolve(tsLibDirectory, `lib.${name}.d.ts`), "utf8");
+  effectLibs.set(name, source.replace(/^\/\/\/\s*<reference[^\n]*\n/gm, ""));
+  for (const reference of ts.preProcessFile(source).libReferenceDirectives) await collectEffectLib(reference.fileName);
+}
+await collectEffectLib("es2020");
+await writeFile(resolve(dist, "effects-lib.d.ts"), [
+  ...effectLibs.values(),
+  await readFile(resolve(here, "../compiler/effects-lib.d.ts"), "utf8"),
+].join("\n"));
 await cp(resolve(here, "types/test.d.ts"), resolve(dist, "test.d.ts"));
 
 const declarations = resolve(dist, ".declarations");
@@ -182,7 +196,7 @@ const guidePages = await Promise.all(
     name,
     markdown: await readFile(resolve(guideSource, `${name}.md`), "utf8"),
     // LLP 1017 adds cap invariants and complete mutation loops to the reference.
-    limit: name === "grammar" ? 2560 : name === "quarry" ? 15360 : name === "offline" ? 4352 : 4096,
+    limit: name === "grammar" ? 2560 : name === "quarry" ? 15872 : name === "offline" ? 4352 : 4096,
   })),
 );
 const guideErrors = [...familyErrors, ...quarryFamilyFailures(families, parseDocument), ...guideFailures(guidePages, tsFixtureText, quarryFixtureText, parseDocument)];

@@ -1146,7 +1146,7 @@
     "disclosures": [
       "E_DISCLOSURE: count waitlist summarized into waitCounts"
     ],
-    "bound_product": "cursor-desc-after-two-pages.first take 1 = 1"
+    "bound_product": "cursor-desc-after-two-pages.first take 1 (+2 reserve) × 1 calls on messages = 3 + cursor-desc-after-two-pages.second take 1 (+2 reserve) × 1 calls on messages = 3"
   },
   "context": {
     "viewer": "u1",

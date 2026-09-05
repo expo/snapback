@@ -1137,7 +1137,7 @@
     "disclosures": [
       "E_DISCLOSURE: count waitlist summarized into waitCounts"
     ],
-    "bound_product": "programs.boardView.0 take 20 × programs.boardView.1 take 50 = 1000"
+    "bound_product": "programs.boardView.1 take 50 (+2 reserve) × 20 calls on cards (calls from programs.boardView.0 take 20) = 1040 + programs.boardView.0 take 20 (+2 reserve) × 1 calls on columns = 22"
   },
   "context": {
     "viewer": "u1",

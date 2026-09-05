@@ -44,10 +44,6 @@ impl ProvenanceExpression {
             ..Self::default()
         }
     }
-
-    pub(crate) fn references(&self, identity: u64) -> bool {
-        self.origins.get(&identity).is_some_and(|count| *count > 0)
-    }
 }
 
 impl ProvenanceBinding {

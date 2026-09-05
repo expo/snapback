@@ -1,7 +1,7 @@
 # LLP 1017: `cap` in Quarry and the complete fan-out — a schema cardinality invariant, the mutation loop that must cover its page, and the certified bound for hoisted ranges
 
 **Type:** RFC
-**Status:** Implemented (revision (d); §7 records the landings. A blind
+**Status:** Implemented (revision (e); §7 records the landings. A blind
 two-family panel — codex gpt-6-astra at xhigh, grok-4.6 at xhigh — reviewed
 revisions (a) and (b) and the implementation, §8. Implementation was
 authorized by the author's instructions of 2026-09-05, "ok do all that
@@ -27,7 +27,7 @@ against origin/main `873f1eb1f` (§0)
 (`~/projects/snapback-s2`), orchestrated and landed by Claude Fable 5.1 —
 §1 as its own landing first, §2–§4 after the panel
 **Date:** 2026-09-05
-**Revised:** 2026-09-05 (d — after the blind code review of the implementation)
+**Revised:** 2026-09-05 (e — Clique L3: patch-sensitive cap probes and admission; d — after the blind code review of the implementation)
 **Related:** LLP 1001 §3 (read and write states; the 2026-08-30 hoist
 amendment) §9 (schema additions; `Constraint::Cap` exists in the engine
 but is undocumented there until this RFC's lane amends it), LLP 1004 (Quarry is the
@@ -257,27 +257,35 @@ It stays test-only and is named here so nobody mistakes it for one.
 ### 2.4 Metering
 
 The certificate's `max_examined` is the runtime's budget, so a read the
-certificate does not reserve makes the budget a lie. Each insert, upsert,
-or update site into a capped table reserves `N` examined rows and `N` index
-entries per call, per cap (`write_summary` reserves none today); the
-runtime charges the rows the cap scan read to `trace.examined` (today it
-records them only under `constraint_inputs`), and `assert_bounds` then
-holds because the reserve is there. For the chat template: `memberAdd`
+certificate does not reserve makes the budget a lie. Each insert or upsert
+site into a capped table reserves `N` examined rows and `N` index entries per
+call, per cap. An update reserves a cap only when
+its patch may write one of that cap's `by` columns: statically known object
+and literal-row/map fields are inspected; an unknown patch shape stays
+conservative. A group-preserving update reserves nothing for that cap,
+including an omitted optional grouping column. This agrees with §2.2:
+the runtime probes only inserts and actual group moves, charging the rows
+read to `trace.examined`; an update that names a grouping column may still
+reserve a probe the runtime skips when its value is unchanged. For the chat
+template: `memberAdd`
 reserves fifty, `groupCreate` reserves fifty times fifty (the creator's
 seat plus the forty-nine-member loop), `send` reserves nothing new
 (deliveries are uncapped). A mutation whose capped
 writes times `N` exceed the examined ceiling refuses `E_BOUND` at `check`
 like any other over-budget program.
 
-**The reserve must be protected (revision (d), from the code review).** A
-mutation with any write site into a capped table admits **no non-uniform
-range scan anywhere** — the same condition §3.2 puts on a complete loop,
+**The reserve must be protected (revision (e), narrowing (d)).** A
+mutation that still carries any cap probe after patch inspection admits
+**no non-uniform range scan anywhere** — the same condition §3.2 puts on a
+complete loop,
 for the same reason: a non-uniform scan certifies the program at the
 ceiling and may spend all of it, and the cap probe that follows is
 mandatory work with nowhere left to charge, so a valid insert would reject
 at runtime with the trace-subset family. Refusal: `E_STRUCTURAL_FANOUT`
 with the reason naming the scan and the capped table, rewrite the prefix
-repair on that scan.
+repair on that scan. Programs whose only capped writes are group-preserving
+updates (or deletes, which never probe) are not subject to this admission;
+the independent complete-loop rule in §3.2 still applies.
 
 **The seed exception, stated here and not left to the lane.** The seed
 program already runs under `write_rows: u64::MAX` because a seed is not an

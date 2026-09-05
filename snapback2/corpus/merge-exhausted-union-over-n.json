@@ -291,7 +291,7 @@
       "posts.byAuthorAt"
     ],
     "disclosures": [],
-    "bound_product": "merge.over.self take 2 = 2"
+    "bound_product": "merge merge.over: 1 lanes × (2 + 2) at merge.over.peer on posts = 4 + merge merge.over: 1 lanes × (2 + 2) at merge.over.self on posts = 4"
   },
   "context": {
     "viewer": "u1",
