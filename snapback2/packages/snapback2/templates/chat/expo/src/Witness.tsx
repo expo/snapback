@@ -101,12 +101,16 @@ export default function Witness({ url, controlUrl }: { url: string; controlUrl: 
         }
         if (verb === "conformance") return runSqliteDriverConformance(() => expoSqliteDriver("snapback2-conformance.db"));
         if (verb === "settled") {
-          const deadline = Date.now() + 20_000;
-          while ((await client.outbox.entries()).some((entry) => entry.state === "queued")) {
-            if (Date.now() > deadline) throw new Error("outbox did not settle");
-            await new Promise((resolve) => setTimeout(resolve, 50));
+          // A retryable refusal stops the replay and keeps the intent queued; the supported
+          // retry is an explicit drain of the same envelope, then settled again (LLP 1012 §7).
+          await client.outbox.settled();
+          if ((await client.outbox.entries()).some((entry) => entry.state === "queued")) {
+            await client.outbox.drain();
+            await client.outbox.settled();
           }
-          return client.outbox.entries();
+          const entries = await client.outbox.entries();
+          if (entries.some((entry) => entry.state === "queued")) throw new Error("outbox did not settle");
+          return entries;
         }
         if (verb === "state") {
           const answer = typeof args.conversationId === "string"
