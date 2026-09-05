@@ -50,6 +50,20 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
     assert_eq!(rules["detail"]["tables"]["notifications"]["probes"], 4);
     assert_eq!(rules["detail"]["expectedBy"], "engine");
     assert_eq!(rules["detail"]["actualBy"], "data");
+    // @ref LLP 1016#d5--schedules-row-timers-and-periods-on-the-owners-clock — the receipt carries
+    // the owner's schedule counts, and the expiry journey fired the purge at least once.
+    assert!(
+        receipt["schedules"]["fired"]
+            .as_u64()
+            .is_some_and(|fired| fired >= 1),
+        "{}",
+        receipt["schedules"]
+    );
+    assert_eq!(
+        receipt["schedules"]["rejected"], 0,
+        "{}",
+        receipt["schedules"]
+    );
     for name in [
         "certify",
         "rules",

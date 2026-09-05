@@ -97,11 +97,29 @@ impl Engine {
             let args = bound.field("args")?.as_object()?.clone();
             validate_inputs(&self.schema, target, &args)?;
             if target.kind == ProgramKind::Job {
-                // The deterministic run id binds the entire occurrence, including its anchored period.
-                let id = format!("job_timer_{}", digest(&occurrence));
-                if let Some(existing) = crate::store_jobs::get(&tx, &id)? {
-                    return Ok(json!({"state":"coalesced","job":existing.id}));
-                }
+                // @ref LLP 1016#d5--schedules-row-timers-and-periods-on-the-owners-clock — the
+                // deterministic id binds the occurrence, and only a job still queued or running
+                // for it coalesces. A done, cancelled, or parked job is history, not the
+                // occurrence in flight: the firing enqueues a fresh job under the next attempt
+                // suffix, so a deadline cleared and restored after its job finished runs again.
+                let base = format!("job_timer_{}", digest(&occurrence));
+                let mut attempt = 0_u32;
+                let id = loop {
+                    let candidate = if attempt == 0 {
+                        base.clone()
+                    } else {
+                        format!("{base}_{attempt}")
+                    };
+                    match crate::store_jobs::get(&tx, &candidate)? {
+                        Some(existing)
+                            if matches!(existing.state.as_str(), "queued" | "running") =>
+                        {
+                            return Ok(json!({"state":"coalesced","job":existing.id}));
+                        }
+                        Some(_) => attempt += 1,
+                        None => break candidate,
+                    }
+                };
                 crate::store_jobs::enqueue(
                     &tx,
                     &self.schema,
@@ -130,6 +148,10 @@ impl Engine {
             );
             runner.statements(&target.body)?;
             runner.check_final_constraints()?;
+            #[cfg(test)]
+            if CEILING_FAULT.with(|fault| fault.replace(false)) {
+                return Err(RuntimeError::Steps(1));
+            }
             // Settlement is certified alongside any timer-index writes made by the target.
             *runner.trace.writes.entry("_timers".into()).or_default() += 1;
             runner.assert_bounds()?;
@@ -142,12 +164,21 @@ impl Engine {
                 outcome
             }
             Err(error) => {
-                let Some(code) = mutation_rejection_code(&error) else {
+                // A ceiling keeps its own code (`E_STEPS`, `E_FANOUT`, `E_TRACE_SUBSET`) and the
+                // family is the one every rejection envelope uses (`jobs::rejection_family`), so
+                // `trace timer:` reads the same words `/api/mutation` and a parked chunk carry.
+                let code = match &error {
+                    RuntimeError::Steps(_)
+                    | RuntimeError::Fanout
+                    | RuntimeError::TraceSubset(_) => Some(error.code()),
+                    error => mutation_rejection_code(error),
+                };
+                let Some(code) = code else {
                     return Err(error);
                 };
                 tx.execute_batch("ROLLBACK TO schedule_target; RELEASE schedule_target")?;
                 trace = AuthoritativeTrace::default();
-                json!({"state":"rejected","code":code,"family":if code=="E_CONSTRAINT" {"constraint"} else if matches!(code,"E_FANOUT"|"E_STEPS"|"E_TRACE_SUBSET") {"bound"} else {"input"},
+                json!({"state":"rejected","code":code,"family":crate::jobs::rejection_family(code),
                     "site":schedule.site,"message":error.to_string(),"rewrite":"fix the target or data, then run the target --as system","guide":"schedule"})
             }
         };
@@ -201,6 +232,8 @@ impl Engine {
 }
 #[cfg(test)]
 thread_local! {static FAIL_BEFORE_SETTLE:std::cell::Cell<bool>=const {std::cell::Cell::new(false)};}
+#[cfg(test)]
+thread_local! {static CEILING_FAULT:std::cell::Cell<bool>=const {std::cell::Cell::new(false)};}
 
 #[cfg(test)]
 mod tests {
@@ -425,5 +458,35 @@ mod tests {
             assert!(rt.fire_due_at(64, 9).unwrap().is_empty());
             assert_eq!(rt.store().schedule_receipt().unwrap()["fired"], 1);
         }
+    }
+
+    // @ref LLP 1016#7-diagnostics — a ceiling settles under its own code and the bound family,
+    // the words `/api/mutation` and a parked chunk carry for the same fault.
+    #[test]
+    fn a_ceiling_rejection_settles_with_its_real_code_and_the_bound_family() {
+        let mut rt = runtime("admin.purge");
+        // Certification is static, so a certified target cannot exceed its ceiling; the fault
+        // injected after the target ran is the only way to exercise the ceiling settle path.
+        super::CEILING_FAULT.with(|fault| fault.set(true));
+        let fired = rt.fire_due_at(64, 7).unwrap();
+        assert_eq!(fired.len(), 1);
+        assert!(!super::CEILING_FAULT.with(|fault| fault.get()));
+        let outcome = &fired[0].firing.outcome;
+        assert_eq!(outcome["state"], "rejected");
+        assert_eq!(outcome["code"], "E_STEPS");
+        assert_eq!(outcome["family"], "bound");
+        assert_eq!(outcome["guide"], "schedule");
+        assert_eq!(outcome["site"], "snapback/admin.q:1:1");
+        assert!(outcome["rewrite"].as_str().unwrap().contains("--as system"));
+        assert!(outcome["message"].as_str().unwrap().starts_with("E_STEPS"));
+        let commits = rt.store().commits_since(0, 100).unwrap();
+        let commit = commits.iter().find(|c| c.kind == "schedule").unwrap();
+        assert_eq!(&commit.schedule.as_ref().unwrap().outcome, outcome);
+        assert!(commit.writes.get("log").is_none(), "the target rolled back");
+        assert_eq!(rt.store().timer_status(7).unwrap()["rejected"], 1);
+        assert!(
+            rt.store().due_timers(i64::MAX, 64).unwrap().is_empty(),
+            "a rejected row timer settles"
+        );
     }
 }

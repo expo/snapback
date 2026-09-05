@@ -13,6 +13,10 @@ pub struct Schedule {
     /// The qualified name of the binding program the compiler emits beside the target:
     /// a pure query over the row's referenced fields returning `{ enabled, args }`.
     pub binding: String,
+    /// The declaration's `file:line:col`, for diagnostics only. Serde skips it, so it is not in
+    /// the schema hash: a blank line above a `schedule` is never a successor. A schema decoded
+    /// from the store's `schema_json` carries an empty site and is only ever compared by trigger.
+    #[serde(default, skip_serializing)]
     pub site: String,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -171,6 +175,14 @@ pub(crate) fn certify(
                     target_ceilings.write_rows = target_ceilings.write_rows.saturating_sub(1);
                     match Checker::new(schema, target_ceilings).check_all(target) {
                         Ok(mut target_cert) => {
+                            // Two `_timers` sites, on purpose. `Checker::analyze` already gave
+                            // the target one site per row it may write on a scheduled table (the
+                            // index maintenance inside the target's own writes); this second site
+                            // is the settlement `fire_timer` counts after the target ran. A target
+                            // that deletes or reschedules its own trigger row (the chat purge)
+                            // makes both writes, and `assert_bounds` sums sites per table, so
+                            // dropping either site turns every such firing into an
+                            // `E_TRACE_SUBSET` rejection. `tests/timers.rs` pins the count at two.
                             target_cert.write_sites.push(crate::WriteSite {
                                 table: "_timers".into(),
                                 kind: crate::WriteKind::Update,

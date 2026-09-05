@@ -11,11 +11,12 @@ export function prepareSchedules(documents: Document[], catalog: TableCatalog) {
   const names = new Set<string>();
   const result: Array<{ name: string; trigger: ScheduleDecl["trigger"]; target: string; bindingName: string; site: string }> = [];
   for (const document of documents) for (const schedule of document.schedules) {
-    const fail = (message: string, code: "E_SCHEDULE_TARGET" | "E_SCHEDULE_COLUMN" = "E_SCHEDULE_TARGET"): never => {
-      throw new QuarryError(schedule.site, message, code, code === "E_SCHEDULE_COLUMN"
-        ? "declare the deadline column as time ?" : "target a declared mutation or job with matching row arguments; every targets take no arguments", "schedule");
+    const fail = (message: string, code: "E_SCHEDULE_TARGET" | "E_SCHEDULE_COLUMN" = "E_SCHEDULE_TARGET", rewrite?: string): never => {
+      throw new QuarryError(schedule.site, message, code, rewrite ?? (code === "E_SCHEDULE_COLUMN"
+        ? "declare the deadline column as time ?" : "target a declared mutation or job with matching row arguments; every targets take no arguments"), "schedule");
     };
-    if (names.has(schedule.name)) fail(`duplicate schedule ${schedule.name}`);
+    // The unique-name rewrite belongs to this path alone; every other E_SCHEDULE_TARGET names the target.
+    if (names.has(schedule.name)) fail(`duplicate schedule ${schedule.name}`, "E_SCHEDULE_TARGET", "give each schedule a unique name");
     names.add(schedule.name);
     const row = "row" in schedule.trigger ? schedule.trigger.row : undefined;
     const table = row && catalog.get(row.table);

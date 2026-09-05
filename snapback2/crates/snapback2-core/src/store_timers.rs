@@ -1,5 +1,5 @@
 use crate::store_jobs::decode;
-use crate::timers::{Timer, Trigger};
+use crate::timers::{Schedule, Timer, Trigger};
 use crate::{RuntimeError, Schema, Store, Value, digest};
 use rusqlite::{Connection, OptionalExtension, params};
 
@@ -166,10 +166,41 @@ impl Store {
         let rejected:i64=self.conn.query_row("SELECT COUNT(*) FROM _commits WHERE kind='schedule' AND json_extract(schedule,'$.outcome.state')='rejected'",[],|r|r.get(0))?;
         Ok(serde_json::json!({"due":due,"next_at":self.next_timer_at()?,"rejected":rejected}))
     }
-    pub fn timers_summary(&self, now: i64) -> Result<serde_json::Value, RuntimeError> {
+    /// Per-schedule counts for every declared schedule, a schedule with no timer row at zero:
+    /// a row schedule whose deadlines have all fired is still declared, and the operator sees it.
+    pub fn timers_summary(
+        &self,
+        now: i64,
+        schedules: &[Schedule],
+    ) -> Result<serde_json::Value, RuntimeError> {
         let mut summary = self.timer_status(now)?;
-        let mut statement=self.conn.prepare("SELECT schedule,COUNT(*),SUM(at<=?1),MIN(at) FROM _timers GROUP BY schedule ORDER BY schedule LIMIT 100")?;
-        let counts=statement.query_map([now],|r|Ok(serde_json::json!({"schedule":r.get::<_,String>(0)?,"count":r.get::<_,i64>(1)?,"due":r.get::<_,i64>(2)?,"next_at":r.get::<_,i64>(3)?})))?.collect::<Result<Vec<_>,_>>()?;
+        let mut statement = self.conn.prepare(
+            "SELECT schedule,COUNT(*),SUM(at<=?1),MIN(at) FROM _timers GROUP BY schedule",
+        )?;
+        let mut counts = statement
+            .query_map([now], |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    (
+                        r.get::<_, i64>(1)?,
+                        r.get::<_, i64>(2)?,
+                        r.get::<_, Option<i64>>(3)?,
+                    ),
+                ))
+            })?
+            .collect::<Result<std::collections::BTreeMap<_, _>, _>>()?;
+        let mut names: Vec<String> = schedules.iter().map(|s| s.name.clone()).collect();
+        names.extend(counts.keys().cloned());
+        names.sort();
+        names.dedup();
+        let counts = names
+            .into_iter()
+            .take(100)
+            .map(|name| {
+                let (count, due, next_at) = counts.remove(&name).unwrap_or((0, 0, None));
+                serde_json::json!({"schedule":name,"count":count,"due":due,"next_at":next_at})
+            })
+            .collect::<Vec<_>>();
         summary["schedules"] = serde_json::json!(counts);
         summary["next"] = match self
             .conn

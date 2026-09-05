@@ -932,6 +932,7 @@ impl State {
             let execution = self.operator_execution(op, args, by)?;
             return Ok(writer_operator::operator_json(&execution));
         }
+        self.refuse_schedule_target(op)?;
         // Only the mutation route accepts replay. Resolve its live authority
         // before consulting the ledger; a terminal belongs to the principal
         // even when a successor removed or changed the original program.
@@ -1324,8 +1325,9 @@ impl State {
                 .apply_migration(compiled.generation.clone(), &plan, released_at)
                 .map_err(|error| Refusal::from_runtime(&error))?
         } else {
+            let now = self.now();
             self.runtime_mut()
-                .apply_successor(compiled.generation.clone())
+                .apply_successor_at(compiled.generation.clone(), now)
                 .map_err(|error| Refusal::from_successor(&error))?
         };
         if let Some(cache) = cache

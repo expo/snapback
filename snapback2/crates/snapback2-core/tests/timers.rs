@@ -538,7 +538,11 @@ fn firing_runs_the_target_settles_the_timer_and_ledgers_the_occurrence_in_one_co
     assert_eq!(commit.schedule.as_ref().unwrap(), &outcome.firing);
     assert_eq!(commit.writes["log"], 1);
     assert_eq!(commit.writes["items"], 1);
-    assert!(commit.writes["_timers"] >= 1);
+    // Exactly two `_timers` writes: the purge deletes its own trigger row (index maintenance,
+    // the site `Checker::analyze` gave the target) and the firing settles the timer (the site
+    // `timers::certify` pushed). Dedup either site and this firing settles `rejected` with
+    // `E_TRACE_SUBSET`; the count is pinned so it breaks here instead.
+    assert_eq!(commit.writes["_timers"], 2);
     let trace = rt.store().timer_trace(&armed[0].id).unwrap();
     assert!(trace["timer"].is_null());
     assert_eq!(trace["firings"][0]["seq"], outcome.seq);
@@ -551,7 +555,10 @@ fn firing_runs_the_target_settles_the_timer_and_ledgers_the_occurrence_in_one_co
         rt.store().timer_status(7).unwrap(),
         serde_json::json!({"due": 0, "next_at": 500, "rejected": 0})
     );
-    let summary = rt.store().timers_summary(7).unwrap();
+    let summary = rt
+        .store()
+        .timers_summary(7, &rt.generation().schema().schedules)
+        .unwrap();
     assert_eq!(
         summary["schedules"][0],
         serde_json::json!({"schedule": "expire", "count": 1, "due": 0, "next_at": 500})
@@ -795,6 +802,29 @@ fn certification_refuses_non_time_columns_bad_targets_and_sub_minute_or_ragged_d
         errors.iter().any(|(_, e)| e.code == "E_SCHEDULE_TARGET"),
         "{errors:?}"
     );
+    // Two declarations of one name: the engine refuses on its own, with the unique-name rewrite.
+    let first = row_schedule("expire", "admin.purge", false);
+    let mut twin = first.clone();
+    twin.binding = "admin._timerBinding_expireTwin".into();
+    twin.site = "snapback/admin.q:9:1".into();
+    let programs = bindings(&[first.clone(), twin.clone()]);
+    let errors = certify_with(vec![first, twin], programs).unwrap_err();
+    let duplicate = errors
+        .iter()
+        .find(|(_, e)| e.message.contains("duplicate schedule expire"))
+        .unwrap_or_else(|| panic!("{errors:?}"));
+    assert_eq!(
+        (
+            duplicate.0.as_str(),
+            duplicate.1.code.as_str(),
+            duplicate.1.rewrite.as_str()
+        ),
+        (
+            "snapback/admin.q:9:1",
+            "E_SCHEDULE_TARGET",
+            "give each schedule a unique name"
+        )
+    );
     assert!(
         certify(vec![
             row_schedule("expire", "admin.purge", false),
@@ -802,4 +832,178 @@ fn certification_refuses_non_time_columns_bad_targets_and_sub_minute_or_ragged_d
         ])
         .is_ok()
     );
+}
+
+// @ref LLP 1016#d5--schedules-row-timers-and-periods-on-the-owners-clock — coalescing is exactly
+// "already queued or running": a finished, cancelled, or parked job for the occurrence is history.
+#[test]
+fn a_finished_job_for_the_occurrence_does_not_coalesce_a_restored_deadline() {
+    let mut rt = runtime(vec![scope_schedule("sweepAt", "admin.sweepScope")]);
+    seed(&mut rt, vec![row("a", Some(5), true)]);
+    let first = rt.fire_due_at(64, 5).unwrap();
+    let job = first[0].firing.outcome["job"].as_str().unwrap().to_owned();
+    assert_eq!(rt.run_chunk_at(&job, 5).unwrap().job.state, "done");
+    // The same deadline written again is the same occurrence, but its job is done: a fresh
+    // job runs under the next attempt suffix, and the ledger says `queued`, not `coalesced`.
+    set_at(&mut rt, "a", None);
+    set_at(&mut rt, "a", Some(5));
+    let second = rt.fire_due_at(64, 6).unwrap();
+    assert_eq!(second.len(), 1);
+    assert_eq!(second[0].firing.occurrence, first[0].firing.occurrence);
+    assert_eq!(second[0].firing.outcome["state"], "queued");
+    let again = second[0].firing.outcome["job"].as_str().unwrap().to_owned();
+    assert_eq!(again, format!("{job}_1"));
+    assert_eq!(rt.job_record(&again).unwrap().state, "queued");
+    assert_eq!(rt.store().jobs(100).unwrap().len(), 2);
+    // Still queued: the next firing of the occurrence coalesces onto it.
+    set_at(&mut rt, "a", None);
+    set_at(&mut rt, "a", Some(5));
+    let third = rt.fire_due_at(64, 7).unwrap();
+    assert_eq!(
+        third[0].firing.outcome,
+        serde_json::json!({"state": "coalesced", "job": again})
+    );
+    assert_eq!(rt.store().jobs(100).unwrap().len(), 2);
+    // Cancelled: history again, so the occurrence enqueues attempt two.
+    rt.cancel_job(&again).unwrap();
+    set_at(&mut rt, "a", None);
+    set_at(&mut rt, "a", Some(5));
+    let fourth = rt.fire_due_at(64, 8).unwrap();
+    assert_eq!(fourth[0].firing.outcome["state"], "queued");
+    assert_eq!(fourth[0].firing.outcome["job"], format!("{job}_2"));
+    assert_eq!(rt.store().jobs(100).unwrap().len(), 3);
+    assert_eq!(schedule_commits(&rt).len(), 4, "every firing ledgers");
+}
+
+#[test]
+fn reconcile_drops_and_repopulates_a_schedule_whose_trigger_changed() {
+    let mut rt = runtime(vec![row_schedule("expire", "admin.purge", false)]);
+    seed(
+        &mut rt,
+        vec![row("a", Some(5), true), row("b", Some(6), true)],
+    );
+    let armed = timers(&rt);
+    assert_eq!(armed.len(), 2);
+    // Same name, a different trigger: the row timers are dropped and the period is armed.
+    rt.apply_successor_at(
+        generation(vec![period_schedule("expire", "admin.sweep", MINUTE)]),
+        1_000,
+    )
+    .unwrap();
+    let period = timers(&rt);
+    assert_eq!(period.len(), 1, "{period:?}");
+    assert_eq!(
+        (
+            period[0].row_id.as_deref(),
+            period[0].period_start,
+            period[0].at
+        ),
+        (None, Some(1_000), 1_000 + MINUTE)
+    );
+    // Back to the row trigger: the period row is dropped and the rows repopulate under the
+    // new generation, with the same occurrence ids they had before.
+    let restored = generation(vec![row_schedule("expire", "admin.purge", false)]);
+    let hash = restored.hash();
+    rt.apply_successor_at(restored, 2_000).unwrap();
+    let again = timers(&rt);
+    assert_eq!(again.iter().map(|t| t.at).collect::<Vec<_>>(), vec![5, 6]);
+    assert_eq!(
+        again.iter().map(|t| &t.id).collect::<Vec<_>>(),
+        armed.iter().map(|t| &t.id).collect::<Vec<_>>()
+    );
+    assert!(again.iter().all(|t| t.generation == hash), "{again:?}");
+}
+
+// @ref LLP 1016#d5--schedules-row-timers-and-periods-on-the-owners-clock — install and reset
+// anchor a period to the clock the caller passes, which the owner samples from its dev clock.
+#[test]
+fn successor_and_reset_anchor_period_timers_to_the_supplied_clock_not_wall_time() {
+    let mut rt = runtime(vec![]);
+    seed(&mut rt, vec![row("a", Some(5), true)]);
+    // 2100-01-01: no wall clock this test runs under is near it, so a wall anchor would show.
+    let advanced = 4_102_444_800_000_i64;
+    rt.apply_successor_at(
+        generation(vec![period_schedule("daily", "admin.sweep", MINUTE)]),
+        advanced,
+    )
+    .unwrap();
+    let installed = timers(&rt);
+    assert_eq!(installed.len(), 1, "{installed:?}");
+    assert_eq!(
+        (installed[0].period_start, installed[0].at),
+        (Some(advanced), advanced + MINUTE)
+    );
+    assert!(
+        rt.fire_due_at(64, advanced + MINUTE - 1)
+            .unwrap()
+            .is_empty(),
+        "the period is not already due under the advanced clock"
+    );
+    let later = advanced + 7 * MINUTE;
+    rt.reset_and_seed_at(&[("items".into(), row("z", Some(9), true))], later)
+        .unwrap();
+    let after = timers(&rt);
+    assert_eq!(after.len(), 1, "{after:?}");
+    assert_eq!(
+        (after[0].period_start, after[0].at),
+        (Some(later), later + MINUTE),
+        "reset re-arms the period from the supplied clock"
+    );
+}
+
+#[test]
+fn timers_summary_lists_every_declared_schedule_with_a_zero_row_count() {
+    let mut rt = runtime(vec![
+        row_schedule("expire", "admin.purge", false),
+        period_schedule("daily", "admin.sweep", MINUTE),
+    ]);
+    seed(&mut rt, vec![row("a", None, true)]);
+    let schedules = rt.generation().schema().schedules.clone();
+    let summary = rt.store().timers_summary(0, &schedules).unwrap();
+    let listed = summary["schedules"].as_array().unwrap();
+    assert_eq!(listed.len(), 2, "{summary}");
+    assert_eq!(
+        (listed[0]["schedule"].as_str(), listed[0]["count"].as_i64()),
+        (Some("daily"), Some(1))
+    );
+    assert_eq!(
+        listed[1],
+        serde_json::json!({"schedule": "expire", "count": 0, "due": 0, "next_at": null}),
+        "a declared schedule with no row is present at zero"
+    );
+}
+
+// @ref LLP 1016#d5--schedules-row-timers-and-periods-on-the-owners-clock — the declaration's
+// site is diagnostics, not identity: moving a schedule down a line is not a successor.
+#[test]
+fn a_schedule_declaration_site_is_diagnostics_not_identity() {
+    let mut moved = row_schedule("expire", "admin.purge", false);
+    moved.site = "snapback/admin.q:2:1".into();
+    let a = generation(vec![row_schedule("expire", "admin.purge", false)]);
+    let b = generation(vec![moved.clone()]);
+    assert_eq!(
+        a.hash(),
+        b.hash(),
+        "a blank line above a schedule is not a successor"
+    );
+    assert_eq!(a.schema().hash(), b.schema().hash());
+    assert_eq!(a.program_hash(), b.program_hash());
+    assert!(
+        !serde_json::to_string(b.schema())
+            .unwrap()
+            .contains("snapback/admin.q"),
+        "the site never reaches the wire schema"
+    );
+    assert_eq!(
+        b.schema().schedules[0].site,
+        "snapback/admin.q:2:1",
+        "the site stays on the schedule for diagnostics"
+    );
+    let mut bad = moved;
+    bad.trigger = Trigger::Row {
+        table: "items".into(),
+        column: "n".into(),
+    };
+    let errors = certify(vec![bad]).unwrap_err();
+    assert_eq!(errors[0].0, "snapback/admin.q:2:1");
 }

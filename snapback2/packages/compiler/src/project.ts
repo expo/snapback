@@ -172,7 +172,11 @@ export async function lowerProject(root: string, options: LowerProjectOptions = 
     return { ...schedule, binding: bindingName };
   });
   programs.sort((left, right) => left.name.localeCompare(right.name));
-  const clientOperations = new Map([...operations].filter(([name]) => programs.find((p) => p.name === name)?.kind !== "job"));
+  // @ref LLP 1016#d5--schedules-row-timers-and-periods-on-the-owners-clock — a schedule target is a
+  // system program the timer runs as the owner: like a job and a binding it never enters the client
+  // operation map (the owner refuses it on /api/*); a client-callable version is a second program.
+  const scheduleTargets = new Set(schedules.map((schedule) => schedule.target));
+  const clientOperations = new Map([...operations].filter(([name]) => programs.find((p) => p.name === name)?.kind !== "job" && !scheduleTargets.has(name)));
   const apiDts = generateApiDts(clientOperations, checked.program, checked.checker, schema.tables, bindingsByModule);
   return {
     ok: true,

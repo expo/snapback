@@ -46,7 +46,11 @@ export function canonicalSchemaJson(schema: any): string {
 }
 
 function normalizeSchedule(schedule: any): any {
+  // `site` is the declaration's position, for diagnostics only: serde skips it, so it is never in
+  // the hash (a blank line above a schedule is not a successor). A compiler-shaped payload still
+  // carries it; the shape is known, and the bytes leave it out.
   const out = pick(schedule, ["name", "trigger", "target", "binding", "site"], "schedule");
+  delete out.site;
   const [kind, data] = tagged(schedule.trigger);
   out.trigger = kind === "row"
     ? { row: pick(data, ["table", "column"], "schedule trigger") }
