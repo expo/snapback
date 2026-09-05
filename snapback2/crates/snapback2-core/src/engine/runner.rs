@@ -1091,7 +1091,7 @@ impl<'a> Runner<'a> {
                 .min(remaining_rule_probes.saturating_div(read_site.rule_probes_per_candidate))
         };
         let candidate_limit = usize::try_from(candidate_limit).unwrap_or(usize::MAX);
-        let fetch_limit = if always_visible {
+        let fetch_limit = if always_visible || uniform {
             candidate_limit.min(take.saturating_add(2))
         } else {
             candidate_limit

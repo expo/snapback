@@ -1,0 +1,234 @@
+{
+  "corpusVersion": 1,
+  "name": "hoisted-list-certifies-reserve",
+  "category": "scenario",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "memberships": {
+        "columns": {
+          "conversationId": "Id",
+          "id": "Id",
+          "viewer": "Principal"
+        },
+        "indexes": {
+          "byConvViewer": {
+            "columns": [
+              "conversationId",
+              "viewer"
+            ],
+            "unique": true
+          },
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      },
+      "messages": {
+        "columns": {
+          "at": "Time",
+          "authorId": "Id",
+          "conversationId": "Id",
+          "id": "Id"
+        },
+        "indexes": {
+          "byConvTime": {
+            "columns": [
+              "conversationId",
+              "at",
+              "id"
+            ],
+            "unique": false
+          },
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Exists": {
+              "table": "memberships",
+              "index": "byConvViewer",
+              "key": [
+                {
+                  "Field": "conversationId"
+                },
+                "Viewer"
+              ],
+              "provenance": "Shape"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      }
+    },
+    "maintains": []
+  },
+  "program": {
+    "name": "hoisted-list-certifies-reserve",
+    "kind": "Query",
+    "args": {},
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Return": {
+          "Scan": {
+            "site": "messages.list",
+            "table": "messages",
+            "index": "byConvTime",
+            "prefix": [
+              {
+                "Literal": {
+                  "Id": "c1"
+                }
+              }
+            ],
+            "order": "Desc",
+            "take": {
+              "Literal": 50
+            },
+            "after": null,
+            "before": null,
+            "range": null,
+            "merge_site": null,
+            "provenance": "Const"
+          }
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "hoisted-list-certifies-reserve",
+    "plan_hash": "1bd28d4114151d8489f987251cc0efd4cb4228718c258c6091deb9eedb4af507",
+    "schema_hash": "2bdc848d32b006031b4f549a68825c9967557d12cae6b3a42a3eb957631fa3bd",
+    "tables": {
+      "memberships": {
+        "retain": "until-revoked"
+      },
+      "messages": {
+        "retain": "until-revoked"
+      }
+    },
+    "rule_hashes": {
+      "messages.read": "2c0d809f5912b6fc131a04c5081acfb88fd54479033e1b2b6621d47babcd1ff2"
+    },
+    "evaluator_version": "bounded-spike-rust-1",
+    "value_model_version": "i53-codepoint-bytes-v2",
+    "read_sites": [
+      {
+        "site": "messages.list",
+        "table": "messages",
+        "index": "byConvTime",
+        "prefix_template": "Const",
+        "take": 50,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 1,
+        "hoist": true
+      }
+    ],
+    "write_sites": [],
+    "maintained_amplification": 0,
+    "constraint_checks": [],
+    "max_examined": 52,
+    "max_index_entries": 52,
+    "max_rule_probes": 1,
+    "max_steps": 263,
+    "max_heap_bytes": 8416,
+    "max_output_bytes": 25862,
+    "max_closure_bytes": 25800,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [
+      "memberships.byConvViewer",
+      "messages.byConvTime"
+    ],
+    "disclosures": [],
+    "bound_product": "messages.list take 50 = 50"
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {},
+    "now": null,
+    "new_ids": [],
+    "read_time": null,
+    "seed_write": false
+  },
+  "receipt": {
+    "schema_hash": "2bdc848d32b006031b4f549a68825c9967557d12cae6b3a42a3eb957631fa3bd",
+    "rows": [],
+    "ranges": [],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": {
+      "Array": []
+    },
+    "errorCode": null,
+    "localState": "partial",
+    "partialSites": [
+      "messages.list"
+    ],
+    "canonicalResult": "{\"Array\":[]}",
+    "digest": "62db520212cc069676ef47ebdcb00c4ab646bb477ec4065963f0f9f9f8ee1c66",
+    "rangeStops": {
+      "messages.list": [
+        "exhausted"
+      ]
+    },
+    "evictedRows": null,
+    "next": null
+  }
+}

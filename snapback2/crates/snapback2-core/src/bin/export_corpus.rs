@@ -18,6 +18,8 @@ mod export_corpus_constraints;
 mod merge_cases;
 #[path = "export_corpus/twin_cases.rs"]
 mod twin_cases;
+#[path = "export_corpus/visibility_cases.rs"]
+mod visibility_cases;
 #[path = "export_corpus/write_cases.rs"]
 mod write_cases;
 
@@ -115,6 +117,7 @@ fn main() {
     write_cases::add_write_cases(&mut cases);
     client_scenarios::add_client_scenarios(&mut cases);
     add_value_edges(&mut cases);
+    visibility_cases::add_visibility_cases(&mut cases);
     bytes_cases::add_bytes_cases(&mut cases);
     asset_cases::add_asset_cases(&mut cases);
     add_random_cases(&mut cases);

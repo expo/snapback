@@ -267,7 +267,7 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
         let admitted = execution["as"] != "charlie";
         assert_eq!(
             execution["examined"],
-            serde_json::json!({ "actual": if admitted { 2 } else { 0 }, "ceiling": 10240 })
+            serde_json::json!({ "actual": if admitted { 2 } else { 0 }, "ceiling": 53 })
         );
         assert_eq!(
             execution["ruleProbes"],
@@ -275,7 +275,7 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
         );
         assert_eq!(
             execution["steps"],
-            serde_json::json!({ "actual": if admitted { 8 } else { 4 }, "ceiling": 51203 })
+            serde_json::json!({ "actual": if admitted { 8 } else { 4 }, "ceiling": 272 })
         );
         assert_eq!(execution["readSites"].as_array().unwrap().len(), 2);
         assert_eq!(

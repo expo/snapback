@@ -200,6 +200,18 @@ no examined/storage-position continuation and no server-held scan state. The
 engine may internally distinguish take, ceiling, and exhaustion stops, but the
 result label, wire, and receipt may not.
 
+**Certified bound, aligned 2026-09-05.** A hoisted site certifies its computed
+reserve (`take + 2` examined and index entries per call); only a program with a
+non-uniform site certifies the examined, index-entry, rule-probe, and step
+ceilings. The 2026-08-30 implementation keyed the examined substitution on any
+non-public read rule, so every membership-gated list certified the ceiling; the
+runtime never traced more than the reserve on such a site, and the certificate now
+says so (LLP 1017 §1). The scan summary composes the work of its prefix and bounds
+with the scan's own reserve instead of overwriting it. A uniform scan's fetch is
+clamped to `take + 2` like a public one; the certificate counts traced candidates
+and, after this alignment, the fetch is bounded by the same number plus the one
+probe row.
+
 An opaque cursor is canonical base64url of the tagged, versioned encoding
 `[version, table, index, order, suffix descriptor, suffix values]`. Values keep
 their index-column types, including nominal `Id` versus `String`; decode is

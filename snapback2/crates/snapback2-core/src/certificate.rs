@@ -284,37 +284,35 @@ impl<'a> Checker<'a> {
             .iter()
             .map(|site| site.max_rows)
             .fold(maintained_amplification, u64::saturating_add);
-        // @ref LLP 1001#3-read-and-write-states-no-silent-states — visibility-filtered
-        // scans spend the certified examined/rule-probe ceilings, never `take`.
-        let max_examined =
-            if summary.visibility_filtered_range && summary.examined <= self.ceilings.examined {
-                self.ceilings.examined
-            } else {
-                summary.examined
-            };
-        let max_index_entries = if summary.visibility_filtered_range
-            && summary.index_entries <= self.ceilings.index_entries
+        // @ref LLP 1001#3-read-and-write-states-no-silent-states — non-uniform scans spend
+        // the certified examined/rule-probe ceilings; hoisted scans certify their reserve.
+        let max_examined = if summary.nonuniform_range && summary.examined <= self.ceilings.examined
         {
-            self.ceilings.index_entries
+            self.ceilings.examined
         } else {
-            summary.index_entries
+            summary.examined
         };
+        let max_index_entries =
+            if summary.nonuniform_range && summary.index_entries <= self.ceilings.index_entries {
+                self.ceilings.index_entries
+            } else {
+                summary.index_entries
+            };
         let max_rule_probes =
             if summary.nonuniform_range && summary.rule_probes <= self.ceilings.rule_probes {
                 self.ceilings.rule_probes
             } else {
                 summary.rule_probes
             };
-        let max_steps =
-            if summary.visibility_filtered_range && summary.examined <= self.ceilings.examined {
-                summary.steps.saturating_add(
-                    max_examined
-                        .saturating_sub(summary.examined)
-                        .saturating_mul(5),
-                )
-            } else {
-                summary.steps
-            };
+        let max_steps = if summary.nonuniform_range && summary.examined <= self.ceilings.examined {
+            summary.steps.saturating_add(
+                max_examined
+                    .saturating_sub(summary.examined)
+                    .saturating_mul(5),
+            )
+        } else {
+            summary.steps
+        };
         let max_heap_bytes = max_steps.saturating_mul(HEAP_BYTES_PER_STEP);
         let output = OutputEstimator::estimate(self.schema, program);
         let max_output_bytes = output.bytes;
@@ -635,7 +633,6 @@ struct Summary {
     steps: u64,
     product_value: u64,
     product: Option<String>,
-    visibility_filtered_range: bool,
     nonuniform_range: bool,
 }
 
@@ -663,7 +660,6 @@ impl Summary {
         self.index_entries = self.index_entries.saturating_add(other.index_entries);
         self.rule_probes = self.rule_probes.saturating_add(other.rule_probes);
         self.steps = self.steps.saturating_add(other.steps);
-        self.visibility_filtered_range |= other.visibility_filtered_range;
         self.nonuniform_range |= other.nonuniform_range;
         if other.product_value > self.product_value {
             self.product_value = other.product_value;
@@ -704,7 +700,6 @@ impl Summary {
         self.index_entries = self.index_entries.max(other.index_entries);
         self.rule_probes = self.rule_probes.max(other.rule_probes);
         self.steps = self.steps.max(other.steps);
-        self.visibility_filtered_range |= other.visibility_filtered_range;
         self.nonuniform_range |= other.nonuniform_range;
         if other.product_value > self.product_value {
             self.product_value = other.product_value;
@@ -1070,12 +1065,17 @@ impl<'a> Analyzer<'a> {
     }
 
     fn read(
-        &self,
+        &mut self,
         read: &Read,
         calls: u64,
         factors: &[(String, u64)],
     ) -> Result<Summary, CheckError> {
         let mut summary = Summary::default();
+        // @ref LLP 1001#2-what-a-commit-records — point-read keys compose
+        // their expression work and nested read sites with the outer read.
+        for value in &read.key {
+            summary = summary.add(self.expr(value, calls, factors)?);
+        }
         summary.reads.insert(
             read.site.clone(),
             ReadSite {
@@ -1089,10 +1089,12 @@ impl<'a> Analyzer<'a> {
                 hoist: false,
             },
         );
-        summary.examined = calls;
-        summary.index_entries = calls;
-        summary.rule_probes = calls.saturating_mul(self.table_read_rule_probe_bound(&read.table));
-        summary.steps = calls.saturating_mul(4);
+        summary.examined = summary.examined.saturating_add(calls);
+        summary.index_entries = summary.index_entries.saturating_add(calls);
+        summary.rule_probes = summary
+            .rule_probes
+            .saturating_add(calls.saturating_mul(self.table_read_rule_probe_bound(&read.table)));
+        summary.steps = summary.steps.saturating_add(calls.saturating_mul(4));
         set_product(&mut summary, factors, (&read.site, 1));
         Ok(summary)
     }
@@ -1169,13 +1171,13 @@ impl<'a> Analyzer<'a> {
             }
             site.take = site.take.max(take);
         }
-        summary.examined = calls.saturating_mul(reserve);
-        summary.index_entries = summary.examined;
-        summary.rule_probes = rule_probes;
-        summary.steps = summary.examined.saturating_mul(5);
-        summary.visibility_filtered_range = self.schema.table(&scan.table).is_some_and(|table| {
-            !matches!(table.rules.read, RuleExpr::Public { .. } | RuleExpr::Allow)
-        });
+        let scan_examined = calls.saturating_mul(reserve);
+        summary.examined = summary.examined.saturating_add(scan_examined);
+        summary.index_entries = summary.index_entries.saturating_add(scan_examined);
+        summary.rule_probes = summary.rule_probes.saturating_add(rule_probes);
+        summary.steps = summary
+            .steps
+            .saturating_add(scan_examined.saturating_mul(5));
         summary.nonuniform_range = !hoist;
         if !hoist {
             self.completeness = Completeness::Capped;
