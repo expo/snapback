@@ -236,3 +236,125 @@ fn branch_products_follow_each_meters_winning_arm() {
             .contains("messages.page: 1 calls × 1 rule probes")
     );
 }
+
+#[test]
+fn output_merge_scan_names_the_structural_repair() {
+    let schema = schema();
+    let mut lane = scan("messages", 500);
+    lane.merge_site = Some("wide.merge".into());
+    let errors = Checker::new(&schema, Ceilings::default())
+        .check_all(&program(vec![Stmt::Return(Expr::Scan(lane))]))
+        .unwrap_err();
+    let error = errors
+        .iter()
+        .find(|e| e.message.starts_with("output bytes"))
+        .unwrap();
+    assert!(error.message.contains("merge wide.merge"), "{error}");
+    assert!(error.rewrite.contains("structural repair"), "{error}");
+    assert!(error.rewrite.contains("two snapshots"), "{error}");
+    assert!(!error.rewrite.contains("return null"));
+}
+
+#[test]
+fn simultaneous_merge_work_and_output_refusals_keep_their_own_products() {
+    let schema = schema();
+    let mut lane = scan("messages", 20);
+    lane.merge_site = Some("feed.merge".into());
+    let p = program(vec![
+        Stmt::Let {
+            name: "result".into(),
+            value: Expr::Array(vec![]),
+        },
+        Stmt::For {
+            binding: "f".into(),
+            domain: LoopDomain::Page(scan("follows", 500)),
+            body: vec![Stmt::Push {
+                target: "result".into(),
+                value: Expr::Scan(lane),
+            }],
+        },
+        Stmt::Return(crate::var("result")),
+    ]);
+    // Isolate these two meters; the default ceilings also refuse index/closure bytes.
+    let errors = Checker::new(
+        &schema,
+        Ceilings {
+            index_entries: u64::MAX,
+            closure_bytes: u64::MAX,
+            ..Ceilings::default()
+        },
+    )
+    .check_all(&p)
+    .unwrap_err();
+    assert_eq!(errors.len(), 2, "{errors:?}");
+    let examined = errors
+        .iter()
+        .find(|e| e.message.starts_with("examined entries"))
+        .unwrap();
+    let output = errors
+        .iter()
+        .find(|e| e.message.starts_with("output bytes"))
+        .unwrap();
+    assert!(
+        examined
+            .message
+            .contains("product: merge feed.merge: 500 lanes × (20 + 2)"),
+        "{examined}"
+    );
+    assert!(!examined.message.contains("row width"));
+    assert!(output.message.contains("product: result ["), "{output}");
+    assert!(
+        output.message.contains("messages row width [messages.body"),
+        "{output}"
+    );
+    assert!(output.message.contains("merge feed.merge"), "{output}");
+    assert!(
+        examined.rewrite.starts_with("structural repair"),
+        "{examined}"
+    );
+    assert!(!examined.rewrite.contains("widest nested collection"));
+    assert!(
+        output.rewrite.contains("widest nested collection"),
+        "{output}"
+    );
+    assert!(output.rewrite.contains("messages.body"), "{output}");
+    assert_ne!(examined.rewrite, output.rewrite);
+    assert!(errors.iter().all(|e| !e.rewrite.contains("return null")));
+}
+
+#[test]
+fn nonuniform_budget_filler_has_a_uniformity_repair() {
+    let mut schema = schema();
+    schema.tables.get_mut("messages").unwrap().rules.read = RuleExpr::Eq(
+        RuleTerm::Field("body".into()),
+        RuleTerm::Literal(Value::String("visible".into())),
+    );
+    let errors = Checker::new(
+        &schema,
+        Ceilings {
+            steps: 1000,
+            heap_bytes: 1000,
+            ..Ceilings::default()
+        },
+    )
+    .check_all(&program(vec![Stmt::Return(Expr::Scan(scan(
+        "messages", 5,
+    )))]))
+    .unwrap_err();
+    assert_eq!(errors.len(), 2, "{errors:?}");
+    for meter in ["steps", "heap bytes"] {
+        let error = errors
+            .iter()
+            .find(|e| e.message.starts_with(meter))
+            .unwrap();
+        assert!(
+            error
+                .message
+                .contains("product: rule evaluation / non-uniform budget reserve"),
+            "{error}"
+        );
+        assert!(error.rewrite.contains("uniform"), "{error}");
+        assert!(error.rewrite.contains("prefix"), "{error}");
+        assert!(!error.rewrite.contains("rule-probe"), "{error}");
+    }
+}

@@ -128,6 +128,14 @@ impl ByteShape {
             .map(|c| c.collection_label())
             .unwrap_or_else(|| self.label.clone())
     }
+    fn merge_label(&self) -> Option<&str> {
+        if self.label.starts_with("merge ") {
+            // A final slice keeps the source site, not the collector's pre-slice repetitions.
+            self.label.split_once(": ").map(|(site, _)| site)
+        } else {
+            self.children.iter().find_map(Self::merge_label)
+        }
+    }
     fn fields(&self, out: &mut Vec<String>) {
         if self.children.is_empty() {
             if self.bytes > 0 {
@@ -295,7 +303,10 @@ impl OutputEstimator<'_> {
                 {
                     ByteShape::repeated(
                         bytes,
-                        format!("{table} first {n} after merge"),
+                        source.merge_label().map_or_else(
+                            || format!("{table} first {n}"),
+                            |merge| format!("{merge}: {table} first {n} after merge"),
+                        ),
                         (*n).max(0) as u64,
                         self.row_shape(&table),
                     )
@@ -324,7 +335,7 @@ impl OutputEstimator<'_> {
 }
 
 pub(crate) fn scan_label(scan: &Scan) -> String {
-    format!(
+    let range = format!(
         "{} {} {} at {}",
         scan.table,
         if scan.order == Order::Asc {
@@ -334,7 +345,10 @@ pub(crate) fn scan_label(scan: &Scan) -> String {
         },
         scan.take.maximum(),
         scan.site
-    )
+    );
+    scan.merge_site
+        .as_ref()
+        .map_or(range.clone(), |site| format!("merge {site}: {range}"))
 }
 pub(crate) fn row_shape(schema: &Schema, table: &str) -> ByteShape {
     ByteShape::group(

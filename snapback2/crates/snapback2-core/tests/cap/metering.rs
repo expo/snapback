@@ -34,6 +34,20 @@ fn update_reserves_only_caps_whose_group_fields_may_be_written() {
             0,
         ),
         (Expr::Literal(object([("period", Value::Int(7))])), 0),
+        (
+            Expr::Object(BTreeMap::from([(
+                "group".into(),
+                Expr::Literal(Value::Null),
+            )])),
+            1000,
+        ),
+        (
+            Expr::Object(BTreeMap::from([
+                ("group".into(), Expr::Literal(Value::Null)),
+                ("secondary".into(), Expr::Literal(Value::Null)),
+            ])),
+            1001,
+        ),
         (Expr::Literal(object([("group", Value::Null)])), 1000),
         (
             Expr::Literal(object([("secondary", Value::Null), ("group", Value::Null)])),
@@ -151,18 +165,132 @@ fn only_reserved_cap_probes_exclude_nonuniform_scans() {
             },
             true,
         ),
+        (
+            Stmt::Insert {
+                table: "memberships".into(),
+                row: Expr::Literal(row(0, None)),
+            },
+            true,
+        ),
+        (
+            Stmt::Upsert {
+                table: "memberships".into(),
+                key: Expr::Literal(id("m0")),
+                row: Expr::Literal(row(0, None)),
+            },
+            true,
+        ),
+        (
+            Stmt::Update {
+                table: "memberships".into(),
+                key: Expr::Literal(id("m0")),
+                patch: var("patch"),
+            },
+            true,
+        ),
     ] {
-        let p = program(vec![
+        let mut p = program(vec![
             Stmt::Let {
                 name: "unused".into(),
                 value: Expr::Scan(scan.clone()),
             },
             statement,
         ]);
+        p.args
+            .insert("patch".into(), ArgType::Json { max_bytes: 128 });
         let result = Checker::new(&schema, Ceilings::default()).check_all(&p);
         assert_eq!(result.is_err(), refused, "{result:?}");
         if let Err(errors) = result {
             assert!(errors.iter().any(|e| e.code == "E_STRUCTURAL_FANOUT"));
+        }
+    }
+}
+
+#[test]
+fn unknown_patch_refusal_lists_both_caps_largest_first() {
+    let schema = two_caps();
+    let mut p = program(vec![Stmt::For {
+        binding: "n".into(),
+        domain: LoopDomain::LiteralRange {
+            start: 0,
+            end_exclusive: 50,
+        },
+        body: vec![Stmt::Update {
+            table: "memberships".into(),
+            key: Expr::Literal(id("m0")),
+            patch: var("patch"),
+        }],
+    }]);
+    p.args
+        .insert("patch".into(), ArgType::Json { max_bytes: 128 });
+    let errors = Checker::new(&schema, Ceilings::default())
+        .check_all(&p)
+        .unwrap_err();
+    let error = errors
+        .iter()
+        .find(|e| e.message.starts_with("examined entries"))
+        .unwrap();
+    assert!(error.message.contains("examined entries 50050"), "{error}");
+    assert!(
+        error.message.contains("50 calls × cap 1000 by group"),
+        "{error}"
+    );
+    assert!(
+        error.message.contains("50 calls × cap 1 by secondary"),
+        "{error}"
+    );
+    assert!(
+        error.message.find("cap 1000 by group").unwrap()
+            < error.message.find("cap 1 by secondary").unwrap()
+    );
+    assert!(
+        error.rewrite.contains("chunk from 50 to at most 10"),
+        "{error}"
+    );
+    assert!(error.rewrite.contains("cap 1000 by group"), "{error}");
+}
+
+#[test]
+fn group_preserving_complete_loop_still_needs_a_covering_cap() {
+    for (cap, take, refusal) in [
+        (None, 50, Some("has no cap")),
+        (Some(1000), 50, Some("bound 50 is below cap 1000")),
+        (Some(1000), 1000, None),
+    ] {
+        let mut schema = schema(cap);
+        schema
+            .tables
+            .get_mut("memberships")
+            .unwrap()
+            .columns
+            .insert("period".into(), ColumnType::Int);
+        let mut scan = scan();
+        scan.take = Bound::Literal(take);
+        let p = program(vec![Stmt::For {
+            binding: "m".into(),
+            domain: LoopDomain::Page(scan),
+            body: vec![Stmt::Update {
+                table: "memberships".into(),
+                key: field(var("m"), "id"),
+                patch: Expr::Object(BTreeMap::from([(
+                    "period".into(),
+                    Expr::Literal(Value::Int(7)),
+                )])),
+            }],
+        }]);
+        let result = Checker::new(&schema, Ceilings::default()).check_all(&p);
+        if let Some(reason) = refusal {
+            let errors = result.unwrap_err();
+            assert!(
+                errors
+                    .iter()
+                    .any(|e| e.code == "E_STRUCTURAL_FANOUT" && e.message.contains(reason)),
+                "{errors:?}"
+            );
+        } else {
+            let certificate = result.unwrap();
+            assert_eq!(certificate.max_examined, 1002);
+            assert!(certificate.read_sites.iter().any(|s| s.complete));
         }
     }
 }

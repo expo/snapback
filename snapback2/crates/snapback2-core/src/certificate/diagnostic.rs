@@ -1,4 +1,5 @@
 //! Explain the same products the analyzer charges, separately for each meter.
+// @ref LLP 1001#3-read-and-write-states-no-silent-states — each meter names its dominant cause and preserves the requested result in its repair.
 use super::*;
 
 #[derive(Clone)]
@@ -7,6 +8,7 @@ pub(super) enum Repair {
     Merge,
     Cap { name: String, calls: u64, max: u64 },
     Probe,
+    Uniformity,
     Work,
 }
 
@@ -63,6 +65,7 @@ impl Cost {
             repair,
         }
     }
+    // @ref LLP 1017#24-metering — each reserved cap contributes its own calls times N, including unknown patches.
     pub fn cap(
         table: &str,
         by: &[String],
@@ -104,6 +107,7 @@ impl Cost {
             Repair::Range { nested: true } => "replace the nested population scan with maintain.count/sum, or reduce its declared bound".into(),
             Repair::Range { nested: false } => "reduce the named range's page bound, or read a maintained aggregate".into(),
             Repair::Probe => "reduce the named rule-probe product by pinning the authorization scope in the scan prefix or reducing its call bound".into(),
+            Repair::Uniformity => "make the read rule uniform over the scan prefix by pinning its authorization scope; a smaller page does not reduce the non-uniform budget reserve".into(),
             Repair::Work => "reduce the named expression, statement, or write repetition bound".into(),
         }
     }
@@ -229,7 +233,7 @@ impl Checker<'_> {
                 terms.push(Cost {
                     value: actual - total,
                     source: "rule evaluation / non-uniform budget reserve".into(),
-                    repair: Repair::Probe,
+                    repair: Repair::Uniformity,
                 });
             }
             let terms = sorted_terms(terms);

@@ -234,6 +234,9 @@ meter with other reserves unchanged, or says no positive chunk fits. Nested
 population scans keep the `maintain.count/sum` advice. Byte repairs name the
 widest nested collection and the fields carrying its bytes; they never paste
 `return null;` or replace the requested result with an unrelated collection.
+Non-uniform budget reserves name the uniform-prefix repair, not a rule-probe
+reduction. `E_BOUND`/`E_STEPS` rewrites are core-authored; the Quarry handoff
+must preserve them rather than overwrite them with a `.q` declaration.
 
 An opaque cursor is canonical base64url of the tagged, versioned encoding
 `[version, table, index, order, suffix descriptor, suffix values]`. Values keep

@@ -1,3 +1,4 @@
+// @ref LLP 1001#3-read-and-write-states-no-silent-states — a returned page or merge has one consistent cursor suffix and cannot disclose a hidden examined position.
 use super::*;
 
 pub(super) fn resolve_result_page_site(

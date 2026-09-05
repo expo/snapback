@@ -67,8 +67,9 @@ ordering and its uniqueness constraint; `unique a, b` infers `byAB`. `id` may
 appear in an index. `immutable a, b` forbids changes to those columns.
 `cap N by a, b` holds every group at N rows (an omitted optional column is the
 `null` group); every writer, seeds included, refuses past it, and a successor
-that leaves a group over N refuses. Only inserts, upserts, and updates that
-may write its grouping columns reserve the cap probe. `public`
+that leaves a group over N refuses, naming the groups and the cap to raise.
+Only inserts, upserts, and updates that may write its grouping columns reserve
+the cap probe. `public`
 accepts an optional reason string. An insert
 postcondition is `after insert <- exists table[...] [by index]`.
 
@@ -263,8 +264,10 @@ missing maintained group is zero only through `#`; the ordinary target-table
 read remains absent.
 
 Scans and values are bounded; `for` requires a bounded list/page/range/tokens
-result. Ceiling refusals price contributing sites and fields; merge repairs
-are structural: smaller lanes/page, two reads (two snapshots), or a maintained feed.
+result. Ceiling refusals price sites and fields: merges need structural repair
+(smaller lanes/page, two reads/two snapshots, or a maintained feed), caps a fitting
+chunk, nested scans `maintain.count/sum`, byte bounds narrower collections/fields,
+and non-uniform reserves a uniform prefix; never a pasted `return null;`.
 
 In a mutation, `for` over a page must cover its range: the table is capped over
 the pinned prefix, the rule is uniform there, the bound is a literal at least the
