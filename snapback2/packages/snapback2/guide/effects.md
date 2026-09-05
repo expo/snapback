@@ -56,6 +56,15 @@ library. `fetch` returns `status`, `ok`, `url`, `redirected`, `headers: Headers`
 `bodyUsed`, and `text()`/`json()`/`arrayBuffer()`; `Response` has no constructor.
 Timer delivery consumes one host permit per pump.
 
+`fetch` snapshots headers from records, pair iterables, or `Headers` and sends
+them; invalid names/values reject before I/O. String bodies default to
+`text/plain;charset=UTF-8` unless `content-type` is authored. Redirects 301/302
+rewrite only POST to GET; 303 rewrites all except GET/HEAD; 307/308 preserve
+method/body. A dropped body drops `content-type`, `content-length`,
+`content-encoding`, `content-language`, and `content-location`. Cross-origin
+hops drop `authorization`, `proxy-authorization`, and `cookie`; every hop
+requires its declared grant. Invalid redirect modes reject before I/O.
+
 The default development binary has no engine. `snapback2 test` records the
 derived effects check as `blocked: no engine in this build`; it never claims
 the queued row was sent. Use `snapback2 trace <seq>` to see the outbox row.
