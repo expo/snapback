@@ -73,8 +73,13 @@ function tagged<T>(call: (...args: any[]) => T, ...args: any[]): T | undefined {
     // DeliveryEnvelopeDecodeError is a TypeError; these are exactly the three
     // closed tagging/hashing failures the offline contract admits.
     if (!(error instanceof TypeError || error instanceof EvalError)) throw error;
+    (globalThis as { __snapbackTwinLast?: string }).__snapbackTwinLast = `tagged:${String(error)}`;
   }
 }
+
+/** Debug seam for the witness: why the twin last declined to evaluate (never part of a result). */
+export function twinLastDecline(): string | undefined { return (globalThis as { __snapbackTwinLast?: string }).__snapbackTwinLast; }
+function decline(reason: string): undefined { (globalThis as { __snapbackTwinLast?: string }).__snapbackTwinLast = reason; return undefined; }
 
 export class Twin {
   constructor(private readonly sources: TwinSources) {}
@@ -87,12 +92,12 @@ export class Twin {
    */
   async evaluate(op: string, args: unknown): Promise<LocalAnswer | undefined> {
     const hydrated = await this.hydrate();
-    if (!hydrated) return undefined;
+    if (!hydrated) return decline("hydrate");
     const operation = hydrated.program.programs[op];
-    if (!operation || operation.kind !== "query") return undefined;
+    if (!operation || operation.kind !== "query") return decline("unknown-op");
     const ir = operation.ir as { args?: unknown };
     const context = this.context(hydrated, ir, args, []);
-    if (!context) return undefined;
+    if (!context) return decline("context");
     const since = hydrated.coverage.deliveredAt;
     const base = {
       seq: this.sources.seq(),
@@ -217,15 +222,15 @@ export class Twin {
 
   private async hydrate(): Promise<Hydrated | undefined> {
     const program = this.sources.program();
-    if (!program) return undefined;
+    if (!program) return decline("no-program");
     const coverage = await this.sources.coverage();
-    if (!coverage) return undefined;
+    if (!coverage) return decline("no-coverage");
     // Coverage a rotation superseded is never evaluated, exact or partial: the
     // reset path rebuilds it under the live generation (LLP 1012 §8).
-    if (coverage.superseded) return undefined;
+    if (coverage.superseded) return decline("superseded");
     if (coverage.facts
       && (coverage.facts.generation !== program.generation || coverage.facts.schemaHash !== program.schemaHash)) {
-      return undefined;
+      return decline(`facts:${coverage.facts.generation}/${program.generation}`);
     }
     // @ref LLP 1012#5-retention-revocation-and-the-fence — rule 4's twin-side
     // meaning: a held row of a `retain delivered-history` table is readable.
@@ -238,7 +243,7 @@ export class Twin {
     // delivered under the held program. Store construction and overlay
     // mutation sit outside this catch: their bugs must never look hydrating.
     const closure = tagged(closureFromCoverage, coverage, program.schema, program.schemaHash);
-    if (!closure) return undefined;
+    if (!closure) return decline("closure");
     const store = new ClientStore(program.schema, closure, { readable });
     for (const entry of entries) {
       const rows = overlay[entry.intent];
@@ -247,7 +252,7 @@ export class Twin {
         if (row.removed) store.remove(row.table, row.id);
         else {
           const value = tagged(tagWireRow, program.schema, row.table, row.row as Record<string, WireValue>);
-          if (!value) return undefined;
+          if (!value) return decline(`overlay-row:${row.table}`);
           store.put(row.table, value);
         }
       }

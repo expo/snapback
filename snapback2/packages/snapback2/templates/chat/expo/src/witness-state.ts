@@ -34,11 +34,15 @@ export async function markerSwap(store: RangeStore, phase: "pre" | "post", entri
   if (!entries[0]) throw new Error("enqueue both messages before the atomicity marker");
   const byte = phase === "pre" ? 11 : 22;
   const swap: StoreSwap = {
-    deliveries: [{ op: "__witness", args: {}, seq: phase === "pre" ? 1 : 2, state: "complete", next: null,
-      data: { $row: { table: "__witness", id: "marker" } },
-      rows: [{ table: "__witness", id: "marker", row: { id: "marker", phase, photo: { id: markerId, width: 1, height: 1 } } }],
+    // The markers are schema-valid rows of real tables: the twin hydrates every held row
+    // through the schema and treats a row of an unknown table as corruption (`hydrating`),
+    // which is the fail-closed answer the spec wants — so a witness marker must look like
+    // the app's own data. A messages row in a conversation no member ever opens.
+    deliveries: [{ op: "deliveries.thread", args: { conversationId: "witness-marker", c: null }, seq: phase === "pre" ? 1 : 2, state: "complete", next: null,
+      data: { $row: { table: "messages", id: "witness-marker" } },
+      rows: [{ table: "messages", id: "witness-marker", row: { id: "witness-marker", conversationId: "witness-marker", authorId: "witness", body: phase, photo: { id: markerId, width: 1, height: 1 }, at: 1 } }],
       receipt: { ranges: [], absences: [], verdicts: [] } }],
-    outbox: { put: [{ ...entries[0], intent: "__witness", state: "committed", op: "__witness", args: { phase }, predicted: false }] },
+    outbox: { put: [{ ...entries[0], intent: "__witness", state: "committed", op: "deliveries.post", args: { conversationId: "witness-marker", body: phase }, predicted: false }] },
     bytes: { put: [{ assetId: markerId, width: null, type: `witness/${phase}`, bytes: new Uint8Array([byte]) }] },
   };
   await store.commit(swap);

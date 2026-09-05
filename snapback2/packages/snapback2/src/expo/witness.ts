@@ -1,3 +1,4 @@
+import { twinLastDecline } from "../twin.js";
 // @ref LLP 1013#7-the-simulator-witness — the app connects outward before construction.
 import type { SnapbackClient } from "../types.js";
 import type { PersistedRangeState } from "../store/range-store.js";
@@ -19,6 +20,7 @@ export interface WitnessApplication {
 export interface WitnessControl { close(): void }
 
 /** The factory overload connects before any carrier opens; the client overload attaches to an existing client. */
+export { twinLastDecline };
 export function witnessControl(source: SnapbackClient | WitnessApplication, url: string): WitnessControl {
   if (!/^wss?:\/\//.test(url)) throw new TypeError("witness URL must be ws:// or wss://");
   const app = "construct" in source ? source : undefined;

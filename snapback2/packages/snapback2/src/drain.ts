@@ -11,7 +11,8 @@ export interface DrainOptions<Args, Result> {
   args: Args;
   query(args: Args): Promise<QueryResult<Result>>;
   subscribe(args: Args, callback: (event: SubscriptionDelivery<Result>) => void): Subscription<SubscriptionDelivery<Result>>;
-  mark(watermark: Cursor | null, current: () => boolean): Promise<void>;
+  /** `offline`: every page came from the store; the watermark is the persisted one and nothing is recorded. */
+  mark(watermark: Cursor | null, current: () => boolean, offline: boolean): Promise<void>;
   onEvent(event: SubscriptionDelivery<Result>): void;
   /** The cursor argument's name, resolved when a page is built (the manifest may still be loading); `c` by default. */
   cursor?(): Promise<string> | string;
@@ -81,6 +82,12 @@ export class DrainSubscription<Args, Result> implements Subscription<Subscriptio
 
   private async drain(start: Cursor | null, generation: number): Promise<void> {
     let cursor = start;
+    // @ref LLP 1012#6-reads-offline — a drain answered from the store keeps the
+    // watermark the last online drain or resume persisted: the twin mints its
+    // own page cursors, so a chain followed offline says nothing about the
+    // server's log, and re-marking it would move the resume position backward.
+    let offline = false;
+    let held: Cursor | null | undefined;
     while (this.current(generation)) {
       this.cursorName = (await this.options.cursor?.()) ?? "c";
       if (!this.current(generation)) return;
@@ -95,13 +102,19 @@ export class DrainSubscription<Args, Result> implements Subscription<Subscriptio
         this.deliver(page as SubscriptionDelivery<Result>);
         return;
       }
+      const facts = page as { connection?: string; watermark?: Cursor | null };
+      if (facts.connection === "offline") {
+        offline = true;
+        if (held === undefined && typeof facts.watermark === "string") held = facts.watermark;
+      }
       if (page.next !== null) {
         this.watermark = page.next;
         this.deliver({ ...page, live: false, caughtUp: false, watermark: this.watermark });
         cursor = page.next;
         continue;
       }
-      await this.options.mark(this.watermark, () => this.current(generation));
+      if (offline && held !== undefined) this.watermark = held;
+      await this.options.mark(this.watermark, () => this.current(generation), offline);
       if (!this.current(generation)) return;
       this.deliver({ ...page, live: false, caughtUp: true, watermark: this.watermark });
       this.watchTail(generation);

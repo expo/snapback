@@ -954,7 +954,26 @@ test("drain true follows five pages, persists the watermark, and follows a new t
   const heldDrain = await inspect.answer("deliveries.inbox", { c: null });
   assert.equal(heldDrain?.caughtUp, true);
   assert.equal(heldDrain?.watermark, "c5");
+  const coverageBefore = await inspect.coverage();
   await inspect.close?.();
+  // A cold reopen with the transport cut: the drain is answered from the store, adopts the
+  // persisted watermark instead of the twin's own page chain, and records nothing (LLP 1012 §6).
+  const cold = createClient({
+    url: "http://drain.test", as: "alice", offline: { store: fileRangeStore(root) }, startOffline: true,
+    fetch: async () => { throw new TypeError("network cut"); },
+  } as Parameters<typeof createClient>[0]);
+  await cold.ready;
+  const coldDrain = cold.subscribe(api.deliveries.inbox as any, { c: null }, () => undefined, { drain: true });
+  const coldCaught = await coldDrain.until((value) => (value.state === "complete" || value.state === "capped") && value.caughtUp === true, 2_000);
+  assert.equal(coldCaught.watermark, "c5", "an offline drain adopts the persisted watermark");
+  assert.equal(coldCaught.connection, "offline");
+  coldDrain.close();
+  await cold.close();
+  const reopened = fileRangeStore(root)();
+  await reopened.open("dev:alice");
+  assert.deepEqual(await reopened.coverage(), coverageBefore, "an offline drain writes no coverage");
+  assert.equal((await reopened.answer("deliveries.inbox", { c: null }))?.watermark, "c5");
+  await reopened.close?.();
   await rm(root, { recursive: true, force: true });
 });
 

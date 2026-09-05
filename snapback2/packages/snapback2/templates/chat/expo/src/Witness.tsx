@@ -1,3 +1,4 @@
+import { twinLastDecline } from "snapback2/expo/witness";
 import React, { useEffect, useState } from "react";
 import { PixelRatio, Text, View } from "react-native";
 import { api, SnapbackRefusal, type AssetRecord, type ImageAsset, type RangeStore, type SnapbackClient, type Subscription } from "snapback2/client";
@@ -53,6 +54,9 @@ export default function Witness({ url, controlUrl }: { url: string; controlUrl: 
     };
     const control = witnessControl({ construct, persist,
       async command(client, verb, args) {
+        // The carrier can be read before any client constructs: the harness inspects a
+        // reopened database before the app mounts anything that writes to it.
+        if (verb === "stores") return { stores: await databaseState(), files: listFiles() };
         if (!client || !store) throw new Error("construct first");
         if (verb === "drain") {
           const sub = client.subscribe(api.deliveries.inbox, { c: null }, () => {}, { drain: true });
@@ -112,7 +116,7 @@ export default function Witness({ url, controlUrl }: { url: string; controlUrl: 
           return { snapshot: client.snapshot, coverage: await store.coverage(), outbox: entries,
             bubbles: typeof args.conversationId === "string" ? threadBubbles(rows, entries, args.conversationId) : [],
             search: typeof args.search === "string" ? searchHeld(rows, args.search) : [],
-            answer, stores: await databaseState(), files: listFiles(), media: currentMedia ? { loaded: currentMedia.loaded, uri: currentMedia.uri } : null };
+            answer, twin: twinLastDecline(), stores: await databaseState(), files: listFiles(), media: currentMedia ? { loaded: currentMedia.loaded, uri: currentMedia.uri } : null };
         }
         throw new Error(`unknown witness command ${verb}`);
       },

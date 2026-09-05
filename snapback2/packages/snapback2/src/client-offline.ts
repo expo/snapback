@@ -222,8 +222,8 @@ export function createOfflineDrain<Args, Result>(options: {
       await options.ready?.catch(() => undefined);
       return options.runtime?.cursorArg(options.op) ?? "c";
     },
-    mark: async (watermark, current) => {
-      if (!options.runtime) return;
+    mark: async (watermark, current, offline) => {
+      if (!options.runtime || offline) return;
       const revision = options.runtime.coverageRevision;
       const tailArgs = { ...(options.args as Record<string, unknown>), [options.runtime.cursorArg(options.op)]: watermark };
       const held = await options.runtime.answer(options.op, tailArgs);
