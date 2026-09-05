@@ -1289,7 +1289,8 @@ fn validate_point_key_arity(checker: &Checker<'_>, read: &Read, errors: &mut Vec
     });
 }
 
-fn visit_statement_exprs(statement: &Stmt, visit: &mut impl FnMut(&Expr)) {
+/// Every expression a statement holds directly (bodies excluded), each walked in full.
+pub(crate) fn visit_statement_exprs(statement: &Stmt, visit: &mut impl FnMut(&Expr)) {
     match statement {
         Stmt::Const { value, .. }
         | Stmt::Let { value, .. }

@@ -68,11 +68,15 @@ struct SerializableError {
 impl SerializableError {
     fn from_certify(error: CheckError, site: impl Into<String>) -> Self {
         let (family, guide) = certification_family_guide(&error.code);
+        // A job-shape refusal names the statement; the program is the site only for an empty body.
+        let site = snapback2_core::jobs::shape_site(&error)
+            .map(str::to_owned)
+            .unwrap_or_else(|| site.into());
         Self {
             code: error.code,
             family: family.to_owned(),
             message: error.message,
-            site: site.into(),
+            site,
             rule: None,
             rewrite: error.rewrite,
             guide: guide.to_owned(),

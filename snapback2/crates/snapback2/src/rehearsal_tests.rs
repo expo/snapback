@@ -245,15 +245,16 @@ fn attach_photo(runtime: &mut Runtime, root: &Path, index: usize) -> (String, Pa
     fs::write(&path, b"bytes").unwrap();
     (id, path)
 }
-/// Every file in the live blob directory with its size, in name order.
-fn blob_listing(root: &Path) -> Vec<(String, u64)> {
+/// Every file in the live blob directory with the digest of its contents, in name order:
+/// a same-size overwrite cannot pass as unchanged.
+fn blob_listing(root: &Path) -> Vec<(String, String)> {
     let mut listing = fs::read_dir(root.join("blobs"))
         .unwrap()
         .map(|entry| {
             let entry = entry.unwrap();
             (
                 entry.file_name().to_string_lossy().into_owned(),
-                entry.metadata().unwrap().len(),
+                snapback2_core::digest(&fs::read(entry.path()).unwrap()),
             )
         })
         .collect::<Vec<_>>();
@@ -337,7 +338,7 @@ fn rehearsal_isolates_network_blobs_commits_outbox_and_discards_copy() {
     assert_eq!(
         blob_listing(&scratch.0),
         blobs_before,
-        "the live blob directory gained, lost, or resized a file"
+        "the live blob directory gained, lost, or rewrote a file"
     );
     assert_eq!(
         live.store().commit_seq().unwrap(),

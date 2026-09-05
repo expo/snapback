@@ -521,16 +521,17 @@ fn measure_job_turn_with_50_live_and_client_p95() {
     during.sort_by(f64::total_cmp);
     let during_p95 = during[(during.len() * 95 / 100).min(during.len() - 1)];
     let log = fs::read_to_string(root.join(".snapback/log.jsonl")).unwrap();
-    // Whole turns, and the split the RFC's §8 budget needs: the commit alone versus the live reruns.
+    // Whole turns, and the split the RFC's §8 budget needs: the chunk's execution including
+    // its commit (`chunkMs`) versus the live reruns that fill the rest of the turn.
     let lines = log
         .lines()
         .filter_map(|l| serde_json::from_str::<Value>(l).ok())
         .filter(|l| l["job"] == id && l["state"] != "done")
         .collect::<Vec<_>>();
     let turns = lines.iter().filter_map(|l| l["ms"].as_f64()).collect::<Vec<_>>();
-    let commits = lines.iter().filter_map(|l| l["commitMs"].as_f64()).collect::<Vec<_>>();
-    let reruns = turns.iter().zip(&commits).map(|(t, c)| t - c).collect::<Vec<_>>();
-    assert_eq!((turns.len(), commits.len()), (11, 11));
+    let chunks = lines.iter().filter_map(|l| l["chunkMs"].as_f64()).collect::<Vec<_>>();
+    let reruns = turns.iter().zip(&chunks).map(|(t, c)| t - c).collect::<Vec<_>>();
+    assert_eq!((turns.len(), chunks.len()), (11, 11));
     let median = |values: &[f64]| {
         let mut sorted = values.to_vec();
         sorted.sort_by(f64::total_cmp);
@@ -539,9 +540,9 @@ fn measure_job_turn_with_50_live_and_client_p95() {
     println!(
         "J1B_METRIC {}",
         json!({"metric":"background_turn_100_rows_50_live","profile":if cfg!(debug_assertions) { "debug" } else { "release" },
-        "milliseconds":turns,"commitMilliseconds":commits,"rerunMilliseconds":reruns,
-        "medianMilliseconds":median(&turns),"medianCommitMilliseconds":median(&commits),"medianRerunMilliseconds":median(&reruns),
-        "budgetMilliseconds":30,"method":"real owner writer log; ms is the whole turn including after_commit live reruns, commitMs the chunk commit alone; 50 live queries of 100 rows"})
+        "milliseconds":turns,"chunkMilliseconds":chunks,"rerunMilliseconds":reruns,
+        "medianMilliseconds":median(&turns),"medianChunkMilliseconds":median(&chunks),"medianRerunMilliseconds":median(&reruns),
+        "budgetMilliseconds":30,"method":"real owner writer log; ms is the whole turn including after_commit live reruns, chunkMs the chunk execution including its commit; 50 live queries of 100 rows"})
     );
     println!(
         "J1B_METRIC {}",

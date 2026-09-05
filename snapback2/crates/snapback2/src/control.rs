@@ -93,8 +93,10 @@ pub fn route(
     let result = match (method, path) {
         ("GET", "/control/timers") => call(Action::Timers),
         ("GET", "/control/jobs") => call(Action::Jobs),
-        ("POST", "/control/job") => match crate::control_run::flag(&body, "plan") {
-            Ok(plan) => call(Action::EnqueueJob {
+        // `control_run::route` already refused any disagreeing flag; `mode: "plan"` and
+        // `plan: true` are the same request here.
+        ("POST", "/control/job") => match crate::control_run::requested_mode(&body) {
+            Ok(mode) => call(Action::EnqueueJob {
                 name: body
                     .get("name")
                     .or_else(|| body.get("op"))
@@ -103,7 +105,7 @@ pub fn route(
                     .into(),
                 args: body.get("args").cloned().unwrap_or_else(|| json!({})),
                 identity: control_identity(&body),
-                plan,
+                plan: mode == crate::control_run::Mode::Plan,
             }),
             Err(error) => Err((400, error)),
         },

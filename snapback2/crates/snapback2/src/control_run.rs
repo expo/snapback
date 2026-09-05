@@ -28,37 +28,80 @@ pub fn route(
     if !matches!(path, "/control/job" | "/control/execute") {
         return None;
     }
-    match rehearsal_requested(body) {
-        Ok(false) => None,
-        Ok(true) => Some(rehearse_declared(body, context).map_err(|e| (400, e))),
+    match requested_mode(body) {
+        Ok(Mode::DryRun) => Some(rehearse_declared(body, context).map_err(|e| (400, e))),
+        Ok(Mode::Plan) if path == "/control/execute" => Some(Err((400, op_kind()))),
+        Ok(Mode::Run | Mode::Plan) => None,
         Err(refusal) => Some(Err((400, refusal))),
     }
 }
 
-/// A rehearsal is requested by a JSON boolean and nothing else: `"dryRun": "true"`
-/// is refused rather than falling through to a real run.
-fn rehearsal_requested(body: &Json) -> Result<bool, Refusal> {
+/// How a body asks to run. `mode` names it; `dryRun: true` or `plan: true` alone chooses it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Mode {
+    Run,
+    DryRun,
+    Plan,
+}
+
+/// The one reading of `mode`, `dryRun`, and `plan`, shared by every operator route and by
+/// the CLI client's timeout choice, so nothing a body says is ignored: a flag is a JSON
+/// boolean or refused (`"dryRun": "true"` never falls through to a real run), and a flag
+/// that disagrees with `mode`, or with the other flag, refuses `E_INPUT` at the flag's site.
+pub(crate) fn requested_mode(body: &Json) -> Result<Mode, Refusal> {
     let dry_run = flag(body, "dryRun")?;
+    let plan = flag(body, "plan")?;
     let mode = match body.get("mode") {
         None => None,
-        Some(Json::String(mode)) if matches!(mode.as_str(), "run" | "dry-run") => {
-            Some(mode == "dry-run")
-        }
-        Some(_) => {
-            return Err(
-                Refusal::input("mode must be run or dry-run", "choose one run mode")
-                    .with_site("mode"),
-            );
-        }
+        Some(Json::String(mode)) => Some(match mode.as_str() {
+            "run" => Mode::Run,
+            "dry-run" => Mode::DryRun,
+            "plan" => Mode::Plan,
+            _ => return Err(bad_mode()),
+        }),
+        Some(_) => return Err(bad_mode()),
     };
-    if body.get("dryRun").is_some() && mode.is_some_and(|rehearse| rehearse != dry_run) {
+    if body.get("dryRun").is_some() && mode.is_some_and(|mode| (mode == Mode::DryRun) != dry_run) {
         return Err(Refusal::input(
             "dryRun and mode disagree",
             "send dryRun: true, or mode: \"dry-run\", not both",
         )
-        .with_site("mode"));
+        .with_site("dryRun"));
     }
-    Ok(dry_run || mode == Some(true))
+    if body.get("plan").is_some() && mode.is_some_and(|mode| (mode == Mode::Plan) != plan) {
+        return Err(Refusal::input(
+            "plan and mode disagree",
+            "send plan: true, or mode: \"plan\", not both",
+        )
+        .with_site("plan"));
+    }
+    if dry_run && plan {
+        return Err(Refusal::input(
+            "dryRun and plan disagree",
+            "a rehearsal runs the job; a plan estimates it: send one",
+        )
+        .with_site("plan"));
+    }
+    Ok(mode.unwrap_or(if dry_run {
+        Mode::DryRun
+    } else if plan {
+        Mode::Plan
+    } else {
+        Mode::Run
+    }))
+}
+fn bad_mode() -> Refusal {
+    Refusal::input("mode must be run, dry-run, or plan", "choose one run mode").with_site("mode")
+}
+fn op_kind() -> Refusal {
+    Refusal::new(
+        "E_OP_KIND",
+        "op",
+        "--plan and --wait require a job",
+        "use a job or omit --plan/--wait",
+        "job",
+    )
+    .with_site("mode")
 }
 
 /// A boolean request field: absent is false; anything but `true`/`false` is refused.
@@ -75,12 +118,12 @@ pub(crate) fn flag(body: &Json, name: &str) -> Result<bool, Refusal> {
 }
 
 fn rehearse_declared(body: &Json, context: &Context) -> Result<Json, Refusal> {
-    if flag(body, "plan")? || flag(body, "wait")? {
+    if flag(body, "wait")? {
         return Err(Refusal::input(
-            "--dry-run cannot combine with --wait or --plan",
+            "--dry-run cannot combine with --wait",
             "choose one run mode",
         )
-        .with_site("mode"));
+        .with_site("wait"));
     }
     let name = body
         .get("name")
@@ -94,14 +137,14 @@ fn rehearse_declared(body: &Json, context: &Context) -> Result<Json, Refusal> {
 }
 
 fn run_source(body: &Json, context: &Context) -> Result<Json, Refusal> {
-    let mode = body.get("mode").and_then(Json::as_str).unwrap_or("");
+    let mode = requested_mode(body)?;
     let wait = flag(body, "wait")?;
-    if !matches!(mode, "run" | "dry-run" | "plan") || mode == "dry-run" && wait {
+    if mode == Mode::DryRun && wait {
         return Err(Refusal::input(
-            "mode must be run, dry-run, or plan; dry-run excludes wait",
+            "--dry-run cannot combine with --wait",
             "choose one run mode",
         )
-        .with_site("mode"));
+        .with_site("wait"));
     }
     let source = source(body)?;
     // This is a submitted authoring operation, never background/restart compilation.
@@ -130,17 +173,10 @@ fn run_source(body: &Json, context: &Context) -> Result<Json, Refusal> {
             )
             .with_site("source")
         })?;
-    if (mode == "plan" || wait) && program.kind != ProgramKind::Job {
-        return Err(Refusal::new(
-            "E_OP_KIND",
-            "op",
-            "--plan and --wait require a job",
-            "use a job or omit --plan/--wait",
-            "job",
-        )
-        .with_site("mode"));
+    if (mode == Mode::Plan || wait) && program.kind != ProgramKind::Job {
+        return Err(op_kind());
     }
-    if mode == "dry-run" {
+    if mode == Mode::DryRun {
         context.handle.rehearse(
             Target::Adhoc { program, source },
             args(body),
@@ -152,7 +188,7 @@ fn run_source(body: &Json, context: &Context) -> Result<Json, Refusal> {
             source,
             args: args(body),
             identity: control_identity(body),
-            plan: mode == "plan",
+            plan: mode == Mode::Plan,
         })
     }
 }

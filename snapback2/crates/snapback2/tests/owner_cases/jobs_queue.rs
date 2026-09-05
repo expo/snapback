@@ -39,12 +39,15 @@ fn jobs_queue_position_paging_beyond_500_commits_receipt_plan_and_state_refusals
     let second = control_job(port, &secret, "POST", "/control/job", json!({"name":"jobs.fill","args":{},"as":"system"}));
     assert_eq!(second["queuePosition"], 2, "{second}");
     let (one, fill) = (first["id"].as_str().unwrap(), second["id"].as_str().unwrap());
-    // Idle, the writer polls with a zero timeout: 510 one-row chunks finish in seconds, not
-    // one per session/asset poll (≥ 510 s at the 1 s session poll).
+    // Idle, the writer polls with a zero timeout: 510 one-row chunks finish back to back
+    // (1.7–1.8 s measured, LLP 1016 §12), not one per session/asset poll (≥ 510 s at the
+    // 1 s session poll). The bound is ten seconds — under 20 ms a chunk, which no poll
+    // interval in the loop could produce — so the claim is pinned without a flake under
+    // the parallel gate; the measured number is printed beside it.
     let done = wait_done(port, &secret, one, Duration::from_secs(60));
     let idle_seconds = started.elapsed().as_secs_f64();
     println!("J1b 510 idle chunks in {idle_seconds:.2}s");
-    assert!(idle_seconds < 30.0, "idle chunks must run back to back: {idle_seconds}s");
+    assert!(idle_seconds < 10.0, "idle chunks must run back to back: {idle_seconds}s");
     assert_eq!(done["chunks"], 510);
 
     // Paging beyond 500 commits: the aggregates cover the whole ledger, the pages join up.
@@ -115,7 +118,7 @@ fn jobs_advance_at_least_one_chunk_per_nine_turns_under_a_saturated_channel() {
         .filter(|l| l["kind"] == "job" && l["job"] == id)
         .collect::<Vec<_>>();
     assert_eq!(turns.len(), 35, "one log line per chunk");
-    assert!(turns.iter().all(|t| t["commitMs"].as_f64().unwrap() <= t["ms"].as_f64().unwrap()), "commit time is part of the turn");
+    assert!(turns.iter().all(|t| t["chunkMs"].as_f64().unwrap() <= t["ms"].as_f64().unwrap()), "chunk execution (including its commit) is part of the turn");
     stop_owner(port, &secret, &mut owner, "jobs cadence test");
     // The ledger, read from the stopped store: between two consecutive chunk commits the writer
     // served at most eight client turns, so at most eight client commits.

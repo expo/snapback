@@ -53,7 +53,7 @@ fn request(
         )
     })?;
     stream
-        .set_read_timeout(read_timeout(&body))
+        .set_read_timeout(read_timeout(path, &body))
         .map_err(io_refusal)?;
     stream
         .set_write_timeout(Some(Duration::from_secs(5)))
@@ -86,13 +86,20 @@ fn request(
     parse_response(&response)
 }
 
-/// A rehearsal runs the entire job before it answers, so it alone has no read bound;
-/// `plan`, `run`, and every other request keep the five-second task bound.
-fn read_timeout(body: &Json) -> Option<Duration> {
-    if body["dryRun"] == true || body["mode"] == "dry-run" {
-        None
-    } else {
-        Some(Duration::from_secs(5))
+/// Read bounds by what the body asks for, decided by the owner's own predicate so the
+/// client waits exactly as long as the owner may work: a rehearsal runs the entire job
+/// before it answers, so it alone has no bound; ad hoc `plan` and `run` compile with the
+/// owner's worker first, so `/control/run` waits out the compiler's own timeout plus a
+/// margin; every other request keeps the five-second task bound. A body the owner will
+/// refuse (a disagreeing flag) is answered at once and keeps the short bound.
+fn read_timeout(path: &str, body: &Json) -> Option<Duration> {
+    use crate::control_run::{Mode, requested_mode};
+    match requested_mode(body) {
+        Ok(Mode::DryRun) => None,
+        Ok(Mode::Plan | Mode::Run) if path == "/control/run" => {
+            Some(crate::project::COMPILER_REQUEST_TIMEOUT + Duration::from_secs(5))
+        }
+        _ => Some(Duration::from_secs(5)),
     }
 }
 
@@ -261,29 +268,36 @@ mod tests {
     }
 
     #[test]
-    fn only_rehearsals_wait_without_a_read_timeout() {
-        let bound = Some(Duration::from_secs(5));
-        assert_eq!(
-            read_timeout(&json!({ "mode": "dry-run", "source": "x" })),
-            None
-        );
-        assert_eq!(
-            read_timeout(&json!({ "dryRun": true, "name": "fill" })),
-            None
-        );
-        assert_eq!(
-            read_timeout(&json!({ "mode": "plan", "source": "x" })),
-            bound
-        );
-        assert_eq!(
-            read_timeout(&json!({ "mode": "run", "source": "x" })),
-            bound
-        );
-        assert_eq!(
-            read_timeout(&json!({ "dryRun": false, "name": "fill" })),
-            bound
-        );
-        assert_eq!(read_timeout(&json!({})), bound);
+    fn read_timeouts_follow_the_owners_mode_predicate() {
+        let task = Some(Duration::from_secs(5));
+        let compile = Some(crate::project::COMPILER_REQUEST_TIMEOUT + Duration::from_secs(5));
+        // A rehearsal has no bound, however it is spelled.
+        for body in [
+            json!({ "mode": "dry-run", "source": "x" }),
+            json!({ "dryRun": true, "name": "fill" }),
+            json!({ "dryRun": true, "mode": "dry-run", "source": "x" }),
+        ] {
+            assert_eq!(read_timeout("/control/run", &body), None, "{body}");
+            assert_eq!(read_timeout("/control/job", &body), None, "{body}");
+        }
+        // Ad hoc plan and run wait for the owner's compiler.
+        assert_eq!(read_timeout("/control/run", &json!({ "mode": "plan", "source": "x" })), compile);
+        assert_eq!(read_timeout("/control/run", &json!({ "mode": "run", "source": "x" })), compile);
+        assert_eq!(read_timeout("/control/run", &json!({ "plan": true, "source": "x" })), compile);
+        // Declared programs never compile; every other request keeps the task bound.
+        assert_eq!(read_timeout("/control/job", &json!({ "plan": true, "name": "fill" })), task);
+        assert_eq!(read_timeout("/control/job", &json!({ "dryRun": false, "name": "fill" })), task);
+        assert_eq!(read_timeout("/api/mutation", &json!({ "op": "send" })), task);
+        assert_eq!(read_timeout("/control/status", &json!({})), task);
+        // A body the owner refuses at once keeps the task bound rather than waiting unbounded.
+        for body in [
+            json!({ "mode": "run", "dryRun": true, "source": "x" }),
+            json!({ "mode": "dry-run", "dryRun": false, "source": "x" }),
+            json!({ "dryRun": "true", "name": "fill" }),
+            json!({ "dryRun": true, "plan": true, "source": "x" }),
+        ] {
+            assert_eq!(read_timeout("/control/run", &body), task, "{body}");
+        }
     }
 
     #[test]

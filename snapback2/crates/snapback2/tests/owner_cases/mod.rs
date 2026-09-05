@@ -1,6 +1,7 @@
 mod jobs;
 mod rehearsal;
 mod jobs_queue;
+mod rehearsal_blobs;
 use super::owner_support::*;
 use super::*;
 

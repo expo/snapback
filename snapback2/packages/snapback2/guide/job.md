@@ -48,11 +48,19 @@ rehearse the same way.
 The receipt's `state` is `done` (the program ran to completion on the copy),
 `parked` (a chunk refused; earlier chunks stand and `refusals` says why),
 `rejected` (a mutation's constraint or `require` refused it), or `refused`
-(the copy would not start the program). Admission — the name, the kind, the
-arguments, an ad hoc program's certificate — happens on the live store before
-any copy is taken, so a refusal there is the ordinary envelope (`E_OP_UNKNOWN`,
-`E_JOB_ARGS`) and nothing pauses the owner. `POST /control/run` and
-`POST /control/job` are the operator seat and take `as: system` when the body
-omits it; `POST /control/execute` does not, because it also serves explicit
-personas, so send `as: system` with `dryRun: true` there. `dryRun`, `plan`, and
-`wait` are JSON booleans; any other value is refused (`E_INPUT`).
+(the copy would not start an admitted program). Admission — the name, the
+kind, the arguments, an ad hoc program's certificate — happens on the live
+store before any copy is taken, so a refusal there is the ordinary envelope
+(`E_OP_UNKNOWN`, `E_JOB_ARGS`) and nothing pauses the owner; `refused` is
+therefore a safety net no fixture reaches (an admitted program the copy
+itself cannot enqueue or run), kept so the receipt is never silent, not a
+branch to delete. `POST /control/run` and `POST /control/job` are the
+operator seat and take `as: system` when the body omits it;
+`POST /control/execute` does not, because it also serves explicit personas,
+so send `as: system` with `dryRun: true` there. A body names its run once:
+`mode: "run" | "dry-run" | "plan"`, or the booleans `dryRun` and `plan`.
+`dryRun`, `plan`, and `wait` are JSON booleans; any other value is refused
+(`E_INPUT` at the flag's site), and so is a flag that disagrees with `mode`
+(`dryRun: true` with `mode: "run"`, `dryRun: false` with `mode: "dry-run"`,
+`plan: true` with `mode: "dry-run"`) or `dryRun` with `plan`; `dryRun: true`
+alone rehearses and `plan: true` alone plans. Nothing a body says is ignored.

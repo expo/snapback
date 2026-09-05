@@ -349,17 +349,64 @@ fn control_run_source_modes_and_declared_job_route_share_operator_admission() {
         (
             "/control/job",
             json!({"name":"admin.fill","dryRun":true,"mode":"run"}),
-            "mode",
+            "dryRun",
         ),
         (
             "/control/job",
             json!({"name":"admin.fill","plan":"true"}),
             "plan",
         ),
+        (
+            "/control/job",
+            json!({"name":"admin.fill","dryRun":true,"plan":true}),
+            "plan",
+        ),
+        (
+            "/control/job",
+            json!({"name":"admin.fill","mode":"dry-run","wait":true}),
+            "wait",
+        ),
         ("/control/run", json!({"source":source,"mode":true}), "mode"),
         (
             "/control/run",
             json!({"source":source,"mode":"run","wait":"true"}),
+            "wait",
+        ),
+        // A flag that disagrees with `mode`, or with the other flag, refuses at the flag's
+        // site on the source route too: `{ mode: "run", dryRun: true }` never runs for real.
+        (
+            "/control/run",
+            json!({"source":source,"mode":"run","dryRun":true}),
+            "dryRun",
+        ),
+        (
+            "/control/run",
+            json!({"source":source,"mode":"plan","dryRun":true}),
+            "dryRun",
+        ),
+        (
+            "/control/run",
+            json!({"source":source,"mode":"dry-run","dryRun":false}),
+            "dryRun",
+        ),
+        (
+            "/control/run",
+            json!({"source":source,"mode":"dry-run","plan":true}),
+            "plan",
+        ),
+        (
+            "/control/run",
+            json!({"source":source,"mode":"run","plan":true}),
+            "plan",
+        ),
+        (
+            "/control/run",
+            json!({"source":source,"dryRun":true,"plan":true}),
+            "plan",
+        ),
+        (
+            "/control/run",
+            json!({"source":source,"dryRun":true,"wait":true}),
             "wait",
         ),
     ] {
@@ -378,6 +425,40 @@ fn control_run_source_modes_and_declared_job_route_share_operator_admission() {
         seq_before,
         "a refused flag ran"
     );
+    // The flags alone are honoured, not ignored: `dryRun: true` rehearses, `plan: true`
+    // plans, and `mode: "plan"` on the declared route is the plan flag.
+    let rehearsed = control(
+        port,
+        &secret,
+        "/control/run",
+        json!({"source":source,"dryRun":true}),
+    );
+    assert_eq!(rehearsed["dryRun"], true, "{rehearsed}");
+    assert_eq!(rehearsed["chunks"], 3);
+    assert_eq!(status(port, &secret)["seq"], seq_before, "dryRun: true ran for real");
+    let planned = control(
+        port,
+        &secret,
+        "/control/run",
+        json!({"source":source,"plan":true}),
+    );
+    assert_eq!(planned["sweeps"][0]["entries"], 205, "{planned}");
+    let planned = control(
+        port,
+        &secret,
+        "/control/job",
+        json!({"name":"admin.fill","mode":"plan"}),
+    );
+    assert_eq!(planned["engineWrites"], json!(["_jobs"]), "{planned}");
+    assert_eq!(job_count(port, &secret), jobs_before, "a plan enqueued");
+    let sneaky = refused(
+        port,
+        &secret,
+        "/control/execute",
+        json!({"op":"admin.clock","as":"system","plan":true}),
+    );
+    assert_eq!(sneaky["code"], "E_OP_KIND", "{sneaky}");
+    assert_eq!(sneaky["site"], "mode");
     let untrusted = request(
         port,
         "POST",
@@ -411,15 +492,26 @@ fn control_run_compiles_with_the_owners_worker_and_spawns_no_second_compiler() {
     assert_eq!(spawns(), 1, "the owner boots exactly one compiler worker");
     let source =
         "job repair:\n  chunk p in items first 100 by byId:\n    update items[p.id] { n: 9 }\n";
+    // Each request compiles for real with the owner's worker; the slowest round trip is
+    // printed and must fit the CLI client's bound for ad hoc plan/run (the compiler's
+    // 30 s request timeout plus a 5 s margin, `client::read_timeout`).
+    let mut slowest = Duration::ZERO;
     for mode in ["plan", "dry-run", "plan", "run"] {
+        let began = Instant::now();
         let r = control(
             port,
             &secret,
             "/control/run",
             json!({"source":source,"args":{},"mode":mode}),
         );
+        slowest = slowest.max(began.elapsed());
         assert!(r.is_object(), "{mode}: {r}");
     }
+    println!("Closing round: slowest ad hoc /control/run compile round trip {slowest:?}");
+    assert!(
+        slowest < Duration::from_secs(35),
+        "an ad hoc compile must fit the client's bound: {slowest:?}"
+    );
     let broken = refused(
         port,
         &secret,

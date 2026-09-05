@@ -1,11 +1,12 @@
 //! Certified administrative sweeps. Nothing here is a client operation.
 // @ref LLP 1016#d2--a-job-is-a-sequence-of-sweeps — certify each bounded chunk, never the size of the whole task.
+use crate::certificate_policy::visit_statement_exprs;
 use crate::{
     ArgType, Bound, Ceilings, Certificate, CheckError, Checker, Constraint, Expr, LoopDomain,
     Order, Program, ProgramKind, Scan, Schema, Stmt, Value, WriteKind, WriteSite,
 };
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -129,7 +130,12 @@ impl JobRefusal {
             "fix the refused data or constraint, then run --resume <job-id> --as system",
         );
         refusal.family = family.into();
-        refusal.guide = format!("{family}/runtime");
+        // The job family's page is `job`; every other family pages its runtime page.
+        refusal.guide = if family == "job" {
+            "job".into()
+        } else {
+            format!("{family}/runtime")
+        };
         refusal
     }
 }
@@ -231,16 +237,36 @@ pub(crate) fn certify(
     if program.body.is_empty() {
         errors.push(shape_error(&program.name, "the body is empty"));
     }
+    // @ref LLP 1016#d2--a-job-is-a-sequence-of-sweeps — no bindings cross a block: a chunk that names another statement's binding is a shape error here, not an unknown-variable park at chunk time.
+    let bindings: Vec<BTreeSet<String>> = program.body.iter().map(statement_bindings).collect();
     for (position, statement) in program.body.iter().enumerate() {
         let site = format!("{}:statement:{}", program.name, position + 1);
         let Stmt::For {
             domain: LoopDomain::Page(scan),
+            body,
             ..
         } = statement
         else {
             errors.push(shape_error(&site, "it is a plain statement, not a chunk"));
             continue;
         };
+        let mut used = BTreeSet::new();
+        statements_names(body, &mut used);
+        let crossing = used.iter().find(|name| {
+            !bindings[position].contains(*name)
+                && !program.args.contains_key(*name)
+                && bindings
+                    .iter()
+                    .enumerate()
+                    .any(|(other, bound)| other != position && bound.contains(*name))
+        });
+        if let Some(name) = crossing {
+            errors.push(shape_error(
+                &site,
+                &format!("it names `{name}`, which another statement binds; a chunk reads what it needs itself"),
+            ));
+            continue;
+        }
         let Bound::Literal(take) = scan.take else {
             errors.push(shape_error(&site, "its `first N` is not a literal"));
             continue;
@@ -296,8 +322,8 @@ pub(crate) fn certify(
             ))
         } else if scan.prefix.len() > index.columns.len() {
             Some((
-                format!("the prefix names {} columns but {}.{} has {}", scan.prefix.len(), scan.table, scan.index, index.columns.len()),
-                format!("shorten the prefix to at most {} columns", index.columns.len()),
+                format!("the prefix names {} but {}.{} has {}", columns(scan.prefix.len()), scan.table, scan.index, columns(index.columns.len())),
+                format!("shorten the prefix to at most {}", columns(index.columns.len())),
             ))
         } else {
             None
@@ -383,6 +409,87 @@ fn shape_error(site: &str, detail: &str) -> CheckError {
         code: "E_JOB_SHAPE".into(),
         message: format!("{site} is not a chunk: {detail}"),
         rewrite: "a job is one or more `chunk` blocks and nothing else:\njob fill:\n  chunk row in table first 100 by byId:\n    update table[row.id] { column: value }".into(),
+    }
+}
+/// The site an `E_JOB_SHAPE` names — `job:statement:N`, or the job for an empty body —
+/// for envelopes whose `CheckError` carries no site of its own.
+pub fn shape_site(error: &CheckError) -> Option<&str> {
+    (error.code == "E_JOB_SHAPE")
+        .then(|| error.message.split(" is not a chunk").next())
+        .flatten()
+}
+fn columns(count: usize) -> String {
+    format!("{count} column{}", if count == 1 { "" } else { "s" })
+}
+/// Every name a statement binds: a loop binding, `Const`/`Let` at any depth, a `Divmod` sink.
+fn statement_bindings(statement: &Stmt) -> BTreeSet<String> {
+    let mut names = BTreeSet::new();
+    bindings(std::slice::from_ref(statement), &mut names);
+    names
+}
+fn bindings(body: &[Stmt], names: &mut BTreeSet<String>) {
+    for statement in body {
+        match statement {
+            Stmt::Const { name, .. } | Stmt::Let { name, .. } => {
+                names.insert(name.clone());
+                visit_statement_exprs(statement, &mut |expr| sink(expr, names));
+            }
+            Stmt::For { binding, body, .. } => {
+                names.insert(binding.clone());
+                visit_statement_exprs(statement, &mut |expr| sink(expr, names));
+                bindings(body, names);
+            }
+            Stmt::If {
+                then_body,
+                else_body,
+                ..
+            } => {
+                visit_statement_exprs(statement, &mut |expr| sink(expr, names));
+                bindings(then_body, names);
+                bindings(else_body, names);
+            }
+            _ => visit_statement_exprs(statement, &mut |expr| sink(expr, names)),
+        }
+    }
+}
+fn sink(expr: &Expr, names: &mut BTreeSet<String>) {
+    if let Expr::Builtin {
+        builtin: crate::Builtin::Divmod { remainder_sink },
+        ..
+    } = expr
+    {
+        names.insert(remainder_sink.clone());
+    }
+}
+/// Every name a body reads or assigns, at any depth.
+fn statements_names(body: &[Stmt], names: &mut BTreeSet<String>) {
+    for statement in body {
+        match statement {
+            Stmt::Assign { name, .. } => {
+                names.insert(name.clone());
+            }
+            Stmt::Push { target, .. } => {
+                names.insert(target.clone());
+            }
+            _ => {}
+        }
+        match statement {
+            Stmt::For { body, .. } => statements_names(body, names),
+            Stmt::If {
+                then_body,
+                else_body,
+                ..
+            } => {
+                statements_names(then_body, names);
+                statements_names(else_body, names);
+            }
+            _ => {}
+        }
+        visit_statement_exprs(statement, &mut |expr| {
+            if let Expr::Variable(name) = expr {
+                names.insert(name.clone());
+            }
+        });
     }
 }
 

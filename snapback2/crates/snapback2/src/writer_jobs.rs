@@ -87,15 +87,16 @@ impl State {
                 .runtime_mut()
                 .run_chunk_at(&id, now)
                 .map_err(|e| Refusal::from_runtime(&e))?;
-            // The commit alone, then the whole turn once live reruns are done (LLP 1016 §8).
-            let commit_ms = started.elapsed().as_secs_f64() * 1000.0;
+            // `chunkMs` is the chunk's execution including its commit; `ms` is the whole
+            // turn once the live reruns are done, the unit LLP 1016 §8 budgets.
+            let chunk_ms = started.elapsed().as_secs_f64() * 1000.0;
             if let Some(execution) = &outcome.execution {
                 self.after_commit(execution.seq)?;
             }
             crate::watch::log(
                 &self.root,
                 json!({"kind":"job","job":id,"chunk":outcome.job.chunks,
-                "state":outcome.job.state,"ms":started.elapsed().as_secs_f64()*1000.0,"commitMs":commit_ms,"refusal":outcome.job.last_error}),
+                "state":outcome.job.state,"ms":started.elapsed().as_secs_f64()*1000.0,"chunkMs":chunk_ms,"refusal":outcome.job.last_error}),
             );
         }
         Ok(())

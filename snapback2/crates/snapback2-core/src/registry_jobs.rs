@@ -90,7 +90,7 @@ impl Runtime {
     pub fn run_chunk(&mut self, id: &str) -> Result<ChunkOutcome, RuntimeError> {
         self.run_chunk_at(id, unix_millis())
     }
-    // @ref LLP 1016#d3--the-driver — a chunk that cannot run parks the job with its envelope; the owner keeps serving. Only a store fault while parking propagates.
+    // @ref LLP 1016#d3--the-driver — park, never stop: every chunk error parks the job with that error's envelope, a rejection and a store fault alike, and the owner keeps serving. Only a fault while writing the park itself propagates.
     pub fn run_chunk_at(&mut self, id: &str, now: i64) -> Result<ChunkOutcome, RuntimeError> {
         let row = self.job_record(id)?;
         if !matches!(row.state.as_str(), "queued" | "running") {
@@ -100,21 +100,9 @@ impl Runtime {
             });
         }
         let site = format!("{}:chunk:{}", row.name, row.sweep);
-        let (program, certificate) = match self.job_program(&row) {
+        let (program, certificate) = match self.bound_program(&row) {
             Ok(pair) => pair,
-            Err(error) => {
-                // The executable is not the one the row bound: a changed or missing declaration,
-                // a plan that no longer decodes, or an ad hoc program the live generation refuses.
-                let refusal = match error {
-                    RuntimeError::Job(refusal) => *refusal,
-                    other => {
-                        let mut refusal = JobRefusal::generation(&row.name);
-                        refusal.message = format!("{}: {other}", refusal.message);
-                        refusal
-                    }
-                };
-                return self.park(row, refusal, now);
-            }
+            Err(refusal) => return self.park(row, refusal, now),
         };
         let ids = self.reserve_new_ids()?;
         match self
@@ -122,9 +110,24 @@ impl Runtime {
             .execute_job_chunk(&program, &certificate, row.clone(), now, ids)
         {
             Ok(outcome) => Ok(outcome),
-            // The failed transaction has already rolled back. Parking preserves its old cursor.
+            // The failed transaction has already rolled back. Parking preserves its old cursor,
+            // and `trace <job>` carries the underlying error in the parked envelope.
             Err(error) => self.park(row, JobRefusal::rejected(&error, &site), now),
         }
+    }
+    /// The executable the row bound, or the `E_JOB_GENERATION` envelope naming why it is
+    /// not: a changed or missing declaration, a plan that no longer decodes (the decode
+    /// failure in the message), or an ad hoc program the live generation refuses. Chunk
+    /// execution and `--resume` read the row through this one mapping.
+    fn bound_program(&self, row: &JobRecord) -> Result<(Program, Certificate), JobRefusal> {
+        self.job_program(row).map_err(|error| match error {
+            RuntimeError::Job(refusal) => *refusal,
+            other => {
+                let mut refusal = JobRefusal::generation(&row.name);
+                refusal.message = format!("{}: {other}", refusal.message);
+                refusal
+            }
+        })
     }
     fn park(
         &mut self,
@@ -188,7 +191,9 @@ impl Runtime {
                 id, &row.state, "resume", "parked",
             ))));
         }
-        let pair = self.job_program(&row)?;
+        let pair = self
+            .bound_program(&row)
+            .map_err(|refusal| RuntimeError::Job(Box::new(refusal)))?;
         row.state = "queued".into();
         row.last_error = None;
         row.updated_at = now;

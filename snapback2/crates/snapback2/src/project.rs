@@ -17,7 +17,7 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread;
 use std::time::{Duration, Instant};
 
-const COMPILER_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
+pub(crate) const COMPILER_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 const COMPILER_OUTPUT_DRAIN_TIMEOUT: Duration = Duration::from_secs(4);
 static NEXT_CACHE_STAGE: AtomicU64 = AtomicU64::new(0);
 

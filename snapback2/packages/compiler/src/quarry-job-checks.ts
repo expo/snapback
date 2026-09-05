@@ -59,18 +59,29 @@ export function registerJobChecks(test: Test, frontend: string): void {
   test("A job that is not only chunk blocks refuses as E_JOB_SHAPE in the job family, naming the statement", async () => {
     const lowered = await lowerProject(resolve(frontend, "fixtures/quarry-jobs"));
     assert(lowered.ok, JSON.stringify(lowered));
-    const chunk = lowered.project.programs.find((p) => p.name === "admin.fillAvatars")!.body[0]!;
+    const chunk: any = lowered.project.programs.find((p) => p.name === "admin.fillAvatars")!.body[0]!;
+    // A second chunk that reads the first chunk's loop binding: the crossing is a shape
+    // error at certification, not an unknown variable parking the job at chunk time.
+    const crossing = structuredClone(chunk);
+    crossing.For.binding = "q";
+    crossing.For.body = [{ Update: { table: "profiles", key: { Field: { base: { Variable: chunk.For.binding }, name: "id" } }, patch: { Object: { avatarUrl: { Literal: { String: "x" } } } } } }];
     const shapes = [
-      { name: "admin.plain", body: [{ Return: { Variable: "nothing" } }], statement: 1 },
-      { name: "admin.trailing", body: [chunk, { Return: { Variable: "nothing" } }], statement: 2 },
+      { name: "admin.plain", body: [{ Return: { Variable: "nothing" } }], statement: 1, detail: "plain statement" },
+      { name: "admin.trailing", body: [chunk, { Return: { Variable: "nothing" } }], statement: 2, detail: "plain statement" },
+      { name: "admin.crossing", body: [chunk, crossing], statement: 2, detail: `it names \`${chunk.For.binding}\`, which another statement binds` },
     ];
     const checked = rustCheck(shapes.map(({ name, body }) => ({ name, kind: "job" as const, args: {}, read_time_granularity_ms: null, result_page_site: null, body })), "synthetic", lowered.project.schema);
     for (const [i, shape] of shapes.entries()) {
       const error = checked[i]!.error;
       assert(error?.code === "E_JOB_SHAPE" && error.family === "job" && error.guide === "job", JSON.stringify(checked[i]));
-      assert(error.message.includes(`${shape.name}:statement:${shape.statement}`) && error.message.includes("plain statement"), error.message);
+      const site = `${shape.name}:statement:${shape.statement}`;
+      assert(error.site === site, `site ${error.site} is not ${site}`);
+      assert(error.message.startsWith(`${site} is not a chunk: `) && error.message.includes(shape.detail), error.message);
       assert(error.rewrite.includes("one or more `chunk` blocks and nothing else"), error.rewrite);
     }
+    // An empty body sites the job itself.
+    const empty = rustCheck([{ name: "admin.empty", kind: "job", args: {}, read_time_granularity_ms: null, result_page_site: null, body: [] }], "synthetic", lowered.project.schema)[0]!.error;
+    assert(empty?.code === "E_JOB_SHAPE" && empty.site === "admin.empty", JSON.stringify(empty));
   });
   test("No chat template mutation patches an immutable messages key", async () => {
     const lowered = await lowerProject(resolve(frontend, "../snapback2/templates/chat"));

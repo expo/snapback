@@ -327,6 +327,18 @@ and erasure actually are.
   its cursor; the chunk in flight never committed. **`reset`** clears
   `_jobs` with the data it clears; a snapshot carries `_jobs` like every
   table.
+- **Park, never stop (closing round, 2026-09-05).** Every error a chunk
+  raises parks the job with that error's own envelope — a rejection
+  (D2's constraint, ceiling, `E_INPUT`) and a store fault (`E_SQL`, a plan
+  that no longer decodes, a serialization error) alike — plus the `job`,
+  `sweep`, `chunk` fields, and `trace <job>` shows the underlying error on
+  the chunk that hit it. An owner that stops is worse than a parked job:
+  the writer's background turn (`writer_jobs.rs`) fails the owner only
+  when the park itself cannot be written, the one fault that leaves no
+  record. `--resume` reads the row through the same mapping, so a
+  parked executable refuses `E_JOB_GENERATION` with the same cause rather
+  than a second failure language. Proof:
+  `tests/jobs.rs::store_fault_at_chunk_time_parks_with_its_own_envelope_and_rolls_back`.
 
 ### D4 — Expand, fill, contract
 
@@ -558,6 +570,17 @@ design RFC's `propagate` (§2.2 E) is for work "no job may defer".
 | `POST /control/run` (ad hoc source and args; TLS) | dev, serve | admin |
 | `POST /control/fork` | dev | — (unchanged; the CLI adapter goes) |
 
+On every operator route a body says how to run in one of two spellings —
+`mode: "run" | "dry-run" | "plan"`, or the booleans `dryRun` and `plan` —
+and the owner reads them once (`control_run::requested_mode`): a flag that
+is not a JSON boolean, a flag that disagrees with `mode`, or `dryRun` with
+`plan` refuses `E_INPUT` at the flag's site; `dryRun: true` alone rehearses,
+`plan: true` alone plans, and nothing a body says is ignored. The CLI client
+chooses its read timeout from the same predicate: a rehearsal waits
+unbounded, an ad hoc `plan` or `run` waits out the compiler's request
+timeout plus a margin, everything else keeps the five-second bound
+(closing round, 2026-09-05).
+
 `dev --status` and `/control/status` gain `jobs: { running, queued, parked }`
 and `timers: { due, next_at, rejected }`. The console, when the author
 builds it (LLP 1015 D13), is a static page served by the owner over these
@@ -702,10 +725,10 @@ a site, a rewrite, and a page.
 
 | Code | Family | When | Rewrite |
 | --- | --- | --- | --- |
-| `E_JOB_CURSOR_INDEX` | job | a sweep's index has a key column that is neither `id` nor declared immutable | `immutable <cols>` on the table, or `by byId` |
+| `E_JOB_CURSOR_INDEX` | job | one of three sweep-index failures: a key column a write can move (neither `id` nor declared immutable); an order that is not total (not unique and not ending in `id`); a prefix longer than the index | that failure's own repair: `declare immutable <cols>` on the table, or sweep by `byId`; end the index in `id` (or declare it unique), or sweep by `byId`; shorten the prefix to at most N column(s) (J1b fix round 1) |
 | `E_JOB_GENERATION` | job | parked on succession: changed body, missing job, or changed sweep index | `run --cancel` and start again, or restore the declaration |
 | `E_JOB_ARGS` | job | enqueue with arguments that do not type | the job's signature, `job name(arg: type, …):`, as an author writes it |
-| `E_JOB_SHAPE` | job | a job body that is not only `chunk` blocks: a plain statement, a non-literal `first`, a cursor, range, or merge on the sweep, a prefix that is neither literal nor argument (J1b fix round 1) | a job is one or more `chunk` blocks and nothing else; site is `job:statement:N` |
+| `E_JOB_SHAPE` | job | a job body that is not only `chunk` blocks: a plain statement, a non-literal `first`, a cursor, range, or merge on the sweep, a prefix that is neither literal nor argument (J1b fix round 1); a chunk that names a binding another statement made — bindings never cross a block (closing round) | a job is one or more `chunk` blocks and nothing else; a chunk reads what it needs itself; site is `job:statement:N` on the envelope too, the job name for an empty body |
 | `E_JOB_STATE` | job | `--cancel` on a done or cancelled job, `--resume` on a job that is not parked (J1b fix round 1) | names the state; `run <job>` again |
 | `E_SCHEDULE_COLUMN` | schedule | `at` names a column that is not `time ?` | declare `col: time ?` |
 | `E_SCHEDULE_TARGET` | schedule | the target is not a mutation or job of this project, or its args do not match | the target's signature |
@@ -714,7 +737,7 @@ a site, a rewrite, and a page.
 | `E_ARGS_NAME` | args | a caller-supplied `by` that is not a valid name | 1–80 ASCII letters, numbers, dashes, or underscores; `system` is reserved |
 | `E_ADHOC_SIZE` | operator | ad hoc source over 64 KiB | declare it as a job |
 | `E_REHEARSAL` | operator | `--dry-run` could not snapshot, open, run, or discard its copy — an engine or store fault inside the rehearsal (J3 fix round 1 widened it to execution); a program refusal inside a rehearsal is a receipt, not this code | check free disk space and the owner's store, then retry |
-| `E_OP_KIND` | op | (existing) `--plan` or `--wait` on a non-job, found by the owner after compiling `--file` source; the CLI reports it as usage (J3 fix round 1) | use a job, or omit `--plan`/`--wait` |
+| `E_OP_KIND` | op | (existing) `--plan` or `--wait` on a non-job, found by the owner after compiling `--file` source, or `plan` on `/control/execute`; site `mode` in the code and the registry alike; the CLI reports it as usage (J3 fix round 1, closing round) | use a job, or omit `--plan`/`--wait` |
 | `E_SUCCESSOR_NARROWING` | successor | `T?` → `T` with null rows, at application | the fill job |
 | `E_SUCCESSOR_COLUMN_REQUIRED` | successor | (existing) | gains the three-step rewrite |
 | `E_QUARRY_UNSUPPORTED` | quarry | (existing) the `system` rule word | `deny` |
@@ -1100,7 +1123,10 @@ profiles the write is a tenth of the turn; the live reruns are the turn.
 Client p95 during the fill under release was 1.23× idle (244.6 ms against
 199.2 ms). Both turn lines are appended to `snapback2/metrics/jobs.jsonl`
 beside the original debug line; `writer_jobs.rs` logs `commitMs` beside `ms`
-so the split stays visible. §8's budget stands for a qualified build; the
+so the split stays visible (relabelled `chunkMs` in the closing round: the
+timer covers the chunk's execution including its commit, not the commit
+alone; the two metric lines are re-appended under the corrected label). §8's
+budget stands for a qualified build; the
 debug number is a debug number, and no driver change was made for it.
 
 ### Implementation record — J3
@@ -1145,8 +1171,10 @@ zero chunks and the live allocator's namespace and high-water untouched; `:312`
 the clock pinned and three disjoint namespaces across two rehearsals and
 production; `:344` a parked rehearsal keeps its prior chunks and reports neither
 the rolled-back emissions nor the rolled-back release; `:372` an admission
-refusal is a receipt with `state: refused`, and a copy that cannot open is
-`E_REHEARSAL` with the directory removed.
+refusal is a receipt with `state: refused` (superseded by fix round 1: admission
+now runs on the live runtime before any copy, and a refusal is the seat's
+ordinary envelope; `state: refused` survives only as the copy-side safety net
+below), and a copy that cannot open is `E_REHEARSAL` with the directory removed.
 
 **The verb** (`snapback2/crates/snapback2/src/verbs_jobs.rs`). `--dry-run` on
 `run <op>` and `run --file`; a usage error with `--wait`, `--plan`, `--cancel` or
@@ -1161,7 +1189,9 @@ failure (the directory replaced by a file) as exit 1.
 **The routes** (`snapback2/crates/snapback2/src/control_run.rs`). `POST
 /control/run` with `{ source, args, mode: "run" | "dry-run" | "plan" }` — the
 owner compiles the source with the bundled worker as an explicit authoring
-operation, admits exactly one declaration, caps it at 64 KiB (`E_ADHOC_SIZE`),
+operation (superseded by fix round 1: with the owner's one shared worker under
+`project::SharedCompiler`, never a worker per request), admits exactly one
+declaration, caps it at 64 KiB (`E_ADHOC_SIZE`),
 refuses `plan`/`wait` on a non-job (`E_OP_KIND`, which the CLI reports as usage),
 then rehearses or hands the program to J1b's `Action::Adhoc`. `dryRun: true` on
 `POST /control/job` and `POST /control/execute` rehearses a declared program.
@@ -1403,3 +1433,99 @@ in-crate because integration tests cannot reach the engine's transaction; (7)
 URL-encoding it (no `url` crate in the binary). The corpus was not
 regenerated: no existing case declares a schedule and `schedules`/`engineWrites`
 serialize only when non-empty, so no engine output changed.
+
+### Closing round
+
+Closed 2026-09-05 by Claude Fable 5.1 in `s2/admin-closing`, after every lane
+and its fix round had landed: the fourteen residual items the four second-round
+reviews (`j1b-r2-muse`, `j1b-r2-grok`, `j3-r2-muse`, `j3-r2-grok`) left as
+LAND WITH FIXES, none blocking. Two were defects, the rest were tests proving
+less than their names, labels, sites, and sentences.
+
+- **Nothing a body says is ignored** (J3, muse §3.1, grok §4). `{ mode: "run",
+  dryRun: true }` on `POST /control/run` ran for real while the client waited
+  unbounded. `control_run::requested_mode` is now the one reading of `mode`,
+  `dryRun`, and `plan` on all three operator routes (D8 states the rule): a
+  disagreeing flag refuses `E_INPUT` at the flag's site, `dryRun: true` alone
+  rehearses, `plan: true` alone plans, `mode: "plan"` on `/control/job` is the
+  plan flag, and `plan` on `/control/execute` is `E_OP_KIND`. The CLI client's
+  read timeout is decided by the same predicate: unbounded for a rehearsal,
+  the compiler's 30 s request timeout plus 5 s for an ad hoc `plan`/`run`
+  (which compile first; the five-second bound could fail the CLI while the
+  owner still compiled), five seconds otherwise. Proof: nine new refused
+  bodies and three honoured-flag cases in
+  `owner_cases/rehearsal.rs::control_run_source_modes_and_declared_job_route_share_operator_admission`,
+  `client::tests::read_timeouts_follow_the_owners_mode_predicate`, and the
+  slowest real compile round trip timed in
+  `control_run_compiles_with_the_owners_worker_and_spawns_no_second_compiler`
+  (66 ms in this round, printed).
+- **The decode half of the mismatch test now exercises chunk time** (grok
+  §3.1). It writes the garbage plan under a *queued* job, drives one chunk,
+  and asserts the park is `E_JOB_GENERATION` with the decode failure named in
+  the cause; `resume_job_at` reads the row through the same `bound_program`
+  mapping as `run_chunk_at`, so its refusal is the same code instead of
+  `E_SERIALIZATION`.
+- **Park, never stop is a D3 rule** (grok §3.4), written into D3: every chunk
+  error parks with its own envelope, a store fault included; only a fault
+  while writing the park propagates. Proof:
+  `tests/jobs.rs::store_fault_at_chunk_time_parks_with_its_own_envelope_and_rolls_back`
+  — a raw SQLite trigger on `rows` fails the chunk's update with `no such
+  table`; the job parks `E_SQL` (family `input`, page `input/runtime`, site
+  `admin.fill:chunk:0`, the SQLite message in the envelope), the chunk rolls
+  back, and with the trigger gone `--resume` finishes the job.
+- **Bindings never cross a block, at certification** (muse §3.1). `certify`
+  walks each chunk for a name bound by another statement (loop bindings,
+  `Const`/`Let` at any depth, a `Divmod` sink) that the chunk neither binds
+  nor takes as an argument, and refuses `E_JOB_SHAPE` naming it; before, the
+  crossing certified and parked at chunk time as `E_INPUT: unknown variable`.
+  Pinned in core and in `quarry-job-checks.ts` beside the plain-statement
+  cases, where the envelope `site` is now `job:statement:N` (the job for an
+  empty body) rather than the program name (`check.rs` reads it through
+  `jobs::shape_site`).
+- **Blob isolation through the owner's real `BlobStore`** (J3 grok §3.1,
+  muse §3.2). `owner_cases/rehearsal_blobs.rs` uploads three PNGs over
+  `/api/upload`, attaches them by a mutation, rehearses a job that deletes
+  every row, and asserts the owner's blob directory unchanged by content
+  digest, the assets still delivered, the seq unmoved, and the owner's own
+  reclamation sweep (driven by `/control/clock` past the 24 h grace) reclaiming
+  nothing — then runs the same job for real and shows that sweep delete the
+  bytes, so the negative is the real path. The unit test's listing compares
+  content digests too, so a same-size overwrite cannot pass.
+- **Labels, bounds, sites, sentences.** `commitMs` is `chunkMs` (chunk
+  execution including its commit) in the writer log, the cadence test, the
+  measurement emitter, and two relabelled lines appended to the append-only
+  `metrics/jobs.jsonl`. The idle-cadence test asserts under ten seconds
+  (measured 1.79 s here; the record above said 1.7 s and the test said 30 s),
+  a bound under 20 ms a chunk that no poll interval could produce and that
+  cannot flake under the parallel gate. `E_JOB_CURSOR_INDEX`'s §7 row carries
+  the three-way rewrite; "at most 1 columns" is "1 column"; a job-family
+  rejection pages `job`, never `job/runtime`; `E_OP_KIND`'s registry site is
+  `mode`, as emitted; the two stale J3 sentences above are amended in place;
+  `guide/job.md` says `refused` is a safety net no fixture reaches and states
+  the disagreement rule; the open-path reconcile is
+  `issues/20260905-snapback2-runtime-open-reconcile-outside-persist.md`,
+  owner J2's successor path, with the chunk-time park named as the cover.
+
+The corpus was not regenerated: no engine output for an existing case changed
+(the new certification refusal fires only on a job whose chunk names another
+statement's binding, which no corpus case does). The cross-chunk walk reuses
+`certificate_policy::visit_statement_exprs` rather than a second expression
+walker.
+
+One test outside the round was repaired on the way: the owner's
+`wire_lifecycle` successor case read `.snapback` for the migration file the
+instant `/control/status` showed `refused`, but the writer sets that phase
+inside the failed apply and the watcher thread writes `migration-<gen>.json`
+only when the reply reaches it, so under the parallel gate the test could look
+first (it did, once in a gate run and once alone). It now waits, bounded, for
+the file the watcher must write.
+
+Verification for this record: two full `scripts/test.sh` runs, then the
+affected stages rerun on the final tree — nextest **596 tests run, 596 passed**
+(2 leaky, 4 skipped), compiler **321/321**, evaluator 162/162, doctests clean,
+caps and `ref-check` clean. The package suite was red in both full runs only
+for known reasons: run 1 on the ticketed `local-data-recovery` load flake, run 2
+on the ticketed node-shim hang in `real-owner.test.ts` that the orchestrator
+killed by PID after fourteen minutes; both files pass alone on the final tree
+(18/18, 18.4 s). The idle-cadence proof printed 1.79 s; the slowest real ad hoc
+compile round trip printed 66 ms.

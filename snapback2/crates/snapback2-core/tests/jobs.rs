@@ -126,6 +126,21 @@ fn reopen_with_plan(rt: Runtime, hash: &str, plan: &str, tag: &str) -> (Runtime,
         path,
     )
 }
+/// The same reopen with raw SQL on the closed store: a store-level fault no certified
+/// program can cause, planted where the next chunk will hit it.
+fn reopen_with_sql(rt: Runtime, sql: &str, tag: &str) -> (Runtime, std::path::PathBuf) {
+    let path = std::env::temp_dir().join(format!("j1b-{tag}-{}.sqlite", std::process::id()));
+    rt.store().snapshot_to(&path).unwrap();
+    drop(rt);
+    rusqlite::Connection::open(&path)
+        .unwrap()
+        .execute_batch(sql)
+        .unwrap();
+    (
+        Runtime::open(Store::open(&path).unwrap(), generation(schema(), job(1))).unwrap(),
+        path,
+    )
+}
 fn seed(runtime: &mut Runtime, ids: &[&str]) {
     runtime
         .seed(
@@ -438,7 +453,8 @@ fn certification_requires_immutable_total_keys_and_counts_progress_write() {
         vec![Expr::Literal(Value::String("a".into())), Expr::Literal(Value::String("b".into()))],
         &schema(),
     );
-    assert!(too_long.1.starts_with("shorten the prefix to at most 1 columns"), "{too_long:?}");
+    assert!(too_long.0.contains("names 2 columns but items.byId has 1 column"), "{too_long:?}");
+    assert!(too_long.1.starts_with("shorten the prefix to at most 1 column"), "{too_long:?}");
     let cert = Checker::new(&schema(), Ceilings::default())
         .check(&p)
         .unwrap();
@@ -600,19 +616,119 @@ fn executable_mismatch_at_chunk_time_parks_with_the_generation_envelope_and_keep
     assert_eq!(outcome.job.state, "parked");
     assert_eq!(outcome.job.chunks, 1, "the cursor does not move");
     let envelope = outcome.job.last_error.unwrap();
-    assert_eq!((envelope.code.as_str(), envelope.family.as_str()), ("E_JOB_GENERATION", "job"));
+    assert_eq!((envelope.code.as_str(), envelope.family.as_str(), envelope.guide.as_str()), ("E_JOB_GENERATION", "job", "job"));
     assert_eq!((envelope.job.as_deref(), envelope.sweep, envelope.chunk), (Some(id.as_str()), Some(0), Some(2)));
-    // A plan that no longer decodes parks the same way, naming the cause; the owner never stops.
+    assert_eq!(rt.resume_job(&id).unwrap_err().code(), "E_JOB_GENERATION");
+    // A plan that no longer decodes parks a *queued* job the same way when its first chunk
+    // is driven, naming the decode failure as the cause; resume refuses with the same code
+    // rather than a serialization error. The owner never stops.
+    let second = rt
+        .enqueue_adhoc_job(&job(1), BTreeMap::new(), OperatorId("tester".into()), 2, "job fill: ad hoc again".into())
+        .unwrap();
     let (mut rt, path2) = reopen_with_plan(rt, &hash, "not a plan", "garbage");
     std::fs::remove_file(path).unwrap();
-    rt.resume_job(&id).unwrap_err();
-    let record = rt.job_record(&id).unwrap();
-    assert_eq!(record.state, "parked");
-    let again = rt.run_chunk(&id).unwrap();
-    assert!(again.execution.is_none());
-    assert_eq!(again.job.last_error.unwrap().code, "E_JOB_GENERATION");
+    assert_eq!(rt.job_record(&second).unwrap().state, "queued");
+    let parked = rt.run_chunk(&second).unwrap();
+    assert!(parked.execution.is_none());
+    assert_eq!(parked.job.state, "parked");
+    assert_eq!(parked.job.chunks, 0, "no chunk ran");
+    let envelope = parked.job.last_error.unwrap();
+    assert_eq!((envelope.code.as_str(), envelope.family.as_str(), envelope.guide.as_str()), ("E_JOB_GENERATION", "job", "job"));
+    assert!(envelope.message.contains("E_SERIALIZATION"), "the cause names the decode failure: {}", envelope.message);
+    assert_eq!((envelope.job.as_deref(), envelope.sweep, envelope.chunk), (Some(second.as_str()), Some(0), Some(1)));
+    let refused = rt.resume_job(&second).unwrap_err();
+    assert_eq!(refused.code(), "E_JOB_GENERATION");
+    assert!(refused.to_string().contains("E_SERIALIZATION"), "{refused}");
+    assert_eq!(rt.job_record(&second).unwrap().state, "parked");
     drop(rt);
     std::fs::remove_file(path2).unwrap();
+}
+#[test]
+fn store_fault_at_chunk_time_parks_with_its_own_envelope_and_rolls_back() {
+    // LLP 1016 D3: park, never stop. A fault that is not a rejection — here SQLite failing
+    // the chunk's row update — parks the job with that fault's envelope, rolls the chunk
+    // back, and leaves the store serving; the parked envelope is what `trace <job>` shows.
+    let mut rt = runtime(1);
+    seed(&mut rt, &["01", "02", "03"]);
+    let id = start(&mut rt);
+    rt.run_chunk(&id).unwrap();
+    let (mut rt, path) = reopen_with_sql(
+        rt,
+        "CREATE TRIGGER fault AFTER UPDATE ON rows WHEN NEW.table_name = 'items' BEGIN INSERT INTO no_such_table VALUES (1); END",
+        "fault",
+    );
+    assert_eq!(rt.job_record(&id).unwrap().state, "queued");
+    let outcome = rt.run_chunk(&id).unwrap();
+    assert!(outcome.execution.is_none());
+    assert_eq!(outcome.job.state, "parked");
+    assert_eq!(outcome.job.chunks, 1, "the cursor does not move");
+    let envelope = outcome.job.last_error.unwrap();
+    assert_eq!((envelope.code.as_str(), envelope.family.as_str(), envelope.guide.as_str()), ("E_SQL", "input", "input/runtime"));
+    assert_eq!(envelope.site, "admin.fill:chunk:0");
+    assert!(envelope.message.contains("no such table"), "the underlying error rides in the envelope: {}", envelope.message);
+    assert_eq!((envelope.job.as_deref(), envelope.sweep, envelope.chunk), (Some(id.as_str()), Some(0), Some(2)));
+    assert_eq!(values(&mut rt)["02"], 0, "the chunk rolled back");
+    // The store still serves reads and the next job control; with the fault gone the
+    // parked job resumes from the same cursor.
+    assert_eq!(rt.job_record(&id).unwrap().state, "parked");
+    let (mut rt, path2) = reopen_with_sql(rt, "DROP TRIGGER fault", "fault-cleared");
+    std::fs::remove_file(path).unwrap();
+    rt.resume_job(&id).unwrap();
+    rt.run_chunk(&id).unwrap();
+    assert_eq!(rt.run_chunk(&id).unwrap().job.state, "done");
+    assert!(values(&mut rt).values().all(|n| *n == 1));
+    drop(rt);
+    std::fs::remove_file(path2).unwrap();
+}
+#[test]
+fn a_chunk_that_names_another_chunks_binding_refuses_as_e_job_shape() {
+    // D2: bindings never cross a block. The second chunk binds `other` but reads `row`,
+    // the first chunk's binding; certification refuses it in the job family, naming the
+    // statement, instead of letting it park at chunk time as an unknown variable.
+    let mut p = job(2);
+    let mut second = p.body[0].clone();
+    if let Stmt::For {
+        binding,
+        domain: LoopDomain::Page(scan),
+        body,
+    } = &mut second
+    {
+        scan.site = "second".into();
+        *binding = "other".into();
+        body.clear();
+        body.push(Stmt::Update {
+            table: "items".into(),
+            key: field("id"),
+            patch: Expr::Object(BTreeMap::from([("n".into(), Expr::Literal(Value::Int(0)))])),
+        });
+    }
+    p.body.push(second);
+    let errors = Checker::new(&schema(), Ceilings::default())
+        .check_all(&p)
+        .unwrap_err();
+    let error = errors
+        .iter()
+        .find(|e| e.code == "E_JOB_SHAPE")
+        .unwrap_or_else(|| panic!("{errors:?}"));
+    assert!(
+        error.message.starts_with("admin.fill:statement:2 is not a chunk: it names `row`"),
+        "{error:?}"
+    );
+    assert_eq!(jobs::shape_site(error), Some("admin.fill:statement:2"));
+    assert!(error.rewrite.contains("one or more `chunk` blocks and nothing else"));
+    // A name bound in the chunk itself, a job argument, or the same binding name reused by
+    // an independent chunk is not a crossing: the two-sweep job still certifies.
+    let mut fine = job(2);
+    let mut again = fine.body[0].clone();
+    if let Stmt::For {
+        domain: LoopDomain::Page(scan),
+        ..
+    } = &mut again
+    {
+        scan.site = "second".into();
+    }
+    fine.body.push(again);
+    assert!(Checker::new(&schema(), Ceilings::default()).check(&fine).is_ok());
 }
 #[test]
 fn ceiling_fault_at_chunk_time_parks_in_the_bound_family_and_rolls_back() {

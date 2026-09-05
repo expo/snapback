@@ -21,18 +21,38 @@ pub(super) fn request(
     headers: &[(&str, &str)],
     body: Value,
 ) -> Response {
-    let mut stream = TcpStream::connect(("127.0.0.1", port)).unwrap();
-    stream
-        .set_read_timeout(Some(Duration::from_secs(5)))
-        .unwrap();
     let bytes = if method == "GET" {
         Vec::new()
     } else {
         serde_json::to_vec(&body).unwrap()
     };
+    let response = request_bytes(port, method, path, headers, "application/json", &bytes);
+    if let Err(error) = serde_json::from_slice::<Value>(&response.body_bytes) {
+        panic!(
+            "{method} {path}: response body is not one JSON value: {error}; body={}",
+            String::from_utf8_lossy(&response.body_bytes),
+        );
+    }
+    response
+}
+
+/// The same request with a raw body (an upload's bytes) and a body that may not be JSON
+/// (a delivered asset): `body` is `Null` when `body_bytes` does not parse.
+pub(super) fn request_bytes(
+    port: u16,
+    method: &str,
+    path: &str,
+    headers: &[(&str, &str)],
+    content_type: &str,
+    bytes: &[u8],
+) -> Response {
+    let mut stream = TcpStream::connect(("127.0.0.1", port)).unwrap();
+    stream
+        .set_read_timeout(Some(Duration::from_secs(5)))
+        .unwrap();
     write!(
         stream,
-        "{method} {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nConnection: close\r\nContent-Type: application/json\r\nContent-Length: {}\r\n",
+        "{method} {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nConnection: close\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\n",
         bytes.len()
     )
     .unwrap();
@@ -40,7 +60,7 @@ pub(super) fn request(
         write!(stream, "{name}: {value}\r\n").unwrap();
     }
     stream.write_all(b"\r\n").unwrap();
-    stream.write_all(&bytes).unwrap();
+    stream.write_all(bytes).unwrap();
     stream.flush().unwrap();
     stream.shutdown(Shutdown::Write).unwrap();
     let mut bytes = Vec::new();
@@ -68,12 +88,7 @@ pub(super) fn request(
     } else {
         wire_body.to_vec()
     };
-    let body = serde_json::from_slice(&body_bytes).unwrap_or_else(|error| {
-        panic!(
-            "{method} {path}: response body is not one JSON value: {error}; body={}",
-            String::from_utf8_lossy(&body_bytes),
-        )
-    });
+    let body = serde_json::from_slice(&body_bytes).unwrap_or(Value::Null);
     Response {
         status,
         body,
