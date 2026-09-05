@@ -416,7 +416,7 @@ schedule dailyDigest every 24h:
   settlement are one commit, a crash re-fires, and the **occurrence
   identity** — `(schedule, row_id, at)` for a row timer, `(schedule,
   period_start)` for a period — makes the second attempt a no-op: a job
-  target already enqueued or running for that occurrence coalesces; a
+  target already `queued` or `running` for that occurrence coalesces (a `done`, `cancelled`, or `parked` one is history: a fresh job is enqueued under an attempt-suffixed id); a
   mutation target is expected to be idempotent on its arguments, and the
   reference page says so beside the recipe.
 - **Re-arm and missed periods.** A period timer re-arms to `period_start +

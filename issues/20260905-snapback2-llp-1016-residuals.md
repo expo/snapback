@@ -36,3 +36,14 @@ the last rounds left, each small; the next lane that touches the named file take
   (not `--ir`) shortens certification rewrites to `{line}\n-- {message}`; zero-declaration
   `--file` is untested; the watcher holds the shared compiler lock across a refusal; four
   pre-existing `E_OP_KIND` sites in `writer*.rs` page `op/kind`/`auth`.
+
+### From the J2 fix round's reviews (`reviews/j2-r2-muse.md`, `reviews/j2-r2-grok.md`)
+
+- **Assert the `parked` coalescing case**: the core test covers `done` and `cancelled` but not
+  `parked` (`tests/timers.rs:~840-878`); one more restore-and-fire cycle ending in `_3`.
+- **Parameterize the ceiling-rejection test** over `E_FANOUT` and `E_TRACE_SUBSET` (only
+  `E_STEPS` is fired; the arm is shared, `engine/timers.rs:~170-175`).
+- Minor: `@ref` anchors on the two-site comment, `normalizeSchedule`, and `timers_summary`;
+  §7's `E_SCHEDULE_TARGET` row should mention the duplicate-name rewrite; the receipt unit test
+  gains a non-object `schedules` case (fails closed by `is_object`).
+
