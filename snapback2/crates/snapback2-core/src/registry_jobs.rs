@@ -107,6 +107,7 @@ impl Runtime {
     pub fn run_chunk(&mut self, id: &str) -> Result<ChunkOutcome, RuntimeError> {
         self.run_chunk_at(id, unix_millis())
     }
+    // @ref LLP 1016#d3--the-driver — a chunk that cannot run parks the job with its envelope; the owner keeps serving. Only a store fault while parking propagates.
     pub fn run_chunk_at(&mut self, id: &str, now: i64) -> Result<ChunkOutcome, RuntimeError> {
         let row = self.job_record(id)?;
         if !matches!(row.state.as_str(), "queued" | "running") {
@@ -115,45 +116,50 @@ impl Runtime {
                 execution: None,
             });
         }
-        let (program, certificate) = self.job_program(&row)?;
+        let site = format!("{}:chunk:{}", row.name, row.sweep);
+        let (program, certificate) = match self.job_program(&row) {
+            Ok(pair) => pair,
+            Err(error) => {
+                // The executable is not the one the row bound: a changed or missing declaration,
+                // a plan that no longer decodes, or an ad hoc program the live generation refuses.
+                let refusal = match error {
+                    RuntimeError::Job(refusal) => *refusal,
+                    other => {
+                        let mut refusal = JobRefusal::generation(&row.name);
+                        refusal.message = format!("{}: {other}", refusal.message);
+                        refusal
+                    }
+                };
+                return self.park(row, refusal, now);
+            }
+        };
         let ids = self.reserve_new_ids()?;
         match self
             .engine
             .execute_job_chunk(&program, &certificate, row.clone(), now, ids)
         {
             Ok(outcome) => Ok(outcome),
-            Err(error) => {
-                if crate::engine::mutation_rejection_code(&error).is_none() {
-                    return Err(error);
-                }
-                // The failed transaction has already rolled back. Parking preserves its old cursor.
-                let mut parked = row;
-                let mut refusal = JobRefusal::new(
-                    error.code(),
-                    error.to_string(),
-                    &format!("{}:chunk:{}", parked.name, parked.sweep),
-                    "fix the refused data or constraint, then run --resume <job-id> --as system",
-                );
-                refusal.family = if error.code() == "E_CONSTRAINT" {
-                    "constraint"
-                } else if matches!(error.code(), "E_STEPS" | "E_FANOUT" | "E_TRACE_SUBSET") {
-                    "bound"
-                } else {
-                    "input"
-                }
-                .into();
-                parked.state = "parked".into();
-                parked.last_error = Some(refusal);
-                parked.updated_at = now;
-                let tx = self.engine.store_mut().conn.transaction()?;
-                save(&tx, &parked)?;
-                tx.commit()?;
-                Ok(ChunkOutcome {
-                    job: parked,
-                    execution: None,
-                })
-            }
+            // The failed transaction has already rolled back. Parking preserves its old cursor.
+            Err(error) => self.park(row, JobRefusal::rejected(&error, &site), now),
         }
+    }
+    fn park(
+        &mut self,
+        mut row: JobRecord,
+        refusal: JobRefusal,
+        now: i64,
+    ) -> Result<ChunkOutcome, RuntimeError> {
+        let refusal = refusal.with_job(&row.id, row.sweep, row.chunks + 1);
+        row.state = "parked".into();
+        row.last_error = Some(refusal);
+        row.updated_at = now;
+        let tx = self.engine.store_mut().conn.transaction()?;
+        save(&tx, &row)?;
+        tx.commit()?;
+        Ok(ChunkOutcome {
+            job: row,
+            execution: None,
+        })
     }
     pub fn cancel_job(&mut self, id: &str) -> Result<JobRecord, RuntimeError> {
         let by = self.job_record(id)?.enqueued_by;
@@ -166,15 +172,21 @@ impl Runtime {
         now: i64,
     ) -> Result<JobRecord, RuntimeError> {
         let mut row = self.job_record(id)?;
-        if matches!(row.state.as_str(), "queued" | "running" | "parked") {
-            row.state = "cancelled".into();
-            row.updated_at = now;
-            row.finished_at = Some(now);
-            let tx = self.engine.store_mut().conn.transaction()?;
-            save(&tx, &row)?;
-            crate::store_jobs::audit_control(&tx, &row, "cancel", &by.0)?;
-            tx.commit()?;
+        if !matches!(row.state.as_str(), "queued" | "running" | "parked") {
+            return Err(RuntimeError::Job(Box::new(JobRefusal::state(
+                id,
+                &row.state,
+                "cancel",
+                "queued, running, or parked",
+            ))));
         }
+        row.state = "cancelled".into();
+        row.updated_at = now;
+        row.finished_at = Some(now);
+        let tx = self.engine.store_mut().conn.transaction()?;
+        save(&tx, &row)?;
+        crate::store_jobs::audit_control(&tx, &row, "cancel", &by.0)?;
+        tx.commit()?;
         Ok(row)
     }
     pub fn resume_job(&mut self, id: &str) -> Result<JobRecord, RuntimeError> {
@@ -189,9 +201,9 @@ impl Runtime {
     ) -> Result<JobRecord, RuntimeError> {
         let mut row = self.job_record(id)?;
         if row.state != "parked" {
-            return Err(RuntimeError::Input(
-                "only parked jobs can resume; cancellation is terminal".into(),
-            ));
+            return Err(RuntimeError::Job(Box::new(JobRefusal::state(
+                id, &row.state, "resume", "parked",
+            ))));
         }
         let pair = self.job_program(&row)?;
         row.state = "queued".into();

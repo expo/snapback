@@ -473,6 +473,8 @@ schedule dailyDigest every 24h:
 - **`--wait`** blocks, prints one line per chunk (`--json`: one envelope per
   line) by polling `/control/job/<id>`, and exits 0 done, 1 parked or
   refused, 2 usage. No streaming route; polling is enough for a CLI.
+  (Implemented 2026-09-05, J1b: the per-chunk lines end with the job's
+  final envelope, which is its receipt; the guide and the verb usage say so.)
 - **`--cancel <job>` and `--resume <job>`** are operator actions on a run
   and live under `run` as `deploy --token create/revoke` lives under
   `deploy` (LLP 1015 D6): the verb table stays at fifteen.
@@ -689,7 +691,9 @@ a site, a rewrite, and a page.
 | --- | --- | --- | --- |
 | `E_JOB_CURSOR_INDEX` | job | a sweep's index has a key column that is neither `id` nor declared immutable | `immutable <cols>` on the table, or `by byId` |
 | `E_JOB_GENERATION` | job | parked on succession: changed body, missing job, or changed sweep index | `run --cancel` and start again, or restore the declaration |
-| `E_JOB_ARGS` | job | enqueue with arguments that do not type | the job's signature |
+| `E_JOB_ARGS` | job | enqueue with arguments that do not type | the job's signature, `job name(arg: type, …):`, as an author writes it |
+| `E_JOB_SHAPE` | job | a job body that is not only `chunk` blocks: a plain statement, a non-literal `first`, a cursor, range, or merge on the sweep, a prefix that is neither literal nor argument (J1b fix round 1) | a job is one or more `chunk` blocks and nothing else; site is `job:statement:N` |
+| `E_JOB_STATE` | job | `--cancel` on a done or cancelled job, `--resume` on a job that is not parked (J1b fix round 1) | names the state; `run <job>` again |
 | `E_SCHEDULE_COLUMN` | schedule | `at` names a column that is not `time ?` | declare `col: time ?` |
 | `E_SCHEDULE_TARGET` | schedule | the target is not a mutation or job of this project, or its args do not match | the target's signature |
 | `E_SCHEDULE_DURATION` | schedule | `every` below one minute or not `Nm\|Nh\|Nd` | the form |
@@ -954,7 +958,7 @@ visiting, crash recovery, rollback/resume/cancel, body succession, certification
 constraint rollback, ad hoc restart/reset, typed prefixes/index succession,
 multiple sweeps, and a mutation return that advances only the visited prefix).
 
-`writer_jobs.rs` serves at most eight queued client actions before a background
+`writer_jobs.rs` serves at most eight client *turns* before a background
 turn, or takes that turn immediately when the channel empties. Runnable jobs
 use a zero receive timeout. The timer hook is named
 `fire_due_timers_background_turn`; J2 owns its implementation. Each committing
@@ -1013,6 +1017,77 @@ workspace doctests passed. The orchestrator must rerun the gate outside that
 restriction before landing. Existing corpus outputs did not change, so the
 corpus was not regenerated. Caps and affected references are checked with the
 final report; no generated build output is part of the change.
+
+**Fix round 1** (2026-09-05, Claude, after two blind reviews — grok and
+Muse, both LAND WITH FIXES with no blocking defect; the two stale lane reports
+that rode into the J1b commit were removed in `c24e132c8`). What changed:
+
+- **Park, never stop the owner.** `run_chunk_at` parks on every job-level
+  error: an executable that no longer matches the row's bound hash or no
+  longer decodes (`E_JOB_GENERATION`, the cause in the message), a
+  rejection, a ceiling. Only a store fault while parking propagates. Proof:
+  `owner_cases/jobs_queue.rs::executable_mismatch_at_chunk_time_parks_the_job_and_the_owner_keeps_serving`
+  (the persisted plan changed under a queued ad hoc job on a stopped store;
+  the restarted owner parks it, commits a client mutation, counts the park in
+  `dev --status`, and `trace <job>` shows it) and core
+  `tests/jobs.rs::executable_mismatch_at_chunk_time_parks_with_the_generation_envelope_and_keeps_the_cursor`,
+  `ceiling_fault_at_chunk_time_parks_in_the_bound_family_and_rolls_back`.
+- **A parked chunk keeps the rejection's own envelope** — the code, family
+  and page `/api/mutation` carries for the same rejection (`E_CONSTRAINT` is
+  family `schema`, page `schema/runtime`; a `require` code is `input`; a
+  ceiling is `bound`) — plus `job`, `sweep`, `chunk` fields. The mapping is
+  one function, `jobs::rejection_family` in core; the writer calls it.
+- **Two codes join §7.** `E_JOB_SHAPE` (family job, site
+  `job:statement:N`) replaces the `E_UNBOUND_LOOP` misreport for a job body
+  that is not only chunk blocks; `E_JOB_STATE` replaces the silent no-op of
+  `--cancel` on a done or cancelled job and the `E_INPUT` refusal of
+  `--resume` on a job that is not parked. Both are in the family catalog.
+- **Rewrites are pasteable.** `E_JOB_ARGS` pastes the Quarry signature
+  (`job fill(scope: text <=20):`), `E_JOB_CURSOR_INDEX` says which of its
+  three failures it is (a movable key, a non-total order, a prefix longer than
+  the index) with that failure's rewrite, the CLI's `E_OPERATOR_REQUIRED`
+  pages `operator/seat` like the catalog, the catalog's
+  `E_SUCCESSOR_NARROWING` right-form is the runnable job, and the `E_JOB_*`
+  rows carry `site` and `guide`.
+- **The narrowing paste is pinned.**
+  `packages/compiler/fixtures/quarry-jobs/snapback/narrowing.q` is byte-equal
+  to the engine's rewrite for a text and an enum column
+  (`successor_narrowing.rs` unit test), lowers and certifies in the compiler
+  (`quarry-job-checks.ts`), and
+  `owner_cases/jobs_queue.rs::narrowing_paste_runs_as_a_file_then_the_narrowing_applies_and_adhoc_rows_ledger_their_hash`
+  applies a narrowing of `profiles.link`, runs the refusal's paste through
+  `run --file`, and applies the narrowing. Enum variants are single-quoted,
+  as Quarry writes them.
+- **Tests the reviewers named.** FIFO is asserted per commit, not as disjoint
+  ranges; a three-chunk typed-prefix sweep; `queuePosition` on enqueue; trace
+  paging over two pages of a 510-commit job with `sweepChunks`,
+  `retainedChunks` and `commitRange`; cancel and resume receipts attributed
+  to the operator who issued them; a deleted declaration parking with
+  `E_JOB_GENERATION`; the ad hoc ledger row `adhoc:<hash>` of kind operator
+  and the job's `enqueue:adhoc:<hash>` receipt; the eight-turn cadence read
+  from the ledger under eight saturating senders (at most eight client
+  commits between consecutive chunks; 510 idle one-row chunks in under two
+  seconds, which the one-second session poll could not do, proves the zero
+  idle timeout); `--plan` ceilings and engine writes; a ceiling park; and a
+  compiler check that no chat template mutation patches an immutable
+  `messages` key, beside the template journeys `test_verb.rs` runs.
+- **`--wait --json`** ends with the job's final envelope, its receipt, after
+  the per-chunk lines; D6, `guide/job.md` and the verb usage say so, and the
+  owner test names it. The `engine/index.rs` `INDEXED BY` pin is recorded as
+  a store planner pin (its `@ref` points at this record); the corpus export
+  is unchanged under it.
+
+Measurement: the same 100-row, 50-live-query turn under the `release`
+profile (which `scripts/publish.mjs`'s `production` profile inherits)
+measured **26.43 ms** median, within the 30 ms budget, split **2.58 ms** for
+the chunk commit and **23.84 ms** for the live reruns. Re-measured in debug
+with the same split: 218.67 ms (10.25 ms commit, 207.10 ms reruns). In both
+profiles the write is a tenth of the turn; the live reruns are the turn.
+Client p95 during the fill under release was 1.23× idle (244.6 ms against
+199.2 ms). Both turn lines are appended to `snapback2/metrics/jobs.jsonl`
+beside the original debug line; `writer_jobs.rs` logs `commitMs` beside `ms`
+so the split stays visible. §8's budget stands for a qualified build; the
+debug number is a debug number, and no driver change was made for it.
 
 ### Implementation record — J3
 

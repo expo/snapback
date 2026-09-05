@@ -202,7 +202,11 @@ pub(super) fn scan_indexed(
     } else {
         format!(" AND {}", predicates.join(" AND "))
     };
-    // @ref LLP 1016#d2--a-job-is-a-sequence-of-sweeps — exact-prefix constraint probes must seek the key index. SQLite can otherwise choose the row-cleanup index to satisfy row_id ordering, scanning the whole table per write.
+    // Store planner pin, not a job rule: every `scan_indexed` query seeks `index_entries_lookup`,
+    // uniqueness probes and page reads alike. SQLite can otherwise choose the row-cleanup index
+    // to satisfy row_id ordering and scan the whole table per write; the J1b 100,000-row fill
+    // measured that cost, and the corpus is unchanged under the pin.
+    // @ref LLP 1016#implementation-record--j1b — a store planner pin justified by the J1b measurement, applying to every exact-prefix ordered probe.
     let sql = format!(
         "SELECT r.data
          FROM index_entries ie INDEXED BY index_entries_lookup

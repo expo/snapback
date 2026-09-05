@@ -12,7 +12,8 @@ job fillAvatars:
 Run `snapback2 run fillAvatars --as system --plan` to see index-entry counts,
 implied chunks, engine writes and per-chunk ceilings. Then run
 `snapback2 run fillAvatars --as system --wait` to fill; `--json` prints one
-receipt per chunk. Declare the column required and apply again.
+envelope per chunk, then the job's final envelope, which is its receipt.
+Declare the column required and apply again.
 
 Each chunk reads current rows in index order through the upper key captured
 at the start of its sweep. Later inserts between the cursor and bound are visited;

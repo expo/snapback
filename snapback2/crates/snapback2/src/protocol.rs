@@ -108,7 +108,7 @@ impl Refusal {
             return Self::from_successor(refusal);
         }
         if let RuntimeError::Job(error) = error {
-            return Self::new(
+            let mut refusal = Self::new(
                 &error.code,
                 &error.family,
                 &error.message,
@@ -116,6 +116,16 @@ impl Refusal {
                 &error.guide,
             )
             .with_site(&error.site);
+            if let Some(job) = &error.job {
+                refusal = refusal.with_detail("job", json!(job));
+            }
+            if let Some(sweep) = error.sweep {
+                refusal = refusal.with_detail("sweep", json!(sweep));
+            }
+            if let Some(chunk) = error.chunk {
+                refusal = refusal.with_detail("chunk", json!(chunk));
+            }
+            return refusal;
         }
         let code = error.code();
         let family = if code.starts_with("E_AUTH") {

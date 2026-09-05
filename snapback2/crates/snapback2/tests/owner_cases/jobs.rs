@@ -3,7 +3,7 @@ use super::*;
 fn boot_jobs() -> (PathBuf, PathBuf, ChildGuard, u16, String) {
     boot_jobs_rows(350)
 }
-fn boot_jobs_rows(count: usize) -> (PathBuf, PathBuf, ChildGuard, u16, String) {
+pub(super) fn boot_jobs_rows(count: usize) -> (PathBuf, PathBuf, ChildGuard, u16, String) {
     let root = temp_root();
     copy_tree(&fixture().join("snapback"), &root.join("snapback"));
     let schema = root.join("snapback/schema.q");
@@ -32,6 +32,14 @@ job guarded:
   chunk p in jobRows first 100 by byId:
     require p.ok else FIX_ROW
     update jobRows[p.id] { value: 'guarded' }
+
+job one:
+  chunk p in jobRows first 1 by byId:
+    update jobRows[p.id] { value: 'one' }
+
+job tens:
+  chunk p in jobRows first 10 by byId:
+    update jobRows[p.id] { value: 'tens' }
 
 mutation send(id: jobRows):
   update jobRows[id] { ok: true }
@@ -87,12 +95,12 @@ mutation setOk(id: jobRows, ok: bool):
         record["secret"].as_str().unwrap().into(),
     )
 }
-fn control_job(port: u16, secret: &str, method: &str, path: &str, body: Value) -> Value {
+pub(super) fn control_job(port: u16, secret: &str, method: &str, path: &str, body: Value) -> Value {
     let r = request(port, method, path, &[("X-Snapback-Control", secret)], body);
     assert_eq!(r.status, 200, "{}", r.body);
     r.body
 }
-fn cli_jobs(root: &Path, compiler: &Path, args: &[&str]) -> (i32, Vec<Value>) {
+pub(super) fn cli_jobs(root: &Path, compiler: &Path, args: &[&str]) -> (i32, Vec<Value>) {
     let output = Command::new(env!("CARGO_BIN_EXE_snapback2"))
         .args(args)
         .args(["--json", "--project"])
@@ -162,9 +170,16 @@ fn jobs_350_rows_finish_under_client_load_and_park_resume_through_owner() {
         &["run", "fill", "--as", "system", "--wait"],
     );
     assert_eq!(code, 0, "{lines:?}");
-    assert_eq!(lines.len(), 5, "{lines:?}");
-    assert_eq!(lines.last().unwrap()["chunks"], 4);
-    assert_eq!(lines.last().unwrap()["rowsWritten"]["jobRows"], 350);
+    // --wait --json: one envelope per chunk, then the job's final envelope, its receipt.
+    assert_eq!(lines.len(), 5, "four chunk lines and the receipt: {lines:?}");
+    for (i, line) in lines[..4].iter().enumerate() {
+        assert_eq!(line["chunk"], i as u64 + 1, "{line}");
+        assert_eq!(line["commit"]["kind"], "job", "{line}");
+    }
+    let receipt = lines.last().unwrap();
+    assert!(receipt.get("commit").is_none() && receipt["state"] == "done", "the last line is the job receipt: {receipt}");
+    assert_eq!(receipt["chunks"], 4);
+    assert_eq!(receipt["rowsWritten"]["jobRows"], 350);
     finished.store(true, std::sync::atomic::Ordering::Relaxed);
     worker.join().unwrap();
     let id = lines.last().unwrap()["id"].as_str().unwrap();
@@ -207,10 +222,22 @@ fn jobs_350_rows_finish_under_client_load_and_park_resume_through_owner() {
             .collect::<Vec<_>>();
         rows.iter().all(|r| r["state"] == "done").then_some(rows)
     });
+    // FIFO, not merely serialized: every commit of the earlier-enqueued job precedes
+    // every commit of the later one.
+    let seqs = |job: &Value| {
+        job["commits"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|c| c["seq"].as_u64().unwrap())
+            .collect::<Vec<_>>()
+    };
+    let (earlier, later) = (seqs(&completed[0]), seqs(&completed[1]));
+    assert_eq!((earlier.len(), later.len()), (4, 4), "{completed:?}");
+    assert!(completed[0]["createdAt"].as_i64() <= completed[1]["createdAt"].as_i64());
     assert!(
-        completed[0]["commitRange"]["to"].as_u64().unwrap()
-            < completed[1]["commitRange"]["from"].as_u64().unwrap(),
-        "jobs must run FIFO without interleaving chunks"
+        earlier.iter().max() < later.iter().min(),
+        "the earlier-enqueued job's commits all precede the later one's: {earlier:?} then {later:?}"
     );
     let denied = cli_jobs(&root, &compiler, &["run", "fill", "--as", "alice"]);
     assert_eq!(denied.0, 1);
@@ -231,6 +258,8 @@ fn jobs_350_rows_finish_under_client_load_and_park_resume_through_owner() {
         json!({"name":"jobs.fill","args":{"bad":1},"as":"system"}),
     );
     assert_eq!(malformed.body["code"], "E_JOB_ARGS");
+    assert_eq!(malformed.body["rewrite"], "job fill:", "{}", malformed.body);
+    assert_eq!(malformed.body["family"], "job");
     control_job(
         port,
         &secret,
@@ -492,16 +521,27 @@ fn measure_job_turn_with_50_live_and_client_p95() {
     during.sort_by(f64::total_cmp);
     let during_p95 = during[(during.len() * 95 / 100).min(during.len() - 1)];
     let log = fs::read_to_string(root.join(".snapback/log.jsonl")).unwrap();
-    let turns = log
+    // Whole turns, and the split the RFC's §8 budget needs: the commit alone versus the live reruns.
+    let lines = log
         .lines()
         .filter_map(|l| serde_json::from_str::<Value>(l).ok())
         .filter(|l| l["job"] == id && l["state"] != "done")
-        .filter_map(|l| l["ms"].as_f64())
         .collect::<Vec<_>>();
-    assert_eq!(turns.len(), 11);
+    let turns = lines.iter().filter_map(|l| l["ms"].as_f64()).collect::<Vec<_>>();
+    let commits = lines.iter().filter_map(|l| l["commitMs"].as_f64()).collect::<Vec<_>>();
+    let reruns = turns.iter().zip(&commits).map(|(t, c)| t - c).collect::<Vec<_>>();
+    assert_eq!((turns.len(), commits.len()), (11, 11));
+    let median = |values: &[f64]| {
+        let mut sorted = values.to_vec();
+        sorted.sort_by(f64::total_cmp);
+        sorted[sorted.len() / 2]
+    };
     println!(
         "J1B_METRIC {}",
-        json!({"metric":"background_turn_100_rows_50_live","milliseconds":turns,"budgetMilliseconds":30,"method":"real owner writer log; includes after_commit live reruns; 50 live queries of 100 rows"})
+        json!({"metric":"background_turn_100_rows_50_live","profile":if cfg!(debug_assertions) { "debug" } else { "release" },
+        "milliseconds":turns,"commitMilliseconds":commits,"rerunMilliseconds":reruns,
+        "medianMilliseconds":median(&turns),"medianCommitMilliseconds":median(&commits),"medianRerunMilliseconds":median(&reruns),
+        "budgetMilliseconds":30,"method":"real owner writer log; ms is the whole turn including after_commit live reruns, commitMs the chunk commit alone; 50 live queries of 100 rows"})
     );
     println!(
         "J1B_METRIC {}",

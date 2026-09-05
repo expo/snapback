@@ -34,7 +34,7 @@ pub fn run(args: &[String]) -> ExitCode {
             && !(if file.is_some() { 1..=2 } else { 2..=3 }).contains(&positional.len()))
     {
         return usage(
-            "usage: snapback2 run <op> [args-json] --as persona|system [--wait|--plan|--dry-run]; run --file path.q [args-json] --as system [--wait|--plan|--dry-run]; run --cancel|--resume job_id --as system",
+            "usage: snapback2 run <op> [args-json] --as persona|system [--wait|--plan|--dry-run]; run --file path.q [args-json] --as system [--wait|--plan|--dry-run]; run --cancel|--resume job_id --as system. --wait prints one line per chunk, then the job's final envelope (its receipt)",
         );
     }
     let persona = options.value("--as").unwrap_or("");
@@ -227,7 +227,7 @@ fn operator_required() -> Refusal {
         "operator",
         "jobs require the operator seat",
         "--as system, or an admin token",
-        "job",
+        "operator/seat",
     )
     .with_site("run")
 }

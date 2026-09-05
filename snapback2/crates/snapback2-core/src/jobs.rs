@@ -45,8 +45,10 @@ pub struct JobRecord {
     pub finished_at: Option<i64>,
     pub last_error: Option<JobRefusal>,
 }
+/// A job-family refusal, or a chunk's underlying rejection kept whole with the job context added.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, thiserror::Error)]
 #[error("{code}: {message}; rewrite: {rewrite}")]
+#[serde(rename_all = "camelCase")]
 pub struct JobRefusal {
     pub code: String,
     pub family: String,
@@ -54,6 +56,12 @@ pub struct JobRefusal {
     pub site: String,
     pub rewrite: String,
     pub guide: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub job: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sweep: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub chunk: Option<u64>,
 }
 impl JobRefusal {
     pub fn new(
@@ -69,7 +77,16 @@ impl JobRefusal {
             site: site.into(),
             rewrite: rewrite.into(),
             guide: "job".into(),
+            job: None,
+            sweep: None,
+            chunk: None,
         }
+    }
+    pub fn with_job(mut self, id: &str, sweep: usize, chunk: u64) -> Self {
+        self.job = Some(id.into());
+        self.sweep = Some(sweep);
+        self.chunk = Some(chunk);
+        self
     }
     pub(crate) fn generation(name: &str) -> Self {
         Self::new(
@@ -84,13 +101,103 @@ impl JobRefusal {
         signature: &BTreeMap<String, ArgType>,
         message: impl Into<String>,
     ) -> Self {
+        Self::new("E_JOB_ARGS", message, name, quarry_signature(name, signature))
+    }
+    /// Nothing is silent: a control verb on a job in the wrong state names the state.
+    pub(crate) fn state(id: &str, state: &str, verb: &str, accepted: &str) -> Self {
         Self::new(
-            "E_JOB_ARGS",
-            message,
-            name,
-            format!("{name}({signature:?})"),
+            "E_JOB_STATE",
+            format!("{id} is {state}; {verb} applies to a {accepted} job"),
+            id,
+            if verb == "resume" {
+                "run <job> --as system to start again; only a parked job resumes"
+            } else {
+                "trace <job-id> shows the state; a done or cancelled job needs no cancel"
+            },
         )
     }
+    // @ref LLP 1016#d2--a-job-is-a-sequence-of-sweeps — a parked chunk keeps the rejection's own envelope, the same one /api/mutation would carry, plus the job context.
+    pub(crate) fn rejected(error: &crate::RuntimeError, site: &str) -> Self {
+        if let crate::RuntimeError::Job(refusal) = error {
+            return (**refusal).clone();
+        }
+        let code = error.code();
+        let family = rejection_family(code);
+        let mut refusal = Self::new(
+            code,
+            error.to_string(),
+            site,
+            "fix the refused data or constraint, then run --resume <job-id> --as system",
+        );
+        refusal.family = family.into();
+        refusal.guide = format!("{family}/runtime");
+        refusal
+    }
+}
+/// The family a rejected mutation carries on the wire; a parked chunk uses the same one.
+pub fn rejection_family(code: &str) -> &'static str {
+    if code.starts_with("E_RULE") {
+        "rule"
+    } else if code.starts_with("E_BOUND")
+        || matches!(code, "E_FANOUT" | "E_STEPS" | "E_TRACE_SUBSET")
+    {
+        "bound"
+    } else if code.starts_with("E_CONSTRAINT") {
+        "schema"
+    } else if code.starts_with("E_JOB") {
+        "job"
+    } else {
+        "input"
+    }
+}
+/// The declaration as an author writes it: `job name(arg: type, ...)`, module prefix dropped.
+pub fn quarry_signature(name: &str, args: &BTreeMap<String, ArgType>) -> String {
+    let short = name.rsplit('.').next().unwrap_or(name);
+    if args.is_empty() {
+        return format!("job {short}:");
+    }
+    let args = args
+        .iter()
+        .map(|(arg, ty)| format!("{arg}: {}", quarry_arg_type(ty)))
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!("job {short}({args}):")
+}
+pub fn quarry_arg_type(ty: &ArgType) -> String {
+    match ty {
+        ArgType::Cursor => "cursor".into(),
+        ArgType::Id => "id".into(),
+        ArgType::Principal => "principal".into(),
+        ArgType::Ref { table } => table.clone(),
+        ArgType::Text { max } => format!("text <={max}"),
+        ArgType::Bytes { max } => format!("bytes <={max}"),
+        ArgType::Image { max } => format!("image <={max}"),
+        ArgType::Video { max } => format!("video <={max}"),
+        ArgType::Int => "int".into(),
+        ArgType::Bool => "bool".into(),
+        ArgType::Time => "time".into(),
+        ArgType::Json { max_bytes } => format!("json <={max_bytes}"),
+        ArgType::Optional(inner) => format!("{} ?", quarry_arg_type(inner)),
+        ArgType::Scalar => "scalar".into(),
+        ArgType::List { of, max } => format!(
+            "[{}] <={max}",
+            of.as_deref().map(quarry_arg_type).unwrap_or_else(|| "scalar".into())
+        ),
+        ArgType::Enum { variants } => quarry_enum(variants),
+        ArgType::Decimal { scale } => format!("decimal {scale}"),
+        ArgType::Money { currency, scale } => format!("money {currency} {scale}"),
+    }
+}
+/// Variants are spelled as Quarry strings: single quotes, backslash escapes.
+pub fn quarry_enum(variants: &[String]) -> String {
+    format!(
+        "enum({})",
+        variants
+            .iter()
+            .map(|v| format!("'{}'", v.replace('\\', "\\\\").replace('\'', "\\'")))
+            .collect::<Vec<_>>()
+            .join(", ")
+    )
 }
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -123,19 +230,20 @@ pub(crate) fn certify(
     let mut per_chunk = Vec::new();
     let mut errors = Vec::new();
     if program.body.is_empty() {
-        errors.push(shape_error());
+        errors.push(shape_error(&program.name, "the body is empty"));
     }
-    for statement in &program.body {
+    for (position, statement) in program.body.iter().enumerate() {
+        let site = format!("{}:statement:{}", program.name, position + 1);
         let Stmt::For {
             domain: LoopDomain::Page(scan),
             ..
         } = statement
         else {
-            errors.push(shape_error());
+            errors.push(shape_error(&site, "it is a plain statement, not a chunk"));
             continue;
         };
         let Bound::Literal(take) = scan.take else {
-            errors.push(shape_error());
+            errors.push(shape_error(&site, "its `first N` is not a literal"));
             continue;
         };
         if take == 0
@@ -144,9 +252,18 @@ pub(crate) fn certify(
             || scan.before.is_some()
             || scan.range.is_some()
             || scan.merge_site.is_some()
-            || scan.prefix.iter().any(|p| !prefix_expr(p, &program.args))
         {
-            errors.push(shape_error());
+            errors.push(shape_error(
+                &site,
+                "a chunk is `first N by index` in ascending order, without cursors, ranges, or merges",
+            ));
+            continue;
+        }
+        if scan.prefix.iter().any(|p| !prefix_expr(p, &program.args)) {
+            errors.push(shape_error(
+                &site,
+                "its prefix is neither a literal nor a job argument",
+            ));
             continue;
         }
         let Some(index) = schema
@@ -162,21 +279,35 @@ pub(crate) fn certify(
         };
         let table = schema.table(&scan.table).unwrap();
         let unstable: Vec<_> = index.columns.iter().filter(|c| c.as_str() != "id" && !table.constraints.iter().any(|constraint| matches!(constraint, Constraint::Immutable { fields } if fields.contains(c)))).cloned().collect();
-        if !unstable.is_empty()
-            || (!index.unique && index.columns.last().map(String::as_str) != Some("id"))
-            || scan.prefix.len() > index.columns.len()
-        {
+        // Three distinct failures, each with the rewrite that repairs it (LLP 1016 §7).
+        let cursor_index = if !unstable.is_empty() {
+            Some((
+                format!(
+                    "{}.{} orders the sweep by a key a write can move: {}",
+                    scan.table,
+                    scan.index,
+                    unstable.join(", ")
+                ),
+                format!("declare `immutable {}` on {}, or sweep by byId", unstable.join(", "), scan.table),
+            ))
+        } else if !index.unique && index.columns.last().map(String::as_str) != Some("id") {
+            Some((
+                format!("{}.{} is not a total order: two rows can share a key", scan.table, scan.index),
+                format!("end {} in `id` (or declare it unique), or sweep by byId", scan.index),
+            ))
+        } else if scan.prefix.len() > index.columns.len() {
+            Some((
+                format!("the prefix names {} columns but {}.{} has {}", scan.prefix.len(), scan.table, scan.index, index.columns.len()),
+                format!("shorten the prefix to at most {} columns", index.columns.len()),
+            ))
+        } else {
+            None
+        };
+        if let Some((message, rewrite)) = cursor_index {
             errors.push(CheckError {
                 code: "E_JOB_CURSOR_INDEX".into(),
-                message: format!(
-                    "{}.{} needs immutable, total keys and a prefix no longer than its index",
-                    scan.table, scan.index
-                ),
-                rewrite: format!(
-                    "immutable {} on {}; use an index ending in id, or by byId",
-                    unstable.join(", "),
-                    scan.table
-                ),
+                message,
+                rewrite,
             });
             continue;
         }
@@ -247,8 +378,13 @@ fn prefix_expr(expr: &Expr, args: &BTreeMap<String, ArgType>) -> bool {
         _ => false,
     }
 }
-fn shape_error() -> CheckError {
-    CheckError { code: "E_UNBOUND_LOOP".into(), message: "a job contains only chunk sweeps with literal bounds and argument/literal prefixes".into(), rewrite: "job fill:\n  chunk row in table first 100 by byId:\n    update table[row.id] { column: value }".into() }
+// @ref LLP 1016#d2--a-job-is-a-sequence-of-sweeps — a job is chunk blocks and nothing else; misuse reports in the job family, not as an unbounded loop.
+fn shape_error(site: &str, detail: &str) -> CheckError {
+    CheckError {
+        code: "E_JOB_SHAPE".into(),
+        message: format!("{site} is not a chunk: {detail}"),
+        rewrite: "a job is one or more `chunk` blocks and nothing else:\njob fill:\n  chunk row in table first 100 by byId:\n    update table[row.id] { column: value }".into(),
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

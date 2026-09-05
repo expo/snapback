@@ -85,13 +85,15 @@ impl State {
                 .runtime_mut()
                 .run_chunk_at(&id, now)
                 .map_err(|e| Refusal::from_runtime(&e))?;
+            // The commit alone, then the whole turn once live reruns are done (LLP 1016 §8).
+            let commit_ms = started.elapsed().as_secs_f64() * 1000.0;
             if let Some(execution) = &outcome.execution {
                 self.after_commit(execution.seq)?;
             }
             crate::watch::log(
                 &self.root,
                 json!({"kind":"job","job":id,"chunk":outcome.job.chunks,
-                "state":outcome.job.state,"ms":started.elapsed().as_secs_f64()*1000.0,"refusal":outcome.job.last_error}),
+                "state":outcome.job.state,"ms":started.elapsed().as_secs_f64()*1000.0,"commitMs":commit_ms,"refusal":outcome.job.last_error}),
             );
         }
         Ok(())
@@ -235,8 +237,9 @@ impl State {
             return Err(adhoc_size());
         }
         let source_hash = snapback2_core::digest(&source);
-        program.name = format!("adhoc:{source_hash}");
+        // Arguments are checked under the authored name so E_JOB_ARGS pastes the signature as written.
         let values = job_args(&program, &args)?;
+        program.name = format!("adhoc:{source_hash}");
         let certificate = self
             .runtime()
             .certify_operator_program(&program)
@@ -282,7 +285,7 @@ pub(super) fn job_args(program: &Program, args: &Json) -> Result<BTreeMap<String
                 "E_JOB_ARGS",
                 "job",
                 e.message,
-                format!("{}({:?})", program.name, program.args),
+                snapback2_core::jobs::quarry_signature(&program.name, &program.args),
                 "job",
             )
             .with_site(&program.name)

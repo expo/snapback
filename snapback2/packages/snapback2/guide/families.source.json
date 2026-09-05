@@ -483,29 +483,53 @@
     "site": "table.column",
     "guide": "successor/migrations",
     "wrong": "apply a required column while stored rows are null",
-    "right": "keep T?, apply, fill through an operator mutation (job in J1b), then declare T and apply again"
+    "right": "keep T?, apply, run the pasted job (`run --file fill.q '{\"value\": ...}' --as system --wait`), then declare T and apply again"
   },
   {
     "family": "job",
     "code": "E_JOB_CURSOR_INDEX",
+    "site": "chunk p in table first N by index",
+    "guide": "job",
     "wrong": "chunk p in profiles first 100 by byMutable",
-    "right": "chunk p in profiles first 100 by byId"
+    "right": "immutable <cols> on the table, an index ending in id (or unique), or by byId"
   },
   {
     "family": "job",
     "code": "E_JOB_ARGS",
+    "site": "run <job> args-json",
+    "guide": "job",
     "wrong": "run fillAvatars with undeclared arguments",
-    "right": "run fillAvatars --as system --wait"
+    "right": "pass arguments matching the pasted signature: run fillAvatars '{\"value\":\"...\"}' --as system"
+  },
+  {
+    "family": "job",
+    "code": "E_JOB_SHAPE",
+    "site": "job name:statement:N",
+    "guide": "job",
+    "wrong": "job fill:\n  count = 0\n  chunk p in profiles first 100 by byId:\n    update profiles[p.id] { avatarUrl: 'x' }",
+    "right": "a job is one or more chunk blocks and nothing else; move the statement inside a chunk or into a mutation"
   },
   {
     "family": "job",
     "code": "E_JOB_GENERATION",
+    "site": "<job-id>",
+    "guide": "job",
     "wrong": "resume a changed job from its old cursor",
     "right": "run --cancel job_id --as system; restore the declaration or start again"
   },
   {
+    "family": "job",
+    "code": "E_JOB_STATE",
+    "site": "<job-id>",
+    "guide": "job",
+    "wrong": "run --resume job_id --as system on a cancelled job, or --cancel on a done one",
+    "right": "trace job_id shows the state; only a parked job resumes, and a done or cancelled job needs no cancel; run <job> --as system starts again"
+  },
+  {
     "family": "operator",
     "code": "E_ADHOC_SIZE",
+    "site": "run --file",
+    "guide": "job",
     "wrong": "run --file a-file-over-64-KiB.q --as system",
     "right": "declare the program as a job and run its name"
   },

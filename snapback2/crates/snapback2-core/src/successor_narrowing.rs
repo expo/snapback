@@ -108,6 +108,67 @@ mod tests {
     use super::*;
     use crate::{Store, public_table};
 
+    /// The paste is pinned to the compiler fixture that lowers it (`quarry-job-checks.ts`), so the
+    /// text this refusal prints and the text the compiler accepts cannot drift apart.
+    #[test]
+    fn narrowing_rewrite_is_the_fixture_the_compiler_lowers_including_enum_quoting() {
+        let store = Store::memory().unwrap();
+        let mut current = Schema::default();
+        current.tables.insert(
+            "profiles".into(),
+            public_table(
+                BTreeMap::from([
+                    ("id".into(), ColumnType::Id),
+                    (
+                        "avatarUrl".into(),
+                        ColumnType::Optional(Box::new(ColumnType::Text { max: 2048 })),
+                    ),
+                    (
+                        "tier".into(),
+                        ColumnType::Optional(Box::new(ColumnType::Enum {
+                            variants: vec!["free".into(), "pro".into()],
+                        })),
+                    ),
+                ]),
+                BTreeMap::new(),
+            ),
+        );
+        let mut next = current.clone();
+        let columns = &mut next.tables.get_mut("profiles").unwrap().columns;
+        columns.insert("avatarUrl".into(), ColumnType::Text { max: 2048 });
+        columns.insert(
+            "tier".into(),
+            ColumnType::Enum {
+                variants: vec!["free".into(), "pro".into()],
+            },
+        );
+        let stored = crate::value::canonical_json(&Value::Row(BTreeMap::from([(
+            "id".to_owned(),
+            Value::Id("p1".into()),
+        )])));
+        store
+            .conn
+            .execute(
+                "INSERT INTO rows(table_name, row_id, data) VALUES ('profiles', 'p1', ?1)",
+                [stored],
+            )
+            .unwrap();
+        let refusal = narrowing_refusal(&store.conn, &current, &next)
+            .unwrap()
+            .unwrap();
+        assert_eq!(refusal.code, "E_SUCCESSOR_NARROWING");
+        let fixture = include_str!(
+            "../../../packages/compiler/fixtures/quarry-jobs/snapback/narrowing.q"
+        );
+        assert_eq!(format!("{}\n", refusal.rewrite), fixture);
+        assert_eq!(
+            quarry_type(&ColumnType::Enum {
+                variants: vec!["it's".into()]
+            }),
+            "enum('it\\'s')"
+        );
+    }
+
     #[test]
     fn narrowing_malformed_stored_row_has_the_successor_row_invalid_refusal() {
         let store = Store::memory().unwrap();
@@ -166,14 +227,7 @@ fn quarry_type(kind: &ColumnType) -> String {
         ColumnType::Video { max } => format!("video <={max}"),
         ColumnType::Decimal { scale } => format!("decimal {scale}"),
         ColumnType::Money { currency, scale } => format!("money {currency} {scale}"),
-        ColumnType::Enum { variants } => format!(
-            "enum({})",
-            variants
-                .iter()
-                .map(|v| serde_json::to_string(v).unwrap())
-                .collect::<Vec<_>>()
-                .join(", ")
-        ),
+        ColumnType::Enum { variants } => crate::jobs::quarry_enum(variants),
         ColumnType::Optional(inner) => format!("{} ?", quarry_type(inner)),
         ColumnType::List { of, max } => format!("[{}] <={max}", quarry_type(of)),
     }
