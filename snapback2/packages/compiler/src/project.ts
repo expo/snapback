@@ -119,8 +119,8 @@ export async function lowerProject(root: string, options: LowerProjectOptions = 
   const operations = collectOperations(modules);
   diagnostics.push(...reservedApiPathDiagnostics(operations, schemaSource, schemaFileName));
   const catalog = collectEffectCatalog(modules);
-  // @ref LLP 1003#1-authoring — the same TypeScript checker sees two libraries, never ES globals on the data plane.
-  const effectPaths = new Set([...catalog.values()].map((item) => item.module.sourceFile.fileName));
+  // @ref LLP 1003#1-authoring — authored TypeScript and Quarry-generated modules use separate checker libraries.
+  const effectPaths = new Set(hasQuarrySchema ? tsModulePaths : [...catalog.values()].map((item) => item.module.sourceFile.fileName));
   const effectSite = (node: ts.Node) => {
     const path = node.getSourceFile().fileName;
     if (!effectPaths.has(path)) return false;
@@ -144,6 +144,11 @@ export async function lowerProject(root: string, options: LowerProjectOptions = 
   for (const module of modules) {
     const tables = tableBindings(module, schema.tables, diagnostics);
     bindingsByModule.set(module.moduleName, tables);
+    // Authored helpers are type-checked above; only data programs need IR lowering.
+    // Keep E_OP_NONE for a project with no operations or effects at all.
+    if (hasQuarrySchema && !virtualByFile.has(module.fileName)
+      && (operations.size > 0 || catalog.size > 0)
+      && ![...operations.values()].some((operation) => operation.moduleName === module.moduleName)) continue;
     const effects = effectBindings(module, catalog);
     const lowered = lowerSource(module.source, module.fileName, undefined, {
       tables,
@@ -667,6 +672,8 @@ function loadCompilerLib(effects = false): string {
     fileURLToPath(new URL("./index.d.ts", import.meta.url)),
   ];
   const subsetCandidates = effects ? [
+    // Effect checking requires running node build.mjs in packages/snapback2 first: the complete
+    // ES2020 library is built only in dist/, including this bundled-compiler fallback.
     fileURLToPath(new URL("../../snapback2/dist/effects-lib.d.ts", import.meta.url)),
     fileURLToPath(new URL("./effects-lib.d.ts", import.meta.url)),
   ] : [

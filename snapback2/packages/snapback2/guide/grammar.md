@@ -44,7 +44,7 @@ optional. Text may add a format. `cursor` is operation-only.
 - `for`: `for name in bounded-list-or-page:` iterates.
 - `emit`: `emit effect { payload }` durably queues I/O.
 - `tokens`: `tokens(text)` splits whitespace-delimited tokens.
-- `divmod`: `divmod(a, b)` returns quotient and remainder.
+- `divmod`: `divmod(a, b)` returns quotient and remainder; `(q, r) = divmod(a, b)` binds both once; `divmod(time, int)` splits epoch milliseconds into int parts.
 
 ```q
 query list():
@@ -56,3 +56,6 @@ Keys are positional or named (`[column = value]`); point reads may add `by index
 bind, `return`, `if/else`, and write with `insert`, `update`, `upsert`, `delete`.
 `=`/`!=` are total; ordered comparisons need nonoptional operands. `where`
 refuses with index/read rewrites. `sorted` uses `(lo, hi) = sorted(a, b)`.
+`time - time` yields int milliseconds; `time + int`, `time - int`, and `int + time`
+yield time; other time arithmetic refuses. Null keys select optional-column groups in
+point/maintain reads, `exists`, and `cap`; required columns refuse null.

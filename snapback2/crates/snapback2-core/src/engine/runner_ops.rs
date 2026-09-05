@@ -507,12 +507,13 @@ impl<'a> Runner<'a> {
                         table: table_name.to_owned(),
                         check: format!("Cap({by:?},{max})"),
                         index: index_name.clone(),
-                        prefix,
+                        prefix: prefix.clone(),
                         examined_ids: row_ids(&rows)?,
                     });
                     if rows.len() >= *max as usize {
                         return Err(RuntimeError::Constraint(format!(
-                            "{table_name} cap {max} reached"
+                            "{table_name} cap {max} reached for group ({}) = {}",
+                            by.join(", "), canonical_json(&Value::Array(prefix))
                         )));
                     }
                 }

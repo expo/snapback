@@ -10,11 +10,11 @@
 **Battery gate:** `versioned-seed-conformance`
 **Failure signature:** `sha256:8208ee2a666e9aaac7af0e3643cf1e89a39377377fe360ac7b3e701d6c43f8e8`
 **First observed run:** `local.20260824T022619Z.88476b032428`
-**Last observed run:** `local.20260905T112905Z.e32b5b7d5d32`
-**Last processed run:** `local.20260905T112905Z.e32b5b7d5d32`
+**Last observed run:** `local.20260905T203247Z.810fbda46e64`
+**Last processed run:** `local.20260905T203247Z.810fbda46e64`
 **Detected at revision:** `88476b0324286a5c8bde4b0c1d877ae542cf96e7`
-**Last observed revision:** `e32b5b7d5d32cb4dc1735e4598fbdb86639d362f`
-**Consecutive red runs:** `33`
+**Last observed revision:** `810fbda46e64ae6865094ccc9e578b1d5781caf5`
+**Consecutive red runs:** `34`
 **Escalation:** `AUTHOR_ESCALATION_REQUIRED`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 

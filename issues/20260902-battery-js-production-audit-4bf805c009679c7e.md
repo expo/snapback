@@ -10,11 +10,11 @@
 **Battery gate:** `js-production-audit`
 **Failure signature:** `sha256:4bf805c009679c7e89e345eb8019108774e2fd0f8c360fce2f27155b689dea96`
 **First observed run:** `local.20260902T222959Z.21867fec6d93`
-**Last observed run:** `local.20260905T112905Z.e32b5b7d5d32`
-**Last processed run:** `local.20260905T112905Z.e32b5b7d5d32`
+**Last observed run:** `local.20260905T203247Z.810fbda46e64`
+**Last processed run:** `local.20260905T203247Z.810fbda46e64`
 **Detected at revision:** `21867fec6d938b0a0b27076ffab22c23232b7672`
-**Last observed revision:** `e32b5b7d5d32cb4dc1735e4598fbdb86639d362f`
-**Consecutive red runs:** `8`
+**Last observed revision:** `810fbda46e64ae6865094ccc9e578b1d5781caf5`
+**Consecutive red runs:** `9`
 **Escalation:** `AUTHOR_ESCALATION_REQUIRED`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 

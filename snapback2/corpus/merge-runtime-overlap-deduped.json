@@ -289,7 +289,7 @@
       "posts.byAuthorAt"
     ],
     "disclosures": [],
-    "bound_product": "merge.overlap.dynamic take 3 = 3"
+    "bound_product": "merge merge.overlap: 1 lanes × (3 + 2) at merge.overlap.dynamic on posts = 5 + merge merge.overlap: 1 lanes × (3 + 2) at merge.overlap.literal on posts = 5"
   },
   "context": {
     "viewer": "u1",

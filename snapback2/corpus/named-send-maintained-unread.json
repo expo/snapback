@@ -1304,7 +1304,7 @@
     "disclosures": [
       "E_DISCLOSURE: count waitlist summarized into waitCounts"
     ],
-    "bound_product": "programs.sendMaintainedUnread.2 take 256 = 256"
+    "bound_product": "programs.sendMaintainedUnread.2 take 256 (+2 reserve) × 1 calls on memberships = 258 + programs.sendMaintainedUnread.3 point read on unreads × 256 calls (calls from programs.sendMaintainedUnread.2 take 256) = 256 + programs.sendMaintainedUnread.0 point read on memberships × 1 calls = 1"
   },
   "context": {
     "viewer": "u1",

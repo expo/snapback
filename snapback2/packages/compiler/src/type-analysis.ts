@@ -389,7 +389,7 @@ class Analyzer {
       ts.SyntaxKind.ExclamationEqualsToken,
       ts.SyntaxKind.ExclamationEqualsEqualsToken,
     ].includes(operator);
-    const retargetIdentity = equality && identityScalar(left) !== identityScalar(right);
+    const retargetIdentity = equality && left.kind !== "null" && right.kind !== "null" && identityScalar(left) !== identityScalar(right);
     if (this.analysisLimitReached) return unknownType;
     if (operator === ts.SyntaxKind.AsteriskToken) {
       if (left.kind === "decimal") right = this.expression(node.right, env);
@@ -512,7 +512,7 @@ class Analyzer {
         }
         return method === "insert" && table ? { kind: "row", table: table.name } : unknownType;
       }
-      if ((method === "get" || method === "scan") && table) {
+      if ((method === "get" || method === "scan" || method === "exists") && table) {
         if (target) this.expression(target, env);
         const indexTypes = this.indexTypes(target, table);
         const key = call.arguments[1];
@@ -522,7 +522,7 @@ class Analyzer {
           if (options) this.scanOptions(options, env, indexTypes.slice(this.prefixArity(key, env)));
         }
         const row: AuthoredType = { kind: "row", table: table.name };
-        return method === "scan" ? { kind: "list", of: row } : row;
+        return method === "scan" ? { kind: "list", of: row } : method === "exists" ? { kind: "bool" } : row;
       }
     }
     if ((name === "min" || name === "max") && !env.variables.has(name) && call.arguments.length > 0) {

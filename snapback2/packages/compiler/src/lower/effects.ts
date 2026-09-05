@@ -7,7 +7,7 @@ import { callLeaf, moduleJsonConstants, objectOf, property, staticJson, stringAr
 
 // @ref LLP 1003#1-authoring — effects carry validated grants, closed ES2020 source, and an optional typed then mutation.
 
-// Public globals retained by snapback2-effects/src/ibex.rs; its Hermes witness compiles and executes each name.
+// @ref LLP 1003#1-authoring — public globals retained by ibex.rs; the Hermes witness compiles and executes each name.
 export const effectGlobals = [
   "Array", "ArrayBuffer", "BigInt", "BigInt64Array", "BigUint64Array", "Boolean",
   "DataView", "Date", "Error", "EvalError", "Float32Array", "Float64Array",
@@ -155,6 +155,7 @@ function validateClosure(module: SourceModule, run: ts.ArrowFunction | ts.Functi
   for (const root of roots) {
     walk(root, (node) => {
       if (imported) return;
+      if (ts.isImportDeclaration(node) || ts.isImportEqualsDeclaration(node)) imported = node;
       if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === "require") imported = node;
       if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) imported = node;
     });

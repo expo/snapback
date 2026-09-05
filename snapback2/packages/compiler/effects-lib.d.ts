@@ -88,10 +88,3 @@ declare class URLSearchParams implements Iterable<[string, string]> {
   [Symbol.iterator](): IterableIterator<[string, string]>;
   toString(): string;
 }
-declare module "snapback2" {
-  export function effect<P extends Json, R extends Json>(value: {
-    grants: string[];
-    run: (payload: P, tools: { readonly fetch: typeof fetch; readonly meta: typeof meta }) => R | Promise<R>;
-    then?: Operation<{ outboxId: string; effect: string; result: Awaited<R> }, unknown, "mutation">;
-  }): Effect<P, Awaited<R>>;
-}

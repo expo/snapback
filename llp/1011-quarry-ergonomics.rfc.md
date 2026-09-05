@@ -21,7 +21,7 @@ ultra, grok-4.6 at xhigh), `llp/reviews/1011-quarry-ergonomics.*`
 **Implementer:** codex gpt-5.6-sol (xhigh), lane `s2/quarry-ergo`
 (`~/projects/snapback-s2`), orchestrated and landed by Claude Fable 5.1
 **Date:** 2026-09-03
-**Revised:** 2026-09-05 (d — Codex implements imported shapes, read-authorized
+**Revised:** 2026-09-05 (null keys and non-empty Id literals implemented by GPT-6 Astra, Clique L2); 2026-09-05 (d — Codex implements imported shapes, read-authorized
 write results, and order-preserving filter repairs under the author's request
 to advance Quarry); 2026-09-03 (c — implemented: §8 records the two lane commits
 and the one re-pinned expectation); 2026-09-03 (b — after the panel: `fn` deferred and `shape` kept;
@@ -306,6 +306,23 @@ recorded does not arise.
 and the `!` at the three sites.
 
 **Cost.** One environment feature and tests; nothing on the platform.
+
+### Null keys and Id literals (2026-09-05)
+
+Implemented by GPT-6 Astra under the Clique L2 brief: `null` selects the null
+group wherever the corresponding key column is optional, including maintained
+lookups, point reads, `exists`, and capped groups; a required column refuses
+null and names the requirement. Omitted and explicit-null groups agree across
+SQLite, maintained aggregates, and the twin. Equality against null inside a
+write object is still a Boolean comparison, not a required Id sink.
+A non-empty text literal is an Id in named and positional keys (including merge
+prefixes), equality, and `??` fallbacks; computed text and references to another
+table refuse. The
+lowering's typed tuple cursor positions retain the same literal rule; authored
+Quarry `after` uses B1's opaque token and cannot take an Id literal.
+Optional list domains in `for` require `?? []` or B4's presence narrowing;
+their declared maxima survive aliases, shapes, and the empty default. This
+refuses absence at compile time instead of allowing a runtime array type error.
 
 ## B5. Whole-unit seeds
 

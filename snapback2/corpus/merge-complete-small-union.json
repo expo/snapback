@@ -289,7 +289,7 @@
       "posts.byAuthorAt"
     ],
     "disclosures": [],
-    "bound_product": "merge.complete.self take 3 = 3"
+    "bound_product": "merge merge.complete: 1 lanes × (3 + 2) at merge.complete.peer on posts = 5 + merge merge.complete: 1 lanes × (3 + 2) at merge.complete.self on posts = 5"
   },
   "context": {
     "viewer": "u1",

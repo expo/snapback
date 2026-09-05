@@ -17,7 +17,7 @@ grok-4.6 at xhigh), `llp/reviews/1010-quarry-language-amendments.*`
 **Implementer:** codex gpt-5.6-sol (xhigh), lane `s2/quarry-amend`
 (`~/projects/snapback-s2`), orchestrated and landed by Claude Fable 5.1
 **Date:** 2026-09-03
-**Revised:** 2026-09-03 (d — A6's optional cursor group was replaced by LLP
+**Revised:** 2026-09-05 (time arithmetic and divmod tuple rules implemented by GPT-6 Astra, Clique L2); 2026-09-03 (d — A6's optional cursor group was replaced by LLP
 1011 B1's opaque, forward-only cursor); 2026-09-03 (c — implemented: §8 records the two landing commits
 and the one departure from the brief, the guide budget); 2026-09-03 (b — after the panel: bounds-first withdrawn; A2
 restated as program-only because rules and the IR already compare totally;
@@ -186,6 +186,18 @@ one that matters); a refusal test for ordered comparison on an optional.
 
 **Deletes.** The guarded lowering branch and its temporaries; the "except
 comparison with `null`" sentence.
+
+### Time arithmetic
+
+Implemented 2026-09-05 by GPT-6 Astra under the Clique L2 brief: `time - time`
+yields an `int` duration in milliseconds; `time + int`, `time - int`, and
+`int + time` yield `time`. Operands must be present. All other time arithmetic
+refuses with that rule; `0 + now` is therefore `time`. `divmod(time, int)`
+splits epoch milliseconds into integer quotient and remainder. Time comparisons
+remain nominal. The existing numeric wire, engine and twin execute these rules.
+`(q, r) = divmod(a, b)` evaluates once and binds its quotient and remainder with
+their result types, including decimal/money brands; `.quotient` and `.remainder`
+remain available. This adds no general destructuring.
 
 ## A3. One row binder
 

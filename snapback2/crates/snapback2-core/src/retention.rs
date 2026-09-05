@@ -2,6 +2,7 @@ use crate::bounds::{
     CANONICAL_ARRAY_BASE_BYTES, declared_asset_record_max, declared_serialized_column_max,
     declared_serialized_row_max,
 };
+use crate::collection_rewrite::{ByteShape, row_shape};
 use crate::growth::{
     ProvenanceBinding, assignment_growth, collection_price_from,
     expression_from as provenance_expression_from, geometric_sum, saturating_power, take_identity,
@@ -9,7 +10,7 @@ use crate::growth::{
 use crate::ir::{ArgType, Builtin, Expr, Input, LoopDomain, Program, Scan, Stmt};
 use crate::schema::Schema;
 use crate::value::Value;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 const CLOSURE_METADATA_BYTES: u64 = 64;
 
@@ -23,6 +24,8 @@ struct Flow {
 
 #[derive(Clone)]
 struct RowFlow {
+    table: String,
+    fields: BTreeSet<String>,
     count: u64,
     bytes: u64,
     max_bytes: u64,
@@ -30,11 +33,13 @@ struct RowFlow {
 }
 
 impl Flow {
-    fn row(site: &str, bytes: u64, count: u64) -> Self {
+    fn row(site: &str, table: &str, bytes: u64, count: u64) -> Self {
         Self {
             rows: BTreeMap::from([(
                 site.to_owned(),
                 RowFlow {
+                    table: table.into(),
+                    fields: BTreeSet::new(),
                     count,
                     bytes,
                     max_bytes: bytes,
@@ -59,6 +64,11 @@ impl Flow {
             self.rows
                 .entry(site)
                 .and_modify(|current| {
+                    if current.fields.is_empty() || incoming.fields.is_empty() {
+                        current.fields.clear();
+                    } else {
+                        current.fields.extend(incoming.fields.clone());
+                    }
                     current.count = current.count.saturating_add(incoming.count);
                     current.bytes = current.bytes.max(incoming.bytes);
                     current.max_bytes = current.max_bytes.max(incoming.max_bytes);
@@ -81,6 +91,11 @@ impl Flow {
             self.rows
                 .entry(site)
                 .and_modify(|current| {
+                    if current.fields.is_empty() || incoming.fields.is_empty() {
+                        current.fields.clear();
+                    } else {
+                        current.fields.extend(incoming.fields.clone());
+                    }
                     current.count = current.count.max(incoming.count);
                     current.max_bytes = current.max_bytes.max(incoming.max_bytes);
                     current.bytes = current
@@ -99,8 +114,9 @@ impl Flow {
         self
     }
 
-    fn project_width(mut self, bytes: u64) -> Self {
+    fn project_width(mut self, bytes: u64, field: &str) -> Self {
         for row in self.rows.values_mut() {
+            row.fields = BTreeSet::from([field.into()]);
             row.bytes = bytes.min(row.max_bytes);
             row.retained_bytes = row.count.saturating_mul(row.bytes);
         }
@@ -109,6 +125,7 @@ impl Flow {
 
     fn whole_row_width(mut self) -> Self {
         for row in self.rows.values_mut() {
+            row.fields.clear();
             row.bytes = row.max_bytes;
             row.retained_bytes = row.count.saturating_mul(row.bytes);
         }
@@ -120,6 +137,11 @@ impl Flow {
             self.rows
                 .entry(site)
                 .and_modify(|current| {
+                    if current.fields.is_empty() || incoming.fields.is_empty() {
+                        current.fields.clear();
+                    } else {
+                        current.fields.extend(incoming.fields.clone());
+                    }
                     current.count = current.count.max(incoming.count);
                     current.bytes = current.bytes.max(incoming.bytes);
                     current.max_bytes = current.max_bytes.max(incoming.max_bytes);
@@ -246,15 +268,17 @@ struct RetentionAssignmentPrice {
 pub(crate) struct RetentionEstimator<'a> {
     schema: &'a Schema,
     max_held_bytes: u64,
+    peak: Flow,
     has_fixed_width_result: bool,
     next_identity: u64,
 }
 
 impl<'a> RetentionEstimator<'a> {
-    pub(crate) fn estimate(schema: &'a Schema, program: &Program) -> u64 {
+    pub(crate) fn estimate(schema: &'a Schema, program: &Program) -> ByteShape {
         let mut estimator = Self {
             schema,
             max_held_bytes: 0,
+            peak: Flow::default(),
             has_fixed_width_result: false,
             next_identity: 1,
         };
@@ -287,9 +311,41 @@ impl<'a> RetentionEstimator<'a> {
             .collect();
         estimator.statements(&program.body, &mut variables, 1, 0);
         if estimator.max_held_bytes == 0 && estimator.has_fixed_width_result {
-            CLOSURE_METADATA_BYTES
+            ByteShape::leaf(CLOSURE_METADATA_BYTES, "fixed-width closure metadata")
         } else {
-            estimator.max_held_bytes
+            let mut children: Vec<_> = estimator
+                .peak
+                .rows
+                .into_iter()
+                .map(|(site, row)| {
+                    let mut width = row_shape(schema, &row.table);
+                    if !row.fields.is_empty() {
+                        width.children.retain(|c| {
+                            row.fields
+                                .iter()
+                                .any(|f| c.label == format!("{}.{f}", row.table))
+                        });
+                    }
+                    width.bytes = row.bytes;
+                    ByteShape::repeated(
+                        row.retained_bytes,
+                        format!("{} at {site}: {} retained rows", row.table, row.count),
+                        row.count,
+                        width,
+                    )
+                })
+                .collect();
+            if estimator.peak.retained_value_bytes > 0 {
+                children.push(ByteShape::leaf(
+                    estimator.peak.retained_value_bytes,
+                    "retained constructed values",
+                ));
+            }
+            ByteShape::group(
+                estimator.max_held_bytes,
+                "closure at peak retention",
+                children,
+            )
         }
     }
 
@@ -517,7 +573,10 @@ impl<'a> RetentionEstimator<'a> {
                 Stmt::Return(value) => {
                     let (flow, _, _) = self.expression(value, variables);
                     let held = flow.held_bytes();
-                    self.max_held_bytes = self.max_held_bytes.max(held);
+                    if held > self.max_held_bytes {
+                        self.max_held_bytes = held;
+                        self.peak = flow.clone();
+                    }
                     self.has_fixed_width_result |= held == 0 && flow.depends_on_scan;
                 }
                 Stmt::Require { condition, .. } => {
@@ -576,6 +635,7 @@ impl<'a> RetentionEstimator<'a> {
                     nodes,
                     Flow::row(
                         &recurse.site,
+                        &recurse.table,
                         declared_serialized_row_max(self.schema, &recurse.table),
                         1,
                     ),
@@ -607,7 +667,7 @@ impl<'a> RetentionEstimator<'a> {
                 let flow = self
                     .expression_table(base, variables)
                     .and_then(|table| declared_serialized_column_max(self.schema, &table, name))
-                    .map_or(flow.clone(), |bytes| flow.project_width(bytes));
+                    .map_or(flow.clone(), |bytes| flow.project_width(bytes, name));
                 (flow, None, false)
             }
             Expr::Array(values) => {
@@ -679,6 +739,7 @@ impl<'a> RetentionEstimator<'a> {
             Expr::Get(read) => (
                 Flow::row(
                     &read.site,
+                    &read.table,
                     declared_serialized_row_max(self.schema, &read.table),
                     1,
                 ),
@@ -688,6 +749,7 @@ impl<'a> RetentionEstimator<'a> {
             Expr::Exists(read) => (
                 Flow::row(
                     &read.site,
+                    &read.table,
                     declared_serialized_row_max(self.schema, &read.table),
                     1,
                 )
@@ -724,6 +786,7 @@ impl<'a> RetentionEstimator<'a> {
     fn scan(&self, scan: &Scan) -> Flow {
         Flow::row(
             &scan.site,
+            &scan.table,
             declared_serialized_row_max(self.schema, &scan.table),
             scan.take.maximum(),
         )
@@ -759,13 +822,17 @@ impl<'a> RetentionEstimator<'a> {
     }
 
     fn record_held_collections(&mut self, variables: &BTreeMap<String, Binding>) {
-        let held = variables
+        let flow = variables
             .values()
             .filter(|binding| binding.held_collection)
-            .fold(0_u64, |total, binding| {
-                total.saturating_add(binding.flow.held_bytes())
+            .fold(Flow::default(), |total, binding| {
+                total.add(binding.flow.clone())
             });
-        self.max_held_bytes = self.max_held_bytes.max(held);
+        let held = flow.held_bytes();
+        if held > self.max_held_bytes {
+            self.max_held_bytes = held;
+            self.peak = flow;
+        }
     }
 
     fn expression_table(

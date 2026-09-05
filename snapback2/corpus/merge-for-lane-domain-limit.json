@@ -321,7 +321,7 @@
       "posts.byAuthorAt"
     ],
     "disclosures": [],
-    "bound_product": "merge.for-limit.domain take 1 × merge.for-limit.lane take 3 = 3"
+    "bound_product": "merge merge.for-limit: 1 lanes × (3 + 2) at merge.for-limit.lane on posts (calls from merge.for-limit.domain take 1) = 5 + merge.for-limit.domain take 1 (+2 reserve) × 1 calls on follows = 3"
   },
   "context": {
     "viewer": "u1",
