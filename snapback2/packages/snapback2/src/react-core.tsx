@@ -74,7 +74,6 @@ function throughRef(latest: { current: OfflineClientOptions | undefined }, optio
     ...(options.fenceDays === undefined ? {} : { fenceDays: options.fenceDays }),
     ...(options.maxAssetBytes === undefined ? {} : { maxAssetBytes: options.maxAssetBytes }),
     onTombstone: (row) => latest.current?.onTombstone?.(row) ?? [],
-    viewOnce: (table, row) => latest.current?.viewOnce?.(table, row) ?? false,
   };
 }
 

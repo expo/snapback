@@ -534,6 +534,11 @@ class Parser {
         type = { kind: "ref", table: name.value, optional: false };
       }
     }
+    if (this.maybe("once")) {
+      if (type.kind !== "image") syntax(site, "once is only specified for image columns; video ranges are unspecified",
+        "use photo: image <=10000000 once, or remove once from the video column until ranges are specified");
+      type = { ...type, once: true };
+    }
     if (this.maybe("?")) type = { ...type, optional: true };
     if (type.kind === "list" && type.item.optional) syntax(site, "list element types cannot be optional");
     return type;

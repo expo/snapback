@@ -234,7 +234,12 @@ impl State {
             .schema()
             .tables
             .iter()
-            .map(|(name, table)| (name.clone(), json!({ "retain": table.retain })))
+            .map(|(name, table)| {
+                (
+                    name.clone(),
+                    json!({ "retain": table.retain, "columns": table.columns }),
+                )
+            })
             .collect::<Map<_, _>>();
         let ops = self
             .runtime()

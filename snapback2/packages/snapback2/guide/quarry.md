@@ -1,15 +1,12 @@
 # Quarry v0.3
 
-Quarry is Snapback 2's only backend authoring language. It is a bounded
-front end to the compiler, checker, evaluator, and server. `snapback2 check`
-compiles `.q` in memory; it
-does not place generated files in `snapback/`. `snapback2 check` writes an inspection copy under `.snapback/build/quarry/`.
+Quarry is Snapback 2's only backend authoring language. `snapback2 check` compiles `.q` in memory.
+Inspection: `.snapback/build/quarry/`, never `snapback/`.
 
 ## Project
 
-A project has one schema, `snapback/schema.q`. Declarations (`use identity`,
-tables, maintains, channels) belong only there. Other `.q` files declare
-operations or reusable shapes; operation stems are API namespaces. Thus
+`snapback/schema.q` holds `use identity`, tables, maintains and channels.
+Other `.q` files hold operations or reusable shapes; stems are API namespaces:
 `snapback/messages.q` exports `api.messages.thread`.
 
 TypeScript under `snapback/` is limited to `seed.ts`, `tests/*.test.ts`, and
@@ -26,13 +23,14 @@ and money scales are integers from 0 through 12; money defaults to scale 2 and
 its currency is exactly three uppercase letters. Add `?` for optional. Text
 can add `format handle` or `format url` after its bound. A minimum and a format
 become enforced text constraints; maximums remain part of the column type.
-Text values may not contain C0 control characters other than tab, newline,
-and carriage return.
+Text forbids C0 controls except tab, newline and carriage return.
 
 `image <=N` is a byte-bounded closed record `{ id, width, height }`; `video <=N`
-adds integer-millisecond `duration`. Both compose with `?` and bounded lists,
-and their fields work in expressions. Asset columns cannot be indexed or used
-in `maintain.by`.
+adds integer-millisecond `duration`. Both admit `?` and bounded lists, but no
+indexes or `maintain.by`. `image <=N once` columns deliver once per authenticated reader, even on public rows:
+HTTP 200, full original, `private, no-store`. HEAD is free; widths, Range and
+conditionals cannot bypass HTTP 410 `E_ASSET_VIEWED`. Video ranges are unspecified;
+`once` refuses. Adding image `once` is admitted; prior views are unrecorded.
 
 ```q
 mutation inspect(photo: image <=5000000, clip: video <=50000000):

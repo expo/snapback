@@ -3,7 +3,13 @@ use super::*;
 #[test]
 fn reclamation_grace_restarts_from_the_second_release_after_reclaiming() {
     let generation = generation(
-        schema_with(table_with("photo", ColumnType::Image { max: 1_000 })),
+        schema_with(table_with(
+            "photo",
+            ColumnType::Image {
+                max: 1_000,
+                once: false,
+            },
+        )),
         vec![
             insert_program("photo", ArgType::Image { max: 1_000 }),
             delete_program(),
@@ -64,7 +70,13 @@ fn reclamation_grace_restarts_from_the_second_release_after_reclaiming() {
 fn destructive_successor_release_uses_the_supplied_logical_clock() {
     const LOGICAL_NOW: i64 = 2 * 24 * 60 * 60 * 1_000;
     let base = generation(
-        schema_with(table_with("photo", ColumnType::Image { max: 1_000 })),
+        schema_with(table_with(
+            "photo",
+            ColumnType::Image {
+                max: 1_000,
+                once: false,
+            },
+        )),
         vec![insert_program("photo", ArgType::Image { max: 1_000 })],
     );
     let mut runtime = Runtime::open(Store::memory().unwrap(), base).unwrap();

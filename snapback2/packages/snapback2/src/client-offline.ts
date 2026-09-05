@@ -45,9 +45,6 @@ export function validateOfflineOptions(options: OfflineClientOptions | undefined
     && (!Number.isSafeInteger(options.maxAssetBytes) || options.maxAssetBytes < 1)) {
     throw new TypeError("createClient offline.maxAssetBytes must be a positive safe integer");
   }
-  if (options.viewOnce !== undefined && typeof options.viewOnce !== "function") {
-    throw new TypeError("createClient offline.viewOnce must be a (table, row) => boolean predicate");
-  }
 }
 
 export function createOfflineRuntime(options: OfflineClientOptions | undefined): OfflineRuntime | undefined {

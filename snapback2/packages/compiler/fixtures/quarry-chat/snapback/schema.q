@@ -62,7 +62,7 @@ table messages:
   body: text <=4000 ?
   photo: image <=5000000 ?
   clip: video <=50000000 ?
-  viewOnce: bool ?
+  oncePhoto: image <=5000000 once ?
   expiresAt: time ?
   at: time
   by byConvTime: conversationId, at, id

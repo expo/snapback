@@ -300,62 +300,6 @@ test("native URI refuses E_ASSET_NATIVE_FILE_API when expo-file-system has no Fi
   }
 });
 
-test("native AssetVideo admits view-once only on play, feeds the memory player, and cannot reopen after completion", async () => {
-  const { mkdtemp, rm } = await import("node:fs/promises");
-  const { tmpdir } = await import("node:os");
-  const { join } = await import("node:path");
-  const { NativeAssetFiles, attachAssetFiles, fileBackend, PersistentRangeStore, SqliteBackend, nodeSqliteDriver } = await import("../dist/sqlite-test.mjs");
-  const root = await mkdtemp(join(tmpdir(), "e2-native-video-"));
-  const writes: string[] = [];
-  const files = new NativeAssetFiles({ root: "file:///cache/snapback2", async list() { return []; }, async remove() {}, async write(uri) { writes.push(uri); } });
-  const store = new PersistentRangeStore(fileBackend(new SqliteBackend(() => nodeSqliteDriver(join(root, "state.db"))), files));
-  attachAssetFiles(store, files);
-  await store.open("dev:alice");
-  await store.commit({ deliveries: [{ op: "thread", args: {}, seq: 1, state: "complete", next: null,
-    rows: [{ table: "messages", id: "clip-row", row: { id: "clip-row", clip: video } }],
-    data: [{ $row: { table: "messages", id: "clip-row" } }], receipt: { ranges: [], absences: [], verdicts: [] } }] });
-  await store.close();
-  let release!: () => void;
-  const opening = new Promise<void>((resolve) => { release = resolve; });
-  const open = store.open.bind(store);
-  store.open = async (partition) => { await opening; await open(partition); };
-  let fetches = 0;
-  const client = createClient({ url: "http://assets.test", as: "alice", offline: { store: () => store, viewOnce: () => true },
-    fetch: async (input) => {
-      if (new URL(String(input)).pathname === "/api/manifest") return json(nativeManifest());
-      if (new URL(String(input)).pathname === "/api/program") return json({ code: "E_ROUTE", family: "op", message: "absent", guide: "op/reference" }, 404);
-      fetches++; return new Response(new Uint8Array([1, 2, 3]), { headers: { "Content-Type": "video/mp4" } });
-    } });
-  let renderer: ReactTestRenderer | undefined;
-  const refusals: any[] = [];
-  try {
-    await act(async () => { renderer = TestRenderer.create(React.createElement(SnapbackProvider, { client }, React.createElement(AssetVideo, { asset: video, onRefusal: (error) => refusals.push(error.envelope) }))); });
-    await settle(); assert.equal(fetches, 0);
-    await act(async () => { release(); await client.ready; });
-    let viewed = 0;
-    const mark = client.assetCache!.markViewed.bind(client.assetCache);
-    client.assetCache!.markViewed = async (id) => { viewed++; return mark(id); };
-    let admissions = 0;
-    const put = client.assetCache!.putBytes.bind(client.assetCache);
-    client.assetCache!.putBytes = async (...args) => { admissions++; return put(...args); };
-    for (let i = 0; i < 20 && renderer!.root.findAllByType("NativePressable").length === 0; i++) await settle();
-    assert.equal(fetches, 0); assert.equal(viewed, 0); assert.equal(admissions, 0);
-    await act(async () => renderer!.root.findByType("NativePressable").props.onPress());
-    for (let i = 0; i < 20 && renderer!.root.findAllByType("NativeMemoryVideo").length === 0; i++) await settle();
-    assert.equal(renderer!.root.findByType("NativeMemoryVideo").props.source, "data:video/mp4;base64,AQID");
-    assert.equal(await client.assetCache!.viewed(video.id), true); assert.deepEqual(writes, []);
-    assert.equal(fetches, 1); assert.deepEqual(refusals, []);
-    await act(async () => renderer!.root.findByType("NativeMemoryVideo").props.onFinished());
-    await settle();
-    assert.equal(renderer!.root.findAllByType("NativeMemoryVideo").length, 0);
-    await act(async () => renderer!.update(React.createElement(SnapbackProvider, { client }, React.createElement(AssetVideo, { asset: video, autoPlay: true }))));
-    await settle();
-    assert.equal(renderer!.root.findAllByType("NativeMemoryVideo").length, 0);
-    assert.equal(fetches, 1); assert.deepEqual(writes, []);
-    await act(async () => store.seal()); await settle();
-    assert.equal(renderer!.root.findAllByType("NativeVideo").length, 0, "seal invalidates a mounted player");
-  } finally { release(); if (renderer) await act(async () => renderer!.unmount()); await client.close(); await rm(root, { recursive: true, force: true }); }
-});
 
 test("native AssetImage and ordinary AssetVideo serve cached files and clear mounted sources on custody change", async () => {
   const { mkdtemp, rm } = await import("node:fs/promises");

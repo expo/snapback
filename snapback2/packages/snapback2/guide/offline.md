@@ -73,8 +73,10 @@ The loop covers the group because memberships is capped at 50 per conversation.
 ## Bytes and diagnostics
 
 Bytes share their row's lease, keyed (assetId, width), under maxAssetBytes
-(256 MiB LRU). viewOnce marks images at fetch, clips at play (native: memory only): the row then
-reads null, no URL is minted and assetBlob refuses E_ASSET_VIEWED.
+(256 MiB LRU). `image <=N once` comes from the manifest/program schema; there
+is no client viewOnce option. Web and native caches refuse such rows even before
+viewing. Offline their media is null; the twin never predicts a fetch. The image stays in its viewing instance's memory; repeats refuse
+E_ASSET_VIEWED (assets family, HTTP 410).
 E_OFFLINE_CARRIER means install/configure the carrier. E_OFFLINE_STATE means
 preserve and inspect persisted state; E_OFFLINE_DELIVERY means retry an
 authenticated query; E_OFFLINE_LIFECYCLE means sign in or reopen. Refusals

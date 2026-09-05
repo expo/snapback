@@ -254,6 +254,12 @@ impl Store {
              );
              CREATE INDEX IF NOT EXISTS _grant_slices_extent
                 ON _grant_slices(grant_id, offset, count);
+             CREATE TABLE IF NOT EXISTS _asset_views (
+                asset_id TEXT NOT NULL,
+                principal TEXT NOT NULL,
+                at INTEGER NOT NULL,
+                PRIMARY KEY (asset_id, principal)
+             );
              CREATE TABLE IF NOT EXISTS _assets (
                 id TEXT PRIMARY KEY,
                 state TEXT NOT NULL CHECK(state IN ('receiving', 'ready', 'failed')),

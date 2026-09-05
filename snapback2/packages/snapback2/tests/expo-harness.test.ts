@@ -123,7 +123,7 @@ test("witness configuration temp rename preserves the prior version on failure a
     assert.equal((await configuration()).offline, true);
     native.beforeMove = undefined;
     await Promise.all([persist({ offline: false }), persist({ fault: "carrier" })]);
-    assert.deepEqual(await configuration(), { name: "alice", offline: false, fault: "carrier", assets: [], once: [] });
+    assert.deepEqual(await configuration(), { name: "alice", offline: false, fault: "carrier", assets: [] });
     assert.equal([...native.fileBodies.keys()].filter((name: any) => name.endsWith(".json")).length, 1);
   } finally { native.beforeMove = undefined; native.fileBodies.clear(); }
 });

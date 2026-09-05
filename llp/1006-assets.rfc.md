@@ -12,7 +12,8 @@ decode helper executable, §14a), `packages/compiler` (the column types),
 revisions (f)–(j) by Claude Fable 5.1 at the author's rulings, in session,
 2026-09-03
 **Date:** 2026-08-31
-**Revised:** 2026-09-04 (p — the two-phase `upload()` takes `kind` and returns the
+**Revised:** 2026-09-05 (q — §2a.1, image `once`: server one-use delivery,
+lane L11); 2026-09-04 (p — the two-phase `upload()` takes `kind` and returns the
 nominal record, verified against the server's sniff (§10)); 2026-09-04 (o — the client generation check is named honestly as a
 descriptor fence (§10)); 2026-09-04 (n — §9b, bytes on the device, cached under the owning
 row's lease; author ruling 2026-09-04 via LLP 1012 decision 7, built by its lane
@@ -273,7 +274,7 @@ Consequences:
   document says so rather than implying more.
 - **Replacement and deletion are exact.** Patch the column or delete the row and
   the old path fails on its next request. Authority never waits on reclamation.
-- **Pasteability is derived, not declared.** A `rule.public` table's asset paths
+- **Pasteability is derived, not declared.** Except for `once` (§2a.1), public paths
   need no credential and are `Cache-Control: public, immutable` — the id is in
   the path and the bytes never change. Anything else is authorized per request
   and answered `Cache-Control: private, no-cache` with an `ETag`: the viewer's
@@ -363,6 +364,36 @@ If an app later needs one asset in several rows, the change is mechanical and
 reversible: delete the locator, put the row coordinates back in the URL, and
 move reclamation to a sweep. It is not a migration trap. §12 keeps the rejected
 shape and its arguments so the choice is not re-litigated from scratch.
+
+### 2a.1. One-use image delivery (Clique F3, 2026-09-05)
+
+Implementer: GPT-6 Astra, lane L11, 2026-09-05. A column may say
+`photo: image <=10000000 once` (also optional or in a bounded image list).
+`video … once` refuses at `check`: range semantics are unspecified; use an
+ordinary video column or an image with `once`. This is a column modifier,
+not an argument constraint. Custody stays affine: one owning cell, whose
+row read rule authorizes delivery to each principal.
+
+Delivery reserves each `(assetId, principal)` while streaming off the owner;
+the owner durably records `(assetId, principal, at)`
+in the ledger after authorization, when the full-body 200 is committed
+(the bytes written). The completion byte is held until the ledger commit,
+so a completed response proves durable consumption. Admission alone never
+consumes. A failure before the body starts does not burn the use; an abort
+may. Concurrent requests by one principal have one winner. An authenticated
+principal is required even for a public owning row. `HEAD` does not consume.
+Widths (`?w=`), conditionals (`If-None-Match`), and `Range` cannot yield a
+second delivery: once images ignore these selectors and deliver their full
+original body as 200 with `Cache-Control: private, no-store`. A consumed
+request refuses HTTP 410, `E_ASSET_VIEWED`, family `assets`, at the delivery
+site with a rewrite to render the image once and request a new image.
+
+The manifest and program schema carry the column modifier. The client
+`viewOnce` option is deleted; the chat template uses one message row with
+its own once image and per-member visibility through its read rule. The
+row byte cache refuses once rows. The twin never predicts a once fetch;
+offline, their media reads `null`. Adding `once` to an existing image column
+is an admitted successor; prior views are unrecorded.
 
 ### 2b. The session carrier (author ruling, 2026-09-03)
 
@@ -966,7 +997,7 @@ fence does not touch them, exactly as it does not touch rows. One ceiling,
 `maxAssetBytes` (client option, default 256 MB), evicts least-recently-read
 by the owning row's recency; it is the only budget in v1, because bytes are
 large and rows are not. Rows whose delivery must be evaluated on every
-request — one-use delivery when it lands, anything under a fenced audit —
+request — one-use image delivery (§2a.1), anything under a fenced audit —
 refuse the cache at the row, and `<AssetImage>` on such a row renders from
 the network or not at all. This narrows LLP 0329.014.008 §4's
 `retain({ assets: { renditions } })` in one way: there is no declared

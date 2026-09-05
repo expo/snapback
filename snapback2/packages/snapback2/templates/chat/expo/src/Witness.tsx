@@ -27,8 +27,7 @@ export default function Witness({ url, controlUrl }: { url: string; controlUrl: 
         await persist({ name: "alice", offline: false, fault: "none" });
       }
       if (typeof args.name === "string") await persist({ name: args.name });
-      if (Array.isArray(args.once) || Array.isArray(args.assets)) await persist({
-        ...(Array.isArray(args.once) ? { once: args.once as string[] } : {}),
+      if (Array.isArray(args.assets)) await persist({
         ...(Array.isArray(args.assets) ? { assets: args.assets as AssetRecord[] } : {}),
       });
       const config = await configuration();
@@ -38,7 +37,7 @@ export default function Witness({ url, controlUrl }: { url: string; controlUrl: 
         rewrite: "send fault(none), then construct", guide: "offline",
       }); };
       live = createExpoClient({ url, as: config.name, startOffline: config.offline,
-        offline: { ...chatOffline, store: () => store!, viewOnce: (table, row) => chatOffline.viewOnce(table, row) || (table === "messages" && config.once.includes(String(row.id))) } });
+        offline: { ...chatOffline, store: () => store! } });
       try { await live.ready; setClient(live); setError(undefined); return live; }
       catch (error) { setError(String(error)); throw error; }
     };

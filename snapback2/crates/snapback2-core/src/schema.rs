@@ -171,26 +171,58 @@ pub enum ColumnType {
     Id,
     // @ref LLP 1001#6-identity-identityrs — Schema principals stay nominal while v1 encodes them as Value::Id.
     Principal,
-    Text { max: u32 },
+    Text {
+        max: u32,
+    },
     // @ref LLP 1001#9-schema-additions — bytes use the value model's canonical lowercase-base16 wrapper.
-    Bytes { max: u32 },
+    Bytes {
+        max: u32,
+    },
     // @ref LLP 1006#1-the-move — assets are closed map values; the bound is stored bytes, not record size.
-    Image { max: u32 },
-    Video { max: u32 },
+    Image {
+        max: u32,
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        once: bool,
+    },
+    Video {
+        max: u32,
+    },
     Int,
     // @ref LLP 1001#9-schema-additions — enum and fixed-scale columns keep scalar storage keys.
-    Enum { variants: Vec<String> },
-    Decimal { scale: u8 },
-    Money { currency: String, scale: u8 },
+    Enum {
+        variants: Vec<String>,
+    },
+    Decimal {
+        scale: u8,
+    },
+    Money {
+        currency: String,
+        scale: u8,
+    },
     Bool,
     Time,
-    Ref { table: String },
-    Json { max_bytes: u32 },
+    Ref {
+        table: String,
+    },
+    Json {
+        max_bytes: u32,
+    },
     Optional(Box<ColumnType>),
-    List { of: Box<ColumnType>, max: u32 },
+    List {
+        of: Box<ColumnType>,
+        max: u32,
+    },
 }
 
 impl ColumnType {
+    pub fn is_once(&self) -> bool {
+        match self {
+            Self::Image { once, .. } => *once,
+            Self::Optional(inner) | Self::List { of: inner, .. } => inner.is_once(),
+            _ => false,
+        }
+    }
+
     // @ref LLP 1006#1-the-move — asset records and lists are deliberately outside scalar index custody.
     pub(crate) fn is_indexable(&self) -> bool {
         match self {
@@ -216,7 +248,8 @@ impl fmt::Display for ColumnType {
             Self::Principal => formatter.write_str("Principal"),
             Self::Text { max } => write!(formatter, "Text(max={max})"),
             Self::Bytes { max } => write!(formatter, "Bytes(max={max})"),
-            Self::Image { max } => write!(formatter, "Image(max={max})"),
+            Self::Image { max, once: false } => write!(formatter, "Image(max={max})"),
+            Self::Image { max, once: true } => write!(formatter, "Image(max={max}, once)"),
             Self::Video { max } => write!(formatter, "Video(max={max})"),
             Self::Int => formatter.write_str("Int"),
             Self::Enum { variants } => write!(formatter, "Enum({})", variants.join("|")),

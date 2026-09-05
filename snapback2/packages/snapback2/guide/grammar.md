@@ -18,7 +18,7 @@ table todos:
 
 Types: `principal`, `id`, table references, `int`, `time`, `bool`,
 `decimal <scale>`, `money <CUR> [scale]`, `text <=N`, `text M..N`, `json <=N`,
-`bytes <=N`, `image <=N`, `video <=N`, `enum(...)`, `[type] <=N`; `?` is
+`bytes <=N`, `image <=N [once]`, `video <=N`, `enum(...)`, `[type] <=N`; `?` is
 optional. Text may add a format. `cursor` is operation-only.
 `shape`, `fn`, and `cursor` are reserved bindings.
 

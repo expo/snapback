@@ -117,6 +117,9 @@ impl State {
             Identity::Carrier(token) => self.resolve_asset_carrier(&token)?,
             identity => Some(self.resolve_authority(identity)?),
         };
+        let principal = authority
+            .as_ref()
+            .map(|authority| authority.principal.id.to_string());
         let delivery = if let Some(authority) = authority {
             let context = self.execution_context(&authority, BTreeMap::new())?;
             self.runtime_mut().asset_delivery(id, context)
@@ -124,16 +127,46 @@ impl State {
             self.runtime_mut().public_asset_delivery(id)
         }
         .map_err(|error| Refusal::from_runtime(&error))?;
-        if carrier && !delivery.public && delivery.kind == AssetKind::Image {
+        if delivery.once
+            && let Some(principal) = &principal
+        {
+            if self
+                .runtime()
+                .store()
+                .asset_viewed(id, principal)
+                .map_err(|error| Refusal::from_runtime(&error))?
+            {
+                return Err(Refusal::from_runtime(
+                    &snapback2_core::RuntimeError::AssetViewed(id.to_owned()),
+                ));
+            }
+        }
+        if carrier && (!delivery.public || delivery.once) && delivery.kind == AssetKind::Image {
             return Err(Refusal::from_runtime(
                 &snapback2_core::RuntimeError::AssetNotReady("asset is unavailable".to_owned()),
             ));
         }
-        serde_json::to_value(delivery).map_err(|error| {
+        let once = delivery.once;
+        let mut result = serde_json::to_value(delivery).map_err(|error| {
             Refusal::from_runtime(&snapback2_core::RuntimeError::Serialization(
                 error.to_string(),
             ))
-        })
+        })?;
+        if once {
+            result["principal"] = json!(principal.expect("authorized once principal"));
+        }
+        Ok(result)
+    }
+
+    pub(super) fn asset_consume(&mut self, id: &str, principal: &str) -> Result<Json, Refusal> {
+        let now = self.now();
+        let result = self.runtime_mut().record_asset_view(id, principal, now);
+        // A failed durable commit after bytes moved must not allow a retry in this owner.
+        if result.is_err() {
+            self.stop.store(true, std::sync::atomic::Ordering::SeqCst);
+        }
+        result.map_err(|error| Refusal::from_runtime(&error))?;
+        Ok(json!(null))
     }
 
     pub(super) fn asset_upload_authorize(
@@ -231,7 +264,7 @@ fn generation_asset_maxima(generation: &Generation) -> (u64, u64) {
 
 fn column_asset_maxima(kind: &ColumnType, maxima: &mut (u64, u64)) {
     match kind {
-        ColumnType::Image { max } => maxima.0 = maxima.0.max(u64::from(*max)),
+        ColumnType::Image { max, .. } => maxima.0 = maxima.0.max(u64::from(*max)),
         ColumnType::Video { max } => maxima.1 = maxima.1.max(u64::from(*max)),
         ColumnType::Optional(inner) | ColumnType::List { of: inner, .. } => {
             column_asset_maxima(inner, maxima)
@@ -424,7 +457,13 @@ mod tests {
                 "media".to_owned(),
                 table(BTreeMap::from([
                     ("id".to_owned(), ColumnType::Id),
-                    ("photo".to_owned(), ColumnType::Image { max: 1_000 }),
+                    (
+                        "photo".to_owned(),
+                        ColumnType::Image {
+                            max: 1_000,
+                            once: false,
+                        },
+                    ),
                 ])),
             )]),
             ..Schema::default()
@@ -549,7 +588,13 @@ mod tests {
         let table = Table {
             columns: BTreeMap::from([
                 ("id".to_owned(), ColumnType::Id),
-                ("photo".to_owned(), ColumnType::Image { max: 1_000 }),
+                (
+                    "photo".to_owned(),
+                    ColumnType::Image {
+                        max: 1_000,
+                        once: false,
+                    },
+                ),
             ]),
             indexes: BTreeMap::from([(
                 "byId".to_owned(),

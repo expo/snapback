@@ -6,7 +6,13 @@ use super::*;
 fn reclamation_grace_starts_when_a_long_claim_is_released() {
     const YEAR_MS: i64 = 365 * 24 * 60 * 60 * 1_000;
     let generation = generation(
-        schema_with(table_with("photo", ColumnType::Image { max: 1_000 })),
+        schema_with(table_with(
+            "photo",
+            ColumnType::Image {
+                max: 1_000,
+                once: false,
+            },
+        )),
         vec![
             insert_program("photo", ArgType::Image { max: 1_000 }),
             replace_program("photo", ArgType::Image { max: 1_000 }),
@@ -46,7 +52,13 @@ fn reclamation_grace_starts_when_a_long_claim_is_released() {
 
 #[test]
 fn destructive_successor_reset_and_reclaim_release_engine_owned_assets() {
-    let table = table_with("photo", ColumnType::Image { max: 1_000 });
+    let table = table_with(
+        "photo",
+        ColumnType::Image {
+            max: 1_000,
+            once: false,
+        },
+    );
     let base = generation(
         schema_with(table),
         vec![insert_program("photo", ArgType::Image { max: 1_000 })],
@@ -154,7 +166,13 @@ fn destructive_successor_reset_and_reclaim_release_engine_owned_assets() {
 
 #[test]
 fn durable_staging_charge_covers_guest_churn_claim_reclaim_and_restart() {
-    let table = table_with("photo", ColumnType::Image { max: 1_000 });
+    let table = table_with(
+        "photo",
+        ColumnType::Image {
+            max: 1_000,
+            once: false,
+        },
+    );
     let generation = generation(
         schema_with(table),
         vec![insert_program("photo", ArgType::Image { max: 1_000 })],
@@ -236,7 +254,13 @@ fn durable_staging_charge_covers_guest_churn_claim_reclaim_and_restart() {
     // typed Runtime entry like the server does.
     let restart_generation = || {
         super::generation(
-            schema_with(table_with("photo", ColumnType::Image { max: 1_000 })),
+            schema_with(table_with(
+                "photo",
+                ColumnType::Image {
+                    max: 1_000,
+                    once: false,
+                },
+            )),
             vec![insert_program("photo", ArgType::Image { max: 1_000 })],
         )
     };
@@ -265,7 +289,13 @@ fn durable_staging_charge_covers_guest_churn_claim_reclaim_and_restart() {
 #[test]
 fn finalized_growth_cannot_cross_the_durable_staging_byte_cap() {
     let expanding = generation(
-        schema_with(table_with("photo", ColumnType::Image { max: 1_000 })),
+        schema_with(table_with(
+            "photo",
+            ColumnType::Image {
+                max: 1_000,
+                once: false,
+            },
+        )),
         vec![insert_program("photo", ArgType::Image { max: 1_000 })],
     );
     let mut runtime = Runtime::open(Store::memory().unwrap(), expanding).unwrap();

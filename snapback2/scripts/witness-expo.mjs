@@ -68,9 +68,9 @@ async function coldMedia() {
   const files = await walk(resolve(container, "Library/Caches/snapback2"));
   assert.ok(files.some((path) => path.includes(seed.assets[0].id)));
   assert.ok(files.every((path) => !path.includes(seed.assets[1].id)));
-  const clip = await command("view", { assetId: seed.assets[2].id, hidden: true });
-  assert.equal(clip.refusal, undefined); assert.equal(clip.viewed, true);
-  assert.equal(clip.loaded, false); assert.equal(clip.uri, undefined); assert.deepEqual(clip.files, []);
+  const clip = await command("view", { assetId: seed.assets[2].id });
+  assert.equal(clip.refusal, undefined); assert.equal(clip.viewed, false);
+  assert.equal(clip.loaded, true); assert.match(clip.uri, /^file:\/\//);
   await assertNoMediaOnDisk(container, seed.forbidden);
   return { ordinary, once, clip };
 }
@@ -94,19 +94,19 @@ const actions = [
     await writeFile(resolve(workspace, "target/e2-witness-ios-build.log"), build);
     // run:ios may auto-launch; record that process via launch before killing it.
     await launch(false); await killApp();
-    return { device, xcode: (await run("xcodebuild", ["-version"])).trim(), build: "target/e2-witness-ios-build.log", seed: { rooms: seed.rooms, doomed: seed.doomed, assets: seed.assets, once: seed.once } };
+    return { device, xcode: (await run("xcodebuild", ["-version"])).trim(), build: "target/e2-witness-ios-build.log", seed: { rooms: seed.rooms, doomed: seed.doomed, assets: seed.assets } };
   },
   async () => {
-    await launch(); await command("construct", { fresh: true, name: "alice", once: seed.once, assets: seed.assets });
+    await launch(); await command("construct", { fresh: true, name: "alice", assets: seed.assets });
     await command("drain");
     for (const conversationId of seed.rooms.slice(0, 3)) await command("open", { conversationId });
     for (const [index, asset] of seed.assets.entries()) {
       log(`view ${index + 1}/${seed.assets.length}: ${"duration" in asset ? "video" : "image"}`);
       const media = await command("view", { assetId: asset.id });
       if ("duration" in asset) {
-        assert.equal(media.refusal, undefined); assert.equal(media.viewed, true);
+        assert.equal(media.refusal, undefined); assert.equal(media.viewed, false);
         assert.equal(media.loaded, true); assert.equal(media.playing, true);
-        assert.match(media.uri, /^data:video\/mp4;base64,/); assert.deepEqual(media.files, []);
+        assert.match(media.uri, /^file:\/\//);
         continue;
       }
       assert.equal(media.loaded, true, JSON.stringify(media));

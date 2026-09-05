@@ -145,11 +145,11 @@ test("concurrent byte consumers acquire exactly one view-once allowance", async 
   } finally { await f.close(); }
 });
 
-test("shipped chat viewOnce row policy keeps native media off disk", async () => {
+test("schema once image column keeps native media off disk", async () => {
   const { chatOffline } = await import("../dist/templates/chat/shared/offline.js");
-  const f = await nativeFixture({ viewOnce: chatOffline.viewOnce });
-  const held = delivery(); held.seq = 2; (held.rows[0].row as any).viewOnce = true;
-  await f.store.commit({ deliveries: [held] }); const renderer = await mount(f);
+  const f = await nativeFixture({ once: true });
+  const held = delivery(); held.seq = 2;
+  await f.store.commit({ schema: { tables: { messages: { columns: { photo: { Image: { max: 5000000, once: true } } } } } }, deliveries: [held] }); const renderer = await mount(f);
   try {
     await until(() => Boolean(image(renderer))); assert.match(image(renderer).uri, /^data:/);
     assert.equal(await f.client.assetCache!.viewed(photo.id), true); assert.deepEqual(f.writes, []);
@@ -169,7 +169,7 @@ test("native viewing survives layout width changing after fallback admission", a
 
 test("ordinary fetch changed to view-once with a failed durable mark returns no bytes on either consumer", async () => {
   for (const method of ["assetBlob", "assetBytes"] as const) {
-    const f = await nativeFixture({ viewOnce: (_table, row) => row.viewOnce === true });
+    const f = await nativeFixture({});
     const gate = deferred(), fetching = deferred(); const viewing = {};
     f.hooks.network = async () => { fetching.resolve(); await gate.promise; };
     try {
@@ -177,8 +177,8 @@ test("ordinary fetch changed to view-once with a failed durable mark returns no 
       const pending = f.client[method](url, { viewing });
       const refused = assert.rejects(pending, (error: any) => error.code === "E_OFFLINE_CARRIER");
       await fetching.promise;
-      const held = delivery(); held.seq = 2; (held.rows[0].row as any).viewOnce = true;
-      await f.store.commit({ deliveries: [held] }); f.hooks.failCommit = true;
+      const held = delivery(); held.seq = 2;
+      await f.store.commit({ schema: { tables: { messages: { columns: { photo: { Image: { max: 5000000, once: true } } } } } }, deliveries: [held] }); f.hooks.failCommit = true;
       gate.resolve(); await refused;
       assert.equal(await f.client.assetCache!.canServe(photo.id, viewing), false);
       assert.equal(await f.client.assetCache!.viewed(photo.id), false);
@@ -191,13 +191,13 @@ test("ordinary fetch changed to view-once with a failed durable mark returns no 
 });
 
 test("native ordinary image changed to view-once during fetch with a failed mark has no source", async () => {
-  const f = await nativeFixture({ viewOnce: (_table, row) => row.viewOnce === true }); const gate = deferred();
+  const f = await nativeFixture({}); const gate = deferred();
   f.hooks.network = () => gate.promise;
   const renderer = await mount(f);
   try {
     await until(() => f.requests.length === 1);
-    const held = delivery(); held.seq = 2; (held.rows[0].row as any).viewOnce = true;
-    await act(async () => f.store.commit({ deliveries: [held] })); f.hooks.failCommit = true;
+    const held = delivery(); held.seq = 2;
+    await act(async () => f.store.commit({ schema: { tables: { messages: { columns: { photo: { Image: { max: 5000000, once: true } } } } } }, deliveries: [held] })); f.hooks.failCommit = true;
     gate.resolve(); await until(() => f.client.snapshot.lastRefusal?.code === "E_OFFLINE_CARRIER");
     assert.equal(image(renderer), undefined); assert.equal(await f.client.assetCache!.viewed(photo.id), false);
     assert.deepEqual(f.writes, []);

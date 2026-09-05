@@ -1,3 +1,4 @@
+import { onceAssetIds, type OnceColumns } from "./asset-policy.js";
 // @ref LLP 1006#9b-bytes-on-the-device-author-ruling-2026-09-04 — bytes are cached under the owning row's lease, or not at all.
 // @ref LLP 1012#9-asset-bytes-on-the-device — the ByteCache sits beside the range store and joins its swap; view-once is excluded at view time.
 
@@ -27,18 +28,18 @@ export interface AssetBytes { bytes: Uint8Array; type: string }
 /** An opaque identity held by one mounted viewing instance, never shared by asset id. */
 export interface AssetFetchOptions { signal?: AbortSignal; viewing?: object }
 export type ByteCacheOutcome = "cached" | "viewed" | "unleased" | "refused";
-export type ViewOncePredicate = (table: string, row: Record<string, unknown>) => boolean;
 
 /** The byte surface the swap engine exposes beside `RangeStore`; only the carriers implement it. */
 export interface ByteCarrier {
   readBytes(assetId: string, width: number | null): Promise<{ bytes: Uint8Array; type: string } | undefined>;
   bytes(): Promise<ByteCacheStatus>;
   rowsReferencing(assetId: string): Promise<StoredRow[]>;
+  onceRows(assetId: string): Promise<RowRef[]>;
   viewedAsset(assetId: string): Promise<boolean>;
   viewedRows(): Promise<RowRef[]>;
   /** LRU read stamps, coalesced: stamped in memory now, persisted by the next swap. */
   touchBytes(keys: string[]): Promise<void>;
-  commit(swap: { bytes?: ByteSwapRequest; viewed?: RowRef[] }): Promise<void>;
+  commit(swap: { bytes?: ByteSwapRequest; viewed?: RowRef[]; viewedAssets?: string[] }): Promise<void>;
 }
 
 /** The client-facing byte cache: `client.assetCache` when the client has an offline store. */
@@ -53,7 +54,7 @@ export interface AssetCache {
   get(assetId: string, width: number | null, viewing?: object): Promise<Blob | undefined>;
   /** True once a view-once row carrying this asset was viewed on this partition. */
   viewed(assetId: string): Promise<boolean>;
-  /** True while a held row carrying this asset is view-once (`offline.viewOnce`) and not yet viewed. */
+  /** True while a held row carrying this asset is view-once (an `image once` column) and not yet viewed. */
   viewOnce(assetId: string): Promise<boolean>;
   /** Marks the held view-once rows carrying this asset viewed: what a player calls when playback starts. */
   markViewed(assetId: string): Promise<boolean>;
@@ -110,6 +111,7 @@ export interface ByteSwapState {
   rows: Record<string, StoredRow>;
   assets: Record<string, ByteCacheEntry>;
   viewed: Record<string, ViewedRecord>;
+  onceColumns?: OnceColumns;
 }
 
 /**
@@ -122,10 +124,19 @@ export function viewedOnlyAssets(state: Pick<ByteSwapState, "rows" | "viewed">):
   for (const record of Object.values(state.viewed)) for (const id of record.assets) viewed.add(id);
   if (viewed.size === 0) return viewed;
   for (const [key, row] of Object.entries(state.rows)) {
-    if (state.viewed[key]) continue;
-    for (const id of assetIdsIn(row.row)) viewed.delete(id);
+    for (const id of assetIdsIn(row.row)) if (!state.viewed[key]?.assets.includes(id)) viewed.delete(id);
   }
   return viewed;
+}
+
+/** A once row is exhausted only after every current once image was consumed. */
+export function fullyViewed(state: Pick<ByteSwapState, "rows" | "viewed" | "onceColumns">): Record<string, ViewedRecord> {
+  return Object.fromEntries(Object.entries(state.viewed).filter(([key, record]) => {
+    const row = state.rows[key];
+    if (!row || !(state.onceColumns?.[row.table]?.length)) return true;
+    const images = onceAssetIds(state.onceColumns, [row]);
+    return images.size > 0 && [...images].every(id => record.assets.includes(id));
+  }));
 }
 
 function checkedPut(put: ByteCachePut): void {
@@ -144,7 +155,7 @@ function checkedPut(put: ByteCachePut): void {
  */
 export function applyByteSwap(
   state: ByteSwapState,
-  swap: { bytes?: ByteSwapRequest; viewed?: RowRef[] },
+  swap: { bytes?: ByteSwapRequest; viewed?: RowRef[]; viewedAssets?: string[] },
   leased: Set<string>,
 ): ByteDelta {
   const delta: ByteDelta = { put: [], remove: [] };
@@ -152,7 +163,8 @@ export function applyByteSwap(
     if (!ref || typeof ref.table !== "string" || typeof ref.id !== "string") throw new TypeError("viewed rows must be row references");
     const key = rowKey(ref);
     const assets = new Set(state.viewed[key]?.assets ?? []);
-    assetIdsIn(state.rows[key]?.row, assets);
+    if (swap.viewedAssets) for (const id of swap.viewedAssets) assets.add(id);
+    else assetIdsIn(state.rows[key]?.row, assets);
     state.viewed[key] = { at: Date.now(), assets: [...assets] };
   }
   const viewedAssets = viewedOnlyAssets(state);
@@ -194,6 +206,7 @@ function isByteCarrier(store: RangeStore): store is RangeStore & ByteCarrier {
   return typeof candidate.readBytes === "function"
     && typeof candidate.bytes === "function"
     && typeof candidate.rowsReferencing === "function"
+    && typeof candidate.onceRows === "function"
     && typeof candidate.viewedAsset === "function"
     && typeof candidate.viewedRows === "function"
     && typeof candidate.touchBytes === "function";
@@ -228,7 +241,7 @@ export class ByteCache implements AssetCache {
 
   constructor(
     readonly store: RangeStore,
-    private readonly options: { maxAssetBytes: number; viewOnce?: ViewOncePredicate },
+    private readonly options: { maxAssetBytes: number },
   ) {}
 
   /** The partition the runtime opened; a change drops every session blob. */
@@ -276,7 +289,7 @@ export class ByteCache implements AssetCache {
     const rows = await store.rowsReferencing(assetId);
     if (rows.length === 0) return false;
     const viewed = await store.viewedAsset(assetId);
-    const once = rows.every((row) => this.options.viewOnce?.(row.table, row.row) === true);
+    const once = (await store.onceRows(assetId)).length > 0;
     const owns = (!viewed && !once) || [...this.session.entries()].some(([key, entry]) =>
       entry.viewing === viewing && key.startsWith(this.sessionKey(assetId)));
     return custody === this.custody && owns;
@@ -294,8 +307,7 @@ export class ByteCache implements AssetCache {
     if (!store) return false;
     const once = await this.viewOnceRows(assetId);
     if (once.length === 0) return false;
-    const viewed = new Set((await store.viewedRows()).map(rowKey));
-    return once.some((ref) => !viewed.has(rowKey(ref)));
+    return !await store.viewedAsset(assetId);
   }
 
   async markViewed(assetId: string): Promise<boolean> {
@@ -304,7 +316,7 @@ export class ByteCache implements AssetCache {
     if (!store) return false;
     const once = await this.viewOnceRows(assetId);
     if (once.length === 0) return false;
-    await store.commit({ viewed: once });
+    await store.commit({ viewed: once, viewedAssets: [assetId] });
     return true;
   }
 
@@ -334,26 +346,23 @@ export class ByteCache implements AssetCache {
     if (await store.viewedAsset(assetId)) return "refused";
     const rows = await store.rowsReferencing(assetId);
     if (rows.length === 0 || custody !== this.custody) return "unleased";
-    const once = rows
-      .filter((row) => this.options.viewOnce?.(row.table, row.row) === true)
-      .map(({ table, id }) => ({ table, id }));
-    // Per row: the view-once rows are marked viewed; an ordinary row sharing the id still leases the bytes.
+    const once = await store.onceRows(assetId);
+    // The schema-derived owning row admits this image only to its mounted viewer.
     if (once.length > 0 && !viewing) return "refused";
-    if (once.length === rows.length) {
+    if (once.length > 0) {
       try {
-        await store.commit({ viewed: once });
+        await store.commit({ viewed: once, viewedAssets: [assetId] });
       } catch {
         return "refused";
       }
       if (custody !== this.custody || (await store.rowsReferencing(assetId)).length === 0
         || !await store.viewedAsset(assetId) || custody !== this.custody) return "unleased";
       if (this.session.size >= SESSION_VIEW_LIMIT) this.session.delete(this.session.keys().next().value!);
-      if (viewing) this.session.set(this.sessionKey(assetId, width), { viewing, value: { bytes: value.bytes.slice(), type: value.type } });
+      if (viewing) this.session.set(this.sessionKey(assetId, null), { viewing, value: { bytes: value.bytes.slice(), type: value.type } });
       return "viewed";
     }
     try {
       await store.commit({
-        ...(once.length === 0 ? {} : { viewed: once }),
         bytes: { put: [{ assetId, width, ...value }], ceiling: this.options.maxAssetBytes },
       });
     } catch {
@@ -381,7 +390,7 @@ export class ByteCache implements AssetCache {
   private async sessionBytes(assetId: string, width: number | null, viewing?: object): Promise<AssetBytes | undefined> {
     const store = this.carrier();
     if (!store) return undefined;
-    const key = this.sessionKey(assetId, width);
+    const key = this.sessionKey(assetId, null);
     const blob = this.session.get(key);
     if (!viewing || blob?.viewing !== viewing) return undefined;
     if ((await store.rowsReferencing(assetId)).length > 0) return blob.value;
@@ -392,9 +401,6 @@ export class ByteCache implements AssetCache {
   private async viewOnceRows(assetId: string): Promise<RowRef[]> {
     const store = this.carrier();
     if (!store) return [];
-    const rows = await store.rowsReferencing(assetId);
-    return rows
-      .filter((row) => this.options.viewOnce?.(row.table, row.row) === true)
-      .map(({ table, id }) => ({ table, id }));
+    return store.onceRows(assetId);
   }
 }

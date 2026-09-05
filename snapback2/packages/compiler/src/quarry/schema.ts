@@ -266,7 +266,7 @@ export function typeCode(type: ScalarType): string {
   else if (type.kind === "json") code = `t.json(${type.max})`;
   else if (type.kind === "bytes") code = `t.bytes(${type.max})`;
   // @ref LLP 1006#3-authoring-surface — Quarry asset bounds lower to the same unconditional descriptors as authored TypeScript.
-  else if (type.kind === "image") code = `t.image(${type.max})`;
+  else if (type.kind === "image") code = `t.image(${type.max}${type.once ? ", { once: true }" : ""})`;
   else if (type.kind === "video") code = `t.video(${type.max})`;
   else if (type.kind === "enum") code = `t.enum([${type.variants.map((variant) => JSON.stringify(variant)).join(", ")}])`;
   else if (type.kind === "ref") code = `t.ref(${type.table})`;

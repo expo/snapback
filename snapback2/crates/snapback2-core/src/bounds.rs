@@ -100,9 +100,18 @@ mod tests {
     fn asset_width_is_the_closed_record_not_the_blob_ceiling() {
         assert_eq!(declared_asset_record_max(false), 243);
         assert_eq!(declared_asset_record_max(true), 287);
-        assert_eq!(declared_column_max(&ColumnType::Image { max: 1 }), 243);
         assert_eq!(
-            declared_column_max(&ColumnType::Image { max: u32::MAX }),
+            declared_column_max(&ColumnType::Image {
+                max: 1,
+                once: false
+            }),
+            243
+        );
+        assert_eq!(
+            declared_column_max(&ColumnType::Image {
+                max: u32::MAX,
+                once: false
+            }),
             243
         );
         assert_eq!(declared_column_max(&ColumnType::Video { max: 1 }), 287);

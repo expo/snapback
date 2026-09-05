@@ -133,11 +133,21 @@ impl Generation {
 
     /// Every schedule binding program, for a certification that must see them beside the operations.
     pub fn timer_binding_programs(&self) -> Vec<Program> {
-        self.timer_bindings.values().map(|c| c.binding.clone()).collect()
+        self.timer_bindings
+            .values()
+            .map(|c| c.binding.clone())
+            .collect()
     }
 
     pub fn schema_certificate(&self) -> serde_json::Value {
-        serde_json::json!({"schedules":self.schema.schedules.iter().map(|s|serde_json::json!({"name":s.name,"trigger":s.trigger,"target":s.target})).collect::<Vec<_>>()})
+        let mut certificate = serde_json::json!({"schedules":self.schema.schedules.iter().map(|s|serde_json::json!({"name":s.name,"trigger":s.trigger,"target":s.target})).collect::<Vec<_>>()});
+        let once: Vec<_> = self.schema.tables.iter().flat_map(|(name, table)| table.columns.iter()
+            .filter(|(_, kind)| kind.is_once()).map(move |(column, _)|
+                format!("{name}.{column}: one image delivery per authenticated principal; owning row read rule; no device byte cache"))).collect();
+        if !once.is_empty() {
+            certificate["disclosures"] = serde_json::json!(once);
+        }
+        certificate
     }
 
     pub fn effects_hash(&self) -> String {
@@ -488,7 +498,14 @@ impl Generation {
             } else {
                 let bindings = timer_bindings
                     .iter()
-                    .map(|(name, c)| (name, &c.binding, digest(&c.binding_certificate), digest(&c.target)))
+                    .map(|(name, c)| {
+                        (
+                            name,
+                            &c.binding,
+                            digest(&c.binding_certificate),
+                            digest(&c.target),
+                        )
+                    })
                     .collect::<Vec<_>>();
                 digest(&(schema.hash(), certified_programs, bindings))
             };
@@ -539,12 +556,14 @@ impl Runtime {
                 if row_count != 0 {
                     return Err(SuccessorRefusal::destructive(MigrationPlan::default()));
                 }
-                persist_generation(&mut store, &generation, unix_millis()).map_err(store_refusal)?;
+                persist_generation(&mut store, &generation, unix_millis())
+                    .map_err(store_refusal)?;
             }
             Some(hash) if hash == generation_hash => {
                 // Additive owner metadata can appear after the generation was
                 // first installed (for example the outbox declaration binding).
-                persist_generation(&mut store, &generation, unix_millis()).map_err(store_refusal)?;
+                persist_generation(&mut store, &generation, unix_millis())
+                    .map_err(store_refusal)?;
             }
             Some(hash) => {
                 let current_json = store
@@ -694,6 +713,16 @@ impl Runtime {
     ) -> Result<crate::assets_ledger::AssetDelivery, RuntimeError> {
         self.engine
             .public_asset_delivery(id, &self.generation.table_read_certificates)
+    }
+
+    /// The HTTP delivery reserved this principal, authorized the row, and wrote body bytes.
+    pub fn record_asset_view(
+        &mut self,
+        id: &str,
+        principal: &str,
+        at: i64,
+    ) -> Result<(), RuntimeError> {
+        self.engine.store_mut().record_asset_view(id, principal, at)
     }
 
     pub fn reclaim_assets(&mut self, now: i64) -> Result<Vec<String>, RuntimeError> {
@@ -907,9 +936,7 @@ impl Runtime {
         now: i64,
     ) -> Result<ResetResult, RuntimeError> {
         let (program, certificate) = seed_program(&self.generation.schema, rows)?;
-        let (execution, asset_ids) = self
-            .engine
-            .reset_and_seed(&program, &certificate, now)?;
+        let (execution, asset_ids) = self.engine.reset_and_seed(&program, &certificate, now)?;
         self.rerun_all_subscriptions();
         Ok(ResetResult {
             seq: execution.seq,

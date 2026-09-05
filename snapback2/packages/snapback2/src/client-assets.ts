@@ -32,11 +32,11 @@ export function assetBlobTarget(baseUrl: string, url: string): AssetBlobTarget {
 export function viewedRefusal(assetId: string): SnapbackRefusal {
   return new SnapbackRefusal({
     code: "E_ASSET_VIEWED",
-    family: "offline",
-    message: `asset ${assetId} belongs to a view-once row that was already viewed on this device`,
+    family: "assets",
+    message: `asset ${assetId} belongs to a view-once row that was already viewed by this principal`,
     site: "assetBlob",
     rewrite: "render a view-once row once; do not fetch its bytes again",
-    guide: "offline",
+    guide: "quarry",
   });
 }
 

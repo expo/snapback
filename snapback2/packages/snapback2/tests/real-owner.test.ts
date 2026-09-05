@@ -7,7 +7,7 @@ import {
   initialQueryState,
   reduceQueryState,
 } from "../dist/client.mjs";
-import { configureRealOwner } from "./owner-harness.ts";
+import { configureRealOwner, RealOwnerHarness } from "./owner-harness.ts";
 
 const owner = await configureRealOwner();
 after(async () => owner.close());
@@ -79,6 +79,71 @@ test("real owner private asset bytes and conditional responses forbid HTTP cache
     const conditional = await fetch(url, { headers: { ...headers, "If-None-Match": response.headers.get("ETag")! } });
     assert.equal(conditional.status, 304); assert.equal(conditional.headers.get("Cache-Control"), "no-store");
   } finally { await client.close(); }
+});
+
+test("chat once photo uses one message and upload, each member gets one server delivery, and web stores no bytes", async () => {
+  const { readFile, mkdtemp, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const { fileRangeStore } = await import("../dist/test.mjs");
+  const directory = await mkdtemp(join(tmpdir(), "snapback-once-owner-"));
+  const sender = createClient({ url: owner.url, as: "alice" });
+  const alice = createClient({ url: owner.url, as: "alice", offline: { store: fileRangeStore(join(directory, "alice")) } });
+  const bob = createClient({ url: owner.url, as: "bob", offline: { store: fileRangeStore(join(directory, "bob")) } });
+  try {
+    const png = await readFile(new URL("../../../scripts/witness-expo/view-once.png", import.meta.url));
+    const photo = await sender.upload(new Blob([png], { type: "image/png" }), { kind: "image" });
+    const posted = await sender.mutation(api.messages.sendOncePhoto, { conversationId: "conversation-1", photo });
+    assert.equal(posted.state, "committed");
+    const manifest: any = await alice.manifest();
+    assert.equal(manifest.tables.messages.columns.oncePhoto.Optional.Image.once, true);
+    for (const client of [alice, bob]) {
+      const thread: any = await client.query(api.messages.thread, { conversationId: "conversation-1", c: null });
+      assert.ok(thread.data.some((row: any) => row?.oncePhoto?.id === photo.id));
+      assert.equal(await client.assetCache!.viewOnce(photo.id), true);
+      // Even unviewed once media disappears offline, including after a cold store open.
+      await client.offline();
+      const local: any = await client.query(api.messages.thread, { conversationId: "conversation-1", c: null });
+      assert.ok(local.data.some((row: any) => row?.id === posted.data.id && row.oncePhoto === null));
+      await client.online();
+      const url = (await client.assetUrl(photo))!;
+      const viewing = {};
+      assert.ok((await client.assetBlob(url, { viewing })).size > 0);
+      assert.deepEqual((await client.assetCache!.status()).entries, []);
+      const direct = await fetch(url, { headers: { "X-Snapback-As": client.snapshot.persona! } });
+      assert.equal(direct.status, 410); assert.equal((await direct.json()).code, "E_ASSET_VIEWED");
+      await assert.rejects(client.assetBlob(url, { viewing: {} }), (error: any) => error.code === "E_ASSET_VIEWED");
+    }
+  } finally { await sender.close(); await alice.close(); await bob.close(); await rm(directory, { recursive: true, force: true }); }
+});
+
+test("Expo witness seed leaves Alice's schema-once image unconsumed and keeps its clip ordinary", async () => {
+  const previous = process.env.SNAPBACK_URL;
+  delete process.env.SNAPBACK_URL;
+  let fixture: RealOwnerHarness | undefined;
+  try {
+    fixture = await RealOwnerHarness.create();
+    // This acceptance uses the complete template, including its delivery log.
+    await fixture.close();
+    const { cp } = await import("node:fs/promises");
+    await cp(new URL("../templates/chat/snapback", import.meta.url), `${fixture.root}/snapback`, { recursive: true });
+    await fixture.start(false);
+    const url = fixture.url;
+    const { seedWitness } = await import("../../../scripts/witness-expo/owner.mjs");
+    const seed = await seedWitness(url);
+    assert.equal(seed.forbidden.length, 1);
+    const get = (id: string, as = "alice") => fetch(`${url}/api/asset/${id}`, { headers: { "X-Snapback-As": as } });
+    const first = await get(seed.assets[1].id);
+    assert.equal(first.status, 200); await first.arrayBuffer();
+    assert.equal((await get(seed.assets[1].id)).status, 410);
+    assert.equal((await get(seed.assets[1].id, "bob")).status, 410, "host signature consumed only Bob's use");
+    for (let i = 0; i < 2; i++) {
+      const clip = await get(seed.assets[2].id); assert.equal(clip.status, 200); await clip.arrayBuffer();
+    }
+  } finally {
+    await fixture?.close();
+    if (previous === undefined) delete process.env.SNAPBACK_URL; else process.env.SNAPBACK_URL = previous;
+  }
 });
 
 test("the package suite is pointed at a checked real owner", async (context) => {

@@ -158,9 +158,8 @@ mod tests {
             .unwrap()
             .unwrap();
         assert_eq!(refusal.code, "E_SUCCESSOR_NARROWING");
-        let fixture = include_str!(
-            "../../../packages/compiler/fixtures/quarry-jobs/snapback/narrowing.q"
-        );
+        let fixture =
+            include_str!("../../../packages/compiler/fixtures/quarry-jobs/snapback/narrowing.q");
         assert_eq!(format!("{}\n", refusal.rewrite), fixture);
         assert_eq!(
             quarry_type(&ColumnType::Enum {
@@ -224,7 +223,7 @@ fn quarry_type(kind: &ColumnType) -> String {
         ColumnType::Bool => "bool".into(),
         ColumnType::Bytes { max } => format!("bytes <={max}"),
         ColumnType::Json { max_bytes } => format!("json <={max_bytes}"),
-        ColumnType::Image { max } => format!("image <={max}"),
+        ColumnType::Image { max, .. } => format!("image <={max}"),
         ColumnType::Video { max } => format!("video <={max}"),
         ColumnType::Decimal { scale } => format!("decimal {scale}"),
         ColumnType::Money { currency, scale } => format!("money {currency} {scale}"),

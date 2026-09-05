@@ -99,9 +99,44 @@ pub struct AssetDelivery {
     pub height: i64,
     pub duration: Option<i64>,
     pub public: bool,
+    pub once: bool,
 }
 
 impl Store {
+    pub fn asset_viewed(&self, id: &str, principal: &str) -> Result<bool, RuntimeError> {
+        Ok(self.conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM _asset_views WHERE asset_id = ?1 AND principal = ?2)",
+            params![id, principal],
+            |row| row.get(0),
+        )?)
+    }
+
+    // @ref LLP 1006#2a1-one-use-image-delivery-clique-f3-2026-09-05 — commit after body writes, before the HTTP completion byte; admission alone never consumes.
+    pub(crate) fn record_asset_view(
+        &mut self,
+        id: &str,
+        principal: &str,
+        at: i64,
+    ) -> Result<(), RuntimeError> {
+        let transaction = self
+            .conn
+            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+        let viewed: bool = transaction.query_row(
+            "SELECT EXISTS(SELECT 1 FROM _asset_views WHERE asset_id = ?1 AND principal = ?2)",
+            params![id, principal],
+            |row| row.get(0),
+        )?;
+        if viewed {
+            return Err(RuntimeError::AssetViewed(id.to_owned()));
+        }
+        transaction.execute(
+            "INSERT INTO _asset_views(asset_id, principal, at) VALUES (?1, ?2, ?3)",
+            params![id, principal, at],
+        )?;
+        transaction.commit()?;
+        Ok(())
+    }
+
     /// Mint an ordinary store id before exposing the receiving ledger row.
     pub(crate) fn begin_asset(
         &mut self,
@@ -387,10 +422,13 @@ impl Store {
     pub fn finish_asset_reclaims(&mut self, ids: &[String]) -> Result<(), RuntimeError> {
         let transaction = self.conn.transaction()?;
         for id in ids {
-            transaction.execute(
+            if transaction.execute(
                 "DELETE FROM _assets WHERE id = ?1 AND reclaiming = 1 AND locator_table IS NULL",
                 [id],
-            )?;
+            )? > 0
+            {
+                transaction.execute("DELETE FROM _asset_views WHERE asset_id = ?1", [id])?;
+            }
         }
         transaction.commit()?;
         Ok(())
@@ -616,6 +654,7 @@ pub(crate) fn ready_delivery(
         height: row.height.ok_or_else(unavailable)?,
         duration: row.duration,
         public,
+        once: false,
     })
 }
 
