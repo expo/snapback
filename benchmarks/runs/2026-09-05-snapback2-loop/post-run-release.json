@@ -1,0 +1,129 @@
+{
+  "sourceCommit": "2c4ac025e9bca0b290ebcd9ca803a205da825c3c",
+  "postRun": true,
+  "version": "0.0.2",
+  "npmPublishAcceptedAt": "2026-09-05T07:23:21.458Z",
+  "seconds": 129.8,
+  "packages": [
+    {
+      "name": "snapback2-darwin-arm64",
+      "version": "0.0.2",
+      "tarball": "/Users/ccheever/projects/snapback-s2-rbac-latest/snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.2/snapback2-darwin-arm64-0.0.2.tgz",
+      "integrity": "sha512-fNCYrQLLiQpKS3cHdDZdnx52KHRcZeiblb6LOHjmZN626SHPkYZkd43Ob9pxZMEXYc2+V4lrZkqUSXhBBmWoxQ=="
+    },
+    {
+      "name": "snapback2",
+      "version": "0.0.2",
+      "tarball": "/Users/ccheever/projects/snapback-s2-rbac-latest/snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.2/snapback2-0.0.2.tgz",
+      "integrity": "sha512-SK1fnTR1yRwATv5VlT/kuC5vXLEXW0Lkdzl8NbFl1IwqUmfSNW8SLGo3A4WEEzfIPq9ekGzaT+kamWmktJjrXg=="
+    }
+  ],
+  "engine": "ibex2 + vanilla hermes",
+  "mediaDigest": "a31ae08234786941f14b65bfbeda9dd32857c6c3cce8b8cf90ce5b1bc7b5d01a",
+  "qualification": "pass; full media CLI, installed todos/chat and React live proof",
+  "clientAssetsTests": {
+    "pass": 56,
+    "fail": 0
+  },
+  "chromiumProbe": {
+    "checkedAt": "2026-09-05T07:19:00.587Z",
+    "browser": "153.0.8010.12",
+    "sourcePath": "/Users/ccheever/projects/snapback-s2-rbac-latest/snapback2/packages/snapback2/dist/client.mjs",
+    "sourceSha256": "a2bc80a71036742bc3670d90483f7e45a69202a94b7160ae0e7b792668d74800",
+    "defaultFetch": true,
+    "requests": [
+      {
+        "method": "GET",
+        "path": "/api/auth/me"
+      },
+      {
+        "method": "POST",
+        "path": "/api/query"
+      },
+      {
+        "method": "GET",
+        "path": "/api/subscribe"
+      }
+    ],
+    "results": {
+      "auth": {
+        "viewer": "isolated-probe",
+        "kind": "user"
+      },
+      "query": {
+        "state": "complete",
+        "data": [
+          {
+            "id": "query-row"
+          }
+        ],
+        "seq": 1,
+        "next": null
+      },
+      "sse": {
+        "state": "complete",
+        "data": [
+          {
+            "id": "sse-row"
+          }
+        ],
+        "seq": 2,
+        "next": null,
+        "live": true
+      }
+    },
+    "verdict": "pass"
+  },
+  "loopBarMet": false,
+  "note": "Post-run transport fix; timed benchmark app remains on0.0.1 unchanged.",
+  "registryIntegrityVerified": true,
+  "installedChromiumProbe": {
+    "checkedAt": "2026-09-05T07:25:21.151Z",
+    "browser": "153.0.8010.12",
+    "sourcePath": "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback2-published-browser-nijzvstc/node_modules/snapback2/dist/client.mjs",
+    "sourceSha256": "a2bc80a71036742bc3670d90483f7e45a69202a94b7160ae0e7b792668d74800",
+    "defaultFetch": true,
+    "requests": [
+      {
+        "method": "GET",
+        "path": "/api/auth/me"
+      },
+      {
+        "method": "POST",
+        "path": "/api/query"
+      },
+      {
+        "method": "GET",
+        "path": "/api/subscribe"
+      }
+    ],
+    "results": {
+      "auth": {
+        "viewer": "isolated-probe",
+        "kind": "user"
+      },
+      "query": {
+        "state": "complete",
+        "data": [
+          {
+            "id": "query-row"
+          }
+        ],
+        "seq": 1,
+        "next": null
+      },
+      "sse": {
+        "state": "complete",
+        "data": [
+          {
+            "id": "sse-row"
+          }
+        ],
+        "seq": 2,
+        "next": null,
+        "live": true
+      }
+    },
+    "verdict": "pass"
+  }
+}

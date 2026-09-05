@@ -84,3 +84,18 @@ The timed app is not patched after the deadline. Raw logs include fixture
 sessions and are retained locally; the committed record contains only summary
 evidence and content hashes. The browser transport fix is post-run work and
 cannot turn this run green.
+
+## Post-run release
+
+The browser receiver fix landed as `2c4ac025e` and was published in both
+`snapback2@0.0.2` and `snapback2-darwin-arm64@0.0.2`. Production qualification
+passed in 129.8 s. A fresh npm install then passed default auth, query, and SSE
+in Chromium 153, without a fetch wrapper. The runtime bundle hash matches
+the independently checked build. Fifty-six client/assets tests pass, and
+independent review found no material issue. `post-run-release.json` retains
+that evidence separately from the timed 0.0.1 benchmark.
+
+During prerequisite verification, the broad test script had one unchanged
+media output-drain timeout failure under concurrent build load; its quiet
+targeted retry passed. That observation is recorded in the existing flake
+ticket. The complete script was not reported as unconditionally green.

@@ -5,6 +5,7 @@
 
 - `brief.md`: exact task delivered to the fresh builder.
 - `publication.json`: npm 0.0.1 artifact integrity and prerequisite qualification.
+- `post-run-release.json`: subsequent 0.0.2 fix and installed Chromium proof.
 - `run.json`: timed result, backend checks, builder-authored acceptance, usage,
   limitations, and hashes pointing to retained local evidence.
 - `../../../diaries/0116-snapback2-published-clique-loop.diary.md`: diagnosis and
