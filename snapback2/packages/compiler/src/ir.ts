@@ -1,4 +1,4 @@
-export type ProgramKind = "Query" | "Mutation";
+export type ProgramKind = "Query" | "Mutation" | "job";
 export type Provenance = "Arg" | "Viewer" | "Const" | "Shape" | "Computed";
 export type Order = "Asc" | "Desc";
 export type RetentionPolicy = "until-revoked" | "delivered-history";

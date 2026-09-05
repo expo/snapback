@@ -136,13 +136,21 @@ impl Sse {
     }
 
     fn open_with_header(port: u16, path: &str, header: &str, value: &str) -> Self {
+        Self::open_stream(port, "GET", path, header, value)
+    }
+
+    pub(super) fn live(port: u16, persona: &str) -> Self {
+        Self::open_stream(port, "POST", "/api/live", "X-Snapback-As", persona)
+    }
+
+    fn open_stream(port: u16, method: &str, path: &str, header: &str, value: &str) -> Self {
         let mut stream = TcpStream::connect(("127.0.0.1", port)).unwrap();
         stream
             .set_read_timeout(Some(Duration::from_secs(6)))
             .unwrap();
         write!(
             stream,
-            "GET {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\n{header}: {value}\r\nConnection: close\r\n\r\n"
+            "{method} {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\n{header}: {value}\r\nContent-Length: 2\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n{{}}"
         )
         .unwrap();
         stream.flush().unwrap();

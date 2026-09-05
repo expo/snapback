@@ -178,7 +178,7 @@ const quarryFixtureText = (await Promise.all([...fixturePaths, ...templateQuarry
   .filter((path) => path.endsWith(".q")).map((path) => readFile(path, "utf8")))).join("\n");
 const parseDocument = await loadQuarryParser();
 const guidePages = await Promise.all(
-  ["grammar", "quarry", "auth", "live-query", "effects", "personas", "testing", "offline"].map(async (name) => ({
+  ["grammar", "quarry", "auth", "live-query", "effects", "personas", "testing", "offline", "job"].map(async (name) => ({
     name,
     markdown: await readFile(resolve(guideSource, `${name}.md`), "utf8"),
     // LLP 1010 A5 expands Quarry with merge; LLP 1006 adds the two asset types.
@@ -376,7 +376,7 @@ function guideFailures(pages, tsFixturesText, quarryFixturesText, parseDocument)
     const staleQuarrySnippets = quarrySnippets
       .filter((match) => !quarryFixturesText.includes(match[1])).length;
     const invalidQuarryModules = quarrySnippets
-      .filter((match) => /^(?:table|maintain|channel|query|mutation|effect|use)\b/.test(match[1].trimStart()))
+      .filter((match) => /^(?:table|maintain|channel|query|mutation|job|effect|use)\b/.test(match[1].trimStart()))
       .filter((match) => parseDocument(`guide/${name}.q`, match[1]).diagnostics.length > 0).length;
     if (staleSnippets > 0) reasons.push(`${staleSnippets} TypeScript snippet(s) not present in the compiler fixtures`);
     if (staleQuarrySnippets > 0) reasons.push(`${staleQuarrySnippets} Quarry snippet(s) not present in the compiler fixtures or templates`);
@@ -401,7 +401,7 @@ async function loadQuarryParser() {
 
 async function fixtureFiles(root) {
   const output = [];
-  for (const name of ["todos", "chat", "quarry-todos", "quarry-chat", "quarry-surface", "quarry-assets"]) {
+  for (const name of ["todos", "chat", "quarry-todos", "quarry-chat", "quarry-surface", "quarry-assets", "quarry-jobs"]) {
     const directory = resolve(root, name, "snapback");
     for (const entry of await readdir(directory, { withFileTypes: true })) {
       if (entry.isFile() && (entry.name.endsWith(".ts") || entry.name.endsWith(".q"))) output.push(resolve(directory, entry.name));

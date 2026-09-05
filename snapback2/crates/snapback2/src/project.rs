@@ -210,7 +210,15 @@ impl CompilerWorker {
     }
 
     pub fn compile(&mut self, root: &Path) -> Result<CompiledProject, Vec<Refusal>> {
-        let response = self.request("compile", root)?;
+        self.compile_source(root, None)
+    }
+
+    pub fn compile_source(
+        &mut self,
+        root: &Path,
+        source: Option<&str>,
+    ) -> Result<CompiledProject, Vec<Refusal>> {
+        let response = self.request_body("compile", root, source)?;
         if !response.get("ok").and_then(Json::as_bool).unwrap_or(false) {
             return Err(response_refusals(&response));
         }
@@ -324,6 +332,14 @@ impl CompilerWorker {
     }
 
     fn request(&mut self, op: &str, root: &Path) -> Result<Json, Vec<Refusal>> {
+        self.request_body(op, root, None)
+    }
+    fn request_body(
+        &mut self,
+        op: &str,
+        root: &Path,
+        source: Option<&str>,
+    ) -> Result<Json, Vec<Refusal>> {
         if !root.is_absolute() {
             return Err(vec![Refusal::owner(
                 "E_OWNER_PROJECT_ROOT",
@@ -332,7 +348,10 @@ impl CompilerWorker {
             )]);
         }
         self.next_id += 1;
-        let request = json!({ "id": self.next_id, "op": op, "root": root });
+        let mut request = json!({ "id": self.next_id, "op": op, "root": root });
+        if let Some(source) = source {
+            request["source"] = json!(source);
+        }
         if let Err(error) = writeln!(self.input, "{request}").and_then(|_| self.input.flush()) {
             return Err(vec![Refusal::owner(
                 "E_OWNER_COMPILER_EXITED",

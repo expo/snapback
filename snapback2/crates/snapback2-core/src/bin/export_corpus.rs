@@ -1025,6 +1025,7 @@ fn evaluate_local(
             .expect("replacement hydration")
     });
     let outcome = match program.kind {
+        ProgramKind::Job => panic!("jobs never run on the client twin"),
         ProgramKind::Query => client.reexecute(program, certificate, context),
         ProgramKind::Mutation => client.apply_mutation(program, certificate, context),
     };

@@ -455,7 +455,16 @@ impl Runtime {
             .map_err(|errors| store_refusal(first_schema_error(errors)))?;
         let generation_hash = generation.hash();
         let installed = store.meta("generation").map_err(store_refusal)?;
-        match installed {
+        let installed_program = store.meta("program_generation").map_err(store_refusal)?;
+        let installed_effects = store.meta("effects_generation").map_err(store_refusal)?;
+        let succession = installed_effects
+            .as_ref()
+            .is_some_and(|h| h != &generation.effects_hash())
+            || installed.as_ref().is_some_and(|h| h != &generation.hash())
+            || installed_program
+                .as_deref()
+                .is_some_and(|h| h != generation.program_hash());
+        match installed.clone() {
             None => {
                 let row_count: i64 = store
                     .conn
@@ -503,6 +512,12 @@ impl Runtime {
                     .map_err(|error| store_refusal(RuntimeError::Sql(error)))?;
             }
         }
+        crate::store_jobs::reconcile(&store.conn, &generation, succession)
+            .map_err(store_refusal)?;
+        store
+            .conn
+            .execute("UPDATE _jobs SET state='queued' WHERE state='running'", [])
+            .map_err(|e| store_refusal(e.into()))?;
         let engine = Engine::new(store, generation.schema.clone()).map_err(store_refusal)?;
         Ok(Self {
             engine,
@@ -854,6 +869,7 @@ impl Runtime {
             None,
         )
         .map_err(store_refusal)?;
+        crate::store_jobs::reconcile(&transaction, &next, true).map_err(store_refusal)?;
         persist_generation_transaction(&transaction, &next).map_err(store_refusal)?;
         transaction
             .commit()
@@ -897,6 +913,7 @@ impl Runtime {
             next.hash(),
             Some(predecessor_maintain_ids),
         )?;
+        crate::store_jobs::reconcile(&transaction, &next, true)?;
         persist_generation_transaction(&transaction, &next)?;
         transaction.commit()?;
         self.engine.set_schema(next.schema.clone())?;
@@ -1080,6 +1097,7 @@ fn persist_generation_transaction(
     for (key, value) in [
         ("schema_hash", generation.schema.hash()),
         ("generation", generation.hash()),
+        ("program_generation", generation.program_hash().to_owned()),
         ("schema_json", schema_json),
         ("effects_json", effects_json),
         ("effects_generation", effects_hash.clone()),
@@ -1135,207 +1153,8 @@ fn collect_emits<'a>(statements: &'a [Stmt], effects: &mut Vec<&'a str>) {
     }
 }
 #[cfg(test)]
-mod then_tests {
-    use super::*;
-    use crate::schema::Schema;
-    use crate::{Actor, SYSTEM_PRINCIPAL_ID};
-    use std::collections::{BTreeMap, VecDeque};
-    use std::path::PathBuf;
-    use std::time::{SystemTime, UNIX_EPOCH};
-
-    #[test]
-    fn execute_then_uses_the_private_reserved_system_context() {
-        let mut admitted = pending_then_runtime("outbox-admitted");
-        let execution = admitted
-            .execute_then(
-                "clock.then",
-                BTreeMap::new(),
-                15,
-                None,
-                VecDeque::new(),
-                "outbox-admitted",
-            )
-            .unwrap();
-        assert!(matches!(execution.state, ExecutionState::Committed { .. }));
-        assert_eq!(
-            admitted
-                .store()
-                .outbox_get("outbox-admitted")
-                .unwrap()
-                .unwrap()
-                .state,
-            "sent"
-        );
-        let commit = admitted.store().commits_since(0, 2).unwrap().pop().unwrap();
-        assert_eq!(commit.principal, SYSTEM_PRINCIPAL_ID.as_str());
-        assert_eq!(commit.kind, "system");
-    }
-
-    #[test]
-    fn rejected_then_fault_after_commit_cannot_replay_after_time_changes() {
-        let path = temp_path();
-        let generation = timed_then_generation();
-        {
-            let mut runtime =
-                Runtime::open(Store::open(&path).unwrap(), generation.clone()).unwrap();
-            let mut emit = Context::mutation(Actor::user("user").unwrap(), BTreeMap::new());
-            emit.now = Some(1);
-            emit.new_ids = VecDeque::from(["outbox-1".to_owned()]);
-            runtime.execute("clock.emit", emit).unwrap();
-            runtime
-                .store()
-                .outbox_claim_next(1, &["clock.effect".to_owned()])
-                .unwrap()
-                .unwrap();
-            runtime
-                .store()
-                .outbox_settle(
-                    "outbox-1",
-                    "then_pending",
-                    Some(&serde_json::Value::Null),
-                    None,
-                    None,
-                )
-                .unwrap();
-
-            runtime.fail_after_then_commit_once();
-            let error = runtime
-                .execute_then(
-                    "clock.then",
-                    BTreeMap::new(),
-                    5,
-                    None,
-                    VecDeque::new(),
-                    "outbox-1",
-                )
-                .unwrap_err();
-            assert!(error.to_string().contains("simulated crash"));
-        }
-
-        let mut restarted = Runtime::open(Store::open(&path).unwrap(), generation).unwrap();
-        let row = restarted.store().outbox_get("outbox-1").unwrap().unwrap();
-        assert_eq!(row.state, "sent");
-        assert!(
-            row.last_error
-                .as_deref()
-                .is_some_and(|error| error.contains("TOO_EARLY"))
-        );
-        assert!(
-            restarted
-                .execute_then(
-                    "clock.then",
-                    BTreeMap::new(),
-                    15,
-                    None,
-                    VecDeque::new(),
-                    "outbox-1",
-                )
-                .unwrap_err()
-                .to_string()
-                .contains("not then_pending"),
-            "restart cannot re-run a then that would now commit"
-        );
-        drop(restarted);
-        cleanup(&path);
-    }
-
-    fn timed_then_generation() -> Generation {
-        Generation::certify(
-            &ProjectJson {
-                version: 1,
-                schema: Schema {
-                    tables: BTreeMap::new(),
-                    maintains: Vec::new(),
-                    channels: BTreeMap::new(),
-                    auth: Auth::default(),
-                    effects: vec!["clock.effect".to_owned()],
-                },
-                programs: vec![
-                    Program {
-                        name: "clock.emit".to_owned(),
-                        kind: ProgramKind::Mutation,
-                        args: BTreeMap::new(),
-                        read_time_granularity_ms: None,
-                        result_page_site: None,
-                        body: vec![Stmt::Emit {
-                            effect: "clock.effect".to_owned(),
-                            payload: Expr::Literal(Value::Null),
-                        }],
-                    },
-                    Program {
-                        name: "clock.then".to_owned(),
-                        kind: ProgramKind::Mutation,
-                        args: BTreeMap::new(),
-                        read_time_granularity_ms: None,
-                        result_page_site: None,
-                        body: vec![Stmt::Require {
-                            condition: Expr::Binary {
-                                op: crate::ir::BinaryOp::Gte,
-                                left: Box::new(Expr::Input(crate::ir::Input::Now)),
-                                right: Box::new(Expr::Literal(Value::Int(10))),
-                            },
-                            code: "TOO_EARLY".to_owned(),
-                        }],
-                    },
-                ],
-                effects: vec![EffectDecl {
-                    name: "clock.effect".to_owned(),
-                    grants: Vec::new(),
-                    source: "async () => null".to_owned(),
-                    then: Some("clock.then".to_owned()),
-                }],
-                auth: Auth::default(),
-            },
-            Ceilings::default(),
-        )
-        .unwrap()
-    }
-
-    fn pending_then_runtime(outbox_id: &str) -> Runtime {
-        let mut runtime = Runtime::open(Store::memory().unwrap(), timed_then_generation()).unwrap();
-        let mut emit = Context::mutation(Actor::user("user").unwrap(), BTreeMap::new());
-        emit.now = Some(1);
-        emit.new_ids = VecDeque::from([outbox_id.to_owned()]);
-        runtime.execute("clock.emit", emit).unwrap();
-        runtime
-            .store()
-            .outbox_claim_next(1, &["clock.effect".to_owned()])
-            .unwrap()
-            .unwrap();
-        runtime
-            .store()
-            .outbox_settle(
-                outbox_id,
-                "then_pending",
-                Some(&serde_json::Value::Null),
-                None,
-                None,
-            )
-            .unwrap();
-        runtime
-    }
-
-    fn temp_path() -> PathBuf {
-        std::env::temp_dir().join(format!(
-            "snapback2-then-fault-{}-{}.sqlite",
-            std::process::id(),
-            SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_nanos()
-        ))
-    }
-
-    fn cleanup(path: &std::path::Path) {
-        for path in [
-            path.to_path_buf(),
-            PathBuf::from(format!("{}-wal", path.display())),
-            PathBuf::from(format!("{}-shm", path.display())),
-        ] {
-            let _ = std::fs::remove_file(path);
-        }
-    }
-}
+#[path = "registry_then_tests.rs"]
+mod then_tests;
 
 fn collect_reserved_rule_reads(rule: &RuleExpr, reads: &mut BTreeSet<String>) {
     match rule {
@@ -1482,3 +1301,6 @@ mod tests {
 #[path = "registry_operator.rs"]
 mod operator;
 pub use operator::OperatorId;
+
+#[path = "registry_jobs.rs"]
+mod registry_jobs;

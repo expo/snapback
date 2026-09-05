@@ -20,9 +20,9 @@ in `trace latest` until the next commit (or owner restart); an explicit sequence
 still selects its committed ledger row.
 
 For a new required column, declare `T?`, apply, fill it through a declared
-operator mutation, then declare `T` and apply again. `E_SUCCESSOR_NARROWING`
+job (`guide job`), then declare `T` and apply again. `E_SUCCESSOR_NARROWING`
 (`successor/migrations`) reports every null column in `narrowings`, each with
 its null count and up to ten IDs; absent fields count as null. The primary site
-names the first conflict in table/column order. Its pasted fill-job skeleton becomes runnable when the
-job grammar lands; use an operator mutation for the fill today. A refused
+names the first conflict in table/column order. Its pasted fill job accepts the
+typed replacement value as an argument. A refused
 application keeps the previous generation and appears in `dev --status --json`.

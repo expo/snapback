@@ -220,6 +220,7 @@ impl State {
                 sent_unknown: outbox.sent_unknown,
             },
             "personas": personas,
+            "jobs": self.runtime().store().job_counts().map_err(|e| Refusal::from_runtime(&e))?,
             "mode": self.mode,
         }))
     }
@@ -243,7 +244,7 @@ impl State {
                 (
                     name.clone(),
                     json!({
-                        "kind": match program.kind { ProgramKind::Query => "query", ProgramKind::Mutation => "mutation" },
+                        "kind": match program.kind { ProgramKind::Query => "query", ProgramKind::Job => "job", ProgramKind::Mutation => "mutation" },
                         "args": program.args,
                         "planHash": certificate.plan_hash,
                     }),

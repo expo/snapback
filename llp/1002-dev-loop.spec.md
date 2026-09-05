@@ -520,16 +520,18 @@ ok / 1 refused (typed) / 2 usage or environment.
 | `init` | `snapback2 init [dir] [--template chat\|todos] [--client react\|none]` | idempotent scaffold (§10) |
 | `check` | `snapback2 check [--project dir]` | compile + certify + write the build cache; prints `ok <gen> <N> ops` or every refusal |
 | `dev` | `snapback2 dev [--port N] [--foreground] [--stop] [--status] [--apply-migration file] [--serve]` | §5 |
-| `run` | `snapback2 run <op> [args-json] --as <persona>` | one op through the owner; prints the wire response |
+| `run` | `snapback2 run <op> [args-json] --as <persona\|system>`; `--file`, `--plan`, `--wait`, `--cancel`, `--resume` | one query/mutation or a queued job through the owner (LLP 1016 D6) |
 | `test` | `snapback2 test [--blocked reason] [--journeys-only] [--derived-only]` | §7 |
 | `why` | `snapback2 why <query> [args-json] --as <persona>` | §8 |
-| `trace` | `snapback2 trace <seq \| latest>` | §8 |
+| `trace` | `snapback2 trace <seq \| latest \| job_id>` | §8 |
 | `data` | `snapback2 data <table> [--index name --prefix json] [--after token] [--limit 50] --as <persona>` | bounded rule-checked paging as the persona; prints `next` (limit ≤ 500) |
 | `logs` | `snapback2 logs [--since seq] [--limit 100]` | structured log lines from `log.jsonl` + `_commits` |
-| `persona` | `snapback2 persona list \| create <name>` | dev personas (grants: deferred) |
-| `fork` / `reset` | `snapback2 fork <name>`, `snapback2 reset` | `Store::snapshot_to(.snapback/forks/<name>.sqlite)`; `reset_data` + seed |
+| `persona` | `snapback2 persona list` | dev personas; first use creates them |
+| `reset` | `snapback2 reset` | `reset_data` + seed, including clearing jobs |
 | `guide` | `snapback2 guide [grammar \| app \| <symbol> \| <E_CODE> \| <recipe>]` | §8 |
 | `doctor` | `snapback2 doctor` | today's, plus: compiler worker found and answers; effects engine state; owner state if any |
+
+**Amendment 2026-09-05 (LLP 1016 J1b):** `fork` and `persona create` CLI adapters are deleted; `POST /control/fork` and `Store::snapshot_to` remain. `run` operates jobs and ad hoc files; `trace` also accepts job IDs.
 
 ## 7. `test` and the receipt
 

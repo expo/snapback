@@ -119,7 +119,7 @@ export type MaintainDecl = {
 };
 export type EffectDecl = { name: string; module: string; site: Site };
 export type ArgDecl = { name: string; type: ScalarType; site: Site };
-export type ProgramDecl = { kind: "query" | "mutation"; name: string; args: ArgDecl[]; body: Stmt[]; site: Site };
+export type ProgramDecl = { kind: "query" | "mutation" | "job"; name: string; args: ArgDecl[]; body: Stmt[]; site: Site };
 
 export type Document = {
   file: string;

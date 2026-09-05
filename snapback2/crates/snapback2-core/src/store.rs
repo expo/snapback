@@ -49,6 +49,10 @@ pub struct CommitRecord {
     pub principal: String,
     pub kind: String,
     pub by: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub job: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub job_chunk: Option<crate::jobs::ChunkRecord>,
     pub touched: Vec<TouchedKey>,
     pub writes: BTreeMap<String, u64>,
     pub emits: u64,
@@ -272,6 +276,9 @@ impl Store {
              );",
         )?;
         ensure_column(connection, "_commits", "by", "TEXT")?;
+        ensure_column(connection, "_commits", "job", "TEXT")?;
+        ensure_column(connection, "_commits", "job_chunk", "TEXT")?;
+        crate::store_jobs::create(connection)?;
         ensure_column(connection, "_outbox", "then_op", "TEXT")?;
         ensure_column(connection, "_outbox", "generation", "TEXT")?;
         ensure_column(connection, "_assets", "released_at", "INTEGER")?;
@@ -517,7 +524,7 @@ impl Store {
 
     pub fn commits_since(&self, seq: u64, limit: usize) -> Result<Vec<CommitRecord>, RuntimeError> {
         let mut statement = self.conn.prepare(
-            "SELECT seq, at, program, principal, kind, touched, writes, emits, by
+            "SELECT seq, at, program, principal, kind, touched, writes, emits, by, job, job_chunk
              FROM _commits WHERE seq > ?1 ORDER BY seq ASC LIMIT ?2",
         )?;
         let rows = statement.query_map(params![seq as i64, limit as i64], |row| {
@@ -531,10 +538,13 @@ impl Store {
                 row.get::<_, String>(6)?,
                 row.get::<_, i64>(7)?,
                 row.get::<_, Option<String>>(8)?,
+                row.get::<_, Option<String>>(9)?,
+                row.get::<_, Option<String>>(10)?,
             ))
         })?;
         rows.map(|row| {
-            let (seq, at, program, principal, kind, touched, writes, emits, by) = row?;
+            let (seq, at, program, principal, kind, touched, writes, emits, by, job, job_chunk) =
+                row?;
             Ok(CommitRecord {
                 seq: seq.max(0) as u64,
                 at,
@@ -542,6 +552,11 @@ impl Store {
                 principal,
                 kind,
                 by,
+                job,
+                job_chunk: job_chunk
+                    .as_deref()
+                    .map(crate::store_jobs::decode)
+                    .transpose()?,
                 touched: serde_json::from_str(&touched)
                     .map_err(|error| RuntimeError::Serialization(error.to_string()))?,
                 writes: serde_json::from_str(&writes)
@@ -821,6 +836,8 @@ impl Store {
              DELETE FROM rows;
              DELETE FROM _commits;
              DELETE FROM _outbox;
+             DELETE FROM _jobs;
+             DELETE FROM _meta WHERE key LIKE 'job_plan:%';
              DELETE FROM _grant_slices;
              DELETE FROM _client_intents;
              DELETE FROM _grants;",

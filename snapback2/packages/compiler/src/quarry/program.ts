@@ -88,7 +88,7 @@ export function emitPrograms(programs: ProgramDecl[], catalog: TableCatalog, sou
 function emitProgram(program: ProgramDecl, catalog: TableCatalog, writer: Writer, effects: Set<string>): void {
   const env = new Environment(catalog, program, effects);
   const args = program.args.map((arg) => `${property(arg.name)}: ${typeCode(arg.type)}`).join(", ");
-  writer.raw(`export const ${program.name} = ${program.kind}({ ${args} }, ({ db, ctx, args }) => {`, program.site);
+  writer.raw(`export const ${program.name} = ${program.kind === "job" ? "mutation" : program.kind}({ ${args} }, ({ db, ctx, args }) => {`, program.site);
   writer.nested(() => emitBody(program.body, env, writer, { kind: "return" }));
   writer.statement(`});`, program.site);
 }
@@ -832,7 +832,9 @@ function emitWrite(expr: Extract<Expr, { kind: "write" }>, env: Environment, wri
     : expr.fields;
   const usesFocal = writeFields.some((field) => field.value && mentionsFocal(field.value));
   if (!usesFocal && expr.op !== "upsert") {
-    const fields = emitFields(writeFields, env, writer, info.columns);
+    const fields = writeFields.some((f) => f.value && containsCoalesce(f.value))
+      ? emitEvaluatedFields(writeFields, env, writer, info.columns)
+      : emitFields(writeFields, env, writer, info.columns);
     writer.statement(`db.${expr.op}(${expr.table}, ${key.code}, { ${fields.join(", ")} });`, expr.site);
     return writeResult(expr, key.code, resultUsed, writer);
   }
@@ -1357,4 +1359,11 @@ function mentionsFocal(expr: Expr): boolean {
       || expr.fields.some((field) => field.value !== undefined && mentionsFocal(field.value));
   }
   return false;
+}
+
+// Patch lowering accepts scalar references; bind coalescing expressions before the write.
+function containsCoalesce(value: unknown): boolean {
+  if (value === null || typeof value !== "object") return false;
+  if ("kind" in value && value.kind === "binary" && "op" in value && value.op === "??") return true;
+  return Object.values(value).some(containsCoalesce);
 }

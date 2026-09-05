@@ -202,9 +202,10 @@ pub(super) fn scan_indexed(
     } else {
         format!(" AND {}", predicates.join(" AND "))
     };
+    // @ref LLP 1016#d2--a-job-is-a-sequence-of-sweeps — exact-prefix constraint probes must seek the key index. SQLite can otherwise choose the row-cleanup index to satisfy row_id ordering, scanning the whole table per write.
     let sql = format!(
         "SELECT r.data
-         FROM index_entries ie
+         FROM index_entries ie INDEXED BY index_entries_lookup
          JOIN rows r ON r.table_name = ie.table_name AND r.row_id = ie.row_id
          WHERE ie.table_name = ?1 AND ie.index_name = ?2{suffix}
          ORDER BY {ordering}

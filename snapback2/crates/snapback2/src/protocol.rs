@@ -7,6 +7,7 @@ use std::collections::BTreeMap;
 
 pub(crate) fn certification_family_guide(code: &str) -> (&'static str, &'static str) {
     match code {
+        code if code.starts_with("E_JOB") => ("job", "job"),
         "E_UNBOUND_SCAN" => ("bound", "bound/scan"),
         "E_UNBOUND_LOOP" => ("bound", "bound/loop"),
         "E_UNBOUND_COUNT" | "E_STRUCTURAL_COUNT" => ("bound", "bound/count"),
@@ -105,6 +106,16 @@ impl Refusal {
     pub fn from_runtime(error: &RuntimeError) -> Self {
         if let RuntimeError::Successor(refusal) = error {
             return Self::from_successor(refusal);
+        }
+        if let RuntimeError::Job(error) = error {
+            return Self::new(
+                &error.code,
+                &error.family,
+                &error.message,
+                &error.rewrite,
+                &error.guide,
+            )
+            .with_site(&error.site);
         }
         let code = error.code();
         let family = if code.starts_with("E_AUTH") {

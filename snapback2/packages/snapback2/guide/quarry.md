@@ -273,3 +273,9 @@ an index, restart pagination with an absent cursor. Other predicates name the
 index, invariant (`after insert <- exists …`), or `merge` alternatives.
 
 Writes through a non-unique or incomplete key are index-selection refusals.
+
+## Jobs
+
+`job name(args):` holds independent `chunk row in table[prefix] first N by index:`
+blocks over immutable, total keys. Use `--as system --plan` then `--wait`;
+see `guide job`.

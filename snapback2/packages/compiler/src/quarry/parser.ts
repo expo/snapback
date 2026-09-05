@@ -66,7 +66,7 @@ class Parser {
         else if (this.at("table")) this.tables.push(this.parseTable());
         else if (this.at("maintain")) this.maintains.push(this.parseMaintain());
         else if (this.at("channel")) this.channels.push(this.parseChannel());
-        else if (this.at("query") || this.at("mutation")) this.programs.push(this.parseProgram());
+        else if (this.at("query") || this.at("mutation") || this.at("job")) this.programs.push(this.parseProgram());
         else if (this.at("effect")) this.effects.push(this.parseEffect());
         else if (this.at("shape")) this.parseShapeDeclaration();
         else if (this.at("fn") || this.at("cursor")) unsupported(token, token.value, `${token.value} is reserved for a future Quarry form; rename this declaration`);
@@ -327,13 +327,38 @@ class Parser {
     const kindToken = this.word();
     const kind = kindToken.value as ProgramDecl["kind"];
     const name = this.generatedBinding("operation");
-    const args = this.parseArgs();
+    const args = kind === "job" && this.at(":") ? [] : this.parseArgs();
     if (this.at("->")) unsupported(this.peek(), "result annotations", "results are inferred; remove the annotation");
     this.take(":");
     this.newline();
-    const body = this.parseBlock();
+    const body = kind === "job" ? this.parseChunks() : this.parseBlock();
     if (body.length === 0) syntax(kindToken, `${kind} ${name} has an empty body`);
     return { kind, name, args, body, site: kindToken };
+  }
+
+  // @ref LLP 1016#d2--a-job-is-a-sequence-of-sweeps — only independent bounded sweeps may appear at job scope.
+  private parseChunks(): Stmt[] {
+    this.takeKind("indent");
+    const chunks: Stmt[] = [];
+    while (!this.atKind("dedent") && !this.atKind("eof")) {
+      this.skipNewlines();
+      if (this.atKind("dedent")) break;
+      const site = this.take("chunk");
+      const name = this.generatedBinding("loop");
+      this.take("in");
+      const table = this.word();
+      let domain: Expr = this.at("[") ? this.parseRead(table.value, table) : { kind: "read", table: table.value, keys: [], site: table };
+      if (!this.at("first")) syntax(this.peek(), "chunk requires first N by index");
+      domain = this.parseRange(domain as Extract<Expr, { kind: "read" }>);
+      if (domain.kind !== "read" || !domain.index || domain.range?.order !== "asc" || domain.range.cursor) syntax(site, "chunk requires table[prefix] first N by index");
+      this.take(":");
+      this.newline();
+      const body = this.parseBlock();
+      if (body.length === 0) syntax(site, "chunk body cannot be empty");
+      chunks.push({ kind: "for", name, domain, body, site });
+    }
+    this.takeKind("dedent");
+    return chunks;
   }
 
   private parseShapeDeclaration(): void {

@@ -52,7 +52,7 @@ impl Runtime {
         self.run_operator(program, &certificate, args, by, now)
     }
 
-    fn run_operator(
+    pub(super) fn run_operator(
         &mut self,
         program: &Program,
         certificate: &Certificate,

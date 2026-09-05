@@ -882,7 +882,7 @@ it is now explicitly refused on `/api/*` and cannot become a persona.
 Ordinary mutation certification still refuses writes derived from a non-uniform
 scan (`certificate_policy.rs:327`); today's fill proof uses declared
 explicit-key operator mutations, leaving system sweep certification to J1b.
-The pasted job rewrite remains prose until that lane. The query-only
+The pasted job rewrite remained prose at J1a; the J1b record below completes both the sweep certification and the runnable rewrite. The query-only
 `read_operator` data adapter uses `Checker::check` with default ceilings rather
 than `Generation::certify`; J3's ad hoc path must still match declared admission.
 `Optional(Optional(T)) → Optional(T)` deliberately remains `TypeChange`,
@@ -930,3 +930,85 @@ same two owner-stop tests recorded above; this run directly confirmed `ps` is
 denied by the sandbox. Every new fix-round regression passed. Caps passed; an
 unloaded chat-fixture `check` took 0.542 s wall (154.39 ms compiler). The
 orchestrator must rerun the complete gate outside the `ps` restriction.
+
+
+### Implementation record — J1b
+
+Implemented 2026-09-05 by Codex in `s2/admin-jobs`; review and landing belong
+to the program orchestrator. `job`/`chunk` lowers to independently certified
+bounded sweeps, with typed arguments, immutable total indexes, one `_jobs`
+write per chunk, and per-chunk ceilings. Jobs occur in project JSON and the
+manifest but are excluded from client API types and certified-program custody.
+Compiler proof: `snapback2/packages/compiler/src/quarry-job-checks.ts` (three
+checks: lowering/certificates, grammar/scope, and the guide/index refusal).
+
+`_jobs` and compiled plan custody persist enqueue attribution, the captured
+upper key, cursor and progress. One system transaction contains each chunk's
+writes, progress and `kind: job` commit. A refused chunk rolls back and parks
+in a separate transaction. Restart restores running rows to queued; succession
+binds the body and sweep index descriptor; reset clears jobs and their compiled
+plan cache. Enqueue, cancel and resume also have operator ledger receipts.
+Core proof: `snapback2/crates/snapback2-core/tests/jobs.rs` (ten active tests:
+visiting, crash recovery, rollback/resume/cancel, body succession, certification,
+constraint rollback, ad hoc restart/reset, typed prefixes/index succession,
+multiple sweeps, and a mutation return that advances only the visited prefix).
+
+`writer_jobs.rs` serves at most eight queued client actions before a background
+turn, or takes that turn immediately when the channel empties. Runnable jobs
+use a zero receive timeout. The timer hook is named
+`fire_due_timers_background_turn`; J2 owns its implementation. Each committing
+chunk completes its live reruns before the next turn. `run` supports declared
+jobs, ad hoc files, plan/wait/cancel/resume; job control routes, status counts,
+and job/commit tracing use the owner. The real binary owner tests in
+`snapback2/crates/snapback2/tests/owner_cases/jobs.rs` run a 350-row fill while
+all client sends commit, exercise parking/resume/cancel and both trace forms,
+and execute an ad hoc query, typed mutation and the exact job guide snippet.
+They prove FIFO chunk execution and the deleted `fork` and `persona create` adapters are gone.
+
+The one-screen `guide/job.md` is registered and compiled by the guide checks;
+the narrowing rewrite is a runnable job with a typed `value` argument instead
+of the RFC's `<value>` placeholder. Both chat schema copies declare immutable
+message conversation/author IDs. Existing journeys only supply these fields
+on insert; the template's edit operation changes `body` alone.
+
+Implementation details where the text needed a concrete choice:
+
+- Progress and sweep advance share one physical `_jobs` update, hence one
+  counted engine write (the RFC prose says “plus two”, but its certificate and
+  the lane contract require one). Capturing the bound is separately certified
+  as a reverse, one-row index scan, conservatively included in each ceiling.
+- The job plan hash includes its sweep index descriptors. Existing plan hashes
+  cover program IR alone; that would miss an index change under the same name.
+- Ad hoc compilation is an explicit CLI authoring operation using the worker;
+  the owner certifies the resulting IR against its live generation. Persisted
+  compiled plans in `_meta` prevent compilation on restart. Queries/mutations
+  use J1a's `/control/execute`; `/control/run` remains J3's lane. Their source
+  hash is in the `adhoc:<hash>` operation identity; jobs also return sourceHash.
+- `_commits.job_chunk` stores sweep/chunk/cursor/visited details. Trace pages
+  at 500 commits, with aggregate counts and range over the retained ledger;
+  the existing 10,000-commit retention limit remains visible via retainedChunks.
+- The large fill exposed SQLite choosing the row-cleanup index for ordered,
+  exact-prefix uniqueness probes. `engine/index.rs` now pins these scans to
+  `index_entries_lookup`; otherwise every write can scan the table. This
+  preserves corpus results and reduced the measured fill to 11.54 seconds.
+
+Measurements are the three JSON lines in `snapback2/metrics/jobs.jsonl`, from
+explicitly invoked ignored tests, following the existing append-only metric
+records. No new blocking step was added. Debug build on macOS arm64: a
+100,000-row fill / 1,000 chunks took **11.5403 s** (60 s budget); 100-row turns
+with 50 live queries took **216.27–231.51 ms**, median **218.13 ms** (**over the
+30 ms budget**); client mutation p95 was **2,135.36 ms** versus **1,701.68 ms**
+idle, **1.255×** (2× budget), with eight HTTP senders in both runs, 87 during
+samples and 40 idle samples. Chat `check` measured **0.610 s**, and **0.910 s**
+with two added jobs; J2's schedules are not included in that measurement.
+The live-rerun turn budget needs follow-up; these are measured debug results,
+not a production-build qualification.
+
+Verification: the blocking script ran 541 Rust tests: 539 passed and the same
+two inherited `dev --stop` tests failed with `E_OWNER_STOP_TIMEOUT` because
+this sandbox cannot inspect the unreaped child with `ps` (J1a's record above).
+All 301 package tests, 315 compiler checks, 162 evaluator corpus cases and
+workspace doctests passed. The orchestrator must rerun the gate outside that
+restriction before landing. Existing corpus outputs did not change, so the
+corpus was not regenerated. Caps and affected references are checked with the
+final report; no generated build output is part of the change.

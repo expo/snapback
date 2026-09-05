@@ -361,6 +361,8 @@ fn settle_after_run(
     }
     // @ref LLP 1001#2-what-a-commit-records — data, outbox, and commit record are atomic.
     let record = CommitRecord {
+        job: None,
+        job_chunk: None,
         seq: execution.seq,
         at: commit_at,
         program: program.name.clone(),

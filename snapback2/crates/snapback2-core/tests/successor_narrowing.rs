@@ -116,8 +116,8 @@ fn narrowing_refuses_null_and_absent_rows_with_total_count_and_ten_id_sample_ato
         detail.sample,
         (0..10).map(|i| format!("id-{i:02}")).collect::<Vec<_>>()
     );
-    assert!(error.rewrite.contains("job fill_items_value:\n  chunk p in items first 100 by byId:\n    update items[p.id] { value: p.value ?? <value> }"));
-    assert!(error.message.contains("operator mutation"));
+    assert!(error.rewrite.contains("job fill_items_value(value: int):\n  chunk p in items first 100 by byId:\n    update items[p.id] { value: p.value ?? value }"));
+    assert!(error.message.contains("pasted job"));
     assert_eq!(
         serde_json::to_value(&error).unwrap()["narrowings"][0]["nullRows"],
         12
@@ -238,7 +238,7 @@ fn narrowing_reports_every_null_column_with_its_count_sample_and_fill() {
         assert!(
             refusal
                 .rewrite
-                .contains(&format!("job fill_items_{column}:"))
+                .contains(&format!("job fill_items_{column}(value: "))
         );
     }
     assert_eq!(runtime.generation().hash(), before);

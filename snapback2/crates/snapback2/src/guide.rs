@@ -19,6 +19,7 @@ const RECIPES: &[&str] = &[
     "offline",
     "personas",
     "operator",
+    "job",
     "quarry",
     "testing",
     "offline",
@@ -250,7 +251,11 @@ fn refusal_page(root: &Path, code: &str) -> Result<String, Refusal> {
         .get("family")
         .and_then(Json::as_str)
         .unwrap_or("unknown");
-    let language = if family == "quarry" { "q" } else { "ts" };
+    let language = if matches!(family, "quarry" | "job") {
+        "q"
+    } else {
+        "ts"
+    };
     let wrong = refusal_example(
         entry
             .get("wrong")

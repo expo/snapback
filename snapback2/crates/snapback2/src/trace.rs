@@ -19,7 +19,8 @@ pub fn run(args: &[String]) -> ExitCode {
     if positional.len() != 2 {
         return usage();
     }
-    let seq = if positional[1] == "latest" {
+    let job = positional[1].starts_with("job_");
+    let seq = if positional[1] == "latest" || job {
         None
     } else {
         match positional[1].parse::<u64>() {
@@ -35,9 +36,12 @@ pub fn run(args: &[String]) -> ExitCode {
         Ok(owner) => owner,
         Err(error) => return owner::print_refusal(error, json_output, 1),
     };
-    let path = seq
-        .map(|seq| format!("/control/trace?seq={seq}"))
-        .unwrap_or_else(|| "/control/trace".to_owned());
+    let path = if job {
+        format!("/control/job/{}", positional[1])
+    } else {
+        seq.map(|seq| format!("/control/trace?seq={seq}"))
+            .unwrap_or_else(|| "/control/trace".to_owned())
+    };
     let trace = match client::control(&attached, "GET", &path, json!({})) {
         Ok(response) if response.status < 400 => response.body,
         Ok(response) => {
@@ -46,7 +50,7 @@ pub fn run(args: &[String]) -> ExitCode {
         }
         Err(error) => return owner::print_refusal(error, json_output, 1),
     };
-    let output = enrich(trace);
+    let output = if job { trace } else { enrich(trace) };
     if json_output {
         println!("{}", serde_json::to_string(&output).unwrap_or_default());
     } else {
@@ -99,6 +103,6 @@ fn enrich(trace: Json) -> Json {
 }
 
 fn usage() -> ExitCode {
-    eprintln!("usage: snapback2 trace <seq|latest> [--json]");
+    eprintln!("usage: snapback2 trace <seq|latest|job_id> [--json]");
     ExitCode::from(2)
 }

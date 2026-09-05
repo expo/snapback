@@ -86,12 +86,14 @@ pub(super) fn narrowing_refusal(
         .join("; ");
     let rewrite = conflicts.iter().map(|c| {
         let (table, column) = (&c.table, &c.column);
-        format!("keep {table}.{column} optional and apply, then fill it:\njob fill_{table}_{column}:\n  chunk p in {table} first 100 by byId:\n    update {table}[p.id] {{ {column}: p.{column} ?? <value> }}\nthen declare it required and apply again")
+        let ty = quarry_type(&next.tables[table].columns[column]);
+        // @ref LLP 1016#d4--expand-fill-contract — the refusal pastes a runnable fill job; the replacement value is its typed argument.
+        format!("-- keep {table}.{column} optional and apply, then fill it:\njob fill_{table}_{column}(value: {ty}):\n  chunk p in {table} first 100 by byId:\n    update {table}[p.id] {{ {column}: p.{column} ?? value }}")
     }).collect::<Vec<_>>().join("\n\n");
     Ok(Some(SuccessorRefusal {
         code: "E_SUCCESSOR_NARROWING".to_owned(),
         message: format!(
-            "{message}; the fill-job rewrite is prose until J1b installs job grammar; use an operator mutation today"
+            "{message}; fill the optional column with the pasted job, then declare it required and apply again"
         ),
         rewrite,
         site: None,
@@ -146,5 +148,33 @@ mod tests {
                     .contains("repair or remove stored row items.bad")
             );
         }
+    }
+}
+
+fn quarry_type(kind: &ColumnType) -> String {
+    match kind {
+        ColumnType::Id => "id".into(),
+        ColumnType::Principal => "principal".into(),
+        ColumnType::Ref { table } => table.clone(),
+        ColumnType::Text { max } => format!("text <={max}"),
+        ColumnType::Int => "int".into(),
+        ColumnType::Time => "time".into(),
+        ColumnType::Bool => "bool".into(),
+        ColumnType::Bytes { max } => format!("bytes <={max}"),
+        ColumnType::Json { max_bytes } => format!("json <={max_bytes}"),
+        ColumnType::Image { max } => format!("image <={max}"),
+        ColumnType::Video { max } => format!("video <={max}"),
+        ColumnType::Decimal { scale } => format!("decimal {scale}"),
+        ColumnType::Money { currency, scale } => format!("money {currency} {scale}"),
+        ColumnType::Enum { variants } => format!(
+            "enum({})",
+            variants
+                .iter()
+                .map(|v| serde_json::to_string(v).unwrap())
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+        ColumnType::Optional(inner) => format!("{} ?", quarry_type(inner)),
+        ColumnType::List { of, max } => format!("[{}] <={max}", quarry_type(of)),
     }
 }

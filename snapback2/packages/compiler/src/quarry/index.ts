@@ -11,6 +11,7 @@ import type { FrontendDiagnostic, QuarryGenerated, SourceSite } from "../ir";
 
 export type QuarryInput = { path: string; fileName: string; source: string };
 export type QuarryVirtualModule = {
+  jobs?: string[];
   path: string;
   fileName: string;
   source: string;
@@ -79,7 +80,7 @@ export function compileQuarry(inputs: QuarryInput[]): QuarryCompileResult {
     .filter((document) => document.programs.length > 0)
     .map((document) => {
       const input = inputs.find((item) => item.fileName === document.file)!;
-      return virtualModule(input.path.replace(/\.q$/, ".ts"), document.file, moduleSources.get(document.file)!, input.source, authoredSources);
+      return { ...virtualModule(input.path.replace(/\.q$/, ".ts"), document.file, moduleSources.get(document.file)!, input.source, authoredSources), jobs: document.programs.filter((p) => p.kind === "job").map((p) => p.name) };
     });
   return { ok: true, schema, modules };
 }

@@ -22,6 +22,8 @@ pub struct Program {
 pub enum ProgramKind {
     Query,
     Mutation,
+    #[serde(rename = "job")]
+    Job,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

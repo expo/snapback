@@ -60,6 +60,16 @@ impl ChildGuard {
     pub(super) fn ready_line(&mut self) -> String {
         let mut line = String::new();
         self.stdout.read_line(&mut line).unwrap();
+        if line.is_empty() {
+            let mut error = String::new();
+            self.child
+                .stderr
+                .as_mut()
+                .unwrap()
+                .read_to_string(&mut error)
+                .unwrap();
+            panic!("owner exited before ready: {error}");
+        }
         line
     }
 

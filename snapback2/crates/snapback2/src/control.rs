@@ -54,7 +54,80 @@ pub fn route(
                 }),
         );
     }
+    if let Some(rest) = path.strip_prefix("/control/job/") {
+        let (id, operation) = rest.split_once('/').unwrap_or((rest, ""));
+        if !id.is_empty() && !operation.contains('/') {
+            return Some(match (method, operation) {
+                ("GET", "") => call(Action::Job {
+                    id: id.into(),
+                    after: query.u64("after").unwrap_or(0),
+                }),
+                ("POST", "cancel" | "resume") => call(Action::JobControl {
+                    id: id.into(),
+                    resume: operation == "resume",
+                    identity: control_identity(&body),
+                }),
+                _ => Err((
+                    400,
+                    Refusal::input(
+                        "invalid job route",
+                        "GET /control/job/<id> or POST /cancel or /resume",
+                    ),
+                )),
+            });
+        }
+    }
+    if method == "POST"
+        && matches!(path, "/control/job" | "/control/execute")
+        && body.get("program").is_some()
+    {
+        let source = body
+            .get("source")
+            .and_then(Json::as_str)
+            .unwrap_or_default();
+        if source.len() > 65536 {
+            return Some(Err((
+                400,
+                Refusal::new(
+                    "E_ADHOC_SIZE",
+                    "operator",
+                    "ad hoc source exceeds 64 KiB",
+                    "declare it as a job",
+                    "job",
+                )
+                .with_site("run --file"),
+            )));
+        }
+        return Some(match serde_json::from_value(body["program"].clone()) {
+            Ok(program) => call(Action::Adhoc {
+                program,
+                source: source.into(),
+                args: body.get("args").cloned().unwrap_or_else(|| json!({})),
+                identity: control_identity(&body),
+                plan: body["plan"] == true,
+            }),
+            Err(e) => Err((
+                400,
+                Refusal::input(
+                    format!("invalid ad hoc program: {e}"),
+                    "compile the Quarry file with the bundled worker",
+                ),
+            )),
+        });
+    }
     let result = match (method, path) {
+        ("GET", "/control/jobs") => call(Action::Jobs),
+        ("POST", "/control/job") => call(Action::EnqueueJob {
+            name: body
+                .get("name")
+                .or_else(|| body.get("op"))
+                .and_then(Json::as_str)
+                .unwrap_or_default()
+                .into(),
+            args: body.get("args").cloned().unwrap_or_else(|| json!({})),
+            identity: control_identity(&body),
+            plan: body["plan"] == true,
+        }),
         ("GET", "/control/status") => call(Action::Status),
         ("POST", "/control/execute") => call(Action::Execute {
             op: body
@@ -116,7 +189,7 @@ pub fn route(
                     400,
                     Refusal::input(
                         "fork name must contain only letters, numbers, dash, and underscore",
-                        "pass snapback2 fork <safe-name>",
+                        "POST /control/fork with a safe name in the JSON body",
                     ),
                 ))
             }

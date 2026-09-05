@@ -30,6 +30,8 @@ mod writer_auth;
 mod writer_data;
 #[path = "writer_effects.rs"]
 mod writer_effects;
+#[path = "writer_jobs.rs"]
+mod writer_jobs;
 #[path = "writer_ledger.rs"]
 mod writer_ledger;
 #[path = "writer_offline.rs"]
@@ -117,6 +119,29 @@ impl OwnerHandle {
 
 #[allow(clippy::large_enum_variant)]
 pub enum Action {
+    Jobs,
+    Job {
+        id: String,
+        after: u64,
+    },
+    JobControl {
+        id: String,
+        resume: bool,
+        identity: Identity,
+    },
+    EnqueueJob {
+        name: String,
+        args: Json,
+        identity: Identity,
+        plan: bool,
+    },
+    Adhoc {
+        program: Program,
+        source: String,
+        args: Json,
+        identity: Identity,
+        plan: bool,
+    },
     Status,
     Manifest,
     Program {
@@ -444,44 +469,7 @@ fn run_writer(mut state: State, rx: Receiver<Request>) {
         state.stop.store(true, AtomicOrdering::SeqCst);
         return;
     }
-    loop {
-        if let Err(error) = state.sweep_assets_if_due() {
-            crate::watch::log(
-                &state.root,
-                json!({ "exited": "asset reclamation failed", "refusal": error }),
-            );
-            state.stop.store(true, AtomicOrdering::SeqCst);
-            break;
-        }
-        let timeout = match state
-            .sweep_expired_sessions()
-            .and_then(|()| state.auth_poll_timeout())
-            .map(|timeout| timeout.min(state.asset_poll_timeout()))
-        {
-            Ok(timeout) => timeout,
-            Err(error) => {
-                crate::watch::log(
-                    &state.root,
-                    json!({ "exited": "session authority sweep failed", "refusal": error }),
-                );
-                state.stop.store(true, AtomicOrdering::SeqCst);
-                break;
-            }
-        };
-        match rx.recv_timeout(timeout) {
-            Ok(request) => {
-                let result = state
-                    .sweep_expired_sessions()
-                    .and_then(|()| state.handle(request.action));
-                let _ = request.reply.send(result);
-                if state.stop.load(AtomicOrdering::SeqCst) {
-                    break;
-                }
-            }
-            Err(RecvTimeoutError::Timeout) => {}
-            Err(RecvTimeoutError::Disconnected) => break,
-        }
-    }
+    writer_jobs::drive(&mut state, rx);
 }
 
 impl State {
@@ -495,6 +483,26 @@ impl State {
 
     fn handle(&mut self, action: Action) -> Result<Json, Refusal> {
         match action {
+            Action::Jobs => self.jobs(),
+            Action::Job { id, after } => self.job(&id, after),
+            Action::JobControl {
+                id,
+                resume,
+                identity,
+            } => self.job_control(&id, resume, identity),
+            Action::EnqueueJob {
+                name,
+                args,
+                identity,
+                plan,
+            } => self.enqueue_job(&name, args, identity, plan),
+            Action::Adhoc {
+                program,
+                source,
+                args,
+                identity,
+                plan,
+            } => self.adhoc(program, source, args, identity, plan),
             Action::Status => self.status(),
             Action::Manifest => Ok(self.manifest()),
             Action::Program {
@@ -953,6 +961,9 @@ impl State {
                     "op/manifest",
                 )
             })?;
+        if kind == ProgramKind::Job {
+            return Err(Refusal::operator_required());
+        }
         if expected.is_some_and(|expected| expected != kind) {
             return Err(Refusal::new(
                 "E_OP_KIND",

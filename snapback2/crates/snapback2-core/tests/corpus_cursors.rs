@@ -480,6 +480,7 @@ fn pageable_merge_index_must_end_in_intrinsic_id() {
 
 fn assert_non_indexable_runtime_error(schema: &Schema, program: &Program, kind: ProgramKind) {
     let context = match kind {
+        ProgramKind::Job => panic!("client cursor corpus contains no jobs"),
         ProgramKind::Query => Context::query(Actor::user("viewer-1").unwrap(), BTreeMap::new()),
         ProgramKind::Mutation => {
             Context::mutation(Actor::user("viewer-1").unwrap(), BTreeMap::new())

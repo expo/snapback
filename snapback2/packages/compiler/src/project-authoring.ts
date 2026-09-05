@@ -7,7 +7,7 @@ import type { FrontendDiagnostic } from "./ir";
 import { numberValue, objectOf, property, stringValue } from "./lower/static";
 import { hasExport, snapbackCallName, staticMemberPath, unwrapCall } from "./syntax";
 
-export type LowerProjectOptions = { authoring?: "quarry" | "any" };
+export type LowerProjectOptions = { authoring?: "quarry" | "any"; adhocSource?: string };
 
 const authoredDeclarations = new Set(["query", "mutation", "table", "channel", "schema"]);
 

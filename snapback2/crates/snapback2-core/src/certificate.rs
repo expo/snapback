@@ -45,6 +45,8 @@ impl Default for Ceilings {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Certificate {
+    #[serde(flatten, default, skip_serializing_if = "Option::is_none")]
+    pub job: Option<Box<crate::jobs::JobCertificate>>,
     pub program: String,
     pub plan_hash: String,
     pub schema_hash: String,
@@ -201,6 +203,9 @@ impl<'a> Checker<'a> {
     }
 
     pub fn check_all(&self, program: &Program) -> Result<Certificate, Vec<CheckError>> {
+        if program.kind == ProgramKind::Job {
+            return crate::jobs::certify(self.schema, program, &self.ceilings);
+        }
         let mut errors = self.structural_errors(program);
         match self.analyze(program) {
             Ok(certificate) if errors.is_empty() => Ok(certificate),
@@ -512,6 +517,7 @@ impl<'a> Checker<'a> {
             .collect();
 
         Ok(Certificate {
+            job: None,
             program: program.name.clone(),
             plan_hash: digest(program),
             schema_hash: self.schema.hash(),

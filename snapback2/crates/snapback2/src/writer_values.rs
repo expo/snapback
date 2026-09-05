@@ -23,6 +23,13 @@ pub(super) fn operation_args(
             )
         })?
         .0;
+    program_args(program, args)
+}
+
+pub(super) fn program_args(
+    program: &snapback2_core::Program,
+    args: &Json,
+) -> Result<BTreeMap<String, Value>, Refusal> {
     let object = args.as_object().ok_or_else(|| {
         Refusal::input(
             "operation args must be a JSON object",

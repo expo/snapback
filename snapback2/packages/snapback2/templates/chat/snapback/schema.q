@@ -64,6 +64,7 @@ table messages:
   viewOnce: bool ?
   at: time
   by byConvTime: conversationId, at, id
+  immutable conversationId, authorId
   retain delivered-history
   read <- exists memberships[.conversationId, viewer]
   insert <- (
