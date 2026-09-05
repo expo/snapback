@@ -36,8 +36,8 @@ Calibration, not a claim-eligible magnitude (LLP 0201 D5).
 
 | Wave | Started | Lanes | Outcome |
 | --- | --- | --- | --- |
-| astra | — | snapback2, convex, supabase | pending |
-| grok | — | same | pending |
+| astra | 2026-09-05 16:30Z | snapback2, convex, supabase | convex: M1–M6, M8 green in 94 min, record validated. snapback2: M3, M4, M8 green at execution time and M1, M2, M5, M6 green then downgraded by the builder to `aborted` after its own end-of-run regression pass; builder session cut at ~19:30Z and resumed in the same session (logged in its run log); 4.06 h including the continuation; record validated. supabase: M1–M6, M8 green in 111 min; scale replay settled 167,157 actions in 10,693 s on its own clock after the hosted Auth rate limit ended a first attempt; record validated. All three lanes cleaned up their servers. |
+| grok | 2026-09-05 21:41Z | same | running |
 | muse | — | same | pending |
 
 Per-lane records (`record-<wave>-<backend>.json`, validated with
