@@ -7,6 +7,8 @@ use crate::schema::{Constraint, Schema};
 use crate::value::Value;
 use std::collections::{BTreeMap, BTreeSet};
 
+#[path = "fanout_bindings.rs"]
+mod bindings;
 #[path = "fanout_repair.rs"]
 mod repair;
 
@@ -66,6 +68,8 @@ pub(crate) fn check(schema: &Schema, program: &Program) -> (Vec<CheckError>, BTr
     let nonuniform = scans
         .into_iter()
         .find(|scan| !uniform_visibility(schema, scan));
+    let mut bindings = BTreeMap::new();
+    bindings::collect(&program.body, true, &mut bindings);
     let mut flow = Flow {
         schema,
         program,
@@ -74,12 +78,32 @@ pub(crate) fn check(schema: &Schema, program: &Program) -> (Vec<CheckError>, BTr
         errors: Vec::new(),
         complete: BTreeSet::new(),
         loops: BTreeMap::new(),
-        diagnose: true,
+        bindings,
     };
     for name in program.args.keys() {
-        flow.env.insert(name.clone(), Origin::Other);
+        flow.env.insert(
+            name.clone(),
+            if flow.bindings.contains_key(name) {
+                Origin::Unknown(vec![])
+            } else {
+                Origin::Other
+            },
+        );
     }
-    flow.statements(&program.body, &Origin::Other);
+    // @ref LLP 1017#24-metering — no unbounded consumer may spend a cap probe's reserve.
+    let mut capped = BTreeSet::new();
+    bindings::capped_writes(schema, &program.body, &mut capped);
+    if let Some(scan) = &flow.nonuniform {
+        for table in capped {
+            flow.errors.push(CheckError {
+                site: Some(scan.site.clone()),
+                code: "E_STRUCTURAL_FANOUT".into(),
+                message: format!("the non-uniform scan at {} can spend the budget the cap check on {table} needs", scan.site),
+                rewrite: repair::prefix(schema, program, scan, None),
+            });
+        }
+    }
+    flow.statements(&program.body, &Origin::Other, true);
     (flow.errors, flow.complete)
 }
 
@@ -113,7 +137,7 @@ struct Flow<'a> {
     errors: Vec<CheckError>,
     complete: BTreeSet<String>,
     loops: BTreeMap<String, u32>,
-    diagnose: bool,
+    bindings: BTreeMap<String, bindings::Binding>,
 }
 
 impl Flow<'_> {
@@ -155,22 +179,35 @@ impl Flow<'_> {
         match domain {
             LoopDomain::Page(scan) => self.expr(&Expr::Scan(scan.clone())),
             LoopDomain::DerivedArray { value, .. } => self.expr(value),
+            LoopDomain::ArgList { name, .. } => self.expr(&Expr::Variable(name.clone())),
             _ => Origin::Other,
         }
     }
 
-    fn statements(&mut self, statements: &[Stmt], population: &Origin) {
+    fn statements(&mut self, statements: &[Stmt], population: &Origin, top: bool) {
         for statement in statements {
             match statement {
                 Stmt::Const { name, value }
                 | Stmt::Let { name, value }
                 | Stmt::Assign { name, value } => {
-                    self.env.insert(name.clone(), self.expr(value));
+                    let origin = self.expr(value);
+                    let fact = &self.bindings[name];
+                    let allowed = top
+                        && !self.program.args.contains_key(name)
+                        && (fact.single_top() || (fact.collector() && origin == Origin::Empty));
+                    let origin = if allowed {
+                        origin
+                    } else {
+                        let old = self.env.get(name).cloned().unwrap_or(Origin::Other);
+                        Origin::Unknown(old.join(origin).scans())
+                    };
+                    self.env.insert(name.clone(), origin);
                 }
                 Stmt::Push { target, value } => {
-                    let value = self.expr(value).join(population.clone()).transformed();
-                    let old = self.env.remove(target).unwrap_or(Origin::Other);
-                    self.env.insert(target.clone(), old.join(value));
+                    let old = self.env.get(target).cloned().unwrap_or(Origin::Other);
+                    let origin = old.join(self.expr(value)).join(population.clone());
+                    self.env
+                        .insert(target.clone(), Origin::Unknown(origin.scans()));
                 }
                 Stmt::If {
                     then_body,
@@ -178,10 +215,10 @@ impl Flow<'_> {
                     ..
                 } => {
                     let before = self.env.clone();
-                    self.statements(then_body, population);
+                    self.statements(then_body, population, false);
                     let then_env = self.env.clone();
                     self.env = before;
-                    self.statements(else_body, population);
+                    self.statements(else_body, population, false);
                     join_env(&mut self.env, then_env);
                 }
                 Stmt::For {
@@ -193,59 +230,47 @@ impl Flow<'_> {
                     let site = format!("{}/for/{binding}/{ordinal}", self.program.name);
                     *ordinal += 1;
                     let origin = self.domain(domain);
-                    if self.diagnose {
-                        self.admit(binding, domain, &origin, &site);
-                    }
+                    self.admit(binding, domain, &origin, &site);
                     let before = self.env.clone();
-                    self.env = self.loop_entry(body, &origin, binding);
-                    self.env.insert(binding.clone(), Origin::Other);
-                    self.statements(body, &origin);
-                    // A branch/zero-iteration path must not establish a single page origin.
+                    // The head is the only local binding path we admit. A body write
+                    // poisons it globally, including reads preceding that write.
+                    let head_only = self
+                        .bindings
+                        .get(binding)
+                        .is_some_and(|fact| fact.head_only());
+                    self.env.insert(
+                        binding.clone(),
+                        if head_only {
+                            Origin::Other
+                        } else {
+                            Origin::Unknown(vec![])
+                        },
+                    );
+                    self.statements(body, &origin, false);
                     join_env(&mut self.env, before.clone());
-                    // A one-to-one collector is the lowering of a row shape. Only an empty
-                    // destination plus one unconditional push preserves the population.
-                    if let Some(target) = shape_target(body)
+                    if top
+                        && let Some(target) = shape_target(body)
+                        && self
+                            .bindings
+                            .get(target)
+                            .is_some_and(|fact| fact.collector())
+                        && !self.program.args.contains_key(target)
                         && before.get(target) == Some(&Origin::Empty)
+                        && match &origin {
+                            Origin::Page(scan) => self.page_problem(scan, binding).is_none(),
+                            Origin::Other => true, // Bounded walks/lists are not page populations.
+                            _ => false,
+                        }
                     {
                         self.env.insert(target.to_owned(), origin.clone());
                     }
-                    if let Some(old) = before.get(binding) {
-                        self.env.insert(binding.clone(), old.clone());
-                    } else {
-                        self.env.remove(binding);
-                    }
+                    // Runtime leaves the final head binding in the environment;
+                    // zero iterations and early exits make its post-loop origin unknown.
+                    let last = self.env.get(binding).cloned().unwrap_or(Origin::Other);
+                    self.env
+                        .insert(binding.clone(), Origin::Unknown(last.scans()));
                 }
                 _ => {}
-            }
-        }
-    }
-
-    // A page assigned in one iteration can feed a loop in the next. Join the
-    // loop's entry/back edge before diagnosing its body, including nested loops.
-    fn loop_entry(
-        &self,
-        body: &[Stmt],
-        origin: &Origin,
-        binding: &str,
-    ) -> BTreeMap<String, Origin> {
-        let mut entry = self.env.clone();
-        entry.insert(binding.to_owned(), Origin::Other);
-        loop {
-            let mut transfer = Flow {
-                schema: self.schema,
-                program: self.program,
-                nonuniform: self.nonuniform.clone(),
-                env: entry.clone(),
-                errors: Vec::new(),
-                complete: BTreeSet::new(),
-                loops: BTreeMap::new(),
-                diagnose: false,
-            };
-            transfer.statements(body, origin);
-            let previous = entry.clone();
-            join_env(&mut entry, transfer.env);
-            if entry == previous {
-                return entry;
             }
         }
     }
@@ -269,10 +294,14 @@ impl Flow<'_> {
                     LoopDomain::DerivedArray {
                         value: Expr::Variable(name),
                         ..
-                    } => name,
+                    }
+                    | LoopDomain::ArgList { name, .. } => name,
                     _ => binding,
                 };
-                let rewrite = if scans.len() == 1 {
+                let rewrite = if scans.len() == 1
+                    && repair::executable(self.program, &scans[0])
+                    && self.page_problem(&scans[0], binding).is_none()
+                {
                     format!("for {binding} in {}:", repair::scan_text(&scans[0], None))
                 } else {
                     "bind exactly one page; per-recipient rows past one group are LLP 1016's continuation, not yet available".to_owned()
@@ -289,6 +318,7 @@ impl Flow<'_> {
             _ => unreachable!(),
         };
         self.errors.push(CheckError {
+            site: Some(site.to_owned()),
             code: "E_STRUCTURAL_FANOUT".to_owned(),
             message: format!(
                 "`for` over {label} at {site} may end before its range does: {reason}"
@@ -298,8 +328,18 @@ impl Flow<'_> {
     }
 
     fn page_problem(&self, scan: &Scan, binding: &str) -> Option<(String, String)> {
-        let table = self.schema.table(&scan.table)?;
-        let index = table.index(&scan.index)?;
+        let Some(table) = self.schema.table(&scan.table) else {
+            return Some((
+                format!("missing table {}", scan.table),
+                repair::missing(scan),
+            ));
+        };
+        let Some(index) = table.index(&scan.index) else {
+            return Some((
+                format!("missing index {}.{}", scan.table, scan.index),
+                repair::missing(scan),
+            ));
+        };
         let pinned: Vec<_> = index
             .columns
             .iter()
@@ -336,7 +376,7 @@ impl Flow<'_> {
         if !uniform_visibility(self.schema, scan) {
             return Some((
                 "the read rule is not uniform over the scanned prefix".to_owned(),
-                repair::prefix(self.schema, scan, Some(binding)),
+                repair::prefix(self.schema, self.program, scan, Some(binding)),
             ));
         }
         match scan.take {
@@ -368,7 +408,12 @@ impl Flow<'_> {
             whole.range = None;
             return Some((
                 reason.to_owned(),
-                format!("for {binding} in {}:", repair::scan_text(&whole, None)),
+                if repair::executable(self.program, &whole) {
+                    format!("for {binding} in {}:", repair::scan_text(&whole, None))
+                } else {
+                    "remove the cursor or key range and pin the prefix from arguments or `viewer`"
+                        .to_owned()
+                },
             ));
         }
         if let Some(other) = &self.nonuniform {
@@ -377,7 +422,7 @@ impl Flow<'_> {
                     "the non-uniform scan at {} can spend the budget this loop needs",
                     other.site
                 ),
-                repair::prefix(self.schema, other, None),
+                repair::prefix(self.schema, self.program, other, None),
             ));
         }
         None

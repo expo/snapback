@@ -1,0 +1,1339 @@
+{
+  "corpusVersion": 1,
+  "name": "cap-quarry-lowered-metered-insert",
+  "category": "cap",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "deliveries": {
+        "columns": {
+          "id": "Id",
+          "principal": "Principal"
+        },
+        "indexes": {
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "deliveries is public in Quarry"
+            }
+          },
+          "insert": "Allow",
+          "update": "Deny",
+          "delete": "Deny"
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "columns": {
+          "conversationId": "Id",
+          "group": {
+            "Optional": {
+              "Text": {
+                "max": 32
+              }
+            }
+          },
+          "id": "Id",
+          "principal": "Principal",
+          "role": {
+            "Text": {
+              "max": 32
+            }
+          }
+        },
+        "indexes": {
+          "byConversationPrincipal": {
+            "columns": [
+              "conversationId",
+              "principal"
+            ],
+            "unique": true
+          },
+          "byConversationRole": {
+            "columns": [
+              "conversationId",
+              "role",
+              "id"
+            ],
+            "unique": false
+          },
+          "byGroup": {
+            "columns": [
+              "group",
+              "id"
+            ],
+            "unique": false
+          },
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "memberships is public in Quarry"
+            }
+          },
+          "insert": "Allow",
+          "update": "Deny",
+          "delete": "Deny"
+        },
+        "constraints": [
+          {
+            "Unique": {
+              "index": "byConversationPrincipal"
+            }
+          },
+          {
+            "Cap": {
+              "by": [
+                "conversationId"
+              ],
+              "max": 50
+            }
+          }
+        ],
+        "retain": "until-revoked"
+      }
+    },
+    "maintains": []
+  },
+  "program": {
+    "name": "cap-quarry-lowered-metered-insert",
+    "kind": "Mutation",
+    "args": {},
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Insert": {
+          "table": "memberships",
+          "row": {
+            "Literal": {
+              "Row": {
+                "conversationId": {
+                  "Id": "c1"
+                },
+                "id": {
+                  "Id": "m49"
+                },
+                "principal": {
+                  "Id": "u49"
+                },
+                "role": {
+                  "String": "member"
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "cap-quarry-lowered-metered-insert",
+    "plan_hash": "601878503a9b00c6a7918ff3d79dec4b177b76201c0d4faa5df79e335396a259",
+    "schema_hash": "059b1a500d857158dec7afc71fd5b28612a2b85c0e43f161c733673a215125e7",
+    "tables": {
+      "deliveries": {
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "retain": "until-revoked"
+      }
+    },
+    "rule_hashes": {
+      "memberships.insert": "a574e91213241a33b77786b8f8eeb87c1fd01f49ce8b203c9f5db2adc3da9b24"
+    },
+    "evaluator_version": "bounded-spike-rust-1",
+    "value_model_version": "i53-codepoint-bytes-v2",
+    "read_sites": [],
+    "write_sites": [
+      {
+        "table": "memberships",
+        "kind": "Insert",
+        "max_rows": 1
+      }
+    ],
+    "maintained_amplification": 0,
+    "constraint_checks": [
+      "memberships:Cap([\"conversationId\"],50)",
+      "memberships:Unique(byConversationPrincipal)",
+      "memberships:Unique(byId)"
+    ],
+    "max_examined": 50,
+    "max_index_entries": 50,
+    "max_rule_probes": 0,
+    "max_steps": 257,
+    "max_heap_bytes": 8224,
+    "max_output_bytes": 6,
+    "max_closure_bytes": 0,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [
+      "memberships.byConversationPrincipal"
+    ],
+    "disclosures": [],
+    "bound_product": null
+  },
+  "context": {
+    "viewer": "u0",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {},
+    "now": 0,
+    "new_ids": [],
+    "read_time": null,
+    "seed_write": false
+  },
+  "receipt": {
+    "schema_hash": "059b1a500d857158dec7afc71fd5b28612a2b85c0e43f161c733673a215125e7",
+    "rows": [
+      {
+        "table": "memberships",
+        "id": "m0",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m0"
+            },
+            "principal": {
+              "Id": "u0"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m1",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m1"
+            },
+            "principal": {
+              "Id": "u1"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m10",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m10"
+            },
+            "principal": {
+              "Id": "u10"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m11",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m11"
+            },
+            "principal": {
+              "Id": "u11"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m12",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m12"
+            },
+            "principal": {
+              "Id": "u12"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m13",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m13"
+            },
+            "principal": {
+              "Id": "u13"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m14",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m14"
+            },
+            "principal": {
+              "Id": "u14"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m15",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m15"
+            },
+            "principal": {
+              "Id": "u15"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m16",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m16"
+            },
+            "principal": {
+              "Id": "u16"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m17",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m17"
+            },
+            "principal": {
+              "Id": "u17"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m18",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m18"
+            },
+            "principal": {
+              "Id": "u18"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m19",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m19"
+            },
+            "principal": {
+              "Id": "u19"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m2",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m2"
+            },
+            "principal": {
+              "Id": "u2"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m20",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m20"
+            },
+            "principal": {
+              "Id": "u20"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m21",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m21"
+            },
+            "principal": {
+              "Id": "u21"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m22",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m22"
+            },
+            "principal": {
+              "Id": "u22"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m23",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m23"
+            },
+            "principal": {
+              "Id": "u23"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m24",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m24"
+            },
+            "principal": {
+              "Id": "u24"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m25",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m25"
+            },
+            "principal": {
+              "Id": "u25"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m26",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m26"
+            },
+            "principal": {
+              "Id": "u26"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m27",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m27"
+            },
+            "principal": {
+              "Id": "u27"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m28",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m28"
+            },
+            "principal": {
+              "Id": "u28"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m29",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m29"
+            },
+            "principal": {
+              "Id": "u29"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m3",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m3"
+            },
+            "principal": {
+              "Id": "u3"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m30",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m30"
+            },
+            "principal": {
+              "Id": "u30"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m31",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m31"
+            },
+            "principal": {
+              "Id": "u31"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m32",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m32"
+            },
+            "principal": {
+              "Id": "u32"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m33",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m33"
+            },
+            "principal": {
+              "Id": "u33"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m34",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m34"
+            },
+            "principal": {
+              "Id": "u34"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m35",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m35"
+            },
+            "principal": {
+              "Id": "u35"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m36",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m36"
+            },
+            "principal": {
+              "Id": "u36"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m37",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m37"
+            },
+            "principal": {
+              "Id": "u37"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m38",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m38"
+            },
+            "principal": {
+              "Id": "u38"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m39",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m39"
+            },
+            "principal": {
+              "Id": "u39"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m4",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m4"
+            },
+            "principal": {
+              "Id": "u4"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m40",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m40"
+            },
+            "principal": {
+              "Id": "u40"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m41",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m41"
+            },
+            "principal": {
+              "Id": "u41"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m42",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m42"
+            },
+            "principal": {
+              "Id": "u42"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m43",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m43"
+            },
+            "principal": {
+              "Id": "u43"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m44",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m44"
+            },
+            "principal": {
+              "Id": "u44"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m45",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m45"
+            },
+            "principal": {
+              "Id": "u45"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m46",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m46"
+            },
+            "principal": {
+              "Id": "u46"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m47",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m47"
+            },
+            "principal": {
+              "Id": "u47"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m48",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m48"
+            },
+            "principal": {
+              "Id": "u48"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m5",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m5"
+            },
+            "principal": {
+              "Id": "u5"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m6",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m6"
+            },
+            "principal": {
+              "Id": "u6"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m7",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m7"
+            },
+            "principal": {
+              "Id": "u7"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m8",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m8"
+            },
+            "principal": {
+              "Id": "u8"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m9",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m9"
+            },
+            "principal": {
+              "Id": "u9"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      }
+    ],
+    "ranges": [
+      {
+        "site": "members.quarry",
+        "table": "memberships",
+        "index": "byConversationPrincipal",
+        "prefix": [
+          {
+            "Id": "c1"
+          }
+        ],
+        "order": "Asc",
+        "take": 50,
+        "after": null,
+        "before": null,
+        "gt": null,
+        "gte": null,
+        "lt": null,
+        "lte": null,
+        "rule_hash": "8f1ae399bb8f68719d9f7d96d08d7b850da522c5692a308476ae16d7c9393bda",
+        "row_ids": [
+          "m0",
+          "m1",
+          "m10",
+          "m11",
+          "m12",
+          "m13",
+          "m14",
+          "m15",
+          "m16",
+          "m17",
+          "m18",
+          "m19",
+          "m2",
+          "m20",
+          "m21",
+          "m22",
+          "m23",
+          "m24",
+          "m25",
+          "m26",
+          "m27",
+          "m28",
+          "m29",
+          "m3",
+          "m30",
+          "m31",
+          "m32",
+          "m33",
+          "m34",
+          "m35",
+          "m36",
+          "m37",
+          "m38",
+          "m39",
+          "m4",
+          "m40",
+          "m41",
+          "m42",
+          "m43",
+          "m44",
+          "m45",
+          "m46",
+          "m47",
+          "m48",
+          "m5",
+          "m6",
+          "m7",
+          "m8",
+          "m9"
+        ],
+        "stop": "Exhausted",
+        "absence": false,
+        "halo": null,
+        "n2_key": null
+      }
+    ],
+    "absences": [
+      [
+        "memberships",
+        "byConversationPrincipal",
+        [
+          {
+            "Id": "c1"
+          },
+          {
+            "Id": "u49"
+          }
+        ]
+      ]
+    ],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": "Null",
+    "errorCode": null,
+    "localState": "predicted",
+    "partialSites": [],
+    "canonicalResult": "\"Null\"",
+    "digest": "6c7382d463fdb189bd1075f11b73b2335f49de592445abdd337b62ff8b9c5ece",
+    "rangeStops": {},
+    "evictedRows": null,
+    "next": null
+  }
+}

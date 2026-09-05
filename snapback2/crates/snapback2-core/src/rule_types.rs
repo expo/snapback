@@ -634,6 +634,7 @@ fn invalid(site: &str, message: String) -> (String, CheckError) {
     (
         site.to_owned(),
         CheckError {
+            site: None,
             code: CODE.to_owned(),
             message,
             rewrite: REWRITE.to_owned(),
@@ -645,6 +646,7 @@ fn invalid_effect(site: &str, message: String) -> (String, CheckError) {
     (
         site.to_owned(),
         CheckError {
+            site: None,
             code: CODE.to_owned(),
             message,
             rewrite: EFFECT_REWRITE.to_owned(),

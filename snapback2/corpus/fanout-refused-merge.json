@@ -1,4 +1,5 @@
 {
+  "serverOnly": true,
   "corpusVersion": 1,
   "name": "fanout-refused-merge",
   "category": "fanout",
@@ -209,6 +210,7 @@
   "prelude": [],
   "replacementReceipt": null,
   "expected": {
+    "errorReason": "a merge page has no union proof",
     "localResult": null,
     "errorCode": "E_STRUCTURAL_FANOUT",
     "localState": "certification-refused",

@@ -1303,6 +1303,7 @@ struct CertificationCorpusCase {
 #[derive(serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct CertificationExpected {
+    error_reason: Option<String>,
     error_code: Option<String>,
     local_state: String,
 }
@@ -1332,9 +1333,14 @@ fn every_frozen_corpus_case_replays_its_certification_outcome() {
             let expected = case.expected.error_code.as_deref();
             match result {
                 Err(errors)
-                    if errors
-                        .iter()
-                        .any(|(_, error)| Some(error.code.as_str()) == expected) => {}
+                    if errors.iter().any(|(_, error)| {
+                        Some(error.code.as_str()) == expected
+                            && case
+                                .expected
+                                .error_reason
+                                .as_ref()
+                                .is_none_or(|reason| error.message.contains(reason))
+                    }) => {}
                 outcome => refusals.push(format!(
                     "{}: expected certification refusal {:?}, got {outcome:?}",
                     case.name, expected
@@ -1361,7 +1367,7 @@ fn every_frozen_corpus_case_replays_its_certification_outcome() {
     }
     assert_eq!(
         cases.len(),
-        182,
+        201,
         "the complete frozen corpus must be checked"
     );
     assert!(

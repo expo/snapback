@@ -74,7 +74,7 @@ impl SerializableError {
             code: error.code,
             family: family.to_owned(),
             message: error.message,
-            site: site.into(),
+            site: error.site.unwrap_or_else(|| site.into()),
             rule,
             rewrite: error.rewrite,
             guide: guide.to_owned(),
@@ -239,9 +239,42 @@ fn check_request(request: Request) -> Vec<ResultItem> {
         },
     };
     if let Err(errors) = validate_schema(&schema) {
+        // Preserve cap declaration sites alongside every other schema refusal.
+        // Only invalid schemas need this lookup; successful certification runs once.
+        let located = Generation::certify(
+            &ProjectJson {
+                version: 1,
+                schema: schema.clone(),
+                programs: vec![],
+                effects: vec![],
+                auth: Auth::default(),
+            },
+            ceilings.clone(),
+        )
+        .err()
+        .unwrap_or_default();
         let mut results = errors
             .into_iter()
-            .map(|error| refused_item("<schema>", SerializableError::schema(error)))
+            .map(|error| {
+                let located_cap = if let snapback2_core::RuntimeError::SchemaConstraint {
+                    message,
+                    ..
+                } = &error
+                {
+                    located
+                        .iter()
+                        .find(|(_, e)| e.code == "E_SCHEMA_CONSTRAINT" && &e.message == message)
+                } else {
+                    None
+                };
+                let error = match located_cap {
+                    Some((site, error)) => {
+                        SerializableError::from_certify(error.clone(), site.clone())
+                    }
+                    None => SerializableError::schema(error),
+                };
+                refused_item("<schema>", error)
+            })
             .collect::<Vec<_>>();
         results.extend(uncertified_program_results(
             programs,
@@ -619,6 +652,7 @@ mod tests {
     fn reserved_application_auth_codes_keep_the_operation_error_envelope() {
         let error = SerializableError::from_certify(
             CheckError {
+                site: None,
                 code: "E_OP_RESERVED".to_owned(),
                 message:
                     "application refusal code E_AUTH_SESSION uses the reserved E_AUTH_* namespace"
@@ -632,5 +666,49 @@ mod tests {
         assert_eq!(error.code, "E_OP_RESERVED");
         assert_eq!(error.family, "op");
         assert_eq!(error.guide, "programs/operations");
+    }
+    #[test]
+    fn cap_schema_sites_do_not_hide_other_schema_or_program_errors() {
+        let mut schema = spike_schema();
+        schema
+            .tables
+            .get_mut("memberships")
+            .unwrap()
+            .constraints
+            .push(snapback2_core::Constraint::Cap {
+                by: vec!["conversationId".into()],
+                max: 0,
+            });
+        schema
+            .tables
+            .get_mut("messages")
+            .unwrap()
+            .indexes
+            .values_mut()
+            .next()
+            .unwrap()
+            .columns
+            .push("missing".into());
+        let results = check_request(Request {
+            programs: vec![serde_json::json!({"name":"broken", "kind":"invalid"})],
+            schema: Some(serde_json::to_value(schema).unwrap()),
+            schema_mode: SchemaMode::Spike,
+            effects: vec![],
+            auth: None,
+            version: None,
+            ceilings: None,
+        });
+        assert!(results.iter().any(|r| {
+            r.error.as_ref().is_some_and(|e| {
+                e.code == "E_SCHEMA_CONSTRAINT"
+                    && e.site.starts_with("schema.tables.memberships.constraints[")
+            })
+        }));
+        assert!(results.iter().any(|r| {
+            r.error
+                .as_ref()
+                .is_some_and(|e| e.message.contains("missing"))
+        }));
+        assert!(results.iter().any(|r| r.program == "broken"));
     }
 }

@@ -1,0 +1,388 @@
+{
+  "corpusVersion": 1,
+  "name": "fanout-complete-nonleading-group",
+  "category": "fanout",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "deliveries": {
+        "columns": {
+          "id": "Id"
+        },
+        "indexes": {
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "columns": {
+          "conversationId": "Id",
+          "group": {
+            "Optional": {
+              "Text": {
+                "max": 32
+              }
+            }
+          },
+          "id": "Id",
+          "principal": "Principal",
+          "role": {
+            "Text": {
+              "max": 32
+            }
+          }
+        },
+        "indexes": {
+          "byConversationPrincipal": {
+            "columns": [
+              "conversationId",
+              "principal",
+              "id"
+            ],
+            "unique": false
+          },
+          "byConversationRole": {
+            "columns": [
+              "conversationId",
+              "role",
+              "id"
+            ],
+            "unique": false
+          },
+          "byGroup": {
+            "columns": [
+              "group",
+              "id"
+            ],
+            "unique": false
+          },
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          },
+          "byRoleConversation": {
+            "columns": [
+              "role",
+              "conversationId",
+              "id"
+            ],
+            "unique": false
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [
+          {
+            "Cap": {
+              "by": [
+                "conversationId"
+              ],
+              "max": 50
+            }
+          }
+        ],
+        "retain": "until-revoked"
+      }
+    },
+    "maintains": []
+  },
+  "program": {
+    "name": "fanout-complete-nonleading-group",
+    "kind": "Mutation",
+    "args": {},
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "For": {
+          "binding": "m",
+          "domain": {
+            "Page": {
+              "site": "members.reordered",
+              "table": "memberships",
+              "index": "byRoleConversation",
+              "prefix": [
+                {
+                  "Literal": {
+                    "String": "member"
+                  }
+                },
+                {
+                  "Literal": {
+                    "Id": "c1"
+                  }
+                }
+              ],
+              "order": "Asc",
+              "take": {
+                "Literal": 50
+              },
+              "after": null,
+              "before": null,
+              "range": null,
+              "merge_site": null,
+              "provenance": "Const"
+            }
+          },
+          "body": [
+            {
+              "Insert": {
+                "table": "deliveries",
+                "row": {
+                  "Object": {
+                    "id": {
+                      "Field": {
+                        "base": {
+                          "Variable": "m"
+                        },
+                        "name": "id"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "fanout-complete-nonleading-group",
+    "plan_hash": "dc8c99a869b05cd8a5d8de4a92d2ef0c4b9efcd8147b05e565f5a887c5d75fc3",
+    "schema_hash": "ec7df5893c0d773858a6155053a550c0c860b10584364723e70ac37729f975b2",
+    "tables": {
+      "deliveries": {
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "retain": "until-revoked"
+      }
+    },
+    "rule_hashes": {
+      "deliveries.insert": "263e4ab318b1a2ac6a29917be5f0f72cb8ae3deda7601c0015de8a3fd4c1b949",
+      "memberships.read": "263e4ab318b1a2ac6a29917be5f0f72cb8ae3deda7601c0015de8a3fd4c1b949"
+    },
+    "evaluator_version": "bounded-spike-rust-1",
+    "value_model_version": "i53-codepoint-bytes-v2",
+    "read_sites": [
+      {
+        "site": "members.reordered",
+        "table": "memberships",
+        "index": "byRoleConversation",
+        "prefix_template": "Const",
+        "take": 50,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 0,
+        "hoist": true,
+        "complete": true
+      }
+    ],
+    "write_sites": [
+      {
+        "table": "deliveries",
+        "kind": "Insert",
+        "max_rows": 50
+      }
+    ],
+    "maintained_amplification": 0,
+    "constraint_checks": [
+      "deliveries:Unique(byId)"
+    ],
+    "max_examined": 52,
+    "max_index_entries": 52,
+    "max_rule_probes": 0,
+    "max_steps": 713,
+    "max_heap_bytes": 22816,
+    "max_output_bytes": 6,
+    "max_closure_bytes": 0,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [
+      "memberships.byRoleConversation"
+    ],
+    "disclosures": [],
+    "bound_product": "members.reordered take 50 = 50"
+  },
+  "context": {
+    "viewer": "u0",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {},
+    "now": 0,
+    "new_ids": [],
+    "read_time": null,
+    "seed_write": false
+  },
+  "receipt": {
+    "schema_hash": "ec7df5893c0d773858a6155053a550c0c860b10584364723e70ac37729f975b2",
+    "rows": [
+      {
+        "table": "memberships",
+        "id": "m0",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m0"
+            },
+            "principal": {
+              "Id": "u0"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m1",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m1"
+            },
+            "principal": {
+              "Id": "u1"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m2",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "group": "Null",
+            "id": {
+              "Id": "m2"
+            },
+            "principal": {
+              "Id": "u2"
+            },
+            "role": {
+              "String": "member"
+            }
+          }
+        }
+      }
+    ],
+    "ranges": [
+      {
+        "site": "members.reordered",
+        "table": "memberships",
+        "index": "byRoleConversation",
+        "prefix": [
+          {
+            "String": "member"
+          },
+          {
+            "Id": "c1"
+          }
+        ],
+        "order": "Asc",
+        "take": 50,
+        "after": null,
+        "before": null,
+        "gt": null,
+        "gte": null,
+        "lt": null,
+        "lte": null,
+        "rule_hash": "263e4ab318b1a2ac6a29917be5f0f72cb8ae3deda7601c0015de8a3fd4c1b949",
+        "row_ids": [
+          "m0",
+          "m1",
+          "m2"
+        ],
+        "stop": "Exhausted",
+        "absence": false,
+        "halo": null,
+        "n2_key": null
+      }
+    ],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": "Null",
+    "errorCode": null,
+    "localState": "predicted",
+    "partialSites": [],
+    "canonicalResult": "\"Null\"",
+    "digest": "6c7382d463fdb189bd1075f11b73b2335f49de592445abdd337b62ff8b9c5ece",
+    "rangeStops": {
+      "members.reordered": [
+        "exhausted"
+      ]
+    },
+    "evictedRows": null,
+    "next": null
+  }
+}

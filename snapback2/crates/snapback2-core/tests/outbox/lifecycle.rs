@@ -315,6 +315,15 @@ fn then_generation_with_rejection(source: &str, reject: bool) -> Generation {
 }
 
 fn then_generation_with_rule(source: &str, reject: bool, write_rule: RuleExpr) -> Generation {
+    then_generation_with_cap(source, reject, write_rule, false)
+}
+
+fn then_generation_with_cap(
+    source: &str,
+    reject: bool,
+    write_rule: RuleExpr,
+    capped: bool,
+) -> Generation {
     let notifications = Table {
         columns: BTreeMap::from([
             ("id".to_owned(), ColumnType::Id),
@@ -324,7 +333,7 @@ fn then_generation_with_rule(source: &str, reject: bool, write_rule: RuleExpr) -
             "byOutbox".to_owned(),
             Index {
                 columns: vec!["outboxId".to_owned()],
-                unique: true,
+                unique: !capped,
             },
         )]),
         rules: Rules {
@@ -335,7 +344,14 @@ fn then_generation_with_rule(source: &str, reject: bool, write_rule: RuleExpr) -
             update: write_rule,
             delete: RuleExpr::Deny,
         },
-        constraints: Vec::new(),
+        constraints: if capped {
+            vec![Constraint::Cap {
+                by: vec!["outboxId".into()],
+                max: 2,
+            }]
+        } else {
+            vec![]
+        },
         retain: Default::default(),
     };
     let emit = Program {
@@ -460,4 +476,53 @@ fn execute_then(runtime: &mut Runtime) -> Result<Execution, RuntimeError> {
         VecDeque::from(["notification-1".to_owned()]),
         "outbox-1",
     )
+}
+
+#[test]
+fn capped_effect_then_reserves_and_refuses_a_full_group() {
+    let generation = then_generation_with_cap("async () => null", false, RuleExpr::Allow, true);
+    let certificate = &generation.programs()["notifications.record"].1;
+    assert_eq!(certificate.max_examined, 2);
+    assert_eq!(certificate.max_index_entries, 2);
+    for full in [false, true] {
+        let mut runtime = Runtime::open(Store::memory().unwrap(), generation.clone()).unwrap();
+        for n in 0..if full { 2 } else { 1 } {
+            runtime
+                .seed(&[(
+                    "notifications".into(),
+                    object([
+                        ("id", Value::Id(format!("existing-{n}"))),
+                        ("outboxId", Value::Id("outbox-1".into())),
+                    ]),
+                )])
+                .unwrap();
+        }
+        leave_then_pending(&mut runtime);
+        let execution = execute_then(&mut runtime).unwrap();
+        if full {
+            assert!(
+                matches!(execution.state, ExecutionState::Rejected { ref code, .. } if code == "E_CONSTRAINT")
+            );
+            assert!(
+                runtime
+                    .store()
+                    .outbox_get("outbox-1")
+                    .unwrap()
+                    .unwrap()
+                    .last_error
+                    .unwrap()
+                    .contains("cap 2")
+            );
+        } else {
+            assert!(matches!(execution.state, ExecutionState::Committed { .. }));
+            assert_eq!(execution.trace.examined, 1);
+        }
+        let rows = runtime
+            .execute(
+                "notifications.list",
+                Context::query(Actor::user("u1").unwrap(), BTreeMap::new()),
+            )
+            .unwrap();
+        assert_eq!(rows.result.as_array().unwrap().len(), 2);
+    }
 }

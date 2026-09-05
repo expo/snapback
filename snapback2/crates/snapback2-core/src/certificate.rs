@@ -178,6 +178,7 @@ pub enum Completeness {
 #[derive(Clone, Debug, Error, PartialEq, Eq)]
 #[error("{code}: {message}; rewrite: {rewrite}")]
 pub struct CheckError {
+    pub site: Option<String>,
     pub code: String,
     pub message: String,
     pub rewrite: String,
@@ -203,10 +204,9 @@ impl<'a> Checker<'a> {
     }
 
     pub fn check_all(&self, program: &Program) -> Result<Certificate, Vec<CheckError>> {
-        let mut errors = self.structural_errors(program);
+        let (mut errors, complete) = self.structural_errors(program);
         match self.analyze(program) {
             Ok(mut certificate) if errors.is_empty() => {
-                let (_, complete) = crate::certificate_policy::fanout::check(self.schema, program);
                 for site in &mut certificate.read_sites {
                     site.complete = complete.contains(&site.site);
                 }
@@ -355,6 +355,7 @@ impl<'a> Checker<'a> {
         }
         if max_writes > self.ceilings.write_rows {
             bound_errors.push(CheckError {
+                site: None,
                 code: "E_BOUND".to_owned(),
                 message: format!(
                     "write amplification {} exceeds ceiling {} ({})",
@@ -631,6 +632,7 @@ impl<'a> Checker<'a> {
             "replace the nested population scan with maintain.count/sum (or reduce a declared bound)".to_owned()
         };
         Err(CheckError {
+            site: None,
             code: code.to_owned(),
             message: format!("{name} {actual} exceeds ceiling {ceiling}; product: {product}"),
             rewrite,
@@ -818,6 +820,7 @@ fn resolve_result_page_site(
         .collect::<Vec<_>>();
     let Some(first) = matching.first() else {
         return Err(vec![CheckError {
+            site: None,
             code: "E_TRACE_SUBSET".to_owned(),
             message: format!("declared result-page site {declared} is not a scan or merge"),
             rewrite:
@@ -828,6 +831,7 @@ fn resolve_result_page_site(
     let merge = first.merge_site.as_deref() == Some(declared);
     let Some(table) = schema.table(&first.table) else {
         return Err(vec![CheckError {
+            site: None,
             code: "E_SCHEMA".to_owned(),
             message: format!(
                 "result-page site {declared} names missing table {}",
@@ -838,6 +842,7 @@ fn resolve_result_page_site(
     };
     let Some(index) = table.index(&first.index) else {
         return Err(vec![CheckError {
+            site: None,
             code: "E_SCHEMA".to_owned(),
             message: format!(
                 "result-page site {declared} names missing index {}.{}",
@@ -875,6 +880,7 @@ fn resolve_result_page_site(
         || page.suffix.len() + first.prefix.len() != index.columns.len()
     {
         return Err(vec![CheckError {
+            site: None,
             code: "E_TRACE_SUBSET".to_owned(),
             message: format!(
                 "result-page site {declared} does not identify one consistent index suffix"

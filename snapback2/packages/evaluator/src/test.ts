@@ -42,7 +42,13 @@ for (const value of [
   assert(refused, `twin accepted non-canonical Bytes ${JSON.stringify(value)}`);
 }
 
-const cases = manifest as unknown as CorpusCase[];
+const serverOnly = (manifest as unknown as CorpusCase[]).filter((item) => item.serverOnly);
+const cases = (manifest as unknown as CorpusCase[]).filter((item) => !item.serverOnly);
+for (const item of serverOnly) {
+  let refused = false;
+  try { evaluateCase(item); } catch (error) { refused = error instanceof EvalError && error.message.includes("server-only"); }
+  assert(refused, `${item.name}: server-only case was evaluated`);
+}
 for (const testCase of cases) {
   const hydration = hydrateCase(testCase);
   assert(hydration.planState === "ready", hydration.diagnostic ?? testCase.name);
@@ -913,6 +919,7 @@ console.log(
   JSON.stringify({
     cases: cases.length,
     passed: cases.length,
+    serverOnly: serverOnly.length,
     failed: 0,
     corruptionPath: "replay-mismatch",
   }),

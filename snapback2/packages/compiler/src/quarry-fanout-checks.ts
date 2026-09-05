@@ -40,9 +40,44 @@ export function registerQuarryFanoutChecks(test: Test, frontend: string): void {
       const constraint = (result.project.schema.tables as any).memberships.constraints.find((c: any) => c.Cap);
       assert(JSON.stringify(constraint) === '{"Cap":{"by":["group"],"max":50}}', "cap lowering duplicated or changed");
       const checked = rustCheck([], "synthetic", result.project.schema);
-      assert(checked.some((r) => r.error?.code === "E_SCHEMA_CONSTRAINT" && r.error.rewrite === "by group"), `missing cap enforcement index admitted: ${JSON.stringify(checked)}`);
+      assert(checked.some((r) => r.error?.code === "E_SCHEMA_CONSTRAINT" && r.error.rewrite === "by group" && r.error.site === "schema.tables.memberships.constraints[1]"), `missing cap enforcement index admitted: ${JSON.stringify(checked)}`);
       assert(Object.values(result.sources).some((site) => site.file === "snapback/schema.q" && site.line === 8), "cap declaration source map lost");
     });
+  });
+
+  test("implicit id is an indexable cap column alone and in a tuple", async () => {
+    for (const columns of ["id", "id, conversationId"]) {
+      const source = schema.replace("cap 50 by conversationId", `cap 1 by ${columns}\n  by byIdentityGroup: id, conversationId`);
+      await withProject({ "snapback/schema.q": source, "snapback/ops.q": "query noop():\n  return null\n" }, async (root) => {
+        const lowered = await lowerProject(root); assert(lowered.ok, `implicit id cap did not lower: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
+        assert(rustCheck(lowered.project.programs, "synthetic", lowered.project.schema).every((r) => !r.error), "implicit id cap did not certify");
+      });
+    }
+  });
+
+  test("unsupported rule prefix repairs give direction without unbound pasted names", async () => {
+    for (const rule of [".principal != viewer", "exists grants[.principal]"]) {
+      const source = schema.replace("  public", `  read <- ${rule}`) + "\ntable grants:\n  principal: principal\n  unique byPrincipal: principal\n  public\n";
+      await withProject({ "snapback/schema.q": source, "snapback/ops.q": direct }, async (root) => {
+        const lowered = await lowerProject(root); assert(lowered.ok, `rule fixture failed: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
+        const error = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema).find((r) => r.error?.code === "E_STRUCTURAL_FANOUT")?.error;
+        assert(error?.rewrite === "denormalize principal into the index prefix and pin it from an argument or `viewer`", `fabricated prefix repair: ${JSON.stringify(error)}`);
+      });
+    }
+  });
+
+  test("chat groupCreate reserves fifty times fifty cap candidates", async () => {
+    const chat = await lowerProject(resolve(frontend, "../snapback2/templates/chat"));
+    assert(chat.ok, "chat template did not lower");
+    const p = chat.project.programs.find((p) => p.name === "groups.groupCreate")!;
+    const [checked] = rustCheck(chat.project.programs, "synthetic", chat.project.schema, undefined, chat.project.effects).filter((r) => r.program === p.name);
+    assert(checked && !checked.error && checked.certificate, `groupCreate refused: ${JSON.stringify(checked)}`);
+    const uncapped = structuredClone(chat.project.schema) as any;
+    uncapped.tables.memberships.constraints = uncapped.tables.memberships.constraints.filter((c: any) => !c.Cap);
+    const [baseline] = rustCheck([p], "synthetic", { ...uncapped, effects: [] });
+    assert(baseline && !baseline.error && baseline.certificate, "uncapped groupCreate baseline refused");
+    assert(Number(checked.certificate.max_examined) - Number(baseline.certificate.max_examined) === 50 * 50, "groupCreate did not reserve 50 × 50 examined");
+    assert(Number(checked.certificate.max_index_entries) - Number(baseline.certificate.max_index_entries) === 50 * 50, "groupCreate did not reserve 50 × 50 index entries");
   });
 
   const reasons = [
@@ -59,7 +94,7 @@ export function registerQuarryFanoutChecks(test: Test, frontend: string): void {
       assert(lowered.ok, `fanout front end failed: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
       const checked = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema);
       const error = checked.find((r) => r.error?.code === "E_STRUCTURAL_FANOUT")?.error;
-      assert(error && error.message.includes(item.reason) && error.family === "bound" && error.guide === "bound/loop", `fanout reason/envelope: ${JSON.stringify(checked)}`);
+      assert(error && error.message.includes(item.reason) && error.family === "bound" && error.guide === "bound/loop" && error.site === "ops.send/for/m/0", `fanout reason/envelope: ${JSON.stringify(checked)}`);
       const sourceSite = lowered.sources["ops.send/for/m/0"];
       assert(sourceSite?.file === "snapback/ops.q" && item.source.split("\n")[sourceSite.line - 1]?.trim().startsWith("for m"), `fanout source map did not identify for line: ${JSON.stringify(sourceSite)}`);
       let repairedSchema = item.schema;
@@ -116,9 +151,12 @@ export function registerQuarryFanoutChecks(test: Test, frontend: string): void {
       p.body.splice(1, 0, { Assign: { name: "page", value: { Builtin: { builtin: "Slice", args: [{ Variable: "page" }, { Literal: { Int: 0 } }, { Literal: { Int: 50 } }] } } } });
       const cut = rustCheck([p], "synthetic", result.project.schema)[0]!.error;
       assert(cut?.code === "E_STRUCTURAL_FANOUT" && cut.rewrite === head, `known binding did not paste scan: ${JSON.stringify(cut)}`);
-      await withProject({ "snapback/schema.q": schema, "snapback/ops.q": direct.replace(head, cut.rewrite) }, async (root) => {
+      await withProject({ "snapback/schema.q": schema, "snapback/ops.q": bound.replace("for m in page:", cut.rewrite) }, async (root) => {
         const fixed = await lowerProject(root); assert(fixed.ok, "head repair did not lower");
-        assert(rustCheck(fixed.project.programs, "synthetic", fixed.project.schema).every((r) => !r.error), "head repair did not certify");
+        // Keep the original raw-IR Slice assignment: the only repair is the head.
+        fixed.project.programs[0]!.body.splice(1, 0, structuredClone(p.body[1]));
+        assert(JSON.stringify(fixed.project.programs[0]!.body[1]).includes("Slice"), "transformed fixture was lost");
+        assert(rustCheck(fixed.project.programs, "synthetic", fixed.project.schema).every((r) => !r.error), "head repair on transformed fixture did not certify");
       });
       p.body.find((s: any) => s.For).For.domain.DerivedArray.value = { Variable: "unknownPage" };
       const unknown = rustCheck([p], "synthetic", result.project.schema)[0]!.error;

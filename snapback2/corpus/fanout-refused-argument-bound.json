@@ -1,4 +1,5 @@
 {
+  "serverOnly": true,
   "corpusVersion": 1,
   "name": "fanout-refused-argument-bound",
   "category": "fanout",
@@ -212,6 +213,7 @@
   "prelude": [],
   "replacementReceipt": null,
   "expected": {
+    "errorReason": "the bound is an argument",
     "localResult": null,
     "errorCode": "E_STRUCTURAL_FANOUT",
     "localState": "certification-refused",

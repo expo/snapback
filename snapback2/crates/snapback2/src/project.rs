@@ -235,18 +235,11 @@ impl CompilerWorker {
                 .into_iter()
                 .map(|(program, error)| {
                     let (family, guide) = certification_family_guide(&error.code);
-                    let fanout_site = error
-                        .message
-                        .split(" at ")
-                        .nth(1)
-                        .and_then(|s| s.split(" may end before").next());
-                    let source = if error.code == "E_STRUCTURAL_FANOUT" {
-                        fanout_site
-                            .and_then(|site| sources.get(site))
-                            .or_else(|| sources.get(&program))
-                    } else {
-                        sources.get(&program)
-                    };
+                    let source = error
+                        .site
+                        .as_deref()
+                        .and_then(|site| sources.get(site))
+                        .or_else(|| sources.get(&program));
                     let precise = matches!(
                         error.code.as_str(),
                         "E_STRUCTURAL_FANOUT" | "E_SCHEMA_CONSTRAINT"

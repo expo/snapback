@@ -28,6 +28,7 @@ export function buildCatalog(documents: Document[]): TableCatalog {
         const tuple = JSON.stringify(cap.by);
         const repair = `cap ${cap.max} by ${[...new Set(cap.by)].join(", ")}`;
         for (const name of cap.by) {
+          if (name === "id") continue;
           const column = columns.get(name);
           if (!column) {
             const nearest = [...columns.keys()].sort((a, b) => distance(name, a) - distance(name, b))[0];

@@ -67,7 +67,7 @@ ordering and its uniqueness constraint; `unique a, b` infers `byAB`. `id` may
 appear in an index. `immutable a, b` forbids changes to those columns.
 `cap N by a, b` holds every group at N rows (an omitted optional column is the
 `null` group); every writer, seeds included, refuses past it, and a successor
-that would leave a group over N refuses with a plan. `public`
+that would leave a group over N refuses, naming the groups and the cap to raise. `public`
 accepts an optional reason string. An insert
 postcondition is `after insert <- exists table[...] [by index]`.
 

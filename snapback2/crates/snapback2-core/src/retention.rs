@@ -837,15 +837,15 @@ impl<'a> RetentionEstimator<'a> {
             }
         }
         for group in row_fields {
-            let table = self
-                .schema
-                .table(&group.table)
-                .expect("resolved table exists");
-            let whole_row = group.columns.len() == table.columns.len()
-                && group
-                    .columns
-                    .iter()
-                    .all(|column| table.columns.contains_key(*column));
+            // Raw IR may name an unresolved relation. Structural validation
+            // refuses it; retain the field estimate while collecting other errors.
+            let whole_row = self.schema.table(&group.table).is_some_and(|table| {
+                group.columns.len() == table.columns.len()
+                    && group
+                        .columns
+                        .iter()
+                        .all(|column| table.columns.contains_key(*column))
+            });
             flow = flow.add(if whole_row {
                 group.flow.whole_row_width()
             } else {

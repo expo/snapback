@@ -1,4 +1,5 @@
 {
+  "serverOnly": true,
   "corpusVersion": 1,
   "name": "fanout-refused-cursor",
   "category": "fanout",
@@ -212,6 +213,7 @@
   "prelude": [],
   "replacementReceipt": null,
   "expected": {
+    "errorReason": "the loop reads after a cursor",
     "localResult": null,
     "errorCode": "E_STRUCTURAL_FANOUT",
     "localState": "certification-refused",

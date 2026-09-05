@@ -1,4 +1,5 @@
 {
+  "serverOnly": true,
   "corpusVersion": 1,
   "name": "fanout-refused-binding-uncapped",
   "category": "fanout",
@@ -214,6 +215,7 @@
   "prelude": [],
   "replacementReceipt": null,
   "expected": {
+    "errorReason": "has no cap over conversationId",
     "localResult": null,
     "errorCode": "E_STRUCTURAL_FANOUT",
     "localState": "certification-refused",

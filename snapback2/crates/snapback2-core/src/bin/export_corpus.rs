@@ -31,6 +31,8 @@ const RANDOM_SEED: u64 = 0x5eed_0329_0140_0003;
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct CorpusCase {
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    server_only: bool,
     corpus_version: u32,
     name: String,
     category: String,
@@ -56,6 +58,8 @@ struct PreludeStep {
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct Expected {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    error_reason: Option<String>,
     local_result: Option<Value>,
     error_code: Option<String>,
     local_state: String,
@@ -987,6 +991,7 @@ fn case_from_parts(
         replacement_receipt.as_ref(),
     );
     CorpusCase {
+        server_only: false,
         corpus_version: CORPUS_VERSION,
         name: name.to_owned(),
         category: category.to_owned(),
@@ -1046,6 +1051,7 @@ fn evaluate_local(
                 },
             );
             Expected {
+                error_reason: None,
                 local_result: Some(execution.result.clone()),
                 error_code: None,
                 local_state,
@@ -1060,6 +1066,7 @@ fn evaluate_local(
         Err(RuntimeError::Require { code }) => {
             let canonical_result = canonical_json(&Value::Null);
             Expected {
+                error_reason: None,
                 local_result: Some(Value::Null),
                 error_code: Some(code),
                 local_state: if program.kind == ProgramKind::Mutation {
@@ -1080,6 +1087,7 @@ fn evaluate_local(
             let error_code = rendered.split(':').next().unwrap_or("E_UNKNOWN").to_owned();
             let envelope = json!({ "Error": error_code });
             Expected {
+                error_reason: None,
                 local_result: None,
                 error_code: Some(error_code),
                 local_state: "refused".to_owned(),

@@ -464,7 +464,8 @@
   {
     "family": "bound",
     "code": "E_STRUCTURAL_FANOUT",
-    "wrong": "for m in memberships[conversationId] first 50 by byConversationPrincipal:  // memberships has no cap",
-    "right": "cap 50 by conversationId  // on memberships; the loop now covers the group"
+    "wrong": "for m in memberships[conversationId] first 50 by byConversationPrincipal:",
+    "right": "cap 50 by conversationId",
+    "language": "q"
   }
 ]

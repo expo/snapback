@@ -44,6 +44,10 @@ pub fn run(args: &[String]) -> ExitCode {
         app_page(&options)
     } else if RECIPES.contains(&page) {
         read_page(&root.join(format!("{page}.md")))
+    } else if page == "bound/loop" {
+        refusal_page(&root, "E_STRUCTURAL_FANOUT")
+    } else if page == "bound/count" {
+        refusal_page(&root, "E_STRUCTURAL_COUNT")
     } else if page.starts_with("E_") {
         refusal_page(&root, page)
     } else {
@@ -249,7 +253,18 @@ fn refusal_page(root: &Path, code: &str) -> Result<String, Refusal> {
         .get("family")
         .and_then(Json::as_str)
         .unwrap_or("unknown");
-    let language = if family == "quarry" { "q" } else { "ts" };
+    let language = if family == "quarry"
+        || entry.get("language").and_then(Json::as_str) == Some("q")
+        || ["wrong", "right"].iter().any(|key| {
+            entry
+                .get(key)
+                .and_then(Json::as_str)
+                .is_some_and(|text| text.starts_with("```q"))
+        }) {
+        "q"
+    } else {
+        "ts"
+    };
     let wrong = refusal_example(
         entry
             .get("wrong")

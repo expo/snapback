@@ -108,12 +108,19 @@ fn rule_fields(rule: &RuleExpr, out: &mut BTreeSet<String>) {
 }
 
 impl Checker<'_> {
-    pub(crate) fn structural_errors(&self, program: &Program) -> Vec<CheckError> {
+    pub(crate) fn structural_errors(
+        &self,
+        program: &Program,
+    ) -> (Vec<CheckError>, BTreeSet<String>) {
         let mut errors: Vec<_> = crate::cap::schema_errors(self.schema)
             .into_iter()
-            .map(|(_, e)| e)
+            .map(|(site, mut e)| {
+                e.site = Some(site);
+                e
+            })
             .collect();
-        errors.extend(fanout::check(self.schema, program).0);
+        let (fanout_errors, complete) = fanout::check(self.schema, program);
+        errors.extend(fanout_errors);
         let mut sites = BTreeMap::new();
         let mut bindings = BTreeMap::new();
         validate_statements(
@@ -130,7 +137,7 @@ impl Checker<'_> {
             errors: &mut errors,
         };
         flow.statements(&program.body, &BTreeSet::new(), &BTreeSet::new());
-        errors
+        (errors, complete)
     }
 }
 
@@ -330,6 +337,7 @@ impl CompletenessFlow<'_, '_> {
             .collect();
         for site in sites {
             self.errors.push(CheckError {
+                site: None,
                 code: "E_STRUCTURAL_COUNT".to_owned(),
                 message: format!(
                     "{sink} depends on capped-only site {}; its read rule is not uniform over the scanned prefix",
@@ -403,6 +411,7 @@ fn validate_statements(
             && expression_contains_field(patch, "id")
         {
             errors.push(CheckError {
+                site: None,
                 code: "E_SCHEMA_ID_RESERVED".to_owned(),
                 message: "update patches cannot contain id".to_owned(),
                 rewrite: "remove id from the update patch".to_owned(),
@@ -412,6 +421,7 @@ fn validate_statements(
             && upsert_identity_matches(key, row, bindings) == Some(false)
         {
             errors.push(CheckError {
+                site: None,
                 code: "E_SCHEMA_ID_RESERVED".to_owned(),
                 message: "upsert key and row id must be one identity".to_owned(),
                 rewrite:
@@ -422,6 +432,7 @@ fn validate_statements(
         match statement {
             Stmt::Require { code, .. } if code.starts_with("E_AUTH_") => {
                 errors.push(CheckError {
+                    site: None,
                     code: "E_OP_RESERVED".to_owned(),
                     message: format!(
                         "application refusal code {code} uses the reserved E_AUTH_* namespace"
@@ -436,6 +447,7 @@ fn validate_statements(
             | Stmt::Delete { table, .. } => {
                 if table.starts_with('_') {
                     errors.push(CheckError {
+                        site: None,
                         code: "E_SCHEMA_RESERVED".to_owned(),
                         message: format!("program names reserved table {table}"),
                         rewrite: "use an application table name that does not begin with '_'"
@@ -444,6 +456,7 @@ fn validate_statements(
                 }
                 if program.kind == ProgramKind::Query {
                     errors.push(CheckError {
+                        site: None,
                         code: "E_WRITE_IN_QUERY".to_owned(),
                         message: "a query cannot write durable data".to_owned(),
                         rewrite: "move the write into a mutation".to_owned(),
@@ -451,6 +464,7 @@ fn validate_statements(
                 }
                 if !table.starts_with('_') && checker.schema.table(table).is_none() {
                     errors.push(CheckError {
+                        site: None,
                         code: "E_UNBOUND_SCAN".to_owned(),
                         message: format!("write requires missing table {table}"),
                         rewrite: "declare the table in the schema".to_owned(),
@@ -459,6 +473,7 @@ fn validate_statements(
             }
             Stmt::Emit { .. } if program.kind == ProgramKind::Query => {
                 errors.push(CheckError {
+                    site: None,
                     code: "E_EMIT_IN_QUERY".to_owned(),
                     message: "a query cannot emit an effect".to_owned(),
                     rewrite: "move emit into a mutation".to_owned(),
@@ -505,6 +520,7 @@ fn validate_statements(
                     validate_read(checker, &recurse.table, &recurse.index, errors);
                     if recurse.depth > MAX_RECURSE_DEPTH {
                         errors.push(CheckError {
+                            site: None,
                             code: "E_UNBOUND_LOOP".to_owned(),
                             message: format!(
                                 "recurse depth {} exceeds maximum {}",
@@ -636,6 +652,7 @@ fn validate_expr(
             };
             if invalid {
                 errors.push(CheckError {
+                    site: None,
                     code: "E_AMBIENT_TIME".to_owned(),
                     message: format!(
                         "modeled input {input:?} is not declared for this program kind"
@@ -659,6 +676,7 @@ fn validate_expr(
                 && !program.args.contains_key(name)
             {
                 errors.push(CheckError {
+                    site: None,
                     code: "E_UNBOUND_SCAN".to_owned(),
                     message: format!("scan {} take arg {name} is not declared", scan.site),
                     rewrite: "declare the bounded take argument on the program".to_owned(),
@@ -677,6 +695,7 @@ fn validate_expr(
                 // @ref LLP 1001#3-read-and-write-states-no-silent-states — a
                 // page is a list, not an object carrying hidden pagination state.
                 errors.push(CheckError {
+                    site: None,
                     code: "E_ARGS_TYPE".to_owned(),
                     message: format!(
                         ".{name} is read from a list (a page); lists have no fields"
@@ -690,6 +709,7 @@ fn validate_expr(
             {
                 // @ref LLP 1006#3-authoring-surface — asset values are closed objects at static and runtime boundaries.
                 errors.push(CheckError {
+                    site: None,
                     code: "E_ARGS_TYPE".to_owned(),
                     message: format!(".{name} is not a field on {kind} assets"),
                     rewrite: format!(
@@ -704,6 +724,7 @@ fn validate_expr(
         }
         Expr::Builtin { builtin, args } if args.len() != builtin.arity() => {
             errors.push(CheckError {
+                site: None,
                 code: "E_OPAQUE".to_owned(),
                 message: format!(
                     "builtin {builtin:?} requires {} arguments, received {}",
@@ -715,6 +736,7 @@ fn validate_expr(
         }
         Expr::Literal(value) if !literal_is_i53(value) => {
             errors.push(CheckError {
+                site: None,
                 code: "E_OPAQUE".to_owned(),
                 message: "literal contains an integer outside the i53 value model".to_owned(),
                 rewrite: "use integers from -9007199254740991 through 9007199254740991".to_owned(),
@@ -820,6 +842,7 @@ fn validate_write_expression(
                 StaticType::Unknown | StaticType::Json | StaticType::Row(_) | StaticType::Object
             ) {
                 errors.push(CheckError {
+                    site: None,
                     code: "E_ARGS_TYPE".to_owned(),
                     message: format!("write to {table_name} requires a row object"),
                     rewrite: format!("write an object whose fields match {table_name}"),
@@ -844,6 +867,7 @@ fn validate_write_value(
     let fact = static_expression_fact(schema, program, expression, bindings, &mut BTreeSet::new());
     if fact.invalid_id_arithmetic {
         errors.push(CheckError {
+            site: None,
             code: "E_ARGS_ID_TEXT".to_owned(),
             message: format!("{table}.{field} applies numeric addition to an Id scalar"),
             rewrite: "keep each Id in a separate Id/Ref field instead of adding it".to_owned(),
@@ -859,6 +883,7 @@ fn write_type_error(table: &str, field: &str, expected: &ColumnType) -> CheckErr
         ColumnType::Id | ColumnType::Principal | ColumnType::Ref { .. }
     );
     CheckError {
+        site: None,
         code: if id_position {
             "E_ARGS_ID_SCALAR"
         } else {
@@ -1218,6 +1243,7 @@ fn register_site(
     if let Some(existing) = sites.get(site) {
         if existing != &shape {
             errors.push(CheckError {
+                site: None,
                 code: "E_TRACE_SUBSET".to_owned(),
                 message: format!(
                     "read site {site} is reused for incompatible shapes {existing:?} and {shape:?}"
@@ -1242,6 +1268,7 @@ fn literal_is_i53(value: &Value) -> bool {
 fn validate_read(checker: &Checker<'_>, table: &str, index: &str, errors: &mut Vec<CheckError>) {
     let error = if table.starts_with('_') {
         Some(CheckError {
+            site: None,
             code: "E_SCHEMA_RESERVED".to_owned(),
             message: format!("program reads reserved table {table}"),
             rewrite: "use the dedicated runtime verb for engine-owned data".to_owned(),
@@ -1253,6 +1280,7 @@ fn validate_read(checker: &Checker<'_>, table: &str, index: &str, errors: &mut V
         .is_none()
     {
         Some(CheckError {
+            site: None,
             code: "E_UNBOUND_SCAN".to_owned(),
             message: format!("read requires missing index {table}.{index}"),
             rewrite: "declare the composite index in the schema".to_owned(),
@@ -1277,6 +1305,7 @@ fn validate_point_key_arity(checker: &Checker<'_>, read: &Read, errors: &mut Vec
         return;
     }
     errors.push(CheckError {
+        site: None,
         code: "E_ARGS_TYPE".to_owned(),
         message: format!(
             "point read {} key supplies {} components but {}.{} has {} columns",

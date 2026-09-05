@@ -332,13 +332,22 @@ fn complete_loop_tests_capacity_even_when_a_small_group_exhausts() {
         .unwrap();
     assert!(cert.read_sites[0].complete);
     let mut unpinned = p.clone();
-    if let Stmt::For { domain: LoopDomain::Page(scan), .. } = &mut unpinned.body[0] {
+    if let Stmt::For {
+        domain: LoopDomain::Page(scan),
+        ..
+    } = &mut unpinned.body[0]
+    {
         scan.prefix.clear();
     }
-    let refusal = Checker::new(&schema, Ceilings::default()).check(&unpinned).unwrap_err();
+    let refusal = Checker::new(&schema, Ceilings::default())
+        .check(&unpinned)
+        .unwrap_err();
     assert_eq!(refusal.code, "E_STRUCTURAL_FANOUT");
     assert!(refusal.rewrite.starts_with("pin a declared group"));
-    assert!(!refusal.rewrite.starts_with("cap "), "a cap alone cannot repair an unpinned loop");
+    assert!(
+        !refusal.rewrite.starts_with("cap "),
+        "a cap alone cannot repair an unpinned loop"
+    );
     let mut cut = cert.clone();
     cut.max_examined = 1;
     let error = engine.execute(&p, &cut, context()).unwrap_err();
@@ -447,3 +456,6 @@ fn loop_back_edge_cannot_hide_a_page_transformation() {
         )
     );
 }
+
+#[path = "cap/review.rs"]
+mod review;

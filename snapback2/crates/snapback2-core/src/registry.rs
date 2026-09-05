@@ -139,6 +139,7 @@ impl Generation {
             errors.push((
                 "schema".to_owned(),
                 CheckError {
+                    site: None,
                     code: "E_SCHEMA_RESERVED".to_owned(),
                     message: format!("schema declares reserved table {table}"),
                     rewrite: "rename the table without a leading '_'".to_owned(),
@@ -166,6 +167,7 @@ impl Generation {
                 errors.push((
                     format!("schema.{table}"),
                     CheckError {
+                        site: None,
                         code: "E_SCHEMA_RESERVED".to_owned(),
                         message: format!("rule reads reserved table {reserved}"),
                         rewrite: "use rule.system() or an application-owned relation in rules"
@@ -182,6 +184,7 @@ impl Generation {
                 errors.push((
                     format!("channel.{channel}"),
                     CheckError {
+                        site: None,
                         code: "E_SCHEMA_RESERVED".to_owned(),
                         message: format!("channel rule reads reserved table {reserved}"),
                         rewrite: "authorize the channel from application-owned relations"
@@ -197,6 +200,7 @@ impl Generation {
                 errors.push((
                     format!("schema.{table_name}"),
                     CheckError {
+                        site: None,
                         code: "E_SCHEMA_ID_RESERVED".to_owned(),
                         message: format!(
                             "table {table_name} must declare the implicit id column as Id"
@@ -210,6 +214,7 @@ impl Generation {
                     errors.push((
                         format!("schema.{table_name}"),
                         CheckError {
+                            site: None,
                             code: "E_SCHEMA_INDEX_COLUMN".to_owned(),
                             message: format!(
                                 "index {table_name}.{index_name} must declare between 1 and 8 columns"
@@ -223,6 +228,7 @@ impl Generation {
                         errors.push((
                             format!("schema.{table_name}"),
                             CheckError {
+                                site: None,
                                 code: "E_SCHEMA_INDEX_COLUMN".to_owned(),
                                 message: format!(
                                     "index {table_name}.{index_name} names undeclared column {column}"
@@ -240,6 +246,7 @@ impl Generation {
                         errors.push((
                             format!("schema.{table_name}"),
                             CheckError {
+                                site: None,
                                 code: "E_SCHEMA_INDEX_COLUMN".to_owned(),
                                 message: format!(
                                     "index {table_name}.{index_name} cannot use non-indexable column {column}"
@@ -266,6 +273,7 @@ impl Generation {
                     None => errors.push((
                         format!("schema.{table_name}"),
                         CheckError {
+                            site: None,
                             code: "E_SCHEMA_CONSTRAINT".to_owned(),
                             message: format!(
                                 "text constraint names non-text or missing column {table_name}.{field}"
@@ -277,6 +285,7 @@ impl Generation {
                     Some(max) if *min > max => errors.push((
                         format!("schema.{table_name}"),
                         CheckError {
+                            site: None,
                             code: "E_SCHEMA_CONSTRAINT".to_owned(),
                             message: format!(
                                 "text constraint minimum {min} exceeds {table_name}.{field} maximum {max}"
@@ -293,6 +302,7 @@ impl Generation {
             (
                 format!("schema.maintains[{}]", issue.position),
                 CheckError {
+                    site: None,
                     code: "E_SCHEMA_MAINTAIN".to_owned(),
                     message: issue.message,
                     rewrite:
@@ -354,6 +364,7 @@ impl Generation {
                 errors.push((
                     effect.name.clone(),
                     CheckError {
+                        site: None,
                         code: "E_EFFECT_DUPLICATE".to_owned(),
                         message: format!("effect {} is declared more than once", effect.name),
                         rewrite: "keep one declaration for each effect name".to_owned(),
@@ -366,6 +377,7 @@ impl Generation {
                 errors.push((
                     "schema.effects".to_owned(),
                     CheckError {
+                        site: None,
                         code: "E_EFFECT_UNDECLARED".to_owned(),
                         message: format!(
                             "schema names effect {effect} without a project effect declaration"
@@ -386,6 +398,7 @@ impl Generation {
                 errors.push((
                     program.name.clone(),
                     CheckError {
+                        site: None,
                         code: "E_OP_DUPLICATE".to_owned(),
                         message: format!("program {} is declared more than once", program.name),
                         rewrite: "give every exported program one qualified name".to_owned(),
@@ -410,6 +423,7 @@ impl Generation {
                     errors.push((
                         program.name.clone(),
                         CheckError {
+                            site: None,
                             code: "E_EFFECT_UNKNOWN".to_owned(),
                             message: format!(
                                 "program {} emits undeclared effect {effect}",

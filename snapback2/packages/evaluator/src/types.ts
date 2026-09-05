@@ -71,6 +71,7 @@ export interface PreludeStep {
 }
 
 export interface CorpusExpected {
+  errorReason?: string;
   localResult: Value | null;
   errorCode: string | null;
   localState: string;
@@ -83,6 +84,7 @@ export interface CorpusExpected {
 }
 
 export interface CorpusCase {
+  serverOnly?: boolean;
   corpusVersion: number;
   name: string;
   category: string;

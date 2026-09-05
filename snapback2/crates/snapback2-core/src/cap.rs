@@ -91,6 +91,7 @@ pub(crate) fn schema_errors(schema: &Schema) -> Vec<(String, CheckError)> {
                 errors.push((
                     format!("schema.tables.{name}.constraints[{position}]"),
                     CheckError {
+                        site: None,
                         code: "E_SCHEMA_CONSTRAINT".to_owned(),
                         message,
                         rewrite,

@@ -188,11 +188,11 @@ function sameMutationCounts(left: CollectionMutationCounts, right: CollectionMut
 }
 
 export function recordLoopSite(env: Environment, statement: ts.ForOfStatement, binding: string): Environment {
-    let ordinal = 0;
-    while (env.sourceSites?.[`${env.programName}/for/${binding}/${ordinal}`]) ordinal++;
-    if (env.sourceSites) {
-      const position = env.sourceFile.getLineAndCharacterOfPosition(statement.getStart());
-      env.sourceSites[`${env.programName}/for/${binding}/${ordinal}`] = { file: env.fileName, line: position.line + 1, col: position.character + 1 };
-    }
+  let ordinal = 0;
+  while (env.sourceSites?.[`${env.programName}/for/${binding}/${ordinal}`]) ordinal++;
+  if (env.sourceSites) {
+    const position = env.sourceFile.getLineAndCharacterOfPosition(statement.getStart());
+    env.sourceSites[`${env.programName}/for/${binding}/${ordinal}`] = { file: env.fileName, line: position.line + 1, col: position.character + 1 };
+  }
   return env;
 }

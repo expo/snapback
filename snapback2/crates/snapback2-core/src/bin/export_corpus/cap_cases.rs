@@ -1,7 +1,10 @@
 //! LLP 1017 cap enforcement and page-origin admission, shared with the twin.
 use super::*;
+#[path = "cap_review_cases.rs"]
+mod review;
 
 pub(super) fn add_cap_cases(cases: &mut Vec<CorpusCase>) {
+    review::add(cases);
     let schema = schema(50);
     for (name, count, upsert) in [
         ("cap-metered-insert", 49, false),
@@ -80,7 +83,16 @@ pub(super) fn add_cap_cases(cases: &mut Vec<CorpusCase>) {
         None,
     ));
 
-    for mode in ["direct", "binding", "longer-prefix", "shape"] {
+    for mode in [
+        "direct",
+        "binding",
+        "const",
+        "assign",
+        "longer-prefix",
+        "shape",
+        "boundary-50",
+        "insert-to-50",
+    ] {
         let name = format!("fanout-complete-{mode}");
         let mut scan = scan("members.page");
         if mode == "longer-prefix" {
@@ -88,10 +100,26 @@ pub(super) fn add_cap_cases(cases: &mut Vec<CorpusCase>) {
             scan.index = "byConversationRole".into();
         }
         let mut body = Vec::new();
-        let domain = if mode == "binding" || mode == "shape" {
-            body.push(Stmt::Let {
-                name: "page".into(),
-                value: Expr::Scan(scan.clone()),
+        if mode == "insert-to-50" {
+            body.push(Stmt::Insert {
+                table: "memberships".into(),
+                row: Expr::Literal(member(49, false)),
+            });
+        }
+        let domain = if matches!(mode, "binding" | "shape" | "const" | "assign") {
+            body.push(match mode {
+                "const" => Stmt::Const {
+                    name: "page".into(),
+                    value: Expr::Scan(scan.clone()),
+                },
+                "assign" => Stmt::Assign {
+                    name: "page".into(),
+                    value: Expr::Scan(scan.clone()),
+                },
+                _ => Stmt::Let {
+                    name: "page".into(),
+                    value: Expr::Scan(scan.clone()),
+                },
             });
             if mode == "shape" {
                 body.push(Stmt::Let {
@@ -117,7 +145,14 @@ pub(super) fn add_cap_cases(cases: &mut Vec<CorpusCase>) {
         body.push(fanout(domain));
         let p = program(&name, body);
         let mut engine = Engine::memory(schema.clone()).unwrap();
-        for n in 0..3 {
+        let count = if mode == "boundary-50" {
+            50
+        } else if mode == "insert-to-50" {
+            49
+        } else {
+            3
+        };
+        for n in 0..count {
             engine.seed("memberships", member(n, false)).unwrap();
         }
         let receipt = snapshot(&mut engine, &schema, scan);
@@ -127,7 +162,10 @@ pub(super) fn add_cap_cases(cases: &mut Vec<CorpusCase>) {
         assert!(cert.read_sites.iter().any(|s| s.complete));
         let execution = engine.execute(&p, &cert, context()).unwrap();
         assert!(matches!(execution.state, ExecutionState::Committed { .. }));
-        assert_eq!(engine.rows("deliveries").unwrap().len(), 3);
+        assert_eq!(
+            engine.rows("deliveries").unwrap().len(),
+            if mode == "insert-to-50" { 50 } else { count }
+        );
         let case = case_from_parts(
             &name,
             "fanout",
@@ -259,7 +297,19 @@ pub(super) fn add_cap_cases(cases: &mut Vec<CorpusCase>) {
             ("choice".into(), ArgType::Bool),
             ("c".into(), ArgType::Optional(Box::new(ArgType::Cursor))),
         ]);
-        cases.push(refused(&name, schema, p));
+        let reason = match mode {
+            "uncapped" | "binding-uncapped" => "has no cap over conversationId",
+            "below-cap" => "bound 50 is below cap 100",
+            "argument-bound" => "the bound is an argument",
+            "nonuniform-rule" => "the read rule is not uniform",
+            "nonuniform-elsewhere" => {
+                "the non-uniform scan at elsewhere can spend the budget this loop needs"
+            }
+            "merge" => "a merge page has no union proof",
+            "cursor" => "the loop reads after a cursor",
+            _ => "`page` is not a single page scan",
+        };
+        cases.push(refused(&name, schema, p, "E_STRUCTURAL_FANOUT", reason));
     }
     let mut uncapped = schema.clone();
     uncapped
@@ -411,16 +461,19 @@ fn snapshot(engine: &mut Engine, schema: &Schema, scan: Scan) -> ClosureReceipt 
     let cert = Checker::new(schema, Ceilings::default()).check(&p).unwrap();
     engine.execute(&p, &cert, context()).unwrap().receipt
 }
-fn refused(name: &str, schema: Schema, program: Program) -> CorpusCase {
+fn refused(name: &str, schema: Schema, program: Program, code: &str, reason: &str) -> CorpusCase {
     let error = Checker::new(&schema, Ceilings::default())
         .check_all(&program)
         .unwrap_err();
     assert!(
-        error.iter().any(|e| e.code == "E_STRUCTURAL_FANOUT"),
+        error
+            .iter()
+            .any(|e| e.code == code && e.message.contains(reason)),
         "{name}: {error:?}"
     );
-    let envelope = json!({"Error": "E_STRUCTURAL_FANOUT"});
+    let envelope = json!({"Error": code});
     CorpusCase {
+        server_only: true,
         corpus_version: CORPUS_VERSION,
         name: name.into(),
         category: "fanout".into(),
@@ -433,8 +486,9 @@ fn refused(name: &str, schema: Schema, program: Program) -> CorpusCase {
         prelude: vec![],
         replacement_receipt: None,
         expected: Expected {
+            error_reason: Some(reason.into()),
             local_result: None,
-            error_code: Some("E_STRUCTURAL_FANOUT".into()),
+            error_code: Some(code.into()),
             local_state: "certification-refused".into(),
             partial_sites: vec![],
             canonical_result: serde_json::to_string(&envelope).unwrap(),

@@ -15,6 +15,7 @@ pub(super) fn validate_scan_cursors(
     };
     if scan.prefix.len() > index.columns.len() {
         errors.push(CheckError {
+            site: None,
             code: "E_ARGS_TYPE".to_owned(),
             message: format!(
                 "scan {} prefix supplies {} components but {}.{} has {} columns",
@@ -49,6 +50,7 @@ pub(super) fn validate_scan_cursors(
                     .contains(scan.merge_site.as_deref().unwrap_or_default())
         }) {
             errors.push(CheckError {
+                site: None,
                 code: "E_ARGS_CURSOR_INDEX".to_owned(),
                 message: format!(
                     "pageable merge {} uses {}.{}, whose index does not end in intrinsic id",
@@ -73,6 +75,7 @@ pub(super) fn validate_scan_cursors(
                 continue;
             }
             errors.push(CheckError {
+                site: None,
                 code: "E_ARGS_CURSOR_SHAPE".to_owned(),
                 message: format!(
                     "scan {}.{} prefix names every index column, so a cursor has no position to compare; remove after/before or shorten the prefix",
@@ -98,6 +101,7 @@ pub(super) fn validate_scan_cursors(
             .collect::<Vec<_>>()
             .join(", ");
         errors.push(CheckError {
+            site: None,
             code: "E_ARGS_CURSOR_INDEX".to_owned(),
             message: format!(
                 "scan {} uses a cursor on {}.{}, whose index is not a total order (it neither ends in id nor is unique)",
@@ -127,6 +131,7 @@ pub(super) fn validate_scan_cursors(
         if scan.opaque_cursor {
             if bound != "after" || !matches!(unwrap_static_type(&fact.kind), StaticType::Cursor) {
                 errors.push(CheckError {
+                    site: None,
                     code: "E_ARGS_TYPE".to_owned(),
                     message: format!(
                         "scan {} opaque cursor must be an after expression typed Cursor",
@@ -141,6 +146,7 @@ pub(super) fn validate_scan_cursors(
         let expected = remaining_columns.len();
         if expected == 1 && matches!(fact.kind, StaticType::Object) {
             errors.push(CheckError {
+                site: None,
                 code: "E_ARGS_CURSOR_SHAPE".to_owned(),
                 message: format!(
                     "scan {} {bound} cursor must be an indexable scalar",
@@ -164,6 +170,7 @@ pub(super) fn validate_scan_cursors(
         };
         if shape_matches == Some(false) {
             errors.push(CheckError {
+                site: None,
                 code: "E_ARGS_CURSOR_SHAPE".to_owned(),
                 message: format!(
                     "scan {} {bound} cursor must contain exactly {expected} value(s), one for each remaining {}.{} index column",
@@ -187,6 +194,7 @@ pub(super) fn validate_scan_cursors(
             };
             if cursor_static_type_matches_column(actual, expected) == Some(false) {
                 errors.push(CheckError {
+                    site: None,
                     code: "E_ARGS_TYPE".to_owned(),
                     message: format!(
                         "scan {} {bound} cursor component {} is {} but {}.{} column {} is {}",

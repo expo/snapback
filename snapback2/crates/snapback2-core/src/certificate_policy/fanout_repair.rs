@@ -27,21 +27,82 @@ pub(super) fn scan_text(scan: &Scan, index: Option<&str>) -> String {
     )
 }
 
-pub(super) fn prefix(schema: &Schema, scan: &Scan, binding: Option<&str>) -> String {
-    let table = &schema.tables[&scan.table];
-    let index = &table.indexes[&scan.index];
-    let mut columns = index.columns[..scan.prefix.len()].to_vec();
+pub(super) fn missing(scan: &Scan) -> String {
+    format!(
+        "declare table {} and index {} before scanning it",
+        scan.table, scan.index
+    )
+}
+
+fn safe_value(program: &Program, value: &Expr) -> bool {
+    match value {
+        Expr::Input(Input::Viewer) => true,
+        Expr::Literal(
+            Value::Null | Value::Bool(_) | Value::Int(_) | Value::String(_) | Value::Id(_),
+        ) => true,
+        Expr::Variable(name) if program.args.contains_key(name) => {
+            let mut writes = BTreeMap::new();
+            bindings::collect(&program.body, true, &mut writes);
+            !writes.contains_key(name)
+        }
+        _ => false,
+    }
+}
+
+pub(super) fn executable(program: &Program, scan: &Scan) -> bool {
+    scan.prefix.iter().all(|v| safe_value(program, v))
+        && scan.after.as_deref().is_none_or(|v| safe_value(program, v))
+        && scan.before.is_none()
+        && scan.range.is_none()
+        && match &scan.take {
+            Bound::Literal(_) => true,
+            Bound::Arg { name, .. } => safe_value(program, &Expr::Variable(name.clone())),
+        }
+}
+
+pub(super) fn prefix(
+    schema: &Schema,
+    program: &Program,
+    scan: &Scan,
+    binding: Option<&str>,
+) -> String {
+    let Some(table) = schema.table(&scan.table) else {
+        return missing(scan);
+    };
+    let Some(index) = table.index(&scan.index) else {
+        return missing(scan);
+    };
+    let Some(pinned) = index.columns.get(..scan.prefix.len()) else {
+        return missing(scan);
+    };
+    let mut columns = pinned.to_vec();
     let mut fields = BTreeSet::new();
     rule_fields(&table.rules.read, &mut fields);
+    let direction = |field: &str| {
+        format!("denormalize {field} into the index prefix and pin it from an argument or `viewer`")
+    };
     let mut repaired = scan.clone();
     for field in fields {
         if columns.contains(&field) {
             continue;
         }
-        columns.push(field.clone());
-        repaired
-            .prefix
-            .push(pinned_value(&table.rules.read, &field).unwrap_or(Expr::Variable(field)));
+        let Some(value) = pinned_value(&table.rules.read, &field) else {
+            return direction(&field);
+        };
+        if !safe_value(program, &value) {
+            return direction(&field);
+        }
+        columns.push(field);
+        repaired.prefix.push(value);
+    }
+    if !executable(program, &repaired) {
+        let field = columns
+            .iter()
+            .zip(&repaired.prefix)
+            .find(|(_, value)| !safe_value(program, value))
+            .map(|(field, _)| field.as_str())
+            .unwrap_or("the rule inputs");
+        return direction(field);
     }
     for field in &index.columns {
         if !columns.contains(field) {

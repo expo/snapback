@@ -185,7 +185,7 @@ const guidePages = await Promise.all(
     limit: name === "grammar" ? 2560 : name === "quarry" ? 15360 : name === "offline" ? 4352 : 4096,
   })),
 );
-const guideErrors = [...familyErrors, ...guideFailures(guidePages, tsFixtureText, quarryFixtureText, parseDocument)];
+const guideErrors = [...familyErrors, ...quarryFamilyFailures(families, parseDocument), ...guideFailures(guidePages, tsFixtureText, quarryFixtureText, parseDocument)];
 if (guideErrors.length > 0) {
   throw new Error(`guide validation failed:\n${guideErrors.join("\n")}`);
 }
@@ -215,6 +215,7 @@ if (snapshot) {
 
 if (process.argv.includes("--self-test")) {
   const failures = [
+    ...quarryFamilyFailures([{ family: "bound", language: "q", code: "E_BAD_CAP", right: "cap 50 by conversationId // invalid" }], parseDocument),
     ...familyFailures([
       { family: "first", code: "E_ONE", wrong: "wrong", right: "right" },
       { family: "second", code: "E_ONE", wrong: "", right: "" },
@@ -227,7 +228,8 @@ if (process.argv.includes("--self-test")) {
     { name: "invalid-quarry", markdown: "```q\nquery broken():\n```", limit: 100 },
     ], "present()", "query okay():\n  return null\nquery broken():", parseDocument),
   ];
-  if (!failures.some((item) => item.includes("families.source.json[1]"))
+  if (!failures.some((item) => item.includes("E_BAD_CAP"))
+    || !failures.some((item) => item.includes("families.source.json[1]"))
     || !failures.some((item) => item.includes("duplicate code"))
     || !failures.some((item) => item.includes("oversized"))
     || !failures.some((item) => item.includes("stale"))
@@ -363,6 +365,24 @@ function familyFailures(value) {
     if (count > 1) failures.push(`guide/families.source.json: duplicate code ${code}`);
   }
   return failures;
+}
+
+// The same language selection as guide.rs; fragments get only a syntax wrapper.
+function quarryFamilyFailures(rows, parseDocument) {
+  return rows.flatMap((row) => {
+    if (row.family !== "quarry" && row.language !== "q"
+      && ![row.wrong, row.right].some((text) => text?.startsWith("```q"))) return [];
+    const code = row.right.replace(/^```q\n/, "").replace(/\n```$/, "");
+    let fragment = code;
+    if (/^(cap |by |unique |immutable |read <-|retain )/.test(code)) {
+      fragment = `table example:\n  ${code.split("\n").join("\n  ")}\n`;
+    } else if (!/^(?:--[^\n]*\n)*(table |query |mutation |maintain |use |channel )/.test(code)) {
+      fragment = `mutation example():\n  ${code.split("\n").join("\n  ")}\n`;
+      if (code.trimEnd().endsWith(":")) fragment += "    return null\n";
+    }
+    return parseDocument(`guide/${row.code}.q`, fragment).diagnostics.length
+      ? [`guide/${row.code}: Quarry right example does not parse`] : [];
+  });
 }
 
 function guideFailures(pages, tsFixturesText, quarryFixturesText, parseDocument) {
