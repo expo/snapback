@@ -343,7 +343,10 @@ pub(crate) fn certify(
         // Reserve the progress write before checking the mutation's physical writes.
         let mut chunk_ceilings = ceilings.clone();
         chunk_ceilings.write_rows = chunk_ceilings.write_rows.saturating_sub(1);
-        match Checker::new(&owner_schema, chunk_ceilings).check_all(&chunk) {
+        match Checker::new(&owner_schema, chunk_ceilings)
+            .job_chunk()
+            .check_all(&chunk)
+        {
             Ok(mut certificate) => {
                 certificate.schema_hash = schema.hash();
                 certificate.write_sites.push(WriteSite {

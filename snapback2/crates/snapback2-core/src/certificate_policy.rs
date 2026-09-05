@@ -119,7 +119,11 @@ impl Checker<'_> {
                 e
             })
             .collect();
-        let (fanout_errors, complete) = fanout::check(self.schema, program);
+        let (fanout_errors, complete) = if self.job_chunk {
+            (Vec::new(), BTreeSet::new())
+        } else {
+            fanout::check(self.schema, program)
+        };
         errors.extend(fanout_errors);
         let mut sites = BTreeMap::new();
         let mut bindings = BTreeMap::new();

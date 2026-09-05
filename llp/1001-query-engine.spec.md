@@ -764,7 +764,9 @@ prove coverage. Admitted loops mark their read site `complete: true`; execution
 asserts fetch capacity (including rule-probe capacity) of at least `take + 2`,
 rejecting a budget cut atomically with `E_TRACE_SUBSET`. Certification otherwise
 refuses `E_STRUCTURAL_FANOUT`; queries and non-page domains retain their existing
-bounds (LLP 1017 §3).
+bounds, and a job's `chunk` body — certified as a synthetic mutation under the
+checker's job-chunk mode — is exempt because the job driver is its represented
+continuation (LLP 1017 §3; LLP 1016 D1).
 
 Text columns and `ArgType::Text` refuse C0 control characters other than tab,
 newline, and carriage return as `E_INPUT`, naming the code point and the

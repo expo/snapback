@@ -74,8 +74,11 @@ export function registerQuarryFanoutChecks(test: Test, frontend: string): void {
     assert(checked && !checked.error && checked.certificate, `groupCreate refused: ${JSON.stringify(checked)}`);
     const uncapped = structuredClone(chat.project.schema) as any;
     uncapped.tables.memberships.constraints = uncapped.tables.memberships.constraints.filter((c: any) => !c.Cap);
+    // The baseline certifies one program, so the schema's schedule bindings (whose
+    // binding programs are not in that list) are dropped alongside the cap.
+    if (uncapped.schedules) uncapped.schedules = Array.isArray(uncapped.schedules) ? [] : {};
     const [baseline] = rustCheck([p], "synthetic", { ...uncapped, effects: [] });
-    assert(baseline && !baseline.error && baseline.certificate, "uncapped groupCreate baseline refused");
+    assert(baseline && !baseline.error && baseline.certificate, `uncapped groupCreate baseline refused: ${JSON.stringify(baseline?.error)}`);
     assert(Number(checked.certificate.max_examined) - Number(baseline.certificate.max_examined) === 50 * 50, "groupCreate did not reserve 50 × 50 examined");
     assert(Number(checked.certificate.max_index_entries) - Number(baseline.certificate.max_index_entries) === 50 * 50, "groupCreate did not reserve 50 × 50 index entries");
   });

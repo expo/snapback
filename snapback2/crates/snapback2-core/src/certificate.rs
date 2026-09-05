@@ -195,11 +195,21 @@ pub struct CheckError {
 pub struct Checker<'a> {
     pub(crate) schema: &'a Schema,
     ceilings: Ceilings,
+    /// The program is one chunk of a job (LLP 1016 D1): its page loop is a
+    /// continuation the driver carries across commits, so the mutation
+    /// fan-out rule does not apply to it.
+    pub(crate) job_chunk: bool,
 }
 
 impl<'a> Checker<'a> {
     pub fn new(schema: &'a Schema, ceilings: Ceilings) -> Self {
-        Self { schema, ceilings }
+        Self { schema, ceilings, job_chunk: false }
+    }
+
+    // @ref LLP 1017#35-what-has-no-spelling-after-this-and-where-it-goes — a job's chunk loop is the represented continuation the fan-out rule defers to.
+    pub fn job_chunk(mut self) -> Self {
+        self.job_chunk = true;
+        self
     }
 
     pub fn check(&self, program: &Program) -> Result<Certificate, CheckError> {
