@@ -1,6 +1,6 @@
 import type { ChannelDecl, Document, Expr, MaintainDecl, RuleDecl, ScalarType, Site, TableCatalog, TableDecl } from "./ast";
 import { orderedTables, selectIndex } from "./catalog";
-import { refuse, typeError } from "./diagnostics";
+import { currentRule, refuse, typeError } from "./diagnostics";
 
 type RuleContext = {
   names: Set<string>;
@@ -128,12 +128,12 @@ function emitRule(declaration: RuleDecl, catalog: TableCatalog, table?: TableDec
 }
 
 function ruleExpr(expr: Expr, catalog: TableCatalog, context: RuleContext): string {
+  currentRule(expr);
   if (expr.kind === "name") {
     if (expr.name === "allow") return "rule.allow()";
     if (expr.name === "deny") return "rule.deny()";
-    if (expr.name === "system") return "rule.system()";
     if (expr.name === "public") return 'rule.public("Quarry public rule")';
-    refuse(expr.site, `rule expression ${expr.name} is not allow, deny, public, system, or a supported predicate`);
+    refuse(expr.site, `rule expression ${expr.name} is not allow, deny, public, or a supported predicate`);
   }
   if (expr.kind === "unary" && expr.op === "not") return `rule.not(${ruleExpr(expr.value, catalog, context)})`;
   if (expr.kind === "binary" && (expr.op === "and" || expr.op === "or")) {

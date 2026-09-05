@@ -1,5 +1,4 @@
 import { typecheckSource } from "./compiler";
-import { IR_CONTRACT } from "./ir";
 import { lowerSchema } from "./lower/schema";
 import { lowerProject as lowerAuthoredProject, lowerSeed } from "./project";
 
@@ -292,15 +291,15 @@ export function registerRbacRuleChecks(
             rule.exists(grants, "byPrincipal", [rule.viewer]),
             rule.exists(profiles, "byId", [rule.field("profileId")]),
           ),
-          delete: rule.system(),
+          delete: rule.deny(),
         } });
       export default schema({ tables: { profiles, grants, docs } });`;
     const accepted = lowerSchema(valid, "snapback/schema.ts");
     assert(accepted.diagnostics.length === 0,
       `valid Principal rules refused: ${accepted.diagnostics.map((item) => item.message).join("; ")}`);
     assert(canonical((accepted.schema.tables.docs as any)?.rules?.delete)
-      === canonical({ Eq: ["Viewer", { Literal: { Id: IR_CONTRACT.systemPrincipalId } }] }),
-    "rule.system lost its reserved Principal lowering");
+      === canonical("Deny"),
+    "deny rule lost its lowering");
 
     const invalid = `import { schema, table, t, rule } from "snapback2";
       export const profiles = table({ columns: { name: t.text(40) } });

@@ -26,12 +26,16 @@ use std::time::{Duration, Instant};
 mod writer_assets;
 #[path = "writer_auth.rs"]
 mod writer_auth;
+#[path = "writer_data.rs"]
+mod writer_data;
 #[path = "writer_effects.rs"]
 mod writer_effects;
 #[path = "writer_ledger.rs"]
 mod writer_ledger;
 #[path = "writer_offline.rs"]
 mod writer_offline;
+#[path = "writer_operator.rs"]
+mod writer_operator;
 #[path = "writer_replay.rs"]
 mod writer_replay;
 #[path = "writer_resume.rs"]
@@ -51,6 +55,7 @@ use writer_values::{channel_args, frame_digest, json_as_kind, operation_args};
 pub enum Identity {
     Bearer(String),
     Persona(String),
+    Operator { by: String },
     Carrier(String),
     Anonymous,
 }
@@ -60,6 +65,7 @@ impl fmt::Debug for Identity {
         match self {
             Self::Bearer(_) => formatter.write_str("Bearer(<redacted>)"),
             Self::Persona(name) => formatter.debug_tuple("Persona").field(name).finish(),
+            Self::Operator { by } => formatter.debug_struct("Operator").field("by", by).finish(),
             Self::Carrier(_) => formatter.write_str("Carrier(<redacted>)"),
             Self::Anonymous => formatter.write_str("Anonymous"),
         }
@@ -637,7 +643,15 @@ impl State {
                 migration,
                 seed,
                 cache,
-            } => self.apply(compiled, migration, seed, cache),
+            } => {
+                let generation = compiled.generation.hash();
+                let result = self.apply(compiled, migration, seed, cache);
+                if let Err(refusal) = &result {
+                    self.phase = json!({ "state": "refused", "generation": generation, "refused": [refusal] });
+                    crate::watch::log(&self.root, self.phase.clone());
+                }
+                result
+            }
             Action::PublishOwner => self.publish_owner(),
             Action::Fork { path } => {
                 if let Some(parent) = path.parent() {
@@ -877,6 +891,11 @@ impl State {
         offline: OfflineOptions,
         replay: Option<Json>,
     ) -> Result<Json, Refusal> {
+        if let Identity::Operator { by } = identity {
+            self.operation_kind(op, expected)?;
+            let execution = self.operator_execution(op, args, by)?;
+            return Ok(writer_operator::operator_json(&execution));
+        }
         // Only the mutation route accepts replay. Resolve its live authority
         // before consulting the ledger; a terminal belongs to the principal
         // even when a successor removed or changed the original program.
@@ -1302,147 +1321,6 @@ impl State {
     fn publish_owner(&self) -> Result<Json, Refusal> {
         crate::owner::write_owner_if_active(&self.root, &self.owner, self.exited)?;
         Ok(json!({ "ok": true, "exited": self.exited }))
-    }
-
-    fn data(
-        &mut self,
-        table_name: String,
-        index_name: String,
-        prefix: Json,
-        after: Option<Json>,
-        limit: u32,
-        identity: Identity,
-    ) -> Result<Json, Refusal> {
-        if limit == 0 || limit > 500 {
-            return Err(Refusal::input(
-                "data limit must be between 1 and 500",
-                "pass --limit 1..500",
-            ));
-        }
-        let table = self
-            .runtime()
-            .generation()
-            .schema()
-            .tables
-            .get(&table_name)
-            .cloned()
-            .ok_or_else(|| {
-                Refusal::new(
-                    "E_SCHEMA_TABLE_UNKNOWN",
-                    "schema",
-                    format!("unknown table {table_name}"),
-                    "use a table listed by /api/manifest",
-                    "schema/tables",
-                )
-            })?;
-        let certified_limit = max_certified_page_rows(
-            self.runtime().generation().schema(),
-            &table_name,
-            &Ceilings::default(),
-        )
-        .min(500);
-        if certified_limit == 0 {
-            return Err(Refusal::new(
-                "E_BOUND",
-                "bound",
-                format!("declared rows from {table_name} exceed the data output ceiling"),
-                "lower the table's declared serialized row maximum",
-                "bound/output",
-            ));
-        }
-        let limit = limit.min(certified_limit);
-        let index = table.indexes.get(&index_name).ok_or_else(|| {
-            Refusal::new(
-                "E_SCHEMA_INDEX_UNKNOWN",
-                "schema",
-                format!("unknown index {table_name}.{index_name}"),
-                "use an index declared by the table",
-                "schema/indexes",
-            )
-        })?;
-        let prefix_values = prefix.as_array().ok_or_else(|| {
-            Refusal::input("data prefix must be a JSON array", "pass --prefix '[...]'")
-        })?;
-        if prefix_values.len() > index.columns.len() {
-            return Err(Refusal::input(
-                "data prefix is longer than the index key",
-                "remove extra prefix values",
-            ));
-        }
-        let mut converted = Vec::new();
-        for (position, value) in prefix_values.iter().enumerate() {
-            let column = table
-                .columns
-                .get(&index.columns[position])
-                .expect("certified index column");
-            converted.push(json_as_kind(value, column)?);
-        }
-        if index.columns.last().map(String::as_str) != Some("id") && !index.unique {
-            return Err(Refusal::input(
-                format!("data index {table_name}.{index_name} does not end in intrinsic id"),
-                "choose a total-order index that is unique or ends in id",
-            ));
-        }
-        let pageable = prefix_values.len() < index.columns.len();
-        let cursor_value = match after {
-            Some(Json::String(token)) => Value::String(token),
-            Some(_) => {
-                return Err(Refusal::input(
-                    "data after must be an opaque cursor token",
-                    "pass --after <token>",
-                ));
-            }
-            None => Value::Null,
-        };
-        let site = format!("<owner:data:{table_name}.{index_name}>");
-        let mut args = BTreeMap::new();
-        if pageable {
-            args.insert("c".to_owned(), ArgType::Optional(Box::new(ArgType::Cursor)));
-        } else if !matches!(cursor_value, Value::Null) {
-            return Err(Refusal::input(
-                "data after requires an index column after the prefix",
-                "shorten the prefix or omit --after",
-            ));
-        }
-        let program = Program {
-            name: format!("__owner.data.{table_name}"),
-            kind: ProgramKind::Query,
-            args,
-            read_time_granularity_ms: None,
-            result_page_site: pageable.then(|| site.clone()),
-            body: vec![Stmt::Return(Expr::Scan(Scan {
-                site,
-                table: table_name,
-                index: index_name,
-                prefix: converted.into_iter().map(Expr::Literal).collect(),
-                order: Order::Asc,
-                take: Bound::Literal(limit),
-                after: pageable.then(|| Box::new(Expr::Variable("c".to_owned()))),
-                before: None,
-                range: None,
-                opaque_cursor: pageable,
-                merge_site: None,
-                provenance: KeyProvenance::Const,
-            }))],
-        };
-        let authority = self.resolve_authority(identity)?;
-        let context = self.execution_context(
-            &authority,
-            if pageable {
-                BTreeMap::from([("c".to_owned(), cursor_value)])
-            } else {
-                BTreeMap::new()
-            },
-        )?;
-        let execution = self
-            .runtime_mut()
-            .execute_adhoc(&program, context)
-            .map_err(|error| Refusal::from_runtime(&error))?;
-        let mut response = execution_json(&execution);
-        if let Some(object) = response.as_object_mut() {
-            object.insert("trace".to_owned(), json!(execution.trace));
-        }
-        Ok(response)
     }
 
     fn rule_verdicts(&mut self, table_name: String, identity: Identity) -> Result<Json, Refusal> {

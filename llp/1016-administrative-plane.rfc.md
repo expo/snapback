@@ -850,3 +850,49 @@ membership-gated table.
 **Proposed next step:** a short blind READY check on this revision from two
 families, then the author's rulings on §9, then commissioning after the
 loop bar.
+
+
+**Implementation record — J1a (2026-09-05, codex gpt-6-astra; worktree
+implementation, orchestrator landing pending).** D1 now skips viewer rules
+for system point/range/merge/maintained reads and writes; exhaustion determines
+owner completeness, constraints and trace containment still bind, and the
+system receives no receipt. Proofs: `snapback2/crates/snapback2-core/tests/operator.rs:225`
+(range), `:248` (point), `:260` (deny insert, maintains, trace and ledger),
+`:306` (immutable/unique/update/delete), and
+`snapback2/crates/snapback2-core/src/engine/operator.rs:44` (containment and appendOnly).
+The word is deleted from parser, lowering, runtime, guides, and both chat
+fixtures (`snapback2/packages/compiler/src/quarry-checks.ts:28`); `then`
+writes deny-ruled bookkeeping and settles atomically
+(`snapback2/crates/snapback2/tests/owner_cases/effects.rs:51`). The declared
+operator entry and `--as system` on run/data/why use the secret-protected
+`POST /control/execute`, `/control/data`, and `/control/why`; mutations add
+`_commits.by` and `kind: operator`, reads log op/by, and why reports
+`system-visible` (`snapback2/crates/snapback2/tests/owner_cases/operator.rs:113`,
+`:333`; remote admission: `snapback2/crates/snapback2/src/control.rs:331`).
+D4 admits only outer optional removal with no null/absent rows and otherwise
+returns the count, ten-ID sample and fill skeleton through apply/migrate,
+status and watcher; tests: `snapback2/crates/snapback2-core/tests/successor_narrowing.rs:77`,
+`:99`, `:132`, and `snapback2/crates/snapback2/tests/owner_cases/operator.rs:253`,
+`:351`. Deviations: the new declared-op adapter is `/control/execute` because
+`/control/run` belongs to J3; by defaults to the owner's OS username as a dev
+persona name (control callers may supply by). Contrary to the lane brief's
+wire premise, `system` previously named the ordinary `dev:system` persona;
+it is now explicitly refused on `/api/*` and cannot become a persona.
+Ordinary mutation certification still refuses writes derived from a non-uniform
+scan (`certificate_policy.rs:327`); today's fill proof uses declared
+explicit-key operator mutations, leaving system sweep certification to J1b.
+The pasted job rewrite remains prose until that lane. No corpus case carries
+a system rule; existing corpus outputs are unchanged and were not regenerated.
+LLP 1001 §4 and LLP 1003 §2 carry dated amendments; no diagnostic code beyond
+§7's existing rows was added.
+
+Verification for this record: final `snapback2/scripts/test.sh` ran 529 Rust
+tests (527 passed), 301 package tests (all passed), 162 evaluator corpus
+cases (all passed), 305 compiler checks (all passed), and doctests (passed).
+Its exit is **1**, solely on the existing `dev --stop` owner tests at
+`snapback2/crates/snapback2/tests/owner.rs:706` and
+`snapback2/crates/snapback2/tests/owner_cases/wire_lifecycle.rs:540`: this
+sandbox denies the `ps` subprocess used by `owner.rs:751` to recognize an
+unreaped exited child. The orchestrator must rerun the gate outside that
+restriction before landing. Caps and ref-check pass; `check` on the chat
+fixture measured 0.526 s wall time (155.87 ms compiler), below one second.

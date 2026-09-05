@@ -18,6 +18,7 @@ const RECIPES: &[&str] = &[
     "effects",
     "offline",
     "personas",
+    "operator",
     "quarry",
     "testing",
     "offline",

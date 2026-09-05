@@ -215,7 +215,8 @@ function frontend(item: QuarryDiagnostic): FrontendDiagnostic {
     family: "quarry",
     message: item.message,
     site: `${item.file}:${item.line}:${item.col}`,
-    rewrite: `-- ${item.rewrite.replace(/\n/g, " ")}`,
+    rewrite: item.code === "E_QUARRY_UNSUPPORTED" && item.rewrite === "deny"
+      ? "deny" : `-- ${item.rewrite.replace(/\n/g, " ")}`,
     guide: item.guide,
   };
 }

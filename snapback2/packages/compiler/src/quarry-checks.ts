@@ -25,6 +25,21 @@ import ts from "typescript";
 
 export function registerQuarryChecks(test: Test, frontend: string): void {
   const fixtures = resolve(frontend, "fixtures");
+  test("removed system rule refuses in the parser with a deny rewrite", () => {
+    for (const rule of ["system", "allow or system", "not system", "(deny or system)"]) {
+      const parsed = parseDocument("snapback/schema.q", `table records:\n  value: int\n  insert <- ${rule}\n`);
+      const refusal = parsed.diagnostics.find((item) => item.code === "E_QUARRY_UNSUPPORTED");
+      assert(refusal?.rewrite === "deny", JSON.stringify(parsed.diagnostics));
+      assert(refusal?.message === "the system principal never consults rules; `deny` is what this meant", JSON.stringify(refusal));
+      assert(refusal?.line === 3 && Boolean(refusal.guide), JSON.stringify(refusal));
+      const compiled = compileInline([
+        { fileName: "snapback/schema.q", source: `table records:\n  value: int\n  insert <- ${rule}\n` },
+      ]);
+      assert(!compiled.ok && compiled.diagnostics.some((item) => item.code === "E_QUARRY_UNSUPPORTED" && item.rewrite === "deny" && item.family === "quarry"), JSON.stringify(compiled));
+
+    }
+  });
+
   test("Quarry todos and full surface lower in memory and certify", async () => {
     for (const [name, count] of [["quarry-todos", 2], ["quarry-surface", 26]] as const) {
       const lowered = await lowerProject(resolve(fixtures, name));

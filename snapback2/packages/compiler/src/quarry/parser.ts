@@ -21,7 +21,7 @@ import type {
   TableDecl,
 } from "./ast";
 import type { QuarryDiagnostic } from "./ast";
-import { QuarryError, refuse, retention, syntax, unsupported } from "./diagnostics";
+import { QuarryError, currentRule, refuse, retention, syntax, unsupported } from "./diagnostics";
 import { lex, type Token, type TokenKind } from "./lexer";
 import { quarryExpression } from "./program";
 
@@ -268,11 +268,11 @@ class Parser {
       value = this.parseFocalRuleValue(effect, effectToken);
     }
     this.newline();
-    return { effect, bindings, value, site: effectToken };
+    return { effect, bindings, value: currentRule(value), site: effectToken };
   }
 
   private parseFocalRuleValue(label: string, site: Site): Expr {
-    if (this.maybe("<-")) return this.expression(0, new Set(["<newline>"]));
+    if (this.maybe("<-")) return currentRule(this.expression(0, new Set(["<newline>"])));
     const binding = this.word().value;
     this.take("<-");
     const value = this.expression(0, new Set(["<newline>"]));
@@ -301,8 +301,8 @@ class Parser {
         if (key.value === "publish" || key.value === "subscribe") {
           this.take("<-");
           const value = this.expression(0, new Set(["<newline>"]));
-          if (key.value === "publish") publish = value;
-          else subscribe = value;
+          if (key.value === "publish") publish = currentRule(value);
+          else subscribe = currentRule(value);
         } else if (key.value === "ttl") {
           const amount = this.number();
           if (this.at("s")) this.take("s");

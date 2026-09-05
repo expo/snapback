@@ -361,9 +361,6 @@ function lowerRule(
   }
   if (name === "allow" && call.arguments.length === 0) return "Allow";
   if (name === "deny" && call.arguments.length === 0) return "Deny";
-  if (name === "system" && call.arguments.length === 0) {
-    return { Eq: ["Viewer", { Literal: { Id: IR_CONTRACT.systemPrincipalId } }] };
-  }
   if (name === "viewerIs" && call.arguments.length === 1 && stringValue(call.arguments[0])) {
     return { Eq: [{ Field: stringValue(call.arguments[0])! }, "Viewer"] };
   }

@@ -103,6 +103,9 @@ impl Refusal {
     }
 
     pub fn from_runtime(error: &RuntimeError) -> Self {
+        if let RuntimeError::Successor(refusal) = error {
+            return Self::from_successor(refusal);
+        }
         let code = error.code();
         let family = if code.starts_with("E_AUTH") {
             "auth"
@@ -146,6 +149,7 @@ impl Refusal {
 
     pub fn from_identity(error: &IdentityError) -> Self {
         let code = match error {
+            IdentityError::ReservedSystem => "E_AUTH_RESERVED",
             IdentityError::EmailTaken => "E_AUTH_EMAIL_TAKEN",
             IdentityError::PasswordWeak => "E_AUTH_PASSWORD_WEAK",
             IdentityError::Invalid => "E_AUTH_INVALID",
@@ -155,6 +159,7 @@ impl Refusal {
             IdentityError::Crypto(_) => "E_AUTH_CRYPTO",
         };
         let rewrite = match error {
+            IdentityError::ReservedSystem => "use --as system on run, data, or why against the local dev owner",
             IdentityError::PasswordWeak => "use a password containing at least 8 characters",
             IdentityError::GuestsOff => "sign up or enable guests in the project's snapback/schema",
             IdentityError::Session => "log in again and send Authorization: Bearer <token>",
@@ -163,8 +168,19 @@ impl Refusal {
         Self::new(code, "auth", error.to_string(), rewrite, "auth/identity")
     }
 
-    pub fn from_successor(error: &SuccessorRefusal) -> Self {
+    pub fn operator_required() -> Self {
         Self::new(
+            "E_OPERATOR_REQUIRED",
+            "operator",
+            "the operator seat requires a local dev control route",
+            "run it locally against `dev`, or with an `admin` token once `serve`-mode tokens exist",
+            "operator/seat",
+        )
+        .with_site("--as system")
+    }
+
+    pub fn from_successor(error: &SuccessorRefusal) -> Self {
+        let mut refusal = Self::new(
             &error.code,
             "successor",
             &error.message,
@@ -178,7 +194,16 @@ impl Refusal {
         .with_detail(
             "conflicts",
             serde_json::to_value(&error.conflicts).unwrap_or(Json::Array(Vec::new())),
-        )
+        );
+        if let Some(narrowing) = &error.narrowing {
+            refusal = refusal
+                .with_site(format!("{}.{}", narrowing.table, narrowing.column))
+                .with_detail("table", json!(narrowing.table))
+                .with_detail("column", json!(narrowing.column))
+                .with_detail("nullRows", json!(narrowing.null_rows))
+                .with_detail("sample", json!(narrowing.sample));
+        }
+        refusal
     }
 }
 
@@ -275,8 +300,18 @@ mod tests {
             assert_eq!(refusal.code, code);
             assert_eq!(refusal.family, "offline");
             assert_eq!(refusal.guide, "offline");
-            assert!(refusal.site.as_deref().is_some_and(|site| site.starts_with("/api/")));
-            assert!(refusal.rewrite.as_deref().is_some_and(|rewrite| !rewrite.is_empty()));
+            assert!(
+                refusal
+                    .site
+                    .as_deref()
+                    .is_some_and(|site| site.starts_with("/api/"))
+            );
+            assert!(
+                refusal
+                    .rewrite
+                    .as_deref()
+                    .is_some_and(|rewrite| !rewrite.is_empty())
+            );
         }
         let families: Json = serde_json::from_str(include_str!(
             "../../../packages/snapback2/guide/families.source.json"
@@ -284,9 +319,11 @@ mod tests {
         .unwrap();
         for code in OFFLINE_CODES {
             assert!(
-                families.as_array().unwrap().iter().any(|entry| {
-                    entry["code"] == code && entry["family"] == "offline"
-                }),
+                families
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|entry| { entry["code"] == code && entry["family"] == "offline" }),
                 "{code} is missing from guide/families.source.json"
             );
         }

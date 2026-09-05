@@ -682,9 +682,8 @@ impl<'a> Runner<'a> {
         old: Option<&Value>,
         next: &Value,
     ) -> Result<bool, RuntimeError> {
-        // @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — seed rows
-        // are engine-owned; user rules do not bind them, while write validation below does.
-        if self.context.seed_write {
+        // @ref LLP 1016#d1--the-system-principal-is-the-stores-owner — the owner skips all viewer rules, never write validation or trace accounting.
+        if self.context.viewer.is_system() {
             return Ok(true);
         }
         let table = self
@@ -832,7 +831,8 @@ impl<'a> Runner<'a> {
                     .iter()
                     .map(|term| self.rule_term(term, old, next))
                     .collect::<Result<Vec<_>, _>>()?;
-                let pinned_inputs_digest = crate::offline::created_inputs_digest(table, index, &key);
+                let pinned_inputs_digest =
+                    crate::offline::created_inputs_digest(table, index, &key);
                 let encoded_key = canonical_json(&key);
                 let result = self.created_points.iter().any(
                     |(created_table, created_index, created_key, _)| {

@@ -947,10 +947,8 @@ test("chat and todos lower schema, channels, effects, emit, API types, seed, and
   assert(chat.project.effects[0]?.name === "notifications.notify", "chat effect was not qualified");
   assert(chat.project.schema.effects[0] === "notifications.notify", "schema effect list differs");
   const notificationRules = (chat.project.schema.tables.notifications as any)?.rules;
-  const systemRule = { Eq: ["Viewer", { Literal: { Id: IR_CONTRACT.systemPrincipalId } }] };
-  assert(canonical(notificationRules?.insert) === canonical(systemRule)
-    && canonical(notificationRules?.update) === canonical(systemRule),
-  "chat effect bookkeeping must explicitly admit the system principal");
+  assert(notificationRules?.insert === "Deny" && notificationRules?.update === "Deny",
+    "chat effect bookkeeping denies viewers; system execution never consults rules");
   const profileShape = chat.project.schema.tables.profiles as any;
   const membershipShape = chat.project.schema.tables.memberships as any;
   assert(profileShape?.columns?.principal === "Principal"

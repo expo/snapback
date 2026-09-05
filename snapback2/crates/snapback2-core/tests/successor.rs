@@ -551,7 +551,7 @@ fn required_column_on_populated_table_is_refused() {
         .unwrap_err();
     assert_eq!(refusal.code, "E_SUCCESSOR_COLUMN_REQUIRED");
     assert!(refusal.message.contains("items.name"));
-    assert!(refusal.rewrite.contains("t.optional"));
+    assert!(["T?, apply", "--as system", "declare T and apply again"].iter().all(|step| refusal.rewrite.contains(step)));
 }
 
 #[test]

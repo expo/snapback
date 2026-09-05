@@ -55,7 +55,7 @@ place):
 |---|---|---|
 | `rows`, `index_entries` | as S1 | engine |
 | `_meta` | `key TEXT PK, value TEXT` — `schema_hash`, `generation`, `created_at`, `store_version`, lazy `id_namespace` and `id_high_water` | store |
-| `_commits` | `seq INTEGER PK, at INTEGER, program TEXT, principal TEXT, kind TEXT, touched TEXT(JSON), writes TEXT(JSON), emits INTEGER` — bounded: keep the last 10,000, trimmed on insert | engine |
+| `_commits` | `seq INTEGER PK, at INTEGER, program TEXT, principal TEXT, kind TEXT, by TEXT NULL, touched TEXT(JSON), writes TEXT(JSON), emits INTEGER` — bounded: keep the last 10,000, trimmed on insert | engine |
 | `_outbox` | `id TEXT PK, seq INTEGER, effect TEXT, payload TEXT(JSON), state TEXT, attempts INTEGER, next_at INTEGER, last_error TEXT, result TEXT(JSON), created_at INTEGER, updated_at INTEGER` + index on `(state, next_at)` | engine writes, LLP 1003 drains |
 | `_principals` | `id TEXT PK, kind TEXT ('user'\|'guest'\|'persona'\|'system'), name TEXT, created_at INTEGER` | identity |
 | `_credentials` | `principal TEXT PK, email TEXT UNIQUE, hash TEXT` | identity |
@@ -116,11 +116,15 @@ the same transaction:
 
 ```rust
 pub struct CommitRecord { pub seq: u64, pub at: i64, pub program: String, pub principal: String,
-                          pub kind: String /* "mutation" | "system" | "seed" */,
+                          pub kind: String /* "mutation" | "system" | "seed" | "operator" */,
+                          pub by: Option<String>,
                           pub touched: Vec<TouchedKey>, pub writes: BTreeMap<String, u64>, pub emits: u64 }
 ```
 
-Queries record nothing. `seq` is the store's version: every result, receipt,
+Operator mutations (LLP 1016 D1/D6, implemented J1a 2026-09-05) record
+`kind: "operator"` and `by`, a dev persona name today and a token id later.
+Operator reads record their op and attribution in the owner log; they do
+not append a commit. Queries record nothing in `_commits`. `seq` is the store's version: every result, receipt,
 and delivery carries the `seq` it was computed at.
 
 Certification and runtime containment count physical maintained-target writes,
@@ -268,6 +272,16 @@ error except for I/O or corruption); bound overruns (`Steps`, `Fanout`,
 the serde form of that field (LLP 1002 §4).
 
 ## 4. Generation and runtime (`registry.rs`, `successor.rs`)
+
+**Amendment 2026-09-05 (LLP 1016 D4, J1a):** Removing only the outer
+optional wrapper (`T?` → `T`, with the same non-optional `T`) is additive
+when every stored row has a non-null value; absence counts as null.
+Successor and migration application refuse `E_SUCCESSOR_NARROWING` with
+`table`, `column`, `nullRows`, and at most ten sample IDs, atomically keeping
+the previous generation and rows. The rewrite pastes the fill-job skeleton
+(job grammar follows in J1b; today fill with a declared operator mutation).
+A new required column's rewrite is declare `T?`, apply, fill, declare `T`,
+apply; `check` remains static and never opens the store.
 
 The compiler (LLP 1002 §3) emits one **project JSON**; the engine turns it
 into a generation:

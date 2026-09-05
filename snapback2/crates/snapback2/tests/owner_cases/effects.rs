@@ -48,14 +48,9 @@ fn default_owner_replays_then_pending_without_an_engine() {
 
 #[cfg(not(feature = "hermes"))]
 #[test]
-fn rule_denied_then_settles_sent_with_the_rejection_visible_in_trace() {
+fn then_writes_deny_ruled_bookkeeping_and_settles_sent() {
     let root = temp_root();
     copy_tree(&fixture().join("snapback"), &root.join("snapback"));
-    let schema = root.join("snapback/schema.q");
-    let source = fs::read_to_string(&schema)
-        .unwrap()
-        .replace("insert <- system", "insert <- deny");
-    fs::write(schema, source).unwrap();
     let binary = env!("CARGO_BIN_EXE_snapback2");
     let compiler = compiler(&root);
     let seq = seed_effect_row(
@@ -80,7 +75,10 @@ fn rule_denied_then_settles_sent_with_the_rejection_visible_in_trace() {
         let status = status(port, &secret);
         (status["effects"]["sent"] == 1).then_some(status)
     });
-    assert_eq!(settled["seq"], 1, "rule-rejected then writes no commit");
+    assert_eq!(
+        settled["seq"], 2,
+        "system then commits despite deny insert rule"
+    );
     let trace = request(
         port,
         "GET",
@@ -89,15 +87,32 @@ fn rule_denied_then_settles_sent_with_the_rejection_visible_in_trace() {
         json!({}),
     );
     assert_eq!(trace.body["outbox"]["rows"][0]["state"], "sent");
+    assert_eq!(trace.body["outbox"]["rows"][0]["lastError"], Value::Null);
+    let latest = request(
+        port,
+        "GET",
+        "/control/trace",
+        &[("X-Snapback-Control", &secret)],
+        json!({}),
+    );
+    assert_eq!(latest.body["commit"]["kind"], "system");
+    assert_eq!(latest.body["commit"]["writes"]["notifications"], 1);
+    let rows = request(
+        port,
+        "POST",
+        "/control/data",
+        &[("X-Snapback-Control", &secret)],
+        json!({ "table": "notifications", "as": "system" }),
+    );
     assert!(
-        trace.body["outbox"]["rows"][0]["lastError"]
-            .as_str()
-            .is_some_and(|error| error.starts_with("E_RULE:")),
-        "{}",
-        trace.body
+        rows.body["data"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|row| row["providerId"] == "denied-provider")
     );
 
-    stop_owner(port, &secret, &mut owner, "rule-denied then complete");
+    stop_owner(port, &secret, &mut owner, "system then complete");
     fs::remove_dir_all(root).unwrap();
 }
 

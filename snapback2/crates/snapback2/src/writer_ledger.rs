@@ -28,6 +28,9 @@ impl State {
         identity: Identity,
         query_only: bool,
     ) -> Result<Json, Refusal> {
+        if let Identity::Operator { by } = identity {
+            return self.operator_why(op, args, by, query_only);
+        }
         let authority = self.resolve_authority(identity)?;
         let kind = self
             .runtime()

@@ -165,7 +165,8 @@ impl WorkerClass {
             Self::Control
         } else if path == "/api/upload" {
             Self::Upload
-        } else if path == "/api/live" || path == "/api/subscribe"
+        } else if path == "/api/live"
+            || path == "/api/subscribe"
             || (path.starts_with("/api/channel/") && path.ends_with("/subscribe"))
         {
             Self::Sse
@@ -260,6 +261,10 @@ fn handle(mut request: Request, context: Context, streams: live::Streams) {
         );
         return;
     }
+    if header(&request, "X-Snapback-As").as_deref() == Some("system") {
+        respond_refusal(request, 403, Refusal::operator_required(), &context.mode);
+        return;
+    }
     if context.mode == "serve" && header(&request, "X-Snapback-As").is_some() {
         respond_refusal(
             request,
@@ -280,19 +285,6 @@ fn handle(mut request: Request, context: Context, streams: live::Streams) {
         return;
     }
     if path.starts_with("/control/") {
-        if !is_loopback(request.remote_addr().map(SocketAddr::ip)) {
-            respond_refusal(
-                request,
-                403,
-                Refusal::owner(
-                    "E_OWNER_CONTROL_REMOTE",
-                    "control routes are loopback only",
-                    "call the owner from the local machine",
-                ),
-                &context.mode,
-            );
-            return;
-        }
         if header(&request, "X-Snapback-Control").as_deref() != Some(&context.secret) {
             respond_refusal(
                 request,
@@ -313,6 +305,29 @@ fn handle(mut request: Request, context: Context, streams: live::Streams) {
                 return;
             }
         };
+        if body.get("as").and_then(Json::as_str) == Some("system")
+            && let Err(refusal) = control::operator_transport(
+                is_loopback(request.remote_addr().map(SocketAddr::ip)),
+                &context.mode,
+            )
+        {
+            respond_refusal(request, 403, refusal, &context.mode);
+            return;
+        }
+
+        if !is_loopback(request.remote_addr().map(SocketAddr::ip)) {
+            respond_refusal(
+                request,
+                403,
+                Refusal::owner(
+                    "E_OWNER_CONTROL_REMOTE",
+                    "control routes are loopback only",
+                    "call the owner from the local machine",
+                ),
+                &context.mode,
+            );
+            return;
+        }
         let control_context = control::Context {
             handle: context.handle.clone(),
             root: context.root.clone(),
@@ -348,7 +363,14 @@ fn handle(mut request: Request, context: Context, streams: live::Streams) {
     let identity = request_identity(&request);
     let bearer_token = bearer(&request).unwrap_or_default();
     if method == "POST" && (path == "/api/live" || path == "/api/live/control") {
-        live::handle(request, &context, streams, identity, body, path.ends_with("/control"));
+        live::handle(
+            request,
+            &context,
+            streams,
+            identity,
+            body,
+            path.ends_with("/control"),
+        );
         return;
     }
     match (method, path.as_str()) {
@@ -443,12 +465,9 @@ fn handle(mut request: Request, context: Context, streams: live::Streams) {
             },
             200,
         ),
-        ("POST", "/api/resume") => call_json(
-            request,
-            &context,
-            Action::Resume { body, identity },
-            200,
-        ),
+        ("POST", "/api/resume") => {
+            call_json(request, &context, Action::Resume { body, identity }, 200)
+        }
         ("GET", "/api/subscribe") => {
             let op = query.get("op").unwrap_or_default().to_owned();
             let args = match parse_query_json(query.get("args").unwrap_or("{}")) {

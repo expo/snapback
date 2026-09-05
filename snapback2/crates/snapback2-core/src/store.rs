@@ -48,6 +48,7 @@ pub struct CommitRecord {
     pub program: String,
     pub principal: String,
     pub kind: String,
+    pub by: Option<String>,
     pub touched: Vec<TouchedKey>,
     pub writes: BTreeMap<String, u64>,
     pub emits: u64,
@@ -175,6 +176,7 @@ impl Store {
                 program TEXT NOT NULL,
                 principal TEXT NOT NULL,
                 kind TEXT NOT NULL,
+                by TEXT,
                 touched TEXT NOT NULL,
                 writes TEXT NOT NULL,
                 emits INTEGER NOT NULL
@@ -269,6 +271,7 @@ impl Store {
                 )
              );",
         )?;
+        ensure_column(connection, "_commits", "by", "TEXT")?;
         ensure_column(connection, "_outbox", "then_op", "TEXT")?;
         ensure_column(connection, "_outbox", "generation", "TEXT")?;
         ensure_column(connection, "_assets", "released_at", "INTEGER")?;
@@ -411,9 +414,8 @@ impl Store {
             .map(|(request_digest, response, seq, at)| {
                 Ok(StoredClientIntent {
                     request_digest,
-                    response: serde_json::from_str(&response).map_err(|error| {
-                        RuntimeError::Serialization(error.to_string())
-                    })?,
+                    response: serde_json::from_str(&response)
+                        .map_err(|error| RuntimeError::Serialization(error.to_string()))?,
                     seq: seq.max(0) as u64,
                     at,
                 })
@@ -515,7 +517,7 @@ impl Store {
 
     pub fn commits_since(&self, seq: u64, limit: usize) -> Result<Vec<CommitRecord>, RuntimeError> {
         let mut statement = self.conn.prepare(
-            "SELECT seq, at, program, principal, kind, touched, writes, emits
+            "SELECT seq, at, program, principal, kind, touched, writes, emits, by
              FROM _commits WHERE seq > ?1 ORDER BY seq ASC LIMIT ?2",
         )?;
         let rows = statement.query_map(params![seq as i64, limit as i64], |row| {
@@ -528,16 +530,18 @@ impl Store {
                 row.get::<_, String>(5)?,
                 row.get::<_, String>(6)?,
                 row.get::<_, i64>(7)?,
+                row.get::<_, Option<String>>(8)?,
             ))
         })?;
         rows.map(|row| {
-            let (seq, at, program, principal, kind, touched, writes, emits) = row?;
+            let (seq, at, program, principal, kind, touched, writes, emits, by) = row?;
             Ok(CommitRecord {
                 seq: seq.max(0) as u64,
                 at,
                 program,
                 principal,
                 kind,
+                by,
                 touched: serde_json::from_str(&touched)
                     .map_err(|error| RuntimeError::Serialization(error.to_string()))?,
                 writes: serde_json::from_str(&writes)
@@ -1145,11 +1149,12 @@ fn reserve_id_range(
             detail: "id allocator namespace is malformed".to_owned(),
         });
     }
-    let reserved_through = high_water
-        .checked_add(count)
-        .ok_or_else(|| RuntimeError::StoreVersion {
-            detail: "id allocator high-water is exhausted".to_owned(),
-        })?;
+    let reserved_through =
+        high_water
+            .checked_add(count)
+            .ok_or_else(|| RuntimeError::StoreVersion {
+                detail: "id allocator high-water is exhausted".to_owned(),
+            })?;
     if transaction.execute(
         "UPDATE _meta SET value = ?2 WHERE key = ?1",
         params![ID_HIGH_WATER_KEY, reserved_through.to_string()],

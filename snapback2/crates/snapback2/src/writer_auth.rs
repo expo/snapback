@@ -122,6 +122,7 @@ impl State {
                 "send the carrier as ?s= on GET /api/asset/<id>",
                 "auth/asset-session",
             )),
+            Identity::Operator { .. } => Err(Refusal::operator_required()),
             Identity::Anonymous => Err(Refusal::new(
                 "E_AUTH_REQUIRED",
                 "auth",

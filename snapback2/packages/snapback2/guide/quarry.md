@@ -70,7 +70,7 @@ postcondition is `after insert <- exists table[...] [by index]`.
 
 `retain delivered-history` keeps rows that went hidden; the default evicts them.
 
-Rules are `allow`, `deny`, `public`, `system`, `exists`, `created`, `and`,
+Rules are `allow`, `deny`, `public`, `exists`, `created`, `and`,
 `or`, `not`, and `=`/`!=` over `viewer`, literals, `.field`, and channel
 arguments. `created` is insert-only. Table rules omit a binder (`read <- …`);
 `.` is the row, or the candidate image for update. Only `update (old, next)`

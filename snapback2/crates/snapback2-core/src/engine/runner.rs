@@ -1056,8 +1056,11 @@ impl<'a> Runner<'a> {
             .ok_or_else(|| {
                 RuntimeError::TraceSubset(format!("undeclared read site {}", scan.site))
             })?;
-        let uniform = read_site.hoist;
-        let always_visible = matches!(table.rules.read, RuleExpr::Public { .. } | RuleExpr::Allow);
+        // @ref LLP 1016#d1--the-system-principal-is-the-stores-owner — owner ranges never filter or spend rule probes; ordinary trace bounds still apply.
+        let system = self.context.viewer.is_system();
+        let uniform = system || read_site.hoist;
+        let always_visible =
+            system || matches!(table.rules.read, RuleExpr::Public { .. } | RuleExpr::Allow);
         let take = match &scan.take {
             Bound::Literal(value) => *value as usize,
             Bound::Arg { name, max } => {

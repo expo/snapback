@@ -56,6 +56,18 @@ pub fn route(
     }
     let result = match (method, path) {
         ("GET", "/control/status") => call(Action::Status),
+        ("POST", "/control/execute") => call(Action::Execute {
+            op: body
+                .get("op")
+                .and_then(Json::as_str)
+                .unwrap_or_default()
+                .to_owned(),
+            args: body.get("args").cloned().unwrap_or_else(|| json!({})),
+            identity: control_identity(&body),
+            expected: None,
+            offline: Default::default(),
+            replay: None,
+        }),
         ("POST", "/control/apply") => {
             let project = body.get("project").cloned().unwrap_or(Json::Null);
             match certify_project_value(project) {
@@ -140,12 +152,7 @@ pub fn route(
                 .get("queryOnly")
                 .and_then(Json::as_bool)
                 .unwrap_or(false),
-            identity: Identity::Persona(
-                body.get("as")
-                    .and_then(Json::as_str)
-                    .unwrap_or_default()
-                    .to_owned(),
-            ),
+            identity: control_identity(&body),
         }),
         ("GET", "/control/trace") => call(Action::Trace {
             seq: query.u64("seq"),
@@ -182,12 +189,7 @@ pub fn route(
                     prefix: body.get("prefix").cloned().unwrap_or_else(|| json!([])),
                     after: body.get("after").filter(|value| !value.is_null()).cloned(),
                     limit: limit as u32,
-                    identity: Identity::Persona(
-                        body.get("as")
-                            .and_then(Json::as_str)
-                            .unwrap_or_default()
-                            .to_owned(),
-                    ),
+                    identity: control_identity(&body),
                 })
             }
         }
@@ -214,6 +216,30 @@ pub fn route(
         _ => return None,
     };
     Some(result)
+}
+
+// @ref LLP 1016#d6--the-operator-seat-ad-hoc-programs-and-rehearsal — token admission is a later lane; the local dev transport is the only seat today.
+pub(crate) fn operator_transport(local: bool, mode: &str) -> Result<(), Refusal> {
+    if local && mode == "dev" {
+        Ok(())
+    } else {
+        Err(Refusal::operator_required())
+    }
+}
+
+fn control_identity(body: &Json) -> Identity {
+    let name = body.get("as").and_then(Json::as_str).unwrap_or_default();
+    if name == "system" {
+        Identity::Operator {
+            by: body
+                .get("by")
+                .and_then(Json::as_str)
+                .map(str::to_owned)
+                .unwrap_or_else(|| std::env::var("USER").unwrap_or_else(|_| "operator".to_owned())),
+        }
+    } else {
+        Identity::Persona(name.to_owned())
+    }
 }
 
 fn valid_name(name: &str) -> bool {
@@ -300,6 +326,19 @@ fn first(errors: Vec<Refusal>) -> Refusal {
 mod tests {
     use super::*;
     use std::io::Write;
+
+    #[test]
+    fn operator_transport_refuses_remote_and_serve_with_complete_envelope() {
+        assert!(operator_transport(true, "dev").is_ok());
+        for (local, mode) in [(false, "dev"), (true, "serve"), (false, "serve")] {
+            let refusal = operator_transport(local, mode).unwrap_err();
+            assert_eq!(refusal.code, "E_OPERATOR_REQUIRED");
+            assert_eq!(refusal.family, "operator");
+            assert_eq!(refusal.guide, "operator/seat");
+            assert_eq!(refusal.site.as_deref(), Some("--as system"));
+            assert!(refusal.rewrite.unwrap().contains("admin"));
+        }
+    }
 
     #[test]
     fn log_limit_tails_a_sparse_large_file_without_reading_the_hole() {

@@ -124,6 +124,7 @@ fn why_stale(message: impl Into<String>) -> Refusal {
 }
 
 fn enrich(op: &str, response: Json, latest: Json, certificate: Certificate) -> Json {
+    let system = response.get("principal").and_then(Json::as_str) == Some("system");
     let trace = response.get("trace").cloned().unwrap_or_else(|| json!({}));
     let mut verdicts = Vec::new();
     if let Some(ranges) = trace.get("ranges").and_then(Json::as_array) {
@@ -136,7 +137,7 @@ fn enrich(op: &str, response: Json, latest: Json, certificate: Certificate) -> J
                     "row": id,
                     "site": range.get("site"),
                     "table": range.get("table"),
-                    "verdict": if admitted { "allow" } else { "deny" },
+                    "verdict": if system { "system-visible" } else if admitted { "allow" } else { "deny" },
                     "cut": admitted && !returned.iter().any(|returned| returned == &id),
                 }));
             }
@@ -153,7 +154,7 @@ fn enrich(op: &str, response: Json, latest: Json, certificate: Certificate) -> J
                     "key": point.get("key"),
                     "site": point.get("site"),
                     "table": point.get("table"),
-                    "verdict": if point.get("visible").and_then(Json::as_bool).unwrap_or(false) { "allow" } else { "deny" },
+                    "verdict": if system { "system-visible" } else if point.get("visible").and_then(Json::as_bool).unwrap_or(false) { "allow" } else { "deny" },
                     "cut": false,
                 }));
             }
@@ -201,6 +202,9 @@ fn enrich(op: &str, response: Json, latest: Json, certificate: Certificate) -> J
         })
         .collect::<Vec<_>>();
     let mut output = Map::new();
+    if system {
+        output.insert("principal".to_owned(), json!("system"));
+    }
     output.insert("op".to_owned(), Json::String(op.to_owned()));
     output.insert(
         "result".to_owned(),
