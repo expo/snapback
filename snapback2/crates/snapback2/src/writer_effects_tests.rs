@@ -24,6 +24,7 @@ fn fractional_json_result_settles_running_before_then_conversion() {
         &ProjectJson {
             version: 1,
             schema: Schema {
+                schedules: Vec::new(),
                 tables: BTreeMap::new(),
                 maintains: Vec::new(),
                 channels: BTreeMap::new(),
@@ -85,6 +86,7 @@ fn claim_serialization_failure_requeues_and_logs_the_claimed_row() {
         &ProjectJson {
             version: 1,
             schema: Schema {
+                schedules: Vec::new(),
                 tables: BTreeMap::new(),
                 maintains: Vec::new(),
                 channels: BTreeMap::new(),

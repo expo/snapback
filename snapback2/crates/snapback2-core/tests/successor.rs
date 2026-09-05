@@ -23,9 +23,9 @@ fn table(columns: &[(&str, ColumnType)], indexes: &[(&str, &[&str])]) -> Table {
             .collect(),
     )
 }
-
 fn schema(tables: BTreeMap<String, Table>, maintains: Vec<Maintain>) -> Schema {
     Schema {
+        schedules: Vec::new(),
         tables,
         maintains,
         channels: BTreeMap::new(),

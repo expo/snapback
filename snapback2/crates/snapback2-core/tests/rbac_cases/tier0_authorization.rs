@@ -127,6 +127,7 @@ fn memberships_table() -> Table {
 
 fn schema() -> Schema {
     Schema {
+        schedules: Vec::new(),
         tables: BTreeMap::from([
             ("groups".to_owned(), groups_table()),
             ("memberships".to_owned(), memberships_table()),
@@ -695,6 +696,7 @@ fn created_and_final_exists_bind_program_triggered_maintained_inserts() {
         provenance: KeyProvenance::Shape,
     };
     let schema = Schema {
+        schedules: Vec::new(),
         tables: BTreeMap::from([
             ("events".to_owned(), events),
             ("counts".to_owned(), counts),

@@ -20,6 +20,7 @@ fn test_actor() -> Actor {
 
 fn schema() -> Schema {
     Schema {
+        schedules: Vec::new(),
         tables: BTreeMap::from([(
             "items".to_owned(),
             public_table(

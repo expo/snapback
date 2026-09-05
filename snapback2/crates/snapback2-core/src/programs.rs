@@ -181,6 +181,7 @@ pub fn spike_schema() -> Schema {
     }
 
     Schema {
+        schedules: vec![],
         tables,
         maintains: vec![
             Maintain {

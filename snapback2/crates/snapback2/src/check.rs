@@ -309,10 +309,12 @@ fn check_request(request: Request) -> Vec<ResultItem> {
             .into_iter()
             .map(|(name, program)| match program {
                 Ok(_) => {
+                    // A schedule binding is certified beside the operations, not among them.
                     let certificate = generation
                         .programs()
                         .get(&name)
                         .map(|(_, certificate)| certificate.clone())
+                        .or_else(|| generation.timer_binding(&name).map(|(_, c)| c.clone()))
                         .expect("certified generation contains every parsed program");
                     ResultItem {
                         program: name,
@@ -341,7 +343,20 @@ fn check_request(request: Request) -> Vec<ResultItem> {
                 )],
                 Ok(program) => {
                     let mut single = project.clone();
-                    single.programs = vec![program];
+                    // Schedule bindings ride along: a schedule certifies only beside its binding.
+                    let bindings = single
+                        .schema
+                        .schedules
+                        .iter()
+                        .map(|schedule| schedule.binding.clone())
+                        .collect::<BTreeSet<_>>();
+                    single.programs = project
+                        .programs
+                        .iter()
+                        .filter(|p| bindings.contains(&p.name) && p.name != name)
+                        .cloned()
+                        .chain(std::iter::once(program))
+                        .collect();
                     match Generation::certify(&single, ceilings.clone()) {
                         Ok(generation) => vec![ResultItem {
                             program: name.clone(),
@@ -350,6 +365,9 @@ fn check_request(request: Request) -> Vec<ResultItem> {
                                     .programs()
                                     .get(&name)
                                     .map(|(_, certificate)| certificate.clone())
+                                    .or_else(|| {
+                                        generation.timer_binding(&name).map(|(_, c)| c.clone())
+                                    })
                                     .expect("certified generation contains its parsed program"),
                             ),
                             error: None,
@@ -402,6 +420,7 @@ pub fn run_project(root: &Path, json: bool) -> ExitCode {
                         "ok": true,
                         "generation": generation,
                         "operations": compiled.generation.programs().len(),
+                        "schemaCertificate": compiled.generation.schema_certificate(),
                         "compilerMs": compiled.compiler_ms,
                     })
                 );

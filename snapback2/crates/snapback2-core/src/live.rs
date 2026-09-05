@@ -264,6 +264,7 @@ mod tests {
                     BTreeMap::new(),
                 ),
             )]),
+            schedules: Vec::new(),
             maintains: Vec::new(),
             channels: BTreeMap::new(),
             auth: Auth::default(),

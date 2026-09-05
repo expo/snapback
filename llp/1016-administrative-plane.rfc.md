@@ -22,7 +22,7 @@ session, on a criticism made by a separate reviewing session the same day;
 revision (a) written at the author's instruction to take the panel's
 feedback into account with the orchestrator's own judgement
 **Date:** 2026-09-05
-**Revised:** 2026-09-05 (a.1 — the five decisions ruled, the author having delegated them to the orchestrator; implementer, lanes, and dates written; the loop-bar sequencing overridden by author ruling); 2026-09-05 (a — the panel folded: one authority model for the
+**Revised:** 2026-09-05 (J2 — implementation record for D5 in §12: schedules, `_timers`, firing, the template's server-side expiry, the digest fixture); 2026-09-05 (a.1 — the five decisions ruled, the author having delegated them to the orchestrator; implementer, lanes, and dates written; the loop-bar sequencing overridden by author ruling); 2026-09-05 (a — the panel folded: one authority model for the
 system principal and the `system` rule word deleted; the job is a sequence
 of sweeps over immutable keys under a captured upper key, with cursor and
 progress as certified engine writes; narrowing moved to successor
@@ -1287,3 +1287,119 @@ manifest polls waiting for the watcher's successor and then saw
 `E_OP_UNKNOWN` — the pre-existing load flake recorded in
 `issues/20260901-snapback2-scripts-test-sh-flakes-under.md` (its 2026-09-05
 entries name the same case); it passes alone. Caps and `ref-check` pass.
+
+### Implementation record — J2
+
+Implemented 2026-09-05 in `s2/admin-schedules` (codex gpt-6-astra for the
+first eighteen minutes, then Claude Fable 5.1 finishing the partial tree);
+review and landing belong to the orchestrator. D5 ships as written, with the
+concrete choices below. **Grammar and lowering:** `schedule name on table at
+.column [if predicate]: target(args)` and `schedule name every <Nm|Nh|Nd>:
+target` parse in any module (`parser.ts`); each schedule lowers into a
+**binding** — a pure query over the row's referenced fields (plus a typed
+`id`) that returns `{ enabled, args }` — emitted as a program in the project
+beside its target and *named* on
+`schema.schedules[{ name, trigger, target, binding, site }]`, so the schema's
+hashable shape stays scalars (the evaluator's `canonicalSchemaJson` mirrors
+`schedules` in serde order; LLP 1012 §8's twin keeps predicting).
+`Generation::certify` certifies the binding like any program, then removes it
+from the client-visible operation map and folds its identity into
+`program_hash` (only when a schedule exists, so schedule-less stores keep
+their custody hash); it is never in the API or the manifest (`schedule.ts`,
+`project.ts`, `registry.rs`). Asset columns cannot travel through a binding. `E_SCHEDULE_COLUMN`, `E_SCHEDULE_TARGET`,
+`E_SCHEDULE_DURATION` are family `schedule`, page `schedule`, each with a
+rewrite; the engine re-checks every one at `Generation::certify`
+(`timers::certify`), where the binding must certify with no read or write
+sites and the target is certified with one reserved `_timers` write. The
+schema certificate is `check --json`'s `schemaCertificate.schedules` and
+`.snapback/build/schema-certificate.json`. **The timer index:** `_timers (id,
+schedule, row_id, at, period_start, generation)` indexed on `(at, id)`;
+`Runner` insert/update/delete call `maintain_timers` inside the row's
+transaction, one counted `_timers` write per schedule per changed deadline;
+`Checker::analyze` adds that write site and `engineWrites: ["_timers"]` to
+every program writing a table with a row schedule (`JobCertificate` lost its
+private `engine_writes`; the field is on `Certificate` and reads `["_jobs"]`
+for jobs). Succession populates a new row schedule from existing rows, drops a
+removed one, and rebinds a changed target under the new generation
+(`store_timers::reconcile` inside `persist_generation_transaction`); a period
+timer is created at install with `at = now + duration`, `period_start = now`;
+reset re-arms period timers and the seed re-arms row timers. **Firing:**
+`Runtime::fire_due_at(limit, now)` takes due timers oldest first (the store
+caps at 64) and `Engine::fire_timer` runs one transaction: a `SAVEPOINT`
+around the target (a mutation runs as the owner with the row's current values;
+a job target is enqueued through the shared `store_jobs::enqueue` with the
+deterministic id `job_timer_<digest(occurrence)>`, so a queued or running job
+for the occurrence coalesces), settle (delete the row timer, or re-arm the
+period to `period_start + duration` anchored to the schedule, firing once for
+the latest of several missed periods with `skipped` recorded), and the ledger
+row `{ kind: "schedule", schedule, occurrence, outcome, latenessMs, … }`
+flattened into `_commits.schedule`. A `Rejected` target rolls back to the
+savepoint and settles with the refusal envelope; a false predicate or an absent
+row settles `skipped`. The writer's hook fires up to 64 per background turn,
+each followed by `after_commit` (live reruns), and the drive loop's receive
+timeout is bounded by the next timer's `at` on the dev clock. **Verbs and
+routes:** `GET /control/timers` (status, per-schedule counts, the next timer),
+`GET /control/trace?timer=<id>` behind `trace timer:<id>`, `timers` and
+`schedules` on `/control/status` (hence `dev --status`), one `kind: schedule`
+log line per firing, and `schedules: { fired, late, rejected }` on the `test`
+receipt when the project declares any. **The customers:** the chat template's
+`messages` gains `expiresAt: time ?`, `deliveries.post` takes it, and
+`deliveries.q` carries `purgeMessage` (the `expired` log rows to current
+members, then the row deleted, exactly `unsend`'s shape) with `schedule
+expireMessage on messages at .expiresAt: purgeMessage(.id)`; the journey
+writes the deadline, closes every client, `tick`s the clock, and a fresh
+client asserts the purge. The digest fixture
+`packages/compiler/fixtures/quarry-schedules` has `job digestSweep` emitting one
+effect per profile with a non-zero count and `schedule dailyDigest every 24h:
+digestSweep`. `guide/schedule.md` is one screen; `guide/quarry.md` no longer
+refuses `schedule`.
+
+Proofs. Core: `snapback2/crates/snapback2-core/tests/timers.rs:371` (index maintenance),
+`snapback2/crates/snapback2-core/tests/timers.rs:428` (install population, rebinding,
+removal), `snapback2/crates/snapback2-core/tests/timers.rs:468` (oldest first, the 64
+cap), `snapback2/crates/snapback2-core/tests/timers.rs:495` (one commit, ledger, trace,
+receipt), `snapback2/crates/snapback2-core/tests/timers.rs:563` (rejection settles, rolls
+back, never re-fires), `snapback2/crates/snapback2-core/tests/timers.rs:588`,
+`snapback2/crates/snapback2-core/tests/timers.rs:617` (anchored re-arm, missed periods
+coalesced, one job per occurrence), `snapback2/crates/snapback2-core/tests/timers.rs:685`
+(row args, the same occurrence coalesces), `snapback2/crates/snapback2-core/tests/timers.rs:715`,
+`snapback2/crates/snapback2-core/tests/timers.rs:737` (the three codes); the crash between
+execute and settle is an in-crate test with a thread-local hook,
+`snapback2/crates/snapback2-core/src/engine/timers.rs:366`. Owner, through the real
+binary: `snapback2/crates/snapback2/tests/owner_cases/timers.rs:155` (expiry with no client
+attached, `trace timer:`, `logs`, status, the digest firing once after a
+two-day gap with `skipped: 1`, one job and one effect per profile, the next
+period anchored), and the template journey in
+`packages/snapback2/templates/chat/snapback/tests/chat.test.ts` ("an expiring
+message is purged by the owner's schedule with every client closed") under
+`snapback2 test`. Compiler: `snapback2/packages/compiler/src/quarry-schedule-checks.ts:10`,
+`snapback2/packages/compiler/src/quarry-schedule-checks.ts:32`, `snapback2/packages/compiler/src/quarry-schedule-checks.ts:68`.
+The lateness measurement is `snapback2/crates/snapback2/tests/owner_cases/timers.rs:317`
+(ignored): 200 row timers due over two seconds while four HTTP senders
+committed 240 chat sends measured **p50 26 ms, p99 56 ms, max 57 ms** against
+§8's 1,500 ms budget (`snapback2/metrics/timers.jsonl`, debug build, macOS
+arm64). The expiry journey is last in `chat.test.ts` because `tick` moves the
+owner's shared clock for the rest of the run while an offline journey's
+predictions carry the client's clock.
+
+Deviations, each with the code fact: (1) there was no client-invoked
+`purgeExpired` to delete — LLP 1012 §3 named it as a recipe dependency that
+was never built, so the template gains the schedule and the journey rather
+than losing a trigger; (2) a row timer's binding carries only the fields the
+declaration names, not the whole row, because an `image`/`video` column's
+stored record is not an admissible argument value and `validate_inputs` would
+refuse it, and the schema names the binding rather than embedding it because
+the offline twin refuses any schema field it cannot hash in serde order and a
+whole `Program` arriving as sorted wire JSON cannot be re-ordered reliably —
+the first gate run failed the template's offline-edit journey exactly so; (3) `_commits` gains one `schedule TEXT` column holding the
+flattened firing rather than the RFC's four named fields, so `trace`, `logs`,
+and the receipt read one JSON document; (4) the `messages.thread` page pin in
+`test-final-gates.ts` moved from 855,812/855,750 to 858,062/858,000 bytes (45
+bytes a row for the optional deadline); (5) `Store::reset_data` and the seed
+reset both clear `_timers`; period timers are re-armed at reset from the reset
+clock because a reset store is a fresh install; (6) the crash proof is
+in-crate because integration tests cannot reach the engine's transaction; (7)
+`trace timer:` validates the id's character set locally instead of
+URL-encoding it (no `url` crate in the binary). The corpus was not
+regenerated: no existing case declares a schedule and `schedules`/`engineWrites`
+serialize only when non-empty, so no engine output changed.

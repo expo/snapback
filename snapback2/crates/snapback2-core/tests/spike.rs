@@ -707,6 +707,7 @@ fn visibility_probe_case(
         retain: Default::default(),
     };
     let schema = Schema {
+        schedules: Vec::new(),
         tables: BTreeMap::from([
             ("documents".to_owned(), documents),
             ("relationships".to_owned(), relationships),

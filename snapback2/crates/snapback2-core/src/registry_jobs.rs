@@ -71,35 +71,18 @@ impl Runtime {
                 .pop_front()
                 .ok_or_else(|| RuntimeError::Input("no job id available".into()))?
         );
-        let row = JobRecord {
-            id: id.clone(),
-            name: program.name.clone(),
-            source,
-            program_hash: bound_hash(program, certificate, &self.generation.schema),
-            generation: self.generation.hash(),
-            args,
-            state: "queued".into(),
-            sweep: 0,
-            upper_key: None,
-            cursor: None,
-            chunks: 0,
-            rows_written: BTreeMap::new(),
-            enqueued_by: by.0,
-            created_at: now,
-            updated_at: now,
-            finished_at: None,
-            last_error: None,
-        };
         let tx = self.engine.store_mut().conn.transaction()?;
-        // Persist the already compiled executable; restart never compiles ad hoc source.
-        tx.execute(
-            "INSERT OR REPLACE INTO _meta(key,value) VALUES (?1,?2)",
-            rusqlite::params![
-                format!("job_plan:{}", row.program_hash),
-                encode(&(program, certificate))?
-            ],
+        let row = crate::store_jobs::enqueue(
+            &tx,
+            &self.generation.schema,
+            program,
+            certificate,
+            args,
+            id.clone(),
+            by.0,
+            now,
+            source,
         )?;
-        save(&tx, &row)?;
         crate::store_jobs::audit_control(&tx, &row, "enqueue", &row.enqueued_by)?;
         tx.commit()?;
         Ok(id)
@@ -268,6 +251,13 @@ impl Runtime {
                 .values()
                 .filter(|(p, _)| p.name != program.name)
                 .map(|(p, _)| p.clone())
+                // Schedule bindings are certified programs outside the operation map.
+                .chain(
+                    self.generation
+                        .timer_bindings
+                        .values()
+                        .map(|c| c.binding.clone()),
+                )
                 .chain(std::iter::once(program.clone()))
                 .collect(),
             effects: self.generation.effects.values().cloned().collect(),

@@ -765,6 +765,7 @@ impl Engine {
             let record = CommitRecord {
                 job: None,
                 job_chunk: None,
+                schedule: None,
                 seq,
                 at: commit_at,
                 program: program.name.clone(),
@@ -822,11 +823,14 @@ impl Engine {
              DELETE FROM _commits;
              DELETE FROM _outbox;
              DELETE FROM _jobs;
+             DELETE FROM _timers;
              DELETE FROM _meta WHERE key LIKE 'job_plan:%';
              DELETE FROM _grant_slices;
              DELETE FROM _client_intents;
              DELETE FROM _grants;",
         )?;
+        // A reset store is a fresh install: period timers re-arm from now, row timers follow the seed's rows.
+        crate::store_timers::reconcile(&transaction, &Schema::default(), &self.schema, commit_at)?;
         let seq = 1;
         let mut runner = Runner::new(
             &transaction,
@@ -865,6 +869,7 @@ impl Engine {
             &CommitRecord {
                 job: None,
                 job_chunk: None,
+                schedule: None,
                 seq,
                 at: commit_at,
                 program: program.name.clone(),
@@ -1423,3 +1428,5 @@ use execution_record::{next_cursor, query_state};
 
 mod jobs;
 pub(crate) use jobs::encode_job_key;
+
+mod timers;

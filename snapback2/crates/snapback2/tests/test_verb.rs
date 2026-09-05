@@ -300,7 +300,7 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
             .iter()
             .filter(|check| check["kind"] == "journey")
             .count(),
-        14
+        15
     );
     for name in [
         "alice posts to the room and a non-member cannot",
@@ -317,6 +317,7 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
         "offline edits reject stale reads by trace, and past-fence edits by the program CONFLICT",
         "a never-opened chat renders offline from the drained log and an offline send is predicted into it in order",
         "a send queued offline into a three-member group shows one bubble, keeps its message id, leaves no duplicate delivery, and reaches both other members once",
+        "an expiring message is purged by the owner's schedule with every client closed",
     ] {
         let journey = check(&receipt, name);
         assert_eq!(journey["kind"], "journey", "{name}: {journey}");
@@ -1095,7 +1096,7 @@ fn blocked_without_a_reason_is_usage() {
 }
 
 #[test]
-fn clique_sized_seed_and_67_operations_have_bounded_honest_derived_coverage() {
+fn clique_sized_seed_and_68_operations_have_bounded_honest_derived_coverage() {
     let project = Project::new();
     assert!(project.init("chat", "none").status.success());
     // The reduced Clique bar has no external I/O. Retain the real template's
@@ -1143,7 +1144,8 @@ fn clique_sized_seed_and_67_operations_have_bounded_honest_derived_coverage() {
     let elapsed = started.elapsed();
     let receipt = json_stdout(&output);
     assert!(output.status.success(), "{receipt}");
-    assert_eq!(check(&receipt, "certify")["detail"]["operations"], 67);
+    // 24 template operations less the removed notifications module, plus 44 sends.
+    assert_eq!(check(&receipt, "certify")["detail"]["operations"], 68);
     let rules = check(&receipt, "rules");
     assert_eq!(rules["detail"]["tables"]["messages"]["probes"], 32 * 4);
     let invalidation = check(&receipt, "invalidation");

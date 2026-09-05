@@ -363,6 +363,7 @@ fn settle_after_run(
     let record = CommitRecord {
         job: None,
         job_chunk: None,
+        schedule: None,
         seq: execution.seq,
         at: commit_at,
         program: program.name.clone(),

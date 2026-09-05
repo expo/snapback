@@ -52,6 +52,7 @@ fn item(id: &str, group: &str, name: &str) -> Value {
 #[test]
 fn range_point_and_absence_invalidation_is_exact_and_reruns_coalesce() {
     let schema = Schema {
+        schedules: Vec::new(),
         tables: BTreeMap::from([("items".to_owned(), public_items())]),
         maintains: Vec::new(),
         channels: BTreeMap::new(),
@@ -230,6 +231,7 @@ fn hoisted_false_hidden_range_halts_once_and_membership_addition_redelivers_it()
         provenance: KeyProvenance::Shape,
     };
     let schema = Schema {
+        schedules: Vec::new(),
         tables: BTreeMap::from([
             ("docs".to_owned(), docs),
             ("memberships".to_owned(), memberships),
@@ -365,6 +367,7 @@ fn hidden_rows_before_a_visible_row_still_produce_capped_from_trace() {
         provenance: KeyProvenance::Shape,
     };
     let schema = Schema {
+        schedules: Vec::new(),
         tables: BTreeMap::from([("docs".to_owned(), docs), ("grants".to_owned(), grants)]),
         maintains: Vec::new(),
         channels: BTreeMap::new(),
@@ -447,6 +450,7 @@ fn denied_subscription_keeps_rule_trace_and_is_readmitted() {
         )]),
     );
     let schema = Schema {
+        schedules: Vec::new(),
         tables: BTreeMap::from([("memberships".to_owned(), memberships)]),
         maintains: Vec::new(),
         channels: BTreeMap::new(),
@@ -526,6 +530,7 @@ fn complete_to_denied_with_the_same_result_is_a_changed_delivery() {
         )]),
     );
     let schema = Schema {
+        schedules: Vec::new(),
         tables: BTreeMap::from([("memberships".to_owned(), memberships)]),
         maintains: Vec::new(),
         channels: BTreeMap::new(),
@@ -627,6 +632,7 @@ fn rerun_runtime_value_error_is_delivered_as_error() {
         )]),
     );
     let schema = Schema {
+        schedules: Vec::new(),
         tables: BTreeMap::from([("counters".to_owned(), counters)]),
         maintains: Vec::new(),
         channels: BTreeMap::new(),
@@ -728,6 +734,7 @@ fn different_overflow_messages_are_changed_deliveries() {
         )]),
     );
     let schema = Schema {
+        schedules: Vec::new(),
         tables: BTreeMap::from([("counters".to_owned(), counters)]),
         maintains: Vec::new(),
         channels: BTreeMap::new(),

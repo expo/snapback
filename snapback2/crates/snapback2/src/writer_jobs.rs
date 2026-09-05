@@ -20,7 +20,9 @@ pub(super) fn drive(state: &mut State, rx: Receiver<Request>) {
                 Ok(if runnable {
                     Duration::ZERO
                 } else {
-                    timeout.min(state.asset_poll_timeout())
+                    timeout
+                        .min(state.asset_poll_timeout())
+                        .min(state.timer_poll_timeout()?)
                 })
             });
         let timeout = match preparation {
@@ -96,10 +98,6 @@ impl State {
                 "state":outcome.job.state,"ms":started.elapsed().as_secs_f64()*1000.0,"commitMs":commit_ms,"refusal":outcome.job.last_error}),
             );
         }
-        Ok(())
-    }
-    /// J2 inserts its at-most-64 timer firings here, before the job chunk.
-    fn fire_due_timers_background_turn(&mut self) -> Result<(), Refusal> {
         Ok(())
     }
     fn job_operator(&mut self, identity: Identity) -> Result<String, Refusal> {

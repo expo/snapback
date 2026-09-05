@@ -15,6 +15,7 @@ use crate::successor::{
     apply_migration_drops, plan, projected_predecessor_ids, successor_refusal,
 };
 use crate::value::{Value, digest};
+use rusqlite::OptionalExtension;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
@@ -49,6 +50,8 @@ pub struct Generation {
     program_hash: String,
     #[serde(skip_serializing)]
     table_read_certificates: BTreeMap<String, RuleCertificate>,
+    #[serde(skip_serializing)]
+    timer_bindings: BTreeMap<String, crate::timers::TimerCertificates>,
     channel_certificates: BTreeMap<String, ChannelCertificates>,
     effects: BTreeMap<String, EffectDecl>,
 }
@@ -118,6 +121,23 @@ impl Generation {
 
     pub fn effects(&self) -> &BTreeMap<String, EffectDecl> {
         &self.effects
+    }
+
+    /// A schedule binding's program and certificate: certified beside the operations, never one of them.
+    pub fn timer_binding(&self, program: &str) -> Option<(&Program, &Certificate)> {
+        self.timer_bindings
+            .values()
+            .find(|c| c.binding.name == program)
+            .map(|c| (&c.binding, &c.binding_certificate))
+    }
+
+    /// Every schedule binding program, for a certification that must see them beside the operations.
+    pub fn timer_binding_programs(&self) -> Vec<Program> {
+        self.timer_bindings.values().map(|c| c.binding.clone()).collect()
+    }
+
+    pub fn schema_certificate(&self) -> serde_json::Value {
+        serde_json::json!({"schedules":self.schema.schedules.iter().map(|s|serde_json::json!({"name":s.name,"trigger":s.trigger,"target":s.target})).collect::<Vec<_>>()})
     }
 
     pub fn effects_hash(&self) -> String {
@@ -421,18 +441,49 @@ impl Generation {
             }
         }
 
+        let timer_bindings = match crate::timers::certify(
+            &schema,
+            &project
+                .programs
+                .iter()
+                .map(|p| (p.name.clone(), p.clone()))
+                .collect::<Vec<_>>(),
+            &ceilings,
+        ) {
+            Ok(bindings) => bindings,
+            Err(mut refused) => {
+                errors.append(&mut refused);
+                BTreeMap::new()
+            }
+        };
+        // @ref LLP 1016#d5--schedules-row-timers-and-periods-on-the-owners-clock — a binding is
+        // certified like any program but is never an operation: it leaves the client-visible map
+        // and its identity joins program_hash only when a schedule exists, so schedule-less
+        // stores keep their custody hash.
+        for certificates in timer_bindings.values() {
+            programs.remove(&certificates.binding.name);
+        }
         if errors.is_empty() {
             let certified_programs = programs
                 .iter()
                 .map(|(name, (program, certificate))| (name, program, digest(certificate)))
                 .collect::<Vec<_>>();
-            let program_hash = digest(&(schema.hash(), certified_programs));
+            let program_hash = if timer_bindings.is_empty() {
+                digest(&(schema.hash(), certified_programs))
+            } else {
+                let bindings = timer_bindings
+                    .iter()
+                    .map(|(name, c)| (name, &c.binding, digest(&c.binding_certificate), digest(&c.target)))
+                    .collect::<Vec<_>>();
+                digest(&(schema.hash(), certified_programs, bindings))
+            };
             Ok(Self {
                 schema,
                 programs,
                 program_hash,
                 table_read_certificates,
                 channel_certificates,
+                timer_bindings,
                 effects,
             })
         } else {
@@ -1089,6 +1140,17 @@ fn persist_generation_transaction(
     transaction: &rusqlite::Transaction<'_>,
     generation: &Generation,
 ) -> Result<(), RuntimeError> {
+    let previous: Option<String> = transaction
+        .query_row("SELECT value FROM _meta WHERE key='schema_json'", [], |r| {
+            r.get(0)
+        })
+        .optional()?;
+    let previous = previous
+        .as_deref()
+        .map(crate::store_jobs::decode::<Schema>)
+        .transpose()?
+        .unwrap_or_default();
+    crate::store_timers::reconcile(transaction, &previous, &generation.schema, unix_millis())?;
     let schema_json = serde_json::to_string(&generation.schema)
         .map_err(|error| RuntimeError::Serialization(error.to_string()))?;
     let effects_json = serde_json::to_string(&generation.effects)
@@ -1304,3 +1366,6 @@ pub use operator::OperatorId;
 
 #[path = "registry_jobs.rs"]
 mod registry_jobs;
+
+#[path = "registry_timers.rs"]
+mod registry_timers;

@@ -131,6 +131,9 @@ export type Span = {
 };
 
 export type DiagnosticCode =
+  | "E_SCHEDULE_COLUMN"
+  | "E_SCHEDULE_TARGET"
+  | "E_SCHEDULE_DURATION"
   | "E_UNBOUND_SCAN"
   | "E_UNBOUND_LOOP"
   | "E_UNBOUND_COUNT"
@@ -188,7 +191,7 @@ export type DiagnosticCode =
   | "E_QUARRY_RETAIN"
   | "E_QUARRY_ONLY";
 
-export type RefusalFamily = "bound" | "opaque" | "schema" | "rule" | "effect" | "args" | "op" | "input" | "quarry";
+export type RefusalFamily = "schedule" | "bound" | "opaque" | "schema" | "rule" | "effect" | "args" | "op" | "input" | "quarry";
 
 export type FrontendDiagnostic = {
   code: DiagnosticCode;
@@ -206,6 +209,7 @@ export type TableJson = {
 };
 
 export type SchemaJson = {
+  schedules?: Array<{ name: string; trigger: unknown; target: string; binding: string; site: string }>;
   tables: Record<string, TableJson>;
   maintains: unknown[];
   channels: Record<string, unknown>;

@@ -518,6 +518,7 @@ fn named_emit_case() -> CorpusCase {
         maintains: Vec::new(),
         channels: BTreeMap::new(),
         auth: Auth::default(),
+        schedules: Vec::new(),
         effects: vec!["notifications.notify".to_owned()],
     };
     let event = |id: &str| {

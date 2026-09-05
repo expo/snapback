@@ -216,6 +216,7 @@ pub(crate) fn audit_control(
             by: Some(by.into()),
             job: None,
             job_chunk: None,
+            schedule: None,
             touched: Vec::new(),
             writes: std::collections::BTreeMap::from([("_jobs".into(), 1)]),
             emits: 0,
@@ -246,4 +247,47 @@ impl Store {
             serde_json::json!({"commitRange":{"from":first,"to":last},"sweepChunks":groups,"retainedChunks":count}),
         )
     }
+}
+
+// The caller owns the transaction: an operator enqueue audits here, a timer enqueue settles on its schedule commit.
+pub(crate) fn enqueue(
+    conn: &Connection,
+    schema: &crate::Schema,
+    program: &crate::Program,
+    certificate: &crate::Certificate,
+    args: std::collections::BTreeMap<String, crate::Value>,
+    id: String,
+    by: String,
+    now: i64,
+    source: Option<String>,
+) -> Result<JobRecord, RuntimeError> {
+    crate::engine::validate_inputs(schema, program, &args)?;
+    let row = JobRecord {
+        id,
+        name: program.name.clone(),
+        source,
+        program_hash: bound_hash(program, certificate, schema),
+        generation: schema.hash(),
+        args,
+        state: "queued".into(),
+        sweep: 0,
+        upper_key: None,
+        cursor: None,
+        chunks: 0,
+        rows_written: std::collections::BTreeMap::new(),
+        enqueued_by: by,
+        created_at: now,
+        updated_at: now,
+        finished_at: None,
+        last_error: None,
+    };
+    conn.execute(
+        "INSERT OR REPLACE INTO _meta(key,value) VALUES (?1,?2)",
+        params![
+            format!("job_plan:{}", row.program_hash),
+            encode(&(program, certificate))?
+        ],
+    )?;
+    save(conn, &row)?;
+    Ok(row)
 }

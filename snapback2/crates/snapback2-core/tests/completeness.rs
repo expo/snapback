@@ -68,6 +68,7 @@ fn schema(index_scope: &str) -> Schema {
                 ),
             ),
         ]),
+        schedules: Vec::new(),
         maintains: Vec::new(),
         channels: BTreeMap::new(),
         auth: Auth::default(),

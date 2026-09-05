@@ -505,6 +505,7 @@ fn rbac_twin_schema() -> Schema {
         maintains: Vec::new(),
         channels: BTreeMap::new(),
         auth: Auth::default(),
+        schedules: Vec::new(),
         effects: Vec::new(),
     }
 }
@@ -626,6 +627,7 @@ fn add_constraint_and_memo_twin_cases(cases: &mut Vec<CorpusCase>) {
         maintains: Vec::new(),
         channels: BTreeMap::new(),
         auth: Auth::default(),
+        schedules: Vec::new(),
         effects: Vec::new(),
     };
     let profile_program = |name: &str, display: &str, handle: &str, link: Value| Program {
@@ -722,6 +724,7 @@ fn add_constraint_and_memo_twin_cases(cases: &mut Vec<CorpusCase>) {
         }],
         channels: BTreeMap::new(),
         auth: Auth::default(),
+        schedules: Vec::new(),
         effects: Vec::new(),
     };
     let maintained_program = Program {
@@ -839,6 +842,7 @@ fn add_rule_memo_twin_cases(cases: &mut Vec<CorpusCase>, public: RuleExpr) {
         maintains: Vec::new(),
         channels: BTreeMap::new(),
         auth: Auth::default(),
+        schedules: Vec::new(),
         effects: Vec::new(),
     };
     let probe = || Stmt::Let {
@@ -988,6 +992,7 @@ fn add_optional_maintain_twin_case(cases: &mut Vec<CorpusCase>) {
         }],
         channels: BTreeMap::new(),
         auth: Auth::default(),
+        schedules: Vec::new(),
         effects: Vec::new(),
     };
     let program = Program {

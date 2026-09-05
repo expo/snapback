@@ -13,7 +13,6 @@ pub struct JobCertificate {
     pub kind: String,
     pub sweeps: Vec<Sweep>,
     pub chunks: String,
-    pub engine_writes: Vec<String>,
     pub per_chunk: Vec<Certificate>,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -343,9 +342,9 @@ pub(crate) fn certify(
         kind: "job".into(),
         sweeps,
         chunks: "unbounded".into(),
-        engine_writes: vec!["_jobs".into()],
         per_chunk,
     }));
+    certificate.engine_writes.insert(0, "_jobs".into());
     certificate.plan_hash = crate::store_jobs::bound_hash(program, &certificate, schema);
     Ok(certificate)
 }

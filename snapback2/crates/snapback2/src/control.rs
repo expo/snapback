@@ -91,6 +91,7 @@ pub fn route(
         }
     }
     let result = match (method, path) {
+        ("GET", "/control/timers") => call(Action::Timers),
         ("GET", "/control/jobs") => call(Action::Jobs),
         ("POST", "/control/job") => match crate::control_run::flag(&body, "plan") {
             Ok(plan) => call(Action::EnqueueJob {
@@ -204,6 +205,9 @@ pub fn route(
                 .and_then(Json::as_bool)
                 .unwrap_or(false),
             identity: control_identity(&body),
+        }),
+        ("GET", "/control/trace") if query.get("timer").is_some() => call(Action::TimerTrace {
+            id: query.get("timer").unwrap_or_default().to_owned(),
         }),
         ("GET", "/control/trace") => call(Action::Trace {
             seq: query.u64("seq"),

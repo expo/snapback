@@ -7,6 +7,7 @@ use std::collections::BTreeMap;
 
 pub(crate) fn certification_family_guide(code: &str) -> (&'static str, &'static str) {
     match code {
+        code if code.starts_with("E_SCHEDULE") => ("schedule", "schedule"),
         code if code.starts_with("E_JOB") => ("job", "job"),
         "E_UNBOUND_SCAN" => ("bound", "bound/scan"),
         "E_UNBOUND_LOOP" => ("bound", "bound/loop"),

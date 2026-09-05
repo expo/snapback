@@ -178,13 +178,25 @@ pub fn run(args: &[String]) -> ExitCode {
     if !derived_only {
         checks.extend(run_journeys(&isolated.info.project, &isolated.info));
     }
+    let mut receipt = TestReceipt::new(compiled.generation.hash(), commands, checks);
+    if !compiled.generation.schema().schedules.is_empty() {
+        match client::control(&isolated.info, "GET", "/control/status", json!({})) {
+            Ok(response) if response.status < 400 => {
+                receipt.schedules = Some(response.body["schedules"].clone())
+            }
+            _ => {
+                receipt.verdict = "fail".into();
+                receipt.checks.push(CheckReceipt::fail(
+                    "schedule receipt",
+                    "schedule",
+                    0,
+                    json!({"message":"owner schedule counts unavailable"}),
+                ));
+            }
+        }
+    }
     isolated.stop();
-    finish(
-        &root,
-        stamp,
-        TestReceipt::new(compiled.generation.hash(), commands, checks),
-        json_output,
-    )
+    finish(&root, stamp, receipt, json_output)
 }
 
 fn compile(

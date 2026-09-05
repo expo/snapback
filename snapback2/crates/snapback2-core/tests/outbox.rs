@@ -5,6 +5,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 fn empty_schema() -> Schema {
     Schema {
+        schedules: Vec::new(),
         tables: BTreeMap::new(),
         maintains: Vec::new(),
         channels: BTreeMap::new(),
@@ -47,6 +48,7 @@ fn project(programs: Vec<Program>, schema: Schema) -> ProjectJson {
 
 fn ceiling_schema(body_max: u32) -> Schema {
     Schema {
+        schedules: Vec::new(),
         tables: BTreeMap::from([(
             "items".to_owned(),
             public_table(
@@ -351,6 +353,7 @@ fn checker_and_generation_report_all_refusals_per_program() {
         )]),
     );
     let schema = Schema {
+        schedules: Vec::new(),
         tables: BTreeMap::from([("items".to_owned(), items)]),
         maintains: Vec::new(),
         channels: BTreeMap::new(),
@@ -611,6 +614,7 @@ fn checker_reports_recurse_read_refusals_with_other_errors() {
         )]),
     );
     let schema = Schema {
+        schedules: Vec::new(),
         tables: BTreeMap::from([("items".to_owned(), items)]),
         maintains: Vec::new(),
         channels: BTreeMap::new(),
@@ -868,6 +872,7 @@ fn sqlite_and_declared_unique_constraints_are_typed_mutation_rejections() {
         BTreeMap::new(),
     );
     let schema = Schema {
+        schedules: Vec::new(),
         tables: BTreeMap::from([("users".to_owned(), rows)]),
         maintains: Vec::new(),
         channels: BTreeMap::new(),
@@ -974,6 +979,7 @@ fn sqlite_and_declared_unique_constraints_are_typed_mutation_rejections() {
         )]),
     );
     let unique_schema = Schema {
+        schedules: Vec::new(),
         tables: BTreeMap::from([("users".to_owned(), unique_users)]),
         maintains: Vec::new(),
         channels: BTreeMap::new(),
@@ -1052,6 +1058,7 @@ fn channel_admission_evaluates_one_args_row_under_the_selected_rule() {
         ttl_ms: 10_000,
     };
     let schema = Schema {
+        schedules: Vec::new(),
         tables: BTreeMap::from([("memberships".to_owned(), memberships)]),
         maintains: Vec::new(),
         channels: BTreeMap::from([("typing".to_owned(), channel)]),

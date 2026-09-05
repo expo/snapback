@@ -119,7 +119,9 @@ export type MaintainDecl = {
 };
 export type EffectDecl = { name: string; module: string; site: Site };
 export type ArgDecl = { name: string; type: ScalarType; site: Site };
-export type ProgramDecl = { kind: "query" | "mutation" | "job"; name: string; args: ArgDecl[]; body: Stmt[]; site: Site };
+export type ProgramDecl = { focalTable?: string; kind: "query" | "mutation" | "job"; name: string; args: ArgDecl[]; body: Stmt[]; site: Site };
+
+export type ScheduleDecl = { name: string; trigger: { row: { table: string; column: string } } | { every: { durationMs: number } }; target: string; args: Expr[]; predicate?: Expr; site: Site };
 
 export type Document = {
   file: string;
@@ -131,9 +133,10 @@ export type Document = {
   shapes: ShapeDecl[];
   shapeImports: ShapeImport[];
   programs: ProgramDecl[];
+  schedules: ScheduleDecl[];
 };
 
-export type QuarryCode = "E_QUARRY_SYNTAX" | "E_QUARRY_UNKNOWN" | "E_QUARRY_AMBIGUOUS" | "E_QUARRY_UNSUPPORTED" | "E_QUARRY_PLACEMENT" | "E_QUARRY_TYPE" | "E_QUARRY_RETAIN";
+export type QuarryCode = "E_SCHEDULE_COLUMN" | "E_SCHEDULE_TARGET" | "E_SCHEDULE_DURATION" | "E_QUARRY_SYNTAX" | "E_QUARRY_UNKNOWN" | "E_QUARRY_AMBIGUOUS" | "E_QUARRY_UNSUPPORTED" | "E_QUARRY_PLACEMENT" | "E_QUARRY_TYPE" | "E_QUARRY_RETAIN";
 export type QuarryDiagnostic = Site & { code: QuarryCode; message: string; rewrite: string; guide: string };
 
 export type TableCatalog = Map<string, {

@@ -24,11 +24,16 @@ export function canonicalProgramJson(program: any): string {
 // deterministically and unlike anything this normalizer knows. The twin
 // treats a refusal as `hydrating` and never predicts under it.
 export function canonicalSchemaJson(schema: any): string {
-  known(schema, ["tables", "maintains", "channels", "auth", "effects"], "schema");
+  known(schema, ["tables", "schedules", "maintains", "channels", "auth", "effects"], "schema");
   const canonical: Record<string, any> = {
     tables: sortedMap(schema.tables ?? {}, normalizeTable),
-    maintains: (schema.maintains ?? []).map(normalizeMaintain),
   };
+  // @ref LLP 1016#d5--schedules-row-timers-and-periods-on-the-owners-clock — a schedule on the
+  // schema is scalars only (its binding is a program named here), in serde's field order.
+  if (schema.schedules !== undefined && schema.schedules.length > 0) {
+    canonical.schedules = schema.schedules.map(normalizeSchedule);
+  }
+  canonical.maintains = (schema.maintains ?? []).map(normalizeMaintain);
   if (schema.channels !== undefined && Object.keys(schema.channels).length > 0) {
     canonical.channels = sortedMap(schema.channels, normalizeChannel);
   }
@@ -38,6 +43,17 @@ export function canonicalSchemaJson(schema: any): string {
   }
   if (schema.effects !== undefined && schema.effects.length > 0) canonical.effects = schema.effects;
   return JSON.stringify(canonical);
+}
+
+function normalizeSchedule(schedule: any): any {
+  const out = pick(schedule, ["name", "trigger", "target", "binding", "site"], "schedule");
+  const [kind, data] = tagged(schedule.trigger);
+  out.trigger = kind === "row"
+    ? { row: pick(data, ["table", "column"], "schedule trigger") }
+    : kind === "every"
+      ? { every: pick(data, ["durationMs"], "schedule trigger") }
+      : { [kind]: deepSorted(data) };
+  return out;
 }
 
 /** Refuses a payload carrying a field the serde struct does not: a shape this hasher has never seen. */

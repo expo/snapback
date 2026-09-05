@@ -46,6 +46,8 @@ mod writer_replay;
 mod writer_resume;
 #[path = "writer_sse.rs"]
 mod writer_sse;
+#[path = "writer_timers.rs"]
+mod writer_timers;
 #[path = "writer_values.rs"]
 mod writer_values;
 
@@ -129,6 +131,10 @@ pub enum Action {
         reply: Sender<Result<crate::rehearsal::Snapshot, Refusal>>,
     },
     Jobs,
+    Timers,
+    TimerTrace {
+        id: String,
+    },
     Job {
         id: String,
         after: u64,
@@ -502,6 +508,8 @@ impl State {
                 Ok(json!({}))
             }
             Action::Jobs => self.jobs(),
+            Action::Timers => self.timers(),
+            Action::TimerTrace { id } => self.timer_trace(&id),
             Action::Job { id, after } => self.job(&id, after),
             Action::JobControl {
                 id,

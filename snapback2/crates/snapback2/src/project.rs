@@ -645,6 +645,15 @@ pub fn stage_build_cache(
         build.join("certificates.json"),
     ));
     write_json(&certificates_path, &certificates)?;
+    let schema_certificate = build.join(format!("{stage}-schema-certificate.json"));
+    staged.files.push((
+        Some(schema_certificate.clone()),
+        build.join("schema-certificate.json"),
+    ));
+    write_json(
+        &schema_certificate,
+        &compiled.generation.schema_certificate(),
+    )?;
     staged
         .files
         .push((Some(api.clone()), build.join("api.d.ts")));

@@ -87,6 +87,7 @@ export function emitPrograms(programs: ProgramDecl[], catalog: TableCatalog, sou
 
 function emitProgram(program: ProgramDecl, catalog: TableCatalog, writer: Writer, effects: Set<string>): void {
   const env = new Environment(catalog, program, effects);
+  if (program.focalTable) env.focal = { code: "args", type: { kind: "row", table: program.focalTable, nullable: false } };
   const args = program.args.map((arg) => `${property(arg.name)}: ${typeCode(arg.type)}`).join(", ");
   writer.raw(`export const ${program.name} = ${program.kind === "job" ? "mutation" : program.kind}({ ${args} }, ({ db, ctx, args }) => {`, program.site);
   writer.nested(() => emitBody(program.body, env, writer, { kind: "return" }));
@@ -1366,4 +1367,23 @@ function containsCoalesce(value: unknown): boolean {
   if (value === null || typeof value !== "object") return false;
   if ("kind" in value && value.kind === "binary" && "op" in value && value.op === "??") return true;
   return Object.values(value).some(containsCoalesce);
+}
+
+// A schedule's binding uses the same typed expression emitter as every other Quarry program.
+export function validateScheduleExpressions(program: ProgramDecl, catalog: TableCatalog, values: Expr[], expected: ScalarType[], predicate?: Expr): void {
+  const env = new Environment(catalog, program, new Set());
+  if (program.focalTable) env.focal = { code: "args", type: { kind: "row", table: program.focalTable, nullable: false } };
+  const writer = new Writer(program.site);
+  if (predicate) requireBoolean(predicate, emitExpr(predicate, env, writer).type, "schedule if");
+  values.forEach((value, i) => {
+    const actual = emitExpr(value, env, writer).type;
+    const target = expected[i]!;
+    if (value.kind === "literal" && value.value === null && target.optional) return;
+    if (actual.kind === "numeric-literal" && ["int", "time"].includes(target.kind) && actual.fractionalDigits === 0) return;
+    if (!isScalar(actual) || !compatible(actual, target) || (actual.optional && !target.optional)
+      || ("max" in actual && "max" in target && actual.max > target.max)
+      || (actual.kind === "enum" && target.kind === "enum" && actual.variants.some(v => !target.variants.includes(v)))) {
+      typeError(value.site, `schedule argument ${i + 1} does not satisfy target ${target.kind}`, "pass a row expression with the target argument's type and bound");
+    }
+  });
 }

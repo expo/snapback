@@ -3,6 +3,7 @@ use std::collections::BTreeMap;
 
 fn typed_schema() -> Schema {
     Schema {
+        schedules: Vec::new(),
         tables: BTreeMap::from([(
             "items".to_owned(),
             public_table(
@@ -332,6 +333,7 @@ fn principal_schema_and_argument_types_keep_the_id_scalar_wire_encoding() {
     assert_eq!(context.viewer(), "dev:alice");
 
     let schema = Schema {
+        schedules: Vec::new(),
         tables: BTreeMap::from([(
             "grants".to_owned(),
             public_table(
@@ -419,6 +421,7 @@ fn principal_schema_and_argument_types_keep_the_id_scalar_wire_encoding() {
 
 fn bytes_schema() -> Schema {
     Schema {
+        schedules: Vec::new(),
         tables: BTreeMap::from([(
             "blobs".to_owned(),
             public_table(

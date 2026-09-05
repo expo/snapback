@@ -757,3 +757,31 @@ journey("a send queued offline into a three-member group shows one bubble, keeps
     charlie.close();
   }
 });
+
+// @ref LLP 1016#d5--schedules-row-timers-and-periods-on-the-owners-clock — the purge is driven by the schedule alone: every client is closed between the write and the firing.
+// Last on purpose: it advances the owner's clock, and an offline journey's predictions carry the client's clock.
+journey("an expiring message is purged by the owner's schedule with every client closed", async ({ as, tick }) => {
+  const clock = await tick(0);
+  const alice = as("alice");
+  const expiresAt = Date.now() + Number(clock.offsetMs ?? 0) + 3_600_000;
+  const sent = await alice.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "gone in an hour", expiresAt });
+  if (sent.state !== "committed") throw new Error(`expiring post was ${sent.state}`);
+  const before = await alice.query(api.deliveries.thread, { conversationId: "conversation-1", c: null });
+  if (!("data" in before) || !bodies(before.data).includes("gone in an hour")) throw new Error("expiring message was not delivered before its deadline");
+  alice.close();
+  await tick(3_600_001);
+  const bob = as("bob");
+  const thread = bob.subscribe(api.deliveries.thread, { conversationId: "conversation-1", c: null }, () => {});
+  try {
+    const purged = await thread.until((delivery) => "data" in delivery && Array.isArray(delivery.data)
+      && delivery.data.some((row: LogRow) => row.kind === "expired" && row.messageId === sent.data.id));
+    const rows: LogRow[] = "data" in purged && Array.isArray(purged.data) ? purged.data : [];
+    if (bodies(rows).includes("gone in an hour")) throw new Error("expired body survived the purge");
+    if (rows.some((row) => row.messageId === sent.data.id && row.message !== null)) {
+      throw new Error("expired message row survived the purge");
+    }
+  } finally {
+    thread.close();
+    bob.close();
+  }
+});

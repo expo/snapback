@@ -116,6 +116,7 @@ fn bytes_schema() -> Schema {
         maintains: Vec::new(),
         channels: BTreeMap::new(),
         auth: Auth::default(),
+        schedules: Vec::new(),
         effects: Vec::new(),
     }
 }

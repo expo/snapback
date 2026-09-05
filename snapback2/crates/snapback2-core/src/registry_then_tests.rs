@@ -106,6 +106,7 @@ fn timed_then_generation() -> Generation {
             version: 1,
             schema: Schema {
                 tables: BTreeMap::new(),
+                schedules: Vec::new(),
                 maintains: Vec::new(),
                 channels: BTreeMap::new(),
                 auth: Auth::default(),

@@ -45,6 +45,12 @@ impl Default for Ceilings {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Certificate {
+    #[serde(
+        default,
+        rename = "engineWrites",
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    pub engine_writes: Vec<String>,
     #[serde(flatten, default, skip_serializing_if = "Option::is_none")]
     pub job: Option<Box<crate::jobs::JobCertificate>>,
     pub program: String,
@@ -253,9 +259,18 @@ impl<'a> Checker<'a> {
 
     fn analyze(&self, program: &Program) -> Result<Certificate, Vec<CheckError>> {
         let mut analyzer = Analyzer::new(self.schema);
-        let summary = analyzer
+        let mut summary = analyzer
             .statements(&program.body, 1, &[])
             .map_err(|error| vec![error])?;
+        // @ref LLP 1016#d5--schedules-row-timers-and-periods-on-the-owners-clock — one timer index update per schedule per affected row, inside the write ceiling.
+        let timer_writes = crate::timers::write_bound(self.schema, &summary.writes);
+        if timer_writes > 0 {
+            summary.writes.push(WriteSite {
+                table: "_timers".into(),
+                kind: WriteKind::Update,
+                max_rows: timer_writes,
+            });
+        }
         let result_page_site = match &program.result_page_site {
             Some(site) => Some(resolve_result_page_site(self.schema, &program.body, site)?),
             None => None,
@@ -543,6 +558,11 @@ impl<'a> Checker<'a> {
             write_sites: summary.writes,
             maintained_amplification,
             maintained_writes,
+            engine_writes: if timer_writes > 0 {
+                vec!["_timers".into()]
+            } else {
+                vec![]
+            },
             constraint_checks,
             max_examined,
             max_index_entries,

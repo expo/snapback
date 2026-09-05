@@ -5,6 +5,7 @@ import { QuarryError } from "./diagnostics";
 import { expandDocuments } from "./expand";
 import { parseDocument } from "./parser";
 import { emitPrograms } from "./program";
+import { prepareSchedules } from "./schedule";
 import { emitSchema } from "./schema";
 import { whereRepairDiagnostics } from "./where-repair";
 import type { FrontendDiagnostic, QuarryGenerated, SourceSite } from "../ir";
@@ -12,6 +13,7 @@ import type { FrontendDiagnostic, QuarryGenerated, SourceSite } from "../ir";
 export type QuarryInput = { path: string; fileName: string; source: string };
 export type QuarryVirtualModule = {
   jobs?: string[];
+  schedules?: ReturnType<typeof prepareSchedules>;
   path: string;
   fileName: string;
   source: string;
@@ -51,6 +53,9 @@ export function compileQuarry(inputs: QuarryInput[]): QuarryCompileResult {
   diagnostics.push(...whereRepairDiagnostics(documents, catalog));
   if (diagnostics.length > 0) return { ok: false, diagnostics: diagnostics.map(frontend) };
 
+  let schedules: ReturnType<typeof prepareSchedules> = [];
+  try { schedules = prepareSchedules(documents, catalog); } catch (error) { diagnostics.push(caughtDiagnostic(error)); }
+
   const schemaDocument = documents.find((document) => basename(document.file) === "schema.q")!;
   const schemaInput = inputs.find((input) => input.fileName === schemaDocument.file)!;
   let schemaSource = "";
@@ -76,6 +81,7 @@ export function compileQuarry(inputs: QuarryInput[]): QuarryCompileResult {
 
   const authoredSources = new Map(inputs.map((input) => [input.fileName, input.source]));
   const schema = virtualModule(schemaInput.path.replace(/\.q$/, ".ts"), schemaDocument.file, schemaSource, schemaInput.source, authoredSources);
+  schema.schedules = schedules;
   const modules = documents
     .filter((document) => document.programs.length > 0)
     .map((document) => {
@@ -135,7 +141,7 @@ function placementDiagnostics(documents: Document[]): QuarryDiagnostic[] {
       const site = document.programs[0]?.site ?? document.effects[0]!.site;
       diagnostics.push(placement(document.file, site.line, site.col, "schema.q holds declarations only; query, mutation, and effect declarations belong in a program module", "move this declaration to snapback/<module>.q"));
     }
-    if (!isSchema && document.programs.length === 0 && document.shapes.length === 0 && document.shapeImports.length === 0) diagnostics.push(placement(document.file, 1, 1, `${basename(document.file)} must declare at least one query, mutation, or shape`, "add a query, mutation, or shape, or remove the empty module"));
+    if (!isSchema && document.programs.length === 0 && document.schedules.length === 0 && document.shapes.length === 0 && document.shapeImports.length === 0) diagnostics.push(placement(document.file, 1, 1, `${basename(document.file)} must declare at least one query, mutation, or shape`, "add a query, mutation, or shape, or remove the empty module"));
     if (!isSchema && document.programs.length === 0 && document.effects.length > 0) diagnostics.push(placement(document.file, document.effects[0]!.site.line, document.effects[0]!.site.col, "effect imports need a query or mutation in this module", "move this effect import to the mutation module that emits it"));
     const stem = basename(document.file).slice(0, -2);
     if (!/^[A-Za-z_$][A-Za-z0-9_$-]*$/.test(stem)) diagnostics.push(placement(document.file, 1, 1, `file stem ${stem} cannot become an API namespace`, "rename the module to an identifier-like stem"));
@@ -213,7 +219,7 @@ function virtualModule(path: string, authored: string, source: string, authoredS
 function frontend(item: QuarryDiagnostic): FrontendDiagnostic {
   return {
     code: item.code,
-    family: "quarry",
+    family: item.code.startsWith("E_SCHEDULE_") ? "schedule" : "quarry",
     message: item.message,
     site: `${item.file}:${item.line}:${item.col}`,
     rewrite: item.code === "E_QUARRY_UNSUPPORTED" && item.rewrite === "deny"

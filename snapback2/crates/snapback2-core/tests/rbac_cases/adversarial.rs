@@ -7,6 +7,7 @@ fn actor(value: &str) -> Actor {
 
 fn schema(tables: BTreeMap<String, Table>) -> Schema {
     Schema {
+        schedules: Vec::new(),
         tables,
         maintains: Vec::new(),
         channels: BTreeMap::new(),

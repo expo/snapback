@@ -163,6 +163,14 @@ export async function lowerProject(root: string, options: LowerProjectOptions = 
   }
 
   schema.schema.effects = loweredEffects.effects.map((item) => item.name);
+  // A schedule's binding stays a certified program in the project, named from the schema and
+  // never a client operation; the schema itself carries only scalars, so its hash mirrors.
+  const schedules = virtualModules[0]?.schedules ?? [];
+  if (schedules.length) schema.schema.schedules = schedules.map(({ bindingName, ...schedule }) => {
+    operations.delete(bindingName);
+    delete sources[bindingName];
+    return { ...schedule, binding: bindingName };
+  });
   programs.sort((left, right) => left.name.localeCompare(right.name));
   const clientOperations = new Map([...operations].filter(([name]) => programs.find((p) => p.name === name)?.kind !== "job"));
   const apiDts = generateApiDts(clientOperations, checked.program, checked.checker, schema.tables, bindingsByModule);

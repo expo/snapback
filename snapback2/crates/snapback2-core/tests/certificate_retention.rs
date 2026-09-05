@@ -8,6 +8,7 @@ const GROWTH_ROW_BYTES: u64 = 2_506;
 
 fn schema() -> Schema {
     Schema {
+        schedules: Vec::new(),
         tables: BTreeMap::from([(
             "items".to_owned(),
             public_table(
@@ -51,6 +52,7 @@ fn scan() -> Expr {
 
 fn growth_schema() -> Schema {
     Schema {
+        schedules: Vec::new(),
         tables: BTreeMap::from([(
             "items".to_owned(),
             public_table(

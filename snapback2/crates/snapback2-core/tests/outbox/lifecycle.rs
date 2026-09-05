@@ -389,6 +389,7 @@ fn then_generation_with_rule(source: &str, reject: bool, write_rule: RuleExpr) -
         &ProjectJson {
             version: 1,
             schema: Schema {
+                schedules: Vec::new(),
                 tables: BTreeMap::from([("notifications".to_owned(), notifications)]),
                 maintains: Vec::new(),
                 channels: BTreeMap::new(),

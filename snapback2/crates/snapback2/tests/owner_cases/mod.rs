@@ -15,6 +15,7 @@ mod offline_replay_successor;
 #[cfg(not(feature = "hermes"))]
 mod offline_resume;
 mod operator;
+mod timers;
 #[cfg(not(feature = "hermes"))]
 mod wire_lifecycle;
 

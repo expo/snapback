@@ -169,6 +169,7 @@ impl Engine {
                 by: Some(job.enqueued_by.clone()),
                 job: Some(job.id.clone()),
                 job_chunk: Some(progress),
+                schedule: None,
                 touched: execution.trace.touched.clone(),
                 writes: execution.trace.writes.clone(),
                 emits: execution.trace.emits.len() as u64,

@@ -7,9 +7,9 @@ query thread(conversationId: conversations, c: cursor ?):
   page = deliveries[viewer, conversationId] after c last 50 by byRecipientConversationAt
   return page { *, message: messages[.messageId] }
 
-mutation post(conversationId: conversations, body: text <=4000, viewOnce: bool ?):
+mutation post(conversationId: conversations, body: text <=4000, viewOnce: bool ?, expiresAt: time ?):
   require exists memberships[conversationId, viewer] else NOT_MEMBER
-  row = insert messages { conversationId, authorId: viewer, body, viewOnce, at: now }
+  row = insert messages { conversationId, authorId: viewer, body, viewOnce, expiresAt, at: now }
   for m in memberships[conversationId] first 50 by byConversationPrincipal:
     insert deliveries { recipient: m.principal, conversationId, messageId: row.id, kind: 'message', at: now }
   return { id: row.id }
@@ -31,3 +31,14 @@ mutation edit(messageId: messages, body: text <=4000, baseBody: text <=4000):
   for m in memberships[msg.conversationId] first 50 by byConversationPrincipal:
     insert deliveries { recipient: m.principal, conversationId: msg.conversationId, messageId, kind: 'edit', at: now }
   return null
+
+-- @ref LLP 1016#d5--schedules-row-timers-and-periods-on-the-owners-clock — expiry is the owner's timer, never a client action; the expired log rows are the tombstone every recipient drains.
+mutation purgeMessage(messageId: messages):
+  msg = messages[messageId] ! else NOT_FOUND
+  for m in memberships[msg.conversationId] first 50 by byConversationPrincipal:
+    insert deliveries { recipient: m.principal, conversationId: msg.conversationId, messageId, kind: 'expired', at: now }
+  delete messages[msg]
+  return null
+
+schedule expireMessage on messages at .expiresAt:
+  purgeMessage(.id)
