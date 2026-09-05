@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2-core` (`store`, `registry`, `live`, `identity`, `successor`, the engine, the IR)
 **Author:** Claude Fable 5 (orchestrator) — implementer: codex gpt-5.6-sol, lane A
 **Date:** 2026-08-29
-**Revised:** 2026-09-05 (Clique L3 — honest bound refusals and patch-sensitive cap metering; LLP 1016 J2 — §1's system tables gain `_jobs` and `_timers`; LLP 1017 §1, then §2 and §3)
+**Revised:** 2026-09-05 (Clique L8b — nested point-read shapes preserve page state; Clique L3 — honest bound refusals and patch-sensitive cap metering; LLP 1016 J2 — §1's system tables gain `_jobs` and `_timers`; LLP 1017 §1, then §2 and §3)
 **Related:** LLP 1000, LLP 1002 (the loop that serves this), LLP 1003 (effects
 through the outbox this spec defines), LLP 0329.014.004 §7 (runtime), LLP
 0329.014.000 §6 (execution, trace, states), LLP 0329.016 §5.6 (no silent
@@ -193,7 +193,9 @@ physically empty range. Empty, two-hidden-row, and at-least-examined-ceiling
 ranges are therefore viewer-observably identical in that case.
 
 A non-uniform site is capped-only regardless of what its runtime candidates
-happen to show. It collects visible rows only until `take`, within the certified
+happen to show. Shaping a page with nested, rule-authorized point reads does not
+change its state; a hidden nested row yields `null`.
+It collects visible rows only until `take`, within the certified
 examined/rule-probe budget. If that budget cuts the page, the engine returns the
 visible rows found so far and the opaque `Capped` label. A nonempty capped
 result page carries `next`, an opaque receipt-time position derived only from

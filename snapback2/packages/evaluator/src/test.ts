@@ -17,6 +17,7 @@ import {
 } from "./evaluator";
 import { canonicalSchemaJson } from "./certificate-identity";
 import { EvalError } from "./errors";
+import { queryState } from "./runner";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -55,6 +56,15 @@ for (const testCase of cases) {
   const differences = compareExpected(hydration.actual, testCase.expected);
   assert(differences.length === 0, `${testCase.name}: ${differences.join("; ")}`);
 }
+
+const enrichedPage = cases.find((item) => item.name === "enriched-capped-page-hidden-point-null");
+assert(enrichedPage !== undefined, "enriched capped page case is absent from the corpus");
+const enrichedReplay = new ClientStore(enrichedPage.schema, enrichedPage.receipt)
+  .reexecute(enrichedPage.program, enrichedPage.context, enrichedPage.certificate);
+assert(queryState(enrichedPage.certificate, enrichedReplay.execution.trace) === "capped",
+  "nested point-read shaping changed the non-uniform page's read state");
+assert(canonicalValue(enrichedReplay.execution.result) === enrichedPage.expected.canonicalResult,
+  "enriched capped page did not preserve the authorized shape and hidden point null");
 
 const cursorPageTwo = cases.find((testCase) => testCase.name === "opaque-cursor-page-two-no-overlap");
 assert(cursorPageTwo !== undefined, "opaque cursor page-two case is absent from the corpus");

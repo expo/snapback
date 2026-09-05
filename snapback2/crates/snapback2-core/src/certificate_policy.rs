@@ -140,7 +140,12 @@ impl Checker<'_> {
             env: BTreeMap::new(),
             errors: &mut errors,
         };
-        flow.statements(&program.body, &BTreeSet::new(), &BTreeSet::new());
+        flow.statements(
+            &program.body,
+            &BTreeSet::new(),
+            &BTreeSet::new(),
+            &BTreeSet::new(),
+        );
         (errors, complete)
     }
 }
@@ -157,17 +162,26 @@ impl CompletenessFlow<'_, '_> {
         statements: &[Stmt],
         control: &BTreeSet<CappedSite>,
         loop_pages: &BTreeSet<CappedSite>,
-    ) {
+        iteration_locals: &BTreeSet<String>,
+    ) -> BTreeSet<String> {
+        let mut iteration_locals = iteration_locals.clone();
+        let mut bindings = BTreeSet::new();
         for statement in statements {
             match statement {
                 Stmt::Const { name, value } | Stmt::Let { name, value } => {
                     let fact = self.expr(value);
                     self.env.insert(name.clone(), fact);
+                    iteration_locals.insert(name.clone());
+                    bindings.insert(name.clone());
                 }
                 Stmt::Assign { name, value } => {
                     let mut fact = self.expr(value);
                     fact.structural.extend(control.iter().cloned());
-                    fact.structural.extend(loop_pages.iter().cloned());
+                    // @ref LLP 1001#3-read-and-write-states-no-silent-states — shaping a visible row does not turn its page into an absence-dependent result.
+                    // Only assignments to bindings outside this iteration are accumulators.
+                    if !iteration_locals.contains(name) {
+                        fact.structural.extend(loop_pages.iter().cloned());
+                    }
                     self.env.insert(name.clone(), fact);
                 }
                 Stmt::Push { target, value } => {
@@ -189,10 +203,20 @@ impl CompletenessFlow<'_, '_> {
                     assigned_targets(then_body, &mut branch_targets);
                     assigned_targets(else_body, &mut branch_targets);
                     let before = self.env.clone();
-                    self.statements(then_body, &nested_control, loop_pages);
+                    bindings.extend(self.statements(
+                        then_body,
+                        &nested_control,
+                        loop_pages,
+                        &iteration_locals,
+                    ));
                     let then_env = self.env.clone();
                     self.env = before;
-                    self.statements(else_body, &nested_control, loop_pages);
+                    bindings.extend(self.statements(
+                        else_body,
+                        &nested_control,
+                        loop_pages,
+                        &iteration_locals,
+                    ));
                     merge_env(&mut self.env, then_env);
                     for target in branch_targets {
                         self.env
@@ -213,7 +237,20 @@ impl CompletenessFlow<'_, '_> {
                     let mut nested_loop_pages = loop_pages.clone();
                     nested_loop_pages.extend(domain.pages.iter().cloned());
                     let previous = self.env.insert(binding.clone(), Fact::default());
-                    self.statements(body, &nested_control, &nested_loop_pages);
+                    let locals = self.statements(
+                        body,
+                        &nested_control,
+                        &nested_loop_pages,
+                        &BTreeSet::new(),
+                    );
+                    // Raw IR can name a temporary after its loop. Only values already
+                    // pushed during the iteration get the local-assignment exemption.
+                    for name in &locals {
+                        if let Some(fact) = self.env.get_mut(name) {
+                            fact.structural.extend(nested_loop_pages.iter().cloned());
+                        }
+                    }
+                    bindings.extend(locals);
                     if let Some(previous) = previous {
                         self.env.insert(binding.clone(), previous);
                     } else {
@@ -256,6 +293,7 @@ impl CompletenessFlow<'_, '_> {
                 Stmt::Break | Stmt::Continue => {}
             }
         }
+        bindings
     }
 
     fn domain(&mut self, domain: &LoopDomain) -> Fact {
