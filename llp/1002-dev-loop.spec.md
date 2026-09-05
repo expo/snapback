@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2` (the binary: owner, server, verbs), `snapback2/packages/compiler` (project lowering, worker), `snapback2/packages/snapback2` (authoring runtime, client, React, test runner, shim), `snapback2/scripts/measure.mjs`
 **Author:** Claude Fable 5 (orchestrator) — implementers: codex gpt-5.6-sol, lanes B0 (compiler + authoring surface), B1 (owner + server + verbs), B2 (`init`, `test`, `why`, `trace`, `guide`), D (client + React + evaluator)
 **Date:** 2026-08-29
-**Revised:** 2026-09-04 (§9 points at LLP 1012 for the outbox and the store); 2026-09-04 (derived asset mutation probes are pass-with-note skips); 2026-09-03 (decision 1 amended: the LLP 1006 §14a media helper is the one child spawned besides the compiler worker); 2026-09-01
+**Revised:** 2026-09-05
 **Related:** LLP 1000, LLP 1001 (the engine this serves), LLP 1003 (effects),
 LLP 0329.016 §5 (the design this implements verbatim where it can), LLP
 0329.016 §5.11 (the verb table — no verb exists without its row), LLP
@@ -752,12 +752,24 @@ carries the account-, relationship-, and scoped-role-relevant Clique M1–M3 sha
 
 ## 11. Measured
 
-`scripts/measure.mjs` gains `check_project_s` (`check` on the chat template),
-`init_to_dev_s` (`init` → `dev` ready, fresh dir), `test_todos_s` (must
-`pass`) and `test_chat_s` (timed; `blocked` naming `effects` is the honest
-verdict on an engine-less build, `pass` on the engine build) — both scored
-against the 30 s budget with their verdicts recorded (ruling 2026-08-30). Gates from `rules/RULES.md`: `check` < 1 s, `doctor` < 0.5 s;
-from LLP 0329.016 §8: `init` → `dev` ≤ 10 s, `test` on a template < 30 s.
+`scripts/measure.mjs` measures `check_project_s` (`check` on the chat
+fixture), `init_to_dev_s` (`init` → `dev` ready, fresh dir), and
+`consumer_smoke_s` (pack the current binary/helper and built shim, install
+those tarballs in a temporary consumer, then run the installed `doctor`,
+`guide auth`, public client/React imports, and both templates' React build,
+`init`, `check`, `dev`, and `test`). The consumer uses no workspace links or
+compiler/template environment overrides. Every step and receipt verdict is
+recorded. The installed-consumer rung replaces the duplicate core-test run;
+`test.sh` retains the complete Rust executable tests and doctests.
+
+The whole consumer rung, including packing and installation, is scored against
+30 s. An engine-less development build accepts only an explicit `effects`
+blocked receipt whose other checks all pass; zero checks cannot pass.
+Publication repeats this consumer proof against the actual staged production
+tarballs and requires every check to pass, including effects. The packed
+README travels with the compiler, client, templates, and guide. Gates from
+`rules/RULES.md`: `check` < 1 s, `doctor` < 0.5 s; from LLP 0329.016 §8:
+`init` → `dev` ≤ 10 s. This implements LLP 1007 §5 item 7 (2026-09-05).
 
 ## Deferred (not binding)
 

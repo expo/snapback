@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Publish snapback2 to npm: stage immutable tarballs, then converge the
 // platform package and shim to that exact pair. `--dry-run` commits neither.
+import { consumerSmoke } from "./consumer-smoke.mjs";
 import { strict as assert } from "node:assert";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
@@ -867,6 +868,9 @@ function main() {
   const staged = publication.staged;
 
   try {
+    const consumer = consumerSmoke(staged.artifacts, { npm });
+    console.log(`publish consumer: ${consumer.stdout}`);
+    if (consumer.status !== 0) throw new Error(`installed package qualification failed\n${consumer.stderr}`);
     if (dry) {
       for (const artifact of staged.artifacts) {
         command(npm, ["publish", artifact.tarball, "--access", "public", "--dry-run", "--ignore-scripts"], {

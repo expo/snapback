@@ -2,6 +2,7 @@
 // Measure the loop, every time. Appends one JSON line per run to metrics/loop.jsonl.
 // `--check` fails when a measured number exceeds the budget in rules/RULES.md.
 // `--cold` also measures a cold build (cargo clean first) — slow, opt-in.
+import { packDevelopmentConsumer, receiptVerdict as testVerdict } from "./consumer-smoke.mjs";
 import { strict as assert } from "node:assert";
 import { spawnSync } from "node:child_process";
 import {
@@ -14,7 +15,6 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const args = new Set(process.argv.slice(2));
-const testTemplates = ["todos", "chat"];
 const run = (cmd, argv, opts = {}) => {
   const t0 = performance.now();
   const r = spawnSync(cmd, argv, { cwd: root, encoding: "utf8", ...opts });
@@ -83,56 +83,7 @@ function scoreChecks(checks, budget, failedSteps, report = console.log, refuse =
   }
 }
 
-function testVerdict(result, allowChatBlocked) {
-  let receipt;
-  try {
-    receipt = JSON.parse(result.stdout);
-  } catch {
-    return { accepted: false, verdict: "invalid receipt" };
-  }
-  if (result.status === 0 && receipt.verdict === "pass") {
-    return { accepted: true, verdict: "pass" };
-  }
-  const checks = Array.isArray(receipt.checks) ? receipt.checks : [];
-  const blocked = checks.filter((check) => check.verdict === "blocked");
-  const onlyExpectedBlocked = checks.every((check) => {
-    if (check.verdict === "pass") return true;
-    return check.name === "effects"
-      && check.verdict === "blocked"
-      && check.detail?.reason === "no engine in this build";
-  });
-  if (allowChatBlocked && result.status === 1 && receipt.verdict === "blocked"
-    && blocked.length > 0 && onlyExpectedBlocked) {
-    const names = blocked.map((check) => check.name).sort().join("+");
-    return { accepted: true, verdict: "blocked", blocked: names };
-  }
-  return { accepted: false, verdict: receipt.verdict ?? "missing" };
-}
-
 const failedSummary = (failedSteps) => `failed steps: ${[...failedSteps].join(", ")}`;
-
-function coreTests(runStep = run) {
-  // Match test.sh's runner and concurrency; keep every core target and doctest.
-  // Cargo's libtest driver runs the separate integration binaries serially.
-  const started = performance.now();
-  const threads = process.env.SNAPBACK_RUST_TEST_THREADS ?? "8";
-  const results = [
-    runStep(process.env.SNAPBACK_CARGO_NEXTEST_BIN ?? "cargo-nextest", [
-      "nextest", "run", "--config-file", resolve(root, "../.config/nextest.toml"),
-      "--profile", "local-proof", "-p", "snapback2-core", "--no-fail-fast",
-    ], { env: { ...process.env, NEXTEST_TEST_THREADS: threads } }),
-    runStep("cargo", [
-      "test", "-q", "-p", "snapback2-core", "--doc", "--no-fail-fast",
-      "--", "--test-threads", threads,
-    ]),
-  ];
-  return {
-    seconds: (performance.now() - started) / 1000,
-    status: results.every((result) => result.status === 0) ? 0 : 1,
-    stdout: results.map((result) => result.stdout).join("\n"),
-    stderr: results.map((result) => result.stderr).join("\n"),
-  };
-}
 
 function preserveUnchangedExecutable(executable, operation, platform = process.platform) {
   if (platform !== "darwin" || !existsSync(executable)) return operation();
@@ -246,8 +197,10 @@ function main() {
     return preserveUnchangedExecutable(bin, () => run("cargo", buildArgs));
   }, 2, (result) => `incremental build failed\n${result.stderr ?? ""}`);
 
-  const coreTest = recordStep(record, failedSteps, "core_test_s", coreTests, 2,
-    (result) => `core tests failed\n${result.stdout ?? ""}\n${result.stderr ?? ""}`);
+  const consumer = recordStep(record, failedSteps, "consumer_smoke_s",
+    () => packDevelopmentConsumer(root, bin), 2,
+    (result) => `installed consumer failed\n${result.stdout ?? ""}\n${result.stderr ?? ""}`);
+  if (consumer.result?.steps) record.consumer = consumer.result.steps;
 
   const req = JSON.stringify({ programs: [], schemaMode: "spike" });
   recordStep(record, failedSteps, "check_s", () => run(bin, ["check", "--ir"], { input: req }), 3,
@@ -302,32 +255,6 @@ function main() {
     return { status: 0 };
   }, 3, () => "initialized owner cleanup failed");
 
-  const productTestSteps = [];
-  for (const template of testTemplates) {
-    let productTestRoot;
-    const initialized = recordStep(record, failedSteps, `test_${template}_init_s`, () => {
-      productTestRoot = mkdtempSync(resolve(tmpdir(), `snapback2-test-${template}-measure-`));
-      return run(bin, ["init", productTestRoot, "--template", template, "--client", "none", "--json"], { env: compilerEnv });
-    }, 3, (result) => `${template} init failed\n${result.stdout ?? ""}\n${result.stderr ?? ""}`);
-    let verdict = { accepted: false, verdict: "not run" };
-    const measured = recordStep(record, failedSteps, `test_${template}_s`, () => {
-      if (!productTestRoot) throw new Error(`${template} test root setup failed`);
-      const result = run(bin, ["test", "--project", productTestRoot, "--json"], { env: compilerEnv });
-      verdict = testVerdict(result, template === "chat");
-      return {
-        ...result,
-        status: initialized.step.ok && verdict.accepted ? 0 : 1,
-      };
-    }, 3, (result) => `${template} template test verdict ${verdict.verdict} was not acceptable\n${result.stdout ?? ""}\n${result.stderr ?? ""}`);
-    measured.step.verdict = verdict.verdict;
-    if (verdict.blocked) measured.step.blocked = verdict.blocked;
-    record[`test_${template}_verdict`] = verdict.verdict;
-    productTestSteps.push([`snapback2 test (${template})`, measured.step]);
-    recordStep(record, failedSteps, `test_${template}_cleanup_s`, () => {
-      if (productTestRoot) rmSync(productTestRoot, { recursive: true, force: true });
-      return { status: 0 };
-    }, 3, () => `${template} template cleanup failed`);
-  }
   try { record.production_binary_bytes = statSync(resolve(root, "target/production/snapback2")).size; } catch {}
 
   try {
@@ -357,13 +284,12 @@ function main() {
     scoreChecks([
       ["Full build, warm cache", record.steps.warm_build_s],
       ["Incremental rebuild", incremental.step],
-      ["Test what you just changed", coreTest.step],
+      ["Test what you just changed", consumer.step],
       ["`snapback2 check`", projectCheck.step],
       ["`snapback2 doctor`", doctor.step],
     ], budget, failedSteps);
     scoreChecks([
       ["init → dev", initToDev.step],
-      ...productTestSteps,
     ], (label) => label === "init → dev" ? 10 : 30, failedSteps);
   }
 
@@ -399,16 +325,6 @@ function selfTest() {
   assert.equal(statSync(artifact).ino, recoverableInode, "thrown build restores the prior artifact");
   rmSync(artifactRoot, { recursive: true, force: true });
 
-  const coreCommands = [];
-  const core = coreTests((command, argv) => {
-    coreCommands.push([command, argv]);
-    return { status: coreCommands.length === 1 ? 1 : 0, stdout: "", stderr: "" };
-  });
-  assert.equal(core.status, 1);
-  assert.equal(coreCommands.length, 2, "doctests still run after executable tests fail");
-  assert.ok(coreCommands[0][1].includes("--no-fail-fast"));
-  assert.ok(coreCommands[1][1].includes("--no-fail-fast"));
-  assert.ok(coreCommands[1][1].includes("--doc"));
   const record = { steps: {} };
   const failures = new Set();
   const originalExitCode = process.exitCode;
@@ -459,9 +375,9 @@ function selfTest() {
   const summary = failedSummary(failures);
   assert(summary.includes("check_project_s"));
   assert(summary.includes("dev_boot_s"));
-  assert.deepEqual(testTemplates, ["todos", "chat"]);
+  assert.equal(testVerdict({ status: 0, stdout: JSON.stringify({ verdict: "pass", checks: [] }) }).accepted, false);
   assert.deepEqual(
-    testVerdict({ status: 0, stdout: JSON.stringify({ verdict: "pass", checks: [] }) }, false),
+    testVerdict({ status: 0, stdout: JSON.stringify({ verdict: "pass", checks: [{ name: "certify", verdict: "pass" }] }) }, false),
     { accepted: true, verdict: "pass" },
   );
   assert.deepEqual(

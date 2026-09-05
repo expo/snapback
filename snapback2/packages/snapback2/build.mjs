@@ -204,6 +204,7 @@ if (snapshot) {
   await rm(snapshotPath, { recursive: true, force: true });
   await mkdir(snapshotPath, { recursive: true });
   await cp(resolve(here, "package.json"), resolve(snapshotPath, "package.json"));
+  await cp(resolve(here, "README.md"), resolve(snapshotPath, "README.md"));
   await cp(resolve(here, "bin"), resolve(snapshotPath, "bin"), { recursive: true });
   await cp(dist, resolve(snapshotPath, "dist"), { recursive: true });
 }
