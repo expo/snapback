@@ -104,8 +104,8 @@
   {
     "family": "bound",
     "code": "E_BOUND",
-    "wrong": "return a program whose certified work exceeds the ceiling",
-    "right": "reduce take/max values until the program fits the certified ceiling"
+    "wrong": "500 merge lanes × (20 + 2), 50 writes × cap 1000, or a wide nested result exceeds a named ceiling",
+    "right": "Follow the largest sourced term: structurally reduce merge lanes/page, use two reads (two snapshots), or maintain a feed; for a cap use the named fitting chunk; for nested scans use maintain.count/sum; for bytes narrow the named collection and fields"
   },
   {
     "family": "args",

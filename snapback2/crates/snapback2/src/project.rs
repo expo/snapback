@@ -250,7 +250,7 @@ impl CompilerWorker {
                         .or_else(|| sources.get(&program));
                     let precise = matches!(
                         error.code.as_str(),
-                        "E_STRUCTURAL_FANOUT" | "E_SCHEMA_CONSTRAINT"
+                        "E_STRUCTURAL_FANOUT" | "E_SCHEMA_CONSTRAINT" | "E_BOUND" | "E_STEPS"
                     );
                     let rewrite = source
                         .filter(|_| !precise)
@@ -1370,3 +1370,7 @@ await new Promise(() => {{}});
         fs::remove_file(pid_path).unwrap();
     }
 }
+
+#[cfg(test)]
+#[path = "project/bound_tests.rs"]
+mod bound_tests;

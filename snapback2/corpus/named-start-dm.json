@@ -1260,7 +1260,7 @@
     "disclosures": [
       "E_DISCLOSURE: count waitlist summarized into waitCounts"
     ],
-    "bound_product": "programs.startDm.0 take 1 = 1"
+    "bound_product": "1 calls × cap 256 by conversationId on memberships = 256 + 1 calls × cap 256 by conversationId on memberships = 256 + programs.startDm.0 point read on dmKeys × 1 calls = 1"
   },
   "context": {
     "viewer": "u1",

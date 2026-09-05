@@ -907,7 +907,10 @@ query spread(c: conversations):
       const spread = checked.find((item) => item.program === "row-width.spread")!;
       assert(spread.certificate === null && spread.error?.code === "E_BOUND"
         && spread.error.message.startsWith("output bytes 1820692 exceeds ceiling 1048576")
-        && spread.error.rewrite.includes("shares: []"),
+        && spread.error.rewrite.includes("widest nested collection")
+        && spread.error.rewrite.includes("shares first 50")
+        && spread.error.rewrite.includes("shares.expenseDescription")
+        && !spread.error.rewrite.includes("return null"),
       `Clique spread did not retain its pinned output refusal: ${JSON.stringify(spread)}`);
 
       const raised = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema, {

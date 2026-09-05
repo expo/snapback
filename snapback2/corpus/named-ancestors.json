@@ -1087,7 +1087,7 @@
     "disclosures": [
       "E_DISCLOSURE: count waitlist summarized into waitCounts"
     ],
-    "bound_product": "programs.ancestors.0 take 1 = 1"
+    "bound_product": "programs.ancestors.0 point read on accounts × 9 calls = 9"
   },
   "context": {
     "viewer": "u1",

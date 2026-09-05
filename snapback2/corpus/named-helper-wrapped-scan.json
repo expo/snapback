@@ -1068,7 +1068,7 @@
     "disclosures": [
       "E_DISCLOSURE: count waitlist summarized into waitCounts"
     ],
-    "bound_product": "programs.helperWrappedScan.0 take 37 = 37"
+    "bound_product": "programs.helperWrappedScan.0 take 37 (+2 reserve) × 1 calls on cards = 39"
   },
   "context": {
     "viewer": "u1",
