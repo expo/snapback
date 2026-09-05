@@ -15,6 +15,8 @@ numbers, dashes, or underscores; rewrite `by` to a name such as `operator-alice`
 The control secret and loopback transport are required. `E_OPERATOR_REQUIRED`
 (`operator/seat`) means run it locally against `dev`, or with an `admin` token
 once `serve`-mode tokens exist; `/api/*` never accepts the seat.
+`POST /control/run` and `POST /control/job` default `as` to `system` (they are
+the seat); `POST /control/execute` does not, because it also serves explicit personas.
 A rejected operator mutation retains its attempted trace in the owner log and
 in `trace latest` until the next commit (or owner restart); an explicit sequence
 still selects its committed ledger row.

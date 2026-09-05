@@ -4,6 +4,7 @@
 use crate::asset_http::{MediaJobs, handle_asset_delivery, handle_upload};
 use crate::blob_store::{BlobStore, LocalStaging};
 use crate::control;
+use crate::project::SharedCompiler;
 use crate::protocol::{Refusal, refusal_json};
 use crate::writer::{
     Action, Identity, OfflineOptions, OwnerHandle, SseEvent, SseReceiver, sse_queue,
@@ -46,6 +47,7 @@ pub struct Context {
     pub blobs: Arc<dyn BlobStore>,
     pub staging: Arc<LocalStaging>,
     pub media_jobs: MediaJobs,
+    pub compiler: SharedCompiler,
 }
 
 #[derive(Clone, Default)]
@@ -264,13 +266,14 @@ fn handle(mut request: Request, context: Context, streams: live::Streams) {
     let method = method_name(request.method());
     let request_url = request.url().to_owned();
     let (path, query) = split_url(&request_url);
-    // @ref LLP 1016#d6--the-operator-seat-ad-hoc-programs-and-rehearsal — ad hoc/job routes have no remote seat until H0 supplies token admission; check before secrets or parsing source.
-    if matches!(path.as_str(), "/control/run" | "/control/job")
-        && let Err(refusal) = control::operator_transport(
-            is_loopback(request.remote_addr().map(SocketAddr::ip)),
-            &context.mode,
-        )
-    {
+    // @ref LLP 1016#d6--the-operator-seat-ad-hoc-programs-and-rehearsal — the ad hoc, job, and execute routes (each carries the seat or a rehearsal) have no remote seat until H0 supplies token admission; refuse before secrets or parsing source.
+    if matches!(
+        path.as_str(),
+        "/control/run" | "/control/job" | "/control/execute"
+    ) && let Err(refusal) = control::operator_transport(
+        is_loopback(request.remote_addr().map(SocketAddr::ip)),
+        &context.mode,
+    ) {
         respond_refusal(request, 403, refusal, &context.mode);
         return;
     }
@@ -342,6 +345,7 @@ fn handle(mut request: Request, context: Context, streams: live::Streams) {
         let control_context = control::Context {
             handle: context.handle.clone(),
             root: context.root.clone(),
+            compiler: context.compiler.clone(),
         };
         match control::route(method, &path, &query, body, &control_context) {
             Some(Ok(value)) => respond_json(request, 200, value, &context.mode),

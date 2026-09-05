@@ -209,8 +209,12 @@ fn response(result: Result<client::HttpResponse, Refusal>, json_output: bool) ->
             if r.status < 400 && r.body["dryRun"] == true {
                 return print_response(r.status, r.body, json_output);
             }
-            // The owner compiled the file and found --plan/--wait on a non-job: usage.
-            if r.status >= 400 && r.body["code"] == "E_OP_KIND" {
+            // The owner compiled the file and found a usage error in what this verb built
+            // from its flags: --plan/--wait on a non-job, or not exactly one declaration.
+            if r.status >= 400
+                && (r.body["code"] == "E_OP_KIND"
+                    || (r.body["code"] == "E_INPUT" && r.body["site"] == "source"))
+            {
                 print_response(r.status, r.body, json_output);
                 return ExitCode::from(2);
             }

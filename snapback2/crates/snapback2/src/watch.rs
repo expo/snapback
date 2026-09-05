@@ -1,7 +1,7 @@
 //! 200 ms authored-source polling and hot successor application.
 // @ref LLP 1002#5-the-owner — refused successors keep the last generation serving.
 
-use crate::project::{CompilerWorker, stage_build_cache};
+use crate::project::{SharedCompiler, lock_compiler, stage_build_cache};
 use crate::protocol::Refusal;
 use crate::writer::{Action, OwnerHandle};
 use serde_json::{Value as Json, json};
@@ -15,12 +15,12 @@ use std::thread;
 use std::time::{Duration, UNIX_EPOCH};
 
 pub fn spawn(
-    mut compiler: CompilerWorker,
+    compiler: SharedCompiler,
     root: PathBuf,
     handle: OwnerHandle,
     stop: Arc<AtomicBool>,
 ) -> thread::JoinHandle<()> {
-    compiler.cancel_on(stop.clone());
+    lock_compiler(&compiler).cancel_on(stop.clone());
     thread::Builder::new()
         .name("snapback2-watch".to_owned())
         .spawn(move || {
@@ -35,20 +35,24 @@ pub fn spawn(
                 let _ = handle.call(Action::Applying {
                     generation: "pending".to_owned(),
                 });
-                match compiler.compile(&root) {
+                // Hold the shared worker only while it compiles; the writer call below
+                // must not wait behind an ad hoc compilation and vice versa.
+                let mut worker = lock_compiler(&compiler);
+                match worker.compile(&root) {
                     Ok(compiled) => {
                         let generation = compiled.generation.hash();
-                        if let Err(errors) = compiler.journeys(&root) {
+                        if let Err(errors) = worker.journeys(&root) {
                             refuse(&handle, &root, generation, errors);
                             continue;
                         }
-                        let seed = match compiler.seed(&root) {
+                        let seed = match worker.seed(&root) {
                             Ok(seed) => seed,
                             Err(errors) => {
                                 refuse(&handle, &root, generation, errors);
                                 continue;
                             }
                         };
+                        drop(worker);
                         let project = compiled.project.clone();
                         let cache = match stage_build_cache(&root, &compiled) {
                             Ok(cache) => cache,
@@ -95,6 +99,7 @@ pub fn spawn(
                         }
                     }
                     Err(errors) => {
+                        drop(worker);
                         let generation = handle
                             .call(Action::Status)
                             .ok()

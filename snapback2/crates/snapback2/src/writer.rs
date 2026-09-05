@@ -123,8 +123,10 @@ impl OwnerHandle {
 #[allow(clippy::large_enum_variant)]
 pub enum Action {
     RehearsalSnapshot {
+        target: crate::rehearsal::Target,
+        args: Json,
         identity: Identity,
-        reply: Sender<Result<(crate::rehearsal::Snapshot, String), Refusal>>,
+        reply: Sender<Result<crate::rehearsal::Snapshot, Refusal>>,
     },
     Jobs,
     Job {
@@ -490,8 +492,13 @@ impl State {
 
     fn handle(&mut self, action: Action) -> Result<Json, Refusal> {
         match action {
-            Action::RehearsalSnapshot { identity, reply } => {
-                let _ = reply.send(self.rehearsal_snapshot(identity));
+            Action::RehearsalSnapshot {
+                target,
+                args,
+                identity,
+                reply,
+            } => {
+                let _ = reply.send(self.rehearsal_snapshot(target, args, identity));
                 Ok(json!({}))
             }
             Action::Jobs => self.jobs(),

@@ -1,6 +1,9 @@
 use super::*;
 use snapback2_core::*;
-use std::{collections::BTreeMap, net::TcpListener};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    net::TcpListener,
+};
 
 fn lit(v: Value) -> Expr {
     Expr::Literal(v)
@@ -91,12 +94,18 @@ fn project(url: &str) -> ProjectJson {
         ProgramKind::Mutation,
         vec![Stmt::Update {
             table: "items".into(),
-            key: lit(Value::Id("item-00000".into())),
+            key: Expr::Variable("id".into()),
             patch: Expr::Object(BTreeMap::from([(
                 "photo".into(),
                 Expr::Variable("photo".into()),
             )])),
         }],
+    );
+    attach.args.insert(
+        "id".into(),
+        ArgType::Ref {
+            table: "items".into(),
+        },
     );
     attach
         .args
@@ -191,7 +200,8 @@ fn live(root: &Path, url: &str, count: usize, bad: Option<usize>) -> Runtime {
 fn scratch() -> Scratch {
     Scratch::new(&std::env::temp_dir().join("snapback2-rehearsal-tests")).unwrap()
 }
-fn attach_photo(runtime: &mut Runtime, root: &Path) -> (String, PathBuf) {
+/// Attach a ready image to `items[item-<index>]` and plant its blob file under `root/blobs`.
+fn attach_photo(runtime: &mut Runtime, root: &Path, index: usize) -> (String, PathBuf) {
     let alice = Actor::user("alice").unwrap();
     let id = runtime.begin_asset(AssetKind::Image, &alice, 0).unwrap();
     runtime.reserve_asset_finalized_bytes(&id, 5).unwrap();
@@ -215,7 +225,13 @@ fn attach_photo(runtime: &mut Runtime, root: &Path) -> (String, PathBuf) {
     let attached = runtime
         .execute(
             "attach",
-            Context::mutation(alice, BTreeMap::from([("photo".into(), asset)])),
+            Context::mutation(
+                alice,
+                BTreeMap::from([
+                    ("id".into(), Value::Id(format!("item-{index:05}"))),
+                    ("photo".into(), asset),
+                ]),
+            ),
         )
         .unwrap();
     assert!(
@@ -229,6 +245,32 @@ fn attach_photo(runtime: &mut Runtime, root: &Path) -> (String, PathBuf) {
     fs::write(&path, b"bytes").unwrap();
     (id, path)
 }
+/// Every file in the live blob directory with its size, in name order.
+fn blob_listing(root: &Path) -> Vec<(String, u64)> {
+    let mut listing = fs::read_dir(root.join("blobs"))
+        .unwrap()
+        .map(|entry| {
+            let entry = entry.unwrap();
+            (
+                entry.file_name().to_string_lossy().into_owned(),
+                entry.metadata().unwrap().len(),
+            )
+        })
+        .collect::<Vec<_>>();
+    listing.sort();
+    listing
+}
+fn capture(live: &Runtime, parent: &Path, now: i64, op: &str, args: Json) -> Snapshot {
+    Snapshot::capture(
+        live,
+        parent,
+        now,
+        Target::Declared(op.into()),
+        &args,
+        "test".into(),
+    )
+    .unwrap()
+}
 
 #[test]
 fn rehearsal_isolates_network_blobs_commits_outbox_and_discards_copy() {
@@ -237,7 +279,12 @@ fn rehearsal_isolates_network_blobs_commits_outbox_and_discards_copy() {
     server.set_nonblocking(true).unwrap();
     let url = format!("http://{}", server.local_addr().unwrap());
     let mut live = live(&scratch.0, &url, 205, None);
-    let (asset_id, blob) = attach_photo(&mut live, &scratch.0);
+    // More releases than the receipt lists: the count stays exact past the cap.
+    let attached = (0..101)
+        .map(|index| attach_photo(&mut live, &scratch.0, index).0)
+        .collect::<BTreeSet<_>>();
+    let blobs_before = blob_listing(&scratch.0);
+    assert_eq!(blobs_before.len(), 101);
     // An inherited queued job must not run in rehearsal either.
     let pending = live
         .enqueue_job("digest", BTreeMap::new(), OperatorId("test".into()))
@@ -247,13 +294,16 @@ fn rehearsal_isolates_network_blobs_commits_outbox_and_discards_copy() {
     let before_namespace = live.store().meta("id_namespace").unwrap();
     let before_high_water = live.store().meta("id_high_water").unwrap();
     let now = 10 * ASSET_RECLAIM_GRACE_MS;
-    let snapshot = Snapshot::capture(&live, &scratch.0.join("copies"), now).unwrap();
+    let snapshot = capture(&live, &scratch.0.join("copies"), now, "cleanup", json!({}));
     let copy = snapshot.directory.0.clone();
+    let mut inherited = None;
     let report = snapshot
-        .run(Target::Declared("cleanup".into()), json!({}), "test".into())
+        .run_observed(|copy| inherited = Some(copy.job_record(&pending).unwrap()))
         .unwrap();
     assert_eq!(report["dryRun"], true);
     assert_eq!(report["state"], "done", "{report}");
+    assert_eq!(report["op"], "cleanup");
+    assert_eq!(report["kind"], "job");
     assert_eq!(
         report["chunks"], 6,
         "all three chunks in each of two sweeps"
@@ -267,8 +317,16 @@ fn rehearsal_isolates_network_blobs_commits_outbox_and_discards_copy() {
         report["effects"][0],
         json!({"effect":"delivery.notify","payloadBytes":7})
     );
-    assert_eq!(report["assetReleaseCount"], 1);
-    assert_eq!(report["assetsReleased"][0]["id"], asset_id);
+    assert_eq!(report["assetReleaseCount"], 101);
+    assert_eq!(report["assetsReleased"].as_array().unwrap().len(), 100);
+    assert_eq!(report["assetsTruncated"], true);
+    assert_eq!(report["detailLimit"], 100);
+    for release in report["assetsReleased"].as_array().unwrap() {
+        assert!(attached.contains(release["id"].as_str().unwrap()));
+        assert_eq!(release["table"], "items");
+        assert_eq!(release["column"], "photo");
+        assert_eq!(release["bytes"], 5);
+    }
     assert_eq!(report["now"], now);
     // The five negatives, independently observed after the completed rehearsal.
     assert_eq!(
@@ -277,9 +335,9 @@ fn rehearsal_isolates_network_blobs_commits_outbox_and_discards_copy() {
         "effect reached the loopback grant"
     );
     assert_eq!(
-        fs::read(&blob).unwrap(),
-        b"bytes",
-        "shared blob was changed/reclaimed"
+        blob_listing(&scratch.0),
+        blobs_before,
+        "the live blob directory gained, lost, or resized a file"
     );
     assert_eq!(
         live.store().commit_seq().unwrap(),
@@ -292,15 +350,13 @@ fn rehearsal_isolates_network_blobs_commits_outbox_and_discards_copy() {
         "live outbox grew"
     );
     assert!(!copy.exists(), "snapshot directory/WAL/SHM survived");
-    assert_eq!(live.job_record(&pending).unwrap().chunks, 0);
-    assert!(
-        live.store()
-            .asset(&asset_id)
-            .unwrap()
-            .unwrap()
-            .locator
-            .is_some()
-    );
+    // The copy carried the queued digest job and never drove it (one program per rehearsal).
+    let inherited = inherited.unwrap();
+    assert_eq!(inherited.state, "queued");
+    assert_eq!(inherited.chunks, 0);
+    for id in &attached {
+        assert!(live.store().asset(id).unwrap().unwrap().locator.is_some());
+    }
     assert_eq!(live.store().meta("id_namespace").unwrap(), before_namespace);
     assert_eq!(
         live.store().meta("id_high_water").unwrap(),
@@ -314,11 +370,9 @@ fn rehearsal_pins_clock_and_uses_disjoint_id_namespaces() {
     let mut live = live(&scratch.0, "http://127.0.0.1:9", 0, None);
     let mut ids = Vec::new();
     for op in ["clock", "mint", "mint"] {
-        let snapshot = Snapshot::capture(&live, &scratch.0.join("copies"), 123).unwrap();
+        let snapshot = capture(&live, &scratch.0.join("copies"), 123, op, json!({}));
         std::thread::sleep(std::time::Duration::from_millis(2));
-        let report = snapshot
-            .run(Target::Declared(op.into()), json!({}), "test".into())
-            .unwrap();
+        let report = snapshot.run().unwrap();
         if op == "clock" {
             assert_eq!(report["result"]["data"], 123);
         } else {
@@ -344,10 +398,9 @@ fn rehearsal_pins_clock_and_uses_disjoint_id_namespaces() {
 fn rehearsal_parks_with_prior_chunks_and_rolls_back_effects_and_asset_releases() {
     let scratch = scratch();
     let mut live = live(&scratch.0, "http://127.0.0.1:9", 205, Some(0));
-    let (id, _) = attach_photo(&mut live, &scratch.0);
-    let report = Snapshot::capture(&live, &scratch.0.join("copies"), 1)
-        .unwrap()
-        .run(Target::Declared("cleanup".into()), json!({}), "test".into())
+    let (id, _) = attach_photo(&mut live, &scratch.0, 0);
+    let report = capture(&live, &scratch.0.join("copies"), 1, "cleanup", json!({}))
+        .run()
         .unwrap();
     assert_eq!(report["state"], "parked");
     assert_eq!(report["refusals"][0]["code"], "FIX_ROW");
@@ -359,9 +412,8 @@ fn rehearsal_parks_with_prior_chunks_and_rolls_back_effects_and_asset_releases()
     let other = scratch.0.join("other");
     fs::create_dir(&other).unwrap();
     let live = self::live(&other, "http://127.0.0.1:9", 205, Some(150));
-    let report = Snapshot::capture(&live, &scratch.0.join("copies"), 1)
-        .unwrap()
-        .run(Target::Declared("cleanup".into()), json!({}), "test".into())
+    let report = capture(&live, &scratch.0.join("copies"), 1, "cleanup", json!({}))
+        .run()
         .unwrap();
     assert_eq!(report["chunks"], 1);
     assert_eq!(report["rowsWritten"]["items"], 100);
@@ -369,10 +421,13 @@ fn rehearsal_parks_with_prior_chunks_and_rolls_back_effects_and_asset_releases()
 }
 
 #[test]
-fn rehearsal_reports_admission_refusals_and_cleans_up_failed_open() {
+fn admission_refuses_on_the_live_runtime_before_any_copy_and_a_failed_open_is_e_rehearsal() {
     let scratch = scratch();
     let live = live(&scratch.0, "http://127.0.0.1:9", 1, None);
-    let unknown = program(
+    let copies = scratch.0.join("copies");
+    let before_seq = live.store().commit_seq().unwrap();
+    let source = "mutation bad: emit missing {}";
+    let uncertifiable = program(
         "bad",
         ProgramKind::Mutation,
         vec![Stmt::Emit {
@@ -380,31 +435,60 @@ fn rehearsal_reports_admission_refusals_and_cleans_up_failed_open() {
             payload: text("no"),
         }],
     );
-    let report = Snapshot::capture(&live, &scratch.0.join("copies"), 1)
-        .unwrap()
-        .run(
+    // Unknown name, untyped job arguments, untyped mutation arguments, and an ad hoc
+    // program whose effect target does not exist: each refuses with the live seat's
+    // envelope, and no copy directory is ever created for it.
+    let cases: Vec<(Target, Json, &str, Option<String>)> = vec![
+        (
+            Target::Declared("nosuch".into()),
+            json!({}),
+            "E_OP_UNKNOWN",
+            None,
+        ),
+        (
+            Target::Declared("digest".into()),
+            json!({"bogus": 1}),
+            "E_JOB_ARGS",
+            Some("digest".into()),
+        ),
+        (
+            Target::Declared("attach".into()),
+            json!({"bogus": 1}),
+            "E_INPUT",
+            None,
+        ),
+        (
             Target::Adhoc {
-                program: unknown,
-                source: "mutation bad: emit missing {}".into(),
+                program: uncertifiable,
+                source: source.into(),
             },
             json!({}),
-            "test".into(),
-        )
-        .unwrap();
-    assert_eq!(report["state"], "refused");
-    assert!(
-        report["refusals"][0]["message"]
-            .as_str()
-            .unwrap()
-            .contains("E_EFFECT_UNKNOWN")
-    );
-    assert_eq!(report["effectCount"], 0);
-    let snapshot = Snapshot::capture(&live, &scratch.0.join("copies"), 1).unwrap();
+            "E_SCHEMA",
+            Some(format!("adhoc:{}", snapback2_core::digest(&source))),
+        ),
+    ];
+    for (target, args, code, site) in cases {
+        let refusal = Snapshot::capture(&live, &copies, 1, target, &args, "test".into())
+            .err()
+            .expect("admission refused before any copy");
+        assert_eq!(refusal.code, code, "{refusal:?}");
+        if let Some(site) = site {
+            assert_eq!(refusal.site.as_deref(), Some(site.as_str()), "{refusal:?}");
+        }
+        if code == "E_SCHEMA" {
+            assert!(refusal.message.contains("E_EFFECT_UNKNOWN"), "{refusal:?}");
+        }
+        assert!(
+            !copies.exists(),
+            "a copy was created for a program that was never admitted"
+        );
+        assert_eq!(live.store().commit_seq().unwrap(), before_seq);
+    }
+    // A copy that cannot open is the rehearsal's own failure, and the directory goes.
+    let snapshot = capture(&live, &copies, 1, "clock", json!({}));
     let path = snapshot.directory.0.clone();
     fs::write(path.join("store.sqlite"), b"invalid sqlite").unwrap();
-    let error = snapshot
-        .run(Target::Declared("clock".into()), json!({}), "test".into())
-        .unwrap_err();
+    let error = snapshot.run().err().expect("a copy that cannot open");
     assert_eq!(error.code, "E_REHEARSAL");
     assert_eq!(error.family, "operator");
     assert_eq!(error.site.as_deref(), Some("run --dry-run"));
@@ -414,7 +498,7 @@ fn rehearsal_reports_admission_refusals_and_cleans_up_failed_open() {
 }
 
 #[test]
-#[ignore = "LLP 1016 measurement, opt-in via measure.mjs --administrative"]
+#[ignore = "LLP 1016 §8 measurement, run explicitly: cargo nextest run -p snapback2 --bin snapback2 -E 'test(measure_rehearsal)' --run-ignored ignored-only --no-capture"]
 fn measure_rehearsal_digest_and_100mb_overhead() {
     let scratch = scratch();
     let mut live = live(&scratch.0, "http://127.0.0.1:9", 1000, None);
@@ -454,14 +538,17 @@ fn measure_rehearsal_digest_and_100mb_overhead() {
         generation,
     )
     .unwrap();
-    let report = Snapshot::capture(&live, &scratch.0.join("copies"), 1)
-        .unwrap()
-        .run(
-            Target::Declared("digest".into()),
-            json!({}),
-            "measure".into(),
-        )
-        .unwrap();
+    let report = Snapshot::capture(
+        &live,
+        &scratch.0.join("copies"),
+        1,
+        Target::Declared("digest".into()),
+        &json!({}),
+        "measure".into(),
+    )
+    .unwrap()
+    .run()
+    .unwrap();
     let elapsed = report["elapsedMs"].as_f64().unwrap();
     let execution = report["executionMs"].as_f64().unwrap();
     assert_eq!(

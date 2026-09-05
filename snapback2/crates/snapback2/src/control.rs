@@ -1,7 +1,7 @@
 //! Loopback-only control-plane routes.
 // @ref LLP 1002#4-the-wire — control requests require the owner secret.
 
-use crate::project::certify_project_value;
+use crate::project::{SharedCompiler, certify_project_value};
 use crate::protocol::Refusal;
 use crate::serve::Query;
 use crate::writer::{Action, Identity, OwnerHandle};
@@ -17,6 +17,7 @@ const MAX_LOG_TAIL_BYTES: u64 = 4 * 1024 * 1024;
 pub struct Context {
     pub handle: OwnerHandle,
     pub root: PathBuf,
+    pub compiler: SharedCompiler,
 }
 
 pub fn route(
@@ -91,17 +92,20 @@ pub fn route(
     }
     let result = match (method, path) {
         ("GET", "/control/jobs") => call(Action::Jobs),
-        ("POST", "/control/job") => call(Action::EnqueueJob {
-            name: body
-                .get("name")
-                .or_else(|| body.get("op"))
-                .and_then(Json::as_str)
-                .unwrap_or_default()
-                .into(),
-            args: body.get("args").cloned().unwrap_or_else(|| json!({})),
-            identity: control_identity(&body),
-            plan: body["plan"] == true,
-        }),
+        ("POST", "/control/job") => match crate::control_run::flag(&body, "plan") {
+            Ok(plan) => call(Action::EnqueueJob {
+                name: body
+                    .get("name")
+                    .or_else(|| body.get("op"))
+                    .and_then(Json::as_str)
+                    .unwrap_or_default()
+                    .into(),
+                args: body.get("args").cloned().unwrap_or_else(|| json!({})),
+                identity: control_identity(&body),
+                plan,
+            }),
+            Err(error) => Err((400, error)),
+        },
         ("GET", "/control/status") => call(Action::Status),
         ("POST", "/control/execute") => call(Action::Execute {
             op: body

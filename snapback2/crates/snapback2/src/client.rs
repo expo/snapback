@@ -52,15 +52,8 @@ fn request(
             "run snapback2 dev",
         )
     })?;
-    // A requested rehearsal runs the entire job; it has no five-second task bound.
-    let operator_run =
-        path == "/control/run" || body["dryRun"] == true || body["mode"] == "dry-run";
     stream
-        .set_read_timeout(if operator_run {
-            None
-        } else {
-            Some(Duration::from_secs(5))
-        })
+        .set_read_timeout(read_timeout(&body))
         .map_err(io_refusal)?;
     stream
         .set_write_timeout(Some(Duration::from_secs(5)))
@@ -91,6 +84,16 @@ fn request(
     let mut response = Vec::new();
     stream.read_to_end(&mut response).map_err(io_refusal)?;
     parse_response(&response)
+}
+
+/// A rehearsal runs the entire job before it answers, so it alone has no read bound;
+/// `plan`, `run`, and every other request keep the five-second task bound.
+fn read_timeout(body: &Json) -> Option<Duration> {
+    if body["dryRun"] == true || body["mode"] == "dry-run" {
+        None
+    } else {
+        Some(Duration::from_secs(5))
+    }
 }
 
 fn parse_response(response: &[u8]) -> Result<HttpResponse, Refusal> {
@@ -255,6 +258,32 @@ mod tests {
             let refusal = parse_response(&response(body)).unwrap_err();
             assert_eq!(refusal.code, "E_OWNER_PROTOCOL");
         }
+    }
+
+    #[test]
+    fn only_rehearsals_wait_without_a_read_timeout() {
+        let bound = Some(Duration::from_secs(5));
+        assert_eq!(
+            read_timeout(&json!({ "mode": "dry-run", "source": "x" })),
+            None
+        );
+        assert_eq!(
+            read_timeout(&json!({ "dryRun": true, "name": "fill" })),
+            None
+        );
+        assert_eq!(
+            read_timeout(&json!({ "mode": "plan", "source": "x" })),
+            bound
+        );
+        assert_eq!(
+            read_timeout(&json!({ "mode": "run", "source": "x" })),
+            bound
+        );
+        assert_eq!(
+            read_timeout(&json!({ "dryRun": false, "name": "fill" })),
+            bound
+        );
+        assert_eq!(read_timeout(&json!({})), bound);
     }
 
     #[test]

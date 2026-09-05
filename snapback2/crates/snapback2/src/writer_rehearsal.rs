@@ -10,29 +10,37 @@ impl OwnerHandle {
     ) -> Result<Json, Refusal> {
         let (tx, rx) = mpsc::channel();
         self.call(Action::RehearsalSnapshot {
+            target,
+            args,
             identity,
             reply: tx,
         })?;
-        let (snapshot, by) = rx.recv().map_err(|_| owner_gone())??;
-        snapshot.run(target, args, by)
+        let snapshot = rx.recv().map_err(|_| owner_gone())??;
+        snapshot.run()
     }
 }
 
 impl State {
+    /// Identity, then the program's admission, then the copy: nothing pauses the
+    /// writer for a backup unless the program would actually run.
     pub(super) fn rehearsal_snapshot(
         &self,
+        target: Target,
+        args: Json,
         identity: Identity,
-    ) -> Result<(Snapshot, String), Refusal> {
+    ) -> Result<Snapshot, Refusal> {
         let Identity::Operator { by } = identity else {
             return Err(Refusal::operator_required());
         };
         self.require_operator(&by)?;
-        let snapshot = Snapshot::capture(
+        Snapshot::capture(
             self.runtime(),
             &self.root.join(".snapback/rehearsals"),
             self.now(),
-        )?;
-        Ok((snapshot, by))
+            target,
+            &args,
+            by,
+        )
     }
 }
 

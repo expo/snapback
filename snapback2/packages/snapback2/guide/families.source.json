@@ -534,11 +534,19 @@
     "right": "declare the program as a job and run its name"
   },
   {
+    "family": "op",
+    "code": "E_OP_KIND",
+    "site": "--plan/--wait",
+    "guide": "job",
+    "wrong": "run --file inspect.q --as system --plan, where inspect.q declares a query",
+    "right": "only a job has sweeps to plan or chunks to wait for: run --file inspect.q --as system, or declare a job"
+  },
+  {
     "family": "operator",
     "code": "E_REHEARSAL",
     "site": "run --dry-run",
     "guide": "job",
-    "wrong": "rehearse when the snapshot cannot be created, opened, or discarded",
+    "wrong": "rehearse when the snapshot cannot be created, opened, run (an engine or store fault inside the copy), or discarded",
     "right": "check free disk space and the owner's store, then retry --dry-run"
   }
 ]

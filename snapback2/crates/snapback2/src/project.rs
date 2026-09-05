@@ -11,9 +11,9 @@ use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::os::unix::process::CommandExt;
 use std::path::{Component, Path, PathBuf};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError};
+use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -519,6 +519,17 @@ impl Drop for CompilerWorker {
     fn drop(&mut self) {
         self.terminate();
     }
+}
+
+/// The owner's one compiler worker, shared by the source watcher and `POST /control/run`.
+/// The lock serialises compilations, so an ad hoc request never spawns a second node
+/// process and at most one compiles at a time.
+pub type SharedCompiler = Arc<Mutex<CompilerWorker>>;
+
+pub fn lock_compiler(shared: &SharedCompiler) -> MutexGuard<'_, CompilerWorker> {
+    shared
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
 pub fn locate_root(explicit: Option<&Path>) -> Result<PathBuf, Refusal> {

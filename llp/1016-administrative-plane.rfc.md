@@ -583,7 +583,18 @@ job fill_profiles_avatarUrl: 1 sweep · profiles by byId · 100/chunk · 4,118 e
 engine writes: _jobs · ceilings: examined 200 / written 101 per chunk
 
 $ snapback2 run fill_profiles_avatarUrl --as system --dry-run
-rehearsal: 42 chunks · profiles: 4,118 updated · 0 effects · 3.1 s (copy discarded)
+{
+  "dryRun": true,
+  "state": "done",
+  "op": "fill_profiles_avatarUrl",
+  "kind": "job",
+  "chunks": 42,
+  "rowsWritten": { "profiles": 4118 },
+  "effectCount": 0,
+  "assetReleaseCount": 0,
+  "elapsedMs": 3100,
+  "copyDiscarded": true
+}
 
 $ snapback2 run fill_profiles_avatarUrl --as system --wait
 job_01J9… chunk 1/42 · 100 rows · seq 88,412 · 19 ms
@@ -591,7 +602,8 @@ job_01J9… chunk 1/42 · 100 rows · seq 88,412 · 19 ms
 job_01J9… done · 42 chunks · profiles: 4,118 updated · 2.4 s · operator: alice@dev
 
 $ snapback2 run --file ./fix-handles.q --as system --dry-run
-rehearsal: mutation fixHandles: profiles: 3 updated · 0 effects
+{ "dryRun": true, "state": "done", "op": "adhoc:9c1e…", "kind": "mutation",
+  "rowsWritten": { "profiles": 3 }, "effectCount": 0, "copyDiscarded": true }
 
 $ snapback2 run --file ./fix-handles.q --as system
 committed seq 88,455 · operator · source 9c1e…
@@ -606,7 +618,8 @@ $ snapback2 dev --status --json | jq .jobs,.timers
 ```
 
 Every line is a `--json` envelope with the same fields; the text is a
-projection of it.
+projection of it. `--dry-run` prints its receipt as pretty JSON in both
+forms: the receipt is the envelope (J3 fix round 1).
 
 ## 4. The grammar delta, on one screen
 
@@ -700,7 +713,8 @@ a site, a rewrite, and a page.
 | `E_OPERATOR_REQUIRED` | operator | `run <job>`, `--file`, `--cancel`, `--resume` without the seat | `--as system`, or an `admin` token |
 | `E_ARGS_NAME` | args | a caller-supplied `by` that is not a valid name | 1–80 ASCII letters, numbers, dashes, or underscores; `system` is reserved |
 | `E_ADHOC_SIZE` | operator | ad hoc source over 64 KiB | declare it as a job |
-| `E_REHEARSAL` | operator | `--dry-run` could not snapshot, open, or discard its copy (the rehearsal itself failed; a program refusal inside a rehearsal is a receipt, not this code) | check free disk space and the owner's store, then retry |
+| `E_REHEARSAL` | operator | `--dry-run` could not snapshot, open, run, or discard its copy — an engine or store fault inside the rehearsal (J3 fix round 1 widened it to execution); a program refusal inside a rehearsal is a receipt, not this code | check free disk space and the owner's store, then retry |
+| `E_OP_KIND` | op | (existing) `--plan` or `--wait` on a non-job, found by the owner after compiling `--file` source; the CLI reports it as usage (J3 fix round 1) | use a job, or omit `--plan`/`--wait` |
 | `E_SUCCESSOR_NARROWING` | successor | `T?` → `T` with null rows, at application | the fill job |
 | `E_SUCCESSOR_COLUMN_REQUIRED` | successor | (existing) | gains the three-step rewrite |
 | `E_QUARRY_UNSUPPORTED` | quarry | (existing) the `system` rule word | `deny` |
@@ -1203,3 +1217,73 @@ owner tests the J1a and J1b sandboxes could not run; all package tests, 162
 evaluator cases, 315 compiler checks and the doctests passed. Caps and
 `ref-check` pass. The chat-fixture `check` measured 0.480 s bare and 0.487 s
 with two jobs, below one second.
+
+**Fix round 1** (2026-09-05, Claude, after two blind reviews — grok and Muse,
+both LAND WITH FIXES with no blocking defect). What changed:
+
+- **Admission before the copy.** `Snapshot::capture` now takes the target and
+  arguments and admits them on the live runtime — the declared name, an ad hoc
+  program's certificate against the live generation, the arguments under the
+  authored name so `E_JOB_ARGS` pastes the signature — before it creates the
+  scratch directory or copies the store. A refusal is the seat's ordinary
+  envelope (`E_OP_UNKNOWN`, `E_JOB_ARGS`, `E_INPUT`, the certifier's
+  `E_SCHEMA`) and costs the writer nothing; a `state: refused` receipt now
+  means only that the copy would not start an admitted program. Proof:
+  `rehearsal_tests.rs::admission_refuses_on_the_live_runtime_before_any_copy_and_a_failed_open_is_e_rehearsal`
+  (four refusals, no copy directory ever created, live seq unchanged) and the
+  route pair (`E_OP_UNKNOWN`, `E_JOB_ARGS`, the rehearsal directory empty) in
+  `owner_cases/rehearsal.rs::rehearsal_cli_jobs_queries_mutations_receipts_and_usage_exits`.
+- **`dryRun` is a JSON boolean or refused.** `"dryRun": "true"` fell through
+  and ran for real. `control_run::flag` refuses any non-boolean `dryRun`,
+  `plan`, or `wait` with `E_INPUT` at the field's site; `mode` on
+  `/control/job` and `/control/execute` must be `run` or `dry-run`; a
+  `dryRun`/`mode` disagreement refuses. Proof: nine refused bodies across the
+  three routes with the job list and the seq unchanged, in
+  `control_run_source_modes_and_declared_job_route_share_operator_admission`.
+- **The serve fence covers `/control/execute`.** The pre-secret
+  `E_OPERATOR_REQUIRED` fence names all three routes that carry the seat or a
+  rehearsal (`serve.rs`). Proof:
+  `serve_refuses_run_job_and_execute_before_body_compilation_or_secret_validation`,
+  with and without the secret, with a `dryRun` body and with a persona body.
+- **The owner's compiler worker.** `POST /control/run` compiles with the
+  owner's one worker, now `project::SharedCompiler`
+  (`Arc<Mutex<CompilerWorker>>`) shared with the source watcher; the lock caps
+  compilation at one and no node process is spawned per request. Proof:
+  `control_run_compiles_with_the_owners_worker_and_spawns_no_second_compiler`
+  counts worker starts through a logging `SNAPBACK2_COMPILER` wrapper — one
+  after boot, still one after five requests including a refused compile.
+- **The client timeout** is unbounded only for a rehearsal body; `plan` and
+  `run` keep the five-second bound (`client::read_timeout`, unit-tested).
+- **Witnesses strengthened.** The isolation test attaches 101 photos, lists
+  the live blob directory before and after (identical), reports
+  `assetReleaseCount: 101` with 100 listed and `assetsTruncated: true`, and
+  inspects the inherited queued job on the copy before discard
+  (`Snapshot::run_observed`): state `queued`, zero chunks — the live-row
+  witness is gone. `--resume --dry-run` is usage like `--cancel`.
+- **Exit codes and pages.** `--file` with other than one declaration is usage
+  (exit 2: the CLI maps `E_INPUT` at site `source`, a field only it builds);
+  `E_OP_KIND` has its registry row (family `op`, site `--plan/--wait`, page
+  `job`, the page this lane's site names); `E_REHEARSAL`'s §7 row and
+  registry text cover an engine or store fault while the program runs on the
+  copy; §3's `--dry-run` lines show the pretty-JSON receipt the verb prints.
+- **Records.** `control_run.rs` and `guide/operator.md` state the `as: system`
+  default asymmetry (`/control/run` and `/control/job` are the seat;
+  `/control/execute` also serves personas); `guide/job.md` names the receipt's
+  `state` vocabulary, the admission order, the seat default, and the boolean
+  rule; the measurement test's ignore message gives its exact invocation
+  (`measure.mjs` has no `--administrative` flag).
+
+Not done: the pre-existing `E_OP_KIND` sites in `writer.rs`, `writer_offline.rs`,
+`writer_resume.rs` and `writer_wire.rs` still name `op/kind`, which is not a
+guide page, and `writer_ledger.rs` names `auth`; a page for the wire-kind
+mismatch is a follow-up outside this lane.
+
+Verification for the fix round: `snapback2/scripts/test.sh` exited **0** on
+the final tree — 581 Rust tests run and passed (2 leaky, 3 skipped), 301
+package tests, 162 evaluator cases, 318 compiler checks and the doctests. An
+earlier run of the same tree was red only on the package suite's
+`local-data-recovery.test.ts:129` real-session case, which exhausted its 100
+manifest polls waiting for the watcher's successor and then saw
+`E_OP_UNKNOWN` — the pre-existing load flake recorded in
+`issues/20260901-snapback2-scripts-test-sh-flakes-under.md` (its 2026-09-05
+entries name the same case); it passes alone. Caps and `ref-check` pass.

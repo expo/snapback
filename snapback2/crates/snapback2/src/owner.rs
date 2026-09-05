@@ -15,8 +15,8 @@ use std::fs::{self, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode, Stdio};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
@@ -239,7 +239,10 @@ fn foreground(root: PathBuf, options: &DevOptions) -> Result<(), Refusal> {
             }
         }),
     );
-    let watcher = watch::spawn(compiler, root.clone(), handle.clone(), stop.clone());
+    // One worker for the whole owner: the watcher's rebuilds and `/control/run`'s
+    // explicit ad hoc compilations share it under a lock.
+    let compiler = Arc::new(Mutex::new(compiler));
+    let watcher = watch::spawn(compiler.clone(), root.clone(), handle.clone(), stop.clone());
     let server_result = server.run(ServerContext {
         handle,
         root: root.clone(),
@@ -250,6 +253,7 @@ fn foreground(root: PathBuf, options: &DevOptions) -> Result<(), Refusal> {
         blobs,
         staging,
         media_jobs: Default::default(),
+        compiler,
     });
     stop.store(true, Ordering::SeqCst);
     if watcher.join().is_err() {

@@ -44,3 +44,15 @@ assets it would have released, and any refusal, with exit 0 either way: the
 rehearsal told the truth. Exit 1 is `E_REHEARSAL`, the rehearsal itself could
 not run. `--dry-run` excludes `--wait` and `--plan`; queries and mutations
 rehearse the same way.
+
+The receipt's `state` is `done` (the program ran to completion on the copy),
+`parked` (a chunk refused; earlier chunks stand and `refusals` says why),
+`rejected` (a mutation's constraint or `require` refused it), or `refused`
+(the copy would not start the program). Admission — the name, the kind, the
+arguments, an ad hoc program's certificate — happens on the live store before
+any copy is taken, so a refusal there is the ordinary envelope (`E_OP_UNKNOWN`,
+`E_JOB_ARGS`) and nothing pauses the owner. `POST /control/run` and
+`POST /control/job` are the operator seat and take `as: system` when the body
+omits it; `POST /control/execute` does not, because it also serves explicit
+personas, so send `as: system` with `dryRun: true` there. `dryRun`, `plan`, and
+`wait` are JSON booleans; any other value is refused (`E_INPUT`).
