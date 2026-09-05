@@ -47,7 +47,7 @@ use writer_ledger::{CommitLedger, LedgerDelivery};
 pub(crate) use writer_offline::OfflineOptions;
 pub use writer_sse::{SseReceiver, SseSender, queue as sse_queue};
 use writer_values::{channel_args, frame_digest, json_as_kind, operation_args};
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub enum Identity {
     Bearer(String),
     Persona(String),

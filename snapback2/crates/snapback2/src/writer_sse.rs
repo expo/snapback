@@ -9,6 +9,7 @@ struct Queue {
     event: Option<SseEvent>,
     senders: usize,
     receiver_alive: bool,
+    wake: Option<std::sync::mpsc::SyncSender<()>>,
 }
 
 struct Shared {
@@ -35,6 +36,7 @@ pub fn queue() -> (SseSender, SseReceiver) {
             event: None,
             senders: 1,
             receiver_alive: true,
+            wake: None,
         }),
         ready: Condvar::new(),
     });
@@ -54,6 +56,9 @@ impl SseSender {
         }
         queue.event = Some(event);
         self.shared.ready.notify_one();
+        if let Some(wake) = &queue.wake {
+            let _ = wake.try_send(());
+        }
         Ok(())
     }
 
@@ -67,6 +72,9 @@ impl SseSender {
         }
         queue.event = Some(event);
         self.shared.ready.notify_one();
+        if let Some(wake) = &queue.wake {
+            let _ = wake.try_send(());
+        }
         Ok(())
     }
 }
@@ -85,10 +93,19 @@ impl Drop for SseSender {
         let mut queue = self.shared.queue.lock().expect("SSE queue lock");
         queue.senders = queue.senders.saturating_sub(1);
         self.shared.ready.notify_one();
+        if let Some(wake) = &queue.wake {
+            let _ = wake.try_send(());
+        }
     }
 }
 
 impl SseReceiver {
+    pub fn notify_on(&self, wake: std::sync::mpsc::SyncSender<()>) {
+        let mut queue = self.shared.queue.lock().expect("SSE queue lock");
+        let _ = wake.try_send(());
+        queue.wake = Some(wake);
+    }
+
     pub fn recv_timeout(&self, timeout: Duration) -> Result<SseEvent, RecvTimeoutError> {
         let deadline = Instant::now() + timeout;
         let mut queue = self.shared.queue.lock().expect("SSE queue lock");
@@ -135,6 +152,25 @@ mod tests {
             data: json!({ "value": value, "padding": "x".repeat(1_000_000) }),
             terminal: false,
         }
+    }
+
+    #[test]
+    fn shared_stream_wakes_for_coalesced_events_and_disconnection() {
+        let (sender, receiver) = queue();
+        let (wake, ready) = std::sync::mpsc::sync_channel(1);
+        receiver.notify_on(wake);
+        ready.try_recv().unwrap();
+        sender.send_latest(event(1)).ok().unwrap();
+        sender.send_latest(event(2)).ok().unwrap();
+        ready.try_recv().unwrap();
+        assert!(ready.try_recv().is_err());
+        assert_eq!(receiver.recv_timeout(Duration::ZERO).unwrap().seq, Some(2));
+        drop(sender);
+        ready.try_recv().unwrap();
+        assert!(matches!(
+            receiver.recv_timeout(Duration::ZERO),
+            Err(RecvTimeoutError::Disconnected)
+        ));
     }
 
     #[test]

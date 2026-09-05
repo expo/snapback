@@ -12,6 +12,49 @@ import { configureRealOwner } from "./owner-harness.ts";
 const owner = await configureRealOwner();
 after(async () => owner.close());
 
+test("sixty live queries and a channel share one connection through add, remove and reconnect", async (context) => {
+  if (!owner.owned) return context.skip("the multi-query probe uses the self-started chat fixture");
+  let streams = 0;
+  let controls = 0;
+  let session: string | undefined;
+  const client = createClient({ url: owner.url, as: "alice", fetch: async (input, init) => {
+    const path = new URL(String(input)).pathname;
+    if (path === "/api/live") streams++;
+    if (path === "/api/live/control") { controls++; session = JSON.parse(String(init?.body)).session; }
+    return fetch(input, init);
+  } });
+  const subscriptions: any[] = [];
+  try {
+    for (let i = 0; i < 60; i++) subscriptions.push(client.subscribe(api.messages.thread, { conversationId: "conversation-1", c: null }, () => {}));
+    await Promise.all(subscriptions.map(sub => sub.until((event: any) => event.live === true, 5_000)));
+    assert.equal(streams, 1);
+    const channel = client.channel(api.typing, { conversationId: "conversation-1" }).subscribe(() => {});
+    subscriptions.push(channel);
+    // A query registered in the same control batch witnesses channel admission.
+    const witness = client.subscribe(api.messages.summary, { conversationId: "conversation-1" }, () => {});
+    subscriptions.push(witness);
+    await witness.until((event: any) => event.live === true, 2_000);
+    await client.channel(api.typing, { conversationId: "conversation-1" }).publish({ typing: true });
+    await channel.until((event: any) => event.payload?.typing === true, 2_000);
+    const refused = client.subscribe(api.missing.operation, {}, () => {});
+    subscriptions.push(refused);
+    await assert.rejects(refused.until(() => false, 2_000), (error: any) => error.code === "E_OP_UNKNOWN");
+    const removed = subscriptions.splice(0, 30);
+    for (const sub of removed) sub.close();
+    const message = `multiplex-${Date.now()}`;
+    await client.mutation(api.messages.send, { conversationId: "conversation-1", recipientId: "profile-bob", body: message });
+    await Promise.all(subscriptions.slice(0, 30).map(sub => sub.until((event: any) => event.data?.some((row: any) => row.body === message), 3_000)));
+    assert.equal(streams, 1, "changing the subscription set does not restart the connection");
+    const denied = await fetch(`${owner.url}/api/live/control`, { method: "POST", headers: { "Content-Type": "application/json", "X-Snapback-As": "bob" }, body: JSON.stringify({ session, close: true }) });
+    assert.equal(denied.status, 400, "another principal cannot control this stream");
+    await fetch(`${owner.url}/api/live/control`, { method: "POST", headers: { "Content-Type": "application/json", "X-Snapback-As": "alice" }, body: JSON.stringify({ session, close: true }) });
+    await subscriptions[0].until((event: any) => event.state === "stale", 2_000);
+    await subscriptions[0].until((event: any) => event.live === true, 3_000);
+    assert.equal(streams, 2);
+    assert.ok(controls < 15, "subscriptions are batched, not one control connection per query");
+  } finally { for (const sub of subscriptions) sub.close(); await client.close(); }
+});
+
 test("real owner private asset bytes and conditional responses forbid HTTP cache storage", async () => {
   const { readFile } = await import("node:fs/promises");
   const client = createClient({ url: owner.url, as: "alice" });

@@ -19,6 +19,9 @@ use std::thread;
 use std::time::Duration;
 use tiny_http::{Header, Method, Request, Response, Server, StatusCode};
 
+#[path = "serve_live.rs"]
+mod live;
+
 const DEV_CORS_ALLOWED_HEADERS: &str = "Authorization, Content-Type, X-Snapback-As, Cache-Control";
 const MAX_HTTP_WORKERS: usize = 64;
 const RESERVED_CONTROL_WORKERS: usize = 4;
@@ -91,6 +94,7 @@ impl BoundServer {
 
     pub fn run(self, context: Context) -> Result<(), Refusal> {
         let workers = WorkerPools::default();
+        let streams = live::Streams::default();
         while !context.stop.load(Ordering::SeqCst) {
             match self.server.recv_timeout(Duration::from_millis(100)) {
                 Ok(Some(request)) => {
@@ -112,11 +116,12 @@ impl BoundServer {
                         continue;
                     };
                     let connection_context = context.clone();
+                    let connection_streams = streams.clone();
                     if let Err(error) = thread::Builder::new()
                         .name("snapback2-http".to_owned())
                         .spawn(move || {
                             let _worker = worker;
-                            handle(request, connection_context);
+                            handle(request, connection_context, connection_streams);
                         })
                     {
                         let refusal = fatal_server("connection thread", error);
@@ -160,7 +165,7 @@ impl WorkerClass {
             Self::Control
         } else if path == "/api/upload" {
             Self::Upload
-        } else if path == "/api/subscribe"
+        } else if path == "/api/live" || path == "/api/subscribe"
             || (path.starts_with("/api/channel/") && path.ends_with("/subscribe"))
         {
             Self::Sse
@@ -235,7 +240,7 @@ impl Drop for HttpWorker {
     }
 }
 
-fn handle(mut request: Request, context: Context) {
+fn handle(mut request: Request, context: Context, streams: live::Streams) {
     let method = method_name(request.method());
     let request_url = request.url().to_owned();
     let (path, query) = split_url(&request_url);
@@ -342,6 +347,10 @@ fn handle(mut request: Request, context: Context) {
 
     let identity = request_identity(&request);
     let bearer_token = bearer(&request).unwrap_or_default();
+    if method == "POST" && (path == "/api/live" || path == "/api/live/control") {
+        live::handle(request, &context, streams, identity, body, path.ends_with("/control"));
+        return;
+    }
     match (method, path.as_str()) {
         ("GET", "/") => match context.handle.call(Action::Status) {
             Ok(status) => respond_json(
@@ -856,6 +865,8 @@ mod tests {
 
     #[test]
     fn worker_budget_reserves_json_and_control_capacity_from_sse() {
+        assert_eq!(WorkerClass::for_url("/api/live"), WorkerClass::Sse);
+        assert_eq!(WorkerClass::for_url("/api/live/control"), WorkerClass::Json);
         let pools = WorkerPools::default();
         let sse = (0..MAX_SSE_WORKERS)
             .map(|_| pools.acquire(WorkerClass::Sse).unwrap())

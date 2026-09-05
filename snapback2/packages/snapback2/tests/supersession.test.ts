@@ -1,10 +1,11 @@
+import { fixtureClient as createClient } from "./live-fixture.ts";
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { test } from "node:test";
-import { api, createClient } from "../dist/client.mjs";
+import { api } from "../dist/client.mjs";
 import { indexedDbRangeStore } from "../dist/react.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
 import { FakeIndexedDb, FakeLocks } from "./fake-indexeddb.ts";

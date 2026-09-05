@@ -1,3 +1,4 @@
+import { multiplexFetch } from "./live-fixture.ts";
 /**
  * A replay-aware owner double for the outbox suites: manifest, program
  * certificates, resume minting grants, mutations with the intent ledger
@@ -211,7 +212,7 @@ export function fakeOwner(options: FakeOwnerOptions = {}) {
     }
     return hang();
   };
-  return { fetch, executions, stored, requests, state, messages, grantsMinted: () => grants };
+  return { fetch: multiplexFetch(fetch), executions, stored, requests, state, messages, grantsMinted: () => grants };
 }
 
 export async function seededStore(factory: ReturnType<typeof fileRangeStore>): Promise<void> {

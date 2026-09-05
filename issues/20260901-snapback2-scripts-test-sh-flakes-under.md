@@ -40,3 +40,13 @@ limit. It also timed out in the unchanged `7bcff554e` worktree. A separate
 run against the removal, with a 60-second allowance, passed in 7.774 s.
 The focused identity/store tests passed 18/18. These are separate passing
 checks, not a claim that the complete script passed.
+
+## Shared live transport verification — 2026-09-05
+
+The final `scripts/test.sh` run passed 297 package tests, 508 Rust tests,
+160 evaluator cases, and 304 compiler checks. An overlapping measurement
+initially packed incomplete declaration output while the compiler suite
+rebuilt the same `dist/`; its failed measurement remains in the append-only
+loop log. The subsequent standalone `measure.mjs --check` passed every
+step, including installed-consumer qualification. Package builds and packing
+must run sequentially within one worktree.

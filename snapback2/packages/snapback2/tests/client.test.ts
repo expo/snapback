@@ -1,3 +1,5 @@
+import { createClient as realClient } from "../dist/client.mjs";
+import { fixtureClient as createClient, multiplexFetch } from "./live-fixture.ts";
 import assert from "node:assert/strict";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { once } from "node:events";
@@ -7,7 +9,6 @@ import TestRenderer, { act } from "react-test-renderer";
 import {
   SnapbackRefusal,
   api,
-  createClient,
   stableSerialize,
   type SnapbackClient,
 } from "../dist/client.mjs";
@@ -366,7 +367,7 @@ after(async () => {
 
 test("default fetch preserves the browser receiver for JSON and SSE", async (context) => {
   const paths: string[] = [];
-  context.mock.method(globalThis, "fetch", async function (this: unknown, input: string | URL | Request) {
+  const source = async function (this: unknown, input: string | URL | Request) {
     assert.equal(this, globalThis, "browser fetch requires its global receiver");
     const path = new URL(String(input)).pathname;
     paths.push(path);
@@ -374,8 +375,13 @@ test("default fetch preserves the browser receiver for JSON and SSE", async (con
     if (path === "/api/query") return fetchJson({ state: "complete", data: [], seq: 1, next: null });
     if (path === "/api/subscribe") return hangingSse('data: {"state":"complete","data":[],"seq":1,"next":null}\n\n');
     throw new Error(`unexpected route ${path}`);
+  };
+  const fixture = multiplexFetch(source.bind(globalThis));
+  context.mock.method(globalThis, "fetch", function (this: unknown, ...args: Parameters<typeof fetch>) {
+    assert.equal(this, globalThis, "physical browser fetch requires its global receiver");
+    return fixture(...args);
   });
-  const value = createClient({ url: "http://browser.test", token: "fixture" });
+  const value = realClient({ url: "http://browser.test", token: "fixture" });
   context.after(() => value.close());
   assert.equal((await value.auth.me()).viewer, "alice");
   assert.equal((await value.query(api.messages.thread, {})).state, "complete");
@@ -1219,7 +1225,7 @@ test("useMutation exposes pending for exactly the in-flight interval", async () 
   await act(async () => {
     renderer = TestRenderer.create(React.createElement(
       SnapbackProvider,
-      { url: "http://wire.test", fetch },
+      { url: "http://wire.test", fetch: multiplexFetch(fetch) },
       React.createElement(Harness),
     ));
   });
@@ -1271,7 +1277,7 @@ test("useMutation keeps the last server receipt separate from transport failure"
   await act(async () => {
     renderer = TestRenderer.create(React.createElement(
       SnapbackProvider,
-      { url: "http://wire.test", fetch },
+      { url: "http://wire.test", fetch: multiplexFetch(fetch) },
       React.createElement(Harness),
     ));
   });
@@ -1323,7 +1329,7 @@ test("useQuery renders hydrating immediately when its identity changes", async (
   }
   const element = (operation: any) => React.createElement(
     SnapbackProvider,
-    { url: "http://wire.test", fetch },
+    { url: "http://wire.test", fetch: multiplexFetch(fetch) },
     React.createElement(Harness, { operation }),
   );
   let renderer: TestRenderer.ReactTestRenderer;
@@ -1367,7 +1373,7 @@ test("non-live useQuery keeps hydrating across a network failure, reports connec
   await act(async () => {
     renderer = TestRenderer.create(React.createElement(
       SnapbackProvider,
-      { url: "http://wire.test", fetch },
+      { url: "http://wire.test", fetch: multiplexFetch(fetch) },
       React.createElement(Harness),
     ));
   });
@@ -1399,7 +1405,7 @@ test("separately bundled client and React entry points share generated API refer
   await act(async () => {
     renderer = TestRenderer.create(React.createElement(
       bundledReact.SnapbackProvider,
-      { url: "http://wire.test", fetch },
+      { url: "http://wire.test", fetch: multiplexFetch(fetch) },
       React.createElement(Harness),
     ));
     await new Promise((resolve) => setTimeout(resolve, 10));
@@ -1425,7 +1431,7 @@ test("React transport refusals use the client entry point class", async () => {
   await act(async () => {
     renderer = TestRenderer.create(React.createElement(
       bundledReact.SnapbackProvider,
-      { url: "http://wire.test", fetch },
+      { url: "http://wire.test", fetch: multiplexFetch(fetch) },
       React.createElement(Harness),
     ));
   });

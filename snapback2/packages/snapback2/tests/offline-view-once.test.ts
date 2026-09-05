@@ -1,3 +1,4 @@
+import { fixtureClient as createClient } from "./live-fixture.ts";
 // Lane O4-web, fix round 1: view-once custody (LLP 1012 §9). The session allowance
 // obeys the partition fence; a clip is viewed at play, never at mount; every byte
 // path consults the viewed guard; live frames and coverage hide viewed rows; view-once
@@ -9,7 +10,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import React, { act, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { SnapbackRefusal, api, browserTokenStore, createClient } from "../dist/client.mjs";
+import { SnapbackRefusal, api, browserTokenStore } from "../dist/client.mjs";
 import { AssetImage, AssetVideo, SnapbackProvider, useAssetUrl, useSnapbackClient } from "../dist/react.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
 import { domEnvironment, settle, until } from "./dom-environment.ts";

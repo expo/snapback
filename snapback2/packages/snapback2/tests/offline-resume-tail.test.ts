@@ -1,3 +1,4 @@
+import { fixtureClient as createClient } from "./live-fixture.ts";
 // The resume log is the page after the watermark (writer_resume log_args) and is
 // held under that cursor's args; the drained first page under `c: null` survives.
 // Found by lane O4's journey run: O2a's offline-drain journey failed on the
@@ -8,7 +9,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { api, createClient } from "../dist/client.mjs";
+import { api } from "../dist/client.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
 
 const generation = "d".repeat(64);

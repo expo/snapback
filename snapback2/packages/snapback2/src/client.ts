@@ -1,3 +1,4 @@
+import { SharedSse } from "./live.js";
 import type { AssetFetchOptions } from "./store/byte-cache.js";
 import { throwIfAborted } from "./client-wire.js";
 import { api, referenceName, type Api, type ApiProxy, type Channel as ChannelRef, type Op } from "./api.js";
@@ -130,6 +131,7 @@ class Client implements SnapbackClient {
   readonly persona?: string;
   private readonly createOptions: InternalClientOptions;
   private readonly offlineRuntime?: OfflineRuntime;
+  private readonly live: SharedSse;
   private readonly mounted = new Map<string, MountedQuery>();
   private offlineMetadataLoaded = false;
   private resumeTail: Promise<void> = Promise.resolve();
@@ -170,6 +172,7 @@ class Client implements SnapbackClient {
     this.fetchImpl = options.fetch ?? globalThis.fetch?.bind(globalThis);
     this.customFetch = options.fetch !== undefined;
     if (typeof this.fetchImpl !== "function") throw new TypeError("createClient requires a fetch implementation");
+    this.live = new SharedSse(this.url, (...args) => this.fetchImpl(...args));
     this.tokenStore = options.tokenStore;
     this.persona = options.as;
     this.forcedOffline = options.startOffline === true;
@@ -558,6 +561,7 @@ class Client implements SnapbackClient {
 
   async offline(): Promise<void> {
     this.forcedOffline = true;
+    this.live.close();
     this.startupController.abort();
     this.abortResume();
     return goOffline({
@@ -915,32 +919,7 @@ class Client implements SnapbackClient {
     const headers = this.headers(authority, true);
     if (lastEventId !== undefined) headers.set("Last-Event-ID", lastEventId);
     try {
-      const response = await this.fetchImpl(`${this.url}${path}`, { headers, signal });
-      if (!response.ok) {
-        if (response.status >= 400 && response.status < 500) {
-          let refusal: SnapbackRefusal | undefined;
-          try {
-            refusal = await responseRefusal(response);
-          } catch (error) {
-            if (isSnapbackRefusal(error) && !error.retryable) throw error;
-            // A non-envelope 4xx cannot be interpreted as a terminal owner refusal.
-          }
-          if (refusal !== undefined) {
-            if (isTerminalSession(refusal.envelope)
-              && (signal.aborted || !this.authorityCurrent(authority))) {
-              await this.expireSession(authority);
-              throw this.supersededRefusal();
-            }
-            if (!isTerminalSession(refusal.envelope)) this.ensureAuthority(authority);
-            throw refusal;
-          }
-        }
-        this.ensureAuthority(authority);
-        throw new SnapbackRefusal(
-          fallbackRefusal("E_HTTP", `${path} returned HTTP ${response.status}`),
-          true,
-        );
-      }
+      const response = await this.live.open(path, lastEventId, signal, headers, async () => { await this.expireSession(authority); });
       this.ensureAuthority(authority);
       throwIfAborted(signal);
       this.patchSnapshot({ connection: "connected" });
@@ -1411,6 +1390,7 @@ class Client implements SnapbackClient {
   }
 
   private closeTransports(except?: Subscription<unknown>): void {
+    this.live.close();
     for (const subscription of [...this.subscriptions]) {
       if (subscription !== except) subscription.close();
     }

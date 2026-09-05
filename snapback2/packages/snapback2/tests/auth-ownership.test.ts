@@ -1,3 +1,5 @@
+import { createClient as rawClient } from "../dist/client.mjs";
+import { fixtureClient as createClient } from "./live-fixture.ts";
 // @ref LLP 1002#9-the-client-snapback2client-snapback2react-snapback2test —
 // custody transitions serialize persistence, transports, delayed responses,
 // and React cache identity around one explicit authority owner.
@@ -9,7 +11,6 @@ import {
   SnapbackRefusal,
   api,
   browserTokenStore,
-  createClient,
   type AuthTokenStore,
 } from "../dist/client.mjs";
 import { SnapbackProvider, useAuth, useQuery, type UseAuthResult } from "../dist/react.mjs";
@@ -82,7 +83,16 @@ function hangingSse(value?: unknown, onCancel?: () => void): Response {
   }), { status: 200, headers: { "Content-Type": "text/event-stream" } });
 }
 
-function bufferedSse(): {
+function physicalClient(options: Parameters<typeof rawClient>[0]): ReturnType<typeof rawClient> {
+  return rawClient({ ...options, fetch: async (input, init) => {
+    const url = new URL(String(input));
+    if (url.pathname === "/api/live/control") return json({ ok: true });
+    if (url.pathname === "/api/live") url.pathname = "/api/subscribe";
+    return options.fetch!(url.href, init);
+  } });
+}
+
+function bufferedSse(multiplex = false): {
   response: Response;
   readStarted: Promise<void>;
   enqueue(...values: unknown[]): void;
@@ -93,6 +103,7 @@ function bufferedSse(): {
   const response = new Response(new ReadableStream<Uint8Array>({
     start(controller) {
       stream = controller;
+      if (multiplex) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ session: "a".repeat(64) })}\n\n`));
     },
     pull() {
       readStarted.resolve();
@@ -103,7 +114,7 @@ function bufferedSse(): {
     readStarted: readStarted.promise,
     enqueue: (...values) => {
       stream.enqueue(encoder.encode(values.map((value) =>
-        `data: ${JSON.stringify(value)}\n\n`).join("")));
+        `data: ${JSON.stringify(multiplex ? { id: "1", seq: null, data: value, terminal: (value as any)?.state === "refused" } : value)}\n\n`).join("")));
     },
   };
 }
@@ -507,11 +518,12 @@ test("delayed subscription opens cannot mutate an individually closed subscripti
   await value.ready;
   const subscription = value.subscribe(api.messages.thread, {}, () => undefined);
   await waitFor(() => started, "subscription open");
+  const connection = value.snapshot.connection;
   subscription.close();
   response.resolve(hangingSse());
   await flush();
   await flush();
-  assert.equal(value.snapshot.connection, "reconnecting");
+  assert.equal(value.snapshot.connection, connection);
   assert.equal(value.snapshot.lastRefusal, undefined);
   value.close();
 });
@@ -547,7 +559,7 @@ test("delayed malformed subscription refusals cannot pollute a newer bearer", as
 test("a delayed valid subscription expiry clears custody after a failed replacement", async () => {
   const response = delayedJson(401);
   let stored: string | null = "expired-token";
-  const value = createClient({
+  const value = physicalClient({
     url: "http://auth.test",
     tokenStore: {
       load: () => stored,
@@ -576,10 +588,10 @@ test("a delayed valid subscription expiry clears custody after a failed replacem
 
 test("an already-read terminal subscription frame survives a replacement fence", async () => {
   for (const replacement of ["failed", "successful"] as const) {
-    const stream = bufferedSse();
+    const stream = bufferedSse(true);
     const deliveries: unknown[] = [];
     let stored: string | null = "expired-token";
-    const value = createClient({
+    const value = physicalClient({
       url: "http://auth.test",
       tokenStore: {
         load: () => stored,
@@ -626,10 +638,10 @@ test("an already-read terminal subscription frame survives a replacement fence",
 });
 
 test("an individually closed subscription still applies already-read terminal evidence", async () => {
-  const stream = bufferedSse();
+  const stream = bufferedSse(true);
   const deliveries: unknown[] = [];
   let stored: string | null = "expired-token";
-  const value = createClient({
+  const value = physicalClient({
     url: "http://auth.test",
     tokenStore: {
       load: () => stored,
@@ -649,10 +661,10 @@ test("an individually closed subscription still applies already-read terminal ev
 });
 
 test("whole-client close still applies already-read terminal evidence without delivery", async () => {
-  const stream = bufferedSse();
+  const stream = bufferedSse(true);
   const deliveries: unknown[] = [];
   let stored: string | null = "expired-token";
-  const value = createClient({
+  const value = physicalClient({
     url: "http://auth.test",
     tokenStore: {
       load: () => stored,

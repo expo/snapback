@@ -5,7 +5,8 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { SnapbackRefusal, api, browserTokenStore, createClient } from "../dist/client.mjs";
+import { SnapbackRefusal, api, browserTokenStore } from "../dist/client.mjs";
+import { fixtureClient as createClient } from "./live-fixture.ts";
 import { decodeDeliveryEnvelope } from "../dist/index.mjs";
 import { indexedDbRangeStore } from "../dist/react.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
@@ -1285,7 +1286,7 @@ test("resume applies its mounted swap before online resolves", async () => {
   await rm(root, { recursive: true, force: true });
 });
 
-test("clients without offline storage preserve query and subscribe request bytes", async () => {
+test("clients without offline storage preserve query bytes and logical subscription arguments", async () => {
   let body = "";
   let subscribeUrl = "";
   const client = createClient({

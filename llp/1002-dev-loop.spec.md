@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2` (the binary: owner, server, verbs), `snapback2/packages/compiler` (project lowering, worker), `snapback2/packages/snapback2` (authoring runtime, client, React, test runner, shim), `snapback2/scripts/measure.mjs`
 **Author:** Claude Fable 5 (orchestrator) — implementers: codex gpt-5.6-sol, lanes B0 (compiler + authoring surface), B1 (owner + server + verbs), B2 (`init`, `test`, `why`, `trace`, `guide`), D (client + React + evaluator)
 **Date:** 2026-08-29
-**Revised:** 2026-09-05 (bounded derived verification, mutation-read guidance, installed consumer qualification)
+**Revised:** 2026-09-05 (shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
 **Related:** LLP 1000, LLP 1001 (the engine this serves), LLP 1003 (effects),
 LLP 0329.016 §5 (the design this implements verbatim where it can), LLP
 0329.016 §5.11 (the verb table — no verb exists without its row), LLP
@@ -381,6 +381,43 @@ required fields in the client's public types as well as in its validator. Authen
 | `POST /api/channel/<name>/publish` | `{ args, payload }` → `{ ok: true }` \| `{ state: "refused", code }` |
 | `GET /api/channel/<name>/subscribe?args=` | SSE; `data: { from, payload, at }`; the owner drops the stream when a commit touches the probe's key and re-admission fails |
 | `GET /api/manifest` | `{ generation, ops: { "todos.list": { kind, args } }, channels, auth }` |
+
+**Shared live transport (2026-09-05; implementer: Codex, this change).** The
+public client multiplexes query and channel subscriptions on one SSE connection
+per client and authority. `POST /api/live` opens it and first emits
+`data: {"session":"<random capability>"}`. `POST /api/live/control` carries
+`{ session, add: [{ id, path, lastEventId? }], remove: [id] }`, or
+`{ session, close: true }`; it returns `{ ok: true }`. Controls require the
+same bearer/persona as the connection. Every child is independently admitted by
+the existing owner query/channel action; the stream capability grants no data
+authority. A child path is only a query or channel subscription path, including
+its existing receipt/validator arguments.
+
+Deliveries are `data: { id, seq: number|null, data, terminal }`; `data` keeps the
+existing query/channel envelope. A disconnected child emits `{ id, closed:
+true }`. Terminal errors stop only that child; authentication expiry still
+fences the client's exact bearer. Subscription ids are unique within the
+connection. Adds/removes are batched and serialized by the client, so changing
+the mounted set does not interrupt other live queries or ephemeral channels.
+Physical connection loss makes each logical subscription retry through its
+existing stale/offline and authorization rules. Query reconnect is full
+re-delivery (or the existing receipt validator path), not event-id replay;
+channels do not replay missed ephemeral events. Heartbeats remain 15 seconds.
+
+One physical stream consumes one SSE worker (48 available under the current
+server budget); one client supports 256 logical subscriptions. Each owner
+child retains its bounded single-slot queue: query deliveries coalesce and
+channel overflow disconnects that child. Client demultiplexing similarly bounds
+pending query data and refuses an overflowing channel consumer. The shared
+stream lasts until client close, offline, authority replacement, or network
+loss; close explicitly releases its owner children. Standalone GET subscription
+routes remain available to raw wire consumers and the CLI proof harness.
+
+This replaces the public client's connection-per-subscription transport. It
+works on the existing HTTP/1.1 local server and needs no TLS or HTTP/2 setup.
+The Chromium 153 probe received all 60 live query deliveries, then a mutation
+update on every query and an ordinary query result, over one HTTP/1.1 SSE
+connection. This is transport qualification, not a new Clique benchmark result.
 
 **Wire amendments — 2026-08-30/2026-09-03.** `Capped` carries no `take`, site,
 or stop reason. Complete/capped alone carry `next`; complete and empty capped
