@@ -1068,7 +1068,7 @@
     "disclosures": [
       "E_DISCLOSURE: count waitlist summarized into waitCounts"
     ],
-    "bound_product": "programs.ledger.0 take 50 = 50"
+    "bound_product": "programs.ledger.0 take 50 (+2 reserve) × 1 calls on owed = 52"
   },
   "context": {
     "viewer": "u1",

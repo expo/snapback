@@ -1196,7 +1196,7 @@
     "disclosures": [
       "E_DISCLOSURE: count waitlist summarized into waitCounts"
     ],
-    "bound_product": "programs.inboxCountCapped.0 take 50 × programs.inboxCountCapped.2 take 100 = 5000"
+    "bound_product": "programs.inboxCountCapped.2 take 100 (+2 reserve) × 50 calls on messages (calls from programs.inboxCountCapped.0 take 50) = 5100 + programs.inboxCountCapped.1 take 1 (+2 reserve) × 50 calls on messages (calls from programs.inboxCountCapped.0 take 50) = 150 + programs.inboxCountCapped.0 take 50 (+2 reserve) × 1 calls on memberships = 52"
   },
   "context": {
     "viewer": "u1",

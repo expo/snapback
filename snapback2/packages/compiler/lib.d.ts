@@ -155,7 +155,9 @@ declare module "snapback2" {
   ): Operation<ArgsOf<A>, R, "mutation">;
   export function effect<P extends Json, R extends Json>(value: {
     grants: string[];
-    run: (payload: P, tools: { fetch: typeof fetch; meta: { id: string } }) => R | Promise<R>;
+    run: (payload: P, tools: { readonly fetch: typeof fetch; readonly meta: {
+      readonly id: string; readonly effect: string; readonly attempt: number;
+    } }) => R | Promise<R>;
     then?: Operation<{ outboxId: string; effect: string; result: Awaited<R> }, unknown, "mutation">;
   }): Effect<P, Awaited<R>>;
   export function emit<P extends Json>(target: Effect<P, any>, payload: P): void;

@@ -459,3 +459,6 @@ fn loop_back_edge_cannot_hide_a_page_transformation() {
 
 #[path = "cap/review.rs"]
 mod review;
+
+#[path = "cap/metering.rs"]
+mod metering;

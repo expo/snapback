@@ -1063,7 +1063,7 @@
     "disclosures": [
       "E_DISCLOSURE: count waitlist summarized into waitCounts"
     ],
-    "bound_product": "programs.hiddenRuleDocument.0 take 1 = 1"
+    "bound_product": "programs.hiddenRuleDocument.0 point read on secretDocs × 1 calls = 1"
   },
   "context": {
     "viewer": "u1",

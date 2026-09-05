@@ -775,7 +775,7 @@ export class Runner {
           data.max,
         );
         if (existing.length >= data.max)
-          throw new EvalError("E_CONSTRAINT", `${tableName} cap reached`);
+          throw new EvalError("E_CONSTRAINT", `${tableName} cap ${data.max} reached for group (${data.by.join(", ")}) = ${canonicalValue({ Array: prefix })}`);
         if (!this.store.hasCompleteRange(tableName, entry[0], prefix)) {
           this.partial.add(`${tableName}.${entry[0]}`);
         }

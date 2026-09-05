@@ -1123,7 +1123,7 @@
     "disclosures": [
       "E_DISCLOSURE: count waitlist summarized into waitCounts"
     ],
-    "bound_product": "programs.mentionScan.0 take 20 = 20"
+    "bound_product": "programs.mentionScan.0 take 20 (+2 reserve) × 1 calls on users = 22"
   },
   "context": {
     "viewer": "u1",

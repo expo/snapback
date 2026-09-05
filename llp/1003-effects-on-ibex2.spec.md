@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2-effects` (the host and runner), `snapback2/crates/snapback2` (the runner thread in the owner; `doctor`), `snapback2/packages/compiler` (lowering `effect()` and `emit()`), `snapback2/scripts/{hermes,publish.mjs}`
 **Author:** Claude Fable 5 (orchestrator) — implementer: codex gpt-5.6-sol, lane C (compiler lowering: lane B0)
 **Date:** 2026-08-29
-**Revised:** 2026-09-05 (Clique F1: authored fetch headers are delivered and redirects obey Fetch; implementer GPT-6 Astra, L6; F2: ES2020 effect libraries and witnessed globals, L5); 2026-08-30
+**Revised:** 2026-09-05 (Clique F1: authored fetch headers are delivered and redirects obey Fetch; implementer GPT-6 Astra, L6; F2: ES2020 authored-file libraries and witnessed globals/members, L5); 2026-08-30
 **Related:** LLP 1000 decision 3 (Ibex 2 embedded now, effects only), LLP 1001 §8 (the outbox), LLP 1002 §5 (the owner that hosts the runner), LLP 0329.014.004 §6 (`effect` kind: "JavaScript with I/O outside the data plane; reads only through named queries as a service principal; writes only through named mutations; transactional outbox"), LLP 0329.016 §9 decision 7, expo/ibex LLP 0057/0058/0067/0068 (the engine, its bindings, and its grant model)
 
 ## Summary
@@ -50,13 +50,18 @@ export const send = mutation({ conversationId: t.id(), body: t.text(4000) }, ({ 
 Rules the compiler enforces (family `effect`, each with a rewrite):
 - `run` must be an arrow or function expression that closes over nothing but
   its parameters and module-level constants of JSON type (`E_EFFECT_CLOSURE`);
-  it may not `import` or `require` (`E_EFFECT_IMPORT`). Run bodies are ES2020
-  TypeScript; the data-plane subset does not apply. Authored effects use
+  it may not `import` (static or dynamic) or `require` (`E_EFFECT_IMPORT`). Run bodies are ES2020
+  TypeScript; the data-plane subset does not apply. All authored `.ts` files,
+  including helpers with no effect export, use
   TypeScript's ES5–ES2020 libraries (no DOM/Web Worker), plus the prelude's
   declarations, packaged at build time. Quarry-generated modules keep the
   subset library. Other globals refuse at `check`; the in-scope globals are
-  exactly `Array, ArrayBuffer, BigInt, BigInt64Array, BigUint64Array, Boolean, DataView, Date, Error, EvalError, Float32Array, Float64Array, Headers, Infinity, Int16Array, Int32Array, Int8Array, Intl, JSON, Map, Math, NaN, Number, Object, Promise, Proxy, RangeError, ReferenceError, Reflect, RegExp, Set, String, Symbol, SyntaxError, TextDecoder, TextEncoder, TypeError, URIError, URL, URLSearchParams, Uint16Array, Uint32Array, Uint8Array, Uint8ClampedArray, WeakMap, WeakSet, atob, btoa, console, decodeURI, decodeURIComponent, encodeURI, encodeURIComponent, escape, fetch, isFinite, isNaN, meta, parseFloat, parseInt, setTimeout, unescape, undefined` (§3 hardens the global object). Every admitted name has
-  a compile-and-execute Hermes witness. `crypto` is absent from the pinned
+  exactly `Array, ArrayBuffer, BigInt, BigInt64Array, BigUint64Array, Boolean, DataView, Date, Error, EvalError, Float32Array, Float64Array, Headers, Infinity, Int16Array, Int32Array, Int8Array, Intl, JSON, Map, Math, NaN, Number, Object, Promise, Proxy, RangeError, ReferenceError, Reflect, RegExp, Set, String, Symbol, SyntaxError, TextDecoder, TextEncoder, TypeError, URIError, URL, URLSearchParams, Uint16Array, Uint32Array, Uint8Array, Uint8ClampedArray, WeakMap, WeakSet, atob, btoa, console, decodeURI, decodeURIComponent, encodeURI, encodeURIComponent, escape, fetch, isFinite, isNaN, meta, parseFloat, parseInt, setTimeout, undefined, unescape` (§3 hardens the global object). Every admitted name has
+  a compile-and-execute Hermes witness, as does every handwritten tool method.
+  This includes `URL.canParse`/`parse`, `URLSearchParams.size`/`sort`, and timer
+  argument forwarding; these Ibex members do not change the ES2020 library version.
+  `TextDecoder` declares no encoding or streaming options. Both `meta` and
+  `tools.meta` carry `id`, `effect`, and `attempt`. `crypto` is absent from the pinned
   Ibex runtime and refuses rather than receiving an invented declaration;
   `eval`, `Function`, DOM names, and engine internals remain refused.
   `fetch` returns the prelude's response (`status`, `ok`, `url`, `redirected`,

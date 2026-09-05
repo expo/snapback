@@ -319,7 +319,7 @@
       "posts.byAuthorAt"
     ],
     "disclosures": [],
-    "bound_product": "opaque-cursor-merge-page-two.a take 2 = 2"
+    "bound_product": "merge opaque-cursor-merge-page-two: 1 lanes × (2 + 2) at opaque-cursor-merge-page-two.a on posts = 4 + merge opaque-cursor-merge-page-two: 1 lanes × (2 + 2) at opaque-cursor-merge-page-two.b on posts = 4"
   },
   "context": {
     "viewer": "u1",

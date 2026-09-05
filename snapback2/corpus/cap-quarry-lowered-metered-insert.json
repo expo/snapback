@@ -186,7 +186,7 @@
       "memberships.byConversationPrincipal"
     ],
     "disclosures": [],
-    "bound_product": null
+    "bound_product": "1 calls × cap 50 by conversationId on memberships = 50"
   },
   "context": {
     "viewer": "u0",

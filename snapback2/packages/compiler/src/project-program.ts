@@ -56,6 +56,7 @@ export function projectTypeDiagnostics(
   const checker = program.getTypeChecker();
   // Imported Quarry declarations supply effect/then types, but their bodies
   // have already been checked against the subset. Do not check them twice.
+  // Per-file checking omits program-wide diagnostics; the no-file filter below drops them either way.
   const diagnostics = files
     ? [...files].flatMap((path) => {
       const file = program.getSourceFile(path);

@@ -1,5 +1,5 @@
 import type { Document, Expr, IndexDecl, QuarryDiagnostic, ScalarType, Stmt, TableCatalog } from "./ast";
-import { quarryExpression } from "./program";
+import { quarryExpression } from "./print";
 
 const FALLBACK = "use an index whose prefix pins the predicate, a table invariant (after insert <- exists ...), or merge for a fan-in feed";
 
