@@ -13,7 +13,8 @@ globalThis.__sb_saved = {
   field: globalThis.__ibex2_response_field,
   decode: globalThis.__ibex2_text_decode,
   encode: globalThis.__ibex2_text_encode,
-  encodeInto: globalThis.__ibex2_text_encode_into
+  encodeInto: globalThis.__ibex2_text_encode_into,
+  freeHeaders: globalThis.__ibex2_headers.free
 };
 "#;
 const PRELUDE: &str = include_str!("prelude.js");

@@ -8,7 +8,7 @@ use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{Shutdown, TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
-use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -77,6 +77,7 @@ fn owner_runs_effect_then_delivery_and_honest_restart_requeue() {
         .unwrap()
         .to_owned();
     assert_eq!(running_trace["outbox"]["rows"][0]["state"], "running");
+    provider.assert_headers(0, &outbox_id);
 
     first_owner.kill();
     provider.release_first();
@@ -127,6 +128,7 @@ fn owner_runs_effect_then_delivery_and_honest_restart_requeue() {
         .expect("the effect delivery row must be present beside seed data");
     assert_eq!(delivered["providerId"], "provider-2");
     assert_eq!(provider.hits(), 2);
+    provider.assert_headers(1, &outbox_id);
     let final_status = wait_for(Duration::from_secs(5), || {
         let status = status(port, &secret);
         (status["effects"]["sent"] == 1).then_some(status)
@@ -174,7 +176,7 @@ fn prepare_effect_fixture(root: &Path, origin: &str) {
 
 struct Provider {
     port: u16,
-    hits: Arc<AtomicUsize>,
+    headers: Arc<Mutex<Vec<String>>>,
     first_release: Arc<(Mutex<bool>, Condvar)>,
 }
 
@@ -182,9 +184,9 @@ impl Provider {
     fn start() -> Self {
         let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
         let port = listener.local_addr().unwrap().port();
-        let hits = Arc::new(AtomicUsize::new(0));
+        let headers = Arc::new(Mutex::new(Vec::new()));
         let first_release = Arc::new((Mutex::new(false), Condvar::new()));
-        let thread_hits = hits.clone();
+        let thread_headers = headers.clone();
         let thread_release = first_release.clone();
         thread::spawn(move || {
             for stream in listener.incoming().take(2) {
@@ -202,7 +204,15 @@ impl Provider {
                         }
                     }
                 }
-                let hit = thread_hits.fetch_add(1, Ordering::SeqCst) + 1;
+                let end = raw
+                    .windows(4)
+                    .position(|window| window == b"\r\n\r\n")
+                    .unwrap();
+                let hit = {
+                    let mut headers = thread_headers.lock().unwrap();
+                    headers.push(String::from_utf8(raw[..end].to_vec()).unwrap());
+                    headers.len()
+                };
                 if hit == 1 {
                     let (released, wake) = &*thread_release;
                     let mut released = released.lock().unwrap();
@@ -221,7 +231,7 @@ impl Provider {
         });
         Self {
             port,
-            hits,
+            headers,
             first_release,
         }
     }
@@ -231,7 +241,34 @@ impl Provider {
     }
 
     fn hits(&self) -> usize {
-        self.hits.load(Ordering::SeqCst)
+        self.headers.lock().unwrap().len()
+    }
+
+    fn assert_headers(&self, index: usize, outbox_id: &str) {
+        let headers = self.headers.lock().unwrap();
+        let block = &headers[index];
+        println!("owner provider request {}:\n{block}", index + 1);
+        assert!(block.starts_with("POST /send HTTP/1.1\r\n"), "{block}");
+        assert!(
+            !block
+                .to_ascii_lowercase()
+                .contains("application/x-www-form-urlencoded"),
+            "{block}"
+        );
+        for (name, expected) in [
+            ("content-type", "application/json"),
+            ("idempotency-key", outbox_id),
+        ] {
+            let values: Vec<_> = block
+                .lines()
+                .skip(1)
+                .filter_map(|line| {
+                    let (key, value) = line.split_once(':')?;
+                    key.eq_ignore_ascii_case(name).then(|| value.trim())
+                })
+                .collect();
+            assert_eq!(values, vec![expected], "{block}");
+        }
     }
 
     fn release_first(&self) {

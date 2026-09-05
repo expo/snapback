@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2-effects` (the host and runner), `snapback2/crates/snapback2` (the runner thread in the owner; `doctor`), `snapback2/packages/compiler` (lowering `effect()` and `emit()`), `snapback2/scripts/{hermes,publish.mjs}`
 **Author:** Claude Fable 5 (orchestrator) — implementer: codex gpt-5.6-sol, lane C (compiler lowering: lane B0)
 **Date:** 2026-08-29
-**Revised:** 2026-09-05 (Clique F2: ES2020 authored-file libraries and witnessed globals/members; implementer GPT-6 Astra, L5); 2026-08-30
+**Revised:** 2026-09-05 (Clique F1: authored fetch headers are delivered and redirects obey Fetch; implementer GPT-6 Astra, L6; F2: ES2020 authored-file libraries and witnessed globals/members, L5); 2026-08-30
 **Related:** LLP 1000 decision 3 (Ibex 2 embedded now, effects only), LLP 1001 §8 (the outbox), LLP 1002 §5 (the owner that hosts the runner), LLP 0329.014.004 §6 (`effect` kind: "JavaScript with I/O outside the data plane; reads only through named queries as a service principal; writes only through named mutations; transactional outbox"), LLP 0329.016 §9 decision 7, expo/ibex LLP 0057/0058/0067/0068 (the engine, its bindings, and its grant model)
 
 ## Summary
@@ -81,6 +81,17 @@ imports) to a single function expression string; the project JSON carries
 `effects[] = { name: "notifications.notify", grants, source, then:
 "notifications.recordNotified" | null }`, and `schema.effects` lists the
 names (LLP 1001 §9).
+
+`fetch` delivers authored headers from a record, an iterable of name/value
+pairs, or `Headers`, normalized and snapshotted before I/O. A string body
+without an authored `content-type` gets `text/plain;charset=UTF-8`. Invalid
+header names or values reject before any request. Redirects 301/302 rewrite
+only POST to GET; 303 rewrites all methods except GET/HEAD; 307/308 preserve
+method and body. Dropping the body drops `content-type`, `content-length`,
+`content-encoding`, `content-language`, and `content-location`. Crossing
+origins drops `authorization`, `proxy-authorization`, and `cookie`;
+same-origin hops retain them. Every hop still requires its declared grant;
+redirect modes other than `follow`, `manual`, or `error` reject before I/O.
 
 ## 2. The outbox lifecycle
 
@@ -169,6 +180,17 @@ are classified by a tag the prelude's fetch wrapper sets
 2026-08-30). The
 runtime is dropped after 50 jobs or on generation change, whichever first —
 Hermes heaps are cheap, leaks are not.
+
+The vendored fetch factory follows redirects one raw request at a time so
+grant denial attribution names the attempted hop. Ibex revision
+`ae72807aeaef7a2215d3f0dcf5f4e548ffc4c218` accepts a fifth raw argument: the
+engine-owned `Headers` handle, whose validated list Rust clones into the
+request. Snapback keeps lowercase pairs for the next hop and applies §1's
+rewrite and strip rules there. The host captures `__ibex2_headers.free`
+alongside the response accessors before `install_bindings`; the factory
+privately frees each fresh request snapshot on raw success, rejection, or
+synchronous failure. It never frees the caller's own `Headers` handle, and
+the free operation is unreachable from authored effects.
 
 A JS exception is `Failed { retry: true }`; a grant denial (`denied:
 net.fetch`) is `Failed { retry: false }` — retrying a refused origin is

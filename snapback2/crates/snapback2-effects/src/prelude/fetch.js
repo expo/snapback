@@ -1,4 +1,4 @@
-// Adapted from expo/ibex at revision 174c94fb7eb06785d3b48ce9f92527b6f9636bd3:
+// Adapted from expo/ibex at revision ae72807aeaef7a2215d3f0dcf5f4e548ffc4c218:
 // crates/ibex2/src/bindings/fetch.js. Snapback follows redirects through the
 // grant-bound raw binding one hop at a time so a denial retains the attempted
 // hop's origin instead of being mislabeled with the initial request.
@@ -21,6 +21,7 @@
   var field = global.__ibex2_response_field;
   var decode = global.__ibex2_text_decode;
   var Headers = global.Headers;
+  var freeHeaders = global.__sb_saved.freeHeaders;
   delete global.__ibex2_response_field;
   // Pure helpers nothing outside the bindings needs: the engine provides
   // TextEncoder and TextDecoder itself.
@@ -88,6 +89,7 @@
   Object.freeze(Response.prototype);
 
   function copyInit(init) {
+    // Snapshot enumerable own keys only; this is not full Web IDL dictionary conversion.
     var copy = {};
     if (init !== undefined && init !== null) {
       var names = Object.keys(Object(init));
@@ -101,14 +103,32 @@
   }
 
   function invokeRaw(raw, url, init, redirectMode, tagRawError) {
-    var method = init && init.method !== undefined ? String(init.method) : "";
-    var body = init && init.body !== undefined ? init.body : undefined;
-    if (typeof body === "string") body = new TextEncoder().encode(body);
-    var target = String(url);
-    return raw(target, method, body, redirectMode).then(
-      undefined,
-      function (error) { throw tagRawError(error, target); }
-    );
+    var headers;
+    try {
+      var method = init.method !== undefined ? String(init.method) : "";
+      var body = init.body;
+      var target = String(url);
+      // @ref LLP 1003#3-the-runtime-snapback2-effects — each hop owns a validated snapshot; only raw rejections can carry a grant denial.
+      headers = new Headers(init.headers);
+      if (typeof body === "string") {
+        if (!headers.has("content-type")) headers.set("content-type", "text/plain;charset=UTF-8");
+        body = new TextEncoder().encode(body);
+      }
+      // Lowercase pairs survive redirects independently of the caller's record,
+      // iterable, or Headers. The fifth raw argument is Ibex's validated handle.
+      init.headers = Array.from(headers);
+      return raw(target, method, body, redirectMode, headers._handle).then(
+        function (handle) { freeHeaders(headers._handle); return handle; },
+        function (error) { freeHeaders(headers._handle); throw tagRawError(error, target); }
+      );
+    } catch (error) {
+      if (headers) freeHeaders(headers._handle);
+      return Promise.reject(error);
+    }
+  }
+
+  function dropHeaders(init, names) {
+    init.headers = init.headers.filter(function (pair) { return names.indexOf(pair[0]) === -1; });
   }
 
   // The factory. `raw` is the engine's async binding for one grant set; it
@@ -117,14 +137,18 @@
   // each denied hop remains attributable without widening Ibex's capability.
   return function makeFetch(raw, tagRawError) {
     return function fetch(input, init) {
-      var redirectMode = init && init.redirect !== undefined ? String(init.redirect) : "follow";
+      var currentInit = copyInit(init);
+      var redirectMode = currentInit.redirect !== undefined ? String(currentInit.redirect) : "follow";
+      // Ibex treats unknown modes as follow; never let that bypass our hop rules.
+      if (redirectMode !== "follow" && redirectMode !== "manual" && redirectMode !== "error") {
+        return Promise.reject(new TypeError("Invalid redirect mode"));
+      }
       if (redirectMode !== "follow") {
-        return invokeRaw(raw, input, init, redirectMode, tagRawError)
+        return invokeRaw(raw, input, currentInit, redirectMode, tagRawError)
           .then(function (handle) { return response(handle); });
       }
 
       var currentUrl = String(input);
-      var currentInit = copyInit(init);
       currentInit.redirect = "manual";
       var redirects = 0;
 
@@ -138,12 +162,18 @@
           if (redirects > 20) throw new TypeError("TypeError: Failed to fetch — too many redirects");
 
           var method = currentInit.method === undefined ? "GET" : String(currentInit.method).toUpperCase();
-          if (value.status === 303 || ((value.status === 301 || value.status === 302) && method !== "GET" && method !== "HEAD")) {
-            currentInit = copyInit(currentInit);
+          // @ref LLP 1003#1-authoring — Fetch method rewrites discard body headers; cross-origin hops discard credentials.
+          if ((value.status === 303 && method !== "GET" && method !== "HEAD") ||
+              ((value.status === 301 || value.status === 302) && method === "POST")) {
             currentInit.method = "GET";
             delete currentInit.body;
+            dropHeaders(currentInit, ["content-type", "content-length", "content-encoding", "content-language", "content-location"]);
           }
-          currentUrl = new URL(String(location), currentUrl).toString();
+          var nextUrl = new URL(String(location), currentUrl);
+          if (nextUrl.origin !== new URL(currentUrl).origin) {
+            dropHeaders(currentInit, ["authorization", "proxy-authorization", "cookie"]);
+          }
+          currentUrl = nextUrl.toString();
           return next();
         });
       }
