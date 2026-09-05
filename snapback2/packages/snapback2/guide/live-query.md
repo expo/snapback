@@ -38,10 +38,9 @@ ends. Reconnect re-delivers query state; ephemeral channel events are not replay
 `channel name(args):` declares ephemeral events with `publish` and `subscribe`
 rules and `ttl Ns`. Use channels for transient signals such as typing;
 subscriptions carry events, not durable rows or replayable history.
-
-There is no connection or presence primitive yet. A heartbeat table (for example,
-`devices` with `schedule expireDevice on devices at .expiresAt:`) measures recent
-activity, not connection state. Its lag is the heartbeat interval plus the expiry
+There is no connection or presence primitive yet. As a workaround, a heartbeat
+table (for example, `devices` with `schedule expireDevice on devices at .expiresAt:`)
+measures recent activity, not connection state. Its lag is the heartbeat interval plus the expiry
 delay; disconnects are seen late. Do not gate delivery (push or digests) solely
 on it: where delivery matters, use durable receipts and a delayed check for an
 unacknowledged message.

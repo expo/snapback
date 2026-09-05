@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2` (the binary: owner, server, verbs), `snapback2/packages/compiler` (project lowering, worker), `snapback2/packages/snapback2` (authoring runtime, client, React, test runner, shim), `snapback2/scripts/measure.mjs`
 **Author:** Claude Fable 5 (orchestrator) — implementers: codex gpt-5.6-sol, lanes B0 (compiler + authoring surface), B1 (owner + server + verbs), B2 (`init`, `test`, `why`, `trace`, `guide`), D (client + React + evaluator)
 **Date:** 2026-08-29
-**Revised:** 2026-09-05 (generated Quarry keyword guide, landed outbox/client custody; shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
+**Revised:** 2026-09-05 (keyword index fallback and recipe list; generated Quarry keyword guide, landed outbox/client custody; shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
 **Related:** LLP 1000, LLP 1001 (the engine this serves), LLP 1003 (effects),
 LLP 0329.016 §5 (the design this implements verbatim where it can), LLP
 0329.016 §5.11 (the verb table — no verb exists without its row), LLP
@@ -693,11 +693,16 @@ verdict: "pass" | "fail" | "blocked", ms, detail }], arms: ["headless"], verdict
   (tables, rules, ops with bounds, channels, personas — from the generation),
   `<symbol>` (the JSDoc on the `snapback2` module's declaration), `<E_CODE>`
   (the family's wrong/right pair), `<recipe>` (`auth`, `live-query`,
-  `effects`, `personas`, `testing` — ≤ 4 KB Markdown files shipped in the
-  package). After page, refusal, and symbol lookup, `<keyword>` serves its grammar
-  line and defining paragraph from an index generated at package build time from
+  `effects`, `offline`, `personas`, `operator`, `job`, `schedule`, `quarry`,
+  `testing` — budgeted Markdown files shipped in the package). After page, refusal,
+  and symbol lookup, `<keyword>` serves its grammar line and defining paragraph
+  from an index generated at package build time from
   the existing guide pages; a matching symbol keeps its declaration and gains that
-  excerpt. `--json` keeps `{ page, content }`; no pages are scanned at lookup time.
+  excerpt under one header. Missing, unreadable, or invalid keyword indexes never
+  suppress a symbol hit. A keyword-only lookup with a missing index is unknown;
+  unreadable or invalid indexes return `E_OWNER_GUIDE` only when keyword help is
+  needed. Unknown-name guidance includes index keys when readable. `--json` keeps
+  `{ page, content }`; no pages are scanned at lookup time.
   Served from the package, not embedded in the binary.
 
 ## 9. The client (`snapback2/client`, `snapback2/react`, `snapback2/test`)

@@ -38,7 +38,7 @@ export const notify = effect({
 ```
 
 `emit name { payload }` durably queues an effect in the mutation's transaction.
-Declare the effect's module, then emit its payload:
+Declare the effect's module, then emit its payload.
 
 ```q
 effect notify from delivery

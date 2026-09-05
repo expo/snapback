@@ -30,7 +30,7 @@ function Messages() {
   const messages = useQuery(api.messages.thread, { conversationId: "conversation-1", c: null });
   const send = useMutation(api.messages.send);
   if (messages.state === "hydrating") return <>Loading…</>;
-  return <button disabled={send.pending} onClick={() => send.run({ conversationId: "conversation-1", recipientId: "profile-bob", body: "Hi" })}>
+  return <button disabled={send.inFlight} onClick={() => send.run({ conversationId: "conversation-1", recipientId: "profile-bob", body: "Hi" })}>
     {messages.state}
   </button>;
 }
@@ -56,7 +56,7 @@ device for FIFO replay after resume. `status` explains readiness, the next actio
 remaining queue, and fence. `useOutbox()` exposes entries; `outbox.drain()` and
 `settled()` report `{ stopped, remaining }`. Transport failures preserve queued
 writes; a thrown failure leaves `last` untouched and sets `transport`.
-See [offline](./dist/guide/offline.md) for recovery.
+Run `snapback2 guide offline` for recovery.
 
 ## Assets
 

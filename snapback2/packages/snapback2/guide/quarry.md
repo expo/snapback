@@ -267,7 +267,6 @@ read remains absent.
 Every scan, list, text, JSON, and bytes value is bounded. `for` iterates only
 a bounded list/page/range/tokens result. Lowered queries and mutations retain
 the same certificate, trace, and runtime budgets.
-
 In a mutation, `for` over a page must cover its range: the table is capped over
 the pinned prefix, the rule is uniform there, the bound is a literal at least the
 cap, and no scan in the mutation is non-uniform. Cursors and key ranges cut the
