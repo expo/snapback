@@ -89,6 +89,7 @@
   Object.freeze(Response.prototype);
 
   function copyInit(init) {
+    // Snapshot enumerable own keys only; this is not full Web IDL dictionary conversion.
     var copy = {};
     if (init !== undefined && init !== null) {
       var names = Object.keys(Object(init));
