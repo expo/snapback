@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2` (the binary: owner, server, verbs), `snapback2/packages/compiler` (project lowering, worker), `snapback2/packages/snapback2` (authoring runtime, client, React, test runner, shim), `snapback2/scripts/measure.mjs`
 **Author:** Claude Fable 5 (orchestrator) — implementers: codex gpt-5.6-sol, lanes B0 (compiler + authoring surface), B1 (owner + server + verbs), B2 (`init`, `test`, `why`, `trace`, `guide`), D (client + React + evaluator)
 **Date:** 2026-08-29
-**Revised:** 2026-09-05 (client-owned auth restoration and retry lifecycle, shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
+**Revised:** 2026-09-05 (auth review: failed-transition custody, read restoration barrier, session kind, paused offline retries); 2026-09-05 (client-owned auth restoration and retry lifecycle, shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
 **Related:** LLP 1000, LLP 1001 (the engine this serves), LLP 1003 (effects),
 LLP 0329.016 §5 (the design this implements verbatim where it can), LLP
 0329.016 §5.11 (the verb table — no verb exists without its row), LLP
@@ -770,7 +770,20 @@ protocol failures remain visible, without automatic retries. Logout, authority
 replacement, account switch, restart, and close stop timers and suppress old
 responses, including responses from a transport that ignores abort. Session
 replacement publishes its new viewer with its token and auth generation only
-after custody has settled.
+after custody has settled, including the wire's `kind` and `authEpoch`. A
+failed signup/login/guest attempt whose custody is unchanged preserves the
+confirmed auth snapshot, or resumes hydrating with a retry timer if it
+interrupted restoration. Metadata/resume failures reject `ready` without
+replacing already-confirmed auth. Hooks wait for `ready` before deciding whether
+a tokenless client needs its lazy first `me()`.
+
+While a bearer is hydrating, mounted reads wait for confirmation or answer
+from existing offline coverage; the token-bound display field supplies no
+network authority. Explicit `me()` replaces its backoff timer. `offline()`
+pauses retry clocks without splitting a pending `me()` flight; an offline
+restart remains paused until `online()`. An online restart starts the new
+client's normal restoration. A closed client's `auth` is only its last view, without `retryAt` or any
+current-authorization claim. Anonymous snapshots omit `refusal`.
 
 The client maintains a local monotonically increasing `authGeneration` that
 is never the server bearer or epoch. Signup, login, guest, logout, restore,

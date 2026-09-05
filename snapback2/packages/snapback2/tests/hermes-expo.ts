@@ -49,7 +49,7 @@ const photo = { id: "s2id-00000000000000000000000000000008-0000000000000001", wi
 let logins = 0, photos = 0;
 (globalThis as any).__snapbackNative.expoFetch = async (input: string | URL | Request, init?: RequestInit) => {
   const path = new URL(String(input)).pathname;
-  if (path === "/api/auth/login") { logins++; return Response.json({ token: "hermes-session", viewer: "dev:alice" }); }
+  if (path === "/api/auth/login") { logins++; return Response.json({ token: "hermes-session", viewer: "dev:alice", kind: "user" }); }
   if (path === "/api/auth/me") return Response.json({ viewer: "dev:alice", kind: "user" });
   if (path.startsWith("/api/asset/")) { photos++; return new Response(new Uint8Array([1, 2, 3]), { headers: { "Content-Type": "image/png" } }); }
   return owner.fetch(input, init);

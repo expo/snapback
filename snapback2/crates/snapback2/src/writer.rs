@@ -453,10 +453,11 @@ pub fn spawn_writer(
 fn session_json(
     token: &str,
     viewer: &str,
+    kind: &str,
     auth_epoch: u64,
     grant: Option<snapback2_core::ReplayGrant>,
 ) -> Json {
-    let mut response = json!({ "token": token, "viewer": viewer, "authEpoch": auth_epoch });
+    let mut response = json!({ "token": token, "viewer": viewer, "kind": kind, "authEpoch": auth_epoch });
     if let Some(grant) = grant {
         response["grant"] = json!(grant);
     }
@@ -585,6 +586,7 @@ impl State {
                 Ok(session_json(
                     &session.token,
                     session.principal.id.as_str(),
+                    &session.principal.kind,
                     session.auth_epoch,
                     None,
                 ))
@@ -603,6 +605,7 @@ impl State {
                 Ok(session_json(
                     &session.token,
                     session.principal.id.as_str(),
+                    &session.principal.kind,
                     session.auth_epoch,
                     grant,
                 ))
@@ -617,6 +620,7 @@ impl State {
                 Ok(session_json(
                     &session.token,
                     session.principal.id.as_str(),
+                    &session.principal.kind,
                     session.auth_epoch,
                     grant,
                 ))

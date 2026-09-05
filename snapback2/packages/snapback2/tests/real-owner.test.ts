@@ -240,7 +240,11 @@ test("real channel membership revocation ends the subscriber with a refusal", as
   const channel = bob.channel(api.typing, { conversationId: "conversation-1" });
   const events: any[] = [];
   const sub = channel.subscribe((event) => events.push(event));
-  await new Promise((resolve) => setTimeout(resolve, 50));
+  // A delivery on the same live connection witnesses channel registration;
+  // a fixed sleep can publish before the control batch reaches a busy owner.
+  const witness = bob.subscribe(api.messages.summary, { conversationId: "conversation-1" }, () => {});
+  await witness.until((event: any) => event.live === true, 2_000);
+  witness.close();
   const typing = sub.until((event: any) => event.payload?.typing === true, 2_000);
   assert.deepEqual(
     await alice.channel(api.typing, { conversationId: "conversation-1" }).publish({ typing: true }),
@@ -275,6 +279,8 @@ test("a real stored session restores after a cut with identical snapshot views a
     savePrincipal: (principal: string | null, bearer?: string) => { binding = principal && bearer ? { token: bearer, principal } : null; } };
   const first = createClient({ url: owner.url, tokenStore });
   const session = await first.auth.guest();
+  assert.equal(session.kind, "guest");
+  assert.equal(first.snapshot.auth.kind, "guest");
   await first.close();
   let cut = true;
   const cold = createClient({ url: owner.url, tokenStore, fetch: async (input, init) => {

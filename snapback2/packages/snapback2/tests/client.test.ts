@@ -177,10 +177,10 @@ class MockOwner {
     return authorization?.startsWith("Bearer ") ? this.tokens.get(authorization.slice(7)) : undefined;
   }
 
-  private mint(viewer: string, kind: string): { token: string; viewer: string } {
+  private mint(viewer: string, kind: string): { token: string; viewer: string; kind: string } {
     const token = `token-${++this.tokenCounter}`;
     this.tokens.set(token, { viewer, kind });
-    return { token, viewer };
+    return { token, viewer, kind };
   }
 
   private openSse(response: ServerResponse): void {
@@ -1369,11 +1369,13 @@ test("non-live useQuery keeps hydrating across a network failure, reports connec
     views.push(view);
     return null;
   }
+  const client = createClient({ url: "http://wire.test", fetch });
+  await client.ready;
   let renderer: TestRenderer.ReactTestRenderer;
   await act(async () => {
     renderer = TestRenderer.create(React.createElement(
       SnapbackProvider,
-      { url: "http://wire.test", fetch: multiplexFetch(fetch) },
+      { client },
       React.createElement(Harness),
     ));
   });
@@ -1385,6 +1387,7 @@ test("non-live useQuery keeps hydrating across a network failure, reports connec
   assert.equal(final.connection, "connected");
   assert.ok(!views.some((view) => view.state === "refused" && view.refusal?.code === "E_NETWORK"));
   await act(async () => { renderer!.unmount(); });
+  await client.close();
 });
 
 test("separately bundled client and React entry points share generated API references", async () => {

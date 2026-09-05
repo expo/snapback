@@ -182,6 +182,7 @@ export function useQuery<Args, Result>(
     { identity, view: initialQueryState<Result>() },
   );
   const state = machine.identity === identity ? machine.view : initialQueryState<Result>();
+  const restoring = !!snapshot.token && snapshot.auth.state === "hydrating";
 
   useEffect(() => {
     let active = true;
@@ -222,7 +223,7 @@ export function useQuery<Args, Result>(
       active = false;
       if (timer !== undefined) clearTimeout(timer);
     };
-  }, [identity, stableArgs]);
+  }, [identity, stableArgs, restoring]);
 
   return useMemo(() => ({ ...state, connection: snapshot.connection }), [state, snapshot.connection]);
 }
@@ -356,7 +357,11 @@ export function useAuth(): UseAuthResult {
   // Bearer restoration starts in the client. A persona or a client with no
   // stored token keeps the lazy owner check; every hook joins that same flight.
   useEffect(() => {
-    if (!client.snapshot.token && client.snapshot.auth.state === "hydrating") void client.auth.me().catch(() => undefined);
+    let active = true;
+    void client.ready.then(() => {
+      if (active && !client.snapshot.token && client.snapshot.auth.state === "hydrating") return client.auth.me();
+    }).catch(() => undefined);
+    return () => { active = false; };
   }, [client]);
   return { ...snapshot.auth, token: snapshot.token, ...client.auth };
 }

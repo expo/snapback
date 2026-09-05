@@ -183,7 +183,7 @@ function corpusOwner(options: CorpusOwnerOptions) {
       return json(payload(current.generation, current.programs));
     }
     if (url.pathname === "/api/auth/me") return json({ viewer: options.viewer, kind: "user" });
-    if (url.pathname === "/api/auth/login") return json({ token: `token-${options.viewer}`, viewer: options.viewer, grant: mint() });
+    if (url.pathname === "/api/auth/login") return json({ token: `token-${options.viewer}`, viewer: options.viewer, kind: "user", grant: mint() });
     if (url.pathname === "/api/resume") {
       if (resetPending && options.successor) {
         resetPending = false;

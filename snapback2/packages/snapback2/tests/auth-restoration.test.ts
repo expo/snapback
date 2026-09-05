@@ -1,9 +1,15 @@
 import assert from "node:assert/strict";
-import { test } from "node:test";
+import { test, type TestContext } from "node:test";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import React from "react";
 import TestRenderer, { act } from "react-test-renderer";
-import { createClient, type SnapbackClient } from "../dist/client.mjs";
-import { SnapbackProvider, useAuth, type UseAuthResult } from "../dist/react.mjs";
+import { api, createClient, type SnapbackClient } from "../dist/client.mjs";
+import { SnapbackProvider, useAuth, useQuery, type UseAuthResult } from "../dist/react.mjs";
+
+import { fakeOwner, seededStore } from "./fake-owner.ts";
+import { nodeSqliteDriver, sqliteRangeStore } from "../dist/sqlite-test.mjs";
 
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 const json = (value: unknown, status = 200) => Response.json(value, { status });
@@ -15,9 +21,9 @@ function deferred<T>() {
   const promise = new Promise<T>(done => { resolve = done; });
   return { promise, resolve };
 }
-function custody() {
+function custody(principal = "alice") {
   let token: string | null = "token-a";
-  let binding: { token: string; principal: string } | null = { token, principal: "alice" };
+  let binding: { token: string; principal: string } | null = { token, principal };
   return { load: () => token, save: (value: string | null) => { token = value; },
     loadPrincipalBinding: () => binding,
     savePrincipal: (principal: string | null, bearer?: string) => { binding = principal && bearer ? { token: bearer, principal } : null; } };
@@ -29,7 +35,8 @@ async function restored(client: SnapbackClient) {
 
 // @ref LLP 1002#9-the-client-snapback2client-snapback2react-snapback2test —
 // hooks share the client machine, including recovery with no live query mounted.
-test("parent and later child auth hooks agree across a restoration cut and reconnect", async () => {
+test("parent and later child auth hooks agree across a restoration cut and reconnect", async context => {
+  context.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 1_000 });
   let cut = true, requests = 0;
   const store = custody();
   const client = createClient({ url: "http://auth.test", tokenStore: store, fetch: async input => {
@@ -42,13 +49,15 @@ test("parent and later child auth hooks agree across a restoration cut and recon
     React.createElement(Probe, { index: 0 }), child && React.createElement(Probe, { index: 1 }));
   let renderer!: TestRenderer.ReactTestRenderer;
   try {
-    await act(async () => { renderer = TestRenderer.create(render(false)); await restored(client); });
+    await restored(client);
+    assert.equal(requests, 1);
+    await act(async () => { renderer = TestRenderer.create(render(false)); await flush(); });
     assert.equal(views[0].state, "hydrating");
     assert.equal(views[0].restoringViewer, "alice");
     assert.equal(views[0].viewer, undefined);
     assert.equal(store.load(), "token-a");
     const initial = requests;
-    assert.ok(initial <= 2, "only the independent manifest reconnect may trigger another attempt");
+    assert.equal(initial, 2, "the independent manifest reconnect triggers exactly one attempt");
     await act(async () => { renderer.update(render(true)); await flush(); });
     assert.deepEqual(views[0], views[1]);
     assert.equal(requests, initial, "mounting another hook does not create another me request");
@@ -96,8 +105,9 @@ test("restoration coalesces simultaneous me callers and a reconnect while pendin
   try {
     await restored(client);
     const one = client.auth.me(), two = client.auth.me();
-    await client.manifest(); await flush();
-    assert.equal(requests, 1);
+    await flush();
+    await client.offline(); await client.online(); await flush();
+    assert.equal(requests, 1, "both callers and offline/online share the pending request");
     response.resolve(me());
     assert.deepEqual(await one, await two);
     assert.equal(client.snapshot.auth.viewer, "alice");
@@ -165,7 +175,7 @@ test("logout, account replacement and close ignore a pending predecessor me resp
     const store = custody();
     const client = createClient({ url: "http://auth.test", tokenStore: store, fetch: async (input, init) => {
       if (String(input).endsWith("/api/auth/me")) { signal = init?.signal; return response.promise; }
-      if (String(input).endsWith("/login")) return json({ token: "token-b", viewer: "bob", authEpoch: 2 });
+      if (String(input).endsWith("/login")) return json({ token: "token-b", viewer: "bob", kind: "user", authEpoch: 2 });
       return json({ ok: true });
     } });
     try {
@@ -202,18 +212,32 @@ test("a mismatched stored binding never renders another token's restoring viewer
   } finally { await client.close(); }
 });
 
-test("a restoration retry never dispatches a query on a retained viewer's strength", async () => {
-  const paths: string[] = [];
-  const client = createClient({ url: "http://auth.test", tokenStore: custody(), fetch: async input => {
-    paths.push(new URL(String(input)).pathname);
-    throw new TypeError("cut");
-  } });
-  try {
-    await restored(client);
-    await client.offline(); await client.online(); await flush();
-    assert.deepEqual(paths, ["/api/auth/me", "/api/auth/me"]);
-    assert.equal(client.snapshot.auth.viewer, undefined);
-  } finally { await client.close(); }
+test("mounted queries during restoration use held coverage and only me retries carry the bearer", async context => {
+  context.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 1_000 });
+  for (const bound of [true, false]) {
+    const paths: string[] = [], headers: string[] = [], answers: any[] = [];
+    const store = custody();
+    if (!bound) store.loadPrincipalBinding = () => null;
+    const client = createClient({ url: "http://auth.test", tokenStore: store, offline: { store: offlineStore(context) },
+      fetch: async (input, init) => {
+        paths.push(new URL(String(input)).pathname);
+        headers.push(new Headers(init?.headers).get("Authorization")!);
+        throw new TypeError("cut");
+      } });
+    let sub: ReturnType<SnapbackClient["subscribe"]> | undefined;
+    try {
+      await restored(client);
+      sub = client.subscribe(api.current, {}, answer => answers.push(answer));
+      answers.push(await client.query(api.current, {})); await flush();
+      assert.equal(client.snapshot.auth.restoringViewer, bound ? "alice" : undefined);
+      assert.equal(client.snapshot.auth.viewer, undefined);
+      assert.ok(answers.length >= 2);
+      assert.ok(answers.every(answer => answer.state === "hydrating" && answer.connection === "offline"));
+      context.mock.timers.tick(1_000); await flush();
+      assert.deepEqual(paths, ["/api/auth/me", "/api/auth/me"]);
+      assert.deepEqual(headers, ["Bearer token-a", "Bearer token-a"]);
+    } finally { sub?.close(); await client.close(); }
+  }
 });
 
 test("HTTP 503 restoration retries, and authority replacement cancels the old backoff", async context => {
@@ -222,7 +246,7 @@ test("HTTP 503 restoration retries, and authority replacement cancels the old ba
     let requests = 0;
     const client = createClient({ url: "http://auth.test", tokenStore: custody(), fetch: async input => {
       if (String(input).endsWith("/api/auth/me")) { requests++; return json({ unavailable: true }, 503); }
-      return String(input).endsWith("/login") ? json({ token: "token-b", viewer: "bob" }) : json({ ok: true });
+      return String(input).endsWith("/login") ? json({ token: "token-b", viewer: "bob", kind: "user" }) : json({ ok: true });
     } });
     try {
       await restored(client);
@@ -246,7 +270,7 @@ test("late terminal me evidence clears only custody that still holds that bearer
     const store = custody();
     const client = createClient({ url: "http://auth.test", tokenStore: store, fetch: async input => {
       if (String(input).endsWith("/api/auth/me")) return response.promise;
-      return replacement === "failed" ? refusal("E_AUTH_INVALID") : json({ token: "token-b", viewer: "bob" });
+      return replacement === "failed" ? refusal("E_AUTH_INVALID") : json({ token: "token-b", viewer: "bob", kind: "user" });
     } });
     try {
       await restored(client);
@@ -259,4 +283,426 @@ test("late terminal me evidence clears only custody that still holds that bearer
       assert.equal(client.snapshot.auth.viewer, replacement === "failed" ? undefined : "bob");
     } finally { response.resolve(refusal("E_AUTH_SESSION")); await client.close(); }
   }
+});
+
+for (const state of ["authenticated", "backoff", "pending"] as const) {
+  for (const action of ["login", "signup", "guest"] as const) {
+    test(`failed ${action} preserves ${state} bearer custody and restoration`, async context => {
+      context.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 1_000 });
+      const response = deferred<Response>();
+      let requests = 0;
+      const store = custody();
+      const client = createClient({ url: "http://auth.test", tokenStore: store, fetch: async input => {
+        if (!String(input).endsWith("/api/auth/me")) return refusal("E_AUTH_INVALID");
+        requests++;
+        if (state === "authenticated") return me();
+        if (state === "pending" && requests === 1) return response.promise;
+        throw new TypeError("cut");
+      } });
+      try {
+        await restored(client);
+        await assert.rejects(action === "guest" ? client.auth.guest()
+          : client.auth[action]({ email: "alice@example.com", password: "wrong" }), (error: any) => error.code === "E_AUTH_INVALID");
+        assert.equal(store.load(), "token-a");
+        assert.equal(client.snapshot.token, "token-a");
+        assert.deepEqual(store.loadPrincipalBinding(), { token: "token-a", principal: "alice" });
+        assert.equal(client.snapshot.auth.state, state === "authenticated" ? "authenticated" : "hydrating");
+        assert.equal(client.snapshot.auth.refusal, undefined);
+        if (state === "authenticated") assert.equal(client.snapshot.auth.viewer, "alice");
+        else {
+          assert.equal(client.snapshot.auth.restoringViewer, "alice");
+          assert.ok(client.snapshot.auth.retryAt! > Date.now());
+          context.mock.timers.tick(client.snapshot.auth.retryAt! - Date.now()); await flush();
+          assert.equal(requests, 2, "failed transition must leave a live restoration timer");
+        }
+      } finally { response.resolve(me()); await client.close(); }
+    });
+  }
+}
+
+function offlineStore(context: TestContext) {
+  const root = mkdtempSync(join(tmpdir(), "s2-auth-"));
+  context.after(() => rmSync(root, { recursive: true, force: true }));
+  return sqliteRangeStore(() => nodeSqliteDriver(join(root, "store.db")));
+}
+
+test("startup metadata failure rejects ready without replacing confirmed auth", async context => {
+  const store = custody();
+  const client = createClient({ url: "http://auth.test", tokenStore: store, offline: { store: offlineStore(context) },
+    fetch: async input => String(input).endsWith("/api/auth/me") ? me() : json({ malformed: true }) });
+  try {
+    await assert.rejects(client.ready, (error: any) => error.code === "E_WIRE_SHAPE");
+    assert.equal(client.snapshot.auth.state, "authenticated");
+    assert.equal(client.snapshot.auth.viewer, "alice");
+    assert.equal(client.snapshot.auth.kind, "user");
+    assert.equal(client.snapshot.auth.retryAt, undefined);
+    assert.equal(client.snapshot.token, "token-a");
+    assert.equal(store.load(), "token-a");
+  } finally { await client.close(); }
+});
+
+test("refused restoration recovers its display viewer from bearer custody", async context => {
+  context.mock.timers.enable({ apis: ["setTimeout", "Date"] });
+  const response = deferred<Response>();
+  let requests = 0;
+  const client = createClient({ url: "http://auth.test", tokenStore: custody(), fetch: async () => {
+    if (++requests === 1) return refusal("E_INPUT", 403);
+    return response.promise;
+  } });
+  try {
+    await restored(client);
+    assert.equal(client.snapshot.auth.state, "refused");
+    await client.offline(); await client.online(); await flush();
+    assert.equal(client.snapshot.auth.state, "hydrating");
+    assert.equal(client.snapshot.auth.restoringViewer, "alice");
+    await client.offline(); await client.online(); await flush();
+    assert.equal(client.snapshot.auth.restoringViewer, "alice");
+    assert.equal(requests, 2);
+    response.resolve(me()); await flush();
+    assert.equal(client.snapshot.auth.viewer, "alice");
+  } finally { response.resolve(me()); await client.close(); }
+});
+
+test("restart of an offline device drops both retry clocks and waits for reconnect", async context => {
+  context.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 1_000 });
+  let requests = 0;
+  const client = createClient({ url: "http://auth.test", tokenStore: custody(), fetch: async () => {
+    requests++; throw new TypeError("cut");
+  } });
+  let restarted: SnapbackClient | undefined;
+  try {
+    await restored(client);
+    assert.equal(client.snapshot.auth.retryAt, 2_000);
+    await client.offline();
+    restarted = await client.restart(); await flush();
+    for (const delay of [1_000, 2_000, 4_000, 8_000, 16_000, 30_000, 120_000]) {
+      context.mock.timers.tick(delay); await flush();
+      assert.equal(requests, 1);
+      assert.equal(client.snapshot.auth.retryAt, undefined);
+      assert.equal(restarted.snapshot.auth.retryAt, undefined);
+    }
+    assert.equal(restarted.snapshot.auth.restoringViewer, "alice");
+    await restarted.online(); await flush();
+    assert.equal(requests, 2);
+  } finally { await client.close(); await restarted?.close(); }
+});
+
+test("two persona hooks share the lazy me flight", async context => {
+  context.mock.timers.enable({ apis: ["setTimeout", "Date"] });
+  const response = deferred<Response>();
+  let requests = 0;
+  const client = createClient({ url: "http://auth.test", as: "alice", fetch: async (input, init) => {
+    assert.equal(new Headers(init?.headers).get("X-Snapback-As"), "alice");
+    assert.equal(new Headers(init?.headers).get("Authorization"), null);
+    if (String(input).endsWith("/api/auth/me")) { requests++; return response.promise; }
+    return json({ generation: "g", programGeneration: "p", ops: {}, channels: {}, auth: {} });
+  } });
+  const views: UseAuthResult[] = [];
+  function Probe({ index }: { index: number }) { views[index] = useAuth(); return null; }
+  let renderer!: TestRenderer.ReactTestRenderer;
+  try {
+    await act(async () => { renderer = TestRenderer.create(React.createElement(SnapbackProvider, { client },
+      React.createElement(Probe, { index: 0 }), React.createElement(Probe, { index: 1 }))); await restored(client); });
+    assert.equal(requests, 1);
+    assert.deepEqual(views[0], views[1]);
+    await act(async () => { response.resolve(json({ viewer: "dev:alice", kind: "persona" })); await flush(); });
+    assert.equal(views[0].viewer, "dev:alice");
+    assert.equal(views[0].restoringViewer, undefined);
+    assert.deepEqual(views[0], views[1]);
+    assert.equal(requests, 1);
+  } finally { response.resolve(me()); if (renderer) await act(async () => renderer.unmount()); await client.close(); }
+});
+
+test("load/save-only custody restores without an unbound viewer and recovers on reconnect", async context => {
+  context.mock.timers.enable({ apis: ["setTimeout", "Date"] });
+  let token: string | null = "token-a", cut = true, requests = 0;
+  const client = createClient({ url: "http://auth.test", tokenStore: { load: () => token, save: value => { token = value; } },
+    fetch: async () => { requests++; if (cut) throw new TypeError("cut"); return me(); } });
+  try {
+    await restored(client);
+    assert.equal(client.snapshot.auth.state, "hydrating");
+    assert.equal(client.snapshot.auth.restoringViewer, undefined);
+    assert.equal(token, "token-a");
+    cut = false; await client.offline(); await client.online(); await flush();
+    assert.equal(client.snapshot.auth.viewer, "alice");
+    assert.equal(requests, 2);
+  } finally { await client.close(); }
+});
+
+test("explicit me cancels the old backoff deadline and schedules its own retry", async context => {
+  context.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 1_000 });
+  let requests = 0;
+  const client = createClient({ url: "http://auth.test", tokenStore: custody(), fetch: async () => { requests++; throw new TypeError("cut"); } });
+  try {
+    await restored(client);
+    context.mock.timers.tick(500);
+    await assert.rejects(client.auth.me(), (error: any) => error.code === "E_NETWORK");
+    assert.equal(requests, 2);
+    assert.equal(client.snapshot.auth.retryAt, 3_500);
+    context.mock.timers.tick(500); await flush();
+    assert.equal(requests, 2);
+    context.mock.timers.tick(1_500); await flush();
+    assert.equal(requests, 3);
+  } finally { await client.close(); }
+});
+
+test("non-auth coded restoration refusal retains custody and retries once per reconnect", async context => {
+  context.mock.timers.enable({ apis: ["setTimeout", "Date"] });
+  let requests = 0;
+  const store = custody();
+  const client = createClient({ url: "http://auth.test", tokenStore: store, fetch: async () => {
+    requests++; return json({ code: "E_INPUT", family: "input", message: "bad input", guide: "input/runtime" }, 403);
+  } });
+  try {
+    await restored(client);
+    for (let cycle = 1; cycle <= 3; cycle++) {
+      assert.equal(client.snapshot.auth.state, "refused");
+      assert.equal(client.snapshot.auth.refusal?.code, "E_INPUT");
+      assert.equal(store.load(), "token-a");
+      assert.equal(client.snapshot.auth.retryAt, undefined);
+      context.mock.timers.tick(120_000); await flush();
+      assert.equal(requests, cycle);
+      await client.offline(); await client.online(); await flush();
+      assert.equal(requests, cycle + 1);
+    }
+  } finally { await client.close(); }
+});
+
+for (const failure of ["network", "503"]) {
+  test(`Provider manifest reconnect after ${failure} retries me once without self-cycling`, async context => {
+    context.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 1_000 });
+    const manifest = deferred<Response>();
+    let requests = 0;
+    const client = createClient({ url: "http://auth.test", tokenStore: custody(), fetch: async input => {
+      if (String(input).endsWith("/api/manifest")) return manifest.promise;
+      requests++;
+      if (failure === "network") throw new TypeError("cut");
+      return json({}, 503);
+    } });
+    let renderer!: TestRenderer.ReactTestRenderer;
+    try {
+      await restored(client);
+      assert.equal(requests, 1);
+      await act(async () => { renderer = TestRenderer.create(React.createElement(SnapbackProvider, { client })); await flush(); });
+      assert.equal(requests, 1);
+      await act(async () => { manifest.resolve(json({ generation: "g", programGeneration: "p", ops: {}, channels: {}, auth: {} })); await flush(); });
+      assert.equal(requests, 2);
+      assert.equal(client.snapshot.connection, "reconnecting");
+      assert.equal(client.snapshot.auth.retryAt, 3_000);
+      await act(async () => { context.mock.timers.tick(0); await flush(); });
+      assert.equal(requests, 2);
+    } finally { if (renderer) await act(async () => renderer.unmount()); await client.close(); }
+  });
+}
+
+for (const action of ["close", "logout"]) {
+  test(`${action} one millisecond before the retry deadline starts no fetch`, async context => {
+    context.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 1_000 });
+    let requests = 0;
+    const client = createClient({ url: "http://auth.test", tokenStore: custody(), fetch: async input => {
+      if (String(input).endsWith("/logout")) return json({ ok: true });
+      requests++; throw new TypeError("cut");
+    } });
+    try {
+      await restored(client);
+      context.mock.timers.tick(999); await flush();
+      if (action === "close") await client.close(); else await client.auth.logout();
+      context.mock.timers.tick(1); await flush();
+      assert.equal(requests, 1);
+      assert.equal(client.snapshot.auth.retryAt, undefined);
+    } finally { await client.close(); }
+  });
+}
+
+test("hooks recheck lazy me after an asynchronous token load and offline startup confirmation", async context => {
+  context.mock.timers.enable({ apis: ["setTimeout", "Date"] });
+  const token = deferred<string>();
+  const store = custody();
+  let requests = 0;
+  const client = createClient({ url: "http://auth.test", tokenStore: { ...store, load: () => token.promise },
+    offline: { store: offlineStore(context) }, fetch: async input => {
+      if (String(input).endsWith("/api/auth/me")) { requests++; return me(); }
+      throw new TypeError("metadata cut");
+    } });
+  const states: string[] = [];
+  const unsubscribe = client.subscribeStatus(snapshot => states.push(snapshot.auth.state));
+  function Probe() { useAuth(); return null; }
+  let renderer!: TestRenderer.ReactTestRenderer;
+  try {
+    await act(async () => { renderer = TestRenderer.create(React.createElement(SnapbackProvider, { client }, React.createElement(Probe))); await flush(); });
+    assert.equal(requests, 0);
+    await act(async () => { token.resolve("token-a"); await restored(client); });
+    assert.equal(requests, 1);
+    assert.equal(client.snapshot.auth.state, "authenticated");
+    assert.ok(states.slice(states.indexOf("authenticated")).every(state => state === "authenticated"));
+  } finally { token.resolve("token-a"); unsubscribe(); if (renderer) await act(async () => renderer.unmount()); await client.close(); }
+});
+
+test("session success publishes token, kind and authEpoch together to hooks", async context => {
+  context.mock.timers.enable({ apis: ["setTimeout", "Date"] });
+  const client = createClient({ url: "http://auth.test", tokenStore: custody(), fetch: async input => {
+    if (String(input).endsWith("/api/auth/me")) return me();
+    if (String(input).includes("/api/auth/")) return json({ token: "token-b", viewer: "bob", kind: "guest", authEpoch: 42 });
+    return json({ generation: "g", programGeneration: "p", ops: {}, channels: {}, auth: {} });
+  } });
+  let view: UseAuthResult;
+  const snapshots: any[] = [];
+  const unsubscribe = client.subscribeStatus(snapshot => snapshots.push(snapshot));
+  function Probe() { view = useAuth(); return null; }
+  let renderer!: TestRenderer.ReactTestRenderer;
+  try {
+    await restored(client);
+    await act(async () => { renderer = TestRenderer.create(React.createElement(SnapbackProvider, { client }, React.createElement(Probe))); await flush(); });
+    await act(async () => { await client.auth.login({ email: "bob@example.com", password: "password" }); });
+    assert.equal(view!.kind, "guest", "the wire supplies kind; it is not guessed from the route");
+    assert.equal(view!.authEpoch, 42);
+    assert.equal(view!.viewer, "bob");
+    assert.equal(view!.token, "token-b");
+    for (const snapshot of snapshots.filter(snapshot => snapshot.token === "token-b")) {
+      assert.equal(snapshot.auth.viewer, "bob");
+      assert.equal(snapshot.auth.kind, "guest");
+      assert.ok(snapshot.authGeneration > snapshots[0].authGeneration);
+    }
+  } finally { unsubscribe(); if (renderer) await act(async () => renderer.unmount()); await client.close(); }
+});
+
+
+test("startup resume failure rejects ready without replacing confirmed auth", async context => {
+  const factory = offlineStore(context);
+  await seededStore(factory);
+  const owner = fakeOwner();
+  const client = createClient({ url: "http://auth.test", tokenStore: custody("dev:alice"), offline: { store: factory },
+    fetch: async (input, init) => {
+      if (String(input).endsWith("/api/auth/me")) return json({ viewer: "dev:alice", kind: "user", authEpoch: 7 });
+      if (String(input).endsWith("/api/resume")) return json({ malformed: true });
+      return owner.fetch(input, init);
+    } });
+  try {
+    await assert.rejects(client.ready, (error: any) => error.code === "E_WIRE_SHAPE");
+    assert.equal(client.snapshot.auth.state, "authenticated");
+    assert.equal(client.snapshot.auth.viewer, "dev:alice");
+    assert.equal(client.snapshot.auth.authEpoch, 7);
+    assert.equal(client.snapshot.token, "token-a");
+    assert.equal(client.snapshot.auth.retryAt, undefined);
+  } finally { await client.close(); }
+});
+
+test("a session response without kind is refused before replacing custody", async () => {
+  const store = custody();
+  const client = createClient({ url: "http://auth.test", tokenStore: store,
+    fetch: async input => String(input).endsWith("/api/auth/me") ? me() : json({ token: "token-b", viewer: "bob" }) });
+  try {
+    await restored(client);
+    await assert.rejects(client.auth.login({ email: "bob@example.com", password: "password" }), (error: any) => error.code === "E_WIRE_SHAPE");
+    assert.equal(store.load(), "token-a");
+    assert.equal(client.snapshot.auth.viewer, "alice");
+    assert.equal(client.snapshot.auth.kind, "user");
+  } finally { await client.close(); }
+});
+
+
+for (const timing of ["before hydrate", "pending me"] as const) {
+  test(`failed login during offline startup ${timing} resumes retained bearer restoration`, async context => {
+    context.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 1_000 });
+    const started = deferred<void>(), response = deferred<Response>();
+    let requests = 0;
+    const client = createClient({ url: "http://auth.test", tokenStore: custody(), offline: { store: offlineStore(context) },
+      fetch: async input => {
+        if (String(input).endsWith("/login")) return refusal("E_AUTH_INVALID");
+        requests++; started.resolve(); return response.promise;
+      } });
+    try {
+      if (timing === "pending me") await started.promise;
+      await assert.rejects(client.auth.login({ email: "alice@example.com", password: "wrong" }), (error: any) => error.code === "E_AUTH_INVALID");
+      assert.equal(client.snapshot.auth.state, "hydrating");
+      assert.equal(client.snapshot.auth.restoringViewer, "alice");
+      assert.equal(client.snapshot.token, "token-a");
+      const before = requests;
+      context.mock.timers.tick(1_000); await flush();
+      assert.equal(requests, before + 1);
+    } finally { response.resolve(me()); await client.close(); }
+  });
+}
+
+test("an offline query hook leaves hydration when the stored bearer is confirmed", async context => {
+  context.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 1_000 });
+  const owner = fakeOwner({ seed: true });
+  let cut = true;
+  const client = createClient({ url: "http://auth.test", tokenStore: custody("dev:alice"), offline: { store: offlineStore(context) },
+    fetch: async (input, init) => {
+      if (String(input).endsWith("/api/auth/me") && cut) throw new TypeError("cut");
+      return owner.fetch(input, init);
+    } });
+  let view: any;
+  function Probe() { view = useQuery(api.deliveries.inbox, { c: null }, { live: false }); return null; }
+  let renderer!: TestRenderer.ReactTestRenderer;
+  try {
+    await restored(client);
+    await act(async () => { renderer = TestRenderer.create(React.createElement(SnapbackProvider, { client }, React.createElement(Probe))); await flush(); });
+    assert.equal(view.state, "hydrating");
+    assert.equal(owner.requests.includes("/api/query"), false);
+    await act(async () => { cut = false; await client.auth.me(); await flush(); });
+    assert.equal(view.state, "complete");
+    assert.equal(view.data.length, 2);
+    assert.equal(owner.requests.filter(path => path === "/api/query").length, 1);
+  } finally { if (renderer) await act(async () => renderer.unmount()); await client.close(); }
+});
+
+test("a terminal write wakes a read waiting on restoration without dispatching it", async () => {
+  const response = deferred<Response>();
+  const paths: string[] = [];
+  const client = createClient({ url: "http://auth.test", tokenStore: custody(), fetch: async input => {
+    const path = new URL(String(input)).pathname; paths.push(path);
+    return path === "/api/auth/me" ? response.promise : refusal("E_AUTH_SESSION");
+  } });
+  try {
+    await restored(client);
+    const read = client.query(api.current, {});
+    const rejected = assert.rejects(read, (error: any) => error.code === "E_AUTH_SUPERSEDED");
+    await flush();
+    await assert.rejects(client.mutation(api.write, {}), (error: any) => error.code === "E_AUTH_SESSION");
+    await rejected;
+    assert.deepEqual(paths, ["/api/auth/me", "/api/mutation"]);
+    assert.equal(client.snapshot.auth.state, "anonymous");
+  } finally { response.resolve(me()); await client.close(); }
+});
+
+
+test("online restart cancels the predecessor clock and starts only the new client's restoration", async context => {
+  context.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 1_000 });
+  let requests = 0;
+  const client = createClient({ url: "http://auth.test", tokenStore: custody(), fetch: async () => {
+    requests++; throw new TypeError("cut");
+  } });
+  let successor: SnapbackClient | undefined;
+  try {
+    await restored(client);
+    successor = await client.restart(); await flush();
+    assert.equal(requests, 2, "the new client eagerly restores its stored bearer");
+    assert.equal(client.snapshot.auth.retryAt, undefined);
+    assert.equal(successor.snapshot.auth.retryAt, 2_000);
+    context.mock.timers.tick(1_000); await flush();
+    assert.equal(requests, 3, "only the successor's timer is alive");
+    await successor.close();
+    context.mock.timers.tick(120_000); await flush();
+    assert.equal(requests, 3);
+    assert.equal(successor.snapshot.auth.retryAt, undefined);
+  } finally { await client.close(); await successor?.close(); }
+});
+
+
+test("logout custody-clear failure cannot keep an authenticated view after clearing memory", async () => {
+  const store = custody();
+  store.save = token => { if (token === null) throw new Error("store unavailable"); };
+  const client = createClient({ url: "http://auth.test", tokenStore: store,
+    fetch: async input => String(input).endsWith("/api/auth/me") ? me() : json({ ok: true }) });
+  try {
+    await restored(client);
+    await assert.rejects(client.auth.logout(), (error: any) => error.code === "E_AUTH_TOKEN_STORE");
+    assert.equal(client.snapshot.token, undefined);
+    assert.equal(client.snapshot.auth.state, "refused");
+    assert.equal(client.snapshot.auth.refusal?.code, "E_AUTH_TOKEN_STORE");
+    assert.equal(client.snapshot.auth.viewer, undefined);
+    assert.equal(client.snapshot.auth.retryAt, undefined);
+  } finally { await client.close(); }
 });
