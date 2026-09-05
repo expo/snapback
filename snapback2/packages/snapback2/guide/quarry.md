@@ -174,12 +174,12 @@ use `!` or `??` first. A direct `if x != null:` narrows a bound name or one-hop
 row field in that then branch; it does not narrow an `and` operand or the else.
 Conditions require Booleans.
 
-`tokens(text)` splits on whitespace, preserving case, punctuation and duplicates;
-it is not a word-search tokenizer.
+`words(text)` yields bounded ASCII whole words; `tokens(text)` extracts `@` mentions.
+See `guide live-query` for indexing and edit re-indexing.
 
 `now` is the read clock in queries and the commit clock in mutations; `commit`
 is the commit clock. In a mutation they are the same instant. `now` is pinned
-once per request rather than redrawn; `new` allocates a fresh ID on each
+once per request; `new` allocates a fresh ID on each
 evaluation.
 
 Writes are `insert table { fields }`, `update table[key] { patch }`,
@@ -268,7 +268,7 @@ missing maintained group is zero only through `#`; the ordinary target-table
 read remains absent.
 
 Scans, lists, text, JSON, and bytes are bounded. `for` iterates only a bounded
-list/page/range/tokens result; optional lists require `?? []` or `if` presence narrowing.
+list/page/range/tokens/words result; optional lists require `?? []` or `if` presence narrowing.
 List-column maxima survive aliases and shapes; JSON supplies no list bound.
 Ceiling refusals price sites and fields: merges need structural repair
 (smaller lanes/page, two reads/two snapshots, or a maintained feed), caps a fitting

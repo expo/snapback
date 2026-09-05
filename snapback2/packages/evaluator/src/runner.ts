@@ -2,7 +2,7 @@ import coreIrContract from "../../../crates/snapback2-core/ir-contract.json" wit
 import { EvalError, requireRowIdentity } from "./errors";
 import { cursorSuffix, decodeCursorFor, encodeCursor } from "./cursor";
 import { sha256 } from "./hash";
-import { splitMentionTokens } from "./text";
+import { splitMentionTokens, words } from "./text";
 import type { ClientStore } from "./store";
 import {
   asArray,
@@ -436,6 +436,7 @@ export class Runner {
         });
         return { Array: values };
       }
+      case "Words": return { Array: words(asString(args[0])).map((word) => ({ String: word })) };
       case "MentionTokens": {
         const seen = new Set<string>();
         const mentions: Value[] = [];

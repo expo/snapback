@@ -92,13 +92,14 @@ fn quarry_keywords_print_grammar_and_definitions_beside_symbol_help() {
         ("match", "branches on presence"),
         (
             "for",
-            "iterates only a bounded list/page/range/tokens result",
+            "iterates only a bounded list/page/range/tokens/words result",
         ),
         (
             "emit",
             "durably queues an effect in the mutation's transaction",
         ),
-        ("tokens", "preserving case, punctuation and duplicates"),
+        ("tokens", "extracts `@` mentions"),
+        ("words", "bounded ASCII whole words"),
         ("divmod", "remainder is nonnegative"),
     ];
     let grammar = project.run(&["guide", "grammar", "--json"]);

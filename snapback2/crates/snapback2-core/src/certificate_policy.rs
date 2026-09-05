@@ -292,6 +292,7 @@ impl CompletenessFlow<'_, '_> {
                     | Builtin::DeterministicShare
                     | Builtin::Count
                     | Builtin::Sum
+                    | Builtin::Words
                     | Builtin::CountCapped => fact.made_structural(),
                     Builtin::Divmod { .. } | Builtin::MentionTokens => Fact {
                         structural: fact.structural,
@@ -1012,7 +1013,7 @@ fn static_expression_fact(
                 | Builtin::Count
                 | Builtin::Sum
                 | Builtin::CountCapped => StaticType::Int,
-                Builtin::MentionTokens => StaticType::List {
+                Builtin::MentionTokens | Builtin::Words => StaticType::List {
                     of: Box::new(StaticType::Text),
                     len: None,
                 },

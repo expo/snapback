@@ -210,7 +210,7 @@ class Analyzer {
       }
       return target?.kind === "enum" || (target?.kind === "string" && (!isIdType(target) || value.text.length > 0))
         ? target
-        : { kind: "string" };
+        : { kind: "string", max: [...value.text].length };
     }
     if (value.kind === ts.SyntaxKind.TrueKeyword || value.kind === ts.SyntaxKind.FalseKeyword) return { kind: "bool" };
     if (value.kind === ts.SyntaxKind.NullKeyword) return { kind: "null" };
@@ -571,6 +571,15 @@ class Analyzer {
       if (carried.kind === "int" || carried.kind === "decimal") {
         return { kind: "object", fields: { quotient: carried, remainder: carried } };
       }
+      return unknownType;
+    }
+    if (name === "words" && !env.variables.has(name) && call.arguments.length === 1) {
+      const input = this.expression(call.arguments[0]!, env);
+      if (input.kind === "string" && !input.id && input.max !== undefined) {
+        return { kind: "list", of: input, max: Math.floor(input.max / 2) + 1 };
+      }
+      this.add("E_ARGS_TYPE", call, "words requires bounded text",
+        "use words(body) with body declared as t.text(N)");
       return unknownType;
     }
     if (name === "deterministicShare" && !env.variables.has(name) && call.arguments.length === 3) {

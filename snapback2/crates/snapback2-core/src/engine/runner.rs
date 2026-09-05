@@ -908,6 +908,18 @@ impl<'a> Runner<'a> {
                 });
                 Ok(Value::Array(deduplicated))
             }
+            Builtin::Words => {
+                let text = args.remove(0).as_str()?.to_owned();
+                let mut seen = BTreeSet::new();
+                Ok(Value::Array(
+                    text.split(|c: char| !c.is_ascii_alphanumeric())
+                        .filter(|word| !word.is_empty())
+                        .map(str::to_ascii_lowercase)
+                        .filter(|word| seen.insert(word.clone()))
+                        .map(Value::String)
+                        .collect(),
+                ))
+            }
             Builtin::MentionTokens => {
                 let text = args.remove(0).as_str()?.to_owned();
                 let mut seen = BTreeSet::new();

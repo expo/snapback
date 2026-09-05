@@ -43,7 +43,8 @@ optional. Text may add a format. `cursor` is operation-only.
 - `match`: `match read:` branches into `some name:` and `none:`.
 - `for`: `for name in bounded-list-or-page:` iterates.
 - `emit`: `emit effect { payload }` durably queues I/O.
-- `tokens`: `tokens(text)` splits whitespace-delimited tokens.
+- `tokens`: `tokens(text)` extracts `@` mentions.
+- `words`: `words(text)` returns bounded, deduplicated lowercase ASCII words.
 - `divmod`: `divmod(a, b)` returns quotient and remainder; `(q, r) = divmod(a, b)` binds both once; `divmod(time, int)` splits epoch milliseconds into int parts.
 
 ```q

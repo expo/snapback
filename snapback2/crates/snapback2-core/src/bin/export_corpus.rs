@@ -596,6 +596,19 @@ fn named_emit_case() -> CorpusCase {
 }
 
 fn add_value_edges(cases: &mut Vec<CorpusCase>) {
+    cases.push(pure_case(
+        "edge-ascii-words",
+        Expr::Array(
+            [format!("Hello, HELLO world! 42 foo_bar foo-bar {}", "A".repeat(70)),
+                String::new(), "café CAFÉ naïve 中文 AéB １２3 ß İ".to_owned()]
+                .into_iter()
+                .map(|text| Expr::Builtin {
+                    builtin: Builtin::Words,
+                    args: vec![Expr::Literal(Value::String(text))],
+                })
+                .collect(),
+        ),
+    ));
     let sortable = Value::Array(vec![
         row([("key", text("\u{10000}")), ("position", Value::Int(0))]),
         row([("key", text("\u{e000}")), ("position", Value::Int(1))]),

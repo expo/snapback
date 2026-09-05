@@ -72,7 +72,7 @@ export function emitPrograms(programs: ProgramDecl[], catalog: TableCatalog, sou
   const rootSite = programs[0]?.site ?? effects[0]?.site ?? { file: sourceFile, line: 1, col: 1 };
   const writer = new Writer(rootSite);
   writer.raw(header(sourceFile), rootSite);
-  writer.statement(`import { deterministicShare, divmod, emit, max, mergeByIndex, mentionTokens, min, mutation, query, range, recurse, t } from "snapback2";`, { file: sourceFile, line: 1, col: 1 });
+  writer.statement(`import { deterministicShare, divmod, emit, max, mergeByIndex, mentionTokens, min, mutation, query, range, recurse, t, words } from "snapback2";`, { file: sourceFile, line: 1, col: 1 });
   if (catalog.size > 0) writer.statement(`import { ${[...catalog.keys()].join(", ")} } from "./schema";`, { file: sourceFile, line: 1, col: 1 });
   for (const effect of effects) writer.statement(`import { ${effect.name} } from "./${effect.module}";`, effect.site);
   writer.raw();
@@ -208,7 +208,7 @@ function emitStatement(statement: Stmt, env: Environment, writer: Writer, comple
       ? { kind: "row", table: domain.type.table, nullable: false } satisfies ValueType
       : domain.type.kind === "sequence" || domain.type.kind === "list" ? domain.type.item : { kind: "unknown" } satisfies ValueType;
     if (domain.type.kind !== "page" && domain.type.kind !== "sequence" && domain.type.kind !== "list" && domain.type.kind !== "unknown") {
-      refuse(statement.domain.site, "for domains must be a page, capped list argument, range, tokens result, or literal list");
+      refuse(statement.domain.site, "for domains must be a page, capped list argument, range, tokens/words result, or literal list");
     }
     writer.raw(`for (const ${statement.name} of ${domain.code}) {`, statement.site);
     writer.nested(() => {
@@ -524,7 +524,7 @@ function emitCall(expr: Extract<Expr, { kind: "call" }>, env: Environment, write
     refuse(expr.site, "sorted(a, b) must be consumed by a two-name binding: (lo, hi) = sorted(a, b)");
   }
   const target = expr.name === "tokens" ? "mentionTokens" : expr.name;
-  if (!["tokens", "range", "min", "max", "count", "divmod", "share"].includes(expr.name)) {
+  if (!["tokens", "words", "range", "min", "max", "count", "divmod", "share"].includes(expr.name)) {
     unsupported(expr.site, `user function or recursion (${expr.name})`, "use a Quarry builtin or inline one bounded expression");
   }
   const args = expr.args.map((arg) => emitExpr(arg, env, writer));
@@ -570,6 +570,17 @@ function emitCall(expr: Extract<Expr, { kind: "call" }>, env: Environment, write
   if (expr.name === "count") {
     if (args.length !== 1 || !["list", "page", "sequence"].includes(args[0]!.type.kind)) refuse(expr.site, "count(x) requires one bounded list or page");
     return { code: `${args[0]!.code}.length`, type: { kind: "int", optional: false } };
+  }
+  if (expr.name === "words") {
+    const input = args[0];
+    if (args.length !== 1 || input?.type.kind !== "text" || input.type.optional) {
+      typeError(expr.site, "words(text) requires exactly one present bounded text argument",
+        "use words(body) with body: text <=N; use words(body ?? '') for optional text");
+    }
+    // @ref LLP 1001#pure-builtins — whole tokens keep the input width; separators bound cardinality.
+    return { code: `words(${input.code})`, type: { kind: "list",
+      item: { kind: "text", max: input.type.max, optional: false },
+      max: Math.floor(input.type.max / 2) + 1, optional: false } };
   }
   if (expr.name === "tokens") return { code: `${target}(${args.map((arg) => arg.code).join(", ")})`, type: { kind: "list", item: { kind: "text", max: 4096, optional: false }, max: 64, optional: false } };
   if (expr.name === "range") {
@@ -1170,7 +1181,7 @@ function inferExpr(expr: Expr, env: Environment): ScalarType | undefined {
 }
 
 function literalType(expr: Extract<Expr, { kind: "literal" }>): ScalarType | NumericLiteralType {
-  if (typeof expr.value === "string") return { kind: "text", max: Math.max(1, expr.value.length), optional: false };
+  if (typeof expr.value === "string") return { kind: "text", max: Math.max(1, [...expr.value].length), optional: false };
   if (typeof expr.value === "number") {
     const digits = fractionalDigits(expr.numericText);
     return digits === 0 ? { kind: "int", optional: false } : { kind: "numeric-literal", fractionalDigits: digits };

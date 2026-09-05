@@ -14,6 +14,7 @@ pub(crate) struct OutputEstimator<'a> {
 }
 #[derive(Clone)]
 pub(crate) struct OutputBound {
+    pub(crate) whole_element: bool,
     pub(crate) bytes: u64,
     pub(crate) instances: u64,
     pub(crate) collection: bool,
@@ -229,6 +230,7 @@ impl OutputEstimator<'_> {
                         }
                         _ => None,
                     };
+                    current.whole_element |= bound.whole_element;
                     if bound.bytes > current.bytes {
                         current.bytes = bound.bytes;
                         current.shape = bound.shape.clone();

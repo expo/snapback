@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2-core` (`store`, `registry`, `live`, `identity`, `successor`, the engine, the IR)
 **Author:** Claude Fable 5 (orchestrator) — implementer: codex gpt-5.6-sol, lane A
 **Date:** 2026-08-29
-**Revised:** 2026-09-05 (Clique L3 — honest bound refusals and patch-sensitive cap metering; LLP 1016 J2 — §1's system tables gain `_jobs` and `_timers`; LLP 1017 §1, then §2 and §3)
+**Revised:** 2026-09-05 (Clique L9 — bounded ASCII words builtin; Clique L3 — honest bound refusals and patch-sensitive cap metering; LLP 1016 J2 — §1's system tables gain `_jobs` and `_timers`; LLP 1017 §1, then §2 and §3)
 **Related:** LLP 1000, LLP 1002 (the loop that serves this), LLP 1003 (effects
 through the outbox this spec defines), LLP 0329.014.004 §7 (runtime), LLP
 0329.014.000 §6 (execution, trace, states), LLP 0329.016 §5.6 (no silent
@@ -817,6 +817,27 @@ Still deferred, recorded so they are not re-derived: `Interval { of }` (four
 archetypes need it, but it interacts with visibility, retention, and the
 deferred `exclusion` constraint), `Duration`, `Set { of, max }`. Floats stay
 out (the survey's "why no floats" section is the ruling).
+
+### Pure builtins
+
+`words(text)` (`Builtin::Words`, implemented Clique L9, GPT-6 Astra,
+2026-09-05) extracts `[A-Za-z0-9]+` runs, ASCII-lowercases them, and deduplicates
+in first-occurrence order identically in the engine and TypeScript twin. Empty
+input yields an empty list; non-ASCII characters separate words. Runs stay
+whole, including beyond 64 characters: the index column must admit the input
+width or the program must filter long terms. It is whole-word matching, not
+prefix search, stemming, or a search engine. `tokens` remains the mention
+extractor (`Builtin::MentionTokens`), not this tokenizer.
+
+For a required text argument/expression with declared maximum N Unicode scalar
+values, the list maximum is `floor(N / 2) + 1`: nonempty runs need separating
+characters. Each output term has the input's maximum width. The front end carries
+both bounds through list positions, aliases, and `for` domains and refuses
+non-text/optional arguments with a repair. Serialized output is bounded by eight
+times the input's serialized maximum, covering tagged one-letter strings and
+array separators even for literals; tokens are never truncated to fit a bound.
+Loop element pricing keeps that whole-width reserve through aliases and branches:
+a single word may occupy the whole input, so division by the list maximum is unsound.
 
 ## 10. What binds, and how it is checked
 

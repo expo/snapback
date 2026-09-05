@@ -152,6 +152,9 @@ impl Flow<'_> {
                 .unwrap_or(Origin::Unknown(Vec::new())),
             Expr::Array(values) if values.is_empty() => Origin::Empty,
             Expr::Literal(Value::Array(values)) if values.is_empty() => Origin::Empty,
+            // @ref LLP 1001#pure-builtins — words is a complete bounded text computation,
+            // not a page population, even when its text is selected by a branch.
+            Expr::Builtin { builtin: Builtin::Words, .. } => Origin::Other,
             Expr::Builtin {
                 builtin: Builtin::DedupeById { .. },
                 args,

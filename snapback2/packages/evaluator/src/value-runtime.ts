@@ -542,7 +542,7 @@ export function sortObject<T>(value: Record<string, T>): Record<string, T> {
 
 export function builtinArity(kind: string): number {
   switch (kind) {
-    case "Len": case "Sort": case "DedupeById": case "MentionTokens": case "Count": case "CountCapped": case "Sum": return 1;
+    case "Len": case "Sort": case "DedupeById": case "MentionTokens": case "Words": case "Count": case "CountCapped": case "Sum": return 1;
     case "Concat": case "Min": case "Max": case "Divmod": return 2;
     case "Slice": case "DeterministicShare": return 3;
     default: throw new EvalError("E_OPAQUE", `unsupported builtin ${kind}`);

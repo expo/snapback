@@ -44,3 +44,53 @@ measures recent activity, not connection state. Its lag is the heartbeat interva
 delay; disconnects are seen late. Do not gate delivery (push or digests) solely
 on it: where delivery matters, use durable receipts and a delayed check for an
 unacknowledged message.
+
+## Whole-word search
+
+`words(text)` returns `[A-Za-z0-9]+` runs, lowercase, deduplicated in first-occurrence
+order. This is whole-word, case-folded ASCII matching, not prefix search;
+non-ASCII letters split words. Empty input yields `[]`. For `text <=N`, the
+bound is `floor(N/2)+1` (2000 → 1001), valid in lists and `for`.
+Runs stay whole beyond 64 characters: the index column must be wide enough
+or the program must filter. `tokens(text)` remains the `@` mention extractor.
+
+Messages have `conversationId`, `author`, `body: text <=2000`, and `at`:
+
+```q
+table searchWords:
+  messageId: messages
+  conversationId: conversations
+  term: text <=2000
+  at: time
+  unique byMessageTerm: messageId, term
+  by byConversationTermTime: conversationId, term, at, id
+  public
+  insert <- allow
+  update <- allow
+  delete <- allow
+```
+
+```q
+mutation index(messageId: messages, body: text <=2000):
+  m = messages[messageId] !
+  require m.author = viewer and m.body = body else STALE_OR_NOT_AUTHOR
+  for term in words(body):
+    upsert searchWords[messageId, term] { conversationId: m.conversationId, at: m.at }
+  return true
+
+mutation edit(messageId: messages, body: text <=2000):
+  old = messages[messageId] !
+  require old.author = viewer else NOT_AUTHOR
+  for term in words(old.body):
+    delete searchWords[messageId, term]
+  update messages[messageId] { body }
+  for term in words(body):
+    upsert searchWords[messageId, term] { conversationId: old.conversationId, at: old.at }
+  return true
+
+query search(conversationId: conversations, term: text <=2000):
+  return searchWords[conversationId, term] last 20 by byConversationTermTime { messageId }
+```
+
+Index at creation; edit assumes old terms were indexed. Pass a lowercase
+ASCII word to search. Public-conversation rules.

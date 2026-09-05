@@ -249,6 +249,7 @@ pub enum Builtin {
     Sort { keys: Vec<SortKey> },
     DedupeById { site: String, table: String },
     MentionTokens,
+    Words,
     DeterministicShare,
     Count,
     Sum,
@@ -262,6 +263,7 @@ impl Builtin {
             | Self::Sort { .. }
             | Self::DedupeById { .. }
             | Self::MentionTokens
+            | Self::Words
             | Self::Count
             | Self::Sum
             | Self::CountCapped => 1,

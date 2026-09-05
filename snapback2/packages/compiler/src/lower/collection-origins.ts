@@ -71,7 +71,7 @@ function collectionElementOriginsInner(node: ts.Expression, env: Environment): P
     const rows = call.arguments[0];
     return rows ? collectionElementOrigins(rows, env) : undefined;
   }
-  if (call && ts.isIdentifier(call.expression) && call.expression.text === "mentionTokens") {
+  if (call && ts.isIdentifier(call.expression) && ["mentionTokens", "words"].includes(call.expression.text)) {
     return [{ binding: { provenance: "Computed" } }];
   }
   if (call && ts.isPropertyAccessExpression(call.expression)) {

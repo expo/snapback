@@ -167,6 +167,7 @@ declare module "snapback2" {
   /** `decimal(value, scale)` converts a value in whole units to the exact integer minor-unit wire value; for example, `decimal(2, 2)` is 200. */
   export function decimal<const S extends number>(value: number, scale: S): Decimal<S>;
   export function mentionTokens(value: string): string[];
+  export function words(value: string): string[];
   /** Euclidean deterministic share: recipients are ordered by the runtime value order; empty, duplicate, or missing recipients refuse. */
   export function deterministicShare<A extends number>(amount: A, recipients: unknown[], recipient: unknown): A extends Decimal<any> ? A : number;
   export function concat(first: unknown, second: unknown, ...values: unknown[]): string;

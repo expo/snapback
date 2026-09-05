@@ -7,7 +7,8 @@ use crate::collection_rewrite::{
 };
 use crate::growth::{
     ProvenanceBinding, assignment_growth, collection_price_from,
-    expression_from as provenance_expression_from, geometric_sum, saturating_power, take_identity,
+    expression_from as provenance_expression_from, geometric_sum, has_word_list, saturating_power,
+    take_identity,
 };
 use crate::ir::*;
 use crate::retention::{argument_max, collection_bytes};
@@ -32,6 +33,7 @@ impl<'a> OutputEstimator<'a> {
                 (
                     name.clone(),
                     OutputBound {
+                        whole_element: false,
                         bytes: argument_max(argument),
                         instances: 1,
                         collection: matches!(argument, ArgType::List { .. }),
@@ -79,6 +81,7 @@ impl<'a> OutputEstimator<'a> {
                     variables.insert(
                         name.clone(),
                         OutputBound {
+                            whole_element: has_word_list(value, variables, |v| v.whole_element),
                             bytes,
                             instances: calls,
                             collection,
@@ -90,6 +93,8 @@ impl<'a> OutputEstimator<'a> {
                     );
                 }
                 Stmt::Assign { name, value } => {
+                    let whole_element = has_word_list(value, variables, |v| v.whole_element)
+                        || variables.get(name).is_some_and(|v| v.whole_element);
                     let instances = variables.get(name).map_or(calls, |bound| bound.instances);
                     let assignment = assignment_growth(
                         variables.get(name).map(|bound| &bound.provenance),
@@ -144,6 +149,7 @@ impl<'a> OutputEstimator<'a> {
                             price.shape,
                         );
                         current.value = value.clone();
+                        current.whole_element = whole_element;
                     } else {
                         let identity = variables
                             .get(name)
@@ -156,6 +162,7 @@ impl<'a> OutputEstimator<'a> {
                         variables.insert(
                             name.clone(),
                             OutputBound {
+                                whole_element,
                                 bytes: price.bytes,
                                 instances,
                                 collection: price.collection,
@@ -168,6 +175,7 @@ impl<'a> OutputEstimator<'a> {
                     }
                 }
                 Stmt::Push { target, value } => {
+                    let whole_element = has_word_list(value, variables, |v| v.whole_element);
                     let shape = self.expression_shape(value, variables);
                     let label = loops
                         .last()
@@ -182,6 +190,7 @@ impl<'a> OutputEstimator<'a> {
                         .unwrap_or_else(|| target.clone());
                     let element = self.expression(value, variables).saturating_add(1);
                     let current = variables.entry(target.clone()).or_insert(OutputBound {
+                        whole_element: false,
                         bytes: CANONICAL_ARRAY_BASE_BYTES,
                         instances: calls,
                         collection: true,
@@ -193,6 +202,7 @@ impl<'a> OutputEstimator<'a> {
                         shape: ByteShape::leaf(CANONICAL_ARRAY_BASE_BYTES, "array framing"),
                         value: Expr::Array(Vec::new()),
                     });
+                    current.whole_element |= whole_element;
                     let repetitions = calls
                         .saturating_add(current.instances.saturating_sub(1))
                         .saturating_div(current.instances.max(1));
@@ -249,6 +259,12 @@ impl<'a> OutputEstimator<'a> {
                     nested.insert(
                         binding.clone(),
                         OutputBound {
+                            whole_element: match domain {
+                                LoopDomain::DerivedArray { value, .. } => {
+                                    has_word_list(value, variables, |v| v.whole_element)
+                                }
+                                _ => false,
+                            },
                             bytes: element,
                             instances: nested_calls,
                             collection: matches!(
@@ -312,8 +328,13 @@ impl<'a> OutputEstimator<'a> {
             }
             LoopDomain::DerivedArray { value, max, .. } => (
                 u64::from(*max),
-                self.expression(value, variables)
-                    .saturating_div(u64::from(*max).max(1)),
+                self.expression(value, variables).saturating_div(
+                    if has_word_list(value, variables, |v| v.whole_element) {
+                        1
+                    } else {
+                        u64::from(*max).max(1)
+                    },
+                ),
             ),
             LoopDomain::Recurse(recurse) => {
                 let nodes = geometric_sum(u64::from(recurse.fanout), recurse.depth);
@@ -390,6 +411,12 @@ impl<'a> OutputEstimator<'a> {
                     .map(|value| self.expression(value, variables))
                     .max()
                     .unwrap_or(0),
+                // @ref LLP 1001#pure-builtins — each ASCII run adds a tagged String and separator;
+                // eight times the input's serialized bytes covers even one-letter words.
+                Builtin::Words => args
+                    .first()
+                    .map(|value| self.expression(value, variables).saturating_mul(8))
+                    .unwrap_or(CANONICAL_ARRAY_BASE_BYTES),
                 Builtin::MentionTokens => args
                     .first()
                     .map(|value| self.expression(value, variables).saturating_mul(2))

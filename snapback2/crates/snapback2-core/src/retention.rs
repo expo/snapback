@@ -16,6 +16,7 @@ const CLOSURE_METADATA_BYTES: u64 = 64;
 
 #[derive(Clone, Default)]
 struct Flow {
+    whole_element: bool,
     rows: BTreeMap<String, RowFlow>,
     value_bytes: u64,
     retained_value_bytes: u64,
@@ -35,6 +36,7 @@ struct RowFlow {
 impl Flow {
     fn row(site: &str, table: &str, bytes: u64, count: u64) -> Self {
         Self {
+            whole_element: false,
             rows: BTreeMap::from([(
                 site.to_owned(),
                 RowFlow {
@@ -60,6 +62,7 @@ impl Flow {
     }
 
     fn add(mut self, other: Self) -> Self {
+        self.whole_element |= other.whole_element;
         for (site, incoming) in other.rows {
             self.rows
                 .entry(site)
@@ -87,6 +90,7 @@ impl Flow {
     }
 
     fn add_projection(mut self, other: Self) -> Self {
+        self.whole_element |= other.whole_element;
         for (site, incoming) in other.rows {
             self.rows
                 .entry(site)
@@ -133,6 +137,7 @@ impl Flow {
     }
 
     fn branch(mut self, other: Self) -> Self {
+        self.whole_element |= other.whole_element;
         for (site, incoming) in other.rows {
             self.rows
                 .entry(site)
@@ -209,6 +214,9 @@ impl Flow {
     }
 
     fn element(mut self, count: u64) -> Self {
+        if self.whole_element {
+            return self;
+        }
         for row in self.rows.values_mut() {
             row.count = row
                 .count
@@ -229,6 +237,7 @@ impl Flow {
 
     fn fixed_width(self) -> Self {
         Self {
+            whole_element: self.whole_element,
             rows: BTreeMap::new(),
             value_bytes: self.value_bytes,
             retained_value_bytes: self.retained_value_bytes,
@@ -721,6 +730,20 @@ impl<'a> RetentionEstimator<'a> {
                             },
                         );
                         (flow, length, true)
+                    }
+                    Builtin::Words => {
+                        let bytes = first
+                            .0
+                            .rows
+                            .values()
+                            .fold(first.0.value_bytes, |size, row| {
+                                size.saturating_add(row.count.saturating_mul(row.bytes))
+                            })
+                            .saturating_mul(8);
+                        let mut flow = Flow::value(bytes).retain_value_width();
+                        flow.whole_element = true;
+                        flow.depends_on_scan = first.0.depends_on_scan;
+                        (flow, None, true)
                     }
                     Builtin::Len
                     | Builtin::Min
