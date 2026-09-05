@@ -164,7 +164,7 @@ class Client implements SnapbackClient {
     }
     this.createOptions = options;
     this.url = options.url.replace(/\/+$/, "");
-    this.fetchImpl = options.fetch ?? globalThis.fetch;
+    this.fetchImpl = options.fetch ?? globalThis.fetch?.bind(globalThis);
     this.customFetch = options.fetch !== undefined;
     if (typeof this.fetchImpl !== "function") throw new TypeError("createClient requires a fetch implementation");
     this.tokenStore = options.tokenStore;

@@ -1,0 +1,246 @@
+{
+  "variant": "reduced Clique M1-M3; React web; text-only; published Snapback 2",
+  "comparisonEligible": false,
+  "loopBarMet": false,
+  "reason": "No passing complete browser acceptance before the 1200-second deadline.",
+  "package": "snapback2@0.0.1",
+  "platformPackage": "snapback2-darwin-arm64@0.0.1",
+  "harness": {
+    "harness": "codex-cli 0.153.4",
+    "model": "gpt-6-astra",
+    "effort": "xhigh",
+    "startedAt": "2026-09-05T06:54:05.325653+00:00",
+    "finishedAt": "2026-09-05T07:14:05.792540+00:00",
+    "elapsedSeconds": 1200.462431667,
+    "deadlineSeconds": 1200,
+    "exit": 1,
+    "timedOut": true
+  },
+  "builderContext": "Fresh codex exec; installed package, bundled guide and template only; no steering or delegation.",
+  "firstGreenAcceptanceAt": null,
+  "backend": {
+    "verdict": "pass",
+    "generation": "7a59a78f1fbadc0743913111977e28492a27dbebeecee290d99224336fceee37",
+    "checks": [
+      {
+        "name": "certify",
+        "verdict": "pass",
+        "ms": 415
+      },
+      {
+        "name": "rules",
+        "verdict": "pass",
+        "ms": 98
+      },
+      {
+        "name": "bounds",
+        "verdict": "pass",
+        "ms": 38
+      },
+      {
+        "name": "invalidation",
+        "verdict": "pass",
+        "ms": 7565
+      },
+      {
+        "name": "replay",
+        "verdict": "pass",
+        "ms": 124
+      },
+      {
+        "name": "live-revocation",
+        "verdict": "pass",
+        "ms": 298
+      },
+      {
+        "name": "successor-policy-fence",
+        "verdict": "pass",
+        "ms": 184
+      },
+      {
+        "name": "grant-incarnation-aba",
+        "verdict": "pass",
+        "ms": 48
+      },
+      {
+        "name": "Clique live text chat and non-member refusal",
+        "verdict": "pass",
+        "ms": 47
+      },
+      {
+        "name": "Clique posts, likes, replies and unique DMs",
+        "verdict": "pass",
+        "ms": 48
+      }
+    ],
+    "firstPassingReceiptAt": "2026-09-05T06:59:36.548000+00:00"
+  },
+  "acceptance": {
+    "startedAt": "2026-09-05T07:13:27.270Z",
+    "finishedAt": "2026-09-05T07:13:42.555Z",
+    "allGreen": false,
+    "results": [
+      {
+        "id": "M1.1 signup and authenticated backend",
+        "kind": "API",
+        "status": "pass",
+        "ms": 26
+      },
+      {
+        "id": "M1.2 duplicate handle/email and input validation",
+        "kind": "API",
+        "status": "pass",
+        "ms": 9
+      },
+      {
+        "id": "M1.4 logout revokes old token",
+        "kind": "API",
+        "status": "pass",
+        "ms": 22
+      },
+      {
+        "id": "M1.5 profile edits arrive live",
+        "kind": "two API clients",
+        "status": "pass",
+        "ms": 26
+      },
+      {
+        "id": "M2.1 create post delivered live with author",
+        "kind": "two API clients",
+        "status": "pass",
+        "ms": 34
+      },
+      {
+        "id": "M2.2 follow live counts, unfollow older posts, own content and no self edge",
+        "kind": "two API clients",
+        "status": "pass",
+        "ms": 96
+      },
+      {
+        "id": "M2.3 unfollowed user only in Global",
+        "kind": "API",
+        "status": "pass",
+        "ms": 40
+      },
+      {
+        "id": "M2.4 likes toggle live",
+        "kind": "two API clients",
+        "status": "pass",
+        "ms": 55
+      },
+      {
+        "id": "M2.5 repost attributed, followed reposter surfaces original, toggle removes",
+        "kind": "two API clients",
+        "status": "pass",
+        "ms": 56
+      },
+      {
+        "id": "M2.6 replies live count, chronological direct thread, absent from feeds",
+        "kind": "two API clients",
+        "status": "pass",
+        "ms": 63
+      },
+      {
+        "id": "M2.7 20-item feed pagination without duplicates/gaps",
+        "kind": "API",
+        "status": "pass",
+        "ms": 64
+      },
+      {
+        "id": "M3.1 two-way live DM, names and pair uniqueness",
+        "kind": "two API clients",
+        "status": "pass",
+        "ms": 66
+      },
+      {
+        "id": "M3.2 identical groups coexist",
+        "kind": "API",
+        "status": "pass",
+        "ms": 10
+      },
+      {
+        "id": "M3.3 typing under 2s and stale after 4s",
+        "kind": "two API clients; same expiry predicate as UI",
+        "status": "pass",
+        "ms": 4122
+      },
+      {
+        "id": "M3.4 monotonic DM/group receipts wait for slowest",
+        "kind": "two API clients",
+        "status": "pass",
+        "ms": 51
+      },
+      {
+        "id": "M3.5 quoted reply points to original excerpt",
+        "kind": "API",
+        "status": "pass",
+        "ms": 5
+      },
+      {
+        "id": "M3.6 removal stops new reads; non-admin denied; prior local copy retained; join history",
+        "kind": "two API clients; local copy in test memory",
+        "status": "pass",
+        "ms": 250
+      },
+      {
+        "id": "M3.7 seed idempotent",
+        "kind": "API",
+        "status": "pass",
+        "ms": 47
+      },
+      {
+        "id": "Browser M1 signup duplicate errors, reload persistence, logout",
+        "kind": "real Chromium",
+        "status": "pass",
+        "ms": 1221
+      },
+      {
+        "id": "Browser M2 feed pagination and M3 two-client live chat/quote/typing",
+        "kind": "two real Chromium contexts",
+        "status": "fail",
+        "ms": 8579,
+        "error": "TimeoutError: locator.waitFor: Timeout 7000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.chat:not([hidden]) .bubble').filter({ hasText: 'Browser hello accept-1788592407316' }) to be visible\u001b[22m\n"
+      },
+      {
+        "id": "Production build",
+        "kind": "command",
+        "status": "pass",
+        "exitCode": 0
+      }
+    ]
+  },
+  "limits": [
+    "API assertions are builder-authored and were not independently rerun.",
+    "M3 retained-history assertion retains a copy in test memory, not a browser persistence proof.",
+    "Browser feed checks precede the failed chat assertion in one composite case; no separate all-green feed receipt.",
+    "No Expo, media, offline, competitor, or promotion claim.",
+    "Correction attempts overlapped; no precise platform-attributed loop count is claimed."
+  ],
+  "tokens": {
+    "source": "codex-rollout-token-count; final cumulative event at 2026-09-05T07:14:05.341Z",
+    "input": 3548554,
+    "cachedInput": 3443712,
+    "output": 31101,
+    "reasoningOutputIncluded": 2750,
+    "phaseSplit": null
+  },
+  "sourceLoc": {
+    "lines": 757,
+    "files": 15,
+    "method": "src/, snapback/, scripts/ text lines including scaffold and authoring helper; excludes generated artifacts, dependencies and shared template helpers; minified JSX/CSS makes this a poor complexity metric."
+  },
+  "localArtifacts": {
+    "app": "/Users/ccheever/snapback2-clique-benchmark-20260905",
+    "transcript": "/Users/ccheever/snapback2-clique-benchmark-20260905/transcript.jsonl",
+    "rollout": "/Users/ccheever/.codex/sessions/2026/09/05/rollout-2026-09-05T00-54-06-01a07058-8e2e-7492-8821-2e5bdfbe4300.jsonl"
+  },
+  "evidenceDigests": {
+    "BRIEF.md": "8441ea528282454220c866b25e3809ad13934e74e518e74f079d7307eca86665",
+    "transcript.jsonl": "9cc4c2b62e200443b47d81cae097826248233286b4c88cffcb23c5f305a0e855",
+    "evidence/snapback-test-2.log": "2c98b4e548549c8797882755e9188479a0969b8f5dbff18e3809fb50c24690cc",
+    "evidence/snapback-test-final.log": "b07c960116f02d188dc372555e27e4a3bdb9093c1de0ae2c1d3e3d71ae1d3c80",
+    "evidence/acceptance-results.json": "6726b06e5570363a929726ec0e5f36f8ee5aa6b612e9b4d369b46a6b7b41ce69",
+    "src/main.jsx": "af6c76d405d407ee9be57989a76d6e5ddea4b5f47f5c91f62e886a83cf79db7d",
+    "scripts/acceptance.mjs": "29c339d1fa85af305179dd71bd5b0aa00799002cf355f8c2c14c71c1866abf37"
+  }
+}

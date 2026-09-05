@@ -364,6 +364,27 @@ after(async () => {
   if (!externalUrl) await owner.stop();
 });
 
+test("default fetch preserves the browser receiver for JSON and SSE", async (context) => {
+  const paths: string[] = [];
+  context.mock.method(globalThis, "fetch", async function (this: unknown, input: string | URL | Request) {
+    assert.equal(this, globalThis, "browser fetch requires its global receiver");
+    const path = new URL(String(input)).pathname;
+    paths.push(path);
+    if (path === "/api/auth/me") return fetchJson({ viewer: "alice", kind: "auth" });
+    if (path === "/api/query") return fetchJson({ state: "complete", data: [], seq: 1, next: null });
+    if (path === "/api/subscribe") return hangingSse('data: {"state":"complete","data":[],"seq":1,"next":null}\n\n');
+    throw new Error(`unexpected route ${path}`);
+  });
+  const value = createClient({ url: "http://browser.test", token: "fixture" });
+  context.after(() => value.close());
+  assert.equal((await value.auth.me()).viewer, "alice");
+  assert.equal((await value.query(api.messages.thread, {})).state, "complete");
+  const sub = value.subscribe(api.messages.thread, {}, () => undefined);
+  context.after(() => sub.close());
+  await sub.until(delivery => delivery.state === "complete", 500);
+  assert.deepEqual(paths, ["/api/auth/me", "/api/query", "/api/subscribe"]);
+});
+
 test("api proxy produces inert qualified operation references", async () => {
   assert.equal(api.messages.thread.op, "messages.thread");
   assert.equal(api.channels.typing.op, "channels.typing");

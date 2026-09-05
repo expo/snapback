@@ -693,6 +693,10 @@ is not a query state**: hooks and the provider expose `connection: connected |
 reconnecting | offline` separately, and a network failure leaves a query
 `hydrating` with `connection: reconnecting`, never `refused`.
 
+The default fetch transport binds the host global receiver, so browser JSON
+and SSE requests work without a custom fetch wrapper. An explicitly supplied
+fetch implementation retains its existing invocation contract.
+
 The headless client is the sole auth owner. An `AuthTokenStore` has explicit
 `load()` and `save(token | null)` methods; the package exports a browser
 storage adapter, but never chooses `localStorage`, `sessionStorage`, or any

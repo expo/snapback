@@ -1,0 +1,35 @@
+{
+  "sourceCommit": "cf390fc237293efe0c98af3d864825a4deebc578",
+  "publishedAt": "2026-09-05T06:53:06.252Z",
+  "version": "0.0.1",
+  "platform": "darwin-arm64",
+  "packages": [
+    {
+      "name": "snapback2-darwin-arm64",
+      "version": "0.0.1",
+      "integrity": "sha512-JVRD+kdlW9zNwRvFX1bVZT/CfjeGqyeH4ia2jg27FjrXSiJNeFKHs5Ox3GRLXmtnD7ZJ9pDoi4KlqvEPV3LB5g=="
+    },
+    {
+      "name": "snapback2",
+      "version": "0.0.1",
+      "integrity": "sha512-4SEkSsREkR8zxMNSrK9k4ui1bgLSOXuxHzF7HnEHOkwt3Q0oPdTl8dRdebu7DBkvMRF80Q1rxmdl9dRlO1ersw=="
+    }
+  ],
+  "engine": "ibex2 + vanilla hermes",
+  "engineBytes": 6447280,
+  "mediaBytes": 2147984,
+  "mediaDigest": "5f4503c2634a5a0976560d6ae0fea1bc4476f0b719d6e684b58f0ba2f95b6b00",
+  "qualification": {
+    "consumer": "pass; both templates test pass; installed React live round trip pass",
+    "mediaCliTests": 4,
+    "log": "/tmp/snapback2-clique-publish.log"
+  },
+  "largeSeed": {
+    "operations": 67,
+    "conversations": 12,
+    "messages": 242,
+    "seconds": 29.194964792,
+    "verdict": "pass",
+    "receipt": "/tmp/snapback2-clique-large-receipt.json"
+  }
+}
