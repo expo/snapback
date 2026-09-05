@@ -489,7 +489,8 @@ export function useAssetUrl(
       const missing = list.filter((_asset, index) => held[index] === undefined);
       const viewed = await viewedAssetIds(cache, missing.map((asset) => asset.id));
       const mintable = missing.filter((asset) => !viewed.has(asset.id));
-      const minted = mintable.length === 0 ? [] : await client.assetUrl(mintable, options);
+      // A viewed guard can drop an entry during minting; preserve each asset's position.
+      const minted = await Promise.all(mintable.map((asset) => client.assetUrl(asset, options)));
       const mintedById = new Map(mintable.map((asset, index) => [asset.id, minted[index]]));
       const urls = list.map((asset, index) => {
         const blob = held[index];

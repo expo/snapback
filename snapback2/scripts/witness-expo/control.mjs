@@ -12,7 +12,9 @@ export async function controlServer(port) {
   const pending = new Map();
   const events = [];
   server.on("connection", (value) => {
+    if (socket && socket.readyState < 2) { value.close(1008, "one witness control connection at a time"); return; }
     socket = value; generation++;
+    events.length = 0;
     socket.on("message", (data) => {
       const value = JSON.parse(String(data));
       if (value.event) { events.push(value); return; }
@@ -23,6 +25,7 @@ export async function controlServer(port) {
       else request.reject(Object.assign(new Error((value.error?.message ?? "witness command failed") + (value.error?.stack ? `\n${value.error.stack}` : "")), { envelope: value.error }));
     });
     socket.on("close", () => {
+      if (socket !== value) return;
       for (const [id, request] of pending) { clearTimeout(request.timer); request.reject(new Error("app disconnected")); pending.delete(id); }
     });
   });
@@ -34,6 +37,7 @@ export async function controlServer(port) {
     }
   };
   return {
+    get port() { return server.address().port; },
     get generation() { return generation; },
     async connected(after = 0) { await until(() => generation > after && events.some((item) => item.event === "connected"), "app outward connection"); },
     async event(name) { await until(() => events.some((item) => item.event === name), name); return events.splice(events.findIndex((item) => item.event === name), 1)[0]; },

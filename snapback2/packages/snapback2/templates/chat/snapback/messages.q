@@ -21,12 +21,12 @@ mutation send(conversationId: conversations, recipientId: profiles, body: text <
   emit notify { to: recipient.principal, body }
   return { id: row.id }
 
-mutation sendPhoto(conversationId: conversations, photo: image <=5000000):
+mutation sendPhoto(conversationId: conversations, photo: image <=5000000, viewOnce: bool ?):
   require exists memberships[conversationId, viewer] else NOT_MEMBER
-  row = insert messages { conversationId, authorId: viewer, body: null, photo, clip: null, at: now }
+  row = insert messages { conversationId, authorId: viewer, body: null, photo, clip: null, viewOnce, at: now }
   return { id: row.id, photo: row.photo }
 
-mutation sendClip(conversationId: conversations, clip: video <=50000000):
+mutation sendClip(conversationId: conversations, clip: video <=50000000, viewOnce: bool ?):
   require exists memberships[conversationId, viewer] else NOT_MEMBER
-  row = insert messages { conversationId, authorId: viewer, body: null, photo: null, clip, at: now }
+  row = insert messages { conversationId, authorId: viewer, body: null, photo: null, clip, viewOnce, at: now }
   return { id: row.id, clip: row.clip, duration: clip.duration }

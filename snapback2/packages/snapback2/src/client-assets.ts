@@ -64,28 +64,22 @@ export async function cachedAssetBlob(
   cache: ByteCache | undefined,
   target: AssetBlobTarget,
   network: () => Promise<Blob>,
-  record: (refusal: RefusalEnvelope) => void,
+  record: (refusal: RefusalEnvelope) => void, current: () => void, viewing?: object,
 ): Promise<Blob> {
-  if (!cache || target.assetId === "") return network();
-  const held = await cache.get(target.assetId, target.width);
-  if (held) return held;
-  if ((await viewedAssetIds(cache, [target.assetId])).size > 0) {
-    const refusal = viewedRefusal(target.assetId);
-    record(refusal.envelope);
-    throw refusal;
-  }
-  const blob = await network();
-  await cache.put(target.assetId, target.width, blob);
-  return blob;
+  const value = await cachedAssetBytes(cache, target, async () => {
+    const blob = await network();
+    return { bytes: new Uint8Array(await blob.arrayBuffer()), type: blob.type };
+  }, record, current, viewing);
+  return new Blob([value.bytes as BlobPart], { type: value.type });
 }
 
 /** Native byte ingress; the caller fences custody after each awaited read. */
 export async function cachedAssetBytes(
   cache: ByteCache | undefined, target: AssetBlobTarget, network: () => Promise<AssetBytes>,
-  record: (refusal: RefusalEnvelope) => void, current: () => void,
+  record: (refusal: RefusalEnvelope) => void, current: () => void, viewing: object = {},
 ): Promise<AssetBytes> {
   if (!cache || target.assetId === "") return network();
-  const held = await cache.getBytes(target.assetId, target.width);
+  const held = await cache.getBytes(target.assetId, target.width, viewing);
   current();
   if (held) return held;
   const viewed = await cache.viewed(target.assetId);
@@ -95,9 +89,21 @@ export async function cachedAssetBytes(
     record(refusal.envelope);
     throw refusal;
   }
+  const once = await cache.viewOnce(target.assetId);
+  const leased = await cache.canServe(target.assetId);
+  current();
   const value = await network();
   current();
-  await cache.putBytes(target.assetId, target.width, value);
+  const admitted = await cache.putBytes(target.assetId, target.width, value, viewing);
   current();
+  const allowed = await cache.canServe(target.assetId, viewing);
+  current();
+  if ((once && admitted !== "viewed" && admitted !== "cached") || ((leased || once || admitted === "viewed") && !allowed)) {
+    const refusal = new SnapbackRefusal({ code: "E_OFFLINE_CARRIER", family: "offline",
+      site: "assetBytes", message: "asset viewing allowance was not durably admitted or its row lease changed",
+      rewrite: "restore the carrier and fetch a currently held, unviewed row", guide: "offline" });
+    record(refusal.envelope);
+    throw refusal;
+  }
   return value;
 }

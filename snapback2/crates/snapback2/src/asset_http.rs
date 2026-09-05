@@ -416,7 +416,11 @@ pub fn handle_asset_delivery(request: Request, context: &Context, path: &str, qu
     } else if public {
         "public, immutable"
     } else {
-        "private, no-cache"
+        // @ref LLP 1012#9-asset-bytes-on-the-device — the delivery proof says
+        // public/private, not which private row supplies a one-use lease.
+        // Unknown private policy forbids HTTP storage; ByteCache still caches
+        // ordinary assets under their row lease.
+        "no-store"
     };
     if !public
         && carrier.is_none()

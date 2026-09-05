@@ -61,13 +61,23 @@ export async function seedWitness(url) {
     const doomed = committed(await alice.mutation(api.deliveries.post, { conversationId: rooms[0], body: "expires while offline" })).id;
     // The fixture is a real PNG; upload is byte-backed on the host, as on the web witness.
     const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=", "base64");
-    const assets = [], once = [];
+    const assets = [], once = [], forbidden = [];
     for (let index = 0; index < 2; index++) {
-      const photo = await alice.upload(new Blob([png], { type: "image/png" }), { kind: "image" });
-      const message = committed(await alice.mutation(api.messages.sendPhoto, { conversationId: rooms[0], photo }));
+      const photo = await alice.upload(new Blob([index === 0 ? png : await readFile(new URL("./view-once.png", import.meta.url))], { type: "image/png" }), { kind: "image" });
+      const message = committed(await alice.mutation(api.messages.sendPhoto, { conversationId: rooms[0], photo, viewOnce: index === 1 }));
       assets.push(photo);
-      if (index === 1) once.push(message.id);
+      if (index === 1) {
+        once.push(message.id);
+        forbidden.push({ id: photo.id, bytes: Buffer.from((await alice.assetBytes(await alice.assetUrl(photo))).bytes) });
+      }
     }
-    return { rooms, doomed, assets, once };
+    // 16x16 H.264 baseline, 0.5 s, generated ahead with ffmpeg's color source:
+    // -f lavfi -i color=c=red:s=16x16:d=0.5 -c:v libx264 -profile:v baseline
+    // -pix_fmt yuv420p -movflags +faststart -an view-once.mp4
+    const clip = await alice.upload(new Blob([await readFile(new URL("./view-once.mp4", import.meta.url))], { type: "video/mp4" }), { kind: "video" });
+    const message = committed(await alice.mutation(api.messages.sendClip, { conversationId: rooms[0], clip, viewOnce: true }));
+    once.push(message.id); assets.push(clip);
+    forbidden.push({ id: clip.id, bytes: Buffer.from((await alice.assetBytes(await alice.assetUrl(clip))).bytes) });
+    return { rooms, doomed, assets, once, forbidden };
   } finally { await alice.close(); }
 }

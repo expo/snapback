@@ -5,7 +5,7 @@ import type { AssetRecord } from "../types.js";
 import type { AssetBytes } from "../store/byte-cache.js";
 import { nativeAssetFiles } from "./files.js";
 
-const none = () => 0;
+const none = () => "0";
 const noSubscription = () => () => {};
 const fileRefusal = (error: unknown): SnapbackRefusal => isSnapbackRefusal(error) ? error : new SnapbackRefusal({
   code: "E_OFFLINE_CARRIER", family: "offline", message: String(error), site: "useAssetFile",
@@ -27,7 +27,8 @@ function useFile(asset: AssetRecord | null | undefined, width?: number) {
   const client = useSnapbackClient();
   const snapshot = useSnapbackSnapshot();
   const files = nativeAssetFiles(client);
-  const revision = useSyncExternalStore(files?.subscribe ?? noSubscription, files?.getRevision ?? none, none);
+  const getRevision = useMemo(() => files && asset ? () => files.getAssetRevision(asset.id) : none, [files, asset?.id]);
+  const revision = useSyncExternalStore(files?.subscribe ?? noSubscription, getRevision, none);
   const identity = useMemo(() => ({ client, id: asset?.id, width, auth: snapshot.authGeneration, files, revision }),
     [client, asset?.id, width, snapshot.authGeneration, files, revision]);
   const [result, setResult] = useState<{ identity: typeof identity; uri?: string; error?: unknown }>();
@@ -59,7 +60,7 @@ export function useNativeSource(asset: AssetRecord | null | undefined, options: 
   const failure = useMemo(() => file.error === undefined ? undefined : fileRefusal(file.error), [file.error]);
   const identity = useMemo(() => ({ client, id: asset?.id, width: options.width, auth: snapshot.authGeneration, custody: file.custody }),
     [client, asset?.id, options.width, snapshot.authGeneration, file.custody]);
-  const [memory, setMemory] = useState<{ identity: typeof identity; revision?: number; uri?: string; refusal?: SnapbackRefusal }>();
+  const [memory, setMemory] = useState<{ identity: typeof identity; revision?: string; uri?: string; refusal?: SnapbackRefusal }>();
   const attempted = useRef<typeof identity | undefined>(undefined);
   const current = useRef<typeof identity | undefined>(identity);
   current.current = identity;
@@ -76,29 +77,35 @@ export function useNativeSource(asset: AssetRecord | null | undefined, options: 
       await client.ready;
       if (!active()) return;
       // A new viewing instance cannot borrow another instance's allowance.
-      if (await client.assetCache?.viewed(asset.id)) return;
-      const once = await client.assetCache?.viewOnce(asset.id);
+      if (await client.assetCache?.viewed(asset.id)) {
+        if (active()) setMemory({ identity, revision: file.files?.getAssetRevision(asset.id) ?? "0" });
+        return;
+      }
       if (!active()) return;
       const url = await client.assetUrl(asset, { width: options.width });
       if (!url || !active()) return;
-      const value = await client.assetBytes(url);
-      if (active() && (once || !file.files)) setMemory({ identity, revision: file.files?.getRevision() ?? 0, uri: bytesDataUri(value) });
+      const value = await client.assetBytes(url, { viewing: identity });
+      if (!active()) return;
+      if (client.assetCache && !await client.assetCache.canServe(asset.id, identity)) return;
+      if (active()) setMemory({ identity, revision: file.files?.getAssetRevision(asset.id) ?? "0", uri: bytesDataUri(value) });
     })().catch((error) => {
       if (current.current !== identity) return;
       const refusal = fileRefusal(error);
-      setMemory({ identity, refusal });
+      setMemory({ identity, revision: file.files?.getAssetRevision(asset!.id) ?? "0", refusal });
     });
   }, [identity, file.checked, file.uri, options.enabled, failure]);
   useEffect(() => {
     if (!asset || !file.files || memory?.identity !== identity || !memory.uri || memory.revision === file.revision) return;
     let active = true;
-    void client.assetCache?.getBytes(asset.id, options.width ?? null).then((held) => {
-      if (active) setMemory({ ...memory, revision: file.revision, uri: held ? memory.uri : undefined });
+    const custody = file.custody;
+    void client.assetCache?.canServe(asset.id, identity).then((held) => {
+      if (active && current.current === identity && file.files?.getCustody() === custody)
+        setMemory({ ...memory, revision: file.revision, uri: held ? memory.uri : undefined });
     }).catch(() => {
-      if (active) setMemory({ ...memory, revision: file.revision, uri: undefined });
+      if (active && current.current === identity) setMemory({ ...memory, revision: file.revision, uri: undefined });
     });
     return () => { active = false; };
   }, [memory, identity, file.revision]);
   // Fetch completion is fenced by the client's authority and by identity at render.
-  return { uri: file.uri ?? (memory?.identity === identity && memory.revision === file.revision ? memory.uri : undefined), refusal: failure ?? (memory?.identity === identity ? memory.refusal : undefined) };
+  return { settled: file.checked && (Boolean(file.uri) || memory?.identity === identity), uri: file.uri ?? (memory?.identity === identity && memory.revision === file.revision ? memory.uri : undefined), refusal: failure ?? (memory?.identity === identity ? memory.refusal : undefined) };
 }

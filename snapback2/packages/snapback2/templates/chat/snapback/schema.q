@@ -61,6 +61,7 @@ table messages:
   body: text <=4000 ?
   photo: image <=5000000 ?
   clip: video <=50000000 ?
+  viewOnce: bool ?
   at: time
   by byConvTime: conversationId, at, id
   retain delivered-history

@@ -4,7 +4,7 @@ import type { SnapbackClient } from "../types.js";
 import type { PersistedRangeState } from "../store/range-store.js";
 import type { ByteCache, ByteDelta } from "../store/byte-cache.js";
 import { isSnapbackRefusal } from "../client.js";
-import { runSqliteDriverConformance as conformance } from "../../tests/sqlite-driver.conformance.js";
+import { runSqliteDriverConformance as conformance } from "../store/sqlite-driver.conformance.js";
 import type { SqliteDriver } from "../store/sqlite-driver.js";
 
 export interface WitnessHooks {
@@ -62,7 +62,6 @@ export function witnessControl(source: SnapbackClient | WitnessApplication, url:
       return { fault: args.mode };
     }
     if (verb === "construct") return construct(args);
-    if (verb === "login") return construct(args);
     if (verb === "offline" || verb === "online") {
       if (!client) throw new Error("construct first");
       await app?.persist?.({ offline: verb === "offline" });

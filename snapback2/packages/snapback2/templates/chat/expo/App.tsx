@@ -11,7 +11,7 @@ const witnessUrl = process.env.EXPO_PUBLIC_SNAPBACK_WITNESS;
 
 const Witness = witnessUrl ? lazy(() => import("./src/Witness")) : undefined;
 
-function NormalApp() {
+export function NormalApp() {
   const [client, setClient] = useState<SnapbackClient>();
   const [error, setError] = useState<string>();
   useEffect(() => {
@@ -20,7 +20,7 @@ function NormalApp() {
     void client.ready.catch((error) => setError(String(error)));
     return () => { void client.close(); };
   }, []);
-  if (!client) return <Text accessibilityLiveRegion="polite">{error ?? "Connecting…"}</Text>;
+  if (!client || error) return <Text accessibilityLiveRegion="polite">{error ?? "Connecting…"}</Text>;
   return <SnapbackProvider client={client}><Chat /></SnapbackProvider>;
 }
 

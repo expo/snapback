@@ -113,8 +113,11 @@ test("native in-flight file write is fenced on seal and consumers receive custod
 test("view-once native bytes stay in memory, are never written, and disappear on custody change", async () => {
   const f = await fixture(true);
   try {
-    assert.equal(await f.cache.putBytes(asset.id, 8, payload), "viewed");
-    assert.deepEqual(await f.cache.getBytes(asset.id, 8), payload);
+    const viewing = {};
+    assert.equal(await f.cache.putBytes(asset.id, 8, payload, viewing), "viewed");
+    assert.deepEqual(await f.cache.getBytes(asset.id, 8, viewing), payload);
+    assert.equal(await f.cache.getBytes(asset.id, 8), undefined);
+    assert.equal(await f.cache.getBytes(asset.id, 8, {}), undefined);
     assert.equal(await f.files.get(f.cache, asset.id, 8), undefined);
     assert.deepEqual(f.fs.writes, []);
     f.cache.forget();

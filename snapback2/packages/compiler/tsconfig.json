@@ -7,14 +7,7 @@
     "noEmit": true,
     "strict": true,
     "target": "ES2022",
-    "paths": {
-      "expo-file-system": [
-        "../snapback2/src/native-modules.d.ts"
-      ],
-      "expo/fetch": [
-        "../snapback2/src/native-modules.d.ts"
-      ]
-    }
+    "skipLibCheck": true
   },
   "include": [
     "src/**/*.ts"

@@ -1,3 +1,4 @@
+import type { AssetFetchOptions } from "./store/byte-cache.js";
 import { throwIfAborted } from "./client-wire.js";
 import { api, referenceName, type Api, type ApiProxy, type Channel as ChannelRef, type Op } from "./api.js";
 import { AssetInputError, mayNeedAssetPlanning, planAssetArguments, substituteAssetRecords } from "./assets.js";
@@ -318,21 +319,20 @@ class Client implements SnapbackClient {
   async assetUrl(assetOrList: AssetRecord | readonly AssetRecord[] | null | undefined, options: AssetUrlOptions = {}): Promise<string | string[] | undefined> {
     return assetUrlFor(this, assetOrList, options, await this.operationAuthority());
   }
-
   async assetHeaders(): Promise<Record<string, string>> {
     return assetHeadersFor(this, await this.operationAuthority());
   }
-
-  async assetBlob(url: string, options: { signal?: AbortSignal } = {}): Promise<Blob> {
-    return assetBlobFor(this, this.offlineRuntime?.bytes, this.forcedOffline, url, options, await this.operationAuthority());
+  async assetBlob(url: string, options: AssetFetchOptions = {}): Promise<Blob> {
+    const authority = await this.operationAuthority();
+    return assetBlobFor(this, this.offlineRuntime?.bytes, this.forcedOffline, url, options, authority);
   }
-  async assetBytes(url: string, options: { signal?: AbortSignal } = {}) {
-    return assetBytesFor(this, this.offlineRuntime?.bytes, this.forcedOffline, url, options, await this.operationAuthority());
+  async assetBytes(url: string, options: AssetFetchOptions = {}) {
+    const authority = await this.operationAuthority();
+    return assetBytesFor(this, this.offlineRuntime?.bytes, this.forcedOffline, url, options, authority);
   }
   get assetCache(): OfflineRuntime["bytes"] | undefined {
     return this.offlineRuntime?.bytes;
   }
-
   subscribe<Args, Result>(
     ref: Op<Args, Result>,
     args: Args,

@@ -37,6 +37,61 @@ const messageRow = (id: string, media: Record<string, unknown>) => ({
 const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status });
 const THREAD_ARGS = { conversationId: "c1", c: null };
 
+test("web assetBlob and byte fetch read the transport cut after readiness resolves", async () => {
+  for (const method of ["assetBlob", "assetBytes"] as const) {
+    let release!: (token: string) => void;
+    const token = new Promise<string>((done) => { release = done; });
+    let requests = 0;
+    const client = createClient({ url: "http://assets.test", tokenStore: { load: () => token, save() {} },
+      fetch: async () => { requests++; return new Response(new Uint8Array([1])); } });
+    const pending = client[method](`http://assets.test/api/asset/${B}`);
+    const refused = assert.rejects(pending, (error: unknown) => error instanceof SnapbackRefusal);
+    const cut = client.offline(); release("restored");
+    try { await cut; await refused; assert.equal(requests, 0); }
+    finally { await client.close(); }
+  }
+});
+
+test("web viewed allowance belongs to its viewing instance, never a second consumer or URL hook", async () => {
+  const root = await tempRoot(); const owner = bearerServer();
+  const client = createClient({ url: "http://assets.test", token: "token-a", offlinePrincipal: "principal-a",
+    fetch: owner.fetch, offline: { store: fileRangeStore(root), viewOnce: (_table, row) => row.id === "m2" } });
+  const viewing = {};
+  try {
+    await client.query(api.messages.thread, THREAD_ARGS);
+    const url = (await client.assetUrl(photo(B)))!;
+    const shown = await client.assetBlob(url, { viewing });
+    assert.deepEqual(await bytes(shown), [5, 5, 5, 5]);
+    await assert.rejects(client.assetBlob(url), (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_ASSET_VIEWED");
+    await assert.rejects(client.assetBytes(url, { viewing: {} }), (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_ASSET_VIEWED");
+    assert.equal(await client.assetCache!.get(B, null), undefined);
+    assert.equal(await client.assetUrl(photo(B)), undefined);
+    assert.deepEqual(await bytes(await client.assetBlob(url, { viewing })), [5, 5, 5, 5]);
+    assert.equal(owner.state.assetFetches, 1);
+  } finally { await client.close(); await rm(root, { recursive: true, force: true }); }
+});
+
+test("a row viewed during URL minting cannot shift another asset's URL onto its list entry", async () => {
+  const directory = await tempRoot(); const owner = bearerServer(); const env = domEnvironment();
+  const client = createClient({ url: "http://assets.test", token: "token-a", offlinePrincipal: "principal-a",
+    fetch: owner.fetch, offline: { store: fileRangeStore(directory), viewOnce: (_table, row) => row.id === "m2" } });
+  const root = createRoot(env.dom.window.document.getElementById("root")!);
+  let urls: Array<string | undefined> | undefined;
+  function Probe() { urls = useAssetUrl([photo(B), photo(A)]); return null; }
+  try {
+    await client.query(api.messages.thread, THREAD_ARGS);
+    const mint = client.assetUrl.bind(client);
+    client.assetUrl = (async (assets, options) => {
+      await client.assetCache!.markViewed(B);
+      return mint(assets, options);
+    }) as typeof client.assetUrl;
+    await act(async () => root.render(React.createElement(SnapbackProvider, { client }, React.createElement(Probe))));
+    assert.ok(await until(() => urls !== undefined));
+    assert.equal(urls![0], undefined);
+    assert.equal(urls![1], `http://assets.test/api/asset/${A}`);
+  } finally { await act(async () => root.unmount()); await client.close(); env.restore(); await rm(directory, { recursive: true, force: true }); }
+});
+
 function envelope(data: unknown, rows: unknown[], principal = "dev:alice", seq = 3, validator = VALIDATOR) {
   return {
     protocol: 1, generation, schemaHash, planHash,
@@ -128,6 +183,7 @@ function memoryTokenStore() {
 }
 
 test("the view-once session allowance obeys custody: a partition switch, a wipe, and a seal all drop it", async () => {
+  const viewing = {};
   const root = await tempRoot();
   try {
     const { state, fetch } = bearerServer();
@@ -138,8 +194,8 @@ test("the view-once session allowance obeys custody: a partition switch, a wipe,
     await client.auth.login({ email: "a@example.com", password: "pw" });
     await client.query(api.messages.thread, THREAD_ARGS);
     const urlB = (await client.assetUrl(photo(B) as any, { width: 8 }))!;
-    assert.deepEqual(await bytes(await client.assetBlob(urlB)), [5, 5, 5, 5], "the first view renders");
-    assert.deepEqual(await bytes(await client.assetBlob(urlB)), [5, 5, 5, 5], "the viewing instance keeps rendering what it showed");
+    assert.deepEqual(await bytes(await client.assetBlob(urlB, { viewing })), [5, 5, 5, 5], "the first view renders");
+    assert.deepEqual(await bytes(await client.assetBlob(urlB, { viewing })), [5, 5, 5, 5], "the viewing instance keeps rendering what it showed");
     assert.equal(state.assetFetches, 1);
     assert.equal(await client.assetCache!.viewed(B), true, "viewed is the truth while the session serves");
     assert.deepEqual((await client.assetCache!.status()).entries, [], "view-once bytes are never cached");
@@ -149,7 +205,7 @@ test("the view-once session allowance obeys custody: a partition switch, a wipe,
     await client.auth.login({ email: "b@example.com", password: "pw" });
     assert.equal(await client.assetCache!.get(B, 8), undefined, "a partition switch drops the session blob");
     await client.query(api.messages.thread, THREAD_ARGS);
-    assert.deepEqual(await bytes(await client.assetBlob(urlB)), [6, 6, 6, 6], "the other principal's view is its own fetch, never the first principal's blob");
+    assert.deepEqual(await bytes(await client.assetBlob(urlB, { viewing })), [6, 6, 6, 6], "the other principal's view is its own fetch, never the first principal's blob");
     assert.equal(state.assetFetches, 2);
 
     // A wipe: sign out, then the first principal returns to a fresh partition.
@@ -159,9 +215,9 @@ test("the view-once session allowance obeys custody: a partition switch, a wipe,
     await client.auth.login({ email: "a@example.com", password: "pw" });
     assert.equal(await client.assetCache!.get(B, 8), undefined, "the returning principal's partition holds nothing");
     await client.query(api.messages.thread, THREAD_ARGS);
-    assert.deepEqual(await bytes(await client.assetBlob(urlB)), [7, 7, 7, 7], "the blob is gone: the view fetches again");
+    assert.deepEqual(await bytes(await client.assetBlob(urlB, { viewing })), [7, 7, 7, 7], "the blob is gone: the view fetches again");
     assert.equal(state.assetFetches, 3);
-    assert.deepEqual(await bytes(await client.assetBlob(urlB)), [7, 7, 7, 7], "and this instance's new session serves it");
+    assert.deepEqual(await bytes(await client.assetBlob(urlB, { viewing })), [7, 7, 7, 7], "and this instance's new session serves it");
 
     // A seal: a terminal session refusal seals the partition; the session is not served past it.
     state.expired = true;
@@ -171,7 +227,7 @@ test("the view-once session allowance obeys custody: a partition switch, a wipe,
     assert.equal(await client.assetCache!.get(B, 8), undefined, "a sealed partition serves no session blob");
     state.expired = false;
     state.fill = 8;
-    const afterSeal = await client.assetBlob(urlB).then(bytes).catch(() => "refused");
+    const afterSeal = await client.assetBlob(urlB, { viewing }).then(bytes).catch(() => "refused");
     assert.notDeepEqual(afterSeal, [7, 7, 7, 7], "the byte path never falls back to the sealed session's blob");
     client.close();
   } finally { await rm(root, { recursive: true, force: true }); }

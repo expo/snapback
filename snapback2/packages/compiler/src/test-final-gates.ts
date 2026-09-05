@@ -135,8 +135,8 @@ export function registerFinalGateChecks(test: RegisterTest, legacyLib: string): 
     const pagePins: Record<string, [number, number]> = {
       "feeds.followingFeed": [55_072, 2_715_380],
       "feeds.globalFeed": [55_072, 54_260],
-      // LLP 1006: the chat messages row carries the photo and clip closed records.
-      "messages.thread": [854_412, 854_350],
+      // LLP 1006/1012: media records plus the optional viewOnce policy bit.
+      "messages.thread": [855_812, 855_750],
     };
     for (const [name, [output, closure]] of Object.entries(pagePins)) {
       const result = quarryChecked.results.find((item: any) => item.program === name);

@@ -24,6 +24,8 @@ export interface ByteDelta { put: Array<{ key: string; bytes: Uint8Array }>; rem
 
 export interface ByteCacheStatus { entries: ByteCacheEntry[]; totalBytes: number; viewed: RowRef[] }
 export interface AssetBytes { bytes: Uint8Array; type: string }
+/** An opaque identity held by one mounted viewing instance, never shared by asset id. */
+export interface AssetFetchOptions { signal?: AbortSignal; viewing?: object }
 export type ByteCacheOutcome = "cached" | "viewed" | "unleased" | "refused";
 export type ViewOncePredicate = (table: string, row: Record<string, unknown>) => boolean;
 
@@ -41,10 +43,11 @@ export interface ByteCarrier {
 
 /** The client-facing byte cache: `client.assetCache` when the client has an offline store. */
 export interface AssetCache {
-  getBytes(assetId: string, width: number | null): Promise<AssetBytes | undefined>;
-  putBytes(assetId: string, width: number | null, value: AssetBytes): Promise<ByteCacheOutcome>;
+  getBytes(assetId: string, width: number | null, viewing?: object): Promise<AssetBytes | undefined>;
+  putBytes(assetId: string, width: number | null, value: AssetBytes, viewing?: object): Promise<ByteCacheOutcome>;
+  canServe(assetId: string, viewing?: object): Promise<boolean>;
   /** The held bytes for an asset at a width, or nothing: never fetched, evicted with its row, viewed, or sealed. */
-  get(assetId: string, width: number | null): Promise<Blob | undefined>;
+  get(assetId: string, width: number | null, viewing?: object): Promise<Blob | undefined>;
   /** True once a view-once row carrying this asset was viewed on this partition. */
   viewed(assetId: string): Promise<boolean>;
   /** True while a held row carrying this asset is view-once (`offline.viewOnce`) and not yet viewed. */
@@ -209,9 +212,10 @@ export class ByteCache implements AssetCache {
    * on seal, wipe, partition change, and close, and `get` serves it only under the
    * custody the carrier path applies: this partition, unsealed, the row still held.
    */
-  private readonly session = new Map<string, AssetBytes>();
+  private readonly session = new Map<string, { viewing: object; value: AssetBytes }>();
   private partition?: string;
   private custody = 0;
+  private admissions: Promise<unknown> = Promise.resolve();
 
   constructor(
     readonly store: RangeStore,
@@ -230,27 +234,39 @@ export class ByteCache implements AssetCache {
     this.session.clear();
   }
 
-  async get(assetId: string, width: number | null): Promise<Blob | undefined> {
-    const held = await this.getBytes(assetId, width);
+  async get(assetId: string, width: number | null, viewing?: object): Promise<Blob | undefined> {
+    const held = await this.getBytes(assetId, width, viewing);
     return held ? new Blob([held.bytes as BlobPart], { type: held.type }) : undefined;
   }
 
   // @ref LLP 1013#2-decisions — native paths exchange bytes, never RN Blobs.
-  async getBytes(assetId: string, width: number | null): Promise<AssetBytes | undefined> {
+  async getBytes(assetId: string, width: number | null, viewing?: object): Promise<AssetBytes | undefined> {
     const custody = this.custody;
     checkedAssetId(assetId);
     const store = this.carrier();
     if (!store) return undefined;
     // `viewedAsset` is false on a sealed partition, so the session is never consulted past a seal.
     if (await store.viewedAsset(assetId)) {
-      const held = await this.sessionBytes(assetId);
+      const held = await this.sessionBytes(assetId, width, viewing);
       return custody === this.custody ? held : undefined;
     }
+    if (await this.viewOnce(assetId)) return undefined;
     const held = await store.readBytes(assetId, width);
     if (!held) return undefined;
     // The touch is the LRU stamp, coalesced into the next swap; a closing partition may refuse it.
     await store.touchBytes([byteKey(assetId, width)]).catch(() => undefined);
-    return custody === this.custody ? held : undefined;
+    return await this.canServe(assetId, viewing) && custody === this.custody ? held : undefined;
+  }
+
+  /** Completion fence for both a cached source and an uncached ordinary source. */
+  async canServe(assetId: string, viewing?: object): Promise<boolean> {
+    const custody = this.custody;
+    const store = this.carrier();
+    if (!store || (await store.rowsReferencing(assetId)).length === 0) return false;
+    const viewed = await store.viewedAsset(assetId);
+    const owns = !viewed || [...this.session.entries()].some(([key, entry]) =>
+      entry.viewing === viewing && key.startsWith(this.sessionKey(assetId)));
+    return custody === this.custody && owns;
   }
 
   async viewed(assetId: string): Promise<boolean> {
@@ -280,19 +296,29 @@ export class ByteCache implements AssetCache {
   }
 
   /** After a network fetch: cache under the row's lease, or mark the view-once rows viewed and cache nothing. */
-  async put(assetId: string, width: number | null, blob: Blob): Promise<ByteCacheOutcome> {
+  async put(assetId: string, width: number | null, blob: Blob, viewing?: object): Promise<ByteCacheOutcome> {
     const custody = this.custody;
     const bytes = new Uint8Array(await blob.arrayBuffer());
     if (custody !== this.custody) return "refused";
-    return this.putBytes(assetId, width, { bytes, type: blob.type });
+    return this.putBytes(assetId, width, { bytes, type: blob.type }, viewing);
   }
 
-  async putBytes(assetId: string, width: number | null, value: AssetBytes): Promise<ByteCacheOutcome> {
+  putBytes(assetId: string, width: number | null, value: AssetBytes, viewing?: object): Promise<ByteCacheOutcome> {
+    const custody = this.custody;
+    // Two concurrent consumers may fetch; only one can acquire the viewing allowance.
+    const result = this.admissions.then(() => custody === this.custody
+      ? this.admit(assetId, width, value, viewing) : "refused" as const);
+    this.admissions = result.catch(() => undefined);
+    return result;
+  }
+
+  private async admit(assetId: string, width: number | null, value: AssetBytes, viewing?: object): Promise<ByteCacheOutcome> {
     const custody = this.custody;
     checkedAssetId(assetId);
     checkedPut({ assetId, width, ...value });
     const store = this.carrier();
     if (!store) return "unleased";
+    if (await store.viewedAsset(assetId)) return "refused";
     const rows = await store.rowsReferencing(assetId);
     if (rows.length === 0 || custody !== this.custody) return "unleased";
     const once = rows
@@ -305,9 +331,10 @@ export class ByteCache implements AssetCache {
       } catch {
         return "refused";
       }
-      if (custody !== this.custody) return "refused";
+      if (custody !== this.custody || (await store.rowsReferencing(assetId)).length === 0
+        || !await store.viewedAsset(assetId) || custody !== this.custody) return "unleased";
       if (this.session.size >= SESSION_VIEW_LIMIT) this.session.delete(this.session.keys().next().value!);
-      this.session.set(this.sessionKey(assetId), { bytes: value.bytes.slice(), type: value.type });
+      if (viewing) this.session.set(this.sessionKey(assetId, width), { viewing, value: { bytes: value.bytes.slice(), type: value.type } });
       return "viewed";
     }
     try {
@@ -332,18 +359,18 @@ export class ByteCache implements AssetCache {
     return this.partition !== undefined && isByteCarrier(this.store) ? this.store : undefined;
   }
 
-  private sessionKey(assetId: string): string {
-    return `${this.partition}\u0000${assetId}`;
+  private sessionKey(assetId: string, width?: number | null): string {
+    return `${this.partition}\u0000${assetId}\u0000${width === undefined ? "" : width}`;
   }
 
   /** The session blob, only while the row that was viewed is still held on this partition. */
-  private async sessionBytes(assetId: string): Promise<AssetBytes | undefined> {
+  private async sessionBytes(assetId: string, width: number | null, viewing?: object): Promise<AssetBytes | undefined> {
     const store = this.carrier();
     if (!store) return undefined;
-    const key = this.sessionKey(assetId);
+    const key = this.sessionKey(assetId, width);
     const blob = this.session.get(key);
-    if (!blob) return undefined;
-    if ((await store.rowsReferencing(assetId)).length > 0) return blob;
+    if (!viewing || blob?.viewing !== viewing) return undefined;
+    if ((await store.rowsReferencing(assetId)).length > 0) return blob.value;
     this.session.delete(key);
     return undefined;
   }

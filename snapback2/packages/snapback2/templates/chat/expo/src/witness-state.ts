@@ -4,13 +4,32 @@ import type { AssetRecord, OutboxEntry, RangeStore, StoreSwap } from "snapback2/
 
 export const DATABASE = "snapback2-witness.db";
 export interface Configuration { offline: boolean; fault: "carrier" | "none"; name: string; once: string[]; assets: AssetRecord[] }
-const configFile = () => new File(Paths.document, "snapback2-witness.json");
-export async function configuration(): Promise<Configuration> {
-  const file = configFile();
-  return file.exists ? JSON.parse(await file.text()) : { offline: false, fault: "none", name: "alice", once: [], assets: [] };
+const configDirectory = () => new Directory(Paths.document, "snapback2-witness-config");
+const defaultConfiguration = (): Configuration => ({ offline: false, fault: "none", name: "alice", once: [], assets: [] });
+function versions(): File[] {
+  const directory = configDirectory();
+  return directory.exists ? directory.list().filter((file): file is File => file instanceof File && /\/\d{16}\.json$/.test(file.uri)).sort((a, b) => a.uri.localeCompare(b.uri)) : [];
 }
-export async function persist(patch: Partial<Configuration>): Promise<void> {
-  configFile().write(JSON.stringify({ ...await configuration(), ...patch }));
+export async function configuration(): Promise<Configuration> {
+  const file = versions().at(-1);
+  return file ? JSON.parse(await file.text()) : defaultConfiguration();
+}
+let persistTail: Promise<unknown> = Promise.resolve();
+export function persist(patch: Partial<Configuration>): Promise<void> {
+  const write = persistTail.then(async () => {
+    const directory = configDirectory(); directory.create({ intermediates: true, idempotent: true });
+    const previous = versions();
+    const last = previous.at(-1);
+    const sequence = last ? Number(last.uri.match(/(\d{16})\.json$/)![1]) + 1 : 1;
+    const temp = new File(directory, "next.tmp");
+    temp.write(JSON.stringify({ ...await configuration(), ...patch }));
+    // Expo File.move cannot replace an existing destination atomically. Rename
+    // into a fresh numbered leaf; readers choose the latest committed leaf.
+    temp.move(new File(directory, `${String(sequence).padStart(16, "0")}.json`));
+    for (const old of previous) old.delete();
+  });
+  persistTail = write.catch(() => undefined);
+  return write;
 }
 export function listFiles(directory = new Directory(Paths.cache, "snapback2")): string[] {
   if (!directory.exists) return [];

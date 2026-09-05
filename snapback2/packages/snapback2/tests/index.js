@@ -9,6 +9,8 @@ await import("./typing.test.ts");
 await import("./real-owner.test.ts");
 await import("./native-assets.test.ts");
 await import("./native-files.test.ts");
+await import("./native-custody.test.ts");
+await import("./expo-harness.test.ts");
 await import("./expo-witness.test.ts");
 await import("./offline-protocol.test.ts");
 await import("./offline-store.test.ts");

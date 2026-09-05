@@ -6,6 +6,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { binary, workspace, project, dist, environment, prepareExpoProject, run } from "./expo-project.mjs";
 import { controlServer } from "./witness-expo/control.mjs";
+import { assertNoMediaOnDisk } from "./witness-expo/container.mjs";
 import { ownerHarness, seedWitness } from "./witness-expo/owner.mjs";
 
 const names = ["build, owner seed, and outward control", "login, inbox drain, three chats and two photos", "offline and two queued sends",
@@ -66,7 +67,10 @@ async function coldMedia() {
   const files = await walk(resolve(container, "Library/Caches/snapback2"));
   assert.ok(files.some((path) => path.includes(seed.assets[0].id)));
   assert.ok(files.every((path) => !path.includes(seed.assets[1].id)));
-  return { ordinary, once };
+  const clip = await command("view", { assetId: seed.assets[2].id, hidden: true });
+  assert.equal(clip.viewed, true); assert.equal(clip.loaded, false); assert.equal(clip.uri, undefined);
+  await assertNoMediaOnDisk(container, seed.forbidden);
+  return { ordinary, once, clip };
 }
 
 const actions = [
@@ -88,13 +92,20 @@ const actions = [
     await writeFile(resolve(workspace, "target/e2-witness-ios-build.log"), build);
     // run:ios may auto-launch; record that process via launch before killing it.
     await launch(false); await killApp();
-    return { device, xcode: (await run("xcodebuild", ["-version"])).trim(), build: "target/e2-witness-ios-build.log", seed };
+    return { device, xcode: (await run("xcodebuild", ["-version"])).trim(), build: "target/e2-witness-ios-build.log", seed: { rooms: seed.rooms, doomed: seed.doomed, assets: seed.assets, once: seed.once } };
   },
   async () => {
-    await launch(); await command("construct", { fresh: true, once: seed.once, assets: seed.assets });
-    await command("login", { name: "alice" }); await command("drain");
+    await launch(); await command("construct", { fresh: true, name: "alice", once: seed.once, assets: seed.assets });
+    await command("drain");
     for (const conversationId of seed.rooms.slice(0, 3)) await command("open", { conversationId });
-    for (const asset of seed.assets) assert.equal((await command("view", { assetId: asset.id })).loaded, true);
+    for (const [index, asset] of seed.assets.entries()) {
+      const media = await command("view", { assetId: asset.id });
+      assert.equal(media.loaded, true, JSON.stringify(media));
+      assert.match(media.uri, index === 0 ? /^file:\/\// : /^data:/);
+      if ("duration" in asset) assert.equal(media.playing, true, "view-once clip must emit playingChange(isPlaying)");
+    }
+    const container = (await run("xcrun", ["simctl", "get_app_container", device, bundleId, "data"])).trim();
+    await assertNoMediaOnDisk(container, seed.forbidden);
     return { opened: seed.rooms.slice(0, 3), neverOpened: seed.rooms[3] };
   },
   async () => {
@@ -162,7 +173,8 @@ const actions = [
   async () => {
     const result = await command("conformance", {}, 60_000);
     assert.equal(result.journalMode, "wal"); assert.equal(result.checks.length, 10);
-    assert.ok(result.checks.includes("failed COMMIT rolls back and next transaction succeeds")); return result;
+    assert.ok(result.checks.includes("body-ended transaction rejects and next transaction succeeds"));
+    return { ...result, nativeCommitFailure: "unqualified: this probe ends the transaction in its body" };
   },
   async () => {
     await command("online"); await killApp(); await launch(); await command("construct"); await command("drain");

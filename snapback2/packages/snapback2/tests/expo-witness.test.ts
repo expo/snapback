@@ -33,6 +33,8 @@ test("witness connects before construction; persistent faults are reported over 
     socket.command(3, "fault", { mode: "none" }); await tick();
     socket.command(4, "construct"); await tick();
     assert.equal(socket.sent.at(-1).ok, true); assert.equal(constructed, 2);
+    socket.command(5, "login", { name: "alice" }); await tick();
+    assert.equal(socket.sent.at(-1).ok, false); assert.equal(constructed, 2, "login is not a second construct");
   } finally { control.close(); globalThis.WebSocket = Original; }
 });
 

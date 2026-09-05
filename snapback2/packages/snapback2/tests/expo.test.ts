@@ -168,7 +168,7 @@ test("emitted web declarations exclude node modules and SQLite test exports", as
   await assert.rejects(readFile(new URL("../dist/store/sqlite-node.d.ts", import.meta.url)), { code: "ENOENT" });
 });
 
-test("compiler source imports no Expo fetch or filesystem modules covered by its path stubs", async () => {
+test("compiler source imports no Expo fetch or filesystem modules", async () => {
   const ts = createRequire(import.meta.url)("typescript");
   const root = new URL("../../compiler/src/", import.meta.url).pathname;
   const sources = ts.sys.readDirectory(root, [".ts", ".tsx", ".js", ".jsx"]);
@@ -214,7 +214,7 @@ test("built witness conformance opens two connections and reports WAL plus every
     assert.equal(result.journalMode, "wal");
     assert.deepEqual(result.checks, ["journal_mode readback", "BLOB 1", "BLOB 1048576", "BLOB 0",
       "JSON tuple key round trip", "missing row is undefined", "rollback on throw",
-      "failed COMMIT rolls back and next transaction succeeds", "late beforeCommit holds transaction", "transaction result"]);
+      "body-ended transaction rejects and next transaction succeeds", "late beforeCommit holds transaction", "transaction result"]);
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 

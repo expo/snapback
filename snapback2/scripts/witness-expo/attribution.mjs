@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { basename, resolve } from "node:path";
+export const twinSource = /evaluator\/src\/|src\/twin(?:-hydrate)?\.ts$/;
 const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 function vlq(text) {
   const output = []; let value = 0, shift = 0;
@@ -53,7 +54,7 @@ export async function attributeBundle(js, map, dist) {
       if (!inner) continue;
       const original = lookup(inner.rows, point.line, point.column);
       const path = original?.source === undefined ? "" : inner.map.sources[original.source];
-      if (/evaluator\/src\/|src\/twin(?:-hydrate)?\.ts$/.test(path)) twin += bytes;
+      if (twinSource.test(path)) twin += bytes;
     }
   }
   return { generatedJsBytes: Buffer.byteLength(js), mappedJsBytes: mapped, clientIncludingTwinJsBytes: client,

@@ -14,10 +14,10 @@ import {
   withProgress,
   type PreparedAssetSource,
 } from "./assets.js";
-import { assetBlobTarget, cachedAssetBlob, cachedAssetBytes, type AssetBlobTarget } from "./client-assets.js";
+import { assetBlobTarget, cachedAssetBlob, cachedAssetBytes, viewedAssetIds, type AssetBlobTarget } from "./client-assets.js";
 import { offlineNetworkRefusal } from "./client-offline.js";
 import { SnapbackRefusal, isSnapbackRefusal, responseRefusal, wireAssetSession } from "./client-wire.js";
-import type { AssetBytes, ByteCache } from "./store/byte-cache.js";
+import type { AssetBytes, AssetFetchOptions, ByteCache } from "./store/byte-cache.js";
 import type {
   AssetRecord,
   AssetUploadOptions,
@@ -46,6 +46,7 @@ export interface CarrierSession {
 export interface UploadHost {
   readonly url: string;
   readonly persona?: string;
+  readonly assetCache?: ByteCache;
   readonly fetchImpl: typeof globalThis.fetch;
   readonly customFetch: boolean;
   carrier?: CarrierSession;
@@ -78,22 +79,25 @@ export async function assetUrlFor(
   const records = Array.isArray(assetOrList)
     ? assetOrList
     : assetOrList == null ? [] : [assetOrList as AssetRecord];
+  const viewed = await viewedAssetIds(host.assetCache, records.map((asset) => asset.id));
+  host.ensureAuthority(authority);
+  const mintable = records.filter((asset) => !viewed.has(asset.id));
   const wantsCarrier = options.carrier === true || options.download === true;
-  if (wantsCarrier && records.some((asset) => !("duration" in asset))) {
+  if (wantsCarrier && mintable.some((asset) => !("duration" in asset))) {
     throw assetInput(host, new AssetInputError(
       "E_ASSET_CARRIER_IMAGE",
       "image asset URLs never carry a session token; fetch the URL with assetHeaders or assetBlob",
     ));
   }
   let carrier: string | undefined;
-  if (wantsCarrier && records.length > 0 && (authority.token !== undefined || host.persona !== undefined)) {
+  if (wantsCarrier && mintable.length > 0 && (authority.token !== undefined || host.persona !== undefined)) {
     carrier = await assetCarrier(host, authority);
   }
   try {
     if (Array.isArray(assetOrList)) {
-      return assetOrList.map((asset) => assetPath(host.url, asset, options.width, carrier));
+      return mintable.map((asset) => assetPath(host.url, asset, options.width, carrier));
     }
-    return assetOrList == null
+    return assetOrList == null || viewed.has((assetOrList as AssetRecord).id)
       ? undefined
       : assetPath(host.url, assetOrList as AssetRecord, options.width, carrier);
   } catch (error) {
@@ -113,7 +117,7 @@ export async function assetBlobFor(
   bytes: ByteCache | undefined,
   offline: boolean,
   url: string,
-  options: { signal?: AbortSignal },
+  options: AssetFetchOptions,
   authority: Authority,
 ): Promise<Blob> {
   let target: AssetBlobTarget;
@@ -122,15 +126,18 @@ export async function assetBlobFor(
     if (offline) throw offlineNetworkRefusal();
     const headers = host.headers(authority);
     headers.set("Accept", "*/*");
-    const response = await fetchResponse(host, url, { headers, signal: options.signal }, authority);
+    // Expo SDK 54 ignores RequestInit.cache but forwards these headers.
+    // Private owner responses also forbid storage (LLP 1012 §9).
+    headers.set("Cache-Control", "no-store");
+    const response = await fetchResponse(host, url, { headers, signal: options.signal, cache: "no-store" }, authority);
     host.validated(authority);
     return response.blob();
-  }, (refusal) => host.recordRefusal(refusal));
+  }, (refusal) => host.recordRefusal(refusal), () => host.ensureAuthority(authority), options.viewing);
 }
 
 export async function assetBytesFor(
   host: UploadHost, cache: ByteCache | undefined, offline: boolean, url: string,
-  options: { signal?: AbortSignal }, authority: Authority,
+  options: AssetFetchOptions, authority: Authority,
 ): Promise<AssetBytes> {
   let target: AssetBlobTarget;
   try { target = assetBlobTarget(host.url, url); } catch (error) { throw assetInput(host, error); }
@@ -138,12 +145,15 @@ export async function assetBytesFor(
     if (offline) throw offlineNetworkRefusal();
     const headers = host.headers(authority);
     headers.set("Accept", "*/*");
-    const response = await fetchResponse(host, url, { headers, signal: options.signal }, authority);
+    // Expo SDK 54 ignores RequestInit.cache but forwards these headers.
+    // Private owner responses also forbid storage (LLP 1012 §9).
+    headers.set("Cache-Control", "no-store");
+    const response = await fetchResponse(host, url, { headers, signal: options.signal, cache: "no-store" }, authority);
     const bytes = new Uint8Array(await response.arrayBuffer());
     host.ensureAuthority(authority);
     host.validated(authority);
     return { bytes, type: response.headers.get("Content-Type") ?? "application/octet-stream" };
-  }, (refusal) => host.recordRefusal(refusal), () => host.ensureAuthority(authority));
+  }, (refusal) => host.recordRefusal(refusal), () => host.ensureAuthority(authority), options.viewing);
 }
 
 export async function uploadPrepared(

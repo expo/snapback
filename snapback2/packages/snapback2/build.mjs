@@ -36,6 +36,7 @@ await build({
     expo: resolve(here, "src/expo.ts"),
     "expo/witness": resolve(here, "src/expo/witness.ts"),
     "react-native": resolve(here, "src/react-native.tsx"),
+    "witness-test": resolve(here, "tests/witness-exports.ts"),
   },
   outdir: dist,
   outExtension: { ".js": ".mjs" },
@@ -45,7 +46,7 @@ await build({
   minify: true,
   platform: "neutral",
   target: "es2022",
-  external: ["react", "react-native", "expo-file-system", "expo/fetch", "expo-video", "expo-sqlite", "expo-secure-store", "snapback2/client", "snapback2/react-core"],
+  external: ["react", "react-native", "expo-file-system", "expo/fetch", "expo-video", "expo-sqlite", "expo-secure-store", "snapback2/client", "snapback2/react-core", "snapback2/expo", "snapback2/react-native", "snapback2/expo/witness"],
   plugins: [externalClient],
 });
 
@@ -159,6 +160,9 @@ for (const name of ["todos", "chat"]) {
   if (name === "chat") {
     // Metro 54 does not resolve an explicit .js import to its .ts source. Build
     // the shared reducers ahead; ship their TS beside JS for generated-API types.
+    // shared/ is flattened by init; react/shared and expo/shared are the
+    // dereferenced template arms used directly by previews and qualification.
+    // All three need the JS leaves: Metro does not resolve .js imports to .ts.
     for (const directory of ["shared", "react/shared", "expo/shared"]) await build({
       entryPoints: [resolve(here, "templates/chat/shared/log.ts"), resolve(here, "templates/chat/shared/offline.ts")],
       outdir: resolve(templateDist, name, directory), format: "esm", platform: "neutral", target: "es2022",

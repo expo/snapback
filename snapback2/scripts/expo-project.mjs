@@ -30,6 +30,7 @@ export async function prepareExpoProject() {
   await run(binary, ["init", project, "--template", "chat", "--client", "expo", "--json"]);
   // This is a dedicated generated measurement/witness project, not an app the
   // user edits: refresh its frontend after rebuilding the package.
+  await cp(resolve(dist, "templates/chat/snapback"), resolve(project, "snapback"), { recursive: true });
   await cp(resolve(dist, "templates/chat/expo"), project, { recursive: true, dereference: true });
   // `init` places `shared/` only when absent; a rebuilt package must refresh it too, or the
   // project mixes revisions (fresh screens over stale reducers).

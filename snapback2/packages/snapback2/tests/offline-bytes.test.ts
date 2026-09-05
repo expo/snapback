@@ -274,6 +274,7 @@ test("assetBlob reads the byte cache before the network, fills it after a fetch,
 });
 
 test("a view-once row renders once: its bytes are never cached, a restart refuses them, and the held answer omits the row", async () => {
+  const viewing = {};
   const root = await tempRoot();
   try {
     let assetFetches = 0;
@@ -302,12 +303,12 @@ test("a view-once row renders once: its bytes are never cached, a restart refuse
     await client.query(api.messages.thread, { conversationId: "c1", c: null });
     const urlA = (await client.assetUrl(photo(A) as any, { width: 8 }))!;
     const urlB = (await client.assetUrl(photo(B) as any, { width: 8 }))!;
-    assert.equal((await client.assetBlob(urlB)).size, 4, "the first view renders");
+    assert.equal((await client.assetBlob(urlB, { viewing })).size, 4, "the first view renders");
     assert.equal(assetFetches, 1);
     const status = await client.assetCache!.status();
     assert.deepEqual(status.entries, [], "view-once bytes are never cached");
     assert.deepEqual(status.viewed, [{ table: "messages", id: "m2" }]);
-    assert.equal((await client.assetBlob(urlB)).size, 4, "the viewing instance keeps rendering what it showed");
+    assert.equal((await client.assetBlob(urlB, { viewing })).size, 4, "the viewing instance keeps rendering what it showed");
     assert.equal(assetFetches, 1);
     await client.assetBlob(urlA);
     assert.equal(assetFetches, 2);

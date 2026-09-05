@@ -19,7 +19,7 @@ use std::thread;
 use std::time::Duration;
 use tiny_http::{Header, Method, Request, Response, Server, StatusCode};
 
-const DEV_CORS_ALLOWED_HEADERS: &str = "Authorization, Content-Type, X-Snapback-As";
+const DEV_CORS_ALLOWED_HEADERS: &str = "Authorization, Content-Type, X-Snapback-As, Cache-Control";
 const MAX_HTTP_WORKERS: usize = 64;
 const RESERVED_CONTROL_WORKERS: usize = 4;
 const RESERVED_JSON_WORKERS: usize = 8;

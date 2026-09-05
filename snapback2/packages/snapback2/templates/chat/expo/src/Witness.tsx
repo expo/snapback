@@ -1,24 +1,14 @@
 import { twinLastDecline } from "snapback2/expo/witness";
 import React, { useEffect, useState } from "react";
-import { PixelRatio, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { api, SnapbackRefusal, type AssetRecord, type ImageAsset, type RangeStore, type SnapbackClient, type Subscription } from "snapback2/client";
 import { createExpoClient, expoSqliteStore, expoSqliteDriver, SnapbackProvider } from "snapback2/expo";
-import { AssetImage, useAssetFile } from "snapback2/react-native";
+import { MediaView, type Media } from "./MediaView";
 import { witnessControl, runSqliteDriverConformance, type WitnessHooks } from "snapback2/expo/witness";
 import { chatOffline } from "../shared/offline.js";
 import { searchHeld, threadBubbles } from "../shared/log.js";
 import { configuration, persist, databaseState, markerSwap, listFiles, DATABASE } from "./witness-state";
 import { Chat } from "./Chat";
-
-interface Media { asset: ImageAsset; loaded: boolean; uri?: string; resolve(value: unknown): void }
-function MediaView({ media }: { media: Media }) {
-  const uri = useAssetFile(media.asset, { width: 64 * PixelRatio.get() });
-  useEffect(() => { media.uri = uri; }, [media, uri]);
-  return <AssetImage asset={media.asset} width={64} testID="witness-media" onLoad={() => {
-    media.loaded = true; media.uri = uri;
-    media.resolve({ loaded: true, uri: uri ?? "memory" });
-  }} onRefusal={(error) => media.resolve({ loaded: false, refusal: error.envelope })} />;
-}
 
 export default function Witness({ url, controlUrl }: { url: string; controlUrl: string }) {
   const [client, setClient] = useState<SnapbackClient>();
@@ -27,7 +17,7 @@ export default function Witness({ url, controlUrl }: { url: string; controlUrl: 
   useEffect(() => {
     let live: SnapbackClient | undefined, store: RangeStore | undefined, selected = "conversation-1";
     let subscriptions: Subscription<unknown>[] = [];
-    let currentMedia: Media | undefined;
+    let currentMedia: Media | undefined, viewNonce = 0;
     const dispose = async () => { for (const sub of subscriptions) sub.close(); subscriptions = []; await live?.close(); live = undefined; setClient(undefined); };
     const construct = async (hooks: WitnessHooks, args: Record<string, unknown>) => {
       await dispose();
@@ -48,7 +38,7 @@ export default function Witness({ url, controlUrl }: { url: string; controlUrl: 
         rewrite: "send fault(none), then construct", guide: "offline",
       }); };
       live = createExpoClient({ url, as: config.name, startOffline: config.offline,
-        offline: { ...chatOffline, store: () => store!, viewOnce: (table, row) => table === "messages" && config.once.includes(String(row.id)) } });
+        offline: { ...chatOffline, store: () => store!, viewOnce: (table, row) => chatOffline.viewOnce(table, row) || (table === "messages" && config.once.includes(String(row.id))) } });
       try { await live.ready; setClient(live); setError(undefined); return live; }
       catch (error) { setError(String(error)); throw error; }
     };
@@ -78,22 +68,27 @@ export default function Witness({ url, controlUrl }: { url: string; controlUrl: 
         });
         if (verb === "view") {
           const config = await configuration();
-          const asset = config.assets.find((asset) => asset.id === args.assetId) as ImageAsset | undefined;
+          const asset = config.assets.find((asset) => asset.id === args.assetId) as AssetRecord | undefined;
           if (!asset) throw new Error("unknown witness asset");
-          if (args.hidden === true) {
-            // Mount a fresh viewing instance: do not manufacture a non-render by
-            // hiding the component. A viewed photo must supply no native source.
-            const probe: Media = { asset, loaded: false, resolve() {} };
-            currentMedia = probe; setMedia(probe);
-            await new Promise((resolve) => setTimeout(resolve, 1_000));
-            return { loaded: probe.loaded, uri: probe.uri, viewed: await client.assetCache?.viewed(asset.id),
-              files: listFiles().filter((file) => file.includes(asset.id)) };
-          }
-          return new Promise((resolve) => {
-            currentMedia = { asset, loaded: false, resolve };
+          const once = Boolean(await client.assetCache?.viewOnce(asset.id) || await client.assetCache?.viewed(asset.id));
+          const result = await new Promise<Record<string, unknown>>((resolve) => {
+            currentMedia = { asset, nonce: ++viewNonce, once, hidden: args.hidden === true,
+              loaded: false, resolve: (value) => resolve(value as Record<string, unknown>) };
             setMedia(currentMedia);
           });
+          if (!once && result.loaded === true) {
+            // The ordinary source may first load from memory; acknowledge only
+            // the materialized file, after the bridge's directory reports it.
+            const deadline = Date.now() + 10_000;
+            while (!listFiles().includes(String(result.uri))) {
+              if (Date.now() >= deadline) throw new Error("ordinary media did not materialize a file");
+              await new Promise((resolve) => setTimeout(resolve, 10));
+            }
+          }
+          return { ...result, viewed: await client.assetCache?.viewed(asset.id),
+            files: listFiles().filter((file) => file.includes(asset.id)) };
         }
+
         if (verb === "swap") {
           if (args.phase !== "pre" && args.phase !== "post") throw new Error("swap needs pre or post");
           await markerSwap(store, args.phase, await client.outbox.entries());
@@ -127,6 +122,6 @@ export default function Witness({ url, controlUrl }: { url: string; controlUrl: 
     }, controlUrl);
     return () => { control.close(); void dispose(); };
   }, [url, controlUrl]);
-  return client ? <SnapbackProvider client={client}><View style={{ flex: 1 }}><Chat />{media ? <MediaView key={media.asset.id} media={media} /> : null}</View></SnapbackProvider>
+  return client ? <SnapbackProvider client={client}><View style={{ flex: 1 }}><Chat />{media ? <MediaView key={media.nonce} media={media} /> : null}</View></SnapbackProvider>
     : <Text>{error ?? "Witness connected; waiting for construct."}</Text>;
 }
