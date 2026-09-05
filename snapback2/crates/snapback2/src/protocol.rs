@@ -212,6 +212,21 @@ impl Refusal {
         .with_site("--as system")
     }
 
+    /// A schedule target reached through `/api/*`: the same seat refusal a job gets, on the
+    /// schedule page, naming the schedule that owns the program.
+    pub fn schedule_target(op: &str, schedule: &str) -> Self {
+        Self::new(
+            "E_OPERATOR_REQUIRED",
+            "operator",
+            format!("{op} is the target of schedule {schedule}: the owner runs it when the timer fires"),
+            format!(
+                "let the schedule fire it, or `run {op} --as system`; a client-callable version is a second program"
+            ),
+            "schedule",
+        )
+        .with_site(format!("schedule {schedule}"))
+    }
+
     pub fn from_successor(error: &SuccessorRefusal) -> Self {
         let mut refusal = Self::new(
             &error.code,

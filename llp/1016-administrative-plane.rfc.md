@@ -1,11 +1,12 @@
 # LLP 1016: The administrative plane — jobs, schedules, and the operator seat for bounded data programs
 
 **Type:** RFC
-**Status:** Draft — revision (a) with the five decisions ruled and an
-implementer and dates (§9, §10); **in implementation** since 2026-09-05
-(author ruling: implement now, ahead of the loop bar; the trade is in
-`rules/NOT-DOING.md` §Moves). Binds lane by lane as each lands
-(`rules/RULES.md`: only implemented specs bind).
+**Status:** Implemented (2026-09-05) — every lane of §10 and its fix rounds
+are on `main` (§12 close-out); the operator seat, jobs, narrowing at
+application, schedules, and the rehearsal runtime bind. Still owed to LLP
+1015: hosted token admission on the operator routes (H0) and the MCP rows
+(H3). Author ruling 2026-09-05: implement now, ahead of the loop bar; the
+trade is in `rules/NOT-DOING.md` §Moves.
 **Systems:** `snapback2/packages/compiler` (the Quarry front end: `job`,
 `chunk`, `schedule … at`, `schedule … every`; the `system` rule word
 removed), `snapback2/crates/snapback2-core` (the operator execution
@@ -22,7 +23,7 @@ session, on a criticism made by a separate reviewing session the same day;
 revision (a) written at the author's instruction to take the panel's
 feedback into account with the orchestrator's own judgement
 **Date:** 2026-09-05
-**Revised:** 2026-09-05 (J2 — implementation record for D5 in §12: schedules, `_timers`, firing, the template's server-side expiry, the digest fixture); 2026-09-05 (a.1 — the five decisions ruled, the author having delegated them to the orchestrator; implementer, lanes, and dates written; the loop-bar sequencing overridden by author ruling); 2026-09-05 (a — the panel folded: one authority model for the
+**Revised:** 2026-09-05 (close-out — Status → Implemented; §12 program record); 2026-09-05 (J2 fix round 1 — coalescing narrowed to queued/running, ceiling envelopes, the owner's clock at install and reset, schedule targets out of the client map, declared schedules listed at zero, the declaration site out of the hash; §12); 2026-09-05 (J2 — implementation record for D5 in §12: schedules, `_timers`, firing, the template's server-side expiry, the digest fixture); 2026-09-05 (a.1 — the five decisions ruled, the author having delegated them to the orchestrator; implementer, lanes, and dates written; the loop-bar sequencing overridden by author ruling); 2026-09-05 (a — the panel folded: one authority model for the
 system principal and the `system` rule word deleted; the job is a sequence
 of sweeps over immutable keys under a captured upper key, with cursor and
 progress as certified engine writes; narrowing moved to successor
@@ -415,7 +416,7 @@ schedule dailyDigest every 24h:
   settlement are one commit, a crash re-fires, and the **occurrence
   identity** — `(schedule, row_id, at)` for a row timer, `(schedule,
   period_start)` for a period — makes the second attempt a no-op: a job
-  target already enqueued or running for that occurrence coalesces; a
+  target already `queued` or `running` for that occurrence coalesces (a `done`, `cancelled`, or `parked` one is history: a fresh job is enqueued under an attempt-suffixed id); a
   mutation target is expected to be idempotent on its arguments, and the
   reference page says so beside the recipe.
 - **Re-arm and missed periods.** A period timer re-arms to `period_start +
@@ -1529,3 +1530,138 @@ on the ticketed node-shim hang in `real-owner.test.ts` that the orchestrator
 killed by PID after fourteen minutes; both files pass alone on the final tree
 (18/18, 18.4 s). The idle-cadence proof printed 1.79 s; the slowest real ad hoc
 compile round trip printed 66 ms.
+**Fix round 1** (2026-09-05, Claude, after two blind reviews — grok and
+Muse, both LAND WITH FIXES with no blocking defect). What changed:
+
+- **Coalescing is exactly D5's.** A job target coalesces only onto a job
+  still `queued` or `running` for the occurrence; a `done`, `cancelled`, or
+  `parked` job is history, and the firing enqueues a fresh job under the next
+  attempt suffix (`job_timer_<digest>`, then `_1`, `_2`, …), so the id stays
+  deterministic per attempt and a deadline cleared and restored after its
+  job finished runs again. Proof:
+  `tests/timers.rs::a_finished_job_for_the_occurrence_does_not_coalesce_a_restored_deadline`
+  (done → fresh `_1`; queued → coalesced; cancelled → fresh `_2`; every
+  firing ledgered). `guide/schedule.md` says so.
+- **A ceiling settles under its own code.** `fire_timer`'s rejection envelope
+  matched `E_FANOUT | E_STEPS | E_TRACE_SUBSET` against a function that spelled
+  them `bound`, so a ceiling filed as family `input`, code `bound`. The
+  envelope now takes `RuntimeError::code()` for the three ceilings and
+  `jobs::rejection_family` for every family — the mapping `/api/mutation` and
+  a parked chunk use (`E_CONSTRAINT` is therefore family `schema`, as J1b
+  ruled). Certification is static, so the proof injects the fault after the
+  target ran, in the style of the crash hook:
+  `engine/timers.rs::a_ceiling_rejection_settles_with_its_real_code_and_the_bound_family`.
+- **The two-site `_timers` invariant is written down and pinned.** The
+  target's certificate carries one `_timers` site from `Checker::analyze`
+  (index maintenance inside the target's own writes) and one from
+  `timers::certify` (settlement); a self-purging target needs both. The
+  comment is at the push site in `timers.rs`, and
+  `tests/timers.rs::firing_runs_the_target…` asserts `writes["_timers"] == 2`
+  for the purge, so a future dedup breaks loudly instead of settling every
+  purge `rejected`.
+- **The owner's clock at install and reset.** `apply_successor_at(next, now)`
+  and `reset_and_seed_at(rows, now)` thread the caller's clock into
+  `store_timers::reconcile`; the writer passes `self.now()` (the dev clock)
+  for `/control/apply`, the file watcher, `/control/migrate` (its
+  `released_at`), and `/control/reset`. Before, a successor that added an
+  `every` schedule after a clock advance armed it from wall time — already
+  due with a large `skipped`. Proof: core
+  `tests/timers.rs::successor_and_reset_anchor_period_timers_to_the_supplied_clock_not_wall_time`
+  (anchor at 2100-01-01, not due, reset re-arms from the later sample) and,
+  through the real binary, the tail of
+  `owner_cases/timers.rs::schedules_fire_on_the_dev_clock…` (clock four
+  days ahead; a `weeklyDigest every 48h` applied through `/control/apply`
+  lands at owner-now + 48 h; `/control/reset` re-arms `dailyDigest` at
+  owner-now + 24 h).
+- **Schedule targets are system programs.** The compiler removes every
+  schedule target from the client operation map beside jobs and bindings
+  (`project.ts`; `purgeMessage` leaves the chat template's `api.d.ts`), and
+  the owner refuses one on `/api/*` with `E_OPERATOR_REQUIRED` (family
+  `operator`, page `schedule`, site `schedule <name>`, the rewrite naming
+  `run <target> --as system` and the second-program rule); the operator seat
+  is untouched. Proof: `quarry-schedule-checks.ts` (fixture and chat
+  `apiDts`), `owner_cases/timers.rs` (`/api/mutation admin.purgeMessage`
+  refused, `run … --as system` commits, the schedule still fires it).
+- **`GET /control/timers` lists every declared schedule.** `timers_summary`
+  takes the generation's schedules and reports a schedule with no `_timers`
+  row as `{ count: 0, due: 0, next_at: null }`. Proof:
+  `tests/timers.rs::timers_summary_lists_every_declared_schedule_with_a_zero_row_count`;
+  the owner test sees `expireMessage` at zero on a fresh boot and after the
+  purge.
+- **The declaration site is not identity.** `Schedule.site` is
+  `#[serde(default, skip_serializing)]`: it stays on the schedule for
+  `E_SCHEDULE_*` sites and the rejection envelope, never reaches the schema
+  hash, the wire schema, or `_meta.schema_json`; the evaluator's
+  `normalizeSchedule` drops it the same way. A blank line above a `schedule`
+  is not a successor. Proof:
+  `tests/timers.rs::a_schedule_declaration_site_is_diagnostics_not_identity`
+  (equal generation, schema, and program hashes; the site still on the
+  certify error).
+- **The catalog and the rewrite.** The three `E_SCHEDULE_*` rows in
+  `families.source.json` carry `site` and `guide: "schedule"` like the job
+  rows; the "give each schedule a unique name" rewrite is on the duplicate
+  path only, in the compiler as in the engine (proof: refusal case 9's
+  rewrite; the engine duplicate in
+  `tests/timers.rs::certification_refuses…`).
+- **The writer's 64-per-turn bound, through the owner.** A re-armed period
+  (older, its target the digest job) and seventy row timers come due in one
+  clock advance: the turn fires the period (enqueuing the job) and 63 rows,
+  runs the job's chunk, and the next turn fires the remaining 7 — the ledger
+  shows exactly 63 expiry commits before the chunk's `seq` and 7 after
+  (`owner_cases/timers.rs`).
+- **The `test` receipt's `schedules` block** is `attach_schedule_receipt`
+  (`test.rs`), fail-closed when the owner's status is unreachable or carries
+  no `schedules` object; unit-tested in `test_unit.rs`, and
+  `test_verb.rs::chat_template_receipt…` asserts the chat receipt reports
+  `fired >= 1`, `rejected == 0`.
+- **Also tested now:** changed-trigger drop-and-repopulate in `reconcile`
+  (row → period → row, same occurrence ids; `tests/timers.rs`), an
+  asset-column predicate refused `E_SCHEDULE_TARGET` naming the column
+  (compiler case 15), and the engine-side duplicate schedule name.
+- **Records.** LLP 1012 §5 and its `offline` derived-check sentence now name
+  the schedule instead of `purgeExpired`; the stale stand-in comment in
+  `scripts/witness-web.mjs` is reworded. **On the wire, `CommitRecord.schedule`
+  is `#[serde(flatten)] Option<Firing>`:** `trace <seq>` shows
+  `commit.schedule` as the schedule's *name* with the firing's other fields
+  (`timer`, `target`, `occurrence`, `rowId`, `periodStart`, `scheduledAt`,
+  `firedAt`, `latenessMs`, `skipped`, `outcome`) beside it, while the
+  `_commits.schedule` column holds the whole firing as one JSON document
+  (deviation 3 above). Watch item, not changed: `tests/successor.rs` is at
+  1,499 lines; the next lane touching it splits first.
+
+### Program close-out (2026-09-05)
+
+Commissioned at 04:30 and closed at 10:40 the same day. What is on `main`,
+in landing order: J1a `294ced838` (the seat, system visibility, the `system`
+word deleted, narrowing at application) with fix rounds `6e28b13ef` and
+`e5be770c6`; J1b `5f670fe5d` (jobs, the driver, the turn policy, `run`/`trace`
+surfaces, the `fork` and `persona create` adapters deleted) with fix round
+`87c8707de`; J3 `eed01f625` (the rehearsal runtime, `POST /control/run`) with
+fix round `60c93e5ae`; J2 `d3fdceb3c` (schedules) with fix round `91e9e76ed`;
+the closing round `900789adf`; LLP 1000 `f5a8b148b`. Every landing was reviewed
+blind by grok-4.6 and Muse Spark on a read-only capsule of the commit — twelve
+reviews in all — and every verdict was LAND or LAND WITH FIXES with no
+blocking defect; the items the last rounds left are
+`issues/20260905-snapback2-llp-1016-residuals.md`. Implementers: codex
+`gpt-6-astra` (xhigh) for J1a, its two fix rounds, and J1b; Claude Fable 5.1
+general-purpose agents for J2, J3, every later fix round, and the closing
+round, after codex's usage limit ended its J2 and J3 runs at eighteen and
+sixteen minutes (their partial trees were kept and corrected, not discarded).
+
+Measured, debug build on macOS arm64 unless stated (`snapback2/metrics/
+jobs.jsonl`, `timers.jsonl`): a 100,000-row fill in 11.5 s (budget 60 s);
+client mutation p95 during a fill 1.25× idle (budget 2×); one 100-row turn
+with 50 live queries rerun **26.4 ms in the release profile** — 2.6 ms commit,
+23.8 ms reruns — against the 30 ms budget (218 ms in debug, recorded beside
+it); row-timer lateness under 240 concurrent sends p99 56 ms (budget 1.5 s);
+the digest sweep over 1,000 profiles 0.023 s (budget 5 s); `--dry-run`
+overhead on a 105 MB store 0.113 s (budget 3 s); `check` on the chat fixture
+with two jobs 0.49–0.57 s (budget 1 s). Gate on the final tree: nextest
+603/603 (four media-helper watchdog tests flake at 5 s under a loaded gate and
+pass alone), compiler 321/321, evaluator 162/162, package tests 301/301.
+
+Three things the reviews found that the design had not: the pre-J1a wire
+silently minted a `dev:system` persona for `X-Snapback-As: system`; a string
+`"true"` in `dryRun` ran a job for real on two routes; and the schedule's
+first customer, `purgeMessage`, was still a client-callable mutation — the
+deleted client trigger under another name. All three are fixed and tested.

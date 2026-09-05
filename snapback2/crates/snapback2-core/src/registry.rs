@@ -539,12 +539,12 @@ impl Runtime {
                 if row_count != 0 {
                     return Err(SuccessorRefusal::destructive(MigrationPlan::default()));
                 }
-                persist_generation(&mut store, &generation).map_err(store_refusal)?;
+                persist_generation(&mut store, &generation, unix_millis()).map_err(store_refusal)?;
             }
             Some(hash) if hash == generation_hash => {
                 // Additive owner metadata can appear after the generation was
                 // first installed (for example the outbox declaration binding).
-                persist_generation(&mut store, &generation).map_err(store_refusal)?;
+                persist_generation(&mut store, &generation, unix_millis()).map_err(store_refusal)?;
             }
             Some(hash) => {
                 let current_json = store
@@ -572,7 +572,8 @@ impl Runtime {
                     None,
                 )
                 .map_err(store_refusal)?;
-                persist_generation_transaction(&transaction, &generation).map_err(store_refusal)?;
+                persist_generation_transaction(&transaction, &generation, unix_millis())
+                    .map_err(store_refusal)?;
                 transaction
                     .commit()
                     .map_err(|error| store_refusal(RuntimeError::Sql(error)))?;
@@ -895,10 +896,20 @@ impl Runtime {
         &mut self,
         rows: &[(String, Value)],
     ) -> Result<ResetResult, RuntimeError> {
+        self.reset_and_seed_at(rows, unix_millis())
+    }
+
+    /// Reset at the caller's clock sample: a reset store is a fresh install, and its period
+    /// timers are anchored to `now` — the owner's dev clock, never bare wall time.
+    pub fn reset_and_seed_at(
+        &mut self,
+        rows: &[(String, Value)],
+        now: i64,
+    ) -> Result<ResetResult, RuntimeError> {
         let (program, certificate) = seed_program(&self.generation.schema, rows)?;
-        let (execution, asset_ids) =
-            self.engine
-                .reset_and_seed(&program, &certificate, unix_millis())?;
+        let (execution, asset_ids) = self
+            .engine
+            .reset_and_seed(&program, &certificate, now)?;
         self.rerun_all_subscriptions();
         Ok(ResetResult {
             seq: execution.seq,
@@ -909,6 +920,17 @@ impl Runtime {
     pub fn apply_successor(
         &mut self,
         next: Generation,
+    ) -> Result<SuccessorReport, SuccessorRefusal> {
+        self.apply_successor_at(next, unix_millis())
+    }
+
+    // @ref LLP 1016#d5--schedules-row-timers-and-periods-on-the-owners-clock — a period timer a
+    // successor installs is anchored to the caller's clock sample, the clock the writer fires
+    // against; wall time under an advanced dev clock would arm it already due with a large skip.
+    pub fn apply_successor_at(
+        &mut self,
+        next: Generation,
+        now: i64,
     ) -> Result<SuccessorReport, SuccessorRefusal> {
         crate::engine::validate_schema(&next.schema)
             .map_err(|errors| store_refusal(first_schema_error(errors)))?;
@@ -936,7 +958,7 @@ impl Runtime {
         )
         .map_err(store_refusal)?;
         crate::store_jobs::reconcile(&transaction, &next, true).map_err(store_refusal)?;
-        persist_generation_transaction(&transaction, &next).map_err(store_refusal)?;
+        persist_generation_transaction(&transaction, &next, now).map_err(store_refusal)?;
         transaction
             .commit()
             .map_err(|error| store_refusal(RuntimeError::Sql(error)))?;
@@ -980,7 +1002,7 @@ impl Runtime {
             Some(predecessor_maintain_ids),
         )?;
         crate::store_jobs::reconcile(&transaction, &next, true)?;
-        persist_generation_transaction(&transaction, &next)?;
+        persist_generation_transaction(&transaction, &next, released_at)?;
         transaction.commit()?;
         self.engine.set_schema(next.schema.clone())?;
         self.generation = next;
@@ -1148,16 +1170,24 @@ fn seed_program(
     Ok((program, certificate))
 }
 
-fn persist_generation(store: &mut Store, generation: &Generation) -> Result<(), RuntimeError> {
+fn persist_generation(
+    store: &mut Store,
+    generation: &Generation,
+    now: i64,
+) -> Result<(), RuntimeError> {
     let transaction = store.conn.transaction()?;
-    persist_generation_transaction(&transaction, generation)?;
+    persist_generation_transaction(&transaction, generation, now)?;
     transaction.commit()?;
     Ok(())
 }
 
+/// `now` is the clock a newly installed period timer is anchored to: the owner passes its own
+/// (dev-clock) sample through `apply_successor_at`; a fresh open uses wall time, which is the
+/// owner's clock at process start.
 fn persist_generation_transaction(
     transaction: &rusqlite::Transaction<'_>,
     generation: &Generation,
+    now: i64,
 ) -> Result<(), RuntimeError> {
     let previous: Option<String> = transaction
         .query_row("SELECT value FROM _meta WHERE key='schema_json'", [], |r| {
@@ -1169,7 +1199,7 @@ fn persist_generation_transaction(
         .map(crate::store_jobs::decode::<Schema>)
         .transpose()?
         .unwrap_or_default();
-    crate::store_timers::reconcile(transaction, &previous, &generation.schema, unix_millis())?;
+    crate::store_timers::reconcile(transaction, &previous, &generation.schema, now)?;
     let schema_json = serde_json::to_string(&generation.schema)
         .map_err(|error| RuntimeError::Serialization(error.to_string()))?;
     let effects_json = serde_json::to_string(&generation.effects)

@@ -180,20 +180,11 @@ pub fn run(args: &[String]) -> ExitCode {
     }
     let mut receipt = TestReceipt::new(compiled.generation.hash(), commands, checks);
     if !compiled.generation.schema().schedules.is_empty() {
-        match client::control(&isolated.info, "GET", "/control/status", json!({})) {
-            Ok(response) if response.status < 400 => {
-                receipt.schedules = Some(response.body["schedules"].clone())
-            }
-            _ => {
-                receipt.verdict = "fail".into();
-                receipt.checks.push(CheckReceipt::fail(
-                    "schedule receipt",
-                    "schedule",
-                    0,
-                    json!({"message":"owner schedule counts unavailable"}),
-                ));
-            }
-        }
+        let status = client::control(&isolated.info, "GET", "/control/status", json!({}))
+            .ok()
+            .filter(|response| response.status < 400)
+            .map(|response| response.body);
+        attach_schedule_receipt(&mut receipt, status);
     }
     isolated.stop();
     finish(&root, stamp, receipt, json_output)
@@ -1305,6 +1296,26 @@ fn usage() -> ExitCode {
         "usage: snapback2 test [--blocked reason] [--journeys-only] [--derived-only] [--json]"
     );
     ExitCode::from(2)
+}
+
+// @ref LLP 1016#d5--schedules-row-timers-and-periods-on-the-owners-clock — a project that
+// declares a schedule owes the receipt its `{ fired, late, rejected }`; an owner that cannot
+// report them fails the receipt closed rather than shipping a receipt with no schedule line.
+fn attach_schedule_receipt(receipt: &mut TestReceipt, status: Option<Json>) {
+    match status {
+        Some(status) if status.get("schedules").is_some_and(Json::is_object) => {
+            receipt.schedules = Some(status["schedules"].clone());
+        }
+        _ => {
+            receipt.verdict = "fail".into();
+            receipt.checks.push(CheckReceipt::fail(
+                "schedule receipt",
+                "schedule",
+                0,
+                json!({"message":"owner schedule counts unavailable"}),
+            ));
+        }
+    }
 }
 
 #[cfg(test)]

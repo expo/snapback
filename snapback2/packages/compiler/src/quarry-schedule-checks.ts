@@ -22,6 +22,8 @@ export function registerScheduleChecks(test: Test, frontend: string): void {
     assert(dailyBinding?.kind === "Query" && Object.keys(dailyBinding.args).length === 0, JSON.stringify(dailyBinding));
     assert(expire.site.startsWith("snapback/admin.q:") && daily.site.startsWith("snapback/admin.q:"), "schedule sites");
     assert(!lowered.apiDts.includes("_timerBinding_") && !lowered.apiDts.includes("digestSweep"), "a binding or job leaked into the client API");
+    assert(!lowered.apiDts.includes("purgeMessage"), "a schedule target leaked into the client API");
+    assert(!lowered.project.schema.schedules!.some((s) => s.target === "admin.purgeMessage" && !lowered.project.programs.some((p) => p.name === s.target)), "the target stays a program of the project");
     assert(Object.values(expire).every((v) => typeof v !== "object" || v === expire.trigger), "the schema carries scalars and the trigger only");
     const checked = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema, undefined, lowered.project.effects);
     assert(checked.every((c) => c.certificate), JSON.stringify(checked));
@@ -36,7 +38,8 @@ export function registerScheduleChecks(test: Test, frontend: string): void {
     const push = readFileSync(resolve(fixture, "snapback/push.ts"), "utf8");
     const admin = readFileSync(resolve(fixture, "snapback/admin.q"), "utf8");
     const base = admin.split("\nschedule dailyDigest")[0]! + "\n\nmutation purgeMessage(id: messages):\n  update messages[id] { body: null, expiresAt: null }\n  return null\n\nquery peek(id: messages):\n  return messages[id]\n\n";
-    const cases: Array<[string, string]> = [
+    const withPhoto = schema.replace("expiresAt: time ?", "expiresAt: time ?\n  photo: image <=5000000 ?");
+    const cases: Array<[string, string, { rewrite?: string; message?: string; schema?: string }?]> = [
       ["schedule expire on messages at .body:\n  purgeMessage(.id)\n", "E_SCHEDULE_COLUMN"],
       ["schedule expire on profiles at .expiresAt:\n  purgeMessage(.id)\n", "E_SCHEDULE_COLUMN"],
       ["schedule expire on messages at .expiresAt:\n  missing(.id)\n", "E_SCHEDULE_TARGET"],
@@ -45,15 +48,16 @@ export function registerScheduleChecks(test: Test, frontend: string): void {
       ["schedule expire on messages at .expiresAt:\n  purgeMessage\n", "E_SCHEDULE_TARGET"],
       ["schedule expire on messages at .expiresAt if .body:\n  purgeMessage(.id)\n", "E_SCHEDULE_TARGET"],
       ["schedule daily every 24h:\n  purgeMessage\n", "E_SCHEDULE_TARGET"],
-      ["schedule daily every 24h:\n  digestSweep\n\nschedule daily every 1h:\n  digestSweep\n", "E_SCHEDULE_TARGET"],
+      ["schedule daily every 24h:\n  digestSweep\n\nschedule daily every 1h:\n  digestSweep\n", "E_SCHEDULE_TARGET", { rewrite: "-- give each schedule a unique name" }],
+      ["schedule expire on messages at .expiresAt if .photo:\n  purgeMessage(.id)\n", "E_SCHEDULE_TARGET", { message: "asset column", schema: withPhoto }],
       ["schedule daily every 30s:\n  digestSweep\n", "E_SCHEDULE_DURATION"],
       ["schedule daily every 0m:\n  digestSweep\n", "E_SCHEDULE_DURATION"],
       ["schedule daily every 1.5h:\n  digestSweep\n", "E_SCHEDULE_DURATION"],
       ["schedule daily at 09:00:\n  digestSweep\n", "E_SCHEDULE_DURATION"],
       ["schedule daily every 24h:\n  digestSweep\n\nschedule expire on messages at .expiresAt:\n  purgeMessage(.id)\n", "ok"],
     ];
-    for (const [source, code] of cases) {
-      await withProject({ "snapback/schema.q": schema, "snapback/push.ts": push, "snapback/admin.q": base + source }, async (root) => {
+    for (const [source, code, expect] of cases) {
+      await withProject({ "snapback/schema.q": expect?.schema ?? schema, "snapback/push.ts": push, "snapback/admin.q": base + source }, async (root) => {
         const lowered = await lowerProject(root);
         if (code === "ok") {
           assert(lowered.ok, `${source}: ${JSON.stringify(lowered)}`);
@@ -64,6 +68,8 @@ export function registerScheduleChecks(test: Test, frontend: string): void {
         assert(first.code === code, `${source}: expected ${code}, got ${JSON.stringify(lowered.diagnostics)}`);
         assert(first.family === "schedule" && first.guide === "schedule", JSON.stringify(first));
         assert(first.site.startsWith("snapback/admin.q:") && first.rewrite.length > 0 && first.message.length > 0, JSON.stringify(first));
+        if (expect?.rewrite !== undefined) assert(first.rewrite === expect.rewrite, `${source}: rewrite ${JSON.stringify(first.rewrite)}`);
+        if (expect?.message !== undefined) assert(first.message.includes(expect.message), `${source}: message ${JSON.stringify(first.message)}`);
       });
     }
   });
@@ -79,6 +85,7 @@ export function registerScheduleChecks(test: Test, frontend: string): void {
     const schedules = chat.project.schema.schedules ?? [];
     assert(schedules.length === 1 && schedules[0]!.target === "deliveries.purgeMessage", JSON.stringify(schedules));
     assert(!chat.apiDts.includes("purgeExpired"), "a client-invoked purge survived");
+    assert(!chat.apiDts.includes("purgeMessage") && chat.apiDts.includes("unsend"), "the schedule target is not a client operation; unsend still is");
     assert(chat.apiDts.includes("expiresAt"), "post lost its expiry argument");
     const quarry = readFileSync(resolve(frontend, "../snapback2/guide/quarry.md"), "utf8");
     assert(!/E_QUARRY_UNSUPPORTED[^.]*`schedule`/.test(quarry) && quarry.includes("guide schedule"), "quarry.md still refuses schedule");

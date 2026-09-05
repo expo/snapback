@@ -296,7 +296,7 @@ async function main() {
     await page.evaluate(() => window.__snapback.online());
     await page.fill("section[aria-label=Search] input", "expires while offline");
     await page.waitForFunction(() => document.querySelectorAll("section[aria-label=Search] .hits li").length === 0, null, { timeout: 10_000 });
-    step("a message revoked while offline is gone from the local search after the resume (unsend stands in for purgeExpired)");
+    step("a message revoked while offline is gone from the local search after the resume (unsend writes the same log shape as the owner's expiry schedule, LLP 1016 D5)");
 
     // Two tabs: the second gets E_OFFLINE_LOCK.
     const second = await context.newPage();

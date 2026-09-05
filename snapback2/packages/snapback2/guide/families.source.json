@@ -559,18 +559,24 @@
   {
     "family": "schedule",
     "code": "E_SCHEDULE_COLUMN",
+    "site": "schedule <name> on <table> at .<column>",
+    "guide": "schedule",
     "wrong": "```q\nschedule expireMessage on messages at .body:\n  purgeMessage(.id)\n```",
     "right": "```q\n-- schema.q: expiresAt: time ?\nschedule expireMessage on messages at .expiresAt:\n  purgeMessage(.id)\n```"
   },
   {
     "family": "schedule",
     "code": "E_SCHEDULE_TARGET",
+    "site": "schedule <name> ...: <target>",
+    "guide": "schedule",
     "wrong": "```q\nschedule expireMessage on messages at .expiresAt:\n  thread(.id)\n```",
     "right": "```q\nschedule expireMessage on messages at .expiresAt:\n  purgeMessage(.id)\n```"
   },
   {
     "family": "schedule",
     "code": "E_SCHEDULE_DURATION",
+    "site": "schedule <name> every <duration>",
+    "guide": "schedule",
     "wrong": "```q\nschedule dailyDigest every 30s:\n  digestSweep\n```",
     "right": "```q\nschedule dailyDigest every 24h:\n  digestSweep\n```"
   }

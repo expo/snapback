@@ -18,7 +18,7 @@ impl State {
         }
         let reset = self
             .runtime_mut()
-            .reset_and_seed(&rows)
+            .reset_and_seed_at(&rows, now)
             .map_err(|error| Refusal::from_runtime(&error))?;
         let runtime_ids = self
             .live

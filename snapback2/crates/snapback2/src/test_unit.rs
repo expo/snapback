@@ -230,3 +230,50 @@ fn silence_probe_rejects_a_heartbeat_followed_by_stream_close() {
     assert!(error.delivery.is_none());
     server.join().unwrap();
 }
+
+// @ref LLP 1016#d5--schedules-row-timers-and-periods-on-the-owners-clock — the receipt's
+// `schedules` block is the owner's counts verbatim, and its absence is a failed receipt.
+#[test]
+fn schedule_receipt_copies_the_owner_counts_and_fails_closed_without_them() {
+    let fresh = || {
+        TestReceipt::new(
+            "g".into(),
+            vec![],
+            vec![CheckReceipt::pass("journey", "journey", 0, json!({}))],
+        )
+    };
+    let mut copied = fresh();
+    attach_schedule_receipt(
+        &mut copied,
+        Some(json!({"schedules": {"fired": 2, "late": 1, "rejected": 0}, "jobs": {}})),
+    );
+    assert_eq!(copied.verdict, "pass");
+    assert_eq!(
+        copied.schedules,
+        Some(json!({"fired": 2, "late": 1, "rejected": 0}))
+    );
+    assert_eq!(copied.checks.len(), 1);
+    for status in [
+        None,
+        Some(json!({"jobs": {}})),
+        Some(json!({"schedules": null})),
+    ] {
+        let mut closed = fresh();
+        attach_schedule_receipt(&mut closed, status.clone());
+        assert_eq!(closed.verdict, "fail", "{status:?}");
+        assert!(closed.schedules.is_none());
+        let failed = closed.checks.last().unwrap();
+        assert_eq!(
+            (
+                failed.name.as_str(),
+                failed.kind.as_str(),
+                failed.verdict.as_str()
+            ),
+            ("schedule receipt", "schedule", "fail")
+        );
+        assert_eq!(
+            failed.detail["message"],
+            "owner schedule counts unavailable"
+        );
+    }
+}

@@ -30,10 +30,21 @@ impl State {
         Ok(())
     }
     pub(super) fn timers(&self) -> Result<Json, Refusal> {
-        self.runtime()
+        let runtime = self.runtime();
+        runtime
             .store()
-            .timers_summary(self.now())
+            .timers_summary(self.now(), &runtime.generation().schema().schedules)
             .map_err(|e| Refusal::from_runtime(&e))
+    }
+    // @ref LLP 1016#d5--schedules-row-timers-and-periods-on-the-owners-clock — a schedule target
+    // is a system program: the timer runs it as the owner and `/api/*` refuses it like a job;
+    // the operator seat (`run <target> --as system`) never comes through here.
+    pub(super) fn refuse_schedule_target(&self, op: &str) -> Result<(), Refusal> {
+        let schedules = &self.runtime().generation().schema().schedules;
+        match schedules.iter().find(|schedule| schedule.target == op) {
+            Some(schedule) => Err(Refusal::schedule_target(op, &schedule.name)),
+            None => Ok(()),
+        }
     }
     pub(super) fn timer_trace(&self, id: &str) -> Result<Json, Refusal> {
         let trace = self

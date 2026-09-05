@@ -403,10 +403,12 @@ in the same landing. Every panelist agreed on rules 1–3; rule 4's two
 behaviors are exactly the two words.
 
 **Disappearing messages** are the server refusing expired content plus the
-client purging on sync: `purgeExpired` deletes the body and writes the
-`expired` log rows; rule 3 hides it on the drain and rule 1 proves it. The
-server's own refusal is the deletion itself. No new mechanism, one recipe
-dependency (§12).
+owner's schedule purging at the deadline (amended 2026-09-05, LLP 1016 D5 lane
+J2: `schedule expireMessage on messages at .expiresAt: purgeMessage(.id)`
+deletes the body and writes the `expired` log rows as the owner, §3; the
+client-side `purgeExpired` was never built); rule 3 hides it on the drain and
+rule 1 proves it. The server's own refusal is the deletion itself. No new
+mechanism, no recipe dependency (§12).
 
 **The fence.** `maxOfflineAge` is a client option, `offline: { fenceDays: 7 }`,
 bounded to 1..30; a bad value is a `TypeError` like every other bad option.
@@ -922,8 +924,9 @@ journey("offline send and search", async ({ as }) => {
 
 Plus one derived check, `offline`: every query the seed journeys ran replays
 byte-equal from the store after `offline()`. Expiry is `offline(); clock(ttl
-+ 1); online();` then the recipe's `purgeExpired` and a resume, and the held
-log no longer contains the body. `snapback2 why <query>` gains one line from
++ 1); online();` then the owner's `expireMessage` schedule firing
+`purgeMessage` (LLP 1016 D5, amended 2026-09-05; there is no client
+`purgeExpired`) and a resume, and the held log no longer contains the body. `snapback2 why <query>` gains one line from
 certificate facts it already has: "offline: N uniform ranges held as
 coverage, M primary point reads; a held answer replays exactly".
 

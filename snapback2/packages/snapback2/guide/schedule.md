@@ -22,13 +22,17 @@ background turn: the target runs (a job target is enqueued, not finished), the
 timer settles or re-arms, and the ledger row `{ kind: "schedule", schedule,
 occurrence, outcome }` commits with them. Occurrence identity is
 `(schedule, row_id, at)` for a row timer and `(schedule, period_start)` for a
-period: a job already queued or running for that occurrence coalesces, and a
-mutation target must be idempotent on its arguments. A period re-arms to
+period: a job still queued or running for that occurrence coalesces (a done,
+cancelled, or parked one is history, and the firing enqueues a fresh job), and
+a mutation target must be idempotent on its arguments. A period re-arms to
 `period_start + duration`; after an outage it fires once, for the latest missed
 period, and records `skipped`. A rejected target settles with its refusal and
 does not re-fire (row) or re-arms anyway (period). `if predicate` is evaluated
 against the row at fire time; false settles silently. A row already past its
-`expiresAt` when written fires on the next turn.
+`expiresAt` when written fires on the next turn. A target is a system program:
+like a job it leaves the client operation map and `/api/*` refuses it
+(`E_OPERATOR_REQUIRED`); `run <target> --as system` runs it by hand, and a
+client-callable version is a second program.
 
 Development: `POST /control/clock` past a timer fires it on the next background
 turn; a journey writes `expiresAt`, calls `tick(ms)`, and asserts the purge.

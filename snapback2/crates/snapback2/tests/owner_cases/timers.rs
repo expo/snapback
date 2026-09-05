@@ -100,6 +100,12 @@ fn cli(root: &Path, compiler: &Path, args: &[&str]) -> (i32, Vec<Value>) {
         .collect();
     (output.status.code().unwrap(), lines)
 }
+fn wall_now() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as i64
+}
 fn owner_now(port: u16, secret: &str) -> i64 {
     let clock = control(
         port,
@@ -108,12 +114,7 @@ fn owner_now(port: u16, secret: &str) -> i64 {
         "/control/clock",
         json!({"advanceMs": 0}),
     );
-    let offset = clock["offsetMs"].as_i64().unwrap();
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_millis() as i64
-        + offset
+    wall_now() + clock["offsetMs"].as_i64().unwrap()
 }
 fn per_schedule<'a>(timers: &'a Value, name: &str) -> Option<&'a Value> {
     timers["schedules"]
@@ -155,7 +156,12 @@ fn thread_ids(port: u16) -> Vec<String> {
 fn schedules_fire_on_the_dev_clock_with_clients_closed_and_the_digest_fires_once_after_a_gap() {
     let (root, compiler, mut owner, port, secret) = boot_schedules();
     let timers = control(port, &secret, "GET", "/control/timers", json!({}));
-    assert_eq!(timers["schedules"].as_array().unwrap().len(), 1, "{timers}");
+    assert_eq!(timers["schedules"].as_array().unwrap().len(), 2, "{timers}");
+    assert_eq!(
+        per_schedule(&timers, "expireMessage").unwrap(),
+        &json!({"schedule": "expireMessage", "count": 0, "due": 0, "next_at": null}),
+        "a declared schedule with no due row is listed at zero: {timers}"
+    );
     let daily = per_schedule(&timers, "dailyDigest").unwrap();
     assert_eq!(
         (daily["count"].as_i64(), daily["due"].as_i64()),
@@ -197,9 +203,7 @@ fn schedules_fire_on_the_dev_clock_with_clients_closed_and_the_digest_fires_once
     );
     wait_for(Duration::from_secs(5), || {
         let timers = control(port, &secret, "GET", "/control/timers", json!({}));
-        per_schedule(&timers, "expireMessage")
-            .is_none()
-            .then_some(())
+        (per_schedule(&timers, "expireMessage").unwrap()["count"] == 0).then_some(())
     });
     assert!(
         !thread_ids(port).contains(&message),
@@ -306,6 +310,199 @@ fn schedules_fire_on_the_dev_clock_with_clients_closed_and_the_digest_fires_once
     assert_eq!(
         status["effects"]["queued"], 4,
         "one effect per profile per digest: {status}"
+    );
+
+    // A schedule target is a system program: `/api/*` refuses it like a job, on the schedule
+    // page and naming the schedule; the operator seat runs it by hand; the schedule keeps it.
+    let by_hand = send_expiring(port, "purge me by hand", owner_now(port, &secret) + HOUR);
+    let refused = request(
+        port,
+        "POST",
+        "/api/mutation",
+        &[("X-Snapback-As", "alice")],
+        json!({"op":"admin.purgeMessage","args":{"messageId":by_hand}}),
+    );
+    assert!(refused.status >= 400, "{}", refused.body);
+    assert_eq!(
+        refused.body["code"], "E_OPERATOR_REQUIRED",
+        "{}",
+        refused.body
+    );
+    assert_eq!(refused.body["family"], "operator");
+    assert_eq!(refused.body["guide"], "schedule");
+    assert_eq!(refused.body["site"], "schedule expireMessage");
+    assert!(
+        thread_ids(port).contains(&by_hand),
+        "a refused purge changed nothing"
+    );
+    let (code, purged) = cli(
+        &root,
+        &compiler,
+        &[
+            "run",
+            "admin.purgeMessage",
+            &json!({"messageId": by_hand}).to_string(),
+            "--as",
+            "system",
+        ],
+    );
+    assert_eq!(code, 0, "{purged:?}");
+    assert_eq!(purged[0]["state"], "committed", "{purged:?}");
+    assert!(!thread_ids(port).contains(&by_hand));
+    let timers = control(port, &secret, "GET", "/control/timers", json!({}));
+    assert_eq!(
+        per_schedule(&timers, "expireMessage").unwrap()["count"],
+        0,
+        "the by-hand purge cancelled its own timer: {timers}"
+    );
+
+    // The writer's 64-per-turn bound, observed through the owner. The re-armed period (older,
+    // its target the digest job) and seventy row timers come due together: the turn fires the
+    // period first (enqueuing the job), then 63 rows, runs the job's one chunk, and the next
+    // turn fires the remaining 7 — so exactly 63 expiry commits precede the chunk's and 7 follow.
+    let earlier: Vec<String> = control(port, &secret, "GET", "/control/jobs", json!({}))["jobs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|job| job["id"].as_str().unwrap().to_owned())
+        .collect();
+    assert_eq!(earlier.len(), 2);
+    let fired_before =
+        control(port, &secret, "GET", "/control/status", json!({}))["schedules"]["fired"]
+            .as_u64()
+            .unwrap();
+    let deadline = period_start + 4 * DAY + HOUR;
+    let ids: Vec<String> = (0..70)
+        .map(|n| send_expiring(port, &format!("batch {n}"), deadline))
+        .collect();
+    let timers = control(port, &secret, "GET", "/control/timers", json!({}));
+    assert_eq!(
+        per_schedule(&timers, "expireMessage").unwrap()["count"],
+        70,
+        "{timers}"
+    );
+    assert_eq!(
+        timers["next"]["id"], period_id,
+        "the period is the oldest due timer: {timers}"
+    );
+    let advance = deadline + 1_000 - owner_now(port, &secret);
+    control(
+        port,
+        &secret,
+        "POST",
+        "/control/clock",
+        json!({"advanceMs": advance}),
+    );
+    wait_for(Duration::from_secs(20), || {
+        let status = control(port, &secret, "GET", "/control/status", json!({}));
+        (status["schedules"]["fired"].as_u64() == Some(fired_before + 71)
+            && status["jobs"] == json!({"parked": 0, "queued": 0, "running": 0}))
+        .then_some(())
+    });
+    let jobs = control(port, &secret, "GET", "/control/jobs", json!({}));
+    let batch_job = jobs["jobs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|job| !earlier.contains(&job["id"].as_str().unwrap().to_owned()))
+        .unwrap_or_else(|| panic!("{jobs}"))["id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let detail = control(
+        port,
+        &secret,
+        "GET",
+        &format!("/control/job/{batch_job}"),
+        json!({}),
+    );
+    let chunk_seq = detail["commits"][0]["seq"].as_u64().unwrap();
+    let commits = control(
+        port,
+        &secret,
+        "GET",
+        "/control/logs?since=0&limit=500",
+        json!({}),
+    )["commits"]
+        .clone();
+    let batch: Vec<u64> = commits
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|commit| {
+            commit["kind"] == "schedule"
+                && commit["schedule"] == "expireMessage"
+                && commit["rowId"]
+                    .as_str()
+                    .is_some_and(|id| ids.iter().any(|sent| sent == id))
+        })
+        .map(|commit| commit["seq"].as_u64().unwrap())
+        .collect();
+    assert_eq!(batch.len(), 70, "{commits}");
+    assert_eq!(
+        batch.iter().filter(|seq| **seq < chunk_seq).count(),
+        63,
+        "63 expiry firings share the period's turn before the chunk at {chunk_seq}: {batch:?}"
+    );
+    assert_eq!(batch.iter().filter(|seq| **seq > chunk_seq).count(), 7);
+
+    // A successor installed under the advanced clock anchors its new period to the owner's
+    // clock, and so does a reset: neither reads wall time.
+    let wall = wall_now();
+    let owner_before = owner_now(port, &secret);
+    assert!(
+        owner_before > wall + 4 * DAY,
+        "the dev clock is days ahead of wall time"
+    );
+    let admin = fs::read_to_string(root.join("snapback/admin.q")).unwrap();
+    fs::write(
+        root.join("snapback/admin.q"),
+        format!("{admin}\nschedule weeklyDigest every 48h:\n  digestSweep\n"),
+    )
+    .unwrap();
+    let checked = Command::new(env!("CARGO_BIN_EXE_snapback2"))
+        .args(["check", "--json", "--project"])
+        .arg(&root)
+        .env("SNAPBACK2_COMPILER", &compiler)
+        .output()
+        .unwrap();
+    assert!(
+        checked.status.success(),
+        "{}",
+        String::from_utf8_lossy(&checked.stdout)
+    );
+    let project: Value =
+        serde_json::from_slice(&fs::read(root.join(".snapback/build/project.json")).unwrap())
+            .unwrap();
+    let applied = request(
+        port,
+        "POST",
+        "/control/apply",
+        &[("X-Snapback-Control", &secret)],
+        json!({"project": project}),
+    );
+    assert_eq!(applied.status, 200, "{}", applied.body);
+    let timers = control(port, &secret, "GET", "/control/timers", json!({}));
+    let weekly_at = per_schedule(&timers, "weeklyDigest").unwrap()["next_at"]
+        .as_i64()
+        .unwrap();
+    assert!(
+        weekly_at >= owner_before + 2 * DAY && weekly_at <= owner_now(port, &secret) + 2 * DAY,
+        "the new period is anchored to the owner's clock, not wall time: {timers}"
+    );
+    control(port, &secret, "POST", "/control/reset", json!({}));
+    let timers = control(port, &secret, "GET", "/control/timers", json!({}));
+    assert_eq!(
+        per_schedule(&timers, "expireMessage").unwrap()["count"],
+        0,
+        "{timers}"
+    );
+    let daily_at = per_schedule(&timers, "dailyDigest").unwrap()["next_at"]
+        .as_i64()
+        .unwrap();
+    assert!(
+        daily_at >= owner_before + DAY && daily_at <= owner_now(port, &secret) + DAY,
+        "reset re-arms on the owner's clock: {timers}"
     );
     stop_owner(port, &secret, &mut owner, "schedules test");
     fs::remove_dir_all(root).unwrap();
