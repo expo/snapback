@@ -7,14 +7,14 @@ import type {
   ObjectField,
   ProgramDecl,
   ScalarType,
-  ShapeDecl,
   ShapeField,
   Site,
   Stmt,
   TableCatalog,
 } from "./ast";
-import { selectIndex } from "./catalog";
+import { idLiteral, keyCompatible, selectIndex } from "./catalog";
 import { refuse, typeError, unsupported } from "./diagnostics";
+import { quarryExpression, quarryWriteWithoutField } from "./print";
 import { narrowThenBindings } from "./narrowing";
 import { header, siteMark, typeCode } from "./schema";
 
@@ -109,8 +109,20 @@ function emitBody(body: Stmt[], env: Environment, writer: Writer, completion?: C
 function emitStatement(statement: Stmt, env: Environment, writer: Writer, completion?: Completion, discard = false): void {
   if (statement.kind === "bind") {
     if (statement.names.length > 1) {
-      if (statement.names.length !== 2 || statement.value.kind !== "call" || statement.value.name !== "sorted" || statement.value.args.length !== 2) {
-        refuse(statement.site, "tuple bindings are supported only as (a, b) = sorted(a, b)");
+      if (statement.names.length !== 2 || statement.value.kind !== "call" || !["sorted", "divmod"].includes(statement.value.name) || statement.value.args.length !== 2) {
+        refuse(statement.site, "tuple bindings take exactly two names and sorted(a, b) or divmod(a, b)", "(q, r) = divmod(a, b)", true);
+      }
+      if (statement.value.name === "divmod") {
+        const value = emitCall(statement.value, env, writer);
+        const local = temporary("divmod", statement.site);
+        writer.statement(`const ${local} = ${value.code};`, statement.site);
+        for (const [offset, field] of ["quotient", "remainder"].entries()) {
+          const name = statement.names[offset]!;
+          writer.statement(`const ${name} = ${local}.${field};`, statement.site);
+          env.bindings.set(name, { code: name, type: (value.type as ObjectType).fields.get(field)! });
+        }
+        finishNull(completion, writer, statement.site);
+        return;
       }
       const left = emitExpr(statement.value.args[0]!, env, writer);
       const right = emitExpr(statement.value.args[1]!, env, writer);
@@ -188,6 +200,10 @@ function emitStatement(statement: Stmt, env: Environment, writer: Writer, comple
   }
   if (statement.kind === "for") {
     const domain = emitExpr(statement.domain, env, writer);
+    if (domain.type.kind === "list" && domain.type.optional) {
+      refuse(statement.domain.site, "for cannot iterate an optional list; supply an empty default or narrow it with if",
+        `${quarryExpression(statement.domain)} ?? []`, true);
+    }
     const itemType = domain.type.kind === "page"
       ? { kind: "row", table: domain.type.table, nullable: false } satisfies ValueType
       : domain.type.kind === "sequence" || domain.type.kind === "list" ? domain.type.item : { kind: "unknown" } satisfies ValueType;
@@ -335,7 +351,14 @@ function emitBinary(expr: Extract<Expr, { kind: "binary" }>, env: Environment, w
     requireBoolean(expr.right, right.type, expr.op);
     return { code: `(${left.code} ${expr.op === "and" ? "&&" : "||"} ${right.code})`, type: boolType() };
   }
-  if (expr.op === "??") return { code: `(${left.code} ?? ${right.code})`, type: nonNullable(left.type) };
+  if (expr.op === "??") {
+    if ((left.type.kind === "ref" || left.type.kind === "id")
+      && !keyCompatible(expr.right, isScalar(right.type) ? right.type : undefined, left.type)) {
+      typeError(expr.right.site, `Id fallback requires ${valueTypeName(left.type)}; got ${valueTypeName(right.type)}`,
+        "use a non-empty text literal or a reference to the same table");
+    }
+    return { code: `(${left.code} ?? ${right.code})`, type: nonNullable(left.type) };
+  }
   const operator = expr.op === "=" ? "===" : expr.op === "!=" ? "!==" : expr.op;
   // @ref LLP 1010#a2-total-equality--program-only — program equality is total;
   // only ordered comparison requires present operands.
@@ -359,7 +382,8 @@ function emitBinary(expr: Extract<Expr, { kind: "binary" }>, env: Environment, w
         `compare ${simpleExpr(branded === left.type ? expr.left : expr.right)} with the same ${brandedName(branded)} type`,
       );
     }
-    if (!branded && isScalar(left.type) && isScalar(right.type) && !compatible(left.type, right.type)) {
+    if (!branded && isScalar(left.type) && isScalar(right.type) && !compatible(left.type, right.type)
+      && !(idLiteral(expr.left, right.type) || idLiteral(expr.right, left.type))) {
       refuse(expr.site, `cannot compare nominal ${left.type.kind} with ${right.type.kind}; use a principal value only with viewer`);
     }
     if (["<", "<=", ">", ">="].includes(expr.op) && (isNullableValue(left.type) || isNullableValue(right.type))) {
@@ -372,6 +396,18 @@ function emitBinary(expr: Extract<Expr, { kind: "binary" }>, env: Environment, w
       );
     }
     return { code: `(${left.code} ${operator} ${right.code})`, type: boolType() };
+  }
+  // @ref LLP 1010#time-arithmetic — nominal clock arithmetic differs from ordinary integer arithmetic.
+  if (left.type.kind === "time" || right.type.kind === "time") {
+    const present = !isNullableValue(left.type) && !isNullableValue(right.type);
+    const difference = expr.op === "-" && left.type.kind === "time" && right.type.kind === "time";
+    const offset = (expr.op === "+" || expr.op === "-") && left.type.kind === "time" && right.type.kind === "int"
+      || expr.op === "+" && left.type.kind === "int" && right.type.kind === "time";
+    if (!present || (!difference && !offset) || fractionalNumericLiteral(expr.left) || fractionalNumericLiteral(expr.right)) {
+      typeError(expr.site, `time arithmetic does not admit ${valueTypeName(left.type)} ${expr.op} ${valueTypeName(right.type)}`,
+        "time - time yields int milliseconds; time + int, time - int, and int + time yield time; use divmod(time, int) for epoch milliseconds");
+    }
+    return { code: `(${left.code} ${expr.op} ${right.code})`, type: { kind: difference ? "int" : "time", optional: false } };
   }
   refuseFractionalInt(expr, left.type, right.type);
   const branded = brandedType(left.type) ?? brandedType(right.type);
@@ -497,13 +533,14 @@ function emitCall(expr: Extract<Expr, { kind: "call" }>, env: Environment, write
     if (args.length !== 2) typeError(expr.site, `divmod(a, b) requires exactly 2 arguments; received ${args.length}`, "use divmod(amount, integerDivisor)");
     const numerator = args[0]!;
     const divisor = args[1]!;
-    if (!numericAmountType(numerator.type)) {
-      typeError(expr.args[0]!.site, `divmod's first argument must be int, decimal, or money; received ${valueTypeName(numerator.type)}`, "use an int, decimal, or money numerator");
+    // @ref LLP 1010#time-arithmetic — epoch milliseconds split into int parts; a time divisor is invalid.
+    if (!numericAmountType(numerator.type) && !(numerator.type.kind === "time" && !numerator.type.optional)) {
+      typeError(expr.args[0]!.site, `divmod's first argument must be int, time, decimal, or money; received ${valueTypeName(numerator.type)}`, "use a present int, time, decimal, or money numerator");
     }
-    if (divisor.type.kind !== "int" || fractionalNumericLiteral(expr.args[1]!)) {
+    if (divisor.type.kind !== "int" || divisor.type.optional || fractionalNumericLiteral(expr.args[1]!)) {
       typeError(expr.args[1]!.site, "divmod's divisor must be an int", "use an integer expression or integer literal as the divisor");
     }
-    const resultType = numerator.type as ScalarType;
+    const resultType: ScalarType = numerator.type.kind === "time" ? { kind: "int", optional: false } : numerator.type as ScalarType;
     return {
       code: `divmod(${numerator.code}, ${divisor.code})`,
       type: { kind: "object", fields: new Map([["quotient", resultType], ["remainder", resultType]]), nullable: false },
@@ -648,14 +685,14 @@ function emitMerge(expr: MergeExpr, env: Environment, writer: Writer): Emitted {
       const expected = column === "id"
         ? { kind: "ref", table: expr.table, optional: false } satisfies ScalarType
         : info.columns.get(column);
-      if (actual && expected && !compatible(actual, expected)) {
+      if (actual && expected && !keyCompatible(value, actual, expected)) {
         typeError(lane.site, `merge lane key ${position + 1} is ${valueTypeName(actual)}; ${expr.table}.${index.name}.${column} is ${valueTypeName(expected)}`, `use a ${valueTypeName(expected)} expression in this lane position`);
       }
     });
     selectIndex(
       env.catalog,
       expr.table,
-      lane.prefix.map((value) => ({ value, site: value.site })),
+      lane.prefix.map((value, i) => ({ value, column: lane.columns?.[i], site: value.site })),
       "range",
       expr.index,
       (value) => inferExpr(value, nested),
@@ -833,9 +870,7 @@ function emitWrite(expr: Extract<Expr, { kind: "write" }>, env: Environment, wri
     : expr.fields;
   const usesFocal = writeFields.some((field) => field.value && mentionsFocal(field.value));
   if (!usesFocal && expr.op !== "upsert") {
-    const fields = writeFields.some((f) => f.value && containsCoalesce(f.value))
-      ? emitEvaluatedFields(writeFields, env, writer, info.columns)
-      : emitFields(writeFields, env, writer, info.columns);
+    const fields = emitFields(writeFields, env, writer, info.columns);
     writer.statement(`db.${expr.op}(${expr.table}, ${key.code}, { ${fields.join(", ")} });`, expr.site);
     return writeResult(expr, key.code, resultUsed, writer);
   }
@@ -1008,70 +1043,6 @@ function validateAddressedKeyFields(expr: Extract<Expr, { kind: "write" }>, inde
       quarryWriteWithoutField(expr, field),
     );
   }
-}
-
-function quarryWriteWithoutField(expr: Extract<Expr, { kind: "write" }>, removed: ObjectField): string {
-  const key = expr.op === "insert" ? "" : `[${expr.keys.map(quarryKeyPart).join(", ")}]`;
-  const fields = expr.op === "delete" ? "" : ` { ${expr.fields.filter((field) => field !== removed).map(quarryObjectField).join(", ")} }`;
-  return `${expr.op} ${expr.table}${key}${fields}`;
-}
-
-function quarryKeyPart(part: KeyPart): string {
-  return `${part.column ? `${part.column} = ` : ""}${quarryExpression(part.value)}`;
-}
-
-function quarryObjectField(field: ObjectField): string {
-  return field.value ? `${field.name}: ${quarryExpression(field.value)}` : field.name;
-}
-
-export function quarryExpression(expr: Expr): string {
-  if (expr.kind === "name") return expr.name;
-  if (expr.kind === "focal") return ".";
-  if (expr.kind === "literal") return JSON.stringify(expr.value);
-  if (expr.kind === "array") return `[${expr.items.map(quarryExpression).join(", ")}]`;
-  if (expr.kind === "object") return `{ ${expr.fields.map(quarryObjectField).join(", ")} }`;
-  if (expr.kind === "unary") return `${expr.op} (${quarryExpression(expr.value)})`;
-  if (expr.kind === "binary") return `(${quarryExpression(expr.left)} ${expr.op} ${quarryExpression(expr.right)})`;
-  if (expr.kind === "member") {
-    return expr.base.kind === "focal"
-      ? `.${expr.name}`
-      : `(${quarryExpression(expr.base)}).${expr.name}`;
-  }
-  if (expr.kind === "call") return `${expr.name}(${expr.args.map(quarryExpression).join(", ")})`;
-  if (expr.kind === "read") {
-    let rendered = `${expr.table}[${expr.keys.map(quarryKeyPart).join(", ")}]`;
-    if (expr.range?.cursor) rendered += ` ${expr.range.cursorKind ?? "after"} ${quarryExpression(expr.range.cursor)}`;
-    if (expr.range) rendered += ` ${expr.range.order === "asc" ? "first" : "last"} ${expr.range.take}`;
-    if (expr.index) rendered += ` by ${expr.index}`;
-    if (expr.range?.where) rendered += ` where ${quarryExpression(expr.range.where.predicate)}`;
-    return rendered;
-  }
-  if (expr.kind === "merge") {
-    const cursor = expr.cursor ? ` ${expr.cursorKind ?? "after"} ${quarryExpression(expr.cursor)}` : "";
-    const lanes = expr.lanes.map((lane) => `  [${lane.prefix.map(quarryExpression).join(", ")}]${lane.loop ? ` for ${lane.loop.name} in ${quarryExpression(lane.loop.domain)}` : ""}`).join("\n");
-    return `merge ${expr.table}${cursor} ${expr.order === "asc" ? "first" : "last"} ${expr.take} by ${expr.index}:\n${lanes}`;
-  }
-  if (expr.kind === "exists" || expr.kind === "created") return `${expr.kind} ${quarryExpression(expr.read)}`;
-  if (expr.kind === "aggregate") return `#${expr.table}[${expr.keys.map(quarryKeyPart).join(", ")}]`;
-  if (expr.kind === "assert") return `(${quarryExpression(expr.value)})! else ${expr.code}`;
-  if (expr.kind === "shapeUse") return `(${quarryExpression(expr.base)}) ${expr.name}`;
-  if (expr.kind === "shape") {
-    if (expr.authoredName) return `(${quarryExpression(expr.base)}) ${expr.authoredName}`;
-    const fields = (expr.authoredFields ?? expr.fields).map((field) => field.kind === "spread"
-      ? "*"
-      : field.kind === "namedSpread" ? `...${field.name}`
-      : field.kind === "bare" ? field.name : `${field.name}: ${quarryExpression(field.value)}`);
-    return `(${quarryExpression(expr.base)}) { ${fields.join(", ")} }`;
-  }
-  if (expr.kind === "walk") return `walk ${expr.table}[${quarryExpression(expr.seed)}] up .${expr.column} depth ${expr.depth}`;
-  return quarryWriteWithoutField(expr, { name: "", site: expr.site });
-}
-
-export function quarryShapeDeclaration(shape: ShapeDecl): string {
-  return `shape ${shape.name} = { ${shape.fields.map((field) => field.kind === "spread"
-    ? "*"
-    : field.kind === "namedSpread" ? `...${field.name}`
-      : field.kind === "bare" ? field.name : `${field.name}: ${quarryExpression(field.value)}`).join(", ")} }`;
 }
 
 function validateFieldType(
@@ -1261,7 +1232,8 @@ function keyBinding(value: Emitted): Emitted {
 }
 function compatible(left: ScalarType, right: ScalarType): boolean {
   if (left.kind === "principal" || right.kind === "principal") return left.kind === "principal" && right.kind === "principal";
-  if (left.kind === "ref" || left.kind === "id") return right.kind === "ref" || right.kind === "id";
+  if (left.kind === "ref" || left.kind === "id") return right.kind === "id"
+    || right.kind === "ref" && (left.kind === "id" || left.table === "" || right.table === "" || left.table === right.table);
   if (right.kind === "ref" || right.kind === "id") return false;
   if ((left.kind === "enum" && right.kind === "text") || (left.kind === "text" && right.kind === "enum")) return true;
   if (left.kind === "decimal" || right.kind === "decimal") {
@@ -1360,13 +1332,6 @@ function mentionsFocal(expr: Expr): boolean {
       || expr.fields.some((field) => field.value !== undefined && mentionsFocal(field.value));
   }
   return false;
-}
-
-// Patch lowering accepts scalar references; bind coalescing expressions before the write.
-function containsCoalesce(value: unknown): boolean {
-  if (value === null || typeof value !== "object") return false;
-  if ("kind" in value && value.kind === "binary" && "op" in value && value.op === "??") return true;
-  return Object.values(value).some(containsCoalesce);
 }
 
 // A schedule's binding uses the same typed expression emitter as every other Quarry program.

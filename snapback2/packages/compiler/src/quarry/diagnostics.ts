@@ -3,18 +3,18 @@ import type { Expr, QuarryCode, QuarryDiagnostic, Site } from "./ast";
 export class QuarryError extends Error {
   readonly diagnostic: QuarryDiagnostic;
 
-  constructor(site: Site, message: string, code: QuarryCode = "E_QUARRY_UNKNOWN", rewrite = "fix the named Quarry declaration", guide = guideFor(code)) {
+  constructor(site: Site, message: string, code: QuarryCode = "E_QUARRY_UNKNOWN", rewrite = message, guide = guideFor(code), executableRewrite = false) {
     const expanded = site.expandedFrom;
     const contextualMessage = expanded
       ? `${message} (from a named shape used at ${expanded.file}:${expanded.line}:${expanded.col})`
       : message;
     super(contextualMessage);
-    this.diagnostic = { ...site, code, message: contextualMessage, rewrite, guide };
+    this.diagnostic = { ...site, code, message: contextualMessage, rewrite, guide, executableRewrite };
   }
 }
 
-export function refuse(site: Site, message: string, rewrite?: string): never {
-  throw new QuarryError(site, message, "E_QUARRY_UNKNOWN", rewrite ?? "fix the named Quarry declaration");
+export function refuse(site: Site, message: string, rewrite?: string, executableRewrite = false): never {
+  throw new QuarryError(site, message, "E_QUARRY_UNKNOWN", rewrite ?? message, undefined, executableRewrite);
 }
 
 export function syntax(site: Site, message: string, rewrite = "fix this Quarry declaration and rerun snapback2 check"): never {

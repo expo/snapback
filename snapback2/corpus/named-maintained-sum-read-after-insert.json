@@ -202,7 +202,7 @@
       "balances.byOwner"
     ],
     "disclosures": [],
-    "bound_product": "balances.afterInsert take 1 = 1"
+    "bound_product": "balances.afterInsert point read on balances × 1 calls = 1"
   },
   "context": {
     "viewer": "u1",

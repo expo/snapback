@@ -1015,6 +1015,88 @@ fn add_optional_maintain_twin_case(cases: &mut Vec<CorpusCase>) {
             })),
         ],
     };
+    // Exercise the source SQLite unique probe and the maintained group with the same null tuple.
+    let mut keyed_schema = schema.clone();
+    let events = keyed_schema.tables.get_mut("events").unwrap();
+    events.indexes.insert(
+        "byBucket".to_owned(),
+        Index {
+            columns: vec!["__proto__".to_owned(), "toString".to_owned()],
+            unique: true,
+        },
+    );
+    for explicit in [false, true] {
+        let mut probe = program.clone();
+        if explicit {
+            probe.body[0] = Stmt::Insert {
+                table: "events".to_owned(),
+                row: Expr::Literal(row([
+                    ("id", id("event-optional")),
+                    ("__proto__", Value::Null),
+                    ("toString", Value::Null),
+                ])),
+            };
+        }
+        let read = |table: &str, index: &str, site: &str| Read {
+            site: site.to_owned(),
+            table: table.to_owned(),
+            index: index.to_owned(),
+            key: vec![Expr::Literal(Value::Null), Expr::Literal(Value::Null)],
+            provenance: KeyProvenance::Const,
+        };
+        probe.body[1] = Stmt::Return(Expr::Object(BTreeMap::from([
+            (
+                "group".to_owned(),
+                Expr::Get(read("counts", "byGroup", "null.count")),
+            ),
+            (
+                "row".to_owned(),
+                Expr::Get(read("events", "byBucket", "null.row")),
+            ),
+            (
+                "exists".to_owned(),
+                Expr::Exists(read("events", "byBucket", "null.exists")),
+            ),
+        ])));
+        let mut receipt = rbac_receipt(&[(
+            "counts",
+            row([
+                (
+                    "id",
+                    Value::Id(canonical_json(&vec![Value::Null, Value::Null])),
+                ),
+                ("__proto__", Value::Null),
+                ("toString", Value::Null),
+                ("value", Value::Int(0)),
+            ]),
+        )]);
+        receipt.absences.push((
+            "events".to_owned(),
+            "byBucket".to_owned(),
+            vec![Value::Null, Value::Null],
+        ));
+        let case = rbac_twin_case_with_receipt(
+            if explicit {
+                "null-key-explicit"
+            } else {
+                "null-key-omitted"
+            },
+            keyed_schema.clone(),
+            probe,
+            receipt,
+        );
+        let result = case.expected.local_result.as_ref().unwrap();
+        assert_eq!(result.field("exists"), Ok(&Value::Bool(true)));
+        assert_eq!(
+            result.field("group").unwrap().field("value"),
+            Ok(&Value::Int(1))
+        );
+        assert_eq!(
+            result.field("row").unwrap().field("id"),
+            Ok(&id("event-optional"))
+        );
+        cases.push(case);
+    }
     let aggregate_id = canonical_json(&vec![Value::Null, Value::Null]);
     cases.push(rbac_twin_case(
         "named-maintained-optional-null-group",

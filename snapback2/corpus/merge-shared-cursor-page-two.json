@@ -453,7 +453,7 @@
       "posts.byAuthorAt"
     ],
     "disclosures": [],
-    "bound_product": "merge.pages.first.a take 3 = 3"
+    "bound_product": "merge merge.pages.first: 1 lanes × (3 + 2) at merge.pages.first.a on posts = 5 + merge merge.pages.first: 1 lanes × (3 + 2) at merge.pages.first.b on posts = 5 + merge merge.pages.second: 1 lanes × (3 + 2) at merge.pages.second.a on posts = 5 + merge merge.pages.second: 1 lanes × (3 + 2) at merge.pages.second.b on posts = 5"
   },
   "context": {
     "viewer": "u1",

@@ -60,14 +60,16 @@ pub(super) fn capped_writes(schema: &Schema, body: &[Stmt], out: &mut BTreeSet<S
     for stmt in body {
         match stmt {
             Stmt::Insert { table, .. }
-            | Stmt::Update { table, .. }
             | Stmt::Upsert { table, .. }
-            | Stmt::Delete { table, .. } => {
-                if schema.table(table).is_some_and(|t| {
-                    t.constraints
-                        .iter()
-                        .any(|c| matches!(c, Constraint::Cap { .. }))
-                }) {
+            | Stmt::Update { table, .. } => {
+                use crate::certificate::WriteKind;
+                let (kind, patch) = match stmt {
+                    Stmt::Insert { .. } => (WriteKind::Insert, None),
+                    Stmt::Upsert { .. } => (WriteKind::Upsert, None),
+                    Stmt::Update { patch, .. } => (WriteKind::Update, Some(patch)),
+                    _ => unreachable!(),
+                };
+                if !crate::cap::write_caps(schema, table, kind, patch).is_empty() {
                     out.insert(table.clone());
                 }
             }

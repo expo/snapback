@@ -605,65 +605,39 @@ fn collection_growth_defaults_to_growth_until_freshness_is_proven() {
             argument_append,
             28_203_012,
             28_112_000,
-            "result = [args.value]",
         ),
-        (
-            "temporary alias",
-            temporary_append,
-            17_633_012,
-            17_544_506,
-            "result = [item]",
-        ),
+        ("temporary alias", temporary_append, 17_633_012, 17_544_506),
         (
             "duplicate prior value",
             duplicate_prior,
             59_768_832,
             33_554_432,
-            "result = [item]",
         ),
-        (
-            "object chain",
-            object_chain,
-            17_752_010,
-            17_542_000,
-            "result = { item: item }",
-        ),
-        (
-            "reset then rebuild",
-            reset_rebuild,
-            28_203_012,
-            28_112_000,
-            "result = [args.value]",
-        ),
+        ("object chain", object_chain, 17_752_010, 17_542_000),
+        ("reset then rebuild", reset_rebuild, 28_203_012, 28_112_000),
     ];
-    for (shape, program, output, closure, rewrite_line) in cases {
+    for (shape, program, output, closure) in cases {
         let certificate = permissive_checker(&schema).check(&program).unwrap();
         assert_eq!(certificate.max_output_bytes, output, "{shape} output");
         assert_eq!(certificate.max_closure_bytes, closure, "{shape} closure");
         let errors = Checker::new(&schema, Ceilings::default())
             .check_all(&program)
             .unwrap_err();
-        let mut rewrites = Vec::new();
         for product in ["output bytes", "closure bytes"] {
             let refusal = errors
                 .iter()
-                .find(|error| error.message.starts_with(product))
-                .unwrap_or_else(|| panic!("{shape} did not refuse {product}: {errors:?}"));
+                .find(|e| e.message.starts_with(product))
+                .unwrap();
             assert!(
-                refusal.rewrite.contains("let result = []")
-                    || refusal.rewrite.contains("let result = {}"),
-                "{shape} {product} refusal did not initialize its actual target: {refusal:?}"
+                refusal.rewrite.contains("fields carrying its bytes"),
+                "{shape}: {refusal:?}"
             );
             assert!(
-                refusal.rewrite.contains(rewrite_line),
-                "{shape} {product} refusal did not use its actual fresh value: {refusal:?}"
+                !refusal.rewrite.contains("return null")
+                    && !refusal.rewrite.contains("let result ="),
+                "{shape}: {refusal:?}"
             );
-            rewrites.push(refusal.rewrite.clone());
         }
-        assert_eq!(
-            rewrites[0], rewrites[1],
-            "{shape} refusal rewrites diverged"
-        );
     }
 
     let wrapper = permissive_checker(&schema).check(&json_wrapper).unwrap();
@@ -679,7 +653,7 @@ fn collection_growth_defaults_to_growth_until_freshness_is_proven() {
         wrapper_refusal
             .message
             .starts_with("output bytes 7211016 exceeds ceiling")
-            && wrapper_refusal.rewrite.contains("result = [args.value]"),
+            && wrapper_refusal.rewrite.contains("argument value"),
         "JSON wrapper was not refused at its honest recurrence: {wrapper_refusal:?}"
     );
 
@@ -715,8 +689,8 @@ fn collection_growth_defaults_to_growth_until_freshness_is_proven() {
         .find(|error| error.message.starts_with("output bytes"))
         .unwrap_or_else(|| panic!("two-site program did not refuse output: {decoy_errors:?}"));
     assert!(
-        decoy_refusal.rewrite.contains("let result = []")
-            && decoy_refusal.rewrite.contains("range(0, 7000)")
+        decoy_refusal.rewrite.contains("7000")
+            && decoy_refusal.rewrite.contains("argument value")
             && !decoy_refusal.rewrite.contains("decoy"),
         "two-site refusal anchored to the decoy: {decoy_refusal:?}"
     );

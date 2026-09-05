@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2-core` (`store`, `registry`, `live`, `identity`, `successor`, the engine, the IR)
 **Author:** Claude Fable 5 (orchestrator) — implementer: codex gpt-5.6-sol, lane A
 **Date:** 2026-08-29
-**Revised:** 2026-09-05 (LLP 1016 J2 — §1's system tables gain `_jobs` and `_timers`; LLP 1017 §1, then §2 and §3)
+**Revised:** 2026-09-05 (Clique L3 — honest bound refusals and patch-sensitive cap metering; LLP 1016 J2 — §1's system tables gain `_jobs` and `_timers`; LLP 1017 §1, then §2 and §3)
 **Related:** LLP 1000, LLP 1002 (the loop that serves this), LLP 1003 (effects
 through the outbox this spec defines), LLP 0329.014.004 §7 (runtime), LLP
 0329.014.000 §6 (execution, trace, states), LLP 0329.016 §5.6 (no silent
@@ -218,6 +218,25 @@ with the scan's own reserve instead of overwriting it. A uniform scan's fetch is
 clamped to `take + 2` like a public one; the certificate counts traced candidates
 and, after this alignment, the fetch is bounded by the same number plus the one
 probe row.
+
+**Bound refusals (Clique L3, 2026-09-05).** Each exceeded meter gets its own
+line: examined entries, index entries, rule probes, steps, heap bytes, output
+bytes, or closure bytes. Products list all contributing terms, largest first,
+with their source: ranges include `take + 2` and calls, merges include every
+lane and the lane-discovery scan, cap probes include calls and the named cap,
+and rule probes include their multiplicity. Output and closure name the
+nested collection bounds and selected field widths (closure explains peak
+retention, including intermediate collections). Branches explain the arm that
+sets each meter's maximum. A dominant merge requires a structural repair:
+smaller lane bound, smaller page, two reads (two snapshots), or a maintained
+feed. A dominant cap names the cap and a chunk size that fits the breached
+meter with other reserves unchanged, or says no positive chunk fits. Nested
+population scans keep the `maintain.count/sum` advice. Byte repairs name the
+widest nested collection and the fields carrying its bytes; they never paste
+`return null;` or replace the requested result with an unrelated collection.
+Non-uniform budget reserves name the uniform-prefix repair, not a rule-probe
+reduction. `E_BOUND`/`E_STEPS` rewrites are core-authored; the Quarry handoff
+must preserve them rather than overwrite them with a `.q` declaration.
 
 An opaque cursor is canonical base64url of the tagged, versioned encoding
 `[version, table, index, order, suffix descriptor, suffix values]`. Values keep
@@ -749,8 +768,11 @@ requires a text or optional-text field and refuses `min > max`.
 `Constraint::Cap { by, max }` holds each grouping tuple at `max` rows. One
 index-compatible grouping key treats omitted optional columns as `null` for
 inserts, group-moving updates, and successor counting. Every writer, including
-product seeds, checks it; each insert/upsert/update site reserves `max` examined
-rows and index entries per cap per call, and execution charges the rows read.
+product seeds, checks it; inserts/upserts reserve `max` examined rows and
+index entries per cap per call. Updates reserve only caps whose grouping
+columns their patch may write (unknown shapes stay conservative); execution
+charges actual probes. Only programs still carrying a cap probe exclude
+non-uniform scans for this reservation rule (LLP 1017 §2.4).
 Seed programs reserve the work but set examined/index-entry/step ceilings to
 `u64::MAX`, like write rows. Every successor cap is checked against base rows
 after migration drops; excess groups refuse `E_SUCCESSOR_CAP` with bounded

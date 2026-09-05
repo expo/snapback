@@ -5,7 +5,7 @@ import { boundedDiagnostics, diagnostic, refuse, Refusal } from "./diagnostics";
 import {
   allocateReadSite, cloneEnvironment, containsRead, enterLexicalScope,
   loopDomainMaximum, lowerArrayMethod, lowerCollectionDomain,
-  lowerDomain, lowerExpr, lowerKey, lowerOptionalPropertyChain, lowerPatch, lowerPropertyValue,
+  lowerCallValue, lowerDomain, lowerExpr, lowerKey, lowerOptionalPropertyChain, lowerPropertyValue,
   lowerSortExpression, reserveWriteSite, tableReference,
 } from "./lower/expr";
 import { knownObjectFields, nullableReadSpread, nullableSpreadRefusal, rowCollectionFields } from "./lower/object-shape";
@@ -610,10 +610,9 @@ function lowerDbStatement(method: string, call: ts.CallExpression, env: Environm
       refuse(env, "E_SCHEMA_ID_RESERVED", row, "update patches cannot contain id", "remove id from the update patch");
     }
     reserveWriteSite(env);
-    // The write call itself owns the first ordinal; its operands then lower in
-    // authored order (key before patch/row), including any nested reads.
-    const loweredKey = lowerExpr(key, env);
-    const lowered = lowerPatch(row, env);
+    // The write owns the first ordinal; operands lower in authored order (key before patch/row).
+    const { statements: keyStatements, expression: loweredKey } = lowerValue(key, env);
+    const { statements: rowStatements, expression: lowered } = lowerValue(row, env);
     if (method === "upsert" && upsertIdentityMatches(
       loweredKey,
       lowered,
@@ -627,9 +626,9 @@ function lowerDbStatement(method: string, call: ts.CallExpression, env: Environm
         "const rowId = ctx.newId(); db.upsert(table, rowId, { ...row, id: rowId })",
       );
     }
-    return method === "update"
-      ? [{ Update: { table, key: loweredKey, patch: lowered } }]
-      : [{ Upsert: { table, key: loweredKey, row: lowered } }];
+    return [...keyStatements, ...rowStatements, method === "update"
+      ? { Update: { table, key: loweredKey, patch: lowered } }
+      : { Upsert: { table, key: loweredKey, row: lowered } }];
   }
   refuse(env, "E_OPAQUE", call, `db.${method} is not part of the S1 IR`);
 }
@@ -652,24 +651,23 @@ function lowerCallbackWrite(
     refuse(env, "E_SCHEMA_ID_RESERVED", callbackResult, "update patches cannot contain id", "remove id from the update patch");
   }
   const ref = tableReference(target, env);
-  if (method === "upsert" && ref.index !== "byId") {
-    refuse(env, "E_OPAQUE", target, "upsert callbacks require a table primary key");
-  }
+  if (method === "upsert" && ref.index !== "byId") refuse(env, "E_OPAQUE", target, "upsert callbacks require a table primary key");
   const site = allocateReadSite(env);
   reserveWriteSite(env);
-  // A callback write performs one synthetic current-row read and one write at
-  // the authored call site. Lower each authored operand once after those sites,
-  // in source order, so a nested key read precedes callback-body reads.
-  const loweredKey = lowerKey(key, env);
+  // Reserve the current-row read and write first, then lower key before callback operands.
+  const statements: Stmt[] = [];
+  const loweredKey = lowerKey(key, env, (node, scope) => {
+    const lowered = lowerValue(node, scope);
+    statements.push(...lowered.statements);
+    return lowered.expression;
+  });
   const authoredKey = loweredKey[0]!;
   const keyTemporary = containsRead(authoredKey) ? temporary(env, `${singular(table)}WriteKey`) : undefined;
   const scalarKey: Expr = keyTemporary ? { Variable: keyTemporary } : authoredKey;
   const current = temporary(env, `${singular(table)}Current`);
   const callbackEnv = cloneEnvironment(env);
-  callbackEnv.substitutions.set(
-    callback.parameters[0].name.text,
-    { expression: syntheticIdentifier(env.sourceFile, current), environment: callbackEnv },
-  );
+  callbackEnv.substitutions.set(callback.parameters[0].name.text,
+    { expression: syntheticIdentifier(env.sourceFile, current), environment: callbackEnv });
   callbackEnv.variables.set(current, { provenance: "Shape", rowBinding: true });
   const lowered = ts.isBlock(callback.body)
     ? lowerBlockCallback(callback.body, callbackEnv, `${env.programName}.${singular(table)}Write`)
@@ -687,7 +685,7 @@ function lowerCallbackWrite(
       "bind the identity once and use that binding for both the upsert key and row id",
     );
   }
-  const statements: Stmt[] = keyTemporary ? [{ Let: { name: keyTemporary, value: authoredKey } }] : [];
+  if (keyTemporary) statements.push({ Let: { name: keyTemporary, value: authoredKey } });
   statements.push({ Let: {
     name: current,
     value: { Get: {
@@ -970,6 +968,7 @@ function lowerValue(node: ts.Expression, env: Environment, hint?: string): Lower
     if (ts.isIdentifier(value.expression) && ["top", "mergeByTime", "intersectById"].includes(value.expression.text)) {
       return lowerCollectionBuiltin(value.expression.text, value, env, hint);
     }
+    return lowerCallValue(value, env, lowerValue, hint);
   }
   return { statements: [], expression: lowerExpr(value, env, hint) };
 }

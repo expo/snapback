@@ -239,7 +239,7 @@
       "grants.byPrincipal"
     ],
     "disclosures": [],
-    "bound_product": "memo.doc take 1 = 1"
+    "bound_product": "memo.doc point read on docs × 1 calls = 1"
   },
   "context": {
     "viewer": "u1",

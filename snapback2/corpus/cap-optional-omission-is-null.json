@@ -205,7 +205,7 @@
       "memberships.byGroup"
     ],
     "disclosures": [],
-    "bound_product": null
+    "bound_product": "1 calls × cap 1 by group on memberships = 1"
   },
   "context": {
     "viewer": "u0",

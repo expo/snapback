@@ -1060,7 +1060,7 @@
     "disclosures": [
       "E_DISCLOSURE: count waitlist summarized into waitCounts"
     ],
-    "bound_product": "programs.maintainedWaitlistDepth.0 take 1 = 1"
+    "bound_product": "programs.maintainedWaitlistDepth.0 point read on waitCounts × 1 calls = 1"
   },
   "context": {
     "viewer": "u1",

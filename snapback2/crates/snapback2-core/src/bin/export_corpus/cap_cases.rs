@@ -83,6 +83,61 @@ pub(super) fn add_cap_cases(cases: &mut Vec<CorpusCase>) {
         None,
     ));
 
+    // Group-preserving updates need neither cap probe, in the engine and twin.
+    // A complete mutation page uses the cap bound; only fifty source rows exist.
+    let mut backfill_schema = self::schema(1000);
+    backfill_schema
+        .tables
+        .get_mut("memberships")
+        .unwrap()
+        .constraints
+        .push(Constraint::Cap {
+            by: vec!["group".into()],
+            max: 1000,
+        });
+    let mut page = scan("members.backfill");
+    page.take = Bound::Literal(1000);
+    let p = program(
+        "cap-group-preserving-backfill",
+        vec![Stmt::For {
+            binding: "m".into(),
+            domain: LoopDomain::Page(page.clone()),
+            body: vec![Stmt::Update {
+                table: "memberships".into(),
+                key: field(var("m"), "id"),
+                patch: Expr::Object(BTreeMap::from([(
+                    "role".into(),
+                    Expr::Literal(text("backfilled")),
+                )])),
+            }],
+        }],
+    );
+    let mut engine = Engine::memory(backfill_schema.clone()).unwrap();
+    for n in 0..50 {
+        engine.seed("memberships", member(n, false)).unwrap();
+    }
+    let receipt = snapshot(&mut engine, &backfill_schema, page);
+    let cert = Checker::new(&backfill_schema, Ceilings::default())
+        .check(&p)
+        .unwrap();
+    assert_eq!(cert.max_examined, 1002);
+    let execution = engine.execute(&p, &cert, context()).unwrap();
+    assert_eq!(execution.trace.examined, 50);
+    assert!(execution.trace.examined <= cert.max_examined);
+    let case = case_from_parts(
+        &p.name.clone(),
+        "cap",
+        backfill_schema,
+        p,
+        context(),
+        receipt,
+        vec![],
+        None,
+        None,
+    );
+    assert_eq!(case.expected.local_state, "predicted");
+    cases.push(case);
+
     for mode in [
         "direct",
         "binding",
