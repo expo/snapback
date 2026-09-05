@@ -15,7 +15,8 @@ table todos:
 ```
 
 Schema uses `use identity [password|guests]`, `table`, `maintain`, and `channel`.
-Tables hold columns, indexes, invariants, rules, `after insert <-
+Tables hold columns, indexes, invariants (`unique`, `immutable`, `cap N
+by cols` — table-block words, not column names), rules, `after insert <-
 exists`, and optionally `retain until-revoked` or `retain delivered-history`
 (default: the former). Absences, uniform-range holes, and tombstones evict under
 both. Only hidden rows differ: the default evicts; `delivered-history` keeps.

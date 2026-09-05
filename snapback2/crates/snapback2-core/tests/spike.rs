@@ -791,7 +791,11 @@ fn bound_products_helpers_and_structural_counts_are_checked() {
         .check(&structural_waitlist_count_program())
         .unwrap_err();
     assert_eq!(structural.code, "E_STRUCTURAL_COUNT");
-    assert!(structural.rewrite.contains("maintain.count(waitlist"));
+    assert!(
+        structural
+            .rewrite
+            .contains("maintain totals = count waitlist by")
+    );
 
     let maintained = checker(&schema)
         .check(&maintained_waitlist_count_program())
@@ -1357,7 +1361,7 @@ fn every_frozen_corpus_case_replays_its_certification_outcome() {
     }
     assert_eq!(
         cases.len(),
-        162,
+        182,
         "the complete frozen corpus must be checked"
     );
     assert!(

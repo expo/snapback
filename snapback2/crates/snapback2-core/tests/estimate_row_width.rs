@@ -767,6 +767,7 @@ struct CorpusCase {
 #[derive(serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct CorpusExpected {
+    local_state: String,
     local_result: Option<Value>,
     canonical_result: String,
 }
@@ -777,6 +778,9 @@ fn corpus_output_estimates_bound_recorded_canonical_results() {
         serde_json::from_str(include_str!("../../../corpus/manifest.json")).unwrap();
     let mut failures = Vec::new();
     for case in cases {
+        if case.expected.local_state == "certification-refused" {
+            continue;
+        }
         let Ok(certificate) = Checker::new(&case.schema, Ceilings::default()).check(&case.program)
         else {
             failures.push(format!("{}: current program refused", case.name));

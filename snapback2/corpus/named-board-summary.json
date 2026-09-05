@@ -460,6 +460,14 @@
             "Unique": {
               "index": "byConvUser"
             }
+          },
+          {
+            "Cap": {
+              "by": [
+                "conversationId"
+              ],
+              "max": 256
+            }
           }
         ],
         "retain": "until-revoked"
@@ -1016,7 +1024,7 @@
   "certificate": {
     "program": "boardSummary",
     "plan_hash": "f910d51b45797c7973c4503666a77cce16ef162be9ed5527dc7688b09bb9eecb",
-    "schema_hash": "47a69e759777a52a0c713eb045039770fa7a4f2ff09ce7e525690348d01897dd",
+    "schema_hash": "cefec87df7a1cbe21beae0d0b46e98b73b1b40cc62af182f134729368fbf52c8",
     "tables": {
       "accounts": {
         "retain": "until-revoked"
@@ -1071,8 +1079,8 @@
       }
     },
     "rule_hashes": {
-      "cardCounts.read": "6532c3b91cc26aeed3a85559ee10aa92512936a6c20be353f97a5dea3318648a",
-      "columns.read": "6532c3b91cc26aeed3a85559ee10aa92512936a6c20be353f97a5dea3318648a"
+      "cardCounts.read": "384861cc04030cfe2013303f9d1f951c6546a0016c6f4f4ca2bc79d833f4671c",
+      "columns.read": "384861cc04030cfe2013303f9d1f951c6546a0016c6f4f4ca2bc79d833f4671c"
     },
     "evaluator_version": "bounded-spike-rust-1",
     "value_model_version": "i53-codepoint-bytes-v2",
@@ -1085,7 +1093,8 @@
         "take": 20,
         "max_calls": 1,
         "rule_probes_per_candidate": 0,
-        "hoist": true
+        "hoist": true,
+        "complete": false
       },
       {
         "site": "programs.boardSummary.1",
@@ -1095,7 +1104,8 @@
         "take": 1,
         "max_calls": 20,
         "rule_probes_per_candidate": 0,
-        "hoist": false
+        "hoist": false,
+        "complete": false
       }
     ],
     "write_sites": [],
@@ -1136,7 +1146,7 @@
     "seed_write": false
   },
   "receipt": {
-    "schema_hash": "47a69e759777a52a0c713eb045039770fa7a4f2ff09ce7e525690348d01897dd",
+    "schema_hash": "cefec87df7a1cbe21beae0d0b46e98b73b1b40cc62af182f134729368fbf52c8",
     "rows": [
       {
         "table": "columns",
@@ -1194,7 +1204,7 @@
         "gte": null,
         "lt": null,
         "lte": null,
-        "rule_hash": "6532c3b91cc26aeed3a85559ee10aa92512936a6c20be353f97a5dea3318648a",
+        "rule_hash": "384861cc04030cfe2013303f9d1f951c6546a0016c6f4f4ca2bc79d833f4671c",
         "row_ids": [
           "col1"
         ],

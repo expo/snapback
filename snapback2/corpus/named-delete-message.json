@@ -460,6 +460,14 @@
             "Unique": {
               "index": "byConvUser"
             }
+          },
+          {
+            "Cap": {
+              "by": [
+                "conversationId"
+              ],
+              "max": 256
+            }
           }
         ],
         "retain": "until-revoked"
@@ -953,7 +961,7 @@
   "certificate": {
     "program": "deleteMessage",
     "plan_hash": "5edacacac896fd9d19e8abe5588a1d4a49aeabbe2a24c16c16451f59d4969630",
-    "schema_hash": "47a69e759777a52a0c713eb045039770fa7a4f2ff09ce7e525690348d01897dd",
+    "schema_hash": "cefec87df7a1cbe21beae0d0b46e98b73b1b40cc62af182f134729368fbf52c8",
     "tables": {
       "accounts": {
         "retain": "until-revoked"
@@ -1008,7 +1016,7 @@
       }
     },
     "rule_hashes": {
-      "messages.delete": "7679baf490c9c97a7033467f8c0c023384b5ce9c00d0b86944900c62af22e272"
+      "messages.delete": "2dc882afee21ed4466456e895c2b8efcece92b8a46b471c350aa263052435277"
     },
     "evaluator_version": "bounded-spike-rust-1",
     "value_model_version": "i53-codepoint-bytes-v2",
@@ -1056,7 +1064,7 @@
     "seed_write": false
   },
   "receipt": {
-    "schema_hash": "47a69e759777a52a0c713eb045039770fa7a4f2ff09ce7e525690348d01897dd",
+    "schema_hash": "cefec87df7a1cbe21beae0d0b46e98b73b1b40cc62af182f134729368fbf52c8",
     "rows": [
       {
         "table": "accounts",

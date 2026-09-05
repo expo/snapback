@@ -460,6 +460,14 @@
             "Unique": {
               "index": "byConvUser"
             }
+          },
+          {
+            "Cap": {
+              "by": [
+                "conversationId"
+              ],
+              "max": 256
+            }
           }
         ],
         "retain": "until-revoked"
@@ -954,7 +962,7 @@
   "certificate": {
     "program": "edge-bytes-canonical-serialization",
     "plan_hash": "410ad2bebcd060ce66955d4cadacf1abcb7da0429e45d4a4edfc75d8596bedcb",
-    "schema_hash": "47a69e759777a52a0c713eb045039770fa7a4f2ff09ce7e525690348d01897dd",
+    "schema_hash": "cefec87df7a1cbe21beae0d0b46e98b73b1b40cc62af182f134729368fbf52c8",
     "tables": {
       "accounts": {
         "retain": "until-revoked"
@@ -1043,7 +1051,7 @@
     "seed_write": false
   },
   "receipt": {
-    "schema_hash": "47a69e759777a52a0c713eb045039770fa7a4f2ff09ce7e525690348d01897dd",
+    "schema_hash": "cefec87df7a1cbe21beae0d0b46e98b73b1b40cc62af182f134729368fbf52c8",
     "rows": [],
     "ranges": [],
     "absences": [],

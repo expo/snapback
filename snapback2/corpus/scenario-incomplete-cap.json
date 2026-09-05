@@ -114,18 +114,20 @@
       "members:Cap([\"group\"],1)",
       "members:Unique(byId)"
     ],
-    "max_examined": 0,
-    "max_index_entries": 0,
+    "max_examined": 1,
+    "max_index_entries": 1,
     "max_rule_probes": 0,
-    "max_steps": 9,
-    "max_heap_bytes": 288,
+    "max_steps": 14,
+    "max_heap_bytes": 448,
     "max_output_bytes": 6,
     "max_closure_bytes": 0,
     "completeness": "Page",
     "prediction_sites": [],
     "read_time_granularity_ms": null,
     "halo_rows": 1,
-    "indexes_required": [],
+    "indexes_required": [
+      "members.byGroup"
+    ],
     "disclosures": [],
     "bound_product": null
   },

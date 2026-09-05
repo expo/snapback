@@ -1,6 +1,8 @@
 use super::owner_support::*;
 use super::*;
 
+mod cap;
+
 #[cfg(not(feature = "hermes"))]
 mod effects;
 #[cfg(not(feature = "hermes"))]

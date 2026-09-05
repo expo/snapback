@@ -467,18 +467,12 @@ impl<'a> Runner<'a> {
                     self.check_unique(table_name, &table, index, old, new)?
                 }
                 Constraint::Cap { by, max } => {
-                    let prefix = by
-                        .iter()
-                        .map(|field| new.field(field).cloned())
-                        .collect::<Result<Vec<_>, _>>()?;
+                    let prefix = crate::cap::group_key(new, by);
                     let increases_group = match effect {
                         Effect::Insert => true,
                         Effect::Update => {
                             let old = old.expect("update has preimage");
-                            let old_prefix = by
-                                .iter()
-                                .map(|field| old.field(field).cloned())
-                                .collect::<Result<Vec<_>, _>>()?;
+                            let old_prefix = crate::cap::group_key(old, by);
                             old_prefix != prefix
                         }
                         Effect::Read | Effect::Delete => false,
@@ -486,10 +480,7 @@ impl<'a> Runner<'a> {
                     if !increases_group {
                         continue;
                     }
-                    let (index_name, index) = table
-                        .indexes
-                        .iter()
-                        .find(|(_, index)| index.columns.starts_with(by))
+                    let (index_name, index) = crate::cap::enforcement_index(&table, by)
                         .ok_or_else(|| {
                             RuntimeError::Schema(format!(
                                 "cap on {table_name} requires an index beginning with {by:?}"
@@ -508,6 +499,7 @@ impl<'a> Runner<'a> {
                         Order::Asc,
                         *max as usize,
                     )?;
+                    self.trace.examined += rows.len() as u64;
                     self.trace.constraint_inputs.push(ConstraintTrace {
                         table: table_name.to_owned(),
                         check: format!("Cap({by:?},{max})"),
@@ -832,7 +824,8 @@ impl<'a> Runner<'a> {
                     .iter()
                     .map(|term| self.rule_term(term, old, next))
                     .collect::<Result<Vec<_>, _>>()?;
-                let pinned_inputs_digest = crate::offline::created_inputs_digest(table, index, &key);
+                let pinned_inputs_digest =
+                    crate::offline::created_inputs_digest(table, index, &key);
                 let encoded_key = canonical_json(&key);
                 let result = self.created_points.iter().any(
                     |(created_table, created_index, created_key, _)| {

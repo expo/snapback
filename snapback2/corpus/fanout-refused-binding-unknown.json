@@ -1,0 +1,274 @@
+{
+  "corpusVersion": 1,
+  "name": "fanout-refused-binding-unknown",
+  "category": "fanout",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "deliveries": {
+        "columns": {
+          "id": "Id"
+        },
+        "indexes": {
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "columns": {
+          "conversationId": "Id",
+          "group": {
+            "Optional": {
+              "Text": {
+                "max": 32
+              }
+            }
+          },
+          "id": "Id",
+          "principal": "Principal",
+          "role": {
+            "Text": {
+              "max": 32
+            }
+          }
+        },
+        "indexes": {
+          "byConversationPrincipal": {
+            "columns": [
+              "conversationId",
+              "principal",
+              "id"
+            ],
+            "unique": false
+          },
+          "byConversationRole": {
+            "columns": [
+              "conversationId",
+              "role",
+              "id"
+            ],
+            "unique": false
+          },
+          "byGroup": {
+            "columns": [
+              "group",
+              "id"
+            ],
+            "unique": false
+          },
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [
+          {
+            "Cap": {
+              "by": [
+                "conversationId"
+              ],
+              "max": 50
+            }
+          }
+        ],
+        "retain": "until-revoked"
+      }
+    },
+    "maintains": []
+  },
+  "program": {
+    "name": "fanout-refused-binding-unknown",
+    "kind": "Mutation",
+    "args": {
+      "c": {
+        "Optional": "Cursor"
+      },
+      "choice": "Bool",
+      "n": "Int"
+    },
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Let": {
+          "name": "page",
+          "value": {
+            "Scan": {
+              "site": "members.page",
+              "table": "memberships",
+              "index": "byConversationPrincipal",
+              "prefix": [
+                {
+                  "Literal": {
+                    "Id": "c1"
+                  }
+                }
+              ],
+              "order": "Asc",
+              "take": {
+                "Literal": 50
+              },
+              "after": null,
+              "before": null,
+              "range": null,
+              "merge_site": null,
+              "provenance": "Const"
+            }
+          }
+        }
+      },
+      {
+        "If": {
+          "condition": {
+            "Variable": "choice"
+          },
+          "then_body": [
+            {
+              "Assign": {
+                "name": "page",
+                "value": {
+                  "Scan": {
+                    "site": "members.other",
+                    "table": "memberships",
+                    "index": "byConversationPrincipal",
+                    "prefix": [
+                      {
+                        "Literal": {
+                          "Id": "c2"
+                        }
+                      }
+                    ],
+                    "order": "Asc",
+                    "take": {
+                      "Literal": 50
+                    },
+                    "after": null,
+                    "before": null,
+                    "range": null,
+                    "merge_site": null,
+                    "provenance": "Const"
+                  }
+                }
+              }
+            }
+          ],
+          "else_body": []
+        }
+      },
+      {
+        "For": {
+          "binding": "m",
+          "domain": {
+            "DerivedArray": {
+              "value": {
+                "Variable": "page"
+              },
+              "max": 50,
+              "bound_source": "page take 50"
+            }
+          },
+          "body": [
+            {
+              "Insert": {
+                "table": "deliveries",
+                "row": {
+                  "Object": {
+                    "id": {
+                      "Field": {
+                        "base": {
+                          "Variable": "m"
+                        },
+                        "name": "id"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "certificate": null,
+  "context": {
+    "viewer": "u0",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {},
+    "now": 0,
+    "new_ids": [],
+    "read_time": null,
+    "seed_write": false
+  },
+  "receipt": {
+    "rows": [],
+    "ranges": [],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": null,
+    "errorCode": "E_STRUCTURAL_FANOUT",
+    "localState": "certification-refused",
+    "partialSites": [],
+    "canonicalResult": "{\"Error\":\"E_STRUCTURAL_FANOUT\"}",
+    "digest": "bc23ccb5a4b3c5144cee3fe0fa005ba688138724e1df2e96a4d0d1b8adcb5597",
+    "rangeStops": {},
+    "evictedRows": null,
+    "next": null
+  }
+}

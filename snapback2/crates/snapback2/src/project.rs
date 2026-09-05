@@ -235,13 +235,33 @@ impl CompilerWorker {
                 .into_iter()
                 .map(|(program, error)| {
                     let (family, guide) = certification_family_guide(&error.code);
-                    let source = sources.get(&program);
+                    let fanout_site = error
+                        .message
+                        .split(" at ")
+                        .nth(1)
+                        .and_then(|s| s.split(" may end before").next());
+                    let source = if error.code == "E_STRUCTURAL_FANOUT" {
+                        fanout_site
+                            .and_then(|site| sources.get(site))
+                            .or_else(|| sources.get(&program))
+                    } else {
+                        sources.get(&program)
+                    };
+                    let precise = matches!(
+                        error.code.as_str(),
+                        "E_STRUCTURAL_FANOUT" | "E_SCHEMA_CONSTRAINT"
+                    );
                     let rewrite = source
+                        .filter(|_| !precise)
                         .filter(|site| site.file.ends_with(".q"))
                         .map(|site| quarry_certification_rewrite(root, site, &error.message))
                         .unwrap_or(error.rewrite);
                     let mut refusal =
                         Refusal::new(error.code, family, error.message, rewrite, guide);
+                    if refusal.code == "E_STRUCTURAL_FANOUT" {
+                        refusal.rule =
+                            Some("a mutation population loop covers its selected range".to_owned());
+                    }
                     refusal.site = Some(
                         source
                             .map(|site| format!("{}:{}:{}", site.file, site.line, site.col))

@@ -460,6 +460,14 @@
             "Unique": {
               "index": "byConvUser"
             }
+          },
+          {
+            "Cap": {
+              "by": [
+                "conversationId"
+              ],
+              "max": 256
+            }
           }
         ],
         "retain": "until-revoked"
@@ -1156,7 +1164,7 @@
   "certificate": {
     "program": "sendMaintainedUnread",
     "plan_hash": "134232f62f92b04c103531b931c21075a1ac99a566b35a18c3d74684445f7931",
-    "schema_hash": "47a69e759777a52a0c713eb045039770fa7a4f2ff09ce7e525690348d01897dd",
+    "schema_hash": "cefec87df7a1cbe21beae0d0b46e98b73b1b40cc62af182f134729368fbf52c8",
     "tables": {
       "accounts": {
         "retain": "until-revoked"
@@ -1211,11 +1219,11 @@
       }
     },
     "rule_hashes": {
-      "memberships.read": "1700f794566754a8e668032eb6f3bc090f497fcd66163fa335182f41ea34f7c8",
-      "messages.insert": "4abd17f7325b9bc404930c9a17b6eaa0e516d7832c0242dca430c447fad0aaec",
-      "unreads.insert": "6532c3b91cc26aeed3a85559ee10aa92512936a6c20be353f97a5dea3318648a",
-      "unreads.read": "6532c3b91cc26aeed3a85559ee10aa92512936a6c20be353f97a5dea3318648a",
-      "unreads.update": "6532c3b91cc26aeed3a85559ee10aa92512936a6c20be353f97a5dea3318648a"
+      "memberships.read": "345883b8a6345a48150a97f59340e4bb0904add5a14904d1fdb04a98ba277fc5",
+      "messages.insert": "712c2f7ce425f85715d85b6b7847bc1a130f57184287781952d70ace9c4e308c",
+      "unreads.insert": "384861cc04030cfe2013303f9d1f951c6546a0016c6f4f4ca2bc79d833f4671c",
+      "unreads.read": "384861cc04030cfe2013303f9d1f951c6546a0016c6f4f4ca2bc79d833f4671c",
+      "unreads.update": "384861cc04030cfe2013303f9d1f951c6546a0016c6f4f4ca2bc79d833f4671c"
     },
     "evaluator_version": "bounded-spike-rust-1",
     "value_model_version": "i53-codepoint-bytes-v2",
@@ -1228,7 +1236,8 @@
         "take": 1,
         "max_calls": 1,
         "rule_probes_per_candidate": 2,
-        "hoist": false
+        "hoist": false,
+        "complete": false
       },
       {
         "site": "programs.sendMaintainedUnread.2",
@@ -1238,7 +1247,8 @@
         "take": 256,
         "max_calls": 1,
         "rule_probes_per_candidate": 2,
-        "hoist": true
+        "hoist": true,
+        "complete": true
       },
       {
         "site": "programs.sendMaintainedUnread.3",
@@ -1248,7 +1258,8 @@
         "take": 1,
         "max_calls": 256,
         "rule_probes_per_candidate": 0,
-        "hoist": false
+        "hoist": false,
+        "complete": false
       }
     ],
     "write_sites": [
@@ -1319,7 +1330,7 @@
     "seed_write": false
   },
   "receipt": {
-    "schema_hash": "47a69e759777a52a0c713eb045039770fa7a4f2ff09ce7e525690348d01897dd",
+    "schema_hash": "cefec87df7a1cbe21beae0d0b46e98b73b1b40cc62af182f134729368fbf52c8",
     "rows": [
       {
         "table": "accounts",

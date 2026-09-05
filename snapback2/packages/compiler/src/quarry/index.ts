@@ -176,6 +176,7 @@ function materializeMaintains(documents: Document[]): void {
       indexes: assetGrouped ? [] : [{ name: indexName, columns: [...declaration.by], unique: true, site: declaration.site }],
       rules: [declaration.read, deny("insert"), deny("update"), deny("delete")],
       immutable: [],
+      caps: [],
       finalExists: [],
       site: declaration.site,
     };
@@ -202,7 +203,7 @@ function virtualModule(path: string, authored: string, source: string, authoredS
 function frontend(item: QuarryDiagnostic): FrontendDiagnostic {
   return {
     code: item.code,
-    family: "quarry",
+    family: item.code === "E_SCHEMA_CONSTRAINT" ? "schema" : "quarry",
     message: item.message,
     site: `${item.file}:${item.line}:${item.col}`,
     rewrite: `-- ${item.rewrite.replace(/\n/g, " ")}`,

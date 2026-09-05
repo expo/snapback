@@ -246,7 +246,8 @@
         "take": 3,
         "max_calls": 1,
         "rule_probes_per_candidate": 0,
-        "hoist": true
+        "hoist": true,
+        "complete": false
       },
       {
         "site": "merge.complete.self",
@@ -256,7 +257,8 @@
         "take": 3,
         "max_calls": 1,
         "rule_probes_per_candidate": 0,
-        "hoist": true
+        "hoist": true,
+        "complete": false
       }
     ],
     "merge_sites": [

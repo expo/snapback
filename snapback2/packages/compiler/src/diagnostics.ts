@@ -116,7 +116,7 @@ function diagnosticFamily(code: DiagnosticCode): FrontendDiagnostic["family"] {
   if (code.startsWith("E_EFFECT_") || code === "E_EMIT_IN_QUERY") return "effect";
   if (code.startsWith("E_ARGS_") || code === "E_DECIMAL_SCALE" || code === "E_ENUM_VARIANT") return "args";
   if (code.startsWith("E_OP_")) return "op";
-  if (["E_UNBOUND_SCAN", "E_UNBOUND_LOOP", "E_UNBOUND_COUNT", "E_STRUCTURAL_COUNT", "E_BOUND"].includes(code)) {
+  if (["E_UNBOUND_SCAN", "E_UNBOUND_LOOP", "E_UNBOUND_COUNT", "E_STRUCTURAL_COUNT", "E_STRUCTURAL_FANOUT", "E_BOUND"].includes(code)) {
     return "bound";
   }
   return "opaque";
@@ -131,7 +131,7 @@ function diagnosticGuide(code: DiagnosticCode): string {
   if (code === "E_QUARRY_ONLY") return "quarry/projects";
   if (code === "E_QUARRY_UNKNOWN") return "quarry/names";
   if (code === "E_UNBOUND_SCAN") return "bound/scan";
-  if (code === "E_UNBOUND_LOOP") return "bound/loop";
+  if (code === "E_UNBOUND_LOOP" || code === "E_STRUCTURAL_FANOUT") return "bound/loop";
   if (code === "E_UNBOUND_COUNT" || code === "E_STRUCTURAL_COUNT") return "bound/count";
   if (code === "E_BOUND") return "bound/ceiling";
   if (code === "E_AMBIENT_TIME") return "opaque/time";
@@ -151,6 +151,7 @@ function diagnosticRule(code: DiagnosticCode): string | undefined {
     E_UNBOUND_SCAN: "every scan names take",
     E_UNBOUND_LOOP: "every loop has a static maximum",
     E_UNBOUND_COUNT: "growing populations do not expose exact counts",
+    E_STRUCTURAL_FANOUT: "a mutation population loop covers its selected range",
     E_STRUCTURAL_COUNT: "rules do not leak hidden population structure",
     E_AMBIENT_TIME: "programs use ctx.now()",
     E_PROVENANCE_AMBIGUOUS: "read keys have one unambiguous origin",

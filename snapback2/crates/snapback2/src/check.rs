@@ -68,12 +68,14 @@ struct SerializableError {
 impl SerializableError {
     fn from_certify(error: CheckError, site: impl Into<String>) -> Self {
         let (family, guide) = certification_family_guide(&error.code);
+        let rule = (error.code == "E_STRUCTURAL_FANOUT")
+            .then(|| "a mutation population loop covers its selected range".to_owned());
         Self {
             code: error.code,
             family: family.to_owned(),
             message: error.message,
             site: site.into(),
-            rule: None,
+            rule,
             rewrite: error.rewrite,
             guide: guide.to_owned(),
         }
@@ -104,13 +106,19 @@ impl SerializableError {
     }
 
     fn schema(error: snapback2_core::RuntimeError) -> Self {
+        let rewrite = if let snapback2_core::RuntimeError::SchemaConstraint { rewrite, .. } = &error
+        {
+            rewrite.clone()
+        } else {
+            "restore the compiler-emitted schema invariants".to_owned()
+        };
         Self {
             code: error.code().to_owned(),
             family: "schema".to_owned(),
             message: error.to_string(),
             site: "<project>:schema".to_owned(),
             rule: None,
-            rewrite: "restore the compiler-emitted schema invariants".to_owned(),
+            rewrite,
             guide: "schema/project".to_owned(),
         }
     }

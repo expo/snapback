@@ -133,6 +133,7 @@ impl Generation {
         schema.auth = project.auth.clone();
 
         errors.extend(crate::rule_types::check(&schema));
+        errors.extend(crate::cap::schema_errors(&schema));
 
         for table in schema.tables.keys().filter(|table| table.starts_with('_')) {
             errors.push((
@@ -1046,6 +1047,10 @@ fn seed_program(
     };
     let ceilings = Ceilings {
         write_rows: u64::MAX,
+        // @ref LLP 1017#24-metering — seeds reserve cap work but waive these ceilings.
+        examined: u64::MAX,
+        index_entries: u64::MAX,
+        steps: u64::MAX,
         ..Ceilings::default()
     };
     let certificate = Checker::new(schema, ceilings)

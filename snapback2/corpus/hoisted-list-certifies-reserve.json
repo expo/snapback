@@ -169,7 +169,8 @@
         "take": 50,
         "max_calls": 1,
         "rule_probes_per_candidate": 1,
-        "hoist": true
+        "hoist": true,
+        "complete": false
       }
     ],
     "write_sites": [],

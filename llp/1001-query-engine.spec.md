@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2-core` (`store`, `registry`, `live`, `identity`, `successor`, the engine, the IR)
 **Author:** Claude Fable 5 (orchestrator) — implementer: codex gpt-5.6-sol, lane A
 **Date:** 2026-08-29
-**Revised:** 2026-09-05
+**Revised:** 2026-09-05 (LLP 1017 §1, then §2 and §3)
 **Related:** LLP 1000, LLP 1002 (the loop that serves this), LLP 1003 (effects
 through the outbox this spec defines), LLP 0329.014.004 §7 (runtime), LLP
 0329.014.000 §6 (execution, trace, states), LLP 0329.016 §5.6 (no silent
@@ -728,6 +728,26 @@ and `format: Url` admits an absolute `http://` or `https://` URL with a
 non-empty remainder and no whitespace/control characters. Optional text may
 be absent/`Null`; when present it is checked identically. Certification
 requires a text or optional-text field and refuses `min > max`.
+
+`Constraint::Cap { by, max }` holds each grouping tuple at `max` rows. One
+index-compatible grouping key treats omitted optional columns as `null` for
+inserts, group-moving updates, and successor counting. Every writer, including
+product seeds, checks it; each insert/upsert/update site reserves `max` examined
+rows and index entries per cap per call, and execution charges the rows read.
+Seed programs reserve the work but set examined/index-entry/step ceilings to
+`u64::MAX`, like write rows. Every successor cap is checked against base rows
+after migration drops; excess groups refuse `E_SUCCESSOR_CAP` with bounded
+`cap_conflicts` and a repair plan (LLP 1017 §2).
+
+A mutation page loop covers its selected range only with a cap over all pinned
+grouping columns, a uniform rule, a literal bound at least the cap, no cursor or
+key range, and no non-uniform range scan anywhere in the mutation. Identity
+bindings and row shapes preserve page origin; transformations and merges do not
+prove coverage. Admitted loops mark their read site `complete: true`; execution
+asserts fetch capacity (including rule-probe capacity) of at least `take + 2`,
+rejecting a budget cut atomically with `E_TRACE_SUBSET`. Certification otherwise
+refuses `E_STRUCTURAL_FANOUT`; queries and non-page domains retain their existing
+bounds (LLP 1017 §3).
 
 Text columns and `ArgType::Text` refuse C0 control characters other than tab,
 newline, and carriage return as `E_INPUT`, naming the code point and the

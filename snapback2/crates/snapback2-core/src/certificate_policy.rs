@@ -7,6 +7,8 @@ use crate::value::{I53_MAX, I53_MIN, Value};
 use std::collections::{BTreeMap, BTreeSet};
 
 mod cursors;
+#[path = "certificate_policy/fanout.rs"]
+pub(crate) mod fanout;
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 struct CappedSite {
@@ -107,7 +109,11 @@ fn rule_fields(rule: &RuleExpr, out: &mut BTreeSet<String>) {
 
 impl Checker<'_> {
     pub(crate) fn structural_errors(&self, program: &Program) -> Vec<CheckError> {
-        let mut errors = Vec::new();
+        let mut errors: Vec<_> = crate::cap::schema_errors(self.schema)
+            .into_iter()
+            .map(|(_, e)| e)
+            .collect();
+        errors.extend(fanout::check(self.schema, program).0);
         let mut sites = BTreeMap::new();
         let mut bindings = BTreeMap::new();
         validate_statements(
@@ -330,7 +336,7 @@ impl CompletenessFlow<'_, '_> {
                     site.site
                 ),
                 rewrite: format!(
-                    "denormalize the authorization scope onto {} and include it in the {} prefix so the rule is uniform, or declare maintain.count({}, {{ by: [...], as: ..., readable: ... }}) and read the maintained aggregate",
+                    "denormalize the authorization scope onto {} and include it in the {} prefix so the rule is uniform, or declare maintain totals = count {} by <scope> and read the maintained aggregate",
                     site.table, site.index, site.table
                 ),
             });

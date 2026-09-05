@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 pub(crate) fn certification_family_guide(code: &str) -> (&'static str, &'static str) {
     match code {
         "E_UNBOUND_SCAN" => ("bound", "bound/scan"),
-        "E_UNBOUND_LOOP" => ("bound", "bound/loop"),
+        "E_UNBOUND_LOOP" | "E_STRUCTURAL_FANOUT" => ("bound", "bound/loop"),
         "E_UNBOUND_COUNT" | "E_STRUCTURAL_COUNT" => ("bound", "bound/count"),
         "E_AMBIENT_TIME" => ("opaque", "opaque/time"),
         code if code.starts_with("E_BOUND") || code.starts_with("E_UNBOUND") => {
@@ -103,6 +103,18 @@ impl Refusal {
     }
 
     pub fn from_runtime(error: &RuntimeError) -> Self {
+        if let RuntimeError::Successor(refusal) = error {
+            return Self::from_successor(refusal);
+        }
+        if let RuntimeError::SchemaConstraint { message, rewrite } = error {
+            return Self::new(
+                "E_SCHEMA_CONSTRAINT",
+                "schema",
+                message,
+                rewrite,
+                "schema/project",
+            );
+        }
         let code = error.code();
         let family = if code.starts_with("E_AUTH") {
             "auth"
@@ -178,6 +190,10 @@ impl Refusal {
         .with_detail(
             "conflicts",
             serde_json::to_value(&error.conflicts).unwrap_or(Json::Array(Vec::new())),
+        )
+        .with_detail(
+            "capConflicts",
+            serde_json::to_value(&error.cap_conflicts).unwrap_or(Json::Array(Vec::new())),
         )
     }
 }
@@ -275,8 +291,18 @@ mod tests {
             assert_eq!(refusal.code, code);
             assert_eq!(refusal.family, "offline");
             assert_eq!(refusal.guide, "offline");
-            assert!(refusal.site.as_deref().is_some_and(|site| site.starts_with("/api/")));
-            assert!(refusal.rewrite.as_deref().is_some_and(|rewrite| !rewrite.is_empty()));
+            assert!(
+                refusal
+                    .site
+                    .as_deref()
+                    .is_some_and(|site| site.starts_with("/api/"))
+            );
+            assert!(
+                refusal
+                    .rewrite
+                    .as_deref()
+                    .is_some_and(|rewrite| !rewrite.is_empty())
+            );
         }
         let families: Json = serde_json::from_str(include_str!(
             "../../../packages/snapback2/guide/families.source.json"
@@ -284,9 +310,11 @@ mod tests {
         .unwrap();
         for code in OFFLINE_CODES {
             assert!(
-                families.as_array().unwrap().iter().any(|entry| {
-                    entry["code"] == code && entry["family"] == "offline"
-                }),
+                families
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|entry| { entry["code"] == code && entry["family"] == "offline" }),
                 "{code} is missing from guide/families.source.json"
             );
         }

@@ -460,6 +460,14 @@
             "Unique": {
               "index": "byConvUser"
             }
+          },
+          {
+            "Cap": {
+              "by": [
+                "conversationId"
+              ],
+              "max": 256
+            }
           }
         ],
         "retain": "until-revoked"
@@ -1106,7 +1114,7 @@
   "certificate": {
     "program": "thread",
     "plan_hash": "d3197b1b6de2609e9db89ba2a0d5d2bc1ee0f3b2e8060cb8d87846fc653c13ff",
-    "schema_hash": "47a69e759777a52a0c713eb045039770fa7a4f2ff09ce7e525690348d01897dd",
+    "schema_hash": "cefec87df7a1cbe21beae0d0b46e98b73b1b40cc62af182f134729368fbf52c8",
     "tables": {
       "accounts": {
         "retain": "until-revoked"
@@ -1161,8 +1169,8 @@
       }
     },
     "rule_hashes": {
-      "messages.read": "1700f794566754a8e668032eb6f3bc090f497fcd66163fa335182f41ea34f7c8",
-      "users.read": "6532c3b91cc26aeed3a85559ee10aa92512936a6c20be353f97a5dea3318648a"
+      "messages.read": "345883b8a6345a48150a97f59340e4bb0904add5a14904d1fdb04a98ba277fc5",
+      "users.read": "384861cc04030cfe2013303f9d1f951c6546a0016c6f4f4ca2bc79d833f4671c"
     },
     "evaluator_version": "bounded-spike-rust-1",
     "value_model_version": "i53-codepoint-bytes-v2",
@@ -1175,7 +1183,8 @@
         "take": 3,
         "max_calls": 1,
         "rule_probes_per_candidate": 2,
-        "hoist": true
+        "hoist": true,
+        "complete": false
       },
       {
         "site": "programs.thread.1",
@@ -1185,7 +1194,8 @@
         "take": 1,
         "max_calls": 3,
         "rule_probes_per_candidate": 0,
-        "hoist": false
+        "hoist": false,
+        "complete": false
       },
       {
         "site": "programs.thread.2",
@@ -1195,7 +1205,8 @@
         "take": 1,
         "max_calls": 255,
         "rule_probes_per_candidate": 0,
-        "hoist": true
+        "hoist": true,
+        "complete": false
       }
     ],
     "write_sites": [],
@@ -1238,7 +1249,7 @@
     "seed_write": false
   },
   "receipt": {
-    "schema_hash": "47a69e759777a52a0c713eb045039770fa7a4f2ff09ce7e525690348d01897dd",
+    "schema_hash": "cefec87df7a1cbe21beae0d0b46e98b73b1b40cc62af182f134729368fbf52c8",
     "rows": [
       {
         "table": "memberships",
@@ -1392,7 +1403,7 @@
         "gte": null,
         "lt": null,
         "lte": null,
-        "rule_hash": "1700f794566754a8e668032eb6f3bc090f497fcd66163fa335182f41ea34f7c8",
+        "rule_hash": "345883b8a6345a48150a97f59340e4bb0904add5a14904d1fdb04a98ba277fc5",
         "row_ids": [
           "message-00004",
           "message-00003",

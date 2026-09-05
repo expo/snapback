@@ -763,8 +763,8 @@ query direct(value: time ?, upTo: time):
   });
 
   test("Quarry walked rows and shaped page rows stay row/object values", async () => {
-    const schema = "table nodes:\n  parent: nodes?\n  name: text <=50\n  public\n  by name\n\ntable copies:\n  name: text <=50\n  public\n";
-    const module = "mutation copyWalk(seed: nodes):\n  for ancestor in walk nodes[seed] up .parent depth 3:\n    name = ancestor.name\n  null\n\nmutation copyPage():\n  for node in nodes[] first 3 by byName { * }:\n    name = node.name\n  null\n";
+    const schema = "table nodes:\n  parent: nodes?\n  name: text <=50\n  public\n  by name\n  cap 3 by name\n\ntable copies:\n  name: text <=50\n  public\n";
+    const module = "mutation copyWalk(seed: nodes):\n  for ancestor in walk nodes[seed] up .parent depth 3:\n    name = ancestor.name\n  null\n\nmutation copyPage(name: text <=50):\n  for node in nodes[name] first 3 by byName { * }:\n    name = node.name\n  null\n";
     const compiled = compileInline([
       { fileName: "snapback/schema.q", source: schema },
       { fileName: "snapback/ops.q", source: module },

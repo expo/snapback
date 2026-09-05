@@ -460,6 +460,14 @@
             "Unique": {
               "index": "byConvUser"
             }
+          },
+          {
+            "Cap": {
+              "by": [
+                "conversationId"
+              ],
+              "max": 256
+            }
           }
         ],
         "retain": "until-revoked"
@@ -1133,7 +1141,7 @@
   "certificate": {
     "program": "startDm",
     "plan_hash": "67e5288fb3a26b95c04ae7440dda0354ed84ec668d019650508670bf4e53e54e",
-    "schema_hash": "47a69e759777a52a0c713eb045039770fa7a4f2ff09ce7e525690348d01897dd",
+    "schema_hash": "cefec87df7a1cbe21beae0d0b46e98b73b1b40cc62af182f134729368fbf52c8",
     "tables": {
       "accounts": {
         "retain": "until-revoked"
@@ -1188,10 +1196,10 @@
       }
     },
     "rule_hashes": {
-      "conversations.insert": "6532c3b91cc26aeed3a85559ee10aa92512936a6c20be353f97a5dea3318648a",
-      "dmKeys.insert": "6532c3b91cc26aeed3a85559ee10aa92512936a6c20be353f97a5dea3318648a",
-      "dmKeys.read": "6532c3b91cc26aeed3a85559ee10aa92512936a6c20be353f97a5dea3318648a",
-      "memberships.insert": "95c8793ef1214844264eb8457c9ad43f33c87e47681d1029258b7084d0b17bc7"
+      "conversations.insert": "384861cc04030cfe2013303f9d1f951c6546a0016c6f4f4ca2bc79d833f4671c",
+      "dmKeys.insert": "384861cc04030cfe2013303f9d1f951c6546a0016c6f4f4ca2bc79d833f4671c",
+      "dmKeys.read": "384861cc04030cfe2013303f9d1f951c6546a0016c6f4f4ca2bc79d833f4671c",
+      "memberships.insert": "3cb67523c338ea4802f24d1ca5e2899cf69014c1407407cda690c1811c401388"
     },
     "evaluator_version": "bounded-spike-rust-1",
     "value_model_version": "i53-codepoint-bytes-v2",
@@ -1204,7 +1212,8 @@
         "take": 1,
         "max_calls": 1,
         "rule_probes_per_candidate": 0,
-        "hoist": false
+        "hoist": false,
+        "complete": false
       }
     ],
     "write_sites": [
@@ -1229,14 +1238,15 @@
       "conversations:Unique(byId)",
       "dmKeys:Unique(byId)",
       "dmKeys:Unique(byPair)",
+      "memberships:Cap([\"conversationId\"],256)",
       "memberships:Unique(byConvUser)",
       "memberships:Unique(byId)"
     ],
-    "max_examined": 1,
-    "max_index_entries": 1,
+    "max_examined": 513,
+    "max_index_entries": 513,
     "max_rule_probes": 0,
-    "max_steps": 68,
-    "max_heap_bytes": 2176,
+    "max_steps": 2628,
+    "max_heap_bytes": 84096,
     "max_output_bytes": 162,
     "max_closure_bytes": 162,
     "completeness": "Page",
@@ -1244,7 +1254,8 @@
     "read_time_granularity_ms": null,
     "halo_rows": 1,
     "indexes_required": [
-      "dmKeys.byPair"
+      "dmKeys.byPair",
+      "memberships.byConvUser"
     ],
     "disclosures": [
       "E_DISCLOSURE: count waitlist summarized into waitCounts"
@@ -1274,7 +1285,7 @@
     "seed_write": false
   },
   "receipt": {
-    "schema_hash": "47a69e759777a52a0c713eb045039770fa7a4f2ff09ce7e525690348d01897dd",
+    "schema_hash": "cefec87df7a1cbe21beae0d0b46e98b73b1b40cc62af182f134729368fbf52c8",
     "rows": [
       {
         "table": "accounts",

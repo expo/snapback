@@ -460,6 +460,14 @@
             "Unique": {
               "index": "byConvUser"
             }
+          },
+          {
+            "Cap": {
+              "by": [
+                "conversationId"
+              ],
+              "max": 256
+            }
           }
         ],
         "retain": "until-revoked"
@@ -960,7 +968,7 @@
   "certificate": {
     "program": "hiddenRuleDocument",
     "plan_hash": "dbe16017ab622ab13249595d3517a0018b41b33e7263f43f10d60b98b5782dfa",
-    "schema_hash": "47a69e759777a52a0c713eb045039770fa7a4f2ff09ce7e525690348d01897dd",
+    "schema_hash": "cefec87df7a1cbe21beae0d0b46e98b73b1b40cc62af182f134729368fbf52c8",
     "tables": {
       "accounts": {
         "retain": "until-revoked"
@@ -1015,7 +1023,7 @@
       }
     },
     "rule_hashes": {
-      "secretDocs.read": "4c6221e0922e46dc0efe0b8d59ec03b42a104894a840e2ac14845df99ead061a"
+      "secretDocs.read": "38e33f9a8cfa08d692b397795dd2468d7fe4bd5d46f8f8f0f4d8f33abb4adf70"
     },
     "evaluator_version": "bounded-spike-rust-1",
     "value_model_version": "i53-codepoint-bytes-v2",
@@ -1028,7 +1036,8 @@
         "take": 1,
         "max_calls": 1,
         "rule_probes_per_candidate": 1,
-        "hoist": false
+        "hoist": false,
+        "complete": false
       }
     ],
     "write_sites": [],
@@ -1069,7 +1078,7 @@
     "seed_write": false
   },
   "receipt": {
-    "schema_hash": "47a69e759777a52a0c713eb045039770fa7a4f2ff09ce7e525690348d01897dd",
+    "schema_hash": "cefec87df7a1cbe21beae0d0b46e98b73b1b40cc62af182f134729368fbf52c8",
     "rows": [
       {
         "table": "entitlements",
@@ -1104,7 +1113,7 @@
     "absences": [],
     "verdicts": [
       {
-        "rule_hash": "4c6221e0922e46dc0efe0b8d59ec03b42a104894a840e2ac14845df99ead061a",
+        "rule_hash": "38e33f9a8cfa08d692b397795dd2468d7fe4bd5d46f8f8f0f4d8f33abb4adf70",
         "pinned_inputs_digest": "dc02e3c8f0fb7131c9e5e0f653a9740adc2bbb65f5f71913f3dc5bf4f33fa63e",
         "principal": "u2",
         "auth_epoch": 1,

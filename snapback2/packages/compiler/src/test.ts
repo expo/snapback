@@ -19,6 +19,7 @@ import { registerQuarryMoneyChecks } from "./quarry-money-checks";
 import { registerRuntimeRedChecks } from "./runtime-red-checks";
 import { registerCursorIdentityChecks } from "./cursor-identity-checks";
 import { registerApiShapeChecks } from "./api-shape-checks";
+import { registerQuarryFanoutChecks } from "./quarry-fanout-checks";
 import { registerRetentionChecks } from "./retention-checks";
 import { decimal } from "../../snapback2/src/index";
 import type { Principal } from "../../snapback2/src/index";
@@ -43,6 +44,7 @@ registerQuarryChecks(test, frontend);
 registerQuarryMoneyChecks(test, frontend);
 registerApiShapeChecks(test, frontend);
 registerRetentionChecks(test);
+registerQuarryFanoutChecks(test, frontend);
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -422,10 +424,9 @@ test("authored collected capped pages may return but cannot be inserted", () => 
   }
   for (const name of ["insertMapped", "insertFiltered"]) {
     const inserted = checked.find((item) => item.program === name);
-    assert(inserted?.error?.code === "E_STRUCTURAL_COUNT"
-      && inserted.error.message.startsWith("inserted value depends on capped-only site")
-      && inserted.error.rewrite.includes("denormalize the authorization scope")
-      && inserted.error.rewrite.includes("maintained aggregate"),
+    assert(inserted?.error?.code === "E_STRUCTURAL_FANOUT"
+      && inserted.error.message.includes("docs has no cap over group")
+      && inserted.error.rewrite === "cap 8 by group",
     `inserting ${name} did not keep the paved refusal: ${JSON.stringify(inserted)}`);
   }
 });

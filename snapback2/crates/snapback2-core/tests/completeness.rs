@@ -637,17 +637,18 @@ fn collected_capped_page_may_return_but_cannot_cross_a_durable_sink() {
     let errors = Checker::new(&non_uniform_schema, Ceilings::default())
         .check_all(&inserting)
         .expect_err("a durable sink must not erase capped-page provenance");
-    assert_eq!(errors.len(), 1, "unexpected checker refusals: {errors:?}");
-    assert_eq!(errors[0].code, "E_STRUCTURAL_COUNT");
+    assert_eq!(errors.len(), 2, "unexpected checker refusals: {errors:?}");
+    assert_eq!(errors[0].code, "E_STRUCTURAL_FANOUT");
+    assert_eq!(errors[1].code, "E_STRUCTURAL_COUNT");
     assert!(
-        errors[0]
+        errors[1]
             .message
             .starts_with("inserted value depends on capped-only site docs.page")
     );
     assert!(
-        errors[0]
+        errors[1]
             .rewrite
             .contains("denormalize the authorization scope")
     );
-    assert!(errors[0].rewrite.contains("maintained aggregate"));
+    assert!(errors[1].rewrite.contains("maintained aggregate"));
 }

@@ -460,5 +460,11 @@
     "code": "E_OFFLINE_CONFLICT",
     "wrong": "replay a queued edit whose traced row moved and read the refusal as a session error",
     "right": "the intent settles rejected with reason: \"conflict\" and site; read the current row and send a new intent"
+  },
+  {
+    "family": "bound",
+    "code": "E_STRUCTURAL_FANOUT",
+    "wrong": "for m in memberships[conversationId] first 50 by byConversationPrincipal:  // memberships has no cap",
+    "right": "cap 50 by conversationId  // on memberships; the loop now covers the group"
   }
 ]

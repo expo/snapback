@@ -12,6 +12,7 @@ import { lowerSchema } from "./lower/schema";
 import { boundOperationDiagnostics } from "./operation-diagnostics";
 import { callLeaf, moduleJsonConstants, objectOf, property, staticJson } from "./lower/static";
 import { hasExport, propertyName, unwrapCall, walk } from "./syntax";
+import { capSites } from "./quarry/cap-sites";
 import { typeDiagnosticSite } from "./type-diagnostic-site";
 import { compileQuarry, quarryInspection, remapVirtualDiagnostic, remapVirtualSource, type QuarryInput, type QuarryVirtualModule } from "./quarry/index";
 import { createProjectProgram, projectTypeDiagnostics } from "./project-program";
@@ -124,6 +125,7 @@ export async function lowerProject(root: string, options: LowerProjectOptions = 
 
   const programs: Program[] = [];
   const sources: Record<string, SourceSite> = Object.create(null);
+  for (const virtual of virtualModules) capSites(virtual, schema.schema, sources);
   const bindingsByModule = new Map<string, Map<string, TableInfo>>();
   for (const module of modules) {
     const tables = tableBindings(module, schema.tables, diagnostics);
@@ -133,6 +135,7 @@ export async function lowerProject(root: string, options: LowerProjectOptions = 
       tables,
       effects,
       operationPrefix: module.moduleName,
+      sourceSites: sources,
     });
     if (lowered.ok) {
       programs.push(...lowered.programs.map(sortSerdeMaps));

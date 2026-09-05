@@ -1096,6 +1096,13 @@ impl<'a> Runner<'a> {
         } else {
             candidate_limit
         };
+        // @ref LLP 1017#32-the-rule — test capacity, including probe starvation, not returned rows.
+        if read_site.complete && fetch_limit < take.saturating_add(2) {
+            return Err(RuntimeError::TraceSubset(format!(
+                "complete loop at {} was budget-cut",
+                scan.site
+            )));
+        }
         // @ref LLP 1001#3-read-and-write-states-no-silent-states — uniformly false ranges halt after one determination.
         // A hoisted rule has one verdict for the entire prefix. Probe one
         // candidate first so a uniformly false range can terminate without

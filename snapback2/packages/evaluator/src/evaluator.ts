@@ -53,7 +53,10 @@ function schemaCertificationError(schema: any): string | null {
 
 export function evaluateCase(testCase: CorpusCase): ActualResult {
   if (testCase.certificate === null) {
-    const errorCode = schemaCertificationError(testCase.schema) ?? "E_CORPUS";
+    // LLP 1017: the Rust corpus gate rechecks structural admission. There is no
+    // executable certificate for these server-only refusal witnesses.
+    const serverFanoutRefusal = testCase.category === "fanout" && testCase.expected.errorCode === "E_STRUCTURAL_FANOUT";
+    const errorCode = schemaCertificationError(testCase.schema) ?? (serverFanoutRefusal ? "E_STRUCTURAL_FANOUT" : "E_CORPUS");
     const canonicalResult = JSON.stringify({ Error: errorCode });
     return {
       localResult: null,

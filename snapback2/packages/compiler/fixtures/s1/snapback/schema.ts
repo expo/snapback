@@ -25,7 +25,7 @@ export const memberships = table({
     read: rule.exists(memberships, "byConvUser", [rule.field("conversationId"), rule.viewer]),
     insert: rule.allow(), update: rule.viewerIs("userId"), delete: rule.viewerIs("userId"),
   },
-  constraints: [{ unique: "byConvUser" }],
+  constraints: [{ unique: "byConvUser" }, { cap: { by: ["conversationId"], max: 256 } }],
 });
 
 export const messages = table({

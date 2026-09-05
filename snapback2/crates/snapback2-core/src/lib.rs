@@ -3,6 +3,7 @@
 mod assets;
 pub mod assets_ledger;
 mod bounds;
+mod cap;
 pub mod certificate;
 mod certificate_policy;
 pub mod client;

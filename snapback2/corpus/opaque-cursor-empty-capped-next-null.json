@@ -178,7 +178,8 @@
         "take": 2,
         "max_calls": 1,
         "rule_probes_per_candidate": 0,
-        "hoist": false
+        "hoist": false,
+        "complete": false
       }
     ],
     "result_page_site": {

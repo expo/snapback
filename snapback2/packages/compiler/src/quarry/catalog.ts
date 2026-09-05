@@ -1,5 +1,5 @@
 import type { Document, Expr, IndexDecl, KeyPart, ScalarType, Site, TableCatalog, TableDecl } from "./ast";
-import { ambiguous, refuse, typeError } from "./diagnostics";
+import { QuarryError, ambiguous, refuse, typeError } from "./diagnostics";
 
 export function buildCatalog(documents: Document[]): TableCatalog {
   const catalog: TableCatalog = new Map();
@@ -22,6 +22,25 @@ export function buildCatalog(documents: Document[]): TableCatalog {
         for (const column of index.columns) {
           if (column !== "id" && !columns.has(column)) refuse(index.site, `index ${table.name}.${index.name} names unknown column ${column}`);
         }
+      }
+      const capped = new Set<string>();
+      for (const cap of table.caps) {
+        const tuple = JSON.stringify(cap.by);
+        const repair = `cap ${cap.max} by ${[...new Set(cap.by)].join(", ")}`;
+        for (const name of cap.by) {
+          const column = columns.get(name);
+          if (!column) {
+            const nearest = [...columns.keys()].sort((a, b) => distance(name, a) - distance(name, b))[0];
+            refuse(cap.site, `${table.name} cap names unknown column ${name}${nearest ? `; did you mean ${nearest}?` : ""}`,
+              `cap ${cap.max} by ${cap.by.map((c) => c === name ? nearest ?? c : c).join(", ")}`);
+          }
+          if (["list", "image", "video"].includes(column.kind)) {
+            throw new QuarryError(cap.site, `cap on ${table.name} needs indexable grouping column ${name}`, "E_SCHEMA_CONSTRAINT", "cap 50 by <scalar columns>", "schema/project");
+          }
+        }
+        if (new Set(cap.by).size !== cap.by.length) throw new QuarryError(cap.site, `cap on ${table.name} repeats a grouping column`, "E_SCHEMA_CONSTRAINT", repair, "schema/project");
+        if (capped.has(tuple)) throw new QuarryError(cap.site, `${table.name} already caps ${cap.by.join(", ")}`, "E_SCHEMA_CONSTRAINT", "remove the duplicate cap line", "schema/project");
+        capped.add(tuple);
       }
       const ruleEffects = new Set<string>();
       for (const rule of table.rules) {
@@ -245,4 +264,14 @@ function typeName(type: ScalarType): string {
   if (type.kind === "decimal") return `decimal ${type.scale}`;
   if (type.kind === "money") return `money ${type.currency} ${type.scale}`;
   return type.kind;
+}
+
+function distance(a: string, b: string): number {
+  let row = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 0; i < a.length; i++) {
+    const next = [i + 1];
+    for (let j = 0; j < b.length; j++) next.push(Math.min(next[j]! + 1, row[j + 1]! + 1, row[j]! + Number(a[i] !== b[j])));
+    row = next;
+  }
+  return row[b.length]!;
 }

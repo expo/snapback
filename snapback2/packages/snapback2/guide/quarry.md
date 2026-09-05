@@ -64,7 +64,10 @@ an Id value on the wire.
 Tables get `id` and `byId` implicitly. `by name: a, b` declares a named
 ordering; `by a, b` infers `byAB`. `unique name: a, b` declares a named unique
 ordering and its uniqueness constraint; `unique a, b` infers `byAB`. `id` may
-appear in an index. `immutable a, b` forbids changes to those columns. `public`
+appear in an index. `immutable a, b` forbids changes to those columns.
+`cap N by a, b` holds every group at N rows (an omitted optional column is the
+`null` group); every writer, seeds included, refuses past it, and a successor
+that would leave a group over N refuses with a plan. `public`
 accepts an optional reason string. An insert
 postcondition is `after insert <- exists table[...] [by index]`.
 
@@ -266,6 +269,8 @@ mutation send(conversationId: conversations, recipientId: profiles, body: text <
   return { id: row.id }
 ```
 
+The loop covers the group because memberships is capped at 50 per conversation.
+
 Edit/unsend target current members. Departed recipients evict unsent bodies by
 point absence on held-page revalidation, not tombstones (LLP 1012 §5).
 
@@ -282,6 +287,12 @@ read remains absent.
 Every scan, list, text, JSON, and bytes value is bounded. `for` iterates only
 a bounded list/page/range/tokens result. Lowered queries and mutations retain
 the same certificate, trace, and runtime budgets.
+
+In a mutation, `for` over a page must cover its range: the table is capped over
+the pinned prefix, the rule is uniform there, the bound is a literal at least the
+cap, and no scan in the mutation is non-uniform. Cursors and key ranges cut the
+range and refuse too. Otherwise `E_STRUCTURAL_FANOUT`; fan-out past a cap is
+LLP 1016's continuation.
 
 ## Refused platform gaps
 

@@ -33,7 +33,7 @@ export type CollectionMutationCounts = Map<object, { count: number; name: string
 export type CollectionEscapeSite = { expression: ts.Expression; replacement: string };
 export type FunctionLike = ts.FunctionDeclaration | ts.ArrowFunction | ts.FunctionExpression;
 export type Substitution = { expression: ts.Expression; environment: Environment };
-export type LowerSourceOptions = { tables?: Map<string, TableInfo>; effects?: Map<string, string>; operationPrefix?: string };
+export type LowerSourceOptions = { tables?: Map<string, TableInfo>; effects?: Map<string, string>; operationPrefix?: string; sourceSites?: Record<string, import("../ir").SourceSite> };
 export type Environment = ModuleInfo & {
   programName: string;
   siteBase: string;

@@ -38,9 +38,15 @@ pub fn spike_schema() -> Schema {
                 update: RuleExpr::Eq(RuleTerm::Field("userId".to_owned()), RuleTerm::Viewer),
                 delete: RuleExpr::Eq(RuleTerm::Field("userId".to_owned()), RuleTerm::Viewer),
             },
-            constraints: vec![Constraint::Unique {
-                index: "byConvUser".to_owned(),
-            }],
+            constraints: vec![
+                Constraint::Unique {
+                    index: "byConvUser".to_owned(),
+                },
+                Constraint::Cap {
+                    by: vec!["conversationId".to_owned()],
+                    max: 256,
+                },
+            ],
             retain: RetentionPolicy::default(),
         },
     );

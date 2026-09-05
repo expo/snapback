@@ -135,6 +135,7 @@ export type DiagnosticCode =
   | "E_UNBOUND_LOOP"
   | "E_UNBOUND_COUNT"
   | "E_STRUCTURAL_COUNT"
+  | "E_STRUCTURAL_FANOUT"
   | "E_AMBIENT_TIME"
   | "E_OPAQUE"
   | "E_BOUND"

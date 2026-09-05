@@ -111,6 +111,8 @@ pub enum RuntimeError {
         index: String,
         column: String,
     },
+    #[error("E_SCHEMA_CONSTRAINT: {message}")]
+    SchemaConstraint { message: String, rewrite: String },
     #[error("E_SCHEMA_MAINTAIN: {0}")]
     SchemaMaintain(String),
     #[error("E_SERIALIZATION: {0}")]
@@ -166,6 +168,7 @@ impl RuntimeError {
             Self::SchemaReserved(_) => "E_SCHEMA_RESERVED",
             Self::SchemaIndexColumn { .. } => "E_SCHEMA_INDEX_COLUMN",
             Self::SchemaMaintain(_) => "E_SCHEMA_MAINTAIN",
+            Self::SchemaConstraint { .. } => "E_SCHEMA_CONSTRAINT",
             Self::Serialization(_) => "E_SERIALIZATION",
             Self::Require { code } => code,
             Self::Rule { .. } => "E_RULE",
@@ -1387,7 +1390,13 @@ pub(crate) fn append_commit(
 }
 
 pub fn validate_schema(schema: &Schema) -> Result<(), Vec<RuntimeError>> {
-    let mut errors = Vec::new();
+    let mut errors: Vec<_> = crate::cap::schema_errors(schema)
+        .into_iter()
+        .map(|(_, error)| RuntimeError::SchemaConstraint {
+            message: error.message,
+            rewrite: error.rewrite,
+        })
+        .collect();
     for name in schema.tables.keys().filter(|name| name.starts_with('_')) {
         errors.push(RuntimeError::SchemaReserved(name.clone()));
     }
@@ -1447,6 +1456,8 @@ fn first_schema_error(errors: Vec<RuntimeError>) -> RuntimeError {
         .expect("schema validation refusal contains at least one diagnostic")
 }
 
+#[cfg(test)]
+mod cap_tests;
 #[cfg(test)]
 mod delivery_tests;
 mod index;

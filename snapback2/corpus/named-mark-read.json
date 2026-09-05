@@ -460,6 +460,14 @@
             "Unique": {
               "index": "byConvUser"
             }
+          },
+          {
+            "Cap": {
+              "by": [
+                "conversationId"
+              ],
+              "max": 256
+            }
           }
         ],
         "retain": "until-revoked"
@@ -972,7 +980,7 @@
   "certificate": {
     "program": "markRead",
     "plan_hash": "c3400ad9350d5421fd746d8d2d3bd6181723fc7f23428d2630af097b6200039b",
-    "schema_hash": "47a69e759777a52a0c713eb045039770fa7a4f2ff09ce7e525690348d01897dd",
+    "schema_hash": "cefec87df7a1cbe21beae0d0b46e98b73b1b40cc62af182f134729368fbf52c8",
     "tables": {
       "accounts": {
         "retain": "until-revoked"
@@ -1027,7 +1035,7 @@
       }
     },
     "rule_hashes": {
-      "memberships.update": "4dc6746a5e58ac5fe7103d7cecf6aeba25f21e93d4d2084488b653dfef569cda"
+      "memberships.update": "be3ddc5d0f97757fb4ba4bd18c55c2b08b115c1fcbd239dd1bc63dd2e003af45"
     },
     "evaluator_version": "bounded-spike-rust-1",
     "value_model_version": "i53-codepoint-bytes-v2",
@@ -1041,21 +1049,24 @@
     ],
     "maintained_amplification": 0,
     "constraint_checks": [
+      "memberships:Cap([\"conversationId\"],256)",
       "memberships:Unique(byConvUser)",
       "memberships:Unique(byId)"
     ],
-    "max_examined": 0,
-    "max_index_entries": 0,
+    "max_examined": 256,
+    "max_index_entries": 256,
     "max_rule_probes": 0,
-    "max_steps": 12,
-    "max_heap_bytes": 384,
+    "max_steps": 1292,
+    "max_heap_bytes": 41344,
     "max_output_bytes": 13,
     "max_closure_bytes": 0,
     "completeness": "Page",
     "prediction_sites": [],
     "read_time_granularity_ms": null,
     "halo_rows": 1,
-    "indexes_required": [],
+    "indexes_required": [
+      "memberships.byConvUser"
+    ],
     "disclosures": [
       "E_DISCLOSURE: count waitlist summarized into waitCounts"
     ],
@@ -1082,7 +1093,7 @@
     "seed_write": false
   },
   "receipt": {
-    "schema_hash": "47a69e759777a52a0c713eb045039770fa7a4f2ff09ce7e525690348d01897dd",
+    "schema_hash": "cefec87df7a1cbe21beae0d0b46e98b73b1b40cc62af182f134729368fbf52c8",
     "rows": [
       {
         "table": "accounts",

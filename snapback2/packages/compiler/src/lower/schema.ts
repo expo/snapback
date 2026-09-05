@@ -569,7 +569,7 @@ function lowerConstraints(
       validateKnownKeys(module, cap, ["by", "max"], "cap constraint", "E_SCHEMA_CONSTRAINT", diagnostics);
       const by = stringArray(property(cap, "by"));
       const max = numberValue(property(cap, "max"));
-      if (by && by.length > 0 && max !== undefined && Number.isInteger(max) && max > 0) {
+      if (by && by.length > 0 && max !== undefined && Number.isInteger(max) && max > 0 && max <= 0xffff_ffff) {
         for (const field of by) {
           if (!Object.hasOwn(columns, field)) diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_CONSTRAINT", item, `cap constraint names unknown column ${field}`));
         }

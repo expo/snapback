@@ -122,6 +122,8 @@ pub struct ReadSite {
     pub rule_probes_per_candidate: u64,
     /// True only when the read rule is certified uniform over the scan prefix.
     pub hoist: bool,
+    #[serde(default)]
+    pub complete: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -203,7 +205,13 @@ impl<'a> Checker<'a> {
     pub fn check_all(&self, program: &Program) -> Result<Certificate, Vec<CheckError>> {
         let mut errors = self.structural_errors(program);
         match self.analyze(program) {
-            Ok(certificate) if errors.is_empty() => Ok(certificate),
+            Ok(mut certificate) if errors.is_empty() => {
+                let (_, complete) = crate::certificate_policy::fanout::check(self.schema, program);
+                for site in &mut certificate.read_sites {
+                    site.complete = complete.contains(&site.site);
+                }
+                Ok(certificate)
+            }
             Ok(_) => Err(errors),
             Err(mut analysis_errors) => {
                 errors.append(&mut analysis_errors);
@@ -417,6 +425,13 @@ impl<'a> Checker<'a> {
                     &mut indexes_required,
                     &mut BTreeSet::new(),
                 );
+            }
+            for constraint in &table.constraints {
+                if let Constraint::Cap { by, .. } = constraint
+                    && let Some((index, _)) = crate::cap::enforcement_index(table, by)
+                {
+                    indexes_required.insert(format!("{}.{index}", write.table));
+                }
             }
             if matches!(write.kind, WriteKind::Insert | WriteKind::Upsert) {
                 for constraint in &table.constraints {
@@ -1087,6 +1102,7 @@ impl<'a> Analyzer<'a> {
                 max_calls: calls,
                 rule_probes_per_candidate: self.table_read_rule_probe_bound(&read.table),
                 hoist: false,
+                complete: false,
             },
         );
         summary.examined = summary.examined.saturating_add(calls);
@@ -1154,6 +1170,7 @@ impl<'a> Analyzer<'a> {
                 max_calls: calls,
                 rule_probes_per_candidate: probe_bound,
                 hoist,
+                complete: false,
             },
         );
         if let Some(merge_site) = &scan.merge_site {
@@ -1286,6 +1303,11 @@ impl<'a> Analyzer<'a> {
         factors: &[(String, u64)],
     ) -> Summary {
         let mut summary = write_summary(table, kind, calls, factors);
+        // @ref LLP 1017#24-metering — each writer reserves every cap's bounded probe.
+        let cap_rows = crate::cap::write_reserve(self.schema, table, kind).saturating_mul(calls);
+        summary.examined = summary.examined.saturating_add(cap_rows);
+        summary.index_entries = summary.index_entries.saturating_add(cap_rows);
+        summary.steps = summary.steps.saturating_add(cap_rows.saturating_mul(5));
         let probe_multiplier = self.write_rule_probe_bound(table, kind);
         let maintained_final_probes = self
             .schema

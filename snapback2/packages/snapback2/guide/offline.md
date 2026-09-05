@@ -68,6 +68,8 @@ mutation edit(messageId: messages, body: text <=4000, baseBody: text <=4000):
   return null
 ```
 
+The loop covers the group because memberships is capped at 50 per conversation.
+
 ## Bytes and diagnostics
 
 Bytes share their row's lease, keyed (assetId, width), under maxAssetBytes

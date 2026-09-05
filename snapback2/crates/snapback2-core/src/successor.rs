@@ -54,6 +54,8 @@ pub struct UniqueConflict {
 #[error("{code}: {message}; rewrite: {rewrite}")]
 #[serde(rename_all = "camelCase")]
 pub struct SuccessorRefusal {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub cap_conflicts: Vec<CapConflict>,
     pub code: String,
     pub message: String,
     pub rewrite: String,
@@ -70,6 +72,7 @@ impl SuccessorRefusal {
             rewrite: "apply exactly the returned migration plan".to_owned(),
             plan,
             conflicts: Vec::new(),
+            cap_conflicts: Vec::new(),
         }
     }
 
@@ -80,6 +83,7 @@ impl SuccessorRefusal {
             rewrite: "repair the store error and retry the successor".to_owned(),
             plan: MigrationPlan::default(),
             conflicts: Vec::new(),
+            cap_conflicts: Vec::new(),
         }
     }
 
@@ -94,6 +98,7 @@ impl SuccessorRefusal {
             ),
             plan: MigrationPlan::default(),
             conflicts: Vec::new(),
+            cap_conflicts: Vec::new(),
         }
     }
 
@@ -111,6 +116,7 @@ impl SuccessorRefusal {
             rewrite: "make the index non-unique or fix the rows".to_owned(),
             plan: MigrationPlan::default(),
             conflicts,
+            cap_conflicts: Vec::new(),
         }
     }
 
@@ -121,6 +127,7 @@ impl SuccessorRefusal {
             rewrite: format!("repair or remove stored row {table}.{row}, then retry the successor"),
             plan: MigrationPlan::default(),
             conflicts: Vec::new(),
+            cap_conflicts: Vec::new(),
         }
     }
 }
@@ -231,6 +238,10 @@ pub(crate) fn additive_refusal(
     }
 
     if let Some(refusal) = validate_stored_rows(connection, current, next, &rebuilt_targets)? {
+        return Ok(Some(refusal));
+    }
+
+    if let Some(refusal) = caps::validate_caps(connection, next)? {
         return Ok(Some(refusal));
     }
 
@@ -742,3 +753,7 @@ fn projected_backfill_rows(
         })
         .collect()
 }
+
+#[path = "successor/caps.rs"]
+mod caps;
+pub use caps::CapConflict;

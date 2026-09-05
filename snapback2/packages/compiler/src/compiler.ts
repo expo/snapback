@@ -14,7 +14,7 @@ import { collectionElementBinding, collectionOriginsBinding, combinedProvenanceB
 import { appendCollectionFacts, collectionFactsFor, collectionMutationIncrement, maintainCollectionFacts,
   mergeAssignedCollectionFacts } from "./lower/collection-facts";
 import { forkBranchEnvironment, mergeBranchEnvironments } from "./lower/branch-bindings";
-import { lowerLoopBodyWithMutationPlan } from "./lower/loop-mutations";
+import { lowerLoopBodyWithMutationPlan, recordLoopSite } from "./lower/loop-mutations";
 import { lowerMergeByIndex } from "./lower/merge";
 import { lowerCollectionConstructor, lowerCollectionLookup, lowerMapAssignment, requirePrimitiveCollectionIdentity } from "./lower/collections";
 import { upsertIdentityMatches } from "./lower/write-identity";
@@ -403,7 +403,7 @@ function lowerStatement(statement: ts.Statement, env: Environment): Stmt[] {
       refuse(env, "E_OPAQUE", statement.initializer, "for-of binding must be one identifier");
     }
     const binding = statement.initializer.declarations[0].name.text;
-    const loopEnv = enterLexicalScope(env);
+    const loopEnv = recordLoopSite(enterLexicalScope(env), statement, binding);
     const { statements, domain, bindingInfo } = lowerCollectionDomain(statement.expression, loopEnv, binding, lowerValue);
     loopEnv.variables.set(binding, bindingInfo);
     const iterations = loopDomainMaximum(domain);

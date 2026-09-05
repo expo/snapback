@@ -4,6 +4,7 @@ import type { FunctionLike, LowerSourceOptions } from "../compiler";
 import { snapbackCallName, stringArgument, unwrapCall } from "../syntax";
 
 export type ModuleInfo = {
+  sourceSites?: Record<string, import("../ir").SourceSite>;
   sourceFile: ts.SourceFile;
   source: string;
   fileName: string;
@@ -55,5 +56,5 @@ export function inspectModule(
       }
     }
   }
-  return { sourceFile, source, fileName, tables, effects, helpers };
+  return { sourceFile, source, fileName, tables, effects, helpers, sourceSites: options.sourceSites };
 }

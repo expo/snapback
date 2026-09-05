@@ -112,6 +112,7 @@ class Parser {
     const rules: RuleDecl[] = [];
     const immutable: Array<{ columns: string[]; site: Site }> = [];
     const finalExists: TableDecl["finalExists"] = [];
+    const caps: TableDecl["caps"] = [];
     let retain: TableDecl["retain"];
     let publicDecl: TableDecl["public"];
     while (!this.atKind("dedent") && !this.atKind("eof")) {
@@ -126,6 +127,7 @@ class Parser {
         } else if (this.at("by")) indexes.push(this.parseIndex(false));
         else if (this.at("unique")) indexes.push(this.parseIndex(true));
         else if (this.at("immutable")) immutable.push(this.parseImmutable());
+        else if (this.at("cap")) caps.push(this.parseCap());
         else if (this.at("retain")) {
           if (retain) retention(this.peek(), `table ${name} has more than one retain line`);
           retain = this.parseRetention();
@@ -139,7 +141,7 @@ class Parser {
       }
     }
     this.takeKind("dedent");
-    return { name, columns, indexes, rules, immutable, finalExists, ...(retain ? { retain } : {}), ...(publicDecl ? { public: publicDecl } : {}), site };
+    return { name, columns, indexes, rules, immutable, caps, finalExists, ...(retain ? { retain } : {}), ...(publicDecl ? { public: publicDecl } : {}), site };
   }
 
   private parseRetention(): NonNullable<TableDecl["retain"]> {
@@ -152,6 +154,25 @@ class Parser {
     if (!this.atKind("newline")) retention(site, "retain accepts exactly one policy word");
     this.newline();
     return { policy: policy.value, site };
+  }
+
+  private parseCap(): TableDecl["caps"][number] {
+    const site = this.take("cap");
+    const rewrite = "cap 50 by <cols>";
+    const token = this.peek();
+    if (token.kind !== "number" || !/^\d+$/.test(token.value)) {
+      syntax(site, "cap requires an integer literal from 1 through 4294967295", rewrite);
+    }
+    const max = Number(this.takeKind("number").value);
+    if (max < 1 || max > 0xffff_ffff) syntax(site, "cap requires an integer literal from 1 through 4294967295", rewrite);
+    if (!this.maybe("by") || !this.atKind("word")) syntax(site, "cap requires non-empty grouping columns", rewrite);
+    const by = [this.word().value];
+    while (this.maybe(",")) {
+      if (!this.atKind("word")) syntax(site, "cap requires a column after the comma", rewrite);
+      by.push(this.word().value);
+    }
+    this.newline();
+    return { max, by, site };
   }
 
   private parseImmutable(): { columns: string[]; site: Site } {

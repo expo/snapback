@@ -181,8 +181,8 @@ const guidePages = await Promise.all(
   ["grammar", "quarry", "auth", "live-query", "effects", "personas", "testing", "offline"].map(async (name) => ({
     name,
     markdown: await readFile(resolve(guideSource, `${name}.md`), "utf8"),
-    // LLP 1010 A5 expands Quarry with merge; LLP 1006 adds the two asset types.
-    limit: name === "grammar" ? 2304 : name === "quarry" ? 14336 : 4096,
+    // LLP 1017 adds cap invariants and complete mutation loops to the reference.
+    limit: name === "grammar" ? 2560 : name === "quarry" ? 15360 : name === "offline" ? 4352 : 4096,
   })),
 );
 const guideErrors = [...familyErrors, ...guideFailures(guidePages, tsFixtureText, quarryFixtureText, parseDocument)];

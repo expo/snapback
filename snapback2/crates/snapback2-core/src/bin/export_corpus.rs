@@ -10,6 +10,8 @@ use std::path::PathBuf;
 mod asset_cases;
 #[path = "export_corpus/bytes_cases.rs"]
 mod bytes_cases;
+#[path = "export_corpus/cap_cases.rs"]
+mod cap_cases;
 #[path = "export_corpus/client_scenarios.rs"]
 mod client_scenarios;
 #[path = "export_corpus/constraints.rs"]
@@ -118,6 +120,7 @@ fn main() {
     client_scenarios::add_client_scenarios(&mut cases);
     add_value_edges(&mut cases);
     visibility_cases::add_visibility_cases(&mut cases);
+    cap_cases::add_cap_cases(&mut cases);
     bytes_cases::add_bytes_cases(&mut cases);
     asset_cases::add_asset_cases(&mut cases);
     add_random_cases(&mut cases);

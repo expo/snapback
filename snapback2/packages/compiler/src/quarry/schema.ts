@@ -71,6 +71,9 @@ function emitConstraints(declaration: TableDecl, catalog: TableCatalog): string[
   for (const index of declaration.indexes.filter((item) => item.unique)) {
     lines.push(withSite(`    { unique: ${JSON.stringify(index.name)} },`, index.site));
   }
+  for (const cap of declaration.caps) {
+    lines.push(withSite(`    { cap: { by: ${JSON.stringify(cap.by)}, max: ${cap.max} } },`, cap.site));
+  }
   for (const immutable of declaration.immutable) {
     lines.push(withSite(`    { immutable: [${immutable.columns.map((column) => JSON.stringify(column)).join(", ")}] },`, immutable.site));
   }
