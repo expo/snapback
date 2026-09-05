@@ -1068,7 +1068,7 @@
     "disclosures": [
       "E_DISCLOSURE: count waitlist summarized into waitCounts"
     ],
-    "bound_product": "programs.thread.0 take 3 = 3"
+    "bound_product": "programs.thread.0 take 3 (+2 reserve) × 1 calls on users = 5"
   },
   "context": {
     "viewer": "u1",

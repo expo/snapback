@@ -182,7 +182,7 @@ const guidePages = await Promise.all(
     name,
     markdown: await readFile(resolve(guideSource, `${name}.md`), "utf8"),
     // LLP 1017 adds cap invariants and complete mutation loops to the reference.
-    limit: name === "grammar" ? 2560 : name === "quarry" ? 15360 : name === "offline" ? 4352 : 4096,
+    limit: name === "grammar" ? 2560 : name === "quarry" ? 15872 : name === "offline" ? 4352 : 4096,
   })),
 );
 const guideErrors = [...familyErrors, ...quarryFamilyFailures(families, parseDocument), ...guideFailures(guidePages, tsFixtureText, quarryFixtureText, parseDocument)];

@@ -1232,7 +1232,7 @@
     "disclosures": [
       "E_DISCLOSURE: count waitlist summarized into waitCounts"
     ],
-    "bound_product": "programs.thread.0 take 3 × messages.body max 256 / min whitespace mention 3 85 × programs.thread.2 take 1 = 255"
+    "bound_product": "programs.thread.2 take 1 (+2 reserve) × 255 calls on users (calls from programs.thread.0 take 3 × messages.body max 256 / min whitespace mention 3 85) = 765 + programs.thread.0 take 3 (+2 reserve) × 1 calls on messages = 5 + programs.thread.1 point read on users × 3 calls (calls from programs.thread.0 take 3) = 3"
   },
   "context": {
     "viewer": "u1",

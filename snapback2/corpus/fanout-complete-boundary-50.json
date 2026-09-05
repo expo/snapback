@@ -240,7 +240,7 @@
       "memberships.byConversationPrincipal"
     ],
     "disclosures": [],
-    "bound_product": "members.page take 50 = 50"
+    "bound_product": "members.page take 50 (+2 reserve) × 1 calls on memberships = 52"
   },
   "context": {
     "viewer": "u0",

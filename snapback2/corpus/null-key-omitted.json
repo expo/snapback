@@ -271,7 +271,7 @@
       "events.byBucket"
     ],
     "disclosures": [],
-    "bound_product": "null.exists take 1 = 1"
+    "bound_product": "null.count point read on counts × 1 calls = 1 + null.exists point read on events × 1 calls = 1 + null.row point read on events × 1 calls = 1"
   },
   "context": {
     "viewer": "u1",

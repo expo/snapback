@@ -192,7 +192,7 @@
       "messages.byConvTime"
     ],
     "disclosures": [],
-    "bound_product": "messages.list take 50 = 50"
+    "bound_product": "messages.list take 50 (+2 reserve) × 1 calls on messages = 52"
   },
   "context": {
     "viewer": "u1",

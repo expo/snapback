@@ -1114,7 +1114,7 @@
     "disclosures": [
       "E_DISCLOSURE: count waitlist summarized into waitCounts"
     ],
-    "bound_product": "programs.send.0 take 1 = 1"
+    "bound_product": "programs.send.0 point read on memberships × 1 calls = 1"
   },
   "context": {
     "viewer": "u1",

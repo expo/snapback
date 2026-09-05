@@ -210,7 +210,7 @@
       "posts.byAt"
     ],
     "disclosures": [],
-    "bound_product": "opaque-cursor-complete-next-null take 5 = 5"
+    "bound_product": "opaque-cursor-complete-next-null take 5 (+2 reserve) × 1 calls on posts = 7"
   },
   "context": {
     "viewer": "u1",

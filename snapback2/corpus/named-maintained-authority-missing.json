@@ -203,7 +203,7 @@
       "counts.byGroup"
     ],
     "disclosures": [],
-    "bound_product": "optionalMaintain.count take 1 = 1"
+    "bound_product": "optionalMaintain.count point read on counts × 1 calls = 1"
   },
   "context": {
     "viewer": "u1",

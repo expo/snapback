@@ -145,7 +145,7 @@
       "items.byLabel"
     ],
     "disclosures": [],
-    "bound_product": "write.alternate.lookup take 1 = 1"
+    "bound_product": "write.alternate.lookup point read on items × 1 calls = 1"
   },
   "context": {
     "viewer": "u1",

@@ -760,9 +760,11 @@ fn bound_products_helpers_and_structural_counts_are_checked() {
         .check(&nested_expenses_program())
         .unwrap_err();
     assert_eq!(error.code, "E_BOUND");
-    assert!(error.message.contains(
-        "programs.expensesByShares.0 take 500 × programs.expensesByShares.1 take 50 = 25000"
-    ));
+    assert!(
+        error
+            .message
+            .contains("programs.expensesByShares.1 take 50 (+2 reserve) × 500 calls")
+    );
     assert!(error.rewrite.contains("maintain.count/sum"));
 
     let helper_certificate = checker(&schema)
@@ -1368,7 +1370,7 @@ fn every_frozen_corpus_case_replays_its_certification_outcome() {
     }
     assert_eq!(
         cases.len(),
-        205,
+        206,
         "the complete frozen corpus must be checked"
     );
     assert!(
