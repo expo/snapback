@@ -1,14 +1,13 @@
 //! Operator job adapters; the owner remains the only store writer.
-use crate::{client, owner, project::CompilerWorker, protocol::Refusal, verbs::*};
+use crate::{client, owner, protocol::Refusal, verbs::*};
 use serde_json::{Value as Json, json};
-use snapback2_core::ProgramKind;
 use std::{fs, process::ExitCode, thread, time::Duration};
 
 pub fn run(args: &[String]) -> ExitCode {
     let options = match parse_options(
         args,
         &["--project", "--as", "--file", "--cancel", "--resume"],
-        &["--json", "--wait", "--plan"],
+        &["--json", "--wait", "--plan", "--dry-run"],
     ) {
         Ok(o) => o,
         Err(c) => return c,
@@ -27,17 +26,23 @@ pub fn run(args: &[String]) -> ExitCode {
     .count();
     if exclusive > 1
         || (options.has("--wait") && options.has("--plan"))
+        || (options.has("--dry-run")
+            && (options.has("--wait") || options.has("--plan") || control.is_some()))
         || (control.is_some()
             && (positional.len() != 1 || options.has("--wait") || options.has("--plan")))
         || (control.is_none()
             && !(if file.is_some() { 1..=2 } else { 2..=3 }).contains(&positional.len()))
     {
         return usage(
-            "usage: snapback2 run <op> [args-json] --as persona|system [--wait|--plan]; run --file path.q [args-json] --as system; run --cancel|--resume job_id --as system",
+            "usage: snapback2 run <op> [args-json] --as persona|system [--wait|--plan|--dry-run]; run --file path.q [args-json] --as system [--wait|--plan|--dry-run]; run --cancel|--resume job_id --as system",
         );
     }
     let persona = options.value("--as").unwrap_or("");
-    if (file.is_some() || control.is_some() || options.has("--wait") || options.has("--plan"))
+    if (file.is_some()
+        || control.is_some()
+        || options.has("--wait")
+        || options.has("--plan")
+        || options.has("--dry-run"))
         && persona != "system"
     {
         return refused(operator_required(), json_output, 1);
@@ -55,7 +60,7 @@ pub fn run(args: &[String]) -> ExitCode {
         },
         None => json!({}),
     };
-    let (root, attached) = match attached(&options) {
+    let (_, attached) = match attached(&options) {
         Ok(o) => o,
         Err(e) => return refused(e, json_output, 1),
     };
@@ -110,52 +115,12 @@ pub fn run(args: &[String]) -> ExitCode {
                 );
             }
         };
-        let mut worker = match CompilerWorker::spawn() {
-            Ok(w) => w,
-            Err(e) => return refused(e, json_output, 1),
-        };
-        let compiled = match worker.compile_source(&root, Some(&source)) {
-            Ok(c) => c,
-            Err(e) => {
-                return refused(
-                    Refusal::from_refusals(
-                        e,
-                        Refusal::input("ad hoc compilation failed", "fix the Quarry source"),
-                    ),
-                    json_output,
-                    1,
-                );
-            }
-        };
-        let programs: Vec<_> = compiled
-            .project
-            .programs
-            .iter()
-            .filter(|p| p.name.starts_with("__adhoc."))
-            .collect();
-        if programs.len() != 1 {
-            return refused(
-                Refusal::input(
-                    "--file requires exactly one query, mutation, or job",
-                    "put one declaration in the file",
-                ),
-                json_output,
-                2,
-            );
-        }
-        let program = programs[0];
-        if (options.has("--wait") || options.has("--plan")) && program.kind != ProgramKind::Job {
-            return usage("--wait and --plan require a job");
-        }
         client::control(
             &attached,
             "POST",
-            if program.kind == ProgramKind::Job {
-                "/control/job"
-            } else {
-                "/control/execute"
-            },
-            json!({"program":program,"source":source,"args":args_json,"as":"system","plan":options.has("--plan")}),
+            "/control/run",
+            json!({"source":source,"args":args_json,"as":"system","wait":options.has("--wait"),
+                "mode":if options.has("--dry-run") { "dry-run" } else if options.has("--plan") { "plan" } else { "run" }}),
         )
     } else {
         let requested = positional[1];
@@ -200,14 +165,14 @@ pub fn run(args: &[String]) -> ExitCode {
                 &attached,
                 "POST",
                 "/control/job",
-                json!({"name":name,"args":args_json,"as":"system","plan":options.has("--plan")}),
+                json!({"name":name,"args":args_json,"as":"system","plan":options.has("--plan"),"dryRun":options.has("--dry-run")}),
             )
         } else if persona == "system" {
             client::control(
                 &attached,
                 "POST",
                 "/control/execute",
-                json!({"op":name,"args":args_json,"as":"system"}),
+                json!({"op":name,"args":args_json,"as":"system","dryRun":options.has("--dry-run")}),
             )
         } else {
             if persona.is_empty() {
@@ -239,6 +204,16 @@ pub fn run(args: &[String]) -> ExitCode {
 fn response(result: Result<client::HttpResponse, Refusal>, json_output: bool) -> ExitCode {
     match result {
         Ok(r) => {
+            // A rehearsal that completed is exit 0 even when it reports refusals:
+            // it succeeded at telling the truth about the run it did not make.
+            if r.status < 400 && r.body["dryRun"] == true {
+                return print_response(r.status, r.body, json_output);
+            }
+            // The owner compiled the file and found --plan/--wait on a non-job: usage.
+            if r.status >= 400 && r.body["code"] == "E_OP_KIND" {
+                print_response(r.status, r.body, json_output);
+                return ExitCode::from(2);
+            }
             let rejected = r.body["state"] == "rejected" || r.body["state"] == "parked";
             let code = print_response(r.status, r.body, json_output);
             if rejected { ExitCode::from(1) } else { code }

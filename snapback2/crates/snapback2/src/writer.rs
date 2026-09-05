@@ -38,6 +38,8 @@ mod writer_ledger;
 mod writer_offline;
 #[path = "writer_operator.rs"]
 mod writer_operator;
+#[path = "writer_rehearsal.rs"]
+mod writer_rehearsal;
 #[path = "writer_replay.rs"]
 mod writer_replay;
 #[path = "writer_resume.rs"]
@@ -51,6 +53,7 @@ use writer_assets::asset_record;
 use writer_auth::{SessionFence, actor};
 use writer_ledger::{CommitLedger, LedgerDelivery};
 pub(crate) use writer_offline::OfflineOptions;
+pub(crate) use writer_rehearsal::rehearsal_args;
 pub use writer_sse::{SseReceiver, SseSender, queue as sse_queue};
 use writer_values::{channel_args, frame_digest, json_as_kind, operation_args};
 #[derive(Clone, PartialEq, Eq)]
@@ -119,6 +122,10 @@ impl OwnerHandle {
 
 #[allow(clippy::large_enum_variant)]
 pub enum Action {
+    RehearsalSnapshot {
+        identity: Identity,
+        reply: Sender<Result<(crate::rehearsal::Snapshot, String), Refusal>>,
+    },
     Jobs,
     Job {
         id: String,
@@ -483,6 +490,10 @@ impl State {
 
     fn handle(&mut self, action: Action) -> Result<Json, Refusal> {
         match action {
+            Action::RehearsalSnapshot { identity, reply } => {
+                let _ = reply.send(self.rehearsal_snapshot(identity));
+                Ok(json!({}))
+            }
             Action::Jobs => self.jobs(),
             Action::Job { id, after } => self.job(&id, after),
             Action::JobControl {

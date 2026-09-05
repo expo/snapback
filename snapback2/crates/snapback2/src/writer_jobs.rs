@@ -275,7 +275,7 @@ impl State {
         Ok(response)
     }
 }
-fn job_args(program: &Program, args: &Json) -> Result<BTreeMap<String, Value>, Refusal> {
+pub(super) fn job_args(program: &Program, args: &Json) -> Result<BTreeMap<String, Value>, Refusal> {
     writer_values::program_args(program, args).map_err(|e| {
         if program.kind == ProgramKind::Job {
             Refusal::new(

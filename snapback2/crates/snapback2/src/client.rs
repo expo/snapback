@@ -52,8 +52,15 @@ fn request(
             "run snapback2 dev",
         )
     })?;
+    // A requested rehearsal runs the entire job; it has no five-second task bound.
+    let operator_run =
+        path == "/control/run" || body["dryRun"] == true || body["mode"] == "dry-run";
     stream
-        .set_read_timeout(Some(Duration::from_secs(5)))
+        .set_read_timeout(if operator_run {
+            None
+        } else {
+            Some(Duration::from_secs(5))
+        })
         .map_err(io_refusal)?;
     stream
         .set_write_timeout(Some(Duration::from_secs(5)))

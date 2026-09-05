@@ -70,3 +70,5 @@ pub use value::*;
 
 pub mod jobs;
 mod store_jobs;
+mod store_rehearsal;
+pub use store_rehearsal::{RehearsalEmit, RehearsalRelease, RehearsalSideEffects};

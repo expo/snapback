@@ -23,9 +23,21 @@ pub fn route(
     method: &str,
     path: &str,
     query: &Query,
-    body: Json,
+    mut body: Json,
     context: &Context,
 ) -> Option<Result<Json, (u16, Refusal)>> {
+    // These purpose-specific routes are themselves the operator seat. The HTTP
+    // transport has already admitted the loopback secret; no persona is created.
+    if method == "POST"
+        && matches!(path, "/control/run" | "/control/job")
+        && body.get("as").is_none()
+        && let Some(object) = body.as_object_mut()
+    {
+        object.insert("as".into(), json!("system"));
+    }
+    if let Some(result) = crate::control_run::route(method, path, &body, context) {
+        return Some(result);
+    }
     let call = |action| context.handle.call(action).map_err(|error| (400, error));
     if method == "POST"
         && let Some(id) = path.strip_prefix("/control/outbox/")
@@ -76,44 +88,6 @@ pub fn route(
                 )),
             });
         }
-    }
-    if method == "POST"
-        && matches!(path, "/control/job" | "/control/execute")
-        && body.get("program").is_some()
-    {
-        let source = body
-            .get("source")
-            .and_then(Json::as_str)
-            .unwrap_or_default();
-        if source.len() > 65536 {
-            return Some(Err((
-                400,
-                Refusal::new(
-                    "E_ADHOC_SIZE",
-                    "operator",
-                    "ad hoc source exceeds 64 KiB",
-                    "declare it as a job",
-                    "job",
-                )
-                .with_site("run --file"),
-            )));
-        }
-        return Some(match serde_json::from_value(body["program"].clone()) {
-            Ok(program) => call(Action::Adhoc {
-                program,
-                source: source.into(),
-                args: body.get("args").cloned().unwrap_or_else(|| json!({})),
-                identity: control_identity(&body),
-                plan: body["plan"] == true,
-            }),
-            Err(e) => Err((
-                400,
-                Refusal::input(
-                    format!("invalid ad hoc program: {e}"),
-                    "compile the Quarry file with the bundled worker",
-                ),
-            )),
-        });
     }
     let result = match (method, path) {
         ("GET", "/control/jobs") => call(Action::Jobs),
@@ -300,7 +274,7 @@ pub(crate) fn operator_transport(local: bool, mode: &str) -> Result<(), Refusal>
     }
 }
 
-fn control_identity(body: &Json) -> Identity {
+pub(crate) fn control_identity(body: &Json) -> Identity {
     let name = body.get("as").and_then(Json::as_str).unwrap_or_default();
     if name == "system" {
         Identity::Operator {

@@ -508,5 +508,13 @@
     "code": "E_ADHOC_SIZE",
     "wrong": "run --file a-file-over-64-KiB.q --as system",
     "right": "declare the program as a job and run its name"
+  },
+  {
+    "family": "operator",
+    "code": "E_REHEARSAL",
+    "site": "run --dry-run",
+    "guide": "job",
+    "wrong": "rehearse when the snapshot cannot be created, opened, or discarded",
+    "right": "check free disk space and the owner's store, then retry --dry-run"
   }
 ]

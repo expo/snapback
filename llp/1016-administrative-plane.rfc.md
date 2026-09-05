@@ -696,6 +696,7 @@ a site, a rewrite, and a page.
 | `E_OPERATOR_REQUIRED` | operator | `run <job>`, `--file`, `--cancel`, `--resume` without the seat | `--as system`, or an `admin` token |
 | `E_ARGS_NAME` | args | a caller-supplied `by` that is not a valid name | 1–80 ASCII letters, numbers, dashes, or underscores; `system` is reserved |
 | `E_ADHOC_SIZE` | operator | ad hoc source over 64 KiB | declare it as a job |
+| `E_REHEARSAL` | operator | `--dry-run` could not snapshot, open, or discard its copy (the rehearsal itself failed; a program refusal inside a rehearsal is a receipt, not this code) | check free disk space and the owner's store, then retry |
 | `E_SUCCESSOR_NARROWING` | successor | `T?` → `T` with null rows, at application | the fill job |
 | `E_SUCCESSOR_COLUMN_REQUIRED` | successor | (existing) | gains the three-step rewrite |
 | `E_QUARRY_UNSUPPORTED` | quarry | (existing) the `system` rule word | `deny` |
@@ -1012,3 +1013,118 @@ workspace doctests passed. The orchestrator must rerun the gate outside that
 restriction before landing. Existing corpus outputs did not change, so the
 corpus was not regenerated. Caps and affected references are checked with the
 final report; no generated build output is part of the change.
+
+### Implementation record — J3
+
+Implemented 2026-09-05 in `s2/admin-rehearsal` by Claude Fable 5.1, finishing a
+codex `gpt-6-astra` run that died on a usage limit at sixteen minutes with a
+compiling but untested partial (kept: the snapshot store module, the rehearsal
+runtime and its tests, the route module, the writer action, the verb flags, the
+serve-mode fence, the registry row; fixed: two engine facts and three fixture
+facts it had guessed). Review and landing belong to the orchestrator.
+
+**The rehearsal runtime** (`snapback2/crates/snapback2/src/rehearsal.rs`).
+`Snapshot::capture` runs on the writer, inside one action: it records the live
+`_commits` seq and the writer's clock, and copies the store with
+`Store::snapshot_rehearsal_to` (`snapback2-core/src/store_rehearsal.rs:30`),
+which takes an unpaced SQLite backup and then gives the copy a fresh
+`id_namespace` with `id_high_water` 0, so no id minted in rehearsal can equal a
+production id. `Snapshot::run` then executes on the requesting thread, never the
+writer: `Store::open` on the copy, a connection-local `TEMP` trigger that records
+every `_assets` locator release, `Runtime::open` with the live generation, and the
+program — a job through `enqueue_job_at`/`enqueue_adhoc_job` and `run_chunk_at(id,
+now)` looped to `done` or `parked` (D3's driver, in-process, one pinned clock, no
+background turn), a mutation or query once through the D6 operator entries. The
+receipt carries `dryRun: true`, `state`, `op`, `kind`, `job`, `chunks`,
+`rowsWritten` per table, `refusals`, `result`, the effects it would have emitted
+as `{effect, payloadBytes}` (payload bytes as the runner would deliver them, not
+the ledger's tagged encoding), the assets it would have released as
+`{id, bytes, table, row, column}`, exact counts with a 100-entry detail cap,
+`snapshotSeq`, `now`, `executionMs`, `elapsedMs`, `copyDiscarded`. The runtime
+is dropped before the directory is deleted, so WAL and SHM go with it; a failed
+open also deletes it. The rehearsal cannot reach the effects runner (spawned only
+by owner startup, `owner.rs:218`), the asset sweep and blob reclamation (writer
+state, `writer_assets.rs`, `asset_gc.rs`), a timer firing (J2's hook is the
+writer's `fire_due_timers_background_turn`, and the rehearsal never takes a
+background turn), or a listener — none of those handles exist on the path.
+Proofs, all in `snapback2/crates/snapback2/src/rehearsal_tests.rs`: `:234` the
+five negatives after a 205-row two-sweep job that deletes rows, records audit
+rows, emits 205 effects and releases one image — a loopback grant that accepted
+no connection, the blob file unchanged, the live `_commits` seq and `_outbox`
+counts unchanged, the copy directory gone — plus an inherited queued job left at
+zero chunks and the live allocator's namespace and high-water untouched; `:312`
+the clock pinned and three disjoint namespaces across two rehearsals and
+production; `:344` a parked rehearsal keeps its prior chunks and reports neither
+the rolled-back emissions nor the rolled-back release; `:372` an admission
+refusal is a receipt with `state: refused`, and a copy that cannot open is
+`E_REHEARSAL` with the directory removed.
+
+**The verb** (`snapback2/crates/snapback2/src/verbs_jobs.rs`). `--dry-run` on
+`run <op>` and `run --file`; a usage error with `--wait`, `--plan`, `--cancel` or
+`--resume`; `E_OPERATOR_REQUIRED` without `--as system`; exit 0 on a completed
+rehearsal even when the receipt holds a refusal, exit 1 on `E_REHEARSAL`, exit 2
+usage. Proof: `snapback2/crates/snapback2/tests/owner_cases/rehearsal.rs:81`
+through the real binary — a job to `done`, a job that parks, a mutation that
+rejects, a query, an ad hoc file, every usage exit, the owner's seq, job and
+effect counts unchanged, the rehearsal directory empty, and an infrastructure
+failure (the directory replaced by a file) as exit 1.
+
+**The routes** (`snapback2/crates/snapback2/src/control_run.rs`). `POST
+/control/run` with `{ source, args, mode: "run" | "dry-run" | "plan" }` — the
+owner compiles the source with the bundled worker as an explicit authoring
+operation, admits exactly one declaration, caps it at 64 KiB (`E_ADHOC_SIZE`),
+refuses `plan`/`wait` on a non-job (`E_OP_KIND`, which the CLI reports as usage),
+then rehearses or hands the program to J1b's `Action::Adhoc`. `dryRun: true` on
+`POST /control/job` and `POST /control/execute` rehearses a declared program.
+Both routes take `as: system` by default: they are the operator seat, admitted by
+the loopback secret. In `serve` mode both are refused `E_OPERATOR_REQUIRED` at
+403 before the secret is read or the body parsed (`serve.rs:267`), which is
+where LLP 1015 H0's `admin` token attaches. Proofs:
+`tests/owner_cases/rehearsal.rs:184` (plan, dry-run, run for a job, a query and
+a mutation, the declared route, each refusal code, the missing secret) and
+`:282` (serve mode, with and without the secret).
+
+**Measurements** are four lines in `snapback2/metrics/jobs.jsonl` (lane J3),
+debug build, macOS arm64: the digest sweep over 1,000 profiles with one effect
+each **0.023 s** (5 s); `--dry-run` overhead beyond the job on a synthetic
+105,721,856-byte store **0.113 s** (3 s) — the first measurement was 2.86 s
+because `snapshot_to` paces its backup at 64 pages per 5 ms for the fork route,
+and the rehearsal copy runs on the writer's only connection where pacing only
+lengthens the pause, so it takes its own unpaced backup; `check` on the chat
+fixture with two jobs **0.487 s** median of five (1 s; 0.480 s without them;
+J2's two schedules are absent); the debug binary **37,205,848 bytes**, +3,454,768
+against the last `metrics/loop.jsonl` record (`88d6ae076`, before J1a and J1b),
+a delta that spans all three lanes. No blocking step was added; the rehearsal
+measurement is an ignored test run explicitly.
+
+**Records.** `guide/job.md` gains the `--dry-run` paragraph; `snapback2/AGENTS.md`
+names the flag; §7 gains `E_REHEARSAL` (operator, site `run --dry-run`, page
+`job`, in the shipped family registry).
+
+Deviations from the text, each forced by a code fact:
+
+- The CLI no longer compiles `--file` locally. D8's route carries source, so the
+  owner compiles it; the compiled-`program` body form J1b accepted on
+  `/control/job` and `/control/execute` is deleted rather than kept beside it.
+  The consequence is that `--plan`/`--wait` on a non-job file is now detected by
+  the owner and reported as the existing `E_OP_KIND`, mapped to exit 2 by the
+  CLI so J1b's usage proof still holds.
+- Releases are "reported, not reclaimed" by observation: the copy's connection
+  carries a `TEMP` trigger on `_assets`, so a rolled-back chunk reports none and
+  nothing in the engine changed shape. Reclamation never runs because the
+  reclaiming code lives in the owner crate and has no handle here.
+- A rehearsal runs one program. Jobs already queued or running in the live store
+  are copied but never driven; the receipt describes only the requested run.
+- The receipt lists at most 100 effects and 100 releases with exact counts
+  (`effectsTruncated`, `assetsTruncated`, `detailLimit`), not every row.
+- The hosted rows of §10's lane text (tokens, MCP) are not built; token
+  admission is LLP 1015 H0's lane and the brief excludes it.
+
+The corpus was not regenerated: no existing case's engine output changed.
+
+Verification for this record: `snapback2/scripts/test.sh` exited **0** — 569
+Rust tests run and passed (2 leaky, 3 skipped), including the two `dev --stop`
+owner tests the J1a and J1b sandboxes could not run; all package tests, 162
+evaluator cases, 315 compiler checks and the doctests passed. Caps and
+`ref-check` pass. The chat-fixture `check` measured 0.480 s bare and 0.487 s
+with two jobs, below one second.

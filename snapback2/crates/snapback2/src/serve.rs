@@ -264,6 +264,16 @@ fn handle(mut request: Request, context: Context, streams: live::Streams) {
     let method = method_name(request.method());
     let request_url = request.url().to_owned();
     let (path, query) = split_url(&request_url);
+    // @ref LLP 1016#d6--the-operator-seat-ad-hoc-programs-and-rehearsal — ad hoc/job routes have no remote seat until H0 supplies token admission; check before secrets or parsing source.
+    if matches!(path.as_str(), "/control/run" | "/control/job")
+        && let Err(refusal) = control::operator_transport(
+            is_loopback(request.remote_addr().map(SocketAddr::ip)),
+            &context.mode,
+        )
+    {
+        respond_refusal(request, 403, refusal, &context.mode);
+        return;
+    }
     // OPTIONS /control/* needs the secret too: control is not a CORS surface.
     if path.starts_with("/control/")
         && let Err(refusal) = control_admission(&request, &context.secret)
