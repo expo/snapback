@@ -390,3 +390,5 @@ the six splits in §6.2, and keep it `Draft`. The panel does not need to sit
 again on the unanimous cuts; a short blind READY check from two families
 on revision (a) is proportionate. Nothing in this synthesis changes any
 status; the author decides.
+
+**Record (2026-09-05, later the same day):** the author instructed the orchestrator to write revision (a) using its own judgement rather than catering to every point. Revision (a) is the current text of `llp/1016-administrative-plane.rfc.md`; its §12 lists what it took from this record and where it decided against a majority (the authority model, schedule job targets, nothing before the loop bar). The proposed next step in §7 stands: a short blind READY check from two families on revision (a).
