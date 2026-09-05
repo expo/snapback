@@ -1,11 +1,12 @@
 # LLP 1017: `cap` in Quarry and the complete fan-out — a schema cardinality invariant, the mutation loop that must cover its page, and the certified bound for hoisted ranges
 
 **Type:** RFC
-**Status:** Review (revision (c) folds a blind two-family panel — codex
-gpt-6-astra at xhigh, grok-4.6 at xhigh, both NOT READY on revision (a),
-§8, and its round-2 cross-read. Implementation is authorized
-by the author's instructions of 2026-09-05, "ok do all that stuff please"
-and "once you feel good about the RFC, go ahead and implement it".)
+**Status:** Implemented (revision (d); §7 records the landings. A blind
+two-family panel — codex gpt-6-astra at xhigh, grok-4.6 at xhigh — reviewed
+revisions (a) and (b) and the implementation, §8. Implementation was
+authorized by the author's instructions of 2026-09-05, "ok do all that
+stuff please" and "once you feel good about the RFC, go ahead and
+implement it".)
 **Systems:** the Quarry front end
 (`snapback2/packages/compiler/src/quarry/{parser,schema,catalog}.ts`), the
 certificate and structural policy
@@ -26,7 +27,7 @@ against origin/main `873f1eb1f` (§0)
 (`~/projects/snapback-s2`), orchestrated and landed by Claude Fable 5.1 —
 §1 as its own landing first, §2–§4 after the panel
 **Date:** 2026-09-05
-**Revised:** 2026-09-05 (c — after panel round 2)
+**Revised:** 2026-09-05 (d — after the blind code review of the implementation)
 **Related:** LLP 1001 §3 (read and write states; the 2026-08-30 hoist
 amendment) §9 (schema additions; `Constraint::Cap` exists in the engine
 but is undocumented there until this RFC's lane amends it), LLP 1004 (Quarry is the
@@ -268,6 +269,16 @@ seat plus the forty-nine-member loop), `send` reserves nothing new
 writes times `N` exceed the examined ceiling refuses `E_BOUND` at `check`
 like any other over-budget program.
 
+**The reserve must be protected (revision (d), from the code review).** A
+mutation with any write site into a capped table admits **no non-uniform
+range scan anywhere** — the same condition §3.2 puts on a complete loop,
+for the same reason: a non-uniform scan certifies the program at the
+ceiling and may spend all of it, and the cap probe that follows is
+mandatory work with nowhere left to charge, so a valid insert would reject
+at runtime with the trace-subset family. Refusal: `E_STRUCTURAL_FANOUT`
+with the reason naming the scan and the capped table, rewrite the prefix
+repair on that scan.
+
 **The seed exception, stated here and not left to the lane.** The seed
 program already runs under `write_rows: u64::MAX` because a seed is not an
 ordinary program; with metering it would otherwise refuse any seed larger
@@ -371,6 +382,21 @@ outright: complete lanes do not prove that the first fifty of their union
 cover the union, and there is no union proof to make. A rule keyed on
 `LoopDomain::Page` alone would be bypassed by one `let`.
 
+**Provenance is conservative (revision (d), from the code review).** The
+check does not model the interpreter's control flow; it refuses whatever
+it cannot prove. A binding is a page only when it is assigned exactly
+once, at the top level of the body, before the loop, from a page scan (or
+is the loop head itself). An origin assigned inside a loop body, inside
+either branch of an `if`, or more than once is unknown. A loop binding read
+after its loop is unknown. Every loop domain is resolved through the same
+environment — including a domain the IR labels as an argument list, since
+the interpreter reads that name from the same mutable environment; only a
+name that is a genuine program argument and is never rebound is exempt. A
+shaped-row collector is a one-to-one shape only when it is declared once,
+empty, before the loop, receives exactly one unconditional push per
+iteration, and is written by nothing else. Slices, concatenations, sorts,
+and any other transformation are not the page.
+
 Why a uniform rule: a non-uniform rule skips hidden rows, so the loop can
 leave the group uncovered even under a cap; the rewrite is the existing
 one. Why a literal bound: an argument bound can be below `N` at runtime.
@@ -413,9 +439,9 @@ more than one candidate:
 | "a merge page has no union proof" | loop one scan, not a merge; fan-out past one group is LLP 1016 J3's `enqueue job` |
 | "the non-uniform scan at `<site>` can spend the budget this loop needs" | the prefix repair on that site |
 
-Every pasted scan names its index (`by byConversationPrincipal`) when the
-table has more than one candidate, because index selection refuses
-ambiguity.
+Every pasted scan always names its index (`by byConversationPrincipal`),
+because index selection refuses ambiguity and a rewrite must paste without
+knowing how many candidates the table has.
 
 When LLP 1016 J3 lands, every rewrite gains its second form, `enqueue job
 { … }`, for fan-out past any cap, and §3.2 gains an explicit admission for
@@ -426,7 +452,9 @@ The check lives in `certificate_policy::structural_errors` beside
 so `snapback2 check`, the corpus, raw IR, and the twin's certificate all
 see it. Plumbing, each with its site, family, guide, and rewrite: the
 compiler's code union and family/guide/rule maps (`ir.ts`,
-`diagnostics.ts`, `policy.ts`), an explicit arm in
+`diagnostics.ts` — not `policy.ts`, whose TypeScript-side structural
+policy stays count-only; the fan-out rule is Rust-only by design so two
+implementations cannot drift), an explicit arm in
 `protocol.rs::certification_family_guide` (the code matches neither
 `E_STRUCTURAL_COUNT` nor the `E_BOUND` prefix and would otherwise fall to
 `opaque/subset`), one `families.source.json` row, and a
@@ -447,8 +475,11 @@ memberships[.conversationId, viewer]` reads only the pinned column, and the
 bound equals the cap. The older TypeScript-lowered fixture `s1` fans out
 in a mutation too, over a helper scan of 256 members with only a unique
 constraint on its schema; it gets a cap of 256 on the same columns so it
-stays certifiable. No other fixture or template fans out inside a
-mutation; the Clique fixture's `members[conv = c] first 50` is in a query.
+stays certifiable, and the compiler's `copyPage` program check gets `cap 3
+by name` on its nodes table with the group column pinned — the rule
+working on a fixture the census had not listed. No other fixture or
+template fans out inside a mutation; the Clique fixture's `members[conv =
+c] first 50` is in a query.
 
 ### 3.5 What has no spelling after this, and where it goes
 
@@ -458,7 +489,14 @@ D1's `chunk` in a `job` for bulk work, D8's `enqueue job` for fan-out past
 a bound, both sequenced after the loop bar. Until then the honest form is
 the cap. This RFC and LLP 1016 compose: C3 is the refusal today; D8 is the
 second admitted form later, and the template's `send` may move to it when
-J3 lands, as 1016 proposes. Nothing here contradicts 1016. Walks are
+J3 lands, as 1016 proposes. Nothing here contradicts 1016. **The chunk
+admission is live (2026-09-05):** LLP 1016 J1b landed the same day, and
+its certifier checks each `chunk` body as a synthetic mutation; the
+checker now has a job-chunk mode (`Checker::job_chunk`) under which the
+fan-out rule does not run, because a chunk's page loop is the continuation
+the job driver carries across commits — exactly the represented
+continuation this rule defers to. Every other mutation rule still applies
+to a chunk. Walks are
 untouched for a different reason than the other domains: a walk enforces
 its fan-out with `E_FANOUT` but deliberately *stops* at its declared depth
 rather than refusing, and that bounded traversal is its authored contract.
@@ -468,7 +506,7 @@ rather than refusing, and that bounded traversal is its authored contract.
 - `templates/chat/snapback/schema.q` and the compiler fixture
   `quarry-chat/snapback/schema.q`: `cap 50 by conversationId` under
   `memberships`.
-- The five loops keep `first 50`. Bounds are punctuation (LLP 1007 §8) and
+- The seven loops keep `first 50`. Bounds are punctuation (LLP 1007 §8) and
   the bound is now checked against the cap, so raising the cap to 100
   without touching the loops refuses every one of them — the coupling
   catches the drift the critic described.
@@ -484,7 +522,7 @@ rather than refusing, and that bounded traversal is its authored contract.
   invariant. Text: `grammar.md` names `cap N by cols` among the invariants;
   `quarry.md` §Types and tables adds "`cap N by a, b` holds every group at
   N rows; every writer, seeds included, refuses past it, and a successor
-  that would leave a group over N refuses with a plan"; §Absence and bounds
+  that would leave a group over N refuses, naming the groups and the cap to raise"; §Absence and bounds
   adds the rule of §3.2 in two sentences and names `E_STRUCTURAL_FANOUT`;
   the `send` snippet in `quarry.md` and the `edit` snippet in `offline.md`
   gain one sentence beside them: "The loop covers the group because
@@ -545,7 +583,24 @@ rather than refusing, and that bounded traversal is its authored contract.
    with fixes applied; land with this RFC at Status Implemented, the
    commits recorded here.
 
-Landing record: (to be filled).
+**Landing record (2026-09-05).**
+
+- §1 landed on origin/main as `f40559f37` (lane commits `219c5aad6` —
+  the keying, the two accounting repairs, the uniform fetch clamp, the two
+  corpus cases, LLP 1001 §3 — and `d7af37770` — the inherited-flag merge
+  with its nested-scan witness, 19 → 10,240). Out-of-sandbox: 516/516 Rust,
+  162/162 evaluator, 304/304 compiler, 301/301 package.
+- §2–§4 landed on origin/main as `c48328c11`: the reviewed candidate
+  `96ca9189c`, the version bump `49aca5294` (0.0.3), the fix-round commit
+  `060410b31`, the operator-test pin `5bea018fd`, and the job-chunk
+  admission `0e42ee423`, merged across LLP 1016's J1a–J3 landings (merges
+  `29da2de06`, `e539b11b9`, `c48328c11`). Out-of-sandbox on the landed
+  tree: 619/619 Rust, 301/301 package, 177/177 evaluator (24 server-only),
+  334/334 compiler, ref-check 0 errors.
+- Published as `snapback2@0.0.3` and `snapback2-darwin-arm64@0.0.3` from
+  `c48328c11` on 2026-09-05 at 16:20Z (`node scripts/publish.mjs`: engine
+  6.8 MB, media helper 2.1 MB, 199.8 s; consumer smoke, both templates, and
+  the installed React live round trip passed inside the publish).
 
 ## 8. Panel record
 
@@ -607,3 +662,31 @@ times fifty (§2.4); walks stop at depth rather than refusing (§3.5); the
 rewrite table promises a pasted edit only where one exists (§3.3). Both
 families endorsed the cap semantics, the provenance rule, the successor
 rule, and the removal of the cursor form as ready to implement.
+
+**Code review of the implementation (candidate `96ca9189c`), blind, two
+families.** `llp/reviews/1017-cap-and-complete-fanout.code-review.{codex,grok}.md`.
+codex: NOT READY — the cap enforcement, grouping key, migration order,
+seed path, template, and guide were confirmed line by line; the
+completeness check admitted four programs the interpreter runs
+differently (a loop domain the IR labels an argument list but the
+interpreter reads from the environment; assignments after a `break` or
+inside a loop that the checker's restore-on-exit erased; a collector
+redeclared inside its loop; and an unused non-uniform scan spending the
+budget a following cap probe needs, rejecting a valid insert at runtime),
+plus implicit `id` refused in a cap, a repair that pastes an unbound name,
+and a registry example with a `//` comment. Revision (d) folds the two
+rules those force (§2.4 reserve protection, §3.2 conservative provenance);
+lane CAP3 fixes the rest with a refusal or runtime witness per
+counterexample. grok: READY — every claim of §2–§4 confirmed line by
+line, with two defects fixed in the same lane (the prefix repair indexed
+a missing table or index and would panic on raw IR; a missing relation in
+the completeness check fell open instead of refusing), five spec-drift
+items where the code is right and this revision follows it (`policy.ts` is
+not on the fan-out path; the `copyPage` fixture joins the census; the
+count rewrite's Quarry spelling stays; pasted scans always name their
+index; the guide's null-group sentence stays), and coverage gaps the lane
+adds (a reordered pinned prefix, `before` and `range` cuts, the
+fifty-times-fifty reserve on `groupCreate`, the evaluator's fan-out stub
+replaced by a real check or an honest server-only mark). The families
+disagreed on the verdict, not on any fact: grok did not try codex's
+adversarial raw-IR inputs, and every one of them reproduced.
