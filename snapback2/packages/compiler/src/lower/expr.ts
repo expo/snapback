@@ -969,7 +969,9 @@ export function lowerCollectionDomain(
         : collectionElementBinding(expression, env),
     };
   }
-  if (ts.isArrayLiteralExpression(value) || ts.isPropertyAccessExpression(value) && !operationArgumentList(value, env) || ts.isBinaryExpression(value)) {
+  if (ts.isArrayLiteralExpression(value)
+    || (ts.isPropertyAccessExpression(value) && !operationArgumentList(value, env))
+    || (ts.isBinaryExpression(value) && value.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken)) {
     const maximum = staticBound(expression, env);
     if (maximum === undefined) refuse(env, "E_UNBOUND_LOOP", expression, "loop domain has no static cardinality");
     const lowered = lowerValue(expression, env, hint);

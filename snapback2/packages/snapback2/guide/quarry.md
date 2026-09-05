@@ -46,7 +46,7 @@ refuses. Matching nominal brands admit `+ - < <= > >= = != min max`; unary
 decimal → left brand; money × money refuses.
 `/` and `%` rewrite to `divmod(a, b).quotient` and `.remainder`.
 
-`divmod(a,int)` returns `a`-branded fields and is Euclidean: remainder is
+`divmod(a,int)` keeps numeric brands; time gives int. It is Euclidean: remainder is
 nonnegative; quotient equals floor for positive divisors. `share` keeps the
 amount brand, requires matching bounded recipients, and assigns remainder units
 by ascending value. Share/branded multiplication floor because divisors are
@@ -58,7 +58,7 @@ Shaped rows and pages are typed and keep their brands.
 `principal` is the nominal type of `viewer`. It is neither a table reference
 nor `id`, even though all three have ID-shaped wire values. A column compared
 with `viewer`, or assigned `viewer`, must be `principal`.
-A non-empty text literal in an Id position (named/positional key, equality,
+A non-empty text literal in an Id position (key, merge prefix, equality,
 or `??` fallback) is an Id on the wire; text expressions and wrong-table refs
 refuse. `after` takes an opaque cursor, never an Id literal.
 
@@ -67,7 +67,7 @@ ordering; `by a, b` infers `byAB`. `unique name: a, b` declares a named unique
 ordering and its uniqueness constraint; `unique a, b` infers `byAB`. `id` may
 appear in an index. `immutable a, b` forbids changes to those columns.
 `cap N by a, b` holds every group at N rows (an omitted optional column is the
-`null` group); every writer, seeds included, refuses past it, and a successor
+`null` group); every writer, seeds included, refuses past it naming the cap and group; a successor
 that would leave a group over N refuses, naming the groups and the cap to raise. `public`
 accepts an optional reason string. An insert
 postcondition is `after insert <- exists table[...] [by index]`.
@@ -134,7 +134,7 @@ Tokens are not operation-site-bound. The index must be total (end in `id` or be
 unique); `after` follows scan order.
 
 `merge table [after cursor] first|last N by index:` fan-ins one or more
-indented lanes. Each lane is `[prefix keys]`, optionally `for name in` a bounded
+lanes with named or positional `[prefix keys]`, optionally `for name in` a bounded
 range read. Prefixes must have equal widths and types, leave an index suffix,
 and not be structurally identical. Quarry scans every lane at N, concatenates,
 sorts by the shared suffix, deduplicates intrinsic `id` keeping the first row,
@@ -263,10 +263,10 @@ existence-oracle case is by-id unreadable → `E_RULE`, alternate-key unreadable
 missing maintained group is zero only through `#`; the ordinary target-table
 read remains absent.
 
-Every scan, list, text, JSON, and bytes value is bounded. `for` iterates only
-a bounded list/page/range/tokens result; list-column maxima survive aliases,
-narrowing, shapes, and `?? []` (JSON does not supply a list bound). Lowered queries and mutations retain
-the same certificate, trace, and runtime budgets.
+Scans, lists, text, JSON, and bytes are bounded. `for` takes bounded
+lists/pages/range/tokens; optional lists require `?? []` or `if` presence narrowing.
+List-column maxima survive aliases and shapes; JSON supplies no list bound.
+Queries and mutations retain certificate, trace, and runtime budgets.
 
 In a mutation, `for` over a page must cover its range: the table is capped over
 the pinned prefix, the rule is uniform there, the bound is a literal at least the

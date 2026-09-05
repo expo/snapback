@@ -66,6 +66,7 @@ export type RangeSpec = {
 };
 export type MergeLane = {
   prefix: Expr[];
+  columns?: Array<string | undefined>;
   loop?: { name: string; domain: Extract<Expr, { kind: "read" }> };
   site: Site;
 };

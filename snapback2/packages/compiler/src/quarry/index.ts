@@ -238,7 +238,7 @@ function caughtDiagnostic(error: unknown, file = "snapback/schema.q"): QuarryDia
         col: 1,
         code: "E_QUARRY_UNKNOWN",
         message: error instanceof Error ? error.message : String(error),
-        rewrite: "fix the named Quarry declaration",
+        rewrite: error instanceof Error ? error.message : String(error),
         guide: "quarry/names",
       };
 }

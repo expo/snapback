@@ -172,14 +172,14 @@ export function selectIndex(
 ): IndexDecl {
   const info = catalog.get(table);
   if (!info) refuse(site, `unknown table ${table}`, `available tables: ${[...catalog.keys()].join(", ")}`);
+  const named = keys.some((key) => key.column !== undefined);
+  if (named && keys.some((key) => key.column === undefined)) refuse(site, "an index key cannot mix named and positional parts");
   if (explicit) {
     const selected = info.indexes.find((index) => index.name === explicit);
     if (!selected) refuse(site, `table ${table} has no index ${explicit}`, indexGuidance(info.declaration, info.indexes));
     validateIndexKeys(info.declaration, selected, keys, mode, infer, site);
     return selected;
   }
-  const named = keys.some((key) => key.column !== undefined);
-  if (named && keys.some((key) => key.column === undefined)) refuse(site, "an index key cannot mix named and positional parts");
   let candidates = info.indexes.filter((index) => {
     if (mode === "range" && index.name === "byId") return false;
     if (mode === "point" && (!index.unique || index.columns.length !== keys.length)) return false;
@@ -265,6 +265,7 @@ export function idLiteral(expr: Expr, expected: ScalarType): boolean {
 }
 
 export function keyCompatible(expr: Expr, actual: ScalarType | undefined, expected: ScalarType): boolean {
+  // @ref LLP 1011#null-keys-and-id-literals-2026-09-05 — null selects the optional key's group, never a required key.
   if (expr.kind === "literal" && expr.value === null) return expected.optional;
   return idLiteral(expr, expected) || compatible(actual, expected);
 }

@@ -55,4 +55,4 @@ units. `sorted` is
 `time - time` yields int milliseconds; `time + int`, `time - int`, and
 `int + time` yield time; other time arithmetic refuses. `divmod(time, int)`
 splits epoch milliseconds into int parts. Null keys select optional-column
-groups in point/maintain reads and `exists`; required columns refuse null.
+groups in point/maintain reads, `exists`, and `cap`; required columns refuse null.

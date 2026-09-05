@@ -315,10 +315,14 @@ lookups, point reads, `exists`, and capped groups; a required column refuses
 null and names the requirement. Omitted and explicit-null groups agree across
 SQLite, maintained aggregates, and the twin. Equality against null inside a
 write object is still a Boolean comparison, not a required Id sink.
-A non-empty text literal is an Id in named and positional keys, equality, and
-`??` fallbacks; computed text and references to another table refuse. The
+A non-empty text literal is an Id in named and positional keys (including merge
+prefixes), equality, and `??` fallbacks; computed text and references to another
+table refuse. The
 lowering's typed tuple cursor positions retain the same literal rule; authored
 Quarry `after` uses B1's opaque token and cannot take an Id literal.
+Optional list domains in `for` require `?? []` or B4's presence narrowing;
+their declared maxima survive aliases, shapes, and the empty default. This
+refuses absence at compile time instead of allowing a runtime array type error.
 
 ## B5. Whole-unit seeds
 

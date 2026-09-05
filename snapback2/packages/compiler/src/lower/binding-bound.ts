@@ -1,9 +1,10 @@
 import ts from "typescript";
 import type { Environment, ProvenanceOrigin, VariableInfo } from "../compiler";
+import { requiredType } from "../authored-types";
 import {
   callName,
-  contextualNodeKey,
   collectionConstructor,
+  contextualNodeKey,
   expressionProperty,
   isFunctionLike,
   numericLiteral,
@@ -12,7 +13,6 @@ import {
 } from "../syntax";
 import { selectExpressionMember } from "./collection-origins";
 import { expandHelper } from "./helper-expansion";
-import { requiredType } from "../authored-types";
 import { guardedWalk } from "./recursion";
 
 export function operationArgumentList(

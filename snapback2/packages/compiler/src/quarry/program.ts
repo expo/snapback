@@ -110,7 +110,7 @@ function emitStatement(statement: Stmt, env: Environment, writer: Writer, comple
   if (statement.kind === "bind") {
     if (statement.names.length > 1) {
       if (statement.names.length !== 2 || statement.value.kind !== "call" || !["sorted", "divmod"].includes(statement.value.name) || statement.value.args.length !== 2) {
-        refuse(statement.site, "tuple bindings take exactly two names and sorted(a, b) or divmod(a, b)", "(q, r) = divmod(a, b)");
+        refuse(statement.site, "tuple bindings take exactly two names and sorted(a, b) or divmod(a, b)", "(q, r) = divmod(a, b)", true);
       }
       if (statement.value.name === "divmod") {
         const value = emitCall(statement.value, env, writer);
@@ -200,6 +200,10 @@ function emitStatement(statement: Stmt, env: Environment, writer: Writer, comple
   }
   if (statement.kind === "for") {
     const domain = emitExpr(statement.domain, env, writer);
+    if (domain.type.kind === "list" && domain.type.optional) {
+      refuse(statement.domain.site, "for cannot iterate an optional list; supply an empty default or narrow it with if",
+        `${quarryExpression(statement.domain)} ?? []`, true);
+    }
     const itemType = domain.type.kind === "page"
       ? { kind: "row", table: domain.type.table, nullable: false } satisfies ValueType
       : domain.type.kind === "sequence" || domain.type.kind === "list" ? domain.type.item : { kind: "unknown" } satisfies ValueType;
@@ -393,6 +397,7 @@ function emitBinary(expr: Extract<Expr, { kind: "binary" }>, env: Environment, w
     }
     return { code: `(${left.code} ${operator} ${right.code})`, type: boolType() };
   }
+  // @ref LLP 1010#time-arithmetic — nominal clock arithmetic differs from ordinary integer arithmetic.
   if (left.type.kind === "time" || right.type.kind === "time") {
     const present = !isNullableValue(left.type) && !isNullableValue(right.type);
     const difference = expr.op === "-" && left.type.kind === "time" && right.type.kind === "time";
@@ -528,6 +533,7 @@ function emitCall(expr: Extract<Expr, { kind: "call" }>, env: Environment, write
     if (args.length !== 2) typeError(expr.site, `divmod(a, b) requires exactly 2 arguments; received ${args.length}`, "use divmod(amount, integerDivisor)");
     const numerator = args[0]!;
     const divisor = args[1]!;
+    // @ref LLP 1010#time-arithmetic — epoch milliseconds split into int parts; a time divisor is invalid.
     if (!numericAmountType(numerator.type) && !(numerator.type.kind === "time" && !numerator.type.optional)) {
       typeError(expr.args[0]!.site, `divmod's first argument must be int, time, decimal, or money; received ${valueTypeName(numerator.type)}`, "use a present int, time, decimal, or money numerator");
     }
@@ -686,7 +692,7 @@ function emitMerge(expr: MergeExpr, env: Environment, writer: Writer): Emitted {
     selectIndex(
       env.catalog,
       expr.table,
-      lane.prefix.map((value) => ({ value, site: value.site })),
+      lane.prefix.map((value, i) => ({ value, column: lane.columns?.[i], site: value.site })),
       "range",
       expr.index,
       (value) => inferExpr(value, nested),

@@ -1127,67 +1127,81 @@ fn add_time_arithmetic_case(cases: &mut Vec<CorpusCase>) {
         },
         args: vec![value, Expr::Literal(Value::Int(86_400_000))],
     };
-    let expression = Expr::Object(BTreeMap::from([
+    for (name, kind, clock) in [
+        ("time-difference-divmod", ProgramKind::Mutation, Input::Now),
         (
-            "elapsed".to_owned(),
-            split(Expr::Binary {
-                op: BinaryOp::Sub,
-                left: Box::new(Expr::Input(Input::Now)),
-                right: Box::new(Expr::Variable("t".to_owned())),
-            }),
+            "query-time-difference-divmod",
+            ProgramKind::Query,
+            Input::ReadTime,
         ),
-        ("epoch".to_owned(), split(Expr::Input(Input::Now))),
-    ]));
-    let args = BTreeMap::from([("t".to_owned(), Value::Int(86_400_000))]);
-    let mut program = pure_program("time-difference-divmod", expression, &args);
-    program.args.insert("t".to_owned(), ArgType::Time);
-    program.kind = ProgramKind::Mutation;
-    let mut context = Context::mutation(Actor::user("u1").unwrap(), args);
-    context.now = Some(172_800_007);
-    let case = case_from_parts(
-        "time-difference-divmod",
-        "edge",
-        spike_schema(),
-        program,
-        context,
-        ClosureReceipt::default(),
-        Vec::new(),
-        None,
-        None,
-    );
-    let authoritative = Engine::memory(case.schema.clone())
-        .unwrap()
-        .execute(
-            &case.program,
-            case.certificate.as_ref().unwrap(),
-            case.context.clone(),
-        )
-        .unwrap();
-    assert_eq!(
-        case.expected.local_result.as_ref(),
-        Some(&authoritative.result)
-    );
-    assert_eq!(
-        case.expected
-            .local_result
-            .as_ref()
+    ] {
+        let expression = Expr::Object(BTreeMap::from([
+            (
+                "elapsed".to_owned(),
+                split(Expr::Binary {
+                    op: BinaryOp::Sub,
+                    left: Box::new(Expr::Input(clock.clone())),
+                    right: Box::new(Expr::Variable("t".to_owned())),
+                }),
+            ),
+            ("epoch".to_owned(), split(Expr::Input(clock.clone()))),
+        ]));
+        let args = BTreeMap::from([("t".to_owned(), Value::Int(86_400_000))]);
+        let mut program = pure_program(name, expression, &args);
+        program.args.insert("t".to_owned(), ArgType::Time);
+        program.kind = kind;
+        let mut context = Context::query(Actor::user("u1").unwrap(), args);
+        if matches!(clock, Input::Now) {
+            context.now = Some(172_800_007);
+        } else {
+            program.read_time_granularity_ms = Some(1);
+            context.read_time = Some(172_800_007);
+        }
+        let case = case_from_parts(
+            name,
+            "edge",
+            spike_schema(),
+            program,
+            context,
+            ClosureReceipt::default(),
+            Vec::new(),
+            None,
+            None,
+        );
+        let authoritative = Engine::memory(case.schema.clone())
             .unwrap()
-            .field("elapsed")
-            .unwrap()
-            .field("quotient"),
-        Ok(&Value::Int(1))
-    );
-    assert_eq!(
-        case.expected
-            .local_result
-            .as_ref()
-            .unwrap()
-            .field("elapsed")
-            .unwrap()
-            .field("remainder"),
-        Ok(&Value::Int(7))
-    );
-    cases.push(case);
+            .execute(
+                &case.program,
+                case.certificate.as_ref().unwrap(),
+                case.context.clone(),
+            )
+            .unwrap();
+        assert_eq!(
+            case.expected.local_result.as_ref(),
+            Some(&authoritative.result)
+        );
+        assert_eq!(
+            case.expected
+                .local_result
+                .as_ref()
+                .unwrap()
+                .field("elapsed")
+                .unwrap()
+                .field("quotient"),
+            Ok(&Value::Int(1))
+        );
+        assert_eq!(
+            case.expected
+                .local_result
+                .as_ref()
+                .unwrap()
+                .field("elapsed")
+                .unwrap()
+                .field("remainder"),
+            Ok(&Value::Int(7))
+        );
+        cases.push(case);
+    }
 }
 
 fn pure_case(name: &str, expression: Expr) -> CorpusCase {

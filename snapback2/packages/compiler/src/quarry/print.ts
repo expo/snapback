@@ -38,7 +38,7 @@ export function quarryExpression(expr: Expr): string {
   }
   if (expr.kind === "merge") {
     const cursor = expr.cursor ? ` ${expr.cursorKind ?? "after"} ${quarryExpression(expr.cursor)}` : "";
-    const lanes = expr.lanes.map((lane) => `  [${lane.prefix.map(quarryExpression).join(", ")}]${lane.loop ? ` for ${lane.loop.name} in ${quarryExpression(lane.loop.domain)}` : ""}`).join("\n");
+    const lanes = expr.lanes.map((lane) => `  [${lane.prefix.map((value, i) => quarryKeyPart({ value, column: lane.columns?.[i], site: value.site })).join(", ")}]${lane.loop ? ` for ${lane.loop.name} in ${quarryExpression(lane.loop.domain)}` : ""}`).join("\n");
     return `merge ${expr.table}${cursor} ${expr.order === "asc" ? "first" : "last"} ${expr.take} by ${expr.index}:\n${lanes}`;
   }
   if (expr.kind === "exists" || expr.kind === "created") return `${expr.kind} ${quarryExpression(expr.read)}`;
@@ -63,4 +63,3 @@ export function quarryShapeDeclaration(shape: ShapeDecl): string {
     : field.kind === "namedSpread" ? `...${field.name}`
       : field.kind === "bare" ? field.name : `${field.name}: ${quarryExpression(field.value)}`).join(", ")} }`;
 }
-

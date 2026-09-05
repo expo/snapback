@@ -288,7 +288,7 @@ test("a json column shaped like the byte variant rebuilds as application data, n
   }
 });
 
-test("every corpus query round-trips through the store byte-identically and replays to the corpus expectation; a held answer is the covered case", async () => {
+test("every corpus query round-trips through the store; replay matches its inputs and an unpinned read clock refuses", async () => {
   const cases = (await corpus()).filter((item: any) =>
     item.certificate !== null && item.program.kind === "Query" && item.prelude.length === 0 && item.replacementReceipt === null);
   assert.ok(cases.length >= 80, `corpus queries: ${cases.length}`);
@@ -319,6 +319,15 @@ test("every corpus query round-trips through the store byte-identically and repl
       const client = createClient({ url: "http://corpus.test", token: "bearer", fetch: owner.fetch, offline: { store: fileRangeStore(root) } });
       await client.ready;
       await client.offline();
+      // The raw evaluator corpus supplies ReadTime; the public offline client
+      // does not pin a query clock. It must refuse instead of inventing one.
+      if (testCase.context.read_time !== null) {
+        await assert.rejects(client.query((api as any)[testCase.name], args), (error: unknown) =>
+          error instanceof SnapbackRefusal && error.message.includes("E_INPUT") && error.message.includes("readTime was not pinned"));
+        checked += 1;
+        await client.close();
+        continue;
+      }
       const local: any = await client.query((api as any)[testCase.name], args).catch((error: unknown) => {
         assert.equal(testCase.expected.localState, "refused", `${testCase.name}: unexpected refusal`);
         assert.ok(error instanceof SnapbackRefusal && error.message.includes(testCase.expected.errorCode), `${testCase.name}: ${error}`);

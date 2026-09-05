@@ -353,6 +353,8 @@ from the catalog. A wrong key reports expected and actual types. An unambiguous
 replacement expression survives the Quarry diagnostic remap as executable
 `rewrite` text; guidance without a concrete edit remains a comment (Clique L2,
 GPT-6 Astra, 2026-09-05).
+A bare `refuse()` uses its message as the rewrite; unexpected caught failures do likewise.
+The registered Quarry language checks live in `src/quarry-language-checks.ts`, keeping `src/test.ts` within the source line cap.
 
 `api.d.ts` (written to `.snapback/build/api.d.ts`, never committed) augments
 the client's `Api` interface with every op's arg and result types, inferred
