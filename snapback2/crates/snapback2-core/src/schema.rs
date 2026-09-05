@@ -35,6 +35,9 @@ impl Schema {
     }
 
     pub fn table(&self, name: &str) -> Option<&Table> {
+        if name == crate::CONNECTED_TABLE {
+            return Some(&crate::connected::TABLE);
+        }
         self.tables.get(name)
     }
 
@@ -426,6 +429,12 @@ pub(crate) fn maintain_issues(schema: &Schema) -> Vec<MaintainIssue> {
 
     for (position, maintain) in schema.maintains.iter().enumerate() {
         let issue = |message| MaintainIssue { position, message };
+        if maintain.source == crate::CONNECTED_TABLE || maintain.target == crate::CONNECTED_TABLE {
+            issues.push(issue(
+                "connected is a virtual program read, not a maintained source or target".to_owned(),
+            ));
+            continue;
+        }
 
         if let Some(first) = target_owners.insert(maintain.target.as_str(), position) {
             issues.push(issue(format!(

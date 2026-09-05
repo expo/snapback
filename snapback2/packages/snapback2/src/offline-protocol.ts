@@ -74,6 +74,8 @@ export interface DeliveryAuthority {
 }
 
 export interface DeliveryEnvelopeV1 {
+  /** Live registry inputs cannot be cached, even before program custody arrives. */
+  connected?: true;
   protocol: 1;
   generation: string;
   schemaHash: string;
@@ -155,7 +157,8 @@ export function decodeDeliveryEnvelope(json: unknown): DeliveryEnvelopeV1 {
   object(json, "$", [
     "protocol", "generation", "schemaHash", "planHash", "authority", "state",
     "data", "next", "seq", "rows", "receipt", "validator",
-  ], ["reason", "rule"]);
+  ], ["reason", "rule", "connected"]);
+  if (json.connected !== undefined && json.connected !== true) fail("$.connected", "must be true when present");
   if (json.protocol !== 1) fail("$.protocol", "unsupported delivery protocol");
   digest(json.generation, "$.generation");
   digest(json.schemaHash, "$.schemaHash");
@@ -259,6 +262,7 @@ export function encodeDeliveryEnvelope(envelope: DeliveryEnvelopeV1): string {
     })),
   };
   ordered.validator = decoded.validator;
+  if (decoded.connected) ordered.connected = true;
   return JSON.stringify(ordered);
 }
 

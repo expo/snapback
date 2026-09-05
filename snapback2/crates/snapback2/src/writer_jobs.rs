@@ -21,6 +21,7 @@ pub(super) fn drive(state: &mut State, rx: Receiver<Request>) {
                     Duration::ZERO
                 } else {
                     timeout
+                        .min(state.connected_poll_timeout())
                         .min(state.asset_poll_timeout())
                         .min(state.timer_poll_timeout()?)
                 })
@@ -74,6 +75,7 @@ fn fail(state: &mut State, refusal: Refusal) {
 }
 impl State {
     pub(super) fn background_turn(&mut self) -> Result<(), Refusal> {
+        self.flush_connected();
         self.fire_due_timers_background_turn()?;
         if let Some(id) = self
             .runtime()

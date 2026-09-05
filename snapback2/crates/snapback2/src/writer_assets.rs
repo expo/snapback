@@ -300,6 +300,7 @@ mod tests {
     ) -> State {
         let staging = Arc::new(LocalStaging::open(&root).unwrap());
         State {
+            connected: Default::default(),
             runtime: Some(runtime),
             compiled: CompiledProject {
                 project,

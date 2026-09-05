@@ -4,6 +4,18 @@ import { QuarryError, ambiguous, refuse, typeError } from "./diagnostics";
 
 export function buildCatalog(documents: Document[]): TableCatalog {
   const catalog: TableCatalog = new Map();
+  // @ref LLP 1001#51-connected — a virtual program read, never an authored table.
+  const site = { file: documents[0]?.file ?? "snapback/schema.q", line: 1, col: 1 };
+  const declaration: TableDecl = {
+    name: "connected", site,
+    columns: [
+      { name: "principal", type: { kind: "principal", optional: false }, site },
+      { name: "value", type: { kind: "int", optional: false }, site },
+    ],
+    indexes: [{ name: "byPrincipal", columns: ["principal"], unique: true, site }],
+    rules: [], immutable: [], caps: [], finalExists: [],
+  };
+  catalog.set("connected", { declaration, columns: new Map(declaration.columns.map(c => [c.name, c.type])), indexes: declaration.indexes });
   for (const document of documents) {
     for (const table of document.tables) {
       if (catalog.has(table.name)) refuse(table.site, `duplicate table ${table.name}`);
@@ -82,6 +94,7 @@ function validateArgs(args: Array<{ name: string; type: ScalarType; site: Site }
 }
 
 function validateType(type: ScalarType, catalog: TableCatalog, site: Site): void {
+  if (type.kind === "ref" && type.table === "connected") refuse(site, "connected has principal keys, not row references", "declare this value as principal");
   if (type.kind === "text" && type.max < 1) refuse(site, "text bounds must be positive");
   if (type.kind === "text" && type.min !== undefined && (type.min < 0 || type.min > type.max)) refuse(site, "text minimum must be between zero and its maximum");
   if ((type.kind === "json" || type.kind === "bytes") && type.max < 1) refuse(site, `${type.kind} bounds must be positive`);
@@ -182,6 +195,7 @@ export function selectIndex(
   }
   let candidates = info.indexes.filter((index) => {
     if (mode === "range" && index.name === "byId") return false;
+    if (table === "connected" && keys.length !== 1) return false;
     if (mode === "point" && (!index.unique || index.columns.length !== keys.length)) return false;
     if ((mode === "range" || mode === "exists") && index.columns.length < keys.length) return false;
     if (named) return keys.every((key, offset) => index.columns[offset] === key.column);
@@ -225,6 +239,9 @@ function validateIndexKeys(
   infer: (expr: Expr) => ScalarType | undefined,
   site: Site,
 ): void {
+  if (table.name === "connected" && (keys.length !== 1 || infer(keys[0]!.value)?.kind !== "principal" || infer(keys[0]!.value)?.optional)) {
+    refuse(site, "connected requires one nonoptional principal", "use #connected[viewer] or exists connected[p] with p: principal");
+  }
   if (mode === "point" && (!index.unique || index.columns.length !== keys.length)) refuse(site, `${table.name}.${index.name} is not a complete unique key`);
   if ((mode === "range" || mode === "exists") && index.columns.length < keys.length) refuse(site, `${table.name}.${index.name} has no ${keys.length}-column prefix`);
   for (const [offset, key] of keys.entries()) {

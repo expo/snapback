@@ -486,6 +486,11 @@ export class Runner {
 
   private get(read: any): Value {
     const key = read.key.map((value: any) => this.expr(value));
+    if (read.table === "_connected") {
+      this.partial.add("missing-authority");
+      this.authorityMissSerial += 1;
+      return "Null";
+    }
     const found = this.store.lookup(read.table, read.index, key);
     const disclosed = found !== null && this.checkRule(read.table, "read", null, found);
     // @ref LLP 1012#7-writes-offline — the point digest is what the program

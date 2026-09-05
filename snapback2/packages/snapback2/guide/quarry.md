@@ -1,9 +1,7 @@
 # Quarry v0.3
 
-Quarry is Snapback 2's only backend authoring language. It is a bounded
-front end to the compiler, checker, evaluator, and server. `snapback2 check`
-compiles `.q` in memory; it
-does not place generated files in `snapback/`. `snapback2 check` writes an inspection copy under `.snapback/build/quarry/`.
+Quarry is Snapback 2's only backend authoring language. `snapback2 check` compiles `.q`
+in memory and writes an inspection copy under `.snapback/build/quarry/`.
 
 ## Project
 
@@ -18,6 +16,9 @@ tables, rules, channels, maintains, queries, and mutations are Quarry. An
 effect module's stem must differ from every `.q` stem.
 
 ## Types and tables
+
+Built-in virtual tables: `connected` supports only `exists connected[p]` and
+`#connected[p]` for `p: principal`; see `guide connected`.
 
 Columns and arguments use `principal`, `id`, table references, `int`, `time`,
 `bool`, `decimal <scale>`, `money <CUR> [scale]`, `text <=N`, `text M..N`,

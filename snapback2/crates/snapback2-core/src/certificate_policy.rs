@@ -669,7 +669,31 @@ fn validate_expr(
         }
         Expr::Get(read) | Expr::Exists(read) => {
             register_site(sites, errors, &read.site, ReadSiteShape::point(read));
-            validate_read(checker, &read.table, &read.index, errors);
+            if read.table == crate::CONNECTED_TABLE && read.index == crate::CONNECTED_INDEX {
+                let valid = read.key.len() == 1
+                    && matches!(
+                        static_expression_fact(
+                            checker.schema,
+                            program,
+                            &read.key[0],
+                            bindings,
+                            &mut BTreeSet::new()
+                        )
+                        .kind,
+                        StaticType::Principal
+                    );
+                if !valid {
+                    errors.push(CheckError {
+                        site: Some(read.site.clone()),
+                        code: "E_ARGS_TYPE".to_owned(),
+                        message: "connected requires one nonoptional principal".to_owned(),
+                        rewrite: "use exists connected[viewer] or #connected[p] with p: principal"
+                            .to_owned(),
+                    });
+                }
+            } else {
+                validate_read(checker, &read.table, &read.index, errors);
+            }
             validate_point_key_arity(checker, read, errors);
         }
         Expr::Scan(scan) => {

@@ -1,6 +1,7 @@
 //! One SSE connection carries independently authorized live queries and channels.
 // @ref LLP 1002#4-the-wire — multiplexing changes framing, not query/session authority.
 use super::*;
+use crate::writer::SseSender;
 use std::sync::mpsc::{self, SyncSender};
 const MAX_SUBSCRIPTIONS: usize = 256;
 #[derive(Clone, Default)]
@@ -18,6 +19,37 @@ struct Command {
 struct Child {
     receiver: SseReceiver,
     drop_action: Option<DropAction>,
+}
+
+// A transport counts once even when it has no children or many children.
+pub(super) struct ConnectedStream {
+    handle: OwnerHandle,
+    id: Option<u64>,
+}
+impl ConnectedStream {
+    pub(super) fn open(
+        handle: &OwnerHandle,
+        identity: &Identity,
+        events: SseSender,
+    ) -> Result<Self, Refusal> {
+        let id = handle
+            .call(Action::ConnectedOpen {
+                identity: identity.clone(),
+                events,
+            })?
+            .as_u64();
+        Ok(Self {
+            handle: handle.clone(),
+            id,
+        })
+    }
+}
+impl Drop for ConnectedStream {
+    fn drop(&mut self) {
+        if let Some(id) = self.id {
+            let _ = self.handle.call(Action::ConnectedClose { id });
+        }
+    }
 }
 fn invalid(message: &str) -> Refusal {
     Refusal::input(message, "use the installed client's live transport")
@@ -74,15 +106,6 @@ pub(super) fn handle(
         }
         return;
     }
-    // Anonymous public reads remain possible; every child is owner-admitted.
-    if identity != Identity::Anonymous {
-        if let Err(error) = context.handle.call(Action::Me {
-            identity: identity.clone(),
-        }) {
-            respond_refusal(request, refusal_status(&error), error, &context.mode);
-            return;
-        }
-    }
     let mut bytes = [0_u8; 32];
     if getrandom::fill(&mut bytes).is_err() {
         respond_refusal(
@@ -103,6 +126,15 @@ pub(super) fn handle(
         .collect::<String>();
     let (commands, incoming) = mpsc::sync_channel::<Command>(32);
     let (wake, ready) = mpsc::sync_channel(1);
+    let (events, revoked) = sse_queue();
+    revoked.notify_on(wake.clone());
+    let _connected = match ConnectedStream::open(&context.handle, &identity, events) {
+        Ok(connected) => connected,
+        Err(error) => {
+            respond_refusal(request, refusal_status(&error), error, &context.mode);
+            return;
+        }
+    };
     streams.0.lock().expect("live streams lock").insert(
         session.clone(),
         Connection {
@@ -126,6 +158,13 @@ pub(super) fn handle(
         frame(&mut writer, &json!({ "session": session }))?;
         while !context.stop.load(Ordering::SeqCst) {
             let waited = ready.recv_timeout(Duration::from_secs(15));
+            if let Ok(event) = revoked.recv_timeout(Duration::ZERO) {
+                frame(
+                    &mut writer,
+                    &json!({ "data": event.data, "terminal": true }),
+                )?;
+                return Ok(());
+            }
             for command in incoming.try_iter() {
                 let close = command.body.get("close") == Some(&Json::Bool(true));
                 let result = update(

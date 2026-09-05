@@ -386,6 +386,7 @@ class Client implements SnapbackClient {
     const mountedKey = `${op}\u0000${stableSerialize(args)}`;
     this.mounted.set(mountedKey, { op, args, drain: false });
     let lastPair: { seq: number; data?: Result } | undefined;
+    let connected = false;
     let revision: number | undefined;
     let authority: Authority | undefined;
     let subscription: Subscription<SubscriptionDelivery<Result>>;
@@ -410,7 +411,7 @@ class Client implements SnapbackClient {
       },
       decode: ({ data }, current) => {
         const frameRevision = revision;
-        if (!this.offlineRuntime) return finish(wireSubscription<Result>(data));
+        if (!this.offlineRuntime) return finish(wireSubscription<Result>(data, value => { connected = value; }));
         return decodeOfflineSubscription<Result>({
           runtime: this.offlineRuntime, op, args, data, shape: wireShape,
           failure: (error) => this.offlineRefusal(error),
@@ -453,6 +454,7 @@ class Client implements SnapbackClient {
         if (!this.authorityCurrent(authority)) return undefined;
         this.patchSnapshot({ connection: this.transportFailureState() });
         if (this.offlineRuntime) return undefined;
+        if (connected) return { state: "hydrating", live: false, connection: "offline" };
         if (!lastPair) return undefined;
         return "data" in lastPair
           ? { state: "stale", live: false, since: Date.now(), seq: lastPair.seq, data: lastPair.data }

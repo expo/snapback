@@ -38,9 +38,21 @@ ends. Reconnect re-delivers query state; ephemeral channel events are not replay
 `channel name(args):` declares ephemeral events with `publish` and `subscribe`
 rules and `ttl Ns`. Use channels for transient signals such as typing;
 subscriptions carry events, not durable rows or replayable history.
-There is no connection or presence primitive yet. As a workaround, a heartbeat
-table (for example, `devices` with `schedule expireDevice on devices at .expiresAt:`)
-measures recent activity, not connection state. Its lag is the heartbeat interval plus the expiry
-delay; disconnects are seen late. Do not gate delivery (push or digests) solely
-on it: where delivery matters, use durable receipts and a delayed check for an
-unacknowledged message.
+A heartbeat table remains a workaround for recent activity such as foreground use
+when `connected` is not enough; its lag is the heartbeat interval plus the expiry
+delay; disconnects are seen late. Do not gate delivery solely on it: use durable receipts and a delayed
+check for an unacknowledged message.
+
+`connected` is a read-only virtual table: `exists connected[p]` tests whether
+principal `p` has a live connection; `#connected[p]` counts connections. Pass one
+nonoptional principal (for yourself, `viewer`) in a query or mutation. Programs
+choose what to expose; the virtual table has no rules. It counts authenticated
+SSE transports, once per transport regardless of query/channel subscriptions,
+from identity establishment until stream close; revocation cuts that session's
+streams. A silent partition is detected on a failed write, with no latency
+guarantee. Each read charges one probe and touches `_connected` at that principal.
+Connect/close invalidates those live queries with a one-second coalesce. Every
+program sees one owner-turn snapshot; changes during it appear next turn. Offline,
+a program reading `connected` is `hydrating` and never predicted, even with a
+cached answer. Connections say nothing about foreground/idle state or delivery
+guarantees; this adds no channel kind or subscriber-set broadcast.

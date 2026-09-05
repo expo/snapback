@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2-core` (`store`, `registry`, `live`, `identity`, `successor`, the engine, the IR)
 **Author:** Claude Fable 5 (orchestrator) — implementer: codex gpt-5.6-sol, lane A
 **Date:** 2026-08-29
-**Revised:** 2026-09-05 (Clique L3 — honest bound refusals and patch-sensitive cap metering; LLP 1016 J2 — §1's system tables gain `_jobs` and `_timers`; LLP 1017 §1, then §2 and §3)
+**Revised:** 2026-09-05 (Clique L12 — §5.1 specifies `connected`; Clique L3 — honest bound refusals and patch-sensitive cap metering; LLP 1016 J2 — §1's system tables gain `_jobs` and `_timers`; LLP 1017 §1, then §2 and §3)
 **Related:** LLP 1000, LLP 1002 (the loop that serves this), LLP 1003 (effects
 through the outbox this spec defines), LLP 0329.014.004 §7 (runtime), LLP
 0329.014.000 §6 (execution, trace, states), LLP 0329.016 §5.6 (no silent
@@ -506,6 +506,31 @@ with the owner; a restart re-subscribes from the clients (LLP 1002).
 A `Delivery` for a subscription whose read is now `Denied` (a revoked
 membership) is delivered with that state — the client sees `denied`, not a
 silent empty page.
+
+### 5.1 Connected
+
+Implementer: GPT-6 Astra, Clique lane L12, 2026-09-05. `connected` is a
+read-only virtual table keyed by principal: queries and mutations read
+`exists connected[p]` or `#connected[p]`, the number of that principal's live
+connections. It has no rules of its own; programs are its only surface, and
+the app author chooses what to expose. The owner's live registry of
+authenticated SSE connections is the source of truth: a connection counts
+from identity establishment until its stream closes. A silent partition is
+observed when the next write fails; this makes no numeric detection-latency
+claim. Each read charges one certificate probe and traces a touched key on
+virtual table `_connected`, keyed by principal. Connect/close invalidates
+live queries reading that principal, coalesced on the owner's background turn
+at a one-second interval. The registry is consulted inside the owner's
+transaction turn, with one consistent snapshot per program run; connections
+opening or closing mid-turn become visible on the next turn. The twin cannot
+know connections: a program reading `connected` answers `hydrating` offline
+and is never predicted, never a fabricated false/zero labelled `stale`.
+Such query envelopes carry `connected: true` and are never cached or answered
+conditionally: registry changes can share a durable commit sequence, and this
+fact must survive a failed program-custody fetch.
+Session revocation removes the connection when the existing revocation path
+cuts its stream. This is not another channel kind or a subscriber-set
+broadcast, and says nothing about foreground activity or delivery guarantees.
 
 ## 6. Identity (`identity.rs`)
 

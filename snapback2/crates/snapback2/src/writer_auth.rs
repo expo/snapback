@@ -68,7 +68,7 @@ pub(super) struct AssetCarrier {
 }
 
 impl SessionFence {
-    fn matches(&self, authority: &SessionAuthority) -> bool {
+    pub(super) fn matches(&self, authority: &SessionAuthority) -> bool {
         self.auth_epoch == authority.auth_epoch && self.principal == authority.principal.id.as_str()
     }
 }
@@ -217,6 +217,7 @@ impl State {
     }
 
     pub(super) fn fence_session(&mut self, authority: &SessionAuthority) {
+        self.connected_revoke(authority);
         self.asset_carriers.retain(|_, carrier| {
             !carrier
                 .authority
@@ -320,7 +321,7 @@ fn random_carrier() -> Result<String, Refusal> {
         .collect())
 }
 
-fn send_session_terminal(events: &SseSender, seq: u64) {
+pub(super) fn send_session_terminal(events: &SseSender, seq: u64) {
     let refusal = Refusal::from_identity(&IdentityError::Session);
     let (data, terminal) = refusal_frame(refusal, seq);
     // A session fence is terminal authority state, so it replaces any queued
@@ -402,6 +403,7 @@ mod tests {
             Arc::new(crate::blob_store::FileBlobStore::open(&asset_root).unwrap());
         let staging = Arc::new(crate::blob_store::LocalStaging::open(&asset_root).unwrap());
         let mut state = State {
+            connected: Default::default(),
             runtime: Some(runtime),
             compiled: CompiledProject {
                 project,

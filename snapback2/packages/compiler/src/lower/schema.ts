@@ -68,9 +68,9 @@ export function lowerSchema(source: string, fileName: string): LoweredSchema {
   for (const [name, call] of tableCalls) {
     const lowered = lowerTable(module, name, call, tables, diagnostics);
     if (lowered) {
-      tableJson[name] = lowered.value;
+      if (name !== "connected") tableJson[name] = lowered.value;
       tables.set(name, {
-        name,
+        name: name === "connected" ? "_connected" : name,
         private: lowered.private,
         columns: lowered.columns,
         indexes: lowered.indexes,
@@ -1018,6 +1018,7 @@ function validateRootRefs(
     }
   }
   for (const [name, call] of declarations) {
+    if (field === "tables" && name === "connected") continue;
     if (!included.has(name)) diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_INVALID", call, `${field} omits exported ${name}`));
   }
 }

@@ -79,6 +79,7 @@ fn quarry_keywords_print_grammar_and_definitions_beside_symbol_help() {
         ("shape", "splices"),
         ("retain", "keeps rows that went hidden"),
         ("channel", "ephemeral events"),
+        ("connected", "read-only virtual table"),
         ("schedule", "declares two triggers, one kind"),
         ("job", "A job can have several independent chunks"),
         (
@@ -263,7 +264,7 @@ fn source_checkout_without_keyword_index_still_serves_lib_symbols() {
 }
 
 #[test]
-fn live_query_guide_explains_the_presence_workaround() {
+fn live_query_guide_explains_connected_and_the_activity_workaround() {
     let project = Project::new();
     let output = project.run(&["guide", "live-query", "--json"]);
     assert!(output.status.success());
@@ -273,6 +274,10 @@ fn live_query_guide_explains_the_presence_workaround() {
         "recent activity",
         "heartbeat interval plus the expiry",
         "seen late",
+        "read-only virtual table",
+        "`#connected[p]`",
+        "`hydrating` and never predicted",
+        "one-second coalesce",
         "durable receipts",
         "workaround",
     ] {

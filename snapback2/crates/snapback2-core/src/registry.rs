@@ -155,14 +155,20 @@ impl Generation {
         errors.extend(crate::rule_types::check(&schema));
         errors.extend(crate::cap::schema_errors(&schema));
 
-        for table in schema.tables.keys().filter(|table| table.starts_with('_')) {
+        for table in schema
+            .tables
+            .keys()
+            .filter(|table| table.starts_with('_') || table.as_str() == "connected")
+        {
             errors.push((
                 "schema".to_owned(),
                 CheckError {
                     site: None,
                     code: "E_SCHEMA_RESERVED".to_owned(),
                     message: format!("schema declares reserved table {table}"),
-                    rewrite: "rename the table without a leading '_'".to_owned(),
+                    rewrite:
+                        "use an application table name other than connected, without a leading '_'"
+                            .to_owned(),
                 },
             ));
         }

@@ -173,9 +173,11 @@ export function wireMutation<Result>(value: unknown): MutationResult<Result> {
   }
 }
 
-export function wireSubscription<Result>(data: string): LiveQueryDelivery<Result> | QueryRefusedDelivery {
+export function wireSubscription<Result>(data: string, connected?: (value: boolean) => void): LiveQueryDelivery<Result> | QueryRefusedDelivery {
   const surface = "subscription delivery";
   const record = sseObject(data, surface);
+  if (record.connected !== undefined && record.connected !== true) throw wireShape(`${surface}.connected must be true when present`);
+  connected?.(record.connected === true);
   if (stringField(record, "state", surface) === "refused") {
     if (has(record, "next")) throw wireShape(`${surface}.refused must not carry next`);
     const refusal = wireRefusalEnvelope(record, `${surface} refusal`);

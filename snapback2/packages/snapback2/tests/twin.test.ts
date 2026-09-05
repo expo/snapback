@@ -12,6 +12,7 @@ import { fileRangeStore } from "../dist/test.mjs";
 import { sqliteFactory } from "./sqlite-fixture.ts";
 import { FakeIndexedDb, FakeLocks } from "./fake-indexeddb.ts";
 import { engineId } from "./fake-owner.ts";
+import { fixtureClient } from "./live-fixture.ts";
 
 // @ref LLP 1012#6-reads-offline — the twin is the client: hydration from
 // `coverage()` byte-identical to the Rust `ClientStore`, local evaluation with
@@ -321,6 +322,13 @@ test("every corpus query round-trips through the store; replay matches its input
       await client.offline();
       // The raw evaluator corpus supplies ReadTime; the public offline client
       // does not pin a query clock. It must refuse instead of inventing one.
+      if (testCase.category === "connected") {
+        const answer: any = await client.query((api as any)[testCase.name], args);
+        assert.deepEqual(answer, { state: "hydrating", live: false, connection: "offline" });
+        checked += 1;
+        await client.close();
+        continue;
+      }
       if (testCase.context.read_time !== null) {
         await assert.rejects(client.query((api as any)[testCase.name], args), (error: unknown) =>
           error instanceof SnapbackRefusal && error.message.includes("E_INPUT") && error.message.includes("readTime was not pinned"));
@@ -980,6 +988,75 @@ test("evicting a middle row of a drained page makes the never-opened thread part
   }
 });
 
+test("a connected subscription without a local store becomes hydrating on transport loss", async () => {
+  let stream: ReadableStreamDefaultController<Uint8Array> | undefined;
+  let dead = false;
+  const client = fixtureClient({ url: "http://connected-live.test", as: "alice", fetch: async input => {
+    if (dead) throw new TypeError("offline");
+    const path = new URL(String(input)).pathname;
+    if (path === "/api/manifest") return new Response(JSON.stringify({ ops: { online: { kind: "query", args: {} } }, auth: {}, channels: {} }));
+    return new Response(new ReadableStream({ start(controller) {
+      stream = controller;
+      controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ state: "complete", data: 0, seq: 1, next: null, connected: true })}\n\n`));
+    } }), { headers: { "content-type": "text/event-stream" } });
+  } });
+  const events: any[] = [];
+  const subscription = client.subscribe((api as any).online, {}, event => events.push(event));
+  try {
+    await subscription.until(event => event.state === "complete", 2_000);
+    const offline = subscription.until(event => event.state === "hydrating", 2_000);
+    dead = true; stream!.error(new TypeError("offline"));
+    assert.deepEqual(await offline, { state: "hydrating", live: false, connection: "offline" });
+    assert.ok(!events.some(event => event.state === "stale"));
+  } finally { subscription.close(); await client.close(); }
+});
+
+test("connected envelopes never enter coverage, including with missing program custody and repeated durable seq", async () => {
+  const fixture = (await corpus()).find(item => item.name === "connected-live-registry");
+  const generation = hex("c"), schemaHash = fixture.certificate.schema_hash;
+  const root = await tempRoot();
+  try {
+    for (const missingProgram of [false, true]) {
+      const factory = fileRangeStore(join(root, String(missingProgram)));
+      let count = 0;
+      const owner = corpusOwner({ viewer: "alice", generation, schemaHash, schema: fixture.schema,
+        programs: { online: { kind: "query", ir: fixture.program, certificate: fixture.certificate } } });
+      const fetch = async (input: string | URL | Request, init?: RequestInit) => {
+        const path = new URL(String(input)).pathname;
+        if (path === "/api/program" && missingProgram) throw new TypeError("program fetch failed");
+        if (path === "/api/query") return new Response(JSON.stringify({
+          protocol: 1, generation, schemaHash, planHash: fixture.certificate.plan_hash,
+          authority: { principal: "alice", authEpoch: 1 }, state: "complete", data: count,
+          next: null, seq: 12, rows: [], receipt: { ranges: [], absences: [], verdicts: [] },
+          validator: hex(String(count + 1)), connected: true,
+        }), { headers: { "content-type": "application/json" } });
+        return owner.fetch(input, init);
+      };
+      const client = createClient({ url: "http://connected-envelope.test", token: "bearer", fetch, offline: { store: factory } });
+      await client.ready;
+      for (count of [0, 2]) {
+        let answer: any;
+        if (missingProgram) {
+          // A streamed envelope can precede program custody; exercise that admission boundary.
+          const runtime = (client as any).offlineRuntime;
+          const accepted = await runtime.accept("online", {}, await (await fetch("http://connected-envelope.test/api/query")).json());
+          await runtime.commit("online", {}, accepted);
+          answer = accepted.result;
+        } else answer = await client.query((api as any).online, {});
+        assert.equal(answer.state, "complete");
+        assert.equal(answer.data, count);
+        assert.equal(answer.seq, 12);
+      }
+      await client.offline();
+      assert.deepEqual(await client.query((api as any).online, {}), { state: "hydrating", live: false, connection: "offline" });
+      await client.close();
+      const store = factory(); await store.open("alice");
+      assert.equal(await store.answer("online", {}), undefined);
+      await store.close?.();
+    }
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
 test("a delivery whose generation has no held program is hydrating until the program lands", async () => {
   const messengerCorpus = await messenger();
   const generation = hex("a");
@@ -1007,6 +1084,44 @@ test("a delivery whose generation has no held program is hydrating until the pro
   } finally {
     await rm(root, { recursive: true, force: true });
   }
+});
+
+test("connected stays hydrating despite a cached zero or count, cold reopen, and never predicts a gated mutation", async () => {
+  const fixture = (await corpus()).find(item => item.name === "connected-live-registry");
+  assert.ok(fixture);
+  const generation = hex("a");
+  const schemaHash = fixture.certificate.schema_hash;
+  const mutation = { ...fixture.program, kind: "Mutation", name: "gate" };
+  const programs = {
+    online: { kind: "query" as const, ir: fixture.program, certificate: fixture.certificate },
+    gate: { kind: "mutation" as const, ir: mutation, certificate: fixture.certificate },
+  };
+  let dead = false;
+  const owner = corpusOwner({ viewer: "alice", generation, schemaHash, schema: fixture.schema, programs, dead: () => dead });
+  const root = await tempRoot();
+  try {
+    for (const cached of [0, 2, false, true]) {
+      const factory = fileRangeStore(join(root, String(cached)));
+      await seedCoverage(factory, "alice", fixture, { generation, schemaHash, authEpoch: 1 }, { op: "online", args: {}, data: cached, next: null });
+      dead = false;
+      let client = createClient({ url: "http://connected.test", token: "bearer", fetch: owner.fetch, offline: { store: factory } });
+      await client.ready;
+      await client.auth.login("alice@example.com", "password123");
+      await client.offline();
+      assert.deepEqual(await client.query((api as any).online, {}), { state: "hydrating", live: false, connection: "offline" });
+      const queued: any = await client.mutation((api as any).gate, {});
+      assert.equal(queued.state, "queued");
+      const entries = await client.outbox.entries();
+      assert.equal(entries.at(-1)?.predicted, undefined);
+      assert.deepEqual(entries.at(-1)?.trace, { points: [], verdicts: [] });
+      await client.close();
+      dead = true;
+      client = createClient({ url: "http://connected.test", token: "bearer", fetch: owner.fetch, offline: { store: factory } });
+      await client.ready;
+      assert.deepEqual(await client.query((api as any).online, {}), { state: "hydrating", live: false, connection: "offline" });
+      await client.close();
+    }
+  } finally { await rm(root, { recursive: true, force: true }); }
 });
 
 test("covered evaluation errors surface; typed local mutation refusals omit prediction and JS bugs propagate", async () => {

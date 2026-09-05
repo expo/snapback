@@ -360,6 +360,13 @@ fn check_exists(
     site: &str,
     errors: &mut Vec<(String, CheckError)>,
 ) {
+    if table_name == crate::CONNECTED_TABLE {
+        errors.push(invalid(
+            site,
+            "connected is readable only in programs, not rules".to_owned(),
+        ));
+        return;
+    }
     let Some(table) = schema.table(table_name) else {
         errors.push(invalid(
             site,
@@ -435,6 +442,13 @@ fn check_final_exists(
     site: &str,
     errors: &mut Vec<(String, CheckError)>,
 ) {
+    if target_table == crate::CONNECTED_TABLE {
+        errors.push(invalid(
+            site,
+            "connected is readable only in programs, not constraints".to_owned(),
+        ));
+        return;
+    }
     let Some(table) = schema.table(target_table) else {
         errors.push(invalid(
             site,

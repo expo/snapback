@@ -250,6 +250,8 @@ pub struct DeliveryEnvelopeV1 {
     pub rows: Vec<DeliveryRow>,
     pub receipt: DeliveryReceipt,
     pub validator: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub connected: Option<bool>,
 }
 
 pub struct DeliveryProjectionContext<'a> {
@@ -374,6 +376,7 @@ pub fn project(
         auth_epoch: context.auth_epoch,
     });
     Ok(DeliveryEnvelopeV1 {
+        connected: None,
         protocol: DELIVERY_PROTOCOL_V1,
         generation: context.generation.to_owned(),
         schema_hash: context.schema_hash.to_owned(),

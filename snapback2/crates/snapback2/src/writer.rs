@@ -26,6 +26,8 @@ use std::time::{Duration, Instant};
 mod writer_assets;
 #[path = "writer_auth.rs"]
 mod writer_auth;
+#[path = "writer_connected.rs"]
+mod writer_connected;
 #[path = "writer_data.rs"]
 mod writer_data;
 #[path = "writer_effects.rs"]
@@ -124,6 +126,13 @@ impl OwnerHandle {
 
 #[allow(clippy::large_enum_variant)]
 pub enum Action {
+    ConnectedOpen {
+        identity: Identity,
+        events: SseSender,
+    },
+    ConnectedClose {
+        id: u64,
+    },
     RehearsalSnapshot {
         target: crate::rehearsal::Target,
         args: Json,
@@ -365,6 +374,7 @@ struct ChannelClient {
 }
 
 struct State {
+    connected: writer_connected::Connections,
     runtime: Option<Runtime>,
     compiled: CompiledProject,
     seed: SeedData,
@@ -411,6 +421,7 @@ pub fn spawn_writer(
         .spawn(move || {
             run_writer(
                 State {
+                    connected: Default::default(),
                     runtime: Some(runtime),
                     compiled,
                     seed,
@@ -457,7 +468,8 @@ fn session_json(
     auth_epoch: u64,
     grant: Option<snapback2_core::ReplayGrant>,
 ) -> Json {
-    let mut response = json!({ "token": token, "viewer": viewer, "kind": kind, "authEpoch": auth_epoch });
+    let mut response =
+        json!({ "token": token, "viewer": viewer, "kind": kind, "authEpoch": auth_epoch });
     if let Some(grant) = grant {
         response["grant"] = json!(grant);
     }
@@ -499,6 +511,11 @@ impl State {
 
     fn handle(&mut self, action: Action) -> Result<Json, Refusal> {
         match action {
+            Action::ConnectedOpen { identity, events } => self.connected_open(identity, events),
+            Action::ConnectedClose { id } => {
+                self.connected_close(id);
+                Ok(Json::Null)
+            }
             Action::RehearsalSnapshot {
                 target,
                 args,
@@ -1035,7 +1052,7 @@ impl State {
         let (full, terminal) = if offline.receipt {
             writer_offline::envelope_frame(self.runtime().generation(), &op, &context, &execution)
         } else {
-            live_frame(Ok(&execution), execution.seq)
+            writer_offline::connected_frame(self.runtime().generation(), &op, &execution)
         };
         let data = if offline.receipt && !terminal {
             writer_offline::conditional_frame(&full, offline.validator.as_deref())
@@ -1220,7 +1237,11 @@ impl State {
                             &execution,
                         )
                     } else {
-                        live_frame(Ok(&execution), execution.seq)
+                        writer_offline::connected_frame(
+                            self.runtime().generation(),
+                            &client.op,
+                            &execution,
+                        )
                     };
                     let changed = frame_digest(&frame) != frame_digest(&client.last_frame);
                     client.runtime_id = runtime_id;

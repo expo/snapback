@@ -158,6 +158,16 @@ impl Sse {
         Self::open_stream(port, "POST", "/api/live", "X-Snapback-As", persona)
     }
 
+    pub(super) fn live_bearer(port: u16, token: &str) -> Self {
+        Self::open_stream(
+            port,
+            "POST",
+            "/api/live",
+            "Authorization",
+            &format!("Bearer {token}"),
+        )
+    }
+
     fn open_stream(port: u16, method: &str, path: &str, header: &str, value: &str) -> Self {
         let mut stream = TcpStream::connect(("127.0.0.1", port)).unwrap();
         stream

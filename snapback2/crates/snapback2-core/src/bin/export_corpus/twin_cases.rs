@@ -1,5 +1,55 @@
 use super::*;
 
+pub(super) fn add_connected_case(cases: &mut Vec<CorpusCase>) {
+    let schema = Schema::default();
+    let program = Program {
+        name: "connected-live-registry".into(),
+        kind: ProgramKind::Query,
+        args: BTreeMap::new(),
+        read_time_granularity_ms: None,
+        result_page_site: None,
+        body: vec![Stmt::Return(Expr::Exists(Read {
+            site: "connected".into(),
+            table: CONNECTED_TABLE.into(),
+            index: CONNECTED_INDEX.into(),
+            key: vec![Expr::Input(Input::Viewer)],
+            provenance: KeyProvenance::Viewer,
+        }))],
+    };
+    let certificate = Checker::new(&schema, Ceilings::default())
+        .check(&program)
+        .unwrap();
+    let context = Context::query(Actor::user("alice").unwrap(), BTreeMap::new());
+    let mut engine = Engine::memory(schema.clone()).unwrap();
+    engine.set_connected(BTreeMap::from([("alice".into(), 2)]));
+    let execution = engine
+        .execute(&program, &certificate, context.clone())
+        .unwrap();
+    assert_eq!(execution.result, Value::Bool(true));
+    assert_eq!(execution.trace.rule_probes, 1);
+    let [point] = execution.trace.points.as_slice() else {
+        panic!("connected has one exact trace key")
+    };
+    assert_eq!(point.table, "_connected");
+    assert_eq!(point.index, "byPrincipal");
+    assert_eq!(point.key, vec![Value::Id("alice".into())]);
+    assert!(execution.receipt.rows.is_empty() && execution.receipt.absences.is_empty());
+    let case = case_from_parts(
+        "connected-live-registry",
+        "connected",
+        schema,
+        program,
+        context,
+        execution.receipt,
+        vec![],
+        None,
+        None,
+    );
+    assert_eq!(case.expected.local_state, "partial");
+    assert_eq!(case.expected.partial_sites, vec!["missing-authority"]);
+    cases.push(case);
+}
+
 pub(super) fn add_twin_cases(cases: &mut Vec<CorpusCase>) {
     add_rbac_twin_cases(cases);
     add_text_control_refusal_case(cases);

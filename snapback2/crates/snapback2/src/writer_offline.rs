@@ -22,7 +22,7 @@ pub(super) fn envelope_json(
         .expect("execution operation belongs to active generation");
     let program_generation = generation.program_hash();
     let schema_hash = generation.schema().hash();
-    let envelope = project_delivery(
+    let mut envelope = project_delivery(
         execution,
         &DeliveryProjectionContext {
             op,
@@ -35,6 +35,11 @@ pub(super) fn envelope_json(
         },
     )
     .map_err(projection_refusal)?;
+    envelope.connected = certificate
+        .read_sites
+        .iter()
+        .any(|site| site.table == snapback2_core::CONNECTED_TABLE)
+        .then_some(true);
     Ok(serde_json::to_value(envelope).expect("delivery envelope is serializable"))
 }
 
@@ -54,12 +59,30 @@ pub(super) fn envelope_frame(
     }
 }
 
+pub(super) fn connected_frame(
+    generation: &Generation,
+    op: &str,
+    execution: &Execution,
+) -> (Json, bool) {
+    let (mut frame, terminal) = live_frame(Ok(execution), execution.seq);
+    if !terminal
+        && generation.programs()[op]
+            .1
+            .read_sites
+            .iter()
+            .any(|site| site.table == snapback2_core::CONNECTED_TABLE)
+    {
+        frame["connected"] = Json::Bool(true);
+    }
+    (frame, terminal)
+}
+
 pub(super) fn conditional_frame(full: &Json, validator: Option<&str>) -> Json {
     let current = full
         .get("validator")
         .and_then(Json::as_str)
         .expect("delivery envelope has validator");
-    if validator == Some(current) {
+    if full.get("connected") != Some(&Json::Bool(true)) && validator == Some(current) {
         json!({
             "state": "unchanged",
             "seq": full.get("seq").cloned().unwrap_or(Json::from(0)),

@@ -24,7 +24,7 @@ export function emitSchema(documents: Document[], catalog: TableCatalog, sourceF
   const maintains = documents.flatMap((document) => document.maintains);
   lines.push(withSite("export default schema({", rootSite));
   lines.push(withSite(`  auth: { password: ${identity.password}, guests: ${identity.guests} },`, rootSite));
-  lines.push(withSite(`  tables: { ${[...catalog.keys()].join(", ")} },`, rootSite));
+  lines.push(withSite(`  tables: { ${[...catalog.keys()].filter(name => name !== "connected").join(", ")} },`, rootSite));
   if (maintains.length > 0) {
     lines.push(withSite("  maintains: [", maintains[0]!.site));
     for (const declaration of maintains) lines.push(withSite(`    ${maintainCode(declaration, catalog)},`, declaration.site));

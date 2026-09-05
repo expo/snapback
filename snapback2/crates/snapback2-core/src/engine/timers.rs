@@ -55,6 +55,7 @@ impl Engine {
         let mut trace = AuthoritativeTrace::default();
         let attempted = (|| -> Result<serde_json::Value, RuntimeError> {
             let mut context = Context::system();
+            context.connected = self.connected.clone();
             context.now = Some(now);
             context.read_time = Some(now);
             context.new_ids = ids;

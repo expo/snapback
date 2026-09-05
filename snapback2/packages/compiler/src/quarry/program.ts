@@ -296,7 +296,7 @@ function emitExpr(expr: Expr, env: Environment, writer: Writer, resultUsed = tru
   }
   if (expr.kind === "created") refuse(expr.site, "created is valid only in an insert table rule");
   if (expr.kind === "aggregate") {
-    const read = emitRead({ kind: "read", table: expr.table, keys: expr.keys, site: expr.site }, env, writer);
+    const read = emitRead({ kind: "read", table: expr.table, keys: expr.keys, site: expr.site }, env, writer, false, true);
     const value = env.catalog.get(expr.table)?.columns.get("value");
     if (!value) refuse(expr.site, `#${expr.table}[...] requires a maintained target with a value column`);
     // @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — aggregate absence becomes typed zero once, before the value enters ordinary IR expressions.
@@ -602,7 +602,10 @@ function emitCall(expr: Extract<Expr, { kind: "call" }>, env: Environment, write
   return { code: `${target}(${args.map((arg) => arg.code).join(", ")})`, type: args[0]?.type ?? { kind: "int", optional: false } };
 }
 
-function emitRead(expr: Extract<Expr, { kind: "read" }>, env: Environment, writer: Writer, exists = false): Emitted {
+function emitRead(expr: Extract<Expr, { kind: "read" }>, env: Environment, writer: Writer, exists = false, aggregate = false): Emitted {
+  if (expr.table === "connected" && (expr.range || (!exists && !aggregate))) {
+    refuse(expr.site, "connected supports only existence and count reads", "use exists connected[viewer] or #connected[viewer]");
+  }
   if (!env.catalog.has(expr.table)) refuse(expr.site, `unknown table ${expr.table}`);
   const mode = expr.range ? "range" : exists ? "exists" : "point";
   const index = selectIndex(env.catalog, expr.table, expr.keys, mode, expr.index, (value) => inferExpr(value, env), expr.site);
@@ -841,6 +844,7 @@ function shapeObject(fields: ShapeField[], focal: Binding, env: Environment, wri
 }
 
 function emitWrite(expr: Extract<Expr, { kind: "write" }>, env: Environment, writer: Writer, resultUsed: boolean): Emitted {
+  if (expr.table === "connected") refuse(expr.site, "connected is read-only", "use exists connected[viewer] or #connected[viewer]");
   const info = env.catalog.get(expr.table);
   if (!info) refuse(expr.site, `unknown table ${expr.table}`);
   if (expr.op === "insert") {

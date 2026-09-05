@@ -120,6 +120,7 @@ fn main() {
     add_cursor_cases(&mut cases);
     merge_cases::add_merge_and_opaque_cursor_cases(&mut cases);
     twin_cases::add_twin_cases(&mut cases);
+    twin_cases::add_connected_case(&mut cases);
     write_cases::add_write_cases(&mut cases);
     client_scenarios::add_client_scenarios(&mut cases);
     add_value_edges(&mut cases);

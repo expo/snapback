@@ -6,6 +6,8 @@ use super::owner_support::*;
 use super::*;
 
 mod cap;
+#[cfg(not(feature = "hermes"))]
+mod connected;
 
 #[cfg(not(feature = "hermes"))]
 mod effects;

@@ -493,6 +493,14 @@ fn handle(mut request: Request, context: Context, streams: live::Streams) {
                 }
             };
             let (tx, rx) = sse_queue();
+            let _connected =
+                match live::ConnectedStream::open(&context.handle, &identity, tx.clone()) {
+                    Ok(connected) => connected,
+                    Err(error) => {
+                        respond_refusal(request, refusal_status(&error), error, &context.mode);
+                        return;
+                    }
+                };
             match context
                 .handle
                 .subscribe(op, args, identity, offline_options(&body, &query), tx)
@@ -536,6 +544,14 @@ fn handle(mut request: Request, context: Context, streams: live::Streams) {
                 }
             };
             let (tx, rx) = sse_queue();
+            let _connected =
+                match live::ConnectedStream::open(&context.handle, &identity, tx.clone()) {
+                    Ok(connected) => connected,
+                    Err(error) => {
+                        respond_refusal(request, refusal_status(&error), error, &context.mode);
+                        return;
+                    }
+                };
             match context.handle.call(Action::ChannelSubscribe {
                 name,
                 args,

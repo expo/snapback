@@ -661,13 +661,19 @@ impl<'a> Checker<'a> {
         let computed: Vec<_> = certificate
             .read_sites
             .iter()
-            .filter(|site| site.prefix_template == KeyProvenance::Computed)
+            .filter(|site| {
+                site.prefix_template == KeyProvenance::Computed
+                    || site.table == crate::CONNECTED_TABLE
+            })
             .map(|site| site.site.clone())
             .collect();
         let closed: Vec<_> = certificate
             .read_sites
             .iter()
-            .filter(|site| site.prefix_template != KeyProvenance::Computed)
+            .filter(|site| {
+                site.prefix_template != KeyProvenance::Computed
+                    && site.table != crate::CONNECTED_TABLE
+            })
             .map(|site| site.site.clone())
             .collect();
         if !closed.is_empty() {
@@ -1013,13 +1019,15 @@ impl<'a> Analyzer<'a> {
                 complete: false,
             },
         );
-        summary.examined = summary.examined.saturating_add(calls);
-        summary.index_entries = summary.index_entries.saturating_add(calls);
+        if read.table != crate::CONNECTED_TABLE {
+            summary.examined = summary.examined.saturating_add(calls);
+            summary.index_entries = summary.index_entries.saturating_add(calls);
+            summary.costs.read(read, calls, factors);
+        }
         summary.rule_probes = summary
             .rule_probes
             .saturating_add(calls.saturating_mul(self.table_read_rule_probe_bound(&read.table)));
         summary.steps = summary.steps.saturating_add(calls.saturating_mul(4));
-        summary.costs.read(read, calls, factors);
         summary.costs.probes(
             &read.site,
             calls,
@@ -1189,6 +1197,9 @@ impl<'a> Analyzer<'a> {
     }
 
     fn table_read_rule_probe_bound(&self, table: &str) -> u64 {
+        if table == crate::CONNECTED_TABLE {
+            return 1;
+        }
         self.schema
             .table(table)
             .map(|table| self.rule_probe_bound(&table.rules.read))

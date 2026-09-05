@@ -26,7 +26,7 @@ import {
   tailWatermark,
 } from "./store/range-store.js";
 import { ByteCache } from "./store/byte-cache.js";
-import { Twin, type LocalAnswer, type Prediction } from "./twin.js";
+import { Twin, readsConnected, type LocalAnswer, type Prediction } from "./twin.js";
 import type { Manifest, OfflineClientOptions, OutboxSettlement } from "./types.js";
 
 /**
@@ -553,6 +553,9 @@ export class OfflineRuntime {
           };
         }
         const source = envelope ?? accepted.result;
+        // @ref LLP 1001#51-connected — changing live counts can share a durable seq;
+        // they establish authority facts but never enter the durable answer cache.
+        if (envelope?.connected || readsConnected(this.held?.programs[op])) continue;
         deliveries.push({
           cursorArg: this.cursorArg(op),
           op,
@@ -609,6 +612,7 @@ export class OfflineRuntime {
   }
 
   async answer<Result>(op: string, args: unknown): Promise<HeldAnswer<Result> | undefined> {
+    if (readsConnected(this.held?.programs[op])) return undefined;
     // Superseded coverage answers nothing: not served offline, and its validators
     // are never sent, so a conditional `unchanged` cannot carry a stale answer forward.
     if (!this.coverageCurrent()) return undefined;

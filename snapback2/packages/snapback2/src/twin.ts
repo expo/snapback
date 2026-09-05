@@ -91,6 +91,7 @@ export class Twin {
    * state), or when the operation is not a query the program knows.
    */
   async evaluate(op: string, args: unknown): Promise<LocalAnswer | undefined> {
+    if (readsConnected(this.sources.program()?.programs[op])) return decline("connected");
     const hydrated = await this.hydrate();
     if (!hydrated) return decline("hydrate");
     const operation = hydrated.program.programs[op];
@@ -143,6 +144,7 @@ export class Twin {
    */
   async predict(op: string, args: unknown, ids: string[]): Promise<Prediction> {
     const none: Prediction = { predicted: false, overlay: [], trace: emptyTrace(), partialRanges: [], uncovered: [], omitted: [] };
+    if (readsConnected(this.sources.program()?.programs[op])) return none;
     const hydrated = await this.hydrate();
     if (!hydrated) return none;
     const operation = hydrated.program.programs[op];
@@ -260,4 +262,10 @@ export class Twin {
     }
     return { program, coverage, store, predicted };
   }
+}
+
+// @ref LLP 1001#51-connected — even an unexecuted branch is server-only; no held count authorizes prediction.
+export function readsConnected(operation: { certificate?: unknown } | undefined): boolean {
+  const certificate = operation?.certificate as { read_sites?: Array<{ table: string }> } | undefined;
+  return certificate?.read_sites?.some(site => site.table === "_connected") ?? false;
 }

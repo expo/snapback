@@ -114,6 +114,25 @@ impl Subscriptions {
 }
 
 impl Runtime {
+    pub fn connected_invalidated(&self, principals: &BTreeSet<String>) -> Vec<SubscriptionId> {
+        principals
+            .iter()
+            .flat_map(|principal| {
+                self.subs
+                    .exact
+                    .get(&(
+                        crate::CONNECTED_TABLE.to_owned(),
+                        crate::CONNECTED_INDEX.to_owned(),
+                        canonical_json(&vec![Value::Id(principal.clone())]),
+                    ))
+                    .into_iter()
+                    .flatten()
+                    .copied()
+            })
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .collect()
+    }
     pub fn subscribe(
         &mut self,
         op: &str,

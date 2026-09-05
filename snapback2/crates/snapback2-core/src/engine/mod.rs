@@ -24,6 +24,8 @@ pub struct Context {
     pub read_time: Option<i64>,
     #[serde(skip)]
     operator_by: Option<String>,
+    #[serde(skip)]
+    connected: std::sync::Arc<BTreeMap<String, u64>>,
 }
 
 impl Context {
@@ -37,6 +39,7 @@ impl Context {
             new_ids: VecDeque::new(),
             read_time: None,
             operator_by: None,
+            connected: Default::default(),
         }
     }
 
@@ -67,6 +70,7 @@ impl Context {
             new_ids: VecDeque::new(),
             read_time: None,
             operator_by: None,
+            connected: Default::default(),
         }
     }
 }
@@ -209,6 +213,7 @@ impl Serialize for RuntimeError {
 }
 
 pub struct Engine {
+    connected: std::sync::Arc<BTreeMap<String, u64>>,
     store: Store,
     schema: Schema,
     verdicts: Vec<Verdict>,
@@ -225,6 +230,7 @@ impl Engine {
     pub fn new(store: Store, schema: Schema) -> Result<Self, RuntimeError> {
         validate_schema(&schema).map_err(first_schema_error)?;
         Ok(Self {
+            connected: Default::default(),
             store,
             schema,
             verdicts: Vec::new(),
@@ -237,8 +243,13 @@ impl Engine {
         Self::new(Store::memory()?, schema)
     }
 
+    pub fn set_connected(&mut self, counts: BTreeMap<String, u64>) {
+        self.connected = std::sync::Arc::new(counts);
+    }
+
     pub(crate) fn memory_copy(&self) -> Result<Self, RuntimeError> {
         Ok(Self {
+            connected: self.connected.clone(),
             store: self.store.memory_copy()?,
             schema: self.schema.clone(),
             verdicts: self.verdicts.clone(),
@@ -536,11 +547,12 @@ impl Engine {
         &mut self,
         program: &Program,
         certificate: &Certificate,
-        context: Context,
+        mut context: Context,
         commit_kind: Option<&str>,
         then_outbox_id: Option<&str>,
         replay: Option<&crate::offline::ReplayCommit>,
     ) -> Result<Execution, RuntimeError> {
+        context.connected = self.connected.clone();
         if program.kind == ProgramKind::Job {
             let mut refusal = crate::jobs::JobRefusal::new(
                 "E_OPERATOR_REQUIRED",
@@ -735,7 +747,7 @@ impl Engine {
             Err(error) => return Err(error),
         };
         let (result, result_provenance) = match flow {
-            Flow::Return(value, provenance) => (value, provenance),
+            Flow::Return(value, provenance) if !runner.missing_authority => (value, provenance),
             _ => (Value::Null, ResultProvenance::None),
         };
         if program.kind == ProgramKind::Query {
@@ -1345,7 +1357,11 @@ pub fn validate_schema(schema: &Schema) -> Result<(), Vec<RuntimeError>> {
             rewrite: error.rewrite,
         })
         .collect();
-    for name in schema.tables.keys().filter(|name| name.starts_with('_')) {
+    for name in schema
+        .tables
+        .keys()
+        .filter(|name| name.starts_with('_') || name.as_str() == "connected")
+    {
         errors.push(RuntimeError::SchemaReserved(name.clone()));
     }
     for (table_name, table) in &schema.tables {

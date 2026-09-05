@@ -57,6 +57,30 @@ function refusal(source: string, text: string, declarations = schema) {
 }
 
 export function registerQuarryLanguageChecks(test: Test, frontend: string): void {
+  test("connected certifies one probe per principal read and refuses nonprogram surfaces", async () => {
+    await project("query count(p: principal):\n  return #connected[p]\nquery online():\n  return exists connected[viewer]\nmutation gate(p: principal):\n  require exists connected[p] else OFFLINE\n  return #connected[p]\n", result => {
+      assert(!("connected" in result.project.schema.tables) && !("_connected" in result.project.schema.tables), "virtual table leaked into durable schema");
+      const checked = rustCheck(result.project.programs, "synthetic", result.project.schema);
+      for (const item of checked) {
+        const certificate = item.certificate as any;
+        assert(certificate.max_rule_probes === (certificate.program.endsWith("gate") ? 2 : 1), JSON.stringify(item));
+        assert(certificate.read_sites.every((site: any) => site.table === "_connected" && site.index === "byPrincipal"), JSON.stringify(item));
+      }
+    });
+    for (const key of ["'alice'", "1", "null", "", "viewer, viewer"]) {
+      const result = compile(`query bad():\n  return #connected[${key}]\n`);
+      assert(!result.ok, `connected admitted key ${key}`);
+    }
+    for (const arg of ["p: id", "p: posts", "p: principal ?"]) {
+      assert(!compile(`query bad(${arg}):\n  return exists connected[p]\n`).ok, `connected admitted ${arg}`);
+    }
+    for (const source of [
+      "query bad():\n  return connected[viewer]\n",
+      "query bad():\n  return connected[] first 10\n",
+      "mutation bad():\n  insert connected { principal: viewer, value: 1 }\n",
+    ]) assert(!compile(source).ok, `connected admitted ${source}`);
+    assert(!compile("query ok():\n  return true\n", schema + "\ntable connected:\n  value: int\n").ok, "connected was redeclared");
+  });
   test("Quarry time difference and epoch divmod have integer parts", async () => {
     await project(`query probe(t: time):
   elapsed = divmod(now - t, 86400000)

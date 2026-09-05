@@ -44,6 +44,7 @@ impl Engine {
         };
         let index = &self.schema.tables[&scan.table].indexes[&scan.index];
         let mut context = Context::system();
+        context.connected = self.connected.clone();
         context.args = job.args.clone();
         context.now = Some(now);
         context.read_time = Some(now);

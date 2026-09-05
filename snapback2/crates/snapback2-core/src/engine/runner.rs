@@ -24,6 +24,9 @@ struct TrackedValue {
     provenance: ResultProvenance,
 }
 
+#[path = "connected.rs"]
+mod connected;
+
 #[derive(Clone, Copy)]
 pub(super) struct CandidateCheckpoint {
     rows: usize,
@@ -968,6 +971,9 @@ impl<'a> Runner<'a> {
             .iter()
             .map(|value| self.expr(value))
             .collect::<Result<Vec<_>, _>>()?;
+        if read.table == crate::CONNECTED_TABLE {
+            return self.connected_read(read, key);
+        }
         let found = self.lookup_raw(&read.table, &read.index, &key)?;
         if let Some(row) = found {
             self.trace.examined += 1;

@@ -31,6 +31,7 @@ optional. Text may add a format. `cursor` is operation-only.
 - `public`: `public ['reason']` declares public reads.
 - `retain`: `retain until-revoked|delivered-history` controls hidden-row custody.
 - `channel`: `channel name(args):` declares publish, subscribe and ttl.
+- `connected`: `exists connected[p]` tests live connections; `#connected[p]` counts them (`p: principal`).
 - `schedule`: `schedule name on table at .column:` or `every Nm|Nh|Nd:`.
 - `job`: `job name(args):` declares independent sweeps.
 - `chunk`: `chunk row in table[prefix] first N by index:`.
