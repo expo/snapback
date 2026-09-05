@@ -1,1 +1,0 @@
-../1012-local-first-v1.spec.md
