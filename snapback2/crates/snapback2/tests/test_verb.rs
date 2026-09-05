@@ -1116,13 +1116,13 @@ fn clique_sized_seed_and_67_operations_have_bounded_honest_derived_coverage() {
     fs::write(project.path.join("snapback/scale.q"), operations).unwrap();
     let seed = project.path.join("snapback/seed.ts");
     let mut source = fs::read_to_string(&seed).unwrap();
-    let conversations = (3..=12)
+    let conversations = (3..=4)
         .map(|n| {
             format!("{{ id: 'conversation-{n}', title: 'Room {n}', creatorId: 'dev:alice' }},")
         })
         .collect::<String>();
-    let memberships = (3..=12).map(|n| format!("{{ id: 'membership-extra-{n}', conversationId: 'conversation-{n}', principal: 'dev:alice', role: 'admin', joinedAt: 0 }},")).collect::<String>();
-    let messages = (0..120).map(|n| format!("{{ id: 'extra-{n}', conversationId: 'conversation-{}', authorId: 'dev:alice', body: 'seeded chat', at: {} }},", n % 12 + 1, n + 2)).collect::<String>();
+    let memberships = (3..=4).map(|n| format!("{{ id: 'membership-extra-{n}', conversationId: 'conversation-{n}', principal: 'dev:alice', role: 'admin', joinedAt: 0 }},")).collect::<String>();
+    let messages = (0..30).map(|n| format!("{{ id: 'extra-{n}', conversationId: 'conversation-{}', authorId: 'dev:alice', body: 'seeded chat', at: {} }},", n % 4 + 1, n + 2)).collect::<String>();
     // Keep the original two scope rows first for the declared candidate order.
     source = source.replace(
         "    ],\n    memberships:",
@@ -1145,7 +1145,7 @@ fn clique_sized_seed_and_67_operations_have_bounded_honest_derived_coverage() {
     assert!(output.status.success(), "{receipt}");
     assert_eq!(check(&receipt, "certify")["detail"]["operations"], 67);
     let rules = check(&receipt, "rules");
-    assert_eq!(rules["detail"]["tables"]["messages"]["probes"], 122 * 4);
+    assert_eq!(rules["detail"]["tables"]["messages"]["probes"], 32 * 4);
     let invalidation = check(&receipt, "invalidation");
     assert!(
         invalidation["detail"]["attempts"].as_u64().unwrap() < 150,

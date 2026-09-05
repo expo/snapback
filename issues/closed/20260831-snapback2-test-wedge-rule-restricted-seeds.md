@@ -20,7 +20,7 @@ reports missing witnesses as blocked. Rules remain exhaustive within a stated
 16,384 row/persona budget; oversized seeds block before probing. Replay now
 resets once and compares independent forks of that unchanged seeded store.
 
-The existing `test_verb` target now includes a 67-operation, 12-conversation,
+The initial regression used a 67-operation, 12-conversation,
 122-message chat seed using real template policies, maintained counts, feeds,
 and all three named authorization proofs. It passed every derived check with
 37 invalidation attempts; debug elapsed was 30.264 s while four integration
@@ -30,3 +30,8 @@ shared-machine load was 59–63 s. The integrated production-profile binary comp
 29.195 s, with every check passing (rules 579 ms, invalidation 14,998 ms,
 replay 3,466 ms). The full workspace test suite was running concurrently.
 These are diagnostic/regression runs, not the fresh-agent Clique benchmark.
+
+The blocking regression retains all 67 operations and assertions with four
+conversations and 32 messages (still more than one page). Extra scopes beyond
+the two-scope candidate limit add repeated seeding cost without additional
+search coverage; the larger production run above remains the scale evidence.

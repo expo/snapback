@@ -17,3 +17,14 @@ Consequence: scripts/test.sh is one of the five blocking checks in rules/RULES.m
 Note the observation was made while several agents were running on the machine, so load is a contributing factor rather than proof of an intrinsic race; the point stands that the gate is not reliable under the conditions it actually runs in.
 
 Suggested fix: identify the tests that need exclusive resources and stop running them concurrently - either a serial test harness for that set, per-test unique ports and temp roots instead of shared ones, or deadlines scaled to observed machine load rather than fixed. Then make the flake itself a check: run scripts/test.sh N times in the scheduled slow lane and file an issue if any run differs from the others.
+
+## Observation — 2026-09-05
+
+The current nextest-backed `test.sh` run on the Clique prerequisite change
+passed 504/505 Rust tests, 275 client tests, 160 evaluator cases, and 304
+compiler checks. The unchanged
+`media_helper::tests::escaped_descendant_holding_stdout_obeys_the_output_drain_deadline`
+reached its overall 2,000 ms ceiling before reaching the expected output-drain
+timeout. A production build/large-seed qualification ran concurrently. A
+quiet targeted rerun passed (1/1, 2.01 s). This is recorded as a timing-sensitive
+suite failure and successful targeted retry, not an all-green `test.sh` run.
