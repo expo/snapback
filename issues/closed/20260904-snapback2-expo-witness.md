@@ -47,3 +47,10 @@ the stopped replay never retried (`027c04144`); the served file URI compared by 
 refusing a `data:` video source (v1 refuses view-once video on native — LLP 1013 decision 7,
 amended). The six-hour launchd schedule for the witness is installed from the primary checkout
 after landing (`node scripts/witness-expo.mjs --print-launchd`).
+
+## Native memory-player repair — 2026-09-05
+
+All ten simulator steps passed again at 2026-09-05T09:28:46.991Z, now with
+actual view-once video playback and cold-reopen denial. An intermediate
+playback timeout was the native event adapter forwarding an event object
+to a zero-argument callback; the adapter and its regression test are fixed.

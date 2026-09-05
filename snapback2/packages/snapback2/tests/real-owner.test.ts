@@ -19,7 +19,7 @@ test("sixty live queries and a channel share one connection through add, remove 
   let session: string | undefined;
   const client = createClient({ url: owner.url, as: "alice", fetch: async (input, init) => {
     const path = new URL(String(input)).pathname;
-    if (path === "/api/live") streams++;
+    if (path === "/api/live") { assert.equal(init?.body, "{}"); streams++; }
     if (path === "/api/live/control") { controls++; session = JSON.parse(String(init?.body)).session; }
     return fetch(input, init);
   } });

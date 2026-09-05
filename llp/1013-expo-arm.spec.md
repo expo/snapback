@@ -1,11 +1,11 @@
 # LLP 1013: The Expo arm — the sqlite carrier, the simulator witness, and the chat template on a phone
 
 **Type:** Spec
-**Status:** Implemented (revision (f), 2026-09-05: E1 landed `aa2ec8d33`, E2 landed after two fix rounds and three blind-review rounds; the iOS simulator witness passes all ten steps on the host; native view-once video is refused in v1 pending a ruling (§2 decision 7); Android and the web run of the Expo app wait for the capability bar)
+**Status:** Implemented (revision (f), 2026-09-05: E1 landed `aa2ec8d33`, E2 landed after two fix rounds and three blind-review rounds; the iOS simulator witness passes all ten steps on the host; native view-once playback uses the in-memory module (§2 decision 7); Android and the web run of the Expo app wait for the capability bar)
 **Systems:** `snapback2/packages/snapback2` (the `expo` and `react-native` entries, the sqlite carrier and its two drivers, the native byte bridge, the witness client), `snapback2/templates/chat` (the Expo app), `snapback2/scripts` (the simulator witness harness), `snapback2/metrics`
 **Author:** Claude Fable 5.1, at the author's direction ("do Expo arm next", 2026-09-04 afternoon)
 **Date:** 2026-09-04
-**Revised:** 2026-09-05 (measured incremental state writes and split metadata; carrier atomicity preserved); 2026-09-04 (e — reconciled to lane E1 as landed: every sqlite driver carries a stable database identity (Node: the real path after open; Expo: the default directory plus a plain basename, path-like names refused) and the lock is per database and partition (§2 decisions 2 and 4, §3, §4); `open()` of a store with rows but no meta default-fills the meta record on every carrier (§3); persisted and in-memory state share one JSON wire form — `undefined` dropped, `null` kept (§3); a `COMMIT` failure rolls back and never poisons the connection (§3); the process-wide lock symbol was renamed before publication (§4); the residuals are in `issues/20260904-snapback2-expo-carrier-followups.md`); 2026-09-04 (d — the round-3 fold, all E2-scoped: native files are derivatives never evidence of permission (validated against partition, seal, viewed state, and lease before serving; view-once media never on disk; orphans swept on startup; mounted consumers invalidated on custody change) and the native screens use the byte paths, never a Blob; the shared reducers are packaged and scaffolded (`shared/` beside `react/` and `expo/`, copied by `build.mjs`, placed by `init`); the simulator kill is a host `kill -9` of the app's pid with the barrier promise never resolving on socket close, the transport cut persisted in the container before relaunch, the client constructed only after the control connection, mixture asserted across every store, and the predicted send asserted inside the thread query's result); 2026-09-04 (c — the round-2 fold: keys are JSON in one `key` column and the byte table has no `type` column (the MIME lives in the state's asset record); Expo's exclusive transaction issues plain `BEGIN` on its own connection and the write lock follows the first DML, while the Node driver issues `BEGIN IMMEDIATE` itself; `createExpoClient` defaults `fetch` to `expo/fetch` so SSE streams, and never supplies a token store beside `as`; the hooks' context is one emitted module shared by every entry, verified against the built bundles; the witness client is a dev subpath, its URL is baked at Metro time and read in the template, the simulator kill proves an open-transaction window and the Node `kill -9` proves atomicity; `structuredClone` is Expo's runtime, not bare Hermes; `expo export` emits Hermes bytecode and the package build emits source maps for attribution; peers pinned to the SDK 54 lines); 2026-09-04 (b — every blocking error of the three round-1 reviews (`llp/reviews/1013-expo-arm.r1.*` once copied; the orchestrator's `reviews/1013-r1-{astra,grok,muse}.md`) folded: keys are encoded, the driver owns the transaction and passes an executor, the witness channel connects outward from the app, the native components get a byte bridge, the entry is a real subpath and the hooks are split from the carriers, the token keys are SecureStore-legal, the never-opened chat renders through the twin, the schema persists everything the IndexedDB carrier persists, bytes are written by delta not by rewrite, the Hermes size is measured on a real build) (f — 2026-09-05: E2 as landed — the witness record, the drain rule, decision 7 amended by the device, the fix-round deviations)
+**Revised:** 2026-09-05 (native in-memory view-once playback); 2026-09-05 (measured incremental state writes and split metadata; carrier atomicity preserved); 2026-09-04 (e — reconciled to lane E1 as landed: every sqlite driver carries a stable database identity (Node: the real path after open; Expo: the default directory plus a plain basename, path-like names refused) and the lock is per database and partition (§2 decisions 2 and 4, §3, §4); `open()` of a store with rows but no meta default-fills the meta record on every carrier (§3); persisted and in-memory state share one JSON wire form — `undefined` dropped, `null` kept (§3); a `COMMIT` failure rolls back and never poisons the connection (§3); the process-wide lock symbol was renamed before publication (§4); the residuals are in `issues/20260904-snapback2-expo-carrier-followups.md`); 2026-09-04 (d — the round-3 fold, all E2-scoped: native files are derivatives never evidence of permission (validated against partition, seal, viewed state, and lease before serving; view-once media never on disk; orphans swept on startup; mounted consumers invalidated on custody change) and the native screens use the byte paths, never a Blob; the shared reducers are packaged and scaffolded (`shared/` beside `react/` and `expo/`, copied by `build.mjs`, placed by `init`); the simulator kill is a host `kill -9` of the app's pid with the barrier promise never resolving on socket close, the transport cut persisted in the container before relaunch, the client constructed only after the control connection, mixture asserted across every store, and the predicted send asserted inside the thread query's result); 2026-09-04 (c — the round-2 fold: keys are JSON in one `key` column and the byte table has no `type` column (the MIME lives in the state's asset record); Expo's exclusive transaction issues plain `BEGIN` on its own connection and the write lock follows the first DML, while the Node driver issues `BEGIN IMMEDIATE` itself; `createExpoClient` defaults `fetch` to `expo/fetch` so SSE streams, and never supplies a token store beside `as`; the hooks' context is one emitted module shared by every entry, verified against the built bundles; the witness client is a dev subpath, its URL is baked at Metro time and read in the template, the simulator kill proves an open-transaction window and the Node `kill -9` proves atomicity; `structuredClone` is Expo's runtime, not bare Hermes; `expo export` emits Hermes bytecode and the package build emits source maps for attribution; peers pinned to the SDK 54 lines); 2026-09-04 (b — every blocking error of the three round-1 reviews (`llp/reviews/1013-expo-arm.r1.*` once copied; the orchestrator's `reviews/1013-r1-{astra,grok,muse}.md`) folded: keys are encoded, the driver owns the transaction and passes an executor, the witness channel connects outward from the app, the native components get a byte bridge, the entry is a real subpath and the hooks are split from the carriers, the token keys are SecureStore-legal, the never-opened chat renders through the twin, the schema persists everything the IndexedDB carrier persists, bytes are written by delta not by rewrite, the Hermes size is measured on a real build) (f — 2026-09-05: E2 as landed — the witness record, the drain rule, decision 7 amended by the device, the fix-round deviations)
 **Related:** LLP 1012 (local-first v1: the store, the outbox, the twin, §10's witness split by lane, §12's offline bar), LLP 1006 (assets; lane D's React Native components), LLP 1007 §4a (the loop bar and the capability bar), LLP 0329.016 (the dev loop), `rules/NOT-DOING.md` (client arms in order: React web, Expo, Exact 2), `benchmarks/briefs/social-messenger.md` (the capability bar: Expo on iOS, Android, and web)
 
 ## Summary
@@ -158,17 +158,22 @@ author may veto any at the review.
    data URI or an in-memory source, so a kill leaves nothing to re-show. `AssetVideo` never
    prefetches a view-once clip, calls `markViewed` on play, and plays a cached ordinary clip
    from its file URI. The web components are unchanged. (80%.)
-   *Amended by the device, 2026-09-05.* AVPlayer (expo-video 3, SDK 54) refuses a
-   `data:video/mp4` source outright ("Cannot Open"), and the first attempt consumed the
-   viewer's one allowance for a view that showed nothing. In v1 native `AssetVideo` refuses a
-   view-once clip up front (`E_ASSET_TYPE`, site `AssetVideo`) before any fetch or admission:
-   nothing fetched, nothing consumed, nothing written; ordinary clips play from their file
-   URI; the web arm plays view-once video from an object URL of the admitted bytes. The
-   playback path for native view-once video is an author ruling
-   (`issues/20260905-snapback2-native-view-once-video-ruling.md`): a resource-loader native
-   module that feeds the player from memory, a WebView, or a temp file the spec forbids. The
-   viewing identity is the mounted instance, never the requested width, so a post-layout
-   resize keeps an admitted image.
+   *Native playback amendment, 2026-09-05 (author requested; implementer: Codex).*
+   AVPlayer cannot open the former `data:video/mp4` source. `AssetVideo` now uses
+   the bundled `SnapbackMemoryVideo` Expo view for view-once MP4s: iOS feeds
+   `AVAssetResourceLoaderDelegate` byte ranges from `Data`; Android feeds
+   `MediaPlayer` through `MediaDataSource`. Neither path has a file, URLSession,
+   HTTP server, or persistent player cache. Ordinary videos retain `expo-video`.
+   Play (or an explicit `autoPlay`) requests bytes; the existing durable viewed
+   commit must succeed before any source reaches the player. Missing native
+   code refuses before fetch/admission and tells the developer to rebuild the
+   app. Expo autolinks the module from the package; Expo Go cannot supply it.
+   Completion, unmount, backgrounding, and custody invalidation release native
+   resources. Completion prevents replay by that component; a new component
+   sees the durable viewed mark and renders no source. Decoder failure after
+   admission remains fail-closed: it does not refund the viewing allowance.
+   Native event objects are adapted to the public zero-argument playback
+   callback. The viewing identity stays the mounted instance across layout.
 8. **The chat template gets an Expo app beside its web app, and the shared reducers are
    packaged.** `templates/chat/expo/` with Inbox, Thread, Composer, and Search as React Native
    views on the same hooks; the reducers (`conversations`, `threadBubbles`, `searchHeld`, the
@@ -391,7 +396,7 @@ Native's `AbortSignal` has no `throwIfAborted`; every cancellation check goes th
 `throwIfAborted(signal)` in `client-wire.ts`. The twin carries a debug seam,
 `twinLastDecline()` (exported from `snapback2/expo/witness`), naming why it last declined;
 never part of a result. Step 2's seeded H.264 clip proves the container scan and the v1
-refusal (decision 7); step 9's conformance names its body-ended probe honestly — a device
+playback (decision 7); step 9's conformance names its body-ended probe honestly — a device
 COMMIT failure stays unqualified (ticketed).
 
 It runs on the schedule and files a bounded ticket when red; it does not block a push
@@ -466,7 +471,8 @@ everything else is LLP 1012 §15.
 - cold replay time to first inbox paint on the simulator;
 - the Hermes bundle's size and the client's and twin's share (§8);
 - the witness's pass, dated, per platform: iOS simulator 2026-09-05 (run 12, all ten steps);
-  Android none; web none.
+  Android full witness none; targeted memory-video playback, no-file and
+  reopen-denial probe passed on API 36.1 (2026-09-05); web none.
 
 **Desktop review workload (2026-09-05).** Hold 1,000 / 5,000 / 10,000 messages
 with 500-character bodies in 50-row answers, then enqueue three small entries without
@@ -483,5 +489,6 @@ desktop Node SQLite measurements, not physical flash-write volume or phone laten
 
 Android and web runs of the Expo app (the capability bar's), multi-process arbitration on one
 partition (unsupported in v1, refused loudly),
-`react-native-web`, push, background fetch, native view-once video playback in v1 (refused
-up front; the path is the ruling decision 7 names), and anything LLP 1012 §11 already lists.
+`react-native-web`, push, background fetch, and anything LLP 1012 §11 already lists.
+The native memory-player repair in decision 7 is implemented; Android whole-app
+qualification is separate from compiling or probing that player.

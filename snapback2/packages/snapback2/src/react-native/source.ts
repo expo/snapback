@@ -63,6 +63,7 @@ export function useNativeSource(asset: AssetRecord | null | undefined, options: 
   const identity = useMemo(() => ({ client, id: asset?.id, auth: snapshot.authGeneration, custody: file.custody }),
     [client, asset?.id, snapshot.authGeneration, file.custody]);
   const [memory, setMemory] = useState<{ identity: typeof identity; revision?: string; uri?: string; refusal?: SnapbackRefusal }>();
+  useEffect(() => { if (!asset) setMemory(undefined); }, [asset?.id]);
   const attempted = useRef<{ identity: typeof identity; width?: number } | undefined>(undefined);
   const current = useRef<typeof identity | undefined>(identity);
   current.current = identity;

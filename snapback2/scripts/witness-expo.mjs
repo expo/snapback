@@ -69,7 +69,7 @@ async function coldMedia() {
   assert.ok(files.some((path) => path.includes(seed.assets[0].id)));
   assert.ok(files.every((path) => !path.includes(seed.assets[1].id)));
   const clip = await command("view", { assetId: seed.assets[2].id, hidden: true });
-  assert.equal(clip.refusal?.code, "E_ASSET_TYPE"); assert.equal(clip.viewed, false);
+  assert.equal(clip.refusal, undefined); assert.equal(clip.viewed, true);
   assert.equal(clip.loaded, false); assert.equal(clip.uri, undefined); assert.deepEqual(clip.files, []);
   await assertNoMediaOnDisk(container, seed.forbidden);
   return { ordinary, once, clip };
@@ -101,10 +101,12 @@ const actions = [
     await command("drain");
     for (const conversationId of seed.rooms.slice(0, 3)) await command("open", { conversationId });
     for (const [index, asset] of seed.assets.entries()) {
+      log(`view ${index + 1}/${seed.assets.length}: ${"duration" in asset ? "video" : "image"}`);
       const media = await command("view", { assetId: asset.id });
       if ("duration" in asset) {
-        assert.equal(media.refusal?.code, "E_ASSET_TYPE"); assert.equal(media.viewed, false);
-        assert.equal(media.loaded, false); assert.equal(media.uri, undefined); assert.deepEqual(media.files, []);
+        assert.equal(media.refusal, undefined); assert.equal(media.viewed, true);
+        assert.equal(media.loaded, true); assert.equal(media.playing, true);
+        assert.match(media.uri, /^data:video\/mp4;base64,/); assert.deepEqual(media.files, []);
         continue;
       }
       assert.equal(media.loaded, true, JSON.stringify(media));

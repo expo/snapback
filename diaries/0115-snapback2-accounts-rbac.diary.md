@@ -159,3 +159,34 @@ manifest walk and owner-side ledger validation, but those pieces make mixed
 lists, byte-bound preflight, mutation refusal, and orphan reclamation one
 coherent contract instead of application coordination. Exact and Contract
 were not used in this repair.
+
+## 2026-09-05 — native view-once video from memory
+
+The Expo chat witness now plays the view-once MP4 through a bundled native
+view. iOS uses an AVAsset resource loader; Android uses MediaDataSource.
+The existing byte admission supplied the durable viewed mark and custody
+checks, so the repair did not need a second authorization or storage path.
+The player has no temporary file or HTTP cache path. Expo autolinking and
+rebuilding the app are required; Expo Go refuses before consuming a view.
+
+The iOS witness passed all ten steps, including real playback, the scan for
+private media anywhere in the app container, and cold starts after SIGKILL.
+The initial playback timeout was misleading: the native player was playing,
+but its event object reached a callback expecting no arguments and the
+witness ignored it. The adapter now discards that event argument, with a
+regression test using the native event shape. Android also exposed Expo
+54's NUL-byte representation of a body-less POST; the shared SSE handshake
+now sends an explicit JSON object.
+
+Compared with rendering a signed URL from Convex or Supabase Storage, the
+native decoder integration takes more work here because the view-once
+contract forbids disk even for playback. Keeping that integration inside
+Snapback lets the app continue to use AssetVideo. Exact and Contract were
+not involved in this repair.
+
+The targeted Android API 36.1 emulator probe also played the clip, scanned
+its private app directory without finding the media, and refused reopening.
+Its release-compiled app was debuggable for run-as inspection. The broader
+Android media probe stalled waiting for the ordinary PNG's onLoad witness
+(the file source was present); the successful video-only probe does not
+claim that the whole Android witness is qualified.

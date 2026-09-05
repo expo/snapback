@@ -17,7 +17,7 @@ export const delivery = (id = "m1", asset = photo) => ({ op: "thread", args: { i
   state: "complete" as const, next: null, rows: [{ table: "messages", id, row: { id, photo: asset } }],
   data: [{ $row: { table: "messages", id } }], receipt: { ranges: [], absences: [], verdicts: [] } });
 
-export async function nativeFixture(options: { once?: boolean; viewOnce?: (table: string, row: Record<string, unknown>) => boolean; maxAssetBytes?: number } = {}) {
+export async function nativeFixture(options: { mediaType?: string; once?: boolean; viewOnce?: (table: string, row: Record<string, unknown>) => boolean; maxAssetBytes?: number } = {}) {
   const root = await mkdtemp(join(tmpdir(), "e2-fix1-"));
   const data = new Map<string, Uint8Array>(), writes: string[] = [], requests: RequestInit[] = [];
   const hooks = { write: undefined as undefined | (() => Promise<void>),
@@ -40,7 +40,7 @@ export async function nativeFixture(options: { once?: boolean; viewOnce?: (table
       if (path === "/api/manifest") return json({ generation: "native", programGeneration: "program-test", ops: {}, auth: {}, channels: {} });
       if (path === "/api/program") return json({ code: "E_ROUTE", family: "op", message: "absent", guide: "op/reference" }, 404);
       requests.push(init ?? {}); await hooks.network?.();
-      return new Response(payload.bytes, { headers: { "Content-Type": payload.type } });
+      return new Response(payload.bytes, { headers: { "Content-Type": options.mediaType ?? payload.type } });
     } });
   await client.ready; await store.commit({ deliveries: [delivery()] });
   return { root, files, store, client, backend, data, writes, requests, hooks,

@@ -71,9 +71,9 @@ mutation edit(messageId: messages, body: text <=4000, baseBody: text <=4000):
 ## Bytes and diagnostics
 
 Bytes share their row's lease, keyed (assetId, width), under maxAssetBytes
-(256 MiB LRU). viewOnce marks an image at fetch, a clip at play: the row then
+(256 MiB LRU). viewOnce marks images at fetch, clips at play (native: memory only): the row then
 reads null, no URL is minted and assetBlob refuses E_ASSET_VIEWED.
 E_OFFLINE_CARRIER means install/configure the carrier. E_OFFLINE_STATE means
 preserve and inspect persisted state; E_OFFLINE_DELIVERY means retry an
-authenticated query; E_OFFLINE_LIFECYCLE means sign in or reopen. Each refusal
-names its operation and recovery advice; preserve queued writes.
+authenticated query; E_OFFLINE_LIFECYCLE means sign in or reopen. Refusals
+name the operation and recovery; preserve queued writes.

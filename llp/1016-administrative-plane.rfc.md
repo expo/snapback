@@ -1,7 +1,7 @@
 # LLP 1016: The administrative plane — jobs, schedules, and erasure for bounded data programs
 
 **Type:** RFC
-**Status:** Draft — proposal, binds nothing (`rules/RULES.md`: only
+**Status:** Draft — proposal, binds nothing; **panel-reviewed 2026-09-05 (§12): NOT READY as written, direction endorsed by all three families; do not commission from this text** (`rules/RULES.md`: only
 implemented specs bind, and a spec needs an implementer and a date; §10 has
 neither yet). Sequenced after the loop bar by `rules/NOT-DOING.md`; §9 asks
 whether one small lane may precede it.
@@ -17,7 +17,7 @@ twin's `Enqueue` no-op), `rules/NOT-DOING.md`
 **Author:** Claude Fable 5.1, commissioned by Charlie Cheever 2026-09-05 in
 session, on a criticism made by a separate reviewing session the same day
 **Date:** 2026-09-05
-**Revised:** 2026-09-05 (initial)
+**Revised:** 2026-09-05 (panel record added, §12: three families, NOT READY ×3, direction endorsed, thinner kernel; revision (a) pending the author's rulings on six splits); 2026-09-05 (initial)
 **Related:** LLP 0329.014.004 §2 (dimensions B and I: time is state; jobs)
 §6 (the `schedule` and `job` kinds) §9 (open question 3: "`job`: chunked
 mutation or schedule continuation?"), LLP 0329.014.006 (F1's schedule/job
@@ -818,3 +818,56 @@ does not claim GDPR compliance — it claims that an erasure declared per
 table is executed, receipted, and propagated to devices, and names what it
 cannot reach. It moves nothing on the media, offline, or observability
 slices, and does not change any Snapback 1 status.
+
+## 12. Panel record (2026-09-05)
+
+Three families reviewed this document at `6d3d09c6f` under the LLP 0005
+loop — codex `gpt-6-astra`, Muse Spark, and grok-4.6 — mutually blind in
+round 1 and in a cross-read discussion in round 2, on the question "are
+you happy with this RFC, or should the design go in a different
+direction?" The record is `llp/reviews/1016-administrative-plane.{astra,muse,grok}.md`
+(verbatim, both rounds), the two briefs, and the orchestrator's synthesis
+`llp/reviews/1016-administrative-plane.panel.synthesis.md`, in which every
+engine claim was verified against the tree.
+
+**Verdict, both rounds, three of three: NOT READY; the direction is
+right.** No panelist chose a different direction; each refused the
+unbounded operator mode and the product boundary on the record. All three
+want a thinner RFC of the same driver (synthesis §6.3): `job`/`chunk` with
+the cursor certified as an engine write and a `byId` sweep; narrowing at
+successor application; row-triggered `schedule … at` plus `every
+<duration>` on a system-owned row; `run --file/--wait/--plan/--dry-run` with
+a rehearsal runtime; no new verb. Cut from v1 by unanimous round-2
+agreement: D8 (`enqueue` and the `send` rewrite — the template caps groups
+at fifty and the celebrity fixture is a read-side `merge`), the derived
+erasure of D6 (a scrub to one `erased` identity is refused by `immutable`
+and collides on `unique` on the template's own tables; the derivation
+cannot see refs, json, maintains, custody tables, or hidden rows on
+devices), erasure-driven `_commits` edits, and job SSE.
+
+**Verified errors in this text** (synthesis §2): D2's authority test is
+neither sound nor complete, and the engine filters *reads* for the system
+principal too, so a job with write authority can scan zero rows and finish
+green; `E_SUCCESSOR_NARROWING` cannot be raised by `check` (no store) — only
+at successor application; M7's message count is a successor maintain
+rebuild, not a job; the silent fifty is unreachable in the template; `--as
+system` cannot be a persona (`E_AUTH_RESERVED`); `deploy` tokens inherit
+`read`; §10 lists five lanes; D9 adds six flags; D3 and §6.8 disagree on
+resume after cancel.
+
+**Splits for the author** (synthesis §6.2, with the orchestrator's
+recommendation in each): the authority model for declared jobs
+(engine-authorized by declaration, or table rules with a conservative
+three-valued proof plus system read visibility); the word `every`;
+whether a schedule may target a declared job; hosted ad hoc programs
+(2–1 yes); J0 before the loop bar (recommendation: no); what replaces
+erasure (recommendation: one paragraph naming the semantics a contract
+needs, no kind).
+
+**Also for LLP 1015:** D10's system-principal reads assume a visibility the
+engine does not implement (synthesis §6.4).
+
+This text is not revised in place; revision (a) follows the rulings and
+takes the shape of synthesis §6.3. Until then the decisions above describe
+what the panel rejected as much as what it kept, and nothing here should
+be commissioned from.

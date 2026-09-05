@@ -46,7 +46,7 @@ await build({
   minify: true,
   platform: "neutral",
   target: "es2022",
-  external: ["react", "react-native", "expo-file-system", "expo/fetch", "expo-video", "expo-sqlite", "expo-secure-store", "snapback2/client", "snapback2/react-core", "snapback2/expo", "snapback2/react-native", "snapback2/expo/witness"],
+  external: ["expo", "react", "react-native", "expo-file-system", "expo/fetch", "expo-video", "expo-sqlite", "expo-secure-store", "snapback2/client", "snapback2/react-core", "snapback2/expo", "snapback2/react-native", "snapback2/expo/witness"],
   plugins: [externalClient],
 });
 
@@ -207,6 +207,10 @@ if (snapshot) {
   await cp(resolve(here, "README.md"), resolve(snapshotPath, "README.md"));
   await cp(resolve(here, "bin"), resolve(snapshotPath, "bin"), { recursive: true });
   await cp(dist, resolve(snapshotPath, "dist"), { recursive: true });
+  for (const file of ["ios", "android/build.gradle", "android/src", "expo-module.config.json"]) {
+    await mkdir(dirname(resolve(snapshotPath, file)), { recursive: true });
+    await cp(resolve(here, file), resolve(snapshotPath, file), { recursive: true });
+  }
 }
 
 if (process.argv.includes("--self-test")) {

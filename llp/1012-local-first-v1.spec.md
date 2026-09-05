@@ -1,7 +1,7 @@
 # LLP 1012: Local-first v1 — the client store, the outbox, retention, and the offline bar
 
 **Type:** Spec
-**Status:** Implemented (revision (j), 2026-09-05: every lane of §12 and the close-out lanes landed on main — landings 4–6 (`9f4f4953a`, `e992c391e`, `4f5eef21f`), the fence (`2dded8335`), overlay retirement (`3b483d652`), supersession (`d4de10457`), the owner split (`ba8e6309e`), the loop index and ruler (`685b883b5`, `1e39b0d9d`), and the Expo arm E1/E2 (`aa2ec8d33`, `926d62ad7`; LLP 1013); the simulator witness passes all ten steps; residuals are tickets under `issues/` (`20260904-snapback2-*-followups`, `20260905-snapback2-e2-round-3-leftovers`, `20260905-snapback2-native-view-once-video-ruling`). Revision (c)'s record — revision (c): the author's principle of 2026-09-04, "go as straight as possible to the ideal thing", closed revision (b)'s three questions — no staging, the twin is the client, trace-validated OCC in v1, ruling 8 stands; one scheduling question remains in §"Open questions (author)"; per `rules/RULES.md` it binds lane by lane as each lane's code lands)
+**Status:** Implemented (revision (j), 2026-09-05: every lane of §12 and the close-out lanes landed on main — landings 4–6 (`9f4f4953a`, `e992c391e`, `4f5eef21f`), the fence (`2dded8335`), overlay retirement (`3b483d652`), supersession (`d4de10457`), the owner split (`ba8e6309e`), the loop index and ruler (`685b883b5`, `1e39b0d9d`), and the Expo arm E1/E2 (`aa2ec8d33`, `926d62ad7`; LLP 1013); the simulator witness passes all ten steps; residuals are tickets under `issues/` (`20260904-snapback2-*-followups`, `20260905-snapback2-e2-round-3-leftovers`). Revision (c)'s record — revision (c): the author's principle of 2026-09-04, "go as straight as possible to the ideal thing", closed revision (b)'s three questions — no staging, the twin is the client, trace-validated OCC in v1, ruling 8 stands; one scheduling question remains in §"Open questions (author)"; per `rules/RULES.md` it binds lane by lane as each lane's code lands)
 **Systems:** `snapback2/packages/snapback2` (client, React, the range-store carriers, the `chat` template, the recipes, the journey primitives), `snapback2/packages/compiler` (the certificate's retention line if ruling 8 stands), `snapback2/crates/snapback2` (the wire: the frozen delivery envelope, `/api/resume`, the replay envelope, grants), `snapback2/crates/snapback2-core` (`_client_intents`, grants, the public receipt projection; `ClientStore` as the reference replay), LLP 1006's asset client (the device byte cache), `rules/NOT-DOING.md`
 **Author:** Claude Fable 5.1, at the author's direction and rulings, 2026-09-04
 **Date:** 2026-09-04
@@ -492,7 +492,7 @@ whole coverage is deep-equal before and after an offline remount). The witness's
 consequence: a reopened database is inspected before any client constructs, because a mounted
 app writes. Two narrowings of §9 landed with the same lane: a byte consumer holds an explicit
 viewing token for the life of its mounted instance on both arms (a missing token refuses
-before the fetch), and web view-once video admits durably on the play request before it has
+before the fetch), and web/native view-once video admits durably on the play request before it has
 a playable source, so persistence must succeed before playback can begin.
 
 ## 7. Writes offline

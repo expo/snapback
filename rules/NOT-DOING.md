@@ -72,10 +72,6 @@ the third on 2026-09-04, LLP 1012 §12):
 - **A guide.** `snapback2 guide` serves the compiler's facts, a one-screen grammar, and
   about twelve recipes with CI-executed snippets. No million-word corpus, no embedded
   20 MB guide in the binary, no calendar freshness dates.
-- **Native view-once video playback (v1).** AVPlayer opens files and URLs, not memory, and a
-  view-once clip never touches disk (LLP 1013 decision 7, amended by the device 2026-09-05);
-  the native player refuses the clip up front and consumes nothing. Returns with the author's
-  ruling on the path (resource-loader module, WebView, or a temp file the spec forbids).
 - **WASM anywhere.** The client evaluator is the TypeScript twin, under a **30 KB gzip
   ceiling** (author ruling 2026-09-04): 19.7 KB measured at landings 5–6 of LLP 1012
   (`snapback2/metrics/twin.jsonl`, with the method; the RBAC-complete, trace-producing
@@ -121,3 +117,7 @@ PR. If nothing can come off, the answer is no.
   backup/export story and the static-stability test before any hosted target exists.
   **off:** the browser admin console (author ruling; a user-focused console comes after
   the hosted version, on the same `/control/*` routes).
+
+- 2026-09-05 — Native view-once video returns on the author's explicit request
+  to fix playback. The in-memory native view completes the existing asset arm;
+  temp-file playback, new media formats, and additional client arms stay out.
