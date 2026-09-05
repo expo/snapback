@@ -64,6 +64,39 @@ fn refusal_code_guide_prints_the_wrong_and_right_pair() {
 }
 
 #[test]
+fn quarry_keywords_print_grammar_and_definitions_beside_symbol_help() {
+    let project = Project::new();
+    for (keyword, definition) in [
+        ("maintain", "count/sum"),
+        ("cap", "holds every group at N rows"),
+        ("merge", "fan-ins one or more"),
+        ("shape", "splices"),
+        ("retain", "keeps rows that went hidden"),
+        ("channel", "ephemeral"),
+    ] {
+        let output = project.run(&["guide", keyword, "--json"]);
+        let page = json_stdout(&output);
+        assert!(output.status.success(), "{keyword}: {page}");
+        assert_eq!(page["page"], keyword);
+        let content = page["content"].as_str().unwrap();
+        assert!(content.contains(definition), "{keyword}: {content}");
+        assert!(content.contains(&format!("`{keyword}`:")), "{content}");
+        assert!(
+            !content.contains("## Refused platform gaps"),
+            "whole page: {content}"
+        );
+    }
+    let text = project.run(&["guide", "maintain"]);
+    assert!(text.status.success());
+    assert!(String::from_utf8_lossy(&text.stdout).contains("count/sum"));
+    // The same names still serve their existing TypeScript declaration.
+    for keyword in ["channel", "merge"] {
+        let text = project.run(&["guide", keyword]);
+        assert!(String::from_utf8_lossy(&text.stdout).contains("export function"));
+    }
+}
+
+#[test]
 fn quarry_grammar_and_refusal_guides_ship_without_double_fences() {
     let project = Project::new();
     let quarry = project.run(&["guide", "quarry"]);
@@ -87,6 +120,11 @@ fn quarry_grammar_and_refusal_guides_ship_without_double_fences() {
     let unknown = project.run(&["guide", "does-not-exist", "--json"]);
     assert_eq!(unknown.status.code(), Some(1));
     let refusal = json_stdout(&unknown);
+    assert_eq!(refusal["code"], "E_GUIDE_UNKNOWN");
+    let rewrite = refusal["rewrite"].as_str().unwrap();
+    for page in ["grammar", "quarry", "live-query", "schedule", "job"] {
+        assert!(rewrite.contains(page), "{rewrite}");
+    }
     let message = refusal["message"].as_str().unwrap_or_default();
     assert!(message.contains("available:") && message.contains("quarry"));
 }

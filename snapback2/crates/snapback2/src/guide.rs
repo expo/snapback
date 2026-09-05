@@ -1,4 +1,4 @@
-//! Version-locked grammar, app facts, symbol help, refusal pairs, and recipes.
+//! Version-locked grammar, app facts, symbol/keyword help, refusal pairs, and recipes.
 // @ref LLP 1002#8-why-trace-guide — guide bytes ship with the npm package, not the binary.
 
 use crate::owner;
@@ -23,7 +23,6 @@ const RECIPES: &[&str] = &[
     "schedule",
     "quarry",
     "testing",
-    "offline",
 ];
 
 pub fn run(args: &[String]) -> ExitCode {
@@ -54,7 +53,15 @@ pub fn run(args: &[String]) -> ExitCode {
     } else if page.starts_with("E_") {
         refusal_page(&root, page)
     } else {
-        symbol_page(&root, page)
+        match symbol_page(&root, page) {
+            Ok(symbol) => match keyword_page(&root, page) {
+                Ok(keyword) => Ok(format!("{symbol}\n{keyword}")),
+                Err(error) if error.code == "E_GUIDE_UNKNOWN" => Ok(symbol),
+                Err(error) => Err(error),
+            },
+            Err(error) if error.code == "E_GUIDE_UNKNOWN" => keyword_page(&root, page),
+            Err(error) => Err(error),
+        }
     };
     match content {
         Ok(content) => {
@@ -71,6 +78,17 @@ pub fn run(args: &[String]) -> ExitCode {
         Err(mut error) => {
             if error.code == "E_GUIDE_UNKNOWN" {
                 error.message = format!("{}; available: {}", error.message, available(&root));
+                let pages = RECIPES
+                    .iter()
+                    .copied()
+                    .chain(["app", "grammar"])
+                    .collect::<BTreeSet<_>>()
+                    .into_iter()
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                error.rewrite = Some(format!(
+                    "run snapback2 guide <page|keyword|symbol|E_CODE>; pages: {pages}"
+                ));
             }
             owner::print_refusal(error, json_output, 1)
         }
@@ -341,6 +359,22 @@ fn declarations_path(root: &Path) -> PathBuf {
     }
 }
 
+fn keyword_page(root: &Path, keyword: &str) -> Result<String, Refusal> {
+    let text = read_page(&root.join("keywords.json"))?;
+    let keywords: std::collections::BTreeMap<String, String> = serde_json::from_str(&text)
+        .map_err(|error| {
+            Refusal::owner(
+                "E_OWNER_GUIDE",
+                format!("invalid keyword guide: {error}"),
+                "rebuild or reinstall the snapback2 package",
+            )
+        })?;
+    keywords
+        .get(keyword)
+        .cloned()
+        .ok_or_else(|| unknown(keyword))
+}
+
 fn declares(line: &str, symbol: &str) -> bool {
     let line = line.trim();
     [
@@ -432,14 +466,14 @@ fn unknown(page: &str) -> Refusal {
         "E_GUIDE_UNKNOWN",
         "input",
         format!("unknown guide page {page}"),
-        "run snapback2 guide grammar, quarry, app, a symbol, an E_CODE, or a listed recipe",
+        "run snapback2 guide grammar, quarry, app, a keyword, a symbol, an E_CODE, or a listed recipe",
         "input/guide",
     )
 }
 
 fn usage() -> ExitCode {
     eprintln!(
-        "usage: snapback2 guide [grammar|quarry|typescript|app|<symbol>|<E_CODE>|<recipe>] [--json]"
+        "usage: snapback2 guide [grammar|quarry|app|<keyword>|<symbol>|<E_CODE>|<recipe>] [--json]"
     );
     ExitCode::from(2)
 }

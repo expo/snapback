@@ -37,7 +37,8 @@ export const notify = effect({
 });
 ```
 
-Quarry declares the effect's module and emits the payload:
+`emit name { payload }` durably queues an effect in the mutation's transaction.
+Declare the effect's module, then emit its payload:
 
 ```q
 effect notify from delivery

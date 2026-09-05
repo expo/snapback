@@ -1402,6 +1402,20 @@ test("worker refuses every TypeScript-authored export and serves the next Quarry
   });
 });
 
+test("the built keyword guide resolves every grammar construct", async () => {
+  const guide = `${crate}packages/snapback2/dist/guide`;
+  const grammar = await readFile(`${guide}/grammar.md`, "utf8");
+  const keywords = JSON.parse(await readFile(`${guide}/keywords.json`, "utf8"));
+  const entries = [...grammar.matchAll(/^- `([a-z][a-z0-9-]*)`: .+$/gm)];
+  assert(entries.length > 0, "grammar lost its construct list");
+  assert(Object.keys(keywords).length === entries.length, "keyword index differs from grammar");
+  for (const [line, keyword] of entries) {
+    const content = keywords[keyword!];
+    assert(typeof content === "string" && content.includes(line.slice(2)), `${keyword}: missing grammar line`);
+    assert(/\n\n## [\w-]+: [^\n]+\n\n\S/.test(content), `${keyword}: missing defining paragraph`);
+  }
+});
+
 test("npm pack from a clean dist builds every exported module and declaration", async () => {
   const packageRoot = `${crate}packages/snapback2`;
   const packed = Bun.spawnSync({

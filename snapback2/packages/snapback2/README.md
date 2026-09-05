@@ -49,12 +49,14 @@ connection failure remains `hydrating`. Transport status is separately exposed a
 default; pass `{ live: false }` for a one-shot query, which remains `hydrating` and
 retries while its connection is reconnecting.
 
-`useMutation` returns `{ run, pending, last, transport }`. `pending` covers the
-in-flight interval, and `last` is only the most recent server `committed` or
-`rejected` receipt. A retryable HTTP or network failure rejects `run`, leaves
-`last` untouched, and appears separately as `transport` until the next successful
-run. `queued` is reserved for the deferred offline outbox and is not a v1 mutation
-state.
+`useMutation` returns `{ run, inFlight, pending, ready, status, last, transport }`.
+`inFlight` marks an active call; `pending` lists this operation's durable queued
+intents. `last` is `queued`, `committed`, or `rejected`; queued means saved on the
+device for FIFO replay after resume. `status` explains readiness, the next action,
+remaining queue, and fence. `useOutbox()` exposes entries; `outbox.drain()` and
+`settled()` report `{ stopped, remaining }`. Transport failures preserve queued
+writes; a thrown failure leaves `last` untouched and sets `transport`.
+See [offline](./dist/guide/offline.md) for recovery.
 
 ## Assets
 
