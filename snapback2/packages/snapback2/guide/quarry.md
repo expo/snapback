@@ -1,7 +1,7 @@
 # Quarry v0.3
 
 Quarry is Snapback 2's only backend authoring language. It is a bounded
-front end to the compiler, checker, evaluator, and server. `snapback2 check`
+front end to the compiler and runtime. `snapback2 check`
 compiles `.q` in memory; it
 does not place generated files in `snapback/`. `snapback2 check` writes an inspection copy under `.snapback/build/quarry/`.
 
@@ -83,6 +83,8 @@ names binders.
 Rule `exists`/`created` accepts any index whose leading columns match the key;
 when several match, add `by index`. Parentheses allow multiline rules.
 Reciprocal references and rule dependencies are supported.
+Membership self-probes on nonoptional unique keys are uniform over one's rows;
+so is an `or` with an arm proven true by the prefix.
 
 `use identity` enables passwords and guests. `use identity password` and
 `use identity guests` select only that method.

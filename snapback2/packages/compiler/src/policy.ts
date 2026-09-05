@@ -3,6 +3,8 @@ import { diagnostic } from "./diagnostics";
 import type { FrontendDiagnostic } from "./ir";
 import type { TableInfo } from "./compiler";
 import type { AuthoredType } from "./authored-types";
+import { operationCompositeBindings } from "./lower/operation-context";
+import { scaledRuleLiteral } from "./lower/schema";
 import {
   applyEdits,
   callName,
@@ -334,7 +336,48 @@ function scanIsPrivate(module: PolicyModule, scan: ts.CallExpression): boolean {
     return true;
   }
   const pinned = new Set(columns.slice(0, prefix.elements.length));
+  const expressions = new Map(columns.map((column, i) => [column, prefix.elements[i]]));
+  if (ruleDecidedTrue(info.readRule, info, expressions)) return false;
   return [...ruleFields(info.readRule)].some((field) => !pinned.has(field));
+}
+
+// @ref LLP 1001#3-read-and-write-states-no-silent-states — mirror the core's
+// prefix-local proof; one pinned disjunct alone does not establish uniformity.
+function ruleDecidedTrue(rule: any, table: TableInfo, pinned: Map<string, ts.Expression | undefined>): boolean {
+  if (rule === "Allow" || (rule && typeof rule === "object" && "Public" in rule)) return true;
+  if (!rule || typeof rule !== "object") return false;
+  if (Array.isArray(rule.Or)) return rule.Or.some((arm: unknown) => ruleDecidedTrue(arm, table, pinned));
+  if (Array.isArray(rule.Eq)) return [rule.Eq, [...rule.Eq].reverse()].some(([field, value]) =>
+    typeof field?.Field === "string" && pinnedRuleTerm(value, pinned.get(field.Field), table.columns?.[field.Field]));
+  const probe = rule.Exists;
+  const index = probe?.table === table.name ? table.indexes?.[probe.index] : undefined;
+  return !!index?.unique && index.columns.length > 0 && probe.key?.length === index.columns.length
+    && index.columns.every((column, i) => {
+      const type = table.columns?.[column] ?? index.types[i];
+      const term = probe.key[i];
+      return !!type && type.kind !== "optional" && type.kind !== "unknown"
+        && (typeof term?.Field === "string" ? term.Field === column : pinnedRuleTerm(term, pinned.get(column), type));
+    });
+}
+
+function pinnedRuleTerm(term: any, expression: ts.Expression | undefined, type: AuthoredType | undefined): boolean {
+  if (!expression) return false;
+  const node = unwrapExpression(expression);
+  if (term === "Viewer") {
+    if (!ts.isPropertyAccessExpression(node) || node.name.text !== "viewer" || !ts.isIdentifier(node.expression)) return false;
+    const handler = findAncestor(node, isFunctionLike);
+    return !!handler && operationCompositeBindings(handler).ctx === node.expression.text;
+  }
+  if (!term || typeof term !== "object" || !("Literal" in term)) return false;
+  const literal = term.Literal;
+  const required = type?.kind === "optional" ? type.of : type;
+  if (literal === "Null") return node.kind === ts.SyntaxKind.NullKeyword;
+  if (!literal || typeof literal !== "object") return false;
+  if ("Int" in literal) return scaledRuleLiteral(node, required?.kind === "decimal" ? required.scale : 0) === literal.Int;
+  if ("Bool" in literal) return node.kind === (literal.Bool ? ts.SyntaxKind.TrueKeyword : ts.SyntaxKind.FalseKeyword);
+  if (!ts.isStringLiteralLike(node)) return false;
+  const nominal = required?.kind === "principal" || (required?.kind === "string" && required.id);
+  return nominal ? literal.Id === node.text : literal.String === node.text;
 }
 
 function ruleFields(rule: unknown, fields = new Set<string>()): Set<string> {

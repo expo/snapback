@@ -1,0 +1,464 @@
+{
+  "corpusVersion": 1,
+  "name": "decided-or-unheld-other-arm",
+  "category": "visibility",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "conversations": {
+        "columns": {
+          "id": "Id",
+          "title": {
+            "Text": {
+              "max": 50
+            }
+          }
+        },
+        "indexes": {
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Exists": {
+              "table": "memberships",
+              "index": "byConversationPrincipal",
+              "key": [
+                {
+                  "Field": "id"
+                },
+                "Viewer"
+              ],
+              "provenance": "Shape"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      },
+      "grants": {
+        "columns": {
+          "id": "Id"
+        },
+        "indexes": {
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": "Deny",
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "columns": {
+          "conversationId": "Id",
+          "id": "Id",
+          "principal": "Principal"
+        },
+        "indexes": {
+          "byConversationPrincipal": {
+            "columns": [
+              "conversationId",
+              "principal"
+            ],
+            "unique": true
+          },
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          },
+          "byPrincipalConversation": {
+            "columns": [
+              "principal",
+              "conversationId"
+            ],
+            "unique": false
+          }
+        },
+        "rules": {
+          "read": {
+            "Or": [
+              {
+                "Exists": {
+                  "table": "grants",
+                  "index": "byId",
+                  "key": [
+                    {
+                      "Field": "conversationId"
+                    }
+                  ],
+                  "provenance": "Shape"
+                }
+              },
+              {
+                "Eq": [
+                  {
+                    "Field": "principal"
+                  },
+                  "Viewer"
+                ]
+              }
+            ]
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [
+          {
+            "Cap": {
+              "by": [
+                "principal"
+              ],
+              "max": 100
+            }
+          }
+        ],
+        "retain": "until-revoked"
+      },
+      "words": {
+        "columns": {
+          "at": "Time",
+          "conversationId": "Id",
+          "id": "Id",
+          "term": {
+            "Text": {
+              "max": 64
+            }
+          }
+        },
+        "indexes": {
+          "byConversationTermTime": {
+            "columns": [
+              "conversationId",
+              "term",
+              "at",
+              "id"
+            ],
+            "unique": false
+          },
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Exists": {
+              "table": "memberships",
+              "index": "byConversationPrincipal",
+              "key": [
+                {
+                  "Field": "conversationId"
+                },
+                "Viewer"
+              ],
+              "provenance": "Shape"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      }
+    },
+    "maintains": []
+  },
+  "program": {
+    "name": "decided-or-unheld-other-arm",
+    "kind": "Query",
+    "args": {},
+    "read_time_granularity_ms": null,
+    "result_page_site": "members.page",
+    "body": [
+      {
+        "Return": {
+          "Scan": {
+            "site": "members.page",
+            "table": "memberships",
+            "index": "byPrincipalConversation",
+            "prefix": [
+              {
+                "Input": "Viewer"
+              }
+            ],
+            "order": "Asc",
+            "take": {
+              "Literal": 100
+            },
+            "after": null,
+            "before": null,
+            "range": null,
+            "merge_site": null,
+            "provenance": "Viewer"
+          }
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "decided-or-unheld-other-arm",
+    "plan_hash": "1d82da9866824fddf16af6ddd5814ed13ca24b80644a5397b16e32b519f2368e",
+    "schema_hash": "8f330278e8b31ee7c4260b8101a053dfc84c2cb744512d6d2952b8f12056676a",
+    "tables": {
+      "conversations": {
+        "retain": "until-revoked"
+      },
+      "grants": {
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "retain": "until-revoked"
+      },
+      "words": {
+        "retain": "until-revoked"
+      }
+    },
+    "rule_hashes": {
+      "memberships.read": "7dab543717a9e457209e34f3950614353a79e7c0d92d6ee090dff6165c37c2c0"
+    },
+    "evaluator_version": "bounded-spike-rust-1",
+    "value_model_version": "i53-codepoint-bytes-v2",
+    "read_sites": [
+      {
+        "site": "members.page",
+        "table": "memberships",
+        "index": "byPrincipalConversation",
+        "prefix_template": "Viewer",
+        "take": 100,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 0,
+        "hoist": true,
+        "decided_true": true,
+        "complete": false
+      }
+    ],
+    "result_page_site": {
+      "site": "members.page",
+      "table": "memberships",
+      "index": "byPrincipalConversation",
+      "order": "Asc",
+      "suffix": [
+        {
+          "name": "conversationId",
+          "kind": "Id"
+        }
+      ],
+      "merge": false
+    },
+    "write_sites": [],
+    "maintained_amplification": 0,
+    "constraint_checks": [],
+    "max_examined": 102,
+    "max_index_entries": 102,
+    "max_rule_probes": 0,
+    "max_steps": 513,
+    "max_heap_bytes": 16416,
+    "max_output_bytes": 48012,
+    "max_closure_bytes": 47900,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [
+      "grants.byId",
+      "memberships.byPrincipalConversation"
+    ],
+    "disclosures": [],
+    "bound_product": "members.page take 100 (+2 reserve) × 1 calls on memberships = 102"
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {},
+    "now": null,
+    "new_ids": [],
+    "read_time": null
+  },
+  "receipt": {
+    "schema_hash": "8f330278e8b31ee7c4260b8101a053dfc84c2cb744512d6d2952b8f12056676a",
+    "rows": [
+      {
+        "table": "memberships",
+        "id": "m1",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "id": {
+              "Id": "m1"
+            },
+            "principal": {
+              "Id": "u1"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "m2",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c2"
+            },
+            "id": {
+              "Id": "m2"
+            },
+            "principal": {
+              "Id": "u1"
+            }
+          }
+        }
+      }
+    ],
+    "ranges": [
+      {
+        "site": "members.page",
+        "table": "memberships",
+        "index": "byPrincipalConversation",
+        "prefix": [
+          {
+            "Id": "u1"
+          }
+        ],
+        "order": "Asc",
+        "take": 100,
+        "after": null,
+        "before": null,
+        "gt": null,
+        "gte": null,
+        "lt": null,
+        "lte": null,
+        "rule_hash": "7dab543717a9e457209e34f3950614353a79e7c0d92d6ee090dff6165c37c2c0",
+        "row_ids": [
+          "m1",
+          "m2"
+        ],
+        "stop": "Exhausted",
+        "absence": false,
+        "halo": null,
+        "n2_key": null
+      }
+    ],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": {
+      "Array": [
+        {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "id": {
+              "Id": "m1"
+            },
+            "principal": {
+              "Id": "u1"
+            }
+          }
+        },
+        {
+          "Row": {
+            "conversationId": {
+              "Id": "c2"
+            },
+            "id": {
+              "Id": "m2"
+            },
+            "principal": {
+              "Id": "u1"
+            }
+          }
+        }
+      ]
+    },
+    "errorCode": null,
+    "localState": "fresh",
+    "partialSites": [],
+    "canonicalResult": "{\"Array\":[{\"Row\":{\"conversationId\":{\"Id\":\"c1\"},\"id\":{\"Id\":\"m1\"},\"principal\":{\"Id\":\"u1\"}}},{\"Row\":{\"conversationId\":{\"Id\":\"c2\"},\"id\":{\"Id\":\"m2\"},\"principal\":{\"Id\":\"u1\"}}}]}",
+    "digest": "c09dc192d14b3a9003e6820a7d9e2c9426a65bb62b2025cf2a9ec50e8927ca21",
+    "rangeStops": {
+      "members.page": [
+        "exhausted"
+      ]
+    },
+    "evictedRows": null,
+    "next": null
+  }
+}

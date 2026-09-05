@@ -381,6 +381,7 @@
         "max_calls": 1,
         "rule_probes_per_candidate": 0,
         "hoist": true,
+        "decided_true": true,
         "complete": false
       },
       {
@@ -392,6 +393,7 @@
         "max_calls": 1,
         "rule_probes_per_candidate": 0,
         "hoist": true,
+        "decided_true": true,
         "complete": false
       },
       {
@@ -403,6 +405,7 @@
         "max_calls": 1,
         "rule_probes_per_candidate": 0,
         "hoist": true,
+        "decided_true": true,
         "complete": false
       },
       {
@@ -414,6 +417,7 @@
         "max_calls": 1,
         "rule_probes_per_candidate": 0,
         "hoist": true,
+        "decided_true": true,
         "complete": false
       }
     ],
