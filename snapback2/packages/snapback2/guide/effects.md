@@ -47,6 +47,15 @@ effect notify from delivery
   emit notify { to: recipient.principal, body }
 ```
 
+Run bodies are ES2020 TypeScript; the data-plane subset does not apply.
+The globals in scope are exactly `Array, ArrayBuffer, BigInt, BigInt64Array, BigUint64Array, Boolean, DataView, Date, Error, EvalError, Float32Array, Float64Array, Headers, Infinity, Int16Array, Int32Array, Int8Array, Intl, JSON, Map, Math, NaN, Number, Object, Promise, Proxy, RangeError, ReferenceError, Reflect, RegExp, Set, String, Symbol, SyntaxError, TextDecoder, TextEncoder, TypeError, URIError, URL, URLSearchParams, Uint16Array, Uint32Array, Uint8Array, Uint8ClampedArray, WeakMap, WeakSet, atob, btoa, console, decodeURI, decodeURIComponent, encodeURI, encodeURIComponent, escape, fetch, isFinite, isNaN, meta, parseFloat, parseInt, setTimeout, unescape, undefined`.
+Other globals (including `crypto`, which this Ibex revision lacks), DOM names,
+`import`/`require`, `eval`, and `Function` refuse at `check`; captures must be
+module JSON constants. The packaged ES2020 types include no DOM or Web Worker
+library. `fetch` returns `status`, `ok`, `url`, `redirected`, `headers: Headers`,
+`bodyUsed`, and `text()`/`json()`/`arrayBuffer()`; `Response` has no constructor.
+Timer delivery consumes one host permit per pump.
+
 The default development binary has no engine. `snapback2 test` records the
 derived effects check as `blocked: no engine in this build`; it never claims
 the queued row was sent. Use `snapback2 trace <seq>` to see the outbox row.

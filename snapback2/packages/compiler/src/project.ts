@@ -116,11 +116,24 @@ export async function lowerProject(root: string, options: LowerProjectOptions = 
 
   const libText = loadCompilerLib();
   const checked = createProjectProgram(schemaPath, schemaSource, moduleSources, libText);
-  diagnostics.push(...projectTypeDiagnostics(checked.program, projectRoot).map((item) => remapDiagnostic(item, virtualByFile, true)));
-
   const operations = collectOperations(modules);
   diagnostics.push(...reservedApiPathDiagnostics(operations, schemaSource, schemaFileName));
   const catalog = collectEffectCatalog(modules);
+  // @ref LLP 1003#1-authoring — the same TypeScript checker sees two libraries, never ES globals on the data plane.
+  const effectPaths = new Set([...catalog.values()].map((item) => item.module.sourceFile.fileName));
+  const effectSite = (node: ts.Node) => {
+    const path = node.getSourceFile().fileName;
+    if (!effectPaths.has(path)) return false;
+    // The internal TS fixtures can mix operations and effects. Authored Quarry projects cannot.
+    return hasQuarrySchema || typeDiagnosticSite(node, relativeSite(projectRoot, path)).family === "effect";
+  };
+  diagnostics.push(...projectTypeDiagnostics(checked.program, projectRoot, (node) => !effectSite(node))
+    .map((item) => remapDiagnostic(item, virtualByFile, true)));
+  if (effectPaths.size > 0) {
+    const effectChecked = createProjectProgram(schemaPath, schemaSource, moduleSources, loadCompilerLib(true), ts.ScriptTarget.ES2020);
+    diagnostics.push(...projectTypeDiagnostics(effectChecked.program, projectRoot, effectSite, effectPaths).map((item) =>
+      item.family === "effect" ? item : { ...item, code: "E_EFFECT_TYPE" as const, family: "effect" as const, guide: "effects/authoring" }));
+  }
   const loweredEffects = lowerEffects(catalog, operations);
   diagnostics.push(...loweredEffects.diagnostics);
 
@@ -648,19 +661,24 @@ function firstInvalidStaticSpread(node: ts.Node, constants: Map<string, unknown>
   return invalid;
 }
 
-function loadCompilerLib(): string {
+function loadCompilerLib(effects = false): string {
   const moduleCandidates = [
     fileURLToPath(new URL("../lib.d.ts", import.meta.url)),
     fileURLToPath(new URL("./index.d.ts", import.meta.url)),
   ];
-  const subsetCandidates = [
+  const subsetCandidates = effects ? [
+    fileURLToPath(new URL("../../snapback2/dist/effects-lib.d.ts", import.meta.url)),
+    fileURLToPath(new URL("./effects-lib.d.ts", import.meta.url)),
+  ] : [
     fileURLToPath(new URL("../subset-lib.d.ts", import.meta.url)),
     fileURLToPath(new URL("./compiler-lib.d.ts", import.meta.url)),
   ];
   const modulePath = moduleCandidates.find(existsSync);
   const subsetPath = subsetCandidates.find(existsSync);
   if (!modulePath || !subsetPath) throw new Error("snapback2 compiler: checker declarations are missing beside the compiler bundle");
-  return `${readFileSync(subsetPath, "utf8")}\n${readFileSync(modulePath, "utf8")}`;
+  const declarations = readFileSync(modulePath, "utf8");
+  const globals = readFileSync(subsetPath, "utf8");
+  return effects ? `${declarations}\n${globals}` : `${globals}\n${declarations}`;
 }
 
 function moduleName(path: string): string {

@@ -21,6 +21,7 @@ import { registerCursorIdentityChecks } from "./cursor-identity-checks";
 import { registerApiShapeChecks } from "./api-shape-checks";
 import { registerQuarryFanoutChecks } from "./quarry-fanout-checks";
 import { registerRetentionChecks } from "./retention-checks";
+import { registerEffectLanguageChecks } from "./test-effects";
 import { decimal } from "../../snapback2/src/index";
 import type { Principal } from "../../snapback2/src/index";
 import type { Op } from "../../snapback2/src/api";
@@ -45,6 +46,7 @@ registerQuarryMoneyChecks(test, frontend);
 registerApiShapeChecks(test, frontend);
 registerRetentionChecks(test);
 registerQuarryFanoutChecks(test, frontend);
+registerEffectLanguageChecks(test, withProject, frontend, libText);
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -843,7 +845,7 @@ test("effect globals are available with the one-parameter run form", async () =>
         const response = await fetch("https://api.example.com/send");
         console.log(JSON.stringify(payload), Math.max(1, 2), Date.now(), new URL("https://api.example.com").origin,
           new TextEncoder().encode(payload.value), new TextDecoder().decode(), btoa("x"), atob("eA=="),
-          Promise.resolve(1), new Error("x").message, crypto.randomUUID());
+          Promise.resolve(1), new Error("x").message, meta.attempt);
         setTimeout(() => {}, 0);
         return { ok: response.ok, id: meta.id };
       } });`,

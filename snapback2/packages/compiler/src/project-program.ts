@@ -11,6 +11,7 @@ export function createProjectProgram(
   schemaSource: string,
   moduleSources: ReadonlyArray<readonly [string, string]>,
   libText: string,
+  target = ts.ScriptTarget.ES2022,
 ): { program: ts.Program; checker: ts.TypeChecker } {
   const libPath = resolve(dirname(schemaPath), "__snapback2_lib.d.ts");
   const files = new Map<string, string>([[schemaPath, schemaSource], [libPath, libText], ...moduleSources]);
@@ -20,7 +21,8 @@ export function createProjectProgram(
     noEmit: true,
     noLib: true,
     strict: true,
-    target: ts.ScriptTarget.ES2022,
+    target,
+    skipLibCheck: true,
     types: [],
   };
   const host = ts.createCompilerHost(options, true);
@@ -45,9 +47,22 @@ export function createProjectProgram(
   return { program, checker: program.getTypeChecker() };
 }
 
-export function projectTypeDiagnostics(program: ts.Program, projectRoot: string): FrontendDiagnostic[] {
+export function projectTypeDiagnostics(
+  program: ts.Program,
+  projectRoot: string,
+  include: (node: ts.Node) => boolean = () => true,
+  files?: ReadonlySet<string>,
+): FrontendDiagnostic[] {
   const checker = program.getTypeChecker();
-  return ts.getPreEmitDiagnostics(program).flatMap((item) => {
+  // Imported Quarry declarations supply effect/then types, but their bodies
+  // have already been checked against the subset. Do not check them twice.
+  const diagnostics = files
+    ? [...files].flatMap((path) => {
+      const file = program.getSourceFile(path);
+      return file ? [...program.getSyntacticDiagnostics(file), ...program.getSemanticDiagnostics(file)] : [];
+    })
+    : ts.getPreEmitDiagnostics(program);
+  return diagnostics.flatMap((item) => {
     if (!item.file || item.file.fileName.endsWith("__snapback2_lib.d.ts")) return [];
     if (item.file.fileName.includes(`${sep}node_modules${sep}`)) return [];
     if (!resolve(item.file.fileName).startsWith(`${resolve(projectRoot)}${sep}`)) return [];
@@ -56,6 +71,7 @@ export function projectTypeDiagnostics(program: ts.Program, projectRoot: string)
     const file = relativeSite(projectRoot, item.file.fileName);
     const message = ts.flattenDiagnosticMessageText(item.messageText, "\n");
     const node = item.start === undefined ? item.file : findNarrowestNode(item.file, item.start);
+    if (!include(node)) return [];
     const siteKind = typeDiagnosticSite(node, file);
     return [typeDiagnostic(
       siteKind.code,

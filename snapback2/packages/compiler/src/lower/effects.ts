@@ -7,6 +7,21 @@ import { callLeaf, moduleJsonConstants, objectOf, property, staticJson, stringAr
 
 // @ref LLP 1003#1-authoring — effects carry validated grants, closed ES2020 source, and an optional typed then mutation.
 
+// Public globals retained by snapback2-effects/src/ibex.rs; its Hermes witness compiles and executes each name.
+export const effectGlobals = [
+  "Array", "ArrayBuffer", "BigInt", "BigInt64Array", "BigUint64Array", "Boolean",
+  "DataView", "Date", "Error", "EvalError", "Float32Array", "Float64Array",
+  "Headers", "Infinity", "Int16Array", "Int32Array", "Int8Array", "Intl",
+  "JSON", "Map", "Math", "NaN", "Number", "Object",
+  "Promise", "Proxy", "RangeError", "ReferenceError", "Reflect", "RegExp",
+  "Set", "String", "Symbol", "SyntaxError", "TextDecoder", "TextEncoder",
+  "TypeError", "URIError", "URL", "URLSearchParams", "Uint16Array", "Uint32Array",
+  "Uint8Array", "Uint8ClampedArray", "WeakMap", "WeakSet", "atob", "btoa",
+  "console", "decodeURI", "decodeURIComponent", "encodeURI", "encodeURIComponent", "escape",
+  "fetch", "isFinite", "isNaN", "meta", "parseFloat", "parseInt",
+  "setTimeout", "undefined", "unescape",
+];
+
 export type SourceModule = {
   moduleName: string;
   fileName: string;
@@ -159,11 +174,7 @@ function validateClosure(module: SourceModule, run: ts.ArrowFunction | ts.Functi
     if (ts.isCatchClause(node) && node.variableDeclaration) collectScopedBindings(node.variableDeclaration.name, node, bindings);
   });
   const constants = moduleJsonConstants(module.sourceFile);
-  const allowed = new Set([
-    ...constants.keys(),
-    "fetch", "meta", "console", "JSON", "Math", "Date", "URL", "TextEncoder", "TextDecoder",
-    "btoa", "atob", "setTimeout", "Promise", "Error", "crypto", "undefined", "NaN", "Infinity",
-  ]);
+  const allowed = new Set([...constants.keys(), ...effectGlobals]);
   let escaped: ts.Identifier | undefined;
   for (const root of roots) {
     walk(root, (node) => {
@@ -313,6 +324,7 @@ function effectDiagnostic(
     ? unwrapCall(current.initializer)
     : undefined;
   const callee = call?.expression.getText(module.sourceFile) ?? "effect";
-  const rewrite = `export const ${name} = ${callee}({ grants: ["https://api.example.com"], run: async (_payload: null) => null });`;
+  const rewrite = (code === "E_EFFECT_CLOSURE" ? `// Allowed globals: ${effectGlobals.join(", ")}. Other captured values must be module JSON constants.\n` : "")
+    + `export const ${name} = ${callee}({ grants: ["https://api.example.com"], run: async (_payload: null) => null });`;
   return diagnostic(module, code, node, message, rewrite);
 }
