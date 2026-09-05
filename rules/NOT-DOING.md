@@ -118,6 +118,16 @@ PR. If nothing can come off, the answer is no.
   **off:** the browser admin console (author ruling; a user-focused console comes after
   the hosted version, on the same `/control/*` routes).
 
+- 2026-09-05 — **on:** the administrative plane (LLP 1016 revision (a): the system
+  principal as the store's owner, jobs as certified sweeps, narrowing at successor
+  application, `schedule … at` and `every <duration>`, the operator seat, a rehearsal
+  runtime) — author ruling to implement now, ahead of the loop bar; unblocks server-side
+  expiry (brief M5), the schedule-driven digest (M8), backfills of non-maintained columns,
+  and operator repair without a raw write path. **off:** the `system` rule word (it could
+  only mean `deny`), the client-invoked `purgeExpired` recipe, the `fork` CLI adapter
+  (LLP 1007 §7's ruled deletion, executed), and `persona create` (personas are created on
+  first use). "Cron" on the not-building list still means a service, expressions, or
+  calendar syntax; one duration on the one `schedule` kind is inside the line.
 - 2026-09-05 — Native view-once video returns on the author's explicit request
   to fix playback. The in-memory native view completes the existing asset arm;
   temp-file playback, new media formats, and additional client arms stay out.

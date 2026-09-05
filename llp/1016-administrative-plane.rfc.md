@@ -1,10 +1,11 @@
 # LLP 1016: The administrative plane — jobs, schedules, and the operator seat for bounded data programs
 
 **Type:** RFC
-**Status:** Draft — revision (a), after the three-family panel of 2026-09-05
-(§12). A proposal: it binds nothing (`rules/RULES.md`: only implemented
-specs bind, and a spec needs an implementer and a date; §10 has neither
-yet). Sequenced entirely after the loop bar by `rules/NOT-DOING.md`.
+**Status:** Draft — revision (a) with the five decisions ruled and an
+implementer and dates (§9, §10); **in implementation** since 2026-09-05
+(author ruling: implement now, ahead of the loop bar; the trade is in
+`rules/NOT-DOING.md` §Moves). Binds lane by lane as each lands
+(`rules/RULES.md`: only implemented specs bind).
 **Systems:** `snapback2/packages/compiler` (the Quarry front end: `job`,
 `chunk`, `schedule … at`, `schedule … every`; the `system` rule word
 removed), `snapback2/crates/snapback2-core` (the operator execution
@@ -21,7 +22,7 @@ session, on a criticism made by a separate reviewing session the same day;
 revision (a) written at the author's instruction to take the panel's
 feedback into account with the orchestrator's own judgement
 **Date:** 2026-09-05
-**Revised:** 2026-09-05 (a — the panel folded: one authority model for the
+**Revised:** 2026-09-05 (a.1 — the five decisions ruled, the author having delegated them to the orchestrator; implementer, lanes, and dates written; the loop-bar sequencing overridden by author ruling); 2026-09-05 (a — the panel folded: one authority model for the
 system principal and the `system` rule word deleted; the job is a sequence
 of sweeps over immutable keys under a captured upper key, with cursor and
 progress as certified engine writes; narrowing moved to successor
@@ -714,51 +715,70 @@ it, with a budget `scripts/measure.mjs --check` can hold:
 | `check` on the chat fixture with two jobs and two schedules | under the 1 s product latency |
 | bytes added to the binary | recorded, no budget |
 
-## 9. Author decisions
+## 9. Author decisions — ruled 2026-09-05
 
-Five, each with the orchestrator's position taken in the text and the
-alternative named.
+The author delegated all five to the orchestrator on 2026-09-05 ("make the
+best decisions you can on the five decisions and implement this"). Each is
+ruled as the text already takes it; the alternative stays recorded so a veto
+has a name.
 
-1. **The authority model (D1).** Taken: the system principal is the owner —
+1. **The authority model (D1).** Ruled: the system principal is the owner —
    total reads, constraints bind, viewer rules do not apply, the `system`
    rule word deleted. Alternative (astra, Muse): jobs under the tables'
    rules with a conservative three-valued proof, plus system visibility for
    reads only. Veto restores the word and the proof and adds `or system`
    grants per table.
-2. **The word `every` (D5).** Taken: `every <Nm|Nh|Nd>` is one duration on
+2. **The word `every` (D5).** Ruled: `every <Nm|Nh|Nd>` is one duration on
    the one schedule kind and is inside `rules/NOT-DOING.md`'s line, which
    forbids a cron *service*; the benchmark's M8 needs it. Alternative:
    period timers exist only as a system-owned row the app re-arms with its
    own mutation — the same mechanism with the sugar removed. Veto removes
    the word, not the mechanism.
-3. **Hosted ad hoc programs (D6).** Taken: yes, under an `admin` token over
-   TLS, persisted, size-capped, off MCP; the panel was 2–1. Alternative
+3. **Hosted ad hoc programs (D6).** Ruled: yes, under an `admin` token over
+   TLS, persisted, size-capped, off MCP; the panel was 2–1. Until LLP 1015
+   H0 lands token admission, `POST /control/run` admits the loopback control
+   secret only, like every other route. Alternative
    (grok): local `--file` only. Veto deletes `POST /control/run`.
-4. **What comes off the doing-list (§1).** Taken as the trade: the `system`
+4. **What comes off the doing-list (§1).** Ruled as the trade: the `system`
    rule word, the client-invoked purge recipe, the `fork` CLI adapter, and
    `persona create`. The author adds the lines to `rules/NOT-DOING.md` when
    commissioning; the honest note is that these are small, and the real
    payment is what §12 lists as cut from the first draft.
-5. **Rename (D4).** Taken: no rename operation; add, fill, drop. Reopen
+5. **Rename (D4).** Ruled: no rename operation; add, fill, drop. Reopen
    when a brief's migration count makes three steps a measured cost.
 
-Sequencing is not a decision: everything here waits for the loop bar.
-The first draft asked for a lane before it; the panel showed the narrowing
-change is not `check`-only and that M7 does not need it.
+**Sequencing (author ruling 2026-09-05): implement now.** The loop-bar
+sequencing of revision (a) is overridden by the author's instruction to
+implement; `rules/NOT-DOING.md` §Moves records what unblocks and what comes
+off. The panel's point stands as a fact, not a gate: the narrowing change
+is not `check`-only, and M7 does not need it.
 
 ## 10. Lanes
 
-Implementer and date: **none** — a proposal until written here. When
-commissioned, three lanes in order, each behind `scripts/test.sh` and the
-measured loop:
+Implementer: **codex `gpt-6-astra` (xhigh)** per the standing roster,
+orchestrated, reviewed by two blind families, and landed by Claude Fable
+5.1. Dates are targets; a lane that slips returns here. Four lanes (J1 is
+split in two so each codex run stays small), each behind `scripts/test.sh`
+and the measured loop:
 
-- **J1 — the seat and the sweep.** D1 (system visibility, the operator
-  entry, the `system` word deleted, the template's two rules to `deny`, LLP
-  1003's `then` under the new model), D2 and D3 (`job`/`chunk`, `_jobs`,
-  the engine writes, the turn policy), D4 (narrowing at application, the
-  pasted fill), `run --file/--wait/--plan/--cancel/--resume`, `trace <job>`,
-  the `job` recipe, the `fork` adapter and `persona create` deleted, LLP
-  1015 D1 amended. **First demonstrations:** a crash-resumable fill during
+| Lane | Worktree | Target |
+| --- | --- | --- |
+| J1a — the seat and narrowing | `~/projects/snapback-s2-c`, `s2/admin-plane` | 2026-09-05 |
+| J1b — jobs | `~/projects/snapback-s2-pay`, `s2/admin-jobs` (from J1a's tip) | 2026-09-06 |
+| J2 — schedules | `~/projects/snapback-s2v`, `s2/admin-schedules` (from J1b) | 2026-09-06 |
+| J3 — rehearsal and routes | `~/projects/snapback-s2`, `s2/admin-rehearsal` (from J1b) | 2026-09-06 |
+
+
+- **J1a — the seat and narrowing.** D1 (system visibility, the operator
+  entry, `--as system` on `run`/`data`/`why`, the `system` word deleted,
+  the template's two rules to `deny`, LLP 1003's `then` under the new
+  model, `_commits.kind = operator`) and D4 (narrowing at application, the
+  pasted fill, the three-step rewrite).
+- **J1b — jobs.** D2 and D3 (`job`/`chunk`, `_jobs`, the engine writes,
+  the turn policy), `run <job>`, `run --file`, `--wait/--plan/--cancel/--resume`,
+  `trace <job>`, `/control/jobs*`, the `job` recipe, `immutable` on the
+  template's `messages`, the `fork` adapter and `persona create` deleted,
+  LLP 1015 D1 amended. **First demonstrations:** a crash-resumable fill during
   continuous chat sends, measured as whole turns; the same fill parked by a
   constraint and resumed.
 - **J2 — schedules.** D5 (`_timers`, `at`, `every`, job targets, occurrence
