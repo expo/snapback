@@ -218,3 +218,103 @@ No `check_constraints`. The critic's fixture is `seed.ts` through `Registry::see
 **Q8 (composition).** No contradiction with 1016 on the bounded vs unbounded split: C3 is the refusal today, D8/`enqueue` is the third admitted form after the loop bar, J3 may rewrite `send` later, and the cap remains the invariant under `memberAdd`. The contradiction is form (b) vs 1016 D1 (Material 1). Landing 1017 before the loop bar is consistent with `rules/NOT-DOING.md`: this is a correctness fix to an existing surface (the chat template's `send`), not the administrative plane, not a new kind, not a new verb. 1016 stays sequenced after the bar. §1 is right to land alone and first: it aligns the certificate to LLP 1001 §3 as already ruled, changes no grammar, and its only intended observable is that `max_examined` becomes the number a hoisted scan actually spends. Do not wait for the panel to land §1. Do not implement §2–§4 from revision (a).
 
 §1 is the certificate saying the number the engine already spends — land it. §2's Cap spelling is the right word on the right columns, and the engine already enforces it on `insert`/`upsert` including product seeds. What I would not ship from (a) is C3 with an `after c` escape that mutations cannot even continue, metering that collides with `seed_program`'s 10240 examined ceiling, or a `LoopDomain::Page` check an agent bypasses with one `let`. Cap the group, refuse every mutation `for` that iterates that page unless the cap proves it covers, and put the rest on 1016.
+
+
+---
+
+# Round 2 — cross-read of revision (b) (grok, same model and effort, launched 2026-09-05 ~10:05Z from `launch.py grok 2 brief-r2.md`; both round-1 reviews visible; capsule at origin/main `6d3d09c6f` with revision (b) overlaid)
+
+**Verdict:** NOT READY on revision (b); every point folded into revision (c) (RFC §8). Raw output below, unedited.
+
+I'll read revision (b), both round-1 reviews, and the cited code, then judge whether every material point was folded.Revision (b) and both reviews are in. Next I’ll re-check the cited engine, certificate, and compiler sites against those claims.VERDICT: NOT READY
+
+Revision (b) folds the panel’s accounting, provenance, seed, successor, and form-(b)-as-named-form findings. It does not fold form (b) out of the language: §3.2’s iff still admits `after c`. That is the same silent first page the panel refused. One conjunct, then this is the design to implement.
+
+## Folded
+
+1. **Form (b) is the silent fifty** — folded wrongly. The named admission and the `c: cursor ?` rewrite are gone, and the prose now says a cursor form is a wire change for LLP 1016. The replacement iff does not require the origin scan to have `after`/`before`/`range` all `None`, so `for m in memberships[conversationId] after c first 50` still satisfies every listed conjunct (cap over pinned columns, uniform rule, literal bound ≥ N, no other non-uniform range). That is form (b) without the name. See Remaining 1.
+2. **Seed metering vs `Ceilings::default` examined 10,240** — folded correctly. §2.4 waives `examined` / `index_entries` / `steps` the same way `write_rows: u64::MAX` already does; §2.3 names `Engine::seed` as the test-only raw writer.
+3. **C3 keyed on `LoopDomain::Page` is bypassed by one `let`** — folded correctly. The rule follows provenance through `const`/`let`/assignment; an unresolvable origin and a merge origin refuse.
+
+## The other family's points
+
+1. **Scan summary overwrites prefix work** (`certificate.rs:1110` walks prefix/after/before/range, then `certificate.rs:1172`–`1175` assigns `examined` / `index_entries` / `rule_probes` / `steps`) — agree. Folded as saturating additions plus the two witnesses. Implement the additions on the scan-local figures, not by re-deriving `index_entries`/`steps` from the post-add `examined` total (see (a)).
+2. **Fetch clamp is public-only, not hoist** (`runner.rs:1094`–`1098`: `if always_visible { candidate_limit.min(take.saturating_add(2)) } else { candidate_limit }`) — agree. Folded: clamp uniform scans too, and say the certificate counts traced candidates (the extra true-verdict probe row is physical, not traced). That is enough for the cost model this RFC claims.
+3. **`let page = scan…; for m in page` is `DerivedArray`** (`lower/expr.ts:226` vs `:270`) — agree. Folded via provenance.
+4. **A non-uniform scan can spend `remaining_examined` and starve the loop** (`runner.rs:1077`; mutation still `Committed` at `engine/mod.rs:708`) — agree. Folded as “no non-uniform range site anywhere” plus a complete-site assertion. Sufficient; slightly stricter than order-sensitive protection; not too strict for this repo (see (b)).
+5. **Form (b) is a syntactic escape** (`runner.rs:1001`–`1003`; `result-page.ts:78`–`80`; `engine/mod.rs:1278`–`1282`) — agree. Withdrawing the named form is right; the iff still admits the syntax (Remaining 1). That does not change my view of (5); it is an incomplete application of it.
+6. **Optional grouping columns: `new.field` vs `unwrap_or(Null)`** (`runner_ops.rs:472` vs `index.rs:377`) — agree. Folded as one canonical grouping key.
+7. **Type-change drops collapse groups under an unchanged cap** (`successor.rs:487`–`493`, then `registry.rs:888`–`889`) — agree. Folded as validate-every-cap.
+
+No Codex material point was wrong. None of them, including (5), is fully discharged until Remaining 1 is in the iff.
+
+## Remaining
+
+1. **§3.2’s iff still admits a cursor cut.** `Scan` carries `after: Option<Box<Expr>>`, `before`, and `range` (`ir.rs:295`–`298`). Null optional cursor is the start of the range:
+
+```1001:1003:snapback2/crates/snapback2-core/src/engine/runner.rs
+        if after == Some(Value::Null) && scan.opaque_cursor {
+            after = None;
+        }
+```
+
+Mutations cannot mint `next` (`result-page.ts:78`–`80`; `engine/mod.rs:1278`–`1282`) and succeed as `Committed` (`engine/mod.rs:708`). A complete-marked site whose fetch is not budget-cut below `take + 2` will not save this: with ample `remaining_examined`, `memberships[conversationId] after c first 50` under `cap 50 by conversationId` fetches the suffix, stops `Exhausted` if that suffix is short, and commits a partial fan-out. **Change:** add to the iff that the origin scan has `after`, `before`, and `range` all `None`. Follow only identity bindings and row-shapes to that scan; do not treat `Slice`/`Concat`/`Sort` as the same page (CompletenessFlow already passes `Builtin::Slice` through, `certificate_policy.rs:268`–`271`). Give that reason its own rewrite: drop `after c` or wait for LLP 1016.
+
+2. **`complete: true` vs “no wire field.”** §3.2 says the certificate marks the loop’s read site `complete: true`. `ReadSite` has no such field today (`certificate.rs:115`–`125`). §5 says the certificate value model is unchanged and no wire field is added, while calling out `SuccessorRefusal.cap_conflicts` as the one additive field. **Change:** either add `complete` with `#[serde(default)]` and list it in §5 next to `cap_conflicts`, or say the runtime re-derives the same complete-by-cap predicate and the certificate shape does not change. Do not leave both sentences as written.
+
+## Minor
+
+- Saturating-add the scan-local row count; do not turn today’s `index_entries = summary.examined` / `steps = summary.examined * 5` into `saturating_add` of those *totals* after `examined` has already grown. The ten-node-prefix witness fails if `steps` is still `examined * 5`.
+- `nonuniform_range = !hoist` (`certificate.rs:1179`) is the same assign-after-accumulate pattern for flags. Use `|=`. A nested *range* in a prefix is not a Quarry-typable index key, so this is not a template bug.
+- `fn read` never walks `read.key` (`certificate.rs:1072`–`1097`). That is omission, not the scan overwrite; point-read programs already live without ceiling slack. Not in this RFC unless a Get key is itself a scan.
+- Unique constraint scans still go only to `constraint_inputs` (`runner_ops.rs:650`–`665`). Leave them there; do not start charging them without a reserve.
+- “One indexed scan per capped table” vs two caps on one table: one table fetch, group twice in memory. Fine.
+- Over-reserving N on a non-group-moving update is conservative. Insert/upsert plus updates whose `by` tuple might change would be tighter; not required.
+- Merge rewrite “fan in at read (LLP 1010 A5)” is a query form. For a mutation `for` over merge, the honest rewrite is “loop one scan” / “wait for enqueue job.”
+- `indexes_required` today records read indexes and `FinalExistsOnInsert`, not unique constraint indexes (`certificate.rs:423`–`428`). Recording the cap enforcement index is still the right obligation; “like every other constraint index” is slightly too strong.
+- Seed exemption must still *compute* N per write so `max_examined` matches charged rows. Mutations do call `assert_bounds` (`engine/mod.rs:599`–`604`). Waiving the 10,240 comparison without reserving yields `max_examined = 0` and a seed `TraceSubset`. Same shape as `write_rows: u64::MAX` keeping real write counts.
+
+## Specific checks
+
+**(a) Four additions and the uniform fetch clamp.** Correct, and sufficient for the two bugs in those lines, if implemented as scan-local saturating adds:
+
+- `scan_rows = calls.saturating_mul(reserve)`
+- `examined` / `index_entries` `saturating_add(scan_rows)`
+- `rule_probes` `saturating_add(rule_probes)`
+- `steps` `saturating_add(scan_rows.saturating_mul(5))`
+
+That keeps a nested point read in a prefix (`certificate.rs:1106`–`1107` @ref) and a ten-node prefix at `take 1` (runtime charges those nodes at `runner.rs:994` + `runner.rs:403`). Re-deriving `steps` from the new `examined` total still under-budgets the ten-node case.
+
+Clamp: today’s public-only clamp (`runner.rs:1094`–`1098`) becomes `uniform` (public already implies uniform: `uniform_visibility` with empty used-fields, `certificate_policy.rs:66`–`81`). Non-uniform keeps `candidate_limit` because hidden rows consume budget. Uniform-false still probes one row then skips the main fetch (`runner.rs:1106`–`1141`). The extra true-verdict probe SQL is one physical reread; the certificate traces candidates (`runner.rs:1199`). Stating that is enough.
+
+No third *site* of the same accumulate-then-assign: merge lanes each call `scan()` (`certificate.rs:1063`–`1065`); walks use `read()` / geometric gets (`certificate.rs:1000`–`1019`); point reads never set `nonuniform_range` (`certificate.rs:1072`–`1097`, `hoist: false` and no flag). Get-key expressions are unvisited; that hole already exists for public programs and is not what ceiling slack was hiding. Same-function flag assign is Minor, not a third site.
+
+**(b) Budget condition + complete assertion.** Sufficient to protect the reserve. `remaining_examined` is shared (`runner.rs:1077`). Rule `exists` probes charge `rule_probes`, not `examined` (`runner_ops.rs:785`–`793`). Cap checks today charge only `constraint_inputs` (`runner_ops.rs:511`–`517`); after metering they spend ≤ N of a reserved N. Point reads spend ≤ their 1. Uniform/public scans spend ≤ `take + 2` once clamped. So if every range is hoisted or public, the complete loop still has its reserve when it runs. The assertion should be `fetch_limit < take + 2` on a complete site (what the RFC wrote), not only `StopReason::Limit` (`runner.rs:1191`–`1198`): a cut fetch that happens to exhaust a smaller group is `Exhausted` and would otherwise commit. With correct accounting the assertion never fires; it is the loud backstop.
+
+Too strict on order (a *later* non-uniform scan cannot starve an *earlier* loop) and on unused locals. Not too strict for anything in this repo: the seven census loops are the only mutation page-`for`s; each is `memberships[…] first 50` with `read <- exists memberships[.conversationId, viewer]`, which hoists. `send`’s other reads are exists/gets (`messages.q:14`–`21`). `groupCreate`’s `for principal in members` is an argument list (`groups.q:8`, `<=49`). `followingFeed`’s `for f in follows[viewer] first 50` is a query merge lane (`feeds.q:10`–`13`). Clique `members[conv = c] first 50` is a query.
+
+**(c) Order-free prefix.** Sound. If every `by` column is among the first `prefix.len()` index columns, every selected row shares one `by` tuple, so the slice is ⊆ one cap group and has size ≤ N. A longer prefix is a subgroup. Cap-by `(a,b)` with index `(a,c,b)` and prefix length 2 does *not* pin `b`; refusing is right (`(a,c)` can meet many `b`s). Enforcement stays `index.columns.starts_with(by)` (`runner_ops.rs:492`); that is a different relation and should stay.
+
+**(d) One grouping key and validate-every-cap.** Sound. Index grouping is `unwrap_or(Value::Null)` (`index.rs:377`); optional omission is valid (`index.rs:487`). The engine cap arm must use that function for insert, group-moving update, and successor counts. The twin already materializes optionals before the cap (`evaluator/src/runner.ts:581`, `:756`–`:778`). Checking every successor cap, not only new/lowered ones, is the safe rule for the type-change collapse. Cost is on the order of the existing unique-index scan (`successor.rs:245`–`276`); acceptable. Raising N still runs the scan.
+
+**(e) Seed exception.** Right. `seed_program` already sets only `write_rows: u64::MAX` (`registry.rs:1047`–`1050`); default `examined` is 10,240 (`certificate.rs:34`). Product seeds are ordinary upserts (`registry.rs:1036`–`1040`) through `insert` → `check_constraints` (`runner_ops.rs:23`); `seed_write` skips rules, not constraints (`runner_ops.rs:687`–`688`). A constant-cost “does an Nth row exist” probe is a later optimization (with the maintained-count ticket), not a substitute for the exception. Do not make the cap check constant-cost *instead* of waiving the seed ceiling.
+
+**(f) Rewrite table.** Not every row is executable as pasted.
+
+| reason | executable? |
+| --- | --- |
+| no cap over conversationId → `cap 50 by conversationId` | Yes, using the loop’s literal bound as N. A missing leading index is a follow-on `E_SCHEMA_CONSTRAINT`. |
+| bound 50 below cap 100 → `first 100` | Yes. |
+| bound is an argument → “a literal bound of at least the cap” | No. Paste `first {N}`. |
+| rule not uniform → `E_STRUCTURAL_COUNT` denormalize-into-prefix | Yes (`certificate_policy.rs:332`–`335`). |
+| `members` is not a single page scan | Directional, not a snippet. When the binding is known, paste the scan in the loop head. |
+| merge has no union proof → “fan in at read (LLP 1010 A5)” | No for this defect. A5 is a query merge (`llp/1010` A5). Paste “loop one scan, not a merge”; `enqueue job` only after J3. |
+| non-uniform scan at `<site>` can spend this loop’s budget → prefix repair on that site | Yes. |
+
+Paste the disambiguating `by <index>` when `catalog.ts:182` would call `ambiguous` (chat has both `byConversationPrincipal` and `byConversationPrincipalRole`). Add a reason for Remaining 1 (`after` present).
+
+`E_STRUCTURAL_FANOUT` still needs an explicit `protocol.rs::certification_family_guide` arm: it matches neither `E_STRUCTURAL_COUNT` nor `E_BOUND*` and falls through to `opaque/subset` (`protocol.rs:8`–`26`).
+
+---
+
+The cap spelling, provenance rule, seed ceiling waiver, every-cap succession, one grouping key, uniform fetch clamp, and the four scan-summary additions are the design. Put `after`/`before`/`range` all `None` in the §3.2 iff — otherwise the cursor program the panel killed still certifies — and say how `complete` is represented. Then implement it.

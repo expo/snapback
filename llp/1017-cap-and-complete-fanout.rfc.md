@@ -1,9 +1,9 @@
 # LLP 1017: `cap` in Quarry and the complete fan-out — a schema cardinality invariant, the mutation loop that must cover its page, and the certified bound for hoisted ranges
 
 **Type:** RFC
-**Status:** Review (revision (b) folds a blind two-family panel — codex
+**Status:** Review (revision (c) folds a blind two-family panel — codex
 gpt-6-astra at xhigh, grok-4.6 at xhigh, both NOT READY on revision (a),
-§8; round 2 is a cross-read of this revision. Implementation is authorized
+§8, and its round-2 cross-read. Implementation is authorized
 by the author's instructions of 2026-09-05, "ok do all that stuff please"
 and "once you feel good about the RFC, go ahead and implement it".)
 **Systems:** the Quarry front end
@@ -26,7 +26,7 @@ against origin/main `873f1eb1f` (§0)
 (`~/projects/snapback-s2`), orchestrated and landed by Claude Fable 5.1 —
 §1 as its own landing first, §2–§4 after the panel
 **Date:** 2026-09-05
-**Revised:** 2026-09-05 (b — after panel round 1)
+**Revised:** 2026-09-05 (c — after panel round 2)
 **Related:** LLP 1001 §3 (read and write states; the 2026-08-30 hoist
 amendment) §9 (schema additions; `Constraint::Cap` exists in the engine
 but is undocumented there until this RFC's lane amends it), LLP 1004 (Quarry is the
@@ -52,7 +52,7 @@ two, which are smaller and true:
    prefix; the certificate reports the 10,240 ceiling for it anyway, because
    one substitution was keyed on "the read rule is not public" instead of
    "the read rule is not uniform". §1 keys it on uniformity. One line of
-   logic, nineteen corpus certificates move to their real reserve, and the
+   logic, fifteen corpus certificates move to their real reserve, and the
    certificate is a cost model again for every prefix-keyed multi-tenant
    list. The ceiling remains, deliberately, for genuinely non-uniform
    ranges (LLP 1001 §3 as ruled).
@@ -219,7 +219,8 @@ normalizes omission to `Null`; the engine's cap arm today reads
 admission validates a cap whether or not any program writes the table:
 non-empty, distinct, declared, indexable grouping columns; `N` a literal
 within `u32`; and the enforcement index is recorded in the certificate's
-index custody like every other constraint index. The lowering is the
+index custody (`indexes_required`, which today records read indexes and
+the final-exists probe index; the cap's joins them). The lowering is the
 one the TypeScript schema lowering already accepts (`lower/schema.ts`:
 `{ cap: { by, max } }` → `{ Cap: { by, max } }`); the Quarry front end
 emits that object from the new line.
@@ -261,8 +262,9 @@ entries per call, per cap (`write_summary` reserves none today); the
 runtime charges the rows the cap scan read to `trace.examined` (today it
 records them only under `constraint_inputs`), and `assert_bounds` then
 holds because the reserve is there. For the chat template: `memberAdd`
-reserves fifty, `groupCreate` reserves forty-nine times fifty, `send`
-reserves nothing new (deliveries are uncapped). A mutation whose capped
+reserves fifty, `groupCreate` reserves fifty times fifty (the creator's
+seat plus the forty-nine-member loop), `send` reserves nothing new
+(deliveries are uncapped). A mutation whose capped
 writes times `N` exceed the examined ceiling refuses `E_BOUND` at `check`
 like any other over-budget program.
 
@@ -285,8 +287,12 @@ new-unique-index scan in `successor.rs` but not limited to new or lowered
 caps. The panel's counterexample says why: two rows in different groups
 satisfy `cap 1 by group`; a type-change migration drops `group`'s values;
 both rows now share the `null` group and the unchanged cap is violated.
-Checking every cap is the simple safe rule; the cost is one indexed scan
-per capped table per succession. Any group above `N` refuses `E_SUCCESSOR_CAP` (family
+Checking every cap is the simple safe rule; the cost is one base-row
+traversal per capped table per succession (grouping work grows with the
+number of caps and groups), read from the rows table as the unique check
+reads them — never from the index entries, which the migration's drops
+have already deleted for that table when admission runs. Any group above
+`N` refuses `E_SUCCESSOR_CAP` (family
 `successor`, page `successor/migrations`) listing up to ten `{ table, by,
 key, count }` entries, rewrite "raise the cap to at least {count}, or remove
 rows from the group, then retry". The entries travel in a new additive
@@ -325,10 +331,15 @@ b₁…bₖ`; every one of `b₁…bₖ` is among the columns the scan's prefix 
 (the first `prefix.len()` columns of its index — order-free, so a longer or
 differently ordered prefix that still pins every grouping column selects a
 subgroup of at most `N` rows); the read rule is uniform over that prefix
-(`uniform_visibility`); the loop's bound is a literal ≥ `N`; and the
-mutation contains **no non-uniform range site anywhere**. Otherwise the
-program refuses `E_STRUCTURAL_FANOUT` at `check`. The loop then covers its
-selected range: the whole group, or the subgroup a longer prefix names.
+(`uniform_visibility`); the loop's bound is a literal ≥ `N`; the scan
+carries **no `after`, no `before`, and no `range`** (a cursor or a key
+range names a cut, and the panel's round two showed the other conjuncts
+alone would re-admit `after c` — the cursor program it killed — without
+its name); and the mutation contains **no non-uniform range site
+anywhere**. Otherwise the program refuses `E_STRUCTURAL_FANOUT` at
+`check`. The loop then covers its selected range: the whole group, or the
+subgroup a longer prefix names. Provenance follows identity bindings and
+row shapes only; a `slice`, `concat`, or `sort` of a page is not the page.
 
 **Why the last condition.** The examined budget is shared across a
 program: `remaining_examined = max_examined − trace.examined` at each scan.
@@ -338,10 +349,13 @@ candidates, and the mutation would still commit. When every site in the
 program is a hoisted range, a public range, a point read, or a metered cap
 check, each reserves exactly what it can spend, so the loop's reserve is
 always there when it runs. The certificate marks the loop's read site
-`complete: true`; the runtime asserts it — a complete site whose fetch is
-budget-cut below `take + 2` rejects the whole transaction with the
-existing trace-subset family instead of committing a partial fan-out. With
-the certification rule that assertion cannot fire; it is there so an
+`complete: true` — a new `#[serde(default)]` boolean on `ReadSite`, listed
+in §5 as the second additive field; the runtime asserts it — a complete
+site whose computed `fetch_limit` is below `take + 2` rejects the whole
+transaction with the existing trace-subset family instead of committing a
+partial fan-out (the test is the fetch limit, not the stop reason: a cut
+fetch that happens to exhaust a small group reads `Exhausted`). With the
+certification rule that assertion cannot fire; it is there so an
 accounting mistake is a loud rejection and never a silent skip.
 
 **"Comes from a page" follows provenance, not IR shape.** A direct `for m
@@ -390,13 +404,18 @@ more than one candidate:
 
 | reason | rewrite |
 | --- | --- |
-| "memberships has no cap over conversationId" | `cap 50 by conversationId` on `memberships` |
+| "memberships has no cap over conversationId" | `cap 50 by conversationId` on `memberships`, `N` = the loop's literal bound |
 | "bound 50 is below cap 100" | `first 100` on the loop |
-| "the bound is an argument" | a literal bound of at least the cap |
+| "the bound is an argument" | `first 50` on the loop, `50` = the cap |
+| "the loop reads after a cursor" (or a key range) | drop `after c` (or the range); a chunked mutation that returns its cut is LLP 1016 D1 |
 | "the read rule is not uniform over the scanned prefix" | the existing prefix repair: denormalize the rule's inputs into the index prefix (the `E_STRUCTURAL_COUNT` rewrite), not another cap |
-| "`members` is not a single page scan" | write the scan in the loop head, or bind exactly one page |
-| "a merge page has no union proof" | fan in at read (LLP 1010 A5) or, when LLP 1016 J3 lands, `enqueue job` |
+| "`members` is not a single page scan" | the scan pasted into the loop head when the binding is known; otherwise the direction "bind exactly one page" |
+| "a merge page has no union proof" | loop one scan, not a merge; fan-out past one group is LLP 1016 J3's `enqueue job` |
 | "the non-uniform scan at `<site>` can spend the budget this loop needs" | the prefix repair on that site |
+
+Every pasted scan names its index (`by byConversationPrincipal`) when the
+table has more than one candidate, because index selection refuses
+ambiguity.
 
 When LLP 1016 J3 lands, every rewrite gains its second form, `enqueue job
 { … }`, for fan-out past any cap, and §3.2 gains an explicit admission for
@@ -425,7 +444,10 @@ byConversationPrincipal` in a mutation: the chat template's `messages.q`
 conversationId` line on `memberships` satisfies all seven: the index
 begins with `conversationId`, the prefix pins it, the rule `exists
 memberships[.conversationId, viewer]` reads only the pinned column, and the
-bound equals the cap. No other fixture or template fans out inside a
+bound equals the cap. The older TypeScript-lowered fixture `s1` fans out
+in a mutation too, over a helper scan of 256 members with only a unique
+constraint on its schema; it gets a cap of 256 on the same columns so it
+stays certifiable. No other fixture or template fans out inside a
 mutation; the Clique fixture's `members[conv = c] first 50` is in a query.
 
 ### 3.5 What has no spelling after this, and where it goes
@@ -436,7 +458,10 @@ D1's `chunk` in a `job` for bulk work, D8's `enqueue job` for fan-out past
 a bound, both sequenced after the loop bar. Until then the honest form is
 the cap. This RFC and LLP 1016 compose: C3 is the refusal today; D8 is the
 second admitted form later, and the template's `send` may move to it when
-J3 lands, as 1016 proposes. Nothing here contradicts 1016.
+J3 lands, as 1016 proposes. Nothing here contradicts 1016. Walks are
+untouched for a different reason than the other domains: a walk enforces
+its fan-out with `E_FANOUT` but deliberately *stops* at its declared depth
+rather than refusing, and that bounded traversal is its authored contract.
 
 ## 4. The template and the reference
 
@@ -487,8 +512,8 @@ J3 lands, as 1016 proposes. Nothing here contradicts 1016.
   type-change drop) is a Rust test (the corpus has no successor category).
   Frozen counts (`spike.rs`) bump.
 - The certificate value model and `evaluator_version` are unchanged; no
-  wire field is added or renamed. `SuccessorRefusal` gains an additive,
-  defaulted `cap_conflicts` field.
+  wire field is renamed. Two additive, defaulted fields are added:
+  `SuccessorRefusal.cap_conflicts` and `ReadSite.complete`.
 
 ## 6. Non-claims
 
@@ -557,3 +582,28 @@ selected range" — §3.2.
 
 Disagreements between the families: none material. Both endorsed landing
 §1 first; codex conditioned it on the accounting repair, which is done.
+
+**Round 2, revision (b), cross-read.** grok: NOT READY on two points, both
+folded into revision (c) — the §3.2 conjuncts alone still admitted a scan
+with `after c` (the cursor program without its name), so the rule now
+requires no `after`, `before`, or `range` and provenance follows identity
+bindings and row shapes only; and `complete: true` on `ReadSite` is a new
+additive field, now listed in §5 beside `cap_conflicts`. Its minor notes
+are folded too: the rewrites for an argument bound and a merge origin are
+pasteable now; pasted scans name their index; the runtime assertion tests
+the fetch limit, not the stop reason; the seed exemption waives the
+ceiling comparison while the reserve is still computed. It confirmed
+every codex round-1 point and the §1 repairs. codex: NOT READY on two §1
+points, both folded before §1 lands — the scan summary also overwrote the
+inherited `nonuniform_range` flag (`= !hoist` becomes `|=`, with a raw-IR
+witness of a non-uniform scan nested in a uniform scan's key), and point
+reads never summarized their key expressions (the §1 lane's repair already
+traverses `Get`/`Exists` keys; walk seeds stay over-reserved, which is
+conservative). It confirmed every grok round-1 point and revision (b)'s
+folds, and its minor notes are folded: `complete` is an additive field
+(§5); successor validation reads base rows, not index entries (§2.5);
+the `s1` fixture joins the census (§3.4); `groupCreate` reserves fifty
+times fifty (§2.4); walks stop at depth rather than refusing (§3.5); the
+rewrite table promises a pasted edit only where one exists (§3.3). Both
+families endorsed the cap semantics, the provenance rule, the successor
+rule, and the removal of the cursor form as ready to implement.

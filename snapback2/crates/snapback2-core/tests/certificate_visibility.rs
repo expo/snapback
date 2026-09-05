@@ -389,3 +389,117 @@ fn indexes<const N: usize>(indexes: [(&str, &[&str], bool); N]) -> BTreeMap<Stri
 fn id(value: impl Into<String>) -> Value {
     Value::Id(value.into())
 }
+
+// @ref LLP 1001#3-read-and-write-states-no-silent-states — a non-uniform scan nested
+// in a uniform scan's key keeps the whole program on the ceiling (LLP 1017 §1: the
+// scan summary must merge the inherited flag, never overwrite it).
+#[test]
+fn nested_nonuniform_scan_in_a_key_keeps_the_ceiling() {
+    let memberships = public_table(
+        columns([
+            ("id", ColumnType::Id),
+            ("conversationId", ColumnType::Id),
+            ("viewer", ColumnType::Principal),
+        ]),
+        indexes([
+            ("byId", &["id"], true),
+            ("byConvViewer", &["conversationId", "viewer"], true),
+        ]),
+    );
+    let mut posts = public_table(
+        columns([
+            ("id", ColumnType::Id),
+            ("authorId", ColumnType::Id),
+            ("bucket", ColumnType::Int),
+        ]),
+        indexes([
+            ("byId", &["id"], true),
+            ("byBucket", &["bucket", "id"], false),
+        ]),
+    );
+    // The rule reads authorId, which the byBucket prefix does not pin: non-uniform.
+    posts.rules.read = RuleExpr::Exists {
+        table: "memberships".to_owned(),
+        index: "byConvViewer".to_owned(),
+        key: vec![RuleTerm::Field("authorId".to_owned()), RuleTerm::Viewer],
+        provenance: KeyProvenance::Shape,
+    };
+    let tallies = public_table(
+        columns([("id", ColumnType::Id), ("bucket", ColumnType::Int)]),
+        indexes([
+            ("byId", &["id"], true),
+            ("byBucket", &["bucket", "id"], false),
+        ]),
+    );
+    let schema = Schema {
+        tables: BTreeMap::from([
+            ("memberships".to_owned(), memberships),
+            ("posts".to_owned(), posts),
+            ("tallies".to_owned(), tallies),
+        ]),
+        ..Schema::default()
+    };
+    let inner = Scan {
+        site: "tallies.list.posts".to_owned(),
+        table: "posts".to_owned(),
+        index: "byBucket".to_owned(),
+        prefix: vec![Expr::Literal(Value::int(1).unwrap())],
+        order: Order::Asc,
+        take: Bound::Literal(5),
+        after: None,
+        before: None,
+        range: None,
+        opaque_cursor: false,
+        merge_site: None,
+        provenance: KeyProvenance::Const,
+    };
+    let outer = Scan {
+        site: "tallies.list".to_owned(),
+        table: "tallies".to_owned(),
+        index: "byBucket".to_owned(),
+        prefix: vec![Expr::Builtin {
+            builtin: Builtin::Count,
+            args: vec![Expr::Scan(inner)],
+        }],
+        order: Order::Asc,
+        take: Bound::Literal(10),
+        after: None,
+        before: None,
+        range: None,
+        opaque_cursor: false,
+        merge_site: None,
+        provenance: KeyProvenance::Shape,
+    };
+    let program = Program {
+        name: "tallies.list".to_owned(),
+        kind: ProgramKind::Query,
+        args: BTreeMap::new(),
+        read_time_granularity_ms: None,
+        result_page_site: None,
+        body: vec![Stmt::Return(Expr::Scan(outer))],
+    };
+    let project = ProjectJson {
+        version: 1,
+        schema,
+        programs: vec![program],
+        effects: Vec::new(),
+        auth: Auth::default(),
+    };
+    match Generation::certify(&project, Ceilings::default()) {
+        Ok(generation) => {
+            // The outer scan is public (uniform); the nested scan is not. The program
+            // must certify the examined ceiling, not the outer scan's reserve.
+            let (_, certificate) = &generation.programs()["tallies.list"];
+            assert_eq!(certificate.max_examined, 10_240);
+            assert_eq!(certificate.max_rule_probes, 10_240);
+        }
+        Err(errors) => {
+            // A structural refusal of the count-as-key is also a closed door; it must
+            // be the structural family, never a silent certificate at the reserve.
+            assert!(
+                errors.iter().any(|(_, error)| error.code == "E_STRUCTURAL_COUNT"),
+                "unexpected refusal: {errors:?}"
+            );
+        }
+    }
+}

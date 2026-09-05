@@ -1178,7 +1178,7 @@ impl<'a> Analyzer<'a> {
         summary.steps = summary
             .steps
             .saturating_add(scan_examined.saturating_mul(5));
-        summary.nonuniform_range = !hoist;
+        summary.nonuniform_range |= !hoist;
         if !hoist {
             self.completeness = Completeness::Capped;
         }

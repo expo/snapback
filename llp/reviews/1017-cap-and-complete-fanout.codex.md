@@ -138,3 +138,124 @@ VERDICT: NOT READY
 **Q8.** The bounded-cap design composes with LLP 1016; the cursor exception contradicts its stated reason for representing continuations explicitly, and §3’s policy will need an explicit job-chunk admission case when 1016 arrives. Landing correctness fixes for the existing chat recipe before the loop bar is defensible under [NOT-DOING.md:17](/Users/ccheever/projects/snapback-1017-panel/repo/rules/NOT-DOING.md:17), “Everything not required by this bar does not exist yet”; building a makeshift administrative continuation is not necessary to fix that recipe. LLP 1016 itself cannot impose an implementation gate merely by being proposed: [RULES.md:58](/Users/ccheever/projects/snapback-1017-panel/repo/rules/RULES.md:58), “**Only implemented specs bind.**” A **repaired** §1 should land independently and first; §1 as written should not.
 
 I would tell the author: keep the cap spelling and the bounded chat fix, but withdraw the “one-line accounting correction” and “cursor means continuation” claims. Repair the actual accounting, carry completeness through ordinary bindings, and make budget exhaustion reject rather than silently skip the fan-out. Then this becomes a sound, focused change.
+
+---
+
+# Round 2 — cross-read of revision (b) (codex, same model and effort, launched 2026-09-05 ~10:05Z from `launch.py codex 2 brief-r2.md`; both round-1 reviews visible; capsule at origin/main `6d3d09c6f` with revision (b) overlaid)
+
+**Verdict:** NOT READY on revision (b); every point folded into revision (c) (RFC §8). Raw output below, unedited.
+
+VERDICT: NOT READY
+
+## Folded
+
+1. **Scan-summary accounting — folded wrongly, through incompleteness.** [1017:133](/Users/ccheever/projects/snapback-1017-panel/repo/llp/1017-cap-and-complete-fanout.rfc.md:133), “assignments become saturating additions,” repairs the four counters but omits the inherited range flag and point-key accounting discussed in Remaining 1–2.
+2. **Physical fetch versus traced candidates — folded correctly.** [1017:138](/Users/ccheever/projects/snapback-1017-panel/repo/llp/1017-cap-and-complete-fanout.rfc.md:138), “The clamp now applies to uniform scans as well,” plus line 142’s explicit additional probe read, resolves the distinction.
+3. **Binding/derived-array bypass and merge coverage — folded correctly.** [1017:352](/Users/ccheever/projects/snapback-1017-panel/repo/llp/1017-cap-and-complete-fanout.rfc.md:352), “origin through `const`/`let`/assignment and shapes,” and line 355’s outright merge refusal address both.
+4. **Shared-budget starvation — folded correctly as a design against silent loss.** [1017:342](/Users/ccheever/projects/snapback-1017-panel/repo/llp/1017-cap-and-complete-fanout.rfc.md:342), “rejects the whole transaction,” satisfies my requested atomic fallback. The stronger claim that this assertion cannot fire still depends on Remaining 1–2.
+5. **Cursor escape hatch — folded correctly.** [1017:379](/Users/ccheever/projects/snapback-1017-panel/repo/llp/1017-cap-and-complete-fanout.rfc.md:379), “It is gone,” removes the unrepresented continuation.
+6. **Optional grouping values — folded correctly.** [1017:215](/Users/ccheever/projects/snapback-1017-panel/repo/llp/1017-cap-and-complete-fanout.rfc.md:215), “an omitted optional column and an explicit `null` denote the same group,” establishes the required common semantics.
+7. **Unchanged caps invalidated by migration — folded correctly.** [1017:281](/Users/ccheever/projects/snapback-1017-panel/repo/llp/1017-cap-and-complete-fanout.rfc.md:281), “Every cap … against the post-transformation rows,” covers the counterexample.
+
+## The other family's points
+
+1. **Cursor escape — agree.** [result-page.ts:79](/Users/ccheever/projects/snapback-1017-panel/repo/snapback2/packages/compiler/src/result-page.ts:79) attaches a result-page site only when `program.kind === "Query"`. [engine/mod.rs:1278](/Users/ccheever/projects/snapback-1017-panel/repo/snapback2/crates/snapback2-core/src/engine/mod.rs:1278) also requires `ExecutionState::Capped` before minting a cursor. Revision (b) removes the right form.
+
+2. **Seed-budget collision — agree with the exemption chosen in (b).** [registry.rs:1048](/Users/ccheever/projects/snapback-1017-panel/repo/snapback2/crates/snapback2-core/src/registry.rs:1048) currently overrides only `write_rows: u64::MAX`; reserving `205 × 50` would exceed the default examined ceiling. I disagree with treating the alternative “Nth row exists” probe as constant total work: returning one row does not establish that only one index entry was visited. See check (e).
+
+3. **Page provenance rather than IR shape — agree.** [lower/expr.ts:226](/Users/ccheever/projects/snapback-1017-panel/repo/snapback2/packages/compiler/src/lower/expr.ts:226) produces `domain: { Page: lowerScan(...) }`, whereas [lower/expr.ts:270](/Users/ccheever/projects/snapback-1017-panel/repo/snapback2/packages/compiler/src/lower/expr.ts:270) produces `domain: { DerivedArray: {` for a bounded binding. Revision (b) correctly makes that representation difference irrelevant to admission.
+
+I disagree with Grok’s round-1 Q1 conclusion that removing hoisted-program step slack “does not under-budget them.” The code evidence below demonstrates accounting omissions. Its endorsement of landing §1 first needs the same repair condition as mine.
+
+## Remaining
+
+1. **§1 still overwrites the inherited non-uniform flag.**
+
+   Scan analysis accumulates child expressions at [certificate.rs:1110](/Users/ccheever/projects/snapback-1017-panel/repo/snapback2/crates/snapback2-core/src/certificate.rs:1110):  
+   `summary = summary.add(self.expr(value, calls, factors)?);`
+
+   Composition preserves their flag at [certificate.rs:667](/Users/ccheever/projects/snapback-1017-panel/repo/snapback2/crates/snapback2-core/src/certificate.rs:667):  
+   `self.nonuniform_range |= other.nonuniform_range;`
+
+   But the enclosing scan then destroys it at [certificate.rs:1179](/Users/ccheever/projects/snapback-1017-panel/repo/snapback2/crates/snapback2-core/src/certificate.rs:1179):  
+   `summary.nonuniform_range = !hoist;`
+
+   Thus a uniform outer scan can conceal a non-uniform scan inside its prefix or bounds. Changing only the four numerical assignments leaves this defect intact and contradicts §1’s program-wide ceiling rule.
+
+   **Concrete change:** compose a separate scan-local summary, including its flags, or explicitly use `summary.nonuniform_range |= !hoist`. Add a witness with a non-uniform scan nested inside a uniform scan’s key/bound expression. The §3 mutation-wide check must traverse all expressions, rather than trust this currently lossy summary.
+
+2. **Point reads omit their key expressions entirely; the reserve proof therefore remains false.**
+
+   [certificate.rs:1078](/Users/ccheever/projects/snapback-1017-panel/repo/snapback2/crates/snapback2-core/src/certificate.rs:1078) starts point analysis with `Summary::default()`. Its following body records the outer site, assigns `summary.examined = calls` at line 1092 and `summary.steps = calls.saturating_mul(4)` at line 1095, then returns without analyzing `read.key`.
+
+   Runtime does evaluate those keys: [runner.rs:939](/Users/ccheever/projects/snapback-1017-panel/repo/snapback2/crates/snapback2-core/src/engine/runner.rs:939), `.map(|value| self.expr(value))`; every expression charges [runner.rs:403](/Users/ccheever/projects/snapback-1017-panel/repo/snapback2/crates/snapback2-core/src/engine/runner.rs:403), `self.step(1)?;`.
+
+   A complex scalar point key can consequently exceed the certified steps. A point read nested inside another point key also loses its read site, examined reserve, and probe reserve. These are source-derived counterexamples; I did not execute modified code.
+
+   **Concrete change:** recursively summarize `Get`/`Exists` keys, then add the point-local cost. Handle walks deliberately: [runner.rs:361](/Users/ccheever/projects/snapback-1017-panel/repo/snapback2/crates/snapback2-core/src/engine/runner.rs:361) evaluates `self.expr(&recurse.seed)?` once, while [certificate.rs:1010](/Users/ccheever/projects/snapback-1017-panel/repo/snapback2/crates/snapback2-core/src/certificate.rs:1010) currently routes the seed-bearing synthetic read through `calls.saturating_mul(nodes)`. Reserve seed evaluation once per walk invocation and point lookups per visited node. Include complex-point-key, nested-point-key, and computed-walk-seed witnesses before claiming the capped-loop assertion is unreachable.
+
+## Minor
+
+- **Clarify the completeness marker’s representation.** [1017:341](/Users/ccheever/projects/snapback-1017-panel/repo/llp/1017-cap-and-complete-fanout.rfc.md:341) introduces `complete: true`, but the serialized [ReadSite declaration at certificate.rs:114](/Users/ccheever/projects/snapback-1017-panel/repo/snapback2/crates/snapback2-core/src/certificate.rs:114) ends with `pub hoist: bool` and has no such field. Reconcile this with [1017:489](/Users/ccheever/projects/snapback-1017-panel/repo/llp/1017-cap-and-complete-fanout.rfc.md:489), “no wire field is added or renamed.” An additive certificate field is compatible with leaving the *value model* unchanged.
+
+- **Make the successor scan’s storage source explicit.** Migration drops execute `"DELETE FROM index_entries WHERE table_name = ?1"` at [successor.rs:494](/Users/ccheever/projects/snapback-1017-panel/repo/snapback2/crates/snapback2-core/src/successor.rs:494), before admission. Mirror the unique check’s base-row counting: [successor.rs:245](/Users/ccheever/projects/snapback-1017-panel/repo/snapback2/crates/snapback2-core/src/successor.rs:245), `fetch_rows(connection, table_name)?`. Do not scan the absent enforcement-index entries. This implements the stated post-transformation rule without changing it.
+
+- **The census is complete only for the named Quarry locations.** The older fixture also has [s1/programs.ts:158](/Users/ccheever/projects/snapback-1017-panel/repo/snapback2/packages/compiler/fixtures/s1/snapback/programs.ts:158), `for (const member of sendMembers(db, args.conversationId))`, whose helper scans `take: 256` at [line 40](/Users/ccheever/projects/snapback-1017-panel/repo/snapback2/packages/compiler/fixtures/s1/snapback/programs.ts:40). Its schema currently declares only `constraints: [{ unique: "byConvUser" }]` at [schema.ts:28](/Users/ccheever/projects/snapback-1017-panel/repo/snapback2/packages/compiler/fixtures/s1/snapback/schema.ts:28). Include the Rust counterpart and corpus fixture in the migration plan; the existing [spike.rs:1189](/Users/ccheever/projects/snapback-1017-panel/repo/snapback2/crates/snapback2-core/tests/spike.rs:1189) expects certification to succeed.
+
+- **Correct the remaining numbers.** §1’s body correctly says eighteen ceiling-pinning files and fifteen affected files; the summary still says nineteen. §4 still says five loops. `groupCreate` reserves **50 × 50 = 2,500**, including the creator insertion at [groups.q:7](/Users/ccheever/projects/snapback-1017-panel/repo/snapback2/packages/snapback2/templates/chat/snapback/groups.q:7), `insert memberships …`, in addition to the 49-member loop.
+
+- **The walks explanation remains inaccurate.** [runner.rs:366](/Users/ccheever/projects/snapback-1017-panel/repo/snapback2/crates/snapback2-core/src/engine/runner.rs:366), `if depth > recurse.depth || !visited.insert(...)`, continues rather than refusing. Walks enforce fanout but intentionally stop at depth; retain their exemption with that explanation.
+
+## Specific checks
+
+**(a) Four additions, clamp, and missed accounting**
+
+The four additions are correct **when adding scan-local quantities**. Do not derive the local index-entry or step increment from the already-updated aggregate `summary.examined`, which would double-count child work.
+
+The uniform fetch clamp is correct. [runner.rs:1160](/Users/ccheever/projects/snapback-1017-panel/repo/snapback2/crates/snapback2-core/src/engine/runner.rs:1160) sets the uniform target to `take.saturating_add(2)`; fetching more candidates cannot help that call. The extra preliminary probe is now honestly distinguished.
+
+They are **not sufficient**: Remaining 1 identifies another overwrite, of `nonuniform_range`; Remaining 2 identifies a related omission in point reads and walks. I found no separate merge-lane accounting overwrite: [quarry/program.ts:665](/Users/ccheever/projects/snapback-1017-panel/repo/snapback2/packages/compiler/src/quarry/program.ts:665), `for (const lane of expr.lanes)`, emits the separately accounted scans.
+
+**(b) Mutation-wide budget condition and assertion**
+
+The condition is a sound conservative choice **after complete cost composition**. It must preserve both examined and rule-probe capacity: [runner.rs:1084](/Users/ccheever/projects/snapback-1017-panel/repo/snapback2/crates/snapback2-core/src/engine/runner.rs:1084), `remaining_rule_probes < read_site.rule_probes_per_candidate`, can also reduce candidate capacity to zero.
+
+The assertion is sufficient to prevent a budget-cut loop from silently committing. Assert available fetch **capacity**, not that the database actually returns `take + 2` rows—small complete groups naturally return fewer. With the accounting omissions above, rejection remains possible, so the unconditional “assertion cannot fire” claim is premature.
+
+I found no existing template/fixture mutation requiring a capped population loop alongside a separate non-uniform range. The 256-member fixture needs a cap because of C3 itself, not because this additional budget condition is too strict. Rejecting a hypothetical non-uniform scan *after* the loop is conservative, but does not justify general per-site budgeting here.
+
+**(c) Order-free prefix relation**
+
+Sound. Equality-pinning every cap column selects at most one capped group; other pinned columns and cursor/range restrictions only narrow it. The runtime constructs equality predicates for each prefix position at [index.rs:149](/Users/ccheever/projects/snapback-1017-panel/repo/snapback2/crates/snapback2-core/src/engine/index.rs:149): `push_index_bound(..., offset, "=", value)?`.
+
+Keep this distinct from the enforcement-index requirement: [runner_ops.rs:492](/Users/ccheever/projects/snapback-1017-panel/repo/snapback2/crates/snapback2-core/src/engine/runner_ops.rs:492), `index.columns.starts_with(by)`, remains order-sensitive.
+
+**(d) Common grouping key and every-cap successor validation**
+
+Both are sound. [index.rs:377](/Users/ccheever/projects/snapback-1017-panel/repo/snapback2/crates/snapback2-core/src/engine/index.rs:377) already uses `row.field(column).cloned().unwrap_or(Value::Null)`, supporting the omission/null rule.
+
+Checking every successor cap is an acceptable initial trade and avoids fragile change-detection logic. State the cost accurately: one base-row traversal per table can serve all its caps, but grouping/counting work grows with the number of caps and groups. This is consistent with the existing full-row unique-admission approach; it is not a measured latency guarantee. Observe the storage-source caution above.
+
+**(e) Seed exception versus constant-cost checking**
+
+The exception is right for this slice. Product seeds still enter the ordinary upsert path: [registry.rs:1036](/Users/ccheever/projects/snapback-1017-panel/repo/snapback2/crates/snapback2-core/src/registry.rs:1036), `Ok(Stmt::Upsert {`; a missing row reaches [runner_ops.rs:84](/Users/ccheever/projects/snapback-1017-panel/repo/snapback2/crates/snapback2-core/src/engine/runner_ops.rs:84), `self.insert(table, row)`, and therefore the cap check.
+
+An Nth-row probe could avoid materializing N full rows, but an ordinary ordinal/offset search still traverses preceding index entries. The existing index declaration at [store.rs:162](/Users/ccheever/projects/snapback-1017-panel/repo/snapback2/crates/snapback2-core/src/store.rs:162) is an ordinary `CREATE INDEX … index_entries_lookup`, with no maintained group-count structure. Do not price that optimization as constant index work. Keep the maintained-count optimization deferred, and describe the exemptions as named counters rather than unlimited seed admission.
+
+**(f) Is every §3.3 rewrite executable as pasted?**
+
+**No.** Reason-specific routing is improved, but several entries remain instructions rather than executable repairs.
+
+| Reason | Assessment |
+|---|---|
+| No cap | `cap 50 by conversationId` is a valid proposed schema insertion for this example. |
+| Bound below cap | `first 100` is a valid replacement fragment; preserve the existing index disambiguation. |
+| Argument bound | “a literal bound of at least the cap” must become an actual substituted fragment such as `first 50`. |
+| Non-uniform read rule | “denormalize…” needs concrete schema/index/read edits. The existing [certificate_policy.rs:333](/Users/ccheever/projects/snapback-1017-panel/repo/snapback2/crates/snapback2-core/src/certificate_policy.rs:333) rewrite even contains the obsolete authoring spelling `maintain.count(...)`. |
+| Unknown page origin | “write the scan in the loop head” needs a concrete scan when one can be recovered; unknown provenance does not supply one automatically. |
+| Merge origin | “fan in at read” is an architectural change, not a pasted mutation repair. Future `enqueue job` is explicitly unavailable here. |
+| Non-uniform site elsewhere | Same concrete-prefix-repair requirement as the non-uniform-rule row. |
+
+For the merge case especially, do not imply that a query substitutes for required recipient writes: [1016:495](/Users/ccheever/projects/snapback-1017-panel/repo/llp/1016-administrative-plane.rfc.md:495) distinguishes “rows that must exist per recipient.” Promise executable edits where a concrete repair exists; otherwise state the required redesign or unavailable continuation honestly.
+
+I would tell the author: the cap semantics, successor coverage rule, provenance restriction, and removal of the cursor escape are ready to implement. Expand §1’s repair to preserve inherited flags and account for point keys and walk seeds before landing it; those are the remaining material gaps. Then reconcile the completeness-marker wording, finish the diagnostic examples, and include the older fanout fixture in the migration census.
