@@ -54,11 +54,9 @@ Inside `run`, the globals in scope are exactly `Array, ArrayBuffer, BigInt, BigI
 Other globals (including `crypto`, which this Ibex revision lacks), DOM names,
 `import`/`require` inside `run` (static or dynamic), `eval`, and `Function`
 refuse at `check`; captures must be module JSON constants, so imported helper
-functions cannot be captured. The packaged ES2020 types include no DOM or Web Worker
-library. `fetch` returns `status`, `ok`, `url`, `redirected`, `headers: Headers`,
+functions cannot be captured. No DOM or Web Worker types are packaged. `fetch` returns `status`, `ok`, `url`, `redirected`, `headers: Headers`,
 `bodyUsed`, and `text()`/`json()`/`arrayBuffer()`; `Response` has no constructor.
-The Ibex tools also provide `URL.canParse`/`parse` and `URLSearchParams.size`/`sort`;
-these are witnessed runtime members, independent of the ES2020 library version.
+`URL.canParse`/`parse` and `URLSearchParams.size`/`sort` are witnessed Ibex members.
 `TextDecoder` accepts no encoding or streaming options. `setTimeout` forwards
 extra arguments to its callback; delivery consumes one host permit per pump.
 Both global `meta` and `tools.meta` carry `id`, `effect`, and `attempt`.
