@@ -6,7 +6,7 @@
 **Systems:** Everything under `snapback2/`; the rules under `rules/`
 **Author:** Charlie Cheever / Claude Fable 5
 **Date:** 2026-08-29
-**Revised:** 2026-09-04 (LLP 1012 listed); 2026-09-02
+**Revised:** 2026-09-05 (LLP 1014/1015 listed); 2026-09-04 (LLP 1012 listed); 2026-09-02
 **Related:** LLP 0000, LLP 0329, LLP 0329.014, LLP 0329.014.004, LLP 0329.016,
 LLP 0316, LLP 0330, `rules/RULES.md`, `rules/NOT-DOING.md`,
 `spikes/bounded-programs/`, expo/ibex LLP 0057, LLP 0058, LLP 0068
@@ -86,7 +86,7 @@ numbered 1000 and up.
 | `corpus/` | 106 shared Rust/TypeScript conformance cases for RBAC transitions and invalidation, bootstrap/final-exists, authority-gated maintained writes including omitted Optional groups, intrinsic ids, text constraints, Bytes, and opaque capped completeness |
 | `scripts/` | `test.sh`, `measure.mjs --check`, `publish.mjs`, `hermes` |
 
-Not yet: `deploy`/`rollback`, `secret`, previews, MCP, `--changed`, the Expo and Exact 2 arms, receipt/IR-backed evaluator wiring in the public web client, a hosted target, the benchmark wiring, `Interval` columns, provenance/site as authored facts, AOT effect bytecode, `snapback.query/run` from inside an effect; local-first v1 — the durable range store, the outbox, retention, resume, and the device byte cache (LLP 1012; after the loop bar). Post-cap tickets: `issues/20260830-snapback2-*.md`.
+Not yet: `deploy`/`rollback`, `secret`, previews (the control plane for the one hosted target is designed in LLP 1015 on the evidence of LLP 1014; lane H0 may start before the loop bar, the rest waits — author ruling 2026-09-05), MCP, `--changed`, the Expo and Exact 2 arms, receipt/IR-backed evaluator wiring in the public web client, a hosted target, the benchmark wiring, `Interval` columns, provenance/site as authored facts, AOT effect bytecode, `snapback.query/run` from inside an effect; local-first v1 — the durable range store, the outbox, retention, resume, and the device byte cache (LLP 1012; after the loop bar). Post-cap tickets: `issues/20260830-snapback2-*.md`.
 
 The specs are LLP 1001 (engine), 1002 (loop), 1003 (effects) — Draft, implemented by codex lanes A/B0/B1/B2/C/D on 2026-08-29/30 under two-family blind review (LLP 0005 loop, codex + grok), rulings folded into each spec as they were made. Post-cap findings and deferred work are the `issues/20260830-snapback2-*` tickets. LLP 1012 (local-first v1) is the fourth spec, in Review; it binds lane by lane once the loop bar is met (`rules/NOT-DOING.md`, the offline bar).
 
