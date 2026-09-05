@@ -477,11 +477,101 @@
     "right": "run it locally against `dev`, or with an `admin` token once `serve`-mode tokens exist"
   },
   {
+    "family": "args",
+    "code": "E_ARGS_NAME",
+    "site": "by",
+    "guide": "operator",
+    "wrong": "send a control request with by: \"alice.smith\"",
+    "right": "set by to 1\u201380 ASCII letters, numbers, dashes, or underscores, such as operator-alice; system is reserved"
+  },
+  {
     "family": "successor",
     "code": "E_SUCCESSOR_NARROWING",
     "site": "table.column",
     "guide": "successor/migrations",
     "wrong": "apply a required column while stored rows are null",
-    "right": "keep T?, apply, fill through an operator mutation (job in J1b), then declare T and apply again"
+    "right": "keep T?, apply, run the pasted job (`run --file fill.q '{\"value\": ...}' --as system --wait`), then declare T and apply again"
+  },
+  {
+    "family": "job",
+    "code": "E_JOB_CURSOR_INDEX",
+    "site": "chunk p in table first N by index",
+    "guide": "job",
+    "wrong": "chunk p in profiles first 100 by byMutable",
+    "right": "immutable <cols> on the table, an index ending in id (or unique), or by byId"
+  },
+  {
+    "family": "job",
+    "code": "E_JOB_ARGS",
+    "site": "run <job> args-json",
+    "guide": "job",
+    "wrong": "run fillAvatars with undeclared arguments",
+    "right": "pass arguments matching the pasted signature: run fillAvatars '{\"value\":\"...\"}' --as system"
+  },
+  {
+    "family": "job",
+    "code": "E_JOB_SHAPE",
+    "site": "job name:statement:N",
+    "guide": "job",
+    "wrong": "job fill:\n  count = 0\n  chunk p in profiles first 100 by byId:\n    update profiles[p.id] { avatarUrl: 'x' }",
+    "right": "a job is one or more chunk blocks and nothing else; move the statement inside a chunk or into a mutation; a chunk reads what it needs itself, since a name bound in one chunk is not visible in the next"
+  },
+  {
+    "family": "job",
+    "code": "E_JOB_GENERATION",
+    "site": "<job-id>",
+    "guide": "job",
+    "wrong": "resume a changed job from its old cursor",
+    "right": "run --cancel job_id --as system; restore the declaration or start again"
+  },
+  {
+    "family": "job",
+    "code": "E_JOB_STATE",
+    "site": "<job-id>",
+    "guide": "job",
+    "wrong": "run --resume job_id --as system on a cancelled job, or --cancel on a done one",
+    "right": "trace job_id shows the state; only a parked job resumes, and a done or cancelled job needs no cancel; run <job> --as system starts again"
+  },
+  {
+    "family": "operator",
+    "code": "E_ADHOC_SIZE",
+    "site": "run --file",
+    "guide": "job",
+    "wrong": "run --file a-file-over-64-KiB.q --as system",
+    "right": "declare the program as a job and run its name"
+  },
+  {
+    "family": "op",
+    "code": "E_OP_KIND",
+    "site": "mode",
+    "guide": "job",
+    "wrong": "run --file inspect.q --as system --plan, where inspect.q declares a query",
+    "right": "only a job has sweeps to plan or chunks to wait for: run --file inspect.q --as system, or declare a job"
+  },
+  {
+    "family": "operator",
+    "code": "E_REHEARSAL",
+    "site": "run --dry-run",
+    "guide": "job",
+    "wrong": "rehearse when the snapshot cannot be created, opened, run (an engine or store fault inside the copy), or discarded",
+    "right": "check free disk space and the owner's store, then retry --dry-run"
+  },
+  {
+    "family": "schedule",
+    "code": "E_SCHEDULE_COLUMN",
+    "wrong": "```q\nschedule expireMessage on messages at .body:\n  purgeMessage(.id)\n```",
+    "right": "```q\n-- schema.q: expiresAt: time ?\nschedule expireMessage on messages at .expiresAt:\n  purgeMessage(.id)\n```"
+  },
+  {
+    "family": "schedule",
+    "code": "E_SCHEDULE_TARGET",
+    "wrong": "```q\nschedule expireMessage on messages at .expiresAt:\n  thread(.id)\n```",
+    "right": "```q\nschedule expireMessage on messages at .expiresAt:\n  purgeMessage(.id)\n```"
+  },
+  {
+    "family": "schedule",
+    "code": "E_SCHEDULE_DURATION",
+    "wrong": "```q\nschedule dailyDigest every 30s:\n  digestSweep\n```",
+    "right": "```q\nschedule dailyDigest every 24h:\n  digestSweep\n```"
   }
 ]

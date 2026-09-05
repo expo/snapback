@@ -63,8 +63,10 @@ table messages:
   photo: image <=5000000 ?
   clip: video <=50000000 ?
   viewOnce: bool ?
+  expiresAt: time ?
   at: time
   by byConvTime: conversationId, at, id
+  immutable conversationId, authorId
   retain delivered-history
   read <- exists memberships[.conversationId, viewer]
   insert <- (

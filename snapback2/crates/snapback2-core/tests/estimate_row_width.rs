@@ -17,6 +17,7 @@ fn by_id() -> BTreeMap<String, Index> {
 
 fn schema() -> Schema {
     Schema {
+        schedules: Vec::new(),
         tables: BTreeMap::from([
             (
                 "allTypes".to_owned(),
@@ -445,6 +446,7 @@ fn text_arguments_use_the_four_byte_code_point_bound() {
 
 fn closure_grouping_schema() -> Schema {
     let schema = Schema {
+        schedules: Vec::new(),
         tables: BTreeMap::from([(
             "wide".to_owned(),
             public_table(

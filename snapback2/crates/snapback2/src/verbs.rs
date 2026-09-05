@@ -55,104 +55,6 @@ pub fn dev(args: &[String]) -> ExitCode {
     })
 }
 
-pub fn run(args: &[String]) -> ExitCode {
-    let options = match parse_options(args, &["--project", "--as"], &["--json"]) {
-        Ok(options) => options,
-        Err(code) => return code,
-    };
-    let positional = options.positionals();
-    if positional.len() < 2 || positional.len() > 3 {
-        return usage("usage: snapback2 run <op> [args-json] --as <persona> [--json]");
-    }
-    let op = positional[1].to_owned();
-    let args_json = if positional.len() == 3 {
-        match serde_json::from_str(&positional[2]) {
-            Ok(value) => value,
-            Err(error) => {
-                return refused(
-                    Refusal::input(
-                        format!("invalid args JSON: {error}"),
-                        "pass a JSON object such as '{}'",
-                    ),
-                    options.has("--json"),
-                    2,
-                );
-            }
-        }
-    } else {
-        json!({})
-    };
-    let persona = match options.value("--as") {
-        Some(persona) => persona,
-        None => return usage("usage: snapback2 run <op> [args-json] --as <persona> [--json]"),
-    };
-    let (root, owner) = match attached(&options) {
-        Ok(value) => value,
-        Err(error) => return refused(error, options.has("--json"), 1),
-    };
-    if persona == "system" {
-        return match client::control(
-            &owner,
-            "POST",
-            "/control/execute",
-            json!({ "op": op, "args": args_json, "as": "system" }),
-        ) {
-            Ok(response) => {
-                let rejected =
-                    response.body.get("state").and_then(Json::as_str) == Some("rejected");
-                let code = print_response(response.status, response.body, options.has("--json"));
-                if rejected { ExitCode::from(1) } else { code }
-            }
-            Err(error) => refused(error, options.has("--json"), 1),
-        };
-    }
-    let manifest = match client::api(&owner, "GET", "/api/manifest", &[], json!({})) {
-        Ok(response) if response.status < 400 => response.body,
-        Ok(response) => {
-            return print_response(response.status, response.body, options.has("--json"));
-        }
-        Err(error) => return refused(error, options.has("--json"), 1),
-    };
-    let kind = manifest
-        .get("ops")
-        .and_then(|ops| ops.get(&op))
-        .and_then(|op| op.get("kind"))
-        .and_then(Json::as_str);
-    let path = match kind {
-        Some("query") => "/api/query",
-        Some("mutation") => "/api/mutation",
-        _ => {
-            return refused(
-                Refusal::new(
-                    "E_OP_UNKNOWN",
-                    "op",
-                    format!("unknown operation {op}"),
-                    "use an operation listed by /api/manifest",
-                    "op/manifest",
-                ),
-                options.has("--json"),
-                1,
-            );
-        }
-    };
-    let _ = root;
-    match client::api(
-        &owner,
-        "POST",
-        path,
-        &[("X-Snapback-As", persona)],
-        json!({ "op": op, "args": args_json }),
-    ) {
-        Ok(response) => {
-            let rejected = path == "/api/mutation"
-                && response.body.get("state").and_then(Json::as_str) == Some("rejected");
-            let code = print_response(response.status, response.body, options.has("--json"));
-            if rejected { ExitCode::from(1) } else { code }
-        }
-        Err(error) => refused(error, options.has("--json"), 1),
-    }
-}
-
 pub fn data(args: &[String]) -> ExitCode {
     let options = match parse_options(
         args,
@@ -245,31 +147,8 @@ pub fn persona(args: &[String]) -> ExitCode {
         Some("list") if positional.len() == 2 => {
             control(&options, "GET", "/control/personas", json!({}))
         }
-        Some("create") if positional.len() == 3 => control(
-            &options,
-            "POST",
-            "/control/persona",
-            json!({ "name": positional[2] }),
-        ),
-        _ => usage("usage: snapback2 persona list | create <name> [--json]"),
+        _ => usage("usage: snapback2 persona list [--json]"),
     }
-}
-
-pub fn fork(args: &[String]) -> ExitCode {
-    let options = match parse_options(args, &["--project"], &["--json"]) {
-        Ok(options) => options,
-        Err(code) => return code,
-    };
-    let positional = options.positionals();
-    if positional.len() != 2 {
-        return usage("usage: snapback2 fork <name> [--json]");
-    }
-    control(
-        &options,
-        "POST",
-        "/control/fork",
-        json!({ "name": positional[1] }),
-    )
 }
 
 pub fn reset(args: &[String]) -> ExitCode {
@@ -294,13 +173,15 @@ fn control(options: &ParsedOptions<'_>, method: &str, path: &str, body: Json) ->
     }
 }
 
-fn attached(options: &ParsedOptions<'_>) -> Result<(PathBuf, owner::OwnerInfo), Refusal> {
+pub(crate) fn attached(
+    options: &ParsedOptions<'_>,
+) -> Result<(PathBuf, owner::OwnerInfo), Refusal> {
     let root = locate_root(options.value("--project").map(Path::new))?;
     let owner = owner::require_owner(&root)?;
     Ok((root, owner))
 }
 
-fn print_response(status: u16, body: Json, json_output: bool) -> ExitCode {
+pub(crate) fn print_response(status: u16, body: Json, json_output: bool) -> ExitCode {
     if json_output {
         println!("{}", serde_json::to_string(&body).unwrap_or_default());
     } else {
@@ -316,11 +197,11 @@ fn print_response(status: u16, body: Json, json_output: bool) -> ExitCode {
     }
 }
 
-fn refused(error: Refusal, json_output: bool, code: u8) -> ExitCode {
+pub(crate) fn refused(error: Refusal, json_output: bool, code: u8) -> ExitCode {
     owner::print_refusal(error, json_output, code)
 }
 
-fn usage(message: &str) -> ExitCode {
+pub(crate) fn usage(message: &str) -> ExitCode {
     eprintln!("{message}");
     ExitCode::from(2)
 }

@@ -45,6 +45,7 @@ fn generation(tables: BTreeMap<String, Table>, maintains: Vec<Maintain>) -> Gene
         &ProjectJson {
             version: 1,
             schema: Schema {
+                schedules: Vec::new(),
                 tables,
                 maintains,
                 channels: BTreeMap::new(),

@@ -506,15 +506,19 @@ query before(boundary: time):
         refused["status"]["refused"][0]["code"], "E_SUCCESSOR_DESTRUCTIVE",
         "{refused}"
     );
-    let migration = fs::read_dir(root.join(".snapback"))
-        .unwrap()
-        .flatten()
-        .map(|entry| entry.path())
-        .find(|path| {
-            path.file_name()
-                .is_some_and(|name| name.to_string_lossy().starts_with("migration-"))
-        })
-        .expect("destructive successor migration file");
+    // The writer's phase flips to refused inside the failed apply; the watcher thread
+    // writes the migration file when that reply reaches it, so the file follows the
+    // status by a scheduling gap. Wait for the file it must write, not for the instant.
+    let migration = wait_for(Duration::from_secs(6), || {
+        fs::read_dir(root.join(".snapback"))
+            .unwrap()
+            .flatten()
+            .map(|entry| entry.path())
+            .find(|path| {
+                path.file_name()
+                    .is_some_and(|name| name.to_string_lossy().starts_with("migration-"))
+            })
+    });
     let migrated = Command::new(binary)
         .args(["dev", "--project"])
         .arg(&root)

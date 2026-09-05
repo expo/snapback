@@ -92,8 +92,8 @@ pub(crate) fn append_commit(
     record: &CommitRecord,
 ) -> Result<(), RuntimeError> {
     transaction.execute(
-        "INSERT INTO _commits(seq, at, program, principal, kind, touched, writes, emits, by)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+        "INSERT INTO _commits(seq, at, program, principal, kind, touched, writes, emits, by, job, job_chunk, schedule)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
         params![
             record.seq as i64,
             record.at,
@@ -106,6 +106,9 @@ pub(crate) fn append_commit(
                 .map_err(|error| RuntimeError::Serialization(error.to_string()))?,
             record.emits as i64,
             record.by,
+            record.job,
+            record.job_chunk.as_ref().map(crate::store_jobs::encode).transpose()?,
+            record.schedule.as_ref().map(crate::store_jobs::encode).transpose()?,
         ],
     )?;
     transaction.execute(

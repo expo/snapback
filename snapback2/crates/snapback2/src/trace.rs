@@ -19,7 +19,9 @@ pub fn run(args: &[String]) -> ExitCode {
     if positional.len() != 2 {
         return usage();
     }
-    let seq = if positional[1] == "latest" {
+    let timer = positional[1].strip_prefix("timer:");
+    let job = positional[1].starts_with("job_");
+    let seq = if positional[1] == "latest" || job || timer.is_some() {
         None
     } else {
         match positional[1].parse::<u64>() {
@@ -35,9 +37,22 @@ pub fn run(args: &[String]) -> ExitCode {
         Ok(owner) => owner,
         Err(error) => return owner::print_refusal(error, json_output, 1),
     };
-    let path = seq
-        .map(|seq| format!("/control/trace?seq={seq}"))
-        .unwrap_or_else(|| "/control/trace".to_owned());
+    let path = if let Some(id) = timer {
+        // Timer ids are `t_<digest>`; anything else is not a timer id.
+        if id.is_empty()
+            || !id
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+        {
+            return usage();
+        }
+        format!("/control/trace?timer={id}")
+    } else if job {
+        format!("/control/job/{}", positional[1])
+    } else {
+        seq.map(|seq| format!("/control/trace?seq={seq}"))
+            .unwrap_or_else(|| "/control/trace".to_owned())
+    };
     let trace = match client::control(&attached, "GET", &path, json!({})) {
         Ok(response) if response.status < 400 => response.body,
         Ok(response) => {
@@ -46,7 +61,11 @@ pub fn run(args: &[String]) -> ExitCode {
         }
         Err(error) => return owner::print_refusal(error, json_output, 1),
     };
-    let output = enrich(trace);
+    let output = if job || timer.is_some() {
+        trace
+    } else {
+        enrich(trace)
+    };
     if json_output {
         println!("{}", serde_json::to_string(&output).unwrap_or_default());
     } else {
@@ -59,6 +78,7 @@ pub fn run(args: &[String]) -> ExitCode {
 }
 
 fn enrich(trace: Json) -> Json {
+    // Rejected operator traces are the retained envelope, not enriched commit traces.
     if trace["kind"] == "operator" && trace["result"]["state"] == "rejected" {
         return trace;
     }
@@ -98,6 +118,6 @@ fn enrich(trace: Json) -> Json {
 }
 
 fn usage() -> ExitCode {
-    eprintln!("usage: snapback2 trace <seq|latest> [--json]");
+    eprintln!("usage: snapback2 trace <seq|latest|job_id|timer:id> [--json]");
     ExitCode::from(2)
 }

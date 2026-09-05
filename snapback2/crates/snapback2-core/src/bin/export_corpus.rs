@@ -525,6 +525,7 @@ fn named_emit_case() -> CorpusCase {
         maintains: Vec::new(),
         channels: BTreeMap::new(),
         auth: Auth::default(),
+        schedules: Vec::new(),
         effects: vec!["notifications.notify".to_owned()],
     };
     let event = |id: &str| {
@@ -1033,6 +1034,7 @@ fn evaluate_local(
             .expect("replacement hydration")
     });
     let outcome = match program.kind {
+        ProgramKind::Job => panic!("jobs never run on the client twin"),
         ProgramKind::Query => client.reexecute(program, certificate, context),
         ProgramKind::Mutation => client.apply_mutation(program, certificate, context),
     };

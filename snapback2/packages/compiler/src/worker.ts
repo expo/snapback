@@ -4,7 +4,7 @@ import { access } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { isAbsolute, resolve } from "node:path";
 
-type Request = { id?: string | number; op: "probe" | "compile" | "seed" | "journeys"; root: string };
+type Request = { id?: string | number; op: "probe" | "compile" | "seed" | "journeys"; root: string; source?: string };
 
 const protocol = "snapback2/compiler-worker/v1";
 const operations = ["compile", "seed", "journeys"] as const;
@@ -34,7 +34,7 @@ async function respond(request: Request): Promise<Record<string, unknown>> {
   }
   const { compileJourneys, lowerProject, lowerSeed } = await loadCompiler();
   if (request.op === "compile") {
-    const result = await lowerProject(request.root);
+    const result = await lowerProject(request.root, { adhocSource: request.source });
     if (result.ok) apiDeclarations.set(request.root, result.apiDts);
     return { id: request.id, ...result };
   }

@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2-core` (`store`, `registry`, `live`, `identity`, `successor`, the engine, the IR)
 **Author:** Claude Fable 5 (orchestrator) — implementer: codex gpt-5.6-sol, lane A
 **Date:** 2026-08-29
-**Revised:** 2026-09-05 (LLP 1017 §1, then §2 and §3)
+**Revised:** 2026-09-05 (LLP 1016 J2 — §1's system tables gain `_jobs` and `_timers`; LLP 1017 §1, then §2 and §3)
 **Related:** LLP 1000, LLP 1002 (the loop that serves this), LLP 1003 (effects
 through the outbox this spec defines), LLP 0329.014.004 §7 (runtime), LLP
 0329.014.000 §6 (execution, trace, states), LLP 0329.016 §5.6 (no silent
@@ -60,6 +60,8 @@ place):
 | `_principals` | `id TEXT PK, kind TEXT ('user'\|'guest'\|'persona'\|'system'), name TEXT, created_at INTEGER` | identity |
 | `_credentials` | `principal TEXT PK, email TEXT UNIQUE, hash TEXT` | identity |
 | `_sessions` | `auth_epoch INTEGER PK AUTOINCREMENT, token_digest BLOB UNIQUE CHECK(length=32), principal TEXT, kind TEXT, created_at INTEGER, expires_at INTEGER` | identity |
+| `_jobs` | `id TEXT PK, name, source NULL, program_hash, generation, args TEXT(JSON), state ('queued'\|'running'\|'parked'\|'done'\|'cancelled'), sweep, upper_key NULL, cursor NULL, chunks, rows_written TEXT(JSON), enqueued_by, created_at, updated_at, finished_at NULL, last_error NULL` — LLP 1016 D2/D3, amendment 2026-09-05 (J1b) | engine writes, the writer's background turn drives |
+| `_timers` | `id TEXT PK, schedule TEXT, row_id TEXT NULL, at INTEGER, period_start INTEGER NULL, generation TEXT` + index on `(at, id)` — maintained with the row like an index; LLP 1016 D5, amendment 2026-09-05 (J2). `_commits` gains `kind = 'schedule'` and a `schedule TEXT(JSON)` firing column | engine writes, the writer's background turn fires |
 
 Tables whose names begin with `_` are engine-owned: the schema may not declare
 them (`E_SCHEMA_RESERVED`), programs may not read or write them, and `data`

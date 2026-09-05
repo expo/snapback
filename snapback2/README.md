@@ -13,7 +13,7 @@ posture is [`rules/RULES.md`](../rules/RULES.md) and
 |---|---|
 | `crates/snapback2-core` | IR, certificate, engine (SQLite), trace, client replay |
 | `crates/snapback2-effects` | effects on Ibex 2 over vanilla Hermes: grant-bound `fetch`, isolated jobs, the outbox lifecycle runner (LLP 1003) |
-| `crates/snapback2` | the binary: the owner (`dev`), the wire, and the verbs `init`, `check`, `run`, `test`, `why`, `trace`, `data`, `logs`, `persona`, `fork`/`reset`, `guide`, `doctor` (LLP 1002) |
+| `crates/snapback2` | the binary: the owner (`dev`), the wire, and the verbs `init`, `check`, `run`, `test`, `why`, `trace`, `data`, `logs`, `persona`, `reset`, `guide`, `doctor` (LLP 1002) |
 | `packages/compiler` | TypeScript subset → IR (spike S2) |
 | `packages/evaluator` | the RBAC- and Bytes-complete IR evaluator twin for clients; public client custody remains deferred in LLP 1002 §9 |
 | `packages/snapback2` | the npm package: shim, authoring runtime (`snapback2`), `snapback2/client`, `snapback2/react`, `snapback2/test`, guide pages, templates |

@@ -13,6 +13,7 @@ import type {
   ProgramDecl,
   RuleDecl,
   ScalarType,
+  ScheduleDecl,
   ShapeDecl,
   ShapeField,
   ShapeImport,
@@ -52,6 +53,7 @@ class Parser {
   private readonly shapes: ShapeDecl[] = [];
   private readonly shapeImports: ShapeImport[] = [];
   private readonly programs: ProgramDecl[] = [];
+  private readonly schedules: ScheduleDecl[] = [];
   private identity: Document["identity"];
 
   constructor(private readonly tokens: Token[], private readonly file: string, readonly diagnostics: QuarryDiagnostic[]) {}
@@ -66,11 +68,11 @@ class Parser {
         else if (this.at("table")) this.tables.push(this.parseTable());
         else if (this.at("maintain")) this.maintains.push(this.parseMaintain());
         else if (this.at("channel")) this.channels.push(this.parseChannel());
-        else if (this.at("query") || this.at("mutation")) this.programs.push(this.parseProgram());
+        else if (this.at("query") || this.at("mutation") || this.at("job")) this.programs.push(this.parseProgram());
         else if (this.at("effect")) this.effects.push(this.parseEffect());
         else if (this.at("shape")) this.parseShapeDeclaration();
         else if (this.at("fn") || this.at("cursor")) unsupported(token, token.value, `${token.value} is reserved for a future Quarry form; rename this declaration`);
-        else if (this.at("schedule")) unsupported(token, "schedule", "perform the bounded work in a named mutation invoked by the caller");
+        else if (this.at("schedule")) this.schedules.push(this.parseSchedule());
         else if (this.at("index") || this.at("unique")) syntax(token, "top-level indexes are invalid; place by/unique inside the table block", "move the index line into its table block");
         else if (this.at("device") || this.at("oblivious")) unsupported(token, token.value, "pass an explicit bounded argument to the operation");
         else syntax(token, `unexpected top-level ${JSON.stringify(token.value)}`);
@@ -89,7 +91,54 @@ class Parser {
       shapes: this.shapes,
       shapeImports: this.shapeImports,
       programs: this.programs,
+      schedules: this.schedules,
     };
+  }
+
+  // @ref LLP 1016#d5--schedules-row-timers-and-periods-on-the-owners-clock — one kind, row deadlines or whole-minute durations.
+  private parseSchedule(): ScheduleDecl {
+    const site = this.take("schedule");
+    const name = this.generatedBinding("operation");
+    let trigger: ScheduleDecl["trigger"];
+    let predicate: Expr | undefined;
+    if (this.at("on")) {
+      this.take("on");
+      const table = this.word().value;
+      this.take("at"); this.take(".");
+      const column = this.word().value;
+      trigger = { row: { table, column } };
+      if (this.at("if")) { this.take("if"); predicate = this.expression(0, new Set([":"])); }
+    } else {
+      const durationError = () => { throw new QuarryError(site, "schedule periods are whole Nm, Nh, or Nd, at least one minute", "E_SCHEDULE_DURATION", "schedule dailyDigest every 24h: digestSweep", "schedule"); };
+      if (!this.at("every")) durationError();
+      this.take("every");
+      if (!this.atKind("number")) durationError();
+      const amount = Number(this.takeKind("number").value);
+      const unit = this.peek().value;
+      if (!this.atKind("word") || !["m", "h", "d"].includes(unit)) durationError();
+      this.word();
+      const durationMs = amount * ({ m: 60000, h: 3600000, d: 86400000 }[unit]!);
+      if (!Number.isInteger(amount) || amount < 1 || !Number.isSafeInteger(durationMs) || !this.at(":")) durationError();
+      trigger = { every: { durationMs } };
+    }
+    this.take(":");
+    const block = this.atKind("newline");
+    if (block) { this.newline(); this.takeKind("indent"); }
+    let target = this.word().value;
+    if (this.at(".")) { this.take("."); target += "." + this.word().value; }
+    const args: Expr[] = [];
+    if (this.at("(")) {
+      this.take("(");
+      while (!this.at(")")) {
+        args.push(this.expression(0, new Set([",", ")"])));
+        if (!this.at(",")) break;
+        this.take(",");
+      }
+      this.take(")");
+    }
+    this.newline();
+    if (block) this.takeKind("dedent");
+    return { name, trigger, target, args, predicate, site };
   }
 
   private parseUse(): void {
@@ -348,13 +397,38 @@ class Parser {
     const kindToken = this.word();
     const kind = kindToken.value as ProgramDecl["kind"];
     const name = this.generatedBinding("operation");
-    const args = this.parseArgs();
+    const args = kind === "job" && this.at(":") ? [] : this.parseArgs();
     if (this.at("->")) unsupported(this.peek(), "result annotations", "results are inferred; remove the annotation");
     this.take(":");
     this.newline();
-    const body = this.parseBlock();
+    const body = kind === "job" ? this.parseChunks() : this.parseBlock();
     if (body.length === 0) syntax(kindToken, `${kind} ${name} has an empty body`);
     return { kind, name, args, body, site: kindToken };
+  }
+
+  // @ref LLP 1016#d2--a-job-is-a-sequence-of-sweeps — only independent bounded sweeps may appear at job scope.
+  private parseChunks(): Stmt[] {
+    this.takeKind("indent");
+    const chunks: Stmt[] = [];
+    while (!this.atKind("dedent") && !this.atKind("eof")) {
+      this.skipNewlines();
+      if (this.atKind("dedent")) break;
+      const site = this.take("chunk");
+      const name = this.generatedBinding("loop");
+      this.take("in");
+      const table = this.word();
+      let domain: Expr = this.at("[") ? this.parseRead(table.value, table) : { kind: "read", table: table.value, keys: [], site: table };
+      if (!this.at("first")) syntax(this.peek(), "chunk requires first N by index");
+      domain = this.parseRange(domain as Extract<Expr, { kind: "read" }>);
+      if (domain.kind !== "read" || !domain.index || domain.range?.order !== "asc" || domain.range.cursor) syntax(site, "chunk requires table[prefix] first N by index");
+      this.take(":");
+      this.newline();
+      const body = this.parseBlock();
+      if (body.length === 0) syntax(site, "chunk body cannot be empty");
+      chunks.push({ kind: "for", name, domain, body, site });
+    }
+    this.takeKind("dedent");
+    return chunks;
   }
 
   private parseShapeDeclaration(): void {

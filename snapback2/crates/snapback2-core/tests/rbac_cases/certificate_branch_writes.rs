@@ -49,6 +49,7 @@ fn schema() -> Schema {
         retain: Default::default(),
     };
     Schema {
+        schedules: Vec::new(),
         tables: BTreeMap::from([("counts".to_owned(), counts), ("events".to_owned(), events)]),
         maintains: vec![Maintain {
             kind: MaintainKind::Count,

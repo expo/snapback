@@ -13,6 +13,7 @@ fn generation(password: bool, guests: bool) -> Generation {
         &ProjectJson {
             version: 1,
             schema: Schema {
+                schedules: Vec::new(),
                 tables: BTreeMap::new(),
                 maintains: Vec::new(),
                 channels: BTreeMap::new(),

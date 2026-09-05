@@ -202,9 +202,14 @@ pub(super) fn scan_indexed(
     } else {
         format!(" AND {}", predicates.join(" AND "))
     };
+    // Store planner pin, not a job rule: every `scan_indexed` query seeks `index_entries_lookup`,
+    // uniqueness probes and page reads alike. SQLite can otherwise choose the row-cleanup index
+    // to satisfy row_id ordering and scan the whole table per write; the J1b 100,000-row fill
+    // measured that cost, and the corpus is unchanged under the pin.
+    // @ref LLP 1016#implementation-record--j1b — a store planner pin justified by the J1b measurement, applying to every exact-prefix ordered probe.
     let sql = format!(
         "SELECT r.data
-         FROM index_entries ie
+         FROM index_entries ie INDEXED BY index_entries_lookup
          JOIN rows r ON r.table_name = ie.table_name AND r.row_id = ie.row_id
          WHERE ie.table_name = ?1 AND ie.index_name = ?2{suffix}
          ORDER BY {ordering}

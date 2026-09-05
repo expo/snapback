@@ -93,14 +93,14 @@ pub(super) fn program(generation: &Generation, requested: &str) -> Result<Json, 
     let programs = generation
         .programs()
         .iter()
-        .filter(|(name, _)| !name.starts_with("__owner."))
+        .filter(|(name, (p, _))| !name.starts_with("__owner.") && p.kind != ProgramKind::Job)
         .map(|(name, (program, certificate))| {
             (
                 name.clone(),
                 json!({
                     "kind": match program.kind {
                         ProgramKind::Query => "query",
-                        ProgramKind::Mutation => "mutation",
+                        ProgramKind::Job => "job", ProgramKind::Mutation => "mutation",
                     },
                     "planHash": certificate.plan_hash,
                     "ir": program,

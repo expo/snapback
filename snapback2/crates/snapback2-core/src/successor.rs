@@ -59,6 +59,8 @@ pub struct SuccessorRefusal {
     pub code: String,
     pub message: String,
     pub rewrite: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub site: Option<String>,
     pub plan: MigrationPlan,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub conflicts: Vec<UniqueConflict>,
@@ -72,6 +74,7 @@ impl SuccessorRefusal {
             code: "E_SUCCESSOR_DESTRUCTIVE".to_owned(),
             message: "destructive successor requires an explicit migration plan".to_owned(),
             rewrite: "apply exactly the returned migration plan".to_owned(),
+            site: None,
             plan,
             conflicts: Vec::new(),
             cap_conflicts: Vec::new(),
@@ -84,6 +87,7 @@ impl SuccessorRefusal {
             code: "E_SUCCESSOR_STORE".to_owned(),
             message: error.to_string(),
             rewrite: "repair the store error and retry the successor".to_owned(),
+            site: None,
             plan: MigrationPlan::default(),
             conflicts: Vec::new(),
             cap_conflicts: Vec::new(),
@@ -100,6 +104,7 @@ impl SuccessorRefusal {
             rewrite: format!(
                 "declare {table}.{column} as T?, apply; fill it with an operator mutation (`run fill_{table}_{column} --as system`; a job once J1b lands); then declare T and apply again"
             ),
+            site: None,
             plan: MigrationPlan::default(),
             conflicts: Vec::new(),
             cap_conflicts: Vec::new(),
@@ -119,6 +124,7 @@ impl SuccessorRefusal {
             code: "E_SUCCESSOR_UNIQUE".to_owned(),
             message: format!("new unique index has conflicting keys in {indexes}"),
             rewrite: "make the index non-unique or fix the rows".to_owned(),
+            site: None,
             plan: MigrationPlan::default(),
             conflicts,
             cap_conflicts: Vec::new(),
@@ -131,6 +137,7 @@ impl SuccessorRefusal {
             code: "E_SUCCESSOR_ROW_INVALID".to_owned(),
             message: format!("successor validation refused stored row {table}.{row}: {error}"),
             rewrite: format!("repair or remove stored row {table}.{row}, then retry the successor"),
+            site: Some(format!("{table}.{row}")),
             plan: MigrationPlan::default(),
             conflicts: Vec::new(),
             cap_conflicts: Vec::new(),

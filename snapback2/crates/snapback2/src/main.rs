@@ -9,6 +9,7 @@ mod blob_store;
 mod check;
 mod client;
 mod control;
+mod control_run;
 mod doctor;
 mod effects;
 mod guide;
@@ -19,10 +20,12 @@ mod owner;
 mod project;
 mod protocol;
 mod receipt;
+mod rehearsal;
 mod serve;
 mod test;
 mod trace;
 mod verbs;
+mod verbs_jobs;
 pub mod video_walk;
 mod watch;
 mod why;
@@ -66,11 +69,10 @@ fn main() -> ExitCode {
         }
         Some("check") => run_check(&args),
         Some("dev") => verbs::dev(&args),
-        Some("run") => verbs::run(&args),
+        Some("run") => verbs_jobs::run(&args),
         Some("data") => verbs::data(&args),
         Some("logs") => verbs::logs(&args),
         Some("persona") => verbs::persona(&args),
-        Some("fork") => verbs::fork(&args),
         Some("reset") => verbs::reset(&args),
 
         // Lane B2 owns these modules and adds only their match arms here:
@@ -82,7 +84,7 @@ fn main() -> ExitCode {
         Some("guide") => guide::run(&args),
         _ => {
             eprintln!(
-                "usage: snapback2 <version | doctor | check | dev | run | test | why | trace | data | logs | persona | fork | reset | guide | init> [options]"
+                "usage: snapback2 <version | doctor | check | dev | run | test | why | trace | data | logs | persona | reset | guide | init> [options]"
             );
             ExitCode::from(2)
         }

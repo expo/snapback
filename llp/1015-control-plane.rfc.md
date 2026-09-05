@@ -133,13 +133,15 @@ token):
 | `POST /control/release` (new) | no | yes | deploy | upload one release; owner applies it as a successor, probes, appends the ledger |
 | `GET /control/releases` (new) | yes | yes | read | the append-only ledger |
 | `POST /control/rollback` (new) | no | yes | deploy / admin | code-only is `deploy`; with data is `admin` (D5) |
-| `POST /control/snapshot` (new) | yes | yes | deploy | `fork` is the local spelling; hosted snapshots are named by release |
+| `POST /control/snapshot` (new) | yes | yes | deploy | local snapshots retain `POST /control/fork`; the CLI adapter is deleted (2026-09-05, LLP 1016 J1b); hosted snapshots are named by release |
 | `GET /control/secrets`, `PUT /control/secret/<name>`, `DELETE /control/secret/<name>` (new) | yes | yes | read / deploy | names and set-state on `GET`; never a value (D7) |
 | `POST /control/token`, `DELETE /control/token/<id>` (new) | no | yes | admin | mint and revoke (D6) |
 | `POST /control/reset`, `POST /control/fork`, `GET /control/personas`, `POST /control/persona`, `POST /control/clock` | yes | **refused** | — | `E_CONTROL_DEV_ONLY`, family `control`, rewrite "use snapshot / rollback / a token" |
 | `POST /control/stop` | yes | yes | admin | the machine restarts the process; used by the registry for destroy |
 
-Seven new routes. Every refusal carries a family, a site, and a rewrite (LLP
+**Amendment 2026-09-05 (LLP 1016 J1b):** The `fork` CLI adapter is deleted; its route and snapshot primitive remain. Jobs add `GET /control/jobs`, `GET /control/job/<id>` (read), `POST /control/job`, and `POST /control/job/<id>/cancel|resume` (admin). `status` includes running/queued/parked job counts. These use the loopback control secret today; H0 owns token admission. `persona create` is deleted from the CLI; first use creates a persona.
+
+Seven new routes in the original H0 proposal. Every refusal carries a family, a site, and a rewrite (LLP
 1002 §4). Every response carries `environment` and `release` so an agent can
 never mistake which app it is talking to.
 

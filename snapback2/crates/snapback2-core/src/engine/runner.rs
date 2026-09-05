@@ -170,7 +170,7 @@ impl<'a> Runner<'a> {
         for statement in statements {
             // @ref LLP 1016#d6--the-operator-seat-ad-hoc-programs-and-rehearsal — preserve the attempted write site even when validation refuses before a row is touched.
             if self.context.operator_by.is_some() {
-                use crate::certificate::{WriteKind, WriteSite};
+                use crate::certificate::WriteKind;
                 let site = match statement {
                     Stmt::Insert { table, .. } => Some((table.as_str(), WriteKind::Insert)),
                     Stmt::Update { table, .. } => Some((table.as_str(), WriteKind::Update)),
@@ -180,11 +180,22 @@ impl<'a> Runner<'a> {
                     _ => None,
                 };
                 if let Some((table, kind)) = site {
-                    self.trace.last_write_attempt = Some(WriteSite {
-                        table: table.into(),
-                        kind,
-                        max_rows: 1,
-                    });
+                    // Certificates aggregate by table and kind, including loop bounds.
+                    self.trace.last_write_attempt = Some(
+                        self.certificate
+                            .and_then(|certificate| {
+                                certificate
+                                    .write_sites
+                                    .iter()
+                                    .find(|site| site.table == table && site.kind == kind)
+                            })
+                            .ok_or_else(|| {
+                                RuntimeError::TraceSubset(format!(
+                                    "undeclared write site {table}.{kind:?}"
+                                ))
+                            })?
+                            .clone(),
+                    );
                 }
             }
             self.step(1)?;

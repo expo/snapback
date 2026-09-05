@@ -20,6 +20,8 @@ import {
   withProject,
   writeKeyNames,
 } from "./quarry-check-helpers";
+import { registerJobChecks } from "./quarry-job-checks";
+import { registerScheduleChecks } from "./quarry-schedule-checks";
 import { registerQuarryProgramChecks } from "./quarry-program-checks";
 import ts from "typescript";
 
@@ -927,4 +929,6 @@ query spread(c: conversations):
   });
 
   registerQuarryProgramChecks(test, frontend);
+  registerJobChecks(test, frontend);
+  registerScheduleChecks(test, frontend);
 }

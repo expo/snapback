@@ -75,6 +75,7 @@ export async function lowerProject(root: string, options: LowerProjectOptions = 
       fileName: relativeSite(projectRoot, path),
       source: await readFile(path, "utf8"),
     })));
+    if (options.adhocSource !== undefined) inputs.push({ path: join(authoredRoot, "__adhoc.q"), fileName: "snapback/__adhoc.q", source: options.adhocSource });
     const compiled = compileQuarry(inputs);
     if (!compiled.ok) return { ok: false, diagnostics: boundedDiagnostics(compiled.diagnostics, 50, "Quarry refusals"), ms: elapsed(started) };
     schemaPath = compiled.schema.path;
@@ -138,7 +139,16 @@ export async function lowerProject(root: string, options: LowerProjectOptions = 
       sourceSites: sources,
     });
     if (lowered.ok) {
-      programs.push(...lowered.programs.map(sortSerdeMaps));
+      const jobs = new Set(virtualByFile.get(module.fileName)?.jobs ?? []);
+      for (const program of lowered.programs) {
+        if (jobs.has(program.name.split(".").at(-1)!)) {
+          program.kind = "job";
+          // The mutation emitter adds a final null return; a job has only sweeps.
+          const last = program.body.at(-1);
+          if (last && typeof last === "object" && "Return" in last) program.body.pop();
+        }
+        programs.push(sortSerdeMaps(program));
+      }
       for (const declaration of operations.values()) {
         if (declaration.moduleName !== module.moduleName) continue;
         const position = declaration.module.sourceFile.getLineAndCharacterOfPosition(declaration.call.getStart());
@@ -156,8 +166,17 @@ export async function lowerProject(root: string, options: LowerProjectOptions = 
   }
 
   schema.schema.effects = loweredEffects.effects.map((item) => item.name);
+  // A schedule's binding stays a certified program in the project, named from the schema and
+  // never a client operation; the schema itself carries only scalars, so its hash mirrors.
+  const schedules = virtualModules[0]?.schedules ?? [];
+  if (schedules.length) schema.schema.schedules = schedules.map(({ bindingName, ...schedule }) => {
+    operations.delete(bindingName);
+    delete sources[bindingName];
+    return { ...schedule, binding: bindingName };
+  });
   programs.sort((left, right) => left.name.localeCompare(right.name));
-  const apiDts = generateApiDts(operations, checked.program, checked.checker, schema.tables, bindingsByModule);
+  const clientOperations = new Map([...operations].filter(([name]) => programs.find((p) => p.name === name)?.kind !== "job"));
+  const apiDts = generateApiDts(clientOperations, checked.program, checked.checker, schema.tables, bindingsByModule);
   return {
     ok: true,
     project: { schema: schema.schema, programs, effects: loweredEffects.effects },

@@ -178,7 +178,7 @@ const quarryFixtureText = (await Promise.all([...fixturePaths, ...templateQuarry
   .filter((path) => path.endsWith(".q")).map((path) => readFile(path, "utf8")))).join("\n");
 const parseDocument = await loadQuarryParser();
 const guidePages = await Promise.all(
-  ["grammar", "quarry", "auth", "live-query", "effects", "personas", "testing", "offline"].map(async (name) => ({
+  ["grammar", "quarry", "auth", "live-query", "effects", "personas", "testing", "offline", "job", "schedule"].map(async (name) => ({
     name,
     markdown: await readFile(resolve(guideSource, `${name}.md`), "utf8"),
     // LLP 1017 adds cap invariants and complete mutation loops to the reference.
@@ -376,7 +376,7 @@ function quarryFamilyFailures(rows, parseDocument) {
     let fragment = code;
     if (/^(cap |by |unique |immutable |read <-|retain )/.test(code)) {
       fragment = `table example:\n  ${code.split("\n").join("\n  ")}\n`;
-    } else if (!/^(?:--[^\n]*\n)*(table |query |mutation |maintain |use |channel )/.test(code)) {
+    } else if (!/^(?:--[^\n]*\n)*(table |query |mutation |maintain |use |channel |schedule |job )/.test(code)) {
       fragment = `mutation example():\n  ${code.split("\n").join("\n  ")}\n`;
       if (code.trimEnd().endsWith(":")) fragment += "    return null\n";
     }
@@ -396,7 +396,7 @@ function guideFailures(pages, tsFixturesText, quarryFixturesText, parseDocument)
     const staleQuarrySnippets = quarrySnippets
       .filter((match) => !quarryFixturesText.includes(match[1])).length;
     const invalidQuarryModules = quarrySnippets
-      .filter((match) => /^(?:table|maintain|channel|query|mutation|effect|use)\b/.test(match[1].trimStart()))
+      .filter((match) => /^(?:table|maintain|channel|query|mutation|job|schedule|effect|use)\b/.test(match[1].trimStart()))
       .filter((match) => parseDocument(`guide/${name}.q`, match[1]).diagnostics.length > 0).length;
     if (staleSnippets > 0) reasons.push(`${staleSnippets} TypeScript snippet(s) not present in the compiler fixtures`);
     if (staleQuarrySnippets > 0) reasons.push(`${staleQuarrySnippets} Quarry snippet(s) not present in the compiler fixtures or templates`);
@@ -421,7 +421,7 @@ async function loadQuarryParser() {
 
 async function fixtureFiles(root) {
   const output = [];
-  for (const name of ["todos", "chat", "quarry-todos", "quarry-chat", "quarry-surface", "quarry-assets"]) {
+  for (const name of ["todos", "chat", "quarry-todos", "quarry-chat", "quarry-surface", "quarry-assets", "quarry-jobs", "quarry-schedules"]) {
     const directory = resolve(root, name, "snapback");
     for (const entry of await readdir(directory, { withFileTypes: true })) {
       if (entry.isFile() && (entry.name.endsWith(".ts") || entry.name.endsWith(".q"))) output.push(resolve(directory, entry.name));

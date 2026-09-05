@@ -44,6 +44,7 @@ impl<'a> Runner<'a> {
         self.clear_rule_memos();
         self.touch_row(table, &row)?;
         self.bump_write(table);
+        self.maintain_timers(table, None, Some(&row))?;
         self.maintain(table, None, Some(&row))?;
         Ok(())
     }
@@ -133,6 +134,7 @@ impl<'a> Runner<'a> {
         self.clear_rule_memos();
         self.touch_row(table, &new)?;
         self.bump_write(table);
+        self.maintain_timers(table, Some(&old), Some(&new))?;
         self.maintain(table, Some(&old), Some(&new))?;
         Ok(())
     }
@@ -169,6 +171,7 @@ impl<'a> Runner<'a> {
         self.forget_created_points(table, id);
         self.clear_rule_memos();
         self.bump_write(table);
+        self.maintain_timers(table, Some(&old), None)?;
         self.maintain(table, Some(&old), None)?;
         Ok(())
     }

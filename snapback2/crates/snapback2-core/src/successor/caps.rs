@@ -75,5 +75,6 @@ pub(super) fn validate_caps(
         conflicts: Vec::new(),
         cap_conflicts: conflicts,
         narrowings: Vec::new(),
+        site: None,
     }))
 }

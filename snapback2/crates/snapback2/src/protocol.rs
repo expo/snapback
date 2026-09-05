@@ -7,6 +7,8 @@ use std::collections::BTreeMap;
 
 pub(crate) fn certification_family_guide(code: &str) -> (&'static str, &'static str) {
     match code {
+        code if code.starts_with("E_SCHEDULE") => ("schedule", "schedule"),
+        code if code.starts_with("E_JOB") => ("job", "job"),
         "E_UNBOUND_SCAN" => ("bound", "bound/scan"),
         "E_UNBOUND_LOOP" | "E_STRUCTURAL_FANOUT" => ("bound", "bound/loop"),
         "E_UNBOUND_COUNT" | "E_STRUCTURAL_COUNT" => ("bound", "bound/count"),
@@ -115,6 +117,26 @@ impl Refusal {
                 "schema/project",
             );
         }
+        if let RuntimeError::Job(error) = error {
+            let mut refusal = Self::new(
+                &error.code,
+                &error.family,
+                &error.message,
+                &error.rewrite,
+                &error.guide,
+            )
+            .with_site(&error.site);
+            if let Some(job) = &error.job {
+                refusal = refusal.with_detail("job", json!(job));
+            }
+            if let Some(sweep) = error.sweep {
+                refusal = refusal.with_detail("sweep", json!(sweep));
+            }
+            if let Some(chunk) = error.chunk {
+                refusal = refusal.with_detail("chunk", json!(chunk));
+            }
+            return refusal;
+        }
         let code = error.code();
         let family = if code.starts_with("E_AUTH") {
             "auth"
@@ -210,6 +232,9 @@ impl Refusal {
             "capConflicts",
             serde_json::to_value(&error.cap_conflicts).unwrap_or(Json::Array(Vec::new())),
         );
+        if let Some(site) = &error.site {
+            refusal = refusal.with_site(site);
+        }
         if let Some(narrowing) = error.narrowings.first() {
             refusal = refusal
                 .with_site(format!("{}.{}", narrowing.table, narrowing.column))
@@ -308,6 +333,27 @@ pub fn refusal_json(refusal: &Refusal) -> Json {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn operator_argument_name_has_a_registered_site_rewrite_and_guide_page() {
+        let families: Json = serde_json::from_str(include_str!(
+            "../../../packages/snapback2/guide/families.source.json"
+        ))
+        .unwrap();
+        let record = families
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|entry| entry["code"] == "E_ARGS_NAME")
+            .unwrap();
+        assert_eq!(record["family"], "args");
+        assert_eq!(record["site"], "by");
+        assert_eq!(record["guide"], "operator");
+        assert!(record["right"].as_str().unwrap().contains("1–80 ASCII"));
+        assert!(
+            include_str!("../../../packages/snapback2/guide/operator.md").contains("E_ARGS_NAME")
+        );
+    }
 
     #[test]
     fn every_offline_code_has_a_family_a_site_a_rewrite_and_the_guide_page() {

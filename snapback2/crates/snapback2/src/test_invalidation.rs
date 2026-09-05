@@ -1403,6 +1403,9 @@ mod tests {
             pinned_inputs_digest: "pinned".to_owned(),
         });
         let touched = |principal: &str| CommitRecord {
+            job: None,
+            job_chunk: None,
+            schedule: None,
             by: None,
             seq: 2,
             at: 1,

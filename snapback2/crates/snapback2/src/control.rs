@@ -1,7 +1,7 @@
 //! Loopback-only control-plane routes.
 // @ref LLP 1002#4-the-wire — control requests require the owner secret.
 
-use crate::project::certify_project_value;
+use crate::project::{SharedCompiler, certify_project_value};
 use crate::protocol::Refusal;
 use crate::serve::Query;
 use crate::writer::{Action, Identity, OwnerHandle};
@@ -17,15 +17,28 @@ const MAX_LOG_TAIL_BYTES: u64 = 4 * 1024 * 1024;
 pub struct Context {
     pub handle: OwnerHandle,
     pub root: PathBuf,
+    pub compiler: SharedCompiler,
 }
 
 pub fn route(
     method: &str,
     path: &str,
     query: &Query,
-    body: Json,
+    mut body: Json,
     context: &Context,
 ) -> Option<Result<Json, (u16, Refusal)>> {
+    // These purpose-specific routes are themselves the operator seat. The HTTP
+    // transport has already admitted the loopback secret; no persona is created.
+    if method == "POST"
+        && matches!(path, "/control/run" | "/control/job")
+        && body.get("as").is_none()
+        && let Some(object) = body.as_object_mut()
+    {
+        object.insert("as".into(), json!("system"));
+    }
+    if let Some(result) = crate::control_run::route(method, path, &body, context) {
+        return Some(result);
+    }
     let call = |action| context.handle.call(action).map_err(|error| (400, error));
     if method == "POST"
         && let Some(id) = path.strip_prefix("/control/outbox/")
@@ -54,7 +67,48 @@ pub fn route(
                 }),
         );
     }
+    if let Some(rest) = path.strip_prefix("/control/job/") {
+        let (id, operation) = rest.split_once('/').unwrap_or((rest, ""));
+        if !id.is_empty() && !operation.contains('/') {
+            return Some(match (method, operation) {
+                ("GET", "") => call(Action::Job {
+                    id: id.into(),
+                    after: query.u64("after").unwrap_or(0),
+                }),
+                ("POST", "cancel" | "resume") => call(Action::JobControl {
+                    id: id.into(),
+                    resume: operation == "resume",
+                    identity: control_identity(&body),
+                }),
+                _ => Err((
+                    400,
+                    Refusal::input(
+                        "invalid job route",
+                        "GET /control/job/<id> or POST /cancel or /resume",
+                    ),
+                )),
+            });
+        }
+    }
     let result = match (method, path) {
+        ("GET", "/control/timers") => call(Action::Timers),
+        ("GET", "/control/jobs") => call(Action::Jobs),
+        // `control_run::route` already refused any disagreeing flag; `mode: "plan"` and
+        // `plan: true` are the same request here.
+        ("POST", "/control/job") => match crate::control_run::requested_mode(&body) {
+            Ok(mode) => call(Action::EnqueueJob {
+                name: body
+                    .get("name")
+                    .or_else(|| body.get("op"))
+                    .and_then(Json::as_str)
+                    .unwrap_or_default()
+                    .into(),
+                args: body.get("args").cloned().unwrap_or_else(|| json!({})),
+                identity: control_identity(&body),
+                plan: mode == crate::control_run::Mode::Plan,
+            }),
+            Err(error) => Err((400, error)),
+        },
         ("GET", "/control/status") => call(Action::Status),
         ("POST", "/control/execute") => call(Action::Execute {
             op: body
@@ -116,7 +170,7 @@ pub fn route(
                     400,
                     Refusal::input(
                         "fork name must contain only letters, numbers, dash, and underscore",
-                        "pass snapback2 fork <safe-name>",
+                        "POST /control/fork with a safe name in the JSON body",
                     ),
                 ))
             }
@@ -153,6 +207,9 @@ pub fn route(
                 .and_then(Json::as_bool)
                 .unwrap_or(false),
             identity: control_identity(&body),
+        }),
+        ("GET", "/control/trace") if query.get("timer").is_some() => call(Action::TimerTrace {
+            id: query.get("timer").unwrap_or_default().to_owned(),
         }),
         ("GET", "/control/trace") => call(Action::Trace {
             seq: query.u64("seq"),
@@ -227,17 +284,36 @@ pub(crate) fn operator_transport(local: bool, mode: &str) -> Result<(), Refusal>
     }
 }
 
-fn control_identity(body: &Json) -> Identity {
+pub(crate) fn control_identity(body: &Json) -> Identity {
     let name = body.get("as").and_then(Json::as_str).unwrap_or_default();
     if name == "system" {
         Identity::Operator {
             by: match body.get("by") {
                 Some(value) => value.as_str().unwrap_or_default().to_owned(),
-                None => std::env::var("USER").unwrap_or_else(|_| "operator".to_owned()),
+                None => default_operator_by(&std::env::var("USER").unwrap_or_default()),
             },
         }
     } else {
         Identity::Persona(name.to_owned())
+    }
+}
+
+fn default_operator_by(user: &str) -> String {
+    let by: String = user
+        .chars()
+        .take(80)
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || matches!(c, '-' | '_') {
+                c
+            } else {
+                '-'
+            }
+        })
+        .collect();
+    if by.is_empty() || by == "system" {
+        "operator".to_owned()
+    } else {
+        by
     }
 }
 
@@ -325,6 +401,31 @@ fn first(errors: Vec<Refusal>) -> Refusal {
 mod tests {
     use super::*;
     use std::io::Write;
+
+    #[test]
+    fn default_operator_by_sanitizes_truncates_and_avoids_reserved_names() {
+        for (user, expected) in [
+            ("alice.smith", "alice-smith"),
+            ("é mac/user", "--mac-user"),
+            ("Alice_42-ok", "Alice_42-ok"),
+            ("", "operator"),
+            ("system", "operator"),
+        ] {
+            let by = default_operator_by(user);
+            assert_eq!(by, expected);
+            assert!(valid_name(&by));
+        }
+        assert_eq!(default_operator_by(&"é".repeat(100)), "-".repeat(80));
+        assert_eq!(default_operator_by(&"a".repeat(81)), "a".repeat(80));
+        for by in ["alice.smith", "", "system", "é"] {
+            let Identity::Operator { by: explicit } =
+                control_identity(&json!({ "as": "system", "by": by }))
+            else {
+                panic!("expected operator identity")
+            };
+            assert_eq!(explicit, by, "explicit attribution must remain untouched");
+        }
+    }
 
     #[test]
     fn operator_transport_refuses_remote_and_serve_with_complete_envelope() {

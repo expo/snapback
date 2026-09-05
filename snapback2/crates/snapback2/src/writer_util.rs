@@ -3,18 +3,9 @@
 use crate::protocol::Refusal;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+/// One mapping for a rejected mutation on the wire and a parked chunk in `_jobs` (LLP 1016 D2).
 pub fn rejection_family(code: &str) -> &'static str {
-    if code.starts_with("E_RULE") {
-        "rule"
-    } else if code.starts_with("E_BOUND")
-        || matches!(code, "E_FANOUT" | "E_STEPS" | "E_TRACE_SUBSET")
-    {
-        "bound"
-    } else if code.starts_with("E_CONSTRAINT") {
-        "schema"
-    } else {
-        "input"
-    }
+    snapback2_core::jobs::rejection_family(code)
 }
 
 pub fn unix_millis() -> i64 {

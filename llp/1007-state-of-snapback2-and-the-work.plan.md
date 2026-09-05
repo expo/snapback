@@ -255,6 +255,8 @@ that gets met by removing work, which is the wrong direction and is what
 
 ## 7. Deletions
 
+**Executed 2026-09-05 (LLP 1016 J1b):** Deleted the `fork` CLI adapter and `persona create`. `POST /control/fork`, `Store::snapshot_to`, and `persona list` remain; snapshots still support test and rehearsal.
+
 Converged after cross-examination; the reviewers opened split on the first
 three and agreed on all of them by round 2.
 

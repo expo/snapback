@@ -95,6 +95,8 @@ pub(super) enum RuleAuthority {
 
 #[derive(Debug, Error)]
 pub enum RuntimeError {
+    #[error("{0}")]
+    Job(Box<crate::jobs::JobRefusal>),
     #[error(transparent)]
     Sql(#[from] rusqlite::Error),
     #[error(transparent)]
@@ -156,6 +158,7 @@ pub enum RuntimeError {
 impl RuntimeError {
     pub fn code(&self) -> &str {
         match self {
+            Self::Job(error) => &error.code,
             Self::Sql(_) if is_sqlite_constraint(self) => "E_CONSTRAINT",
             Self::Sql(_) => "E_SQL",
             Self::Value(error) => match error {
@@ -538,6 +541,16 @@ impl Engine {
         then_outbox_id: Option<&str>,
         replay: Option<&crate::offline::ReplayCommit>,
     ) -> Result<Execution, RuntimeError> {
+        if program.kind == ProgramKind::Job {
+            let mut refusal = crate::jobs::JobRefusal::new(
+                "E_OPERATOR_REQUIRED",
+                "a job must be enqueued on the operator control route",
+                &program.name,
+                "run <job> --as system",
+            );
+            refusal.family = "operator".into();
+            return Err(RuntimeError::Job(Box::new(refusal)));
+        }
         if certificate.value_model_version != CURRENT_VALUE_MODEL_VERSION.as_str() {
             return Err(RuntimeError::TraceSubset(format!(
                 "value model version {} != current {}",
@@ -732,7 +745,7 @@ impl Engine {
             (true, _) => ExecutionState::Partial {
                 reason: MISSING_AUTHORITY_LABEL.to_owned(),
             },
-            (false, ProgramKind::Mutation) => ExecutionState::Committed { seq },
+            (false, ProgramKind::Mutation | ProgramKind::Job) => ExecutionState::Committed { seq },
             (false, ProgramKind::Query) => query_state(&runner.trace, certificate, is_system),
         };
         let next = next_cursor(&state, &runner.trace, certificate)?;
@@ -753,6 +766,9 @@ impl Engine {
             // @ref LLP 1001#2-what-a-commit-records — data, outbox, and commit record are atomic.
             let kind = commit_kind.unwrap_or(if is_system { "system" } else { "mutation" });
             let record = CommitRecord {
+                job: None,
+                job_chunk: None,
+                schedule: None,
                 seq,
                 at: commit_at,
                 program: program.name.clone(),
@@ -809,10 +825,15 @@ impl Engine {
              DELETE FROM rows;
              DELETE FROM _commits;
              DELETE FROM _outbox;
+             DELETE FROM _jobs;
+             DELETE FROM _timers;
+             DELETE FROM _meta WHERE key LIKE 'job_plan:%';
              DELETE FROM _grant_slices;
              DELETE FROM _client_intents;
              DELETE FROM _grants;",
         )?;
+        // A reset store is a fresh install: period timers re-arm from now, row timers follow the seed's rows.
+        crate::store_timers::reconcile(&transaction, &Schema::default(), &self.schema, commit_at)?;
         let seq = 1;
         let mut runner = Runner::new(
             &transaction,
@@ -849,6 +870,9 @@ impl Engine {
         append_commit(
             &transaction,
             &CommitRecord {
+                job: None,
+                job_chunk: None,
+                schedule: None,
                 seq,
                 at: commit_at,
                 program: program.name.clone(),
@@ -933,7 +957,7 @@ pub(crate) fn rebuild_owned_aggregate_target<'a>(
     Ok(())
 }
 
-fn validate_inputs(
+pub(crate) fn validate_inputs(
     schema: &Schema,
     program: &Program,
     inputs: &BTreeMap<String, Value>,
@@ -1410,4 +1434,10 @@ use runner::{Flow, Runner};
 
 mod execution_record;
 mod operator;
-use execution_record::{append_commit, next_cursor, query_state};
+pub(crate) use execution_record::append_commit;
+use execution_record::{next_cursor, query_state};
+
+mod jobs;
+pub(crate) use jobs::encode_job_key;
+
+mod timers;

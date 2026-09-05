@@ -60,6 +60,8 @@ pub struct TestReceipt {
     pub arms: Vec<String>,
     pub verdict: String,
     pub scope: ScopeReceipt,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub schedules: Option<Json>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
@@ -85,6 +87,7 @@ impl TestReceipt {
             arms: vec!["headless".to_owned()],
             verdict: verdict.to_owned(),
             scope: ScopeReceipt::default(),
+            schedules: None,
         }
     }
 
@@ -102,6 +105,7 @@ impl TestReceipt {
             arms: vec!["headless".to_owned()],
             verdict: "blocked".to_owned(),
             scope: ScopeReceipt::default(),
+            schedules: None,
         }
     }
 

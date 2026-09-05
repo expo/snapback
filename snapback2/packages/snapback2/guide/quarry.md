@@ -273,14 +273,20 @@ LLP 1016's continuation.
 
 ## Refused platform gaps
 
-The following are refused with `E_QUARRY_UNSUPPORTED`: `schedule`, `where`,
-`device`, `oblivious`, `while`, user functions or recursion. Use a caller-invoked
-mutation instead of a schedule; explicit bounded arguments instead of
-device/oblivious state; bounded `for`/`walk` instead of while/recursion. An
-equality-conjunction `where` over indexable columns returns two repairs: the
-schema index line and the indexed prefix read. Repairs preserve named keys and
-the remaining sort order; row-dependent expressions stay refused. After changing
-an index, restart pagination with an absent cursor. Other predicates name the
-index, invariant (`after insert <- exists …`), or `merge` alternatives.
+Refused (`E_QUARRY_UNSUPPORTED`): `where`, `device`, `oblivious`, `while`,
+functions, recursion — pass bounded arguments; loop with bounded `for`/`walk`.
+An equality-conjunction `where` over indexable columns returns two repairs: the
+schema index line and the indexed prefix read. Repairs keep named keys and sort
+order; row-dependent predicates stay refused. After changing an index, restart
+pagination with an absent cursor. Other predicates name the index, invariant
+(`after insert <- exists …`), or `merge` alternatives.
 
 Writes through a non-unique or incomplete key are index-selection refusals.
+
+## Jobs and schedules
+
+`job name(args):` holds independent `chunk row in table[prefix] first N by index:`
+blocks over immutable, total keys; `guide job`. `schedule name on table at
+.column [if predicate]: target(args)` fires per row when its `time ?` column is
+reached; `schedule name every <Nm|Nh|Nd>: target` fires per period
+(`guide schedule`).

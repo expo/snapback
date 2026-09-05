@@ -2,6 +2,10 @@ use super::*;
 use snapback2_core::{ColumnType, ProjectJson};
 
 fn boot(serve: bool) -> (PathBuf, PathBuf, ChildGuard, u16, String) {
+    boot_with_user(serve, None)
+}
+
+fn boot_with_user(serve: bool, user: Option<&str>) -> (PathBuf, PathBuf, ChildGuard, u16, String) {
     let root = temp_root();
     copy_tree(&fixture().join("snapback"), &root.join("snapback"));
     let schema = root.join("snapback/schema.q");
@@ -83,8 +87,13 @@ mutation fill(id: adminNotes):
         String::from_utf8_lossy(&checked.stdout),
         String::from_utf8_lossy(&checked.stderr)
     );
-    let mut owner =
-        ChildGuard::spawn_with(env!("CARGO_BIN_EXE_snapback2"), &compiler, &root, serve);
+    let mut owner = ChildGuard::spawn_with_user(
+        env!("CARGO_BIN_EXE_snapback2"),
+        &compiler,
+        &root,
+        serve,
+        user,
+    );
     let ready = owner.ready_line();
     let port = ready
         .trim()
@@ -123,7 +132,7 @@ fn cli(root: &Path, compiler: &Path, args: &[&str]) -> (i32, Value) {
 
 #[test]
 fn operator_cli_commits_with_attribution_and_reads_hidden_point_range_merge_and_maintain() {
-    let (root, compiler, mut owner, port, secret) = boot(false);
+    let (root, compiler, mut owner, port, secret) = boot_with_user(false, Some("alice.smith"));
     let (code, mutation) = cli(
         &root,
         &compiler,
@@ -136,10 +145,7 @@ fn operator_cli_commits_with_attribution_and_reads_hidden_point_range_merge_and_
     assert_eq!(code, 0, "{trace}");
     assert_eq!(trace["commit"]["kind"], "operator");
     assert_eq!(trace["commit"]["program"], "admin.bookkeep");
-    assert_eq!(
-        trace["commit"]["by"],
-        std::env::var("USER").unwrap_or_else(|_| "operator".into())
-    );
+    assert_eq!(trace["commit"]["by"], "alice-smith");
     let seq = mutation["seq"].clone();
     for (op, count, args) in [
         ("admin.notes", 2, "{}"),
@@ -276,6 +282,29 @@ fn operator_narrowing_apply_refusal_is_in_status_then_fill_and_retry_preserve_ro
         .insert("note".into(), ColumnType::Text { max: 40 });
     let headers = [("X-Snapback-Control", secret.as_str())];
     let generation = status(port, &secret)["generation"].clone();
+    let mut multi_column = project.clone();
+    multi_column
+        .schema
+        .tables
+        .get_mut("adminNotes")
+        .unwrap()
+        .columns
+        .insert("legacy".into(), ColumnType::Int);
+    let multi = request(
+        port,
+        "POST",
+        "/control/apply",
+        &headers,
+        json!({ "project": multi_column }),
+    );
+    assert_eq!(multi.status, 400, "{}", multi.body);
+    assert_eq!(multi.body["code"], "E_SUCCESSOR_NARROWING");
+    assert_eq!(multi.body["narrowings"].as_array().unwrap().len(), 2);
+    // BTreeMap column order, independent of which column was narrowed first.
+    assert_eq!(multi.body["site"], "adminNotes.legacy");
+    assert_eq!(multi.body["column"], "legacy");
+    assert_eq!(multi.body["narrowings"][0]["column"], "legacy");
+    assert_eq!(multi.body["narrowings"][1]["column"], "note");
     let refusal = request(
         port,
         "POST",
@@ -476,6 +505,7 @@ fn operator_by_rejects_reserved_and_invalid_names_through_every_control_adapter(
         json!("system"),
         json!(""),
         json!("bad/name"),
+        json!("alice.smith"),
         json!("with space"),
         json!("é"),
         json!("a".repeat(81)),
@@ -513,6 +543,7 @@ fn operator_by_rejects_reserved_and_invalid_names_through_every_control_adapter(
             );
             if family == "args" {
                 assert_eq!(refusal.body["site"], "by");
+                assert_eq!(refusal.body["guide"], "operator");
             }
         }
     }
@@ -567,6 +598,9 @@ fn destructive_apply_refusal_is_preserved_in_owner_status_and_log() {
 fn operator_read_logs_only_successful_execution_on_run_why_and_data() {
     let (root, _, mut owner, port, secret) = boot(false);
     let headers = [("X-Snapback-Control", secret.as_str())];
+    let preflight = request(port, "OPTIONS", "/control/data", &[], json!({}));
+    assert_eq!(preflight.status, 403);
+    assert_eq!(preflight.body["code"], "E_OWNER_CONTROL_SECRET");
     for route in ["/control/execute", "/control/why", "/control/data"] {
         let refused = request(
             port,
@@ -621,6 +655,58 @@ fn operator_read_logs_only_successful_execution_on_run_why_and_data() {
 }
 
 #[test]
+fn operator_narrowing_malformed_row_has_family_site_rewrite_and_guide_on_the_wire() {
+    let (root, compiler, mut owner, port, secret) = boot(false);
+    stop_owner(port, &secret, &mut owner, "prepare malformed stored row");
+    // Corrupt the fixture only after its exclusive owner has stopped.
+    let store = rusqlite::Connection::open(root.join(".snapback/store.sqlite")).unwrap();
+    store.execute("UPDATE rows SET data = 'not-json' WHERE table_name = 'adminNotes' AND row_id = 'admin-1'", []).unwrap();
+    drop(store);
+    let mut owner = ChildGuard::spawn(env!("CARGO_BIN_EXE_snapback2"), &compiler, &root);
+    let ready = owner.ready_line();
+    assert!(ready.starts_with("SNAPBACK_URL="), "{ready}");
+    let record: Value =
+        serde_json::from_slice(&fs::read(root.join(".snapback/owner.json")).unwrap()).unwrap();
+    let port = record["port"].as_u64().unwrap() as u16;
+    let secret = record["secret"].as_str().unwrap();
+    let headers = [("X-Snapback-Control", secret)];
+    let before = status(port, secret)["generation"].clone();
+    let mut project: ProjectJson =
+        serde_json::from_slice(&fs::read(root.join(".snapback/build/project.json")).unwrap())
+            .unwrap();
+    project
+        .schema
+        .tables
+        .get_mut("adminNotes")
+        .unwrap()
+        .columns
+        .insert("note".into(), ColumnType::Text { max: 40 });
+    for route in ["/control/apply", "/control/migrate"] {
+        let refusal = request(
+            port,
+            "POST",
+            route,
+            &headers,
+            json!({ "project": project, "plan": { "drops": [] } }),
+        );
+        assert_eq!(refusal.status, 400, "{}", refusal.body);
+        assert_eq!(refusal.body["code"], "E_SUCCESSOR_ROW_INVALID");
+        assert_eq!(refusal.body["family"], "successor");
+        assert_eq!(refusal.body["site"], "adminNotes.admin-1");
+        assert_eq!(refusal.body["guide"], "successor/migrations");
+        assert!(
+            refusal.body["rewrite"]
+                .as_str()
+                .unwrap()
+                .contains("repair or remove stored row adminNotes.admin-1")
+        );
+    }
+    assert_eq!(status(port, secret)["generation"], before);
+    stop_owner(port, secret, &mut owner, "malformed row proof complete");
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
 fn rejected_operator_update_retains_attempted_write_in_trace_latest_and_log() {
     let (root, compiler, mut owner, port, secret) = boot(false);
     let headers = [("X-Snapback-Control", secret.as_str())];
@@ -644,6 +730,7 @@ fn rejected_operator_update_retains_attempted_write_in_trace_latest_and_log() {
     assert_eq!(trace["result"]["code"], "E_CONSTRAINT");
     assert_eq!(trace["trace"]["last_write_attempt"]["table"], "profiles");
     assert_eq!(trace["trace"]["last_write_attempt"]["kind"], "Update");
+    assert_eq!(trace["trace"]["last_write_attempt"]["max_rows"], 1);
     assert!(trace["trace"]["steps"].as_u64().unwrap() > 0);
     assert_eq!(status(port, &secret)["seq"], before);
     let committed = request(

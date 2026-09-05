@@ -135,7 +135,12 @@ impl State {
                 .runtime_mut()
                 .read_operator(&program, args, snapback2_core::OperatorId(by.clone()), now)
                 .map_err(|error| Refusal::from_runtime(&error))?;
-            self.log_operator_read(&program.name, &by);
+            if matches!(
+                execution.state,
+                ExecutionState::Complete | ExecutionState::Capped
+            ) {
+                self.log_operator_read(&program.name, &by);
+            }
             execution
         } else {
             let authority = self.resolve_authority(identity)?;

@@ -22,7 +22,7 @@ session, on a criticism made by a separate reviewing session the same day;
 revision (a) written at the author's instruction to take the panel's
 feedback into account with the orchestrator's own judgement
 **Date:** 2026-09-05
-**Revised:** 2026-09-05 (a.1 — the five decisions ruled, the author having delegated them to the orchestrator; implementer, lanes, and dates written; the loop-bar sequencing overridden by author ruling); 2026-09-05 (a — the panel folded: one authority model for the
+**Revised:** 2026-09-05 (J2 — implementation record for D5 in §12: schedules, `_timers`, firing, the template's server-side expiry, the digest fixture); 2026-09-05 (a.1 — the five decisions ruled, the author having delegated them to the orchestrator; implementer, lanes, and dates written; the loop-bar sequencing overridden by author ruling); 2026-09-05 (a — the panel folded: one authority model for the
 system principal and the `system` rule word deleted; the job is a sequence
 of sweeps over immutable keys under a captured upper key, with cursor and
 progress as certified engine writes; narrowing moved to successor
@@ -327,6 +327,18 @@ and erasure actually are.
   its cursor; the chunk in flight never committed. **`reset`** clears
   `_jobs` with the data it clears; a snapshot carries `_jobs` like every
   table.
+- **Park, never stop (closing round, 2026-09-05).** Every error a chunk
+  raises parks the job with that error's own envelope — a rejection
+  (D2's constraint, ceiling, `E_INPUT`) and a store fault (`E_SQL`, a plan
+  that no longer decodes, a serialization error) alike — plus the `job`,
+  `sweep`, `chunk` fields, and `trace <job>` shows the underlying error on
+  the chunk that hit it. An owner that stops is worse than a parked job:
+  the writer's background turn (`writer_jobs.rs`) fails the owner only
+  when the park itself cannot be written, the one fault that leaves no
+  record. `--resume` reads the row through the same mapping, so a
+  parked executable refuses `E_JOB_GENERATION` with the same cause rather
+  than a second failure language. Proof:
+  `tests/jobs.rs::store_fault_at_chunk_time_parks_with_its_own_envelope_and_rolls_back`.
 
 ### D4 — Expand, fill, contract
 
@@ -473,6 +485,8 @@ schedule dailyDigest every 24h:
 - **`--wait`** blocks, prints one line per chunk (`--json`: one envelope per
   line) by polling `/control/job/<id>`, and exits 0 done, 1 parked or
   refused, 2 usage. No streaming route; polling is enough for a CLI.
+  (Implemented 2026-09-05, J1b: the per-chunk lines end with the job's
+  final envelope, which is its receipt; the guide and the verb usage say so.)
 - **`--cancel <job>` and `--resume <job>`** are operator actions on a run
   and live under `run` as `deploy --token create/revoke` lives under
   `deploy` (LLP 1015 D6): the verb table stays at fifteen.
@@ -556,6 +570,17 @@ design RFC's `propagate` (§2.2 E) is for work "no job may defer".
 | `POST /control/run` (ad hoc source and args; TLS) | dev, serve | admin |
 | `POST /control/fork` | dev | — (unchanged; the CLI adapter goes) |
 
+On every operator route a body says how to run in one of two spellings —
+`mode: "run" | "dry-run" | "plan"`, or the booleans `dryRun` and `plan` —
+and the owner reads them once (`control_run::requested_mode`): a flag that
+is not a JSON boolean, a flag that disagrees with `mode`, or `dryRun` with
+`plan` refuses `E_INPUT` at the flag's site; `dryRun: true` alone rehearses,
+`plan: true` alone plans, and nothing a body says is ignored. The CLI client
+chooses its read timeout from the same predicate: a rehearsal waits
+unbounded, an ad hoc `plan` or `run` waits out the compiler's request
+timeout plus a margin, everything else keeps the five-second bound
+(closing round, 2026-09-05).
+
 `dev --status` and `/control/status` gain `jobs: { running, queued, parked }`
 and `timers: { due, next_at, rejected }`. The console, when the author
 builds it (LLP 1015 D13), is a static page served by the owner over these
@@ -581,7 +606,18 @@ job fill_profiles_avatarUrl: 1 sweep · profiles by byId · 100/chunk · 4,118 e
 engine writes: _jobs · ceilings: examined 200 / written 101 per chunk
 
 $ snapback2 run fill_profiles_avatarUrl --as system --dry-run
-rehearsal: 42 chunks · profiles: 4,118 updated · 0 effects · 3.1 s (copy discarded)
+{
+  "dryRun": true,
+  "state": "done",
+  "op": "fill_profiles_avatarUrl",
+  "kind": "job",
+  "chunks": 42,
+  "rowsWritten": { "profiles": 4118 },
+  "effectCount": 0,
+  "assetReleaseCount": 0,
+  "elapsedMs": 3100,
+  "copyDiscarded": true
+}
 
 $ snapback2 run fill_profiles_avatarUrl --as system --wait
 job_01J9… chunk 1/42 · 100 rows · seq 88,412 · 19 ms
@@ -589,7 +625,8 @@ job_01J9… chunk 1/42 · 100 rows · seq 88,412 · 19 ms
 job_01J9… done · 42 chunks · profiles: 4,118 updated · 2.4 s · operator: alice@dev
 
 $ snapback2 run --file ./fix-handles.q --as system --dry-run
-rehearsal: mutation fixHandles: profiles: 3 updated · 0 effects
+{ "dryRun": true, "state": "done", "op": "adhoc:9c1e…", "kind": "mutation",
+  "rowsWritten": { "profiles": 3 }, "effectCount": 0, "copyDiscarded": true }
 
 $ snapback2 run --file ./fix-handles.q --as system
 committed seq 88,455 · operator · source 9c1e…
@@ -604,7 +641,8 @@ $ snapback2 dev --status --json | jq .jobs,.timers
 ```
 
 Every line is a `--json` envelope with the same fields; the text is a
-projection of it.
+projection of it. `--dry-run` prints its receipt as pretty JSON in both
+forms: the receipt is the envelope (J3 fix round 1).
 
 ## 4. The grammar delta, on one screen
 
@@ -687,14 +725,19 @@ a site, a rewrite, and a page.
 
 | Code | Family | When | Rewrite |
 | --- | --- | --- | --- |
-| `E_JOB_CURSOR_INDEX` | job | a sweep's index has a key column that is neither `id` nor declared immutable | `immutable <cols>` on the table, or `by byId` |
+| `E_JOB_CURSOR_INDEX` | job | one of three sweep-index failures: a key column a write can move (neither `id` nor declared immutable); an order that is not total (not unique and not ending in `id`); a prefix longer than the index | that failure's own repair: `declare immutable <cols>` on the table, or sweep by `byId`; end the index in `id` (or declare it unique), or sweep by `byId`; shorten the prefix to at most N column(s) (J1b fix round 1) |
 | `E_JOB_GENERATION` | job | parked on succession: changed body, missing job, or changed sweep index | `run --cancel` and start again, or restore the declaration |
-| `E_JOB_ARGS` | job | enqueue with arguments that do not type | the job's signature |
+| `E_JOB_ARGS` | job | enqueue with arguments that do not type | the job's signature, `job name(arg: type, …):`, as an author writes it |
+| `E_JOB_SHAPE` | job | a job body that is not only `chunk` blocks: a plain statement, a non-literal `first`, a cursor, range, or merge on the sweep, a prefix that is neither literal nor argument (J1b fix round 1); a chunk that names a binding another statement made — bindings never cross a block (closing round) | a job is one or more `chunk` blocks and nothing else; a chunk reads what it needs itself; site is `job:statement:N` on the envelope too, the job name for an empty body |
+| `E_JOB_STATE` | job | `--cancel` on a done or cancelled job, `--resume` on a job that is not parked (J1b fix round 1) | names the state; `run <job>` again |
 | `E_SCHEDULE_COLUMN` | schedule | `at` names a column that is not `time ?` | declare `col: time ?` |
 | `E_SCHEDULE_TARGET` | schedule | the target is not a mutation or job of this project, or its args do not match | the target's signature |
 | `E_SCHEDULE_DURATION` | schedule | `every` below one minute or not `Nm\|Nh\|Nd` | the form |
 | `E_OPERATOR_REQUIRED` | operator | `run <job>`, `--file`, `--cancel`, `--resume` without the seat | `--as system`, or an `admin` token |
+| `E_ARGS_NAME` | args | a caller-supplied `by` that is not a valid name | 1–80 ASCII letters, numbers, dashes, or underscores; `system` is reserved |
 | `E_ADHOC_SIZE` | operator | ad hoc source over 64 KiB | declare it as a job |
+| `E_REHEARSAL` | operator | `--dry-run` could not snapshot, open, run, or discard its copy — an engine or store fault inside the rehearsal (J3 fix round 1 widened it to execution); a program refusal inside a rehearsal is a receipt, not this code | check free disk space and the owner's store, then retry |
+| `E_OP_KIND` | op | (existing) `--plan` or `--wait` on a non-job, found by the owner after compiling `--file` source, or `plan` on `/control/execute`; site `mode` in the code and the registry alike; the CLI reports it as usage (J3 fix round 1, closing round) | use a job, or omit `--plan`/`--wait` |
 | `E_SUCCESSOR_NARROWING` | successor | `T?` → `T` with null rows, at application | the fill job |
 | `E_SUCCESSOR_COLUMN_REQUIRED` | successor | (existing) | gains the three-step rewrite |
 | `E_QUARRY_UNSUPPORTED` | quarry | (existing) the `system` rule word | `deny` |
@@ -874,14 +917,14 @@ returns the count, ten-ID sample and fill skeleton through apply/migrate,
 status and watcher; tests: `snapback2/crates/snapback2-core/tests/successor_narrowing.rs:77`,
 `:99`, `:132`, and `snapback2/crates/snapback2/tests/owner_cases/operator.rs:253`,
 `:351`. Deviations: the new declared-op adapter is `/control/execute` because
-`/control/run` belongs to J3; by defaults to the owner's OS username as validated ledger text (control callers
+`/control/run` belongs to J3; by defaults to the owner's sanitized, truncated OS username as ledger text (control callers
 may supply by); operator admission never creates a persona. Contrary to the lane brief's
 wire premise, `system` previously named the ordinary `dev:system` persona;
 it is now explicitly refused on `/api/*` and cannot become a persona.
 Ordinary mutation certification still refuses writes derived from a non-uniform
 scan (`certificate_policy.rs:327`); today's fill proof uses declared
 explicit-key operator mutations, leaving system sweep certification to J1b.
-The pasted job rewrite remains prose until that lane. The query-only
+The pasted job rewrite remained prose at J1a; the J1b record below completes both the sweep certification and the runnable rewrite. The query-only
 `read_operator` data adapter uses `Checker::check` with default ceilings rather
 than `Generation::certify`; J3's ad hoc path must still match declared admission.
 `Optional(Optional(T)) → Optional(T)` deliberately remains `TypeChange`,
@@ -891,8 +934,9 @@ ten-ID sample, and fill rewrite; the wire's primary site is the first conflict.
 No corpus case carries a system rule. Fix round 1 regenerated the corpus to
 remove serialized `seed_write` after deleting that dead context field; existing
 execution outputs remain unchanged.
-LLP 1001 §4 and LLP 1003 §2 carry dated amendments; no diagnostic code beyond
-§7's existing rows was added.
+LLP 1001 §4 and LLP 1003 §2 carry dated amendments. Fix round 1 added
+`E_ARGS_NAME` (args, site `by`, page `operator`); §7 and the shipped family
+registry now include it. `E_SUCCESSOR_ROW_INVALID` reuses an existing code.
 
 Verification for this record: final `snapback2/scripts/test.sh` ran 529 Rust
 tests (527 passed), 301 package tests (all passed), 162 evaluator corpus
@@ -928,3 +972,560 @@ same two owner-stop tests recorded above; this run directly confirmed `ps` is
 denied by the sandbox. Every new fix-round regression passed. Caps passed; an
 unloaded chat-fixture `check` took 0.542 s wall (154.39 ms compiler). The
 orchestrator must rerun the complete gate outside the `ps` restriction.
+
+
+### Implementation record — J1b
+
+Implemented 2026-09-05 by Codex in `s2/admin-jobs`; review and landing belong
+to the program orchestrator. `job`/`chunk` lowers to independently certified
+bounded sweeps, with typed arguments, immutable total indexes, one `_jobs`
+write per chunk, and per-chunk ceilings. Jobs occur in project JSON and the
+manifest but are excluded from client API types and certified-program custody.
+Compiler proof: `snapback2/packages/compiler/src/quarry-job-checks.ts` (three
+checks: lowering/certificates, grammar/scope, and the guide/index refusal).
+
+`_jobs` and compiled plan custody persist enqueue attribution, the captured
+upper key, cursor and progress. One system transaction contains each chunk's
+writes, progress and `kind: job` commit. A refused chunk rolls back and parks
+in a separate transaction. Restart restores running rows to queued; succession
+binds the body and sweep index descriptor; reset clears jobs and their compiled
+plan cache. Enqueue, cancel and resume also have operator ledger receipts.
+Core proof: `snapback2/crates/snapback2-core/tests/jobs.rs` (ten active tests:
+visiting, crash recovery, rollback/resume/cancel, body succession, certification,
+constraint rollback, ad hoc restart/reset, typed prefixes/index succession,
+multiple sweeps, and a mutation return that advances only the visited prefix).
+
+`writer_jobs.rs` serves at most eight client *turns* before a background
+turn, or takes that turn immediately when the channel empties. Runnable jobs
+use a zero receive timeout. The timer hook is named
+`fire_due_timers_background_turn`; J2 owns its implementation. Each committing
+chunk completes its live reruns before the next turn. `run` supports declared
+jobs, ad hoc files, plan/wait/cancel/resume; job control routes, status counts,
+and job/commit tracing use the owner. The real binary owner tests in
+`snapback2/crates/snapback2/tests/owner_cases/jobs.rs` run a 350-row fill while
+all client sends commit, exercise parking/resume/cancel and both trace forms,
+and execute an ad hoc query, typed mutation and the exact job guide snippet.
+They prove FIFO chunk execution and the deleted `fork` and `persona create` adapters are gone.
+
+The one-screen `guide/job.md` is registered and compiled by the guide checks;
+the narrowing rewrite is a runnable job with a typed `value` argument instead
+of the RFC's `<value>` placeholder. Both chat schema copies declare immutable
+message conversation/author IDs. Existing journeys only supply these fields
+on insert; the template's edit operation changes `body` alone.
+
+Implementation details where the text needed a concrete choice:
+
+- Progress and sweep advance share one physical `_jobs` update, hence one
+  counted engine write (the RFC prose says “plus two”, but its certificate and
+  the lane contract require one). Capturing the bound is separately certified
+  as a reverse, one-row index scan, conservatively included in each ceiling.
+- The job plan hash includes its sweep index descriptors. Existing plan hashes
+  cover program IR alone; that would miss an index change under the same name.
+- Ad hoc compilation is an explicit CLI authoring operation using the worker;
+  the owner certifies the resulting IR against its live generation. Persisted
+  compiled plans in `_meta` prevent compilation on restart. Queries/mutations
+  use J1a's `/control/execute`; `/control/run` remains J3's lane. Their source
+  hash is in the `adhoc:<hash>` operation identity; jobs also return sourceHash.
+- `_commits.job_chunk` stores sweep/chunk/cursor/visited details. Trace pages
+  at 500 commits, with aggregate counts and range over the retained ledger;
+  the existing 10,000-commit retention limit remains visible via retainedChunks.
+- The large fill exposed SQLite choosing the row-cleanup index for ordered,
+  exact-prefix uniqueness probes. `engine/index.rs` now pins these scans to
+  `index_entries_lookup`; otherwise every write can scan the table. This
+  preserves corpus results and reduced the measured fill to 11.54 seconds.
+
+Measurements are the three JSON lines in `snapback2/metrics/jobs.jsonl`, from
+explicitly invoked ignored tests, following the existing append-only metric
+records. No new blocking step was added. Debug build on macOS arm64: a
+100,000-row fill / 1,000 chunks took **11.5403 s** (60 s budget); 100-row turns
+with 50 live queries took **216.27–231.51 ms**, median **218.13 ms** (**over the
+30 ms budget**); client mutation p95 was **2,135.36 ms** versus **1,701.68 ms**
+idle, **1.255×** (2× budget), with eight HTTP senders in both runs, 87 during
+samples and 40 idle samples. Chat `check` measured **0.610 s**, and **0.910 s**
+with two added jobs; J2's schedules are not included in that measurement.
+The live-rerun turn budget needs follow-up; these are measured debug results,
+not a production-build qualification.
+
+Verification: the blocking script ran 541 Rust tests: 539 passed and the same
+two inherited `dev --stop` tests failed with `E_OWNER_STOP_TIMEOUT` because
+this sandbox cannot inspect the unreaped child with `ps` (J1a's record above).
+All 301 package tests, 315 compiler checks, 162 evaluator corpus cases and
+workspace doctests passed. The orchestrator must rerun the gate outside that
+restriction before landing. Existing corpus outputs did not change, so the
+corpus was not regenerated. Caps and affected references are checked with the
+final report; no generated build output is part of the change.
+
+**Fix round 1** (2026-09-05, Claude, after two blind reviews — grok and
+Muse, both LAND WITH FIXES with no blocking defect; the two stale lane reports
+that rode into the J1b commit were removed in `c24e132c8`). What changed:
+
+- **Park, never stop the owner.** `run_chunk_at` parks on every job-level
+  error: an executable that no longer matches the row's bound hash or no
+  longer decodes (`E_JOB_GENERATION`, the cause in the message), a
+  rejection, a ceiling. Only a store fault while parking propagates. Proof:
+  `owner_cases/jobs_queue.rs::executable_mismatch_at_chunk_time_parks_the_job_and_the_owner_keeps_serving`
+  (the persisted plan changed under a queued ad hoc job on a stopped store;
+  the restarted owner parks it, commits a client mutation, counts the park in
+  `dev --status`, and `trace <job>` shows it) and core
+  `tests/jobs.rs::executable_mismatch_at_chunk_time_parks_with_the_generation_envelope_and_keeps_the_cursor`,
+  `ceiling_fault_at_chunk_time_parks_in_the_bound_family_and_rolls_back`.
+- **A parked chunk keeps the rejection's own envelope** — the code, family
+  and page `/api/mutation` carries for the same rejection (`E_CONSTRAINT` is
+  family `schema`, page `schema/runtime`; a `require` code is `input`; a
+  ceiling is `bound`) — plus `job`, `sweep`, `chunk` fields. The mapping is
+  one function, `jobs::rejection_family` in core; the writer calls it.
+- **Two codes join §7.** `E_JOB_SHAPE` (family job, site
+  `job:statement:N`) replaces the `E_UNBOUND_LOOP` misreport for a job body
+  that is not only chunk blocks; `E_JOB_STATE` replaces the silent no-op of
+  `--cancel` on a done or cancelled job and the `E_INPUT` refusal of
+  `--resume` on a job that is not parked. Both are in the family catalog.
+- **Rewrites are pasteable.** `E_JOB_ARGS` pastes the Quarry signature
+  (`job fill(scope: text <=20):`), `E_JOB_CURSOR_INDEX` says which of its
+  three failures it is (a movable key, a non-total order, a prefix longer than
+  the index) with that failure's rewrite, the CLI's `E_OPERATOR_REQUIRED`
+  pages `operator/seat` like the catalog, the catalog's
+  `E_SUCCESSOR_NARROWING` right-form is the runnable job, and the `E_JOB_*`
+  rows carry `site` and `guide`.
+- **The narrowing paste is pinned.**
+  `packages/compiler/fixtures/quarry-jobs/snapback/narrowing.q` is byte-equal
+  to the engine's rewrite for a text and an enum column
+  (`successor_narrowing.rs` unit test), lowers and certifies in the compiler
+  (`quarry-job-checks.ts`), and
+  `owner_cases/jobs_queue.rs::narrowing_paste_runs_as_a_file_then_the_narrowing_applies_and_adhoc_rows_ledger_their_hash`
+  applies a narrowing of `profiles.link`, runs the refusal's paste through
+  `run --file`, and applies the narrowing. Enum variants are single-quoted,
+  as Quarry writes them.
+- **Tests the reviewers named.** FIFO is asserted per commit, not as disjoint
+  ranges; a three-chunk typed-prefix sweep; `queuePosition` on enqueue; trace
+  paging over two pages of a 510-commit job with `sweepChunks`,
+  `retainedChunks` and `commitRange`; cancel and resume receipts attributed
+  to the operator who issued them; a deleted declaration parking with
+  `E_JOB_GENERATION`; the ad hoc ledger row `adhoc:<hash>` of kind operator
+  and the job's `enqueue:adhoc:<hash>` receipt; the eight-turn cadence read
+  from the ledger under eight saturating senders (at most eight client
+  commits between consecutive chunks; 510 idle one-row chunks in under two
+  seconds, which the one-second session poll could not do, proves the zero
+  idle timeout); `--plan` ceilings and engine writes; a ceiling park; and a
+  compiler check that no chat template mutation patches an immutable
+  `messages` key, beside the template journeys `test_verb.rs` runs.
+- **`--wait --json`** ends with the job's final envelope, its receipt, after
+  the per-chunk lines; D6, `guide/job.md` and the verb usage say so, and the
+  owner test names it. The `engine/index.rs` `INDEXED BY` pin is recorded as
+  a store planner pin (its `@ref` points at this record); the corpus export
+  is unchanged under it.
+
+Measurement: the same 100-row, 50-live-query turn under the `release`
+profile (which `scripts/publish.mjs`'s `production` profile inherits)
+measured **26.43 ms** median, within the 30 ms budget, split **2.58 ms** for
+the chunk commit and **23.84 ms** for the live reruns. Re-measured in debug
+with the same split: 218.67 ms (10.25 ms commit, 207.10 ms reruns). In both
+profiles the write is a tenth of the turn; the live reruns are the turn.
+Client p95 during the fill under release was 1.23× idle (244.6 ms against
+199.2 ms). Both turn lines are appended to `snapback2/metrics/jobs.jsonl`
+beside the original debug line; `writer_jobs.rs` logs `commitMs` beside `ms`
+so the split stays visible (relabelled `chunkMs` in the closing round: the
+timer covers the chunk's execution including its commit, not the commit
+alone; the two metric lines are re-appended under the corrected label). §8's
+budget stands for a qualified build; the
+debug number is a debug number, and no driver change was made for it.
+
+### Implementation record — J3
+
+Implemented 2026-09-05 in `s2/admin-rehearsal` by Claude Fable 5.1, finishing a
+codex `gpt-6-astra` run that died on a usage limit at sixteen minutes with a
+compiling but untested partial (kept: the snapshot store module, the rehearsal
+runtime and its tests, the route module, the writer action, the verb flags, the
+serve-mode fence, the registry row; fixed: two engine facts and three fixture
+facts it had guessed). Review and landing belong to the orchestrator.
+
+**The rehearsal runtime** (`snapback2/crates/snapback2/src/rehearsal.rs`).
+`Snapshot::capture` runs on the writer, inside one action: it records the live
+`_commits` seq and the writer's clock, and copies the store with
+`Store::snapshot_rehearsal_to` (`snapback2-core/src/store_rehearsal.rs:30`),
+which takes an unpaced SQLite backup and then gives the copy a fresh
+`id_namespace` with `id_high_water` 0, so no id minted in rehearsal can equal a
+production id. `Snapshot::run` then executes on the requesting thread, never the
+writer: `Store::open` on the copy, a connection-local `TEMP` trigger that records
+every `_assets` locator release, `Runtime::open` with the live generation, and the
+program — a job through `enqueue_job_at`/`enqueue_adhoc_job` and `run_chunk_at(id,
+now)` looped to `done` or `parked` (D3's driver, in-process, one pinned clock, no
+background turn), a mutation or query once through the D6 operator entries. The
+receipt carries `dryRun: true`, `state`, `op`, `kind`, `job`, `chunks`,
+`rowsWritten` per table, `refusals`, `result`, the effects it would have emitted
+as `{effect, payloadBytes}` (payload bytes as the runner would deliver them, not
+the ledger's tagged encoding), the assets it would have released as
+`{id, bytes, table, row, column}`, exact counts with a 100-entry detail cap,
+`snapshotSeq`, `now`, `executionMs`, `elapsedMs`, `copyDiscarded`. The runtime
+is dropped before the directory is deleted, so WAL and SHM go with it; a failed
+open also deletes it. The rehearsal cannot reach the effects runner (spawned only
+by owner startup, `owner.rs:218`), the asset sweep and blob reclamation (writer
+state, `writer_assets.rs`, `asset_gc.rs`), a timer firing (J2's hook is the
+writer's `fire_due_timers_background_turn`, and the rehearsal never takes a
+background turn), or a listener — none of those handles exist on the path.
+Proofs, all in `snapback2/crates/snapback2/src/rehearsal_tests.rs`: `:234` the
+five negatives after a 205-row two-sweep job that deletes rows, records audit
+rows, emits 205 effects and releases one image — a loopback grant that accepted
+no connection, the blob file unchanged, the live `_commits` seq and `_outbox`
+counts unchanged, the copy directory gone — plus an inherited queued job left at
+zero chunks and the live allocator's namespace and high-water untouched; `:312`
+the clock pinned and three disjoint namespaces across two rehearsals and
+production; `:344` a parked rehearsal keeps its prior chunks and reports neither
+the rolled-back emissions nor the rolled-back release; `:372` an admission
+refusal is a receipt with `state: refused` (superseded by fix round 1: admission
+now runs on the live runtime before any copy, and a refusal is the seat's
+ordinary envelope; `state: refused` survives only as the copy-side safety net
+below), and a copy that cannot open is `E_REHEARSAL` with the directory removed.
+
+**The verb** (`snapback2/crates/snapback2/src/verbs_jobs.rs`). `--dry-run` on
+`run <op>` and `run --file`; a usage error with `--wait`, `--plan`, `--cancel` or
+`--resume`; `E_OPERATOR_REQUIRED` without `--as system`; exit 0 on a completed
+rehearsal even when the receipt holds a refusal, exit 1 on `E_REHEARSAL`, exit 2
+usage. Proof: `snapback2/crates/snapback2/tests/owner_cases/rehearsal.rs:81`
+through the real binary — a job to `done`, a job that parks, a mutation that
+rejects, a query, an ad hoc file, every usage exit, the owner's seq, job and
+effect counts unchanged, the rehearsal directory empty, and an infrastructure
+failure (the directory replaced by a file) as exit 1.
+
+**The routes** (`snapback2/crates/snapback2/src/control_run.rs`). `POST
+/control/run` with `{ source, args, mode: "run" | "dry-run" | "plan" }` — the
+owner compiles the source with the bundled worker as an explicit authoring
+operation (superseded by fix round 1: with the owner's one shared worker under
+`project::SharedCompiler`, never a worker per request), admits exactly one
+declaration, caps it at 64 KiB (`E_ADHOC_SIZE`),
+refuses `plan`/`wait` on a non-job (`E_OP_KIND`, which the CLI reports as usage),
+then rehearses or hands the program to J1b's `Action::Adhoc`. `dryRun: true` on
+`POST /control/job` and `POST /control/execute` rehearses a declared program.
+Both routes take `as: system` by default: they are the operator seat, admitted by
+the loopback secret. In `serve` mode both are refused `E_OPERATOR_REQUIRED` at
+403 before the secret is read or the body parsed (`serve.rs:267`), which is
+where LLP 1015 H0's `admin` token attaches. Proofs:
+`tests/owner_cases/rehearsal.rs:184` (plan, dry-run, run for a job, a query and
+a mutation, the declared route, each refusal code, the missing secret) and
+`:282` (serve mode, with and without the secret).
+
+**Measurements** are four lines in `snapback2/metrics/jobs.jsonl` (lane J3),
+debug build, macOS arm64: the digest sweep over 1,000 profiles with one effect
+each **0.023 s** (5 s); `--dry-run` overhead beyond the job on a synthetic
+105,721,856-byte store **0.113 s** (3 s) — the first measurement was 2.86 s
+because `snapshot_to` paces its backup at 64 pages per 5 ms for the fork route,
+and the rehearsal copy runs on the writer's only connection where pacing only
+lengthens the pause, so it takes its own unpaced backup; `check` on the chat
+fixture with two jobs **0.487 s** median of five (1 s; 0.480 s without them;
+J2's two schedules are absent); the debug binary **37,205,848 bytes**, +3,454,768
+against the last `metrics/loop.jsonl` record (`88d6ae076`, before J1a and J1b),
+a delta that spans all three lanes. No blocking step was added; the rehearsal
+measurement is an ignored test run explicitly.
+
+**Records.** `guide/job.md` gains the `--dry-run` paragraph; `snapback2/AGENTS.md`
+names the flag; §7 gains `E_REHEARSAL` (operator, site `run --dry-run`, page
+`job`, in the shipped family registry).
+
+Deviations from the text, each forced by a code fact:
+
+- The CLI no longer compiles `--file` locally. D8's route carries source, so the
+  owner compiles it; the compiled-`program` body form J1b accepted on
+  `/control/job` and `/control/execute` is deleted rather than kept beside it.
+  The consequence is that `--plan`/`--wait` on a non-job file is now detected by
+  the owner and reported as the existing `E_OP_KIND`, mapped to exit 2 by the
+  CLI so J1b's usage proof still holds.
+- Releases are "reported, not reclaimed" by observation: the copy's connection
+  carries a `TEMP` trigger on `_assets`, so a rolled-back chunk reports none and
+  nothing in the engine changed shape. Reclamation never runs because the
+  reclaiming code lives in the owner crate and has no handle here.
+- A rehearsal runs one program. Jobs already queued or running in the live store
+  are copied but never driven; the receipt describes only the requested run.
+- The receipt lists at most 100 effects and 100 releases with exact counts
+  (`effectsTruncated`, `assetsTruncated`, `detailLimit`), not every row.
+- The hosted rows of §10's lane text (tokens, MCP) are not built; token
+  admission is LLP 1015 H0's lane and the brief excludes it.
+
+The corpus was not regenerated: no existing case's engine output changed.
+
+Verification for this record: `snapback2/scripts/test.sh` exited **0** — 569
+Rust tests run and passed (2 leaky, 3 skipped), including the two `dev --stop`
+owner tests the J1a and J1b sandboxes could not run; all package tests, 162
+evaluator cases, 315 compiler checks and the doctests passed. Caps and
+`ref-check` pass. The chat-fixture `check` measured 0.480 s bare and 0.487 s
+with two jobs, below one second.
+
+**Fix round 1** (2026-09-05, Claude, after two blind reviews — grok and Muse,
+both LAND WITH FIXES with no blocking defect). What changed:
+
+- **Admission before the copy.** `Snapshot::capture` now takes the target and
+  arguments and admits them on the live runtime — the declared name, an ad hoc
+  program's certificate against the live generation, the arguments under the
+  authored name so `E_JOB_ARGS` pastes the signature — before it creates the
+  scratch directory or copies the store. A refusal is the seat's ordinary
+  envelope (`E_OP_UNKNOWN`, `E_JOB_ARGS`, `E_INPUT`, the certifier's
+  `E_SCHEMA`) and costs the writer nothing; a `state: refused` receipt now
+  means only that the copy would not start an admitted program. Proof:
+  `rehearsal_tests.rs::admission_refuses_on_the_live_runtime_before_any_copy_and_a_failed_open_is_e_rehearsal`
+  (four refusals, no copy directory ever created, live seq unchanged) and the
+  route pair (`E_OP_UNKNOWN`, `E_JOB_ARGS`, the rehearsal directory empty) in
+  `owner_cases/rehearsal.rs::rehearsal_cli_jobs_queries_mutations_receipts_and_usage_exits`.
+- **`dryRun` is a JSON boolean or refused.** `"dryRun": "true"` fell through
+  and ran for real. `control_run::flag` refuses any non-boolean `dryRun`,
+  `plan`, or `wait` with `E_INPUT` at the field's site; `mode` on
+  `/control/job` and `/control/execute` must be `run` or `dry-run`; a
+  `dryRun`/`mode` disagreement refuses. Proof: nine refused bodies across the
+  three routes with the job list and the seq unchanged, in
+  `control_run_source_modes_and_declared_job_route_share_operator_admission`.
+- **The serve fence covers `/control/execute`.** The pre-secret
+  `E_OPERATOR_REQUIRED` fence names all three routes that carry the seat or a
+  rehearsal (`serve.rs`). Proof:
+  `serve_refuses_run_job_and_execute_before_body_compilation_or_secret_validation`,
+  with and without the secret, with a `dryRun` body and with a persona body.
+- **The owner's compiler worker.** `POST /control/run` compiles with the
+  owner's one worker, now `project::SharedCompiler`
+  (`Arc<Mutex<CompilerWorker>>`) shared with the source watcher; the lock caps
+  compilation at one and no node process is spawned per request. Proof:
+  `control_run_compiles_with_the_owners_worker_and_spawns_no_second_compiler`
+  counts worker starts through a logging `SNAPBACK2_COMPILER` wrapper — one
+  after boot, still one after five requests including a refused compile.
+- **The client timeout** is unbounded only for a rehearsal body; `plan` and
+  `run` keep the five-second bound (`client::read_timeout`, unit-tested).
+- **Witnesses strengthened.** The isolation test attaches 101 photos, lists
+  the live blob directory before and after (identical), reports
+  `assetReleaseCount: 101` with 100 listed and `assetsTruncated: true`, and
+  inspects the inherited queued job on the copy before discard
+  (`Snapshot::run_observed`): state `queued`, zero chunks — the live-row
+  witness is gone. `--resume --dry-run` is usage like `--cancel`.
+- **Exit codes and pages.** `--file` with other than one declaration is usage
+  (exit 2: the CLI maps `E_INPUT` at site `source`, a field only it builds);
+  `E_OP_KIND` has its registry row (family `op`, site `--plan/--wait`, page
+  `job`, the page this lane's site names); `E_REHEARSAL`'s §7 row and
+  registry text cover an engine or store fault while the program runs on the
+  copy; §3's `--dry-run` lines show the pretty-JSON receipt the verb prints.
+- **Records.** `control_run.rs` and `guide/operator.md` state the `as: system`
+  default asymmetry (`/control/run` and `/control/job` are the seat;
+  `/control/execute` also serves personas); `guide/job.md` names the receipt's
+  `state` vocabulary, the admission order, the seat default, and the boolean
+  rule; the measurement test's ignore message gives its exact invocation
+  (`measure.mjs` has no `--administrative` flag).
+
+Not done: the pre-existing `E_OP_KIND` sites in `writer.rs`, `writer_offline.rs`,
+`writer_resume.rs` and `writer_wire.rs` still name `op/kind`, which is not a
+guide page, and `writer_ledger.rs` names `auth`; a page for the wire-kind
+mismatch is a follow-up outside this lane.
+
+Verification for the fix round: `snapback2/scripts/test.sh` exited **0** on
+the final tree — 581 Rust tests run and passed (2 leaky, 3 skipped), 301
+package tests, 162 evaluator cases, 318 compiler checks and the doctests. An
+earlier run of the same tree was red only on the package suite's
+`local-data-recovery.test.ts:129` real-session case, which exhausted its 100
+manifest polls waiting for the watcher's successor and then saw
+`E_OP_UNKNOWN` — the pre-existing load flake recorded in
+`issues/20260901-snapback2-scripts-test-sh-flakes-under.md` (its 2026-09-05
+entries name the same case); it passes alone. Caps and `ref-check` pass.
+
+### Implementation record — J2
+
+Implemented 2026-09-05 in `s2/admin-schedules` (codex gpt-6-astra for the
+first eighteen minutes, then Claude Fable 5.1 finishing the partial tree);
+review and landing belong to the orchestrator. D5 ships as written, with the
+concrete choices below. **Grammar and lowering:** `schedule name on table at
+.column [if predicate]: target(args)` and `schedule name every <Nm|Nh|Nd>:
+target` parse in any module (`parser.ts`); each schedule lowers into a
+**binding** — a pure query over the row's referenced fields (plus a typed
+`id`) that returns `{ enabled, args }` — emitted as a program in the project
+beside its target and *named* on
+`schema.schedules[{ name, trigger, target, binding, site }]`, so the schema's
+hashable shape stays scalars (the evaluator's `canonicalSchemaJson` mirrors
+`schedules` in serde order; LLP 1012 §8's twin keeps predicting).
+`Generation::certify` certifies the binding like any program, then removes it
+from the client-visible operation map and folds its identity into
+`program_hash` (only when a schedule exists, so schedule-less stores keep
+their custody hash); it is never in the API or the manifest (`schedule.ts`,
+`project.ts`, `registry.rs`). Asset columns cannot travel through a binding. `E_SCHEDULE_COLUMN`, `E_SCHEDULE_TARGET`,
+`E_SCHEDULE_DURATION` are family `schedule`, page `schedule`, each with a
+rewrite; the engine re-checks every one at `Generation::certify`
+(`timers::certify`), where the binding must certify with no read or write
+sites and the target is certified with one reserved `_timers` write. The
+schema certificate is `check --json`'s `schemaCertificate.schedules` and
+`.snapback/build/schema-certificate.json`. **The timer index:** `_timers (id,
+schedule, row_id, at, period_start, generation)` indexed on `(at, id)`;
+`Runner` insert/update/delete call `maintain_timers` inside the row's
+transaction, one counted `_timers` write per schedule per changed deadline;
+`Checker::analyze` adds that write site and `engineWrites: ["_timers"]` to
+every program writing a table with a row schedule (`JobCertificate` lost its
+private `engine_writes`; the field is on `Certificate` and reads `["_jobs"]`
+for jobs). Succession populates a new row schedule from existing rows, drops a
+removed one, and rebinds a changed target under the new generation
+(`store_timers::reconcile` inside `persist_generation_transaction`); a period
+timer is created at install with `at = now + duration`, `period_start = now`;
+reset re-arms period timers and the seed re-arms row timers. **Firing:**
+`Runtime::fire_due_at(limit, now)` takes due timers oldest first (the store
+caps at 64) and `Engine::fire_timer` runs one transaction: a `SAVEPOINT`
+around the target (a mutation runs as the owner with the row's current values;
+a job target is enqueued through the shared `store_jobs::enqueue` with the
+deterministic id `job_timer_<digest(occurrence)>`, so a queued or running job
+for the occurrence coalesces), settle (delete the row timer, or re-arm the
+period to `period_start + duration` anchored to the schedule, firing once for
+the latest of several missed periods with `skipped` recorded), and the ledger
+row `{ kind: "schedule", schedule, occurrence, outcome, latenessMs, … }`
+flattened into `_commits.schedule`. A `Rejected` target rolls back to the
+savepoint and settles with the refusal envelope; a false predicate or an absent
+row settles `skipped`. The writer's hook fires up to 64 per background turn,
+each followed by `after_commit` (live reruns), and the drive loop's receive
+timeout is bounded by the next timer's `at` on the dev clock. **Verbs and
+routes:** `GET /control/timers` (status, per-schedule counts, the next timer),
+`GET /control/trace?timer=<id>` behind `trace timer:<id>`, `timers` and
+`schedules` on `/control/status` (hence `dev --status`), one `kind: schedule`
+log line per firing, and `schedules: { fired, late, rejected }` on the `test`
+receipt when the project declares any. **The customers:** the chat template's
+`messages` gains `expiresAt: time ?`, `deliveries.post` takes it, and
+`deliveries.q` carries `purgeMessage` (the `expired` log rows to current
+members, then the row deleted, exactly `unsend`'s shape) with `schedule
+expireMessage on messages at .expiresAt: purgeMessage(.id)`; the journey
+writes the deadline, closes every client, `tick`s the clock, and a fresh
+client asserts the purge. The digest fixture
+`packages/compiler/fixtures/quarry-schedules` has `job digestSweep` emitting one
+effect per profile with a non-zero count and `schedule dailyDigest every 24h:
+digestSweep`. `guide/schedule.md` is one screen; `guide/quarry.md` no longer
+refuses `schedule`.
+
+Proofs. Core: `snapback2/crates/snapback2-core/tests/timers.rs:371` (index maintenance),
+`snapback2/crates/snapback2-core/tests/timers.rs:428` (install population, rebinding,
+removal), `snapback2/crates/snapback2-core/tests/timers.rs:468` (oldest first, the 64
+cap), `snapback2/crates/snapback2-core/tests/timers.rs:495` (one commit, ledger, trace,
+receipt), `snapback2/crates/snapback2-core/tests/timers.rs:563` (rejection settles, rolls
+back, never re-fires), `snapback2/crates/snapback2-core/tests/timers.rs:588`,
+`snapback2/crates/snapback2-core/tests/timers.rs:617` (anchored re-arm, missed periods
+coalesced, one job per occurrence), `snapback2/crates/snapback2-core/tests/timers.rs:685`
+(row args, the same occurrence coalesces), `snapback2/crates/snapback2-core/tests/timers.rs:715`,
+`snapback2/crates/snapback2-core/tests/timers.rs:737` (the three codes); the crash between
+execute and settle is an in-crate test with a thread-local hook,
+`snapback2/crates/snapback2-core/src/engine/timers.rs:366`. Owner, through the real
+binary: `snapback2/crates/snapback2/tests/owner_cases/timers.rs:155` (expiry with no client
+attached, `trace timer:`, `logs`, status, the digest firing once after a
+two-day gap with `skipped: 1`, one job and one effect per profile, the next
+period anchored), and the template journey in
+`packages/snapback2/templates/chat/snapback/tests/chat.test.ts` ("an expiring
+message is purged by the owner's schedule with every client closed") under
+`snapback2 test`. Compiler: `snapback2/packages/compiler/src/quarry-schedule-checks.ts:10`,
+`snapback2/packages/compiler/src/quarry-schedule-checks.ts:32`, `snapback2/packages/compiler/src/quarry-schedule-checks.ts:68`.
+The lateness measurement is `snapback2/crates/snapback2/tests/owner_cases/timers.rs:317`
+(ignored): 200 row timers due over two seconds while four HTTP senders
+committed 240 chat sends measured **p50 26 ms, p99 56 ms, max 57 ms** against
+§8's 1,500 ms budget (`snapback2/metrics/timers.jsonl`, debug build, macOS
+arm64). The expiry journey is last in `chat.test.ts` because `tick` moves the
+owner's shared clock for the rest of the run while an offline journey's
+predictions carry the client's clock.
+
+Deviations, each with the code fact: (1) there was no client-invoked
+`purgeExpired` to delete — LLP 1012 §3 named it as a recipe dependency that
+was never built, so the template gains the schedule and the journey rather
+than losing a trigger; (2) a row timer's binding carries only the fields the
+declaration names, not the whole row, because an `image`/`video` column's
+stored record is not an admissible argument value and `validate_inputs` would
+refuse it, and the schema names the binding rather than embedding it because
+the offline twin refuses any schema field it cannot hash in serde order and a
+whole `Program` arriving as sorted wire JSON cannot be re-ordered reliably —
+the first gate run failed the template's offline-edit journey exactly so; (3) `_commits` gains one `schedule TEXT` column holding the
+flattened firing rather than the RFC's four named fields, so `trace`, `logs`,
+and the receipt read one JSON document; (4) the `messages.thread` page pin in
+`test-final-gates.ts` moved from 855,812/855,750 to 858,062/858,000 bytes (45
+bytes a row for the optional deadline); (5) `Store::reset_data` and the seed
+reset both clear `_timers`; period timers are re-armed at reset from the reset
+clock because a reset store is a fresh install; (6) the crash proof is
+in-crate because integration tests cannot reach the engine's transaction; (7)
+`trace timer:` validates the id's character set locally instead of
+URL-encoding it (no `url` crate in the binary). The corpus was not
+regenerated: no existing case declares a schedule and `schedules`/`engineWrites`
+serialize only when non-empty, so no engine output changed.
+
+### Closing round
+
+Closed 2026-09-05 by Claude Fable 5.1 in `s2/admin-closing`, after every lane
+and its fix round had landed: the fourteen residual items the four second-round
+reviews (`j1b-r2-muse`, `j1b-r2-grok`, `j3-r2-muse`, `j3-r2-grok`) left as
+LAND WITH FIXES, none blocking. Two were defects, the rest were tests proving
+less than their names, labels, sites, and sentences.
+
+- **Nothing a body says is ignored** (J3, muse §3.1, grok §4). `{ mode: "run",
+  dryRun: true }` on `POST /control/run` ran for real while the client waited
+  unbounded. `control_run::requested_mode` is now the one reading of `mode`,
+  `dryRun`, and `plan` on all three operator routes (D8 states the rule): a
+  disagreeing flag refuses `E_INPUT` at the flag's site, `dryRun: true` alone
+  rehearses, `plan: true` alone plans, `mode: "plan"` on `/control/job` is the
+  plan flag, and `plan` on `/control/execute` is `E_OP_KIND`. The CLI client's
+  read timeout is decided by the same predicate: unbounded for a rehearsal,
+  the compiler's 30 s request timeout plus 5 s for an ad hoc `plan`/`run`
+  (which compile first; the five-second bound could fail the CLI while the
+  owner still compiled), five seconds otherwise. Proof: nine new refused
+  bodies and three honoured-flag cases in
+  `owner_cases/rehearsal.rs::control_run_source_modes_and_declared_job_route_share_operator_admission`,
+  `client::tests::read_timeouts_follow_the_owners_mode_predicate`, and the
+  slowest real compile round trip timed in
+  `control_run_compiles_with_the_owners_worker_and_spawns_no_second_compiler`
+  (66 ms in this round, printed).
+- **The decode half of the mismatch test now exercises chunk time** (grok
+  §3.1). It writes the garbage plan under a *queued* job, drives one chunk,
+  and asserts the park is `E_JOB_GENERATION` with the decode failure named in
+  the cause; `resume_job_at` reads the row through the same `bound_program`
+  mapping as `run_chunk_at`, so its refusal is the same code instead of
+  `E_SERIALIZATION`.
+- **Park, never stop is a D3 rule** (grok §3.4), written into D3: every chunk
+  error parks with its own envelope, a store fault included; only a fault
+  while writing the park propagates. Proof:
+  `tests/jobs.rs::store_fault_at_chunk_time_parks_with_its_own_envelope_and_rolls_back`
+  — a raw SQLite trigger on `rows` fails the chunk's update with `no such
+  table`; the job parks `E_SQL` (family `input`, page `input/runtime`, site
+  `admin.fill:chunk:0`, the SQLite message in the envelope), the chunk rolls
+  back, and with the trigger gone `--resume` finishes the job.
+- **Bindings never cross a block, at certification** (muse §3.1). `certify`
+  walks each chunk for a name bound by another statement (loop bindings,
+  `Const`/`Let` at any depth, a `Divmod` sink) that the chunk neither binds
+  nor takes as an argument, and refuses `E_JOB_SHAPE` naming it; before, the
+  crossing certified and parked at chunk time as `E_INPUT: unknown variable`.
+  Pinned in core and in `quarry-job-checks.ts` beside the plain-statement
+  cases, where the envelope `site` is now `job:statement:N` (the job for an
+  empty body) rather than the program name (`check.rs` reads it through
+  `jobs::shape_site`).
+- **Blob isolation through the owner's real `BlobStore`** (J3 grok §3.1,
+  muse §3.2). `owner_cases/rehearsal_blobs.rs` uploads three PNGs over
+  `/api/upload`, attaches them by a mutation, rehearses a job that deletes
+  every row, and asserts the owner's blob directory unchanged by content
+  digest, the assets still delivered, the seq unmoved, and the owner's own
+  reclamation sweep (driven by `/control/clock` past the 24 h grace) reclaiming
+  nothing — then runs the same job for real and shows that sweep delete the
+  bytes, so the negative is the real path. The unit test's listing compares
+  content digests too, so a same-size overwrite cannot pass.
+- **Labels, bounds, sites, sentences.** `commitMs` is `chunkMs` (chunk
+  execution including its commit) in the writer log, the cadence test, the
+  measurement emitter, and two relabelled lines appended to the append-only
+  `metrics/jobs.jsonl`. The idle-cadence test asserts under ten seconds
+  (measured 1.79 s here; the record above said 1.7 s and the test said 30 s),
+  a bound under 20 ms a chunk that no poll interval could produce and that
+  cannot flake under the parallel gate. `E_JOB_CURSOR_INDEX`'s §7 row carries
+  the three-way rewrite; "at most 1 columns" is "1 column"; a job-family
+  rejection pages `job`, never `job/runtime`; `E_OP_KIND`'s registry site is
+  `mode`, as emitted; the two stale J3 sentences above are amended in place;
+  `guide/job.md` says `refused` is a safety net no fixture reaches and states
+  the disagreement rule; the open-path reconcile is
+  `issues/20260905-snapback2-runtime-open-reconcile-outside-persist.md`,
+  owner J2's successor path, with the chunk-time park named as the cover.
+
+The corpus was not regenerated: no engine output for an existing case changed
+(the new certification refusal fires only on a job whose chunk names another
+statement's binding, which no corpus case does). The cross-chunk walk reuses
+`certificate_policy::visit_statement_exprs` rather than a second expression
+walker.
+
+One test outside the round was repaired on the way: the owner's
+`wire_lifecycle` successor case read `.snapback` for the migration file the
+instant `/control/status` showed `refused`, but the writer sets that phase
+inside the failed apply and the watcher thread writes `migration-<gen>.json`
+only when the reply reaches it, so under the parallel gate the test could look
+first (it did, once in a gate run and once alone). It now waits, bounded, for
+the file the watcher must write.
+
+Verification for this record: two full `scripts/test.sh` runs, then the
+affected stages rerun on the final tree — nextest **596 tests run, 596 passed**
+(2 leaky, 4 skipped), compiler **321/321**, evaluator 162/162, doctests clean,
+caps and `ref-check` clean. The package suite was red in both full runs only
+for known reasons: run 1 on the ticketed `local-data-recovery` load flake, run 2
+on the ticketed node-shim hang in `real-owner.test.ts` that the orchestrator
+killed by PID after fourteen minutes; both files pass alone on the final tree
+(18/18, 18.4 s). The idle-cadence proof printed 1.79 s; the slowest real ad hoc
+compile round trip printed 66 ms.

@@ -7,6 +7,8 @@ use std::fmt;
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Schema {
     pub tables: BTreeMap<String, Table>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub schedules: Vec<crate::timers::Schedule>,
     #[serde(default)]
     pub maintains: Vec<Maintain>,
     // @ref LLP 1001#9-schema-additions — defaults preserve the frozen S1 corpus shape.

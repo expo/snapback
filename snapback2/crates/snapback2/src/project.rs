@@ -11,13 +11,13 @@ use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::os::unix::process::CommandExt;
 use std::path::{Component, Path, PathBuf};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError};
+use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread;
 use std::time::{Duration, Instant};
 
-const COMPILER_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
+pub(crate) const COMPILER_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 const COMPILER_OUTPUT_DRAIN_TIMEOUT: Duration = Duration::from_secs(4);
 static NEXT_CACHE_STAGE: AtomicU64 = AtomicU64::new(0);
 
@@ -210,7 +210,15 @@ impl CompilerWorker {
     }
 
     pub fn compile(&mut self, root: &Path) -> Result<CompiledProject, Vec<Refusal>> {
-        let response = self.request("compile", root)?;
+        self.compile_source(root, None)
+    }
+
+    pub fn compile_source(
+        &mut self,
+        root: &Path,
+        source: Option<&str>,
+    ) -> Result<CompiledProject, Vec<Refusal>> {
+        let response = self.request_body("compile", root, source)?;
         if !response.get("ok").and_then(Json::as_bool).unwrap_or(false) {
             return Err(response_refusals(&response));
         }
@@ -337,6 +345,14 @@ impl CompilerWorker {
     }
 
     fn request(&mut self, op: &str, root: &Path) -> Result<Json, Vec<Refusal>> {
+        self.request_body(op, root, None)
+    }
+    fn request_body(
+        &mut self,
+        op: &str,
+        root: &Path,
+        source: Option<&str>,
+    ) -> Result<Json, Vec<Refusal>> {
         if !root.is_absolute() {
             return Err(vec![Refusal::owner(
                 "E_OWNER_PROJECT_ROOT",
@@ -345,7 +361,10 @@ impl CompilerWorker {
             )]);
         }
         self.next_id += 1;
-        let request = json!({ "id": self.next_id, "op": op, "root": root });
+        let mut request = json!({ "id": self.next_id, "op": op, "root": root });
+        if let Some(source) = source {
+            request["source"] = json!(source);
+        }
         if let Err(error) = writeln!(self.input, "{request}").and_then(|_| self.input.flush()) {
             return Err(vec![Refusal::owner(
                 "E_OWNER_COMPILER_EXITED",
@@ -515,6 +534,17 @@ impl Drop for CompilerWorker {
     }
 }
 
+/// The owner's one compiler worker, shared by the source watcher and `POST /control/run`.
+/// The lock serialises compilations, so an ad hoc request never spawns a second node
+/// process and at most one compiles at a time.
+pub type SharedCompiler = Arc<Mutex<CompilerWorker>>;
+
+pub fn lock_compiler(shared: &SharedCompiler) -> MutexGuard<'_, CompilerWorker> {
+    shared
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
 pub fn locate_root(explicit: Option<&Path>) -> Result<PathBuf, Refusal> {
     let start = match explicit {
         Some(path) => path.to_path_buf(),
@@ -628,6 +658,15 @@ pub fn stage_build_cache(
         build.join("certificates.json"),
     ));
     write_json(&certificates_path, &certificates)?;
+    let schema_certificate = build.join(format!("{stage}-schema-certificate.json"));
+    staged.files.push((
+        Some(schema_certificate.clone()),
+        build.join("schema-certificate.json"),
+    ));
+    write_json(
+        &schema_certificate,
+        &compiled.generation.schema_certificate(),
+    )?;
     staged
         .files
         .push((Some(api.clone()), build.join("api.d.ts")));

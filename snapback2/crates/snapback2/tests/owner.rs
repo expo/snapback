@@ -493,7 +493,6 @@ fn check_grammar_schema_aggregation_and_numeric_flags_are_strict() {
         vec!["data", "items", "--as", "alice", "--unknown"],
         vec!["logs", "unexpected"],
         vec!["persona", "list", "--unknown"],
-        vec!["fork", "name", "--unknown"],
         vec!["reset", "--unknown"],
     ] {
         let output = Command::new(binary).args(&args).output().unwrap();
@@ -511,7 +510,6 @@ fn check_grammar_schema_aggregation_and_numeric_flags_are_strict() {
         (vec!["data", "messages", "--index", "--json"], "--index"),
         (vec!["logs", "--since", "--json"], "--since"),
         (vec!["persona", "list", "--project", "--json"], "--project"),
-        (vec!["fork", "attempt", "--project", "--json"], "--project"),
         (vec!["reset", "--project", "--json"], "--project"),
         (vec!["check", "--project", "--json"], "--project"),
     ] {

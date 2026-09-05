@@ -489,39 +489,83 @@ fn system_insert_still_binds_final_exists_postcondition() {
 }
 
 #[test]
-fn system_range_exhausts_examined_ceiling_and_reports_capped() {
+fn operator_range_below_take_plus_halo_refuses_certification() {
     let mut project = fixture_project();
     project.programs = vec![program(
         "ceiling",
         ProgramKind::Query,
-        vec![Stmt::Return(scan("byId", vec![], 3))],
+        vec![Stmt::Return(scan("byId", vec![], 10))],
     )];
-    let generation = Generation::certify(
+    // The certifier reserves take + 2 even for non-uniform ranges. The runtime
+    // ceiling pin therefore lives beside the private operator entry in engine/operator.rs.
+    let errors = Generation::certify(
         &project,
         Ceilings {
             examined: 5,
             ..Ceilings::default()
         },
     )
-    .unwrap();
-    assert_eq!(generation.programs()["ceiling"].1.max_examined, 5);
+    .unwrap_err();
+    assert!(errors.iter().any(|(op, error)| {
+        op == "ceiling"
+            && error.code == "E_BOUND"
+            && error
+                .message
+                .contains("examined entries 12 exceeds ceiling 5")
+    }));
+}
+
+#[test]
+fn rejected_operator_loop_retains_the_certified_write_bound() {
+    let mut project = fixture_project();
+    project.programs = vec![program(
+        "bounded",
+        ProgramKind::Mutation,
+        vec![Stmt::For {
+            binding: "i".into(),
+            domain: LoopDomain::LiteralRange {
+                start: 0,
+                end_exclusive: 3,
+            },
+            body: vec![Stmt::Insert {
+                table: "items".into(),
+                row: Expr::Literal(item("duplicate", "label")),
+            }],
+        }],
+    )];
+    let generation = Generation::certify(&project, Ceilings::default()).unwrap();
+    let certified = generation.programs()["bounded"]
+        .1
+        .write_sites
+        .iter()
+        .find(|site| site.table == "items" && site.kind == WriteKind::Insert)
+        .unwrap()
+        .clone();
+    assert_eq!(certified.max_rows, 3);
     let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
-    runtime
-        .seed(
-            &(0..7)
-                .map(|i| {
-                    (
-                        "items".into(),
-                        item(&format!("i{i}"), &format!("label-{i}")),
-                    )
-                })
-                .collect::<Vec<_>>(),
+    let rejected = operator(&mut runtime, "bounded");
+    assert!(matches!(rejected.state, ExecutionState::Rejected { .. }));
+    assert_eq!(rejected.trace.last_write_attempt, Some(certified));
+    assert_eq!(rejected.trace.writes["items"], 1);
+    assert_eq!(runtime.store().commit_seq().unwrap(), 0);
+}
+
+#[test]
+fn operator_input_validation_returns_an_error_before_execution() {
+    let mut project = fixture_project();
+    project.programs = vec![Program {
+        args: BTreeMap::from([("value".into(), ArgType::Int)]),
+        ..program(
+            "input",
+            ProgramKind::Mutation,
+            vec![Stmt::Return(Expr::Variable("value".into()))],
         )
-        .unwrap();
-    let execution = operator(&mut runtime, "ceiling");
-    assert_eq!(execution.state, ExecutionState::Capped);
-    assert_eq!(execution.trace.examined, 5);
-    assert_eq!(execution.trace.rule_probes, 0);
-    assert_eq!(execution.trace.ranges[0].stop, StopReason::Limit);
-    assert_eq!(execution.result.as_array().unwrap().len(), 3);
+    }];
+    let generation = Generation::certify(&project, Ceilings::default()).unwrap();
+    let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
+    assert!(matches!(
+        runtime.execute_operator_at("input", BTreeMap::new(), OperatorId("alice".into()), 1),
+        Err(RuntimeError::Input(_))
+    ));
+    assert_eq!(runtime.store().commit_seq().unwrap(), 0);
 }
