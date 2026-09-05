@@ -1,7 +1,7 @@
 # LLP 1007: The state of Snapback 2, and the work
 
 **Type:** Plan
-**Status:** Draft
+**Status:** Implemented — every §5 item landed by 2026-09-05; the link in `llp/current/` was archived on 2026-09-05 to admit LLP 1016 (the working set is at its cap; removing the link is the archive, the document is unchanged)
 **Systems:** `snapback2/packages/quarry`, `snapback2/packages/compiler`,
 `snapback2/packages/evaluator`, `snapback2/crates/snapback2` (`init`, `check`,
 `dev`, `test`, `guide`), `snapback2/crates/snapback2-core` (scan cursors, the
@@ -10,7 +10,7 @@ corpus exporter), `snapback2/crates/snapback2-effects`, `snapback2/scripts`,
 **Author:** Claude Opus 5 (orchestrator), commissioned by Charlie Cheever
 2026-09-01 in session
 **Date:** 2026-09-01
-**Revised:** 2026-09-03
+**Revised:** 2026-09-05 (Status → Implemented; link archived); 2026-09-03
 **Related:** LLP 1000 (the root), LLP 1001, LLP 1002, LLP 1003, **LLP 1004**
 (the ruling this plan finds unimplemented), LLP 1005, LLP 1006, LLP 0005 (the
 review loop the panel ran), LLP 0329.014.004, LLP 0329.014.011,

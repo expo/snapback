@@ -1,1 +1,0 @@
-../1007-state-of-snapback2-and-the-work.plan.md
