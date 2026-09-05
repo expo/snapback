@@ -264,6 +264,7 @@ fn handle(mut request: Request, context: Context, streams: live::Streams) {
     let method = method_name(request.method());
     let request_url = request.url().to_owned();
     let (path, query) = split_url(&request_url);
+    // OPTIONS /control/* needs the secret too: control is not a CORS surface.
     if path.starts_with("/control/")
         && let Err(refusal) = control_admission(&request, &context.secret)
     {

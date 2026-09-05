@@ -694,6 +694,7 @@ a site, a rewrite, and a page.
 | `E_SCHEDULE_TARGET` | schedule | the target is not a mutation or job of this project, or its args do not match | the target's signature |
 | `E_SCHEDULE_DURATION` | schedule | `every` below one minute or not `Nm\|Nh\|Nd` | the form |
 | `E_OPERATOR_REQUIRED` | operator | `run <job>`, `--file`, `--cancel`, `--resume` without the seat | `--as system`, or an `admin` token |
+| `E_ARGS_NAME` | args | a caller-supplied `by` that is not a valid name | 1–80 ASCII letters, numbers, dashes, or underscores; `system` is reserved |
 | `E_ADHOC_SIZE` | operator | ad hoc source over 64 KiB | declare it as a job |
 | `E_SUCCESSOR_NARROWING` | successor | `T?` → `T` with null rows, at application | the fill job |
 | `E_SUCCESSOR_COLUMN_REQUIRED` | successor | (existing) | gains the three-step rewrite |
@@ -874,7 +875,7 @@ returns the count, ten-ID sample and fill skeleton through apply/migrate,
 status and watcher; tests: `snapback2/crates/snapback2-core/tests/successor_narrowing.rs:77`,
 `:99`, `:132`, and `snapback2/crates/snapback2/tests/owner_cases/operator.rs:253`,
 `:351`. Deviations: the new declared-op adapter is `/control/execute` because
-`/control/run` belongs to J3; by defaults to the owner's OS username as validated ledger text (control callers
+`/control/run` belongs to J3; by defaults to the owner's sanitized, truncated OS username as ledger text (control callers
 may supply by); operator admission never creates a persona. Contrary to the lane brief's
 wire premise, `system` previously named the ordinary `dev:system` persona;
 it is now explicitly refused on `/api/*` and cannot become a persona.
@@ -891,8 +892,9 @@ ten-ID sample, and fill rewrite; the wire's primary site is the first conflict.
 No corpus case carries a system rule. Fix round 1 regenerated the corpus to
 remove serialized `seed_write` after deleting that dead context field; existing
 execution outputs remain unchanged.
-LLP 1001 §4 and LLP 1003 §2 carry dated amendments; no diagnostic code beyond
-§7's existing rows was added.
+LLP 1001 §4 and LLP 1003 §2 carry dated amendments. Fix round 1 added
+`E_ARGS_NAME` (args, site `by`, page `operator`); §7 and the shipped family
+registry now include it. `E_SUCCESSOR_ROW_INVALID` reuses an existing code.
 
 Verification for this record: final `snapback2/scripts/test.sh` ran 529 Rust
 tests (527 passed), 301 package tests (all passed), 162 evaluator corpus

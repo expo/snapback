@@ -224,6 +224,8 @@ fn narrowing_reports_every_null_column_with_its_count_sample_and_fill() {
         .unwrap_err();
     assert_eq!(refusal.code, "E_SUCCESSOR_NARROWING");
     assert_eq!(refusal.narrowings.len(), 2);
+    // The wire primary site uses the first column in BTreeMap order.
+    assert_eq!(refusal.narrowings[0].column, "other");
     for (column, count, sample) in [("other", 1, vec!["b"]), ("value", 2, vec!["a", "b"])] {
         let detail = refusal
             .narrowings

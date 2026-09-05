@@ -94,6 +94,7 @@ pub(super) fn narrowing_refusal(
             "{message}; the fill-job rewrite is prose until J1b installs job grammar; use an operator mutation today"
         ),
         rewrite,
+        site: None,
         plan: MigrationPlan::default(),
         conflicts: Vec::new(),
         narrowings: conflicts,
@@ -137,6 +138,7 @@ mod tests {
                 .unwrap()
                 .unwrap();
             assert_eq!(refusal.code, "E_SUCCESSOR_ROW_INVALID");
+            assert_eq!(refusal.site.as_deref(), Some("items.bad"));
             assert!(refusal.message.contains("items.bad"));
             assert!(
                 refusal

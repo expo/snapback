@@ -27,6 +27,16 @@ impl ChildGuard {
     }
 
     pub(super) fn spawn_with(binary: &str, compiler: &Path, root: &Path, serve: bool) -> Self {
+        Self::spawn_with_user(binary, compiler, root, serve, None)
+    }
+
+    pub(super) fn spawn_with_user(
+        binary: &str,
+        compiler: &Path,
+        root: &Path,
+        serve: bool,
+        user: Option<&str>,
+    ) -> Self {
         let mut command = Command::new(binary);
         command
             .args(["dev", "--project"])
@@ -38,6 +48,9 @@ impl ChildGuard {
             .stderr(Stdio::piped());
         if serve {
             command.arg("--serve");
+        }
+        if let Some(user) = user {
+            command.env("USER", user);
         }
         let mut child = command.spawn().unwrap();
         let stdout = BufReader::new(child.stdout.take().unwrap());

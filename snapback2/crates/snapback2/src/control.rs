@@ -233,11 +233,30 @@ fn control_identity(body: &Json) -> Identity {
         Identity::Operator {
             by: match body.get("by") {
                 Some(value) => value.as_str().unwrap_or_default().to_owned(),
-                None => std::env::var("USER").unwrap_or_else(|_| "operator".to_owned()),
+                None => default_operator_by(&std::env::var("USER").unwrap_or_default()),
             },
         }
     } else {
         Identity::Persona(name.to_owned())
+    }
+}
+
+fn default_operator_by(user: &str) -> String {
+    let by: String = user
+        .chars()
+        .take(80)
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || matches!(c, '-' | '_') {
+                c
+            } else {
+                '-'
+            }
+        })
+        .collect();
+    if by.is_empty() || by == "system" {
+        "operator".to_owned()
+    } else {
+        by
     }
 }
 
@@ -325,6 +344,31 @@ fn first(errors: Vec<Refusal>) -> Refusal {
 mod tests {
     use super::*;
     use std::io::Write;
+
+    #[test]
+    fn default_operator_by_sanitizes_truncates_and_avoids_reserved_names() {
+        for (user, expected) in [
+            ("alice.smith", "alice-smith"),
+            ("é mac/user", "--mac-user"),
+            ("Alice_42-ok", "Alice_42-ok"),
+            ("", "operator"),
+            ("system", "operator"),
+        ] {
+            let by = default_operator_by(user);
+            assert_eq!(by, expected);
+            assert!(valid_name(&by));
+        }
+        assert_eq!(default_operator_by(&"é".repeat(100)), "-".repeat(80));
+        assert_eq!(default_operator_by(&"a".repeat(81)), "a".repeat(80));
+        for by in ["alice.smith", "", "system", "é"] {
+            let Identity::Operator { by: explicit } =
+                control_identity(&json!({ "as": "system", "by": by }))
+            else {
+                panic!("expected operator identity")
+            };
+            assert_eq!(explicit, by, "explicit attribution must remain untouched");
+        }
+    }
 
     #[test]
     fn operator_transport_refuses_remote_and_serve_with_complete_envelope() {

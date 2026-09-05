@@ -470,6 +470,14 @@
     "right": "run it locally against `dev`, or with an `admin` token once `serve`-mode tokens exist"
   },
   {
+    "family": "args",
+    "code": "E_ARGS_NAME",
+    "site": "by",
+    "guide": "operator",
+    "wrong": "send a control request with by: \"alice.smith\"",
+    "right": "set by to 1–80 ASCII letters, numbers, dashes, or underscores, such as operator-alice; system is reserved"
+  },
+  {
     "family": "successor",
     "code": "E_SUCCESSOR_NARROWING",
     "site": "table.column",

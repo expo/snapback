@@ -59,6 +59,7 @@ pub fn run(args: &[String]) -> ExitCode {
 }
 
 fn enrich(trace: Json) -> Json {
+    // Rejected operator traces are the retained envelope, not enriched commit traces.
     if trace["kind"] == "operator" && trace["result"]["state"] == "rejected" {
         return trace;
     }

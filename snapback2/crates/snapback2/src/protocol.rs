@@ -197,6 +197,9 @@ impl Refusal {
             "conflicts",
             serde_json::to_value(&error.conflicts).unwrap_or(Json::Array(Vec::new())),
         );
+        if let Some(site) = &error.site {
+            refusal = refusal.with_site(site);
+        }
         if let Some(narrowing) = error.narrowings.first() {
             refusal = refusal
                 .with_site(format!("{}.{}", narrowing.table, narrowing.column))
@@ -295,6 +298,27 @@ pub fn refusal_json(refusal: &Refusal) -> Json {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn operator_argument_name_has_a_registered_site_rewrite_and_guide_page() {
+        let families: Json = serde_json::from_str(include_str!(
+            "../../../packages/snapback2/guide/families.source.json"
+        ))
+        .unwrap();
+        let record = families
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|entry| entry["code"] == "E_ARGS_NAME")
+            .unwrap();
+        assert_eq!(record["family"], "args");
+        assert_eq!(record["site"], "by");
+        assert_eq!(record["guide"], "operator");
+        assert!(record["right"].as_str().unwrap().contains("1–80 ASCII"));
+        assert!(
+            include_str!("../../../packages/snapback2/guide/operator.md").contains("E_ARGS_NAME")
+        );
+    }
 
     #[test]
     fn every_offline_code_has_a_family_a_site_a_rewrite_and_the_guide_page() {
