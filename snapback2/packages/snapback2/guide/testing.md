@@ -43,3 +43,15 @@ Projects with scoped memberships also run the canonical `live-revocation`,
 They bind revocation delivery, active-generation policy, and immutable grant
 incarnation to the served loop rather than treating lower-level unit coverage
 as the acceptance result.
+
+Derived checks use a small representative seed, not a load-test dataset.
+Rules compare every stored row for every seed persona, within a 16,384-probe
+budget; oversized tables block with the counts and a smaller-seed rewrite.
+Invalidation witnesses each query's distinct certificate-intersection groups
+and concrete-disjoint silence, rather than testing every query/mutation pair.
+The receipt names the candidate groups and actual physical attempts. Mutation
+search uses the first two scopes and six personas; if no committing witness is
+found within the limit, the check blocks. Replay still covers every generic
+mutation independently. Put operation-specific behavior and larger scenarios
+in authored journeys, and keep useful admitted and excluded personas and scopes
+near the start of the seed.

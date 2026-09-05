@@ -14,6 +14,11 @@ pub(super) fn check_rules(
     let mut blocked = Vec::new();
     let mut probes = 0_u64;
     let mut tables = Map::new();
+    let mut reserved = 0_usize;
+    // Maintained groups cannot outnumber their seeded source rows. Use the
+    // total seed as a conservative bound for chained maintained tables.
+    let seed_rows = seed.rows.values().map(Vec::len).sum::<usize>();
+    const PROBE_LIMIT: usize = 16_384;
     for (table_name, table) in &compiled.generation.schema().tables {
         if table.rules.read.is_public() {
             continue;
@@ -30,12 +35,32 @@ pub(super) fn check_rules(
             );
             continue;
         }
+        let row_bound = if compiled
+            .generation
+            .schema()
+            .maintains
+            .iter()
+            .any(|m| m.target == *table_name)
+        {
+            seed_rows
+        } else {
+            rows.len()
+        };
+        let needed = row_bound.saturating_mul(seed.personas.len().saturating_add(1));
+        if reserved.saturating_add(needed) > PROBE_LIMIT {
+            blocked.push(json!({ "table": table_name, "reason": "rule probe budget exhausted",
+                "rowBound": row_bound, "personas": seed.personas.len() + 1,
+                "requiredProbes": needed, "probeLimit": PROBE_LIMIT,
+                "rewrite": "use a smaller representative seed; put larger data scenarios in journeys" }));
+            continue;
+        }
+        reserved += needed;
         let mut personas = seed.personas.clone();
         let unlisted = format!("__snapback2_unlisted_{table_name}");
         personas.push(unlisted.clone());
         let mut table_probes = 0_u64;
         for persona in &personas {
-            let actual = match visible_rule_ids(owner, table_name, persona) {
+            let actual = match visible_rule_ids(owner, table_name, persona, row_bound) {
                 Ok(actual) => actual,
                 Err(error) => {
                     failures.push(json!({
@@ -106,6 +131,8 @@ pub(super) fn check_rules(
     }
     let detail = json!({
         "probes": probes,
+        "probeLimit": PROBE_LIMIT,
+        "coverage": "every stored row and seed persona for each completed table; no row sampling",
         "tables": tables,
         "expectedBy": "engine",
         "actualBy": "data",
@@ -146,10 +173,11 @@ fn visible_rule_ids(
     owner: &OwnerInfo,
     table: &str,
     persona: &str,
+    row_bound: usize,
 ) -> Result<BTreeSet<String>, Json> {
     let mut ids = BTreeSet::new();
     let mut after = None;
-    loop {
+    for _ in 0..=row_bound {
         let response = client::control(
             owner,
             "POST",
@@ -182,14 +210,19 @@ fn visible_rule_ids(
             page.iter()
                 .filter_map(|row| row.get("id").and_then(Json::as_str).map(ToOwned::to_owned)),
         );
-        if response.body.get("state").and_then(Json::as_str) != Some("capped")
-            || next.is_none()
-            || next == after
-        {
+        // Non-uniform rules intentionally hide completeness: capped + no
+        // cursor is terminal too. The exhaustive verdict set detects omissions.
+        if response.body.get("state").and_then(Json::as_str) != Some("capped") || next.is_none() {
             return Ok(ids);
+        }
+        if next == after {
+            return Err(
+                json!({ "error": "capped rule page did not advance", "response": response.body }),
+            );
         }
         after = next;
     }
+    Err(json!({ "error": "rule paging exceeded the seeded row bound", "rowBound": row_bound }))
 }
 
 pub(super) fn rule_id_sets_match(actual: &BTreeSet<String>, expected: &BTreeSet<String>) -> bool {

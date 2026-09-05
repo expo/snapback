@@ -341,6 +341,11 @@ impl IsolatedOwner {
                 "run snapback2 dev --foreground and fix the startup refusal",
             ));
         }
+        // A child may print a structured startup refusal instead of ready.
+        // Preserve its diagnostic before trying to read the absent owner file.
+        if let Ok(refusal) = serde_json::from_str::<Refusal>(&line) {
+            return Err(refusal);
+        }
         let _: Json = serde_json::from_str(&line).map_err(|error| {
             Refusal::owner(
                 "E_OWNER_TEST_START",
@@ -495,6 +500,19 @@ fn check_replay(owner: &OwnerInfo, compiled: &CompiledProject, seed: &SeedData) 
     let mut probes = 0_u64;
     let mut attempts = 0_u64;
     let mut forks_count = 0_u64;
+    // Replay executes only on forks; the owner remains the same seeded
+    // snapshot for every candidate, so reseeding it per fork adds no evidence.
+    match client::control(owner, "POST", "/control/reset", json!({})) {
+        Ok(response) if response.status < 400 => {}
+        response => {
+            return CheckReceipt::fail(
+                "replay",
+                "derived",
+                elapsed_ms(started),
+                json!({ "error": format!("replay seed reset failed: {response:?}") }),
+            );
+        }
+    }
     for (index, (name, (program, _))) in compiled.generation.programs().iter().enumerate() {
         if program.kind != ProgramKind::Mutation {
             continue;
@@ -521,10 +539,6 @@ fn check_replay(owner: &OwnerInfo, compiled: &CompiledProject, seed: &SeedData) 
         let mut committed_probe = false;
         for (candidate_index, (persona, args)) in candidates.into_iter().enumerate() {
             attempts += 1;
-            if let Err(error) = client::control(owner, "POST", "/control/reset", json!({})) {
-                failures.push(json!({ "op": name, "as": persona, "error": error }));
-                break;
-            }
             let mut forks = Vec::new();
             for side in ["a", "b"] {
                 let fork_name = format!("replay-{index}-{candidate_index}-{side}");
@@ -595,6 +609,8 @@ fn check_replay(owner: &OwnerInfo, compiled: &CompiledProject, seed: &SeedData) 
         "forks": forks_count,
         "blocked": blocked,
         "skipped": skipped,
+        "candidateLimit": 12,
+        "candidateSelection": "first two seed scopes and first six personas; exhaustion blocks",
         "clock": "1700000000000 + mutation index",
         "newIds": "replay-<mutation>-<ordinal>",
         "comparison": "byte-identical committed execution + authoritative trace",
@@ -1091,7 +1107,7 @@ fn probe_candidates(program: &Program, seed: &SeedData) -> Result<Vec<(String, J
     let personas = if seed.personas.is_empty() {
         vec!["alice".to_owned()]
     } else {
-        seed.personas.clone()
+        seed.personas.iter().take(6).cloned().collect()
     };
     let samples = if program.args.contains_key("conversationId") {
         seed.rows
@@ -1104,7 +1120,7 @@ fn probe_candidates(program: &Program, seed: &SeedData) -> Result<Vec<(String, J
     };
     let mut seen = BTreeSet::new();
     let mut candidates = Vec::new();
-    for sample in 0..samples {
+    for sample in 0..samples.min(2) {
         let args = generated_args_at(program, seed, sample)?;
         for persona in &personas {
             let mut args = args.clone();

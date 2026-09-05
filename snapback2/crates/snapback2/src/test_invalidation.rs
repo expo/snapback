@@ -19,7 +19,7 @@ use snapback2_core::{
     ArgType, AuthoritativeTrace, Certificate, ColumnType, CommitRecord, Generation, Program,
     ProgramKind, RuleExpr, Value, decode_bytes_hex,
 };
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::time::{Duration, Instant};
 
 pub(super) fn specialize_probe_args(
@@ -164,18 +164,6 @@ pub(super) fn probe_args_align(query: &Json, mutation: &Json) -> bool {
         .iter()
         .filter_map(|(name, value)| mutation.get(name).map(|other| (value, other)))
         .all(|(left, right)| left == right)
-}
-
-pub(super) fn probe_args_diverge(query: &Json, mutation: &Json) -> bool {
-    let Some(query) = query.as_object() else {
-        return false;
-    };
-    let Some(mutation) = mutation.as_object() else {
-        return false;
-    };
-    query
-        .iter()
-        .any(|(name, value)| mutation.get(name).is_some_and(|other| other != value))
 }
 
 pub(super) fn trace_write_count(trace: &Json) -> Result<u64, String> {
@@ -645,6 +633,7 @@ pub(super) fn check(
         .collect::<Vec<_>>();
     let mut outcomes = Vec::new();
     let mut intersections = Vec::new();
+    let mut coverage = Vec::new();
     let mut attempts = 0_u64;
     let mut probes = 0_u64;
     let mut overlap_probes = 0_u64;
@@ -675,6 +664,11 @@ pub(super) fn check(
         };
         let mut query_has_silence = false;
         let mut query_has_generic_mutation = false;
+        // One witnessed representative per certificate-intersection signature,
+        // rather than repeating the same subscription proof for every operation.
+        let mut required_groups = BTreeMap::new();
+        let mut selected_groups = BTreeSet::new();
+        let mut query_attempts = 0_u64;
         for (mutation_name, (mutation, mutation_certificate)) in compiled.generation.programs() {
             if mutation.kind != ProgramKind::Mutation {
                 continue;
@@ -716,6 +710,13 @@ pub(super) fn check(
                 continue;
             }
             query_has_generic_mutation = true;
+            required_groups
+                .entry(shared_sites.clone())
+                .or_insert_with(Vec::new)
+                .push(mutation_name.clone());
+            if selected_groups.contains(&shared_sites) {
+                continue;
+            }
             let candidates = match probe_candidates(mutation, seed) {
                 Ok(candidates) => candidates,
                 Err(reason) => {
@@ -731,8 +732,11 @@ pub(super) fn check(
             if static_sites_intersect {
                 ordered.sort_by_key(|(_, args)| !probe_args_align(&query_args, args));
             }
-            let mut pair_selected = false;
             for (mutation_persona, mutation_args) in ordered {
+                if query_attempts >= 32 {
+                    break;
+                }
+                query_attempts += 1;
                 attempts += 1;
                 let query_persona = if static_sites_intersect {
                     affected_query_persona(
@@ -760,7 +764,7 @@ pub(super) fn check(
                     },
                 );
                 if let Some(evidence) = absorb_attempt(result, &mut outcomes, &mut failures) {
-                    pair_selected = true;
+                    selected_groups.insert(shared_sites.clone());
                     count_probe(
                         evidence,
                         &mut probes,
@@ -772,51 +776,17 @@ pub(super) fn check(
                     break;
                 }
             }
-            if !pair_selected {
+        }
+        for (sites, mutations) in &required_groups {
+            coverage.push(json!({ "query": query_name, "sites": sites,
+                "candidates": mutations, "witnessed": selected_groups.contains(sites) }));
+            if !selected_groups.contains(sites) {
                 blocked.push(json!({
-                    "query": query_name,
-                    "mutation": mutation_name,
-                    "staticSitesIntersect": static_sites_intersect,
-                    "reason": if static_sites_intersect {
-                        "no physical committing probe"
-                    } else {
-                        "no physical concrete-disjoint probe"
-                    },
+                    "query": query_name, "mutations": mutations, "sites": sites,
+                    "reason": if query_attempts >= 32 { "candidate attempt budget exhausted" }
+                        else if sites.is_empty() { "no physical concrete-disjoint probe" }
+                        else { "no physical committing probe" },
                 }));
-                continue;
-            }
-
-            if static_sites_intersect && !query_has_silence {
-                for (mutation_persona, mutation_args) in candidates
-                    .iter()
-                    .filter(|(_, args)| probe_args_diverge(&query_args, args))
-                {
-                    attempts += 1;
-                    let result = invalidation_attempt(
-                        owner,
-                        AttemptMeta {
-                            query: query_name,
-                            query_args: &query_args,
-                            mutation: mutation_name,
-                            mutation_args,
-                            query_persona: &default_persona,
-                            mutation_persona,
-                            role: ProbeRole::Silence,
-                            static_sites_intersect,
-                        },
-                    );
-                    if let Some(evidence) = absorb_attempt(result, &mut outcomes, &mut failures) {
-                        count_probe(
-                            evidence,
-                            &mut probes,
-                            &mut overlap_probes,
-                            &mut delivery_probes,
-                            &mut silence_probes,
-                            &mut query_has_silence,
-                        );
-                        break;
-                    }
-                }
             }
         }
         if !query_has_silence && query_has_generic_mutation {
@@ -840,6 +810,10 @@ pub(super) fn check(
                     Err(_) => continue,
                 };
                 for (mutation_persona, mutation_args) in &candidates {
+                    if query_attempts >= 64 {
+                        break 'fallback;
+                    }
+                    query_attempts += 1;
                     attempts += 1;
                     let result = invalidation_attempt(
                         owner,
@@ -875,6 +849,10 @@ pub(super) fn check(
                 {
                     continue;
                 }
+                if query_attempts >= 64 {
+                    break 'fallback;
+                }
+                query_attempts += 1;
                 attempts += 1;
                 let result = invalidation_attempt(
                     owner,
@@ -910,6 +888,10 @@ pub(super) fn check(
         }
     }
     let detail = json!({
+        "coverage": "one physical representative per query and certificate-intersection signature, plus concrete-disjoint silence per query; not every operation pair",
+        "groups": coverage,
+        "candidateLimit": 12,
+        "attemptLimitPerQuery": 64,
         "probes": probes,
         "attempts": attempts,
         "overlapProbes": overlap_probes,

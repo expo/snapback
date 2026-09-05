@@ -1093,3 +1093,140 @@ fn blocked_without_a_reason_is_usage() {
     assert_eq!(output.status.code(), Some(2));
     assert!(String::from_utf8_lossy(&output.stderr).contains("--blocked reason"));
 }
+
+#[test]
+fn clique_sized_seed_and_67_operations_have_bounded_honest_derived_coverage() {
+    let project = Project::new();
+    assert!(project.init("chat", "none").status.success());
+    // The reduced Clique bar has no external I/O. Retain the real template's
+    // scoped rules, maintained counts, feeds and authorization proofs.
+    let messages = project.path.join("snapback/messages.q");
+    let source = fs::read_to_string(&messages)
+        .unwrap()
+        .replace("effect notify from delivery\n", "")
+        .replace("  emit notify { to: recipient.principal, body }\n", "");
+    fs::write(messages, source).unwrap();
+    fs::remove_file(project.path.join("snapback/delivery.ts")).unwrap();
+    fs::remove_file(project.path.join("snapback/notifications.q")).unwrap();
+    fs::remove_dir_all(project.path.join("snapback/tests")).unwrap();
+    let mut operations = String::new();
+    for index in 0..44 {
+        operations.push_str(&format!("\nmutation send{index}(conversationId: conversations, body: text <=4000):\n  require exists memberships[conversationId, viewer] else NOT_MEMBER\n  row = insert messages {{ conversationId, authorId: viewer, body, at: now }}\n  return {{ id: row.id }}\n"));
+    }
+    fs::write(project.path.join("snapback/scale.q"), operations).unwrap();
+    let seed = project.path.join("snapback/seed.ts");
+    let mut source = fs::read_to_string(&seed).unwrap();
+    let conversations = (3..=12)
+        .map(|n| {
+            format!("{{ id: 'conversation-{n}', title: 'Room {n}', creatorId: 'dev:alice' }},")
+        })
+        .collect::<String>();
+    let memberships = (3..=12).map(|n| format!("{{ id: 'membership-extra-{n}', conversationId: 'conversation-{n}', principal: 'dev:alice', role: 'admin', joinedAt: 0 }},")).collect::<String>();
+    let messages = (0..120).map(|n| format!("{{ id: 'extra-{n}', conversationId: 'conversation-{}', authorId: 'dev:alice', body: 'seeded chat', at: {} }},", n % 12 + 1, n + 2)).collect::<String>();
+    // Keep the original two scope rows first for the declared candidate order.
+    source = source.replace(
+        "    ],\n    memberships:",
+        &format!("{conversations}    ],\n    memberships:"),
+    );
+    source = source.replace(
+        "    ],\n    messages:",
+        &format!("{memberships}    ],\n    messages:"),
+    );
+    source = source.replace(
+        "    ],\n    deliveries:",
+        &format!("{messages}    ],\n    deliveries:"),
+    );
+    fs::write(seed, source).unwrap();
+
+    let started = std::time::Instant::now();
+    let output = project.run(&["test", "--derived-only", "--json"]);
+    let elapsed = started.elapsed();
+    let receipt = json_stdout(&output);
+    assert!(output.status.success(), "{receipt}");
+    assert_eq!(check(&receipt, "certify")["detail"]["operations"], 67);
+    let rules = check(&receipt, "rules");
+    assert_eq!(rules["detail"]["tables"]["messages"]["probes"], 122 * 4);
+    let invalidation = check(&receipt, "invalidation");
+    assert!(
+        invalidation["detail"]["attempts"].as_u64().unwrap() < 150,
+        "{invalidation}"
+    );
+    assert!(
+        invalidation["detail"]["groups"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|group| group["witnessed"] == true)
+    );
+    for name in [
+        "replay",
+        "live-revocation",
+        "successor-policy-fence",
+        "grant-incarnation-aba",
+    ] {
+        assert_eq!(check(&receipt, name)["verdict"], "pass", "{receipt}");
+    }
+    eprintln!(
+        "Clique-sized derived receipt: {} ms, rules {} ms, invalidation {} ms, attempts {}",
+        elapsed.as_millis(),
+        rules["ms"],
+        invalidation["ms"],
+        invalidation["detail"]["attempts"]
+    );
+    assert!(elapsed < std::time::Duration::from_secs(60), "{elapsed:?}");
+}
+
+#[test]
+fn oversized_policy_seed_blocks_without_claiming_a_sample_passed() {
+    let project = Project::new();
+    assert!(project.init("todos", "none").status.success());
+    let rows = (0..500)
+        .map(|n| format!("{{ id: 'todo-{n}', title: 'seed', done: false, ownerId: 'dev:alice' }}"))
+        .collect::<Vec<_>>()
+        .join(",");
+    let personas = (0..33)
+        .map(|n| format!("'viewer{n}'"))
+        .collect::<Vec<_>>()
+        .join(",");
+    fs::write(project.path.join("snapback/seed.ts"), format!("import {{ seed }} from 'snapback2';\nexport default seed({{ personas: [{personas}], rows: {{ todos: [{rows}] }} }});")).unwrap();
+    let output = project.run(&["test", "--derived-only", "--json"]);
+    let receipt = json_stdout(&output);
+    assert_eq!(output.status.code(), Some(1));
+    let rules = check(&receipt, "rules");
+    assert_eq!(rules["verdict"], "blocked", "{rules}");
+    assert_eq!(rules["detail"]["probes"], 0);
+    assert_eq!(
+        rules["detail"]["blocked"][0]["reason"],
+        "rule probe budget exhausted"
+    );
+    assert_eq!(check(&receipt, "bounds")["verdict"], "pass");
+}
+
+#[test]
+fn isolated_owner_preserves_its_startup_refusal() {
+    let project = Project::new();
+    assert!(project.init("chat", "none").status.success());
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_snapback2"))
+        .args(["test", "--derived-only", "--json", "--project"])
+        .arg(&project.path)
+        .env(
+            "SNAPBACK2_COMPILER",
+            project.package_snapshot_root().join("dist/compiler.mjs"),
+        )
+        .env("SNAPBACK2_MEDIA", project.path.join("missing-media-helper"))
+        .output()
+        .unwrap();
+    let receipt = json_stdout(&output);
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        check(&receipt, "owner")["detail"]["code"],
+        "E_ASSET_NOT_READY",
+        "{receipt}"
+    );
+    assert!(
+        check(&receipt, "owner")["detail"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("missing-media-helper")
+    );
+}

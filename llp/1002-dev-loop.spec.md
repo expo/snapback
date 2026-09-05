@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2` (the binary: owner, server, verbs), `snapback2/packages/compiler` (project lowering, worker), `snapback2/packages/snapback2` (authoring runtime, client, React, test runner, shim), `snapback2/scripts/measure.mjs`
 **Author:** Claude Fable 5 (orchestrator) — implementers: codex gpt-5.6-sol, lanes B0 (compiler + authoring surface), B1 (owner + server + verbs), B2 (`init`, `test`, `why`, `trace`, `guide`), D (client + React + evaluator)
 **Date:** 2026-08-29
-**Revised:** 2026-09-05
+**Revised:** 2026-09-05 (bounded derived verification, mutation-read guidance, installed consumer qualification)
 **Related:** LLP 1000, LLP 1001 (the engine this serves), LLP 1003 (effects),
 LLP 0329.016 §5 (the design this implements verbatim where it can), LLP
 0329.016 §5.11 (the verb table — no verb exists without its row), LLP
@@ -506,7 +506,15 @@ read-only in the receipt, never editable):
 2. `rules` — for every table with a non-public rule and every seed persona:
    `data <table> --as <persona>` returns only rows the rule admits (re-checked
    by evaluating the rule per row on the server) and a persona named in no
-   row sees none of the owner-scoped rows.
+   row sees none of the owner-scoped rows. The accepted seed is exhaustive, not
+   row-sampled: reserve at most 16,384 row/persona probes across restricted
+   tables before executing them. For a maintained table the total seed-row
+   count is a conservative upper bound. A table that exceeds the remaining
+   budget is `blocked` with its row bound, persona count, and a rewrite to use
+   a smaller representative seed and authored journeys for larger scenarios.
+   Other check families still run. Paging is limited by the seeded row bound;
+   a repeated non-null cursor fails, while `capped` with no cursor remains
+   the deliberate non-uniform-rule terminal form.
 3. `bounds` — every query runs as every seed persona; its authoritative trace
    is `⊆` its certificate (`E_TRACE_SUBSET` is the failure). Derived `t.ref`
    arguments take IDs only from that table's seed rows; a bare `<x>Id: t.id()`
@@ -527,14 +535,26 @@ read-only in the receipt, never editable):
    wording: a fresh-scope insert cannot affect an existing scope, and a role
    update may require a conservative rerun without changing the visible
    query result. Static certificate intersections only prioritize candidates;
-   they do not decide concrete overlap. Every query/mutation pair records each
-   rejected, zero-write, or physical attempt and either selects an
-   oracle-classified physical disposition or blocks. Effect `then` mutations
+   they do not decide concrete overlap. For each query, group mutations by
+   their certificate-intersection signature (the set of shared table/index
+   sites, including an empty signature). Witness one physical representative
+   per group, plus concrete-disjoint silence per query. This is representative
+   invalidation coverage, not proof of every operation pair: the receipt lists
+   each group's candidate operations and whether it was witnessed, and each
+   actual rejected, zero-write, or physical attempt with its exact oracle
+   disposition. Operation-specific behavior belongs in authored journeys;
+   every generic mutation still receives its own independent replay check.
+   Candidate search uses the first two seeded scopes and first six personas
+   (at most 12), in deterministic seed order. Each query spends at most 32
+   attempts finding group witnesses and 64 including the silence fallback;
+   missing evidence or budget exhaustion blocks, never passes. Effect `then` mutations
    are recorded as excluded system-only continuations here and remain covered
    by replay through the engine's purpose-specific private system entry point,
    not by inventing a privileged served persona.
 5. `replay` — every seed mutation, run twice against two forks of the seeded
    store with the same pinned `now`/`newId`s, yields byte-identical traces.
+   The same 12-candidate search applies; lack of a committing witness blocks
+   and the receipt states the selection limit.
    **Revision 2026-09-04:** an asset-typed mutation is recorded as `skipped` in both invalidation and replay with reason `E_ASSET_PROBE_NEEDS_UPLOAD` ("asset-typed arguments are proven by an upload journey, not the generic prover"), which is a pass-with-note because only the upload journey can mint the ready ledger row that LLP 1006 §6 requires.
 6. `effects` — every effect declaration has a runner able to run it, or the
    check is `blocked: no engine in this build` (LLP 1003 §4).
