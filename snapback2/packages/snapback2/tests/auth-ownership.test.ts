@@ -647,7 +647,7 @@ test("an individually closed subscription still applies already-read terminal ev
       load: () => stored,
       save: (token) => { stored = token; },
     },
-    fetch: async () => stream.response,
+    fetch: async input => pathOf(input) === "/api/auth/me" ? json({ viewer: "principal-a", kind: "account" }) : stream.response,
   });
   await value.ready;
   const subscription = value.subscribe(api.messages.thread, {}, (delivery) => deliveries.push(delivery));
@@ -670,7 +670,7 @@ test("whole-client close still applies already-read terminal evidence without de
       load: () => stored,
       save: (token) => { stored = token; },
     },
-    fetch: async () => stream.response,
+    fetch: async input => pathOf(input) === "/api/auth/me" ? json({ viewer: "principal-a", kind: "account" }) : stream.response,
   });
   await value.ready;
   value.subscribe(api.messages.thread, {}, (delivery) => deliveries.push(delivery));
@@ -751,6 +751,7 @@ test("auth transitions serialize and already-dispatched writes settle before rep
     },
     fetch: async (input, init) => {
       const path = pathOf(input);
+      if (path === "/api/auth/me") return json({ viewer: "principal-a", kind: "account" });
       paths.push(path);
       bearers.push(bearer(init));
       if (path === "/api/mutation") return mutationResponse.promise;
@@ -795,6 +796,7 @@ test("a delayed terminal write clears the old bearer before a failed replacement
     },
     fetch: async (input, init) => {
       const path = pathOf(input);
+      if (path === "/api/auth/me") return json({ viewer: "principal-a", kind: "account" });
       requests.push({ path, bearer: bearer(init) });
       if (path === "/api/mutation") return mutationResponse.promise;
       if (path === "/api/auth/login") return json(refusal("E_AUTH_INVALID"), 401);
@@ -1129,7 +1131,8 @@ test("logout and terminal session expiry clear custody and stop old-bearer recon
         stored = token;
       },
     },
-    fetch: async (input) => pathOf(input) === "/api/auth/logout"
+    fetch: async (input) => pathOf(input) === "/api/auth/me"
+      ? json({ viewer: "principal-a", kind: "account" }) : pathOf(input) === "/api/auth/logout"
       ? json({ ok: true })
       : hangingSse(undefined, () => { cancelled += 1; }),
   });
@@ -1161,7 +1164,8 @@ test("logout and terminal session expiry clear custody and stop old-bearer recon
         stored = token;
       },
     },
-    fetch: async (_input, init) => {
+    fetch: async (input, init) => {
+      if (pathOf(input) === "/api/auth/me") return json({ viewer: "principal-a", kind: "account" });
       opens += 1;
       assert.equal(bearer(init), "Bearer expired-token");
       return hangingSse({ state: "refused", ...refusal("E_AUTH_SESSION", "expired") });
@@ -1201,7 +1205,7 @@ test("token-store clear failures stay visible on every request-based terminal pa
           if (token === null) throw new Error("storage unavailable");
         },
       },
-      fetch: async () => response,
+      fetch: async input => pathOf(input) === "/api/auth/me" ? json({ viewer: "principal-a", kind: "account" }) : response,
     });
     await value.ready;
     const generation = value.snapshot.authGeneration;
@@ -1232,7 +1236,8 @@ test("terminal expiry remains terminal when persisted custody cannot be cleared"
         if (token === null) throw new Error("storage unavailable");
       },
     },
-    fetch: async () => {
+    fetch: async input => {
+      if (pathOf(input) === "/api/auth/me") return json({ viewer: "principal-a", kind: "account" });
       opens += 1;
       return hangingSse({ state: "refused", ...refusal("E_AUTH_SESSION", "expired") });
     },

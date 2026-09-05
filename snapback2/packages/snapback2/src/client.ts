@@ -1,3 +1,4 @@
+import { ClientAuth, anonymousAuth, restoreAuthToken } from "./client-auth.js";
 import { SharedSse } from "./live.js";
 import type { AssetFetchOptions } from "./store/byte-cache.js";
 import { throwIfAborted } from "./client-wire.js";
@@ -13,7 +14,6 @@ import {
   decodeOfflineSubscription,
   goOffline,
   goOnline,
-  initializeOfflineClient,
   offlineNetworkRefusal,
   offlineRefusal as makeOfflineRefusal,
   performOfflineResume,
@@ -143,6 +143,7 @@ class Client implements SnapbackClient {
   private forcedOffline = false;
   private currentToken?: string;
   private currentPrincipal?: Principal;
+  private readonly authState: ClientAuth;
   private authGeneration = 0;
   private custodyGeneration = 0;
   private operationFence = 0;
@@ -176,7 +177,8 @@ class Client implements SnapbackClient {
     this.tokenStore = options.tokenStore;
     this.persona = options.as;
     this.forcedOffline = options.startOffline === true;
-    this.currentSnapshot = { authGeneration: 0, persona: options.as, connection: this.forcedOffline ? "offline" : "reconnecting" };
+    this.currentSnapshot = { auth: { state: "hydrating" }, authGeneration: 0, persona: options.as, connection: this.forcedOffline ? "offline" : "reconnecting" };
+    this.authState = new ClientAuth(auth => this.patchSnapshot({ auth }), () => this.currentToken !== undefined, current => this.me(current));
     validateOfflineOptions(options.offline);
     try {
       this.offlineRuntime = createOfflineRuntime(options.offline);
@@ -195,8 +197,14 @@ class Client implements SnapbackClient {
       const principal = this.persona === undefined ? options.offlinePrincipal ?? this.currentPrincipal : `dev:${this.persona}` as Principal;
       if (principal) await this.openOffline(principal);
     });
-    this.ready = this.localReady.then(() => this.initializeOffline()).finally(() => { this.startupComplete = true; });
-    void this.ready.catch(() => undefined);
+    this.ready = this.localReady.then(() => this.initializeOffline()).catch(error => {
+      if (!this.closed) this.authState.failed(error);
+      throw error;
+    }).finally(() => { this.startupComplete = true; });
+    void this.ready.then(() => {
+      if (!this.closed && this.currentToken !== undefined && this.operationFence === 0 && this.authState.value.state === "hydrating"
+        && this.authState.value.retryAt === undefined) return this.me();
+    }).catch(error => { if (!this.closed && !isSnapbackRefusal(error)) this.authState.failed(error); });
   }
 
   get snapshot(): ClientSnapshot {
@@ -561,6 +569,7 @@ class Client implements SnapbackClient {
 
   async offline(): Promise<void> {
     this.forcedOffline = true;
+    this.authState.offline();
     this.live.close();
     this.startupController.abort();
     this.abortResume();
@@ -593,6 +602,7 @@ class Client implements SnapbackClient {
       forced: () => this.forcedOffline,
       shutdown: async () => {
         this.closed = true;
+        this.authState.stop();
         this.abortResume();
         this.operationFence += 1;
         this.closeTransports();
@@ -627,6 +637,7 @@ class Client implements SnapbackClient {
     if (this.closed) return this.closing;
     this.closed = true;
     this.startupController.abort();
+    this.authState.stop();
     this.abortResume();
     this.operationFence += 1;
     this.closeTransports();
@@ -655,7 +666,7 @@ class Client implements SnapbackClient {
         `${path.slice("/api/".length)} response`,
       );
       await this.openOffline(session.viewer, true, session.authEpoch);
-      await this.installToken(session.token);
+      await this.installToken(session.token, session.viewer);
       this.ensureOpen();
       // The program lands with the grant, so "log in, go offline, write" prices and predicts from custody.
       try {
@@ -668,6 +679,7 @@ class Client implements SnapbackClient {
       } catch (error) {
         if (!isSnapbackRefusal(error) || !error.retryable) throw error;
       }
+      this.authState.value = { state: "authenticated", viewer: session.viewer };
       this.validated(undefined);
       return session;
     });
@@ -692,6 +704,7 @@ class Client implements SnapbackClient {
       let wipeFailure: unknown;
       try { await this.wipeOffline(); } catch (error) { wipeFailure = error; }
       await this.clearToken();
+      this.authState.value = { state: "anonymous" };
       this.ensureOpen();
       if (requestFailure !== undefined) throw requestFailure;
       if (wipeFailure !== undefined) throw wipeFailure;
@@ -700,45 +713,39 @@ class Client implements SnapbackClient {
     });
   }
 
-  private async me(): Promise<AuthMe> {
+  private async me(current = () => true): Promise<AuthMe> {
     const authority = await this.operationAuthority();
-    const result = wireAuthMe(await this.json("/api/auth/me", {}, authority));
-    await this.openOffline(result.viewer, true, result.authEpoch);
-    await this.saveConfirmedPrincipal(result.viewer, authority);
-    this.validated(authority);
-    return result;
+    if (!current()) throw this.supersededRefusal();
+    return this.confirmAuth(authority);
+  }
+
+  private confirmAuth(authority: Authority): Promise<AuthMe> {
+    return this.authState.confirm(async signal => {
+      try {
+        const result = wireAuthMe(await this.json("/api/auth/me", { signal }, authority, true, true, true));
+        throwIfAborted(signal);
+        await this.openOffline(result.viewer, true, result.authEpoch);
+        this.ensureAuthority(authority);
+        await this.saveConfirmedPrincipal(result.viewer, authority);
+        this.ensureAuthority(authority);
+        this.currentPrincipal = result.viewer;
+        this.validated(authority);
+        return result;
+      } catch (error) {
+        if (anonymousAuth(error) && this.authorityCurrent(authority)) await this.expireSession(authority, undefined, true);
+        throw error;
+      }
+    });
   }
 
   private async hydrate(explicitToken: string | undefined): Promise<void> {
-    let token = explicitToken;
-    let principal: string | null | undefined;
-    if (this.tokenStore) {
-      try {
-        const storedToken = token ?? await this.tokenStore.load();
-        const binding = await this.tokenStore.loadPrincipalBinding?.();
-        token = storedToken ?? undefined;
-        // A companion record names the bearer that authenticated its principal;
-        // mixed snapshots and obsolete writers cannot assign another identity.
-        principal = binding && binding.token === token ? binding.principal : undefined;
-      } catch (error) {
-        throw this.storageRefusal("load", error);
-      }
-    }
-    if (token !== undefined && (typeof token !== "string" || token.length === 0)) {
-      throw this.storageRefusal("load", new TypeError("stored token must be a non-empty string or null"));
-    }
-    if (explicitToken !== undefined) {
-      await this.saveToken(token!);
-      // The same bearer may reuse its authenticated binding while offline.
-      if (principal) {
-        try { await this.tokenStore?.savePrincipal?.(principal, token); }
-        catch (error) { throw this.storageRefusal("save principal", error); }
-      }
-    }
+    const { token, principal } = await restoreAuthToken(explicitToken, this.tokenStore,
+      token => this.saveToken(token), (action, error) => this.storageRefusal(action, error));
     if (this.closed) return;
     this.currentToken = token;
     if (token !== undefined && principal) this.currentPrincipal = principal as Principal;
     this.authGeneration += 1;
+    this.authState.reset({ state: "hydrating", restoringViewer: this.currentPrincipal });
     this.publishAuthSnapshot();
   }
 
@@ -818,7 +825,9 @@ class Client implements SnapbackClient {
     authority: Authority,
     enforceAuthority = true,
     clearTerminalSession = true,
+    authRestoration = false,
   ): Promise<unknown> {
+    throwIfAborted(init.signal);
     if (enforceAuthority) this.ensureAuthority(authority);
     else this.ensureOpen();
     if (this.forcedOffline) throw offlineNetworkRefusal();
@@ -829,6 +838,7 @@ class Client implements SnapbackClient {
         headers: this.headers(authority, false, init.body !== undefined && init.body !== null),
       });
     } catch (error) {
+      throwIfAborted(init.signal);
       if (enforceAuthority) this.ensureAuthority(authority);
       else this.ensureOpen();
       const refusal = new SnapbackRefusal(
@@ -838,6 +848,7 @@ class Client implements SnapbackClient {
       this.patchSnapshot({ connection: this.transportFailureState(), lastRefusal: refusal.envelope });
       throw refusal;
     }
+    if (!authRestoration) throwIfAborted(init.signal);
     if (!response.ok) {
       if (response.status >= 400 && response.status < 500) {
         let refusal: SnapbackRefusal;
@@ -856,8 +867,8 @@ class Client implements SnapbackClient {
         }
         const wasCurrent = !enforceAuthority || this.authorityCurrent(authority);
         let expiration: SessionExpiration | undefined;
-        if (clearTerminalSession && isTerminalSession(refusal.envelope)) {
-          expiration = await this.expireSession(authority);
+        if (clearTerminalSession && authority.token !== undefined && isTerminalSession(refusal.envelope)) {
+          expiration = await this.expireSession(authority, undefined, authRestoration && this.authorityCurrent(authority));
         }
         if (enforceAuthority && (!wasCurrent
           || (expiration !== undefined && !this.expirationCurrent(expiration)))) {
@@ -867,6 +878,7 @@ class Client implements SnapbackClient {
           this.ensureAuthority(authority);
         }
         else this.ensureOpen();
+        throwIfAborted(init.signal);
         this.patchSnapshot({ connection: "connected" });
         this.recordRefusal(refusal.envelope);
         throw refusal;
@@ -890,10 +902,12 @@ class Client implements SnapbackClient {
       this.recordRefusal(refusal.envelope);
       throw refusal;
     }
+    if (!authRestoration) throwIfAborted(init.signal);
     let terminal: RefusalEnvelope | undefined;
     try {
       terminal = clearTerminalSession ? terminalSessionEnvelope(value) : undefined;
     } catch (error) {
+      throwIfAborted(init.signal);
       if (enforceAuthority) this.ensureAuthority(authority);
       else this.ensureOpen();
       throw error;
@@ -904,6 +918,7 @@ class Client implements SnapbackClient {
     }
     if (enforceAuthority) this.ensureAuthority(authority);
     else this.ensureOpen();
+    throwIfAborted(init.signal);
     this.patchSnapshot({ connection: "connected" });
     return value;
   }
@@ -1010,24 +1025,18 @@ class Client implements SnapbackClient {
       fence: this.operationFence,
       token: this.currentToken,
     };
-    return initializeOfflineClient({
-      principal: this.persona === undefined
-        ? this.createOptions.offlinePrincipal ?? this.currentPrincipal
-        : `dev:${this.persona}` as Principal,
-      bearer: this.persona === undefined && this.currentToken !== undefined,
-      authority,
-      open: async (principal, authenticated, epoch) => {
-        await this.openOffline(principal, authenticated, epoch);
-        if (authenticated) await this.saveConfirmedPrincipal(principal, authority);
-      },
-      confirm: async (current) => wireAuthMe(await this.json("/api/auth/me", { signal: this.startupController.signal }, current)),
-      metadata: (current) => this.ensureOfflineMetadata(current, false, true, this.startupController.signal),
-      resume: (current) => this.performResume(current),
-      // A bounded rebuild refusal leaves durable work for online(); it must
-      // not permanently reject the restore barrier that online() itself awaits.
-      ignore: (error) => (this.forcedOffline && this.startupController.signal.aborted) || (isSnapbackRefusal(error)
-        && (error.retryable || error.code === "E_OFFLINE_RESUME" || error.code === "E_OFFLINE_RESET")),
-    });
+    if (this.currentToken !== undefined) {
+      try { await this.confirmAuth(authority); }
+      catch { return; } // Auth state owns restoration failures and their retries.
+    }
+    if (!this.offlineRuntime.principal) return;
+    try {
+      await this.ensureOfflineMetadata(authority, false, true, this.startupController.signal);
+      await this.performResume(authority);
+    } catch (error) {
+      if (!(this.forcedOffline && this.startupController.signal.aborted) && !(isSnapbackRefusal(error)
+        && (error.retryable || error.code === "E_OFFLINE_RESUME" || error.code === "E_OFFLINE_RESET"))) throw error;
+    }
   }
 
   private async openOffline(principal: Principal, authenticated = false, authEpoch?: number): Promise<void> {
@@ -1234,6 +1243,7 @@ class Client implements SnapbackClient {
     except?: Subscription<unknown>,
   ): Promise<T> {
     this.operationFence += 1;
+    this.authState.reset({ state: "hydrating" });
     this.supersessionQueries.clear();
     this.abortResume();
     this.resetRefusal = undefined;
@@ -1242,6 +1252,7 @@ class Client implements SnapbackClient {
       await this.ready;
       this.ensureOpen();
       if (waitForWrites) await this.settleWrites();
+      this.authState.reset({ state: "hydrating" });
       const authority: Authority = {
         authGeneration: this.authGeneration,
         custodyGeneration: this.custodyGeneration,
@@ -1250,6 +1261,9 @@ class Client implements SnapbackClient {
       };
       try {
         return await action(authority);
+      } catch (error) {
+        if (!this.closed && this.authState.value.state !== "anonymous") this.authState.failed(error);
+        throw error;
       } finally {
         this.authGeneration += 1;
         this.publishAuthSnapshot();
@@ -1259,12 +1273,13 @@ class Client implements SnapbackClient {
     return run;
   }
 
-  private async expireSession(authority: Authority, origin?: Subscription<unknown>): Promise<SessionExpiration> {
+  private async expireSession(authority: Authority, origin?: Subscription<unknown>, fromAuth = false): Promise<SessionExpiration> {
     if (authority.token === undefined) return { cleared: false };
     return this.custody(async () => {
       if (this.currentToken !== authority.token
         || this.custodyGeneration !== authority.custodyGeneration) return { cleared: false };
       this.operationFence += 1;
+      if (!fromAuth) this.authState.reset({ state: "hydrating" });
       const fence = this.operationFence;
       const authGeneration = this.authGeneration + 1;
       this.closeTransports(origin);
@@ -1273,6 +1288,10 @@ class Client implements SnapbackClient {
         try { await this.sealOffline(); } catch (error) { sealFailure = error; }
         await this.clearTokenNow();
         if (sealFailure !== undefined) throw sealFailure;
+        if (!this.closed) this.authState.value = { state: "anonymous" };
+      } catch (error) {
+        if (!this.closed) this.authState.failed(error);
+        throw error;
       } finally {
         this.authGeneration += 1;
         this.publishAuthSnapshot();
@@ -1289,11 +1308,12 @@ class Client implements SnapbackClient {
       && this.authGeneration === expiration.authGeneration;
   }
 
-  private async installToken(token: string): Promise<void> {
+  private async installToken(token: string, principal: Principal): Promise<void> {
     await this.custody(async () => {
       this.ensureOpen();
       await this.saveToken(token);
-      await this.tokenStore?.savePrincipal?.(this.currentPrincipal ?? null, token);
+      try { await this.tokenStore?.savePrincipal?.(principal, token); }
+      catch (error) { throw this.storageRefusal("save principal", error); }
       // Commit replacement custody only after durable persistence succeeds,
       // but before close can prevent its in-memory installation. Predecessor
       // evidence may clear a failed save; it cannot erase a completed one.
@@ -1302,6 +1322,7 @@ class Client implements SnapbackClient {
       // future client restore, but never resurrect this closed instance.
       this.ensureOpen();
       this.currentToken = token;
+      this.currentPrincipal = principal;
     });
   }
 
@@ -1438,7 +1459,7 @@ class Client implements SnapbackClient {
   }
 
   private publishAuthSnapshot(): void {
-    this.patchSnapshot({ authGeneration: this.authGeneration, token: this.currentToken });
+    this.patchSnapshot({ authGeneration: this.authGeneration, token: this.currentToken, auth: this.authState.value });
   }
 
   private transportFailureState(): "reconnecting" | "offline" {
@@ -1451,6 +1472,7 @@ class Client implements SnapbackClient {
     if (patch.token === undefined && "token" in patch) delete next.token;
     if (patch.lastRefusal === undefined && "lastRefusal" in patch) delete next.lastRefusal;
     if (JSON.stringify(next) === JSON.stringify(this.currentSnapshot)) return this.currentSnapshot;
+    const connection = this.currentSnapshot.connection;
     this.currentSnapshot = next;
     for (const listener of this.statusListeners) {
       try {
@@ -1459,6 +1481,7 @@ class Client implements SnapbackClient {
         // Application observers cannot turn a validated client operation into a refusal.
       }
     }
+    if (!this.closed) this.authState.connectionChanged(connection, next.connection);
     return next;
   }
 }

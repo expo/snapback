@@ -267,6 +267,46 @@ test("real channel membership revocation ends the subscriber with a refusal", as
   bob.close();
 });
 
+test("a real stored session restores after a cut with identical snapshot views and no mounted query", async () => {
+  let token: string | null = null;
+  let binding: { token: string; principal: string } | null = null;
+  const tokenStore = { load: () => token, save: (value: string | null) => { token = value; },
+    loadPrincipalBinding: () => binding,
+    savePrincipal: (principal: string | null, bearer?: string) => { binding = principal && bearer ? { token: bearer, principal } : null; } };
+  const first = createClient({ url: owner.url, tokenStore });
+  const session = await first.auth.guest();
+  await first.close();
+  let cut = true;
+  const cold = createClient({ url: owner.url, tokenStore, fetch: async (input, init) => {
+    if (cut && String(input).endsWith("/api/auth/me")) throw new TypeError("restoration transport cut");
+    return fetch(input, init);
+  } });
+  const left: any[] = [], right: any[] = [];
+  const stopLeft = cold.subscribeStatus(snapshot => left.push(snapshot.auth));
+  const stopRight = cold.subscribeStatus(snapshot => right.push(snapshot.auth));
+  const waitForAuth = (predicate: (auth: typeof cold.snapshot.auth) => boolean) => new Promise<void>(resolve => {
+    const stop = cold.subscribeStatus(snapshot => { if (predicate(snapshot.auth)) { queueMicrotask(() => stop()); resolve(); } });
+  });
+  try {
+    await waitForAuth(auth => auth.retryAt !== undefined);
+    assert.equal(cold.snapshot.auth.state, "hydrating");
+    assert.equal(cold.snapshot.auth.restoringViewer, session.viewer);
+    assert.equal(cold.snapshot.auth.viewer, undefined);
+    assert.equal(token, session.token);
+    const recovered = waitForAuth(auth => auth.state === "authenticated");
+    cut = false;
+    await cold.offline(); await cold.online(); await recovered;
+    assert.equal(cold.snapshot.auth.viewer, session.viewer);
+    assert.equal(cold.snapshot.auth.restoringViewer, undefined);
+    assert.deepEqual(left, right);
+    const revoker = createClient({ url: owner.url, token: session.token });
+    try { await revoker.auth.logout(); } finally { await revoker.close(); }
+    await assert.rejects(cold.auth.me(), (error: any) => error.code === "E_AUTH_SESSION");
+    assert.equal(cold.snapshot.auth.state, "anonymous");
+    assert.equal(token, null);
+  } finally { stopLeft(); stopRight(); await cold.close(); }
+});
+
 test("serve mode refuses a persona-bound real client", async (context) => {
   if (!owner.owned) return context.skip("external SNAPBACK_URL does not grant mode control");
   await owner.stop();

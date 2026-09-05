@@ -225,14 +225,14 @@ test("replacing a supplied client clears authentication, mutations, and outbox r
     const promise = new Promise<any>((yes, no) => { resolve = yes; reject = no; });
     return { promise, resolve, reject };
   };
-  const alice = createClient({ url: "http://swap.test", as: "alice", fetch: fakeOwner().fetch });
-  const bob = createClient({ url: "http://swap.test", as: "bob", fetch: fakeOwner().fetch });
+  const bobMe = deferred(), aliceReady = deferred(), bobReady = deferred();
+  const owner = fakeOwner();
+  const alice = createClient({ url: "http://swap.test", as: "alice", fetch: owner.fetch });
+  const bob = createClient({ url: "http://swap.test", as: "bob", fetch: async (input, init) =>
+    String(input).endsWith("/api/auth/me") ? new Response(JSON.stringify(await bobMe.promise)) : owner.fetch(input, init) });
   await Promise.all([alice.ready, bob.ready]);
   assert.equal(alice.snapshot.authGeneration, bob.snapshot.authGeneration);
-  const bobMe = deferred(), aliceReady = deferred(), bobReady = deferred();
   const lateSuccess = deferred(), lateFailure = deferred(), bobMutation = deferred();
-  alice.auth.me = async () => ({ viewer: "dev:alice", kind: "dev" });
-  bob.auth.me = () => bobMe.promise;
   let delayAlice = false;
   let emitAlice!: (entries: any[]) => void;
   alice.outbox.subscribe = (callback) => { emitAlice = callback; callback([{ intent: "alice", op: "send", state: "queued" }]); return () => undefined; };

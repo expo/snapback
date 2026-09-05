@@ -259,6 +259,7 @@ test("native AssetImage waits for bearer bytes and keeps its source across callb
   const client = createClient({ url: "http://assets.test", tokenStore: { load: () => load, save: () => undefined },
     fetch: async (input, init) => {
       if (new URL(String(input)).pathname === "/api/manifest") return json(nativeManifest());
+      if (new URL(String(input)).pathname === "/api/auth/me") return json({ viewer: "alice", kind: "user" });
       assert.equal(new Headers(init?.headers).get("Authorization"), "Bearer restored");
       calls++;
       return new Response(new Uint8Array([4]), { headers: { "Content-Type": "image/png" } });

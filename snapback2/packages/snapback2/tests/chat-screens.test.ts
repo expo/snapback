@@ -1,3 +1,4 @@
+import "./auth-restoration.test.ts";
 import assert from "node:assert/strict";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -300,6 +301,7 @@ test("the composer is disabled until the inbox drain catches up and the first gr
     drain.close();
   } finally {
     await act(async () => { reactRoot.unmount(); });
+    await client?.close();
     restore();
     await rm(root, { recursive: true, force: true });
   }

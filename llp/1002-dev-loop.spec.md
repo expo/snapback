@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2` (the binary: owner, server, verbs), `snapback2/packages/compiler` (project lowering, worker), `snapback2/packages/snapback2` (authoring runtime, client, React, test runner, shim), `snapback2/scripts/measure.mjs`
 **Author:** Claude Fable 5 (orchestrator) — implementers: codex gpt-5.6-sol, lanes B0 (compiler + authoring surface), B1 (owner + server + verbs), B2 (`init`, `test`, `why`, `trace`, `guide`), D (client + React + evaluator)
 **Date:** 2026-08-29
-**Revised:** 2026-09-05 (shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
+**Revised:** 2026-09-05 (client-owned auth restoration and retry lifecycle, shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
 **Related:** LLP 1000, LLP 1001 (the engine this serves), LLP 1003 (effects),
 LLP 0329.016 §5 (the design this implements verbatim where it can), LLP
 0329.016 §5.11 (the verb table — no verb exists without its row), LLP
@@ -747,6 +747,30 @@ run signup, login, guest, or logout bearer transitions. `client.ready` settles t
 before any query, mutation, subscription, channel action, or `me` request can
 reach the network. Browser storage protects restart continuity, not XSS: code
 executing in the page origin can read a bearer held by browser JavaScript.
+
+`snapshot.auth` owns the single auth state machine for the client; all React,
+Expo, and React Native `useAuth()` instances render that snapshot. Its states
+are `hydrating`, `authenticated` with `viewer`, `anonymous`, and `refused` with
+a refusal envelope. A stored bearer starts restoration without a mounted hook;
+persona and tokenless clients keep their lazy first `me()` check. All callers
+join one in-flight `me()`. During hydrating, `restoringViewer` may show only a
+previously confirmed principal bound to the current token. It is display
+continuity, never fresh authorization or a reason to run an additional query;
+LLP 1012's partition, epoch, and coverage fences still decide offline reads.
+
+A transport-class restoration failure with a bearer stays hydrating, retains
+custody, and schedules retries after 1, 2, 4, 8, 16, then at most 30 seconds.
+`retryAt` is the next scheduled Unix time in milliseconds. A subsequent
+connection transition to `connected` or `reconnecting` retries immediately;
+connection changes caused by that auth request cannot trigger another attempt.
+Only `E_AUTH`, `E_AUTH_REQUIRED`, and `E_AUTH_SESSION` make a failed `me()`
+anonymous and clear custody (expiry still seals the offline partition). Other
+coded refusals remain refused and get one attempt per reconnect. Storage and
+protocol failures remain visible, without automatic retries. Logout, authority
+replacement, account switch, restart, and close stop timers and suppress old
+responses, including responses from a transport that ignores abort. Session
+replacement publishes its new viewer with its token and auth generation only
+after custody has settled.
 
 The client maintains a local monotonically increasing `authGeneration` that
 is never the server bearer or epoch. Signup, login, guest, logout, restore,
