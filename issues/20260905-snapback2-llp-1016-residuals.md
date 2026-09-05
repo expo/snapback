@@ -1,0 +1,38 @@
+# LLP 1016 implementation residuals — the non-blocking items left by the last blind review rounds
+
+**Status:** open · **Filed:** 2026-09-05 · **Systems:** `snapback2/crates/snapback2-core` (`jobs.rs`, `registry_jobs.rs`), `snapback2/crates/snapback2/src/{control.rs,control_run.rs,verbs_jobs.rs}`, `snapback2/packages/snapback2/guide/{job.md,families.source.json}`, `snapback2/metrics/jobs.jsonl` · **Related:** LLP 1016 §12, `llp/reviews/1016-administrative-plane.*` (the design panel), the implementation reviews under `~/projects/snapback-1016-impl/reviews/` (not committed)
+
+Every landing of the LLP 1016 program (J1a, J1b, J2, J3, their fix rounds, and the closing
+round) was reviewed blind by grok-4.6 and Muse Spark; every verdict was LAND or LAND WITH
+FIXES with no blocking defect. Fix rounds were capped at three per lane. These are the items
+the last rounds left, each small; the next lane that touches the named file takes them.
+
+## From the closing round's reviews (`reviews/closing-muse.md`, `reviews/closing-grok.md`)
+
+- **`reserve_new_ids` precedes the park path.** D3 now says the writer fails the owner only
+  when the park itself cannot be written, but `run_chunk_at` propagates a store fault from
+  `reserve_new_ids()` before any park is attempted (`registry_jobs.rs:~107`). Either scope the
+  D3 sentence ("or before the chunk's store handles exist") or park on that failure too.
+- **`wait` on `POST /control/job` is silently dropped** (`control.rs:~834` builds
+  `Action::EnqueueJob` without it; `requested_mode` never reads it) while `wait` with a
+  rehearsal is refused. Say in `guide/job.md` that `wait` is CLI-side polling only, or honour/
+  refuse it on the owner like the other flags.
+- **`shape_site` recovers the site by splitting the message** (`jobs.rs:~416`,
+  `" is not a chunk"`); a reworded `E_JOB_SHAPE` would install a sentence as the site. Thread
+  the site explicitly.
+- Minor: `shape_site` visibility (`pub(crate)`); the two relabelled `metrics/jobs.jsonl` lines
+  carry a synthetic `at` — prefer the original stamp plus the note; `control_run.rs` lacks an
+  `@ref` tag; LLP 1016 §12's closing sentence "Two were defects" should name them.
+
+### Added from grok's closing review
+
+- **The owner compile-timing test does not exercise the CLI's 35 s bound**: it talks through
+  `owner_wire::request_bytes`, whose socket read timeout is still 5 s, so a 6 s compile fails the
+  harness and a 34 s one is never observed. Give the harness the same `read_timeout(path, body)`
+  predicate the CLI uses, or time the compile through the real binary.
+- Carried over, out of every brief so far: `E_JOB_GENERATION`'s catalog site is `<job-id>` while
+  the refusal sites the job name; `quarry_signature` walks a `BTreeMap` (argument order is
+  alphabetical, not declared); `guide.rs` lists `"offline"` twice in `RECIPES`; project `check`
+  (not `--ir`) shortens certification rewrites to `{line}\n-- {message}`; zero-declaration
+  `--file` is untested; the watcher holds the shared compiler lock across a refusal; four
+  pre-existing `E_OP_KIND` sites in `writer*.rs` page `op/kind`/`auth`.

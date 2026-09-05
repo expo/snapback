@@ -1,11 +1,12 @@
 # LLP 1016: The administrative plane — jobs, schedules, and the operator seat for bounded data programs
 
 **Type:** RFC
-**Status:** Draft — revision (a) with the five decisions ruled and an
-implementer and dates (§9, §10); **in implementation** since 2026-09-05
-(author ruling: implement now, ahead of the loop bar; the trade is in
-`rules/NOT-DOING.md` §Moves). Binds lane by lane as each lands
-(`rules/RULES.md`: only implemented specs bind).
+**Status:** Implemented (2026-09-05) — every lane of §10 and its fix rounds
+are on `main` (§12 close-out); the operator seat, jobs, narrowing at
+application, schedules, and the rehearsal runtime bind. Still owed to LLP
+1015: hosted token admission on the operator routes (H0) and the MCP rows
+(H3). Author ruling 2026-09-05: implement now, ahead of the loop bar; the
+trade is in `rules/NOT-DOING.md` §Moves.
 **Systems:** `snapback2/packages/compiler` (the Quarry front end: `job`,
 `chunk`, `schedule … at`, `schedule … every`; the `system` rule word
 removed), `snapback2/crates/snapback2-core` (the operator execution
@@ -22,7 +23,7 @@ session, on a criticism made by a separate reviewing session the same day;
 revision (a) written at the author's instruction to take the panel's
 feedback into account with the orchestrator's own judgement
 **Date:** 2026-09-05
-**Revised:** 2026-09-05 (J2 fix round 1 — coalescing narrowed to queued/running, ceiling envelopes, the owner's clock at install and reset, schedule targets out of the client map, declared schedules listed at zero, the declaration site out of the hash; §12); 2026-09-05 (J2 — implementation record for D5 in §12: schedules, `_timers`, firing, the template's server-side expiry, the digest fixture); 2026-09-05 (a.1 — the five decisions ruled, the author having delegated them to the orchestrator; implementer, lanes, and dates written; the loop-bar sequencing overridden by author ruling); 2026-09-05 (a — the panel folded: one authority model for the
+**Revised:** 2026-09-05 (close-out — Status → Implemented; §12 program record); 2026-09-05 (J2 fix round 1 — coalescing narrowed to queued/running, ceiling envelopes, the owner's clock at install and reset, schedule targets out of the client map, declared schedules listed at zero, the declaration site out of the hash; §12); 2026-09-05 (J2 — implementation record for D5 in §12: schedules, `_timers`, firing, the template's server-side expiry, the digest fixture); 2026-09-05 (a.1 — the five decisions ruled, the author having delegated them to the orchestrator; implementer, lanes, and dates written; the loop-bar sequencing overridden by author ruling); 2026-09-05 (a — the panel folded: one authority model for the
 system principal and the `system` rule word deleted; the job is a sequence
 of sweeps over immutable keys under a captured upper key, with cursor and
 progress as certified engine writes; narrowing moved to successor
@@ -1627,3 +1628,40 @@ Muse, both LAND WITH FIXES with no blocking defect). What changed:
   `_commits.schedule` column holds the whole firing as one JSON document
   (deviation 3 above). Watch item, not changed: `tests/successor.rs` is at
   1,499 lines; the next lane touching it splits first.
+
+### Program close-out (2026-09-05)
+
+Commissioned at 04:30 and closed at 10:40 the same day. What is on `main`,
+in landing order: J1a `294ced838` (the seat, system visibility, the `system`
+word deleted, narrowing at application) with fix rounds `6e28b13ef` and
+`e5be770c6`; J1b `5f670fe5d` (jobs, the driver, the turn policy, `run`/`trace`
+surfaces, the `fork` and `persona create` adapters deleted) with fix round
+`87c8707de`; J3 `eed01f625` (the rehearsal runtime, `POST /control/run`) with
+fix round `60c93e5ae`; J2 `d3fdceb3c` (schedules) with fix round `91e9e76ed`;
+the closing round `900789adf`; LLP 1000 `f5a8b148b`. Every landing was reviewed
+blind by grok-4.6 and Muse Spark on a read-only capsule of the commit — twelve
+reviews in all — and every verdict was LAND or LAND WITH FIXES with no
+blocking defect; the items the last rounds left are
+`issues/20260905-snapback2-llp-1016-residuals.md`. Implementers: codex
+`gpt-6-astra` (xhigh) for J1a, its two fix rounds, and J1b; Claude Fable 5.1
+general-purpose agents for J2, J3, every later fix round, and the closing
+round, after codex's usage limit ended its J2 and J3 runs at eighteen and
+sixteen minutes (their partial trees were kept and corrected, not discarded).
+
+Measured, debug build on macOS arm64 unless stated (`snapback2/metrics/
+jobs.jsonl`, `timers.jsonl`): a 100,000-row fill in 11.5 s (budget 60 s);
+client mutation p95 during a fill 1.25× idle (budget 2×); one 100-row turn
+with 50 live queries rerun **26.4 ms in the release profile** — 2.6 ms commit,
+23.8 ms reruns — against the 30 ms budget (218 ms in debug, recorded beside
+it); row-timer lateness under 240 concurrent sends p99 56 ms (budget 1.5 s);
+the digest sweep over 1,000 profiles 0.023 s (budget 5 s); `--dry-run`
+overhead on a 105 MB store 0.113 s (budget 3 s); `check` on the chat fixture
+with two jobs 0.49–0.57 s (budget 1 s). Gate on the final tree: nextest
+603/603 (four media-helper watchdog tests flake at 5 s under a loaded gate and
+pass alone), compiler 321/321, evaluator 162/162, package tests 301/301.
+
+Three things the reviews found that the design had not: the pre-J1a wire
+silently minted a `dev:system` persona for `X-Snapback-As: system`; a string
+`"true"` in `dryRun` ran a job for real on two routes; and the schedule's
+first customer, `purgeMessage`, was still a client-callable mutation — the
+deleted client trigger under another name. All three are fixed and tested.
