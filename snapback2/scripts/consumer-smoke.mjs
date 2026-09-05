@@ -111,7 +111,10 @@ export function packDevelopmentConsumer(root, binary) {
   try {
     const shim = resolve(directory, 'shim');
     mkdirSync(shim);
-    for (const file of ['package.json', 'README.md', 'bin', 'dist']) cpSync(resolve(source, file), resolve(shim, file), { recursive: true });
+    for (const file of ['package.json', 'README.md', ...pkg.files]) {
+      mkdirSync(dirname(resolve(shim, file)), { recursive: true });
+      cpSync(resolve(source, file), resolve(shim, file), { recursive: true });
+    }
     const platform = resolve(directory, name);
     mkdirSync(resolve(platform, 'bin'), { recursive: true });
     copyFileSync(binary, resolve(platform, 'bin/snapback2'));

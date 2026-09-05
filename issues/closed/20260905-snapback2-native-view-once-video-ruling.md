@@ -1,6 +1,6 @@
 # Snapback 2: native view-once video needs a playback path (author ruling)
 
-Status: Open (author ruling)
+Status: Closed — native memory player implemented
 Filed: 2026-09-05 (LLP 1013 landing 9)
 Related: LLP 1013 §2 decision 7 (amended), LLP 1012 §9, `rules/NOT-DOING.md`
 
@@ -32,3 +32,26 @@ their file URI; the web arm plays view-once video from an object URL of the admi
 An admission that hands bytes to a renderer which then fails to decode still counts as viewed
 on the web arm (durable admission on the play request; fail-closed). Native cannot reach that
 state in v1 (the refusal is before admission). Revisit with the ruling.
+
+## Resolution — 2026-09-05
+
+The author requested playback be fixed. Snapback now bundles an autolinked
+Expo native view: AVAssetResourceLoaderDelegate on iOS, MediaDataSource on
+Android. MP4 bytes stay in memory; a successful durable viewing admission
+precedes playback. Completion, unmount, backgrounding and loss of custody
+release the native player. Missing native code refuses before admission.
+
+Verification: the iPhone 17 simulator passed all ten existing witness steps,
+including actual playback, whole-container private-media scans, and cold
+reopen denial after SIGKILL. A headless Android API 36.1 emulator played the
+clip, reported viewed=true with no file, passed the private-directory media
+scan, and denied reopening. The Android probe used a release-compiled app
+with debuggability enabled solely for run-as inspection; it is a video
+probe, not the full Android witness or Clique benchmark. Both native modules
+compile. Focused tests cover tap-before-fetch, native event shape, failed
+viewed commits, missing module, completion, unmount and custody sealing.
+
+Android qualification also exposed Expo SDK 54's NUL-byte body for an empty
+POST. The shared live handshake now sends `{}` and its real-owner test pins
+that body. Rebuild the Expo app/development client to install the module;
+Expo Go does not contain it. This change has not been published to npm.

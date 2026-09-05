@@ -229,3 +229,42 @@ test("both byte consumers suppress a view-once fetch whose row is tombstoned bef
     } finally { gate.resolve(); await f.close(); }
   }
 });
+
+for (const failure of ["missing-module", "commit", "seal", "unmount"] as const) {
+  test(`view-once native video protects admission and memory on ${failure}`, async () => {
+    const f = await nativeFixture({ once: true, mediaType: "video/mp4" });
+    await f.store.commit({ deliveries: [delivery("clip", clip)] });
+    const harness = (globalThis as any).__snapbackNative;
+    harness.memoryVideoMissing = failure === "missing-module";
+    const refusals: any[] = [];
+    let renderer: ReactTestRenderer | undefined;
+    try {
+      if (failure === "commit") f.hooks.failCommit = true;
+      renderer = await mount(f, React.createElement(AssetVideo, { asset: clip, autoPlay: true, onRefusal: error => refusals.push(error) }));
+      if (failure === "missing-module" || failure === "commit") {
+        await until(() => refusals.length > 0);
+        assert.equal(renderer.root.findAllByType("NativeMemoryVideo").length, 0);
+        assert.equal(await f.client.assetCache!.viewed(clip.id), false);
+        if (failure === "missing-module") assert.equal(f.requests.length, 0);
+      } else {
+        await until(() => renderer!.root.findAllByType("NativeMemoryVideo").length === 1);
+        assert.equal(await f.client.assetCache!.viewed(clip.id), true);
+        if (failure === "seal") {
+          await act(async () => f.store.seal());
+          await until(() => renderer!.root.findAllByType("NativeMemoryVideo").length === 0);
+        } else {
+          await act(async () => renderer!.unmount());
+          renderer = await mount(f, React.createElement(AssetVideo, { asset: clip, autoPlay: true }));
+          for (let i = 0; i < 10; i++) await tick();
+          assert.equal(renderer.root.findAllByType("NativeMemoryVideo").length, 0);
+          assert.equal(f.requests.length, 1);
+        }
+      }
+      assert.deepEqual(f.writes, []);
+    } finally {
+      f.hooks.failCommit = false; harness.memoryVideoMissing = false;
+      if (renderer) await act(async () => renderer!.unmount());
+      await f.close();
+    }
+  });
+}

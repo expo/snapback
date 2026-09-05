@@ -50,3 +50,14 @@ rebuilt the same `dist/`; its failed measurement remains in the append-only
 loop log. The subsequent standalone `measure.mjs --check` passed every
 step, including installed-consumer qualification. Package builds and packing
 must run sequentially within one worktree.
+
+## Native memory-player repair — 2026-09-05
+
+The final broad run passed 508 Rust tests, 160 evaluator cases, and 304
+compiler checks. Package tests passed 300/301: the unchanged real-session
+recovery test exhausted its 100 short manifest polls before `recovery.page`
+was installed and then received E_OP_UNKNOWN. Its separate run passed all
+10 tests, with the real-session case taking 4.961 seconds. Native builds
+were running concurrently with the broad run. The earlier run stopped on
+a guide-size error introduced while editing; the guide is back below its
+4,096-byte limit and the native rebuild instructions live in the README.

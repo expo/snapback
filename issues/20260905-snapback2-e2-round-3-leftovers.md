@@ -31,3 +31,11 @@ three. What stayed open, each small and bounded:
 7. **All-private-bytes `no-store`** (Muse material 4): the owner cannot tell an ordinary row
    from a one-use one at the byte endpoint; a delivery proof that carries the policy would
    restore caching for ordinary private media.
+
+8. **Android ordinary-image witness remains unqualified (2026-09-05).** During
+   the native memory-video repair, the API 36.1 emulator received the ordinary
+   PNG file source but the host timed out awaiting the image's loaded witness.
+   The subsequent video-only probe passed actual playback, private-directory
+   no-media scanning and reopen denial. Investigate the ordinary image decode
+   and onLoad witness before claiming the full Android media run; this is not
+   a claim that the native image itself was proven broken.

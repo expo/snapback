@@ -113,7 +113,8 @@ export class SharedSse {
 
   private async read(connection: Connection): Promise<void> {
     const response = await this.fetch(`${this.url}/api/live`, {
-      method: "POST", headers: connection.headers, signal: connection.abort.signal,
+      // Expo Android represents a body-less POST as a NUL byte; send valid JSON.
+      method: "POST", body: "{}", headers: connection.headers, signal: connection.abort.signal,
     });
     if (!response.ok) {
       const error = await responseRefusal(response);

@@ -125,3 +125,18 @@ With `SNAPBACK_URL` unset, the harness builds the chat fixture with the bundled
 compiler, starts `target/debug/snapback2 dev --foreground` on an ephemeral port,
 and exports its URL to the suite. To use an already-running compatible owner, set
 `SNAPBACK_URL=http://127.0.0.1:<port>` instead.
+
+### Native view-once video
+
+`AssetVideo` from `snapback2/expo` or `snapback2/react-native` shows Play for
+view-once clips. A tap (or explicit `autoPlay`) fetches and durably admits the
+view before giving MP4 bytes to the native memory player. No temporary file
+is created. Completion, unmount, backgrounding, or loss of custody stops
+playback; an admitted clip cannot be reopened. Decoder failure after
+admission does not restore the allowance.
+
+Rebuild the Expo app/development client after installing this version so
+Expo autolinks Snapback's memory player: `npx expo run:ios` or
+`npx expo run:android` (existing iOS projects also need `npx pod-install`).
+Expo Go lacks the module and refuses before fetching or consuming a clip.
+Ordinary videos continue to use `expo-video`.

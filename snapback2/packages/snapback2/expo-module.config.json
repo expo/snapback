@@ -1,0 +1,5 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": { "modules": ["SnapbackMemoryVideoModule"] },
+  "android": { "modules": ["expo.modules.snapback2.SnapbackMemoryVideoModule"] }
+}

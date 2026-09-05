@@ -88,7 +88,7 @@ test("MediaView ordinary onLoad waits for its file source; undefined source repo
   } finally { held.resolve(); if (renderer) await act(async () => renderer.unmount()); await f.close(); }
 });
 
-test("MediaView remount of a viewed photo supplies no source; view-once video refuses without consumption", async () => {
+test("MediaView observes native video playback and cannot reopen a viewed photo or video", async () => {
   const f = await nativeFixture({ once: true }); const results: any[] = [];
   let renderer!: ReturnType<typeof TestRenderer.create>;
   const view = (asset, nonce, hidden = false) => React.createElement(SnapbackProvider, { client: f.client },
@@ -102,13 +102,15 @@ test("MediaView remount of a viewed photo supplies no source; view-once video re
     assert.equal(renderer.root.findByType("NativeImage").props.source, undefined); assert.equal(results.at(-1).loaded, false);
     await f.store.commit({ deliveries: [delivery("video", clip)] });
     f.requests.length = 0;
-    await act(async () => renderer.update(view(clip, 3))); await until(() => results.some((value) => value.refusal?.code === "E_ASSET_TYPE"));
-    assert.equal(results.at(-1).loaded, false); assert.equal(results.at(-1).uri, undefined);
-    assert.equal(await f.client.assetCache!.viewed(clip.id), false);
-    assert.equal(f.requests.length, 0); assert.deepEqual(f.writes, []); assert.equal(f.data.size, 0);
+    await act(async () => renderer.update(view(clip, 3)));
+    await until(() => renderer.root.findAllByType("NativeMemoryVideo").length === 1);
+    await act(async () => renderer.root.findByType("NativeMemoryVideo").props.onPlaybackStart({ nativeEvent: {} }));
+    assert.equal(results.at(-1).loaded, true); assert.equal(results.at(-1).playing, true);
+    assert.equal(await f.client.assetCache!.viewed(clip.id), true);
+    assert.equal(f.requests.length, 1); assert.deepEqual(f.writes, []); assert.equal(f.data.size, 0);
     await act(async () => renderer.update(view(clip, 4, true))); await until(() => results.length === 4);
-    assert.equal(results.at(-1).refusal?.code, "E_ASSET_TYPE");
-    assert.equal(await f.client.assetCache!.viewed(clip.id), false); assert.equal(f.requests.length, 0);
+    assert.equal(results.at(-1).loaded, false); assert.equal(results.at(-1).uri, undefined);
+    assert.equal(await f.client.assetCache!.viewed(clip.id), true); assert.equal(f.requests.length, 1);
   } finally { if (renderer) await act(async () => renderer.unmount()); await f.close(); }
 });
 

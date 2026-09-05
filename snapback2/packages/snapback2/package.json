@@ -48,7 +48,11 @@
   },
   "files": [
     "bin",
-    "dist"
+    "dist",
+    "ios",
+    "expo-module.config.json",
+    "android/build.gradle",
+    "android/src"
   ],
   "scripts": {
     "build": "node build.mjs",
