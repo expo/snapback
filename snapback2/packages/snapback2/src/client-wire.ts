@@ -224,7 +224,7 @@ function authEpoch(record: Record<string, unknown>, surface: string): { authEpoc
 
 export function wireAuthSession(value: unknown, surface: string): AuthSession {
   const record = wireObject(value, surface);
-  return { token: stringField(record, "token", surface), viewer: stringField(record, "viewer", surface) as Principal, ...authEpoch(record, surface) };
+  return { token: stringField(record, "token", surface), viewer: stringField(record, "viewer", surface) as Principal, kind: stringField(record, "kind", surface), ...authEpoch(record, surface) };
 }
 
 export function wireAuthMe(value: unknown): AuthMe {

@@ -140,7 +140,7 @@ export interface Subscription<Event> {
   until(predicate: (event: Event) => boolean, timeoutMs?: number): Promise<Event>;
 }
 
-export interface AuthSession { token: string; viewer: Principal; authEpoch?: number }
+export interface AuthSession extends AuthMe { token: string }
 export interface AuthMe { viewer: Principal; kind: string; authEpoch?: number }
 export interface AuthApi {
   signup(input: { email: string; password: string }): Promise<AuthSession>;
@@ -218,9 +218,21 @@ export type AssetInput<Value> =
             : Value;
 
 export type ConnectionState = "connected" | "reconnecting" | "offline";
+export interface AuthSnapshot {
+  state: "hydrating" | "authenticated" | "anonymous" | "refused";
+  viewer?: Principal;
+  kind?: string;
+  authEpoch?: number;
+  /** Previously confirmed for this token; display only, never fresh authorization. */
+  restoringViewer?: Principal;
+  refusal?: RefusalEnvelope;
+  /** Unix milliseconds; present only while a restoration retry is scheduled. */
+  retryAt?: number;
+}
 export interface ClientSnapshot {
   /** Client-local cache/transport partition; never a server bearer or epoch. */
   authGeneration: number;
+  auth: AuthSnapshot;
   token?: string;
   persona?: string;
   connection: ConnectionState;

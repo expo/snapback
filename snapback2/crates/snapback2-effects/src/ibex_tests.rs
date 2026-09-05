@@ -87,10 +87,11 @@ impl TestServer {
     }
 
     fn start_redirecting_to(location: String) -> Self {
-        Self::start_with("", Some(location))
+        Self::start_with("", Some((302, location)))
     }
 
-    fn start_with(reply: &'static str, redirect_to: Option<String>) -> Self {
+    // Redirect only /start; every other path serves reply, including the next hop.
+    fn start_with(reply: &'static str, redirect_to: Option<(u16, String)>) -> Self {
         let listener = TcpListener::bind("127.0.0.1:0").expect("bind loopback server");
         let port = listener.local_addr().unwrap().port();
         let hits = Arc::new(Mutex::new(Vec::new()));
@@ -98,6 +99,9 @@ impl TestServer {
         std::thread::spawn(move || {
             for stream in listener.incoming() {
                 let Ok(mut stream) = stream else { break };
+                stream
+                    .set_read_timeout(Some(Duration::from_secs(2)))
+                    .unwrap();
                 let mut raw = Vec::new();
                 let mut buffer = [0_u8; 4096];
                 loop {
@@ -105,25 +109,29 @@ impl TestServer {
                         Ok(0) => break,
                         Ok(read) => {
                             raw.extend_from_slice(&buffer[..read]);
-                            if raw.windows(4).any(|window| window == b"\r\n\r\n") {
-                                break;
+                            if let Some(end) =
+                                raw.windows(4).position(|window| window == b"\r\n\r\n")
+                            {
+                                let headers = String::from_utf8_lossy(&raw[..end]);
+                                let length = request_header(&headers, "content-length")
+                                    .map(|value| value.parse::<usize>().unwrap())
+                                    .unwrap_or(0);
+                                if raw.len() >= end + 4 + length {
+                                    break;
+                                }
                             }
                         }
                         Err(_) => break,
                     }
                 }
-                recorded.lock().unwrap().push(
-                    String::from_utf8_lossy(&raw)
-                        .lines()
-                        .next()
-                        .unwrap_or("")
-                        .to_owned(),
-                );
+                let request = String::from_utf8_lossy(&raw).into_owned();
+                let start = request.lines().next().unwrap_or("").contains(" /start ");
+                recorded.lock().unwrap().push(request);
                 let response = match &redirect_to {
-                    Some(location) => format!(
-                        "HTTP/1.1 302 Found\r\nLocation: {location}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                    Some((status, location)) if start => format!(
+                        "HTTP/1.1 {status} Redirect\r\nLocation: {location}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
                     ),
-                    None => format!(
+                    _ => format!(
                         "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
                         reply.len(),
                         reply
@@ -139,6 +147,43 @@ impl TestServer {
     fn origin(&self) -> String {
         format!("http://127.0.0.1:{}", self.port)
     }
+}
+
+fn request_header<'a>(request: &'a str, name: &str) -> Option<&'a str> {
+    request
+        .split("\r\n\r\n")
+        .next()
+        .unwrap()
+        .lines()
+        .skip(1)
+        .find_map(|line| {
+            let (key, value) = line.split_once(':')?;
+            key.eq_ignore_ascii_case(name).then(|| value.trim())
+        })
+}
+
+fn assert_content_type(request: &str, expected: Option<&str>) {
+    let block = request.split_once("\r\n\r\n").unwrap().0;
+    assert!(
+        !block
+            .to_ascii_lowercase()
+            .contains("application/x-www-form-urlencoded"),
+        "unexpected transport default: {request}"
+    );
+    let values: Vec<_> = block
+        .lines()
+        .skip(1)
+        .filter_map(|line| {
+            let (name, value) = line.split_once(':')?;
+            name.eq_ignore_ascii_case("content-type")
+                .then(|| value.trim())
+        })
+        .collect();
+    assert_eq!(
+        values,
+        expected.into_iter().collect::<Vec<_>>(),
+        "{request}"
+    );
 }
 
 fn declaration(source: &str, grants: Vec<String>) -> EffectDecl {
@@ -189,6 +234,485 @@ fn loopback_fetch_returns_the_response_body() {
         sent(json!({ "body": "hello from effect", "id": "fetch-1", "attempt": 1 }))
     );
     assert_eq!(server.hits.lock().unwrap().len(), 1);
+}
+
+#[test]
+fn fetch_delivers_authored_headers_in_every_headers_init_form() {
+    let server = TestServer::start("ok");
+    for form in ["record", "pairs", "headers", "iterable"] {
+        let decl = declaration(
+            r#"async (payload, { fetch, meta }) => {
+              const pairs = [['Content-Type', 'application/json'], ['Idempotency-Key', meta.id],
+                ['Authorization', 'Bearer token'], ['X-Joined', ' one '], ['x-joined', 'two']];
+              let headers;
+              if (payload.form === 'record') headers = Object.fromEntries(pairs);
+              else if (payload.form === 'headers') headers = new Headers(pairs);
+              else if (payload.form === 'iterable') headers = { *[Symbol.iterator]() { yield* pairs; } };
+              else headers = pairs;
+              const pending = fetch(payload.url, { method: 'POST', headers, body: '{"hello":"world"}' });
+              if (payload.form === 'record') headers['Authorization'] = 'changed';
+              else if (payload.form === 'headers') headers.set('authorization', 'changed');
+              else pairs[2][1] = 'changed';
+              const body = await (await pending).text();
+              return { body, caller: payload.form === 'headers' ? headers.get('authorization') : 'changed' };
+            }"#,
+            vec![server.origin()],
+        );
+        assert_eq!(
+            Ibex2Host::new().unwrap().run(
+                &decl,
+                &job(
+                    "headers-1",
+                    json!({ "url": server.origin() + "/push", "form": form })
+                ),
+                Duration::from_secs(3),
+            ),
+            sent(json!({ "body": "ok", "caller": "changed" })),
+        );
+        let request = server.hits.lock().unwrap().last().unwrap().clone();
+        println!("{form} request:\n{request}");
+        assert!(request.starts_with("POST /push HTTP/1.1\r\n"));
+        assert_content_type(&request, Some("application/json"));
+        for (name, value) in [
+            ("idempotency-key", "headers-1"),
+            ("authorization", "Bearer token"),
+            ("x-joined", "one, two"),
+        ] {
+            assert_eq!(
+                request_header(&request, name),
+                Some(value),
+                "{form}: {request}"
+            );
+        }
+        assert_eq!(
+            request.split_once("\r\n\r\n").unwrap().1,
+            r#"{"hello":"world"}"#
+        );
+    }
+    assert_eq!(server.hits.lock().unwrap().len(), 4);
+}
+
+#[test]
+fn fetch_string_body_defaults_to_text_plain_without_overriding_authored_type() {
+    let server = TestServer::start("ok");
+    for redirect in ["follow", "manual", "error"] {
+        for authored in [false, true] {
+            let decl = declaration(
+                "async (p, { fetch }) => (await fetch(p.url, { method: 'POST', body: p.authored ? '{\"body\":true}' : 'hello', headers: p.authored ? { 'Content-Type': 'application/json' } : undefined, redirect: p.redirect })).text()",
+                vec![server.origin()],
+            );
+            let payload = json!({ "url": server.origin() + "/body", "redirect": redirect, "authored": authored });
+            assert_eq!(
+                Ibex2Host::new().unwrap().run(
+                    &decl,
+                    &job("plain", payload),
+                    Duration::from_secs(3)
+                ),
+                sent(json!("ok"))
+            );
+            let request = server.hits.lock().unwrap().last().unwrap().clone();
+            println!("{redirect} authored={authored} request:\n{request}");
+            assert_content_type(
+                &request,
+                Some(if authored {
+                    "application/json"
+                } else {
+                    "text/plain;charset=UTF-8"
+                }),
+            );
+            assert_eq!(
+                request.split_once("\r\n\r\n").unwrap().1,
+                if authored {
+                    r#"{"body":true}"#
+                } else {
+                    "hello"
+                }
+            );
+        }
+    }
+    assert_eq!(server.hits.lock().unwrap().len(), 6);
+}
+
+#[test]
+fn fetch_redirect_preserves_or_drops_the_default_string_content_type() {
+    for status in [307, 303] {
+        let server = TestServer::start_with("ok", Some((status, "/end".to_owned())));
+        let decl = declaration(
+            "async (p, { fetch }) => (await fetch(p.url, { method: 'POST', body: 'hello' })).text()",
+            vec![server.origin()],
+        );
+        assert_eq!(
+            Ibex2Host::new().unwrap().run(
+                &decl,
+                &job(
+                    "plain-redirect",
+                    json!({ "url": server.origin() + "/start" })
+                ),
+                Duration::from_secs(3)
+            ),
+            sent(json!("ok"))
+        );
+        let hits = server.hits.lock().unwrap();
+        assert_eq!(hits.len(), 2);
+        for (hop, request) in hits.iter().enumerate() {
+            println!("{status} default hop {hop}:\n{request}");
+            let dropped = status == 303 && hop == 1;
+            let method = if dropped { "GET" } else { "POST" };
+            let path = if hop == 0 { "/start" } else { "/end" };
+            assert!(
+                request.starts_with(&format!("{method} {path} HTTP/1.1\r\n")),
+                "{request}"
+            );
+            assert_content_type(
+                request,
+                if dropped {
+                    None
+                } else {
+                    Some("text/plain;charset=UTF-8")
+                },
+            );
+            assert_eq!(
+                request_header(request, "content-length"),
+                if dropped { None } else { Some("5") }
+            );
+            assert_eq!(
+                request.split_once("\r\n\r\n").unwrap().1,
+                if dropped { "" } else { "hello" }
+            );
+        }
+    }
+}
+
+#[test]
+fn fetch_redirect_matrix_preserves_or_drops_method_body_and_headers() {
+    for status in [301, 302, 303, 307, 308] {
+        for method in ["POST", "PUT", "GET", "HEAD"] {
+            let server = TestServer::start_with("", Some((status, "/end".to_owned())));
+            let decl = declaration(
+                r#"async (p, { fetch }) => {
+                  const headers = { 'Content-Type': 'application/json', 'Content-Length': '999',
+                    'Content-Encoding': 'identity', 'Content-Language': 'en', 'Content-Location': '/body',
+                    'Authorization': 'Bearer token', 'Proxy-Authorization': 'Basic proxy', 'Cookie': 'session=secret',
+                    'Idempotency-Key': 'redirect-key' };
+                  const response = await fetch(p.url, { method: p.method, headers,
+                    body: p.method === 'GET' || p.method === 'HEAD' ? undefined : '{"body":true}' });
+                  await response.text();
+                  return { status: response.status, redirected: response.redirected };
+                }"#,
+                vec![server.origin()],
+            );
+            assert_eq!(
+                Ibex2Host::new().unwrap().run(
+                    &decl,
+                    &job(
+                        "redirect",
+                        json!({ "url": server.origin() + "/start", "method": method })
+                    ),
+                    Duration::from_secs(3)
+                ),
+                sent(json!({ "status": 200, "redirected": true }))
+            );
+            let hits = server.hits.lock().unwrap();
+            assert_eq!(hits.len(), 2);
+            let request = &hits[1];
+            println!("{status} {method} redirected request:\n{request}");
+            let drop_body = (status == 303 && method != "GET" && method != "HEAD")
+                || ((status == 301 || status == 302) && method == "POST");
+            let expected_method = if drop_body { "GET" } else { method };
+            assert!(
+                request.starts_with(&format!("{expected_method} /end HTTP/1.1\r\n")),
+                "{request}"
+            );
+            for (name, value) in [
+                ("content-type", "application/json"),
+                ("content-encoding", "identity"),
+                ("content-language", "en"),
+                ("content-location", "/body"),
+            ] {
+                assert_eq!(
+                    request_header(request, name),
+                    if drop_body { None } else { Some(value) },
+                    "{request}"
+                );
+            }
+            let authored_body = method != "GET" && method != "HEAD";
+            assert_eq!(
+                request_header(&hits[0], "content-length"),
+                if authored_body { Some("13") } else { None },
+                "{}",
+                hits[0]
+            );
+            assert_eq!(
+                request_header(request, "content-length"),
+                if authored_body && !drop_body {
+                    Some("13")
+                } else {
+                    None
+                },
+                "{request}"
+            );
+            for (name, value) in [
+                ("authorization", "Bearer token"),
+                ("proxy-authorization", "Basic proxy"),
+                ("cookie", "session=secret"),
+                ("idempotency-key", "redirect-key"),
+            ] {
+                assert_eq!(request_header(request, name), Some(value), "{request}");
+            }
+            let expected_body = if drop_body || method == "GET" || method == "HEAD" {
+                ""
+            } else {
+                r#"{"body":true}"#
+            };
+            assert_eq!(request.split_once("\r\n\r\n").unwrap().1, expected_body);
+        }
+    }
+}
+
+#[test]
+fn fetch_cross_origin_redirect_strips_credentials_and_checks_each_grant() {
+    for status in [302, 303, 307] {
+        for granted in [false, true] {
+            let destination = TestServer::start("ok");
+            let redirector =
+                TestServer::start_with("", Some((status, destination.origin() + "/end")));
+            let mut grants = vec![redirector.origin()];
+            if granted {
+                grants.push(destination.origin());
+            }
+            let decl = declaration(
+                r#"async (p, { fetch }) => {
+              const headers = new Headers({ Authorization: 'Bearer token', 'Proxy-Authorization': 'Basic proxy',
+                Cookie: 'session=secret', 'Content-Type': 'application/json', 'Idempotency-Key': 'cross-key',
+                'Content-Length': '999', 'Content-Encoding': 'identity', 'Content-Language': 'en', 'Content-Location': '/body' });
+              const pending = fetch(p.url, { method: 'POST', headers, body: '{"cross":true}' });
+              headers.set('authorization', 'changed');
+              try { return { body: await (await pending).text(), caller: headers.get('authorization') }; }
+              catch (error) { return { code: error.code, origin: error.origin, caller: headers.get('authorization') }; }
+            }"#,
+                grants,
+            );
+            let expected = if granted {
+                json!({ "body": "ok", "caller": "changed" })
+            } else {
+                json!({ "code": "E_EFFECT_GRANT", "origin": destination.origin(), "caller": "changed" })
+            };
+            assert_eq!(
+                Ibex2Host::new().unwrap().run(
+                    &decl,
+                    &job("cross", json!({ "url": redirector.origin() + "/start" })),
+                    Duration::from_secs(3)
+                ),
+                sent(expected)
+            );
+            let initial_hits = redirector.hits.lock().unwrap();
+            assert_eq!(initial_hits.len(), 1);
+            let initial = &initial_hits[0];
+            assert!(initial.starts_with("POST /start HTTP/1.1\r\n"), "{initial}");
+            assert_eq!(
+                initial.split_once("\r\n\r\n").unwrap().1,
+                r#"{"cross":true}"#
+            );
+            for (name, value) in [
+                ("authorization", "Bearer token"),
+                ("proxy-authorization", "Basic proxy"),
+                ("cookie", "session=secret"),
+                ("content-type", "application/json"),
+                ("content-length", "14"),
+                ("content-encoding", "identity"),
+                ("content-language", "en"),
+                ("content-location", "/body"),
+                ("idempotency-key", "cross-key"),
+            ] {
+                assert_eq!(request_header(initial, name), Some(value), "{initial}");
+            }
+            let hits = destination.hits.lock().unwrap();
+            assert_eq!(hits.len(), usize::from(granted));
+            if granted {
+                let request = &hits[0];
+                println!(
+                    "{status} cross-origin first request:\n{initial}\ncross-origin redirected request:\n{request}"
+                );
+                let dropped = status != 307;
+                let method = if dropped { "GET" } else { "POST" };
+                assert!(
+                    request.starts_with(&format!("{method} /end HTTP/1.1\r\n")),
+                    "{request}"
+                );
+                for name in ["authorization", "proxy-authorization", "cookie"] {
+                    assert_eq!(request_header(request, name), None, "{request}");
+                }
+                for (name, value) in [
+                    ("content-type", "application/json"),
+                    ("content-length", "14"),
+                    ("content-encoding", "identity"),
+                    ("content-language", "en"),
+                    ("content-location", "/body"),
+                ] {
+                    assert_eq!(
+                        request_header(request, name),
+                        if dropped { None } else { Some(value) },
+                        "{request}"
+                    );
+                }
+                assert_eq!(
+                    request_header(request, "idempotency-key"),
+                    Some("cross-key")
+                );
+                assert_eq!(
+                    request.split_once("\r\n\r\n").unwrap().1,
+                    if dropped { "" } else { r#"{"cross":true}"# }
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn fetch_keeps_headers_constructible_after_many_host_requests() {
+    let server = TestServer::start("ok");
+    let decl = declaration(
+        r#"async (p, { fetch }) => {
+          const first = new Headers({ 'X-Caller': 'before' });
+          for (let i = 0; i < 64; i++) {
+            const response = await fetch(p.url, { headers: first });
+            if (await response.text() !== 'ok') throw new Error('wrong response');
+          }
+          const second = new Headers({ 'X-Caller': 'after' });
+          first.set('X-Caller', 'still alive');
+          return { first: first.get('x-caller'), second: second.get('x-caller') };
+        }"#,
+        vec![server.origin()],
+    );
+    assert_eq!(
+        Ibex2Host::new().unwrap().run(
+            &decl,
+            &job("many-fetches", json!({ "url": server.origin() + "/body" })),
+            Duration::from_secs(5)
+        ),
+        sent(json!({ "first": "still alive", "second": "after" }))
+    );
+    let hits = server.hits.lock().unwrap();
+    assert_eq!(hits.len(), 64);
+    for request in hits.iter() {
+        assert_eq!(
+            request_header(request, "x-caller"),
+            Some("before"),
+            "{request}"
+        );
+    }
+}
+
+#[test]
+fn fetch_invalid_headers_refuse_before_a_request() {
+    let server = TestServer::start("must not arrive");
+    let mut host = Ibex2Host::new().unwrap();
+    for (name, value) in [
+        ("x-test", "bad\r\ninjection"),
+        ("x-test", "bad\0value"),
+        ("x-test", "\u{100}"),
+        ("bad name", "value"),
+    ] {
+        let decl = declaration(
+            "async (p, { fetch }) => { try { await fetch(p.url, { headers: [[p.name, p.value]] }); return 'sent'; } catch (e) { return { message: e.message, typeError: e instanceof TypeError }; } }",
+            vec![server.origin()],
+        );
+        let outcome = host.run(
+            &decl,
+            &job(
+                "invalid",
+                json!({ "url": server.origin(), "name": name, "value": value }),
+            ),
+            Duration::from_secs(3),
+        );
+        assert!(
+            matches!(outcome, Outcome::Sent { ref result, .. } if result["typeError"] == true && result["message"].as_str().unwrap().contains("Invalid header")),
+            "{outcome:?}"
+        );
+    }
+    assert!(server.hits.lock().unwrap().is_empty());
+}
+
+#[test]
+fn fetch_invalid_redirect_mode_cannot_enter_the_raw_follower() {
+    let server = TestServer::start("must not arrive");
+    let decl = declaration(
+        "async (p, { fetch }) => { try { await fetch(p.url, { redirect: 'invalid' }); return 'sent'; } catch (e) { return { typeError: e instanceof TypeError, message: e.message }; } }",
+        vec![server.origin()],
+    );
+    let outcome = Ibex2Host::new().unwrap().run(
+        &decl,
+        &job("invalid-redirect", json!({ "url": server.origin() })),
+        Duration::from_secs(3),
+    );
+    assert_eq!(
+        outcome,
+        sent(json!({ "typeError": true, "message": "Invalid redirect mode" }))
+    );
+    assert!(server.hits.lock().unwrap().is_empty());
+}
+
+#[test]
+fn fetch_releases_only_its_own_header_snapshots_on_every_exit() {
+    let mut runtime = Hermes::new(DynamicCode::Closed).unwrap();
+    assert!(runtime.install_stdlib());
+    runtime.eval(SAVE_FETCH_ACCESSORS).unwrap();
+    runtime.install_bindings().unwrap();
+    // Observe the real free op from the same trusted bootstrap stage used by
+    // the host. The raw stub isolates settlement from the transport itself.
+    runtime
+        .eval(
+            r#"
+      globalThis.released = [];
+      const free = __sb_saved.freeHeaders;
+      __sb_saved.freeHeaders = function (handle) { released.push(handle); free(handle); };
+      globalThis.__ibex2_text_decode = __sb_saved.decode;
+      globalThis.__ibex2_response_field = function (handle, field) {
+        if (field === 0) return handle === 307 ? 307 : 200;
+        if (field === 1) return handle !== 307;
+        if (field === 2) return 'http://127.0.0.1/start';
+        if (field === 7) return handle === 307 ? '[["location","/end"]]' : '[]';
+        return false;
+      };
+    "#,
+        )
+        .unwrap();
+    runtime
+        .eval(&format!("globalThis.factory = {FETCH_FACTORY};"))
+        .unwrap();
+    runtime.eval(r#"
+      globalThis.result = 'pending';
+      (async function () {
+        const caller = new Headers({ authorization: 'Bearer caller' });
+        let calls = 0;
+        for (const mode of ['success', 'rejection', 'throw', 'redirect']) {
+          let hop = 0;
+          const fetch = factory(function (url, method, body, redirect, handle) {
+            calls++;
+            hop++;
+            if (handle === caller._handle) throw new Error('borrowed the caller handle');
+            if (mode === 'throw') throw new Error('synchronous');
+            if (mode === 'rejection') return Promise.reject(new Error('asynchronous'));
+            return Promise.resolve(mode === 'redirect' && hop === 1 ? 307 : 200);
+          }, function (error) { return error; });
+          let error;
+          try { await fetch('http://127.0.0.1/start', { headers: caller }); }
+          catch (e) { error = e.message; }
+          const expected = mode === 'throw' ? 'synchronous' : mode === 'rejection' ? 'asynchronous' : undefined;
+          if (error !== expected) throw new Error('wrong settlement: ' + error);
+          if (released.length !== calls || new Set(released).size !== calls) throw new Error('leaked or double-freed snapshot');
+          if (released.includes(caller._handle) || caller.get('authorization') !== 'Bearer caller') throw new Error('freed caller');
+          caller.set('authorization', 'Bearer caller');
+        }
+        return { calls, releases: released.length, caller: caller.get('authorization') };
+      })().then(function (value) { result = JSON.stringify(value); }, function (error) { result = String(error); });
+    "#).unwrap();
+    runtime.pump();
+    let result = runtime.eval("result").unwrap();
+    assert_eq!(
+        serde_json::from_str::<Value>(&result).unwrap(),
+        json!({ "calls": 5, "releases": 5, "caller": "Bearer caller" })
+    );
 }
 
 #[test]
@@ -344,7 +868,7 @@ fn effect_code_cannot_forge_a_grant_denial_marker() {
 fn application_getters_cannot_forge_a_grant_denial() {
     let mut host = Ibex2Host::new().unwrap();
 
-    for field in ["redirect", "method", "body"] {
+    for field in ["redirect", "method", "body", "headers"] {
         let source = format!(
             r#"async (payload, {{ fetch }}) => {{
                   const init = {{}};

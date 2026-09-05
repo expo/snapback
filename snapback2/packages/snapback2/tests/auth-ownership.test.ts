@@ -330,7 +330,7 @@ test("a relaunched client restores the explicitly stored bearer", async () => {
     tokenStore: store,
     fetch: async (input) => {
       assert.equal(pathOf(input), "/api/auth/guest");
-      return json({ token: "restart-token", viewer: "principal-a" });
+      return json({ token: "restart-token", viewer: "principal-a", kind: "user" });
     },
   });
   await first.auth.guest();
@@ -378,8 +378,9 @@ test("principal replacement fences streams, suppresses delayed old reads, and wa
           : json({ state: "complete", data: ["new"], seq: 2, next: null });
       }
       if (path === "/api/auth/login") {
-        return json({ token: "new-token", viewer: "principal-new" });
+        return json({ token: "new-token", viewer: "principal-new", kind: "user" });
       }
+      if (path === "/api/auth/me") return json({ viewer: "principal-old", kind: "user" });
       throw new Error(`unexpected path ${path}`);
     },
   });
@@ -435,9 +436,10 @@ test("delayed malformed response bodies cannot overwrite newer auth custody", as
           const requestPath = pathOf(input);
           if (requestPath === "/api/query") return gate.response;
           if (requestPath === "/api/auth/login") {
-            return json({ token: "new-token", viewer: "principal-new" });
+            return json({ token: "new-token", viewer: "principal-new", kind: "user" });
           }
           if (requestPath === "/api/auth/logout") return json({ ok: true });
+          if (requestPath === "/api/auth/me") return json({ viewer: "principal-old", kind: "user" });
           throw new Error(`unexpected path ${requestPath}`);
         },
       });
@@ -537,8 +539,9 @@ test("delayed malformed subscription refusals cannot pollute a newer bearer", as
       const requestPath = pathOf(input);
       if (requestPath.endsWith("/subscribe")) return response.response;
       if (requestPath === "/api/auth/login") {
-        return json({ token: "new-token", viewer: "principal-new" });
+        return json({ token: "new-token", viewer: "principal-new", kind: "user" });
       }
+      if (requestPath === "/api/auth/me") return json({ viewer: "principal-old", kind: "user" });
       throw new Error(`unexpected path ${requestPath}`);
     },
   });
@@ -569,6 +572,7 @@ test("a delayed valid subscription expiry clears custody after a failed replacem
       const requestPath = pathOf(input);
       if (requestPath.endsWith("/subscribe")) return response.response;
       if (requestPath === "/api/auth/login") return json(refusal("E_AUTH_INVALID"), 401);
+      if (requestPath === "/api/auth/me") return json({ viewer: "principal-old", kind: "user" });
       throw new Error(`unexpected path ${requestPath}`);
     },
   });
@@ -602,9 +606,10 @@ test("an already-read terminal subscription frame survives a replacement fence",
         if (requestPath.endsWith("/subscribe")) return stream.response;
         if (requestPath === "/api/auth/login") {
           return replacement === "successful"
-            ? json({ token: "replacement-token", viewer: "principal-new" })
+            ? json({ token: "replacement-token", viewer: "principal-new", kind: "user" })
             : json(refusal("E_AUTH_INVALID"), 401);
         }
+        if (requestPath === "/api/auth/me") return json({ viewer: "principal-old", kind: "user" });
         throw new Error(`unexpected path ${requestPath}`);
       },
     });
@@ -647,7 +652,7 @@ test("an individually closed subscription still applies already-read terminal ev
       load: () => stored,
       save: (token) => { stored = token; },
     },
-    fetch: async () => stream.response,
+    fetch: async input => pathOf(input) === "/api/auth/me" ? json({ viewer: "principal-a", kind: "account" }) : stream.response,
   });
   await value.ready;
   const subscription = value.subscribe(api.messages.thread, {}, (delivery) => deliveries.push(delivery));
@@ -670,7 +675,7 @@ test("whole-client close still applies already-read terminal evidence without de
       load: () => stored,
       save: (token) => { stored = token; },
     },
-    fetch: async () => stream.response,
+    fetch: async input => pathOf(input) === "/api/auth/me" ? json({ viewer: "principal-a", kind: "account" }) : stream.response,
   });
   await value.ready;
   value.subscribe(api.messages.thread, {}, (delivery) => deliveries.push(delivery));
@@ -711,6 +716,7 @@ test("E_AUTH_SESSION clears custody only for the auth refusal family", async () 
       if (requestPath.endsWith("/subscribe")) {
         return hangingSse({ state: "refused", ...impostor });
       }
+      if (requestPath === "/api/auth/me") return json({ viewer: "principal-old", kind: "user" });
       throw new Error(`unexpected path ${requestPath}`);
     },
   });
@@ -751,11 +757,12 @@ test("auth transitions serialize and already-dispatched writes settle before rep
     },
     fetch: async (input, init) => {
       const path = pathOf(input);
+      if (path === "/api/auth/me") return json({ viewer: "principal-a", kind: "account" });
       paths.push(path);
       bearers.push(bearer(init));
       if (path === "/api/mutation") return mutationResponse.promise;
       if (path === "/api/auth/login") return loginResponse.promise;
-      if (path === "/api/auth/guest") return json({ token: "token-b", viewer: "principal-b" });
+      if (path === "/api/auth/guest") return json({ token: "token-b", viewer: "principal-b", kind: "guest" });
       throw new Error(`unexpected path ${path}`);
     },
   });
@@ -771,7 +778,7 @@ test("auth transitions serialize and already-dispatched writes settle before rep
   await assert.rejects(mutation, isCode("E_AUTH_SUPERSEDED"));
   await waitFor(() => paths.includes("/api/auth/login"), "login after write settlement");
   assert.equal(paths.includes("/api/auth/guest"), false);
-  loginResponse.resolve(json({ token: "token-a", viewer: "principal-a" }));
+  loginResponse.resolve(json({ token: "token-a", viewer: "principal-a", kind: "user" }));
   await flush();
   assert.equal(paths.includes("/api/auth/guest"), false, "persistence is part of login settlement");
   firstSave.resolve();
@@ -795,6 +802,7 @@ test("a delayed terminal write clears the old bearer before a failed replacement
     },
     fetch: async (input, init) => {
       const path = pathOf(input);
+      if (path === "/api/auth/me") return json({ viewer: "principal-a", kind: "account" });
       requests.push({ path, bearer: bearer(init) });
       if (path === "/api/mutation") return mutationResponse.promise;
       if (path === "/api/auth/login") return json(refusal("E_AUTH_INVALID"), 401);
@@ -837,8 +845,9 @@ test("a delayed terminal read cannot clear a successfully replaced bearer", asyn
         return oldResponse.promise;
       }
       if (path === "/api/auth/login") {
-        return json({ token: "replacement-token", viewer: "principal-new" });
+        return json({ token: "replacement-token", viewer: "principal-new", kind: "user" });
       }
+      if (path === "/api/auth/me") return json({ viewer: "principal-old", kind: "user" });
       throw new Error(`unexpected path ${path}`);
     },
   });
@@ -881,8 +890,9 @@ test("a transition during slow terminal cleanup suppresses typed mutation and ch
         }
         if (path === "/api/auth/login") {
           loginStarted = true;
-          return json({ token: "replacement-token", viewer: "principal-new" });
+          return json({ token: "replacement-token", viewer: "principal-new", kind: "user" });
         }
+        if (path === "/api/auth/me") return json({ viewer: "principal-old", kind: "user" });
         throw new Error(`unexpected path ${path}`);
       },
     });
@@ -919,7 +929,7 @@ test("close during token persistence never resurrects the client", async () => {
         }
       },
     },
-    fetch: async () => json({ token: "new-token", viewer: "principal-new" }),
+    fetch: async () => json({ token: "new-token", viewer: "principal-new", kind: "user" }),
   });
   await loginClient.ready;
   const login = loginClient.auth.login({ email: "a@example.com", password: "password" });
@@ -985,8 +995,9 @@ test("predecessor expiry cannot erase a durably saved replacement after close", 
       const requestPath = pathOf(input);
       if (requestPath === "/api/query") return oldResponse.response;
       if (requestPath === "/api/auth/login") {
-        return json({ token: "new-token", viewer: "principal-new" });
+        return json({ token: "new-token", viewer: "principal-new", kind: "user" });
       }
+      if (requestPath === "/api/auth/me") return json({ viewer: "principal-old", kind: "user" });
       throw new Error(`unexpected path ${requestPath}`);
     },
   });
@@ -1043,8 +1054,9 @@ async function exerciseFailedReplacementSave(closeDuringSave: boolean): Promise<
       const requestPath = pathOf(input);
       if (requestPath === "/api/query") return oldResponse.response;
       if (requestPath === "/api/auth/login") {
-        return json({ token: "new-token", viewer: "principal-new" });
+        return json({ token: "new-token", viewer: "principal-new", kind: "user" });
       }
+      if (requestPath === "/api/auth/me") return json({ viewer: "principal-old", kind: "user" });
       throw new Error(`unexpected path ${requestPath}`);
     },
   });
@@ -1096,7 +1108,7 @@ test("close during terminal subscription cleanup stays offline and suppresses la
           stored = token;
         },
       },
-      fetch: async () => hangingSse({
+      fetch: async input => pathOf(input) === "/api/auth/me" ? json({ viewer: "principal-a", kind: "user" }) : hangingSse({
         state: "refused",
         ...refusal("E_AUTH_SESSION", "expired"),
       }),
@@ -1129,7 +1141,8 @@ test("logout and terminal session expiry clear custody and stop old-bearer recon
         stored = token;
       },
     },
-    fetch: async (input) => pathOf(input) === "/api/auth/logout"
+    fetch: async (input) => pathOf(input) === "/api/auth/me"
+      ? json({ viewer: "principal-a", kind: "account" }) : pathOf(input) === "/api/auth/logout"
       ? json({ ok: true })
       : hangingSse(undefined, () => { cancelled += 1; }),
   });
@@ -1161,7 +1174,8 @@ test("logout and terminal session expiry clear custody and stop old-bearer recon
         stored = token;
       },
     },
-    fetch: async (_input, init) => {
+    fetch: async (input, init) => {
+      if (pathOf(input) === "/api/auth/me") return json({ viewer: "principal-a", kind: "account" });
       opens += 1;
       assert.equal(bearer(init), "Bearer expired-token");
       return hangingSse({ state: "refused", ...refusal("E_AUTH_SESSION", "expired") });
@@ -1201,7 +1215,7 @@ test("token-store clear failures stay visible on every request-based terminal pa
           if (token === null) throw new Error("storage unavailable");
         },
       },
-      fetch: async () => response,
+      fetch: async input => pathOf(input) === "/api/auth/me" ? json({ viewer: "principal-a", kind: "account" }) : response,
     });
     await value.ready;
     const generation = value.snapshot.authGeneration;
@@ -1232,7 +1246,8 @@ test("terminal expiry remains terminal when persisted custody cannot be cleared"
         if (token === null) throw new Error("storage unavailable");
       },
     },
-    fetch: async () => {
+    fetch: async input => {
+      if (pathOf(input) === "/api/auth/me") return json({ viewer: "principal-a", kind: "account" });
       opens += 1;
       return hangingSse({ state: "refused", ...refusal("E_AUTH_SESSION", "expired") });
     },
@@ -1272,7 +1287,7 @@ test("React query identity moves to a hydrating auth-generation partition", asyn
       return json({ viewer, kind: "account" });
     }
     if (path === "/api/auth/login") {
-      return json({ token: "new-token", viewer: "principal-new" });
+      return json({ token: "new-token", viewer: "principal-new", kind: "user" });
     }
     if (path === "/api/query") {
       if (bearer(init) === "Bearer new-token") {

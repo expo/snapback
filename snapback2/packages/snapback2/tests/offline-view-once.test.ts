@@ -59,6 +59,7 @@ test("web viewed allowance belongs to its viewing instance, never a second consu
     fetch: owner.fetch, offline: { store: fileRangeStore(root), viewOnce: (_table, row) => row.id === "m2" } });
   const viewing = {};
   try {
+    await client.ready;
     await client.query(api.messages.thread, THREAD_ARGS);
     const url = (await client.assetUrl(photo(B)))!;
     const shown = await client.assetBlob(url, { viewing });
@@ -80,6 +81,7 @@ test("a row viewed during URL minting cannot shift another asset's URL onto its 
   let urls: Array<string | undefined> | undefined;
   function Probe() { urls = useAssetUrl([photo(B), photo(A)]); return null; }
   try {
+    await client.ready;
     await client.query(api.messages.thread, THREAD_ARGS);
     const mint = client.assetUrl.bind(client);
     client.assetUrl = (async (assets, options) => {
@@ -150,7 +152,7 @@ function bearerServer(options: { rows?: (principal: string) => unknown[] } = {})
     const token = new Headers(init?.headers).get("Authorization")?.slice("Bearer ".length) ?? "";
     if (url.pathname === "/api/auth/login") {
       const who = String(JSON.parse(String(init?.body)).email).startsWith("a@") ? "a" : "b";
-      return json({ token: `token-${who}`, viewer: `principal-${who}` });
+      return json({ token: `token-${who}`, viewer: `principal-${who}`, kind: "user" });
     }
     if (url.pathname === "/api/auth/logout") return json({ ok: true });
     if (url.pathname === "/api/auth/me") return json({ viewer: principals[token], kind: "user" });
@@ -588,6 +590,7 @@ test("web byte consumers refuse missing viewing tokens before fetching; ordinary
   const client = createClient({ url: "http://assets.test", token: "token-a", offlinePrincipal: "principal-a",
     fetch: owner.fetch, offline: { store: fileRangeStore(directory), viewOnce: (_table, row) => row.id === "m2" } });
   try {
+    await client.ready;
     await client.query(api.messages.thread, THREAD_ARGS);
     const url = (await client.assetUrl(photo(B)))!;
     for (const method of ["assetBlob", "assetBytes"] as const)
@@ -610,6 +613,7 @@ test("web mounted image holds one viewing token; a second consumer and a remount
       second ? React.createElement(AssetImage, { key: "second", asset: photo(B), alt: "second" }) : null))));
   const src = (alt: string) => env.dom.window.document.querySelector(`img[alt="${alt}"]`)?.getAttribute("src");
   try {
+    await client.ready;
     await client.query(api.messages.thread, THREAD_ARGS); await render("first");
     assert.ok(await until(() => Boolean(src("first")))); const first = src("first");
     assert.ok(tokens[0] && typeof tokens[0] === "object");

@@ -1,32 +1,43 @@
 # Auth and mutation reads
 
-Authentication is always enabled. In `snapback/schema.q`:
+Auth is always on. In `snapback/schema.q`:
 
 ```q
 use identity
 ```
 
-This enables password and guest flows; select just one with `use identity
-password` or `use identity guests`. Clients use `client.auth.signup`, `login`,
-`guest`, `logout`, and `me`. For relaunches, pass `tokenStore` and await
-`client.ready`; browser persistence is explicit through
-`browserTokenStore(storage, backendSpecificKey)`. Dev personas (`--as alice`)
-cannot be combined with tokens or bearer-session transitions. Production
-refuses personas. Logout and expiry fence that session, including live queries
-and channels, without signing out other sessions for the same principal.
+One flow: `use identity password` or `use identity guests`.
+`client.auth`: `signup`, `login`, `guest`, `logout`, `me`.
+Relaunch: supply `tokenStore`, await `client.ready`. Browser persistence:
+`browserTokenStore(storage, backendSpecificKey)`. Personas refuse bearer
+transitions/tokens; production refuses personas. Logout/expiry fence one session.
 
-Logins have no rate limit. Wrong passwords and unknown emails both return
-`E_AUTH_INVALID`; login failure does not mean an account is missing.
+`snapshot.auth`/`useAuth()` share: `hydrating`, `authenticated`
+(`viewer`, `kind`, `authEpoch`), `anonymous` (no `refusal`), or `refused`
+(`refusal`). Bearers restore without hooks; callers share one `me()`.
+`restoringViewer` while hydrating is confirmed for this exact token: display
+only. Reads wait for confirmation or use offline coverage, never display identity
+as fresh authority. Unbound stores show no restoring viewer.
 
-Session and `me` responses carry `authEpoch`. Same-principal re-login fences
-old replies, revalidates held coverage, and keeps queued writes.
-Built-in token stores bind the saved principal to its token. Custom stores
-need `loadPrincipalBinding()` and `savePrincipal(principal, token)` for cold
-offline reads; unbound principal hints wait for owner authentication.
+Transport cuts retain custody and retry on connected/reconnecting transitions
+and after 1, 2, 4, … 30 seconds without queries. `retryAt` is Unix milliseconds;
+explicit `me()` replaces its timer. Other coded
+refusals retry once per reconnect; storage/protocol failures stay refused.
+Only `E_AUTH`, `E_AUTH_REQUIRED`, or `E_AUTH_SESSION` make restoration anonymous
+and clear custody. `offline()` pauses timers; `online()` resumes the shared flight.
+Offline restart stays paused. Logout, replacement and close
+cancel retries and ignore late replies. Closed `auth` is only its last view, without `retryAt`.
 
-Use nominal `principal` for creator, membership, and author fields and derive
-the acting value from `viewer`. A profile reference is not a principal.
-Never copy protected login email into a public row. The chat schema contains:
+Failed signup/login/guest preserves unchanged custody/auth or resumes hydrating
+with backoff. Metadata/resume errors reject `ready` without revoking confirmed
+auth. Session/`me` carry `kind` and `authEpoch`; same-principal login fences old replies
+and revalidates coverage,
+preserving queued writes. Built-in stores bind principal to token; custom stores
+need `loadPrincipalBinding()` and `savePrincipal(principal, token)` for cold reads.
+No login rate limit. Wrong passwords/unknown emails yield
+`E_AUTH_INVALID`, which proves no account absence.
+
+Use `principal` from `viewer`, not a profile reference. Keep login email private:
 
 ```q
 table profiles:
@@ -46,26 +57,21 @@ table profiles:
   delete <- deny
 ```
 
-## A write permission does not grant a read
+## Writes do not grant reads
 
-Every program lookup obeys the caller's table `read` rule, including lookups
-inside mutations. An unreadable point lookup returns absence just like a
-missing row; `! else CODE` rejects both with the same code. Program `exists`
-also checks readable rows. An admin update/delete rule does not elevate these
-reads. Do not treat absence as proof that no row exists, or add a duplicate
-roster to work around a read policy.
+Lookups (mutations and `exists` too) obey `read`. Missing/unreadable rows return
+absence; `! else CODE` rejects both. Admin writes cannot elevate reads. Absence
+cannot prove a row missing; do not duplicate rosters.
 
-For group administration, start with `snapback2 init --template chat`. Its
-membership roster is readable to current members of that same conversation:
+`snapback2 init --template chat` admits conversation members:
 
 ```q
   read <- exists memberships[.conversationId, viewer]
 ```
 
-`read <- .principal = viewer` hides other seats from an admin. If only
-admins should see other seats, admit self reads plus the scoped admin membership. Never make private roster rows public merely to unblock a write.
-Table write rules independently enforce admin authority, immutable scope and
-principal, and the member-to-admin transition. Promotion:
+`read <- .principal = viewer` hides other seats even from admins. Admit self
+plus scoped admin membership for admin rosters. Write rules separately enforce
+admin authority, immutable scope/principal, and promotion:
 
 ```q
 mutation memberPromote(conversationId: conversations, membershipId: memberships):
@@ -77,15 +83,13 @@ mutation memberPromote(conversationId: conversations, membershipId: memberships)
   return null
 ```
 
-`groupCreate` atomically inserts the conversation and creator-admin seat. The
-conversation's `after insert` constraint requires that seat; `created` admits
-only the creator's bootstrap in that transaction. `memberAdd`, `memberRemove`,
-and `memberLeave` complete the pattern. Intrinsic membership ids prevent a
-remove/re-add from retargeting an old request. There is no last-admin invariant.
+`groupCreate` inserts conversation and creator-admin seat atomically;
+`after insert` requires that seat, with `created` allowing the creator's bootstrap.
+`memberAdd`, `memberRemove`, and `memberLeave` complete the pattern. Membership
+ids fence remove/re-add races. No last-admin invariant.
 
-## Diagnose an unexpected absence
+## Diagnose absence
 
-Run `snapback2 why <query> '<args-json>' --as alice --json` for the same lookup.
-`why` refuses mutations (`E_OP_KIND`). Its owner-protected `rowVerdicts` and
-`diagnostics` explain denied reads; missing rows have no denial diagnostic.
-These are development details; ordinary responses reveal no hidden-row hint.
+`snapback2 why <query> '<args-json>' --as alice --json` explains denied reads
+via owner-only `rowVerdicts`/`diagnostics`. Missing rows get no denial hint;
+ordinary responses expose none. Mutations refuse `E_OP_KIND`.

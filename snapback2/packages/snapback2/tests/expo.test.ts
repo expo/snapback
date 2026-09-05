@@ -225,14 +225,14 @@ test("replacing a supplied client clears authentication, mutations, and outbox r
     const promise = new Promise<any>((yes, no) => { resolve = yes; reject = no; });
     return { promise, resolve, reject };
   };
-  const alice = createClient({ url: "http://swap.test", as: "alice", fetch: fakeOwner().fetch });
-  const bob = createClient({ url: "http://swap.test", as: "bob", fetch: fakeOwner().fetch });
+  const bobMe = deferred(), aliceReady = deferred(), bobReady = deferred();
+  const owner = fakeOwner();
+  const alice = createClient({ url: "http://swap.test", as: "alice", fetch: owner.fetch });
+  const bob = createClient({ url: "http://swap.test", as: "bob", fetch: async (input, init) =>
+    String(input).endsWith("/api/auth/me") ? new Response(JSON.stringify(await bobMe.promise)) : owner.fetch(input, init) });
   await Promise.all([alice.ready, bob.ready]);
   assert.equal(alice.snapshot.authGeneration, bob.snapshot.authGeneration);
-  const bobMe = deferred(), aliceReady = deferred(), bobReady = deferred();
   const lateSuccess = deferred(), lateFailure = deferred(), bobMutation = deferred();
-  alice.auth.me = async () => ({ viewer: "dev:alice", kind: "dev" });
-  bob.auth.me = () => bobMe.promise;
   let delayAlice = false;
   let emitAlice!: (entries: any[]) => void;
   alice.outbox.subscribe = (callback) => { emitAlice = callback; callback([{ intent: "alice", op: "send", state: "queued" }]); return () => undefined; };
@@ -394,5 +394,49 @@ test("browser and SecureStore principal records retain the authenticating token 
     assert.deepEqual(await cold.loadPrincipalBinding(), { token: "token-a", principal: "alice" });
     await cold.savePrincipal("bob", "token-b");
     assert.deepEqual(await factory().loadPrincipalBinding(), { token: "token-b", principal: "bob" });
+  }
+});
+
+
+test("Expo provider and two native auth hooks share one cut/reconnect flight", async context => {
+  context.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 1_000 });
+  const flush = () => new Promise<void>(resolve => setImmediate(resolve));
+  const secure = expoSecureTokenStore("auth-parity", secureFake());
+  await secure.save("token-a"); await secure.savePrincipal("alice", "token-a");
+  let cut = true, requests = 0;
+  let finish!: (response: Response) => void;
+  const pending = new Promise<Response>(resolve => { finish = resolve; });
+  const client = createClient({ url: "http://expo-auth.test", tokenStore: secure, fetch: async input => {
+    if (String(input).endsWith("/api/auth/me")) {
+      requests++;
+      if (cut) throw new TypeError("cut");
+      return pending;
+    }
+    return Response.json({ generation: "g", programGeneration: "p", ops: {}, channels: {}, auth: {} });
+  } });
+  const views: any[] = [];
+  function Probe({ index }: { index: number }) { views[index] = useAuth(); return null; }
+  let renderer!: TestRenderer.ReactTestRenderer;
+  try {
+    await client.ready; await flush();
+    await act(async () => { renderer = TestRenderer.create(React.createElement(SnapbackProvider, { client },
+      React.createElement(Probe, { index: 0 }), React.createElement(Probe, { index: 1 }))); await flush(); });
+    assert.equal(requests, 2, "initial cut plus the Provider manifest transition");
+    assert.deepEqual(views[0], views[1]);
+    assert.equal(views[0].state, "hydrating");
+    assert.equal(views[0].restoringViewer, "alice");
+    await act(async () => { cut = false; await client.offline(); await client.online(); await flush(); });
+    assert.equal(requests, 3);
+    const one = client.auth.me(), two = client.auth.me();
+    await act(async () => { await client.offline(); await client.online(); await flush(); });
+    assert.equal(requests, 3);
+    await act(async () => { finish(Response.json({ viewer: "alice", kind: "user", authEpoch: 1 })); await Promise.all([one, two]); await flush(); });
+    assert.deepEqual(views[0], views[1]);
+    assert.equal(views[0].viewer, "alice");
+    assert.equal(views[0].kind, "user");
+  } finally {
+    finish(Response.json({ viewer: "alice", kind: "user" }));
+    if (renderer) await act(async () => renderer.unmount());
+    await client.close();
   }
 });

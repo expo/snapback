@@ -170,7 +170,7 @@ export function fakeOwner(options: FakeOwnerOptions = {}) {
       });
     }
     // A login mints a grant like a resume does; the bearer flow is otherwise unchecked here.
-    if (url.pathname === "/api/auth/login") return json({ token: "token-alice", viewer: "dev:alice", grant: mint() });
+    if (url.pathname === "/api/auth/login") return json({ token: "token-alice", viewer: "dev:alice", kind: "user", grant: mint() });
     if (url.pathname === "/api/auth/me") return json({ viewer: "dev:alice", kind: "user" });
     if (url.pathname === "/api/mutation") {
       const body = JSON.parse(String(init?.body));

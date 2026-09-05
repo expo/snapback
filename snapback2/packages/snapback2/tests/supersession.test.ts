@@ -46,7 +46,7 @@ async function fixture(carrier: "file" | "IndexedDB" = "file", bearer = false) {
     if (url.pathname === "/api/auth/me") return json({ viewer: state.principal, kind: "user" });
     if (url.pathname === "/api/auth/login") {
       state.principal = "bob";
-      return await hooks.login?.() ?? json({ viewer: "bob", token: "bob-token" });
+      return await hooks.login?.() ?? json({ viewer: "bob", kind: "user", token: "bob-token" });
     }
     if (url.pathname === "/api/auth/logout") return json({ ok: true });
     if (url.pathname === "/api/manifest") return json({ generation: "schema", programGeneration: state.generation, ops: {}, channels: {}, auth: {} });
@@ -512,7 +512,7 @@ for (const carrier of ["file", "IndexedDB"] as const) {
         if (principal === "bob") openQueued.resolve();
         return run;
       };
-      f.hooks.login = async () => json({ viewer: "bob", token: "bob-token", grant: { ...grant, id: "bob-grant" } });
+      f.hooks.login = async () => json({ viewer: "bob", kind: "user", token: "bob-token", grant: { ...grant, id: "bob-grant" } });
       const dismiss = f.client.outbox.dismiss(entry.intent);
       await dismissStarted.promise;
       f.state.generation = hex(2);

@@ -16,8 +16,8 @@ import {
   initialQueryState,
   reduceQueryState,
   stableSerialize,
-  type AuthMe,
-  type AuthSession,
+  type AuthApi,
+  type AuthSnapshot,
   type AssetRecord,
   type AssetInput,
   type AssetUrlOptions,
@@ -182,6 +182,7 @@ export function useQuery<Args, Result>(
     { identity, view: initialQueryState<Result>() },
   );
   const state = machine.identity === identity ? machine.view : initialQueryState<Result>();
+  const restoring = !!snapshot.token && snapshot.auth.state === "hydrating";
 
   useEffect(() => {
     let active = true;
@@ -222,7 +223,7 @@ export function useQuery<Args, Result>(
       active = false;
       if (timer !== undefined) clearTimeout(timer);
     };
-  }, [identity, stableArgs]);
+  }, [identity, stableArgs, restoring]);
 
   return useMemo(() => ({ ...state, connection: snapshot.connection }), [state, snapshot.connection]);
 }
@@ -348,93 +349,21 @@ export function useMutation<Args, Result>(ref: Op<Args, Result>): UseMutationRes
   );
 }
 
-export type AuthHookState = "hydrating" | "authenticated" | "anonymous" | "refused";
-export interface UseAuthResult {
-  state: AuthHookState;
-  viewer?: Principal;
-  kind?: string;
-  token?: string;
-  refusal?: RefusalEnvelope;
-  signup(input: { email: string; password: string }): Promise<AuthSession>;
-  login(input: { email: string; password: string }): Promise<AuthSession>;
-  guest(): Promise<AuthSession>;
-  logout(): Promise<{ ok: boolean }>;
-  me(): Promise<AuthMe>;
-}
+export type AuthHookState = AuthSnapshot["state"];
+export interface UseAuthResult extends AuthSnapshot, AuthApi { token?: string }
 
 export function useAuth(): UseAuthResult {
   const { client, snapshot } = provider();
-  const requestEpoch = useRef(0);
-  const activeClient = useRef(client);
-  if (activeClient.current !== client) {
-    activeClient.current = client;
-    requestEpoch.current += 1;
-  }
-  type AuthState = Omit<UseAuthResult, "signup" | "login" | "guest" | "logout" | "me">;
-  const [machine, setMachine] = useState<{ client: SnapbackClient; generation: number; value: AuthState }>({
-    client,
-    generation: snapshot.authGeneration,
-    value: { state: "hydrating", token: snapshot.token },
-  });
-  const state = machine.client === client && machine.generation === snapshot.authGeneration
-    ? machine.value
-    : { state: "hydrating" as const, token: snapshot.token };
-  const me = useCallback(async () => {
-    const generation = snapshot.authGeneration;
-    const epoch = ++requestEpoch.current;
-    try {
-      const value = await client.auth.me();
-      if (epoch === requestEpoch.current
-        && activeClient.current === client
-        && client.snapshot.authGeneration === generation) {
-        setMachine({ client, generation, value: { state: "authenticated", ...value, token: client.snapshot.token } });
-      }
-      return value;
-    } catch (error) {
-      if (epoch === requestEpoch.current
-        && activeClient.current === client
-        && client.snapshot.authGeneration === generation) {
-        if (isSnapbackRefusal(error)
-          && (error.code === "E_AUTH" || error.code === "E_AUTH_REQUIRED" || error.code === "E_AUTH_SESSION")) {
-          setMachine({ client, generation, value: { state: "anonymous", refusal: error.envelope } });
-        } else if (!isSnapbackRefusal(error) || error.code !== "E_AUTH_SUPERSEDED") {
-          const refusal = isSnapbackRefusal(error) ? error.envelope : undefined;
-          setMachine({ client, generation, value: { state: "refused", refusal, token: client.snapshot.token } });
-        }
-      }
-      throw error;
-    }
-  }, [client, snapshot.authGeneration]);
-
+  // Bearer restoration starts in the client. A persona or a client with no
+  // stored token keeps the lazy owner check; every hook joins that same flight.
   useEffect(() => {
-    void me().catch(() => undefined);
-    return () => {
-      requestEpoch.current += 1;
-    };
-  }, [me]);
-
-  const establish = useCallback(async (action: () => Promise<AuthSession>) => {
-    return action();
-  }, []);
-
-  return {
-    ...state,
-    token: snapshot.token,
-    signup: (input) => establish(() => client.auth.signup(input)),
-    login: (input) => establish(() => client.auth.login(input)),
-    guest: () => establish(() => client.auth.guest()),
-    logout: async () => {
-      requestEpoch.current += 1;
-      const result = await client.auth.logout();
-      if (activeClient.current === client) {
-        requestEpoch.current += 1;
-        const generation = client.snapshot.authGeneration;
-        setMachine({ client, generation, value: { state: "anonymous" } });
-      }
-      return result;
-    },
-    me,
-  };
+    let active = true;
+    void client.ready.then(() => {
+      if (active && !client.snapshot.token && client.snapshot.auth.state === "hydrating") return client.auth.me();
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, [client]);
+  return { ...snapshot.auth, token: snapshot.token, ...client.auth };
 }
 
 export function useChannel<Args, Payload = unknown>(ref: ChannelRef<Args, Payload>, args: NoInfer<Args>): ChannelHandle<Payload> {

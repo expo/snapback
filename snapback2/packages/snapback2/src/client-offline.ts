@@ -310,32 +310,6 @@ export async function restartOffline(options: {
   return restarted;
 }
 
-export async function initializeOfflineClient<Principal, Authority>(options: {
-  principal?: Principal;
-  bearer: boolean;
-  authority: Authority;
-  open(principal: Principal, authenticated?: boolean, authEpoch?: number): Promise<void>;
-  confirm(authority: Authority): Promise<{ viewer: Principal; authEpoch?: number }>;
-  metadata(authority: Authority): Promise<void>;
-  resume(authority: Authority): Promise<void>;
-  ignore(error: unknown): boolean;
-}): Promise<void> {
-  let principal = options.principal;
-  if (principal) await options.open(principal);
-  try {
-    if (options.bearer) {
-      const confirmed = await options.confirm(options.authority);
-      principal = confirmed.viewer;
-      await options.open(principal, true, confirmed.authEpoch);
-    }
-    if (!principal) return;
-    await options.metadata(options.authority);
-    await options.resume(options.authority);
-  } catch (error) {
-    if (!options.ignore(error)) throw error;
-  }
-}
-
 type RefusalLike = Error & {
   code?: string;
   status?: number;

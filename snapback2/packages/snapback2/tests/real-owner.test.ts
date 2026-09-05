@@ -240,7 +240,11 @@ test("real channel membership revocation ends the subscriber with a refusal", as
   const channel = bob.channel(api.typing, { conversationId: "conversation-1" });
   const events: any[] = [];
   const sub = channel.subscribe((event) => events.push(event));
-  await new Promise((resolve) => setTimeout(resolve, 50));
+  // A delivery on the same live connection witnesses channel registration;
+  // a fixed sleep can publish before the control batch reaches a busy owner.
+  const witness = bob.subscribe(api.messages.summary, { conversationId: "conversation-1" }, () => {});
+  await witness.until((event: any) => event.live === true, 2_000);
+  witness.close();
   const typing = sub.until((event: any) => event.payload?.typing === true, 2_000);
   assert.deepEqual(
     await alice.channel(api.typing, { conversationId: "conversation-1" }).publish({ typing: true }),
@@ -265,6 +269,48 @@ test("real channel membership revocation ends the subscriber with a refusal", as
   sub.close();
   alice.close();
   bob.close();
+});
+
+test("a real stored session restores after a cut with identical snapshot views and no mounted query", async () => {
+  let token: string | null = null;
+  let binding: { token: string; principal: string } | null = null;
+  const tokenStore = { load: () => token, save: (value: string | null) => { token = value; },
+    loadPrincipalBinding: () => binding,
+    savePrincipal: (principal: string | null, bearer?: string) => { binding = principal && bearer ? { token: bearer, principal } : null; } };
+  const first = createClient({ url: owner.url, tokenStore });
+  const session = await first.auth.guest();
+  assert.equal(session.kind, "guest");
+  assert.equal(first.snapshot.auth.kind, "guest");
+  await first.close();
+  let cut = true;
+  const cold = createClient({ url: owner.url, tokenStore, fetch: async (input, init) => {
+    if (cut && String(input).endsWith("/api/auth/me")) throw new TypeError("restoration transport cut");
+    return fetch(input, init);
+  } });
+  const left: any[] = [], right: any[] = [];
+  const stopLeft = cold.subscribeStatus(snapshot => left.push(snapshot.auth));
+  const stopRight = cold.subscribeStatus(snapshot => right.push(snapshot.auth));
+  const waitForAuth = (predicate: (auth: typeof cold.snapshot.auth) => boolean) => new Promise<void>(resolve => {
+    const stop = cold.subscribeStatus(snapshot => { if (predicate(snapshot.auth)) { queueMicrotask(() => stop()); resolve(); } });
+  });
+  try {
+    await waitForAuth(auth => auth.retryAt !== undefined);
+    assert.equal(cold.snapshot.auth.state, "hydrating");
+    assert.equal(cold.snapshot.auth.restoringViewer, session.viewer);
+    assert.equal(cold.snapshot.auth.viewer, undefined);
+    assert.equal(token, session.token);
+    const recovered = waitForAuth(auth => auth.state === "authenticated");
+    cut = false;
+    await cold.offline(); await cold.online(); await recovered;
+    assert.equal(cold.snapshot.auth.viewer, session.viewer);
+    assert.equal(cold.snapshot.auth.restoringViewer, undefined);
+    assert.deepEqual(left, right);
+    const revoker = createClient({ url: owner.url, token: session.token });
+    try { await revoker.auth.logout(); } finally { await revoker.close(); }
+    await assert.rejects(cold.auth.me(), (error: any) => error.code === "E_AUTH_SESSION");
+    assert.equal(cold.snapshot.auth.state, "anonymous");
+    assert.equal(token, null);
+  } finally { stopLeft(); stopRight(); await cold.close(); }
 });
 
 test("serve mode refuses a persona-bound real client", async (context) => {

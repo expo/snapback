@@ -612,7 +612,7 @@ test("a sealed cold start stays unreadable until auth.me confirms the same beare
     const metadata = metadataResponse(input);
     if (metadata) return metadata;
     if (String(input).endsWith("/api/auth/login")) {
-      return new Response(JSON.stringify({ token: "token-1", viewer: "principal-1" }), { status: 200 });
+      return new Response(JSON.stringify({ token: "token-1", viewer: "principal-1", kind: "user" }), { status: 200 });
     }
     if (String(input).endsWith("/api/auth/me")) {
       return new Response(JSON.stringify({ viewer: "principal-1", kind: "user" }), { status: 200 });
