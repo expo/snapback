@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { test } from "node:test";
+import { after, test } from "node:test";
 import {
   SnapbackRefusal,
   api,
@@ -7,9 +7,10 @@ import {
   initialQueryState,
   reduceQueryState,
 } from "../dist/client.mjs";
-import { realOwner } from "./owner-harness.ts";
+import { configureRealOwner } from "./owner-harness.ts";
 
-const owner = realOwner();
+const owner = await configureRealOwner();
+after(async () => owner.close());
 
 test("real owner private asset bytes and conditional responses forbid HTTP cache storage", async () => {
   const { readFile } = await import("node:fs/promises");

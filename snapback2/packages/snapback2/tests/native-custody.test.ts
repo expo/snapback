@@ -155,3 +155,77 @@ test("shipped chat viewOnce row policy keeps native media off disk", async () =>
     assert.equal(await f.client.assetCache!.viewed(photo.id), true); assert.deepEqual(f.writes, []);
   } finally { await act(async () => renderer.unmount()); await f.close(); }
 });
+
+test("native viewing survives layout width changing after fallback admission", async () => {
+  const f = await nativeFixture({ once: true }); const renderer = await mount(f);
+  try {
+    await until(() => Boolean(image(renderer))); const source = image(renderer).uri;
+    await act(async () => renderer.root.findByType("NativeImage").props.onLayout({ nativeEvent: { layout: { width: 37 } } }));
+    await tick(); await tick();
+    assert.equal(image(renderer)?.uri, source); assert.equal(f.requests.length, 1);
+    assert.equal(await f.client.assetCache!.viewed(photo.id), true); assert.deepEqual(f.writes, []);
+  } finally { await act(async () => renderer.unmount()); await f.close(); }
+});
+
+test("ordinary fetch changed to view-once with a failed durable mark returns no bytes on either consumer", async () => {
+  for (const method of ["assetBlob", "assetBytes"] as const) {
+    const f = await nativeFixture({ viewOnce: (_table, row) => row.viewOnce === true });
+    const gate = deferred(), fetching = deferred(); const viewing = {};
+    f.hooks.network = async () => { fetching.resolve(); await gate.promise; };
+    try {
+      const url = (await f.client.assetUrl(photo))!;
+      const pending = f.client[method](url, { viewing });
+      const refused = assert.rejects(pending, (error: any) => error.code === "E_OFFLINE_CARRIER");
+      await fetching.promise;
+      const held = delivery(); held.seq = 2; (held.rows[0].row as any).viewOnce = true;
+      await f.store.commit({ deliveries: [held] }); f.hooks.failCommit = true;
+      gate.resolve(); await refused;
+      assert.equal(await f.client.assetCache!.canServe(photo.id, viewing), false);
+      assert.equal(await f.client.assetCache!.viewed(photo.id), false);
+      assert.equal(await f.client.assetCache!.getBytes(photo.id, null, viewing), undefined);
+      assert.deepEqual(f.writes, []); assert.equal(f.data.size, 0);
+      f.hooks.failCommit = false; f.client.assetCache!.forget(); await f.store.close(); await f.store.open("dev:alice");
+      assert.equal(await f.client.assetCache!.viewed(photo.id), false);
+    } finally { gate.resolve(); await f.close(); }
+  }
+});
+
+test("native ordinary image changed to view-once during fetch with a failed mark has no source", async () => {
+  const f = await nativeFixture({ viewOnce: (_table, row) => row.viewOnce === true }); const gate = deferred();
+  f.hooks.network = () => gate.promise;
+  const renderer = await mount(f);
+  try {
+    await until(() => f.requests.length === 1);
+    const held = delivery(); held.seq = 2; (held.rows[0].row as any).viewOnce = true;
+    await act(async () => f.store.commit({ deliveries: [held] })); f.hooks.failCommit = true;
+    gate.resolve(); await until(() => f.client.snapshot.lastRefusal?.code === "E_OFFLINE_CARRIER");
+    assert.equal(image(renderer), undefined); assert.equal(await f.client.assetCache!.viewed(photo.id), false);
+    assert.deepEqual(f.writes, []);
+  } finally { gate.resolve(); await act(async () => renderer.unmount()); await f.close(); }
+});
+
+test("native ordinary layout changes still select a new derivative without a new viewing token", async () => {
+  const f = await nativeFixture(); const tokens: object[] = [];
+  const fetch = f.client.assetBytes.bind(f.client);
+  f.client.assetBytes = async (url, options) => { tokens.push(options?.viewing); return fetch(url, options); };
+  const renderer = await mount(f);
+  try {
+    await until(() => image(renderer)?.uri.startsWith("file://"));
+    await act(async () => renderer.root.findByType("NativeImage").props.onLayout({ nativeEvent: { layout: { width: 37 } } }));
+    await until(() => Boolean(image(renderer)?.uri.includes(".w74")));
+    assert.equal(f.requests.length, 2); assert.equal(tokens.length, 2); assert.equal(tokens[0], tokens[1]);
+  } finally { await act(async () => renderer.unmount()); await f.close(); }
+});
+
+test("both byte consumers suppress a view-once fetch whose row is tombstoned before admission", async () => {
+  for (const method of ["assetBlob", "assetBytes"] as const) {
+    const f = await nativeFixture({ once: true }); const gate = deferred(), fetching = deferred();
+    f.hooks.network = async () => { fetching.resolve(); await gate.promise; };
+    try {
+      const url = (await f.client.assetUrl(photo))!;
+      const refused = assert.rejects(f.client[method](url, { viewing: {} }), (error: any) => error.code === "E_OFFLINE_CARRIER");
+      await fetching.promise; await f.store.commit({ tombstones: [{ table: "messages", id: "m1", seq: 2 }] });
+      gate.resolve(); await refused; assert.deepEqual(f.writes, []);
+    } finally { gate.resolve(); await f.close(); }
+  }
+});

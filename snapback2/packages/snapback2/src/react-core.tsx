@@ -442,7 +442,7 @@ export function useChannel<Args, Payload = unknown>(ref: ChannelRef<Args, Payloa
   );
 }
 
-type AssetUrlValue = string | string[] | undefined;
+type AssetUrlValue = string | (string | undefined)[] | undefined;
 
 /**
  * Resolves records without putting authority in image URLs. A carrier is minted
@@ -451,7 +451,7 @@ type AssetUrlValue = string | string[] | undefined;
 // @ref LLP 1006#2b-the-session-carrier-author-ruling-2026-09-03 — refreshes
 // affect newly resolved URLs only; an already returned player src is immutable.
 export function useAssetUrl(asset: AssetRecord | null | undefined, options?: AssetUrlOptions): string | undefined;
-export function useAssetUrl(assets: readonly AssetRecord[], options?: AssetUrlOptions): string[] | undefined;
+export function useAssetUrl(assets: readonly AssetRecord[], options?: AssetUrlOptions): (string | undefined)[] | undefined;
 export function useAssetUrl(
   assetOrList: AssetRecord | readonly AssetRecord[] | null | undefined,
   options: AssetUrlOptions = {},
@@ -503,7 +503,7 @@ export function useAssetUrl(
         for (const url of created) URL.revokeObjectURL(url);
         return;
       }
-      setResolved({ identity, value: Array.isArray(stableAsset) ? urls as string[] : urls[0] });
+      setResolved({ identity, value: Array.isArray(stableAsset) ? urls : urls[0] });
     })().catch(() => undefined);
     return () => {
       active = false;

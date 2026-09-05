@@ -487,7 +487,8 @@ journey("viewed photos render from the byte cache offline; a view-once photo and
       const url = await alice.assetUrl(message.photo, { width: message.photo.width });
       if (!url) throw new Error("photo delivery URL was absent");
       // Viewing fills the byte cache; the third row is view-once and is marked viewed instead.
-      if ((await alice.assetBlob(url)).size === 0) throw new Error("photo delivery was empty");
+      const viewing = {};
+      if ((await alice.assetBlob(url, { viewing })).size === 0) throw new Error("photo delivery was empty");
       urls.push(url);
     }
     await alice.offline();

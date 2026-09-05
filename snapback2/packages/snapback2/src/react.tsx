@@ -1,8 +1,42 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useAssetUrl, useSnapbackClient, useSnapbackSnapshot } from "./react-core.js";
+import { isSnapbackRefusal, type SnapbackRefusal } from "./client.js";
+import { viewedRefusal } from "./client-assets.js";
 import type { ImageAsset, VideoAsset } from "./types.js";
 export * from "./react-core.js";
 export { indexedDbRangeStore } from "./store/indexeddb.js";
+
+const noSubscription = () => () => {};
+const noCustody = () => 0;
+
+/** Each mounted byte consumer owns one allowance and every object URL it creates. */
+function useAssetBlob(url: string | undefined) {
+  const client = useSnapbackClient();
+  const snapshot = useSnapbackSnapshot();
+  const cache = client.assetCache;
+  const custody = useSyncExternalStore(cache?.subscribeCustody ?? noSubscription, cache?.getCustody ?? noCustody, noCustody);
+  const viewing = useRef({}).current;
+  const identity = useMemo(() => ({ client, url, auth: snapshot.authGeneration, custody }), [client, url, snapshot.authGeneration, custody]);
+  const [result, setResult] = useState<{ identity: typeof identity; url?: string; refusal?: SnapbackRefusal }>();
+  useEffect(() => {
+    if (!url || typeof URL.createObjectURL !== "function") return;
+    let active = true;
+    let created: string | undefined;
+    const controller = new AbortController();
+    if (url.startsWith("blob:")) { setResult({ identity, url }); return; }
+    void client.assetBlob(url, { signal: controller.signal, viewing }).then((blob) => {
+      if (!active || (cache?.getCustody?.() ?? 0) !== custody) return;
+      created = URL.createObjectURL(blob);
+      setResult({ identity, url: created });
+    }).catch((error) => { if (active && isSnapbackRefusal(error)) setResult({ identity, refusal: error }); });
+    return () => {
+      active = false;
+      controller.abort();
+      if (created) URL.revokeObjectURL(created);
+    };
+  }, [identity]);
+  return result?.identity === identity ? result : undefined;
+}
 
 export type AssetImageProps = Omit<React.ImgHTMLAttributes<HTMLImageElement>, "src" | "width" | "height"> & {
   asset: ImageAsset;
@@ -13,8 +47,6 @@ export type AssetImageProps = Omit<React.ImgHTMLAttributes<HTMLImageElement>, "s
 // @ref LLP 1006#8-sizes-ask-for-any-width — the web image measures its box,
 // asks for device pixels, and keeps intrinsic record dimensions before bytes arrive.
 export function AssetImage({ asset, width, height, style, ...props }: AssetImageProps): React.ReactElement {
-  const client = useSnapbackClient();
-  const snapshot = useSnapbackSnapshot();
   const [element, setElement] = useState<HTMLImageElement | null>(null);
   const [requestedWidth, setRequestedWidth] = useState<number>();
   const [measured, setMeasured] = useState(false);
@@ -34,38 +66,11 @@ export function AssetImage({ asset, width, height, style, ...props }: AssetImage
     return () => observer.disconnect();
   }, [element, width, asset.id, asset.width]);
   const deliveryUrl = useAssetUrl(measured ? asset : null, { width: requestedWidth });
-  const [blobUrl, setBlobUrl] = useState<string>();
-  useEffect(() => {
-    // No delivery URL (a viewed view-once row, or an identity change in flight) shows nothing:
-    // never a src that useAssetUrl already revoked.
-    if (!deliveryUrl || typeof URL.createObjectURL !== "function") {
-      setBlobUrl(undefined);
-      return;
-    }
-    // A blob: URL is a held rendition from the byte cache; useAssetUrl owns its lifetime.
-    if (deliveryUrl.startsWith("blob:")) {
-      setBlobUrl(deliveryUrl);
-      return;
-    }
-    let active = true;
-    let created: string | undefined;
-    const controller = new AbortController();
-    setBlobUrl(undefined);
-    void client.assetBlob(deliveryUrl, { signal: controller.signal }).then((blob) => {
-      created = URL.createObjectURL(blob);
-      if (active) setBlobUrl(created);
-      else URL.revokeObjectURL(created);
-    }).catch(() => undefined);
-    return () => {
-      active = false;
-      controller.abort();
-      if (created) URL.revokeObjectURL(created);
-    };
-  }, [client, deliveryUrl, snapshot.authGeneration]);
+  const blob = useAssetBlob(deliveryUrl);
   return <img
     {...props}
     ref={setElement}
-    src={blobUrl}
+    src={blob?.url}
     width={width ?? asset.width}
     height={height ?? asset.height}
     style={{ aspectRatio: `${asset.width} / ${asset.height}`, ...style }}
@@ -74,58 +79,72 @@ export function AssetImage({ asset, width, height, style, ...props }: AssetImage
 
 export type AssetVideoProps = Omit<React.VideoHTMLAttributes<HTMLVideoElement>, "src" | "width" | "height"> & {
   asset: VideoAsset;
+  onRefusal?: (refusal: SnapbackRefusal) => void;
   width?: number | string;
   height?: number | string;
 };
 
-// @ref LLP 1006#10-clients — video streams directly with a carrier because a
-// native player/video element cannot send the session header or wait for a blob.
-export function AssetVideo({ asset, width, height, style, controls, onPlay, ...props }: AssetVideoProps): React.ReactElement {
+// @ref LLP 1012#9-asset-bytes-on-the-device — a view-once clip gets a source
+// only after its play request durably admits bytes to this mounted instance.
+export function AssetVideo({ asset, width, height, style, controls, onPlay, onRefusal, ...props }: AssetVideoProps): React.ReactElement {
   const client = useSnapbackClient();
   const snapshot = useSnapbackSnapshot();
-  const url = useAssetUrl(asset, { carrier: true });
   const cache = client.assetCache;
-  // @ref LLP 1012#9-asset-bytes-on-the-device — a view-once clip is never prefetched
-  // and counts as viewed when playback starts, never on mount; `once` is unknown
-  // until the store answers, and unknown fails closed (no prefetch, play marks).
-  const [once, setOnce] = useState<boolean>();
+  const custody = useSyncExternalStore(cache?.subscribeCustody ?? noSubscription, cache?.getCustody ?? noCustody, noCustody);
+  const identity = useMemo(() => ({ client, id: asset.id, auth: snapshot.authGeneration, custody }), [client, asset.id, snapshot.authGeneration, custody]);
+  const [policy, setPolicy] = useState<{ identity: typeof identity; once: boolean; viewed: boolean }>();
+  const [started, setStarted] = useState<typeof identity>();
+  const [request, setRequest] = useState<{ identity: typeof identity; url: string }>();
+  const callback = useRef(onRefusal);
+  callback.current = onRefusal;
   useEffect(() => {
-    if (!cache) {
-      setOnce(false);
-      return;
-    }
     let active = true;
-    setOnce(undefined);
-    void client.ready
-      .then(() => cache.viewOnce(asset.id))
-      .then((value) => { if (active) setOnce(value); })
-      .catch(() => undefined);
+    void (async () => {
+      await client.ready;
+      const viewed = await cache?.viewed(asset.id) ?? false;
+      const once = viewed || (await cache?.viewOnce(asset.id) ?? false);
+      if (active) {
+        setPolicy({ identity, once, viewed });
+        if (viewed) callback.current?.(viewedRefusal(asset.id));
+      }
+    })().catch((error) => { if (active && isSnapbackRefusal(error)) callback.current?.(error); });
     return () => { active = false; };
-  }, [client, cache, asset.id]);
-  const cacheable = cache !== undefined && once === false && url !== undefined && !url.startsWith("blob:");
-  // The player streams from the carrier now; one tokenless fetch fills the byte
-  // cache so the next mount plays offline.
+  }, [identity, cache]);
+  const current = policy?.identity === identity ? policy : undefined;
+  const ordinary = current?.once === false;
+  const admitted = current?.once === true && !current.viewed && started === identity;
+  const carrier = useAssetUrl(ordinary ? asset : null, { carrier: true });
+  // Resolve at the play gesture, so concurrent players cannot retain a carrier.
+  useEffect(() => {
+    if (!admitted) return;
+    let active = true;
+    void (async () => {
+      if (await cache?.viewed(asset.id)) throw viewedRefusal(asset.id);
+      const url = await client.assetUrl(asset);
+      if (!url) throw viewedRefusal(asset.id);
+      if (active) setRequest({ identity, url });
+    })().catch((error) => { if (active && isSnapbackRefusal(error)) callback.current?.(error); });
+    return () => { active = false; };
+  }, [identity, admitted]);
+  const tokenless = request?.identity === identity ? request.url : undefined;
+  const blob = useAssetBlob(tokenless);
+  useEffect(() => { if (blob?.refusal) callback.current?.(blob.refusal); }, [blob?.refusal]);
+  const cacheable = cache !== undefined && ordinary && carrier !== undefined && !carrier.startsWith("blob:");
   useEffect(() => {
     if (!cacheable || snapshot.connection === "offline") return;
     const controller = new AbortController();
     void client.assetUrl(asset)
-      .then((tokenless) => tokenless === undefined ? undefined : client.assetBlob(tokenless, { signal: controller.signal }))
+      .then((url) => url === undefined ? undefined : client.assetBlob(url, { signal: controller.signal }))
       .catch(() => undefined);
     return () => controller.abort();
   }, [client, asset.id, cacheable]);
-  const handlePlay = useCallback((event: React.SyntheticEvent<HTMLVideoElement>) => {
-    onPlay?.(event);
-    if (cache && once !== false) void cache.markViewed(asset.id).catch(() => undefined);
-  }, [onPlay, cache, once, asset.id]);
-  return <video
-    {...props}
-    onPlay={handlePlay}
-    controls={controls ?? true}
-    src={url}
-    width={width ?? asset.width}
-    height={height ?? asset.height}
-    style={{ aspectRatio: `${asset.width} / ${asset.height}`, ...style }}
-  />;
+  const video = <video {...props} onPlay={onPlay} controls={controls ?? true}
+    autoPlay={admitted || props.autoPlay} src={ordinary ? carrier : admitted ? blob?.url : undefined}
+    width={width ?? asset.width} height={height ?? asset.height}
+    style={{ aspectRatio: `${asset.width} / ${asset.height}`, ...style }} />;
+  return current?.once && !current.viewed && !admitted
+    ? <><button type="button" onClick={() => setStarted(identity)}>Play once</button>{video}</>
+    : video;
 }
 
 export function DevOverlay(): React.ReactElement {

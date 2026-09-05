@@ -47,6 +47,7 @@ test("witness source map contains the portable conformance runner under src and 
   assert.ok(map.sources.every((path: string) => !path.includes("/tests/")));
   const rows = (await readFile(join(workspace, "metrics/expo.jsonl"), "utf8")).trim().split("\n");
   assert.equal(rows.length, 1); assert.ok(JSON.parse(rows[0]).method.includes("Hermes") || JSON.parse(rows[0]).method.includes("HBC"));
+  assert.ok(!rows[0].includes("/Users/") && !rows[0].includes("/home/"));
 });
 
 test("native file queue rechecks view-once after a waiting materialization", async () => {
@@ -87,7 +88,7 @@ test("MediaView ordinary onLoad waits for its file source; undefined source repo
   } finally { held.resolve(); if (renderer) await act(async () => renderer.unmount()); await f.close(); }
 });
 
-test("MediaView remount of a viewed photo supplies no source; view-once video observes playback", async () => {
+test("MediaView remount of a viewed photo supplies no source; view-once video refuses without consumption", async () => {
   const f = await nativeFixture({ once: true }); const results: any[] = [];
   let renderer!: ReturnType<typeof TestRenderer.create>;
   const view = (asset, nonce, hidden = false) => React.createElement(SnapbackProvider, { client: f.client },
@@ -100,8 +101,14 @@ test("MediaView remount of a viewed photo supplies no source; view-once video ob
     await act(async () => renderer.update(view(photo, 2, true))); await until(() => results.length > 1);
     assert.equal(renderer.root.findByType("NativeImage").props.source, undefined); assert.equal(results.at(-1).loaded, false);
     await f.store.commit({ deliveries: [delivery("video", clip)] });
-    await act(async () => renderer.update(view(clip, 3))); await until(() => results.some((value) => value.playing === true));
-    assert.match(results.at(-1).uri, /^data:/); assert.deepEqual(f.writes, []);
+    f.requests.length = 0;
+    await act(async () => renderer.update(view(clip, 3))); await until(() => results.some((value) => value.refusal?.code === "E_ASSET_TYPE"));
+    assert.equal(results.at(-1).loaded, false); assert.equal(results.at(-1).uri, undefined);
+    assert.equal(await f.client.assetCache!.viewed(clip.id), false);
+    assert.equal(f.requests.length, 0); assert.deepEqual(f.writes, []); assert.equal(f.data.size, 0);
+    await act(async () => renderer.update(view(clip, 4, true))); await until(() => results.length === 4);
+    assert.equal(results.at(-1).refusal?.code, "E_ASSET_TYPE");
+    assert.equal(await f.client.assetCache!.viewed(clip.id), false); assert.equal(f.requests.length, 0);
   } finally { if (renderer) await act(async () => renderer.unmount()); await f.close(); }
 });
 
@@ -182,4 +189,48 @@ test("control server refuses a second socket without replacing the active contro
     assert.equal(await closed, 1008); assert.equal(server.generation, generation);
     assert.equal(await server.command("state"), "first");
   } finally { socket.terminate(); await server.close(); }
+});
+
+test("control reset after kill closes a stale socket and accepts the relaunched app", async () => {
+  const server = await controlServer(0);
+  const require = createRequire(import.meta.url); const { WebSocket } = require("ws");
+  const first = new WebSocket(`ws://127.0.0.1:${server.port}`);
+  const opened = (value) => new Promise((done, fail) => { value.once("open", done); value.once("error", fail); });
+  let second;
+  try {
+    await opened(first); const generation = server.generation;
+    const pending = assert.rejects(server.command("park"), /app disconnected/);
+    const closed = new Promise((done) => first.once("close", done));
+    server.reset(); await pending; await closed;
+    second = new WebSocket(`ws://127.0.0.1:${server.port}`); await opened(second);
+    second.send(JSON.stringify({ event: "connected" })); await server.connected(generation);
+    second.on("message", (data) => { const { id } = JSON.parse(String(data)); second.send(JSON.stringify({ id, ok: true, result: "relaunched" })); });
+    assert.equal(server.generation, generation + 1); assert.equal(await server.command("state"), "relaunched");
+    const harness = await readFile(join(workspace, "scripts/witness-expo.mjs"), "utf8");
+    assert.match(harness, /process.kill\(pid, "SIGKILL"\);\s+control.reset\(\)/);
+  } finally { first.terminate(); second?.terminate(); await server.close(); }
+});
+
+test("useAssetUrl array types require callers to handle refused positions", async () => {
+  const require = createRequire(import.meta.url); const ts = require("typescript");
+  const root = await mkdtemp(join(tmpdir(), "e2-url-types-")); const sample = join(root, "sample.ts");
+  try {
+    await writeFile(sample, `import { useAssetUrl } from "snapback2/react";
+      import type { ImageAsset } from "snapback2/client";
+      declare const asset: ImageAsset;
+      const scalar: string | undefined = useAssetUrl(asset);
+      const positions: (string | undefined)[] | undefined = useAssetUrl([asset]);
+      // @ts-expect-error a refused position is undefined
+      const unsafe: string[] | undefined = useAssetUrl([asset]);
+      if (positions?.[0] !== undefined) positions[0].toUpperCase();
+    `);
+    const program = ts.createProgram({ rootNames: [sample], options: {
+      strict: true, noEmit: true, skipLibCheck: true, target: ts.ScriptTarget.ES2022,
+      module: ts.ModuleKind.ESNext, moduleResolution: ts.ModuleResolutionKind.Bundler,
+      paths: { "snapback2/react": [join(packageRoot, "dist/react.d.ts")],
+        "snapback2/react-core": [join(packageRoot, "dist/react-core.d.ts")],
+        "snapback2/client": [join(packageRoot, "dist/client.d.ts")] },
+    } });
+    assert.deepEqual(ts.getPreEmitDiagnostics(program).map((d) => ts.flattenDiagnosticMessageText(d.messageText, "\n")), []);
+  } finally { await rm(root, { recursive: true, force: true }); }
 });

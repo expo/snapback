@@ -58,10 +58,12 @@ export function useNativeSource(asset: AssetRecord | null | undefined, options: 
   const snapshot = useSnapbackSnapshot();
   const file = useFile(asset, options.width);
   const failure = useMemo(() => file.error === undefined ? undefined : fileRefusal(file.error), [file.error]);
-  const identity = useMemo(() => ({ client, id: asset?.id, width: options.width, auth: snapshot.authGeneration, custody: file.custody }),
-    [client, asset?.id, options.width, snapshot.authGeneration, file.custody]);
+  const viewing = useRef({}).current;
+  // Layout selects a derivative; it never starts another viewing session.
+  const identity = useMemo(() => ({ client, id: asset?.id, auth: snapshot.authGeneration, custody: file.custody }),
+    [client, asset?.id, snapshot.authGeneration, file.custody]);
   const [memory, setMemory] = useState<{ identity: typeof identity; revision?: string; uri?: string; refusal?: SnapbackRefusal }>();
-  const attempted = useRef<typeof identity | undefined>(undefined);
+  const attempted = useRef<{ identity: typeof identity; width?: number } | undefined>(undefined);
   const current = useRef<typeof identity | undefined>(identity);
   current.current = identity;
   useEffect(() => {
@@ -69,8 +71,8 @@ export function useNativeSource(asset: AssetRecord | null | undefined, options: 
     return () => { current.current = undefined; };
   }, [identity]);
   useEffect(() => {
-    if (!asset || options.enabled === false || !file.checked || failure || file.uri || attempted.current === identity || (file.files && !file.files.available())) return;
-    attempted.current = identity;
+    if (!asset || options.enabled === false || !file.checked || failure || file.uri || (attempted.current?.identity === identity && (attempted.current.width === options.width || memory?.identity !== identity)) || (file.files && !file.files.available())) return;
+    attempted.current = { identity, width: options.width };
     const active = () => current.current === identity && client.snapshot.authGeneration === identity.auth
       && (file.files?.getCustody() ?? 0) === identity.custody;
     void (async () => {
@@ -78,27 +80,27 @@ export function useNativeSource(asset: AssetRecord | null | undefined, options: 
       if (!active()) return;
       // A new viewing instance cannot borrow another instance's allowance.
       if (await client.assetCache?.viewed(asset.id)) {
-        if (active()) setMemory({ identity, revision: file.files?.getAssetRevision(asset.id) ?? "0" });
+        if (active() && memory?.identity !== identity) setMemory({ identity, revision: file.files?.getAssetRevision(asset.id) ?? "0" });
         return;
       }
       if (!active()) return;
       const url = await client.assetUrl(asset, { width: options.width });
       if (!url || !active()) return;
-      const value = await client.assetBytes(url, { viewing: identity });
+      const value = await client.assetBytes(url, { viewing });
       if (!active()) return;
-      if (client.assetCache && !await client.assetCache.canServe(asset.id, identity)) return;
+      if (client.assetCache && !await client.assetCache.canServe(asset.id, viewing)) return;
       if (active()) setMemory({ identity, revision: file.files?.getAssetRevision(asset.id) ?? "0", uri: bytesDataUri(value) });
     })().catch((error) => {
       if (current.current !== identity) return;
       const refusal = fileRefusal(error);
       setMemory({ identity, revision: file.files?.getAssetRevision(asset!.id) ?? "0", refusal });
     });
-  }, [identity, file.checked, file.uri, options.enabled, failure]);
+  }, [identity, memory, file.checked, file.uri, options.width, options.enabled, failure]);
   useEffect(() => {
     if (!asset || !file.files || memory?.identity !== identity || !memory.uri || memory.revision === file.revision) return;
     let active = true;
     const custody = file.custody;
-    void client.assetCache?.canServe(asset.id, identity).then((held) => {
+    void client.assetCache?.canServe(asset.id, viewing).then((held) => {
       if (active && current.current === identity && file.files?.getCustody() === custody)
         setMemory({ ...memory, revision: file.revision, uri: held ? memory.uri : undefined });
     }).catch(() => {

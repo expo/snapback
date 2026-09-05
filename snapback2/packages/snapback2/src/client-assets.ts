@@ -76,7 +76,7 @@ export async function cachedAssetBlob(
 /** Native byte ingress; the caller fences custody after each awaited read. */
 export async function cachedAssetBytes(
   cache: ByteCache | undefined, target: AssetBlobTarget, network: () => Promise<AssetBytes>,
-  record: (refusal: RefusalEnvelope) => void, current: () => void, viewing: object = {},
+  record: (refusal: RefusalEnvelope) => void, current: () => void, viewing?: object,
 ): Promise<AssetBytes> {
   if (!cache || target.assetId === "") return network();
   const held = await cache.getBytes(target.assetId, target.width, viewing);
@@ -89,16 +89,31 @@ export async function cachedAssetBytes(
     record(refusal.envelope);
     throw refusal;
   }
-  const once = await cache.viewOnce(target.assetId);
-  const leased = await cache.canServe(target.assetId);
+  const initiallyOnce = await cache.viewOnce(target.assetId);
+  if (initiallyOnce && !viewing) {
+    const refusal = new SnapbackRefusal({ code: "E_ASSET_TYPE", family: "input", site: "assetBlob",
+      message: "view-once bytes require a mounted viewing instance",
+      rewrite: "pass the same viewing token for the lifetime of the mounted consumer", guide: "assets/client" });
+    record(refusal.envelope);
+    throw refusal;
+  }
+  // Revocation during the fetch must also suppress an initially view-once row.
+  const leased = initiallyOnce || await cache.canServe(target.assetId);
   current();
   const value = await network();
   current();
   const admitted = await cache.putBytes(target.assetId, target.width, value, viewing);
   current();
+  const once = await cache.viewOnce(target.assetId);
+  const viewedNow = await cache.viewed(target.assetId);
   const allowed = await cache.canServe(target.assetId, viewing);
   current();
-  if ((once && admitted !== "viewed" && admitted !== "cached") || ((leased || once || admitted === "viewed") && !allowed)) {
+  if ((once && admitted !== "viewed" && admitted !== "cached") || ((leased || once || viewedNow || admitted === "viewed") && !allowed)) {
+    if (viewedNow && !allowed) {
+      const refusal = viewedRefusal(target.assetId);
+      record(refusal.envelope);
+      throw refusal;
+    }
     const refusal = new SnapbackRefusal({ code: "E_OFFLINE_CARRIER", family: "offline",
       site: "assetBytes", message: "asset viewing allowance was not durably admitted or its row lease changed",
       rewrite: "restore the carrier and fetch a currently held, unviewed row", guide: "offline" });

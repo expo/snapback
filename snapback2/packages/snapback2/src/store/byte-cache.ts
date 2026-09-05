@@ -43,6 +43,9 @@ export interface ByteCarrier {
 
 /** The client-facing byte cache: `client.assetCache` when the client has an offline store. */
 export interface AssetCache {
+  /** Session custody changes revoke mounted object URLs. */
+  subscribeCustody?(listener: () => void): () => void;
+  getCustody?(): number;
   getBytes(assetId: string, width: number | null, viewing?: object): Promise<AssetBytes | undefined>;
   putBytes(assetId: string, width: number | null, value: AssetBytes, viewing?: object): Promise<ByteCacheOutcome>;
   canServe(assetId: string, viewing?: object): Promise<boolean>;
@@ -215,6 +218,12 @@ export class ByteCache implements AssetCache {
   private readonly session = new Map<string, { viewing: object; value: AssetBytes }>();
   private partition?: string;
   private custody = 0;
+  private readonly custodyListeners = new Set<() => void>();
+  readonly getCustody = () => this.custody;
+  readonly subscribeCustody = (listener: () => void) => {
+    this.custodyListeners.add(listener);
+    return () => { this.custodyListeners.delete(listener); };
+  };
   private admissions: Promise<unknown> = Promise.resolve();
 
   constructor(
@@ -232,6 +241,7 @@ export class ByteCache implements AssetCache {
   forget(): void {
     this.custody++;
     this.session.clear();
+    for (const listener of this.custodyListeners) listener();
   }
 
   async get(assetId: string, width: number | null, viewing?: object): Promise<Blob | undefined> {
@@ -262,9 +272,12 @@ export class ByteCache implements AssetCache {
   async canServe(assetId: string, viewing?: object): Promise<boolean> {
     const custody = this.custody;
     const store = this.carrier();
-    if (!store || (await store.rowsReferencing(assetId)).length === 0) return false;
+    if (!store) return false;
+    const rows = await store.rowsReferencing(assetId);
+    if (rows.length === 0) return false;
     const viewed = await store.viewedAsset(assetId);
-    const owns = !viewed || [...this.session.entries()].some(([key, entry]) =>
+    const once = rows.every((row) => this.options.viewOnce?.(row.table, row.row) === true);
+    const owns = (!viewed && !once) || [...this.session.entries()].some(([key, entry]) =>
       entry.viewing === viewing && key.startsWith(this.sessionKey(assetId)));
     return custody === this.custody && owns;
   }
@@ -325,6 +338,7 @@ export class ByteCache implements AssetCache {
       .filter((row) => this.options.viewOnce?.(row.table, row.row) === true)
       .map(({ table, id }) => ({ table, id }));
     // Per row: the view-once rows are marked viewed; an ordinary row sharing the id still leases the bytes.
+    if (once.length > 0 && !viewing) return "refused";
     if (once.length === rows.length) {
       try {
         await store.commit({ viewed: once });

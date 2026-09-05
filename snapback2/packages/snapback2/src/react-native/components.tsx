@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Image, PixelRatio, Pressable, Text, View, type ImageProps, type LayoutChangeEvent } from "react-native";
+import { Image, PixelRatio, View, type ImageProps, type LayoutChangeEvent } from "react-native";
 import { VideoView, useVideoPlayer, type VideoViewProps } from "expo-video";
 import { useSnapbackClient, useSnapbackSnapshot } from "../react-core.js";
 import { SnapbackRefusal } from "../client.js";
@@ -51,39 +51,32 @@ function Player({ uri, asset: _asset, play, onPlay, onRefusal, onSourceChange: _
   return <VideoView {...props} player={player} nativeControls={props.nativeControls ?? true} />;
 }
 
-// @ref LLP 1013#2-decisions — view-once clips are fetched only at the user's
-// play gesture; their viewing source stays in memory and ordinary clips use files.
+// Native v1 refuses view-once clips before fetching: AVPlayer cannot open a
+// memory source, and these bytes must never be materialized as a file.
 export function AssetVideo({ asset, width, height, style, onRefusal, onSourceChange, onPlaybackStart, autoPlay = false, ...props }: AssetVideoProps): React.ReactElement {
   const client = useSnapbackClient();
   const snapshot = useSnapbackSnapshot();
   const identity = useMemo(() => ({ client, id: asset.id, auth: snapshot.authGeneration }), [client, asset.id, snapshot.authGeneration]);
   const [policy, setPolicy] = useState<{ identity: typeof identity; once: boolean }>();
-  const [started, setStarted] = useState<typeof identity>();
-  const marked = useRef<typeof identity | undefined>(undefined);
-  const onPlay = React.useCallback(() => {
-    onPlaybackStart?.();
-    if (marked.current === identity) return;
-    marked.current = identity;
-    void client.assetCache?.markViewed(asset.id).catch((error) => onRefusal?.(error));
-  }, [identity, onRefusal, onPlaybackStart]);
+  const callback = useRef(onRefusal);
+  callback.current = onRefusal;
   useEffect(() => {
     let active = true;
     void (async () => {
       await client.ready;
-      const once = await client.assetCache?.viewOnce(asset.id) ?? false;
+      const once = Boolean(await client.assetCache?.viewOnce(asset.id) || await client.assetCache?.viewed(asset.id));
       if (active) setPolicy({ identity, once });
     })().catch((error) => { if (active) callback.current?.(error); });
     return () => { active = false; };
   }, [identity]);
   const once = policy?.identity === identity ? policy.once : undefined;
-  const playing = autoPlay || started === identity;
-  const { uri, refusal, settled } = useNativeSource(asset, { enabled: once !== undefined && (!once || playing) });
-  const callback = useRef(onRefusal);
-  callback.current = onRefusal;
+  const refused = useMemo(() => once ? new SnapbackRefusal({ code: "E_ASSET_TYPE", family: "input", site: "AssetVideo",
+    message: "view-once video is not played on native in v1: the native player cannot open an in-memory source and a view-once clip never touches disk",
+    rewrite: "send the clip as an ordinary attachment, or wait for the native view-once video ruling", guide: "assets/client" }) : undefined, [once]);
+  const { uri, refusal, settled } = useNativeSource(once === false ? asset : null, { enabled: once === false });
   React.useLayoutEffect(() => { onSourceChange?.(uri, settled); }, [uri, settled, onSourceChange]);
-  useEffect(() => { if (refusal) callback.current?.(refusal); }, [refusal]);
+  useEffect(() => { if (refused ?? refusal) callback.current?.((refused ?? refusal)!); }, [refused, refusal]);
   const size = [{ width: width ?? asset.width, height: height ?? (width === undefined ? asset.height : undefined), aspectRatio: asset.width / asset.height }, style];
-  if (uri) return <Player {...props} asset={asset} uri={uri} onRefusal={onRefusal} play={playing} onPlay={onPlay} style={size} />;
-  if (once && !playing) return <Pressable testID={props.testID} accessibilityLabel="Play view-once video" onPress={() => setStarted(identity)} style={size}><Text>Play once</Text></Pressable>;
+  if (uri) return <Player {...props} asset={asset} uri={uri} onRefusal={onRefusal} play={autoPlay} onPlay={onPlaybackStart ?? (() => {})} style={size} />;
   return <View testID={props.testID} style={size} />;
 }

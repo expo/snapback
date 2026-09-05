@@ -1,7 +1,6 @@
-import { after } from "node:test";
 import { configureRealOwner } from "./owner-harness.ts";
 
-const owner = await configureRealOwner();
+await configureRealOwner();
 await import("./client.test.ts");
 await import("./assets.test.ts");
 await import("./auth-ownership.test.ts");
@@ -26,5 +25,3 @@ await import("./twin.test.ts");
 await import("./supersession.test.ts");
 await import("./readiness.test.ts");
 await import("./chat-screens.test.ts");
-
-after(async () => owner.close());

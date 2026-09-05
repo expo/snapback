@@ -299,7 +299,7 @@ test("native URI refuses E_ASSET_NATIVE_FILE_API when expo-file-system has no Fi
   }
 });
 
-test("native AssetVideo cold mount never prefetches view-once, marks viewed on play, and writes no file", async () => {
+test("native AssetVideo refuses view-once on mount without fetching, admitting, marking, or writing a file", async () => {
   const { mkdtemp, rm } = await import("node:fs/promises");
   const { tmpdir } = await import("node:os");
   const { join } = await import("node:path");
@@ -326,19 +326,24 @@ test("native AssetVideo cold mount never prefetches view-once, marks viewed on p
       fetches++; return new Response(new Uint8Array([1, 2, 3]), { headers: { "Content-Type": "video/mp4" } });
     } });
   let renderer: ReactTestRenderer | undefined;
+  const refusals: any[] = [];
   try {
-    await act(async () => { renderer = TestRenderer.create(React.createElement(SnapbackProvider, { client }, React.createElement(AssetVideo, { asset: video }))); });
+    await act(async () => { renderer = TestRenderer.create(React.createElement(SnapbackProvider, { client }, React.createElement(AssetVideo, { asset: video, autoPlay: true, onRefusal: (error) => refusals.push(error.envelope) }))); });
     await settle(); assert.equal(fetches, 0);
     await act(async () => { release(); await client.ready; });
     let viewed = 0;
     const mark = client.assetCache!.markViewed.bind(client.assetCache);
     client.assetCache!.markViewed = async (id) => { viewed++; return mark(id); };
-    await settle(); assert.equal(fetches, 0); assert.deepEqual(writes, []);
-    await act(async () => renderer!.root.findByType("NativePressable").props.onPress());
-    for (let i = 0; i < 10 && viewed === 0; i++) await settle();
-    assert.ok(viewed > 0); assert.equal(fetches, 1);
-    assert.match(renderer!.root.findByType("NativeVideo").props.player.source, /^data:video\/mp4;base64,/);
-    assert.equal(await client.assetCache!.viewed(video.id), true); assert.deepEqual(writes, []);
+    let admissions = 0;
+    const put = client.assetCache!.putBytes.bind(client.assetCache);
+    client.assetCache!.putBytes = async (...args) => { admissions++; return put(...args); };
+    for (let i = 0; i < 20 && refusals.length === 0; i++) await settle();
+    assert.deepEqual(refusals[0], { code: "E_ASSET_TYPE", family: "input", site: "AssetVideo",
+      message: "view-once video is not played on native in v1: the native player cannot open an in-memory source and a view-once clip never touches disk",
+      rewrite: "send the clip as an ordinary attachment, or wait for the native view-once video ruling", guide: "assets/client" });
+    assert.equal(viewed, 0); assert.equal(admissions, 0); assert.equal(fetches, 0);
+    assert.equal(renderer!.root.findAllByType("NativeVideo").length, 0);
+    assert.equal(await client.assetCache!.viewed(video.id), false); assert.deepEqual(writes, []);
     await act(async () => store.seal()); await settle();
     assert.equal(renderer!.root.findAllByType("NativeVideo").length, 0, "seal invalidates a mounted player");
   } finally { release(); if (renderer) await act(async () => renderer!.unmount()); await client.close(); await rm(root, { recursive: true, force: true }); }

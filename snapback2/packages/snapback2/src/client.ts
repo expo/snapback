@@ -324,11 +324,11 @@ class Client implements SnapbackClient {
   }
   async assetBlob(url: string, options: AssetFetchOptions = {}): Promise<Blob> {
     const authority = await this.operationAuthority();
-    return assetBlobFor(this, this.offlineRuntime?.bytes, this.forcedOffline, url, options, authority);
+    return assetBlobFor(this, this.offlineRuntime?.bytes, () => this.forcedOffline, url, options, authority);
   }
   async assetBytes(url: string, options: AssetFetchOptions = {}) {
     const authority = await this.operationAuthority();
-    return assetBytesFor(this, this.offlineRuntime?.bytes, this.forcedOffline, url, options, authority);
+    return assetBytesFor(this, this.offlineRuntime?.bytes, () => this.forcedOffline, url, options, authority);
   }
   get assetCache(): OfflineRuntime["bytes"] | undefined {
     return this.offlineRuntime?.bytes;
@@ -1192,7 +1192,7 @@ class Client implements SnapbackClient {
   validated(authority: Authority | undefined): void {
     if (authority !== undefined) this.ensureAuthority(authority);
     else this.ensureOpen();
-    this.patchSnapshot({ connection: "connected", lastRefusal: this.resetRefusal });
+    if (!this.forcedOffline) this.patchSnapshot({ connection: "connected", lastRefusal: this.resetRefusal });
   }
 
   private async operationAuthority(waitForResume = true): Promise<Authority> {

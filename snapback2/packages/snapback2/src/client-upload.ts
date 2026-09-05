@@ -115,7 +115,7 @@ export function assetHeadersFor(host: UploadHost, authority: Authority): Record<
 export async function assetBlobFor(
   host: UploadHost,
   bytes: ByteCache | undefined,
-  offline: boolean,
+  offline: () => boolean,
   url: string,
   options: AssetFetchOptions,
   authority: Authority,
@@ -123,7 +123,7 @@ export async function assetBlobFor(
   let target: AssetBlobTarget;
   try { target = assetBlobTarget(host.url, url); } catch (error) { throw assetInput(host, error); }
   return cachedAssetBlob(bytes, target, async () => {
-    if (offline) throw offlineNetworkRefusal();
+    if (offline()) throw offlineNetworkRefusal();
     const headers = host.headers(authority);
     headers.set("Accept", "*/*");
     // Expo SDK 54 ignores RequestInit.cache but forwards these headers.
@@ -136,13 +136,13 @@ export async function assetBlobFor(
 }
 
 export async function assetBytesFor(
-  host: UploadHost, cache: ByteCache | undefined, offline: boolean, url: string,
+  host: UploadHost, cache: ByteCache | undefined, offline: () => boolean, url: string,
   options: AssetFetchOptions, authority: Authority,
 ): Promise<AssetBytes> {
   let target: AssetBlobTarget;
   try { target = assetBlobTarget(host.url, url); } catch (error) { throw assetInput(host, error); }
   return cachedAssetBytes(cache, target, async () => {
-    if (offline) throw offlineNetworkRefusal();
+    if (offline()) throw offlineNetworkRefusal();
     const headers = host.headers(authority);
     headers.set("Accept", "*/*");
     // Expo SDK 54 ignores RequestInit.cache but forwards these headers.

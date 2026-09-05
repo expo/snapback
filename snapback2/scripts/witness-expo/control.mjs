@@ -11,18 +11,27 @@ export async function controlServer(port) {
   let generation = 0;
   const pending = new Map();
   const events = [];
+  const reset = () => {
+    const stale = socket;
+    socket = undefined;
+    events.length = 0;
+    for (const request of pending.values()) { clearTimeout(request.timer); request.reject(new Error("app disconnected")); }
+    pending.clear();
+    stale?.terminate();
+  };
   server.on("connection", (value) => {
     if (socket && socket.readyState < 2) { value.close(1008, "one witness control connection at a time"); return; }
     socket = value; generation++;
     events.length = 0;
     socket.on("message", (data) => {
-      const value = JSON.parse(String(data));
-      if (value.event) { events.push(value); return; }
-      const request = pending.get(value.id);
+      if (socket !== value) return;
+      const message = JSON.parse(String(data));
+      if (message.event) { events.push(message); return; }
+      const request = pending.get(message.id);
       if (!request) return;
-      pending.delete(value.id); clearTimeout(request.timer);
-      if (value.ok) request.resolve(value.result);
-      else request.reject(Object.assign(new Error((value.error?.message ?? "witness command failed") + (value.error?.stack ? `\n${value.error.stack}` : "")), { envelope: value.error }));
+      pending.delete(message.id); clearTimeout(request.timer);
+      if (message.ok) request.resolve(message.result);
+      else request.reject(Object.assign(new Error((message.error?.message ?? "witness command failed") + (message.error?.stack ? `\n${message.error.stack}` : "")), { envelope: message.error }));
     });
     socket.on("close", () => {
       if (socket !== value) return;
@@ -37,6 +46,7 @@ export async function controlServer(port) {
     }
   };
   return {
+    reset,
     get port() { return server.address().port; },
     get generation() { return generation; },
     async connected(after = 0) { await until(() => generation > after && events.some((item) => item.event === "connected"), "app outward connection"); },

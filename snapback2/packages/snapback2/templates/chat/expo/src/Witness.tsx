@@ -79,9 +79,13 @@ export default function Witness({ url, controlUrl }: { url: string; controlUrl: 
           if (!once && result.loaded === true) {
             // The ordinary source may first load from memory; acknowledge only
             // the materialized file, after the bridge's directory reports it.
+            // Compare paths, not spellings: the bridge's URI percent-encodes the partition
+            // (`dev%3Aalice`) while the directory listing may not.
+            const path = (uri: string) => decodeURIComponent(uri).replace(/\/+$/, "");
+            const served = path(String(result.uri));
             const deadline = Date.now() + 10_000;
-            while (!listFiles().includes(String(result.uri))) {
-              if (Date.now() >= deadline) throw new Error("ordinary media did not materialize a file");
+            while (!listFiles().some((file) => path(file) === served)) {
+              if (Date.now() >= deadline) throw new Error(`ordinary media did not materialize a file: served ${result.uri}; listed ${JSON.stringify(listFiles().slice(0, 6))}`);
               await new Promise((resolve) => setTimeout(resolve, 10));
             }
           }
