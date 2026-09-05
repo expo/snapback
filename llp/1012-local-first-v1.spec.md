@@ -448,6 +448,21 @@ bound into the verdict lookup. The IndexedDB `ranges`/`absences`/`verdicts` proj
 were write-only and are deleted on upgrade; coverage derives from the held answers'
 receipts.
 
+**Implementation record (lane E2's witness, 2026-09-05).** An offline drain keeps the
+watermark the last online drain or resume persisted. The simulator witness found a remounted
+`drain: true` on an offline cold start following the twin's own page chain (the twin mints
+`next` from the rows it holds — `null` for a one-page log — and the held-only path re-marks
+with a fresh `updatedAt`) and recording that as the watermark, which moved the resume position
+to the prefix root on every offline start. `drain.ts` now adopts the store's watermark when
+its pages were answered offline (`connection: "offline"`, the base page's held `watermark`) and
+`mark(…, offline)` records nothing; the five-page drain test's cold-reopen tail pins it (the
+whole coverage is deep-equal before and after an offline remount). The witness's structural
+consequence: a reopened database is inspected before any client constructs, because a mounted
+app writes. Two narrowings of §9 landed with the same lane: a byte consumer holds an explicit
+viewing token for the life of its mounted instance on both arms (a missing token refuses
+before the fetch), and web view-once video admits durably on the play request before it has
+a playable source, so persistence must succeed before playback can begin.
+
 ## 7. Writes offline
 
 **The outbox.** `useMutation(op).run(args)` with the backend unreachable, or

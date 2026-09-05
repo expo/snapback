@@ -1,6 +1,6 @@
 # Snapback 2 Expo witness needs qualification
 
-Status: Open
+Status: Closed
 
 Last run: 2026-09-04T23:14:38.579Z
 Failing step: 1 — build, owner seed, and outward control
@@ -33,3 +33,17 @@ Unable to locate device set: Error Domain=NSPOSIXErrorDomain Code=61 "Connection
 Run `cd snapback2 && node scripts/witness-expo.mjs` outside the sandbox. Success requires all ten steps; see `target/e2-witness-result.json`. Android and Expo web remain outside E2.
 
 Schedule activation is also pending: generated six-hour launchd plist validates, but `launchctl bootstrap` returned `Bootstrap failed: 5: Input/output error` in this session. Full implementation report: [final-e2.md](../reports/final-e2.md).
+
+
+## Resolution (2026-09-05)
+
+Witness run 12 on the host (macOS 26, Xcode 26.6, an iPhone 17 simulator) passes all ten steps
+at the landed E2 revision; run 9 had passed at `027c04144` before the fix rounds. Runs 1–11
+found and fixed, in order: the sandbox cannot reach CoreSimulatorService (the witness runs
+outside it); React Native's missing `AbortSignal.throwIfAborted` (`cdd4a3762`); fake-table
+markers (schema-valid rows); the offline drain re-marking the persisted watermark
+(`e92bfbd2b`, LLP 1012 §6 record); the stale `dist/` project (rebuild first; `shared/` refreshed);
+the stopped replay never retried (`027c04144`); the served file URI compared by spelling; AVPlayer
+refusing a `data:` video source (v1 refuses view-once video on native — LLP 1013 decision 7,
+amended). The six-hour launchd schedule for the witness is installed from the primary checkout
+after landing (`node scripts/witness-expo.mjs --print-launchd`).
