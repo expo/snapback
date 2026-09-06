@@ -135,17 +135,16 @@ Tokens are not operation-site-bound. The index must be total (end in `id` or be
 unique); `after` follows scan order.
 Local `partial` results clear `next` for every query.
 
-`merge table [after cursor] first|last N by index:` fan-ins one or more
-lanes with named or positional `[prefix keys]`, optionally `for name in` a bounded
-range read. Prefixes share widths/types, leave a suffix, and differ structurally.
-Equal evaluated prefixes and bounds collapse to one lane.
-A heap lazily merges SQLite streams by their shared suffix, deduplicates
-intrinsic `id`, and returns N rows. Uniform lanes cost at most L heads + N
-advances + 2 lookahead, plus lane discovery; non-uniform lanes keep conservative
-per-lane reserves. Retention prices heads, discovery, the page, and lookahead.
-Local merges require a certificate. Shapes, `for`, and `count`
-work as for range pages. A pageable index ends in `id`; one shared cursor
-applies unchanged to every lane.
+`merge table [after cursor] first|last N by index:` joins structurally distinct
+`[prefix keys]` lanes (named or positional), optionally `for name in` a bounded
+range. Prefixes share widths/types and leave a suffix; equal evaluated prefixes
+and bounds collapse. A heap merges SQLite streams by suffix, deduplicates `id`,
+and returns N rows. Uniform cost is at most L heads + N advances + 2 lookahead, plus
+discovery; non-uniform lanes keep per-lane reserves. Retention prices heads,
+discovery, page, and lookahead. Local merges require a certificate.
+System reads bypass rule-based capping; execution limits still cap.
+Without runtime lanes, the page is empty. Shapes, `for`, and `count` work as for
+ranges. A pageable index ends in `id`; one shared cursor applies to every lane.
 
 ```q
 query followingFeed(c: cursor ?):

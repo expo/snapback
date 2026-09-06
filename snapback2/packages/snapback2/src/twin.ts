@@ -120,7 +120,7 @@ export class Twin {
       const result = local.execution.result;
       const data = result === "Null" && local.state !== "fresh" ? undefined : wireJson(result);
       if (local.state === "fresh") {
-        return { state: queryState(operation.certificate, local.execution.trace), data, next: local.execution.next, ...base };
+        return { state: queryState(operation.certificate, local.execution.trace, context.viewer), data, next: local.execution.next, ...base };
       }
       return partial(local.partialSites, local.execution.trace, data);
     } catch (error) {

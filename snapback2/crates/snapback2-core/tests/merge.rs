@@ -126,11 +126,69 @@ fn following_twenty_over_five_hundred_follows_is_additive_and_matches_sorted_uni
     assert_eq!(ids(&first.result), expected[..20]);
     assert_eq!(first.state, ExecutionState::Capped);
     check_trace(&first, &certificate);
+    let Stmt::Return(Expr::Merge(merge)) = &program.body[0] else {
+        unreachable!()
+    };
+    let posts_budget = merge.max_lanes() + merge.take() + 2;
+    let follows_budget = merge.lanes[1].source.as_ref().unwrap().take.maximum() + 1;
+    let check_receipt = |execution: &Execution| {
+        for (table, budget) in [("posts", posts_budget), ("follows", follows_budget)] {
+            let held = execution
+                .receipt
+                .rows
+                .iter()
+                .filter(|row| row.table == table)
+                .count();
+            assert!(
+                held <= budget as usize,
+                "{table}: retained {held} rows, priced {budget}"
+            );
+        }
+    };
+    check_receipt(&first);
     let second = engine
         .execute(&program, &certificate, ctx(first.next))
         .unwrap();
     assert_eq!(ids(&second.result), expected[20..40]);
     check_trace(&second, &certificate);
+    check_receipt(&second);
+}
+
+#[test]
+fn merge_empty_discovery_is_complete_for_literal_and_argument_take() {
+    for take in [
+        Bound::Literal(20),
+        Bound::Arg {
+            name: "n".into(),
+            max: 20,
+        },
+    ] {
+        let (schema, mut program) = fixture(500, 20);
+        let Stmt::Return(Expr::Merge(merge)) = &mut program.body[0] else {
+            unreachable!()
+        };
+        merge.lanes.remove(0);
+        merge.lanes[0].scan.take = take;
+        program.args.insert("n".into(), ArgType::Int);
+        let certificate = Checker::new(&schema, Ceilings::default())
+            .check(&program)
+            .unwrap();
+        let mut engine = Engine::memory(schema).unwrap();
+        engine.seed("posts", entry("unfollowed", "u2", 1)).unwrap();
+        let mut context = ctx(None);
+        context.args.insert("n".into(), Value::Int(2));
+        let result = engine.execute(&program, &certificate, context).unwrap();
+        assert!(ids(&result.result).is_empty());
+        assert_eq!(result.state, ExecutionState::Complete);
+        assert_eq!(result.next, None);
+        assert_eq!(result.trace.merges[0].deduplicated_union_len, 0);
+        assert_eq!(result.trace.ranges.len(), 1);
+        assert_eq!(result.trace.ranges[0].table, "follows");
+        assert_eq!(result.trace.ranges[0].stop, StopReason::Exhausted);
+        assert_eq!(result.trace.examined, 0);
+        assert!(result.receipt.rows.is_empty());
+        check_trace(&result, &certificate);
+    }
 }
 
 #[test]

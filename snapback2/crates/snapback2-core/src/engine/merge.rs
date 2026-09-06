@@ -381,31 +381,67 @@ mod tests {
     use crate::{Ceilings, Checker, object};
 
     #[test]
-    fn system_merge_reads_denied_table_without_rule_probes() {
-        let frozen: serde_json::Value = serde_json::from_str(include_str!(
-            "../../../../corpus/merge-runtime-overlap-deduped.json"
-        ))
-        .unwrap();
-        let mut schema: Schema = serde_json::from_value(frozen["schema"].clone()).unwrap();
-        schema.tables.get_mut("posts").unwrap().rules.read = RuleExpr::Deny;
-        let program: Program = serde_json::from_value(frozen["program"].clone()).unwrap();
-        let certificate = Checker::new(&schema, Ceilings::default())
-            .check(&program)
+    fn system_merge_reads_denied_and_nonuniform_tables_without_rule_probes() {
+        for read in [
+            RuleExpr::Deny,
+            RuleExpr::Eq(
+                RuleTerm::Field("at".into()),
+                RuleTerm::Literal(Value::Int(1)),
+            ),
+        ] {
+            let frozen: serde_json::Value = serde_json::from_str(include_str!(
+                "../../../../corpus/merge-runtime-overlap-deduped.json"
+            ))
             .unwrap();
-        let mut engine = Engine::memory(schema).unwrap();
-        let receipt: ClosureReceipt = serde_json::from_value(frozen["receipt"].clone()).unwrap();
-        for row in receipt.rows {
-            engine.seed(&row.table, row.row).unwrap();
+            let mut schema: Schema = serde_json::from_value(frozen["schema"].clone()).unwrap();
+            let uniform = matches!(read, RuleExpr::Deny);
+            schema.tables.get_mut("posts").unwrap().rules.read = read;
+            let mut program: Program = serde_json::from_value(frozen["program"].clone()).unwrap();
+            let Stmt::Return(Expr::Merge(merge)) = &mut program.body[0] else {
+                unreachable!()
+            };
+            program.result_page_site = Some(merge.site.clone());
+            for lane in &mut merge.lanes {
+                lane.scan.opaque_cursor = true;
+                lane.scan.after = Some(Box::new(Expr::Variable("c".into())));
+            }
+            program
+                .args
+                .insert("c".into(), ArgType::Optional(Box::new(ArgType::Cursor)));
+            let certificate = Checker::new(&schema, Ceilings::default())
+                .check(&program)
+                .unwrap();
+            assert_eq!(
+                certificate.completeness,
+                if uniform {
+                    crate::certificate::Completeness::Page
+                } else {
+                    crate::certificate::Completeness::Capped
+                }
+            );
+            assert!(
+                certificate
+                    .read_sites
+                    .iter()
+                    .all(|site| site.hoist == uniform)
+            );
+            let mut engine = Engine::memory(schema).unwrap();
+            let receipt: ClosureReceipt =
+                serde_json::from_value(frozen["receipt"].clone()).unwrap();
+            for row in receipt.rows {
+                engine.seed(&row.table, row.row).unwrap();
+            }
+            let mut context = Context::system();
+            context.args.insert("c".into(), Value::Null);
+            let result = engine.execute(&program, &certificate, context).unwrap();
+            assert_eq!(
+                row_ids(result.result.as_array().unwrap()).unwrap(),
+                ["a1", "a3"]
+            );
+            assert_eq!(result.state, ExecutionState::Complete);
+            assert_eq!(result.next, None);
+            assert_eq!(result.trace.rule_probes, 0);
         }
-        let result = engine
-            .execute(&program, &certificate, Context::system())
-            .unwrap();
-        assert_eq!(
-            row_ids(result.result.as_array().unwrap()).unwrap(),
-            ["a1", "a3"]
-        );
-        assert_eq!(result.state, ExecutionState::Complete);
-        assert_eq!(result.trace.rule_probes, 0);
     }
 
     #[test]

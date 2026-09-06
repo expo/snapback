@@ -89,7 +89,7 @@ export class Runner {
     return {
       result: this.partial.size === 0 && flow.kind === "return" ? flow.value : "Null",
       trace: this.trace,
-      next: mintNext(this.schema, this.certificate, this.trace),
+      next: mintNext(this.context.viewer, this.certificate, this.trace),
       writes: [...this.writes.values()],
     };
   }
@@ -602,8 +602,8 @@ export class Runner {
     }
     const first = merge.lanes[0].scan;
     // The first distinct lane evaluates the shared bound; certification prices
-    // the first static lane's maximum. With no lanes there is nothing to emit.
-    const take = lanes[0]?.input.take ?? 0;
+    // the first static lane's maximum, also used when discovery opens no lanes.
+    const take = lanes[0]?.input.take ?? first.take.Literal ?? first.take.Arg.max;
     const step = (): void => this.step();
     const next = lanes.map((lane) => (): Value | null => {
       while (!lane.exhausted && (this.trace.examined ?? 0) < certificate.max_examined) {
@@ -1097,9 +1097,9 @@ function substituteRuleTerm(term: any, columns: string[], probeKey: any[]): any 
   return position < 0 || position >= probeKey.length ? null : clone(probeKey[position]);
 }
 
-function mintNext(schema: any, certificate: any, trace: Trace): string | null {
+function mintNext(viewer: string, certificate: any, trace: Trace): string | null {
   const page = certificate?.result_page_site;
-  if (!page || !queryCapped(certificate, trace)) return null;
+  if (!page || !queryCapped(certificate, trace, viewer)) return null;
   const values = page.merge
     ? trace.merges.slice().reverse().find((entry) => entry.site === page.site)?.last_returned_suffix
     : trace.ranges.slice().reverse().find((entry) => entry.site === page.site)?.lastReturnedSuffix;
@@ -1114,14 +1114,16 @@ function mintNext(schema: any, certificate: any, trace: Trace): string | null {
 }
 
 /** The wire state a query run reports: `capped` exactly when the engine's `query_state` says so. */
-export function queryState(certificate: any, trace: Trace): "complete" | "capped" {
-  return queryCapped(certificate, trace) ? "capped" : "complete";
+export function queryState(certificate: any, trace: Trace, viewer: string): "complete" | "capped" {
+  return queryCapped(certificate, trace, viewer) ? "capped" : "complete";
 }
 
-function queryCapped(certificate: any, trace: Trace): boolean {
-  if (certificate.completeness === "Capped") return true;
+function queryCapped(certificate: any, trace: Trace, viewer: string): boolean {
+  // @ref LLP 1016#d1--the-system-principal-is-the-stores-owner — owner reads skip rules; execution and merge bounds still bind.
+  const system = viewer === coreIrContract.systemPrincipalId;
+  if (!system && certificate.completeness === "Capped") return true;
   if (trace.ranges.some((range) => range.stop === "limit"
-      || !certificate.read_sites?.find((site: any) => site.site === range.site)?.hoist)) return true;
+      || (!system && !certificate.read_sites?.find((site: any) => site.site === range.site)?.hoist))) return true;
   return (certificate.merge_sites ?? []).some((site: any) => {
     const merge = trace.merges.find((entry) => entry.site === site.site);
     const unionTooLarge = merge === undefined || merge.deduplicated_union_len > site.take;
