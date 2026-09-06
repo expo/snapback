@@ -295,7 +295,9 @@ The manifest and program schema carry the column modifier. The client
 its own once image and per-member visibility through its read rule. The
 row byte cache refuses once rows. The twin never predicts a once fetch;
 offline, their media reads `null`. Adding `once` to an existing image column
-is an admitted successor; prior views are unrecorded.
+is an admitted successor; prior views are unrecorded. Removing `once` is
+destructive and refuses (`E_SUCCESSOR_DESTRUCTIVE`): a delivered-once image
+cannot become re-deliverable by a schema change.
 
 ### 2b. The session carrier (author ruling, 2026-09-03)
 
