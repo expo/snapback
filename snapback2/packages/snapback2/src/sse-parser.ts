@@ -1,8 +1,12 @@
 interface ParsedEvent { id?: string; data: string }
+export interface SseResponse {
+  readonly ok: boolean;
+  readonly body: ReadableStream<Uint8Array> | null;
+}
 function abortError(): Error { const error = new Error("subscription closed"); error.name = "AbortError"; return error; }
 
 export async function* parseSse(
-  response: Response,
+  response: Pick<SseResponse, "body">,
   signal: AbortSignal,
   onActivity: () => void,
 ): AsyncGenerator<ParsedEvent> {

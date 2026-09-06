@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2` (the binary: owner, server, verbs), `snapback2/packages/compiler` (project lowering, worker), `snapback2/packages/snapback2` (authoring runtime, client, React, test runner, shim), `snapback2/scripts/measure.mjs`
 **Author:** Claude Fable 5 (orchestrator) — implementers: codex gpt-5.6-sol, lanes B0 (compiler + authoring surface), B1 (owner + server + verbs), B2 (`init`, `test`, `why`, `trace`, `guide`), D (client + React + evaluator)
 **Date:** 2026-08-29
-**Revised:** 2026-09-06 (CLI help and executable migration recovery); 2026-09-05 (keyword index fallback and recipe list; generated Quarry keyword guide, landed outbox/client custody; auth review: failed-transition custody, read restoration barrier, session kind, paused offline retries; client-owned auth restoration and retry lifecycle; catalog naming rewrites, Clique L2; shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
+**Revised:** 2026-09-06 (native logical SSE body; CLI help and executable migration recovery); 2026-09-05 (keyword index fallback and recipe list; generated Quarry keyword guide, landed outbox/client custody; auth review: failed-transition custody, read restoration barrier, session kind, paused offline retries; client-owned auth restoration and retry lifecycle; catalog naming rewrites, Clique L2; shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
 **Related:** LLP 1000, LLP 1001 (the engine this serves), LLP 1003 (effects),
 LLP 0329.016 §5 (the design this implements verbatim where it can), LLP
 0329.016 §5.11 (the verb table — no verb exists without its row), LLP
@@ -426,6 +426,18 @@ works on the existing HTTP/1.1 local server and needs no TLS or HTTP/2 setup.
 The Chromium 153 probe received all 60 live query deliveries, then a mutation
 update on every query and an ordinary query result, over one HTTP/1.1 SSE
 connection. This is transport qualification, not a new Clique benchmark result.
+
+**Native logical streams (2026-09-06; GPT-6 Astra, `s2/clique-native-sync`).**
+Demultiplexed children pass `{ ok: true, body }` directly to the SSE consumer;
+they are not HTTP responses. React Native 0.81.5's global `Response`
+(`whatwg-fetch` 3.6.20) accepts a stream but exposes no `body`, even when
+`createExpoClient` uses the streaming `expo/fetch` (LLP 1013 §2, decision 6).
+Reconstructing a child with that constructor caused published 0.0.6's native
+`E_NETWORK: SSE response has no body`. Physical fetch responses still undergo
+HTTP validation; logical framing, terminal authority evidence, and cancellation
+are unchanged. Regressions use the actual native constructor with a separate
+streaming fetch fixture. They do not qualify a device: the recorded Clique
+native M6 acceptance remains **FAILED** until separately rerun.
 
 **Wire amendments — 2026-08-30/2026-09-03.** `Capped` carries no `take`, site,
 or stop reason. Complete/capped alone carry `next`; complete and empty capped

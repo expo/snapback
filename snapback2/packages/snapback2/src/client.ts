@@ -49,6 +49,7 @@ import {
 } from "./client-wire.js";
 import { type OfflineRuntime, type MountedQuery } from "./offline.js";
 import { ReconnectingSse } from "./sse.js";
+import type { SseResponse } from "./sse-parser.js";
 import { stableSerialize } from "./types.js";
 import type {
   AssetInput,
@@ -921,7 +922,7 @@ class Client implements SnapbackClient {
     lastEventId: string | undefined,
     signal: AbortSignal,
     authority: Authority,
-  ): Promise<Response> {
+  ): Promise<SseResponse> {
     this.ensureAuthority(authority);
     if (this.forcedOffline) throw offlineNetworkRefusal();
     const headers = this.headers(authority, true);

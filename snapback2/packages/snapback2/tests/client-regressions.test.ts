@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { createRequire } from "node:module";
 import React from "react";
 import TestRenderer, { act } from "react-test-renderer";
 import { SnapbackRefusal, api, createClient } from "../dist/client.mjs";
@@ -19,6 +20,150 @@ const refusal = (code: string, message: string) => ({
   family: "auth",
   message,
   guide: "auth/session",
+});
+
+// RN 0.81 loads this constructor from whatwg-fetch; expo/fetch returns its own
+// streaming response. Use the actual dependency, retaining Node's Response only
+// for the fetch fixture so its body models Expo's separate FetchResponse.body.
+function nativeLive(context: import("node:test").TestContext) {
+  const require = createRequire(import.meta.url);
+  const nativeRequire = createRequire(require.resolve("react-native/package.json"));
+  const { Response: NativeResponse } = nativeRequire("whatwg-fetch");
+  const StreamingResponse = globalThis.Response;
+  const probeBody = new ReadableStream();
+  const probe = new NativeResponse(probeBody);
+  assert.equal(probe.ok, true);
+  assert.equal("body" in probe, false);
+  assert.equal(probe._bodyInit, probeBody);
+  assert.equal(probe._bodyText, "[object ReadableStream]");
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, "Response")!;
+  Object.defineProperty(globalThis, "Response", { ...descriptor, value: NativeResponse });
+  context.after(() => Object.defineProperty(globalThis, "Response", descriptor));
+
+  const session = "a".repeat(64);
+  const controls: Array<{ add?: Array<{ id: string; path: string }>; remove?: string[]; close?: boolean }> = [];
+  const requests: Array<{ path: string; authorization: string | null }> = [];
+  let output!: ReadableStreamDefaultController<Uint8Array>;
+  let cancelled = 0;
+  let signal: AbortSignal | undefined;
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) { output = controller; },
+    cancel() { cancelled++; },
+  });
+  const send = (frame: unknown) => output.enqueue(new TextEncoder().encode(`data: ${JSON.stringify(frame)}\n\n`));
+  const json = (value: unknown) => new StreamingResponse(JSON.stringify(value));
+  const fetch: typeof globalThis.fetch = async (input, init) => {
+    const path = new URL(String(input)).pathname;
+    requests.push({ path, authorization: new Headers(init?.headers).get("Authorization") });
+    if (path === "/api/auth/me") return json({ viewer: "principal-a", kind: "account" });
+    if (path === "/api/live") {
+      signal = init?.signal ?? undefined;
+      assert.equal(init?.body, "{}");
+      send({ session });
+      return new StreamingResponse(body);
+    }
+    assert.equal(path, "/api/live/control");
+    const command = JSON.parse(String(init?.body));
+    assert.equal(command.session, session);
+    controls.push(command);
+    return json({ ok: true });
+  };
+  return {
+    fetch, send, controls, requests, body,
+    get cancelled() { return cancelled; },
+    get signal() { return signal; },
+    child(fragment: string) {
+      const entry = controls.flatMap(command => command.add ?? []).find(entry => entry.path.includes(fragment));
+      assert.ok(entry, `missing logical subscription ${fragment}`);
+      return entry.id;
+    },
+  };
+}
+
+async function waitForNative(predicate: () => boolean): Promise<void> {
+  const deadline = Date.now() + 1_000;
+  while (!predicate() && Date.now() < deadline) await new Promise(resolve => setImmediate(resolve));
+  assert.ok(predicate(), "native transport condition timed out");
+}
+
+test("native Response preserves shared query/channel delivery and independent terminal refusals", async context => {
+  const wire = nativeLive(context);
+  const value = createClient({ url: "http://native.test", as: "alice", fetch: wire.fetch });
+  const queries: unknown[] = [], channels: unknown[] = [];
+  const query = value.subscribe(api.messages.thread, {}, event => queries.push(event));
+  const channel = value.channel(api.typing, {}).subscribe(event => channels.push(event));
+  try {
+    await waitForNative(() => wire.controls.flatMap(command => command.add ?? []).length === 2);
+    const queryId = wire.child("/api/subscribe?"), channelId = wire.child("/api/channel/");
+    const row = { state: "complete", data: [{ body: "native history" }], seq: 1, next: null };
+    const typing = { from: "principal-b", payload: { typing: true }, at: 10 };
+    wire.send({ id: channelId, seq: null, data: typing, terminal: false });
+    wire.send({ id: queryId, seq: 1, data: row, terminal: false });
+    await waitForNative(() => queries.length > 0 || value.snapshot.lastRefusal !== undefined);
+    assert.equal(value.snapshot.lastRefusal, undefined);
+    await query.until(event => event.state === "complete", 1_000);
+    await channel.until(event => "payload" in event, 1_000);
+    assert.deepEqual(queries, [{ ...row, live: true }]);
+    assert.deepEqual(channels, [typing]);
+
+    const denied = { state: "refused", code: "E_RULE", family: "rule", guide: "rule/runtime", message: "membership removed" };
+    wire.send({ id: queryId, seq: null, data: denied, terminal: true });
+    await assert.rejects(query.until(() => false, 1_000), error => error instanceof SnapbackRefusal && error.code === "E_RULE");
+    wire.send({ id: queryId, seq: 2, data: { ...row, seq: 2 }, terminal: false });
+    wire.send({ id: channelId, seq: null, data: { ...typing, at: 11 }, terminal: false });
+    await channel.until(event => "at" in event && event.at === 11, 1_000);
+    assert.deepEqual(queries, [{ ...row, live: true }, { ...denied, live: false }]);
+    assert.deepEqual(channels, [typing, { ...typing, at: 11 }]);
+    wire.send({ id: channelId, seq: null, data: denied, terminal: true });
+    await assert.rejects(channel.until(() => false, 1_000), error => error instanceof SnapbackRefusal && error.code === "E_RULE");
+    assert.deepEqual(channels.at(-1), denied);
+    await waitForNative(() => [queryId, channelId].every(id => wire.controls.some(command => command.remove?.includes(id))));
+    assert.equal(wire.requests.filter(request => request.path === "/api/live").length, 1);
+    assert.equal(wire.signal?.aborted, false);
+  } finally { await value.close(); }
+  await waitForNative(() => wire.cancelled === 1 && !wire.body.locked);
+  assert.equal(wire.signal?.aborted, true);
+  assert.ok(wire.controls.some(command => command.close));
+});
+
+test("native Response cancellation keeps peers live and preserves removed-child session evidence", async context => {
+  const wire = nativeLive(context);
+  let stored: string | null = "native-bearer";
+  const value = createClient({ url: "http://native.test", fetch: wire.fetch,
+    tokenStore: { load: () => stored, save: token => { stored = token; } } });
+  const queries: unknown[] = [], channels: unknown[] = [];
+  try {
+    await value.ready;
+    const query = value.subscribe(api.messages.thread, {}, event => queries.push(event));
+    const channel = value.channel(api.typing, {}).subscribe(event => channels.push(event));
+    await waitForNative(() => wire.controls.flatMap(command => command.add ?? []).length === 2);
+    const queryId = wire.child("/api/subscribe?"), channelId = wire.child("/api/channel/");
+    const row = { state: "complete", data: [], seq: 1, next: null };
+    wire.send({ id: queryId, seq: 1, data: row, terminal: false });
+    await waitForNative(() => queries.length > 0 || value.snapshot.lastRefusal !== undefined);
+    assert.equal(value.snapshot.lastRefusal, undefined);
+    await query.until(event => event.state === "complete", 1_000);
+    const pending = query.until(() => false, 1_000);
+    query.close();
+    await assert.rejects(pending, { name: "AbortError" });
+    await waitForNative(() => wire.controls.some(command => command.remove?.includes(queryId)));
+    wire.send({ id: queryId, seq: 2, data: { ...row, seq: 2 }, terminal: false });
+    const typing = { from: "principal-b", payload: { typing: true }, at: 20 };
+    wire.send({ id: channelId, seq: null, data: typing, terminal: false });
+    await channel.until(event => "at" in event && event.at === 20, 1_000);
+    assert.deepEqual(queries, [{ ...row, live: true }]);
+    assert.deepEqual(channels, [typing]);
+    assert.equal(wire.signal?.aborted, false);
+    // A removed child's bytes may already be in flight. Ordinary data is
+    // suppressed, but terminal evidence still retires that exact bearer.
+    wire.send({ id: queryId, seq: null, data: { state: "refused", ...refusal("E_AUTH_SESSION", "expired") }, terminal: true });
+    await waitForNative(() => stored === null && value.snapshot.token === undefined);
+    assert.deepEqual(queries, [{ ...row, live: true }]);
+    assert.equal(wire.requests.filter(request => request.path === "/api/live").length, 1);
+  } finally { await value.close(); }
+  await waitForNative(() => wire.cancelled === 1 && !wire.body.locked);
+  assert.ok(wire.controls.some(command => command.close));
+  assert.ok(wire.requests.every(request => request.authorization === "Bearer native-bearer"));
 });
 
 test("status listener exceptions cannot leak registration or break peers", async () => {
