@@ -1,0 +1,25 @@
+{
+  "runtime": "Node22.23.2 ICU78.2 Unicode17.0; rustc1.97.0 (2d8144b78 2026-07-07)",
+  "domainScalars": 1112064,
+  "forbiddenScalars": 84,
+  "exactParity": true,
+  "definition": "Rust char::is_whitespace || is_control == JS Unicode White_Space|Cc == pinned UCD17 union over all Unicode scalar values. This qualifies these installed versions, not every future/older ICU.",
+  "boundaryControls": {
+    "U+0000": true,
+    "U+0085": true,
+    "U+00A0": true,
+    "U+180E": false,
+    "U+200B": false,
+    "U+2028": true,
+    "U+2029": true,
+    "U+FEFF": false
+  },
+  "inputs": {
+    "/Users/ccheever/clique-improvement/revisions/compiler-argument-format-audit/scalar-parity.rs": "0578181d9e611099f171ebc75fdf3e305573df8d8168e339b672a123e02070bd",
+    "/Users/ccheever/clique-improvement/revisions/compiler-argument-format-audit/scalar-parity.mjs": "ae651262a1d1d9222df8963fbdf54be4ba09b5b002b26f0d23635780d08a2a94",
+    "/Users/ccheever/clique-improvement/revisions/compiler-argument-format-audit/scalar-rust.txt": "37bfbed966d1fd580dc81e4e231853cb2e70ada3f41b8cfcbaa685ee4bd62c35",
+    "/Users/ccheever/clique-improvement/revisions/compiler-argument-format-audit/scalar-js.txt": "37bfbed966d1fd580dc81e4e231853cb2e70ada3f41b8cfcbaa685ee4bd62c35",
+    "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/unicode/17.0.0/PropList.txt": "130dcddcaadaf071008bdfce1e7743e04fdfbc910886f017d9f9ac931d8c64dd",
+    "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/unicode/17.0.0/UnicodeData.txt": "2e1efc1dcb59c575eedf5ccae60f95229f706ee6d031835247d843c11d96470c"
+  }
+}
