@@ -1,0 +1,85 @@
+{
+  "commit": "38d406d79a7f7b8f4b53e154b96633250be32e23",
+  "launcher_pid": 88546,
+  "started": 1788686236.617223,
+  "phases": [
+    {
+      "name": "build",
+      "command": [
+        "node",
+        "build.mjs"
+      ],
+      "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-integration/snapback2/packages/snapback2",
+      "started": 1788686236.617981,
+      "pid": 88549,
+      "exit_code": 0,
+      "finished": 1788686237.8355572
+    },
+    {
+      "name": "selected",
+      "command": [
+        "node",
+        "--test",
+        "--test-timeout=10000",
+        "tests/real-owner.test.ts",
+        "tests/native-assets.test.ts",
+        "tests/native-files.test.ts",
+        "tests/native-custody.test.ts",
+        "tests/expo-harness.test.ts",
+        "tests/expo-witness.test.ts",
+        "tests/offline-protocol.test.ts",
+        "tests/offline-store.test.ts",
+        "tests/store-review.test.ts",
+        "tests/local-data-recovery.test.ts",
+        "tests/sqlite.test.ts",
+        "tests/expo.test.ts",
+        "tests/offline-bytes.test.ts",
+        "tests/offline-view-once.test.ts",
+        "tests/offline-resume-tail.test.ts",
+        "tests/outbox.test.ts",
+        "tests/outbox-custody.test.ts",
+        "tests/overlay-retirement.test.ts",
+        "tests/twin.test.ts",
+        "tests/supersession.test.ts",
+        "tests/readiness.test.ts",
+        "tests/chat-screens.test.ts",
+        "tests/auth-restoration.test.ts",
+        "tests/auth-ownership.test.ts"
+      ],
+      "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-integration/snapback2/packages/snapback2",
+      "started": 1788686237.83583,
+      "pid": 88804,
+      "exit_code": 0,
+      "finished": 1788686262.9601128
+    },
+    {
+      "name": "assets",
+      "command": [
+        "node",
+        "--test",
+        "--test-timeout=120000",
+        "tests/assets.test.ts"
+      ],
+      "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-integration/snapback2/packages/snapback2",
+      "started": 1788686262.960518,
+      "pid": 93701,
+      "exit_code": 0,
+      "finished": 1788686263.5572522
+    },
+    {
+      "name": "measure",
+      "command": [
+        "node",
+        "scripts/measure.mjs",
+        "--check"
+      ],
+      "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-integration/snapback2",
+      "started": 1788686263.557555,
+      "pid": 93904,
+      "exit_code": 0,
+      "finished": 1788686298.568314
+    }
+  ],
+  "finished": 1788686298.569679,
+  "exit_code": 0
+}

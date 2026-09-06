@@ -1,0 +1,1 @@
+The report is preserved verbatim. Its relative evidence links resolve in the original directory `/Users/ccheever/clique-improvement/native/astra-006-m6/`, retained locally and on M5. Large videos/app bundles remain there. The selected JSON files beside this note are byte-identical copies. Artifact validation passes; native acceptance fails.

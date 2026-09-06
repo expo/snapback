@@ -1,0 +1,352 @@
+{
+  "runId": "7aba86ce-61b6-4d66-a81c-a9e0e01b9feb",
+  "overallPass": false,
+  "qualifyingContractRun": false,
+  "observations": [
+    {
+      "assertion": "ios-online-sync-precondition",
+      "status": "failed",
+      "pass": false,
+      "required": true,
+      "reason": "Alice signed in, but the live native inbox and fixture conversation were empty. Existing subscription diagnostics repeatedly recorded E_NETWORK: SSE response has no body. All three original fixture rows were available through the real backend API. Online history sync and online media viewing never completed.",
+      "startedAt": "2026-09-06T08:59:40.870247+00:00",
+      "endedAt": "2026-09-06T09:03:49.661031+00:00",
+      "evidence": [
+        {
+          "path": "online-inbox-settled.json",
+          "sha256": "239bf24d5fd2385b300cd487529ad3cb3e2d8f69793b8fc498bf5b651d54b0d3"
+        },
+        {
+          "path": "online-inbox-settled.png",
+          "sha256": "06eb33e2d06585b820203e27c3c85b6ee421478d3b84095c172e1a07878d14f4"
+        },
+        {
+          "path": "observed-online-chat.json",
+          "sha256": "b54bd97679697c174a57dd04c31a8c3ac5899c8e97d788021973429c9a2c980b"
+        },
+        {
+          "path": "observed-online-chat.png",
+          "sha256": "329fdc6665faafb3c6bba299c5021a59f304c0d05d50e140ce318e61943b670f"
+        },
+        {
+          "path": "online-precondition-failed.png",
+          "sha256": "329fdc6665faafb3c6bba299c5021a59f304c0d05d50e140ce318e61943b670f"
+        },
+        {
+          "path": "native-observer-online.jsonl",
+          "sha256": "b56308d56ad4b852e64c5e8f7c6769f3dad59d90b44972774f2785d1c7799d66"
+        },
+        {
+          "path": "api-history-1788685180996.json",
+          "sha256": "9d44eb06a44b5e030096728046d03a208c112d42c1b0cad9196ccdeaccf31ea0"
+        }
+      ],
+      "metrics": {},
+      "outcomeClass": "platform",
+      "visualReview": null
+    },
+    {
+      "assertion": "ios-cold-launch-backend-stopped",
+      "status": "passed",
+      "pass": true,
+      "required": true,
+      "reason": "Recorded online app PID 42937 and backend PID 92062 were absent before launch; TCP connect returned ECONNREFUSED (61), lsof found no listener, and the recording began on SpringBoard before cold app PID 47893 launched. Backend remained stopped through both pending sends.",
+      "startedAt": "2026-09-06T09:03:50.134075+00:00",
+      "endedAt": "2026-09-06T09:03:54.153458+00:00",
+      "evidence": [
+        {
+          "path": "lifecycle.jsonl",
+          "sha256": "ca1f003b49704e071ac8a229e46a0502cbaf2e8f1b66af43dd2f3b367feb7aaa"
+        },
+        {
+          "path": "offline-prelaunch.png",
+          "sha256": "e36c67a728dc8ed9e179989ffface1d9e03b3ffcd5bb5bc597f8ac6c6fb16ff5"
+        },
+        {
+          "path": "cold-start.png",
+          "sha256": "1eb90361aa375135220a5910b05e551aac531c0c05892ce3884094cdf46a17c9"
+        },
+        {
+          "path": "app-cold-launch.txt",
+          "sha256": "8387eb7c39c63db6eb76b6a13283263c51a456defade76a68c9dd7de4b4f7fb7"
+        }
+      ],
+      "metrics": {},
+      "outcomeClass": null,
+      "visualReview": null
+    },
+    {
+      "assertion": "ios-cold-history",
+      "status": "not-recorded",
+      "pass": null,
+      "required": true,
+      "reason": "Cold fixture conversation was inspected and empty; durable previously synced history cannot be evaluated because online history sync never succeeded.",
+      "startedAt": "2026-09-06T09:03:54.153458+00:00",
+      "endedAt": "2026-09-06T09:04:34.103741+00:00",
+      "evidence": [
+        {
+          "path": "cold-history.json",
+          "sha256": "2326971fdfaaef390d1cdbe639045e515819b9f0026754b06cc71642b2b0acc2"
+        },
+        {
+          "path": "cold-history.png",
+          "sha256": "15e1f8ef4786b9b970950da286c866cce5e145d79014b8161e7618616a0c453a"
+        }
+      ],
+      "metrics": {},
+      "outcomeClass": "platform",
+      "visualReview": null
+    },
+    {
+      "assertion": "ios-ordinary-media",
+      "status": "not-recorded",
+      "pass": null,
+      "required": true,
+      "reason": "No ordinary fixture image rendered online, so previously viewed ordinary-media restoration was not recorded. The cold conversation exposed no image to open.",
+      "startedAt": "2026-09-06T09:03:54.153458+00:00",
+      "endedAt": "2026-09-06T09:04:34.103741+00:00",
+      "evidence": [
+        {
+          "path": "cold-history.json",
+          "sha256": "2326971fdfaaef390d1cdbe639045e515819b9f0026754b06cc71642b2b0acc2"
+        },
+        {
+          "path": "cold-history.png",
+          "sha256": "15e1f8ef4786b9b970950da286c866cce5e145d79014b8161e7618616a0c453a"
+        }
+      ],
+      "metrics": {},
+      "outcomeClass": "platform",
+      "visualReview": null
+    },
+    {
+      "assertion": "ios-view-once-refusal",
+      "status": "not-recorded",
+      "pass": null,
+      "required": true,
+      "reason": "The fixture view-once image was never opened or consumed in the native app. Its consumed/denied cold state was not recorded; absence from an empty screen is not proof of refusal.",
+      "startedAt": "2026-09-06T09:03:54.153458+00:00",
+      "endedAt": "2026-09-06T09:04:34.103741+00:00",
+      "evidence": [
+        {
+          "path": "cold-history.json",
+          "sha256": "2326971fdfaaef390d1cdbe639045e515819b9f0026754b06cc71642b2b0acc2"
+        },
+        {
+          "path": "cold-history.png",
+          "sha256": "15e1f8ef4786b9b970950da286c866cce5e145d79014b8161e7618616a0c453a"
+        }
+      ],
+      "metrics": {},
+      "outcomeClass": "platform",
+      "visualReview": null
+    },
+    {
+      "assertion": "ios-cold-offline-search",
+      "status": "not-recorded",
+      "pass": null,
+      "required": true,
+      "reason": "The exact m6nativequartz token was entered in native chat search with the Offline \u2014 searching synced messages label. No result appeared. Search over previously synced history remains untested because the named message never synced; no owning-result navigation was possible.",
+      "startedAt": "2026-09-06T09:03:54.153458+00:00",
+      "endedAt": "2026-09-06T09:04:34.103741+00:00",
+      "evidence": [
+        {
+          "path": "cold-search-token.json",
+          "sha256": "25b0a7159abf88cc2c5b4bf4cc1503af37ed6987513736418f257204a205e77e"
+        },
+        {
+          "path": "cold-search-token.png",
+          "sha256": "13797f5d22d9fbb8ce1f45f4d9701f92f7fc7f64420c40cdf5b215788d5d31e8"
+        },
+        {
+          "path": "cold-search-token-ocr.json",
+          "sha256": "506e6aea97db0c124766cfa1f1afa8924d219db710818069003e46bc67ad3acb"
+        }
+      ],
+      "metrics": {},
+      "outcomeClass": "platform",
+      "visualReview": null
+    },
+    {
+      "assertion": "ios-two-pending-compose-order",
+      "status": "passed",
+      "pass": true,
+      "required": true,
+      "reason": "Both exact fixture bodies appeared once each in compose order while the backend was stopped. Native screenshots show the frozen UI pending clock glyph on each bubble; OCR independently binds exact bodies and vertical order. Accessibility groups each bubble and does not expose its descendant receipt value.",
+      "startedAt": "2026-09-06T09:04:39.677172+00:00",
+      "endedAt": "2026-09-06T09:05:31.766410+00:00",
+      "evidence": [
+        {
+          "path": "cold-compose-first.json",
+          "sha256": "d6cae0b9892e3e2d7f0ad14610bdd55b404f78b399c4f36f57faf6341d6caae8"
+        },
+        {
+          "path": "cold-send-first.json",
+          "sha256": "23427adacd76bc95b90bd3866f0877842ff73afba4d3ebfc15c6e502f8cbcfc8"
+        },
+        {
+          "path": "cold-send-first.png",
+          "sha256": "c65d3fbeef38838f44fb0692c31a946bae77498c1fb7832e0fe1ea223025388a"
+        },
+        {
+          "path": "cold-compose-second.json",
+          "sha256": "2eb1b6ed2f074d9bda21aa2e0498983ae00e57e18572626a3b56477c7ea9c06d"
+        },
+        {
+          "path": "cold-two-pending.json",
+          "sha256": "4faaa2816524b9dde190e5f3245853111dd77de1e71f71f625f7e0fc45fdcae7"
+        },
+        {
+          "path": "cold-two-pending.png",
+          "sha256": "1ddf506991e71683bae858b7b932e2ec0d2199095a48e52d7944017763190e60"
+        },
+        {
+          "path": "cold-two-pending-ocr.json",
+          "sha256": "cb15cc89336e96e0560d9abc12d021f3067cc916e41ed24a1243aab04258781c"
+        },
+        {
+          "path": "lifecycle.jsonl",
+          "sha256": "ca1f003b49704e071ac8a229e46a0502cbaf2e8f1b66af43dd2f3b367feb7aaa"
+        }
+      ],
+      "metrics": {
+        "messageCount": 2
+      },
+      "outcomeClass": null,
+      "visualReview": "Reviewed original simulator screenshots: two exact bodies, first above second, gray clock glyph on each."
+    },
+    {
+      "assertion": "ios-ordered-once-flush",
+      "status": "passed",
+      "pass": true,
+      "required": true,
+      "reason": "After the same backend restarted, no sends were committed at the bounded automatic-reconnect observation. Tapping the app's Sync now button then flushed both original intents exactly once in order (76 ms between server timestamps). Same app PID 47893 throughout; no storage reset. This passing component observation includes manual Sync now and does not claim automatic reconnect acceptance.",
+      "startedAt": "2026-09-06T09:06:11.412393+00:00",
+      "endedAt": "2026-09-06T09:06:36.423Z",
+      "evidence": [
+        {
+          "path": "native-actions.jsonl",
+          "sha256": "bcee075e41d07dbdeeca20ec6f4c67a208ccb9a703a5808ebaac2209074417e6"
+        },
+        {
+          "path": "reconnect-settled.json",
+          "sha256": "efe5171d467b097d8a7b1466c9beac031ade4c8957c90dede55f8a0665f7adfc"
+        },
+        {
+          "path": "api-reconnect-settled.log",
+          "sha256": "cce4a96a8fada4ab300c3f9eb11211bc5261837b99ed9b47ae33dae424533c68"
+        },
+        {
+          "path": "reconnect-sync-now.png",
+          "sha256": "a9e955b284b80461238d5a2bf60baf9091df4cbe42902131624205532e18c44d"
+        },
+        {
+          "path": "api-history-1788685596423.json",
+          "sha256": "15bcc2cb00b2108003677cae540270f6c0dedb81adb60e5723ccfc7287b631b1"
+        },
+        {
+          "path": "api-history-1788685627283.json",
+          "sha256": "3a728e8f0dd468595d5574cf56262c0f6abbb23d3937710283bf9afb7b3a0611"
+        },
+        {
+          "path": "app-before-reconnect.txt",
+          "sha256": "76b749551401a1599a396a30ed7d68115258f2ad22272587dc1750a02103890b"
+        },
+        {
+          "path": "app-final-process.txt",
+          "sha256": "76b749551401a1599a396a30ed7d68115258f2ad22272587dc1750a02103890b"
+        },
+        {
+          "path": "lifecycle.jsonl",
+          "sha256": "ca1f003b49704e071ac8a229e46a0502cbaf2e8f1b66af43dd2f3b367feb7aaa"
+        }
+      ],
+      "metrics": {
+        "messageCount": 2,
+        "serverOrderDeltaMs": 76
+      },
+      "outcomeClass": null,
+      "visualReview": null
+    },
+    {
+      "assertion": "ios-normal-receipt-progression",
+      "status": "failed",
+      "pass": false,
+      "required": true,
+      "reason": "Before Bob delivery/read acknowledgements, the first committed Alice bubble already rendered blue double read ticks. The following server observation still reported sent for both messages. Bob subsequently advanced the real receipts through delivered and read via documented API. Native sent \u2192 delivered \u2192 read progression therefore did not pass.",
+      "startedAt": "2026-09-06T09:06:36.293819+00:00",
+      "endedAt": "2026-09-06T09:07:06.913913+00:00",
+      "evidence": [
+        {
+          "path": "reconnect-sync-now.json",
+          "sha256": "aaf0cc43388905b3e4bee0c0bcd8f140140d5b41652eb47ec9ac597af6018b21"
+        },
+        {
+          "path": "reconnect-sync-now.png",
+          "sha256": "a9e955b284b80461238d5a2bf60baf9091df4cbe42902131624205532e18c44d"
+        },
+        {
+          "path": "video-frame-167.00.png",
+          "sha256": "af88b049d9ecf15cea3160e53674e60cf06fd16e953621286f99872ead8e56d9"
+        },
+        {
+          "path": "api-history-1788685596423.json",
+          "sha256": "15bcc2cb00b2108003677cae540270f6c0dedb81adb60e5723ccfc7287b631b1"
+        },
+        {
+          "path": "api-deliver-1788685622705.json",
+          "sha256": "67c374560527a38ce89a9b09828f22c6ae9703c834291cd5b0ec7f33c70fa27f"
+        },
+        {
+          "path": "api-read-1788685624465.json",
+          "sha256": "825c875a6fbe6795057774228db10fc55fb866ee5d9db8081c139ac295888c6b"
+        },
+        {
+          "path": "after-bob-delivered.png",
+          "sha256": "7ff3db90f7cec96ea42b21123f916165a01bafb4c05ab47876238c0557c278fb"
+        },
+        {
+          "path": "after-bob-read.png",
+          "sha256": "2a3d059ed33d44a4642808c79ed487576c471caba9d03fc5cce7c27e96a779ca"
+        }
+      ],
+      "metrics": {},
+      "outcomeClass": "application",
+      "visualReview": "Reviewed blue double read ticks on the first bubble in reconnect-sync-now.png, before the bound API snapshot reported sent; final screenshot contains two blue double ticks."
+    },
+    {
+      "assertion": "ios-final-read-state-aligned",
+      "status": "passed",
+      "pass": true,
+      "required": false,
+      "reason": "At the final observation both native bubbles displayed blue double ticks and the server independently reported read for both exact message IDs. This narrow final-state match does not repair the earlier false read indication or prove normal progression. Bob acted through the documented custom-client API; no Bob native screen is claimed.",
+      "startedAt": "2026-09-06T09:07:04.358Z",
+      "endedAt": "2026-09-06T09:07:07.283Z",
+      "evidence": [
+        {
+          "path": "after-bob-read.json",
+          "sha256": "b0c2e57624492073ac8c3acd9018416704d5c1685601517b4c3421a3156a165a"
+        },
+        {
+          "path": "after-bob-read.png",
+          "sha256": "2a3d059ed33d44a4642808c79ed487576c471caba9d03fc5cce7c27e96a779ca"
+        },
+        {
+          "path": "after-bob-read-ocr.json",
+          "sha256": "0892d1d52bc7951e59d965825a40d8309b137f8d37637ee15c3a3434e295331c"
+        },
+        {
+          "path": "api-read-1788685624465.json",
+          "sha256": "825c875a6fbe6795057774228db10fc55fb866ee5d9db8081c139ac295888c6b"
+        },
+        {
+          "path": "api-history-1788685627283.json",
+          "sha256": "3a728e8f0dd468595d5574cf56262c0f6abbb23d3937710283bf9afb7b3a0611"
+        }
+      ],
+      "metrics": {},
+      "outcomeClass": null,
+      "visualReview": "Both exact message bodies and blue double read ticks are visible in the original after-bob-read.png."
+    }
+  ]
+}

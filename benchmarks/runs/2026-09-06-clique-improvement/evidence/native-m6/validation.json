@@ -1,0 +1,12 @@
+{
+  "at": "2026-09-06T09:19:54.758Z",
+  "artifactValidationPass": true,
+  "nativeAcceptancePass": false,
+  "schemaVersion": "0.3.6-m8",
+  "schemaSha256": "fb3b04f8e2630bad85d2cbede611ddbc750cc6c55e4071bbcbed803b16bec238",
+  "receiptLines": 10,
+  "manifestHashBindings": 13,
+  "observationBindings": 50,
+  "originalSourceFilesVerified": 71,
+  "videoDecodedFrames": 1750
+}

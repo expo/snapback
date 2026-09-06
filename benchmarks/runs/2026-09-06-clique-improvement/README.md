@@ -5,6 +5,13 @@ and Supabase for each requested builder: Astra medium, Grok 4.6 xhigh, and
 Muse 1.3 ultra. **Not achieved.** Retain the full canonical Clique scope,
 including independent grading and the fresh-session M7 evolution phase.
 
+Current checkpoint (2026-09-06): published version remains 0.0.7. The pinned
+0.0.6 builder has frozen its continuous artifact. M1–M6 have verified web
+receipts; M8 qualification is unresolved and native M6 failed. Independent
+outcome and full-scale grading are running on private M5 copies. M7 and the
+requested three-family comparative win remain unproven. Entries below retain
+the chronology, including superseded intermediate statuses.
+
 ## Baseline
 
 The earlier 0.0.4 narrative scores and original scorer prompt are retained in
@@ -186,3 +193,48 @@ passing and Astra READY. Second-family review is pending. Search feasibility
 now has exact Unicode17 conformance and real100k fixture layout measurements;
 fullengine closure, client budget and cursor design still require resolution.
 Independent design reviews are underway, with no search implementation claim.
+
+## Frozen artifact and native failure
+
+Final source archive SHA256 is
+`c64b7b1e82a5f4588dfe7f0f07110ad149c0c7c3e0764424be678160f2f75b61`.
+The builder's original green M8 choreography referred to a suite file that was
+subsequently overwritten. Its exact bound suite could not be recovered. An
+unchanged-source requalification failed dual-offline convergence and the
+dependent receipt assertion. The addendum and uniquely named raw evidence are
+retained under `evidence/m8-final/requalification/`; their hashes were checked
+before copying. Do not claim a verified M8 pass from the earlier green report.
+
+Independent native M6 execution used the frozen M6 artifact on an M5 iOS
+simulator with a Release Hermes app and an uninterrupted 197-second recording.
+The evidence validates, but acceptance fails: native subscriptions report
+`SSE response has no body`, preventing the history/media/search preconditions;
+read ticks also precede server confirmation. Two pending messages and an
+exactly-once ordered manual flush pass. Four assertions pass, two fail, and
+four are not recorded. The verbatim report and compact receipts are under
+`evidence/native-m6/`; large app/video artifacts remain at its documented
+external location. This older M6 artifact does not qualify final M8 source.
+
+## Integration and search checkpoint
+
+Shape and reconnect fixes now have both independent READY reviews retained.
+The combined runtime at `38d406d79` passes its package build, selected client
+tests, assets tests, and existing measurement run. The later byte-delivery fix
+at `12c01f469` adds 18 passing cases, 11 demonstrated failing before repair;
+100 affected tests and 50 assets tests pass. Its measurement passes in 28.54s.
+Proof-only `d1499f395` preserves the result. These are scoped execution claims,
+not a newly green full-script claim or publication clearance.
+
+Both third-round integration reviews are retained. Astra identified the byte
+conversion gap addressed above. Grok identified a separate FIFO pre-enqueue
+catch that replaces an originating session-expiry refusal with a sealed-store
+error; its reproduction and repair are underway. Overlay-retirement changes
+at `44cd420ae` are also under fresh independent review.
+
+Search design revision 2 resolves the two design reviews into shared Unicode17
+normalization, engine-maintained prefix postings, and an indexed held client
+execution path. Foundation implementation has started. The current session's
+delegated trade is a 34,000-byte total twin ceiling with a 30,000-byte target,
+deferring Exact 2 until search qualifies; existing resource ceilings remain.
+The proposed closure allocation is not an integrated measurement. No search
+qualification or improvement in comparative score is claimed.

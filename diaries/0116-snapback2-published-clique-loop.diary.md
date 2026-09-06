@@ -271,3 +271,28 @@ conflict was on a flat revocation query, so join shape is not a sufficient
 diagnosis. Product reproduction/repair continues independently. Frozen source
 and receipt hashes are retained; the native simulator artifact is still absent.
 M8 is underway on the same published0.0.6 continuous build.
+
+### Frozen M8 and independent native evidence, 2026-09-06
+
+The builder completed and froze its continuous application, but its original
+green M8 receipt lost the exact bound suite when that file was overwritten.
+An unchanged-source repeat failed two-device offline convergence and its
+dependent receipt check. Preserve both observations; the final artifact is
+not a verified M8 pass. Independent outcome and scale grading now run from
+the frozen application with builder narratives excluded.
+
+Native M6 supplied evidence the web run could not: real Release Hermes
+execution failed to populate history because subscriptions reported a missing
+SSE response body. Two durable pending bubbles and ordered manual flush worked;
+history, media restoration, and search remained unqualified. Premature read
+ticks were also observed. These failures illustrate why successful web tests
+and a Hermes export cannot substitute for the Expo workflow. Product transport
+attribution and the separate application receipt handling are being checked.
+
+The SDK repair loop is exposing interactions between authority transitions,
+asset conversion, and queued writes that isolated tests missed. Before/after
+regressions now cover the complete byte conversion boundary; a further FIFO
+terminal-error case remains in repair. The author explicitly permits more
+than three rounds. Search foundation work has started to remove application
+posting maintenance rather than preserve that ergonomic burden as a recipe.
+No fresh matched Convex/Supabase comparison or Muse ultra score is available.
