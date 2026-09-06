@@ -49,9 +49,9 @@ and migration command discovery
 
 | Lane | Review target | Current evidence |
 | --- | --- | --- |
-| Auth startup | `0e6cebfcd`, branch `s2/clique-auth` | 173 affected tests pass; final Astra review finds held replay and late response-body cancellation gaps; Grok READY on its prior finding; Astra residuals still require revision, now underway under the author’s extended round limit |
-| Abandoned assets | `f7d251394`, branch `s2/clique-assets` | All three residuals have failing-before regressions; 99 JS / 62 Rust affected tests pass; final Astra/Grok reviews and full verification underway |
-| Conditional cursors | `bbe2f85aa`, branch `s2/clique-cursors` | Consolidated run: Rust 743 pass, compiler 400 pass, evaluator 216 pass; package 379 pass/one 10s timeout. Astra finds duplicate-site provenance and malformed-prefix panic; Grok review running. Author extended the round limit for this session; next revision underway |
+| Auth startup | `9b22e7b48`, branch `s2/clique-auth` | Nine new cancellation regressions fail before/pass after; 181 affected tests pass; revision in independent Astra/Grok review |
+| Abandoned assets | `f7d251394`, branch `s2/clique-assets` | Full script and measurements pass; Astra resolves prior residuals but finds terminal invalidation under supersession; next revision underway, Grok review running |
+| Conditional cursors | `bbe2f85aa`, branch `s2/clique-cursors` | Consolidated run: Rust 743 pass, compiler 400 pass, evaluator 216 pass; package 379 pass/one 10s timeout. Astra finds duplicate-site provenance and malformed-prefix panic; Grok READY; Astra residuals still require revision, now underway under the extended round limit |
 
 Received auth and asset reviews are retained under `reviews/`, exactly as received.
 They are static reviews, not test execution. New interleaving regressions must
@@ -92,3 +92,16 @@ main `e929282ad`. All three asset commits applied without conflicts;
 branch, not a main landing or publication. The exact asset full-run package
 phase passed 386 tests; remaining full verification and final reviews are
 still in progress.
+
+Asset `f7d251394` full script exited 0: package386, Rust746(four skips and
+two leak notices), evaluator202 plus visibility2, compiler399. It took199.533s
+under high shared host load; no sub-60s gate claim. Measurement exited0 with
+all named budgets passing. Summary JSON and measurement rows are retained
+under evidence/. The two surviving Node processes correlate with duplicated
+startup-cleanup test timestamps; without launch-PID records attribution is
+inferred and the processes were left untouched. This full result does not
+resolve the newer static-review auth ordering finding.
+
+CLI candidate `1296ec51a` has package-build,11guide and86owner tests passing
+(two pre-existing ignores). Independent reviews and full verification are
+running. It can land independently if ready before the asset revision.
