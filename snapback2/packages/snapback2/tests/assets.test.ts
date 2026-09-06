@@ -967,3 +967,30 @@ for (const outcome of ["valid", "invalid"] as const) {
     } finally { release(); await Promise.allSettled([upload, login]); await client.close(); }
   });
 }
+
+for (const arm of ["assetBlob", "assetBytes"] as const) {
+  test(`${arm} suppresses a successful byte body after successor custody is installed`, async () => {
+    let begin!: () => void, release!: () => void;
+    const started = new Promise<void>(resolve => { begin = resolve; });
+    const blocked = new Promise<void>(resolve => { release = resolve; });
+    const client = createClient({ url: "http://assets.test", token: "session", fetch: async input => {
+      const path = new URL(String(input)).pathname;
+      if (path === "/api/auth/me") return json({ viewer: "alice", kind: "user" });
+      if (path === "/api/auth/login") return json({ token: "successor", viewer: "bob", kind: "user" });
+      if (path === "/api/manifest") return json(manifest());
+      const response = new Response("private bytes");
+      if (arm === "assetBlob") response.blob = async () => { begin(); await blocked; return new Blob(["private bytes"]); };
+      else response.arrayBuffer = async () => { begin(); await blocked; return new ArrayBuffer(4); };
+      return response;
+    } });
+    let read: Promise<any> | undefined;
+    try {
+      await client.ready; await client.auth.me();
+      read = client[arm](`http://assets.test/api/asset/${image.id}`).catch(error => error); await started;
+      await client.auth.login({ email: "bob@example.com", password: "password" });
+      const snapshot = client.snapshot;
+      release(); assert.equal((await read).code, "E_AUTH_SUPERSEDED");
+      assert.deepEqual(client.snapshot, snapshot);
+    } finally { release(); await read; await client.close(); }
+  });
+}
