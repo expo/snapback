@@ -899,3 +899,71 @@ for (const replacement of ["failed", "successful"] as const) {
     } finally { release?.(); await Promise.allSettled([upload, login]); await client.close(); globalThis.XMLHttpRequest = originalXhr; }
   });
 }
+
+for (const arm of ["assetBlob", "assetBytes"] as const) for (const stage of ["fetch", "body"] as const) {
+  for (const replacement of ["failed", "successful"] as const) {
+    test(`${arm} fences terminal ${stage} evidence after ${replacement} replacement`, async () => {
+      let token: string | null = "session", begin!: () => void, release!: () => void;
+      const started = new Promise<void>(resolve => { begin = resolve; });
+      const blocked = new Promise<void>(resolve => { release = resolve; });
+      const expired = { code: "E_AUTH_SESSION", family: "auth", message: "expired", guide: "auth" };
+      const client = createClient({ url: "http://assets.test", tokenStore: { load: () => token, save: value => { token = value; } },
+        fetch: async input => {
+          const path = new URL(String(input)).pathname;
+          if (path === "/api/auth/me") return json({ viewer: "alice", kind: "user" });
+          if (path === "/api/auth/login") return replacement === "failed"
+            ? json({ code: "E_AUTH_INVALID", family: "auth", message: "invalid", guide: "auth" }, 401)
+            : json({ token: "successor", viewer: "bob", kind: "user" });
+          if (path === "/api/manifest") return json(manifest());
+          if (path.startsWith("/api/asset/")) {
+            const response = json(expired, 401);
+            if (stage === "body") response.json = async () => { begin(); await blocked; return expired; };
+            else { begin(); await blocked; }
+            return response;
+          }
+          throw new Error(`unexpected path ${path}`);
+        } });
+      let read: Promise<any> | undefined;
+      try {
+        await client.ready; await client.auth.me();
+        read = client[arm](`http://assets.test/api/asset/${image.id}`).catch(error => error);
+        await started;
+        await client.auth.login({ email: "bob@example.com", password: "password" }).catch(() => undefined);
+        const snapshot = client.snapshot;
+        release();
+        assert.equal((await read).code, "E_AUTH_SUPERSEDED");
+        assert.equal(token, replacement === "failed" ? null : "successor");
+        if (replacement === "successful") assert.deepEqual(client.snapshot, snapshot, "late predecessor refusal cannot alter the successor");
+        else assert.equal(client.snapshot.auth.state, "anonymous");
+      } finally { release(); await read; await client.close(); }
+    });
+  }
+}
+
+for (const outcome of ["valid", "invalid"] as const) {
+  test(`upload fences a delayed ${outcome} successful body before reporting it`, async () => {
+    let begin!: () => void, release!: () => void;
+    const started = new Promise<void>(resolve => { begin = resolve; });
+    const blocked = new Promise<void>(resolve => { release = resolve; });
+    const client = createClient({ url: "http://assets.test", token: "session", fetch: async input => {
+      const path = new URL(String(input)).pathname;
+      if (path === "/api/auth/me") return json({ viewer: "alice", kind: "user" });
+      if (path === "/api/auth/login") return json({ token: "successor", viewer: "bob", kind: "user" });
+      if (path === "/api/manifest") return json(manifest());
+      if (path === "/api/upload") {
+        const response = json(image);
+        response.json = async () => { begin(); await blocked; if (outcome === "invalid") throw new SyntaxError("lost body"); return image; };
+        return response;
+      }
+      throw new Error(`unexpected path ${path}`);
+    } });
+    let upload: Promise<any> | undefined, login: Promise<any> | undefined;
+    try {
+      await client.ready; await client.auth.me();
+      upload = client.upload(new File(["a"], "photo.png")).catch(error => error); await started;
+      login = client.auth.login({ email: "bob@example.com", password: "password" }); release();
+      assert.equal((await upload).code, "E_AUTH_SUPERSEDED"); await login;
+      assert.equal(client.snapshot.auth.viewer, "bob");
+    } finally { release(); await Promise.allSettled([upload, login]); await client.close(); }
+  });
+}
