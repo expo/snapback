@@ -1,0 +1,6410 @@
+{
+  "tag": "final6",
+  "registration": {
+    "retained": 787,
+    "added": 136,
+    "registered": 923,
+    "executed": 923,
+    "passed": 923,
+    "groups": 41,
+    "singleWholePackagePass": false
+  },
+  "exactReplays": {
+    "count": 92,
+    "baselineAccepted": 52,
+    "unsafeNowRefused": 35,
+    "acceptedCompleteOutputParity": 17,
+    "priorRefusalsPreserved": 40,
+    "originalReviewAttribution": "baseline-attribution.json"
+  },
+  "audit": [
+    {
+      "id": "000-query-array-rest",
+      "baselineOk": true,
+      "finalOk": false
+    },
+    {
+      "id": "001-query-nested-destructuring",
+      "baselineOk": true,
+      "finalOk": false
+    },
+    {
+      "id": "002-query-unknown-selection-key",
+      "baselineOk": true,
+      "finalOk": false
+    },
+    {
+      "id": "003-query-for-of-binding",
+      "baselineOk": true,
+      "finalOk": false
+    },
+    {
+      "id": "004-query-for-of-destructuring",
+      "baselineOk": true,
+      "finalOk": false
+    },
+    {
+      "id": "005-query-mutable-accessor-escape",
+      "baselineOk": true,
+      "finalOk": false
+    },
+    {
+      "id": "006-query-nontransparent-accessor-write",
+      "baselineOk": true,
+      "finalOk": false
+    },
+    {
+      "id": "007-query-default-accessor-write",
+      "baselineOk": true,
+      "finalOk": false
+    },
+    {
+      "id": "008-query-class-storage-escape",
+      "baselineOk": true,
+      "finalOk": false
+    },
+    {
+      "id": "009-query-namespace-selection-write",
+      "baselineOk": true,
+      "finalOk": false
+    },
+    {
+      "id": "010-query-immutable-imported-shorthand",
+      "baselineOk": false,
+      "finalOk": true
+    },
+    {
+      "id": "011-mutation-array-rest",
+      "baselineOk": true,
+      "finalOk": false
+    },
+    {
+      "id": "012-mutation-nested-destructuring",
+      "baselineOk": true,
+      "finalOk": false
+    },
+    {
+      "id": "013-mutation-unknown-selection-key",
+      "baselineOk": true,
+      "finalOk": false
+    },
+    {
+      "id": "014-mutation-for-of-binding",
+      "baselineOk": true,
+      "finalOk": false
+    },
+    {
+      "id": "015-mutation-for-of-destructuring",
+      "baselineOk": true,
+      "finalOk": false
+    },
+    {
+      "id": "016-mutation-mutable-accessor-escape",
+      "baselineOk": true,
+      "finalOk": false
+    },
+    {
+      "id": "017-mutation-nontransparent-accessor-write",
+      "baselineOk": true,
+      "finalOk": false
+    },
+    {
+      "id": "018-mutation-default-accessor-write",
+      "baselineOk": true,
+      "finalOk": false
+    },
+    {
+      "id": "019-mutation-class-storage-escape",
+      "baselineOk": true,
+      "finalOk": false
+    },
+    {
+      "id": "020-mutation-namespace-selection-write",
+      "baselineOk": true,
+      "finalOk": false
+    },
+    {
+      "id": "021-mutation-immutable-imported-shorthand",
+      "baselineOk": false,
+      "finalOk": true
+    },
+    {
+      "id": "022-channel-array-rest",
+      "baselineOk": true,
+      "finalOk": false
+    },
+    {
+      "id": "023-channel-nested-destructuring",
+      "baselineOk": true,
+      "finalOk": false
+    },
+    {
+      "id": "024-channel-unknown-selection-key",
+      "baselineOk": true,
+      "finalOk": false
+    },
+    {
+      "id": "025-channel-for-of-binding",
+      "baselineOk": true,
+      "finalOk": false
+    },
+    {
+      "id": "026-channel-for-of-destructuring",
+      "baselineOk": true,
+      "finalOk": false
+    },
+    {
+      "id": "027-channel-mutable-accessor-escape",
+      "baselineOk": true,
+      "finalOk": false
+    },
+    {
+      "id": "028-channel-nontransparent-accessor-write",
+      "baselineOk": true,
+      "finalOk": false
+    },
+    {
+      "id": "029-channel-default-accessor-write",
+      "baselineOk": true,
+      "finalOk": false
+    },
+    {
+      "id": "030-channel-class-storage-escape",
+      "baselineOk": true,
+      "finalOk": false
+    },
+    {
+      "id": "031-channel-namespace-selection-write",
+      "baselineOk": true,
+      "finalOk": false
+    },
+    {
+      "id": "032-channel-immutable-imported-shorthand",
+      "baselineOk": false,
+      "finalOk": true
+    },
+    {
+      "id": "033-query-actual-global-legacy",
+      "baselineOk": true,
+      "finalOk": true
+    },
+    {
+      "id": "034-mutation-actual-global-legacy",
+      "baselineOk": true,
+      "finalOk": true
+    }
+  ],
+  "R8": [
+    {
+      "index": 0,
+      "name": "public scalar 2 via captured",
+      "ok": true,
+      "runs": 2,
+      "completeResultParity": true
+    },
+    {
+      "index": 1,
+      "name": "public scalar 2 via box.value",
+      "ok": true,
+      "runs": 2,
+      "completeResultParity": true
+    },
+    {
+      "index": 2,
+      "name": "public scalar 9007199255 via captured",
+      "ok": true,
+      "runs": 2,
+      "completeResultParity": true
+    },
+    {
+      "index": 3,
+      "name": "public scalar 9007199255 via box.value",
+      "ok": true,
+      "runs": 2,
+      "completeResultParity": true
+    },
+    {
+      "index": 10,
+      "name": "public direct list [2,3] alias",
+      "ok": true,
+      "runs": 2,
+      "completeResultParity": true
+    },
+    {
+      "index": 11,
+      "name": "public direct list [2,3] field",
+      "ok": true,
+      "runs": 2,
+      "completeResultParity": true
+    },
+    {
+      "index": 12,
+      "name": "public direct list same alias",
+      "ok": true,
+      "runs": 2,
+      "completeResultParity": true
+    },
+    {
+      "index": 13,
+      "name": "public direct list same field",
+      "ok": true,
+      "runs": 2,
+      "completeResultParity": true
+    },
+    {
+      "index": 14,
+      "name": "public direct list wrong alias",
+      "ok": false,
+      "runs": 0,
+      "completeResultParity": true
+    },
+    {
+      "index": 15,
+      "name": "public direct list wrong field",
+      "ok": false,
+      "runs": 0,
+      "completeResultParity": true
+    },
+    {
+      "index": 16,
+      "name": "public direct list whole alias",
+      "ok": false,
+      "runs": 0,
+      "completeResultParity": true
+    },
+    {
+      "index": 17,
+      "name": "public direct list whole field",
+      "ok": false,
+      "runs": 0,
+      "completeResultParity": true
+    },
+    {
+      "index": 18,
+      "name": "private joined whole slice",
+      "ok": false,
+      "runs": 0,
+      "completeResultParity": true
+    },
+    {
+      "index": 20,
+      "name": "private joined wrong slice",
+      "ok": false,
+      "runs": 0,
+      "completeResultParity": true
+    },
+    {
+      "index": 22,
+      "name": "private joined minor slice",
+      "ok": true,
+      "runs": 2,
+      "completeResultParity": true
+    },
+    {
+      "index": 26,
+      "name": "private joined whole map",
+      "ok": false,
+      "runs": 0,
+      "completeResultParity": true
+    },
+    {
+      "index": 28,
+      "name": "private joined wrong map",
+      "ok": false,
+      "runs": 0,
+      "completeResultParity": true
+    },
+    {
+      "index": 30,
+      "name": "private joined minor map",
+      "ok": true,
+      "runs": 2,
+      "completeResultParity": true
+    },
+    {
+      "index": 34,
+      "name": "private joined whole filter",
+      "ok": false,
+      "runs": 0,
+      "completeResultParity": true
+    },
+    {
+      "index": 36,
+      "name": "private joined wrong filter",
+      "ok": false,
+      "runs": 0,
+      "completeResultParity": true
+    },
+    {
+      "index": 42,
+      "name": "private joined whole flatMap",
+      "ok": false,
+      "runs": 0,
+      "completeResultParity": true
+    },
+    {
+      "index": 44,
+      "name": "private joined wrong flatMap",
+      "ok": false,
+      "runs": 0,
+      "completeResultParity": true
+    },
+    {
+      "index": 50,
+      "name": "private joined whole object",
+      "ok": false,
+      "runs": 0,
+      "completeResultParity": true
+    },
+    {
+      "index": 52,
+      "name": "private joined wrong object",
+      "ok": false,
+      "runs": 0,
+      "completeResultParity": true
+    },
+    {
+      "index": 58,
+      "name": "private joined whole sort",
+      "ok": false,
+      "runs": 0,
+      "completeResultParity": true
+    },
+    {
+      "index": 60,
+      "name": "private joined wrong sort",
+      "ok": false,
+      "runs": 0,
+      "completeResultParity": true
+    },
+    {
+      "index": 66,
+      "name": "private joined whole helper",
+      "ok": false,
+      "runs": 0,
+      "completeResultParity": true
+    },
+    {
+      "index": 68,
+      "name": "private joined wrong helper",
+      "ok": false,
+      "runs": 0,
+      "completeResultParity": true
+    },
+    {
+      "index": 74,
+      "name": "private joined whole reduction",
+      "ok": false,
+      "runs": 0,
+      "completeResultParity": true
+    },
+    {
+      "index": 76,
+      "name": "private joined wrong reduction",
+      "ok": false,
+      "runs": 0,
+      "completeResultParity": true
+    },
+    {
+      "index": 82,
+      "name": "private joined whole constantMap",
+      "ok": true,
+      "runs": 2,
+      "completeResultParity": true
+    },
+    {
+      "index": 84,
+      "name": "private joined wrong constantMap",
+      "ok": true,
+      "runs": 2,
+      "completeResultParity": true
+    },
+    {
+      "index": 90,
+      "name": "private helper map caller registers",
+      "ok": true,
+      "runs": 1,
+      "completeResultParity": true
+    },
+    {
+      "index": 91,
+      "name": "private helper reduce caller registers",
+      "ok": true,
+      "runs": 1,
+      "completeResultParity": true
+    },
+    {
+      "index": 92,
+      "name": "private helper flatMap caller registers",
+      "ok": true,
+      "runs": 1,
+      "completeResultParity": true
+    },
+    {
+      "index": 93,
+      "name": "private helper filter caller registers",
+      "ok": true,
+      "runs": 1,
+      "completeResultParity": true
+    },
+    {
+      "index": 94,
+      "name": "private helper some caller registers",
+      "ok": true,
+      "runs": 1,
+      "completeResultParity": true
+    },
+    {
+      "index": 95,
+      "name": "private helper argument register",
+      "ok": true,
+      "runs": 1,
+      "completeResultParity": true
+    },
+    {
+      "index": 96,
+      "name": "private helper declaration scope and caller snapshot",
+      "ok": true,
+      "runs": 1,
+      "completeResultParity": true
+    },
+    {
+      "index": 97,
+      "name": "private extra operand items.map((n:number)=>n,ctx.newId())",
+      "ok": false,
+      "runs": 0,
+      "completeResultParity": true
+    },
+    {
+      "index": 107,
+      "name": "private extra operand items.map((n:number)=>args.big+1,divmod(1,args.zero))",
+      "ok": false,
+      "runs": 0,
+      "completeResultParity": true
+    },
+    {
+      "index": 127,
+      "name": "private ambient domain range",
+      "ok": false,
+      "runs": 0,
+      "completeResultParity": true
+    },
+    {
+      "index": 137,
+      "name": "public range control",
+      "ok": true,
+      "runs": 1,
+      "completeResultParity": true
+    },
+    {
+      "index": 138,
+      "name": "private map allocations once",
+      "ok": true,
+      "runs": 1,
+      "completeResultParity": true
+    },
+    {
+      "index": 139,
+      "name": "private default callback stays lazy for present values",
+      "ok": true,
+      "runs": 1,
+      "completeResultParity": true
+    },
+    {
+      "index": 140,
+      "name": "private helper actuals remain once and ordered",
+      "ok": true,
+      "runs": 1,
+      "completeResultParity": true
+    },
+    {
+      "index": 141,
+      "name": "private empty callback lazy",
+      "ok": true,
+      "runs": 1,
+      "completeResultParity": true
+    },
+    {
+      "index": 142,
+      "name": "private reduce initial before callback error",
+      "ok": true,
+      "runs": 1,
+      "completeResultParity": true
+    },
+    {
+      "index": 143,
+      "name": "private helper unused extra once",
+      "ok": false,
+      "runs": 0,
+      "completeResultParity": true
+    },
+    {
+      "index": 144,
+      "name": "private require literal default",
+      "ok": true,
+      "runs": 1,
+      "completeResultParity": true
+    }
+  ],
+  "columnParity": [
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:t.text(31)}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id",
+                "value": {
+                  "Text": {
+                    "max": 31
+                  }
+                }
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": []
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id",
+                "value": {
+                  "Text": {
+                    "max": 31
+                  }
+                }
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": []
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:t.optional(t.text(31),0)}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.optional arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "t.optional(t.text(100))",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.optional arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "t.optional(t.text(100))",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:t.list(t.text(31),{max:0})}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.list arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "t.list(t.text(100), { max: 10 })",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.list arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "t.list(t.text(100), { max: 10 })",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:t.optional(t.list(t.text(31),{max:0}))}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.list arguments do not form a valid descriptor",
+            "site": "schema.ts:1:111",
+            "rewrite": "t.list(t.text(100), { max: 10 })",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.list arguments do not form a valid descriptor",
+            "site": "schema.ts:1:111",
+            "rewrite": "t.list(t.text(100), { max: 10 })",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:t.text(0)}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.text arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "t.text(100)",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.text arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "t.text(100)",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:t.optional(t.text(0),0)}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.text arguments do not form a valid descriptor",
+            "site": "schema.ts:1:111",
+            "rewrite": "t.text(100)",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.text arguments do not form a valid descriptor",
+            "site": "schema.ts:1:111",
+            "rewrite": "t.text(100)",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:t.list(t.text(0),{max:0})}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.text arguments do not form a valid descriptor",
+            "site": "schema.ts:1:107",
+            "rewrite": "t.text(100)",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.text arguments do not form a valid descriptor",
+            "site": "schema.ts:1:107",
+            "rewrite": "t.text(100)",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:t.optional(t.list(t.text(0),{max:0}))}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.text arguments do not form a valid descriptor",
+            "site": "schema.ts:1:118",
+            "rewrite": "t.text(100)",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.text arguments do not form a valid descriptor",
+            "site": "schema.ts:1:118",
+            "rewrite": "t.text(100)",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:t.int()}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id",
+                "value": "Int"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": []
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id",
+                "value": "Int"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": []
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:t.optional(t.int(),0)}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.optional arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "t.optional(t.text(100))",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.optional arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "t.optional(t.text(100))",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:t.list(t.int(),{max:0})}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.list arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "t.list(t.text(100), { max: 10 })",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.list arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "t.list(t.text(100), { max: 10 })",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:t.optional(t.list(t.int(),{max:0}))}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.list arguments do not form a valid descriptor",
+            "site": "schema.ts:1:111",
+            "rewrite": "t.list(t.text(100), { max: 10 })",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.list arguments do not form a valid descriptor",
+            "site": "schema.ts:1:111",
+            "rewrite": "t.list(t.text(100), { max: 10 })",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:t.money(\"USD\")}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id",
+                "value": {
+                  "Money": {
+                    "currency": "USD",
+                    "scale": 2
+                  }
+                }
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": []
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id",
+                "value": {
+                  "Money": {
+                    "currency": "USD",
+                    "scale": 2
+                  }
+                }
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": []
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:t.optional(t.money(\"USD\"),0)}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.optional arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "t.optional(t.text(100))",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.optional arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "t.optional(t.text(100))",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:t.list(t.money(\"USD\"),{max:0})}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.list arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "t.list(t.text(100), { max: 10 })",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.list arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "t.list(t.text(100), { max: 10 })",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:t.optional(t.list(t.money(\"USD\"),{max:0}))}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.list arguments do not form a valid descriptor",
+            "site": "schema.ts:1:111",
+            "rewrite": "t.list(t.text(100), { max: 10 })",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.list arguments do not form a valid descriptor",
+            "site": "schema.ts:1:111",
+            "rewrite": "t.list(t.text(100), { max: 10 })",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:t.text(31,{format:\"url\"})}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.text arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "t.text(100)",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.text arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "t.text(100)",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:t.optional(t.text(31,{format:\"url\"}),0)}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.optional arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "t.optional(t.text(100))",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.optional arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "t.optional(t.text(100))",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:t.list(t.text(31,{format:\"url\"}),{max:0})}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.text arguments do not form a valid descriptor",
+            "site": "schema.ts:1:107",
+            "rewrite": "t.text(100)",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.text arguments do not form a valid descriptor",
+            "site": "schema.ts:1:107",
+            "rewrite": "t.text(100)",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:t.optional(t.list(t.text(31,{format:\"url\"}),{max:0}))}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.text arguments do not form a valid descriptor",
+            "site": "schema.ts:1:118",
+            "rewrite": "t.text(100)",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.text arguments do not form a valid descriptor",
+            "site": "schema.ts:1:118",
+            "rewrite": "t.text(100)",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:fake.text(31)}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id",
+                "value": {
+                  "Text": {
+                    "max": 31
+                  }
+                }
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": []
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id",
+                "value": {
+                  "Text": {
+                    "max": 31
+                  }
+                }
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": []
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:t.optional(fake.text(31),0)}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.optional arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "t.optional(t.text(100))",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.optional arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "t.optional(t.text(100))",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:t.list(fake.text(31),{max:0})}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.list arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "t.list(t.text(100), { max: 10 })",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.list arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "t.list(t.text(100), { max: 10 })",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:t.optional(t.list(fake.text(31),{max:0}))}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.list arguments do not form a valid descriptor",
+            "site": "schema.ts:1:111",
+            "rewrite": "t.list(t.text(100), { max: 10 })",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.list arguments do not form a valid descriptor",
+            "site": "schema.ts:1:111",
+            "rewrite": "t.list(t.text(100), { max: 10 })",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:fake.text(0)}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.text arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "fake.text(100)",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.text arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "fake.text(100)",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:t.optional(fake.text(0),0)}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.text arguments do not form a valid descriptor",
+            "site": "schema.ts:1:111",
+            "rewrite": "fake.text(100)",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.text arguments do not form a valid descriptor",
+            "site": "schema.ts:1:111",
+            "rewrite": "fake.text(100)",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:t.list(fake.text(0),{max:0})}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.text arguments do not form a valid descriptor",
+            "site": "schema.ts:1:107",
+            "rewrite": "fake.text(100)",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.text arguments do not form a valid descriptor",
+            "site": "schema.ts:1:107",
+            "rewrite": "fake.text(100)",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:t.optional(t.list(fake.text(0),{max:0}))}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.text arguments do not form a valid descriptor",
+            "site": "schema.ts:1:118",
+            "rewrite": "fake.text(100)",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.text arguments do not form a valid descriptor",
+            "site": "schema.ts:1:118",
+            "rewrite": "fake.text(100)",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:fake.int()}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id",
+                "value": "Int"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": []
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id",
+                "value": "Int"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": []
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:t.optional(fake.int(),0)}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.optional arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "t.optional(t.text(100))",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.optional arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "t.optional(t.text(100))",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:t.list(fake.int(),{max:0})}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.list arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "t.list(t.text(100), { max: 10 })",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.list arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "t.list(t.text(100), { max: 10 })",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:t.optional(t.list(fake.int(),{max:0}))}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.list arguments do not form a valid descriptor",
+            "site": "schema.ts:1:111",
+            "rewrite": "t.list(t.text(100), { max: 10 })",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.list arguments do not form a valid descriptor",
+            "site": "schema.ts:1:111",
+            "rewrite": "t.list(t.text(100), { max: 10 })",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:fake.money(\"USD\")}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id",
+                "value": {
+                  "Money": {
+                    "currency": "USD",
+                    "scale": 2
+                  }
+                }
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": []
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id",
+                "value": {
+                  "Money": {
+                    "currency": "USD",
+                    "scale": 2
+                  }
+                }
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": []
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:t.optional(fake.money(\"USD\"),0)}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.optional arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "t.optional(t.text(100))",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.optional arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "t.optional(t.text(100))",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:t.list(fake.money(\"USD\"),{max:0})}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.list arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "t.list(t.text(100), { max: 10 })",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.list arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "t.list(t.text(100), { max: 10 })",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:t.optional(t.list(fake.money(\"USD\"),{max:0}))}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.list arguments do not form a valid descriptor",
+            "site": "schema.ts:1:111",
+            "rewrite": "t.list(t.text(100), { max: 10 })",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.list arguments do not form a valid descriptor",
+            "site": "schema.ts:1:111",
+            "rewrite": "t.list(t.text(100), { max: 10 })",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:fake.text(31,{format:\"url\"})}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.text arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "fake.text(100)",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.text arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "fake.text(100)",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:t.optional(fake.text(31,{format:\"url\"}),0)}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.optional arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "t.optional(t.text(100))",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.optional arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "t.optional(t.text(100))",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:t.list(fake.text(31,{format:\"url\"}),{max:0})}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.text arguments do not form a valid descriptor",
+            "site": "schema.ts:1:107",
+            "rewrite": "fake.text(100)",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.text arguments do not form a valid descriptor",
+            "site": "schema.ts:1:107",
+            "rewrite": "fake.text(100)",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:t.optional(t.list(fake.text(31,{format:\"url\"}),{max:0}))}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.text arguments do not form a valid descriptor",
+            "site": "schema.ts:1:118",
+            "rewrite": "fake.text(100)",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.text arguments do not form a valid descriptor",
+            "site": "schema.ts:1:118",
+            "rewrite": "fake.text(100)",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:text(31)}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id",
+                "value": {
+                  "Text": {
+                    "max": 31
+                  }
+                }
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": []
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id",
+                "value": {
+                  "Text": {
+                    "max": 31
+                  }
+                }
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": []
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:t.optional(text(31),0)}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.optional arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "t.optional(t.text(100))",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.optional arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "t.optional(t.text(100))",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:t.list(text(31),{max:0})}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.list arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "t.list(t.text(100), { max: 10 })",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.list arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "t.list(t.text(100), { max: 10 })",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:t.optional(t.list(text(31),{max:0}))}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.list arguments do not form a valid descriptor",
+            "site": "schema.ts:1:111",
+            "rewrite": "t.list(t.text(100), { max: 10 })",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.list arguments do not form a valid descriptor",
+            "site": "schema.ts:1:111",
+            "rewrite": "t.list(t.text(100), { max: 10 })",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:text(0)}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.text arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "text(100)",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.text arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "text(100)",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:t.optional(text(0),0)}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.text arguments do not form a valid descriptor",
+            "site": "schema.ts:1:111",
+            "rewrite": "text(100)",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.text arguments do not form a valid descriptor",
+            "site": "schema.ts:1:111",
+            "rewrite": "text(100)",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:t.list(text(0),{max:0})}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.text arguments do not form a valid descriptor",
+            "site": "schema.ts:1:107",
+            "rewrite": "text(100)",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.text arguments do not form a valid descriptor",
+            "site": "schema.ts:1:107",
+            "rewrite": "text(100)",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:t.optional(t.list(text(0),{max:0}))}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.text arguments do not form a valid descriptor",
+            "site": "schema.ts:1:118",
+            "rewrite": "text(100)",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.text arguments do not form a valid descriptor",
+            "site": "schema.ts:1:118",
+            "rewrite": "text(100)",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:int()}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id",
+                "value": "Int"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": []
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id",
+                "value": "Int"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": []
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:t.optional(int(),0)}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.optional arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "t.optional(t.text(100))",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.optional arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "t.optional(t.text(100))",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:t.list(int(),{max:0})}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.list arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "t.list(t.text(100), { max: 10 })",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.list arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "t.list(t.text(100), { max: 10 })",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:t.optional(t.list(int(),{max:0}))}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.list arguments do not form a valid descriptor",
+            "site": "schema.ts:1:111",
+            "rewrite": "t.list(t.text(100), { max: 10 })",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.list arguments do not form a valid descriptor",
+            "site": "schema.ts:1:111",
+            "rewrite": "t.list(t.text(100), { max: 10 })",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:money(\"USD\")}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id",
+                "value": {
+                  "Money": {
+                    "currency": "USD",
+                    "scale": 2
+                  }
+                }
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": []
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id",
+                "value": {
+                  "Money": {
+                    "currency": "USD",
+                    "scale": 2
+                  }
+                }
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": []
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:t.optional(money(\"USD\"),0)}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.optional arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "t.optional(t.text(100))",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.optional arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "t.optional(t.text(100))",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:t.list(money(\"USD\"),{max:0})}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.list arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "t.list(t.text(100), { max: 10 })",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.list arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "t.list(t.text(100), { max: 10 })",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:t.optional(t.list(money(\"USD\"),{max:0}))}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.list arguments do not form a valid descriptor",
+            "site": "schema.ts:1:111",
+            "rewrite": "t.list(t.text(100), { max: 10 })",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.list arguments do not form a valid descriptor",
+            "site": "schema.ts:1:111",
+            "rewrite": "t.list(t.text(100), { max: 10 })",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:text(31,{format:\"url\"})}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.text arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "text(100)",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.text arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "text(100)",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:t.optional(text(31,{format:\"url\"}),0)}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.optional arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "t.optional(t.text(100))",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.optional arguments do not form a valid descriptor",
+            "site": "schema.ts:1:100",
+            "rewrite": "t.optional(t.text(100))",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:t.list(text(31,{format:\"url\"}),{max:0})}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.text arguments do not form a valid descriptor",
+            "site": "schema.ts:1:107",
+            "rewrite": "text(100)",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.text arguments do not form a valid descriptor",
+            "site": "schema.ts:1:107",
+            "rewrite": "text(100)",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "same": true
+    },
+    {
+      "source": "import {schema,table,t} from 'snapback2'; const fake=t; export const records=table({columns:{value:t.optional(t.list(text(31,{format:\"url\"}),{max:0}))}});export default schema({tables:{records}});",
+      "before": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.text arguments do not form a valid descriptor",
+            "site": "schema.ts:1:118",
+            "rewrite": "text(100)",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "after": {
+        "schema": {
+          "tables": {
+            "records": {
+              "columns": {
+                "id": "Id"
+              },
+              "indexes": {
+                "byId": {
+                  "components": [
+                    {
+                      "Column": "id"
+                    }
+                  ],
+                  "unique": true
+                }
+              },
+              "rules": {
+                "read": "Deny",
+                "insert": "Deny",
+                "update": "Deny",
+                "delete": "Deny"
+              },
+              "constraints": [],
+              "retain": "until-revoked"
+            }
+          },
+          "maintains": [],
+          "channels": {},
+          "auth": {
+            "password": false,
+            "guests": false
+          },
+          "effects": []
+        },
+        "diagnostics": [
+          {
+            "code": "E_SCHEMA_COLUMN",
+            "family": "schema",
+            "message": "t.text arguments do not form a valid descriptor",
+            "site": "schema.ts:1:118",
+            "rewrite": "text(100)",
+            "guide": "schema/project"
+          }
+        ]
+      },
+      "same": true
+    }
+  ],
+  "allOriginalDeadlinesSeconds": 30,
+  "finalInvocationCount": 201,
+  "finalUnexpectedExecutionFailures": [],
+  "knownInvalidLawfulFixture": [],
+  "allFirstExecutionFailures": [
+    {
+      "name": "baseline-extra-lawful",
+      "cmd": [
+        "bun",
+        "--no-install",
+        "/Users/ccheever/clique-improvement/revisions/compiler-argument-format-r4/extra-audit.ts",
+        "baseline",
+        "lawful"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/compiler-argument-format-r4",
+      "pid": 76109,
+      "deadline_seconds": 30.0,
+      "elapsed_seconds": 1.110605001449585,
+      "exit_code": 1,
+      "timed_out": false
+    },
+    {
+      "name": "final-single-replay-52",
+      "cmd": [
+        "bun",
+        "--no-install",
+        "/Users/ccheever/clique-improvement/revisions/compiler-argument-format-r4/replay.ts",
+        "final",
+        "52",
+        "1"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/compiler-argument-format-r4",
+      "pid": 28144,
+      "deadline_seconds": 30.0,
+      "elapsed_seconds": 30.43617272377014,
+      "exit_code": -9,
+      "timed_out": true
+    },
+    {
+      "name": "final-all-216",
+      "cmd": [
+        "bun",
+        "--no-install",
+        "/Users/ccheever/clique-improvement/revisions/compiler-argument-format-r4/checks.ts",
+        "final",
+        "all",
+        "216",
+        "3"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/compiler-argument-format-r4",
+      "pid": 28782,
+      "deadline_seconds": 30.0,
+      "elapsed_seconds": 30.454607009887695,
+      "exit_code": -9,
+      "timed_out": true
+    },
+    {
+      "name": "final-single-replay-54",
+      "cmd": [
+        "bun",
+        "--no-install",
+        "/Users/ccheever/clique-improvement/revisions/compiler-argument-format-r4/replay.ts",
+        "final",
+        "54",
+        "1"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/compiler-argument-format-r4",
+      "pid": 29174,
+      "deadline_seconds": 30.0,
+      "elapsed_seconds": 30.068310022354126,
+      "exit_code": -9,
+      "timed_out": true
+    },
+    {
+      "name": "final-single-replay-53",
+      "cmd": [
+        "bun",
+        "--no-install",
+        "/Users/ccheever/clique-improvement/revisions/compiler-argument-format-r4/replay.ts",
+        "final",
+        "53",
+        "1"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/compiler-argument-format-r4",
+      "pid": 28867,
+      "deadline_seconds": 30.0,
+      "elapsed_seconds": 30.243818044662476,
+      "exit_code": -9,
+      "timed_out": true
+    },
+    {
+      "name": "candidate4-origin-201",
+      "cmd": [
+        "bun",
+        "--no-install",
+        "/Users/ccheever/clique-improvement/revisions/compiler-argument-format-r4/checks.ts",
+        "candidate4",
+        "origin",
+        "201",
+        "3"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/compiler-argument-format-r4",
+      "pid": 90415,
+      "deadline_seconds": 30.0,
+      "elapsed_seconds": 8.695302963256836,
+      "exit_code": 1,
+      "timed_out": false
+    },
+    {
+      "name": "final3-extra-lawful",
+      "cmd": [
+        "bun",
+        "--no-install",
+        "/Users/ccheever/clique-improvement/revisions/compiler-argument-format-r4/extra-audit.ts",
+        "final3",
+        "lawful"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/compiler-argument-format-r4",
+      "pid": 78478,
+      "deadline_seconds": 30.0,
+      "elapsed_seconds": 0.9467670917510986,
+      "exit_code": 1,
+      "timed_out": false
+    },
+    {
+      "name": "final4-extra-lawful",
+      "cmd": [
+        "bun",
+        "--no-install",
+        "/Users/ccheever/clique-improvement/revisions/compiler-argument-format-r4/extra-audit.ts",
+        "final4",
+        "lawful"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/compiler-argument-format-r4",
+      "pid": 5749,
+      "deadline_seconds": 30.0,
+      "elapsed_seconds": 0.9433472156524658,
+      "exit_code": 1,
+      "timed_out": false
+    },
+    {
+      "name": "final-single-replay-50",
+      "cmd": [
+        "bun",
+        "--no-install",
+        "/Users/ccheever/clique-improvement/revisions/compiler-argument-format-r4/replay.ts",
+        "final",
+        "50",
+        "1"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/compiler-argument-format-r4",
+      "pid": 26506,
+      "deadline_seconds": 30.0,
+      "elapsed_seconds": 30.06091594696045,
+      "exit_code": -9,
+      "timed_out": true
+    },
+    {
+      "name": "candidate4-replay-27",
+      "cmd": [
+        "bun",
+        "--no-install",
+        "/Users/ccheever/clique-improvement/revisions/compiler-argument-format-r4/replay.ts",
+        "candidate4",
+        "27",
+        "2"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/compiler-argument-format-r4",
+      "pid": 86234,
+      "deadline_seconds": 30.0,
+      "elapsed_seconds": 30.07161593437195,
+      "exit_code": -9,
+      "timed_out": true
+    }
+  ],
+  "firstTypeDiagnosticFailure": [
+    {
+      "file": "packages/compiler/src/lower/descriptor-origin.ts",
+      "start": 12762,
+      "code": 2551,
+      "message": "Property 'isBindingPattern' does not exist on type 'typeof ts'. Did you mean 'isEmptyBindingPattern'?"
+    }
+  ],
+  "productionClosureFiles": 80,
+  "testClosureFiles": 235,
+  "protectedEvaluatorSha256": "afc6bc7ffd25fc007787b10e0fc8bdafbe4ae61cb12f7d2442f2c2df95686618",
+  "independentClearance": false,
+  "nativeRuntimeClaim": false,
+  "benchmarkReplayed": false
+}

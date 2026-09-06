@@ -1,0 +1,33 @@
+{
+  "commit": "9afc84c2fe04ec48e8d373674b32323a804dcb38",
+  "parent": "4d8da3f0e6ff376a99d227c0e7cfcf57c50b9291",
+  "tree": "cb815bc78a2dead283c392b5f8afdb6d6c2be3a5",
+  "branch": "s2/clique-search-compiler",
+  "compilerFiles": 208,
+  "changedCompilerFiles": [
+    "snapback2/packages/compiler/src/argument-format-checks.ts",
+    "snapback2/packages/compiler/src/compiler.ts",
+    "snapback2/packages/compiler/src/descriptor-project-checks.ts",
+    "snapback2/packages/compiler/src/lower/descriptor-origin.ts",
+    "snapback2/packages/compiler/src/lower/environment.ts",
+    "snapback2/packages/compiler/src/lower/schema.ts",
+    "snapback2/packages/compiler/src/project-authoring.ts",
+    "snapback2/packages/compiler/src/project-program.ts",
+    "snapback2/packages/compiler/src/project.ts",
+    "snapback2/packages/compiler/src/typecheck.ts"
+  ],
+  "everyCompilerFileMatchesTestedSourceAndCommit": true,
+  "sourceArchive": "final6-compiler.tar",
+  "sourceArchiveSha256": "041c2801e30d33a4874309bec88fc50a96dfc3c0ba2efccf90f30f7326d22d45",
+  "sourceManifest": "final6-source.json",
+  "sourceManifestSha256": "899b5ffdf65941cd517d856b6f9c70d1c03813f8cf845ea64a3cf54c5ad09941",
+  "protectedEvaluatorSha256": "afc6bc7ffd25fc007787b10e0fc8bdafbe4ae61cb12f7d2442f2c2df95686618",
+  "protectedEvaluatorOutsideCommit": true,
+  "statusAfterCommit": "M snapback2/packages/evaluator/src/types.ts",
+  "mainPushed": false,
+  "publication": false,
+  "cargoOrRustBuild": false,
+  "nativeRuntimeClaim": false,
+  "independentClearance": false,
+  "committedAt": "2026-09-06T21:36:21.005967+00:00"
+}
