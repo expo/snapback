@@ -377,3 +377,34 @@ accidentally propagated into the proposed M7 handoff; corrected before launch,
 with original handoff files retained. Full M7 web/native verification is allowed.
 Aggregate native M6 and M8 qualification gaps remain explicit; this diagnostic
 continuation does not turn them green. No comparative win has been established.
+
+## 2026-09-06 — Published guide repair and completed diagnostic M7
+
+Published 0.0.9 from reviewed source793f707e0; the registry install matches all
+154 packed files. The actual chat Expo guide failure now passes before and
+after check without rewriting cache or backend files. The first publication
+attempt stopped before upload because the working resume copy inherited0444;
+only that owned copy was made writable. The unchanged tarballs then published.
+The shim's initial registry-processing404 was retained until the registry exposed
+its exact integrity. No repack or repeated production dry run was needed.
+
+The fresh 0.0.8 builder reached M5 green, with all four frozen choreography
+assertions passing and a native Release app built; M6 continues. Its current
+choreography identity records Node25.9.0. Host equality and launch preparation
+do not justify an unverified identical-toolchain claim.
+
+The separate old-package M7 author implemented polls and a persisted maintained
+visible-count backing structure exposed through conversation fields. The enum
+change needed an explicit migration plan; backfilled maintains then worked.
+Its new-feature API/web/expiry/Hermes-export checks pass, while prior regression
+remains incomplete. Migration introduced no additional snapshot difference,
+but regression actions changed final receipt/profile/settings values. The
+original strict failures remain intact. Source and stopped database state are
+frozen for independent grading; original M7 services are cleaned up.
+
+Independent search compiler review caught captured-alias shadowing that could
+incorrectly drop a discovery filter; the repair is in its next review round.
+A separate operation-name fix also exposed silent omission of aliased effect
+exports and is being repaired. Client tests found repeated normalization outside
+the reported budget. These are unpublished findings; green focused suites did
+not establish complete correctness. No comparative win is claimed.

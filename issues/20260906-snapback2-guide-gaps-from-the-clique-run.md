@@ -96,3 +96,9 @@ now works without rewriting it. Thirteen guide tests, six project tests, and
 nine private owner/cache assertions pass; both independent Astra xhigh and
 Grok 4.6 xhigh reviews are READY. See the run's `evidence/guide-timer/`.
 This source repair is not yet in the published 0.0.8 benchmark installation.
+
+Item 17 publication verification: published0.0.9 now passes the untouched
+chat Expo guide trigger before and after check, with all26 certified public
+operations, the public purge target retained, and unchanged cache/backend
+hashes. The ongoing0.0.8 benchmark remains pinned to its original package.
+Evidence: `benchmarks/runs/2026-09-06-clique-improvement/evidence/npm-0.0.9/`.

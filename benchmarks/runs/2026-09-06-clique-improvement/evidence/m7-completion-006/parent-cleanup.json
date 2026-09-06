@@ -1,0 +1,28 @@
+{
+  "at": 1788695560.097219,
+  "verified": [
+    {
+      "pid": 57663,
+      "command": "/Users/ccheever/clique-astra006-m7/node_modules/snapback2-darwin-arm64/bin/snapback2 dev --foreground --port 50700",
+      "cwdVerified": "/Users/ccheever/clique-astra006-m7"
+    },
+    {
+      "pid": 31118,
+      "command": "/Users/ccheever/.volta/tools/image/node/20.19.4/bin/node /Users/ccheever/clique-astra006-m7/m7-verification/push-provider.mjs",
+      "cwdVerified": "/Users/ccheever/clique-astra006-m7"
+    },
+    {
+      "pid": 84228,
+      "command": "/Users/ccheever/.volta/tools/image/node/20.19.4/bin/node node_modules/expo/bin/cli start --port 50701 --offline",
+      "cwdVerified": "/Users/ccheever/clique-astra006-m7"
+    }
+  ],
+  "backendStopExit": 0,
+  "backendStopOutput": "{\"exited\":\"snapback2 dev --stop\",\"ok\":true}\n",
+  "aliveAfter": {
+    "57662": false,
+    "57663": false,
+    "31118": false,
+    "84228": false
+  }
+}

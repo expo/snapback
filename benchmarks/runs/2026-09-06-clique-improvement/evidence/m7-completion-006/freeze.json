@@ -1,0 +1,21 @@
+{
+  "sourceFiles": 332,
+  "sourceArchiveSha256": "bc6867d0cb6af091f551bf4b36fe473e32ba2dd34bb6b1982f9cb5433ee416ab",
+  "sourceManifestSha256": "8e5bf8a694eefcb7e3ffa784a96132a7af70ce22998bdfec6c8b738105bc2a11",
+  "source": "/Users/ccheever/clique-astra006-m7",
+  "originalM7Terminal": "/Users/ccheever/clique-improvement/next-run/astra-006-m7/m7-run/launcher-terminal.json",
+  "backendSnapshot": "backend-state copied after verified owner stop; private, includes auth state; never commit",
+  "excludedRoots": [
+    "evidence",
+    "m7-verification",
+    "node_modules",
+    ".snapback",
+    ".git"
+  ],
+  "cleanup": {
+    "57662": false,
+    "57663": false,
+    "31118": false,
+    "84228": false
+  }
+}

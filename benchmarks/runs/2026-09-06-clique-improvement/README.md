@@ -5,23 +5,32 @@ and Supabase for each requested builder: Astra medium, Grok 4.6 xhigh, and
 Muse 1.3 ultra. **Not achieved.** Retain the full canonical Clique scope,
 including independent grading and the fresh-session M7 evolution phase.
 
-Current checkpoint (2026-09-06): 0.0.8 is published and verified from npm;
-all 153 packed files match the qualified artifacts and installed doctor,
-Hermes, and media checks pass. A fresh Astra-medium run began on the baseline
-M5 host at 10:30:01Z, using the unchanged baseline instrument and published
-0.0.8. Concurrent host load is disclosed, not claimed identical. The pinned
-0.0.6 builder has frozen its continuous artifact. M1–M6 have verified web
-receipts; M8 qualification is unresolved and native M6 failed. Independent
-outcome grading is complete: 102 pass, 2 fail, 4 not recorded, 11 not run.
-Full-scale replay settled 167,244 receipts with zero failed; invariants pass,
-but the following-feed performance target fails at all three checkpoints.
-Fresh-session M7 preparation is underway. The requested three-family
-comparative win remains unproven. Entries below retain
-the chronology, including superseded intermediate statuses.
+Current checkpoint (2026-09-06): 0.0.9 is published and verified from npm.
+All 154 packed files match the qualified artifacts; installed doctor, Hermes,
+media, and the untouched chat Expo guide before/after check pass. The fresh
+Astra-medium run stays pinned to published 0.0.8 on the baseline M5 host. Its
+M1–M5 suites pass, and the latest M5 choreography records all four assertions
+passing at 11:42:37Z. M6 is underway. Concurrent load and actual toolchain
+must remain disclosed; the current choreography records Node25.9.0, not merely
+the Node24.18.0 named during preparation.
 
-Latest release evidence: [`evidence/npm-0.0.8/`](evidence/npm-0.0.8/).
+The old 0.0.6 outcome/scale grading is complete: 102 pass, 2 fail, 4 not recorded,
+11 not run; 167,244 settled actions with zero failed and all scale invariants
+passing. Its feed performance misses the target at all checkpoints. The first
+repair improved performance but missed the larger checkpoints; further repairs
+retain all original samples. Search integration remains unpublished and has
+active compiler review findings and a client bundle budget issue.
+
+Fresh M7 on the frozen 0.0.6 app completed diagnostically: new-feature API/web/
+expiry/export checks pass, but prior regression is incomplete, so it is not
+milestone-green. Independent M7 grading is now running. Native M6 and M8 gaps
+remain. The requested three-family comparative win is unproven. Entries below
+retain chronology, including superseded intermediate statuses.
+
+Latest release evidence: [`evidence/npm-0.0.9/`](evidence/npm-0.0.9/).
+M7 evidence: [`evidence/m7-completion-006/`](evidence/m7-completion-006/).
 The fresh run lives at `/Users/ccheever/clique-full-008-20260906` on M5;
-its launch receipt and preparation are retained locally under
+its launch receipt and preparation remain under
 `/Users/ccheever/clique-improvement/next-run/astra-008/`.
 
 ## Baseline
