@@ -1175,5 +1175,119 @@
       }
     },
     "schemaHash": "e19cdc5f988de7a8d6326ad1af251e9b740a8890da3816c6ee823efcf3544243"
+  },
+  "ownershipCertificate": {
+    "program": "ownedSearch",
+    "plan_hash": "7b8a1ea76e84631f223eecca5d7674d373b43858cd7e775636e0537bc5d1cb30",
+    "schema_hash": "3f0f641b375d0510e4542d1eec15a18f7d6054716f13ab473df61fa416d37b13",
+    "tables": {
+      "notes": {
+        "retain": "until-revoked"
+      }
+    },
+    "rule_hashes": {
+      "notes.read": "0db8ba4ec73a6e559cde938fbf7313735af627268c86e5a29848701ecce43def"
+    },
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "read_sites": [
+      {
+        "site": "owned",
+        "table": "notes",
+        "index": "search",
+        "prefix_template": "Arg",
+        "take": 2,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 0,
+        "hoist": true,
+        "complete": false
+      }
+    ],
+    "result_pages": {
+      "0": {
+        "site": "owned",
+        "table": "notes",
+        "index": "search",
+        "order": "Asc",
+        "suffix": [
+          {
+            "name": "id",
+            "kind": "Id"
+          }
+        ],
+        "merge": false
+      }
+    },
+    "write_sites": [],
+    "maintained_amplification": 0,
+    "constraint_checks": [],
+    "max_examined": 4,
+    "max_index_entries": 4,
+    "max_rule_probes": 0,
+    "max_steps": 6686,
+    "derived_steps": 6661,
+    "derived_scratch_bytes": 17266,
+    "max_heap_bytes": 18066,
+    "max_output_bytes": 944,
+    "max_closure_bytes": 9270,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [
+      "notes.search"
+    ],
+    "disclosures": [],
+    "bound_product": "owned take 2 (+2 reserve) × 1 calls on notes = 4"
+  },
+  "fixedClockCertificate": {
+    "program": "clock.fixed",
+    "plan_hash": "2b9fcb4f7fd169a3ea4f2a710cd027b58fe1d9e310fba783863c7f3f0f4e9d50",
+    "schema_hash": "e19cdc5f988de7a8d6326ad1af251e9b740a8890da3816c6ee823efcf3544243",
+    "tables": {
+      "events": {
+        "retain": "until-revoked"
+      }
+    },
+    "rule_hashes": {
+      "events.read": "75127f113f0cdaab190e505b9cd62b78c7a92d6a43028a5db3d98dcd342c95ca"
+    },
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "read_sites": [
+      {
+        "site": "clock.range",
+        "table": "events",
+        "index": "byAt",
+        "prefix_template": "Const",
+        "take": 10,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 0,
+        "hoist": true,
+        "decided_true": true,
+        "complete": false
+      }
+    ],
+    "write_sites": [],
+    "maintained_amplification": 0,
+    "constraint_checks": [],
+    "max_examined": 12,
+    "max_index_entries": 12,
+    "max_rule_probes": 0,
+    "max_steps": 64,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
+    "max_heap_bytes": 2048,
+    "max_output_bytes": 2059,
+    "max_closure_bytes": 2012,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": 1,
+    "halo_rows": 1,
+    "indexes_required": [
+      "events.byAt"
+    ],
+    "disclosures": [],
+    "bound_product": "clock.range take 10 (+2 reserve) × 1 calls on events = 12"
   }
 }

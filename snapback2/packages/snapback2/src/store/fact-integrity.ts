@@ -29,17 +29,26 @@ export function deliveryFacts(delivery: StoreDelivery): FactProof[] {
   for (const verdict of receipt?.verdicts ?? []) add([verdictFactKey(verdict), sha256(canonical((verdict as any).result))]);
   return [...facts];
 }
-export function guardFacts(state: PersistedRangeState, proofs: FactProof[], seq: number, track = false, enroll?: (key: string) => void): FactProof[] {
-  const retained: FactProof[] = [];
-  for (const [key, digest] of proofs) {
-    const old = state.factGuards[key];
-    if (old?.seq === seq && old.digest !== digest) throw new TypeError(`conflicting durable fact at seq ${seq}`);
-    if (!old && !track) continue;
-    if (!old) { enroll?.(key); state.factSlots++; }
-    if (!old || old.seq <= seq) state.factGuards[key] = { seq, digest };
-    retained.push([key, digest]);
+/** One swap's immutable equality boundary. Seed each touched key lazily from its
+ * pre-swap guard; later durable sequences cannot erase an earlier contradiction. */
+export class FactTransaction {
+  private seen = new Map<string, Map<number, string>>();
+  constructor(private state: PersistedRangeState, private enroll: (key: string) => void) {}
+  check(proofs: FactProof[], seq: number, track = false): FactProof[] {
+    const retained: FactProof[] = [];
+    for (const [key, digest] of proofs) {
+      const old = this.state.factGuards[key];
+      if (!old && !track) continue;
+      const facts = this.seen.get(key) ?? new Map(old ? [[old.seq, old.digest]] : []);
+      this.seen.set(key, facts);
+      if (facts.has(seq) && facts.get(seq) !== digest) throw new TypeError(`conflicting durable fact at seq ${seq}`);
+      facts.set(seq, digest);
+      if (!old) { this.enroll(key); this.state.factSlots++; }
+      if (!old || old.seq <= seq) this.state.factGuards[key] = { seq, digest };
+      retained.push([key, digest]);
+    }
+    return retained;
   }
-  return retained;
 }
 export const proofSlots = (answer?: StoredAnswer) => (answer?.factProofs?.length ?? 0) + Number(!!answer?.needsFactProofs);
 export function answerFactKeys(answer: StoredAnswer): Set<string> {

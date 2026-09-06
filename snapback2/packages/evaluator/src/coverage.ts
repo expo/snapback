@@ -50,13 +50,13 @@ const boundsKey = (r: ReceiptRange | TraceRange): string => JSON.stringify([r.or
 const pointKey = (table: string, index: string, key: Value[]): string => JSON.stringify([table, index, key]);
 const verdictKey = (v: Verdict): string => JSON.stringify([v.rule_hash, v.pinned_inputs_digest, v.principal, v.auth_epoch]);
 export class CoverageIndex {
-  private owners = new Map<string, { ranges: Range[]; absences: string[]; verdicts: string[] }>();
+  private owners = new Map<string, { ranges: Range[]; absences: string[]; verdicts: [string, boolean][] }>();
   private exact = new Map<string, number>();
   private groups = new Map<string, Group>();
   private complete = new Map<string, number>();
   private patterns = new Map<string, string[][]>();
   private absences = new Map<string, Set<string>>();
-  private verdicts = new Map<string, Map<string, Verdict>>();
+  private verdicts = new Map<string, [number, number]>();
   private rowRanges = new Map<string, Set<Range>>();
   constructor(private schema: any, private position: (range: ReceiptRange, logical: LogicalIndexAtom[], id: string) => Value[] | null) {
     for (const [table, definition] of Object.entries<any>(schema.tables)) {
@@ -72,6 +72,10 @@ export class CoverageIndex {
     }
   }
   set(owner: string, receipt: ClosureReceipt | undefined, program?: any): void {
+    const verdicts = (receipt?.verdicts ?? []).map((v): [string, boolean] => {
+      if (typeof v.result !== 'boolean') throw new EvalError('E_INPUT', 'verdict result must be boolean');
+      return [verdictKey(v), v.result];
+    });
     const pool = new Map(receipt?.rows.map(r => [JSON.stringify([r.table, r.id]), r.row]));
     // Prepare/validate all new proof before removing the previous owner.
     const ranges = (receipt?.ranges ?? []).map(value => {
@@ -106,20 +110,22 @@ export class CoverageIndex {
     if (old) {
       for (const r of old.ranges) this.range(r, -1);
       for (const key of old.absences) { const refs = this.absences.get(key)!; refs.delete(owner); if (!refs.size) this.absences.delete(key); }
-      for (const key of old.verdicts) { const refs = this.verdicts.get(key)!; refs.delete(owner); if (!refs.size) this.verdicts.delete(key); }
+      for (const [key, result] of old.verdicts) this.verdictCount(key, result, -1);
       this.owners.delete(owner);
     }
     if (!receipt) return;
-    const held = { ranges, absences: [] as string[], verdicts: [] as string[] };
+    const held = { ranges, absences: [] as string[], verdicts };
     for (const r of ranges) this.range(r, 1);
     for (const [table, index, values] of receipt.absences) {
       const key = pointKey(table, index, values), refs = this.absences.get(key) ?? new Set();
       refs.add(owner); this.absences.set(key, refs); held.absences.push(key);
     }
-    for (const v of receipt.verdicts) {
-      const key = verdictKey(v), refs = this.verdicts.get(key) ?? new Map(); refs.set(owner, v); this.verdicts.set(key, refs); held.verdicts.push(key);
-    }
+    for (const [key, result] of verdicts) this.verdictCount(key, result, 1);
     this.owners.set(owner, held);
+  }
+  private verdictCount(key: string, result: boolean, delta: number): void {
+    const counts: [number, number] = this.verdicts.get(key) ?? [0, 0]; counts[Number(result)] += delta;
+    if (counts[0] || counts[1]) this.verdicts.set(key, counts); else this.verdicts.delete(key);
   }
   private count(map: Map<string, number>, key: string, delta: number): void {
     const count = (map.get(key) ?? 0) + delta;
@@ -158,12 +164,9 @@ export class CoverageIndex {
   }
   hasAbsence(table: string, index: string, key: Value[]): boolean { return !!this.absences.get(pointKey(table, index, key))?.size; }
   verdict(rule: string, digest: string, viewer: string, epoch: number): boolean | null {
-    const values = this.verdicts.get(JSON.stringify([rule, digest, viewer, epoch]));
-    if (!values?.size) return null;
-    // Conflicting current authority is unknown, never an invented allow.
-    let result: boolean | null = null;
-    for (const v of values.values()) { if (result !== null && result !== v.result) return null; result = v.result; }
-    return result;
+    const counts = this.verdicts.get(JSON.stringify([rule, digest, viewer, epoch]));
+    // Updates maintain disagreement; warm reads never traverse retained owners.
+    return !counts || counts[0] && counts[1] ? null : counts[1] > 0;
   }
   covers(range: TraceRange, logical: LogicalIndexAtom[]): boolean {
     const identity = JSON.stringify([range.site, range.table, range.index, logicalKey(logical), boundsKey(range)]);

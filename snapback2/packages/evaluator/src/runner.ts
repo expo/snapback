@@ -75,6 +75,7 @@ export class Runner {
   private readonly writes = new Map<string, TraceWrite>();
   private readonly partial = new Set<string>();
   private authorityMissSerial = 0;
+  private authorityFields?: string[];
   /** Engine-owned aggregate targets this run could not update because they are not held. */
   private readonly unheldMaintainTargets: string[] = [];
   private readonly createdRows = new Set<string>();
@@ -988,9 +989,10 @@ export class Runner {
     }
   }
 
-  readAuthority(table: string, row: Value): boolean | null {
-    const result = this.checkRule(table, 'read', null, row);
-    return this.partial.size ? null : result;
+  readAuthority(table: string, row: Value, scopeFields?: string[]): boolean | null {
+    const previous = this.authorityFields; this.authorityFields = scopeFields;
+    try { const result = this.checkRule(table, 'read', null, row); return this.partial.size ? null : result; }
+    finally { this.authorityFields = previous; }
   }
 
   private checkRule(
@@ -1138,7 +1140,13 @@ export class Runner {
 
   private ruleTerm(term: any, old: Value | null, next: Value): Value {
     const [kind, data] = variant(term);
-    if (kind === "Field") return clone(field(next, data));
+    if (kind === "Field") {
+      // A representative row can authorize its whole search scope only through scope-bound fields.
+      if (this.authorityFields && !this.authorityFields.includes(data)) {
+        this.partial.add('missing-authority'); this.authorityMissSerial++; return 'Null';
+      }
+      return clone(field(next, data));
+    }
     if (kind === "NextField") {
       if (old === null)
         throw new EvalError("E_SCHEMA", "next-row rule term evaluated outside an update rule");

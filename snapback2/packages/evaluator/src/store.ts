@@ -32,7 +32,6 @@ export class ClientStore {
   private journal?: Map<string, { table: string; id: string; row: Value | null }>;
   private readonly schemaHash: string;
   private directories = new Map<any, ReadableDirectory>();
-  private directDirectories = new Map<string, ReadableDirectory>();
   private receipts = new Map<string, ClosureReceipt>();
   constructor(readonly schema: any, receipt: ClosureReceipt = empty(), private readonly options: ClientStoreOptions = {}) {
     this.schemaHash = sha256(canonicalSchemaJson(schema));
@@ -179,18 +178,10 @@ export class ClientStore {
   missingSearchAuthority(table: string, name: string, logical: LogicalIndexAtom[], context: Context): boolean {
     const index = this.index(table, name), derived = logical[index.derived];
     if (!derived || !('WordPrefix' in derived) || derived.WordPrefix.empty || this.readable(table)) return false;
-    const key = JSON.stringify([table, name, context.viewer, context.auth_epoch]);
-    let directory = this.directDirectories.get(key);
-    if (!directory) {
-      const columns = index.parts.slice(0, index.derived).map(c => (c as { Column: string }).Column);
-      const rule = this.schema.tables[table].rules.read;
-      const uniform = ['Allow', 'Deny'].includes(rule) || Object.hasOwn(rule, 'Public') || rule.Exists?.key.every((term: any) =>
-        term === 'Viewer' || term.Literal !== undefined || (typeof term.Field === 'string' && columns.includes(term.Field)));
-      const descriptor = { scope: columns.map(column => ({ column, value: { Literal: 'Null' } })), discovery: { binding: '' } };
-      directory = new ReadableDirectory(index, descriptor, context.viewer, row => uniform ? new Runner(this, this.schema, context, null).readAuthority(table, row) : null);
-      this.directDirectories.set(key, directory); this.directories.set(descriptor, directory);
-    }
-    return directory.select(logical.slice(0, index.derived).map(a => (a as { Scalar: Value }).Scalar), 0).missing;
+    // Equality-bound direct searches need only their exact scope, even on the first warm invocation.
+    const row = index.scopes.get(logical.slice(0, index.derived).map(a => (a as { Scalar: Value }).Scalar))?.values().next().value;
+    return !!row && new Runner(this, this.schema, { ...context, args: {}, new_ids: [] }, null)
+      .readAuthority(table, row, index.parts.slice(0, index.derived).map(c => (c as { Column: string }).Column)) === null;
   }
   heldDirectory(descriptor: any): ReadableDirectory | undefined { return this.directories.get(descriptor); }
   private touchAuthority(table: string, index: string, key: Value[]): void {

@@ -660,3 +660,157 @@ assert.deepEqual((await pinnedTwin.evaluate('search', args)).data.map((r: any) =
 const timedPayload = JSON.parse(pinnedFirst.next.slice(3)); timedPayload[5] = '0';
 await assert.rejects(pinnedTwin.evaluate('search', { ...args, c: `h1.${JSON.stringify(timedPayload)}` }), { code: 'E_INPUT' });
 console.log('timed local h1 continuation pins one signed execution clock and preserves malformed refusal');
+
+// R1 review: exact native-certified ownership search through public Twin, plus scope-dependent adverse rules.
+const { Runner } = await import('./runner');
+const { ReadableDirectory } = await import('./held-directory');
+const { canonicalJson } = await import('./value-runtime');
+const ownershipSchema: any = { tables: { notes: { columns: { id: 'Id', owner: 'Principal', text: { Text: { max: 32 } } },
+  indexes: { byId: { components: [col('id')], unique: true }, search: { components: [col('owner'),
+    { WordPrefixes: { fields: ['text'], contract: SEARCH_CONTRACT } }, col('id')], unique: false } },
+  rules: { read: { Eq: [{ Field: 'owner' }, 'Viewer'] }, insert: 'Deny', update: 'Deny', delete: 'Deny' }, constraints: [], retain: 'until-revoked' } }, maintains: [] };
+const ownershipIr: any = { name: 'ownedSearch', kind: 'Query', args: { owner: 'Principal', term: { Text: { max: 32 } }, c: { Optional: 'Cursor' } },
+  read_time_granularity_ms: null, body: [{ Return: { Scan: { site: 'owned', table: 'notes', index: 'search',
+    prefix: [{ Scalar: { Variable: 'owner' } }, { WordPrefix: { source: { Variable: 'term' }, contract: SEARCH_CONTRACT, source_max: 32 } }],
+    order: 'Asc', take: { Literal: 2 }, after: { Variable: 'c' }, before: null, range: null, opaque_cursor: true, merge_site: null, provenance: 'Arg' } } }] };
+const ownershipCertificate = searchFixtures.ownershipCertificate;
+assert.equal(sha256(canonicalSchemaJson(ownershipSchema)), ownershipCertificate.schema_hash);
+assert.equal(sha256(canonicalProgramJson(ownershipIr)), ownershipCertificate.plan_hash);
+const ownershipPacket = decodeHeldProgram({ generation: 'a'.repeat(64), schemaHash: ownershipCertificate.schema_hash, schema: ownershipSchema,
+  programs: { ownedSearch: { kind: 'query', ir: ownershipIr, planHash: ownershipCertificate.plan_hash, certificate: ownershipCertificate } } })!;
+assert(ownershipPacket.programs.ownedSearch);
+const ownershipState = emptyState(), ownershipChanges = new StoreChanges<typeof ownershipState>(); ownershipChanges.reset();
+ownershipState.facts = { generation: ownershipPacket.generation, schemaHash: ownershipPacket.schemaHash, authEpoch: 0 };
+for (const owner of ['viewer', 'other']) {
+  ownershipState.rows[`notes\0${owner}`] = { table: 'notes', id: owner, row: { id: owner, owner, text: 'Café' } };
+  ownershipState.rowSeq[`notes\0${owner}`] = 1;
+}
+const ownershipTwin = new Twin({ program: () => ownershipPacket, changes: async since => ownershipChanges.read(ownershipState, since),
+  principal: () => 'viewer', now: () => 1, seq: () => 1 });
+const ownedAnswer = await ownershipTwin.evaluate('ownedSearch', { owner: 'viewer', term: 'café', c: null });
+assert.equal(ownedAnswer?.state, 'held'); assert.deepEqual(ownedAnswer.data, [{ id: 'viewer', owner: 'viewer', text: 'Café' }]);
+for (const [owner, term] of [['other', 'café'], ['viewer', 'unseen']]) {
+  const answer = await ownershipTwin.evaluate('ownedSearch', { owner, term, c: null });
+  assert.equal(answer?.state, 'held'); assert.deepEqual(answer.data, []);
+}
+const eqOwner = ownershipSchema.tables.notes.rules.read, bodyRule = { Eq: [{ Field: 'text' }, { Literal: { String: 'Café' } }] };
+for (const [read, expected] of [[eqOwner, 'allow'], [{ Not: { Ne: eqOwner.Eq } }, 'allow'],
+  [{ And: [eqOwner, { Not: 'Deny' }] }, 'allow'], [{ Or: [eqOwner, bodyRule] }, 'allow'],
+  [{ And: ['Deny', bodyRule] }, 'deny'], [bodyRule, 'unknown'], [{ Or: [bodyRule, eqOwner] }, 'unknown']] as const) {
+  const definition = structuredClone(ownershipSchema); definition.tables.notes.rules.read = read;
+  const held = new ClientStore(definition), row = tagWireRow(definition, 'notes', { id: 'one', owner: 'viewer', text: 'Café' }); held.put('notes', row);
+  const ctx = { ...context, args: { owner: { Id: 'viewer' }, term: { String: 'café' }, c: 'Null' } };
+  assert.equal(new Runner(held, definition, ctx, null).readAuthority('notes', row), expected !== 'deny');
+  const result = held.reexecute(ownershipIr, ctx);
+  assert.equal(result.partialSites.includes('missing-authority'), expected === 'unknown');
+  assert.deepEqual(wireJson(result.execution.result), expected === 'unknown' ? null : expected === 'deny' ? [] : [{ id: 'one', owner: 'viewer', text: 'Café' }]);
+  held.remove('notes', 'one'); assert.deepEqual(wireJson(held.reexecute(ownershipIr, ctx).execution.result), []);
+}
+console.log('native-certified ownership/public Twin allow/deny/unseen and scope-uniform compound rule controls passed');
+
+// After unrelated hydration, first direct search must not enumerate or refresh retained scope history.
+for (const count of [20, 80]) {
+  const state = emptyState(), changes = new StoreChanges<typeof state>(); changes.reset();
+  state.facts = { generation: actualProgram.generation, schemaHash: actualProgram.schemaHash, authEpoch: 0 };
+  for (let i = 0; i < count; i++) for (const record of [
+    { table: 'messages', id: `m${i}`, row: { id: `m${i}`, conversation: `room${i}`, body: 'Café', caption: null, at: i } },
+    { table: 'memberships', id: `u${i}`, row: { id: `u${i}`, conversation: `room${i}`, principal: 'viewer' } },
+  ]) { state.rows[`${record.table}\0${record.id}`] = record; state.rowSeq[`${record.table}\0${record.id}`] = 1; }
+  const twin = new Twin({ program: () => actualProgram, changes: async since => changes.read(state, since), principal: () => 'viewer', now: () => 1, seq: () => 1 });
+  await twin.evaluate('search.findPeople', { term: 'warm', c: null });
+  const index = (twin as any).indexed.store.index('messages', 'byConversationWords');
+  const seek = index.scopes.seek, refresh = ReadableDirectory.prototype.refresh;
+  index.scopes.seek = () => { throw new Error('warm direct query enumerated scopes'); };
+  ReadableDirectory.prototype.refresh = () => { throw new Error('warm direct query refreshed a directory'); };
+  try {
+    const first = await twin.evaluate('search.inConversation', { conversation: 'room0', term: 'café', c: null });
+    assert.equal(first?.state, 'held'); assert.equal((first.data as any[])[0].id, 'm0');
+    assert.deepEqual((await twin.evaluate('search.inConversation', { conversation: 'room0', term: 'unseen', c: null }))?.data, []);
+  } finally { index.scopes.seek = seek; ReadableDirectory.prototype.refresh = refresh; }
+}
+console.log('first warm direct operation at 20/80 retained scopes performs no scope enumeration/directory refresh');
+
+// Receipt ownership contributes to a maintained verdict; identical history cannot make warm reads more expensive.
+const authoritySchema = structuredClone(searchFixtures.schema); authoritySchema.tables.memberships.rules.read = 'Deny' as any;
+authoritySchema.tables.messages.rules.delete = 'Allow' as any; // Synthetic rollback must reach its write before the explicit refusal.
+const authorityHash = sha256(canonicalSchemaJson(authoritySchema));
+const authorityRule = scopedRuleHash(authoritySchema, authoritySchema.tables.messages.rules.read);
+const authorityDigest = sha256(canonicalJson(['memberships', 'byConversationPrincipal', ['room', 'viewer']]));
+const authorityContext = { ...context, args: { conversation: { Id: 'room' }, term: { String: 'café' }, c: 'Null' } };
+const directIr = searchFixtures.operations['search.inConversation'].program;
+const authorityVerdict = { rule_hash: authorityRule, pinned_inputs_digest: authorityDigest, principal: 'viewer', auth_epoch: 0, result: true };
+for (const count of [20, 80, 2000]) {
+  const held = new ClientStore(authoritySchema), row = tagWireRow(authoritySchema, 'messages', { id: 'one', conversation: 'room', body: 'Café', caption: null, at: 1 });
+  held.put('messages', row); let reads = 0;
+  const verdict = { ...authorityVerdict, get result() { reads++; return true; } };
+  const receipt = { schema_hash: authorityHash, rows: [], ranges: [], absences: [], verdicts: [verdict] };
+  for (let i = 0; i < count; i++) held.setReceipt(`owner${i}`, receipt);
+  reads = 0;
+  const result = held.reexecute(directIr, authorityContext);
+  assert(!result.partialSites.includes('missing-authority')); assert.equal((wireJson(result.execution.result) as any[]).length, 1);
+  assert.equal(reads, 0, `${count} held receipts must not be consulted on a warm read`);
+  const check = (expected: boolean | null) => {
+    assert.equal(held.verdict(authorityRule, authorityDigest, authorityContext), expected);
+    const result = held.reexecute(directIr, authorityContext);
+    assert.equal(result.partialSites.includes('missing-authority'), expected === null);
+    assert.deepEqual(wireJson(result.execution.result), expected === null ? null : expected ? [wireJson(row)] : []);
+  };
+  held.setReceipt('conflict', { ...receipt, verdicts: [{ ...authorityVerdict, result: false }] }); check(null);
+  held.setReceipt('conflict', { ...receipt, verdicts: [{ ...authorityVerdict, result: true }] }); check(true);
+  held.setReceipt('conflict');
+  for (let i = 0; i < count - 1; i++) held.setReceipt(`owner${i}`); check(true);
+  held.setReceipt(`owner${count - 1}`, { ...receipt, verdicts: [{ ...authorityVerdict, result: false }] }); check(false);
+  held.setReceipt(`owner${count - 1}`); check(null);
+  held.setReceipt('duplicates', { ...receipt, verdicts: [authorityVerdict, authorityVerdict, { ...authorityVerdict, result: false }] }); check(null);
+  held.setReceipt('duplicates', { ...receipt, verdicts: [authorityVerdict, authorityVerdict] }); check(true);
+  assert.throws(() => held.setReceipt('duplicates', { ...receipt, verdicts: [{ ...authorityVerdict, result: 1 } as any] }), { code: 'E_INPUT' }); check(true);
+  const badRange = { ...ordinaryReceipt.ranges[0], table: 'missing' };
+  assert.throws(() => held.setReceipt('duplicates', { ...receipt, ranges: [badRange], verdicts: [{ ...authorityVerdict, result: false }] })); check(true);
+  const beforeRow = held.byId('messages', 'one');
+  assert.throws(() => held.applyMutation({ name: 'rollback', kind: 'Mutation', args: {}, body: [
+    { Delete: { table: 'messages', key: { Literal: { Id: 'one' } } } }, { Require: { condition: { Literal: { Bool: false } }, code: 'ROLLBACK' } },
+  ] }, { ...authorityContext, args: {} }), { code: 'E_REQUIRE' });
+  assert.equal(held.byId('messages', 'one'), beforeRow); check(true);
+  assert.equal(held.verdict(authorityRule, authorityDigest, { ...authorityContext, auth_epoch: 1 }), null);
+  assert.equal(held.verdict(authorityRule, authorityDigest, { ...authorityContext, viewer: 'other' }), null);
+  held.setReceipt('duplicates'); check(null);
+}
+console.log('20/80/2000-owner verdict work stays constant; disagreement, duplicates, replacement/removal and rollback controls passed');
+
+// Scope churn must reclaim dependency metadata, and shared dependencies survive until their last scope disappears.
+const churn = new ClientStore(searchFixtures.schema); churn.registerHeld({ global: { ir: searchFixtures.operations['search.global'].program } }, context);
+const directory: any = [...(churn as any).directories.values()][0];
+for (let i = 0; i < 2000; i++) {
+  churn.put('messages', tagWireRow(searchFixtures.schema, 'messages', { id: 'one', conversation: `old${i}`, body: 'Café', caption: null, at: 1 }));
+  churn.remove('messages', 'one');
+}
+assert.equal(churn.rows('messages').length, 0);
+for (const name of ['entries', 'allowed', 'unknown', 'dependencies', 'digests']) assert.equal(directory[name].size, 0, name);
+// Synthetic directory-level control: two scopes depend on the same constant authority point.
+const sharedSchema = structuredClone(authoritySchema), sharedRule: any = sharedSchema.tables.messages.rules.read;
+sharedRule.Exists.key[0] = { Literal: { Id: 'room' } };
+const shared = new ClientStore(sharedSchema), sharedHash = sha256(canonicalSchemaJson(sharedSchema));
+const sharedVerdict = { ...authorityVerdict, rule_hash: scopedRuleHash(sharedSchema, sharedRule) };
+const sharedReceipt = { schema_hash: sharedHash, rows: [], ranges: [], absences: [], verdicts: [sharedVerdict] };
+const sharedIndex = shared.index('messages', 'byConversationWords');
+const sharedDirectory: any = new ReadableDirectory(sharedIndex, { scope: [{ value: { Field: { base: { Variable: 'm' }, name: 'conversation' } } }],
+  discovery: { binding: 'm' } }, 'viewer', row => new Runner(shared, sharedSchema, context, null).readAuthority('messages', row));
+const scope = (room: string): any[] => [{ Id: room }];
+for (const room of ['left', 'right']) {
+  shared.put('messages', tagWireRow(sharedSchema, 'messages', { id: room, conversation: room, body: 'Café', caption: null, at: 1 })); sharedDirectory.refresh(scope(room));
+}
+assert(sharedDirectory.select([], 10).missing); assert.equal(sharedDirectory.dependencies.size, 1); assert.equal(sharedDirectory.digests.size, 1);
+shared.setReceipt('proof', sharedReceipt); sharedDirectory.touchDigest(authorityDigest);
+assert.equal(sharedDirectory.select([], 10).scopes.length, 2);
+shared.remove('messages', 'left'); sharedDirectory.refresh(scope('left'));
+assert.equal(sharedDirectory.dependencies.size, 1); assert.equal(sharedDirectory.select([], 10).scopes.length, 1);
+shared.setReceipt('proof', { ...sharedReceipt, verdicts: [{ ...sharedVerdict, result: false }] });
+sharedDirectory.touch(canonicalJson(['memberships', 'byConversationPrincipal', ['room', 'viewer']]));
+assert.deepEqual(sharedDirectory.select([], 10), { scopes: [], overflow: false, missing: false });
+shared.setReceipt('proof'); sharedDirectory.touchDigest(authorityDigest); assert(sharedDirectory.select([], 10).missing);
+shared.remove('messages', 'right'); sharedDirectory.refresh(scope('right'));
+for (const name of ['entries', 'allowed', 'unknown', 'dependencies', 'digests']) assert.equal(sharedDirectory[name].size, 0, name);
+shared.put('messages', tagWireRow(sharedSchema, 'messages', { id: 'left', conversation: 'left', body: 'Café', caption: null, at: 1 }));
+sharedDirectory.refresh(scope('left')); shared.setReceipt('proof', sharedReceipt); sharedDirectory.touchDigest(authorityDigest);
+assert.deepEqual(sharedDirectory.select([], 10).scopes, [scope('left')]);
+console.log('2000 deleted scopes reclaim directory metadata; shared dependency touch/digest, denial, clear and repopulation passed');

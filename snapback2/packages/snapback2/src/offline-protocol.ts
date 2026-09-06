@@ -208,24 +208,7 @@ export function encodeDeliveryEnvelope(envelope: DeliveryEnvelopeV1): string {
     .map((row) => ({ table: row.table, id: row.id, row: canonicalWire(row.row) }));
   ordered.receipt = {
     ranges: decoded.receipt.ranges.map((range) => {
-      const item: Record<string, unknown> = {
-        site: range.site,
-        table: range.table,
-        index: range.index,
-        prefix: range.prefix.map(canonicalWire),
-        order: range.order,
-        take: range.take,
-        after: range.after === null ? null : canonicalWire(range.after),
-        before: range.before === null ? null : canonicalWire(range.before),
-        gt: range.gt === null ? null : canonicalWire(range.gt),
-        gte: range.gte === null ? null : canonicalWire(range.gte),
-        lt: range.lt === null ? null : canonicalWire(range.lt),
-        lte: range.lte === null ? null : canonicalWire(range.lte),
-        ruleHash: range.ruleHash,
-        rowIds: [...range.rowIds],
-        stop: range.stop,
-        absence: range.absence,
-      };
+      const item: Record<string, unknown> = Object.fromEntries(rangeFields.map(name => [name, canonicalWire(range[name])]));
       if (range.haloId !== undefined) item.haloId = range.haloId;
       return item;
     }),
@@ -234,13 +217,7 @@ export function encodeDeliveryEnvelope(envelope: DeliveryEnvelopeV1): string {
       index,
       key.map(canonicalWire),
     ]),
-    verdicts: decoded.receipt.verdicts.map((verdict) => ({
-      ruleHash: verdict.ruleHash,
-      pinnedInputsDigest: verdict.pinnedInputsDigest,
-      principal: verdict.principal,
-      authEpoch: verdict.authEpoch,
-      result: verdict.result,
-    })),
+    verdicts: decoded.receipt.verdicts.map(verdict => Object.fromEntries(verdictFields.map(name => [name, verdict[name]]))),
   };
   ordered.validator = decoded.validator;
   if (decoded.readTime !== undefined) ordered.readTime = decoded.readTime;
@@ -376,15 +353,16 @@ export function deliveryRangeExtent(
   };
 }
 
+// The decoder's required field order is also the canonical encoder order.
+const rangeFields = ["site", "table", "index", "prefix", "order", "take", "after", "before",
+  "gt", "gte", "lt", "lte", "ruleHash", "rowIds", "stop", "absence"] as const;
+const verdictFields = ["ruleHash", "pinnedInputsDigest", "principal", "authEpoch", "result"] as const;
 function receipt(value: unknown, pool: Set<string>, authority: DeliveryAuthority): void {
   object(value, "$.receipt", ["ranges", "absences", "verdicts"]);
   array(value.ranges, "$.receipt.ranges");
   value.ranges.forEach((range: unknown, index: number) => {
     const path = `$.receipt.ranges[${index}]`;
-    object(range, path, [
-      "site", "table", "index", "prefix", "order", "take", "after", "before",
-      "gt", "gte", "lt", "lte", "ruleHash", "rowIds", "stop", "absence",
-    ], ["haloId"]);
+    object(range, path, rangeFields, ["haloId"]);
     for (const name of ["site", "table", "index", "ruleHash"] as const) string(range[name], `${path}.${name}`);
     digest(range.ruleHash, `${path}.ruleHash`);
     array(range.prefix, `${path}.prefix`); range.prefix.forEach((item: unknown, at: number) => wireIndexAtom(item, `${path}.prefix[${at}]`));
@@ -419,7 +397,7 @@ function receipt(value: unknown, pool: Set<string>, authority: DeliveryAuthority
   array(value.verdicts, "$.receipt.verdicts");
   value.verdicts.forEach((verdict: unknown, index: number) => {
     const path = `$.receipt.verdicts[${index}]`;
-    object(verdict, path, ["ruleHash", "pinnedInputsDigest", "principal", "authEpoch", "result"]);
+    object(verdict, path, verdictFields);
     digest(verdict.ruleHash, `${path}.ruleHash`);
     digest(verdict.pinnedInputsDigest, `${path}.pinnedInputsDigest`);
     string(verdict.principal, `${path}.principal`); validateIdentity(verdict.principal);
@@ -586,7 +564,7 @@ function escapedObject(value: unknown): value is WireEscapedObject {
     && Object.keys(value.$row).length === 1 && plain(value.$row.$value);
 }
 
-function object(value: any, path: string, required: string[], optional: string[] = [], open = false): asserts value is Record<string, any> {
+function object(value: any, path: string, required: readonly string[], optional: readonly string[] = [], open = false): asserts value is Record<string, any> {
   if (!plain(value)) fail(path, "expected object");
   for (const name of required) if (!(name in value)) fail(`${path}.${name}`, "is required");
   if (!open) for (const name of Object.keys(value)) if (!required.includes(name) && !optional.includes(name)) fail(`${path}.${name}`, "is unknown");

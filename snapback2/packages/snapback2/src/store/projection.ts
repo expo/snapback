@@ -36,25 +36,23 @@ export class ProjectionCache {
     const delta: ProjectionDelta = { rows: { put: [], remove: [] }, answers: { put: [], remove: [] },
       outbox: { put: [], remove: [] }, meta: { put: [], remove: [] } };
     const encoded: Array<[keyof StateProjection, string, string]> = [];
+    const put = (name: keyof StateProjection, key: string, value: unknown) => {
+      const text = JSON.stringify(value);
+      if (this.values[name].get(key) !== text) {
+        delta[name].put.push({ key, value: JSON.parse(text) }); encoded.push([name, key, text]);
+      }
+    };
     const compare = (name: keyof StateProjection, entries: StateEntry[]) => {
       const present = new Set(entries.map(({ key }) => key));
       for (const key of this.values[name].keys()) if (!present.has(key)) delta[name].remove.push(key);
-      for (const { key, value } of entries) {
-        const text = JSON.stringify(value);
-        if (this.values[name].get(key) === text) continue;
-        delta[name].put.push({ key, value: JSON.parse(text) });
-        encoded.push([name, key, text]);
-      }
+      for (const { key, value } of entries) put(name, key, value);
     };
     for (const name of ["rows", "answers", "outbox"] as const) {
       if (changed && !changed.get('*')?.has(name)) {
         for (const key of changed.get(name) ?? []) {
           const value = state[name][key];
           if (value === undefined) { if (this.values[name].has(key)) delta[name].remove.push(key); }
-          else {
-            const text = JSON.stringify(value);
-            if (this.values[name].get(key) !== text) { delta[name].put.push({ key, value: JSON.parse(text) }); encoded.push([name, key, text]); }
-          }
+          else put(name, key, value);
         }
         continue;
       }
@@ -65,10 +63,7 @@ export class ProjectionCache {
     if (!metaDelta) compare("meta", metadata(state));
     else {
       delta.meta.remove.push(...metaDelta.remove);
-      for (const { key, value } of metaDelta.put) {
-        const text = JSON.stringify(value);
-        if (this.values.meta.get(key) !== text) { delta.meta.put.push({ key, value: JSON.parse(text) }); encoded.push(['meta', key, text]); }
-      }
+      for (const { key, value } of metaDelta.put) put('meta', key, value);
     }
     return { delta, committed: () => {
       this.legacyMetadata = false;

@@ -2,31 +2,24 @@
 import type { ChangedRecords } from './swap-journal.js';
 export type MetaEntry = { key: string; value: unknown };
 const main = new Set(['rows', 'answers', 'outbox']);
-export function metadata(state: object): MetaEntry[] {
-  const header: Record<string, unknown> = {}, entries: MetaEntry[] = [];
-  for (const [field, value] of Object.entries(state)) {
-    if (main.has(field)) continue;
-    if (value && typeof value === 'object') {
-      header[field] = Array.isArray(value) ? [] : {};
-      for (const [key, item] of Object.entries(value)) entries.push({ key: JSON.stringify([field, key]), value: item });
-    } else header[field] = value;
-  }
-  return [{ key: 'state', value: header }, ...entries];
-}
+export function metadata(state: object): MetaEntry[] { return projectMetadata(state)!.put; }
 export function metadataChanges(state: object, changed: ChangedRecords): { put: MetaEntry[]; remove: string[] } | undefined {
+  return projectMetadata(state, changed);
+}
+function projectMetadata(state: object, changed?: ChangedRecords): { put: MetaEntry[]; remove: string[] } | undefined {
   const put: MetaEntry[] = [], remove: string[] = [], header: Record<string, unknown> = {};
   for (const [field, value] of Object.entries(state)) {
     if (main.has(field)) continue;
     if (value && typeof value === 'object') {
-      if (changed.get('*')?.has(field)) return; // A replaced dictionary resets that bounded ownership domain.
+      if (changed?.get('*')?.has(field)) return; // Replacing a dictionary resets that ownership domain.
       header[field] = Array.isArray(value) ? [] : {};
-      for (const key of changed.get(field) ?? []) {
+      for (const key of changed ? changed.get(field) ?? [] : Object.keys(value)) {
         const id = JSON.stringify([field, key]);
         if (Object.hasOwn(value, key)) put.push({ key: id, value: value[key] }); else remove.push(id);
       }
     } else header[field] = value;
   }
-  if (changed.get('*')?.size) put.push({ key: 'state', value: header });
+  if (!changed || changed.get('*')?.size) put.unshift({ key: 'state', value: header });
   return { put, remove };
 }
 export function restoreMetadata(entries: MetaEntry[]): Record<string, any> {

@@ -22,7 +22,10 @@ export class ReadableDirectory {
   }
   refresh(scope: Value[]): void {
     const id = canonicalJson(scope), old = this.entries.get(id);
-    if (old) { this.allowed.delete(old.key); this.unknown.delete(old.key); if (old.dependency) { this.dependencies.get(old.dependency)?.delete(old); this.digests.get(sha256(old.dependency))?.delete(old); } }
+    if (old) {
+      this.allowed.delete(old.key); this.unknown.delete(old.key);
+      if (old.dependency) { this.link(this.dependencies, old.dependency, old, false); this.link(this.digests, sha256(old.dependency), old, false); }
+    }
     const rows = this.index.scopes.get(scope);
     if (!rows?.size) { this.entries.delete(id); return; }
     const row = rows.values().next().value!, key = this.permutation.map(i => scope[i]);
@@ -31,13 +34,17 @@ export class ReadableDirectory {
     if (probe) {
       const values = probe.key.map((t: any) => t === 'Viewer' ? { Id: this.viewer } : t.Field !== undefined ? fieldOrNull(row, t.Field) : t.Literal);
       entry.dependency = canonicalJson([probe.table, probe.index, values.map(wireJson)]);
-      const deps = this.dependencies.get(entry.dependency) ?? new Set(); deps.add(entry); this.dependencies.set(entry.dependency, deps);
-      const digest = sha256(entry.dependency), refs = this.digests.get(digest) ?? new Set(); refs.add(entry); this.digests.set(digest, refs);
+      this.link(this.dependencies, entry.dependency, entry, true); this.link(this.digests, sha256(entry.dependency), entry, true);
     }
     this.entries.set(id, entry);
     const status = this.check(row);
     if (status === true) this.allowed.set(key, entry);
     else if (status === null) this.unknown.set(key, entry);
+  }
+  private link(map: Map<string, Set<DirectoryEntry>>, key: string, entry: DirectoryEntry, add: boolean): void {
+    const refs = map.get(key) ?? new Set();
+    if (add) { refs.add(entry); map.set(key, refs); }
+    else { refs.delete(entry); if (!refs.size) map.delete(key); }
   }
   touch(dependency: string): void { for (const e of [...(this.dependencies.get(dependency) ?? [])]) this.refresh(e.scope); }
   /** Verdict inputs use a digest of the same point identity. */

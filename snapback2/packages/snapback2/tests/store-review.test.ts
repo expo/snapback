@@ -27,8 +27,8 @@ async function carriers() {
 }
 
 test("identical pre-program envelopes survive cold custody and install checked coverage without accepting equivocation", async (context) => {
-  // Actual native provisional03 v4 certificates; these envelopes/validators are synthetic controls.
-  const fixtures = JSON.parse(await readFile(new URL("../../evaluator/src/test-search-v4-fixtures.json", import.meta.url), "utf8"));
+  // Actual final native v5 certificates; these envelopes/validators are synthetic controls.
+  const fixtures = JSON.parse(await readFile(new URL("../../evaluator/src/test-search-v5-fixtures.json", import.meta.url), "utf8"));
   const people = fixtures.operations["search.findPeople"];
   const cases = [
     { op: "minimum", fixture: fixtures.minimum, args: { term: "ab" }, data: "ab", rows: [], receipt: receipt() },
@@ -206,6 +206,22 @@ test("uniform range eviction uses engine ordering for Unicode, Bytes and optiona
       JSON.stringify({ scenario, order }));
     await store.close();
   }
+});
+
+test('compatible bounded pages union presence within one durable sequence', async () => {
+  const store = new PersistentRangeStore({ carrier: 'memory', open: async () => undefined,
+    replace: async () => {}, close() {}, wipe: async () => {} });
+  await store.open('alice');
+  const schema = { tables: { messages: { columns: { id: 'Id', body: { Text: { max: 20 } } },
+    indexes: { byName: { components: [{ Column: 'body' }, { Column: 'id' }] } } } } };
+  await store.commit({ schema, deliveries: [{ ...delivery('held', ['b'], 1), receipt: { ...receipt(), ranges: [range(['b'])] } }] });
+  await store.commit({ schema, deliveries: [
+    { ...delivery('wide', ['a', 'c'], 2), receipt: { ...receipt(), ranges: [range(['a', 'c'], 'Limit')] } },
+    { ...delivery('middle', ['b'], 2), receipt: { ...receipt(), ranges: [range(['b'], 'Limit')] } },
+  ] });
+  assert.deepEqual((await store.answer('held', {})).data, [{ id: 'b', body: 'b' }]);
+  assert.deepEqual((await store.coverage()).evicted, []);
+  await store.close();
 });
 
 test("escaped objects remain literals through collection, viewing, eviction and carrier reopen", async () => {
@@ -426,8 +442,8 @@ test('ordinary conditional proof enrollment requires one full read and preserves
 });
 
 test('stamped cold custody validates its actual issuing clock and legacy reset preserves queued work', async context => {
-  const { clock: packet } = JSON.parse(await readFile(new URL('../../evaluator/src/test-search-v4-fixtures.json', import.meta.url), 'utf8'));
-  // Actual native v4 clock IR/certificate; the no-row envelopes below are synthetic signed-clock controls.
+  const { clock: packet } = JSON.parse(await readFile(new URL('../../evaluator/src/test-search-v5-fixtures.json', import.meta.url), 'utf8'));
+  // Actual raw clock IR recertified by final native v5; the no-row envelopes below are synthetic signed-clock controls.
   const op = 'clock.read', operation = packet.programs[op];
   const envelope = { protocol: 1, generation: packet.generation, schemaHash: packet.schemaHash, planHash: operation.planHash,
     authority: { principal: 'clock', authEpoch: 0 }, state: 'complete', data: { now: -5, rows: [] }, seq: 1, next: null,
@@ -533,6 +549,154 @@ test('first timed facts constrain ordinary conditionals in the same atomic swap 
       assert.deepEqual([...counts], [['one', 1], ['two', 1]]);
       for (const d of ordinary) { const answer = await runtime.store.answer(d.op, {});
         assert.equal(answer.seq, 2); assert.equal(answer.data[0].body, 'new'); assert.equal(answer.needsFactProofs, undefined); }
+      await runtime.store.close();
+    });
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test('checked fixed extent holes reject clock contradictions atomically and retain negative conditional custody warm and cold', async context => {
+  const fixtures = JSON.parse(await readFile(new URL('../../evaluator/src/test-search-v5-fixtures.json', import.meta.url), 'utf8'));
+  const packet = structuredClone(fixtures.clock), op = 'clock.fixed', certificate = fixtures.fixedClockCertificate;
+  const ir = structuredClone(packet.programs['clock.read'].ir); ir.name = op;
+  ir.body[0].Return.Object.rows.Scan.range = null;
+  packet.programs[op] = { kind: 'query', ir, certificate, planHash: certificate.plan_hash };
+  // Actual final-owner v5 certificate for this fixed extent; envelopes below are
+  // adversarial authenticated-transport controls, not claimed native emissions.
+  const event = (id: string) => ({ table: 'events', id, row: { id, at: 0 } });
+  const eventRef = (id: string) => ({ $row: { table: 'events', id } });
+  const range = { site: 'clock.range', table: 'events', index: 'byAt', prefix: [], order: 'Asc', take: 10,
+    after: null, before: null, gt: null, gte: null, lt: null, lte: null,
+    ruleHash: certificate.rule_hashes['events.read'], rowIds: ['one'], stop: 'Exhausted', absence: false };
+  const frame = (seq: number, readTime: number, ids: string[]) => ({ protocol: 1, generation: packet.generation,
+    schemaHash: packet.schemaHash, planHash: certificate.plan_hash, authority: { principal: 'clock', authEpoch: 0 },
+    state: 'complete', data: { now: readTime, rows: ids.map(eventRef) }, rows: ids.map(event), next: null,
+    receipt: { ...receipt(), ranges: [{ ...range, rowIds: ids }] }, seq, readTime, validator: 'a'.repeat(64) });
+  const anchor = (op: string, id: string) => ({ ...delivery(op, [], 1), data: eventRef(id), rows: [event(id)], validator: 'b'.repeat(64) });
+  const { root, factories } = await carriers();
+  try {
+    for (const factory of factories) for (const cold of [false, true]) await context.test(`${factory.carrier}/${cold ? 'cold' : 'warm'}`, async () => {
+      let runtime = new OfflineRuntime({ store: factory }); await runtime.open(`clock-${cold}`, true); await runtime.program(packet);
+      const commit = async (value: any) => runtime.commit(op, {}, await runtime.accept(op, {}, { ...value, authority: { principal: `clock-${cold}`, authEpoch: 0 } }));
+      const reopen = async () => {
+        await runtime.store.close(); runtime = new OfflineRuntime({ store: factory }); await runtime.open(`clock-${cold}`, true);
+      };
+      await runtime.store.commit({ deliveries: [anchor('anchor', 'one'), anchor('unrelated', 'other')], outbox: { put: [entry('keep')] } });
+      await commit(frame(1, 1, ['one'])); if (cold) await reopen();
+      await commit(frame(1, 2, ['one']));
+      assert.equal((await runtime.store.coverage()).rows.length, 2);
+      const before = JSON.stringify((runtime.store as any).state);
+      await assert.rejects(commit(frame(1, 3, [])), /conflicting durable fact/);
+      assert.equal(JSON.stringify((runtime.store as any).state), before, 'failed hole leaves all durable metadata, rows, guards and outbox unchanged');
+      // A different typed extent cannot infer a hole in the original fixed domain.
+      const different = frame(1, 3, []); different.receipt.ranges[0].lt = -1;
+      await commit(different);
+      assert.deepEqual((await runtime.store.answer('anchor', {})).data, { id: 'one', at: 0 });
+      await commit(frame(1, 4, ['one']));
+      await commit(frame(2, 5, []));
+      assert.equal((await runtime.store.answer('anchor', {})).data, null);
+      assert.deepEqual((await runtime.store.answer('unrelated', {})).data, { id: 'other', at: 0 });
+      assert.deepEqual((await runtime.store.coverage()).evicted, [{ table: 'events', id: 'one' }]);
+      assert.equal((await runtime.store.outbox.all())[0].intent, 'keep');
+      await assert.rejects(runtime.store.commit({ deliveries: [{ ...anchor('revert', 'one'), seq: 2 }] }), /conflicting durable fact/);
+      if (cold) await reopen();
+      await runtime.store.commit({ refreshes: [{ op, args: {}, seq: 3, validator: 'a'.repeat(64) }] });
+      if (cold) await reopen();
+      await assert.rejects(runtime.store.commit({ deliveries: [{ ...anchor('revert', 'one'), seq: 3 }] }), /conflicting durable fact/);
+      assert.equal((await runtime.store.outbox.all())[0].intent, 'keep');
+      await runtime.store.commit({ deliveries: [{ ...anchor('return', 'one'), seq: 4 }] });
+      assert.deepEqual((await runtime.store.answer('return', {})).data, { id: 'one', at: 0 }, 'a genuinely newer positive is allowed');
+      await runtime.store.close();
+    });
+    for (const factory of factories) for (const seeded of [false, true]) await context.test(`${factory.carrier}/sequence-batch-${seeded}`, async () => {
+      const principal = `batch-${seeded}`;
+      let runtime = new OfflineRuntime({ store: factory }); await runtime.open(principal, true); await runtime.program(packet);
+      const accept = async (seq: number, ids: string[], readTime = seq) => ({ op, args: {}, accepted: await runtime.accept(op, {},
+        { ...frame(seq, readTime, ids), authority: { principal, authEpoch: 0 } }) });
+      await runtime.store.commit({ outbox: { put: [entry('keep')] } });
+      if (seeded) await runtime.commitMany([await accept(1, ['one'])]);
+      await runtime.commitMany([await accept(2, ['one']), await accept(3, [])]);
+      assert.equal((await runtime.store.coverage()).rows.length, 0, 'older batch presence cannot mask a newer checked hole');
+      assert.deepEqual((await runtime.store.coverage()).evicted, [{ table: 'events', id: 'one' }]);
+      await assert.rejects(runtime.store.commit({ deliveries: [{ ...anchor('revert', 'one'), seq: 3 }] }), /conflicting durable fact/);
+      await runtime.store.close(); runtime = new OfflineRuntime({ store: factory }); await runtime.open(principal, true);
+      await runtime.store.commit({ refreshes: [{ op, args: {}, seq: 4, validator: 'a'.repeat(64) }] });
+      await assert.rejects(runtime.store.commit({ deliveries: [{ ...anchor('revert', 'one'), seq: 4 }] }), /conflicting durable fact/);
+      await runtime.commitMany([await accept(5, []), await accept(6, ['one'])]);
+      assert.deepEqual((await runtime.store.answer(op, {})).data, { now: 6, rows: [{ id: 'one', at: 0 }] }, 'later batch positive survives older negative');
+      await runtime.commitMany([await accept(8, ['one']), await accept(7, [])]);
+      assert.deepEqual((await runtime.store.answer(op, {})).data, { now: 8, rows: [{ id: 'one', at: 0 }] }, 'stale full frame cannot revoke a newer row');
+      const before = JSON.stringify((runtime.store as any).state);
+      await assert.rejects(runtime.commitMany([await accept(9, ['one']), await accept(9, [], 10)]), /conflicting durable fact/);
+      assert.equal(JSON.stringify((runtime.store as any).state), before, 'same-seq newer-clock Exhausted contradiction cannot hide behind batch union');
+      await assert.rejects(runtime.commitMany([await accept(9, ['one']), await accept(9, [], 10), await accept(10, ['one'])]), /conflicting durable fact/);
+      assert.equal(JSON.stringify((runtime.store as any).state), before, 'a later positive cannot erase an earlier applicable same-seq contradiction');
+      const conditional = { op, args: {}, accepted: await runtime.accept(op, {}, { state: 'unchanged', seq: 9, validator: 'a'.repeat(64) }) };
+      await assert.rejects(runtime.commitMany([conditional, await accept(9, [], 10), await accept(10, ['one'])]), /conflicting durable fact/);
+      assert.equal(JSON.stringify((runtime.store as any).state), before, 'conditional immutable proof participates at its own sequence');
+      await assert.rejects(runtime.commitMany([await accept(8, [], 9), await accept(10, ['one'])]), /conflicting durable fact/);
+      assert.equal(JSON.stringify((runtime.store as any).state), before, 'pre-swap positive8 remains an equality constraint after preflight advances to10');
+      await assert.rejects(runtime.store.commit({ tombstones: [{ table: 'events', id: 'one', seq: 8 }],
+        deliveries: [{ ...anchor('later-positive', 'one'), seq: 10 }] }), /conflicting durable fact/);
+      assert.equal(JSON.stringify((runtime.store as any).state), before, 'explicit tombstone is checked before a later row suppresses final eviction');
+      await runtime.store.commit({ tombstones: [{ table: 'events', id: 'one', seq: 9 }],
+        deliveries: [{ ...anchor('later-positive', 'one'), seq: 10 }] });
+      assert.deepEqual((await runtime.store.answer('later-positive', {})).data, { id: 'one', at: 0 });
+      const changed = frame(12, 12, ['one']); changed.rows[0].row.at = 12;
+      await runtime.commitMany([
+        { op, args: {}, accepted: await runtime.accept(op, {}, { ...changed, authority: { principal, authEpoch: 0 } }) },
+        await accept(10, [], 11),
+      ]);
+      assert.deepEqual((await runtime.store.answer(op, {})).data, { now: 12, rows: [{ id: 'one', at: 12 }] }, 'a genuinely stale full never enters equality preflight');
+      assert.equal((await runtime.store.outbox.all())[0].intent, 'keep');
+      await runtime.store.close();
+    });
+    for (const factory of factories) await context.test(`${factory.carrier}/replacement-proof-custody`, async () => {
+      const runtime = new OfflineRuntime({ store: factory }); await runtime.open('replacement', true); await runtime.program(packet);
+      const op = 'clock.read';
+      const varying = (seq: number, readTime: number, ids: string[]) => {
+        const value = frame(seq, readTime, ids); value.planHash = packet.programs[op].planHash;
+        value.authority.principal = 'replacement'; value.receipt.ranges[0].lt = readTime; return value;
+      };
+      const accept = async (value: any) => ({ op, args: {}, accepted: await runtime.accept(op, {}, value) });
+      await runtime.commitMany([await accept(varying(1, 2, ['one']))]);
+      await runtime.commitMany([await accept(varying(2, 2, [])), await accept(varying(3, -1, []))]);
+      await assert.rejects(runtime.store.commit({ deliveries: [{ ...anchor('old-revert', 'one'), seq: 2 }] }), /conflicting durable fact/);
+      await runtime.store.commit({ refreshes: [{ op, args: {}, seq: 4, validator: 'a'.repeat(64) }] });
+      await runtime.store.commit({ deliveries: [{ ...anchor('outside-new-extent', 'one'), seq: 4 }] });
+      assert.deepEqual((await runtime.store.answer('outside-new-extent', {})).data, { id: 'one', at: 0 },
+        'a replaced extent cannot donate its negative proof to the newer answer');
+      await runtime.store.close();
+    });
+    for (const factory of factories) await context.test(`${factory.carrier}/first-hole-enrollment`, async () => {
+      const runtime = new OfflineRuntime({ store: factory }); await runtime.open('first-hole', true); await runtime.program(packet);
+      const old = { ...anchor('ordinary', 'one'), receipt: { ...receipt(), ranges: [range] } };
+      await runtime.store.commit({ deliveries: [old], outbox: { put: [entry('keep')] } });
+      const before = JSON.stringify((runtime.store as any).state);
+      // The first timed assertion is a checked absence. A same-swap ordinary
+      // conditional has no immutable body proof and must request a full read.
+      const accepted = await runtime.accept(op, {}, { ...frame(2, 1, []), authority: { principal: 'first-hole', authEpoch: 0 } });
+      await assert.rejects(runtime.commitMany([
+        { op: 'ordinary', args: {}, accepted: await runtime.accept('ordinary', {}, { state: 'unchanged', seq: 3, validator: old.validator }) },
+        { op, args: {}, accepted },
+      ]), /requires immutable/);
+      assert.equal(JSON.stringify((runtime.store as any).state), before);
+      const ordinaryFull = async (seq: number) => {
+        const { readTime, ...value } = frame(seq, 0, ['one']);
+        return runtime.accept('ordinary-positive', {}, { ...value, authority: { principal: 'first-hole', authEpoch: 0 },
+          data: eventRef('one'), receipt: receipt(), planHash: 'b'.repeat(64) });
+      };
+      await assert.rejects(runtime.commitMany([
+        { op: 'ordinary-positive', args: {}, accepted: await ordinaryFull(2) }, { op, args: {}, accepted },
+      ]), /conflicting durable fact/);
+      assert.equal(JSON.stringify((runtime.store as any).state), before, 'newly enrolled negative constrains earlier ordinary full proof at the same seq');
+      await runtime.commitMany([
+        { op, args: {}, accepted }, { op: 'ordinary-positive', args: {}, accepted: await ordinaryFull(3) },
+      ]);
+      assert.deepEqual((await runtime.store.answer('ordinary-positive', {})).data, { id: 'one', at: 0 });
+      assert.equal((await runtime.store.answer('ordinary-positive', {})).needsFactProofs, undefined, 'the raw full body supplies its own newly enrolled custody');
+      await runtime.store.commit({ refreshes: [{ op: 'ordinary-positive', args: {}, seq: 4, validator: 'a'.repeat(64) }] });
+      await assert.rejects(runtime.store.commit({ tombstones: [{ table: 'events', id: 'one', seq: 4 }] }), /conflicting durable fact/);
+      assert.equal((await runtime.store.outbox.all())[0].intent, 'keep');
       await runtime.store.close();
     });
   } finally { await rm(root, { recursive: true, force: true }); }
