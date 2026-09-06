@@ -5,7 +5,43 @@ and Supabase for each requested builder: Astra medium, Grok 4.6 xhigh, and
 Muse 1.3 ultra. **Not achieved.** Retain the full canonical Clique scope,
 including independent grading and the fresh-session M7 evolution phase.
 
-Current checkpoint (2026-09-06): 0.0.9 is published and verified from npm.
+## Current checkpoint — 2026-09-06, 19:11Z
+
+The latest release verified in this run is **0.0.10**, source
+`967f857e66b504dcea6286f10565c80fd2bf7d64`. The standard publication and fresh
+registry install passed; all 154 packed files matched, with installed doctor,
+media and untouched Expo chat guide checks passing. This is darwin-arm64
+package qualification, not full Clique acceptance. See
+[`installed verification`](evidence/npm-0.0.10/installed-verification.json).
+
+The completed Astra medium 0.0.8 run received an independent diagnostic grade
+of **93 pass, 13 fail, 13 not run** across 119 assertions. Its interim holistic
+rescore was **72 / 83 / 74** for Snapback / Convex / Supabase, using historical
+control narratives. Rescore variation is not a causal improvement estimate,
+and this does not beat Convex. Later package fixes receive no retrospective
+credit. The subsequent M7 preservation audit passes only `m7-a08`, with its
+populated-data and metering limits retained. See the
+[`outcome grade`](evidence/astra-008-independent-outcome/root-review.json),
+[`interim score`](evidence/astra-008-interim-holistic/README.md), and
+[`M7 preservation audit`](evidence/m7-preservation/README.md).
+
+The completed Grok 4.6 xhigh 0.0.10 builder reports full suite/choreography
+passes only for M1/M2; later choreography, native qualification, separate M7
+and complete scale coverage remain unproven. Its independent outcome audit
+has no terminal result verified by Root yet. See the
+[`builder completion`](evidence/fresh-010-grok-completed/README.md).
+
+Search, offline delivery, compiler, text-widening and pending-upload repairs
+remain under implementation or review. The next release is held for unresolved
+affected findings. The proposed asset release/reset quota refusal was rejected;
+see the [`asset policy disposition`](evidence/asset-policy-disposition/README.md).
+The M5 peer was observed offline at 19:07:38Z; remote process outcomes are
+unknown, not presumed stopped. Local repair work continues. No three-family
+comparative win is proven; Muse 1.3 ultra evidence is still missing.
+
+## Historical checkpoint — retained as recorded
+
+At the earlier checkpoint, 0.0.9 was published and verified from npm.
 All 154 packed files match the qualified artifacts; installed doctor, Hermes,
 media, and the untouched chat Expo guide before/after check pass. The fresh
 Astra-medium run stays pinned to published 0.0.8 on the baseline M5 host. Its
@@ -46,6 +82,14 @@ The earlier 0.0.4 narrative scores and original scorer prompt are retained in
 [`../2026-09-05-clique-full-3x3/`](../2026-09-05-clique-full-3x3/).
 Astra: Snapback 64, Convex 84, Supabase 77. Grok: 57, 78, 47 respectively.
 Muse scores are absent. These are N=1 observations, not statistical rankings.
+
+**Reuse policy (user instruction, 2026-09-06):** retain these Convex and Supabase
+baselines across Snapback iterations. Rerun a control only when a benchmark,
+grading, model/effort, environment, or other material comparison change
+invalidates its evidence. Snapback fixes alone do not trigger fresh controls.
+Keep original model settings, instrument provenance and limitations visible;
+reusing a historical score does not make it a fresh simultaneous measurement.
+The missing Muse ultra comparison cannot be supplied by an xhigh substitution.
 
 ## Fresh published build
 
