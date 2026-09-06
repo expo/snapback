@@ -63,5 +63,7 @@ after an intent committed and three discarded uploads with sockets still paused.
 Final review corrections: wire custody starts immediately before fetch, after
 serialization and local checks; 24 cyclic-argument File mutations leave zero
 staging usage and send no mutation. Terminal-result expiry follows automatic
-discard. Failed finalizer deletion returns its path to shared custody, retaining
-quota until disposal or the grace sweep can retry after permissions are repaired.
+discard; superseded terminal receipts still invalidate their captured token,
+without clearing a successor's custody. Failed finalizer deletion returns its path
+to shared custody, retaining quota until disposal or the grace sweep can retry
+after permissions are repaired.

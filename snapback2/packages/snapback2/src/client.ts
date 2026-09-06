@@ -289,7 +289,13 @@ class Client implements SnapbackClient {
             });
             // Settle authority before best-effort cleanup, whose 401 may expire
             // the session without invalidating this already received outcome.
-            this.validated(authority);
+            try { this.validated(authority); }
+            catch (error) {
+              // Supersession suppresses the receipt, not terminal evidence about
+              // its captured token. expireSession never clears successor custody.
+              if (result.state === "rejected" && isTerminalSession(result)) await this.expireSession(authority);
+              throw error;
+            }
             return result;
           });
         if (result.state === "rejected" && isTerminalSession(result)) {
