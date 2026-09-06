@@ -5,7 +5,49 @@ and Supabase for each requested builder: Astra medium, Grok 4.6 xhigh, and
 Muse 1.3 ultra. **Not achieved.** Retain the full canonical Clique scope,
 including independent grading and the fresh-session M7 evolution phase.
 
-## Current checkpoint — 2026-09-06, 19:11Z
+## Current checkpoint — 2026-09-06, 22:46Z
+
+The latest verified published release is **0.0.12**, source
+`6954679b09aedf975783ec04650aa3e7728ba9d5`. Its asset pending-slot repair passed
+the unchanged standard publication path. Both registry integrity values match
+the retained packages, and all 154 fresh installed files match byte for byte.
+Untouched Expo template init/check/guide passes with 26 public operations.
+Root verified these bytes and the actual writer terminal; the complete
+[publication evidence](evidence/asset-publication-012/README.md) retains the
+initial registry processing E404 and both original producer metric rows.
+This is package/tooling qualification, not native-device or full Clique proof.
+
+The independently reviewed drain improvement landed at `32bf8084`; version
+0.0.13 metadata landed at `7048a70df`. Its standard production dry run is active
+on source `ae7d86a11`, with all four mandatory media tests passing so far.
+No 0.0.13 publication or completed qualification is claimed. The next full cold
+Astra medium run is prepared for that version after actual publication and
+fresh registry byte verification. It preserves the full instrument and separate
+M7 phase; the primary M1 host differs from the historical M5 baseline and that
+comparison limitation remains explicit.
+
+The latest independent Astra holistic observation remains **72 / 83 / 74**
+for Snapback 0.0.8 / Convex / Supabase; later fixes receive no retrospective
+credit. The completed Grok 0.0.10 builder and its unfinished independent audit
+retain their earlier limitations. No new holistic score or three-family win is
+proven. Existing Convex/Supabase baselines remain reused under the policy below.
+Muse 1.3 ultra evidence is still unavailable and cannot be replaced by xhigh.
+
+Compiler repairs now certify the explicit optional-list empty fallback against
+the unchanged native owner. Six general bounded alternatives still refuse;
+the next faithful lowering repair is authorized after the current source-name
+custody correction. Compiler-only values and certificates do not establish
+native runtime or full package success. The offline receipt ownership checkpoint
+`02a5b980b` removes unnecessary retained row bodies and has fresh blind reviews
+running, but measures 72,229 gzip bytes, 6,229 over the unchanged 66,000 limit.
+The movement deadline and realistic resident-memory qualification remain open.
+
+The M5 peer remains offline; existing remote processes and outcomes are unknown,
+not presumed stopped. The combined succession candidate remains held by its
+unresolved uniqueness finding. Independent local release, compiler and offline
+work continues. The full requested benchmark goal is **not achieved**.
+
+## Historical checkpoint — 2026-09-06, 19:11Z
 
 The latest release verified in this run is **0.0.10**, source
 `967f857e66b504dcea6286f10565c80fd2bf7d64`. The standard publication and fresh
