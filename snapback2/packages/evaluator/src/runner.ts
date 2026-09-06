@@ -4,7 +4,7 @@ import { EvalError, requireRowIdentity } from "./errors";
 import { cursorSuffix, decodeCursorFor, encodeCursor } from "./cursor";
 import { sha256 } from "./hash";
 import { splitMentionTokens } from "./text";
-import { searchWords, scalarLength } from "./unicode";
+import { searchWordWork } from "./unicode";
 import { SearchExecution, normalizationSteps } from "./search-runtime";
 import { ordinaryColumns, scalarAtoms, preparePrefix, logicalKey } from "./index-store";
 import type { ClientStore } from "./store";
@@ -65,12 +65,16 @@ export class Runner {
   private readonly tracedVerdicts = new Set<string>();
   readonly search: SearchExecution;
   private chargeSearch = (stats: import('./unicode').NormalizationStats): void => {
-    const steps = normalizationSteps(stats);
-    this.trace.derived_steps = (this.trace.derived_steps ?? 0) + steps;
-    this.trace.derived_scratch_bytes = Math.max(this.trace.derived_scratch_bytes ?? 0, stats.scratchBytes);
-    this.step(steps);
-    if (stats.scratchBytes > Math.min(this.certificate?.max_heap_bytes ?? 8388608, 8388608)) throw new EvalError('E_HEAP', 'normalization scratch budget exceeded');
+    this.chargeDerived(normalizationSteps(stats), stats.scratchBytes);
   };
+  private chargeDerived(steps: number, scratchBytes: number): void {
+    this.trace.derived_steps = (this.trace.derived_steps ?? 0) + steps;
+    this.trace.derived_scratch_bytes = Math.max(this.trace.derived_scratch_bytes ?? 0, scratchBytes);
+    this.step(steps);
+    if (this.trace.derived_steps > (this.certificate?.derived_steps ?? Infinity)) throw new EvalError('E_STEPS', 'certified derived step budget exceeded');
+    if (scratchBytes > Math.min(this.certificate?.derived_scratch_bytes ?? Infinity, this.certificate?.max_heap_bytes ?? 8388608, 8388608))
+      throw new EvalError('E_HEAP', 'derived scratch budget exceeded');
+  }
   private readonly pooled = new Set<string>();
   private readonly writes = new Map<string, TraceWrite>();
   private readonly partial = new Set<string>();
@@ -449,7 +453,12 @@ export class Runner {
           }),
         };
       }
-      case "Words": return { Array: (args[0] === "Null" ? [] : searchWords(asString(args[0]), scalarLength(asString(args[0]), asString(args[0]).length))).map((word) => ({ String: word })) };
+      case "Words": {
+        if (args[0] === "Null") return { Array: [] };
+        const source = asString(args[0]), work = searchWordWork(source, source.length);
+        this.chargeDerived(work.steps, work.scratchBytes);
+        return { Array: work.words.map(String => ({ String })) };
+      }
       case "MentionTokens": {
         const seen = new Set<string>();
         const mentions: Value[] = [];

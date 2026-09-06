@@ -1,7 +1,9 @@
 import { CarrierIndex } from "./carrier-index.js";
 import { queryClock } from '../held-program.js';
 import { ClockCoverageReset, FullRevalidationRequired, deliveryFacts, FactTransaction, negativeProof, proofSlots,
-  checkFactSlots, validateClock, sameClockPlan, answerFactKeys, type FactProof } from './fact-integrity.js';
+  checkFactSlots, validateClock, sameClockPlan, answerFactKeys, rowFactKey, factRow, factGuard, answerProof, answerProofs, storedProofs,
+  imageSlots, extentSlots, extentMeaning, FACT_FORMAT, type FactProof } from './fact-integrity.js';
+import { extentContains, rangeMeaningKey, type FactImage, type FactExtent, type ExtentProof, type ExtentCondition } from './extent-facts.js';
 import { SwapJournal, StoreChanges, raw, type StoreRevision, type StoreChange, type ChangedRecords } from "./swap-journal.js";
 import { onceColumns, onceRow, onceAssetIds, nullOnceMedia, type OnceColumns } from "./asset-policy.js";
 // @ref LLP 1012#4-the-range-store — every carrier persists the same per-principal answer/range model.
@@ -99,7 +101,9 @@ export interface StoredAnswer extends Omit<HeldAnswer, "data"> {
   cursorArg?: string;
   /** Seq of the full delivery behind the fingerprint and `next`; unchanged cannot renew either. */
   nextSeq?: number;
-  factProofs?: FactProof[];
+  rowProofs?: Record<string, string | null>;
+  verdictProofs?: Record<string, string>;
+  extentProofs?: ExtentProof[];
   clockOnly?: true;
 }
 
@@ -359,7 +363,14 @@ export interface PersistedRangeState {
   superseded?: CoverageFacts;
   negative: Record<string, number>;
   rowSeq: Record<string, number>;
-  factGuards: Record<string, { seq: number; digest: string }>;
+  rowFacts: Record<string, number | [seq: number, digest: string]>;
+  verdictFacts: Record<string, [seq: number, digest: string]>;
+  /** Missing on predecessor carrier records; common admission decides their custody. */
+  factFormat?: number;
+  factImages: Record<string, FactImage>;
+  factExtents: Record<string, FactExtent>;
+  extentGuards: Record<string, { id: string; seq: number }>;
+  extentNegative: Record<string, { seq: number; active: boolean; cause?: string }>;
   factSlots: number;
   factLimitReset?: string;
   /** The byte-cache index; payloads live beside the state in the carrier, keyed by `byteKey`. */
@@ -382,7 +393,8 @@ const NO_BYTES: ByteDelta = { put: [], remove: [] };
 
 export function emptyState(): PersistedRangeState {
   return {
-    version: 1, sealed: false, clock: 0, rows: {}, answers: {}, watermarks: {}, outbox: {}, factGuards: {}, factSlots: 0,
+    version: 1, sealed: false, clock: 0, rows: {}, answers: {}, watermarks: {}, outbox: {}, rowFacts: {}, verdictFacts: {}, factSlots: 0,
+    factFormat: FACT_FORMAT, factImages: {}, factExtents: {}, extentGuards: {}, extentNegative: {},
     grants: {}, overlay: {}, overlayMisses: {}, overlayWatermarks: {}, overlayNegatives: {}, bounds: {}, programs: {}, negative: {}, rowSeq: {}, assets: {}, viewed: {}, onceColumns: {},
   };
 }
@@ -468,16 +480,6 @@ function restoreRetained(before: unknown, after: unknown, retained: Set<string>)
   return after;
 }
 
-function inFreshExtent(row: StoredRow | undefined, fresh: ReceiptRange, rows: Map<string, StoredRow>, index: CarrierIndex, op: string): boolean {
-  if (!row) return fresh.stop === "Exhausted";
-  if (!index.contains(row, fresh, op)) return false;
-  if (fresh.stop === "Exhausted") return true;
-  const keys = fresh.rowIds.flatMap(id => { const row = rows.get(rowKey({ table: fresh.table, id })); return row ? [index.suffix(row, fresh)] : []; });
-  if (!keys.length) return false;
-  const suffix = index.suffix(row, fresh), first = keys.reduce((a, b) => compareArrays(a, b) <= 0 ? a : b), last = keys.reduce((a, b) => compareArrays(a, b) >= 0 ? a : b);
-  return compareArrays(suffix, first) >= 0 && compareArrays(suffix, last) <= 0;
-}
-
 /** One JSON form for warm state and every carrier: omit undefined fields, preserve null. */
 export function jsonState<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
@@ -495,8 +497,11 @@ function normalizeState(value: PersistedRangeState | undefined): PersistedRangeS
   for (const answer of Object.values(value.answers)) {
     if (answer.fingerprint && !/^[0-9a-f]{64}$/.test(answer.fingerprint)) answer.fingerprint = sha256(answer.fingerprint);
   }
+  const { factGuards: legacyGuards, ...current } = value as PersistedRangeState & { factGuards?: object };
+  const factFormat = value.factFormat ?? (Object.keys(legacyGuards ?? {}).length || Object.keys(value.rowFacts ?? {}).length
+    || Object.keys(value.verdictFacts ?? {}).length || Object.values(value.answers).some(a => a.readTime !== undefined) ? 0 : FACT_FORMAT);
   return {
-    ...value,
+    ...current,
     watermarks: value.watermarks ?? {},
     outbox: value.outbox ?? {},
     grants: value.grants ?? {},
@@ -509,8 +514,13 @@ function normalizeState(value: PersistedRangeState | undefined): PersistedRangeS
     onceColumns: value.onceColumns ?? {},
     negative: value.negative ?? {},
     rowSeq: value.rowSeq ?? {},
-    factGuards: value.factGuards ?? {},
-    factSlots: Object.keys(value.factGuards ?? {}).length + Object.values(value.answers).reduce((sum, a) => sum + proofSlots(a), 0),
+    rowFacts: value.rowFacts ?? {}, verdictFacts: value.verdictFacts ?? {},
+    factFormat,
+    factImages: value.factImages ?? {}, factExtents: value.factExtents ?? {}, extentGuards: value.extentGuards ?? {}, extentNegative: value.extentNegative ?? {},
+    factSlots: factFormat !== FACT_FORMAT ? 0 : Object.keys(value.rowFacts ?? {}).length + Object.keys(value.verdictFacts ?? {}).length
+      + Object.values(value.factImages ?? {}).reduce((sum,image) => sum + imageSlots(image.keys),0)
+      + Object.values(value.factExtents ?? {}).reduce((sum, extent) => sum + extentSlots(extent.condition), 0) + Object.keys(value.extentGuards ?? {}).length
+      + Object.keys(value.extentNegative ?? {}).length + Object.values(value.answers).reduce((sum, a) => sum + proofSlots(a), 0),
     assets: value.assets ?? {},
     viewed: value.viewed ?? {},
   };
@@ -596,15 +606,31 @@ export class PersistentRangeStore implements RangeStore {
     await this.enqueue(async () => {
       if (this.partition === partition) return;
       if (this.partition !== undefined && this.partition !== partition) await this.backend.close();
+      this.referenceIndex = undefined; this.referenceSchema = undefined;
       this.partition = partition;
+      try {
       const loaded = await this.backend.open(partition);
       const rawFingerprints = loaded && Object.values(loaded.answers).some((answer) =>
         answer.fingerprint && !/^[0-9a-f]{64}$/.test(answer.fingerprint));
       this.state = normalizeState(loaded);
+      if (this.state.factFormat !== FACT_FORMAT) {
+        // Experimental predecessor holes used indistinguishable global guards.
+        // Reset their coverage atomically; never reinterpret or discard an individual guard.
+        const bytes: ByteDelta = { put: [], remove: [] };
+        const sealed = this.state.sealed; this.state.sealed = false;
+        try { this.applySwap(this.state, { resetCoverage: true, superseded: this.state.facts }, bytes); }
+        finally { this.state.sealed = sealed; }
+        await this.backend.replace(this.state, bytes, loaded);
+      }
       this.updates.reset(this.state, rawFingerprints ? loaded : undefined); this.referenceIndex = undefined;
       // Normalizing a legacy fingerprint changes persisted content. Keep the
       // original baseline until the next successful swap writes those digests.
       this.persisted = rawFingerprints ? loaded : this.state;
+      } catch (error) {
+        this.partition = undefined; this.referenceIndex = undefined;
+        try { await this.backend.close(); } catch { /* Preserve the failed admission, not a secondary close error. */ }
+        throw error;
+      }
     });
   }
 
@@ -637,6 +663,7 @@ export class PersistentRangeStore implements RangeStore {
         this.state = emptyState();
         this.updates.reset();
         this.persisted = undefined;
+        this.referenceIndex = undefined; this.referenceSchema = undefined;
       }
     });
   }
@@ -649,7 +676,7 @@ export class PersistentRangeStore implements RangeStore {
       if (!stored) return undefined;
       const watermark = this.state.watermarks[key];
       const media = (this.referenceIndex ??= new CarrierIndex(this.state, this.referenceSchema)).assets;
-      const { refs: _refs, order: _order, fingerprint: _fingerprint, cursorArg: _cursorArg, factProofs: _proofs, clockOnly: _clockOnly, ...visible } = stored;
+      const { refs: _refs, order: _order, fingerprint: _fingerprint, cursorArg: _cursorArg, rowProofs: _rows, verdictProofs: _verdicts, extentProofs: _extents, clockOnly: _clockOnly, ...visible } = stored;
       const { data, ...answer } = clone(visible);
       return {
         ...answer,
@@ -693,7 +720,8 @@ export class PersistentRangeStore implements RangeStore {
         verdicts: [...verdicts.values()],
         watermarks: clone(Object.values(this.state.watermarks)),
         viewed,
-        evicted: Object.keys(this.state.negative).map(viewedRef),
+        evicted: [...new Set([...Object.keys(this.state.negative), ...Object.keys(this.state.extentNegative)
+          .filter(key => this.state.extentNegative[key].active)])].map(viewedRef),
         ...(this.state.facts === undefined ? {} : { facts: clone(this.state.facts) }),
         ...(this.state.superseded === undefined ? {} : { superseded: clone(this.state.superseded) }),
         ...(deliveredAt === undefined ? {} : { deliveredAt }),
@@ -800,12 +828,16 @@ export class PersistentRangeStore implements RangeStore {
       this.partition = undefined;
       this.state = emptyState();
       this.persisted = undefined;
+      this.referenceIndex = undefined; this.referenceSchema = undefined; this.updates.reset();
       await this.backend.close();
     });
   }
 
   private applySwap(state: PersistedRangeState, swap: StoreSwap, bytes: ByteDelta): PersistedRangeState {
     if (state.sealed) throw new OfflineStoreFailure("E_OFFLINE_CARRIER", "range store is sealed");
+    if (swap.resetCoverage && swap.factLimitReset !== undefined && swap.factLimitReset === state.factLimitReset)
+      throw new OfflineStoreFailure('E_OFFLINE_CARRIER', 'fact custody still exceeds its slot budget after revalidation',
+        'keep queued writes; reduce retained coverage before retrying');
     if (swap.resumeSeq !== undefined && (!Number.isSafeInteger(swap.resumeSeq) || swap.resumeSeq < 0)) {
       throw new TypeError("store resume seq must be a non-negative safe integer");
     }
@@ -816,10 +848,12 @@ export class PersistentRangeStore implements RangeStore {
       // validator still goes to resume; the next full answer establishes the
       // new epoch's duplicate guard. No guard is relaxed within an epoch.
       state.answers = Object.fromEntries(Object.entries(state.answers).map(([key, answer]) => {
-        const { fingerprint: _fingerprint, factProofs: _proofs, needsFactProofs: _missing, ...held } = answer;
+        const { fingerprint: _fingerprint, rowProofs: _rows, verdictProofs: _verdicts, extentProofs: _extents, needsFactProofs: _missing, ...held } = answer;
         return [key, held];
       }));
-      state.factGuards = {}; state.factSlots = 0;
+      state.rowFacts = {}; state.verdictFacts = {}; state.factSlots = 0;
+      state.factImages = {}; state.factExtents = {}; state.extentGuards = {}; state.factSlots = Object.keys(state.extentNegative).length;
+      this.referenceIndex = undefined;
     }
     const generation = swap.facts?.generation ?? state.facts?.generation;
     const custody = swap.programs && (generation ? swap.programs[generation] : Object.values(swap.programs)[0]);
@@ -987,7 +1021,8 @@ export class PersistentRangeStore implements RangeStore {
       // A query-only successor can deliver the same row at the same data seq.
       state.rowSeq = {};
       state.negative = {};
-      state.factGuards = {}; state.factSlots = 0;
+      state.rowFacts = {}; state.verdictFacts = {}; state.factSlots = 0;
+      state.factFormat = FACT_FORMAT; state.factImages = {}; state.factExtents = {}; state.extentGuards = {}; state.extentNegative = {};
       state.overlayNegatives = {};
       state.answers = {};
       state.watermarks = {};
@@ -1009,17 +1044,25 @@ export class PersistentRangeStore implements RangeStore {
     const candidates = (key: string, absent = false) => new Set([...(absent ? index.absences : index.references).get(key) ?? [], ...changedAnswers]);
     const enrollmentKeys = new Map<string, Set<string>>();
     const enroll = (key: string) => {
-      const fact = JSON.parse(key);
-      const owners = fact[0] === 'row' ? new Set([...candidates(`${fact[1]}\0${fact[2].Id}`), ...candidates(`${fact[1]}\0${fact[2].Id}`, true)])
+      const owners = factRow(key) ? new Set([...candidates(key), ...candidates(key, true)])
         : new Set([...(index.verdicts.get(key) ?? []), ...changedAnswers]);
       for (const owner of owners) {
-        const answer = state.answers[owner]; if (!answer || answer.factProofs?.some(p => p[0] === key)) continue;
+        const answer = state.answers[owner]; if (!answer || answerProof(answer,key) !== undefined) continue;
         if (!enrollmentKeys.has(owner)) enrollmentKeys.set(owner, answerFactKeys(answer));
         if (!enrollmentKeys.get(owner)!.has(key)) continue;
         remember(owner); answer.needsFactProofs = true;
       }
     };
     const explicitEvictions = new Map<string, StoreTombstone>();
+    const extentEvictions = new Map<string, StoreTombstone>();
+    const evictionConditions = new Map<string, ExtentCondition[]>();
+    const obsoleteImages = new Map<string, number>();
+    const recordHole = (ref: StoreTombstone, condition: ExtentCondition) => {
+      const key = rowKey(ref), old = extentEvictions.get(key)?.seq ?? -1;
+      if (old > ref.seq) return;
+      evictionConditions.set(key, [...(old === ref.seq ? evictionConditions.get(key) ?? [] : []), condition]);
+      recordEviction(extentEvictions, ref);
+    };
     // Keep provenance distinct from hidden-row and extent evictions. These facts
     // join each matching overlay below, even while its response is still queued.
     const authoritativeNegatives = new Map<string, { seq: number; source: "absence" | "tombstone" }>();
@@ -1041,7 +1084,18 @@ export class PersistentRangeStore implements RangeStore {
     for (const key of swap.dropAnswers ?? []) { remember(key); delete state.answers[key]; }
     // Whole-swap preflight enrolls applicable timed facts before conditionals.
     // Its frontier follows delivery order so a genuinely stale frame is ignored.
-    const integrity = new FactTransaction(state, enroll);
+    const integrity = new FactTransaction(state, enroll, index, (key, digest, seq) => {
+      for (const owner of new Set([...(index.proofOwners.get(key) ?? []), ...changedAnswers])) {
+        const answer = state.answers[owner];
+        if (answer?.seq === seq && answerProof(answer,key) === digest) throw new FullRevalidationRequired(answer.op, answer.args);
+      }
+      throw new ClockCoverageReset();
+    }, owner => before.has(owner) ? before.get(owner) : state.answers[owner], condition => {
+      for (const owner of new Set([...index.matchingKey(rangeMeaningKey(condition))].map(r => r.owner).concat([...changedAnswers]))) {
+        const answer = state.answers[owner]; if (!answer || answer.extentProofs?.length) continue;
+        if (answer.receipt?.ranges.some(range => index.rangeKey(range,answer.op) === rangeMeaningKey(condition))) { remember(owner); answer.needsFactProofs = true; }
+      }
+    });
     const preparedFacts = new Map<StoreDelivery, FactProof[]>();
     const frontier = new Map<string, StoreDelivery | StoredAnswer>();
     for (const delivery of swap.deliveries ?? []) {
@@ -1049,11 +1103,13 @@ export class PersistentRangeStore implements RangeStore {
       if (old && (delivery.seq < old.seq || (delivery.seq === old.seq && old.readTime !== undefined
         && delivery.readTime !== undefined && old.clockPlanHash === delivery.clockPlanHash && delivery.readTime < old.readTime))) continue;
       frontier.set(key, delivery);
+      integrity.register(delivery.rows ?? [], delivery.seq);
       if (delivery.readTime === undefined) continue;
       const proofs = deliveryFacts(delivery); preparedFacts.set(delivery, proofs);
       integrity.check(proofs, delivery.seq, true);
     }
     const fullFacts: Array<{ owner: string; seq: number; fingerprint?: string; facts: FactProof[] }> = [];
+    const closedFrames: Array<{ condition: ExtentCondition; seq: number; owner: string; answer: StoredAnswer }> = [];
     for (const refresh of swap.refreshes ?? []) {
       const key = canonicalAnswerKey(refresh.op, refresh.args); remember(key);
       const answer = state.answers[key];
@@ -1062,8 +1118,10 @@ export class PersistentRangeStore implements RangeStore {
         throw new TypeError(`conditional validator changed for ${refresh.op}`);
       }
       if (answer.needsFactProofs) throw new FullRevalidationRequired(answer.op, answer.args);
-      integrity.check(answer.factProofs ?? [], refresh.seq);
-      fullFacts.push({ owner: key, seq: refresh.seq, fingerprint: answer.fingerprint, facts: raw(answer.factProofs ?? []) });
+      integrity.check(answerProofs(answer), refresh.seq);
+      integrity.refresh(answer.extentProofs ?? [], refresh.seq);
+      for (const id of answer.extentProofs ?? []) closedFrames.push({ condition: state.factExtents[id].condition, seq: refresh.seq, owner: key, answer: raw(answer) });
+      fullFacts.push({ owner: key, seq: refresh.seq, fingerprint: answer.fingerprint, facts: answerProofs(answer) });
       if (refresh.seq === answer.seq) continue;
       answer.nextSeq ??= answer.seq;
       answer.seq = refresh.seq;
@@ -1098,7 +1156,7 @@ export class PersistentRangeStore implements RangeStore {
       };
       const fingerprint = sha256(canonical(fingerprintPayload));
       if (old && delivery.seq < old.seq) continue;
-      const timedChange = sameClockPlan(old, delivery) && delivery.readTime !== old.readTime;
+      const timedChange = sameClockPlan(old, delivery) && old.seq === delivery.seq && delivery.readTime !== old.readTime;
       if (timedChange && old.seq === delivery.seq) {
         clockOnly.add(key);
         if (delivery.readTime! < old.readTime!) continue;
@@ -1132,6 +1190,13 @@ export class PersistentRangeStore implements RangeStore {
           images.set(storageKey, versions);
         }
         versions.push({ seq: delivery.seq, row });
+        const blocked = integrity.blocking(row, delivery.seq);
+        if (blocked) {
+          // This authentic newer image supersedes the old body even when a later
+          // extent already excludes it. A newer compatible outside image survives.
+          obsoleteImages.set(storageKey, Math.max(obsoleteImages.get(storageKey) ?? -1, delivery.seq));
+          recordHole({ table: row.table, id: row.id, seq: blocked.seq }, blocked.condition); continue;
+        }
         if ((state.negative[storageKey] ?? -1) >= delivery.seq) {
           recordEviction(explicitEvictions, { table: row.table, id: row.id, seq: state.negative[storageKey]! });
           continue;
@@ -1141,6 +1206,7 @@ export class PersistentRangeStore implements RangeStore {
           throw new TypeError(`conflicting row ${row.table}/${row.id} at seq ${delivery.seq}`);
         }
         if ((state.rowSeq[storageKey] ?? -1) > delivery.seq) continue;
+        if (state.extentNegative[storageKey]) state.extentNegative[storageKey].active = false;
         state.rows[storageKey] = clone(row);
         state.rowSeq[storageKey] = delivery.seq;
       }
@@ -1184,7 +1250,7 @@ export class PersistentRangeStore implements RangeStore {
         nextSeq: delivery.seq,
         seq: delivery.seq,
         ...(delivery.readTime === undefined ? {} : { readTime: delivery.readTime, clockPlanHash: delivery.clockPlanHash }),
-        ...(proofs.length ? { factProofs: proofs } : {}),
+        ...storedProofs(proofs),
         ...(clockOnly.has(key) ? { clockOnly: true } : {}),
         ...(delivery.validator === undefined ? {} : { validator: delivery.validator }),
         ...(delivery.receipt === undefined ? {} : { receipt: index.receipt(delivery.receipt, delivery.rows ?? []) }),
@@ -1204,59 +1270,45 @@ export class PersistentRangeStore implements RangeStore {
       recordAbsences(stored);
     }
 
-    const groups = new Map<string, typeof freshRanges>();
-    for (const item of freshRanges) {
-      if (!index.schemaReady) continue; // Retain opaque custody; no unchecked range may authorize eviction.
-      const key = index.rangeKey(item.range, item.op), group = groups.get(key) ?? []; group.push(item); groups.set(key, group);
+    for (const { range, op, seq, owner, answer, rows } of freshRanges) {
+      if (!index.schemaReady) continue; // Opaque custody grants no typed extent authority.
+      const condition = index.extent(range,op,rows); if (condition) closedFrames.push({ condition,seq,owner,answer });
     }
     const holeProofs = new Map<string, Map<string, string>>();
-    for (const matching of groups.values()) {
-      const present = new Map<number, Set<string>>();
-      for (const { range, seq } of matching) {
-        const ids = present.get(seq) ?? new Set<string>(); present.set(seq, ids);
-        for (const id of [...range.rowIds, ...(range.haloId ? [range.haloId] : [])]) ids.add(id);
+    const extentProofs = new Map<string, Set<ExtentProof>>();
+    const enrolledRows = new Set<string>();
+    for (const { condition,seq,owner,answer } of closedFrames) {
+      const proof = integrity.close(condition,seq), present = new Set(condition.present);
+      for (const id of present) enrolledRows.add(rowFactKey(condition.table,id));
+      if (state.answers[owner]?.fingerprint === answer.fingerprint) {
+        const proofs = extentProofs.get(owner) ?? new Set(answer.extentProofs ?? []); proofs.add(proof); extentProofs.set(owner,proofs);
       }
-      const held = matching[0].range;
-      // Compatible pages share presence only at one durable seq. Include earlier
-      // full frames in this batch: a new row need not have a pre-swap range owner.
-      const sources = [...[...index.matching(held, matching[0].op)].map(source => ({ ...source,
-        seq: (before.get(source.owner) ?? state.answers[source.owner])?.seq ?? Infinity })), ...matching];
-      const ids = new Set(sources.flatMap(({ range }) => range.rowIds));
-      // Another query can introduce a row into this extent during the swap.
-      for (const versions of images.values()) if (versions[0]?.row.table === held.table) ids.add(versions[0].row.id);
-      for (const id of ids) {
-        for (const { range, op, seq, owner, answer, rows } of matching) {
-          const included = range.stop === 'Exhausted' ? range.rowIds.includes(id) || range.haloId === id : present.get(seq)!.has(id);
-          const row = imageAt(rowKey({ table: held.table, id }), seq);
-          if (included || (!row && !sources.some(source => source.seq <= seq && source.range.rowIds.includes(id)))
-            || !inFreshExtent(row, range, rows, index, op)) continue;
-          // A checked uniform hole is an immutable negative, including at a new
-          // execution clock. Keep its proof with the issuing answer so an unchanged
-          // reply advances that same fact without consulting a collected row body.
-          const proofs = integrity.check([negativeProof(held.table, id)], seq, answer.readTime !== undefined);
-          if (proofs.length && state.answers[owner].fingerprint === answer.fingerprint) {
-            const retained = holeProofs.get(owner) ?? new Map(answer.factProofs);
-            for (const [key, digest] of proofs) retained.set(key, digest);
-            holeProofs.set(owner, retained);
-          }
-          recordEviction(explicitEvictions, { table: held.table, id, seq });
-        }
+      const masked = new Set(index.maskTargets(extentMeaning(condition)));
+      const candidates = new Set([...index.live.matching(condition)].map(fact => rowKey({ table: fact.table,id: fact.rowId })));
+      for (const key of masked) candidates.add(key);
+      // Only this bounded transaction's incoming versions supplement maintained seeks.
+      for (const [key,versions] of images) if (versions[0]?.row.table === condition.table) candidates.add(key);
+      for (const key of candidates) {
+        const ref = viewedRef(key); if (present.has(ref.id)) continue;
+        const row = imageAt(key,seq);
+        if ((row && extentContains(index.keyImage(row)!,condition)) || (!row && masked.has(key))) recordHole({ ...ref,seq },condition);
       }
     }
 
     // First enrollment by an inferred hole also constrains earlier ordinary FULL
     // assertions in this swap. Replay immutable incoming proofs, never pooled bodies.
     for (const { owner, seq, fingerprint, facts } of fullFacts) {
-      const proofs = integrity.check(facts, seq), answer = state.answers[owner];
-      if (proofs.length && answer.fingerprint === fingerprint) {
-        const retained = holeProofs.get(owner) ?? new Map(answer.factProofs);
+      const proofs = [...integrity.check(facts, seq), ...integrity.check(facts.filter(([key]) => enrolledRows.has(key)),seq,true)], answer = state.answers[owner];
+      if ((proofs.length || extentProofs.has(owner)) && answer?.fingerprint === fingerprint) {
+        const retained = holeProofs.get(owner) ?? new Map(answerProofs(answer));
         for (const [key, digest] of proofs) retained.set(key, digest);
         holeProofs.set(owner, retained);
-        if (answer.needsFactProofs && [...answerFactKeys(answer)].every(key => !state.factGuards[key] || retained.has(key))) delete answer.needsFactProofs;
+        if (answer.needsFactProofs && [...answerFactKeys(answer)].every(key => factGuard(state,key) === undefined || retained.has(key))) delete answer.needsFactProofs;
       }
     }
     for (const ref of swap.tombstones ?? []) integrity.check([negativeProof(ref.table, ref.id)], ref.seq);
-    for (const [owner, proofs] of holeProofs) state.answers[owner].factProofs = [...proofs];
+    for (const [owner, proofs] of holeProofs) Object.assign(state.answers[owner],storedProofs(proofs));
+    for (const [owner, proofs] of extentProofs) state.answers[owner].extentProofs = [...proofs];
     // Hole enrollment can discover an ordinary conditional's missing custody
     // after its provisional update above. Refuse the whole journaled swap.
     for (const refresh of swap.refreshes ?? []) {
@@ -1264,10 +1316,22 @@ export class PersistentRangeStore implements RangeStore {
       if (answer?.needsFactProofs) throw new FullRevalidationRequired(answer.op, answer.args);
     }
     const appliedEvictions = new Set<string>();
-    for (const [key, eviction] of explicitEvictions) {
+    for (const [key, eviction, global] of [...[...explicitEvictions].map(([key, value]) => [key, value, true] as const),
+      ...[...extentEvictions].map(([key, value]) => [key, value, false] as const)]) {
       if ((state.negative[key] ?? -1) > eviction.seq) continue;
       if ((state.rowSeq[key] ?? -1) > eviction.seq) continue;
-      state.negative[key] = eviction.seq;
+      if (global) {
+        state.negative[key] = eviction.seq;
+        if ((state.extentNegative[key]?.seq ?? Infinity) <= eviction.seq) { delete state.extentNegative[key]; state.factSlots--; }
+      }
+      else {
+        if ((state.negative[key] ?? -1) >= eviction.seq) continue;
+        if (state.rows[key] && (state.rowSeq[key] ?? -1) > (obsoleteImages.get(key) ?? -1)
+          && !evictionConditions.get(key)!.some(condition => extentContains(index.keyImage(state.rows[key])!, condition))) continue;
+        if ((state.extentNegative[key]?.seq ?? -1) > eviction.seq) continue;
+        if (state.extentNegative[key] === undefined) state.factSlots++;
+        state.extentNegative[key] = { seq: eviction.seq, active: true, cause: extentMeaning(evictionConditions.get(key)![0]) };
+      }
       appliedEvictions.add(key);
       delete state.rows[key];
       delete state.rowSeq[key];
@@ -1325,6 +1389,7 @@ export class PersistentRangeStore implements RangeStore {
     bytes.remove.push(...byteDelta.remove);
     }
 
+    integrity.finish(before);
     for (const key of changedAnswers) state.factSlots += proofSlots(state.answers[key]) - proofSlots(before.get(key));
     checkFactSlots(state);
     return authoritativeNegatives;

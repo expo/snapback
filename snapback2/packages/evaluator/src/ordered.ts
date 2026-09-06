@@ -31,6 +31,17 @@ export class Ordered<K, V, A = never> {
   size = 0;
   constructor(readonly compare: (a: K, b: K) => number, private fold?: Fold<V, A>) {}
   get summary(): A | undefined { return this.root?.summary; }
+  /** Prune maintained subtree summaries before testing individual interval records. */
+  *overlapping(overlap: (summary: A) => boolean, accept: (value: V) => boolean): Generator<V> {
+    const stack = this.root ? [this.root] : [];
+    while (stack.length) {
+      const node = stack.pop()!;
+      if (node.summary !== undefined && !overlap(node.summary)) continue;
+      if (accept(node.value)) yield node.value;
+      if (node.right) stack.push(node.right);
+      if (node.left) stack.push(node.left);
+    }
+  }
   set(key: K, value: V): void { this.root = this.change(this.root, key, value); }
   delete(key: K): void { this.root = this.change(this.root, key); }
   get(key: K): V | undefined {

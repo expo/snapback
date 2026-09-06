@@ -456,8 +456,8 @@ export class OfflineRuntime {
       if (held.needsFactProofs) { if (full) return full(); throw new FullRevalidationRequired(op, args); }
       const result = {
         state: held.state,
-        ...(held.data === undefined ? {} : { data: held.data }),
-        ...(held.next === undefined ? {} : { next: held.next }),
+        ...(held.state === 'denied' || held.data === undefined ? {} : { data: held.data }),
+        ...((held.state === 'complete' || held.state === 'capped') && held.next !== undefined ? { next: held.next } : {}),
         seq: raw.seq as number,
         ...(held.reason === undefined ? {} : { reason: held.reason }),
         ...(held.rule === undefined ? {} : { rule: held.rule }),
@@ -829,13 +829,10 @@ export class OfflineRuntime {
   }
 
   private async resetClock(error: ClockCoverageReset, extra: StoreSwap = {}): Promise<void> {
-    const snapshot = (await this.store.changes()).snapshot!;
     const held = extra.programs && Object.values(extra.programs)[0] || this.held;
     const epoch = this.sessionEpoch ?? extra.facts?.authEpoch ?? this.facts?.authEpoch;
     const facts = held && epoch !== undefined ? { generation: held.generation, schemaHash: held.schemaHash, authEpoch: epoch } : extra.facts ?? this.facts;
     const identity = JSON.stringify([this.partition, facts]);
-    if (error.exhausted && snapshot.factLimitReset === identity) throw new OfflineStoreFailure('E_OFFLINE_CARRIER',
-      'timed fact custody still exceeds its slot budget after revalidation', 'keep queued writes; reduce retained timed coverage before retrying');
     const superseded = facts ?? this.superseded;
     await this.store.commit({ ...extra, resetCoverage: true, facts, superseded,
       ...(error.exhausted ? { factLimitReset: identity } : {}) });

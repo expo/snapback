@@ -3,6 +3,7 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
+import { createHash } from "node:crypto";
 import { fileRangeStore } from "../dist/test.mjs";
 import { decodeDeliveryEnvelope, encodeDeliveryEnvelope } from "../dist/index.mjs";
 import { indexedDbRangeStore } from "../dist/react.mjs";
@@ -215,9 +216,15 @@ test('compatible bounded pages union presence within one durable sequence', asyn
   const schema = { tables: { messages: { columns: { id: 'Id', body: { Text: { max: 20 } } },
     indexes: { byName: { components: [{ Column: 'body' }, { Column: 'id' }] } } } } };
   await store.commit({ schema, deliveries: [{ ...delivery('held', ['b'], 1), receipt: { ...receipt(), ranges: [range(['b'])] } }] });
-  await store.commit({ schema, deliveries: [
+  // The former a,c/b premise skipped a known interior member in a checked Limit
+  // interval. It is contradictory under the all-ID contract, not a valid union.
+  await assert.rejects(store.commit({ schema, deliveries: [
     { ...delivery('wide', ['a', 'c'], 2), receipt: { ...receipt(), ranges: [range(['a', 'c'], 'Limit')] } },
     { ...delivery('middle', ['b'], 2), receipt: { ...receipt(), ranges: [range(['b'], 'Limit')] } },
+  ] }), /conflicting durable fact/);
+  await store.commit({ schema, deliveries: [
+    { ...delivery('wide', ['a', 'b'], 2), receipt: { ...receipt(), ranges: [range(['a', 'b'], 'Limit')] } },
+    { ...delivery('middle', ['b', 'c'], 2), receipt: { ...receipt(), ranges: [range(['b', 'c'], 'Limit')] } },
   ] });
   assert.deepEqual((await store.answer('held', {})).data, [{ id: 'b', body: 'b' }]);
   assert.deepEqual((await store.coverage()).evicted, []);
@@ -505,9 +512,13 @@ test('timed guard slot exhaustion resets coverage once, preserves outbox, and re
   const seed = factory(); await seed.open('clock');
   const facts = { generation: 'e'.repeat(64), schemaHash: 'f'.repeat(64), authEpoch: 0 };
   await seed.commit({ facts, outbox: { put: [entry('keep')] } }); await seed.close();
-  // A valid cold carrier at the exact provisional logical-slot boundary; no discarded guard stands in for admission.
-  const saturate = () => { saved.factGuards = Object.fromEntries(Array.from({ length: 524288 }, (_, i) =>
-    [JSON.stringify(['row', 'messages', { Id: `old${i}` }]), { seq: 1, digest: 'a'.repeat(64) }])); saved.factSlots = 524288; };
+  // Real primary-absence guards need no key-image dictionary. Two remaining slots
+  // cannot fit the new positive's guard, answer reference AND immutable image.
+  const saturate = () => {
+    saved.rowFacts = {};
+    for (let i = 0; i < 524286; i++) saved.rowFacts[`messages\0old${i}`] = 1;
+    saved.factSlots = 524286;
+  };
   saturate();
   let runtime = new OfflineRuntime({ store: factory }); await runtime.open('clock', true);
   const envelope = { protocol: 1, ...facts, planHash: 'b'.repeat(64), authority: { principal: 'clock', authEpoch: 0 },
@@ -515,12 +526,36 @@ test('timed guard slot exhaustion resets coverage once, preserves outbox, and re
   delete envelope.authEpoch;
   assert.equal(await runtime.commit('timed', {}, await runtime.accept('timed', {}, envelope)), true);
   assert.equal(runtime.resetNeeded, true); assert.equal((await runtime.store.outbox.all())[0].intent, 'keep');
-  assert.equal(Object.keys(saved.factGuards).length, 0);
+  assert.equal(Object.keys(saved.rowFacts).length, 0);
   await runtime.store.close(); saturate();
   runtime = new OfflineRuntime({ store: factory }); await runtime.open('clock', true);
   await assert.rejects(runtime.commit('timed', {}, await runtime.accept('timed', {}, envelope)), /still exceeds its slot budget/);
-  assert.equal(Object.keys(saved.factGuards).length, 524288, 'second failure preserves the existing recovery state');
+  assert.equal(Object.keys(saved.rowFacts).length, 524286, 'second failure preserves the existing recovery state');
   assert.equal((await runtime.store.outbox.all())[0].intent, 'keep'); await runtime.store.close();
+});
+
+test('revalidation reset markers refuse concurrent repeats atomically and failed publication remains retryable cold', async () => {
+  let saved: any, fail = false;
+  const factory = () => new PersistentRangeStore({ carrier: 'memory', open: async () => structuredClone(saved),
+    replace: async state => { if (fail) throw new Error('injected marker publication failure'); saved = structuredClone(state); }, close() {}, wipe: async () => {} });
+  let store = factory(); await store.open('reset');
+  await store.commit({ deliveries: [clocked('read', ['one'], 0, 0)], outbox: { put: [entry('keep')] } });
+  const before = JSON.stringify(saved), marker = JSON.stringify(['reset',{ generation: 'g',schemaHash: 's',authEpoch: 0 }]);
+  fail = true; await assert.rejects(store.commit({ resetCoverage: true,factLimitReset: marker }), /injected marker/);
+  assert.equal(JSON.stringify(saved), before); await store.close(); fail = false; store = factory(); await store.open('reset');
+  const results = await Promise.allSettled([store.commit({ resetCoverage: true,factLimitReset: marker }),
+    store.commit({ resetCoverage: true,factLimitReset: marker,outbox: { remove: ['keep'] } })]);
+  assert.equal(results[0].status, 'fulfilled'); assert.equal(results[1].status, 'rejected');
+  assert.equal((results[1] as PromiseRejectedResult).reason.code, 'E_OFFLINE_CARRIER');
+  assert.match((results[1] as PromiseRejectedResult).reason.message, /still exceeds its slot budget/);
+  assert.equal(saved.factLimitReset, marker); assert.equal((await store.outbox.all())[0].intent, 'keep');
+  await store.close(); store = factory(); await store.open('reset');
+  const after = JSON.stringify(saved);
+  await assert.rejects(store.commit({ resetCoverage: true,factLimitReset: marker }), /still exceeds its slot budget/);
+  assert.equal(JSON.stringify(saved), after, 'cold refusal preserves the prior durable state');
+  await store.commit({ resetCoverage: true });
+  assert.equal(saved.factLimitReset, marker, 'explicit manual reset does not erase the saturation marker');
+  assert.equal((await store.outbox.all())[0].intent, 'keep'); await store.close();
 });
 
 test('first timed facts constrain ordinary conditionals in the same atomic swap and revalidate each affected answer once', async context => {
@@ -535,7 +570,7 @@ test('first timed facts constrain ordinary conditionals in the same atomic swap 
       await assert.rejects(runtime.store.commit({ deliveries: [timed], refreshes }), /requires immutable/);
       for (const d of ordinary) { const answer = await runtime.store.answer(d.op, {});
         assert.equal(answer.seq, 1); assert.equal(answer.data[0].body, d.op); assert.equal(answer.needsFactProofs, undefined); }
-      assert.equal(Object.keys((runtime.store as any).state.factGuards).length, 0, 'failed preflight rolls back every prospective guard');
+      assert.equal(Object.keys((runtime.store as any).state.rowFacts).length, 0, 'failed preflight rolls back every prospective guard');
       const counts = new Map<string, number>();
       const full = (d: any) => ({ protocol: 1, generation: 'e'.repeat(64), schemaHash: 'f'.repeat(64), planHash: d.clockPlanHash ?? 'b'.repeat(64),
         authority: { principal: 'clock', authEpoch: 0 }, state: d.state, data: d.data, next: null, seq: d.seq,
@@ -572,7 +607,8 @@ test('checked extent membership follows immutable assertion sequences across row
   const { root, factories } = await carriers();
   try {
     for (const factory of factories) for (const derived of [false, true]) for (const cold of [false, true])
-      await context.test(`${factory.carrier}/${derived ? 'Unicode' : 'Time'}/${cold ? 'cold' : 'warm'}`, async () => {
+      for (const arrival of ['batch', 'separate', 'reopen-between'])
+      await context.test(`${factory.carrier}/${derived ? 'Unicode' : 'Time'}/${cold ? 'cold' : 'warm'}/${arrival}`, async () => {
         const packet = derived ? search : clock, table = derived ? 'people' : 'events';
         for (const reverse of [false, true]) for (const scenario of [
           { name: 'earlier-contradiction', seed: 0, hole: 1, move: 2, position: 5, rejects: true },
@@ -582,7 +618,7 @@ test('checked extent membership follows immutable assertion sequences across row
           { name: 'same-seq-move-in', seed: 5, hole: 2, move: 2, position: 0, rejects: true },
           { name: 'later-hole-after-move-in', seed: 5, hole: 3, move: 2, position: 0, evicts: true },
         ]) {
-          const principal = `${derived}-${cold}-${reverse}-${scenario.name}`;
+          const principal = `${derived}-${cold}-${reverse}-${scenario.name}-${arrival}`;
           let runtime = new OfflineRuntime({ store: factory }); await runtime.open(principal, true); await runtime.program(packet);
           const accept = async (inside: boolean, seq: number, position: number | null, readTime: number) => {
             const op = derived ? inside ? timed.name : 'search.findPeople' : inside ? 'clock.bounded' : 'clock.read';
@@ -611,11 +647,22 @@ test('checked extent membership follows immutable assertion sequences across row
           // Different ops/arguments keep both frames applicable in either order.
           const items = [await accept(true, scenario.hole, null, 20), await accept(false, scenario.move, scenario.position, 30)];
           if (reverse) items.reverse();
-          if (scenario.rejects) {
+          if (arrival !== 'batch') {
+            let refused = false;
+            for (const item of items) {
+              if (arrival === 'reopen-between') { await runtime.close(); runtime = new OfflineRuntime({ store: factory }); await runtime.open(principal, true); }
+              const prior = JSON.stringify((runtime.store as any).state);
+              try { await runtime.commitMany([item]); } catch (error) {
+                assert.match(error.message, /conflicting durable fact/); refused = true;
+                assert.equal(JSON.stringify((runtime.store as any).state), prior, 'only the refused transaction rolls back'); break;
+              }
+            }
+            assert.equal(refused, !!scenario.rejects, scenario.name);
+          } else if (scenario.rejects) {
             await assert.rejects(runtime.commitMany(items), /conflicting durable fact/, scenario.name);
             assert.equal(JSON.stringify((runtime.store as any).state), before, 'failed admission preserves rows, guards, fingerprints and outbox');
-          } else {
-            await runtime.commitMany(items);
+          } else await runtime.commitMany(items);
+          if (!scenario.rejects) {
             const coverage = await runtime.store.coverage();
             assert.equal(coverage.rows.length, scenario.evicts ? 0 : 1, scenario.name);
             if (!scenario.evicts) assert.equal(derived ? coverage.rows[0].row.name : coverage.rows[0].row.at, derived ? 'Other' : 5);
@@ -656,16 +703,16 @@ test('checked extent membership follows immutable assertion sequences across row
 
 test('checked fixed extent holes reject clock contradictions atomically and retain negative conditional custody warm and cold', async context => {
   const fixtures = JSON.parse(await readFile(new URL('../../evaluator/src/test-search-v5-fixtures.json', import.meta.url), 'utf8'));
-  const packet = structuredClone(fixtures.clock), op = 'clock.fixed', certificate = fixtures.fixedClockCertificate;
+  const packet = structuredClone(fixtures.clock), op = 'clock.bounded', certificate = fixtures.boundedClockCertificate;
   const ir = structuredClone(packet.programs['clock.read'].ir); ir.name = op;
-  ir.body[0].Return.Object.rows.Scan.range = null;
+  ir.body[0].Return.Object.rows.Scan.range.lt = { Literal: { Int: 1 } };
   packet.programs[op] = { kind: 'query', ir, certificate, planHash: certificate.plan_hash };
   // Actual final-owner v5 certificate for this fixed extent; envelopes below are
   // adversarial authenticated-transport controls, not claimed native emissions.
-  const event = (id: string) => ({ table: 'events', id, row: { id, at: 0 } });
+  const event = (id: string) => ({ table: 'events', id, row: { id, at: id === 'other' ? 5 : 0 } });
   const eventRef = (id: string) => ({ $row: { table: 'events', id } });
   const range = { site: 'clock.range', table: 'events', index: 'byAt', prefix: [], order: 'Asc', take: 10,
-    after: null, before: null, gt: null, gte: null, lt: null, lte: null,
+    after: null, before: null, gt: null, gte: null, lt: 1, lte: null,
     ruleHash: certificate.rule_hashes['events.read'], rowIds: ['one'], stop: 'Exhausted', absence: false };
   const frame = (seq: number, readTime: number, ids: string[]) => ({ protocol: 1, generation: packet.generation,
     schemaHash: packet.schemaHash, planHash: certificate.plan_hash, authority: { principal: 'clock', authEpoch: 0 },
@@ -694,7 +741,7 @@ test('checked fixed extent holes reject clock contradictions atomically and reta
       await commit(frame(1, 4, ['one']));
       await commit(frame(2, 5, []));
       assert.equal((await runtime.store.answer('anchor', {})).data, null);
-      assert.deepEqual((await runtime.store.answer('unrelated', {})).data, { id: 'other', at: 0 });
+      assert.deepEqual((await runtime.store.answer('unrelated', {})).data, { id: 'other', at: 5 });
       assert.deepEqual((await runtime.store.coverage()).evicted, [{ table: 'events', id: 'one' }]);
       assert.equal((await runtime.store.outbox.all())[0].intent, 'keep');
       await assert.rejects(runtime.store.commit({ deliveries: [{ ...anchor('revert', 'one'), seq: 2 }] }), /conflicting durable fact/);
@@ -767,14 +814,15 @@ test('checked fixed extent holes reject clock contradictions atomically and reta
         'a replaced extent cannot donate its negative proof to the newer answer');
       await runtime.store.close();
     });
-    for (const factory of factories) await context.test(`${factory.carrier}/first-hole-enrollment`, async () => {
-      const runtime = new OfflineRuntime({ store: factory }); await runtime.open('first-hole', true); await runtime.program(packet);
-      const old = { ...anchor('ordinary', 'one'), receipt: { ...receipt(), ranges: [range] } };
+    for (const factory of factories) for (const point of [false,true]) await context.test(`${factory.carrier}/first-hole-enrollment-${point}`, async () => {
+      const principal = `first-hole-${point}`;
+      const runtime = new OfflineRuntime({ store: factory }); await runtime.open(principal, true); await runtime.program(packet);
+      const old = { ...anchor('ordinary', 'one'), receipt: { ...receipt(), ranges: point ? [] : [range] } };
       await runtime.store.commit({ deliveries: [old], outbox: { put: [entry('keep')] } });
       const before = JSON.stringify((runtime.store as any).state);
       // The first timed assertion is a checked absence. A same-swap ordinary
       // conditional has no immutable body proof and must request a full read.
-      const accepted = await runtime.accept(op, {}, { ...frame(2, 1, []), authority: { principal: 'first-hole', authEpoch: 0 } });
+      const accepted = await runtime.accept(op, {}, { ...frame(2, 1, []), authority: { principal, authEpoch: 0 } });
       await assert.rejects(runtime.commitMany([
         { op: 'ordinary', args: {}, accepted: await runtime.accept('ordinary', {}, { state: 'unchanged', seq: 3, validator: old.validator }) },
         { op, args: {}, accepted },
@@ -782,7 +830,7 @@ test('checked fixed extent holes reject clock contradictions atomically and reta
       assert.equal(JSON.stringify((runtime.store as any).state), before);
       const ordinaryFull = async (seq: number) => {
         const { readTime, ...value } = frame(seq, 0, ['one']);
-        return runtime.accept('ordinary-positive', {}, { ...value, authority: { principal: 'first-hole', authEpoch: 0 },
+        return runtime.accept('ordinary-positive', {}, { ...value, authority: { principal, authEpoch: 0 },
           data: eventRef('one'), receipt: receipt(), planHash: 'b'.repeat(64) });
       };
       await assert.rejects(runtime.commitMany([
@@ -800,4 +848,332 @@ test('checked fixed extent holes reject clock contradictions atomically and reta
       await runtime.store.close();
     });
   } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test('unchanged native26c9 movement, revocation and halo deliveries survive public admission on every carrier', async context => {
+  const { nativeR8: native } = JSON.parse(await readFile(new URL('../../evaluator/src/test-search-v5-fixtures.json', import.meta.url), 'utf8'));
+  const { root, factories } = await carriers();
+  try {
+    for (const factory of factories) for (const cold of [false, true]) await context.test(`${factory.carrier}/${cold}`, async () => {
+      for (const between of [false, true]) for (const reverse of [false, true]) {
+        const witness = native.movement, principal = witness.first.authority.principal;
+        let runtime = new OfflineRuntime({ store: factory }); await runtime.store.wipe(principal);
+        await runtime.open(principal, true); await runtime.program(witness.packet);
+        const commit = async (op: string, frame: any) => runtime.commit(op, {}, await runtime.accept(op, {}, frame));
+        const reopen = async () => { await runtime.close(); runtime = new OfflineRuntime({ store: factory }); await runtime.open(principal, true); };
+        await runtime.store.commit({ outbox: { put: [entry('keep')] } });
+        await commit('clock.bounded', witness.first); if (cold) await reopen();
+        const moves = [['clock.bounded', witness.hole], ['clock.read', witness.moved]];
+        if (reverse) moves.reverse();
+        await commit(moves[0][0], moves[0][1]); if (between) await reopen(); await commit(moves[1][0], moves[1][1]);
+        assert.deepEqual((await runtime.store.coverage()).rows, witness.moved.rows);
+        assert.equal((await runtime.store.answer('clock.read', {})).data.rows[0].at, 5);
+        assert.deepEqual((await runtime.store.coverage()).evicted, []);
+        assert.equal((await runtime.store.outbox.all())[0].intent, 'keep'); await runtime.close();
+      }
+      for (const kind of ['revocation', 'halo']) {
+        const witness = native[kind], principal = witness.first.authority.principal;
+        const args = kind === 'revocation' ? { id: 'one' } : {}, op = kind === 'revocation' ? 'timed' : 'clock.fixed';
+        const anchor = kind === 'revocation' ? 'anchor' : 'clock.read';
+        let runtime = new OfflineRuntime({ store: factory }); await runtime.store.wipe(principal);
+        await runtime.open(principal, true); await runtime.program(witness.program);
+        const commit = async (name: string, frame: any) => runtime.commit(name, args, await runtime.accept(name, args, frame));
+        await commit(anchor, witness.anchor); await commit(op, witness.first);
+        if (cold) { await runtime.close(); runtime = new OfflineRuntime({ store: factory }); await runtime.open(principal, true); }
+        await commit(op, witness.last);
+        assert.deepEqual((await runtime.store.coverage()).rows, witness.last.rows);
+        for (const name of [op, anchor]) {
+          const result = await runtime.twin.evaluate(name, args);
+          assert(!JSON.stringify(result).includes('secret'), 'revoked body cannot remain complete or partial data');
+          if (kind === 'revocation') assert.equal(result.data.row, null);
+        }
+        if (kind === 'halo') assert.equal((await runtime.twin.evaluate(op, args)).state, 'complete');
+        assert.equal((await runtime.store.coverage()).evicted[0].id, kind === 'halo' ? 'halo' : 'one');
+        await runtime.close();
+      }
+    });
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test('a prior halo participates in same-sequence conflicts and immutable conditional extent custody', async context => {
+  const { nativeR8: { halo } } = JSON.parse(await readFile(new URL('../../evaluator/src/test-search-v5-fixtures.json', import.meta.url), 'utf8'));
+  // This adversarial derivative is synthetic. The preceding native test uses every frame unchanged.
+  const contradiction = { ...halo.last, seq: halo.first.seq };
+  const { root, factories } = await carriers();
+  try {
+    for (const factory of factories) await context.test(factory.carrier, async () => {
+      const principal = halo.first.authority.principal;
+      let runtime = new OfflineRuntime({ store: factory }); await runtime.store.wipe(principal);
+      await runtime.open(principal, true); await runtime.program(halo.program);
+      const commit = async (frame: any) => runtime.commit('clock.fixed', {}, await runtime.accept('clock.fixed', {}, frame));
+      await commit(halo.first); await runtime.store.commit({ outbox: { put: [entry('keep')] } });
+      for (const cold of [false, true]) {
+        if (cold) { await runtime.close(); runtime = new OfflineRuntime({ store: factory }); await runtime.open(principal, true); }
+        const before = JSON.stringify((runtime.store as any).state);
+        await assert.rejects(commit(contradiction), /conflicting durable fact/);
+        assert.equal(JSON.stringify((runtime.store as any).state), before);
+      }
+      await commit(halo.last);
+      await runtime.store.commit({ refreshes: [{ op: 'clock.fixed', args: {}, seq: 3, validator: halo.last.validator }] });
+      await runtime.close(); runtime = new OfflineRuntime({ store: factory }); await runtime.open(principal, true);
+      const before = JSON.stringify((runtime.store as any).state);
+      const positive = { ...halo.anchor, seq: 3, readTime: halo.last.readTime + 1 };
+      await assert.rejects(runtime.commit('clock.read', {}, await runtime.accept('clock.read', {}, positive)), /conflicting durable fact/);
+      assert.equal(JSON.stringify((runtime.store as any).state), before);
+      assert.equal((await runtime.store.outbox.all())[0].intent, 'keep'); await runtime.close();
+    });
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test('ambiguous experimental fact custody resets atomically on cold open while ordinary history and queued intents survive', async () => {
+  for (const version of [undefined,2,3,4]) for (const timed of [false, true]) for (const sealed of [false, true]) {
+    let saved: any, fail = false;
+    const factory = () => new PersistentRangeStore({ carrier: 'memory', open: async () => structuredClone(saved),
+      replace: async state => { if (fail) throw new Error('injected reset failure'); saved = structuredClone(state); }, close() {}, wipe: async () => {} });
+    let store = factory(); await store.open('legacy');
+    await store.commit({ facts: { generation: 'e'.repeat(64), schemaHash: 'f'.repeat(64), authEpoch: 0 },
+      deliveries: [timed ? clocked('read', ['one'], 1, 1) : delivery('read', ['one'], 1)], outbox: { put: [entry('keep')] } });
+    if (sealed) await store.seal(); await store.close();
+    delete saved.factFormat; delete saved.factImages; delete saved.factExtents; delete saved.extentGuards; delete saved.extentNegative;
+    if (version !== undefined) { saved.factFormat = version; saved.factExtents = { old: { condition: { legacy: true } } }; }
+    const original = JSON.stringify(saved);
+    if (timed || version !== undefined) {
+      fail = true; store = factory(); await assert.rejects(store.open('legacy'), /injected reset failure/);
+      assert.equal(JSON.stringify(saved), original, 'failed format reset leaves durable custody and outbox untouched');
+      fail = false; await store.open('legacy'); await store.close();
+    }
+    store = factory(); await store.open('legacy');
+    if (sealed) { await assert.rejects(store.outbox.all(), /sealed/); await store.unseal(); }
+    assert.equal((await store.outbox.all())[0].intent, 'keep');
+    if (timed || version !== undefined) {
+      assert.equal(await store.answer('read', {}), undefined);
+      assert.equal((await store.coverage()).superseded.generation, 'e'.repeat(64));
+      assert.equal(saved.factFormat, 5); assert.equal(saved.factSlots, 0);
+    } else assert.deepEqual((await store.answer('read', {})).data, [{ id: 'one', body: 'one' }]);
+    await store.close();
+  }
+});
+
+test('carrier projection preserves a missing fact-format marker so experimental custody resets and published ordinary history survives', async context => {
+  const { root,factories } = await carriers();
+  try {
+    for (const factory of factories) for (const marker of [undefined,0,2,3,4]) for (const timed of [false,true]) for (const sealed of [false,true])
+      await context.test(`${factory.carrier}/${marker ?? 'missing'}/${timed}/${sealed}`, async () => {
+      const principal = `legacy-projection-${marker}-${timed}-${sealed}`;
+      let store = factory(); await store.open(principal);
+      await store.commit({ deliveries: [timed ? clocked('read', ['one'], 1, 1) : delivery('read', ['one'], 1)], outbox: { put: [entry('keep')] } });
+      if (sealed) await store.seal(); await store.close();
+      const backend = (factory() as any).backend, saved = await backend.open(principal);
+      const key = JSON.stringify(['row','messages',{ Id: 'one' }]), digest = saved.rowFacts['messages\0one']?.[1];
+      delete saved.factFormat;
+      if (marker !== undefined) saved.factFormat = marker;
+      if (marker !== 4) {
+        for (const field of ['rowFacts','verdictFacts','factImages','factExtents','extentGuards','extentNegative']) delete saved[field];
+        saved.factGuards = timed ? { [key]: { seq: 1,digest } } : {};
+        saved.factSlots = timed ? 2 : 0;
+        for (const answer of Object.values<any>(saved.answers)) {
+          delete answer.rowProofs; delete answer.verdictProofs;
+          if (timed) answer.factProofs = [[key,digest]];
+        }
+      }
+      await backend.replace(saved,{ put: [],remove: [] }); await backend.close();
+      store = factory(); await store.open(principal);
+      try {
+        if (sealed) { await assert.rejects(store.outbox.all(), /sealed/); await store.unseal(); }
+        assert.equal((await store.outbox.all())[0].intent, 'keep');
+        if (timed || marker !== undefined) assert.equal(await store.answer('read', {}), undefined, 'a carrier default must not relabel experimental guards as current custody');
+        else assert.equal((await store.answer('read', {})).data[0].body, 'one', 'published no-clock history retains its normal behavior');
+      } finally { await store.close(); }
+    });
+  } finally { await rm(root,{ recursive: true,force: true }); }
+});
+
+test('close, active wipe and principal switch release carrier indexes and ephemeral schema custody', async () => {
+  const { nativeR8: { movement } } = JSON.parse(await readFile(new URL('../../evaluator/src/test-search-v5-fixtures.json', import.meta.url), 'utf8'));
+  const partitions = new Map<string, any>(); let current = '';
+  const store = new PersistentRangeStore({ carrier: 'memory',
+    open: async partition => { current = partition; return structuredClone(partitions.get(partition)); },
+    replace: async state => { partitions.set(current, structuredClone(state)); }, close() {}, wipe: async partition => { partitions.delete(partition); } });
+  const held = store as any;
+  const populate = async () => {
+    await store.open('alice');
+    await store.commit({ schema: movement.packet.schema, deliveries: [{ ...clocked('read', ['one'], 1, 1),
+      rows: movement.first.rows, data: [{ $row: { table: 'events', id: 'one' } }] }], outbox: { put: [entry('keep')] } });
+    assert.equal((await store.answer('read', {})).data[0].at, 0);
+    assert.ok(held.referenceIndex); assert.ok(held.referenceSchema);
+  };
+  const released = () => { assert.equal(held.referenceIndex, undefined); assert.equal(held.referenceSchema, undefined); };
+  await populate(); const original = JSON.stringify(partitions.get('alice'));
+  await store.close(); released();
+  assert.equal(JSON.stringify(partitions.get('alice')), original, 'releasing indexes does not discard durable facts or queued work');
+  await store.open('alice'); assert.equal((await store.outbox.all())[0].intent, 'keep');
+  assert.equal((await store.answer('read', {})).data[0].at, 0, 'same-instance cold open rebuilds from retained custody');
+  await populate(); await store.open('bob'); released();
+  assert.equal(await store.answer('read', {}), undefined);
+  assert.equal(held.referenceIndex, undefined, 'empty principal cannot acquire the previous principal index');
+  await populate(); await store.wipe('bob'); assert.ok(held.referenceIndex, 'inactive wipe preserves active ownership');
+  await store.wipe('alice'); released(); await store.open('alice');
+  assert.equal(await store.answer('read', {}), undefined); assert.deepEqual(await store.outbox.all(), []);
+  await store.close(); released();
+});
+
+test('global negative guards retain integrity without retaining positive index owners', async () => {
+  for (const cold of [false,true]) {
+    let saved: any;
+    const factory = () => new PersistentRangeStore({ carrier: 'memory', open: async () => structuredClone(saved),
+      replace: async state => { saved = structuredClone(state); }, close() {}, wipe: async () => {} });
+    let store = factory(); await store.open('negative');
+    await store.commit({ deliveries: [clocked('read', ['one'], 1, 1)], outbox: { put: [entry('keep')] } });
+    assert.equal((store as any).referenceIndex.guards.size, 1);
+    await store.commit({ tombstones: [{ table: 'messages', id: 'one', seq: 2 }] });
+    assert.equal((store as any).referenceIndex.guards.size, 0, 'no positive posting owner survives a global negative guard');
+    if (cold) { await store.close(); store = factory(); await store.open('negative'); }
+    await store.commit({ deliveries: [delivery('empty', [], 2)] });
+    assert.equal((store as any).referenceIndex.guards.size, 0, 'cold reconstruction also omits redundant negative owners');
+    const before = JSON.stringify(saved);
+    await assert.rejects(store.commit({ deliveries: [clocked('read', ['one'], 2, 2)] }), /conflicting durable fact/);
+    assert.equal(JSON.stringify(saved), before, 'same-sequence global absence remains authoritative and atomic');
+    await store.commit({ deliveries: [clocked('read', ['one'], 3, 3)] });
+    assert.equal((store as any).referenceIndex.guards.size, 1);
+    assert.equal((await store.answer('read', {})).data[0].body, 'one');
+    assert.equal((await store.outbox.all())[0].intent, 'keep'); await store.close();
+  }
+});
+
+test('sequence-zero primary absence and positive proofs remain explicit across cold and conditional custody', async () => {
+  for (const cold of [false,true]) {
+    let saved: any;
+    const factory = () => new PersistentRangeStore({ carrier: 'memory', open: async () => structuredClone(saved),
+      replace: async state => { saved = structuredClone(state); }, close() {}, wipe: async () => {} });
+    let store = factory(); await store.open('zero');
+    const gone = { ...delivery('gone', [], 0), validator: 'a'.repeat(64), receipt: { ...receipt(), absences: [['messages','byId',['one']]] } };
+    await store.commit({ deliveries: [gone,clocked('positive', ['two'], 0, 0)], outbox: { put: [entry('keep')] } });
+    assert.equal(saved.rowFacts['messages\0one'], 0);
+    assert.equal(saved.rowFacts['messages\0two'][0], 0);
+    if (cold) { await store.close(); store = factory(); await store.open('zero'); }
+    const before = JSON.stringify(saved);
+    await assert.rejects(store.commit({ deliveries: [clocked('inside', ['one'], 0, 0)] }), /conflicting durable fact/);
+    await assert.rejects(store.commit({ deliveries: [{ ...gone, op: 'contrary', receipt: { ...receipt(), absences: [['messages','byId',['two']]] } }] }), /conflicting durable fact/);
+    assert.equal(JSON.stringify(saved), before, 'zero-sequence contradictions leave both fact kinds and outbox atomic');
+    await store.commit({ refreshes: [{ op: 'gone',args: {},seq: 1,validator: gone.validator }] });
+    assert.equal(saved.rowFacts['messages\0one'], 1, 'a null answer proof advances the explicit absence');
+    await assert.rejects(store.commit({ deliveries: [clocked('inside', ['one'], 1, 1)] }), /conflicting durable fact/);
+    await store.commit({ deliveries: [clocked('inside', ['one'], 2, 2)] });
+    assert.equal(saved.rowFacts['messages\0one'][0], 2);
+    assert.equal((await store.answer('inside', {})).data[0].body, 'one');
+    assert.equal((await store.outbox.all())[0].intent, 'keep'); await store.close();
+  }
+});
+
+test('closed extents retain all-ID consistency after conditional refresh and GC without globalizing nonmembership', async () => {
+  const { nativeR8: { movement } } = JSON.parse(await readFile(new URL('../../evaluator/src/test-search-v5-fixtures.json', import.meta.url), 'utf8'));
+  for (const cold of [false,true]) for (const reverse of [false,true]) for (const inside of [false,true]) {
+    let saved: any;
+    const factory = () => new PersistentRangeStore({ carrier: 'memory', open: async () => saved,
+      replace: async state => { saved = structuredClone(state); }, close() {}, wipe: async () => {} });
+    let runtime = new OfflineRuntime({ store: factory }); const principal = movement.first.authority.principal;
+    await runtime.open(principal,true); await runtime.program(movement.packet);
+    const admit = async (op: string, frame: any) => runtime.commit(op,{},await runtime.accept(op,{},frame));
+    await runtime.store.commit({ outbox: { put: [entry('keep')] } });
+    const empty = structuredClone(movement.hole), positive = structuredClone(movement.moved);
+    // No historical row with this ID; native-certified program, synthetic all-ID control.
+    positive.rows[0].id = positive.rows[0].row.id = 'unknown'; positive.rows[0].row.at = inside ? 0 : 5;
+    positive.data.rows[0].$row.id = 'unknown'; positive.receipt.ranges[0].rowIds = ['unknown'];
+    const close = () => admit('clock.bounded',empty), arrive = () => admit('clock.read',positive);
+    await (reverse ? arrive() : close());
+    if (cold) { await runtime.close(); runtime = new OfflineRuntime({ store: factory }); await runtime.open(principal,true); }
+    const before = JSON.stringify(saved);
+    if (inside) {
+      await assert.rejects(reverse ? close() : arrive(), /conflicting durable fact/);
+      assert.equal(JSON.stringify(saved),before); await runtime.close(); continue;
+    }
+    await (reverse ? close() : arrive());
+    assert.equal((await runtime.store.coverage()).rows[0].row.at,5);
+    assert.equal(Object.keys(saved.negative).length,0);
+    await runtime.store.commit({ refreshes: [{ op: 'clock.bounded',args: {},seq: 3,validator: empty.validator }] });
+    await runtime.store.commit({ dropAnswers: ['clock.bounded\0{}','clock.read\0{}'] });
+    assert.equal((await runtime.store.coverage()).rows.length,0,'body GC leaves immutable extent facts');
+    if (cold) { await runtime.close(); runtime = new OfflineRuntime({ store: factory }); await runtime.open(principal,true); }
+    const delayed = structuredClone(positive); delayed.seq = 3; delayed.readTime += 1; delayed.rows[0].row.at = 0;
+    await assert.rejects(admit('clock.read',delayed), /conflicting durable fact/);
+    delayed.rows[0].row.at = 5; await admit('clock.read',delayed);
+    assert.equal((await runtime.store.coverage()).rows[0].row.at,5,'conditional extent cannot become a global absence');
+    await runtime.store.commit({ tombstones: [{ table: 'events',id: 'unknown',seq: 4 }] });
+    delayed.seq = 4; delayed.readTime += 1;
+    await assert.rejects(admit('clock.read',delayed), /conflicting durable fact/);
+    assert.equal((await runtime.store.coverage()).rows.length,0);
+    assert.equal((await runtime.store.outbox.all())[0].intent,'keep');
+    await runtime.store.commit({ resetCoverage: true });
+    assert.equal(saved.factSlots,0);
+    for (const field of ['rowFacts','verdictFacts','factImages','factExtents','extentGuards','extentNegative']) assert.deepEqual(saved[field],{});
+    assert.equal((await runtime.store.outbox.all())[0].intent,'keep'); await runtime.close();
+  }
+});
+
+test('scoped holes dominate every FIFO overlay state until a compatible authoritative image returns', async () => {
+  const { nativeR8: { movement } } = JSON.parse(await readFile(new URL('../../evaluator/src/test-search-v5-fixtures.json', import.meta.url), 'utf8'));
+  for (const status of ['queued','sent','committed']) {
+    let saved: any;
+    const factory = () => new PersistentRangeStore({ carrier:'memory',open:async()=>saved,replace:async s=>{saved=structuredClone(s);},close(){},wipe:async()=>{} });
+    let runtime = new OfflineRuntime({store:factory}); const principal = movement.first.authority.principal;
+    await runtime.open(principal,true); await runtime.program(movement.packet);
+    const admit = async (op: string,frame: any) => runtime.commit(op,{},await runtime.accept(op,{},frame));
+    await admit('clock.bounded',movement.first);
+    const pending = { ...entry('pending'),state:status,...(status==='committed'?{response:{seq:4}}:{}),trace:{points:[],verdicts:[]} };
+    const overlay = {table:'events',id:'one',row:{id:'one',at:9}};
+    await runtime.store.commit({outbox:{put:[pending]},overlay:{put:{pending:[overlay]}}});
+    const intent = JSON.stringify(await runtime.store.outbox.all());
+    await admit('clock.bounded',movement.hole);
+    assert.equal(JSON.stringify(await runtime.store.outbox.all()),intent,'scoped omission preserves queued intent custody');
+    const rows = async () => (await runtime.twin.evaluate('clock.read',{}))?.data?.rows ?? [];
+    assert.deepEqual(await rows(),[],`${status} overlay cannot survive a hole without a base image`);
+    await runtime.store.commit({outbox:{put:[{...entry('newer'),issuedSeq:3}]},overlay:{put:{newer:[overlay]}}});
+    assert.deepEqual(await rows(),[],'newer full-image prediction alone is not authoritative presence');
+    await runtime.close(); runtime = new OfflineRuntime({store:factory}); await runtime.open(principal,true);
+    assert.deepEqual(await rows(),[],'hole dominance persists cold');
+    await runtime.store.commit({outbox:{remove:['newer']}});
+    await admit('clock.read',movement.moved);
+    assert.deepEqual((await rows()).map((r:any)=>r.at),[5],'outside authority supersedes only the scoped mask; stale FIFO contribution stays suppressed');
+    await runtime.store.commit({tombstones:[{table:'events',id:'one',seq:3}],outbox:{put:[{...entry('after-tombstone'),issuedSeq:4}]},overlay:{put:{'after-tombstone':[overlay]}}});
+    assert.deepEqual(await rows(),[],'primary tombstone still dominates a newer prediction');
+    await runtime.close();
+  }
+});
+
+test('native-certified Unicode search accepts scope movement in either arrival order and retains exact Q custody cold', async () => {
+  const f = JSON.parse(await readFile(new URL('../../evaluator/src/test-search-v5-fixtures.json', import.meta.url),'utf8'));
+  const operation = f.operations['search.inConversation'], op = operation.program.name;
+  const packet = { generation:'e'.repeat(64),schemaHash:operation.certificate.schema_hash,schema:f.schema,programs:{[op]:{
+    kind:'query',ir:operation.program,certificate:operation.certificate,planHash:operation.certificate.plan_hash}} };
+  for (const reverse of [false,true]) for (const cold of [false,true]) for (const batch of [false,true]) {
+    let saved: any;
+    const factory = () => new PersistentRangeStore({carrier:'memory',open:async()=>saved,replace:async s=>{saved=structuredClone(s);},close(){},wipe:async()=>{}});
+    let runtime = new OfflineRuntime({store:factory}); await runtime.open('viewer',true); await runtime.program(packet);
+    const args = (room: string) => ({conversation:room,term:'cafe\u0301',c:null});
+    const accepted = async (room: string,seq: number,present: boolean) => {
+      const rows = [{table:'memberships',id:`member-${room}`,row:{id:`member-${room}`,conversation:room,principal:'viewer'}},
+        ...(present?[{table:'messages',id:'one',row:{id:'one',conversation:room,body:'CAFÉ',caption:null,at:0}}]:[])];
+      const envelope = {protocol:1,generation:packet.generation,schemaHash:packet.schemaHash,planHash:operation.certificate.plan_hash,
+        authority:{principal:'viewer',authEpoch:0},state:'complete',seq,validator:'a'.repeat(64),next:null,
+        data:present?[{$row:{table:'messages',id:'one'}}]:[],rows,receipt:{...receipt(),ranges:[{
+          site:'search.inConversation.0',table:'messages',index:'byConversationWords',prefix:[{Scalar:room},{WordPrefix:{contract:'u17-nfc-scf-nfc-wsp-p',source:'cafe\u0301'}}],
+          order:'Desc',take:20,after:null,before:null,gt:null,gte:null,lt:null,lte:null,rowIds:present?['one']:[],stop:'Exhausted',absence:false,
+          ruleHash:operation.certificate.rule_hashes['messages.read']}]}};
+      return {op,args:args(room),accepted:await runtime.accept(op,args(room),envelope)};
+    };
+    await runtime.commitMany([await accepted('left',1,true)]);
+    if(cold){await runtime.close();runtime=new OfflineRuntime({store:factory});await runtime.open('viewer',true);}
+    const items=[await accepted('left',2,false),await accepted('right',2,true)];if(reverse)items.reverse();
+    if(batch)await runtime.commitMany(items);else{
+      await runtime.commitMany([items[0]]);
+      if(cold){await runtime.close();runtime=new OfflineRuntime({store:factory});await runtime.open('viewer',true);}
+      await runtime.commitMany([items[1]]);
+    }
+    assert.deepEqual(((await runtime.twin.evaluate(op,args('right')))?.data as any[]).map(row=>row.conversation),['right']);
+    assert.deepEqual((await runtime.twin.evaluate(op,args('left')))?.data,[]);
+    assert.equal(saved.negative['messages\0one'],undefined);
+    // Same certified Q2000 remains independent of optional caption/source widths after persisted extent reuse.
+    await assert.rejects(runtime.twin.evaluate(op,{...args('right'),term:'same same'}),/one word/);
+    await runtime.close();
+  }
 });

@@ -1102,7 +1102,7 @@ class Client implements SnapbackClient {
       // publishes them on cold initialization as well as online().
       if (!controller.signal.aborted && this.authorityCurrent(authority)) {
         const refusal = this.offlineRefusal(error);
-        this.resetRefusal = refusal.envelope;
+        this.resetRefusal = refusal.envelope; throw refusal;
       }
       throw error;
     });

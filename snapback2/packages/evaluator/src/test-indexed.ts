@@ -387,6 +387,28 @@ assert.throws(() => cachedSearch.atom(component, { WordPrefix: { source: 'Café'
 assert.throws(() => cachedSearch.atom(component, 2, 2000), { code: 'E_INPUT' });
 console.log('actual Rust certificate identities and 100 required dynamic lane normalization passed');
 
+// Unmodified final26c9 corpus/receipt/certificate: Unicode Words, optional null and real derived work.
+const wordsCase = searchFixtures.nativeR8.words.case;
+const wordsStore = new ClientStore(wordsCase.schema, wordsCase.receipt, { program: wordsCase.program });
+const wordsRun = (body: any, certificate = wordsCase.certificate) => wordsStore.reexecute(wordsCase.program,
+  { ...wordsCase.context, args: { body } }, certificate).execution;
+const wordsExecution = wordsRun(wordsCase.context.args.body);
+assert.deepEqual(wordsExecution.result, wordsCase.expected.localResult);
+assert((wordsExecution.trace.derived_steps ?? 0) > 1000, 'non-ASCII Words includes normalization and token traversal');
+assert((wordsExecution.trace.derived_scratch_bytes ?? 0) > 3000, 'Words includes scratch and retained output/dedup data');
+assert.equal(wordsExecution.trace.steps, wordsExecution.trace.derived_steps! + 5);
+assert.deepEqual(wordsRun('Null').result, { Array: [] });
+assert.equal(wordsRun('Null').trace.derived_steps, undefined, 'null performs no Unicode work');
+for (const text of ['\u{10ffff}'.repeat(50), 'a '.repeat(25), 'é'.repeat(50), 'a\u0301'.repeat(25)]) {
+  const run = wordsRun({ String: text });
+  assert(run.trace.steps! <= wordsCase.certificate.max_steps);
+  assert(run.trace.derived_scratch_bytes! <= wordsCase.certificate.derived_scratch_bytes);
+}
+// Tightened local budgets exercise refusal, not purported new native certificates.
+assert.throws(() => wordsRun(wordsCase.context.args.body, { ...wordsCase.certificate, derived_steps: 1 }), { code: 'E_STEPS' });
+assert.throws(() => wordsRun(wordsCase.context.args.body, { ...wordsCase.certificate, derived_scratch_bytes: 1 }), { code: 'E_HEAP' });
+assert.throws(() => wordsRun({ String: 'x'.repeat(51) }), { code: 'E_INPUT' });
+
 // Public warm direct/global execution shares cursor normalization and accounts for preparation in the Runner ledger.
 const publicState = emptyState(), publicChanges = new StoreChanges<typeof publicState>(); publicChanges.reset();
 publicState.facts = { generation: actualProgram.generation, schemaHash: actualProgram.schemaHash, authEpoch: 0 };
@@ -814,3 +836,76 @@ shared.put('messages', tagWireRow(sharedSchema, 'messages', { id: 'left', conver
 sharedDirectory.refresh(scope('left')); shared.setReceipt('proof', sharedReceipt); sharedDirectory.touchDigest(authorityDigest);
 assert.deepEqual(sharedDirectory.select([], 10).scopes, [scope('left')]);
 console.log('2000 deleted scopes reclaim directory metadata; shared dependency touch/digest, denial, clear and repopulation passed');
+
+// Closed-extent admission seeks in both directions; the independent oracle uses plain scoped numeric intervals.
+const { FactIndex } = await import('../../snapback2/src/store/fact-index');
+const { ExtentIndex } = await import('../../snapback2/src/store/extent-index');
+const factIndex = new FactIndex(schema,true), extentIndex = new ExtentIndex();
+const facts: any[] = [], extents: any[] = [];
+for (let i = 0; i < 2000; i++) {
+  const room = `r${i % 40}`, at = (i * 17) % 1000, id = `f${i}`, seq = i % 3;
+  const keys = { ordinary: [{ Scalar: { String: room } },{ Scalar: { Int: at } },{ Scalar: { Id: id } }],
+    search: [{ Scalar: { String: room } },{ Words: i % 2 ? ['café','東京'] : ['quiet'] },{ Scalar: { Int: at } },{ Scalar: { Id: id } }] };
+  const fact = { id,key: id,table: 'messages',rowId: id,seq,digest: id,keys };
+  factIndex.change(fact,2); facts.push({ ...fact,room,at });
+  const term = i % 3 ? 'caf' : '東', derived = i % 2 !== 0;
+  const condition: any = { site: id,ruleHash: 'oracle-rule',op: 'oracle',table: 'messages',index: derived ? 'search' : 'ordinary',
+    prefix: derived ? preparePrefix(schema,'messages','search',[{ Scalar: { String: room } },{ WordPrefix: { source: term,contract: SEARCH_CONTRACT } }],[undefined,2000]) : [{ Scalar: { String: room } }],
+    order: i % 3 ? 'Asc' : 'Desc',after: null,before: null,gt: [{ Int: at - 1 }],gte: null,lt: [{ Int: at + 85 }],lte: null,present: [] };
+  extentIndex.change(id,condition,seq,2); extents.push({ id,condition,seq,room,at,term,derived });
+}
+for (let i = 0; i < 100; i++) {
+  const f = facts[(i * 37) % facts.length], c = extents[(i * 41) % extents.length];
+  const expectedExtents = extents.filter(e => e.seq >= f.seq && e.room === f.room && f.at >= e.at && f.at < e.at + 85
+    && (!e.derived || f.keys.search[1].Words.some((w: string) => w.startsWith(e.term)))).map(e => e.id).sort();
+  assert.deepEqual([...extentIndex.matching('messages',f.keys,f.seq)].map(e => e.id).sort(),expectedExtents);
+  const expectedFacts = facts.filter(f => f.seq === c.seq && f.room === c.room && f.at >= c.at && f.at < c.at + 85
+    && (!c.derived || f.keys.search[1].Words.some((w: string) => w.startsWith(c.term)))).map(f => f.id).sort();
+  assert.deepEqual([...factIndex.matching(c.condition,c.seq)].map(f => f.id).sort(),expectedFacts);
+}
+for (let i = facts.length - 1; i >= 0; i--) {
+  factIndex.change(facts[i],-1); extentIndex.change(extents[i].id,extents[i].condition,extents[i].seq,-1);
+}
+assert.equal((factIndex as any).records.size,2000,'shared proof owners preserve indexed facts');
+for (let i = 0; i < facts.length; i++) {
+  factIndex.change(facts[i],-1); extentIndex.change(extents[i].id,extents[i].condition,extents[i].seq,-1);
+}
+for (const name of ['records','indexes','missing']) assert.equal((factIndex as any)[name].size,0,`fact ${name} leaves after its last owner`);
+for (const name of ['entries','buckets','tables']) assert.equal((extentIndex as any)[name].size,0,`extent ${name} leaves after its last owner`);
+const opaque = { ...facts[0],keys: undefined };
+factIndex.change(opaque,2); assert.equal(factIndex.opaque('messages',opaque.seq)?.id,opaque.id);
+factIndex.change(facts[0],1); assert.equal(factIndex.opaque('messages',opaque.seq),undefined,'authenticated full keys upgrade shared opaque custody');
+factIndex.change(facts[0],-3); assert.equal((factIndex as any).indexes.size,0);
+const emptyCondition = { ...extents[1].condition,prefix: preparePrefix(schema,'messages','search',[
+  { Scalar: { String: 'r1' } },{ WordPrefix: { source: '',contract: SEARCH_CONTRACT } }],[undefined,2000]) };
+factIndex.change(facts[1],1);
+assert.deepEqual([...factIndex.matching(JSON.parse(JSON.stringify(emptyCondition)),facts[1].seq)],[],'persisted empty search never becomes a wildcard');
+assert.throws(() => factIndex.change({ ...facts[0],id: 'oversize',keys: { search: [facts[0].keys.search[0],{ Words: ['x'.repeat(4 * 2050 + 1)] },...facts[0].keys.search.slice(2)] } },1), /source bounds/);
+console.log('2000 scoped ordinary/Unicode extent and positive indexes match 200 independent oracles; shared GC, opaque upgrade and posting bounds passed');
+
+// Live and immutable assertions share prepared images while keeping exact indexed namespaces.
+const history = new FactIndex(schema,true), live = new FactIndex(schema,false,history);
+const current = facts.filter((_,i) => i % 3 === 0);
+for (const fact of facts) history.change(fact,2);
+for (const fact of current) live.change({ ...fact,seq: 99 },1);
+for (const index of (history as any).indexes.values()) {
+  assert.equal(index.scopes.size,0,'fact namespaces do not build an unused readable directory');
+  const records = [...index.reverse.values()] as any[];
+  assert.equal(new Set(records.map(r => r.keys)).size,facts.length,'one prepared tuple/word-handle array per immutable image');
+}
+for (let i = 0; i < 100; i++) {
+  const c = extents[(i * 41) % extents.length];
+  const matches = (f: any) => f.room === c.room && f.at >= c.at && f.at < c.at + 85
+    && (!c.derived || f.keys.search[1].Words.some((w: string) => w.startsWith(c.term)));
+  assert.deepEqual([...live.matching(c.condition)].map(f => f.id).sort(),current.filter(matches).map(f => f.id).sort());
+  assert.deepEqual([...history.matching(c.condition,c.seq)].map(f => f.id).sort(),facts.filter(f => f.seq === c.seq && matches(f)).map(f => f.id).sort());
+}
+for (const fact of facts) history.change(fact,-2);
+assert.equal((history as any).records.size,0);
+assert.ok((history as any).indexes.size,'live ownership keeps shared dictionaries and postings after proof GC');
+for (const fact of current) live.change(fact,-1);
+assert.equal((history as any).indexes.size,0,'the last live owner reclaims shared physical indexes');
+for (const fact of facts.slice(0,20)) { history.change(fact,1); live.change(fact,1); }
+for (const fact of facts.slice(0,20)) { live.change(fact,-1); history.change(fact,-1); }
+assert.equal((history as any).indexes.size,0,'reverse deletion order and reused key identities also release every owner');
+console.log('shared live/proof postings preserve 200 independent exact-namespace oracles and last-owner GC');

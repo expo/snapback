@@ -79,8 +79,11 @@ export function unprojectState(projected: StateProjection): PersistedRangeState 
   const meta = projected.meta.find(({ key }) => key === "state");
   if (!meta && !projected.rows.length && !projected.answers.length && !projected.outbox.length) return undefined;
   const record = (entries: StateEntry[]) => Object.fromEntries(entries.map(({ key, value }) => [key, value]));
+  // Preserve an absent private custody marker for common legacy admission.
+  // A current default would silently relabel predecessor experimental guards.
+  const { factFormat: _factFormat, ...defaults } = emptyState();
   return {
-    ...emptyState(),
+    ...defaults,
     ...restoreMetadata(projected.meta),
     rows: record(projected.rows) as PersistedRangeState["rows"],
     answers: record(projected.answers) as PersistedRangeState["answers"],

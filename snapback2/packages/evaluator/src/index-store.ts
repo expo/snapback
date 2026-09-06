@@ -4,7 +4,7 @@ import { PrefixDictionary } from './prefix-dictionary';
 import { EvalError } from './errors';
 import { asString, compareArrays, field, fieldOrNull, totalCompare, validateTypedValue } from './value-runtime';
 import { prepareIndexAtom, type IndexAtom, type IndexComponent, type LogicalIndexAtom } from './search-key';
-import { searchFieldWords, SEARCH_CONTRACT, SearchInputError } from './unicode';
+import { searchFieldWords, scalarLength, SEARCH_CONTRACT, SearchInputError } from './unicode';
 import type { Value } from './types';
 
 export function components(schema: any, table: string, name: string): IndexComponent[] {
@@ -34,31 +34,38 @@ export function preparePrefix(schema: any, table: string, index: string, atoms: 
     return prepared;
   }); } catch (error) { if (error instanceof SearchInputError) throw new EvalError("E_INPUT", error.message); throw error; }
 }
-type Record = { handle: number; ordinary: Value[]; nodes: Uint32Array; scope: Value[]; row: Value; id: Value };
+type PreparedKeys = { ordinary: Value[]; nodes: Uint32Array; scope: Value[]; refs: number; identity: object };
+type Record<Row> = { handle: number; keys: PreparedKeys; row: Row; id: Value };
 export interface IndexScan {
   prefix: LogicalIndexAtom[]; after: Value | null; before: Value | null; range: any;
   order: 'Asc' | 'Desc';
+  first?: Value[];
+  last?: Value[];
 }
 
 /** One physical index with compact trie handles; source spelling never enters postings. */
-export class HeldIndex {
-  private readonly records: (Record | undefined)[] = [undefined];
+export class HeldIndex<Row = Value> {
+  private readonly records: (Record<Row> | undefined)[] = [undefined];
+  private readonly prepared = new WeakMap<object, PreparedKeys>();
   private readonly freeRows: number[] = [];
   private readonly tree = new PostingTree((a, token, b, otherToken) => {
     const left = this.records[a]!, right = this.records[b]!;
+    if (this.partition) { const cmp = this.partition(left.row) - this.partition(right.row); if (cmp) return cmp; }
     for (let i = 0; i < this.parts.length; i++) {
-      const cmp = i === this.derived ? token - otherToken : totalCompare(left.ordinary[i], right.ordinary[i]);
+      const cmp = i === this.derived ? token - otherToken : totalCompare(left.keys.ordinary[i], right.keys.ordinary[i]);
       if (cmp) return cmp;
     }
-    return totalCompare(left.id, right.id);
+    return this.partition ? left.handle - right.handle : totalCompare(left.id, right.id);
   });
-  readonly scopes = new Ordered<Value[], Set<Value>>(compareArrays);
+  readonly scopes = new Ordered<Value[], Set<Row>>(compareArrays);
   private readonly dictionary = new PrefixDictionary();
   private generation = 0;
   private resolved = new WeakMap<object, { generation: number; id?: number }>();
-  private readonly reverse = new Map<string, Record>();
+  private readonly reverse = new Map<string, Record<Row>>();
+  get size(): number { return this.reverse.size; }
   readonly derived: number;
-  constructor(readonly schema: any, readonly table: string, readonly name: string, readonly parts: IndexComponent[]) {
+  private wordScalars = 0;
+  constructor(readonly schema: any, readonly table: string, readonly name: string, readonly parts: IndexComponent[], private partition?: (row: Row) => number) {
     this.derived = parts.findIndex(c => 'WordPrefixes' in c);
     const definition = schema.tables[table].indexes[name];
     if (!parts.length || parts.length > 8 || parts.filter(c => 'WordPrefixes' in c).length > 1)
@@ -76,6 +83,7 @@ export class HeldIndex {
         for (const f of d.fields) {
           const t = schema.tables[table].columns[f];
           if (!(t?.Optional ?? t)?.Text) throw new EvalError('E_SCHEMA', 'search field must be bounded text');
+          const max = (t.Optional ?? t).Text.max; scalarLength('',max); this.wordScalars += 4 * max;
         }
       }
     }
@@ -84,49 +92,66 @@ export class HeldIndex {
     const old = this.reverse.get(id);
     if (!old) return;
     this.generation++;
-    for (const token of old.nodes) this.tree.remove(old.handle, token);
+    for (const token of old.keys.nodes) this.tree.remove(old.handle, token);
     if (this.derived < 0) this.tree.remove(old.handle, 0);
-    if (this.derived >= 0) {
-      const rows = this.scopes.get(old.scope)!;
+    if (this.derived >= 0 && !this.partition) {
+      const rows = this.scopes.get(old.keys.scope)!;
       rows.delete(old.row);
-      if (!rows.size) this.scopes.delete(old.scope);
+      if (!rows.size) this.scopes.delete(old.keys.scope);
     }
-    for (let i = old.nodes.length - 1; i >= 0; i--) {
-      this.dictionary.release(old.nodes[i]);
+    if (!--old.keys.refs) {
+      for (let i = old.keys.nodes.length - 1; i >= 0; i--) this.dictionary.release(old.keys.nodes[i]);
+      this.prepared.delete(old.keys.identity);
     }
     this.records[old.handle] = undefined; this.freeRows.push(old.handle); this.reverse.delete(id);
   }
-  put(row: Value): void {
-    const id = asString(field(row, 'id'));
-    this.remove(id); this.generation++;
+  put(row: Row & Value): void {
     const ordinary = this.parts.map(c => 'Column' in c ? fieldOrNull(row, c.Column) : 'Null' as Value);
-    const nodes = new Set<number>();
-    const scope = ordinary.slice(0, this.derived);
-    if (this.derived >= 0) {
-      const rows = this.scopes.get(scope) ?? new Set<Value>(); rows.add(row); this.scopes.set(scope, rows);
-      const definition = this.parts[this.derived] as { WordPrefixes: { fields: string[] } };
-      const words = searchFieldWords(definition.WordPrefixes.fields.map(f => {
-        const value = fieldOrNull(row, f), t = this.schema.tables[this.table].columns[f];
-        return { source: value === 'Null' ? null : asString(value), sourceMax: (t.Optional ?? t).Text.max };
-      }));
-      for (const word of words) {
-        let node = 0;
-        for (const scalar of word) {
-          node = this.dictionary.intern(node, scalar.codePointAt(0)!);
-          if (!nodes.has(node)) { nodes.add(node); this.dictionary.retain(node); }
+    const definition = this.parts[this.derived] as { WordPrefixes: { fields: string[] } } | undefined;
+    const words = definition ? searchFieldWords(definition.WordPrefixes.fields.map(f => {
+      const value = fieldOrNull(row, f), t = this.schema.tables[this.table].columns[f];
+      return { source: value === 'Null' ? null : asString(value), sourceMax: (t.Optional ?? t).Text.max };
+    })) : [];
+    this.putPrepared(asString(field(row, 'id')), row, ordinary, words);
+  }
+  /** Internal immutable-key custody uses the same postings without recovering source text. */
+  putPrepared(id: string, row: Row, ordinary: Value[], words: readonly string[], identity: object = ordinary): void {
+    if (ordinary.length !== this.parts.length) throw new EvalError('E_SCHEMA', 'immutable index width mismatch');
+    let scalars = 0;
+    for (const word of words) {
+      scalars += scalarLength(word,word.length);
+      if (!word.length || scalars > this.wordScalars) throw new EvalError('E_INPUT', 'immutable search postings exceed source bounds');
+    }
+    this.remove(id); this.generation++;
+    let keys = this.prepared.get(identity);
+    if (!keys) {
+      const nodes = new Set<number>();
+      if (this.derived >= 0) {
+        for (const word of words) {
+          let node = 0;
+          for (const scalar of word) {
+            node = this.dictionary.intern(node, scalar.codePointAt(0)!);
+            if (!nodes.has(node)) { nodes.add(node); this.dictionary.retain(node); }
+          }
         }
       }
+      keys = { ordinary,nodes: Uint32Array.from(nodes),scope: ordinary.slice(0,this.derived),refs: 0,identity };
+      this.prepared.set(identity,keys);
+    }
+    keys.refs++;
+    if (this.derived >= 0 && !this.partition) {
+      const rows = this.scopes.get(keys.scope) ?? new Set<Row>(); rows.add(row); this.scopes.set(keys.scope,rows);
     }
     const handle = this.freeRows.pop() ?? this.records.length;
-    const record: Record = { handle, ordinary, nodes: Uint32Array.from(nodes), scope, row, id: { Id: id } };
+    const record: Record<Row> = { handle,keys,row,id: this.partition ? 'Null' : { Id: id } };
     this.records[handle] = record; this.reverse.set(id, record);
-    for (const token of nodes) this.tree.put(handle, token);
+    for (const token of keys.nodes) this.tree.put(handle, token);
     if (this.derived < 0) this.tree.put(handle, 0);
   }
   /** Current membership and ordinary key of one receipt member, without rebuilding or scanning postings. */
   position(id: string, prefix: LogicalIndexAtom[]): Value[] | null {
     const record = this.reverse.get(id), row = record?.row; if (!record || !row) return null;
-    const key = this.parts.map(c => 'Column' in c ? fieldOrNull(row, c.Column) : 'Null' as Value);
+    const key = record.keys.ordinary.slice();
     for (let i = 0; i < prefix.length; i++) {
       const atom = prefix[i];
       if ('Scalar' in atom) { if (totalCompare(key[i], atom.Scalar)) return null; }
@@ -139,12 +164,12 @@ export class HeldIndex {
     let resolved = this.resolved.get(atom);
     if (!resolved || resolved.generation !== this.generation) {
       let node = 0;
-      if (!atom.WordPrefix.empty) for (const scalar of atom.WordPrefix.token!) { node = this.dictionary.child(node, scalar.codePointAt(0)!); if (!node) break; }
+      if (atom.WordPrefix.token !== null) for (const scalar of atom.WordPrefix.token) { node = this.dictionary.child(node, scalar.codePointAt(0)!); if (!node) break; }
       resolved = { generation: this.generation, id: node || undefined }; this.resolved.set(atom, resolved);
     }
     return resolved.id;
   }
-  *scan(input: IndexScan): Generator<Value> {
+  *scan(input: IndexScan, partition?: number): Generator<Row> {
     const prefix: Value[] = []; let empty = false;
     for (const atom of input.prefix) {
       if ('Scalar' in atom) prefix.push(atom.Scalar);
@@ -179,6 +204,8 @@ export class HeldIndex {
     const compare = (key: Value[]): number => {
       const p = prefixCompare(key, prefix); if (p) return p;
       const suffix = key.slice(prefix.length, this.parts.length);
+      if (input.first && compareArrays(suffix, input.first) < 0) return -1;
+      if (input.last && compareArrays(suffix, input.last) > 0) return 1;
       if (after) { const c = compareArrays(suffix, after); if (desc ? c >= 0 : c <= 0) return desc ? 1 : -1; }
       if (before) { const c = compareArrays(suffix, before); if (desc ? c <= 0 : c >= 0) return desc ? -1 : 1; }
       for (const [kind, bound] of Object.entries<Value | null>(input.range ?? {})) {
@@ -190,7 +217,9 @@ export class HeldIndex {
       return 0;
     };
     for (const handle of this.tree.seek((handle, token) => {
-      const record = this.records[handle]!, key = record.ordinary.slice();
+      const record = this.records[handle]!;
+      if (partition !== undefined && this.partition) { const c = this.partition(record.row) - partition; if (c) return c; }
+      const key = record.keys.ordinary.slice();
       if (this.derived >= 0) key[this.derived] = { Int: token }; key.push(record.id); return compare(key);
     }, desc)) yield this.records[handle]!.row;
   }
