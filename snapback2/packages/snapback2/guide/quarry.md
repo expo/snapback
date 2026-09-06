@@ -1,7 +1,7 @@
 # Quarry v0.3
 
-Quarry is the only backend language. `check` compiles `.q` in memory; inspection
-copies go to `.snapback/build/quarry/`, never `snapback/`.
+Quarry is the only backend language. `check` compiles `.q` in memory, writes an
+inspection copy in `.snapback/build/quarry/`, and puts no generated files in `snapback/`.
 
 ## Project
 
@@ -9,8 +9,8 @@ copies go to `.snapback/build/quarry/`, never `snapback/`.
 Other `.q` files hold operations or reusable shapes; stems are API namespaces:
 `snapback/messages.q` exports `api.messages.thread`.
 
-TypeScript under `snapback/` is limited to `seed.ts`, `tests/*.test.ts`, and
-effect modules that export effects only. Effect bodies remain JavaScript I/O;
+TypeScript in `snapback/` is limited to `seed.ts`, `tests/*.test.ts`, and
+modules exporting only effects. Effect bodies are JavaScript I/O;
 tables, rules, channels, maintains, queries, and mutations are Quarry. An
 effect module's stem must differ from every `.q` stem.
 

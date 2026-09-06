@@ -90,5 +90,6 @@ parent owns the pending Grok review and integration; this revision is not a
 new full-battery or publication claim.
 
 Integration with asset recovery exceeded the Quarry guide's 15,872-byte budget
-by six bytes. Its introduction was compacted, preserving the conditional cursor
-instructions and asset recovery pointer; no runtime or timeout changed.
+by six bytes. Its TypeScript scope prose was compacted, preserving the tested
+Quarry introduction, conditional cursor instructions, and asset recovery pointer;
+no runtime or timeout changed.
