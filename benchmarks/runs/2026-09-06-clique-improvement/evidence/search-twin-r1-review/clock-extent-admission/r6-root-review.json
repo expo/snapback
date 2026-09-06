@@ -1,0 +1,22 @@
+{
+  "reviewedEpoch": 1788710757.762909,
+  "scope": "Root read both complete results and sequence probe; verified captured source graphs, not a root execution rerun",
+  "verifiedBundles": [
+    {
+      "bundle": "probe-v5-r6.mjs",
+      "sha256": "deebd06d50c9e9d4373c2c168956bfb711b2ab51bd7f1fe1ef1cba95cddfec00",
+      "capturedSourcesVerified": 45
+    },
+    {
+      "bundle": "probe-v5-r6-sequence.mjs",
+      "sha256": "3b7ef8041fa15b5fc34a035d4f9e21ec5b84ad3b76807a4fe039cf5b7a489f3a",
+      "capturedSourcesVerified": 45
+    }
+  ],
+  "observations": [
+    "Initial R6 rejects single same-seq contradiction atomically but fails positive2/hole3 batch",
+    "Later captured R6 fixes positive2/hole3 but accepts contradictory positive2/hole2/positive3 batch",
+    "Same-seq atomic fix assigned to existing sole R6 writer; no frozen source, review clearance or package qualification inferred"
+  ],
+  "nativeProvenance": "Actual final v5 native envelopes pass control; contradictory batch frames are synthetic authenticated transport, not native-emitted"
+}

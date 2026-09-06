@@ -605,3 +605,23 @@ Original suite failures and all accommodations are retained. The audit did not
 change product sources. M7 preparation now uses a fresh starter-only copy and
 per-persona API snapshots; missing M6 qualification stays explicit. These
 findings prevent treating the builder’s green summaries as complete proof.
+
+
+## 2026-09-06 — M7 launched; offline batch evidence retained
+
+A fresh Astra medium M7 continuation started at 16:03:26 UTC on the published
+0.0.8 application. Preparation verified all 153 installed package files and
+exported each persona’s API-visible starter data before its authoring clock.
+The snapshot contains 15 distinct messages and no message media or reactions;
+those empty fields cannot prove migration behavior for populated fields. The
+run remains diagnostic because native M6/M8 qualification is still missing.
+The preparation also retained a strict media-byte comparison failure: served
+PNGs have an extra EXIF chunk, while the original image chunks match.
+
+Separate repair probes now cover complete batches, not only individual clock
+updates. The first candidate let an older positive row hide a newer checked
+absence. Its repair passes that case, but a later positive can still hide two
+conflicting facts at an earlier sequence in the same batch. Both captured
+45-source graphs and results are retained in the review evidence; the existing
+writer owns the remaining repair. These are synthetic transport controls with
+actual native v5 inputs, not claims that the native owner emitted contradictions.

@@ -1,0 +1,140 @@
+{
+  "sourceCommit": "uncommitted R6 atop e1a0f388; exact captured bundle",
+  "node": "v22.23.2",
+  "bundle": "deebd06d50c9e9d4373c2c168956bfb711b2ab51bd7f1fe1ef1cba95cddfec00",
+  "inputHashes": {
+    "envelopes.json": "42592a5129ebd0df5ad19db0f94e853a55a7aa46d37fa268fc37045ef2e54b76",
+    "program-envelope.json": "cb70a2281f0b9bf89ea38609c1a8d1490f255f7a62e8f3edfef3116c01d760b1",
+    "project.json": "11e868f5a1fb937f53f512b6459fc3231ce0101c48e9e94b4f1336a9a9cd211a"
+  },
+  "scope": "Actual FINAL v5 native fixed-extent frames and trusted program first pass public admission; synthetic same-seq contradictions and permissible higher-seq hole controls then exercise captured R6. Native did not emit synthetic frames.",
+  "results": [
+    {
+      "mode": "same-seq-warm",
+      "actualNativeControlPassed": true,
+      "syntheticContradiction": true,
+      "publicAdmissionPassed": true,
+      "error": {
+        "name": "TypeError",
+        "message": "conflicting durable fact at seq 1"
+      },
+      "atomicStateUnchanged": true,
+      "anchor": {
+        "at": 0,
+        "id": "event1"
+      },
+      "rows": [
+        {
+          "id": "event1",
+          "row": {
+            "at": 0,
+            "id": "event1"
+          },
+          "table": "events"
+        }
+      ],
+      "evicted": [],
+      "guards": {
+        "[\"row\",\"events\",{\"Id\":\"event1\"}]": {
+          "seq": 1,
+          "digest": "dd0493620db7004f21d09c2d334ff5daff1242bf1b34ccdd28a8d8bd208c5852"
+        }
+      },
+      "negative": {},
+      "syntheticTransport": true
+    },
+    {
+      "mode": "same-seq-cold",
+      "actualNativeControlPassed": true,
+      "syntheticContradiction": true,
+      "publicAdmissionPassed": true,
+      "error": {
+        "name": "TypeError",
+        "message": "conflicting durable fact at seq 1"
+      },
+      "atomicStateUnchanged": true,
+      "anchor": {
+        "at": 0,
+        "id": "event1"
+      },
+      "rows": [
+        {
+          "id": "event1",
+          "row": {
+            "at": 0,
+            "id": "event1"
+          },
+          "table": "events"
+        }
+      ],
+      "evicted": [],
+      "guards": {
+        "[\"row\",\"events\",{\"Id\":\"event1\"}]": {
+          "seq": 1,
+          "digest": "dd0493620db7004f21d09c2d334ff5daff1242bf1b34ccdd28a8d8bd208c5852"
+        }
+      },
+      "negative": {},
+      "syntheticTransport": true
+    },
+    {
+      "mode": "higher-seq-hole",
+      "actualNativeControlPassed": true,
+      "syntheticContradiction": false,
+      "publicAdmissionPassed": true,
+      "error": null,
+      "atomicStateUnchanged": false,
+      "anchor": null,
+      "rows": [],
+      "evicted": [
+        {
+          "table": "events",
+          "id": "event1"
+        }
+      ],
+      "guards": {
+        "[\"row\",\"events\",{\"Id\":\"event1\"}]": {
+          "seq": 2,
+          "digest": "5ad38304b535c2987dbd24657c1a11b884984ff600d9f389deb0d4e634fee792"
+        }
+      },
+      "negative": {
+        "events\u0000event1": 2
+      },
+      "syntheticTransport": true
+    },
+    {
+      "mode": "batch-higher-seq-hole",
+      "actualNativeControlPassed": true,
+      "syntheticContradiction": false,
+      "publicAdmissionPassed": true,
+      "error": null,
+      "atomicStateUnchanged": false,
+      "anchor": {
+        "at": 0,
+        "id": "event1"
+      },
+      "rows": [
+        {
+          "id": "event1",
+          "row": {
+            "at": 0,
+            "id": "event1"
+          },
+          "table": "events"
+        }
+      ],
+      "evicted": [],
+      "guards": {
+        "[\"row\",\"events\",{\"Id\":\"event1\"}]": {
+          "seq": 2,
+          "digest": "dd0493620db7004f21d09c2d334ff5daff1242bf1b34ccdd28a8d8bd208c5852"
+        }
+      },
+      "negative": {},
+      "syntheticTransport": true
+    }
+  ],
+  "nativeOwnerSha256": "4d0f8f0176921b56305e9969da0fcb2dd5ecedae1f65d983f537e613d0c6e46e",
+  "provenanceCorrection": "Original script/result reused v4 descriptive prose and marked all synthetic frames contradictory; actual input hashes bind final v5. Numeric observations unchanged; original preserved at result-v5-r6-original.json."
+}

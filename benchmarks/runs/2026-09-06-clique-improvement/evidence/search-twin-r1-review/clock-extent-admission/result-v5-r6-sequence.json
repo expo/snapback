@@ -1,0 +1,164 @@
+{
+  "sourceCommit": "uncommitted R6 atop e1a0f388; exact captured bundle",
+  "node": "v22.23.2",
+  "bundle": "3b7ef8041fa15b5fc34a035d4f9e21ec5b84ad3b76807a4fe039cf5b7a489f3a",
+  "inputHashes": {
+    "envelopes.json": "42592a5129ebd0df5ad19db0f94e853a55a7aa46d37fa268fc37045ef2e54b76",
+    "program-envelope.json": "cb70a2281f0b9bf89ea38609c1a8d1490f255f7a62e8f3edfef3116c01d760b1",
+    "project.json": "11e868f5a1fb937f53f512b6459fc3231ce0101c48e9e94b4f1336a9a9cd211a"
+  },
+  "scope": "Actual final v5 native fixed-extent frames and custody first pass public admission. Synthetic authenticated transport tests same-sequence contradiction and higher-sequence holes; native did not emit those synthetic frames.",
+  "results": [
+    {
+      "mode": "same-seq-warm",
+      "actualNativeControlPassed": true,
+      "syntheticTransport": true,
+      "syntheticContradiction": true,
+      "publicAdmissionPassed": true,
+      "error": {
+        "name": "TypeError",
+        "message": "conflicting durable fact at seq 1"
+      },
+      "atomicStateUnchanged": true,
+      "anchor": {
+        "at": 0,
+        "id": "event1"
+      },
+      "rows": [
+        {
+          "id": "event1",
+          "row": {
+            "at": 0,
+            "id": "event1"
+          },
+          "table": "events"
+        }
+      ],
+      "evicted": [],
+      "guards": {
+        "[\"row\",\"events\",{\"Id\":\"event1\"}]": {
+          "seq": 1,
+          "digest": "dd0493620db7004f21d09c2d334ff5daff1242bf1b34ccdd28a8d8bd208c5852"
+        }
+      },
+      "negative": {}
+    },
+    {
+      "mode": "same-seq-cold",
+      "actualNativeControlPassed": true,
+      "syntheticTransport": true,
+      "syntheticContradiction": true,
+      "publicAdmissionPassed": true,
+      "error": {
+        "name": "TypeError",
+        "message": "conflicting durable fact at seq 1"
+      },
+      "atomicStateUnchanged": true,
+      "anchor": {
+        "at": 0,
+        "id": "event1"
+      },
+      "rows": [
+        {
+          "id": "event1",
+          "row": {
+            "at": 0,
+            "id": "event1"
+          },
+          "table": "events"
+        }
+      ],
+      "evicted": [],
+      "guards": {
+        "[\"row\",\"events\",{\"Id\":\"event1\"}]": {
+          "seq": 1,
+          "digest": "dd0493620db7004f21d09c2d334ff5daff1242bf1b34ccdd28a8d8bd208c5852"
+        }
+      },
+      "negative": {}
+    },
+    {
+      "mode": "higher-seq-hole",
+      "actualNativeControlPassed": true,
+      "syntheticTransport": true,
+      "syntheticContradiction": false,
+      "publicAdmissionPassed": true,
+      "error": null,
+      "atomicStateUnchanged": false,
+      "anchor": null,
+      "rows": [],
+      "evicted": [
+        {
+          "table": "events",
+          "id": "event1"
+        }
+      ],
+      "guards": {
+        "[\"row\",\"events\",{\"Id\":\"event1\"}]": {
+          "seq": 2,
+          "digest": "5ad38304b535c2987dbd24657c1a11b884984ff600d9f389deb0d4e634fee792"
+        }
+      },
+      "negative": {
+        "events\u0000event1": 2
+      }
+    },
+    {
+      "mode": "batch-higher-seq-hole",
+      "actualNativeControlPassed": true,
+      "syntheticTransport": true,
+      "syntheticContradiction": false,
+      "publicAdmissionPassed": true,
+      "error": null,
+      "atomicStateUnchanged": false,
+      "anchor": null,
+      "rows": [],
+      "evicted": [
+        {
+          "table": "events",
+          "id": "event1"
+        }
+      ],
+      "guards": {
+        "[\"row\",\"events\",{\"Id\":\"event1\"}]": {
+          "seq": 3,
+          "digest": "5ad38304b535c2987dbd24657c1a11b884984ff600d9f389deb0d4e634fee792"
+        }
+      },
+      "negative": {
+        "events\u0000event1": 3
+      }
+    },
+    {
+      "mode": "batch-conflict-before-later-positive",
+      "actualNativeControlPassed": true,
+      "syntheticTransport": true,
+      "syntheticContradiction": true,
+      "publicAdmissionPassed": true,
+      "error": null,
+      "atomicStateUnchanged": false,
+      "anchor": {
+        "at": 0,
+        "id": "event1"
+      },
+      "rows": [
+        {
+          "id": "event1",
+          "row": {
+            "at": 0,
+            "id": "event1"
+          },
+          "table": "events"
+        }
+      ],
+      "evicted": [],
+      "guards": {
+        "[\"row\",\"events\",{\"Id\":\"event1\"}]": {
+          "seq": 3,
+          "digest": "dd0493620db7004f21d09c2d334ff5daff1242bf1b34ccdd28a8d8bd208c5852"
+        }
+      },
+      "negative": {}
+    }
+  ]
+}
