@@ -1,0 +1,157 @@
+{
+  "qualified_source": "48f74f46ea950ed5137ee42b29e4e749c138c6ae",
+  "integration_source": "216297dfa53f09e342f93651c7373103d9508945",
+  "typed_overlay_review_source": "a68971365091c4760512eeb5e887d45f13373898",
+  "reviews": "Both fresh Astra/Grok xhigh READY; full reports retained verbatim, including Grok progress prose before its verdict. Native e49 separately both READY with native Release witness; no code conflict on integration.",
+  "dry_run": {
+    "exit": 0,
+    "attempts_on_final_source": 1,
+    "seconds": 24.624082803726196,
+    "consumer": {
+      "steps": [
+        {
+          "name": "install tarballs",
+          "seconds": 1.1945769999999993,
+          "ok": true
+        },
+        {
+          "name": "doctor",
+          "seconds": 0.26611441699999977,
+          "ok": true
+        },
+        {
+          "name": "guide auth",
+          "seconds": 0.052062584000000245,
+          "ok": true
+        },
+        {
+          "name": "public client and React exports",
+          "seconds": 0.04965204100000028,
+          "ok": true
+        },
+        {
+          "name": "todos init",
+          "seconds": 0.47963870899999983,
+          "ok": true
+        },
+        {
+          "name": "todos check",
+          "seconds": 0.4690889999999999,
+          "ok": true
+        },
+        {
+          "name": "todos React bundle",
+          "seconds": 1.0669799999999996,
+          "ok": true
+        },
+        {
+          "name": "todos dev",
+          "seconds": 0.34623104200000127,
+          "ok": true
+        },
+        {
+          "name": "React live query round trip",
+          "seconds": 0.12023787500000072,
+          "ok": true
+        },
+        {
+          "name": "todos receipt",
+          "accepted": true,
+          "verdict": "pass"
+        },
+        {
+          "name": "todos test",
+          "seconds": 1.1695022910000008,
+          "ok": true
+        },
+        {
+          "name": "todos stop",
+          "seconds": 0.185273333000001,
+          "ok": true
+        },
+        {
+          "name": "chat init",
+          "seconds": 0.684940833999999,
+          "ok": true
+        },
+        {
+          "name": "chat check",
+          "seconds": 0.7227371249999996,
+          "ok": true
+        },
+        {
+          "name": "chat React bundle",
+          "seconds": 0.5817192080000004,
+          "ok": true
+        },
+        {
+          "name": "chat dev",
+          "seconds": 0.687407792,
+          "ok": true
+        },
+        {
+          "name": "chat receipt",
+          "accepted": true,
+          "verdict": "pass"
+        },
+        {
+          "name": "chat test",
+          "seconds": 9.303037417,
+          "ok": true
+        },
+        {
+          "name": "chat stop",
+          "seconds": 0.2150445830000026,
+          "ok": true
+        }
+      ]
+    },
+    "media_cli": "4/4 pass",
+    "media_features": [
+      "images",
+      "heic"
+    ],
+    "production_effects": "ibex2 + vanilla hermes"
+  },
+  "publication": {
+    "command": "node scripts/publish.mjs",
+    "resume": "exact final retained platform dc9ac011... and native shim b709332d...; no rebuild/dryrun",
+    "exit": 0,
+    "attempts": 1,
+    "seconds": 27.65765404701233,
+    "latest": "0.0.8 for both packages",
+    "registry_SRI": "matches retained artifacts",
+    "fresh_install": "all153 packed files byte-equal; installed version, Hermes doctor, media pass"
+  },
+  "retained_events": [
+    "Initial shim registry E404 while npm processed its accepted upload; one targeted prefer-online availability read succeeded; no republish.",
+    "After fresh install and153 file matches, unsupported --version probe refused. Corrected only the probe to documented version; doctor/media then passed without reinstall."
+  ],
+  "scoped_tests": {
+    "typed_terminal_before": "5/5 failures on unchanged220 runtime; no timeouts",
+    "typed_terminal_after": "199 affected +50 assets pass original deadlines",
+    "overlay_integration": "193 overlap including real owner pass original10000ms",
+    "native_integration": "142 native/auth overlap pass original10000ms",
+    "caps_refs": "client1497;411LLPs7651refs0errors0unchecked"
+  },
+  "measurement": {
+    "source": "a68971365",
+    "proof": "ad712b47d",
+    "seconds": 38.58,
+    "all_budgets_pass": true,
+    "consumer_seconds": 29.63,
+    "check_seconds": 0.864,
+    "doctor_seconds": [
+      0.152,
+      0.062
+    ],
+    "attempts": 1
+  },
+  "source_preservation": "Native-exclusive files equal qualified main; typed JSON/assets/outbox/overlay helpers preservea689. LLP1002 revision-header and append-only metrics unions; no source conflict.",
+  "external_evidence_local_and_m5": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.8-48f74f46e",
+  "prior_pre_native_dry_run": "b66 evidence preserved separately; its shim was not published",
+  "metrics_only_commits": [
+    "0bf8b91d59ad52158e93bd1aef9efe9c3d14ea47",
+    "d531d129f2df4a964199d4aa20080a10f4a1d585"
+  ]
+}

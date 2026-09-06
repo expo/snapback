@@ -1,0 +1,116 @@
+{
+  "version": "0.0.8",
+  "qualified_source": "48f74f46ea950ed5137ee42b29e4e749c138c6ae",
+  "ok": true,
+  "consumer_directory": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.8-48f74f46e/installed-consumer-verified",
+  "checks": [
+    {
+      "name": "registry-snapback2-darwin-arm64",
+      "ok": true,
+      "seconds": 0.33054854098008946,
+      "exit": 0
+    },
+    {
+      "name": "registry-tags-snapback2-darwin-arm64",
+      "ok": true,
+      "seconds": 0.28880820801714435,
+      "exit": 0
+    },
+    {
+      "name": "snapback2-darwin-arm64 registry SRI",
+      "ok": true,
+      "integrity": "sha512-VW4sFtAa2C/lFnJBYoDV5AfxrdPnpePTmCLwMEFt7hgtFSlLXg8+TSR+qJhqmEeG4vyOXeetK+GZha+ozkR2dw==",
+      "latest": "0.0.8"
+    },
+    {
+      "name": "registry-snapback2",
+      "ok": true,
+      "seconds": 0.3075705840019509,
+      "exit": 0
+    },
+    {
+      "name": "registry-tags-snapback2",
+      "ok": true,
+      "seconds": 0.3402957909856923,
+      "exit": 0
+    },
+    {
+      "name": "snapback2 registry SRI",
+      "ok": true,
+      "integrity": "sha512-DNHBPcckKPYBy6DKxAy38u7u2Gpi57VIfB5/h7rcjidyp0o20g5AK4HVk3xf/QzfTqFUVzkOUBYIorrKd3Mbkg==",
+      "latest": "0.0.8"
+    },
+    {
+      "name": "registry-install",
+      "ok": true,
+      "seconds": 3.4295384580036625,
+      "exit": 0
+    },
+    {
+      "name": "snapback2-darwin-arm64 all packed files byte equality",
+      "ok": true,
+      "files": 3,
+      "integrity": "sha512-VW4sFtAa2C/lFnJBYoDV5AfxrdPnpePTmCLwMEFt7hgtFSlLXg8+TSR+qJhqmEeG4vyOXeetK+GZha+ozkR2dw=="
+    },
+    {
+      "name": "snapback2 all packed files byte equality",
+      "ok": true,
+      "files": 150,
+      "integrity": "sha512-DNHBPcckKPYBy6DKxAy38u7u2Gpi57VIfB5/h7rcjidyp0o20g5AK4HVk3xf/QzfTqFUVzkOUBYIorrKd3Mbkg=="
+    },
+    {
+      "name": "installed-version",
+      "ok": true,
+      "seconds": 0.0635712500079535,
+      "exit": 0
+    },
+    {
+      "name": "installed-doctor",
+      "ok": true,
+      "seconds": 0.11228866700548679,
+      "exit": 0
+    },
+    {
+      "name": "installed-media",
+      "ok": true,
+      "seconds": 0.28813291603000835,
+      "exit": 0
+    },
+    {
+      "name": "engine installed SHA256",
+      "ok": true,
+      "sha256": "6fb5550675c723dd89a1108058148448d180986a8b1d128ca3d35d32d7a7f377",
+      "bytes": 6996544
+    },
+    {
+      "name": "media installed SHA256",
+      "ok": true,
+      "sha256": "b8fe186080371a433578586606a5c02f3be63b09196c05d28043ff3516d8f030",
+      "bytes": 2147984
+    },
+    {
+      "name": "client installed SHA256",
+      "ok": true,
+      "sha256": "5aaa45d49028733f2cde0e6c5fc9ec89d8a85ab439c40f1dc477d5a87f2038f9",
+      "bytes": 185368
+    }
+  ],
+  "started": 1788690183.471831,
+  "finished": 1788690417.0098581,
+  "invocation_errors": [
+    {
+      "name": "installed-version",
+      "ok": false,
+      "seconds": 0.2860702500329353,
+      "exit": 2,
+      "command": "snapback2 --version",
+      "disposition": "unsupported spelling; use documented snapback2 version; no product or artifact changed"
+    }
+  ],
+  "media": {
+    "heic": true,
+    "images": true
+  },
+  "registry_integrity_matches": true,
+  "published_exact_final_pair": true
+}

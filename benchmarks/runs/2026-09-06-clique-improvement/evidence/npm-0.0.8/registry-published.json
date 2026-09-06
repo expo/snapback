@@ -1,0 +1,32 @@
+{
+  "snapback2-darwin-arm64": {
+    "integrity": "sha512-VW4sFtAa2C/lFnJBYoDV5AfxrdPnpePTmCLwMEFt7hgtFSlLXg8+TSR+qJhqmEeG4vyOXeetK+GZha+ozkR2dw==",
+    "shasum": "5c412d7a1f3fce2d3dcba677ca6cf6f82ba1090e",
+    "tarball": "https://registry.npmjs.org/snapback2-darwin-arm64/-/snapback2-darwin-arm64-0.0.8.tgz",
+    "fileCount": 3,
+    "unpackedSize": 9144874,
+    "signatures": [
+      {
+        "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U",
+        "sig": "MEUCICtfRrRhBIxrcz0ll93eZpFfVDQElQ56IQov8YGXUcLVAiEAmxuVyo0lZKTr2V1N/M/oVdAQXVVulXDVVMnUxWk2seo="
+      }
+    ]
+  },
+  "snapback2": {
+    "shasum": "457229c86815e4b62b38ece999603f28bc8f587c",
+    "tarball": "https://registry.npmjs.org/snapback2/-/snapback2-0.0.8.tgz",
+    "fileCount": 150,
+    "integrity": "sha512-DNHBPcckKPYBy6DKxAy38u7u2Gpi57VIfB5/h7rcjidyp0o20g5AK4HVk3xf/QzfTqFUVzkOUBYIorrKd3Mbkg==",
+    "signatures": [
+      {
+        "sig": "MEYCIQDzjOjkzleA7kc0oG3Nh6eJQ/gcKny6DfvBI73CcRq/SQIhAM3DfsxXlMuqw9/uKuoqsaK3XKOiaGWaJl9InFtEtu6h",
+        "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+      },
+      {
+        "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U",
+        "sig": "MEUCIQCrnfcd5B4jj3dHXXSNfxw20oIqbzGRYj0prTx4ogugWgIgeZ+nWcH1bcW4WPha8b3ihmTFGqTsJy+4kFBTmv2MXv8="
+      }
+    ],
+    "unpackedSize": 7379675
+  }
+}

@@ -1,0 +1,18 @@
+[
+  {
+    "name": "snapback2-darwin-arm64",
+    "version": "0.0.8",
+    "tarball": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.8-48f74f46e/snapback2-darwin-arm64-0.0.8.tgz",
+    "bytes": 4642857,
+    "sha256": "dc9ac01188e9dad238a207ee51297648920c5c14760911ae1eb1bb893f0c2d95",
+    "integrity": "sha512-VW4sFtAa2C/lFnJBYoDV5AfxrdPnpePTmCLwMEFt7hgtFSlLXg8+TSR+qJhqmEeG4vyOXeetK+GZha+ozkR2dw=="
+  },
+  {
+    "name": "snapback2",
+    "version": "0.0.8",
+    "tarball": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.8-48f74f46e/snapback2-0.0.8.tgz",
+    "bytes": 1783283,
+    "sha256": "b709332d8d7c4cfc3922346875288780168ab3cb54372d8440ab42e4facef49a",
+    "integrity": "sha512-DNHBPcckKPYBy6DKxAy38u7u2Gpi57VIfB5/h7rcjidyp0o20g5AK4HVk3xf/QzfTqFUVzkOUBYIorrKd3Mbkg=="
+  }
+]
