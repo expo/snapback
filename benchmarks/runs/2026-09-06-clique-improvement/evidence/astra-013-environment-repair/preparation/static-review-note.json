@@ -1,0 +1,10 @@
+{
+  "atEpoch": 1788738577.1873732,
+  "finding": "An unchanged old cumulative rollout after resume must not be admitted as complete resumed usage.",
+  "resolution": "Require a post-resume native token_count ledger plus native turn.completed usage and exact original prefix; otherwise preserve bytes and produce null/fail closed. No timestamp adjustment or estimated tokens.",
+  "initialScript": "first-static-supervisor.py",
+  "initialScriptSha256": "7cadfbdbebe4e41a411b878dc3b04493a0722046fba363308f98751f1da28507",
+  "finalScriptSha256": "9286fe63315979892bd68b436bf1edf8f14b5dd6a94eb861fe093b74d903bf44",
+  "actualTestFailure": false,
+  "runtimeExecuted": false
+}

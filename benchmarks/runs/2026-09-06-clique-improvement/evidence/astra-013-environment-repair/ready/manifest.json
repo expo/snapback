@@ -1,0 +1,63 @@
+{
+  "status": "PREPARED_NOT_LAUNCHED",
+  "files": [
+    {
+      "path": "HANDOFF.md",
+      "bytes": 4177,
+      "sha256": "df2b1ff1d893d8e36ed0b49bdc8b0789b70e85347587686f93607b5fefb272f7",
+      "mode": "0444"
+    },
+    {
+      "path": "meter-own-session.mjs",
+      "bytes": 1355,
+      "sha256": "1ec3f1a211544817abb681f8cd82a73f8e09eec0855a3012f6dd470040a04a7f",
+      "mode": "0444"
+    },
+    {
+      "path": "resume-metadata.json",
+      "bytes": 5404,
+      "sha256": "c91241c9f7202850a71f7047880489fced2b96f27f720910d6c7951c8d7350de",
+      "mode": "0444"
+    },
+    {
+      "path": "resume-notice.md",
+      "bytes": 1509,
+      "sha256": "b3194b5e1b3f8dabee76a21d81ca60b3706227e071fe5d44d3386c934ce4bd88",
+      "mode": "0444"
+    },
+    {
+      "path": "resume.py",
+      "bytes": 10361,
+      "sha256": "9286fe63315979892bd68b436bf1edf8f14b5dd6a94eb861fe093b74d903bf44",
+      "mode": "0444"
+    },
+    {
+      "path": "static-validation.json",
+      "bytes": 942,
+      "sha256": "251c0589c2999727919af5690b024dea4c24831ff27069659b32f9a84cd2feb8",
+      "mode": "0444"
+    }
+  ],
+  "command": [
+    "/Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex",
+    "exec",
+    "resume",
+    "--dangerously-bypass-approvals-and-sandbox",
+    "--skip-git-repo-check",
+    "--json",
+    "-m",
+    "gpt-6-astra",
+    "-c",
+    "model_reasoning_effort=medium",
+    "-o",
+    "/Users/ccheever/clique-improvement/revisions/astra013-resume-preparation/ready/runtime/final-answer.md",
+    "01a07910-1413-7ee0-846b-2ad93b1924ea",
+    "-"
+  ],
+  "firstProcessTerminalAndRootReceipts": "required only at future --launch; never manufactured",
+  "originalM1Start": 1788737520,
+  "originalM1Deadline": 1788751920,
+  "nativeUuid": "01a07910-1413-7ee0-846b-2ad93b1924ea",
+  "model": "gpt-6-astra",
+  "effort": "medium"
+}

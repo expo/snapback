@@ -1,0 +1,50 @@
+{
+  "pid": 2479,
+  "supervisorPid": 2465,
+  "startedEpoch": 1788738810.145144,
+  "actualIdentity": "2479 Sun Sep  6 16:53:30 2026     /Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex",
+  "argv": [
+    "/Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex",
+    "exec",
+    "resume",
+    "--dangerously-bypass-approvals-and-sandbox",
+    "--skip-git-repo-check",
+    "--json",
+    "-m",
+    "gpt-6-astra",
+    "-c",
+    "model_reasoning_effort=medium",
+    "-o",
+    "/Users/ccheever/clique-improvement/revisions/astra013-resume-preparation/ready/runtime/final-answer.md",
+    "01a07910-1413-7ee0-846b-2ad93b1924ea",
+    "-"
+  ],
+  "model": "gpt-6-astra",
+  "effort": "medium",
+  "expectedSameUuid": "01a07910-1413-7ee0-846b-2ad93b1924ea",
+  "originalPid": 82855,
+  "clock": {
+    "M1": {
+      "startedEpoch": 1788737520,
+      "deadlineEpoch": 1788751920
+    },
+    "perMilestoneSeconds": 14400,
+    "continuousAcrossResume": true,
+    "globalTimeoutSeconds": null,
+    "resetOrPauseAllowed": false,
+    "owner": "Root; retain all actual later milestone origins",
+    "sequence": [
+      "M1",
+      "M2",
+      "M3",
+      "M4",
+      "M5",
+      "M6",
+      "M8"
+    ],
+    "separateLater": "M7",
+    "consecutiveCapabilityFailures": 2
+  },
+  "cwd": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2",
+  "noticeSha256": "b3194b5e1b3f8dabee76a21d81ca60b3706227e071fe5d44d3386c934ce4bd88"
+}

@@ -1,0 +1,29 @@
+{
+  "atEpoch": 1788738774.6967628,
+  "builderUuid": "01a07910-1413-7ee0-846b-2ad93b1924ea",
+  "lane": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2",
+  "rootConfirmed": true,
+  "processes": [
+    {
+      "pid": 90947,
+      "identity": "90947 Sun Sep  6 16:35:00 2026     /Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/node_modules/snapback2-darwin-arm64/bin/snapback2",
+      "ports": [
+        52300
+      ]
+    }
+  ],
+  "listenersRaw": "p90947\nf7\nn127.0.0.1:52300\n",
+  "absentAfterInterruption": [
+    82855,
+    82807,
+    83182,
+    93973,
+    832,
+    865,
+    885
+  ],
+  "staticServer93973": "Actual absent after CLI SIGINT; no separate root signal; not claimed retained alive",
+  "activeNonServerCommands": "Prior832/865/885 absent before resume; immediately before SIGINT only native code host and static server were descendants",
+  "actionsReplayed": false,
+  "firstReceiptAttempt": "Root read-only observation parser initially refused normal lsof f7 field; no files written or runtime action; corrected to select original requested p/n fields; original tool chunk15ebf7 retained"
+}

@@ -1,0 +1,105 @@
+{
+  "at": "2026-09-06T23:43:41.844978+00:00",
+  "status": "PROPOSED_ONLY_NO_COLD_MUTATION",
+  "frozenCommit": "f40559f37722c79178be664a11f8a6485f1508fd",
+  "importClosure": "Six original runtime modules plus setup-identity.schema.json; Playwright is the existing pinned npm dependency, remaining imports are Node builtins. Frozen helper imports node:util only.",
+  "existingClosure": [
+    {
+      "source": "benchmarks/tools/social-messenger/choreography/choreography.mjs",
+      "runtimePath": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/choreography/choreography.mjs",
+      "resolvedPath": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/choreography/choreography.mjs",
+      "bytes": 116248,
+      "sha256": "8caf5ebdc9a85a2757fe5109740184bdac37977ac98d0a583f16f9dea383177f",
+      "currentEqualsFrozen": true
+    },
+    {
+      "source": "benchmarks/tools/social-messenger/choreography/setup-identity.mjs",
+      "runtimePath": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/choreography/setup-identity.mjs",
+      "resolvedPath": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/choreography/setup-identity.mjs",
+      "bytes": 6793,
+      "sha256": "0c0b4fe28c3c519ac3e58f7a6a2f2af8967ee505b8770b1a5413f5a0cd896fe8",
+      "currentEqualsFrozen": true
+    },
+    {
+      "source": "benchmarks/tools/social-messenger/choreography/setup-identity.schema.json",
+      "runtimePath": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/choreography/setup-identity.schema.json",
+      "resolvedPath": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/choreography/setup-identity.schema.json",
+      "bytes": 4167,
+      "sha256": "783cb67672aa94ca91f61149cac76a1942a235631a09c7f43f237a0371e60b43",
+      "currentEqualsFrozen": true
+    },
+    {
+      "source": "benchmarks/tools/social-messenger/metering/observations.mjs",
+      "runtimePath": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/metering/observations.mjs",
+      "resolvedPath": "/Users/ccheever/clique-full-astra-next-primary-20260906/instrument/metering/observations.mjs",
+      "bytes": 37056,
+      "sha256": "0da327f35b27a292b805903cf74a83485eb8873e3dbfcc895040d71741f8dc60",
+      "currentEqualsFrozen": true
+    },
+    {
+      "source": "benchmarks/tools/social-messenger/metering/mutation-guard.mjs",
+      "runtimePath": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/metering/mutation-guard.mjs",
+      "resolvedPath": "/Users/ccheever/clique-full-astra-next-primary-20260906/instrument/metering/mutation-guard.mjs",
+      "bytes": 1202,
+      "sha256": "48a4b3f8c7c0f81763a48b70330c458b258c026d9a94cee98c9cc1d17c97b228",
+      "currentEqualsFrozen": true
+    },
+    {
+      "source": "benchmarks/tools/social-messenger/metering/finalization-diagnostics.mjs",
+      "runtimePath": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/metering/finalization-diagnostics.mjs",
+      "resolvedPath": "/Users/ccheever/clique-full-astra-next-primary-20260906/instrument/metering/finalization-diagnostics.mjs",
+      "bytes": 4067,
+      "sha256": "3006a8ffb3905c7877f115e076d290c5fc0d9a8d3d05ffdee339151644feb707",
+      "currentEqualsFrozen": true
+    }
+  ],
+  "meteringSibling": "Builder already created metering -> instrument/metering; all three required modules now equal frozen f405. No new metering copy proposed.",
+  "proposedMutations": [
+    {
+      "action": "exclusive mechanical copy",
+      "sourceCommit": "f40559f37722c79178be664a11f8a6485f1508fd",
+      "sourceGitPath": "benchmarks/tools/lib/json-schema.mjs",
+      "gitBlob": "9e5ad204611898d718c76a1400dda5806354f2f3",
+      "stagedSource": "/Users/ccheever/clique-improvement/revisions/astra013-supervision/instrument-layout/frozen-json-schema.mjs",
+      "destination": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/lib/json-schema.mjs",
+      "bytes": 7733,
+      "sha256": "7b882f6147e6efde88bc41f4dbc6806e712fb54c2e1b47a214a5d59e96f02660",
+      "destinationMustBeAbsent": true,
+      "noImportsRewritten": true
+    },
+    {
+      "action": "restore original default fixture layout with relative alias",
+      "destination": "/Users/ccheever/clique-full-astra-next-primary-20260906/fixtures/social-messenger",
+      "symlinkTarget": "../instrument/fixtures",
+      "resolvesTo": "/Users/ccheever/clique-full-astra-next-primary-20260906/instrument/fixtures",
+      "newSourceBytes": 0,
+      "destinationMustBeAbsent": true,
+      "scope": "Original default ../../../fixtures/social-messenger from copied choreography; uses existing frozen fixture bytes. No data regeneration or fixture change."
+    }
+  ],
+  "defaultFixtures": "Existing adapter may override directory; alias restores original default without changing CLI or criteria. Root may apply alongside helper to close layout dependency.",
+  "retainedBuilderSubstitutes": [
+    {
+      "path": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/scripts/harness-loader.mjs",
+      "retained": "/Users/ccheever/clique-improvement/revisions/astra013-supervision/instrument-layout/retained-builder-harness-loader.mjs",
+      "bytes": 261,
+      "sha256": "80775a29ba20b29cef5819f132571adeeec519131cb8dc95af864709d9273da6"
+    },
+    {
+      "path": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/scripts/schema-validator.mjs",
+      "retained": "/Users/ccheever/clique-improvement/revisions/astra013-supervision/instrument-layout/retained-builder-schema-validator.mjs",
+      "bytes": 368,
+      "sha256": "1ae864cab274eda3c7c00f5c80eb1f38bf20dfe259f6078fb4894a00aa79751d"
+    }
+  ],
+  "mustResumeOriginalValidator": "Builder loader unconditionally intercepts ../../lib/json-schema.mjs; exact file restoration alone is insufficient. Root proposed same-session notice must require original helper use, retain all substitute receipts, no assertion/criterion/clock changes.",
+  "clock": {
+    "M1start": 1788737520,
+    "deadline": 1788751920,
+    "pauseOrReset": false
+  },
+  "firstFailuresRetained": true,
+  "competitorReruns": false,
+  "sourceOrColdLaneEdits": false,
+  "draftCorrection": "Earlier literal-closure.json exploratory scan included git show directory listing as a byte leaf. It is not a source leaf; final proposal treats fixtures as existing directory layout, not355bytes of source."
+}

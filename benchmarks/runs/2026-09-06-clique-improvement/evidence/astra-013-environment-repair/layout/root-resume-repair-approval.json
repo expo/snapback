@@ -1,0 +1,20 @@
+{
+  "atEpoch": 1788738450.4098911,
+  "applied": true,
+  "rootApproved": true,
+  "helper": {
+    "sourceCommit": "f40559f37722c79178be664a11f8a6485f1508fd",
+    "sourcePath": "benchmarks/tools/lib/json-schema.mjs",
+    "path": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/lib/json-schema.mjs",
+    "bytes": 7733,
+    "sha256": "7b882f6147e6efde88bc41f4dbc6806e712fb54c2e1b47a214a5d59e96f02660"
+  },
+  "actualApplicationReceipt": {
+    "path": "/Users/ccheever/clique-improvement/revisions/astra013-supervision/instrument-layout/restoration-applied.json",
+    "sha256": "1f836bf0640d56e86b0677ad8464c5e2bbd75c3405bd7b1a621ae0d16dab8444"
+  },
+  "scope": "Exact frozen helper and original fixture layout only; original record retained verbatim",
+  "builderInterrupted": false,
+  "clockReset": false,
+  "productGuidance": false
+}

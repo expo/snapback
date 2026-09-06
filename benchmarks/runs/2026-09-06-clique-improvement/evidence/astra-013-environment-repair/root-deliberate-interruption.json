@@ -1,0 +1,22 @@
+{
+  "atEpoch": 1788738695.130476,
+  "builderPid": 82855,
+  "identities": [
+    {
+      "pid": 82855,
+      "identity": "82855 82807 82855 Sun Sep  6 16:31:31 2026     /Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex"
+    },
+    {
+      "pid": 83182,
+      "identity": "83182 82855 83182 Sun Sep  6 16:31:40 2026     /Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex-code-mode-host"
+    },
+    {
+      "pid": 93973,
+      "identity": "93973 82855 93973 Sun Sep  6 16:39:07 2026     node"
+    }
+  ],
+  "signalSent": true,
+  "signal": "SIGINT",
+  "sentEpoch": 1788738695.1305149,
+  "scope": "Exact original82855 only; no group,server,child or unrelated signal"
+}

@@ -893,3 +893,10 @@ An external receipt-path mistake failed before installation and was corrected wi
 The unchanged publisher resumed the qualified 0.0.13 artifacts in 72.770 seconds. npm accepted both packages before the shim was visible; two E404 observations remain in the record, followed by matching integrity and a fresh registry Expo pass. All 154 installed files match. Reusing completed production qualification kept this release incremental while still exercising standard consumers. [Publication evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/release-publication-013/README.md).
 
 The next cold full Astra-medium build actually launched against this published version at 23:31:31Z. Its native identity confirms medium and M1 begins at 23:32:00Z. Original Convex/Supabase baselines stay fixed; another diagnostic rescore must not silently replace them. The M1 host differs from the historical M5, so elapsed-time differences cannot be attributed solely to the backend. No new milestone, native proof or holistic win is claimed yet.
+
+
+### 2026-09-06 — Frozen harness dependency restored during the cold run
+
+The cold packet omitted choreography's original JSON-schema helper outside the copied subtree. The builder supplied an AJV substitute and reported M1 green, but that was not source-equivalent qualification. Restoring the exact frozen helper and fixture layout fixed module resolution without changing the assertions. A narrow same-session environment notice makes that repair available to the builder while retaining both milestone clocks and all previous failures.
+
+The deliberate CLI interruption also stopped its static web server; the backend remained intact. The resumed medium-effort session recorded that distinction and owns restoring its web process. No corrected choreography pass is claimed yet. This was benchmark packaging friction, not an established Snapback defect, and it provides no reason by itself to replace the existing competitor scores. [Restoration and actual resume evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/astra-013-environment-repair/README.md).

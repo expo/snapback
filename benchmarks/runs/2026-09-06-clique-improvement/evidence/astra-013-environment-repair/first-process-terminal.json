@@ -1,0 +1,15 @@
+{
+  "pid": 82855,
+  "supervisorPid": 82807,
+  "exitCode": 1,
+  "endedEpoch": 1788738695.422064,
+  "elapsedSeconds": 1203.550300836563,
+  "load": [
+    11.7939453125,
+    17.51513671875,
+    20.89453125
+  ],
+  "nativeSessionId": "01a07910-1413-7ee0-846b-2ad93b1924ea",
+  "stdoutSha256": "71e867153b6d406374331d1780adf2a63a62521417b5feab5a85b9f698ac850e",
+  "stderrSha256": "e52d9d4f149ba33f114f44c848076411f82f011c3062d7d9c13a8c2590e37987"
+}

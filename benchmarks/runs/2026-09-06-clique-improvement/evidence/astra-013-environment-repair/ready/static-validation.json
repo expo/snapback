@@ -1,0 +1,27 @@
+{
+  "atEpoch": 1788738467.253251,
+  "pythonAst": "pass after final custody check",
+  "nodeSyntax": {
+    "argv": [
+      "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+      "--check",
+      "/Users/ccheever/clique-improvement/revisions/astra013-resume-preparation/ready/meter-own-session.mjs"
+    ],
+    "pid": 189,
+    "exitCode": 0,
+    "stdout": "",
+    "stderr": "",
+    "boundSeconds": 10
+  },
+  "meterCopyExactOriginal": true,
+  "nativeCliExecuted": false,
+  "resumeSupervisorExecuted": false,
+  "builderOrServerActions": false,
+  "runtimeAbsent": true,
+  "originalLauncherInputsUnchanged": true,
+  "originalTerminalExistsAtPreparation": false,
+  "rootReleaseRepairOwnershipReceiptsManufactured": false,
+  "closureAuditDuplicated": false,
+  "ambiguousResumeLedger": "null/fail closed; no summing first and resumed snapshots",
+  "finalSupervisorSha256": "9286fe63315979892bd68b436bf1edf8f14b5dd6a94eb861fe093b74d903bf44"
+}

@@ -1,0 +1,11 @@
+# Frozen dependency restoration and same-session resume
+
+The supplied cold packet omitted the original JSON-schema helper imported by choreography. Root restored only the exact 7,733-byte frozen Git blob and the default fixture path alias; six existing runtime/schema files also matched the frozen revision. Direct loading of the original setup-identity module then exited 0. This is module-resolution evidence, not a choreography pass.
+
+The builder's AJV substitution was not source-equivalent. Its reported M1 green at 23:45:09Z is retained as source-deviant, and M2 began at that same timestamp. Root deliberately sent SIGINT only to owned builder PID82855 at 23:51:35Z. The original launcher recorded actual exit1 and preserved its native stream. Its web server93973 also exited; backend90947 remained. Previously active nonserver commands were absent before resume. A read-only lsof receipt parser initially rejected the normal file-descriptor field; that failure and its correction are disclosed in root-retained-processes.json.
+
+Root inspected the prepared supervisor and narrow environment notice, including its final static metering correction, then launched native resume on the SAME UUID at medium effort (child2479, supervisor2465). The native turn_context confirms that identity and effort. The notice supplies no application design or target scores. The builder subsequently acknowledged the original helper and marked the previous M1 claim source-deviant.
+
+M1's original start/deadline remain1788737520/1788751920; M2's remain1788738309/1788752709. There is no clock pause, reset, new benchmark, data replay or automatic competitor rerun. Both original and resumed process records are retained. Metering uses one cumulative same-UUID stream once, never the sum of overlapping snapshots; complete phase attribution remains pending.
+
+No corrected choreography pass, full Clique qualification or new holistic score is claimed at this checkpoint. The historical preparation report says NOT LAUNCHED because it predates Root's actual launch; the separate resume-launch.json records that later action. Large original streams, prior source-deviant receipts and live builder files remain at the absolute paths in the attached records. The repository packaging ticket remains open for fixing future packet construction.

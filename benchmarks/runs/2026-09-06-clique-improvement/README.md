@@ -5,7 +5,17 @@ and Supabase for each requested builder: Astra medium, Grok 4.6 xhigh, and
 Muse 1.3 ultra. **Not achieved.** Retain the full canonical Clique scope,
 including independent grading and the fresh-session M7 evolution phase.
 
-## Current checkpoint — 2026-09-06, 23:35Z
+## Current checkpoint — 2026-09-06, 23:56Z
+
+The original frozen validator missing from the cold packet has been restored.
+The same Astra medium session resumed after an owned interruption, with M1/M2
+clocks unchanged. Its earlier M1 claim used a substitute validator and remains
+source-deviant; no corrected choreography result is claimed at this checkpoint.
+The builder has acknowledged the correction. The [exact restoration and actual
+resume evidence](evidence/astra-013-environment-repair/README.md) preserves
+original failures, terminal exit1, surviving backend and exited web server.
+
+The following publication and launch facts were recorded at 23:35Z.
 
 **0.0.13 is published and verified**, from source `ae7d86a11`, with the reviewed drain improvement and prior pending-slot repair. Actual publication passed in 72.770 seconds; after two retained processing E404s, both registry packages matched the original integrity values. The fresh registry Expo procedure passed in 17.539 seconds and all 154 installed files matched. The [complete publication evidence](evidence/release-publication-013/README.md) includes the original producer metric and actual writer terminal. This qualifies installed tooling, not full Clique or native-device acceptance.
 

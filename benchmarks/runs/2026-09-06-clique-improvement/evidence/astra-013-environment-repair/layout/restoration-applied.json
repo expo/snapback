@@ -1,0 +1,58 @@
+{
+  "atEpoch": 1788738280.693124,
+  "status": "APPLIED_EXACT_FROZEN_LAYOUT_ONLY",
+  "proposalSha256": "90349dedc55807d35fe1f9786336f2116ae4e2c48fa92129ebb08bfde6dd9b1d",
+  "helper": {
+    "path": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/lib/json-schema.mjs",
+    "bytes": 7733,
+    "sha256": "7b882f6147e6efde88bc41f4dbc6806e712fb54c2e1b47a214a5d59e96f02660",
+    "mode": "0444",
+    "sourceCommit": "f40559f37722c79178be664a11f8a6485f1508fd",
+    "sourceGitPath": "benchmarks/tools/lib/json-schema.mjs",
+    "exactOriginalGitBytes": true
+  },
+  "fixtureAlias": {
+    "path": "/Users/ccheever/clique-full-astra-next-primary-20260906/fixtures/social-messenger",
+    "target": "../instrument/fixtures",
+    "resolved": "/Users/ccheever/clique-full-astra-next-primary-20260906/instrument/fixtures",
+    "newSourceBytes": 0
+  },
+  "existingClosure": [
+    {
+      "path": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/choreography/choreography.mjs",
+      "sha256": "8caf5ebdc9a85a2757fe5109740184bdac37977ac98d0a583f16f9dea383177f",
+      "matchesFrozen": true
+    },
+    {
+      "path": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/choreography/setup-identity.mjs",
+      "sha256": "0c0b4fe28c3c519ac3e58f7a6a2f2af8967ee505b8770b1a5413f5a0cd896fe8",
+      "matchesFrozen": true
+    },
+    {
+      "path": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/choreography/setup-identity.schema.json",
+      "sha256": "783cb67672aa94ca91f61149cac76a1942a235631a09c7f43f237a0371e60b43",
+      "matchesFrozen": true
+    },
+    {
+      "path": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/metering/observations.mjs",
+      "sha256": "0da327f35b27a292b805903cf74a83485eb8873e3dbfcc895040d71741f8dc60",
+      "matchesFrozen": true
+    },
+    {
+      "path": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/metering/mutation-guard.mjs",
+      "sha256": "48a4b3f8c7c0f81763a48b70330c458b258c026d9a94cee98c9cc1d17c97b228",
+      "matchesFrozen": true
+    },
+    {
+      "path": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/metering/finalization-diagnostics.mjs",
+      "sha256": "3006a8ffb3905c7877f115e076d290c5fc0d9a8d3d05ffdee339151644feb707",
+      "matchesFrozen": true
+    }
+  ],
+  "builderInterrupted": false,
+  "builderCodeOrLoaderChanged": false,
+  "instrumentModified": false,
+  "clockReset": false,
+  "correctedChoreographyPass": false,
+  "stillRequired": "Same-session environment notice; original validator must replace unconditional AJV interception; preserve all previous failures and clocks."
+}

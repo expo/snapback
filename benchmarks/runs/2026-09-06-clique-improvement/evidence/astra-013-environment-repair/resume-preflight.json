@@ -1,0 +1,121 @@
+{
+  "atEpoch": 1788738810.143203,
+  "clock": {
+    "M1": {
+      "startedEpoch": 1788737520,
+      "deadlineEpoch": 1788751920
+    },
+    "perMilestoneSeconds": 14400,
+    "continuousAcrossResume": true,
+    "globalTimeoutSeconds": null,
+    "resetOrPauseAllowed": false,
+    "owner": "Root; retain all actual later milestone origins",
+    "sequence": [
+      "M1",
+      "M2",
+      "M3",
+      "M4",
+      "M5",
+      "M6",
+      "M8"
+    ],
+    "separateLater": "M7",
+    "consecutiveCapabilityFailures": 2
+  },
+  "metadataSha256": "c91241c9f7202850a71f7047880489fced2b96f27f720910d6c7951c8d7350de",
+  "supervisorSha256": "9286fe63315979892bd68b436bf1edf8f14b5dd6a94eb861fe093b74d903bf44",
+  "receipts": [
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/astra013-supervision/root-builder-release.json",
+      "sha256": "2b739388af20fca4a7c6efee1d4615f334f59fbfaef49c93c2b9657c663b03d0"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/astra013-supervision/instrument-layout/root-resume-repair-approval.json",
+      "sha256": "73983e6a31ee70e5e37db293382d1a0b08166abca907ae7d558c8827e04e9c6e"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/astra013-supervision/root-retained-processes.json",
+      "sha256": "d45ce6d1b9f8b34be405924aa4b14f3f339b5da410fa026565694de974ff83a8"
+    }
+  ],
+  "historical": [
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/release-publication-013/benchmark-launcher/runtime/launch.json",
+      "retained": "/Users/ccheever/clique-improvement/revisions/astra013-resume-preparation/ready/runtime/first-process-history/launch.json",
+      "sha256": "e6d03f1f4ab8d8ff49f0fac6399e851c7d94919c3e87324fb86d0e0c226bacd0"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/release-publication-013/benchmark-launcher/runtime/native-session.json",
+      "retained": "/Users/ccheever/clique-improvement/revisions/astra013-resume-preparation/ready/runtime/first-process-history/native-session.json",
+      "sha256": "1f726e64265d33949a50ad7a5a69fe1bf25f47af94d55a29ac83c367b5bccf69"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/release-publication-013/benchmark-launcher/runtime/stdout.ndjson",
+      "retained": "/Users/ccheever/clique-improvement/revisions/astra013-resume-preparation/ready/runtime/first-process-history/stdout.ndjson",
+      "sha256": "71e867153b6d406374331d1780adf2a63a62521417b5feab5a85b9f698ac850e"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/release-publication-013/benchmark-launcher/runtime/stderr.log",
+      "retained": "/Users/ccheever/clique-improvement/revisions/astra013-resume-preparation/ready/runtime/first-process-history/stderr.log",
+      "sha256": "e52d9d4f149ba33f114f44c848076411f82f011c3062d7d9c13a8c2590e37987"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/release-publication-013/benchmark-launcher/runtime/terminal.json",
+      "retained": "/Users/ccheever/clique-improvement/revisions/astra013-resume-preparation/ready/runtime/first-process-history/terminal.json",
+      "sha256": "7ec52baed8a7411088570358a690e96dbe9d7e2926cd686386e4317bf0106ac3"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/release-publication-013/benchmark-launcher/runtime/native-evidence.json",
+      "retained": "/Users/ccheever/clique-improvement/revisions/astra013-resume-preparation/ready/runtime/first-process-history/native-evidence.json",
+      "sha256": "0ff3804d31a5a41095bb6e4cbb6f9f8c29a222933fdc5f24c7b52dbdd8a46b8b"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/release-publication-013/benchmark-launcher/runtime/native-rollout.jsonl",
+      "retained": "/Users/ccheever/clique-improvement/revisions/astra013-resume-preparation/ready/runtime/first-process-history/native-rollout.jsonl",
+      "sha256": "73460423153ae6d2f3c0a43e1506b5813be9595bd9ad50ffe83a1c037b0dc21d"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/release-publication-013/benchmark-launcher/runtime/native-usage-events.json",
+      "retained": "/Users/ccheever/clique-improvement/revisions/astra013-resume-preparation/ready/runtime/first-process-history/native-usage-events.json",
+      "sha256": "fbe5efc143e8d775638a753341d8f5ac43ff86cb07e8c2430388dbf7aafc7074"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/release-publication-013/benchmark-launcher/runtime/native-meter.json",
+      "retained": "/Users/ccheever/clique-improvement/revisions/astra013-resume-preparation/ready/runtime/first-process-history/native-meter.json",
+      "sha256": "a8d602a6689d78a03f38e0cd7271da9873e12445b9854440144f48df270de023"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/release-publication-013/benchmark-launcher/runtime/native-meter-terminal.json",
+      "retained": "/Users/ccheever/clique-improvement/revisions/astra013-resume-preparation/ready/runtime/first-process-history/native-meter-terminal.json",
+      "sha256": "f33e0c7cc8b6e8a0e921a902e01f8bc9a142a51ccc474fa137cc1aabb166bbe1"
+    }
+  ],
+  "retainedProcesses": [
+    {
+      "pid": 90947,
+      "identity": "90947 Sun Sep  6 16:35:00 2026     /Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/node_modules/snapback2-darwin-arm64/bin/snapback2",
+      "ports": [
+        52300
+      ],
+      "aliveAtPreflight": true
+    }
+  ],
+  "listeners": [
+    {
+      "pid": 90947,
+      "port": 52300
+    }
+  ],
+  "environment": {
+    "PATH": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin:/Users/ccheever/.bun/bin:/opt/homebrew/bin:/Users/ccheever/.volta/bin:/Users/ccheever/.cargo/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+    "DEVELOPER_DIR": "/Applications/Xcode.app/Contents/Developer",
+    "NPM_CONFIG_CACHE": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/.npm-cache"
+  },
+  "load": [
+    5.30078125,
+    13.14404296875,
+    18.728515625
+  ],
+  "actionsReplayed": false,
+  "serversRestarted": false
+}

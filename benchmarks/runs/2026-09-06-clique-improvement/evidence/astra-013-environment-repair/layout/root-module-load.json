@@ -1,0 +1,12 @@
+{
+  "atEpoch": 1788738322.496547,
+  "scope": "Original setup-identity module loads under Node24.18 after exact helper restoration; no loader override",
+  "command": [
+    "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+    "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/choreography/setup-identity.mjs"
+  ],
+  "exitCode": 0,
+  "toolChunk": "84bef2",
+  "wallTimeSeconds": 0.104041833,
+  "choreographyOrAppChecksRun": false
+}

@@ -1,0 +1,130 @@
+{
+  "status": "PREPARED_NOT_LAUNCHED",
+  "builderUuid": "01a07910-1413-7ee0-846b-2ad93b1924ea",
+  "model": "gpt-6-astra",
+  "effort": "medium",
+  "cwd": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2",
+  "command": [
+    "/Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex",
+    "exec",
+    "resume",
+    "--dangerously-bypass-approvals-and-sandbox",
+    "--skip-git-repo-check",
+    "--json",
+    "-m",
+    "gpt-6-astra",
+    "-c",
+    "model_reasoning_effort=medium",
+    "-o",
+    "/Users/ccheever/clique-improvement/revisions/astra013-resume-preparation/ready/runtime/final-answer.md",
+    "01a07910-1413-7ee0-846b-2ad93b1924ea",
+    "-"
+  ],
+  "stdin": "/Users/ccheever/clique-improvement/revisions/astra013-resume-preparation/ready/resume-notice.md",
+  "noticeSha256": "b3194b5e1b3f8dabee76a21d81ca60b3706227e071fe5d44d3386c934ce4bd88",
+  "nativeCli": {
+    "path": "/Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex",
+    "sha256": "b973d440acac501fd2594a43e7ca9ce41e0a65b9dfb28d0d7a7837c99e1261e3",
+    "packageVersion": "0.153.4",
+    "executionNotPerformed": true
+  },
+  "node": {
+    "path": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+    "sha256": "ee6fb0e015284d83a91e8ec5213f43a157f8a392b58555301682892ba928c04a",
+    "requiredVersion": "v24.18.0",
+    "executionNotPerformed": false,
+    "observedVersion": "v24.18.0",
+    "executionScope": "--version and --check of operational meter only; no benchmark/model execution"
+  },
+  "environment": {
+    "PATH": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin:/Users/ccheever/.bun/bin:/opt/homebrew/bin:/Users/ccheever/.volta/bin:/Users/ccheever/.cargo/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+    "DEVELOPER_DIR": "/Applications/Xcode.app/Contents/Developer",
+    "NPM_CONFIG_CACHE": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2/.npm-cache"
+  },
+  "unsetEnvironment": [
+    "CARGO_TARGET_DIR",
+    "CHOREO_BASE_URL",
+    "CI",
+    "CODEX_THREAD_ID",
+    "DYLD_FRAMEWORK_PATH",
+    "DYLD_LIBRARY_PATH",
+    "NODE_EXTRA_CA_CERTS",
+    "NODE_OPTIONS",
+    "NODE_PATH",
+    "NODE_REPL_EXTERNAL_MODULE",
+    "NPM_CONFIG_PREFIX",
+    "SNAPBACK2_BIN",
+    "SNAPBACK2_COMPILER",
+    "SNAPBACK2_PUBLISH_NPM",
+    "SNAPBACK_BIN",
+    "SNAPBACK_URL"
+  ],
+  "unsetPrefixes": [
+    "SNAPBACK2_"
+  ],
+  "ports": [
+    52300,
+    52319
+  ],
+  "originalRuntime": "/Users/ccheever/clique-improvement/revisions/release-publication-013/benchmark-launcher/runtime",
+  "originalPid": 82855,
+  "originalSupervisorPid": 82807,
+  "originalLaunchSha256": "e6d03f1f4ab8d8ff49f0fac6399e851c7d94919c3e87324fb86d0e0c226bacd0",
+  "originalLaunchIdentity": "82855 82807 82855 Sun Sep  6 16:31:31 2026     /Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex",
+  "clock": {
+    "M1": {
+      "startedEpoch": 1788737520,
+      "deadlineEpoch": 1788751920
+    },
+    "perMilestoneSeconds": 14400,
+    "continuousAcrossResume": true,
+    "globalTimeoutSeconds": null,
+    "resetOrPauseAllowed": false,
+    "owner": "Root; retain all actual later milestone origins",
+    "sequence": [
+      "M1",
+      "M2",
+      "M3",
+      "M4",
+      "M5",
+      "M6",
+      "M8"
+    ],
+    "separateLater": "M7",
+    "consecutiveCapabilityFailures": 2
+  },
+  "helper": {
+    "sourceCommit": "f40559f37722c79178be664a11f8a6485f1508fd",
+    "sourcePath": "benchmarks/tools/lib/json-schema.mjs",
+    "path": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/lib/json-schema.mjs",
+    "bytes": 7733,
+    "sha256": "7b882f6147e6efde88bc41f4dbc6806e712fb54c2e1b47a214a5d59e96f02660"
+  },
+  "repairReceiptDirectory": "/Users/ccheever/clique-improvement/revisions/astra013-supervision/instrument-layout",
+  "meteringPolicy": "Retain first terminal/stdout/rollout verbatim. After resume adapt one complete same-UUID cumulative rollout once. Never add original and resumed cumulative totals. Phase attribution may remain null/fail closed; no invented clock skew or native tokens.",
+  "baselineBindings": [
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/release-publication-013/benchmark-launcher/launch.py",
+      "sha256": "bfba759f709e43cadcce7e5f6cd9e6d8965f6baaa6b8318d680bbe76495da21e"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/release-publication-013/benchmark-launcher/launch-metadata.json",
+      "sha256": "b9666389611bf87c04913c565c9976d1fcda40fe396844fec697ee8ffd275614"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/release-publication-013/benchmark-launcher/prompt.md",
+      "sha256": "c48fff5026d2f9d7d6b69ea4cf8bb663d77465c121a0d2efd065ee7f5b17c319"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/release-publication-013/benchmark-launcher/meter-own-session.mjs",
+      "sha256": "1ec3f1a211544817abb681f8cd82a73f8e09eec0855a3012f6dd470040a04a7f"
+    }
+  ],
+  "preparedBy": {
+    "uuid": "01a0783e-90b6-70b3-a096-c7a980574ceb",
+    "model": "gpt-6-astra",
+    "effort": "xhigh",
+    "pid": 95154
+  },
+  "launched": false
+}

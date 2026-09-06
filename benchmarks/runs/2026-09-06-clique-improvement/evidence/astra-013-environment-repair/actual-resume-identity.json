@@ -1,0 +1,11 @@
+{
+  "atEpoch": 1788738970.4045708,
+  "nativeSessionId": "01a07910-1413-7ee0-846b-2ad93b1924ea",
+  "source": "/Users/ccheever/.codex/sessions/2026/09/06/rollout-2026-09-06T16-31-31-01a07910-1413-7ee0-846b-2ad93b1924ea.jsonl",
+  "line": 609,
+  "timestamp": "2026-09-06T23:53:32.205Z",
+  "model": "gpt-6-astra",
+  "effort": "medium",
+  "cwd": "/Users/ccheever/clique-full-astra-next-primary-20260906/lanes/astra-snapback2",
+  "turnContextSha256": "0ecaa3c71aa21bc2ee1fc4396f50830d446438fb2dedabf8aa6af896d0ab44f1"
+}
