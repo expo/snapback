@@ -91,9 +91,10 @@ impl State {
             .collect();
         let mut deletable = BTreeSet::new();
         for id in &self.pending_asset_deletes {
-            // This retries an exited worker's failed unlink but leaves a running
-            // finalizer charged and fenced until it hands its file back.
-            if self.staging.cancel_upload(id)? {
+            // Running finalizers and failed unlinks stay pending and charged.
+            // Retry next interval without stopping the writer or sibling GC;
+            // explicit discard still reports the per-upload I/O refusal.
+            if matches!(self.staging.cancel_upload(id), Ok(true)) {
                 deletable.insert(id.clone());
             }
         }
@@ -776,11 +777,37 @@ mod tests {
                 .reserve_asset_finalized_bytes(id, 100)
                 .unwrap();
             state.blobs.put(id, &mut Cursor::new([0_u8; 100])).unwrap();
+            let actor = snapback2_core::Actor::persona("alice").unwrap();
+            let now = state.now();
+            let sibling = state
+                .runtime_mut()
+                .begin_asset(AssetKind::Image, &actor, now)
+                .unwrap();
+            state
+                .runtime_mut()
+                .reserve_asset_finalized_bytes(&sibling, 2)
+                .unwrap();
+            state
+                .runtime_mut()
+                .mark_asset_ready(
+                    &sibling,
+                    &AssetReadyFacts {
+                        media_type: "image/png".into(),
+                        bytes: 2,
+                        width: 1,
+                        height: 1,
+                        duration: None,
+                    },
+                )
+                .unwrap();
+            state.blobs.put(&sibling, &mut Cursor::new(b"xy")).unwrap();
+            state
+                .discard_upload(Identity::Persona("alice".into()), &sibling)
+                .unwrap();
             let directory = root.join(".snapback/staging");
             std::fs::set_permissions(&directory, std::fs::Permissions::from_mode(0o500)).unwrap();
             let worker = std::thread::spawn(move || custody.finish(Some(finalizing)));
             let failed = worker.join().unwrap();
-            let actor = snapback2_core::Actor::persona("alice").unwrap();
             let charged = state
                 .runtime()
                 .asset_staging_usage(&actor)
@@ -795,6 +822,27 @@ mod tests {
                 state.clock_offset_ms = ASSET_RECLAIM_GRACE_MS + 1;
                 state.sweep_assets_now()
             };
+            // Exercise the real background failure boundary, then a queued read.
+            // Closing admission lets drive return after servicing that request.
+            let (requests, incoming) = mpsc::channel();
+            let (reply, response) = mpsc::channel();
+            requests
+                .send(Request {
+                    action: Action::Status,
+                    reply,
+                })
+                .unwrap();
+            drop(requests);
+            state.next_asset_sweep = Instant::now();
+            writer_jobs::drive(&mut state, incoming);
+            let served = response.try_recv();
+            let stopped = state.stop.load(Ordering::SeqCst);
+            let sibling_reclaimed = state.runtime().store().asset(&sibling).unwrap().is_none()
+                && state.blobs.get(&sibling, None).is_err()
+                && !state.pending_asset_deletes.contains(&sibling);
+            let retained = path.exists()
+                && state.blobs.get(id, None).is_ok()
+                && state.pending_asset_deletes.contains(id);
             let still_charged = state
                 .runtime()
                 .asset_staging_usage(&actor)
@@ -803,6 +851,19 @@ mod tests {
                 .bytes;
             std::fs::set_permissions(&directory, std::fs::Permissions::from_mode(0o700)).unwrap();
             assert_eq!(failed.unwrap_err().code, "E_OWNER_ASSET_IO");
+            assert!(!stopped, "a per-upload unlink failure stopped the writer");
+            assert!(
+                matches!(served, Ok(Ok(_))),
+                "the writer must still serve its queued read: {served:?}"
+            );
+            assert!(
+                sibling_reclaimed,
+                "one failed unlink must not block sibling reclamation"
+            );
+            assert!(
+                retained,
+                "failed cleanup must retain the path, blob and pending id"
+            );
             assert_eq!((charged, still_charged), (100, 100));
             if dispose {
                 state
@@ -825,7 +886,11 @@ mod tests {
             );
             assert!(state.blobs.get(id, None).is_err());
             assert!(state.runtime().store().asset(id).unwrap().is_none());
-            assert_eq!(retry.unwrap_err().code, "E_OWNER_ASSET_IO");
+            if dispose {
+                assert_eq!(retry.unwrap_err().code, "E_OWNER_ASSET_IO");
+            } else {
+                retry.unwrap();
+            }
             drop(state);
             std::fs::remove_dir_all(root).unwrap();
         }

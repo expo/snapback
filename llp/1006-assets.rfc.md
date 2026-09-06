@@ -820,8 +820,8 @@ receiving/ready uploads (100 per page with `after`/`next`), usage and limits;
 `POST /api/uploads/discard { id }` atomically tombstones only that creator's unclaimed
 id, refuses claimed ids, and treats missing/foreign ids identically. Receiving bytes
 close before quota release; running finalizers retain charges and resist sweep until
-physical release. Failed deletion returns the exited worker's path to custody for
-disposal or grace-sweep retry. Ready ids use the fork-aware sweep; restart preserves discovery.
+physical release. Failed deletion retains its path and charge for disposal or grace-sweep retry;
+sweeps skip that id without stopping the writer or siblings. Ready ids use the fork-aware sweep; restart preserves discovery.
 
 ### 9a. Where bytes live (author ruling, 2026-09-03)
 

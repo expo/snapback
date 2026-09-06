@@ -66,4 +66,6 @@ staging usage and send no mutation. Terminal-result expiry follows automatic
 discard; superseded terminal receipts still invalidate their captured token,
 without clearing a successor's custody. Failed finalizer deletion returns its path
 to shared custody, retaining quota until disposal or the grace sweep can retry
-after permissions are repaired.
+after permissions are repaired. A failed staging unlink stays pending without
+stopping the writer or blocking sibling reclamation; explicit disposal continues
+to report its I/O refusal.
