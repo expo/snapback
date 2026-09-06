@@ -755,3 +755,12 @@ The widening repair now refuses an invalid legacy row that survives maintained-t
 Compiler descriptor review still found false native-constructor trust through mutable/container aliases and other modules, plus a migration suggestion that silently widens an authored list maximum from 2 to 100. These are complete-project counterexamples, not merely type-check concerns. The next repair must bind origin to the actual project and validate the entire migration wrapper. No Convex/Supabase behavior was measured by these probes; valid baseline scores remain reused.
 
 Full reports and exact source identities: [local handoffs](../benchmarks/runs/2026-09-06-clique-improvement/evidence/local-fix-handoffs/README.md). The full Clique objective, production publication and offline client resource qualification remain open.
+
+
+### 2026-09-06 — Asset review closure and another succession transition
+
+Both fresh independent code reviews now approve the pending-slot repair at `3e9238787`. Grok independently built the frozen core and passed all 30 asset tests; root verified all 944 supplied source leaves unchanged and retained the full terminal report. The offline guide should say that **unclaimed** media may expire, so queued-upload guidance is not mistaken for expiry of live claimed originals. Production/package qualification stays separate.
+
+The next widening review found an ordering concern the 47 passing cases did not cover: retiring a maintained table and using that table as the source of a new maintain can make admission compute replacement IDs before rebuild deletes source projections. The resulting surviving row may violate the successor constraint. Evidence currently consists of source inspection and a pure ordering model, not an executed Rust reproduction. Root authorized reproduction and a repair that makes exemptions match actual rebuild ownership. The original passing proof remains valid for its own scenario and is not generalized to this transition.
+
+[Complete review reports and disposition](../benchmarks/runs/2026-09-06-clique-improvement/evidence/local-fix-handoffs/README.md). Asset work can land independently while compiler, succession and offline resource repairs continue; no competing backend rerun or full Clique win is claimed.
