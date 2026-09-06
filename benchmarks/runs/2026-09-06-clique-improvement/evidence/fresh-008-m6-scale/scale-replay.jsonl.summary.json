@@ -1,0 +1,22 @@
+{
+  "pass": true,
+  "actionsSettled": 167244,
+  "verbs": [
+    "dm-create",
+    "follow",
+    "group-create",
+    "like",
+    "member-add",
+    "post",
+    "profile-set",
+    "react",
+    "register",
+    "reply",
+    "repost",
+    "send",
+    "send-media"
+  ],
+  "startEpoch": 1788696383,
+  "endEpoch": 1788698471,
+  "probeSeconds": 542.093
+}

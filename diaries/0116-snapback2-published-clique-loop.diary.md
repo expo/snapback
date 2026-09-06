@@ -438,3 +438,22 @@ cache identity; the repair remains unpublished. Feed's latest first curve passes
 all three ratios, but review reproduced unbudgeted retained seek parameters,
 so memory accounting must be fixed before landing. Passing output/performance
 checks alone did not establish the resource contract.
+
+## 2026-09-06 — Fresh scale completion and full client size trade
+
+The fresh published0.0.8 M6 replay completed167244 actions with zero failures
+and passing final invariants. A new completed-M8 backend replay is separate.
+Its scheduled digest works with clients closed across a backend restart and
+stays quiet in the next period. The native app reaches login, but its isolated
+Xcode test target cannot yet prove offline behavior; web durable queue evidence
+is retained separately. These records do not establish a full green benchmark.
+
+The complete search client checkpoint is46838gzip, including previously
+omitted projection/receipt bodies. Root revised the speculative34000 ceiling
+to50000, target48000, under unattended delegation. Actual attribution did not
+identify enough duplicate code to justify a27.4% reduction; required search,
+Unicode, receipt and carrier behavior stays present. Earlier44290 was incomplete,
+not a pass. Runtime resource limits stay unchanged. The feed memory repair's
+first curve meets all three ratios; code reviews are still pending. Compiler
+review has exposed more shared type/capture provenance errors, so the next
+repair addresses their cause rather than accepting a bounds-only workaround.

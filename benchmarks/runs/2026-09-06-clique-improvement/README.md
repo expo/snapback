@@ -11,8 +11,10 @@ media, and the untouched chat Expo guide before/after check pass. The fresh
 Astra-medium run stays pinned to published 0.0.8 on the baseline M5 host. Its
 M1–M5 suites pass, and the latest M5 choreography records all four assertions
 passing at 11:42:37Z. Named M6 API/push/custom-client and M8 totals/UTC/Trending
-checks also pass; the retained replay snapshot is137000/167244 with zero
-failures. Native, multi-device, digest and final scale remain separate.
+checks also pass. The M6 replay settled all167244 actions with zero failures
+and final invariants passing; a separate completed-M8 replay is running. The
+canonical120s digest proof passes restart and following quiet-period checks.
+Native offline qualification remains unproven.
 Concurrent load and actual toolchain
 must remain disclosed; the current choreography records Node25.9.0, not merely
 the Node24.18.0 named during preparation.
