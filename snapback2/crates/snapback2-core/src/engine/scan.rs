@@ -254,7 +254,9 @@ impl Runner<'_> {
         }
         let fetched = rows.len();
         let uniformly_false = uniform_false_row.is_some();
-        let mut examined_rows = uniform_false_row.into_iter().collect::<Vec<_>>();
+        let mut examined_ids = uniform_false_row.into_iter()
+            .map(|row| row.field("id")?.as_str().map(ToOwned::to_owned))
+            .collect::<Result<Vec<_>, _>>()?;
         let mut visible = Vec::new();
         for row in rows {
             let visible_target = if uniform {
@@ -281,14 +283,14 @@ impl Runner<'_> {
                 // never a receipt artifact: even a public absence would reveal the row.
                 self.rollback_candidate(checkpoint);
             }
-            examined_rows.push(row.clone());
+            examined_ids.push(row.field("id")?.as_str()?.to_owned());
             if allowed {
                 visible.push(row);
             }
         }
         let source_exhausted = uniformly_false
             || uniform_empty
-            || (examined_rows.len() == fetched && fetched < fetch_limit);
+            || (examined_ids.len() == fetched && fetched < fetch_limit);
         let stop = if (uniform && visible.len() <= take && source_exhausted)
             || (!uniform && visible.len() < take && source_exhausted)
         {
@@ -296,16 +298,7 @@ impl Runner<'_> {
         } else {
             StopReason::Limit
         };
-        self.trace.examined += examined_rows.len() as u64;
-        let examined_ids = examined_rows
-            .iter()
-            .map(|row| {
-                row.field("id")
-                    .and_then(Value::as_str)
-                    .map(ToOwned::to_owned)
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-        let returned: Vec<_> = visible.iter().take(take).cloned().collect();
+        self.trace.examined += examined_ids.len() as u64;
         let halo_row = uniform.then(|| visible.get(take).cloned()).flatten();
         let n2_row = uniform.then(|| visible.get(take + 1)).flatten();
         let n2_key = n2_row.map(|row| index_values(row, index));
@@ -317,6 +310,10 @@ impl Runner<'_> {
                     .map(ToOwned::to_owned)
             })
             .collect::<Result<Vec<_>, _>>()?;
+        // Only identities enter the examined trace. Move the visible page into
+        // its result after retaining the same halo and lookahead evidence.
+        visible.truncate(take);
+        let returned = visible;
         let returned_ids = returned
             .iter()
             .map(|row| {

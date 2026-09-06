@@ -11,7 +11,7 @@ use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use thiserror::Error;
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub(super) struct EvaluatedRange {
     pub(super) gt: Option<Value>,
     pub(super) gte: Option<Value>,
@@ -162,7 +162,7 @@ pub(super) fn prepare_scan_indexed<'a>(
 ) -> Result<rusqlite::Statement<'a>, RuntimeError> {
     let (sql, parameters) = scan_query(
         table_name, index_name, table, index, prefix, after, before, range, order, limit,
-        None, false,
+        None, intrinsic_id_order(table, index),
     )?;
     let mut statement = connection.prepare(&sql)?;
     bind_scan(&mut statement, &parameters)?;
@@ -175,6 +175,61 @@ pub(super) fn prepare_scan_indexed<'a>(
 pub(super) fn intrinsic_id_order(table: &Table, index: &Index) -> bool {
     index.columns.last().is_some_and(|column| column == "id")
         && table.columns.get("id") == Some(&ColumnType::Id)
+}
+
+// Initial heads with the same bounds differ only in their equality prefix.
+// Own one query template per authored merge lane, not one per discovered actor.
+// Runtime-varying bounds fall back to the ordinary seek, as do all refills.
+pub(super) struct InitialSeek {
+    sql: String,
+    parameters: Vec<String>,
+    prefix_width: usize,
+    after: Option<Value>,
+    before: Option<Value>,
+    range: Option<EvaluatedRange>,
+}
+
+impl InitialSeek {
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn new(
+        table_name: &str, index_name: &str, table: &Table, index: &Index,
+        prefix: &[Value], after: Option<&Value>, before: Option<&Value>,
+        range: Option<&EvaluatedRange>, order: Order,
+    ) -> Result<Self, RuntimeError> {
+        let (sql, parameters) = scan_query(
+            table_name, index_name, table, index, prefix, after, before, range,
+            order, 1, None, true,
+        )?;
+        Ok(Self { sql, parameters, prefix_width: prefix.len(),
+            after: after.cloned(), before: before.cloned(), range: range.cloned() })
+    }
+
+    pub(super) fn matches(
+        &self, prefix: &[Value], after: Option<&Value>, before: Option<&Value>,
+        range: Option<&EvaluatedRange>,
+    ) -> bool {
+        self.prefix_width == prefix.len() && self.after.as_ref() == after
+            && self.before.as_ref() == before && self.range.as_ref() == range
+    }
+
+    pub(super) fn seek(
+        &self, connection: &Connection, prefix: &[Value],
+    ) -> Result<Option<Value>, RuntimeError> {
+        let mut statement = connection.prepare_cached(&self.sql)?;
+        for (offset, value) in self.parameters.iter().enumerate() {
+            if offset < 2 || offset >= 2 + self.prefix_width {
+                statement.raw_bind_parameter(offset + 1, value)?;
+            }
+        }
+        for (offset, value) in prefix.iter().enumerate() {
+            statement.raw_bind_parameter(offset + 3, encode_index_value(value)?)?;
+        }
+        let mut rows = statement.raw_query();
+        rows.next()?.map(|row| {
+            let data: String = row.get(0)?;
+            serde_json::from_str(&data).map_err(|error| RuntimeError::Schema(error.to_string()))
+        }).transpose()
+    }
 }
 
 #[allow(clippy::too_many_arguments)]

@@ -8,8 +8,9 @@ use crate::value::{Value, canonical_json};
 use std::cmp::Ordering;
 use std::collections::BTreeSet;
 
-struct Lane {
-    scan: Scan,
+struct Lane<'a> {
+    scan: &'a Scan,
+    template: usize,
     input: EvaluatedScan,
     uniform: bool,
     allowed: Option<bool>,
@@ -18,12 +19,12 @@ struct Lane {
     last_examined: Option<Vec<Value>>,
     examined: Vec<String>,
     visible: Vec<Value>,
-    returned: Vec<Value>,
+    returned: Vec<String>,
 }
 
 struct Head {
     lane: usize,
-    row: Value,
+    row: usize,
     key: Value,
 }
 
@@ -37,7 +38,7 @@ impl Runner<'_> {
         }
         let mut lanes = Vec::new();
         let mut prefixes = BTreeSet::new();
-        for lane in &merge.lanes {
+        for (template, lane) in merge.lanes.iter().enumerate() {
             let source = match &lane.source {
                 Some(source) => self
                     .scan_tracked(source)?
@@ -89,7 +90,8 @@ impl Runner<'_> {
                 let public = self.context.viewer.is_system()
                     || matches!(table.rules.read, RuleExpr::Allow | RuleExpr::Public { .. });
                 lanes.push(Lane {
-                    scan: lane.scan.clone(),
+                    scan: &lane.scan,
+                    template,
                     input,
                     uniform: public || read.hoist,
                     allowed: public.then_some(true),
@@ -145,8 +147,11 @@ impl Runner<'_> {
             .map(|statement| statement.as_mut().map(|statement| statement.raw_query()))
             .collect::<Vec<_>>();
         let mut heap = Vec::new();
+        let mut seeks: Vec<Option<index::InitialSeek>> =
+            merge.lanes.iter().map(|_| None).collect();
         for (i, lane) in lanes.iter_mut().enumerate() {
-            if let Some(head) = self.merge_head(i, lane, cursors[i].as_mut())? {
+            let seek = &mut seeks[lane.template];
+            if let Some(head) = self.merge_head(i, lane, cursors[i].as_mut(), seek)? {
                 self.heap_push(&mut heap, head, lane.scan.order)?;
             }
         }
@@ -156,12 +161,16 @@ impl Runner<'_> {
         while !heap.is_empty() && seen.len() < take.saturating_add(2) {
             let head = self.heap_pop(&mut heap, order)?;
             self.step(1)?;
-            if seen.insert(head.row.field("id")?.as_str()?.to_owned()) && returned.len() < take {
-                lanes[head.lane].returned.push(head.row.clone());
-                returned.push(head.row);
+            let lane = &mut lanes[head.lane];
+            let row = &lane.visible[head.row];
+            let id = row.field("id")?.as_str()?.to_owned();
+            if seen.insert(id.clone()) && returned.len() < take {
+                lane.returned.push(id);
+                returned.push(row.clone());
             }
+            let seek = &mut seeks[lanes[head.lane].template];
             if let Some(next) =
-                self.merge_head(head.lane, &mut lanes[head.lane], cursors[head.lane].as_mut())?
+                self.merge_head(head.lane, &mut lanes[head.lane], cursors[head.lane].as_mut(), seek)?
             {
                 self.heap_push(&mut heap, next, order)?;
             }
@@ -207,8 +216,9 @@ impl Runner<'_> {
     fn merge_head(
         &mut self,
         lane_id: usize,
-        lane: &mut Lane,
+        lane: &mut Lane<'_>,
         mut rows: Option<&mut rusqlite::Rows<'_>>,
+        seek: &mut Option<index::InitialSeek>,
     ) -> Result<Option<Head>, RuntimeError> {
         let certificate = self.certificate.unwrap();
         loop {
@@ -232,6 +242,25 @@ impl Runner<'_> {
                     let data: String = record.get(0)?;
                     serde_json::from_str(&data).map_err(|e| RuntimeError::Schema(e.to_string()))
                 }).transpose()?
+            } else if lane.last_examined.is_none() {
+                if seek.is_none() {
+                    *seek = Some(index::InitialSeek::new(
+                        &lane.scan.table, &lane.scan.index, table, index,
+                        &lane.input.prefix, lane.input.after.as_ref(), lane.input.before.as_ref(),
+                        lane.input.range.as_ref(), lane.scan.order,
+                    )?);
+                }
+                let initial = seek.as_ref().unwrap();
+                if initial.matches(&lane.input.prefix, lane.input.after.as_ref(),
+                    lane.input.before.as_ref(), lane.input.range.as_ref()) {
+                    initial.seek(self.tx, &lane.input.prefix)?
+                } else {
+                    index::seek_scan_indexed(
+                        self.tx, &lane.scan.table, &lane.scan.index, table, index,
+                        &lane.input.prefix, lane.input.after.as_ref(), lane.input.before.as_ref(),
+                        lane.input.range.as_ref(), lane.scan.order, None,
+                    )?
+                }
             } else {
                 index::seek_scan_indexed(
                     self.tx, &lane.scan.table, &lane.scan.index, table, index,
@@ -266,11 +295,17 @@ impl Runner<'_> {
                 continue;
             }
             let index = table.index(&lane.scan.index).expect("checked index");
-            let key = Value::Array(index_values(&row, index)[lane.input.prefix.len()..].to_vec());
-            lane.visible.push(row.clone());
+            let key = Value::Array(match &lane.last_examined {
+                Some(key) => key[lane.input.prefix.len()..].to_vec(),
+                None => index_values(&row, index).into_iter().skip(lane.input.prefix.len()).collect(),
+            });
+            // The lane already retains every visible head for its receipt. The
+            // heap addresses that image; it needs no second full row body.
+            let position = lane.visible.len();
+            lane.visible.push(row);
             return Ok(Some(Head {
                 lane: lane_id,
-                row,
+                row: position,
                 key,
             }));
         }
@@ -320,12 +355,12 @@ impl Runner<'_> {
         Ok(head)
     }
 
-    fn record_merge_lane(&mut self, lane: Lane) -> Result<(), RuntimeError> {
+    fn record_merge_lane(&mut self, lane: Lane<'_>) -> Result<(), RuntimeError> {
         let scan = lane.scan;
         let table = self.schema.table(&scan.table).expect("checked table");
         let index = table.index(&scan.index).expect("checked index");
         let visible_ids = row_ids(&lane.visible)?;
-        let returned_ids = row_ids(&lane.returned)?;
+        let returned_ids = lane.returned;
         let end = returned_ids
             .last()
             .and_then(|last| visible_ids.iter().rposition(|id| id == last))
@@ -351,9 +386,9 @@ impl Runner<'_> {
         let input = lane.input;
         let rule_hash = self.hashes.table(&scan.table, Effect::Read).to_owned();
         let range = TraceRange {
-            site: scan.site,
-            table: scan.table,
-            index: scan.index,
+            site: scan.site.clone(),
+            table: scan.table.clone(),
+            index: scan.index.clone(),
             prefix: input.prefix,
             order: scan.order,
             take: input.take as u32,
@@ -432,6 +467,8 @@ mod tests {
         }
         let tx = engine.store.conn.transaction().unwrap();
         for order in [Order::Asc, Order::Desc] {
+            let initial = index::InitialSeek::new("posts", index_name, table, index,
+                &[Value::Id("u1".into())], None, None, None, order).unwrap();
             for actor in ["u1", "u2", "empty", "u1"] {
                 for bounded in [false, true] {
                     let prefix = vec![Value::Id(actor.into())];
@@ -444,6 +481,14 @@ mod tests {
                     let range = bounded.then_some(&range);
                     let expected = index::scan_indexed(&tx, "posts", index_name, table, index,
                         &prefix, after, before, range, order, 100).unwrap();
+                    assert_eq!(initial.matches(&prefix, after, before, range), !bounded);
+                    if !bounded {
+                        assert_eq!(initial.seek(&tx, &prefix).unwrap(), expected.first().cloned());
+                    }
+                    let bounded_initial = index::InitialSeek::new("posts", index_name, table,
+                        index, &prefix, after, before, range, order).unwrap();
+                    assert!(bounded_initial.matches(&prefix, after, before, range));
+                    assert_eq!(bounded_initial.seek(&tx, &prefix).unwrap(), expected.first().cloned());
                     let mut actual = Vec::new();
                     let mut last = None;
                     while let Some(row) = index::seek_scan_indexed(&tx, "posts", index_name, table, index,
@@ -456,6 +501,49 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn initial_seek_templates_preserve_varying_bounds_and_overlapping_heads() {
+        let frozen: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../../corpus/merge-for-lane-domain-limit.json"
+        )).unwrap();
+        let schema: Schema = serde_json::from_value(frozen["schema"].clone()).unwrap();
+        let mut program: Program = serde_json::from_value(frozen["program"].clone()).unwrap();
+        let Stmt::Return(Expr::Merge(merge)) = &mut program.body[0] else { unreachable!() };
+        let lane = &mut merge.lanes[0];
+        lane.source.as_mut().unwrap().take = Bound::Literal(4);
+        lane.scan.range = Some(Range { gt: None, lt: None, lte: None,
+            gte: Some(Box::new(Expr::Field {
+                base: Box::new(Expr::Variable(lane.binding.clone())), name: "at".into(),
+            })),
+        });
+        let certificate = Checker::new(&schema, Ceilings::default()).check(&program).unwrap();
+        let mut engine = Engine::memory(schema).unwrap();
+        for (id, actor, at) in [("f1", "a", 1), ("f2", "a", 3), ("f3", "b", 4)] {
+            engine.seed("follows", object([
+                ("id", Value::Id(id.into())), ("follower", Value::Id("u1".into())),
+                ("followed", Value::Id(actor.into())), ("at", Value::Int(at)),
+            ])).unwrap();
+        }
+        for actor in ["a", "b"] {
+            for at in 1..7 {
+                engine.seed("posts", object([
+                    ("id", Value::Id(format!("{actor}{at}"))),
+                    ("author", Value::Id(actor.into())), ("at", Value::Int(at)),
+                ])).unwrap();
+            }
+        }
+        let execution = engine.execute(&program, &certificate,
+            Context::query(Actor::new("u1", "user").unwrap(), Default::default())).unwrap();
+        assert_eq!(row_ids(execution.result.as_array().unwrap()).unwrap(), ["a1", "a2", "a3"]);
+        assert_eq!(execution.state, ExecutionState::Capped);
+        let ranges: Vec<_> = execution.trace.ranges.iter().filter(|r| r.table == "posts").collect();
+        assert_eq!(ranges.len(), 3, "same actor with different bounds remains two streams");
+        assert_eq!(ranges[2].gte, Some(Value::Int(4)));
+        assert_eq!(ranges[2].visible_ids.first().unwrap(), "b4", "no bound from the first actor leaks");
+        assert!(execution.receipt.rows.iter().any(|row| row.table == "posts" && row.id == "b4"));
+        assert_eq!(execution.trace.merges[0].deduplicated_union_len, 5);
     }
 
     #[test]
@@ -563,14 +651,15 @@ mod tests {
         // Inject equal-prefix lanes directly, bypassing prefixes.insert. The heap's
         // id-dedupe can skip a visible prefix before this lane wins a later row.
         for (lane, returned) in [
-            (0, vec![rows[0].clone(), rows[2].clone()]),
-            (1, vec![rows[1].clone()]),
+            (0, vec!["a".into(), "c".into()]),
+            (1, vec!["b".into()]),
         ] {
             let scan = merge.lanes[lane].scan.clone();
             let input = runner.evaluate_scan(&scan).unwrap();
             runner
                 .record_merge_lane(Lane {
-                    scan,
+                    scan: &scan,
+                    template: 0,
                     input,
                     uniform: true,
                     allowed: Some(true),
