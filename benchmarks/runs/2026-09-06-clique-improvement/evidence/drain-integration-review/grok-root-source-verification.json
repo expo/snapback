@@ -1,0 +1,13 @@
+{
+  "checked": 950,
+  "symlinkPayloads": [
+    "llp/current/1001-query-engine.spec.md",
+    "llp/current/1002-dev-loop.spec.md",
+    "llp/current/1000-snapback2.explainer.md",
+    "snapback2/packages/snapback2/templates/chat/expo/shared",
+    "snapback2/packages/snapback2/templates/chat/react/shared"
+  ],
+  "mismatches": [],
+  "time": 1788728219.154312,
+  "note": "Root hashes symlink payloads without following, including directory links; reviewer mismatch attribution checked against actual link bytes."
+}
