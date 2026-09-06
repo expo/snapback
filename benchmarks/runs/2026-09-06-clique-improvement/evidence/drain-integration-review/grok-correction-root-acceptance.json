@@ -1,0 +1,16 @@
+{
+  "verdict": "READY",
+  "reportBytes": 9536,
+  "reportSHA256": "07fb74af7cfc5ad51a664b7d8c684f0202ae71f087cf578234140437ff9c2f65",
+  "fullReportRead": true,
+  "snapshotLeaves": 961,
+  "mismatches": [],
+  "actualTerminal": {
+    "pid": 83046,
+    "exitCode": 0,
+    "endedEpoch": 1788729149.3359349,
+    "elapsedSeconds": 580.0370788574219
+  },
+  "scope": "Three-file source-only correction review; no independent product runtime execution or fullcombinedreleaseclaim",
+  "time": 1788729180.0940201
+}

@@ -1,0 +1,9 @@
+{
+  "candidate": "df68f3cf9e1edbc6f6a490884b8469b28e8aab78",
+  "parent": "d5e1664496b7a1a2f8272dc136cddbea1c458046",
+  "branch": "s2/clique-drain-owner-regression",
+  "clean": true,
+  "patchSha256": "e1271a938fd8fdf88c447caba728ce5d1569357a8e403c80accf8e8b273f6e78",
+  "sourceManifestSha256": "67963594e9bf71925deb5c522d5a09f8f26c45b1f2d35c4eca2cd858ca190cdf",
+  "testedOwnerSourceSha256": "6acf381f667df88b97b067d42a34fe79977269574eec8790a02e143c99538304"
+}

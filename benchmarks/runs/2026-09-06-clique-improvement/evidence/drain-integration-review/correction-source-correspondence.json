@@ -1,0 +1,92 @@
+{
+  "base": "d5e1664496b7a1a2f8272dc136cddbea1c458046",
+  "candidate": "df68f3cf9e1edbc6f6a490884b8469b28e8aab78",
+  "parentExact": true,
+  "changedFiles": [
+    "snapback2/crates/snapback2/tests/owner_cases/offline_resume.rs",
+    "snapback2/packages/snapback2/guide/offline.md",
+    "snapback2/scripts/test.sh"
+  ],
+  "unchangedSourceLeaves": 932,
+  "protectedTrees": {
+    "snapback2/crates/snapback2/src": {
+      "baseBlobOrTree": "339f10a59a1218e3c48f38dc5fdbd1715f434e5e",
+      "candidateBlobOrTree": "339f10a59a1218e3c48f38dc5fdbd1715f434e5e",
+      "exact": true
+    },
+    "snapback2/crates/snapback2-core/src": {
+      "baseBlobOrTree": "111170a5cbda715ea9133a33ce9897c8ffa6bed2",
+      "candidateBlobOrTree": "111170a5cbda715ea9133a33ce9897c8ffa6bed2",
+      "exact": true
+    },
+    "snapback2/packages/snapback2/src": {
+      "baseBlobOrTree": "fcf6384b15c3f274795521c068d5e69b808bd05e",
+      "candidateBlobOrTree": "fcf6384b15c3f274795521c068d5e69b808bd05e",
+      "exact": true
+    },
+    "snapback2/packages/compiler": {
+      "baseBlobOrTree": "daeeab73f20fdb6acca94768c8d81d93be911bef",
+      "candidateBlobOrTree": "daeeab73f20fdb6acca94768c8d81d93be911bef",
+      "exact": true
+    },
+    "snapback2/packages/evaluator": {
+      "baseBlobOrTree": "99cf85c15e05f8c0c1af84f500072dcf41a34654",
+      "candidateBlobOrTree": "99cf85c15e05f8c0c1af84f500072dcf41a34654",
+      "exact": true
+    },
+    "snapback2/corpus": {
+      "baseBlobOrTree": "aa014ff1a4f29b43544a508dc3f8700131297466",
+      "candidateBlobOrTree": "aa014ff1a4f29b43544a508dc3f8700131297466",
+      "exact": true
+    },
+    "snapback2/Cargo.lock": {
+      "baseBlobOrTree": "e1e401a5765cb77556c58726fad6ce2a67555d6b",
+      "candidateBlobOrTree": "e1e401a5765cb77556c58726fad6ce2a67555d6b",
+      "exact": true
+    },
+    "snapback2/bun.lock": {
+      "baseBlobOrTree": "470ab0e9ea7cfaabc255694c23f76b5fc9dde0c2",
+      "candidateBlobOrTree": "470ab0e9ea7cfaabc255694c23f76b5fc9dde0c2",
+      "exact": true
+    },
+    "snapback2/packages/snapback2/package.json": {
+      "baseBlobOrTree": "7fc62c14a3e050dd5d80a86a5cdb76aad295b084",
+      "candidateBlobOrTree": "7fc62c14a3e050dd5d80a86a5cdb76aad295b084",
+      "exact": true
+    },
+    "llp/1012-local-first-v1.spec.md": {
+      "baseBlobOrTree": "2d2e00dc44b892916a1f160d0c85e8754b0bc71b",
+      "candidateBlobOrTree": "2d2e00dc44b892916a1f160d0c85e8754b0bc71b",
+      "exact": true
+    },
+    "llp/1001-query-engine.spec.md": {
+      "baseBlobOrTree": "558656f51237673fed86ecd5eb39c26b1180dd36",
+      "candidateBlobOrTree": "558656f51237673fed86ecd5eb39c26b1180dd36",
+      "exact": true
+    },
+    "llp/1006-assets.rfc.md": {
+      "baseBlobOrTree": "fc9df82d0a111196b8b2bc69f06daec3f0939b33",
+      "candidateBlobOrTree": "fc9df82d0a111196b8b2bc69f06daec3f0939b33",
+      "exact": true
+    }
+  },
+  "writerChangesOnlyTestsScriptGuide": true,
+  "previousCandidatesPreserved": {
+    "s2/clique-release-local-composition": "d5e1664496b7a1a2f8272dc136cddbea1c458046",
+    "s2/clique-release-local-integration": "680b68716dd876823348a94fb8915ac7384305e7"
+  },
+  "changedFileHashes": {
+    "snapback2/crates/snapback2/tests/owner_cases/offline_resume.rs": {
+      "baseSha256": "a4bff90d9014d0cda3abba2234995fe8fc282d21cc7ef06ec39d401e5e96abae",
+      "candidateSha256": "6acf381f667df88b97b067d42a34fe79977269574eec8790a02e143c99538304"
+    },
+    "snapback2/packages/snapback2/guide/offline.md": {
+      "baseSha256": "29a7eec7d6beedffa8bcad47e6a508a07a21e158ffa21d259fb0915898d4ae8a",
+      "candidateSha256": "f97c9c8b39937aba56a2c1d69cbecf16930d054e337478c305f75851510bd437"
+    },
+    "snapback2/scripts/test.sh": {
+      "baseSha256": "ce5bbfa6e6ea21d3f9af58df12af00da5abd926a1f0d909fb21ac1696eee1a69",
+      "candidateSha256": "a86c894fbad3ec3513b24da33c3b25cfee9ed9653fa16e641f632d8c70ac5f6c"
+    }
+  }
+}

@@ -821,3 +821,10 @@ The real-owner drain regression now fails exactly where the reviewer predicted: 
 A separate Grok review initially flagged a cap32 retry mismatch. Reading the complete request path showed that the production client slices the request to32 before sending it; more live subscriptions do not produce an oversized resume body. The same reviewer withdrew that finding in an additive follow-up. Keeping the first report made the reasoning auditable, and checking public reachability avoided an unnecessary product change. No new competing-backend behavior or full Clique win was measured.
 
 [Complete reviews and disposition](../benchmarks/runs/2026-09-06-clique-improvement/evidence/drain-integration-review/README.md). The actual repair, fresh review, package qualification and benchmark remain pending.
+
+
+### 2026-09-06 — Drain correction approved
+
+The unchanged real-owner test now reproduces the missing-cap assertion, and the corrected complete test passes all three refused operations plus the unchanged52-note/large-envelope exercise. The existing three client refusal/custody tests also pass within the original10s limit and are registered in the canonical runner. The code correction stays in the test layer; no runtime behavior changed. Both fresh Astra xhigh and native Grok4.6 xhigh reviews approve it, and root verified all961 supplied leaves for each. Their checks were independent source review, not duplicate owner execution.
+
+The isolated correction branch is pushed. Combining it with the separately repaired migration ordering is underway; that integration and the production Hermes/package path remain unqualified. Full reports and receipts: [drain review closure](../benchmarks/runs/2026-09-06-clique-improvement/evidence/drain-integration-review/README.md#correction-closure). Existing Convex/Supabase baselines remain reused.

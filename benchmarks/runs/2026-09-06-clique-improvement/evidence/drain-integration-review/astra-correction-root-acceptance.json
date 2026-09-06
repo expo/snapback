@@ -1,0 +1,17 @@
+{
+  "verdict": "READY",
+  "scope": "Three-file owner assertion/canonical registration/guide correction only",
+  "fullReportRead": true,
+  "reportBytes": 12742,
+  "reportSHA256": "892e541015a78682bfc613b9b30256116457b4a8876e9e0a117e1f92090e52f8",
+  "snapshotLeaves": 961,
+  "mismatches": [],
+  "actualTerminal": {
+    "pid": 82969,
+    "exitCode": 0,
+    "endedEpoch": 1788729025.76455,
+    "elapsedSeconds": 457.6924889087677
+  },
+  "rootObservedEpoch": 1788729110.4034188,
+  "executionScope": "Reviewer static source/tree/patch/hash checks and bash syntax; supplied actual owner execution not independently rerun. No wider product/release clearance."
+}

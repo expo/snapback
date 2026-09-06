@@ -38,5 +38,53 @@
   "grok-root-source-verification.json": {
     "bytes": 510,
     "sha256": "2bec511a1b37f0e17e779a5a069457b6ac98933970b10e63d9162ba9b8aa183e"
+  },
+  "astra-correction-review.md": {
+    "bytes": 12742,
+    "sha256": "892e541015a78682bfc613b9b30256116457b4a8876e9e0a117e1f92090e52f8"
+  },
+  "astra-correction-identity.json": {
+    "bytes": 222,
+    "sha256": "2a70529e3eb7a3bbb1a01912c05d590913e2cca4b5e16cba0031c36eca37751f"
+  },
+  "astra-correction-terminal.json": {
+    "bytes": 108,
+    "sha256": "95f3cd2c48bbc788154995b3fd9f5f59f06c351d8cfd38173a3659a5da5c8179"
+  },
+  "astra-correction-root-acceptance.json": {
+    "bytes": 654,
+    "sha256": "cb6d530f7503ef9eb715a7732eb0d95a5a3aecea83eba15687763609dbcdcb6d"
+  },
+  "grok-correction-review.md": {
+    "bytes": 9536,
+    "sha256": "07fb74af7cfc5ad51a664b7d8c684f0202ae71f087cf578234140437ff9c2f65"
+  },
+  "grok-correction-identity.json": {
+    "bytes": 153,
+    "sha256": "9d5743a43f3517dfae47c22b913510ff21a147a5698ec6e2219088434a4f2f8f"
+  },
+  "grok-correction-terminal.json": {
+    "bytes": 111,
+    "sha256": "cfeebfac658c102969bc577df755fba904f5d8a9a02066982740b2def204b6ce"
+  },
+  "grok-correction-root-acceptance.json": {
+    "bytes": 502,
+    "sha256": "96ed18ad11a7b4f82a30aab62b3e35b8fefdf4de71071291f2acffec4b714dcc"
+  },
+  "correction-implementation-report.md": {
+    "bytes": 16562,
+    "sha256": "c64e742d162dc338bc6e73cee7234d1c42adb479d28bc12adb253d706042938e"
+  },
+  "correction-source-correspondence.json": {
+    "bytes": 3852,
+    "sha256": "ca32927db464f32397a4a703dab39b0c30388f984e7bcd47a582d499670d26d8"
+  },
+  "correction-commit-receipt.json": {
+    "bytes": 459,
+    "sha256": "97334de1e51caf1be8f02e7a25b8367d05fab393f79dc8e2eadb4c803fd0cdbf"
+  },
+  "correction-terminal.json": {
+    "bytes": 110,
+    "sha256": "43a859642b2bcf9265be4b4326fc21918bcfdb4e15c306d3c64d06003895eab4"
   }
 }
