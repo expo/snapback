@@ -214,3 +214,49 @@ test("the drain and the resume tail key the cursor by the argument the manifest 
     await rm(root, { recursive: true, force: true });
   }
 });
+
+// @ref LLP 1012#6-reads-offline — an offline drain adopts the persisted watermark as its resume
+// position, but the view it settles on is the drained page chain: the tail after the watermark is
+// held for the resume, never shown in place of the inbox (the browser witness's cold start lost
+// every chat but the newest until this was pinned).
+test("an offline cold-start drain keeps the drained first page on screen while reporting the persisted watermark", async () => {
+  const root = await mkdtemp(join(tmpdir(), "snapback2-cold-drain-view-"));
+  try {
+    const store = fileRangeStore(root)();
+    await store.open("dev:alice");
+    await store.commit({
+      deliveries: [
+        { op: "deliveries.inbox", args: { c: null }, state: "complete", data: ["first page"], next: null, seq: 3, validator: "1".repeat(64), receipt: emptyReceipt() },
+        { op: "deliveries.inbox", args: { c: "cursor-9" }, state: "complete", data: ["after the watermark"], next: null, seq: 3, validator: "2".repeat(64), receipt: emptyReceipt() },
+      ],
+      watermark: {
+        op: "deliveries.inbox", args: { c: null }, watermark: "cursor-9", validator: "2".repeat(64),
+        generation, schemaHash, authEpoch: 7, updatedAt: 10,
+      },
+    });
+    await store.close?.();
+    // The owner is unreachable: every request fails as a network cut.
+    const client = createClient({
+      url: "http://cold-drain.test", as: "alice", offline: { store: fileRangeStore(root) },
+      fetch: async () => { throw new TypeError("fetch failed: owner cut"); },
+    });
+    let drain: { close(): void } | undefined;
+    try {
+      await client.ready.catch(() => undefined);
+      const views: any[] = [];
+      const subscription = client.subscribe(api.deliveries.inbox as any, { c: null }, (view) => views.push(view), { drain: true });
+      drain = subscription;
+      await subscription.until((view: any) => view.caughtUp === true, 2_000);
+      // The tail subscription opens a tick after the caught-up delivery; let it settle.
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      const last = views.at(-1);
+      assert.equal(last.state, "complete");
+      assert.equal(last.caughtUp, true);
+      assert.deepEqual(last.data, ["first page"], "the caught-up view is the drained page, not the tail after the watermark");
+      assert.equal(last.watermark, "cursor-9", "the persisted watermark is still the reported resume position");
+    } finally {
+      drain?.close();
+      client.close();
+    }
+  } finally { await rm(root, { recursive: true, force: true }); }
+});

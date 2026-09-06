@@ -70,12 +70,19 @@ async function bundleApp(url) {
 import { StrictMode, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { indexedDbRangeStore, SnapbackProvider, useSnapbackClient } from "snapback2/react";
+import { api } from "snapback2/client";
+(window as any).__api = api;
 import { App } from "${resolve(packageRoot, "templates/chat/react/src/App.tsx")}";
 
 const faults: Array<{ path: string; status: number }> = ((window as any).__witnessFaults = []);
+const requests: Array<Record<string, unknown>> = ((window as any).__witnessRequests = []);
 const transport: typeof fetch = async (input, init) => {
-  const response = await fetch(input, init);
+  const started = Date.now();
+  let response: Response;
+  try { response = await fetch(input, init); }
+  catch (error) { requests.push({ path: new URL(String(input)).pathname, method: init?.method ?? "GET", error: String(error), ms: Date.now() - started }); throw error; }
   const path = new URL(String(input)).pathname;
+  requests.push({ path, method: init?.method ?? "GET", status: response.status, ms: Date.now() - started });
   const index = faults.findIndex((fault) => fault.path === path);
   if (index < 0) return response;
   const [fault] = faults.splice(index, 1);
@@ -108,6 +115,11 @@ createRoot(document.getElementById("root")!).render(
       platform: "browser",
       target: "es2022",
       jsx: "automatic",
+      // The client's native asset paths `import("expo/fetch")` and `import("expo-file-system")`
+      // behind runtime guards; a web app's bundler leaves those unresolved packages external,
+      // but here Expo is installed in the workspace and following it reaches React Native's
+      // Flow-typed sources, which esbuild cannot parse. Keep the browser bundle web-only.
+      external: ["expo", "expo/*", "expo-*", "react-native", "react-native/*"],
       define: { "import.meta.env.VITE_SNAPBACK_URL": JSON.stringify(url) },
       plugins: [{
         name: "package-dist",
@@ -216,12 +228,22 @@ async function main() {
     const listed = await page.$$eval("nav[aria-label=Inbox] li", (nodes) => nodes.length);
     if (listed !== 3) throw new Error(`the inbox listed ${listed} chats`);
     step("seed, drain, and open three chats (two threads opened online, one left unopened)", { chats: listed, opened: opened.length });
-
     // Enqueue one message while offline.
     await context.setOffline(true);
     await page.evaluate(() => window.__snapback.offline());
     await openChat(page, "conversation-1");
     await page.fill("form[aria-label=Composer] input", "queued in the browser");
+    // Report the composer's own reason when it will not send, instead of a bare click timeout.
+    await page.waitForSelector("form[aria-label=Composer] button[type=submit]:enabled", { timeout: 10_000 }).catch(async (error) => {
+      const diagnosis = await page.evaluate(async () => {
+        const client = window.__snapback;
+        const status = document.querySelector("form[aria-label=Composer] small[role=status]");
+        let outbox;
+        try { outbox = await client.outbox.status?.(); } catch (e) { outbox = String(e); }
+        return { composer: status ? { waiting: status.getAttribute("data-waiting"), text: status.textContent } : null, snapshot: client.snapshot, outbox, entries: await client.outbox.entries?.() };
+      }).catch((e) => String(e));
+      throw new Error(`the composer would not send offline: ${JSON.stringify(diagnosis)}\n${error.message}`);
+    });
     await page.click("form[aria-label=Composer] button[type=submit]");
     await page.waitForSelector("li[data-state=queued]", { timeout: 5_000 });
     const queued = await page.$eval("li[data-state=queued]", (node) => ({ id: node.getAttribute("data-message"), text: node.textContent }));
@@ -235,7 +257,16 @@ async function main() {
     await openChat(page, "conversation-1").catch(() => undefined);
     const coldQueued = await page.$(`li[data-state=queued][data-message="${queued.id}"]`);
     const coldInbox = await page.$$eval("nav[aria-label=Inbox] li", (nodes) => nodes.length);
-    if (!coldQueued || coldInbox < 3) throw new Error(`cold start held ${coldInbox} chats and queued=${Boolean(coldQueued)}`);
+    if (!coldQueued || coldInbox < 3) {
+      const diagnosis = await page.evaluate(async () => {
+        const client = window.__snapback;
+        const inbox = await client.query(window.__api.deliveries.inbox, { c: null }).catch((e) => ({ threw: e?.envelope?.code ?? String(e) }));
+        const rows = Array.isArray(inbox?.data) ? inbox.data : [];
+        return { header: document.querySelector("[role=status][data-connection]")?.textContent, inbox: { state: inbox.state, connection: inbox.connection, threw: inbox.threw, rows: rows.length, conversations: [...new Set(rows.map((r) => r.conversationId))], caughtUp: inbox.caughtUp },
+          snapshot: { connection: client.snapshot.connection, auth: client.snapshot.auth?.state }, outbox: (await client.outbox.entries()).map((e) => e.state), requests: window.__witnessRequests };
+      }).catch((e) => String(e));
+      throw new Error(`cold start held ${coldInbox} chats and queued=${Boolean(coldQueued)}: ${JSON.stringify(diagnosis)}`);
+    }
     step("cold start offline: the inbox, the chats, and the queued message are there", { chats: coldInbox });
 
     // A chat never opened online is hydrating offline (the twin, lane O2b, makes it exact later).

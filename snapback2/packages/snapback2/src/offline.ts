@@ -284,8 +284,12 @@ export class OfflineRuntime {
 
   /** Called only after the owner authenticated this exact principal. */
   async reauthenticate(principal: string, authEpoch?: number): Promise<void> {
-    const changed = authEpoch !== undefined && authEpoch !== this.sessionEpoch;
-    // A new session invalidates requests already in flight before custody awaits.
+    // @ref LLP 1012#4-the-range-store — a new session invalidates requests already in
+    // flight before custody awaits. The first epoch this partition learns is adopted, not a
+    // change: nothing in flight belongs to an older session, and superseding the drain's
+    // first page here left every persona app without its first grant (the browser witness).
+    const known = this.sessionEpoch ?? this.facts?.authEpoch;
+    const changed = authEpoch !== undefined && known !== undefined && authEpoch !== known;
     if (changed) { this.coverageRevision += 1; this.outbox.resetTrust(); }
     await this.serial(async () => {
       if (this.partition !== principal) {
