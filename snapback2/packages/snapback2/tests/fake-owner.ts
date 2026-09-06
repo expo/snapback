@@ -132,7 +132,7 @@ export function fakeOwner(options: FakeOwnerOptions = {}) {
       return json({
         generation: "schema-generation", programGeneration: generation,
         ops: options.cursorArg ? {
-          "deliveries.inbox": { kind: "query", planHash, args: { [options.cursorArg]: { Optional: "Cursor" } } },
+          "deliveries.inbox": { kind: "query", planHash, drain: { cursor: options.cursorArg }, args: { [options.cursorArg]: { Optional: "Cursor" } } },
         } : {},
         channels: {}, auth: {},
         tables: { messages: { retain: "delivered-history" } },
@@ -143,6 +143,9 @@ export function fakeOwner(options: FakeOwnerOptions = {}) {
         generation, schemaHash,
         schema,
         programs: {
+          "deliveries.inbox": { kind: "query", planHash, drain: { cursor: options.cursorArg ?? "c" },
+            ir: { name: "deliveries.inbox", kind: "Query", args: { [options.cursorArg ?? "c"]: { Optional: "Cursor" } }, body: [] },
+            certificate: { plan_hash: planHash, write_sites: [] } },
           "deliveries.post": {
             kind: "mutation", planHash, ir: {
               name: "deliveries.post", kind: "Mutation", args: {}, read_time_granularity_ms: null,

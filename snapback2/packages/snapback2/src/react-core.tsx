@@ -152,6 +152,8 @@ export function useConnection(): ConnectionState {
  * for a one-shot read. Receipt state stays `complete`, `capped`, `partial`, or
  * `denied`; `live` and `connection` report the subscription transport separately.
  */
+/** drain requires an ascending append log (after c first N, N <= 50); emits each page, then its tail.
+ * Unsupported returned-page shapes remain refused. For newest-first data subscribe normally at c:null. */
 export function useQuery<Args, Result>(
   ref: Op<Args, Result>,
   args: NoInfer<Args>,

@@ -1,4 +1,4 @@
-import { throwIfAborted } from "./client-wire.js";
+import { SnapbackRefusal, throwIfAborted } from "./client-wire.js";
 import {
   DeliveryEnvelopeDecodeError,
   decodeDeliveryEnvelope,
@@ -27,7 +27,7 @@ import {
 } from "./store/range-store.js";
 import { ByteCache } from "./store/byte-cache.js";
 import { Twin, readsConnected, type LocalAnswer, type Prediction } from "./twin.js";
-import type { Manifest, OfflineClientOptions, OutboxSettlement } from "./types.js";
+import type { DrainContract, Manifest, OfflineClientOptions, OutboxSettlement, RefusalEnvelope } from "./types.js";
 
 /**
  * Ids a certified mutation can mint: the certificate's insert/upsert bounds, which
@@ -56,6 +56,7 @@ export interface MountedQuery {
   op: string;
   args: unknown;
   drain: boolean;
+  refuse?(refusal: RefusalEnvelope): void;
 }
 
 export interface ResumeRequestV1 {
@@ -68,7 +69,6 @@ export interface ResumeRequestV1 {
 }
 
 export interface ResumeAdjustment {
-  which?: string;
   cap?: number;
 }
 
@@ -103,7 +103,8 @@ export function decodeHeldProgram(value: unknown): HeldProgram | undefined {
     if (typeof entry.planHash !== "string" || !object(entry.ir) || !object(entry.certificate)) continue;
     // The payload binds each op to one certificate: the plan hashes must agree.
     if (entry.certificate.plan_hash !== entry.planHash) continue;
-    held[name] = { kind: entry.kind, planHash: entry.planHash, ir: entry.ir, certificate: entry.certificate };
+    held[name] = { kind: entry.kind, planHash: entry.planHash, ir: entry.ir, certificate: entry.certificate,
+      ...(object(entry.drain) ? { drain: entry.drain as unknown as DrainContract } : {}) };
   }
   return { generation, schemaHash, schema: schema as HeldProgram["schema"], programs: held };
 }
@@ -163,9 +164,14 @@ function nullViewed(reference: unknown, expanded: unknown, viewed: Set<string>):
     .map(([key, item]) => [key, nullViewed(reference[key], item, viewed)]));
 }
 
-function resumeWhichMatches(which: string | undefined, op: string, args: unknown): boolean {
-  if (!which) return false;
-  return which === op || which === canonicalAnswerKey(op, args);
+// @ref LLP 1012#6-reads-offline — owner-derived returned-page metadata, never a scan/name/cursor heuristic.
+export function admitDrain(op: string, contract: DrainContract | undefined): string {
+  if (contract && "cursor" in contract && typeof contract.cursor === "string" && contract.cursor.length > 0) return contract.cursor;
+  const shape = contract && "reason" in contract ? contract.reason : "metadata-unavailable";
+  throw new SnapbackRefusal({ code: "E_OFFLINE_RESUME", family: "offline", guide: "offline",
+    reason: "unsupported-log", which: "log", op, shape, site: "client.subscribe.drain",
+    message: `operation ${op} cannot drain/resume a log (${shape}); every returned page must ascend after the same cursor with at most 50 rows`,
+    rewrite: "use an ascending delivery log (after c first N, N <= 50); subscribe normally at c: null for newest-first data; reconnect if metadata is unavailable; queued writes are kept" });
 }
 
 export class OfflineRuntime {
@@ -198,7 +204,7 @@ export class OfflineRuntime {
   private pendingBounds?: Record<string, number>;
   private pendingProgram?: HeldProgram;
   private held?: HeldProgram;
-  private standIn?: string;
+  private drains: Record<string, DrainContract | undefined> = {};
   private resumeQueries: MountedQuery[] = [];
   private tail: Promise<void> = Promise.resolve();
   /** Fences deliveries already in flight when coverage or principal is replaced. */
@@ -232,6 +238,8 @@ export class OfflineRuntime {
   /** A live delivery rotated past the held coverage; only the reset resume may clear it. */
   get resetNeeded(): boolean { return this.superseded !== undefined; }
 
+  get needsDrainMetadata(): boolean { return !!this.held && Object.values(this.held.programs).some(op => op.drain === undefined); }
+
   /** The twin's answer for a query, or `undefined` when it cannot run (no program, another generation). */
   async evaluate(op: string, args: unknown): Promise<LocalAnswer | undefined> {
     if (this.partition === undefined) return undefined;
@@ -258,7 +266,7 @@ export class OfflineRuntime {
         this.facts = undefined;
         this.superseded = undefined;
         this.held = undefined;
-        this.standIn = undefined;
+        this.drains = {};
         this.drainOutcome = Promise.resolve({ stopped: false, remaining: 0 });
       }
       if (this.partition !== undefined && this.partition !== principal) await this.store.wipe(this.partition);
@@ -326,11 +334,6 @@ export class OfflineRuntime {
     await this.serial(() => this.flushGrant());
   }
 
-  /** True when a resume request's `log` is an ordinary answer standing in for a drained log. */
-  standInLog(log: { op: string; args: unknown }): boolean {
-    return this.standIn !== undefined && this.standIn === canonicalAnswerKey(log.op, log.args);
-  }
-
   async queuedIntents(): Promise<OutboxEntry[]> {
     if (this.partition === undefined) return [];
     return this.outbox.queued();
@@ -386,6 +389,7 @@ export class OfflineRuntime {
       if (cursor !== undefined) cursors[name] = cursor;
     }
     this.cursors = cursors;
+    this.drains = Object.fromEntries(Object.entries(value.ops ?? {}).map(([op, entry]) => [op, entry.drain]));
     // A fresh login has no receipt/auth epoch. A parameter-free query (including
     // optional cursor arguments) can earn those facts before a logless resume.
     this.resumeQueries = Object.entries(value.ops ?? {}).flatMap(([op, operation]) => {
@@ -404,6 +408,8 @@ export class OfflineRuntime {
    */
   cursorArg(op: string): string {
     const ir = this.held?.programs[op]?.ir;
+    const contract = this.held?.programs[op]?.drain ?? this.drains[op];
+    if (contract && "cursor" in contract) return contract.cursor;
     return this.cursors[op] ?? cursorArgument(object(ir) ? ir.args : undefined) ?? "c";
   }
 
@@ -642,58 +648,39 @@ export class OfflineRuntime {
     await this.commitMany([], { op, args, watermark, ...(validator === undefined ? {} : { validator }) }, undefined, revision);
   }
 
-  async resumeRequest(
-    mounted: MountedQuery[],
-    adjustment: ResumeAdjustment = {},
-  ): Promise<ResumeRequestV1 | undefined> {
-    if (this.partition === undefined || !this.facts) return undefined;
-    // The owner checks authority and generation before processing queries. A
-    // reset probe needs only old facts, never old validators or a drained log.
-    if (!this.coverageCurrent()) return { protocol: 1, ...this.facts, mounted: [] };
+  /** Offline admission uses the held generation; current metadata never certifies stale coverage. */
+  drainCursor(op: string): string {
+    return admitDrain(op, this.held ? this.held.programs[op]?.drain : this.drains[op]);
+  }
+
+  /** A known unsupported old watermark stays refused, but need not block independently permitted write settlement. */
+  unsupportedLog(op: string): boolean {
+    const contract = this.held?.programs[op]?.drain ?? this.drains[op];
+    return contract !== undefined && "reason" in contract;
+  }
+
+  async resumeRequest(mounted: MountedQuery[], adjustment: ResumeAdjustment = {}): Promise<ResumeRequestV1 | undefined> {
+    if (this.partition === undefined) return undefined;
+    if (this.facts && !this.coverageCurrent()) return { protocol: 1, ...this.facts, mounted: [] };
     const coverage = await this.store.coverage();
-    // The same chooser as the settlement tail (`tailWatermark`), so the log a
-    // resume asks for is the log a committed intent's rows are filed under.
     const watermark = tailWatermark(coverage.watermarks);
+    // Persisted logs go to the owner even if legacy metadata is missing. Fresh
+    // drains must first have the owner's returned-page eligibility descriptor.
+    for (const query of mounted) if (query.drain && query.op !== watermark?.op) this.drainCursor(query.op);
+    if (!this.facts) return undefined;
     const cap = Math.max(0, Math.min(32, Number.isSafeInteger(adjustment.cap) ? adjustment.cap! : 32));
-    const candidates = mounted.filter((query) => !query.drain
-      && query.op !== watermark?.op
-      && !resumeWhichMatches(adjustment.which, query.op, query.args));
-    const indexedWhich = adjustment.which?.match(/^mounted\[(\d+)\]$/)?.[1];
-    if (indexedWhich !== undefined) candidates.splice(Number(indexedWhich), 1);
-    const mountedAnswers = (await Promise.all(candidates.slice(0, cap).map(async (query) => ({
-      query,
-      answer: await this.answer(query.op, query.args),
+    const candidates = mounted.filter(query => !query.drain);
+    const answers = (await Promise.all(candidates.slice(0, cap).map(async query => ({
+      query, answer: await this.answer(query.op, query.args),
     })))).filter((item): item is { query: MountedQuery; answer: HeldAnswer & { validator: string } } =>
       typeof item.answer?.validator === "string");
-    // A delivery can supersede coverage while the carrier reads are in flight.
     if (!this.facts) return undefined;
     if (!this.coverageCurrent()) return { protocol: 1, ...this.facts, mounted: [] };
-    const omitLog = adjustment.which === "log"
-      || (watermark !== undefined && resumeWhichMatches(adjustment.which, watermark.op, watermark.args));
-    // Without a drained log the owner still needs one member to answer, and the
-    // device still needs the grant a resume returns: the first held mounted
-    // answer stands in, with a null watermark, and leaves no watermark behind.
-    const standIn = !watermark && !omitLog ? mountedAnswers.shift() : undefined;
-    this.standIn = standIn ? canonicalAnswerKey(standIn.query.op, standIn.query.args) : undefined;
-    if (!watermark && !standIn && (await this.queuedIntents()).length === 0) return undefined;
-    return {
-      protocol: 1,
-      ...this.facts,
-      ...(standIn ? {
-        log: { op: standIn.query.op, args: standIn.query.args, watermark: null, validator: standIn.answer.validator },
-      } : !watermark || omitLog ? {} : {
-        log: {
-          op: watermark.op,
-          args: watermark.args,
-          watermark: watermark.watermark,
-          ...(watermark.validator === undefined ? {} : { validator: watermark.validator }),
-        },
-      }),
-      mounted: mountedAnswers.map(({ query, answer }) => ({
-        op: query.op,
-        args: query.args,
-        validator: answer.validator,
-      })),
+    if (!watermark && answers.length === 0 && (await this.queuedIntents()).length === 0) return undefined;
+    return { protocol: 1, ...this.facts,
+      ...(watermark ? { log: { op: watermark.op, args: watermark.args, watermark: watermark.watermark,
+        ...(watermark.validator === undefined ? {} : { validator: watermark.validator }) } } : {}),
+      mounted: answers.map(({ query, answer }) => ({ op: query.op, args: query.args, validator: answer.validator })),
     };
   }
 

@@ -372,6 +372,7 @@ struct LiveClient {
     context: Context,
     session: Option<SessionFence>,
     offline: bool,
+    drain: bool,
     last_frame: Json,
     events: SseSender,
 }
@@ -982,6 +983,9 @@ impl State {
         }
         let kind = self.operation_kind(op, expected)?;
         let authority = self.resolve_authority(identity)?;
+        if offline.drain {
+            self.admit_drain(op)?;
+        }
         let execution = if kind == ProgramKind::Mutation {
             let context = self.mutation_context(&authority, op, args)?;
             self.execute_mutation(op, context)?
@@ -1063,6 +1067,9 @@ impl State {
         events: SseSender,
     ) -> Result<Json, Refusal> {
         let authority = self.resolve_authority(identity)?;
+        if offline.drain {
+            self.admit_drain(&op)?;
+        }
         let context = self.context(&authority, &op, args)?;
         let (id, execution) = self
             .runtime_mut()
@@ -1093,6 +1100,7 @@ impl State {
                 context,
                 session: authority.session,
                 offline: offline.receipt,
+                drain: offline.drain,
                 last_frame: full,
                 events,
             },
@@ -1248,7 +1256,13 @@ impl State {
                 .subscribe(&client.op, client.context.clone())
             {
                 Ok((runtime_id, execution)) => {
-                    let (frame, terminal) = if client.offline {
+                    let refused = client
+                        .drain
+                        .then(|| self.admit_drain(&client.op).err())
+                        .flatten();
+                    let (frame, terminal) = if let Some(refusal) = refused {
+                        refusal_frame(refusal, execution.seq)
+                    } else if client.offline {
                         writer_offline::envelope_frame(
                             self.runtime().generation(),
                             &client.op,

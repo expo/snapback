@@ -7,6 +7,7 @@ use snapback2_core::{DeliveryProjectionContext, DeliveryProjectionError, project
 #[derive(Clone, Debug, Default)]
 pub(crate) struct OfflineOptions {
     pub(crate) receipt: bool,
+    pub(crate) drain: bool,
     pub(crate) validator: Option<String>,
 }
 
@@ -128,6 +129,7 @@ pub(super) fn program(generation: &Generation, requested: &str) -> Result<Json, 
                     "planHash": certificate.plan_hash,
                     "ir": program,
                     "certificate": certificate,
+                    "drain": writer_resume::drain_metadata(program, certificate),
                 }),
             )
         })

@@ -7,7 +7,8 @@ use crate::Value;
 #[derive(Clone, PartialEq, Eq)]
 enum Origin {
     Empty,
-    Page(String),
+    Page(String, Option<String>),
+    Cursor(String),
 }
 type Bindings = BTreeMap<String, Origin>;
 
@@ -18,21 +19,111 @@ pub(super) fn result_pages(
     if program.kind != ProgramKind::Query {
         return Ok(BTreeMap::new());
     }
-    let mut returns = BTreeMap::new();
-    origins(&program.body, "", &mut Bindings::new(), &mut returns);
+    let returns = returned_origins(program);
     returns
         .into_iter()
-        .map(|(path, site)| {
-            resolve_result_page_site(schema, &program.body, &site).map(|page| (path, page))
+        .filter_map(|(path, origin)| match origin {
+            Origin::Page(site, _) => Some(
+                resolve_result_page_site(schema, &program.body, &site).map(|page| (path, page)),
+            ),
+            _ => None,
         })
         .collect()
 }
 
+fn returned_origins(program: &Program) -> BTreeMap<String, Origin> {
+    let mut bindings = program.args.iter().filter_map(|(name, kind)| {
+        (matches!(kind, ArgType::Cursor)
+            || matches!(kind, ArgType::Optional(inner) if matches!(inner.as_ref(), ArgType::Cursor)))
+            .then(|| (name.clone(), Origin::Cursor(name.clone())))
+    }).collect();
+    let mut returns = BTreeMap::new();
+    if origins(&program.body, "", &mut bindings, &mut returns) {
+        returns.insert("fallthrough".into(), Origin::Empty);
+    }
+    returns
+}
+
+fn scan_cursor(scan: &Scan, bindings: &Bindings) -> Option<String> {
+    match scan
+        .after
+        .as_deref()
+        .and_then(|value| expression_origin(value, bindings))
+    {
+        Some(Origin::Cursor(name)) if scan.before.is_none() => Some(name),
+        _ => None,
+    }
+}
+
+/// An operation-wide log guarantee, derived from RETURNS, never auxiliary reads.
+/// This is admission metadata, not a new certificate/wire-cursor format.
+// @ref LLP 1012#6-reads-offline — every possible returned page must continue the same ascending bounded log.
+pub fn resumable_log_cursor(
+    program: &Program,
+    certificate: &Certificate,
+) -> Result<String, &'static str> {
+    if program.kind != ProgramKind::Query {
+        return Err("not-query");
+    }
+    let returns = returned_origins(program);
+    if returns.is_empty() {
+        return Err("no-returned-page");
+    }
+    let mut cursor = None;
+    for (path, origin) in returns {
+        let Origin::Page(_, Some(name)) = origin else {
+            return Err("cursor-binding");
+        };
+        let page = certificate
+            .result_pages
+            .get(&path)
+            .ok_or("no-returned-page")?;
+        if page.order != Order::Asc {
+            return Err("descending");
+        }
+        let take = certificate
+            .read_sites
+            .iter()
+            .find(|site| site.site == page.site)
+            .map(|site| site.take)
+            .or_else(|| {
+                certificate
+                    .merge_sites
+                    .iter()
+                    .find(|site| site.site == page.site)
+                    .map(|site| site.take)
+            });
+        if take.is_none_or(|take| take > 50) {
+            return Err("page-bound");
+        }
+        if cursor.as_ref().is_some_and(|previous| previous != &name) {
+            return Err("cursor-binding");
+        }
+        cursor = Some(name);
+    }
+    cursor.ok_or("no-returned-page")
+}
+
 fn expression_origin(value: &Expr, bindings: &Bindings) -> Option<Origin> {
     match value {
-        Expr::Scan(scan) if scan.opaque_cursor => Some(Origin::Page(scan.site.clone())),
+        Expr::Scan(scan) if scan.opaque_cursor => {
+            Some(Origin::Page(scan.site.clone(), scan_cursor(scan, bindings)))
+        }
         Expr::Merge(merge) if merge.lanes.iter().all(|lane| lane.scan.opaque_cursor) => {
-            Some(Origin::Page(merge.site.clone()))
+            let mut cursor = None;
+            for lane in &merge.lanes {
+                let mut local = bindings.clone();
+                if lane.source.is_some() {
+                    local.remove(&lane.binding);
+                }
+                origins(&lane.setup, "", &mut local, &mut BTreeMap::new());
+                let next = scan_cursor(&lane.scan, &local);
+                if next.is_none() || (cursor.is_some() && next != cursor) {
+                    return Some(Origin::Page(merge.site.clone(), None));
+                }
+                cursor = next;
+            }
+            Some(Origin::Page(merge.site.clone(), cursor))
         }
         Expr::Variable(name) => bindings.get(name).cloned(),
         Expr::Array(values) if values.is_empty() => Some(Origin::Empty),
@@ -43,7 +134,9 @@ fn expression_origin(value: &Expr, bindings: &Bindings) -> Option<Origin> {
 
 fn domain_origin(domain: &LoopDomain, bindings: &Bindings) -> Option<Origin> {
     match domain {
-        LoopDomain::Page(scan) if scan.opaque_cursor => Some(Origin::Page(scan.site.clone())),
+        LoopDomain::Page(scan) if scan.opaque_cursor => {
+            Some(Origin::Page(scan.site.clone(), scan_cursor(scan, bindings)))
+        }
         LoopDomain::DerivedArray { value, .. } => expression_origin(value, bindings),
         _ => None,
     }
@@ -84,7 +177,7 @@ fn origins(
     body: &[Stmt],
     prefix: &str,
     bindings: &mut Bindings,
-    returns: &mut BTreeMap<String, String>,
+    returns: &mut BTreeMap<String, Origin>,
 ) -> bool {
     for (index, statement) in body.iter().enumerate() {
         let path = format!("{prefix}{index}");
@@ -102,9 +195,10 @@ fn origins(
                 bindings.remove(target);
             }
             Stmt::Return(value) => {
-                if let Some(Origin::Page(site)) = expression_origin(value, bindings) {
-                    returns.insert(path, site);
-                }
+                returns.insert(
+                    path,
+                    expression_origin(value, bindings).unwrap_or(Origin::Empty),
+                );
                 return false;
             }
             Stmt::If {
@@ -132,6 +226,13 @@ fn origins(
                 body,
             } => {
                 let origin = domain_origin(domain, bindings);
+                // A loop's early return has no certified top-level page site.
+                // Keep it visible to admission without inventing provenance.
+                let mut local = bindings.clone();
+                local.remove(binding);
+                let mut nested = BTreeMap::new();
+                origins(body, &format!("{path}/loop/"), &mut local, &mut nested);
+                returns.extend(nested.into_keys().map(|path| (path, Origin::Empty)));
                 let mut changed = BTreeMap::new();
                 let exits = writes(body, &mut changed);
                 *changed.entry(binding.clone()).or_default() += 1;
@@ -151,7 +252,7 @@ fn origins(
                 for name in changed.keys() {
                     bindings.remove(name);
                 }
-                if let Some(origin @ Origin::Page(_)) = origin {
+                if let Some(origin @ Origin::Page(_, _)) = origin {
                     for target in targets {
                         bindings.insert(target, origin.clone());
                     }
@@ -357,4 +458,157 @@ fn resolve_result_page_site(
         }]);
     }
     Ok(page)
+}
+
+#[cfg(test)]
+mod drain_tests {
+    use super::*;
+    use crate::{ColumnType, Index, public_table};
+
+    fn page(site: &str, order: Order, take: u32, cursor: &str) -> Expr {
+        Expr::Scan(Scan {
+            site: site.into(),
+            table: "rows".into(),
+            index: "byId".into(),
+            prefix: vec![],
+            order,
+            take: Bound::Literal(take),
+            after: Some(Box::new(Expr::Variable(cursor.into()))),
+            before: None,
+            range: None,
+            opaque_cursor: true,
+            merge_site: None,
+            provenance: KeyProvenance::Const,
+        })
+    }
+    fn contract(body: Vec<Stmt>) -> Result<String, &'static str> {
+        let schema = Schema {
+            tables: BTreeMap::from([(
+                "rows".into(),
+                public_table(
+                    BTreeMap::from([("id".into(), ColumnType::Id)]),
+                    BTreeMap::from([(
+                        "byId".into(),
+                        Index {
+                            columns: vec!["id".into()],
+                            unique: true,
+                        },
+                    )]),
+                ),
+            )]),
+            ..Schema::default()
+        };
+        let p = Program {
+            name: "log".into(),
+            kind: ProgramKind::Query,
+            args: BTreeMap::from([
+                ("a".into(), ArgType::Optional(Box::new(ArgType::Cursor))),
+                ("c".into(), ArgType::Optional(Box::new(ArgType::Cursor))),
+                ("flag".into(), ArgType::Bool),
+            ]),
+            read_time_granularity_ms: None,
+            body,
+        };
+        let certificate = Checker::new(&schema, Ceilings::default())
+            .check(&p)
+            .unwrap();
+        resumable_log_cursor(&p, &certificate)
+    }
+    #[test]
+    fn returned_cursor_not_first_arg_or_auxiliary_read() {
+        assert_eq!(
+            contract(vec![
+                Stmt::Const {
+                    name: "unused".into(),
+                    value: page("aux", Order::Desc, 60, "a")
+                },
+                Stmt::Const {
+                    name: "position".into(),
+                    value: Expr::Variable("c".into())
+                },
+                Stmt::Const {
+                    name: "rows".into(),
+                    value: page("result", Order::Asc, 50, "position")
+                },
+                Stmt::Return(Expr::Variable("rows".into())),
+            ]),
+            Ok("c".into())
+        );
+        assert_eq!(
+            contract(vec![
+                Stmt::Const {
+                    name: "unused".into(),
+                    value: page("aux", Order::Asc, 1, "a")
+                },
+                Stmt::Return(page("result", Order::Desc, 50, "c")),
+            ]),
+            Err("descending")
+        );
+        assert_eq!(
+            contract(vec![Stmt::Return(page("result", Order::Asc, 51, "c"))]),
+            Err("page-bound")
+        );
+    }
+    #[test]
+    fn every_return_must_continue_the_same_ascending_log() {
+        let branches = |other| {
+            vec![Stmt::If {
+                condition: Expr::Variable("flag".into()),
+                then_body: vec![Stmt::Return(page("yes", Order::Asc, 50, "c"))],
+                else_body: vec![Stmt::Return(other)],
+            }]
+        };
+        assert_eq!(
+            contract(branches(page("no", Order::Asc, 10, "c"))),
+            Ok("c".into())
+        );
+        assert_eq!(
+            contract(branches(page("no", Order::Desc, 10, "c"))),
+            Err("descending")
+        );
+        assert_eq!(
+            contract(branches(page("no", Order::Asc, 10, "a"))),
+            Err("cursor-binding")
+        );
+        assert_eq!(
+            contract(branches(Expr::Array(vec![]))),
+            Err("cursor-binding")
+        );
+        assert_eq!(
+            contract(vec![Stmt::If {
+                condition: Expr::Variable("flag".into()),
+                then_body: vec![Stmt::Return(page("yes", Order::Asc, 10, "c"))],
+                else_body: vec![],
+            }]),
+            Err("cursor-binding")
+        );
+        assert_eq!(
+            contract(vec![
+                Stmt::For {
+                    binding: "i".into(),
+                    domain: LoopDomain::LiteralRange {
+                        start: 0,
+                        end_exclusive: 1
+                    },
+                    body: vec![Stmt::Return(Expr::Array(vec![]))],
+                },
+                Stmt::Return(page("result", Order::Asc, 10, "c")),
+            ]),
+            Err("cursor-binding")
+        );
+        assert_eq!(
+            contract(vec![
+                Stmt::Let {
+                    name: "position".into(),
+                    value: Expr::Variable("c".into())
+                },
+                Stmt::Assign {
+                    name: "position".into(),
+                    value: Expr::Variable("a".into())
+                },
+                Stmt::Return(page("result", Order::Asc, 10, "position"))
+            ]),
+            Ok("a".into())
+        );
+    }
 }
