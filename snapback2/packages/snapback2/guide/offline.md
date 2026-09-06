@@ -34,7 +34,7 @@ Predicted previews; committed confirms.
 `outbox.drain()`/`settled()` return `{ stopped, remaining }`: false means drained;
 fence/transport/authority/offline/pending explains a pause. Transport keeps queued bytes. Retry via `online()` or online `outbox.drain()`.
 Reconnect alone promises no replay. Chat offers **Sync now**, keeps refused drafts.
-Media can expire 24h after creation/latest release; grants/leases do not extend it.
+Unclaimed media can expire 24h after creation/latest release; grants/leases do not extend it.
 After replay refusal, use a new upload/intent; never rewrite queued args (`guide operator`).
 
 ## Resume

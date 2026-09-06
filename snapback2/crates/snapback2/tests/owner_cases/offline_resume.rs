@@ -473,10 +473,10 @@ query members(conversationId: conversations, c: cursor ?):
 
     // A backwards page, an unpaged query, and a page over 50 rows are refused
     // as the log before anything executes.
-    for (label, op, args) in [
-        ("last 50", "messages.thread", thread_args("conversation-1")),
-        ("no page", "profiles.mine", json!({})),
-        ("first 60", "messages.members", thread_args("conversation-1")),
+    for (label, op, args, shape) in [
+        ("last 50", "messages.thread", thread_args("conversation-1"), "descending"),
+        ("no page", "profiles.mine", json!({}), "cursor-binding"),
+        ("first 60", "messages.members", thread_args("conversation-1"), "page-bound"),
     ] {
         let executions_before = status(port, &secret)["executions"].as_u64().unwrap();
         let refused = request(
@@ -494,13 +494,24 @@ query members(conversationId: conversations, c: cursor ?):
         assert_eq!(refused.status, 413, "{label}: {}", refused.body);
         assert_eq!(refused.body["code"], "E_OFFLINE_RESUME", "{label}");
         assert_eq!(refused.body["which"], "log", "{label}");
-        assert_eq!(refused.body["cap"], 50, "{label}");
+        assert_eq!(refused.body["reason"], "unsupported-log", "{label}");
+        assert_eq!(refused.body["op"], op, "{label}");
+        assert_eq!(refused.body["shape"], shape, "{label}");
+        assert!(refused.body.get("cap").is_none(), "{label}: {}", refused.body);
         assert_eq!(refused.body["site"], "/api/resume.log", "{label}");
-        assert!(
-            refused.body["rewrite"].as_str().is_some_and(|rewrite| rewrite.contains("first 50")),
-            "{label}: {}",
-            refused.body
-        );
+        for recovery in [
+            "ascending delivery log",
+            "after c first N",
+            "N <= 50",
+            "subscribe normally at c: null for newest-first data",
+            "queued writes are kept",
+        ] {
+            assert!(
+                refused.body["rewrite"].as_str().is_some_and(|rewrite| rewrite.contains(recovery)),
+                "{label}: missing {recovery:?}: {}",
+                refused.body
+            );
+        }
         assert_eq!(
             status(port, &secret)["executions"].as_u64().unwrap(),
             executions_before,
