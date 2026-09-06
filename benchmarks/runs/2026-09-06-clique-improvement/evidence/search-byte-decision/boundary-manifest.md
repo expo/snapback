@@ -1,0 +1,35 @@
+# Final twin measurement boundary
+
+Use `final-boundary-entry.ts` as the single canonical measurement root set. Its SHA256 is5f4a53685f6c2abe6a3da1c780bc06bdc69757210d5770d028c411fb397157e9. It exports the existing complete Twin entry; full PersistentRangeStore; full OfflineRuntime and offlineView; every carrier projection export; and every receipt protocol export. This includes the full ProjectionCache and receipt converter. No external runtime dependencies are marked external in this neutral ESM/es2022 bundle.
+
+The full OfflineRuntime is included deliberately. Its edited delivery admission checks issuing program/plan/schema, retains authoritative pooled rows while withholding unchecked coverage, restores trusted program custody, and selects local versus stored answers. Those execution branches are not merely HTTP adapter glue, so the54,140 generic-carrier measurement must not be described as including them. Full projection exports also retain cold reconstruction, not only prepare. Protocol namespace retains all decoders/converters/extents/taggers, not merely module presence.
+
+Pinned Node22.23.2, esbuild0.25.9, gzip9, no write: current moving WIP is192,080min/62,624gzip, SHA782b9853e8601a6b54e82cc93c8ae31ae1e73810237d3b3de882671cc7671e6c; identical canonical roots at exact1f9b4b95c are126,446min/39,671gzip, SHA01dbf3ecb89e0518d1ed393d9a38aa225c28148837de5d2e2ba3d83fcc29af47. `final-boundary.json` records exact exports and per-source minified attribution. The earlier full generic carrier comparison54,140/31,505 remains in byte-complete-carrier.json; the earlier46,838/24,094 and21,745 legacy entry remain in byte-checkpoint.json. None is retroactively relabeled a passed or exhaustive boundary.
+
+As an exhaustive cross-check, `exhaustive-boundary.mjs` explicitly roots all156 named runtime exports across all28 edited/new production modules, including otherwise unused diagnostic helpers. It measures63,023gzip current/40,905base and records every source hash, export root, class method list and exclusion in exhaustive-boundary.json. The canonical entry is399bytes smaller because it drops unused standalone helper exports, not executed behavior. The actual minified canonical output was parsed: all source prototype methods of all21 edited/new exported classes survive among30 emitted classes (`boundary-method-retention.json`). This checks bodies, not only metafile presence. Frozen final qualification must rerun this same root set after coding settles; these are bounded moving-WIP byte/accounting facts, not product qualification.
+
+Included execution paths:
+
+| Modules | Bodies retained by canonical roots |
+|---|---|
+| twin, twin-store, twin-hydrate | Full query/prediction and read clock contexts; cold+incremental hydration; row/authority/overlay revisions; FIFO field contributions; negative dominance; pooled receipt retagging; missing-authority state; local h1 paging |
+| evaluator runner/store/value-runtime | Full interpreter, input validation including Text minima, rule probes, ordinary/derived reads, mutation rollback/writes, query states, source changes and all ClientStore methods |
+| index-store, ordered, held-directory, coverage, coverage-spans, search-runtime | Full ordinary/derived indexes, tries/reverse references, AVL operations, delivered-history readable scope directory, exact normalized receipt/coverage comparison, page endpoint summaries/loss counters and shared metering/cache |
+| local-cursor, cursor, certificate-identity, held-program, offline-schema | Full local/server codecs, lexical normalized/exact binding custody, generation/revision fences, schema/program/certificate identity and version validation |
+| PersistentRangeStore and all its private helpers | Full open/close/seal/wipe/commit/applySwap, cold normalization, changes/read publication, reference/absence/extent purge, asset state, overlays/retirement and failure rollback; no method can tree-shake |
+| swap-journal, carrier-index, metadata, full projection namespace | Immutable record journal, bounded payload-free key history, receipt reverse indexes, original heldSuffix lifecycle, exact range identity, per-record metadata, legacy decode and cold reconstruction, prepare/commit deltas |
+| full OfflineRuntime and offlineView | Shared local lifecycle, program restore/admission, receipt authority gate, answer selection, cursor metadata, outbox/prediction integration and cold hydration |
+| full receipt protocol namespace, asset-policy, overlay-retirement, types reducer | Structural/wire/tagged decoders and converters, optional/scalar/identity boundaries, pool/halo custody, shared RowAssets and once-media rules, h1 watermark/retirement exclusion, public held state reducer |
+| Unicode/search-key/hash dependencies | Complete pinned Unicode17 packed tables and algorithms, exact scalar normalization/folding/boundaries, bounded key preparation/comparison and pureJS hashes; generated table bytes are inside bundle |
+
+Only these changed runtime call-site adapters are outside this local-runtime entry:
+
+- client.ts: HTTP/SSE request framing, metadata-settled calls to retained serverArguments, and forwarding the same sanitized arguments to cache/admission. Shared h1 logic is measured.
+- client-offline.ts: mounted/drained transport wiring, retained isLocalCursor/serverArguments guards, and refusing h1 as server watermark. The retirement implementation is retained in PersistentRangeStore.
+- store/indexeddb.ts and store/sqlite.ts: changed-record argument forwarding into full retained ProjectionCache.prepare. Existing transaction/driver code remains the physical adapter; no changed indexing/projection algorithm is excluded.
+- evaluator/evaluator.ts: corpus/hydration diagnostic facade; production Twin directly executes the measured ClientStore/Runner. No new query operation is hidden there.
+- evaluator/types.ts: erased types; package index.ts: exports only. Tests, build-time generators and build.mjs are not shipped runtime. All required generated Unicode data is included.
+
+Source hashes for these excluded files are listed in boundary-excluded-inputs.json. Their exact small diffs were read during this audit; OfflineRuntime was explicitly included because its custody logic does not meet this exclusion. No remaining edited carrier, cold reconstruction, retirement, local cursor, evaluator, decoder, identity or normalization execution body is deliberately excluded. New code after this snapshot must respect this frozen classification.
+
+Root decision required: the currently approved50,000 ceiling is exceeded by the canonical complete local runtime. A66,000 ceiling with64,000 target would cover the measured62,624 with bounded review/final qualification headroom. This is a recommendation, not an automatic waiver; no byte gate changed by this audit, no required behavior removed. 1Msteps/4MiBclosure/8MiBheap/1MiBoutput and Exact2 deferral remain unchanged. Current coder completes concrete correctness/minimum/clock/cursor repairs before final native/durable qualification.

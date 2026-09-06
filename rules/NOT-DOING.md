@@ -76,14 +76,14 @@ the third on 2026-09-04, LLP 1012 §12):
   about twelve recipes with CI-executed snippets. No million-word corpus, no embedded
   20 MB guide in the binary, no calendar freshness dates.
 - **WASM anywhere.** The client evaluator is the TypeScript twin. The 2026-09-06
-  session-delegated search trade sets **50,000 bytes gzip total**, with **48,000
+  session-delegated search trade sets **66,000 bytes gzip for the complete local runtime**, with **64,000
   the optimization target**, replacing the 2026-09-04 ceiling for this work.
   All normalization data, decoding, indexes, incremental state, prediction and
   local cursors participate in the measured entry; relocating required bytes
   does not count as a saving. Historical measurements remain in
   `snapback2/metrics/twin.jsonl`; the complete search integration is not yet
   qualified. The measured scope revision in LLP1012 records why the earlier
-  34,000 allocation was replaced; exceeding50,000 requires a new explicit scope
+  34,000 and 50,000 allocations were replaced; exceeding66,000 requires a new explicit scope
   decision.
 
 ## Process not doing
@@ -160,3 +160,11 @@ PR. If nothing can come off, the answer is no.
   stays measured; no feature or runtime-resource limit is removed. Rationale
   and exact evidence are in LLP1012, "Indexed held search". This is Root's
   current delegated decision, not a historical author ruling or a final pass.
+
+- 2026-09-06 — **Fixed complete local-runtime boundary:**66,000 bytes gzip,
+ 64,000 target supersedes the partial50,000 allocation. Count full Twin,
+ PersistentRangeStore, OfflineRuntime/offlineView, projection and receipt
+ namespaces. Exact same-root baseline39,671/currentWIP62,624 and exhaustive
+ export/method audit are retained in LLP1012's boundary decision. Earlier
+ partial measurements remain incomplete. No runtime resource limit or required
+ behavior changes; physical driver/HTTP framing exclusions are explicit.

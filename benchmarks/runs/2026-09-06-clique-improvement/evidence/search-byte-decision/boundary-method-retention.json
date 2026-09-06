@@ -1,0 +1,494 @@
+{
+  "meaning": "Actual minified canonical-root output AST: every edited/new exported class retains every source prototype method name; no mangleProps option. Empty error classes verified through roots/dependency closure. Complete source hashes in exhaustive-boundary.json; movingWIP.",
+  "minifiedClasses": 30,
+  "checks": [
+    {
+      "path": "snapback2/packages/evaluator/src/runner.ts",
+      "class": "Runner",
+      "checkedMethods": [
+        "execute",
+        "coverageMisses",
+        "authorityMisses",
+        "step",
+        "statements",
+        "domain",
+        "recurse",
+        "expr",
+        "input",
+        "binary",
+        "builtin",
+        "get",
+        "scanInput",
+        "scan",
+        "merge",
+        "evaluateRange",
+        "insert",
+        "update",
+        "replace",
+        "delete",
+        "missingWriteRow",
+        "maintain",
+        "applyAggregate",
+        "pool",
+        "recordWrite",
+        "validateAddressedRowId",
+        "rememberCreatedRow",
+        "refreshCreatedPoints",
+        "forgetCreatedPoints",
+        "checkConstraints",
+        "checkFinalConstraints",
+        "checkUnique",
+        "readAuthority",
+        "checkRule",
+        "evaluateRule",
+        "ruleInputIsReadable",
+        "ruleTerm",
+        "requiredEnv"
+      ],
+      "matchingClasses": [
+        8
+      ]
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/store.ts",
+      "class": "ClientStore",
+      "checkedMethods": [
+        "readable",
+        "setReceipt",
+        "rehydrate",
+        "applyMutation",
+        "rollback",
+        "reexecute",
+        "uncoveredSites",
+        "rows",
+        "lookup",
+        "index",
+        "seek",
+        "scan",
+        "put",
+        "remove",
+        "registerHeld",
+        "missingSearchAuthority",
+        "heldDirectory",
+        "touchAuthority",
+        "touchRows",
+        "record",
+        "byId",
+        "verdict",
+        "authorityAbsence",
+        "hasAbsence",
+        "hasCompleteRange"
+      ],
+      "matchingClasses": [
+        14
+      ]
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/offline-protocol.ts",
+      "class": "DeliveryEnvelopeDecodeError",
+      "checkedMethods": [],
+      "matchingClasses": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29
+      ]
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/offline.ts",
+      "class": "OfflineAuthorityError",
+      "checkedMethods": [],
+      "matchingClasses": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29
+      ]
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/offline.ts",
+      "class": "OfflineRuntime",
+      "checkedMethods": [
+        "principal",
+        "programGeneration",
+        "resetNeeded",
+        "evaluate",
+        "predict",
+        "seq",
+        "open",
+        "reauthenticate",
+        "noteGrant",
+        "adoptPendingGrant",
+        "standInLog",
+        "queuedIntents",
+        "seal",
+        "wipe",
+        "close",
+        "manifest",
+        "declaredCursorArg",
+        "cursorArg",
+        "program",
+        "accept",
+        "commit",
+        "commitMany",
+        "answer",
+        "coverageCurrent",
+        "expandUnviewed",
+        "markWatermark",
+        "resumeRequest",
+        "resetCoverage",
+        "completeReset",
+        "coverage",
+        "resumeSeed",
+        "flushGrant",
+        "flushBounds",
+        "loadProgram",
+        "restoreProgram",
+        "loadFacts",
+        "serial"
+      ],
+      "matchingClasses": [
+        29
+      ]
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/store/asset-policy.ts",
+      "class": "RowAssets",
+      "checkedMethods": [
+        "set"
+      ],
+      "matchingClasses": [
+        6,
+        10,
+        13,
+        17
+      ]
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/store/projection.ts",
+      "class": "ProjectionCache",
+      "checkedMethods": [
+        "reset",
+        "prepare"
+      ],
+      "matchingClasses": [
+        19,
+        25
+      ]
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/store/range-store.ts",
+      "class": "OfflineStoreFailure",
+      "checkedMethods": [],
+      "matchingClasses": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29
+      ]
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/store/range-store.ts",
+      "class": "PersistentRangeStore",
+      "checkedMethods": [
+        "open",
+        "unseal",
+        "seal",
+        "wipe",
+        "answer",
+        "coverage",
+        "changes",
+        "commit",
+        "readBytes",
+        "bytes",
+        "rowsReferencing",
+        "onceRows",
+        "viewedAsset",
+        "viewedRows",
+        "touchBytes",
+        "close",
+        "applySwap",
+        "applyCoverage",
+        "ensureOpen",
+        "ensureUnsealed",
+        "enqueue",
+        "read"
+      ],
+      "matchingClasses": [
+        24
+      ]
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/twin.ts",
+      "class": "Twin",
+      "checkedMethods": [
+        "evaluate",
+        "predict",
+        "context",
+        "hydrate"
+      ],
+      "matchingClasses": [
+        26
+      ]
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/coverage-spans.ts",
+      "class": "CoverageSpans",
+      "checkedMethods": [
+        "complete",
+        "change",
+        "event"
+      ],
+      "matchingClasses": [
+        12
+      ]
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/coverage.ts",
+      "class": "CoverageIndex",
+      "checkedMethods": [
+        "set",
+        "count",
+        "range",
+        "member",
+        "quality",
+        "changed",
+        "hasAbsence",
+        "verdict",
+        "covers",
+        "drained"
+      ],
+      "matchingClasses": [
+        13
+      ]
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/held-directory.ts",
+      "class": "ReadableDirectory",
+      "checkedMethods": [
+        "refresh",
+        "touch",
+        "touchDigest",
+        "select"
+      ],
+      "matchingClasses": [
+        11
+      ]
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/index-store.ts",
+      "class": "HeldIndex",
+      "checkedMethods": [
+        "remove",
+        "put",
+        "position",
+        "resolve",
+        "scan"
+      ],
+      "matchingClasses": [
+        7
+      ]
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/ordered.ts",
+      "class": "Ordered",
+      "checkedMethods": [
+        "summary",
+        "set",
+        "delete",
+        "get",
+        "change",
+        "seek"
+      ],
+      "matchingClasses": [
+        6
+      ]
+    },
+    {
+      "path": "snapback2/packages/evaluator/src/search-runtime.ts",
+      "class": "SearchExecution",
+      "checkedMethods": [
+        "meter"
+      ],
+      "matchingClasses": [
+        5
+      ]
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/local-cursor.ts",
+      "class": "StaleLocalPage",
+      "checkedMethods": [],
+      "matchingClasses": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29
+      ]
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/store/carrier-index.ts",
+      "class": "CarrierIndex",
+      "checkedMethods": [
+        "program",
+        "schemaReady",
+        "rangeKey",
+        "receipt",
+        "matching",
+        "set",
+        "update",
+        "contains",
+        "suffix"
+      ],
+      "matchingClasses": [
+        17
+      ]
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/store/swap-journal.ts",
+      "class": "SwapJournal",
+      "checkedMethods": [
+        "wrap",
+        "rollback"
+      ],
+      "matchingClasses": [
+        18
+      ]
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/store/swap-journal.ts",
+      "class": "StoreChanges",
+      "checkedMethods": [
+        "dirty",
+        "prepare",
+        "reset",
+        "publish",
+        "read"
+      ],
+      "matchingClasses": [
+        19
+      ]
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/twin-store.ts",
+      "class": "TwinStore",
+      "checkedMethods": [
+        "onceAssets",
+        "facts",
+        "deliveredAt",
+        "predicted",
+        "sync",
+        "context",
+        "intent",
+        "row",
+        "answer"
+      ],
+      "matchingClasses": [
+        16
+      ]
+    }
+  ]
+}

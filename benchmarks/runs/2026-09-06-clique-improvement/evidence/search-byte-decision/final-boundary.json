@@ -1,0 +1,326 @@
+{
+  "entry": "export * from './snapback2/packages/snapback2/src/twin.ts';\nexport { PersistentRangeStore } from './snapback2/packages/snapback2/src/store/range-store.ts';\nexport { OfflineRuntime, offlineView } from './snapback2/packages/snapback2/src/offline.ts';\nexport * as carrierProjection from './snapback2/packages/snapback2/src/store/projection.ts';\nexport * as receiptProtocol from './snapback2/packages/snapback2/src/offline-protocol.ts';\n",
+  "entryHash": "5f4a53685f6c2abe6a3da1c780bc06bdc69757210d5770d028c411fb397157e9",
+  "node": "v22.23.2",
+  "esbuild": "0.25.9",
+  "level": 9,
+  "cases": {
+    "base": {
+      "minified": 126446,
+      "gzip": 39671,
+      "sha256": "01dbf3ecb89e0518d1ed393d9a38aa225c28148837de5d2e2ba3d83fcc29af47",
+      "exports": [
+        "OfflineRuntime",
+        "PersistentRangeStore",
+        "Twin",
+        "carrierProjection",
+        "offlineView",
+        "readsConnected",
+        "receiptProtocol",
+        "twinLastDecline"
+      ],
+      "inputs": [
+        {
+          "path": "snapback2/packages/evaluator/src/runner.ts",
+          "minified": 22576
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/store/range-store.ts",
+          "minified": 19466
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/offline.ts",
+          "minified": 14451
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/offline-protocol.ts",
+          "minified": 11845
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/value-runtime.ts",
+          "minified": 10380
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/store.ts",
+          "minified": 8645
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/store/byte-cache.ts",
+          "minified": 6640
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/store/outbox.ts",
+          "minified": 6199
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/cursor.ts",
+          "minified": 5545
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/certificate-identity.ts",
+          "minified": 4800
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/twin.ts",
+          "minified": 4001
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/twin-hydrate.ts",
+          "minified": 2404
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/store/projection.ts",
+          "minified": 2047
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/hash.ts",
+          "minified": 1943
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/store/overlay-retirement.ts",
+          "minified": 1166
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/store/row-values.ts",
+          "minified": 940
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/merge.ts",
+          "minified": 793
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/store/asset-policy.ts",
+          "minified": 778
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/client-wire.ts",
+          "minified": 400
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/text.ts",
+          "minified": 359
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/store/canonical.ts",
+          "minified": 215
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/authority.ts",
+          "minified": 214
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/errors.ts",
+          "minified": 205
+        },
+        {
+          "path": "snapback2/crates/snapback2-core/ir-contract.json",
+          "minified": 135
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/offline-schema.ts",
+          "minified": 31
+        },
+        {
+          "path": "final-boundary-entry.ts",
+          "minified": 0
+        }
+      ]
+    },
+    "currentWip": {
+      "minified": 192080,
+      "gzip": 62624,
+      "sha256": "782b9853e8601a6b54e82cc93c8ae31ae1e73810237d3b3de882671cc7671e6c",
+      "exports": [
+        "CarrierIndex",
+        "OfflineRuntime",
+        "PersistentRangeStore",
+        "ProjectionCache",
+        "StoreChanges",
+        "SwapJournal",
+        "Twin",
+        "carrierProjection",
+        "decodeHeldProgram",
+        "metadata",
+        "metadataChanges",
+        "offlineView",
+        "readsConnected",
+        "receiptProtocol",
+        "reduceQueryState",
+        "restoreMetadata",
+        "serverArguments",
+        "toClosureReceipt",
+        "twinLastDecline"
+      ],
+      "inputs": [
+        {
+          "path": "snapback2/packages/evaluator/src/runner.ts",
+          "minified": 25228
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/store/range-store.ts",
+          "minified": 19370
+        },
+        {
+          "path": "snapback2/packages/evaluator/dist/unicode-tables.ts",
+          "minified": 17186
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/offline.ts",
+          "minified": 14170
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/offline-protocol.ts",
+          "minified": 12934
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/value-runtime.ts",
+          "minified": 10586
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/certificate-identity.ts",
+          "minified": 8813
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/store.ts",
+          "minified": 7385
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/store/byte-cache.ts",
+          "minified": 6640
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/twin-store.ts",
+          "minified": 6265
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/store/outbox.ts",
+          "minified": 6199
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/cursor.ts",
+          "minified": 5499
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/coverage.ts",
+          "minified": 5360
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/index-store.ts",
+          "minified": 5296
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/unicode.ts",
+          "minified": 4760
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/twin.ts",
+          "minified": 4468
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/store/carrier-index.ts",
+          "minified": 3807
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/store/swap-journal.ts",
+          "minified": 2945
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/local-cursor.ts",
+          "minified": 2580
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/store/projection.ts",
+          "minified": 2330
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/hash.ts",
+          "minified": 2177
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/twin-hydrate.ts",
+          "minified": 1970
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/held-directory.ts",
+          "minified": 1760
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/ordered.ts",
+          "minified": 1412
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/types.ts",
+          "minified": 1340
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/unicode-tables.ts",
+          "minified": 1339
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/store/asset-policy.ts",
+          "minified": 1318
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/search-key.ts",
+          "minified": 1221
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/store/overlay-retirement.ts",
+          "minified": 1218
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/search-runtime.ts",
+          "minified": 1008
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/store/row-values.ts",
+          "minified": 940
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/store/metadata.ts",
+          "minified": 861
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/merge.ts",
+          "minified": 793
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/held-program.ts",
+          "minified": 685
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/coverage-spans.ts",
+          "minified": 465
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/client-wire.ts",
+          "minified": 400
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/text.ts",
+          "minified": 269
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/store/canonical.ts",
+          "minified": 215
+        },
+        {
+          "path": "snapback2/packages/evaluator/src/errors.ts",
+          "minified": 205
+        },
+        {
+          "path": "snapback2/crates/snapback2-core/ir-contract.json",
+          "minified": 135
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/offline-schema.ts",
+          "minified": 31
+        },
+        {
+          "path": "final-boundary-entry.ts",
+          "minified": 0
+        }
+      ]
+    }
+  }
+}

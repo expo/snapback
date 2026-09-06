@@ -1,0 +1,30 @@
+{
+  "snapback2/packages/evaluator/src/evaluator.ts": {
+    "reason": "Corpus/hydration diagnostic facade only; production Twin directly executes retained ClientStore and Runner. No query algorithm excluded.",
+    "sha256": "a96cd7495593d627fc52b6640fb67ed08b1a0455dff95728f4d59896320083af"
+  },
+  "snapback2/packages/snapback2/src/client.ts": {
+    "reason": "HTTP/SSE transport orchestration: forwards arguments through retained serverArguments after metadata; no local index/coverage/retirement implementation.",
+    "sha256": "ce0c60b47b6f7d0e4bd7fc853d3fb05dd63800a01f430c2f837b2e9c490137b0"
+  },
+  "snapback2/packages/snapback2/src/client-offline.ts": {
+    "reason": "Drain/subscription transport adapter: retained isLocalCursor/serverArguments guards; mount/watermark call-site glue separate.",
+    "sha256": "aa53210b66354e52bb217048facb5207af7ec589030de5850e60144ce57ffe62"
+  },
+  "snapback2/packages/snapback2/src/store/indexeddb.ts": {
+    "reason": "Backend adapter: only forwards new changed-record parameter into full retained ProjectionCache.prepare; transaction implementation unchanged.",
+    "sha256": "900346d4aa3478865fe19763ae44417246ad37753e16afd11ca1e227a83bb8c5"
+  },
+  "snapback2/packages/snapback2/src/store/sqlite.ts": {
+    "reason": "Backend adapter: only forwards new changed-record parameter into full retained ProjectionCache.prepare; transaction implementation unchanged.",
+    "sha256": "f5c0b1ac3cc27789ddd2d21854e00b1d57027139aa77743f5a023dc47c090606"
+  },
+  "snapback2/packages/snapback2/src/index.ts": {
+    "reason": "Package export aggregator only; no execution body.",
+    "sha256": "abdb49c7fcb31153640db29dff50f83c3a68f1fab34fdf79fae9f9fc59923eda"
+  },
+  "snapback2/packages/evaluator/src/types.ts": {
+    "reason": "Type declarations only; no emitted runtime body.",
+    "sha256": "db65458d206df3e73d9107a82cdde39422bde68f465dcf4c0934504c1baf46eb"
+  }
+}

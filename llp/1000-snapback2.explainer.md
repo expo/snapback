@@ -6,7 +6,7 @@
 **Systems:** Everything under `snapback2/`; the rules under `rules/`
 **Author:** Charlie Cheever / Claude Fable 5
 **Date:** 2026-08-29
-**Revised:** 2026-09-06 (measured full-entry search trade: 50,000-byte ceiling, 48,000 target); 2026-09-06 (session-delegated Unicode search scope/byte/build trade; Exact 2 deferral); 2026-09-05 (LLP 1016 implemented: the administrative plane; LLP 1016 listed; LLP 1014/1015 listed); 2026-09-04 (LLP 1012 listed); 2026-09-02
+**Revised:** 2026-09-06 (fixed complete local-runtime measurement roots: 66,000-byte ceiling, 64,000 target); 2026-09-06 (measured full-entry search trade: 50,000-byte ceiling, 48,000 target); 2026-09-06 (session-delegated Unicode search scope/byte/build trade; Exact 2 deferral); 2026-09-05 (LLP 1016 implemented: the administrative plane; LLP 1016 listed; LLP 1014/1015 listed); 2026-09-04 (LLP 1012 listed); 2026-09-02
 **Related:** LLP 0000, LLP 0329, LLP 0329.014, LLP 0329.014.004, LLP 0329.016,
 LLP 0316, LLP 0330, `rules/RULES.md`, `rules/NOT-DOING.md`,
 `spikes/bounded-programs/`, expo/ibex LLP 0057, LLP 0058, LLP 0068
@@ -50,7 +50,7 @@ numbered 1000 and up.
    until exact Unicode prefix search qualifies on React web and Expo. The user
    delegated implementation decisions in this session; the resulting trade
    brings engine-maintained `wordPrefixes` and the indexed held-row twin onto
-   the doing-list, sets 50,000 bytes gzip total twin with a 48,000 target, and
+   the doing-list, sets 66,000 bytes gzip for the complete local runtime with a 64,000 target, and
    permits one conventional core `build.rs` for shared pinned Unicode inputs.
    This records a current decision, not a historical author ruling. LLP 1001
    §"Unicode search foundation" and LLP 1012 §"Indexed held search" separate
