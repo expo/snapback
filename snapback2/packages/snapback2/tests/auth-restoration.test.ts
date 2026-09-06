@@ -265,23 +265,30 @@ test("HTTP 503 restoration retries, and authority replacement cancels the old ba
 });
 
 test("late terminal me evidence clears only custody that still holds that bearer", async () => {
-  for (const replacement of ["failed", "succeeded"] as const) {
+  for (const stage of ["fetch", "body"] as const) for (const replacement of ["failed", "succeeded"] as const) {
     const response = deferred<Response>();
+    const started = deferred<void>(), release = deferred<void>();
     const store = custody();
     const client = createClient({ url: "http://auth.test", tokenStore: store, fetch: async input => {
-      if (String(input).endsWith("/api/auth/me")) return response.promise;
+      if (String(input).endsWith("/api/auth/me")) {
+        if (stage === "fetch") return response.promise;
+        const terminal = refusal("E_AUTH_SESSION"), parse = terminal.json.bind(terminal);
+        terminal.json = async () => { started.resolve(); await release.promise; return parse(); };
+        return terminal;
+      }
       return replacement === "failed" ? refusal("E_AUTH_INVALID") : json({ token: "token-b", viewer: "bob", kind: "user" });
     } });
     try {
       await restored(client);
+      if (stage === "body") await started.promise;
       const login = client.auth.login({ email: "bob@example.com", password: "password" });
       if (replacement === "failed") await assert.rejects(login, (error: any) => error.code === "E_AUTH_INVALID");
       else await login;
-      response.resolve(refusal("E_AUTH_SESSION")); await flush();
+      response.resolve(refusal("E_AUTH_SESSION")); release.resolve(); await flush();
       assert.equal(store.load(), replacement === "failed" ? null : "token-b");
       assert.equal(client.snapshot.auth.state, replacement === "failed" ? "anonymous" : "authenticated");
       assert.equal(client.snapshot.auth.viewer, replacement === "failed" ? undefined : "bob");
-    } finally { response.resolve(refusal("E_AUTH_SESSION")); await client.close(); }
+    } finally { response.resolve(refusal("E_AUTH_SESSION")); release.resolve(); await client.close(); }
   }
 });
 
@@ -825,13 +832,13 @@ for (const failure of ["expired", "closed"] as const) test(`metadata cannot repo
   } finally { metadata.resolve(refusal("E_AUTH_SESSION")); await login; await client.close(); }
 });
 
-async function queuedStartup(context: TestContext) {
+async function queuedStartup(context: TestContext, bodies = ["held before startup"]) {
   const factory = offlineStore(context), owner = fakeOwner();
   await seededStore(factory);
   const seed = createClient({ url: "http://auth.test", as: "alice", offline: { store: factory }, fetch: owner.fetch });
   try {
     await seed.ready; await seed.offline();
-    await seed.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "held before startup" });
+    for (const body of bodies) await seed.mutation(api.deliveries.post, { conversationId: "conversation-1", body });
   } finally { await seed.close(); }
   return { factory, owner };
 }
@@ -1091,3 +1098,121 @@ for (const interruption of ["offline", "failed-login"] as const) test(`${interru
     await Promise.allSettled(pending); await client.close();
   }
 });
+
+for (const stage of ["replay-fetch", "replay-body", "tail-fetch"] as const) {
+  for (const interruption of ["offline", "failed-login"] as const) {
+    test(`${interruption} releases the drain before cancelled ${stage} returns`, async context => {
+      const bodies = ["first held intent", "second held intent"];
+      const { factory, owner } = await queuedStartup(context, bodies);
+      const started = deferred<void>(), release = deferred<void>();
+      const replays: string[] = [];
+      let held = false, resumed = false, done = false;
+      let oldSignal: AbortSignal | null | undefined;
+      let completion: Promise<unknown> | undefined;
+      const store = custody("dev:alice");
+      const client = createClient({ url: "http://auth.test", tokenStore: store, offline: { store: factory },
+        fetch: async (input, init) => {
+          const path = new URL(String(input)).pathname;
+          if (path === "/api/auth/login" && JSON.parse(String(init?.body)).password === "wrong") return refusal("E_AUTH_INVALID");
+          if (path === "/api/resume") resumed = true;
+          if (path === "/api/mutation") replays.push(String(init?.body));
+          const response = await owner.fetch(input, init);
+          const target = stage === "tail-fetch" ? path === "/api/query" && replays.length > 0 : path === "/api/mutation";
+          if (resumed && target && !held) {
+            held = true; oldSignal = init?.signal;
+            if (stage === "replay-body") {
+              const parse = response.json.bind(response);
+              response.json = async () => { started.resolve(); await release.promise; return parse(); };
+            } else { started.resolve(); await release.promise; }
+          }
+          return response;
+        } });
+      try {
+        await client.auth.login({ email: "alice@example.com", password: "password" });
+        await started.promise;
+        assert.equal(owner.executions.length, 1, "the first intent committed before its response was withheld");
+        assert.equal((await client.outbox.entries()).filter(entry => entry.state === "queued").length, 2);
+        if (interruption === "offline") {
+          await client.offline();
+          completion = client.online().then(() => { done = true; });
+        } else {
+          completion = client.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "waiting behind recovery" })
+            .then(value => { done = true; return value; });
+          void completion.catch(() => undefined);
+          await flush();
+          assert.equal(done, false);
+          await assert.rejects(client.auth.login({ email: "alice@example.com", password: "wrong" }), (error: any) => error.code === "E_AUTH_INVALID");
+        }
+        void completion.catch(() => undefined);
+        assert.equal(oldSignal?.aborted, true);
+        for (let i = 0; i < 30 && !done; i++) await flush();
+        assert.equal(done, true, "replacement recovery and its waiter must finish with the old replay still withheld");
+        await completion;
+        assert.deepEqual(await client.outbox.settled(), { stopped: false, remaining: 0 });
+        assert.equal(replays[1], replays[0], "replacement retries the exact committed envelope before advancing FIFO");
+        assert.deepEqual(owner.executions.map(entry => (entry.args as any).body), interruption === "offline"
+          ? bodies : [...bodies, "waiting behind recovery"]);
+        assert.equal(owner.messages.size, interruption === "offline" ? 2 : 3, "each intent executes exactly once");
+        const snapshot = client.snapshot, entries = await client.outbox.entries(), requests = replays.length;
+        release.resolve(); await flush(); await flush();
+        assert.deepEqual(client.snapshot, snapshot, "late cancelled replay cannot change auth or sync status");
+        assert.deepEqual(await client.outbox.entries(), entries, "late cancelled replay cannot settle an intent again");
+        assert.equal(replays.length, requests, "the obsolete drain cannot advance after its late response");
+        assert.equal(store.load(), snapshot.token);
+      } finally { release.resolve(); await completion?.catch(() => undefined); await client.close(); }
+    });
+  }
+}
+
+for (const body of ["terminal-refusal", "invalid-refusal-json", "invalid-success-json"] as const) {
+  test(`cancelled resume ignores delayed ${body} after replacement recovery`, async context => {
+    const { factory, owner } = await queuedStartup(context);
+    const started = deferred<void>(), release = deferred<void>();
+    const store = custody("dev:alice");
+    let held = false, parsed = false, done = false;
+    let oldSignal: AbortSignal | null | undefined;
+    let reconnect: Promise<void> | undefined;
+    const client = createClient({ url: "http://auth.test", tokenStore: store, offline: { store: factory },
+      fetch: async (input, init) => {
+        if (new URL(String(input)).pathname === "/api/resume" && !held) {
+          held = true; oldSignal = init?.signal;
+          const response = body === "terminal-refusal" ? refusal("E_AUTH_SESSION")
+            : new Response("invalid JSON", { status: body === "invalid-refusal-json" ? 401 : 200 });
+          const parse = response.json.bind(response);
+          response.json = async () => {
+            started.resolve(); await release.promise;
+            try { return await parse(); } finally { parsed = true; }
+          };
+          return response;
+        }
+        return owner.fetch(input, init);
+      } });
+    try {
+      await client.auth.login({ email: "alice@example.com", password: "password" });
+      await started.promise;
+      await client.offline();
+      reconnect = client.online().then(() => { done = true; });
+      void reconnect.catch(() => undefined);
+      for (let i = 0; i < 30 && !done; i++) await flush();
+      assert.equal(done, true, "replacement recovery completes before the old body is released");
+      await reconnect;
+      await client.outbox.settled();
+      assert.equal(oldSignal?.aborted, true);
+      assert.equal(parsed, false);
+      assert.equal(client.snapshot.auth.state, "authenticated");
+      assert.equal(owner.executions.length, 1);
+      const snapshot = client.snapshot, entries = await client.outbox.entries(), status = await client.outbox.status();
+      const token = store.load(), binding = store.loadPrincipalBinding();
+      release.resolve();
+      for (let i = 0; i < 30 && !parsed; i++) await flush();
+      assert.equal(parsed, true);
+      await flush(); await flush();
+      assert.equal(store.load(), token, "cancelled resume cannot clear recovered bearer custody");
+      assert.deepEqual(store.loadPrincipalBinding(), binding);
+      assert.deepEqual(client.snapshot, snapshot, "late parsing cannot alter auth, connection, or lastRefusal");
+      assert.deepEqual(await client.outbox.status(), status, "cancelled resume cannot seal the recovered partition");
+      assert.deepEqual(await client.outbox.entries(), entries);
+      assert.equal(owner.executions.length, 1);
+    } finally { release.resolve(); await reconnect?.catch(() => undefined); await client.close(); }
+  });
+}

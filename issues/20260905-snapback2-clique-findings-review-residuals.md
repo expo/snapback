@@ -83,6 +83,16 @@ third round are collected here so they are not lost.
   Two regressions withhold the obsolete response until reconnect/replay or a waiting
   mutation completes, then release a late success/expiry response and prove no duplicate
   replay or snapshot/outbox change.
+  Round-3 cancellation follow-up (2026-09-06, Astra; reproduced from source):
+  resume-owned replay and log-tail awaits now race cancellation, releasing the
+  existing serialized outbox drain. Delayed resume refusal bodies and JSON failures
+  check cancellation before custody, partition, or snapshot effects. Nine regressions
+  fail on `0e6cebfcd` and pass with the fix: offline and failed-login interruptions at
+  replay fetch, replay body, and tail fetch; delayed terminal 401, invalid 401 JSON,
+  and invalid 200 JSON bodies. Every case completes replacement recovery while the
+  old response/body remains withheld; retries preserve FIFO and exactly-once execution.
+  Late `me()` terminal evidence remains bearer-keyed, including a delayed body across
+  successful or failed replacement.
 - **Resolved 2026-09-05 (auth startup follow-up):** `ClientAuth.session` publishes `authenticated` before metadata and then throws on a
   non-retryable metadata failure (offline runtime only): resolve after install and leave metadata
   to `ready`, or fail the promise only when custody did not settle.

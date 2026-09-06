@@ -861,6 +861,7 @@ class Client implements SnapbackClient {
         try {
           refusal = await responseRefusal(response);
         } catch (error) {
+          throwIfAborted(init.signal);
           if (isSnapbackRefusal(error)) {
             if (enforceAuthority) this.ensureAuthority(authority);
             else this.ensureOpen();
@@ -871,6 +872,8 @@ class Client implements SnapbackClient {
           }
           throw error;
         }
+        // @ref LLP 1002#9-the-client-snapback2client-snapback2react-snapback2test — me() retains late terminal evidence across cancellation.
+        if (!authRestoration) throwIfAborted(init.signal);
         const wasCurrent = !enforceAuthority || this.authorityCurrent(authority);
         let expiration: SessionExpiration | undefined;
         if (clearTerminalSession && authority.token !== undefined && isTerminalSession(refusal.envelope)) {
@@ -902,6 +905,7 @@ class Client implements SnapbackClient {
     try {
       value = await response.json();
     } catch {
+      throwIfAborted(init.signal);
       if (enforceAuthority) this.ensureAuthority(authority);
       else this.ensureOpen();
       const refusal = wireShape(`${path} must contain valid JSON`);
@@ -1126,7 +1130,8 @@ class Client implements SnapbackClient {
     const check = () => { throwIfAborted(signal); this.ensureAuthority(authority); };
     const json = async (path: string, init: RequestInit) => {
       check();
-      const value = await this.json(path, { ...init, signal }, authority);
+      // @ref LLP 1012#7-writes-offline — release the serialized drain even if replay or its tail ignores abort.
+      const value = await withAbort(signal, () => this.json(path, { ...init, signal }, authority));
       check();
       return value;
     };

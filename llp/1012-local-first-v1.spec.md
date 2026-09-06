@@ -345,6 +345,9 @@ interface RangeStore {
   Cancelling resume releases its operation barrier independently of the transport.
   Operations waiting there recheck authority and the current recovery barrier before
   dispatching; late cancelled responses do not change settled data or auth.
+  This fence includes delayed refusal bodies and JSON failures: parsing may finish
+  after replacement recovery, but cannot clear custody, seal the partition, or record
+  a late refusal. The separate terminal `me()` evidence rule remains in LLP 1002 §9.
 - **One writer per partition.** The web client takes
   `navigator.locks.request("snapback2:" + principalId)`; a second tab gets
   `E_OFFLINE_LOCK` with the rewrite "this account is open in another tab".
@@ -694,6 +697,14 @@ is ruled (2026-09-04 afternoon):* the local expiry of intents whose grant is pas
 fence discarded writes the server would still accept for thirty days and would
 validate by trace; the client now replays after a successful resume and lets the
 server judge, keeping the fence for prediction and the `stale` label only (lane F).
+
+**Cancellation follow-up (2026-09-06).** Resume-owned transport awaits race the
+resume signal, including replay responses/bodies and the log-tail fetch. Cancellation
+unwinds the existing serialized drain without waiting for transport cooperation;
+the durable intent stays queued. Replacement recovery retries that exact envelope
+before later intents, even if the old request already committed at the owner.
+The ledger provides exactly-once execution and the old signal fences late results
+before they can settle intents, advance the drain, or change the client snapshot.
 
 **Implementation record (lane F and its fix round, 2026-09-04).** Replay eligibility is
 per intent and per partition: an intent whose grant is past the fence, or that was

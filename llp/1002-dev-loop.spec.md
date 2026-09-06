@@ -825,6 +825,11 @@ The recovery barrier is installed before waiting for queued transitions. Cancell
 flight wakes existing waiters even if fetch ignores abort; each waiter rechecks authority
 and joins any replacement recovery before dispatching. A cancelled flight's late response
 cannot alter custody, sync status, or the settled outbox.
+Cancellation also releases replay and log-tail transport waits inside the serialized
+outbox drain, so replacement recovery never depends on an obsolete response or body.
+After response-body parsing succeeds or fails, cancelled resume requests check the signal
+before clearing custody or recording a refusal. Auth restoration's valid late terminal
+`me()` evidence keeps the bearer-keyed cleanup contract below.
 Hooks wait for `ready` before deciding whether
 a tokenless client needs its lazy first `me()`.
 
