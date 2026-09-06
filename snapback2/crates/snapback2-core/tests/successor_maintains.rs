@@ -577,6 +577,10 @@ fn survivor_fixture(group: &str) -> (Runtime, BTreeMap<String, Table>, Maintain)
 // A read-only backup observes durable metadata and every base/target/archive
 // row and index entry, including entries not exercised by the byId query.
 fn stored_observations(runtime: &Runtime) -> Vec<Vec<Vec<String>>> {
+    store_observations(runtime.store())
+}
+
+fn store_observations(store: &Store) -> Vec<Vec<Vec<String>>> {
     let path = std::env::temp_dir().join(format!(
         "s2-survivor-{}-{}.sqlite",
         std::process::id(),
@@ -585,7 +589,7 @@ fn stored_observations(runtime: &Runtime) -> Vec<Vec<Vec<String>>> {
             .unwrap()
             .as_nanos()
     ));
-    runtime.store().snapshot_to(&path).unwrap();
+    store.snapshot_to(&path).unwrap();
     let connection =
         rusqlite::Connection::open_with_flags(&path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
             .unwrap();
@@ -896,4 +900,253 @@ fn required_source_admission_precedes_successor_projection() {
         "E_SUCCESSOR_COLUMN_REQUIRED"
     );
     assert_eq!(stored_observations(&runtime), before);
+}
+
+// @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — a target
+// retired by one rebuild may be the next rebuild's ordinary source.
+fn retirement_fixture(retired: &str, target: &str, group: &str) -> (Runtime, Generation) {
+    let source = table(
+        &[
+            ("id", ColumnType::Id),
+            ("group", ColumnType::Text { max: 80 }),
+        ],
+        &[("byId", &["id"])],
+    );
+    let mut total = source.clone();
+    total.columns.insert("value".into(), ColumnType::Int);
+    total.indexes.insert(
+        "byGroup".into(),
+        Index {
+            columns: vec!["group".into()],
+            unique: true,
+        },
+    );
+    let mut tables = BTreeMap::from([
+        ("events".into(), source.clone()),
+        ("archive".into(), source),
+        (retired.into(), total.clone()),
+        (target.into(), total),
+    ]);
+    let predecessor = generation(
+        tables.clone(),
+        vec![Maintain {
+            source: "events".into(),
+            target: retired.into(),
+            by: vec!["group".into()],
+            kind: MaintainKind::Count,
+            readable: None,
+        }],
+    );
+    let mut runtime = Runtime::open(Store::memory().unwrap(), predecessor).unwrap();
+    let id = canonical_json(&vec![Value::String("valid".into())]);
+    // Certified schemas and author-declared seed data only; no raw row injection.
+    runtime
+        .seed(&[
+            (
+                "events".into(),
+                object([
+                    ("id", Value::Id("event".into())),
+                    ("group", Value::String("valid".into())),
+                ]),
+            ),
+            (
+                "archive".into(),
+                object([
+                    ("id", Value::Id("archived".into())),
+                    ("group", Value::String("history".into())),
+                ]),
+            ),
+            (
+                target.into(),
+                object([
+                    ("id", Value::Id(id)),
+                    ("group", Value::String(group.into())),
+                    ("value", Value::Int(9)),
+                ]),
+            ),
+        ])
+        .unwrap();
+    for name in [retired, target] {
+        let table = tables.get_mut(name).unwrap();
+        table
+            .columns
+            .insert("group".into(), ColumnType::Text { max: 2000 });
+        table.constraints.push(Constraint::Text {
+            field: "group".into(),
+            min: 2,
+            format: None,
+        });
+    }
+    let next = generation(
+        tables,
+        vec![Maintain {
+            source: retired.into(),
+            target: target.into(),
+            by: vec!["group".into()],
+            kind: MaintainKind::Count,
+            readable: None,
+        }],
+    );
+    (runtime, next)
+}
+
+fn retirement_refusal(migration: bool) {
+    let (mut runtime, mut next) = retirement_fixture("aTotals", "zTotals", "x");
+    if migration {
+        let mut tables = next.schema().tables.clone();
+        tables.remove("archive");
+        next = generation(tables, next.schema().maintains.clone());
+    }
+    let before = stored_observations(&runtime);
+    let hash = runtime.generation().hash();
+    let seq = runtime.store().commit_seq().unwrap();
+    println!(
+        "certified predecessor={hash} successor={} migration={migration}",
+        next.hash()
+    );
+    println!(
+        "certified successor schema={}",
+        serde_json::to_string(next.schema()).unwrap()
+    );
+    let result = if migration {
+        let plan = runtime.apply_successor(next.clone()).unwrap_err().plan;
+        assert_eq!(
+            plan.drops,
+            vec![Drop::Table {
+                name: "archive".into(),
+                rows: 1
+            }]
+        );
+        runtime.apply_migration(next, &plan, 123).map_err(|error| {
+            let RuntimeError::Successor(refusal) = error else {
+                panic!("{error}")
+            };
+            *refusal
+        })
+    } else {
+        runtime.apply_successor(next)
+    };
+    // Retain actual installed rows when running this invariant on the broken baseline.
+    println!(
+        "actual installed={} seq={} rows={:?}",
+        runtime.generation().hash(),
+        runtime.store().commit_seq().unwrap(),
+        stored_observations(&runtime)[1]
+    );
+    let refusal =
+        result.expect_err("a retired-source projection must not exempt an unreplaced survivor");
+    assert_eq!(refusal.code, "E_SUCCESSOR_ROW_INVALID");
+    assert_eq!(
+        refusal.site.as_deref(),
+        Some(
+            format!(
+                "zTotals.{}",
+                canonical_json(&vec![Value::String("valid".into())])
+            )
+            .as_str()
+        )
+    );
+    assert_eq!(runtime.generation().hash(), hash);
+    assert_eq!(runtime.store().commit_seq().unwrap(), seq);
+    assert_eq!(stored_observations(&runtime), before);
+}
+
+#[test]
+fn retirement_source_ordering_refuses_the_actual_survivor() {
+    retirement_refusal(false);
+}
+
+#[test]
+fn retirement_source_ordering_rolls_back_an_exact_archive_drop() {
+    retirement_refusal(true);
+}
+
+#[test]
+fn retirement_source_ordering_refuses_changed_schema_reopening() {
+    let (runtime, next) = retirement_fixture("aTotals", "zTotals", "x");
+    let before = stored_observations(&runtime);
+    let path = std::env::temp_dir().join(format!(
+        "s2-retired-source-reopen-{}.sqlite",
+        std::process::id()
+    ));
+    runtime.store().snapshot_to(&path).unwrap();
+    let refusal = match Runtime::open(Store::open(&path).unwrap(), next) {
+        Ok(_) => panic!("reopening must not install the invalid survivor"),
+        Err(refusal) => refusal,
+    };
+    assert_eq!(refusal.code, "E_SUCCESSOR_ROW_INVALID");
+    let store = Store::open(&path).unwrap();
+    let mut after = store_observations(&store);
+    // Store::open records lock ownership before Runtime admission; the original
+    // in-memory store has no owner stamp. Every generation entry still matches.
+    after[0].retain(|row| row[0] != "owner");
+    assert_eq!(after, before);
+    assert_eq!(
+        store.commit_seq().unwrap(),
+        runtime.store().commit_seq().unwrap()
+    );
+    drop(store);
+    std::fs::remove_file(path).unwrap();
+}
+
+#[test]
+fn retirement_source_ordering_allows_valid_survival_and_actual_replacement() {
+    for (retired, target, group, migration) in [
+        ("aTotals", "zTotals", "survivor", false),
+        // Here the new target builds first and really replaces the old x row.
+        ("zTotals", "aTotals", "x", true),
+    ] {
+        let (mut runtime, mut next) = retirement_fixture(retired, target, group);
+        if migration {
+            let mut tables = next.schema().tables.clone();
+            tables.remove("archive");
+            next = generation(tables, next.schema().maintains.clone());
+        }
+        let before = stored_observations(&runtime);
+        let seq = runtime.store().commit_seq().unwrap();
+        let next_hash = next.hash();
+        if migration {
+            let plan = runtime.apply_successor(next.clone()).unwrap_err().plan;
+            runtime.apply_migration(next, &plan, 123).unwrap();
+        } else {
+            runtime.apply_successor(next).unwrap();
+        }
+        assert_eq!(runtime.generation().hash(), next_hash);
+        assert_eq!(runtime.store().meta("generation").unwrap(), Some(next_hash));
+        assert_eq!(runtime.store().commit_seq().unwrap(), seq);
+        let after = stored_observations(&runtime);
+        for observation in [1, 2] {
+            // Rows and every persisted index key.
+            assert!(!after[observation].iter().any(|row| row[0] == retired));
+            let expected_table = if migration { retired } else { target };
+            let expected = before[observation]
+                .iter()
+                .filter(|row| row[0] == expected_table)
+                .map(|row| {
+                    let mut row = row.clone();
+                    row[0] = target.into();
+                    row
+                })
+                .collect::<Vec<_>>();
+            assert!(!expected.is_empty());
+            assert_eq!(
+                after[observation]
+                    .iter()
+                    .filter(|row| row[0] == target)
+                    .cloned()
+                    .collect::<Vec<_>>(),
+                expected
+            );
+            let base = |rows: &Vec<Vec<String>>| {
+                rows.iter()
+                    .filter(|row| row[0] == "events" || (!migration && row[0] == "archive"))
+                    .cloned()
+                    .collect::<Vec<_>>()
+            };
+            assert_eq!(base(&after[observation]), base(&before[observation]));
+            if migration {
+                assert!(!after[observation].iter().any(|row| row[0] == "archive"));
+            }
+        }
+    }
 }

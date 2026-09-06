@@ -1022,12 +1022,7 @@ impl Runtime {
         let predecessor_maintain_ids =
             projected_predecessor_ids(&transaction, &reduced, &next.schema)?;
         apply_migration_drops(&transaction, &mut reduced, migration, released_at)?;
-        if let Some(refusal) = additive_refusal(
-            &transaction,
-            &reduced,
-            &next.schema,
-            Some(&predecessor_maintain_ids),
-        )? {
+        if let Some(refusal) = additive_refusal(&transaction, &reduced, &next.schema)? {
             return Err(RuntimeError::Successor(Box::new(refusal)));
         }
         let report = apply_additive(
@@ -1268,7 +1263,10 @@ fn persist_generation_transaction(
 }
 
 fn store_refusal(error: RuntimeError) -> SuccessorRefusal {
-    SuccessorRefusal::store(&error)
+    match error {
+        RuntimeError::Successor(refusal) => *refusal,
+        error => SuccessorRefusal::store(&error),
+    }
 }
 
 fn first_schema_error(errors: Vec<RuntimeError>) -> RuntimeError {

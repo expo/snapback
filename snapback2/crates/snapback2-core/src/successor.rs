@@ -223,14 +223,13 @@ pub(crate) fn successor_refusal(
     if !migration.drops.is_empty() {
         return Ok(Some(SuccessorRefusal::destructive(migration)));
     }
-    additive_refusal(&store.conn, current, next, None)
+    additive_refusal(&store.conn, current, next)
 }
 
 pub(crate) fn additive_refusal(
     connection: &Connection,
     current: &Schema,
     next: &Schema,
-    predecessor_maintain_ids: Option<&BTreeMap<String, BTreeSet<String>>>,
 ) -> Result<Option<SuccessorRefusal>, RuntimeError> {
     let rebuilt_targets = maintained_targets_requiring_rebuild(current, next);
     if let Some(refusal) = narrowing_refusal(connection, current, next)? {
@@ -243,7 +242,7 @@ pub(crate) fn additive_refusal(
         next.tables
             .iter()
             .filter(|(name, _)| !rebuilt_targets.contains(*name)),
-        &BTreeMap::new(),
+        None,
     )? {
         return Ok(Some(refusal));
     }
@@ -297,72 +296,6 @@ pub(crate) fn additive_refusal(
             }
         }
     }
-    let mut future_targets = BTreeMap::<String, BTreeMap<String, Value>>::new();
-    for target in &rebuilt_targets {
-        future_targets.insert(
-            target.clone(),
-            projected_target_rows(connection, next, target)?,
-        );
-    }
-    // @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — only
-    // projection-owned IDs are replaced. Exact migrations supply predecessor
-    // IDs from before drops; successor IDs use the admitted post-drop source.
-    let mut replaced_rows = match predecessor_maintain_ids {
-        Some(ids) => ids.clone(),
-        None => projected_predecessor_ids(connection, current, next)?,
-    };
-    for (target, rows) in &future_targets {
-        replaced_rows
-            .entry(target.clone())
-            .or_default()
-            .extend(rows.keys().cloned());
-    }
-    if let Some(refusal) = validate_stored_rows(
-        connection,
-        current,
-        next.tables
-            .iter()
-            .filter(|(name, _)| rebuilt_targets.contains(*name)),
-        &replaced_rows,
-    )? {
-        return Ok(Some(refusal));
-    }
-    for (table_name, rows) in future_targets {
-        let Some(table) = next.table(&table_name) else {
-            // A destructive migration already removed an old maintained target
-            // whose declaration is absent from the successor.
-            continue;
-        };
-        for (index_name, index) in table.indexes.iter().filter(|(_, index)| index.unique) {
-            let mut counts = BTreeMap::<String, (Vec<Value>, usize)>::new();
-            for row in rows.values() {
-                let key = index
-                    .columns
-                    .iter()
-                    .map(|column| row.field(column).cloned().unwrap_or(Value::Null))
-                    .collect::<Vec<_>>();
-                counts
-                    .entry(canonical_json(&key))
-                    .and_modify(|(_, count)| *count += 1)
-                    .or_insert((key, 1));
-            }
-            for (_, (key, count)) in counts {
-                if count > 1 {
-                    let conflict = UniqueConflict {
-                        table: table_name.clone(),
-                        index: index_name.clone(),
-                        key,
-                    };
-                    if !conflicts.contains(&conflict) {
-                        conflicts.push(conflict);
-                    }
-                    if conflicts.len() == 10 {
-                        return Ok(Some(SuccessorRefusal::unique(conflicts)));
-                    }
-                }
-            }
-        }
-    }
     Ok((!conflicts.is_empty()).then(|| SuccessorRefusal::unique(conflicts)))
 }
 
@@ -370,7 +303,7 @@ fn validate_stored_rows<'a>(
     connection: &Connection,
     current: &Schema,
     next_tables: impl Iterator<Item = (&'a String, &'a Table)>,
-    replaced_rows: &BTreeMap<String, BTreeSet<String>>,
+    replacement: Option<(&str, &BTreeSet<String>)>,
 ) -> Result<Option<SuccessorRefusal>, RuntimeError> {
     for (table_name, next_table) in next_tables {
         let current_table = current.tables.get(table_name);
@@ -420,9 +353,8 @@ fn validate_stored_rows<'a>(
         })?;
         for row in rows {
             let (row_id, data) = row?;
-            if replaced_rows
-                .get(table_name)
-                .is_some_and(|ids| ids.contains(&row_id))
+            if replacement
+                .is_some_and(|(target, ids)| target == table_name && ids.contains(&row_id))
             {
                 continue;
             }
@@ -562,6 +494,7 @@ pub(crate) fn apply_additive(
     for target in maintained_targets_requiring_rebuild(current, next) {
         rebuild_target(
             transaction,
+            current,
             next,
             &target,
             predecessor_maintain_ids.remove(&target).unwrap_or_default(),
@@ -743,12 +676,81 @@ pub(crate) fn projected_predecessor_ids(
 
 fn rebuild_target(
     transaction: &Transaction<'_>,
+    current: &Schema,
     schema: &Schema,
     target: &str,
     mut owned_ids: BTreeSet<String>,
 ) -> Result<(), RuntimeError> {
+    // A retired target can become an ordinary source in this generation.
+    // Admit its actual rows before deriving IDs, even if its retirement is later.
+    if let Some(refusal) = validate_stored_rows(
+        transaction,
+        current,
+        schema.tables.iter().filter(|(name, _)| {
+            schema
+                .maintains
+                .iter()
+                .any(|maintain| maintain.target == target && maintain.source == **name)
+        }),
+        None,
+    )? {
+        return Err(RuntimeError::Successor(Box::new(refusal)));
+    }
+    // @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — admission
+    // and mutation share these exact rows/IDs at this step of the sequential
+    // rebuild. Earlier retirements can change this target's ordinary source.
+    // Predecessor IDs were captured before any rebuild (and before mixed drops).
     let rows = projected_target_rows(transaction, schema, target)?;
     owned_ids.extend(rows.keys().cloned());
+    if let Some(refusal) = validate_stored_rows(
+        transaction,
+        current,
+        schema
+            .tables
+            .iter()
+            .filter(|(name, _)| name.as_str() == target),
+        Some((target, &owned_ids)),
+    )? {
+        return Err(RuntimeError::Successor(Box::new(refusal)));
+    }
+    let mut conflicts = Vec::new();
+    for (index_name, index) in schema.tables[target]
+        .indexes
+        .iter()
+        .filter(|(_, index)| index.unique)
+    {
+        let mut counts = BTreeMap::<String, (Vec<Value>, usize)>::new();
+        for row in rows.values() {
+            let key = index
+                .columns
+                .iter()
+                .map(|column| row.field(column).cloned().unwrap_or(Value::Null))
+                .collect::<Vec<_>>();
+            counts
+                .entry(canonical_json(&key))
+                .and_modify(|(_, count)| *count += 1)
+                .or_insert((key, 1));
+        }
+        for (_, (key, count)) in counts {
+            if count > 1 {
+                conflicts.push(UniqueConflict {
+                    table: target.to_owned(),
+                    index: index_name.clone(),
+                    key,
+                });
+                if conflicts.len() == 10 {
+                    return Err(RuntimeError::Successor(Box::new(SuccessorRefusal::unique(
+                        conflicts,
+                    ))));
+                }
+            }
+        }
+    }
+    if !conflicts.is_empty() {
+        return Err(RuntimeError::Successor(Box::new(SuccessorRefusal::unique(
+            conflicts,
+        ))));
+    }
     rebuild_owned_aggregate_target(
         transaction,
         schema,
