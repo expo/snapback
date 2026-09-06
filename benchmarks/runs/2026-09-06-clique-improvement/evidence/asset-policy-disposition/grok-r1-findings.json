@@ -1,0 +1,388 @@
+{
+  "reviewer": "grok-4.6",
+  "provider": "xAI",
+  "reasoningEffort": "xhigh",
+  "method": "native-session-no-subagents",
+  "date": "2026-09-06",
+  "designPath": "policy-design.md",
+  "designSha256": "c5761dbc8e27e688ea462cf36cb1fe177e53526d32e93a5ef3ec308a5f26378d",
+  "designPreserved": true,
+  "verdict": "CHANGES_REQUIRED",
+  "verdictRationale": "The pending-object split and refuse-at-release trilemma are the right diagnosis of observation A, but the proposed custody envelope charges regenerable rungs (12 × 64 MiB helper ceiling) and 4 KiB once-view floors, which can make a single legal asset undeletable; reset is gated on an uncapped live set; E_ASSET_CAPACITY in family assets with structured fields and HTTP 422 cannot be implemented on ExecutionState.Rejected, jobs::rejection_family, and upload_refusal_status as they exist at the 0.0.10/current pin. A simpler complete design keeps a finite original-payload bound and 24h original grace without those terms.",
+  "pins": {
+    "public0010": "967f857e66b504dcea6286f10565c80fd2bf7d64",
+    "public0010Tree": "7df954662eb4b66758f9b9d62d5946559a0002c8",
+    "public0010Snapback2": "18a6b6059b78a4026ef30dbb00c5fb27b6e334a8",
+    "releaseLane": "e5ae9d09be1f30906a57f08bd3ba4d28dd7cbc5c",
+    "currentCommitted": "5e066ccc010265c7df526483d44163ff32feb8be",
+    "objectStoreHeadNotBaseline": "08643f8b0ad31cf0374055527f7234e3867b4cff",
+    "assetSourceIdenticalAcrossPins": true,
+    "llp1006IdenticalAcrossPins": true,
+    "llp1000NotDoingUnrelatedBudgetOnly": true
+  },
+  "evidenceVsConjecture": {
+    "established": [
+      "40 successful deletes charge 40 unlocated ready rows / 6204 payload bytes and block a zero-usage principal at upload HTTP 422 (after-40-releases-database.json charged.objects=40 charged.bytes=6204; assets_ledger.rs:247-259,214-232).",
+      "Usage predicate is unlocated receiving OR (ready AND reclaiming=0); claimed locators are excluded; ready tombstones and failed rows leave the query (assets_ledger.rs:247-259,378-388,428-445).",
+      "Limits 20/40 objects and 256/512 MiB are STAGING_* constants; enforce_staging_caps is not called from reconcile_row_assets (assets_ledger.rs:14-17,542-616).",
+      "158-byte dedup blobs have st_blocks=8 (4096 allocated) and the stopped SQLite header page size is 4096; logical 4 KiB floor is a fixture observation, not total disk.",
+      "IMAGE_WIDTH_RUNGS has 12 entries; MAX_OUTPUT_BYTES is 64 MiB; MAX_HTTP_WORKERS=64; MAX_UPLOAD_WORKERS=4; MAX_MEDIA_HELPERS=2; ASSET_SWEEP_INTERVAL=60s; ASSET_RECLAIM_GRACE_MS=86400000.",
+      "Replay stores rejected terminals; conflict precedes program rejection (replay.rs:156-164; LLP 1012 §7). Grant lifetime 30 days vs asset grace 24h."
+    ],
+    "conjecture": [
+      "Ordinary edit rate, typical rung byte sizes, and whether a production store would hit C(i) > envelope from originals alone.",
+      "Exact SQLite/index/APFS amplification of 65504 identities.",
+      "How often once-delivery races release; the 64-worker standing tax is sized for that race, not measured."
+    ]
+  },
+  "findings": [
+    {
+      "id": "F1",
+      "severity": "must-fix",
+      "title": "Release-gating envelope includes regenerable rungs and view floors, creating individually undeletable assets within published ceilings",
+      "design": "policy-design.md §4 C(i)=payload+V+H*(2+K+W), K≤12; §4 explicit compatibility: a single live asset with large derived data or view history can exceed the transfer budget and waiting cannot help.",
+      "source": [
+        {
+          "pin": "5e066ccc010265c7df526483d44163ff32feb8be",
+          "path": "snapback2/crates/snapback2/src/asset_http.rs",
+          "lines": "20-22",
+          "note": "IMAGE_WIDTH_RUNGS length 12"
+        },
+        {
+          "pin": "5e066ccc010265c7df526483d44163ff32feb8be",
+          "path": "snapback2/crates/snapback2-media/src/media.rs",
+          "lines": "31",
+          "note": "MAX_OUTPUT_BYTES = 64 MiB per encoded rung"
+        },
+        {
+          "pin": "5e066ccc010265c7df526483d44163ff32feb8be",
+          "path": "snapback2/crates/snapback2-core/src/assets_ledger.rs",
+          "lines": "125-147,665-674",
+          "note": "record_asset_view does not check locator; delivery_row refuses unlocated ids"
+        }
+      ],
+      "evidence": "12 rungs × 64 MiB plus original exceeds 512 MiB − 262144 using only published constants. Guest mint is free (LLP 1006 §4), so W(i) is unbounded per once-image. While claimed, V and W are outside C; release is the first fit check; locators then cannot clear and rungs cannot GC.",
+      "conjecture": "How often real photos approach the 64 MiB rung ceiling. The legal maximum is not conjecture.",
+      "whyNotPredicateTweak": "Excluding released_at from the current query would leave an unbounded grace pool; that option stays rejected. The defect is what is summed into C, not the existence of a finite C.",
+      "resolution": "Charge only original max(staged, finalized) plus failed/reclaiming originals until finish. Delete or refuse to publish {id}.w* when unlocated. Keep _asset_views for once-across-reclaim; do not put W(i)*H in C. Refuse release only when original payload does not fit. Drop 12-slot ledger, standing 256 KiB view margin, and rung-reservation protocol."
+    },
+    {
+      "id": "F2",
+      "severity": "must-fix",
+      "title": "Reset-gated-on-C refuses existing grace-waiving teardown for any live set larger than the garbage envelope",
+      "design": "policy-design.md §6: explicit reset that would transfer more than custody capacity must not silently create an oversized garbage backlog; refuse before clearing rows. Large reset called a root compatibility cost.",
+      "source": [
+        {
+          "pin": "5e066ccc010265c7df526483d44163ff32feb8be",
+          "path": "snapback2/crates/snapback2/src/writer_assets.rs",
+          "lines": "8-42",
+          "note": "reset clears staging, clear_assets, then sweep_asset_blobs in one owner action"
+        },
+        {
+          "pin": "5e066ccc010265c7df526483d44163ff32feb8be",
+          "path": "snapback2/crates/snapback2-core/src/assets_ledger.rs",
+          "lines": "648-662",
+          "note": "clear_assets marks every row reclaiming and clears locators; no 24h wait"
+        },
+        {
+          "pin": "5e066ccc010265c7df526483d44163ff32feb8be",
+          "path": "llp/1006-assets.rfc.md",
+          "lines": "882-888",
+          "note": "§9a reset clears live _assets and staging then ordinary sweep; does not empty blobs a fork still references"
+        }
+      ],
+      "evidence": "Live application storage is explicitly uncapped by this policy. Reset already waives 24h. Requiring the live set to fit in 512 MiB garbage blocks reset of any successful media app. Observation A does not involve reset.",
+      "conjecture": null,
+      "resolution": "Keep current reset teardown. Charge only ids whose physical delete failed. Do not treat live→tombstone as a 24h grace transfer that must fit C."
+    },
+    {
+      "id": "F3",
+      "severity": "must-fix",
+      "title": "E_ASSET_CAPACITY diagnostic contract does not fit actual rejection carriers",
+      "design": "policy-design.md §8: family assets, structured pool/scope/resource/delta/usage/limit/phase, HTTP 422 on upload, HTTP 200 rejected on mutation/replay, do not parse strings; carry detail through writer_wire.rs and offline.rs::replay_mutation_response.",
+      "source": [
+        {
+          "pin": "5e066ccc010265c7df526483d44163ff32feb8be",
+          "path": "snapback2/crates/snapback2-core/src/registry.rs",
+          "lines": "889-912",
+          "note": "execute_certified maps mutation_rejection_code errors to ExecutionState::Rejected { code, message: error.to_string() } only"
+        },
+        {
+          "pin": "5e066ccc010265c7df526483d44163ff32feb8be",
+          "path": "snapback2/crates/snapback2/src/writer_wire.rs",
+          "lines": "25-34",
+          "note": "hardcoded rewrite 'fix the rejected mutation input and retry'; family via writer_util"
+        },
+        {
+          "pin": "5e066ccc010265c7df526483d44163ff32feb8be",
+          "path": "snapback2/crates/snapback2/src/writer_util.rs",
+          "lines": "7-9",
+          "note": "rejection_family delegates to snapback2_core::jobs::rejection_family, not a local table"
+        },
+        {
+          "pin": "5e066ccc010265c7df526483d44163ff32feb8be",
+          "path": "snapback2/crates/snapback2-core/src/jobs.rs",
+          "lines": "119-160",
+          "note": "JobRefusal::rejected and rejection_family; unknown E_* → family input"
+        },
+        {
+          "pin": "5e066ccc010265c7df526483d44163ff32feb8be",
+          "path": "snapback2/crates/snapback2-core/src/offline.rs",
+          "lines": "88-135",
+          "note": "third family mapper, same input default; hardcoded rewrite"
+        },
+        {
+          "pin": "5e066ccc010265c7df526483d44163ff32feb8be",
+          "path": "snapback2/crates/snapback2/src/protocol.rs",
+          "lines": "140-157",
+          "note": "AssetTooLarge special-cased to family input; AssetViewed to assets"
+        },
+        {
+          "pin": "5e066ccc010265c7df526483d44163ff32feb8be",
+          "path": "snapback2/crates/snapback2/src/asset_http.rs",
+          "lines": "1119-1125",
+          "note": "upload_refusal_status is 422 only if E_ASSET_* AND family == input; family assets → HTTP 400"
+        },
+        {
+          "pin": "5e066ccc010265c7df526483d44163ff32feb8be",
+          "path": "snapback2/crates/snapback2-core/src/engine/mod.rs",
+          "lines": "1154-1166",
+          "note": "mutation_rejection_code already maps AssetTooLarge/AssetInUse; a new variant must be added here or execute_certified emits Refusal"
+        }
+      ],
+      "evidence": "Three family mappers; Rejected is two strings; upload 422 is gated on family input. Design names writer_wire.rs and offline.rs but the mutation JSON family comes from jobs.rs.",
+      "conjecture": null,
+      "resolution": "Specify a structured carrier on Execution/Rejected (not packed into message). Patch jobs::rejection_family, offline.rs copy, Refusal::from_runtime, upload_refusal_status, execute_certified, and JobRefusal::rejected together. Keep E_ASSET_TOO_LARGE for column/helper size only."
+    },
+    {
+      "id": "F4",
+      "severity": "must-fix",
+      "title": "64-worker late-view margin and 12-slot rung accounting are complexity required only by F1",
+      "design": "policy-design.md §4 reserve 64×H=262144 in each envelope; §6 items 1 and 3 add 12 derived-width slots and view-count scalar; GC must skip MediaJobs guards.",
+      "source": [
+        {
+          "pin": "5e066ccc010265c7df526483d44163ff32feb8be",
+          "path": "snapback2/crates/snapback2/src/serve.rs",
+          "lines": "27-31,163-176,203-210",
+          "note": "MAX_HTTP_WORKERS=64; asset GET is Json; JSON may occupy 60 non-control slots"
+        },
+        {
+          "pin": "5e066ccc010265c7df526483d44163ff32feb8be",
+          "path": "snapback2/crates/snapback2/src/asset_http.rs",
+          "lines": "883-991",
+          "note": "ensure_rung/render_rung put without ledger reservation or locator re-check"
+        },
+        {
+          "pin": "5e066ccc010265c7df526483d44163ff32feb8be",
+          "path": "snapback2/crates/snapback2/src/asset_gc.rs",
+          "lines": "27-32",
+          "note": "deletes blobs for reclaimed_ids even if id still in live _assets; no MediaJobs interaction"
+        }
+      ],
+      "evidence": "64 is conservative vs 60 Json workers. Standing 256 KiB tax applies even when no once-delivery is in flight. Rung/GC races are unhandled today and become new writer protocol if unlocated rungs stay charged.",
+      "conjecture": "In-flight once-after-release frequency.",
+      "resolution": "If F1 is adopted, delete the margin, view scalar, and rung slots. If rungs remain in C, the race table is required work, not an optional test."
+    },
+    {
+      "id": "F5",
+      "severity": "should-fix",
+      "title": "Failed-unlink scratch can still mint unbounded unique temps under current allocate_path",
+      "design": "policy-design.md §6 item 5: retain every temporary until unlink succeeds; do not recycle the physical-work slot; do not claim a bounded scratch pool while failed unlinks create fresh untracked files.",
+      "source": [
+        {
+          "pin": "5e066ccc010265c7df526483d44163ff32feb8be",
+          "path": "snapback2/crates/snapback2/src/blob_store.rs",
+          "lines": "156-168,620-676",
+          "note": "allocate_path always new name; boot sweep deletes matching prefixes or refuses startup"
+        },
+        {
+          "pin": "5e066ccc010265c7df526483d44163ff32feb8be",
+          "path": "snapback2/crates/snapback2/src/asset_http.rs",
+          "lines": "788-800,950-987",
+          "note": "HEIC normalize and render_rung allocate_path/create_named without failed-path slot retention"
+        }
+      ],
+      "evidence": "Each retry currently chooses a new {label}-{hex}-{seq}.stage. Boot sweep is bounded cleanup, not live-slot retention.",
+      "conjecture": null,
+      "resolution": "Keep this part of the design. It is independent of F1 and is real disk-unboundedness, separate from 512 MiB logical C. Do not relabel scratch as inside the garbage envelope (design already does not)."
+    },
+    {
+      "id": "F6",
+      "severity": "should-fix",
+      "title": "Net custody check insertion point is correct; job/migration/operator/reset paths must be named as distinct carriers",
+      "design": "policy-design.md §5: validate net custody in attempted result path ahead of replay::finish_run; same final check on successors, jobs/chunks, operator mutations, reset.",
+      "source": [
+        {
+          "pin": "5e066ccc010265c7df526483d44163ff32feb8be",
+          "path": "snapback2/crates/snapback2-core/src/engine/mod.rs",
+          "lines": "634-660,761,818-915",
+          "note": "constraints/bounds then replay finish_run; ordinary mutation Err at 761 converted later by execute_certified; reset_and_execute is a separate transaction that already called clear_assets"
+        },
+        {
+          "pin": "5e066ccc010265c7df526483d44163ff32feb8be",
+          "path": "snapback2/crates/snapback2-core/src/engine/jobs.rs",
+          "lines": "118-180",
+          "note": "assert_bounds then save cursor and commit; no execute_certified wrapper"
+        },
+        {
+          "pin": "5e066ccc010265c7df526483d44163ff32feb8be",
+          "path": "snapback2/crates/snapback2-core/src/registry_jobs.rs",
+          "lines": "108-116",
+          "note": "chunk Err parks via JobRefusal::rejected; already-committed chunks remain"
+        },
+        {
+          "pin": "5e066ccc010265c7df526483d44163ff32feb8be",
+          "path": "snapback2/crates/snapback2-core/src/successor.rs",
+          "lines": "513-535",
+          "note": "apply_migration_drops releases table/column assets with no capacity check"
+        },
+        {
+          "pin": "5e066ccc010265c7df526483d44163ff32feb8be",
+          "path": "snapback2/crates/snapback2-core/src/assets_ledger.rs",
+          "lines": "590-616",
+          "note": "reconciler releases then claims; intermediate C can exceed final C"
+        }
+      ],
+      "evidence": "Net-final is required because of release-then-claim order. Replay conflict precedence already exists and must remain. Jobs park on Err; that is acceptable if the parked envelope is the same structured capacity refusal.",
+      "conjecture": null,
+      "resolution": "Keep net-final-before-settle. Name execute_certified, run_chunk park, apply_migration_drops, and reset_and_execute as four call sites with their existing rollback/park/commit behavior. Reset site should follow F2, not F1's refuse-before-clear."
+    },
+    {
+      "id": "F7",
+      "severity": "should-fix",
+      "title": "Upgrade grandfather and unknown-size reconstruction are underspecified",
+      "design": "policy-design.md §9: do not backfill missing sizes as zero; transition bound max(measured pre-upgrade custody, new bound); non-increasing until restored; no two versions write one store.",
+      "source": [
+        {
+          "pin": "5e066ccc010265c7df526483d44163ff32feb8be",
+          "path": "snapback2/crates/snapback2-core/src/store.rs",
+          "lines": "257-305",
+          "note": "_assets has no rung-size or view-count columns; ensure_column is the existing additive path"
+        },
+        {
+          "pin": "5e066ccc010265c7df526483d44163ff32feb8be",
+          "path": "snapback2/crates/snapback2/src/blob_store.rs",
+          "lines": "678-701",
+          "note": "rung keys are {id}.w{width}"
+        }
+      ],
+      "evidence": "40-release fixture C under the published formula is 333884 bytes, not over-capacity. Old payload-only query omitted failed/reclaiming and overhead, so other stores can be over after reconstruction.",
+      "conjecture": "Distribution of existing owner stores.",
+      "resolution": "State that max(measured, new) is an open/status ceiling, not a growth target; operative rule is non-increasing while measured > new. Unreadable original: owner I/O, no positive allocation. Absent original: do not invent 0 if the row still exists as ready; treat as GC-missing only after tombstone semantics. If F1 drops rung charges, do not backfill V from enumerate."
+    },
+    {
+      "id": "F8",
+      "severity": "suggestion",
+      "title": "Operator-visible saturation paths: fork pins and cross-creator delete",
+      "design": "policy-design.md §4 fork/snapshot storage; §5 do not charge the actor who deletes another creator's row; §8 operator copy for owner pressure.",
+      "source": [
+        {
+          "pin": "5e066ccc010265c7df526483d44163ff32feb8be",
+          "path": "snapback2/crates/snapback2/src/asset_gc.rs",
+          "lines": "16-99",
+          "note": "fork sqlite files are referrers; leftover files pin blobs and reclaiming rows"
+        },
+        {
+          "pin": "5e066ccc010265c7df526483d44163ff32feb8be",
+          "path": "snapback2/crates/snapback2-core/src/assets_ledger.rs",
+          "lines": "599",
+          "note": "claim requires created_by; later delete still attributes C to created_by"
+        },
+        {
+          "pin": "5e066ccc010265c7df526483d44163ff32feb8be",
+          "path": "rules/NOT-DOING.md",
+          "lines": "135",
+          "note": "2026-09-05 move deleted the fork CLI adapter"
+        }
+      ],
+      "evidence": "No public creator operation deletes another creator's grace or a fork file. Operator seat can still fail a delete that overflows the uploader's C.",
+      "conjecture": null,
+      "resolution": "Operator guide must say: leftover .snapback/forks/*.sqlite pins cleanup charges; deleting a row charges the uploader's envelope, not the actor's; waiting does not help if required > limit."
+    },
+    {
+      "id": "F9",
+      "severity": "suggestion",
+      "title": "LLP 1006 is already 1499 lines; proposed in-place section rewrites do not fit the 1500-line cap",
+      "design": "policy-design.md §8 proposed LLP 1006 §2a,4,6,9,9a,9b,10,14 edits.",
+      "source": [
+        {
+          "pin": "5e066ccc010265c7df526483d44163ff32feb8be",
+          "path": "llp/1006-assets.rfc.md",
+          "lines": "1-1499",
+          "note": "1499 lines"
+        },
+        {
+          "pin": "5e066ccc010265c7df526483d44163ff32feb8be",
+          "path": "rules/NOT-DOING.md",
+          "lines": "104",
+          "note": "no files over 1500 lines"
+        }
+      ],
+      "evidence": "Line count at pin. 1006.001 already exists as the overflow record.",
+      "conjecture": null,
+      "resolution": "Put the accepted delta in 1006.001 or a split; keep 1006 under cap. Process constraint, not a storage-policy hole."
+    },
+    {
+      "id": "F10",
+      "severity": "ok",
+      "title": "Pending-object split, 24h original grace, creator isolation, ambiguous upload retention, and the trilemma statement are correct",
+      "design": "policy-design.md §§3-5,7.",
+      "source": [
+        {
+          "pin": "5e066ccc010265c7df526483d44163ff32feb8be",
+          "path": "snapback2/crates/snapback2-core/src/assets_ledger.rs",
+          "lines": "13-17,214-277,403-445,448-478,542-616",
+          "note": "current coupling of released ready rows into staging usage and unclaimed_uploads"
+        },
+        {
+          "pin": "5e066ccc010265c7df526483d44163ff32feb8be",
+          "path": "snapback2/packages/snapback2/src/client-upload.ts",
+          "lines": "105-141",
+          "note": "withMutationUploads custody boundary"
+        },
+        {
+          "pin": "5e066ccc010265c7df526483d44163ff32feb8be",
+          "path": "snapback2/packages/snapback2/src/store/outbox.ts",
+          "lines": "380-387",
+          "note": "dismiss does not remove queued intents"
+        },
+        {
+          "pin": "5e066ccc010265c7df526483d44163ff32feb8be",
+          "path": "llp/1012-local-first-v1.spec.md",
+          "lines": "679-718",
+          "note": "stable rejected terminals; no server asset pin"
+        }
+      ],
+      "evidence": "Investigation after-40-releases-database.json: 40 unlocated ready, 3 claimed, charged 40/6204. Operator guide currently describes recovery as abandoned uploads and says ready discard releases quota immediately (operator.md:32-55), which is incomplete for released references and would become false if reclaiming stays charged.",
+      "conjecture": null,
+      "resolution": "Preserve these choices in the revision. Do not revert to exclude-released-from-the-only-query."
+    }
+  ],
+  "simplerCompleteDesign": {
+    "keeps": [
+      "Pending object counts 20/40 exclude released grace",
+      "One 256/512 MiB envelope over unlocated original payload including failed/reclaiming until finish",
+      "Net final check before replay settle / mutation commit / job save / migration commit",
+      "Refuse release only when original C would exceed the envelope",
+      "24h max(created_at, released_at) on original unclaimed ids; no under-age eviction",
+      "Creator-only list/discard; ownerCustodyFull boolean",
+      "withMutationUploads and 24h vs 30-day mismatch documented, not closed",
+      "Failed unlink retains path and charge; scratch slots not recycled",
+      "Non-increasing grandfather for stores already over after reconstruction"
+    ],
+    "drops": [
+      "V(i) derived-rung bytes in C",
+      "12 ledger rung slots and reserve-before-put for rungs",
+      "W(i)*H view floors in C and 64-worker standing margin",
+      "Reset must fit live set into C",
+      "H=4096 presented as filesystem/SQLite physical truth (keep only as optional logical identity unit or a plain row cap)"
+    ],
+    "stillFinite": "Unlocated original payload plus unfinished failed deletes cannot grow past 256/512 MiB; unlocated identity count remains bounded if a row cap or small per-id unit is kept. Live application storage stays uncapped. Regenerable rungs of unlocated ids are deleted without waiting 24h and are not a garbage pool.",
+    "doesNotWaiveGrace": "Ordinary unclaimed originals still get 86,400,000 ms. Reset already waives grace in 0.0.10; this revision does not newly waive it for deletes/replacements."
+  },
+  "remainingRootDecisionsAfterRevision": [
+    "Accept refuse-at-release when original unlocated payload would exceed 256/512 MiB (full grace + finite garbage; not unlimited successful release).",
+    "Do not reserve live-set deletion space at first claim.",
+    "Leave server asset TTL at 24h while offline intent/grant lifetime remains up to 30 days."
+  ]
+}

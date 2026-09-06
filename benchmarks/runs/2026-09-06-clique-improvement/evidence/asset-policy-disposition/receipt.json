@@ -1,0 +1,30 @@
+{
+  "root-decision.md": {
+    "bytes": 2870,
+    "sha256": "39920ff72ce373fc34c49b7139b5a4fc857a0cc2ba265253d5e0d69bc420a452"
+  },
+  "astra-final-review.md": {
+    "bytes": 27593,
+    "sha256": "2aa809ff4fe0e90fbda5652a7637e534244a22034a24f1a04f4c9fd34ed30c12"
+  },
+  "astra-final-findings.json": {
+    "bytes": 20654,
+    "sha256": "e3bef1c00167defdd41b11db0f3203613f748eb6e89ed77955f7f6c0a364ad8a"
+  },
+  "astra-final-terminal.json": {
+    "bytes": 109,
+    "sha256": "47d33aff096401440beb7789ed499975f300289ad4bb947ff14605fdb13c0ddf"
+  },
+  "grok-r1-review.md": {
+    "bytes": 26226,
+    "sha256": "628e2ce835aaca1989a7d52c7aca04e21c41e1cd24a29ed04157bc2fb7d3d6d7"
+  },
+  "grok-r1-findings.json": {
+    "bytes": 23613,
+    "sha256": "e29ae0ba22948c22ae2551b31cb33f70a66c2d4ed557785768705b58aecaa5ea"
+  },
+  "grok-r1-terminal.json": {
+    "bytes": 70,
+    "sha256": "1eb2cdbde92bb913ef1fa5b8e005ab29c4cb1b87af09f8d29dffa2e1dcfa1692"
+  }
+}

@@ -1,0 +1,413 @@
+{
+  "schema_version": 1,
+  "verdict": "NEEDS_CHANGES",
+  "reviewer": {
+    "model": "Astra",
+    "reasoning_effort": "xhigh",
+    "independent": true,
+    "peer_reviews_read": false,
+    "subagents_used": false
+  },
+  "design": {
+    "path": "policy-design.md",
+    "sha256": "919cb51431bb5c2253b744a31fcb6d6eb29a04f516fcaa8708fc308ff9801f4c",
+    "lines": 328,
+    "complete_document_read": true,
+    "modified": false
+  },
+  "baseline": {
+    "version": "0.0.10",
+    "source_snapshot": "967f857e66b504dcea6286f10565c80fd2bf7d64",
+    "identity_basis": "Task-supplied local source snapshot; no Git object-store or remote artifact verification performed"
+  },
+  "scope": {
+    "kind": "design critique, not implementation",
+    "source_or_design_modified": false,
+    "network_operations": false,
+    "runtime_services": false,
+    "builds": false,
+    "tests_executed": false,
+    "devices": false,
+    "excluded_content_read": false,
+    "discovery_note": "Initial filename discovery returned some excluded pathnames; contents were not read.",
+    "written_artifacts": [
+      "review.md",
+      "findings.json"
+    ]
+  },
+  "evidence_limits": [
+    "No remote raw investigation artifacts were available.",
+    "Design diagnostic examples and filesystem/execution identity observations are author assertions, assessed for consistency with supplied source, not independently reproduced.",
+    "Arithmetic and static source inspection establish logical consequences only.",
+    "No passing runtime, physical disk, scratch, endurance or native qualification claim is made."
+  ],
+  "findings": [
+    {
+      "id": "F1",
+      "priority": "P1",
+      "kind": "explicit_coherent_policy_trade",
+      "title": "Unbounded live footprint growth can make an individual asset permanently impossible to release",
+      "design_locations": [
+        {
+          "path": "policy-design.md",
+          "line_start": 152,
+          "line_end": 169
+        },
+        {
+          "path": "policy-design.md",
+          "line_start": 181,
+          "line_end": 189
+        },
+        {
+          "path": "policy-design.md",
+          "line_start": 324,
+          "line_end": 324
+        }
+      ],
+      "source_locations": [
+        {
+          "path": "snapback2/crates/snapback2-core/src/assets_ledger.rs",
+          "line_start": 116,
+          "line_end": 147
+        },
+        {
+          "path": "snapback2/crates/snapback2-core/src/assets_ledger.rs",
+          "line_start": 214,
+          "line_end": 276
+        },
+        {
+          "path": "snapback2/crates/snapback2-core/src/assets_ledger.rs",
+          "line_start": 428,
+          "line_end": 445
+        },
+        {
+          "path": "snapback2/crates/snapback2-core/src/assets_ledger.rs",
+          "line_start": 590,
+          "line_end": 615
+        },
+        {
+          "path": "snapback2/crates/snapback2/src/asset_http.rs",
+          "line_start": 563,
+          "line_end": 603
+        },
+        {
+          "path": "snapback2/crates/snapback2/src/asset_http.rs",
+          "line_start": 905,
+          "line_end": 991
+        },
+        {
+          "path": "llp/1006-assets.rfc.md",
+          "line_start": 271,
+          "line_end": 301
+        },
+        {
+          "path": "llp/1006-assets.rfc.md",
+          "line_start": 756,
+          "line_end": 765
+        }
+      ],
+      "assessment": "The design explicitly permits live originals, derived widths and view history to grow outside custody, but requires the complete footprint to fit the creator's ordinary limit on release. This is coherent accounting, not an accidental limit-check defect. It creates a permanent loss of ordinary delete/replacement/successor progress when an indivisible footprint exceeds the entire limit, even with no other garbage.",
+      "counterexample": "A small once image with 65,536 distinct authorized viewers exceeds 256 MiB of logical view charges alone. This is a source-permitted structural example, not an observed workload. A legacy live original near the old 256 MiB payload limit can also fail the new overhead-adjusted transfer limit without variants or viewers. Whole-app reset deletes view history in the current source, so the view-only example does not by itself prove reset refusal.",
+      "impact": "Read activity can make later ordinary deletion impossible. Waiting, new replay intents, reduced batch size and creator discard cannot cure an oversized claimed transfer. The current proposal has no supported per-asset recovery route; reset additionally refuses if its final retained footprint remains oversized.",
+      "required_resolution": "Root must explicitly choose the deletion-liveness trade after considering a per-asset eventual-transfer bound including future rung/view growth, a provisioned larger budget, or a destructive asset disposal route. A per-asset bound avoids intrinsically oversized new assets without reserving aggregate future deletion space for all live assets, but introduces delivery/admission limits and needs a legacy recovery decision.",
+      "retention_caveat": "Rung regeneration changes the current retain-rungs/one-render contract and requires explicit authorization and compute/immutability accounting. Deleting once history while permitting reclaim of the same ID breaks one-use semantics. Any destructive exception must explicitly waive grace and fence reuse.",
+      "confidence": "high for the structural consequence; product acceptability is reviewer judgment"
+    },
+    {
+      "id": "F2",
+      "priority": "P1",
+      "kind": "explicit_coherent_policy_trade",
+      "title": "The ordinary garbage envelope needlessly becomes a prerequisite for destructive reset",
+      "design_locations": [
+        {
+          "path": "policy-design.md",
+          "line_start": 189,
+          "line_end": 189
+        },
+        {
+          "path": "policy-design.md",
+          "line_start": 215,
+          "line_end": 215
+        },
+        {
+          "path": "policy-design.md",
+          "line_start": 231,
+          "line_end": 231
+        },
+        {
+          "path": "policy-design.md",
+          "line_start": 298,
+          "line_end": 298
+        },
+        {
+          "path": "policy-design.md",
+          "line_start": 313,
+          "line_end": 324
+        }
+      ],
+      "source_locations": [
+        {
+          "path": "snapback2/crates/snapback2/src/writer_assets.rs",
+          "line_start": 8,
+          "line_end": 42
+        },
+        {
+          "path": "snapback2/crates/snapback2-core/src/assets_ledger.rs",
+          "line_start": 648,
+          "line_end": 662
+        },
+        {
+          "path": "snapback2/crates/snapback2-core/src/engine/mod.rs",
+          "line_start": 847,
+          "line_end": 861
+        },
+        {
+          "path": "snapback2/crates/snapback2-core/src/store.rs",
+          "line_start": 858,
+          "line_end": 875
+        },
+        {
+          "path": "llp/1006-assets.rfc.md",
+          "line_start": 882,
+          "line_end": 892
+        }
+      ],
+      "assessment": "Reset already waives normal release grace and tombstones assets. Requiring its complete retained transfer to fit the ordinary custody envelope is an explicit extra policy choice, not required by preserving 24-hour grace for ordinary releases.",
+      "counterexample": "Live originals or retained variants exceed reset's transfer budget while no eligible garbage exists. Smaller mutations cannot help if an indivisible asset is oversized; fork-held tombstones may prevent capacity recovery indefinitely. Current reset deletes view history, so its final footprint must be calculated accordingly.",
+      "impact": "The normal development/recovery reset can become unavailable indefinitely despite healthy storage. Destructive table/column migrations may also require multi-stage operator work.",
+      "required_resolution": "Compare retaining reset refusal with a fenced, resumable teardown under the existing reset operation: disable positive allocation and old authority, process bounded pages, retain failed-delete ownership and snapshot referrers, and resume after crash. Root must choose explicitly.",
+      "alternative_cost": "A destructive teardown allowance would be bounded by measured pre-reset retained storage plus bounded scratch and would shrink monotonically. It explicitly relaxes the fixed all-unlocated envelope during teardown; it does not pretend all bytes fit 512 MiB. Ordinary 24-hour grace can remain unchanged. Snapshot-owned keys cannot be promised to disappear.",
+      "confidence": "high for source semantics and conditional liveness consequence; product acceptability is reviewer judgment"
+    },
+    {
+      "id": "F3",
+      "priority": "P1",
+      "kind": "correctness_design_omission",
+      "title": "Core reset rejection occurs after owner-side staging deletion",
+      "design_locations": [
+        {
+          "path": "policy-design.md",
+          "line_start": 187,
+          "line_end": 189
+        },
+        {
+          "path": "policy-design.md",
+          "line_start": 222,
+          "line_end": 222
+        },
+        {
+          "path": "policy-design.md",
+          "line_start": 231,
+          "line_end": 231
+        },
+        {
+          "path": "policy-design.md",
+          "line_start": 298,
+          "line_end": 298
+        }
+      ],
+      "source_locations": [
+        {
+          "path": "snapback2/crates/snapback2/src/writer_assets.rs",
+          "line_start": 8,
+          "line_end": 22
+        },
+        {
+          "path": "snapback2/crates/snapback2/src/blob_store.rs",
+          "line_start": 171,
+          "line_end": 203
+        },
+        {
+          "path": "snapback2/crates/snapback2-core/src/engine/mod.rs",
+          "line_start": 847,
+          "line_end": 915
+        },
+        {
+          "path": "snapback2/crates/snapback2-core/src/registry.rs",
+          "line_start": 938,
+          "line_end": 949
+        }
+      ],
+      "assessment": "The proposed final-transaction capacity helper does not cover the physical reset boundary. State::reset calls staging.clear before entering reset_and_seed_at; clear unlinks files immediately. Adding the new normal capacity-refusal branch at the named core boundary leaves staging deleted when the transaction rolls back.",
+      "counterexample": "Hold a receiving body or finalizer in progress while live originals make reset exceed custody capacity. The core reset check refuses, but the previously executed staging clear has already removed the in-flight file.",
+      "impact": "A rejected reset can destroy upload/finalizer bytes while retaining database rows and accounting facts, contradicting the proposed atomic refusal and custody preservation.",
+      "required_resolution": "Require authoritative reset admission and reversible preparation before any owner-side unlink/cancellation. Keep the transactional check, explicitly reorder physical cleanup, and hand admitted cleanup to tracked work ownership. A read-only preflight alone must not replace authoritative admission.",
+      "validation_needed": "Barrier-controlled rejected-reset cases with receiving and finalizing work; assert file availability, continued worker behavior, ledger/locator facts and application state remain unchanged.",
+      "confidence": "high"
+    },
+    {
+      "id": "F4",
+      "priority": "P2",
+      "kind": "contract_inconsistency",
+      "title": "Exact failing-scope headroom can reveal forbidden foreign or owner usage",
+      "design_locations": [
+        {
+          "path": "policy-design.md",
+          "line_start": 245,
+          "line_end": 260
+        }
+      ],
+      "source_locations": [
+        {
+          "path": "snapback2/crates/snapback2/src/writer_assets.rs",
+          "line_start": 187,
+          "line_end": 209
+        },
+        {
+          "path": "snapback2/crates/snapback2-core/src/assets_ledger.rs",
+          "line_start": 214,
+          "line_end": 230
+        },
+        {
+          "path": "snapback2/crates/snapback2/src/writer_wire.rs",
+          "line_start": 25,
+          "line_end": 34
+        },
+        {
+          "path": "snapback2/crates/snapback2-core/src/offline.rs",
+          "line_start": 76,
+          "line_end": 97
+        },
+        {
+          "path": "snapback2/crates/snapback2-core/src/jobs.rs",
+          "line_start": 52,
+          "line_end": 64
+        },
+        {
+          "path": "snapback2/crates/snapback2-core/src/jobs.rs",
+          "line_start": 119,
+          "line_end": 155
+        }
+      ],
+      "assessment": "The capacity contract asks for limit/headroom while forbidding foreign-creator usage and exact owner activity totals. Exact headroom for those scopes exposes usage by subtraction from the known limit. Labeling another field as caller usage and hiding IDs does not resolve this.",
+      "counterexample": "An authorized moderator releasing another creator's asset, or a fresh caller encountering owner pressure, receives exact failing-scope headroom. The caller computes limit minus headroom.",
+      "impact": "The proposed public diagnostic schema is inconsistent with its creator-isolation promise. The same disclosure can persist in a replay terminal.",
+      "required_resolution": "Specify public redaction for headroom, deficits and equivalent reconstructable totals in foreign/owner scopes; expose precise caller-owned figures and safe pressure/recovery booleans. Store the same redacted historical terminal for replay. Keep fuller details operator-only. Include JobRefusal::rejected and its stored shape in detail propagation work.",
+      "confidence": "high for the information equivalence; this is a schema ambiguity/inconsistency, not an observed implementation leak"
+    },
+    {
+      "id": "F5",
+      "priority": "P2",
+      "kind": "resource_design_gap",
+      "title": "Bounded reclaim pages do not bound the full live/fork sweep or guarantee failure progress",
+      "design_locations": [
+        {
+          "path": "policy-design.md",
+          "line_start": 149,
+          "line_end": 155
+        },
+        {
+          "path": "policy-design.md",
+          "line_start": 213,
+          "line_end": 213
+        },
+        {
+          "path": "policy-design.md",
+          "line_start": 219,
+          "line_end": 225
+        },
+        {
+          "path": "policy-design.md",
+          "line_start": 277,
+          "line_end": 281
+        },
+        {
+          "path": "policy-design.md",
+          "line_start": 287,
+          "line_end": 309
+        }
+      ],
+      "source_locations": [
+        {
+          "path": "snapback2/crates/snapback2-core/src/assets_ledger.rs",
+          "line_start": 395,
+          "line_end": 399
+        },
+        {
+          "path": "snapback2/crates/snapback2-core/src/assets_ledger.rs",
+          "line_start": 449,
+          "line_end": 473
+        },
+        {
+          "path": "snapback2/crates/snapback2/src/writer_assets.rs",
+          "line_start": 62,
+          "line_end": 118
+        },
+        {
+          "path": "snapback2/crates/snapback2/src/asset_gc.rs",
+          "line_start": 16,
+          "line_end": 99
+        },
+        {
+          "path": "snapback2/crates/snapback2/src/blob_store.rs",
+          "line_start": 307,
+          "line_end": 397
+        },
+        {
+          "path": "snapback2/crates/snapback2/src/writer.rs",
+          "line_start": 504,
+          "line_end": 513
+        }
+      ],
+      "assessment": "The current sweep materializes all live-ledger IDs, all fork references and synchronously walks the full blob directory. The enumeration interface has no continuation. A deletion error aborts the scan and prevents finishing successful siblings from that turn. Unlocated partial indexes and candidate page limits do not bound the unlimited live/fork sets.",
+      "impact": "The promised bounded turns and sibling progress need additional concrete design. Cleanup becomes a dependency for normal deletion under the proposal. Startup reconciliation and repeated sums also have material costs outside the small pending count.",
+      "required_resolution": "Specify per-turn work limits, continuation state/lifetime, per-ID success and error settlement, fair advancement past failures, fork-referrer handling and restart behavior. Consider bounded candidate-key cleanup plus separately continued orphan enumeration with indexed referrer checks. Explicitly account for O(unlocated rows) scope sums and live view-history reconstruction.",
+      "validation_needed": "Scaled-limit tests can verify paging and failure behavior, but the proposed small/scaled cases do not establish latency/memory at 65,504 ordinary base IDs or larger grandfathered stores. The 100-ordinary-row limit need not prevent a larger released ledger or view history; specify cost validation for those structures explicitly. Physical/runtime qualification remains pending; no performance regression is claimed as measured.",
+      "confidence": "high for source algorithm and missing mechanism; runtime magnitude unmeasured"
+    }
+  ],
+  "confirmed_design_properties": [
+    "The source counts released ready IDs against staging count and checks caps on upload/growth rather than release.",
+    "Pending/grace classification follows existing locator and released_at transitions; same-cell carry-forward and creator-only new claims remain coherent.",
+    "Net capacity validation belongs before replay::finish_run and must participate in ordinary rollback, durable terminal settlement and existing OCC conflict precedence.",
+    "Migration, job cursor/progress, effect-then and reset boundaries need explicit coverage; earlier committed job chunks remain committed.",
+    "The proposed 86,400,000 ms grace origin matches source and logical-clock test intent.",
+    "Reserve-before-rung-publication, guard-aware final GC, retained failure charges and reconstruction are needed for the stronger invariant.",
+    "The 64-worker late-view margin is logically plausible under the design's no-new-transfer-while-over rule, but concurrency implementation is unqualified.",
+    "Queued intent custody and automatic upload cleanup boundaries should remain unchanged; 30-day grants provide no server asset pin.",
+    "Listing usage semantics and binary downgrade restrictions are real compatibility changes."
+  ],
+  "arithmetic_checks": {
+    "H_bytes": 4096,
+    "late_view_margin_bytes": 262144,
+    "creator_ordinary_bytes": 268173312,
+    "owner_ordinary_bytes": 536608768,
+    "creator_base_identity_max": 32736,
+    "owner_base_identity_max": 65504,
+    "owner_uniform_158_byte_identity_max": 64264,
+    "asserted_observation_formula_charge_bytes": 333884,
+    "creator_payload_headroom_reduction_bytes": 270336,
+    "scratch_expression_at_256_MiB_input_GiB": 68,
+    "interpretation": "Arithmetic only; uniform assets, diagnostic fixture data and loose scratch expression are not measured workload/physical bounds."
+  },
+  "proportionality": {
+    "original_problem": "Small pending-upload object quotas also count successful releases.",
+    "existing_obligations": [
+      "affine/creator authorization",
+      "transactional asset reconciliation",
+      "full release grace",
+      "immutable blob identity",
+      "original finalized-growth reservation",
+      "receiving cancellation custody",
+      "fork-safe GC",
+      "one-use history",
+      "stable replay terminals",
+      "queued/ambiguous upload retention"
+    ],
+    "new_or_strengthened_obligations": [
+      "release capacity rejection across mutations/migrations/jobs/reset",
+      "shared failure-inclusive custody accounting",
+      "per-key/view overhead",
+      "rung reservation slots and totals plus view scalar on live rows",
+      "late-view margin and GC guard integration",
+      "all temporary-path tracking and failure-slot retention",
+      "bounded sweep continuation",
+      "upgrade filesystem/history reconstruction",
+      "structured detail through ordinary/replay/parked-job diagnostics",
+      "changed listing semantics and unsupported downgrade"
+    ],
+    "judgment": "A broader custody repair may be worthwhile, but the same nominal 256/512 MiB values do not establish unchanged product compatibility, physical allocation or implementation cost. The source did not enforce the aggregate release bound now proposed. Root must choose this broader scope explicitly without erasing inherited fidelity."
+  },
+  "root_disposition": "Resolve F1/F2 as explicit product choices; fix F3/F4 contract/ordering defects; make F5's bounded-work mechanism concrete. No alternative policy is accepted on root's behalf.",
+  "detailed_review": "review.md"
+}
