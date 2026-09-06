@@ -127,3 +127,32 @@ Muse is an evidence limitation: the three earlier xhigh builders are still
 live remotely, and a fresh ultra request explicitly falls back to xhigh.
 The new SSH process also cannot read the locked Keychain credentials. Existing
 sessions are preserved. An xhigh result cannot establish the user's ultra bar.
+
+### M1–M2 evidence and review, 2026-09-06
+
+The fresh 0.0.6 builder passed M1 and M2, including the frozen two-browser
+choreography (three and nine required assertions). Corrected setup metadata
+and the hash-bound suites are retained under
+`benchmarks/runs/2026-09-06-clique-improvement/evidence/`. Initial metadata
+overclaimed prepack verification; the builder corrected it and reran both
+milestones. iOS bundle export passed, but simulator execution remains absent.
+
+Built-in auth, avatars, and live profile changes required little backend code.
+The main M1 failure was the app's form initialization overwriting edits.
+M2 exposed product friction: conditional feed returns lost their cursor,
+whereas separate Global/Following queries paged through all 43 entries; a
+unique-index migration required finding `--apply-migration` in the installed
+binary because neither the refusal guide nor help supplied the command.
+Both are now filesystem tickets. React Native Web also dropped the frozen
+kit's accessibility values, and one browser lacked the H.264 fixture codec;
+the builder preserved the kit, transported the same declared accessibility
+semantics, and recorded the browser change as environment work.
+
+The asset-recovery fix passed the full existing test script, then Astra's
+review found cleanup/outbox admission, cleanup-auth, and active-upload quota
+edges. The auth fix's first 118 passing tests likewise missed account-switch
+and startup interleavings found independently by Astra and Grok. These patches
+are held for revision, rather than treating broad green tests as evidence
+that every lifecycle case is correct. Received reviews and current targets
+are retained in the improvement run directory. M3 is underway; no new
+holistic score or overall comparison win is claimed.
