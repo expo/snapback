@@ -821,6 +821,10 @@ the outbox through the existing flight, including when a failed attempt preserve
 One failed session metadata fetch does not skip that recovery flight. Deferred failures stay on
 `lastRefusal`; `online()` retries them. A successful resume clears that pending work,
 so ordinary re-login does not implicitly release a past-fence queue.
+The recovery barrier is installed before waiting for queued transitions. Cancelling its
+flight wakes existing waiters even if fetch ignores abort; each waiter rechecks authority
+and joins any replacement recovery before dispatching. A cancelled flight's late response
+cannot alter custody, sync status, or the settled outbox.
 Hooks wait for `ready` before deciding whether
 a tokenless client needs its lazy first `me()`.
 

@@ -1,7 +1,7 @@
 import { ClientAuth, anonymousAuth, restoreAuthToken, saveAuthToken, storageRefusal, ensureBearerTransition } from "./client-auth.js";
 import { SharedSse } from "./live.js";
 import type { AssetFetchOptions } from "./store/byte-cache.js";
-import { throwIfAborted } from "./client-wire.js";
+import { throwIfAborted, withAbort } from "./client-wire.js";
 import { api, referenceName, type Api, type ApiProxy, type Channel as ChannelRef, type Op } from "./api.js";
 import { captureGrant, createOutboxApi, drainOutbox, submitMutation, type DrainResult } from "./client-outbox.js";
 import {
@@ -719,10 +719,10 @@ class Client implements SnapbackClient {
     if (!this.offlineStartupPending) return;
     // Capture only after every queued transition, including failures, settles.
     // The shared resume owns failures; they cannot reject an installed session.
-    void this.operationAuthority(false).then(authority => {
+    this.resumeTail = this.operationAuthority(false).then(authority => {
       if (!this.offlineStartupPending || this.authState.value.state !== "authenticated"
         || !this.offlineRuntime?.principal || this.offlineRuntime.principal !== this.currentPrincipal) return;
-      this.resumeTail = this.performResume(authority).catch(() => undefined);
+      return this.performResume(authority);
     }).catch(() => undefined);
   }
 
@@ -1088,7 +1088,7 @@ class Client implements SnapbackClient {
     if (this.resumeFlight) return this.resumeFlight;
     const controller = new AbortController();
     this.resumeController = controller;
-    const run = this.resumeOffline(authority, controller.signal).then(() => {
+    const run = withAbort(controller.signal, () => this.resumeOffline(authority, controller.signal)).then(() => {
       throwIfAborted(controller.signal);
       this.ensureAuthority(authority);
       this.offlineStartupPending = false;
@@ -1097,7 +1097,7 @@ class Client implements SnapbackClient {
     }, (error) => {
       // Local no-facts refusals never pass through json(): offlineRefusal()
       // publishes them on cold initialization as well as online().
-      if (this.authorityCurrent(authority)) {
+      if (!controller.signal.aborted && this.authorityCurrent(authority)) {
         const refusal = this.offlineRefusal(error);
         this.resetRefusal = refusal.envelope;
       }
@@ -1244,8 +1244,9 @@ class Client implements SnapbackClient {
     await this.ready;
     while (true) {
       const authority = await this.transitionAuthority();
-      if (waitForResume) await this.resumeTail;
-      if (this.authorityCurrent(authority)) return authority;
+      const resume = this.resumeTail;
+      if (waitForResume) await resume;
+      if (this.authorityCurrent(authority) && (!waitForResume || resume === this.resumeTail)) return authority;
     }
   }
 

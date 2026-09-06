@@ -76,6 +76,13 @@ third round are collected here so they are not lost.
   after a failed transition preserves authenticated custody. Regressions cover queued Alice/Bob
   logins, failure during deferred resume, both outcomes during initial metadata/resume, and
   one failed manifest fetch.
+  Round-2 cancellation follow-up (2026-09-06, Astra + Grok): the resume flight now
+  races cancellation, so reconnect and already-waiting operations wake without the
+  obsolete transport returning. Recovery installs its barrier before waiting for the
+  transition tail, and awakened callers recheck both authority and the current barrier.
+  Two regressions withhold the obsolete response until reconnect/replay or a waiting
+  mutation completes, then release a late success/expiry response and prove no duplicate
+  replay or snapshot/outbox change.
 - **Resolved 2026-09-05 (auth startup follow-up):** `ClientAuth.session` publishes `authenticated` before metadata and then throws on a
   non-retryable metadata failure (offline runtime only): resolve after install and leave metadata
   to `ready`, or fail the promise only when custody did not settle.

@@ -342,6 +342,9 @@ interface RangeStore {
   current custody recovers them, including after a failed login; the existing
   resume flight owns recovery and outbox replay (LLP 1002 §9). Cold held reads with
   no account transition still bypass network restoration.
+  Cancelling resume releases its operation barrier independently of the transport.
+  Operations waiting there recheck authority and the current recovery barrier before
+  dispatching; late cancelled responses do not change settled data or auth.
 - **One writer per partition.** The web client takes
   `navigator.locks.request("snapback2:" + principalId)`; a second tab gets
   `E_OFFLINE_LOCK` with the rewrite "this account is open in another tab".

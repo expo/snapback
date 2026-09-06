@@ -1034,3 +1034,60 @@ for (const state of ["hydrating", "confirmed"] as const) test(`${state} held rea
     await read;
   } finally { releaseRead.resolve(); metadata.resolve(json({})); await read?.catch(() => undefined); await client.close(); }
 });
+
+for (const interruption of ["offline", "failed-login"] as const) test(`${interruption} wakes recovery waiters before an obsolete transport responds`, async context => {
+  const { factory, owner } = await queuedStartup(context);
+  const oldStarted = deferred<void>(), oldResponse = deferred<Response>(), newResponse = deferred<Response>();
+  let resumes = 0, oldSaved: Response | undefined, newSaved: Response | undefined;
+  let waiterDone = false, reconnectDone = false;
+  const pending: Promise<unknown>[] = [];
+  const client = createClient({ url: "http://auth.test", tokenStore: custody("dev:alice"), offline: { store: factory },
+    fetch: async (input, init) => {
+      const path = new URL(String(input)).pathname;
+      if (path === "/api/auth/login" && JSON.parse(String(init?.body)).password === "wrong") return refusal("E_AUTH_INVALID");
+      const response = await owner.fetch(input, init);
+      if (path === "/api/resume") {
+        resumes++;
+        if (resumes === 1) { oldSaved = response; oldStarted.resolve(); return oldResponse.promise; }
+        if (resumes === 2) { newSaved = response; return newResponse.promise; }
+      }
+      return response;
+    } });
+  try {
+    await client.auth.login({ email: "alice@example.com", password: "password" });
+    await oldStarted.promise;
+    if (interruption === "failed-login") {
+      const waiter = client.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "waiting through cancellation" })
+        .then(value => { waiterDone = true; return value; });
+      void waiter.catch(() => undefined); pending.push(waiter);
+      await flush();
+      assert.equal(waiterDone, false, "the existing caller waits on the original recovery barrier");
+      await assert.rejects(client.auth.login({ email: "alice@example.com", password: "wrong" }), (error: any) => error.code === "E_AUTH_INVALID");
+    } else {
+      await client.offline();
+      const reconnect = client.online().then(() => { reconnectDone = true; });
+      void reconnect.catch(() => undefined); pending.push(reconnect);
+    }
+    for (let i = 0; i < 20 && !newSaved; i++) await flush();
+    assert.equal(resumes, 2, "replacement recovery starts without the cancelled response");
+    await flush(); await flush();
+    assert.equal(waiterDone, false, "a woken caller joins the replacement barrier before dispatching");
+    assert.equal(reconnectDone, false);
+    assert.equal(owner.executions.length, 0);
+    newResponse.resolve(newSaved!);
+    for (let i = 0; i < 30 && !(interruption === "offline" ? reconnectDone : waiterDone); i++) await flush();
+    assert.equal(interruption === "offline" ? reconnectDone : waiterDone, true, "even existing waiters finish while the old transport stays pending");
+    await Promise.all(pending);
+    await client.outbox.settled();
+    assert.deepEqual(owner.executions.map(entry => (entry.args as any).body), interruption === "offline"
+      ? ["held before startup"] : ["held before startup", "waiting through cancellation"]);
+    const snapshot = client.snapshot, entries = await client.outbox.entries();
+    oldResponse.resolve(interruption === "offline" ? refusal("E_AUTH_SESSION") : oldSaved!);
+    await flush(); await flush();
+    assert.deepEqual(client.snapshot, snapshot, "a late cancelled response cannot alter auth, connection, or lastRefusal");
+    assert.deepEqual(await client.outbox.entries(), entries, "a late cancelled response cannot replay or alter settled intents");
+  } finally {
+    oldResponse.resolve(oldSaved ?? json({})); newResponse.resolve(newSaved ?? json({}));
+    await Promise.allSettled(pending); await client.close();
+  }
+});
