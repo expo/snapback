@@ -1,0 +1,15 @@
+{
+  "exit": 1,
+  "session": 84560,
+  "model": "gpt-6-astra",
+  "effort": "xhigh",
+  "commit": "26c9fd5e0d3922ce7680493c0e8f7371f4793d59",
+  "verdict": null,
+  "failureKind": "provider content block",
+  "providerMessage": "This content was flagged for possible cybersecurity risk.",
+  "tokensReported": 220360,
+  "stderrSHA256": "0185328d0fe7833e8a8ed1e98655e15642d24f9d9594e8424e8e337a221584fe",
+  "retained": true,
+  "sameActionRephrasedOrRetried": false,
+  "grok": "already-running independent review continues unchanged"
+}

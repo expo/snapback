@@ -1,0 +1,62 @@
+{
+  "createdUTC": "2026-09-06T15:22:55.020508+00:00",
+  "sourceCommit": "26c9fd5e0d3922ce7680493c0e8f7371f4793d59",
+  "sourceBase": "d9ed822aa66ebb5dfd0367a59bc0e454ba1ecd18",
+  "snapback2Tree": "84d8c45bc4669bdfac40f78f9512b41174f1d118",
+  "sourceArchiveSHA256": "d3c2f9140a965ee87a1185db8faea6e7f071689e17d4fb1c87f0231170f73aef",
+  "revisionPatchSHA256": "c974a401140c8e6f4960769a6f74ad5e0090171e1cf55a8ecaabcc8aa4176b0a",
+  "nativeSourceGraphSHA256": "07d985316ae2d74494980a0c4871a13a877237ca0de15f97e2d12ad337518e70",
+  "ownerSHA256": "4d0f8f0176921b56305e9969da0fcb2dd5ecedae1f65d983f537e613d0c6e46e",
+  "exporterSHA256": "3a22ae690ae281e4e2bf30eaa2b8d640df4e24966e97225706d433514d470f48",
+  "nativeArtifactFilesVerified": 318,
+  "nativeSourceFilesVerified": 261,
+  "corpusFilesVerified": 280,
+  "reviewSnapshotFilesVerified": 1014,
+  "blinding": {
+    "sameFrozenSource": true,
+    "otherFamilyReportsSupplied": false,
+    "noVerdictInferredFromMissingReview": true
+  },
+  "astra": {
+    "model": "gpt-6-astra",
+    "effort": "xhigh",
+    "sandbox": "read-only",
+    "execSession": 84560,
+    "codexSession": "01a07734-9533-7c41-819a-ae5f1ada6711",
+    "exit": 1,
+    "verdict": null,
+    "status": "provider content block; no review verdict",
+    "promptSHA256": "4b0d69c25035260255fa7d57e58930ec315ebd3372c0426d765b8a0aa5575f53",
+    "rawStderrRetainedExternally": true,
+    "retryOrRephrase": false
+  },
+  "grok": {
+    "model": "grok-4.6",
+    "effort": "xhigh",
+    "execSession": 87489,
+    "pid": 44112,
+    "exit": 0,
+    "verdict": "READY",
+    "staticOnly": true,
+    "promptSHA256": "4b0d69c25035260255fa7d57e58930ec315ebd3372c0426d765b8a0aa5575f53",
+    "rawSHA256": "5c37b3caddb6ea5af1900783399c29b5ca89a0640d9b1d891bfc17f8712fb49e",
+    "progressSHA256": "a925aaa1a07a95ddadd2f0879de973a2a76fc9537c0ca12a5120da10321a80dd",
+    "finalSHA256": "d6364d338200bfee0a74c63a9a11d2ff1a6ec56130a514b550853c7b0ac5e434"
+  },
+  "MuseUltra": "Unavailable: reported ultra gate closed, fallback then authentication failure, no model response; not a review",
+  "externalEvidenceRoot": "/Users/ccheever/clique-improvement/revisions/search-engine",
+  "externalReviewRoot": "/Users/ccheever/clique-improvement/reviews/search-engine-r1",
+  "fullSnapshot": "/Users/ccheever/clique-improvement/revisions/search-engine/final-snapshot",
+  "sourceInputsAtFreezeRemainImmutable": true,
+  "remainingQualification": [
+    "Required Astra review has no verdict; no review-bypass or native landing clearance",
+    "Matched current compiler/client graph and standard package build/measure loop",
+    "Integrated complete local-runtime size/memory and search scale/platform qualification"
+  ],
+  "packetExcludes": [
+    "raw review/tool logs",
+    "source archives and binaries",
+    "credentials",
+    "invented review verdicts"
+  ]
+}

@@ -1,0 +1,106 @@
+{
+  "sourceCommit": "26c9fd5e0d3922ce7680493c0e8f7371f4793d59",
+  "ownerSHA256": "4d0f8f0176921b56305e9969da0fcb2dd5ecedae1f65d983f537e613d0c6e46e",
+  "host": "macOS-26.6-arm64-arm-64bit",
+  "scope": "actual frozen owner raw IR decode and certificate boundary; no server admission or test suite rerun",
+  "timeoutSeconds": 20,
+  "columnNullAndOmittedCertificateByteEquivalent": true,
+  "cases": [
+    {
+      "case": "valid_formats",
+      "exit": 0,
+      "elapsedSeconds": 0.005967875000000004,
+      "inputSHA256": "da3f43373821dbcbb50e25ca66f190ccd1eec9691360d657503badb2e7ec7110",
+      "stdoutSHA256": "96a7da65581c602cc3be8e5aa8eada5b4b90bda7c15e8919d11528ebc01aa6d2",
+      "certificates": [
+        true
+      ],
+      "errors": []
+    },
+    {
+      "case": "omitted_formats",
+      "exit": 0,
+      "elapsedSeconds": 0.005081916999999998,
+      "inputSHA256": "49a61c462d40306310ba5d89e6d5520a30af9b7eaf0e491105971f98c4884bc3",
+      "stdoutSHA256": "e66138eb327d9f184c4aae85b3e8d92201b779d1afc92af9ee92e2d403181da2",
+      "certificates": [
+        true
+      ],
+      "errors": []
+    },
+    {
+      "case": "program_format_null",
+      "exit": 1,
+      "elapsedSeconds": 0.004819707999999999,
+      "inputSHA256": "ecccc085a88155360bd9c27e57018a1212d2311b541bfeca925ef220223ffc36",
+      "stdoutSHA256": "f301969846e88f531aacce88eff4d0cc3399decafb14f60d53a59188357c3555",
+      "certificates": [
+        false
+      ],
+      "errors": [
+        {
+          "code": "E_CHECK_IR_UNSUPPORTED",
+          "family": "op",
+          "message": "program JSON contains an unsupported IR variant: invalid type: null, expected a string",
+          "site": "<project>:formats",
+          "rule": "the compiler and engine use the same project IR",
+          "rewrite": "use a snapback2 binary built with the matching project IR",
+          "guide": "programs/ir"
+        }
+      ]
+    },
+    {
+      "case": "channel_format_null",
+      "exit": 1,
+      "elapsedSeconds": 0.004651708000000004,
+      "inputSHA256": "fe81c3a2a17e4dbb4827071a851b9bdb9d5b7fb645f20d5aa68a673118f16bcd",
+      "stdoutSHA256": "e6f60f001825e2770cf5ad5d8219381b43fbd8aef2501f30ae9378f33041c38d",
+      "certificates": [
+        false,
+        false
+      ],
+      "errors": [
+        {
+          "code": "E_CHECK_IR_UNSUPPORTED",
+          "family": "op",
+          "message": "project schema contains an unsupported IR variant: invalid type: null, expected a string",
+          "site": "<project>:schema",
+          "rule": "the compiler and engine use the same project IR",
+          "rewrite": "use a snapback2 binary built with the matching project IR",
+          "guide": "programs/ir"
+        },
+        {
+          "code": "E_CHECK_IR_UNSUPPORTED",
+          "family": "op",
+          "message": "program cannot be certified because the project schema is unsupported",
+          "site": "<project>:formats",
+          "rule": "the compiler and engine use the same project IR",
+          "rewrite": "use a snapback2 binary built with the matching project IR",
+          "guide": "programs/ir"
+        }
+      ]
+    },
+    {
+      "case": "column_constraint_null",
+      "exit": 0,
+      "elapsedSeconds": 0.006466958999999994,
+      "inputSHA256": "d1d74311383909b3bd6427ffe53f50cc96b2f173cf54bb545dd8d10b477bca40",
+      "stdoutSHA256": "c8daba192135f83acfc123c30b9e0e5241f5fe2e84b27540131b0f42d378e47a",
+      "certificates": [
+        true
+      ],
+      "errors": []
+    },
+    {
+      "case": "column_constraint_omitted",
+      "exit": 0,
+      "elapsedSeconds": 0.006565250000000009,
+      "inputSHA256": "26f6bca15cabed376ab018aa89c70e07a29d23630670eda3ee3e4040f955c597",
+      "stdoutSHA256": "c8daba192135f83acfc123c30b9e0e5241f5fe2e84b27540131b0f42d378e47a",
+      "certificates": [
+        true
+      ],
+      "errors": []
+    }
+  ]
+}

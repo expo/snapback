@@ -1,0 +1,18 @@
+{
+  "exit": 0,
+  "session": 87489,
+  "pid": 44112,
+  "commit": "26c9fd5e0d3922ce7680493c0e8f7371f4793d59",
+  "model": "grok-4.6",
+  "effort": "xhigh",
+  "verdict": "READY",
+  "mode": "static; no tests/server/performance executed by reviewer",
+  "materialConcerns": 0,
+  "rawSHA256": "5c37b3caddb6ea5af1900783399c29b5ca89a0640d9b1d891bfc17f8712fb49e",
+  "finalSHA256": "d6364d338200bfee0a74c63a9a11d2ff1a6ec56130a514b550853c7b0ac5e434",
+  "progressSHA256": "a925aaa1a07a95ddadd2f0879de973a2a76fc9537c0ca12a5120da10321a80dd",
+  "rawBytes": 8941,
+  "finalBytes": 7820,
+  "sourceSnapshotAll1014Unchanged": true,
+  "missingOtherReview": "Astra provider content block; no verdict; no bypass/retry"
+}

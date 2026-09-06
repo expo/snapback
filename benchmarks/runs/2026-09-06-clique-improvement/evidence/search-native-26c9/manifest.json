@@ -1,0 +1,62 @@
+[
+  {
+    "path": "README.md",
+    "bytes": 1946,
+    "sha256": "0e83c079cb083c35c6eaffccb80ba22506bae7f2bb2d8840b3bc9f9e72fdba2f"
+  },
+  {
+    "path": "astra-source-verification.json",
+    "bytes": 71,
+    "sha256": "ce77a2931f2c9b93bc43ebb24f0822227759cd7b308e2fbbb2644a6c4af4636b"
+  },
+  {
+    "path": "astra-terminal.json",
+    "bytes": 526,
+    "sha256": "00745d6263af4cdd22a1f8631df28c352440e56185bfc6f693d46bb853e559db"
+  },
+  {
+    "path": "grok-evidence-annotation.md",
+    "bytes": 1952,
+    "sha256": "63dfd5a10519774bfa31548fadbebf02d5e6f72ddf4873346f4689b41a75e091"
+  },
+  {
+    "path": "grok-review.md",
+    "bytes": 7820,
+    "sha256": "d6364d338200bfee0a74c63a9a11d2ff1a6ec56130a514b550853c7b0ac5e434"
+  },
+  {
+    "path": "grok-source-verification.json",
+    "bytes": 71,
+    "sha256": "ce77a2931f2c9b93bc43ebb24f0822227759cd7b308e2fbbb2644a6c4af4636b"
+  },
+  {
+    "path": "grok-terminal.json",
+    "bytes": 694,
+    "sha256": "e82e34d6c6be91f6b85e40d1af179c12ba146e5a1a42b5503baf835f63ce8ab1"
+  },
+  {
+    "path": "native-handoff.md",
+    "bytes": 15082,
+    "sha256": "c9abb680f2d4cfe83d502608b8506665d82840805bd6ae3acad18ffcff013662"
+  },
+  {
+    "path": "null-format-boundary.md",
+    "bytes": 2933,
+    "sha256": "24267e6af8464a7128d2d7319fd3236d06274427166cb25e84304212c5476458"
+  },
+  {
+    "path": "null-format-controls.json",
+    "bytes": 3831,
+    "sha256": "838d9b5f01058a979118ed76271103faec915b3aa8b8ac1f5c564829ddff87d8"
+  },
+  {
+    "path": "provenance.json",
+    "bytes": 2824,
+    "sha256": "0e32400ea7ed72ed08b5e7c124e12df8eb14bd2b07f0356009b72ebdaa65295a"
+  },
+  {
+    "path": "review-source.json",
+    "bytes": 1152,
+    "sha256": "e8373520325099f4185f85ad1ae75b997ddd9dd140b838689170d3b2d43c8640"
+  }
+]

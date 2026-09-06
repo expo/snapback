@@ -1,0 +1,18 @@
+{
+  "commit": "26c9fd5e0d3922ce7680493c0e8f7371f4793d59",
+  "base": "d9ed822aa66ebb5dfd0367a59bc0e454ba1ecd18",
+  "patchSHA256": "c974a401140c8e6f4960769a6f74ad5e0090171e1cf55a8ecaabcc8aa4176b0a",
+  "sourceArchiveSHA256": "d3c2f9140a965ee87a1185db8faea6e7f071689e17d4fb1c87f0231170f73aef",
+  "snapback2Tree": "84d8c45bc4669bdfac40f78f9512b41174f1d118",
+  "governingProvenance": "committed engine lane LLPs/rules plus explicit root-approved current-session contracts; root later consolidates prose",
+  "nativeScope": "search/index/certification/retention/identity/corpus; landed feed reconciliation; clock; recursive text minima/formats",
+  "packageVersion": "0.0.8 inherited lane metadata, publication root-owned",
+  "valueModelVersion": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+  "evaluatorVersion": "bounded-spike-rust-search-text-refinements-4",
+  "remainingQualification": [
+    "matched integrated compiler/client package build+standard measure",
+    "search scale curve and atomic large rebuild latency",
+    "integrated local runtime bytes, retained memory and Expo/phone witnesses"
+  ],
+  "otherFamilyReviewsSupplied": false
+}
