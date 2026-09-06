@@ -557,15 +557,21 @@ a duplicate. The rebuilt inserts bind every next constraint and unique index.
 A user mutation writing a maintained target is `Rejected(E_RULE)` by its rule.
 Successor rebuilds own exactly the union of target row IDs projected by the
 predecessor and successor maintain declarations: they replace or remove those
-IDs and preserve every other target row and index entry. The replacement
+IDs and preserve every other target row and index entry. Predecessor IDs are
+captured before any rebuild or exact migration drop. Targets rebuild sequentially
+in table-name order; each successor projection uses the transaction's rows at
+that step, after any drops and earlier rebuilds. Survivor admission and mutation
+consume that same projection and ownership union, without recomputing either.
+This matters when a retired target becomes a later rebuild's ordinary source:
+its removed rows must not exempt IDs the later rebuild will preserve. The replacement
 exemption applies to those IDs, never to the whole target table. Surviving
 rows undergo the same applicable new/changed-column, required-column, and
 text-constraint admission as ordinary stored rows; unrelated historical fields
 remain outside that selection. Ordinary source admission precedes successor
-projection, so absent required source fields refuse before ID derivation.
-Exact migrations retain predecessor IDs from before drops and derive successor
-IDs from admitted post-drop source rows, matching the rebuild's ownership union.
-An invalid survivor refuses both paths with `E_SUCCESSOR_ROW_INVALID` (or
+projection, including retired targets used as sources at that rebuild step,
+so absent required source fields refuse before ID derivation.
+An invalid survivor refuses additive installation, exact migration, and
+changed-schema reopening with `E_SUCCESSOR_ROW_INVALID` (or
 `E_SUCCESSOR_COLUMN_REQUIRED` for a new/retyped required field); mixed drops
 roll back with the generation, rows, indexes, and sequence unchanged.
 Implemented 2026-09-06 by Astra, local successor recovery; focused controls
