@@ -122,3 +122,22 @@ retained; its cause is unproven, so this does not claim every cold launch
 passes. The CLI commit was cherry-picked to main with no semantic changes
 under snapback2/. Production0.0.7 dry-run is in progress; publication is
 not yet claimed.
+
+## Published0.0.7
+
+`snapback2@0.0.7` and `snapback2-darwin-arm64@0.0.7` are both published
+and tagged latest. Source7f59d3a42 has the same Snapback2 tree as
+landed5510cdf7f. Exact prepared tarballs were consumer-qualified and
+published through the existing resume/convergence path; registry SRI and
+fresh installed binary bytes match. Production Hermes/media, help, and
+migration guidance checks pass. Evidence is under `evidence/npm-0.0.7/`.
+
+This release contains CLI help and migration discoverability, not the pending
+auth/cursor/asset integration. The running benchmark remains pinned0.0.6.
+The first staged doctor failed with Bun isolated dependency layout; the same
+locked dependencies in the supported hoisted layout passed. One external
+launcher accidentally repeated dry-run, retained as such. Actual publication
+took27s; npm processing delayed shim visibility for several minutes.
+A fresh installed version invocation took12.893s; subsequent doctor took
+0.143s and help roughly0.06s. No cause is assigned to that first-launch delay
+and no universal cold-launch latency claim follows from warm measurements.

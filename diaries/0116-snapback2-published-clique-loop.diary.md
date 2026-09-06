@@ -234,3 +234,16 @@ first stopped because staged doctor could not resolve declared TypeScript
 through Bun's isolated layout. Release preparation is provisioning the same
 locked dependencies through the supported hoisted layout and repeating the
 qualified path, without bypassing staged doctor or consumer isolation.
+
+
+### Published0.0.7, 2026-09-06
+
+The CLI help and migration-command improvement is published in both npm
+packages. Registry integrity and fresh installed bytes match the qualified
+production tarballs, with Hermes, media codecs, and installed guide/help
+checks passing. Original failed staging/dependency layout and first doctor
+timing samples are retained; dependency provisioning changed only the private
+release lane. The current cold build stays on0.0.6 through M6/M8. Auth, cursor,
+and asset work is now combined on an integration branch; its source merged
+without conflicts, while a six-byte guide budget overflow needed a prose
+trim before the affected checks can pass.

@@ -1,0 +1,46 @@
+[
+  {
+    "name": "snapback2",
+    "version": "0.0.7",
+    "dist": {
+      "shasum": "a2b4f308a1b554df7c6729924d814564cf77d40c",
+      "tarball": "https://registry.npmjs.org/snapback2/-/snapback2-0.0.7.tgz",
+      "fileCount": 150,
+      "integrity": "sha512-vC9FiSNV4XjocMcO3ZJ6CMfqJublHH+ObTkdHNVUO+SxpBiQ5ZrLucaJvJNpIPWDfkwCi+ZvgVUPR4IyPVFLxA==",
+      "signatures": [
+        {
+          "sig": "MEUCIQCfYZiW6ytDo5TQ3YhqztgMDMoo4eaeebBz3qCaWPQYLAIgdFyCpPpZldFrfCPPmd6EGPnTMlUx3vYKc14qvSI9P9s=",
+          "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+        },
+        {
+          "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U",
+          "sig": "MEQCIFHA8z7EBJdiW+bKa4tiQSqN6zjhGFR5ffxU6wdELpQ6AiBm8JgKte6kooGUK5BSAbLkWCErQOIEzVpcVl7R/+bhYA=="
+        }
+      ],
+      "unpackedSize": 7359075
+    },
+    "dist_tags": {
+      "latest": "0.0.7"
+    }
+  },
+  {
+    "name": "snapback2-darwin-arm64",
+    "version": "0.0.7",
+    "dist": {
+      "integrity": "sha512-LsxVLSjZlID6M2rNrCyrSWxFhVmtArUMYbDeL2LqGtM4zdiEyrtIKZjFDLg67LYvr8tCautVRxVweLkcvcl8lw==",
+      "shasum": "42a9d4537e93258122ab8932def37a0cc4c33d37",
+      "tarball": "https://registry.npmjs.org/snapback2-darwin-arm64/-/snapback2-darwin-arm64-0.0.7.tgz",
+      "fileCount": 3,
+      "unpackedSize": 9128170,
+      "signatures": [
+        {
+          "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U",
+          "sig": "MEUCIHeTf4so6jdAe/sKK/EU5Dw3RJPKHYJE1riARrOhdWgPAiEAw+x056wYklfbnmP8wRFdjG+9J9nOMgpoDcq/ipP2w20="
+        }
+      ]
+    },
+    "dist_tags": {
+      "latest": "0.0.7"
+    }
+  }
+]
