@@ -468,14 +468,13 @@ function restoreRetained(before: unknown, after: unknown, retained: Set<string>)
   return after;
 }
 
-function inFreshExtent(id: string, held: ReceiptRange, fresh: ReceiptRange, rows: Record<string, StoredRow>, index: CarrierIndex, op: string): boolean {
-  const row = rows[rowKey({ table: held.table, id })];
+function inFreshExtent(row: StoredRow | undefined, fresh: ReceiptRange, rows: Map<string, StoredRow>, index: CarrierIndex, op: string): boolean {
   if (!row) return fresh.stop === "Exhausted";
   if (!index.contains(row, fresh, op)) return false;
   if (fresh.stop === "Exhausted") return true;
-  const keys = fresh.rowIds.flatMap(id => { const row = rows[rowKey({ table: fresh.table, id })]; return row ? [index.suffix(row, fresh)] : []; });
+  const keys = fresh.rowIds.flatMap(id => { const row = rows.get(rowKey({ table: fresh.table, id })); return row ? [index.suffix(row, fresh)] : []; });
   if (!keys.length) return false;
-  const suffix = index.suffix(row, held), first = keys.reduce((a, b) => compareArrays(a, b) <= 0 ? a : b), last = keys.reduce((a, b) => compareArrays(a, b) >= 0 ? a : b);
+  const suffix = index.suffix(row, fresh), first = keys.reduce((a, b) => compareArrays(a, b) <= 0 ? a : b), last = keys.reduce((a, b) => compareArrays(a, b) >= 0 ? a : b);
   return compareArrays(suffix, first) >= 0 && compareArrays(suffix, last) <= 0;
 }
 
@@ -1073,7 +1072,16 @@ export class PersistentRangeStore implements RangeStore {
       answer.order = ++state.clock;
       recordAbsences(answer);
     }
-    const freshRanges: Array<{ range: ReceiptRange; seq: number; op: string; owner: string; answer: StoredAnswer }> = [];
+    // Only touched images survive this swap's membership checks. A later movement
+    // cannot erase an earlier contradiction; a same-seq move out is not a deletion.
+    const images = new Map<string, Array<{ seq: number; row: StoredRow }>>();
+    const imageAt = (key: string, seq: number) => {
+      let found: { seq: number; row: StoredRow } | undefined;
+      for (const image of images.get(key) ?? (state.rows[key] ? [{ seq: state.rowSeq[key], row: raw(state.rows[key]) }] : []))
+        if (image.seq <= seq && (!found || image.seq >= found.seq)) found = image;
+      return found?.row;
+    };
+    const freshRanges: Array<{ range: ReceiptRange; seq: number; op: string; owner: string; answer: StoredAnswer; rows: Map<string, StoredRow> }> = [];
     for (const ref of swap.tombstones ?? []) recordNegative(ref, "tombstone");
     for (const delivery of swap.deliveries ?? []) {
       if (!Number.isSafeInteger(delivery.seq) || delivery.seq < 0) {
@@ -1118,6 +1126,12 @@ export class PersistentRangeStore implements RangeStore {
           throw new TypeError("store delivery row is malformed");
         }
         const storageKey = rowKey(row);
+        let versions = images.get(storageKey);
+        if (!versions) {
+          versions = state.rows[storageKey] ? [{ seq: state.rowSeq[storageKey], row: raw(state.rows[storageKey]) }] : [];
+          images.set(storageKey, versions);
+        }
+        versions.push({ seq: delivery.seq, row });
         if ((state.negative[storageKey] ?? -1) >= delivery.seq) {
           recordEviction(explicitEvictions, { table: row.table, id: row.id, seq: state.negative[storageKey]! });
           continue;
@@ -1185,7 +1199,8 @@ export class PersistentRangeStore implements RangeStore {
       state.answers[key] = stored;
       fullFacts.push({ owner: key, seq: delivery.seq, fingerprint, facts });
       enrollmentKeys.delete(key);
-      freshRanges.push(...(delivery.receipt?.ranges ?? []).map((range) => ({ range, seq: delivery.seq, op: delivery.op, owner: key, answer: stored })));
+      const rows = new Map((delivery.rows ?? []).map(row => [rowKey(row), row]));
+      freshRanges.push(...(delivery.receipt?.ranges ?? []).map((range) => ({ range, seq: delivery.seq, op: delivery.op, owner: key, answer: stored, rows })));
       recordAbsences(stored);
     }
 
@@ -1204,11 +1219,17 @@ export class PersistentRangeStore implements RangeStore {
       const held = matching[0].range;
       // Compatible pages share presence only at one durable seq. Include earlier
       // full frames in this batch: a new row need not have a pre-swap range owner.
-      const ids = new Set([...index.matching(held, matching[0].op), ...matching].flatMap(({ range }) => range.rowIds));
+      const sources = [...[...index.matching(held, matching[0].op)].map(source => ({ ...source,
+        seq: (before.get(source.owner) ?? state.answers[source.owner])?.seq ?? Infinity })), ...matching];
+      const ids = new Set(sources.flatMap(({ range }) => range.rowIds));
+      // Another query can introduce a row into this extent during the swap.
+      for (const versions of images.values()) if (versions[0]?.row.table === held.table) ids.add(versions[0].row.id);
       for (const id of ids) {
-        for (const { range, op, seq, owner, answer } of matching) {
+        for (const { range, op, seq, owner, answer, rows } of matching) {
           const included = range.stop === 'Exhausted' ? range.rowIds.includes(id) || range.haloId === id : present.get(seq)!.has(id);
-          if (included || !inFreshExtent(id, held, range, state.rows, index, op)) continue;
+          const row = imageAt(rowKey({ table: held.table, id }), seq);
+          if (included || (!row && !sources.some(source => source.seq <= seq && source.range.rowIds.includes(id)))
+            || !inFreshExtent(row, range, rows, index, op)) continue;
           // A checked uniform hole is an immutable negative, including at a new
           // execution clock. Keep its proof with the issuing answer so an unchanged
           // reply advances that same fact without consulting a collected row body.

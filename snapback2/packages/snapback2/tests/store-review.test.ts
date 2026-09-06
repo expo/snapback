@@ -554,6 +554,106 @@ test('first timed facts constrain ordinary conditionals in the same atomic swap 
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
+test('checked extent membership follows immutable assertion sequences across row movement', async context => {
+  const fixtures = JSON.parse(await readFile(new URL('../../evaluator/src/test-search-v5-fixtures.json', import.meta.url), 'utf8'));
+  // Native-certified v5 programs; contradictory transport frames are synthetic.
+  const clock = structuredClone(fixtures.clock), bounded = fixtures.boundedClockCertificate;
+  const ir = structuredClone(clock.programs['clock.read'].ir); ir.name = 'clock.bounded';
+  ir.body[0].Return.Object.rows.Scan.range.lt = { Literal: { Int: 1 } };
+  clock.programs[ir.name] = { kind: 'query', ir, certificate: bounded, planHash: bounded.plan_hash };
+  const timed = structuredClone(fixtures.operations['search.findPeople'].program);
+  timed.name = 'search.timed'; timed.read_time_granularity_ms = 1;
+  timed.body[0].Return = { Object: { now: { Input: 'ReadTime' }, rows: timed.body[0].Return } };
+  const cert = fixtures.timedSearchCertificate;
+  const search = { generation: 'd'.repeat(64), schemaHash: cert.schema_hash, schema: fixtures.schema,
+    programs: { [timed.name]: { kind: 'query', ir: timed, certificate: cert, planHash: cert.plan_hash },
+      'search.findPeople': { kind: 'query', ir: fixtures.operations['search.findPeople'].program,
+        certificate: fixtures.operations['search.findPeople'].certificate, planHash: fixtures.operations['search.findPeople'].certificate.plan_hash } } };
+  const { root, factories } = await carriers();
+  try {
+    for (const factory of factories) for (const derived of [false, true]) for (const cold of [false, true])
+      await context.test(`${factory.carrier}/${derived ? 'Unicode' : 'Time'}/${cold ? 'cold' : 'warm'}`, async () => {
+        const packet = derived ? search : clock, table = derived ? 'people' : 'events';
+        for (const reverse of [false, true]) for (const scenario of [
+          { name: 'earlier-contradiction', seed: 0, hole: 1, move: 2, position: 5, rejects: true },
+          { name: 'same-seq-move-out', seed: 0, hole: 2, move: 2, position: 5 },
+          { name: 'later-hole-after-move-out', seed: 0, hole: 3, move: 2, position: 5 },
+          { name: 'later-positive-after-hole', seed: 0, hole: 2, move: 3, position: 5 },
+          { name: 'same-seq-move-in', seed: 5, hole: 2, move: 2, position: 0, rejects: true },
+          { name: 'later-hole-after-move-in', seed: 5, hole: 3, move: 2, position: 0, evicts: true },
+        ]) {
+          const principal = `${derived}-${cold}-${reverse}-${scenario.name}`;
+          let runtime = new OfflineRuntime({ store: factory }); await runtime.open(principal, true); await runtime.program(packet);
+          const accept = async (inside: boolean, seq: number, position: number | null, readTime: number) => {
+            const op = derived ? inside ? timed.name : 'search.findPeople' : inside ? 'clock.bounded' : 'clock.read';
+            const operation = packet.programs[op], term = inside || position === 0 ? 'cafe\u0301' : 'Other';
+            const args = derived ? { term, c: null } : {}, ids = position === null ? [] : ['one'];
+            const row = derived ? { id: 'one', name: position === 0 ? 'CAFÉ' : 'Other', handle: null } : { id: 'one', at: position };
+            const frame = { protocol: 1, generation: packet.generation, schemaHash: packet.schemaHash,
+              planHash: operation.planHash, authority: { principal, authEpoch: 0 }, state: 'complete', seq,
+              ...(derived && !inside ? {} : { readTime }),
+              data: { now: readTime, rows: ids.map(id => ({ $row: { table, id } })) }, next: null,
+              rows: ids.map(id => ({ table, id, row })), validator: 'a'.repeat(64), receipt: { ...receipt(), ranges: [{
+                site: derived ? 'search.findPeople.0' : 'clock.range', table, index: derived ? 'byNameWords' : 'byAt',
+                prefix: derived ? [{ WordPrefix: { contract: 'u17-nfc-scf-nfc-wsp-p', source: term } }] : [],
+                order: 'Asc', take: derived ? 20 : 10, after: null, before: null, gt: null, gte: null,
+                lt: derived ? null : inside ? 1 : readTime, lte: null, rowIds: ids, stop: 'Exhausted', absence: false,
+                ruleHash: operation.certificate.rule_hashes[`${table}.read`],
+              }] } };
+            return { op, args, accepted: await runtime.accept(op, args, frame) };
+          };
+          await runtime.store.commit({ outbox: { put: [entry('keep')] } });
+          await runtime.commitMany([await accept(scenario.seed === 0, 1, scenario.seed, 10)]);
+          // Establish the matching empty domain when the starting row lies outside it.
+          if (scenario.seed) await runtime.commitMany([await accept(true, 1, null, 11)]);
+          if (cold) { await runtime.close(); runtime = new OfflineRuntime({ store: factory }); await runtime.open(principal, true); }
+          const before = JSON.stringify((runtime.store as any).state);
+          // Different ops/arguments keep both frames applicable in either order.
+          const items = [await accept(true, scenario.hole, null, 20), await accept(false, scenario.move, scenario.position, 30)];
+          if (reverse) items.reverse();
+          if (scenario.rejects) {
+            await assert.rejects(runtime.commitMany(items), /conflicting durable fact/, scenario.name);
+            assert.equal(JSON.stringify((runtime.store as any).state), before, 'failed admission preserves rows, guards, fingerprints and outbox');
+          } else {
+            await runtime.commitMany(items);
+            const coverage = await runtime.store.coverage();
+            assert.equal(coverage.rows.length, scenario.evicts ? 0 : 1, scenario.name);
+            if (!scenario.evicts) assert.equal(derived ? coverage.rows[0].row.name : coverage.rows[0].row.at, derived ? 'Other' : 5);
+            if (scenario.move <= scenario.hole && !scenario.evicts)
+              assert.equal(coverage.evicted.length, 0, 'known movement out never creates a global absence');
+          }
+          assert.equal((await runtime.store.outbox.all())[0].intent, 'keep'); await runtime.close();
+        }
+      });
+    for (const factory of factories) for (const cold of [false, true]) await context.test(`${factory.carrier}/Limit-edges-${cold}`, async () => {
+      const principal = `edges-${cold}`;
+      let runtime = new OfflineRuntime({ store: factory }); await runtime.open(principal, true); await runtime.program(clock);
+      const accept = async (op: string, seq: number, readTime: number, entries: Array<[string, number]>, limit = false) => {
+        const operation = clock.programs[op], ids = entries.map(([id]) => id);
+        return { op, args: {}, accepted: await runtime.accept(op, {}, {
+          protocol: 1, generation: clock.generation, schemaHash: clock.schemaHash, planHash: operation.planHash,
+          authority: { principal, authEpoch: 0 }, state: limit ? 'capped' : 'complete', seq, readTime, validator: 'a'.repeat(64), next: null,
+          data: { now: readTime, rows: ids.map(id => ({ $row: { table: 'events', id } })) },
+          rows: entries.map(([id, at]) => ({ table: 'events', id, row: { id, at } })), receipt: { ...receipt(), ranges: [{
+            site: 'clock.range', table: 'events', index: 'byAt', prefix: [], order: 'Asc', take: 10,
+            after: null, before: null, gt: null, gte: null, lt: op === 'clock.bounded' ? 1 : readTime, lte: null,
+            rowIds: ids, stop: limit ? 'Limit' : 'Exhausted', absence: false, ruleHash: bounded.rule_hashes['events.read'],
+          }] },
+        }) };
+      };
+      await runtime.commitMany([await accept('clock.bounded', 1, 1, [['a', -2], ['one', -1], ['z', 0]])]);
+      if (cold) { await runtime.close(); runtime = new OfflineRuntime({ store: factory }); await runtime.open(principal, true); }
+      const before = JSON.stringify((runtime.store as any).state);
+      await assert.rejects(runtime.commitMany([
+        await accept('clock.bounded', 1, 2, [['a', -2], ['z', 0]], true),
+        await accept('clock.read', 2, 10, [['a', 5]]),
+      ]), /conflicting durable fact/);
+      assert.equal(JSON.stringify((runtime.store as any).state), before, 'later endpoint movement cannot change the issuing Limit extent');
+      await runtime.close();
+    });
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
 test('checked fixed extent holes reject clock contradictions atomically and retain negative conditional custody warm and cold', async context => {
   const fixtures = JSON.parse(await readFile(new URL('../../evaluator/src/test-search-v5-fixtures.json', import.meta.url), 'utf8'));
   const packet = structuredClone(fixtures.clock), op = 'clock.fixed', certificate = fixtures.fixedClockCertificate;

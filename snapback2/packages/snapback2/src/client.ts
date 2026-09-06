@@ -110,7 +110,6 @@ type InternalClientOptions = CreateClientOptions & {
   /** A restart of a device whose transport was cut boots cut, before any request. */
   startOffline?: boolean;
 };
-
 // @ref LLP 1002#9-the-client-snapback2client-snapback2react-snapback2test — auth custody is restored explicitly and every principal transition fences old in-memory work.
 class Client implements SnapbackClient {
   readonly auth;

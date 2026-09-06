@@ -1289,5 +1289,114 @@
     ],
     "disclosures": [],
     "bound_product": "clock.range take 10 (+2 reserve) × 1 calls on events = 12"
+  },
+  "boundedClockCertificate": {
+    "program": "clock.bounded",
+    "plan_hash": "21e93d3e8c9b34e3bcefeceacaa68affd93227465ea0cf992b743eff33fe699b",
+    "schema_hash": "e19cdc5f988de7a8d6326ad1af251e9b740a8890da3816c6ee823efcf3544243",
+    "tables": {
+      "events": {
+        "retain": "until-revoked"
+      }
+    },
+    "rule_hashes": {
+      "events.read": "75127f113f0cdaab190e505b9cd62b78c7a92d6a43028a5db3d98dcd342c95ca"
+    },
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "read_sites": [
+      {
+        "site": "clock.range",
+        "table": "events",
+        "index": "byAt",
+        "prefix_template": "Const",
+        "take": 10,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 0,
+        "hoist": true,
+        "decided_true": true,
+        "complete": false
+      }
+    ],
+    "write_sites": [],
+    "maintained_amplification": 0,
+    "constraint_checks": [],
+    "max_examined": 12,
+    "max_index_entries": 12,
+    "max_rule_probes": 0,
+    "max_steps": 65,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
+    "max_heap_bytes": 2080,
+    "max_output_bytes": 2059,
+    "max_closure_bytes": 2012,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": 1,
+    "halo_rows": 1,
+    "indexes_required": [
+      "events.byAt"
+    ],
+    "disclosures": [],
+    "bound_product": "clock.range take 10 (+2 reserve) × 1 calls on events = 12"
+  },
+  "timedSearchCertificate": {
+    "program": "search.timed",
+    "plan_hash": "24fca8299ebc69c57d1555f4932e101c01940328063d748dce953e4560190a6d",
+    "schema_hash": "4e3289092099fe102b48f8eb3d3b402dd59002e3eb481c4c3fe87e4e6ab610f3",
+    "tables": {
+      "conversations": {
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "retain": "until-revoked"
+      },
+      "messages": {
+        "retain": "until-revoked"
+      },
+      "people": {
+        "retain": "until-revoked"
+      }
+    },
+    "rule_hashes": {
+      "people.read": "4defc44932a19c78ade9ac86058f742aeed9ca769c6584a24ee746c26046717b"
+    },
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-4",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "read_sites": [
+      {
+        "site": "search.findPeople.0",
+        "table": "people",
+        "index": "byNameWords",
+        "prefix_template": "Arg",
+        "take": 20,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 0,
+        "hoist": true,
+        "decided_true": true,
+        "complete": false
+      }
+    ],
+    "write_sites": [],
+    "maintained_amplification": 0,
+    "constraint_checks": [],
+    "max_examined": 22,
+    "max_index_entries": 22,
+    "max_rule_probes": 0,
+    "max_steps": 353207,
+    "derived_steps": 353091,
+    "derived_scratch_bytes": 332351,
+    "max_heap_bytes": 336063,
+    "max_output_bytes": 9889,
+    "max_closure_bytes": 39507,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": 1,
+    "halo_rows": 1,
+    "indexes_required": [
+      "people.byNameWords"
+    ],
+    "disclosures": [],
+    "bound_product": "search.findPeople.0 take 20 (+2 reserve) × 1 calls on people = 22"
   }
 }
