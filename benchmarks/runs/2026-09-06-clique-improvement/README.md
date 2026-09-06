@@ -49,7 +49,7 @@ and migration command discovery
 
 | Lane | Review target | Current evidence |
 | --- | --- | --- |
-| Auth startup | `0e6cebfcd`, branch `s2/clique-auth` | 173 affected tests pass; final Astra review finds held replay and late response-body cancellation gaps; Grok review running; author extended the round limit for this session; next revision underway |
+| Auth startup | `0e6cebfcd`, branch `s2/clique-auth` | 173 affected tests pass; final Astra review finds held replay and late response-body cancellation gaps; Grok READY on its prior finding; Astra residuals still require revision, now underway under the author’s extended round limit |
 | Abandoned assets | `f7d251394`, branch `s2/clique-assets` | All three residuals have failing-before regressions; 99 JS / 62 Rust affected tests pass; final Astra/Grok reviews and full verification underway |
 | Conditional cursors | `bbe2f85aa`, branch `s2/clique-cursors` | Consolidated run: Rust 743 pass, compiler 400 pass, evaluator 216 pass; package 379 pass/one 10s timeout. Astra finds duplicate-site provenance and malformed-prefix panic; Grok review running. Author extended the round limit for this session; next revision underway |
 
@@ -85,3 +85,10 @@ Session authorization: the author explicitly requested unattended operation and
 authorized overriding the three-round fix limit as needed. Auth and cursor
 revisions resumed in their existing named lanes; the override does not claim
 that their review findings are resolved or alter verification evidence.
+
+Asset integration prepared at `4b1764370` on `s2/clique-integration`, based on
+main `e929282ad`. All three asset commits applied without conflicts;
+`snapback2/` is byte-for-byte identical to `f7d251394`. This is a prepared
+branch, not a main landing or publication. The exact asset full-run package
+phase passed 386 tests; remaining full verification and final reviews are
+still in progress.
