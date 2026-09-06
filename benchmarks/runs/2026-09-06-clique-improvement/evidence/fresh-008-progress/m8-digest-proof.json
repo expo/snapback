@@ -1,0 +1,85 @@
+{
+  "startEpoch": 1788697576,
+  "pass": true,
+  "stages": [
+    {
+      "stage": "all clients closed",
+      "at": 1788697576906,
+      "periodEnd": 1788697680000,
+      "targets": [
+        "user:XYWkaQrNheNd5qXCiqAO9Q",
+        "user:tdlup93AQxsoNkjRyys-bQ",
+        "user:dKk2tHw5OKUGYb0soHtZxQ",
+        "user:JBrLAjTE4vMLjeX9mLn0Vw"
+      ]
+    },
+    {
+      "stage": "backend restarted mid-period",
+      "at": 1788697582859,
+      "oldPid": 73254,
+      "newPid": 84925
+    },
+    {
+      "stage": "exact scheduled emissions with authorization and quiet-user exclusion",
+      "at": 1788697745272,
+      "periodEnd": 1788697680000,
+      "queriedAt": 1788697745006,
+      "events": [
+        [
+          {
+            "delivered": true,
+            "emittedAt": 1788697680025,
+            "handle": "dg1576780",
+            "id": "s2id-b57d8fb8dbf36c898749d3fbfcb0afa6-0000000000008801",
+            "newFollowers": 0,
+            "newPostsInFollowing": 1,
+            "periodEnd": 1788697680000,
+            "periodKey": 29811628,
+            "periodStart": 1788697560000,
+            "targetUserId": "user:XYWkaQrNheNd5qXCiqAO9Q",
+            "unreadChats": 1,
+            "unreadMessages": 1
+          }
+        ],
+        [
+          {
+            "delivered": true,
+            "emittedAt": 1788697680027,
+            "handle": "dg2576780",
+            "id": "s2id-b57d8fb8dbf36c898749d3fbfcb0afa6-0000000000008c01",
+            "newFollowers": 1,
+            "newPostsInFollowing": 0,
+            "periodEnd": 1788697680000,
+            "periodKey": 29811628,
+            "periodStart": 1788697560000,
+            "targetUserId": "user:tdlup93AQxsoNkjRyys-bQ",
+            "unreadChats": 0,
+            "unreadMessages": 0
+          }
+        ],
+        [
+          {
+            "delivered": true,
+            "emittedAt": 1788697680029,
+            "handle": "dg3576780",
+            "id": "s2id-b57d8fb8dbf36c898749d3fbfcb0afa6-0000000000009001",
+            "newFollowers": 0,
+            "newPostsInFollowing": 0,
+            "periodEnd": 1788697680000,
+            "periodKey": 29811628,
+            "periodStart": 1788697560000,
+            "targetUserId": "user:dKk2tHw5OKUGYb0soHtZxQ",
+            "unreadChats": 1,
+            "unreadMessages": 1
+          }
+        ],
+        []
+      ]
+    },
+    {
+      "stage": "following quiet period emits none; original period remains unique",
+      "at": 1788697865076
+    }
+  ],
+  "endEpoch": 1788697865
+}
