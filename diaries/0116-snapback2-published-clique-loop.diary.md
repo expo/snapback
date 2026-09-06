@@ -247,3 +247,15 @@ release lane. The current cold build stays on0.0.6 through M6/M8. Auth, cursor,
 and asset work is now combined on an integration branch; its source merged
 without conflicts, while a six-byte guide budget overflow needed a prose
 trim before the affected checks can pass.
+
+
+### Integration and M6 follow-up, 2026-09-06
+
+Combined verification exposed a guide budget overflow and then an existing
+test's exact prose contract; both were repaired through prose only. The
+affected test evidence is green, while independent integration review found
+an upload-cleanup cancellation interaction that individual lane reviews had
+missed. Repair continues before publication. The builder's M6 required suite
+is green, but real offline reconnect still fails on conflicting inbox
+deliveries in published0.0.6. A passing suite is insufficient to claim that
+user workflow works; retain the browser failure and investigate separately.

@@ -141,3 +141,20 @@ took27s; npm processing delayed shim visibility for several minutes.
 A fresh installed version invocation took12.893s; subsequent doctor took
 0.143s and help roughly0.06s. No cause is assigned to that first-launch delay
 and no universal cold-launch latency claim follows from warm measurements.
+
+
+Integration verification at21b21abd3 retains the original failed full run and
+its targeted corrections. All753 Rust test identities passed across the
+original588, first rerun164, and final guide-contract test1; four are ignored.
+Compiler400, evaluator216 plus visibility2, package422 plus separate assets27,
+and final package build/caps/ref-check pass. The two corrections changed only
+guide prose; this is combined affected evidence, not a final fullscript exit0.
+Asset6351b2d49 now has both independent READY reviews retained.
+
+The integration Astra review found an additional interaction: automatic upload
+discard can wait indefinitely when its transport ignores timeout cancellation,
+blocking auth replacement and terminal expiry. The finding is static, with
+reproduction and repair underway; integration is not yet cleared for release.
+M6 has five passing required suite IDs but offline reconnect choreography is
+not green: the pinned0.0.6 client reports conflicting inbox deliveries at the
+same sequence. Exact evidence and an independent reduction are pending.
