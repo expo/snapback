@@ -1022,7 +1022,12 @@ impl Runtime {
         let predecessor_maintain_ids =
             projected_predecessor_ids(&transaction, &reduced, &next.schema)?;
         apply_migration_drops(&transaction, &mut reduced, migration, released_at)?;
-        if let Some(refusal) = additive_refusal(&transaction, &reduced, &next.schema)? {
+        if let Some(refusal) = additive_refusal(
+            &transaction,
+            &reduced,
+            &next.schema,
+            Some(&predecessor_maintain_ids),
+        )? {
             return Err(RuntimeError::Successor(Box::new(refusal)));
         }
         let report = apply_additive(

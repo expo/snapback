@@ -5,7 +5,7 @@ use crate::engine::{
     RuntimeError, materialize_optional_fields, rebuild_owned_aggregate_target, reindex_row,
     validate_column_value, validate_text_constraint,
 };
-use crate::schema::{ColumnType, Constraint, Maintain, MaintainKind, Schema};
+use crate::schema::{ColumnType, Constraint, Maintain, MaintainKind, Schema, Table};
 use crate::store::Store;
 use crate::value::{I53_MAX, I53_MIN, Value, canonical_json};
 use rusqlite::{Connection, Transaction, params};
@@ -223,50 +223,28 @@ pub(crate) fn successor_refusal(
     if !migration.drops.is_empty() {
         return Ok(Some(SuccessorRefusal::destructive(migration)));
     }
-    additive_refusal(&store.conn, current, next)
+    additive_refusal(&store.conn, current, next, None)
 }
 
 pub(crate) fn additive_refusal(
     connection: &Connection,
     current: &Schema,
     next: &Schema,
+    predecessor_maintain_ids: Option<&BTreeMap<String, BTreeSet<String>>>,
 ) -> Result<Option<SuccessorRefusal>, RuntimeError> {
     let rebuilt_targets = maintained_targets_requiring_rebuild(current, next);
     if let Some(refusal) = narrowing_refusal(connection, current, next)? {
         return Ok(Some(refusal));
     }
-    for (table_name, current_table) in &current.tables {
-        let Some(next_table) = next.tables.get(table_name) else {
-            continue;
-        };
-        if rebuilt_targets.contains(table_name) {
-            continue;
-        }
-        let absent_required = next_table.columns.iter().find(|(column, kind)| {
-            current_table
-                .columns
-                .get(*column)
-                .is_none_or(|current_kind| {
-                    current_kind != *kind
-                        && !text_maximum_widens(current_kind, kind)
-                        && !adding_once(current_kind, kind)
-                        && !is_narrowing(current_kind, kind)
-                })
-                && !matches!(kind, ColumnType::Optional(_))
-        });
-        if let Some((column, _)) = absent_required {
-            let rows: i64 = connection.query_row(
-                "SELECT COUNT(*) FROM rows WHERE table_name = ?1",
-                [table_name],
-                |row| row.get(0),
-            )?;
-            if rows > 0 {
-                return Ok(Some(SuccessorRefusal::required_column(table_name, column)));
-            }
-        }
-    }
-
-    if let Some(refusal) = validate_stored_rows(connection, current, next, &rebuilt_targets)? {
+    // Admit source rows (including required fields) before projecting their IDs.
+    if let Some(refusal) = validate_stored_rows(
+        connection,
+        current,
+        next.tables
+            .iter()
+            .filter(|(name, _)| !rebuilt_targets.contains(*name)),
+        &BTreeMap::new(),
+    )? {
         return Ok(Some(refusal));
     }
 
@@ -320,11 +298,34 @@ pub(crate) fn additive_refusal(
         }
     }
     let mut future_targets = BTreeMap::<String, BTreeMap<String, Value>>::new();
-    for target in rebuilt_targets {
+    for target in &rebuilt_targets {
         future_targets.insert(
             target.clone(),
-            projected_target_rows(connection, next, &target)?,
+            projected_target_rows(connection, next, target)?,
         );
+    }
+    // @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — only
+    // projection-owned IDs are replaced. Exact migrations supply predecessor
+    // IDs from before drops; successor IDs use the admitted post-drop source.
+    let mut replaced_rows = match predecessor_maintain_ids {
+        Some(ids) => ids.clone(),
+        None => projected_predecessor_ids(connection, current, next)?,
+    };
+    for (target, rows) in &future_targets {
+        replaced_rows
+            .entry(target.clone())
+            .or_default()
+            .extend(rows.keys().cloned());
+    }
+    if let Some(refusal) = validate_stored_rows(
+        connection,
+        current,
+        next.tables
+            .iter()
+            .filter(|(name, _)| rebuilt_targets.contains(*name)),
+        &replaced_rows,
+    )? {
+        return Ok(Some(refusal));
     }
     for (table_name, rows) in future_targets {
         let Some(table) = next.table(&table_name) else {
@@ -365,17 +366,24 @@ pub(crate) fn additive_refusal(
     Ok((!conflicts.is_empty()).then(|| SuccessorRefusal::unique(conflicts)))
 }
 
-pub(crate) fn validate_stored_rows(
+fn validate_stored_rows<'a>(
     connection: &Connection,
     current: &Schema,
-    next: &Schema,
-    replaced_tables: &BTreeSet<String>,
+    next_tables: impl Iterator<Item = (&'a String, &'a Table)>,
+    replaced_rows: &BTreeMap<String, BTreeSet<String>>,
 ) -> Result<Option<SuccessorRefusal>, RuntimeError> {
-    for (table_name, next_table) in &next.tables {
-        if replaced_tables.contains(table_name) {
-            continue;
-        }
+    for (table_name, next_table) in next_tables {
         let current_table = current.tables.get(table_name);
+        let absent_required = current_table.and_then(|table| {
+            next_table.columns.iter().find(|(column, kind)| {
+                table.columns.get(*column).is_none_or(|current_kind| {
+                    current_kind != *kind
+                        && !text_maximum_widens(current_kind, kind)
+                        && !adding_once(current_kind, kind)
+                        && !is_narrowing(current_kind, kind)
+                }) && !matches!(kind, ColumnType::Optional(_))
+            })
+        });
         let columns = next_table
             .columns
             .iter()
@@ -402,7 +410,7 @@ pub(crate) fn validate_stored_rows(
                     || current_table.is_none_or(|table| !table.constraints.contains(constraint)))
             })
             .collect::<Vec<_>>();
-        if columns.is_empty() && text_constraints.is_empty() {
+        if absent_required.is_none() && columns.is_empty() && text_constraints.is_empty() {
             continue;
         }
         let mut statement = connection
@@ -412,6 +420,15 @@ pub(crate) fn validate_stored_rows(
         })?;
         for row in rows {
             let (row_id, data) = row?;
+            if replaced_rows
+                .get(table_name)
+                .is_some_and(|ids| ids.contains(&row_id))
+            {
+                continue;
+            }
+            if let Some((column, _)) = absent_required {
+                return Ok(Some(SuccessorRefusal::required_column(table_name, column)));
+            }
             let value = match serde_json::from_str::<Value>(&data) {
                 Ok(value) => value,
                 Err(error) => {

@@ -37,9 +37,9 @@ Reconnect alone promises no replay. Chat offers **Sync now**, keeps refused draf
 Media can expire 24h after creation/latest release; grants/leases do not extend it.
 After replay refusal, use a new upload/intent; never rewrite queued args (`guide operator`).
 
-## Resume and custody
+## Resume
 
-Equal validators yield unchanged. `/api/manifest` carries retention;
+Equal validators: unchanged. `/api/manifest` carries retention;
 `GET /api/program?generation=` supplies schema, IR, certificates and drain metadata.
 
 `POST /api/resume { protocol: 1, generation, schemaHash, authEpoch, remaining?,
@@ -58,7 +58,7 @@ Stale authEpoch seals (E_AUTH_SESSION); foreign delivery refuses
 E_OFFLINE_AUTHORITY, preserving coverage. Without facts, query a receipt then
 resume; without a query, refuse and keep the queue.
 
-## Grants, conflicts and bytes
+## Grants and bytes
 
 Login/guest/resume mint 30-day principal-bound grants when remaining IDs
 are absent or below 1024. Replay carries `{ grant, offset, count, intent, trace }`.
@@ -75,4 +75,3 @@ and predictions. Offline media is null; online bytes stay in the viewing
 instance's memory. Repeats: E_ASSET_VIEWED (assets,410).
 E_OFFLINE_CARRIER: configure carrier. E_OFFLINE_STATE: preserve/inspect state.
 E_OFFLINE_DELIVERY: retry authenticated query. E_OFFLINE_LIFECYCLE: sign in/reopen.
-Keep queued writes.

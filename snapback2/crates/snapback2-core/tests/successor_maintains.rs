@@ -508,3 +508,392 @@ fn rebuilt_target_clears_stale_rows_before_a_new_unique_index_binds() {
         assert_eq!(get(&mut runtime, id).field("value"), Ok(&Value::Int(value)));
     }
 }
+
+// @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — a rebuild
+// preserves non-projection rows, which must still pass successor admission.
+fn survivor_fixture(group: &str) -> (Runtime, BTreeMap<String, Table>, Maintain) {
+    let source = table(
+        &[
+            ("id", ColumnType::Id),
+            ("group", ColumnType::Text { max: 80 }),
+        ],
+        &[("byId", &["id"])],
+    );
+    let mut target = source.clone();
+    target.columns.insert("value".into(), ColumnType::Int);
+    target.indexes.insert(
+        "byGroup".into(),
+        Index {
+            columns: vec!["group".into()],
+            unique: true,
+        },
+    );
+    let tables = BTreeMap::from([
+        ("events".into(), source.clone()),
+        ("archive".into(), source),
+        ("totals".into(), target),
+    ]);
+    let maintain = Maintain {
+        source: "events".into(),
+        target: "totals".into(),
+        by: vec!["group".into()],
+        kind: MaintainKind::Count,
+        readable: None,
+    };
+    let mut runtime =
+        Runtime::open(Store::memory().unwrap(), generation(tables.clone(), vec![])).unwrap();
+    runtime
+        .seed(&[
+            (
+                "events".into(),
+                object([
+                    ("id", Value::Id("event".into())),
+                    ("group", Value::String("valid".into())),
+                ]),
+            ),
+            (
+                "archive".into(),
+                object([
+                    ("id", Value::Id("archived".into())),
+                    ("group", Value::String("history".into())),
+                ]),
+            ),
+            (
+                "totals".into(),
+                object([
+                    ("id", Value::Id("legacy".into())),
+                    ("group", Value::String(group.into())),
+                    ("value", Value::Int(9)),
+                ]),
+            ),
+        ])
+        .unwrap();
+    runtime
+        .apply_successor(generation(tables.clone(), vec![maintain.clone()]))
+        .unwrap();
+    (runtime, tables, maintain)
+}
+
+// A read-only backup observes durable metadata and every base/target/archive
+// row and index entry, including entries not exercised by the byId query.
+fn stored_observations(runtime: &Runtime) -> Vec<Vec<Vec<String>>> {
+    let path = std::env::temp_dir().join(format!(
+        "s2-survivor-{}-{}.sqlite",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    runtime.store().snapshot_to(&path).unwrap();
+    let connection =
+        rusqlite::Connection::open_with_flags(&path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+            .unwrap();
+    let observations = [
+        "SELECT key, value FROM _meta ORDER BY key",
+        "SELECT table_name, row_id, data FROM rows ORDER BY table_name, row_id",
+        "SELECT table_name, index_name, row_id, quote(c0), quote(c1), quote(c2), quote(c3), quote(c4), quote(c5), quote(c6), quote(c7) FROM index_entries ORDER BY table_name, index_name, row_id",
+    ].into_iter().map(|sql| {
+        let mut statement = connection.prepare(sql).unwrap();
+        let count = statement.column_count();
+        statement.query_map([], |row| (0..count).map(|i| row.get::<_, String>(i)).collect()).unwrap()
+            .collect::<Result<Vec<_>, _>>().unwrap()
+    }).collect();
+    drop(connection);
+    std::fs::remove_file(path).unwrap();
+    observations
+}
+
+fn constrained_groups(
+    tables: &BTreeMap<String, Table>,
+    max: u32,
+    format: Option<TextFormat>,
+) -> BTreeMap<String, Table> {
+    let mut next = tables.clone();
+    for name in ["events", "totals"] {
+        let table = next.get_mut(name).unwrap();
+        table
+            .columns
+            .insert("group".into(), ColumnType::Text { max });
+        table.constraints.push(Constraint::Text {
+            field: "group".into(),
+            min: 2,
+            format,
+        });
+    }
+    next
+}
+
+#[test]
+fn additive_rebuild_refuses_invalid_survivors_with_and_without_widening() {
+    for (group, format) in [("x", None), ("bad handle", Some(TextFormat::Handle))] {
+        let (mut runtime, tables, maintain) = survivor_fixture(group);
+        let before = stored_observations(&runtime);
+        let hash = runtime.generation().hash();
+        let seq = runtime.store().commit_seq().unwrap();
+        for max in [80, 2000] {
+            let next = generation(
+                constrained_groups(&tables, max, format),
+                vec![maintain.clone()],
+            );
+            let refusal = runtime
+                .apply_successor(next)
+                .expect_err("an invalid non-projection survivor must refuse");
+            assert_eq!(refusal.code, "E_SUCCESSOR_ROW_INVALID");
+            assert_eq!(refusal.site.as_deref(), Some("totals.legacy"));
+            assert_eq!(runtime.generation().hash(), hash);
+            assert_eq!(runtime.store().commit_seq().unwrap(), seq);
+            assert_eq!(stored_observations(&runtime), before);
+        }
+    }
+}
+
+#[test]
+fn exact_archive_drop_rolls_back_when_a_rebuilt_target_survivor_is_invalid() {
+    let (mut runtime, tables, maintain) = survivor_fixture("x");
+    let before = stored_observations(&runtime);
+    let hash = runtime.generation().hash();
+    let seq = runtime.store().commit_seq().unwrap();
+    let mut next = constrained_groups(&tables, 2000, None);
+    next.remove("archive");
+    let next = generation(next, vec![maintain]);
+    let plan = runtime.apply_successor(next.clone()).unwrap_err().plan;
+    assert_eq!(
+        plan.drops,
+        vec![Drop::Table {
+            name: "archive".into(),
+            rows: 1
+        }]
+    );
+    let error = runtime
+        .apply_migration(next, &plan, 123)
+        .expect_err("survivor refusal must roll back the archive drop");
+    let RuntimeError::Successor(refusal) = error else {
+        panic!("{error}")
+    };
+    assert_eq!(refusal.code, "E_SUCCESSOR_ROW_INVALID");
+    assert_eq!(refusal.site.as_deref(), Some("totals.legacy"));
+    assert_eq!(runtime.generation().hash(), hash);
+    assert_eq!(runtime.store().commit_seq().unwrap(), seq);
+    assert_eq!(stored_observations(&runtime), before);
+}
+
+#[test]
+fn valid_survivors_keep_projection_ids_and_unrelated_historical_fields() {
+    for migration in [false, true] {
+        let (runtime, tables, maintain) = survivor_fixture("legacy_ok");
+        // Synthetic historical fixture only: same-generation reopening must not
+        // reinterpret an undeclared old field, even on a future rebuilt target.
+        let path = std::env::temp_dir().join(format!(
+            "s2-historical-target-{}-{migration}.sqlite",
+            std::process::id()
+        ));
+        runtime.store().snapshot_to(&path).unwrap();
+        let generation_before = runtime.generation().clone();
+        drop(runtime);
+        let connection = rusqlite::Connection::open(&path).unwrap();
+        let data: String = connection
+            .query_row(
+                "SELECT data FROM rows WHERE table_name = 'totals' AND row_id = 'legacy'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let mut value: Value = serde_json::from_str(&data).unwrap();
+        let Value::Row(fields) = &mut value else {
+            panic!("expected row")
+        };
+        fields.insert("historical".into(), Value::Id("system".into()));
+        connection
+            .execute(
+                "UPDATE rows SET data = ?1 WHERE table_name = 'totals' AND row_id = 'legacy'",
+                [canonical_json(&value)],
+            )
+            .unwrap();
+        drop(connection);
+        let mut runtime = Runtime::open(Store::open(&path).unwrap(), generation_before).unwrap();
+        let before = stored_observations(&runtime);
+        let seq = runtime.store().commit_seq().unwrap();
+        let projection_id = canonical_json(&vec![Value::String("valid".into())]);
+        let projection = get(&mut runtime, projection_id.clone());
+        let legacy = get(&mut runtime, "legacy".into());
+        let mut next = constrained_groups(&tables, 2000, Some(TextFormat::Handle));
+        if migration {
+            next.remove("archive");
+        }
+        let next = generation(next, vec![maintain]);
+        let next_hash = next.hash();
+        if migration {
+            let plan = runtime.apply_successor(next.clone()).unwrap_err().plan;
+            runtime.apply_migration(next, &plan, 123).unwrap();
+        } else {
+            runtime.apply_successor(next).unwrap();
+        }
+        assert_eq!(runtime.generation().hash(), next_hash);
+        assert_eq!(
+            runtime.store().meta("generation").unwrap().as_deref(),
+            Some(next_hash.as_str())
+        );
+        assert_eq!(runtime.store().commit_seq().unwrap(), seq);
+        assert_eq!(get(&mut runtime, projection_id), projection);
+        assert_eq!(get(&mut runtime, "legacy".into()), legacy);
+        let after = stored_observations(&runtime);
+        for index in [1, 2] {
+            let retained = before[index]
+                .iter()
+                .filter(|row| !migration || row[0] != "archive")
+                .cloned()
+                .collect::<Vec<_>>();
+            assert_eq!(after[index], retained);
+        }
+        drop(runtime);
+        std::fs::remove_file(path).unwrap();
+    }
+}
+
+#[test]
+fn new_required_target_fields_exempt_only_replaced_projection_ids() {
+    for migration in [false, true] {
+        for survivor in [false, true] {
+            let source = table(
+                &[
+                    ("id", ColumnType::Id),
+                    ("group", ColumnType::Text { max: 80 }),
+                ],
+                &[("byId", &["id"])],
+            );
+            let tables = BTreeMap::from([
+                ("events".into(), source.clone()),
+                ("totals".into(), source.clone()),
+                ("archive".into(), source),
+            ]);
+            let mut runtime =
+                Runtime::open(Store::memory().unwrap(), generation(tables.clone(), vec![]))
+                    .unwrap();
+            let id = canonical_json(&vec![Value::String("valid".into())]);
+            let mut rows = vec![
+                (
+                    "events".into(),
+                    object([
+                        ("id", Value::Id("event".into())),
+                        ("group", Value::String("valid".into())),
+                    ]),
+                ),
+                (
+                    "archive".into(),
+                    object([
+                        ("id", Value::Id("archived".into())),
+                        ("group", Value::String("history".into())),
+                    ]),
+                ),
+                // The successor projection owns this ID, although the ordinary
+                // predecessor row lacks value and fails the new group minimum.
+                (
+                    "totals".into(),
+                    object([
+                        ("id", Value::Id(id.clone())),
+                        ("group", Value::String("x".into())),
+                    ]),
+                ),
+            ];
+            if survivor {
+                rows.push((
+                    "totals".into(),
+                    object([
+                        ("id", Value::Id("legacy".into())),
+                        ("group", Value::String("legacy_ok".into())),
+                    ]),
+                ));
+            }
+            runtime.seed(&rows).unwrap();
+            let before = stored_observations(&runtime);
+            let hash = runtime.generation().hash();
+            let seq = runtime.store().commit_seq().unwrap();
+            let mut next = constrained_groups(&tables, 2000, None);
+            next.get_mut("totals")
+                .unwrap()
+                .columns
+                .insert("value".into(), ColumnType::Int);
+            if migration {
+                next.remove("archive");
+            }
+            let next = generation(
+                next,
+                vec![Maintain {
+                    source: "events".into(),
+                    target: "totals".into(),
+                    by: vec!["group".into()],
+                    kind: MaintainKind::Count,
+                    readable: None,
+                }],
+            );
+            let result = if migration {
+                let plan = runtime.apply_successor(next.clone()).unwrap_err().plan;
+                runtime.apply_migration(next, &plan, 123).map_err(|error| {
+                    let RuntimeError::Successor(refusal) = error else {
+                        panic!("{error}")
+                    };
+                    *refusal
+                })
+            } else {
+                runtime.apply_successor(next)
+            };
+            if survivor {
+                assert_eq!(result.unwrap_err().code, "E_SUCCESSOR_COLUMN_REQUIRED");
+                assert_eq!(runtime.generation().hash(), hash);
+                assert_eq!(stored_observations(&runtime), before);
+            } else {
+                result.unwrap();
+                assert_eq!(
+                    get(&mut runtime, id),
+                    object([
+                        (
+                            "id",
+                            Value::Id(canonical_json(&vec![Value::String("valid".into())]))
+                        ),
+                        ("group", Value::String("valid".into())),
+                        ("value", Value::Int(1)),
+                    ])
+                );
+            }
+            assert_eq!(runtime.store().commit_seq().unwrap(), seq);
+        }
+    }
+}
+
+#[test]
+fn required_source_admission_precedes_successor_projection() {
+    let empty = table(&[("id", ColumnType::Id)], &[("byId", &["id"])]);
+    let mut tables = BTreeMap::from([("events".into(), empty.clone()), ("totals".into(), empty)]);
+    let mut runtime =
+        Runtime::open(Store::memory().unwrap(), generation(tables.clone(), vec![])).unwrap();
+    runtime
+        .seed(&[("events".into(), object([("id", Value::Id("event".into()))]))])
+        .unwrap();
+    let before = stored_observations(&runtime);
+    for table in tables.values_mut() {
+        table
+            .columns
+            .insert("group".into(), ColumnType::Text { max: 80 });
+    }
+    tables
+        .get_mut("totals")
+        .unwrap()
+        .columns
+        .insert("value".into(), ColumnType::Int);
+    let next = generation(
+        tables,
+        vec![Maintain {
+            source: "events".into(),
+            target: "totals".into(),
+            by: vec!["group".into()],
+            kind: MaintainKind::Count,
+            readable: None,
+        }],
+    );
+    assert_eq!(
+        runtime.apply_successor(next).unwrap_err().code,
+        "E_SUCCESSOR_COLUMN_REQUIRED"
+    );
+    assert_eq!(stored_observations(&runtime), before);
+}
