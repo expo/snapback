@@ -50,8 +50,8 @@ and migration command discovery
 | Lane | Review target | Current evidence |
 | --- | --- | --- |
 | Auth startup | `0e6cebfcd`, branch `s2/clique-auth` | 173 affected tests pass; final Astra review finds held replay and late response-body cancellation gaps; Grok review running; further auth edits held pending author extension of the three-round limit |
-| Abandoned assets | `2e671c5c6`, branch `s2/clique-assets` | Revision passes 66 JS / 53 Rust affected tests; second Astra review finds two cleanup leaks, final revision underway; second Grok review running |
-| Conditional cursors | `bbe2f85aa`, branch `s2/clique-cursors` | Compiler 400/400, evaluator 216/216, package 380/380; aggregate Rust 741/743 then both corrected affected tests pass; consolidated run and independent reviews running |
+| Abandoned assets | `2e671c5c6`, branch `s2/clique-assets` | Revision passes 66 JS / 53 Rust affected tests; second Astra review finds two cleanup leaks; Grok finds terminal-refusal cleanup ordering; final combined revision underway |
+| Conditional cursors | `bbe2f85aa`, branch `s2/clique-cursors` | Consolidated run: Rust 743 pass, compiler 400 pass, evaluator 216 pass; package 379 pass/one 10s timeout. Astra finds duplicate-site provenance and malformed-prefix panic; Grok review running. Further edits held pending three-round extension |
 
 Received auth and asset reviews are retained under `reviews/`, exactly as received.
 They are static reviews, not test execution. New interleaving regressions must
@@ -78,3 +78,5 @@ reported `gate ultra_reasoning_effort is closed; using xhigh`; fresh SSH
 authentication also failed because its Keychain credentials were locked.
 Do not label those xhigh runs or reviews as ultra. The requested Muse ultra
 comparison remains outstanding even if other lanes later win.
+
+Cursor consolidated evidence at `bbe2f85aa` is `/tmp/clique-cursors-bbe2f85aa-consolidated.log` on the M5. The complete script exited 1; no timing phase witness identifies the package timeout cause. Host load sampled afterward suggests contention but does not prove it. No timeout increase or aggregate-green claim. The next independent CLI lane addresses help and migration-command discovery only.
