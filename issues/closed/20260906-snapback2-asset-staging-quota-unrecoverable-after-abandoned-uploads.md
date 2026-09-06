@@ -26,3 +26,26 @@ allowance (the builder reports hitting a 20-object ceiling for that account). Af
    staging --discard` or equivalent), and a client-side discard for a failed upload.
 3. A fast refusal with a stable code when staging is full instead of a write that never settles.
 4. A test: fill staging with abandoned uploads, restart the owner, assert the quota is reclaimed.
+
+## Resolution — 2026-09-06
+
+Implemented authenticated `client.listUploads()` and `client.discardUpload(id)`
+(`GET /api/uploads`, `POST /api/uploads/discard`) over the existing lifecycle
+ledger. Listing survives restart and is scoped to the creator; disposal checks
+creator and null locator in the writer transaction, immediately frees staging
+quota, and leaves the existing fork-aware sweep to remove bytes. Claimed ids
+refuse `E_ASSET_IN_USE`; foreign and missing ids return the same answer.
+
+Automatic File/native-source substitution now discards this call's uploads on
+a definitive rejection or a failure before mutation submission. It preserves
+queued intents and ambiguous responses, including a committed response that was
+lost. Two-phase uploads remain explicitly owned by their caller. Caps and the
+24-hour automatic grace period remain unchanged. Quota admission now checks
+before reading the upload body and reports current usage with the recovery API;
+`guide operator` documents it.
+
+Proof: 24 actual refused File mutations leave zero usage; HTTP restart recovery
+discovers and discards a full 20-object account without reset, preserving another
+account's uploads; core tests cover disposal before finalize/claim and refusal
+after claim; real clients retain queued media and reject disposal of an image
+whose successful mutation response was lost.

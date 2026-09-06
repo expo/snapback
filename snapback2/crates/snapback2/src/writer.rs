@@ -253,6 +253,14 @@ pub enum Action {
     // on-demand reclamation entry point and is exercised by tests.
     #[allow(dead_code)]
     ReclaimAssets,
+    ListUploads {
+        identity: Identity,
+        after: String,
+    },
+    DiscardUpload {
+        identity: Identity,
+        id: String,
+    },
     AssetUploadAuthorize {
         bytes: u64,
         identity: Identity,
@@ -732,6 +740,8 @@ impl State {
             }
             Action::Reset => self.reset(),
             Action::ReclaimAssets => self.reclaim_assets(),
+            Action::ListUploads { identity, after } => self.list_uploads(identity, &after),
+            Action::DiscardUpload { identity, id } => self.discard_upload(identity, &id),
             Action::AssetUploadAuthorize { bytes, identity } => {
                 self.asset_upload_authorize(bytes, identity)
             }

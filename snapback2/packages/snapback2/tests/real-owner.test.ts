@@ -81,6 +81,90 @@ test("real owner private asset bytes and conditional responses forbid HTTP cache
   } finally { await client.close(); }
 });
 
+test("twenty-four refused File mutations recover their staging quota immediately", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const client = createClient({ url: owner.url, as: "upload-refusals" });
+  try {
+    const png = await readFile(new URL("../../../scripts/witness-expo/view-once.png", import.meta.url));
+    for (let index = 0; index < 24; index++) {
+      const result = await client.mutation(api.messages.sendPhoto, {
+        conversationId: "conversation-1", photo: new File([png], "photo.png", { type: "image/png" }),
+      });
+      assert.equal(result.state, "rejected", `attempt ${index} returns the mutation refusal, not a quota failure`);
+      const listing = await client.listUploads();
+      assert.deepEqual(listing.usage, { bytes: 0, objects: 0 });
+      assert.deepEqual(listing.uploads, []);
+    }
+  } finally { await client.close(); }
+});
+
+test("a lost committed media response retains the claimed asset and explicit discard refuses it", async () => {
+  const { readFile } = await import("node:fs/promises");
+  let photo: any;
+  let discards = 0;
+  const client = createClient({ url: owner.url, as: "alice", fetch: async (input, init) => {
+    const path = new URL(String(input)).pathname;
+    if (path === "/api/uploads/discard") discards++;
+    const response = await fetch(input, init);
+    if (path === "/api/upload") photo = await response.clone().json();
+    if (path === "/api/mutation") {
+      assert.equal((await response.json()).state, "committed");
+      throw new Error("connection lost after commit");
+    }
+    return response;
+  } });
+  try {
+    const png = await readFile(new URL("../../../scripts/witness-expo/view-once.png", import.meta.url));
+    await assert.rejects(client.mutation(api.messages.sendPhoto, {
+      conversationId: "conversation-1", photo: new File([png], "photo.png"),
+    }), (error: any) => error.code === "E_NETWORK");
+    assert.equal(discards, 0, "an ambiguous response never triggers cleanup");
+    assert.ok(!(await client.listUploads()).uploads.some((upload) => upload.id === photo.id));
+    await assert.rejects(client.discardUpload(photo.id), (error: any) => error.code === "E_ASSET_IN_USE");
+    const response = await fetch(`${owner.url}/api/asset/${photo.id}`, { headers: { "X-Snapback-As": "alice" } });
+    assert.equal(response.status, 200);
+    assert.ok((await response.arrayBuffer()).byteLength > 0);
+  } finally { await client.close(); }
+});
+
+test("queued media retains its uploaded bytes until the outbox commits", async () => {
+  const { readFile, mkdtemp, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const { fileRangeStore } = await import("../dist/test.mjs");
+  const directory = await mkdtemp(join(tmpdir(), "snapback-upload-queued-"));
+  let cut = false;
+  let photo: any;
+  let discards = 0;
+  const client = createClient({ url: owner.url, as: "alice", offline: { store: fileRangeStore(directory) },
+    fetch: async (input, init) => {
+      const path = new URL(String(input)).pathname;
+      if (path === "/api/uploads/discard") discards++;
+      if (path === "/api/mutation" && cut) throw new Error("offline before mutation");
+      const response = await fetch(input, init);
+      if (path === "/api/upload") { photo = await response.clone().json(); cut = true; }
+      return response;
+    },
+  });
+  try {
+    const drain = client.subscribe(api.messages.thread, { conversationId: "conversation-1", c: null }, () => {}, { drain: true });
+    await drain.until((event: any) => event.live === true, 3_000);
+    drain.close();
+    const png = await readFile(new URL("../../../scripts/witness-expo/view-once.png", import.meta.url));
+    const result = await client.mutation(api.messages.sendPhoto, {
+      conversationId: "conversation-1", photo: new File([png], "photo.png"),
+    });
+    assert.equal(result.state, "queued");
+    assert.equal(discards, 0);
+    assert.ok((await client.listUploads()).uploads.some((upload) => upload.id === photo.id));
+    cut = false;
+    await client.outbox.drain();
+    assert.equal((await client.outbox.entries()).filter((entry) => entry.state === "queued").length, 0);
+    assert.ok(!(await client.listUploads()).uploads.some((upload) => upload.id === photo.id));
+    await assert.rejects(client.discardUpload(photo.id), (error: any) => error.code === "E_ASSET_IN_USE");
+  } finally { await client.close(); await rm(directory, { recursive: true, force: true }); }
+});
+
 test("chat once photo uses one message and upload, each member gets one server delivery, and web stores no bytes", async () => {
   const { readFile, mkdtemp, rm } = await import("node:fs/promises");
   const { tmpdir } = await import("node:os");

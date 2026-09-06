@@ -137,6 +137,15 @@ impl Refusal {
             }
             return refusal;
         }
+        if let RuntimeError::AssetTooLarge(message) = error {
+            return Self::new(
+                "E_ASSET_TOO_LARGE",
+                "input",
+                message,
+                "use bytes within the column bound; for a staging ceiling, inspect client.listUploads() and discard abandoned ids with client.discardUpload(id)",
+                "operator",
+            );
+        }
         if let RuntimeError::AssetViewed(id) = error {
             return Self::new(
                 "E_ASSET_VIEWED",

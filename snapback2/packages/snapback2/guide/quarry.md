@@ -32,7 +32,7 @@ adds integer-millisecond `duration`. Both admit `?` and bounded lists, but no
 indexes or `maintain.by`. `once` is image-column-only, never on arguments.
 Authenticated readers get one original 200, `private, no-store`;
 anonymous gets 404 on public rows too. HEAD is free; width, Range and
-conditionals cannot bypass 410 `E_ASSET_VIEWED`. Video `once` refuses. Add `once`: prior views unrecorded; removal is destructive.
+conditionals cannot bypass 410 `E_ASSET_VIEWED`. Recovery: `guide operator`. Add `once`: prior views unrecorded; removal is destructive.
 
 ```q
 mutation inspect(photo: image <=5000000, clip: video <=50000000):
