@@ -73,6 +73,21 @@ fn id(value: &str) -> Value {
     Value::Id(value.into())
 }
 
+fn dense_words_body() -> String {
+    // ASCII lowercase dedupe admits only 36 distinct single-character words.
+    // After those, distinct two-character runs maximize the remaining density.
+    let alphabet = "abcdefghijklmnopqrstuvwxyz0123456789";
+    let mut terms: Vec<String> = alphabet.chars().map(|c| c.to_string()).collect();
+    for a in alphabet.chars() {
+        for b in alphabet.chars() {
+            terms.push(format!("{a}{b}"));
+        }
+    }
+    let dense = terms[..679].join(" ");
+    assert_eq!(dense.chars().count(), 2000);
+    dense
+}
+
 fn row<const N: usize>(fields: [(&str, Value); N]) -> Value {
     Value::Row(
         fields
@@ -116,8 +131,11 @@ fn execute(
     assert!(result.trace.rule_probes <= certificate.max_rule_probes);
     assert!(result.trace.steps <= certificate.max_steps);
     assert!(canonical_json(&result.result).len() as u64 <= certificate.max_output_bytes);
-    // Closure pricing follows retained result/collection values, not the read
-    // receipt or transient write inputs (retention.rs::statements).
+    // Retained-result size sanity check, not an engine peak/heap meter: neither
+    // AuthoritativeTrace nor ClosureReceipt exposes measured held bytes.
+    // Null/Bool/Int count as zero here, so this assertion is vacuous for the
+    // recipe's Boolean index/edit results. Read receipts and transient write
+    // inputs are outside retention.rs::statements' retained-value pricing.
     let held_bytes = match &result.result {
         Value::Null | Value::Bool(_) | Value::Int(_) => 0,
         value => canonical_json(value).len() as u64,
@@ -363,6 +381,8 @@ fn words_loop_elements_keep_the_whole_input_width_through_aliases() {
             .check(&program)
             .unwrap();
         let domain = Value::Array(vec![text(&"a".repeat(2000))]);
+        // Reconstruct the known held list plus returned token. This checks the
+        // certificate's reserve for that shape, not an observed engine peak.
         let held = canonical_json(&domain).len() + canonical_json(&result.result).len();
         assert!(
             held as u64 <= certificate.max_closure_bytes,
@@ -386,18 +406,7 @@ fn words_dense_inputs_dedupe_and_stay_inside_output_and_closure_bounds() {
             args: vec![Expr::Variable("body".into())],
         })],
     };
-    // ASCII lowercase dedupe admits only 36 distinct single-character words.
-    // After those, distinct two-character runs maximize the remaining density.
-    let alphabet = "abcdefghijklmnopqrstuvwxyz0123456789";
-    let mut terms: Vec<String> = alphabet.chars().map(|c| c.to_string()).collect();
-    for a in alphabet.chars() {
-        for b in alphabet.chars() {
-            terms.push(format!("{a}{b}"));
-        }
-    }
-    let dense = terms[..678].join(" "); // 1997 scalars; another term would reach 2000.
-    let dense = format!("{dense} {}", terms[678]);
-    assert_eq!(dense.chars().count(), 2000);
+    let dense = dense_words_body();
     for (body, expected) in [("a ".repeat(1000), 1), (dense, 679)] {
         let mut engine = Engine::memory(schema.clone()).unwrap();
         let result = execute(
@@ -412,6 +421,90 @@ fn words_dense_inputs_dedupe_and_stay_inside_output_and_closure_bounds() {
             .unwrap();
         assert!(canonical_json(&result.result).len() as u64 <= certificate.max_closure_bytes);
     }
+}
+
+fn check_coalesced_words(maybe_max: u32, body_max: u32, argument: bool) {
+    let project = Project::new();
+    fs::create_dir(project.path.join("snapback")).unwrap();
+    fs::write(
+        project.path.join("snapback/schema.q"),
+        format!(
+            "table docs:\n  maybe: text <={maybe_max} ?\n  body: text <={body_max}\n  public\n"
+        ),
+    )
+    .unwrap();
+    let (args, left) = if argument {
+        (format!(", maybe: text <={maybe_max} ?"), "maybe")
+    } else {
+        (String::new(), "row.maybe")
+    };
+    fs::write(project.path.join("snapback/probe.q"), format!(
+        "query probe(doc: docs{args}):\n  row = docs[doc] !\n  terms = words({left} ?? row.body)\n  for term in terms:\n    require term != '' else EMPTY\n  return terms\n"
+    )).unwrap();
+    let checked = project.run(&["check", "--json"]);
+    assert!(
+        checked.status.success(),
+        "{}{}",
+        String::from_utf8_lossy(&checked.stdout),
+        String::from_utf8_lossy(&checked.stderr)
+    );
+    let compiled: Json = serde_json::from_slice(
+        &fs::read(project.path.join(".snapback/build/project.json")).unwrap(),
+    )
+    .unwrap();
+    let schema: Schema = serde_json::from_value(compiled["schema"].clone()).unwrap();
+    let program: Program = serde_json::from_value(compiled["programs"][0].clone()).unwrap();
+    let mut engine = Engine::memory(schema.clone()).unwrap();
+    let body = if body_max == 2000 {
+        dense_words_body()
+    } else {
+        "a b c d e f g h i j ".into()
+    };
+    assert_eq!(body.chars().count(), body_max as usize);
+    // maybe is absent in both the stored row and, when declared, the arguments.
+    engine
+        .seed("docs", row([("id", id("d1")), ("body", text(&body))]))
+        .unwrap();
+    let mut args = BTreeMap::from([("doc".into(), id("d1"))]);
+    if argument {
+        args.insert("maybe".into(), Value::Null);
+    }
+    let result = execute(&mut engine, &schema, &program, args);
+    let expected = Value::Array(body.split_ascii_whitespace().map(text).collect());
+    assert_eq!(result.result, expected);
+    let max = program
+        .body
+        .iter()
+        .find_map(|stmt| match stmt {
+            Stmt::For {
+                domain: LoopDomain::DerivedArray { max, .. },
+                ..
+            } => Some(*max),
+            _ => None,
+        })
+        .unwrap();
+    assert_eq!(max, maybe_max.max(body_max) / 2 + 1);
+    assert!(result.result.as_array().unwrap().len() <= max as usize);
+}
+
+#[test]
+fn words_wider_right_column_executes_when_left_column_is_absent() {
+    check_coalesced_words(20, 2000, false);
+}
+
+#[test]
+fn words_narrower_right_column_executes_when_left_column_is_absent() {
+    check_coalesced_words(2000, 20, false);
+}
+
+#[test]
+fn words_wider_right_column_executes_when_left_argument_is_absent() {
+    check_coalesced_words(20, 2000, true);
+}
+
+#[test]
+fn words_narrower_right_column_executes_when_left_argument_is_absent() {
+    check_coalesced_words(2000, 20, true);
 }
 
 #[test]
@@ -542,5 +635,10 @@ fn words_benchmark_upsert_certifies_the_6008_rule_probe_product() {
     let certificate = Checker::new(&schema, Ceilings::default())
         .check(&program)
         .unwrap();
-    assert_eq!(certificate.max_rule_probes, 6008); // 1001 × (4 + 2) + 2
+    // 1001 × (4 + 2) + 2. Each exists-membership rule costs two probes:
+    // the membership lookup and its read rule's self-exists visibility probe.
+    // Per upsert: 4 = max(insert's 2, update's old/new image rules at 2 each);
+    // 2 = the searchWords address lookup's read rule before the upsert.
+    // The trailing +2 is the messages[messageId] read rule outside the loop.
+    assert_eq!(certificate.max_rule_probes, 6008);
 }

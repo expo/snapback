@@ -835,8 +835,9 @@ characters. Each output term has the input's maximum width. The front end carrie
 both bounds through list positions, aliases, and `for` domains and refuses
 non-text/optional arguments with a repair. Text built with `+` or interpolation
 has no declared bound and is refused at `words`, including through aliases;
-the repair names a declared bounded text argument or column. A wider literal
-`??` fallback refuses against the left text bound. Serialized output is bounded by eight
+the repair names a declared bounded text argument or column. A `??` over declared
+text uses the larger maximum of its two arms; a wider literal fallback still
+refuses against the left text bound. Serialized output is bounded by eight
 times the input's serialized maximum, covering tagged one-letter strings and
 array separators even for literals; tokens are never truncated to fit a bound.
 Loop element pricing keeps that whole-width reserve through aliases and branches:

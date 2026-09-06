@@ -12,18 +12,24 @@ for (const [label, domain, max, width] of [
   ["direct", "words(body)", 1001, 2000], ["alias", "terms", 1001, 2000], ["column", "words(row.body)", 1001, 2000],
   ["literal", "words('A b')", 2, 3], ["odd", "words('a b c')", 3, 5], ["empty", "words('')", 1, 0],
   ["optional fallback", "words(maybe ?? '')", 11, 20], ["Unicode scalars", "words('🙂A 🙂b')", 3, 5],
+  ["wider column fallback", "words(row.maybe ?? row.body)", 1001, 2000],
+  ["narrower column fallback", "words(row.wideMaybe ?? row.narrow)", 1001, 2000],
+  ["wider argument-to-column fallback", "words(maybe ?? row.body)", 1001, 2000],
 ] as const) {
   test(`Quarry words derives a ${max}-item text list and ${label} for domain`, async () => {
     await withProject({
       "snapback/schema.q": `table docs:
   body: text <=2000
+  maybe: text <=20 ?
+  wideMaybe: text <=2000 ?
+  narrow: text <=20
   terms: [text <=2000] <=1001
   public
   insert <- allow
 `,
       "snapback/probe.q": `mutation probe(body: text <=2000, maybe: text <=20 ?):
   terms = words(body)
-  row = insert docs { body, terms }
+  row = insert docs { body, terms, narrow: 'a' }
   for term in ${domain}:
     require term != '' else EMPTY
   return { terms, count: count(words(body)) }
@@ -58,7 +64,8 @@ for (const [label, domain, max, width] of [
 }
 
 test("words refuses constructed text at the Quarry boundary with a declared-bound repair", async () => {
-  for (const expression of ["a + b", "built", "{ body: a + b }.body", "maybe ?? (a + b)"]) {
+  for (const expression of ["a + b", "built", "{ body: a + b }.body", "maybe ?? (a + b)",
+    "(a + b) ?? maybe", "built ?? a", "(a + b) ?? ''"]) {
     await withProject({
       "snapback/schema.q": "table docs:\n  body: text <=2000\n  public\n",
       "snapback/probe.q": `query probe(a: text <=4, b: text <=4, maybe: text <=4 ?):\n  built = a + b\n  return words(${expression})\n`,
@@ -72,9 +79,10 @@ test("words refuses constructed text at the Quarry boundary with a declared-boun
 });
 
 test("words refuses equal-max TS plus, aliases and templates with a declared-bound repair", () => {
-  for (const expression of ["args.a + args.b", "built", "`${args.a}${args.b}`", "{ body: built }.body", "args.a ?? built"]) {
+  for (const expression of ["args.a + args.b", "built", "`${args.a}${args.b}`", "{ body: built }.body", "args.a ?? built",
+    "(args.a + args.b) ?? args.maybe", "built ?? args.a", "(args.a + args.b) ?? ''"]) {
     const source = `import { query, t, words } from "snapback2";
-    export const probe = query({ a: t.text(4), b: t.text(4) }, ({ args }) => {
+    export const probe = query({ a: t.text(4), b: t.text(4), maybe: t.optional(t.text(4)) }, ({ args }) => {
       const built = args.a + args.b;
       return words(${expression});
     });`;

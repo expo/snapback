@@ -414,12 +414,20 @@ class Analyzer {
     }
     if (this.analysisLimitReached) return unknownType;
     if (operator === ts.SyntaxKind.QuestionQuestionToken) {
+      if (left.kind === "optional" && left.of.kind === "string") left = left.of;
       if (left.kind === "enum") right = this.expression(node.right, env, left);
       if (right.kind === "enum") left = this.expression(node.left, env, right);
       if (left.kind === "string") right = this.expression(node.right, env, left);
-      if (right.kind === "string") left = this.expression(node.left, env, right);
+      if (right.kind === "string") {
+        left = this.expression(node.left, env, right);
+        if (left.kind === "optional" && left.of.kind === "string") left = left.of;
+      }
       if (left.kind === "unknown") return unknownType;
-      if (left.kind === "string" && right.kind === "string" && right.builtText) return { ...left, builtText: true };
+      if (left.kind === "string" && right.kind === "string") return {
+        ...left,
+        max: left.max !== undefined && right.max !== undefined ? Math.max(left.max, right.max) : undefined,
+        ...(right.builtText ? { builtText: true } : {}),
+      };
       return left.kind === "null" ? right : left;
     }
     const comparison = [

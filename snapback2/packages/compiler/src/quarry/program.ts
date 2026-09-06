@@ -358,7 +358,10 @@ function emitBinary(expr: Extract<Expr, { kind: "binary" }>, env: Environment, w
         "use a non-empty text literal or a reference to the same table");
     }
     const type = nonNullable(left.type);
-    if (type.kind === "text" && right.type.kind === "text" && right.type.builtText) type.builtText = true;
+    if (type.kind === "text" && right.type.kind === "text") {
+      type.max = Math.max(type.max, right.type.max);
+      if (right.type.builtText) type.builtText = true;
+    }
     return { code: `(${left.code} ?? ${right.code})`, type };
   }
   const operator = expr.op === "=" ? "===" : expr.op === "!=" ? "!==" : expr.op;

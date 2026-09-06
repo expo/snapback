@@ -47,12 +47,12 @@ unacknowledged message.
 
 ## Whole-word search
 
-`words(text)` returns `[A-Za-z0-9]+` runs, lowercase, deduplicated in first-occurrence
-order. Whole-word ASCII matching, not prefix search; non-ASCII splits words.
-Empty input yields `[]`. For `text <=N`, the
-bound is `floor(N/2)+1` (2000 → 1001), valid in lists and `for`.
-Runs stay whole beyond 64 characters: the index column must be wide enough
-or the program must filter. `tokens(text)` remains the `@` mention extractor.
+`words(text)` returns whole `[A-Za-z0-9]+` runs, lowercase, deduplicated in
+first-occurrence order. Whole-word matching, not prefix search; non-ASCII splits
+words. Empty input yields `[]`. For `text <=N`, the list/`for` bound is
+`floor(N/2)+1` (2000 → 1001). `words(a ?? b)` uses the larger declared text
+maximum. Index columns must fit whole runs or the program must filter.
+`tokens(text)` extracts `@` mentions.
 
 Messages have `conversationId`, `author`, `body: text <=2000`, and `at`:
 

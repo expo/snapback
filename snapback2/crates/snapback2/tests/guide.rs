@@ -70,6 +70,7 @@ fn quarry_keywords_print_grammar_and_definitions_beside_symbol_help() {
     assert!(quarry.contains("`share`, and `words`"));
     assert!(quarry.contains("rather than redrawn"));
     let search = include_str!("../../../packages/snapback2/guide/live-query.md");
+    assert!(search.contains("`words(a ?? b)` uses the larger declared text\nmaximum"));
     assert!(search.contains("already-lowercased ASCII word"));
     assert!(search.contains("unindexed nonempty body refuses `NOT_FOUND`"));
     let definitions = [
