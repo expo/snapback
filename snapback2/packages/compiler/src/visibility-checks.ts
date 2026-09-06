@@ -36,7 +36,7 @@ table memberships:
   insert <- allow
   update <- deny
   delete <- deny
-table words:
+table terms:
   conversationId: conversations
   term: text 1..64
   at: time
@@ -135,18 +135,18 @@ export function registerVisibilityChecks(test: Test): void {
   return memberships[viewer] first 100 by byPrincipalConversation { conversationId, conversation: conversations[.conversationId] { title } }
 `, false],
     ["enriched merge", `query all(term: text 1..64, c: cursor ?):
-  page = merge words after c last 20 by byConversationTermTime:
+  page = merge terms after c last 20 by byConversationTermTime:
     [seat.conversationId, term] for seat in memberships[viewer] first 100 by byPrincipalConversation
   return page { id, conversation: conversations[.conversationId] { title } }
 `, false],
     ["covering fanout", `mutation fanout(term: text 1..64):
   for seat in memberships[viewer] first 100 by byPrincipalConversation:
-    insert words { conversationId: seat.conversationId, term, at: now }
+    insert terms { conversationId: seat.conversationId, term, at: now }
   return true
 `, false],
     ["short fanout", `mutation fanout(term: text 1..64):
   for seat in memberships[viewer] first 50 by byPrincipalConversation:
-    insert words { conversationId: seat.conversationId, term, at: now }
+    insert terms { conversationId: seat.conversationId, term, at: now }
   return true
 `, true],
   ] as const) {

@@ -567,8 +567,7 @@ function lowerCall(call: ts.CallExpression, env: Environment, hint?: string, ope
       min: "Min",
       divmod: { Divmod: { remainder_sink: "lexicographic-id" } },
       deterministicShare: "DeterministicShare",
-      mentionTokens: "MentionTokens",
-      words: "Words",
+      mentionTokens: "MentionTokens", words: "Words",
     } as Record<string, string | Record<string, unknown>>)[name]!;
     const args = call.arguments.map((arg) => operand(arg, env));
     const required = name === "deterministicShare" ? 3 : ["mentionTokens", "words"].includes(name) ? 1 : 2;
@@ -972,8 +971,7 @@ export function lowerCollectionDomain(
         : collectionElementBinding(expression, env),
     };
   }
-  if (ts.isArrayLiteralExpression(value)
-    || (call && ts.isIdentifier(call.expression) && call.expression.text === "words")
+  if (ts.isArrayLiteralExpression(value) || (call && ts.isIdentifier(call.expression) && call.expression.text === "words")
     || (ts.isPropertyAccessExpression(value) && !operationArgumentList(value, env))
     || (ts.isBinaryExpression(value) && value.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken)) {
     const maximum = staticBound(expression, env);
