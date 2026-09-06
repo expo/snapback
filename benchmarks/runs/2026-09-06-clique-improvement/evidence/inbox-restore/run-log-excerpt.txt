@@ -1,0 +1,1 @@
+1788700062 correction-loop attribution=snapback2-defect precise follow blocker is TypeError: conflicting deliveries for chats.list at seq 3264, after a full-page reload; readiness gate alone did not fix it. Slim Inbox latest projection to fields rendered instead of projecting view-once asset capabilities. evidence=evidence/m8-follow-diagnostic2.txt,snapback/chats.q

@@ -457,3 +457,30 @@ not a pass. Runtime resource limits stay unchanged. The feed memory repair's
 first curve meets all three ratios; code reviews are still pending. Compiler
 review has exposed more shared type/capture provenance errors, so the next
 repair addresses their cause rather than accepting a bounds-only workaround.
+
+## 2026-09-06 — Published feed repair and fresh Grok run
+
+The feed memory repair completed both independent reviews and landed. Its first
+client curve passes all three scale checkpoints, with identical results and
+bounded retained seek accounting. Published0.0.10 passed its sole production
+dry run, then actual publication and a fresh registry install: all154 packed
+files match and the installed Hermes/media/Expo chat checks pass. The first
+shim-processing E404 is retained; there was no repack or republish. A fresh
+Grok4.6 xhigh full Clique build started at13:17:49Z on the exact public release,
+with the frozen instrument and isolated ports. No comparative win is established.
+
+The earlier46838gzip search checkpoint was still incomplete: it omitted parts
+of persistent-store and OfflineRuntime behavior. The final complete five-root
+boundary measures62624gzip against39671 for the same baseline roots. Root's
+current unattended decision is66000 ceiling/64000 target; earlier34000/50000
+limits and partial checkpoints remain historical. Full final qualification is
+pending, with runtime resource ceilings unchanged.
+
+The ongoing0.0.8 builder exposed another persistent-client problem after reload:
+`conflicting deliveries for chats.list at seq 3264`. Its separate authenticated
+inbox query/cache workaround adds plumbing while keeping message history and
+outbox on the SDK. An independent product diagnosis is pending; the exact browser
+diagnostic and provenance are retained in the inbox-restore ticket. The builder's
+attribution is evidence to investigate, not a confirmed cause. The M8 scale
+replay had152000/167244 actions and zero failures at13:18:31Z; completion and
+independent grading remain separate.
