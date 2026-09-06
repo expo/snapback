@@ -1,0 +1,101 @@
+{
+  "root": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.10-967f857e6",
+  "files": {
+    "final-report.md": {
+      "sha256": "02dda0ffe6e59156a1dda716ce07ebfd93504323cb3043ded89641504708dfdc",
+      "bytes": 10676
+    },
+    "provenance.json": {
+      "sha256": "9572638ea65cddf067f0a3bb54f69f8e3aa4f35e33b213cf673b980b6c0b8fd7",
+      "bytes": 10375
+    },
+    "failures.json": {
+      "sha256": "1a8893130e339ecc7e6e60cec5cafff25cc0a5be87ff9fba16e5675026fd4c79",
+      "bytes": 1182
+    },
+    "publish-dry-run.log": {
+      "sha256": "899d15b74197d30edec25b98b3f80d9e0cbe4ea043dedf51ccceaa5d9f93e03e",
+      "bytes": 10864
+    },
+    "publish.log": {
+      "sha256": "0d17a40370d2f1551e15fee2e5cf3587897fa91f0ff0b2fe85609de45463d15b",
+      "bytes": 9794
+    },
+    "consumer-smoke.json": {
+      "sha256": "45c060a44f6ca83e2294ba216e9233fb40f07208e922f5e28db0590d3fddc7c9",
+      "bytes": 1864
+    },
+    "packed-file-hashes.json": {
+      "sha256": "58dafd61d41a1e1e0dde8a3efb87fbcf9e6f57d64e61563bfbdd7a993fa3b207",
+      "bytes": 38775
+    },
+    "installed-file-hashes.json": {
+      "sha256": "9c3b084531d1a84dd36375e9e53c2c9ccbd51416817ca796ba6307bf3835f91b",
+      "bytes": 24916
+    },
+    "publication-staging.json": {
+      "sha256": "36e8c284c96cf12d44083508477bc5c9e3b0fc83c44e9ba4de1a759b8a6ae7fd",
+      "bytes": 470
+    },
+    "registry-availability.json": {
+      "sha256": "c7a2b9148bd8de64665b0ee21cb27b518fa05e8f6cc761ebf25f003599e1627d",
+      "bytes": 102
+    },
+    "registry-availability.log": {
+      "sha256": "aba7925595c104de71b5982fa559451a6d22de92a277ce1d030906afad117aa5",
+      "bytes": 706
+    },
+    "registry-pending-attempt1/installed-verification.json": {
+      "sha256": "485d8ec17e8c7d55469de257d2baa17ed4fbea451850a1bf8fcbe0194cc8657e",
+      "bytes": 940
+    },
+    "registry-pending-attempt1/registry-snapback2.log": {
+      "sha256": "656e0371d6fb716446d678d9b9e545a8582c0ba1c7d9c9136b24a06ba7c8995e",
+      "bytes": 799
+    },
+    "installed-chat-expo-init.log": {
+      "sha256": "b3d9bb06f8e466bd9e4cabc2ee538e65f1000b966e3fd91fd755d30c94adf89b",
+      "bytes": 574
+    },
+    "installed-chat-expo-guide-before-check.log": {
+      "sha256": "a6cfdb8e3879b0bbe40a1309ce8ece929066e662f080c1691c7f91f5b069fed8",
+      "bytes": 55306
+    },
+    "installed-chat-expo-check.log": {
+      "sha256": "0e4048bb5109e7bd74b0c7f8f8b6517cd7a76b0aac13834decea6e2b9f1f1b5b",
+      "bytes": 413
+    },
+    "installed-chat-expo-guide-after-check.log": {
+      "sha256": "a6cfdb8e3879b0bbe40a1309ce8ece929066e662f080c1691c7f91f5b069fed8",
+      "bytes": 55306
+    },
+    "resume-ready.json": {
+      "sha256": "2179b51849d8cfb94ccdfcca70f0fb3b403edb4d7fbead9bee4a37abbadcdcbb",
+      "bytes": 1199
+    },
+    "source-final-verification.json": {
+      "sha256": "0496bb32d945d25c59535b6dea553585be7336dd387ec43d9f16b7a74f1ec802",
+      "bytes": 220918
+    }
+  },
+  "immutable_pair": [
+    {
+      "name": "snapback2-darwin-arm64",
+      "version": "0.0.10",
+      "tarball": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.10-967f857e6/snapback2-darwin-arm64-0.0.10.tgz",
+      "bytes": 4655480,
+      "sha256": "1d0c91644fb50840361b49a5824a5e2aa3d5d6e51d93b9451245f010908bdeb9",
+      "integrity": "sha512-Vn7IP9N5EphemMhICumCnj2Xl4v3781/RzVn3WnqttwXO4oDufHshSHbu5YSZ7U3ts4lx9czbdGuoMAqeXg2UA=="
+    },
+    {
+      "name": "snapback2",
+      "version": "0.0.10",
+      "tarball": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.10-967f857e6/snapback2-0.0.10.tgz",
+      "bytes": 1784419,
+      "sha256": "8fd73c1b342e991e5447176828a8b4104b6ec77fd37c9699f2916e8113fc12a2",
+      "integrity": "sha512-t4ddvGpdto0orCgqn81mBmE7piMvErZ9YjjROwavhiSIpy1jSwGfwXT4nk8t/WLlbAddhMj10gpQJBE0+valZw=="
+    }
+  ],
+  "original_resume_mode": "0444",
+  "working_resume_mode": "0644"
+}

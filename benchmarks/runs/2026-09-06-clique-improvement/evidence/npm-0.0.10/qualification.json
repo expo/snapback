@@ -1,0 +1,309 @@
+{
+  "source_commit": "967f857e66b504dcea6286f10565c80fd2bf7d64",
+  "reviewed_main": "d2459e9819c8e77dbb4ec6bfb977e7a158afe725",
+  "root_version_commit": "3d6c98d01",
+  "dry_metrics_commit": "6a2f175cfe66db83dd357bfcc3fde9a292286151",
+  "scope": "Reviewed feed repair and version only; search/text-minimum excluded; exact source kept frozen through publication.",
+  "source_reviews": "Both READY; inherited feed-final evidence, exact core tree equality retained in dry-run source-review.json.",
+  "dry_run": {
+    "attempts": 1,
+    "exit": 0,
+    "seconds": 141.3,
+    "metric": {
+      "at": "2026-09-06T13:05:20.419Z",
+      "publish_s": 141.3,
+      "production_binary_bytes": 7013216,
+      "production_binary_without_engine_bytes": 3795632,
+      "production_binary_with_engine_bytes": 7013216,
+      "production_media_binary_bytes": 2147984,
+      "engine": "ibex2 + vanilla hermes",
+      "dry": true
+    },
+    "consumer": {
+      "steps": [
+        {
+          "name": "install tarballs",
+          "seconds": 1.9977509580000041,
+          "ok": true
+        },
+        {
+          "name": "doctor",
+          "seconds": 0.39894412499999454,
+          "ok": true
+        },
+        {
+          "name": "guide auth",
+          "seconds": 0.07566512499999953,
+          "ok": true
+        },
+        {
+          "name": "public client and React exports",
+          "seconds": 0.07489583300000231,
+          "ok": true
+        },
+        {
+          "name": "todos init",
+          "seconds": 0.6315224170000001,
+          "ok": true
+        },
+        {
+          "name": "todos check",
+          "seconds": 0.5562643339999922,
+          "ok": true
+        },
+        {
+          "name": "todos React bundle",
+          "seconds": 1.1507658749999974,
+          "ok": true
+        },
+        {
+          "name": "todos dev",
+          "seconds": 0.3532506250000006,
+          "ok": true
+        },
+        {
+          "name": "React live query round trip",
+          "seconds": 0.12488258400000632,
+          "ok": true
+        },
+        {
+          "name": "todos receipt",
+          "accepted": true,
+          "verdict": "pass"
+        },
+        {
+          "name": "todos test",
+          "seconds": 1.354288750000007,
+          "ok": true
+        },
+        {
+          "name": "todos stop",
+          "seconds": 0.19958383400000457,
+          "ok": true
+        },
+        {
+          "name": "chat init",
+          "seconds": 1.0057785000000004,
+          "ok": true
+        },
+        {
+          "name": "chat check",
+          "seconds": 1.5730739160000085,
+          "ok": true
+        },
+        {
+          "name": "chat React bundle",
+          "seconds": 1.3900708330000051,
+          "ok": true
+        },
+        {
+          "name": "chat dev",
+          "seconds": 1.261847167,
+          "ok": true
+        },
+        {
+          "name": "chat receipt",
+          "accepted": true,
+          "verdict": "pass"
+        },
+        {
+          "name": "chat test",
+          "seconds": 9.904947125000007,
+          "ok": true
+        },
+        {
+          "name": "chat stop",
+          "seconds": 0.2198304589999898,
+          "ok": true
+        }
+      ]
+    }
+  },
+  "actual_publication": {
+    "attempts": 1,
+    "exit": 0,
+    "seconds": 31.6,
+    "metric": {
+      "at": "2026-09-06T13:14:22.477Z",
+      "publish_s": 31.6,
+      "production_binary_bytes": 7013216,
+      "production_binary_without_engine_bytes": 3795632,
+      "production_binary_with_engine_bytes": 7013216,
+      "production_media_binary_bytes": 2147984,
+      "engine": "ibex2 + vanilla hermes",
+      "dry": false
+    },
+    "consumer": {
+      "steps": [
+        {
+          "name": "install tarballs",
+          "seconds": 1.203653542,
+          "ok": true
+        },
+        {
+          "name": "doctor",
+          "seconds": 0.33413645799999997,
+          "ok": true
+        },
+        {
+          "name": "guide auth",
+          "seconds": 0.05259345899999994,
+          "ok": true
+        },
+        {
+          "name": "public client and React exports",
+          "seconds": 0.05888120800000002,
+          "ok": true
+        },
+        {
+          "name": "todos init",
+          "seconds": 0.4692420830000001,
+          "ok": true
+        },
+        {
+          "name": "todos check",
+          "seconds": 0.457499875,
+          "ok": true
+        },
+        {
+          "name": "todos React bundle",
+          "seconds": 2.7309537919999998,
+          "ok": true
+        },
+        {
+          "name": "todos dev",
+          "seconds": 0.3385542500000001,
+          "ok": true
+        },
+        {
+          "name": "React live query round trip",
+          "seconds": 0.11855845899999985,
+          "ok": true
+        },
+        {
+          "name": "todos receipt",
+          "accepted": true,
+          "verdict": "pass"
+        },
+        {
+          "name": "todos test",
+          "seconds": 1.2068925,
+          "ok": true
+        },
+        {
+          "name": "todos stop",
+          "seconds": 0.20518612499999928,
+          "ok": true
+        },
+        {
+          "name": "chat init",
+          "seconds": 0.7231121249999997,
+          "ok": true
+        },
+        {
+          "name": "chat check",
+          "seconds": 0.677258749999999,
+          "ok": true
+        },
+        {
+          "name": "chat React bundle",
+          "seconds": 0.6052465830000001,
+          "ok": true
+        },
+        {
+          "name": "chat dev",
+          "seconds": 0.6881582920000001,
+          "ok": true
+        },
+        {
+          "name": "chat receipt",
+          "accepted": true,
+          "verdict": "pass"
+        },
+        {
+          "name": "chat test",
+          "seconds": 9.275263792,
+          "ok": true
+        },
+        {
+          "name": "chat stop",
+          "seconds": 0.2540923329999969,
+          "ok": true
+        }
+      ]
+    },
+    "same_qualified_pair": true,
+    "new_dry_run_or_repack": false
+  },
+  "fresh_install": {
+    "ok": true,
+    "verified_files": 154,
+    "doctor": "ibex2 + vanilla hermes",
+    "media": [
+      "images",
+      "heic"
+    ],
+    "guide": "Untouched Expo chat before/after check: exact 26 certified ops, internal timer excluded, public purge retained, caches/backend unchanged."
+  },
+  "failures_and_observations": {
+    "qualification": {
+      "qualification_failures": [],
+      "qualification_attempts": 1,
+      "retries": 0,
+      "handoff_failures": [
+        {
+          "phase": "final handoff source-manifest verification after qualification passed",
+          "error": "IsADirectoryError: snapback2/packages/snapback2/templates/chat/expo/shared",
+          "cause": "Git stores a directory symlink as a blob; external verifier incorrectly treated it as a regular file.",
+          "resolution": "Verifier now hashes symlink target bytes by Git mode 120000 and compares every blob to the qualified source object. No repo changes, qualification rerun, repack, or timeout changes."
+        }
+      ],
+      "integration_conflict": "snapback2/metrics/loop.jsonl; original conflict retained; all 213 source records preserved by union",
+      "timing_observations": [
+        "Original installed chat check took 1.573073916s (product target <1s); standard production consumer qualification passed, without a rerun or changed timeout. Root owns current benchmark; this worker makes no new loop-latency claim."
+      ],
+      "exploration_note": "Initial lookup named nonexistent build-production.mjs; corrected by reading existing publish.mjs. No qualification command failed."
+    },
+    "registry_first_attempt": {
+      "version": "0.0.10",
+      "qualified_source": "967f857e66b504dcea6286f10565c80fd2bf7d64",
+      "ok": false,
+      "consumer_directory": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.10-967f857e6/installed-consumer-verified",
+      "checks": [
+        {
+          "name": "registry-snapback2-darwin-arm64",
+          "ok": true,
+          "seconds": 0.4316904579754919,
+          "exit": 0
+        },
+        {
+          "name": "registry-tags-snapback2-darwin-arm64",
+          "ok": true,
+          "seconds": 0.3262312500155531,
+          "exit": 0
+        },
+        {
+          "name": "snapback2-darwin-arm64 registry SRI",
+          "ok": true,
+          "integrity": "sha512-Vn7IP9N5EphemMhICumCnj2Xl4v3781/RzVn3WnqttwXO4oDufHshSHbu5YSZ7U3ts4lx9czbdGuoMAqeXg2UA==",
+          "latest": "0.0.10"
+        },
+        {
+          "name": "registry-snapback2",
+          "ok": false,
+          "seconds": 0.3509634170331992,
+          "exit": 1
+        }
+      ],
+      "started": 1788700489.611708,
+      "finished": 1788700490.720895
+    },
+    "registry_disposition": "First shim read returned E404 during npm processing; preserved before one availability read. Exact SRI became visible, then fresh install passed. No republish/repack.",
+    "actual_publication_failures": []
+  },
+  "limitations": [
+    "darwin-arm64 qualification only",
+    "First dry-run chat check 1.573s above the <1s target; retained, no new loop-latency claim.",
+    "Source reviews, performance curve and exact Execution equivalence are inherited from the reviewed feed source; not redundantly rerun for version-only release."
+  ]
+}

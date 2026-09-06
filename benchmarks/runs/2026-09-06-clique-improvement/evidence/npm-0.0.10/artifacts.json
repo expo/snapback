@@ -1,0 +1,74 @@
+{
+  "qualified_source": "967f857e66b504dcea6286f10565c80fd2bf7d64",
+  "platform": "darwin-arm64",
+  "tarballs": [
+    {
+      "name": "snapback2-darwin-arm64",
+      "version": "0.0.10",
+      "tarball": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.10-967f857e6/snapback2-darwin-arm64-0.0.10.tgz",
+      "bytes": 4655480,
+      "sha256": "1d0c91644fb50840361b49a5824a5e2aa3d5d6e51d93b9451245f010908bdeb9",
+      "integrity": "sha512-Vn7IP9N5EphemMhICumCnj2Xl4v3781/RzVn3WnqttwXO4oDufHshSHbu5YSZ7U3ts4lx9czbdGuoMAqeXg2UA=="
+    },
+    {
+      "name": "snapback2",
+      "version": "0.0.10",
+      "tarball": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.10-967f857e6/snapback2-0.0.10.tgz",
+      "bytes": 1784419,
+      "sha256": "8fd73c1b342e991e5447176828a8b4104b6ec77fd37c9699f2916e8113fc12a2",
+      "integrity": "sha512-t4ddvGpdto0orCgqn81mBmE7piMvErZ9YjjROwavhiSIpy1jSwGfwXT4nk8t/WLlbAddhMj10gpQJBE0+valZw=="
+    }
+  ],
+  "installed_packed_files": 154,
+  "objects": {
+    "engine": {
+      "path": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.10-967f857e6/qualified-artifacts/platform/package/bin/snapback2",
+      "sha256": "aecdb1a0f3ae1a29c63bd6d3e35447d21aeb030dba990712eed7f1813ed37293",
+      "bytes": 7013216
+    },
+    "media": {
+      "path": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.10-967f857e6/qualified-artifacts/platform/package/bin/snapback2-media",
+      "sha256": "dd2156e4cead17bf34ce4bb339802bb57aa55d65b04b45e66f5557aba50c42d1",
+      "bytes": 2147984
+    },
+    "compiler": {
+      "path": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.10-967f857e6/qualified-artifacts/shim/package/dist/compiler.mjs",
+      "sha256": "9c93d2adc425eab14d977a2a8b0d1228a0a5c8c27c4e59bc889efe9863490a78",
+      "bytes": 2351
+    },
+    "client": {
+      "path": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.10-967f857e6/qualified-artifacts/shim/package/dist/client.mjs",
+      "sha256": "5aaa45d49028733f2cde0e6c5fc9ec89d8a85ab439c40f1dc477d5a87f2038f9",
+      "bytes": 185368
+    },
+    "react": {
+      "path": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.10-967f857e6/qualified-artifacts/shim/package/dist/react.mjs",
+      "sha256": "b21f1d49671221a849dce61221b1ba94cb5098edf963d74aca15407e822994fa",
+      "bytes": 40661
+    },
+    "react-core": {
+      "path": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.10-967f857e6/qualified-artifacts/shim/package/dist/react-core.mjs",
+      "sha256": "b6bc889db3957fea30dea20dad9c2be22980e77fa0a8183b513d90a03553fa96",
+      "bytes": 8576
+    },
+    "react-native": {
+      "path": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.10-967f857e6/qualified-artifacts/shim/package/dist/react-native.mjs",
+      "sha256": "f278214972896182e672f120c04f1c2269fc77163cd33be686738167add28da0",
+      "bytes": 7072
+    },
+    "expo": {
+      "path": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.10-967f857e6/qualified-artifacts/shim/package/dist/expo.mjs",
+      "sha256": "17da7b63445120299a313af3f46ad712f14963da5431269ad1fde12c624782ca",
+      "bytes": 52308
+    },
+    "packed_dist": {
+      "files": 141,
+      "manifest_sha256": "e463cf70a15830e325e5e58df391aa0bd342a22d0283b9558c1a7b0b615361e2"
+    },
+    "compiler-core": {
+      "path": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.10-967f857e6/qualified-artifacts/shim/package/dist/compiler-core.mjs",
+      "bytes": 352276,
+      "sha256": "49e6fa63fdeb01977d11c569617074e2a0f60ad132a3ecbdc28345ea4a4fdcd6"
+    }
+  }
+}

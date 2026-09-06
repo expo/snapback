@@ -1,0 +1,16 @@
+{
+  "snapback2-darwin-arm64": {
+    "version": "0.0.10",
+    "integrity": "sha512-Vn7IP9N5EphemMhICumCnj2Xl4v3781/RzVn3WnqttwXO4oDufHshSHbu5YSZ7U3ts4lx9czbdGuoMAqeXg2UA==",
+    "shasum": "bfc22f136a8e5a06a8c40b4f32d03332f0eb99b8",
+    "tarball": "https://registry.npmjs.org/snapback2-darwin-arm64/-/snapback2-darwin-arm64-0.0.10.tgz",
+    "latest": "0.0.10"
+  },
+  "snapback2": {
+    "version": "0.0.10",
+    "integrity": "sha512-t4ddvGpdto0orCgqn81mBmE7piMvErZ9YjjROwavhiSIpy1jSwGfwXT4nk8t/WLlbAddhMj10gpQJBE0+valZw==",
+    "shasum": "6987c1c6232c25781db455797c878d1e4ec2eba8",
+    "tarball": "https://registry.npmjs.org/snapback2/-/snapback2-0.0.10.tgz",
+    "latest": "0.0.10"
+  }
+}
