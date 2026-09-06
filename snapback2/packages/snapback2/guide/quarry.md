@@ -161,23 +161,20 @@ the deduplicated union had at most N rows; otherwise it is `capped`.
 
 `require condition else CODE` aborts when false. `match read: some name: … none: …`
 branches on presence; it is a statement, not a binding expression. Other statements
-bind expressions or `sorted` tuples, `return`, `if/else`, or bounded `for`.
-`return` works in all arms; a body's last expression is an implicit return.
+bind expressions or `sorted` tuples, `return`, `if/else`, or bounded `for`;
+`return` works in all arms and a body's last expression is an implicit return.
 
-Object literals work anywhere expressions do; `{ id: conversationId,
-creatorMembershipId }` uses shorthand for the second field. `count(x)` is
+Object literals work anywhere; `{ id: conversationId, creatorMembershipId }`
+uses shorthand. `count(x)` is
 `x.length` for bounded lists and pages. Other built-ins are `range`,
-`min`, `max`, `divmod`, and `share`. `sorted` is only the two-name form
-`(lo, hi) = sorted(a, b)`. `walk table[seed] up .parent depth N` is bounded.
+`min`, `max`, `divmod`, and `share`. `sorted` is only `(lo, hi) = sorted(a, b)`. `walk table[seed] up .parent depth N` is bounded.
 `!` or `! else CODE` requires a present value; `??` supplies an absence
-fallback. Program `=`/`!=` are total: absent equals absent and differs from
-present; `!=` is `not (=)`. Ordered comparison refuses an optional operand;
-use `!` or `??` first. A direct `if x != null:` narrows a bound name or one-hop
-row field in that then branch; it does not narrow an `and` operand or the else.
-Conditions require Booleans.
+fallback. Program `=`/`!=` are total: absent equals absent, differs from present;
+`!=` is `not (=)`. Ordered comparison refuses an optional operand;
+use `!` or `??` first. A direct `if x != null:` narrows a bound name or one-hop row field in
+that then branch only, not an `and` operand or the else. Conditions require Booleans.
 
-`tokens(text)` splits on whitespace, preserving case, punctuation and duplicates;
-it is not a word-search tokenizer.
+`tokens(text)` splits on whitespace, preserving case, punctuation and duplicates.
 
 `now` is the read clock in queries and the commit clock in mutations; `commit`
 is the commit clock. In a mutation they are the same instant. `now` is pinned
