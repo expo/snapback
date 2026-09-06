@@ -19,3 +19,16 @@ a reproduced diagnosis on the current candidate.
 Next: reproduce minimally outside the frozen benchmark; identify whether
 lowering or runtime validation loses the declared bound; fix with before/after
 coverage for scalar and nested list text arguments. Preserve the frozen result.
+
+
+The coordinated candidate now has actual native admission evidence:74 original
+query/mutation/job cases pass (including empty-table job enqueue refusal), and
+77 separate paired channel argument cases pass both HTTP subscribe and publish.
+The latter includes Optional/List/nested List forms,49 refused pairs with no
+observed invalid event or authorized-subscription delta, and28 accepted pairs.
+All83 expected events were observed; the no-event claim is bounded by recorded
+quiet windows and stream lifetimes. Production bearer authentication is not
+qualified by this private-persona witness. Both reports and original harness
+corrections are retained under evidence/minimum-api-provisional04 and
+evidence/channel-minimum-provisional04. Code integration/review/publication is
+still pending; keep this ticket open until the implemented fix lands.

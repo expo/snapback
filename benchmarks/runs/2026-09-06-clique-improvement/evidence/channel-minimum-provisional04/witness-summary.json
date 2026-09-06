@@ -1,0 +1,57 @@
+{
+  "verdict": "PASS_SCOPED_ACTUAL_HTTP_SSE_CHANNEL_TEXT_MINIMUM",
+  "cases": 77,
+  "passed": 77,
+  "validPairs": 28,
+  "invalidPairs": 49,
+  "primaryAdmissionResponses": 154,
+  "extraBaselineSubscriptions": 6,
+  "extraLivenessPublishes": 49,
+  "extraNullOmissionPublishes": 6,
+  "cleanupTriggerPublishes": 34,
+  "totalChannelSubscribeResponses": 83,
+  "totalChannelPublishResponses": 166,
+  "totalChannelHttpResponses": 249,
+  "totalCapturedHttpResponsesIncludingStatusAndSnapshots": 518,
+  "observableEvents": 83,
+  "exactEventMarkers": true,
+  "invalidPublishNoEvents": true,
+  "invalidSubscribeNoAuthorizedChannelDelta": true,
+  "durableCountsUnchangedAndZero": true,
+  "perChannel": {
+    "direct": {
+      "refusedPairs": 12,
+      "acceptedPairs": 5
+    },
+    "optional": {
+      "refusedPairs": 9,
+      "acceptedPairs": 7
+    },
+    "items": {
+      "refusedPairs": 10,
+      "acceptedPairs": 3
+    },
+    "optionalItems": {
+      "refusedPairs": 5,
+      "acceptedPairs": 4
+    },
+    "nested": {
+      "refusedPairs": 9,
+      "acceptedPairs": 6
+    },
+    "zero": {
+      "refusedPairs": 4,
+      "acceptedPairs": 3
+    }
+  },
+  "rawAuditChecks": 2658,
+  "harnessCorrection": "Only sender expectation corrected in offline audit; raw responses, stream bytes, script and initial flags preserved in attempts/runtime-01 and original evidence. No HTTP rerun.",
+  "runtimeFailure": null,
+  "genuineCandidateRed": false,
+  "seconds": 12.610851209028624,
+  "httpSseDeadlineSeconds": 4,
+  "wholeDeadlineSeconds": 60,
+  "invalidPublishQuietSeconds": 0.12,
+  "eventTailQuietSeconds": 0.04,
+  "publicationQualification": false
+}

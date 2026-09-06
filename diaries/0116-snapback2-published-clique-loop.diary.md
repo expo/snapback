@@ -513,3 +513,15 @@ synthetic pre-program custody case and from the still-unattributed published
 inbox failure. The repair needs authoritative execution identity while retaining
 same-sequence durable-data disagreement controls. Clock-aware Insights should
 not require authors to split their data flow merely to avoid cache conflicts.
+
+
+## 2026-09-06 — Argument minimum admission across channels
+
+The separate native channel witness passes77 paired subscribe/publish cases,
+including recursive list and optional argument minima. The existing74-case
+query/mutation/job witness remains unchanged. Invalid arguments leave durable
+state unchanged and produce no observed event in the retained windows. These
+results show declared text minima reaching actual admission rather than relying
+on UI validation or a job body running. The candidate is still unpublished.
+The witness also notes an authored channel argument format is absent from its
+IR; a bounded semantics audit is pending, with no format-enforcement claim.

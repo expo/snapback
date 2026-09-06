@@ -1,0 +1,15 @@
+{
+  "pid": 37765,
+  "port": 50870,
+  "signals": [
+    "SIGTERM"
+  ],
+  "exit": 0,
+  "stopped": true,
+  "portClosed": true,
+  "freeByBind": true,
+  "at": "2026-09-06T13:49:44.103230+00:00",
+  "terminateDeadlineSeconds": 3,
+  "killDeadlineSeconds": 3,
+  "onlyOwnedPidSignalled": true
+}
