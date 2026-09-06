@@ -238,3 +238,24 @@ delegated trade is a 34,000-byte total twin ceiling with a 30,000-byte target,
 deferring Exact 2 until search qualifies; existing resource ceilings remain.
 The proposed closure allocation is not an integrated measurement. No search
 qualification or improvement in comparative score is claimed.
+
+Both independent overlay reviews now report READY for `44cd420ae`; they are
+retained verbatim under `reviews/`. Integration revision `220186033` fixes
+the thrown-401 FIFO case, but its fourth Astra review identifies the supported
+HTTP-200 typed terminal response bypass. Five representative cases reproduce
+that broader defect without timeouts. Repair and affected verification continue;
+the 0.0.8 production dry run has not started.
+
+Native stream fix `1957b9591` removes the internal dependency on the global
+Response constructor. Its two native-specific regressions fail before and pass
+after. Independent reviews and a real candidate Release Hermes witness are
+running. The initial broader verification had two file cancellations; a later
+189-test run used a longer timeout and excluded one real-session recovery case.
+Original-deadline verification is therefore being completed explicitly, rather
+than presenting that run as unchanged-deadline evidence.
+
+An independent source-integrity check compared all 328 supplied regular files
+in both live grading copies with the retained filtered source archive: no
+changed or missing files. This proves source preservation only. Starter
+invariants pass in the outcome grader; scale replay is underway, without a
+completed scale or performance qualification claim.
