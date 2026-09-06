@@ -142,7 +142,7 @@ impl Refusal {
                 "E_ASSET_TOO_LARGE",
                 "input",
                 message,
-                "use bytes within the column bound; for a staging ceiling, inspect client.listUploads() and discard abandoned ids with client.discardUpload(id)",
+                "use bytes within the column bound; for a pending-object or byte admission ceiling, inspect client.listUploads() and discard only abandoned ids with client.discardUpload(id), or wait for eligible cleanup",
                 "operator",
             );
         }

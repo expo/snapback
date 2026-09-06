@@ -9,5 +9,16 @@ Reseeding a project with fixture media, and the sample action log's media, hit `
 ## Evidence
 - `/Users/ccheever/clique-full-20260905/lanes/grok-snapback2/final-report.md` correction loop 12 and gap 6
 
-## Fix shape
-Decide whether the staging ceiling is a per-request or per-owner bound and make it configurable per project (the brief's fixture pack alone is 31 files); the refusal should name the ceiling and the project setting.
+## Current disposition (2026-09-06)
+The asset-pending lane independently reproduces successful releases consuming the
+20/40 pending-object quotas. Root directs separating those slots from released
+ready originals while preserving the existing 256/512 MiB byte-admission charges;
+no numerical limit or project setting changes. The original proposed configurable
+ceiling is not the accepted fix.
+
+Implementation/proof: `/Users/ccheever/clique-improvement/revisions/asset-pending-r1/implementation-report.md`
+and its source/test/witness receipts. The isolated public Quarry witness is not
+an original benchmark rerun. This ticket remains open for attribution and full
+Clique/reseed verification; the original failure is not retroactively passing.
+Separate inherited physical custody/GC work is tracked in
+`20260906-snapback2-asset-custody-gc-follow-up.md`.

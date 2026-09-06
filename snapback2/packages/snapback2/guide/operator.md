@@ -38,18 +38,29 @@ or failed outbox admission/prediction before persistence. Queued intents and
 ambiguous network or storage outcomes retain their uploads for replay.
 
 For two-phase progress UIs, use `client.upload(file, { kind: "image", onProgress })`.
-To recover abandoned uploads (including after an owner restart), authenticate as
-the same account and inspect `await client.listUploads()`: `uploads` gives id,
-kind, state, bytes and creation time; `usage` and `limits` give byte/object counts.
-Pass `{ after: page.next }` for the next page when `next` is non-null. Explicitly
-release an abandoned id with `await client.discardUpload(id)`; the writer refuses
-`E_ASSET_IN_USE` if any row claims it. Missing/foreign ids return `false`.
-Only discard uploads whose pending mutation or queued intent you have abandoned.
-Disposal closes a receiving body's staging file and fences late body writes before
-freeing quota. A finalizer already running keeps its charge until its files close;
-`usage` shows that pending charge. Ready uploads release quota immediately and
-the existing sweep removes their blobs. Cleanup session expiry does not replace
-an already settled mutation result.
-Otherwise unclaimed uploads expire after 24 hours. `E_ASSET_TOO_LARGE` names the
-current usage and recovery call when the staging ceiling, rather than the column
-bound, was reached. Other accounts must recover their own staging allowance.
+To recover uploads after a restart, authenticate as the same account and inspect
+`await client.listUploads()`. The creator-only `uploads` page includes receiving,
+never-claimed ready, and released ready rows; each has id, kind, state, charged
+original bytes, `createdAt`, nullable `releasedAt`, and `reclaiming`. Use
+`{ after: page.next }` when `next` is non-null (100 rows per page).
+`usage.objects` counts pending uploads across all pages: receiving, including
+cancellation custody, and never-claimed ready rows. Released ready rows use no
+pending slots. `usage.bytes` still includes their original-byte charge, the larger
+of uploaded and finalized size. Limits remain 20 pending objects / 256 MiB per
+creator, 40 / 512 MiB per owner; public totals describe only your own usage.
+
+`await client.discardUpload(id)` explicitly abandons an unclaimed id's future use;
+claimed ids refuse `E_ASSET_IN_USE`, missing/foreign ids return `false`.
+Keep uploads needed by a pending mutation or queued intent. A receiving body is
+fenced before its slot/charge is freed; a running finalizer or failed staging
+unlink can retain both. Ready disposal removes its admission charge before the
+fork-aware blob sweep completes. These figures do not measure physical disk use.
+Cleanup session expiry does not replace an already settled mutation result.
+
+Unclaimed uploads become eligible for cleanup after 24 hours from creation, or
+from their latest release if later. Releases retain the full grace, derived
+widths and once-view history; their creator may claim the same available id again.
+`E_ASSET_TOO_LARGE` distinguishes pending-object pressure, byte admission pressure
+(including released originals), and authored size bounds. Inspect your listing,
+discard only abandoned ids, or wait for eligible cleanup. Free pending slots do
+not guarantee byte headroom. Releases and replacements gain no capacity refusal.

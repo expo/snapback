@@ -1,15 +1,13 @@
 # Offline
 
-`offline.store`: IndexedDB on web, SQLite on Expo, test files in Node.
-Session expiry seals; sign-out or replacement wipes. One writer per partition
-(`E_OFFLINE_LOCK`). `offline.fenceDays` (1..30) bounds trust: past it, held
-reads are stale and prediction/replay wait for resume; queued writes survive.
-Held reads and `offline()` do not wait for startup authentication.
+`offline.store`: IndexedDB (web), SQLite (Expo), test files (Node). Expiry seals;
+sign-out/replacement wipes. One writer per partition (`E_OFFLINE_LOCK`). Past
+`offline.fenceDays` (1..30), held reads are stale and prediction/replay await resume;
+queued writes survive. Held reads and `offline()` never wait for startup auth.
 
-`useQuery(op, args, { drain: true })` follows its Cursor to null, then watches
-the tail. Cold offline starts restore the cursor name from the held program;
-a repeated cursor refuses. Offline traversal preserves the server watermark.
-Covered reads are exact; others partial.
+`useQuery(op, args, { drain: true })` drains its Cursor, then watches the tail.
+Cold offline restores the held cursor name; repeated cursors refuse. Traversal
+preserves the server watermark. Covered reads are exact; others partial.
 
 ## Sending and recovery
 
@@ -21,19 +19,20 @@ Offline `run()` resolves `{ state: "queued", intent, ids }`; replay is FIFO.
 - action: none, login, resume, load-program;
 - remaining: queued count; fence: inside/past.
 
-Expired grants disable new writes; existing intents await the server's verdict.
+Expired grants block new writes; existing intents await the server verdict.
 A queued entry's predicted flag marks a preview; committed confirms acceptance.
 `outbox.drain()` and `settled()` return `{ stopped, remaining }`: false means
 drained; fence, transport, authority, offline or pending explains a pause. Transport
-pauses keep queued bytes. Use `client.online()` to resume and retry,
+pauses keep queued intent bytes. Media can expire 24h after creation/latest release;
+grants/leases do not extend it. After a replay refusal, use a new upload/intent;
+never rewrite queued args (`guide operator`). Resume with `client.online()`,
 or `outbox.drain()` to retry online. Subscription reconnect alone does not
 promise replay. The chat offers **Sync now** and keeps refused drafts.
 
 ## Resume and custody
 
-An equal receipt validator yields unchanged.
-`GET /api/program?generation=` supplies schema, IR and certificates;
-`/api/manifest` carries retention.
+Equal receipt validators yield unchanged. `GET /api/program?generation=` supplies
+schema, IR, certificates; `/api/manifest` carries retention.
 
 `POST /api/resume { protocol: 1, generation, schemaHash, authEpoch, remaining?,
 log?: { op, args, watermark, validator }, mounted: [{ op, args, validator }] }`
@@ -68,16 +67,14 @@ mutation edit(messageId: messages, body: text <=4000, baseBody: text <=4000):
   return null
 ```
 
-The loop covers the group because memberships is capped at 50 per conversation.
+The membership cap (50/conversation) covers the loop.
 
 ## Bytes and diagnostics
 
 Bytes share their row's lease, keyed (assetId, width), under maxAssetBytes
 (256 MiB LRU). `image <=N once` comes from the manifest/program schema; there
 is no client viewOnce option. Web and native caches refuse such rows even before
-viewing. Offline media is null, even in aliases and predictions; no fetch. The image stays in its viewing instance's memory; repeats refuse
-E_ASSET_VIEWED (assets family, HTTP 410).
-E_OFFLINE_CARRIER means install/configure the carrier. E_OFFLINE_STATE means
-preserve and inspect persisted state; E_OFFLINE_DELIVERY means retry an
-authenticated query; E_OFFLINE_LIFECYCLE means sign in or reopen. Refusals
-name the operation and recovery; preserve queued writes.
+viewing. Offline media is null, even in aliases and predictions; no fetch. Memory stays in the viewing instance; repeats refuse E_ASSET_VIEWED (assets, HTTP 410).
+E_OFFLINE_CARRIER: install/configure carrier; E_OFFLINE_STATE: inspect persisted
+state; E_OFFLINE_DELIVERY: retry authenticated query; E_OFFLINE_LIFECYCLE: sign
+in/reopen. Preserve queued writes. Refusals name the operation and recovery.

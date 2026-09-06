@@ -24,12 +24,17 @@ pub struct AssetUpload {
     pub state: String,
     pub bytes: u64,
     pub created_at: i64,
+    pub released_at: Option<i64>,
+    pub reclaiming: bool,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AssetStagingUsage {
+    /// Admission charge for unlocated receiving and available ready originals,
+    /// including released originals; not total physical storage.
     pub bytes: u64,
+    /// Receiving (including cancellation custody) and never-claimed ready uploads.
     pub objects: u32,
 }
 
@@ -157,7 +162,7 @@ impl Store {
         self.begin_asset_charged(kind, created_by, created_at, 0)
     }
 
-    /// Reserve unlocated byte and object custody in the durable ledger before
+    /// Reserve byte admission charge and a pending object slot in the ledger before
     /// the upload body can outlive the request that created it. Like
     /// `begin_asset`, the raw string-principal mint stays crate-private;
     /// `Runtime::begin_asset_charged` is the typed-actor entry.
@@ -213,20 +218,29 @@ impl Store {
 
     pub fn enforce_staging_caps(&self, created_by: &str, bytes: u64) -> Result<(), RuntimeError> {
         let usage = self.asset_staging_usage(created_by)?;
-        if bytes > STAGING_PER_PRINCIPAL_BYTES.saturating_sub(usage.creator.bytes)
-            || usage.creator.objects >= STAGING_PER_PRINCIPAL_OBJECTS
-        {
+        let recovery = "Inspect client.listUploads(); discard only ids whose future use you have abandoned with client.discardUpload(id), or wait for eligible cleanup. Receiving cleanup may retain its charge";
+        if usage.creator.objects >= STAGING_PER_PRINCIPAL_OBJECTS {
             return Err(RuntimeError::AssetTooLarge(format!(
-                "your staging usage is {} / {STAGING_PER_PRINCIPAL_OBJECTS} objects and {} / {STAGING_PER_PRINCIPAL_BYTES} bytes; requested {bytes} bytes. List abandoned uploads with client.listUploads(), then client.discardUpload(id) to free quota immediately",
-                usage.creator.objects, usage.creator.bytes
+                "your pending object ceiling is full: {} / {STAGING_PER_PRINCIPAL_OBJECTS} objects. {recovery}",
+                usage.creator.objects
             )));
         }
-        if bytes > STAGING_GLOBAL_BYTES.saturating_sub(usage.global.bytes)
-            || usage.global.objects >= STAGING_GLOBAL_OBJECTS
-        {
+        if bytes > STAGING_PER_PRINCIPAL_BYTES.saturating_sub(usage.creator.bytes) {
             return Err(RuntimeError::AssetTooLarge(format!(
-                "the owner staging ceiling is full ({STAGING_GLOBAL_OBJECTS} objects or {STAGING_GLOBAL_BYTES} bytes); your usage is {} objects and {} bytes; requested {bytes} bytes. Use client.listUploads() and client.discardUpload(id); other accounts must discard their own abandoned uploads",
-                usage.creator.objects, usage.creator.bytes
+                "your byte admission ceiling would be exceeded: {} / {STAGING_PER_PRINCIPAL_BYTES} charged bytes; requested {bytes} bytes. Charges include released ready originals during grace, even with free pending slots. {recovery}",
+                usage.creator.bytes
+            )));
+        }
+        if usage.global.objects >= STAGING_GLOBAL_OBJECTS {
+            return Err(RuntimeError::AssetTooLarge(format!(
+                "the owner pending object ceiling is full (limit {STAGING_GLOBAL_OBJECTS}); your usage is {} pending objects. {recovery}. Other accounts must recover their own abandoned uploads",
+                usage.creator.objects
+            )));
+        }
+        if bytes > STAGING_GLOBAL_BYTES.saturating_sub(usage.global.bytes) {
+            return Err(RuntimeError::AssetTooLarge(format!(
+                "the owner byte admission ceiling would be exceeded (limit {STAGING_GLOBAL_BYTES} bytes); your usage is {} charged bytes; requested {bytes} bytes. Charges include released ready originals during grace, even with free pending slots. {recovery}. Other accounts must recover their own abandoned uploads",
+                usage.creator.bytes
             )));
         }
         Ok(())
@@ -234,6 +248,7 @@ impl Store {
 
     /// Recomputed from durable rows on every call, so restart has no separate
     /// accounting state to rebuild or trust.
+    // @ref LLP 1006#14-what-it-costs — releases free pending slots but retain the existing original-byte admission charge; receiving cancellation still owns a slot.
     pub fn asset_staging_usage(
         &self,
         created_by: &str,
@@ -244,7 +259,8 @@ impl Store {
         ) -> Result<AssetStagingUsage, RuntimeError> {
             let (bytes, objects): (i64, i64) = if let Some(creator) = creator {
                 connection.query_row(
-                    "SELECT COALESCE(SUM(MAX(staged_bytes, COALESCE(bytes, 0))), 0), COUNT(*)
+                    "SELECT COALESCE(SUM(MAX(staged_bytes, COALESCE(bytes, 0))), 0),
+                            COALESCE(SUM(CASE WHEN state = 'receiving' OR released_at IS NULL THEN 1 ELSE 0 END), 0)
                      FROM _assets
                      WHERE locator_table IS NULL
                        AND (state = 'receiving' OR (state = 'ready' AND reclaiming = 0)) AND created_by = ?1",
@@ -253,7 +269,8 @@ impl Store {
                 )?
             } else {
                 connection.query_row(
-                    "SELECT COALESCE(SUM(MAX(staged_bytes, COALESCE(bytes, 0))), 0), COUNT(*)
+                    "SELECT COALESCE(SUM(MAX(staged_bytes, COALESCE(bytes, 0))), 0),
+                            COALESCE(SUM(CASE WHEN state = 'receiving' OR released_at IS NULL THEN 1 ELSE 0 END), 0)
                      FROM _assets
                      WHERE locator_table IS NULL
                        AND (state = 'receiving' OR (state = 'ready' AND reclaiming = 0))",
@@ -307,13 +324,13 @@ impl Store {
             let usage = self.asset_staging_usage(&row.created_by)?;
             if growth > STAGING_PER_PRINCIPAL_BYTES.saturating_sub(usage.creator.bytes) {
                 return Err(RuntimeError::AssetTooLarge(format!(
-                    "principal {} finalized bytes exceed the {STAGING_PER_PRINCIPAL_BYTES} byte staging ceiling",
-                    row.created_by
+                    "your finalized growth of {growth} bytes exceeds the {STAGING_PER_PRINCIPAL_BYTES} byte admission ceiling; your charge is {} bytes, including released ready originals during grace",
+                    usage.creator.bytes
                 )));
             }
             if growth > STAGING_GLOBAL_BYTES.saturating_sub(usage.global.bytes) {
                 return Err(RuntimeError::AssetTooLarge(format!(
-                    "finalized bytes exceed the owner {STAGING_GLOBAL_BYTES} byte staging ceiling"
+                    "finalized growth of {growth} bytes exceeds the owner {STAGING_GLOBAL_BYTES} byte admission ceiling; charges include released ready originals during grace"
                 )));
             }
         }
@@ -406,7 +423,8 @@ impl Store {
         after: &str,
     ) -> Result<Vec<AssetUpload>, RuntimeError> {
         let mut statement = self.conn.prepare(
-            "SELECT id, kind, state, MAX(staged_bytes, COALESCE(bytes, 0)), created_at
+            "SELECT id, kind, state, MAX(staged_bytes, COALESCE(bytes, 0)), created_at,
+                    released_at, reclaiming
              FROM _assets WHERE created_by = ?1 AND locator_table IS NULL
                AND (state = 'receiving' OR (state = 'ready' AND reclaiming = 0)) AND id > ?2
              ORDER BY id LIMIT 101",
@@ -419,6 +437,8 @@ impl Store {
                     state: row.get(2)?,
                     bytes: row.get(3)?,
                     created_at: row.get(4)?,
+                    released_at: row.get(5)?,
+                    reclaiming: row.get(6)?,
                 })
             })?
             .collect::<Result<Vec<_>, _>>()?)
