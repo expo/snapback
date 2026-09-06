@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2-core` (`store`, `registry`, `live`, `identity`, `successor`, the engine, the IR)
 **Author:** Claude Fable 5 (orchestrator) — implementer: codex gpt-5.6-sol, lane A
 **Date:** 2026-08-29
-**Revised:** 2026-09-06 (value-preserving text maximum widening and retained text-constraint admission); 2026-09-06 (fixed complete local-runtime measurement roots: 66,000-byte ceiling, 64,000 target); 2026-09-06 (generation-owned policy hashes, pooled merge seeks and bounded shared templates); 2026-09-06 (measured full-entry search trade: 50,000-byte ceiling, 48,000 target); 2026-09-06 (session-delegated Unicode/search foundation and downstream contracts); 2026-09-06 (conditional result-page provenance and branch-scoped cursor validation); 2026-09-05 (Clique L12 — §3 receipt-only null invariant and §5.1 `connected`); 2026-09-05 (Clique L9 — bounded ASCII words builtin and constructed-text boundary); 2026-09-05 (Clique L10 — lazy merge, receipt retention and global local-pagination cursor rule); 2026-09-05 (Clique L8b — nested point-read shapes preserve page state; early exits preserve capped taint); 2026-09-05 (Clique L8a — prefix-local self-probe and decided-disjunction visibility proofs); 2026-09-05 (Clique L3 — honest bound refusals and patch-sensitive cap metering; LLP 1016 J2 — §1's system tables gain `_jobs` and `_timers`; LLP 1017 §1, then §2 and §3)
+**Revised:** 2026-09-06 (rebuilt-target survivor admission and required-field ordering); 2026-09-06 (value-preserving text maximum widening and retained text-constraint admission); 2026-09-06 (fixed complete local-runtime measurement roots: 66,000-byte ceiling, 64,000 target); 2026-09-06 (generation-owned policy hashes, pooled merge seeks and bounded shared templates); 2026-09-06 (measured full-entry search trade: 50,000-byte ceiling, 48,000 target); 2026-09-06 (session-delegated Unicode/search foundation and downstream contracts); 2026-09-06 (conditional result-page provenance and branch-scoped cursor validation); 2026-09-05 (Clique L12 — §3 receipt-only null invariant and §5.1 `connected`); 2026-09-05 (Clique L9 — bounded ASCII words builtin and constructed-text boundary); 2026-09-05 (Clique L10 — lazy merge, receipt retention and global local-pagination cursor rule); 2026-09-05 (Clique L8b — nested point-read shapes preserve page state; early exits preserve capped taint); 2026-09-05 (Clique L8a — prefix-local self-probe and decided-disjunction visibility proofs); 2026-09-05 (Clique L3 — honest bound refusals and patch-sensitive cap metering; LLP 1016 J2 — §1's system tables gain `_jobs` and `_timers`; LLP 1017 §1, then §2 and §3)
 **Related:** LLP 1000, LLP 1002 (the loop that serves this), LLP 1003 (effects
 through the outbox this spec defines), LLP 0329.014.004 §7 (runtime), LLP
 0329.014.000 §6 (execution, trace, states), LLP 0329.016 §5.6 (no silent
@@ -557,7 +557,19 @@ a duplicate. The rebuilt inserts bind every next constraint and unique index.
 A user mutation writing a maintained target is `Rejected(E_RULE)` by its rule.
 Successor rebuilds own exactly the union of target row IDs projected by the
 predecessor and successor maintain declarations: they replace or remove those
-IDs and preserve every other target row and index entry.
+IDs and preserve every other target row and index entry. The replacement
+exemption applies to those IDs, never to the whole target table. Surviving
+rows undergo the same applicable new/changed-column, required-column, and
+text-constraint admission as ordinary stored rows; unrelated historical fields
+remain outside that selection. Ordinary source admission precedes successor
+projection, so absent required source fields refuse before ID derivation.
+Exact migrations retain predecessor IDs from before drops and derive successor
+IDs from admitted post-drop source rows, matching the rebuild's ownership union.
+An invalid survivor refuses both paths with `E_SUCCESSOR_ROW_INVALID` (or
+`E_SUCCESSOR_COLUMN_REQUIRED` for a new/retyped required field); mixed drops
+roll back with the generation, rows, indexes, and sequence unchanged.
+Implemented 2026-09-06 by Astra, local successor recovery; focused controls
+are in `tests/successor_maintains.rs`.
 
 Three rulings from the 2026-08-30 review (M3, M4, M8):
 
