@@ -1,3 +1,4 @@
+import { gzipSync } from "node:zlib";
 import { cp, link, mkdir, open, readFile, readdir, rm, stat, unlink, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { randomUUID } from "node:crypto";
@@ -11,6 +12,23 @@ generateUnicodeTables();
 if (process.argv.includes("--unicode-only")) process.exit(0);
 
 const here = dirname(fileURLToPath(import.meta.url));
+if (process.argv.includes("--measure-twin")) {
+  const measured = await build({ stdin: { contents: [
+    "export * from './src/twin.ts'; export { serverArguments } from './src/local-cursor.ts'; export { reduceQueryState } from './src/types.ts';",
+    "export { PersistentRangeStore } from './src/store/range-store.ts';",
+    "export { OfflineRuntime, offlineView } from './src/offline.ts';",
+    "export * as carrierProjection from './src/store/projection.ts';",
+    "export * as receiptProtocol from './src/offline-protocol.ts';",
+  ].join("\n"), resolveDir: here, loader: "ts" }, bundle: true, minify: true,
+    platform: "neutral", format: "esm", target: "es2022", write: false, metafile: true });
+  const bytes = measured.outputFiles[0].contents, gzip = gzipSync(bytes, { level: 9 }).length;
+  const required = ["unicode-tables", "index-store", "twin-store", "swap-journal", "carrier-index", "metadata", "projection", "range-store", "offline.ts", "offline-protocol", "local-cursor", "held-program"];
+  const inputs = Object.keys(measured.metafile.inputs);
+  for (const name of required) if (!inputs.some(p => p.includes(name))) throw new Error(`unmeasured twin implementation: ${name}`);
+  console.log(JSON.stringify({ entry: "complete-local-runtime", minified: bytes.length, gzip, ceiling: 66000, target: 64000, inputs }));
+  if (gzip > 66000) throw new Error(`twin exceeds 66000 gzip bytes: ${gzip}`);
+  process.exit(0);
+}
 const dist = resolve(here, "dist");
 const packageBuildLock = resolve(here, "../../target/b2-package-build.lock");
 const packageBuildLockHeld = process.env.SNAPBACK2_PACKAGE_BUILD_LOCK_HELD === "1";

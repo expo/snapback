@@ -3,11 +3,11 @@ import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { test } from "node:test";
 import { SnapbackRefusal, api, browserTokenStore } from "../dist/client.mjs";
 import { fixtureClient as createClient } from "./live-fixture.ts";
-import { decodeDeliveryEnvelope } from "../dist/index.mjs";
+import { decodeDeliveryEnvelope, schemaDigest } from "../dist/index.mjs";
 import { indexedDbRangeStore } from "../dist/react.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
 import { sqliteFactory } from "./sqlite-fixture.ts";
@@ -17,11 +17,20 @@ const emptyReceipt = () => ({ ranges: [], absences: [], verdicts: [] });
 const row = (table: string, id: string, body = id) => ({ table, id, row: { id, body } });
 const ref = (table: string, id: string) => ({ $row: { table, id } });
 const generation = "d".repeat(64);
-const schemaHash = "e".repeat(64);
+const metadataSchema = {
+        tables: {
+          messages: {
+            columns: { id: "Id", conversationId: { Ref: { table: "conversations" } }, at: "Time", body: { Text: { max: 4000 } } },
+            indexes: { byConvTime: { components: [{ Column: "conversationId" }, { Column: "at" }, { Column: "id" }], unique: false }, byId: { components: [{ Column: "id" }], unique: true } },
+            retain: "delivered-history",
+          },
+        },
+      };
+const schemaHash = schemaDigest(metadataSchema);
 const planHash = "f".repeat(64);
 
 async function golden(name: string): Promise<any> {
-  const text = await readFile(new URL(`../../../corpus/offline/${name}`, import.meta.url), "utf8");
+  const text = await readFile(process.env.SNAPBACK2_CORPUS ? resolve(process.env.SNAPBACK2_CORPUS, "offline", name) : new URL(`../../../corpus/offline/${name}`, import.meta.url), "utf8");
   return JSON.parse(text);
 }
 
@@ -43,7 +52,7 @@ function deliveryFromEnvelope(op: string, args: unknown, value: any) {
 }
 
 const messageSchema = {
-  tables: { messages: { indexes: { byConversationAt: { columns: ["conversationId", "at", "id"] } } } },
+  tables: { messages: { columns: { id: "Id", conversationId: "Id", at: "Time", body: { Text: { max: 4000 } } }, indexes: { byConversationAt: { components: [{ Column: "conversationId" }, { Column: "at" }, { Column: "id" }] } } } },
 };
 
 function metadataResponse(input: RequestInfo | URL): Response | undefined {
@@ -63,25 +72,19 @@ function metadataResponse(input: RequestInfo | URL): Response | undefined {
       generation,
       schemaHash,
       programs: {},
-      schema: {
-        tables: {
-          messages: {
-            columns: { id: "Id", conversationId: { Ref: { table: "conversations" } }, at: "Time", body: { Text: { max: 4000 } } },
-            indexes: { byConvTime: { columns: ["conversationId", "at", "id"], unique: false }, byId: { columns: ["id"], unique: true } },
-            retain: "delivered-history",
-          },
-        },
-      },
+      schema: metadataSchema,
     }), { status: 200 });
   }
   return undefined;
 }
 
+const evictionSchema = { tables: { messages: { ...messageSchema.tables.messages, indexes: { byConvTime: messageSchema.tables.messages.indexes.byConversationAt } } } };
+
 const range = (overrides: Record<string, unknown> = {}) => ({
   site: "thread.range",
   table: "messages",
   index: "byConvTime",
-  prefix: ["c1"],
+  prefix: [{ Scalar: "c1" }],
   order: "Asc",
   take: 50,
   after: null,
@@ -262,22 +265,23 @@ test("a process killed between file write and rename leaves the previous snapsho
 
 async function exerciseEvictions(store: any): Promise<void> {
   await store.open("dev:alice");
+  await store.commit({ schema: evictionSchema });
   const heldRange = range({ rowIds: ["m1", "m2"] });
   await store.commit({ deliveries: [{
     op: "thread", args: { c: null }, state: "complete",
     data: [ref("messages", "m1"), ref("messages", "m2")], next: null, seq: 1,
-    rows: [row("messages", "m1"), row("messages", "m2")],
+    rows: [{ table: "messages", id: "m1", row: { id: "m1", body: "m1", conversationId: "c1", at: 1 } }, { table: "messages", id: "m2", row: { id: "m2", body: "m2", conversationId: "c1", at: 2 } }],
     receipt: { ranges: [heldRange], absences: [], verdicts: [] },
   }] });
   await store.commit({ deliveries: [{
     op: "fresh", args: {}, state: "complete", data: ref("messages", "m2"), next: null, seq: 2,
-    rows: [row("messages", "m2")],
+    rows: [{ table: "messages", id: "m2", row: { id: "m2", body: "m2", conversationId: "c1", at: 2 } }],
     receipt: { ranges: [{ ...heldRange, rowIds: ["m2"] }], absences: [], verdicts: [] },
   }] });
   assert.deepEqual((await store.coverage()).rows.map((item) => item.id), ["m2"], "uniform-range hole evicts");
 
   const limitedRange = range({
-    site: "thread.limit", prefix: ["c2"], rowIds: ["m7", "m8", "m9"], stop: "Limit",
+    site: "thread.limit", prefix: [{ Scalar: "c2" }], rowIds: ["m7", "m8", "m9"], stop: "Limit",
   });
   await store.commit({ deliveries: [{
     op: "limited", args: {}, state: "capped",
@@ -296,7 +300,7 @@ async function exerciseEvictions(store: any): Promise<void> {
       { table: "messages", id: "m9", row: { id: "m9", conversationId: "c2", at: 9 } },
     ],
     receipt: { ranges: [{ ...limitedRange, rowIds: ["m7", "m9"] }], absences: [], verdicts: [] },
-  }], schema: { tables: { messages: { indexes: { byConvTime: { columns: ["conversationId", "at", "id"] } } } } } });
+  }], schema: evictionSchema });
   assert.equal((await store.coverage()).rows.some((item) => item.id === "m8"), false, "limited extent hole evicts");
 
   await store.commit({ deliveries: [{

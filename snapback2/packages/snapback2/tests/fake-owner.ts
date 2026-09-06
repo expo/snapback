@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { multiplexFetch } from "./live-fixture.ts";
 /**
  * A replay-aware owner double for the outbox suites: manifest, program
@@ -14,8 +15,8 @@ export const DAY = 24 * 60 * 60 * 1_000;
 const schema = {
   tables: {
     messages: {
-      columns: { id: "Id" },
-      indexes: { byId: { columns: ["id"], unique: true } },
+      columns: { id: "Id", conversationId: "Id", authorId: "Principal", body: { Text: { max: 4000 } }, at: "Time" },
+      indexes: { byId: { components: [{ Column: "id" }], unique: true } },
       rules: { read: "Allow", insert: "Allow", update: "Allow", delete: "Allow" },
       constraints: [],
       retain: "until-revoked",
@@ -24,6 +25,17 @@ const schema = {
   maintains: [],
 };
 export const schemaHash = schemaDigest(schema);
+
+const postIr = { name: "deliveries.post", kind: "Mutation", args: { body: { Text: { max: 4000 } }, conversationId: "Id" }, read_time_granularity_ms: null,
+  body: [{ Insert: { table: "messages", row: { Object: { at: { Input: "Now" }, authorId: { Input: "Viewer" },
+    body: { Variable: "body" }, conversationId: { Variable: "conversationId" }, id: { Input: "NewId" } } } } }] };
+const editIr = { name: "deliveries.edit", kind: "Mutation", args: {}, read_time_granularity_ms: null, body: [] };
+const certificate = (ir: unknown, kind: string) => ({
+  plan_hash: createHash('sha256').update(JSON.stringify(ir)).digest('hex'), schema_hash: schemaHash,
+  evaluator_version: 'bounded-spike-rust-search-text-min-3', value_model_version: 'i53-codepoint-bytes-unicode-search-text-min-v4',
+  max_steps: 1000000, max_heap_bytes: 8388608, max_closure_bytes: 4194304, max_output_bytes: 1048576,
+  write_sites: [{ table: 'messages', kind, max_rows: 1 }, { table: 'deliveries', kind: 'Insert', max_rows: 50 }],
+});
 
 export function engineId(sequence: number): string {
   return `s2id-${namespace}-${sequence.toString(16).padStart(16, "0")}`;
@@ -143,23 +155,8 @@ export function fakeOwner(options: FakeOwnerOptions = {}) {
         generation, schemaHash,
         schema,
         programs: {
-          "deliveries.post": {
-            kind: "mutation", planHash, ir: {
-              name: "deliveries.post", kind: "Mutation", args: {}, read_time_granularity_ms: null,
-              body: [{ Insert: { table: "messages", row: { Object: { id: { Input: "NewId" } } } } }],
-            },
-            certificate: { plan_hash: planHash, write_sites: [
-              { table: "messages", kind: "Insert", max_rows: 1 },
-              { table: "deliveries", kind: "Insert", max_rows: 50 },
-            ] },
-          },
-          "deliveries.edit": {
-            kind: "mutation", planHash, ir: { body: [] },
-            certificate: { plan_hash: planHash, write_sites: [
-              { table: "messages", kind: "Update", max_rows: 1 },
-              { table: "deliveries", kind: "Insert", max_rows: 50 },
-            ] },
-          },
+          "deliveries.post": { kind: "mutation", planHash: certificate(postIr, 'Insert').plan_hash, ir: postIr, certificate: certificate(postIr, 'Insert') },
+          "deliveries.edit": { kind: "mutation", planHash: certificate(editIr, 'Update').plan_hash, ir: editIr, certificate: certificate(editIr, 'Update') },
         },
       });
     }

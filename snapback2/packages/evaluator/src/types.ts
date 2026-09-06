@@ -1,3 +1,5 @@
+import type { IndexAtom } from './search-key';
+export type { IndexAtom, IndexComponent, IndexKeyExpr } from './search-key';
 export type Value =
   | "Null"
   | { Bool: boolean }
@@ -19,6 +21,9 @@ export interface Context {
   read_time: number | null;
 }
 
+export interface RowRef { table: string; id: string }
+export interface ScopeTouch { table: string; index: string; prefix: Value[] }
+
 export interface RowRecord {
   table: string;
   id: string;
@@ -29,7 +34,7 @@ export interface ReceiptRange {
   site: string;
   table: string;
   index: string;
-  prefix: Value[];
+  prefix: IndexAtom[];
   order: "Asc" | "Desc";
   take: number;
   after: Value | null;
@@ -42,10 +47,12 @@ export interface ReceiptRange {
   row_ids: string[];
   stop: "Limit" | "Exhausted";
   absence: boolean;
-  halo: RowRecord | null;
-  n2_key: Value[] | null;
+  halo: RowRef | null;
+  n2_suffix: Value[] | null;
   /** Members a later swap evicted from this page (LLP 1012 §5); a page with a hole covers nothing whole. */
   evicted_ids?: string[];
+  /** Local carrier metadata: original page endpoint, never a server receipt field. */
+  held_suffix?: Value[];
 }
 
 export interface Verdict {
@@ -109,12 +116,14 @@ export interface HydrationResult {
 }
 
 export interface TraceRange {
+  halo: RowRef | null;
+  n2_suffix: Value[] | null;
   site: string;
   table: string;
   index: string;
   /** The IR node's provenance (`Arg`, `Viewer`, `Const`, `Shape`, …): where its prefix came from. */
   provenance?: string;
-  prefix: Value[];
+  prefix: IndexAtom[];
   order: "Asc" | "Desc";
   take: number;
   after: Value | null;
@@ -157,8 +166,12 @@ export interface TraceVerdict {
 }
 
 export interface Trace {
+  rows?: RowRecord[];
   examined?: number;
   steps?: number;
+  derived_steps?: number;
+  derived_scratch_bytes?: number;
+  scope_touches?: ScopeTouch[];
   rule_probes?: number;
   ranges: TraceRange[];
   absences: TraceAbsence[];
@@ -169,6 +182,8 @@ export interface Trace {
 
 /** One row a mutation left behind: its final image, or `null` when it deleted the row. */
 export interface TraceWrite {
+  /** Assignment mask for Update; absent for an insert, replace or delete. */
+  fields?: string[];
   table: string;
   id: string;
   row: Value | null;
@@ -179,6 +194,9 @@ export interface Execution {
   trace: Trace;
   next: string | null;
   writes: TraceWrite[];
+  /** Internal page execution identity; never a server continuation. */
+  page?: any;
+  held?: boolean;
 }
 
 export interface LocalExecution {

@@ -39,9 +39,11 @@ function indexableColumn(descriptor: any): boolean {
 function schemaCertificationError(schema: any): string | null {
   for (const table of Object.values(schema.tables ?? {}) as any[]) {
     for (const index of Object.values(table.indexes ?? {}) as any[]) {
-      const columns = index.columns ?? [];
+      const columns = index.components ?? [];
       if (columns.length < 1 || columns.length > 8) return "E_SCHEMA_INDEX_COLUMN";
-      for (const column of columns) {
+      for (const component of columns) {
+        if (component.WordPrefixes) continue;
+        const column = component.Column;
         if (table.columns?.[column] === undefined || !indexableColumn(table.columns[column])) {
           return "E_SCHEMA_INDEX_COLUMN";
         }
@@ -80,7 +82,7 @@ export function evaluateCase(testCase: CorpusCase): ActualResult {
   if (testCase.certificate?.schema_hash !== sha256(canonicalSchemaJson(testCase.schema))) {
     throw new EvalError("E_TRACE_SUBSET", "schema hash mismatch");
   }
-  const store = new ClientStore(testCase.schema, testCase.receipt);
+  const store = new ClientStore(testCase.schema, testCase.receipt, { program: testCase.program });
   for (const step of testCase.prelude) {
     const prelude = store.applyMutation(step.program, step.context);
     if (prelude.state !== step.expectedState)

@@ -1,100 +1,31 @@
-// @ref LLP 1012#6-reads-offline — the twin hydrates from `coverage()`: rows,
-// ranges, absences, and verdicts re-tagged through the held schema into the
-// evaluator's private receipt, exactly as the Rust `ClientStore` sees them.
-import {
-  DeliveryEnvelopeDecodeError,
-  tagWireBoundary,
-  tagWireIndexValues,
-  tagWireRow,
-  tagWireValue,
-  type EvaluatorClosureReceipt,
-  type TaggedValue,
-  type WireValue,
-} from "./offline-protocol.js";
-import { schemaDigest } from "./offline-schema.js";
-import type { Coverage, ReceiptRange, RowRef } from "./store/range-store.js";
+// @ref LLP 1012#indexed-held-search — receipt admission uses the issuing operation's trusted query bound.
+import { tagWireBoundary, tagWireIndexValues, tagWireRangePrefix,
+  tagWireRow, tagWireValue, type EvaluatorClosureReceipt, type TaggedValue, type WireValue } from "./offline-protocol.js";
+import type { StoredAnswer, StoredRow } from "./store/range-store.js";
 
-type TaggedRow = EvaluatorClosureReceipt["rows"][number];
-
-function rowKey(ref: RowRef): string {
-  return `${ref.table} ${ref.id}`;
-}
-
-const digests = new WeakMap<object, string>();
-
-/** The one schema hasher, computed here and never taken from the caller (memoized per schema object). */
-function digestOf(schema: any): string {
-  const held = typeof schema === "object" && schema !== null ? digests.get(schema) : undefined;
-  if (held !== undefined) return held;
-  const digest = schemaDigest(schema);
-  if (typeof schema === "object" && schema !== null) digests.set(schema, digest);
-  return digest;
-}
-
-/**
- * The evaluator's `ClosureReceipt` for a partition's coverage. Rows keep the
- * pool's order; a range's halo is the pooled row its `haloId` names; `n2Key`
- * never leaves the server, so it is `null` here as it is on the wire. The
- * schema hash is recomputed from the schema, never taken from the caller, so
- * every rebuild proves the hasher against the server's; an expected hash that
- * disagrees refuses the rebuild — coverage delivered under another schema, or
- * a hasher drifted from Rust, is `hydrating`, never evaluated (LLP 1012 §8).
- */
-export function closureFromCoverage(coverage: Coverage, schema: any, expectedSchemaHash?: string): EvaluatorClosureReceipt {
-  const schemaHash = digestOf(schema);
-  if (expectedSchemaHash !== undefined && expectedSchemaHash !== schemaHash) {
-    throw new DeliveryEnvelopeDecodeError("schema", `hash ${schemaHash} does not match the held program's ${expectedSchemaHash}`);
-  }
-  const rows = new Map<string, TaggedRow>();
-  for (const row of coverage.rows) {
-    rows.set(rowKey(row), { table: row.table, id: row.id, row: tagWireRow(schema, row.table, row.row as Record<string, WireValue>) });
-  }
-  return {
-    schema_hash: schemaHash,
-    rows: [...rows.values()],
-    ranges: coverage.ranges.map((range) => tagRange(schema, range, rows)),
-    absences: coverage.absences.map(([table, index, key]) => [
-      table,
-      index,
-      tagWireIndexValues(schema, table, index, key as WireValue[], 0),
-    ]),
-    verdicts: coverage.verdicts.map((verdict) => {
-      const record = verdict as Record<string, unknown>;
-      return {
-        rule_hash: String(record.ruleHash),
-        pinned_inputs_digest: String(record.pinnedInputsDigest),
-        principal: String(record.principal),
-        auth_epoch: Number(record.authEpoch),
-        result: record.result === true,
+/** Retag one changed receipt, including its own halo pool; never collect the partition history. */
+export function closureFromAnswer(answer: StoredAnswer, schema: any, schemaHash: string, program: any,
+  row: (key: string) => StoredRow | undefined): EvaluatorClosureReceipt {
+  const rows = answer.refs.flatMap(ref => {
+    const body = row(`${ref.table}\0${ref.id}`);
+    return body ? [{ ...ref, row: tagWireRow(schema, ref.table, body.row as Record<string, WireValue>) }] : [];
+  });
+  const pool = new Set(rows.map(r => `${r.table}\0${r.id}`));
+  return { schema_hash: schemaHash, rows,
+    ranges: (answer.receipt?.ranges ?? []).map(range => {
+      const boundary = (value: any) => value == null ? null : tagWireBoundary(schema, range as any, value);
+      return { site: range.site, table: range.table, index: range.index,
+        prefix: tagWireRangePrefix(schema, range as any, program), order: range.order, take: range.take,
+        after: boundary(range.after), before: boundary(range.before), gt: boundary(range.gt), gte: boundary(range.gte),
+        lt: boundary(range.lt), lte: boundary(range.lte), rule_hash: range.ruleHash, row_ids: range.rowIds,
+        stop: range.stop, absence: range.absence,
+        halo: range.haloId !== undefined && pool.has(`${range.table}\0${range.haloId}`) ? { table: range.table, id: range.haloId } : null,
+        n2_suffix: null, ...(range.heldSuffix ? { held_suffix: range.heldSuffix } : {}), ...(range.evictedIds?.length ? { evicted_ids: range.evictedIds } : {}),
       };
     }),
-  };
-}
-
-function tagRange(schema: any, range: ReceiptRange, rows: Map<string, TaggedRow>): EvaluatorClosureReceipt["ranges"][number] {
-  const boundary = (value: unknown): TaggedValue | null =>
-    value === null || value === undefined ? null : tagWireBoundary(schema, range as never, value as WireValue);
-  const halo = range.haloId === undefined ? undefined : rows.get(rowKey({ table: range.table, id: range.haloId }));
-  return {
-    site: range.site,
-    table: range.table,
-    index: range.index,
-    prefix: tagWireIndexValues(schema, range.table, range.index, range.prefix as WireValue[], 0),
-    order: range.order,
-    take: range.take,
-    after: boundary(range.after),
-    before: boundary(range.before),
-    gt: boundary(range.gt),
-    gte: boundary(range.gte),
-    lt: boundary(range.lt),
-    lte: boundary(range.lte),
-    rule_hash: range.ruleHash,
-    row_ids: [...range.rowIds],
-    stop: range.stop,
-    absence: range.absence,
-    halo: halo === undefined ? null : structuredClone(halo),
-    n2_key: null,
-    ...(range.evictedIds === undefined || range.evictedIds.length === 0 ? {} : { evicted_ids: [...range.evictedIds] }),
+    absences: (answer.receipt?.absences ?? []).map(([table, index, key]) => [table, index, tagWireIndexValues(schema, table, index, key as WireValue[], 0)]),
+    verdicts: (answer.receipt?.verdicts ?? []).map((v: any) => ({ rule_hash: v.ruleHash, pinned_inputs_digest: v.pinnedInputsDigest,
+      principal: v.principal, auth_epoch: v.authEpoch, result: v.result })),
   };
 }
 
@@ -141,9 +72,8 @@ interface TraceLike {
  * no page could have named it (`computed-key`), or a read the store simply
  * never held (`never-held`).
  */
-export function partialReasons(sites: string[], trace: TraceLike, coverage: Coverage): PartialSite[] {
-  const evicted = new Set((coverage.evicted ?? []).map(rowKey));
-  const holed = new Set(coverage.ranges.filter((range) => (range.evictedIds?.length ?? 0) > 0).map((range) => range.table));
+export function partialReasons(sites: string[], trace: TraceLike, coverage: { evicted: Set<string>; holed: Set<string> }): PartialSite[] {
+  const { evicted, holed } = coverage;
   return sites.map((site) => {
     const absence = trace.absences.find((item) => item.site === site);
     const range = trace.ranges.find((item) => item.site === site);
@@ -151,7 +81,7 @@ export function partialReasons(sites: string[], trace: TraceLike, coverage: Cove
     if (absence && absence.index === "byId") {
       const id = absence.key[0];
       const text = id !== null && typeof id === "object" && "Id" in id ? String((id as { Id: unknown }).Id) : undefined;
-      if (text !== undefined && evicted.has(rowKey({ table: absence.table, id: text }))) return { site, reason: "evicted" };
+      if (text !== undefined && evicted.has(`${absence.table}\0${text}`)) return { site, reason: "evicted" };
     }
     if (range && holed.has(range.table)) return { site, reason: "evicted" };
     if (provenance === "Shape") return { site, reason: "computed-key" };

@@ -10,10 +10,12 @@ export function sqliteState(clock = 1): PersistedRangeState {
   const answerKey = `thread\u0000${JSON.stringify(args)}`;
   const facts = { generation: "g", schemaHash: "s", authEpoch: 2 };
   const intent = `grant:${clock}`;
+  const factKey = JSON.stringify(['row', 'messages', { Id: id }]), digest = 'a'.repeat(64);
   return {
     version: 1, sealed: false, clock, onceColumns: { secretPhotos: ["photo"] },
     rows: { [`messages\u0000${id}`]: row, "messages\u0000plain": { table: "messages", id: "plain", row: { id: "plain" } } },
     answers: { [answerKey]: { op: "thread", args, state: "complete", data: { $row: { table: "messages", id } },
+      readTime: -clock, clockPlanHash: 'c'.repeat(64), clockOnly: true, factProofs: [[factKey, digest]], needsFactProofs: true,
       next: null, seq: clock, validator: "v", receipt: { ranges: [], absences: [["messages", "byId", ["absent"]]], verdicts: [true] },
       deliveredAt: 100, refs: [{ table: "messages", id }], order: 1, fingerprint: "fp", retained: true, caughtUp: true, watermark: null } },
     watermarks: { [answerKey]: { op: "thread", args, watermark: null, validator: "v", ...facts, updatedAt: 100, order: 1 } },
@@ -29,6 +31,7 @@ export function sqliteState(clock = 1): PersistedRangeState {
       thread: { kind: "query", planHash: "p", ir: { result: null }, certificate: { maxNewIds: 0 } },
     } } },
     facts, superseded: { ...facts, generation: "new" }, negative: { "messages\u0000absent": clock }, rowSeq: { [`messages\u0000${id}`]: clock },
+    factGuards: { [factKey]: { seq: clock, digest } }, factSlots: 3, factLimitReset: 'prior-reset',
     assets: { [fixtureAsset]: { assetId: fixtureAsset, width: null, type: "image/jpeg", size: 3, lastRead: clock } },
     viewed: { "messages\u0000viewed": { at: 100, assets: ["viewed-asset"] } },
   };

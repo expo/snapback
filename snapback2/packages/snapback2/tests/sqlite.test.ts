@@ -7,7 +7,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { createClient, SnapbackRefusal } from "../dist/client.mjs";
-import { closureFromCoverage } from "../dist/index.mjs";
 import { indexedDbRangeStore } from "../dist/react.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
 import { nodeSqliteDriver, sqliteRangeStore, SqliteBackend, inProcessLocks, projectState, unprojectState,
@@ -106,7 +105,7 @@ test("IndexedDB rows without meta survive open with version 1 and default maps o
   } finally { await indexed.close(); await sqlite.close(); await raw.close(); await file.close(); await rm(root, { recursive: true, force: true }); }
 });
 
-test("warm and reopened coverage, answers, and twin hydration agree on undefined and null on all three carriers", async () => {
+test("warm and reopened coverage, answers, and incremental snapshots agree on undefined and null on all three carriers", async () => {
   const root = await temporary();
   const factories = [fileRangeStore(root),
     indexedDbRangeStore({ indexedDB: new FakeIndexedDb() as any, locks: new FakeLocks() }),
@@ -114,7 +113,7 @@ test("warm and reopened coverage, answers, and twin hydration agree on undefined
   const schema = { tables: { messages: { columns: {
     id: "Id", body: { Text: { max: 100 } }, omitted: { Optional: { Text: { max: 100 } } },
     explicit: { Optional: { Text: { max: 100 } } },
-  }, indexes: { byId: { columns: ["id"] } } } } };
+  }, indexes: { byId: { components: [{ Column: "id" }] } } } } };
   const delivery = { op: "thread", args: { nested: { omitted: undefined, explicit: null } },
     seq: 1, state: "complete", validator: "v", next: null, reason: undefined, deliveredAt: 100,
     data: { $row: { table: "messages", id: "m1" } },
@@ -133,13 +132,15 @@ test("warm and reopened coverage, answers, and twin hydration agree on undefined
         const answer = await store.answer(delivery.op, delivery.args);
         assert.ok(answer);
         assert.equal(Object.hasOwn(answer, "reason"), false);
-        const hydrated = closureFromCoverage(warm, schema);
-        assert.equal(hydrated.rows.length, 1);
+        const warmSnapshot = (await store.changes()).snapshot!;
+        const hydrated = Object.values(warmSnapshot.rows);
+        assert.equal(hydrated.length, 1);
         await store.close();
         await reopened.open("warm");
         const cold = await reopened.coverage();
         assert.deepEqual(cold, warm, factory.carrier);
-        assert.deepEqual(closureFromCoverage(cold, schema), hydrated, factory.carrier);
+        const coldSnapshot = (await reopened.changes()).snapshot!;
+        assert.deepEqual(Object.values(coldSnapshot.rows), hydrated, factory.carrier);
         assert.deepEqual(await reopened.answer(delivery.op, delivery.args), answer);
         assert.deepEqual(await reopened.answer(delivery.op, JSON.parse(JSON.stringify(delivery.args))), answer);
         // The same JSON delivery is idempotent even if its first input carried undefined.

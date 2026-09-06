@@ -1,555 +1,217 @@
-import { exactByIdAbsence, exactVerdict } from "./authority";
-import { canonicalSchemaJson } from "./certificate-identity";
-import { EvalError } from "./errors";
-import { sha256 } from "./hash";
-import { Runner } from "./runner";
-import {
-  asString,
-  canonicalValue,
-  canonicalValues,
-  clone,
-  compareArrays,
-  compareCodepoints,
-  field,
-  fieldOrNull,
-  isVariant,
-  kindOf,
-  materializeOptionalFields,
-  scopedRuleHash,
-  totalCompare,
-  validateInputs,
-  validateWriteRow,
-  valuesEqual,
-} from "./value-runtime";
-import type {
-  ClosureReceipt,
-  Context,
-  Execution,
-  LocalExecution,
-  ReceiptRange,
-  Trace,
-  TraceRange,
-  Value,
-} from "./types";
+import { ReadableDirectory } from './held-directory';
+import { canonicalSchemaJson } from './certificate-identity';
+import { CoverageIndex, prepareRange } from './coverage';
+import { EvalError } from './errors';
+import { sha256 } from './hash';
+import { HeldIndex, components, ordinaryColumns, preparePrefix, scalarAtoms } from './index-store';
+import type { SearchExecution } from './search-runtime';
+import { Runner } from './runner';
+import { asString, clone, field, fieldOrNull, canonicalJson, wireJson, materializeOptionalFields, validateInputs, validateWriteRow } from './value-runtime';
+import type { LogicalIndexAtom } from './search-key';
+import type { ClosureReceipt, Context, Execution, LocalExecution, Trace, Value } from './types';
 
 export interface ClientStoreOptions {
-  /** Tables whose held rows the twin may read regardless of their read rule (`retain delivered-history`). */
   readable?: Iterable<string>;
+  program?: any;
+}
+const empty = (): ClosureReceipt => ({ rows: [], ranges: [], absences: [], verdicts: [] });
+export function immutable<T>(value: T): T {
+  if (value && typeof value === 'object' && !Object.isFrozen(value)) {
+    for (const v of Object.values(value)) immutable(v);
+    Object.freeze(value);
+  }
+  return value;
 }
 
-/** A drained uniform prefix: every row with these column equalities is held (LLP 1012 §6). */
-interface DrainedPrefix {
-  table: string;
-  ruleHash: string;
-  columns: string[];
-  prefix: Value[];
-}
-
+// @ref LLP 1012#indexed-held-search — one row pool/index generation and a bounded mutation journal, shared by all named programs.
 export class ClientStore {
   private tables = new Map<string, Map<string, Value>>();
-  private coverage: ClosureReceipt;
-  private rangeDeletions = new Map<string, number>();
+  private indexes = new Map<string, HeldIndex>();
+  private facts: CoverageIndex;
   private readonly readableTables: Set<string>;
-  private drained?: DrainedPrefix[];
-
-  constructor(
-    private readonly schema: any,
-    receipt: ClosureReceipt,
-    private readonly options: ClientStoreOptions = {},
-  ) {
+  private journal?: Map<string, { table: string; id: string; row: Value | null }>;
+  private readonly schemaHash: string;
+  private directories = new Map<any, ReadableDirectory>();
+  private directDirectories = new Map<string, ReadableDirectory>();
+  private receipts = new Map<string, ClosureReceipt>();
+  constructor(readonly schema: any, receipt: ClosureReceipt = empty(), private readonly options: ClientStoreOptions = {}) {
+    this.schemaHash = sha256(canonicalSchemaJson(schema));
     this.readableTables = new Set(options.readable ?? []);
-    this.coverage = this.receiptForSchema(receipt);
-    this.seedReceipt(receipt);
+    for (const [table, definition] of Object.entries<any>(schema.tables)) {
+      this.tables.set(table, new Map());
+      for (const name of Object.keys(definition.indexes)) this.indexes.set(JSON.stringify([table, name]), new HeldIndex(schema, table, name, components(schema, table, name)));
+    }
+    this.facts = new CoverageIndex(schema, (r, logical, id) => this.index(r.table, r.index).position(id, logical));
+    for (const record of receipt.rows) this.put(record.table, record.row);
+    this.setReceipt('seed', receipt, options.program);
   }
-
-  readable(table: string): boolean {
-    return this.readableTables.has(table);
+  readable(table: string): boolean { return this.readableTables.has(table); }
+  setReceipt(owner: string, receipt?: ClosureReceipt, program?: any): void {
+    if (receipt) {
+      const pool = new Set(receipt.rows.map(r => JSON.stringify([r.table, r.id])));
+      for (const r of receipt.ranges) {
+        for (const id of r.row_ids) if (!pool.has(JSON.stringify([r.table, id])) && !r.evicted_ids?.includes(id))
+          throw new EvalError('E_INPUT', 'range member must reference its receipt row pool');
+      }
+      for (const r of receipt.ranges) if (r.halo && (r.halo.table !== r.table || !pool.has(JSON.stringify([r.halo.table, r.halo.id]))))
+        throw new EvalError('E_INPUT', 'halo must reference the same receipt row pool');
+      if (receipt.schema_hash !== this.schemaHash) receipt = { ...receipt, absences: [] };
+    }
+    const old = this.receipts.get(owner);
+    this.facts.set(owner, receipt, program);
+    if (receipt) this.receipts.set(owner, receipt); else this.receipts.delete(owner);
+    for (const r of [old, receipt]) if (r) {
+      for (const [table, index, key] of r.absences) this.touchAuthority(table, index, key);
+      for (const v of r.verdicts) for (const d of this.directories.values()) d.touchDigest(v.pinned_inputs_digest);
+    }
   }
-
-  applyMutation(program: any, context: Context): LocalExecution {
+  rehydrate(receipt: ClosureReceipt): number {
+    const ids = new Set(receipt.rows.map(r => JSON.stringify([r.table, r.id])));
+    let removed = 0;
+    for (const [table, rows] of this.tables) for (const id of rows.keys()) if (!ids.has(JSON.stringify([table, id]))) { this.remove(table, id); removed++; }
+    for (const r of receipt.rows) this.put(r.table, r.row);
+    this.facts = new CoverageIndex(this.schema, (r, logical, id) => this.index(r.table, r.index).position(id, logical));
+    this.setReceipt('seed', receipt, this.options.program);
+    return removed;
+  }
+  applyMutation(program: any, context: Context, preview = false, certificate: any = null): LocalExecution {
     validateInputs(this.schema, program, context.args);
-    // @ref LLP 1001#3-read-and-write-states-no-silent-states — local prediction adopts the write set only as one atomic mutation.
-    const staged = this.fork();
-    const before = staged.coveredIndexKeys();
-    const runner = new Runner(staged, this.schema, context, null);
-    let execution: Execution;
-    try {
-      execution = runner.execute(program);
-    } catch (error) {
-      if (runner.coverageMisses().includes("missing-authority")) {
-        return { state: "partial", partialSites: ["missing-authority"], execution: { result: "Null", trace: runner.trace, next: null, writes: [] } };
-      }
-      if (error instanceof EvalError) {
-        error.trace = runner.trace;
-        error.partialSites = this.uncoveredSites(runner.trace, runner.coverageMisses());
-      }
-      throw error;
-    }
-    const partialSites = runner.coverageMisses();
-    // Coverage is judged on the state the run read, before its writes land.
-    const uncoveredSites = this.uncoveredSites(execution.trace);
-    if (partialSites.length > 0) {
-      return { state: "partial", partialSites, execution, uncoveredSites, authorityMisses: runner.authorityMisses() };
-    }
-    const after = staged.coveredIndexKeys();
-    for (let offset = 0; offset < before.length; offset += 1) {
-      for (const [id, key] of before[offset]) {
-        const next = after[offset].get(id);
-        if (next === undefined || !valuesEqual(key, next)) {
-          const site = staged.coverage.ranges[offset].site;
-          staged.rangeDeletions.set(site, (staged.rangeDeletions.get(site) ?? 0) + 1);
-        }
-      }
-    }
-    this.tables = staged.tables;
-    this.coverage = staged.coverage;
-    this.rangeDeletions = staged.rangeDeletions;
-    this.drained = undefined;
-    return { state: "predicted", partialSites: [], execution, uncoveredSites };
-  }
-
-  reexecute(program: any, context: Context, certificate: any = null): LocalExecution {
-    validateInputs(this.schema, program, context.args);
+    if (this.journal) throw new EvalError('E_INPUT', 'nested prediction transaction');
+    this.journal = new Map();
     const runner = new Runner(this, this.schema, context, certificate);
     let execution: Execution;
-    try {
-      execution = runner.execute(program);
-    } catch (error) {
-      // A refusal after an uncovered read is not the server's answer: the
-      // caller reads `partialSites` off the error before believing the code.
-      if (error instanceof EvalError) {
-        error.trace = runner.trace;
-        error.partialSites = this.uncoveredSites(runner.trace, runner.coverageMisses());
-      }
+    try { execution = runner.execute(program); }
+    catch (error) {
+      this.rollback();
+      if (runner.coverageMisses().includes('missing-authority')) return { state: 'partial', partialSites: ['missing-authority'], execution: { result: 'Null', trace: runner.trace, next: null, writes: [] } };
+      if (error instanceof EvalError) { error.trace = runner.trace; error.partialSites = this.uncoveredSites(runner.trace, runner.coverageMisses(), program, runner.search); }
       throw error;
     }
-    const partialSites = this.uncoveredSites(execution.trace, runner.coverageMisses());
-    if (partialSites.length > 0) execution.next = null;
-    return {
-      state: partialSites.length === 0 ? "fresh" : "partial",
-      partialSites,
-      execution,
-    };
+    const changed = [...this.journal.values()].map(r => ({ ...r, row: this.byId(r.table, r.id) }));
+    this.rollback();
+    const uncoveredSites = this.uncoveredSites(execution.trace, [], program, runner.search);
+    const partialSites = runner.coverageMisses();
+    if (partialSites.length) return { state: 'partial', partialSites, execution, uncoveredSites, authorityMisses: runner.authorityMisses() };
+    if (!preview) for (const r of changed) { if (r.row) this.put(r.table, r.row); else this.remove(r.table, r.id); }
+    return { state: 'predicted', partialSites: [], execution, uncoveredSites };
   }
-
-  /** The sites a run read outside coverage: uncovered ranges, unheld absences, and the runner's own misses. */
-  uncoveredSites(trace: Trace, misses: string[] = []): string[] {
+  private rollback(): void {
+    const journal = this.journal!; this.journal = undefined;
+    for (const r of journal.values()) { if (r.row) this.put(r.table, r.row); else this.remove(r.table, r.id); }
+  }
+  reexecute(program: any, context: Context, certificate: any = null, search?: SearchExecution): LocalExecution {
+    validateInputs(this.schema, program, context.args);
+    const runner = new Runner(this, this.schema, context, certificate, search);
+    let execution: Execution;
+    try { execution = runner.execute(program); }
+    catch (error) {
+      if (error instanceof EvalError) { error.trace = runner.trace; error.partialSites = this.uncoveredSites(runner.trace, runner.coverageMisses(), program, runner.search); }
+      throw error;
+    }
+    const partialSites = this.uncoveredSites(execution.trace, runner.coverageMisses(), program, runner.search);
+    if (partialSites.length) execution.next = null;
+    return { state: partialSites.length ? 'partial' : 'fresh', partialSites, execution };
+  }
+  uncoveredSites(trace: Trace, misses: string[] = [], program?: any, search?: SearchExecution): string[] {
     const partial = new Set(misses);
-    for (const range of trace.ranges) {
-      const covered = this.coverage.ranges.some(
-        (coverage) => whole(coverage) && rangeCovered(coverage, range),
-      ) || this.drainedPrefixCovers(range.table, range.index, range.prefix, range.rule_hash);
-      if (!covered || (this.rangeDeletions.get(range.site) ?? 0) > 1)
-        partial.add(range.site);
-    }
-    for (const absence of trace.absences) {
-      const held =
-        this.coverage.absences.some(
-          ([table, index, key]) =>
-            table === absence.table &&
-            index === absence.index &&
-            valuesEqual(key, absence.key),
-        ) || this.lookup(absence.table, absence.index, absence.key) !== null;
-      if (!held) partial.add(absence.site);
-    }
-    return Array.from(partial).sort(compareCodepoints);
+    for (const r of trace.ranges) if (!this.facts.covers(r, prepareRange(this.schema, r, program, search))) partial.add(r.site);
+    for (const a of trace.absences) if (!this.hasAbsence(a.table, a.index, a.key) && this.lookup(a.table, a.index, a.key) === null) partial.add(a.site);
+    return [...partial].sort();
   }
-
-  rehydrate(receipt: ClosureReceipt): number {
-    const before = this.allIds();
-    this.tables = new Map();
-    this.coverage = this.receiptForSchema(receipt);
-    this.rangeDeletions = new Map();
-    this.drained = undefined;
-    this.seedReceipt(receipt);
-    const after = this.allIds();
-    let evicted = 0;
-    for (const id of before) if (!after.has(id)) evicted += 1;
-    return evicted;
+  rows(table: string): Value[] { return [...(this.tables.get(table)?.values() ?? [])]; }
+  lookup(table: string, index: string, key: Value[]): Value | null {
+    const definition = this.schema.tables?.[table]?.indexes?.[index];
+    if (!definition || key.length !== ordinaryColumns(definition).length) throw new EvalError('E_TYPE', 'point requires a complete ordinary index key');
+    const prefix = preparePrefix(this.schema, table, index, scalarAtoms(key), []);
+    return this.seek(table, index, prefix, null, null, null, 'Asc').next().value ?? null;
   }
-
-  rows(table: string): Value[] {
-    return Array.from(this.tables.get(table)?.values() ?? []);
+  index(table: string, index: string): HeldIndex {
+    const held = this.indexes.get(JSON.stringify([table, index]));
+    if (!held) throw new EvalError('E_SCHEMA', `missing index ${table}.${index}`);
+    return held;
   }
-
-  lookup(table: string, indexName: string, key: Value[]): Value | null {
-    const index = this.index(table, indexName);
-    if (key.length !== index.columns.length) {
-      throw new EvalError(
-        "E_TYPE",
-        `point read ${table}.${indexName} supplied ${key.length} of ${index.columns.length} key columns`,
-      );
-    }
-    key.forEach((value, offset) => {
-      assertIndexableScalar(value, `point read ${table}.${indexName} key component ${offset + 1}`);
-    });
-    for (const row of this.rows(table)) {
-      const values = index.columns.map((column: string) => fieldOrNull(row, column));
-      if (valuesEqual(values, key)) return row;
-    }
-    return null;
+  seek(table: string, index: string, prefix: LogicalIndexAtom[], after: Value | null, before: Value | null, range: any, order: 'Asc' | 'Desc'): Generator<Value> {
+    return this.index(table, index).scan({ prefix, after, before, range, order });
   }
-
-  scan(
-    table: string,
-    indexName: string,
-    prefix: Value[],
-    after: Value | null,
-    before: Value | null,
-    range: any | null,
-    order: "Asc" | "Desc",
-    limit: number,
-  ): Value[] {
-    const index = this.index(table, indexName);
-    if (prefix.length > index.columns.length) {
-      throw new EvalError("E_TYPE", `scan ${table}.${indexName} prefix has too many columns`);
-    }
-    prefix.forEach((value, offset) => {
-      assertIndexableScalar(value, `scan ${table}.${indexName} prefix component ${offset + 1}`);
-    });
-    for (const [name, value] of Object.entries<Value | null | undefined>(range ?? {})) {
-      if (value !== null && value !== undefined) {
-        assertIndexableScalar(value, `scan ${table}.${indexName} range.${name}`);
-      }
-    }
-    const rangeColumn = prefix.length;
-    const remaining = index.columns.length - rangeColumn;
-    // @ref LLP 1001#3-read-and-write-states-no-silent-states — a cursor must
-    // move a scan; a fully named index has no post-prefix position to compare.
-    if (remaining === 0 && (after !== null || before !== null)) {
-      throw new EvalError(
-        "E_TYPE",
-        `scan ${table}.${indexName} prefix names every index column, so a cursor has no position to compare; remove after/before or shorten the prefix`,
-      );
-    }
-    const cursorTuple = (cursor: Value): Value[] => {
-      let values: Value[];
-      if (isVariant(cursor, "Array")) {
-        if (cursor.Array.length !== remaining) {
-          throw new EvalError("E_TYPE", `cursor supplied ${cursor.Array.length} of ${remaining} remaining index columns`);
-        }
-        values = cursor.Array;
-      } else if (remaining === 1) {
-        values = [cursor];
-      } else {
-        throw new EvalError("E_TYPE", `cursor for ${remaining} remaining index columns must be an array`);
-      }
-      values.forEach((value, offset) => {
-        const column = index.columns[rangeColumn + offset]!;
-        validateCursorComponent(this.schema, table, indexName, column, value);
-      });
-      return values;
-    };
-    const afterTuple = after === null ? null : cursorTuple(after);
-    const beforeTuple = before === null ? null : cursorTuple(before);
-    const selected = this.rows(table).filter((row) => {
-      const values = index.columns.map((column: string) => fieldOrNull(row, column));
-      if (!valuesEqual(values.slice(0, prefix.length), prefix)) return false;
-      if (rangeColumn >= values.length) return true;
-      const value = values[rangeColumn];
-      const position = values.slice(rangeColumn);
-      if (afterTuple !== null && compareArrays(position, afterTuple) * (order === "Asc" ? 1 : -1) <= 0) return false;
-      if (beforeTuple !== null && compareArrays(position, beforeTuple) * (order === "Asc" ? 1 : -1) >= 0) return false;
-      if (range?.gt !== null && range?.gt !== undefined && totalCompare(value, range.gt) <= 0)
-        return false;
-      if (range?.gte !== null && range?.gte !== undefined && totalCompare(value, range.gte) < 0)
-        return false;
-      if (range?.lt !== null && range?.lt !== undefined && totalCompare(value, range.lt) >= 0)
-        return false;
-      if (range?.lte !== null && range?.lte !== undefined && totalCompare(value, range.lte) > 0)
-        return false;
-      return true;
-    });
-    const direction = order === "Asc" ? 1 : -1;
-    selected.sort((left, right) => {
-      for (const column of index.columns) {
-        const compared = totalCompare(fieldOrNull(left, column), fieldOrNull(right, column));
-        if (compared !== 0) return compared * direction;
-      }
-      return (
-        compareCodepoints(asString(field(left, "id")), asString(field(right, "id"))) *
-        direction
-      );
-    });
-    return selected.slice(0, limit);
+  scan(table: string, index: string, prefix: LogicalIndexAtom[], after: Value | null, before: Value | null, range: any, order: 'Asc' | 'Desc', limit: number): Value[] {
+    const result: Value[] = [];
+    if (limit > 0) for (const row of this.seek(table, index, prefix, after, before, range, order)) { result.push(row); if (result.length >= limit) break; }
+    return result;
   }
-
   put(table: string, row: Value): void {
-    const normalized = materializeOptionalFields(this.schema, table, row);
-    validateWriteRow(this.schema, table, normalized);
-    for (const [indexName, index] of Object.entries<any>(
-      this.schema.tables?.[table]?.indexes ?? {},
-    )) {
-      for (const column of index.columns) {
-        assertIndexableScalar(
-          fieldOrNull(normalized, column),
-          `indexed column ${table}.${indexName}.${column}`,
-        );
-      }
-    }
-    const id = asString(field(normalized, "id"));
-    let rows = this.tables.get(table);
-    if (rows === undefined) {
-      rows = new Map();
-      this.tables.set(table, rows);
-    }
-    rows.set(id, normalized);
+    const value = Object.isFrozen(row) ? row : immutable(materializeOptionalFields(this.schema, table, clone(row)));
+    validateWriteRow(this.schema, table, value);
+    const id = asString(field(value, 'id')), rows = this.tables.get(table);
+    if (!rows) throw new EvalError('E_SCHEMA', `missing table ${table}`);
+    const old = this.byId(table, id);
+    this.record(table, id);
+    for (const name of Object.keys(this.schema.tables[table].indexes)) this.index(table, name).put(value);
+    rows.set(id, value);
+    if (!this.journal) this.facts.changed(table, id);
+    this.touchRows(table, old, value);
   }
-
   remove(table: string, id: string): Value | null {
-    const rows = this.tables.get(table);
-    const old = rows?.get(id) ?? null;
-    rows?.delete(id);
+    const old = this.byId(table, id); if (!old) return null;
+    this.record(table, id);
+    for (const name of Object.keys(this.schema.tables[table].indexes)) this.index(table, name).remove(id);
+    this.tables.get(table)!.delete(id);
+    if (!this.journal) this.facts.changed(table, id);
+    this.touchRows(table, old, null);
     return old;
   }
-
-  byId(table: string, id: string): Value | null {
-    return this.tables.get(table)?.get(id) ?? null;
-  }
-
-  verdict(ruleHash: string, pinnedDigest: string, context: Context): boolean | null {
-    return exactVerdict(this.coverage.verdicts, ruleHash, pinnedDigest, context.viewer, context.auth_epoch);
-  }
-
-  authorityAbsence(table: string, id: string): boolean { return exactByIdAbsence(this.coverage.absences, table, id, valuesEqual); }
-
-  hasAbsence(table: string, index: string, key: Value[]): boolean {
-    return this.coverage.absences.some(
-      ([heldTable, heldIndex, heldKey]) =>
-        heldTable === table && heldIndex === index && valuesEqual(heldKey, key),
-    );
-  }
-
-  hasCompleteRange(table: string, index: string, prefix: Value[]): boolean {
-    const readRule = this.schema.tables?.[table]?.rules?.read;
-    if (readRule !== undefined
-      && this.drainedPrefixCovers(table, index, prefix, scopedRuleHash(this.schema, readRule))) return true;
-    return this.coverage.ranges.some(
-      (range) =>
-        whole(range) &&
-        range.table === table &&
-        range.index === index &&
-        valuesEqual(range.prefix, prefix) &&
-        range.order === "Asc" &&
-        range.after === null &&
-        range.before === null &&
-        range.gt === null &&
-        range.gte === null &&
-        range.lt === null &&
-        range.lte === null &&
-        range.stop === "Exhausted",
-    );
-  }
-
-  // @ref LLP 1012#6-reads-offline — a certified-uniform prefix drained to
-  // `next: null` is the viewer's whole partition for that prefix, so it covers
-  // every named query over that prefix on any index of the same table: the
-  // thread reads the log on another index than the drain and still replays.
-  private drainedPrefixCovers(table: string, indexName: string, prefix: Value[], ruleHash: string): boolean {
-    const columns: string[] | undefined = this.schema.tables?.[table]?.indexes?.[indexName]?.columns;
-    if (!columns) return false;
-    return this.drainedPrefixes().some((drained) =>
-      drained.table === table
-      && drained.ruleHash === ruleHash
-      && drained.columns.every((column, at) => {
-        const position = columns.indexOf(column);
-        return position >= 0 && position < prefix.length && valuesEqual([prefix[position]!], [drained.prefix[at]!]);
-      }));
-  }
-
-  /**
-   * The drained prefixes: for each (table, index, order, rule, prefix) group a
-   * chain of held pages from `after: null` to `Exhausted`, each page's `after`
-   * the previous page's last recorded row — by that row's index suffix when it
-   * is held, by its id alone when it is not (a viewed view-once row is absent
-   * to the twin but the server's cursor still names it), which needs the index
-   * to end in `id`. A page with a hole (`evicted_ids`) is no link: the store
-   * already calls its answer `partial/evicted`. And once the chain is complete,
-   * every other page of the group must add no row the chain does not hold — a
-   * page past a re-marked `Exhausted` that still holds rows would let a scan
-   * over-claim. Every `after: null` page is tried as a chain start.
-   */
-  private drainedPrefixes(): DrainedPrefix[] {
-    if (this.drained) return this.drained;
-    const groups = new Map<string, ReceiptRange[]>();
-    for (const range of this.coverage.ranges) {
-      if (range.before !== null || range.gt !== null || range.gte !== null || range.lt !== null || range.lte !== null) continue;
-      const key = [range.table, range.index, range.order, range.rule_hash, canonicalValues(range.prefix)].join("\0");
-      let pages = groups.get(key);
-      if (!pages) groups.set(key, pages = []);
-      pages.push(range);
-    }
-    const drained: DrainedPrefix[] = [];
-    for (const pages of groups.values()) {
-      const starts = pages.filter((page) => page.after === null);
-      if (starts.length === 0) continue;
-      const index = this.schema.tables?.[starts[0]!.table]?.indexes?.[starts[0]!.index];
-      if (!index) continue;
-      const suffixColumns: string[] = index.columns.slice(starts[0]!.prefix.length);
-      const endsInId = suffixColumns[suffixColumns.length - 1] === "id";
-      const later = pages.filter((page) => page.after !== null);
-      const afterComponents = (page: ReceiptRange): Value[] =>
-        isVariant(page.after!, "Array") ? page.after!.Array : [page.after!];
-      const linked = (page: ReceiptRange): ReceiptRange | undefined => {
-        const lastId = page.row_ids[page.row_ids.length - 1];
-        if (lastId === undefined) return undefined;
-        const row = this.byId(page.table, lastId);
-        if (row !== null) {
-          const suffix = suffixColumns.map((column) => fieldOrNull(row, column));
-          return later.find((candidate) => valuesEqual(afterComponents(candidate), suffix));
-        }
-        if (!endsInId) return undefined;
-        return later.find((candidate) => {
-          const components = afterComponents(candidate);
-          return components.length === suffixColumns.length && valuesEqual([components[components.length - 1]!], [{ Id: lastId }]);
-        });
-      };
-      const complete = starts.some((first) => {
-        const seen = new Set<ReceiptRange>();
-        let page: ReceiptRange | undefined = first;
-        while (page !== undefined && !seen.has(page)) {
-          if (!whole(page)) return false;
-          seen.add(page);
-          if (page.stop === "Exhausted") break;
-          page = linked(page);
-        }
-        if (page === undefined || page.stop !== "Exhausted") return false;
-        const held = new Set<string>();
-        for (const link of seen) for (const id of link.row_ids) held.add(id);
-        return pages.every((other) => seen.has(other) || other.row_ids.every((id) => held.has(id)));
-      });
-      if (!complete) continue;
-      drained.push({
-        table: starts[0]!.table,
-        ruleHash: starts[0]!.rule_hash,
-        columns: index.columns.slice(0, starts[0]!.prefix.length),
-        prefix: starts[0]!.prefix,
-      });
-    }
-    this.drained = drained;
-    return drained;
-  }
-
-  private seedReceipt(receipt: ClosureReceipt): void {
-    for (const row of receipt.rows) this.put(row.table, row.row);
-  }
-
-  private receiptForSchema(receipt: ClosureReceipt): ClosureReceipt {
-    const coverage = clone(receipt);
-    if (coverage.schema_hash !== sha256(canonicalSchemaJson(this.schema))) {
-      // @ref LLP 1001#2-what-a-commit-records — authority-only absence
-      // facts cannot cross a predecessor/successor schema boundary.
-      coverage.absences = [];
-    }
-    return coverage;
-  }
-
-  private fork(): ClientStore {
-    const fork = new ClientStore(this.schema, { rows: [], ranges: [], absences: [], verdicts: [] }, this.options);
-    fork.tables = new Map(
-      Array.from(this.tables, ([table, rows]) => [
-        table,
-        new Map(Array.from(rows, ([id, row]) => [id, clone(row)])),
-      ]),
-    );
-    fork.coverage = clone(this.coverage);
-    fork.rangeDeletions = new Map(this.rangeDeletions);
-    return fork;
-  }
-
-  private coveredIndexKeys(): Array<Map<string, Value[]>> {
-    return this.coverage.ranges.map((range) => {
-      const retained = new Set(range.row_ids);
-      if (range.halo !== null) retained.add(range.halo.id);
-      const index = this.index(range.table, range.index);
-      const keys = new Map<string, Value[]>();
-      for (const row of this.rows(range.table)) {
-        const id = asString(field(row, "id"));
-        if (retained.has(id)) {
-          keys.set(id, index.columns.map((column: string) => clone(fieldOrNull(row, column))));
-        }
+  registerHeld(programs: Record<string, { ir: unknown }>, context: Context): void {
+    const visit = (value: any): void => {
+      if (!value || typeof value !== 'object') return;
+      if (value.held_search) {
+        const d = value.held_search, lane = value.lanes?.[0];
+        if (value.lanes.length !== 1 || !lane.source || lane.setup?.length || lane.scan.before !== null || lane.scan.range !== null
+          || d.table !== lane.scan.table || d.index !== lane.scan.index || d.order !== lane.scan.order
+          || canonicalJson(d.discovery.scan) !== canonicalJson(lane.source) || d.discovery.binding !== lane.binding
+          || canonicalJson(d.term) !== canonicalJson(lane.scan.prefix.at(-1)?.WordPrefix)) throw new EvalError('E_TRACE_SUBSET', 'held search metadata does not match its merge');
+        const index = this.index(d.table, d.index);
+        if (index.derived !== d.scope.length || d.suffix.at(-1) !== 'id') throw new EvalError('E_TRACE_SUBSET', 'invalid held search partition');
+        this.directories.set(d, new ReadableDirectory(index, d, context.viewer, row => new Runner(this, this.schema, context, null).readAuthority(d.table, row)));
       }
-      return keys;
-    });
+      for (const child of Object.values(value)) visit(child);
+    };
+    for (const operation of Object.values(programs)) visit(operation.ir);
   }
-
-  private allIds(): Set<string> {
-    const ids = new Set<string>();
-    for (const [table, rows] of this.tables) {
-      for (const id of rows.keys()) ids.add(`${table}:${id}`);
+  missingSearchAuthority(table: string, name: string, logical: LogicalIndexAtom[], context: Context): boolean {
+    const index = this.index(table, name), derived = logical[index.derived];
+    if (!derived || !('WordPrefix' in derived) || derived.WordPrefix.empty || this.readable(table)) return false;
+    const key = JSON.stringify([table, name, context.viewer, context.auth_epoch]);
+    let directory = this.directDirectories.get(key);
+    if (!directory) {
+      const columns = index.parts.slice(0, index.derived).map(c => (c as { Column: string }).Column);
+      const rule = this.schema.tables[table].rules.read;
+      const uniform = ['Allow', 'Deny'].includes(rule) || Object.hasOwn(rule, 'Public') || rule.Exists?.key.every((term: any) =>
+        term === 'Viewer' || term.Literal !== undefined || (typeof term.Field === 'string' && columns.includes(term.Field)));
+      const descriptor = { scope: columns.map(column => ({ column, value: { Literal: 'Null' } })), discovery: { binding: '' } };
+      directory = new ReadableDirectory(index, descriptor, context.viewer, row => uniform ? new Runner(this, this.schema, context, null).readAuthority(table, row) : null);
+      this.directDirectories.set(key, directory); this.directories.set(descriptor, directory);
     }
-    return ids;
+    return directory.select(logical.slice(0, index.derived).map(a => (a as { Scalar: Value }).Scalar), 0).missing;
   }
-
-  private index(table: string, indexName: string): any {
-    const index = this.schema.tables?.[table]?.indexes?.[indexName];
-    if (index === undefined) throw new EvalError("E_SCHEMA", `missing index ${table}.${indexName}`);
-    return index;
+  heldDirectory(descriptor: any): ReadableDirectory | undefined { return this.directories.get(descriptor); }
+  private touchAuthority(table: string, index: string, key: Value[]): void {
+    const dependency = canonicalJson([table, index, key.map(wireJson)]);
+    for (const d of this.directories.values()) d.touch(dependency);
   }
-}
-
-
-/** A page that lost no member since it was recorded: only such a page covers what it says (LLP 1012 §5, §6). */
-function whole(range: ReceiptRange): boolean {
-  return range.evicted_ids === undefined || range.evicted_ids.length === 0;
-}
-
-function nullableValueEqual(left: Value | null, right: Value | null): boolean {
-  return left === null ? right === null : right !== null && valuesEqual([left], [right]);
-}
-
-function rangeCovered(coverage: ReceiptRange, range: TraceRange): boolean {
-  return coverage.site === range.site
-    && coverage.table === range.table
-    && coverage.index === range.index
-    && valuesEqual(coverage.prefix, range.prefix)
-    && coverage.order === range.order
-    && coverage.take === range.take
-    && nullableValueEqual(coverage.after, range.after)
-    && nullableValueEqual(coverage.before, range.before)
-    && nullableValueEqual(coverage.gt, range.gt)
-    && nullableValueEqual(coverage.gte, range.gte)
-    && nullableValueEqual(coverage.lt, range.lt)
-    && nullableValueEqual(coverage.lte, range.lte)
-    && coverage.rule_hash === range.rule_hash;
-}
-
-function validateCursorComponent(
-  schema: any,
-  table: string,
-  index: string,
-  column: string,
-  value: Value,
-): void {
-  assertIndexableScalar(value, `cursor component for ${table}.${index} column ${column}`);
-  const actual = kindOf(value);
-  // @ref LLP 1001#3-read-and-write-states-no-silent-states — Null is the
-  // universal pre-first cursor sentinel, independent of stored nullability.
-  if (actual === "Null") return;
-  const descriptor = schema.tables?.[table]?.columns?.[column];
-  const expected = cursorColumnKind(descriptor);
-  const matches = expected === "scalar" || expected === actual;
-  if (!matches) {
-    throw new EvalError(
-      "E_TYPE",
-      `cursor component for ${table}.${index} column ${column} must be ${expected}, got ${actual.toLowerCase()}`,
-    );
+  private touchRows(table: string, old: Value | null, next: Value | null): void {
+    for (const row of [old, next]) if (row) {
+      for (const [index, definition] of Object.entries<any>(this.schema.tables[table].indexes)) {
+        if (definition.components.every((c: any) => 'Column' in c)) this.touchAuthority(table, index, ordinaryColumns(definition).map(c => fieldOrNull(row, c)));
+        for (const d of this.directories.values()) if (d.index.table === table && d.index.name === index) d.refresh(definition.components.slice(0, d.index.derived).map((c: any) => fieldOrNull(row, c.Column)));
+      }
+    }
   }
-}
-
-function assertIndexableScalar(value: Value, what: string): void {
-  const actual = kindOf(value);
-  if (!["Null", "Bool", "Int", "String", "Id", "Bytes"].includes(actual)) {
-    throw new EvalError("E_TYPE", `${actual.toLowerCase()} is not an indexable scalar (${what})`);
+  private record(table: string, id: string): void {
+    const key = JSON.stringify([table, id]);
+    if (this.journal && !this.journal.has(key)) this.journal.set(key, { table, id, row: this.byId(table, id) });
   }
-}
-
-function cursorColumnKind(descriptor: any): "Id" | "String" | "Int" | "Bool" | "Bytes" | "scalar" {
-  if (descriptor?.Optional !== undefined) return cursorColumnKind(descriptor.Optional);
-  if (descriptor === "Id" || descriptor === "Principal" || descriptor?.Ref !== undefined) return "Id";
-  if (descriptor?.Text !== undefined || descriptor?.Enum !== undefined) return "String";
-  if (["Int", "Time"].includes(descriptor) || descriptor?.Decimal !== undefined || descriptor?.Money !== undefined) return "Int";
-  if (descriptor === "Bool") return "Bool";
-  if (descriptor?.Bytes !== undefined) return "Bytes";
-  return "scalar";
+  byId(table: string, id: string): Value | null { return this.tables.get(table)?.get(id) ?? null; }
+  verdict(rule: string, digest: string, context: Context): boolean | null { return this.facts.verdict(rule, digest, context.viewer, context.auth_epoch); }
+  authorityAbsence(table: string, id: string): boolean { return this.hasAbsence(table, 'byId', [{ Id: id }]); }
+  hasAbsence(table: string, index: string, key: Value[]): boolean { return this.facts.hasAbsence(table, index, key); }
+  hasCompleteRange(table: string, index: string, key: Value[]): boolean { return this.facts.drained(table, index, scalarAtoms(key)); }
 }

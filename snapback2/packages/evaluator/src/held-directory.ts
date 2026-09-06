@@ -1,0 +1,57 @@
+// @ref LLP 1012#indexed-held-search — directory authority is independent of term postings and downloaded membership enumeration.
+import { sha256 } from './hash';
+import { Ordered } from './ordered';
+import { compareArrays, fieldOrNull, canonicalJson, wireJson } from './value-runtime';
+import { prefixCompare } from './index-store';
+import type { HeldIndex } from './index-store';
+import type { Value } from './types';
+
+export interface DirectoryEntry { scope: Value[]; rows: Set<Value>; key: Value[]; dependency?: string }
+export class ReadableDirectory {
+  private entries = new Map<string, DirectoryEntry>();
+  private allowed = new Ordered<Value[], DirectoryEntry>(compareArrays);
+  private unknown = new Ordered<Value[], DirectoryEntry>(compareArrays);
+  private dependencies = new Map<string, Set<DirectoryEntry>>();
+  private digests = new Map<string, Set<DirectoryEntry>>();
+  readonly fixed: number[];
+  private permutation: number[];
+  constructor(readonly index: HeldIndex, readonly descriptor: any, private viewer: string, private check: (row: Value) => boolean | null) {
+    this.fixed = descriptor.scope.flatMap((s: any, i: number) => directDiscoveryField(s.value, descriptor.discovery.binding) ? [] : [i]);
+    this.permutation = [...this.fixed, ...descriptor.scope.map((_: any, i: number) => i).filter((i: number) => !this.fixed.includes(i))];
+    for (const [scope] of index.scopes.seek(() => 0)) this.refresh(scope);
+  }
+  refresh(scope: Value[]): void {
+    const id = canonicalJson(scope), old = this.entries.get(id);
+    if (old) { this.allowed.delete(old.key); this.unknown.delete(old.key); if (old.dependency) { this.dependencies.get(old.dependency)?.delete(old); this.digests.get(sha256(old.dependency))?.delete(old); } }
+    const rows = this.index.scopes.get(scope);
+    if (!rows?.size) { this.entries.delete(id); return; }
+    const row = rows.values().next().value!, key = this.permutation.map(i => scope[i]);
+    const entry: DirectoryEntry = { scope, rows, key };
+    const probe = this.index.schema.tables[this.index.table].rules.read?.Exists;
+    if (probe) {
+      const values = probe.key.map((t: any) => t === 'Viewer' ? { Id: this.viewer } : t.Field !== undefined ? fieldOrNull(row, t.Field) : t.Literal);
+      entry.dependency = canonicalJson([probe.table, probe.index, values.map(wireJson)]);
+      const deps = this.dependencies.get(entry.dependency) ?? new Set(); deps.add(entry); this.dependencies.set(entry.dependency, deps);
+      const digest = sha256(entry.dependency), refs = this.digests.get(digest) ?? new Set(); refs.add(entry); this.digests.set(digest, refs);
+    }
+    this.entries.set(id, entry);
+    const status = this.check(row);
+    if (status === true) this.allowed.set(key, entry);
+    else if (status === null) this.unknown.set(key, entry);
+  }
+  touch(dependency: string): void { for (const e of [...(this.dependencies.get(dependency) ?? [])]) this.refresh(e.scope); }
+  /** Verdict inputs use a digest of the same point identity. */
+  touchDigest(digest: string): void { for (const e of [...(this.digests.get(digest) ?? [])]) this.refresh(e.scope); }
+  select(values: Value[], limit: number): { scopes: Value[][]; overflow: boolean; missing: boolean } {
+    const compare = (key: Value[]) => prefixCompare(key, values);
+    if (!this.unknown.seek(compare).next().done) return { scopes: [], overflow: false, missing: true };
+    const scopes: Value[][] = [];
+    for (const [, entry] of this.allowed.seek(compare)) { scopes.push(entry.scope); if (scopes.length > limit) break; }
+    return { scopes: scopes.slice(0, limit), overflow: scopes.length > limit, missing: false };
+  }
+}
+export function directDiscoveryField(expr: any, binding: string): string | undefined {
+  const f = expr?.Field;
+  // Field is the active expression's {base,name}, unlike RuleTerm.Field which is a column string.
+  return f?.base?.Variable === binding ? f.name : undefined;
+}

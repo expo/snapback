@@ -1,8 +1,11 @@
+import { compareCodepoints } from './hash';
+export { compareCodepoints } from './hash';
 import coreIrContract from "../../../crates/snapback2-core/ir-contract.json" with { type: "json" };
 import { canonicalRuleJson, canonicalSchemaJson } from "./certificate-identity";
 import { EvalError } from "./errors";
 import { sha256, utf8Length } from "./hash";
 import { cursorSuffix, decodeCursor, decodeCursorFor } from "./cursor";
+import { scalarLength } from "./unicode";
 import type { TraceRange, Value } from "./types";
 
 const I53_MAX = 9_007_199_254_740_991;
@@ -141,17 +144,6 @@ export function compareArrays(left: Value[], right: Value[]): number {
     if (compared !== 0) return compared;
   }
   return comparePrimitive(left.length, right.length);
-}
-
-export function compareCodepoints(left: string, right: string): number {
-  const leftPoints = Array.from(left, (character) => character.codePointAt(0)!);
-  const rightPoints = Array.from(right, (character) => character.codePointAt(0)!);
-  const length = Math.min(leftPoints.length, rightPoints.length);
-  for (let index = 0; index < length; index += 1) {
-    const compared = comparePrimitive(leftPoints[index], rightPoints[index]);
-    if (compared !== 0) return compared;
-  }
-  return comparePrimitive(leftPoints.length, rightPoints.length);
 }
 
 export function comparePrimitive(left: number | boolean, right: number | boolean): number {
@@ -308,16 +300,17 @@ export function validateTypedValue(
   value: Value,
   label: string,
   fanoutForLongList: boolean,
+  internalKey = false,
 ): void {
   assertValue(value, label);
-  if (valueContainsReservedPrincipal(value))
+  if (!internalKey && valueContainsReservedPrincipal(value))
     throw new EvalError("E_INPUT", `${label} cannot carry the reserved system principal`);
   if (descriptorContainsAsset(descriptor)) {
     validateAssetTypedValue(descriptor, value, label);
     return;
   }
   if (descriptor?.Optional !== undefined) {
-    if (value !== "Null") validateTypedValue(descriptor.Optional, value, label, fanoutForLongList);
+    if (value !== "Null") validateTypedValue(descriptor.Optional, value, label, fanoutForLongList, internalKey);
     return;
   }
   if (descriptor?.List !== undefined) {
@@ -326,7 +319,7 @@ export function validateTypedValue(
       throw new EvalError(fanoutForLongList ? "E_FANOUT" : "E_INPUT", `${label} exceeds list max ${descriptor.List.max}`);
     if (descriptor.List.of !== null && descriptor.List.of !== undefined) {
       for (const item of value.Array)
-        validateTypedValue(descriptor.List.of, item, label, fanoutForLongList);
+        validateTypedValue(descriptor.List.of, item, label, fanoutForLongList, internalKey);
     }
     return;
   }
@@ -345,8 +338,12 @@ export function validateTypedValue(
     const codePoint = disallowedTextControlCodePoint(value.String);
     if (codePoint !== undefined)
       throw new EvalError("E_INPUT", `${label} contains disallowed control character U+${codePoint.toString(16).toUpperCase().padStart(4, "0")}`);
-    if (Array.from(value.String).length > descriptor.Text.max)
+    const length = Array.from(value.String).length;
+    if (length > descriptor.Text.max)
       throw new EvalError("E_INPUT", `${label} exceeds text max ${descriptor.Text.max}`);
+    // Argument refinements apply recursively before any program body executes; column Text is unchanged.
+    if (fanoutForLongList && length < (descriptor.Text.min ?? 0))
+      throw new EvalError("E_INPUT", `${label} is shorter than text min ${descriptor.Text.min}`);
     return;
   }
   if (descriptor?.Bytes !== undefined) {
@@ -440,18 +437,23 @@ function assetType(message: string): EvalError {
 
 export function assertValue(value: Value, label: string): void {
   if (value === "Null") return;
+  if (!value || typeof value !== "object" || Object.keys(value).length !== 1) throw new EvalError("E_INPUT", `${label} is not a tagged value`);
   const kind = kindOf(value);
   const data = (value as any)[kind];
   if (kind === "Bool" && typeof data === "boolean") return;
   if (kind === "Int" && Number.isSafeInteger(data)) return;
-  if ((kind === "String" || kind === "Id") && typeof data === "string") return;
+  if ((kind === "String" || kind === "Id") && typeof data === "string") {
+    scalarText(data);
+    if (kind === "Id") validateIdentity(data);
+    return;
+  }
   if (kind === "Bytes" && canonicalBytes(data)) return;
   if (kind === "Array" && Array.isArray(data)) {
     for (const item of data) assertValue(item, label);
     return;
   }
   if ((kind === "Row" || kind === "Map") && data !== null && typeof data === "object" && !Array.isArray(data)) {
-    for (const item of Object.values(data)) assertValue(item as Value, label);
+    for (const [key, item] of Object.entries(data)) { scalarText(key); assertValue(item as Value, label); }
     return;
   }
   throw new EvalError("E_INPUT", `${label} is not a valid value`);
@@ -506,4 +508,13 @@ export function valueText(value: Value): string {
 
 export function isWordCharacter(character: string): boolean {
   return character === "_" || /[\p{L}\p{N}]/u.test(character);
+}
+
+// @ref LLP 1001#unicode-search-foundation — canonical tagged identity allowance is actual UTF-8, including escapes.
+export function scalarText(text: string): void {
+  try { scalarLength(text, text.length); } catch { throw new EvalError("E_INPUT", "invalid Unicode scalar text"); }
+}
+export function validateIdentity(id: string): void {
+  scalarText(id);
+  if (utf8Length(JSON.stringify({ Id: id })) > 144) throw new EvalError("E_INPUT", "identity exceeds 144 canonical bytes");
 }

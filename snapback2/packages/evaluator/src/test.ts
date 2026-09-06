@@ -1,10 +1,13 @@
 // @ts-ignore
-import manifest from "../../../corpus/manifest.json";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+const manifest = JSON.parse(readFileSync(process.env.SNAPBACK2_CORPUS ? resolve(process.env.SNAPBACK2_CORPUS, "manifest.json") : new URL("../../../corpus/manifest.json", import.meta.url), "utf8"));
 // Build prerequisite also runs for the documented direct `bun src/test.ts` entry point.
 // @ts-ignore — build-only JS implementation has no runtime evaluator dependency.
 import { generateUnicodeTables } from '../unicode-build.mjs';
 generateUnicodeTables();
 await import('./test-search-foundation');
+await import('./test-indexed');
 await import('./test-merge');
 import {
   ClientStore,
@@ -66,7 +69,7 @@ for (const testCase of cases) {
 // Every merge corpus replay must stay under the same certified meters as the engine.
 for (const testCase of cases.filter((c) => c.expected.errorCode === null && JSON.stringify(c.program).includes('"Merge"'))) {
   const certificate = testCase.certificate as any;
-  const replay = new ClientStore(testCase.schema, testCase.receipt)
+  const replay = new ClientStore(testCase.schema, testCase.receipt, { program: testCase.program })
     .reexecute(testCase.program, testCase.context, certificate);
   assert((replay.execution.trace.examined ?? 0) <= certificate.max_examined, `${testCase.name}: merge examined bound`);
   assert((replay.execution.trace.examined ?? 0) <= certificate.max_index_entries, `${testCase.name}: merge index bound`);
@@ -106,7 +109,7 @@ assert(canonicalValue(enrichedReplay.execution.result) === enrichedPage.expected
   assert(fixture, "self-probe fixture is absent");
   const program = structuredClone(fixture.program);
   const scan = program.body[1].For.domain.Page;
-  scan.prefix = [{ Literal: { Id: "u1" } }];
+  scan.prefix = [{ Scalar: { Literal: { Id: "u1" } } }];
   program.body = [{ Return: { Scan: scan } }];
   const context = { ...fixture.context, viewer: "outsider" };
   const receipt = structuredClone(fixture.receipt);
@@ -170,15 +173,15 @@ function derivedRuleInput(
       grants: {
         columns: { id: "Id", principal: "Id" },
         indexes: {
-          byId: { columns: ["id"], unique: true },
-          byPrincipal: { columns: ["principal"], unique: true },
+          byId: { components: [{ Column: "id" }], unique: true },
+          byPrincipal: { components: [{ Column: "principal" }], unique: true },
         },
         rules: { read: targetRead, insert: "Deny", update: "Deny", delete: "Deny" },
         constraints: [],
       },
       docs: {
         columns: { id: "Id" },
-        indexes: { byId: { columns: ["id"], unique: true } },
+        indexes: { byId: { components: [{ Column: "id" }], unique: true } },
         rules: {
           read: docsRead,
           insert: "Deny",
@@ -290,21 +293,21 @@ const mutationSchema = {
     grants: {
       columns: { id: "Id", principal: "Id" },
       indexes: {
-        byId: { columns: ["id"], unique: true },
-        byPrincipal: { columns: ["principal"], unique: true },
+        byId: { components: [{ Column: "id" }], unique: true },
+        byPrincipal: { components: [{ Column: "principal" }], unique: true },
       },
       rules: { read: protectedRead, insert: publicRule, update: publicRule, delete: publicRule },
       constraints: [],
     },
     staged: {
       columns: { id: "Id" },
-      indexes: { byId: { columns: ["id"], unique: true } },
+      indexes: { byId: { components: [{ Column: "id" }], unique: true } },
       rules: { read: publicRule, insert: publicRule, update: publicRule, delete: publicRule },
       constraints: [],
     },
     docs: {
       columns: { id: "Id" },
-      indexes: { byId: { columns: ["id"], unique: true } },
+      indexes: { byId: { components: [{ Column: "id" }], unique: true } },
       rules: { read: publicRule, insert: {
         Exists: { table: "grants", index: "byPrincipal", key: ["Viewer"], provenance: "Viewer" },
       }, update: publicRule, delete: publicRule },
@@ -462,7 +465,7 @@ const publicRules = {
 };
 const table = (columns: Record<string, unknown>, rules: any = publicRules) => ({
   columns,
-  indexes: { byId: { columns: ["id"], unique: true } },
+  indexes: { byId: { components: [{ Column: "id" }], unique: true } },
   rules,
   constraints: [],
 });
@@ -666,8 +669,8 @@ const expectCode = (run: () => unknown, code: string, label: string) => {
   const blocks = {
     ...table({ id: "Id", viewerId: "Id", authorId: "Id" }),
     indexes: {
-      byId: { columns: ["id"], unique: true },
-      byPair: { columns: ["viewerId", "authorId"], unique: true },
+      byId: { components: [{ Column: "id" }], unique: true },
+      byPair: { components: [{ Column: "viewerId" }, { Column: "authorId" }], unique: true },
     },
   };
   const schema = { tables: { posts, blocks }, maintains: [] };
@@ -769,16 +772,16 @@ const expectCode = (run: () => unknown, code: string, label: string) => {
       deliveries: {
         columns: { id: "Id", recipient: "Principal", conversationId: "Id", messageId: "Id", at: "Time" },
         indexes: {
-          byId: { columns: ["id"], unique: true },
-          byRecipientAt: { columns: ["recipient", "at", "id"], unique: false },
-          byRecipientConversationAt: { columns: ["recipient", "conversationId", "at", "id"], unique: false },
+          byId: { components: [{ Column: "id" }], unique: true },
+          byRecipientAt: { components: [{ Column: "recipient" }, { Column: "at" }, { Column: "id" }], unique: false },
+          byRecipientConversationAt: { components: [{ Column: "recipient" }, { Column: "conversationId" }, { Column: "at" }, { Column: "id" }], unique: false },
         },
         rules: { read: { Eq: [{ Field: "recipient" }, "Viewer"] }, insert: "Deny", update: "Deny", delete: "Deny" },
         constraints: [],
       },
       messages: {
         columns: { id: "Id", conversationId: "Id", body: { Text: { max: 100 } } },
-        indexes: { byId: { columns: ["id"], unique: true } },
+        indexes: { byId: { components: [{ Column: "id" }], unique: true } },
         rules: {
           read: { Exists: { table: "memberships", index: "byConversationPrincipal", key: [{ Field: "conversationId" }, "Viewer"], provenance: "Shape" } },
           insert: "Deny", update: "Deny", delete: "Deny",
@@ -787,7 +790,7 @@ const expectCode = (run: () => unknown, code: string, label: string) => {
       },
       memberships: {
         columns: { id: "Id", conversationId: "Id", principal: "Principal" },
-        indexes: { byId: { columns: ["id"], unique: true }, byConversationPrincipal: { columns: ["conversationId", "principal"], unique: true } },
+        indexes: { byId: { components: [{ Column: "id" }], unique: true }, byConversationPrincipal: { components: [{ Column: "conversationId" }, { Column: "principal" }], unique: true } },
         rules: {
           read: { Exists: { table: "memberships", index: "byConversationPrincipal", key: [{ Field: "conversationId" }, "Viewer"], provenance: "Shape" } },
           insert: "Deny", update: "Deny", delete: "Deny",
@@ -801,8 +804,8 @@ const expectCode = (run: () => unknown, code: string, label: string) => {
     ({ Row: { id: { Id: id }, recipient: viewer, conversationId: { Id: conversation }, messageId: { Id: message }, at: { Int: at } } });
   const readRule = scopedRuleHash(logSchema, logSchema.tables.deliveries.rules.read);
   const page = (site: string, index: string, prefix: Value[], order: "Asc" | "Desc", after: Value | null, rowIds: string[], stop: "Limit" | "Exhausted") => ({
-    site, table: "deliveries", index, prefix, order, take: 2, after, before: null, gt: null, gte: null, lt: null, lte: null,
-    rule_hash: readRule, row_ids: rowIds, stop, absence: false, halo: null, n2_key: null,
+    site, table: "deliveries", index, prefix: prefix.map(Scalar => ({ Scalar })), order, take: 2, after, before: null, gt: null, gte: null, lt: null, lte: null,
+    rule_hash: readRule, row_ids: rowIds, stop, absence: false, halo: null, n2_suffix: null,
   });
   const rows = [
     { table: "deliveries", id: "d1", row: delivery("d1", "c1", "m1", 1) },
@@ -826,7 +829,7 @@ const expectCode = (run: () => unknown, code: string, label: string) => {
     name: "thread", kind: "Query", args: { conversationId: "Id" }, read_time_granularity_ms: null,
     body: [
       { Require: { code: "MEMBERSHIP_REQUIRED", condition: { Exists: { site: "thread.0", table: "memberships", index: "byConversationPrincipal", key: [{ Variable: "conversationId" }, { Input: "Viewer" }], provenance: "Shape" } } } },
-      { Const: { name: "page", value: { Scan: { site: "thread.1", table: "deliveries", index: "byRecipientConversationAt", prefix: [{ Input: "Viewer" }, { Variable: "conversationId" }], order: "Desc", take: { Literal: 50 }, after: null, before: null, range: null, merge_site: null, opaque_cursor: false, provenance: "Shape" } } } },
+      { Const: { name: "page", value: { Scan: { site: "thread.1", table: "deliveries", index: "byRecipientConversationAt", prefix: [{ Scalar: { Input: "Viewer" } }, { Scalar: { Variable: "conversationId" } }], order: "Desc", take: { Literal: 50 }, after: null, before: null, range: null, merge_site: null, opaque_cursor: false, provenance: "Shape" } } } },
       { Const: { name: "rows", value: { Array: [] } } },
       { For: { binding: "row", domain: { DerivedArray: { value: { Variable: "page" }, max: 50 } }, body: [
         { Push: { target: "rows", value: { Object: { id: { Field: { base: { Variable: "row" }, name: "id" } }, message: { Get: { site: "thread.2", table: "messages", index: "byId", key: [{ Field: { base: { Variable: "row" }, name: "messageId" } }], provenance: "Shape" } } } } } },
@@ -865,8 +868,9 @@ const expectCode = (run: () => unknown, code: string, label: string) => {
   const holedReplay = new ClientStore(logSchema, holed).reexecute(thread, threadContext("c1"));
   assert(holedReplay.state === "partial" && holedReplay.partialSites.includes("thread.1"), "a drained page with an interior eviction still covered the thread");
   // A viewed view-once row as the last row of a Limit page (grok 3a): absent to the twin, the chain still links by the recorded id.
-  const viewedLast = { ...drainedReceipt({ Array: [{ Int: 2 }, { Id: "d2" }] }), rows: rows.filter((row) => row.id !== "d2") };
-  const viewedReplay = new ClientStore(logSchema, viewedLast).reexecute(thread, threadContext("c1"));
+  const viewedLast = new ClientStore(logSchema, drainedReceipt({ Array: [{ Int: 2 }, { Id: "d2" }] }));
+  viewedLast.remove("deliveries", "d2");
+  const viewedReplay = viewedLast.reexecute(thread, threadContext("c1"));
   assert(viewedReplay.state === "fresh", `a viewed last row broke the drain chain: ${viewedReplay.partialSites.join(",")}`);
   assert(
     canonicalValue(viewedReplay.execution.result) === canonicalValue({ Array: [

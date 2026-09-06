@@ -1,3 +1,4 @@
+import type { ChangedRecords } from "./swap-journal.js";
 import {
   OfflineStoreFailure, PersistentRangeStore,
   type PersistedRangeState, type RangeStoreBackend, type RangeStoreFactory,
@@ -94,11 +95,11 @@ export class SqliteBackend implements RangeStoreBackend {
 
   // @ref LLP 1013#3-the-sqlite-carrier — only changed state entries and byte
   // payloads are written, with one atomic transaction and a post-commit cache.
-  async replace(state: PersistedRangeState, bytes: ByteDelta, previous?: PersistedRangeState): Promise<void> {
+  async replace(state: PersistedRangeState, bytes: ByteDelta, previous?: PersistedRangeState, changed?: ChangedRecords): Promise<void> {
     return this.guard(async () => {
       if (!this.driver || this.partition === undefined) throw new Error("not open");
       const partition = this.partition;
-      const { delta, committed } = this.projection.prepare(state, previous);
+      const { delta, committed } = this.projection.prepare(state, previous, changed);
       await this.driver.transaction(async (tx) => {
         for (const name of ["rows", "answers", "outbox", "meta"] as const) {
           const table = name === "meta" ? "metadata" : name;

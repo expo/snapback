@@ -1,3 +1,8 @@
+import { CarrierIndex } from "./carrier-index.js";
+import { queryClock } from '../held-program.js';
+import { ClockCoverageReset, FullRevalidationRequired, deliveryFacts, guardFacts, negativeProof, proofSlots,
+  checkFactSlots, validateClock, sameClockPlan, answerFactKeys, type FactProof } from './fact-integrity.js';
+import { SwapJournal, StoreChanges, raw, type StoreRevision, type StoreChange, type ChangedRecords } from "./swap-journal.js";
 import { onceColumns, onceRow, onceAssetIds, nullOnceMedia, type OnceColumns } from "./asset-policy.js";
 // @ref LLP 1012#4-the-range-store — every carrier persists the same per-principal answer/range model.
 // @ref LLP 1012#5-retention-revocation-and-the-fence — eviction is decided once over a complete swap.
@@ -20,7 +25,7 @@ import {
 import { advanceOverlay, cursorChain, pagePosition, type OverlayWatermark } from "./overlay-retirement.js";
 import { canonical } from "./canonical.js";
 import { sha256 } from "../../../evaluator/src/hash.js";
-import { totalCompare } from "../../../evaluator/src/value-runtime.js";
+import { compareArrays, totalCompare } from "../../../evaluator/src/value-runtime.js";
 import { tagWireValue, type TaggedValue, type WireValue } from "../offline-protocol.js";
 import { asRowRef, collectRefs, escapedFields, mapRowValues, purgeAnswerData } from "./row-values.js";
 
@@ -54,6 +59,8 @@ export interface ReceiptRange {
    * drained-prefix rule (§6) no longer counts the page as a link in a complete chain.
    */
   evictedIds?: string[];
+  /** Original endpoint retained across later row changes; local carrier metadata only. */
+  heldSuffix?: TaggedValue[];
 }
 
 export interface Receipt {
@@ -69,6 +76,10 @@ export interface HeldAnswer<Result = unknown> {
   data?: Result;
   next?: string | null;
   seq: number;
+  readTime?: number;
+  clockPlanHash?: string;
+  /** A conditional cannot refresh this answer until its original full facts are revalidated. */
+  needsFactProofs?: true;
   validator?: string;
   receipt?: Receipt;
   deliveredAt: number;
@@ -88,6 +99,8 @@ export interface StoredAnswer extends Omit<HeldAnswer, "data"> {
   cursorArg?: string;
   /** Seq of the full delivery behind the fingerprint and `next`; unchanged cannot renew either. */
   nextSeq?: number;
+  factProofs?: FactProof[];
+  clockOnly?: true;
 }
 
 export interface WatermarkRecord {
@@ -220,7 +233,7 @@ export interface OutboxStore {
 }
 
 /** A predicted row: the write's final image, or a `removed` marker for a row the intent deletes. */
-export interface OverlayRow extends StoredRow { removed?: true }
+export interface OverlayRow extends StoredRow { removed?: true; fields?: string[] }
 
 export interface StoreDelivery {
   cursorArg?: string;
@@ -230,8 +243,12 @@ export interface StoreDelivery {
   data?: unknown;
   next?: string | null;
   seq: number;
+  readTime?: number;
+  clockPlanHash?: string;
   validator?: string;
   receipt?: Receipt;
+  /** Integrity evidence before issuing-program admission; never grants coverage or persists a second receipt. */
+  receiptEvidence?: Receipt;
   rows?: StoredRow[];
   deliveredAt?: number;
   reason?: string;
@@ -250,12 +267,13 @@ export interface StoreRefresh {
 export interface OfflineSchema {
   tables?: Record<string, {
     columns?: Record<string, unknown>;
-    indexes?: Record<string, { columns?: string[] }>;
+    indexes?: Record<string, { components: import("../../../evaluator/src/search-key.js").IndexComponent[]; unique?: boolean }>;
     retain?: RetentionPolicy;
   }>;
 }
 
 export interface StoreSwap {
+  factLimitReset?: string;
   deliveries?: StoreDelivery[];
   refreshes?: StoreRefresh[];
   tombstones?: StoreTombstone[];
@@ -301,6 +319,7 @@ export interface RangeStore {
   answer<Result = unknown>(op: string, args: unknown): Promise<HeldAnswer<Result> | undefined>;
   commit(swap: StoreSwap): Promise<void>;
   coverage(): Promise<Coverage>;
+  changes(since?: StoreRevision): Promise<StoreChange<PersistedRangeState>>;
   readonly outbox: OutboxStore;
   close?(): Promise<void> | void;
 }
@@ -340,6 +359,9 @@ export interface PersistedRangeState {
   superseded?: CoverageFacts;
   negative: Record<string, number>;
   rowSeq: Record<string, number>;
+  factGuards: Record<string, { seq: number; digest: string }>;
+  factSlots: number;
+  factLimitReset?: string;
   /** The byte-cache index; payloads live beside the state in the carrier, keyed by `byteKey`. */
   assets: Record<string, ByteCacheEntry>;
   viewed: Record<string, ViewedRecord>;
@@ -350,7 +372,7 @@ export interface RangeStoreBackend {
   readonly carrier: string;
   open(partition: PrincipalPartition): Promise<PersistedRangeState | undefined>;
   /** One carrier transaction: the state, plus the byte payloads to write and the keys to drop. */
-  replace(state: PersistedRangeState, bytes: ByteDelta, previous?: PersistedRangeState): Promise<void>;
+  replace(state: PersistedRangeState, bytes: ByteDelta, previous?: PersistedRangeState, changed?: ChangedRecords): Promise<void>;
   readBytes?(key: string): Promise<Uint8Array | undefined>;
   wipe(partition: PrincipalPartition): Promise<void>;
   close(): Promise<void> | void;
@@ -360,13 +382,13 @@ const NO_BYTES: ByteDelta = { put: [], remove: [] };
 
 export function emptyState(): PersistedRangeState {
   return {
-    version: 1, sealed: false, clock: 0, rows: {}, answers: {}, watermarks: {}, outbox: {},
+    version: 1, sealed: false, clock: 0, rows: {}, answers: {}, watermarks: {}, outbox: {}, factGuards: {}, factSlots: 0,
     grants: {}, overlay: {}, overlayMisses: {}, overlayWatermarks: {}, overlayNegatives: {}, bounds: {}, programs: {}, negative: {}, rowSeq: {}, assets: {}, viewed: {}, onceColumns: {},
   };
 }
 
 function clone<T>(value: T): T {
-  return structuredClone(value);
+  return structuredClone(raw(value));
 }
 
 export function canonicalAnswerKey(op: string, args: unknown): string {
@@ -446,92 +468,15 @@ function restoreRetained(before: unknown, after: unknown, retained: Set<string>)
   return after;
 }
 
-function sameRange(left: ReceiptRange, right: ReceiptRange): boolean {
-  return left.site === right.site && left.table === right.table && left.index === right.index
-    && canonical(left.prefix) === canonical(right.prefix)
-    && left.order === right.order
-    && canonical(left.after) === canonical(right.after)
-    && canonical(left.before) === canonical(right.before)
-    && canonical(left.gt) === canonical(right.gt)
-    && canonical(left.gte) === canonical(right.gte)
-    && canonical(left.lt) === canonical(right.lt)
-    && canonical(left.lte) === canonical(right.lte)
-    && left.ruleHash === right.ruleHash;
-}
-
-function compareValue(left: TaggedValue, right: TaggedValue): number {
-  return totalCompare(left, right);
-}
-
-function compareKey(left: TaggedValue[], right: TaggedValue[]): number {
-  for (let index = 0; index < Math.min(left.length, right.length); index += 1) {
-    const order = compareValue(left[index], right[index]);
-    if (order !== 0) return order;
-  }
-  return left.length - right.length;
-}
-
-function tagKey(schema: OfflineSchema | undefined, range: ReceiptRange, values: unknown[], offset = 0): TaggedValue[] {
-  const table = schema?.tables?.[range.table];
-  const columns = table?.indexes?.[range.index]?.columns;
-  return values.map((value, at) => {
-    const descriptor = table?.columns?.[columns?.[offset + at] ?? ""];
-    // Handwritten harness schemas may omit column descriptors. The wire's scalar
-    // values still have the same order; a real held schema always supplies types.
-    const fallback = typeof value === "string" ? { Text: {} } : typeof value === "number" ? "Int"
-      : typeof value === "boolean" ? "Bool" : { Json: {} };
-    return tagWireValue(descriptor ?? fallback, value as WireValue, `${range.table}.${range.index}[${offset + at}]`);
-  });
-}
-
-function indexKey(schema: OfflineSchema | undefined, range: ReceiptRange, row: StoredRow | undefined): TaggedValue[] | undefined {
-  const columns = schema?.tables?.[range.table]?.indexes?.[range.index]?.columns;
-  if (!row || !Array.isArray(columns) || !columns.every((item) => typeof item === "string")) return undefined;
-  // Missing optional columns have the engine's Null value, just like explicit null.
-  return tagKey(schema, range, columns.map((column) => row.row[column] ?? null));
-}
-
-function cursorKey(value: unknown, width: number): unknown[] | undefined {
-  if (value === null || value === undefined) return undefined;
-  if (Array.isArray(value)) return value.length === width ? value : undefined;
-  return width === 1 ? [value] : undefined;
-}
-
-function insidePrefixBounds(key: TaggedValue[], range: ReceiptRange, schema: OfflineSchema | undefined): boolean {
-  if (key.length < range.prefix.length
-    || compareKey(key.slice(0, range.prefix.length), tagKey(schema, range, range.prefix)) !== 0) return false;
-  const suffix = key.slice(range.prefix.length);
-  const after = cursorKey(range.after, suffix.length);
-  const before = cursorKey(range.before, suffix.length);
-  const compareSuffix = (bound: unknown[]) => compareKey(suffix, tagKey(schema, range, bound, range.prefix.length));
-  if (after && (range.order === "Asc" ? compareSuffix(after) <= 0 : compareSuffix(after) >= 0)) return false;
-  if (before && (range.order === "Asc" ? compareSuffix(before) >= 0 : compareSuffix(before) <= 0)) return false;
-  for (const [kind, value] of [["gt", range.gt], ["gte", range.gte], ["lt", range.lt], ["lte", range.lte]] as const) {
-    if (value === null || value === undefined) continue;
-    const order = compareValue(suffix[0]!, tagKey(schema, range, [value], range.prefix.length)[0]!);
-    if (kind === "gt" ? order <= 0 : kind === "gte" ? order < 0 : kind === "lt" ? order >= 0 : order > 0) return false;
-  }
-  return true;
-}
-
-function inFreshExtent(
-  id: string,
-  held: ReceiptRange,
-  fresh: ReceiptRange,
-  rows: Record<string, StoredRow>,
-  schema: OfflineSchema | undefined,
-): boolean {
-  const key = indexKey(schema, held, rows[rowKey({ table: held.table, id })]);
-  if (!key) return fresh.stop === "Exhausted";
-  if (!insidePrefixBounds(key, fresh, schema)) return false;
+function inFreshExtent(id: string, held: ReceiptRange, fresh: ReceiptRange, rows: Record<string, StoredRow>, index: CarrierIndex, op: string): boolean {
+  const row = rows[rowKey({ table: held.table, id })];
+  if (!row) return fresh.stop === "Exhausted";
+  if (!index.contains(row, fresh, op)) return false;
   if (fresh.stop === "Exhausted") return true;
-  const presentKeys = fresh.rowIds
-    .map((rowId) => indexKey(schema, fresh, rows[rowKey({ table: fresh.table, id: rowId })]))
-    .filter(Array.isArray) as TaggedValue[][];
-  if (presentKeys.length === 0) return false;
-  const first = presentKeys.reduce((a, b) => compareKey(a, b) <= 0 ? a : b);
-  const last = presentKeys.reduce((a, b) => compareKey(a, b) >= 0 ? a : b);
-  return compareKey(key, first) >= 0 && compareKey(key, last) <= 0;
+  const keys = fresh.rowIds.flatMap(id => { const row = rows[rowKey({ table: fresh.table, id })]; return row ? [index.suffix(row, fresh)] : []; });
+  if (!keys.length) return false;
+  const suffix = index.suffix(row, held), first = keys.reduce((a, b) => compareArrays(a, b) <= 0 ? a : b), last = keys.reduce((a, b) => compareArrays(a, b) >= 0 ? a : b);
+  return compareArrays(suffix, first) >= 0 && compareArrays(suffix, last) <= 0;
 }
 
 /** One JSON form for warm state and every carrier: omit undefined fields, preserve null. */
@@ -541,6 +486,7 @@ export function jsonState<T>(value: T): T {
 
 function normalizeState(value: PersistedRangeState | undefined): PersistedRangeState {
   if (!value) return emptyState();
+  for (const answer of Object.values(value.answers ?? {})) validateClock(answer);
   value = jsonState(value);
   if (value.version !== 1 || typeof value.rows !== "object" || typeof value.answers !== "object") {
     throw new OfflineStoreFailure("E_OFFLINE_CARRIER", "range store contains an unsupported format");
@@ -564,6 +510,8 @@ function normalizeState(value: PersistedRangeState | undefined): PersistedRangeS
     onceColumns: value.onceColumns ?? {},
     negative: value.negative ?? {},
     rowSeq: value.rowSeq ?? {},
+    factGuards: value.factGuards ?? {},
+    factSlots: Object.keys(value.factGuards ?? {}).length + Object.values(value.answers).reduce((sum, a) => sum + proofSlots(a), 0),
     assets: value.assets ?? {},
     viewed: value.viewed ?? {},
   };
@@ -599,7 +547,10 @@ function changesCoverage(swap: StoreSwap): boolean {
 /** Shared swap engine; carrier subclasses only provide the atomic replace. */
 export class PersistentRangeStore implements RangeStore {
   private state = emptyState();
+  private referenceIndex?: CarrierIndex;
+  private referenceSchema?: OfflineSchema;
   private persisted?: PersistedRangeState;
+  private readonly updates = new StoreChanges<PersistedRangeState>();
   private partition?: PrincipalPartition;
   private tail: Promise<void> = Promise.resolve();
 
@@ -651,6 +602,7 @@ export class PersistentRangeStore implements RangeStore {
       const rawFingerprints = loaded && Object.values(loaded.answers).some((answer) =>
         answer.fingerprint && !/^[0-9a-f]{64}$/.test(answer.fingerprint));
       this.state = normalizeState(loaded);
+      this.updates.reset(this.state, rawFingerprints ? loaded : undefined); this.referenceIndex = undefined;
       // Normalizing a legacy fingerprint changes persisted content. Keep the
       // original baseline until the next successful swap writes those digests.
       this.persisted = rawFingerprints ? loaded : this.state;
@@ -664,6 +616,7 @@ export class PersistentRangeStore implements RangeStore {
       const next = { ...this.state, sealed: false };
       await this.backend.replace(next, NO_BYTES, this.persisted);
       this.state = this.persisted = next;
+      this.updates.reset();
     });
   }
 
@@ -673,6 +626,7 @@ export class PersistentRangeStore implements RangeStore {
       const next = { ...this.state, sealed: true };
       await this.backend.replace(next, NO_BYTES, this.persisted);
       this.state = this.persisted = next;
+      this.updates.reset();
     });
   }
 
@@ -682,6 +636,7 @@ export class PersistentRangeStore implements RangeStore {
       if (this.partition === partition) {
         this.partition = undefined;
         this.state = emptyState();
+        this.updates.reset();
         this.persisted = undefined;
       }
     });
@@ -694,11 +649,13 @@ export class PersistentRangeStore implements RangeStore {
       const stored = this.state.answers[key];
       if (!stored) return undefined;
       const watermark = this.state.watermarks[key];
-      const { refs: _refs, order: _order, fingerprint: _fingerprint, cursorArg: _cursorArg, data, ...answer } = clone(stored);
+      const media = (this.referenceIndex ??= new CarrierIndex(this.state, this.referenceSchema)).assets;
+      const { refs: _refs, order: _order, fingerprint: _fingerprint, cursorArg: _cursorArg, factProofs: _proofs, clockOnly: _clockOnly, ...visible } = stored;
+      const { data, ...answer } = clone(visible);
       return {
         ...answer,
         // A viewed view-once row reads as absent: the view was its one delivery (LLP 1012 §9).
-        ...(data === undefined ? {} : { data: nullOnceMedia(expand(data, this.state.rows, fullyViewed(this.state)), onceAssetIds(this.state.onceColumns, Object.values(this.state.rows))) as Result }),
+        ...(data === undefined ? {} : { data: nullOnceMedia(expand(data, this.state.rows, media.exhausted), media.once) as Result }),
         ...(watermark === undefined ? {} : { caughtUp: true, watermark: watermark.watermark }),
       };
     });
@@ -745,28 +702,32 @@ export class PersistentRangeStore implements RangeStore {
     });
   }
 
+  async changes(since?: StoreRevision): Promise<StoreChange<PersistedRangeState>> {
+    return this.read(() => { this.ensureUnsealed(); return this.updates.read(this.state, since); });
+  }
+
   async commit(swap: StoreSwap): Promise<void> {
     await this.enqueue(async () => {
       this.ensureOpen();
       // Byte payloads are not cloned: they can be megabytes and the swap never mutates them.
       const { bytes, ...rest } = swap;
+      for (const delivery of swap.deliveries ?? []) validateClock(delivery);
       const delta: ByteDelta = { put: [], remove: [] };
       // Normalize before deriving answer keys/fingerprints, then normalize the state we publish.
       const normalized = { ...jsonState(rest), ...(bytes === undefined ? {} : { bytes }) };
-      const coverage = changesCoverage(normalized);
-      // Custody-only swaps never walk or clone retained rows, answers, or programs.
-      // The few mutable custody maps are copied before applySwap can edit them.
-      const draft = coverage ? clone(this.state) : {
-        ...this.state,
-        ...jsonState({ outbox: this.state.outbox, grants: this.state.grants,
-          overlay: this.state.overlay, overlayMisses: this.state.overlayMisses,
-          overlayWatermarks: this.state.overlayWatermarks, overlayNegatives: this.state.overlayNegatives,
-          watermarks: this.state.watermarks }),
-      };
-      const applied = this.applySwap(draft, normalized, delta);
-      const next = coverage ? normalizeState(applied) : applied;
-      await this.backend.replace(next, delta, this.persisted);
-      this.state = this.persisted = next;
+      const journal = new SwapJournal(this.state), priorIndex = this.referenceIndex, priorSchema = this.referenceSchema;
+      try {
+        this.applySwap(journal.draft, normalized, delta);
+        this.updates.prepare(journal.changed);
+        await this.backend.replace(this.state, delta, undefined, journal.changed);
+      } catch (error) { journal.rollback(); this.referenceIndex = priorIndex; this.referenceSchema = priorSchema; throw error; }
+      this.persisted = this.state;
+      this.updates.publish(this.state, journal.changed);
+      if (['answers', 'programs', 'onceColumns', 'rows', 'viewed'].some(k => journal.changed.get('*')?.has(k))) this.referenceIndex = undefined;
+      else { try { this.referenceIndex?.update(this.state, journal.changed, normalized.schema); }
+        catch (error) { this.referenceIndex = undefined; throw error; } }
+
+
     });
   }
 
@@ -831,6 +792,7 @@ export class PersistentRangeStore implements RangeStore {
         if (entry) assets[key] = { ...entry, lastRead: ++clock };
       }
       this.state = { ...this.state, assets, clock };
+      this.updates.dirty('assets', keys); this.updates.dirty('*', ['clock']);
     });
   }
 
@@ -855,19 +817,32 @@ export class PersistentRangeStore implements RangeStore {
       // validator still goes to resume; the next full answer establishes the
       // new epoch's duplicate guard. No guard is relaxed within an epoch.
       state.answers = Object.fromEntries(Object.entries(state.answers).map(([key, answer]) => {
-        const { fingerprint: _fingerprint, ...held } = answer;
+        const { fingerprint: _fingerprint, factProofs: _proofs, needsFactProofs: _missing, ...held } = answer;
         return [key, held];
       }));
+      state.factGuards = {}; state.factSlots = 0;
     }
+    const generation = swap.facts?.generation ?? state.facts?.generation;
+    const custody = swap.programs && (generation ? swap.programs[generation] : Object.values(swap.programs)[0]);
+    if (custody && !swap.resetCoverage) for (const answer of Object.values(state.answers)) {
+      const op = custody.programs[answer.op]; if (!op) continue;
+      if (queryClock(op) && answer.readTime === undefined) throw new ClockCoverageReset();
+      if (answer.readTime !== undefined && (!queryClock(op) || answer.clockPlanHash !== op.planHash)) throw new TypeError('held execution clock identity mismatch');
+    }
+    if (swap.factLimitReset !== undefined) state.factLimitReset = swap.factLimitReset;
     const schema = swap.schema ?? (swap.programs && Object.values(swap.programs)[0]?.schema);
-    if (schema) state.onceColumns = onceColumns(schema);
-    const authoritativeNegatives = changesCoverage(swap) ? this.applyCoverage(state, swap, bytes) : new Map<string, { seq: number; source: "absence" | "tombstone" }>();
-    if (swap.facts) state.facts = clone(swap.facts);
+    if (schema) { const columns = onceColumns(schema); if (canonical(columns) !== canonical(state.onceColumns)) state.onceColumns = columns; }
+    const clockOnly = new Set<string>();
+    const authoritativeNegatives = changesCoverage(swap) ? this.applyCoverage(state, swap, bytes, clockOnly) : new Map<string, { seq: number; source: "absence" | "tombstone" }>();
+    if (swap.facts && canonical(state.facts) !== canonical(swap.facts)) state.facts = clone(swap.facts);
     if (swap.superseded === null) delete state.superseded;
     else if (swap.superseded) state.superseded = clone(swap.superseded);
 
     const previousTail = tailWatermark(Object.values(state.watermarks));
-    if (swap.watermark) {
+    const clockMark = swap.watermark && (swap.deliveries ?? []).some(d => clockOnly.has(canonicalAnswerKey(d.op, d.args))
+      && (canonicalAnswerKey(d.op, d.args) === canonicalAnswerKey(swap.watermark!.op, swap.watermark!.args)
+        || pagePosition(d, { ...swap.watermark!, cursorArg: swap.watermark!.cursorArg ?? 'c' }) !== undefined));
+    if (swap.watermark && !clockMark) {
       const key = canonicalAnswerKey(swap.watermark.op, swap.watermark.args);
       // The order is the store's: first recorded, kept across re-marks (LLP 1012 §7's tail chooser).
       const order = state.watermarks[key]?.order ?? ++state.clock;
@@ -926,7 +901,7 @@ export class PersistentRangeStore implements RangeStore {
       // Denial can retain the previous complete state for history rendering;
       // that retained content supplies no fresh arrival or continuation proof.
       const nonempty = Array.isArray(answer.data) ? answer.data.length > 0 : collectRefs(answer.data).length > 0;
-      return !answer.retained && (answer.state === "complete" || answer.state === "capped") && answer.receipt !== undefined
+      return !answer.clockOnly && !answer.retained && (answer.state === "complete" || answer.state === "capped") && answer.receipt !== undefined
         && !answer.receipt.ranges.some((range) => (range.evictedIds?.length ?? 0) > 0)
         && nonempty && answer.refs.length > 0 && answer.refs.every((ref) => state.rows[rowKey(ref)] !== undefined);
     });
@@ -989,7 +964,8 @@ export class PersistentRangeStore implements RangeStore {
       const advanced = committedWatermark !== undefined && swap.watermark !== undefined
         && tail !== undefined && canonicalAnswerKey(tail.op, tail.args) === canonicalAnswerKey(swap.watermark.op, swap.watermark.args)
         && advanceOverlay(committedWatermark, tail, chain);
-      const moved = advanced || (swap.resumeSeq !== undefined && swap.resumeSeq > seq);
+      const onlyClock = !!swap.deliveries?.length && swap.deliveries.every(d => clockOnly.has(canonicalAnswerKey(d.op, d.args))) && !swap.refreshes?.length;
+      const moved = !onlyClock && (advanced || (swap.resumeSeq !== undefined && swap.resumeSeq > seq));
       const misses = arrived ? 0 : (state.overlayMisses[intent] ?? 0)
         + (moved && !committedNow.has(intent) ? 1 : 0);
       if (!arrived && misses < OVERLAY_PATIENCE) {
@@ -1005,13 +981,14 @@ export class PersistentRangeStore implements RangeStore {
     return state;
   }
 
-  private applyCoverage(state: PersistedRangeState, swap: StoreSwap, bytes: ByteDelta) {
+  private applyCoverage(state: PersistedRangeState, swap: StoreSwap, bytes: ByteDelta, clockOnly: Set<string>) {
     if (swap.resetCoverage) {
       state.rows = {};
       // Sequence guards belong to this generation's coverage, just like rows.
       // A query-only successor can deliver the same row at the same data seq.
       state.rowSeq = {};
       state.negative = {};
+      state.factGuards = {}; state.factSlots = 0;
       state.overlayNegatives = {};
       state.answers = {};
       state.watermarks = {};
@@ -1020,6 +997,29 @@ export class PersistentRangeStore implements RangeStore {
       state.overlayMisses = {};
       delete state.facts;
     }
+    if (swap.resetCoverage || swap.programs || (swap.schema && !this.referenceSchema)) this.referenceIndex = undefined;
+    this.referenceSchema = swap.schema ?? this.referenceSchema;
+    // Coverage and issuing-program custody may arrive in the same atomic swap.
+    // This shallow root view shares row dictionaries and sees the proposed identities before publication.
+    const base = raw(state);
+    const index = this.referenceIndex ??= new CarrierIndex({ ...base,
+      programs: swap.programs ?? base.programs, facts: swap.facts ?? base.facts }, this.referenceSchema);
+    const changedAnswers = new Set<string>();
+    const before = new Map<string, StoredAnswer | undefined>();
+    const remember = (key: string) => { if (!before.has(key)) before.set(key, raw(state.answers[key])); changedAnswers.add(key); };
+    const candidates = (key: string, absent = false) => new Set([...(absent ? index.absences : index.references).get(key) ?? [], ...changedAnswers]);
+    const enrollmentKeys = new Map<string, Set<string>>();
+    const enroll = (key: string) => {
+      const fact = JSON.parse(key);
+      const owners = fact[0] === 'row' ? new Set([...candidates(`${fact[1]}\0${fact[2].Id}`), ...candidates(`${fact[1]}\0${fact[2].Id}`, true)])
+        : new Set([...(index.verdicts.get(key) ?? []), ...changedAnswers]);
+      for (const owner of owners) {
+        const answer = state.answers[owner]; if (!answer || answer.factProofs?.some(p => p[0] === key)) continue;
+        if (!enrollmentKeys.has(owner)) enrollmentKeys.set(owner, answerFactKeys(answer));
+        if (!enrollmentKeys.get(owner)!.has(key)) continue;
+        remember(owner); answer.needsFactProofs = true;
+      }
+    };
     const explicitEvictions = new Map<string, StoreTombstone>();
     // Keep provenance distinct from hidden-row and extent evictions. These facts
     // join each matching overlay below, even while its response is still queued.
@@ -1039,13 +1039,26 @@ export class PersistentRangeStore implements RangeStore {
         if (typeof key[0] === "string") recordNegative({ table, id: key[0], seq: answer.seq }, "absence");
       }
     };
-    for (const key of swap.dropAnswers ?? []) delete state.answers[key];
+    for (const key of swap.dropAnswers ?? []) { remember(key); delete state.answers[key]; }
+    // Whole-swap preflight: a first timed assertion already constrains every
+    // conditional/full assertion in this transaction, regardless of loop order.
+    const preparedFacts = new Map<StoreDelivery, FactProof[]>();
+    for (const delivery of swap.deliveries ?? []) {
+      const old = state.answers[canonicalAnswerKey(delivery.op, delivery.args)];
+      if (delivery.readTime === undefined || (old && (delivery.seq < old.seq
+        || (delivery.seq === old.seq && sameClockPlan(old, delivery) && delivery.readTime < old.readTime!)))) continue;
+      const proofs = deliveryFacts(delivery); preparedFacts.set(delivery, proofs);
+      guardFacts(state, proofs, delivery.seq, true, enroll);
+    }
     for (const refresh of swap.refreshes ?? []) {
-      const answer = state.answers[canonicalAnswerKey(refresh.op, refresh.args)];
+      const key = canonicalAnswerKey(refresh.op, refresh.args); remember(key);
+      const answer = state.answers[key];
       if (!answer || refresh.seq < answer.seq) continue;
       if (answer.validator !== undefined && answer.validator !== refresh.validator) {
         throw new TypeError(`conditional validator changed for ${refresh.op}`);
       }
+      if (answer.needsFactProofs) throw new FullRevalidationRequired(answer.op, answer.args);
+      guardFacts(state, answer.factProofs ?? [], refresh.seq);
       if (refresh.seq === answer.seq) continue;
       answer.nextSeq ??= answer.seq;
       answer.seq = refresh.seq;
@@ -1054,8 +1067,7 @@ export class PersistentRangeStore implements RangeStore {
       answer.order = ++state.clock;
       recordAbsences(answer);
     }
-    const before = clone(state.answers);
-    const freshRanges: Array<{ range: ReceiptRange; seq: number }> = [];
+    const freshRanges: Array<{ range: ReceiptRange; seq: number; op: string }> = [];
     for (const ref of swap.tombstones ?? []) {
       recordNegative(ref, "tombstone");
     }
@@ -1064,26 +1076,38 @@ export class PersistentRangeStore implements RangeStore {
         throw new TypeError("store delivery seq must be a non-negative safe integer");
       }
       const key = canonicalAnswerKey(delivery.op, delivery.args);
-      const old = before[key];
+      remember(key);
+      const old = raw(state.answers[key]);
       const fingerprintPayload = {
         op: delivery.op, args: delivery.args, state: delivery.state, data: delivery.data,
         next: delivery.next, seq: delivery.seq, validator: delivery.validator,
-        receipt: delivery.receipt, rows: delivery.rows, reason: delivery.reason, rule: delivery.rule,
+        receipt: delivery.receiptEvidence ?? delivery.receipt, rows: delivery.rows, reason: delivery.reason, rule: delivery.rule,
+        ...(delivery.readTime === undefined ? {} : { readTime: delivery.readTime, clockPlanHash: delivery.clockPlanHash }),
       };
       const fingerprint = sha256(canonical(fingerprintPayload));
       if (old && delivery.seq < old.seq) continue;
+      const timedChange = sameClockPlan(old, delivery) && delivery.readTime !== old.readTime;
+      if (timedChange && old.seq === delivery.seq) {
+        clockOnly.add(key);
+        if (delivery.readTime! < old.readTime!) continue;
+      }
       if (old && delivery.seq === old.seq && old.fingerprint !== undefined) {
-        if (old.fingerprint === fingerprint) continue;
-        // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — an
-        // unchanged response advances seq, retaining the full delivery's digest.
-        // Compare every content field at that original seq, then install this
-        // full delivery normally: its rows and next link now have fresh evidence.
-        const fullSeq = old.nextSeq ?? old.seq;
-        if (fullSeq === delivery.seq
-          || old.fingerprint !== sha256(canonical({ ...fingerprintPayload, seq: fullSeq }))) {
-          throw new TypeError(`conflicting deliveries for ${delivery.op} at seq ${delivery.seq}`);
+        // An identical pre-program envelope may now install its checked receipt.
+        // Its integrity digest is independent of this local admission transition.
+        if (old.fingerprint === fingerprint) {
+          if (!old.needsFactProofs && (old.receipt !== undefined || delivery.receipt === undefined)) continue;
+        } else {
+          // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — an
+          // unchanged response advances seq, retaining the full delivery's digest.
+          // Compare every content field at that original seq, then install this
+          // full delivery normally: its rows and next link now have fresh evidence.
+          const fullSeq = old.nextSeq ?? old.seq;
+          if (!timedChange && (fullSeq === delivery.seq || old.fingerprint !== sha256(canonical({ ...fingerprintPayload, seq: fullSeq })))) {
+            throw new TypeError(`conflicting deliveries for ${delivery.op} at seq ${delivery.seq}`);
+          }
         }
       }
+      const proofs = guardFacts(state, preparedFacts.get(delivery) ?? deliveryFacts(delivery), delivery.seq, delivery.readTime !== undefined, enroll);
       for (const row of delivery.rows ?? []) {
         if (!row.table || !row.id || !row.row || typeof row.row !== "object") {
           throw new TypeError("store delivery row is malformed");
@@ -1104,7 +1128,7 @@ export class PersistentRangeStore implements RangeStore {
       let data = clone(delivery.data);
       let answerState = delivery.state;
       let retained = false;
-      const hidden = delivery.state === "denied" && old
+      const hidden = timedChange ? [] : delivery.state === "denied" && old
         ? old.refs
         : old ? hiddenRefs(old.data, data) : [];
       // Moving a row within an array or into another fresh slot is not a
@@ -1124,18 +1148,13 @@ export class PersistentRangeStore implements RangeStore {
       } else if (old && retainedRefs.size > 0) {
         data = restoreRetained(old.data, data, retainedRefs);
       }
-      const refs = collectRefs(data);
-      for (const range of delivery.receipt?.ranges ?? []) {
-        for (const id of [...range.rowIds, ...(range.haloId ? [range.haloId] : [])]) {
-          if (!refs.some((ref) => ref.table === range.table && ref.id === id)) refs.push({ table: range.table, id });
-        }
-      }
-      // The pool is the answer's closure: halo and rule-input bodies (the
-      // membership a message's read rule probed) are delivered content the
-      // twin evaluates over, so an answer keeps every row it was delivered with.
-      for (const pooled of delivery.rows ?? []) {
-        if (!refs.some((ref) => ref.table === pooled.table && ref.id === pooled.id)) refs.push({ table: pooled.table, id: pooled.id });
-      }
+      // Preserve the delivered pool order and retain every same-pool halo/rule input.
+      const refs = (delivery.rows ?? []).map(({ table, id }) => ({ table, id }));
+      const referenced = new Set(refs.map(rowKey));
+      const add = (ref: { table: string; id: string }) => { const key = rowKey(ref); if (!referenced.has(key)) { refs.push(ref); referenced.add(key); } };
+      for (const ref of collectRefs(data)) add(ref);
+      for (const range of delivery.receipt?.ranges ?? [])
+        for (const id of [...range.rowIds, ...(range.haloId ? [range.haloId] : [])]) add({ table: range.table, id });
       const stored: StoredAnswer = {
         op: delivery.op,
         ...(delivery.cursorArg === undefined ? {} : { cursorArg: delivery.cursorArg }),
@@ -1145,8 +1164,11 @@ export class PersistentRangeStore implements RangeStore {
         ...(delivery.next === undefined ? {} : { next: delivery.next }),
         nextSeq: delivery.seq,
         seq: delivery.seq,
+        ...(delivery.readTime === undefined ? {} : { readTime: delivery.readTime, clockPlanHash: delivery.clockPlanHash }),
+        ...(proofs.length ? { factProofs: proofs } : {}),
+        ...(clockOnly.has(key) ? { clockOnly: true } : {}),
         ...(delivery.validator === undefined ? {} : { validator: delivery.validator }),
-        ...(delivery.receipt === undefined ? {} : { receipt: clone(delivery.receipt) }),
+        ...(delivery.receipt === undefined ? {} : { receipt: index.receipt(delivery.receipt, delivery.rows ?? []) }),
         deliveredAt: delivery.deliveredAt ?? Date.now(),
         ...(retained ? { retained: true } : {}),
         ...(delivery.reason === undefined ? {} : { reason: delivery.reason }),
@@ -1156,22 +1178,21 @@ export class PersistentRangeStore implements RangeStore {
         fingerprint,
       };
       state.answers[key] = stored;
-      freshRanges.push(...(delivery.receipt?.ranges ?? []).map((range) => ({ range, seq: delivery.seq })));
+      enrollmentKeys.delete(key);
+      freshRanges.push(...(delivery.receipt?.ranges ?? []).map((range) => ({ range, seq: delivery.seq, op: delivery.op })));
       recordAbsences(stored);
     }
 
-    const heldRanges = Object.values(before).flatMap((answer) => answer.receipt?.ranges ?? []);
-    for (const held of heldRanges) {
-      const matching = freshRanges.filter(({ range: fresh }) => sameRange(held, fresh));
-      if (matching.length === 0) continue;
-      const present = new Set(matching.flatMap(({ range: fresh }) => [
-        ...fresh.rowIds,
-        ...(fresh.haloId ? [fresh.haloId] : []),
-      ]));
-      for (const id of held.rowIds) {
+    const groups = new Map<string, typeof freshRanges>();
+    for (const item of freshRanges) {
+      if (!index.schemaReady) continue; // Retain opaque custody; no unchecked range may authorize eviction.
+      const key = index.rangeKey(item.range, item.op), group = groups.get(key) ?? []; group.push(item); groups.set(key, group);
+    }
+    for (const matching of groups.values()) {
+      const present = new Set(matching.flatMap(({ range }) => [...range.rowIds, ...(range.haloId ? [range.haloId] : [])]));
+      for (const { range: held } of index.matching(matching[0].range, matching[0].op)) for (const id of held.rowIds) {
         if (present.has(id)) continue;
-        const seq = matching
-          .filter(({ range: fresh }) => inFreshExtent(id, held, fresh, state.rows, swap.schema))
+        const seq = matching.filter(({ range, op }) => inFreshExtent(id, held, range, state.rows, index, op))
           .reduce((latest, item) => Math.max(latest, item.seq), -1);
         if (seq >= 0) recordEviction(explicitEvictions, { table: held.table, id, seq });
       }
@@ -1181,11 +1202,15 @@ export class PersistentRangeStore implements RangeStore {
     for (const [key, eviction] of explicitEvictions) {
       if ((state.negative[key] ?? -1) > eviction.seq) continue;
       if ((state.rowSeq[key] ?? -1) > eviction.seq) continue;
+      if (authoritativeNegatives.has(key)) guardFacts(state, [negativeProof(eviction.table, eviction.id)], eviction.seq);
       state.negative[key] = eviction.seq;
       appliedEvictions.add(key);
       delete state.rows[key];
       delete state.rowSeq[key];
-      for (const answer of Object.values(state.answers)) {
+      for (const answerKey of candidates(key)) {
+        const answer = state.answers[answerKey]; if (!answer) continue;
+        if (!answer.refs.some(ref => rowKey(ref) === key)) continue;
+        remember(answerKey);
         for (const range of answer.receipt?.ranges ?? []) {
           if (range.table !== eviction.table) continue;
           const id = eviction.id;
@@ -1208,25 +1233,25 @@ export class PersistentRangeStore implements RangeStore {
       }
     }
 
-    for (const answer of Object.values(state.answers)) {
-      if (!answer.receipt) continue;
-      answer.receipt.absences = answer.receipt.absences.filter(([table, index, key]) => {
-        const id = index === "byId" && key.length === 1 ? key[0] : undefined;
-        const storageKey = typeof id === "string" ? rowKey({ table, id }) : undefined;
-        return storageKey === undefined || (state.rowSeq[storageKey] ?? -1) < 0 || appliedEvictions.has(storageKey);
+    const positive = new Set((swap.deliveries ?? []).flatMap(d => (d.rows ?? []).map(rowKey)));
+    for (const key of positive) for (const answerKey of candidates(key, true)) {
+      const answer = state.answers[answerKey]; if (!answer?.receipt) continue;
+      const absences = answer.receipt.absences.filter(([table, name, values]) => {
+        const storageKey = name === "byId" && typeof values[0] === "string" ? rowKey({ table, id: values[0] }) : undefined;
+        return storageKey !== key || (state.rowSeq[key] ?? -1) < 0 || appliedEvictions.has(key);
       });
+      if (absences.length !== answer.receipt.absences.length) { remember(answerKey); answer.receipt.absences = absences; }
     }
-
-    const referenced = new Set(Object.values(state.answers).flatMap((answer) => answer.refs.map(rowKey)));
-    // Every pooled row joins its answer's refs above, so nothing arrives unused;
-    // a row leaves here when no answer references it any more — its answer was
-    // dropped, or replaced by a delivery whose closure no longer pools it.
-    for (const key of Object.keys(state.rows)) if (!referenced.has(key)) {
-      delete state.rows[key];
-      delete state.rowSeq[key];
+    const maybeUnused = new Set<string>();
+    for (const key of changedAnswers) for (const r of before.get(key)?.refs ?? []) maybeUnused.add(rowKey(r));
+    for (const key of maybeUnused) {
+      const used = [...(index.references.get(key) ?? [])].some(owner => !changedAnswers.has(owner))
+        || [...changedAnswers].some(owner => state.answers[owner]?.refs.some(r => rowKey(r) === key));
+      if (!used) { delete state.rows[key]; delete state.rowSeq[key]; }
     }
 
     // Bytes join the swap by row lease: whatever left `state.rows` above takes its bytes with it.
+    if (Object.keys(state.assets).length || swap.bytes || swap.viewed?.length || swap.viewedAssets?.length) {
     const leased = leasedAssets(Object.values(state.rows), Object.values(state.answers));
     for (const row of Object.values(state.rows)) if (onceRow(state.onceColumns, row)) {
       for (const id of assetIdsIn(row.row)) leased.delete(id);
@@ -1234,7 +1259,10 @@ export class PersistentRangeStore implements RangeStore {
     const byteDelta = applyByteSwap(state, swap, leased);
     bytes.put.push(...byteDelta.put);
     bytes.remove.push(...byteDelta.remove);
+    }
 
+    for (const key of changedAnswers) state.factSlots += proofSlots(state.answers[key]) - proofSlots(before.get(key));
+    checkFactSlots(state);
     return authoritativeNegatives;
   }
 
