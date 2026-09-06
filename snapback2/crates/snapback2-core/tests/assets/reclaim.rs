@@ -202,9 +202,19 @@ fn durable_staging_charge_covers_guest_churn_claim_reclaim_and_restart() {
             .asset_staging_usage(&user("guest-0"))
             .unwrap()
             .global,
-        AssetStagingUsage::default()
+        AssetStagingUsage {
+            bytes: u64::from(STAGING_GLOBAL_OBJECTS),
+            objects: STAGING_GLOBAL_OBJECTS
+        }
     );
     runtime.finish_asset_reclaims(&reclaiming).unwrap();
+    assert_eq!(
+        runtime
+            .asset_staging_usage(&user("guest-0"))
+            .unwrap()
+            .global,
+        AssetStagingUsage::default()
+    );
 
     let photo_id = runtime
         .begin_asset_charged(AssetKind::Image, &claimed_actor, 1, 10)
@@ -346,7 +356,7 @@ fn explicit_discard_fences_late_finalize_and_claim_without_touching_another_crea
     assert!(runtime.discard_upload(&alice, &receiving).unwrap());
     assert_eq!(
         runtime.asset_staging_usage(&alice).unwrap().creator.objects,
-        0
+        1
     );
     assert!(
         runtime
@@ -354,6 +364,13 @@ fn explicit_discard_fences_late_finalize_and_claim_without_touching_another_crea
             .is_err()
     );
 
+    // A receiving tombstone retains its reservation until the worker reports
+    // that physical custody ended; a marker alone cannot release disk quota.
+    runtime.mark_asset_failed(&receiving).unwrap();
+    assert_eq!(
+        runtime.asset_staging_usage(&alice).unwrap().creator.objects,
+        0
+    );
     let photo = image(&mut runtime, &alice, 50, 10, 20);
     let id = asset_id(&photo);
     assert!(runtime.discard_upload(&alice, &id).unwrap());

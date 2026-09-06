@@ -267,6 +267,7 @@ pub enum Action {
     },
     AssetUploadBegin {
         kind: AssetKind,
+        custody: crate::blob_store::UploadCustody,
         bytes: u64,
         identity: Identity,
     },
@@ -747,9 +748,10 @@ impl State {
             }
             Action::AssetUploadBegin {
                 kind,
+                custody,
                 bytes,
                 identity,
-            } => self.asset_upload_begin(kind, bytes, identity),
+            } => self.asset_upload_begin(kind, bytes, identity, custody),
             Action::AssetUploadReserve { id, bytes } => {
                 self.runtime_mut()
                     .reserve_asset_finalized_bytes(&id, bytes)
@@ -757,12 +759,14 @@ impl State {
                 Ok(json!({ "ok": true }))
             }
             Action::AssetUploadReady { id, facts } => {
+                self.staging.finish_upload(&id);
                 self.runtime_mut()
                     .mark_asset_ready(&id, &facts)
                     .map_err(|error| Refusal::from_runtime(&error))?;
                 Ok(asset_record(&id, &facts))
             }
             Action::AssetUploadFailed { id } => {
+                self.staging.finish_upload(&id);
                 self.runtime_mut()
                     .mark_asset_failed(&id)
                     .map_err(|error| Refusal::from_runtime(&error))?;

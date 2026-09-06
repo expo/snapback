@@ -674,3 +674,25 @@ test("a definitive HTTP refusal discards only this call's upload, preserving sup
     assert.deepEqual(discarded, [image.id]);
   } finally { client.close(); }
 });
+
+test("cleanup session expiry preserves the already settled mutation rejection", async () => {
+  const rejected = { state: "rejected", code: "E_REQUIRE:NOT_MEMBER", family: "rule", message: "membership required", guide: "quarry" };
+  let discards = 0;
+  const client = createClient({ url: "http://assets.test", token: "old-session", fetch: async (input) => {
+    const path = new URL(String(input)).pathname;
+    if (path === "/api/auth/me") return json({ viewer: "alice", kind: "user" });
+    if (path === "/api/manifest") return json(manifest());
+    if (path === "/api/upload") return json(image);
+    if (path === "/api/mutation") return json(rejected);
+    if (path === "/api/uploads/discard") {
+      discards++;
+      return json({ code: "E_AUTH_SESSION", family: "auth", message: "expired", guide: "auth" }, 401);
+    }
+    throw new Error(`unexpected path ${path}`);
+  } });
+  try {
+    assert.deepEqual(await client.mutation(api.assets.send, { photo: new File(["a"], "photo.png") } as any), rejected);
+    assert.equal(discards, 1);
+    assert.equal(client.snapshot.token, undefined, "cleanup still expires the invalid session");
+  } finally { client.close(); }
+});

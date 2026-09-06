@@ -292,7 +292,7 @@ export class OutboxLedger {
   // are the program's `new` envelope in order, as many as the certificate's
   // persisted write bound allows. No bound, or no remaining ids, is a refusal,
   // never a silent reuse or a guessed reservation.
-  enqueue(input: EnqueueInput, predict?: (ids: string[]) => Promise<EnqueuePrediction>): Promise<OutboxEntry> {
+  enqueue(input: EnqueueInput, predict?: (ids: string[]) => Promise<EnqueuePrediction>, beforeCommit?: () => void): Promise<OutboxEntry> {
     return this.serial(async () => {
       const grant = await this.grant();
       if (!grant) {
@@ -355,6 +355,8 @@ export class OutboxLedger {
         createdAt: now,
         updatedAt: now,
       };
+      // From this point a storage failure can be ambiguous; before it no intent exists.
+      beforeCommit?.();
       await this.store.commit({
         grants: { put: [{ ...grant, used: grant.used + count }] },
         outbox: { put: [entry] },

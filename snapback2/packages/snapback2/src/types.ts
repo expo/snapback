@@ -344,7 +344,7 @@ export interface SnapbackClient {
   upload(source: AssetUploadSource, options?: AssetUploadOptions): Promise<AssetRecord>;
   /** Lists this account's unclaimed uploads, at most 100 per page, including after restart. */
   listUploads(options?: { after?: string }): Promise<UploadListing>;
-  /** Releases staging quota immediately; refuses claimed assets. Missing/foreign ids return false. */
+  /** Discards own unclaimed bytes; running finalizers retain quota until closed. Missing/foreign ids return false. */
   discardUpload(id: string): Promise<boolean>;
   assetUrl(asset: AssetRecord | null | undefined, options?: AssetUrlOptions): Promise<string | undefined>;
   assetUrl(assets: readonly AssetRecord[], options?: AssetUrlOptions): Promise<string[]>;

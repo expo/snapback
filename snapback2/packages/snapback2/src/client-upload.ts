@@ -103,11 +103,11 @@ async function discardAutomaticUploads(host: UploadHost, records: readonly Asset
 // only uploads made by this call after a definitive refusal or before submission.
 export async function withMutationUploads<Result>(
   host: UploadHost, operation: string, args: unknown, authority: Authority,
-  manifest: () => Promise<Manifest>, hasOutbox: boolean,
-  submit: (args: unknown) => Promise<MutationResult<Result>>,
+  manifest: () => Promise<Manifest>,
+  submit: (args: unknown, onCustody: (kind: "wire" | "outbox") => void) => Promise<MutationResult<Result>>,
 ): Promise<MutationResult<Result>> {
   const records: AssetRecord[] = [];
-  let submitted = false;
+  let custody: "wire" | "outbox" | undefined;
   try {
     let mutationArgs = args;
     if (mayNeedAssetPlanning(args)) {
@@ -125,14 +125,13 @@ export async function withMutationUploads<Result>(
         mutationArgs = substituteAssetRecords(args, placements, records);
       }
     }
-    submitted = true;
-    const result = await submit(mutationArgs);
+    const result = await submit(mutationArgs, (kind) => { custody = kind; });
     if (result.state === "rejected") await discardAutomaticUploads(host, records, authority);
     return result;
   } catch (error) {
-    // An outbox may already own an intent even when submit throws. Only its
-    // explicit rejected result permits cleanup; queued/ambiguous writes keep bytes.
-    if (!submitted || (!hasOutbox && isSnapbackRefusal(error) && !error.retryable
+    // Admission/prediction failures precede custody. Once persistence or the
+    // network is attempted, ambiguous failures retain bytes for possible replay.
+    if (custody === undefined || (custody === "wire" && isSnapbackRefusal(error) && !error.retryable
       && error.code !== "E_WIRE_SHAPE" && error.status !== undefined && error.status >= 400 && error.status < 500)) {
       await discardAutomaticUploads(host, records, authority);
       if (isSnapbackRefusal(error)) host.recordRefusal(error.envelope);

@@ -279,22 +279,25 @@ class Client implements SnapbackClient {
     const authority = await this.operationAuthority();
     return this.trackWrite(async () => {
       try {
-        const result = await withMutationUploads(this, referenceName(ref), args, authority,
-          () => this.manifestFor(authority), this.offlineRuntime?.principal !== undefined,
-          (mutationArgs) => submitMutation<Result>({
-            runtime: this.offlineRuntime, offline: this.forcedOffline, op: referenceName(ref), args: mutationArgs,
-            json: (path, init) => this.json(path, init, authority), failure: (error) => this.offlineRefusal(error),
-            drain: () => this.drainNow(),
-          }));
-        if (result.state === "rejected" && isTerminalSession(result)) {
-          const wasCurrent = this.authorityCurrent(authority);
-          const expiration = await this.expireSession(authority);
-          if (!wasCurrent || !this.expirationCurrent(expiration)) throw this.supersededRefusal();
-          this.recordRefusal(result);
-          return result;
-        }
-        this.validated(authority);
-        return result;
+        return await withMutationUploads(this, referenceName(ref), args, authority,
+          () => this.manifestFor(authority), async (mutationArgs, onCustody) => {
+            const result = await submitMutation<Result>({
+              runtime: this.offlineRuntime, offline: this.forcedOffline, op: referenceName(ref), args: mutationArgs,
+              json: (path, init) => this.json(path, init, authority), failure: (error) => this.offlineRefusal(error),
+              drain: () => this.drainNow(), onCustody,
+            });
+            if (result.state === "rejected" && isTerminalSession(result)) {
+              const wasCurrent = this.authorityCurrent(authority);
+              const expiration = await this.expireSession(authority);
+              if (!wasCurrent || !this.expirationCurrent(expiration)) throw this.supersededRefusal();
+              this.recordRefusal(result);
+              return result;
+            }
+            // Settle authority before best-effort cleanup, whose 401 may expire
+            // the session without invalidating this already received outcome.
+            this.validated(authority);
+            return result;
+          });
       } catch (error) {
         if (isSnapbackRefusal(error) && error.code === "E_WIRE_SHAPE") {
           const ambiguous = new SnapbackRefusal(copyRefusal(error.envelope), true);

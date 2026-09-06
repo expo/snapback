@@ -98,6 +98,74 @@ test("twenty-four refused File mutations recover their staging quota immediately
   } finally { await client.close(); }
 });
 
+test("failed outbox admission or prediction leaves no upload, intent, or mutation request", async () => {
+  const { readFile, mkdtemp, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const { fileRangeStore } = await import("../dist/test.mjs");
+  const directory = await mkdtemp(join(tmpdir(), "snapback-upload-admission-"));
+  let mutations = 0;
+  const client = createClient({ url: owner.url, as: "alice", offline: { store: fileRangeStore(directory) },
+    fetch: async (input, init) => {
+      if (new URL(String(input)).pathname === "/api/mutation") mutations++;
+      return fetch(input, init);
+    },
+  });
+  try {
+    const png = await readFile(new URL("../../../scripts/witness-expo/view-once.png", import.meta.url));
+    const initial = (await client.listUploads()).usage;
+    for (let index = 0; index < 24; index++) {
+      await assert.rejects(client.mutation(api.messages.sendPhoto, {
+        conversationId: "conversation-1", photo: new File([png], "photo.png"),
+      }), (error: any) => error.code === "E_OFFLINE_ID_BLOCK");
+      assert.deepEqual((await client.listUploads()).usage, initial);
+      assert.deepEqual(await client.outbox.entries(), []);
+    }
+    const drain = client.subscribe(api.messages.thread, { conversationId: "conversation-1", c: null }, () => {}, { drain: true });
+    await drain.until((event: any) => event.live === true, 3_000);
+    drain.close();
+    (client as any).offlineRuntime.predict = async () => { throw new Error("prediction failed before custody"); };
+    await assert.rejects(client.mutation(api.messages.sendPhoto, {
+      conversationId: "conversation-1", photo: new File([png], "photo.png"),
+    }), /prediction failed before custody/);
+    assert.deepEqual((await client.listUploads()).usage, initial);
+    assert.deepEqual(await client.outbox.entries(), []);
+    assert.equal(mutations, 0);
+  } finally { await client.close(); await rm(directory, { recursive: true, force: true }); }
+});
+
+test("an outbox persistence failure after commit retains media for replay", async () => {
+  const { readFile, mkdtemp, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const { fileRangeStore } = await import("../dist/test.mjs");
+  const directory = await mkdtemp(join(tmpdir(), "snapback-upload-durable-"));
+  const client = createClient({ url: owner.url, as: "alice", offline: { store: fileRangeStore(directory) } });
+  try {
+    const drain = client.subscribe(api.messages.thread, { conversationId: "conversation-1", c: null }, () => {}, { drain: true });
+    await drain.until((event: any) => event.live === true, 3_000);
+    drain.close();
+    const runtime = (client as any).offlineRuntime;
+    const commit = runtime.store.commit.bind(runtime.store);
+    runtime.store.commit = async (change: any) => {
+      await commit(change);
+      if (change.outbox?.put?.length) throw new Error("storage acknowledgement lost after commit");
+    };
+    const png = await readFile(new URL("../../../scripts/witness-expo/view-once.png", import.meta.url));
+    await assert.rejects(client.mutation(api.messages.sendPhoto, {
+      conversationId: "conversation-1", photo: new File([png], "photo.png"),
+    }), /storage acknowledgement lost/);
+    const entries = await client.outbox.entries();
+    assert.equal(entries.length, 1);
+    const id = (entries[0].args as any).photo.id;
+    assert.ok((await client.listUploads()).uploads.some((upload) => upload.id === id));
+    runtime.store.commit = commit;
+    await client.outbox.drain();
+    assert.ok(!(await client.listUploads()).uploads.some((upload) => upload.id === id));
+    await assert.rejects(client.discardUpload(id), (error: any) => error.code === "E_ASSET_IN_USE");
+  } finally { await client.close(); await rm(directory, { recursive: true, force: true }); }
+});
+
 test("a lost committed media response retains the claimed asset and explicit discard refuses it", async () => {
   const { readFile } = await import("node:fs/promises");
   let photo: any;

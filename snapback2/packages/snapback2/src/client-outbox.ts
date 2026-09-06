@@ -63,6 +63,7 @@ export interface SubmitMutationOptions {
   json: Transport;
   failure(error: unknown): Error;
   drain(): Promise<{ stopped: boolean }>;
+  onCustody?(kind: "wire" | "outbox"): void;
 }
 
 /**
@@ -79,16 +80,20 @@ export interface SubmitMutationOptions {
  */
 export async function submitMutation<Result>(options: SubmitMutationOptions): Promise<MutationResult<Result>> {
   const { runtime } = options;
-  const plain = async () => wireMutation<Result>(await options.json("/api/mutation", {
-    method: "POST",
-    body: JSON.stringify({ op: options.op, args: options.args }),
-  }));
+  const plain = async () => {
+    options.onCustody?.("wire");
+    return wireMutation<Result>(await options.json("/api/mutation", {
+      method: "POST",
+      body: JSON.stringify({ op: options.op, args: options.args }),
+    }));
+  };
   if (!runtime || runtime.principal === undefined) return plain();
   const enqueue = async (): Promise<OutboxEntry> => {
     try {
       return await runtime.outbox.enqueue(
         { op: options.op, args: options.args, issuedSeq: runtime.seq },
         (ids) => runtime.predict(options.op, options.args, ids),
+        () => options.onCustody?.("outbox"),
       );
     } catch (error) {
       throw options.failure(error);

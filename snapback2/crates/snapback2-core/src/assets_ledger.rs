@@ -246,8 +246,8 @@ impl Store {
                 connection.query_row(
                     "SELECT COALESCE(SUM(MAX(staged_bytes, COALESCE(bytes, 0))), 0), COUNT(*)
                      FROM _assets
-                     WHERE reclaiming = 0 AND locator_table IS NULL
-                       AND state IN ('receiving', 'ready') AND created_by = ?1",
+                     WHERE locator_table IS NULL
+                       AND (state = 'receiving' OR (state = 'ready' AND reclaiming = 0)) AND created_by = ?1",
                     [creator],
                     |row| Ok((row.get(0)?, row.get(1)?)),
                 )?
@@ -255,8 +255,8 @@ impl Store {
                 connection.query_row(
                     "SELECT COALESCE(SUM(MAX(staged_bytes, COALESCE(bytes, 0))), 0), COUNT(*)
                      FROM _assets
-                     WHERE reclaiming = 0 AND locator_table IS NULL
-                       AND state IN ('receiving', 'ready')",
+                     WHERE locator_table IS NULL
+                       AND (state = 'receiving' OR (state = 'ready' AND reclaiming = 0))",
                     [],
                     |row| Ok((row.get(0)?, row.get(1)?)),
                 )?
@@ -408,7 +408,7 @@ impl Store {
         let mut statement = self.conn.prepare(
             "SELECT id, kind, state, MAX(staged_bytes, COALESCE(bytes, 0)), created_at
              FROM _assets WHERE created_by = ?1 AND locator_table IS NULL
-               AND reclaiming = 0 AND state IN ('receiving', 'ready') AND id > ?2
+               AND (state = 'receiving' OR (state = 'ready' AND reclaiming = 0)) AND id > ?2
              ORDER BY id LIMIT 101",
         )?;
         Ok(statement

@@ -1,6 +1,6 @@
 //! Upload and delivery routes for server-owned asset bytes.
 
-use crate::blob_store::{BlobStore, ByteRange, LocalStaging};
+use crate::blob_store::{BlobStore, ByteRange, LocalStaging, StagingFile, UploadCustody};
 use crate::image_walk::{self, ImageFormat};
 use crate::media_helper;
 use crate::protocol::{Refusal, refusal_json};
@@ -121,11 +121,22 @@ struct UploadLedgerGuard {
     handle: crate::writer::OwnerHandle,
     id: String,
     settled: bool,
+    custody: UploadCustody,
+    finalizing: Option<StagingFile>,
+}
+
+impl UploadLedgerGuard {
+    fn finish_bytes(&mut self) -> Result<(), Refusal> {
+        if let Some(file) = &mut self.finalizing {
+            file.discard()?;
+        }
+        self.custody.finish()
+    }
 }
 
 impl Drop for UploadLedgerGuard {
     fn drop(&mut self) {
-        if !self.settled {
+        if self.finish_bytes().is_ok() && !self.settled {
             let _ = self.handle.call(Action::AssetUploadFailed {
                 id: self.id.clone(),
             });
@@ -229,8 +240,10 @@ pub fn handle_upload(mut request: Request, context: &Context, identity: Identity
         return;
     }
 
+    let custody = UploadCustody::new(staging);
     let begun = match context.handle.call(Action::AssetUploadBegin {
         kind: detected.kind,
+        custody: custody.clone(),
         bytes: content_length,
         identity: identity.clone(),
     }) {
@@ -246,23 +259,23 @@ pub fn handle_upload(mut request: Request, context: &Context, identity: Identity
         handle: context.handle.clone(),
         id: id.clone(),
         settled: false,
+        custody: custody.clone(),
+        finalizing: None,
     };
     let remaining = content_length.saturating_sub(copied);
-    let copied_rest = match io::copy(
-        &mut request.as_reader().take(remaining.saturating_add(1)),
-        staging.file_mut(),
-    ) {
-        Ok(copied) => copied,
-        Err(error) => {
-            respond_refusal(
-                request,
-                422,
-                asset_type(format!("cannot stream upload body to staging: {error}")),
-                &context.mode,
-            );
-            return;
-        }
-    };
+    let copied_rest =
+        match custody.copy_from(&mut request.as_reader().take(remaining.saturating_add(1))) {
+            Ok(copied) => copied,
+            Err(error) => {
+                respond_refusal(
+                    request,
+                    422,
+                    asset_type(format!("cannot stream upload body to staging: {error}")),
+                    &context.mode,
+                );
+                return;
+            }
+        };
     if copied_rest != remaining {
         respond_refusal(
             request,
@@ -275,6 +288,14 @@ pub fn handle_upload(mut request: Request, context: &Context, identity: Identity
         );
         return;
     }
+    ledger.finalizing = match custody.finalize() {
+        Ok(file) => Some(file),
+        Err(error) => {
+            respond_refusal(request, 422, error, &context.mode);
+            return;
+        }
+    };
+    let staging = ledger.finalizing.as_mut().expect("finalizing upload");
     if let Err(error) = staging.sync_and_close() {
         respond_refusal(request, 500, error, &context.mode);
         return;
@@ -305,6 +326,12 @@ pub fn handle_upload(mut request: Request, context: &Context, identity: Identity
     }
     if let Err(error) = publish_finalized(context.blobs.as_ref(), staging.path(), &id, facts.bytes)
     {
+        let _ = context.blobs.delete(&id);
+        respond_refusal(request, 500, error, &context.mode);
+        return;
+    }
+    // No response can let a row claim this asset while staging bytes remain.
+    if let Err(error) = ledger.finish_bytes() {
         let _ = context.blobs.delete(&id);
         respond_refusal(request, 500, error, &context.mode);
         return;

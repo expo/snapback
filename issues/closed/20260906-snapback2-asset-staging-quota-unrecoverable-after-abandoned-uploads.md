@@ -32,8 +32,9 @@ allowance (the builder reports hitting a 20-object ceiling for that account). Af
 Implemented authenticated `client.listUploads()` and `client.discardUpload(id)`
 (`GET /api/uploads`, `POST /api/uploads/discard`) over the existing lifecycle
 ledger. Listing survives restart and is scoped to the creator; disposal checks
-creator and null locator in the writer transaction, immediately frees staging
-quota, and leaves the existing fork-aware sweep to remove bytes. Claimed ids
+creator and null locator in the writer transaction. Receiving files close before
+quota release; running finalizers stay charged until their bytes close. Ready
+assets release quota for the existing fork-aware sweep to remove blobs. Claimed ids
 refuse `E_ASSET_IN_USE`; foreign and missing ids return the same answer.
 
 Automatic File/native-source substitution now discards this call's uploads on
@@ -49,3 +50,12 @@ discovers and discards a full 20-object account without reset, preserving anothe
 account's uploads; core tests cover disposal before finalize/claim and refusal
 after claim; real clients retain queued media and reject disposal of an image
 whose successful mutation response was lost.
+
+Review corrections: pre-persistence outbox admission and prediction failures now
+clean up without creating an intent or sending a mutation; an attempted storage
+commit remains ambiguous. Cleanup 401 expires the session but preserves the
+already settled rejection. Paused body cancellation closes/unlinks its staging
+file under the same lock as writes, so late chunks cannot recreate it. The
+sweeper retains active finalizers and their charges until physical release.
+Focused regressions cover each case, including a storage acknowledgement lost
+after an intent committed and three discarded uploads with sockets still paused.
