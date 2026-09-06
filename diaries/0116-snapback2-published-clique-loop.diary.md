@@ -555,3 +555,22 @@ expects from clock-sensitive data without separate cache plumbing. The focused
 proof is retained with its source-custody limits; guard/revalidation tests and
 final package qualification remain pending. It does not establish the cause of
 the original published inbox failure.
+
+
+## 2026-09-06 — Published 0.0.8 builder completes; independent audit starts
+
+The Astra medium builder finished in15,482 seconds through closeout. Its seven
+web milestone groups and Hermes exports passed, and the167,244-action scale
+run reported no invariant failures. Native functional qualification remains
+unproven, M7 is unattempted, and the performance gate failed. An independent
+grader now runs the sealed application with fresh state and exact package bytes.
+
+The offline restart repair ultimately corrected a duplicate asynchronous app
+bootstrap that selected a second partition. That app error should remain
+distinct from the unresolved published inbox cache conflict. Search still
+requires client-maintained prefix postings, which adds authoring work and lets
+a custom client omit terms; the indexed server search repair is not yet shipped.
+The candidate persistent client now passes38 checks under its original10-second
+deadline on M5, but its full runtime remains457 bytes over the66,000-byte limit.
+These observations identify remaining work; they do not establish a win over
+Convex or Supabase.

@@ -1,0 +1,62 @@
+{
+  "scope": "Completed published snapback2@0.0.8 Astra medium builder; independent grading still live. No holistic score or comparative win.",
+  "sourceOriginal": "/Users/ccheever/clique-full-008-20260906/lanes/astra-snapback2",
+  "sealedAt": "2026-09-06T14:52:19.848885+00:00",
+  "sealSha256": "ad86c5c5714de218f334c8b5617351185d6d0ab02d7ff8ecb1e399a0c1ac9006",
+  "builderPIDAbsent": true,
+  "providerTerminalEvent": {
+    "type": "turn.completed",
+    "usage": {
+      "input_tokens": 76486507,
+      "cached_input_tokens": 75017728,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 315060,
+      "reasoning_output_tokens": 149879
+    }
+  },
+  "providerMeterNote": "Terminal provider meter supplement; original builder record with null token fields is preserved. Cached input is a component of input, not additional input; reasoning output is not added again. No efficiency score claimed.",
+  "builderRawWallSeconds": 15482,
+  "builderRawStartEpoch": 1788690609,
+  "builderRawEndEpoch": 1788706091,
+  "protocolTimestamps": {
+    "startedAt": "2026-09-06T10:30:09.000Z",
+    "finishedAt": "2026-09-06T14:44:34.841Z"
+  },
+  "protocolWallClock": {
+    "totalSeconds": 15265.841000080109,
+    "phases": {
+      "orientation": null,
+      "authoring": null,
+      "verification": null,
+      "diagnosis": null,
+      "replay": 2471,
+      "m7Session": null
+    }
+  },
+  "clockNote": "Protocol wall ends at last acceptance. Builder raw wall includes closeout. Neither is replaced by launcher time.",
+  "outcomes": {
+    "web": "M1-M6 and M8 suite/choreography/coverage passed according to retained builder receipts; independent audit in progress.",
+    "Hermes": "Exports passed; not native functional proof.",
+    "native": "M6/M8 functional qualification unproven.",
+    "M7": "Not attempted.",
+    "scale": "167244 actions; all 11 invariant groups passed.",
+    "performance": "Failed following ratio and literal search/trending midpoint gates; final clone owner stall cause ambiguous."
+  },
+  "privateArtifactHashes": {
+    "final-report.md": "8eb6bdb89476ae3ebf6aa53c4b66c7f164ce9a6a05a786300dffe8a0acee65c1",
+    "FINAL.md": "2ff838ddcd308e774e669a8089d7daf577ecacfc4988ebc178de04b18b3c17ed",
+    "essay.md": "65712c1822f41906197c42f7e50de5ab23666756c253294eed678cbdfdfb2c13",
+    "run-record.json": "6b1f5fb978f1c1466ea30dfc19ea6071659a926f63f90b407777be2620399d0c",
+    "run-log.md": "ed0d71e90439bd6781c10a59c3fe714abf070d2c5c6de5bf323a4b68e9dfdaf5",
+    "diary.md": "7fa2502ef0dea6a0c475d43b5d9aed1c1daa07daf5c585372d4d27c400cb2a28"
+  },
+  "grading": {
+    "modelRequested": "grok-4.6",
+    "effortRequested": "xhigh",
+    "sessionId": "2d5466a1-ff8d-4029-b0fb-c497ac1537f8",
+    "startedAt": "2026-09-06T15:00:39.030270Z",
+    "installedFilesVerified": 153,
+    "state": "Live at recording; starter invariants passed. Fresh app state; no builder essay or scores supplied.",
+    "qualification": "Diagnostic independent outcome audit; no calibrated O3/O5 claim."
+  }
+}
