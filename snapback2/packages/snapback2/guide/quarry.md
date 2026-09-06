@@ -22,10 +22,10 @@ Built-in virtual tables: `connected` supports only `exists connected[p]` and
 Columns and arguments use `principal`, `id`, table references, `int`, `time`,
 `bool`, `decimal <scale>`, `money <CUR> [scale]`, `text <=N`, `text M..N`,
 `json <=N`, `bytes <=N`, `enum(...)`, and bounded lists `[type] <=N`. Decimal
-and money scales are integers 0–12 (money defaults to 2; its currency is three
-uppercase letters). Add `?` for optional. Text may add `format handle`/`format url` after its bound; minimums and
-formats are enforced, maximums stay part of the type.
-Text forbids C0 controls except tab, LF, and CR.
+and money scales are integers 0–12 (money defaults to 2; currency: three
+uppercase letters). Add `?` for optional. Text accepts `format handle`/`format url`
+after its bound; min/format constraints apply separately from maximums.
+C0 controls except tab/LF/CR refuse. Text widening: `guide operator`.
 
 `image <=N` is a byte-bounded closed record `{ id, width, height }`; `video <=N`
 adds integer-millisecond `duration`. Both admit `?` and bounded lists, but no

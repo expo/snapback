@@ -9,7 +9,8 @@ pub struct NarrowingConflict {
     pub sample: Vec<String>,
 }
 
-// @ref LLP 1016#d4--expand-fill-contract — only removal of the outer optional wrapper is narrowing; retypes and changes inside lists remain destructive.
+// @ref LLP 1016#d4--expand-fill-contract — narrowing only removes the outer optional
+// wrapper with an identical inner type; text maximum widening is separate (LLP 1001 §4).
 pub(super) fn is_narrowing(current: &ColumnType, next: &ColumnType) -> bool {
     matches!(current, ColumnType::Optional(inner) if inner.as_ref() == next
         && !matches!(next, ColumnType::Optional(_)))

@@ -74,6 +74,61 @@ fn get(runtime: &mut Runtime, id: String) -> Value {
 }
 
 #[test]
+fn widening_a_maintained_text_group_preserves_the_projection_and_its_identity() {
+    let source = table(
+        &[
+            ("id", ColumnType::Id),
+            ("group", ColumnType::Text { max: 80 }),
+        ],
+        &[("byId", &["id"])],
+    );
+    let target = table(
+        &[
+            ("id", ColumnType::Id),
+            ("group", ColumnType::Text { max: 80 }),
+            ("value", ColumnType::Int),
+        ],
+        &[("byId", &["id"])],
+    );
+    let maintain = Maintain {
+        kind: MaintainKind::Count,
+        source: "events".into(),
+        by: vec!["group".into()],
+        target: "totals".into(),
+        readable: None,
+    };
+    let mut tables = BTreeMap::from([("events".into(), source), ("totals".into(), target)]);
+    let mut runtime = Runtime::open(
+        Store::memory().unwrap(),
+        generation(tables.clone(), vec![maintain.clone()]),
+    )
+    .unwrap();
+    let group = Value::String("x".repeat(80));
+    runtime
+        .seed(&[(
+            "events".into(),
+            object([
+                ("id", Value::Id("event-1".into())),
+                ("group", group.clone()),
+            ]),
+        )])
+        .unwrap();
+    let id = canonical_json(&vec![group]);
+    let before = get(&mut runtime, id.clone());
+    let seq = runtime.store().commit_seq().unwrap();
+    for table in tables.values_mut() {
+        table
+            .columns
+            .insert("group".into(), ColumnType::Text { max: 2000 });
+    }
+    runtime
+        .apply_successor(generation(tables, vec![maintain]))
+        .unwrap();
+    assert_eq!(get(&mut runtime, id), before);
+    assert_eq!(runtime.store().commit_seq().unwrap(), seq);
+}
+
+#[test]
 fn successor_rebuilds_count_as_sum_then_clears_a_removed_maintain() {
     let expenses = table(
         &[

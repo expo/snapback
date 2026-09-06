@@ -3,9 +3,9 @@
 
 use crate::engine::{
     RuntimeError, materialize_optional_fields, rebuild_owned_aggregate_target, reindex_row,
-    validate_column_value,
+    validate_column_value, validate_text_constraint,
 };
-use crate::schema::{ColumnType, Maintain, MaintainKind, Schema};
+use crate::schema::{ColumnType, Constraint, Maintain, MaintainKind, Schema};
 use crate::store::Store;
 use crate::value::{I53_MAX, I53_MIN, Value, canonical_json};
 use rusqlite::{Connection, Transaction, params};
@@ -184,6 +184,7 @@ pub(crate) fn plan(
                 }),
                 Some(next_type)
                     if next_type != column_type
+                        && !text_maximum_widens(column_type, next_type)
                         && !adding_once(column_type, next_type)
                         && !is_narrowing(column_type, next_type) =>
                 {
@@ -247,6 +248,7 @@ pub(crate) fn additive_refusal(
                 .get(*column)
                 .is_none_or(|current_kind| {
                     current_kind != *kind
+                        && !text_maximum_widens(current_kind, kind)
                         && !adding_once(current_kind, kind)
                         && !is_narrowing(current_kind, kind)
                 })
@@ -382,12 +384,25 @@ pub(crate) fn validate_stored_rows(
                     None => true,
                     Some(current_kind) => {
                         current_kind != *kind
-                            && (contains_id_or_ref(kind) || is_narrowing(current_kind, kind))
+                            && (contains_id_or_ref(kind)
+                                || is_narrowing(current_kind, kind)
+                                || text_maximum_widens(current_kind, kind))
                     }
                 }
             })
             .collect::<Vec<_>>();
-        if columns.is_empty() {
+        // Text min/format are constraints, not part of ColumnType::Text. A wider
+        // maximum must not bypass them, including a simultaneous tightening.
+        let text_constraints = next_table
+            .constraints
+            .iter()
+            .filter(|constraint| {
+                matches!(constraint, Constraint::Text { field, .. }
+                if columns.iter().any(|(column, _)| *column == field)
+                    || current_table.is_none_or(|table| !table.constraints.contains(constraint)))
+            })
+            .collect::<Vec<_>>();
+        if columns.is_empty() && text_constraints.is_empty() {
             continue;
         }
         let mut statement = connection
@@ -422,6 +437,21 @@ pub(crate) fn validate_stored_rows(
                     )));
                 }
             }
+            for constraint in &text_constraints {
+                if let Constraint::Text { field, min, format } = constraint {
+                    if let Err(error) = validate_text_constraint(
+                        table_name,
+                        field,
+                        *min,
+                        *format,
+                        object.get(field),
+                    ) {
+                        return Ok(Some(SuccessorRefusal::invalid_row(
+                            table_name, &row_id, error,
+                        )));
+                    }
+                }
+            }
         }
     }
     Ok(None)
@@ -432,6 +462,19 @@ fn contains_id_or_ref(kind: &ColumnType) -> bool {
         ColumnType::Id | ColumnType::Ref { .. } => true,
         ColumnType::Optional(inner) | ColumnType::List { of: inner, .. } => {
             contains_id_or_ref(inner)
+        }
+        _ => false,
+    }
+}
+
+// @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — only the text
+// maximum may grow; equal wrappers/list bounds preserve the same value-set inclusion.
+fn text_maximum_widens(current: &ColumnType, next: &ColumnType) -> bool {
+    match (current, next) {
+        (ColumnType::Text { max: a }, ColumnType::Text { max: b }) => b >= a,
+        (ColumnType::Optional(a), ColumnType::Optional(b)) => text_maximum_widens(a, b),
+        (ColumnType::List { of: a, max: am }, ColumnType::List { of: b, max: bm }) => {
+            am == bm && text_maximum_widens(a, b)
         }
         _ => false,
     }
@@ -807,5 +850,88 @@ fn adding_once(current: &ColumnType, next: &ColumnType) -> bool {
             am == bm && adding_once(a, b)
         }
         _ => false,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{TextFormat, object, public_table};
+
+    #[test]
+    fn text_widening_still_validates_malformed_missing_and_invalid_stored_values() {
+        let store = Store::memory().unwrap();
+        let mut current = Schema::default();
+        current.tables.insert(
+            "items".into(),
+            public_table(
+                BTreeMap::from([
+                    ("id".into(), ColumnType::Id),
+                    ("value".into(), ColumnType::Text { max: 80 }),
+                ]),
+                BTreeMap::new(),
+            ),
+        );
+        current
+            .tables
+            .get_mut("items")
+            .unwrap()
+            .constraints
+            .push(Constraint::Text {
+                field: "value".into(),
+                min: 2,
+                format: Some(TextFormat::Handle),
+            });
+        let mut next = current.clone();
+        next.tables
+            .get_mut("items")
+            .unwrap()
+            .columns
+            .insert("value".into(), ColumnType::Text { max: 2000 });
+        assert!(plan(&store, &current, &next).unwrap().drops.is_empty());
+        let row =
+            |value| canonical_json(&object([("id", Value::Id("bad".into())), ("value", value)]));
+        for data in [
+            "not-json".into(),
+            canonical_json(&Value::Int(7)),
+            canonical_json(&object([("id", Value::Id("bad".into()))])),
+            row(Value::Null),
+            row(Value::Int(7)),
+            row(Value::String("x".repeat(2001))),
+            row(Value::String("a\u{0001}b".into())),
+            row(Value::String("x".into())),
+            row(Value::String("two words".into())),
+        ] {
+            store.conn.execute("INSERT OR REPLACE INTO rows(table_name, row_id, data) VALUES ('items', 'bad', ?1)", [data]).unwrap();
+            let refusal = successor_refusal(&store, &current, &next).unwrap().unwrap();
+            assert_eq!(refusal.code, "E_SUCCESSOR_ROW_INVALID");
+            assert_eq!(refusal.site.as_deref(), Some("items.bad"));
+        }
+        // Nested lists preserve bounds and element validation, including C0 controls.
+        for schema in [&mut current, &mut next] {
+            let table = schema.tables.get_mut("items").unwrap();
+            table.constraints.clear();
+            let inner = table.columns["value"].clone();
+            table.columns.insert(
+                "value".into(),
+                ColumnType::Optional(Box::new(ColumnType::List {
+                    max: 1,
+                    of: Box::new(inner),
+                })),
+            );
+        }
+        for value in [
+            Value::Array(vec![Value::Null]),
+            Value::Array(vec![Value::String("x".repeat(2001))]),
+            Value::Array(vec![Value::String("x\u{0001}".into())]),
+            Value::Array(vec![Value::String("x".into()); 2]),
+        ] {
+            store
+                .conn
+                .execute("UPDATE rows SET data = ?1", [row(value)])
+                .unwrap();
+            let refusal = successor_refusal(&store, &current, &next).unwrap().unwrap();
+            assert_eq!(refusal.code, "E_SUCCESSOR_ROW_INVALID");
+        }
     }
 }

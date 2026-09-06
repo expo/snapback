@@ -242,3 +242,447 @@ fn narrowing_reports_every_null_column_with_its_count_sample_and_fill() {
     }
     assert_eq!(runtime.generation().hash(), before);
 }
+
+fn changed_generation(runtime: &Runtime, change: impl FnOnce(&mut Table)) -> Generation {
+    let mut schema = runtime.generation().schema().clone();
+    change(schema.tables.get_mut("items").unwrap());
+    Generation::certify(
+        &ProjectJson {
+            version: 1,
+            auth: Auth::default(),
+            effects: vec![],
+            programs: vec![],
+            schema,
+        },
+        Ceilings::default(),
+    )
+    .unwrap()
+}
+
+fn list(of: ColumnType, max: u32) -> ColumnType {
+    ColumnType::List {
+        of: Box::new(of),
+        max,
+    }
+}
+
+// @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — text maximum widening
+// preserves stored values, identities and sequence through both admission paths.
+#[test]
+fn text_maximum_widening_retains_boundary_rows_and_rejects_stale_destructive_plans() {
+    let from = ColumnType::Text { max: 80 };
+    let to = ColumnType::Text { max: 2000 };
+    for migration in [false, true] {
+        let mut runtime = runtime(
+            from.clone(),
+            vec![
+                Some(Value::String("stored preview".into())),
+                Some(Value::String("x".repeat(80))),
+                Some(Value::String("🦀".repeat(80))),
+            ],
+        );
+        let before = read_values(&mut runtime);
+        let seq = runtime.store().commit_seq().unwrap();
+        let old_hash = runtime.generation().hash();
+        let next = generation(to.clone());
+        let next_hash = next.hash();
+        let stale = MigrationPlan {
+            drops: vec![Drop::TypeChange {
+                table: "items".into(),
+                column: "value".into(),
+                from: from.clone(),
+                to: to.clone(),
+            }],
+        };
+        assert!(matches!(
+            runtime.apply_migration(next.clone(), &stale, 9),
+            Err(RuntimeError::MigrationPlan(_))
+        ));
+        assert_eq!(read_values(&mut runtime), before);
+        assert_eq!(runtime.generation().hash(), old_hash);
+        assert_eq!(runtime.store().commit_seq().unwrap(), seq);
+        let report = if migration {
+            runtime
+                .apply_migration(next, &MigrationPlan::default(), 9)
+                .unwrap()
+        } else {
+            runtime.apply_successor(next).unwrap()
+        };
+        assert_eq!(report.from, old_hash);
+        assert_eq!(report.to, next_hash);
+        assert!(report.added_columns.is_empty());
+        assert_eq!(read_values(&mut runtime), before);
+        assert_eq!(runtime.store().commit_seq().unwrap(), seq);
+        assert_eq!(runtime.store().meta("generation").unwrap(), Some(next_hash));
+        runtime
+            .seed(&[(
+                "items".into(),
+                object([
+                    ("id", Value::Id("long".into())),
+                    ("value", Value::String("y".repeat(2000))),
+                ]),
+            )])
+            .unwrap();
+        let after_write = read_values(&mut runtime);
+        let written_seq = runtime.store().commit_seq().unwrap();
+        assert!(
+            runtime
+                .seed(&[(
+                    "items".into(),
+                    object([
+                        ("id", Value::Id("too-long".into())),
+                        ("value", Value::String("y".repeat(2001))),
+                    ])
+                )])
+                .is_err()
+        );
+        assert_eq!(read_values(&mut runtime), after_write);
+        assert_eq!(runtime.store().commit_seq().unwrap(), written_seq);
+    }
+}
+
+#[test]
+fn text_maximum_widening_recurses_only_through_unchanged_wrappers() {
+    let text = ColumnType::Text { max: 80 };
+    let wide = ColumnType::Text { max: 2000 };
+    let boundary = Value::String("x".repeat(80));
+    let cases = [
+        (
+            optional(text.clone()),
+            optional(wide.clone()),
+            vec![None, Some(Value::Null), Some(boundary.clone())],
+        ),
+        (
+            list(text.clone(), 2),
+            list(wide.clone(), 2),
+            vec![
+                Some(Value::Array(vec![])),
+                Some(Value::Array(vec![boundary.clone(), boundary.clone()])),
+            ],
+        ),
+        (
+            optional(list(optional(text.clone()), 2)),
+            optional(list(optional(wide.clone()), 2)),
+            vec![
+                None,
+                Some(Value::Array(vec![Value::Null, boundary.clone()])),
+            ],
+        ),
+        (
+            list(optional(list(text, 2)), 2),
+            list(optional(list(wide, 2)), 2),
+            vec![Some(Value::Array(vec![
+                Value::Null,
+                Value::Array(vec![boundary]),
+            ]))],
+        ),
+    ];
+    for (from, to, values) in cases {
+        for migration in [false, true] {
+            let mut runtime = runtime(from.clone(), values.clone());
+            let before = read_values(&mut runtime);
+            let seq = runtime.store().commit_seq().unwrap();
+            let stale = MigrationPlan {
+                drops: vec![Drop::TypeChange {
+                    table: "items".into(),
+                    column: "value".into(),
+                    from: from.clone(),
+                    to: to.clone(),
+                }],
+            };
+            assert!(matches!(
+                runtime.apply_migration(generation(to.clone()), &stale, 9),
+                Err(RuntimeError::MigrationPlan(_))
+            ));
+            assert_eq!(read_values(&mut runtime), before);
+            if migration {
+                runtime
+                    .apply_migration(generation(to.clone()), &MigrationPlan::default(), 9)
+                    .unwrap();
+            } else {
+                runtime.apply_successor(generation(to.clone())).unwrap();
+            }
+            assert_eq!(read_values(&mut runtime), before);
+            assert_eq!(runtime.store().commit_seq().unwrap(), seq);
+        }
+    }
+}
+
+#[test]
+fn text_maximum_narrowing_and_unrelated_retypes_still_require_exact_destructive_plans() {
+    let text = ColumnType::Text { max: 80 };
+    let wide = ColumnType::Text { max: 2000 };
+    for (from, to) in [
+        (text.clone(), ColumnType::Text { max: 79 }),
+        (text.clone(), ColumnType::Id),
+        (text.clone(), optional(wide.clone())),
+        (optional(text.clone()), wide.clone()),
+        (list(text.clone(), 2), list(wide.clone(), 3)),
+        (list(text.clone(), 2), list(wide.clone(), 1)),
+        (list(optional(text.clone()), 2), list(wide, 2)),
+        (
+            ColumnType::Bytes { max: 80 },
+            ColumnType::Bytes { max: 2000 },
+        ),
+        (
+            ColumnType::Json { max_bytes: 80 },
+            ColumnType::Json { max_bytes: 2000 },
+        ),
+        (
+            ColumnType::Decimal { scale: 2 },
+            ColumnType::Decimal { scale: 3 },
+        ),
+        (
+            ColumnType::Money {
+                currency: "USD".into(),
+                scale: 2,
+            },
+            ColumnType::Money {
+                currency: "EUR".into(),
+                scale: 2,
+            },
+        ),
+        (
+            ColumnType::Enum {
+                variants: vec!["a".into()],
+            },
+            ColumnType::Enum {
+                variants: vec!["a".into(), "b".into()],
+            },
+        ),
+        (
+            ColumnType::Image {
+                max: 80,
+                once: false,
+            },
+            ColumnType::Image {
+                max: 2000,
+                once: false,
+            },
+        ),
+        (
+            ColumnType::Video { max: 80 },
+            ColumnType::Video { max: 2000 },
+        ),
+    ] {
+        let mut runtime = runtime(from.clone(), vec![]);
+        let next = generation(to.clone());
+        let refusal = runtime.apply_successor(next.clone()).unwrap_err();
+        assert_eq!(
+            refusal.code, "E_SUCCESSOR_DESTRUCTIVE",
+            "{from:?} -> {to:?}"
+        );
+        assert_eq!(
+            refusal.plan.drops,
+            vec![Drop::TypeChange {
+                table: "items".into(),
+                column: "value".into(),
+                from,
+                to,
+            }]
+        );
+        assert!(matches!(
+            runtime.apply_migration(next.clone(), &MigrationPlan::default(), 9),
+            Err(RuntimeError::MigrationPlan(_))
+        ));
+        // An exact destructive plan remains usable when there are no stored values.
+        runtime.apply_migration(next, &refusal.plan, 9).unwrap();
+    }
+    for to in [ColumnType::Text { max: 79 }, ColumnType::Int] {
+        let mut runtime = runtime(text.clone(), vec![Some(Value::String("x".repeat(80)))]);
+        let before = read_values(&mut runtime);
+        let hash = runtime.generation().hash();
+        let seq = runtime.store().commit_seq().unwrap();
+        let next = generation(to);
+        let refusal = runtime.apply_successor(next.clone()).unwrap_err();
+        let Err(RuntimeError::Successor(refusal)) = runtime.apply_migration(next, &refusal.plan, 9)
+        else {
+            panic!("required retype must roll back its dropped values")
+        };
+        assert_eq!(refusal.code, "E_SUCCESSOR_COLUMN_REQUIRED");
+        assert_eq!(read_values(&mut runtime), before);
+        assert_eq!(runtime.generation().hash(), hash);
+        assert_eq!(runtime.store().meta("generation").unwrap(), Some(hash));
+        assert_eq!(runtime.store().commit_seq().unwrap(), seq);
+    }
+}
+
+#[test]
+fn text_widening_rechecks_constraints_and_rolls_back_mixed_migrations() {
+    for migration in [false, true] {
+        for constraint in [
+            Constraint::Text {
+                field: "value".into(),
+                min: 20,
+                format: None,
+            },
+            Constraint::Text {
+                field: "value".into(),
+                min: 0,
+                format: Some(TextFormat::Handle),
+            },
+            Constraint::Text {
+                field: "value".into(),
+                min: 0,
+                format: Some(TextFormat::Url),
+            },
+            Constraint::Cap {
+                by: vec!["value".into()],
+                max: 1,
+            },
+            Constraint::Unique {
+                index: "byValue".into(),
+            },
+        ] {
+            let mut runtime = runtime(
+                ColumnType::Text { max: 80 },
+                vec![Some(Value::String("two words".into())); 2],
+            );
+            let expanded = changed_generation(&runtime, |table| {
+                table
+                    .columns
+                    .insert("obsolete".into(), optional(ColumnType::Int));
+            });
+            runtime.apply_successor(expanded).unwrap();
+            let before = read_values(&mut runtime);
+            let hash = runtime.generation().hash();
+            let seq = runtime.store().commit_seq().unwrap();
+            let next = changed_generation(&runtime, |table| {
+                table
+                    .columns
+                    .insert("value".into(), ColumnType::Text { max: 2000 });
+                if migration {
+                    table.columns.remove("obsolete");
+                }
+                if matches!(
+                    constraint,
+                    Constraint::Unique { .. } | Constraint::Cap { .. }
+                ) {
+                    table.indexes.insert(
+                        "byValue".into(),
+                        Index {
+                            columns: vec!["value".into()],
+                            unique: matches!(constraint, Constraint::Unique { .. }),
+                        },
+                    );
+                }
+                table.constraints.push(constraint.clone());
+            });
+            let refusal = if migration {
+                let refused = runtime.apply_successor(next.clone()).unwrap_err();
+                assert_eq!(
+                    refused.plan.drops,
+                    vec![Drop::Column {
+                        table: "items".into(),
+                        name: "obsolete".into()
+                    }]
+                );
+                let Err(RuntimeError::Successor(refusal)) =
+                    runtime.apply_migration(next, &refused.plan, 9)
+                else {
+                    panic!("mixed migration must refuse and roll back")
+                };
+                *refusal
+            } else {
+                runtime.apply_successor(next).unwrap_err()
+            };
+            let code = match constraint {
+                Constraint::Text { .. } => "E_SUCCESSOR_ROW_INVALID",
+                Constraint::Cap { .. } => "E_SUCCESSOR_CAP",
+                _ => "E_SUCCESSOR_UNIQUE",
+            };
+            assert_eq!(refusal.code, code);
+            assert_eq!(read_values(&mut runtime), before);
+            assert_eq!(runtime.generation().hash(), hash);
+            assert_eq!(runtime.store().meta("generation").unwrap(), Some(hash));
+            assert_eq!(runtime.store().commit_seq().unwrap(), seq);
+        }
+    }
+}
+
+#[test]
+fn text_widening_can_accompany_valid_constraints_and_an_explicit_column_drop() {
+    let mut runtime = runtime(
+        optional(ColumnType::Text { max: 80 }),
+        vec![None, Some(Value::String("valid_handle".into()))],
+    );
+    let expanded = changed_generation(&runtime, |table| {
+        table
+            .columns
+            .insert("obsolete".into(), optional(ColumnType::Int));
+    });
+    runtime.apply_successor(expanded).unwrap();
+    let seq = runtime.store().commit_seq().unwrap();
+    let next = changed_generation(&runtime, |table| {
+        table
+            .columns
+            .insert("value".into(), optional(ColumnType::Text { max: 2000 }));
+        table.columns.remove("obsolete");
+        table.constraints.push(Constraint::Text {
+            field: "value".into(),
+            min: 3,
+            format: Some(TextFormat::Handle),
+        });
+    });
+    let refused = runtime.apply_successor(next.clone()).unwrap_err();
+    assert_eq!(
+        refused.plan.drops,
+        vec![Drop::Column {
+            table: "items".into(),
+            name: "obsolete".into()
+        }]
+    );
+    runtime.apply_migration(next, &refused.plan, 9).unwrap();
+    let Value::Array(rows) = read_values(&mut runtime) else {
+        panic!("rows")
+    };
+    assert_eq!(rows[0].field("value").unwrap(), &Value::Null);
+    assert_eq!(
+        rows[1].field("value").unwrap(),
+        &Value::String("valid_handle".into())
+    );
+    assert_eq!(rows[1].field("id").unwrap(), &Value::Id("id-01".into()));
+    assert_eq!(runtime.store().commit_seq().unwrap(), seq);
+}
+
+#[test]
+fn reopening_a_store_applies_text_widening_without_rewriting_rows_or_sequence() {
+    let dir = std::env::temp_dir().join(format!(
+        "s2-text-widening-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    std::fs::create_dir(&dir).unwrap();
+    let path = dir.join("store.sqlite");
+    let base = generation(ColumnType::Text { max: 80 });
+    let mut runtime = Runtime::open(Store::open(&path).unwrap(), base).unwrap();
+    runtime
+        .seed(&[(
+            "items".into(),
+            object([
+                ("id", Value::Id("retained".into())),
+                ("value", Value::String("x".repeat(80))),
+            ]),
+        )])
+        .unwrap();
+    let before = read_values(&mut runtime);
+    let seq = runtime.store().commit_seq().unwrap();
+    drop(runtime);
+    let next = generation(ColumnType::Text { max: 2000 });
+    let mut reopened = Runtime::open(Store::open(&path).unwrap(), next.clone()).unwrap();
+    assert_eq!(read_values(&mut reopened), before);
+    assert_eq!(reopened.store().commit_seq().unwrap(), seq);
+    assert_eq!(
+        reopened.store().meta("generation").unwrap(),
+        Some(next.hash())
+    );
+    drop(reopened);
+    let mut reopened = Runtime::open(Store::open(&path).unwrap(), next).unwrap();
+    assert_eq!(read_values(&mut reopened), before);
+    assert_eq!(reopened.store().commit_seq().unwrap(), seq);
+    drop(reopened);
+    std::fs::remove_dir_all(dir).unwrap();
+}

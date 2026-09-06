@@ -29,6 +29,17 @@ names the first conflict in table/column order. Its pasted fill job accepts the
 typed replacement value as an argument. A refused
 application keeps the previous generation and appears in `dev --status --json`.
 
+Increasing only a text maximum (`text <=80` to `text <=2000`) installs in place
+and preserves existing values and row IDs. This also works inside unchanged
+optional/list wrappers when every list bound stays the same. Text minimums,
+formats, unique indexes and caps still apply. Widen a mutation's argument too
+if it should accept longer input; an unchanged `text <=80` argument still
+refuses 81 characters. Certification must fit the new declared maxima.
+Narrower text or other retypes still need an explicit migration; required
+retypes on populated tables refuse rather than install missing values.
+Use add/fill/drop to convert those values. Old destructive plans for a now-safe
+widening are rejected; check the current `dev --status --json` before applying.
+
 ## Recovering abandoned media uploads
 
 Clients accept a browser `File` or Expo picker `{ uri, size?/fileSize? }` directly
