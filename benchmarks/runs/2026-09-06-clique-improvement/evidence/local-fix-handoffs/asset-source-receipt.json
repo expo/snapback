@@ -1,0 +1,272 @@
+{
+  "recorded_at": "2026-09-06T19:44:59.302794+00:00",
+  "worktree": "/Users/ccheever/projects/snapback-worktrees/clique-asset-pending",
+  "branch": "s2/clique-asset-pending",
+  "base_commit": "4b87d8bd90d4a8a466a3b91a011216844c90b0f8",
+  "commit": "3e923878783afbf4b25556cae3e4683d3481a6ee",
+  "tree": "52948feac2949a94623a44c9aae5ecb99e7517f8",
+  "snapback2_tree": "8dc1aaacd975164a59b53b903d4c369b7b5c0292",
+  "status_porcelain": "",
+  "changed_files": {
+    "diaries/0116-snapback2-published-clique-loop.diary.md": {
+      "sha256": "ff2278da0e0d8c327bd7eaf1198110b017a0db384b1eb3724b6079b0599f0bbd",
+      "bytes": 48048,
+      "lines": 786,
+      "git_blob": "757b059acd5d5fc3c0eeacaadc254256f0412803"
+    },
+    "issues/20260906-snapback2-asset-custody-gc-follow-up.md": {
+      "sha256": "3452078fc6c880e8ce5520b762c10a8ba32e68fcdc6cfc6fdecfb882e31387e5",
+      "bytes": 5542,
+      "lines": 84,
+      "git_blob": "d582f0998745074f1fbdbd293fe02a1a5a81e074"
+    },
+    "issues/20260906-snapback2-owner-asset-staging-ceiling-refuses-reseeds.md": {
+      "sha256": "87331de0d53e8767d1f15654672c187c18ceb93f500f1d90130c5d17cb4fbd67",
+      "bytes": 1523,
+      "lines": 24,
+      "git_blob": "e25fc36eb1b3afbccf35faba7b2b7db64a5d2fa6"
+    },
+    "llp/1006-assets.rfc.md": {
+      "sha256": "7c01b264d6ab71e08488e3c0d3bab70e8f10978ecfd4667415298a2360facec8",
+      "bytes": 92253,
+      "lines": 1497,
+      "git_blob": "fc9df82d0a111196b8b2bc69f06daec3f0939b33"
+    },
+    "snapback2/crates/snapback2-core/src/assets_ledger.rs": {
+      "sha256": "3c4c3c55da84c54e34bc9ea36e1efceafcfa380e06cdd1a094d3b93ce82e3205",
+      "bytes": 33455,
+      "lines": 907,
+      "git_blob": "6c1c241382abeb7eb4a0949b39385339fada294c"
+    },
+    "snapback2/crates/snapback2-core/tests/assets.rs": {
+      "sha256": "d4d2ac8c8b78ecd287213a6611f2e1379432dbdd57717242b0d53cf8324ede97",
+      "bytes": 42909,
+      "lines": 1452,
+      "git_blob": "676a3811c63c46e1c754e90d7dfa7f65387451f6"
+    },
+    "snapback2/crates/snapback2-core/tests/assets/pending.rs": {
+      "sha256": "5e40965e10cc0e654293bcc3c96f5762e9a265c22237f9066500ac7c893ef67f",
+      "bytes": 13605,
+      "lines": 418,
+      "git_blob": "b604f145aef189761d2b42be4438fe2d9693b52e"
+    },
+    "snapback2/crates/snapback2/src/protocol.rs": {
+      "sha256": "1a6e88a0911da0f22f204d0dcef185760e90ab64c795118991dd7ec25b7a9f24",
+      "bytes": 16911,
+      "lines": 440,
+      "git_blob": "7bbb51d586fc04bb16de1be4f8304c86a1cdf605"
+    },
+    "snapback2/crates/snapback2/tests/assets.rs": {
+      "sha256": "923c79e3d21d2c63ca47defd40f083337567c6a32a69c970018be5eb7d4741e8",
+      "bytes": 42179,
+      "lines": 1321,
+      "git_blob": "1264288d5fe54c07f3ae8715e48ce2dd3419298e"
+    },
+    "snapback2/packages/snapback2/guide/offline.md": {
+      "sha256": "28d58a60fa9b158d0b72239c4210fd804b5de4e098b2d9ed0ba04d47c1034270",
+      "bytes": 4341,
+      "lines": 80,
+      "git_blob": "a021c460dac85895b8f4fa41cffd3c4fbfaba447"
+    },
+    "snapback2/packages/snapback2/guide/operator.md": {
+      "sha256": "9cbfa9123e7f68767df174a2c649736212e3e7198402eece177362cfab70cbdb",
+      "bytes": 4466,
+      "lines": 66,
+      "git_blob": "7aa1e7c744d329c8d472f9c1e0449669fb69316d"
+    },
+    "snapback2/packages/snapback2/src/client-upload.ts": {
+      "sha256": "059779de6adc76d3983a443f3d84af38bcf821c4787e0d08fe20c0756b52eeb6",
+      "bytes": 19087,
+      "lines": 428,
+      "git_blob": "98ccd8ae139008bdfad2769da9f94f840b02f7ab"
+    },
+    "snapback2/packages/snapback2/src/types.ts": {
+      "sha256": "eef20d538ddb355798474962443f78463f7aaaa90f0be4fb11ea09c8958a63ed",
+      "bytes": 20492,
+      "lines": 465,
+      "git_blob": "98f6d656f4953fbede68fd876cbe09c30ffba414"
+    },
+    "snapback2/packages/snapback2/tests/asset-pending-caps.test.ts": {
+      "sha256": "cb32a77b8010e18d89c8a105bf838223e8ad21894e7d5f7c0727a50562779572",
+      "bytes": 3809,
+      "lines": 73,
+      "git_blob": "68ca96f2940d464904147e1bdef9f8b605d85e62"
+    },
+    "snapback2/packages/snapback2/tests/asset-pending.test.ts": {
+      "sha256": "60e42c57fd9ed07bde40aa35522a7dd6d02d958360618a649a7190ddc736731c",
+      "bytes": 5718,
+      "lines": 91,
+      "git_blob": "08ef8224372d190fe130631e6cc46dac5477fcf6"
+    },
+    "snapback2/packages/snapback2/tests/fixtures/asset-pending/media.q": {
+      "sha256": "9ae2804c0f5c1b681c3f85617c21a5fb1c37bb1f1ae6a5560fe3c0a0fa903f24",
+      "bytes": 491,
+      "lines": 19,
+      "git_blob": "a8bca2e976bbc88db9f11ddf07730f9b1ee26b39"
+    },
+    "snapback2/packages/snapback2/tests/fixtures/asset-pending/schema.q": {
+      "sha256": "ab21992cec2de2fe48c5336c936ae97bb33f29c9d6dae3502a8d3922a751335d",
+      "bytes": 205,
+      "lines": 8,
+      "git_blob": "a73fafcec022e090f569c81addda491065433727"
+    },
+    "snapback2/packages/snapback2/tests/owner-harness.ts": {
+      "sha256": "e8207fd19cb3dad71df7ca44cd808bac2e4dc123dc5b9fb88a1e189f61e568e4",
+      "bytes": 9471,
+      "lines": 220,
+      "git_blob": "62858707fdf32b16d27af62c8ce72ed8d742f0e6"
+    },
+    "snapback2/scripts/test.sh": {
+      "sha256": "ce5bbfa6e6ea21d3f9af58df12af00da5abd926a1f0d909fb21ac1696eee1a69",
+      "bytes": 3770,
+      "lines": 68,
+      "git_blob": "7816af150a6b357fce0641515ce71c6e68d2b3fd"
+    }
+  },
+  "protected_files": {
+    "snapback2/crates/snapback2-core/src/store.rs": {
+      "sha256": "e071f6abd3697572fa8df045ede5fcdba165b593e2a2bc0731c6661a2f7d0ce5",
+      "bytes": 50387,
+      "lines": 1403,
+      "unchanged_from_base": true
+    },
+    "snapback2/crates/snapback2-core/src/registry.rs": {
+      "sha256": "084930fff5af711897182e313b2172cd3d119e53d55e24ef232d6a7e05ae6f4c",
+      "bytes": 56838,
+      "lines": 1485,
+      "unchanged_from_base": true
+    },
+    "snapback2/crates/snapback2-core/src/engine/mod.rs": {
+      "sha256": "42732702d59012bb725ac1eec59f13b6b0bf95e38f58029e29d08bead886cd4c",
+      "bytes": 48181,
+      "lines": 1291,
+      "unchanged_from_base": true
+    },
+    "snapback2/crates/snapback2-core/src/engine/replay.rs": {
+      "sha256": "6b0386c4302d7bab8d24b0aa8bfabfc555e34d7aa4805fe30ca349ec581fe099",
+      "bytes": 24627,
+      "lines": 657,
+      "unchanged_from_base": true
+    },
+    "snapback2/crates/snapback2-core/src/engine/runner_ops.rs": {
+      "sha256": "485154f7437e0c79c5640c841819c866a46560e16a5a8c94837c613d38dd7a08",
+      "bytes": 51851,
+      "lines": 1292,
+      "unchanged_from_base": true
+    },
+    "snapback2/crates/snapback2-core/src/successor.rs": {
+      "sha256": "8c9b341f9e28fee78d0779902a4185e433c7a8d9aaa543f92eea10b17de8923e",
+      "bytes": 28724,
+      "lines": 811,
+      "unchanged_from_base": true
+    },
+    "snapback2/crates/snapback2/src/writer_assets.rs": {
+      "sha256": "ea28c502e6e4a77bf8dda56d3fa17dffe1bce5e5c262f4e3bfb7730c01e07545",
+      "bytes": 44895,
+      "lines": 1198,
+      "unchanged_from_base": true
+    },
+    "snapback2/crates/snapback2/src/asset_http.rs": {
+      "sha256": "871cd94e88e246c1592021f784e91edf96a83aad19aeea5179ac6d1a975a1fa5",
+      "bytes": 45915,
+      "lines": 1404,
+      "unchanged_from_base": true
+    },
+    "snapback2/crates/snapback2/src/asset_gc.rs": {
+      "sha256": "031092b1f2dc2ee4702ec8073e61377787f40d6f5100b9ccf42e51e0d5c0ae5f",
+      "bytes": 11954,
+      "lines": 317,
+      "unchanged_from_base": true
+    },
+    "snapback2/crates/snapback2/src/blob_store.rs": {
+      "sha256": "5259c6d08e3390f87f5bbdb7047a08d8f567c6297e29e82775c5b406543a2a0d",
+      "bytes": 34939,
+      "lines": 990,
+      "unchanged_from_base": true
+    },
+    "snapback2/packages/snapback2/src/client-outbox.ts": {
+      "sha256": "30de04df64495403de5357810127ca46e2b6fc5790463a5cadfefae42dcd88d7",
+      "bytes": 17779,
+      "lines": 391,
+      "unchanged_from_base": true
+    },
+    "snapback2/packages/snapback2/src/store/outbox.ts": {
+      "sha256": "835417fd8b915241abc651187fb66680d26d263c9f61f871b4c60b4ba6dc3e81",
+      "bytes": 16931,
+      "lines": 410,
+      "unchanged_from_base": true
+    },
+    "snapback2/Cargo.lock": {
+      "sha256": "ed55dcde0b50020941860434e36b66227828fdb884941ab4e0704f60f60820eb",
+      "bytes": 63816,
+      "lines": 2529,
+      "unchanged_from_base": true
+    },
+    "snapback2/bun.lock": {
+      "sha256": "979e59d92d1e1182c23faeb5be1a3b7ee6b00727fa7f3fdac8f0cf09f3397f40",
+      "bytes": 179294,
+      "lines": 1544,
+      "unchanged_from_base": true
+    }
+  },
+  "executed_artifacts": {
+    "snapback2/target/debug/snapback2": {
+      "sha256": "9c90fbdba98612d9424798e4ec6af7873f9f6f4470dfc7151330d0a0c881cea6",
+      "bytes": 42063640
+    },
+    "snapback2/target/debug/snapback2-media": {
+      "sha256": "7bcbda3b321887aac79529ca831b792fd319610b847369cfa49633854db183f4",
+      "bytes": 6080272
+    },
+    "snapback2/packages/snapback2/dist/client.mjs": {
+      "sha256": "a1b6f9226a9d5237063849aa9b0607a820be4494d33372552101df65904c6599",
+      "bytes": 185458,
+      "lines": 10
+    },
+    "snapback2/packages/snapback2/dist/compiler.mjs": {
+      "sha256": "9c93d2adc425eab14d977a2a8b0d1228a0a5c8c27c4e59bc889efe9863490a78",
+      "bytes": 2351,
+      "lines": 5
+    },
+    "snapback2/packages/snapback2/dist/compiler-core.mjs": {
+      "sha256": "49e6fa63fdeb01977d11c569617074e2a0f60ad132a3ecbdc28345ea4a4fdcd6",
+      "bytes": 352276,
+      "lines": 66
+    },
+    "snapback2/packages/snapback2/dist/client.d.ts": {
+      "sha256": "99305ab504b22d40e3f2f97295e370ccf68009039ad66c59c4989ef1ce467319",
+      "bytes": 865,
+      "lines": 12
+    },
+    "snapback2/packages/snapback2/dist/guide/operator.md": {
+      "sha256": "9cbfa9123e7f68767df174a2c649736212e3e7198402eece177362cfab70cbdb",
+      "bytes": 4466,
+      "lines": 66
+    },
+    "snapback2/packages/snapback2/dist/guide/offline.md": {
+      "sha256": "28d58a60fa9b158d0b72239c4210fd804b5de4e098b2d9ed0ba04d47c1034270",
+      "bytes": 4341,
+      "lines": 80
+    }
+  },
+  "protected_ledger_regions": {
+    "limits": {
+      "unchanged_from_base": true,
+      "sha256": "fc1101fdefe3c828898d80a4361b14f1367f36f1082caccaf406eb8895b51dee"
+    },
+    "validation_reconciliation_release_reset": {
+      "unchanged_from_base": true,
+      "sha256": "e2da10a68aca35105b93e7c9a7bb8188d63eb7f2c14b2c61624d1d10e458b391"
+    },
+    "discard_reclaim_finish": {
+      "unchanged_from_base": true,
+      "sha256": "f385b1df803fb31f50c1b99db1087fd5927975ca03a309ac8fc3bdef8b56da1a"
+    }
+  },
+  "artifact_provenance": {
+    "engine": "built locally from this lane with cargo build -j2, and owner test build; no Hermes features",
+    "client_compiler_guides": "local ignored dist generated by successful build.mjs; no installed published package edited",
+    "media_helper": "reused debug executable from APFS copy of primary warm target; SHA recorded, no fresh helper build or production provenance claim",
+    "target": "independent cp -cR filesystem clone, never a shared target/symlink/hardlink mutation"
+  }
+}

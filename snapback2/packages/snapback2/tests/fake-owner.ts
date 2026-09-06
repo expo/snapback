@@ -57,6 +57,8 @@ export interface FakeOwnerOptions {
   dead?: () => boolean;
   /** Manifest name for the delivery log's optional Cursor argument; omitted by older outbox tests. */
   cursorArg?: string;
+  /** The session epoch `/api/auth/me` reports (the real owner always does); omitted by older tests. */
+  meEpoch?: number;
 }
 
 type Message = { id: string; conversationId: string; authorId: string; body: string; at: number };
@@ -171,7 +173,8 @@ export function fakeOwner(options: FakeOwnerOptions = {}) {
     }
     // A login mints a grant like a resume does; the bearer flow is otherwise unchecked here.
     if (url.pathname === "/api/auth/login") return json({ token: "token-alice", viewer: "dev:alice", kind: "user", grant: mint() });
-    if (url.pathname === "/api/auth/me") return json({ viewer: "dev:alice", kind: "user" });
+    // With `meEpoch`, the identity check reports the session epoch it authenticated, as the real owner does.
+    if (url.pathname === "/api/auth/me") return json({ viewer: "dev:alice", kind: "user", ...(options.meEpoch === undefined ? {} : { authEpoch: options.meEpoch }) });
     if (url.pathname === "/api/mutation") {
       const body = JSON.parse(String(init?.body));
       if (!body.replay) {

@@ -1,6 +1,6 @@
 # Snapback2 persistent client throws E_WIRE_SHAPE on the second ask of a denied query
 
-Status: Open
+Status: Closed (repaired on main 8b6c25b39; unpublished)
 Date: 2026-09-06
 Scope: Snapback2 persistent client (offline store) query path; owner receipt envelope
 
@@ -54,3 +54,16 @@ Retained repro and evidence (outside the repository, per scratch policy):
 0.0.10: 4/6) and `f-control-nostore.mjs` (2/2), logs under `evidence-F/`, plus
 the native run `evidence-native/runs/native-accounts-2026-09-06T17-50-04-544Z`
 (step 5). The failing script is retained unchanged to confirm a repair.
+
+## Resolution (2026-09-06)
+
+Repaired on `main` in `8b6c25b39`: the client rebuilds an `unchanged`
+conditional reply from the held envelope in the plain wire shape, carrying
+`next` only on a page, so a replayed denied answer is the typed `denied` the
+first ask returned. Pinned by "a conditional unchanged reply on a held denied
+answer is a typed denied, not a wire-shape throw" in
+`snapback2/packages/snapback2/tests/offline-resume-tail.test.ts`; the
+retained public-SDK reproduction `f-denied-next.mjs` passes 6/6 against main
+(it fails 4/6 on the published 0.0.10, which still carries the defect until
+the next publication). The owner's receipt envelope is unchanged and remains
+per LLP 1012 §8.

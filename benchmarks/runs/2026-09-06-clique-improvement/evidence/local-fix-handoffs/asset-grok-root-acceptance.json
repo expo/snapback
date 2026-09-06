@@ -1,0 +1,21 @@
+{
+  "commit": "3e923878783afbf4b25556cae3e4683d3481a6ee",
+  "checkedSourceLeaves": 944,
+  "mismatches": [],
+  "actualIdentity": {
+    "current_model_id": "grok-4.6",
+    "reasoning_effort": "xhigh",
+    "sessionId": "5269899d-97cb-4eb3-a695-c4fe8f42983f",
+    "source": "/Users/ccheever/.grok/sessions/%2FUsers%2Fccheever%2Fclique-improvement%2Freviews%2Fasset-pending-r1%2Fgrok/5269899d-97cb-4eb3-a695-c4fe8f42983f/summary.json"
+  },
+  "terminal": {
+    "pid": 51837,
+    "exitCode": 0,
+    "endedEpoch": 1788725878.276458,
+    "elapsedSeconds": 1769.8237979412079
+  },
+  "verdict": "READY narrow pending-slot repair",
+  "rootRead": "full18128B review and independent30-test receipt",
+  "reportSHA256": "0547ededb6f29c48c0acb02a8edd1e7a1745bc5df0602d6ac133825535d65fb1",
+  "residual": "Clarify offline guide expiry applies to unclaimed media; preserve original deadlines and physical custody limitations."
+}

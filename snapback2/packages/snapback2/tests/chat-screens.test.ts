@@ -335,3 +335,45 @@ test("a refused send keeps the draft and shows the recovery advice", async () =>
     await rm(root, { recursive: true, force: true });
   }
 });
+
+// @ref LLP 1012#4-the-range-store — confirming the first session epoch adopts it; it is not a
+// session change, so a drain page in flight still commits and the drain earns the first grant.
+// The browser witness caught this: the template's useAuth answers /api/auth/me while the inbox
+// drain's first page is still at the owner, and the composer stayed "grant-missing" forever.
+test("the first identity confirmation during the inbox drain does not cost the drain its grant", async () => {
+  const restore = installDom();
+  const root = await mkdtemp(join(tmpdir(), "snapback2-screens-first-epoch-"));
+  const owner = fakeOwner({ seed: true, meEpoch: 7 });
+  let confirmed!: () => void;
+  const identity = new Promise<void>((resolve) => { confirmed = resolve; });
+  // The inbox drain's first page waits at the owner until /api/auth/me has answered.
+  const fetch = async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+    const op = String(input).includes("/api/query") && init?.body ? JSON.parse(String(init.body)).op : undefined;
+    if (op === "deliveries.inbox") await identity;
+    const response = await owner.fetch(input, init);
+    if (String(input).includes("/api/auth/me")) setTimeout(confirmed, 0);
+    return response;
+  };
+  let client: any;
+  function Probe() { client = useSnapbackClient(); return null; }
+  const reactRoot: Root = createRoot(document.getElementById("root")!);
+  try {
+    await act(async () => {
+      reactRoot.render(React.createElement(
+        SnapbackProvider,
+        { url: "http://first-epoch.test", as: "alice", fetch, offline: { store: fileRangeStore(root) } },
+        React.createElement(Probe),
+        React.createElement(App),
+      ));
+    });
+    await waitFor(() => /log downloaded/.test(text(document.querySelector("[role=status][data-connection]"))), "the inbox drain");
+    await waitFor(() => owner.grantsMinted() === 1, "the drain's resume minting the first grant");
+    assert.equal((await client.outbox.status()).reason, "ready", "the outbox holds the grant the drain earned");
+    assert.equal(client.snapshot.auth.authEpoch, 7, "the confirmed epoch is the session epoch");
+  } finally {
+    await act(async () => { reactRoot.unmount(); });
+    await client?.close().catch(() => undefined);
+    restore();
+    await rm(root, { recursive: true, force: true });
+  }
+});

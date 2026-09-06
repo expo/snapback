@@ -23,7 +23,7 @@ Expired grants block new writes; existing intents await the server verdict.
 A queued entry's predicted flag marks a preview; committed confirms acceptance.
 `outbox.drain()` and `settled()` return `{ stopped, remaining }`: false means
 drained; fence, transport, authority, offline or pending explains a pause. Transport
-pauses keep queued intent bytes. Media can expire 24h after creation/latest release;
+pauses keep queued intent bytes. Unclaimed media can expire 24h after creation/latest release;
 grants/leases do not extend it. After a replay refusal, use a new upload/intent;
 never rewrite queued args (`guide operator`). Resume with `client.online()`,
 or `outbox.drain()` to retry online. Subscription reconnect alone does not

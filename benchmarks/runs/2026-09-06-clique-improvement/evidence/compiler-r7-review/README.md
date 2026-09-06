@@ -1,0 +1,9 @@
+# Compiler R7 independent Astra review
+
+Root read the complete fresh blind Astra xhigh review of immutable compiler `aa18e57a084fb2719625cab206dcc38695220d98`. Verdict: **CHANGES_REQUIRED**. The full review is retained verbatim. The accompanying manifest binds durable source/IR/evaluator/script evidence under `/Users/ccheever/clique-improvement/reviews/search-compiler-r7/astra/review-evidence`; original files remain under `astra-evidence-aa18e57`. The evidence uses the declared evaluator overlay and ordinary schema adapter, not a final integrated native or package runtime.
+
+Five accepted-program defects are demonstrated: helper callbacks can overwrite caller registers; public Quarry scalar nullish fallback can be scaled twice; nullable-list representation alternatives are lost through certain accepted producers; some collection calls discard authored operands; and bodyless range declarations can discard a throwing third operand. The report distinguishes new/reintroduced regressions from inherited defects and public Quarry from complete checked-private TypeScript witnesses. Unsupported public syntax is not counted as accepted behavior.
+
+A public Quarry fallback of `2` into Decimal3 returns `2000` but stores `2000000`; the foundation comparison stores `2000`. This is a correctness failure, not just a diagnostic or code-style concern. Passing targeted checks and unchanged historical full-suite failures do not resolve it. Original local deadline failures remain retained.
+
+Root authorized a central binding/representation/operand repair after the current descriptor-origin writer freezes and releases the lane. The original Grok review remains blind on aa18; its remote process outcome is not known while M5 is offline. No whole-compiler clearance, integration, publication, or new comparative score is claimed.

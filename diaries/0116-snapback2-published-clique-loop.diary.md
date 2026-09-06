@@ -784,3 +784,31 @@ sweep cost and late rung/view/scratch custody remain open in
 `issues/20260906-snapback2-asset-custody-gc-follow-up.md`. The original reseed ticket
 remains open for benchmark attribution; none of its previous failures became a
 pass by changing expectations.
+
+### 2026-09-06 — Pending uploads and a public decimal fallback
+
+The asset policy review exposed an unacceptable trade in the proposed broad quota redesign: legitimate live usage could make later asset deletion permanently unavailable. Root rejected new ordinary-release/reset capacity refusal. The isolated repair instead frees pending-object slots after successful release while retaining existing original-byte admission and full grace. Its first regression reproduced 40 released assets consuming all 40 pending slots with only 2,000 charged bytes. This is a before-fix observation, not a passing owner/package result. Existing cleanup and physical-custody debt remains open.
+
+The next compiler review found that public Quarry `captured = amount ?? 2` followed by a Decimal3 insert can return 2 but store 2000 in user units: actual IR return2000 versus stored2000000. Complete source/IR/ClientStore evidence and reconstructed compiler comparisons establish the mismatch; final native/package execution has not been claimed. Private helper register collisions and lost producer/operand semantics are also retained. This is the kind of silent conversion that makes the build experience worse even when a check passes; central representation and binding repairs are required before integration. No competing backend behavior was measured by these witnesses.
+
+Evidence: [asset decision](../benchmarks/runs/2026-09-06-clique-improvement/evidence/asset-policy-disposition/README.md) and [compiler review](../benchmarks/runs/2026-09-06-clique-improvement/evidence/compiler-r7-review/README.md). Existing control baselines stay reused. Full Clique wins remain unproven.
+
+
+### 2026-09-06 — Local repair handoffs and remaining compiler origin gaps
+
+The public asset repair now demonstrates 43 claims followed by 40 releases, zero pending slots, and 6,240 retained original bytes. A declared upload at the unchanged byte ceiling still refuses before its body; restart, another small upload and same-ID claim pass. Astra independently approves the narrow predicate change; the Grok review is still running. Released rows remaining visible in upload listings was initially confusing, so the API and guide now distinguish pending slots from retained bytes. Failed combined-file attempts remain failures; separately passing checks do not erase their original deadlines.
+
+The widening repair now refuses an invalid legacy row that survives maintained-target rebuilding. The ordinary public three-generation witness preserves the installed generation and sequence on refusal, while 47 focused Rust checks cover required fields, projection ownership and mixed-drop rollback. This restores a predictable development contract: a refused schema change leaves the working database intact. The witnesses are newly reconstructed local evidence, not recovered remote runs. The implementation commit is pushed to its review branch; independent reviews and integration are pending.
+
+Compiler descriptor review still found false native-constructor trust through mutable/container aliases and other modules, plus a migration suggestion that silently widens an authored list maximum from 2 to 100. These are complete-project counterexamples, not merely type-check concerns. The next repair must bind origin to the actual project and validate the entire migration wrapper. No Convex/Supabase behavior was measured by these probes; valid baseline scores remain reused.
+
+Full reports and exact source identities: [local handoffs](../benchmarks/runs/2026-09-06-clique-improvement/evidence/local-fix-handoffs/README.md). The full Clique objective, production publication and offline client resource qualification remain open.
+
+
+### 2026-09-06 — Asset review closure and another succession transition
+
+Both fresh independent code reviews now approve the pending-slot repair at `3e9238787`. Grok independently built the frozen core and passed all 30 asset tests; root verified all 944 supplied source leaves unchanged and retained the full terminal report. The offline guide should say that **unclaimed** media may expire, so queued-upload guidance is not mistaken for expiry of live claimed originals. Production/package qualification stays separate.
+
+The next widening review found an ordering concern the 47 passing cases did not cover: retiring a maintained table and using that table as the source of a new maintain can make admission compute replacement IDs before rebuild deletes source projections. The resulting surviving row may violate the successor constraint. Evidence currently consists of source inspection and a pure ordering model, not an executed Rust reproduction. Root authorized reproduction and a repair that makes exemptions match actual rebuild ownership. The original passing proof remains valid for its own scenario and is not generalized to this transition.
+
+[Complete review reports and disposition](../benchmarks/runs/2026-09-06-clique-improvement/evidence/local-fix-handoffs/README.md). Asset work can land independently while compiler, succession and offline resource repairs continue; no competing backend rerun or full Clique win is claimed.
