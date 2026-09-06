@@ -1,0 +1,26 @@
+{
+  "pass": true,
+  "coverage": {
+    "m8-a01": "six Insights tiles match independent actual corpus accounting",
+    "m8-a03": "server UTC day buckets increment today and retain zero days",
+    "m8-a04": "server UTC day buckets increment today and retain zero days",
+    "m8-a05": "Trending max likes newest tie and real server-clock expiry",
+    "m8-a06": "Trending max likes newest tie and real server-clock expiry",
+    "m8-a07": "Trending max likes newest tie and real server-clock expiry"
+  },
+  "results": [
+    {
+      "name": "six Insights tiles match independent actual corpus accounting",
+      "pass": true
+    },
+    {
+      "name": "server UTC day buckets increment today and retain zero days",
+      "pass": true
+    },
+    {
+      "name": "Trending max likes newest tie and real server-clock expiry",
+      "pass": true
+    }
+  ],
+  "recordedAt": "2026-09-06T12:25:15.813Z"
+}

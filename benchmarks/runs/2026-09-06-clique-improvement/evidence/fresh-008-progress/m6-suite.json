@@ -1,0 +1,25 @@
+{
+  "pass": true,
+  "coverage": {
+    "m6-a08": "disconnected-recipient effect logs authoritative text and view-once previews",
+    "m6-a09": "disconnected-recipient effect logs authoritative text and view-once previews",
+    "m6-a10": "clean-process custom-client demo authenticates lists pages sends and polls",
+    "m6-a11": "clean-process custom-client demo authenticates lists pages sends and polls",
+    "m6-a13": "frozen action-schema validator and 50 authoritative receipts cover every verb"
+  },
+  "results": [
+    {
+      "name": "disconnected-recipient effect logs authoritative text and view-once previews",
+      "pass": true
+    },
+    {
+      "name": "clean-process custom-client demo authenticates lists pages sends and polls",
+      "pass": true
+    },
+    {
+      "name": "frozen action-schema validator and 50 authoritative receipts cover every verb",
+      "pass": true
+    }
+  ],
+  "recordedAt": "2026-09-06T11:54:47.215Z"
+}

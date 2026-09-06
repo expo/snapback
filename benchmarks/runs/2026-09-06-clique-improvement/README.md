@@ -10,7 +10,10 @@ All 154 packed files match the qualified artifacts; installed doctor, Hermes,
 media, and the untouched chat Expo guide before/after check pass. The fresh
 Astra-medium run stays pinned to published 0.0.8 on the baseline M5 host. Its
 M1–M5 suites pass, and the latest M5 choreography records all four assertions
-passing at 11:42:37Z. M6 is underway. Concurrent load and actual toolchain
+passing at 11:42:37Z. Named M6 API/push/custom-client and M8 totals/UTC/Trending
+checks also pass; the retained replay snapshot is137000/167244 with zero
+failures. Native, multi-device, digest and final scale remain separate.
+Concurrent load and actual toolchain
 must remain disclosed; the current choreography records Node25.9.0, not merely
 the Node24.18.0 named during preparation.
 
@@ -23,8 +26,10 @@ active compiler review findings and a client bundle budget issue.
 
 Fresh M7 on the frozen 0.0.6 app completed diagnostically: new-feature API/web/
 expiry/export checks pass, but prior regression is incomplete, so it is not
-milestone-green. Independent M7 grading is now running. Native M6 and M8 gaps
-remain. The requested three-family comparative win is unproven. Entries below
+milestone-green. Independent M7 grading completed: eight assertion IDs pass
+with stated limits, prior regression fails, and empty poll argument bounds fail.
+Its M8 API recheck passes; prior native qualification gaps remain. The sealed
+recording supplement reports B8 78 and M7-only holistic70, not a full score. The requested three-family comparative win is unproven. Entries below
 retain chronology, including superseded intermediate statuses.
 
 Latest release evidence: [`evidence/npm-0.0.9/`](evidence/npm-0.0.9/).

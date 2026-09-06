@@ -408,3 +408,33 @@ A separate operation-name fix also exposed silent omission of aliased effect
 exports and is being repaired. Client tests found repeated normalization outside
 the reported budget. These are unpublished findings; green focused suites did
 not establish complete correctness. No comparative win is claimed.
+
+## 2026-09-06 — Independent M7 findings and fresh M8 progress
+
+Independent Grok M7 grading on frozen0.0.6 confirms eight assertion IDs with
+stated limits; the prior-regression assertion fails. It independently observed
+live vote updates, queued browser votes, persisted counts, and closed-client
+expiry. The additional empty question/option requirement fails through the API,
+despite declared text minimums. Compiler inspection finds minimums retained in
+the Quarry AST but dropped from argument types; a current private reproduction
+and repair are queued. This is the kind of declared validation an app author
+should be able to rely on without duplicating UI checks. The sealed author's
+recording supplement is B8 78 and M7-only holistic70, not a complete benchmark
+score or a comparison. Both reports are retained with their differing scope.
+
+The fresh0.0.8 run records passing M6 API/push/custom-client checks and M8
+maintained totals, UTC buckets and Trending checks. Its retained replay snapshot
+has 137000 of 167244 actions and 0 failures. Final scale,
+native, multi-device, digest and independent grading remain separate. The
+builder reports a cached Insights query refused with `readTime was not pinned`,
+while direct authenticated reads work. It used explicit server reads for load
+and refresh. A separate lane is checking the current contract and a minimal
+reproduction; the frozen run receives no fix guidance. This workaround adds
+client plumbing to an otherwise useful server-maintained Insights model.
+
+Actual provisional search execution now returns20 newest rows across100 lanes.
+It exposed a second normalization caused by object-field insertion order in a
+cache identity; the repair remains unpublished. Feed's latest first curve passes
+all three ratios, but review reproduced unbudgeted retained seek parameters,
+so memory accounting must be fixed before landing. Passing output/performance
+checks alone did not establish the resource contract.
