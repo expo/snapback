@@ -196,7 +196,7 @@ const guidePages = await Promise.all(
     name,
     markdown: await readFile(resolve(guideSource, `${name}.md`), "utf8"),
     // LLP 1017 adds cap invariants and complete mutation loops to the reference.
-    limit: name === "grammar" ? 3072 : name === "quarry" ? 15872 : name === "offline" ? 4352 : 4096,
+    limit: name === "grammar" ? 3584 : name === "quarry" ? 15872 : name === "live-query" ? 5632 : name === "offline" ? 4352 : 4096,
   })),
 );
 const guideErrors = [...familyErrors, ...quarryFamilyFailures(families, parseDocument), ...guideFailures(guidePages, tsFixtureText, quarryFixtureText, parseDocument)];
@@ -483,7 +483,7 @@ async function loadQuarryParser() {
 
 async function fixtureFiles(root) {
   const output = [];
-  for (const name of ["todos", "chat", "quarry-todos", "quarry-chat", "quarry-surface", "quarry-assets", "quarry-jobs", "quarry-schedules"]) {
+  for (const name of ["todos", "chat", "quarry-todos", "quarry-chat", "quarry-surface", "quarry-words", "quarry-assets", "quarry-jobs", "quarry-schedules"]) {
     const directory = resolve(root, name, "snapback");
     for (const entry of await readdir(directory, { withFileTypes: true })) {
       if (entry.isFile() && (entry.name.endsWith(".ts") || entry.name.endsWith(".q"))) output.push(resolve(directory, entry.name));

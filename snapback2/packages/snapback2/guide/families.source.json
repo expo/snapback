@@ -438,10 +438,10 @@
     "right": "new bytes take a new slice and a new intent; retry only the original bytes"
   },
   {
-    "family": "offline",
+    "family": "assets",
     "code": "E_ASSET_VIEWED",
-    "wrong": "client.assetBlob(url) // for a view-once row this device already viewed",
-    "right": "render a view-once row once; a viewed row answers null offline and fetches nothing"
+    "wrong": "GET /api/asset/id // this principal already consumed the image once",
+    "right": "render this image once; request a new image for another delivery (HTTP 410); offline media is null"
   },
   {
     "family": "offline",

@@ -17,11 +17,11 @@ function builtinKind(value: string | Record<string, unknown>): [string, any] {
 }
 
 function expressionOrigin(expr: Expr, bindings: Map<string, Origin>): Origin {
+  if ("Merge" in expr) return expr.Merge.site;
   if ("Variable" in expr) return bindings.get(expr.Variable);
   if ("Scan" in expr && expr.Scan.opaque_cursor) return expr.Scan.merge_site ?? expr.Scan.site;
   if ("Builtin" in expr) {
     const [kind, data] = builtinKind(expr.Builtin.builtin);
-    if (kind === "DedupeById") return data?.site;
     if (["Slice", "Sort"].includes(kind)) {
       return expr.Builtin.args[0] && expressionOrigin(expr.Builtin.args[0], bindings);
     }

@@ -22,7 +22,7 @@ type ObjectType = { kind: "object"; fields: Map<string, ValueType>; nullable: bo
 type SequenceType = { kind: "sequence"; item: ValueType; max: number };
 type NumericLiteralType = { kind: "numeric-literal"; fractionalDigits: number };
 type ValueType =
-  | ScalarType
+  | (ScalarType & { builtText?: true })
   | { kind: "row"; table: string; nullable: boolean }
   | { kind: "page"; table: string }
   | SequenceType
@@ -72,7 +72,7 @@ export function emitPrograms(programs: ProgramDecl[], catalog: TableCatalog, sou
   const rootSite = programs[0]?.site ?? effects[0]?.site ?? { file: sourceFile, line: 1, col: 1 };
   const writer = new Writer(rootSite);
   writer.raw(header(sourceFile), rootSite);
-  writer.statement(`import { deterministicShare, divmod, emit, max, mergeByIndex, mentionTokens, min, mutation, query, range, recurse, t } from "snapback2";`, { file: sourceFile, line: 1, col: 1 });
+  writer.statement(`import { deterministicShare, divmod, emit, max, mergeByIndex, mentionTokens, min, mutation, query, range, recurse, t, words } from "snapback2";`, { file: sourceFile, line: 1, col: 1 });
   if (catalog.size > 0) writer.statement(`import { ${[...catalog.keys()].join(", ")} } from "./schema";`, { file: sourceFile, line: 1, col: 1 });
   for (const effect of effects) writer.statement(`import { ${effect.name} } from "./${effect.module}";`, effect.site);
   writer.raw();
@@ -208,7 +208,7 @@ function emitStatement(statement: Stmt, env: Environment, writer: Writer, comple
       ? { kind: "row", table: domain.type.table, nullable: false } satisfies ValueType
       : domain.type.kind === "sequence" || domain.type.kind === "list" ? domain.type.item : { kind: "unknown" } satisfies ValueType;
     if (domain.type.kind !== "page" && domain.type.kind !== "sequence" && domain.type.kind !== "list" && domain.type.kind !== "unknown") {
-      refuse(statement.domain.site, "for domains must be a page, capped list argument, range, tokens result, or literal list");
+      refuse(statement.domain.site, "for domains must be a page, capped list argument, range, tokens/words result, or literal list");
     }
     writer.raw(`for (const ${statement.name} of ${domain.code}) {`, statement.site);
     writer.nested(() => {
@@ -357,7 +357,12 @@ function emitBinary(expr: Extract<Expr, { kind: "binary" }>, env: Environment, w
       typeError(expr.right.site, `Id fallback requires ${valueTypeName(left.type)}; got ${valueTypeName(right.type)}`,
         "use a non-empty text literal or a reference to the same table");
     }
-    return { code: `(${left.code} ?? ${right.code})`, type: nonNullable(left.type) };
+    const type = nonNullable(left.type);
+    if (type.kind === "text" && right.type.kind === "text") {
+      type.max = Math.max(type.max, right.type.max);
+      if (right.type.builtText) type.builtText = true;
+    }
+    return { code: `(${left.code} ?? ${right.code})`, type };
   }
   const operator = expr.op === "=" ? "===" : expr.op === "!=" ? "!==" : expr.op;
   // @ref LLP 1010#a2-total-equality--program-only — program equality is total;
@@ -455,7 +460,8 @@ function emitBinary(expr: Extract<Expr, { kind: "binary" }>, env: Environment, w
     }
     return { code: `(${left.code} * ${right.code})`, type: branded };
   }
-  return { code: `(${left.code} ${expr.op} ${right.code})`, type: left.type };
+  return { code: `(${left.code} ${expr.op} ${right.code})`,
+    type: expr.op === "+" && left.type.kind === "text" ? { ...left.type, builtText: true } : left.type };
 }
 
 function emitMember(expr: Extract<Expr, { kind: "member" }>, env: Environment, writer: Writer): Emitted {
@@ -524,7 +530,7 @@ function emitCall(expr: Extract<Expr, { kind: "call" }>, env: Environment, write
     refuse(expr.site, "sorted(a, b) must be consumed by a two-name binding: (lo, hi) = sorted(a, b)");
   }
   const target = expr.name === "tokens" ? "mentionTokens" : expr.name;
-  if (!["tokens", "range", "min", "max", "count", "divmod", "share"].includes(expr.name)) {
+  if (!["tokens", "words", "range", "min", "max", "count", "divmod", "share"].includes(expr.name)) {
     unsupported(expr.site, `user function or recursion (${expr.name})`, "use a Quarry builtin or inline one bounded expression");
   }
   const args = expr.args.map((arg) => emitExpr(arg, env, writer));
@@ -570,6 +576,22 @@ function emitCall(expr: Extract<Expr, { kind: "call" }>, env: Environment, write
   if (expr.name === "count") {
     if (args.length !== 1 || !["list", "page", "sequence"].includes(args[0]!.type.kind)) refuse(expr.site, "count(x) requires one bounded list or page");
     return { code: `${args[0]!.code}.length`, type: { kind: "int", optional: false } };
+  }
+  if (expr.name === "words") {
+    const input = args[0];
+    if (args.length !== 1 || input?.type.kind !== "text" || input.type.optional) {
+      typeError(expr.site, "words(text) requires exactly one present bounded text argument",
+        "use words(body) with body: text <=N; use words(body ?? '') for optional text");
+    }
+    // The integer-only Add runtime refusal is not evidence of a text bound.
+    if (input.type.builtText) {
+      typeError(expr.site, "words requires a declared text bound; + or template-built text has no declared maximum",
+        "use words(body) with body: text <=N declared as an argument or column");
+    }
+    // @ref LLP 1001#pure-builtins — whole tokens keep the input width; separators bound cardinality.
+    return { code: `words(${input.code})`, type: { kind: "list",
+      item: { kind: "text", max: input.type.max, optional: false },
+      max: Math.floor(input.type.max / 2) + 1, optional: false } };
   }
   if (expr.name === "tokens") return { code: `${target}(${args.map((arg) => arg.code).join(", ")})`, type: { kind: "list", item: { kind: "text", max: 4096, optional: false }, max: 64, optional: false } };
   if (expr.name === "range") {
@@ -703,46 +725,29 @@ function emitMerge(expr: MergeExpr, env: Environment, writer: Writer): Emitted {
     );
   });
   const mergeSite = `${expr.site.file}:${expr.site.line}:${expr.site.col}`;
-  const union = temporary("mergeUnion", expr.site);
-  writer.statement(`const ${union}: Array<(typeof ${expr.table})["__row"]> = [];`, expr.site);
+  const lanes: string[] = [];
   for (const lane of expr.lanes) {
-    const emitLane = (nested: Environment): void => {
-      const scan = emitRead({
-        kind: "read",
-        table: expr.table,
-        keys: lane.prefix.map((value) => ({ value, site: value.site })),
-        index: expr.index,
-        range: {
-          order: expr.order,
-          take: expr.take,
-          cursor: expr.cursor,
-          cursorKind: expr.cursorKind,
-          mergeSite,
-          site: lane.site,
-        },
-        site: lane.site,
-      }, nested, writer);
-      const row = temporary("mergeRow", lane.site);
-      writer.raw(`for (const ${row} of ${scan.code}) {`, lane.site);
-      writer.nested(() => writer.statement(`${union}.push(${row});`, lane.site));
-      writer.statement("}", lane.site);
-    };
-    if (!lane.loop) {
-      emitLane(env);
-      continue;
-    }
-    const domain = emitRead(lane.loop.domain, env, writer);
-    writer.raw(`for (const ${lane.loop.name} of ${domain.code}) {`, lane.site);
-    writer.nested(() => {
-      const nested = env.clone();
-      nested.bindings.set(lane.loop!.name, { code: lane.loop!.name, type: { kind: "row", table: lane.loop!.domain.table, nullable: false } });
-      emitLane(nested);
+    const nested = env.clone();
+    const domain = lane.loop && emitRead(lane.loop.domain, env, writer);
+    if (lane.loop) nested.bindings.set(lane.loop.name, {
+      code: lane.loop.name, type: { kind: "row", table: lane.loop.domain.table, nullable: false },
     });
-    writer.statement("}", lane.site);
+    const localWriter = new Writer(lane.site);
+    const scan = emitRead({
+      kind: "read", table: expr.table,
+      keys: lane.prefix.map((value) => ({ value, site: value.site })),
+      index: expr.index,
+      range: { order: expr.order, take: expr.take, cursor: expr.cursor,
+        cursorKind: expr.cursorKind, mergeSite, site: lane.site },
+      site: lane.site,
+    }, nested, localWriter);
+    lanes.push(`{ ${domain ? `rows: ${domain.code}, ` : ""}lane: (${lane.loop?.name ?? ""}) => ${localWriter.lines.length ? `{
+${localWriter.lines.join("\n")}
+return ${scan.code};
+}` : scan.code} }`);
   }
-  const suffix = index.columns.slice(width);
   return {
-    code: `mergeByIndex(${union}, ${JSON.stringify(suffix)}, ${JSON.stringify(expr.order)}, ${expr.take}, ${JSON.stringify(mergeSite)}, ${JSON.stringify(expr.table)})`,
+    code: `mergeByIndex([${lanes.join(", ")}], ${expr.take}, ${JSON.stringify(mergeSite)})`,
     type: { kind: "page", table: expr.table },
   };
 }
@@ -1174,7 +1179,7 @@ function inferExpr(expr: Expr, env: Environment): ScalarType | undefined {
 }
 
 function literalType(expr: Extract<Expr, { kind: "literal" }>): ScalarType | NumericLiteralType {
-  if (typeof expr.value === "string") return { kind: "text", max: Math.max(1, expr.value.length), optional: false };
+  if (typeof expr.value === "string") return { kind: "text", max: Math.max(1, [...expr.value].length), optional: false };
   if (typeof expr.value === "number") {
     const digits = fractionalDigits(expr.numericText);
     return digits === 0 ? { kind: "int", optional: false } : { kind: "numeric-literal", fractionalDigits: digits };

@@ -133,11 +133,16 @@ impl Generation {
 
     /// Every schedule binding program, for a certification that must see them beside the operations.
     pub fn timer_binding_programs(&self) -> Vec<Program> {
-        self.timer_bindings.values().map(|c| c.binding.clone()).collect()
+        self.timer_bindings
+            .values()
+            .map(|c| c.binding.clone())
+            .collect()
     }
 
     pub fn schema_certificate(&self) -> serde_json::Value {
-        serde_json::json!({"schedules":self.schema.schedules.iter().map(|s|serde_json::json!({"name":s.name,"trigger":s.trigger,"target":s.target})).collect::<Vec<_>>()})
+        let mut certificate = serde_json::json!({"schedules":self.schema.schedules.iter().map(|s|serde_json::json!({"name":s.name,"trigger":s.trigger,"target":s.target})).collect::<Vec<_>>()});
+        disclose_once_assets(&mut certificate, &self.schema);
+        certificate
     }
 
     pub fn effects_hash(&self) -> String {
@@ -494,7 +499,14 @@ impl Generation {
             } else {
                 let bindings = timer_bindings
                     .iter()
-                    .map(|(name, c)| (name, &c.binding, digest(&c.binding_certificate), digest(&c.target)))
+                    .map(|(name, c)| {
+                        (
+                            name,
+                            &c.binding,
+                            digest(&c.binding_certificate),
+                            digest(&c.target),
+                        )
+                    })
                     .collect::<Vec<_>>();
                 digest(&(schema.hash(), certified_programs, bindings))
             };
@@ -545,12 +557,14 @@ impl Runtime {
                 if row_count != 0 {
                     return Err(SuccessorRefusal::destructive(MigrationPlan::default()));
                 }
-                persist_generation(&mut store, &generation, unix_millis()).map_err(store_refusal)?;
+                persist_generation(&mut store, &generation, unix_millis())
+                    .map_err(store_refusal)?;
             }
             Some(hash) if hash == generation_hash => {
                 // Additive owner metadata can appear after the generation was
                 // first installed (for example the outbox declaration binding).
-                persist_generation(&mut store, &generation, unix_millis()).map_err(store_refusal)?;
+                persist_generation(&mut store, &generation, unix_millis())
+                    .map_err(store_refusal)?;
             }
             Some(hash) => {
                 let current_json = store
@@ -700,6 +714,16 @@ impl Runtime {
     ) -> Result<crate::assets_ledger::AssetDelivery, RuntimeError> {
         self.engine
             .public_asset_delivery(id, &self.generation.table_read_certificates)
+    }
+
+    /// The HTTP delivery reserved this principal, authorized the row, and wrote body bytes.
+    pub fn record_asset_view(
+        &mut self,
+        id: &str,
+        principal: &str,
+        at: i64,
+    ) -> Result<(), RuntimeError> {
+        self.engine.store_mut().record_asset_view(id, principal, at)
     }
 
     pub fn reclaim_assets(&mut self, now: i64) -> Result<Vec<String>, RuntimeError> {
@@ -913,9 +937,7 @@ impl Runtime {
         now: i64,
     ) -> Result<ResetResult, RuntimeError> {
         let (program, certificate) = seed_program(&self.generation.schema, rows)?;
-        let (execution, asset_ids) = self
-            .engine
-            .reset_and_seed(&program, &certificate, now)?;
+        let (execution, asset_ids) = self.engine.reset_and_seed(&program, &certificate, now)?;
         self.rerun_all_subscriptions();
         Ok(ResetResult {
             seq: execution.seq,
@@ -1290,11 +1312,46 @@ fn collect_reserved_rule_reads(rule: &RuleExpr, reads: &mut BTreeSet<String>) {
     }
 }
 
+// @ref LLP 1006#2a1-one-use-image-delivery-clique-f3-2026-09-05 — custody is disclosed beside all other schema facts.
+fn disclose_once_assets(certificate: &mut serde_json::Value, schema: &Schema) {
+    let once: Vec<_> = schema.tables.iter().flat_map(|(name, table)| table.columns.iter()
+        .filter(|(_, kind)| kind.is_once()).map(move |(column, _)|
+            serde_json::json!(format!("{name}.{column}: one image delivery per authenticated principal; owning row read rule; no device byte cache")))).collect();
+    if !once.is_empty() {
+        certificate
+            .as_object_mut()
+            .expect("schema certificate object")
+            .entry("disclosures")
+            .or_insert_with(|| serde_json::json!([]))
+            .as_array_mut()
+            .expect("disclosures array")
+            .extend(once);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::Actor;
     use crate::schema::{ColumnType, Index, RuleTerm, Rules, Table};
+
+    #[test]
+    fn once_disclosures_preserve_existing_schema_disclosures() {
+        let case: serde_json::Value =
+            serde_json::from_str(include_str!("../../../corpus/asset-once-image-insert.json"))
+                .unwrap();
+        let schema: Schema = serde_json::from_value(case["schema"].clone()).unwrap();
+        let mut certificate = serde_json::json!({"disclosures":["existing fact"], "schedules":[]});
+        disclose_once_assets(&mut certificate, &schema);
+        assert_eq!(
+            certificate["disclosures"],
+            serde_json::json!([
+                "existing fact",
+                "media.photo: one image delivery per authenticated principal; owning row read rule; no device byte cache"
+            ])
+        );
+        assert_eq!(certificate["schedules"], serde_json::json!([]));
+    }
 
     #[test]
     fn adhoc_execution_does_not_install_a_program_or_change_the_generation() {

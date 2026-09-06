@@ -34,12 +34,17 @@ fn context(factors: &[(String, u64)]) -> String {
 }
 
 impl Cost {
-    pub fn range(scan: &Scan, calls: u64, factors: &[(String, u64)]) -> Self {
+    pub fn range(scan: &Scan, calls: u64, factors: &[(String, u64)], reserve: u64) -> Self {
         let take = scan.take.maximum();
         let (source, repair) = if let Some(merge) = &scan.merge_site {
             (
                 format!(
-                    "merge {merge}: {calls} lanes × ({take} + 2) at {} on {}{}",
+                    "merge {merge}: {calls} lanes {} at {} on {}{}",
+                    if reserve == 1 {
+                        "heads".to_owned()
+                    } else {
+                        format!("× ({take} + 2)")
+                    },
                     scan.site,
                     scan.table,
                     context(factors)
@@ -60,7 +65,7 @@ impl Cost {
             )
         };
         Self {
-            value: calls.saturating_mul(take.saturating_add(2)),
+            value: calls.saturating_mul(reserve),
             source,
             repair,
         }

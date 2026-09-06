@@ -60,3 +60,53 @@ visible to the next execute; live reruns wait up to 1 s to coalesce changes. Off
 a program reading `connected` is `hydrating` and never predicted, even with a
 cached answer. Connections say nothing about foreground/idle state or delivery
 guarantees; this adds no channel kind or subscriber-set broadcast.
+
+## Whole-word search
+
+`words(text)` returns whole `[A-Za-z0-9]+` runs, lowercase, deduplicated in
+first-occurrence order. Whole-word matching, not prefix search; non-ASCII splits
+words. Empty input yields `[]`. For `text <=N`, the list/`for` bound is
+`floor(N/2)+1` (2000 → 1001). `words(a ?? b)` uses the larger declared text
+maximum. Index columns must fit whole runs or the program must filter.
+`tokens(text)` extracts `@` mentions.
+
+Messages have `conversationId`, `author`, `body: text <=2000`, and `at`:
+
+```q
+table searchWords:
+  messageId: messages
+  conversationId: conversations
+  term: text <=2000
+  at: time
+  unique byMessageTerm: messageId, term
+  by byConversationTermTime: conversationId, term, at, id
+  public
+  insert <- allow
+  update <- allow
+  delete <- allow
+```
+
+```q
+mutation index(messageId: messages, body: text <=2000):
+  m = messages[messageId] !
+  require m.author = viewer and m.body = body else STALE_OR_NOT_AUTHOR
+  for term in words(body):
+    upsert searchWords[messageId, term] { conversationId: m.conversationId, at: m.at }
+  return true
+
+mutation edit(messageId: messages, body: text <=2000):
+  old = messages[messageId] !
+  require old.author = viewer else NOT_AUTHOR
+  for term in words(old.body):
+    delete searchWords[messageId, term]
+  update messages[messageId] { body }
+  for term in words(body):
+    upsert searchWords[messageId, term] { conversationId: old.conversationId, at: old.at }
+  return true
+
+query search(conversationId: conversations, term: text <=2000):
+  return searchWords[conversationId, term] last 20 by byConversationTermTime { messageId }
+```
+
+Index at creation; editing an unindexed nonempty body refuses `NOT_FOUND`.
+`search` takes an already-lowercased ASCII word. Public-conversation rules.

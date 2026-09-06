@@ -16,6 +16,7 @@ const CLOSURE_METADATA_BYTES: u64 = 64;
 
 #[derive(Clone, Default)]
 struct Flow {
+    whole_element: bool,
     rows: BTreeMap<String, RowFlow>,
     value_bytes: u64,
     retained_value_bytes: u64,
@@ -35,6 +36,7 @@ struct RowFlow {
 impl Flow {
     fn row(site: &str, table: &str, bytes: u64, count: u64) -> Self {
         Self {
+            whole_element: false,
             rows: BTreeMap::from([(
                 site.to_owned(),
                 RowFlow {
@@ -60,6 +62,7 @@ impl Flow {
     }
 
     fn add(mut self, other: Self) -> Self {
+        self.whole_element |= other.whole_element;
         for (site, incoming) in other.rows {
             self.rows
                 .entry(site)
@@ -87,6 +90,7 @@ impl Flow {
     }
 
     fn add_projection(mut self, other: Self) -> Self {
+        self.whole_element |= other.whole_element;
         for (site, incoming) in other.rows {
             self.rows
                 .entry(site)
@@ -133,6 +137,7 @@ impl Flow {
     }
 
     fn branch(mut self, other: Self) -> Self {
+        self.whole_element |= other.whole_element;
         for (site, incoming) in other.rows {
             self.rows
                 .entry(site)
@@ -209,6 +214,9 @@ impl Flow {
     }
 
     fn element(mut self, count: u64) -> Self {
+        if self.whole_element {
+            return self;
+        }
         for row in self.rows.values_mut() {
             row.count = row
                 .count
@@ -229,6 +237,7 @@ impl Flow {
 
     fn fixed_width(self) -> Self {
         Self {
+            whole_element: self.whole_element,
             rows: BTreeMap::new(),
             value_bytes: self.value_bytes,
             retained_value_bytes: self.retained_value_bytes,
@@ -707,7 +716,7 @@ impl<'a> RetentionEstimator<'a> {
                             true,
                         )
                     }
-                    Builtin::Sort { .. } | Builtin::DedupeById { .. } => (first.0, first.1, true),
+                    Builtin::Sort { .. } => (first.0, first.1, true),
                     Builtin::Concat => {
                         let (flow, length) = flows.fold(
                             (first.0, first.1),
@@ -721,6 +730,20 @@ impl<'a> RetentionEstimator<'a> {
                             },
                         );
                         (flow, length, true)
+                    }
+                    Builtin::Words => {
+                        let bytes = first
+                            .0
+                            .rows
+                            .values()
+                            .fold(first.0.value_bytes, |size, row| {
+                                size.saturating_add(row.count.saturating_mul(row.bytes))
+                            })
+                            .saturating_mul(8);
+                        let mut flow = Flow::value(bytes).retain_value_width();
+                        flow.whole_element = true;
+                        flow.depends_on_scan = first.0.depends_on_scan;
+                        (flow, None, true)
                     }
                     Builtin::Len
                     | Builtin::Min
@@ -757,6 +780,32 @@ impl<'a> RetentionEstimator<'a> {
                 None,
                 false,
             ),
+            Expr::Merge(merge) => {
+                // @ref LLP 1001#3-read-and-write-states-no-silent-states — the
+                // receipt keeps all stepped heads/lookahead plus discovery's page/halo.
+                let flow = Flow::row(
+                    &merge.site,
+                    merge.table(),
+                    declared_serialized_row_max(self.schema, merge.table()),
+                    merge
+                        .max_lanes()
+                        .saturating_add(merge.take())
+                        .saturating_add(2),
+                );
+                let flow = merge
+                    .lanes
+                    .iter()
+                    .filter_map(|lane| lane.source.as_ref())
+                    .fold(flow, |flow, source| {
+                        flow.add(Flow::row(
+                            &source.site,
+                            &source.table,
+                            declared_serialized_row_max(self.schema, &source.table),
+                            source.take.maximum().saturating_add(1),
+                        ))
+                    });
+                (flow, Some(merge.take()), true)
+            }
             Expr::Scan(scan) => {
                 let count = scan.take.maximum();
                 (self.scan(scan), Some(count), false)
@@ -846,10 +895,7 @@ impl<'a> RetentionEstimator<'a> {
                 .and_then(|binding| binding.table.clone()),
             Expr::Get(read) => Some(read.table.clone()),
             Expr::Scan(scan) => Some(scan.table.clone()),
-            Expr::Builtin {
-                builtin: Builtin::DedupeById { table, .. },
-                ..
-            } => Some(table.clone()),
+            Expr::Merge(merge) => Some(merge.table().to_owned()),
             Expr::Builtin {
                 builtin: Builtin::Slice | Builtin::Sort { .. },
                 args,

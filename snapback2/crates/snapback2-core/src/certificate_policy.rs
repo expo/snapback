@@ -2,11 +2,14 @@
 
 use crate::certificate::{CheckError, Checker};
 use crate::ir::*;
-use crate::schema::{ColumnType, RuleExpr, RuleTerm, Schema};
+use crate::schema::{ColumnType, Schema};
 use crate::value::{I53_MAX, I53_MIN, Value};
 use std::collections::{BTreeMap, BTreeSet};
 
 mod cursors;
+mod visibility;
+use visibility::rule_fields;
+pub(crate) use visibility::{scan_visibility, uniform_visibility};
 #[path = "certificate_policy/fanout.rs"]
 pub(crate) mod fanout;
 
@@ -65,48 +68,6 @@ impl Fact {
     }
 }
 
-pub(crate) fn uniform_visibility(schema: &Schema, scan: &Scan) -> bool {
-    let Some(table) = schema.table(&scan.table) else {
-        return false;
-    };
-    let Some(index) = table.index(&scan.index) else {
-        return false;
-    };
-    let pinned: BTreeSet<_> = index
-        .columns
-        .iter()
-        .take(scan.prefix.len())
-        .cloned()
-        .collect();
-    let mut used = BTreeSet::new();
-    rule_fields(&table.rules.read, &mut used);
-    used.is_subset(&pinned)
-}
-
-fn rule_fields(rule: &RuleExpr, out: &mut BTreeSet<String>) {
-    match rule {
-        RuleExpr::Eq(left, right) | RuleExpr::Ne(left, right) => {
-            for term in [left, right] {
-                if let RuleTerm::Field(name) = term {
-                    out.insert(name.clone());
-                }
-            }
-        }
-        RuleExpr::Exists { key, .. } | RuleExpr::Created { key, .. } => {
-            for term in key {
-                if let RuleTerm::Field(name) = term {
-                    out.insert(name.clone());
-                }
-            }
-        }
-        RuleExpr::And(rules) | RuleExpr::Or(rules) => {
-            rules.iter().for_each(|rule| rule_fields(rule, out));
-        }
-        RuleExpr::Not(rule) => rule_fields(rule, out),
-        RuleExpr::Public { .. } | RuleExpr::Allow | RuleExpr::Deny => {}
-    }
-}
-
 impl Checker<'_> {
     pub(crate) fn structural_errors(
         &self,
@@ -138,9 +99,15 @@ impl Checker<'_> {
         let mut flow = CompletenessFlow {
             schema: self.schema,
             env: BTreeMap::new(),
+            loop_exits: BTreeSet::new(),
             errors: &mut errors,
         };
-        flow.statements(&program.body, &BTreeSet::new(), &BTreeSet::new());
+        flow.statements(
+            &program.body,
+            &BTreeSet::new(),
+            &BTreeSet::new(),
+            &BTreeSet::new(),
+        );
         (errors, complete)
     }
 }
@@ -148,6 +115,7 @@ impl Checker<'_> {
 struct CompletenessFlow<'a, 'b> {
     schema: &'a Schema,
     env: BTreeMap<String, Fact>,
+    loop_exits: BTreeSet<CappedSite>,
     errors: &'b mut Vec<CheckError>,
 }
 
@@ -157,17 +125,26 @@ impl CompletenessFlow<'_, '_> {
         statements: &[Stmt],
         control: &BTreeSet<CappedSite>,
         loop_pages: &BTreeSet<CappedSite>,
-    ) {
+        iteration_locals: &BTreeSet<String>,
+    ) -> BTreeSet<String> {
+        let mut iteration_locals = iteration_locals.clone();
+        let mut bindings = BTreeSet::new();
         for statement in statements {
             match statement {
                 Stmt::Const { name, value } | Stmt::Let { name, value } => {
                     let fact = self.expr(value);
                     self.env.insert(name.clone(), fact);
+                    iteration_locals.insert(name.clone());
+                    bindings.insert(name.clone());
                 }
                 Stmt::Assign { name, value } => {
                     let mut fact = self.expr(value);
                     fact.structural.extend(control.iter().cloned());
-                    fact.structural.extend(loop_pages.iter().cloned());
+                    // @ref LLP 1001#3-read-and-write-states-no-silent-states — shaping a visible row does not turn its page into an absence-dependent result.
+                    // Only assignments to bindings outside this iteration are accumulators.
+                    if !iteration_locals.contains(name) {
+                        fact.structural.extend(loop_pages.iter().cloned());
+                    }
                     self.env.insert(name.clone(), fact);
                 }
                 Stmt::Push { target, value } => {
@@ -189,10 +166,20 @@ impl CompletenessFlow<'_, '_> {
                     assigned_targets(then_body, &mut branch_targets);
                     assigned_targets(else_body, &mut branch_targets);
                     let before = self.env.clone();
-                    self.statements(then_body, &nested_control, loop_pages);
+                    bindings.extend(self.statements(
+                        then_body,
+                        &nested_control,
+                        loop_pages,
+                        &iteration_locals,
+                    ));
                     let then_env = self.env.clone();
                     self.env = before;
-                    self.statements(else_body, &nested_control, loop_pages);
+                    bindings.extend(self.statements(
+                        else_body,
+                        &nested_control,
+                        loop_pages,
+                        &iteration_locals,
+                    ));
                     merge_env(&mut self.env, then_env);
                     for target in branch_targets {
                         self.env
@@ -213,7 +200,29 @@ impl CompletenessFlow<'_, '_> {
                     let mut nested_loop_pages = loop_pages.clone();
                     nested_loop_pages.extend(domain.pages.iter().cloned());
                     let previous = self.env.insert(binding.clone(), Fact::default());
-                    self.statements(body, &nested_control, &nested_loop_pages);
+                    let outer_exits = std::mem::take(&mut self.loop_exits);
+                    // If-branch Lets do not merge into iteration_locals (fail-closed).
+                    let locals = self.statements(
+                        body,
+                        &nested_control,
+                        &nested_loop_pages,
+                        &BTreeSet::new(),
+                    );
+                    let exits = std::mem::replace(&mut self.loop_exits, outer_exits);
+                    let mut targets = BTreeSet::new();
+                    assigned_targets(body, &mut targets);
+                    for target in targets {
+                        self.env.entry(target).or_default().structural
+                            .extend(exits.iter().cloned());
+                    }
+                    // Raw IR can name a temporary after its loop. Only values already
+                    // pushed during the iteration get the local-assignment exemption.
+                    for name in &locals {
+                        if let Some(fact) = self.env.get_mut(name) {
+                            fact.structural.extend(nested_loop_pages.iter().cloned());
+                        }
+                    }
+                    bindings.extend(locals);
                     if let Some(previous) = previous {
                         self.env.insert(binding.clone(), previous);
                     } else {
@@ -253,9 +262,14 @@ impl CompletenessFlow<'_, '_> {
                     let fact = self.expr(payload).made_structural();
                     self.refuse_sink("emitted value", &fact.structural, control, loop_pages);
                 }
-                Stmt::Break | Stmt::Continue => {}
+                Stmt::Break | Stmt::Continue => {
+                    // Early exits change which rows reach every collector in this loop.
+                    self.loop_exits
+                        .extend(control.iter().chain(loop_pages).cloned());
+                }
             }
         }
+        bindings
     }
 
     fn domain(&mut self, domain: &LoopDomain) -> Fact {
@@ -282,16 +296,14 @@ impl CompletenessFlow<'_, '_> {
             Expr::Builtin { builtin, args } => {
                 let fact = self.exprs(args);
                 match builtin {
-                    Builtin::Slice
-                    | Builtin::Concat
-                    | Builtin::Sort { .. }
-                    | Builtin::DedupeById { .. } => fact,
+                    Builtin::Slice | Builtin::Concat | Builtin::Sort { .. } => fact,
                     Builtin::Len
                     | Builtin::Min
                     | Builtin::Max
                     | Builtin::DeterministicShare
                     | Builtin::Count
                     | Builtin::Sum
+                    | Builtin::Words
                     | Builtin::CountCapped => fact.made_structural(),
                     Builtin::Divmod { .. } | Builtin::MentionTokens => Fact {
                         structural: fact.structural,
@@ -300,6 +312,16 @@ impl CompletenessFlow<'_, '_> {
                 }
             }
             Expr::Scan(scan) => self.scan_fact(scan),
+            Expr::Merge(merge) => {
+                let mut fact = Fact::default();
+                for lane in &merge.lanes {
+                    if let Some(source) = &lane.source {
+                        fact.merge(self.scan_fact(source));
+                    }
+                    fact.merge(self.scan_fact(&lane.scan));
+                }
+                fact
+            }
             Expr::Get(read) | Expr::Exists(read) => self.exprs(&read.key),
             Expr::Literal(_) | Expr::Input(_) => Fact::default(),
         }
@@ -696,6 +718,18 @@ fn validate_expr(
             }
             validate_point_key_arity(checker, read, errors);
         }
+        Expr::Merge(merge) => {
+            for lane in &merge.lanes {
+                validate_statements(
+                    checker,
+                    program,
+                    &lane.setup,
+                    errors,
+                    sites,
+                    &mut bindings.clone(),
+                );
+            }
+        }
         Expr::Scan(scan) => {
             register_site(sites, errors, &scan.site, ReadSiteShape::range(scan));
             validate_read(checker, &scan.table, &scan.index, errors);
@@ -1036,7 +1070,7 @@ fn static_expression_fact(
                 | Builtin::Count
                 | Builtin::Sum
                 | Builtin::CountCapped => StaticType::Int,
-                Builtin::MentionTokens => StaticType::List {
+                Builtin::MentionTokens | Builtin::Words => StaticType::List {
                     of: Box::new(StaticType::Text),
                     len: None,
                 },
@@ -1045,7 +1079,7 @@ fn static_expression_fact(
                     of: Box::new(StaticType::Unknown),
                     len: None,
                 },
-                Builtin::Sort { .. } | Builtin::DedupeById { .. } => facts
+                Builtin::Sort { .. } => facts
                     .first()
                     .map(|fact| fact.kind.clone())
                     .unwrap_or(StaticType::Unknown),
@@ -1075,6 +1109,10 @@ fn static_expression_fact(
                 invalid_id_arithmetic,
             }
         }
+        Expr::Merge(merge) => StaticFact::plain(StaticType::List {
+            of: Box::new(StaticType::Row(merge.table().to_owned())),
+            len: Some(merge.take() as usize),
+        }),
         Expr::Get(read) => StaticFact::plain(StaticType::Row(read.table.clone())),
         Expr::Scan(scan) => StaticFact::plain(StaticType::List {
             of: Box::new(StaticType::Row(scan.table.clone())),
@@ -1414,6 +1452,17 @@ fn walk_expr(expression: &Expr, visit: &mut impl FnMut(&Expr)) {
                 .into_iter()
                 .flatten()
                 .for_each(|value| walk_expr(value, visit));
+            }
+        }
+        Expr::Merge(merge) => {
+            for lane in &merge.lanes {
+                for stmt in &lane.setup {
+                    visit_statement_exprs(stmt, visit);
+                }
+                if let Some(source) = &lane.source {
+                    walk_expr(&Expr::Scan(source.clone()), visit);
+                }
+                walk_expr(&Expr::Scan(lane.scan.clone()), visit);
             }
         }
         Expr::Literal(_) | Expr::Variable(_) | Expr::Input(_) => {}

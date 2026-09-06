@@ -297,6 +297,13 @@ function validateOpaqueCursors(schema: any, value: any, inputs: Record<string, V
       return;
     }
     if (candidate === null || typeof candidate !== "object") return;
+    if (candidate.Merge) {
+      for (const lane of candidate.Merge.lanes) {
+        visitBody(lane.setup ?? [], { ...values });
+        if (lane.source) visitValue({ Scan: lane.source }, values);
+        visitValue({ Scan: lane.scan }, values);
+      }
+    }
     const scan = candidate.Scan;
     if (scan?.opaque_cursor) {
       if (scan.before !== null) throw new EvalError("E_INPUT", "opaque cursors only support after");
@@ -542,7 +549,7 @@ export function sortObject<T>(value: Record<string, T>): Record<string, T> {
 
 export function builtinArity(kind: string): number {
   switch (kind) {
-    case "Len": case "Sort": case "DedupeById": case "MentionTokens": case "Count": case "CountCapped": case "Sum": return 1;
+    case "Len": case "Sort":  case "MentionTokens": case "Words": case "Count": case "CountCapped": case "Sum": return 1;
     case "Concat": case "Min": case "Max": case "Divmod": return 2;
     case "Slice": case "DeterministicShare": return 3;
     default: throw new EvalError("E_OPAQUE", `unsupported builtin ${kind}`);

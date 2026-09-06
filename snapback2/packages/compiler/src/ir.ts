@@ -33,7 +33,8 @@ export type Expr =
   | { Builtin: { builtin: string | Record<string, unknown>; args: Expr[] } }
   | { Get: Read }
   | { Exists: Read }
-  | { Scan: Scan };
+  | { Scan: Scan }
+  | { Merge: { site: string; lanes: { setup?: Stmt[]; scan: Scan; source: Scan | null; binding: string }[] } };
 
 export type Read = {
   site: string;

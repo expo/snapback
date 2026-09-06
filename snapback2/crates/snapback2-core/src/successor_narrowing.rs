@@ -109,6 +109,26 @@ mod tests {
     use super::*;
     use crate::{Store, public_table};
 
+    #[test]
+    fn narrowing_rewrite_preserves_once_column_custody() {
+        let image = ColumnType::Image {
+            max: 100,
+            once: true,
+        };
+        assert_eq!(quarry_type(&image), "image <=100 once");
+        assert_eq!(
+            quarry_type(&ColumnType::Optional(Box::new(image.clone()))),
+            "image <=100 once ?"
+        );
+        assert_eq!(
+            quarry_type(&ColumnType::List {
+                of: Box::new(image),
+                max: 4
+            }),
+            "[image <=100 once] <=4"
+        );
+    }
+
     /// The paste is pinned to the compiler fixture that lowers it (`quarry-job-checks.ts`), so the
     /// text this refusal prints and the text the compiler accepts cannot drift apart.
     #[test]
@@ -158,9 +178,8 @@ mod tests {
             .unwrap()
             .unwrap();
         assert_eq!(refusal.code, "E_SUCCESSOR_NARROWING");
-        let fixture = include_str!(
-            "../../../packages/compiler/fixtures/quarry-jobs/snapback/narrowing.q"
-        );
+        let fixture =
+            include_str!("../../../packages/compiler/fixtures/quarry-jobs/snapback/narrowing.q");
         assert_eq!(format!("{}\n", refusal.rewrite), fixture);
         assert_eq!(
             quarry_type(&ColumnType::Enum {
@@ -224,7 +243,9 @@ fn quarry_type(kind: &ColumnType) -> String {
         ColumnType::Bool => "bool".into(),
         ColumnType::Bytes { max } => format!("bytes <={max}"),
         ColumnType::Json { max_bytes } => format!("json <={max_bytes}"),
-        ColumnType::Image { max } => format!("image <={max}"),
+        ColumnType::Image { max, once } => {
+            format!("image <={max}{}", if *once { " once" } else { "" })
+        }
         ColumnType::Video { max } => format!("video <={max}"),
         ColumnType::Decimal { scale } => format!("decimal {scale}"),
         ColumnType::Money { currency, scale } => format!("money {currency} {scale}"),

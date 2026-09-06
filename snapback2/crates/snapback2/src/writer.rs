@@ -276,6 +276,10 @@ pub enum Action {
     AssetSession {
         identity: Identity,
     },
+    AssetConsume {
+        id: String,
+        principal: String,
+    },
     AssetDelivery {
         id: String,
         identity: Identity,
@@ -756,6 +760,7 @@ impl State {
             }
             Action::AssetSession { identity } => self.mint_asset_carrier(identity),
             Action::AssetDelivery { id, identity } => self.asset_delivery(&id, identity),
+            Action::AssetConsume { id, principal } => self.asset_consume(&id, &principal),
             Action::Data {
                 table,
                 index,

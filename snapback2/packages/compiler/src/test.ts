@@ -23,6 +23,7 @@ import { registerApiShapeChecks } from "./api-shape-checks";
 import { registerQuarryFanoutChecks } from "./quarry-fanout-checks";
 import { registerRetentionChecks } from "./retention-checks";
 import { registerEffectLanguageChecks } from "./test-effects";
+import { registerVisibilityChecks } from "./visibility-checks";
 import { registerPackageGuideChecks } from "./test-package-guide";
 import { decimal } from "../../snapback2/src/index";
 import type { Principal } from "../../snapback2/src/index";
@@ -32,6 +33,7 @@ import type { SnapbackClient } from "../../snapback2/src/types";
 import * as reactSurface from "../../snapback2/src/react";
 import * as testSurface from "../../snapback2/src/test";
 import ts from "typescript";
+import { registerQuarryWordsChecks } from "./quarry-words-checks";
 
 const frontend = decodeURIComponent(new URL("../", import.meta.url).pathname);
 const crate = decodeURIComponent(new URL("../../../", import.meta.url).pathname);
@@ -50,6 +52,7 @@ registerApiShapeChecks(test, frontend);
 registerRetentionChecks(test);
 registerQuarryFanoutChecks(test, frontend);
 registerEffectLanguageChecks(test, withProject, frontend, libText);
+registerVisibilityChecks(test);
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -1400,6 +1403,8 @@ test("worker refuses every TypeScript-authored export and serves the next Quarry
       && responses[5]?.diagnostics?.[0]?.code === "E_OP_INVALID", "worker admitted a relative project root");
   });
 });
+
+registerQuarryWordsChecks(test, libText);
 
 registerPackageGuideChecks(test, assert, withProject, crate);
 

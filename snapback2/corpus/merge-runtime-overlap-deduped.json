@@ -118,101 +118,56 @@
     "body": [
       {
         "Return": {
-          "Builtin": {
-            "builtin": "Slice",
-            "args": [
+          "Merge": {
+            "site": "merge.overlap",
+            "lanes": [
               {
-                "Builtin": {
-                  "builtin": {
-                    "DedupeById": {
-                      "site": "merge.overlap",
-                      "table": "posts"
-                    }
-                  },
-                  "args": [
+                "scan": {
+                  "site": "merge.overlap.dynamic",
+                  "table": "posts",
+                  "index": "byAuthorAt",
+                  "prefix": [
                     {
-                      "Builtin": {
-                        "builtin": {
-                          "Sort": {
-                            "keys": [
-                              {
-                                "field": "at",
-                                "order": "Asc"
-                              },
-                              {
-                                "field": "id",
-                                "order": "Asc"
-                              }
-                            ]
-                          }
-                        },
-                        "args": [
-                          {
-                            "Builtin": {
-                              "builtin": "Concat",
-                              "args": [
-                                {
-                                  "Scan": {
-                                    "site": "merge.overlap.dynamic",
-                                    "table": "posts",
-                                    "index": "byAuthorAt",
-                                    "prefix": [
-                                      {
-                                        "Input": "Viewer"
-                                      }
-                                    ],
-                                    "order": "Asc",
-                                    "take": {
-                                      "Literal": 3
-                                    },
-                                    "after": null,
-                                    "before": null,
-                                    "range": null,
-                                    "merge_site": "merge.overlap",
-                                    "provenance": "Const"
-                                  }
-                                },
-                                {
-                                  "Scan": {
-                                    "site": "merge.overlap.literal",
-                                    "table": "posts",
-                                    "index": "byAuthorAt",
-                                    "prefix": [
-                                      {
-                                        "Literal": {
-                                          "Id": "u1"
-                                        }
-                                      }
-                                    ],
-                                    "order": "Asc",
-                                    "take": {
-                                      "Literal": 3
-                                    },
-                                    "after": null,
-                                    "before": null,
-                                    "range": null,
-                                    "merge_site": "merge.overlap",
-                                    "provenance": "Const"
-                                  }
-                                }
-                              ]
-                            }
-                          }
-                        ]
+                      "Input": "Viewer"
+                    }
+                  ],
+                  "order": "Asc",
+                  "take": {
+                    "Literal": 3
+                  },
+                  "after": null,
+                  "before": null,
+                  "range": null,
+                  "merge_site": "merge.overlap",
+                  "provenance": "Const"
+                },
+                "source": null,
+                "binding": ""
+              },
+              {
+                "scan": {
+                  "site": "merge.overlap.literal",
+                  "table": "posts",
+                  "index": "byAuthorAt",
+                  "prefix": [
+                    {
+                      "Literal": {
+                        "Id": "u1"
                       }
                     }
-                  ]
-                }
-              },
-              {
-                "Literal": {
-                  "Int": 0
-                }
-              },
-              {
-                "Literal": {
-                  "Int": 3
-                }
+                  ],
+                  "order": "Asc",
+                  "take": {
+                    "Literal": 3
+                  },
+                  "after": null,
+                  "before": null,
+                  "range": null,
+                  "merge_site": "merge.overlap",
+                  "provenance": "Const"
+                },
+                "source": null,
+                "binding": ""
               }
             ]
           }
@@ -222,7 +177,7 @@
   },
   "certificate": {
     "program": "merge.overlap",
-    "plan_hash": "632350d3f9fb9f08955edb95f0aa6c5bc2d194d338c98f6b61b11297ffecef88",
+    "plan_hash": "4741b22ae4e73853f0c496890f16eb5b3246abc6be5078cadd7319892e6a46e3",
     "schema_hash": "f7c842236978e842a20695dbea23d49d1277bd8bdbc0c342ee6422331cb188f8",
     "tables": {
       "follows": {
@@ -247,6 +202,7 @@
         "max_calls": 1,
         "rule_probes_per_candidate": 0,
         "hoist": true,
+        "decided_true": true,
         "complete": false
       },
       {
@@ -258,6 +214,7 @@
         "max_calls": 1,
         "rule_probes_per_candidate": 0,
         "hoist": true,
+        "decided_true": true,
         "complete": false
       }
     ],
@@ -268,19 +225,21 @@
           "merge.overlap.dynamic",
           "merge.overlap.literal"
         ],
-        "take": 3
+        "take": 3,
+        "max_lanes": 2,
+        "uniform": true
       }
     ],
     "write_sites": [],
     "maintained_amplification": 0,
     "constraint_checks": [],
-    "max_examined": 10,
-    "max_index_entries": 10,
+    "max_examined": 7,
+    "max_index_entries": 7,
     "max_rule_probes": 0,
-    "max_steps": 61,
-    "max_heap_bytes": 1952,
+    "max_steps": 109,
+    "max_heap_bytes": 3488,
     "max_output_bytes": 1071,
-    "max_closure_bytes": 2112,
+    "max_closure_bytes": 2464,
     "completeness": "Page",
     "prediction_sites": [],
     "read_time_granularity_ms": null,
@@ -289,7 +248,7 @@
       "posts.byAuthorAt"
     ],
     "disclosures": [],
-    "bound_product": "merge merge.overlap: 1 lanes × (3 + 2) at merge.overlap.dynamic on posts = 5 + merge merge.overlap: 1 lanes × (3 + 2) at merge.overlap.literal on posts = 5"
+    "bound_product": "merge merge.overlap: 2 lanes heads + 3 advances + 2 lookahead × 1 calls (merge.overlap.dynamic × 1; merge.overlap.literal × 1) = 7"
   },
   "context": {
     "viewer": "u1",
@@ -365,33 +324,6 @@
         "absence": false,
         "halo": null,
         "n2_key": null
-      },
-      {
-        "site": "merge.overlap.literal",
-        "table": "posts",
-        "index": "byAuthorAt",
-        "prefix": [
-          {
-            "Id": "u1"
-          }
-        ],
-        "order": "Asc",
-        "take": 3,
-        "after": null,
-        "before": null,
-        "gt": null,
-        "gte": null,
-        "lt": null,
-        "lte": null,
-        "rule_hash": "fd79905c6b2537749a4f00979344bce28f421b3d1fee4a30a4fbf41e3fc8f8a6",
-        "row_ids": [
-          "a1",
-          "a3"
-        ],
-        "stop": "Exhausted",
-        "absence": false,
-        "halo": null,
-        "n2_key": null
       }
     ],
     "absences": [],
@@ -437,9 +369,6 @@
     "digest": "ae714bc7158db061250094dc61695344debdac813e76cdcf92ea3401cc59184e",
     "rangeStops": {
       "merge.overlap.dynamic": [
-        "exhausted"
-      ],
-      "merge.overlap.literal": [
         "exhausted"
       ]
     },

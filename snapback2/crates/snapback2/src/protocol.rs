@@ -137,6 +137,16 @@ impl Refusal {
             }
             return refusal;
         }
+        if let RuntimeError::AssetViewed(id) = error {
+            return Self::new(
+                "E_ASSET_VIEWED",
+                "assets",
+                format!("asset {id} was already delivered to this principal"),
+                "render this image once; request a new image for another delivery",
+                "quarry",
+            )
+            .with_site(format!("/api/asset/{id}"));
+        }
         let code = error.code();
         let family = if code.starts_with("E_AUTH") {
             "auth"

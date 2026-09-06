@@ -143,6 +143,8 @@ pub enum RuntimeError {
     AssetNotReady(String),
     #[error("E_ASSET_IN_USE: {0}")]
     AssetInUse(String),
+    #[error("E_ASSET_VIEWED: {0}")]
+    AssetViewed(String),
     #[error("E_SCHEMA_SEED_ASSET: {table}.{column} cannot contain an asset value in seed data")]
     SchemaSeedAsset { table: String, column: String },
     #[error("E_STORE_OWNED: {holder}")]
@@ -187,6 +189,7 @@ impl RuntimeError {
             Self::AssetTooLarge(_) => "E_ASSET_TOO_LARGE",
             Self::AssetNotReady(_) => "E_ASSET_NOT_READY",
             Self::AssetInUse(_) => "E_ASSET_IN_USE",
+            Self::AssetViewed(_) => "E_ASSET_VIEWED",
             Self::SchemaSeedAsset { .. } => "E_SCHEMA_SEED_ASSET",
             Self::StoreOwned { .. } => "E_STORE_OWNED",
             Self::StoreVersion { .. } => "E_STORE_VERSION",
@@ -359,6 +362,11 @@ impl Engine {
             ));
         }
         let public = rule.is_public();
+        // @ref LLP 1006#2a1-one-use-image-delivery-clique-f3-2026-09-05 — the owning column determines delivery, including public rows.
+        let once = table
+            .columns
+            .get(&locator.column)
+            .is_some_and(ColumnType::is_once);
         let row = match authority {
             AssetDeliveryAuthority::Authenticated(context) => {
                 let seq = transaction
@@ -390,7 +398,7 @@ impl Engine {
                 row
             }
             AssetDeliveryAuthority::Public => {
-                if !public {
+                if !public || once {
                     return Err(asset_unavailable());
                 }
                 let index = table.index("byId").ok_or_else(asset_unavailable)?;
@@ -409,7 +417,7 @@ impl Engine {
         if !crate::assets_ledger::locator_cell_matches(&self.schema, &row, &locator, &ledger) {
             return Err(asset_unavailable());
         }
-        let delivery = crate::assets_ledger::ready_delivery(ledger, public)?;
+        let delivery = crate::assets_ledger::ready_delivery(ledger, public, once)?;
         transaction.commit()?;
         Ok(delivery)
     }
@@ -833,7 +841,8 @@ impl Engine {
         let transaction = self.store.conn.transaction()?;
         let asset_ids = crate::assets_ledger::clear_assets(&transaction)?;
         transaction.execute_batch(
-            "DELETE FROM index_entries;
+            "DELETE FROM _asset_views;
+             DELETE FROM index_entries;
              DELETE FROM rows;
              DELETE FROM _commits;
              DELETE FROM _outbox;
@@ -1095,6 +1104,16 @@ fn validate_cursor_tokens(
                 Ok(())
             }
             Expr::Scan(value) => scan(schema, value, values),
+            Expr::Merge(merge) => {
+                for lane in &merge.lanes {
+                    body(schema, &lane.setup, &mut values.clone())?;
+                    if let Some(source) = &lane.source {
+                        scan(schema, source, values)?;
+                    }
+                    scan(schema, &lane.scan, values)?;
+                }
+                Ok(())
+            }
             Expr::Literal(_)
             | Expr::Variable(_)
             | Expr::Input(_)
@@ -1425,11 +1444,13 @@ mod cap_tests;
 #[cfg(test)]
 mod delivery_tests;
 mod index;
+mod merge;
 mod provenance;
 mod receipt;
 mod replay;
 mod runner;
 mod runner_ops;
+mod scan;
 
 pub use provenance::ResultProvenance;
 pub use receipt::{

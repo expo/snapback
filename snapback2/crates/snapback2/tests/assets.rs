@@ -12,6 +12,8 @@ use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 mod common;
+#[path = "assets/once.rs"]
+mod once;
 
 static NEXT_ROOT: AtomicU64 = AtomicU64::new(0);
 

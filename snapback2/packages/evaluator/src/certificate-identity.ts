@@ -201,6 +201,11 @@ function normalizeColumnType(column: any): any {
   if (kind === "Optional") return { Optional: normalizeColumnType(data) };
   const what = `column.${kind}`;
   if (kind === "List") return { List: { ...pick(data, ["of", "max"], what), of: normalizeColumnType(data.of) } };
+  if (kind === "Image") {
+    known(data, ["max", "once"], what);
+    if (data.once !== undefined && typeof data.once !== "boolean") throw new TypeError("column.Image.once must be boolean");
+    return { Image: { max: data.max, ...(data.once === true ? { once: true } : {}) } };
+  }
   const fields = COLUMN_FIELDS[kind];
   return { [kind]: fields === undefined ? deepSorted(data) : pick(data, fields, what) };
 }
@@ -317,6 +322,11 @@ function normalizeExpression(expression: any): any {
       return { [kind]: normalizeRead(data) };
     case "Scan":
       return { Scan: normalizeScan(data) };
+    case "Merge":
+      return { Merge: { ...data, lanes: data.lanes.map(({ setup, ...lane }: any) => ({ ...lane,
+        ...(setup?.length ? { setup: setup.map(normalizeStatement) } : {}),
+        scan: normalizeScan(lane.scan), source: lane.source === null ? null : normalizeScan(lane.source),
+      })) } };
     default:
       return expression;
   }

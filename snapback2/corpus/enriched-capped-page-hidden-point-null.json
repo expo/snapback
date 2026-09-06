@@ -1,0 +1,512 @@
+{
+  "corpusVersion": 1,
+  "name": "enriched-capped-page-hidden-point-null",
+  "category": "scenario",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "items": {
+        "columns": {
+          "at": "Time",
+          "group": "Id",
+          "id": "Id",
+          "owner": "Principal"
+        },
+        "indexes": {
+          "byGroup": {
+            "columns": [
+              "group",
+              "at",
+              "id"
+            ],
+            "unique": false
+          },
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Exists": {
+              "table": "shares",
+              "index": "byItemViewer",
+              "key": [
+                {
+                  "Field": "id"
+                },
+                "Viewer"
+              ],
+              "provenance": "Shape"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      },
+      "profiles": {
+        "columns": {
+          "id": "Id",
+          "name": {
+            "Text": {
+              "max": 20
+            }
+          }
+        },
+        "indexes": {
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Eq": [
+              {
+                "Field": "id"
+              },
+              "Viewer"
+            ]
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      },
+      "shares": {
+        "columns": {
+          "id": "Id",
+          "item": "Id",
+          "viewer": "Principal"
+        },
+        "indexes": {
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          },
+          "byItemViewer": {
+            "columns": [
+              "item",
+              "viewer"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      }
+    },
+    "maintains": []
+  },
+  "program": {
+    "name": "items.enriched",
+    "kind": "Query",
+    "args": {},
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Let": {
+          "name": "rows",
+          "value": {
+            "Array": []
+          }
+        }
+      },
+      {
+        "For": {
+          "binding": "item",
+          "domain": {
+            "Page": {
+              "site": "items.page",
+              "table": "items",
+              "index": "byGroup",
+              "prefix": [
+                {
+                  "Literal": {
+                    "Id": "g1"
+                  }
+                }
+              ],
+              "order": "Asc",
+              "take": {
+                "Literal": 50
+              },
+              "after": null,
+              "before": null,
+              "range": null,
+              "merge_site": null,
+              "provenance": "Const"
+            }
+          },
+          "body": [
+            {
+              "Const": {
+                "name": "profile",
+                "value": {
+                  "Get": {
+                    "site": "profiles.byId",
+                    "table": "profiles",
+                    "index": "byId",
+                    "key": [
+                      {
+                        "Field": {
+                          "base": {
+                            "Variable": "item"
+                          },
+                          "name": "owner"
+                        }
+                      }
+                    ],
+                    "provenance": "Shape"
+                  }
+                }
+              }
+            },
+            {
+              "Let": {
+                "name": "shape",
+                "value": {
+                  "Literal": "Null"
+                }
+              }
+            },
+            {
+              "If": {
+                "condition": {
+                  "Binary": {
+                    "op": "Ne",
+                    "left": {
+                      "Variable": "profile"
+                    },
+                    "right": {
+                      "Literal": "Null"
+                    }
+                  }
+                },
+                "then_body": [
+                  {
+                    "Assign": {
+                      "name": "shape",
+                      "value": {
+                        "Object": {
+                          "name": {
+                            "Field": {
+                              "base": {
+                                "Variable": "profile"
+                              },
+                              "name": "name"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                ],
+                "else_body": []
+              }
+            },
+            {
+              "Push": {
+                "target": "rows",
+                "value": {
+                  "Object": {
+                    "id": {
+                      "Field": {
+                        "base": {
+                          "Variable": "item"
+                        },
+                        "name": "id"
+                      }
+                    },
+                    "owner": {
+                      "Variable": "shape"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "Return": {
+          "Variable": "rows"
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "items.enriched",
+    "plan_hash": "4138912337dcb147f1d34aff2919576bb502751a83e008761e4126aca19c1252",
+    "schema_hash": "4b31f985e57c044fc015959ff04ae8d397e78df7f202d91f75bda482159ed8b4",
+    "tables": {
+      "items": {
+        "retain": "until-revoked"
+      },
+      "profiles": {
+        "retain": "until-revoked"
+      },
+      "shares": {
+        "retain": "until-revoked"
+      }
+    },
+    "rule_hashes": {
+      "items.read": "28c378af77e5d2a300f4d77800363b2004ca1d4cd0a4ffde62dae0fc1cee3b0c",
+      "profiles.read": "270c96d8d21e7bfe3f57417a9316651657654739bc69f8ca654fdb6c8fbd8f12"
+    },
+    "evaluator_version": "bounded-spike-rust-1",
+    "value_model_version": "i53-codepoint-bytes-v2",
+    "read_sites": [
+      {
+        "site": "items.page",
+        "table": "items",
+        "index": "byGroup",
+        "prefix_template": "Const",
+        "take": 50,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 1,
+        "hoist": false,
+        "complete": false
+      },
+      {
+        "site": "profiles.byId",
+        "table": "profiles",
+        "index": "byId",
+        "prefix_template": "Shape",
+        "take": 1,
+        "max_calls": 50,
+        "rule_probes_per_candidate": 0,
+        "hoist": false,
+        "complete": false
+      }
+    ],
+    "write_sites": [],
+    "maintained_amplification": 0,
+    "constraint_checks": [],
+    "max_examined": 10240,
+    "max_index_entries": 10240,
+    "max_rule_probes": 10240,
+    "max_steps": 52106,
+    "max_heap_bytes": 1667392,
+    "max_output_bytes": 14212,
+    "max_closure_bytes": 12700,
+    "completeness": "Capped",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [
+      "items.byGroup",
+      "profiles.byId",
+      "shares.byItemViewer"
+    ],
+    "disclosures": [],
+    "bound_product": "items.page take 50 (+2 reserve) × 1 calls on items = 52 + profiles.byId point read on profiles × 50 calls (calls from items.page take 50) = 50"
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {},
+    "now": null,
+    "new_ids": [],
+    "read_time": null
+  },
+  "receipt": {
+    "schema_hash": "4b31f985e57c044fc015959ff04ae8d397e78df7f202d91f75bda482159ed8b4",
+    "rows": [
+      {
+        "table": "shares",
+        "id": "s-i1",
+        "row": {
+          "Row": {
+            "id": {
+              "Id": "s-i1"
+            },
+            "item": {
+              "Id": "i1"
+            },
+            "viewer": {
+              "Id": "u1"
+            }
+          }
+        }
+      },
+      {
+        "table": "shares",
+        "id": "s-i2",
+        "row": {
+          "Row": {
+            "id": {
+              "Id": "s-i2"
+            },
+            "item": {
+              "Id": "i2"
+            },
+            "viewer": {
+              "Id": "u1"
+            }
+          }
+        }
+      },
+      {
+        "table": "items",
+        "id": "i1",
+        "row": {
+          "Row": {
+            "at": {
+              "Int": 1
+            },
+            "group": {
+              "Id": "g1"
+            },
+            "id": {
+              "Id": "i1"
+            },
+            "owner": {
+              "Id": "u1"
+            }
+          }
+        }
+      },
+      {
+        "table": "items",
+        "id": "i2",
+        "row": {
+          "Row": {
+            "at": {
+              "Int": 2
+            },
+            "group": {
+              "Id": "g1"
+            },
+            "id": {
+              "Id": "i2"
+            },
+            "owner": {
+              "Id": "u2"
+            }
+          }
+        }
+      },
+      {
+        "table": "profiles",
+        "id": "u1",
+        "row": {
+          "Row": {
+            "id": {
+              "Id": "u1"
+            },
+            "name": {
+              "String": "Visible"
+            }
+          }
+        }
+      }
+    ],
+    "ranges": [],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": {
+      "Array": [
+        {
+          "Row": {
+            "id": {
+              "Id": "i1"
+            },
+            "owner": {
+              "Row": {
+                "name": {
+                  "String": "Visible"
+                }
+              }
+            }
+          }
+        },
+        {
+          "Row": {
+            "id": {
+              "Id": "i2"
+            },
+            "owner": "Null"
+          }
+        }
+      ]
+    },
+    "errorCode": null,
+    "localState": "partial",
+    "partialSites": [
+      "items.page",
+      "profiles.byId"
+    ],
+    "canonicalResult": "{\"Array\":[{\"Row\":{\"id\":{\"Id\":\"i1\"},\"owner\":{\"Row\":{\"name\":{\"String\":\"Visible\"}}}}},{\"Row\":{\"id\":{\"Id\":\"i2\"},\"owner\":\"Null\"}}]}",
+    "digest": "8d0a7e37dbd526c682dfe1a7e17a0b9c1c281bb78ba6c80af9e6fd6a6a2ab8e6",
+    "rangeStops": {
+      "items.page": [
+        "exhausted"
+      ]
+    },
+    "evictedRows": null,
+    "next": null
+  }
+}

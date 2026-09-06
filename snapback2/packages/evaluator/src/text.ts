@@ -28,3 +28,8 @@ function isMentionWhitespace(point: number): boolean {
     point === 0x3000
   );
 }
+
+/** ASCII whole words, lowercased and deduplicated in first-occurrence order. */
+export function words(text: string): string[] {
+  return [...new Set((text.match(/[A-Za-z0-9]+/g) ?? []).map((word) => word.toLowerCase()))];
+}

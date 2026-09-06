@@ -21,7 +21,6 @@ export declare function journey(name: string, body: (context: {
   as(name: string, options?: {
     store?: "file";
     onTombstone?: OfflineClientOptions["onTombstone"];
-    viewOnce?: OfflineClientOptions["viewOnce"];
   }): JourneyDevice;
   tick(ms: number): Promise<Record<string, unknown>>;
   url: string;

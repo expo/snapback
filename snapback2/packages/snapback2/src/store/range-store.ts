@@ -1,3 +1,4 @@
+import { onceColumns, onceRow, onceAssetIds, nullOnceMedia, type OnceColumns } from "./asset-policy.js";
 // @ref LLP 1012#4-the-range-store — every carrier persists the same per-principal answer/range model.
 // @ref LLP 1012#5-retention-revocation-and-the-fence — eviction is decided once over a complete swap.
 // @ref LLP 1012#9-asset-bytes-on-the-device — asset bytes leave in the same commit as the row whose lease held them.
@@ -8,6 +9,7 @@ import {
   byteKey,
   leasedAssets,
   viewedOnlyAssets,
+  fullyViewed,
   type ByteCacheEntry,
   type ByteCacheStatus,
   type ByteDelta,
@@ -273,6 +275,7 @@ export interface StoreSwap {
   bytes?: ByteSwapRequest;
   /** View-once rows viewed now: excluded from every later answer, their bytes never cached. */
   viewed?: RowRef[];
+  viewedAssets?: string[];
   /** `current` names the grant new intents consume; `null` clears it. */
   grants?: { put?: OutboxGrant[]; current?: string | null; remove?: string[] };
   /** Predicted rows keyed by intent; visible to the twin's local evaluation, never to `answer()` (LLP 1012 §7). */
@@ -340,6 +343,7 @@ export interface PersistedRangeState {
   /** The byte-cache index; payloads live beside the state in the carrier, keyed by `byteKey`. */
   assets: Record<string, ByteCacheEntry>;
   viewed: Record<string, ViewedRecord>;
+  onceColumns: OnceColumns;
 }
 
 export interface RangeStoreBackend {
@@ -357,7 +361,7 @@ const NO_BYTES: ByteDelta = { put: [], remove: [] };
 export function emptyState(): PersistedRangeState {
   return {
     version: 1, sealed: false, clock: 0, rows: {}, answers: {}, watermarks: {}, outbox: {},
-    grants: {}, overlay: {}, overlayMisses: {}, overlayWatermarks: {}, overlayNegatives: {}, bounds: {}, programs: {}, negative: {}, rowSeq: {}, assets: {}, viewed: {},
+    grants: {}, overlay: {}, overlayMisses: {}, overlayWatermarks: {}, overlayNegatives: {}, bounds: {}, programs: {}, negative: {}, rowSeq: {}, assets: {}, viewed: {}, onceColumns: {},
   };
 }
 
@@ -557,6 +561,7 @@ function normalizeState(value: PersistedRangeState | undefined): PersistedRangeS
     overlayNegatives: value.overlayNegatives ?? {},
     bounds: value.bounds ?? {},
     programs: value.programs ?? {},
+    onceColumns: value.onceColumns ?? {},
     negative: value.negative ?? {},
     rowSeq: value.rowSeq ?? {},
     assets: value.assets ?? {},
@@ -588,7 +593,7 @@ function outboxOrder(entries: Record<string, OutboxEntry>): OutboxEntry[] {
 
 function changesCoverage(swap: StoreSwap): boolean {
   return !!(swap.resetCoverage || swap.deliveries?.length || swap.refreshes?.length || swap.tombstones?.length
-    || swap.dropAnswers?.length || swap.bytes || swap.viewed?.length);
+    || swap.dropAnswers?.length || swap.bytes || swap.viewed?.length || swap.schema || swap.programs);
 }
 
 /** Shared swap engine; carrier subclasses only provide the atomic replace. */
@@ -693,7 +698,7 @@ export class PersistentRangeStore implements RangeStore {
       return {
         ...answer,
         // A viewed view-once row reads as absent: the view was its one delivery (LLP 1012 §9).
-        ...(data === undefined ? {} : { data: expand(data, this.state.rows, this.state.viewed) as Result }),
+        ...(data === undefined ? {} : { data: nullOnceMedia(expand(data, this.state.rows, fullyViewed(this.state)), onceAssetIds(this.state.onceColumns, Object.values(this.state.rows))) as Result }),
         ...(watermark === undefined ? {} : { caughtUp: true, watermark: watermark.watermark }),
       };
     });
@@ -715,7 +720,8 @@ export class PersistentRangeStore implements RangeStore {
         for (const verdict of answer.receipt?.verdicts ?? []) verdicts.set(canonical(verdict), clone(verdict));
       }
       // A viewed view-once row is absent to the twin: not a row, and a byId absence (LLP 1012 §9).
-      const viewed = Object.keys(this.state.viewed).map(viewedRef);
+      const exhausted = fullyViewed(this.state);
+      const viewed = Object.keys(exhausted).map(viewedRef);
       for (const ref of viewed) {
         const absence: Receipt["absences"][number] = [ref.table, "byId", [ref.id]];
         absences.set(canonical(absence), absence);
@@ -725,7 +731,7 @@ export class PersistentRangeStore implements RangeStore {
         if (deliveredAt === undefined || answer.deliveredAt > deliveredAt) deliveredAt = answer.deliveredAt;
       }
       return {
-        rows: clone(Object.entries(this.state.rows).filter(([key]) => !this.state.viewed[key]).map(([, row]) => row)),
+        rows: clone(Object.entries(this.state.rows).filter(([key]) => !exhausted[key]).map(([, row]) => row)),
         ranges: [...ranges.values()],
         absences: [...absences.values()],
         verdicts: [...verdicts.values()],
@@ -783,7 +789,7 @@ export class PersistentRangeStore implements RangeStore {
       return {
         entries,
         totalBytes: entries.reduce((sum, entry) => sum + entry.size, 0),
-        viewed: Object.keys(this.state.viewed).map(viewedRef),
+        viewed: Object.keys(fullyViewed(this.state)).map(viewedRef),
       };
     });
   }
@@ -795,14 +801,20 @@ export class PersistentRangeStore implements RangeStore {
       : clone(Object.values(this.state.rows).filter((row) => assetIdsIn(row.row).has(assetId))));
   }
 
-  /** True while every held row carrying this asset is a viewed view-once row (per row, LLP 1012 §9). */
+  /** The schema columns that own this one-use image. */
+  async onceRows(assetId: string): Promise<RowRef[]> {
+    return this.read(() => this.state.sealed ? [] : Object.values(this.state.rows)
+      .filter(row => onceAssetIds(this.state.onceColumns, [row]).has(assetId))
+      .map(({ table, id }) => ({ table, id })));
+  }
+
   async viewedAsset(assetId: string): Promise<boolean> {
     return this.read(() => !this.state.sealed && viewedOnlyAssets(this.state).has(assetId));
   }
 
   /** The viewed view-once rows; a live frame nulls them exactly as a held answer does. */
   async viewedRows(): Promise<RowRef[]> {
-    return this.read(() => this.state.sealed ? [] : Object.keys(this.state.viewed).map(viewedRef));
+    return this.read(() => this.state.sealed ? [] : Object.keys(fullyViewed(this.state)).map(viewedRef));
   }
 
   /**
@@ -847,6 +859,8 @@ export class PersistentRangeStore implements RangeStore {
         return [key, held];
       }));
     }
+    const schema = swap.schema ?? (swap.programs && Object.values(swap.programs)[0]?.schema);
+    if (schema) state.onceColumns = onceColumns(schema);
     const authoritativeNegatives = changesCoverage(swap) ? this.applyCoverage(state, swap, bytes) : new Map<string, { seq: number; source: "absence" | "tombstone" }>();
     if (swap.facts) state.facts = clone(swap.facts);
     if (swap.superseded === null) delete state.superseded;
@@ -1201,7 +1215,11 @@ export class PersistentRangeStore implements RangeStore {
     }
 
     // Bytes join the swap by row lease: whatever left `state.rows` above takes its bytes with it.
-    const byteDelta = applyByteSwap(state, swap, leasedAssets(Object.values(state.rows), Object.values(state.answers)));
+    const leased = leasedAssets(Object.values(state.rows), Object.values(state.answers));
+    for (const row of Object.values(state.rows)) if (onceRow(state.onceColumns, row)) {
+      for (const id of assetIdsIn(row.row)) leased.delete(id);
+    }
+    const byteDelta = applyByteSwap(state, swap, leased);
     bytes.put.push(...byteDelta.put);
     bytes.remove.push(...byteDelta.remove);
 

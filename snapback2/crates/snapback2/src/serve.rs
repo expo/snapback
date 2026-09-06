@@ -362,7 +362,7 @@ fn handle(mut request: Request, context: Context, streams: live::Streams) {
         handle_upload(request, &context, identity);
         return;
     }
-    if method == "GET" && path.starts_with("/api/asset/") {
+    if matches!(method, "GET" | "HEAD") && path.starts_with("/api/asset/") {
         handle_asset_delivery(request, &context, &path, &query);
         return;
     }
@@ -840,6 +840,7 @@ fn route_unknown(path: &str) -> Refusal {
 fn method_name(method: &Method) -> &'static str {
     match method {
         Method::Get => "GET",
+        Method::Head => "HEAD",
         Method::Post => "POST",
         Method::Options => "OPTIONS",
         _ => "OTHER",

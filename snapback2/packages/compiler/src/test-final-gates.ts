@@ -133,11 +133,11 @@ export function registerFinalGateChecks(test: RegisterTest, legacyLib: string): 
     }
     const quarryChecked = runBinaryCheck(["--json", "--ir"], quarryChat.project);
     const pagePins: Record<string, [number, number]> = {
-      "feeds.followingFeed": [55_072, 2_715_380],
+      "feeds.followingFeed": [55_072, 626_336],
       "feeds.globalFeed": [55_072, 54_260],
-      // LLP 1006/1012: media records plus the optional viewOnce policy bit;
+      // LLP 1006/1012: media records, including the optional oncePhoto column;
       // LLP 1016 D5: the optional expiresAt deadline (45 bytes a row).
-      "messages.thread": [858_062, 858_000],
+      "messages.thread": [869_462, 869_400],
     };
     for (const [name, [output, closure]] of Object.entries(pagePins)) {
       const result = quarryChecked.results.find((item: any) => item.program === name);

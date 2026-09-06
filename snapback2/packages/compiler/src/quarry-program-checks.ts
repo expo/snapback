@@ -165,12 +165,36 @@ query consumed(c: cursor ?):
     });
   });
 
+  test("Quarry merge keeps nullable lane-prefix guards inside each discovered lane", async () => {
+    await withProject({ "snapback/schema.q": `table follows:
+  follower: principal
+  followed: principal ?
+  by byFollower: follower, id
+  public
+table posts:
+  author: principal
+  at: time
+  by byAuthor: author, at, id
+  public
+`, "snapback/feed.q": `query feed():
+  return merge posts last 20 by byAuthor:
+    [f.followed ?? viewer] for f in follows[viewer] first 500 by byFollower
+` }, async (root) => {
+      const lowered = await lowerProject(root);
+      assert(lowered.ok, `nullable merge prefix refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
+      const checked = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema);
+      assert(checked.every((result) => !result.error), `nullable merge prefix did not certify: ${JSON.stringify(checked)}`);
+      const body = JSON.stringify(lowered.project.programs[0]!.body);
+      assert(body.includes('"setup"') && body.includes('"If"'), `merge lost its per-lane guard: ${body}`);
+    });
+  });
+
   test("Quarry merge lowers bounded lanes, records its certificate site, and refuses malformed lanes", async () => {
     const chat = await lowerProject(resolve(fixtures, "quarry-chat"));
     assert(chat.ok, `Quarry chat merge refused: ${chat.ok ? "" : diagnosticsText(chat.diagnostics)}`);
     const following = operation(chat.project.programs, "feeds.followingFeed");
     const body = JSON.stringify(following.body);
-    assert(body.includes('"DedupeById"') && body.includes('"Sort"') && body.includes('"Slice"'), `merge composition changed: ${body}`);
+    assert(body.includes('"Merge"') && !body.includes('"DedupeById"'), `merge composition changed: ${body}`);
     const checked = rustCheck(
       [following],
       "synthetic",
@@ -184,10 +208,12 @@ query consumed(c: cursor ?):
       && certificate.merge_sites[0].lane_sites.length === 2
       && certificate.merge_sites[0].take === 20,
     `merge certificate site changed: ${JSON.stringify(certificate.merge_sites)}`);
-    const beforeShapes = certificate.read_sites
-      .filter((site: any) => site.table !== "profiles")
-      .reduce((total: number, site: any) => total + (site.take + 2) * site.max_calls, 0);
-    assert(beforeShapes === 1174, `following feed examined ${beforeShapes} before shaped point reads, expected 1174`);
+    const beforeShapes = certificate.max_examined - certificate.read_sites
+      .filter((site: any) => site.table === "profiles")
+      .reduce((total: number, site: any) => total + site.max_calls, 0);
+    assert(beforeShapes === 125, `following feed examined ${beforeShapes} before shaped point reads, expected 52 + 51 + 22`);
+    assert(certificate.merge_sites[0].uniform && certificate.merge_sites[0].max_lanes === 51,
+      `merge lost its heads bound: ${JSON.stringify(certificate.merge_sites)}`);
 
     const schema = "table posts:\n  author: principal\n  at: time\n  by byAuthorAt: author, at, id\n  public\n";
     const cases = [

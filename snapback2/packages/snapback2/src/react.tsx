@@ -84,8 +84,7 @@ export type AssetVideoProps = Omit<React.VideoHTMLAttributes<HTMLVideoElement>, 
   height?: number | string;
 };
 
-// @ref LLP 1012#9-asset-bytes-on-the-device — a view-once clip gets a source
-// only after its play request durably admits bytes to this mounted instance.
+// @ref LLP 1012#9-asset-bytes-on-the-device — video uses ordinary cached bytes or a session carrier; schema once applies only to images.
 export function AssetVideo({ asset, width, height, style, controls, onPlay, onRefusal, ...props }: AssetVideoProps): React.ReactElement {
   const client = useSnapbackClient();
   const snapshot = useSnapbackSnapshot();

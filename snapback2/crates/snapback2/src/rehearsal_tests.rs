@@ -71,7 +71,10 @@ fn project(url: &str) -> ProjectJson {
         ("ok".into(), ColumnType::Bool),
         (
             "photo".into(),
-            ColumnType::Optional(Box::new(ColumnType::Image { max: 1000 })),
+            ColumnType::Optional(Box::new(ColumnType::Image {
+                max: 1000,
+                once: false,
+            })),
         ),
     ]));
     let audit = table(BTreeMap::from([

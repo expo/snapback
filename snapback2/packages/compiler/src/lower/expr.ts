@@ -560,17 +560,17 @@ function lowerCall(call: ts.CallExpression, env: Environment, hint?: string, ope
       },
     };
   }
-  if (["concat", "max", "min", "divmod", "deterministicShare", "mentionTokens"].includes(name)) {
+  if (["concat", "max", "min", "divmod", "deterministicShare", "mentionTokens", "words"].includes(name)) {
     const builtin = ({
       concat: "Concat",
       max: "Max",
       min: "Min",
       divmod: { Divmod: { remainder_sink: "lexicographic-id" } },
       deterministicShare: "DeterministicShare",
-      mentionTokens: "MentionTokens",
+      mentionTokens: "MentionTokens", words: "Words",
     } as Record<string, string | Record<string, unknown>>)[name]!;
     const args = call.arguments.map((arg) => operand(arg, env));
-    const required = name === "deterministicShare" ? 3 : name === "mentionTokens" ? 1 : 2;
+    const required = name === "deterministicShare" ? 3 : ["mentionTokens", "words"].includes(name) ? 1 : 2;
     if (args.length < required || (name !== "concat" && name !== "max" && name !== "min" && args.length !== required)) {
       refuse(env, "E_OPAQUE", call, `${name} requires ${required === 1 ? "one argument" : required === 2 ? "at least two arguments" : "three arguments"}`);
     }
@@ -678,6 +678,8 @@ function lowerScan(call: ts.CallExpression, env: Environment, hint?: string, ope
   }
   const rangeNode = expressionProperty(options, "range");
   const loweredPrefix = lowerKey(prefix, env, operand);
+  // A helper's scan can lower in several binding environments; preserve every occurrence.
+  env.loweredScanPrefixes.set(call, [...(env.loweredScanPrefixes.get(call) ?? []), loweredPrefix]);
   const afterNode = expressionProperty(options, "after");
   const beforeNode = expressionProperty(options, "before");
   const opaqueCursorNode = expressionProperty(options, "opaqueCursor");
@@ -969,7 +971,7 @@ export function lowerCollectionDomain(
         : collectionElementBinding(expression, env),
     };
   }
-  if (ts.isArrayLiteralExpression(value)
+  if (ts.isArrayLiteralExpression(value) || (call && ts.isIdentifier(call.expression) && call.expression.text === "words")
     || (ts.isPropertyAccessExpression(value) && !operationArgumentList(value, env))
     || (ts.isBinaryExpression(value) && value.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken)) {
     const maximum = staticBound(expression, env);

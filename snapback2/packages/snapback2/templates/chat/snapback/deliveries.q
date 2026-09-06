@@ -7,9 +7,9 @@ query thread(conversationId: conversations, c: cursor ?):
   page = deliveries[viewer, conversationId] after c last 50 by byRecipientConversationAt
   return page { *, message: messages[.messageId] }
 
-mutation post(conversationId: conversations, body: text <=4000, viewOnce: bool ?, expiresAt: time ?):
+mutation post(conversationId: conversations, body: text <=4000, expiresAt: time ?):
   require exists memberships[conversationId, viewer] else NOT_MEMBER
-  row = insert messages { conversationId, authorId: viewer, body, viewOnce, expiresAt, at: now }
+  row = insert messages { conversationId, authorId: viewer, body, expiresAt, at: now }
   for m in memberships[conversationId] first 50 by byConversationPrincipal:
     insert deliveries { recipient: m.principal, conversationId, messageId: row.id, kind: 'message', at: now }
   return { id: row.id }

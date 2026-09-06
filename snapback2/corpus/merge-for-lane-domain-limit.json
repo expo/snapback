@@ -117,133 +117,57 @@
     "read_time_granularity_ms": null,
     "body": [
       {
-        "Let": {
-          "name": "union",
-          "value": {
-            "Array": []
-          }
-        }
-      },
-      {
-        "For": {
-          "binding": "follow",
-          "domain": {
-            "Page": {
-              "site": "merge.for-limit.domain",
-              "table": "follows",
-              "index": "byFollower",
-              "prefix": [
-                {
-                  "Literal": {
-                    "Id": "u1"
-                  }
-                }
-              ],
-              "order": "Asc",
-              "take": {
-                "Literal": 1
-              },
-              "after": null,
-              "before": null,
-              "range": null,
-              "merge_site": null,
-              "provenance": "Const"
-            }
-          },
-          "body": [
-            {
-              "For": {
-                "binding": "post",
-                "domain": {
-                  "Page": {
-                    "site": "merge.for-limit.lane",
-                    "table": "posts",
-                    "index": "byAuthorAt",
-                    "prefix": [
-                      {
-                        "Field": {
-                          "base": {
-                            "Variable": "follow"
-                          },
-                          "name": "followed"
-                        }
-                      }
-                    ],
-                    "order": "Asc",
-                    "take": {
-                      "Literal": 3
-                    },
-                    "after": null,
-                    "before": null,
-                    "range": null,
-                    "merge_site": "merge.for-limit",
-                    "provenance": "Shape"
-                  }
-                },
-                "body": [
-                  {
-                    "Push": {
-                      "target": "union",
-                      "value": {
-                        "Variable": "post"
-                      }
-                    }
-                  }
-                ]
-              }
-            }
-          ]
-        }
-      },
-      {
         "Return": {
-          "Builtin": {
-            "builtin": "Slice",
-            "args": [
+          "Merge": {
+            "site": "merge.for-limit",
+            "lanes": [
               {
-                "Builtin": {
-                  "builtin": {
-                    "DedupeById": {
-                      "site": "merge.for-limit",
-                      "table": "posts"
-                    }
-                  },
-                  "args": [
+                "scan": {
+                  "site": "merge.for-limit.lane",
+                  "table": "posts",
+                  "index": "byAuthorAt",
+                  "prefix": [
                     {
-                      "Builtin": {
-                        "builtin": {
-                          "Sort": {
-                            "keys": [
-                              {
-                                "field": "at",
-                                "order": "Asc"
-                              },
-                              {
-                                "field": "id",
-                                "order": "Asc"
-                              }
-                            ]
-                          }
+                      "Field": {
+                        "base": {
+                          "Variable": "follow"
                         },
-                        "args": [
-                          {
-                            "Variable": "union"
-                          }
-                        ]
+                        "name": "followed"
                       }
                     }
-                  ]
-                }
-              },
-              {
-                "Literal": {
-                  "Int": 0
-                }
-              },
-              {
-                "Literal": {
-                  "Int": 3
-                }
+                  ],
+                  "order": "Asc",
+                  "take": {
+                    "Literal": 3
+                  },
+                  "after": null,
+                  "before": null,
+                  "range": null,
+                  "merge_site": "merge.for-limit",
+                  "provenance": "Shape"
+                },
+                "source": {
+                  "site": "merge.for-limit.domain",
+                  "table": "follows",
+                  "index": "byFollower",
+                  "prefix": [
+                    {
+                      "Literal": {
+                        "Id": "u1"
+                      }
+                    }
+                  ],
+                  "order": "Asc",
+                  "take": {
+                    "Literal": 1
+                  },
+                  "after": null,
+                  "before": null,
+                  "range": null,
+                  "merge_site": null,
+                  "provenance": "Const"
+                },
+                "binding": "follow"
               }
             ]
           }
@@ -253,7 +177,7 @@
   },
   "certificate": {
     "program": "merge.for-limit",
-    "plan_hash": "5a344daeb7afee33d3bd54332576f1feffdc39cc054e531388cfe39735c227d0",
+    "plan_hash": "d5e1fa9bf453173969f7b58f78e673f2b0ac63a650e8041ed01cc9db8f012503",
     "schema_hash": "f7c842236978e842a20695dbea23d49d1277bd8bdbc0c342ee6422331cb188f8",
     "tables": {
       "follows": {
@@ -279,6 +203,7 @@
         "max_calls": 1,
         "rule_probes_per_candidate": 0,
         "hoist": true,
+        "decided_true": true,
         "complete": false
       },
       {
@@ -290,6 +215,7 @@
         "max_calls": 1,
         "rule_probes_per_candidate": 0,
         "hoist": true,
+        "decided_true": true,
         "complete": false
       }
     ],
@@ -299,19 +225,21 @@
         "lane_sites": [
           "merge.for-limit.lane"
         ],
-        "take": 3
+        "take": 3,
+        "max_lanes": 1,
+        "uniform": true
       }
     ],
     "write_sites": [],
     "maintained_amplification": 0,
     "constraint_checks": [],
-    "max_examined": 8,
-    "max_index_entries": 8,
+    "max_examined": 9,
+    "max_index_entries": 9,
     "max_rule_probes": 0,
-    "max_steps": 60,
-    "max_heap_bytes": 1920,
+    "max_steps": 92,
+    "max_heap_bytes": 2944,
     "max_output_bytes": 1071,
-    "max_closure_bytes": 1056,
+    "max_closure_bytes": 3132,
     "completeness": "Page",
     "prediction_sites": [],
     "read_time_granularity_ms": null,
@@ -321,7 +249,7 @@
       "posts.byAuthorAt"
     ],
     "disclosures": [],
-    "bound_product": "merge merge.for-limit: 1 lanes × (3 + 2) at merge.for-limit.lane on posts (calls from merge.for-limit.domain take 1) = 5 + merge.for-limit.domain take 1 (+2 reserve) × 1 calls on follows = 3"
+    "bound_product": "merge merge.for-limit: 1 lanes heads + 3 advances + 2 lookahead × 1 calls (merge.for-limit.lane × 1) = 6 + merge.for-limit.domain take 1 (+2 reserve) × 1 calls on follows = 3"
   },
   "context": {
     "viewer": "u1",

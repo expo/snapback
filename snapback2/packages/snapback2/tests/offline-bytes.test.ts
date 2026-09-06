@@ -239,6 +239,8 @@ test("assetBlob reads the byte cache before the network, fills it after a fetch,
       url: "http://bytes.test", as: "alice", offline: { store: fileRangeStore(root), maxAssetBytes: 64 },
       fetch: async (input, init) => {
         const url = new URL(String(input));
+        if (url.pathname === "/api/manifest") return new Response(JSON.stringify({ generation: "test", programGeneration: generation, ops: {}, channels: {}, auth: {},
+          tables: { messages: { columns: { oncePhoto: { Image: { max: 5000000, once: true } } } } } }));
         const metadata = metadataResponse(url);
         if (metadata) return metadata;
         if (url.pathname.startsWith("/api/asset/")) {
@@ -280,9 +282,11 @@ test("a view-once row renders once: its bytes are never cached, a restart refuse
     let assetFetches = 0;
     const make = () => createClient({
       url: "http://once.test", as: "alice",
-      offline: { store: fileRangeStore(root), viewOnce: (table, row) => table === "messages" && row.id === "m2" },
+      offline: { store: fileRangeStore(root) },
       fetch: async (input) => {
         const url = new URL(String(input));
+        if (url.pathname === "/api/manifest") return new Response(JSON.stringify({ generation: "test", programGeneration: generation, ops: {}, channels: {}, auth: {},
+          tables: { messages: { columns: { oncePhoto: { Image: { max: 5000000, once: true } } } } } }));
         const metadata = metadataResponse(url);
         if (metadata) return metadata;
         if (url.pathname.startsWith("/api/asset/")) {
@@ -292,7 +296,7 @@ test("a view-once row renders once: its bytes are never cached, a restart refuse
         if (url.pathname === "/api/query") {
           return new Response(JSON.stringify(envelope(
             [ref("messages", "m1"), ref("messages", "m2")],
-            [messageRow("m1", A), messageRow("m2", B)],
+            [messageRow("m1", A), { ...messageRow("m2", B), row: { id: "m2", conversationId: "c1", at: 2, oncePhoto: photo(B) } }],
           )), { status: 200 });
         }
         throw new Error(`unexpected path ${url.pathname}`);
@@ -341,7 +345,7 @@ test("the IndexedDB carrier upgrades a version-1 database, keeps payloads in the
   assert.equal(database.hasStore(name, "bytes"), true, "open upgraded the database with the bytes store");
   await store.commit({ deliveries: [{
     op: "thread", args: {}, state: "complete", data: [ref("messages", "m1"), ref("messages", "m2")], next: null, seq: 1,
-    rows: [messageRow("m1", A), messageRow("m2", B)], receipt: emptyReceipt(),
+    rows: [messageRow("m1", A), { ...messageRow("m2", B), row: { id: "m2", conversationId: "c1", at: 2, oncePhoto: photo(B) } }], receipt: emptyReceipt(),
   }] });
   await store.commit({ bytes: { put: [put(A, 8, 4, 1)] } });
   assert.deepEqual(database.keys(name, "bytes"), [key(A, 8)]);
@@ -394,6 +398,8 @@ test("a cache read stamps the LRU in memory without rewriting the carrier; the n
       url: "http://touch.test", as: "alice", offline: { store: fileRangeStore(root) },
       fetch: async (input) => {
         const url = new URL(String(input));
+        if (url.pathname === "/api/manifest") return new Response(JSON.stringify({ generation: "test", programGeneration: generation, ops: {}, channels: {}, auth: {},
+          tables: { messages: { columns: { oncePhoto: { Image: { max: 5000000, once: true } } } } } }));
         const metadata = metadataResponse(url);
         if (metadata) return metadata;
         if (url.pathname.startsWith("/api/asset/")) {
@@ -511,4 +517,27 @@ test("AssetImage, AssetVideo, and useAssetUrl render held renditions from the by
     env.restore();
     await rm(root, { recursive: true, force: true });
   }
+});
+
+test("schema once excludes raw byte puts before viewing and purges on successor, durably", async () => {
+  const root = await tempRoot();
+  let store: any = fileRangeStore(root)();
+  try {
+    await store.open("dev:alice");
+    const schema = { tables: { messages: { columns: { photo: { Image: { max: 5000000 } } } } } };
+    await store.commit({ schema, deliveries: [{ op: "once", args: {}, state: "complete", seq: 1,
+      data: ref("messages", "m1"), rows: [messageRow("m1", A)], receipt: emptyReceipt(), next: null }] });
+    await store.commit({ bytes: { put: [put(A, 8, 4, 1)], ceiling: 100 } });
+    assert.ok(await store.readBytes(A, 8));
+    await store.commit({ schema: { tables: { messages: { columns: { photo: { Image: { max: 5000000, once: true } } } } } } });
+    assert.equal(await store.readBytes(A, 8), undefined);
+    await store.commit({ bytes: { put: [put(A, 8, 4, 1)], ceiling: 100 } });
+    assert.equal(await store.readBytes(A, 8), undefined);
+    assert.deepEqual((await store.bytes()).viewed, [], "exclusion does not consume a view");
+    assert.equal((await store.answer("once", {})).data.photo, null);
+    await store.close(); store = fileRangeStore(root)(); await store.open("dev:alice");
+    assert.equal((await store.answer("once", {})).data.photo, null);
+    await store.commit({ bytes: { put: [put(A, 8, 4, 1)], ceiling: 100 } });
+    assert.equal(await store.readBytes(A, 8), undefined);
+  } finally { await store.close(); await rm(root, { recursive: true, force: true }); }
 });
