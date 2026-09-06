@@ -678,6 +678,8 @@ function lowerScan(call: ts.CallExpression, env: Environment, hint?: string, ope
   }
   const rangeNode = expressionProperty(options, "range");
   const loweredPrefix = lowerKey(prefix, env, operand);
+  // A helper's scan can lower in several binding environments; preserve every occurrence.
+  env.loweredScanPrefixes.set(call, [...(env.loweredScanPrefixes.get(call) ?? []), loweredPrefix]);
   const afterNode = expressionProperty(options, "after");
   const beforeNode = expressionProperty(options, "before");
   const opaqueCursorNode = expressionProperty(options, "opaqueCursor");

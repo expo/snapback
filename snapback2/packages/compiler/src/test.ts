@@ -23,6 +23,7 @@ import { registerApiShapeChecks } from "./api-shape-checks";
 import { registerQuarryFanoutChecks } from "./quarry-fanout-checks";
 import { registerRetentionChecks } from "./retention-checks";
 import { registerEffectLanguageChecks } from "./test-effects";
+import { registerVisibilityChecks } from "./visibility-checks";
 import { registerPackageGuideChecks } from "./test-package-guide";
 import { decimal } from "../../snapback2/src/index";
 import type { Principal } from "../../snapback2/src/index";
@@ -50,6 +51,7 @@ registerApiShapeChecks(test, frontend);
 registerRetentionChecks(test);
 registerQuarryFanoutChecks(test, frontend);
 registerEffectLanguageChecks(test, withProject, frontend, libText);
+registerVisibilityChecks(test);
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);

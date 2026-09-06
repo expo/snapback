@@ -16,6 +16,8 @@ mod cap_cases;
 mod client_scenarios;
 #[path = "export_corpus/constraints.rs"]
 mod export_corpus_constraints;
+#[path = "export_corpus/enriched_pages.rs"]
+mod enriched_pages;
 #[path = "export_corpus/merge_cases.rs"]
 mod merge_cases;
 #[path = "export_corpus/twin_cases.rs"]
@@ -125,6 +127,7 @@ fn main() {
     add_value_edges(&mut cases);
     add_time_arithmetic_case(&mut cases);
     visibility_cases::add_visibility_cases(&mut cases);
+    enriched_pages::add_enriched_page_case(&mut cases);
     cap_cases::add_cap_cases(&mut cases);
     bytes_cases::add_bytes_cases(&mut cases);
     asset_cases::add_asset_cases(&mut cases);

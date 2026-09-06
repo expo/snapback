@@ -66,27 +66,6 @@ impl Schema {
             key,
         )
     }
-
-    /// Proves that every row in an indexed prefix receives the same read
-    /// verdict. Every row field consulted by the rule, including fields used
-    /// to form an indexed rule probe, must be fixed by that prefix.
-    pub fn read_is_uniform_for_prefix(
-        &self,
-        table_name: &str,
-        index_name: &str,
-        prefix_len: usize,
-    ) -> bool {
-        let Some(table) = self.table(table_name) else {
-            return false;
-        };
-        let Some(index) = table.index(index_name) else {
-            return false;
-        };
-        let pinned: BTreeSet<_> = index.columns.iter().take(prefix_len).cloned().collect();
-        let mut used = BTreeSet::new();
-        table.rules.read.row_fields(&mut used);
-        used.is_subset(&pinned)
-    }
 }
 
 fn prove_probe_row_readable(
@@ -335,44 +314,6 @@ impl RuleExpr {
     }
     pub fn is_uniformly_readable(&self) -> bool {
         matches!(self, Self::Public { .. } | Self::Allow)
-    }
-
-    fn row_fields(&self, out: &mut BTreeSet<String>) {
-        match self {
-            Self::Eq(a, b) | Self::Ne(a, b) => {
-                for term in [a, b] {
-                    match term {
-                        RuleTerm::Field(name) => {
-                            out.insert(name.clone());
-                        }
-                        RuleTerm::OldField(name) | RuleTerm::NextField(name) => {
-                            out.insert(format!("\0invalid-update-field:{name}"));
-                        }
-                        RuleTerm::Viewer | RuleTerm::Literal(_) => {}
-                    }
-                }
-            }
-            Self::Exists { key, .. } | Self::Created { key, .. } => {
-                for term in key {
-                    match term {
-                        RuleTerm::Field(name) => {
-                            out.insert(name.clone());
-                        }
-                        RuleTerm::OldField(name) | RuleTerm::NextField(name) => {
-                            out.insert(format!("\0invalid-update-field:{name}"));
-                        }
-                        RuleTerm::Viewer | RuleTerm::Literal(_) => {}
-                    }
-                }
-            }
-            Self::And(rules) | Self::Or(rules) => {
-                for rule in rules {
-                    rule.row_fields(out);
-                }
-            }
-            Self::Not(rule) => rule.row_fields(out),
-            Self::Public { .. } | Self::Allow | Self::Deny => {}
-        }
     }
 }
 

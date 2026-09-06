@@ -510,7 +510,7 @@ function numericRuleLiteral(node: ts.Expression): { text: string; negative: bool
   return undefined;
 }
 
-function scaledRuleLiteral(node: ts.Expression, scale: number): number | undefined {
+export function scaledRuleLiteral(node: ts.Expression, scale: number): number | undefined {
   const numeric = numericRuleLiteral(node);
   const expanded = numeric && expandedNumericLiteral(numeric.text);
   if (!expanded || expanded.fraction.length > scale) return undefined;

@@ -1,7 +1,9 @@
 # Quarry v0.3
 
-Quarry is Snapback 2's only backend authoring language. `snapback2 check` compiles `.q` in memory.
-Inspection: `.snapback/build/quarry/`, never `snapback/`.
+Quarry is Snapback 2's only backend authoring language, a bounded front end to
+the compiler and runtime. `snapback2 check` compiles `.q` in memory, places no
+generated files in `snapback/`, and writes an inspection copy under
+`.snapback/build/quarry/`.
 
 ## Project
 
@@ -19,18 +21,18 @@ effect module's stem must differ from every `.q` stem.
 Columns and arguments use `principal`, `id`, table references, `int`, `time`,
 `bool`, `decimal <scale>`, `money <CUR> [scale]`, `text <=N`, `text M..N`,
 `json <=N`, `bytes <=N`, `enum(...)`, and bounded lists `[type] <=N`. Decimal
-and money scales are integers from 0 through 12; money defaults to scale 2 and
-its currency is exactly three uppercase letters. Add `?` for optional. Text
-can add `format handle` or `format url` after its bound. A minimum and a format
-become enforced text constraints; maximums remain part of the column type.
-Text forbids C0 controls except tab, newline and carriage return.
+and money scales are integers 0–12 (money defaults to 2; its currency is three
+uppercase letters). Add `?` for optional. Text may add `format handle` or
+`format url` after its bound; minimums and formats are enforced constraints,
+maximums stay part of the type.
+Text forbids C0 controls except tab, newline, and CR.
 
 `image <=N` is a byte-bounded closed record `{ id, width, height }`; `video <=N`
 adds integer-millisecond `duration`. Both admit `?` and bounded lists, but no
 indexes or `maintain.by`. `once` is image-column-only, never on arguments.
 Authenticated readers get one original 200, `private, no-store`;
 anonymous gets 404 on public rows too. HEAD is free; width, Range and
-conditionals cannot bypass 410 `E_ASSET_VIEWED`. Video `once` refuses: unspecified ranges. Add `once`: prior views unrecorded; removal is destructive.
+conditionals cannot bypass 410 `E_ASSET_VIEWED`. Video `once` refuses. Add `once`: prior views unrecorded; removal is destructive.
 
 ```q
 mutation inspect(photo: image <=5000000, clip: video <=50000000):
@@ -49,13 +51,13 @@ nonnegative; quotient equals floor for positive divisors. `share` keeps the
 amount brand, requires matching bounded recipients, and assigns remainder units
 by ascending value. Share/branded multiplication floor because divisors are
 positive; i53 products can overflow. Wire arguments use integer minor units.
-Decimal/money seeds use whole-unit JSON numbers or decimal strings and are
-exactly normalized to minor units; exponent notation and excess precision refuse.
-Shaped rows and pages are typed and keep their brands.
+Seeds use whole-unit JSON numbers or decimal strings, normalized exactly to
+minor units; exponent notation and excess precision refuse. Shaped rows and
+pages keep their brands.
 
-`principal` is the nominal type of `viewer`. It is neither a table reference
-nor `id`, even though all three have ID-shaped wire values. A column compared
-with `viewer`, or assigned `viewer`, must be `principal`.
+`principal` is the nominal type of `viewer`, distinct from table references and
+`id` despite the shared ID-shaped wire value; a column compared with or assigned
+`viewer` must be `principal`.
 A non-empty text literal in an Id position (key, merge prefix, equality,
 or `??` fallback) is an Id on the wire; text expressions and wrong-table refs
 refuse. A cursor position takes the opaque token, never an Id literal.
@@ -80,10 +82,12 @@ arguments. `created` is insert-only. Table rules omit a binder (`read <- …`);
 names binders.
 Rule `exists`/`created` accepts any index whose leading columns match the key;
 when several match, add `by index`. Parentheses allow multiline rules.
-Reciprocal references and rule dependencies are supported.
+Reciprocal references and rule dependencies work.
+Self-probes on a full unique key of nonoptional columns are uniform over own rows;
+so is an `or` with an arm proven true by the prefix.
 
-`use identity` enables passwords and guests. `use identity password` and
-`use identity guests` select only that method.
+`use identity` enables passwords and guests; `use identity password` or
+`use identity guests` selects one.
 
 ## Maintains
 
@@ -108,12 +112,14 @@ maintain messageCounts = count messages by conversationId:
 
 ## Programs
 
-Keys are positional (`table[value, …]`) or named
-(`table[column = value, …]`), as in `users[principal = viewer]`. Point reads
+Keys are positional (`table[value, …]`) or named (`table[column = value, …]`).
+Point reads
 need a complete unique key. Range order is `[after cursor] first|last N
 [by index]`; repeats/permutations refuse. Point reads may add
 `by index`; `exists table[keys]` accepts an index prefix. Shapes use `{ * }`,
-bare fields, or `name: expression`; nested work stays bounded. Byte ceilings
+bare fields, or `name: expression`; nested point reads keep the page's
+`complete`/`capped` state; hidden rows yield `null`; any early exit,
+count, or `require` refuses. Byte ceilings
 bound canonical JSON: a shape is priced by the fields it selects and `*` by
 every column at its declared maximum (text at `4·max + 16` bytes), so focused
 shapes certify larger pages. `first N` scans ascending; `last N` scans descending.
@@ -122,14 +128,13 @@ shapes certify larger pages. `first N` scans ascending; `last N` scans descendin
 or a field value; `...card` splices it. `shape card from cards` imports
 from `cards.q`; shape-only modules add no API operations. Nested shapes resolve
 in their defining module. Shapes use the focal row and context built-ins, never
-caller arguments or locals. Expansion retains definition sites, refuses cycles,
-and is bounded by depth 8 and 4,096 expanded nodes.
+caller arguments or locals. Expansion keeps definition sites, refuses cycles, and is bounded (depth 8,
+4,096 nodes).
 
 A pageable query declares `c: cursor ?` and reads `after c`; absent means page
 one. `complete` and `capped` results carry `next`, either a server-minted opaque
-cursor or `null`. Pass it back unchanged. It encodes the table, index, order,
-typed post-prefix suffix, and last returned row—never a hidden examined
-position. A mismatched or noncanonical token is `E_INPUT` before any scan.
+cursor or `null`. Pass it back unchanged; it encodes table, index, order, the typed suffix, and
+the last returned row, never a hidden examined position. A mismatched or noncanonical token is `E_INPUT` before any scan.
 Tokens are not operation-site-bound. The index must be total (end in `id` or be
 unique); `after` follows scan order.
 
@@ -157,23 +162,20 @@ the deduplicated union had at most N rows; otherwise it is `capped`.
 
 `require condition else CODE` aborts when false. `match read: some name: … none: …`
 branches on presence; it is a statement, not a binding expression. Other statements
-bind expressions or `sorted` tuples, `return`, `if/else`, or bounded `for`.
-`return` works in all arms; a body's last expression is an implicit return.
+bind expressions or `sorted` tuples, `return`, `if/else`, or bounded `for`;
+`return` works in all arms and a body's last expression is an implicit return.
 
-Object literals work anywhere expressions do; `{ id: conversationId,
-creatorMembershipId }` uses shorthand for the second field. `count(x)` is
+Object literals work anywhere; `{ id: conversationId, creatorMembershipId }`
+uses shorthand. `count(x)` is
 `x.length` for bounded lists and pages. Other built-ins are `range`,
-`min`, `max`, `divmod`, and `share`. `sorted` is only the two-name form
-`(lo, hi) = sorted(a, b)`. `walk table[seed] up .parent depth N` is bounded.
+`min`, `max`, `divmod`, and `share`. `sorted` is only `(lo, hi) = sorted(a, b)`. `walk table[seed] up .parent depth N` is bounded.
 `!` or `! else CODE` requires a present value; `??` supplies an absence
-fallback. Program `=`/`!=` are total: absent equals absent and differs from
-present; `!=` is `not (=)`. Ordered comparison refuses an optional operand;
-use `!` or `??` first. A direct `if x != null:` narrows a bound name or one-hop
-row field in that then branch; it does not narrow an `and` operand or the else.
-Conditions require Booleans.
+fallback. Program `=`/`!=` are total: absent equals absent, differs from present;
+`!=` is `not (=)`. Ordered comparison refuses an optional operand;
+use `!` or `??` first. A direct `if x != null:` narrows a bound name or one-hop row field in
+that then branch only, not an `and` operand or the else.
 
-`tokens(text)` splits on whitespace, preserving case, punctuation and duplicates;
-it is not a word-search tokenizer.
+`tokens(text)` splits on whitespace, preserving case, punctuation and duplicates.
 
 `now` is the read clock in queries and the commit clock in mutations; `commit`
 is the commit clock. In a mutation they are the same instant. `now` is pinned
