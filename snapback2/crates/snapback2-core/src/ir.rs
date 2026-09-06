@@ -206,6 +206,7 @@ pub enum Expr {
     Get(Read),
     Exists(Read),
     Scan(Scan),
+    Merge(Merge),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -247,7 +248,6 @@ pub enum Builtin {
     Max,
     Divmod { remainder_sink: String },
     Sort { keys: Vec<SortKey> },
-    DedupeById { site: String, table: String },
     MentionTokens,
     Words,
     DeterministicShare,
@@ -261,7 +261,6 @@ impl Builtin {
         match self {
             Self::Len
             | Self::Sort { .. }
-            | Self::DedupeById { .. }
             | Self::MentionTokens
             | Self::Words
             | Self::Count
@@ -304,6 +303,41 @@ pub struct Scan {
     #[serde(default)]
     pub merge_site: Option<String>,
     pub provenance: KeyProvenance,
+}
+
+/// A merge owns its lane discovery and ordered scans; no materialized union.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Merge {
+    pub site: String,
+    pub lanes: Vec<MergeLane>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MergeLane {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub setup: Vec<Stmt>,
+    pub scan: Scan,
+    pub source: Option<Scan>,
+    pub binding: String,
+}
+
+impl Merge {
+    pub fn take(&self) -> u64 {
+        self.lanes
+            .first()
+            .map_or(0, |lane| lane.scan.take.maximum())
+    }
+    pub fn table(&self) -> &str {
+        self.lanes
+            .first()
+            .map_or("", |lane| lane.scan.table.as_str())
+    }
+    pub fn max_lanes(&self) -> u64 {
+        self.lanes
+            .iter()
+            .map(|lane| lane.source.as_ref().map_or(1, |s| s.take.maximum()))
+            .fold(0, u64::saturating_add)
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

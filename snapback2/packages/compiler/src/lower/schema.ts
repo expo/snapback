@@ -308,9 +308,12 @@ function lowerColumn(
   }
   if (name === "image" || name === "video") {
     const max = numberValue(call.arguments[0]);
-    if (call.arguments.length === 1 && validPositiveInteger(max)) {
-      // @ref LLP 1006#3-authoring-surface — the byte bound is preserved in the externally tagged engine descriptor.
-      return { [name === "image" ? "Image" : "Video"]: { max } };
+    const options = call.arguments[1] && objectOf(call.arguments[1]);
+    const once = name === "image" && options && property(options, "once")?.kind === ts.SyntaxKind.TrueKeyword;
+    if (validPositiveInteger(max) && (call.arguments.length === 1 || call.arguments.length === 2 && once)) {
+      if (options) validateKnownKeys(module, options, ["once"], "image options", "E_SCHEMA_INVALID", diagnostics);
+      // @ref LLP 1006#2a1-one-use-image-delivery-clique-f3-2026-09-05 — the modifier belongs to column custody, never asset arguments.
+      return { [name === "image" ? "Image" : "Video"]: { max, ...(once ? { once: true } : {}) } };
     }
   }
   if (name === "json") {
@@ -507,7 +510,7 @@ function numericRuleLiteral(node: ts.Expression): { text: string; negative: bool
   return undefined;
 }
 
-function scaledRuleLiteral(node: ts.Expression, scale: number): number | undefined {
+export function scaledRuleLiteral(node: ts.Expression, scale: number): number | undefined {
   const numeric = numericRuleLiteral(node);
   const expanded = numeric && expandedNumericLiteral(numeric.text);
   if (!expanded || expanded.fraction.length > scale) return undefined;

@@ -36,9 +36,22 @@ struct MediaJobState {
 struct MediaJobCounts {
     helpers: usize,
     rungs: std::collections::BTreeSet<String>,
+    once: std::collections::BTreeSet<(String, String)>,
 }
 
 impl MediaJobs {
+    fn once(&self, id: &str, principal: &str) -> OncePermit {
+        let key = (id.to_owned(), principal.to_owned());
+        let mut state = self.0.state.lock().expect("media job lock");
+        while !state.once.insert(key.clone()) {
+            state = self.0.changed.wait(state).expect("media job lock");
+        }
+        OncePermit {
+            jobs: self.clone(),
+            key,
+        }
+    }
+
     fn helper(&self) -> HelperPermit {
         let mut state = self.0.state.lock().expect("media job lock");
         while state.helpers >= MAX_MEDIA_HELPERS {
@@ -74,7 +87,7 @@ impl Drop for HelperPermit {
     fn drop(&mut self) {
         let mut state = self.0.0.state.lock().expect("media job lock");
         state.helpers -= 1;
-        self.0.0.changed.notify_one();
+        self.0.0.changed.notify_all();
     }
 }
 
@@ -87,6 +100,19 @@ impl Drop for RungPermit {
     fn drop(&mut self) {
         let mut state = self.jobs.0.state.lock().expect("media job lock");
         state.rungs.remove(&self.key);
+        self.jobs.0.changed.notify_all();
+    }
+}
+
+struct OncePermit {
+    jobs: MediaJobs,
+    key: (String, String),
+}
+
+impl Drop for OncePermit {
+    fn drop(&mut self) {
+        let mut state = self.jobs.0.state.lock().expect("media job lock");
+        state.once.remove(&self.key);
         self.jobs.0.changed.notify_all();
     }
 }
@@ -332,11 +358,13 @@ pub fn handle_asset_delivery(request: Request, context: &Context, path: &str, qu
     );
     let delivery = match context.handle.call(Action::AssetDelivery {
         id: id.to_owned(),
-        identity,
+        identity: identity.clone(),
     }) {
         Ok(delivery) => delivery,
         Err(error) => {
-            let status = if error.code == "E_ASSET_NOT_READY" {
+            let status = if error.code == "E_ASSET_VIEWED" {
+                410
+            } else if error.code == "E_ASSET_NOT_READY" {
                 404
             } else {
                 refusal_status(&error)
@@ -345,6 +373,23 @@ pub fn handle_asset_delivery(request: Request, context: &Context, path: &str, qu
             return;
         }
     };
+    if delivery["once"].as_bool() == Some(true) {
+        if request.method() == &tiny_http::Method::Head {
+            let mut headers = delivery_headers(
+                delivery["type"].as_str().unwrap_or("image/jpeg"),
+                "private, no-store",
+                None,
+            );
+            headers.push(header_value(
+                "Content-Length",
+                &delivery["bytes"].to_string(),
+            ));
+            respond_empty(request, 200, headers, &context.mode);
+        } else {
+            deliver_once(request, context, id, identity, &delivery);
+        }
+        return;
+    }
     let public = delivery["public"].as_bool().unwrap_or(false);
     if carrier.is_some() && public {
         let location = query.get("w").map_or_else(
@@ -489,6 +534,166 @@ pub fn handle_asset_delivery(request: Request, context: &Context, path: &str, qu
     let response = Response::new(StatusCode(status), headers, blob.stream, Some(length), None)
         .with_chunked_threshold(usize::MAX);
     let _ = request.respond(response);
+}
+
+// Reserve only this principal's delivery; socket writes never occupy the owner.
+fn deliver_once(
+    request: Request,
+    context: &Context,
+    id: &str,
+    identity: Identity,
+    initial: &serde_json::Value,
+) {
+    let principal = initial["principal"]
+        .as_str()
+        .expect("authorized once principal");
+    let _permit = context.media_jobs.once(id, principal);
+    // The preceding delivery or a mutation may have completed while we waited.
+    let prepared = context
+        .handle
+        .call(Action::AssetDelivery {
+            id: id.to_owned(),
+            identity,
+        })
+        .and_then(|delivery| context.blobs.get(id, None).map(|blob| (delivery, blob)));
+    let (delivery, blob) = match prepared {
+        Ok(value) => value,
+        Err(error) => {
+            respond_once_refusal(request, error, &context.mode);
+            return;
+        }
+    };
+    let (consumed, finish) = write_once_body(request, blob, &delivery, &context.mode);
+    if consumed
+        && context
+            .handle
+            .call(Action::AssetConsume {
+                id: id.to_owned(),
+                principal: principal.to_owned(),
+            })
+            .is_err()
+    {
+        return; // No completion byte can escape a failed durable claim.
+    }
+    finish();
+}
+
+pub(crate) fn respond_once_refusal(request: Request, error: Refusal, mode: &str) {
+    let status = match error.code.as_str() {
+        "E_ASSET_VIEWED" => 410,
+        "E_ASSET_NOT_READY" => 404,
+        _ => refusal_status(&error),
+    };
+    respond_asset_refusal(request, status, error, mode);
+}
+
+// @ref LLP 1006#2a1-one-use-image-delivery-clique-f3-2026-09-05 — count written body bytes, not admission or reads from the blob.
+pub(crate) fn write_once_body(
+    request: Request,
+    blob: crate::blob_store::BlobRead,
+    delivery: &serde_json::Value,
+    mode: &str,
+) -> (bool, impl FnOnce()) {
+    use std::io::Write;
+    let mut headers = delivery_headers(
+        delivery["type"].as_str().unwrap_or("image/jpeg"),
+        "private, no-store",
+        None,
+    );
+    add_cors(&mut headers, mode);
+    decorate_asset_response_headers(request.url(), &mut headers);
+    let version = request.http_version().clone();
+    let request_headers = request.headers().to_vec();
+    let response = Response::new(
+        StatusCode(200),
+        headers,
+        blob.stream,
+        Some(blob.length as usize),
+        None,
+    )
+    .with_chunked_threshold(usize::MAX);
+    let mut writer = CompletionWriter {
+        inner: BodyWriter {
+            inner: request.into_writer(),
+            delimiter: 0,
+            in_body: false,
+            written: 0,
+        },
+        tail: None,
+    };
+    let complete = response
+        .raw_print(&mut writer, version, &request_headers, false, None)
+        .and_then(|_| writer.flush())
+        .is_ok();
+    // A partial socket write after the body starts may consume; a header-only
+    // failure or an unreadable blob before the first body write never does.
+    // A held body byte also needs a claim before finish publishes it (even a one-byte body).
+    (
+        writer.inner.written > 0 || (complete && writer.inner.in_body && writer.tail.is_some()),
+        move || {
+            // Publish the completion byte only after the durable owner transaction.
+            // Dropping this closure on a failed commit leaves a truncated response.
+            if complete && let Some(tail) = writer.tail {
+                let _ = writer
+                    .inner
+                    .write_all(&[tail])
+                    .and_then(|_| writer.inner.flush());
+            }
+        },
+    )
+}
+
+struct CompletionWriter<W> {
+    inner: W,
+    tail: Option<u8>,
+}
+impl<W: std::io::Write> std::io::Write for CompletionWriter<W> {
+    fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+        if bytes.is_empty() {
+            return Ok(0);
+        }
+        if let Some(tail) = self.tail.take() {
+            self.inner.write_all(&[tail])?;
+        }
+        self.inner.write_all(&bytes[..bytes.len() - 1])?;
+        self.tail = bytes.last().copied();
+        Ok(bytes.len())
+    }
+    fn flush(&mut self) -> io::Result<()> {
+        self.inner.flush()
+    }
+}
+
+struct BodyWriter<W> {
+    inner: W,
+    delimiter: usize,
+    in_body: bool,
+    written: u64,
+}
+impl<W: std::io::Write> std::io::Write for BodyWriter<W> {
+    fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+        let written = self.inner.write(bytes)?;
+        for byte in &bytes[..written] {
+            if self.in_body {
+                self.written += 1;
+            } else {
+                self.delimiter = if *byte == b"\r\n\r\n"[self.delimiter] {
+                    self.delimiter + 1
+                } else if *byte == b'\r' {
+                    1
+                } else {
+                    0
+                };
+                if self.delimiter == 4 {
+                    self.in_body = true;
+                }
+            }
+        }
+        Ok(written)
+    }
+    fn flush(&mut self) -> io::Result<()> {
+        self.inner.flush()
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -943,6 +1148,93 @@ mod tests {
     use std::io::Cursor;
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::time::Duration;
+
+    #[test]
+    fn completion_writer_counts_one_and_two_byte_bodies_before_finishing() {
+        use std::io::{Read, Write};
+        for body in [b"x".as_slice(), b"xy".as_slice()] {
+            let server = tiny_http::Server::http("127.0.0.1:0").unwrap();
+            let address = server.server_addr().to_ip().unwrap();
+            let client = std::thread::spawn(move || {
+                let mut socket = std::net::TcpStream::connect(address).unwrap();
+                socket
+                    .set_read_timeout(Some(Duration::from_secs(5)))
+                    .unwrap();
+                socket
+                    .write_all(b"GET / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n")
+                    .unwrap();
+                let mut bytes = Vec::new();
+                socket.read_to_end(&mut bytes).unwrap();
+                bytes
+            });
+            let delivery = serde_json::json!({"type":"image/png"});
+            let (consumed, finish) = write_once_body(
+                server.recv().unwrap(),
+                BlobRead {
+                    stream: Box::new(Cursor::new(body.to_vec())),
+                    length: body.len() as u64,
+                    total: body.len() as u64,
+                    range: None,
+                },
+                &delivery,
+                "dev",
+            );
+            assert!(
+                consumed,
+                "{}-byte body must claim before publishing its tail",
+                body.len()
+            );
+            finish();
+            let response = client.join().unwrap();
+            let start = response.windows(4).position(|w| w == b"\r\n\r\n").unwrap() + 4;
+            assert_eq!(&response[start..], body);
+        }
+    }
+
+    #[test]
+    fn once_read_failure_with_only_a_held_body_byte_does_not_consume() {
+        use std::io::{Read, Write};
+        struct FailedRead;
+        impl Read for FailedRead {
+            fn read(&mut self, _: &mut [u8]) -> io::Result<usize> {
+                Err(io::Error::other("blob failed after its first byte"))
+            }
+        }
+        let server = tiny_http::Server::http("127.0.0.1:0").unwrap();
+        let address = server.server_addr().to_ip().unwrap();
+        let client = std::thread::spawn(move || {
+            let mut socket = std::net::TcpStream::connect(address).unwrap();
+            socket
+                .set_read_timeout(Some(Duration::from_secs(5)))
+                .unwrap();
+            socket
+                .write_all(b"GET / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n")
+                .unwrap();
+            let mut bytes = Vec::new();
+            socket.read_to_end(&mut bytes).unwrap();
+            bytes
+        });
+        let delivery = serde_json::json!({"type":"image/png"});
+        let (consumed, finish) = write_once_body(
+            server.recv().unwrap(),
+            BlobRead {
+                stream: Box::new(Cursor::new(b"x".to_vec()).chain(FailedRead)),
+                length: 2,
+                total: 2,
+                range: None,
+            },
+            &delivery,
+            "dev",
+        );
+        assert!(
+            !consumed,
+            "no body byte moved and the held byte cannot be published"
+        );
+        finish();
+        let response = client.join().unwrap();
+        let start = response.windows(4).position(|w| w == b"\r\n\r\n").unwrap() + 4;
+        assert!(response[start..].is_empty());
+    }
 
     #[derive(Default)]
     struct MemoryBlobStore(Mutex<BTreeMap<String, Vec<u8>>>);

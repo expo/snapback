@@ -1,0 +1,29 @@
+# snapback2: Quarry time arithmetic is inconsistent (`0 + now` accepted, `now - at` refused) and day bucketing is not expressible
+
+**Date:** 2026-09-06 · **Area:** Quarry language / guide (guide-gap) · **Source:** Clique full run, astra-snapback2 (run-log line 55, M8 diary) and grok-snapback2 (M1, M8 diary, essay)
+
+## What happened
+
+Both builders needed the same two things for the brief's Insights milestone (seven UTC day
+buckets) and edit/delete windows, and found the time rules inconsistent:
+
+- `now <= msg.at + N` certifies (grok M4), but `now - at <= ms` is refused as nominal time (grok M1/M8).
+- `divmod(now, …)` is refused, or "returns a quotient object" that cannot be used as a bucket key
+  (astra M8, grok M8). grok shipped seven-day insight bars as "today plus zeros" because there was
+  no way to derive a day bucket from a time.
+- `0 + now` is **accepted** and yields a numeric epoch (astra M8), which is a coercion loophole
+  around the nominal-time rule that the feature docs never mention. The builder called this
+  "not obvious from the feature-level docs".
+
+So the language says time is nominal, then admits arithmetic through a side door, and gives the
+author no blessed way to do the one thing every app with a chart needs.
+
+## Proposed
+
+1. Decide the rule: either time supports a small blessed set of operations (difference in ms,
+   truncation to a UTC day/hour bucket, comparison with an offset) or it is nominal and `0 + now`
+   is refused too. Do not leave both.
+2. Document the rule on the Quarry guide's grammar page with the accepted and refused forms side
+   by side.
+3. If day bucketing is added, the Insights shape in the Clique brief (seven day buckets maintained
+   by the server) is the regression fixture.

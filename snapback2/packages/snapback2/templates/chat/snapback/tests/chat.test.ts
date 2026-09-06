@@ -456,14 +456,13 @@ journey("viewed photos render from the byte cache offline; a view-once photo and
       && typeof item.row.messageId === "string"
       ? [{ table: "messages", id: item.row.messageId }]
       : [],
-    viewOnce: (table, row) => table === "messages" && row.id === viewOnceId,
   });
   const owner = as("alice");
   try {
     const validJpeg = fixtureJpeg();
     const sent: Array<{ id: string; photo: ImageAsset }> = [];
     for (let index = 0; index < 3; index += 1) {
-      const result = await owner.mutation(api.messages.sendPhoto, {
+      const result = await owner.mutation(index === 2 ? api.messages.sendOncePhoto : api.messages.sendPhoto, {
         conversationId: "conversation-1",
         photo: {
           uri: `data:image/jpeg;base64,${base64(validJpeg)}`,
@@ -472,8 +471,9 @@ journey("viewed photos render from the byte cache offline; a view-once photo and
         },
       });
       if (result.state !== "committed") throw new Error(`photo ${index} send was ${result.state}`);
-      if (!result.data.photo) throw new Error(`photo ${index} record was absent`);
-      sent.push({ id: result.data.id, photo: result.data.photo });
+      const photo = result.data.photo;
+      if (!photo) throw new Error(`photo ${index} record was absent`);
+      sent.push({ id: result.data.id, photo });
     }
     viewOnceId = sent[2]!.id;
     const thread = alice.subscribe(api.messages.thread, { conversationId: "conversation-1", c: null }, () => undefined);

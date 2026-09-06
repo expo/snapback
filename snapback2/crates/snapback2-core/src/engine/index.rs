@@ -131,6 +131,35 @@ pub(super) fn scan_indexed(
     order: Order,
     limit: usize,
 ) -> Result<Vec<Value>, RuntimeError> {
+    let mut statement = prepare_scan_indexed(
+        connection, table_name, index_name, table, index, prefix, after, before, range, order,
+        limit,
+    )?;
+    let mut rows = statement.raw_query();
+    let mut values = Vec::new();
+    while let Some(row) = rows.next()? {
+        let data: String = row.get(0)?;
+        values.push(
+            serde_json::from_str(&data).map_err(|error| RuntimeError::Schema(error.to_string()))?,
+        );
+    }
+    Ok(values)
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(super) fn prepare_scan_indexed<'a>(
+    connection: &'a Connection,
+    table_name: &str,
+    index_name: &str,
+    table: &Table,
+    index: &Index,
+    prefix: &[Value],
+    after: Option<&Value>,
+    before: Option<&Value>,
+    range: Option<&EvaluatedRange>,
+    order: Order,
+    limit: usize,
+) -> Result<rusqlite::Statement<'a>, RuntimeError> {
     if prefix.len() > index.columns.len() {
         return Err(RuntimeError::Schema(format!(
             "scan {table_name}.{index_name} prefix has too many columns"
@@ -216,14 +245,10 @@ pub(super) fn scan_indexed(
          LIMIT {limit}"
     );
     let mut statement = connection.prepare(&sql)?;
-    let rows = statement.query_map(params_from_iter(parameters.iter()), |row| {
-        row.get::<_, String>(0)
-    })?;
-    rows.map(|row| {
-        let row = row?;
-        serde_json::from_str(&row).map_err(|error| RuntimeError::Schema(error.to_string()))
-    })
-    .collect()
+    for (i, value) in parameters.iter().enumerate() {
+        statement.raw_bind_parameter(i + 1, value)?;
+    }
+    Ok(statement)
 }
 
 fn push_index_bound(

@@ -92,7 +92,7 @@ function staticBoundInner(node: ts.Expression, env: Environment): number | undef
     if (typeof take === "number") return take;
   }
   if (call && ts.isIdentifier(call.expression) && call.expression.text === "mergeByIndex") {
-    return numericLiteral(call.arguments[3]);
+    return numericLiteral(call.arguments[1]);
   }
   if (call && ts.isIdentifier(call.expression) && call.expression.text === "mentionTokens") return 85;
   if (call && ts.isIdentifier(call.expression) && call.expression.text === "words") {

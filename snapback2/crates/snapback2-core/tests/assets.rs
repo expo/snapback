@@ -1,6 +1,8 @@
 use snapback2_core::*;
 use std::collections::{BTreeMap, VecDeque};
 
+#[path = "assets/once.rs"]
+mod once;
 #[path = "assets/reclaim.rs"]
 mod reclaim;
 #[path = "assets/release_clock.rs"]
@@ -184,7 +186,11 @@ fn assert_committed(execution: &Execution) {
 #[test]
 fn asset_ir_is_externally_tagged_and_assets_are_not_indexable() {
     assert_eq!(
-        serde_json::to_value(ColumnType::Image { max: 123 }).unwrap(),
+        serde_json::to_value(ColumnType::Image {
+            max: 123,
+            once: false
+        })
+        .unwrap(),
         serde_json::json!({"Image":{"max":123}})
     );
     assert_eq!(
@@ -192,7 +198,13 @@ fn asset_ir_is_externally_tagged_and_assets_are_not_indexable() {
         serde_json::json!({"Video":{"max":456}})
     );
 
-    let mut table = table_with("photo", ColumnType::Image { max: 1_000 });
+    let mut table = table_with(
+        "photo",
+        ColumnType::Image {
+            max: 1_000,
+            once: false,
+        },
+    );
     table.indexes.insert(
         "byPhoto".to_owned(),
         Index {
@@ -218,9 +230,15 @@ fn asset_ir_is_externally_tagged_and_assets_are_not_indexable() {
     );
 
     for kind in [
-        ColumnType::Optional(Box::new(ColumnType::Image { max: 1_000 })),
+        ColumnType::Optional(Box::new(ColumnType::Image {
+            max: 1_000,
+            once: false,
+        })),
         ColumnType::List {
-            of: Box::new(ColumnType::Image { max: 1_000 }),
+            of: Box::new(ColumnType::Image {
+                max: 1_000,
+                once: false,
+            }),
             max: 4,
         },
     ] {
@@ -344,7 +362,13 @@ fn asset_id_is_text_and_object_literal_reconstruction_is_refused_at_check() {
         BTreeMap::from([
             ("id".to_owned(), ColumnType::Id),
             ("assetId".to_owned(), ColumnType::Text { max: 80 }),
-            ("photo".to_owned(), ColumnType::Image { max: 1_000 }),
+            (
+                "photo".to_owned(),
+                ColumnType::Image {
+                    max: 1_000,
+                    once: false,
+                },
+            ),
         ]),
         BTreeMap::new(),
     ));
@@ -430,7 +454,13 @@ fn asset_id_is_text_and_object_literal_reconstruction_is_refused_at_check() {
 
 #[test]
 fn entry_validation_rejects_missing_foreign_forged_oversize_and_duplicate_assets() {
-    let table = table_with("photo", ColumnType::Image { max: 100 });
+    let table = table_with(
+        "photo",
+        ColumnType::Image {
+            max: 100,
+            once: false,
+        },
+    );
     let image_generation = generation(
         schema_with(table),
         vec![insert_program("photo", ArgType::Image { max: 100 })],
@@ -643,7 +673,13 @@ fn entry_validation_recurses_through_optional_lists() {
 #[test]
 fn column_asset_bound_is_enforced_after_a_wider_argument_bound_passes_entry() {
     let generation = generation(
-        schema_with(table_with("photo", ColumnType::Image { max: 50 })),
+        schema_with(table_with(
+            "photo",
+            ColumnType::Image {
+                max: 50,
+                once: false,
+            },
+        )),
         vec![insert_program("photo", ArgType::Image { max: 100 })],
     );
     let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
@@ -743,7 +779,13 @@ fn lifecycle_reconciler_preserves_same_cell_list_edits_and_refuses_reuse() {
 #[test]
 fn lifecycle_reconciler_releases_scalar_replacements_and_deletes() {
     let generation = generation(
-        schema_with(table_with("photo", ColumnType::Image { max: 1_000 })),
+        schema_with(table_with(
+            "photo",
+            ColumnType::Image {
+                max: 1_000,
+                once: false,
+            },
+        )),
         vec![
             insert_program("photo", ArgType::Image { max: 1_000 }),
             replace_program("photo", ArgType::Image { max: 1_000 }),
@@ -834,7 +876,10 @@ fn lifecycle_reconciler_releases_scalar_replacements_and_deletes() {
 fn delivery_uses_physical_id_with_no_index_and_after_by_id_is_dropped() {
     let schema = schema_with(table_without_indexes(
         "photo",
-        ColumnType::Image { max: 1_000 },
+        ColumnType::Image {
+            max: 1_000,
+            once: false,
+        },
     ));
     let first_generation = generation(
         schema,
@@ -860,7 +905,13 @@ fn delivery_uses_physical_id_with_no_index_and_after_by_id_is_dropped() {
     );
 
     let base = generation(
-        schema_with(table_with("photo", ColumnType::Image { max: 1_000 })),
+        schema_with(table_with(
+            "photo",
+            ColumnType::Image {
+                max: 1_000,
+                once: false,
+            },
+        )),
         vec![insert_program("photo", ArgType::Image { max: 1_000 })],
     );
     let mut runtime = Runtime::open(Store::memory().unwrap(), base).unwrap();
@@ -876,7 +927,10 @@ fn delivery_uses_physical_id_with_no_index_and_after_by_id_is_dropped() {
     let next = generation(
         schema_with(table_without_indexes(
             "photo",
-            ColumnType::Image { max: 1_000 },
+            ColumnType::Image {
+                max: 1_000,
+                once: false,
+            },
         )),
         Vec::new(),
     );
@@ -906,7 +960,13 @@ fn delivery_uses_locator_cell_and_certified_read_rule() {
         BTreeMap::from([
             ("id".to_owned(), ColumnType::Id),
             ("ownerId".to_owned(), ColumnType::Principal),
-            ("photo".to_owned(), ColumnType::Image { max: 1_000 }),
+            (
+                "photo".to_owned(),
+                ColumnType::Image {
+                    max: 1_000,
+                    once: false,
+                },
+            ),
         ]),
         BTreeMap::from([(
             "byId".to_owned(),
@@ -969,7 +1029,10 @@ fn delivery_uses_locator_cell_and_certified_read_rule() {
 
 #[test]
 fn optional_clear_and_list_shrink_release_removed_assets() {
-    let optional = ColumnType::Optional(Box::new(ColumnType::Image { max: 1_000 }));
+    let optional = ColumnType::Optional(Box::new(ColumnType::Image {
+        max: 1_000,
+        once: false,
+    }));
     let optional_arg = ArgType::Optional(Box::new(ArgType::Image { max: 1_000 }));
     let optional_generation = generation(
         schema_with(table_with("photo", optional)),
@@ -1066,7 +1129,13 @@ fn optional_clear_and_list_shrink_release_removed_assets() {
 #[test]
 fn table_drop_and_asset_type_change_release_locators() {
     let base = generation(
-        schema_with(table_with("photo", ColumnType::Image { max: 1_000 })),
+        schema_with(table_with(
+            "photo",
+            ColumnType::Image {
+                max: 1_000,
+                once: false,
+            },
+        )),
         vec![insert_program("photo", ArgType::Image { max: 1_000 })],
     );
     let mut runtime = Runtime::open(Store::memory().unwrap(), base).unwrap();
@@ -1103,7 +1172,13 @@ fn table_drop_and_asset_type_change_release_locators() {
     );
 
     let base = generation(
-        schema_with(table_with("photo", ColumnType::Image { max: 1_000 })),
+        schema_with(table_with(
+            "photo",
+            ColumnType::Image {
+                max: 1_000,
+                once: false,
+            },
+        )),
         vec![insert_program("photo", ArgType::Image { max: 1_000 })],
     );
     let mut runtime = Runtime::open(Store::memory().unwrap(), base).unwrap();
@@ -1129,7 +1204,10 @@ fn table_drop_and_asset_type_change_release_locators() {
                 drops: vec![Drop::TypeChange {
                     table: "media".to_owned(),
                     column: "photo".to_owned(),
-                    from: ColumnType::Image { max: 1_000 },
+                    from: ColumnType::Image {
+                        max: 1_000,
+                        once: false,
+                    },
                     to: ColumnType::Optional(Box::new(ColumnType::Text { max: 80 })),
                 }],
             },
@@ -1149,11 +1227,23 @@ fn table_drop_and_asset_type_change_release_locators() {
 
 #[test]
 fn asset_maintain_keys_and_seed_values_are_schema_refusals() {
-    let source = table_with("photo", ColumnType::Image { max: 100 });
+    let source = table_with(
+        "photo",
+        ColumnType::Image {
+            max: 100,
+            once: false,
+        },
+    );
     let target = public_table(
         BTreeMap::from([
             ("id".to_owned(), ColumnType::Id),
-            ("photo".to_owned(), ColumnType::Image { max: 100 }),
+            (
+                "photo".to_owned(),
+                ColumnType::Image {
+                    max: 100,
+                    once: false,
+                },
+            ),
             ("value".to_owned(), ColumnType::Int),
         ]),
         BTreeMap::from([(
@@ -1196,9 +1286,15 @@ fn asset_maintain_keys_and_seed_values_are_schema_refusals() {
     );
 
     for kind in [
-        ColumnType::Optional(Box::new(ColumnType::Image { max: 100 })),
+        ColumnType::Optional(Box::new(ColumnType::Image {
+            max: 100,
+            once: false,
+        })),
         ColumnType::List {
-            of: Box::new(ColumnType::Image { max: 100 }),
+            of: Box::new(ColumnType::Image {
+                max: 100,
+                once: false,
+            }),
             max: 4,
         },
     ] {
@@ -1266,7 +1362,10 @@ fn asset_maintain_keys_and_seed_values_are_schema_refusals() {
 
     let optional_source = table_with(
         "photo",
-        ColumnType::Optional(Box::new(ColumnType::Image { max: 100 })),
+        ColumnType::Optional(Box::new(ColumnType::Image {
+            max: 100,
+            once: false,
+        })),
     );
     let mut runtime = Runtime::open(
         Store::memory().unwrap(),
@@ -1299,7 +1398,10 @@ fn asset_maintain_keys_and_seed_values_are_schema_refusals() {
     let list_source = table_with(
         "photos",
         ColumnType::List {
-            of: Box::new(ColumnType::Image { max: 100 }),
+            of: Box::new(ColumnType::Image {
+                max: 100,
+                once: false,
+            }),
             max: 4,
         },
     );
@@ -1324,7 +1426,10 @@ fn asset_maintain_keys_and_seed_values_are_schema_refusals() {
 
     let mut engine = Engine::memory(schema_with(table_with(
         "photo",
-        ColumnType::Optional(Box::new(ColumnType::Image { max: 100 })),
+        ColumnType::Optional(Box::new(ColumnType::Image {
+            max: 100,
+            once: false,
+        })),
     )))
     .unwrap();
     assert_eq!(

@@ -205,11 +205,7 @@ pub(crate) fn expression(
             );
             if matches!(
                 builtin,
-                Builtin::Slice
-                    | Builtin::Sort { .. }
-                    | Builtin::DedupeById { .. }
-                    | Builtin::Concat
-                    | Builtin::Words
+                Builtin::Slice | Builtin::Sort { .. } | Builtin::Concat | Builtin::Words
             ) {
                 provenance.constructed_at = Some(iteration);
             }
@@ -228,6 +224,15 @@ pub(crate) fn expression(
             read.key
                 .iter()
                 .map(|argument| expression(argument, variables, iteration)),
+        ),
+        Expr::Merge(merge) => constructed(
+            merge.lanes.iter().flat_map(|lane| {
+                lane.source
+                    .iter()
+                    .chain(std::iter::once(&lane.scan))
+                    .map(|scan| expression(&Expr::Scan(scan.clone()), variables, iteration))
+            }),
+            iteration,
         ),
         Expr::Scan(scan) => {
             let mut inputs = Vec::new();
@@ -288,14 +293,10 @@ pub(crate) fn collection_price_from<T>(
 ) -> bool {
     match value {
         Expr::Variable(name) => variables.get(name).is_some_and(collection),
-        Expr::Array(_) | Expr::Object(_) | Expr::Get(_) | Expr::Scan(_) => true,
+        Expr::Array(_) | Expr::Object(_) | Expr::Get(_) | Expr::Scan(_) | Expr::Merge(_) => true,
         Expr::Builtin { builtin, .. } => matches!(
             builtin,
-            Builtin::Slice
-                | Builtin::Sort { .. }
-                | Builtin::DedupeById { .. }
-                | Builtin::Concat
-                | Builtin::Words
+            Builtin::Slice | Builtin::Sort { .. } | Builtin::Concat | Builtin::Words
         ),
         Expr::Literal(value) => matches!(value, Value::Array(_) | Value::Row(_) | Value::Map(_)),
         Expr::Field { .. }

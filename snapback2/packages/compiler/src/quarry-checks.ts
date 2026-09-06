@@ -293,6 +293,27 @@ query page(c: cursor ?):
       `shape context inference captured the caller argument type: ${JSON.stringify(inferredContext)}`);
   });
 
+  test("image once is column custody, carries through lowering, and video refuses with a range repair", async () => {
+    await withProject({ "snapback/schema.q": `table photos:
+  photo: image <=10000000 once ?
+  gallery: [image <=10000000 once] <=4
+  read <- public
+  insert <- allow
+`, "snapback/photos.q": `mutation put(photo: image <=10000000):
+  return insert photos { photo, gallery: [] }
+` }, async root => {
+      const result = await lowerProject(root);
+      assert(result.ok, JSON.stringify(result));
+      const table = (result.project.schema.tables as any).photos;
+      assert(table.columns.photo.Optional.Image.once === true, JSON.stringify(table));
+      assert(table.columns.gallery.List.of.Image.once === true, JSON.stringify(table));
+      assert(!("once" in (result.project.programs[0]!.args.photo as any).Image), "argument acquired column custody");
+      assert(rustCheck(result.project.programs, "synthetic", result.project.schema).every(item => !item.error), "once image did not certify");
+    });
+    const parsed = parseDocument("snapback/schema.q", "table photos:\n  clip: video <=10000000 once\n  read <- public\n");
+    assert(parsed.diagnostics.some(item => /ranges.*unspecified/.test(item.message) && /image.*once/.test(item.rewrite)), JSON.stringify(parsed));
+  });
+
   test("Quarry accepts word writes and refuses every write sigil with the word forms", () => {
     const sigils = ["+", "~", ["+", "~"].join(""), "-"];
     const forms = [

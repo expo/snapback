@@ -716,7 +716,7 @@ impl<'a> RetentionEstimator<'a> {
                             true,
                         )
                     }
-                    Builtin::Sort { .. } | Builtin::DedupeById { .. } => (first.0, first.1, true),
+                    Builtin::Sort { .. } => (first.0, first.1, true),
                     Builtin::Concat => {
                         let (flow, length) = flows.fold(
                             (first.0, first.1),
@@ -780,6 +780,32 @@ impl<'a> RetentionEstimator<'a> {
                 None,
                 false,
             ),
+            Expr::Merge(merge) => {
+                // @ref LLP 1001#3-read-and-write-states-no-silent-states — the
+                // receipt keeps all stepped heads/lookahead plus discovery's page/halo.
+                let flow = Flow::row(
+                    &merge.site,
+                    merge.table(),
+                    declared_serialized_row_max(self.schema, merge.table()),
+                    merge
+                        .max_lanes()
+                        .saturating_add(merge.take())
+                        .saturating_add(2),
+                );
+                let flow = merge
+                    .lanes
+                    .iter()
+                    .filter_map(|lane| lane.source.as_ref())
+                    .fold(flow, |flow, source| {
+                        flow.add(Flow::row(
+                            &source.site,
+                            &source.table,
+                            declared_serialized_row_max(self.schema, &source.table),
+                            source.take.maximum().saturating_add(1),
+                        ))
+                    });
+                (flow, Some(merge.take()), true)
+            }
             Expr::Scan(scan) => {
                 let count = scan.take.maximum();
                 (self.scan(scan), Some(count), false)
@@ -869,10 +895,7 @@ impl<'a> RetentionEstimator<'a> {
                 .and_then(|binding| binding.table.clone()),
             Expr::Get(read) => Some(read.table.clone()),
             Expr::Scan(scan) => Some(scan.table.clone()),
-            Expr::Builtin {
-                builtin: Builtin::DedupeById { table, .. },
-                ..
-            } => Some(table.clone()),
+            Expr::Merge(merge) => Some(merge.table().to_owned()),
             Expr::Builtin {
                 builtin: Builtin::Slice | Builtin::Sort { .. },
                 args,

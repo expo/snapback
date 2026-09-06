@@ -6,7 +6,13 @@ fn delivery_refuses_when_the_located_cell_no_longer_contains_the_asset_id() {
     let table = public_table(
         BTreeMap::from([
             ("id".to_owned(), ColumnType::Id),
-            ("photo".to_owned(), ColumnType::Image { max: 1_000 }),
+            (
+                "photo".to_owned(),
+                ColumnType::Image {
+                    max: 1_000,
+                    once: false,
+                },
+            ),
         ]),
         BTreeMap::new(),
     );

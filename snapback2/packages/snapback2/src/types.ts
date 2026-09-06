@@ -1,11 +1,11 @@
 import type { AssetFetchOptions } from "./store/byte-cache.js";
 import type { Channel as ChannelRef, Op } from "./api.js";
-import type { AssetCache, ByteCacheEntry, ByteCacheStatus, ViewOncePredicate } from "./store/byte-cache.js";
+import type { AssetCache, ByteCacheEntry, ByteCacheStatus } from "./store/byte-cache.js";
 import type { OutboxEntry, RangeStoreFactory, RowRef, StoredRow } from "./store/range-store.js";
 
 export type { OutboxEntry, OutboxGrant, OutboxState, OutboxTrace } from "./store/range-store.js";
 
-export type { AssetCache, ByteCacheEntry, ByteCacheStatus, ViewOncePredicate };
+export type { AssetCache, ByteCacheEntry, ByteCacheStatus };
 
 // @ref LLP 1006#1-the-move — the phantom kind keeps the two closed asset records
 // nominal; these must stay identical to the package-root declarations the
@@ -264,12 +264,6 @@ export interface OfflineClientOptions {
   /** Ceiling on cached asset bytes per partition, LRU by each rendition's own last read; default 256 MiB. */
   maxAssetBytes?: number;
   onTombstone?: (row: StoredRow) => RowRef[];
-  /**
-   * Names the rows whose media renders once: a viewed row is excluded from every
-   * later offline answer and its bytes are never cached (LLP 1012 §9). This stands
-   * in for LLP 1006's one-use delivery until that lands on the server.
-   */
-  viewOnce?: ViewOncePredicate;
 }
 
 /** A client has exactly one authority source: a dev persona or bearer custody. */

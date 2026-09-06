@@ -12,6 +12,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use thiserror::Error;
 
 mod diagnostic;
+mod merge;
 mod output;
 mod page;
 use diagnostic::{Cost, WorkTerms};
@@ -103,6 +104,10 @@ pub struct MergeSite {
     pub site: String,
     pub lane_sites: Vec<String>,
     pub take: u64,
+    #[serde(default)]
+    pub max_lanes: u64,
+    #[serde(default)]
+    pub uniform: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -134,6 +139,9 @@ pub struct ReadSite {
     pub rule_probes_per_candidate: u64,
     /// True only when the read rule is certified uniform over the scan prefix.
     pub hoist: bool,
+    /// The scan prefix proves the entire read rule true without a rule probe.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub decided_true: bool,
     #[serde(default)]
     pub complete: bool,
 }
@@ -364,25 +372,22 @@ impl<'a> Checker<'a> {
         let max_output_bytes = output.bytes;
         let mut closure = RetentionEstimator::estimate(self.schema, program);
         for child in &mut closure.children {
+            if let Some(merge) = analyzer
+                .merge_sites
+                .values()
+                .find(|merge| child.label.contains(&format!(" at {}:", merge.site)))
+            {
+                child.label = format!(
+                    "merge {}: emitted page + heads + lookahead; {}",
+                    merge.site, child.label
+                );
+            }
             for read in summary.reads.values() {
                 if child.label.contains(&format!(" at {}:", read.site)) {
-                    let merge = analyzer
-                        .merge_sites
-                        .values()
-                        .find(|m| m.lane_sites.contains(&read.site));
-                    let source = merge
-                        .map(|m| {
-                            format!(
-                                "merge {}: {} lanes × {} rows",
-                                m.site, read.max_calls, read.take
-                            )
-                        })
-                        .unwrap_or_else(|| {
-                            format!(
-                                "{} take {} × {} calls",
-                                read.site, read.take, read.max_calls
-                            )
-                        });
+                    let source = format!(
+                        "{} take {} × {} calls",
+                        read.site, read.take, read.max_calls
+                    );
                     child.label = format!("{source}; {}", child.label);
                     break;
                 }
@@ -716,6 +721,7 @@ impl Summary {
                         .rule_probes_per_candidate
                         .max(site.rule_probes_per_candidate);
                     existing.hoist &= site.hoist;
+                    existing.decided_true &= site.decided_true;
                 })
                 .or_insert(site);
         }
@@ -749,6 +755,7 @@ impl Summary {
                         .rule_probes_per_candidate
                         .max(site.rule_probes_per_candidate);
                     existing.hoist &= site.hoist;
+                    existing.decided_true &= site.decided_true;
                 })
                 .or_insert(site);
         }
@@ -977,6 +984,9 @@ impl<'a> Analyzer<'a> {
             Expr::Exists(read) => {
                 summary = summary.add(self.read(read, calls, factors)?);
             }
+            Expr::Merge(merge) => {
+                summary = summary.add(self.merge(merge, calls, factors)?);
+            }
             Expr::Scan(scan) => {
                 summary = summary.add(self.scan(scan, calls, factors)?);
             }
@@ -1010,6 +1020,7 @@ impl<'a> Analyzer<'a> {
                 max_calls: calls,
                 rule_probes_per_candidate: self.table_read_rule_probe_bound(&read.table),
                 hoist: false,
+                decided_true: false,
                 complete: false,
             },
         );
@@ -1034,6 +1045,16 @@ impl<'a> Analyzer<'a> {
         scan: &Scan,
         calls: u64,
         factors: &[(String, u64)],
+    ) -> Result<Summary, CheckError> {
+        self.scan_reserve(scan, calls, factors, scan.take.maximum().saturating_add(2))
+    }
+
+    fn scan_reserve(
+        &mut self,
+        scan: &Scan,
+        calls: u64,
+        factors: &[(String, u64)],
+        reserve: u64,
     ) -> Result<Summary, CheckError> {
         // @ref LLP 1001#2-what-a-commit-records — a read nested in a scan's
         // key or bounds is still a certified read site with its own budget.
@@ -1061,9 +1082,13 @@ impl<'a> Analyzer<'a> {
             }
         }
         let take = scan.take.maximum();
-        let reserve = take.saturating_add(2);
-        let hoist = crate::certificate_policy::uniform_visibility(self.schema, scan);
-        let probe_bound = self.table_read_rule_probe_bound(&scan.table);
+        let visibility = crate::certificate_policy::scan_visibility(self.schema, scan);
+        let hoist = visibility.uniform;
+        let probe_bound = if visibility.decided_true {
+            0
+        } else {
+            self.table_read_rule_probe_bound(&scan.table)
+        };
         let rule_probes = if probe_bound > 0 {
             if hoist {
                 calls.saturating_mul(probe_bound)
@@ -1084,6 +1109,7 @@ impl<'a> Analyzer<'a> {
                 max_calls: calls,
                 rule_probes_per_candidate: probe_bound,
                 hoist,
+                decided_true: visibility.decided_true,
                 complete: false,
             },
         );
@@ -1095,6 +1121,8 @@ impl<'a> Analyzer<'a> {
                     site: merge_site.clone(),
                     lane_sites: Vec::new(),
                     take,
+                    max_lanes: 0,
+                    uniform: false,
                 });
             if !site.lane_sites.contains(&scan.site) {
                 site.lane_sites.push(scan.site.clone());
@@ -1113,7 +1141,11 @@ impl<'a> Analyzer<'a> {
         if !hoist {
             self.completeness = Completeness::Capped;
         }
-        summary.costs.scan(Cost::range(scan, calls, factors));
+        if reserve != 1 || scan.merge_site.is_none() {
+            summary
+                .costs
+                .scan(Cost::range(scan, calls, factors, reserve));
+        }
         summary.costs.probes(
             &scan.site,
             if hoist { calls } else { scan_examined },

@@ -104,7 +104,7 @@ declare module "snapback2" {
     principal(): Column<Principal>;
     text(max: number): Column<string>;
     bytes(max: number): Column<Bytes>;
-    image(max: number): Column<ImageAsset>;
+    image(max: number, options?: { once: true }): Column<ImageAsset>;
     video(max: number): Column<VideoAsset>;
     int(): Column<number>;
     bool(): Column<boolean>;
@@ -178,6 +178,6 @@ declare module "snapback2" {
   /** Euclidean quotient and remainder; a zero divisor refuses with `E_DIV_ZERO`. */
   export function divmod<A extends number>(value: A, divisor: number): { quotient: A extends Decimal<any> ? A : number; remainder: A extends Decimal<any> ? A : number };
   /** Internal Quarry lowering helper for a bounded multi-prefix merge. */
-  export function mergeByIndex<T>(values: T[], fields: string[], order: "asc" | "desc", take: number, site: string, table: string): Page<T>;
+  export function mergeByIndex<T>(lanes: { rows?: any[]; lane: (row: any) => T[] }[], take: number, site: string): Page<T>;
   export function recurse<T>(seed: unknown, step: (value: any) => T | null, options: { depth: number; fanout: number }): T[];
 }

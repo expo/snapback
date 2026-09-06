@@ -96,7 +96,7 @@ impl ClientStore {
         certificate: &Certificate,
         context: Context,
     ) -> Result<(LocalState, Execution), RuntimeError> {
-        let execution = self.engine.execute(program, certificate, context)?;
+        let mut execution = self.engine.execute(program, certificate, context)?;
         let mut partial = BTreeSet::new();
         if let crate::engine::ExecutionState::Partial { reason } = &execution.state {
             partial.insert(reason.clone());
@@ -140,6 +140,7 @@ impl ClientStore {
         let state = if partial.is_empty() {
             LocalState::Fresh
         } else {
+            execution.next = None;
             LocalState::Partial(partial.into_iter().collect())
         };
         Ok((state, execution))

@@ -69,7 +69,18 @@ function collectionElementOriginsInner(node: ts.Expression, env: Environment): P
   }
   if (call && ts.isIdentifier(call.expression) && call.expression.text === "mergeByIndex") {
     const rows = call.arguments[0];
-    return rows ? collectionElementOrigins(rows, env) : undefined;
+    if (!rows || !ts.isArrayLiteralExpression(rows)) return undefined;
+    // Certification requires every lane to return a scan of the same table/index.
+    // A collection element's row fields therefore have the same origin shape in
+    // every descriptor; prefixes and discovery bindings cannot change those fields.
+    const lane = rows.elements[0];
+    if (!lane || !ts.isObjectLiteralExpression(lane)) return undefined;
+    const callback = lane.properties.find((p) => ts.isPropertyAssignment(p) && propertyName(p.name) === "lane");
+    if (!callback || !ts.isPropertyAssignment(callback) || !ts.isArrowFunction(callback.initializer)) return undefined;
+    const body = callback.initializer.body;
+    const returned = ts.isBlock(body) ? body.statements.at(-1) : undefined;
+    const expression = ts.isBlock(body) ? returned && ts.isReturnStatement(returned) && returned.expression : body;
+    return expression ? collectionElementOrigins(expression, env) : undefined;
   }
   if (call && ts.isIdentifier(call.expression) && ["mentionTokens", "words"].includes(call.expression.text)) {
     return [{ binding: { provenance: "Computed" } }];

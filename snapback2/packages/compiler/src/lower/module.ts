@@ -1,6 +1,7 @@
 import ts from "typescript";
 import type { TableInfo } from "../authored-types";
 import type { FunctionLike, LowerSourceOptions } from "../compiler";
+import type { Expr } from "../ir";
 import { snapbackCallName, stringArgument, unwrapCall } from "../syntax";
 
 export type ModuleInfo = {
@@ -11,6 +12,7 @@ export type ModuleInfo = {
   tables: Map<string, TableInfo>;
   effects: Map<string, string>;
   helpers: Map<string, FunctionLike>;
+  loweredScanPrefixes: Map<ts.CallExpression, Expr[][]>;
 };
 
 export function inspectModule(
@@ -56,5 +58,5 @@ export function inspectModule(
       }
     }
   }
-  return { sourceFile, source, fileName, tables, effects, helpers, sourceSites: options.sourceSites };
+  return { sourceFile, source, fileName, tables, effects, helpers, sourceSites: options.sourceSites, loweredScanPrefixes: new Map() };
 }

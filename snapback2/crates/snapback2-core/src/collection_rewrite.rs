@@ -265,6 +265,12 @@ impl OutputEstimator<'_> {
                 ),
             ),
             Expr::Get(read) => self.row_shape(&read.table),
+            Expr::Merge(merge) => ByteShape::repeated(
+                self.expression(expr, vars),
+                format!("merge {}: emitted page", merge.site),
+                merge.take(),
+                row_shape(self.schema, merge.table()),
+            ),
             Expr::Scan(scan) => ByteShape::repeated(
                 bytes,
                 scan_label(scan),
@@ -291,7 +297,7 @@ impl OutputEstimator<'_> {
                     .collect(),
             ),
             Expr::Builtin {
-                builtin: Builtin::Slice | Builtin::Sort { .. } | Builtin::DedupeById { .. },
+                builtin: Builtin::Slice | Builtin::Sort { .. },
                 args,
             } => {
                 let source = args

@@ -1,6 +1,6 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api, isSnapbackRefusal } from "snapback2/client";
-import { useMutation, useOutbox, useQuery } from "snapback2/react";
+import { AssetImage, useMutation, useOutbox, useQuery } from "snapback2/react";
 import { Composer } from "./Composer";
 import { intentLabel, settledByRows, threadBubbles, type Bubble, type LogRow } from "../shared/log.js";
 
@@ -21,6 +21,7 @@ function BubbleView({ bubble, viewer, onDismiss, onEdit, onUnsend }: {
   onEdit(messageId: string, body: string): void;
   onUnsend(messageId: string): void;
 }) {
+  const [opened, setOpened] = useState(false);
   if (bubble.kind === "pending") {
     const settled = bubble.entry.state !== "queued";
     return (
@@ -36,6 +37,9 @@ function BubbleView({ bubble, viewer, onDismiss, onEdit, onUnsend }: {
   return (
     <li data-message={bubble.key} data-state="row" className={own ? "bubble own" : "bubble"}>
       <p>{body || (bubble.message.photo ? "[photo]" : bubble.message.clip ? "[clip]" : "")}</p>
+      {bubble.message.oncePhoto ? opened
+        ? <AssetImage asset={bubble.message.oncePhoto} width={240} />
+        : <button type="button" onClick={() => setOpened(true)}>View photo once</button> : null}
       <time dateTime={new Date(bubble.at).toISOString()}>{when(bubble.at)}</time>
       {bubble.edit ? (
         <small data-edit={bubble.edit.state}>

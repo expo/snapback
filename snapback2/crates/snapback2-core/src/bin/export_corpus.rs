@@ -16,6 +16,8 @@ mod cap_cases;
 mod client_scenarios;
 #[path = "export_corpus/constraints.rs"]
 mod export_corpus_constraints;
+#[path = "export_corpus/enriched_pages.rs"]
+mod enriched_pages;
 #[path = "export_corpus/merge_cases.rs"]
 mod merge_cases;
 #[path = "export_corpus/twin_cases.rs"]
@@ -125,6 +127,7 @@ fn main() {
     add_value_edges(&mut cases);
     add_time_arithmetic_case(&mut cases);
     visibility_cases::add_visibility_cases(&mut cases);
+    enriched_pages::add_enriched_page_case(&mut cases);
     cap_cases::add_cap_cases(&mut cases);
     bytes_cases::add_bytes_cases(&mut cases);
     asset_cases::add_asset_cases(&mut cases);
@@ -145,6 +148,11 @@ fn main() {
     for case in &cases {
         let path = output.join(format!("{}.json", case.name));
         let encoded = serde_json::to_string_pretty(case).expect("serialize corpus case");
+        let encoded = if encoded.lines().count() > 1500 {
+            serde_json::to_string(case).expect("serialize compact corpus case")
+        } else {
+            encoded
+        };
         fs::write(path, format!("{encoded}\n")).expect("write corpus case");
     }
     let manifest = serde_json::to_string(&cases).expect("serialize corpus manifest");

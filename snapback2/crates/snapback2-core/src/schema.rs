@@ -66,27 +66,6 @@ impl Schema {
             key,
         )
     }
-
-    /// Proves that every row in an indexed prefix receives the same read
-    /// verdict. Every row field consulted by the rule, including fields used
-    /// to form an indexed rule probe, must be fixed by that prefix.
-    pub fn read_is_uniform_for_prefix(
-        &self,
-        table_name: &str,
-        index_name: &str,
-        prefix_len: usize,
-    ) -> bool {
-        let Some(table) = self.table(table_name) else {
-            return false;
-        };
-        let Some(index) = table.index(index_name) else {
-            return false;
-        };
-        let pinned: BTreeSet<_> = index.columns.iter().take(prefix_len).cloned().collect();
-        let mut used = BTreeSet::new();
-        table.rules.read.row_fields(&mut used);
-        used.is_subset(&pinned)
-    }
 }
 
 fn prove_probe_row_readable(
@@ -171,26 +150,58 @@ pub enum ColumnType {
     Id,
     // @ref LLP 1001#6-identity-identityrs — Schema principals stay nominal while v1 encodes them as Value::Id.
     Principal,
-    Text { max: u32 },
+    Text {
+        max: u32,
+    },
     // @ref LLP 1001#9-schema-additions — bytes use the value model's canonical lowercase-base16 wrapper.
-    Bytes { max: u32 },
+    Bytes {
+        max: u32,
+    },
     // @ref LLP 1006#1-the-move — assets are closed map values; the bound is stored bytes, not record size.
-    Image { max: u32 },
-    Video { max: u32 },
+    Image {
+        max: u32,
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        once: bool,
+    },
+    Video {
+        max: u32,
+    },
     Int,
     // @ref LLP 1001#9-schema-additions — enum and fixed-scale columns keep scalar storage keys.
-    Enum { variants: Vec<String> },
-    Decimal { scale: u8 },
-    Money { currency: String, scale: u8 },
+    Enum {
+        variants: Vec<String>,
+    },
+    Decimal {
+        scale: u8,
+    },
+    Money {
+        currency: String,
+        scale: u8,
+    },
     Bool,
     Time,
-    Ref { table: String },
-    Json { max_bytes: u32 },
+    Ref {
+        table: String,
+    },
+    Json {
+        max_bytes: u32,
+    },
     Optional(Box<ColumnType>),
-    List { of: Box<ColumnType>, max: u32 },
+    List {
+        of: Box<ColumnType>,
+        max: u32,
+    },
 }
 
 impl ColumnType {
+    pub fn is_once(&self) -> bool {
+        match self {
+            Self::Image { once, .. } => *once,
+            Self::Optional(inner) | Self::List { of: inner, .. } => inner.is_once(),
+            _ => false,
+        }
+    }
+
     // @ref LLP 1006#1-the-move — asset records and lists are deliberately outside scalar index custody.
     pub(crate) fn is_indexable(&self) -> bool {
         match self {
@@ -216,7 +227,8 @@ impl fmt::Display for ColumnType {
             Self::Principal => formatter.write_str("Principal"),
             Self::Text { max } => write!(formatter, "Text(max={max})"),
             Self::Bytes { max } => write!(formatter, "Bytes(max={max})"),
-            Self::Image { max } => write!(formatter, "Image(max={max})"),
+            Self::Image { max, once: false } => write!(formatter, "Image(max={max})"),
+            Self::Image { max, once: true } => write!(formatter, "Image(max={max}, once)"),
             Self::Video { max } => write!(formatter, "Video(max={max})"),
             Self::Int => formatter.write_str("Int"),
             Self::Enum { variants } => write!(formatter, "Enum({})", variants.join("|")),
@@ -302,44 +314,6 @@ impl RuleExpr {
     }
     pub fn is_uniformly_readable(&self) -> bool {
         matches!(self, Self::Public { .. } | Self::Allow)
-    }
-
-    fn row_fields(&self, out: &mut BTreeSet<String>) {
-        match self {
-            Self::Eq(a, b) | Self::Ne(a, b) => {
-                for term in [a, b] {
-                    match term {
-                        RuleTerm::Field(name) => {
-                            out.insert(name.clone());
-                        }
-                        RuleTerm::OldField(name) | RuleTerm::NextField(name) => {
-                            out.insert(format!("\0invalid-update-field:{name}"));
-                        }
-                        RuleTerm::Viewer | RuleTerm::Literal(_) => {}
-                    }
-                }
-            }
-            Self::Exists { key, .. } | Self::Created { key, .. } => {
-                for term in key {
-                    match term {
-                        RuleTerm::Field(name) => {
-                            out.insert(name.clone());
-                        }
-                        RuleTerm::OldField(name) | RuleTerm::NextField(name) => {
-                            out.insert(format!("\0invalid-update-field:{name}"));
-                        }
-                        RuleTerm::Viewer | RuleTerm::Literal(_) => {}
-                    }
-                }
-            }
-            Self::And(rules) | Self::Or(rules) => {
-                for rule in rules {
-                    rule.row_fields(out);
-                }
-            }
-            Self::Not(rule) => rule.row_fields(out),
-            Self::Public { .. } | Self::Allow | Self::Deny => {}
-        }
     }
 }
 

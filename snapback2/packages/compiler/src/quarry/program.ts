@@ -722,46 +722,29 @@ function emitMerge(expr: MergeExpr, env: Environment, writer: Writer): Emitted {
     );
   });
   const mergeSite = `${expr.site.file}:${expr.site.line}:${expr.site.col}`;
-  const union = temporary("mergeUnion", expr.site);
-  writer.statement(`const ${union}: Array<(typeof ${expr.table})["__row"]> = [];`, expr.site);
+  const lanes: string[] = [];
   for (const lane of expr.lanes) {
-    const emitLane = (nested: Environment): void => {
-      const scan = emitRead({
-        kind: "read",
-        table: expr.table,
-        keys: lane.prefix.map((value) => ({ value, site: value.site })),
-        index: expr.index,
-        range: {
-          order: expr.order,
-          take: expr.take,
-          cursor: expr.cursor,
-          cursorKind: expr.cursorKind,
-          mergeSite,
-          site: lane.site,
-        },
-        site: lane.site,
-      }, nested, writer);
-      const row = temporary("mergeRow", lane.site);
-      writer.raw(`for (const ${row} of ${scan.code}) {`, lane.site);
-      writer.nested(() => writer.statement(`${union}.push(${row});`, lane.site));
-      writer.statement("}", lane.site);
-    };
-    if (!lane.loop) {
-      emitLane(env);
-      continue;
-    }
-    const domain = emitRead(lane.loop.domain, env, writer);
-    writer.raw(`for (const ${lane.loop.name} of ${domain.code}) {`, lane.site);
-    writer.nested(() => {
-      const nested = env.clone();
-      nested.bindings.set(lane.loop!.name, { code: lane.loop!.name, type: { kind: "row", table: lane.loop!.domain.table, nullable: false } });
-      emitLane(nested);
+    const nested = env.clone();
+    const domain = lane.loop && emitRead(lane.loop.domain, env, writer);
+    if (lane.loop) nested.bindings.set(lane.loop.name, {
+      code: lane.loop.name, type: { kind: "row", table: lane.loop.domain.table, nullable: false },
     });
-    writer.statement("}", lane.site);
+    const localWriter = new Writer(lane.site);
+    const scan = emitRead({
+      kind: "read", table: expr.table,
+      keys: lane.prefix.map((value) => ({ value, site: value.site })),
+      index: expr.index,
+      range: { order: expr.order, take: expr.take, cursor: expr.cursor,
+        cursorKind: expr.cursorKind, mergeSite, site: lane.site },
+      site: lane.site,
+    }, nested, localWriter);
+    lanes.push(`{ ${domain ? `rows: ${domain.code}, ` : ""}lane: (${lane.loop?.name ?? ""}) => ${localWriter.lines.length ? `{
+${localWriter.lines.join("\n")}
+return ${scan.code};
+}` : scan.code} }`);
   }
-  const suffix = index.columns.slice(width);
   return {
-    code: `mergeByIndex(${union}, ${JSON.stringify(suffix)}, ${JSON.stringify(expr.order)}, ${expr.take}, ${JSON.stringify(mergeSite)}, ${JSON.stringify(expr.table)})`,
+    code: `mergeByIndex([${lanes.join(", ")}], ${expr.take}, ${JSON.stringify(mergeSite)})`,
     type: { kind: "page", table: expr.table },
   };
 }

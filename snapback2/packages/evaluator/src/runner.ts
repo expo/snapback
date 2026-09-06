@@ -1,3 +1,4 @@
+import { mergeRemainder, mergeStreams } from "./merge";
 import coreIrContract from "../../../crates/snapback2-core/ir-contract.json" with { type: "json" };
 import { EvalError, requireRowIdentity } from "./errors";
 import { cursorSuffix, decodeCursorFor, encodeCursor } from "./cursor";
@@ -88,7 +89,7 @@ export class Runner {
     return {
       result: this.partial.size === 0 && flow.kind === "return" ? flow.value : "Null",
       trace: this.trace,
-      next: mintNext(this.schema, this.certificate, this.trace),
+      next: mintNext(this.context.viewer, this.certificate, this.trace),
       writes: [...this.writes.values()],
     };
   }
@@ -102,8 +103,15 @@ export class Runner {
     return { maintainTargets: [...this.unheldMaintainTargets], other: this.authorityMissSerial - this.unheldMaintainTargets.length };
   }
 
+  private step(): void {
+    this.trace.steps = (this.trace.steps ?? 0) + 1;
+    if (this.certificate && this.trace.steps > this.certificate.max_steps)
+      throw new EvalError("E_STEPS", "certified step budget exceeded");
+  }
+
   private statements(statements: any[]): Flow {
     for (const statement of statements) {
+      this.step();
       const [kind, data] = variant(statement);
       let flow: Flow = NEXT;
       switch (kind) {
@@ -244,6 +252,7 @@ export class Runner {
   }
 
   private expr(expression: any): Value {
+    this.step();
     const [kind, data] = variant(expression);
     switch (kind) {
       case "Literal":
@@ -283,6 +292,8 @@ export class Runner {
         return { Bool: this.get(data) !== "Null" };
       case "Scan":
         return this.scan(data);
+      case "Merge":
+        return this.merge(data);
       default:
         throw new EvalError("E_OPAQUE", `unsupported expression ${kind}`);
     }
@@ -415,27 +426,6 @@ export class Runner {
           }),
         };
       }
-      case "DedupeById": {
-        const seen = new Set<string>();
-        const values: Value[] = [];
-        for (const value of asArray(args[0])) {
-          const id = asString(field(value, "id"));
-          if (!seen.has(id)) {
-            seen.add(id);
-            values.push(value);
-          }
-        }
-        const page = this.certificate?.result_page_site;
-        const take = this.certificate?.merge_sites?.find((entry: any) => entry.site === data.site)?.take;
-        const row = page?.merge && page.site === data.site && Number.isInteger(take)
-          ? values.slice(0, take).at(-1) : undefined;
-        this.trace.merges.push({
-          site: data.site,
-          deduplicated_union_len: values.length,
-          last_returned_suffix: row === undefined ? null : page.suffix.map((column: any) => clone(field(row, column.name))),
-        });
-        return { Array: values };
-      }
       case "Words": return { Array: words(asString(args[0])).map((word) => ({ String: word })) };
       case "MentionTokens": {
         const seen = new Set<string>();
@@ -488,6 +478,7 @@ export class Runner {
   private get(read: any): Value {
     const key = read.key.map((value: any) => this.expr(value));
     const found = this.store.lookup(read.table, read.index, key);
+    if (found !== null) this.trace.examined = (this.trace.examined ?? 0) + 1;
     const disclosed = found !== null && this.checkRule(read.table, "read", null, found);
     // @ref LLP 1012#7-writes-offline — the point digest is what the program
     // observed: the wire row when disclosed, an absence when missing or hidden.
@@ -512,7 +503,7 @@ export class Runner {
     return disclosed ? clone(found) : "Null";
   }
 
-  private scan(scan: any): Value {
+  private scanInput(scan: any): any {
     const prefix = scan.prefix.map((value: any) => this.expr(value));
     let after = scan.after === null ? null : this.expr(scan.after);
     const before = scan.before === null ? null : this.expr(scan.before);
@@ -531,6 +522,11 @@ export class Runner {
         : asInt(this.context.args[boundData.name] ?? this.requiredEnv(boundData.name));
     if (!Number.isInteger(take) || take < 0 || (boundKind === "Arg" && take > boundData.max))
       throw new EvalError("E_FANOUT", "scan take exceeded");
+    return { prefix, after, before, evaluatedRange, take };
+  }
+
+  private scan(scan: any): Value {
+    const { prefix, after, before, evaluatedRange, take } = this.scanInput(scan);
     const examined = this.store.scan(
       scan.table,
       scan.index,
@@ -541,10 +537,12 @@ export class Runner {
       scan.order,
       take + 2,
     );
+    this.trace.examined = (this.trace.examined ?? 0) + examined.length;
     const stop = examined.length > take ? "limit" : "exhausted";
-    const visible = examined.filter((row) =>
-      this.checkRule(scan.table, "read", null, row)
-    );
+    // The proof belongs to this scan; point reads still evaluate their row policy.
+    const readSite = this.certificate?.read_sites?.find((site: any) => site.site === scan.site);
+    const decidedTrue = readSite?.hoist === true && readSite.decided_true === true;
+    const visible = examined.filter((row) => decidedTrue || this.checkRule(scan.table, "read", null, row));
     const returned = visible.slice(0, take);
     const suffix = cursorSuffix(this.schema, scan);
     this.trace.ranges.push({
@@ -567,6 +565,88 @@ export class Runner {
         : suffix.map((column) => clone(field(returned[returned.length - 1]!, column.name))),
     });
     return { Array: returned.map(clone) };
+  }
+
+  private merge(merge: any): Value {
+    const certificate = this.certificate;
+    if (!certificate) throw new EvalError("E_TRACE_SUBSET", `merge ${merge.site} requires a certificate; check the program before local execution`);
+    const lanes: any[] = [];
+    const prefixes = new Set<string>();
+    for (const lane of merge.lanes) {
+      const source = lane.source ? asArray(this.scan(lane.source)) : ["Null" as Value];
+      const previous = this.env.get(lane.binding);
+      for (const row of source) {
+        if (lane.source) this.env.set(lane.binding, row);
+        const env = lane.setup?.length ? new Map(this.env) : null;
+        const consts = lane.setup?.length ? new Set(this.consts) : null;
+        this.statements(lane.setup ?? []);
+        const input = this.scanInput(lane.scan);
+        if (env) { this.env.clear(); for (const [key, value] of env) this.env.set(key, value); }
+        if (consts) { this.consts.clear(); for (const key of consts) this.consts.add(key); }
+        const r = input.evaluatedRange;
+        const key = canonicalJson([input.prefix, input.after, input.before,
+          r ? [r.gt, r.gte, r.lt, r.lte] : null]);
+        if (prefixes.has(key)) continue;
+        prefixes.add(key);
+        const read = certificate.read_sites.find((s: any) => s.site === lane.scan.site);
+        if (!read) throw new EvalError("E_TRACE_SUBSET", `undeclared merge lane ${lane.scan.site}`);
+        const table = this.schema.tables[lane.scan.table];
+        const publicRule = this.context.viewer === coreIrContract.systemPrincipalId
+          || ["Allow", "Public"].includes(variant(table.rules.read)[0]);
+        const values = this.store.scan(lane.scan.table, lane.scan.index, input.prefix, input.after,
+          input.before, input.evaluatedRange, lane.scan.order, certificate.max_examined);
+        lanes.push({ scan: lane.scan, input, values: values[Symbol.iterator](), read,
+          uniform: read.hoist || publicRule, allowed: publicRule ? true : undefined,
+          exhausted: false, visible: [], returned: [] });
+      }
+      if (previous !== undefined) this.env.set(lane.binding, previous); else this.env.delete(lane.binding);
+    }
+    const first = merge.lanes[0].scan;
+    // The first distinct lane evaluates the shared bound; certification prices
+    // the first static lane's maximum, also used when discovery opens no lanes.
+    const take = lanes[0]?.input.take ?? first.take.Literal ?? first.take.Arg.max;
+    const step = (): void => this.step();
+    const next = lanes.map((lane) => (): Value | null => {
+      while (!lane.exhausted && (this.trace.examined ?? 0) < certificate.max_examined) {
+        if (lane.allowed === undefined && certificate.max_rule_probes - (this.trace.rule_probes ?? 0)
+          < (lane.read.rule_probes_per_candidate ?? 0)) return null;
+        step();
+        const next = lane.values.next();
+        if (next.done) { lane.exhausted = true; return null; }
+        this.trace.examined = (this.trace.examined ?? 0) + 1;
+        const row = next.value;
+        const allowed = lane.allowed ?? this.checkRule(lane.scan.table, "read", null, row);
+        if (lane.uniform) lane.allowed = allowed;
+        if (!allowed) {
+          if (lane.uniform) { lane.exhausted = true; return null; }
+          continue;
+        }
+        lane.visible.push(row);
+        return row;
+      }
+      return null;
+    });
+    const suffix = cursorSuffix(this.schema, first);
+    const result = mergeStreams(next, suffix.map((c) => c.name), first.order, take, step,
+      (lane, row) => lanes[lane].returned.push(row));
+    for (const lane of lanes) {
+      const { scan, input } = lane;
+      const r = input.evaluatedRange;
+      const remaining = mergeRemainder(lane.visible, lane.returned);
+      this.trace.ranges.push({ site: scan.site, table: scan.table, index: scan.index,
+        provenance: scan.provenance, prefix: input.prefix, order: scan.order, take: input.take,
+        after: input.after, before: input.before, gt: r?.gt ?? null, gte: r?.gte ?? null,
+        lt: r?.lt ?? null, lte: r?.lte ?? null,
+        rule_hash: scopedRuleHash(this.schema, this.schema.tables[scan.table].rules.read),
+        stop: lane.exhausted && remaining.length === 0 ? "exhausted" : "limit",
+        lastReturnedSuffix: lane.returned.length ? suffix.map((c) => field(lane.returned.at(-1), c.name)) : null,
+      });
+    }
+    const page = this.certificate?.result_page_site;
+    this.trace.merges.push({ site: merge.site, deduplicated_union_len: result.union,
+      last_returned_suffix: page?.merge && page.site === merge.site && result.rows.length
+        ? suffix.map((c) => clone(field(result.rows.at(-1)!, c.name))) : null });
+    return { Array: result.rows.map(clone) };
   }
 
   private evaluateRange(range: any): any {
@@ -930,6 +1010,7 @@ export class Runner {
           return false;
         }
         const found = this.store.lookup(data.table, data.index, key);
+        this.trace.rule_probes = (this.trace.rule_probes ?? 0) + 1;
         if (found === null && !this.store.hasAbsence(data.table, data.index, key)) {
           this.partial.add(`${data.table}.${data.index}`);
           this.ruleMemo.set(memoKey, false);
@@ -1017,9 +1098,9 @@ function substituteRuleTerm(term: any, columns: string[], probeKey: any[]): any 
   return position < 0 || position >= probeKey.length ? null : clone(probeKey[position]);
 }
 
-function mintNext(schema: any, certificate: any, trace: Trace): string | null {
+function mintNext(viewer: string, certificate: any, trace: Trace): string | null {
   const page = certificate?.result_page_site;
-  if (!page || !queryCapped(certificate, trace)) return null;
+  if (!page || !queryCapped(certificate, trace, viewer)) return null;
   const values = page.merge
     ? trace.merges.slice().reverse().find((entry) => entry.site === page.site)?.last_returned_suffix
     : trace.ranges.slice().reverse().find((entry) => entry.site === page.site)?.lastReturnedSuffix;
@@ -1034,14 +1115,16 @@ function mintNext(schema: any, certificate: any, trace: Trace): string | null {
 }
 
 /** The wire state a query run reports: `capped` exactly when the engine's `query_state` says so. */
-export function queryState(certificate: any, trace: Trace): "complete" | "capped" {
-  return queryCapped(certificate, trace) ? "capped" : "complete";
+export function queryState(certificate: any, trace: Trace, viewer: string): "complete" | "capped" {
+  return queryCapped(certificate, trace, viewer) ? "capped" : "complete";
 }
 
-function queryCapped(certificate: any, trace: Trace): boolean {
-  if (certificate.completeness === "Capped") return true;
+function queryCapped(certificate: any, trace: Trace, viewer: string): boolean {
+  // @ref LLP 1016#d1--the-system-principal-is-the-stores-owner — owner reads skip rules; execution and merge bounds still bind.
+  const system = viewer === coreIrContract.systemPrincipalId;
+  if (!system && certificate.completeness === "Capped") return true;
   if (trace.ranges.some((range) => range.stop === "limit"
-      || !certificate.read_sites?.find((site: any) => site.site === range.site)?.hoist)) return true;
+      || (!system && !certificate.read_sites?.find((site: any) => site.site === range.site)?.hoist))) return true;
   return (certificate.merge_sites ?? []).some((site: any) => {
     const merge = trace.merges.find((entry) => entry.site === site.site);
     const unionTooLarge = merge === undefined || merge.deduplicated_union_len > site.take;

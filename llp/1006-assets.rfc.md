@@ -12,112 +12,15 @@ decode helper executable, §14a), `packages/compiler` (the column types),
 revisions (f)–(j) by Claude Fable 5.1 at the author's rulings, in session,
 2026-09-03
 **Date:** 2026-08-31
-**Revised:** 2026-09-04 (p — the two-phase `upload()` takes `kind` and returns the
-nominal record, verified against the server's sniff (§10)); 2026-09-04 (o — the client generation check is named honestly as a
-descriptor fence (§10)); 2026-09-04 (n — §9b, bytes on the device, cached under the owning
-row's lease; author ruling 2026-09-04 via LLP 1012 decision 7, built by its lane
-O4); 2026-09-04 (m — fix-round correction: finalized growth is
-durably reserved on the receiving ledger before blob publication; §9a
-deliberately adds bounded callback `enumerate(prefix, visitor)` as the fourth
-blob-store operation, and one sweep uses it for fork-aware reclaims, orphans,
-and stale publish temporaries; recognized Adobe APP14 survives JPEG stripping;
-the accepted macOS direct-child RSS-watchdog limit is recorded (§4, §8, §9a,
-§14a)); 2026-09-03 (l — engine-core review correction: an affine asset's
-reclamation grace begins when its locator is released, while a never-referenced
-upload still ages from creation (§9)); 2026-09-03 (k — lane B3 publication source-builds and statically
-links a pinned decoder-only libheif → libde265 closure at the helper's derived
-platform floor; the package carries no codec dylibs, and Darwin/Linux
-dependency qualification is symmetric (§14a); `tmap` primaries refuse until
-libheif supports them upstream (§4).); 2026-09-03 (j — the second panel folded (§16): fourteen unanimous
-findings and the author's six decisions on the splits. **Correctness:**
-asset-typed arguments are ledger-validated at mutation entry, inside the
-transaction, so `require clip.duration` reads a fact (§6); the certified
-delivery point-read is named as the new core primitive it is, and the hosted
-presigned redirect is deleted (§2, §9a); `reset` no longer wipes blobs a fork
-shares (§9a); orientation survives strip as a synthesized orientation-only
-tag, gated by an acceptance matrix with re-encode as the fallback (§4); the
-walker port blanks the staging file in place, applies the `tkhd` matrix, and
-refuses missing facts (§9); one old-row/new-row lifecycle reconciler with
-same-cell carry-forward, and asset types refused in `maintain.by` and seeds
-(§2a, §6); the session carrier is minted for a persona or a bearer,
-epoch-bound, and used only where a header is impossible, while images fetch
-by header with `private, no-cache` and an `ETag` (§2b, §2); upload branches
-before the JSON body reader into its own worker class, exact `Range`
-statuses, a global staging cap (§5, §14); the helper is resource isolation,
-not a security boundary, and LLP 1002 decision 1 is amended (§14a); a fixed
-internal decode-safety ceiling (§4); rungs are lazy (§8); the `system`
-uploader escape is deleted (§6); residue scrubbed. **Scope:** `file` is
-designed and deferred to a named slice 2 (§13a; ruling 5 narrowed); HEIC
-stays (ruling 7 held over the panel's 2–1); one published helper (ruling 10
-narrowed); blobs are keyed by asset id with namespace rotation on any
-writable fork (ruling 8 narrowed); `rules/NOT-DOING.md` amended in the same
-landing. Panel record: `llp/reviews/1006-assets.panel.synthesis.md`.);
-2026-09-03 (i — recorded at the author's delegation, no ruling
-changed: the "upload this, then do X" question is answered in §12 — the
-mutation is the "then", and a dedicated construct would be `defineMediaCommand`
-returning — and the one real gap it exposed, assets minted by effects, is named
-in §13 with its additive shape.); 2026-09-03 (h — the author's rulings on OQ1, in session:
-**decode runs in a subprocess** — anything that produces pixels runs in a
-separate media helper executable with no store handle, a timeout, and a memory
-ceiling, while anything that walks boxes or chunks stays in-process (§9,
-§14a); and **the codecs are chosen at build and install time** — the engine
-binary carries none, the helper is built with `images`/`heic` features and
-published as a default full variant and a slim one, and a helper that lacks a
-codec refuses that format loudly rather than degrading (§14a). Ruling 7's "the
-published binary carries the decoder" is narrowed to the default variant. No
-open question remains.); 2026-09-03 (g — the author's rulings on the three questions
-revision (f) added, in session: **`max` is withdrawn** — full resolution is
-the only behavior, and the ceiling could not survive column-less upload (§4,
-§12); **WebP and HEIC are both handled** — WebP joins the accept list with
-chunk-level strip and pure-Rust decode, HEIC stays a server-side decode because
-a browser hands over HEIC too, and the published binary carries the decoder
-(§4, §14a); **bytes live beside the store when Snapback runs locally and in an
-S3-compatible bucket on the hosted target**, behind one streaming-first,
-content-addressed trait, delivered through the server in both cases (§9a).
-Decode isolation (OQ1) is the only open question.); 2026-09-03 (f — the
-author's ruling: **video and non-media files
-ship in slice 1**, not a later one. Three column kinds — `image`, `video`,
-`file` — each with its own closed record (§1); the upload names its kind, not
-its column (§5); `duration` and `size` ride the record so admission policy
-beyond bytes is ordinary rule code, which retires the codec/duration ticket and
-LLP 0305 for Snapback 2 (§3); the v1 container walker is ported, not rebuilt
-(§9); `Range`/`206` and attachment delivery for every kind (§2); a **session
-carrier** so a `<video>` element and a native player can fetch private bytes
-(§2b), which retracts revision (c)'s "no signed query tokens" for the *session*
-case only and keeps share links deferred (§13); strip is by detected type, and
-`file` carries no privacy claim beyond the formats the walker knows (§4);
-resume stays out with its return trigger written down (§5). Three open
-questions are added and none is ruled: the `max` ceiling against column-less
-upload, the brief's formats, and where bytes live. Not panel-reviewed; see
-§16.); 2026-09-01 (e — codecs behind cargo features, mirroring
-`--features hermes`: the `image` **type** is unconditional in every build
-because the engine and the twin must agree on the schema vocabulary, while the
-**codecs** are optional and a codec-less binary refuses finalize loudly (§14a).
-A runtime plugin API and an external image service are recorded as rejected
-(§12). OQ1 is reframed from "is the binary too big" to "in-process or
-subprocess," because decoding hostile bytes in the engine's address space is a
-blast-radius question, not a size question — and it is settled by two
-measurements rather than an argument.); 2026-09-01 (d — the author's rulings, in session: **affine**
-settles OQ1 (§2, §9); **any requested width is accepted and snapped** up to an
-internal rung, so there is no closed ladder to memorize and no width refusal
-(§8); **the full-resolution stripped original is kept** by default with an
-optional `max` pixel ceiling, which removes the invented 2048 primary and keeps
-lazy rendering available (§4, §8); **share links are deferred** with their
-additivity recorded so the deferral is checkable rather than hopeful (§13).
-Two open questions remain, neither blocking: the decoder's binary cost and
-video's schedule.); 2026-09-01 (c — the two-model panel pass. **One correctness
-defect fixed:** the write-time *stamp* broke the client twin, and is replaced
-by write-time *validation* (§1, §6). **One cache defect fixed:** the slot
-delivery URL was mutable; the asset id now appears in the path (§2). Resumable
-upload leaves slice 1 with video (§5); `kind`, `hash`, and `digest` leave the
-value (§7); bounds are integers, not `5mb` (§3). **D1 is now the only open
-design fork and is the author's decision** (§2a, OQ1). Panel record:
-`llp/reviews/1006-assets.panel.{codex,grok}.md`.); 2026-08-31 (b — the
-simplification pass, author-directed: seven deletions from revision (a) — the
-named `asset` intent declaration, the `strip` field, the `upload` rule, the
-width ladder, the maintained refcount, the `ready` field, and the read-time
-projection seam. Revision (a)'s `Ref`-plus-projection design is recorded in
-§12.); 2026-08-31 (a — initial draft)
+**Revised:** 2026-09-05 (q — image once, server one-use delivery, lane L11);
+2026-09-04 (p/o — two-phase typed upload and descriptor fence; n — device
+byte cache; m/l — finalized-byte reservation, reclamation, helper safety);
+2026-09-03 (k — static decoder publication; j — second panel and author
+rulings; i — effect-minted assets deferred; h/g — subprocess decode, codec
+builds, original resolution, WebP/HEIC and blob storage; f — video and carriers);
+2026-09-01 (e/d/c — unconditional types, affine custody, width snapping,
+validation instead of stamping); 2026-08-31 (b/a — simplification and draft).
+The verbatim log, panel record, confidence, and rulings ledger: LLP 1006.001.
 **Related:** LLP 1000 (decisions 5, 6), LLP 1001 (§1 engine-owned tables, §3
 states, §9 schema additions), LLP 1002 (§4 the wire), LLP 1003 (effects),
 LLP 1004 (Quarry is the default surface), **LLP 1005** (the Snapback 1
@@ -273,7 +176,7 @@ Consequences:
   document says so rather than implying more.
 - **Replacement and deletion are exact.** Patch the column or delete the row and
   the old path fails on its next request. Authority never waits on reclamation.
-- **Pasteability is derived, not declared.** A `rule.public` table's asset paths
+- **Pasteability is derived, not declared.** Except for `once` (§2a.1), public paths
   need no credential and are `Cache-Control: public, immutable` — the id is in
   the path and the bytes never change. Anything else is authorized per request
   and answered `Cache-Control: private, no-cache` with an `ETag`: the viewer's
@@ -363,6 +266,38 @@ If an app later needs one asset in several rows, the change is mechanical and
 reversible: delete the locator, put the row coordinates back in the URL, and
 move reclamation to a sweep. It is not a migration trap. §12 keeps the rejected
 shape and its arguments so the choice is not re-litigated from scratch.
+
+### 2a.1. One-use image delivery (Clique F3, 2026-09-05)
+
+Implementer: GPT-6 Astra, lane L11, 2026-09-05. A column may say
+`photo: image <=10000000 once` (also optional or in a bounded image list).
+`video … once` refuses at `check`: range semantics are unspecified; use an
+ordinary video column or an image with `once`. This is a column modifier,
+not an argument constraint. Custody stays affine: one owning cell, whose
+row read rule authorizes delivery to each principal.
+
+Delivery reserves each `(assetId, principal)` while streaming off the owner;
+the owner durably records `(assetId, principal, at)`
+in the ledger after authorization, when the full-body 200 is committed
+(the bytes written). The completion byte is held until the ledger commit,
+so a completed response proves durable consumption. Admission alone never
+consumes. A failure before the body starts does not burn the use; an abort
+may. Concurrent requests by one principal have one winner. An authenticated
+principal is required even for a public row. Anonymous: 404 `E_ASSET_NOT_READY` (existence is not probeable). `HEAD` does not consume.
+Widths (`?w=`), conditionals (`If-None-Match`), and `Range` cannot yield a
+second delivery: once images ignore these selectors and deliver their full
+original body as 200 with `Cache-Control: private, no-store`. A consumed
+request refuses HTTP 410, `E_ASSET_VIEWED`, family `assets`, at the delivery
+site with a rewrite to render the image once and request a new image.
+
+The manifest and program schema carry the column modifier. The client
+`viewOnce` option is deleted; the chat template uses one message row with
+its own once image and per-member visibility through its read rule. The
+row byte cache refuses once rows. The twin never predicts a once fetch;
+offline, their media reads `null`. Adding `once` to an existing image column
+is an admitted successor; prior views are unrecorded. Removing `once` is
+destructive and refuses (`E_SUCCESSOR_DESTRUCTIVE`): a delivered-once image
+cannot become re-deliverable by a schema change.
 
 ### 2b. The session carrier (author ruling, 2026-09-03)
 
@@ -966,7 +901,7 @@ fence does not touch them, exactly as it does not touch rows. One ceiling,
 `maxAssetBytes` (client option, default 256 MB), evicts least-recently-read
 by the owning row's recency; it is the only budget in v1, because bytes are
 large and rows are not. Rows whose delivery must be evaluated on every
-request — one-use delivery when it lands, anything under a fenced audit —
+request — one-use image delivery (§2a.1), anything under a fenced audit —
 refuse the cache at the row, and `<AssetImage>` on such a row renders from
 the network or not at all. This narrows LLP 0329.014.008 §4's
 `retain({ assets: { renditions } })` in one way: there is no declared
@@ -1513,146 +1448,40 @@ asset bug in Snapback 1, and none was reachable from a harness.
 
 ## 16. The panel record
 
-Revision (c) is the output of a two-round, two-family panel run under LLP 0005:
-codex gpt-5.6-sol at `ultra` and grok-4.6 at `xhigh`, round 1 mutually blind,
-round 2 cross-read. Full transcripts, with provenance and the independence
-disclosure, are `llp/reviews/1006-assets.panel.codex.md` and
-`llp/reviews/1006-assets.panel.grok.md`. The orchestrator (Claude Opus 5)
-authored the document under review, did not vote, and contributed one proposal
-in round 2 — validate-not-replace — which both panelists adopted.
-
-The panel's brief made simplicity, elegance, and ergonomics binding over
-feature count, and required every addition to name what it deletes. Its net
-effect on this document was **six deletions, two defect fixes, and one
-correction**, against **one addition** (the asset id in the URL, which pays for
-itself by deleting the stale-cache bug).
-
-**Revisions (f)–(i) were reviewed by a second panel on 2026-09-03**, the same
-two families at the same effort, two rounds, with the orchestrating Claude
-session (which authored (f)–(i)) as a disclosed author-side third voice
-rather than a silent chair. Records: `llp/reviews/1006-assets.panel.codex.md`
-and `.grok.md` (dated Panel 2 sections), `1006-assets.panel.claude.md`, and
-the synthesis `1006-assets.panel.synthesis.md`. Its verdict was unanimous:
-not ready as written, ready after the changes — fourteen findings all three
-accepted, and six splits the author decided. Revision (j) folds them. Two of
-the splits swapped sides between rounds, and both are recorded with the fact
-that decided them rather than the vote: blob keys (§9a, decided by the id
-allocator's namespace) and the orientation mechanism (§4, decided by the
-paved path's upload clock and gated by an acceptance matrix). The author held
-one ruling against a 2–1 recommendation — HEIC in slice 1 — and the trigger
-that would have reopened it is recorded in §4. No further panel round is
-needed unless the author reverses a unanimous finding.
+Revision (c) was panel-reviewed under LLP 0005 (codex gpt-5.6-sol at `ultra`,
+grok-4.6 at `xhigh`, two rounds) and revisions (f)–(i) by a second panel on
+2026-09-03 whose fourteen findings and six author-decided splits revision (j)
+folds; the author kept HEIC against a 2–1 recommendation. The verbatim record
+is LLP 1006.001 §16; transcripts are `llp/reviews/1006-assets.panel.*.md`.
 
 ## Confidence
 
-**0.85** on §2 (byte authority is the row's read rule) — it follows from
-existing rule evaluation, reproduces the property LLP 1005 measures as the moat
-with strictly less machinery, and both panelists endorsed it in round 1 without
-qualification.
-
-**0.85** on §1/§6 (one closed record, validated not stamped). Two families
-converged on it after one found the twin defect; the mechanism is checkable
-against `engine/index.rs` today.
-
-**0.8** on §3's claim that a list column replaces `assetCollection` for the apps
-we have, and on §5 (no resume in slice 1) — the latter unanimous, but resting on
-a judgment that photo uploads differ from video uploads in kind.
-
-**0.75** on §10 (`File` in mutate as the paved call). A genuine panel split
-decided on v1 evidence; codex's false-atomicity objection is real and answered
-rather than dismissed.
-
-**0.7** on §2a (affine). Ruled by the author, and the right call under this
-document's ranking — but the confidence stays moderate because two strong
-readers swapped sides on it, and because the linearity is the one rule in this
-design that an ordinary-looking TypeScript value hides. If a real app trips
-`E_ASSET_IN_USE` in a way that feels wrong rather than instructive, that is the
-signal to revisit §12's rejected shape.
-
-**0.8** on §8 (snap any width). Snapping is what makes both the ergonomics and
-the bounded work possible at once; the residual risk is only in where the rungs
-sit, which is a tuning number rather than a design decision.
-
-**0.8** on video as a column with `duration` in the record (§1, §3). The
-walker exists and is tested; the record is the same mechanism as the image's;
-the brief's "played as uploaded" is exactly what a walk-and-serve pipeline
-does.
-
-**0.8** on the session carrier (§2b), up from 0.75 after the second panel
-narrowed it to video and downloads, bound it to an identity epoch, and made
-it mintable for personas. It is still the one credential this design puts in
-a URL; the matrix row in §15 that pauses a clip past its lifetime is the test
-that earns the last tenth.
-
-**0.7** on the orientation-tag strip (§4). The author chose it for speed on
-the paved path over the panel's 2–1 for re-encode; it depends on every viewer
-honoring the tag, which modern browsers, iOS, and Android do, and the
-acceptance matrix plus the recorded fallback bound the downside.
-
-**0.8** on §9a. The trait is the shape every blob store ends up with; asset-id
-keys make crash safety a consequence of write order; the namespace-rotation
-invariant is one line the first writable fork must honor.
-
-**0.85** on entry-time validation and the delivery primitive (§2, §6). Both
-are corrections of claims the code contradicted, found by one family and
-verified against the tree by the orchestrator.
-
-**0.85** on the helper subprocess (§14a), now described as what it is. Its
-cost is predictable and it closes the last open question; one published
-helper is one artifact for `publish.mjs` to size.
+The confidence judgments recorded with each revision are in LLP 1006.001.
 
 ## Rulings settled (author)
 
-Recorded here so a reader knows these are decided, not merely proposed. Items
-1–4 are the rulings of 2026-09-01; items 5–10 are 2026-09-03, as narrowed by
-the author's decisions on the second panel the same day; item 11 records those
-decisions:
+The author settled 1–4 on 2026-09-01, 5–11 on 2026-09-03, and 12 on
+2026-09-04. The governing details and qualifications remain in these sections:
 
-1. **Affine** — one asset, one home (§2a).
-2. **Any width may be requested**, snapped internally; no closed ladder and no
-   width refusal (§8).
-3. **The full-resolution stripped original is kept** (§4). Revision (d)
-   paired this with an optional `max` ceiling per column; ruling 6 removed it.
-4. **Share links are deferred**, with their additivity verified and recorded
-   (§13).
-5. **Video ships in slice 1; non-media files are designed and deferred**
-   (narrowed on the panel's unanimous recommendation): two column kinds and
-   two records (§1), the walker ported (§9), `Range` and the session carrier
-   in the first delivery route (§2, §2b), resume still deferred with its
-   trigger recorded (§5); `file` in full in §13a.
-6. **No resolution ceiling.** Full resolution always; the device downscales if
-   the app wants less (§4, §12).
-7. **WebP and HEIC are both handled.** WebP joins the accept list with
-   chunk-level strip and pure-Rust decode; HEIC stays a server-side decode,
-   and the one published helper carries the decoder (§4, §14a). Held over the
-   panel's 2–1 recommendation to defer HEIC; the reopening trigger is in §4.
-8. **Bytes live beside the store locally and in an S3-compatible bucket when
-   hosted**, behind one streaming-first trait keyed by asset id, delivered
-   through the server in both cases with no presigned redirect (§9a; narrowed
-   on the panel's findings).
-9. **Decode runs in a subprocess.** Anything that produces pixels runs in the
-   `snapback2-media` helper with no store handle, a timeout, and a memory
-   ceiling; walkers stay in-process (§9, §14a).
-10. **Codecs are chosen at build time; one helper is published.** The engine
-    carries none; the helper is built with `images`/`heic` features and
-    published once with every codec §4 admits; a missing codec refuses loudly
-    (§14a; narrowed on the panel's unanimous recommendation).
-11. **The second panel's splits, decided:** `file` deferred (§13a); HEIC kept;
-    blobs keyed by asset id with namespace rotation on any writable fork
-    (§9a); private image responses `private, no-cache` with an `ETag` (§2);
-    orientation preserved by a synthesized tag over a chunk walk, gated by an
-    acceptance matrix with re-encode as the fallback (§4);
-    `rules/NOT-DOING.md` amended to name HEIC and MOV and to defer `file`.
-12. **Asset bytes cache on the device under the owning row's lease** (2026-09-04,
-    via LLP 1012 decision 7; §9b): fetched widths only, purged in the same swap
-    as the row, one `maxAssetBytes` ceiling, refused where delivery must be
-    evaluated per request.
-
-## Open questions (author)
-
-None. OQ1 — in-process or subprocess decode — was ruled on 2026-09-03 and is
-ruling 9; the three questions revision (f) added — the `max` ceiling, the
-brief's formats, and where bytes live — are rulings 6–8.
+1. Affine custody, one home (§2a).
+2. Arbitrary requested widths, snapped internally (§8).
+3. Keep the stripped full-resolution original (§4); ruling 6 removed `max`.
+4. Defer share links, with additive design recorded (§13).
+5. Ship video in slice 1, port the walker, include ranges/carriers, defer
+   resume; design and defer non-media `file` (§1, §2b, §5, §9, §13a).
+6. No resolution ceiling; the device may downscale (§4, §12).
+7. WebP and HEIC included in the published helper; HEIC kept over the panel's
+   2–1 recommendation, with its reopening trigger (§4, §14a).
+8. Local filesystem or hosted S3-compatible bytes, one streaming-first
+   asset-id trait, server delivery and no presigned redirect (§9a).
+9. Pixel decode in the bounded helper subprocess; walkers in-process (§14a).
+10. Build-time codecs, one complete published helper, loud missing-codec
+    refusals (§14a).
+11. Second-panel decisions: defer `file`, keep HEIC, rotate blob namespaces
+    on writable forks, revalidate private HTTP caches, preserve orientation
+    via the matrix-gated synthesized tag with re-encode fallback (§2, §4, §9a).
+12. Device bytes leased to owning rows; fetched widths only, atomic purge,
+    one ceiling, no cache where every delivery requires authorization (§9b).
 
 ## What promotion to a Spec requires
 

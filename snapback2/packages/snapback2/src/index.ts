@@ -62,7 +62,7 @@ export const t = Object.freeze({
   text: (max: number) => inert("text", { max }),
   bytes: (max: number) => inert("bytes", { max }),
   // @ref LLP 1006#3-authoring-surface — image/video are unconditional lowering descriptors, independent of installed codecs.
-  image: (max: number) => inert("image", { max }),
+  image: (max: number, options?: { once: true }) => inert("image", { max, ...options }),
   video: (max: number) => inert("video", { max }),
   int: () => inert("int"),
   bool: () => inert("bool"),
@@ -178,7 +178,7 @@ export function divmod(value: number, divisor: number): { quotient: number; rema
 
 /** Internal Quarry lowering helper; authored descriptors are never executed. */
 export function mergeByIndex<T>(
-  _values: T[], _fields: string[], _order: "asc" | "desc", _take: number, _site: string, _table: string,
+  _lanes: { rows?: unknown[]; lane: (row: any) => T[] }[], _take: number, _site: string,
 ): T[] {
   throw new Error("snapback2: authored program descriptors are inert");
 }
