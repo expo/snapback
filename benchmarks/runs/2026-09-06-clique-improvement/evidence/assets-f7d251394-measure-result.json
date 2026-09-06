@@ -1,0 +1,24 @@
+{
+  "sha": "f7d25139496dc9f05cba33bb73e829b6e955ff28",
+  "pre_status": "",
+  "command": "node scripts/measure.mjs --check",
+  "started": "2026-09-06T07:54:54.456057+00:00",
+  "load_before": [
+    20.20361328125,
+    21.830078125,
+    16.28466796875
+  ],
+  "log": "/tmp/clique-assets-f7d251394-measure.log",
+  "pid": 55451,
+  "status": 0,
+  "seconds": 66.71,
+  "finished": "2026-09-06T07:56:01.167751+00:00",
+  "load_after": [
+    14.96484375,
+    20.09912109375,
+    16.0771484375
+  ],
+  "post_status": " M snapback2/metrics/loop.jsonl\n",
+  "appended_metrics": 1,
+  "metrics_evidence": "/tmp/clique-assets-f7d251394-loop-rows.jsonl"
+}

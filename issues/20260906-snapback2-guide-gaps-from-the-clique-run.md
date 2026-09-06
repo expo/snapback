@@ -47,3 +47,15 @@ Evidence: office M1
 M1 setup and M2 platform experience; `evidence/m2-migration.log` and
 `evidence/m2-owner-status.json`. This is a cold published-only build; no
 repository source or previous app was supplied to the builder.
+
+## CLI discovery resolution (2026-09-06)
+
+Items 15–16 are addressed: top-level and command `--help`/`-h` return usable
+help without project side effects; `guide init` gives the initialization sequence.
+The migration guide names `dev --apply-migration`, and the watcher's destructive
+refusal includes the saved `migrationFile` and an executable `applyCommand` with
+quoted absolute paths. Help and recovery explain that `check` validates and
+refreshes the build cache while `dev --status` identifies the installed generation.
+The owner migration test runs that emitted command, including paths with spaces
+and quotes, after proving a passing check leaves the prior generation active.
+Other unresolved items in this ticket remain open.

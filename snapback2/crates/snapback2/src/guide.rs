@@ -40,7 +40,11 @@ pub fn run(args: &[String]) -> ExitCode {
         Ok(root) => root,
         Err(error) => return owner::print_refusal(error, json_output, 2),
     };
-    let content = if page == "grammar" {
+    let content = if matches!(page, "init" | "dev" | "check") {
+        Ok(verbs::command_help(page)
+            .expect("command guide help")
+            .to_owned())
+    } else if page == "grammar" {
         read_page(&root.join("grammar.md"))
     } else if page == "app" {
         app_page(&options)
@@ -426,7 +430,7 @@ fn families(root: &Path) -> Result<Json, Refusal> {
 }
 
 fn available(root: &Path) -> String {
-    let mut pages = BTreeSet::from(["app".to_owned(), "grammar".to_owned()]);
+    let mut pages = BTreeSet::from(["app", "grammar", "init", "dev", "check"].map(str::to_owned));
     pages.extend(RECIPES.iter().map(|page| (*page).to_owned()));
     if let Ok(keywords) = keyword_index(root) {
         pages.extend(keywords.into_keys());
@@ -473,7 +477,7 @@ fn unknown(page: &str) -> Refusal {
     let pages = RECIPES
         .iter()
         .copied()
-        .chain(["app", "grammar"])
+        .chain(["app", "grammar", "init", "dev", "check"])
         .collect::<BTreeSet<_>>()
         .into_iter()
         .collect::<Vec<_>>()

@@ -1,0 +1,47 @@
+{
+  "purpose": "focused comparison after CLI doctor budget miss; no code changes or discarded samples",
+  "loadBefore": [
+    17.67041015625,
+    13.0791015625,
+    13.10546875
+  ],
+  "samples": [
+    {
+      "lane": "clique-cli",
+      "seconds": 0.09321883299999999,
+      "exit": 0,
+      "stdout": "{\"certified\":11,\"compiler\":{\"answered\":true,\"error\":null,\"found\":\"/Users/ccheever/projects/snapback-worktrees/clique-cli/snapback2/packages/snapback2/dist/compiler.mjs\",\"ms\":60.162792},\"effects\":\"none\",\"effectsQueued\":0,\"elapsedMs\":71.716667,\"media\":{\"required\":false},\"ok\":true,\"owner\":null,\"refused\":[],\"version\":\"0.0.6\"}\n",
+      "stderr": "",
+      "binarySha256": "73b6777335d5cc215fd0ad92c319e079309d6b8df2ef5a0d85579be1bb8bb325"
+    },
+    {
+      "lane": "clique-assets",
+      "seconds": 0.06927645799999999,
+      "exit": 0,
+      "stdout": "{\"certified\":11,\"compiler\":{\"answered\":true,\"error\":null,\"found\":\"/Users/ccheever/projects/snapback-worktrees/clique-assets/snapback2/packages/snapback2/dist/compiler.mjs\",\"ms\":52.353333},\"effects\":\"none\",\"effectsQueued\":0,\"elapsedMs\":60.917291999999996,\"media\":{\"required\":false},\"ok\":true,\"owner\":null,\"refused\":[],\"version\":\"0.0.6\"}\n",
+      "stderr": "",
+      "binarySha256": "2e18020c8f8a06d621f30ceb264f4f073b98a019adf6edd41b1ca93b09793d96"
+    },
+    {
+      "lane": "clique-assets",
+      "seconds": 0.055503458000000006,
+      "exit": 0,
+      "stdout": "{\"certified\":11,\"compiler\":{\"answered\":true,\"error\":null,\"found\":\"/Users/ccheever/projects/snapback-worktrees/clique-assets/snapback2/packages/snapback2/dist/compiler.mjs\",\"ms\":50.411958999999996},\"effects\":\"none\",\"effectsQueued\":0,\"elapsedMs\":51.934416999999996,\"media\":{\"required\":false},\"ok\":true,\"owner\":null,\"refused\":[],\"version\":\"0.0.6\"}\n",
+      "stderr": "",
+      "binarySha256": "2e18020c8f8a06d621f30ceb264f4f073b98a019adf6edd41b1ca93b09793d96"
+    },
+    {
+      "lane": "clique-cli",
+      "seconds": 0.056066583,
+      "exit": 0,
+      "stdout": "{\"certified\":11,\"compiler\":{\"answered\":true,\"error\":null,\"found\":\"/Users/ccheever/projects/snapback-worktrees/clique-cli/snapback2/packages/snapback2/dist/compiler.mjs\",\"ms\":51.199667},\"effects\":\"none\",\"effectsQueued\":0,\"elapsedMs\":52.7595,\"media\":{\"required\":false},\"ok\":true,\"owner\":null,\"refused\":[],\"version\":\"0.0.6\"}\n",
+      "stderr": "",
+      "binarySha256": "73b6777335d5cc215fd0ad92c319e079309d6b8df2ef5a0d85579be1bb8bb325"
+    }
+  ],
+  "loadAfter": [
+    17.67041015625,
+    13.0791015625,
+    13.10546875
+  ]
+}

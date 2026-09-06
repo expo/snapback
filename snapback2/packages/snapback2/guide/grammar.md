@@ -1,5 +1,8 @@
 # Quarry grammar
 
+Start a project with `snapback2 guide init`; CLI options use `<command> --help`.
+`check` validates sources; `dev --status` shows what the owner has installed.
+
 Schema: `snapback/schema.q`. Programs/shapes: `snapback/<module>.q`.
 Seeds, tests and effect bodies use TypeScript.
 Use `snapback2 guide <keyword>` for grammar and a defining paragraph.
