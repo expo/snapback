@@ -6,45 +6,41 @@ Auth is always on. In `snapback/schema.q`:
 use identity
 ```
 
-One flow: `use identity password` or `use identity guests`.
+`use identity password` or `use identity guests`.
 `client.auth`: `signup`, `login`, `guest`, `logout`, `me`.
-Relaunch: set `tokenStore`, await `client.ready`. Browser:
+Restore: set `tokenStore`; await `client.ready`. Browser:
 `browserTokenStore(storage, backendSpecificKey)`. Personas refuse bearer
 transitions/tokens; production refuses personas. Logout/expiry fence one session.
 
-`snapshot.auth`/`useAuth()` share: `hydrating`, `authenticated`
-(`viewer`, `kind`, `authEpoch`), `anonymous` (no `refusal`), or `refused`
-(`refusal`). Bearers restore without hooks; callers share one `me()`.
-`restoringViewer` while hydrating is confirmed for this exact token: display
-only. Reads await confirmation or use held coverage; display identity never
-authorizes reads. Unbound stores omit it.
+`snapshot.auth`/`useAuth()`: `hydrating`, `authenticated`
+(`viewer`, `kind`, `authEpoch`), `anonymous` (no `refusal`), `refused`
+(`refusal`). Restoration needs no hooks; callers share `me()`.
+Hydrating `restoringViewer` is confirmed for this token but display-only. Reads
+await confirmation or use held coverage. Unbound stores omit it.
 
-Transport cuts retain custody and retry on connected/reconnecting transitions
-and after 1, 2, 4, … 30 seconds without queries. `retryAt` is Unix milliseconds;
-explicit `me()` replaces its timer. Other coded
-refusals retry once per reconnect; storage/protocol failures stay refused.
+Transport cuts retain custody; retry on connected/reconnecting and after
+1, 2, 4, … 30 seconds without queries. `retryAt` is Unix milliseconds;
+explicit `me()` replaces its timer. Other codes
+retry once per reconnect; storage/protocol failures stay refused.
 Only `E_AUTH`, `E_AUTH_REQUIRED`, or `E_AUTH_SESSION` make restoration anonymous
 and clear custody. `offline()` pauses timers; `online()` resumes the shared flight.
-Offline restart stays paused. Logout, replacement and close
-cancel retries and ignore late replies. Closed `auth` is only its last view, without `retryAt`.
+Offline restart stays paused. Logout/replacement/close cancel retries and ignore late replies.
+Closed `auth` is only its last view, without `retryAt`.
 
-Failed sessions keep custody or resume restoration. Confirmation recovers
-interrupted startup sync. Metadata errors stay on `lastRefusal`; initial errors reject
-`ready`, but an installed session succeeds. `online()` retries sync. Held reads wait
+Failed sessions retain custody or resume restoration. Confirmation recovers sync.
+Metadata errors set `lastRefusal`; initial errors reject
+`ready`, but installed sessions succeed. `online()` retries sync. Held reads wait
 for account transitions. Same-principal login revalidates coverage and keeps queued
 writes. Built-in stores bind principal to token; custom stores
 need `loadPrincipalBinding()` and `savePrincipal(principal, token)` for cold reads.
-No login rate limit. Wrong passwords/unknown emails yield
-`E_AUTH_INVALID`, which proves no account absence.
+No login rate limit. Wrong passwords/unknown emails both yield `E_AUTH_INVALID`.
 
-Signup installs an authenticated session before your separate profile mutation.
-Route an authenticated user with no profile to editable onboarding. Check the
-profile mutation's `state`: show a `rejected` result's message, and enter the
-app only after profile creation commits. A duplicate handle leaves the account
-authenticated; let that account retry profile creation with another handle,
-without repeating signup. Missing profile data is not a loading state forever.
+Signup authenticates before profile creation; missing profiles need onboarding.
+Show `rejected` results; enter after profile creation commits.
+Duplicate handles leave auth installed; retry profile creation with a new
+handle, without repeating signup.
 
-Use `principal` from `viewer`, not a profile reference. Keep login email private:
+Use `viewer` as `principal`; keep login email private:
 
 ```q
 table profiles:
@@ -66,19 +62,19 @@ table profiles:
 
 ## Writes do not grant reads
 
-Lookups (mutations and `exists` too) obey `read`. Missing/unreadable rows return
-absence; `! else CODE` rejects both. Admin writes cannot elevate reads. Absence
-cannot prove a row missing; do not duplicate rosters.
+All lookups, including mutations/`exists`, obey `read`. Missing/unreadable rows
+return absence; `! else CODE` rejects both. Admin writes cannot elevate reads.
+Absence cannot prove a row missing; do not duplicate rosters.
 
-`snapback2 init --template chat` admits conversation members:
+The chat template admits members:
 
 ```q
   read <- exists memberships[.conversationId, viewer]
 ```
 
-`read <- .principal = viewer` hides other seats even from admins. Admit self
-plus scoped admin membership for admin rosters. Write rules separately enforce
-admin authority, immutable scope/principal, and promotion:
+`read <- .principal = viewer` hides other seats from admins too. Admin rosters
+need self plus scoped admin read access. Write rules enforce admin authority,
+immutable scope/principal, and promotion:
 
 ```q
 mutation memberPromote(conversationId: conversations, membershipId: memberships):
@@ -90,10 +86,10 @@ mutation memberPromote(conversationId: conversations, membershipId: memberships)
   return null
 ```
 
-`groupCreate` inserts conversation and creator-admin seat atomically;
-`after insert` requires that seat, with `created` allowing the creator's bootstrap.
-`memberAdd`, `memberRemove`, and `memberLeave` complete the pattern. Membership
-ids fence remove/re-add races. No last-admin invariant.
+`groupCreate` atomically inserts conversation and creator-admin seat;
+`after insert` requires it, with `created` allowing bootstrap.
+`memberAdd`/`memberRemove`/`memberLeave` manage seats. Membership ids fence
+remove/re-add races. No last-admin invariant.
 
 ## Diagnose absence
 
