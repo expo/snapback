@@ -828,3 +828,10 @@ A separate Grok review initially flagged a cap32 retry mismatch. Reading the com
 The unchanged real-owner test now reproduces the missing-cap assertion, and the corrected complete test passes all three refused operations plus the unchanged52-note/large-envelope exercise. The existing three client refusal/custody tests also pass within the original10s limit and are registered in the canonical runner. The code correction stays in the test layer; no runtime behavior changed. Both fresh Astra xhigh and native Grok4.6 xhigh reviews approve it, and root verified all961 supplied leaves for each. Their checks were independent source review, not duplicate owner execution.
 
 The isolated correction branch is pushed. Combining it with the separately repaired migration ordering is underway; that integration and the production Hermes/package path remain unqualified. Full reports and receipts: [drain review closure](../benchmarks/runs/2026-09-06-clique-improvement/evidence/drain-integration-review/README.md#correction-closure). Existing Convex/Supabase baselines remain reused.
+
+
+### 2026-09-06 — Rebuilt survivors and uniqueness remain open
+
+Fresh review of the ordering repair found a separate invariant gap: uniqueness is checked over projections while ordinary survivors of a rebuilt table can be omitted. The concrete three-generation trigger is currently static, not executed. The next repair needs the complete resulting logical row set, with exact replacement exclusions; another local exemption would leave this boundary fragile. Existing ordering and asset rollback integration tests pass for their own cases.
+
+The authorized Astra reproduction/repair attempt was rejected by its provider before any tool or edit. The failed attempt and clean source are preserved; no model-switch or rephrasing retry was made. The unresolved [filesystem ticket](../issues/20260906-snapback2-rebuilt-survivor-uniqueness.md) keeps the combined candidate's limitation visible. Separate production Hermes and compiler/offline work continues. No competitor rerun or new overall score is claimed.

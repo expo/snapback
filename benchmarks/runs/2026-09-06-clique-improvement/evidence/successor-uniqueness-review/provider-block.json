@@ -1,0 +1,24 @@
+{
+  "observedAt": "2026-09-06T21:22:02.231018+00:00",
+  "source": "ed5c42db76ce87577896db9dddfd6cc8f4368b2d",
+  "worktreeStatus": "",
+  "terminal": {
+    "pid": 29873,
+    "exitCode": 1,
+    "ended": "2026-09-06T21:21:24.468782+00:00",
+    "elapsedSeconds": 27.575579792000003
+  },
+  "providerError": "This content was flagged for possible cybersecurity risk. If this seems wrong, try rephrasing your request. To get authorized for security work, join the Trusted Access for Cyber program: https://chatgpt.com/cyber",
+  "actualTurnContext": {
+    "timestamp": "2026-09-06T21:21:00.086Z",
+    "model": "gpt-6-astra",
+    "effort": "xhigh",
+    "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-successor-widening-uniqueness"
+  },
+  "threadId": "01a07837-630b-7dd0-8528-8842f634a862",
+  "stdoutSha256": "93e98d06d59d84012dfc0bec38012f465a4dc5601cc87b97b785660f788bb064",
+  "toolCallsObserved": 0,
+  "nativeReproductionPerformed": false,
+  "productEditsPerformed": false,
+  "disposition": "Blocked provider terminal preserved. No rephrasing, identity/model switch or retry to bypass; continue read-only review supervision and cached reachability watch."
+}
