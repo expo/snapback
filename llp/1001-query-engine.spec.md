@@ -168,7 +168,8 @@ lowering preserves the first readable inferred name and deterministically
 suffixes later collisions within one operation. Raw project JSON that reuses a
 site for incompatible point/range, table/index, bound, or provenance shapes is
 refused with `E_TRACE_SUBSET`; equal shapes may reuse a site and aggregate its
-maximum call count. Certification therefore cannot silently collapse two
+maximum call count, except that a result-page site must also satisfy §3's
+unique-occurrence proof. Certification therefore cannot silently collapse two
 reads into a certificate that only one of them can execute.
 
 ## 3. Read and write states (no silent states)
@@ -233,9 +234,13 @@ Local pagination has one rule for all queries: if `ClientStore::reexecute`
 reports `Partial` after a coverage miss or local deletion, clear `next`.
 A cursor requires covered replay; this rule is not specific to merge.
 The certifier derives a page site for each return through branch-local aliases
-and one-to-one shapes (LLP 1011 §B1). Execution selects the actual return,
-never the last auxiliary scan. An unexecuted merge does not count as an
-unfinished union; non-page returns have no continuation.
+and one-to-one shapes (LLP 1011 §B1). A result-page site must identify one
+occurrence, counting nested point keys, scan prefixes and bounds, merge sources,
+and lane setup as well as direct reads; identical expressions can execute with
+different bindings. Malformed prefixes return typed diagnostics alongside the
+structural refusals, without panicking during suffix derivation.
+Execution selects the actual return, never the last auxiliary scan. An unexecuted
+merge does not count as an unfinished union; non-page returns have no continuation.
 
 **Certified bound, aligned 2026-09-05.** A hoisted site certifies its computed
 reserve (`take + 2` examined and index entries per call); only a program with a

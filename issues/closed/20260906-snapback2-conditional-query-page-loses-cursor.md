@@ -64,3 +64,27 @@ run plus the two affected guide/category reruns. The existing merge suite's
 `ref-check` pass. The first fresh-binary doctor sample exceeded its budget;
 the retained warm measurement passes both samples (0.148 s and 0.054 s), with
 project check at 0.658 s. No benchmark app or instrument was changed.
+
+Review revision, 2026-09-06 (GPT-6 Astra, `clique-cursors`, base `bbe2f85aa`):
+executed both findings from `reviews/cursors/astra-review.md`. The uniqueness
+walk missed reads inside point keys, scan prefixes/bounds, and merge operands.
+With the same page expression evaluated after changing its author binding,
+both Rust and the twin returned A1/A2 but minted `(101, B2)`. The checker now
+visits those operands and refuses duplicate result-page sites with
+`E_TRACE_SUBSET`. An opaque scan with three prefix values on a two-column
+index previously panicked in suffix derivation; checked slicing now returns
+the page refusal alongside the accumulated `E_ARGS_TYPE` diagnostic.
+
+Before the patch, the two new Rust refusal regressions failed (25 duplicate
+operand placements and the prefix panic); the distinct-site continuation
+regression passed. The twin's nested `Get` reproduction failed with the same
+B2 token. After the patch, all three Rust regressions and the twin's `Get`/
+`Exists` refusals pass. Distinct nested reads still page A1/A2 → A3 → empty,
+with the first token reused by another operation and read site in both engines.
+Affected verification on the owned M5 lane: 72 Rust tests (merge, cursor corpus,
+completeness, spike), 216 evaluator scenarios plus the new nested-read checks,
+400 compiler checks, and compiler type checking pass. `caps`, `ref-check`, and
+`git diff --check` pass locally. Full workspace tests, `test.sh`, and latency
+measurement were not rerun for this revision; no timeout was changed. The
+parent owns the pending Grok review and integration; this revision is not a
+new full-battery or publication claim.

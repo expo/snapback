@@ -128,7 +128,13 @@ chat `globalFeed`/`followingFeed`, Clique `globalFeed`/`followingFeed`/
   return its own range or merge, through branch-local bindings and one-to-one
   shapes, including nullable point enrichment. The engine and twin select the
   map entry for the return that actually executed; an auxiliary page read
-  cannot select the cursor. A shape collector must start empty and receive
+  cannot select the cursor. The uniqueness proof visits every evaluated operand,
+  including `Get`/`Exists` keys, scan prefixes and bounds, and merge discovery
+  and lane operands. A repeated result-page site refuses with `E_TRACE_SUBSET`
+  even when its expressions are identical: reassigned bindings can make their
+  runtime positions differ. An overlong prefix also refuses page derivation
+  without losing the structural checker's accumulated diagnostics.
+  A shape collector must start empty and receive
   exactly one unconditional push per row without early exits or other writes.
   Nesting a page in an object, truncating/reordering it, or returning a
   non-page value yields no cursor for that return. An unexecuted merge is not

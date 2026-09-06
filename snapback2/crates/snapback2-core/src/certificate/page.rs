@@ -169,6 +169,28 @@ fn resolve_result_page_site(
     statements: &[Stmt],
     declared: &str,
 ) -> Result<ResultPageSite, Vec<CheckError>> {
+    // A repeated site can execute with different bindings even when its IR is
+    // identical. Count reads inside operands as well as the enclosing read.
+    fn visit_scan<'a>(scan: &'a Scan, root: bool, scans: &mut Vec<(&'a Scan, bool)>) {
+        scans.push((scan, root));
+        for value in &scan.prefix {
+            visit_expr(value, scans);
+        }
+        for value in [scan.after.as_deref(), scan.before.as_deref()]
+            .into_iter()
+            .flatten()
+        {
+            visit_expr(value, scans);
+        }
+        if let Some(range) = &scan.range {
+            for value in [&range.gt, &range.gte, &range.lt, &range.lte]
+                .into_iter()
+                .flatten()
+            {
+                visit_expr(value, scans);
+            }
+        }
+    }
     fn visit_expr<'a>(expression: &'a Expr, scans: &mut Vec<(&'a Scan, bool)>) {
         match expression {
             Expr::Field { base, .. } | Expr::Unary { value: base, .. } => visit_expr(base, scans),
@@ -182,19 +204,20 @@ fn resolve_result_page_site(
             Expr::Object(values) => {
                 values.values().for_each(|value| visit_expr(value, scans));
             }
-            Expr::Scan(scan) => scans.push((scan, true)),
+            Expr::Get(read) | Expr::Exists(read) => {
+                read.key.iter().for_each(|value| visit_expr(value, scans));
+            }
+            Expr::Scan(scan) => visit_scan(scan, true, scans),
             Expr::Merge(merge) => {
                 for (index, lane) in merge.lanes.iter().enumerate() {
-                    scans.extend(lane.source.as_ref().map(|scan| (scan, true)));
+                    if let Some(source) = &lane.source {
+                        visit_scan(source, true, scans);
+                    }
                     visit_statements(&lane.setup, scans);
-                    scans.push((&lane.scan, index == 0));
+                    visit_scan(&lane.scan, index == 0, scans);
                 }
             }
-            Expr::Literal(_)
-            | Expr::Variable(_)
-            | Expr::Input(_)
-            | Expr::Get(_)
-            | Expr::Exists(_) => {}
+            Expr::Literal(_) | Expr::Variable(_) | Expr::Input(_) => {}
         }
     }
     fn visit_statements<'a>(statements: &'a [Stmt], scans: &mut Vec<(&'a Scan, bool)>) {
@@ -230,7 +253,7 @@ fn resolve_result_page_site(
                 }
                 Stmt::For { domain, body, .. } => {
                     match domain {
-                        LoopDomain::Page(scan) => scans.push((scan, true)),
+                        LoopDomain::Page(scan) => visit_scan(scan, true, scans),
                         LoopDomain::DerivedArray { value, .. } => visit_expr(value, scans),
                         LoopDomain::Recurse(recurse) => visit_expr(&recurse.seed, scans),
                         LoopDomain::LiteralRange { .. } | LoopDomain::ArgList { .. } => {}
@@ -281,7 +304,20 @@ fn resolve_result_page_site(
             rewrite: "use a declared index for the result page".to_owned(),
         }]);
     };
-    let suffix = index.columns[first.prefix.len()..]
+    let Some(columns) = index.columns.get(first.prefix.len()..) else {
+        // check_all keeps analyzing after structural refusals so that callers
+        // receive all diagnostics, including the original prefix arity error.
+        return Err(vec![CheckError {
+            site: None,
+            code: "E_TRACE_SUBSET".to_owned(),
+            message: format!(
+                "result-page site {declared} prefix exceeds index {}.{}",
+                first.table, first.index
+            ),
+            rewrite: "shorten the result page's prefix to leave an index suffix".to_owned(),
+        }]);
+    };
+    let suffix = columns
         .iter()
         .filter_map(|name| {
             table.columns.get(name).cloned().map(|kind| CursorColumn {

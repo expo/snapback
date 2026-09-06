@@ -7,6 +7,7 @@ import { Runner, queryState } from "./runner";
 import { EvalError } from "./errors";
 import { mergeRemainder } from "./merge";
 import type { Value } from "./types";
+import { decodeCursor } from "./cursor";
 
 const fixture = (): any => structuredClone(manifest.find((c) => c.name === "merge-runtime-overlap-deduped"));
 
@@ -117,4 +118,67 @@ for (const bound of ["after", "before", "range"]) {
   const replay = store.reexecute(c.program, c.context, c.certificate);
   assert.equal(replay.state, "partial");
   assert.equal(replay.execution.next, null);
+}
+
+for (const read of ["Get", "Exists"]) {
+  const c = fixture();
+  c.schema.tables.posts.indexes.byUniqueAt = { columns: ["at"], unique: true };
+  const scan = {
+    site: "page", table: "posts", index: "byAuthorAt", prefix: [{ Variable: "who" }],
+    order: "Asc", take: { Literal: 2 }, after: { Variable: "c" }, before: null, range: null,
+    opaque_cursor: true, merge_site: null, provenance: "Shape",
+  };
+  const nested = structuredClone(scan);
+  c.program = {
+    name: "nested-auxiliary", kind: "Query", read_time_granularity_ms: null,
+    args: { a: "Principal", b: "Principal", c: { Optional: "Cursor" } },
+    body: [
+      { Let: { name: "who", value: { Variable: "a" } } },
+      { Const: { name: "returned", value: { Scan: scan } } },
+      { Assign: { name: "who", value: { Variable: "b" } } },
+      { Const: { name: "auxiliary", value: { [read]: {
+        site: "point", table: "posts", index: "byUniqueAt", provenance: "Computed",
+        key: [{ Builtin: { builtin: "Len", args: [{ Scan: nested }] } }],
+      } } } },
+      { Return: { Variable: "returned" } },
+    ],
+  };
+  c.context.args = { a: { Id: "A" }, b: { Id: "B" }, c: "Null" };
+  c.receipt.rows = ["A", "B"].flatMap((author) => [1, 2, 3].map((n) => ({
+    table: "posts", row: { Row: {
+      id: { Id: `${author}${n}` }, author: { Id: author }, at: { Int: n + (author === "A" ? 0 : 99) },
+    } },
+  })));
+  const checked = spawnSync(fileURLToPath(new URL("../../../target/debug/snapback2", import.meta.url)),
+    ["check", "--ir", "--json"], {
+      input: JSON.stringify({ schema: c.schema, programs: [c.program] }), encoding: "utf8",
+    });
+  const diagnostics = JSON.parse(checked.stdout).results;
+  // On the broken certifier, show the actual twin continuation selected by the duplicate.
+  if (checked.status === 0) {
+    const result = new Runner(new ClientStore(c.schema, c.receipt), c.schema, c.context,
+      diagnostics[0].certificate).execute(c.program);
+    assert.fail(`${read}: duplicate site certified; returned ${JSON.stringify(result.result)}, cursor ${JSON.stringify(decodeCursor(result.next!).values)}`);
+  }
+  assert.ok(diagnostics.some((result: any) => result.error?.code === "E_TRACE_SUBSET"
+    && result.error.message.includes("result-page site page")), checked.stdout);
+
+  // Distinct nested reads retain the actual page, including across another operation/site.
+  nested.site = "nested";
+  c.certificate = recertify(c);
+  const store = new ClientStore(c.schema, c.receipt);
+  const first = new Runner(store, c.schema, c.context, c.certificate).execute(c.program);
+  assert.deepEqual((first.result as any).Array.map((row: any) => row.Row.id.Id), ["A1", "A2"]);
+  assert.deepEqual(decodeCursor(first.next!).values, [{ Int: 2 }, { Id: "A2" }]);
+  c.program.name = "other-operation";
+  scan.site = "other-page";
+  c.context.args.c = { String: first.next };
+  c.certificate = recertify(c);
+  const second = new Runner(store, c.schema, c.context, c.certificate).execute(c.program);
+  assert.deepEqual((second.result as any).Array.map((row: any) => row.Row.id.Id), ["A3"]);
+  assert.deepEqual(decodeCursor(second.next!).values, [{ Int: 3 }, { Id: "A3" }]);
+  c.context.args.c = { String: second.next };
+  const terminal = new Runner(store, c.schema, c.context, c.certificate).execute(c.program);
+  assert.deepEqual(terminal.result, { Array: [] });
+  assert.equal(terminal.next, null);
 }
