@@ -1,0 +1,13 @@
+{
+  "fixture": "synthetic certified-shape no-row read clock counterexample, not native certificate qualification",
+  "direct": {
+    "Int": 172800007
+  },
+  "twin": {
+    "code": "E_INPUT",
+    "message": "E_INPUT: readTime was not pinned"
+  },
+  "clockSamples": 2,
+  "schemaHash": "a972c6d6451f5422ac5352a87aa4dfaf6a9212f76528529d394e6be5bf4c04d8",
+  "planHash": "3b707eade3ab16c1a27e09906787172f7430b57989d72886f9cb94c543dcb9ce"
+}

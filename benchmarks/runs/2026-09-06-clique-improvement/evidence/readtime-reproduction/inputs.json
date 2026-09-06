@@ -1,0 +1,11 @@
+{
+  "base": "1f9b4b95c54ba7a5a9d0ece41e9463b29078cfa4",
+  "status": "moving lane WIP, inherited source cause confirmed at base",
+  "files": {
+    "snapback2/packages/snapback2/src/twin.ts": "34e34db44f956fe87cbcf90b788b042521e2e4fe00e950757cee14d29a43ff39",
+    "snapback2/packages/evaluator/src/runner.ts": "1630f6dce0c9d8f1c50af04fa438c2ae08417cde660176cba1f127c71fb36357",
+    "snapback2/packages/snapback2/guide/quarry.md": "97670544ffa897b81a6935fc5bec8580492ac19517f43f5ccd87c1c7c48b8961",
+    "snapback2/crates/snapback2/src/writer_auth.rs": "22b0fd53717c0f7d84bc14f11c14f3fda8513ecfccf5b996f07f248912dc279b",
+    "snapback2/packages/compiler/src/compiler.ts": "9755fc2d3824dffbab41bd1f6a97b82dd96361c327845d4cebf7e1b38eec226a"
+  }
+}
