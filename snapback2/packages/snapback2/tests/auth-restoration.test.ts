@@ -1387,7 +1387,7 @@ for (const format of ["HTTP 401", "typed HTTP 200"] as const) for (const stage o
         if (path === "/api/mutation") {
           replays.push(String(init?.body));
           if (mode === "transport") return new Response("cut", { status: 503 });
-          if (mode === "expiry" && stage === "replay") return terminal(JSON.parse(String(init?.body)).intent);
+          if (mode === "expiry" && stage === "replay") return terminal(JSON.parse(String(init?.body)).replay.intent);
         }
         if (mode === "expiry" && stage === "tail" && path === "/api/query") return terminal();
         return owner.fetch(input, init);
@@ -1446,9 +1446,10 @@ test("typed HTTP 200 resume expiry seals queued custody and retries the exact en
     assert.deepEqual(await client.outbox.settled(), { stopped: false, remaining: 0 });
     assert.equal(replays.length, 1);
     const replay = JSON.parse(replays[0]);
-    for (const key of ["intent", "op", "args", "grant", "ids", "trace", "issuedSeq"] as const) {
-      assert.deepEqual(replay[key], before[0][key], `resume preserves ${key}`);
-    }
+    assert.deepEqual(replay, { op: before[0].op, args: before[0].args, replay: {
+      grant: before[0].grant, offset: before[0].offset, count: before[0].count,
+      intent: before[0].intent, trace: before[0].trace,
+    } }, "resume retries the unchanged durable envelope");
     assert.deepEqual(owner.executions.map(entry => (entry.args as any).body), ["resume survivor"]);
   } finally { await client.close(); }
 });
