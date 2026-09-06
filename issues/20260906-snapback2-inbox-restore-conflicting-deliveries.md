@@ -45,3 +45,41 @@ conditional coverage admission and equivocation checks. See retained
 `evidence/inbox-restore/independent-report.md` and its source-bound result.
 The later descending-log `E_OFFLINE_RESUME` is a separate app configuration
 finding. Keep the original3264 attribution open without the failing envelope pair.
+
+## Independent observation: a reset owner database reproduces the same-sequence refusal (2026-09-06)
+
+A candidate cause for the builder's `TypeError: conflicting deliveries for
+chats.list at seq 3264` after a full-page reload, offered as a hypothesis to
+check against the builder's session history, not as an attribution.
+
+Observed on the published `snapback2@0.0.10` package, first in an actual
+Release Hermes simulator run of the standalone chat app, then reduced to Node:
+
+- A persistent client held `deliveries.inbox` at durable seq 4 from one owner
+  database. The owner was restarted with a fresh `.snapback` (same program,
+  same generation and schema hash) and its seed reached seq 4 again with
+  different row ids. The client's next `online()` refused with the untyped
+  `TypeError: conflicting deliveries for deliveries.inbox at seq 4`, thrown out
+  of the resume path (native, deterministic across five runs; cleared by a
+  fresh data container).
+- Node, `h2-owner-reset-same-seq.mjs`: same shape (drain at seq 3, reset,
+  reseed to seq 3 with new ids). The refusal is the specified equivocation
+  check, but its typing differs by path: `client.query`/`subscribe` surface a
+  typed `E_OFFLINE_DELIVERY` (site `client.query.commit`), while the native
+  `online()` resume path surfaced the raw `TypeError`. A write still commits,
+  and a cold reopen of the same partition recovered once the sequence moved on.
+- Control, `h-owner-reset.mjs`: a reset whose new database has not reached the
+  held sequence is handled silently (coverage reset, fresh download).
+
+If the builder's dev owner was restarted with a reset or reseeded database
+between sessions while the browser kept its IndexedDB partition, a reload
+would produce exactly this signature. That is an environment/app-lifecycle
+cause, not a product defect, though two product follow-ups would help app
+builders: surface the refusal on the resume path with the same typed code as
+the query path, and consider a database-instance identity in the manifest so a
+replaced database resets coverage instead of tripping equivocation.
+
+Retained under `~/verify-snapback2-liveoffline-20260906/` (`evidence-G/`,
+`evidence-native/runs/native-accounts-2026-09-06T18-09-29-494Z/step4-online-throw.json`
+with the full proxy wire capture). Wire captures show the held partition
+carried the earlier instance's answers before the client ever went online.
