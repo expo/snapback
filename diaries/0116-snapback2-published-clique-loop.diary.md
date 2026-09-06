@@ -804,7 +804,6 @@ sweep cost and late rung/view/scratch custody remain open in
 remains open for benchmark attribution; none of its previous failures became a
 pass by changing expectations.
 
-
 ### 2026-09-06 — Local composition preserves the three repair boundaries
 
 The local composition combines the fixed-main handoff, pending-asset repair and
@@ -831,3 +830,24 @@ and whole-twin failures. Asset physical-custody debt and all original report
 limits remain explicit; no benchmark, publication or overall clearance follows.
 Full source correspondence, test receipts and cleanup are in
 `/Users/ccheever/clique-improvement/revisions/release-local-composition/implementation-report.md`.
+Compiler descriptor review still found false native-constructor trust through mutable/container aliases and other modules, plus a migration suggestion that silently widens an authored list maximum from 2 to 100. These are complete-project counterexamples, not merely type-check concerns. The next repair must bind origin to the actual project and validate the entire migration wrapper. No Convex/Supabase behavior was measured by these probes; valid baseline scores remain reused.
+
+Full reports and exact source identities: [local handoffs](../benchmarks/runs/2026-09-06-clique-improvement/evidence/local-fix-handoffs/README.md). The full Clique objective, production publication and offline client resource qualification remain open.
+
+
+### 2026-09-06 — Asset review closure and another succession transition
+
+Both fresh independent code reviews now approve the pending-slot repair at `3e9238787`. Grok independently built the frozen core and passed all 30 asset tests; root verified all 944 supplied source leaves unchanged and retained the full terminal report. The offline guide should say that **unclaimed** media may expire, so queued-upload guidance is not mistaken for expiry of live claimed originals. Production/package qualification stays separate.
+
+The next widening review found an ordering concern the 47 passing cases did not cover: retiring a maintained table and using that table as the source of a new maintain can make admission compute replacement IDs before rebuild deletes source projections. The resulting surviving row may violate the successor constraint. Evidence currently consists of source inspection and a pure ordering model, not an executed Rust reproduction. Root authorized reproduction and a repair that makes exemptions match actual rebuild ownership. The original passing proof remains valid for its own scenario and is not generalized to this transition.
+
+[Complete review reports and disposition](../benchmarks/runs/2026-09-06-clique-improvement/evidence/local-fix-handoffs/README.md). Asset work can land independently while compiler, succession and offline resource repairs continue; no competing backend rerun or full Clique win is claimed.
+
+
+### 2026-09-06 — Drain review and real request boundaries
+
+The real-owner drain regression now fails exactly where the reviewer predicted: the structured unsupported-log refusal has no `cap: 50`, but the old test still expects it. The repair must retain the rejected descending/non-page/oversize operations and the full52-note budget exercise. This is test integration friction, not a new demonstrated drain runtime defect. The existing drain-admission client test also needs registration in the canonical runner.
+
+A separate Grok review initially flagged a cap32 retry mismatch. Reading the complete request path showed that the production client slices the request to32 before sending it; more live subscriptions do not produce an oversized resume body. The same reviewer withdrew that finding in an additive follow-up. Keeping the first report made the reasoning auditable, and checking public reachability avoided an unnecessary product change. No new competing-backend behavior or full Clique win was measured.
+
+[Complete reviews and disposition](../benchmarks/runs/2026-09-06-clique-improvement/evidence/drain-integration-review/README.md). The actual repair, fresh review, package qualification and benchmark remain pending.

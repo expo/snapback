@@ -1,0 +1,24 @@
+{
+  "commit": "680b68716dd876823348a94fb8915ac7384305e7",
+  "sourceLeaves": 950,
+  "mismatches": [],
+  "terminal": {
+    "pid": 10017,
+    "exitCode": 0,
+    "endedEpoch": 1788726281.299477,
+    "elapsedSeconds": 1044.2389912605286
+  },
+  "identity": {
+    "thread": "01a07855-1770-73a3-bf7f-0f8e462ea66d",
+    "pid": 10017,
+    "model": "gpt-6-astra",
+    "effort": "xhigh",
+    "cwd": "/Users/ccheever/clique-improvement/reviews/drain-local-integration-r1/astra",
+    "source": "/Users/ccheever/.codex/sessions/2026/09/06/rollout-2026-09-06T13-07-17-01a07855-1770-73a3-bf7f-0f8e462ea66d.jsonl"
+  },
+  "reportSHA256": "17618427b0a473b2b8fda8ab7b3286010c008dcd13f3e330e95b0127fdda40aa",
+  "rootRead": "Full17994B report",
+  "verdict": "CHANGES_REQUIRED",
+  "finding": "Affected Rust owner resume test expects old cap50/first50 refusal while producer emits unsupported-log reason/shape/op and firstN<=50. Static source inconsistency, not reviewer Rust execution. Keep three refused logs and later52-row/large-envelope checks; update assertions and execute actual owner test. Add drain-admission.test.ts to canonical existing client list.",
+  "independentExecution": "14 source-bundled focused client checks original10s passed; not package or owner qualification."
+}

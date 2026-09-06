@@ -1,0 +1,42 @@
+{
+  "astra-review.md": {
+    "bytes": 17994,
+    "sha256": "17618427b0a473b2b8fda8ab7b3286010c008dcd13f3e330e95b0127fdda40aa"
+  },
+  "astra-identity.json": {
+    "bytes": 335,
+    "sha256": "d859d762bc9bba741dd123c0f15d62ad7a2c7f5a2c2065e2750b492429ea7acc"
+  },
+  "astra-terminal.json": {
+    "bytes": 110,
+    "sha256": "647339519be67742e45c3e5397b31a5b0fba1f14b2fe8bed4cdac2a644ff710a"
+  },
+  "astra-root-verification.json": {
+    "bytes": 1265,
+    "sha256": "401834e06a7fd458bd8af4f79b1199953f9580a378e4f0b1b09116010c5b7c22"
+  },
+  "grok-original-review.md": {
+    "bytes": 17810,
+    "sha256": "354c1d0e012180248a6e2267c7d03cf1d36c58c2489acd62326e41cbf236bdd3"
+  },
+  "grok-followup-review.md": {
+    "bytes": 5865,
+    "sha256": "38d3b64e1f0fd9523d13bf2fe641f1bcc04de3f9962b2b8c22d9405a4dcf75a8"
+  },
+  "grok-identity.json": {
+    "bytes": 299,
+    "sha256": "44185ff5b28a09c5747a4da28c3cbf71ddddfbd991627023ea9b72829c6ea6b4"
+  },
+  "grok-original-terminal.json": {
+    "bytes": 109,
+    "sha256": "66bfdbfaba54a22114e73d6ee4963e3e583aed154184566b9771700079ed2ea1"
+  },
+  "grok-followup-terminal.json": {
+    "bytes": 109,
+    "sha256": "50bc3ba0c19ecb18dc627a00c9a66524dd25ac348145d90fb5591778f6e4b03a"
+  },
+  "grok-root-source-verification.json": {
+    "bytes": 510,
+    "sha256": "2bec511a1b37f0e17e779a5a069457b6ac98933970b10e63d9162ba9b8aa183e"
+  }
+}

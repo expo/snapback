@@ -43,5 +43,35 @@
     "source": "/Users/ccheever/clique-improvement/reviews/compiler-argument-format-r3/astra/review.md",
     "bytes": 18444,
     "sha256": "b26b2e1ca8f38c925a5b7703b7007fe41d89da7005a9cb385047c816cf5613ff"
+  },
+  "asset-grok-review.md": {
+    "source": "/Users/ccheever/clique-improvement/reviews/asset-pending-r1/grok/review.md",
+    "bytes": 18128,
+    "sha256": "0547ededb6f29c48c0acb02a8edd1e7a1745bc5df0602d6ac133825535d65fb1"
+  },
+  "asset-grok-terminal.json": {
+    "source": "/Users/ccheever/clique-improvement/reviews/asset-pending-r1/grok/terminal.json",
+    "bytes": 111,
+    "sha256": "241cc69cf55572d99d75be078e995c07cfe9b90baa4d96ccdac7df3b5ef90593"
+  },
+  "asset-grok-identity.json": {
+    "source": "/Users/ccheever/clique-improvement/reviews/asset-pending-r1/grok/actual-identity.json",
+    "bytes": 296,
+    "sha256": "80c6e76f87c878f6db9d36ec80b77fff2e68ba8790a6c74123167be91e5f0802"
+  },
+  "asset-grok-core-tests.json": {
+    "source": "/Users/ccheever/clique-improvement/reviews/asset-pending-r1/grok/review-evidence/independent-core-assets.json",
+    "bytes": 481,
+    "sha256": "9177fa687efd547b2b2c336ab2c0c67a2a280d6d3b769e57bc6b19c4203bb8c3"
+  },
+  "asset-grok-root-acceptance.json": {
+    "source": "/Users/ccheever/clique-improvement/reviews/asset-pending-r1/root-grok-acceptance.json",
+    "bytes": 909,
+    "sha256": "dea83a58c5c99d8af4fb6d6b40d8aa8cf4947e30873ad83971cb36e68eaf5082"
+  },
+  "widening-r2-astra-review.md": {
+    "source": "/Users/ccheever/clique-improvement/reviews/successor-widening-local-r2/astra/review.md",
+    "bytes": 3749,
+    "sha256": "819d6b34006a42ed3d2baf0a57aa1e9c0100a384126fe68413f60058f1616e1a"
   }
 }
