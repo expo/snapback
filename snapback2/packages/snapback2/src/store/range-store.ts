@@ -332,7 +332,7 @@ export interface PersistedRangeState {
   overlayMisses: Record<string, number>;
   /** The commit-time tail snapshot; null after reset until the next drain establishes a new head. */
   overlayWatermarks: Record<string, OverlayWatermark | null>;
-  /** Only primary absences and tombstones, scoped to each prediction's ids. */
+  /** Coverage-scoped primary absences and tombstones for each prediction's ids; cleared on reset. */
   overlayNegatives: Record<string, Record<string, { seq: number; source: "absence" | "tombstone" }>>;
   bounds: Record<string, number>;
   programs: Record<string, HeldProgram>;
@@ -923,8 +923,10 @@ export class PersistentRangeStore implements RangeStore {
     const answers = Object.keys(state.overlay).some((intent) => state.outbox[intent]?.state === "committed")
       ? Object.values(state.answers) : [];
     const pages = answers.filter((answer) => {
+      // Denial can retain the previous complete state for history rendering;
+      // that retained content supplies no fresh arrival or continuation proof.
       const nonempty = Array.isArray(answer.data) ? answer.data.length > 0 : collectRefs(answer.data).length > 0;
-      return (answer.state === "complete" || answer.state === "capped") && answer.receipt !== undefined
+      return !answer.retained && (answer.state === "complete" || answer.state === "capped") && answer.receipt !== undefined
         && !answer.receipt.ranges.some((range) => (range.evictedIds?.length ?? 0) > 0)
         && nonempty && answer.refs.length > 0 && answer.refs.every((ref) => state.rows[rowKey(ref)] !== undefined);
     });
@@ -1010,6 +1012,7 @@ export class PersistentRangeStore implements RangeStore {
       // A query-only successor can deliver the same row at the same data seq.
       state.rowSeq = {};
       state.negative = {};
+      state.overlayNegatives = {};
       state.answers = {};
       state.watermarks = {};
       // These describe coverage, unlike the overlay and its replay entry.

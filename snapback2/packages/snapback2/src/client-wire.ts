@@ -334,7 +334,8 @@ export async function withAbort<T>(signal: AbortSignal, run: () => Promise<T>): 
 /** Named policy at JSON request boundaries; onSend is the exact wire-custody handoff. */
 export interface JsonRequestOptions {
   enforceAuthority?: boolean;
-  terminalSession?: "expire" | "after-cleanup" | "keep";
+  /** typed-result defers typed receipts to their caller; after-cleanup also defers HTTP errors. */
+  terminalSession?: "expire" | "typed-result" | "after-cleanup" | "keep";
   authRestoration?: boolean;
   onSend?: () => void;
 }

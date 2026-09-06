@@ -81,6 +81,135 @@ test("reconnect after a conditional refresh replays a queued send for joined and
   });
 });
 
+test("real scalar-projected log pages retire predictions using engine-minted cursor links after cold reopen", async (context) => {
+  if (!owner.owned) return context.skip("requires the self-started projected log fixture");
+  const { mkdtemp, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const { fileRangeStore } = await import("../dist/test.mjs");
+  const root = await mkdtemp(join(tmpdir(), "snapback-object-retirement-"));
+  const op = "integration.inboxProjected";
+  const args = { after: null, label: null };
+  const writer = createClient({ url: owner.url, as: "alice" });
+  let store = fileRangeStore(root)();
+  const query = async (after: string | null) => {
+    const response = await fetch(`${owner.url}/api/query`, { method: "POST",
+      headers: { "Content-Type": "application/json", "X-Snapback-As": "alice" },
+      body: JSON.stringify({ op, args: { ...args, after }, receipt: true }) });
+    assert.equal(response.status, 200);
+    const result = await response.json();
+    assert.ok(result.state === "complete" || result.state === "capped", JSON.stringify(result));
+    return result;
+  };
+  try {
+    for (let index = 0; index < 3; index++) {
+      const result = await writer.mutation(api.deliveries.post, { conversationId: "conversation-1", body: `object-page-${index}` });
+      assert.equal(result.state, "committed");
+    }
+    const first = await query(null);
+    assert.equal(typeof first.next, "string", "the owner mints the opaque cursor");
+    assert.equal(JSON.stringify(first.data).includes("$row"), false, "projection has scalar fields, not row references");
+    assert.ok(first.receipt.ranges.some((range: any) => range.rowIds.length > 0));
+    const intent = "projected-retirement:0";
+    const id = "predicted-message";
+    const committed = { intent, grant: "projected-retirement", offset: 0, count: 1, ids: [id], op: "deliveries.post",
+      args: {}, issuedSeq: 0, state: "committed", predicted: true, response: { state: "committed", seq: first.seq }, createdAt: 1, updatedAt: 1 };
+    await store.open("dev:alice");
+    await store.commit({ watermark: { op, args, cursorArg: "after", watermark: first.next, updatedAt: 1 },
+      outbox: { put: [committed] }, overlay: { put: { [intent]: [{ table: "messages", id, row: { id, body: "predicted" } }] } } });
+    const second = await query(first.next);
+    assert.equal(typeof second.next, "string");
+    await store.commit({ deliveries: [{ ...second, op, args: { ...args, after: first.next }, cursorArg: "after" }] });
+    assert.ok((await store.outbox.overlay())[intent], "the commit position's page alone is not beyond its snapshot");
+    await store.close(); store = fileRangeStore(root)(); await store.open("dev:alice");
+    const third = await query(second.next);
+    await store.commit({ deliveries: [{ ...third, op, args: { ...args, after: second.next }, cursorArg: "after" }] });
+    assert.equal((await store.outbox.overlay())[intent], undefined, "fresh projected tail beyond the proven link retires prediction");
+    assert.equal((await store.outbox.get(intent))?.predicted, undefined);
+    assert.equal((await store.outbox.get(intent))?.state, "committed");
+    assert.ok((await store.coverage()).rows.some((row: any) => row.table === "deliveries"));
+  } finally { await store.close(); await writer.close(); await rm(root, { recursive: true, force: true }); }
+});
+
+test("settlement uses the persisted cursor name when live metadata disagrees, with real owner argument validation", async (context) => {
+  if (!owner.owned) return context.skip("requires the self-started projected log fixture");
+  const { mkdtemp, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const { fileRangeStore } = await import("../dist/test.mjs");
+  const root = await mkdtemp(join(tmpdir(), "snapback-recorded-cursor-"));
+  const op = "integration.inboxProjected";
+  const args = { after: null, label: null };
+  const first = createClient({ url: owner.url, as: "alice", offline: { store: fileRangeStore(root) } });
+  let cold: any;
+  let drain: any;
+  try {
+    await first.ready;
+    drain = first.subscribe(api.integration.inboxProjected, args, () => {}, { drain: true });
+    await drain.until((event: any) => event.live === true, 3_000);
+    drain.close(); await first.close();
+    let restore: (() => void) | undefined;
+    const tails: any[] = [];
+    cold = createClient({ url: owner.url, as: "alice", offline: { store: fileRangeStore(root) }, fetch: async (input, init) => {
+      const path = new URL(String(input)).pathname;
+      if (path === "/api/query" && restore) {
+        tails.push(JSON.parse(String(init?.body)).args);
+        restore(); restore = undefined;
+      }
+      const response = await fetch(input, init);
+      if (path === "/api/mutation" && (await response.clone().json()).state === "committed") {
+        // Perturb only the metadata fallback during settlement. The real
+        // program still accepts after and refuses c; no fake owner blesses
+        // arguments from another generation.
+        const runtime = cold.offlineRuntime;
+        const original = runtime.cursorArg.bind(runtime);
+        runtime.cursorArg = (name: string) => name === op ? "c" : original(name);
+        restore = () => { runtime.cursorArg = original; };
+      }
+      return response;
+    } });
+    await cold.ready;
+    const held = (await cold.offlineRuntime.store.coverage()).watermarks.find((mark: any) => mark.op === op);
+    assert.equal(held.cursorArg, "after");
+    assert.equal(typeof held.watermark, "string");
+    const invalid = await fetch(`${owner.url}/api/query`, { method: "POST",
+      headers: { "Content-Type": "application/json", "X-Snapback-As": "alice" },
+      body: JSON.stringify({ op, args: { ...args, c: held.watermark }, receipt: true }) });
+    assert.equal(invalid.status, 400, "the owner refuses an extra argument instead of accepting both spellings");
+    const committed = await cold.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "recorded cursor proof" });
+    assert.equal(committed.state, "committed");
+    assert.deepEqual(tails, [{ ...args, after: held.watermark }]);
+    assert.equal((await cold.outbox.entries()).length, 0);
+    restore?.();
+  } finally { drain?.close(); await first.close(); await cold?.close(); await rm(root, { recursive: true, force: true }); }
+});
+
+test("the real owner refuses an object wrapper as a resume log instead of promising a tail", async (context) => {
+  if (!owner.owned) return context.skip("requires the self-started projected log fixture");
+  const op = "integration.inboxObject";
+  const args = { after: null, label: null };
+  const request = async (path: string, body: unknown) => {
+    const response = await fetch(`${owner.url}${path}`, { method: "POST",
+      headers: { "Content-Type": "application/json", "X-Snapback-As": "alice" }, body: JSON.stringify(body) });
+    return { status: response.status, body: await response.json() };
+  };
+  const page = await request("/api/query", { op, args, receipt: true });
+  assert.equal(page.status, 200);
+  assert.ok(page.body.data.entries.length > 0);
+  assert.equal(page.body.next, null);
+  const programResponse = await fetch(`${owner.url}/api/program?generation=${page.body.generation}`,
+    { headers: { "X-Snapback-As": "alice" } });
+  assert.equal(programResponse.status, 200);
+  const program = await programResponse.json();
+  assert.equal(program.programs[op].certificate.result_pages, undefined, "outer wrapper has no certified result page");
+  const resume = await request("/api/resume", { protocol: 1, generation: page.body.generation,
+    schemaHash: page.body.schemaHash, authEpoch: page.body.authority.authEpoch,
+    log: { op, args, watermark: null }, mounted: [] });
+  assert.equal(resume.status, 413);
+  assert.equal(resume.body.code, "E_OFFLINE_RESUME");
+  assert.match(resume.body.message, /returns no page/);
+});
+
 test("sixty live queries and a channel share one connection through add, remove and reconnect", async (context) => {
   if (!owner.owned) return context.skip("the multi-query probe uses the self-started chat fixture");
   let streams = 0;

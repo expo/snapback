@@ -226,7 +226,6 @@ for (const kind of ["primary absence", "tombstone", "predicted deletion", "condi
         }
         assert.equal((await store.outbox.get(item.intent))?.state, "queued");
         store = await reopen(store, create, partition);
-        if (kind === "tombstone") await store.commit({ resetCoverage: true });
         // No negative or tail in this swap: only the delayed terminal response.
         await store.commit({ outbox: { put: [item.committed] } });
         await assertRetired(store, item.intent, name);
@@ -257,6 +256,35 @@ test("a conditional primary absence refreshed after settlement retires at its va
     } finally { await store.close?.(); }
   });
 });
+
+for (const kind of ["absence", "tombstone"] as const) {
+  test(`resetCoverage discards queued ${kind} retirement evidence but preserves intent and prediction`, async () => {
+    await carriers(async (name, create) => {
+      let store = create();
+      const partition = `${name}:reset-negative-${kind}`;
+      const item = prediction(partition);
+      const negative = kind === "tombstone"
+        ? { tombstones: [{ table: "messages", id: item.id, seq: 31 }] }
+        : { deliveries: [{ ...page("messages.byId", { id: item.id }, 31, []), data: null,
+          receipt: { ...receipt(), absences: [["messages", "byId", [item.id]]] as Array<[string, string, unknown[]]> } }] };
+      try {
+        await store.open(partition);
+        await store.commit({ outbox: { put: [item.queued] }, overlay: { put: { [item.intent]: item.overlay } } });
+        await store.commit(negative);
+        store = await reopen(store, create, partition);
+        await store.commit({ resetCoverage: true });
+        store = await reopen(store, create, partition);
+        assert.equal((await store.outbox.get(item.intent))?.state, "queued");
+        await store.commit({ outbox: { put: [item.committed] } });
+        assert.ok((await store.outbox.overlay())[item.intent], `${name}: prior coverage cannot confirm a later terminal`);
+        assert.equal((await store.outbox.get(item.intent))?.predicted, true);
+        // A fresh fact at the same data seq is valid in the new coverage.
+        await store.commit(negative);
+        await assertRetired(store, item.intent, name);
+      } finally { await store.close?.(); }
+    });
+  });
+}
 
 test("a queued hidden-row eviction is not durable authoritative negative evidence on both carriers", async () => {
   await carriers(async (name, create) => {
@@ -420,6 +448,27 @@ test("nonempty scalar projections use held closure rows to prove tail progress o
       await store.commit({ deliveries: [projected("a", "b")] });
       assert.ok((await store.outbox.overlay())[item.intent], "the snapshot's own projected page is not past it");
       await store.commit({ deliveries: [projected("b", null)] });
+      await assertRetired(store, item.intent, name);
+    } finally { await store.close?.(); }
+  });
+});
+
+test("a retained denied tail cannot prove authoritative page arrival", async () => {
+  await carriers(async (name, create) => {
+    let store = create();
+    const item = prediction(`${name}-retained-tail`);
+    const partition = `${name}:retained-tail`;
+    try {
+      await seed(store, partition, item, { op: "deliveries.inbox", args: { c: null }, cursorArg: "c", watermark: "a", updatedAt: 1 });
+      await store.commit({ deliveries: [page("deliveries.inbox", { c: "b" }, 29, [row("deliveries", "old")])] });
+      await store.commit({ retention: { deliveries: "delivered-history" }, deliveries: [{
+        ...page("deliveries.inbox", { c: "b" }, 31, []), state: "denied", data: undefined,
+      }] });
+      store = await reopen(store, create, partition);
+      assert.equal((await store.answer("deliveries.inbox", { c: "b" }))?.retained, true);
+      await store.commit({ deliveries: [page("deliveries.inbox", { c: "a" }, 31, [row("deliveries", "link")], "b")] });
+      assert.ok((await store.outbox.overlay())[item.intent], "retained history past a fresh link is not arrival");
+      await store.commit({ deliveries: [page("deliveries.inbox", { c: "b" }, 32, [row("deliveries", "fresh")])] });
       await assertRetired(store, item.intent, name);
     } finally { await store.close?.(); }
   });

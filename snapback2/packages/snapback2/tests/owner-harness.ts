@@ -38,6 +38,12 @@ query inboxHeld(c: cursor ?):
 
 query inboxPlain(c: cursor ?):
   return deliveries[viewer] after c first 20 by byRecipientAt
+
+query inboxObject(after: cursor ?, label: text <=40 ?):
+  return { entries: deliveries[viewer] after after first 1 by byRecipientAt { id, kind } }
+
+query inboxProjected(after: cursor ?, label: text <=40 ?):
+  return deliveries[viewer] after after first 1 by byRecipientAt { id, kind }
 ${withDeliveries ? `
 mutation logMessage(messageId: messages):
   msg = messages[messageId] ! else NOT_FOUND

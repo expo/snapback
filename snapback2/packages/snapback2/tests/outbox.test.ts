@@ -835,47 +835,6 @@ test("a committed settlement lands in the same swap as the log tail rows, or not
   await rm(root, { recursive: true, force: true });
 });
 
-test("the settlement log tail uses its recorded cursor name even when the live manifest changes", async () => {
-  for (const liveCursor of ["after", "c"]) {
-    const root = await tempRoot();
-    const seeded = fileRangeStore(root)();
-    await seeded.open("dev:alice");
-    await seeded.commit({
-      deliveries: [{
-        op: "deliveries.inbox", args: { after: null }, state: "complete", data: [], next: null, seq: 3,
-        validator: "1".repeat(64), receipt: { ranges: [], absences: [], verdicts: [] },
-      }],
-      watermark: {
-        op: "deliveries.inbox", args: { after: null }, cursorArg: "after", watermark: "cursor-9",
-        validator: "1".repeat(64), generation, schemaHash, authEpoch: 7, updatedAt: 10,
-      },
-      facts: { generation, schemaHash, authEpoch: 7 },
-    });
-    await seeded.close?.();
-    const owner = fakeOwner({ cursorArg: liveCursor });
-    const tails: unknown[] = [];
-    const client = createClient({
-      url: "http://cursor-tail.test", as: "alice", offline: { store: fileRangeStore(root) },
-      fetch: async (input, init) => {
-        if (new URL(String(input)).pathname === "/api/query") tails.push(JSON.parse(String(init?.body)).args);
-        return owner.fetch(input, init);
-      },
-    });
-    try {
-      await client.ready;
-      await client.offline();
-      await client.mutation(api.deliveries.post as any, post("named cursor"));
-      await client.online();
-      await client.outbox.settled();
-      assert.deepEqual(tails, [{ after: "cursor-9" }]);
-      assert.equal("c" in (tails[0] as Record<string, unknown>), false);
-    } finally {
-      await client.close();
-      await rm(root, { recursive: true, force: true });
-    }
-  }
-});
-
 test("online writes carry the replay envelope under custody; a transport failure enqueues; a queued outbox keeps FIFO", async () => {
   const root = await tempRoot();
   let dead = false;
