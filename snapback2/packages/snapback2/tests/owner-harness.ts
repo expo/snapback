@@ -55,11 +55,19 @@ mutation logMessage(messageId: messages):
 }
 
 async function exited(child: ChildProcessWithoutNullStreams, timeoutMs = 5_000): Promise<void> {
-  if (child.exitCode !== null) return;
-  await Promise.race([
-    new Promise<void>((resolveExit) => child.once("exit", () => resolveExit())),
-    new Promise<never>((_, reject) => setTimeout(() => reject(new Error("owner did not exit")), timeoutMs)),
-  ]);
+  if (child.exitCode !== null || child.signalCode !== null) return;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const { promise, resolve: onExit, reject: onError } = Promise.withResolvers<void>();
+  child.once("exit", onExit);
+  child.once("error", onError);
+  try {
+    timer = setTimeout(() => onError(new Error("owner did not exit")), timeoutMs);
+    await promise;
+  } finally {
+    clearTimeout(timer);
+    child.off("exit", onExit);
+    child.off("error", onError);
+  }
 }
 
 export class RealOwnerHarness {
@@ -84,16 +92,21 @@ export class RealOwnerHarness {
     const built = command(["cargo", "build", "-p", "snapback2"]);
     assert.equal(built.status, 0, `cargo build failed\n${built.stdout}\n${built.stderr}`);
     const root = await mkdtemp(join(tmpdir(), "snapback2-client-owner-"));
-    await cp(options.fullChat ? join(packageRoot, "templates/chat/snapback") : join(fixture, "snapback"), join(root, "snapback"), { recursive: true });
-    await addIntegrationOperations(root, options.withDeliveries ?? false);
-    const checked = command([binary, "check", "--project", root], {
-      env: { ...process.env, SNAPBACK2_COMPILER: compiler },
-    });
-    assert.equal(checked.status, 0, `snapback2 check failed\n${checked.stdout}\n${checked.stderr}`);
-    assert.match(checked.stdout, /^ok /, "snapback2 check did not certify the chat fixture");
-    const harness = new RealOwnerHarness({ owned: true, root, url: "", mode: "dev" });
-    await harness.start(false);
-    return harness;
+    try {
+      await cp(options.fullChat ? join(packageRoot, "templates/chat/snapback") : join(fixture, "snapback"), join(root, "snapback"), { recursive: true });
+      await addIntegrationOperations(root, options.withDeliveries ?? false);
+      const checked = command([binary, "check", "--project", root], {
+        env: { ...process.env, SNAPBACK2_COMPILER: compiler },
+      });
+      assert.equal(checked.status, 0, `snapback2 check failed\n${checked.stdout}\n${checked.stderr}`);
+      assert.match(checked.stdout, /^ok /, "snapback2 check did not certify the chat fixture");
+      const harness = new RealOwnerHarness({ owned: true, root, url: "", mode: "dev" });
+      await harness.start(false);
+      return harness;
+    } catch (error) {
+      await rm(root, { recursive: true, force: true });
+      throw error;
+    }
   }
 
   async start(serve: boolean): Promise<void> {
@@ -109,23 +122,44 @@ export class RealOwnerHarness {
     this.child = child;
     let stderr = "";
     child.stderr.setEncoding("utf8");
-    child.stderr.on("data", (chunk) => { stderr += chunk; });
+    const onStderr = (chunk: string) => { stderr += chunk; };
+    child.stderr.on("data", onStderr);
     const lines = createInterface({ input: child.stdout });
-    const ready = await Promise.race([
-      new Promise<string>((resolveLine, reject) => {
-        lines.once("line", resolveLine);
-        child.once("exit", (code) => reject(new Error(`owner exited ${code}: ${stderr}`)));
-      }),
-      new Promise<never>((_, reject) => setTimeout(() => reject(new Error(`owner readiness timed out: ${stderr}`)), 10_000)),
-    ]);
-    lines.close();
-    assert.match(ready, /^SNAPBACK_URL=http:\/\/127\.0\.0\.1:\d+$/);
-    this.url = ready.slice("SNAPBACK_URL=".length);
-    const port = Number(new URL(this.url).port);
-    if (this.port !== undefined) assert.equal(port, this.port, "owner restart moved off its ephemeral port");
-    this.port = port;
-    this.mode = serve ? "serve" : "dev";
-    process.env.SNAPBACK_URL = this.url;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const { promise, resolve: onLine, reject: onError } = Promise.withResolvers<string>();
+    const onExit = (code: number | null) => onError(new Error(`owner exited ${code}: ${stderr}`));
+    lines.once("line", onLine);
+    child.once("exit", onExit);
+    child.once("error", onError);
+    try {
+      let ready: string;
+      try {
+        timer = setTimeout(() => onError(new Error(`owner readiness timed out: ${stderr}`)), 10_000);
+        ready = await promise;
+      } finally {
+        clearTimeout(timer);
+        lines.off("line", onLine);
+        lines.close();
+        child.off("exit", onExit);
+        child.off("error", onError);
+        child.stderr.off("data", onStderr);
+      }
+      assert.match(ready, /^SNAPBACK_URL=http:\/\/127\.0\.0\.1:\d+$/);
+      this.url = ready.slice("SNAPBACK_URL=".length);
+      const port = Number(new URL(this.url).port);
+      if (this.port !== undefined) assert.equal(port, this.port, "owner restart moved off its ephemeral port");
+      this.port = port;
+      this.mode = serve ? "serve" : "dev";
+      process.env.SNAPBACK_URL = this.url;
+    } catch (error) {
+      // Startup never handed this child to a caller; reap only the PID we spawned.
+      if (child.pid !== undefined && child.exitCode === null && child.signalCode === null) {
+        child.kill("SIGKILL");
+        await exited(child);
+      }
+      this.child = undefined;
+      throw error;
+    }
   }
 
   async stop(): Promise<void> {

@@ -8,6 +8,159 @@ import { SnapbackProvider, useAuth, useMutation } from "../dist/react.mjs";
 
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
+test("owner harness releases lifecycle timers and listeners", async (context) => {
+  const { default: processes } = await import("node:child_process");
+  const { syncBuiltinESMExports } = await import("node:module");
+  const { EventEmitter } = await import("node:events");
+  const { PassThrough } = await import("node:stream");
+  const { RealOwnerHarness } = await import("./owner-harness.ts");
+  const turn = () => new Promise<void>(resolve => setImmediate(resolve));
+
+  for (const scenario of ["ready then stop", "early exit", "spawn error", "invalid readiness", "changed port", "readiness timeout", "exit timeout", "exit error", "already signalled"]) {
+    await context.test(scenario, async (t) => {
+      const originalUrl = process.env.SNAPBACK_URL;
+      const setTimer = globalThis.setTimeout, clearTimer = globalThis.clearTimeout;
+      const pending = new Map<ReturnType<typeof setTimeout>, { ms: number; fire: () => void }>();
+      const deadlines: number[] = [];
+      t.mock.method(globalThis, "setTimeout", (callback: () => void, ms: number) => {
+        const fire = () => { clearTimer(timer); pending.delete(timer); callback(); };
+        const timer = setTimer(fire, ms);
+        pending.set(timer, { ms, fire });
+        deadlines.push(ms);
+        assert.equal(timer.hasRef(), true, "deadlines must remain referenced while waiting");
+        return timer;
+      });
+      t.mock.method(globalThis, "clearTimeout", (timer: ReturnType<typeof setTimeout>) => {
+        pending.delete(timer);
+        clearTimer(timer);
+      });
+      const child = () => {
+        const value: any = Object.assign(new EventEmitter(), {
+          pid: 12345, exitCode: null, signalCode: null,
+          stdout: new PassThrough(), stderr: new PassThrough(), kills: [],
+        });
+        value.finish = (code: number | null, signal: string | null = null) => {
+          value.exitCode = code; value.signalCode = signal;
+          value.emit("exit", code, signal); value.stdout.end(); value.stderr.end();
+        };
+        // A process double: no OS PID is signalled by these unit tests.
+        value.kill = (signal: string) => {
+          value.kills.push(signal); queueMicrotask(() => value.finish(null, signal)); return true;
+        };
+        return value;
+      };
+      const launched = child();
+      const spawnError = new Error("owner spawn failed");
+      t.mock.method(processes, "spawn", (_binary: string, args: string[]) => {
+        if (args.includes("--stop")) {
+          const stopping = child();
+          queueMicrotask(() => stopping.finish(0));
+          if (scenario === "ready then stop") setImmediate(() => launched.finish(0));
+          return stopping;
+        }
+        queueMicrotask(() => {
+          if (scenario === "readiness timeout") return;
+          if (scenario === "early exit") { launched.stderr.write("startup diagnostic"); launched.finish(42); }
+          else if (scenario === "spawn error") { launched.pid = undefined; launched.emit("error", spawnError); }
+          else launched.stdout.write(scenario === "invalid readiness" ? "invalid\n" : "SNAPBACK_URL=http://127.0.0.1:54321\n");
+        });
+        return launched;
+      });
+      syncBuiltinESMExports();
+      // Exercise the existing lifecycle without compiling a fixture or adding a test-only API.
+      const harness = new (RealOwnerHarness as any)({ owned: true, root: "/unused-owner-double", url: "", mode: "dev" });
+      if (scenario === "changed port") harness.port = 54322;
+      const noListeners = () => {
+        assert.equal(launched.listenerCount("exit"), 0);
+        assert.equal(launched.listenerCount("error"), 0);
+        assert.equal(launched.stderr.listenerCount("data"), 0);
+        assert.equal(launched.stdout.listenerCount("data"), 0);
+      };
+      const expire = (ms: number) => {
+        assert.deepEqual([...pending.values()].map(timer => timer.ms), [ms]);
+        [...pending.values()][0].fire();
+      };
+      try {
+        const starting = harness.start(false);
+        if (["early exit", "spawn error", "invalid readiness", "changed port", "readiness timeout"].includes(scenario)) {
+          const failure = assert.rejects(starting, scenario === "spawn error" ? spawnError :
+            scenario === "early exit" ? /owner exited 42: startup diagnostic/ :
+            scenario === "changed port" ? /owner restart moved off its ephemeral port/ :
+            scenario === "readiness timeout" ? /owner readiness timed out/ : /did not match/);
+          if (scenario === "readiness timeout") expire(10_000);
+          await failure;
+          assert.equal(harness.child, undefined);
+          assert.deepEqual(launched.kills, ["early exit", "spawn error"].includes(scenario) ? [] : ["SIGKILL"]);
+        } else {
+          await starting;
+          assert.equal(pending.size, 0, "readiness must clear its losing timer immediately");
+          noListeners();
+          if (scenario === "already signalled") launched.finish(null, "SIGTERM");
+          const stopping = harness.stop();
+          if (scenario === "exit timeout" || scenario === "exit error") {
+            const failure = assert.rejects(stopping, scenario === "exit timeout" ? /owner did not exit/ : /exit wait failed/);
+            await turn();
+            if (scenario === "exit timeout") expire(5_000);
+            else launched.emit("error", new Error("exit wait failed"));
+            await failure;
+          } else await stopping;
+        }
+        assert.equal(deadlines[0], 10_000);
+        assert.ok(deadlines.slice(1).every(ms => ms === 5_000));
+        if (["ready then stop", "exit timeout", "exit error"].includes(scenario)) assert.deepEqual(deadlines, [10_000, 5_000]);
+        if (scenario === "already signalled") assert.deepEqual(deadlines, [10_000]);
+        assert.equal(pending.size, 0, "settled lifecycle waits must leave no timers");
+        noListeners();
+      } finally {
+        for (const timer of pending.keys()) clearTimer(timer);
+        launched.stdout.destroy(); launched.stderr.destroy();
+        t.mock.restoreAll(); syncBuiltinESMExports();
+        if (originalUrl === undefined) delete process.env.SNAPBACK_URL;
+        else process.env.SNAPBACK_URL = originalUrl;
+      }
+    });
+  }
+});
+
+test("owner harness reaps its launched child and fixture when creation rejects", async (context) => {
+  const { default: processes } = await import("node:child_process");
+  const { syncBuiltinESMExports } = await import("node:module");
+  const { access } = await import("node:fs/promises");
+  const { RealOwnerHarness } = await import("./owner-harness.ts");
+  const spawn = processes.spawn;
+  const originalUrl = process.env.SNAPBACK_URL;
+  let launched: ReturnType<typeof spawn> | undefined;
+  let root: string | undefined;
+  context.mock.method(processes, "spawnSync", (_binary: string, args: string[]) => {
+    if (args.includes("--project")) root = args[args.indexOf("--project") + 1];
+    return { status: 0, stdout: "ok fixture", stderr: "" };
+  });
+  context.mock.method(processes, "spawn", () => {
+    // A real owned process stays alive after printing an invalid readiness line.
+    launched = spawn(process.execPath, ["-e", "console.log('invalid'); setInterval(() => {}, 60000)"], { stdio: ["ignore", "pipe", "pipe"] });
+    return launched;
+  });
+  syncBuiltinESMExports();
+  delete process.env.SNAPBACK_URL;
+  try {
+    await assert.rejects(RealOwnerHarness.create(), /did not match/);
+    assert.ok(launched?.pid);
+    assert.equal(launched.signalCode, "SIGKILL");
+    assert.throws(() => process.kill(launched!.pid!, 0), (error: any) => error.code === "ESRCH");
+    assert.ok(root);
+    await assert.rejects(access(root), (error: any) => error.code === "ENOENT");
+  } finally {
+    if (launched?.pid && launched.exitCode === null && launched.signalCode === null) {
+      const done = new Promise<void>(resolve => launched!.once("exit", () => resolve()));
+      launched.kill("SIGKILL");
+      await done;
+    }
+    context.mock.restoreAll(); syncBuiltinESMExports();
+    if (originalUrl === undefined) delete process.env.SNAPBACK_URL;
+    else process.env.SNAPBACK_URL = originalUrl;
+  }
+});
+
 function fetchJson(value: unknown, status = 200): Response {
   return new Response(JSON.stringify(value), {
     status,
