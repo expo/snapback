@@ -1,0 +1,20 @@
+{
+  "at_epoch": 1788733878.3766558,
+  "metric": {
+    "at": "2026-09-06T22:29:46.021Z",
+    "publish_s": 84.1,
+    "production_binary_bytes": 7013216,
+    "production_binary_without_engine_bytes": 3795632,
+    "production_binary_with_engine_bytes": 7013216,
+    "production_media_binary_bytes": 2147984,
+    "engine": "ibex2 + vanilla hermes",
+    "dry": false
+  },
+  "append_bytes": 266,
+  "append_sha256": "f530a5d3cf1a8203f689dc7854fa426aeb348e2728e02400f07aef708820f801",
+  "before_sha256": "31e37a52835fa3ecb9c18e94c5942fdb663497d18b1f0212853e11a62aff0228",
+  "after_sha256": "c0fa2d54f80c427545e9dd85f9db0e39727be10ddbf1f6ded7c7f2b3d7a42164",
+  "action": "preserved exact own generated append and complete before/after externally; restored only this append under explicit user custody instruction",
+  "tracked_source_clean_after": true,
+  "root_will_land_metric_evidence_later": true
+}

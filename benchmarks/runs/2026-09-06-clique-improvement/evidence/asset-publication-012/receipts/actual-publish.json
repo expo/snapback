@@ -1,0 +1,27 @@
+{
+  "argv": [
+    "node",
+    "scripts/publish.mjs"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-asset-pending/snapback2",
+  "started_epoch": 1788733701.7785861,
+  "outer_timeout_seconds": 1800,
+  "consumer_step_timeout_seconds": 30,
+  "consumer_fetch_timeout_ms": 15000,
+  "consumer_fetch_retries": 0,
+  "publisher_sha256": "fc24c2c192119d11a6029ad7edfe91b7219a5623f8f91c1425607734c45bb3d2",
+  "npm_override_removed_in_child_only": true,
+  "override_was_present": false,
+  "node": "/Users/ccheever/.volta/bin/node",
+  "npm": "/Users/ccheever/.volta/bin/npm",
+  "cargo_build_jobs": "2",
+  "resume": "/Users/ccheever/projects/snapback-worktrees/clique-asset-pending/snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.12/resume.json",
+  "driver_pid": 91150,
+  "pid": 91172,
+  "exit_code": 0,
+  "child_returncode": 0,
+  "elapsed_seconds": 84.408169333,
+  "ended_epoch": 1788733786.187053,
+  "log_sha256": "b0ae6379717f6565945a9ee0bb4e0391115cb744cd59a93a195a9ee509c210e3",
+  "outer_timeout_reached": false
+}

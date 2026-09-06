@@ -1,0 +1,18 @@
+{
+  "argv": [
+    "python3",
+    "/Users/ccheever/clique-improvement/revisions/asset-publication-012/verify-registry-expo.py"
+  ],
+  "cwd": "/Users/ccheever/clique-improvement/revisions/asset-publication-012",
+  "driver_pid": 98100,
+  "started_epoch": 1788733823.846687,
+  "external_timeout_seconds": 300,
+  "per_command_timeout_seconds": 30,
+  "npm_fetch_timeout_ms": 15000,
+  "npm_fetch_retries": 0,
+  "pid": 98122,
+  "exit_code": 1,
+  "elapsed_seconds": 3.235867666,
+  "ended_epoch": 1788733827.082573,
+  "log_sha256": "701ce4b77f5a4bb3bca866effd9f0c00b544e8460d6277292f07ea7f406211f4"
+}

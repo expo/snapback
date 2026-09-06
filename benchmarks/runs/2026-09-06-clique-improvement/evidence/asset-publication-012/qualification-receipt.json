@@ -1,0 +1,99 @@
+{
+  "status": "PASS",
+  "source": "6954679b09aedf975783ec04650aa3e7728ba9d5",
+  "version": "0.0.12",
+  "actual_standard_publisher": {
+    "argv": [
+      "node",
+      "scripts/publish.mjs"
+    ],
+    "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-asset-pending/snapback2",
+    "started_epoch": 1788733701.7785861,
+    "outer_timeout_seconds": 1800,
+    "consumer_step_timeout_seconds": 30,
+    "consumer_fetch_timeout_ms": 15000,
+    "consumer_fetch_retries": 0,
+    "publisher_sha256": "fc24c2c192119d11a6029ad7edfe91b7219a5623f8f91c1425607734c45bb3d2",
+    "npm_override_removed_in_child_only": true,
+    "override_was_present": false,
+    "node": "/Users/ccheever/.volta/bin/node",
+    "npm": "/Users/ccheever/.volta/bin/npm",
+    "cargo_build_jobs": "2",
+    "resume": "/Users/ccheever/projects/snapback-worktrees/clique-asset-pending/snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.12/resume.json",
+    "driver_pid": 91150,
+    "pid": 91172,
+    "exit_code": 0,
+    "child_returncode": 0,
+    "elapsed_seconds": 84.408169333,
+    "ended_epoch": 1788733786.187053,
+    "log_sha256": "b0ae6379717f6565945a9ee0bb4e0391115cb744cd59a93a195a9ee509c210e3",
+    "outer_timeout_reached": false
+  },
+  "actual_standard_consumer": "standard-installed-react-consumer.json",
+  "fresh_registry_consumer": {
+    "argv": [
+      "python3",
+      "/Users/ccheever/clique-improvement/revisions/asset-publication-012/registry-attempt-2/verify-registry-expo.py"
+    ],
+    "cwd": "/Users/ccheever/clique-improvement/revisions/asset-publication-012/registry-attempt-2",
+    "driver_pid": 4407,
+    "started_epoch": 1788733964.348883,
+    "external_timeout_seconds": 300,
+    "per_command_timeout_seconds": 30,
+    "npm_fetch_timeout_ms": 15000,
+    "npm_fetch_retries": 0,
+    "pid": 4426,
+    "exit_code": 0,
+    "elapsed_seconds": 20.103637167,
+    "ended_epoch": 1788733984.4526029,
+    "log_sha256": "87b6d02bbf09393791ae2f882069b2ba4beb253daa84cd496f34157d866fc7d2"
+  },
+  "original_bounds": {
+    "consumer_step_seconds": 30,
+    "npm_fetch_ms": 15000,
+    "npm_fetch_retries": 0
+  },
+  "staged_helper_checks": "Unchanged actual resume branch executed staged platform extraction, images+HEIC capability, system dependency, macOS deployment floors, media SHA verification before consumer and registry.",
+  "build_and_full_media_attribution": "Prior full production dry run exit0/661.159176667s includes full media4pass0skip and vanilla Hermes; no compilation/full-media test rerun during actual resume.",
+  "prior_receipts": [
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/asset-release-hermes/qualification-receipt.json",
+      "sha256": "e352ab93a2a911b292f62d97c9035cab705cf90229a785865e80527dd2b97ddd"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/asset-release-hermes/receipts/production-dry-run-vanilla.json",
+      "sha256": "13333d67664a9abece2a907b6e210bfec0d6124689ec1419ef8f1b9f5f5ec7c7"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/asset-release-hermes/installed-expo-verification.json",
+      "sha256": "c5aa22c59183db217c493de1f69415b11e4fdbaedf32faf3290f6cc7475dbdd5"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/asset-release-hermes/implementation-report.md",
+      "sha256": "90dba481ab6a0df70d91acddaefc7b6604a2e0adcec7fb9eaedac94cd07e2bec"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/asset-release-hermes/source-receipt.json",
+      "sha256": "c978fe8ff7ce0bc6d3d69785fa5cde0b0f6a0639765c11019ef2f8e2ef2d1502"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/asset-release-hermes/installed-hermes-artifacts.json",
+      "sha256": "c31977c7210d959c15e07e76a5236a58ab5fc00a17f040ccd87d1f56b7366345"
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/asset-release-preparation/qualification-receipt.json",
+      "sha256": "08d1744ddecb452279c0c1bcc34e3f3560b0fc62f25d7b44316324b40290a462"
+    }
+  ],
+  "first_postpublication_failure_retained": "receipts/registry-dist-snapback2.log",
+  "subsequent_visibility": "receipts/registry-shim-observation-2.json",
+  "no_weakened_scope_or_deadline": true,
+  "non_claims": [
+    "full test.sh",
+    "native Expo app/device",
+    "full Clique",
+    "benchmark or baseline/model-native comparison",
+    "physical custody/GC completion",
+    "current main package parity"
+  ]
+}

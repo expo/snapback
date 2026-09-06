@@ -1,0 +1,21 @@
+{
+  "epoch": 1788734369.121778,
+  "source": "6954679b09aedf975783ec04650aa3e7728ba9d5",
+  "version": "0.0.12",
+  "root_independent_tarball_and_registry_install_verification": [
+    {
+      "package": "snapback2-darwin-arm64",
+      "files": 3,
+      "sha256": "31f6347fd35d80ef5be563b7d059c732dd32dc129f4359337ba731d552405fa1",
+      "registry_sri_match": true
+    },
+    {
+      "package": "snapback2",
+      "files": 151,
+      "sha256": "2b0cb89a451d5f701b084942c70914d108eed05a48127b9ed2d573871ace28fb",
+      "registry_sri_match": true
+    }
+  ],
+  "no_test_rerun": true,
+  "first_registry_processing_failure_preserved": true
+}

@@ -1,0 +1,345 @@
+{
+  "at_epoch": 1788734110.469082,
+  "recorded_pid_count": 75,
+  "recorded_pids": [
+    {
+      "pid": 2102,
+      "present": false
+    },
+    {
+      "pid": 4407,
+      "present": false
+    },
+    {
+      "pid": 4426,
+      "present": false
+    },
+    {
+      "pid": 4437,
+      "present": false
+    },
+    {
+      "pid": 4461,
+      "present": false
+    },
+    {
+      "pid": 4498,
+      "present": false
+    },
+    {
+      "pid": 4520,
+      "present": false
+    },
+    {
+      "pid": 4623,
+      "present": false
+    },
+    {
+      "pid": 4649,
+      "present": false
+    },
+    {
+      "pid": 4685,
+      "present": false
+    },
+    {
+      "pid": 4699,
+      "present": false
+    },
+    {
+      "pid": 4820,
+      "present": false
+    },
+    {
+      "pid": 4892,
+      "present": false
+    },
+    {
+      "pid": 4986,
+      "present": false
+    },
+    {
+      "pid": 91150,
+      "present": false
+    },
+    {
+      "pid": 91172,
+      "present": false
+    },
+    {
+      "pid": 91178,
+      "present": false
+    },
+    {
+      "pid": 91199,
+      "present": false
+    },
+    {
+      "pid": 91308,
+      "present": false
+    },
+    {
+      "pid": 91618,
+      "present": false
+    },
+    {
+      "pid": 91623,
+      "present": false
+    },
+    {
+      "pid": 91688,
+      "present": false
+    },
+    {
+      "pid": 91691,
+      "present": false
+    },
+    {
+      "pid": 91715,
+      "present": false
+    },
+    {
+      "pid": 91816,
+      "present": false
+    },
+    {
+      "pid": 91820,
+      "present": false
+    },
+    {
+      "pid": 91842,
+      "present": false
+    },
+    {
+      "pid": 91991,
+      "present": false
+    },
+    {
+      "pid": 92145,
+      "present": false
+    },
+    {
+      "pid": 92466,
+      "present": false
+    },
+    {
+      "pid": 92472,
+      "present": false
+    },
+    {
+      "pid": 92475,
+      "present": false
+    },
+    {
+      "pid": 92497,
+      "present": false
+    },
+    {
+      "pid": 92688,
+      "present": false
+    },
+    {
+      "pid": 92701,
+      "present": false
+    },
+    {
+      "pid": 92724,
+      "present": false
+    },
+    {
+      "pid": 92835,
+      "present": false
+    },
+    {
+      "pid": 92857,
+      "present": false
+    },
+    {
+      "pid": 93109,
+      "present": false
+    },
+    {
+      "pid": 93188,
+      "present": false
+    },
+    {
+      "pid": 93248,
+      "present": false
+    },
+    {
+      "pid": 93262,
+      "present": false
+    },
+    {
+      "pid": 93286,
+      "present": false
+    },
+    {
+      "pid": 93500,
+      "present": false
+    },
+    {
+      "pid": 93507,
+      "present": false
+    },
+    {
+      "pid": 93527,
+      "present": false
+    },
+    {
+      "pid": 93686,
+      "present": false
+    },
+    {
+      "pid": 93710,
+      "present": false
+    },
+    {
+      "pid": 93814,
+      "present": false
+    },
+    {
+      "pid": 93816,
+      "present": false
+    },
+    {
+      "pid": 93819,
+      "present": false
+    },
+    {
+      "pid": 93838,
+      "present": false
+    },
+    {
+      "pid": 93978,
+      "present": false
+    },
+    {
+      "pid": 93985,
+      "present": false
+    },
+    {
+      "pid": 94005,
+      "present": false
+    },
+    {
+      "pid": 94084,
+      "present": false
+    },
+    {
+      "pid": 94103,
+      "present": false
+    },
+    {
+      "pid": 94820,
+      "present": false
+    },
+    {
+      "pid": 95029,
+      "present": false
+    },
+    {
+      "pid": 95111,
+      "present": false
+    },
+    {
+      "pid": 95231,
+      "present": false
+    },
+    {
+      "pid": 95304,
+      "present": false
+    },
+    {
+      "pid": 95389,
+      "present": false
+    },
+    {
+      "pid": 95455,
+      "present": false
+    },
+    {
+      "pid": 95560,
+      "present": false
+    },
+    {
+      "pid": 95563,
+      "present": false
+    },
+    {
+      "pid": 95616,
+      "present": false
+    },
+    {
+      "pid": 95689,
+      "present": false
+    },
+    {
+      "pid": 95930,
+      "present": false
+    },
+    {
+      "pid": 96001,
+      "present": false
+    },
+    {
+      "pid": 98100,
+      "present": false
+    },
+    {
+      "pid": 98122,
+      "present": false
+    },
+    {
+      "pid": 98136,
+      "present": false
+    },
+    {
+      "pid": 98162,
+      "present": false
+    },
+    {
+      "pid": 98196,
+      "present": false
+    }
+  ],
+  "all_recorded_work_pids_absent": true,
+  "standard_owned_temp_directories": [
+    {
+      "path": "/private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/snapback2-consumer-bVOBlb",
+      "exists": false
+    },
+    {
+      "path": "/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/snapback2-consumer-bVOBlb",
+      "exists": false
+    },
+    {
+      "path": "/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/snapback2-media-qualify-MebCTq",
+      "exists": false
+    }
+  ],
+  "own_owner_pids_and_automatic_ports": [
+    [
+      92475,
+      56417
+    ],
+    [
+      93819,
+      56465
+    ]
+  ],
+  "registry_consumer_owner_records": [],
+  "agent_signals_sent": [],
+  "standard_publisher_stopped_both_owners": true,
+  "retained_paths": [
+    "/Users/ccheever/clique-improvement/revisions/asset-publication-012/registry-attempt-2/registry-installed-consumer",
+    "/Users/ccheever/clique-improvement/revisions/asset-publication-012/registry-installed-consumer",
+    "/Users/ccheever/projects/snapback-worktrees/clique-asset-pending/snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.12",
+    "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.12-6954679b0"
+  ],
+  "cleanup_scope": "no broad cleanup; only own normal publisher cleanup; originals and both registry attempts retained",
+  "remote_M5": "UNKNOWN; not inspected/contacted/changed",
+  "process_observation_limits": "Publisher descendants sampled using targeted pgrep/ps; transient children can be missed. Expo verification records every directly launched step and terminal. No detached Expo owner started. This is not a system-wide process absence claim.",
+  "launcher_pid": 60495,
+  "launcher_terminal": "root-provided launch.py writes terminal.json only after this CLI exits; future exit is not fabricated"
+}

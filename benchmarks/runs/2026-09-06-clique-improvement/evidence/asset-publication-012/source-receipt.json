@@ -1,0 +1,24 @@
+{
+  "source": {
+    "at_epoch": 1788734109.8086872,
+    "commit": "6954679b09aedf975783ec04650aa3e7728ba9d5",
+    "tree": "a567e0f391d3ab9b54732014b6cb4ed40c3e59bc",
+    "branch": "s2/clique-asset-release",
+    "status": "",
+    "qualified_source_manifest": "/Users/ccheever/clique-improvement/revisions/asset-release-hermes/qualified-source.json",
+    "manifest_sha256": "ac28ea0bdc77e08eeaa29eea281291d0e20d6df8c9e01b55bcef03a3c26e0b4f",
+    "source_leaves_checked": 936,
+    "mismatches": [],
+    "publisher_sha256": "fc24c2c192119d11a6029ad7edfe91b7219a5623f8f91c1425607734c45bb3d2",
+    "source_edits": [],
+    "git_actions": "read-only status/rev-parse; no fetch/rebase/checkout/version/commit/push",
+    "package_source_is_current_root_main": false,
+    "later_root_main_reported_by_user": "32bf80840 (contains later drain; excluded from qualified 0.0.12)"
+  },
+  "before": "source-before.json",
+  "after": "source-correspondence-final.json",
+  "model": "model-receipt.json",
+  "source_vs_npm": "6954679b09aedf975783ec04650aa3e7728ba9d5 was previously committed and landed; this turn publishes its qualified pair. No branch/main change or push; later root main 32bf80840 is not packaged.",
+  "source_manifest_leaves": 936,
+  "product_publisher_test_version_changes": false
+}

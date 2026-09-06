@@ -1,0 +1,90 @@
+{
+  "source": "6954679b09aedf975783ec04650aa3e7728ba9d5",
+  "files": [
+    {
+      "path": "implementation-report.md",
+      "sha256": "1e33840a679737dc8b67cc2053cc1f2b717f4aa85a9f7d995c64290e1bf1f326",
+      "bytes": 19661
+    },
+    {
+      "path": "terminal.json",
+      "sha256": "92c4dcfbbad5248dc9a85ce8424e445ce033839f39a3c459dcc53b2b3d54b968",
+      "bytes": 110
+    },
+    {
+      "path": "writer-release.json",
+      "sha256": "70627181beb4a4ea5060115767b6b925578a33eb394d1ada1d6f51c7e418b5f1",
+      "bytes": 1265
+    },
+    {
+      "path": "publication-receipt.json",
+      "sha256": "18d9827baccf09326daab839f3e4e36be5424529fd926dcb46e2008a24172a94",
+      "bytes": 3895
+    },
+    {
+      "path": "qualification-receipt.json",
+      "sha256": "6efc00d161c4524dfc2925e01266099ccbef04134d58d5f22b857351677bc0be",
+      "bytes": 4417
+    },
+    {
+      "path": "artifact-receipt.json",
+      "sha256": "ac822e970e5c3f1ee9743c06e903448d948e467a881bac1099f2678525a20320",
+      "bytes": 2674
+    },
+    {
+      "path": "source-receipt.json",
+      "sha256": "89e691271da3e8c2bae7781d24d48a4ab77728d2e544e7580c8118269936b1a6",
+      "bytes": 1282
+    },
+    {
+      "path": "metric-custody.json",
+      "sha256": "70f01db593d3a141e0ea481c03530ec5020a75f580084a4969babffb8cee2e3d",
+      "bytes": 892
+    },
+    {
+      "path": "cleanup-receipt.json",
+      "sha256": "9edee3716a4d5d38e7b88f86145ae385acec12c1e02636bb1277379099c3b857",
+      "bytes": 6062
+    },
+    {
+      "path": "final-audit.json",
+      "sha256": "1a5b5672113020f864e243818597481a9eeda4d6710fced0de412ce3d465a653",
+      "bytes": 584
+    },
+    {
+      "path": "root-registry-installed-verification.json",
+      "sha256": "15ff5a30bbcff70bb4b687f139f9f4db4f3a34a2e78b2ac8b828ab4ede4a1ddb",
+      "bytes": 633
+    },
+    {
+      "path": "installed-expo-verification.json",
+      "sha256": "207d0352276adec6dcc7b2e95b401610560be5c5fed756fb46ff7638232a293c",
+      "bytes": 3017
+    },
+    {
+      "path": "registry-attempt-2/installed-expo-verification.json",
+      "sha256": "5f5ece404065bf8969f5a48bf03478828c4099bf9b3852324189f4018d19b6ec",
+      "bytes": 14289
+    },
+    {
+      "path": "registry-attempt-2/registry-integrity.json",
+      "sha256": "3c3fedf1ae0daf05c5a063183398bb483946ee9132aa3e40beb703cffec08e43",
+      "bytes": 2019
+    },
+    {
+      "path": "receipts/actual-publish.json",
+      "sha256": "35adc1d847ab62a172b17d3501d89c1f6b63d6e764c36d331abe7a3b61c50e14",
+      "bytes": 1029
+    },
+    {
+      "path": "receipts/actual-publish.log",
+      "sha256": "b0ae6379717f6565945a9ee0bb4e0391115cb744cd59a93a195a9ee509c210e3",
+      "bytes": 9792
+    },
+    {
+      "path": "receipts/registry-expo.json",
+      "sha256": "5b666015463d0d907b3062dea5c12e953e2137dc246f773d88d7bd1d4bfe9257",
+      "bytes": 591
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "ok": true,
+  "at_epoch": 1788734110.4750102,
+  "source_clean": true,
+  "qualified_source_leaves": 936,
+  "tarballs_and_original_resume_immutable_unchanged": true,
+  "actual_publish_exit": 0,
+  "postpublication_first_observation_exit": 1,
+  "first_failure_preserved": "/Users/ccheever/clique-improvement/revisions/asset-publication-012/receipts/registry-dist-snapback2.log",
+  "successful_registry_install_and_expo_exit": 0,
+  "exact_registry_integrity": true,
+  "exact_packed_files": 154,
+  "recorded_work_pids_absent": 75,
+  "no_main_push": true,
+  "no_product_changes": true
+}

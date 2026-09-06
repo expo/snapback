@@ -1,0 +1,91 @@
+{
+  "status": "PUBLISHED_AND_REGISTRY_VERIFIED",
+  "source": "6954679b09aedf975783ec04650aa3e7728ba9d5",
+  "version": "0.0.12",
+  "publisher": {
+    "argv": [
+      "node",
+      "scripts/publish.mjs"
+    ],
+    "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-asset-pending/snapback2",
+    "started_epoch": 1788733701.7785861,
+    "outer_timeout_seconds": 1800,
+    "consumer_step_timeout_seconds": 30,
+    "consumer_fetch_timeout_ms": 15000,
+    "consumer_fetch_retries": 0,
+    "publisher_sha256": "fc24c2c192119d11a6029ad7edfe91b7219a5623f8f91c1425607734c45bb3d2",
+    "npm_override_removed_in_child_only": true,
+    "override_was_present": false,
+    "node": "/Users/ccheever/.volta/bin/node",
+    "npm": "/Users/ccheever/.volta/bin/npm",
+    "cargo_build_jobs": "2",
+    "resume": "/Users/ccheever/projects/snapback-worktrees/clique-asset-pending/snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.12/resume.json",
+    "driver_pid": 91150,
+    "pid": 91172,
+    "exit_code": 0,
+    "child_returncode": 0,
+    "elapsed_seconds": 84.408169333,
+    "ended_epoch": 1788733786.187053,
+    "log_sha256": "b0ae6379717f6565945a9ee0bb4e0391115cb744cd59a93a195a9ee509c210e3",
+    "outer_timeout_reached": false
+  },
+  "published_names": [
+    "snapback2-darwin-arm64",
+    "snapback2"
+  ],
+  "registry_dist": {
+    "registry": "https://registry.npmjs.org/",
+    "at_epoch": 1788733967.22117,
+    "packages": [
+      {
+        "package": "snapback2-darwin-arm64",
+        "version": "0.0.12",
+        "dist": {
+          "integrity": "sha512-Ki/jt9QqcfpEu0C4MXl6wUC9AfGhBqc2cPiaLCMnGKlAJSiJNxclmPnpQBz5WPYsmR2V5OMaHBYjBPABr+NTaA==",
+          "shasum": "73dc5a94e807ba4d3175898a09d6b63d44615b29",
+          "tarball": "https://registry.npmjs.org/snapback2-darwin-arm64/-/snapback2-darwin-arm64-0.0.12.tgz",
+          "fileCount": 3,
+          "unpackedSize": 9161547,
+          "signatures": [
+            {
+              "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U",
+              "sig": "MEYCIQCxJsa7VN32/BJRPeVtG3TH9IlGjHrGfIGXLx996Tu+ngIhAKN1vNQzCRY6fYSSQeKiJZsYeaXYLPJglI6qBUyHPgdZ"
+            }
+          ]
+        },
+        "retained_integrity": "sha512-Ki/jt9QqcfpEu0C4MXl6wUC9AfGhBqc2cPiaLCMnGKlAJSiJNxclmPnpQBz5WPYsmR2V5OMaHBYjBPABr+NTaA==",
+        "exact_integrity_match": true
+      },
+      {
+        "package": "snapback2",
+        "version": "0.0.12",
+        "dist": {
+          "shasum": "ab86fb3b988ed98f38df212db83a5d59582c2a3b",
+          "tarball": "https://registry.npmjs.org/snapback2/-/snapback2-0.0.12.tgz",
+          "fileCount": 151,
+          "integrity": "sha512-GCAcKYeLcxe8jZyDMOsWJOk51dkjq4N5nyFw/37aR818tVHjzynxpLG93z6l1pcfnrMaQl6f8LM+uidNiVODuQ==",
+          "signatures": [
+            {
+              "sig": "MEUCIQClAIQeo7hqo3qafudBmojztjhcay9rW+rNWXRpVWoIFAIgOtTyY6jfjPYoJmvR9OUh8p9fEPMLjB7Yx+58vo5qvo4=",
+              "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+            },
+            {
+              "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U",
+              "sig": "MEUCIF4SlZ3ZxzTEF0QYkPc3xA2/+RtRU+Qhhm6QLnErGy/WAiEAm0f2zAZH1PKpF+lP+XyAn8KZL75FXhM095qNoiBslfE="
+            }
+          ],
+          "unpackedSize": 7388401
+        },
+        "retained_integrity": "sha512-GCAcKYeLcxe8jZyDMOsWJOk51dkjq4N5nyFw/37aR818tVHjzynxpLG93z6l1pcfnrMaQl6f8LM+uidNiVODuQ==",
+        "exact_integrity_match": true
+      }
+    ]
+  },
+  "published_with_tag": "latest",
+  "npm_actual_publication_invocations": 2,
+  "no_second_publication_run": true,
+  "source_push_this_turn": false,
+  "originals_immutable": true,
+  "postpublication_observation": "Initial platform exact, shim E404; later shim exact and fresh registry verification both exact. npm accepted both in original standard invocation; no rollback/overwrite/republication.",
+  "failure_preserved": "receipts/registry-dist-snapback2.log"
+}

@@ -1,0 +1,48 @@
+{
+  "registry": "https://registry.npmjs.org/",
+  "at_epoch": 1788733967.22117,
+  "packages": [
+    {
+      "package": "snapback2-darwin-arm64",
+      "version": "0.0.12",
+      "dist": {
+        "integrity": "sha512-Ki/jt9QqcfpEu0C4MXl6wUC9AfGhBqc2cPiaLCMnGKlAJSiJNxclmPnpQBz5WPYsmR2V5OMaHBYjBPABr+NTaA==",
+        "shasum": "73dc5a94e807ba4d3175898a09d6b63d44615b29",
+        "tarball": "https://registry.npmjs.org/snapback2-darwin-arm64/-/snapback2-darwin-arm64-0.0.12.tgz",
+        "fileCount": 3,
+        "unpackedSize": 9161547,
+        "signatures": [
+          {
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U",
+            "sig": "MEYCIQCxJsa7VN32/BJRPeVtG3TH9IlGjHrGfIGXLx996Tu+ngIhAKN1vNQzCRY6fYSSQeKiJZsYeaXYLPJglI6qBUyHPgdZ"
+          }
+        ]
+      },
+      "retained_integrity": "sha512-Ki/jt9QqcfpEu0C4MXl6wUC9AfGhBqc2cPiaLCMnGKlAJSiJNxclmPnpQBz5WPYsmR2V5OMaHBYjBPABr+NTaA==",
+      "exact_integrity_match": true
+    },
+    {
+      "package": "snapback2",
+      "version": "0.0.12",
+      "dist": {
+        "shasum": "ab86fb3b988ed98f38df212db83a5d59582c2a3b",
+        "tarball": "https://registry.npmjs.org/snapback2/-/snapback2-0.0.12.tgz",
+        "fileCount": 151,
+        "integrity": "sha512-GCAcKYeLcxe8jZyDMOsWJOk51dkjq4N5nyFw/37aR818tVHjzynxpLG93z6l1pcfnrMaQl6f8LM+uidNiVODuQ==",
+        "signatures": [
+          {
+            "sig": "MEUCIQClAIQeo7hqo3qafudBmojztjhcay9rW+rNWXRpVWoIFAIgOtTyY6jfjPYoJmvR9OUh8p9fEPMLjB7Yx+58vo5qvo4=",
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+          },
+          {
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U",
+            "sig": "MEUCIF4SlZ3ZxzTEF0QYkPc3xA2/+RtRU+Qhhm6QLnErGy/WAiEAm0f2zAZH1PKpF+lP+XyAn8KZL75FXhM095qNoiBslfE="
+          }
+        ],
+        "unpackedSize": 7388401
+      },
+      "retained_integrity": "sha512-GCAcKYeLcxe8jZyDMOsWJOk51dkjq4N5nyFw/37aR818tVHjzynxpLG93z6l1pcfnrMaQl6f8LM+uidNiVODuQ==",
+      "exact_integrity_match": true
+    }
+  ]
+}

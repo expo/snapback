@@ -1,0 +1,373 @@
+{
+  "version": "0.0.12",
+  "source": "6954679b09aedf975783ec04650aa3e7728ba9d5",
+  "ok": true,
+  "scope": "fresh registry installation compared to original qualified tarballs; untouched chat Expo init/check/guide; no native device execution",
+  "consumer_directory": "/Users/ccheever/clique-improvement/revisions/asset-publication-012/registry-attempt-2/registry-installed-consumer",
+  "checks": [
+    {
+      "name": "registry-config",
+      "argv": [
+        "npm",
+        "config",
+        "get",
+        "registry"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/asset-publication-012/registry-attempt-2/registry-installed-consumer",
+      "timeout_seconds": 30,
+      "started_epoch": 1788733964.68146,
+      "pid": 4437,
+      "exit_code": 0,
+      "elapsed_seconds": 0.7373141249999999,
+      "log_sha256": "be14e0e356d799ad7fda0c391f9a6601ec5ca1dfaead2f7ceb678a7c81122878"
+    },
+    {
+      "name": "registry-dist-snapback2-darwin-arm64",
+      "argv": [
+        "npm",
+        "view",
+        "snapback2-darwin-arm64@0.0.12",
+        "dist",
+        "--json",
+        "--prefer-online",
+        "--fetch-retries=0",
+        "--fetch-timeout=15000"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/asset-publication-012/registry-attempt-2/registry-installed-consumer",
+      "timeout_seconds": 30,
+      "started_epoch": 1788733965.420102,
+      "pid": 4461,
+      "exit_code": 0,
+      "elapsed_seconds": 0.9200184580000001,
+      "log_sha256": "ae4b082ab610f7295265215ae789eb9b59396904521014840c960e5122d463dd"
+    },
+    {
+      "name": "registry-dist-snapback2",
+      "argv": [
+        "npm",
+        "view",
+        "snapback2@0.0.12",
+        "dist",
+        "--json",
+        "--prefer-online",
+        "--fetch-retries=0",
+        "--fetch-timeout=15000"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/asset-publication-012/registry-attempt-2/registry-installed-consumer",
+      "timeout_seconds": 30,
+      "started_epoch": 1788733966.341558,
+      "pid": 4498,
+      "exit_code": 0,
+      "elapsed_seconds": 0.8781129169999997,
+      "log_sha256": "b3b8ec05507e42029f4d15d7bc47484ceaca427057a74c8ee64cb6a3a8fff914"
+    },
+    {
+      "name": "registry-package-install",
+      "argv": [
+        "npm",
+        "install",
+        "--ignore-scripts",
+        "--no-audit",
+        "--no-fund",
+        "--legacy-peer-deps",
+        "--prefer-online",
+        "--fetch-retries=0",
+        "--fetch-timeout=15000",
+        "snapback2@0.0.12",
+        "snapback2-darwin-arm64@0.0.12"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/asset-publication-012/registry-attempt-2/registry-installed-consumer",
+      "timeout_seconds": 30,
+      "started_epoch": 1788733967.2216918,
+      "pid": 4520,
+      "exit_code": 0,
+      "elapsed_seconds": 3.4897424580000003,
+      "log_sha256": "88b9141cb58f11737b41844c74cbe5d9637404f57b3afb015ee2f41ab63691cd"
+    },
+    {
+      "name": "snapback2-darwin-arm64 all packed file equality",
+      "ok": true,
+      "files": 3
+    },
+    {
+      "name": "snapback2 all packed file equality",
+      "ok": true,
+      "files": 151
+    },
+    {
+      "name": "expo-installed-version",
+      "argv": [
+        "node",
+        "/Users/ccheever/clique-improvement/revisions/asset-publication-012/registry-attempt-2/registry-installed-consumer/node_modules/snapback2/bin/snapback2.mjs",
+        "version"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/asset-publication-012/registry-attempt-2/registry-installed-consumer",
+      "timeout_seconds": 30,
+      "started_epoch": 1788733970.8144782,
+      "pid": 4623,
+      "exit_code": 0,
+      "elapsed_seconds": 0.86418075,
+      "log_sha256": "b739cf15eef540182d812f7f36972aa52dc92f06a515b8c28132494278d0860f"
+    },
+    {
+      "name": "expo-installed-doctor",
+      "argv": [
+        "node",
+        "/Users/ccheever/clique-improvement/revisions/asset-publication-012/registry-attempt-2/registry-installed-consumer/node_modules/snapback2/bin/snapback2.mjs",
+        "doctor",
+        "--json"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/asset-publication-012/registry-attempt-2/registry-installed-consumer",
+      "timeout_seconds": 30,
+      "started_epoch": 1788733971.6808388,
+      "pid": 4649,
+      "exit_code": 0,
+      "elapsed_seconds": 0.3905467079999996,
+      "log_sha256": "97d1c013de8fac214a1d72c5a9d3fb9041f96b8da9ad9e4536ab5e19017402c2"
+    },
+    {
+      "name": "expo-installed-media",
+      "argv": [
+        "/Users/ccheever/clique-improvement/revisions/asset-publication-012/registry-attempt-2/registry-installed-consumer/node_modules/snapback2-darwin-arm64/bin/snapback2-media",
+        "capabilities"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/asset-publication-012/registry-attempt-2/registry-installed-consumer",
+      "timeout_seconds": 30,
+      "started_epoch": 1788733972.073764,
+      "pid": 4685,
+      "exit_code": 0,
+      "elapsed_seconds": 0.5182266669999995,
+      "log_sha256": "a3145da94d0da5767e824df99dce5294b9f13dfe6b280dc3d16fb0aa9307d0cb"
+    },
+    {
+      "name": "expo-installed-init",
+      "argv": [
+        "node",
+        "/Users/ccheever/clique-improvement/revisions/asset-publication-012/registry-attempt-2/registry-installed-consumer/node_modules/snapback2/bin/snapback2.mjs",
+        "init",
+        "/Users/ccheever/clique-improvement/revisions/asset-publication-012/registry-attempt-2/registry-installed-consumer/chat-expo",
+        "--template",
+        "chat",
+        "--client",
+        "expo",
+        "--json"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/asset-publication-012/registry-attempt-2/registry-installed-consumer",
+      "timeout_seconds": 30,
+      "started_epoch": 1788733972.5937622,
+      "pid": 4699,
+      "exit_code": 0,
+      "elapsed_seconds": 4.5339315,
+      "log_sha256": "0c725ded447d3d3d361f482b4f8613df801d849f0331b203c8d5a8efd85792cd"
+    },
+    {
+      "name": "expo-installed-guide-before-check",
+      "argv": [
+        "node",
+        "/Users/ccheever/clique-improvement/revisions/asset-publication-012/registry-attempt-2/registry-installed-consumer/node_modules/snapback2/bin/snapback2.mjs",
+        "guide",
+        "app",
+        "--project",
+        "/Users/ccheever/clique-improvement/revisions/asset-publication-012/registry-attempt-2/registry-installed-consumer/chat-expo",
+        "--json"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/asset-publication-012/registry-attempt-2/registry-installed-consumer",
+      "timeout_seconds": 30,
+      "started_epoch": 1788733977.1661062,
+      "pid": 4820,
+      "exit_code": 0,
+      "elapsed_seconds": 1.14385375,
+      "log_sha256": "a6cfdb8e3879b0bbe40a1309ce8ece929066e662f080c1691c7f91f5b069fed8"
+    },
+    {
+      "name": "expo-installed-check",
+      "argv": [
+        "node",
+        "/Users/ccheever/clique-improvement/revisions/asset-publication-012/registry-attempt-2/registry-installed-consumer/node_modules/snapback2/bin/snapback2.mjs",
+        "check",
+        "--project",
+        "/Users/ccheever/clique-improvement/revisions/asset-publication-012/registry-attempt-2/registry-installed-consumer/chat-expo",
+        "--json"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/asset-publication-012/registry-attempt-2/registry-installed-consumer",
+      "timeout_seconds": 30,
+      "started_epoch": 1788733978.327069,
+      "pid": 4892,
+      "exit_code": 0,
+      "elapsed_seconds": 4.690470082999999,
+      "log_sha256": "92c2487ee18cd9a99d29bc2f4d119a18e24c71b6d885dfef0c54af259facdb72"
+    },
+    {
+      "name": "expo-installed-guide-after-check",
+      "argv": [
+        "node",
+        "/Users/ccheever/clique-improvement/revisions/asset-publication-012/registry-attempt-2/registry-installed-consumer/node_modules/snapback2/bin/snapback2.mjs",
+        "guide",
+        "app",
+        "--project",
+        "/Users/ccheever/clique-improvement/revisions/asset-publication-012/registry-attempt-2/registry-installed-consumer/chat-expo",
+        "--json"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/asset-publication-012/registry-attempt-2/registry-installed-consumer",
+      "timeout_seconds": 30,
+      "started_epoch": 1788733983.03161,
+      "pid": 4986,
+      "exit_code": 0,
+      "elapsed_seconds": 1.2553310419999981,
+      "log_sha256": "a6cfdb8e3879b0bbe40a1309ce8ece929066e662f080c1691c7f91f5b069fed8"
+    }
+  ],
+  "started_epoch": 1788733964.515703,
+  "tarballs": [
+    {
+      "package": "snapback2-darwin-arm64",
+      "path": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.12-6954679b0/snapback2-darwin-arm64-0.0.12.tgz",
+      "sha256": "31f6347fd35d80ef5be563b7d059c732dd32dc129f4359337ba731d552405fa1",
+      "bytes": 4819371,
+      "integrity": "sha512-Ki/jt9QqcfpEu0C4MXl6wUC9AfGhBqc2cPiaLCMnGKlAJSiJNxclmPnpQBz5WPYsmR2V5OMaHBYjBPABr+NTaA=="
+    },
+    {
+      "package": "snapback2",
+      "path": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.12-6954679b0/snapback2-0.0.12.tgz",
+      "sha256": "2b0cb89a451d5f701b084942c70914d108eed05a48127b9ed2d573871ace28fb",
+      "bytes": 1789430,
+      "integrity": "sha512-GCAcKYeLcxe8jZyDMOsWJOk51dkjq4N5nyFw/37aR818tVHjzynxpLG93z6l1pcfnrMaQl6f8LM+uidNiVODuQ=="
+    }
+  ],
+  "registry_dist": [
+    {
+      "package": "snapback2-darwin-arm64",
+      "version": "0.0.12",
+      "dist": {
+        "integrity": "sha512-Ki/jt9QqcfpEu0C4MXl6wUC9AfGhBqc2cPiaLCMnGKlAJSiJNxclmPnpQBz5WPYsmR2V5OMaHBYjBPABr+NTaA==",
+        "shasum": "73dc5a94e807ba4d3175898a09d6b63d44615b29",
+        "tarball": "https://registry.npmjs.org/snapback2-darwin-arm64/-/snapback2-darwin-arm64-0.0.12.tgz",
+        "fileCount": 3,
+        "unpackedSize": 9161547,
+        "signatures": [
+          {
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U",
+            "sig": "MEYCIQCxJsa7VN32/BJRPeVtG3TH9IlGjHrGfIGXLx996Tu+ngIhAKN1vNQzCRY6fYSSQeKiJZsYeaXYLPJglI6qBUyHPgdZ"
+          }
+        ]
+      },
+      "retained_integrity": "sha512-Ki/jt9QqcfpEu0C4MXl6wUC9AfGhBqc2cPiaLCMnGKlAJSiJNxclmPnpQBz5WPYsmR2V5OMaHBYjBPABr+NTaA==",
+      "exact_integrity_match": true
+    },
+    {
+      "package": "snapback2",
+      "version": "0.0.12",
+      "dist": {
+        "shasum": "ab86fb3b988ed98f38df212db83a5d59582c2a3b",
+        "tarball": "https://registry.npmjs.org/snapback2/-/snapback2-0.0.12.tgz",
+        "fileCount": 151,
+        "integrity": "sha512-GCAcKYeLcxe8jZyDMOsWJOk51dkjq4N5nyFw/37aR818tVHjzynxpLG93z6l1pcfnrMaQl6f8LM+uidNiVODuQ==",
+        "signatures": [
+          {
+            "sig": "MEUCIQClAIQeo7hqo3qafudBmojztjhcay9rW+rNWXRpVWoIFAIgOtTyY6jfjPYoJmvR9OUh8p9fEPMLjB7Yx+58vo5qvo4=",
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+          },
+          {
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U",
+            "sig": "MEUCIF4SlZ3ZxzTEF0QYkPc3xA2/+RtRU+Qhhm6QLnErGy/WAiEAm0f2zAZH1PKpF+lP+XyAn8KZL75FXhM095qNoiBslfE="
+          }
+        ],
+        "unpackedSize": 7388401
+      },
+      "retained_integrity": "sha512-GCAcKYeLcxe8jZyDMOsWJOk51dkjq4N5nyFw/37aR818tVHjzynxpLG93z6l1pcfnrMaQl6f8LM+uidNiVODuQ==",
+      "exact_integrity_match": true
+    }
+  ],
+  "media": {
+    "heic": true,
+    "images": true
+  },
+  "expected_operations_receipt": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.10-967f857e6/installed-verification.json",
+  "expected_operations_receipt_sha256": "dd1ac25a814f906a9adf372d30a701922c0136ea0f623ee3230cfe62cd4cc11e",
+  "guide_checks": [
+    {
+      "phase": "before-check",
+      "internalBinding": "deliveries._timerBinding_expireMessage",
+      "rawBindingPresent": true,
+      "bindingAbsentFromPublicOperations": true,
+      "publicPurgeRetained": true,
+      "operationCount": 26,
+      "exactCertifiedOperationSet": true,
+      "cacheUnchanged": true,
+      "backendUnchanged": true,
+      "operations": [
+        "deliveries.edit",
+        "deliveries.inbox",
+        "deliveries.post",
+        "deliveries.purgeMessage",
+        "deliveries.thread",
+        "deliveries.unsend",
+        "feeds.followingFeed",
+        "feeds.globalFeed",
+        "follows.setFollow",
+        "groups.groupCreate",
+        "groups.memberAdd",
+        "groups.memberLeave",
+        "groups.memberPromote",
+        "groups.memberRemove",
+        "messages.send",
+        "messages.sendClip",
+        "messages.sendOncePhoto",
+        "messages.sendPhoto",
+        "messages.summary",
+        "messages.thread",
+        "notifications.recordNotified",
+        "posts.createPost",
+        "profiles.byHandle",
+        "profiles.createMyProfile",
+        "profiles.mine",
+        "profiles.updateMyProfile"
+      ]
+    },
+    {
+      "phase": "after-check",
+      "internalBinding": "deliveries._timerBinding_expireMessage",
+      "rawBindingPresent": true,
+      "bindingAbsentFromPublicOperations": true,
+      "publicPurgeRetained": true,
+      "operationCount": 26,
+      "exactCertifiedOperationSet": true,
+      "cacheUnchanged": true,
+      "backendUnchanged": true,
+      "operations": [
+        "deliveries.edit",
+        "deliveries.inbox",
+        "deliveries.post",
+        "deliveries.purgeMessage",
+        "deliveries.thread",
+        "deliveries.unsend",
+        "feeds.followingFeed",
+        "feeds.globalFeed",
+        "follows.setFollow",
+        "groups.groupCreate",
+        "groups.memberAdd",
+        "groups.memberLeave",
+        "groups.memberPromote",
+        "groups.memberRemove",
+        "messages.send",
+        "messages.sendClip",
+        "messages.sendOncePhoto",
+        "messages.sendPhoto",
+        "messages.summary",
+        "messages.thread",
+        "notifications.recordNotified",
+        "posts.createPost",
+        "profiles.byHandle",
+        "profiles.createMyProfile",
+        "profiles.mine",
+        "profiles.updateMyProfile"
+      ]
+    }
+  ],
+  "installed_packages_unchanged": true,
+  "tarballs_unchanged": true,
+  "backend_unchanged": true,
+  "cache_unchanged_across_explicit_check": true,
+  "verification_procedure_source": "/Users/ccheever/clique-improvement/revisions/asset-release-hermes/verify-installed-expo.py",
+  "finished_epoch": 1788733984.395991
+}

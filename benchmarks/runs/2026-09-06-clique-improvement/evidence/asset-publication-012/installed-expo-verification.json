@@ -1,0 +1,83 @@
+{
+  "version": "0.0.12",
+  "source": "6954679b09aedf975783ec04650aa3e7728ba9d5",
+  "ok": false,
+  "scope": "fresh registry installation compared to original qualified tarballs; untouched chat Expo init/check/guide; no native device execution",
+  "consumer_directory": "/Users/ccheever/clique-improvement/revisions/asset-publication-012/registry-installed-consumer",
+  "checks": [
+    {
+      "name": "registry-config",
+      "argv": [
+        "npm",
+        "config",
+        "get",
+        "registry"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/asset-publication-012/registry-installed-consumer",
+      "timeout_seconds": 30,
+      "started_epoch": 1788733824.1858728,
+      "pid": 98136,
+      "exit_code": 0,
+      "elapsed_seconds": 0.967851375,
+      "log_sha256": "be14e0e356d799ad7fda0c391f9a6601ec5ca1dfaead2f7ceb678a7c81122878"
+    },
+    {
+      "name": "registry-dist-snapback2-darwin-arm64",
+      "argv": [
+        "npm",
+        "view",
+        "snapback2-darwin-arm64@0.0.12",
+        "dist",
+        "--json",
+        "--prefer-online",
+        "--fetch-retries=0",
+        "--fetch-timeout=15000"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/asset-publication-012/registry-installed-consumer",
+      "timeout_seconds": 30,
+      "started_epoch": 1788733825.156163,
+      "pid": 98162,
+      "exit_code": 0,
+      "elapsed_seconds": 0.9463953329999999,
+      "log_sha256": "ae4b082ab610f7295265215ae789eb9b59396904521014840c960e5122d463dd"
+    },
+    {
+      "name": "registry-dist-snapback2",
+      "argv": [
+        "npm",
+        "view",
+        "snapback2@0.0.12",
+        "dist",
+        "--json",
+        "--prefer-online",
+        "--fetch-retries=0",
+        "--fetch-timeout=15000"
+      ],
+      "cwd": "/Users/ccheever/clique-improvement/revisions/asset-publication-012/registry-installed-consumer",
+      "timeout_seconds": 30,
+      "started_epoch": 1788733826.103864,
+      "pid": 98196,
+      "exit_code": 1,
+      "elapsed_seconds": 0.9527767090000001,
+      "log_sha256": "c62d32499b8d8676d9f1fd09b3bf9581c723e5c6f9c93cbff06e6163bc23292e"
+    }
+  ],
+  "started_epoch": 1788733824.00705,
+  "tarballs": [
+    {
+      "package": "snapback2-darwin-arm64",
+      "path": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.12-6954679b0/snapback2-darwin-arm64-0.0.12.tgz",
+      "sha256": "31f6347fd35d80ef5be563b7d059c732dd32dc129f4359337ba731d552405fa1",
+      "bytes": 4819371,
+      "integrity": "sha512-Ki/jt9QqcfpEu0C4MXl6wUC9AfGhBqc2cPiaLCMnGKlAJSiJNxclmPnpQBz5WPYsmR2V5OMaHBYjBPABr+NTaA=="
+    },
+    {
+      "package": "snapback2",
+      "path": "/Users/ccheever/projects/snapback-artifacts/clique-release/0.0.12-6954679b0/snapback2-0.0.12.tgz",
+      "sha256": "2b0cb89a451d5f701b084942c70914d108eed05a48127b9ed2d573871ace28fb",
+      "bytes": 1789430,
+      "integrity": "sha512-GCAcKYeLcxe8jZyDMOsWJOk51dkjq4N5nyFw/37aR818tVHjzynxpLG93z6l1pcfnrMaQl6f8LM+uidNiVODuQ=="
+    }
+  ],
+  "finished_epoch": 1788733827.058004
+}
