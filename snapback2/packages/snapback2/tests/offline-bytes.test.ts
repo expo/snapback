@@ -541,3 +541,101 @@ test("schema once excludes raw byte puts before viewing and purges on successor,
     assert.equal(await store.readBytes(A, 8), undefined);
   } finally { await store.close(); await rm(root, { recursive: true, force: true }); }
 });
+
+for (const cacheMode of ["absent", "miss", "bypass"] as const) {
+  for (const interruption of ["login", "abort"] as const) {
+    test(`${cacheMode} assetBlob fences full Blob conversion across ${interruption}`, async () => {
+      const root = await tempRoot();
+      let begin!: () => void, release!: () => void;
+      const started = new Promise<void>(resolve => { begin = resolve; });
+      const blocked = new Promise<void>(resolve => { release = resolve; });
+      const controller = new AbortController();
+      const client = createClient({ url: "http://bytes.test", token: "session",
+        ...(cacheMode === "absent" ? {} : { offline: { store: fileRangeStore(root) } }),
+        fetch: async input => {
+          const url = new URL(String(input));
+          if (url.pathname === "/api/auth/me") return Response.json({ viewer: "dev:alice", kind: "user", authEpoch: 7 });
+          if (url.pathname === "/api/auth/login") return Response.json({ token: "successor", viewer: "bob", kind: "user" });
+          const metadata = metadataResponse(url); if (metadata) return metadata;
+          if (url.pathname.startsWith("/api/asset/")) {
+            const blob = new Blob(["Alice's private bytes"]);
+            const convert = blob.arrayBuffer.bind(blob);
+            blob.arrayBuffer = async () => { begin(); await blocked; return convert(); };
+            const response = new Response(); response.blob = async () => blob;
+            return response;
+          }
+          throw new Error(`unexpected path ${url.pathname}`);
+        } });
+      let read: Promise<any> | undefined;
+      try {
+        await client.ready; await client.auth.me();
+        read = client.assetBlob(`http://bytes.test/api/asset/${cacheMode === "bypass" ? "legacy-asset" : A}`, { signal: controller.signal })
+          .then(value => ({ value }), error => ({ error }));
+        await started;
+        if (interruption === "login") await client.auth.login({ email: "bob@example.com", password: "password" });
+        else controller.abort();
+        const snapshot = client.snapshot;
+        release(); const result = await read;
+        assert.equal(result.value, undefined, "private bytes must never cross the completed conversion boundary");
+        assert.equal(interruption === "login" ? result.error?.code : result.error?.name,
+          interruption === "login" ? "E_AUTH_SUPERSEDED" : "AbortError");
+        assert.deepEqual(client.snapshot, snapshot, "late conversion must not change successor or cancelled-request state");
+      } finally { release(); await read; await client.close(); await rm(root, { recursive: true, force: true }); }
+    });
+  }
+}
+
+for (const arm of ["assetBlob", "assetBytes"] as const) {
+  for (const stage of ["cache-hit", "admission", "final-lease"] as const) {
+    for (const interruption of ["login", "abort"] as const) {
+      test(`${arm} fences ${stage} completion across ${interruption}`, async context => {
+        const root = await tempRoot();
+        let begin!: () => void, release!: () => void;
+        const started = new Promise<void>(resolve => { begin = resolve; });
+        const blocked = new Promise<void>(resolve => { release = resolve; });
+        const controller = new AbortController();
+        let fetches = 0, admitted = false, armed = false, held = false;
+        const client = createClient({ url: "http://bytes.test", token: "session", offline: { store: fileRangeStore(root) },
+          fetch: async input => {
+            const url = new URL(String(input));
+            if (url.pathname === "/api/auth/me") return Response.json({ viewer: "dev:alice", kind: "user", authEpoch: 7 });
+            if (url.pathname === "/api/auth/login") return Response.json({ token: "successor", viewer: "bob", kind: "user" });
+            const metadata = metadataResponse(url); if (metadata) return metadata;
+            if (url.pathname === "/api/query") return Response.json(envelope([ref("messages", "m1")], [messageRow("m1", A)]));
+            if (url.pathname.startsWith("/api/asset/")) { fetches++; return new Response(bytesOf(4, 7)); }
+            throw new Error(`unexpected path ${url.pathname}`);
+          } });
+        let read: Promise<any> | undefined;
+        try {
+          await client.ready; await client.auth.me(); await client.query(api.messages.thread, { conversationId: "c1", c: null });
+          const url = `http://bytes.test/api/asset/${A}`;
+          if (stage === "cache-hit") await client.assetBytes(url);
+          const cache = client.assetCache!;
+          for (const method of ["getBytes", "putBytes", "canServe"] as const) {
+            const original = cache[method].bind(cache);
+            context.mock.method(cache, method, async (...args: any[]) => {
+              const value = await (original as any)(...args);
+              if (method === "putBytes") admitted = true;
+              const target = stage === "cache-hit" ? method === "getBytes"
+                : stage === "admission" ? method === "putBytes" : method === "canServe" && admitted;
+              if (armed && target && !held) { held = true; begin(); await blocked; }
+              return value;
+            });
+          }
+          armed = true;
+          read = client[arm](url, { signal: controller.signal }).then(value => ({ value }), error => ({ error }));
+          await started;
+          if (interruption === "login") await client.auth.login({ email: "bob@example.com", password: "password" });
+          else controller.abort();
+          const snapshot = client.snapshot, requests = fetches;
+          release(); const result = await read;
+          assert.equal(result.value, undefined, "cached bytes must remain fenced through their last asynchronous check");
+          assert.equal(interruption === "login" ? result.error?.code : result.error?.name,
+            interruption === "login" ? "E_AUTH_SUPERSEDED" : "AbortError");
+          assert.deepEqual(client.snapshot, snapshot);
+          assert.equal(fetches, requests, "an obsolete cached read cannot fall through to another request");
+        } finally { release(); await read; await client.close(); await rm(root, { recursive: true, force: true }); }
+      });
+    }
+  }
+}
