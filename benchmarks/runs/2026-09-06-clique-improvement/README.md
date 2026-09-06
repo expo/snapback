@@ -158,3 +158,14 @@ reproduction and repair underway; integration is not yet cleared for release.
 M6 has five passing required suite IDs but offline reconnect choreography is
 not green: the pinned0.0.6 client reports conflicting inbox deliveries at the
 same sequence. Exact evidence and an independent reduction are pending.
+
+
+M6 web green at2026-09-06T08:42:36.122Z: frozen choreography passes
+the two-send offline queue/ordered-flush assertion and its five required
+suite IDs. Root verified the suite hash and frozen M6 source SHA256 before
+retaining receipts. Three drain:true subscriptions were replaced with
+explicit cursor-page live subscriptions in application code; this workaround
+and both same-sequence SDK refusal observations remain recorded as friction.
+The pinned package stays0.0.6. Native is explicitly not-recorded; the iOS
+Hermes export is not execution evidence. M8 has started; no holistic score
+or independent acceptance grade yet.

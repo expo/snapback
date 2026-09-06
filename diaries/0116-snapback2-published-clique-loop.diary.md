@@ -259,3 +259,15 @@ missed. Repair continues before publication. The builder's M6 required suite
 is green, but real offline reconnect still fails on conflicting inbox
 deliveries in published0.0.6. A passing suite is insufficient to claim that
 user workflow works; retain the browser failure and investigate separately.
+
+
+### M6 web green, 2026-09-06
+
+The real two-message offline queue and ordered reconnect flush now pass the
+frozen choreography, with all five required suite IDs passing. Avoiding SDK
+drain:true in three queries through explicit page subscriptions unblocked the
+app; preserving the membership reference shape alone did not. The second
+conflict was on a flat revocation query, so join shape is not a sufficient
+diagnosis. Product reproduction/repair continues independently. Frozen source
+and receipt hashes are retained; the native simulator artifact is still absent.
+M8 is underway on the same published0.0.6 continuous build.
