@@ -1,0 +1,376 @@
+{
+  "scores": {
+    "astra": {
+      "scorer": {
+        "family": "astra",
+        "model": "gpt-6-astra",
+        "basis": "own three lanes' narrative files"
+      },
+      "backends": {
+        "snapback2": {
+          "overall": {
+            "score": 64,
+            "note": "M1\u2013M8 narratives show valuable integrated authorization, offline storage and scheduling. M5 lacks single-fetch media delivery, M6 effects drop headers, and the final report documents no published staging-recovery operation despite successful full-corpus replay."
+          },
+          "setup_and_docs": {
+            "score": 63,
+            "note": "M1's built-in auth and chat scaffold helped. The README contradicted the shipped offline guide; M5/M8 lookups encountered E_GUIDE_UNKNOWN and E_GUIDE_STALE, including missing guidance for the unrecovered staging limit."
+          },
+          "data_modeling": {
+            "score": 68,
+            "note": "M1/M3 principal types, unique keys and membership declarations were concise; M8 maintained counters worked. Restricted collection operations, nullable aggregate keys and certified bounds required model reshaping beyond ordinary schema authoring."
+          },
+          "authorization": {
+            "score": 84,
+            "note": "M1/M3 ownership and membership rules composed directly with authenticated principals; M4 tombstoning revoked asset access. M3/M5 uniform-scan certification constrained otherwise natural membership rules and forced separate authorized reads."
+          },
+          "queries_and_live": {
+            "score": 67,
+            "note": "M2/M3 live queries and ephemeral typing worked. E_BOUND split Following pages; M5 E_STRUCTURAL_COUNT forced client-merged per-chat search with client-derived index terms. Ambiguous live-update misses are not counted as backend defects."
+          },
+          "writes_and_transactions": {
+            "score": 76,
+            "note": "M2\u2013M4 set-state intents, deduplication and maintained counts worked. M5 asset custody forced non-atomic recipient uploads; the M8 cap correction required batched group invitations. The initial incorrect membership cap itself was agent-error."
+          },
+          "offline_sync": {
+            "score": 74,
+            "note": "M6/M8 supplied durable carriers, prediction and ordered replay; browser restart durability passed. The essay records conflict semantics requiring adaptation to arrival-order LWW, while documented one-writer locking required separate tab stores with incomplete secondary-tab recovery."
+          },
+          "media_assets": {
+            "score": 43,
+            "note": "M4 authenticated assets and tombstone refusal were direct. M5's E_ASSET_IN_USE required recipient-specific copies; published types acknowledged missing server one-use delivery, and repeated fetches succeeded while a grant remained open."
+          },
+          "background_work": {
+            "score": 70,
+            "note": "M5 row timers and M8 backfills/digests worked, including closed-client restart verification. M6 logged backend defects for unsupported string operations and dropped HTTP headers; push presence additionally required a heartbeat with delayed disconnect detection."
+          },
+          "client_integration": {
+            "score": 69,
+            "note": "M1/M6 hooks and web/Expo carriers provided useful integration. The final report documents separate grant, identity and carrier lifecycles plus a one-writing-tab restriction requiring custom coordination; ambiguous reconnect incidents are excluded as defects."
+          },
+          "diagnostics_dev_loop": {
+            "score": 68,
+            "note": "M2 E_BOUND reported concrete costs, and M8 emitted an actionable migration plan. Missing/stale guide targets weakened recovery; M6's silently omitted headers required captured provider requests to establish the defect."
+          },
+          "scale_and_limits": {
+            "score": 68,
+            "note": "The final report verifies 167,244 starter/scale commits and 1,000 memberships. Fixed ceilings still required split 500-follow reads and batched invitations; global search remained client fan-in. Full interactive scale behavior was not established."
+          },
+          "operations": {
+            "score": 43,
+            "note": "M8 backfills and emitted migrations worked. Final validation encountered staging exhaustion persisting across restart, with no published discard/sweep API. The penalty concerns that recovery gap, not the ambiguous cause of accumulated uploads."
+          },
+          "verdict": "Strong integrated primitives were undermined by published-surface constraints and recovery gaps that materially compromised this brief.",
+          "would_use_again_for": "I would use it again for bounded reactive applications benefiting from integrated offline queues and timers, after validating their asset-lifecycle requirements against the published limits."
+        },
+        "convex": {
+          "overall": {
+            "score": 84,
+            "note": "M1\u2013M8 retained green web results and verified full replay, with consistently direct transactions, subscriptions and scheduling. The principal missing subsystem was durable offline storage; the final report also retains media-policy work and scale-proof limitations."
+          },
+          "setup_and_docs": {
+            "score": 83,
+            "note": "M1's anonymous CLI development worked. Auth/session details and hidden local-port flags required package-source inspection. Concurrent installation corruption, Node selection and routing mistakes are excluded from backend penalties."
+          },
+          "data_modeling": {
+            "score": 88,
+            "note": "M2/M3 typed functions expressed social edges, deduplicated DMs and membership watermarks naturally. M8 transactional counters fit well, although joins, aggregation policies and paginated counter backfills remained explicit application code."
+          },
+          "authorization": {
+            "score": 83,
+            "note": "M3 reused server membership helpers across reads and mutations; M5 enforced consuming media claims. M1 required explicit live-session checks for immediate revocation, and the essay emphasizes that generated types do not supply authorization."
+          },
+          "queries_and_live": {
+            "score": 87,
+            "note": "M2/M3 subscriptions propagated feeds, messages and watermarks without invalidation plumbing. M5 supplied indexed prefix search. Typing required persisted rows plus scheduled cleanup, and offline search required a separate local implementation."
+          },
+          "writes_and_transactions": {
+            "score": 94,
+            "note": "M2/M3 transactions directly supported set-state deduplication, counters, DM uniqueness and recipient capture. M8 updated Insights with source writes and persisted digest completion atomically. No transactional backend defect was demonstrated."
+          },
+          "offline_sync": {
+            "score": 50,
+            "note": "M6/M8 web convergence passed, but the lane authored its durable outbox, account-scoped caches, media persistence and purge policies. The published surface supplied no complete offline database or durable queue; native behavior remained unverified."
+          },
+          "media_assets": {
+            "score": 80,
+            "note": "M4 uploads and deletion were small and predictable; M5 consuming claims enabled per-recipient one-view bytes. Public URLs required an application-controlled delivery path for stricter policy, and ordinary offline media persistence remained application work."
+          },
+          "background_work": {
+            "score": 89,
+            "note": "M3/M5 scheduled cleanup and M8 cron-driven digests needed no separate worker service. Persistent deduplication and isolated scheduled emission worked; connectivity tracking remained custom, and the complete digest-restart proof was not performed."
+          },
+          "client_integration": {
+            "score": 85,
+            "note": "M1\u2013M3 typed queries and subscriptions integrated cleanly with React; M8 account watermarks naturally synchronized devices. Auth-provider composition and native persistence required additional wiring. The native browser-event crash was explicitly agent-error."
+          },
+          "diagnostics_dev_loop": {
+            "score": 86,
+            "note": "M8 BadAdminKey and missing-function diagnostics correctly refused wrong-instance or premature operations; watcher readiness enabled recovery. Final typechecking passed, and the run log attributes no demonstrated defect to Convex."
+          },
+          "scale_and_limits": {
+            "score": 82,
+            "note": "The final report verifies full replay and passing deep-page, 500-follow, search, Insights and celebrity probes. Trending missed its midpoint rule and retains an aging-index scan risk; complete cold-sync and group-rendering proofs remain absent."
+          },
+          "operations": {
+            "score": 86,
+            "note": "The essay and M8 report document isolated local instances, exports/imports, paginated idempotent backfills and successful snapshot restoration with invariant rechecks. Wrong-instance credentials were refused. M7's separate evolution exercise was not run."
+          },
+          "verdict": "Convex provided the most coherent connected application backend in these lanes, with durable offline behavior its largest remaining application responsibility.",
+          "would_use_again_for": "I would use it again for reactive messaging and collaboration applications with a separately planned durable offline layer."
+        },
+        "supabase": {
+          "overall": {
+            "score": 77,
+            "note": "M1\u2013M8 delivered green web results, eventual native offline proofs and verified corpus state. SQL, managed Auth and Storage were effective; the essay documents substantial custom synchronization, authorization routing and worker/process responsibilities."
+          },
+          "setup_and_docs": {
+            "score": 85,
+            "note": "M1 diary/essay describe straightforward published Auth and Storage APIs, composing immediate signup from admin creation and ordinary sign-in. Session and rate-limit documentation explained obligations; no misleading Supabase documentation was established."
+          },
+          "data_modeling": {
+            "score": 94,
+            "note": "M2/M3 relational keys, constraints, joins and recipient ledgers directly expressed the product. M5 GIN search and M8 server aggregates extended the same model; the essay repeatedly identifies SQL familiarity and composability as strengths."
+          },
+          "authorization": {
+            "score": 78,
+            "note": "M1 managed identities and SQL membership checks worked; M5's view ledger and M8 digest authorization passed. Immediate logout needed a deny list, while the chosen API architecture required explicit authorization across mutation, query and media routes."
+          },
+          "queries_and_live": {
+            "score": 72,
+            "note": "M2 SQL feeds and M5 indexed search were expressive. The lane explicitly chose polling and custom typing instead of exercising Realtime, leaving projection refresh work. Its polling starvation was agent-error, not evidence of defective Supabase realtime."
+          },
+          "writes_and_transactions": {
+            "score": 93,
+            "note": "M2/M3 unique keys and canonical SQL transactions supported idempotent intents, recipient capture and ordered messages. M5 atomically consumed views; M8 persisted digest periods with emissions. Replay expiry correctly refused unauthorized execution."
+          },
+          "offline_sync": {
+            "score": 50,
+            "note": "M6/M8 eventually proved native cached media/search and durable sends across process death. Those guarantees came from the lane's custom queue, caches, replay and purge code; the used SDK supplied no integrated offline subsystem."
+          },
+          "media_assets": {
+            "score": 79,
+            "note": "M4 Storage uploads/downloads were straightforward. Immediate revocation required an authenticated proxy; M5 added a transactional view ledger and transient bytes. M6 native media caching passed, through application-owned persistence."
+          },
+          "background_work": {
+            "score": 73,
+            "note": "M8's custom persistent worker passed two real digest periods and an API restart with clients closed. SQL made deduplication and authorization direct, but scheduling, push presence and process ownership remained application services in this deployment."
+          },
+          "client_integration": {
+            "score": 70,
+            "note": "M1 managed auth and Storage calls were straightforward; final M6/M8 native proofs passed. The diary records manually integrated HTTP refresh, subscriptions for presence, token lifecycle, cache reconciliation and reconnect behavior; polling bugs are excluded as backend defects."
+          },
+          "diagnostics_dev_loop": {
+            "score": 82,
+            "note": "The run log records actionable rate-limit documentation, correct expired-principal refusal and useful SQL EXPLAIN inspection. The final report establishes no Supabase defect; native observability and unhandled pool errors were application corrections."
+          },
+          "scale_and_limits": {
+            "score": 78,
+            "note": "The final report verifies the complete corpus and 7/9 read comparisons; search/Insights midpoint failures remain ambiguous. Documented Auth pacing constrained replay, while unpaced requests and recovery mistakes were agent-error. Staged/resumed replay qualification remains unresolved."
+          },
+          "operations": {
+            "score": 80,
+            "note": "M8/final-report evidence shows separate schemas, exact SQL audits, resumable receipts and managed Auth/Storage deletion enabling verified cleanup. The custom API/worker increased operational responsibility; the unhandled pool-error crash was agent-error."
+          },
+          "verdict": "Supabase was an excellent relational foundation for Clique, while this deployment left much of the live, offline and worker integration to application code.",
+          "would_use_again_for": "I would use it again for relational social products where SQL reporting and explicit control justify owning synchronization and worker services."
+        }
+      },
+      "cross_backend_notes": [
+        "These judgments exclude agent-error, environment and ambiguous incident costs; elapsed time and correction counts are not treated as backend rankings.",
+        "Convex required the least assembly for connected transactions, live queries and scheduling, while Supabase's SQL model was especially direct for relationships and reporting; Supabase Realtime was not exercised.",
+        "Snapback supplied the strongest integrated offline machinery, but query ceilings, missing server one-use assets and effect-header defects forced workarounds; its staging penalty concerns missing recovery tooling rather than the ambiguous accumulation cause.",
+        "Supabase's eventual native proofs validate its custom persistence implementation; missing equivalent proofs in Snapback and Convex are evidence gaps rather than demonstrated backend failures.",
+        "All three reached verified full-corpus state with differing replay qualifications, none establishes complete O5 or comparable latency, and M7 was unrun everywhere."
+      ]
+    },
+    "grok": {
+      "scorer": {
+        "family": "grok",
+        "model": "grok-4.6",
+        "basis": "own three lanes' narrative files"
+      },
+      "backends": {
+        "snapback2": {
+          "overall": {
+            "score": 57,
+            "note": "Quarry identity, live tables, and retain-delivered-history mapped Clique, but 0.0.4 certified merge, asset ceiling, and Expo-web export defects left M3+ choreography ungreen and scale unverified."
+          },
+          "setup_and_docs": {
+            "score": 65,
+            "note": "Chat template plus snapback2 check (run-log generation 0a54b67e) started M1; no Expo web token-store recipe, and Metro resolved snapback2/react to the RN export (snapback2-defect)."
+          },
+          "data_modeling": {
+            "score": 73,
+            "note": "Tables, unique handles, caps, and maintain counts expressed the model; Quarry refused divmod(now) so M8 7-day bars are today plus zeros, and named inbox scan was E_STRUCTURAL_COUNT."
+          },
+          "authorization": {
+            "score": 82,
+            "note": "Table read/insert rules plus membership exists mapped DMs and groups; view-once is a mutation. Agent widened conversationStates delete (E_RULE), which is rule authoring not a missing primitive."
+          },
+          "queries_and_live": {
+            "score": 58,
+            "note": "Live feeds greened M1\u2013M2 and channel typing ttl 5s matched M3. Per-bubble useQuery hit the 256-subscription cap; last M3 choreo missed dm-live-messages (mixed snapback2-defect)."
+          },
+          "writes_and_transactions": {
+            "score": 86,
+            "note": "Set-state follows, likes, and reactions with client mutation IDs are the default; M4 edit/delete windows are require now <= msg.at + N against owner time."
+          },
+          "offline_sync": {
+            "score": 76,
+            "note": "OutboxStatus, retain delivered-history, and chatOffline recipe; M6 suite passed. A new messagesAll query while Playwright-offline had no program; delivered receipts after setOffline stalled."
+          },
+          "media_assets": {
+            "score": 58,
+            "note": "image/video columns with size bounds and view-once photo typing; owner staging 40 objects/512MiB (E_ASSET_TOO_LARGE) blocked reseeds and sample-50 media (snapback2-defect)."
+          },
+          "background_work": {
+            "score": 80,
+            "note": "schedule expireMessage on messages at .expiresAt and schedule dailyDigest every 2m are first-class; push is effect notify with a dummy https://api.example.com grant."
+          },
+          "client_integration": {
+            "score": 44,
+            "note": "Metro alias to dist/react.mjs (snapback2-defect) and the 256-sub crash; essay calls the React web story unfinished versus the package DOM template. RN-web fill is mixed attribution."
+          },
+          "diagnostics_dev_loop": {
+            "score": 80,
+            "note": "snapback2 check named rewrites (E_CONSTRAINT, E_RULE, E_STRUCTURAL_COUNT, E_ASSET_TOO_LARGE); first hours were certifying indexes and the reserved read column (essay)."
+          },
+          "scale_and_limits": {
+            "score": 40,
+            "note": "Following-feed first 500 failed 4MiB certification (feeds.q first 360), so the 500-follow probe cannot be one merge. Scale replay aborted in progress (receipt pass=false)."
+          },
+          "operations": {
+            "score": 55,
+            "note": "Seed via the write path and owner restart worked; reset wipes the store; the asset ceiling blocked reseeds; the :49402 scale owner never finished invariant verification."
+          },
+          "verdict": "A messenger-shaped backend whose 0.0.4 certified bounds, asset ceiling, and Expo web client kept the product from going live-green after M2.",
+          "would_use_again_for": "A chat app on the package React DOM template with modest media and follow-graph size, not this Expo-web choreography brief at the 500-follow envelope."
+        },
+        "convex": {
+          "overall": {
+            "score": 78,
+            "note": "Anonymous Convex 1.45.0 made live multi-client cheap and carried M1\u2013M8 web green plus a passing 167157-action scale replay; password auth, wall-clock queries, and offline were hand-rolled."
+          },
+          "setup_and_docs": {
+            "score": 68,
+            "note": "CONVEX_AGENT_MODE=anonymous plus hidden --local-cloud-port from package source, not getting-started docs; dashboard bound :6790 with no published relocate flag (final-report)."
+          },
+          "data_modeling": {
+            "score": 76,
+            "note": "TypeScript defineTable plus indexes expressed users, follows, and messages; uniqueness is mutation-checked indexes. Feed is scan-and-filter feedEvents, not fan-out-on-write (essay)."
+          },
+          "authorization": {
+            "score": 70,
+            "note": "Trust boundary is sessionUser plus ConvexError in each mutation; view-once and delete use media.accessCheck. No policy language, but M1\u2013M8 greened including membership cutoff."
+          },
+          "queries_and_live": {
+            "score": 84,
+            "note": "useQuery subscriptions greened two-browser live through M8, including unread sync. Queries do not re-run on wall clock (typing TTL, expiry) \u2014 convex-defect; client-filtered until."
+          },
+          "writes_and_transactions": {
+            "score": 88,
+            "note": "Mutations are the idempotent set-state home (clientId/mutationId lookup-or-insert); sample-50 and starter logs settled on mutation ack, not replica lag (essay)."
+          },
+          "offline_sync": {
+            "score": 46,
+            "note": "No platform outbox; durable localStorage queue plus 400ms flusher. M6/M8 web choreo greened including dual-offline; that is agent cache, not Convex sync (diary M6/M8)."
+          },
+          "media_assets": {
+            "score": 78,
+            "note": "generateUploadUrl and storage.getUrl covered avatars, posts, and backgrounds; view-once refusal is an HTTP accessCheck query, not a storage ACL (convex/media.ts)."
+          },
+          "background_work": {
+            "score": 72,
+            "note": "cronJobs interval every 2 minutes runs digest; replay-mode is appConfig. No row-at-expiresAt timer \u2014 disappearing and typing are query-time plus client filter (essay)."
+          },
+          "client_integration": {
+            "score": 82,
+            "note": "convex/react useQuery plus ConvexHttpClient/HTTP actions for API.md. Auth lifecycle is a hand-rolled token table. RN-web aria gaps attributed agent-error, not Convex."
+          },
+          "diagnostics_dev_loop": {
+            "score": 74,
+            "note": "convex dev push is save-and-run; the 16 MiB function read limit appeared only at named-O5 take(4000) (convex-defect). No EXPLAIN in the inner loop (essay)."
+          },
+          "scale_and_limits": {
+            "score": 72,
+            "note": "Scale instance settled 167157 actions with 0 fails and named O5 pass in 2222s. Busy-chat count needed paginated messagePage after 16 MiB collect(); celebrity feed remains scan-capped."
+          },
+          "operations": {
+            "score": 70,
+            "note": "A fresh scale instance required a second project directory (.convex/local/default); seed is the mutation path. Dashboard :6790 sat outside assigned ports. No SQL dump for exact counts."
+          },
+          "verdict": "The only Grok lane that went M1\u2013M8 web-green and finished the scale envelope, paying with hand-rolled auth, time, and offline.",
+          "would_use_again_for": "A live multi-client messenger or social app where password auth and true offline-first are acceptable to build, and the 16 MiB read budget is designed around."
+        },
+        "supabase": {
+          "overall": {
+            "score": 47,
+            "note": "GoTrue plus Postgres expressed accounts and the relational model in M1; hosted-without-CLI Realtime, offline, storage revocation, and cron became a Node sidecar, and choreography died after M1."
+          },
+          "setup_and_docs": {
+            "score": 66,
+            "note": "Email/password and admin JS paths were documented and greened M1. Hosted buckets/Realtime without the CLI is thin (diary M1); this lane never ran supabase start or Edge deploys."
+          },
+          "data_modeling": {
+            "score": 86,
+            "note": "Unique DM pairs, membership-at-send receipts, GIN tsvector prefix search, and denormalized insight counters in schema.sql \u2014 ordinary Postgres, no document-store fight (essay)."
+          },
+          "authorization": {
+            "score": 56,
+            "note": "GoTrue bcrypt/JWT/admin.signOut global covered identity. Who-can-read-what lived in Express CliqueService, not RLS \u2014 hosted RLS plus Realtime was not operated without the CLI (essay)."
+          },
+          "queries_and_live": {
+            "score": 38,
+            "note": "Subscribed to postgres_changes, then polled (setInterval 400\u20131500ms) after EventSource exhausted HTTP/1.1. M1 live profile greened; M2/M3 choreo missed live media, tabs, and DM bubbles."
+          },
+          "writes_and_transactions": {
+            "score": 84,
+            "note": "INSERT ON CONFLICT mutation ids and UPDATE last-write-wins in the Node service; suite writes through M8 passed. Idempotency is SQL, not a supabase-js primitive."
+          },
+          "offline_sync": {
+            "score": 38,
+            "note": "No outbox; src/offline.ts localStorage queue/cache and a second client prefix-search. Essay: Snapback prices this as config, Convex as not-offline-first, Supabase as bring-your-own."
+          },
+          "media_assets": {
+            "score": 52,
+            "note": "Admin JS created clqfg_media; signed URLs documented. View-once and delete-for-everyone fetch refusal required an API byte proxy (essay). Hosted fetch failed on re-upload was environment."
+          },
+          "background_work": {
+            "score": 30,
+            "note": "No CLI means no Edge Function cron. Digest and disappearing sweepers are setInterval in server/index.mjs. Push seam is a table log, presence a heartbeat (final-report gaps)."
+          },
+          "client_integration": {
+            "score": 40,
+            "note": "Product client is fetch plus poll against Express, not supabase-js hooks. JWT session had to be mirrored into localStorage across Expo remounts (agent-error); no paved Expo realtime path used."
+          },
+          "diagnostics_dev_loop": {
+            "score": 60,
+            "note": "Postgres errors and PATCH 400s were inspectable. Hosted Realtime and storage were opaque without CLI; M3 suite needed a storage fetch failed retry (environment)."
+          },
+          "scale_and_limits": {
+            "score": 34,
+            "note": "Scale replay on tenant scale started then was killed for hosted-project contention with choreography; invariant verification never ran (final-report, run-log 1788652740)."
+          },
+          "operations": {
+            "score": 58,
+            "note": "Prefix clqfg_ DDL over DIRECT_URL and drop-prefix cleanup worked (20 tables). Shared hosted project plus non-namespaced auth.users made a second instance a bad neighbor."
+          },
+          "verdict": "Hosted Postgres and Auth were a fast M1; the messenger brief after that is an application you write, and this lane's two-browser live bar never recovered.",
+          "would_use_again_for": "A refresh-based CRUD social app on Postgres where GoTrue is the win, not a 2-second typing/live-DM messenger or a durable offline queue."
+        }
+      },
+      "cross_backend_notes": [
+        "Convex was the only Grok lane to green M1\u2013M8 choreography and finish the 167157-action scale replay; Snapback and Supabase both passed scripted suites through M8 but lost the two-browser live bar at M3 (Snapback) or M2 (Supabase).",
+        "Snapback uniquely expressed membership, typing TTL, row expiry, and offline retain as schema, then the 4MiB certified merge (~360 follows), 40-object asset ceiling, and Expo snapback2/react export fought the brief's envelope and web client.",
+        "Supabase uniquely bought password auth and SQL constraints in hour one, then reimplemented live (poll), offline (localStorage), digest (Node setInterval), and media refusal (byte proxy) because hosted-without-CLI Realtime, Edge, and Storage policy were not operable as product features.",
+        "All three paid RN-web/Playwright observability (agent-error); only Snapback's Metro export and 256-subscription cap and Convex's non-ticking queries were charged as backend live-query defects.",
+        "Writes and idempotency were easy everywhere (Quarry mutation IDs, Convex mutations, SQL ON CONFLICT); what separated scores was whether live, time, offline, and media revocation were platform primitives or an application."
+      ]
+    }
+  },
+  "sources": {
+    "astra": "astra/FINAL.md",
+    "grok": "grok/raw.out"
+  }
+}

@@ -99,3 +99,31 @@ During prerequisite verification, the broad test script had one unchanged
 media output-drain timeout failure under concurrent build load; its quiet
 targeted retry passed. That observation is recorded in the existing flake
 ticket. The complete script was not reported as unconditionally green.
+
+## Full Clique improvement loop, 2026-09-06
+
+The full three-backend run's evidence was recovered from the M5 Max black.
+Its narrative-based holistic scores on Snapback 2 0.0.4 are Astra 64 versus
+Convex 84 / Supabase 77, and Grok 57 versus 78 / 47. The score tables and
+original scorer prompt are retained in
+`benchmarks/runs/2026-09-05-clique-full-3x3/`. They are baseline observations,
+not measurements of the fixes published since then in 0.0.6.
+
+A fresh Astra-medium full Clique build now uses npm 0.0.6, isolated from the
+repository and prior apps, under `/Users/ccheever/clique-improvement/` on the
+office M1. Installation and `doctor` passed; M1 is underway. The canonical
+brief still contains placeholder caps, so the builder records actual elapsed
+time without inventing numeric cap compliance. This run's different hardware
+and agent harness preclude a matched timing comparison to the baseline.
+
+The baseline makes recovery and client integration a priority alongside the
+already-landed media and query fixes. Current L7 review residue identifies
+startup auth transitions that can skip offline metadata/resume, report login
+failure after authentication succeeded, or expose predecessor held coverage
+during a transition. An Astra-xhigh lane is reproducing and correcting these
+against the current product; no new result is claimed yet.
+
+Muse is an evidence limitation: the three earlier xhigh builders are still
+live remotely, and a fresh ultra request explicitly falls back to xhigh.
+The new SSH process also cannot read the locked Keychain credentials. Existing
+sessions are preserved. An xhigh result cannot establish the user's ultra bar.

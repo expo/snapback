@@ -45,3 +45,32 @@ Per-lane records (`record-<wave>-<backend>.json`, validated with
 and the M7 fresh-session records are added here as each wave completes; the
 builder diaries live in each lane's `diary.md` and are summarized in the
 repository diary for this run.
+
+## Holistic baseline recovered 2026-09-06
+
+The raw directory above is on the fleet's **M5 Max black**, not every checkout's
+local host. The retained scorer outputs are now copied here as
+[`holistic-scores.json`](./holistic-scores.json) and
+[`holistic-scores.md`](./holistic-scores.md), with the exact
+[`scorer prompt template`](./holistic-score-prompt.md). Each scorer read its own
+model family's three builder narratives at xhigh; this is a narrative-based
+holistic assessment, not independent acceptance grading.
+
+| Builder family | Snapback 2 0.0.4 | Convex | Supabase |
+| --- | ---: | ---: | ---: |
+| Astra medium | 64 | 84 | 77 |
+| Grok 4.6 xhigh | 57 | 78 | 47 |
+
+Muse scores remain absent. Its three retained xhigh builder PIDs (92425, 92498,
+92520) were verified live on that host on 2026-09-06; do not restart them merely
+because this README is old. A fresh Muse 1.3 probe requesting ultra reported
+`gate ultra_reasoning_effort is closed; using xhigh`, then failed because the
+remote SSH session could not access locked Keychain credentials. Neither that
+probe nor the existing xhigh sessions proves the requested ultra comparison.
+
+The scores above precede the 0.0.6 fixes. A new isolated Astra-medium full build
+against npm 0.0.6 began on the office M1 under
+`/Users/ccheever/clique-improvement/lanes/astra-snapback2-006`; it receives only
+the copied instrument and installed product. It is diagnostic until completed
+and independently assessed; its different machine and harness must be disclosed
+when comparing it with this baseline. No higher score or completed bar is claimed.
