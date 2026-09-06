@@ -1,0 +1,1166 @@
+{
+  "created_utc": "2026-09-06T21:43:07.991088+00:00",
+  "status": "FINAL R8 SOURCE CHECKPOINT; product writes frozen. Correctness checkpoint only: 72199 gzip fails fixed66000; original10s movement fails; resource/full-file qualification pending. No landing/release/phone claim.",
+  "worktree": "/Users/ccheever/projects/snapback-worktrees/clique-search-twin",
+  "branch": "s2/clique-search-twin",
+  "start_commit": "e1c6e2b79a9e13ceb363f647f52807218aa2b57a",
+  "original_lane_base": "1f9b4b95c54ba7a5a9d0ece41e9463b29078cfa4",
+  "session_uuid": "01a07649-dd08-7990-8d16-16a76e09ffbc",
+  "delta_files_since_r7a": [
+    "snapback2/packages/evaluator/src/index-store.ts",
+    "snapback2/packages/evaluator/src/ordered.ts",
+    "snapback2/packages/evaluator/src/runner.ts",
+    "snapback2/packages/evaluator/src/test-indexed.ts",
+    "snapback2/packages/evaluator/src/test-search-v5-fixtures.json",
+    "snapback2/packages/evaluator/src/unicode.ts",
+    "snapback2/packages/snapback2/src/client.ts",
+    "snapback2/packages/snapback2/src/offline.ts",
+    "snapback2/packages/snapback2/src/store/carrier-index.ts",
+    "snapback2/packages/snapback2/src/store/extent-facts.ts",
+    "snapback2/packages/snapback2/src/store/extent-index.ts",
+    "snapback2/packages/snapback2/src/store/fact-index.ts",
+    "snapback2/packages/snapback2/src/store/fact-integrity.ts",
+    "snapback2/packages/snapback2/src/store/projection.ts",
+    "snapback2/packages/snapback2/src/store/range-store.ts",
+    "snapback2/packages/snapback2/src/twin-store.ts",
+    "snapback2/packages/snapback2/tests/offline-store.test.ts",
+    "snapback2/packages/snapback2/tests/sqlite-state.ts",
+    "snapback2/packages/snapback2/tests/store-review.test.ts"
+  ],
+  "complete_changed_sources_since_lane_base": {
+    "snapback2/packages/evaluator/src/certificate-identity.ts": {
+      "sha256": "f80407e5c2e289c24ac09fde2e0252c015e543c6722d33d995f178e3531a5eb0",
+      "bytes": 18228,
+      "lines": 383
+    },
+    "snapback2/packages/evaluator/src/coverage-spans.ts": {
+      "sha256": "4261606a117545f2dfab9f366a84468e8b24d22da1d9e3076f480eb1aad21a8f",
+      "bytes": 2023,
+      "lines": 37
+    },
+    "snapback2/packages/evaluator/src/coverage.ts": {
+      "sha256": "09a393ee56b7016ed6dbb4200725ae096c75b34e2db2014db63b2989f24175cd",
+      "bytes": 11964,
+      "lines": 191
+    },
+    "snapback2/packages/evaluator/src/cursor.ts": {
+      "sha256": "94f0efe7b7ff947c77294fdcc99f38f3493615d87e1c97c13bc3ee146aaa2b3f",
+      "bytes": 10419,
+      "lines": 197
+    },
+    "snapback2/packages/evaluator/src/evaluator.ts": {
+      "sha256": "a96cd7495593d627fc52b6640fb67ed08b1a0455dff95728f4d59896320083af",
+      "bytes": 6792,
+      "lines": 193
+    },
+    "snapback2/packages/evaluator/src/hash.ts": {
+      "sha256": "470e2f7973cc86a35be29e9ba901f3c86f759e6e65796051f188cb3a68a75214",
+      "bytes": 4328,
+      "lines": 108
+    },
+    "snapback2/packages/evaluator/src/held-directory.ts": {
+      "sha256": "aa7db5e9a0ee3131df6c3b1cc9e36a0a37fabfba7e410bed2810e15c3f762bd3",
+      "bytes": 4080,
+      "lines": 65
+    },
+    "snapback2/packages/evaluator/src/index-store.ts": {
+      "sha256": "9e81e7ddf6a49d5986325c13aff0b0b2f52c89a0faf5e57442af1a967fdf918b",
+      "bytes": 13237,
+      "lines": 227
+    },
+    "snapback2/packages/evaluator/src/ordered.ts": {
+      "sha256": "e34f3707c6404e75ebbf02fbeb47827c4e4f576c12d463325f69a30d6b2a7b55",
+      "bytes": 4007,
+      "lines": 85
+    },
+    "snapback2/packages/evaluator/src/posting-tree.ts": {
+      "sha256": "82d08ebc5c086989885531de903fea689309391b213f8e3592a550f8383a3cab",
+      "bytes": 2128,
+      "lines": 40
+    },
+    "snapback2/packages/evaluator/src/prefix-dictionary.ts": {
+      "sha256": "f2872a6a6055d2836686f711c735b7b3de79dda38e2b98cf09132a9788a7242c",
+      "bytes": 2007,
+      "lines": 39
+    },
+    "snapback2/packages/evaluator/src/runner.ts": {
+      "sha256": "07fe1e5ac3641cd589820ac0d17feb0afda50d3df60ab2f8b53697b91f841e64",
+      "bytes": 52712,
+      "lines": 1224
+    },
+    "snapback2/packages/evaluator/src/search-runtime.ts": {
+      "sha256": "e8a5749614e0f233330da391514cb109f6bf5dda79b2688d03146e032d05e0df",
+      "bytes": 2607,
+      "lines": 39
+    },
+    "snapback2/packages/evaluator/src/slot-tree.ts": {
+      "sha256": "b2fcfaafb0f456bdc024cb4d0b1ac3c3907c749ebfa311d831fdb2ca00aa6aca",
+      "bytes": 3176,
+      "lines": 59
+    },
+    "snapback2/packages/evaluator/src/store.ts": {
+      "sha256": "db2fb4706ec46ace02ceeabe8030f88be69f8e626639a6ff7c04192255c09ae7",
+      "bytes": 13653,
+      "lines": 209
+    },
+    "snapback2/packages/evaluator/src/test-indexed.ts": {
+      "sha256": "4f606c345239f6a7743a460e9e9e6694febc43bd7a592adf438465ac7509c3e7",
+      "bytes": 83843,
+      "lines": 912
+    },
+    "snapback2/packages/evaluator/src/test-merge.ts": {
+      "sha256": "936e2b88ab481776efc39cbd7f06c49c035527a6e959664949de9cd9f8329c93",
+      "bytes": 10348,
+      "lines": 188
+    },
+    "snapback2/packages/evaluator/src/test-search-fixtures.json": {
+      "sha256": "001baa007a57b42fac8232542f93eede7b28f0a408adfce875518690aa5e4922",
+      "bytes": 24104,
+      "lines": 861
+    },
+    "snapback2/packages/evaluator/src/test-search-foundation.ts": {
+      "sha256": "f0d0d617d6a91db6848bafcaeb66661fd53baa3148d8df06ceed75ceb0eb366d",
+      "bytes": 11785,
+      "lines": 192
+    },
+    "snapback2/packages/evaluator/src/test-search-v4-fixtures.json": {
+      "sha256": "54d7db1be149431906762d63f960e8009d248c9a7acb46383a607cacc4d80d86",
+      "bytes": 30170,
+      "lines": 1073
+    },
+    "snapback2/packages/evaluator/src/test-search-v5-fixtures.json": {
+      "sha256": "e43fbff9ff92e1968a3769b16b0c822700256cdedac9728d0545e45bee05b4a2",
+      "bytes": 69989,
+      "lines": 1404
+    },
+    "snapback2/packages/evaluator/src/test.ts": {
+      "sha256": "ae39c9c682e834da7809cd5063538e825170de68ff3ab25586ce16558fa81121",
+      "bytes": 51278,
+      "lines": 1011
+    },
+    "snapback2/packages/evaluator/src/text.ts": {
+      "sha256": "c48d2672ce08544ab55b894ec29c1f63e01ea868e6e78552f99879e77796d152",
+      "bytes": 755,
+      "lines": 31
+    },
+    "snapback2/packages/evaluator/src/types.ts": {
+      "sha256": "afc6bc7ffd25fc007787b10e0fc8bdafbe4ae61cb12f7d2442f2c2df95686618",
+      "bytes": 6075,
+      "lines": 221
+    },
+    "snapback2/packages/evaluator/src/unicode.ts": {
+      "sha256": "b2c6a188d9e74646674383473e9c56eb9720a76b68d9c1a2f93fb722fb85f370",
+      "bytes": 12302,
+      "lines": 254
+    },
+    "snapback2/packages/evaluator/src/value-runtime.ts": {
+      "sha256": "19199d26cfa25b9014c03509aa152d7ee81a275944ba93c8b723bff3753878f4",
+      "bytes": 23616,
+      "lines": 524
+    },
+    "snapback2/packages/snapback2/build.mjs": {
+      "sha256": "91234449cb1660862c86f8ff0e638e7e87d377931c25dcdbbd991343740aa4ce",
+      "bytes": 24625,
+      "lines": 530
+    },
+    "snapback2/packages/snapback2/src/client-offline.ts": {
+      "sha256": "3b1961758b9550d1ccc750d772f7cddcce258d041168a188fa8174c845ba70fc",
+      "bytes": 23258,
+      "lines": 523
+    },
+    "snapback2/packages/snapback2/src/client.ts": {
+      "sha256": "731a9969526357d53a18b9e3adec23bb74b0064076d7255c33469f876e995a3f",
+      "bytes": 66704,
+      "lines": 1500
+    },
+    "snapback2/packages/snapback2/src/held-program.ts": {
+      "sha256": "cd5ffc54870809afc2c41a5901c3ff61f1f06e90d566e42f9089708e3f755665",
+      "bytes": 2578,
+      "lines": 38
+    },
+    "snapback2/packages/snapback2/src/index.ts": {
+      "sha256": "abdb49c7fcb31153640db29dff50f83c3a68f1fab34fdf79fae9f9fc59923eda",
+      "bytes": 8084,
+      "lines": 188
+    },
+    "snapback2/packages/snapback2/src/local-cursor.ts": {
+      "sha256": "245f1fac9cbf8512967ebef1ddc482609284a533b09ef5a98502607375113165",
+      "bytes": 7000,
+      "lines": 113
+    },
+    "snapback2/packages/snapback2/src/offline-protocol.ts": {
+      "sha256": "963387618b7bd7c79f8b33de5932dc482027ac16bd3f783478c88ea10d39b179",
+      "bytes": 28834,
+      "lines": 609
+    },
+    "snapback2/packages/snapback2/src/offline.ts": {
+      "sha256": "40cd03c9f6a0edb2f76ab3225c4e13f0321f7eaaa9561ff8ab0d354ac642ded9",
+      "bytes": 41838,
+      "lines": 917
+    },
+    "snapback2/packages/snapback2/src/store/asset-policy.ts": {
+      "sha256": "ba76b1c6cc0a9322b03db40fc406670d4625303fcbf7670d35c2713bc29e72a1",
+      "bytes": 3065,
+      "lines": 56
+    },
+    "snapback2/packages/snapback2/src/store/carrier-index.ts": {
+      "sha256": "1a34668008ec31c05e738016a2b683fe4a2c4939b3cbb927c366a0d992ad83d9",
+      "bytes": 12642,
+      "lines": 182
+    },
+    "snapback2/packages/snapback2/src/store/extent-facts.ts": {
+      "sha256": "154cd1d0af740d17615c3ac7e45f727e4ef59e0fac11e7a3a5b31a4c9239fa5c",
+      "bytes": 3350,
+      "lines": 67
+    },
+    "snapback2/packages/snapback2/src/store/extent-index.ts": {
+      "sha256": "07d00755e4809da6def9fc3d5be41021cf1f56dd94ba000159052237577072db",
+      "bytes": 5801,
+      "lines": 98
+    },
+    "snapback2/packages/snapback2/src/store/fact-index.ts": {
+      "sha256": "db3a3dd4013e15793fe18604a97400e9b707bc91c1dc3361041787e6ef5038bd",
+      "bytes": 4081,
+      "lines": 67
+    },
+    "snapback2/packages/snapback2/src/store/fact-integrity.ts": {
+      "sha256": "3d4a2eecf5767e2b37b273ec1b2629d0b90efdbe62d81e76710d2ce1ddfa1cfe",
+      "bytes": 14991,
+      "lines": 244
+    },
+    "snapback2/packages/snapback2/src/store/indexeddb.ts": {
+      "sha256": "900346d4aa3478865fe19763ae44417246ad37753e16afd11ca1e227a83bb8c5",
+      "bytes": 10155,
+      "lines": 233
+    },
+    "snapback2/packages/snapback2/src/store/metadata.ts": {
+      "sha256": "a126e078aa672eae5287d42f001b5b15152fb6eb606d4486e274aad8b93bdafd",
+      "bytes": 1892,
+      "lines": 34
+    },
+    "snapback2/packages/snapback2/src/store/overlay-retirement.ts": {
+      "sha256": "43fb0ab507b2299d4bc91be9d32cbb0f9ed4ee448c9de611c57675beece68b13",
+      "bytes": 3977,
+      "lines": 77
+    },
+    "snapback2/packages/snapback2/src/store/projection.ts": {
+      "sha256": "a1b0d838be15637150772607e5b0a70da46245270736ca2405337de54a057b7e",
+      "bytes": 5635,
+      "lines": 107
+    },
+    "snapback2/packages/snapback2/src/store/range-store.ts": {
+      "sha256": "697baa2e141e5df4d7727e9811512a8b40b1bca851519cbce26e13191de30571",
+      "bytes": 71778,
+      "lines": 1420
+    },
+    "snapback2/packages/snapback2/src/store/sqlite.ts": {
+      "sha256": "f5c0b1ac3cc27789ddd2d21854e00b1d57027139aa77743f5a023dc47c090606",
+      "bytes": 9170,
+      "lines": 180
+    },
+    "snapback2/packages/snapback2/src/store/swap-journal.ts": {
+      "sha256": "45c761dbc94d6cd87ffdb7b9db89ac805a23425cfcb6180b57ebc44faba1cf50",
+      "bytes": 6928,
+      "lines": 134
+    },
+    "snapback2/packages/snapback2/src/twin-hydrate.ts": {
+      "sha256": "4f36f8cd2d446fcf0a4b9e26e1b78a06cc0470cbb60b4996e1d5abc9571e7939",
+      "bytes": 4536,
+      "lines": 84
+    },
+    "snapback2/packages/snapback2/src/twin-store.ts": {
+      "sha256": "6ef3f3a9ea9321e25d1c9f3b7cf6d3c3a5b5c022c00f5e1125486b8a740852c0",
+      "bytes": 12891,
+      "lines": 190
+    },
+    "snapback2/packages/snapback2/src/twin.ts": {
+      "sha256": "2b75b19950c7d38af0bba7fed55f25fff5eccf693b4ffa787fcb78f6fca29342",
+      "bytes": 13919,
+      "lines": 254
+    },
+    "snapback2/packages/snapback2/src/types.ts": {
+      "sha256": "d32085b58a952dd284e96778ad7bae188e25da73f560ee1e6512e294ff31459a",
+      "bytes": 20408,
+      "lines": 466
+    },
+    "snapback2/packages/snapback2/tests/client.test.ts": {
+      "sha256": "41c97144465cc8fb682c7654973761a5a7e80bd77eaa34c3e6d8fe2390842a67",
+      "bytes": 60906,
+      "lines": 1484
+    },
+    "snapback2/packages/snapback2/tests/fake-owner.ts": {
+      "sha256": "0442c2a0c4e5e4b97ee0b5a063d12926a5110c10e49f83ca966f8e3ca3eb9c4e",
+      "bytes": 10838,
+      "lines": 230
+    },
+    "snapback2/packages/snapback2/tests/offline-bytes.test.ts": {
+      "sha256": "180e6a7b2b737a0ebaa146e93f5ffe3cac76923b83adc103c59e8d3e2d277634",
+      "bytes": 36356,
+      "lines": 644
+    },
+    "snapback2/packages/snapback2/tests/offline-protocol.test.ts": {
+      "sha256": "57112e0232ee6a13969cff59e7c61c39de96afdf025c157e6df81fbc4551d79e",
+      "bytes": 11977,
+      "lines": 249
+    },
+    "snapback2/packages/snapback2/tests/offline-store.test.ts": {
+      "sha256": "c1090fed631e27f27709149b999ff41caa5d390d1b4bbfee0ba2e1c0bc2a0c04",
+      "bytes": 69866,
+      "lines": 1420
+    },
+    "snapback2/packages/snapback2/tests/sqlite-exports.ts": {
+      "sha256": "11d334f2447f77b79c0178414834134cf6f839a61a45f2b12994d5caa1a22238",
+      "bytes": 1116,
+      "lines": 16
+    },
+    "snapback2/packages/snapback2/tests/sqlite-state.ts": {
+      "sha256": "994c85be232a4b12e67281abb15a7d8f8af28a9e7dc60868e3a012a746d2ca4c",
+      "bytes": 3911,
+      "lines": 45
+    },
+    "snapback2/packages/snapback2/tests/sqlite.test.ts": {
+      "sha256": "d51df2973ce4780fbdaba799cb41759fc681a7d6714e224269359a572d0fdd1e",
+      "bytes": 20587,
+      "lines": 374
+    },
+    "snapback2/packages/snapback2/tests/store-review.test.ts": {
+      "sha256": "ea65d458812f36bb3a2c4c5da4478ce816788e6ed036383234aeab60bf858946",
+      "bytes": 88639,
+      "lines": 1180
+    },
+    "snapback2/packages/snapback2/tests/twin.test.ts": {
+      "sha256": "05b96fc2281f26d6e73b84d98957eb06f0175aea89f76447906d5627cf2b2709",
+      "bytes": 89708,
+      "lines": 1369
+    }
+  },
+  "source_count": 61,
+  "delta_count": 19,
+  "line_count_method": "UTF-8 text split(\"\\n\").length, matching scripts/caps.mjs",
+  "max_lines": 1500,
+  "private_fact_format": 5,
+  "resource_limits": {
+    "fact_slots": 524288,
+    "steps": 1000000,
+    "closure_bytes": 4194304,
+    "execution_heap_bytes": 8388608,
+    "output_bytes": 1048576,
+    "gzip_ceiling": 66000,
+    "gzip_target": 64000,
+    "Exact2": "deferred"
+  },
+  "measurement": {
+    "time": "2026-09-06T21:38:17.231Z",
+    "node": "v22.23.2",
+    "esbuild": "0.25.9",
+    "zlib": "1.3.1-e00f703",
+    "entry": [
+      "export * from './src/twin.ts'; export { serverArguments } from './src/local-cursor.ts'; export { reduceQueryState } from './src/types.ts';",
+      "export { PersistentRangeStore } from './src/store/range-store.ts';",
+      "export { OfflineRuntime, offlineView } from './src/offline.ts';",
+      "export * as carrierProjection from './src/store/projection.ts';",
+      "export * as receiptProtocol from './src/offline-protocol.ts';"
+    ],
+    "minified": 221505,
+    "gzip": 72199,
+    "sha256": "491f80a65b6df24c39e83b074876ae99e67e41d31bd269eb5f5537cff2aeef5b",
+    "ceiling": 66000,
+    "target": 64000,
+    "sources": {
+      "snapback2/packages/snapback2/src/offline-protocol.ts": {
+        "sha256": "963387618b7bd7c79f8b33de5932dc482027ac16bd3f783478c88ea10d39b179",
+        "bytes": 28834
+      },
+      "snapback2/packages/snapback2/src/local-cursor.ts": {
+        "sha256": "245f1fac9cbf8512967ebef1ddc482609284a533b09ef5a98502607375113165",
+        "bytes": 7000
+      },
+      "snapback2/packages/snapback2/src/twin.ts": {
+        "sha256": "2b75b19950c7d38af0bba7fed55f25fff5eccf693b4ffa787fcb78f6fca29342",
+        "bytes": 13919
+      },
+      "snapback2/packages/snapback2/src/store/range-store.ts": {
+        "sha256": "697baa2e141e5df4d7727e9811512a8b40b1bca851519cbce26e13191de30571",
+        "bytes": 71778
+      },
+      "snapback2/packages/snapback2/src/types.ts": {
+        "sha256": "d32085b58a952dd284e96778ad7bae188e25da73f560ee1e6512e294ff31459a",
+        "bytes": 20408
+      },
+      "snapback2/packages/snapback2/src/offline.ts": {
+        "sha256": "40cd03c9f6a0edb2f76ab3225c4e13f0321f7eaaa9561ff8ab0d354ac642ded9",
+        "bytes": 41838
+      },
+      "snapback2/packages/snapback2/src/store/projection.ts": {
+        "sha256": "a1b0d838be15637150772607e5b0a70da46245270736ca2405337de54a057b7e",
+        "bytes": 5635
+      },
+      "snapback2/packages/evaluator/src/search-runtime.ts": {
+        "sha256": "e8a5749614e0f233330da391514cb109f6bf5dda79b2688d03146e032d05e0df",
+        "bytes": 2607
+      },
+      "snapback2/packages/evaluator/src/cursor.ts": {
+        "sha256": "94f0efe7b7ff947c77294fdcc99f38f3493615d87e1c97c13bc3ee146aaa2b3f",
+        "bytes": 10419
+      },
+      "snapback2/packages/evaluator/src/errors.ts": {
+        "sha256": "a2dc2e8ef8522ad82af1740c6f8656dc6b05418454226b50571630e777fe0795",
+        "bytes": 759
+      },
+      "snapback2/packages/evaluator/src/hash.ts": {
+        "sha256": "470e2f7973cc86a35be29e9ba901f3c86f759e6e65796051f188cb3a68a75214",
+        "bytes": 4328
+      },
+      "snapback2/packages/evaluator/src/value-runtime.ts": {
+        "sha256": "19199d26cfa25b9014c03509aa152d7ee81a275944ba93c8b723bff3753878f4",
+        "bytes": 23616
+      },
+      "snapback2/packages/snapback2/src/twin-hydrate.ts": {
+        "sha256": "4f36f8cd2d446fcf0a4b9e26e1b78a06cc0470cbb60b4996e1d5abc9571e7939",
+        "bytes": 4536
+      },
+      "snapback2/packages/snapback2/src/store/asset-policy.ts": {
+        "sha256": "ba76b1c6cc0a9322b03db40fc406670d4625303fcbf7670d35c2713bc29e72a1",
+        "bytes": 3065
+      },
+      "snapback2/packages/snapback2/src/held-program.ts": {
+        "sha256": "cd5ffc54870809afc2c41a5901c3ff61f1f06e90d566e42f9089708e3f755665",
+        "bytes": 2578
+      },
+      "snapback2/packages/snapback2/src/store/canonical.ts": {
+        "sha256": "a0b38f5da995c3d8cc9fbbf5c6e144941caba36a2482e06a857f4e114330c07c",
+        "bytes": 501
+      },
+      "snapback2/packages/evaluator/src/runner.ts": {
+        "sha256": "07fe1e5ac3641cd589820ac0d17feb0afda50d3df60ab2f8b53697b91f841e64",
+        "bytes": 52712
+      },
+      "snapback2/packages/snapback2/src/store/metadata.ts": {
+        "sha256": "a126e078aa672eae5287d42f001b5b15152fb6eb606d4486e274aad8b93bdafd",
+        "bytes": 1892
+      },
+      "snapback2/packages/evaluator/src/search-key.ts": {
+        "sha256": "347cd64b12798d7b46d120d56f142a912ca810f33e2bd0ce6673861bd032e871",
+        "bytes": 6040
+      },
+      "snapback2/packages/evaluator/src/unicode.ts": {
+        "sha256": "b2c6a188d9e74646674383473e9c56eb9720a76b68d9c1a2f93fb722fb85f370",
+        "bytes": 12302
+      },
+      "snapback2/packages/snapback2/src/store/byte-cache.ts": {
+        "sha256": "70aa1dae3baec0ed00796b51bad0af6e8ed4c325b551b702f72cc25676315967",
+        "bytes": 18897
+      },
+      "snapback2/packages/snapback2/src/client-wire.ts": {
+        "sha256": "7fd567440aaa4b88f9cb97fc2e3602fea801667fac6e998a243235e318bad2c9",
+        "bytes": 15027
+      },
+      "snapback2/packages/snapback2/src/store/fact-integrity.ts": {
+        "sha256": "3d4a2eecf5767e2b37b273ec1b2629d0b90efdbe62d81e76710d2ce1ddfa1cfe",
+        "bytes": 14991
+      },
+      "snapback2/packages/snapback2/src/twin-store.ts": {
+        "sha256": "6ef3f3a9ea9321e25d1c9f3b7cf6d3c3a5b5c022c00f5e1125486b8a740852c0",
+        "bytes": 12891
+      },
+      "snapback2/packages/snapback2/src/store/outbox.ts": {
+        "sha256": "835417fd8b915241abc651187fb66680d26d263c9f61f871b4c60b4ba6dc3e81",
+        "bytes": 16931
+      },
+      "snapback2/packages/snapback2/src/offline-schema.ts": {
+        "sha256": "a7ab61de526abb3948ea565258eef44bcbce0263d14fc2d485bf7604ca5d9111",
+        "bytes": 556
+      },
+      "snapback2/packages/evaluator/src/certificate-identity.ts": {
+        "sha256": "f80407e5c2e289c24ac09fde2e0252c015e543c6722d33d995f178e3531a5eb0",
+        "bytes": 18228
+      },
+      "snapback2/packages/snapback2/src/store/row-values.ts": {
+        "sha256": "54fce7162e6b044dda4e05e28a838a2ac6fc9e7e2fc65f41e06529dec3fc5be9",
+        "bytes": 2356
+      },
+      "snapback2/packages/evaluator/src/unicode-tables.ts": {
+        "sha256": "ab99f5f9a78ebe52ec3102525d51b6c9dd7c59cbd9f1b26932042982476b8412",
+        "bytes": 3128
+      },
+      "snapback2/packages/evaluator/src/index-store.ts": {
+        "sha256": "9e81e7ddf6a49d5986325c13aff0b0b2f52c89a0faf5e57442af1a967fdf918b",
+        "bytes": 13237
+      },
+      "snapback2/packages/evaluator/src/coverage.ts": {
+        "sha256": "09a393ee56b7016ed6dbb4200725ae096c75b34e2db2014db63b2989f24175cd",
+        "bytes": 11964
+      },
+      "snapback2/packages/evaluator/src/text.ts": {
+        "sha256": "c48d2672ce08544ab55b894ec29c1f63e01ea868e6e78552f99879e77796d152",
+        "bytes": 755
+      },
+      "snapback2/packages/evaluator/src/merge.ts": {
+        "sha256": "a2363d11564f095e3fb705b0fd34e029f5d470162aa01e161ac65e87ba4cdecf",
+        "bytes": 2324
+      },
+      "snapback2/crates/snapback2-core/ir-contract.json": {
+        "sha256": "d09c63f52622b9b8fb2762b94b17b4e2c8882e9feecf0737d24470ec2bde0252",
+        "bytes": 148
+      },
+      "snapback2/packages/snapback2/src/store/extent-index.ts": {
+        "sha256": "07d00755e4809da6def9fc3d5be41021cf1f56dd94ba000159052237577072db",
+        "bytes": 5801
+      },
+      "snapback2/packages/evaluator/src/ordered.ts": {
+        "sha256": "e34f3707c6404e75ebbf02fbeb47827c4e4f576c12d463325f69a30d6b2a7b55",
+        "bytes": 4007
+      },
+      "snapback2/packages/snapback2/src/store/overlay-retirement.ts": {
+        "sha256": "43fb0ab507b2299d4bc91be9d32cbb0f9ed4ee448c9de611c57675beece68b13",
+        "bytes": 3977
+      },
+      "snapback2/packages/evaluator/src/store.ts": {
+        "sha256": "db2fb4706ec46ace02ceeabe8030f88be69f8e626639a6ff7c04192255c09ae7",
+        "bytes": 13653
+      },
+      "snapback2/packages/evaluator/dist/unicode-tables.ts": {
+        "sha256": "9eccdccd99e9b936a40dcbf8ae63c55d980086df1ae71f92019f9ab040f6a521",
+        "bytes": 17460
+      },
+      "snapback2/packages/snapback2/src/store/carrier-index.ts": {
+        "sha256": "1a34668008ec31c05e738016a2b683fe4a2c4939b3cbb927c366a0d992ad83d9",
+        "bytes": 12642
+      },
+      "snapback2/packages/snapback2/src/store/extent-facts.ts": {
+        "sha256": "154cd1d0af740d17615c3ac7e45f727e4ef59e0fac11e7a3a5b31a4c9239fa5c",
+        "bytes": 3350
+      },
+      "snapback2/packages/snapback2/src/store/swap-journal.ts": {
+        "sha256": "45c761dbc94d6cd87ffdb7b9db89ac805a23425cfcb6180b57ebc44faba1cf50",
+        "bytes": 6928
+      },
+      "snapback2/packages/evaluator/src/coverage-spans.ts": {
+        "sha256": "4261606a117545f2dfab9f366a84468e8b24d22da1d9e3076f480eb1aad21a8f",
+        "bytes": 2023
+      },
+      "snapback2/packages/evaluator/src/held-directory.ts": {
+        "sha256": "aa7db5e9a0ee3131df6c3b1cc9e36a0a37fabfba7e410bed2810e15c3f762bd3",
+        "bytes": 4080
+      },
+      "snapback2/packages/evaluator/src/prefix-dictionary.ts": {
+        "sha256": "f2872a6a6055d2836686f711c735b7b3de79dda38e2b98cf09132a9788a7242c",
+        "bytes": 2007
+      },
+      "snapback2/packages/snapback2/src/store/fact-index.ts": {
+        "sha256": "db3a3dd4013e15793fe18604a97400e9b707bc91c1dc3361041787e6ef5038bd",
+        "bytes": 4081
+      },
+      "snapback2/packages/evaluator/src/posting-tree.ts": {
+        "sha256": "82d08ebc5c086989885531de903fea689309391b213f8e3592a550f8383a3cab",
+        "bytes": 2128
+      },
+      "snapback2/packages/evaluator/src/slot-tree.ts": {
+        "sha256": "b2fcfaafb0f456bdc024cb4d0b1ac3c3907c749ebfa311d831fdb2ca00aa6aca",
+        "bytes": 3176
+      }
+    },
+    "attribution": [
+      {
+        "path": "snapback2/packages/snapback2/src/store/range-store.ts",
+        "bytes": 26056
+      },
+      {
+        "path": "snapback2/packages/evaluator/src/runner.ts",
+        "bytes": 25398
+      },
+      {
+        "path": "snapback2/packages/evaluator/dist/unicode-tables.ts",
+        "bytes": 17186
+      },
+      {
+        "path": "snapback2/packages/snapback2/src/offline.ts",
+        "bytes": 16278
+      },
+      {
+        "path": "snapback2/packages/snapback2/src/offline-protocol.ts",
+        "bytes": 12442
+      },
+      {
+        "path": "snapback2/packages/evaluator/src/value-runtime.ts",
+        "bytes": 10837
+      },
+      {
+        "path": "snapback2/packages/evaluator/src/certificate-identity.ts",
+        "bytes": 8986
+      },
+      {
+        "path": "snapback2/packages/snapback2/src/store/fact-integrity.ts",
+        "bytes": 7098
+      },
+      {
+        "path": "snapback2/packages/evaluator/src/store.ts",
+        "bytes": 6976
+      },
+      {
+        "path": "snapback2/packages/snapback2/src/twin-store.ts",
+        "bytes": 6643
+      },
+      {
+        "path": "snapback2/packages/snapback2/src/store/byte-cache.ts",
+        "bytes": 6640
+      },
+      {
+        "path": "snapback2/packages/evaluator/src/index-store.ts",
+        "bytes": 6638
+      },
+      {
+        "path": "snapback2/packages/snapback2/src/store/carrier-index.ts",
+        "bytes": 6322
+      },
+      {
+        "path": "snapback2/packages/snapback2/src/store/outbox.ts",
+        "bytes": 6199
+      },
+      {
+        "path": "snapback2/packages/evaluator/src/coverage.ts",
+        "bytes": 5622
+      },
+      {
+        "path": "snapback2/packages/evaluator/src/cursor.ts",
+        "bytes": 5551
+      },
+      {
+        "path": "snapback2/packages/evaluator/src/unicode.ts",
+        "bytes": 4985
+      },
+      {
+        "path": "snapback2/packages/snapback2/src/twin.ts",
+        "bytes": 4586
+      },
+      {
+        "path": "snapback2/packages/snapback2/src/store/swap-journal.ts",
+        "bytes": 2945
+      },
+      {
+        "path": "snapback2/packages/snapback2/src/local-cursor.ts",
+        "bytes": 2882
+      },
+      {
+        "path": "snapback2/packages/snapback2/src/store/extent-index.ts",
+        "bytes": 2422
+      },
+      {
+        "path": "snapback2/packages/evaluator/src/hash.ts",
+        "bytes": 2178
+      },
+      {
+        "path": "snapback2/packages/snapback2/src/store/projection.ts",
+        "bytes": 2151
+      },
+      {
+        "path": "snapback2/packages/snapback2/src/store/fact-index.ts",
+        "bytes": 1849
+      },
+      {
+        "path": "snapback2/packages/evaluator/src/held-directory.ts",
+        "bytes": 1769
+      },
+      {
+        "path": "snapback2/packages/evaluator/src/slot-tree.ts",
+        "bytes": 1704
+      },
+      {
+        "path": "snapback2/packages/evaluator/src/ordered.ts",
+        "bytes": 1606
+      },
+      {
+        "path": "snapback2/packages/snapback2/src/twin-hydrate.ts",
+        "bytes": 1501
+      },
+      {
+        "path": "snapback2/packages/snapback2/src/types.ts",
+        "bytes": 1340
+      },
+      {
+        "path": "snapback2/packages/evaluator/src/unicode-tables.ts",
+        "bytes": 1339
+      },
+      {
+        "path": "snapback2/packages/snapback2/src/store/asset-policy.ts",
+        "bytes": 1318
+      },
+      {
+        "path": "snapback2/packages/evaluator/src/search-key.ts",
+        "bytes": 1224
+      },
+      {
+        "path": "snapback2/packages/snapback2/src/store/overlay-retirement.ts",
+        "bytes": 1218
+      },
+      {
+        "path": "snapback2/packages/snapback2/src/store/extent-facts.ts",
+        "bytes": 1055
+      },
+      {
+        "path": "snapback2/packages/evaluator/src/search-runtime.ts",
+        "bytes": 1009
+      },
+      {
+        "path": "snapback2/packages/snapback2/src/store/row-values.ts",
+        "bytes": 940
+      },
+      {
+        "path": "snapback2/packages/snapback2/src/held-program.ts",
+        "bytes": 932
+      },
+      {
+        "path": "snapback2/packages/evaluator/src/prefix-dictionary.ts",
+        "bytes": 861
+      },
+      {
+        "path": "snapback2/packages/evaluator/src/posting-tree.ts",
+        "bytes": 842
+      },
+      {
+        "path": "snapback2/packages/evaluator/src/coverage-spans.ts",
+        "bytes": 828
+      },
+      {
+        "path": "snapback2/packages/evaluator/src/merge.ts",
+        "bytes": 793
+      },
+      {
+        "path": "snapback2/packages/snapback2/src/store/metadata.ts",
+        "bytes": 697
+      },
+      {
+        "path": "snapback2/packages/snapback2/src/client-wire.ts",
+        "bytes": 491
+      },
+      {
+        "path": "snapback2/packages/evaluator/src/text.ts",
+        "bytes": 269
+      },
+      {
+        "path": "snapback2/packages/snapback2/src/store/canonical.ts",
+        "bytes": 215
+      },
+      {
+        "path": "snapback2/packages/evaluator/src/errors.ts",
+        "bytes": 205
+      },
+      {
+        "path": "snapback2/crates/snapback2-core/ir-contract.json",
+        "bytes": 135
+      },
+      {
+        "path": "snapback2/packages/snapback2/src/offline-schema.ts",
+        "bytes": 31
+      },
+      {
+        "path": "<stdin>",
+        "bytes": 0
+      }
+    ]
+  },
+  "native_replay": {
+    "sources": {
+      "/Users/ccheever/clique-improvement/lanes/search-twin/r8-native-controls/probe.ts": {
+        "sha256": "fa1e4ebc1e361605472e305b73d7bd68ec6ac8990b19602a8f98444fe3395dd9",
+        "bytes": 4469
+      },
+      "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/file.ts": {
+        "sha256": "8bd5cf87e47fd77ab153552e956c12c51275d4f8043d5cb41cbd9737cf544270",
+        "bytes": 5008
+      },
+      "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/offline.ts": {
+        "sha256": "40cd03c9f6a0edb2f76ab3225c4e13f0321f7eaaa9561ff8ab0d354ac642ded9",
+        "bytes": 41838
+      },
+      "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/projection.ts": {
+        "sha256": "a1b0d838be15637150772607e5b0a70da46245270736ca2405337de54a057b7e",
+        "bytes": 5635
+      },
+      "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/range-store.ts": {
+        "sha256": "697baa2e141e5df4d7727e9811512a8b40b1bca851519cbce26e13191de30571",
+        "bytes": 71778
+      },
+      "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/metadata.ts": {
+        "sha256": "a126e078aa672eae5287d42f001b5b15152fb6eb606d4486e274aad8b93bdafd",
+        "bytes": 1892
+      },
+      "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/twin.ts": {
+        "sha256": "2b75b19950c7d38af0bba7fed55f25fff5eccf693b4ffa787fcb78f6fca29342",
+        "bytes": 13919
+      },
+      "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/held-program.ts": {
+        "sha256": "cd5ffc54870809afc2c41a5901c3ff61f1f06e90d566e42f9089708e3f755665",
+        "bytes": 2578
+      },
+      "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/client-wire.ts": {
+        "sha256": "7fd567440aaa4b88f9cb97fc2e3602fea801667fac6e998a243235e318bad2c9",
+        "bytes": 15027
+      },
+      "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/fact-integrity.ts": {
+        "sha256": "3d4a2eecf5767e2b37b273ec1b2629d0b90efdbe62d81e76710d2ce1ddfa1cfe",
+        "bytes": 14991
+      },
+      "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/offline-protocol.ts": {
+        "sha256": "963387618b7bd7c79f8b33de5932dc482027ac16bd3f783478c88ea10d39b179",
+        "bytes": 28834
+      },
+      "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/outbox.ts": {
+        "sha256": "835417fd8b915241abc651187fb66680d26d263c9f61f871b4c60b4ba6dc3e81",
+        "bytes": 16931
+      },
+      "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/byte-cache.ts": {
+        "sha256": "70aa1dae3baec0ed00796b51bad0af6e8ed4c325b551b702f72cc25676315967",
+        "bytes": 18897
+      },
+      "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/row-values.ts": {
+        "sha256": "54fce7162e6b044dda4e05e28a838a2ac6fc9e7e2fc65f41e06529dec3fc5be9",
+        "bytes": 2356
+      },
+      "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/carrier-index.ts": {
+        "sha256": "1a34668008ec31c05e738016a2b683fe4a2c4939b3cbb927c366a0d992ad83d9",
+        "bytes": 12642
+      },
+      "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/extent-facts.ts": {
+        "sha256": "154cd1d0af740d17615c3ac7e45f727e4ef59e0fac11e7a3a5b31a4c9239fa5c",
+        "bytes": 3350
+      },
+      "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/swap-journal.ts": {
+        "sha256": "45c761dbc94d6cd87ffdb7b9db89ac805a23425cfcb6180b57ebc44faba1cf50",
+        "bytes": 6928
+      },
+      "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/asset-policy.ts": {
+        "sha256": "ba76b1c6cc0a9322b03db40fc406670d4625303fcbf7670d35c2713bc29e72a1",
+        "bytes": 3065
+      },
+      "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/overlay-retirement.ts": {
+        "sha256": "43fb0ab507b2299d4bc91be9d32cbb0f9ed4ee448c9de611c57675beece68b13",
+        "bytes": 3977
+      },
+      "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/canonical.ts": {
+        "sha256": "a0b38f5da995c3d8cc9fbbf5c6e144941caba36a2482e06a857f4e114330c07c",
+        "bytes": 501
+      },
+      "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/hash.ts": {
+        "sha256": "470e2f7973cc86a35be29e9ba901f3c86f759e6e65796051f188cb3a68a75214",
+        "bytes": 4328
+      },
+      "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/twin-hydrate.ts": {
+        "sha256": "4f36f8cd2d446fcf0a4b9e26e1b78a06cc0470cbb60b4996e1d5abc9571e7939",
+        "bytes": 4536
+      },
+      "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/value-runtime.ts": {
+        "sha256": "19199d26cfa25b9014c03509aa152d7ee81a275944ba93c8b723bff3753878f4",
+        "bytes": 23616
+      },
+      "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/local-cursor.ts": {
+        "sha256": "245f1fac9cbf8512967ebef1ddc482609284a533b09ef5a98502607375113165",
+        "bytes": 7000
+      },
+      "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/errors.ts": {
+        "sha256": "a2dc2e8ef8522ad82af1740c6f8656dc6b05418454226b50571630e777fe0795",
+        "bytes": 759
+      },
+      "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/runner.ts": {
+        "sha256": "07fe1e5ac3641cd589820ac0d17feb0afda50d3df60ab2f8b53697b91f841e64",
+        "bytes": 52712
+      },
+      "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/search-runtime.ts": {
+        "sha256": "e8a5749614e0f233330da391514cb109f6bf5dda79b2688d03146e032d05e0df",
+        "bytes": 2607
+      },
+      "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/twin-store.ts": {
+        "sha256": "6ef3f3a9ea9321e25d1c9f3b7cf6d3c3a5b5c022c00f5e1125486b8a740852c0",
+        "bytes": 12891
+      },
+      "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/extent-index.ts": {
+        "sha256": "07d00755e4809da6def9fc3d5be41021cf1f56dd94ba000159052237577072db",
+        "bytes": 5801
+      },
+      "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/offline-schema.ts": {
+        "sha256": "a7ab61de526abb3948ea565258eef44bcbce0263d14fc2d485bf7604ca5d9111",
+        "bytes": 556
+      },
+      "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/index-store.ts": {
+        "sha256": "9e81e7ddf6a49d5986325c13aff0b0b2f52c89a0faf5e57442af1a967fdf918b",
+        "bytes": 13237
+      },
+      "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/coverage.ts": {
+        "sha256": "09a393ee56b7016ed6dbb4200725ae096c75b34e2db2014db63b2989f24175cd",
+        "bytes": 11964
+      },
+      "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/certificate-identity.ts": {
+        "sha256": "f80407e5c2e289c24ac09fde2e0252c015e543c6722d33d995f178e3531a5eb0",
+        "bytes": 18228
+      },
+      "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/snapback2/src/store/fact-index.ts": {
+        "sha256": "db3a3dd4013e15793fe18604a97400e9b707bc91c1dc3361041787e6ef5038bd",
+        "bytes": 4081
+      },
+      "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/unicode.ts": {
+        "sha256": "b2c6a188d9e74646674383473e9c56eb9720a76b68d9c1a2f93fb722fb85f370",
+        "bytes": 12302
+      },
+      "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/cursor.ts": {
+        "sha256": "94f0efe7b7ff947c77294fdcc99f38f3493615d87e1c97c13bc3ee146aaa2b3f",
+        "bytes": 10419
+      },
+      "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/crates/snapback2-core/ir-contract.json": {
+        "sha256": "d09c63f52622b9b8fb2762b94b17b4e2c8882e9feecf0737d24470ec2bde0252",
+        "bytes": 148
+      },
+      "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/search-key.ts": {
+        "sha256": "347cd64b12798d7b46d120d56f142a912ca810f33e2bd0ce6673861bd032e871",
+        "bytes": 6040
+      },
+      "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/prefix-dictionary.ts": {
+        "sha256": "f2872a6a6055d2836686f711c735b7b3de79dda38e2b98cf09132a9788a7242c",
+        "bytes": 2007
+      },
+      "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/ordered.ts": {
+        "sha256": "e34f3707c6404e75ebbf02fbeb47827c4e4f576c12d463325f69a30d6b2a7b55",
+        "bytes": 4007
+      },
+      "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/posting-tree.ts": {
+        "sha256": "82d08ebc5c086989885531de903fea689309391b213f8e3592a550f8383a3cab",
+        "bytes": 2128
+      },
+      "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/text.ts": {
+        "sha256": "c48d2672ce08544ab55b894ec29c1f63e01ea868e6e78552f99879e77796d152",
+        "bytes": 755
+      },
+      "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/coverage-spans.ts": {
+        "sha256": "4261606a117545f2dfab9f366a84468e8b24d22da1d9e3076f480eb1aad21a8f",
+        "bytes": 2023
+      },
+      "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/merge.ts": {
+        "sha256": "a2363d11564f095e3fb705b0fd34e029f5d470162aa01e161ac65e87ba4cdecf",
+        "bytes": 2324
+      },
+      "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/store.ts": {
+        "sha256": "db2fb4706ec46ace02ceeabe8030f88be69f8e626639a6ff7c04192255c09ae7",
+        "bytes": 13653
+      },
+      "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/unicode-tables.ts": {
+        "sha256": "ab99f5f9a78ebe52ec3102525d51b6c9dd7c59cbd9f1b26932042982476b8412",
+        "bytes": 3128
+      },
+      "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/slot-tree.ts": {
+        "sha256": "b2fcfaafb0f456bdc024cb4d0b1ac3c3907c749ebfa311d831fdb2ca00aa6aca",
+        "bytes": 3176
+      },
+      "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/dist/unicode-tables.ts": {
+        "sha256": "9eccdccd99e9b936a40dcbf8ae63c55d980086df1ae71f92019f9ab040f6a521",
+        "bytes": 17460
+      },
+      "/Users/ccheever/projects/snapback-worktrees/clique-search-twin/snapback2/packages/evaluator/src/held-directory.ts": {
+        "sha256": "aa7db5e9a0ee3131df6c3b1cc9e36a0a37fabfba7e410bed2810e15c3f762bd3",
+        "bytes": 4080
+      }
+    },
+    "bundle_sha256": "494109a46379518bce13740cfcd3770e0dedf7b8b13fc3692f971743b87da768",
+    "source_manifest_sha256": "e51455333cc3316991ada546426ca52f53f707a9893ed08da694e7f8ceff7001",
+    "result_sha256": "9b7836e0153b2d62fccd2f74759d18b63b48b74609d340f51accc19b802c61aa",
+    "actual_native_inputs": {
+      "/Users/ccheever/clique-improvement/lanes/search-twin/r7-separate-movement/native-01/native-result.json": "a7bf8620fc3e68d08ac353177e9ca55328904ab07278864056e600052fa325f6",
+      "/Users/ccheever/clique-improvement/reviews/search-twin-r3/astra-independent-probes/native-clock-project/program.json": "2a4065e46e6ded402c7680fec7a48092d99db68172a51b6a89b9ac2bcbcfc89a",
+      "/Users/ccheever/clique-improvement/reviews/search-twin-r3/astra-independent-probes/native-clock-project/first.json": "024ed61e41431a4576533eab4269a1e5224b773fed6bb6cf2e740af5fe431134",
+      "/Users/ccheever/clique-improvement/reviews/search-twin-r3/astra-independent-probes/native-clock-project/last.json": "e7bd99ce5195fca151cf4a5d8a33aecd9227c823cc3d5e90d61bf4a735b0b1ce",
+      "/Users/ccheever/clique-improvement/reviews/search-twin-r3/astra-independent-probes/native-clock-project/anchor.json": "ad01c5ae9fac378cceafb7fa3a36c5d7fbe3550bbe2af1e323ad4454b0548218",
+      "/Users/ccheever/clique-improvement/reviews/search-twin-r3/astra-independent-probes/native-halo-project/program.json": "53c8d6dcfb03131f16bb56708c8414d53812b34bc00059d16a070360a197ebef",
+      "/Users/ccheever/clique-improvement/reviews/search-twin-r3/astra-independent-probes/native-halo-project/first.json": "b125bc9d577bfe95762368e8aab87ea8e4696fdd69b31d52edcee893adcbf417",
+      "/Users/ccheever/clique-improvement/reviews/search-twin-r3/astra-independent-probes/native-halo-project/last.json": "2207697b28ccd9c082e3b58c7224ae2ae3aaa2675415503de30fbc31e7c8949e",
+      "/Users/ccheever/clique-improvement/reviews/search-twin-r3/astra-independent-probes/native-halo-project/anchor.json": "67a995d1eb391ba11f4470a33502571433b0c7b2db5d203a9f2b437bd262b507"
+    },
+    "pass": 12,
+    "sources_matched_current_and_captured": true
+  },
+  "checks": [
+    {
+      "log": "store-r8-projection-marker-all-formats.log",
+      "log_sha256": "f1f9f157e51328efc1f2dd8d830d3a554a70c91dbe57cea41f0a2cb54dad2d32",
+      "command": "node --test --test-timeout=10000 --test-name-pattern='carrier projection preserves a missing fact-format marker' snapback2/packages/snapback2/tests/store-review.test.ts",
+      "exit_code": 0,
+      "deadline_ms": 10000,
+      "tests": 61,
+      "pass": 61,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "duration_ms": 2672.444833
+    },
+    {
+      "log": "r8-cap-direct-setup/stdout.log",
+      "log_sha256": "8bbe126771a661a23ea9040445e99a331fd4cc92c9f06ae54c8de6dc5f4cd4f6",
+      "command": "/Users/ccheever/.volta/bin/node --test --test-timeout=10000 --test-name-pattern='timed guard slot exhaustion' snapback2/packages/snapback2/tests/store-review.test.ts (cwd: r8-cap-direct-setup/snapshot)",
+      "exit_code": 0,
+      "deadline_ms": 10000,
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "duration_ms": 9009.748417
+    },
+    {
+      "log": "store-r8-final-movement.log",
+      "log_sha256": "3681279941d3f35d654bc1436ea63bd1aa872332c666b7ab0badf184ebaa9dfd",
+      "command": "node --test --test-timeout=10000 --test-name-pattern='checked extent membership follows immutable assertion sequences' snapback2/packages/snapback2/tests/store-review.test.ts",
+      "exit_code": 1,
+      "deadline_ms": 10000,
+      "tests": 11,
+      "pass": 10,
+      "fail": 0,
+      "cancelled": 1,
+      "skipped": 0,
+      "duration_ms": 10026.4675
+    },
+    {
+      "log": "store-r8-final-movement-exploration.log",
+      "log_sha256": "fcb7fd67f541e05a700d6adf24a9ab37390c0c84c09102f59c1b9a25ffee3c17",
+      "command": "node --test --test-timeout=120000 --test-name-pattern='checked extent membership follows immutable assertion sequences' snapback2/packages/snapback2/tests/store-review.test.ts",
+      "exit_code": 0,
+      "deadline_ms": 120000,
+      "tests": 43,
+      "pass": 43,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "duration_ms": 23819.336667
+    },
+    {
+      "log": "store-r8-final-custody.log",
+      "log_sha256": "1bbf03e12a1930820b6a7b49b9e90a3094babb6357bd722f18424f5b790b3674",
+      "command": "node --test --test-timeout=10000 --test-name-pattern='checked fixed extent holes|prior halo participates|closed extents retain|scoped holes dominate|native-certified Unicode search accepts|global negative guards|sequence-zero primary|revalidation reset markers|first timed facts constrain|ordinary conditional proof enrollment|close, active wipe' snapback2/packages/snapback2/tests/store-review.test.ts",
+      "exit_code": 0,
+      "deadline_ms": 10000,
+      "tests": 41,
+      "pass": 41,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "duration_ms": 2919.305292
+    },
+    {
+      "log": "client-r8-final-custody.log",
+      "log_sha256": "93977294edc1162164c54a3e3031241a400515ce2c171882ffb4180f715e2ccd",
+      "command": "node --test --test-timeout=10000 --test-name-pattern='file and IndexedDB swaps are atomic|all three carriers apply the four swap rules|O1a golden ranges|sequence fences|shrunk arrays|conditional public query states|resume rejects equivocation|aborting an in-flight resume' snapback2/packages/snapback2/tests/offline-store.test.ts",
+      "exit_code": 1,
+      "deadline_ms": 10000,
+      "tests": 16,
+      "pass": 15,
+      "fail": 1,
+      "cancelled": 0,
+      "skipped": 0,
+      "duration_ms": 1452.407708
+    },
+    {
+      "log": "client-r8-final-native-golden.log",
+      "log_sha256": "6d7cabbd9fd9e4c9ae536312da53505305557a308c6226baa18f038f640d7a41",
+      "command": "SNAPBACK2_CORPUS=/Users/ccheever/clique-improvement/revisions/search-engine/final-snapshot/corpus node --test --test-timeout=10000 --test-name-pattern='O1a golden ranges' snapback2/packages/snapback2/tests/offline-store.test.ts",
+      "exit_code": 0,
+      "deadline_ms": 10000,
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "duration_ms": 597.239458
+    },
+    {
+      "log": "sqlite-r8-final.log",
+      "log_sha256": "39199eedd1c02886a54b7c0bf1b384c859847299d9cb601766c3dd0dd0be28cd",
+      "command": "node --test --test-timeout=10000 snapback2/packages/snapback2/tests/sqlite.test.ts",
+      "exit_code": 0,
+      "deadline_ms": 10000,
+      "tests": 15,
+      "pass": 15,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "duration_ms": 1389.284416
+    },
+    {
+      "command": "node snapback2/packages/snapback2/build.mjs",
+      "log": "build-r8-projection-marker.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "exit_code": 0
+    },
+    {
+      "command": "SNAPBACK2_CORPUS=/Users/ccheever/clique-improvement/revisions/search-engine/final-snapshot/corpus SNAPBACK2_BIN=/Users/ccheever/clique-improvement/revisions/search-engine/final-snapshot/snapback2-owner bun snapback2/packages/evaluator/src/test.ts",
+      "log": "evaluator-r8-private5-final.log",
+      "log_sha256": "b7517c44ab845295bc1cee50645570dbabdae70dfee1dbe4246e790754310026",
+      "exit_code": 0
+    },
+    {
+      "command": "node snapback2/packages/snapback2/build.mjs --measure-twin",
+      "log": "measure-r8-private5-final.log",
+      "log_sha256": "3349808aa1d1201b931ebc0e96c8361c0b30892952a6cf9ecbac7a77b03c6624",
+      "exit_code": 1
+    },
+    {
+      "command": "node /Users/ccheever/clique-improvement/lanes/search-twin/r8-private5-final-byte-attribution.mjs",
+      "log": "r8-private5-final-byte-attribution.log",
+      "log_sha256": "5a32a002fa7b02875581aeddff4d221270ea73b2fee086a86c7eed35351213b1",
+      "exit_code": 0
+    },
+    {
+      "command": "node scripts/caps.mjs",
+      "log": "caps-r8-private5-final.log",
+      "log_sha256": "deaa6a19c891afe7638ac21392534720beae00098d39120bf123880ae1ebbf03",
+      "exit_code": 0
+    },
+    {
+      "command": "./ref-check --verbose",
+      "log": "ref-r8-private5-final.log",
+      "log_sha256": "bc2566049781d6ea5d0489a4aab7a617eaa45d814652e5b0a0a9e1cbaa28afd0",
+      "exit_code": 0
+    },
+    {
+      "command": "git diff --check",
+      "log": "diff-check-r8-private5-final.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "exit_code": 0
+    },
+    {
+      "command": "node /Users/ccheever/clique-improvement/lanes/search-twin/build-captured-probe.mjs /Users/ccheever/clique-improvement/lanes/search-twin/r8-native-controls/probe.ts /Users/ccheever/clique-improvement/lanes/search-twin/r8-native-controls/probe-r8-private5-final.mjs",
+      "log": "r8-native-controls/build-r8-private5-final.log",
+      "log_sha256": "226721fe48c1f9a594163765ad7b47ef0f2496200e41adae52abc6be834ba036",
+      "exit_code": 0
+    },
+    {
+      "command": "node /Users/ccheever/clique-improvement/lanes/search-twin/r8-native-controls/probe-r8-private5-final.mjs /Users/ccheever/clique-improvement/lanes/search-twin/r8-native-controls/result-r8-private5-final.json",
+      "log": "r8-native-controls/result-r8-private5-final.log",
+      "log_sha256": "df68d4c5c12fa4cd07b663c4769a81a603e29f665913829a1ace635e5b75fb2e",
+      "exit_code": 0
+    }
+  ],
+  "artifacts": {
+    "source-checkpoint-r7.json": "cee68b26580c3e42c657c7ba4e91512726e1f792fbe121e3fc8a449a47d02d6f",
+    "source-checkpoint-r7a.json": "f41266971c8a2a21c5930b65aa2febd7ef8dcd44b69373bad51e947827540857",
+    "coding-r7-handoff.md": "1d629f75c6843ac0c3a6e6b69206d3c078988f039b7970e707cfb1dbebdfd12f",
+    "coding-r7a-handoff.md": "b46b86b9da1efc815193eb16b7d533464bec7a344fdae459a372df6648a72cb2",
+    "source-checkpoint-r8-format3.json": "efeb4b712c3aa57909291510c1785924cfc229da3ab71d8bedf10a92b30af6fd",
+    "r8-private5-final-source-verification.json": "db36463a517f17cb49c08fa1093ec68e08aa26d875f3e7e3b4e9cc548e34a077",
+    "r8-private5-final-byte-attribution.json": "1f21009e8ae1ffdad979dc622f54ab28ac69ead75d9488aba0fbb32a99536bfc",
+    "r8-private5-final-byte-delta.json": "95749a326180a8fa0717623200ab39006d3146e8a32e2db810885fedbe51682f",
+    "r8-private5-final-metafile.json": "59f4347bc0e30ba02d0184f9196336da982822cd0543f709162199a83402f1a1",
+    "r8-cap-direct-setup/capture.json": "6da63dc2d39e21f63a05c32ff305315f2462f9e773d21bbe1b37c3275221074d",
+    "r8-cap-direct-setup/result.json": "556271a60dac55f38b732c078ed0fea75bb8f5e5c9355500e75e08dc09b9afc3",
+    "r8-cap-direct-setup/supervisor-verification.json": "8bdc903b52fba72210ac6ba1911e1647dacd2a7455a42a1400208b889986f42a",
+    "r8-cap-setup-applied.json": "7699011780bd77c1ff01d4710eb423931d0a99e347c7970d1b56a38e21f53bf5",
+    "r8-cap-setup-applied-supervisor-verification.json": "3acdc3c0d05342fea326eac2f1b3369e9d0a006bf9c8e848afc8d6b4bfb3d357",
+    "r8-cap-setup-supervisor-verification.json": "cca1a0bf38c15aa5194d455371c8d3c5e7dbb0abde3626de351c884193520514",
+    "r8-projection-marker-custody/source-evidence.json": "d8b56692bbc8ed12898c9676f1ccc48ee7c89527a32ba216abfd9ba093cd1677"
+  },
+  "limits": [
+    "72199 gzip exceeds fixed66000 by6199; no root waiver",
+    "Movement original10s10pass/1cancel remains failure; 43/43 uses explicit120s exploration",
+    "Earlier fullstore120s cancellation and all prior cap failures remain failures",
+    "Final format5 shared-index resident memory and realistic ordinary paginated-history capacity unmeasured; prepared fixture remains unrun",
+    "Published ordinary no-clock missing-marker stores preserve history; experimental formats missing/0/2/3/4 reset coverage preserving outbox/seal",
+    "Actual native frames replayed unchanged; synthetic contradictory transport tests are not claimed native emissions",
+    "Before-fix projection regression complete format5 dist was not separately captured; original test/projection and format4 source graph retained with explicit limit",
+    "Final compiler authoring/native package integration and moving-main/drain union belong to supervisor"
+  ]
+}

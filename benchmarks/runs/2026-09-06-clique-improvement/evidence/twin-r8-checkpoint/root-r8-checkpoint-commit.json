@@ -1,0 +1,33 @@
+{
+  "at": "2026-09-06T21:51:40.389477+00:00",
+  "commit": "4e927c26df5b1cec4f2ce885f9521474586b54a3",
+  "parent": "e1c6e2b79a9e13ceb363f647f52807218aa2b57a",
+  "verifiedSourceCopiesLiveAndCommitted": 61,
+  "changedPaths": [
+    "snapback2/packages/evaluator/src/index-store.ts",
+    "snapback2/packages/evaluator/src/ordered.ts",
+    "snapback2/packages/evaluator/src/runner.ts",
+    "snapback2/packages/evaluator/src/test-indexed.ts",
+    "snapback2/packages/evaluator/src/test-search-v5-fixtures.json",
+    "snapback2/packages/evaluator/src/unicode.ts",
+    "snapback2/packages/snapback2/src/client.ts",
+    "snapback2/packages/snapback2/src/offline.ts",
+    "snapback2/packages/snapback2/src/store/carrier-index.ts",
+    "snapback2/packages/snapback2/src/store/extent-facts.ts",
+    "snapback2/packages/snapback2/src/store/extent-index.ts",
+    "snapback2/packages/snapback2/src/store/fact-index.ts",
+    "snapback2/packages/snapback2/src/store/fact-integrity.ts",
+    "snapback2/packages/snapback2/src/store/projection.ts",
+    "snapback2/packages/snapback2/src/store/range-store.ts",
+    "snapback2/packages/snapback2/src/twin-store.ts",
+    "snapback2/packages/snapback2/tests/offline-store.test.ts",
+    "snapback2/packages/snapback2/tests/sqlite-state.ts",
+    "snapback2/packages/snapback2/tests/store-review.test.ts"
+  ],
+  "fullReportRead": true,
+  "sizeGzip": 72199,
+  "ceiling": 66000,
+  "originalMovementDeadline": "FAIL10s",
+  "qualification": false,
+  "mainLanded": false
+}
