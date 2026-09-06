@@ -1,11 +1,8 @@
 # Live query
 
-A query is live because its authoritative read trace intersects a commit, not
-because the author declares an invalidation list. Bound every scan:
-
-For paging, every cursor index ends in intrinsic `id`. Declare a `cursor ?`
-argument and pass it to Quarry's forward-only `after` clause; `null` means the
-first page.
+A commit intersecting a query's read trace makes it live. Bound every scan.
+Cursor indexes end in intrinsic `id`; pass a `cursor ?` argument to `after`.
+`null` means page one.
 
 ```ts
 export const thread = query({ conversationId: t.ref(conversations) }, ({ db, ctx, args }) => {
@@ -28,12 +25,17 @@ Subscribe through `client.subscribe(api.messages.thread, args, listener)`.
 Each SSE data frame is a query response or refusal. Connection `live`/`stale`
 facts belong to the client and never replace `complete`/`capped`/`denied`.
 
-The client shares one SSE connection across its query and channel subscriptions,
-including on the local HTTP/1.1 server. Adding or closing a subscription does
-not restart the others. Close unused subscriptions (or unmount their React
-components); hiding a component with CSS keeps its queries active. Each client
-supports up to 256 subscriptions. Close the client when its application scope
-ends. Reconnect re-delivers query state; ephemeral channel events are not replayed.
+One SSE connection carries up to 256 query/channel subscriptions per client,
+including HTTP/1.1. Adding/closing one leaves peers active. Unmount unused
+components; CSS hiding keeps queries active. Close the client with its scope.
+Reconnect re-delivers query state, not ephemeral channel events.
+
+Keep newest-first subscriptions at `c: null`; fetch older pages separately with
+`next`, preserving scope/state/freshness. History reads do not move the live head.
+`drain: true` in `client.subscribe`/`useQuery` follows an ascending append log
+(`after c first N`, N <=50), emitting each page then watching its tail. Unsupported
+returned shapes refuse E_OFFLINE_RESUME, `reason: "unsupported-log"`. Ordinary
+descending queries stay valid. See offline.
 
 ## Channels
 

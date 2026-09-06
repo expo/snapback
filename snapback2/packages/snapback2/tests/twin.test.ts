@@ -662,7 +662,7 @@ test("a ReferenceError from tagArguments surfaces on query and mutation, never a
     const held = {
       generation, schemaHash: messengerCorpus.schemaHash, schema: structuredClone(messengerCorpus.schema),
       programs: Object.fromEntries(Object.entries(messengerCorpus.programs).map(([name, entry]) => [name, {
-        kind: entry.kind, planHash: entry.certificate.plan_hash, ir: { ...entry.ir, args: throwingArgs }, certificate: entry.certificate,
+        kind: entry.kind, planHash: entry.certificate.plan_hash, drain: { reason: "not-a-log" }, ir: { ...entry.ir, args: throwingArgs }, certificate: entry.certificate,
       }])),
     };
     const factory = fileRangeStore(root);

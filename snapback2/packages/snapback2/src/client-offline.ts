@@ -187,8 +187,10 @@ export async function answerOffline<Result>(
   op: string,
   args: unknown,
   failure: (error: unknown) => Error,
+  drain = false,
 ): Promise<QueryResult<Result>> {
   try {
+    if (drain) runtime?.drainCursor(op);
     const held = await runtime?.answer<Result>(op, args);
     const local = held?.retained ? undefined : await runtime?.evaluate(op, args);
     return offlineView(held, local) as QueryResult<Result>;
@@ -205,6 +207,7 @@ export function createOfflineDrain<Args, Result>(options: {
   runtime: OfflineRuntime | undefined;
   /** Settles once the manifest was loaded or could not be: the cursor argument's name is known after it. */
   ready?: Promise<void>;
+  cursor(): Promise<string> | string;
   mounted: Map<string, MountedQuery>;
   query(pageArgs: Args): Promise<QueryResult<Result>>;
   subscribe(tailArgs: Args, callback: (delivery: SubscriptionDelivery<Result>) => void): Subscription<SubscriptionDelivery<Result>>;
@@ -214,7 +217,7 @@ export function createOfflineDrain<Args, Result>(options: {
   resume?(): Promise<void>;
 }): Subscription<SubscriptionDelivery<Result>> {
   const key = `${options.op}\u0000${stableSerialize(options.args)}`;
-  options.mounted.set(key, { op: options.op, args: options.args, drain: true });
+
   const draining = new DrainSubscription<Args, Result>({
     args: options.args,
     query: options.query,
@@ -222,10 +225,11 @@ export function createOfflineDrain<Args, Result>(options: {
     // The cursor argument is named by the manifest's op descriptor (`c` until it is loaded).
     cursor: async () => {
       await options.ready?.catch(() => undefined);
-      return options.runtime?.cursorArg(options.op) ?? "c";
+      return options.cursor();
     },
     mark: async (watermark, current, offline) => {
       if (!options.runtime || offline) return;
+      options.runtime.drainCursor(options.op);
       const revision = options.runtime.coverageRevision;
       const tailArgs = { ...(options.args as Record<string, unknown>), [options.runtime.cursorArg(options.op)]: watermark };
       const held = await options.runtime.answer(options.op, tailArgs);
@@ -236,11 +240,16 @@ export function createOfflineDrain<Args, Result>(options: {
       // @ref LLP 1012#7-writes-offline — the recipe's drain is where a device
       // earns its first grant, so a send after going offline has ids to pin.
       if (options.resume && !(await options.runtime.outbox.grant())) {
-        await options.resume().catch(() => undefined);
+        await options.resume().catch(error => {
+          // A different drain's refusal does not invalidate this admitted log.
+          if (isSnapbackRefusal(error) && error.envelope.reason === "unsupported-log" && error.envelope.op !== options.op) return;
+          throw error;
+        });
       }
     },
     onEvent: options.callback,
   });
+  options.mounted.set(key, { op: options.op, args: options.args, drain: true, refuse: envelope => draining.refuse(envelope) });
   const tracked = options.track(draining);
   const close = tracked.close.bind(tracked);
   tracked.close = () => {
@@ -310,7 +319,7 @@ export async function restartOffline(options: {
 type RefusalLike = Error & {
   code?: string;
   status?: number;
-  envelope?: { which?: unknown; cap?: unknown };
+  envelope?: RefusalEnvelope;
 };
 
 function refusal(error: unknown): RefusalLike | undefined {
@@ -323,11 +332,15 @@ function record(value: unknown, surface: string, shape: (message: string) => Err
   return value as Record<string, unknown>;
 }
 
-function resumeAdjustment(error: RefusalLike): ResumeAdjustment {
-  const which = typeof error.envelope?.which === "string" ? error.envelope.which : undefined;
-  const cap = Number.isSafeInteger(error.envelope?.cap) && Number(error.envelope?.cap) >= 0
-    ? Number(error.envelope?.cap) : undefined;
-  return { ...(which === undefined ? {} : { which }), ...(cap === undefined ? {} : { cap }) };
+function resumeAdjustment(error: RefusalLike): ResumeAdjustment | undefined {
+  const value = error.envelope;
+  return value?.reason === "limit" && value.which === "mounted" && Number.isSafeInteger(value.cap)
+    && Number(value.cap) >= 0 && Number(value.cap) < 32 ? { cap: Number(value.cap) } : undefined;
+}
+
+export function refuseDrains(mounted: Map<string, MountedQuery>, envelope: RefusalEnvelope): void {
+  if (envelope.code !== "E_OFFLINE_RESUME" || (envelope.which !== "log" && envelope.reason !== "unsupported-log")) return;
+  for (const query of mounted.values()) if (query.drain && query.op === envelope.op) query.refuse?.(envelope);
 }
 
 export async function performOfflineResume<Authority>(options: {
@@ -384,7 +397,6 @@ export async function performOfflineResume<Authority>(options: {
     check();
     if (!request) throw resumeUnavailable("the owner query did not deliver the facts required for resume");
   }
-  const standIn = request.log !== undefined && options.runtime.standInLog(request.log);
   const rebuild = async () => {
     check();
     await options.reload?.(options.authority);
@@ -410,8 +422,10 @@ export async function performOfflineResume<Authority>(options: {
       if ((await options.runtime.queuedIntents()).length > 0) throw error;
       return false;
     }
-    if (candidate?.code === "E_OFFLINE_RESUME" && retry) {
-      return performOfflineResume(options, resumeAdjustment(candidate), false);
+    if (candidate?.code === "E_OFFLINE_RESUME") {
+      const next = resumeAdjustment(candidate);
+      if (retry && next && next.cap! < request.mounted.length) return performOfflineResume(options, next, false);
+      if (candidate.envelope) refuseDrains(options.mounted, { ...candidate.envelope, op: candidate.envelope.op ?? request.log?.op });
     }
     throw error;
   }
@@ -423,12 +437,15 @@ export async function performOfflineResume<Authority>(options: {
   if (authority.principal !== options.runtime.principal || authority.authEpoch !== request.authEpoch) {
     throw options.shape("resume response authority does not match the open partition");
   }
+  if (!Array.isArray(response.mounted)) throw options.shape("resume response.mounted must be an array");
+  if (request.log && (!response.log || typeof response.log !== "object" || Array.isArray(response.log))) {
+    throw options.shape("resume response omitted the requested log");
+  }
   // A cold reopen mid-rebuild can already name the current program. A 200
   // authenticates it, but the durable marker still requires the cold rebuild.
   if (options.runtime.resetNeeded) return rebuild();
   if (options.bearerConfirmed) await options.runtime.reauthenticate(authority.principal as string);
   check();
-  if (!Array.isArray(response.mounted)) throw options.shape("resume response.mounted must be an array");
   const swaps: Array<{ op: string; args: unknown; accepted: AcceptedDelivery<unknown> }> = [];
   let watermark: { op: string; args: unknown; watermark: string | null; validator?: string } | undefined;
   if (response.log && typeof response.log === "object" && !Array.isArray(response.log)
@@ -438,16 +455,14 @@ export async function performOfflineResume<Authority>(options: {
     // The server answers the log as the page after `watermark` (writer_resume log_args), so
     // it is held under that cursor's args; filing it under the base args would replace the
     // drained first page with the tail — an empty one after a restart (LLP 1012 §8). The
-    // cursor argument is the one the manifest types `Cursor`, whatever its name.
+    // cursor argument is the owner's returned-page binding, whatever its name.
     const tailArgs = request.log.watermark === null
       ? request.log.args
       : { ...(request.log.args as Record<string, unknown>), [options.runtime.cursorArg(request.log.op)]: request.log.watermark };
     const accepted = await acceptOffline(options.runtime, request.log.op, tailArgs, delivery, options.shape);
     check();
     swaps.push({ op: request.log.op, args: tailArgs, accepted });
-    // A stand-in log (no drained query held) borrows an ordinary answer; it
-    // must not leave a watermark behind and turn that answer into a drain.
-    if (!standIn) watermark = {
+    watermark = {
       op: request.log.op,
       args: request.log.args,
       watermark: returned as string | null,

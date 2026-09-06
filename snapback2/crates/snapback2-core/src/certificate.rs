@@ -17,6 +17,7 @@ mod output;
 mod page;
 use diagnostic::{Cost, WorkTerms};
 use page::result_pages;
+pub use page::resumable_log_cursor;
 
 // Heap is calibrated; output/closure use declared maxima. These are admission bounds, not allocator/serializer proofs.
 const HEAP_BYTES_PER_STEP: u64 = 32;
@@ -26,7 +27,9 @@ const HEAP_BYTES_PER_STEP: u64 = 32;
 // the shared initial SQL template. This is part of, not added to, the existing
 // calibrated heap reserve. It is independent of actual heads, including zero.
 pub(crate) fn initial_seek_reserve(merge: &Merge) -> u64 {
-    merge.max_lanes().saturating_add(merge.take().saturating_add(2))
+    merge
+        .max_lanes()
+        .saturating_add(merge.take().saturating_add(2))
         .saturating_mul(HEAP_BYTES_PER_STEP)
 }
 

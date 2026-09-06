@@ -851,3 +851,10 @@ The held-search repair now preserves the distinction between a row being absent 
 The exact checkpoint is72,199gzip bytes,6,199over the fixed66,000 limit. Central ownership consolidation did not produce a net bundle reduction: the final result is269bytes larger than the prior format3 checkpoint. The movement matrix still fails10s; its longer43/43 run is exploratory. One full-population cap test passes after proving the setup replacement produces the identical14,569,662-byte state and key order. That is setup allocation improvement, not evidence of a faster product cold open.
 
 [Full report and frozen source custody](../benchmarks/runs/2026-09-06-clique-improvement/evidence/twin-r8-checkpoint/README.md). The checkpoint branch is pushed for recovery, with no main landing or release claim. A bounded structural analysis will inform the next implementation decision. No new Convex/Supabase behavior or holistic score was measured.
+
+
+### 2026-09-06 — Reviewed drain improvement lands independently
+
+Unsupported offline drain shapes now produce structured refusals while preserving coverage, grants, watermarks and queued writes. Valid bounded ascending pages keep their certified cursor, including cold-start tail handling. The correction preserves the full52-note owner budget exercise; its independent-main run passes in17.95s. Seven unchanged client cases retain their earlier source-bound passes.
+
+All28 changed files match the reviewed implementation and correction. Main's migration implementation is unchanged, so the unresolved uniqueness issue remains open rather than holding this independent improvement. The guide retains pending-upload versus retained-byte distinctions and unclaimed-media expiry wording. [Landing evidence and review disposition](../benchmarks/runs/2026-09-06-clique-improvement/evidence/drain-independent-landing/README.md). Production publication and full Clique qualification remain separate; existing competitor baselines stay reused.

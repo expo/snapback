@@ -8,7 +8,7 @@ import {
   acceptOffline,
   answerOffline,
   commitOffline,
-  createOfflineDrain,
+  createOfflineDrain, refuseDrains,
   createOfflineRuntime,
   decodeOfflineSubscription,
   goOffline,
@@ -45,7 +45,7 @@ import {
   wireShape,
   wireSubscription,
 } from "./client-wire.js";
-import { type OfflineRuntime, type MountedQuery } from "./offline.js";
+import { admitDrain, type OfflineRuntime, type MountedQuery } from "./offline.js";
 import { ReconnectingSse } from "./sse.js";
 import type { SseResponse } from "./sse-parser.js";
 import { stableSerialize } from "./types.js";
@@ -211,15 +211,16 @@ class Client implements SnapbackClient {
     return this.currentSnapshot;
   }
 
-  async query<Args, Result>(ref: Op<Args, Result>, args: Args): Promise<QueryResult<Result>> {
+  async query<Args, Result>(ref: Op<Args, Result>, args: Args, drain = false): Promise<QueryResult<Result>> {
     await this.localReady;
     // Cold held reads may bypass restoration, never an explicit account transition.
     const localAuthority = await this.transitionAuthority();
     this.ensureAuthority(localAuthority);
     const op = referenceName(ref);
+    if (drain) this.offlineRuntime?.drainCursor(op);
     if (this.currentToken && this.authState.value.state === "hydrating" && this.offlineRuntime
       && (this.startupComplete || this.offlineRuntime.principal)) {
-      const held = await answerOffline<Result>(this.offlineRuntime, op, args, error => this.offlineRefusal(error));
+      const held = await answerOffline<Result>(this.offlineRuntime, op, args, error => this.offlineRefusal(error), drain);
       this.ensureAuthority(localAuthority);
       return held;
     }
@@ -242,7 +243,7 @@ class Client implements SnapbackClient {
       try {
         const held = await this.offlineRuntime?.answer(op, args);
         const revision = this.offlineRuntime?.coverageRevision;
-        const raw = await this.json(this.offlineRuntime ? "/api/query?receipt=1" : "/api/query", {
+        const raw = await this.json(`/api/query?receipt=${this.offlineRuntime ? 1 : 0}${drain ? "&drain=1" : ""}`, {
           method: "POST",
           body: JSON.stringify(this.offlineRuntime && held?.validator ? { op, args, validator: held.validator } : { op, args }),
         }, authority);
@@ -366,15 +367,15 @@ class Client implements SnapbackClient {
     if (options.drain) return this.drain(ref, args, callback);
     return this.subscribeRegular(ref, args, callback);
   }
-
   private subscribeRegular<Args, Result>(
     ref: Op<Args, Result>,
     args: Args,
     callback: (delivery: SubscriptionDelivery<Result>) => void,
+    drain = false,
   ): Subscription<SubscriptionDelivery<Result>> {
     const op = referenceName(ref);
     const mountedKey = `${op}\u0000${stableSerialize(args)}`;
-    this.mounted.set(mountedKey, { op, args, drain: false });
+    if (!drain) this.mounted.set(mountedKey, { op, args, drain: false });
     let lastPair: { seq: number; data?: Result } | undefined;
     let connected = false;
     let revision: number | undefined;
@@ -396,6 +397,7 @@ class Client implements SnapbackClient {
         const held = await this.offlineRuntime?.answer(op, args);
         let path = `/api/subscribe?op=${encodeURIComponent(op)}&args=${encodeURIComponent(JSON.stringify(args))}`;
         if (this.offlineRuntime) path += "&receipt=1";
+        if (drain) path += "&drain=1";
         if (held?.validator) path += `&validator=${encodeURIComponent(held.validator)}`;
         return this.stream(path, lastEventId, signal, authority);
       },
@@ -430,7 +432,7 @@ class Client implements SnapbackClient {
             this.offlineRuntime,
             op,
             args,
-            (failure) => this.offlineRefusal(failure),
+            (failure) => this.offlineRefusal(failure), drain,
           );
           return { retry, event: event as SubscriptionDelivery<Result>, failure: refusal };
         }
@@ -461,7 +463,7 @@ class Client implements SnapbackClient {
       const heldAuthority = await this.transitionAuthority();
       if (!closed && this.offlineRuntime && this.currentToken && this.authState.value.state === "hydrating") {
         this.ensureAuthority(heldAuthority);
-        const held = await answerOffline<Result>(this.offlineRuntime, op, args, error => this.offlineRefusal(error));
+        const held = await answerOffline<Result>(this.offlineRuntime, op, args, error => this.offlineRefusal(error), drain);
         this.ensureAuthority(heldAuthority);
         if (!closed && this.authState.value.state === "hydrating") callback(held as SubscriptionDelivery<Result>);
       }
@@ -469,12 +471,11 @@ class Client implements SnapbackClient {
     const close = tracked.close.bind(tracked);
     tracked.close = () => {
       closed = true;
-      this.mounted.delete(mountedKey);
+      if (!drain) this.mounted.delete(mountedKey);
       close();
     };
     return tracked;
   }
-
   private drain<Args, Result>(
     ref: Op<Args, Result>,
     args: Args,
@@ -489,8 +490,9 @@ class Client implements SnapbackClient {
       runtime: this.offlineRuntime,
       ready: this.ready,
       mounted: this.mounted,
-      query: (pageArgs: Args) => this.query(ref, pageArgs),
-      subscribe: (tailArgs, onEvent) => this.subscribeRegular(ref, tailArgs, onEvent),
+      cursor: async () => this.offlineRuntime ? this.offlineRuntime.drainCursor(op) : admitDrain(op, (await this.manifest()).ops[op]?.drain),
+      query: (pageArgs: Args) => this.query(ref, pageArgs, true),
+      subscribe: (tailArgs, onEvent) => this.subscribeRegular(ref, tailArgs, onEvent, true),
       track: (subscription) => this.track(subscription),
       resume: async () => this.performResume(await this.operationAuthority()),
       observe: this.offlineRuntime && this.createOptions.offlineReadObserver
@@ -662,7 +664,6 @@ class Client implements SnapbackClient {
     this.closing = this.offlineRuntime?.close() ?? Promise.resolve();
     return this.closing;
   }
-
   private track<Event>(subscription: Subscription<Event>): Subscription<Event> {
     this.subscriptions.add(subscription as Subscription<unknown>);
     const close = subscription.close.bind(subscription);
@@ -672,7 +673,6 @@ class Client implements SnapbackClient {
     };
     return subscription;
   }
-
   private async session(path: string, input: unknown): Promise<AuthSession> {
     ensureBearerTransition(this, path.slice("/api/auth/".length));
     const session = await this.transition(authority => this.authState.session(path, {
@@ -693,7 +693,6 @@ class Client implements SnapbackClient {
     this.resumeAfterAuth();
     return session;
   }
-
   private async logout(): Promise<{ ok: boolean }> {
     ensureBearerTransition(this, "logout");
     return this.transition(authority => this.authState.logout({
@@ -703,7 +702,6 @@ class Client implements SnapbackClient {
       validated: () => this.validated(undefined),
     }));
   }
-
   private async me(current = () => true): Promise<AuthMe> {
     const authority = await this.operationAuthority();
     if (!current()) throw this.supersededRefusal();
@@ -724,7 +722,6 @@ class Client implements SnapbackClient {
       return this.performResume(authority);
     }).catch(() => undefined);
   }
-
   private confirmAuth(authority: Authority): Promise<AuthMe> {
     return this.authState.confirm(async signal => {
       try {
@@ -743,7 +740,6 @@ class Client implements SnapbackClient {
       }
     });
   }
-
   private async hydrate(explicitToken: string | undefined): Promise<void> {
     const { token, principal } = await restoreAuthToken(explicitToken, this.tokenStore,
       token => saveAuthToken(this.tokenStore, token, (action, error) => storageRefusal(this, action, error)), (action, error) => storageRefusal(this, action, error));
@@ -762,7 +758,6 @@ class Client implements SnapbackClient {
     if (this.persona) headers.set("X-Snapback-As", this.persona);
     return headers;
   }
-
   private async manifestFor(authority: Authority, signal?: AbortSignal): Promise<Manifest> {
     throwIfAborted(signal);
     const value = wireManifest(await this.json("/api/manifest", { signal }, authority));
@@ -789,7 +784,7 @@ class Client implements SnapbackClient {
       if (!force && isSnapbackRefusal(error) && error.retryable) return;
       throw error;
     }
-    if (this.offlineRuntime.programGeneration !== manifest.programGeneration || force) {
+    if (this.offlineRuntime.programGeneration !== manifest.programGeneration || this.offlineRuntime.needsDrainMetadata || force) {
       try {
         const program = await this.json(
           `/api/program?generation=${encodeURIComponent(manifest.programGeneration)}`,
@@ -930,7 +925,6 @@ class Client implements SnapbackClient {
     this.recordRefusal(refusal.envelope);
     throw refusal;
   }
-
   private async stream(
     path: string,
     lastEventId: string | undefined,
@@ -968,7 +962,6 @@ class Client implements SnapbackClient {
       throw refusal;
     }
   }
-
   private async subscriptionError(
     error: unknown,
     authority: Authority | undefined,
@@ -1024,7 +1017,6 @@ class Client implements SnapbackClient {
     this.patchSnapshot({ connection: "connected", lastRefusal: refusal.envelope });
     return { retry: false, refusal, event: { state: "refused", ...refusal.envelope } };
   }
-
   private async initializeOffline(): Promise<void> {
     if (!this.offlineRuntime) return;
     this.offlineStartupPending = true;
@@ -1102,6 +1094,7 @@ class Client implements SnapbackClient {
       if (!controller.signal.aborted && this.authorityCurrent(authority)) {
         const refusal = this.offlineRefusal(error);
         this.resetRefusal = refusal.envelope;
+        refuseDrains(this.mounted, refusal.envelope);
       }
       throw error;
     });

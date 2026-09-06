@@ -62,7 +62,8 @@ function metadataResponse(input: RequestInfo | URL): Response | undefined {
     return new Response(JSON.stringify({
       generation,
       schemaHash,
-      programs: {},
+      programs: { "deliveries.inbox": { kind: "query", planHash, drain: { cursor: "c" },
+        ir: { args: { c: { Optional: "Cursor" } }, body: [] }, certificate: { plan_hash: planHash } } },
       schema: {
         tables: {
           messages: {
@@ -1166,30 +1167,31 @@ test("E_OFFLINE_RESET cold-drains a mounted drain from the null cursor", async (
   } finally {
     if (resetTimer) clearTimeout(resetTimer);
   }
-  assert.deepEqual(queryCursors, [null, null]);
+  assert.deepEqual(queryCursors, [null, null, null], "initial drain, reset drain, and pending mounted coverage revalidation all restart at the root");
   drain.close();
   await client.close();
   await rm(root, { recursive: true, force: true });
 });
 
-test("E_OFFLINE_RESUME honors which and cap and initial consecutive 413s do not wedge ready", async () => {
+test("E_OFFLINE_RESUME adjusts only structured mounted limits and never drops the log", async () => {
   const root = await tempRoot();
   await seededResumeStore(root);
   const store = fileRangeStore(root)();
   await store.open("dev:alice");
-  await store.commit({ deliveries: [{ op: "old.value", args: {}, state: "complete", data: ["old"], next: null, seq: 1 }] });
+  await store.commit({ deliveries: [{ op: "old.value", args: {}, state: "complete", data: ["old"], next: null, seq: 1, validator: "9".repeat(64) }] });
   await store.close?.();
   let resumes = 0;
   const requests: any[] = [];
   const client = createClient({
     url: "http://resume-cap.test", as: "alice", offline: { store: fileRangeStore(root) },
     fetch: async (input, init) => {
+      if (new URL(String(input)).pathname === "/api/subscribe") return sse(undefined, true);
       const metadata = metadataResponse(input);
       if (metadata) return metadata;
       requests.push(JSON.parse(String(init?.body)));
       resumes += 1;
       if (resumes <= 2) return new Response(JSON.stringify({
-        code: "E_OFFLINE_RESUME", family: "offline", message: "too many", which: "log", cap: 0,
+        code: "E_OFFLINE_RESUME", family: "offline", message: "too many", reason: "limit", which: "mounted", cap: 0,
         rewrite: "re-subscribe the rest as ordinary reads", guide: "offline",
       }), { status: 413 });
       return new Response(JSON.stringify({
@@ -1198,20 +1200,22 @@ test("E_OFFLINE_RESUME honors which and cap and initial consecutive 413s do not 
       }), { status: 200 });
     },
   });
+  const mounted = client.subscribe(api.old.value as any, {}, () => {});
   await client.ready;
   assert.equal(resumes, 2);
   assert.ok(requests[0].log);
-  assert.equal(requests[1].log, undefined);
+  assert.deepEqual(requests[1].log, requests[0].log, "adjustment preserves the selected log");
   assert.deepEqual(requests[1].mounted, []);
   await client.offline();
   assert.equal((await client.query(api.old.value as any, {})).state, "complete");
   await client.online();
   assert.equal(resumes, 3, "ready settled and a later online call could resume");
+  mounted.close();
   await client.close();
   await rm(root, { recursive: true, force: true });
 });
 
-test("a second consecutive E_OFFLINE_RESUME settles online as a refusal and leaves the client usable", async () => {
+test("an unstructured legacy E_OFFLINE_RESUME refuses once and leaves the client usable", async () => {
   const root = await tempRoot();
   await seededResumeStore(root);
   let resumes = 0;
@@ -1235,7 +1239,7 @@ test("a second consecutive E_OFFLINE_RESUME settles online as a refusal and leav
   await client.offline();
   await assert.rejects(client.online(), (error: unknown) =>
     error instanceof SnapbackRefusal && error.code === "E_OFFLINE_RESUME");
-  assert.equal(resumes, 3);
+  assert.equal(resumes, 2, "unstructured refusal is never retried without its log");
   await client.offline();
   assert.equal((await client.query(api.deliveries.inbox as any, { c: null })).state, "complete");
   await client.close();

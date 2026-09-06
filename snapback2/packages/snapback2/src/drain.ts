@@ -27,6 +27,7 @@ export class DrainSubscription<Args, Result> implements Subscription<Subscriptio
   private watermark: Cursor | null = null;
   private cursorName = "c";
   private closed = false;
+  private failure?: Error;
   private generation = 0;
 
   constructor(private readonly options: DrainOptions<Args, Result>) {
@@ -49,6 +50,7 @@ export class DrainSubscription<Args, Result> implements Subscription<Subscriptio
     this.tail = undefined;
     this.watermark = null;
     this.last = undefined;
+    this.failure = undefined;
     this.start(null);
   }
 
@@ -57,6 +59,7 @@ export class DrainSubscription<Args, Result> implements Subscription<Subscriptio
     timeoutMs = 30_000,
   ): Promise<SubscriptionDelivery<Result>> {
     if (this.last && predicate(this.last)) return Promise.resolve(this.last);
+    if (this.failure) return Promise.reject(this.failure);
     if (this.closed) return Promise.reject(new Error("subscription closed"));
     return new Promise((resolve, reject) => {
       const waiter: Waiter<SubscriptionDelivery<Result>> = {
@@ -72,10 +75,24 @@ export class DrainSubscription<Args, Result> implements Subscription<Subscriptio
     });
   }
 
+  refuse(envelope: import("./types.js").RefusalEnvelope): void {
+    if (this.closed) return;
+    this.generation++;
+    this.tail?.close();
+    this.tail = undefined;
+    const error = new SnapbackRefusal(envelope);
+    this.failure = error;
+    this.deliver({ state: "refused", live: false, ...envelope });
+    this.fail(error);
+  }
+
   private start(cursor: Cursor | null): void {
     const generation = ++this.generation;
     void this.drain(cursor, generation).catch((error) => {
-      if (this.current(generation)) this.fail(error);
+      if (this.current(generation)) {
+        if (error instanceof SnapbackRefusal) this.refuse(error.envelope);
+        else this.fail(error);
+      }
     });
   }
 
@@ -139,7 +156,6 @@ export class DrainSubscription<Args, Result> implements Subscription<Subscriptio
       site: "client.subscribe.drain",
       rewrite: "reconnect to refresh this query and its cursor metadata; the saved watermark is unchanged",
     });
-    this.deliver({ state: "refused", live: false, ...refusal.envelope });
     return refusal;
   }
 
@@ -149,10 +165,11 @@ export class DrainSubscription<Args, Result> implements Subscription<Subscriptio
     const args = { ...(this.options.args as Record<string, unknown>), [this.cursorName]: from } as Args;
     this.tail = this.options.subscribe(args, (event) => {
       if (!this.current(generation)) return;
+      if (event.state === "refused") { this.refuse(event); return; }
       if ((event.state === "complete" || event.state === "capped") && event.next !== null) {
         if (event.next === this.watermark) {
           this.tail?.close();
-          this.fail(this.repeatedCursor());
+          this.refuse(this.repeatedCursor().envelope);
           return;
         }
         this.watermark = event.next;
@@ -188,6 +205,7 @@ export class DrainSubscription<Args, Result> implements Subscription<Subscriptio
 
   private fail(value: unknown): void {
     const error = value instanceof Error ? value : new Error(String(value));
+    this.failure = error;
     for (const waiter of this.waiters) {
       clearTimeout(waiter.timer);
       waiter.reject(error);

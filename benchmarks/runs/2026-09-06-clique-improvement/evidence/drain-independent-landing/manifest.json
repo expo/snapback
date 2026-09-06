@@ -1,0 +1,9 @@
+{
+  "root-full-source-verification.json": "31150a29cf50d14a93bfbed5bb74ffa208d918c29af62b616b350d3f2c429f90",
+  "verification-index.json": "cb1085e3c95707409e335cbb698dd3a0736fb7d4ea36838acd40e7b207f38596",
+  "implementation-report.md": "c38380b5bb8ebb0fc1e2d608e09df9ab694ec3c3701339baec4eb776aaea2e6b",
+  "source-archive.json": "bf2df6f4af160c7eab1b48e4012724297bb58500767590b13931945dab561e46",
+  "root-client-reuse-verification.json": "9b0e3686d1d7188077aed7eb2722b04a1c4eca647ccc2638615cbe30c937aa0b",
+  "root-independent-delta-verification.json": "1d6d72c59af20a155e8d773444b888ccbdc120107a8455e86ac6f00a42adc32a",
+  "terminal.json": "abced0708b5afb5abd78e093a16d8371a7fe48518434dd2fb209d0a61e397adb"
+}

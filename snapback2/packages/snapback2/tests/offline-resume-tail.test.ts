@@ -103,13 +103,13 @@ function afterManifest(url: URL): Response | undefined {
   if (url.pathname === "/api/manifest") {
     return new Response(JSON.stringify({
       generation: "schema-generation", programGeneration: generation, channels: {}, auth: {},
-      ops: { "deliveries.inbox": { kind: "query", planHash, args: { after: { Optional: "Cursor" } } } },
+      ops: { "deliveries.inbox": { kind: "query", planHash, drain: { cursor: "after" }, args: { aAux: { Optional: "Cursor" }, after: { Optional: "Cursor" } } } },
     }), { status: 200 });
   }
   return metadataResponse(url);
 }
 
-test("the drain and the resume tail key the cursor by the argument the manifest types Cursor, never by the name c", async () => {
+test("the returned-page cursor drives drain and resume, ahead of an auxiliary Cursor argument or c", async () => {
   const root = await mkdtemp(join(tmpdir(), "snapback2-cursor-name-"));
   const open: Array<{ close(): void }> = [];
   try {
@@ -121,9 +121,13 @@ test("the drain and the resume tail key the cursor by the argument the manifest 
         const url = new URL(String(input));
         const metadata = afterManifest(url);
         if (metadata) return metadata;
+        if (url.pathname === "/api/resume") return new Response(JSON.stringify({
+          seq: 9, generation, schemaHash, authority: { principal: "dev:alice", authEpoch: 7 },
+          log: { unchanged: true }, mounted: [],
+        }), { status: 200 });
         if (url.pathname === "/api/query") {
           const args = JSON.parse(String(init?.body)).args;
-          assert.equal("c" in args, false, "no page is asked for under c");
+          assert.equal("c" in args || "aAux" in args, false, "neither c nor an auxiliary cursor drives the returned page");
           pages.push(args.after);
           const next = args.after === null ? "k1" : null;
           const page = envelope([args.after], String(pages.length).repeat(64), pages.length);
@@ -149,6 +153,10 @@ test("the drain and the resume tail key the cursor by the argument the manifest 
         const url = new URL(String(input));
         const metadata = afterManifest(url);
         if (metadata) return metadata;
+        if (url.pathname === "/api/resume") return new Response(JSON.stringify({
+          seq: 9, generation, schemaHash, authority: { principal: "dev:alice", authEpoch: 7 },
+          log: { unchanged: true }, mounted: [],
+        }), { status: 200 });
         if (url.pathname === "/api/query") {
           const args = JSON.parse(String(init?.body)).args;
           assert.equal("c" in args, false, "a drain mounted before ready still asks under the manifest's name");
@@ -225,6 +233,13 @@ test("an offline cold-start drain keeps the drained first page on screen while r
     const store = fileRangeStore(root)();
     await store.open("dev:alice");
     await store.commit({
+      // A supported cold drain carries the owner's held eligibility metadata.
+      // The opaque answer fixture stays held-only; no executable twin is needed.
+      programs: { [generation]: {
+        generation, schemaHash, schema: { tables: {} },
+        programs: { "deliveries.inbox": { kind: "query", planHash, drain: { cursor: "c" },
+          ir: { args: { c: { Optional: "Cursor" } }, body: [] }, certificate: { plan_hash: planHash } } },
+      } },
       deliveries: [
         { op: "deliveries.inbox", args: { c: null }, state: "complete", data: ["first page"], next: null, seq: 3, validator: "1".repeat(64), receipt: emptyReceipt() },
         { op: "deliveries.inbox", args: { c: "cursor-9" }, state: "complete", data: ["after the watermark"], next: null, seq: 3, validator: "2".repeat(64), receipt: emptyReceipt() },

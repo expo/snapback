@@ -1,0 +1,11 @@
+{
+  "commit": "79b95a6cf679981e2dfd3e2b07e6121c62f16f2c",
+  "tree": "c9d31a710feb7f4e9d9c6eb03ea2712cc1691476",
+  "scope": "All tracked Snapback2 plus governing root AGENTS/rules/LLP1000/1012; no benchmark data copied into the source archive. Full repository content remains bound by commit/tree and inherited-evidence-proof.json.",
+  "sourceManifest": "source-manifest.json",
+  "regularFiles": 934,
+  "symlinks": 2,
+  "archive": "source.tar",
+  "bytes": 22220800,
+  "sha256": "31ebbac13b553aee30491d41d537b42355cf25b45557ebcc99edcc82eda57aed"
+}

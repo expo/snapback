@@ -1,0 +1,24 @@
+{
+  "at": "2026-09-06T22:01:55.501358+00:00",
+  "candidate": "79b95a6cf679981e2dfd3e2b07e6121c62f16f2c",
+  "wholeInputTreesAcross4Commits": 6,
+  "runtimeArtifacts": 5,
+  "priorReceiptHashes": 8,
+  "reusedDistinctClientPasses": 7,
+  "noNewClientRunClaim": true,
+  "recordedCleanupProcesses": 25,
+  "recordedCleanupAllAbsent": true,
+  "portsRecordedFree": [
+    52020,
+    52021,
+    52022,
+    52023,
+    52024,
+    52025,
+    52026,
+    52027,
+    52028,
+    52029
+  ],
+  "qualification": false
+}

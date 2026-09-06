@@ -1,0 +1,10 @@
+{
+  "at": "2026-09-06T22:04:03.124786+00:00",
+  "candidate": "79b95a6cf679981e2dfd3e2b07e6121c62f16f2c",
+  "regularFilesArchivedAndCommittedMatch": 934,
+  "sourceArchiveSha256": "31ebbac13b553aee30491d41d537b42355cf25b45557ebcc99edcc82eda57aed",
+  "fullReportRead": true,
+  "reportSha256": "c38380b5bb8ebb0fc1e2d608e09df9ab694ec3c3701339baec4eb776aaea2e6b",
+  "symlinkVerification": "prior protected tree/delta objects verified; not separately dereferenced by this regular-file check",
+  "publicationClearance": false
+}

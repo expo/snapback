@@ -1,0 +1,122 @@
+{
+  "candidate": "79b95a6cf679981e2dfd3e2b07e6121c62f16f2c",
+  "actualThisTurn": {
+    "owner-test-build": {
+      "receipt": "logs/owner-test-build.json",
+      "receiptSha256": "15e0935c95b0f6005fec522d73190ac6cc0515e89c9ad43f9ad2b25544d2cbde",
+      "log": "logs/owner-test-build.log",
+      "logSha256": "8488234cb47171062f1501385a1509a2b492a2e91507489849acf04092d8ab2c",
+      "argv": [
+        "env",
+        "RUSTC_WRAPPER=/Users/ccheever/clique-improvement/revisions/drain-main-independent/rustc-owner-wrapper.py",
+        "cargo",
+        "test",
+        "--offline",
+        "--locked",
+        "-j2",
+        "-p",
+        "snapback2",
+        "--test",
+        "owner",
+        "--no-run"
+      ],
+      "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-release-next/snapback2",
+      "wrapperSeconds": 300.0,
+      "elapsedSeconds": 65.00525689125061,
+      "exitCode": 0,
+      "timedOut": false
+    },
+    "owner-drain": {
+      "receipt": "logs/owner-drain.json",
+      "receiptSha256": "d45fbda78f8bfc2dbd7b1469af7aa3565756aec8da7bfd9d6cffae025e9228c6",
+      "log": "logs/owner-drain.log",
+      "logSha256": "9c0a4ddd620caf79ae40c85a35ec3c7b3629200c33b2b411cf2bb513786489a0",
+      "argv": [
+        "env",
+        "DRAIN_OWNER_RUN=independent",
+        "DRAIN_OWNER_TEST_PORT=52020",
+        "TMPDIR=/Users/ccheever/clique-improvement/revisions/drain-main-independent/scratch",
+        "./target/debug/deps/owner-455c88a25e3216a8",
+        "--exact",
+        "owner_cases::offline_resume::offline_resume_log_is_the_ascending_page_measured_against_the_budget",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-release-next/snapback2",
+      "wrapperSeconds": 60.0,
+      "elapsedSeconds": 19.42074680328369,
+      "exitCode": 0,
+      "timedOut": false
+    },
+    "caps": {
+      "receipt": "logs/caps.json",
+      "receiptSha256": "f08944e96a84a6bfd906abc3af6c2199428f0836fbdf0da507a4f04fd53f8144",
+      "log": "logs/caps.log",
+      "logSha256": "c77c3b95103b0bb2f27773dc0f20aa987424eec0e37f305fd721d156e838453b",
+      "argv": [
+        "node",
+        "scripts/caps.mjs"
+      ],
+      "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-release-next",
+      "wrapperSeconds": 60.0,
+      "elapsedSeconds": 5.610502243041992,
+      "exitCode": 0,
+      "timedOut": false
+    },
+    "refs": {
+      "receipt": "logs/refs.json",
+      "receiptSha256": "fc070446ea2cecf4caf5475f1c5631d367d69240bccdca758004baeefbf9bdc9",
+      "log": "logs/refs.log",
+      "logSha256": "22eb3b88cf70371553448a748c6a04f356de1237cf1e04eb1a664ec42d7bc5d3",
+      "argv": [
+        "./ref-check",
+        "--verbose"
+      ],
+      "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-release-next",
+      "wrapperSeconds": 60.0,
+      "elapsedSeconds": 19.728655099868774,
+      "exitCode": 0,
+      "timedOut": false
+    },
+    "diff-check": {
+      "receipt": "logs/diff-check.json",
+      "receiptSha256": "d1d81f9c91d00128eea5f551abb653985a9b5c2c9d1fe7d9195af1f5cd821091",
+      "log": "logs/diff-check.log",
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "argv": [
+        "git",
+        "diff",
+        "--check",
+        "96d51c75aea80f538dbbace29670de94c5bb07de",
+        "HEAD"
+      ],
+      "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-release-next",
+      "wrapperSeconds": 10.0,
+      "elapsedSeconds": 0.7188680171966553,
+      "exitCode": 0,
+      "timedOut": false
+    },
+    "script-syntax": {
+      "receipt": "logs/script-syntax.json",
+      "receiptSha256": "96ebde979312a56895b56cbb0ec1142b145d74aee78a5eb13f4567dfb0551737",
+      "log": "logs/script-syntax.log",
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "argv": [
+        "bash",
+        "-n",
+        "snapback2/scripts/test.sh"
+      ],
+      "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-release-next",
+      "wrapperSeconds": 10.0,
+      "elapsedSeconds": 0.7393791675567627,
+      "exitCode": 0,
+      "timedOut": false
+    }
+  },
+  "reusedClientEvidence": "client-verification-reuse.json",
+  "runtimeSizeReuse": "runtime-size-source-proof.json",
+  "noNewNodeTestRun": true,
+  "reviewClearance": false,
+  "publicationClearance": false,
+  "migrationClearance": false
+}

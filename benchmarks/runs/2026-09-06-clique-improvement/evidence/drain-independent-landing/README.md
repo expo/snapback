@@ -1,0 +1,9 @@
+Independent drain landing
+
+Candidate `79b95a6cf679981e2dfd3e2b07e6121c62f16f2c`, parent `96d51c75aea80f538dbbace29670de94c5bb07de`, contains only the previously reviewed drain delta. Root read the full report, independently verified all934 archived regular source files against committed blobs, all28 changed files against df68/97fa, and8 protected main objects. The staged landing preserves all28 candidate blobs exactly.
+
+Review disposition: the complete prior drain review and its correction closure remain in [drain-integration-review](../drain-integration-review/README.md). Astra's owner-assertion/canonical-list findings were corrected in df68 and approved by both fresh reviewers. Grok withdrew its cap32 reachability finding in a preserved same-session follow-up. No semantic drain conflict resolution was introduced here. Matching reviewed content and unchanged relevant client inputs support reuse under the repository's optimistic landing policy; this is not a claim of a new independent review.
+
+The different default owner was rebuilt and its complete52-note regression passed:1test,17.95s test /19.421s outer within60s. Caps, reference validation, script syntax and affected diff checks passed. Seven distinct prior client cases are reused through exact source/build input correspondence; none was re-executed. The source-bound report records all original failures and limitations. The writer exited0 after releasing the clean candidate; all25 recorded test/build identities were absent and allocated ports52020–52029 were free.
+
+The unresolved migration uniqueness issue stays open and its proposed changes are excluded. Compiler/offline-search resource work remains separate. This landing does not change version metadata, qualify a production package, publish to npm, or establish a full Clique win. The active0.0.12 asset release dry run remains bound to its own older source.
