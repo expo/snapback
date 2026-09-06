@@ -296,3 +296,23 @@ terminal-error case remains in repair. The author explicitly permits more
 than three rounds. Search foundation work has started to remove application
 posting maintenance rather than preserve that ergonomic burden as a recipe.
 No fresh matched Convex/Supabase comparison or Muse ultra score is available.
+
+### Native transport repair and candidate witness, 2026-09-06
+
+Both independent reviewers cleared the native logical-stream fix. Expo's
+physical fetch already streamed correctly; reconstructing each subscription
+with React Native's global Response discarded its readable body. The client
+now retains the logical stream directly. The new regressions are registered
+in both existing test entrypoints, so ordinary verification will exercise them.
+
+The candidate ran in an actual Release Hermes iOS app. One process received
+five existing history rows, including the three original fixtures, then a
+sixth row through a later live callback after an ordinary backend send. Native
+SQLite held the six messages. Before/after screenshots and complete callbacks
+are the primary evidence; a recorder filename collision prevented a video of
+the successful transition. The original frozen 0.0.6 M6 failure remains intact.
+
+All 189 selected tests pass at their original deadlines. A separate recovery
+case passes its assertions on Node22 but its file remains alive until timeout;
+uncleared timers in the existing owner harness are being investigated and
+repaired separately. This does not become a full-suite green claim.
