@@ -155,11 +155,23 @@ fn app_page(options: &verbs::ParsedOptions<'_>) -> Result<String, Refusal> {
             certificate_path.display()
         ))
     })?;
-    let missing_certificates = project
-        .programs
-        .iter()
-        .filter(|program| certificates.get(&program.name).is_none())
-        .map(|program| program.name.clone())
+    let generation = Generation::certify(&project, Ceilings::default()).map_err(|errors| {
+        Refusal::owner(
+            "E_OWNER_BUILD_CACHE",
+            format!(
+                "cached generation no longer certifies: {} refusal(s)",
+                errors.len()
+            ),
+            "rerun snapback2 check",
+        )
+    })?;
+    // @ref LLP 1016#d5--schedules-row-timers-and-periods-on-the-owners-clock — internal
+    // bindings certify beside operations; use the same map as project::stage_build_cache.
+    let missing_certificates = generation
+        .programs()
+        .keys()
+        .filter(|name| certificates.get(*name).is_none())
+        .cloned()
         .collect::<Vec<_>>();
     if !missing_certificates.is_empty() {
         return Err(guide_stale(format!(
@@ -167,18 +179,13 @@ fn app_page(options: &verbs::ParsedOptions<'_>) -> Result<String, Refusal> {
             missing_certificates.join(", ")
         )));
     }
-    let generation = Generation::certify(&project, Ceilings::default())
-        .map_err(|errors| {
-            Refusal::owner(
-                "E_OWNER_BUILD_CACHE",
-                format!(
-                    "cached generation no longer certifies: {} refusal(s)",
-                    errors.len()
-                ),
-                "rerun snapback2 check",
-            )
-        })?
-        .hash();
+    for (name, (_, certificate)) in generation.programs() {
+        if certificates.get(name) != Some(&json!(certificate)) {
+            return Err(guide_stale(format!(
+                "certificates.json does not match the cached generation for operation {name}"
+            )));
+        }
+    }
     let mut worker = CompilerWorker::spawn().map_err(|error| {
         guide_stale(format!(
             "cannot start compiler for seed facts: {}",
@@ -214,15 +221,15 @@ fn app_page(options: &verbs::ParsedOptions<'_>) -> Result<String, Refusal> {
             )
         })
         .collect::<Map<_, _>>();
-    let operations = project
-        .programs
+    let operations = generation
+        .programs()
         .iter()
-        .map(|program| {
+        .map(|(name, (program, _))| {
             let certificate = certificates
-                .get(&program.name)
+                .get(name)
                 .expect("missing certificates refused above");
             (
-                program.name.clone(),
+                name.clone(),
                 json!({
                     "kind": program.kind,
                     "args": program.args,
@@ -237,7 +244,7 @@ fn app_page(options: &verbs::ParsedOptions<'_>) -> Result<String, Refusal> {
         })
         .collect::<Map<_, _>>();
     serde_json::to_string_pretty(&json!({
-        "generation": generation,
+        "generation": generation.hash(),
         "tables": tables,
         "operations": operations,
         "channels": project.schema.channels,

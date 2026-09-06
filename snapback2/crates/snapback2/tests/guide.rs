@@ -496,6 +496,147 @@ fn offline_guide_page_respects_its_budget_and_its_codes_have_pages() {
 }
 
 #[test]
+fn app_guide_uses_chat_expo_operations_without_internal_timer_bindings() {
+    let project = Project::new();
+    let initialized = project.init("chat", "expo");
+    assert!(
+        initialized.status.success(),
+        "{}",
+        json_stdout(&initialized)
+    );
+    let build = project.path.join(".snapback/build");
+    for refresh in [false, true] {
+        if refresh {
+            let checked = project.run(&["check", "--json"]);
+            assert!(checked.status.success(), "{}", json_stdout(&checked));
+        }
+        let cached: serde_json::Value =
+            serde_json::from_slice(&fs::read(build.join("project.json")).unwrap()).unwrap();
+        let certificates: serde_json::Value =
+            serde_json::from_slice(&fs::read(build.join("certificates.json")).unwrap()).unwrap();
+        let schedule = cached["schema"]["schedules"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|schedule| schedule["name"] == "expireMessage")
+            .unwrap();
+        let binding = schedule["binding"].as_str().unwrap();
+        assert_eq!(binding, "deliveries._timerBinding_expireMessage");
+        assert!(
+            cached["programs"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|p| p["name"] == binding)
+        );
+        assert!(certificates.get(binding).is_none());
+
+        let before = common::snapshot(&build);
+        let output = project.run(&["guide", "app", "--json"]);
+        let page = json_stdout(&output);
+        assert!(output.status.success(), "after check={refresh}: {page}");
+        assert_eq!(page["page"], "app");
+        let app: serde_json::Value =
+            serde_json::from_str(page["content"].as_str().unwrap()).unwrap();
+        let operations = app["operations"].as_object().unwrap();
+        assert!(!operations.contains_key(binding));
+        assert!(operations.contains_key("deliveries.purgeMessage"));
+        assert!(operations.contains_key("deliveries.post"));
+        assert_eq!(
+            operations.keys().collect::<Vec<_>>(),
+            certificates.as_object().unwrap().keys().collect::<Vec<_>>()
+        );
+        for (name, certificate) in certificates.as_object().unwrap() {
+            let op = &operations[name];
+            assert_eq!(op["readSites"], certificate["read_sites"], "{name}");
+            assert_eq!(op["writeSites"], certificate["write_sites"], "{name}");
+            assert_eq!(
+                op["bounds"]["maxExamined"], certificate["max_examined"],
+                "{name}"
+            );
+            assert_eq!(op["bounds"]["maxSteps"], certificate["max_steps"], "{name}");
+            let program = cached["programs"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|p| p["name"] == *name)
+                .unwrap();
+            assert_eq!(op["kind"], program["kind"], "{name}");
+            assert_eq!(op["args"], program["args"], "{name}");
+        }
+        assert_eq!(
+            app["tables"].as_object().unwrap().len(),
+            cached["schema"]["tables"].as_object().unwrap().len()
+        );
+        for (name, table) in app["tables"].as_object().unwrap() {
+            for field in ["columns", "indexes", "rules", "constraints"] {
+                assert_eq!(
+                    table[field], cached["schema"]["tables"][name][field],
+                    "{name}.{field}"
+                );
+            }
+        }
+        assert_eq!(
+            app["generation"],
+            certificates["deliveries.post"]["schema_hash"]
+        );
+        assert_eq!(app["channels"], cached["schema"]["channels"]);
+        assert!(
+            app["personas"]
+                .as_array()
+                .unwrap()
+                .contains(&serde_json::json!("alice"))
+        );
+        assert_eq!(common::snapshot(&build), before);
+    }
+}
+
+#[test]
+fn app_guide_requires_exposed_operations_even_with_timer_binding_names() {
+    let project = Project::new();
+    assert!(project.init("chat", "none").status.success());
+    fs::write(
+        project.path.join("snapback/adversarial.q"),
+        "query _timerBinding_exposed():\n  return viewer\n",
+    )
+    .unwrap();
+    let checked = project.run(&["check", "--json"]);
+    assert!(checked.status.success(), "{}", json_stdout(&checked));
+    let output = project.run(&["guide", "app", "--json"]);
+    let page = json_stdout(&output);
+    assert!(output.status.success(), "{page}");
+    let app: serde_json::Value = serde_json::from_str(page["content"].as_str().unwrap()).unwrap();
+    let exposed = "adversarial._timerBinding_exposed";
+    assert!(app["operations"].get(exposed).is_some());
+    let certificate_path = project.path.join(".snapback/build/certificates.json");
+    let valid = fs::read(&certificate_path).unwrap();
+    for missing in [exposed, "deliveries.post", "deliveries.purgeMessage"] {
+        let mut certificates: serde_json::Value = serde_json::from_slice(&valid).unwrap();
+        assert!(
+            certificates
+                .as_object_mut()
+                .unwrap()
+                .remove(missing)
+                .is_some()
+        );
+        fs::write(
+            &certificate_path,
+            serde_json::to_vec(&certificates).unwrap(),
+        )
+        .unwrap();
+        let output = project.run(&["guide", "app", "--json"]);
+        let refusal = json_stdout(&output);
+        assert_eq!(output.status.code(), Some(1), "{refusal}");
+        assert_eq!(refusal["code"], "E_GUIDE_STALE", "{refusal}");
+        assert!(
+            refusal["message"].as_str().unwrap().contains(missing),
+            "{refusal}"
+        );
+        assert_eq!(refusal["rewrite"], "run snapback2 check");
+    }
+}
+
+#[test]
 fn app_guide_refuses_missing_certificates_and_failed_seed_facts_as_stale() {
     let project = Project::new();
     let initialized = project.init("todos", "none");
@@ -546,6 +687,30 @@ fn app_guide_refuses_missing_certificates_and_failed_seed_facts_as_stale() {
     assert_eq!(json_stdout(&corrupt)["code"], "E_GUIDE_STALE");
 
     assert!(project.run(&["check", "--json"]).status.success());
+    let valid = fs::read(&certificate_path).unwrap();
+    for corrupt in [serde_json::Value::Null, serde_json::json!({}), {
+        let mut certificate: serde_json::Value = serde_json::from_slice(&valid).unwrap();
+        certificate["todos.list"]["max_steps"] = serde_json::json!(0);
+        certificate["todos.list"].take()
+    }] {
+        let mut certificates: serde_json::Value = serde_json::from_slice(&valid).unwrap();
+        certificates["todos.list"] = corrupt;
+        fs::write(
+            &certificate_path,
+            serde_json::to_vec(&certificates).unwrap(),
+        )
+        .unwrap();
+        let output = project.run(&["guide", "app", "--json"]);
+        let refusal = json_stdout(&output);
+        assert_eq!(output.status.code(), Some(1), "{refusal}");
+        assert_eq!(refusal["code"], "E_GUIDE_STALE", "{refusal}");
+        assert!(
+            refusal["message"].as_str().unwrap().contains("todos.list"),
+            "{refusal}"
+        );
+        assert_eq!(refusal["rewrite"], "run snapback2 check");
+    }
+    fs::write(&certificate_path, valid).unwrap();
     fs::write(
         project.path.join("snapback/seed.ts"),
         "export default { personas: 'wrong', rows: [] };\n",
