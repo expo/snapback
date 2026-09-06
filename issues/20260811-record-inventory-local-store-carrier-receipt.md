@@ -9,7 +9,7 @@
 **Date:** 2026-08-11
 **Drift gate:** `local-store-carrier-receipt`
 **Failure signature:** `sha256:81911ec32efdaf71a39ca910d73fe718ffaefa335a301eec6b7f30fffbdf2c60`
-**Last observed:** `810fbda46e64ae6865094ccc9e578b1d5781caf5`
+**Last observed:** `63f6dba445555e4df3ac30e0826af2a3ee6dba04`
 **Related:** LLP 0232 D-1/D-2; `issues/20260811-record-inventory-summary.md`
 
 

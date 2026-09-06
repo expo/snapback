@@ -15,7 +15,7 @@ implied chunks, engine writes and per-chunk ceilings. Then run
 envelope per chunk, then the job's final envelope, which is its receipt.
 Declare the column required and apply again.
 
-Each chunk reads current rows in index order through the upper key captured
+`chunk` reads current rows in index order through the upper key captured
 at the start of its sweep. Later inserts between the cursor and bound are visited;
 inserts beyond it are excluded; deleted rows are skipped. Cursor and writes
 commit together. A job can have several independent chunks, in order, with

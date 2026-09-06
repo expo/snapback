@@ -1,6 +1,6 @@
 # Schedules
 
-Two triggers, one kind. A row timer fires once per row when a `time ?` column
+`schedule` declares two triggers, one kind. A row timer fires once per row when a `time ?` column
 is reached; a period timer fires once per whole-minute period. The target is a
 mutation or a declared job of this project, run as the owner.
 

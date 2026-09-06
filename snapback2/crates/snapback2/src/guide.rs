@@ -1,4 +1,4 @@
-//! Version-locked grammar, app facts, symbol help, refusal pairs, and recipes.
+//! Version-locked grammar, app facts, symbol/keyword help, refusal pairs, and recipes.
 // @ref LLP 1002#8-why-trace-guide — guide bytes ship with the npm package, not the binary.
 
 use crate::owner;
@@ -7,7 +7,7 @@ use crate::protocol::Refusal;
 use crate::verbs;
 use serde_json::{Map, Value as Json, json};
 use snapback2_core::{Ceilings, Generation, ProjectJson};
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -23,7 +23,6 @@ const RECIPES: &[&str] = &[
     "schedule",
     "quarry",
     "testing",
-    "offline",
 ];
 
 pub fn run(args: &[String]) -> ExitCode {
@@ -54,7 +53,19 @@ pub fn run(args: &[String]) -> ExitCode {
     } else if page.starts_with("E_") {
         refusal_page(&root, page)
     } else {
-        symbol_page(&root, page)
+        match symbol_page(&root, page) {
+            Ok(symbol) => match keyword_page(&root, page) {
+                Ok(keyword) => {
+                    let excerpt = keyword
+                        .strip_prefix(&format!("# `{page}`\n\n"))
+                        .unwrap_or(&keyword);
+                    Ok(format!("{symbol}\n{excerpt}"))
+                }
+                Err(_) => Ok(symbol),
+            },
+            Err(error) if error.code == "E_GUIDE_UNKNOWN" => keyword_page(&root, page),
+            Err(error) => Err(error),
+        }
     };
     match content {
         Ok(content) => {
@@ -341,6 +352,34 @@ fn declarations_path(root: &Path) -> PathBuf {
     }
 }
 
+fn keyword_page(root: &Path, keyword: &str) -> Result<String, Refusal> {
+    keyword_index(root)?
+        .remove(keyword)
+        .ok_or_else(|| unknown(keyword))
+}
+
+fn keyword_index(root: &Path) -> Result<BTreeMap<String, String>, Refusal> {
+    let path = root.join("keywords.json");
+    let text = match fs::read_to_string(&path) {
+        Ok(text) => text,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(BTreeMap::new()),
+        Err(error) => {
+            return Err(Refusal::owner(
+                "E_OWNER_GUIDE",
+                format!("cannot read {}: {error}", path.display()),
+                "reinstall the snapback2 package",
+            ));
+        }
+    };
+    serde_json::from_str(&text).map_err(|error| {
+        Refusal::owner(
+            "E_OWNER_GUIDE",
+            format!("invalid keyword guide: {error}"),
+            "rebuild or reinstall the snapback2 package",
+        )
+    })
+}
+
 fn declares(line: &str, symbol: &str) -> bool {
     let line = line.trim();
     [
@@ -389,6 +428,9 @@ fn families(root: &Path) -> Result<Json, Refusal> {
 fn available(root: &Path) -> String {
     let mut pages = BTreeSet::from(["app".to_owned(), "grammar".to_owned()]);
     pages.extend(RECIPES.iter().map(|page| (*page).to_owned()));
+    if let Ok(keywords) = keyword_index(root) {
+        pages.extend(keywords.into_keys());
+    }
     if let Ok(families) = families(root) {
         pages.extend(
             families
@@ -428,18 +470,26 @@ fn available(root: &Path) -> String {
 }
 
 fn unknown(page: &str) -> Refusal {
+    let pages = RECIPES
+        .iter()
+        .copied()
+        .chain(["app", "grammar"])
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect::<Vec<_>>()
+        .join(", ");
     Refusal::new(
         "E_GUIDE_UNKNOWN",
         "input",
         format!("unknown guide page {page}"),
-        "run snapback2 guide grammar, quarry, app, a symbol, an E_CODE, or a listed recipe",
+        format!("run snapback2 guide <page|keyword|symbol|E_CODE>; pages: {pages}"),
         "input/guide",
     )
 }
 
 fn usage() -> ExitCode {
     eprintln!(
-        "usage: snapback2 guide [grammar|quarry|typescript|app|<symbol>|<E_CODE>|<recipe>] [--json]"
+        "usage: snapback2 guide [grammar|quarry|app|<keyword>|<symbol>|<E_CODE>|<recipe>] [--json]"
     );
     ExitCode::from(2)
 }
